@@ -1,8 +1,8 @@
 # SarPy
-basic Python library to read/write/display SAR data in the NGA SICD format
+SarPy is a basic Python library to demonstrate reading, writing, display, and simple processing of SAR data in the NGA SICD format.
 
 ### Origin
-Sarpy was developed at the National Geospatial-Intelligence Agency (NGA). The software use, modification, and distribution rights are stipulated within the MIT license.
+SarPy was developed at the National Geospatial-Intelligence Agency (NGA). The software use, modification, and distribution rights are stipulated within the MIT license.
 
 ### Pull Requests
 
