@@ -5,23 +5,23 @@ Setup module for SarPy.
 from setuptools import setup, find_packages
 # To use a consistent encoding
 from codecs import open
-from os import path
+# from os import path
+import os
 # If attempting hard links cause "error removing..." errors (can occur in Windows on network
 # drives), this will fix it:
-# import os
-# del os.link
+del os.link
 
 # Get the long description from the README file
-here = path.abspath(path.dirname(__file__))
-with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
+here = os.path.abspath(os.path.dirname(__file__))
+with open(os.path.join(here, 'README.rst'), encoding='utf-8') as f:
     long_description = f.read()
 
 setup(name='sarpy',
       description='Reading/writing/simple processing of complex SAR data in Python via SICD',
       long_description=long_description,
       long_description_content_type='text/x-rst',  # Default but "Explicit is better than implicit"
-      packages=find_packages('sarpy'),  # Should find SarPy and all subpackages
-      package_dir={'': 'sarpy'},
+      packages=find_packages(),  # Should find SarPy and all subpackages
+      package_data={'': ['*.xsd']},  # Schema files are required for parsing SICD
       url='https://github.com/ngageoint/sarpy',
       author='National Geospatial-Intelligence Agency',
       # Not the only author, but currently the primary POC
@@ -29,6 +29,7 @@ setup(name='sarpy',
       # Some portions of sarpy also call on scipy, but most can be used with only numpy
       # install_requires=['numpy', 'scipy'],
       install_requires=['numpy'],
+      zip_safe=False,  # Use of __file__ and __path__ in some code makes it unusuable from zip
       use_scm_version=True,
       setup_requires=['setuptools_scm'],
       # python_requires is really just the NumPy requirement, so maybe we don't need to state
