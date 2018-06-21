@@ -137,13 +137,13 @@ def ground_to_image(s, sicd_meta, delta_gp_max=None,
         ip[to_iter, :] = np.column_stack((row, col))
         # 5) Transform to ground plane containing the scene point(s)
         pN = image_to_ground(ip[to_iter, :], sicd_meta, projection_type='plane',
-                             gref=s[to_iter, :], ugpn=uGpn,
+                             gref=s[to_iter, :], ugpn=uGpn[to_iter, :],
                              # Pass adjustable parameters
                              delta_arp=delta_arp, delta_varp=delta_varp,
                              range_bias=range_bias, adj_params_frame=adj_params_frame)
         # 6) Compute displacement between plane points (Pn) and scene points (s)
-        deltaPn[to_iter, :] = s - pN
-        deltaGPn[to_iter] = np.sqrt(np.sum(np.power(deltaPn, 2), -1))
+        deltaPn[to_iter, :] = s[to_iter, :] - pN
+        deltaGPn[to_iter] = np.sqrt(np.sum(np.power(deltaPn[to_iter, :], 2), -1))
         # Need to iterate further on these points
         old_iter = to_iter
         to_iter = deltaGPn > delta_gp_max
@@ -154,7 +154,7 @@ def ground_to_image(s, sicd_meta, delta_gp_max=None,
             break
     if any(counter == 5):
         counter[counter == 5] = counter[counter == 5] - 1
-        warnings.warn('groundToImage computation did not converge.')
+        warnings.warn('ground_to_image computation did not converge.')
 
     # Make adjustments for partial vs full image
     ip[:, 0] = ip[:, 0] - FirstRow
