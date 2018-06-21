@@ -683,12 +683,12 @@ def xml2struct(root_node, schema_struct=None):
                     elif class_string == 'xs:int':
                         value = int(in_string)
                     elif class_string == 'xs:dateTime':
-                        in_string = in_string.rstrip('zZ')
-                        # strptime doesn't allow for optional fractional seconds
+                        value = re.search('\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.)?\d{,6}',
+                                          in_string).group(0)
                         try:
-                            value = datetime.strptime(in_string, '%Y-%m-%dT%H:%M:%S.%f')
+                            value = datetime.strptime(value, '%Y-%m-%dT%H:%M:%S.%f')
                         except ValueError:
-                            value = datetime.strptime(in_string, '%Y-%m-%dT%H:%M:%S')
+                            value = datetime.strptime(value, '%Y-%m-%dT%H:%M:%S')
                     elif class_string == 'xs:boolean':
                         value = in_string == 'true'
                     else:  # unrecognized class
@@ -699,13 +699,13 @@ def xml2struct(root_node, schema_struct=None):
                         # If value is numeric, store as such
                         value = float(value)
                     except ValueError:
-                        # dateTime
-                        if re.search('\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(.)?\d*', value):
-                            value = value.rstrip('zZ')
+                        datestr = re.search('\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.)?\d{,6}',
+                                            value).group(0)
+                        if datestr:  # dateTime
                             try:
-                                value = datetime.strptime(value, '%Y-%m-%dT%H:%M:%S.%f')
+                                value = datetime.strptime(datestr, '%Y-%m-%dT%H:%M:%S.%f')
                             except ValueError:
-                                value = datetime.strptime(value, '%Y-%m-%dT%H:%M:%S')
+                                value = datetime.strptime(datestr, '%Y-%m-%dT%H:%M:%S')
                         elif value.lower() in ['true', 'false']:  # boolean
                             value = value.lower() == 'true'
 
@@ -1966,7 +1966,7 @@ def derived_fields(meta, set_default_values=True):
         # To make the implementation shorter, first use whatever is present to
         # derive the Beta poly.
         if ((not hasattr(meta.Radiometric, 'BetaZeroSFPoly')) and
-           (hasattr(meta.Radiometric, 'RCSSFpoly'))):
+           (hasattr(meta.Radiometric, 'RCSSFPoly'))):
                 meta.Radiometric.BetaZeroSFPoly = (
                                  meta.Radiometric.RCSSFPoly / area_sp)
         elif ((not hasattr(meta.Radiometric, 'BetaZeroSFPoly')) and
@@ -1982,7 +1982,7 @@ def derived_fields(meta, set_default_values=True):
                                  np.cos(meta.SCPCOA.SlopeAng*np.pi/180))
         # Now use the Beta poly to derive the other (if empty) fields.
         if hasattr(meta.Radiometric, 'BetaZeroSFPoly'):
-            if not hasattr(meta.Radiometric, 'RCSSFpoly'):
+            if not hasattr(meta.Radiometric, 'RCSSFPoly'):
                 meta.Radiometric.RCSSFPoly = (
                                  meta.Radiometric.BetaZeroSFPoly * area_sp)
             if not hasattr(meta.Radiometric, 'SigmaZeroSFPoly'):
