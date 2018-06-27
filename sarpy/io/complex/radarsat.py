@@ -144,13 +144,31 @@ def meta2sicd(filename, betafile, noisefile):
     meta.CollectionInfo.RadarMode = MetaNode()
     meta.CollectionInfo.RadarMode.ModeID = (
             root.find('./sourceAttributes/beamModeMnemonic').text)
-    if (meta.CollectionInfo.RadarMode.ModeID[:2] == 'SC'):
-        raise(ValueError('ScanSAR mode data is not currently handled.'))
-    elif (meta.CollectionInfo.RadarMode.ModeID[:2] == 'SL'):
-        meta.CollectionInfo.RadarMode.ModeType = 'SPOTLIGHT'
-    else:
-        meta.CollectionInfo.RadarMode.ModeType = 'STRIPMAP'
 
+    #First use beammode if it exists
+    beamMode = (root.find('./sourceAttributes/beamMode'))
+    if beamMode != None and beamMode.text.upper() == "SPOTLIGHT":
+        meta.CollectionInfo.RadarMode.ModeType = "SPOTLIGHT"
+    else:
+        #Also check radarParameters/acquisitionType  
+        acqType = (root.find('./sourceAttributes/radarParameters/acquisitionType'))
+        if acqType != None and acqType.text.upper() == "SPOTLIGHT":
+            meta.CollectionInfo.RadarMode.ModeType = "SPOTLIGHT"
+        else:
+            #Then check if it is a known mnemonic
+            #Hardcoding the first 2 characters until I can find some list of them?
+            mnemonics = {'SL' : 'SPOTLIGHT', 'FS' : 'SPOTLIGHT'}
+            if (meta.CollectionInfo.RadarMode.ModeID[:2] == 'SC'):
+                raise(ValueError('ScanSAR mode data is not currently handled.'))
+            elif (meta.CollectionInfo.RadarMode.ModeID[:2] in mnemonics):
+                meta.CollectionInfo.RadarMode.ModeType = mnemonics[meta.CollectionInfo.RadarMode.modeId[:2]]
+            else:
+                #Then check if it contains "SL" at all
+                if "SL" in meta.CollectionInfo.RadarMode.ModeID:
+                    meta.CollectionInfo.RadarMode.ModeType = "SPOTLIGHT"
+                else:
+                    #Finally assume it's stripmap
+                    meta.CollectionInfo.RadarMode.ModeType = 'STRIPMAP'
     if gen == 'RS2':
         meta.CollectionInfo.Classification = 'UNCLASSIFIED'
     elif gen == 'RCM':
