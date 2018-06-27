@@ -398,13 +398,18 @@ def meta2sicd(filename, betafile, noisefile):
             meta.RadarCollection.Waveform.WFParameters[i-1].TxRFBandwidth
     # Polarization
     pols = rp.find('polarizations').text.split()
-    tx_pols = list({p[0] for p in pols})
+    def convert_c_to_rhc(s):
+        if s == "C":
+            return "RHC"
+        else:
+            return s
+    tx_pols = list({convert_c_to_rhc(p[0]) for p in pols})
     meta.RadarCollection.RcvChannels = MetaNode()
     meta.RadarCollection.RcvChannels.ChanParameters = [None] * len(pols)
     for i in range(len(pols)):
         meta.RadarCollection.RcvChannels.ChanParameters[i] = MetaNode()
         meta.RadarCollection.RcvChannels.ChanParameters[i].TxRcvPolarization = \
-            pols[i][0] + ':' + pols[i][1]
+            convert_c_to_rhc(pols[i][0]) + ':' + convert_c_to_rhc(pols[i][1])
     if len(tx_pols) == 1:  # Only one transmit polarization
         meta.RadarCollection.TxPolarization = tx_pols[0]
     else:  # Multiple transmit polarizations
