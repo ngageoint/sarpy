@@ -147,12 +147,12 @@ def meta2sicd(filename, betafile, noisefile):
 
     #First use beammode if it exists
     beamMode = (root.find('./sourceAttributes/beamMode'))
-    if beamMode != None and beamMode.text.upper() == "SPOTLIGHT":
+    if beamMode != None and beamMode.text.upper().startswith("SPOTLIGHT"):
         meta.CollectionInfo.RadarMode.ModeType = "SPOTLIGHT"
     else:
         #Also check radarParameters/acquisitionType  
         acqType = (root.find('./sourceAttributes/radarParameters/acquisitionType'))
-        if acqType != None and acqType.text.upper() == "SPOTLIGHT":
+        if acqType != None and acqType.text.upper().startswith("SPOTLIGHT"):
             meta.CollectionInfo.RadarMode.ModeType = "SPOTLIGHT"
         else:
             #Then check if it is a known mnemonic
@@ -161,7 +161,7 @@ def meta2sicd(filename, betafile, noisefile):
             if (meta.CollectionInfo.RadarMode.ModeID[:2] == 'SC'):
                 raise(ValueError('ScanSAR mode data is not currently handled.'))
             elif (meta.CollectionInfo.RadarMode.ModeID[:2] in mnemonics):
-                meta.CollectionInfo.RadarMode.ModeType = mnemonics[meta.CollectionInfo.RadarMode.modeId[:2]]
+                meta.CollectionInfo.RadarMode.ModeType = mnemonics[meta.CollectionInfo.RadarMode.ModeId[:2]]
             else:
                 #Then check if it contains "SL" at all
                 if "SL" in meta.CollectionInfo.RadarMode.ModeID:
@@ -172,9 +172,12 @@ def meta2sicd(filename, betafile, noisefile):
     if gen == 'RS2':
         meta.CollectionInfo.Classification = 'UNCLASSIFIED'
     elif gen == 'RCM':
-        meta.CollectionInfo.Classification = root.find(
-                './securityAttributes/securityClassification').text
-
+    
+        classification_str = root.find('./securityAttributes/securityClassification').text
+        if "UNCLASS" in classification_str.upper():
+            meta.CollectionInfo.Classification = "UNCLASSIFIED"
+        else:
+            meta.CollectionInfo.Classification = classification_str
     # ImageCreation
     meta.ImageCreation = MetaNode()
     procinfo = root.find('./imageGenerationParameters/generalProcessingInformation')
