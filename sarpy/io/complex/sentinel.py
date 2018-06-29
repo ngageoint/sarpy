@@ -851,50 +851,68 @@ def meta2sicd_noise(filename, sicd_meta, manifest_meta):
 
     # Extract all relevant noise values from XML
     root_node = ET.parse(filename).getroot()
-    noise_vector_list = root_node.findall('./noiseVectorList/noiseVector')
+    
+    #stores whether to use noise or noiseRange. 
+    #Since most of the noise is from range not azimuth, just using the old
+    #algorithm with the range for now
+    in_old_format = False
+    nvl = root_node.find("./noiseVectorList")
+    if(nvl):
+        in_old_format = True
+    
+    def compute_noise_dimension(noise_string):
+        noise_vector_list = root_node.findall('./'+noise_string+'VectorList/'+noise_string+'Vector')
+        line = [None]*len(noise_vector_list)
+        pixel = [None]*len(noise_vector_list)
+        noise = [None]*len(noise_vector_list)
+        nLUTind = 0
+    
+        for noise_vector in noise_vector_list:
+            line[nLUTind] = int(noise_vector.find('./line').text)
+    
+            # Some datasets have noise vectors for negative lines.
+            # Might mean that the data is included from a burst before the actual slice?
+            # Ignore it for now, since line 0 always lines up with the first valid burst
+            if line[nLUTind] < 0:
+                continue
+    
+            pixel[nLUTind] = np.fromstring(noise_vector.find('./pixel').text,
+                                           dtype='int32', sep=' ')
+            noise[nLUTind] = np.fromstring(noise_vector.find('./'+noise_string+'Lut').text,
+                                           dtype='float', sep=' ')
+    
+            # Some datasets do not have any noise data and are populated with 0s instead
+            # In this case just don't populate the SICD noise metadata at all
+            if not np.any(np.array(noise != 0.0) and np.array(noise) != np.NINF):
+                return
+    
+            noise[nLUTind] = 10 * np.log10(noise[nLUTind])  # Linear values given in XML. SICD uses dB.
+    
+            # Sanity checking
+            if (sicd_meta[0].CollectionInfo.RadarMode.ModeID == 'IW' and  # SLC IW product
+               line[nLUTind] % lines_per_burst != 0 and noise_vector != noise_vector_list[-1]):
+                    # Last burst has different timing
+                    raise(ValueError('Expect noise file to have one LUT per burst. More are present'))
+    
+            if pixel[nLUTind][len(pixel[nLUTind])-1] > range_size_pixels:
+                raise(ValueError('Noise file has more pixels in LUT than range size.'))
+    
+            nLUTind += 1
 
-    line = [None]*len(noise_vector_list)
-    pixel = [None]*len(noise_vector_list)
-    noise = [None]*len(noise_vector_list)
-    nLUTind = 0
-
-    for noise_vector in noise_vector_list:
-        line[nLUTind] = int(noise_vector.find('./line').text)
-
-        # Some datasets have noise vectors for negative lines.
-        # Might mean that the data is included from a burst before the actual slice?
-        # Ignore it for now, since line 0 always lines up with the first valid burst
-        if line[nLUTind] < 0:
-            continue
-
-        pixel[nLUTind] = np.fromstring(noise_vector.find('./pixel').text,
-                                       dtype='int32', sep=' ')
-        noise[nLUTind] = np.fromstring(noise_vector.find('./noiseLut').text,
-                                       dtype='float', sep=' ')
-
-        # Some datasets do not have any noise data and are populated with 0s instead
-        # In this case just don't populate the SICD noise metadata at all
-        if not np.any(np.array(noise != 0.0) and np.array(noise) != np.NINF):
-            return
-
-        noise[nLUTind] = 10 * np.log10(noise[nLUTind])  # Linear values given in XML. SICD uses dB.
-
-        # Sanity checking
-        if (sicd_meta[0].CollectionInfo.RadarMode.ModeID == 'IW' and  # SLC IW product
-           line[nLUTind] % lines_per_burst != 0 and noise_vector != noise_vector_list[-1]):
-                # Last burst has different timing
-                raise(ValueError('Expect noise file to have one LUT per burst. More are present'))
-
-        if pixel[nLUTind][len(pixel[nLUTind])-1] > range_size_pixels:
-            raise(ValueError('Noise file has more pixels in LUT than range size.'))
-
-        nLUTind += 1
-
-    # Remove empty list entries from negative lines
-    line = [x for x in line if x is not None]
-    pixel = [x for x in pixel if x is not None]
-    noise = [x for x in noise if x is not None]
-
+        # Remove empty list entries from negative lines
+        line = [x for x in line if x is not None]
+        pixel = [x for x in pixel if x is not None]
+        noise = [x for x in noise if x is not None]
+        return (line, pixel, noise)
+        
+    if in_old_format:
+        range_line, range_pixel, range_noise = compute_noise_dimension("noise")
+    else:
+        range_line, range_pixel, range_noise = compute_noise_dimension("noiseRange")
+        #Not using this for now
+        #azi_line, azi_pixel, azi_noise = compute_noise_dimension("noiseAzimuth")
+    #Too lazy to change names below
+    line, pixel, noise = range_line, range_pixel, range_noise
     # Loop through each burst and fit a polynomial for SICD.
     # If data is stripmap sicd_meta will be of length 1.
     for x in range(len(sicd_meta)):
