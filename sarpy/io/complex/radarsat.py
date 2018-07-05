@@ -147,28 +147,19 @@ def meta2sicd(filename, betafile, noisefile):
 
     #First use beammode if it exists
     beamMode = (root.find('./sourceAttributes/beamMode'))
+    acqType = (root.find('./sourceAttributes/radarParameters/acquisitionType'))
     if beamMode != None and beamMode.text.upper().startswith("SPOTLIGHT"):
         meta.CollectionInfo.RadarMode.ModeType = "SPOTLIGHT"
+    elif acqType != None and acqType.text.upper().startswith("SPOTLIGHT"):
+        meta.CollectionInfo.RadarMode.ModeType = "SPOTLIGHT"
+    elif (meta.CollectionInfo.RadarMode.ModeID[:2] == 'SC'):
+        raise(ValueError('ScanSAR mode data is not currently handled.'))
+    elif "SL" in meta.CollectionInfo.RadarMode.ModeID:
+        meta.CollectionInfo.RadarMode.ModeType = "SPOTLIGHT"
     else:
-        #Also check radarParameters/acquisitionType  
-        acqType = (root.find('./sourceAttributes/radarParameters/acquisitionType'))
-        if acqType != None and acqType.text.upper().startswith("SPOTLIGHT"):
-            meta.CollectionInfo.RadarMode.ModeType = "SPOTLIGHT"
-        else:
-            #Then check if it is a known mnemonic
-            #Hardcoding the first 2 characters until I can find some list of them?
-            mnemonics = {'SL' : 'SPOTLIGHT', 'FS' : 'SPOTLIGHT'}
-            if (meta.CollectionInfo.RadarMode.ModeID[:2] == 'SC'):
-                raise(ValueError('ScanSAR mode data is not currently handled.'))
-            elif (meta.CollectionInfo.RadarMode.ModeID[:2] in mnemonics):
-                meta.CollectionInfo.RadarMode.ModeType = mnemonics[meta.CollectionInfo.RadarMode.ModeId[:2]]
-            else:
-                #Then check if it contains "SL" at all
-                if "SL" in meta.CollectionInfo.RadarMode.ModeID:
-                    meta.CollectionInfo.RadarMode.ModeType = "SPOTLIGHT"
-                else:
-                    #Finally assume it's stripmap
-                    meta.CollectionInfo.RadarMode.ModeType = 'STRIPMAP'
+        #Finally assume it's stripmap
+        meta.CollectionInfo.RadarMode.ModeType = 'STRIPMAP'
+        
     if gen == 'RS2':
         meta.CollectionInfo.Classification = 'UNCLASSIFIED'
     elif gen == 'RCM':
