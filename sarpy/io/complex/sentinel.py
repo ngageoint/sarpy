@@ -72,11 +72,12 @@ class Reader(ReaderSuper):
                    os.path.isfile(os.path.join(basepathname, current_fs['calibration']))):
                     cal_filename = os.path.join(basepathname, current_fs['calibration'])
                     meta2sicd_cal(cal_filename, meta_product, meta_manifest)
-                # Noise metadata computation
-                if (('noise' in current_fs) and
-                   os.path.isfile(os.path.join(basepathname, current_fs['noise']))):
-                    noise_filename = os.path.join(basepathname, current_fs['noise'])
-                    meta2sicd_noise(noise_filename, meta_product, meta_manifest)
+                # Noise metadata computation  
+                # os.path.isfile breaking without normpath... can't parse \\./ for some reason?
+                if ('noise' in current_fs):
+                    noise_path = os.path.normpath( os.path.join(basepathname, current_fs['noise']))#.replace('\\.',''))):
+                    if(os.path.isfile(noise_path)):
+                        meta2sicd_noise(noise_path, meta_product, meta_manifest)
 
                 # Image data
                 symmetry = (False, False, True)  # True for all Sentinel-1 data
@@ -839,9 +840,7 @@ def meta2sicd_annot(filename):
 def meta2sicd_noise(filename, sicd_meta, manifest_meta):
     """This function parses the Sentinel Noise file and populates the NoisePoly field."""
 
-    # TODO: This code does not correctly handle the new noise format that first appeared
-    # March 2018, which defines azimuth and range variation to the noise description.
-
+    # TODO: This code does not take into account azimuth variation provided in March 2018.
     # Data before the Sentinel baseline processing calibration update on Nov 25 2015 is useless
     if manifest_meta.ImageCreation.DateTime < datetime.datetime(2015, 11, 25):
         return
@@ -928,6 +927,7 @@ def meta2sicd_noise(filename, sicd_meta, manifest_meta):
             # The noise is not monotonic across range
             rg_fit = np.polynomial.polynomial.polyfit(coords_rg_m, np.mean(noise, 0), 7)
             # Azimuth noise varies far less than range
+            # I think this  
             az_fit = np.polynomial.polynomial.polyfit(coords_az_m, np.mean(noise, 1), 7)
 
             noise_poly = np.outer(az_fit / np.max(az_fit), rg_fit)
