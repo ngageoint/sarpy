@@ -177,7 +177,7 @@ def read_bip(fid, datasize, offset=0, datatype='float32', bands=1,
     # NOTE: MATLAB allows a "skip" parameter in its fread function.  This allows
     # one to do very fast reads when subsample equals 1 using only a single line
     # of code-- no loops!  Not sure of an equivalent way to do this in Python,
-    # so we have to use "for" loops-- yuck!
+    # so we have to use "for" loops-- yuck! If this fails, input files might be malformed.
     for i in range(lendim1range):
         single_line = np.fromfile(fid, datatype, np.uint64(bands) * dim2size)
         for j in range(bands):  # Pixel intervleaved

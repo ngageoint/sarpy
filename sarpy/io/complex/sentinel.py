@@ -176,7 +176,7 @@ def meta2sicd_manifest(filename):
 
     manifest = MetaNode()
     # CollectionInfo
-    platform = root_node.find('./metadataSection/' +
+    platform = root_node.find('./metadataSection/' +    
                               'metadataObject[@ID="platform"]/' +
                               'metadataWrap/' +
                               'xmlData/' +
@@ -859,7 +859,7 @@ def meta2sicd_noise(filename, sicd_meta, manifest_meta):
     if(nvl):
         in_old_format = True
     
-    def compute_noise_dimension(noise_string):
+    def compute_range_noise(noise_string):
         noise_vector_list = root_node.findall('./'+noise_string+'VectorList/'+noise_string+'Vector')
         line = [None]*len(noise_vector_list)
         pixel = [None]*len(noise_vector_list)
@@ -903,13 +903,42 @@ def meta2sicd_noise(filename, sicd_meta, manifest_meta):
         pixel = [x for x in pixel if x is not None]
         noise = [x for x in noise if x is not None]
         return (line, pixel, noise)
-        
+    def compute_azi_noise(noise_string):
+        noise_vector_list = root_node.findall('./'+noise_string+'VectorList/'+noise_string+'Vector')
+        #Should only be one azi vector in a file?
+        line = [None]*len(noise_vector_list)
+        # No pixels since noise is given in lines, noise is 1d
+        noise = [None]*len(noise_vector_list)
+        nLUTind = 0
+    
+        for noise_vector in noise_vector_list:
+    
+            line[nLUTind] = np.fromstring(noise_vector.find('./line').text,
+                                           dtype='int32', sep=' ')
+            noise[nLUTind] = np.fromstring(noise_vector.find('./'+noise_string+'Lut').text,
+                                           dtype='float', sep=' ')
+    
+            # Some datasets do not have any noise data and are populated with 0s instead
+            # In this case just don't populate the SICD noise metadata at all
+            if not np.any(np.array(noise != 0.0) and np.array(noise) != np.NINF):
+                return
+    
+            noise[nLUTind] = 10 * np.log10(noise[nLUTind])  # Linear values given in XML. SICD uses dB.
+    
+            # Sanity checking
+            nLUTind += 1
+
+        # Remove empty list entries from negative lines
+        line = [x for x in line if x is not None]
+        noise = [x for x in noise if x is not None]
+        #import pdb; pdb.set_trace()
+        return (line, noise)    
     if in_old_format:
-        range_line, range_pixel, range_noise = compute_noise_dimension("noise")
+        range_line, range_pixel, range_noise = compute_range_noise("noise")
+        azi_line, azi_noise = None, None
     else:
-        range_line, range_pixel, range_noise = compute_noise_dimension("noiseRange")
-        #Not using this for now
-        #azi_line, azi_pixel, azi_noise = compute_noise_dimension("noiseAzimuth")
+        range_line, range_pixel, range_noise = compute_range_noise("noiseRange")
+        azi_line, azi_noise = compute_azi_noise("noiseAzimuth")
     #Too lazy to change names below
     line, pixel, noise = range_line, range_pixel, range_noise
     # Loop through each burst and fit a polynomial for SICD.
@@ -917,7 +946,8 @@ def meta2sicd_noise(filename, sicd_meta, manifest_meta):
     for x in range(len(sicd_meta)):
         # Stripmaps have more than one noise LUT for the whole image
         if(sicd_meta[0].CollectionInfo.RadarMode.ModeID[0] == 'S'):
-
+            #The 2nd intern: Seems to imply range increases with pixels, not convinced it doesn't jump, but data seems to support this.
+            #I think this is literally just the rg/az of each pixel/line in meters, to take as the independent variable for the fit.
             coords_rg_m = (np.array(pixel[0])+sicd_meta[x].ImageData.FirstRow -
                            sicd_meta[x].ImageData.SCPPixel.Row) * sicd_meta[x].Grid.Row.SS
             coords_az_m = (np.array(line)+sicd_meta[x].ImageData.FirstCol -
@@ -927,25 +957,32 @@ def meta2sicd_noise(filename, sicd_meta, manifest_meta):
             # The noise is not monotonic across range
             rg_fit = np.polynomial.polynomial.polyfit(coords_rg_m, np.mean(noise, 0), 7)
             # Azimuth noise varies far less than range
-            # I think this  
             az_fit = np.polynomial.polynomial.polyfit(coords_az_m, np.mean(noise, 1), 7)
-
+            #import pdb; pdb.set_trace()
             noise_poly = np.outer(az_fit / np.max(az_fit), rg_fit)
 
         else:  # TOPSAR modes (SLC, IW SLC) have a single LUT per burst. Num of bursts varies.
             coords_rg_m = (pixel[x]+sicd_meta[x].ImageData.FirstRow -
                            sicd_meta[x].ImageData.SCPPixel.Row) * sicd_meta[x].Grid.Row.SS
-
+            coords_az_m = []
+            if azi_noise is not None and len(azi_noise) > 0:
+                coords_az_m = (azi_line[0]+sicd_meta[x].ImageData.FirstCol - sicd_meta[x].ImageData.SCPPixel.Col) * sicd_meta[x].Grid.Col.SS
             # Noise LUT varies in range over a single burst, but very little <0.25dB in azimuth
-            # Thus here we do a 1D polynomial fit
-            noise_poly = np.polynomial.polynomial.polyfit(coords_rg_m, noise[x], 7)
-            noise_poly = np.array(noise_poly).reshape(1, -1).T  # Make values along SICD range
-
+            rg_noise_poly = np.polynomial.polynomial.polyfit(coords_rg_m, np.mean(noise, 0), 7)
+            az_noise_poly = None
+            noise_poly = None
+            if(azi_noise is not None and len(azi_noise) > 0):
+                az_noise_poly = np.polynomial.polynomial.polyfit(coords_az_m, np.mean(azi_noise, 0), 7)
+                noise_poly = np.outer(az_noise_poly / np.max(az_noise_poly), rg_noise_poly)
+            else:
+                noise_poly = np.array(rg_noise_poly).reshape(1, -1).T  # Make values along SICD range
+            #import pdb; pdb.set_trace()
         # should have Radiometric field already in metadata if cal file is present
         if not hasattr(sicd_meta[x], 'Radiometric'):
             sicd_meta[x].Radiometric = MetaNode()
         sicd_meta[x].Radiometric.NoiseLevel = MetaNode()
         sicd_meta[x].Radiometric.NoiseLevel.NoiseLevelType = 'ABSOLUTE'
+        print(noise_poly)
         sicd_meta[x].Radiometric.NoiseLevel.NoisePoly = noise_poly
 
 
