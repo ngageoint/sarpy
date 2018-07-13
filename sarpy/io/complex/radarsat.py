@@ -41,14 +41,12 @@ def isa(filename):
         if ((satellite.upper() == 'RADARSAT-2' or satellite[:3].upper() == 'RCM') and
            product_type == 'SLC'):
             return Reader
-        #import pdb; pdb.set_trace()
     except Exception:
         pass
 
 
 class Reader(ReaderSuper):
     def __init__(self, product_filename):
-        #import pdb; pdb.set_trace()
         basepathname = os.path.dirname(product_filename)
         ns = dict([node for _, node in ET.iterparse(product_filename,
                                                     events=['start-ns'])])
@@ -84,8 +82,10 @@ class Reader(ReaderSuper):
                                      'calibration',
                                      root_node.find(noise_str, ns).text)
         sicdmeta_list = meta2sicd(product_filename, beta_lut_str, noise_str)
-        for m in sicdmeta_list:
-            self.sicdmeta = m
+        import pdb; pdb.set_trace()
+        #for m in sicdmeta_list:
+        if True:
+            self.sicdmeta = [s[0] for s in sicdmeta_list]
             # Setup pixel readers
             line_order = root_node.find('./default:' + ia_str +
                                         '/default:rasterAttributes' +
@@ -142,8 +142,8 @@ def meta2sicd(filename, betafile, noisefile):
         beam_str = ""
         if gen == 'RCM' and burst_count > 1:
             burst_str = "[@burst='"+str(burst_ind)+"']"
-            beam_str = "[@beam='"+root.find('./sceneAttributes/imageAttributes'+burst_str).attrib.get("beam")+"']"
-        #import pdb; pdb.set_trace()
+            which_beam = root.find('./sceneAttributes/imageAttributes'+burst_str).attrib.get("beam")
+            beam_str = "[@beam='"+which_beam+"']"
         # if True lets you collapse or disable sections of code easily. Might be better to break into functions
         # Some information about collection. 
         if True:
@@ -202,15 +202,8 @@ def meta2sicd(filename, betafile, noisefile):
                 procinfo.find('processingTime').text, DATE_FMT)
             meta.ImageCreation.Site = procinfo.find('processingFacility').text
             meta.ImageCreation.Profile = 'Prototype'
-            #import pdb; pdb.set_trace;
-            #ACTUALLY IMPORTANT STUFF ===========================================================================
-            #OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
-            #----------------------------------------------------------------------------------------------------
-            #OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
-            #====================================================================================================
             
         # ImageData
-        #import pdb; pdb.set_trace;
         if True:
             meta.ImageData = MetaNode()
             if gen == 'RS2':
@@ -343,7 +336,6 @@ def meta2sicd(filename, betafile, noisefile):
             meta.Position.ARPPoly.Z = poly.polyfit(state_vector_T,
                                                    state_vector_Z, polyorder)
 
-        import pdb; pdb.set_trace();
         # Grid
         if True:
             meta.Grid = MetaNode()
@@ -361,9 +353,13 @@ def meta2sicd(filename, betafile, noisefile):
             #Some per Beam Stuff:
             rp = root.find('./sourceAttributes/radarParameters')
             fc = float(rp.find('radarCenterFrequency').text)  # Center frequency
-            #same for all bursts - should change to per beam
-            meta.Grid.Row.ImpRespBW = (2 / speed_of_light) * float(root.find(
-                './imageGenerationParameters/sarProcessingInformation/totalProcessedRangeBandwidth').text)
+            #TODO: Should this be per beam?
+            if gen == "RS2" or (gen == "RCM" and burst_count == 1):
+                meta.Grid.Row.ImpRespBW = (2 / speed_of_light) * float(root.find(
+                    './imageGenerationParameters/sarProcessingInformation/totalProcessedRangeBandwidth').text)
+            else:
+                meta.Grid.Row.ImpRespBW = (2 / speed_of_light) * float(root.find(
+                    './imageGenerationParameters/sarProcessingInformation/perBeamTotalProcessedRangeBandwidths'+beam_str).text)
             #Varies per beam - shouldn't have to add
             dop_bw = float(root.find('./imageGenerationParameters/sarProcessingInformation/' +
                                      'totalProcessedAzimuthBandwidth'+beam_str).text)  # Doppler bandwidth
@@ -383,16 +379,16 @@ def meta2sicd(filename, betafile, noisefile):
                 ss_zd_s = abs((zd_last - zd_first).total_seconds()) / (meta.ImageData.NumCols - 1)
             elif gen == "RCM":
                 ss_zd_s = float(root.find("./imageReferenceAttributes/rasterAttributes/sampledLineSpacingTime").text)
-                #Double check this? ss-zd-s-2 and ss_zd_s seem to be different
+                #Double check this? If you divide total time by total numLines per row, it should work, but is off by a factor of 2.
                 total_lines = 0
-                for n in range(burst_count):
-                    burst_str_2 = ''
-                    if burst_count > 1:
-                        burst_str_2 = "[@burst='"+str(n)+"']"
-                    total_lines += int(root.find("./sceneAttributes/imageAttributes"+burst_str_2+"/numLines").text)
-                ss_zd_s_2 = abs((zd_last - zd_first).total_seconds()) / (total_lines - 1)
-                if abs(ss_zd_s - ss_zd_s_2)*1.0/ss_zd_s >= .001:
-                    print("ss_zd_s from ira/ra/sampleLineSpacingTime does not work?")
+                ##for n in range(burst_count):
+                #    burst_str_2 = ''
+                #    if burst_count > 1:
+                #        burst_str_2 = "[@burst='"+str(n)+"']"
+                #    total_lines += int(root.find("./sceneAttributes/imageAttributes"+burst_str_2+"/numLines").text)
+                #ss_zd_s_2 = abs((zd_last - zd_first).total_seconds()) / (total_lines - 1)
+                #if abs(ss_zd_s - ss_zd_s_2)*1.0/ss_zd_s >= .001:
+                #    print("ss_zd_s from ira/ra/sampleLineSpacingTime does not work?")
             meta.Grid.Row.KCtr = 2*fc/speed_of_light
             meta.Grid.Col.KCtr = 0
             meta.Grid.Row.DeltaKCOAPoly = np.atleast_2d(0)
@@ -430,8 +426,9 @@ def meta2sicd(filename, betafile, noisefile):
             meta.RadarCollection.Waveform = MetaNode()
             meta.RadarCollection.Waveform.WFParameters = []
             bw_elements = []
-            #import pdb; pdb.set_trace()
-            if burst_count == 1:
+            #Due to the way the rest was implemented, easiest way to add RCM ScanSAR is just to have
+            #It treat it as a single beam image
+            if burst_count == 1 or gen == "RS2":
                 bw_elements = rp.findall('pulseBandwidth')
             else:
                 bw_elements = [rp.find('pulseBandwidth'+beam_str)]
@@ -511,7 +508,6 @@ def meta2sicd(filename, betafile, noisefile):
                all(x == num_lines_processed[0] for x in num_lines_processed)):
                 # If the above cases don't hold, we don't know what to do
                 num_lines_processed = num_lines_processed[0] * len(tx_pols)
-                #TODO: How does pulse parts get impacted by multi-beams?
                 prf = prf * len(pulse_parts)
                 if len(pulse_parts) == 2 and meta.CollectionInfo.RadarMode.ModeType == 'STRIPMAP':
                     # Why????
@@ -563,7 +559,7 @@ def meta2sicd(filename, betafile, noisefile):
                 ss_zd_s = -ss_zd_s
                 # In addition to left/right, RS2 data can independently be in
                 # increasing/decreasing line order.
-                #TODO: These should be swaps?
+                # Don't need to swap since zd_last not used again
                 if (zd_first - zd_last).total_seconds() < 0:  # zd_last occurred after zd_first
                     zd_first = zd_last
                 look = 1
@@ -802,11 +798,15 @@ def meta2sicd(filename, betafile, noisefile):
                                               '[@incidenceAngleCorrection="Beta Nought"]')
                 elif gen == 'RCM':  # RCM noise is in separate file
                     root_noise = _xml_parse_wo_default_ns(noisefile)
-                    noise_levels = root_noise.findall('./referenceNoiseLevel')
+                    if burst_count == 1:
+                        beta0_element = root_noise.find("./referenceNoiseLevel[sarCalibrationType='Beta Nought']")
+                    else:
+                        beta0_element = root_noise.find("./perBeamReferenceNoiseLevel[sarCalibrationType='Beta Nought'][beam='"+which_beam+"']")
+                    #noise_levels = root_noise.findall('./referenceNoiseLevel') 
                     # Is there a cleaner way to find which noise description is beta?
-                    pos = next((index for index, elem in enumerate(noise_levels) if
-                                elem.find('sarCalibrationType').text[:4] == 'Beta'), None)
-                    beta0_element = noise_levels[pos]
+                    #pos = next((index for index, elem in enumerate(noise_levels) if
+                    #            elem.find('sarCalibrationType').text[:4] == 'Beta'), None)
+                    #beta0_element = noise_levels[pos]
                 pfv = float(beta0_element.find('pixelFirstNoiseValue').text)
                 step = float(beta0_element.find('stepSize').text)
                 beta0s = np.array([float(x) for x in
