@@ -81,11 +81,10 @@ class Reader(ReaderSuper):
             noise_str = os.path.join(os.path.dirname(product_filename),
                                      'calibration',
                                      root_node.find(noise_str, ns).text)
-        sicdmeta_list = meta2sicd(product_filename, beta_lut_str, noise_str)
+        self.sicdmeta = meta2sicd(product_filename, beta_lut_str, noise_str)
         import pdb; pdb.set_trace()
         #for m in sicdmeta_list:
         if True:
-            self.sicdmeta = [s[0] for s in sicdmeta_list]
             # Setup pixel readers
             line_order = root_node.find('./default:' + ia_str +
                                         '/default:rasterAttributes' +
@@ -129,6 +128,7 @@ def meta2sicd(filename, betafile, noisefile):
     root = _xml_parse_wo_default_ns(filename)
     which_collector = root.find('./sourceAttributes/satellite').text
     burst_count = 1
+    meta_list = []
     if which_collector == 'RADARSAT-2':
         gen = 'RS2'
         burst_count = 1
@@ -822,16 +822,16 @@ def meta2sicd(filename, betafile, noisefile):
         sicd.derived_fields(meta)
 
         # Process fields specific to each polarimetric band
-        meta_list = []
+        #meta_list = []
         for i in range(len(pols)):
             band_meta = copy.deepcopy(meta)  # Values that are consistent across all bands
             band_meta.ImageFormation.RcvChanProc.ChanIndex = i + 1
             band_meta.ImageFormation.TxRcvPolarizationProc = \
                 band_meta.RadarCollection.RcvChannels.ChanParameters[i].TxRcvPolarization
             meta_list.append(band_meta)
-        meta_list_list.append(meta_list)  # List with metadata struct for each band
+        #meta_list_list.append(meta_list)  # List with metadata struct for each band
     
-    return(meta_list_list)
+    return(meta_list)
 
 
 def _xml_parse_wo_default_ns(filename):
