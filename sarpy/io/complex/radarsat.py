@@ -22,7 +22,7 @@ from scipy.misc import comb
 from scipy.constants import speed_of_light
 
 _classification__ = "UNCLASSIFIED"
-__author__ = ["Khanh Ho", "Wade Schwartzkopf"]
+__author__ = ["Khanh Ho", "Wade Schwartzkopf", "Justin McGowen"]
 __email__ = "Wade.C.Schwartzkopf.ctr@nga.mil"
 
 DATE_FMT = '%Y-%m-%dT%H:%M:%S.%fZ'  # The datetime format Sentinel1 always uses
@@ -82,7 +82,6 @@ class Reader(ReaderSuper):
                                      'calibration',
                                      root_node.find(noise_str, ns).text)
         self.sicdmeta = meta2sicd(product_filename, beta_lut_str, noise_str)
-        import pdb; pdb.set_trace()
         #for m in sicdmeta_list:
         if True:
             # Setup pixel readers
@@ -178,7 +177,7 @@ def meta2sicd(filename, betafile, noisefile):
             elif acqType != None and acqType.text.upper().startswith("SPOTLIGHT"):
                 meta.CollectionInfo.RadarMode.ModeType = "SPOTLIGHT"
             elif (meta.CollectionInfo.RadarMode.ModeID[:2] == 'SC'):
-                meta.CollectionInfo.RadarMode.ModeType = "SCANSAR"
+                meta.CollectionInfo.RadarMode.ModeType = "STRIPMAP"
             elif "SL" in meta.CollectionInfo.RadarMode.ModeID:
                 meta.CollectionInfo.RadarMode.ModeType = "SPOTLIGHT"
             else:
@@ -240,10 +239,16 @@ def meta2sicd(filename, betafile, noisefile):
             
         # SCP
         if True:
+            line_offset = 0
+            pixel_offset = 0
             if gen == 'RS2':
                 im_at_str = './imageAttributes/'
             elif gen == 'RCM':
                 im_at_str = './imageReferenceAttributes/'
+                #RCM ScanSAR defines the position of each burst with these, which must be used to calculate absolute positions instead of relative to the burst.
+                if burst_count > 1:
+                    line_offset = int(root.find('./sceneAttributes/imageAttributes'+burst_str+'/lineOffset').text)
+                    pixel_offset = int(root.find('./sceneAttributes/imageAttributes'+burst_str+'/pixelOffset').text)
             # There are many different equally valid options for picking the SCP point.
             # One way is to chose the tie point that is closest to the image center.
             tiepoints = root.findall(im_at_str + 'geographicInformation/geolocationGrid/imageTiePoint')
@@ -253,13 +258,12 @@ def meta2sicd(filename, betafile, noisefile):
             longs = [float(tp.find('geodeticCoordinate/longitude').text) for tp in tiepoints]
             hgts = [float(tp.find('geodeticCoordinate/height').text) for tp in tiepoints]
             # Pick tie point closest to center for SCP
-            #TODO: Make this account for offsets...
-            center_point = [(meta.ImageData.NumRows-1)/2, (meta.ImageData.NumCols-1)/2]
+            center_point = [(meta.ImageData.NumRows-1)/2+pixel_offset, (meta.ImageData.NumCols-1)/2+line_offset]
             D = (np.vstack((pixels, lines)).transpose() - center_point)
             scp_index = np.argmin(np.sqrt(np.sum(np.power(D, 2), axis=1)))
             meta.ImageData.SCPPixel = MetaNode()
-            meta.ImageData.SCPPixel.Row = int(round(pixels[scp_index]))
-            meta.ImageData.SCPPixel.Col = int(round(lines[scp_index]))
+            meta.ImageData.SCPPixel.Row = int(round(pixels[scp_index]))-pixel_offset
+            meta.ImageData.SCPPixel.Col = int(round(lines[scp_index]))-line_offset
         
         # GeoData
         if True:
@@ -358,12 +362,12 @@ def meta2sicd(filename, betafile, noisefile):
                 meta.Grid.Row.ImpRespBW = (2 / speed_of_light) * float(root.find(
                     './imageGenerationParameters/sarProcessingInformation/totalProcessedRangeBandwidth').text)
             else:
-                meta.Grid.Row.ImpRespBW = (2 / speed_of_light) * float(root.find(
-                    './imageGenerationParameters/sarProcessingInformation/perBeamTotalProcessedRangeBandwidths'+beam_str).text)
-            #Varies per beam - shouldn't have to add
+                range_bw = root.find('./imageGenerationParameters/sarProcessingInformation/perBeamTotalProcessedRangeBandwidths'+beam_str)
+                if range_bw is None:
+                    range_bw = root.find('./imageGenerationParameters/sarProcessingInformation/totalProcessedRangeBandwidth')
+                meta.Grid.Row.ImpRespBW = (2 / speed_of_light) * float(range_bw.text)
             dop_bw = float(root.find('./imageGenerationParameters/sarProcessingInformation/' +
                                      'totalProcessedAzimuthBandwidth'+beam_str).text)  # Doppler bandwidth
-            #Doesn't
             zd_last = datetime.datetime.strptime(root.find(
                 './imageGenerationParameters/sarProcessingInformation/zeroDopplerTimeLastLine').text,
                 DATE_FMT)
@@ -506,6 +510,7 @@ def meta2sicd(filename, betafile, noisefile):
                                                 'numberOfLinesProcessed')]
             if (len(num_lines_processed) == len(pols) and
                all(x == num_lines_processed[0] for x in num_lines_processed)):
+                #TODO: Probably need to change to per beam
                 # If the above cases don't hold, we don't know what to do
                 num_lines_processed = num_lines_processed[0] * len(tx_pols)
                 prf = prf * len(pulse_parts)
@@ -568,8 +573,7 @@ def meta2sicd(filename, betafile, noisefile):
                     zd_first = zd_last
                 look = -1
             # Zero doppler time of SCP relative to collect start
-            # todo: fix
-            zd_t_scp = (zd_first-raw_start_time).total_seconds() + (meta.ImageData.SCPPixel.Col * ss_zd_s)
+            zd_t_scp = (zd_first-raw_start_time).total_seconds() + ( (meta.ImageData.SCPPixel.Col + line_offset) * ss_zd_s)
             if gen == 'RS2':
                 near_range = float(root.find('./imageGenerationParameters/sarProcessingInformation/' +
                                              'slantRangeNearEdge').text)  # in meters
@@ -578,6 +582,7 @@ def meta2sicd(filename, betafile, noisefile):
                 near_range = float(root.find('./sceneAttributes/imageAttributes'+burst_str+'/' +
                                              'slantRangeNearEdge').text)  # in meters
             meta.RMA.INCA = MetaNode()
+            
             meta.RMA.INCA.R_CA_SCP = near_range + (meta.ImageData.SCPPixel.Row * meta.Grid.Row.SS)
             meta.RMA.INCA.FreqZero = fc
             
@@ -631,7 +636,13 @@ def meta2sicd(filename, betafile, noisefile):
             if gen == 'RS2':
                 dc_xp_str = './imageGenerationParameters/dopplerCentroid/'
             elif gen == 'RCM':
-                dc_xp_str = './dopplerCentroid/dopplerCentroidEstimate'+burst_str+'/'
+                #Sometimes even ScanSAR's only have 1 dc estimate
+                dc_est_count = int(root.find("./dopplerCentroid/numberOfEstimates").text)
+                if(dc_est_count == 1):
+                    dc_xp_str = './dopplerCentroid/dopplerCentroidEstimate/'
+                else:
+                    dc_xp_str = './dopplerCentroid/dopplerCentroidEstimate'+burst_str+'/'
+                
             # Shifted (origin at dop_cent_ref_t, not SCP) and scaled (sec, not m)
             # version of SICD DopCentroidPoly
             dop_cent_coefs = np.array([float(x) for x in
@@ -653,7 +664,7 @@ def meta2sicd(filename, betafile, noisefile):
                 dop_est_t = (dop_est-raw_start_time).total_seconds()
                 # This is the column (offset from the SCP) where the doppler centroid was computed.
                 dop_est_col = (dop_est_t - zd_t_scp)/ss_zd_s
-                # Column-dependent variation in DopCentroidPoly due to spotlight
+                # Column-dependent variation in DopCentroidPoly due to spotlight - TODO: Does this apply to ScanSAR
                 meta.RMA.INCA.DopCentroidPoly = np.hstack((meta.RMA.INCA.DopCentroidPoly,
                                                            np.zeros((dop_cent_coefs_scaled.size, 1))))
                 meta.RMA.INCA.DopCentroidPoly[0, 1] = (
@@ -751,9 +762,7 @@ def meta2sicd(filename, betafile, noisefile):
         meta.GeoData.SCP.LLH.Lon = llh[1]
         meta.GeoData.SCP.LLH.HAE = llh[2]
         
-        #TODO: ScanSAR this
         if betafile is not None and os.path.isfile(betafile):
-            #Confused how there is only one betafile, seems to multiple per polarization
             if gen == 'RS2':
                 root_beta = ET.parse(betafile).getroot()
             elif gen == 'RCM':
