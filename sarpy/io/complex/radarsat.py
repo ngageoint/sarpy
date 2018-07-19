@@ -82,7 +82,7 @@ class Reader(ReaderSuper):
                                      'calibration',
                                      root_node.find(noise_str, ns).text)
         self.sicdmeta = meta2sicd(product_filename, beta_lut_str, noise_str)
-        #for m in sicdmeta_list:
+        print("Done processing metadata")
         if True:
             # Setup pixel readers
             line_order = root_node.find('./default:' + ia_str +
@@ -121,12 +121,14 @@ def meta2sicd(filename, betafile, noisefile):
         return b
 
     
-    #Need to figure out creation immediately so I can iterate through bursts.
-    #Better to calculate everything possible before iterating,
-    #but working code is better than efficient code
+    #Need to figure out satellite immediately so I can iterate through bursts.
+    #Better to calculate everything possible before iterating, since a lot of stuff
+    #is the same for the whole image, and more for beams, which have multiple bursts in them.
+    #But working code is better than efficient code
     root = _xml_parse_wo_default_ns(filename)
     which_collector = root.find('./sourceAttributes/satellite').text
     burst_count = 1
+    
     meta_list = []
     if which_collector == 'RADARSAT-2':
         gen = 'RS2'
@@ -136,25 +138,97 @@ def meta2sicd(filename, betafile, noisefile):
         #ScanSAR has multiple bursts
         burst_count = int(root.find('./sceneAttributes/numberOfEntries').text)
     meta_list_list = []
+    #Iterate through bursts - might only be one if not ScanSAR
     for burst_ind in range(burst_count):
         burst_str = ""
         beam_str = ""
+        #Let's xml find things
         if gen == 'RCM' and burst_count > 1:
             burst_str = "[@burst='"+str(burst_ind)+"']"
             which_beam = root.find('./sceneAttributes/imageAttributes'+burst_str).attrib.get("beam")
             beam_str = "[@beam='"+which_beam+"']"
-        # if True lets you collapse or disable sections of code easily. Might be better to break into functions
-        # Some information about collection. 
+        #Things are a little complicated because Canada decided that they'd flip their image sometimes, which means that while normally
+        #raw_start_time < zd_first < zd_last, sometimes raw_start_time < zd_last < zd_first.
+        #We also need the start and end times to be per burst, and not for the whole image.
+        #
+        # One possible layout, with decreasing line ordering.
+        #
+        #   ###                                                    <---- increasing 'line' direction
+        #    O(-  ====================================================================================>
+        #   ###    |     |                                                            Origin of grid>X  <           |
+        #          |     |                                                                           |  | 1 beam    | Increasing 'pixel' direction.
+        #          |     |---------------------------------------------------------------------------|  <           |
+        #          |     |                |  1 burst      | <======== line offset of burst ========> |              V
+        #          |     |                |               |                                          |
+        #          |     |---------------------------------------------------------------------------|
+        #       raw^     ^zd_last         ^burst_start                                               ^zd_last
+        #
+        #Need these to compute a per burst start time, so their a bit out of place. Mainly getting spacing, burst offset, and start/end times.
         if True:
             meta = MetaNode()
 
             # CollectionInfo
             meta.CollectionInfo = MetaNode()
             meta.CollectionInfo.CollectorName = which_collector
+            zd_last = datetime.datetime.strptime(root.find(
+                './imageGenerationParameters/sarProcessingInformation/zeroDopplerTimeLastLine').text,
+                DATE_FMT)
+            zd_first = datetime.datetime.strptime(root.find(
+                './imageGenerationParameters/sarProcessingInformation/zeroDopplerTimeFirstLine').text,
+                DATE_FMT)
+            line_offset = 0
+            pixel_offset = 0
+            if gen == 'RS2':
+                im_at_str = './imageAttributes/'
+            elif gen == 'RCM':
+                im_at_str = './imageReferenceAttributes/'
+                #RCM ScanSAR defines the position of each burst with these, which must be used to calculate absolute positions instead of relative to the burst.
+                if burst_count > 1:
+                    line_offset = int(root.find('./sceneAttributes/imageAttributes'+burst_str+'/lineOffset').text)
+                    pixel_offset = int(root.find('./sceneAttributes/imageAttributes'+burst_str+'/pixelOffset').text)
             
-            #Isn't per burst
-            raw_start_time = datetime.datetime.strptime(root.find(
-                './sourceAttributes/rawDataStartTime').text, DATE_FMT)
+            meta.ImageData = MetaNode()
+            if gen == 'RS2':
+                meta.ImageData.NumCols = int(root.find(
+                        './imageAttributes/rasterAttributes/numberOfLines').text)
+                meta.ImageData.NumRows = int(root.find(
+                        './imageAttributes/rasterAttributes/numberOfSamplesPerLine').text)
+            elif gen == 'RCM':
+                meta.ImageData.NumCols = int(root.find(
+                        './sceneAttributes/imageAttributes'+burst_str+'/numLines').text)
+                meta.ImageData.NumRows = int(root.find(
+                        './sceneAttributes/imageAttributes'+burst_str+'/samplesPerLine').text)
+            
+            #something spacing zero doppler seconds - image spacing for each line along the image, in seconds 
+            ss_zd_s = 0
+            if gen == "RS2" or (gen == "RCM" and burst_count == 1):
+                ss_zd_s = abs((zd_last - zd_first).total_seconds()) / (meta.ImageData.NumCols - 1)
+            elif gen == "RCM":
+                #They say to use this and I can't find a better way, though I think it varies slightly over range. 
+                #Tried to calculate it by dividing total lines and total lines per burst by collection time, but
+                #didn't work.
+                ss_zd_s = float(root.find("./imageReferenceAttributes/rasterAttributes/sampledLineSpacingTime").text)
+            #RCM and burst_count == 1 means RCM but not SCANSAR
+            if(gen == "RS2" or (gen == "RCM" and burst_count == 1)):
+                raw_start_time = datetime.datetime.strptime(root.find(
+                    './sourceAttributes/rawDataStartTime').text, DATE_FMT)
+            else:
+                #Have to do some math to get start of burst. Mainly offset of burst in entire pixel grid.
+                if (zd_first - zd_last).total_seconds() > 0:  # zd_last occurred before zd_first
+                    image_width = int(root.find('sceneAttributes/imageAttributes'+burst_str+'/numLines').text)
+                    zd_first = zd_first - datetime.timedelta(seconds=(line_offset+image_width)*ss_zd_s)  
+                    zd_last  = zd_first + datetime.timedelta(seconds=(image_width)*ss_zd_s) 
+                    flipped = True
+                else:
+                    zd_first = zd_first + datetime.timedelta(seconds=(line_offset)*ss_zd_s) 
+                    zd_last  = zd_first + datetime.timedelta(seconds=(image_width)*ss_zd_s) 
+                    flipped = False
+                #raw_start_time is kinda arbitrary, so just set it equal
+                raw_start_time = zd_first     
+                
+        # if True lets you collapse or disable sections of code easily. Might be better to break into functions
+        # Some more information about collection. 
+        if True:
             date_str = raw_start_time.strftime('%d%B%y').upper()
             time_str = raw_start_time.strftime('%H%M%S')
             if gen == 'RS2':
@@ -187,7 +261,7 @@ def meta2sicd(filename, betafile, noisefile):
             if gen == 'RS2':
                 meta.CollectionInfo.Classification = 'UNCLASSIFIED'
             elif gen == 'RCM':
-            
+                #classification was sometimes given in [French]/[English], so replace the known ones for now
                 classification_str = root.find('./securityAttributes/securityClassification').text
                 if "UNCLASS" in classification_str.upper():
                     meta.CollectionInfo.Classification = "UNCLASSIFIED"
@@ -204,18 +278,6 @@ def meta2sicd(filename, betafile, noisefile):
             
         # ImageData
         if True:
-            meta.ImageData = MetaNode()
-            if gen == 'RS2':
-                meta.ImageData.NumCols = int(root.find(
-                        './imageAttributes/rasterAttributes/numberOfLines').text)
-                meta.ImageData.NumRows = int(root.find(
-                        './imageAttributes/rasterAttributes/numberOfSamplesPerLine').text)
-            elif gen == 'RCM':
-                meta.ImageData.NumCols = int(root.find(
-                        './sceneAttributes/imageAttributes'+burst_str+'/numLines').text)
-                meta.ImageData.NumRows = int(root.find(
-                        './sceneAttributes/imageAttributes'+burst_str+'/samplesPerLine').text)
-            
             meta.ImageData.FullImage = copy.deepcopy(meta.ImageData)
             meta.ImageData.FirstRow = int(0)
             meta.ImageData.FirstCol = int(0)
@@ -239,18 +301,11 @@ def meta2sicd(filename, betafile, noisefile):
             
         # SCP
         if True:
-            line_offset = 0
-            pixel_offset = 0
-            if gen == 'RS2':
-                im_at_str = './imageAttributes/'
-            elif gen == 'RCM':
-                im_at_str = './imageReferenceAttributes/'
-                #RCM ScanSAR defines the position of each burst with these, which must be used to calculate absolute positions instead of relative to the burst.
-                if burst_count > 1:
-                    line_offset = int(root.find('./sceneAttributes/imageAttributes'+burst_str+'/lineOffset').text)
-                    pixel_offset = int(root.find('./sceneAttributes/imageAttributes'+burst_str+'/pixelOffset').text)
             # There are many different equally valid options for picking the SCP point.
             # One way is to chose the tie point that is closest to the image center.
+            # TODO?: Documentation suggests using Doppler Centroid for RCM, since there is 1 DC per burst, 
+            # which has the benefit of including a time, though it doesn't refer to a specific pixel.
+            # DC has the benefit of being faster too, since this must go through many tiepoints each time.
             tiepoints = root.findall(im_at_str + 'geographicInformation/geolocationGrid/imageTiePoint')
             pixels = [float(tp.find('imageCoordinate/pixel').text) for tp in tiepoints] 
             lines = [float(tp.find('imageCoordinate/line').text) for tp in tiepoints]
@@ -264,7 +319,13 @@ def meta2sicd(filename, betafile, noisefile):
             meta.ImageData.SCPPixel = MetaNode()
             meta.ImageData.SCPPixel.Row = int(round(pixels[scp_index]))-pixel_offset
             meta.ImageData.SCPPixel.Col = int(round(lines[scp_index]))-line_offset
-        
+            
+            #Turns out the thin bursts in ScanSAR don't always have an tie point inside them in the azimuth direction,
+            #being only ~ 160 lines wide, so I'm just picking the middle pixel.
+            if(meta.ImageData.SCPPixel.Col < 0 or meta.ImageData.SCPPixel.Col >= meta.ImageData.NumCols):
+                meta.ImageData.SCPPixel.Col = int(meta.ImageData.NumCols/2)
+            if(meta.ImageData.SCPPixel.Row < 0 or meta.ImageData.SCPPixel.Row >= meta.ImageData.NumRows):
+                meta.ImageData.SCPPixel.Row = int(meta.ImageData.NumRows/2)
         # GeoData
         if True:
             meta.GeoData = MetaNode()
@@ -275,6 +336,7 @@ def meta2sicd(filename, betafile, noisefile):
             meta.GeoData.SCP.LLH = MetaNode()
             # Initially, we just seed this with a rough value.  Later we will put in
             # something more precise.
+
             meta.GeoData.SCP.LLH.Lat = lats[scp_index]
             meta.GeoData.SCP.LLH.Lon = longs[scp_index]
             meta.GeoData.SCP.LLH.HAE = hgts[scp_index]
@@ -289,7 +351,7 @@ def meta2sicd(filename, betafile, noisefile):
             # later more precisely with sicd.derived_fields.
         
         
-        # Position - fits a polynomial
+        # Position - fits a polynomial. Probably doesn't need to be per burst, but there's a raw_start_time in there. Check how it's used later to make sure it's ok to move.
         if True:
             meta.Position = MetaNode()
             meta.Position.ARPPoly = MetaNode()
@@ -297,7 +359,6 @@ def meta2sicd(filename, betafile, noisefile):
                                           'orbitInformation/stateVector')
             state_vector_T, state_vector_X, state_vector_Y, state_vector_Z = [], [], [], []
             vel_X, vel_Y, vel_Z = [], [], []
-            #Still good here, ScanSAR only gives 1 list
             for state_vec in state_vec_list:
                 state_vector_T.append(datetime.datetime.strptime(state_vec.find('timeStamp').text,
                                                                  DATE_FMT))
@@ -307,6 +368,7 @@ def meta2sicd(filename, betafile, noisefile):
                 vel_X.append(float(state_vec.find('xVelocity').text))
                 vel_Y.append(float(state_vec.find('yVelocity').text))
                 vel_Z.append(float(state_vec.find('zVelocity').text))
+            #Some sort of start time/
             state_vector_T = np.array([(t-raw_start_time).total_seconds() for t in state_vector_T])
             # Here we find the order of polynomial that most accurately describes
             # this position, but use velocity as cross-validation so that the data
@@ -352,12 +414,12 @@ def meta2sicd(filename, betafile, noisefile):
             # given field, so that SICD metadata can be internally consistent.
             # meta.Grid.Col.SS = float(root.find(im_at_str +
             #                                    'rasterAttributes/sampledLineSpacing').text)
+            #TODO: ScanSAR Sgn?
             meta.Grid.Row.Sgn = -1  # Always True for RS2
             meta.Grid.Col.Sgn = -1  # Always True for RS2
-            #Some per Beam Stuff:
             rp = root.find('./sourceAttributes/radarParameters')
             fc = float(rp.find('radarCenterFrequency').text)  # Center frequency
-            #TODO: Should this be per beam?
+            #Should this be per beam?
             if gen == "RS2" or (gen == "RCM" and burst_count == 1):
                 meta.Grid.Row.ImpRespBW = (2 / speed_of_light) * float(root.find(
                     './imageGenerationParameters/sarProcessingInformation/totalProcessedRangeBandwidth').text)
@@ -368,37 +430,13 @@ def meta2sicd(filename, betafile, noisefile):
                 meta.Grid.Row.ImpRespBW = (2 / speed_of_light) * float(range_bw.text)
             dop_bw = float(root.find('./imageGenerationParameters/sarProcessingInformation/' +
                                      'totalProcessedAzimuthBandwidth'+beam_str).text)  # Doppler bandwidth
-            zd_last = datetime.datetime.strptime(root.find(
-                './imageGenerationParameters/sarProcessingInformation/zeroDopplerTimeLastLine').text,
-                DATE_FMT)
-            zd_first = datetime.datetime.strptime(root.find(
-                './imageGenerationParameters/sarProcessingInformation/zeroDopplerTimeFirstLine').text,
-                DATE_FMT)
             # Image column spacing in zero doppler time (seconds)
-            #TODO: Double check this? might not like it over bursts, since only one zdt for whole thing
-            #Use <imageReferenceAttributes> <rasterAttributes> <sampledLineSpacingTime units="s">4.029999885900000e-04</sampledLineSpacingTime>
-            #Double check it is equal to summing all numcols
-            ss_zd_s = 0
-            if gen == "RS2":
-                ss_zd_s = abs((zd_last - zd_first).total_seconds()) / (meta.ImageData.NumCols - 1)
-            elif gen == "RCM":
-                ss_zd_s = float(root.find("./imageReferenceAttributes/rasterAttributes/sampledLineSpacingTime").text)
-                #Double check this? If you divide total time by total numLines per row, it should work, but is off by a factor of 2.
-                total_lines = 0
-                ##for n in range(burst_count):
-                #    burst_str_2 = ''
-                #    if burst_count > 1:
-                #        burst_str_2 = "[@burst='"+str(n)+"']"
-                #    total_lines += int(root.find("./sceneAttributes/imageAttributes"+burst_str_2+"/numLines").text)
-                #ss_zd_s_2 = abs((zd_last - zd_first).total_seconds()) / (total_lines - 1)
-                #if abs(ss_zd_s - ss_zd_s_2)*1.0/ss_zd_s >= .001:
-                #    print("ss_zd_s from ira/ra/sampleLineSpacingTime does not work?")
+            
             meta.Grid.Row.KCtr = 2*fc/speed_of_light
             meta.Grid.Col.KCtr = 0
             meta.Grid.Row.DeltaKCOAPoly = np.atleast_2d(0)
             # Constants used to compute weighting parameters
             meta.Grid.Row.WgtType = MetaNode()
-            #Doesn't vary?
             meta.Grid.Row.WgtType.WindowName = root.find('./imageGenerationParameters/' +
                                                          'sarProcessingInformation/' +
                                                          'rangeWindow/windowName').text.upper()
@@ -409,7 +447,6 @@ def meta2sicd(filename, betafile, noisefile):
                                                                   'sarProcessingInformation/' +
                                                                   'rangeWindow/windowCoefficient').text
             meta.Grid.Col.WgtType = MetaNode()
-            #Does
             meta.Grid.Col.WgtType.WindowName = root.find('./imageGenerationParameters/' +
                                                          'sarProcessingInformation/' +
                                                          'azimuthWindow'+beam_str+'/windowName').text.upper()
@@ -470,7 +507,6 @@ def meta2sicd(filename, betafile, noisefile):
 
         # Polarization
         if True:
-            #Not per beam
             pols = rp.find('polarizations').text.split()
             def convert_c_to_rhc(s):
                 if s == "C":
@@ -499,18 +535,27 @@ def meta2sicd(filename, betafile, noisefile):
             meta.Timeline = MetaNode()
             meta.Timeline.CollectStart = raw_start_time
             if gen == 'RS2':
-                prf_xp_str = 'pulseRepetitionFrequency'
+                prf = float(rp.find('pulseRepetitionFrequency').text)
+            elif gen == 'RCM' and burst_count == 1:
+                prf = float(rp.find('prfInformation/pulseRepetitionFrequency').text)
             elif gen == 'RCM':
-                #This varies with beam
-                prf_xp_str = 'prfInformation'+beam_str+'/pulseRepetitionFrequency'
-            prf = float(rp.find(prf_xp_str).text)
-            #this doesn't
-            num_lines_processed = [float(element.text) for element in
-                                   root.findall('imageGenerationParameters/sarProcessingInformation/' +
-                                                'numberOfLinesProcessed')]
+                #Multiple prf's for one beam, since it changes OCASIONALLY over bursts. Only differs at third decimal place...
+                #Also should worry about polarizations, since they give it as an attribute, but I don't THINK it matters, since prf should be the same gor each?
+                prfs = rp.findall('prfInformation'+beam_str)
+                i = 0
+                while i < len(prfs) and prfs[i].attrib.get("burst") != None and int(prfs[i].attrib.get("burst")) <= burst_ind:
+                    i += 1
+                prf = float(prfs[i-1].find('pulseRepetitionFrequency').text)
+            
+            if(gen == "RS2" or (gen == "RCM" and burst_count == 1)):
+                num_lines_processed = [float(element.text) for element in
+                                       root.findall('imageGenerationParameters/sarProcessingInformation/' +
+                                                    'numberOfLinesProcessed')]
+            else:
+                num_lines_processed = [float(root.find('sceneAttributes/imageAttributes'+burst_str+'/numLines').text)] * len(pols)
+                                
             if (len(num_lines_processed) == len(pols) and
                all(x == num_lines_processed[0] for x in num_lines_processed)):
-                #TODO: Probably need to change to per beam
                 # If the above cases don't hold, we don't know what to do
                 num_lines_processed = num_lines_processed[0] * len(tx_pols)
                 prf = prf * len(pulse_parts)
@@ -522,14 +567,16 @@ def meta2sicd(filename, betafile, noisefile):
                     # the pulse parts (to make real vs effective prf), so why do we have to
                     # do it again? And why don't we have to do it for SPOTLIGHT?
                     prf = 2*prf
-                meta.Timeline.CollectDuration = num_lines_processed/prf
+                #TODO TODO TODO: Dividing by prf? I don't really know what prf is, and doesn't seem to line up with the other things it should.
+                #what is should. Commented out the old version of some of these, replacing them with ss_zd_s and 1/ss_zd_s, which shuts the validator up at least.
+                meta.Timeline.CollectDuration = num_lines_processed*ss_zd_s#/prf
                 meta.Timeline.IPP = MetaNode()
                 meta.Timeline.IPP.Set = MetaNode()
                 meta.Timeline.IPP.Set.TStart = 0
-                meta.Timeline.IPP.Set.TEnd = num_lines_processed/prf
+                meta.Timeline.IPP.Set.TEnd = num_lines_processed*ss_zd_s#/prf
                 meta.Timeline.IPP.Set.IPPStart = 0
                 meta.Timeline.IPP.Set.IPPEnd = int(num_lines_processed)
-                meta.Timeline.IPP.Set.IPPPoly = np.array([0, prf])
+                meta.Timeline.IPP.Set.IPPPoly = np.array([0, 1.0/ss_zd_s])#prf])  <- really not sure about this one.
 
         # Image Formation
         if True:
@@ -548,9 +595,9 @@ def meta2sicd(filename, betafile, noisefile):
             meta.ImageFormation.AzAutofocus = 'NO'
             meta.ImageFormation.RgAutofocus = 'NO'
 
-        # RMA.INCA
+        # RMA.INCA and SCPCOA
         if True:
-            #Some meta that doesn't matter much for conversion
+            #Some meta 
             if True:
                 meta.RMA = MetaNode()
                 meta.RMA.RMAlgoType = 'OMEGA_K'
@@ -572,13 +619,15 @@ def meta2sicd(filename, betafile, noisefile):
                 if (zd_first - zd_last).total_seconds() > 0:  # zd_last occurred before zd_first
                     zd_first = zd_last
                 look = -1
-            # Zero doppler time of SCP relative to collect start
-            zd_t_scp = (zd_first-raw_start_time).total_seconds() + ( (meta.ImageData.SCPPixel.Col + line_offset) * ss_zd_s)
+            # Zero doppler time of SCP relative to collect start. TODO: Might break RS2?
+            if flipped:
+                zd_t_scp = (zd_first-raw_start_time).total_seconds() + ( (num_lines_processed - meta.ImageData.SCPPixel.Col) * ss_zd_s)
+            else:
+                zd_t_scp = (zd_first-raw_start_time).total_seconds() + ( (meta.ImageData.SCPPixel.Col) * ss_zd_s)
             if gen == 'RS2':
                 near_range = float(root.find('./imageGenerationParameters/sarProcessingInformation/' +
                                              'slantRangeNearEdge').text)  # in meters
             elif gen == 'RCM':
-                #Per burst stuff finally
                 near_range = float(root.find('./sceneAttributes/imageAttributes'+burst_str+'/' +
                                              'slantRangeNearEdge').text)  # in meters
             meta.RMA.INCA = MetaNode()
@@ -614,9 +663,9 @@ def meta2sicd(filename, betafile, noisefile):
                                          np.power((2/speed_of_light), np.arange(len(dop_rate_coefs))))
                 # Multiplication of two polynomials is just a convolution of their coefficients
                 # # Assumes a SGN of -1
+                # This is somehow negative, but fixing that should fix all the validator errors?
                 meta.RMA.INCA.DRateSFPoly = (- np.convolve(dop_rate_coefs_scaled, r_ca) *
                                              speed_of_light / (2 * fc * vm_ca_sq))[:, np.newaxis]
-
         # Fields dependent on Doppler rate
         # This computation of SS is actually better than the claimed SS
         # (sampledLineSpacing) in many ways, because this makes all of the metadata
@@ -626,17 +675,18 @@ def meta2sicd(filename, betafile, noisefile):
         # slightly over a RGZERO image, we don't know if the claimed sample spacing
         # in the native metadata is at our chosen SCP, or another point, or an
         # average across image or something else.
-        meta.Grid.Col.SS = np.sqrt(vm_ca_sq) * ss_zd_s * meta.RMA.INCA.DRateSFPoly[0, 0]
+        meta.Grid.Col.SS = np.sqrt(vm_ca_sq) * abs(ss_zd_s) * meta.RMA.INCA.DRateSFPoly[0, 0]
+        
         # Convert to azimuth spatial bandwidth (cycles per meter)
         meta.Grid.Col.ImpRespBW = dop_bw * abs(ss_zd_s) / meta.Grid.Col.SS
         meta.RMA.INCA.TimeCAPoly = np.array([zd_t_scp, ss_zd_s / meta.Grid.Col.SS])
 
-        # Doppler Centroid - all of this is going to be per burst
+        # Doppler Centroid
         if True:
             if gen == 'RS2':
                 dc_xp_str = './imageGenerationParameters/dopplerCentroid/'
             elif gen == 'RCM':
-                #Sometimes even ScanSAR's only have 1 dc estimate
+                #Sometimes example ScanSAR's only have 1 dc estimate
                 dc_est_count = int(root.find("./dopplerCentroid/numberOfEstimates").text)
                 if(dc_est_count == 1):
                     dc_xp_str = './dopplerCentroid/dopplerCentroidEstimate/'
@@ -664,7 +714,7 @@ def meta2sicd(filename, betafile, noisefile):
                 dop_est_t = (dop_est-raw_start_time).total_seconds()
                 # This is the column (offset from the SCP) where the doppler centroid was computed.
                 dop_est_col = (dop_est_t - zd_t_scp)/ss_zd_s
-                # Column-dependent variation in DopCentroidPoly due to spotlight - TODO: Does this apply to ScanSAR
+                # Column-dependent variation in DopCentroidPoly due to spotlight - TODO: Does this apply to ScanSAR?
                 meta.RMA.INCA.DopCentroidPoly = np.hstack((meta.RMA.INCA.DopCentroidPoly,
                                                            np.zeros((dop_cent_coefs_scaled.size, 1))))
                 meta.RMA.INCA.DopCentroidPoly[0, 1] = (
@@ -683,9 +733,10 @@ def meta2sicd(filename, betafile, noisefile):
             # since its usually a 1D polynomial.  Even the spotlight case only brings
             # in a linear variation in the second dimensions, so its still easily
             # solved.
+            #
+            #TODO: Difficult to verify, since bursts are only ~160 lines wide.
             if True:
                 # Min/max in row/range must exist at edges or internal local min/max
-                #TODO: Possible bounds? 
                 minmax = poly.polyroots(poly.polyder(meta.Grid.Col.DeltaKCOAPoly[:, 0]))
                 rg_bounds_m = (np.array([0, (meta.ImageData.NumRows-1)]) -
                                meta.ImageData.SCPPixel.Row) * meta.Grid.Row.SS
@@ -762,6 +813,7 @@ def meta2sicd(filename, betafile, noisefile):
         meta.GeoData.SCP.LLH.Lon = llh[1]
         meta.GeoData.SCP.LLH.HAE = llh[2]
         
+        #Noise data
         if betafile is not None and os.path.isfile(betafile):
             if gen == 'RS2':
                 root_beta = ET.parse(betafile).getroot()
@@ -811,11 +863,6 @@ def meta2sicd(filename, betafile, noisefile):
                         beta0_element = root_noise.find("./referenceNoiseLevel[sarCalibrationType='Beta Nought']")
                     else:
                         beta0_element = root_noise.find("./perBeamReferenceNoiseLevel[sarCalibrationType='Beta Nought'][beam='"+which_beam+"']")
-                    #noise_levels = root_noise.findall('./referenceNoiseLevel') 
-                    # Is there a cleaner way to find which noise description is beta?
-                    #pos = next((index for index, elem in enumerate(noise_levels) if
-                    #            elem.find('sarCalibrationType').text[:4] == 'Beta'), None)
-                    #beta0_element = noise_levels[pos]
                 pfv = float(beta0_element.find('pixelFirstNoiseValue').text)
                 step = float(beta0_element.find('stepSize').text)
                 beta0s = np.array([float(x) for x in
@@ -826,11 +873,10 @@ def meta2sicd(filename, betafile, noisefile):
                     range_coords, beta0s - 10*np.log10(poly.polyval(
                         range_coords, meta.Radiometric.BetaZeroSFPoly[:, 0])), 2)[:, np.newaxis]
 
-        # SCPCOA
         # All of these fields (and others) are derivable for more fundamental fields.
         sicd.derived_fields(meta)
 
-        # Process fields specific to each polarimetric band
+        # Process fields specific to each polarimetric band. There will eventually be one node for each pol in each burst (pols * bursts total)
         #meta_list = []
         for i in range(len(pols)):
             band_meta = copy.deepcopy(meta)  # Values that are consistent across all bands
