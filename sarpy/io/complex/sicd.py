@@ -808,7 +808,8 @@ def struct2xml(sicdmeta, schema_struct=None, inc_newline=True):
         for current_child_name in child_names:
             # Get schema info for this child node if available
             if hasattr(schema_struct, current_child_name):
-                child_schema_struct = getattr(schema_struct, current_child_name)
+                child_schema_struct = copy.deepcopy(getattr(schema_struct,
+                                                            current_child_name))
                 # Find base structure or primitive string
                 while (hasattr(child_schema_struct, 'SCHEMA_type') and
                         hasattr(schema_types, child_schema_struct.SCHEMA_type)):
@@ -816,8 +817,8 @@ def struct2xml(sicdmeta, schema_struct=None, inc_newline=True):
                         attributes_to_pass = child_schema_struct.SCHEMA_attributes
                     else:
                         attributes_to_pass = None
-                    child_schema_struct = getattr(schema_types,
-                                                  child_schema_struct.SCHEMA_type)
+                    child_schema_struct = copy.deepcopy(getattr(
+                            schema_types, child_schema_struct.SCHEMA_type))
                     if attributes_to_pass:  # Pass extension attributes to base type
                         if hasattr(child_schema_struct, 'SCHEMA_attributes'):
                             # Some of these may have already been passed through
