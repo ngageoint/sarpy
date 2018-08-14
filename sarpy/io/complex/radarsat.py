@@ -144,19 +144,27 @@ def meta2sicd(filename, betafile, noisefile):
     meta.CollectionInfo.RadarMode = MetaNode()
     meta.CollectionInfo.RadarMode.ModeID = (
             root.find('./sourceAttributes/beamModeMnemonic').text)
-    if (meta.CollectionInfo.RadarMode.ModeID[:2] == 'SC'):
-        raise(ValueError('ScanSAR mode data is not currently handled.'))
-    elif (meta.CollectionInfo.RadarMode.ModeID[:2] == 'SL'):
-        meta.CollectionInfo.RadarMode.ModeType = 'SPOTLIGHT'
-    else:
-        meta.CollectionInfo.RadarMode.ModeType = 'STRIPMAP'
 
+    # First use beammode if it exists
+    beamMode = root.find('./sourceAttributes/beamMode')
+    acqType = root.find('./sourceAttributes/radarParameters/acquisitionType')
+    if ((beamMode is not None and beamMode.text.upper().startswith("SPOTLIGHT")) or
+       (acqType is not None and acqType.text.upper().startswith("SPOTLIGHT")) or
+       "SL" in meta.CollectionInfo.RadarMode.ModeID):
+        meta.CollectionInfo.RadarMode.ModeType = "SPOTLIGHT"
+    elif (meta.CollectionInfo.RadarMode.ModeID[:2] == 'SC'):
+        raise(ValueError('ScanSAR mode data is not currently handled.'))
+    else:
+        # Finally assume it's stripmap
+        meta.CollectionInfo.RadarMode.ModeType = 'STRIPMAP'
     if gen == 'RS2':
         meta.CollectionInfo.Classification = 'UNCLASSIFIED'
     elif gen == 'RCM':
-        meta.CollectionInfo.Classification = root.find(
-                './securityAttributes/securityClassification').text
-
+        classification_str = root.find('./securityAttributes/securityClassification').text
+        if "UNCLASS" in classification_str.upper():
+            meta.CollectionInfo.Classification = "UNCLASSIFIED"
+        else:
+            meta.CollectionInfo.Classification = classification_str
     # ImageCreation
     meta.ImageCreation = MetaNode()
     procinfo = root.find('./imageGenerationParameters/generalProcessingInformation')
@@ -380,13 +388,19 @@ def meta2sicd(filename, betafile, noisefile):
             meta.RadarCollection.Waveform.WFParameters[i-1].TxRFBandwidth
     # Polarization
     pols = rp.find('polarizations').text.split()
-    tx_pols = list({p[0] for p in pols})
+
+    def convert_c_to_rhc(s):
+        if s == "C":
+            return "RHC"
+        else:
+            return s
+    tx_pols = list({convert_c_to_rhc(p[0]) for p in pols})
     meta.RadarCollection.RcvChannels = MetaNode()
     meta.RadarCollection.RcvChannels.ChanParameters = [None] * len(pols)
     for i in range(len(pols)):
         meta.RadarCollection.RcvChannels.ChanParameters[i] = MetaNode()
         meta.RadarCollection.RcvChannels.ChanParameters[i].TxRcvPolarization = \
-            pols[i][0] + ':' + pols[i][1]
+            convert_c_to_rhc(pols[i][0]) + ':' + convert_c_to_rhc(pols[i][1])
     if len(tx_pols) == 1:  # Only one transmit polarization
         meta.RadarCollection.TxPolarization = tx_pols[0]
     else:  # Multiple transmit polarizations
