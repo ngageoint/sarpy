@@ -839,10 +839,7 @@ def meta2sicd_annot(filename):
 def meta2sicd_noise(filename, sicd_meta, manifest_meta):
     """This function parses the Sentinel Noise file and populates the NoisePoly field."""
 
-    # TODO: This code does not correctly handle the new noise format that first appeared
-    # March 2018, which defines azimuth and range variation to the noise description.
-
-    # Data before the Sentinel baseline processing calibration update on Nov 25 2015 is useless
+    # Sentinel baseline processing calibration update on Nov 25 2015
     if manifest_meta.ImageCreation.DateTime < datetime.datetime(2015, 11, 25):
         return
 
@@ -851,77 +848,92 @@ def meta2sicd_noise(filename, sicd_meta, manifest_meta):
 
     # Extract all relevant noise values from XML
     root_node = ET.parse(filename).getroot()
-    noise_vector_list = root_node.findall('./noiseVectorList/noiseVector')
 
-    line = [None]*len(noise_vector_list)
-    pixel = [None]*len(noise_vector_list)
-    noise = [None]*len(noise_vector_list)
-    nLUTind = 0
+    def extract_noise(noise_string):
+        noise_vector_list = root_node.findall('./' + noise_string + 'VectorList/' +
+                                              noise_string + 'Vector')
+        line = [None]*len(noise_vector_list)
+        pixel = [None]*len(noise_vector_list)
+        noise = [None]*len(noise_vector_list)
+        nLUTind = 0
+        for noise_vector in noise_vector_list:
+            line[nLUTind] = np.fromstring(noise_vector.find('./line').text,
+                                          dtype='int32', sep=' ')
+            # Some datasets have noise vectors for negative lines.
+            # Might mean that the data is included from a burst before the actual slice?
+            # Ignore it for now, since line 0 always lines up with the first valid burst
+            if np.all(line[nLUTind] < 0):
+                continue
+            pixel[nLUTind] = noise_vector.find('./pixel')
+            if pixel[nLUTind] is not None:  # Doesn't exist for azimuth noise
+                pixel[nLUTind] = np.fromstring(pixel[nLUTind].text, dtype='int32', sep=' ')
+            noise[nLUTind] = np.fromstring(noise_vector.find('./'+noise_string+'Lut').text,
+                                           dtype='float', sep=' ')
+            # Some datasets do not have any noise data and are populated with 0s instead
+            # In this case just don't populate the SICD noise metadata at all
+            if not np.any(np.array(noise != 0.0) and np.array(noise) != np.NINF):
+                return
+            # Linear values given in XML. SICD uses dB.
+            noise[nLUTind] = 10 * np.log10(noise[nLUTind])
+            # Sanity checking
+            if (sicd_meta[0].CollectionInfo.RadarMode.ModeID == 'IW' and  # SLC IW product
+               np.any(line[nLUTind] % lines_per_burst != 0) and
+               noise_vector != noise_vector_list[-1]):
+                    # Last burst has different timing
+                    raise(ValueError('Expect noise file to have one LUT per burst. ' +
+                                     'More are present'))
+            if (pixel[nLUTind] is not None and
+               pixel[nLUTind][len(pixel[nLUTind])-1] > range_size_pixels):
+                raise(ValueError('Noise file has more pixels in LUT than range size.'))
+            nLUTind += 1
+        # Remove empty list entries from negative lines
+        line = [x for x in line if x is not None]
+        pixel = [x for x in pixel if x is not None]
+        noise = [x for x in noise if x is not None]
+        return (line, pixel, noise)
 
-    for noise_vector in noise_vector_list:
-        line[nLUTind] = int(noise_vector.find('./line').text)
-
-        # Some datasets have noise vectors for negative lines.
-        # Might mean that the data is included from a burst before the actual slice?
-        # Ignore it for now, since line 0 always lines up with the first valid burst
-        if line[nLUTind] < 0:
-            continue
-
-        pixel[nLUTind] = np.fromstring(noise_vector.find('./pixel').text,
-                                       dtype='int32', sep=' ')
-        noise[nLUTind] = np.fromstring(noise_vector.find('./noiseLut').text,
-                                       dtype='float', sep=' ')
-
-        # Some datasets do not have any noise data and are populated with 0s instead
-        # In this case just don't populate the SICD noise metadata at all
-        if not np.any(np.array(noise != 0.0) and np.array(noise) != np.NINF):
-            return
-
-        noise[nLUTind] = 10 * np.log10(noise[nLUTind])  # Linear values given in XML. SICD uses dB.
-
-        # Sanity checking
-        if (sicd_meta[0].CollectionInfo.RadarMode.ModeID == 'IW' and  # SLC IW product
-           line[nLUTind] % lines_per_burst != 0 and noise_vector != noise_vector_list[-1]):
-                # Last burst has different timing
-                raise(ValueError('Expect noise file to have one LUT per burst. More are present'))
-
-        if pixel[nLUTind][len(pixel[nLUTind])-1] > range_size_pixels:
-            raise(ValueError('Noise file has more pixels in LUT than range size.'))
-
-        nLUTind += 1
-
-    # Remove empty list entries from negative lines
-    line = [x for x in line if x is not None]
-    pixel = [x for x in pixel if x is not None]
-    noise = [x for x in noise if x is not None]
-
+    if root_node.find("./noiseVectorList") is not None:
+        range_line, range_pixel, range_noise = extract_noise("noise")
+        azi_noise = None
+    else:  # noiseRange and noiseAzimuth fields began in March 2018
+        range_line, range_pixel, range_noise = extract_noise("noiseRange")
+        # This would pull azimuth noise, but it seems to only be about 1 dB, and is a
+        # cycloid, which is hard to fit.
+        azi_line, azi_pixel, azi_noise = extract_noise("noiseAzimuth")
     # Loop through each burst and fit a polynomial for SICD.
-    # If data is stripmap sicd_meta will be of length 1.
+    # If data is stripmap, sicd_meta will be of length 1.
     for x in range(len(sicd_meta)):
         # Stripmaps have more than one noise LUT for the whole image
         if(sicd_meta[0].CollectionInfo.RadarMode.ModeID[0] == 'S'):
-
-            coords_rg_m = (np.array(pixel[0])+sicd_meta[x].ImageData.FirstRow -
+            coords_rg_m = (range_pixel[0] + sicd_meta[x].ImageData.FirstRow -
                            sicd_meta[x].ImageData.SCPPixel.Row) * sicd_meta[x].Grid.Row.SS
-            coords_az_m = (np.array(line)+sicd_meta[x].ImageData.FirstCol -
+            coords_az_m = (np.concatenate(range_line) + sicd_meta[x].ImageData.FirstCol -
                            sicd_meta[x].ImageData.SCPPixel.Col) * sicd_meta[x].Grid.Col.SS
 
             # Fitting the two axis seperately then combining gives error than most 2d solvers
             # The noise is not monotonic across range
-            rg_fit = np.polynomial.polynomial.polyfit(coords_rg_m, np.mean(noise, 0), 7)
+            rg_fit = np.polynomial.polynomial.polyfit(coords_rg_m, np.mean(range_noise, 0), 7)
             # Azimuth noise varies far less than range
-            az_fit = np.polynomial.polynomial.polyfit(coords_az_m, np.mean(noise, 1), 7)
-
+            az_fit = np.polynomial.polynomial.polyfit(coords_az_m, np.mean(range_noise, 1), 7)
             noise_poly = np.outer(az_fit / np.max(az_fit), rg_fit)
-
-        else:  # TOPSAR modes (SLC, IW SLC) have a single LUT per burst. Num of bursts varies.
-            coords_rg_m = (pixel[x]+sicd_meta[x].ImageData.FirstRow -
+        else:  # TOPSAR modes (IW/EW) have a single LUT per burst. Num of bursts varies.
+            # Noise varies significantly in range, but also typically a little, ~1dB, in azimuth.
+            coords_rg_m = (range_pixel[x]+sicd_meta[x].ImageData.FirstRow -
                            sicd_meta[x].ImageData.SCPPixel.Row) * sicd_meta[x].Grid.Row.SS
+            rg_fit = np.polynomial.polynomial.polyfit(coords_rg_m, range_noise[x], 7)
+            noise_poly = np.array(rg_fit).reshape(1, -1).T  # Make values along SICD range
 
-            # Noise LUT varies in range over a single burst, but very little <0.25dB in azimuth
-            # Thus here we do a 1D polynomial fit
-            noise_poly = np.polynomial.polynomial.polyfit(coords_rg_m, noise[x], 7)
-            noise_poly = np.array(noise_poly).reshape(1, -1).T  # Make values along SICD range
+            if azi_noise is not None:
+                coords_az_m = ((azi_line[0] - (lines_per_burst*x) -
+                                sicd_meta[x].ImageData.SCPPixel.Col) * sicd_meta[x].Grid.Col.SS)
+                valid_lines = np.logical_and(np.array(azi_line[0]) >= lines_per_burst*x,
+                                             np.array(azi_line[0]) < lines_per_burst*(x+1))
+                az_fit = np.polynomial.polynomial.polyfit(coords_az_m[valid_lines],
+                                                          azi_noise[0][valid_lines], 2)
+                noise_poly = np.zeros((len(rg_fit), len(az_fit)))
+                noise_poly[:, 0] = rg_fit
+                noise_poly[0, :] = az_fit
+                noise_poly[0, 0] = rg_fit[0]+az_fit[0]
 
         # should have Radiometric field already in metadata if cal file is present
         if not hasattr(sicd_meta[x], 'Radiometric'):
