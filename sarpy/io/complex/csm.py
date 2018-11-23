@@ -129,20 +129,11 @@ class CSMChipper(chipper.Base):
 
             key = f'S0{self.band+1}'
 
-            self.datasize = np.flip(np.array(h5[key]['SBI'].shape[:2]),0)
+            self.datasize = np.array(h5[key]['SBI'].shape[:2])
 
-        self.symmetry[0] = (columnorder != 'NEAR-FAR')
-        self.symmetry[1] = (lineorder == 'EARLY-LATE') ^ (meta.SCPCOA.SideOfTrack=='R')
-
-        # [num_dims datasize] = H5S.get_simple_extent_dims(dspace_id(1)); % All polarizations should be same size
-        # % Compute symmetry
-        # symmetry=[0 0 1]; % Default for CSM complex data
-        # lineorder=get_hdf_attribute(fid,'Lines Order')';
-        # columnorder=get_hdf_attribute(fid,'Columns Order')';
-        # % Should be EARLY-LATE/NEAR-FAR for all CSM complex data
-        # symmetry(1)=~strncmp(columnorder,'NEAR-FAR',8);
-        # symmetry(2)=xor(strncmp(lineorder,'EARLY-LATE',10),meta{1}.SCPCOA.SideOfTrack=='R');
-
+        self.symmetry[0] = (columnorder == 'NEAR-FAR')
+        self.symmetry[1] = (lineorder != 'EARLY-LATE') ^ (meta.SCPCOA.SideOfTrack=='R')
+        
 
     def read_raw_fun(self, dim1rg, dim2rg):
         # TODO: Here we assume one band
@@ -156,7 +147,7 @@ class CSMChipper(chipper.Base):
             s1, e1, k1 = dim1rg
             s2, e2, k2 = dim2rg
             key = f'S0{self.band+1}'
-            return h5[key]['SBI'][s2:e2:k2, s1:e1:k1, :]
+            return h5[key]['SBI'][s1:e1:k1, s2:e2:k2, :]
 
 
 class Reader(ReaderSuper):
