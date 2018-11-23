@@ -44,7 +44,7 @@ def raised_cos_fun(n, coef):
     return np.concatenate(w)
 
 
-def datenum_w_frac(datestring):
+def datenum_w_frac(datestring, as_datetime=False):
     '''
     MATLAB's datenum function won't handle precise times down under a
     millisecond, because 1) It won't accept a format with more than 3 .FFF in
@@ -69,7 +69,11 @@ def datenum_w_frac(datestring):
 
     if np.isnan(datenum_frac):
         datenum_frac = 0
-    return datenum_s, datenum_frac
+
+    if as_datetime:
+        return date + datetime.timedelta(seconds=datenum_frac)
+    else:
+        return datenum_s, datenum_frac
 
 
 def populate_meta(root, recurse=True):
@@ -109,35 +113,66 @@ def isa(filename):
 
 
 class CSMChipper(chipper.Base):
-    def __init__(self, filename):
+    def __init__(self, filename, band, meta):
         self.filename = filename
 
         def complextype(data):
             return data[..., 0] + data[..., 1] * 1j
 
+        self.band = band
         self.complextype = complextype
+        self.symmetry = [False, False, True]
 
-    def raw_read_fun(self, dim1rg, dim2rg):
+        with h5py.File(filename, 'r') as h5:
+            lineorder = h5.attrs['Lines Order'].decode('ascii')
+            columnorder = h5.attrs['Columns Order'].decode('ascii')
+
+            key = f'S0{self.band+1}'
+
+            self.datasize = np.flip(np.array(h5[key]['SBI'].shape[:2]),0)
+
+        self.symmetry[0] = (columnorder != 'NEAR-FAR')
+        self.symmetry[1] = (lineorder == 'EARLY-LATE') ^ (meta.SCPCOA.SideOfTrack=='R')
+
+        # [num_dims datasize] = H5S.get_simple_extent_dims(dspace_id(1)); % All polarizations should be same size
+        # % Compute symmetry
+        # symmetry=[0 0 1]; % Default for CSM complex data
+        # lineorder=get_hdf_attribute(fid,'Lines Order')';
+        # columnorder=get_hdf_attribute(fid,'Columns Order')';
+        # % Should be EARLY-LATE/NEAR-FAR for all CSM complex data
+        # symmetry(1)=~strncmp(columnorder,'NEAR-FAR',8);
+        # symmetry(2)=xor(strncmp(lineorder,'EARLY-LATE',10),meta{1}.SCPCOA.SideOfTrack=='R');
+
+
+    def read_raw_fun(self, dim1rg, dim2rg):
         # TODO: Here we assume one band
         # Assuming spotlight SLC
+        if len(dim1rg) == 2:
+            dim1rg = list(dim1rg) + [1]
+        if len(dim2rg) == 2:
+            dim2rg = list(dim2rg) + [1]
 
         with h5py.File(self.filename, 'r') as h5:
             s1, e1, k1 = dim1rg
             s2, e2, k2 = dim2rg
-            return h5['S01']['SBI'][s1:e1:k1, s2:e2:k2, :]
+            key = f'S0{self.band+1}'
+            return h5[key]['SBI'][s2:e2:k2, s1:e1:k1, :]
 
 
 class Reader(ReaderSuper):
     def __init__(self, product_filename):
         self.sicdmeta = meta2sicd(product_filename)
-        self.read_chip = CSMChipper(product_filename)
+        self.read_chip = [CSMChipper(product_filename, band, self.sicdmeta[band]) for band in range(len(self.sicdmeta))]
+
 
 def polyshift(a, shift):
-        b = np.zeros(a.size)
-        for j in range(1, len(a)+1):
-            for k in range(j, len(a)+1):
-                b[j-1] = b[j-1] + (a[k-1]*comb(k-1, j-1)*np.power(shift, (k-j)))
-        return b
+    b = np.zeros(a.size)
+    for j in range(1, len(a) + 1):
+        for k in range(j, len(a) + 1):
+            b[j - 1] = b[j - 1] + (
+                a[k - 1] * comb(k - 1, j - 1) * np.power(shift, (k - j)))
+    return b
+
 
 def meta2sicd(filename):
     '''
@@ -173,13 +208,13 @@ def meta2sicd(filename):
         # case {'ENHANCED SPOTLIGHT','SMART'} # "Spotlight"
         output_meta.CollectionInfo.RadarMode.ModeType = 'DYNAMIC STRIPMAP'
 
-    output_meta.CollectionInfo.RadarMode.ModeID = h5meta['Multi-Beam ID']
+    # output_meta.CollectionInfo.RadarMode.ModeID = h5meta['Multi-Beam ID']
     output_meta.CollectionInfo.Classification = 'UNCLASSIFIED'
 
     ## ImageCreation
     output_meta.ImageCreation = MetaNode()
-    # TODO
-    output_meta.ImageCreation.DateTime = 3  #h5meta['Product Generation UTC'],'yyyy-mm-dd HH:MM:SS.FFF')
+    img_create_time = datenum_w_frac(h5meta['Product Generation UTC'], True)
+    output_meta.ImageCreation.DateTime = img_create_time
     output_meta.ImageCreation.Profile = 'Prototype'
 
     ## ImageData
@@ -210,7 +245,7 @@ def meta2sicd(filename):
     fc = h5meta['Radar Frequency']  # Center frequency
     output_meta.Grid.Row.KCtr = 2 * fc / speed_of_light
     output_meta.Grid.Col.KCtr = 0
-    output_meta.Grid.Row.DeltaKCOAPoly = 0
+    output_meta.Grid.Row.DeltaKCOAPoly = np.atleast_2d(0)
     output_meta.Grid.Row.WgtType = MetaNode()
     output_meta.Grid.Col.WgtType = MetaNode()
 
@@ -247,11 +282,18 @@ def meta2sicd(filename):
     output_meta.Timeline = MetaNode()
     output_meta.Timeline.IPP = MetaNode()
     output_meta.Timeline.IPP.Set = MetaNode()
-    output_meta.Timeline.CollectStart = collectStart + (
-        collectStartFrac / SECONDS_IN_A_DAY)
-    output_meta.Timeline.CollectDuration = np.round(
-        (collectEnd - collectStart) * SECONDS_IN_A_DAY) + (
-            collectEndFrac - collectStartFrac)  # Handle fractional seconds
+    output_meta.Timeline.CollectStart = datenum_w_frac(
+        h5meta['Scene Sensing Start UTC'], True)
+    output_meta.Timeline.CollectDuration = datenum_w_frac(
+        h5meta['Scene Sensing Stop UTC'], True)
+    output_meta.Timeline.CollectDuration = (
+        output_meta.Timeline.CollectDuration -
+        output_meta.Timeline.CollectStart).total_seconds()
+    # output_meta.Timeline.CollectStart = collectStart + (
+    #     collectStartFrac / SECONDS_IN_A_DAY)
+    # output_meta.Timeline.CollectDuration = np.round(
+    #     (collectEnd - collectStart) * SECONDS_IN_A_DAY) + (
+    #         collectEndFrac - collectStartFrac)  # Handle fractional seconds
     output_meta.Timeline.IPP.Set.TStart = 0
     output_meta.Timeline.IPP.Set.TEnd = 0  # Apply real value later.  Just a placeholder.
     output_meta.Timeline.IPP.Set.IPPStart = 0
@@ -262,10 +304,11 @@ def meta2sicd(filename):
     [ref_time, ref_time_frac] = datenum_w_frac(h5meta['Reference UTC'])
     # Times in SICD are with respect to time from start of collect, but
     # time in CSM are generally with respect to reference time.
-    ref_time_offset = np.round((ref_time - collectStart) *
-                               SECONDS_IN_A_DAY)  # Convert from days to secs
-    ref_time_offset += (
-        ref_time_frac - collectStartFrac)  # Handle fractional seconds
+    ref_time_offset = np.round(ref_time - collectStart)
+    # ref_time_offset = np.round((ref_time - collectStart) *
+    #                            SECONDS_IN_A_DAY)  # Convert from days to secs
+    
+    ref_time_offset += (ref_time_frac - collectStartFrac)  # Handle fractional seconds
     state_vector_T = h5meta['State Vectors Times']  # In seconds
     state_vector_T = state_vector_T + ref_time_offset  # Make with respect to Timeline.CollectStart
     state_vector_pos = h5meta['ECEF Satellite Position']
@@ -275,6 +318,7 @@ def meta2sicd(filename):
     P_x = poly.polyfit(state_vector_T, state_vector_pos[:, 0], polyorder)
     P_y = poly.polyfit(state_vector_T, state_vector_pos[:, 1], polyorder)
     P_z = poly.polyfit(state_vector_T, state_vector_pos[:, 2], polyorder)
+
     # We don't use these since they are derivable from the position polynomial
     # state_vector_vel = h5meta['ECEF Satellite Velocity']
     # state_vector_acc = h5meta['ECEF Satellite Acceleration']
@@ -344,14 +388,16 @@ def meta2sicd(filename):
     t_rg_ref = h5meta['Range Polynomial Reference Time']
     dop_poly_az = h5meta['Centroid vs Azimuth Time Polynomial']
     #     # Jarred note: do we need to strip polys?
+    dop_poly_az = dop_poly_az[:(np.argwhere(dop_poly_az != 0.0)[-1, 0] + 1)]
     #     # dop_poly_az=dop_poly_az(1:find(dop_poly_az~=0,1,'last')) # Strip of zero coefficients
     dop_poly_rg = h5meta['Centroid vs Range Time Polynomial']
+    dop_poly_rg = dop_poly_rg[:(np.argwhere(dop_poly_rg != 0.0)[-1, 0] + 1)]
     #     # dop_poly_rg=dop_poly_rg(1:find(dop_poly_rg~=0,1,'last'))  # Strip of zero coefficients
     dop_rate_poly_az = h5meta['Doppler Rate vs Azimuth Time Polynomial']
     dop_rate_poly_rg = h5meta['Doppler Rate vs Range Time Polynomial']
     #     # dop_rate_poly_rg=dop_rate_poly_rg(1:find(dop_rate_poly_rg~=0,1,'last'))  # Strip of zero coefficients
 
-    #     ## SCPCOA
+    ## SCPCOA
     output_meta.SCPCOA = MetaNode()
     output_meta.SCPCOA.SideOfTrack = h5meta['Look Side'][0:1].upper()
     # Most subfields added below in "per band" section, but we grab this field
@@ -362,15 +408,15 @@ def meta2sicd(filename):
     band_independent_meta = copy.deepcopy(
         output_meta)  # Values that are consistent across all bands
     grouped_meta = []
+
     for i in range(numbands):
         output_meta = copy.deepcopy(band_independent_meta)
-
         ## ImageData
         datasize = band_shapes[i]  # All polarizations should be same size
         output_meta.ImageData = MetaNode()
         output_meta.ImageData.NumCols = datasize[0]
         output_meta.ImageData.NumRows = datasize[1]
-        output_meta.ImageData.FullImage = output_meta.ImageData
+        # output_meta.ImageData.FullImage = output_meta.ImageData
         output_meta.ImageData.FirstRow = 0
         output_meta.ImageData.FirstCol = 0
         output_meta.ImageData.PixelType = 'RE16I_IM16I'
@@ -398,7 +444,8 @@ def meta2sicd(filename):
 
         if 'SCS' in h5meta['Product Type']:
             # 'Column Time Interval' does not exist in detected products.
-            ss_rg_s = band_meta[i]['Column Time Interval']  # Row spacing in range time (seconds)
+            ss_rg_s = band_meta[i][
+                'Column Time Interval']  # Row spacing in range time (seconds)
             output_meta.ImageData.SCPPixel.Row = int(
                 round((t_rg_ref - t_rg_first) / ss_rg_s) + 1)
         else:
@@ -469,7 +516,7 @@ def meta2sicd(filename):
             a = float(output_meta.Grid.Row.WgtType.Parameter.
                       value)  # Generalized Hamming window parameter
 
-            row_broadening_factor = 2 * fsolve(
+            row_broadening_factor = 2.0 * fsolve(
                 lambda x: a * (np.sin(np.pi * x) / (np.pi * x)) + ((1 - a) * (np.sin(np.pi * (x - 1)) / (np.pi * (x - 1))) / 2) + ((1 - a) * (np.sin(np.pi * (x + 1)) / (np.pi * (x + 1))) / 2) - a / np.sqrt(2),
                 0.1)
             output_meta.Grid.Row.ImpRespWid = row_broadening_factor / output_meta.Grid.Row.ImpRespBW
@@ -477,7 +524,7 @@ def meta2sicd(filename):
         if output_meta.Grid.Col.WgtType.WindowName == 'HAMMING':  # The usual CSM weigting
             a = float(output_meta.Grid.Col.WgtType.Parameter.
                       value)  # Generalized Hamming window parameter
-            col_broadening_factor = 2 * fsolve(
+            col_broadening_factor = 2.0 * fsolve(
                 lambda x: a * (np.sin(np.pi * x) / (np.pi * x)) + ((1 - a) * (np.sin(np.pi * (x - 1)) / (np.pi * (x - 1))) / 2) + ((1 - a) * (np.sin(np.pi * (x + 1)) / (np.pi * (x + 1))) / 2) - a / np.sqrt(2),
                 0.1)
             output_meta.Grid.Col.ImpRespWid = col_broadening_factor / output_meta.Grid.Col.ImpRespBW
@@ -485,8 +532,8 @@ def meta2sicd(filename):
         ## Timeline
         prf = band_meta[i]['PRF']
         output_meta.Timeline.IPP.Set.IPPEnd = int(
-            np.floor(prf * band_independent_meta.Timeline.CollectDuration))
-        output_meta.Timeline.IPP.Set.IPPPoly = [0, prf]
+            np.floor(prf * output_meta.Timeline.CollectDuration))
+        output_meta.Timeline.IPP.Set.IPPPoly = np.array([0, prf])
         output_meta.Timeline.IPP.Set.TEnd = output_meta.Timeline.CollectDuration
 
         ## RadarCollection
@@ -519,7 +566,7 @@ def meta2sicd(filename):
         output_meta.ImageFormation.TxFrequencyProc = MetaNode()
         output_meta.ImageFormation.TxFrequencyProc.MinProc = output_meta.RadarCollection.TxFrequency.Min
         output_meta.ImageFormation.TxFrequencyProc.MaxProc = output_meta.RadarCollection.TxFrequency.Max
-        output_meta.ImageFormation.TxRcvPolarizationProc = band_independent_meta.RadarCollection.RcvChannels.ChanParameters[
+        output_meta.ImageFormation.TxRcvPolarizationProc = output_meta.RadarCollection.RcvChannels.ChanParameters[
             i].TxRcvPolarization
 
         ## RMA
@@ -530,18 +577,18 @@ def meta2sicd(filename):
         t_az_scp = t_az_first + (
             ss_az_s * float(output_meta.ImageData.SCPPixel.Col)
         )  # Zero doppler time of SCP
-        output_meta.RMA.INCA.TimeCAPoly = [
+        output_meta.RMA.INCA.TimeCAPoly = np.array([
             t_az_scp + ref_time_offset,  # With respect to start of collect
             ss_az_s / output_meta.Grid.Col.SS
-        ]  # Convert zero doppler spacing from sec/pixels to sec/meters
+        ])  # Convert zero doppler spacing from sec/pixels to sec/meters
         # Compute DopCentroidPoly/DeltaKCOAPoly
 
-        output_meta.RMA.INCA.DopCentroidPoly = np.zeros(
-            (len(dop_poly_rg), len(dop_poly_az)))
+        output_meta.RMA.INCA.DopCentroidPoly = np.zeros((len(dop_poly_rg),
+                                                         len(dop_poly_az)))
         # Compute doppler centroid value at SCP
         output_meta.RMA.INCA.DopCentroidPoly[0] = (
-            poly.polyval(dop_poly_rg, t_rg_scp - t_rg_ref) + poly.polyval(
-                dop_poly_az, t_az_scp - t_az_ref) - 0.5 *
+            poly.polyval(t_rg_scp - t_rg_ref, dop_poly_rg) + poly.polyval(
+                t_az_scp - t_az_ref,dop_poly_az) - 0.5 *
             (dop_poly_az[0] + dop_poly_rg[0]))  # These should be identical
         # Shift 1D polynomials to account for SCP
         dop_poly_az_shifted = polyshift(dop_poly_az, t_az_scp - t_az_ref)
@@ -549,7 +596,6 @@ def meta2sicd(filename):
         dop_rate_poly_rg_shifted = polyshift(dop_rate_poly_rg,
                                              t_rg_scp - t_rg_ref)
         # Scale 1D polynomials to from Hz/s^n to Hz/m^n
-        print(dop_poly_az_shifted.shape)
         dop_poly_az_scaled = dop_poly_az_shifted * np.power(
             ss_az_s / output_meta.Grid.Col.SS, np.arange(0, len(dop_poly_az)))
         dop_poly_rg_scaled = dop_poly_rg_shifted * np.power(
@@ -559,24 +605,28 @@ def meta2sicd(filename):
             np.arange(0, len(dop_rate_poly_rg)))
         output_meta.RMA.INCA.DopCentroidPoly[1:, 0] = dop_poly_rg_scaled[1:]
         output_meta.RMA.INCA.DopCentroidPoly[0, 1:] = dop_poly_az_scaled[1:]
-        output_meta.RMA.INCA.DopCentroidCOA = True
+        # output_meta.RMA.INCA.DopCentroidCOA = True
         output_meta.Grid.Col.DeltaKCOAPoly = output_meta.RMA.INCA.DopCentroidPoly * ss_az_s / output_meta.Grid.Col.SS
 
         # Compute DRateSFPoly
         # For the purposes of the DRateSFPoly computation, we ignore any
         # changes in velocity or doppler rate over the azimuth dimension.
         # Velocity is derivate of position.
-        vel_x = poly.polyval(poly.polyder(P_x), output_meta.RMA.INCA.TimeCAPoly[0])
-        vel_y = poly.polyval(poly.polyder(P_y), output_meta.RMA.INCA.TimeCAPoly[0])
-        vel_z = poly.polyval(poly.polyder(P_z), output_meta.RMA.INCA.TimeCAPoly[0])
+        vel_x = poly.polyval(output_meta.RMA.INCA.TimeCAPoly[0],
+                             poly.polyder(P_x))
+        vel_y = poly.polyval(output_meta.RMA.INCA.TimeCAPoly[0],
+                             poly.polyder(P_y))
+        vel_z = poly.polyval(output_meta.RMA.INCA.TimeCAPoly[0],
+                             poly.polyder(P_z))
         vm_ca_sq = vel_x**2 + vel_y**2 + vel_z**2  # Magnitude of the velocity squared
-        r_ca = [
-            output_meta.RMA.INCA.R_CA_SCP, 1.
-        ]  # Polynomial representing range as a function of range distance from SCP
+        r_ca = np.array(
+            [output_meta.RMA.INCA.R_CA_SCP, 1.]
+        )  # Polynomial representing range as a function of range distance from SCP
         output_meta.RMA.INCA.DRateSFPoly = -poly.polymul(
-            dop_rate_poly_rg_scaled, r_ca) * (speed_of_light /
-                                              (2.0 * fc * vm_ca_sq[0])
-                                              )  # Assumes a SGN of -1
+            dop_rate_poly_rg_scaled, r_ca) * (
+                speed_of_light / (2.0 * fc * vm_ca_sq))  # Assumes a SGN of -1
+        output_meta.RMA.INCA.DRateSFPoly = np.array(
+            [output_meta.RMA.INCA.DRateSFPoly])#.transpose()
         # TimeCOAPoly
         # TimeCOAPoly=TimeCA+(DopCentroid/dop_rate)
         # Since we can't evaluate this equation analytically, we will evaluate
@@ -584,102 +634,57 @@ def meta2sicd(filename):
         # From radarsat.py
         POLY_ORDER = 2  # Order of polynomial which we want to compute in each dimension
         grid_samples = POLY_ORDER + 1
-        coords_az_m = np.linspace(-output_meta.ImageData.SCPPixel.Col * output_meta.Grid.Col.SS,
-                                  (output_meta.ImageData.NumCols - output_meta.ImageData.SCPPixel.Col) *
-                                  output_meta.Grid.Col.SS, grid_samples)
-        coords_rg_m = np.linspace(-output_meta.ImageData.SCPPixel.Row * output_meta.Grid.Row.SS,
-                                  (output_meta.ImageData.NumRows - output_meta.ImageData.SCPPixel.Row) *
-                                  output_meta.Grid.Row.SS, grid_samples)
-        [coords_az_m_2d, coords_rg_m_2d] = np.meshgrid(coords_az_m, coords_rg_m)
-        timeca_sampled = poly.polyval2d(coords_rg_m_2d, coords_az_m_2d,
-                                        np.atleast_2d(output_meta.RMA.INCA.TimeCAPoly))
-        dopcentroid_sampled = poly.polyval2d(coords_rg_m_2d, coords_az_m_2d,
-                                             output_meta.RMA.INCA.DopCentroidPoly)
-        doprate_sampled = poly.polyval2d(coords_rg_m_2d, coords_az_m_2d,
-                                         dop_rate_poly_rg_scaled[:, np.newaxis])
-        timecoa_sampled = timeca_sampled + (dopcentroid_sampled / doprate_sampled)
+        coords_az_m = np.linspace(
+            -output_meta.ImageData.SCPPixel.Col * output_meta.Grid.Col.SS,
+            (output_meta.ImageData.NumCols -
+             output_meta.ImageData.SCPPixel.Col) * output_meta.Grid.Col.SS,
+            grid_samples)
+        coords_rg_m = np.linspace(
+            -output_meta.ImageData.SCPPixel.Row * output_meta.Grid.Row.SS,
+            (output_meta.ImageData.NumRows -
+             output_meta.ImageData.SCPPixel.Row) * output_meta.Grid.Row.SS,
+            grid_samples)
+        [coords_az_m_2d, coords_rg_m_2d] = np.meshgrid(coords_az_m,
+                                                       coords_rg_m)
+        timeca_sampled = poly.polyval2d(
+            coords_rg_m_2d, coords_az_m_2d,
+            np.atleast_2d(output_meta.RMA.INCA.TimeCAPoly))
+        dopcentroid_sampled = poly.polyval2d(
+            coords_rg_m_2d, coords_az_m_2d,
+            output_meta.RMA.INCA.DopCentroidPoly)
+        doprate_sampled = poly.polyval2d(
+            coords_rg_m_2d, coords_az_m_2d,
+            dop_rate_poly_rg_scaled[:, np.newaxis])
+        timecoa_sampled = timeca_sampled + (
+            dopcentroid_sampled / doprate_sampled)
         # Least squares fit for 2D polynomial
-        # A*x = b
-        a = np.zeros(((POLY_ORDER+1)**2, (POLY_ORDER+1)**2))
-        for k in range(POLY_ORDER+1):
-            for j in range(POLY_ORDER+1):
-                a[:, k*(POLY_ORDER+1)+j] = np.multiply(
+        a = np.zeros(((POLY_ORDER + 1)**2, (POLY_ORDER + 1)**2))
+        for k in range(POLY_ORDER + 1):
+            for j in range(POLY_ORDER + 1):
+                a[:, k * (POLY_ORDER + 1) + j] = np.multiply(
                     np.power(coords_az_m_2d.flatten(), j),
                     np.power(coords_rg_m_2d.flatten(), k))
-        A = np.zeros(((POLY_ORDER+1)**2, (POLY_ORDER+1)**2))
-        for k in range((POLY_ORDER+1)**2):
-            for j in range((POLY_ORDER+1)**2):
+        A = np.zeros(((POLY_ORDER + 1)**2, (POLY_ORDER + 1)**2))
+        for k in range((POLY_ORDER + 1)**2):
+            for j in range((POLY_ORDER + 1)**2):
                 A[k, j] = np.multiply(a[:, k], a[:, j]).sum()
-        b_coa = [np.multiply(timecoa_sampled.flatten(), a[:, k]).sum()
-                 for k in range((POLY_ORDER+1)**2)]
+        b_coa = [
+            np.multiply(timecoa_sampled.flatten(), a[:, k]).sum()
+            for k in range((POLY_ORDER + 1)**2)
+        ]
         x_coa = np.linalg.solve(A, b_coa)
-        output_meta.Grid.TimeCOAPoly = np.reshape(x_coa, (POLY_ORDER+1, POLY_ORDER+1))
-        if output_meta.CollectionInfo.RadarMode.ModeType == 'SPOTLIGHT':
-            output_meta.Grid.TimeCOAPoly = np.atleast_2d(output_meta.Grid.TimeCOAPoly[0, 0])
-            # This field required to compute TimeCOAPoly, but not allowed for
-            # spotlight in SICD.
-            del output_meta.RMA.INCA.DopCentroidPoly
-        else:  # This field also not allowed for spotlight in SICD.
-            output_meta.RMA.INCA.DopCentroidCOA = True
-        # POLY_ORDER = 2 # Order of polynomial which we want to compute
-        # grid_samples = POLY_ORDER+1  # in each dimension
-        # coords_az_m = np.linspace(
-        #     -float(output_meta.ImageData.SCPPixel.Col) *
-        #     output_meta.Grid.Col.SS,
-        #     float(output_meta.ImageData.NumCols -
-        #           output_meta.ImageData.SCPPixel.Col) *
-        #     output_meta.Grid.Col.SS, grid_samples)
-        # coords_rg_m = np.linspace(
-        #     -float(output_meta.ImageData.SCPPixel.Row) *
-        #     output_meta.Grid.Row.SS,
-        #     float(output_meta.ImageData.NumRows -
-        #           output_meta.ImageData.SCPPixel.Row) *
-        #     output_meta.Grid.Row.SS, grid_samples)
-
-        # timeca_sampled = poly.polyval2d(coords_az_m, coords_rg_m, output_meta.RMA.INCA.TimeCAPoly)
-        # dopcentroid_sampled = poly.polyval2d(coords_az_m, coords_rg_m, output_meta.RMA.INCA.DopCentroidPoly)
-        # doprate_sampled = poly.polyval2d(coords_az_m, coords_rg_m, dop_rate_poly_rg_scaled)
-        # timecoa_sampled = timeca_sampled + (
-        #     dopcentroid_sampled / doprate_sampled)
-
-        # TODO
-        # Least squares fit for 2D polynomial
-        # # A*x = b
-        # [coords_az_m, coords_rg_m] = ndgrid(coords_az_m, coords_rg_m)
-        # a = zeros(grid_samples^2, (POLY_ORDER+1)^2)
-        # for k = 0:POLY_ORDER
-        #     for j = 0:POLY_ORDER
-        #         a(:,k*(POLY_ORDER+1)+j+1) = (coords_rg_m(:).^j).*(coords_az_m(:).^k)
-
-        #         b_coa = zeros((POLY_ORDER+1)^2,1)
-        #         for k=1:((POLY_ORDER+1)^2)
-        #            b_coa(k)=sum(timecoapoly_sampled(:).*a(:,k)) # center of aperture
-
-        #         A=zeros((POLY_ORDER+1)^2)
-        #         for k=1:((POLY_ORDER+1)^2)
-        #             for j=1:((POLY_ORDER+1)^2)
-        #                 A(k,j)=sum(a(:,k).*a(:,j))
-
-        #         x=np.solve(A,b_coa) # MATLAB often flags this as badly scaled, but results still appear valid
-        #         output_meta.Grid.TimeCOAPoly=reshape(x, POLY_ORDER+1, POLY_ORDER+1)
+        output_meta.Grid.TimeCOAPoly = np.reshape(
+            x_coa, (POLY_ORDER + 1, POLY_ORDER + 1))
 
         ## Radiometric
         output_meta.Radiometric = MetaNode()
         if h5meta['Range Spreading Loss Compensation Geometry'] != 'NONE':
             fact = h5meta['Reference Slant Range']**(
                 2 * h5meta['Reference Slant Range Exponent'])
-            # This code commented out below converts from beta_0 to sigma_0,
-            # but we will just populate the more natural beta_0 directly, and
-            # let derived_sicd_fields compute the rest of the rcs, sigma_0,
-            # gamma_0 terms in a sensor independent way later.
-            # if ~strncmpi(h5meta['Incidence Angle Compensation Geometry'], 'NONE', 4)
-            #     fact = fact * sind(h5meta['Reference Incidence Angle'])
-            # end
             if h5meta['Calibration Constant Compensation Flag'] == 0:
                 fact = fact * (1 / (h5meta['Rescaling Factor']**2))
                 fact = fact / band_meta[i]['Calibration Constant']
-                output_meta.Radiometric.BetaZeroSFPoly = fact
-
+                output_meta.Radiometric.BetaZeroSFPoly = np.array([[fact]])
         ## GeoData
         # Now that sensor model fields have been populated, we can populate
         # GeoData.SCP more precisely.
@@ -697,7 +702,7 @@ def meta2sicd(filename):
         output_meta.GeoData.SCP.LLH.HAE = llh[2]
 
         ## SCPCOA
-        output_meta = sicd.derived_fields(output_meta)
+        sicd.derived_fields(output_meta)
 
         grouped_meta.append(output_meta)
 
