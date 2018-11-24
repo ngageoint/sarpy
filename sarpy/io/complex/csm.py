@@ -1,6 +1,6 @@
 '''
-Module for reading Cosmo Skymed HDF5 imagery.  This was ported
-directly from NGA's MATLAB SAR Toolbox.
+Module for reading Cosmo Skymed HDF5 imagery.  This is more or less
+a line-for-line port of the reader from NGA's MATLAB SAR Toolbox.
 '''
 # SarPy imports
 from .sicd import MetaNode
@@ -53,6 +53,8 @@ def datenum_w_frac(datestring, as_datetime=False):
     enough bits to handle fractional seconds to the level we want.  Here we
     handle the fractional seconds separately so we can read date with the
     precision we need.
+
+    `as_datetime` returns a Python datetime object.
     '''
     epoch = datetime.datetime.strptime('2000-01-01 00:00:00',
                                        '%Y-%m-%d %H:%M:%S')
@@ -131,9 +133,9 @@ class CSMChipper(chipper.Base):
 
             self.datasize = np.array(h5[key]['SBI'].shape[:2])
 
-        self.symmetry[0] = (columnorder == 'NEAR-FAR')
-        self.symmetry[1] = (lineorder != 'EARLY-LATE') ^ (meta.SCPCOA.SideOfTrack=='R')
-        
+        self.symmetry[1] = (columnorder != 'NEAR-FAR')
+        self.symmetry[0] = (lineorder == 'EARLY-LATE') != (
+            meta.SCPCOA.SideOfTrack == 'R')
 
     def read_raw_fun(self, dim1rg, dim2rg):
         # TODO: Here we assume one band
@@ -153,7 +155,10 @@ class CSMChipper(chipper.Base):
 class Reader(ReaderSuper):
     def __init__(self, product_filename):
         self.sicdmeta = meta2sicd(product_filename)
-        self.read_chip = [CSMChipper(product_filename, band, self.sicdmeta[band]) for band in range(len(self.sicdmeta))]
+        self.read_chip = [
+            CSMChipper(product_filename, band, self.sicdmeta[band])
+            for band in range(len(self.sicdmeta))
+        ]
 
 
 def polyshift(a, shift):
@@ -169,7 +174,6 @@ def meta2sicd(filename):
     '''
     Extract the CSM metadata into SICD format
     '''
-    SECONDS_IN_A_DAY = 24 * 60 * 60
     band_meta = []
     band_shapes = []
     with h5py.File(filename, 'r') as h5:
@@ -298,8 +302,9 @@ def meta2sicd(filename):
     ref_time_offset = np.round(ref_time - collectStart)
     # ref_time_offset = np.round((ref_time - collectStart) *
     #                            SECONDS_IN_A_DAY)  # Convert from days to secs
-    
-    ref_time_offset += (ref_time_frac - collectStartFrac)  # Handle fractional seconds
+
+    ref_time_offset += (
+        ref_time_frac - collectStartFrac)  # Handle fractional seconds
     state_vector_T = h5meta['State Vectors Times']  # In seconds
     state_vector_T = state_vector_T + ref_time_offset  # Make with respect to Timeline.CollectStart
     state_vector_pos = h5meta['ECEF Satellite Position']
@@ -579,7 +584,7 @@ def meta2sicd(filename):
         # Compute doppler centroid value at SCP
         output_meta.RMA.INCA.DopCentroidPoly[0] = (
             poly.polyval(t_rg_scp - t_rg_ref, dop_poly_rg) + poly.polyval(
-                t_az_scp - t_az_ref,dop_poly_az) - 0.5 *
+                t_az_scp - t_az_ref, dop_poly_az) - 0.5 *
             (dop_poly_az[0] + dop_poly_rg[0]))  # These should be identical
         # Shift 1D polynomials to account for SCP
         dop_poly_az_shifted = polyshift(dop_poly_az, t_az_scp - t_az_ref)
@@ -617,7 +622,7 @@ def meta2sicd(filename):
             dop_rate_poly_rg_scaled, r_ca) * (
                 speed_of_light / (2.0 * fc * vm_ca_sq))  # Assumes a SGN of -1
         output_meta.RMA.INCA.DRateSFPoly = np.array(
-            [output_meta.RMA.INCA.DRateSFPoly])#.transpose()
+            [output_meta.RMA.INCA.DRateSFPoly])  #.transpose()
         # TimeCOAPoly
         # TimeCOAPoly=TimeCA+(DopCentroid/dop_rate)
         # Since we can't evaluate this equation analytically, we will evaluate
