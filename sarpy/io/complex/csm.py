@@ -172,7 +172,14 @@ def polyshift(a, shift):
 
 def meta2sicd(filename):
     '''
-    Extract the CSM metadata into SICD format
+    Extract attributes from CSM HDF5 file and format as SICD
+    '''
+    return convert_meta(*extract_meta_from_HDF(filename))
+
+
+def extract_meta_from_HDF(filename):
+    '''
+    Extract the attribute metadata from the HDF5 files
     '''
     band_meta = []
     band_shapes = []
@@ -185,7 +192,19 @@ def meta2sicd(filename):
             groupname = f'/S0{i+1}'
             band_meta.append(populate_meta(h5[groupname]))
             band_shapes.append(h5[groupname]['SBI'].shape[:2])
+    return h5meta, band_meta, band_shapes
 
+
+def convert_meta(h5meta, band_meta, band_shapes):
+    '''
+    Extract the CSM metadata into SICD format
+
+    Inputs:
+    h5meta: The attributes from the HDF5 root
+    band_meta: A list of dicts, with dict i containing the attributes from /S0{i+1}
+    band_shapes: The dataset shapes of each band dataset.
+    '''
+    numbands = len(band_meta)
     ## CollectionInfo
     output_meta = MetaNode()
     output_meta.CollectionInfo = MetaNode()
