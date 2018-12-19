@@ -1,15 +1,21 @@
 '''This module contains the functions to map between the pixel grid in the
 image space and geolocated points in 3D space.'''
+import os
+import scipy.interpolate as spint
 
 # SarPy imports
-from . import geocoords as gc
+from sarpy.geometry import geocoords as gc
 # Python standard library imports
 import copy
 import warnings
 # External dependencies
 import numpy as np
+import statistics
 from numpy.polynomial import polynomial as poly
+from sarpy.geometry import geoid
+from sarpy.io.DEM import DEM
 
+import pdb
 __classification__ = "UNCLASSIFIED"
 __email__ = "Wade.C.Schwartzkopf.ctr@nga.mil"
 
@@ -179,7 +185,7 @@ def image_to_ground(im_points, sicd_meta, projection_type='hae',  # CSM default 
                     hae0=None, delta_hae_max=1, hae_nlim=3,
                     # Adjustable parameters
                     delta_arp=[0, 0, 0], delta_varp=[0, 0, 0], range_bias=0,
-                    adj_params_frame='ECF'):
+                    adj_params_frame='ECF',dem=None, dem_type='SRTM2F', geoid_path=None, del_DISTrrc=10, del_HDlim=.001):
     '''Transforms pixel row, col to ground ECF coordinate
      This function implements the SICD Image Projections Description Document:
      http://www.gwg.nga.mil/ntb/baseline/docs/SICD/index.html
@@ -216,6 +222,21 @@ def image_to_ground(im_points, sicd_meta, projection_type='hae',  # CSM default 
         adj_params_frame - Coordinate frame used for expressing delta_arp
                           and delta_varp adjustable parameters.  Allowed
                           values: 'ECF', 'RIC_ECF', 'RIC_ECI'. Default ECF.
+       dem               SRTM pathname or structure with
+                         lats/lons/elevations fields where are all are
+                         arrays of same size and elevation is height above
+                         WGS-84 ellipsoid.
+                         Only valid if projection_type is 'dem'.
+       dem_type        - One of 'DTED1', 'DTED2', 'SRTM1', 'SRTM2', 'SRTM2F'
+                         Defaults to SRTM2f
+       geoid_path      - Parent path to EGM2008 file(s)  
+       del_DISTrrc       Maximum distance between adjacent points along
+                         the R/Rdot contour. Recommended value: 10.0 m.
+                         Only valid if projection_type is 'dem'.
+       del_HDlim         Height difference threshold for determining if a
+                         point on the R/Rdot contour is on the DEM
+                         surface (m).  Recommended value: 0.001 m.  Only
+                         valid if projection_type is 'dem'.
 
      Outputs:
         gpos        - [Nx3] ECF Ground Points along the R/Rdot contour
@@ -292,8 +313,12 @@ def image_to_ground(im_points, sicd_meta, projection_type='hae',  # CSM default 
         gpos = projection_set_to_hae(r, rDot, arp_coa, varp_coa,
                                      scp, hae0, delta_hae_max, hae_nlim)
     elif projection_type.lower() == 'dem':
-        # TODO: DEM projection not implemented
-        raise ValueError('DEM projection not yet implemented.')
+        # TODO: DEM projection implemented, but unverified
+        scp = np.array([sicd_meta.GeoData.SCP.ECF.X,
+                        sicd_meta.GeoData.SCP.ECF.Y,
+                        sicd_meta.GeoData.SCP.ECF.Z])
+        gpos = projection_set_to_dem(r, rDot, arp_coa, varp_coa, scp, delta_hae_max, hae_nlim, dem, dem_type, geoid_path, del_DISTrrc, del_HDlim)
+        
     else:
         raise ValueError('Unrecognized projection type.')
 
@@ -333,16 +358,22 @@ def projection_set_to_plane(r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa, gref, g
 
     # 5. Precise R/Rdot to Ground Plane Projection
     # Solve for the intersection of a R/Rdot contour and a ground plane.
-
+    if gpn.size == 3:
+        gpn = np.matlib.repmat(gpn,r_tgt_coa.size,1)
+    if gref.size == 3:
+        gref = np.matlib.repmat(gref, r_tgt_coa.size,1)
     # unit normal
-    uZ = gpn / np.sqrt(np.sum(np.power(gpn, 2), axis=-1, keepdims=True))
+    den = np.matlib.repmat(np.sqrt(np.sum(gpn*gpn,axis=1)),3,1)
+    uZ = gpn / den.reshape(den.shape[1],den.shape[0])
 
     # ARP distance from plane
     arpZ = np.sum((arp_coa - gref) * uZ, axis=-1)
     arpZ[arpZ > r_tgt_coa] = np.nan
 
     # ARP ground plane nadir
-    aGPN = arp_coa - arpZ[:, np.newaxis] * uZ
+    tmp = np.matlib.repmat(arpZ, 3, 1)
+    tmprshp = tmp.reshape(tmp.shape[1],tmp.shape[0])
+    aGPN = arp_coa - tmprshp * uZ
 
     # Compute ground plane distance (gd) from ARP nadir to circle of const range
     gd = np.sqrt(r_tgt_coa*r_tgt_coa - arpZ*arpZ)
@@ -357,7 +388,9 @@ def projection_set_to_plane(r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa, gref, g
     vX = np.sqrt(vMag*vMag - vZ*vZ)  # Note: For Vx = 0, no Solution
 
     # Orient X such that Vx > 0 and compute unit vectors uX and uY
-    uX = 1/vX[:, np.newaxis] * (varp_coa - vZ[:, np.newaxis] * uZ)
+    tmpvX = np.matlib.repmat(vX, 3, 1) 
+    tmpvZ = np.matlib.repmat(vZ, 3, 1)
+    uX = (1/tmpvX.reshape(tmpvX.shape[1],tmpvX.shape[0]) ) * (varp_coa - tmpvZ.reshape(tmpvZ.shape[1],tmpvZ.shape[0]) * uZ)
     uY = np.cross(uZ, uX)
 
     # Compute cosine of azimuth angle to ground plane point
@@ -370,8 +403,9 @@ def projection_set_to_plane(r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa, gref, g
     sinAz = look * np.sqrt(1-cosAz*cosAz)
 
     # Compute Ground Plane Point in ground plane and along the R/Rdot contour
-    gPP = aGPN + ((gd*cosAz)[:, np.newaxis]*uX) + ((gd*sinAz)[:, np.newaxis]*uY)  # in ECF
-
+    gdcosAz_rs = np.matlib.repmat(gd*cosAz, 3,1)
+    gdsinAz_rs = np.matlib.repmat(gd*sinAz, 3,1)
+    gPP = aGPN + (gdcosAz_rs.reshape(gdcosAz_rs.shape[1],gdcosAz_rs.shape[0])*uX) + (gdsinAz_rs.reshape(gdsinAz_rs.shape[1],gdsinAz_rs.shape[0])*uY)  # in ECF
     return gPP
 
 
@@ -408,39 +442,216 @@ def projection_set_to_hae(r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa,
     delta_hae = np.inf
     # (1) Compute the geodetic ground plane normal at the SCP.
     ugpn = gc.wgs_84_norm(scp)
-    look = np.sign(np.sum(np.cross(arp_coa, varp_coa) * (scp - arp_coa), axis=-1))
+    look = np.sign(np.sum(np.transpose(ugpn)*np.cross(arp_coa - np.matlib.repmat(scp,np.size(arp_coa),1), varp_coa)))
     gpp_llh = gc.ecf_to_geodetic(scp)
     if hae0 is None:
         hae0 = gpp_llh[:, 2]
-    gref = scp + ((hae0 - gpp_llh[:, 2]) * ugpn)
-    while np.all(abs(delta_hae) > delta_hae_max) and (iters <= nlim):
+    #gref = scp + ((hae0 - gpp_llh[:, 2]) * ugpn)
+    gref = scp - (gpp_llh[:, 2] - hae0) * ugpn
+    while np.all(np.abs(delta_hae) > delta_hae_max) and (iters <= nlim):
         # (2) Compute the precise projection along the R/Rdot contour to Ground Plane n.
         gpp = projection_set_to_plane(r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa, gref, ugpn)
         # (3) Compute the unit vector in the increasing height direction
         ugpn = gc.wgs_84_norm(gpp)
         gpp_llh = gc.ecf_to_geodetic(gpp)
         delta_hae = gpp_llh[:, 2] - hae0
-        gref = gpp - (delta_hae[:, np.newaxis] * ugpn)
+        gref = gpp - (np.matlib.repmat(delta_hae,1,3) * ugpn)
         iters = iters + 1
         # (4) Test for delta_hae_MAX and NLIM
     # (5) Compute the unit slant plane normal vector, uspn, that is tangent to
     # the R/Rdot contour at point gpp
-    spn = look[:, np.newaxis] * np.cross(varp_coa, (gpp - arp_coa))
-    uspn = spn/np.sqrt(np.sum(np.power(spn, 2), axis=-1, keepdims=True))
+    #spn = look[:, np.newaxis] * np.cross(varp_coa, (gpp - arp_coa))
+    
+    spn = np.matlib.repmat(look,1,3) * np.cross(varp_coa, (gpp - arp_coa))
+    uspn = spn/np.matlib.repmat(np.sqrt(np.sum(np.power(spn, 2))), 1, 3)
 
     # (6) For the final straight line projection, project from point gpp along
     # the slant plane normal (as opposed to the ground plane normal that was
     # used in the iteration) to point slp.
-    sf = np.sum(ugpn * uspn, axis=-1)
-    slp = gpp - ((delta_hae / sf)[:, np.newaxis] * uspn)
+    sf = np.sum(ugpn * uspn)
+    slp = gpp - np.matlib.repmat((delta_hae / sf),1,3) * uspn
     # (7) Assign surface point SPP position by adjusting the HAE to be on the
     # HAE0 surface.
     spp_llh = gc.ecf_to_geodetic(slp)
     spp_llh[:, 2] = hae0
     spp = gc.geodetic_to_ecf(spp_llh)
-
     return spp
 
+def projection_set_to_dem(r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa, scp, delta_hae_max, nlim, dem, dem_type, geoid_path, del_DISTrrc = 10, del_HDlim = .001):
+    ''' Transforms pixel row, col to geocentric value projected to dem
+    via algorithm in SICD Image Projections document.
+
+     spp = projection_set_to_dem(r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa, 
+                                 scp, delta_hae_max, nlim, dem, del_DISTrrc = 10, 
+                                 del_HDlim = .001):
+     Inputs:
+        r_tgt_coa     - [1xN] range to the ARP at COA
+        r_dot_tgt_coa - [1xN] range rate relative to the ARP at COA
+        arp_coa       - [Nx3] aperture reference position at t_coa
+        varp_coa      - [Nx3] velocity at t_coa
+        scp           - [3] scene center point (ECF meters)
+        delta_hae_max - height threshold for convergence of iterative
+                        projection sequence.
+        nlim          - maximum number of iterations allowed.
+        dem              DTED/SRTM pathname or structure with
+                         lats/lons/elevations fields where are all are
+                         arrays of same size and elevation is height above
+                         WGS-84 ellipsoid.
+                         Only valid if projection_type is 'dem'.
+        dem_type      - One of 'DTED1', 'DTED2', 'SRTM1', 'SRTM2', 'SRTM2F'
+                        Defaults to SRTM2f
+        geoid_path    - Parent path to EGM2008 file(s)  
+        del_DISTrrc       Maximum distance between adjacent points along
+                         the R/Rdot contour. Recommended value: 10.0 m.
+                         Only valid if projection_type is 'dem'.
+        del_HDlim         Height difference threshold for determining if a
+                         point on the R/Rdot contour is on the DEM
+                         surface (m).  Recommended value: 0.001 m.  Only
+                         valid if projection_type is 'dem'.
+       
+     Outputs:
+        spp           - [3xN] ECF Ground Points along the R/Rdot contour
+    '''
+    ugpn = gc.wgs_84_norm(scp)
+    look = statistics.mode(np.sign((ugpn*np.cross(arp_coa - np.matlib.repmat(scp,arp_coa.shape[0],1),varp_coa,axis=1)).sum(axis=1)))
+    
+    evaldem = None
+    coord = None
+    eval_egm = None
+    try:
+        if(len(dem) > 0 and os.path.exists(dem)):
+            demstr = dem
+            #if(type(dem)==str):
+            # Load DEM data for 5km buffer around points roughly projected to
+            # height above ellipsoid provided in SICD SCP.
+            gpos=gc.ecf_to_geodetic(projection_set_to_plane(r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa, scp, ugpn))
+            LL=np.array([gpos.min(0)[0,],gpos.min(0)[1,]])-5*np.array([1,1/np.cos(gpos.min(0)[0,]*(np.pi / 180.))])/111.111
+            UR=np.array([gpos.max(0)[0,],gpos.max(0)[1,]])+5*np.array([1,1/np.cos(gpos.max(0)[0,]*(np.pi / 180.))])/111.111
+            coord = [[LL[0],LL[1]],[UR[0],UR[1]]] #np.vstack(LL,UR)
+            evaldem = DEM(coordinates=coord,masterpath=demstr, dem_type='SRTM2F',log_level="WARNING") #XXX: Unsure about this implementation
+            withinLat = (evaldem.lats_1D > LL[0]) & (evaldem.lats_1D < UR[0])
+            withinLon = (evaldem.lons_1D > LL[1]) & (evaldem.lons_1D < UR[1])
+            latindx = np.where(withinLat)[0]
+            lonindx = np.where(withinLon)[0]
+            aoicoords = np.empty((np.size(latindx)*np.size(lonindx),),dtype=object)
+            for i,v in enumerate(aoicoords): aoicoords[i]=[v,i]
+            
+            geoid_file = geoid_path + os.path.sep + 'egm2008-1.pgm'
+            eval_egm = geoid.GeoidHeight(name=geoid_file)
+            indx = 0
+            egm_elevlist=np.empty(np.size(latindx)*np.size(lonindx))
+            aoielevs=np.empty(np.size(latindx)*np.size(lonindx))
+            for lat_indx in range(0,latindx.size):
+                for lon_indx in range(0,lonindx.size):
+                    local_lat = evaldem.lats_1D[latindx[lat_indx]]
+                    local_lon = evaldem.lons_1D[lonindx[lon_indx]]
+                    elev_latindx = latindx[lat_indx]
+                    elev_lonindx = lonindx[lon_indx]
+                    egm_elevlist[indx]= eval_egm.get(local_lat,local_lon,cubic=True)
+                    aoicoords[indx]=[local_lat,local_lon]
+                    indx = indx + 1
+            coordlist=aoicoords.tolist()
+            aoielevs_dem = evaldem.elevate(coord=coordlist,method='nearest')
+            for indx_elev in range(0,aoielevs.size):
+                aoielevs[indx_elev]=aoielevs_dem[indx_elev] + egm_elevlist[indx_elev]
+    except Exception as error:
+        print(error)
+        print ("dem=",dem," dem type=",type(dem))
+        print("ERROR, check that dem set to valid path, or lats/lon/elevations fields.")
+        return
+
+    hae_max=aoielevs_dem.max(0)
+    hae_min=aoielevs_dem.min(0)
+    numPoints= r_tgt_coa.size #np.prod(r_tgt_coa).shape
+    gpp=np.zeros([3,numPoints])
+    for i in range(numPoints):
+        '''
+        Step 1 - Compute the center point and the radius of the R/RDot projection contour, Rrrc
+        '''    
+        #vMag = np.linalg.norm(varp_coa[:,i])
+        #uVel = varp_coa[:,i]/vMag
+        #print('uVel=',uVel)
+        vMag = np.linalg.norm(varp_coa[i,])
+        uVel = varp_coa[i,]/vMag
+        cos_dca = -1*r_dot_tgt_coa[i]/vMag
+        sin_dca = np.sqrt(1-cos_dca*cos_dca)
+        ctr = arp_coa[i,]+r_tgt_coa[i]*cos_dca*uVel
+        Rrrc=r_tgt_coa[i]*sin_dca
+        '''
+        Step 2 - Compute unit vectors uRRX and uRRY
+        '''
+        dec_arp = np.linalg.norm(arp_coa[i,])
+        uUP = arp_coa[i,]/dec_arp
+        RRY = np.cross(uUP,uVel)
+        uRRY = RRY/np.linalg.norm(RRY)
+        uRRX = np.cross(uRRY,uVel)
+        '''
+        Step 3 - Project R/Rdot contour to constant height HAEmax
+        '''
+        Aa = projection_set_to_hae(r_tgt_coa[i], r_dot_tgt_coa[i], arp_coa[i,], varp_coa[i,], scp, hae_max, delta_hae_max, nlim)
+        cos_CAa = np.dot(Aa-ctr,uRRX)/Rrrc
+        '''
+        Step 4 - Project R/Rdot contour to constant height HAEmin
+        '''
+        Ab = projection_set_to_hae(r_tgt_coa[i], r_dot_tgt_coa[i], arp_coa[i,], varp_coa[i,], scp, hae_min, delta_hae_max, nlim)
+        
+        cos_CAb = np.dot(Ab-ctr,uRRX)/Rrrc
+        sin_CAb = look*np.sqrt(1-cos_CAb*cos_CAb)
+        '''
+        Step 5 - Compute the step size for points along R/Rdot contour
+        '''
+        del_cos_rrc = del_DISTrrc*(1/Rrrc)*np.abs(sin_CAb)
+        del_cos_dem = del_DISTrrc*(1/Rrrc)*(np.abs(sin_CAb)/cos_CAb)
+        del_cos_CA = -1*np.minimum(del_cos_rrc, del_cos_dem)
+        '''
+        Step 6 - Compute Number of Points Along R/RDot contour
+        '''
+        npts = np.floor(((cos_CAa - cos_CAb)/del_cos_CA))+2
+        '''
+        Step 7 - Compute the set of NPTS along R/RDot contour
+        '''
+        cos_CAn = cos_CAb + np.arange(npts)*del_cos_CA
+        sin_CAn = look*np.sqrt(1-cos_CAn*cos_CAn)
+        P = ctr.reshape(ctr.shape[0],1) + Rrrc*(uRRX.reshape(uRRX.shape[0],1)*cos_CAn + uRRY.reshape(uRRY.shape[0],1)*sin_CAn)
+        '''
+        Step 8 & 9 - For Each Point convert from ECF to DEM coordinates and compute Delta Height
+        elevate handles:
+        x = DEM.lats
+        y = DEM.lons
+        z = DEM.elevations
+        f = interpolate.interp2d(x,y,z)
+        znew = f(llh[0], llh[1])
+        '''
+        llh=gc.ecf_to_geodetic(P[0],P[1],P[2])
+        latlon = []
+        egm_elevfinlist=np.empty(llh[0][0].size)
+        for indx in range(llh[0][0].size):     
+            latlon.append([llh[0][0][indx],llh[1][0][indx]])
+            egm_elevfinlist[indx]= eval_egm.get(latlon[indx][0],latlon[indx][1],cubic=True)
+        llarry = np.array(latlon)
+        
+        hgts=evaldem.elevate(coord=llarry,method='nearest')
+        del_h=llh[2]-(hgts+egm_elevfinlist)
+        '''
+        Step 10 - Solve for the points that are on the DEM in increasing height (we may just take one for simplicity)
+            *Currently only finds first point (lowest WGS-84 HAE)
+            *Finding all solutions would require inspecting all zero crossings
+        '''
+        close_enough_vec = np.nonzero(np.abs(del_h)<del_HDlim)[0]
+        if(len(close_enough_vec)>0):
+            close_enough=close_enough_vec[0]
+            gpp[:,i]=P[:,close_enough]
+        else:
+            zero_cross_idx=np.where(del_h[0][:-1]*del_h[0][1:]<1)[0]
+            zero_cross=zero_cross_idx[0]
+            if(zero_cross==0):
+                gpp[:,i]=np.nan
+            else:
+                frac=del_h[0][zero_cross]/(del_h[0][zero_cross]-del_h[0][zero_cross+1])
+                cos_CA_S = cos_CAb+(zero_cross+frac)*del_cos_CA
+                sin_CA_S = look*np.sqrt(1-cos_CA_S*cos_CA_S)
+                gpp[:,i] = ctr + Rrrc*(cos_CA_S*uRRX+sin_CA_S*uRRY)
+    return (gpp)
 
 def coa_projection_set(sicd_meta, grow, gcol=None):
     '''Computes the set of fundamental parameters for projecting a pixel down to the ground
@@ -602,3 +813,4 @@ def coa_projection_set(sicd_meta, grow, gcol=None):
         raise ValueError('Unrecognized Grid/image formation type.')
 
     return r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa, t_coa
+
