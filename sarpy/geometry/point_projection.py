@@ -12,7 +12,7 @@ import warnings
 import numpy as np
 import statistics
 from numpy.polynomial import polynomial as poly
-from sarpy.geometry import geoid
+from sarpy.io.DEM import geoid
 from sarpy.io.DEM import DEM
 
 import pdb
