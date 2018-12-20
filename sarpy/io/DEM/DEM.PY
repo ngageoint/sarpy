@@ -10,7 +10,7 @@ import numpy as np
 from .dem_log import dem_logger
 from .readers import read_dted
 from scipy.interpolate import interpn
-import pdb
+
 class DEM:
     """
         Abstract class for handling DEM files.
