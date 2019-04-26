@@ -26,13 +26,13 @@ setup(name='sarpy',
       author='National Geospatial-Intelligence Agency',
       # Not the only author, but currently the primary POC
       author_email='Wade.C.Schwartzkopf.ctr@nga.mil',
-      # Some portions of sarpy also call on scipy, but most can be used with only numpy
-      # install_requires=['numpy', 'scipy'],
-      # Advanced tools with pyviz/holoviews/bokeh will require expanding upon basic sarpy in the future
-      # with anaconda based pyviz tools, which include a myriad of
-      # packages (i.e. scipy, bokeh, holoviews, datashader, etc.)
-      # install_requires=['numpy', 'pyviz']
-      install_requires=['numpy'],
+      # Many portions of sarpy run fine without scipy, and we have tried to avoid this dependency
+      # wherever possible, but there are enough of these dependencies scattered throughout that we
+      # declare it here.
+      install_requires=['numpy', 'scipy'],
+      extras_require={
+        'csk':  ['h5py'],
+      },
       zip_safe=False,  # Use of __file__ and __path__ in some code makes it unusuable from zip
       use_scm_version=True,
       setup_requires=['setuptools_scm'],
@@ -49,7 +49,7 @@ setup(name='sarpy',
           'Programming Language :: Python :: 3.4',
           'Programming Language :: Python :: 3.5',
           'Programming Language :: Python :: 3.6',
-		  'Programming Language :: Python :: 3.7'
+          'Programming Language :: Python :: 3.7'
       ],
       platforms=['any'],
       license='MIT'

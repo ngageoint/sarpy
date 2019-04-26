@@ -71,9 +71,12 @@ def open(filename):  # Note: open is also a built-in Python function.
     # Determine file format and return the proper file reader object
     for current_mod in modules:
         if hasattr(current_mod, 'isa'):  # Make sure its a file format handling module
-            file_obj = current_mod.isa(filename)  # isa returns None if format does not match
-            if file_obj:
-                return file_obj(filename)  # return file reader object of correct type
+            try:
+                file_obj = current_mod.isa(filename)  # isa returns None if format does not match
+                if file_obj:
+                    return file_obj(filename)  # return file reader object of correct type
+            except Exception:
+                pass
     # If for loop completes, no matching file format was found.
     raise IOError('Unable to determine complex image format.')
 
