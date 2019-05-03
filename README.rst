@@ -6,7 +6,7 @@ SarPy is a basic Python library to read, write, display, and do simple processin
 
 Some sample SICD files can be found `here <https://github.com/ngageoint/six-library/wiki/Sample-SICDs>`_.
 
-In addition to SICD, SarPy can also read RADARSAT-2, Radar Constellation Mision (RCM), and Sentinel-1 SLC formats and convert them to SICD.
+In addition to SICD, SarPy can also read COSMO-SkyMed, RADARSAT-2, Radar Constellation Mision (RCM), and Sentinel-1 SLC formats and convert them to SICD.
 
 Some examples of how to read complex SAR data using SarPy are provided in docs/sarpy_example.py.
 
