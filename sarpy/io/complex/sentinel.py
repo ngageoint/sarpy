@@ -294,8 +294,8 @@ def meta2sicd_annot(filename):
     # SCP pixel within entire TIFF
     # Note: numpy round behaves differently than python round and MATLAB round,
     # so we avoid it here.
-    center_cols = [-1 + round((0.5 + i) * float(common_meta.ImageData.NumCols))
-                   for i in np.arange(max(numbursts, 1))]
+    center_cols = np.ceil((0.5 + np.arange(max(numbursts, 1))) *
+                          float(common_meta.ImageData.NumCols))-1
     center_rows = round(float(common_meta.ImageData.NumRows)/2.-1.) * \
         np.ones_like(center_cols)
     # SCP pixel within single burst image is the same for all burst, since east
@@ -717,9 +717,8 @@ def meta2sicd_annot(filename):
         k_a = poly.polyval(tau - az_t0[az_rate_poly_ind], k_a_poly[az_rate_poly_ind])
         k_t = (k_a * k_s)/(k_a - k_s)
         f_eta_c = poly.polyval(tau - dc_t0[dc_poly_ind], data_dc_poly[dc_poly_ind])
-        eta = np.linspace(-float(common_meta.ImageData.NumCols)*ss_zd_s/2.,
-                          float(common_meta.ImageData.NumCols)*ss_zd_s/2.,
-                          common_meta.ImageData.NumCols)
+        eta = ((-float(common_meta.ImageData.SCPPixel.Col) * ss_zd_s) +
+               (np.arange(float(common_meta.ImageData.NumCols))*ss_zd_s))
         eta_c = -f_eta_c/k_a  # Beam center crossing time.  TimeCOA in SICD terminology
         eta_ref = eta_c - eta_c[0]
         eta_grid, eta_ref_grid = np.meshgrid(eta[cols], eta_ref[rows])
