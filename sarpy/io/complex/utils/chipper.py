@@ -89,7 +89,9 @@ class Base():
         dim1range, dim2range = reorient_chipper_args(
             self.symmetry, self.datasize, dim1range, dim2range)
         data_out = self.read_raw_fun(dim1range, dim2range)
-        data_out = data2complex(data_out, self.complextype).squeeze()
+        data_out = data2complex(data_out, self.complextype)
+        if data_out.ndim > 2 and data_out.shape[0] == 1:  # Remove only multi-band dimension
+            data_out = data_out.reshape(data_out.shape[-2:])
         data_out = reorient_chipper_data(self.symmetry, data_out)
         return data_out
 

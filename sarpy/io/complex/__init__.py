@@ -82,6 +82,7 @@ def open(filename):  # Note: open is also a built-in Python function.
 
 
 def convert(input_filename, output_filename, frames=None, output_format='SICD',
+            row_limits=None, column_limits=None,  # [start, stop], zero-based
             max_block_size=2**26):  # Default block size is roughly 50 MB
     """Copy SAR complex data to a file of the specified format.
 
@@ -95,6 +96,10 @@ def convert(input_filename, output_filename, frames=None, output_format='SICD',
        Set of each frame to convert.  Default is all.
     output_format : {'SICD', 'SIO'}, optional
        The output file format to write.  Default is SICD.
+    row_limits : [int, int], optional
+       Rows start/stop. Default is all [0 NumRows]
+    column_limits : [int, int], optional
+       Columns start/stop. Default is all [0 NumCols]
     """
     ro = open(input_filename)
     # Allow for single frame or multiple frame files
@@ -132,10 +137,27 @@ def convert(input_filename, output_filename, frames=None, output_format='SICD',
                                                        ext)
                 else:
                     new_output_filename = output_filename
+
+                # File chipping
+                if(column_limits is None):
+                    column_limits = [0, sicdmeta[i].ImageData.NumCols]
+                if(row_limits is None):
+                    row_limits = [0, sicdmeta[i].ImageData.NumRows]
+                if (column_limits != [0, sicdmeta[i].ImageData.NumCols] or
+                   row_limits != [0, sicdmeta[i].ImageData.NumRows]):
+                    sicdmeta[i].ImageData.NumRows = int(row_limits[1]) - int(row_limits[0])
+                    sicdmeta[i].ImageData.NumCols = int(column_limits[1]) - int(column_limits[0])
+                    sicdmeta[i].ImageData.FirstRow = int(sicdmeta[i].ImageData.FirstRow +
+                                                         int(row_limits[0]))
+                    sicdmeta[i].ImageData.FirstCol = int(sicdmeta[i].ImageData.FirstCol +
+                                                         int(column_limits[0]))
+                    from .sicd import update_corners  # Can't do this at top of module
+                    update_corners(sicdmeta[i])
+
                 wo = sys.modules[name].Writer(new_output_filename, sicdmeta[i])
                 # Progressively copy data in blocks, in case data is too large to
                 # hold in memory.  Each block is a set of consecutive rows.
-                # bytes_per_row Assume max of 8-byte elements (largest allowed in SICD)
+                # bytes_per_row assumes max of 8-byte elements (largest allowed in SICD)
                 bytes_per_row = sicdmeta[i].ImageData.NumCols * 8
                 rows_per_block = max(1,  # If single row is larger than block size
                                      math.floor(float(max_block_size) /
@@ -144,12 +166,11 @@ def convert(input_filename, output_filename, frames=None, output_format='SICD',
                                      math.ceil(float(sicdmeta[i].ImageData.NumRows) /
                                                float(rows_per_block))))
                 for j in range(num_blocks):
-                    block_start = j * int(rows_per_block)
-                    block_end = int(min(block_start + rows_per_block,
-                                        sicdmeta[i].ImageData.NumRows))
+                    block_start = j * int(rows_per_block) + int(row_limits[0])
+                    block_end = int(min(block_start + rows_per_block, row_limits[1]))
                     data = read_chip[i]([block_start, block_end],
-                                        [0, sicdmeta[i].ImageData.NumCols])
-                    wo.write_chip(data, (block_start, 0))
+                                        [int(column_limits[0]), int(column_limits[1])])
+                    wo.write_chip(data, (j * int(rows_per_block), 0))
                 del wo
             return
     # If for loop completes, no matching file format was found.
