@@ -312,7 +312,6 @@ def image_to_ground(im_points, sicd_meta, projection_type='hae',  # CSM default 
         gpos = projection_set_to_hae(r, rDot, arp_coa, varp_coa,
                                      scp, hae0, delta_hae_max, hae_nlim)
     elif projection_type.lower() == 'dem':
-        # TODO: DEM projection implemented, but unverified
         scp = np.array([sicd_meta.GeoData.SCP.ECF.X,
                         sicd_meta.GeoData.SCP.ECF.Y,
                         sicd_meta.GeoData.SCP.ECF.Z])
@@ -358,7 +357,6 @@ def projection_set_to_plane(r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa, gref, g
 
     # 5. Precise R/Rdot to Ground Plane Projection
     # Solve for the intersection of a R/Rdot contour and a ground plane.
-    
     uZ = gpn / np.sqrt(np.sum(np.power(gpn, 2), axis=-1, keepdims=True))
 
     # ARP distance from plane
@@ -445,20 +443,18 @@ def projection_set_to_hae(r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa,
         ugpn = gc.wgs_84_norm(gpp)
         gpp_llh = gc.ecf_to_geodetic(gpp)
         delta_hae = gpp_llh[:, 2] - hae0
-        gref = gpp - (delta_hae * ugpn)
+        gref = gpp - (delta_hae[:, np.newaxis] * ugpn)
         iters = iters + 1
         # (4) Test for delta_hae_MAX and NLIM
     # (5) Compute the unit slant plane normal vector, uspn, that is tangent to
     # the R/Rdot contour at point gpp
-
-    spn = look * np.cross(varp_coa, (gpp - arp_coa))
-
-    uspn = spn/(np.sqrt(np.sum(np.power(spn, 2))))
+    spn = look[:, np.newaxis] * np.cross(varp_coa, (gpp - arp_coa))
+    uspn = spn/np.sqrt(np.sum(np.power(spn, 2), axis=-1, keepdims=True))
     # (6) For the final straight line projection, project from point gpp along
     # the slant plane normal (as opposed to the ground plane normal that was
     # used in the iteration) to point slp.
-    sf = np.sum(ugpn * uspn)
-    slp = gpp - (delta_hae / sf) * uspn
+    sf = np.sum(ugpn * uspn, axis=-1)
+    slp = gpp - ((delta_hae / sf)[:, np.newaxis] * uspn)
     # (7) Assign surface point SPP position by adjusting the HAE to be on the
     # HAE0 surface.
     spp_llh = gc.ecf_to_geodetic(slp)
