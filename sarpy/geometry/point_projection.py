@@ -468,12 +468,12 @@ def projection_set_to_dem(r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa, scp, delt
     ''' Transforms pixel row, col to geocentric value projected to dem
     via algorithm in SICD Image Projections document.
 
-     spp = projection_set_to_dem(r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa,
+     gpp = projection_set_to_dem(r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa,
                                  scp, delta_hae_max, nlim, dem, del_DISTrrc = 10,
                                  del_HDlim = .001):
      Inputs:
-        r_tgt_coa     - [1xN] range to the ARP at COA
-        r_dot_tgt_coa - [1xN] range rate relative to the ARP at COA
+        r_tgt_coa     - [N] range to the ARP at COA
+        r_dot_tgt_coa - [N] range rate relative to the ARP at COA
         arp_coa       - [Nx3] aperture reference position at t_coa
         varp_coa      - [Nx3] velocity at t_coa
         scp           - [3] scene center point (ECF meters)
@@ -497,162 +497,108 @@ def projection_set_to_dem(r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa, scp, delt
                          valid if projection_type is 'dem'.
 
      Outputs:
-        spp           - [3xN] ECF Ground Points along the R/Rdot contour
+        gpp           - [Nx3] ECF Ground Points along the R/Rdot contour
     '''
     ugpn = gc.wgs_84_norm(scp)
     look = np.sign(np.sum(ugpn*np.cross(arp_coa - scp, varp_coa, axis=1), axis=1))[0]
 
-    evaldem = None
-    coord = None
-    eval_egm = None
-    try:
-        if(len(dem) > 0 and os.path.exists(dem)):
-            demstr = dem
-            # if(type(dem)==str):
-            # Load DEM data for 5km buffer around points roughly projected to
-            # height above ellipsoid provided in SICD SCP.
-            gpos = gc.ecf_to_geodetic(projection_set_to_plane(r_tgt_coa, r_dot_tgt_coa, arp_coa,
-                                                              varp_coa, scp, ugpn))
-            LL = np.array(
-                          [gpos.min(0)[0, ], gpos.min(0)[1, ]]) - (
-                          5 * np.array([1, 1/np.cos(gpos.min(0)[0, ] * (np.pi / 180.))]) / 111.111)
-            UR = np.array([gpos.max(0)[0, ], gpos.max(0)[1, ]]) + (
-                          5*np.array([1, 1/np.cos(gpos.max(0)[0, ]*(np.pi / 180.))])/111.111)
-            coord = [[LL[0], LL[1]], [UR[0], UR[1]]]
-            evaldem = DEM.DEM(coordinates=coord, masterpath=demstr,
-                              dem_type='SRTM2F', log_level="WARNING")
-            if(evaldem is None):
-                print("DEM method unable to get DEM!")
-                return
-            withinLat = (evaldem.lats_1D > LL[0]) & (evaldem.lats_1D < UR[0])
-            withinLon = (evaldem.lons_1D > LL[1]) & (evaldem.lons_1D < UR[1])
-            latindx = np.where(withinLat)[0]
-            lonindx = np.where(withinLon)[0]
-            aoicoords = np.empty((np.size(latindx)*np.size(lonindx), ), dtype=object)
-            for i, v in enumerate(aoicoords):
-                aoicoords[i] = [v, i]
+    if(len(dem) > 0 and os.path.exists(dem)):
+        # Load DEM data for 5km buffer around points roughly projected to
+        # height above ellipsoid provided in SICD SCP.
+        gpos = gc.ecf_to_geodetic(projection_set_to_plane(r_tgt_coa, r_dot_tgt_coa, arp_coa,
+                                                          varp_coa, scp, ugpn))
+        LL = np.array([gpos[:, 0].min(), gpos[:, 1].min()]) - (
+                      5 * np.array([1, 1/np.cos(gpos[:, 0].min() * (np.pi / 180.))]) / 111.111)
+        UR = np.array([gpos[:, 0].max(), gpos[:, 1].max()]) + (
+                      5*np.array([1, 1/np.cos(gpos[:, 0].max()*(np.pi / 180.))])/111.111)
+        coord = [[LL[0], LL[1]], [UR[0], UR[1]]]
+        evaldem = DEM.DEM(coordinates=coord, masterpath=dem,
+                          dem_type='SRTM2F', log_level="WARNING")
+        withinLat = (evaldem.lats_1D > LL[0]) & (evaldem.lats_1D < UR[0])
+        withinLon = (evaldem.lons_1D > LL[1]) & (evaldem.lons_1D < UR[1])
+        latindx = np.where(withinLat)[0]
+        lonindx = np.where(withinLon)[0]
+        aoicoords = np.empty((np.size(latindx)*np.size(lonindx), ), dtype=object)
+        for i, v in enumerate(aoicoords):
+            aoicoords[i] = [v, i]
+        geoid_file = geoid_path + os.path.sep + 'egm2008-1.pgm'
+        eval_egm = geoid.GeoidHeight(name=geoid_file)
+        indx = 0
+        egm_elevlist = np.empty(np.size(latindx)*np.size(lonindx))
+        aoielevs = np.empty(np.size(latindx)*np.size(lonindx))
+        for lat_indx in range(0, latindx.size):
+            for lon_indx in range(0, lonindx.size):
+                local_lat = evaldem.lats_1D[latindx[lat_indx]]
+                local_lon = evaldem.lons_1D[lonindx[lon_indx]]
+                egm_elevlist[indx] = eval_egm.get(local_lat, local_lon, cubic=True)
+                aoicoords[indx] = [local_lat, local_lon]
+                indx = indx + 1
+        coordlist = aoicoords.tolist()
+        aoielevs_dem = evaldem.elevate(coord=coordlist, method='nearest')
+        for indx_elev in range(0, aoielevs.size):
+            aoielevs[indx_elev] = aoielevs_dem[indx_elev] + egm_elevlist[indx_elev]
 
-            geoid_file = geoid_path + os.path.sep + 'egm2008-1.pgm'
-            eval_egm = geoid.GeoidHeight(name=geoid_file)
-            indx = 0
-            egm_elevlist = np.empty(np.size(latindx)*np.size(lonindx))
-            aoielevs = np.empty(np.size(latindx)*np.size(lonindx))
-            for lat_indx in range(0, latindx.size):
-                for lon_indx in range(0, lonindx.size):
-                    local_lat = evaldem.lats_1D[latindx[lat_indx]]
-                    local_lon = evaldem.lons_1D[lonindx[lon_indx]]
-                    # elev_latindx = latindx[lat_indx]
-                    # elev_lonindx = lonindx[lon_indx]
-                    egm_elevlist[indx] = eval_egm.get(local_lat, local_lon, cubic=True)
-                    aoicoords[indx] = [local_lat, local_lon]
-                    indx = indx + 1
-            coordlist = aoicoords.tolist()
-            aoielevs_dem = evaldem.elevate(coord=coordlist, method='nearest')
-            for indx_elev in range(0, aoielevs.size):
-                aoielevs[indx_elev] = aoielevs_dem[indx_elev] + egm_elevlist[indx_elev]
-    except Exception as error:
-        print(error)
-        print("Unable to project to DEM")
-        print("dem=", dem, " dem type=", type(dem))
-        print("ERROR, check that dem set to valid path, or lats/lon/elevations fields.")
-        return
-
-    hae_max = aoielevs_dem.max(0)
-    hae_min = aoielevs_dem.min(0)
     numPoints = r_tgt_coa.size
-    gpp = np.zeros([3, numPoints])
+    gpp = np.zeros([numPoints, 3])
     for i in range(numPoints):
-        '''
-        Step 1 - Compute the center point and the radius of the R/RDot projection contour, Rrrc
-        '''
-        # vMag = np.linalg.norm(varp_coa[:,i])
-        # uVel = varp_coa[:,i]/vMag
-        # print('uVel=',uVel)
+        # Step 1 - Compute the center point and the radius of the R/RDot projection contour, Rrrc
         vMag = np.linalg.norm(varp_coa[i, ])
         uVel = varp_coa[i, ]/vMag
         cos_dca = -1*r_dot_tgt_coa[i]/vMag
         sin_dca = np.sqrt(1-cos_dca*cos_dca)
         ctr = arp_coa[i, ]+r_tgt_coa[i]*cos_dca*uVel
         Rrrc = r_tgt_coa[i]*sin_dca
-        '''
-        Step 2 - Compute unit vectors uRRX and uRRY
-        '''
+        # Step 2 - Compute unit vectors uRRX and uRRY
         dec_arp = np.linalg.norm(arp_coa[i, ])
         uUP = arp_coa[i, ]/dec_arp
         RRY = np.cross(uUP, uVel)
         uRRY = RRY/np.linalg.norm(RRY)
         uRRX = np.cross(uRRY, uVel)
-        '''
-        Step 3 - Project R/Rdot contour to constant height HAEmax
-        '''
-        Aa = projection_set_to_hae(r_tgt_coa[i], r_dot_tgt_coa[i], arp_coa[i, ], varp_coa[i, ],
-                                   scp, hae_max, delta_hae_max, nlim)
+        # Step 3 - Project R/Rdot contour to constant height HAEmax
+        Aa = projection_set_to_hae(r_tgt_coa[[i]], r_dot_tgt_coa[[i]], arp_coa[[i], :],
+                                   varp_coa[[i], :], scp, aoielevs.max(), delta_hae_max, nlim)
         cos_CAa = np.dot(Aa-ctr, uRRX)/Rrrc
-        '''
-        Step 4 - Project R/Rdot contour to constant height HAEmin
-        '''
-        Ab = projection_set_to_hae(r_tgt_coa[i], r_dot_tgt_coa[i], arp_coa[i, ], varp_coa[i, ],
-                                   scp, hae_min, delta_hae_max, nlim)
-
+        # Step 4 - Project R/Rdot contour to constant height HAEmin
+        Ab = projection_set_to_hae(r_tgt_coa[[i]], r_dot_tgt_coa[[i]], arp_coa[[i], :],
+                                   varp_coa[[i], :], scp, aoielevs.min(), delta_hae_max, nlim)
         cos_CAb = np.dot(Ab-ctr, uRRX)/Rrrc
         sin_CAb = look*np.sqrt(1-cos_CAb*cos_CAb)
-        '''
-        Step 5 - Compute the step size for points along R/Rdot contour
-        '''
+        # Step 5 - Compute the step size for points along R/Rdot contour
         del_cos_rrc = del_DISTrrc*(1/Rrrc)*np.abs(sin_CAb)
         del_cos_dem = del_DISTrrc*(1/Rrrc)*(np.abs(sin_CAb)/cos_CAb)
         del_cos_CA = -1*np.minimum(del_cos_rrc, del_cos_dem)
-        '''
-        Step 6 - Compute Number of Points Along R/RDot contour
-        '''
+        # Step 6 - Compute Number of Points Along R/RDot contour
         npts = np.floor(((cos_CAa - cos_CAb)/del_cos_CA))+2
-        '''
-        Step 7 - Compute the set of NPTS along R/RDot contour
-        '''
+        # Step 7 - Compute the set of NPTS along R/RDot contour
         cos_CAn = cos_CAb + np.arange(npts)*del_cos_CA
         sin_CAn = look*np.sqrt(1-cos_CAn*cos_CAn)
-        P = ctr.reshape(ctr.shape[0], 1) + Rrrc * (uRRX.reshape(uRRX.shape[0], 1) * cos_CAn +
-                                                   uRRY.reshape(uRRY.shape[0], 1) * sin_CAn)
-        '''
-        Step 8 & 9 - For Each Point convert from ECF to DEM coordinates and compute Delta Height
-        elevate handles:
-        x = DEM.lats
-        y = DEM.lons
-        z = DEM.elevations
-        f = interpolate.interp2d(x,y,z)
-        znew = f(llh[0], llh[1])
-        '''
-        llh = gc.ecf_to_geodetic(P[0], P[1], P[2])
-        latlon = []
-        egm_elevfinlist = np.empty(llh[0][0].size)
-        for indx in range(llh[0][0].size):
-            latlon.append([llh[0][0][indx], llh[1][0][indx]])
-            egm_elevfinlist[indx] = eval_egm.get(latlon[indx][0], latlon[indx][1], cubic=True)
-        llarry = np.array(latlon)
-
-        hgts = evaldem.elevate(coord=llarry, method='nearest')
-        del_h = llh[2] - (hgts + egm_elevfinlist)
-        '''
-        Step 10 - Solve for the points that are on the DEM in increasing height
-            (we may just take one for simplicity)
-            *Currently only finds first point (lowest WGS-84 HAE)
-            *Finding all solutions would require inspecting all zero crossings
-        '''
+        P = ctr + Rrrc * (np.outer(cos_CAn, uRRX) + np.outer(sin_CAn, uRRY))
+        # Step 8 & 9 - For Each Point convert from ECF to DEM coordinates and compute Delta Height
+        # elevate handles:
+        llh = gc.ecf_to_geodetic(P)
+        egm_elevfinlist = np.empty(llh.shape[0])
+        for indx in range(llh.shape[0]):
+            egm_elevfinlist[indx] = eval_egm.get(llh[indx, 0], llh[indx, 1], cubic=True)
+        hgts = evaldem.elevate(coord=llh[:, 0:2])
+        del_h = llh[:, 2] - (hgts + egm_elevfinlist)
+        # Step 10 - Solve for the points that are on the DEM in increasing height
+        #     (we may just take one for simplicity)
+        #     *Currently only finds first point (lowest WGS-84 HAE)
+        #     *Finding all solutions would require inspecting all zero crossings
         close_enough_vec = np.nonzero(np.abs(del_h) < del_HDlim)[0]
         if(len(close_enough_vec) > 0):
-            close_enough = close_enough_vec[0]
-            gpp[:, i] = P[:, close_enough]
+            gpp[i, :] = P[close_enough_vec[0], :]
         else:
-            zero_cross_idx = np.where(del_h[0][:-1] * del_h[0][1:] < 1)[0]
-            zero_cross = zero_cross_idx[0]
-            if(zero_cross == 0):
-                gpp[:, i] = np.nan
+            zero_cross = np.where(del_h[:-1] * del_h[1:] < 1)[0]
+            if(zero_cross.size == 0):
+                gpp[i, :] = np.nan
             else:
-                frac = del_h[0][zero_cross] / (del_h[0][zero_cross] - del_h[0][zero_cross+1])
+                zero_cross = zero_cross[0]
+                frac = del_h[zero_cross] / (del_h[zero_cross] - del_h[zero_cross+1])
                 cos_CA_S = cos_CAb+(zero_cross+frac)*del_cos_CA
                 sin_CA_S = look*np.sqrt(1-cos_CA_S*cos_CA_S)
-                gpp[:, i] = ctr + Rrrc*(cos_CA_S*uRRX+sin_CA_S*uRRY)
-    return (gpp)
+                gpp[i, :] = ctr + Rrrc*(cos_CA_S*uRRX+sin_CA_S*uRRY)
+    return gpp
 
 
 def coa_projection_set(sicd_meta, grow, gcol=None):
