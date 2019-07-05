@@ -311,18 +311,24 @@ def meta2sicd_annot(filename):
     # we will put in something more precise.
     geo_grid_point_list = root_node.findall(
         './geolocationGrid/geolocationGridPointList/geolocationGridPoint')
-    scp_col, scp_row, lat, lon, hgt = [], [], [], [], []
+    scp_col, scp_row, x, y, z = [], [], [], [], []
     for grid_point in geo_grid_point_list:
         scp_col.append(float(grid_point.find('./line').text))
         scp_row.append(float(grid_point.find('./pixel').text))
-        lat.append(float(grid_point.find('./latitude').text))
-        lon.append(float(grid_point.find('./longitude').text))
-        hgt.append(float(grid_point.find('./height').text))
+        lat = float(grid_point.find('./latitude').text)
+        lon = float(grid_point.find('./longitude').text)
+        hgt = float(grid_point.find('./height').text)
+        # Can't interpolate across international date line -180/180 longitude,
+        # so move to ECF space from griddata interpolation
+        ecf = gc.geodetic_to_ecf((lat, lon, hgt))
+        x.append(ecf[0, 0])
+        y.append(ecf[0, 1])
+        z.append(ecf[0, 2])
     row_col = np.vstack((scp_col, scp_row)).transpose()
     center_row_col = np.vstack((center_cols, center_rows)).transpose()
-    scp_lats = griddata(row_col, lat, center_row_col)
-    scp_lons = griddata(row_col, lon, center_row_col)
-    scp_hgts = griddata(row_col, hgt, center_row_col)
+    scp_x = griddata(row_col, x, center_row_col)
+    scp_y = griddata(row_col, y, center_row_col)
+    scp_z = griddata(row_col, z, center_row_col)
 
     # Grid
     common_meta.Grid = MetaNode()
@@ -520,7 +526,7 @@ def meta2sicd_annot(filename):
         try:
             k_a_poly.append(np.fromstring(az_fm_rate.find(
                 './azimuthFmRatePolynomial').text, sep=' '))
-        except:  # old annoation xml file format
+        except TypeError:  # old annotation xml file format
             k_a_poly.append(np.array([float(az_fm_rate.find('./c0').text),
                                       float(az_fm_rate.find('./c1').text),
                                       float(az_fm_rate.find('./c2').text)]))
@@ -795,10 +801,10 @@ def meta2sicd_annot(filename):
         # ellipsoid.)  Then we will immediately replace it with a more precise
         # value from point_image_to_ground and the SICD sensor model.
         burst_meta.GeoData.SCP = MetaNode()
-        burst_meta.GeoData.SCP.LLH = MetaNode()
-        burst_meta.GeoData.SCP.LLH.Lat = scp_lats[count]
-        burst_meta.GeoData.SCP.LLH.Lon = scp_lons[count]
-        burst_meta.GeoData.SCP.LLH.HAE = scp_hgts[count]
+        burst_meta.GeoData.SCP.ECF = MetaNode()
+        burst_meta.GeoData.SCP.ECF.X = scp_x[count]
+        burst_meta.GeoData.SCP.ECF.Y = scp_y[count]
+        burst_meta.GeoData.SCP.ECF.Z = scp_z[count]
         # Note that blindly using the heights in the geolocationGridPointList
         # can result in some confusing results.  Since the scenes can be
         # extremely large, you could easily be using a height in your
@@ -812,13 +818,13 @@ def meta2sicd_annot(filename):
         # Note also that some Sentinel-1 data we have see has different heights
         # in the geolocation grid for polarimetric channels from the same
         # swath/burst!?!
-        ecf = gc.geodetic_to_ecf((burst_meta.GeoData.SCP.LLH.Lat,
-                                 burst_meta.GeoData.SCP.LLH.Lon,
-                                 burst_meta.GeoData.SCP.LLH.HAE))
-        burst_meta.GeoData.SCP.ECF = MetaNode()
-        burst_meta.GeoData.SCP.ECF.X = ecf[0, 0]
-        burst_meta.GeoData.SCP.ECF.Y = ecf[0, 1]
-        burst_meta.GeoData.SCP.ECF.Z = ecf[0, 2]
+        llh = gc.ecf_to_geodetic((burst_meta.GeoData.SCP.ECF.X,
+                                 burst_meta.GeoData.SCP.ECF.Y,
+                                 burst_meta.GeoData.SCP.ECF.Z))
+        burst_meta.GeoData.SCP.LLH = MetaNode()
+        burst_meta.GeoData.SCP.LLH.Lat = llh[0, 0]
+        burst_meta.GeoData.SCP.LLH.Lon = llh[0, 1]
+        burst_meta.GeoData.SCP.LLH.HAE = llh[0, 2]
         # Now that SCP has been populated, populate GeoData.SCP more precisely.
         ecf = point.image_to_ground([burst_meta.ImageData.SCPPixel.Row,
                                      burst_meta.ImageData.SCPPixel.Col], burst_meta)[0]
