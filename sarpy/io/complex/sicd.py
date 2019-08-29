@@ -679,9 +679,15 @@ def xml2struct(root_node, schema_struct=None):
                     if class_string == 'xs:string':
                         value = in_string  # nothing to do
                     elif class_string == 'xs:double':
-                        value = float(in_string)
+                        try:
+                            value = float(in_string)
+                        except ValueError:
+                            value = float('nan')
                     elif class_string == 'xs:int':
-                        value = int(in_string)
+                        try:
+                            value = int(in_string)
+                        except ValueError:
+                            value = int('nan')
                     elif class_string == 'xs:dateTime':
                         value = re.search('\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.)?\d{,6}',
                                           in_string).group(0)
@@ -699,15 +705,20 @@ def xml2struct(root_node, schema_struct=None):
                         # If value is numeric, store as such
                         value = float(value)
                     except ValueError:
-                        datestr = re.search('\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.)?\d{,6}',
-                                            value).group(0)
-                        if datestr:  # dateTime
-                            try:
-                                value = datetime.strptime(datestr, '%Y-%m-%dT%H:%M:%S.%f')
-                            except ValueError:
-                                value = datetime.strptime(datestr, '%Y-%m-%dT%H:%M:%S')
-                        elif value.lower() in ['true', 'false']:  # boolean
-                            value = value.lower() == 'true'
+                        try:
+                            datestr = re.search('\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.)?\d{,6}',
+                                                                        value)
+                            if datestr:  # dateTime
+                                datestr = datestr.group(0)
+                                try:
+                                    value = datetime.strptime(datestr, '%Y-%m-%dT%H:%M:%S.%f')
+                                except ValueError:
+                                    value = datetime.strptime(datestr, '%Y-%m-%dT%H:%M:%S')
+                            elif value.lower() in ['true', 'false']:  # boolean
+                                value = value.lower() == 'true'
+                        except ValueError:
+                            pass
+
 
             # 'name' attribute requires special handling.  For the most part, in
             # SICD, the XML attributes don't need to be explicitly given to the
