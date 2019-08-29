@@ -684,7 +684,10 @@ def xml2struct(root_node, schema_struct=None):
                         except ValueError:
                             value = float('nan')
                     elif class_string == 'xs:int':
-                        value = int(in_string)
+                        try:
+                            value = int(in_string)
+                        except ValueError:
+                            value = int('nan')
                     elif class_string == 'xs:dateTime':
                         value = re.search('\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.)?\d{,6}',
                                           in_string).group(0)
@@ -714,7 +717,7 @@ def xml2struct(root_node, schema_struct=None):
                             elif value.lower() in ['true', 'false']:  # boolean
                                 value = value.lower() == 'true'
                         except ValueError:
-                            value = value
+                            pass
 
 
             # 'name' attribute requires special handling.  For the most part, in
