@@ -1,0 +1,9 @@
+name: sarpy
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - numpy
+  - scipy
+  - pip:
+    - setuptools_scm
