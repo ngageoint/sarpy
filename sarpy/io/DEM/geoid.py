@@ -78,6 +78,11 @@ class GeoidHeight(object):
     )
 
     def __init__(self, name="egm2008-1.pgm"):
+        """
+        the egm2008-1.pgm data file can be downloaded from:
+        https://sourceforge.net/projects/geographiclib/files/geoids-distrib/
+        :param name:
+        """
         self.offset = None
         self.scale = None
 
