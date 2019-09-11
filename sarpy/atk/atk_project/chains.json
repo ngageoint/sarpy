@@ -1,0 +1,19 @@
+{
+    "displaymetadata": [
+        {
+            "algorithm": "sarpy/open_nitf",
+            "parameter_source": "user"
+        },
+        {
+            "algorithm": "sarpy/display_metadata",
+            "parameters": {
+                "sarpy_reader": {
+                    "source": "chain_ledger",
+                    "source_algorithm": "sarpy/open_nitf",
+                    "key": "sarpy_reader",
+                    "occurrence": "first"
+                }
+            }
+        }
+    ]
+}

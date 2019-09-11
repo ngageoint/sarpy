@@ -19,7 +19,11 @@ import h5py
 # We prefer numpy.polynomial.polynomial over numpy.polyval/polyfit since its coefficient
 # ordering is consistent with SICD, and because it supports 2D polynomials.
 from numpy.polynomial import polynomial as poly
-from scipy.misc import comb
+try:
+    from scipy.special import comb
+except:
+    from scipy.special import comb
+
 from scipy.constants import speed_of_light
 
 __classification__ = "UNCLASSIFIED"
