@@ -45,18 +45,27 @@ class TestGeoidVsEllipsoid(unittest.TestCase):
         geoid_height = GeoidHeight(geoid_2008_1_fname)
         test_heights = np.load(geoid_test_data_fname)
         dims = test_heights.shape
-        height_diffs = np.zeros(dims[0])
-        tolerance = 0.01
+        height_diffs_bilinear = np.zeros(dims[0])
+        height_diffs_cubic = np.zeros(dims[0])
+        # max errors listed in interpolation and quantization errors table at:
+        # https://geographiclib.sourceforge.io/html/geoid.html#testgeoid
+        bilinear_max_error = 0.025
+        cubic_max_error = 0.0022
         # decimate by a factor of 500 for speed
         for i in np.arange(0, dims[0], 500):
             test_line = test_heights[i]
             lat = test_line[0]
             lon = test_line[1]
             egm2008_height = test_line[4]
-            height_diffs[i] = geoid_height.get(lat, lon) - egm2008_height
-        assert np.abs(height_diffs.min()) < tolerance
-        assert np.abs(height_diffs.max()) < tolerance
-        print("computed geoid heights match test data provided by geographiclib within " + str(tolerance) + " meters.")
+            height_diffs_bilinear[i] = geoid_height.get(lat, lon, cubic=False) - egm2008_height
+            height_diffs_cubic[i] = geoid_height.get(lat, lon, cubic=True) - egm2008_height
+        assert np.abs(height_diffs_bilinear.min()) < bilinear_max_error
+        assert np.abs(height_diffs_bilinear.max()) < bilinear_max_error
+
+        assert np.abs(height_diffs_cubic.min()) < cubic_max_error
+        assert np.abs(height_diffs_cubic.max()) < cubic_max_error
+
+        print("computed geoid heights match test data provided by geographiclib within " + str(bilinear_max_error) + " meters.")
 
 
 if __name__ == '__main__':
