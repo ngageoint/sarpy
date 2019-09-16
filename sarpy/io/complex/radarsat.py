@@ -18,7 +18,7 @@ import numpy as np
 # We prefer numpy.polynomial.polynomial over numpy.polyval/polyfit since its coefficient
 # ordering is consistent with SICD, and because it supports 2D polynomials.
 from numpy.polynomial import polynomial as poly
-from scipy.misc import comb
+from scipy.special import comb
 from scipy.constants import speed_of_light
 
 _classification__ = "UNCLASSIFIED"
@@ -110,7 +110,7 @@ def meta2sicd(filename, betafile, noisefile):
 
     There is an outstanding question with regard to the meaning of the pulseRepetitionFrequency
     as provided.  See comments in Timeline section below."""
-
+    # TODO: This method is implemented in multiple locations.  Should be moved to a utility for reuse
     def _polyshift(a, shift):
         b = np.zeros(a.size)
         for j in range(1, len(a)+1):

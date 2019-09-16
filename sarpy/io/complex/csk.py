@@ -19,7 +19,7 @@ import h5py
 # We prefer numpy.polynomial.polynomial over numpy.polyval/polyfit since its coefficient
 # ordering is consistent with SICD, and because it supports 2D polynomials.
 from numpy.polynomial import polynomial as poly
-from scipy.misc import comb
+from scipy.special import comb
 from scipy.constants import speed_of_light
 
 __classification__ = "UNCLASSIFIED"
@@ -171,7 +171,7 @@ def _convert_meta(h5meta, band_meta, band_shapes):
     band_meta: A list of dicts, with dict i containing the attributes from /S0{i+1}
     band_shapes: The dataset shapes of each band dataset.
     '''
-
+    # TODO: This method is implemented in multiple locations.  Should be moved to a utility for reuse
     def _polyshift(a, shift):
         b = np.zeros(a.size)
         for j in range(1, len(a) + 1):

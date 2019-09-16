@@ -18,8 +18,9 @@ import numpy as np
 # We prefer numpy.polynomial.polynomial over numpy.polyval/polyfit since its coefficient
 # ordering is consistent with SICD, and because it supports 2D polynomials.
 from numpy.polynomial import polynomial as poly
-from scipy.misc import comb
+from scipy.special import comb
 from scipy.interpolate import griddata
+from scipy.constants import speed_of_light
 
 _classification__ = "UNCLASSIFIED"
 __author__ = "Daniel Haverporth"
@@ -226,6 +227,7 @@ def meta2sicd_manifest(filename):
 
 
 def meta2sicd_annot(filename):
+    # TODO: This method is implemented in multiple locations.  Should be moved to a utility for reuse
     def _polyshift(a, shift):
         b = np.zeros(a.size)
         for j in range(1, len(a)+1):
@@ -233,8 +235,6 @@ def meta2sicd_annot(filename):
                 b[j-1] = b[j-1] + (a[k-1]*comb(k-1, j-1)*np.power(shift, (k-j)))
         return b
 
-    # Setup constants
-    C = 299792458.
     # Parse annotation XML (no namespace to worry about)
     root_node = ET.parse(filename).getroot()
 
@@ -342,7 +342,7 @@ def meta2sicd_annot(filename):
     # Range Processing
     range_proc = root_node.find('./imageAnnotation/processingInformation' +
                                 '/swathProcParamsList/swathProcParams/rangeProcessing')
-    common_meta.Grid.Row.SS = (C/2.) * delta_tau_s
+    common_meta.Grid.Row.SS = (speed_of_light/2.) * delta_tau_s
     common_meta.Grid.Row.Sgn = -1
     # Justification for Sgn:
     # 1) "Sentinel-1 Level 1 Detailed Algorithm Definition" shows last step in
@@ -353,9 +353,9 @@ def meta2sicd_annot(filename):
     # TOPSAR collection mode which starts in a rear squint and transitions to a
     # forward squint (and are always right looking).
     fc = float(root_node.find('./generalAnnotation/productInformation/radarFrequency').text)
-    common_meta.Grid.Row.KCtr = 2.*fc / C
+    common_meta.Grid.Row.KCtr = 2.*fc / speed_of_light
     common_meta.Grid.Row.DeltaKCOAPoly = np.atleast_2d(0)
-    common_meta.Grid.Row.ImpRespBW = 2.*float(range_proc.find('./processingBandwidth').text)/C
+    common_meta.Grid.Row.ImpRespBW = 2.*float(range_proc.find('./processingBandwidth').text)/speed_of_light
     common_meta.Grid.Row.WgtType = MetaNode()
     common_meta.Grid.Row.WgtType.WindowName = range_proc.find('./windowType').text.upper()
     if (common_meta.Grid.Row.WgtType.WindowName == 'NONE'):
@@ -493,7 +493,7 @@ def meta2sicd_annot(filename):
     # tau_0 is notation from ESA deramping paper
     tau_0 = float(root_node.find('./imageAnnotation/imageInformation/slantRangeTime').text)
     common_meta.RMA.INCA = MetaNode()
-    common_meta.RMA.INCA.R_CA_SCP = ((C/2.) *
+    common_meta.RMA.INCA.R_CA_SCP = ((speed_of_light/2.) *
                                      (tau_0 +
                                       (float(common_meta.ImageData.SCPPixel.Row) *
                                        delta_tau_s)))
@@ -659,7 +659,7 @@ def meta2sicd_annot(filename):
         dc_poly_ind = np.argmin(abs(dc_est_times - burst_meta.RMA.INCA.TimeCAPoly[0]))
         # Shift polynomial from origin at dc_t0 (reference time for Sentinel
         # polynomial) to SCP time (reference time for SICD polynomial)
-        range_time_scp = (common_meta.RMA.INCA.R_CA_SCP * 2)/C
+        range_time_scp = (common_meta.RMA.INCA.R_CA_SCP * 2)/speed_of_light
         # The Doppler centroid field in the Sentinel-1 metadata is not
         # complete, so we cannot use it directly.  That description of Doppler
         # centroid by itself does not vary by azimuth although the
@@ -689,11 +689,11 @@ def meta2sicd_annot(filename):
         DR_CA = _polyshift(k_a_poly[az_rate_poly_ind],
                            range_time_scp - az_t0[az_rate_poly_ind])
         # Scale 1D polynomial to from Hz/s^n to Hz/m^n
-        DR_CA = DR_CA * ((2./C)**np.arange(len(DR_CA)))
+        DR_CA = DR_CA * ((2./speed_of_light)**np.arange(len(DR_CA)))
         r_ca = np.array([common_meta.RMA.INCA.R_CA_SCP, 1])
         # RMA.INCA.DRateSFPoly is a function of Doppler rate.
         burst_meta.RMA.INCA.DRateSFPoly = (- np.convolve(DR_CA, r_ca) *  # Assumes a SGN of -1
-                                           (C / (2 * fc * np.power(vm_ca, 2))))
+                                           (speed_of_light / (2 * fc * np.power(vm_ca, 2))))
         burst_meta.RMA.INCA.DRateSFPoly = burst_meta.RMA.INCA.DRateSFPoly[:, np.newaxis]
         # TimeCOAPoly
         # TimeCOAPoly = TimeCA + (DopCentroid/dop_rate);  # True if DopCentroidCOA = true
@@ -719,7 +719,7 @@ def meta2sicd_annot(filename):
         # The vm_ca used here is slightly different than the ESA deramp
         # document, since the document interpolates the velocity values given
         # rather than the position values, which is what we do here.
-        k_s = (2. * (vm_ca / C)) * fc * k_psi
+        k_s = (2. * (vm_ca / speed_of_light)) * fc * k_psi
         k_a = poly.polyval(tau - az_t0[az_rate_poly_ind], k_a_poly[az_rate_poly_ind])
         k_t = (k_a * k_s)/(k_a - k_s)
         f_eta_c = poly.polyval(tau - dc_t0[dc_poly_ind], data_dc_poly[dc_poly_ind])
