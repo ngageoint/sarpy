@@ -1,33 +1,24 @@
 #!/usr/bin/env python
-import os
-from flask import Flask, render_template, Response, send_file
+from flask import Flask, render_template, Response
 from flask import request
 import numpy as np
 
-from camera_slider import Camera
-
-# Raspberry Pi camera module (requires picamera package)
-# from camera_pi import Camera
+from frame_generator import FrameGenerator
 
 app = Flask(__name__)
-
-SLIDER_VAL = 0
-imgs = [open(f + '.jpg', 'rb').read() for f in ['1', '2', '3']]
-
-
-cam = Camera()
+cam = FrameGenerator()
 
 
 @app.route('/')
 def index():
-    """Video streaming home page."""
+    """Image Blending home page."""
     return render_template('index.html')
 
 
 @app.route('/frame_val', methods=['POST'])
 def get_frame_value():
     slider_val = request.values.get('input', '')
-    frame_val = int(np.floor((int(slider_val))/100))
+    frame_val = int(np.round((int(slider_val))/100))
     print(frame_val)
     cam.set_frame_num(frame_val)
     return slider_val
@@ -43,7 +34,6 @@ def get_slider_value():
 
 
 def gen(camera):
-    """Video streaming generator function."""
     while True:
         frame = camera.get_frame()
         yield (b'--frame\r\n'
@@ -51,25 +41,23 @@ def gen(camera):
 
 
 def gen_mem_jpg(camera):
-    """Video streaming generator function."""
     while True:
         frame = camera.get_mem_jpg()
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
 
 
-def blend_mem_jpg(camera):
-    """Video streaming generator function."""
+def blend_mem_png(camera):
     while True:
-        frame = camera.blend_mem_jpg()
+        frame = camera.blend_mem_png()
         yield (b'--frame\r\n'
-               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+               b'Content-Type: image/png\r\n\r\n' + frame + b'\r\n')
 
 
 @app.route('/video_feed')
 def video_feed():
     """Video streaming route. Put this in the src attribute of an img tag."""
-    return Response(blend_mem_jpg(cam), mimetype='multipart/x-mixed-replace; boundary=frame')
+    return Response(blend_mem_png(cam), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 
 if __name__ == '__main__':
