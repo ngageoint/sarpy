@@ -3,9 +3,12 @@ channels:
   - conda-forge
   - defaults
 dependencies:
+  - pip
   - numpy
   - scipy
   - h5py
+  - flask
+  - pillow
   - pip:
     - setuptools_scm
 
