@@ -24,12 +24,21 @@ def index():
     return render_template('index.html')
 
 
-@app.route('/slider_val', methods=['POST'])
-def get_slider_value():
+@app.route('/frame_val', methods=['POST'])
+def get_frame_value():
     slider_val = request.values.get('input', '')
     frame_val = int(np.floor((int(slider_val))/100))
     print(frame_val)
     cam.set_frame_num(frame_val)
+    return slider_val
+
+
+@app.route('/slider_val', methods=['POST'])
+def get_slider_value():
+    slider_val = request.values.get('input', '')
+    print(slider_val)
+    float_slide_val = float(slider_val)/100.0
+    cam.set_slider_val(float_slide_val)
     return slider_val
 
 
@@ -49,10 +58,18 @@ def gen_mem_jpg(camera):
                b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
 
 
+def blend_mem_jpg(camera):
+    """Video streaming generator function."""
+    while True:
+        frame = camera.blend_mem_jpg()
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+
+
 @app.route('/video_feed')
 def video_feed():
     """Video streaming route. Put this in the src attribute of an img tag."""
-    return Response(gen_mem_jpg(cam), mimetype='multipart/x-mixed-replace; boundary=frame')
+    return Response(blend_mem_jpg(cam), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 
 if __name__ == '__main__':
