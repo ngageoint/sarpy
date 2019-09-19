@@ -1,24 +1,36 @@
 #!/usr/bin/env python
-from importlib import import_module
 import os
 from flask import Flask, render_template, Response
+from flask import request
+import numpy as np
 
-# import camera driver
-if os.environ.get('CAMERA'):
-    Camera = import_module('camera_' + os.environ['CAMERA']).Camera
-else:
-    from camera import Camera
+from camera_slider import Camera
 
 # Raspberry Pi camera module (requires picamera package)
 # from camera_pi import Camera
 
 app = Flask(__name__)
 
+SLIDER_VAL = 0
+imgs = [open(f + '.jpg', 'rb').read() for f in ['1', '2', '3']]
+
+
+cam = Camera()
+
 
 @app.route('/')
 def index():
     """Video streaming home page."""
     return render_template('index.html')
+
+
+@app.route('/slider_val', methods=['POST'])
+def get_slider_value():
+    slider_val = request.values.get('input', '')
+    frame_val = int(np.floor((int(slider_val))/100))
+    print(frame_val)
+    cam.set_frame_num(frame_val)
+    return slider_val
 
 
 def gen(camera):
@@ -32,8 +44,7 @@ def gen(camera):
 @app.route('/video_feed')
 def video_feed():
     """Video streaming route. Put this in the src attribute of an img tag."""
-    return Response(gen(Camera()),
-                    mimetype='multipart/x-mixed-replace; boundary=frame')
+    return Response(gen(cam), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 
 if __name__ == '__main__':

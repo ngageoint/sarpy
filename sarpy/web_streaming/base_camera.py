@@ -78,7 +78,9 @@ class BaseCamera(object):
         BaseCamera.event.wait()
         BaseCamera.event.clear()
 
-        return BaseCamera.frame
+        frame = BaseCamera.frame
+
+        return frame
 
     @staticmethod
     def frames():

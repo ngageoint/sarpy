@@ -5,5 +5,27 @@
   <body>
     <h1>Video Streaming Demonstration</h1>
     <img src="{{ url_for('video_feed') }}">
+
+    <h2>Using the <code>change</code> or <code>input</code> event with a Range Slider</h2>
+    <input id="slider" type="range" min="0" max="299" value="0" step="1" />
+    <p><label for="slider">val: </label>
+    <script>
+      var slider = document.getElementById('slider');
+      slider.addEventListener('input', sliderChange);
+
+      function sliderChange() {
+        ROUTE_ADDRESS = 'slider_val'
+        console.log(this.value);
+        xhr = new XMLHttpRequest()
+        data = new FormData()
+
+        data.append('input', this.value)
+        xhr.open('POST', ROUTE_ADDRESS)
+        xhr.send(data)
+      }
+    </script>
+  <h3>Frame num</h3>
+    <input type="range" name="weight" id="range_weight" value="1" min="1" max="3" oninput="range_weight_disp.value = range_weight.value">
+    <output  id="range_weight_disp"></output>
   </body>
 </html>
