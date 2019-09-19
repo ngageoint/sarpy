@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import os
-from flask import Flask, render_template, Response
+from flask import Flask, render_template, Response, send_file
 from flask import request
 import numpy as np
 
@@ -41,10 +41,18 @@ def gen(camera):
                b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
 
 
+def gen_mem_jpg(camera):
+    """Video streaming generator function."""
+    while True:
+        frame = camera.get_mem_jpg()
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+
+
 @app.route('/video_feed')
 def video_feed():
     """Video streaming route. Put this in the src attribute of an img tag."""
-    return Response(gen(cam), mimetype='multipart/x-mixed-replace; boundary=frame')
+    return Response(gen_mem_jpg(cam), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 
 if __name__ == '__main__':
