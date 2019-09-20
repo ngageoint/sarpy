@@ -1,8 +1,6 @@
 from algorithm_toolkit import Algorithm, AlgorithmChain
 
 import sarpy.io.complex as cf
-from sarpy import sarpy_support_dir
-import os
 
 
 class Main(Algorithm):

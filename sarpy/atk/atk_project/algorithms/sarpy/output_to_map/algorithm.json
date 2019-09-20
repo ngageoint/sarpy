@@ -1,0 +1,28 @@
+{
+    "description": "Output a sarpy image object to map",
+    "display_name": "Output To Map",
+    "homepage": "",
+    "license": "MIT",
+    "name": "sarpy/output_to_map",
+    "optional_parameters": [],
+    "outputs": [],
+    "private": false,
+    "required_parameters": [
+        {
+            "custom_validation": "",
+            "data_type": "string",
+            "default_value": "",
+            "description": "Sarpy Reader Object",
+            "display_name": "Sarpy Reader",
+            "field_type": "text",
+            "help_text": "",
+            "max_value": "",
+            "min_value": "",
+            "name": "sarpy_reader",
+            "parameter_choices": "",
+            "required": true,
+            "sort_order": 0
+        }
+    ],
+    "version": "0.0.1"
+}

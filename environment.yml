@@ -4,6 +4,7 @@ channels:
   - defaults
 dependencies:
   - numpy
+  - h5py
   - scipy
   - pip:
     - setuptools_scm
