@@ -8,8 +8,6 @@ from scipy.interpolate import griddata
 import imageio
 import base64
 import os
-import matplotlib.pyplot as plt
-from pyproj import Proj, transform
 
 
 def create_ground_grid(min_x,   # type: float
@@ -30,7 +28,7 @@ def create_ground_grid(min_x,   # type: float
     return ground_x_arr + x_gsd/2.0, ground_y_arr - y_gsd/2.0
 
 
-def sarpy2ortho(ro, decimation=10):
+def sarpy2ortho(ro, pix, decimation=10):
 
     nx = ro.sicdmeta.ImageData.FullImage.NumCols
     ny = ro.sicdmeta.ImageData.FullImage.NumRows
@@ -44,40 +42,22 @@ def sarpy2ortho(ro, decimation=10):
     yv = np.reshape(yv, (npix,1))
     im_points = np.concatenate([xv,yv], axis=1)
 
-    ecf = image_to_ground(im_points, ro.sicdmeta)
+    ground_coords = image_to_ground(im_points, ro.sicdmeta)
+    ground_coords = ecf_to_geodetic(ground_coords)
 
-    minx = np.min(ecf[:,0])
-    maxx = np.max(ecf[:,0])
-    miny = np.min(ecf[:,1])
-    maxy = np.max(ecf[:,1])
-    meanz = np.mean(ecf[:,2])
+    minx = np.min(ground_coords[:,1])
+    maxx = np.max(ground_coords[:,1])
+    miny = np.min(ground_coords[:,0])
+    maxy = np.max(ground_coords[:,0])
 
     xi, yi = create_ground_grid(minx, maxx, miny, maxy, round(nx/decimation), round(ny/decimation))
 
-    cdata = ro.read_chip[::decimation, ::decimation]
-    pix = density(cdata)
-    plt.figure()
-    plt.imshow(pix, cmap='gray')  # Display subsampled image
-    plt.show()
-
+    ground_coords[:,[0,1]] = ground_coords[:,[1,0]]
     pix = np.reshape(pix, npix)
+    gridded = griddata(ground_coords[:,0:2], pix, (xi,yi), method='nearest').astype(np.uint8)
 
-    gridded = griddata(ecf[:,0:2], pix, (xi,yi), method='nearest').astype(np.uint8)
-    plt.figure()
-    plt.imshow(gridded, cmap='gray')  # Display subsampled image
-    plt.show()
-
-    # TODO handle different regions of globe
-    p1 = Proj(init='epsg:4978')
-    p2 = Proj(init='epsg:4326')
-
-    # ulry, ulrx, ulrz = ecf_to_geodetic(minx, maxy, meanz)
-    # lrry, lrrx, lrrz = ecf_to_geodetic(maxx, miny, meanz)
-
-    # ul = [float(ulry[0]), float(ulrx[0])]
-    # lr = [float(lrry[0]), float(lrrx[0])]
-    ulr = transform(p1,p2,minx, maxy)
-    lrr = transform(p1,p2,maxx, miny)
+    ul = [maxy, minx]
+    lr = [miny, maxx]
 
     extent = [ul,lr]
 
@@ -92,7 +72,11 @@ class Main(Algorithm):
         # Add your algorithm code here
 
         ro = params['sarpy_reader']
-        img, extent = sarpy2ortho(ro)
+        pix = params['remapped_data']
+        decimation = params['decimation']
+
+        img, extent = sarpy2ortho(ro, pix, decimation=decimation)
+
         im_pth = os.path.join(cl.get_temp_folder(), 'sar_ortho.png')
         imageio.imwrite(im_pth, img)
 

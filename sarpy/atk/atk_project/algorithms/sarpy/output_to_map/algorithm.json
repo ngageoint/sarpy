@@ -22,6 +22,36 @@
             "parameter_choices": "",
             "required": true,
             "sort_order": 0
+        },
+        {
+            "custom_validation": "",
+            "data_type": "string",
+            "default_value": "",
+            "description": "Remapped complex data",
+            "display_name": "Remaped Data",
+            "field_type": "text",
+            "help_text": "",
+            "max_value": "",
+            "min_value": "",
+            "name": "remapped_data",
+            "parameter_choices": "",
+            "required": true,
+            "sort_order": 1
+        },
+        {
+            "custom_validation": "",
+            "data_type": "integer",
+            "default_value": 10,
+            "description": "Decimation Factor",
+            "display_name": "Decimation",
+            "field_type": "number",
+            "help_text": "",
+            "max_value": null,
+            "min_value": null,
+            "name": "decimation",
+            "parameter_choices": "",
+            "required": true,
+            "sort_order": 2
         }
     ],
     "version": "0.0.1"
