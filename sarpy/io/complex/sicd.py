@@ -687,7 +687,7 @@ def xml2struct(root_node, schema_struct=None):
                         try:
                             value = int(in_string)
                         except ValueError:
-                            value = int('nan')
+                            pass
                     elif class_string == 'xs:dateTime':
                         value = re.search('\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.)?\d{,6}',
                                           in_string).group(0)
