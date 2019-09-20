@@ -18,8 +18,19 @@ import numpy as np
 # We prefer numpy.polynomial.polynomial over numpy.polyval/polyfit since its coefficient
 # ordering is consistent with SICD, and because it supports 2D polynomials.
 from numpy.polynomial import polynomial as poly
-from scipy.misc import comb
 from scipy.constants import speed_of_light
+# try to import comb from scipy.special.
+# If an old version of scipy is being used then import from scipy.misc
+from scipy import __version__ as scipy_version
+dot_locs = []
+for i, version_char in enumerate(scipy_version):
+    if version_char == '.':
+        dot_locs.append(i)
+major_version = int(scipy_version[0:dot_locs[0]])
+if major_version >= 1:
+    from scipy.special import comb
+else:
+    from scipy.misc import comb
 
 _classification__ = "UNCLASSIFIED"
 __author__ = ["Khanh Ho", "Wade Schwartzkopf"]
