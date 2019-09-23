@@ -1,0 +1,46 @@
+<html>
+  <head>
+    <title>Image Blending Demonstration</title>
+  </head>
+  <body>
+    <h1>Image Blending Demonstration</h1>
+    <img src="{{ url_for('taser.video_feed') }}">
+
+    <h2>Blending images with a frame slider using python and flask</h2>
+    <form>
+      <input id="slider" type="range" min="0" max="199" value="0" step="1" />
+    </form>
+    <p><label for="slider">val: </label>
+    <script>
+      var slider = document.getElementById('slider');
+      slider.addEventListener('input', updateFrameNum);
+      slider.addEventListener('input', updateSliderVal);
+
+      function updateFrameNum() {
+        ROUTE_ADDRESS = 'frame_val'
+        console.log(this.value);
+        xhr = new XMLHttpRequest()
+        data = new FormData()
+
+        data.append('input', this.value)
+        xhr.open('POST', ROUTE_ADDRESS)
+        var token = "{{ csrf_token() }}";
+        xhr.setRequestHeader("X-CSRFToken", token);
+        xhr.send(data)
+      }
+
+      function updateSliderVal() {
+        ROUTE_ADDRESS = 'slider_val'
+        console.log(this.value);
+        xhr = new XMLHttpRequest()
+        data = new FormData()
+        data.append('input', this.value)
+
+        xhr.open('POST', ROUTE_ADDRESS)
+        var token = "{{ csrf_token() }}";
+        xhr.setRequestHeader("X-CSRFToken", token);
+        xhr.send(data)
+      }
+    </script>
+  </body>
+</html>
