@@ -5,9 +5,11 @@ Just a quick demo to show the basics of how to use SarPy
 import matplotlib.pyplot as plt
 import sarpy.io.complex as cf
 import sarpy.visualization.remap as remap
+from sarpy import sarpy_support_dir
+import os
 
 # Open file
-fname = 'C:/Temp/my_sicd.nitf'
+fname = os.path.join(sarpy_support_dir, 'nitf/sicd_example_1_PFA_RE32F_IM32F_HH.nitf')
 ro = cf.open(fname)
 
 # Access SICD metadata (even if file read is not in SICD format)
@@ -21,14 +23,19 @@ print(ro.sicdmeta.CollectionInfo.CollectorName)  # Notation for extracting field
 cdata = ro.read_chip[::10, ::10]
 plt.figure()
 plt.imshow(remap.density(cdata), cmap='gray')  # Display subsampled image
+plt.show()
+
 # Reads every other row and column from the first thousand rows and columns:
 cdata = ro.read_chip[:1000:2, :1000:2]
 plt.figure()
 plt.imshow(remap.density(cdata), cmap='gray')  # Display subsampled image
+plt.show()
+
 # Reads every row and column from the first thousand rows and columns:
 cdata = ro.read_chip[0:1000, 0:1000]
 plt.figure()
 plt.imshow(remap.density(cdata), cmap='gray')  # Display subsampled image
+plt.show()
 
 # Convert a complex dataset (in any format handled by SarPy) to SICD
 cf.convert(fname, 'C:/Temp/new_sicd.nitf')

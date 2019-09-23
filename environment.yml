@@ -5,6 +5,7 @@ channels:
 dependencies:
   - pip
   - numpy
+  - h5py
   - scipy
   - h5py
   - flask

@@ -20,6 +20,7 @@ import h5py
 # ordering is consistent with SICD, and because it supports 2D polynomials.
 from numpy.polynomial import polynomial as poly
 from scipy.special import comb
+
 from scipy.constants import speed_of_light
 
 __classification__ = "UNCLASSIFIED"

@@ -19,6 +19,7 @@ import numpy as np
 # ordering is consistent with SICD, and because it supports 2D polynomials.
 from numpy.polynomial import polynomial as poly
 from scipy.special import comb
+
 from scipy.constants import speed_of_light
 
 _classification__ = "UNCLASSIFIED"
