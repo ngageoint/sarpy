@@ -9,7 +9,7 @@ from flask import request
 
 from algorithm_toolkit import app
 
-from sarpy.web_streaming.frame_generator import FrameGenerator
+from sarpy.atk.atk_interactive.frame_generator import FrameGenerator
 
 cam = FrameGenerator()
 
