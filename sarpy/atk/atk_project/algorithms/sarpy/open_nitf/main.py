@@ -1,7 +1,7 @@
 from algorithm_toolkit import Algorithm, AlgorithmChain
 
 import sarpy.io.complex as cf
-
+import os
 
 class Main(Algorithm):
 
@@ -12,6 +12,9 @@ class Main(Algorithm):
 
         # Open file
         fname = params['filename']
+        if fname.startswith('~'):
+            fname = os.path.expanduser(fname)
+
         ro = cf.open(fname)
 
         cl.add_to_metadata('sarpy_reader', ro)

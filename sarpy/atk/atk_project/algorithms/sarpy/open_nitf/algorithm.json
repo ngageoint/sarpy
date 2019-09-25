@@ -19,8 +19,8 @@
         {
             "custom_validation": "",
             "data_type": "string",
-            "default_value": "D:\\\\Users\\\\bbartlett\\\\.sarpy\\\\support_data\\\\nitf/sicd_example_1_PFA_RE32F_IM32F_HH.nitf",
-            "description": "Absolute path to file",
+            "default_value": "~/.sarpy/support_data/nitf/sicd_example_1_PFA_RE32F_IM32F_HH.nitf",
+            "description": "path to file",
             "display_name": "Filename",
             "field_type": "text",
             "help_text": "",

@@ -33,17 +33,6 @@
             }
         },
         {
-            "algorithm": "opencv/Canny",
-            "parameters": {
-                "image_array": {
-                    "source": "chain_ledger",
-                    "source_algorithm": "sarpy/remap_data",
-                    "key": "remapped_data",
-                    "occurrence": "first"
-                }
-            }
-        },
-        {
             "algorithm": "sarpy/output_to_map",
             "parameters": {
                 "sarpy_reader": {
@@ -54,8 +43,8 @@
                 },
                 "remapped_data": {
                     "source": "chain_ledger",
-                    "source_algorithm": "opencv/Canny",
-                    "key": "image_array",
+                    "source_algorithm": "sarpy/remap_data",
+                    "key": "remapped_data",
                     "occurrence": "first"
                 },
                 "decimation": {
