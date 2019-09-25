@@ -7,7 +7,7 @@ Homepage: [https://github.com/ngageoint/sarpy]
 ## Parameters:
 Name|Description|Required
 ---|---|:---:
-filename|Absolute path to file|Yes
+filename|path to file|Yes
 
 ## Outputs:
 Name|Description
