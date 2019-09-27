@@ -6,28 +6,48 @@
 
     <h1>SAR Remapping Demonstration</h1>
 
-    <p><label for="decimation">decimation: </label></p>
     <form>
+        <label for="image_path">Image Path: </label>
+        <input id="image_path" value="/home/bbartlett/.sarpy/support_data/nitf/sicd_example_1_PFA_RE32F_IM32F_HH.nitf" />
+        <button id="load_image" type="button">Load Image</button>
+    </form>
+
+    <form>
+        <label for="decimation">Decimation: </label>
         <input id="decimation" type="number" min="1" max="1000" value="10" step="1" />
     </form>
+
     <img src="{{ url_for('taser.video_feed') }}">
 
     <script>
-      var decimation = document.getElementById('decimation');
-      decimation.addEventListener('input', updateDecimation);
+        let load_image = document.getElementById('load_image');
+        load_image.addEventListener('click', updateImagePath);
 
-      function updateDecimation() {
-        ROUTE_ADDRESS = 'update_decimation'
-        console.log(this.value);
-        xhr = new XMLHttpRequest()
-        data = new FormData()
+        let decimation = document.getElementById('decimation');
+        decimation.addEventListener('input', updateDecimation);
 
-        data.append('input', this.value)
-        xhr.open('POST', ROUTE_ADDRESS)
-        var token = "{{ csrf_token() }}";
-        xhr.setRequestHeader("X-CSRFToken", token);
-        xhr.send(data)
-      }
+        function updateImagePath() {
+            ROUTE_ADDRESS = 'update_image_path';
+            let image_path = document.getElementById('image_path');
+            callRoute(ROUTE_ADDRESS, image_path.value)
+        }
+
+        function updateDecimation() {
+            ROUTE_ADDRESS = 'update_decimation';
+            callRoute(ROUTE_ADDRESS, this.value)
+        }
+
+        function callRoute(routeName, value) {
+
+            xhr = new XMLHttpRequest();
+            data = new FormData();
+
+            data.append('input', value);
+            xhr.open('POST', routeName);
+            let token = "{{ csrf_token() }}";
+            xhr.setRequestHeader("X-CSRFToken", token);
+            xhr.send(data)
+        }
 
     </script>
   </body>

@@ -23,4 +23,4 @@ handler.setFormatter(Formatter(
 LOG_HANDLERS = [handler, ]
 
 # Add your custom settings below
-sarpy_reader = None
+CHAIN_HISTORY = None

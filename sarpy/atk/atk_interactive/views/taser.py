@@ -7,6 +7,8 @@ from sarpy.atk.atk_interactive.forms import FrameForm
 from flask import render_template, Response
 from flask import request
 
+import os
+from sarpy.atk.atk_interactive.utils import atk_tools
 from algorithm_toolkit import app
 
 from sarpy.atk.atk_interactive.frame_generator import FrameGenerator
@@ -21,8 +23,19 @@ def index():
     return render_template('index.html', form=form)
 
 
+@mb.route('/taser/update_image_path', methods=['POST'])
+def set_image_path():
+
+    image_path = os.path.normpath(request.values.get('input', ''))
+
+    cam.set_image_path(image_path)
+
+    return ''
+
+
 @mb.route('/taser/update_decimation', methods=['POST'])
 def set_decimation():
+
     dec_val = int(request.values.get('input', ''))
 
     cam.set_decimation(dec_val)

@@ -1,2 +1,8 @@
 {
+  "open_nitf": [
+      {
+          "algorithm": "sarpy/open_nitf",
+          "parameter_source": "user"
+      }
+  ]
 }

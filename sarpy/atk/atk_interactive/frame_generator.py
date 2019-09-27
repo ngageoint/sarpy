@@ -1,31 +1,43 @@
 from algorithm_toolkit.atk import app
 from PIL import Image
 import io
-import sarpy.io.complex as cf
-import sarpy.visualization.remap as remap
 import os
+import imageio
+
+import sarpy.visualization.remap as remap
+from sarpy.atk.atk_interactive.utils import atk_tools
 
 
 class FrameGenerator(object):
     def __init__(self):
         self.decimation = 10
 
-        fname = '~/.sarpy/support_data/nitf/sicd_example_1_PFA_RE32F_IM32F_HH.nitf'
-        if fname.startswith('~'):
-            fname = os.path.expanduser(fname)
+        img_path = os.path.join(os.path.dirname(
+            os.path.realpath(__file__)), "resources/logo.jpeg")
 
-        ro = cf.open(fname)
-        app.config['sarpy_reader'] = ro
+        self.sarpy_reader = None
+        self.numpy_data = [imageio.imread(img_path)]
 
-        cdata = ro.read_chip[::self.decimation, ::self.decimation]
-        self.numpy_data = [remap.density(cdata)]
+    def set_image_path(self, pth):
+        chain_filename = os.path.join(os.path.dirname(
+            os.path.realpath(__file__)), "chain_forms/open_nitf.json")
+
+        chain_json = atk_tools.get_atk_form_json(chain_filename)
+        chain_json['algorithms'][0]['parameters']['filename'] = pth
+
+        atk_tools.call_atk_chain(chain_json, 'secret')
+
+        cl = app.config['CHAIN_HISTORY']
+
+        self.sarpy_reader = cl[-1].metadata['sarpy_reader']
+        self.update_frame()
 
     def set_decimation(self, dec):
         self.decimation = dec
         self.update_frame()
 
     def update_frame(self):
-        ro = app.config['sarpy_reader']
+        ro = self.sarpy_reader
         cdata = ro.read_chip[::self.decimation, ::self.decimation]
         self.numpy_data = [remap.density(cdata)]
 
