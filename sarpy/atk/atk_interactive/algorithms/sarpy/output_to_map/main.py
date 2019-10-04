@@ -23,14 +23,14 @@ def sarpy2ortho(ro, pix, decimation=10):
     nx_dec = round(nx / decimation)
     ny_dec = round(ny / decimation)
 
-    xv, yv = np.meshgrid(range(nx), range(ny))
+    xv, yv = np.meshgrid(range(nx), range(ny), indexing='xy')
     xv = xv[::decimation, ::decimation]
     yv = yv[::decimation, ::decimation]
     npix = xv.size
 
     xv = np.reshape(xv, (npix,1))
     yv = np.reshape(yv, (npix,1))
-    im_points = np.concatenate([xv,yv], axis=1)
+    im_points = np.concatenate([yv,xv], axis=1)
 
     ground_coords = image_to_ground(im_points, ro.sicdmeta)
     ground_coords = ecf_to_geodetic(ground_coords)
