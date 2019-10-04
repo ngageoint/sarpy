@@ -25,33 +25,33 @@
             "algorithm": "sarpy/remap_data",
             "parameters": {
                 "sarpy_reader": {
-                    "source": "chain_ledger",
-                    "source_algorithm": "sarpy/open_nitf",
                     "key": "sarpy_reader",
-                    "occurrence": "first"
+                    "occurrence": "first",
+                    "source": "chain_ledger",
+                    "source_algorithm": "sarpy/open_nitf"
                 }
             }
         },
         {
             "algorithm": "sarpy/output_to_map",
             "parameters": {
-                "sarpy_reader": {
+                "decimation": {
+                    "key": "decimation",
+                    "occurrence": "first",
                     "source": "chain_ledger",
-                    "source_algorithm": "sarpy/open_nitf",
-                    "key": "sarpy_reader",
-                    "occurrence": "first"
+                    "source_algorithm": "sarpy/remap_data"
                 },
                 "remapped_data": {
-                    "source": "chain_ledger",
-                    "source_algorithm": "sarpy/remap_data",
                     "key": "remapped_data",
-                    "occurrence": "first"
-                },
-                "decimation": {
+                    "occurrence": "first",
                     "source": "chain_ledger",
-                    "source_algorithm": "sarpy/remap_data",
-                    "key": "decimation",
-                    "occurrence": "first"
+                    "source_algorithm": "sarpy/remap_data"
+                },
+                "sarpy_reader": {
+                    "key": "sarpy_reader",
+                    "occurrence": "first",
+                    "source": "chain_ledger",
+                    "source_algorithm": "sarpy/open_nitf"
                 }
             }
         }
@@ -59,6 +59,18 @@
     "open_nitf": [
         {
             "algorithm": "sarpy/open_nitf",
+            "parameter_source": "user"
+        }
+    ],
+    "remap_data": [
+        {
+            "algorithm": "sarpy/remap_data",
+            "parameter_source": "user"
+        }
+    ],
+    "save_ortho": [
+        {
+            "algorithm": "sarpy/output_to_map",
             "parameter_source": "user"
         }
     ]

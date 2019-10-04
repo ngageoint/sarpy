@@ -1,5 +1,5 @@
-# Output To Map
-Output a sarpy image object to map
+# Remap Data
+Remap complex data
 Version: 0.0.1
 License: MIT
 Homepage: []
@@ -8,10 +8,11 @@ Homepage: []
 Name|Description|Required
 ---|---|:---:
 sarpy_reader|Sarpy Reader Object|Yes
-remapped_data|Remapped complex data|Yes
 decimation|Decimation Factor|Yes
-geotiff_path|If set, save image data to a geotiff at this path|
+remap_type|Type of remapping for display to use.|Yes
 
 ## Outputs:
 Name|Description
 ---|---
+remapped_data|Remapped complex sar data for display
+decimation|Decimation Factor

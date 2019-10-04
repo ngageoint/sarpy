@@ -71,6 +71,8 @@ class Main(Algorithm):
         output_path = None
         if 'geotiff_path' in params:
             output_path = os.path.expanduser(params['geotiff_path'])
+            dirname = os.path.dirname(output_path)
+            os.makedirs(dirname, exist_ok=True)
 
         img, extent, geot = sarpy2ortho(ro, pix, decimation=decimation)
 

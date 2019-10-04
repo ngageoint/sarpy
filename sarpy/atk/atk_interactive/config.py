@@ -23,4 +23,4 @@ handler.setFormatter(Formatter(
 LOG_HANDLERS = [handler, ]
 
 # Add your custom settings below
-CHAIN_HISTORY = None
+CHAIN_HISTORY_LENGTH = 1

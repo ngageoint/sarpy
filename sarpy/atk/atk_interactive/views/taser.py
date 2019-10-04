@@ -8,10 +8,9 @@ from flask import render_template, Response
 from flask import request
 
 import os
-from sarpy.atk.atk_interactive.utils import atk_tools
 from algorithm_toolkit import app
 
-from sarpy.atk.atk_interactive.frame_generator import FrameGenerator
+from sarpy.atk.atk_interactive.utils.frame_generator import FrameGenerator
 
 cam = FrameGenerator()
 
@@ -40,7 +39,16 @@ def set_decimation():
 
     cam.set_decimation(dec_val)
 
-    return str(dec_val)
+    return ''
+
+
+@mb.route('/taser/ortho_image', methods=['POST'])
+def ortho_image():
+
+    output_image_path = os.path.normpath(request.values.get('input', ''))
+    cam.ortho_image(output_image_path)
+
+    return ''
 
 
 def gen(camera):

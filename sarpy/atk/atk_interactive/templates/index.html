@@ -7,14 +7,20 @@
     <h1>SAR Remapping Demonstration</h1>
 
     <form>
-        <label for="image_path">Image Path: </label>
-        <input id="image_path" value="/home/bbartlett/.sarpy/support_data/nitf/sicd_example_1_PFA_RE32F_IM32F_HH.nitf" />
+        <label for="image_path_lbl">Image Path: </label>
+        <input id="image_path" value="~/.sarpy/support_data/nitf/sicd_example_1_PFA_RE32F_IM32F_HH.nitf" />
         <button id="load_image" type="button">Load Image</button>
     </form>
 
     <form>
-        <label for="decimation">Decimation: </label>
+        <label for="decimation_lbl">Decimation: </label>
         <input id="decimation" type="number" min="1" max="1000" value="10" step="1" />
+    </form>
+
+    <form>
+        <label for="image_path_ortho_lbl">Image Path Ortho: </label>
+        <input id="image_path_ortho" value="~/.sarpy/support_data/geoTiff/sicd_example_1_PFA_RE32F_IM32F_HH.tif" />
+        <button id="ortho_image" type="button">Save Map Image</button>
     </form>
 
     <img src="{{ url_for('taser.video_feed') }}">
@@ -26,6 +32,9 @@
         let decimation = document.getElementById('decimation');
         decimation.addEventListener('input', updateDecimation);
 
+        let ortho_image = document.getElementById('ortho_image');
+        ortho_image.addEventListener('click', orthoImage);
+
         function updateImagePath() {
             ROUTE_ADDRESS = 'update_image_path';
             let image_path = document.getElementById('image_path');
@@ -35,6 +44,12 @@
         function updateDecimation() {
             ROUTE_ADDRESS = 'update_decimation';
             callRoute(ROUTE_ADDRESS, this.value)
+        }
+
+        function orthoImage() {
+            ROUTE_ADDRESS = 'ortho_image';
+            let output_image_path = document.getElementById('image_path_ortho')
+            callRoute(ROUTE_ADDRESS, output_image_path.value)
         }
 
         function callRoute(routeName, value) {
