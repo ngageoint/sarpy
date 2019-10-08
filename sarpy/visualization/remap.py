@@ -37,15 +37,18 @@ def amplitude_to_density(a, dmin=30, mmult=40, data_mean=None):
     """Convert to density data for remap."""
     EPS = 1e-5
 
-    a = abs(a)
-    if not data_mean:
-        data_mean = np.mean(a[np.isfinite(a)])
-    cl = 0.8 * data_mean
-    ch = mmult * cl
-    m = (255 - dmin)/np.log10(ch/cl)
-    b = dmin - (m * np.log10(cl))
+    if (a==0).all():
+        return np.zeros(a.shape)
+    else:
+        a = abs(a)
+        if not data_mean:
+            data_mean = np.mean(a[np.isfinite(a)])
+        cl = 0.8 * data_mean
+        ch = mmult * cl
+        m = (255 - dmin)/np.log10(ch/cl)
+        b = dmin - (m * np.log10(cl))
 
-    return (m * np.log10(np.maximum(a, EPS))) + b
+        return (m * np.log10(np.maximum(a, EPS))) + b
 
 
 # Does Python not have a builtin way to do this fundamental operation???
