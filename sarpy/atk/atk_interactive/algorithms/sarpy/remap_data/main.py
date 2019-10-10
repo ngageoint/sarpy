@@ -12,9 +12,30 @@ class Main(Algorithm):
 
         ro = params['sarpy_reader']
         decimation = params['decimation']
+
+        if 'ystart' in params:
+            ystart = params['ystart']
+        else:
+            ystart = 0
+
+        if 'yend' in params:
+            yend = params['yend']
+        else:
+            yend = ro.sicdmeta.ImageData.NumRows
+
+        if 'xstart' in params:
+            xstart = params['xstart']
+        else:
+            xstart = 0
+
+        if 'xend' in params:
+            xend = params['xend']
+        else:
+            xend = ro.sicdmeta.ImageData.NumCols
+
         remap_type = params['remap_type']
 
-        cdata = ro.read_chip[::decimation, ::decimation]
+        cdata = ro.read_chip[ystart:yend:decimation, xstart:xend:decimation]
 
         if remap_type == 'density':
             pix = remap.density(cdata)

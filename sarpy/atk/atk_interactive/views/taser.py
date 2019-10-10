@@ -27,9 +27,9 @@ def set_image_path():
 
     image_path = os.path.normpath(request.values.get('input', ''))
 
-    cam.set_image_path(image_path)
+    nx, ny = cam.set_image_path(image_path)
 
-    return ''
+    return str([nx,ny])
 
 
 @mb.route('/taser/update_decimation', methods=['POST'])
@@ -38,6 +38,19 @@ def set_decimation():
     dec_val = int(request.values.get('input', ''))
 
     cam.set_decimation(dec_val)
+
+    return ''
+
+
+@mb.route('/taser/crop_image', methods=['POST'])
+def crop_image():
+
+    minx = int(request.values.get('minx', ''))
+    maxx = int(request.values.get('maxx', ''))
+    miny = int(request.values.get('miny', ''))
+    maxy = int(request.values.get('maxy', ''))
+
+    cam.crop_image(minx, miny, maxx, maxy)
 
     return ''
 

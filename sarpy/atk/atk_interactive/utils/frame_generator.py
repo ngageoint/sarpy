@@ -34,9 +34,19 @@ class FrameGenerator(object):
         self.sarpy_reader = ch[status_key].metadata['sarpy_reader']
         self.update_frame()
 
+        nx = self.sarpy_reader.sicdmeta.ImageData.NumCols
+        ny = self.sarpy_reader.sicdmeta.ImageData.NumRows
+        return nx, ny
+
     def set_decimation(self, dec):
         self.decimation = dec
         self.update_frame()
+
+    def crop_image(self, xmin, ymin, xmax, ymax):
+        # TODO update globals
+        #  (minx, miny, maxx, maxy)
+        bounds = [xmin, ymin, xmax, ymax]
+        self.update_frame(bounds=bounds)
 
     def ortho_image(self, output_path):
 
@@ -59,7 +69,7 @@ class FrameGenerator(object):
 
         return ''
 
-    def update_frame(self):
+    def update_frame(self, bounds=None):
         chain_name = 'remap_data'
 
         ro = self.sarpy_reader
@@ -68,6 +78,12 @@ class FrameGenerator(object):
         chain_json = self.atk_chains.get_chain_json(chain_name)
         chain_json['algorithms'][0]['parameters']['sarpy_reader'] = ro
         chain_json['algorithms'][0]['parameters']['decimation'] = dec
+
+        if bounds is not None:
+            chain_json['algorithms'][0]['parameters']['ystart'] = bounds[1]
+            chain_json['algorithms'][0]['parameters']['yend'] = bounds[3]
+            chain_json['algorithms'][0]['parameters']['xstart'] = bounds[0]
+            chain_json['algorithms'][0]['parameters']['xend'] = bounds[2]
 
         self.atk_chains.set_chain_json(chain_name, chain_json)
 
