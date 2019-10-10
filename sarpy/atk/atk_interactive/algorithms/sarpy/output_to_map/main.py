@@ -2,8 +2,7 @@ from algorithm_toolkit import Algorithm, AlgorithmChain
 
 from sarpy.geometry.point_projection import image_to_ground
 from sarpy.geometry.geocoords import ecf_to_geodetic
-from resippy.image_objects.earth_overhead.\
-    earth_overhead_image_objects.geotiff.geotiff_image_factory import GeotiffImageFactory
+from resippy.image_objects.earth_overhead.geotiff.geotiff_image_factory import GeotiffImageFactory
 from resippy.utils.photogrammetry_utils import world_poly_to_geo_t, create_ground_grid
 from resippy.utils.geom_utils import bounds_2_shapely_polygon
 from pyproj import Proj
