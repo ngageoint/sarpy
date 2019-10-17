@@ -1,6 +1,7 @@
 <html>
   <head>
-    <title>SAR Remapping Demonstration</title>
+      <title>SAR Remapping Demonstration</title>
+      <link href="{{ url_for('static', filename='vendors/leaflet/leaflet.css') }}" rel="stylesheet">
   </head>
   <body>
 
@@ -21,21 +22,21 @@
         <label for="image_xmin_lbl">x min: </label>
         <input id="min_x" type="number" min="0" max="10000" value="0" step="1" />
         <label for="image_xmax_lbl">x max: </label>
-        <input id="max_x" type="number" min="1" max="9999" value="10000" step="1" />
+        <input id="max_x" type="number" min="1" max="9999" value="1000" step="1" />
     </form>
 
     <form>
         <label for="image_ymin_lbl">y min: </label>
         <input id="min_y" type="number" min="0" max="10000" value="0" step="1" />
         <label for="image_ymax_lbl">y max: </label>
-        <input id="max_y" type="number" min="1" max="9999" value="10000" step="1" />
+        <input id="max_y" type="number" min="1" max="9999" value="1000" step="1" />
     </form>
 
     <form>
         <button id="crop_button" type="button">Crop to bounds.</button>
     </form>
 
-    <img src="{{ url_for('taser.video_feed') }}">
+    <div id="mapid"></div>
 
     <form>
         <label for="image_path_ortho_lbl">Image Path Ortho: </label>
@@ -43,7 +44,27 @@
         <button id="ortho_image" type="button">Save Map Image</button>
     </form>
 
+    <script src="{{ url_for('static', filename='vendors/leaflet/leaflet.js') }}"></script>
+    <style>
+         #mapid {
+            position: relative;
+            height: 300px;
+            width: 500px;
+        }
+    </style>
+
     <script>
+        dL = L.tileLayer('https://a.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>, Tiles courtesy of <a href="http://hot.openstreetmap.org/" target="_blank">Humanitarian OpenStreetMap Team</a>',
+            maxZoom: 24,
+        });
+        var mymap = new L.map('mapid', {
+            zoomControl: true,
+            zoom: 4,
+            // layers: [dL],
+        });
+        //mymap.panTo([39.97712, -109.160156]);
+
         let load_image = document.getElementById('load_image');
         load_image.addEventListener('click', updateImagePath);
 
@@ -92,6 +113,16 @@
             let token = "{{ csrf_token() }}";
             xhr.setRequestHeader("X-CSRFToken", token);
             xhr.send(data)
+
+            xhr.onload = function(evt) {
+                var resp;
+                try {
+                    resp = JSON.parse(xhr.response);
+                    console.log(resp)
+                } catch (error) {
+                    console.error(error);
+                }
+            }
         }
 
         function callRoute(routeName, value) {

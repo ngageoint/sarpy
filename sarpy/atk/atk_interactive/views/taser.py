@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
 import time
-from . import mb
-from sarpy.atk.atk_interactive.forms import FrameForm
+import json
 
+from . import mb
 from flask import render_template, Response
 from flask import request
 
@@ -11,6 +11,7 @@ import os
 from algorithm_toolkit import app
 
 from sarpy.atk.atk_interactive.utils.frame_generator import FrameGenerator
+from sarpy.atk.atk_interactive.forms import FrameForm
 
 cam = FrameGenerator()
 
@@ -52,7 +53,7 @@ def crop_image():
 
     cam.crop_image(minx, miny, maxx, maxy)
 
-    return ''
+    return json.dumps({'hello world': 'i am a computer'})
 
 
 @mb.route('/taser/ortho_image', methods=['POST'])
@@ -72,7 +73,5 @@ def gen(camera):
                b'Content-Type: image/png\r\n\r\n' + frame + b'\r\n')
 
 
-@mb.route('/taser/video_feed')
-def video_feed():
-    """Video streaming route. Put this in the src attribute of an img tag."""
+def image_feed():
     return Response(gen(cam), mimetype='multipart/x-mixed-replace; boundary=frame')
