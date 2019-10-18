@@ -9,7 +9,7 @@ from sarpy import sarpy_support_dir
 import os
 
 # Open file
-fname = os.path.join(sarpy_support_dir, 'nitf/sicd_example_1_PFA_RE32F_IM32F_HH.nitf')
+fname = os.path.expanduser(os.path.join('~/sarpy_data/nitf', 'sicd_example_1_PFA_RE32F_IM32F_HH.nitf'))
 ro = cf.open(fname)
 
 # Access SICD metadata (even if file read is not in SICD format)
@@ -20,7 +20,7 @@ print(ro.sicdmeta.CollectionInfo.CollectorName)  # Notation for extracting field
 # Read complex pixel data from file
 # cdata = reader_object.read_chip[...] # Reads all complex data from file
 # Read every 10th pixel:
-cdata = ro.read_chip[::10, ::10]
+cdata = ro.read_chip[::8, ::8]
 plt.figure()
 plt.imshow(remap.density(cdata), cmap='gray')  # Display subsampled image
 plt.show()

@@ -1,10 +1,9 @@
 #!/usr/bin/env python
 
-import time
 import json
 
 from . import mb
-from flask import render_template, Response
+from flask import render_template
 from flask import request
 
 import os
@@ -26,34 +25,26 @@ def index():
 @mb.route('/taser/update_image_path', methods=['POST'])
 def set_image_path():
 
-    image_path = os.path.normpath(request.values.get('input', ''))
+    image_path = os.path.normpath(request.values.get('image_path', ''))
+    tnx = int(request.values.get('tnx', ''))
+    tny = int(request.values.get('tny', ''))
 
-    nx, ny = cam.set_image_path(image_path)
+    nx, ny = cam.set_image_path(image_path, tnx, tny)
 
-    return str([nx,ny])
-
-
-@mb.route('/taser/update_decimation', methods=['POST'])
-def set_decimation():
-
-    dec_val = int(request.values.get('input', ''))
-
-    cam.set_decimation(dec_val)
-
-    return ''
+    return json.dumps({'nx': nx, 'ny': ny})
 
 
-@mb.route('/taser/crop_image', methods=['POST'])
+@mb.route('/taser/update_image_content', methods=['POST'])
 def crop_image():
 
     minx = int(request.values.get('minx', ''))
     maxx = int(request.values.get('maxx', ''))
     miny = int(request.values.get('miny', ''))
     maxy = int(request.values.get('maxy', ''))
+    tnx = int(request.values.get('tnx', ''))
+    tny = int(request.values.get('tny', ''))
 
-    cam.crop_image(minx, miny, maxx, maxy)
-
-    return json.dumps({'hello world': 'i am a computer'})
+    cam.crop_image(minx, miny, maxx, maxy, tnx, tny)
 
 
 @mb.route('/taser/ortho_image', methods=['POST'])
@@ -65,13 +56,6 @@ def ortho_image():
     return ''
 
 
-def gen(camera):
-    while True:
-        time.sleep(.1)
-        frame = camera.get_frame()
-        yield (b'--frame\r\n'
-               b'Content-Type: image/png\r\n\r\n' + frame + b'\r\n')
-
-
-def image_feed():
-    return Response(gen(cam), mimetype='multipart/x-mixed-replace; boundary=frame')
+@mb.route('/taser/get_frame', methods=['POST'])
+def get_image():
+    return cam.get_frame()

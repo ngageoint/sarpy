@@ -3,13 +3,20 @@ from PIL import Image
 import io
 import os
 import imageio
+import base64
 
 from sarpy.atk.atk_interactive.utils import atk_tools
 
 
 class FrameGenerator(object):
     def __init__(self):
-        self.decimation = 10
+        self.decimation_x = None
+        self.decimation_y = None
+        self.decimation_curr = None
+        self.bounds = None
+
+        self.nx = None
+        self.ny = None
 
         img_path = os.path.join(os.path.dirname(
             os.path.dirname(
@@ -19,7 +26,7 @@ class FrameGenerator(object):
         self.numpy_data = [imageio.imread(img_path)]
         self.atk_chains = atk_tools.AtkChains()
 
-    def set_image_path(self, pth):
+    def set_image_path(self, pth, tnx, tny):
 
         chain_name = 'open_nitf'
 
@@ -32,26 +39,31 @@ class FrameGenerator(object):
         ch = app.config['CHAIN_HISTORY']
 
         self.sarpy_reader = ch[status_key].metadata['sarpy_reader']
+        self.nx = self.sarpy_reader.sicdmeta.ImageData.NumCols
+        self.ny = self.sarpy_reader.sicdmeta.ImageData.NumRows
+
+        self.decimation_x = int(round(float(self.nx)/float(tnx)))
+        self.decimation_y = int(round(float(self.ny)/float(tny)))
+
+        ul = [0, 0]  # y, x
+        lr = [self.ny, self.nx]
+        self.bounds = [ul, lr]
+
         self.update_frame()
 
-        nx = self.sarpy_reader.sicdmeta.ImageData.NumCols
-        ny = self.sarpy_reader.sicdmeta.ImageData.NumRows
-        return nx, ny
+        return self.nx, self.ny
 
-    def set_decimation(self, dec):
-        self.decimation = dec
-        self.update_frame()
-
-    def crop_image(self, xmin, ymin, xmax, ymax):
-        # TODO update globals
-        #  (minx, miny, maxx, maxy)
+    def crop_image(self, xmin, ymin, xmax, ymax, tnx, tny):
+        self.decimation_x = int(round(float(xmax-xmin)/float(tnx), 0))
+        self.decimation_y = int(round(float(ymax-ymin)/float(tny), 0))
         bounds = [xmin, ymin, xmax, ymax]
         self.update_frame(bounds=bounds)
 
     def ortho_image(self, output_path):
 
         ro = self.sarpy_reader
-        dec = self.decimation
+        # TODO Update to use x and y
+        dec = self.decimation_x
         pix = self.numpy_data[0]
         chain_name = 'save_ortho'
 
@@ -73,7 +85,13 @@ class FrameGenerator(object):
         chain_name = 'remap_data'
 
         ro = self.sarpy_reader
-        dec = self.decimation
+
+        if self.decimation_x > self.decimation_y:
+            dec = self.decimation_x
+        else:
+            dec = self.decimation_y
+
+        self.decimation_curr = dec
 
         chain_json = self.atk_chains.get_chain_json(chain_name)
         chain_json['algorithms'][0]['parameters']['sarpy_reader'] = ro
@@ -84,6 +102,10 @@ class FrameGenerator(object):
             chain_json['algorithms'][0]['parameters']['yend'] = bounds[3]
             chain_json['algorithms'][0]['parameters']['xstart'] = bounds[0]
             chain_json['algorithms'][0]['parameters']['xend'] = bounds[2]
+
+            ul = [bounds[1], bounds[0]]  # y, x
+            lr = [bounds[3], bounds[2]]
+            self.bounds = [ul, lr]
 
         self.atk_chains.set_chain_json(chain_name, chain_json)
 
@@ -96,12 +118,22 @@ class FrameGenerator(object):
 
     def get_frame(self):
 
-        img = Image.fromarray(self.numpy_data[0].astype('uint8'))  # convert arr to image
+        img = Image.fromarray(self.numpy_data[0].astype('uint8'))
 
-        file_object = io.BytesIO()  # create file in memory
-        img.save(file_object, format='png')  # save as jpg in file in memory
-        file_object.seek(0)  # move to beginning of file
+        file_object = io.BytesIO()
+        img.save(file_object, format='png')
+        file_object.seek(0)
 
-        png_data = file_object.read()
+        img_bytes = base64.b64encode(file_object.read())
+        img_str = img_bytes.decode('utf-8')
 
-        return png_data
+        chain_output = {
+            "output_type": "geo_raster",
+            "output_value": {
+                "extent": str(self.bounds),
+                "raster": img_str,
+                "decimation": self.decimation_curr
+            }
+        }
+
+        return chain_output
