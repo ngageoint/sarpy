@@ -7,37 +7,64 @@
         transformation: new L.Transformation(1, 0, 1, 0)
     });
 
-    var mymap = new L.map('mapid', {
-        zoomControl: true,
-        zoom: 4,
-        crs: CustomCRS,
-        minZoom: -5
-        // layers: [dL],
+    var sar_image_map = new L.map('sar_image', {
+    zoomControl: true,
+    zoom: 4,
+    crs: CustomCRS,
+    minZoom: -5
+    // layers: [dL],
     });
 
-    var options = {
+    var fft_image_map = new L.map('fft_image', {
+    zoomControl: true,
+    zoom: 4,
+    crs: CustomCRS,
+    minZoom: -5
+    // layers: [dL],
+    });
+
+    var sar_image_options = {
         position: 'topleft',
         drawMarker: false,
         drawPolyline: false,
-        drawRectangle: true,
+        drawRectangle: false,
         drawPolygon: false,
         drawCircle: false,
         cutPolygon: false,
-        editMode: true,
-        removalMode: true,
+        editMode: false,
+        removalMode: false,
     };
 
-    mymap.pm.addControls(options);
+    var fft_image_options = {
+    position: 'topleft',
+    drawMarker: false,
+    drawPolyline: false,
+    drawRectangle: true,
+    drawPolygon: false,
+    drawCircle: false,
+    cutPolygon: false,
+    editMode: true,
+    removalMode: true,
+    };
 
-    mymap.pm.Draw.options.hintlineStyle = {
+    sar_image_map.pm.addControls(sar_image_options);
+    sar_image_map.pm.Draw.options.hintlineStyle = {
         color: 'blue',
         dashArray: '5,5'
     };
 
-    mymap.panTo([0.0, 0.0]);
-    map_size = mymap.getSize();
+    fft_image_map.pm.addControls(fft_image_options)
+    fft_image_map.pm.Draw.options.hintlineStyle = {
+        color: 'blue',
+        dashArray: '5,5'
+    };
+
+    sar_image_map.panTo([0.0, 0.0]);
+    fft_image_map.panTo([0.0, 0.0]);
+    map_size = sar_image_map.getSize();
 
     overlay = null;
+    fft_overlay = null;
     decimation = 0;
     raw_nx = 0;
     raw_ny = 0;
@@ -58,12 +85,12 @@
         }
         return [xmin, ymin, xmax, ymax]
     }
-    mymap.on('moveend', function() {
-        let xmax = mymap.getBounds().getEast();
-        let xmin = mymap.getBounds().getWest();
-        let ymax = mymap.getBounds().getNorth();
-        let ymin = mymap.getBounds().getSouth();
-        console.log(mymap.getBounds());
+    sar_image_map.on('moveend', function() {
+        let xmax = sar_image_map.getBounds().getEast();
+        let xmin = sar_image_map.getBounds().getWest();
+        let ymax = sar_image_map.getBounds().getNorth();
+        let ymin = sar_image_map.getBounds().getSouth();
+        console.log(sar_image_map.getBounds());
 
         sbounds = sanitizeBounds(xmin, ymin, xmax, ymax);
 
@@ -71,7 +98,7 @@
 
     });
 
-    mymap.on('mousemove',
+    sar_image_map.on('mousemove',
         function(e){
             var coord = e.latlng.toString().split(',');
             var lat = coord[0].split('(');
@@ -135,7 +162,7 @@
                 decimation = current_decimation;
 
                 if (overlay !== null) {
-                    mymap.removeLayer(overlay);
+                    sar_image_map.removeLayer(overlay);
                 }
 
                 let fit_flag = false;
@@ -143,10 +170,55 @@
                     fit_flag = true;
                 }
                 overlay = L.imageOverlay(blobUrl, imageBounds);
-                overlay.addTo(mymap);
+                overlay.addTo(sar_image_map);
 
                 if (fit_flag) {
-                    mymap.fitBounds(imageBounds);
+                    sar_image_map.fitBounds(imageBounds);
+                }
+
+            } catch (error) {
+                console.error(error);
+            }
+        }
+    }
+
+    function updateFFTImageOverlay() {
+
+        let xhr = new XMLHttpRequest();
+        let data = new FormData();
+
+        xhr.open('POST', 'get_frame');
+        xhr.setRequestHeader("X-CSRFToken", token);
+        xhr.send(data);
+
+        xhr.onload = function(evt) {
+            let resp;
+            try {
+                resp = JSON.parse(xhr.response);
+                let contentType = 'image/png';
+                let blob = b64toBlob(resp.output_value.raster, contentType);
+                let blobUrl = URL.createObjectURL(blob);
+
+                let imageBounds = JSON.parse(resp.output_value.extent);
+                let current_decimation = resp.output_value.decimation;
+                let dec = document.getElementById('decimation_indicator');
+
+                dec.value = current_decimation;
+                decimation = current_decimation;
+
+                if (fft_overlay !== null) {
+                    fft_image_map.removeLayer(overlay);
+                }
+
+                let fit_flag = false;
+                if (fft_overlay === null) {
+                    fit_flag = true;
+                }
+                fft_overlay = L.imageOverlay(blobUrl, imageBounds);
+                fft_overlay.addTo(fft_image_map);
+
+                if (fit_flag) {
+                    fft_image_map.fitBounds(imageBounds);
                 }
 
             } catch (error) {
@@ -184,6 +256,7 @@
                 raw_ny = resp.ny;
 
                 updateImageOverlay();
+                updateFFTImageOverlay();
 
             } catch (error) {
                 console.error(error);
@@ -216,7 +289,6 @@
                 console.error(error);
             }
         };
-
     }
 
     function orthoImage() {
