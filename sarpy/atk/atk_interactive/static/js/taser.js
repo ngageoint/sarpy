@@ -1,57 +1,3 @@
-<html>
-  <head>
-      <title>SAR Remapping Demonstration</title>
-      <link href="{{ url_for('static', filename='vendors/leaflet/leaflet.css') }}" rel="stylesheet">
-  </head>
-  <body>
-
-    <h1>SAR Remapping Demonstration</h1>
-
-    <form>
-        <label for="image_path_lbl">Image Path: </label>
-        <input id="image_path" value="~/sarpy_data/nitf/sicd_example_1_PFA_RE32F_IM32F_HH.nitf" />
-        <button id="load_image" type="button">Load Image</button>
-    </form>
-
-    <form>
-        <label for="decimation_lbl">Current Decimation: </label>
-        <input id="decimation_indicator" value="0" readonly />
-    </form>
-
-    <form>
-        <Label>y pixel</Label>
-        <input id="pixel_y" value="     ">
-        <Label>x pixel</Label>
-        <input id="pixel_x" value="     ">
-    </form>
-
-    <div id="mapid"></div>
-
-    <form>
-        <label for="image_path_ortho_lbl">Image Path Ortho: </label>
-        <input id="image_path_ortho" value="~/sarpy_data/geoTiff/sicd_example_1_PFA_RE32F_IM32F_HH.tif" />
-        <button id="ortho_image" type="button">Save Map Image</button>
-    </form>
-
-    <script src="{{ url_for('static', filename='vendors/leaflet/leaflet.js') }}"></script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='vendors/leaflet/leaflet.pm.css') }}" />
-    <script src="{{ url_for('static', filename='vendors/leaflet/leaflet.pm.min.js') }}"></script>
-    <style>
-         #mapid {
-            position: relative;
-            height: 500px;
-            width: 1000px;
-        }
-    </style>
-
-    <script>
-        var token = "{{ csrf_token() }}";
-    </script>
-
-    <script src="{{ url_for('taser.static', filename='js/taser.js') }}"></script>
-
-    <!--
-    <script>
     dL = L.tileLayer('https://a.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>, Tiles courtesy of <a href="http://hot.openstreetmap.org/" target="_blank">Humanitarian OpenStreetMap Team</a>',
     maxZoom: 24,
@@ -167,7 +113,6 @@
     function updateImageOverlay() {
 
         let xhr = new XMLHttpRequest();
-        let token = "{{ csrf_token() }}";
         let data = new FormData();
 
         xhr.open('POST', 'get_frame');
@@ -215,8 +160,7 @@
         console.log(image_path)
 
         let xhr = new XMLHttpRequest();
-        let token = "{{ csrf_token() }}";
-        console.log(token);
+        console.log(token)
 
         let data = new FormData();
         data.append('image_path', image_path.value);
@@ -251,8 +195,6 @@
     function cropImage(minx, miny, maxx, maxy) {
 
         let xhr = new XMLHttpRequest();
-        let token = "{{ csrf_token() }}";
-
         let data = new FormData();
 
         data.append('tny', map_size.y);
@@ -290,16 +232,7 @@
 
         data.append('input', value);
         xhr.open('POST', routeName);
-        let token = "{{ csrf_token() }}";
         xhr.setRequestHeader("X-CSRFToken", token);
         xhr.send(data)
 
     }
-    </script>
-  -->
-
-
-
-
-  </body>
-</html>
