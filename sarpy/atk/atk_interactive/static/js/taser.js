@@ -36,15 +36,15 @@
     };
 
     var fft_image_options = {
-    position: 'topleft',
-    drawMarker: false,
-    drawPolyline: false,
-    drawRectangle: true,
-    drawPolygon: false,
-    drawCircle: false,
-    cutPolygon: false,
-    editMode: true,
-    removalMode: true,
+        position: 'topleft',
+        drawMarker: false,
+        drawPolyline: false,
+        drawRectangle: true,
+        drawPolygon: false,
+        drawCircle: false,
+        cutPolygon: false,
+        editMode: true,
+        removalMode: true,
     };
 
     sar_image_map.pm.addControls(sar_image_options);
@@ -65,10 +65,19 @@
 
     overlay = null;
     fft_overlay = null;
+    selection_bounds = null;
     decimation = 0;
     raw_nx = 0;
     raw_ny = 0;
 
+    fft_image_map.on('pm:create', function (e) {
+        selection_bounds = e.layer.getBounds()
+        fft_image_map.pm.addControls({drawRectangle: false});
+    });
+
+    fft_image_map.on('pm:remove', function (e) {
+        fft_image_map.pm.addControls({drawRectangle: true});
+     });
 
     function sanitizeBounds(xmin, ymin, xmax, ymax) {
         if (xmin < 0){
@@ -98,20 +107,30 @@
 
     });
 
-    sar_image_map.on('mousemove',
-        function(e){
-            var coord = e.latlng.toString().split(',');
-            var lat = coord[0].split('(');
-            var lng = coord[1].split(')');
-            document.getElementById('pixel_y').value = lat[1]
-            document.getElementById('pixel_x').value = lng[0]
-        });
+    sar_image_map.on('mousemove', function(e){
+        var coord = e.latlng.toString().split(',');
+        var lat = coord[0].split('(');
+        var lng = coord[1].split(')');
+        document.getElementById('pixel_y').value = lat[1];
+        document.getElementById('pixel_x').value = lng[0];
+    });
+
+     fft_image_map.on('mousemove', function(e){
+        var coord = e.latlng.toString().split(',');
+        var lat = coord[0].split('(');
+        var lng = coord[1].split(')');
+        document.getElementById('pixel_y').value = lat[1];
+        document.getElementById('pixel_x').value = lng[0];
+    });
 
     let load_image = document.getElementById('load_image');
     load_image.addEventListener('click', updateImagePath);
 
     let ortho_image = document.getElementById('ortho_image');
     ortho_image.addEventListener('click', orthoImage);
+
+    let crop_to_selection = document.getElementById('crop_to_selection');
+    crop_to_selection.addEventListener('click', cropToSelection)
 
     function b64toBlob(b64Data, contentType, sliceSize) {
         contentType = contentType || '';
@@ -262,7 +281,14 @@
                 console.error(error);
             }
         };
+    }
 
+    function cropToSelection() {
+        var minx = console.log(selection_bounds.getWest())
+        var maxx = console.log(selection_bounds.getEast())
+        var miny = console.log(selection_bounds.getSouth())
+        var maxy = console.log(selection_bounds.getNorth())
+        cropImage(0, 0, 100, 100)
     }
 
     function cropImage(minx, miny, maxx, maxy) {
@@ -306,5 +332,4 @@
         xhr.open('POST', routeName);
         xhr.setRequestHeader("X-CSRFToken", token);
         xhr.send(data)
-
     }
