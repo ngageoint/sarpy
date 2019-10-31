@@ -1,0 +1,11 @@
+{
+  "algorithms": [
+    {
+      "name": "sarpy/open_nitf",
+      "parameters": {
+        "filename": ""
+      }
+    }
+  ],
+  "chain_name": "open_nitf"
+}
