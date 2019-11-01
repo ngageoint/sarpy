@@ -5,7 +5,7 @@ import os
 import imageio
 import base64
 
-from sarpy.tools.aperture_tool_web.utils import atk_tools
+from sarpy.tools.atk_utils import atk_tools
 
 
 class FrameGenerator(object):
@@ -24,7 +24,7 @@ class FrameGenerator(object):
 
         self.sarpy_reader = None
         self.numpy_data = [imageio.imread(img_path)]
-        self.atk_chains = atk_tools.AtkChains()
+        self.atk_chains = atk_tools.AtkChains(project_name="aperture_tool_web")
 
     def set_image_path(self, pth, tnx, tny):
 

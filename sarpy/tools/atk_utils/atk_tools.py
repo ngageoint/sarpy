@@ -42,7 +42,7 @@ def call_atk_chain(atk_chains,  # type: AtkChains
     )
 
     try:
-        result = json.loads(r.content)['output_value']
+        json.loads(r.content)['output_value']
 
     except (KeyError, ValueError):
         raise ValueError(str(r.__dict__))
@@ -51,11 +51,10 @@ def call_atk_chain(atk_chains,  # type: AtkChains
 
 
 class AtkChains:
-    def __init__(self):
+    def __init__(self, project_name):
         self.available_chains = {}
-        form_path = os.path.join(os.path.dirname(
-            os.path.dirname(
-                os.path.realpath(__file__))), "chain_forms/")
+        form_path = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), project_name)
+        form_path = os.path.join(form_path, "chain_forms/")
         form_filenames = glob.glob(os.path.join(form_path, '*.json'))
 
         for chain_filename in form_filenames:

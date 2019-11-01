@@ -37,12 +37,12 @@ def set_image_path():
 @mb.route('/taser/update_image_content', methods=['POST'])
 def crop_image():
 
-    minx = int(request.values.get('minx', ''))
-    maxx = int(request.values.get('maxx', ''))
-    miny = int(request.values.get('miny', ''))
-    maxy = int(request.values.get('maxy', ''))
-    tnx = int(request.values.get('tnx', ''))
-    tny = int(request.values.get('tny', ''))
+    minx = int(round(float((request.values.get('minx', '')))))
+    maxx = int(round(float((request.values.get('maxx', '')))))
+    miny = int(round(float((request.values.get('miny', '')))))
+    maxy = int(round(float((request.values.get('maxy', '')))))
+    tnx = int(round(float((request.values.get('tnx', '')))))
+    tny = int(round(float((request.values.get('tny', '')))))
 
     cam.crop_image(minx, miny, maxx, maxy, tnx, tny)
 

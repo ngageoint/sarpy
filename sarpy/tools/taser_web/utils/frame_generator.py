@@ -5,7 +5,7 @@ import os
 import imageio
 import base64
 
-from sarpy.tools.taser_web.utils import atk_tools
+from sarpy.tools.atk_utils import atk_tools
 
 
 class FrameGenerator(object):
@@ -24,7 +24,13 @@ class FrameGenerator(object):
 
         self.sarpy_reader = None
         self.numpy_data = [imageio.imread(img_path)]
-        self.atk_chains = atk_tools.AtkChains()
+        self.atk_chains = atk_tools.AtkChains(project_name="taser_web")
+
+    def check_decimation(self):
+        if self.decimation_x < 1:
+            self.decimation_x = 1
+        if self.decimation_y < 1:
+            self.decimation_y = 1
 
     def set_image_path(self, pth, tnx, tny):
 
@@ -45,6 +51,8 @@ class FrameGenerator(object):
         self.decimation_x = int(round(float(self.nx)/float(tnx)))
         self.decimation_y = int(round(float(self.ny)/float(tny)))
 
+        self.check_decimation()
+
         ul = [0, 0]  # y, x
         lr = [self.ny, self.nx]
         self.bounds = [ul, lr]
@@ -56,6 +64,8 @@ class FrameGenerator(object):
     def crop_image(self, xmin, ymin, xmax, ymax, tnx, tny):
         self.decimation_x = int(round(float(xmax-xmin)/float(tnx), 0))
         self.decimation_y = int(round(float(ymax-ymin)/float(tny), 0))
+        self.check_decimation()
+
         bounds = [xmin, ymin, xmax, ymax]
         self.update_frame(bounds=bounds)
 
