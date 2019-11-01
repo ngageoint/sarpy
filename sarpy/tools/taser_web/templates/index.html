@@ -2,30 +2,30 @@
   <head>
       <title>SAR Remapping Demonstration</title>
       <link href="{{ url_for('static', filename='vendors/leaflet/leaflet.css') }}" rel="stylesheet">
+      <link href="{{ url_for('static', filename='vendors/bootstrap/css/bootstrap.min.css') }}" rel="stylesheet">
   </head>
   <body>
 
-    <h1>SAR Remapping Demonstration</h1>
+      <div class="container">
+        <h1>SAR Remapping Demonstration</h1>
+        <form>
+            <div class="form-group">
+                <label for="image_path_lbl">Image Path</label>
+                <input id="image_path" value="~/sarpy_data/nitf/sicd_example_1_PFA_RE32F_IM32F_HH.nitf" class="form-control" />
+                <button id="load_image" type="button" class="btn btn-primary">Load Image</button>
+            </div>
 
-    <form>
-        <label for="image_path_lbl">Image Path: </label>
-        <input id="image_path" value="~/sarpy_data/nitf/sicd_example_1_PFA_RE32F_IM32F_HH.nitf" />
-        <button id="load_image" type="button">Load Image</button>
-    </form>
+            <div class="form-group">
+                <label for="decimation_lbl">Current Decimation</label>
+                <input id="decimation_indicator" value="0" readonly class="form-control" />
+            </div>
+        </form>
 
-    <form>
-        <label for="decimation_lbl">Current Decimation: </label>
-        <input id="decimation_indicator" value="0" readonly />
-    </form>
-
-    <div id="mapid"></div>
-
-    <form>
-        <label for="image_path_ortho_lbl">Image Path Ortho: </label>
-        <input id="image_path_ortho" value="~/sarpy_data/geoTiff/sicd_example_1_PFA_RE32F_IM32F_HH.tif" />
-        <button id="ortho_image" type="button">Save Map Image</button>
-    </form>
-
+        <div id="mapid"></div>
+    </div>
+    <script src="{{ url_for('static', filename='vendors/jquery/jquery-3.2.1.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='vendors/bootstrap/js/popper.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='vendors/bootstrap/js/bootstrap.min.js') }}"></script>
     <script src="{{ url_for('static', filename='vendors/leaflet/leaflet.js') }}"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='vendors/leaflet/leaflet.pm.css') }}" />
     <script src="{{ url_for('static', filename='vendors/leaflet/leaflet.pm.min.js') }}"></script>
@@ -50,7 +50,7 @@
             zoomControl: true,
             zoom: 4,
             crs: CustomCRS,
-            minZoom: -5
+            minZoom: -8
             // layers: [dL],
         });
 
@@ -58,12 +58,12 @@
             position: 'topleft',
             drawMarker: false,
             drawPolyline: false,
-            drawRectangle: true,
+            drawRectangle: false,
             drawPolygon: false,
             drawCircle: false,
             cutPolygon: false,
-            editMode: true,
-            removalMode: true,
+            editMode: false,
+            removalMode: false,
         };
 
         mymap.pm.addControls(options);
@@ -113,8 +113,6 @@
         let load_image = document.getElementById('load_image');
         load_image.addEventListener('click', updateImagePath);
 
-        let ortho_image = document.getElementById('ortho_image');
-        ortho_image.addEventListener('click', orthoImage);
 
         function b64toBlob(b64Data, contentType, sliceSize) {
             contentType = contentType || '';
@@ -243,25 +241,6 @@
                     console.error(error);
                 }
             };
-
-        }
-
-        function orthoImage() {
-            ROUTE_ADDRESS = 'ortho_image';
-            let output_image_path = document.getElementById('image_path_ortho');
-            callRoute(ROUTE_ADDRESS, output_image_path.value)
-        }
-
-        function callRoute(routeName, value) {
-
-            xhr = new XMLHttpRequest();
-            data = new FormData();
-
-            data.append('input', value);
-            xhr.open('POST', routeName);
-            let token = "{{ csrf_token() }}";
-            xhr.setRequestHeader("X-CSRFToken", token);
-            xhr.send(data)
 
         }
 
