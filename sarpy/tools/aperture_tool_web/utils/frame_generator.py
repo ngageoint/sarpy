@@ -5,7 +5,7 @@ import os
 import imageio
 import base64
 
-from sarpy.atk.atk_aperture_tool.utils import atk_tools
+from sarpy.tools.aperture_tool_web.utils import atk_tools
 
 
 class FrameGenerator(object):

@@ -5,7 +5,7 @@ import os
 import imageio
 import base64
 
-from sarpy.atk.atk_interactive.utils import atk_tools
+from sarpy.tools.taser_web.utils import atk_tools
 
 
 class FrameGenerator(object):
