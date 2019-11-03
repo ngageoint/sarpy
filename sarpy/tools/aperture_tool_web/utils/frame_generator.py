@@ -34,7 +34,7 @@ class FrameGenerator(object):
         chain_json['algorithms'][0]['parameters']['filename'] = pth
         self.atk_chains.set_chain_json(chain_name, chain_json)
 
-        status_key = atk_tools.call_atk_chain(self.atk_chains, chain_name)
+        status_key, _ = atk_tools.call_atk_chain(self.atk_chains, chain_name)
 
         ch = app.config['CHAIN_HISTORY']
 
@@ -109,7 +109,7 @@ class FrameGenerator(object):
 
         self.atk_chains.set_chain_json(chain_name, chain_json)
 
-        status_key = atk_tools.call_atk_chain(self.atk_chains, chain_name, pass_params_in_mem=True)
+        status_key, _ = atk_tools.call_atk_chain(self.atk_chains, chain_name, pass_params_in_mem=True)
 
         ch = app.config['CHAIN_HISTORY']
         pix = ch[status_key].metadata['remapped_data']

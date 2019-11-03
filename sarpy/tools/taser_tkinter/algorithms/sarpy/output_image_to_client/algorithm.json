@@ -1,0 +1,28 @@
+{
+    "description": "Output a numpy image to a client.",
+    "display_name": "Output Image To CLient",
+    "homepage": "",
+    "license": "MIT",
+    "name": "sarpy/output_image_to_client",
+    "optional_parameters": [],
+    "outputs": [],
+    "private": false,
+    "required_parameters": [
+        {
+            "custom_validation": "",
+            "data_type": "string",
+            "default_value": "",
+            "description": "Numpy image data",
+            "display_name": "Numpy Image Data",
+            "field_type": "text",
+            "help_text": "",
+            "max_value": "",
+            "min_value": "",
+            "name": "numpy_image_data",
+            "parameter_choices": "",
+            "required": true,
+            "sort_order": 0
+        }
+    ],
+    "version": "0.0.1"
+}

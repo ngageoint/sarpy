@@ -4,9 +4,6 @@ import requests
 import os
 import glob
 
-from algorithm_toolkit.atk import app
-
-
 def get_atk_form_json(chain_filename):
     fp = open(chain_filename, 'r')
     chain_json = json.load(fp)
@@ -15,9 +12,41 @@ def get_atk_form_json(chain_filename):
     return chain_json
 
 
+def call_atk_chain_standalone(atk_chains,  # type: AtkChains
+                              chain_name,
+                              api_key):
+    status_key = uuid.uuid4().hex
+    chain_json = atk_chains.get_chain_json(chain_name)
+
+    chain = json.dumps(chain_json)
+
+    request_json = {
+        "api_key": api_key,
+        "chain": chain,
+        "output_type": "stdout",
+        "status_key": status_key
+    }
+
+    r = requests.get(
+        'http://localhost:5000/main/',
+        request_json,
+        verify=False
+    )
+
+    try:
+        output = json.loads(r.content)['output_value']
+
+    except (KeyError, ValueError):
+        raise ValueError(str(r.__dict__))
+
+    return status_key, output
+
+
 def call_atk_chain(atk_chains,  # type: AtkChains
                    chain_name,
                    pass_params_in_mem=False):
+
+    from algorithm_toolkit.atk import app
 
     status_key = uuid.uuid4().hex
     chain_json = atk_chains.get_chain_json(chain_name)
@@ -42,12 +71,12 @@ def call_atk_chain(atk_chains,  # type: AtkChains
     )
 
     try:
-        json.loads(r.content)['output_value']
+        output = json.loads(r.content)['output_value']
 
     except (KeyError, ValueError):
         raise ValueError(str(r.__dict__))
 
-    return status_key
+    return status_key, output
 
 
 class AtkChains:

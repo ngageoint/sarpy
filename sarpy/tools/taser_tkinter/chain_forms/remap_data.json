@@ -1,0 +1,13 @@
+{
+  "algorithms": [
+    {
+      "name": "sarpy/remap_data",
+      "parameters": {
+        "sarpy_reader": "",
+        "decimation": 10,
+        "remap_type": "density"
+      }
+    }
+  ],
+  "chain_name": "remap_data"
+}
