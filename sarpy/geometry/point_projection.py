@@ -1,85 +1,75 @@
 '''This module contains the functions to map between the pixel grid in the
 image space and geolocated points in 3D space.'''
+
 import os
-
-
-# SarPy imports
-from . import geocoords as gc
-# Python standard library imports
 import copy
 import warnings
-# External dependencies
 import numpy as np
 from numpy.polynomial import polynomial as poly
-from sarpy.io.DEM import geoid
-from sarpy.io.DEM import DEM as DEM
+
+from . import geocoords as gc
+from ..io.DEM import geoid
+from ..io.DEM import DEM as DEM
+
 
 __classification__ = "UNCLASSIFIED"
-__email__ = "Wade.C.Schwartzkopf.ctr@nga.mil"
+__email__ = "Wade.C.Schwartzkopf@nga.mil"
 
 
-def ground_to_image(s, sicd_meta, delta_gp_max=None,
-                    # Adjustable parameters
-                    delta_arp=[0, 0, 0], delta_varp=[0, 0, 0],
-                    range_bias=0, adj_params_frame='ECF'):
-    '''Transforms a 3D ECF point to pixel row, column
-    This function implements the SICD Image Projections Description Document:
-    http://www.gwg.nga.mil/ntb/baseline/docs/SICD/index.html
+def ground_to_image(s, sicd_meta, delta_gp_max=None, delta_arp=[0, 0, 0], delta_varp=[0, 0, 0], range_bias=0, adj_params_frame='ECF'):
+    """
+    Transforms a 3D ECF point to pixel (row, column) coordinates. This function implements the SICD Image Projections
+    Description Document: http://www.gwg.nga.mil/ntb/baseline/docs/SICD/index.html
+    :param s: ECF coordinates for scene points [Nx3] numpy.ndarray
+    :param sicd_meta: SICD meta data structure
+    :param delta_gp_max: Ground plane displacement tol (m). Defaults to 0.25*pixel.
+    :param delta_arp: ARP position adjustable parameter (ECF, m). Defaults to 0 in each dimension.
+    :param delta_varp: VARP position adjustable parameter (ECF, m/s).  Defaults to 0 in each dimension.
+    :param range_bias: Range bias adjustable parameter (m).
+    :param adj_params_frame: one of ['ECF', 'RIC_ECF', 'RIC_ECI'] specifying Coordinate frame used for expressing
+        `delta_arp` and `delta_varp`.
+    :return: (ip, deltaGPn, counter) where:
+        * `ip` - [2xN] numpy.ndarray of (row, column) coordinates of N points in image (or subimage if
+            FirstRow/FirstCol are nonzero). Following SICD convention, the upper-left pixel is [0, 0].
+        * `deltaGPn` - Residual ground plane displacement (m)
+        * `counter` - # iterations required
+    """
 
-    [ip, deltaGPn, counter] = ground_to_image(s, sicd_meta, ...)
-
-    Inputs:
-        s            - [Nx3] N scene points in ECF coordinates
-        sicd_meta    - SICD meta data structure
-        delta_gp_max - Ground plane displacement tol (m), default = quarter pixel
-        delta_arp    - ARP position adjustable parameter (ECF, m).  Default 0.
-        delta_varp   - VARP position adjustable parameter (ECF, m/s).  Default 0.
-        range_bias   - Range bias adjustable parameter (m).  Default 0.
-        adj_params_frame - Coordinate frame used for expressing delta_arp
-                         and delta_varp adjustable parameters.  Allowed
-                         values: 'ECF', 'RIC_ECF', 'RIC_ECI'. Default ECF.
-
-     Outputs:
-        ip           - [2xN] (row, column) coordinates of N points in image
-                       (or subimage if FirstRow/FirstCol are nonzero).
-                       Zero-based, following SICD (and Python) convention; that
-                       is upper-left pixel is [0, 0].
-        deltaGPn     - Residual ground plane displacement (m)
-        counter      - # iterations required
-
-     Contributors: Thomas McDowall, Harris Corporation
-                   Wade Schwartzkopf, NGA/R
-                   Clayton Williams, NRL
-    '''
+    # TODO: HIGH - unit test this
+    #       default arguments are mutable. This is terrible practice.
+    #       the variable names in this method are really not descriptive and there's a ton, so it's very confusing.
 
     # Extract the relevant SICD info
     scp_row = sicd_meta.ImageData.SCPPixel.Row
     scp_col = sicd_meta.ImageData.SCPPixel.Col
     FirstRow = sicd_meta.ImageData.FirstRow
     FirstCol = sicd_meta.ImageData.FirstCol
+
     # We override this so that imageToGround will work in the coordinate
     # space of full image. We will add it back in at the end.
     sicd_meta.ImageData.FirstRow = 0
     sicd_meta.ImageData.FirstCol = 0
     row_ss = sicd_meta.Grid.Row.SS
     col_ss = sicd_meta.Grid.Col.SS
+
     if delta_gp_max is None:
         delta_gp_max = 0.25 * np.sqrt(row_ss*row_ss + col_ss*col_ss)
+
     uRow = np.array([sicd_meta.Grid.Row.UVectECF.X,
                      sicd_meta.Grid.Row.UVectECF.Y,
-                     sicd_meta.Grid.Row.UVectECF.Z])
+                     sicd_meta.Grid.Row.UVectECF.Z], dtype=np.float64)
     uCol = np.array([sicd_meta.Grid.Col.UVectECF.X,
                      sicd_meta.Grid.Col.UVectECF.Y,
-                     sicd_meta.Grid.Col.UVectECF.Z])
+                     sicd_meta.Grid.Col.UVectECF.Z], dtype=np.float64)
     SCP = np.array([sicd_meta.GeoData.SCP.ECF.X,
                     sicd_meta.GeoData.SCP.ECF.Y,
-                    sicd_meta.GeoData.SCP.ECF.Z])
+                    sicd_meta.GeoData.SCP.ECF.Z], dtype=np.float64)
     arpSCPCOA = np.array([sicd_meta.SCPCOA.ARPPos.X,
                           sicd_meta.SCPCOA.ARPPos.Y,
-                          sicd_meta.SCPCOA.ARPPos.Z])
+                          sicd_meta.SCPCOA.ARPPos.Z], dtype=np.float64)
     varpSCPCOA = np.array([sicd_meta.SCPCOA.ARPVel.X,
                            sicd_meta.SCPCOA.ARPVel.Y,
-                           sicd_meta.SCPCOA.ARPVel.Z])
+                           sicd_meta.SCPCOA.ARPVel.Z], dtype=np.float64)
 
     # 3.1 SCP Projection Equations
     # Normal to instantaneous slant plane that contains SCP at SCP COA is
@@ -116,22 +106,21 @@ def ground_to_image(s, sicd_meta, delta_gp_max=None,
 
     # Iterate the ground to image transform
     g_n = s.copy()
-    # New version of numpy allow for a full method, but this works on older
-    # versions as well.
-    to_iter = np.empty(s.shape[0], dtype=bool)
-    to_iter.fill(True)
-    counter = np.zeros(s.shape[0])
-    ip = np.empty([s.shape[0], 2]) * np.nan
-    deltaPn = np.empty([s.shape[0], 3]) * np.nan
-    deltaGPn = np.empty(s.shape[0]) * np.nan
-    while any(counter < 5):
+    to_iter = np.full((s.shape[0], ), True, dtype=bool)  # TODO: HIGH - is this a workspace variable? Set more appropriately.
+    counter = np.zeros(s.shape[0], dtype=np.float64)  # TODO: HIGH - this dtype should probably be some integer type.
+    ip = np.full((s.shape[0], 2), np.nan, dtype=np.float64)
+    deltaPn = np.full((s.shape[0], 3), np.nan, dtype=np.float64)
+    deltaGPn = np.full((s.shape[0], ), np.nan, dtype=np.float64)
+
+    while np.any(counter < 5):
+        # TODO: HIGH - why 5? This should probably be a parameter...
         # 4) Project ground plane point g_n to image plane point i_n. The
         # projection distance is dist_n. Compute image coordinates xrow and ycol.
         dist_n = (1.0/sf) * np.dot(SCP - g_n, uIpn)
         i_n = g_n + np.outer(dist_n, uProj)
         # Back to section 2.4.  Convert from image plane point (IPP) to row/col
         deltaIpp = i_n - SCP
-        ipIter = np.dot(gI, np.vstack((np.dot(deltaIpp, uRow), np.dot(deltaIpp, uCol))))
+        ipIter = np.dot(gI, np.vstack((np.dot(deltaIpp, uRow), np.dot(deltaIpp, uCol))))  # TODO: HIGH - this whole section looks terrible
         xrow = ipIter[0]
         ycol = ipIter[1]
         irow = xrow / row_ss
@@ -151,12 +140,12 @@ def ground_to_image(s, sicd_meta, delta_gp_max=None,
         # Need to iterate further on these points
         old_iter = to_iter
         to_iter = deltaGPn > delta_gp_max
-        if any(to_iter):
+        if np.any(to_iter):
             g_n = g_n[to_iter[old_iter], :] + deltaPn[to_iter, :]
             counter[to_iter] = counter[to_iter] + 1
         else:
             break
-    if any(counter == 5):
+    if np.any(counter == 5):  # TODO: HIGH - this is terrible, at the very least...
         counter[counter == 5] = counter[counter == 5] - 1
         warnings.warn('ground_to_image computation did not converge.')
 
@@ -171,8 +160,15 @@ def ground_to_image(s, sicd_meta, delta_gp_max=None,
 
 
 def ground_to_image_geo(s, *args, **kwargs):
-    """This doesn't really do anything but is defined as a convenience
-    function since this is often how it is called."""
+    """
+    Helper convenience method, defined for function signature. See `ground_to_image`.
+    :param s:
+    :param args:
+    :param kwargs:
+    :return:
+    """
+
+    # TODO: LOW - fix docstring
     return ground_to_image(gc.geodetic_to_ecf(s), *args, **kwargs)
 
 
@@ -185,67 +181,41 @@ def image_to_ground(im_points, sicd_meta, projection_type='hae',  # CSM default 
                     delta_arp=[0, 0, 0], delta_varp=[0, 0, 0], range_bias=0,
                     adj_params_frame='ECF', dem=None, dem_type='SRTM2F', geoid_path=None,
                     del_DISTrrc=10, del_HDlim=.001):
-    '''Transforms pixel row, col to ground ECF coordinate
-     This function implements the SICD Image Projections Description Document:
-     http://www.gwg.nga.mil/ntb/baseline/docs/SICD/index.html
+    """
+    Transforms pixel (row, col) coordinates to ground ECF coordinates. This function implements the SICD Image
+    Projections Description Document: http://www.gwg.nga.mil/ntb/baseline/docs/SICD/index.html
 
-     gpos = image_to_ground(im_points, sicd_meta, ...)
+    :param im_points: [Nx2] (row, column) coordinates of N points in image (or subimage if FirstRow/FirstCol
+        are nonzero). Following SICD convention, the upper-left pixel is [0, 0].
+    :param sicd_meta: SICD meta data structure
+    :param projection_type: one of ['plane', 'hae', 'dem'].
+    :param gref: Ground plane reference point ECF coordinates (m). Default is 'SCP'.
+        Only valid if `projection_type` is 'plane'.
+    :param ugpn: Ground plane unit normal vector.  Default is tangent to the surface of constant geodetic height
+        above the WGS-84 reference ellipsoid passing through GREF. Only valid if `projection_type` is 'plane'.
+    :param hae0: Surface height (m) above the WGS-84 reference ellipsoid for projection point. Only valid if
+        `projection_type` is 'hae'.
+    :param delta_hae_max: Height threshold for convergence of iterative constant HAE computation (m). Only valid if
+        `projection_type` is 'hae'.
+    :param hae_nlim: Maximum number of iterations allowed for constant hae computation. Only valid if
+        `projection_type` is 'hae'.
+    :param delta_arp: ARP position adjustable parameter (ECF, m).  Defaults to 0.
+    :param delta_varp: VARP position adjustable parameter (ECF, m/s).  Defaults to 0.
+    :param range_bias: Range bias adjustable parameter (m).
+    :param adj_params_frame: One of ['ECF', 'RIC_ECF', 'RIC_ECI'], specifying the coordinate frame used for
+        expressing `delta_arp` and `delta_varp` parameters.
+    :param dem: SRTM pathname or structure with lats/lons/elevations fields where are all are arrays of same size
+        and elevation is height above WGS-84 ellipsoid. Only valid if `projection_type` is 'dem'.
+    :param dem_type: One of ['DTED1', 'DTED2', 'SRTM1', 'SRTM2', 'SRTM2F'], specifying dem type.
+    :param geoid_path: Parent path to EGM2008 file(s)
+    :param del_DISTrrc: Maximum distance between adjacent points along the R/Rdot contour. Only valid if
+        `projection_type` is 'dem'.
+    :param del_HDlim: Height difference threshold for determining if a point on the R/Rdot contour is on the DEM
+        surface (m). Only valid if `projection_type` is 'dem'.
+    :return: [Nx3] ECF Ground Points along the R/Rdot contour
+    """
 
-     Inputs:
-        im_points   - [Nx2] (row, column) coordinates of N points in image (or
-                      subimage if FirstRow/FirstCol are nonzero).  Zero-based,
-                      following SICD (and Python) convention; that is, upper-left
-                      pixel is [0, 0].
-        sicd_meta    - SICD meta data structure
-        projection_type - 'plane', 'hae', 'dem'.  Default is hae.
-        gref              Ground plane reference point ECF coordinates (m).
-                          Default is SCP.  Only valid if projection_type is
-                          'plane'.
-        ugpn            - Ground plane unit normal vector.  Default is
-                          tangent to the surface of constant geodetic
-                          height above the WGS-84 reference ellipsoid
-                          passing through GREF.  Only valid if
-                          projection_type is 'plane'.
-        hae0            - Surface height (m) above the WGS-84 reference
-                          ellipsoid for projection point.  Only valid if
-                          projection_type is 'hae'.
-        delta_hae_max   - Height threshold for convergence of iterative
-                          constant HAE computation (m).  Default 1 meter.
-                          Only valid if projection_type is 'hae'.
-        hae_nlim        - Maximum number of iterations allowed for constant
-                          hae computation.  Default 3.  Only valid if
-                          projection_type is 'hae'.
-        delta_arp       - ARP position adjustable parameter (ECF, m).  Default 0.
-        delta_varp      - VARP position adjustable parameter (ECF, m/s).  Default 0.
-        range_bias      - Range bias adjustable parameter (m).  Default 0.
-        adj_params_frame - Coordinate frame used for expressing delta_arp
-                          and delta_varp adjustable parameters.  Allowed
-                          values: 'ECF', 'RIC_ECF', 'RIC_ECI'. Default ECF.
-       dem               SRTM pathname or structure with
-                         lats/lons/elevations fields where are all are
-                         arrays of same size and elevation is height above
-                         WGS-84 ellipsoid.
-                         Only valid if projection_type is 'dem'.
-       dem_type        - One of 'DTED1', 'DTED2', 'SRTM1', 'SRTM2', 'SRTM2F'
-                         Defaults to SRTM2f
-       geoid_path      - Parent path to EGM2008 file(s)
-       del_DISTrrc       Maximum distance between adjacent points along
-                         the R/Rdot contour. Recommended value: 10.0 m.
-                         Only valid if projection_type is 'dem'.
-       del_HDlim         Height difference threshold for determining if a
-                         point on the R/Rdot contour is on the DEM
-                         surface (m).  Recommended value: 0.001 m.  Only
-                         valid if projection_type is 'dem'.
-
-     Outputs:
-        gpos        - [Nx3] ECF Ground Points along the R/Rdot contour
-
-     Contributors: Thomas McDowall, Harris Corporation
-                   Lisa Talbot, NGA/IB
-                   Rocco Corsetti, NGA/IB
-                   Wade Schwartzkopf, NGA/R
-                   Clayton Williams, NRL
-    '''
+    # TODO: HIGH - default arguments are mutable.
 
     # Compute defaults if necessary
     if gref is None:
@@ -262,9 +232,9 @@ def image_to_ground(im_points, sicd_meta, projection_type='hae',  # CSM default 
             ugpn[0], ugpn[1], ugpn[2] = gc.wgs_84_norm(gref[0], gref[1], gref[2])
 
     # Chapter 4: Compute projection parameters
-    try:
+    try:  # TODO: HIGH - bad construct.
         # Computation of r/rdot is specific to image formation type
-        [r, rDot, arp_coa, varp_coa, t_coa] = coa_projection_set(sicd_meta, im_points)
+        r, rDot, arp_coa, varp_coa, t_coa = coa_projection_set(sicd_meta, im_points)
     # If full metadata not available, try to make the approximation of uniformly sampled Grid
     except Exception:
         # Use a copy to avoid changing original reference.
@@ -275,7 +245,7 @@ def image_to_ground(im_points, sicd_meta, projection_type='hae',  # CSM default 
            hasattr(sicd_approx, 'Timeline') and
            hasattr(sicd_approx.Timeline, 'CollectDuration')):
             sicd_approx.Grid.TimeCOAPoly = sicd_approx.Timeline.CollectDuration/2
-        [r, rDot, arp_coa, varp_coa, t_coa] = coa_projection_set(sicd_approx, im_points)
+        r, rDot, arp_coa, varp_coa, t_coa = coa_projection_set(sicd_approx, im_points)
         warnings.warn('Unable to compute precise position due to incomplete metadata.  ' +
                       'Resorting to approximation.')
     # After r/rdot is computed, the rest is generic to all SAR.
@@ -286,14 +256,14 @@ def image_to_ground(im_points, sicd_meta, projection_type='hae',  # CSM default 
         pass
     else:  # Translate from RIC frame to ECF frame
         # Use the RIC frame at SCP COA time, not at COA time for im_points
-        ARP_SCP_COA = np.array([sicd_meta.SCPCOA.ARPPos.X,
+        ARP_SCP_COA = np.array([sicd_meta.SCPCOA.ARPPos.X,  # TODO: HIGH - This construct looks extremely common and redundant. maybe property?
                                 sicd_meta.SCPCOA.ARPPos.Y,
                                 sicd_meta.SCPCOA.ARPPos.Z])
         VARP_SCP_COA = np.array([sicd_meta.SCPCOA.ARPVel.X,
                                  sicd_meta.SCPCOA.ARPVel.Y,
                                  sicd_meta.SCPCOA.ARPVel.Z])
         if adj_params_frame == 'RIC_ECI':
-            T_ECEF_RIC = gc.ric_ecf_mat(ARP_SCP_COA, VARP_SCP_COA, 'eci')
+            T_ECEF_RIC = gc.ric_ecf_mat(ARP_SCP_COA, VARP_SCP_COA, 'eci')  # TODO: MEDIUM - this is where matrix -> ndarray would matter?
         elif adj_params_frame == 'RIC_ECF':
             T_ECEF_RIC = gc.ric_ecf_mat(ARP_SCP_COA, VARP_SCP_COA, 'ecf')
         delta_arp = np.array(delta_arp * T_ECEF_RIC)  # Switch from matrix back to array
@@ -319,45 +289,42 @@ def image_to_ground(im_points, sicd_meta, projection_type='hae',  # CSM default 
                                      dem_type, geoid_path, del_DISTrrc, del_HDlim)
 
     else:
-        raise ValueError('Unrecognized projection type.')
+        raise ValueError('Unrecognized projection type - {}. Not one of "plane", "hae", or "dem"'.format(projection_type))
 
     return gpos
 
 
 def image_to_ground_geo(*args, **kwargs):
-    """This doesn't really do anything but is defined as a convenience
-    function since this is often how it is called."""
+    """
+    Convience method for signature. See `image_to_ground` and `geocoords.ecf_to_geodetic`.
+    :param args:
+    :param kwargs:
+    :return:
+    """
+
     return gc.ecf_to_geodetic(image_to_ground(*args, **kwargs))
 
 
 def projection_set_to_plane(r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa, gref, gpn):
-    ''' Transforms pixel row, col to ground plane ECF coordinate
-     via algorithm in SICD Image Projections document.
+    """
+    Transforms pixel row, col to ground plane ECF coordinate via algorithm in SICD Image Projections document.
 
-     GPP = projection_set_to_plane(r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa, gref, gpn)
+    :param r_tgt_coa: [1xN] range to the ARP at COA
+    :param r_dot_tgt_coa: [1xN] range rate relative to the ARP at COA
+    :param arp_coa: [Nx3] aperture reference position at t_coa
+    :param varp_coa: [Nx3] velocity at t_coa
+    :param gref: [3x1] reference point in the plane to which we are projecting
+    :param gpn: [3x1] vector normal to the plane to which we are projecting
+    :return: [3xN] ECF Ground Plane Point along the R/Rdot contour
+    """
 
-     Inputs:
-        r_tgt_coa     - [1xN] range to the ARP at COA
-        r_dot_tgt_coa - [1xN] range rate relative to the ARP at COA
-        arp_coa       - [Nx3] aperture reference position at t_coa
-        varp_coa      - [Nx3] velocity at t_coa
-        gref          - [3x1] reference point in the plane to which we are projecting
-        gpn           - [3x1] vector normal to the plane to which we are projecting
-
-     Outputs:
-        GPP        - [3xN] ECF Ground Plane Point along the R/Rdot contour
-
-     Contributors: Thomas McDowall, Harris Corporation
-                   Wade Schwartzkopf, NGA/R
-                   Clayton Williams, NRL
-    '''
-
+    # TODO: HIGH - are these really the input shapes that we want?
     # Ground plane description could be of single plane for all points
     # (probably the more typical case) or a plane for each point.
 
     # 5. Precise R/Rdot to Ground Plane Projection
     # Solve for the intersection of a R/Rdot contour and a ground plane.
-    uZ = gpn / np.sqrt(np.sum(np.power(gpn, 2), axis=-1, keepdims=True))
+    uZ = gpn / np.sqrt(np.sum(gpn*gpn, axis=-1, keepdims=True))
 
     # ARP distance from plane
     arpZ = np.sum((arp_coa - gref) * uZ, axis=-1)
@@ -374,8 +341,8 @@ def projection_set_to_plane(r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa, gref, g
     sinGraz = arpZ / r_tgt_coa
 
     # Velocity components normal to ground plane and parallel to ground plane.
-    vMag = np.sqrt(np.sum(np.power(varp_coa, 2), axis=-1))
-    vZ = np.sum(varp_coa * uZ, axis=-1)
+    vMag = np.sqrt(np.sum(varp_coa*varp_coa, axis=-1))
+    vZ = np.sum(varp_coa*uZ, axis=-1)
     vX = np.sqrt(vMag*vMag - vZ*vZ)  # Note: For Vx = 0, no Solution
 
     # Orient X such that Vx > 0 and compute unit vectors uX and uY
@@ -399,31 +366,19 @@ def projection_set_to_plane(r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa, gref, g
 
 def projection_set_to_hae(r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa,
                           scp, hae0=None, delta_hae_max=1, nlim=3):
-    ''' Transforms pixel row, col to constant height above the ellipsoid
-    via algorithm in SICD Image Projections document.
+    """
+    Transforms pixel row, col to constant height above the ellipsoid via algorithm in SICD Image Projections document.
 
-     spp = projection_set_to_hae(r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa,
-                                 scp, hae0, delta_hae_max, nlim)
-
-     Inputs:
-        r_tgt_coa     - [1xN] range to the ARP at COA
-        r_dot_tgt_coa - [1xN] range rate relative to the ARP at COA
-        arp_coa       - [Nx3] aperture reference position at t_coa
-        varp_coa      - [Nx3] velocity at t_coa
-        scp           - [3] scene center point (ECF meters)
-        hae0          - surface height (m) above the WGS-84 reference ellipsoid
-                        for projection point spp
-        delta_hae_max - height threshold for convergence of iterative
-                        projection sequence.
-        nlim          - maximum number of iterations allowed.
-
-     Outputs:
-        spp           - [Nx3] Surface Projection Point position on the hae0
-                              surface and along the R/Rdot contour
-
-     Contributors: Rocco Corsetti, NGA/IB
-                   Wade Schwartzkopf, NGA/R
-    '''
+    :param r_tgt_coa: [1xN] range to the ARP at COA
+    :param r_dot_tgt_coa: [1xN] range rate relative to the ARP at COA
+    :param arp_coa: [Nx3] aperture reference position at t_coa
+    :param varp_coa: [Nx3] velocity at t_coa
+    :param scp: [3] scene center point (ECF meters)
+    :param hae0: surface height (m) above the WGS-84 reference ellipsoid for projection point spp
+    :param delta_hae_max: height threshold for convergence of iterative projection sequence.
+    :param nlim: maximum number of iterations allowed.
+    :return: [Nx3] Surface Projection Point position on the hae0 surface and along the R/Rdot contour
+    """
 
     # 9. Precise R/Rdot To Constant HAE Surface Projection
     iters = 0
@@ -465,40 +420,27 @@ def projection_set_to_hae(r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa,
 
 def projection_set_to_dem(r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa, scp, delta_hae_max,
                           nlim, dem, dem_type, geoid_path, del_DISTrrc=10, del_HDlim=.001):
-    ''' Transforms pixel row, col to geocentric value projected to dem
-    via algorithm in SICD Image Projections document.
+    """
+    Transforms pixel row, col to geocentric value projected to dem via algorithm in SICD Image Projections document.
 
-     gpp = projection_set_to_dem(r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa,
-                                 scp, delta_hae_max, nlim, dem, del_DISTrrc = 10,
-                                 del_HDlim = .001):
-     Inputs:
-        r_tgt_coa     - [N] range to the ARP at COA
-        r_dot_tgt_coa - [N] range rate relative to the ARP at COA
-        arp_coa       - [Nx3] aperture reference position at t_coa
-        varp_coa      - [Nx3] velocity at t_coa
-        scp           - [3] scene center point (ECF meters)
-        delta_hae_max - height threshold for convergence of iterative
-                        projection sequence.
-        nlim          - maximum number of iterations allowed.
-        dem              DTED/SRTM pathname or structure with
-                         lats/lons/elevations fields where are all are
-                         arrays of same size and elevation is height above
-                         WGS-84 ellipsoid.
-                         Only valid if projection_type is 'dem'.
-        dem_type      - One of 'DTED1', 'DTED2', 'SRTM1', 'SRTM2', 'SRTM2F'
-                        Defaults to SRTM2f
-        geoid_path    - Parent path to EGM2008 file(s)
-        del_DISTrrc       Maximum distance between adjacent points along
-                         the R/Rdot contour. Recommended value: 10.0 m.
-                         Only valid if projection_type is 'dem'.
-        del_HDlim         Height difference threshold for determining if a
-                         point on the R/Rdot contour is on the DEM
-                         surface (m).  Recommended value: 0.001 m.  Only
-                         valid if projection_type is 'dem'.
+    :param r_tgt_coa: [N] range to the ARP at COA
+    :param r_dot_tgt_coa: [N] range rate relative to the ARP at COA
+    :param arp_coa: [Nx3] aperture reference position at t_coa
+    :param varp_coa: [Nx3] velocity at t_coa
+    :param scp: [3] scene center point (ECF meters)
+    :param delta_hae_max: height threshold for convergence of iterative projection sequence.
+    :param nlim: maximum number of iterations allowed.
+    :param dem: DTED/SRTM pathname or structure with lats/lons/elevations fields where are all are arrays of same
+        size and elevation is height above  WGS-84 ellipsoid.
+    :param dem_type: One of 'DTED1', 'DTED2', 'SRTM1', 'SRTM2', 'SRTM2F'
+    :param geoid_path: Parent path to EGM2008 file(s)
+    :param del_DISTrrc: Maximum distance between adjacent points along the R/Rdot contour.
+    :param del_HDlim: Height difference threshold for determining if a point on the R/Rdot contour is on the
+        DEM surface (m).
+    :return: [Nx3] ECF Ground Points along the R/Rdot contour
+    """
 
-     Outputs:
-        gpp           - [Nx3] ECF Ground Points along the R/Rdot contour
-    '''
+    # TODO: HIGH - dem_type is a dead argument. Looks to be hardcoded for a value below.
     ugpn = gc.wgs_84_norm(scp)
     look = np.sign(np.sum(ugpn*np.cross(arp_coa - scp, varp_coa, axis=1), axis=1))[0]
 
@@ -521,10 +463,10 @@ def projection_set_to_dem(r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa, scp, delt
         aoicoords = np.empty((np.size(latindx)*np.size(lonindx), ), dtype=object)
         for i, v in enumerate(aoicoords):
             aoicoords[i] = [v, i]
-        geoid_file = geoid_path + os.path.sep + 'egm2008-1.pgm'
+        geoid_file = os.path.join(geoid_path, 'egm2008-1.pgm')  # TODO: MEDIUM - hard coded file?
         eval_egm = geoid.GeoidHeight(name=geoid_file)
         indx = 0
-        egm_elevlist = np.empty(np.size(latindx)*np.size(lonindx))
+        egm_elevlist = np.empty(np.size(latindx)*np.size(lonindx))  # TODO: HIGH - np.meshgrid? this is really not good?
         aoielevs = np.empty(np.size(latindx)*np.size(lonindx))
         for lat_indx in range(0, latindx.size):
             for lon_indx in range(0, lonindx.size):
@@ -602,35 +544,21 @@ def projection_set_to_dem(r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa, scp, delt
 
 
 def coa_projection_set(sicd_meta, grow, gcol=None):
-    '''Computes the set of fundamental parameters for projecting a pixel down to the ground
+    """
+    Computes the set of fundamental parameters for projecting a pixel down to the ground.
 
-     [R_TGT_COA, Rdot_TGT_COA, ARP_COA, VARP_COA, t_coa] =
-        coa_projection_set(sicd_meta, ip)
-     [R_TGT_COA, Rdot_TGT_COA, ARP_COA, VARP_COA, t_coa] =
-        coa_projection_set(sicd_meta, grow, gcol)
+    :param sicd_meta: SICD meta data structure (see NGA SAR Toolbox read_sicd_meta)
+    :param grow: row coordinates in image
+    :param gcol:  column coordinates in image
+    :return: (r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa, t_coa) where:
+        * `r_tgt_coa` - range to the ARP at COA
+        * `r_dot_tgt_coa` - range rate relative to the ARP at COA
+        * `arp_coa` - aperture reference position at t_coa
+        * `varp_coa` - velocity at t_coa
+        * `t-coa` - center of aperture time since CDP start for input ip
+    """
 
-     Inputs:
-        sicd_meta    - SICD meta data structure (see NGA SAR Toolbox read_sicd_meta)
-        ip          - [Nx2] (row, column) coordinates of N points in image (or
-                      subimage if FirstRow/FirstCol are nonzero).  Zero-based,
-                      following SICD (and Python) convention; that is, upper-left
-                      pixel is [0, 0].
-
-     Outputs:
-        R_TGT_COA    - range to the ARP at COA
-        Rdot_TGT_COA - range rate relative to the ARP at COA
-        ARP_COA      - aperture reference position at t_coa
-        VARP_COA     - velocity at t_coa
-        t_coa         - center of aperture time since CDP start for input ip
-
-     Contributors: Thomas McDowall, Harris Corporation
-                   Rocco Corsetti, NGA/IB
-                   Lisa Talbot, NGA/IB
-                   Wade Schwartzkopf, NGA/R
-                   Clayton Williams, NRL
-                   Daniel Haverporth, NGA/R
-    '''
-
+    # TODO: variable names are terrible. unit test and divide up into useful helper methods?
     # Global row and column can be passed as a single [Nx2] array or componentwise
     grow = np.atleast_2d(grow)
     if gcol is not None:
@@ -643,7 +571,7 @@ def coa_projection_set(sicd_meta, grow, gcol=None):
         raise ValueError()  # Must be right type if np.array(x) worked above
 
     # Making this 2D allow us to broadcast across arrays later
-    SCP = np.atleast_2d([sicd_meta.GeoData.SCP.ECF.X,
+    SCP = np.atleast_2d([sicd_meta.GeoData.SCP.ECF.X,  # TODO: HIGH - redundant?
                          sicd_meta.GeoData.SCP.ECF.Y,
                          sicd_meta.GeoData.SCP.ECF.Z])
 
@@ -658,7 +586,7 @@ def coa_projection_set(sicd_meta, grow, gcol=None):
     # Compute target pixel time
     t_coa = poly.polyval2d(xrow, ycol, sicd_meta.Grid.TimeCOAPoly)
     # Calculate aperture reference position and velocity at t_coa
-    cARPx = sicd_meta.Position.ARPPoly.X
+    cARPx = sicd_meta.Position.ARPPoly.X  # TODO: HIGH - should be a helper method?
     cARPy = sicd_meta.Position.ARPPoly.Y
     cARPz = sicd_meta.Position.ARPPoly.Z
     arp_coa = np.atleast_2d([poly.polyval(t_coa, cARPx),
@@ -745,7 +673,7 @@ def coa_projection_set(sicd_meta, grow, gcol=None):
         # These Grids are all uniformly spaced locations in the image plane.
         # They can all be treated the same.
         # SICD metadata
-        uRow = np.array([sicd_meta.Grid.Row.UVectECF.X,
+        uRow = np.array([sicd_meta.Grid.Row.UVectECF.X,  # TODO: MEDIUM - redundant construct?
                          sicd_meta.Grid.Row.UVectECF.Y,
                          sicd_meta.Grid.Row.UVectECF.Z])
         uCol = np.array([sicd_meta.Grid.Col.UVectECF.X,

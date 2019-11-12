@@ -29,7 +29,7 @@ setup(name='sarpy',
       # Many portions of sarpy run fine without scipy, and we have tried to avoid this dependency
       # wherever possible, but there are enough of these dependencies scattered throughout that we
       # declare it here.
-      install_requires=['numpy', 'scipy'],
+      install_requires=['numpy>=1.9.0', 'scipy'],
       extras_require={
         'csk':  ['h5py'],
       },
