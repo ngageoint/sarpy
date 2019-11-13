@@ -1,10 +1,14 @@
 """
 Readers file to house the various formatted DEM file readers
 """
+
 import numpy as np
 from .geodesy import calculateEarthRadius
 
-# TODO: WRITE ADDITIONAL READERS, HRTE, STRM, ETC.
+# TODO: HIGH - review this. The comment at the top is misleading, at best.
+#   Here is a dangling leftover: WRITE ADDITIONAL READERS, HRTE, STRM, ETC.
+#   Why is this a method in a separate file?
+
 
 def read_dted(demfile):
     '''
@@ -60,7 +64,7 @@ def read_dted(demfile):
     elevations = np.zeros(lats_2D.shape)  # Array in matrix form for creating DEM images
 
     # dem_info = []  # List containing line record data from DEM
-    row_bytes = nlat * 2 + 12  # Number of bytes per data row
+    row_bytes = nlat*2 + 12  # Number of bytes per data row
     for i in range(nlon):
         data_row = data[i * row_bytes:(i + 1) * row_bytes]
         # [252_8, data block coiunt, LON count, LAT count, Checksum] , not needed, here for completeness

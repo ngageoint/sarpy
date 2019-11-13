@@ -15,13 +15,17 @@
 #
 # Geoid height grade not supported
 
+# TODO: HIGH - this badly needs reviewed.
+
 import os
 import mmap
 import struct
 import platform
 
+
 class GeoidBadDataFile(Exception):
     pass
+
 
 class GeoidHeight(object):
     """Calculate the height of the WGS84 geoid above the
@@ -77,6 +81,8 @@ class GeoidHeight(object):
         ( 18,  -36,    2,   0,  -66,  -51, 0,   0,  102,  31),
     )
 
+    # TODO: HIGH - at the very least, replace this with numpy operations...
+
     def __init__(self, name="egm2008-1.pgm"):
         self.offset = None
         self.scale = None
@@ -128,9 +134,9 @@ class GeoidHeight(object):
 
             self.headerlen = headerlen
             osplat = platform.system()
-            if(osplat == "Linux"):
+            if osplat == "Linux":  # TODO: HIGH - this surely needs review
                 self.raw = mmap.mmap(fd, fullsize, mmap.MAP_SHARED, mmap.PROT_READ)
-            elif(osplat == "Windows"):
+            elif osplat == "Windows":
                 self.raw = mmap.mmap(fd, fullsize, access=mmap.ACCESS_READ)
             else:
                 self.raw = mmap.mmap(fd, fullsize, mmap.MAP_SHARED, mmap.PROT_READ)
