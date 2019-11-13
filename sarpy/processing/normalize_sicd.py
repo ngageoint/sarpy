@@ -1,15 +1,25 @@
-"""This module includes functions to assist in transforming SICD data to a common state."""
+"""Functions to transform SICD data to a common state"""
 
 import numpy as np
 from numpy.polynomial import polynomial
+import scipy.signal
 
-__author__ = ["Wade Schwartzkopf", "Daniel Haverporth"]
+__author__ = "Wade Schwartzkopf"
 __classification__ = "UNCLASSIFIED"
-__email__ = "Wade.C.Schwartzkopf.ctr@nga.mil"
+__email__ = "Wade.C.Schwartzkopf@nga.mil"
 
 
 def is_normalized(sicd_meta, dim=1):
-    """Test whether SAR data is already normalized in a given dimension."""
+    """
+    Determines whether SICD data has already been normalized in a given dimension.
+    :param sicd_meta:
+    :param dim: dimension to test
+    :return: normalization state in the given dimension
+    """
+
+    # TODO: HIGH - unit test
+    #   tidy up all this hasattr checking with getter
+
     if dim == 1:  # slow-time
         sicd_grid_struct = sicd_meta.Grid.Col
     else:  # fast-time
@@ -29,7 +39,15 @@ def is_normalized(sicd_meta, dim=1):
 
 
 def deskewparams(sicd_meta, dim):
-    """Extract from SICD structure the parameters required for deskewmem."""
+    """
+    Extract from SICD structure the parameters required for deskewmem.
+
+    :param sicd_meta:
+    :param dim:
+    :return:
+    """
+
+    # TODO: LOW - this docstring is terrible. This method name is terrible.
 
     # DeltaKCOAPoly
     if (dim == 0 and hasattr(sicd_meta, 'Grid') and
@@ -62,57 +80,54 @@ def deskewparams(sicd_meta, dim):
 
 
 def deskewmem(input_data, DeltaKCOAPoly, dim0_coords_m, dim1_coords_m, dim, fft_sgn=-1):
-    """Performs deskew (centering of the spectrum on zero frequency) on a complex dataset.
-
-    INPUTS:
-       input_data:  Complex FFT Data
-       DeltaKCOAPoly:  Polynomial that describes center of frequency support of data.
-       dim0_coords_m:  Coordinate of each "row" in dimension 0
-       dim1_coords_m:  Coordinate of each "column" in dimension 1
-       dim:  Dimension over which to perform deskew
-       fft_sgn:  FFT sign required to transform data to spatial frequency domain
-    OUTPUTS:
-       output_data:  Deskewed data
-       new_DeltaKCOAPoly:  Frequency support shift in the non-deskew dimension
-          caused by the deskew.
     """
+    Performs deskew (centering of the spectrum on zero frequency) on a complex dataset.
+
+    :param input_data: Complex FFT Data
+    :param DeltaKCOAPoly: Polynomial that describes center of frequency support of data.
+    :param dim0_coords_m: Coordinate of each "row" in dimension 0
+    :param dim1_coords_m: Coordinate of each "column" in dimension 1
+    :param dim: Dimension over which to perform deskew
+    :param fft_sgn: FFT sign required to transform data to spatial frequency domain
+    :return: (output_data, new_DeltaKCOAPoly) where:
+        * `output_data` - Deskewed data
+        * `new_DeltaKCOAPoly` - Frequency support shift in the non-deskew dimension caused by the deskew.
+    """
+
+    # TODO: HIGH - unit test. This naming is bad.
 
     # Integrate DeltaKCOA polynomial (in meters) to form new polynomial DeltaKCOAPoly_int
     DeltaKCOAPoly_int = polynomial.polyint(DeltaKCOAPoly, axis=dim)
     # New DeltaKCOAPoly in other dimension will be negative of the derivative of
     # DeltaKCOAPoly_int in other dimension (assuming it was zero before).
-    new_DeltaKCOAPoly = - polynomial.polyder(DeltaKCOAPoly_int, axis=dim-1)
+    new_DeltaKCOAPoly = - polynomial.polyder(DeltaKCOAPoly_int, axis=dim-1)  # TODO: LOW - dim-1 seems like a bad trick
     # Apply phase adjustment from polynomial
-    [dim1_coords_m_2d, dim0_coords_m_2d] = np.meshgrid(dim1_coords_m, dim0_coords_m)
+    dim1_coords_m_2d, dim0_coords_m_2d = np.meshgrid(dim1_coords_m, dim0_coords_m)  # TODO: MEDIUM - specify ordering here
     output_data = np.multiply(input_data, np.exp(1j * fft_sgn * 2 * np.pi *
                                                  polynomial.polyval2d(
                                                      dim0_coords_m_2d,
                                                      dim1_coords_m_2d,
-                                                     DeltaKCOAPoly_int)))
+                                                     DeltaKCOAPoly_int)))  # TODO: MEDIUM - np.multiply? That's unnecessary
     return output_data, new_DeltaKCOAPoly
 
 
 def deweightmem(input_data, weight_fun=None, oversample_rate=1, dim=1):
-    """DEWEIGHTMEM Make complex SAR uniformly weighted in one dimension.
-
-          Parameter name    Description
-
-          input_data        Array of complex values to deweight
-          weight_fun        Description of weighting applied.  Either a
-                               function that takes a single argument (number
-                               of elements) and produces the weighting to
-                               apply, or a vector that is the weighting
-                               function sampled.
-          oversample_rate   Amount of sampling beyond the ImpRespBW in the
-                               processing dimension. (Default is Nyquist
-                               sampling = 1).
-          dim               Dimension over which to perform deweighting.
-                               Default is 1.
-
-    This implementation assumes that the data has already been "deskewed" and
-    that the frequency support is centered.
     """
-    # TODO: Test this function
+    Uniformly weights complex SAR data in given dimension.
+
+    :param input_data: Array of complex values to deweight
+    :param weight_fun: Can be an array that explicitly provides the (inverse) weighting, or a function of a
+        single numeric argument (number of elements) which produces the (inverse) weighting vector.
+    :param oversample_rate: Amount of sampling beyond the ImpRespBW in the processing dimension.
+    :param dim: Dimension over which to perform deweighting.
+    :return:
+
+    .. Note: This implementation ASSUMES that the data has already been de-skewed and that the frequency support
+        is centered.
+    """
+
+    # TODO: HIGH - unit test this thing. Note that there was a prexisting comment "Test this function"
+    #   LOW - improve this docstring
 
     # Weighting only valid across ImpRespBW
     weight_size = round(input_data.shape[dim]/oversample_rate)
@@ -121,11 +136,11 @@ def deweightmem(input_data, weight_fun=None, oversample_rate=1, dim=1):
     elif callable(weight_fun):
         weighting = weight_fun(weight_size)
     elif np.array(weight_fun).ndim == 1:
-        import scipy.signal as sig
-        weighting = sig.resample(weight_fun, weight_size)
+        weighting = scipy.signal.resample(weight_fun, weight_size)
+    # TODO: HIGH - half complete condition
 
-    weight_zp = np.ones(input_data.shape[dim])  # Don't scale outside of ImpRespBW
-    weight_zp[np.floor((input_data.shape[dim]-weight_size)/2)+np.arange(weight_size)] = weighting
+    weight_zp = np.ones((input_data.shape[dim], ), dtype=np.float64)  # Don't scale outside of ImpRespBW
+    weight_zp[np.floor((input_data.shape[dim]-weight_size)/2)+np.arange(weight_size)] = weighting  # TODO: HIGH - This is just slicing
 
     # Divide out weighting in spatial frequency domain
     output_data = np.fft.fftshift(np.fft.fft(input_data, axis=dim), axes=dim)
