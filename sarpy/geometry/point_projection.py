@@ -1,5 +1,4 @@
-'''This module contains the functions to map between the pixel grid in the
-image space and geolocated points in 3D space.'''
+"""Functions to map between the pixel grid in themimage space and geolocated points in 3D space."""
 
 import os
 import copy
@@ -13,6 +12,7 @@ from ..io.DEM import DEM as DEM
 
 
 __classification__ = "UNCLASSIFIED"
+__author__ = "Wade Schwartzkopf"
 __email__ = "Wade.C.Schwartzkopf@nga.mil"
 
 

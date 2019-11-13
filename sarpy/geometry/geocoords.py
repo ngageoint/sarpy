@@ -3,6 +3,7 @@
 import numpy as np
 
 __classification__ = "UNCLASSIFIED"
+__author__ = "Wade Schwartzkopf"
 __email__ = "Wade.C.Schwartzkopf@nga.mil"
 
 # WGS 84 defining parameters
