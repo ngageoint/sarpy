@@ -9,6 +9,7 @@ import io
 
 from sarpy.tools.atk_utils.atk_tools import call_atk_chain_standalone, get_atk_form_json
 from sarpy.tools.atk_utils import atk_tools
+import os
 
 
 class AutoScrollbar(ttk.Scrollbar):
@@ -28,7 +29,7 @@ class AutoScrollbar(ttk.Scrollbar):
 
 class CanvasImage:
 
-    def get_sar_PIL(self, path, decimation=2):
+    def get_sar_PIL(self, path, decimation=4):
         self.atk_chains = atk_tools.AtkChains(project_name="taser_tkinter")
         chain_name = 'get_sarpy_pixels'
 
@@ -238,6 +239,7 @@ class CanvasImage:
 
     def __move_to(self, event):
         """ Drag (move) canvas to the new position """
+        print("x: " + str(event.x) + "   " + "y: " + str(event.y))
         self.canvas.scan_dragto(event.x, event.y, gain=1)
         self.__show_image()  # zoom tile and show it on the canvas
 
@@ -328,6 +330,6 @@ class MainWindow(ttk.Frame):
         canvas.grid(row=0, column=0)  # show widget
 
 # filename = '/data2/imagery2/wv3/Rio_Map-Ready_Ortho_30cm/055670633050/055670633050_01_P001_PAN/16MAY02131229-P3DS-055670633050_01_P001-BROWSE.JPG'
-filename = '/home/bbartlett/sarpy_data/nitf/sicd_example_1_PFA_RE32F_IM32F_HH.nitf'
+filename = os.path.expanduser("~/sarpy_data/nitf/sicd_example_1_PFA_RE32F_IM32F_HH.nitf")
 app = MainWindow(tk.Tk(), path=filename)
 app.mainloop()

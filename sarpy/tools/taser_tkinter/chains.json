@@ -8,10 +8,10 @@
             "algorithm": "sarpy/remap_data",
             "parameters": {
                 "sarpy_reader": {
-                    "key": "sarpy_reader",
-                    "occurrence": "first",
                     "source": "chain_ledger",
-                    "source_algorithm": "sarpy/open_nitf"
+                    "source_algorithm": "sarpy/open_nitf",
+                    "key": "sarpy_reader",
+                    "occurrence": "first"
                 }
             }
         },
@@ -19,10 +19,10 @@
             "algorithm": "sarpy/output_image_to_client",
             "parameters": {
                 "numpy_image_data": {
-                    "key": "remapped_data",
-                    "occurrence": "first",
                     "source": "chain_ledger",
-                    "source_algorithm": "sarpy/remap_data"
+                    "source_algorithm": "sarpy/remap_data",
+                    "key": "remapped_data",
+                    "occurrence": "first"
                 }
             }
         }
