@@ -15,7 +15,8 @@
 
 """
 
-# TODO: Should check_args go in __call__ rather than each derived class?
+# TODO: HIGH - review all of this.
+#   Dangling task: "Should check_args go in __call__ rather than each derived class?"
 
 import numpy as np
 
@@ -24,7 +25,7 @@ __author__ = "Wade Schwartzkopf"
 __email__ = "wschwartzkopf@integrity-apps.com"
 
 
-class Base():
+class Base():  # TODO: HIGH - this is not how to make an "abstract" class. This name is terrible.
     """Abstract class from which read chipper function object can be derived.
 
     FlatFile is a basic implementation of a chipper function object for complex
@@ -102,33 +103,26 @@ class Base():
     def slice_to_dim_args(self, key):
         dimrange = [None, None]
         for i in [0, 1]:
-            if(key[i].start is None):
-                kstart = 0
-            else:
-                kstart = key[i].start
-            if(key[i].stop is None):
-                if self.symmetry[2]:
-                    kstop = self.datasize[i-1]
-                else:
-                    kstop = self.datasize[i]
-            else:
-                kstop = key[i].stop
-            if(key[i].step is None):
-                kstep = 1
-            else:
-                kstep = key[i].step
+            kstart = 0 if key[i].start is None else key[i].start
+            kstop = key[i].stop
+            if kstop is None:
+                kstop = self.datasize[i-1] if self.symmetry[2] else self.datasize[i]
+            kstep = 1 if key[i].step is None else key[i].step
             dimrange[i] = (kstart, kstop, kstep)
         return dimrange[0], dimrange[1]
 
 
 def data2complex(data_in, complextype):
     """Takes data in multiple bands and converts them to complex."""
-    if complextype is False:  # Not complex
-        return data_in
-    elif complextype is True:  # Standard I/Q
-        return data_in[0::2, :, :] + (data_in[1::2, :, :]*1j)
-    elif callable(complextype):  # Custom complex types (i.e. amplitude/phase)
+    # TODO: HIGH - make a class method...
+    if callable(complextype):
         return complextype(data_in)
+    elif complextype:
+        # TODO: HIGH - better way here? At least setting real and imaginary parts is better.
+        #   Is this how the file is packed? I would anticipate [:, :, 0::2] and [:, :, 1::2] - conventional order.
+        return data_in[0::2, :, :] + (data_in[1::2, :, :] * 1j)
+    else:
+        return data_in
 
 
 def reorient_chipper_args(symmetry, datasize, dim1range=None, dim2range=None):
@@ -138,6 +132,7 @@ def reorient_chipper_args(symmetry, datasize, dim1range=None, dim2range=None):
 
     """
 
+    # TODO: HIGH - make a class method...
     if symmetry[2]:
         dim1range, dim2range = dim2range, dim1range
     if (symmetry[0] and (dim1range is not None) and
@@ -156,6 +151,7 @@ def reorient_chipper_data(symmetry, data_in):
 
     """
 
+    # TODO: HIGH - make a class method...
     # Data may have 3 dimensions if multi-band.  If so, first dimension is band,
     # and we only want to change the last two.
     reoriented_data = data_in
@@ -187,10 +183,12 @@ def check_args(datasize, dim1range, dim2range):
 
     """
 
+    # TODO: HIGH - should be a class method here. Gets used by extensions of this class.
+
     # Check datasize first
     datasize = np.array(datasize, dtype='uint64')
     if datasize.shape != (2,) or (datasize[0] <= 0) or (datasize[1] <= 0):
-        raise(ValueError('Invalid datasize.'))
+        raise ValueError('Invalid datasize.')
     # Then check ranges.  They follow the syntax of Python's range() function.
     if dim1range is None:
         dim1range = (0, datasize[0], 1)
@@ -206,7 +204,7 @@ def check_args(datasize, dim1range, dim2range):
         dim2range = np.array((0, datasize[1], np.asscalar(dim2range)), dtype=np.uint64)
     if ((dim1range[1] > datasize[0]) or (dim1range[0] < 0) or (dim1range[0] >= dim1range[1]) or
        (dim2range[1] > datasize[1]) or (dim2range[0] < 0) or (dim2range[0] >= dim2range[1])):
-        raise(ValueError('Invalid subimage index range.'))
+        raise ValueError('Invalid subimage index range.')
     # If only two values given, they are start and stop.  Third value is step
     # size, which defaults to 1.
     if dim1range.shape[0] == 2:
@@ -220,6 +218,8 @@ def check_args(datasize, dim1range, dim2range):
 def subset(full_image_chipper, dim1bounds, dim2bounds):
     """Take a chipper object and return another chipper object that only has visibility into a
     subset of the original."""
+
+    # TODO: HIGH - I am confused by this. This should be a class method. Appears to only get used in sentinel.py.
     class SubsetChipper(Base):
         """Object wrapper for calling base chipper."""
         def __init__(self, full_image_chipper, dim1bounds, dim2bounds):
