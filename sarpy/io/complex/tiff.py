@@ -1,17 +1,16 @@
-# SarPy imports
+import sys
+import numpy as np
+
 from .sicd import MetaNode
 from .utils import bip
 from . import Reader as ReaderSuper  # Reader superclass
-# Python standard library imports
-import sys
-# External dependencies
-import numpy as np
+
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Daniel Haverporth"
 __email__ = "Daniel.L.Haverporth@nga.mil"
 
-# TODO: Add way to find associated metadata files for sensor-specific formats that use TIFF
+# TODO: DANGLING - Add way to find associated metadata files for sensor-specific formats that use TIFF
 
 
 def isa(filename):
@@ -28,11 +27,11 @@ def isa(filename):
                 magicNumber = np.fromfile(fid, dtype=endian + 'i2', count=1)[0]
         except UnicodeDecodeError:  # Data might not have been valid ASCII
             pass
-        if 'magicNumber' in locals() and magicNumber == 42:
+        if 'magicNumber' in locals() and magicNumber == 42:  # TODO: HIGH - :(
             return Reader
 
 
-class Reader(ReaderSuper):
+class Reader(ReaderSuper):  # TODO: HIGH - object oriented
     """Creates a file reader object for a TIFF file."""
 
     def __init__(self, filename):
@@ -54,7 +53,7 @@ class Reader(ReaderSuper):
         self.sicdmeta.native.tiff = tiffmeta
 
 
-def chipper(filename, symmetry=(False, False, True), tiffmeta=None):
+def chipper(filename, symmetry=(False, False, True), tiffmeta=None):  # TODO: HIGH - object oriented
     """Separates the creation of the chipper function, so that other formats that use TIFF can
     reuse this code."""
 
@@ -78,6 +77,7 @@ def chipper(filename, symmetry=(False, False, True), tiffmeta=None):
                        data_offset, swapbytes, symmetry, bands_ip=1)
 
 
+# TODO: HIGH - the remaining should be class methods - why do we need this?
 def read_meta(filename):
     """Read metadata from TIFF file."""
 
@@ -260,7 +260,7 @@ def readTiffTag(fid, tiff_type, type_numeric, count, endian):
         Name = 'Unknown'
 
     # Now extract from file based on type number
-    if tiff_type == 1:
+    if tiff_type == 1:  # TODO: HIGH - maps
         Value = np.fromfile(fid, dtype=endian + 'u1', count=count)
     elif tiff_type == 2:
         Value = np.fromfile(fid, dtype=endian + 'a' + str(count), count=1)

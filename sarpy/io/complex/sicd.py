@@ -1,6 +1,15 @@
 """Module for reading SICD files (version 0.3 and above)."""
 
-# SarPy imports
+import copy
+from datetime import datetime
+import os
+import re
+import sys
+import xml.etree.ElementTree as ET
+import numpy as np
+from numpy.polynomial import polynomial as poly
+
+from . import Reader as ReaderSuper  # Reader superclass
 from . import Reader as ReaderSuper  # Reader superclass
 from . import Writer as WriterSuper  # Writer superclass
 from .utils import bip
@@ -8,16 +17,6 @@ from .utils import chipper
 from ...geometry import geocoords as gc
 from ...geometry import latlon as ll
 from ...geometry import point_projection as point
-# Python standard library imports
-import copy
-from datetime import datetime
-import os
-import re
-import sys
-import xml.etree.ElementTree as ET
-# External dependencies
-import numpy as np
-from numpy.polynomial import polynomial as poly
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Wade Schwartzkopf"
@@ -43,8 +42,10 @@ class Reader(ReaderSuper):
     """Creates a file reader object for a SICD file."""
 
     schema_info = None  # Class variable.  Should only have to be populated once for all instances
+    # TODO: HIGH - this is a static variable. Probably should be a module variable, that gets associated.
 
     def __init__(self, filename):
+        # TODO: HIGH - fix object oriented pattern here. Move schema issue to module level.
         schema_filename = os.path.join(os.path.dirname(__file__),
                                        'SICD_schema_V1.1.0_2014_09_30.xsd')  # Most current schema
         # Schema the same for all SICDs.  Only parse once for first instance
@@ -54,7 +55,7 @@ class Reader(ReaderSuper):
            (Reader.schema_info is None)):
             Reader.schema_info = parse_schema(schema_filename)
 
-        self.sicdmeta, nitfmeta = read_meta(filename, Reader.schema_info)
+        self.sicdmeta, nitfmeta = read_meta(filename, Reader.schema_info)  # TODO: HIGH - why not maintain nitfmeta too?
         data_offset = nitfmeta['img_segment_offsets']
         datasize = np.column_stack((nitfmeta['img_segment_rows'],
                                     nitfmeta['img_segment_columns']))
@@ -63,23 +64,26 @@ class Reader(ReaderSuper):
         elif self.sicdmeta.ImageData.PixelType == 'RE16I_IM16I':
             datatype = np.dtype('int16')
         elif self.sicdmeta.ImageData.PixelType == 'AMP8I_PHS8I':
-            raise(ValueError('AMP8I_PHS8I is currently an unsupported pixel type.'))
+            raise(ValueError('AMP8I_PHS8I is currently an unsupported pixel type.'))  # TODO: HIGH - why is this?
         else:
             raise(ValueError('Invalid pixel type.'))
         complextype = True
         swapbytes = (sys.byteorder != 'big')  # All SICDs are big-endian
         symmetry = (False, False, False)
+        # TODO: HIGH - fix the object oriented pattern
         self.read_chip = self.multisegment(filename, datasize, datatype,
                                            complextype, data_offset, swapbytes,
                                            symmetry, bands_ip=1)
 
     class multisegment(chipper.Base):
+        # TODO: HIGH - move this outside of the class. Fix object oriented paradigm.
         """Chipper function for SICDs with multiple image segments."""
         def __init__(self, filename, datasize, datatype, complextype,  # Required params
                      data_offset=0,  # Start of data in bytes from start of file
                      swapbytes=False,  # Is reading endian same as file endian
                      symmetry=(False, False, False),  # Assume no reorientation
                      bands_ip=1):  # This means bands of complex data (if data is complex)
+            # TODO: HIGH - document thoroughly.
             if datasize.shape[0] != data_offset.size:
                 raise(ValueError('DATASIZE and DATA_OFFSET must have matching sizes.'))
             # Complex type set to False here, since conversion to complex will
@@ -93,7 +97,7 @@ class Reader(ReaderSuper):
                                                  datatype, complextype,
                                                  data_offset[i], swapbytes,
                                                  symmetry, bands_ip))
-            self.rowends = datasize[:, 0].cumsum()
+            self.rowends = datasize[:, 0].cumsum()  # TODO: HIGH - what problem is being solved below?
             # Doesn't work on older version of NumPy due to an unsafe cast
             # self.rowstarts = np.insert(self.rowends[:-1], 0, 0)
             # This should work in all versions of numpy:
@@ -129,7 +133,7 @@ class Writer(WriterSuper):
     """Creates a file writer object for a SICD file."""
 
     # Class variable.  Should only have to be populated once for all instances
-    schema_info = None
+    schema_info = None  # TODO: HIGH - static variable. Same issue as for Reader.
 
     # Class constants
     ISSIZEMAX = 9999999998  # Image segment size maximum
@@ -137,6 +141,7 @@ class Writer(WriterSuper):
     IS_SUBHEADER_LENGTH = 512  # Fixed for two bands image segments
     # DES_HEADER_LENGTH = 200  # Harded-coded from SICD spec (0.5 and before)
     DES_HEADER_LENGTH = 973  # Harded-coded from SICD spec (1.0)
+    # TODO: HIGH - this conflict and these static variables. What specification are we using? How would we know?
 
     def __init__(self, filename, sicdmeta):
         schema_filename = os.path.join(os.path.dirname(__file__),
@@ -151,6 +156,7 @@ class Writer(WriterSuper):
         # Compute image segment parameters
         self.filename = filename
         self.sicdmeta = sicdmeta
+        # TODO: HIGH - the below should be derived from SICD object
         if (hasattr(sicdmeta, 'ImageData') and
            hasattr(sicdmeta.ImageData, 'PixelType')):
             if sicdmeta.ImageData.PixelType == 'RE32F_IM32F':
@@ -162,19 +168,21 @@ class Writer(WriterSuper):
             elif sicdmeta.ImageData.PixelType == 'AMP8I_PHS8I':
                 bytes_per_pixel = 2
                 datatype = np.dtype('>u1')
-                raise(ValueError('AMP8I_PHS8I is currently an unsupported pixel type.'))
+                raise(ValueError('AMP8I_PHS8I is currently an unsupported pixel type.'))  # TODO: HIGH - why is that?
             else:
                 raise(ValueError('PixelType must be RE32F_IM32F, RE16I_IM16I, or AMP8I_PHS8I.'))
         else:
-            sicdmeta.ImageData.PixelType = 'RE32F_IM32F'
+            sicdmeta.ImageData.PixelType = 'RE32F_IM32F'  # TODO: HIGH - does an unspecified default even make sense here?
             bytes_per_pixel = 8
             datatype = np.dtype('>f4')
+
         self.bytes_per_row = int(sicdmeta.ImageData.NumCols) * bytes_per_pixel
         num_rows_limit = min(int(np.floor(self.ISSIZEMAX / float(self.bytes_per_row))),
                              self.ILOCMAX)
         # Number of image segments
         self.num_is = int(np.ceil(float(sicdmeta.ImageData.NumRows)/num_rows_limit))
         # Row index of the first row in each segment
+        # TODO: HIGH why hold any of this in memory here?
         self.first_row_is = np.arange(self.num_is) * num_rows_limit
         self.num_rows_is = np.empty_like(self.first_row_is)
         self.num_rows_is[:-1] = num_rows_limit  # Number of rows in each segment
@@ -521,6 +529,7 @@ class Writer(WriterSuper):
 def read_meta(filename, schema_struct=None):
     """Read metadata from Sensor Independent Complex Data (SICD) file, versions 0.3+"""
 
+    # TODO: HIGH - this should be a class method?
     nitf = read_nitf_offsets(filename)
     # SICD Volume 2, File Format Description, section 3.1.1 says that SICD XML
     # metadata must be stored in first DES.  We could also check content to
@@ -558,6 +567,7 @@ def read_nitf_offsets(filename):
 
     """
 
+    # TODO: HIGH - this should be a class method?
     # We have to open as binary, since there is some binary data in the file.
     # Python doesn't seem to let us read just part of the file as utf-8.
     with open(filename, mode='rb') as fid:
@@ -1708,6 +1718,7 @@ def derived_fields(meta, set_default_values=True):
                     if hasattr(meta.Grid, 'ImagePlane'):
                         if meta.Grid.ImagePlane == 'SLANT':
                             # Instantaneous slant plane at center of aperture
+                            # todo: HIGH - this is definitely not right...
                             meta.PFA.IPN = spn[0]
                             meta.PFA.IPN = spn[1]
                             meta.PFA.IPN = spn[2]

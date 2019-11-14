@@ -1,6 +1,19 @@
 """Module for reading Sentinel-1 data into a SICD model."""
 
-# SarPy imports
+import copy
+import os
+import datetime
+import xml.etree.ElementTree as ET
+
+import numpy as np
+from numpy.polynomial import polynomial as poly
+import scipy
+from scipy.interpolate import griddata
+if scipy.__version__ >= '1.0':
+    from scipy.special import comb
+else:
+    from scipy.misc import comb
+
 from .sicd import MetaNode
 from .utils import chipper
 from . import Reader as ReaderSuper  # Reader superclass
@@ -8,29 +21,7 @@ from . import sicd
 from . import tiff
 from ...geometry import geocoords as gc
 from ...geometry import point_projection as point
-# Python standard library imports
-import copy
-import os
-import datetime
-import xml.etree.ElementTree as ET
-# External dependencies
-import numpy as np
-# We prefer numpy.polynomial.polynomial over numpy.polyval/polyfit since its coefficient
-# ordering is consistent with SICD, and because it supports 2D polynomials.
-from numpy.polynomial import polynomial as poly
-from scipy.interpolate import griddata
-# try to import comb from scipy.special.
-# If an old version of scipy is being used then import from scipy.misc
-from scipy import __version__ as scipy_version
-dot_locs = []
-for i, version_char in enumerate(scipy_version):
-    if version_char == '.':
-        dot_locs.append(i)
-major_version = int(scipy_version[0:dot_locs[0]])
-if major_version >= 1:
-    from scipy.special import comb
-else:
-    from scipy.misc import comb
+
 
 _classification__ = "UNCLASSIFIED"
 __author__ = "Daniel Haverporth"
@@ -57,7 +48,7 @@ def isa(filename):
         pass
 
 
-class Reader(ReaderSuper):
+class Reader(ReaderSuper): # TODO: HIGH - object oriented
     """Creates a file reader object for an Sentinel Data."""
     def __init__(self, manifest_filename):
         # print('Opening Sentinel reader object.')

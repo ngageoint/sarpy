@@ -1,20 +1,20 @@
 """Module for reading SIO files."""
 
-# SarPy imports
+import os.path
+import warnings
+import re
+import numpy as np
+
 from . import Reader as ReaderSuper  # Reader superclass
 from . import Writer as WriterSuper  # Writer superclass
 from .utils import bip
 from . import sicd
-# Python standard library imports
-import os.path
-import warnings
-import re
-# External dependencies
-import numpy as np
+
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Wade Schwartzkopf"
 __email__ = "wschwartzkopf@integrity-apps.com"
+
 
 MAGIC_NUMBERS = (int('FF017FFE', 16),
                  int('FE7F01FF', 16),
@@ -29,7 +29,7 @@ def isa(filename):
             return Reader
 
 
-class Reader(ReaderSuper):
+class Reader(ReaderSuper):  # TODO: HIGH - object oriented
     """Creates a file reader object for an SIO file."""
     def __init__(self, filename):
         # Read SIO itself
@@ -71,7 +71,7 @@ class Reader(ReaderSuper):
                                      bands_ip=1)
 
 
-class Writer(WriterSuper):
+class Writer(WriterSuper):  # todo: HIGH - object oriented
     def __init__(self, filename, sicdmeta):
         # SIO format allows for either endianness, but we just pick it arbitrarily.
         ENDIAN = '>'
@@ -111,7 +111,7 @@ class Writer(WriterSuper):
         self.write_chip = bip.Writer(filename, image_size, datatype, True, 20)
 
 
-def read_meta(filename):
+def read_meta(filename):  # TODO: HIGH - make the initial magic number list a map, and subsume into class method.
     """Parse SIO header."""
     with open(filename, mode='rb') as fid:
         ihdr = np.fromfile(fid, dtype='uint32', count=5)
@@ -138,6 +138,8 @@ def read_meta(filename):
 
         return ihdr, swapbytes, data_offset, user_data
 
+
+# TODO: HIGH - this should all be class methods
 
 def _read_userdata(fid, swapbytes):
     """Extracts user data from SIO files

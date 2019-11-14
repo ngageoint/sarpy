@@ -1,40 +1,31 @@
 """Module for reading Radarsat (RS2 and RCM) data into a SICD model."""
 
-# SarPy imports
+import copy
+import datetime
+import os
+import re
+import xml.etree.ElementTree as ET
+
+import numpy as np
+from numpy.polynomial import polynomial as poly
+import scipy
+from scipy.constants import speed_of_light
+if scipy.__version__ >= '1.0':
+    from scipy.special import comb
+else:
+    from scipy.misc import comb
+
 from .sicd import MetaNode
 from . import Reader as ReaderSuper  # Reader superclass
 from . import sicd
 from . import tiff
 from ...geometry import geocoords as gc
 from ...geometry import point_projection as point
-# Python standard library imports
-import copy
-import datetime
-import os
-import re
-import xml.etree.ElementTree as ET
-# External dependencies
-import numpy as np
-# We prefer numpy.polynomial.polynomial over numpy.polyval/polyfit since its coefficient
-# ordering is consistent with SICD, and because it supports 2D polynomials.
-from numpy.polynomial import polynomial as poly
-from scipy.constants import speed_of_light
-# try to import comb from scipy.special.
-# If an old version of scipy is being used then import from scipy.misc
-from scipy import __version__ as scipy_version
-dot_locs = []
-for i, version_char in enumerate(scipy_version):
-    if version_char == '.':
-        dot_locs.append(i)
-major_version = int(scipy_version[0:dot_locs[0]])
-if major_version >= 1:
-    from scipy.special import comb
-else:
-    from scipy.misc import comb
+
 
 _classification__ = "UNCLASSIFIED"
 __author__ = ["Khanh Ho", "Wade Schwartzkopf"]
-__email__ = "Wade.C.Schwartzkopf.ctr@nga.mil"
+__email__ = "Wade.C.Schwartzkopf@nga.mil"
 
 DATE_FMT = '%Y-%m-%dT%H:%M:%S.%fZ'  # The datetime format Sentinel1 always uses
 
@@ -56,7 +47,7 @@ def isa(filename):
         pass
 
 
-class Reader(ReaderSuper):
+class Reader(ReaderSuper):  # TODO: HIGH - object oriented paradigm
     def __init__(self, product_filename):
         basepathname = os.path.dirname(product_filename)
         ns = dict([node for _, node in ET.iterparse(product_filename,
@@ -124,7 +115,7 @@ def meta2sicd(filename, betafile, noisefile):
 
     def _polyshift(a, shift):
         b = np.zeros(a.size)
-        for j in range(1, len(a)+1):
+        for j in range(1, len(a)+1):  # TODO: HIGH - use numpy.polynomial
             for k in range(j, len(a)+1):
                 b[j-1] = b[j-1] + (a[k-1]*comb(k-1, j-1)*np.power(shift, (k-j)))
         return b
