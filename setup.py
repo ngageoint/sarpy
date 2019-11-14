@@ -25,7 +25,7 @@ setup(name='sarpy',
       url='https://github.com/ngageoint/sarpy',
       author='National Geospatial-Intelligence Agency',
       # Not the only author, but currently the primary POC
-      author_email='Wade.C.Schwartzkopf.ctr@nga.mil',
+      author_email='Wade.C.Schwartzkopf@nga.mil',
       # Many portions of sarpy run fine without scipy, and we have tried to avoid this dependency
       # wherever possible, but there are enough of these dependencies scattered throughout that we
       # declare it here.
@@ -36,9 +36,6 @@ setup(name='sarpy',
       zip_safe=False,  # Use of __file__ and __path__ in some code makes it unusuable from zip
       use_scm_version=True,
       setup_requires=['setuptools_scm'],
-      # python_requires is really just the NumPy requirement, so maybe we don't need to state
-      # python_requires explicitly as it is already implicitly declared in dependency stated above
-      # python_requires='>=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*',
       classifiers=[
           'Development Status :: 4 - Beta',
           'Intended Audience :: Developers',
@@ -46,8 +43,6 @@ setup(name='sarpy',
           'Programming Language :: Python :: 2',
           'Programming Language :: Python :: 2.7',
           'Programming Language :: Python :: 3',
-          'Programming Language :: Python :: 3.4',
-          'Programming Language :: Python :: 3.5',
           'Programming Language :: Python :: 3.6',
           'Programming Language :: Python :: 3.7'
       ],
