@@ -2,8 +2,9 @@
 
 import copy  # TLM - What's being copied? I don't trust it.
 import datetime
+
 import numpy as np
-import h5py
+import h5py  # TODO: HIGH - modify things for this optional dependency?
 from numpy.polynomial import polynomial
 import scipy
 from scipy.constants import speed_of_light
