@@ -12,8 +12,6 @@ from . import sicd
 
 
 __classification__ = "UNCLASSIFIED"
-__author__ = "Wade Schwartzkopf"
-__email__ = "wschwartzkopf@integrity-apps.com"
 
 
 MAGIC_NUMBERS = (int('FF017FFE', 16),

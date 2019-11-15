@@ -2,6 +2,8 @@
 
 import logging
 
+__classification__ = "UNCLASSIFIED"
+
 _DEFAULT_MESSAGE_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 _DEFAULT_DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
 

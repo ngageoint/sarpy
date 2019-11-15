@@ -6,6 +6,10 @@ MAKE NICE LOOKING PLOTS OF THE DEM
 import matplotlib.pyplot as plt
 import numpy as np
 
+
+__classification__ = "UNCLASSIFIED"
+
+
 def plot_dem(DEM, coordinates=[], log_elev = False, contour=True, threeD=False, imshow=True, **kwargs):
     '''
     Make a plot/image of the current DEM being used

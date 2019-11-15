@@ -1,5 +1,7 @@
 import numpy as np
 
+__classification__ = "UNCLASSIFIED"
+
 
 def calculateEarthRadius(lat_deg):
     """

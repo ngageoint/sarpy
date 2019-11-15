@@ -3,7 +3,10 @@ Readers file to house the various formatted DEM file readers
 """
 
 import numpy as np
+
 from .geodesy import calculateEarthRadius
+
+__classification__ = "UNCLASSIFIED"
 
 # TODO: HIGH - review this. The comment at the top is misleading, at best.
 #   Here is a dangling leftover: WRITE ADDITIONAL READERS, HRTE, STRM, ETC.

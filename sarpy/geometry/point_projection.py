@@ -10,10 +10,7 @@ from . import geocoords as gc
 from ..io.DEM import geoid
 from ..io.DEM import DEM as DEM
 
-
 __classification__ = "UNCLASSIFIED"
-__author__ = "Wade Schwartzkopf"
-__email__ = "Wade.C.Schwartzkopf@nga.mil"
 
 
 def ground_to_image(s, sicd_meta, delta_gp_max=None, delta_arp=[0, 0, 0], delta_varp=[0, 0, 0], range_bias=0, adj_params_frame='ECF'):

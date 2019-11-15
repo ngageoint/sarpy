@@ -26,9 +26,8 @@ import os
 import pkgutil
 import sys
 
+
 __classification__ = "UNCLASSIFIED"
-__author__ = "Wade Schwartzkopf"
-__email__ = "Wade.C.Schwartzkopf@nga.mil"
 
 
 class Reader(object):  # TODO: HIGH - update this to sensibility. file type object? Move down.

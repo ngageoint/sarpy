@@ -18,9 +18,8 @@ from ...geometry import geocoords as gc
 from ...geometry import latlon as ll
 from ...geometry import point_projection as point
 
+
 __classification__ = "UNCLASSIFIED"
-__author__ = "Wade Schwartzkopf"
-__email__ = "Wade.C.Schwartzkopf.ctr@nga.mil"
 
 
 def isa(filename):

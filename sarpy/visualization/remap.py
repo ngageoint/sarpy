@@ -2,9 +2,9 @@
 
 import numpy as np
 
+
 __classification__ = "UNCLASSIFIED"
-__author__ = "Wade Schwartzkopf"
-__email__ = "wschwartzkopf@integrity-apps.com"
+
 
 # TODO: there's a whole package for this. Is this necessary? Where are these even used?
 #   I question this collection of methods, so I'm setting aside docstring editing until later.

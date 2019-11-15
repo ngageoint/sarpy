@@ -20,9 +20,8 @@
 
 import numpy as np
 
+
 __classification__ = "UNCLASSIFIED"
-__author__ = "Wade Schwartzkopf"
-__email__ = "wschwartzkopf@integrity-apps.com"
 
 
 class Base():  # TODO: HIGH - this is not how to make an "abstract" class. This name is terrible.

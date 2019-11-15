@@ -12,9 +12,8 @@ _DEFAULT_FILL = 1
 _DEFAULT_OFFSETPCT = None
 _DEFAULT_SELECTEDFRAMES = None
 
-__author__ = 'Wade Schwartzkopf'
+
 __classification__ = "UNCLASSIFIED"
-__email__ = "Wade.C.Schwartzkopf@nga.mil"
 
 
 # TODO: MEDIUM - overall high level question: where would we get complex data without sicd metadata?

@@ -3,8 +3,6 @@
 import numpy as np
 
 __classification__ = "UNCLASSIFIED"
-__author__ = "Wade Schwartzkopf"
-__email__ = "Wade.C.Schwartzkopf@nga.mil"
 
 # WGS 84 defining parameters
 a = 6378137.0           # Semi-major radius (m)

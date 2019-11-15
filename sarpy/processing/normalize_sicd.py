@@ -4,9 +4,8 @@ import numpy as np
 from numpy.polynomial import polynomial
 import scipy.signal
 
-__author__ = "Wade Schwartzkopf"
+
 __classification__ = "UNCLASSIFIED"
-__email__ = "Wade.C.Schwartzkopf@nga.mil"
 
 
 def is_normalized(sicd_meta, dim=1):

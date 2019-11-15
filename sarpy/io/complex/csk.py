@@ -22,8 +22,6 @@ from .utils import chipper
 
 
 __classification__ = "UNCLASSIFIED"
-__author__ = ["Jarred Barber", "Wade Schwartzkopf"]
-__email__ = "jpb5082@gmail.com"
 
 
 def datenum_w_frac(datestring, as_datetime=False):

@@ -23,9 +23,8 @@ from ...geometry import geocoords as gc
 from ...geometry import point_projection as point
 
 
-_classification__ = "UNCLASSIFIED"
-__author__ = ["Khanh Ho", "Wade Schwartzkopf"]
-__email__ = "Wade.C.Schwartzkopf@nga.mil"
+__classification__ = "UNCLASSIFIED"
+
 
 DATE_FMT = '%Y-%m-%dT%H:%M:%S.%fZ'  # The datetime format Sentinel1 always uses
 

@@ -6,8 +6,6 @@ import numpy as np
 import re
 
 __classification__ = "UNCLASSIFIED"
-__author__ = "Wade Schwartzkopf"
-__email__ = "Wade.C.Schwartzkopf@nga.mil"
 
 
 def string(value, latlon, num_units=3, precision=None, delimiter='',

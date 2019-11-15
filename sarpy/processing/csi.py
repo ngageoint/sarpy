@@ -4,9 +4,6 @@ from ..io import complex
 import numpy as np
 
 __classification__ = "UNCLASSIFIED"
-__author__ = "Melanie Baker"
-__email__ = "Melanie.R.Baker@nga.mil"
-# TODO: LOW - consistency?
 
 
 def _jet_wrapped(m):

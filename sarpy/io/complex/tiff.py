@@ -7,8 +7,7 @@ from . import Reader as ReaderSuper  # Reader superclass
 
 
 __classification__ = "UNCLASSIFIED"
-__author__ = "Daniel Haverporth"
-__email__ = "Daniel.L.Haverporth@nga.mil"
+
 
 # TODO: DANGLING - Add way to find associated metadata files for sensor-specific formats that use TIFF
 

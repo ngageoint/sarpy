@@ -23,6 +23,9 @@ import struct
 import platform
 
 
+__classification__ = "UNCLASSIFIED"
+
+
 class GeoidBadDataFile(Exception):
     pass
 

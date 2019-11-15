@@ -6,6 +6,8 @@ from scipy.interpolate import interpn
 from .dem_log import dem_logger
 from .readers import read_dted
 
+__classification__ = "UNCLASSIFIED"
+
 
 # TODO: HIGH - there seems to be some assumption about directory structure. Let's be explicit.
 
