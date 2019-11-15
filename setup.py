@@ -13,29 +13,32 @@ del os.link
 
 # Get the long description from the README file
 here = os.path.abspath(os.path.dirname(__file__))
+# Get the long description from the README file
 with open(os.path.join(here, 'README.rst'), encoding='utf-8') as f:
     long_description = f.read()
+# Get the relevant setup parameters from the package
+parameters = {}
+with open(os.path.join(here, 'sarpy', '__about__.py'), encoding='utf-8') as f:
+    exec(f.read(), parameters)
 
-setup(name='sarpy',
-      description='Reading/writing/simple processing of complex SAR data in Python via SICD',
+
+setup(name=parameters['__title__'],
+      description=parameters['__summary__'],
       long_description=long_description,
-      long_description_content_type='text/x-rst',  # Default but "Explicit is better than implicit"
+      long_description_content_type='text/x-rst',
       packages=find_packages(),  # Should find SarPy and all subpackages
       package_data={'': ['*.xsd']},  # Schema files are required for parsing SICD
-      url='https://github.com/ngageoint/sarpy',
-      author='National Geospatial-Intelligence Agency',
-      # Not the only author, but currently the primary POC
-      author_email='Wade.C.Schwartzkopf@nga.mil',
-      # Many portions of sarpy run fine without scipy, and we have tried to avoid this dependency
-      # wherever possible, but there are enough of these dependencies scattered throughout that we
-      # declare it here.
+      url=parameters['__url__'],
+      author=parameters['__author__'],
+      # The primary POC, rather than the author really
+      author_email=parameters['__email__'],
       install_requires=['numpy>=1.9.0', 'scipy'],
       extras_require={
         'csk':  ['h5py'],
       },
-      zip_safe=False,  # Use of __file__ and __path__ in some code makes it unusuable from zip
+      zip_safe=False,  # Use of __file__ and __path__ in some code makes it unusable from zip
       use_scm_version=True,
-      setup_requires=['setuptools_scm'],
+      setup_requires=['setuptools_scm'],  # this is probably not used?
       classifiers=[
           'Development Status :: 4 - Beta',
           'Intended Audience :: Developers',
