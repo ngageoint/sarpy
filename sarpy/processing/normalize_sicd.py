@@ -16,8 +16,7 @@ def is_normalized(sicd_meta, dim=1):
     :return: normalization state in the given dimension
     """
 
-    # TODO: HIGH - unit test
-    #   tidy up all this hasattr checking with getter
+    # TODO: HIGH - this should be class method of SICD class
 
     if dim == 1:  # slow-time
         sicd_grid_struct = sicd_meta.Grid.Col
@@ -46,7 +45,7 @@ def deskewparams(sicd_meta, dim):
     :return:
     """
 
-    # TODO: LOW - this docstring is terrible. This method name is terrible.
+    # TODO: HIGH - this should be class method of SICD class. Get appropriate details from Wade for docstring.
 
     # DeltaKCOAPoly
     if (dim == 0 and hasattr(sicd_meta, 'Grid') and
@@ -93,7 +92,7 @@ def deskewmem(input_data, DeltaKCOAPoly, dim0_coords_m, dim1_coords_m, dim, fft_
         * `new_DeltaKCOAPoly` - Frequency support shift in the non-deskew dimension caused by the deskew.
     """
 
-    # TODO: HIGH - unit test. This naming is bad.
+    # TODO: HIGH - unit test. Rename something more descriptive - use deskew_mem, if this mem thing is the convention.
 
     # Integrate DeltaKCOA polynomial (in meters) to form new polynomial DeltaKCOAPoly_int
     DeltaKCOAPoly_int = polynomial.polyint(DeltaKCOAPoly, axis=dim)
@@ -126,7 +125,7 @@ def deweightmem(input_data, weight_fun=None, oversample_rate=1, dim=1):
     """
 
     # TODO: HIGH - unit test this thing. Note that there was a prexisting comment "Test this function"
-    #   LOW - improve this docstring
+    #   HIGH - Rename something more descriptive - use deweight_mem, if this mem thing is the convention.
 
     # Weighting only valid across ImpRespBW
     weight_size = round(input_data.shape[dim]/oversample_rate)

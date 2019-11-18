@@ -12,6 +12,12 @@ __classification__ = "UNCLASSIFIED"
 #   Here is a dangling leftover: WRITE ADDITIONAL READERS, HRTE, STRM, ETC.
 #   Why is this a method in a separate file?
 
+# TODO: HIGH - Should we break out different classes for different types of DEMs?
+#   Right now it looks like only DTED is supported, by then in DEM.py there are options for SRTM and whatnot.
+#   In fact, image2ground has the default dem_type as 'SRTM2F', but there is no reader for that...
+#   Does this mean There are SRTM2F data that have been converted to DTED format someplace?
+#   Needs clarification.
+
 
 def read_dted(demfile):
     '''

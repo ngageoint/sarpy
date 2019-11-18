@@ -16,8 +16,7 @@ else:
 from .sicd import MetaNode
 from . import Reader as ReaderSuper  # Reader superclass
 from . import sicd
-from ...geometry import geocoords
-from ...geometry import point_projection
+from ...geometry import geocoords, point_projection
 from .utils import chipper
 
 

@@ -29,7 +29,8 @@ def ecf_to_geodetic(x, y=None, z=None):
     geodetic coordinates. IEEE Transactions on Aerospace and Electronic Systems, 30, 3 (July 1994), 957-962.*
     """
 
-    # TODO: HIGH - unit test this
+    # TODO: HIGH - replace this patterns with keyword args, something like coords=, x=,y=,z=
+    #   HIGH - unit test this
     x, y, z, componentwise = _normalize_3dinputs(x, y, z)
 
     # calculate derived constants
@@ -62,7 +63,7 @@ def ecf_to_geodetic(x, y=None, z=None):
     templ = s + 1.0 / s + 1.0
     p = f_ / (3.0 * templ * templ * g * g)
     q = np.sqrt(1.0 + 2.0 * e4 * p)
-    r0 = -p * e2 * r / (1.0 + q) + np.sqrt(np.abs(0.5 * a2 * (1.0 + 1.0 / q) - p * ome2 * z2 / (q * (1.0 + q)) - 0.5 * p * r2))
+    r0 = -p * e2 * r / (1. + q) + np.sqrt(np.abs(0.5*a2*(1. + 1./q) - p*ome2*z2/(q*(1. + q)) - 0.5*p*r2))
     temp2 = r - e2 * r0
     temp22 = temp2 * temp2
     u = np.sqrt(temp22 + z2)
@@ -94,7 +95,8 @@ def geodetic_to_ecf(lat, lon=None, alt=None):
     geodetic coordinates. IEEE Transactions on Aerospace and Electronic Systems, 30, 3 (July 1994), 957-962.*
     """
 
-    # TODO: HIGH - unit test this
+    # TODO: HIGH - replace this patterns with keyword args, something like coords=, lon=,lat=,alt=
+    #   HIGH - unit test this
     lat, lon, alt, componentwise = _normalize_3dinputs(lat, lon, alt)
 
     # calculate distance to surface of ellipsoid
@@ -121,7 +123,8 @@ def wgs_84_norm(x, y=None, z=None):
     :return: if `x` is `Nx3`, then returns `Nx3` numpy.ndarray of the form [[x, y, z]]
         otherwise return tuple of numpy.ndarrays (x, y, z)
     """
-    # TODO: LOW - the language in this doc string is confusing - WGS 84 ellipsoid in ECF space is nonsense?
+    # TODO: HIGH - replace this patterns with keyword args, something like coords=, x=,y=,z=
+    #   LOW - the language in this doc string is confusing - WGS 84 ellipsoid in ECF space is nonsense?
 
     x, y, z, componentwise = _normalize_3dinputs(x, y, z)
 
@@ -149,7 +152,7 @@ def ric_ecf_mat(rarp, varp, frame_type):
     :param frame_type: one of 'eci' or 'ecf'?
     :return:
     """
-    # TODO: LOW - fix this docstring. These argument names are poor.
+    # TODO: LOW - fix this docstring. These argument names are not descriptive, and I don't know what they represent.
 
     if frame_type.upper() == 'ECI':
         vi = varp + np.cross([0, 0, w], rarp)
@@ -163,7 +166,7 @@ def ric_ecf_mat(rarp, varp, frame_type):
     c = c/np.sqrt(np.sum(c*c))
     i = np.cross(c, r)
 
-    # TODO: HIGH - this should not be a matrix, should be an ndarray
+    # TODO: HIGH - this should not be a matrix, should be an ndarray. Look to usage and repair.
     return np.matrix([r, i, c])
 
 
@@ -177,7 +180,8 @@ def _normalize_3dinputs(x, y, z):
         boolean reflecting whether input argument signature of the form `y,z` not `None`
     """
 
-    # TODO: MEDIUM - atleast_1d? Bah.
+    # TODO: HIGH - This is only here to account for other confusion in the methods above.
+    #   This should probably not exist.
     x = np.atleast_2d(x)  # Assure a numpy array for componentwise or array versions
     if len(x.shape) > 2:
         raise ValueError("Input argument x is greater than two dimensional - shape = {}".format(x.shape))

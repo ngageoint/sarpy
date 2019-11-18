@@ -17,10 +17,8 @@ else:
 
 from .sicd import MetaNode
 from . import Reader as ReaderSuper  # Reader superclass
-from . import sicd
-from . import tiff
-from ...geometry import geocoords as gc
-from ...geometry import point_projection as point
+from . import sicd, tiff
+from ...geometry import geocoords, point_projection
 
 
 __classification__ = "UNCLASSIFIED"
@@ -241,7 +239,7 @@ def meta2sicd(filename, betafile, noisefile):
     meta.GeoData.SCP.LLH.Lat = lats[scp_index]
     meta.GeoData.SCP.LLH.Lon = longs[scp_index]
     meta.GeoData.SCP.LLH.HAE = hgts[scp_index]
-    pos_ecf = gc.geodetic_to_ecf((meta.GeoData.SCP.LLH.Lat,
+    pos_ecf = geocoords.geodetic_to_ecf((meta.GeoData.SCP.LLH.Lat,
                                   meta.GeoData.SCP.LLH.Lon,
                                   meta.GeoData.SCP.LLH.HAE))
     meta.GeoData.SCP.ECF = MetaNode()
@@ -648,12 +646,12 @@ def meta2sicd(filename, betafile, noisefile):
     # GeoData
     # Now that sensor model fields have been populated, we can populate
     # GeoData.SCP more precisely.
-    ecf = point.image_to_ground([meta.ImageData.SCPPixel.Row,
+    ecf = point_projection.image_to_ground([meta.ImageData.SCPPixel.Row,
                                  meta.ImageData.SCPPixel.Col], meta)[0]
     meta.GeoData.SCP.ECF.X = ecf[0]
     meta.GeoData.SCP.ECF.Y = ecf[1]
     meta.GeoData.SCP.ECF.Z = ecf[2]
-    llh = gc.ecf_to_geodetic(ecf)[0]
+    llh = geocoords.ecf_to_geodetic(ecf)[0]
     meta.GeoData.SCP.LLH.Lat = llh[0]
     meta.GeoData.SCP.LLH.Lon = llh[1]
     meta.GeoData.SCP.LLH.HAE = llh[2]

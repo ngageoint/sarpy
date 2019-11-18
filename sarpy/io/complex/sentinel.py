@@ -17,10 +17,8 @@ else:
 from .sicd import MetaNode
 from .utils import chipper
 from . import Reader as ReaderSuper  # Reader superclass
-from . import sicd
-from . import tiff
-from ...geometry import geocoords as gc
-from ...geometry import point_projection as point
+from . import sicd, tiff
+from ...geometry import geocoords, point_projection
 
 
 __classification__ = "UNCLASSIFIED"
@@ -321,7 +319,7 @@ def meta2sicd_annot(filename):
         hgt = float(grid_point.find('./height').text)
         # Can't interpolate across international date line -180/180 longitude,
         # so move to ECF space from griddata interpolation
-        ecf = gc.geodetic_to_ecf((lat, lon, hgt))
+        ecf = geocoords.geodetic_to_ecf((lat, lon, hgt))
         x.append(ecf[0, 0])
         y.append(ecf[0, 1])
         z.append(ecf[0, 2])
@@ -819,7 +817,7 @@ def meta2sicd_annot(filename):
         # Note also that some Sentinel-1 data we have see has different heights
         # in the geolocation grid for polarimetric channels from the same
         # swath/burst!?!
-        llh = gc.ecf_to_geodetic((burst_meta.GeoData.SCP.ECF.X,
+        llh = geocoords.ecf_to_geodetic((burst_meta.GeoData.SCP.ECF.X,
                                  burst_meta.GeoData.SCP.ECF.Y,
                                  burst_meta.GeoData.SCP.ECF.Z))
         burst_meta.GeoData.SCP.LLH = MetaNode()
@@ -827,12 +825,12 @@ def meta2sicd_annot(filename):
         burst_meta.GeoData.SCP.LLH.Lon = llh[0, 1]
         burst_meta.GeoData.SCP.LLH.HAE = llh[0, 2]
         # Now that SCP has been populated, populate GeoData.SCP more precisely.
-        ecf = point.image_to_ground([burst_meta.ImageData.SCPPixel.Row,
+        ecf = point_projection.image_to_ground([burst_meta.ImageData.SCPPixel.Row,
                                      burst_meta.ImageData.SCPPixel.Col], burst_meta)[0]
         burst_meta.GeoData.SCP.ECF.X = ecf[0]
         burst_meta.GeoData.SCP.ECF.Y = ecf[1]
         burst_meta.GeoData.SCP.ECF.Z = ecf[2]
-        llh = gc.ecf_to_geodetic(ecf)[0]
+        llh = geocoords.ecf_to_geodetic(ecf)[0]
         burst_meta.GeoData.SCP.LLH.Lat = llh[0]
         burst_meta.GeoData.SCP.LLH.Lon = llh[1]
         burst_meta.GeoData.SCP.LLH.HAE = llh[2]

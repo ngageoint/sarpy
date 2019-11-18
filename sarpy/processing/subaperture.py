@@ -5,8 +5,8 @@ import numpy as np
 # Default parameters for a variety of methods
 _DEFAULT_FRAMES = 9
 _DEFAULT_APFRACTION = 0.2
-_DEFAULT_METHOD = 'fullpixel'
-_DEFAULT_DIR = 'right'
+_DEFAULT_METHOD = 'FULLPIXEL'
+_DEFAULT_DIR = 'RIGHT'
 _DEFAULT_DIM = 1
 _DEFAULT_FILL = 1
 _DEFAULT_OFFSETPCT = None
@@ -37,8 +37,8 @@ def mem(ci,
     :param ci: Complex data. ASSUMED TO BE DE-SKEWED.
     :param frames: Number of frames.
     :param apfraction: Fraction of aperture for each subaperture.
-    :param method: One of ['normal', 'fullpixel', 'minimal'].
-    :param platformdir: Platform direction one of ['right', 'left'].
+    :param method: One of ['NORMAL', 'FULLPIXEL', 'MINIMAL'].
+    :param platformdir: Platform direction one of ['RIGHT', 'LEFT'].
     :param dim: Dimension over which to split subaperture.
     :param fill: Fill factor.
     :param offset_pct: Float in [0, 1]. Only used for single frame at a certain aperture offset.
@@ -48,8 +48,8 @@ def mem(ci,
     .. Note: All desired frames will be held in memory at once.
     """
 
-    # TODO: HIGH - unit test. This name continues to be despicable.
-    #   Why not just have an optional argument of mem_ph for doing the shift mumbo jumbo? This is sort of silly.
+    # TODO: HIGH - unit test. This naming scheme continues to be undesirable.
+    #   Why not just have an optional argument of mem_ph for doing the shift mumbo jumbo?
 
     return mem_ph(np.fft.fftshift(np.fft.fft(ci, axis=dim), axes=dim),
                   frames=frames,
@@ -88,7 +88,7 @@ def mem_ph(ph,
     .. Note: All desired frames will be held in memory at once.
     """
 
-    # TODO: HIGH - unit test. This name continues to be even more despicable.
+    # TODO: HIGH - unit test. This naming scheme continues to be undesirable.
     #   Is it worth returning a generator to alleviate the everything in memory at once scenario? What is the use case?
 
     # Parse and validate arguments if not already done
@@ -107,11 +107,13 @@ def mem_ph(ph,
     nxfftOrig = ph.shape[1]
     left_edge = int(np.round(nxfftOrig * (1 - (1 / max(fill, 1))) / 2))  # Where left edge starts
     nxfft = nxfftOrig - (2*left_edge)
-    if method.lower() == 'minimal':
+    if method.upper() == 'MINIMAL':
         output_res = np.ceil(nxfft / frames)
-    elif method.lower() == 'fullpixel':
+    elif method.upper() == 'FULLPIXEL':
         output_res = nxfftOrig
     else:
+        # TODO: LOW - it's probably worth fleshing out the full list, unless we are absolutely positive
+        #   that it will never change
         output_res = np.ceil(apfraction*nxfftOrig)
 
     result = []
@@ -121,7 +123,7 @@ def mem_ph(ph,
     else:
         step = 0
     if frames == 1 and offset_pct is not None:  # Use offset_pct, rather than frames
-        if dim == 1 and platformdir.lower() == 'right':
+        if dim == 1 and platformdir.upper() == 'RIGHT':
             offset_pct = 1 - offset_pct
         offset = left_edge + np.floor((nxfft - num_sa) * offset_pct)
     else:
@@ -129,7 +131,7 @@ def mem_ph(ph,
 
     # Run the subaperture processing.  Done a frame at a time instead of by line -- either works
     for f in selected_frames:
-        if dim == 1 and platformdir.lower() == 'right':
+        if dim == 1 and platformdir.upper() == 'RIGHT':
             frame_num = frames - f - 1
         else:
             frame_num = f
@@ -164,7 +166,7 @@ def mem_sicd(ci, sicd_meta,
     .. Note: All desired frames will be held in memory at once.
     """
     # TODO: HIGH - This should not exist.
-    #   `sicd_meta` should be an keyword argument of mem_ph, and fill/platformdir overrideen if not `None`
+    #   `sicd_meta` should be an keyword argument of mem_ph, and fill/platformdir overridden if not `None`
 
     if dim == 1:
         fill = 1/(sicd_meta.Grid.Col.SS * sicd_meta.Grid.Col.ImpRespBW)

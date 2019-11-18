@@ -7,6 +7,9 @@ import re
 
 __classification__ = "UNCLASSIFIED"
 
+# TODO: MEDIUM - this is really a collection of formatting functions, and conceptually belong somewhere else.
+#   Where are these being used? Where does this functionality belong? It's almost certainly not here.
+
 
 def string(value, latlon, num_units=3, precision=None, delimiter='',
            include_symbols=True, signed=False, padded=True):
@@ -35,7 +38,7 @@ def string(value, latlon, num_units=3, precision=None, delimiter='',
     try:
         is_dms = len(value) > 1  # Vector of degree/minutes/seconds or string
     except:  # len() won't work on scalar
-        # TODO: LOW - this is terrible
+        # TODO: LOW - this is a bad pattern. Do better.
         is_dms = False
 
     if is_dms:

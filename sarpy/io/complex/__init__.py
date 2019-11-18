@@ -49,7 +49,8 @@ class Writer(object):  # TODO: HIGH - update this to sensibility. file-type obje
         pass
 
 
-# Functions
+# TODO: HIGH - it is generally a bad idea to override a built-in name like this.
+#   Can we refactor this name? Get clarification with Wade.
 def open(filename):
     """
     Determines format of complex SAR data, and returns appropriate Reader class instance.

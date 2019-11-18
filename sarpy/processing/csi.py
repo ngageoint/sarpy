@@ -21,7 +21,8 @@ def _jet_wrapped(m):
 
     # TODO: MEDIUM - I have ignored docstring here. This functionality should be cleaned up significantly.
     #   Possibly introduce matplotlib colormap choices? Provides a nice library of colormaps, and is easy to use.
-    #   The choice of dimension ordering is ridiculous, so should be changed.
+    #   The choice of dimension ordering is ridiculous, so should be changed. Move the default away from jet
+    #   with its famously bad luminance issues.
 
     n = np.ceil(float(m)/4)
     u = np.r_[(np.arange(n)+1)/n, np.ones(int(round(n))-1), np.arange(n, 0, -1)/n]
@@ -47,12 +48,13 @@ def mem(im0, dim=1, pdir='right', fill=1):
     :return: A 3-dimensional array of complex image data, with each band representing red, green, and blue.
     """
 
-    # TODO: HIGH - this description is not descriptive. What does this do?
-    #   Is it too late to rename this method? What a bad name.
-    #   Unit test this thing
-    #   Dimension ordering is stupid, and should be fixed
-    #   This dim handling is a hack, and is terrible
-    #   There's a bunch of native methods mixed in with numpy methods. Bad news.
+    # TODO: HIGH -
+    #   1.) this description is not descriptive. What does this do?
+    #   2.) Rename this method to a more descriptive name?
+    #   3.) Coherent dimension ordering convention should be followed - this is confusing.
+    #   4.) This dim argument handling should be unhacked
+    #   5.) There's a bunch of native methods mixed in with numpy methods - should all be numpy methods
+    #   6.) Unit test
 
     # Purely out of laziness, so the same code processes both dimensions
     if dim == 0:
@@ -108,7 +110,7 @@ def file(fname, dim=1, row_range=None, col_range=None):
     """
 
     # TODO: HIGH - unit test this thing? Just this? Just above? Both?
-    #  Are both of these methods even actually user facing?
+    #  Are both of these methods even actually user facing? naming again.
 
     readerObj = complex.open(fname)
     b = readerObj.read_chip(row_range, col_range)

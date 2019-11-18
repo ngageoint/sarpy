@@ -5,8 +5,7 @@ import warnings
 import re
 import numpy as np
 
-from . import Reader as ReaderSuper  # Reader superclass
-from . import Writer as WriterSuper  # Writer superclass
+from . import Reader as ReaderSuper, WriterSuper
 from .utils import bip
 from . import sicd
 

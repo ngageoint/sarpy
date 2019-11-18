@@ -9,6 +9,10 @@ from . import Reader as ReaderSuper  # Reader superclass
 __classification__ = "UNCLASSIFIED"
 
 
+# TODO: HIGH - there are very good tiff reading and writing tools already. Things change with image
+#   standards all the time, and libraries like libtiff or gdal that have a large following and community
+#   support will likely provide much better support than trying to do it all ourselves. We should not do this.
+
 # TODO: DANGLING - Add way to find associated metadata files for sensor-specific formats that use TIFF
 
 
