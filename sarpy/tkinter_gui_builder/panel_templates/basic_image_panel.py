@@ -2,6 +2,7 @@ import tkinter as tk
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.pyplot as plt
 import numpy as np
+import functools
 
 
 class BasicImagePanel(tk.Frame):
@@ -34,3 +35,19 @@ class BasicImagePanel(tk.Frame):
         # ax = plt.gca()
         self.ax.imshow(new_image)
         self.canvas.draw()
+
+    def callback_update_image2(self, event):
+        self.update_image()
+
+    def update_image2(self):
+        new_image = np.random.random((200, 200))
+        self.im.set_data(new_image)
+        # ax = plt.gca()
+        self.ax.imshow(new_image)
+        self.canvas.draw()
+
+    def on_left_mouse_click_with_args(self, event, args):
+        self.bind("<Button-1>", functools.partial(self._partial_callback_w_param, param=args))
+
+    def _partial_callback_w_param(self, event, param):
+        print(param)

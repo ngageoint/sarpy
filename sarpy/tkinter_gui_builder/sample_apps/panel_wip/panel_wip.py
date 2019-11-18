@@ -28,7 +28,7 @@ class TwoPanelSideBySide:
         self.basic_button_panel.button1.on_left_mouse_click(self.image_panel.callback_update_image)
         self.basic_button_panel.button2.on_left_mouse_click(self.button_change_text_callback)
         self.basic_button_panel.button3.on_left_mouse_click(self.askopenfile_callback)
-        #self.basic_button_panel.button3.on_left_mouse_click(lambda self.test_callback: "stuff")
+        self.basic_button_panel.button4.on_left_mouse_click_with_args(self.image_panel.callback_update_image, args=2)
 
     def button_change_text_callback(self, event):
         self.basic_button_panel.button3.callback_set_text("12345")
@@ -37,7 +37,6 @@ class TwoPanelSideBySide:
     def askopenfile_callback(self, event):
         self.app_variables.fname = askopenfilename()
         return "break"
-
 
 
 root = tkinter.Tk()
