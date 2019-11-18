@@ -5,7 +5,7 @@ import numpy as np
 
 
 @add_metaclass(abc.ABCMeta)
-class BasicButtonPanel2(tk.Frame):
+class BasicButtonPanel(tk.Frame):
     def __init__(self, parent):
         tk.Frame.__init__(self, parent)
         self.config(highlightbackground="black")
@@ -41,4 +41,8 @@ class BasicButtonPanel2(tk.Frame):
             if i in transitions:
                 row_num += 1
             setattr(self, widget, getattr(self, widget)(self.rows[row_num]))
-            getattr(self, widget).pack(side="left")
+            getattr(self, widget).pack(side="left", padx=5, pady=5)
+            getattr(self, widget).config(bd=2)
+
+
+

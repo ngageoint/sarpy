@@ -1,10 +1,11 @@
-from sarpy.tkinter_gui_builder.panel_templates.basic_button_panel2 import BasicButtonPanel2
+from sarpy.tkinter_gui_builder.panel_templates.basic_button_panel import BasicButtonPanel
 from sarpy.tkinter_gui_builder.widget_utils import basic_widgets
+from tkinter.filedialog import askopenfilename
 
 
-class SevenButtonPanel(BasicButtonPanel2):
+class SevenButtonPanel(BasicButtonPanel):
     def __init__(self, parent):
-        BasicButtonPanel2.__init__(self, parent)
+        BasicButtonPanel.__init__(self, parent)
         self.button1 = basic_widgets.Button
         self.button2 = basic_widgets.Button
         self.button3 = basic_widgets.Button
