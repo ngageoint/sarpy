@@ -1,7 +1,7 @@
 import abc
 from six import add_metaclass
 import tkinter as tk
-import sarpy.tkinter_gui_builder.widget_utils.basic_widgets as basic_widgets
+import numpy as np
 
 
 @add_metaclass(abc.ABCMeta)
@@ -12,6 +12,10 @@ class BasicButtonPanel2(tk.Frame):
         self.config(highlightthickness=1)
         self.config(borderwidth=5)
         self.rows = None           # type: tk.Frame
+
+    def init_w_xy_positions_dict(self, positions_dict):
+        # just find the right order then call init_w_basic_widget_list
+        stop = 1
 
     def init_w_basic_widget_list(self,
                                  basic_widget_list,         # type: list
@@ -25,11 +29,16 @@ class BasicButtonPanel2(tk.Frame):
         :param n_widgets_per_row_list:
         :return:
         """
-        self.rows = [tk.Frame for i in range(n_rows)]
+        self.rows = [tk.Frame(self) for i in range(n_rows)]
         for row in self.rows:
             row.config(borderwidth=2)
             row.pack()
 
-        for widget in basic_widget_list:
-            widget = widget(self.rows[0])
-            widget.pack(side="left")
+        # find transition points
+        transitions = np.cumsum(n_widgets_per_row_list)
+        row_num = 0
+        for i, widget in enumerate(basic_widget_list):
+            if i in transitions:
+                row_num += 1
+            setattr(self, widget, getattr(self, widget)(self.rows[row_num]))
+            getattr(self, widget).pack(side="left")
