@@ -19,16 +19,10 @@ class BasicPlotPanel(tk.Frame):
         self.canvas.draw()
         self.canvas.get_tk_widget().pack(fill='both', expand=1)
 
-    def callback_decrease(self, event):
-        self.decrease()
-
     def decrease(self):
         x, y = self.line.get_data()
         self.line.set_ydata(y - 0.2 * x)
         self.canvas.draw()
-
-    def callback_increase(self, event):
-        self.increase()
 
     def increase(self):
         x, y = self.line.get_data()
