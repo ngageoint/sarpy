@@ -246,6 +246,37 @@ class Serializable(object):
 #############
 # Basic building blocks for SICD standard
 
+# TODO: note that this shadows a builtin type. We should probably use the builtin type and define serialization
+#  appropriately in Serializable. I'll leave this here for now.
+class ComplexType(Serializable):
+    __slots__ = ('_Real', '_Imag')
+    __fields = ('Real', 'Imag')
+    __required = __fields
+    __numeric_format = {'Real': '0.8f', 'Imag': '0.8f'}
+
+    def __init__(self, **kwargs):
+        super(ComplexType, self).__init__(**kwargs)
+
+    @property
+    def Real(self):
+        return self._Real
+
+    @Real.setter
+    def Real(self, value):
+        self._Real = float(value)
+
+    @property
+    def Imag(self):
+        return self._Imag
+
+    @Imag.setter
+    def Imag(self, value):
+        self._Imag = float(value)
+
+    def get_value(self):
+        return self.Real + self.Imag*1j
+
+
 class XYZType(Serializable):
     __slots__ = ('_X', '_Y', '_Z')
     __fields = ('X', 'Y', 'Z')
@@ -300,10 +331,7 @@ class LatLonType(Serializable):
 
     @Lat.setter
     def Lat(self, value):
-        if value is None:
-            self._Lat = numpy.nan
-        else:
-            self._Lat = float(value)
+        self._Lat = float(value)
 
     @property
     def Lon(self):
@@ -311,10 +339,7 @@ class LatLonType(Serializable):
 
     @Lon.setter
     def Lon(self, value):
-        if value is None:
-            self._Lon = numpy.nan
-        else:
-            self._Lon = float(value)
+        self._Lon = float(value)
 
     def getArray(self, order='Lon', dtype=numpy.float64):
         if order == 'Lat':
@@ -379,10 +404,7 @@ class LatLonHAEType(LatLonType):
 
     @HAE.setter
     def HAE(self, value):
-        if value is None:
-            self._HAE = numpy.nan
-        else:
-            self._HAE = float(value)
+        self._HAE = float(value)
 
     def getArray(self, order='Lon', dtype=numpy.float64):
         if order == 'Lat':
@@ -407,10 +429,7 @@ class LatLonHAERestrictionType(LatLonRestrictionType):
 
     @HAE.setter
     def HAE(self, value):
-        if value is None:
-            self._HAE = numpy.nan
-        else:
-            self._HAE = float(value)
+        self._HAE = float(value)
 
     def getArray(self, order='Lon', dtype=numpy.float64):
         if order == 'Lat':
@@ -924,41 +943,418 @@ class LineType(Serializable):
         node.setAttribute('size', str(self.size))
         for i, entry in enumerate(self.Endpoints):
             entry.to_node(doc, par=node, strict=strict, exclude=())\
-                .setAttribute(str(i))
+                .setAttribute('index', str(i))
         return node
 
 
-# TODO: NEXT UP - PolygonType - much like the LineType. Should I take steps to ensure equality in first and last?
+class PolygonType(Serializable):
+    __slots__ = ('_Vertices', )
+    __fields = ('Vertices', 'size')
+    __required = ('Vertices', 'size')
+
+    def __init__(self, **kwargs):
+        self._Vertices = []
+        super(PolygonType, self).__init__(**kwargs)
+
+    def _is_valid(self):
+        return len(self.Vertices) > 2
+
+    @property
+    def size(self):
+        return len(self.Vertices)
+
+    @property
+    def Vertices(self):
+        return self._Vertices
+
+    @Vertices.setter
+    def Vertices(self, value):
+        if value is None:
+            self._Vertices = []
+        elif isinstance(value, minidom.NodeList):
+            self._Vertices = [None, ]*len(value)
+            for node in value:
+                i = int(node.getAttribute('index'))
+                self._Vertices[i] = LatLonRestrictionType.from_node(node)  # Note tht I've cheated an attribute in here
+        elif isinstance(value, list):
+            if len(value) == 0:
+                self._Vertices = value
+            elif isinstance(value[0], LatLonRestrictionType):
+                for entry in value:
+                    if not isinstance(entry, LatLonRestrictionType):
+                        raise ValueError('The first Vertices entry was an instance of LatLonRestrictionType. '
+                                         'It is required that all further entries must be instances of '
+                                         'LatLonRestrictionType.')
+                self._Vertices = value
+            elif isinstance(value[0], dict):
+                self._Vertices = []
+                for entry in value:
+                    if not isinstance(entry, dict):
+                        raise ValueError('The first Vertices entry was an instance of dict. It is required '
+                                         'that all further entries must be instances of dict.')
+                    self._Vertices.append(LatLonRestrictionType.from_dict(entry))
+            else:
+                raise ValueError('Attempted Vertices assignment using a list with first element of '
+                                 'unsupported type {}'.format(type(value[0])))
+        else:
+            raise ValueError('Attempted Vertices assignment of unsupported type {}'.format(type(value)))
+
+    # TODO: helper methods for functionality, again?
+
+    @classmethod
+    def from_node(cls, node, kwargs=None):
+        if kwargs is None:
+            kwargs = {}
+        kwargs['Vertices'] = node.getElementsByTagName('Vertex')
+        return super(PolygonType, cls).from_node(node, kwargs=kwargs)
+
+    def to_node(self, doc, tag=None, par=None, strict=False, exclude=()):
+        node = super(PolygonType, self).to_node(doc, tag=tag, par=par, strict=strict,
+                                                exclude=exclude+('Vertices', 'size'))
+        node.setAttribute('size', str(self.size))
+        for i, entry in enumerate(self.Vertices):
+            entry.to_node(doc, par=node, strict=strict, exclude=())\
+                .setAttribute('index', str(i))
+        return node
+
+
+class ErrorDecorrFuncType(Serializable):
+    __slots__ = ('_CorrCoefZero', '_DecorrRate')
+    __fields = ('CorrCoefZero', 'DecorrRate')
+    __required = __fields
+    __numeric_format = {'CorrCoefZero': '0.8f', 'DecorrRate': '3.8f'}  # TODO: desired precision?
+
+    def __init__(self, **kwargs):
+        self._CorrCoefZero = self._DecorrRate = None
+        super(ErrorDecorrFuncType, self).__init__(**kwargs)
+
+    @property
+    def CorrCoefZero(self):
+        return self._CorrCoefZero
+
+    @CorrCoefZero.setter
+    def CorrCoefZero(self, value):
+        self._CorrCoefZero = float(value)
+
+    @property
+    def DecorrRate(self):
+        return self._DecorrRate
+
+    @DecorrRate.setter
+    def DecorrRate(self, value):
+        self._DecorrRate = float(value)
+
+
+class Parameters(Serializable):
+    # This isn't actually part of the SICD standard exactly, this is just a convenience
+    # helper class for the functionality
+    __slots__ = ('_entries', )
+    __fields = ('entries', )
+    __required = ()
+
+    def __init__(self, **kwargs):
+        self._entries = OrderedDict()
+        super(Parameters, self).__init__(**kwargs)
+
+    @property
+    def entries(self):
+        return self._entries
+
+    @entries.setter
+    def entries(self, value):
+        if value is None:
+            self._entries = OrderedDict()
+        elif isinstance(value, dict):
+            self._entries = value
+        elif isinstance(value, minidom.NodeList):
+            self._entries = OrderedDict()
+            for nod in value:
+                self._entries[nod.getAttribute("name")] = _get_node_value(nod)
+
+    @classmethod
+    def from_node(cls, node, kwargs=None):
+        # NB: fish out all Parameter nodes from node, children at any level
+        if kwargs is None:
+            kwargs = {}
+        pnodes = node.getElementsByTagName('Parameter')
+        kwargs['entries'] = pnodes
+        return cls.from_dict(**kwargs)
+
+    def to_node(self, doc, tag=None, par=None, strict=False, exclude=()):
+        if tag is None:
+            tag = 'Parameter'
+        for entry in self.entries:
+            value = self.entries[value]
+            nod = _create_text_node(doc, tag, value, par=par)
+            nod.setAttribute('name', entry)
+
+
+class RadarMode(Serializable):
+    # Really just subordinate to CollectionInfo, but this doesn't hurt at all
+    __slots__ = ('_ModeType', 'ModeId')
+    __fields = ('ModeType', 'ModeId')
+    __required = ('ModeType', )
+
+    def __init__(self, **kwargs):
+        self._ModeType =  self.ModeId = None
+        super(RadarMode, self).__init__(**kwargs)
+
+    @property
+    def ModeType(self):
+        return self._ModeType
+
+    @ModeType.setter
+    def ModeType(self, value):
+        val = value.upper()
+        allowed = ["SPOTLIGHT", "STRIPMAP", "DYNAMIC STRIPMAP"]
+        if val in allowed:
+            self._ModeType = val
+        else:
+            raise ValueError('Received {} for ModeType, which is restricted to values {}'.format(value, allowed))
+
+
+class FullImage(Serializable):
+    __slots__ = ('_NumRows', '_NumCols')
+    __fields = ('NumRows', 'NumCols')
+    __required = __fields
+
+    def __init__(self, **kwargs):
+        self._NumRows = self._NumCols = None
+        super(FullImage, self).__init__(**kwargs)
+
+    @property
+    def NumRows(self):
+        return self._NumRows
+
+    @NumRows.setter
+    def NumRows(self, value):
+        self._NumRows = int(value)
+
+    @property
+    def NumCols(self):
+        return self._NumCols
+
+    @NumCols.setter
+    def NumCols(self, value):
+        self._NumCols = int(value)
+
+class ValidData(Serializable): # TODO: define ValidData type - part of ImageDataType
+    __slots__ = ()
+    __fields = ()
+    __required = ()
+
+    def __init__(self, **kwargs):
+        super(ValidData, self).__init__(**kwargs)
+
 
 # TODO: corner type mumbo-jumbo
 
+# direct building blocks for SICD
 
-class ComplexType(Serializable):
-    # TODO: note that this shadows a builtin type. We should probably use the builtin type and define serialization
-    #  appropriately in Serializable. I'll leave this here for now.
-    __slots__ = ('_Real', '_Imag')
-    __fields = ('Real', 'Imag')
-    __required = __fields
-    __numeric_format = {'Real': '0.8f', 'Imag': '0.8f'}
+class CollectionInfo(Serializable):
+    __slots__ = ('CollectorName', 'IlluminatorName', 'CoreName', '_CollectType', '_RadarMode', 'Classification',
+                 '_CountryCodes', '_Parameters')
+    __fields = ('CollectorName', 'IlluminatorName', 'CoreName', 'CollectType', 'RadarMode', 'Classification',
+                'CountryCodes', 'Parameters')
+    __required = ('CollectorName', 'CoreName', 'RadarMode', 'Classification')
 
     def __init__(self, **kwargs):
-        super(ComplexType, self).__init__(**kwargs)
+        self.CollectorName = self.IlluminatorName = self.CoreName = self._CollectType = self._RadarMode = None
+        self.Classification = self._CountryCodes = self._Parameters = None
+        super(CollectionInfo, self).__init__(**kwargs)
 
     @property
-    def Real(self):
-        return self._Real
+    def CollectType(self):
+        return self._CollectType
 
-    @Real.setter
-    def Real(self, value):
-        self._Real = float(value)
+    @CollectType.setter
+    def CollectType(self, value):
+        val = value.upper()
+        allowed = ["MONOSTATIC", "BISTATIC"]
+        if val in allowed:
+            self._CollectType = val
+        else:
+            raise ValueError('Received {} for CollectType, which is restricted to values {}'.format(value, allowed))
 
     @property
-    def Imag(self):
-        return self._Imag
+    def RadarMode(self):
+        return self._RadarMode
 
-    @Imag.setter
-    def Imag(self, value):
-        self._Imag = float(value)
+    @RadarMode.setter
+    def RadarMode(self, value):
+        if value is None:
+            self._RadarMode = None
+        elif isinstance(value, RadarMode):
+            self._RadarMode = value
+        elif isinstance(value, minidom.Element):
+            self._RadarMode = RadarMode.from_node(value)
+        elif isinstance(value, dict):
+            self._RadarMode = RadarMode.from_dict(value)
+        else:
+            raise ValueError('Attempted RadarMode assignment of unsupported type {}'.format(type(value)))
 
-    def get_value(self):
-        return self.Real + self.Imag*1j
+    @property
+    def CountryCodes(self):
+        return self._CountryCodes
+
+    @CountryCodes.setter
+    def CountryCodes(self, value):
+        if value is None:
+            self._CountryCodes = None
+        elif isinstance(value, str):
+            self._CountryCodes = [value, ]
+        elif isinstance(value, tuple):
+            self._CountryCodes = list(value)
+        elif isinstance(value, minidom.NodeList):
+            self._CountryCodes = []
+            for nod in value:
+                self._CountryCodes.append(_get_node_value(nod))
+        elif isinstance(value, list):
+            if len(value) == 0:
+                self._CountryCodes = value
+            elif isinstance(value[0], str):
+                for entry in value:
+                    if not isinstance(entry, str):
+                        raise ValueError('CountryCodes received a list ith first element an instance of str, '
+                                         'so then requires that all elements are an instance of str.')
+                self._CountryCodes = value
+            else:
+                raise ValueError('CountryCodes setter received a list with first element of '
+                           'incompatible type {}'.format(type(value[0])))
+        else:
+            raise ValueError('CountryCodes setter received incompatible type {}'.format(type(value)))
+
+    @property
+    def Parameters(self):
+        return self._Parameters
+
+    @Parameters.setter
+    def Parameters(self, value):
+        if value is None:
+            self._Parameters = None
+        elif isinstance(value, dict) or isinstance(value, minidom.NodeList):
+            self._Parameters = Parameters(entries=value)
+        else:
+            raise ValueError('Parameters setter received incompatible type {}'.format(type(value)))
+
+    @classmethod
+    def from_node(cls, node, kwargs=None):
+        if kwargs is None:
+            kwargs = {}
+        kwargs['CountryCodes'] = node.getElementsByTagName('CountryCode')
+        kwargs['Parameters'] = node.getElementsByTagName('Parameter')
+        super(CollectionInfo, cls).from_node(node, kwargs=kwargs)
+
+    def to_node(self, doc, tag=None, par=None, strict=False, exclude=()):
+        node = super(CollectionInfo, self).to_node(doc, tag=tag, par=par, strict=strict,
+                                                   exclude=exclude+('CountryCodes', 'Parameters'))
+        if self.CountryCodes is not None:
+            for entry in self.CountryCodes:
+                _create_text_node(doc, 'CountryCode', entry, par=node)
+        if self.Parameters is not None:
+            self.Parameters.to_node(doc, tag='Parameter', par=node, strict=strict, exclude=())
+
+
+class ImageCreation(Serializable):
+    __slots__ = ('Application', '_DateTime', 'Site', 'Profile')
+    __fields = ('Application', 'DateTime', 'Site', 'Profile')
+    __required = ()
+
+    def __init__(self, **kwargs):
+        self.Application = self._DateTime = self.Site = self.Profile = None
+        super(ImageCreation, self).__init__(**kwargs)
+
+    @property
+    def DateTime(self):
+        return self._DateTime
+
+    @DateTime.setter
+    def DateTime(self, value):
+        if value is None:
+            self._DateTime = None
+        elif isinstance(value, (date, datetime, str)):
+            self._DateTime = numpy.datetime64(value, 'us')  # let's default to microsecond precision
+        elif isinstance(value, numpy.datetime64):
+            self._DateTime = value
+
+
+class ImageDataType(Serializable):
+    __slots__ = ('_PixelType', '_AmpTable', '_NumRows', '_NumCols', '_FirstRow', '_FirstCol', '_FullImage',
+                 '_SCPPixel', '_ValidData')
+    __fields = ('PixelType', 'AmpTable', 'NumRows', 'NumCols', 'FirstRow', 'FirstCol', 'FullImage', 'SCPPixel',
+                'ValidData')
+    __required = ('PixelType', 'NumRows', 'NumCols', 'FirstRow', 'FirstCol', 'FullImage', 'SCPPixel')
+
+    def __init__(self, **kwargs):
+        self._PixelType = self._AmpTable = self._NumRows = self._NumCols = self._FirstRow = self._FirstCol = None
+        self._FullImage = self._SCPPixel = self._ValidData = None
+        super(ImageDataType, self).__init__(**kwargs)
+
+    @property
+    def NumRows(self):
+        return self._NumRows
+
+    @NumRows.setter
+    def NumRows(self, value):
+        self._NumRows = int(value)
+
+    @property
+    def NumCols(self):
+        return self._NumCols
+
+    @NumCols.setter
+    def NumCols(self, value):
+        self._NumCols = int(value)
+
+    @property
+    def FirstRow(self):
+        return self._FirstRow
+
+    @FirstRow.setter
+    def FirstRow(self, value):
+        self._FirstRow = int(value)
+
+    @property
+    def FirstCol(self):
+        return self._FirstCol
+
+    @FirstCol.setter
+    def FirstCol(self, value):
+        self._FirstCol = int(value)
+
+    @property
+    def SCPPixel(self):
+        return self._SCPPixel
+
+    @SCPPixel.setter
+    def SCPPixel(self, value):
+        if value is None:
+            self._SCPPixel = None
+        elif isinstance(value, RowColType):
+            self._SCPPixel = value
+        elif isinstance(value, dict):
+            self._SCPPixel = RowColType.from_dict(value)
+        elif isinstance(value, minidom.Element):
+            self._SCPPixel = RowColType.from_node(value)
+        else:
+            raise ValueError('SCPPixel setter got incompatible type {}'.format(type(value)))
+
+    @property
+    def FullImage(self):
+        return self._FullImage
+
+    @FullImage.setter
+    def FullImage(self, value):
+        if value is None:
+            self._FullImage = None
+        elif isinstance(value, FullImage):
+            self._FullImage = value
+        elif isinstance(value, dict):
+            self._FullImage = FullImage.from_dict(value)
+        elif isinstance(value, minidom.Element):
+            self._FullImage = FullImage.from_node(value)
+        else:
+            raise ValueError('FullImage setter got incompatible type {}'.format(type(value)))
+
+    # TODO: define ValidData types
+
