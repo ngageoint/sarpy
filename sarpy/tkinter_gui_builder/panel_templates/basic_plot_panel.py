@@ -17,7 +17,7 @@ class BasicPlotPanel(tk.Frame):
 
         self.canvas = FigureCanvasTkAgg(fig, master=self)
         self.canvas.draw()
-        self.canvas.get_tk_widget().pack(fill='both', expand=1)
+        self.canvas.get_tk_widget().pack(fill='both')
 
     def decrease(self):
         x, y = self.line.get_data()

@@ -5,7 +5,7 @@ import numpy as np
 from tkinter import Canvas
 
 
-class BasicImagePanel(tk.Frame):
+class BasicPyplotImagePanel(tk.Frame):
     def __init__(self, parent):
         tk.Frame.__init__(self, parent)
         self.config(highlightbackground="black")
@@ -17,7 +17,7 @@ class BasicImagePanel(tk.Frame):
         image_data[30:40, 30:40] = 0.5
         image_data[40:50, 40:50] = 1.0
 
-        fig = plt.figure(figsize=(5, 4))
+        fig = plt.figure(figsize=(10, 8))
         self.im = plt.imshow(image_data)  # later use a.set_data(new_data)
         self.ax = plt.gca()
         self.image = self.ax.imshow(image_data)
