@@ -1,6 +1,6 @@
 import tkinter
 from tkinter.filedialog import askopenfilename
-from sarpy.tkinter_gui_builder.sample_apps.panel_wip.custom_panels.seven_button_panel import SevenButtonPanel
+from sarpy.tkinter_gui_builder.sample_apps.taser_wip.custom_panels.button_panel import ButtonPanel
 from sarpy.tkinter_gui_builder.panel_templates.basic_pyplot_image_panel import BasicPyplotImagePanel
 from sarpy.tkinter_gui_builder.panel_templates.basic_image_canvas_panel import BasicImageCanvasPanel
 import numpy as np
@@ -13,7 +13,7 @@ class AppVariables:
         self.fname = "None"       # type: str
 
 
-class TwoPanelSideBySide:
+class Taser:
     def __init__(self, master):
         # Create a container
         # set the master frame
@@ -21,7 +21,7 @@ class TwoPanelSideBySide:
         self.app_variables = AppVariables()
 
         # define panels widget_wrappers in master frame
-        self.button_panel = SevenButtonPanel(master_frame)
+        self.button_panel = ButtonPanel(master_frame)
         self.button_panel.set_spacing_between_buttons(0)
         self.pyplot_panel = BasicPyplotImagePanel(master_frame, 800, 600)
         self.basic_image_panel = BasicImageCanvasPanel(master_frame)
@@ -31,17 +31,15 @@ class TwoPanelSideBySide:
         self.button_panel.pack(side="left")
         self.basic_image_panel.pack(side="left")
         self.pyplot_panel.pack(side="left")
+        self.basic_image_panel2.pack(side="left")
 
         master_frame.pack()
 
         # bind events to callbacks here
-        self.button_panel.button1.on_left_mouse_click(self.callback_get_and_save_fname)
-        self.button_panel.button1.on_right_mouse_click(self.callback_update_pyplot_image_w_fname)
-        self.button_panel.button2.on_left_mouse_click(self.callback_update_basic_image_canvas_w_fname)
-        self.button_panel.button4.on_left_mouse_click(self.callback_update_pyplot_image_w_fname)
-        self.button_panel.button5.on_left_mouse_click_with_args(self.update_image_from_app_variable_arg, self.app_variables)
-        self.button_panel.button6.on_left_mouse_click(self.callback_random_canvas_image)
-        self.button_panel.button7.on_left_mouse_click(self.callback_display_canvas_rect_selection)
+        self.button_panel.fname_select.on_left_mouse_click(self.callback_get_and_save_fname)
+        self.button_panel.update_basic_image.on_left_mouse_click(self.callback_update_basic_image_canvas_w_fname)
+        self.button_panel.update_rect_image.on_left_mouse_click(self.callback_display_canvas_rect_selection)
+        self.button_panel.update_rect_image.on_right_mouse_click(self.callback_display_random_pyplot_image)
 
         self.basic_image_panel.canvas.on_left_mouse_press(self.callback_start_drawing_new_rect)
         self.basic_image_panel.canvas.on_left_mouse_motion(self.callback_drag_rect)
@@ -50,7 +48,7 @@ class TwoPanelSideBySide:
         self.basic_image_panel.canvas.on_right_mouse_motion(self.callback_drag_line)
 
     # define custom callbacks here
-    def callback_display_random_image(self, event):
+    def callback_display_random_pyplot_image(self, event):
         new_image = np.random.random((200, 200))
         self.pyplot_panel.update_image(new_image)
 
@@ -102,5 +100,5 @@ class TwoPanelSideBySide:
 
 
 root = tkinter.Tk()
-app = TwoPanelSideBySide(root)
+app = Taser(root)
 root.mainloop()

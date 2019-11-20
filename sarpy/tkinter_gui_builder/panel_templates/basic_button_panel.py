@@ -2,6 +2,7 @@ import abc
 from six import add_metaclass
 import tkinter as tk
 import numpy as np
+import sarpy.utils.variable_utils as variable_utils
 
 
 @add_metaclass(abc.ABCMeta)
@@ -50,14 +51,21 @@ class BasicButtonPanel(tk.Frame):
 
         # find transition points
         transitions = np.cumsum(n_widgets_per_row_list)
+        self.widget_list = []
         row_num = 0
-        for i, widget in enumerate(basic_widget_list):
+        for i, widget_and_name in enumerate(basic_widget_list):
             if i in transitions:
                 row_num += 1
+            widget = widget_and_name
+            name = widget_and_name
+            if type(("", "")) == type(widget_and_name):
+                widget = widget_and_name[0]
+                name = widget_and_name[1]
             setattr(self, widget, getattr(self, widget)(self.rows[row_num]))
             getattr(self, widget).pack(side="left", padx=5, pady=5)
             getattr(self, widget).config(bd=2)
-        self.widget_list = basic_widget_list
+            getattr(self, widget).config(text=name)
+            self.widget_list.append(widget)
 
     def set_spacing_between_buttons(self, spacing_npix_x=0, spacing_npix_y=None):
         if spacing_npix_y is None:
