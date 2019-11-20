@@ -31,7 +31,6 @@ class Taser:
         self.button_panel.pack(side="left")
         self.basic_image_panel.pack(side="left")
         self.pyplot_panel.pack(side="left")
-        self.basic_image_panel2.pack(side="left")
 
         master_frame.pack()
 

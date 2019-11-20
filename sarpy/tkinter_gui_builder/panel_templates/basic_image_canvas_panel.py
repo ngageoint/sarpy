@@ -45,8 +45,7 @@ class BasicImageCanvasPanel(tk.Frame):
         self.tk_im = None           # type: ImageTk.PhotoImage
         self.image_data = None      # type: np.ndarray
 
-        self.set_image_from_numpy_array(np.random.random((self.canvas_width, self.canvas_height)),
-                                        scale_dynamic_range=True)
+        self.set_image_from_numpy_array(np.random.random((self.canvas_width, self.canvas_height)), scale_dynamic_range=True)
 
     def set_image_from_pil_image_object(self, pil_image):
         numpy_data = np.array(pil_image)
@@ -75,7 +74,7 @@ class BasicImageCanvasPanel(tk.Frame):
             numpy_data = numpy_data - numpy_data.min()
             numpy_data = numpy_data / dynamic_range
             numpy_data = numpy_data * 255
-            numpy_data = np.asanyarray(numpy_data, dtype=int)
+            numpy_data = np.asanyarray(numpy_data, dtype=np.int8)
         pil_image = PIL.Image.fromarray(numpy_data)
 
         self.nx_pix, self.ny_pix = pil_image.size
