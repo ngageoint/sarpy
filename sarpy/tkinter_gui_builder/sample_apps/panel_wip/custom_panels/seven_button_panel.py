@@ -14,16 +14,25 @@ class SevenButtonPanel(BasicButtonPanel):
         self.button6 = basic_widgets.Button
         self.button7 = basic_widgets.Button
 
-        self.init_w_basic_widget_list(['button1',
+        # self.init_w_basic_widget_list(['button1',
+        #                                'button2',
+        #                                'button3',
+        #                                'button4',
+        #                                'button5',
+        #                                'button6',
+        #                                'button7',
+        #                                ],
+        #                               3,
+        #                               [2, 3, 2])
+
+        self.init_w_vertical_layout(['button1',
                                        'button2',
                                        'button3',
                                        'button4',
                                        'button5',
                                        'button6',
                                        'button7',
-                                       ],
-                                      3,
-                                      [2, 3, 2])
+                                       ])
 
         # self.init_w_xy_positions_dict({"button1": (0, 0),
         #                                "button2": (1, 0),
