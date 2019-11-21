@@ -330,6 +330,88 @@ class _FloatDescriptor(object):
             self.data[instance] = float(value)
 
 
+class _FloatArrayDescriptor(object):
+    """A descriptor for float array type properties"""
+
+    def __init__(self, name, docstring=None, required=False, strict=False, childTag='ArrayDouble'):
+        self.data = WeakKeyDictionary()  # our instance reference dictionary
+        # WeakDictionary use is subtle here. A reference to a particular class instance in this dictionary
+        # should not be the thing keeping a particular class instance from being destroyed.
+        self.name = name
+        self.required = required
+        self.strict = strict
+        self.childTag = childTag
+        if docstring is not None:
+            self.__doc__ = docstring
+        else:
+            self.__doc__ = "Float array type field"
+
+    def __get__(self, instance, owner):  # type: (object, object) -> float
+        """
+        The getter.
+        :param instance: the calling class instance
+        :param owner: the type of the class - that is, the actual object to which this descriptor is assigned
+        :return float: the return value
+        """
+
+        fetched = self.data.get(instance, None)
+        if fetched is not None or not self.required:
+            return fetched
+        elif self.strict:
+            raise AttributeError(
+                'Required field {} of class {} is not populated.'.format(self.name, instance.__class__.__name__))
+        else:
+            logging.info(
+                'Required field {} of class {} is not populated.'.format(self.name, instance.__class__.__name__))
+            return fetched
+
+    def __set__(self, instance, value):  # type: (object, float) -> None
+        """
+        The setter method.
+        :param instance: the calling class instance
+        :param value: the input value
+        :return None:
+        """
+
+        if value is None:
+            if self.strict:
+                raise ValueError(
+                    'field {} of class {} cannot be assigned None.'.format(self.name, instance.__class__.__name__))
+            elif self.required:
+                logging.info(
+                    'Required field {} of class {} has been set to None.'.format(
+                        self.name, instance.__class__.__name__))
+            self.data[instance] = value
+        # else:
+        #     self.data[instance] = float(value)
+        elif isinstance(value, numpy.ndarray):
+            if not (len(value) == 1) and (numpy.dtype == numpy.float64):
+                raise ValueError('Only one-dimensional ndarrays of dtype float64 are supported here.')
+            self.data[instance] = value
+        elif isinstance(value, minidom.Element):
+            new_value = []
+            for node in value.getElementsByTagName(self.childTag):
+                new_value.append((int(node.getAttribute('index')), float(_get_node_value(node))))
+            self.data[instance] = numpy.array([val[0] for val in sorted(new_value, key=lambda x: x[0])], dtype=numpy.float64)
+        elif isinstance(value, minidom.NodeList) or \
+                (isinstance(value, list) and len(value) > 0 and isinstance(value, minidom.Element)):
+            new_value = []
+            for node in value:
+                new_value.append((int(node.getAttribute('index')), self.theType.from_node(node).modify_tag(self.tag)))
+            self.data[instance] = numpy.array([entry for ind, entry in sorted(new_value, key=lambda x: x[0])], dtype=numpy.float64)
+        elif isinstance(value, minidom.NodeList):
+            new_value = []
+            for node in value:
+                new_value.append((int(node.getAttribute('index')), self.theType.from_node(node).modify_tag(self.tag)))
+            self.data[instance] = numpy.array([entry for ind, entry in sorted(new_value, key=lambda x: x[0])], dtype=numpy.float64)
+        elif isinstance(value, list):
+            self.data[instance] = numpy.array(value, dtype=numpy.float64)
+        else:
+            raise TypeError(
+                'Field {} of class {} got incompatible type {}.'.format(
+                    self.name, instance.__class__.__name__, type(value)))
+
+
 class _DateTimeDescriptor(object):
     """A descriptor for date time type properties"""
 
@@ -710,7 +792,7 @@ class Serializable(object):
         """
         Sets the default tag for serialization.
         :param str value:
-        :return Serializable: returns a reference to
+        :return Serializable: returns a reference to self, for calling pattern simplicity
         """
 
         if value is None:
@@ -732,6 +814,9 @@ class Serializable(object):
         if attribute not in self.__fields:
             raise ValueError('attribute {} is not permitted for class {}'.format(attribute, self.__class__.__name__))
         self.__numeric_format[attribute] = format_string
+
+    def _get_numeric_format(self, attribute):  # type: (str) -> str
+        return None if attribute not in self.__numeric_format else '{0:' + self.__numeric_format[attribute] + '}'
 
     def is_valid(self, recursive=False):  # type: (bool) -> bool
         """
@@ -791,17 +876,21 @@ class Serializable(object):
             if attribute in kwargs:
                 continue
 
-            tagname = cls.__tags[attribute] if attribute in cls.__tags else attribute
             if attribute in cls.__set_as_attribute:
-                val = node.getAttribute(tagname)
+                val = node.getAttribute(attribute)
                 kwargs[attribute] = None if len(val) == 0 else val
             else:
-                pnodes = [entry for entry in node.getElementsByTagName(tagname) if entry.parentNode == node]
+                child_tag = cls.__tags.get(attribute, None)
+                pnodes = [entry for entry in node.getElementsByTagName(attribute) if entry.parentNode == node]
+                cnodes = [] if child_tag is None else [
+                    entry for entry in node.getElementsByTagName(child_tag) if entry.parentNode == node]
                 if len(pnodes) == 1:
                     kwargs[attribute] = pnodes[0]
                 elif len(pnodes) > 1:
                     # this is for list type attributes. Probably should have an entry in __tags.
                     kwargs[attribute] = pnodes
+                elif len(cnodes) > 0:
+                    kwargs[attribute] = cnodes
         return cls.from_dict(kwargs)
 
     def to_node(self,
@@ -824,31 +913,39 @@ class Serializable(object):
         :return minidom.Element: the constructed dom element, already assigned to the parent element.
         """
 
-        def serializeChild(value, attribute, tag, fmt):
+        def serialize_child(value, attribute, child_tag, fmt, parent):
             if isinstance(value, Serializable):
-                value.to_node(doc, tag=tag, par=nod, strict=strict)
+                value.to_node(doc, tag=tag, par=parent, strict=strict)
             elif isinstance(value, str):  # TODO: MEDIUM - unicode issues?
-                _create_text_node(doc, tag, value, par=nod)
+                _create_text_node(doc, tag, value, par=parent)
             elif isinstance(value, int) or isinstance(value, float):
                 if fmt is None:
-                    _create_text_node(doc, attribute, str(value), par=nod)
+                    _create_text_node(doc, attribute, str(value), par=parent)
                 else:
-                    _create_text_node(doc, attribute, fmt.format(value), par=nod)
+                    _create_text_node(doc, attribute, fmt.format(value), par=parent)
             elif isinstance(value, complex):
                 raise NotImplementedError  # TODO: let's figure it out
             elif isinstance(value, date):
-                _create_text_node(doc, attribute, value.isoformat(), par=nod)
+                _create_text_node(doc, attribute, value.isoformat(), par=parent)
             elif isinstance(value, datetime):
-                _create_text_node(doc, attribute, value.isoformat(sep='T'), par=nod)
+                _create_text_node(doc, attribute, value.isoformat(sep='T'), par=parent)
                 # TODO: LOW - this can be error prone with the naive vs zoned issue.
                 #   Discourage using this type?
             elif isinstance(value, numpy.datetime64):
-                _create_text_node(doc, attribute, str(value), par=nod)
+                _create_text_node(doc, attribute, str(value), par=parent)
             elif isinstance(value, list) or isinstance(value, tuple):
+                # this is assumed to be serialized straight in, versus having a parent tag
                 for val in value:
-                    serializeChild(val, tag, fmt)
+                    serialize_child(val, child_tag, child_tag, fmt, parent)
             elif isinstance(value, numpy.ndarray):
-                raise NotImplementedError  # TODO: still need to figure out
+                if len(value.shape) != 1 or numpy.dtype != numpy.float64:
+                    raise NotImplementedError
+                anode = _create_new_node(doc, attribute, par=parent)
+                anode.setAttribute('size', str(value.size))
+                fmt_func = str if fmt is None else fmt.format
+                for i, val in enumerate(value):
+                    vnode = _create_text_node(doc, child_tag, fmt_func(val), par=anode)
+                    vnode.setAttribute('index', str(i))
             else:
                 raise ValueError(
                     'Attribute {} is of type {}, and not clearly serializable'.format(attribute, type(value)))
@@ -870,17 +967,15 @@ class Serializable(object):
             value = getattr(self, attribute)
             if value is None:
                 continue
-            tag = self.__tags.get(attribute, attribute)
-            fmt = self.__numeric_format(attribute, None)
-
+            child_tag = self.__tags.get(attribute, attribute)
+            fmt = self._get_numeric_format(attribute)
             if attribute in self.__set_as_attribute:
                 if fmt is None:
-                    nod.setAttribute(tag, str(value))
+                    nod.setAttribute(attribute, str(value))
                 else:
-                    nod.setAttribute(tag, fmt.format(value))
+                    nod.setAttribute(attribute, fmt.format(value))
             else:
-                serializeChild(value, attribute, tag, fmt)
-
+                serialize_child(value, attribute, child_tag, fmt)
         return nod
 
     @classmethod
@@ -916,15 +1011,15 @@ class Serializable(object):
 # Basic building blocks for SICD standard
 
 class PlainValueType(Serializable):
-    # This isn't actually part of the SICD standard, it's just a bottom level building block.
-
+    """
+    This is a basic xml building block element, and not actually specified in the SICD standard
+    """
     __fields = ('value', )
     __required = __fields
     value = _StringDescriptor('value', required=True, strict=True, docstring='The value')
 
     def __init__(self, **kwargs):
         """
-        The constructor.
         :param dict kwargs: one required key - 'value'
         :param kwargs:
         """
@@ -966,6 +1061,64 @@ class PlainValueType(Serializable):
         if tag is None:
             tag = self.__tag
         node = _create_text_node(doc, tag, self.value, par=par)
+        return node
+
+
+class FloatValueType(Serializable):
+    """
+    This is a basic xml building block element, and not actually specified in the SICD standard
+    """
+    __fields = ('value', )
+    __required = __fields
+    value = _FloatDescriptor('value', required=True, strict=True, docstring='The value')
+
+    def __init__(self, **kwargs):
+        """
+        :param dict kwargs: one required key - 'value'
+        :param kwargs:
+        """
+        super(FloatValueType, self).__init__(**kwargs)
+
+    @classmethod
+    def from_node(cls, node, kwargs=None):  # type: (minidom.Element, Union[None, dict]) -> FloatValueType
+        """
+        For XML deserialization.
+        :param minidom.Element node: the dom Element to deserialize.
+        :param Union[None, dict] kwargs: None or dictionary of previously serialized attributes. For use in
+        inheritance call, when certain attributes require specific deserialization.
+        :return FloatValueType: the deserialized class instance
+        """
+
+        return cls(value=_get_node_value(node))
+
+    def to_node(self,
+                doc,  # type: minidom.Document
+                tag=None,  # type: Union[None, str]
+                par=None,  # type: Union[None, minidom.Element]
+                strict=False,  # type: bool
+                exclude=()  # type: tuple
+                ):
+        # type: (...) -> minidom.Element
+        """
+        For XML serialization, to a dom element.
+
+        :param  minidom.Document doc: the xml Document
+        :param Union[None, str] tag: the tag name. The class name is unspecified.
+        :param Union[None, minidom.Element] par: parent element. The document root element will be used if unspecified.
+        :param bool strict: whether to raise an Exception if the structure is not valid.
+        :param tuple exclude: property names to exclude from this generic serialization. This allows for child classes
+            to provide specific serialization for special properties, but still use this super method.
+        :return minidom.Element: the constructed dom element, already assigned to the parent element.
+        """
+
+        # we have to short-circuit the call here, because this is a really primitive element
+        if tag is None:
+            tag = self.__tag
+        fmt = self._get_numeric_format('value')
+        if fmt is None:
+            node = _create_text_node(doc, tag, str(self.value), par=par)
+        else:
+            node = _create_text_node(doc, tag, fmt.format(self.value), par=par)
         return node
 
 
@@ -1018,7 +1171,6 @@ class XYZType(Serializable):
 
 
 class LatLonType(Serializable):
-    __slots__ = ()
     __fields = ('Lat', 'Lon')
     __required = __fields
     __numeric_format = {'Lat': '2.8f', 'Lon': '3.8f'}  # TODO: desired precision?
@@ -1032,7 +1184,6 @@ class LatLonType(Serializable):
         The constructor.
         :param dict kwargs: valid keys are ['Lat', 'Lon'], all required.
         """
-
         super(LatLonType, self).__init__(**kwargs)
 
     def getArray(self, order='LON', dtype=numpy.float64):  # type: (str, numpy.dtype) -> numpy.ndarray
@@ -1051,7 +1202,6 @@ class LatLonType(Serializable):
 
 
 class LatLonRestrictionType(LatLonType):
-    __slots__ = ()
     __fields = ('Lat', 'Lon')
     __required = __fields
     __numeric_format = {'Lat': '2.8f', 'Lon': '3.8f'}  # TODO: desired precision?
@@ -1120,6 +1270,70 @@ class LatLonHAERestrictionType(LatLonHAEType):
         super(LatLonHAERestrictionType, self).__init__(**kwargs)
 
 
+class LatLonCornerType(LatLonType):
+    __fields = ('Lat', 'Lon', 'index')
+    __required = __fields
+    __set_as_attribute = ('index', )
+    # descriptors
+    index = _IntegerDescriptor('index', required=True, strict=True, docstring='The integer index in 1-4.')
+
+    def __init__(self, **kwargs):
+        """
+        The constructor.
+        :param dict kwargs: valid keys are ['Lat', 'Lon', index], all required.
+        """
+        super(LatLonCornerType, self).__init__(**kwargs)
+
+
+class LatLonCornerStringType(LatLonType):
+    __fields = ('Lat', 'Lon', 'index')
+    __required = __fields
+    __set_as_attribute = ('index', )
+    # descriptors
+    index = _StringEnumDescriptor(
+        'index', ('1:FRFC', '2:FRLC', '3:LRLC', '4:LRFC'), required=True, strict=True,
+        docstring="The string index in ('1:FRFC', '2:FRLC', '3:LRLC', '4:LRFC')")
+
+    def __init__(self, **kwargs):
+        """
+        The constructor.
+        :param dict kwargs: valid keys are ['Lat', 'Lon', index], all required.
+        """
+        super(LatLonCornerStringType, self).__init__(**kwargs)
+
+
+class LatLonHAECornerRestrictionType(LatLonHAERestrictionType):
+    __fields = ('Lat', 'Lon', 'HAE', 'index')
+    __required = __fields
+    __set_as_attribute = ('index', )
+    # descriptors
+    index = _IntegerDescriptor('index', required=True, strict=True, docstring='The integer index in 1-4.')
+
+    def __init__(self, **kwargs):
+        """
+        The constructor.
+        :param dict kwargs: valid keys are ['Lat', 'Lon', 'HAE', 'index'], all required.
+        """
+        super(LatLonHAECornerRestrictionType, self).__init__(**kwargs)
+
+
+class LatLonHAECornerStringType(LatLonHAEType):
+    __fields = ('Lat', 'Lon', 'HAE', 'index')
+    __required = __fields
+    __set_as_attribute = ('index', )
+    # descriptors
+    index = _StringEnumDescriptor(
+        'index', ('1:FRFC', '2:FRLC', '3:LRLC', '4:LRFC'), required=True, strict=True,
+        docstring="The string index in ('1:FRFC', '2:FRLC', '3:LRLC', '4:LRFC')")
+
+    def __init__(self, **kwargs):
+        """
+        The constructor.
+        :param dict kwargs: valid keys are ['Lat', 'Lon', index], all required.
+        """
+        super(LatLonHAECornerStringType, self).__init__(**kwargs)
+
+
 class RowColType(Serializable):
     __fields = ('Row', 'Col')
     __required = __fields
@@ -1151,69 +1365,29 @@ class RowColvertexType(RowColType):
         super(RowColvertexType, self).__init__(**kwargs)
 
 
-class PolyCoef1DType(Serializable):
+class PolyCoef1DType(FloatValueType):
+    """
+    Represents a monomial term of the form `value * x^{exponent1}`.
+    """
     __fields = ('value', 'exponent1')
     __required = __fields
     __numeric_format = {'value': '0.8f'}  # TODO: desired precision?
     __set_as_attribute = ('exponent1', )
-    value = _FloatDescriptor(
-        'value', required=True, strict=False, docstring='The (coefficient) value attribute.')
     exponent1 = _IntegerDescriptor(
         'exponent1', required=True, strict=False, docstring='The (power) exponent1 attribute.')
 
     def __init__(self, **kwargs):
         """
-        This represents a single monomial term of the form - `value * x^{exponent1}`
+        The constructor.
         :param dict kwargs: valid keys are ['value', 'exponent1'], all required.
         """
         super(PolyCoef1DType, self).__init__(**kwargs)
 
-    @classmethod
-    def from_node(cls, node, kwargs=None):  # type: (minidom.Element, Union[None, dict]) -> PolyCoef1DType
-        """
-        For XML deserialization.
-        :param minidom.Element node: the dom Element to deserialize.
-        :param Union[None, dict] kwargs: None or dictionary of previously serialized attributes. For use in
-        inheritance call, when certain attributes require specific deserialization.
-        :return PolyCoef1DType: the deserialized class instance
-        """
 
-        if kwargs is None:
-            kwargs = {}
-        kwargs['exponent1'] = node.getAttribute('exponent1')
-        kwargs['value'] = _get_node_value(node)
-        return super(PolyCoef1DType, cls).from_node(node, kwargs=kwargs)
-
-    def to_node(self,
-                doc,  # type: minidom.Document
-                tag=None,  # type: Union[None, str]
-                par=None,  # type: Union[None, minidom.Element]
-                strict=False,  # type: bool
-                exclude=()  # type: tuple
-                ):
-        # type: (...) -> minidom.Element
-        """
-        For XML serialization, to a dom element.
-
-        :param  minidom.Document doc: the xml Document
-        :param Union[None, str] tag: the tag name. The class name is unspecified.
-        :param Union[None, minidom.Element] par: parent element. The document root element will be used if unspecified.
-        :param bool strict: whether to raise an Exception if the structure is not valid.
-        :param tuple exclude: property names to exclude from this generic serialization. This allows for child classes
-            to provide specific serialization for special properties, but still use this super method.
-        :return minidom.Element: the constructed dom element, already assigned to the parent element.
-        """
-
-        # NB: this class cannot REALLY be extended sensibly (you can add attributes, but that's it),
-        # so I'm just short-circuiting the pattern.
-        if tag is None:
-            tag = self.__class__.__name__
-        node = _create_text_node(doc, tag, str(self._value), par=par)
-        node.setAttribute('exponent1', str(self.exponent1))
-        return node
-
-
-class PolyCoef2DType(Serializable):
+class PolyCoef2DType(FloatValueType):
+    """
+    Represents a monomial term of the form `value * x^{exponent1} * y^{exponent2}`.
+    """
     # NB: based on field names, one could consider PolyCoef2DType an extension of PolyCoef1DType. This has not
     #   be done here, because I would not want an instance of PolyCoef2DType to evaluate as True when testing if
     #   instance of PolyCoef1DType.
@@ -1222,8 +1396,6 @@ class PolyCoef2DType(Serializable):
     __required = __fields
     __numeric_format = {'value': '0.8f'}  # TODO: desired precision?
     __set_as_attribute = ('exponent1', 'exponent2')
-    value = _FloatDescriptor(
-        'value', required=True, strict=False, docstring='The (coefficient) value attribute.')
     exponent1 = _IntegerDescriptor(
         'exponent1', required=True, strict=False, docstring='The (power) exponent1 attribute.')
     exponent2 = _IntegerDescriptor(
@@ -1231,59 +1403,16 @@ class PolyCoef2DType(Serializable):
 
     def __init__(self, **kwargs):
         """
-        The constructor. This class represents the monomial - `value * x^{exponent1} * y^{exponent2}`.
+        The constructor.
         :param dict kwargs: valid keys are ['value', 'exponent1', 'exponent2'], all required.
         """
         super(PolyCoef2DType, self).__init__(**kwargs)
 
-    @classmethod
-    def from_node(cls, node, kwargs=None):  # type: (minidom.Element, Union[None, dict]) -> PolyCoef2DType
-        """
-        For XML deserialization.
-        :param minidom.Element node: the dom Element to deserialize.
-        :param Union[None, dict] kwargs: None or dictionary of previously serialized attributes. For use in
-        inheritance call, when certain attributes require specific deserialization.
-        :return PolyCoef2DType: the deserialized class instance
-        """
-
-        if kwargs is None:
-            kwargs = {}
-        kwargs['exponent1'] = node.getAttribute('exponent1')
-        kwargs['exponent2'] = node.getAttribute('exponent2')
-        kwargs['value'] = _get_node_value(node)
-        return super(PolyCoef2DType, cls).from_node(node, kwargs=kwargs)
-
-    def to_node(self,
-                doc,  # type: minidom.Document
-                tag=None,  # type: Union[None, str]
-                par=None,  # type: Union[None, minidom.Element]
-                strict=False,  # type: bool
-                exclude=()  # type: tuple
-                ):
-        # type: (...) -> minidom.Element
-        """
-        For XML serialization, to a dom element.
-
-        :param  minidom.Document doc: the xml Document
-        :param Union[None, str] tag: the tag name. The class name is unspecified.
-        :param Union[None, minidom.Element] par: parent element. The document root element will be used if unspecified.
-        :param bool strict: whether to raise an Exception if the structure is not valid.
-        :param tuple exclude: property names to exclude from this generic serialization. This allows for child classes
-            to provide specific serialization for special properties, but still use this super method.
-        :return minidom.Element: the constructed dom element, already assigned to the parent element.
-        """
-
-        # NB: this class cannot REALLY be extended sensibly (you can add attributes, but that's it),
-        # so I'm just short-circuiting the pattern.
-        if tag is None:
-            tag = self.__class__.__name__
-        node = _create_text_node(doc, tag, str(self._value), par=par)
-        node.setAttribute('exponent1', str(self.exponent1))
-        node.setAttribute('exponent2', str(self.exponent2))
-        return node
-
 
 class Poly1DType(Serializable):
+    """
+    Represents a one-variable polynomial, defined as the sum of the given monomial terms.
+    """
     __fields = ('coefs', 'order1')
     __required = ('coefs', )
     __tags = {'coefs': 'Coef'}
@@ -1294,7 +1423,7 @@ class Poly1DType(Serializable):
 
     def __init__(self, **kwargs):
         """
-        The constructor. Represents a one-variable polynomial, defined as the sum of monomial terms given in `coefs`.
+        The constructor.
         :param dict kwargs: valid key is 'coefs'.
         """
         super(Poly1DType, self).__init__(**kwargs)
@@ -1313,6 +1442,9 @@ class Poly1DType(Serializable):
 
 
 class Poly2DType(Serializable):
+    """
+    Represents a one-variable polynomial, defined as the sum of the given monomial terms.
+    """
     __fields = ('Coefs', 'order1', 'order2')
     __required = ('Coefs', )
     __tags = {'Coefs': 'Coef'}
@@ -1323,7 +1455,7 @@ class Poly2DType(Serializable):
 
     def __init__(self, **kwargs):
         """
-        The constructor. Represents a two variable polynomial, defined as the sum of monomial terms given in `coefs`.
+        The constructor.
         :param dict kwargs: valid key is 'coefs'.
         """
         super(Poly2DType, self).__init__(**kwargs)
@@ -1351,6 +1483,9 @@ class Poly2DType(Serializable):
 
 
 class XYZPolyType(Serializable):
+    """
+    Represents a single variable polynomial for each of `X`, `Y`, and `Z`.
+    """
     __fields = ('X', 'Y', 'Z')
     __required = __fields
     X = _SerializableDescriptor(
@@ -1363,7 +1498,7 @@ class XYZPolyType(Serializable):
 
     def __init__(self, **kwargs):
         """
-        The constructor. Provides single variable polynomials for each of `X`, `Y`, and `Z`.
+        The constructor.
         :param dict kwargs: valid keys are ['X', 'Y', 'Z'], all required.
         """
         super(XYZPolyType, self).__init__(**kwargs)
@@ -1381,36 +1516,41 @@ class XYZPolyAttributeType(XYZPolyType):
 
     def __init__(self, **kwargs):
         """
-        The constructor. This class extension enables making an array/list of XYZPolyType instances.
+        The constructor.
         :param dict kwargs: valid keys are in ['X', 'Y', 'Z', 'index'], all required.
         """
         super(XYZPolyAttributeType, self).__init__(**kwargs)
 
 
 class GainPhasePolyType(Serializable):
+    """
+    A container for the Gain and Phase Polygon definitions.
+    """
     __fields = ('GainPoly', 'PhasePoly')
     __required = __fields
+    # the descriptors
     GainPoly = _SerializableDescriptor(
-        'GainPoly', Poly2DType, required=True, strict=False,
-        docstring='The Gain (two variable) Polygon.')
+        'GainPoly', Poly2DType, required=True, strict=False, docstring='The Gain (two variable) Polygon.')
     PhasePoly = _SerializableDescriptor(
-        'GainPhasePoly', Poly2DType, required=True, strict=False,
-        docstring='The Phase (two variable) Polygon.')
-    # TODO: improve these docstrings
+        'GainPhasePoly', Poly2DType, required=True, strict=False, docstring='The Phase (two variable) Polygon.')
 
     def __init__(self, **kwargs):
         """
-        The constructor. The class is a container for the Gain and Phase Polygon definitions.
+        The constructor.
         :param dict kwargs: valid keys are ['GainPoly', 'PhasePoly'], all required.
         """
         super(GainPhasePolyType, self).__init__(**kwargs)
 
 
 class LineType(Serializable):
+    """
+    A geographic line feature.
+    """
     __fields = ('Endpoints', 'size')
     __required = ('Endpoints', )
     __tags = {'Endpoints': 'Endpoint'}
     __set_as_attribute = ('size', )
+    # the descriptors
     Endpoints = _SerializableArrayDescriptor(
         'Endpoints', LatLonType, hasIndex=True, required=True, strict=False, tag='Endpoint',
         docstring="A list of elements of type LatLonType. This isn't directly part of the SICD standard, and just "
@@ -1485,11 +1625,23 @@ class LineType(Serializable):
 
 
 class PolygonType(Serializable):
+    """
+    A geographic polygon element
+    """
     __fields = ('Vertices', 'size')
     __required = ('Vertices', )
     __tags = {'Vertices': 'Vertex'}
+    __set_as_attribute = ('size', )
+    # child class definition
+    class LatLonArrayElement(LatLonRestrictionType):
+        __tag = 'Vertex'
+        __fields = ('Lat', 'Lon', 'index')
+        __required = __fields
+        __set_as_attribute = ('index', )
+        index = _IntegerDescriptor('index', required=True, strict=True)
+    # descriptors
     Vertices = _SerializableArrayDescriptor(
-        'Vertices', LatLonRestrictionType, hasIndex=True, required=True, strict=False, tag='Vertex',
+        'Vertices', LatLonArrayElement, hasIndex=True, required=True, strict=False, tag='Vertex',
         docstring="A list of elements of type LatLonRestrictionType. This isn't directly part of the SICD standard, "
                   "and just represents an intermediate convenience object.")
 
@@ -1532,44 +1684,19 @@ class PolygonType(Serializable):
 
     # TODO: helper methods for functionality, again?
 
-    def to_node(self,
-                doc,  # type: minidom.Document
-                tag=None,  # type: Union[None, str]
-                par=None,  # type: Union[None, minidom.Element]
-                strict=False,  # type: bool
-                exclude=()  # type: tuple
-                ):
-        # type: (...) -> minidom.Element
-        """
-        For XML serialization, to a dom element.
-
-        :param  minidom.Document doc: the xml Document
-        :param Union[None, str] tag: the tag name. The class name is unspecified.
-        :param Union[None, minidom.Element] par: parent element. The document root element will be used if unspecified.
-        :param bool strict: whether to raise an Exception if the structure is not valid.
-        :param tuple exclude: property names to exclude from this generic serialization. This allows for child classes
-            to provide specific serialization for special properties, but still use this super method.
-        :return minidom.Element: the constructed dom element, already assigned to the parent element.
-        """
-
-        node = super(PolygonType, self).to_node(
-            doc, tag=tag, par=par, strict=strict, exclude=exclude+('Vertices', 'size'))
-        node.setAttribute('size', str(self.size))
-        for i, entry in enumerate(self.Vertices):
-            entry.to_node(doc, par=node, tag='Vertex', strict=strict, exclude=())\
-                .setAttribute('index', str(i))
-        return node
-
 
 class ErrorDecorrFuncType(Serializable):
+    """
+    The Error Decorrelation Function?
+    """
     __fields = ('CorrCoefZero', 'DecorrRate')
     __required = __fields
     __numeric_format = {'CorrCoefZero': '0.8f', 'DecorrRate': '0.8f'}  # TODO: desired precision?
+    # descriptors
     CorrCoefZero = _FloatDescriptor(
         'CorrCoefZero', required=True, strict=False, docstring='The CorrCoefZero attribute.')
     DecorrRate = _FloatDescriptor(
         'DecorrRate', required=True, strict=False, docstring='The DecorrRate attribute.')
-    # TODO: Improve the description here.
 
     def __init__(self, **kwargs):
         """
@@ -1582,10 +1709,13 @@ class ErrorDecorrFuncType(Serializable):
 
 
 class RadarModeType(Serializable):
-    # Really just subordinate to CollectionInfo
+    """
+    Radar mode type container class
+    """
     __tag = 'RadarMode'
     __fields = ('ModeType', 'ModeId')
     __required = ('ModeType', )
+    # descriptors
     ModeId = _StringDescriptor('ModeId', required=False, docstring='The Mode Id.')
     ModeType = _StringEnumDescriptor(
         'ModeType', ('SPOTLIGHT', 'STRIPMAP', 'DYNAMIC STRIPMAP'), required=True, strict=False,
@@ -1600,9 +1730,13 @@ class RadarModeType(Serializable):
 
 
 class FullImageType(Serializable):
+    """
+    The full image attributes
+    """
     __tag = 'FullImage'
     __fields = ('NumRows', 'NumCols')
     __required = __fields
+    # descriptors
     NumRows = _IntegerDescriptor('NumRows', required=True, strict=False, docstring='The number of rows.')
     NumCols = _IntegerDescriptor('NumCols', required=True, strict=False, docstring='The number of columns.')
 
@@ -1615,10 +1749,14 @@ class FullImageType(Serializable):
 
 
 class ValidDataType(Serializable):
+    """
+    The valid data definition for the SICD image.
+    """
     __tags = {'Vertices': 'Vertex'}  # to account for the list type descriptor
     __fields = ('Vertices', 'size')
     __required = ('Vertices', )
     __set_as_attribute = ('size', )
+    # descriptors
     Vertices = _SerializableArrayDescriptor(
         'Vertices', RowColvertexType, hasIndex=True, required=True, strict=False, tag='Vertex',
         docstring="A list of elements of type RowColvertexType.")
@@ -1663,20 +1801,21 @@ class ValidDataType(Serializable):
     # TODO: helper methods for functionality, again?
 
 
-# TODO: corner type mumbo-jumbo
-
-
-# direct building blocks for SICD
+##########
+# Direct building blocks for SICD
 
 
 class CollectionInfoType(Serializable):
+    """
+    The collection information container.
+    """
     __tag = 'CollectionInfo'
     __tags = {'Parameters': 'Parameter', 'CountryCode': 'CountryCode'}  # these list type ones are hand-jammed
     __fields = (
         'CollectorName', 'IlluminatorName', 'CoreName', 'CollectType',
         'RadarMode', 'Classification', 'Parameters', 'CountryCodes')
     __required = ('CollectorName', 'CoreName', 'RadarMode', 'Classification')
-    # the descriptors
+    # descriptors
     CollectorName = _StringDescriptor('CollectorName', required=True, strict=False, docstring='The Collector Name.')
     IlluminatorName = _StringDescriptor(
         'IlluminatorName', required=False, strict=False, docstring='The Illuminator Name.')
@@ -1691,22 +1830,26 @@ class CollectionInfoType(Serializable):
     Parameters = _SerializableArrayDescriptor(
         'Parameters', ParameterType, required=False, strict=False, tag='Parameter', docstring='The parameters list.')
     CountryCodes = _StringListDescriptor(
-        'CountryCodes', )
+        'CountryCodes', required=False, strict=False, docstring="The country code list.")
 
     def __init__(self, **kwargs):
         """
         The Constructor.
-        :param dict kwargs: the valid keys are [
-            'CollectorName', 'IlluminatorName', 'CoreName', 'CollectType',
-            'RadarMode', 'Classification', 'CountryCodes', 'Parameters'].
-            While the required fields are ['CollectorName', 'CoreName', 'RadarMode', 'Classification'].
+        :param dict kwargs: the valid keys are
+            ['CollectorName', 'IlluminatorName', 'CoreName', 'CollectType',
+             'RadarMode', 'Classification', 'CountryCodes', 'Parameters'].
+        While the required fields are ['CollectorName', 'CoreName', 'RadarMode', 'Classification'].
         """
         super(CollectionInfoType, self).__init__(**kwargs)
 
 
 class ImageCreationType(Serializable):
+    """
+    The image creation data container.
+    """
     __fields = ('Application', 'DateTime', 'Site', 'Profile')
     __required = ()
+    # descriptors
     Application = _StringDescriptor('Application', required=False, strict=False, docstring='The Application')
     DateTime = _DateTimeDescriptor('DateTime', required=False, strict=False, docstring='The Date/Time')
     Site = _StringDescriptor('Site', required=False, strict=False, docstring='The Site')
@@ -1721,11 +1864,15 @@ class ImageCreationType(Serializable):
 
 
 class ImageDataType(Serializable):
-    __slots__ = ('_AmpTable', )
+    """
+    The image data container.
+    """
+    __tags = {'AmpTable': 'Amplitude'}
     __fields = ('PixelType', 'AmpTable', 'NumRows', 'NumCols', 'FirstRow', 'FirstCol', 'FullImage', 'SCPPixel',
                 'ValidData')
     __required = ('PixelType', 'NumRows', 'NumCols', 'FirstRow', 'FirstCol', 'FullImage', 'SCPPixel')
     __numeric_format = {'AmpTable': '0.8f'}  # TODO: precision for AmpTable?
+    # descriptors
     PixelType = _StringEnumDescriptor(
         'PixelType', ("RE32F_IM32F", "RE16I_IM16I", "AMP8I_PHS8I"), required=True, strict=True,
         docstring="""
@@ -1740,12 +1887,27 @@ class ImageDataType(Serializable):
     NumCols = _IntegerDescriptor('NumCols', required=True, strict=False, docstring='The number of Columns')
     FirstRow = _IntegerDescriptor('FirstRow', required=True, strict=False, docstring='The first row')
     FirstCol = _IntegerDescriptor('FirstCol', required=True, strict=False, docstring='The first column')
-    FullImage = _SerializableDescriptor('FullImage', FullImageType, required=True, strict=False, docstring='The full image')
-    SCPPixel = _SerializableDescriptor('SCPPixel', RowColType, required=True, strict=False, docstring='The SCP Pixel')
-    ValidData = _SerializableDescriptor('ValidData', ValidDataType, required=False, strict=False, docstring='The valid data area')
+    FullImage = _SerializableDescriptor(
+        'FullImage', FullImageType, required=True, strict=False, docstring='The full image')
+    SCPPixel = _SerializableDescriptor(
+        'SCPPixel', RowColType, required=True, strict=False, docstring='The SCP Pixel')
     # TODO: better explanation of this metadata
+    ValidData = _SerializableDescriptor(
+        'ValidData', ValidDataType, required=False, strict=False, docstring='The valid data area')
+    AmpTable = _FloatArrayDescriptor(
+        'AmpTable', required=False, strict=False, childTag='Amplitude',
+        docstring="The Amplitude lookup table. This must be defined if PixelType == 'AMP8I_PHS8I'")
 
     def __init__(self, **kwargs):
+        """
+        The constructor.
+        :param dict kwargs: the valid keys are
+            ('PixelType', 'AmpTable', 'NumRows', 'NumCols', 'FirstRow',
+            'FirstCol', 'FullImage', 'SCPPixel', 'ValidData')
+        Required are ('PixelType', 'NumRows', 'NumCols', 'FirstRow', 'FirstCol', 'FullImage', 'SCPPixel'),
+        and 'AmpTable' must conditionally be defined if PixelType == 'AMP8I_PHS8I'.
+        """
+        self._AmpTable = None
         super(ImageDataType, self).__init__(**kwargs)
 
     def is_valid(self, recursive=False):  # type: (bool) -> bool
@@ -1764,45 +1926,45 @@ class ImageDataType(Serializable):
             logging.warning("We have `PixelType='AMP8I_PHS8I'` and `AmpTable` is undefined for ImageDataType.")
         return condition and pixel_type
 
-    @property
-    def AmpTable(self):  # type: () -> Union[None, numpy.ndarray]
-        """
-        The AmpTable attribute. This must be defined if PixelType == 'AMP8I_PHS8I'
-        :return Union[None, numpy.ndarray]:
-        """
 
-        return self._AmpTable
+class GeoInfoType(Serializable):
+    """
+    The GeoInfo container.
+    """
+    __tag = 'GeoInfo'
+    __tags = {'Descriptions': 'Desc'}
+    __fields = ('name', 'Descriptions', 'Point', 'Line', 'Polygon')
+    __required = ('name', )
+    __set_as_attribute = ('name', )
+    # descriptors
+    name = _StringDescriptor('name', required=True, strict=True, docstring='The name.')
+    Descriptions = _SerializableArrayDescriptor(
+        'Descriptions', ParameterType, required=False, strict=False, tag='Desc', docstring='The descriptions.')
+    Point = _SerializableDescriptor(
+        'Point', LatLonRestrictionType, required=False, strict=False, docstring='A point.')
+    Line = _SerializableDescriptor(
+        'Line', LineType, required=False, strict=False, docstring='A line.')
+    Polygon = _SerializableDescriptor(
+        'Polygon', PolygonType, required=False, strict=False, docstring='A polygon.')
+    # TODO: is the standard really self-referential here? I find that confusing.
 
-    @AmpTable.setter
-    def AmpTable(self, value):  # type: (Union[None, numpy.ndarray, minidom.Element]) -> None
+    def __init__(self, **kwargs):
         """
-        The AmpTable attribute setter.
-        :param Union[None, numpy.ndarray, minidom.Element] value:
-        :return None:
-        :raises: ValueError
+        The constructor.
+        :param dict kwargs: the valid keys are ('name', 'Descriptions', 'Point', 'Line', 'Polygon'), where
+            the only required key is 'name' , and only one of 'Point', 'Line', or 'Polygon' should be present.
         """
+        feature_count = 0
+        for typ in ['Point', 'Line', 'Polygon']:
+            if kwargs[typ] is not None:
+                feature_count += 1
+        if feature_count > 1:
+            raise ValueError("Only one of 'Point', 'Line', or 'Polygon' can be defined.")
+        super(GeoInfoType, self). __init__(**kwargs)
 
-        # TODO: BROKEN!!! set up the Descriptor for this? If we need to? Setup serialization otherwise.
-        if value is None:
-            self._AmpTable = None
-        elif isinstance(value, minidom.Element):
-            tarr = numpy.full((256, ), numpy.nan, dtype=numpy.float64)
-            anodes = value.getElementsByTagName('Amplitude')
-            if len(anodes) != 256:
-                raise ValueError("The AmpTable attribute requires 256 amplitude entries, "
-                                 "and we found {}".format(len(anodes)))
-            for anode in anodes:
-                index = int(anode.getAttribute('index'))
-                avalue = float(_get_node_value(anode))
-                tarr[index] = avalue
-            if numpy.any(numpy.isnan(tarr)):
-                raise ValueError("The AmpTable attribute did not have all [0-255] entries defined.")
-            self._AmpTable = tarr
-        elif isinstance(value, numpy.ndarray):
-            if value.dtype != numpy.float64:
-                logging.warning("The AmpTable attribute generally is expected to be of dtype float64, "
-                                "and we got {}".format(value.dtype))
-            if value.shape != (256, ):
-                raise ValueError("The AmpTable attribute requires an ndarray of shape (256, ).")
-            self._AmpTable = numpy.copy(value)  # I'm never sure whether to copy...we probably should here
 
+class GeoDataType(Serializable):
+    __fields = ('EarthModel', 'SCP', 'ImageCorners', 'ValidData', 'GeoInfo')
+    __required = ('EarthModel', 'SCP', 'ImageCorners')
+    # descriptors
+    # TODO: Broken
