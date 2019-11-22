@@ -66,6 +66,8 @@ class _BasicDescriptor(object):
         :return bool:
         """
 
+        # NOTE: This is intended to handle this case for every extension of this class. Hence the boolean return,
+        # which extensions SHOULD NOT implement. This is merely to enable following DRY principles.
         if value is None:
             if self.strict:
                 raise ValueError(
@@ -98,7 +100,11 @@ class _StringDescriptor(_BasicDescriptor):
             return
 
         if isinstance(value, str):
+            # from user or json deserialization
             self.data[instance] = value
+        elif isinstance(value, minidom.Element):
+            # from XML deserialization
+            self.data[instance] = _get_node_value(value)
         else:
             raise TypeError(
                 'field {} of class {} requires a string value.'.format(self.name, instance.__class__.__name__))
@@ -107,8 +113,9 @@ class _StringDescriptor(_BasicDescriptor):
 class _StringListDescriptor(_BasicDescriptor):
     """A descriptor for properties of a assumed to be an array type item for specified extension of Serializable"""
 
-    def __init__(self, name, required=False, strict=DEFAULT_STRICT, docstring=None):
+    def __init__(self, name, required=False, strict=DEFAULT_STRICT, minimum_length=None, docstring=None):
         super(_StringListDescriptor, self).__init__(name, required=required, strict=strict, docstring=docstring)
+        self.minimum_length = minimum_length
 
     def __set__(self, instance, value):
         """
@@ -118,22 +125,30 @@ class _StringListDescriptor(_BasicDescriptor):
         :return None:
         """
 
+        def set_value(new_value):
+            if self.minimum_length is not None and len(new_value) < self.minimum_length:
+                msg = 'Field {} of class {} is a string list of size {}, and must have length at least ' \
+                      '{}.'.format(self.name, instance.__class__.__name__, value.size, self.minimum_length)
+                if self.strict:
+                    raise ValueError(msg)
+                else:
+                    logging.warning(msg)
+            self.data[instance] = new_value
+
         if super(_StringListDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
             return
 
         if isinstance(value, str):
-            self.data[instance] = [value, ]
+            set_value([value, ])
         elif isinstance(value, minidom.Element):
-            self.data[instance] = [_get_node_value(value), ]
+            set_value([_get_node_value(value), ])
         elif isinstance(value, minidom.NodeList):
-            self.data[instance] = [_get_node_value(nod) for nod in value]
+            set_value([_get_node_value(nod) for nod in value])
         elif isinstance(value, list):
-            if len(value) == 0:
-                self.data[instance] = value
-            elif isinstance(value[0], str):
-                self.data[instance] = value
+            if len(value) == 0 or isinstance(value[0], str):
+                set_value(value)
             elif isinstance(value[0], minidom.Element):
-                self.data[instance] = [_get_node_value(nod) for nod in value]
+                set_value([_get_node_value(nod) for nod in value])
         else:
             raise TypeError(
                 'Field {} of class {} got incompatible type {}.'.format(
@@ -161,21 +176,24 @@ class _StringEnumDescriptor(_BasicDescriptor):
 
         if isinstance(value, str):
             val = value.upper()
-            if val in self.values:
-                self.data[instance] = value
-            elif self.strict:
-                raise ValueError(
-                    'Received value {} for field {} of class {}, but values are required to be one of {}'.format(
-                        value, self.name, instance.__class__.__name__, self.values))
-            else:
-                logging.warning(
-                    'Received value {} for field {} of class {}, but values are required to be one of {}. '
-                    'The value has been set to None.'.format(
-                        value, self.name, instance.__class__.__name__, self.values))
-                self.data[instance] = None
+        elif isinstance(value, minidom.Element):
+            val = _get_node_value(value).upper()
         else:
             raise TypeError(
                 'field {} of class {} requires a string value.'.format(self.name, instance.__class__.__name__))
+
+        if val in self.values:
+            self.data[instance] = val
+        else:
+            if self.strict:
+                raise ValueError(
+                    'Received value {} for field {} of class {}, but values ARE REQUIRED to be one of {}'.format(
+                        value, self.name, instance.__class__.__name__, self.values))
+            else:
+                logging.warning(
+                    'Received value {} for field {} of class {}, but values ARE REQUIRED to be one of {}. '.format(
+                        value, self.name, instance.__class__.__name__, self.values))
+            self.data[instance] = val
 
 
 class _IntegerDescriptor(_BasicDescriptor):
@@ -196,7 +214,13 @@ class _IntegerDescriptor(_BasicDescriptor):
         if super(_IntegerDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
             return
 
-        iv = int(value)
+        if isinstance(value, minidom.Element):
+            # from XML deserialization
+            iv = int(_get_node_value(value))
+        else:
+            # user or json deserialization
+            iv = int(value)
+
         if self.bounds is None or (self.bounds[0] <= iv <= self.bounds[1]):
             self.data[instance] = iv
         else:
@@ -205,8 +229,8 @@ class _IntegerDescriptor(_BasicDescriptor):
                     'field {} of class {} must take value between {}'.format(
                         self.name, instance.__class__.__name__, self.bounds))
             else:
-                logging.info(
-                    'Required field {} of class {} is required to take value between {}.'.format(
+                logging.warning(
+                    'Required field {} of class {} is required bu standard to take value between {}.'.format(
                         self.name, instance.__class__.__name__, self.bounds))
             self.data[instance] = iv
 
@@ -229,7 +253,13 @@ class _IntegerEnumDescriptor(_BasicDescriptor):
         if super(_IntegerEnumDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
             return
 
-        iv = int(value)
+        if isinstance(value, minidom.Element):
+            # from XML deserialization
+            iv = int(_get_node_value(value))
+        else:
+            # user or json deserialization
+            iv = int(value)
+
         if iv in self.values:
             self.data[instance] = iv
         else:
@@ -261,15 +291,21 @@ class _FloatDescriptor(_BasicDescriptor):
         if super(_FloatDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
             return
 
-        self.data[instance] = float(value)
+        if isinstance(value, minidom.Element):
+            # from XML deserialization
+            self.data[instance] = float(_get_node_value(value))
+        else:
+            # from user of json deserialization
+            self.data[instance] = float(value)
 
 
 class _FloatArrayDescriptor(_BasicDescriptor):
     """A descriptor for float array type properties"""
 
-    def __init__(self, name, required=False, strict=DEFAULT_STRICT, child_tag='ArrayDouble', docstring=None):
+    def __init__(self, name, tag_entry, required=False, strict=DEFAULT_STRICT, minimum_length=None, docstring=None):
         super(_FloatArrayDescriptor, self).__init__(name, required=required, strict=strict, docstring=docstring)
-        self.child_tag = child_tag
+        self.child_tag = tag_entry['child_tag']
+        self.minimum_length = minimum_length
 
     def __set__(self, instance, value):
         """
@@ -279,28 +315,37 @@ class _FloatArrayDescriptor(_BasicDescriptor):
         :return None:
         """
 
+        def set_value(new_value):
+            if self.minimum_length is not None and len(new_value) < self.minimum_length:
+                msg = 'Field {} of class {} is a double array of size {}, and must have size at least ' \
+                      '{}.'.format(self.name, instance.__class__.__name__, value.size, self.minimum_length)
+                if self.strict:
+                    raise ValueError(msg)
+                else:
+                    logging.warning(msg)
+            self.data[instance] = new_value
+
         if super(_FloatArrayDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
             return
 
         if isinstance(value, numpy.ndarray):
             if not (len(value) == 1) and (numpy.dtype == numpy.float64):
                 raise ValueError('Only one-dimensional ndarrays of dtype float64 are supported here.')
-            self.data[instance] = value
+            set_value(value)
         elif isinstance(value, minidom.Element):
-            new_value = []
-            for node in value.getElementsByTagName(self.child_tag):
-                new_value.append((int(node.getAttribute('index')), float(_get_node_value(node))))
-            self.data[instance] = numpy.array([
-                val[0] for val in sorted(new_value, key=lambda x: x[0])], dtype=numpy.float64)
-        elif isinstance(value, minidom.NodeList) or \
-                (isinstance(value, list) and len(value) > 0 and isinstance(value, minidom.Element)):
-            new_value = []
-            for node in value:
-                new_value.append((int(node.getAttribute('index')), float(_get_node_value(node))))
-            self.data[instance] = numpy.array([
-                entry for ind, entry in sorted(new_value, key=lambda x: x[0])], dtype=numpy.float64)
+            size = int(value.getAttribute('size'))
+            child_nodes = [entry for entry in value.getElementsByTagName(self.child_tag) if entry.parentNode == value]
+            if len(child_nodes) != size:
+                raise ValueError(
+                    'Field {} of double array type functionality belonging to class {} got a minidom element with size '
+                    'attribute {}, but has {} child nodes with tag {}.'.format(
+                        self.name, instance.__class__.__name__, size, len(child_nodes), self.child_tag))
+            new_value = numpy.empty((size, ), dtype=numpy.float64)
+            for i, node in enumerate(new_value):
+                new_value[i] = float(_get_node_value(node))
+            set_value(new_value)
         elif isinstance(value, list):
-            self.data[instance] = numpy.array(value, dtype=numpy.float64)
+            set_value(numpy.array(value, dtype=numpy.float64))
         else:
             raise TypeError(
                 'Field {} of class {} got incompatible type {}.'.format(
@@ -324,10 +369,14 @@ class _DateTimeDescriptor(_BasicDescriptor):
 
         if super(_DateTimeDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
             return
-
-        if isinstance(value, numpy.datetime64):
+        if isinstance(value, minidom.Element):
+            # from XML deserialization
+            self.data[instance] = numpy.datetime64(_get_node_value(value), self.units)
+        elif isinstance(value, numpy.datetime64):
+            # from user
             self.data[instance] = value
         else:
+            # from user or json deserialization
             self.data[instance] = numpy.datetime64(value, self.units)
 
 
@@ -349,7 +398,14 @@ class _FloatModularDescriptor(_BasicDescriptor):
         if super(_FloatModularDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
             return
 
-        val = float(value)  # do modular arithmatic manipulations
+        if isinstance(value, minidom.Element):
+            # from XML deserialization
+            val = float(_get_node_value(value))
+        else:
+            # from user of json deserialization
+            val = float(value)
+
+        # do modular arithmatic manipulations
         val = (val % (2*self.limit))  # NB: % and * have same precedence, so it can be super dumb
         self.data[instance] = val if val <= self.limit else val - 2*self.limit
 
@@ -388,10 +444,110 @@ class _SerializableDescriptor(_BasicDescriptor):
 class _SerializableArrayDescriptor(_BasicDescriptor):
     """A descriptor for properties of a assumed to be an array type item for specified extension of Serializable"""
 
-    def __init__(self, name, the_type, required=False, strict=DEFAULT_STRICT, tag=None, docstring=None):
+    def __init__(self, name, child_type, tags, required=False, strict=DEFAULT_STRICT, minimum_length=None, docstring=None):
         super(_SerializableArrayDescriptor, self).__init__(name, required=required, strict=strict, docstring=docstring)
-        self.the_type = the_type
-        self.tag = tag
+        self.child_type = child_type
+        self.tag = tags.get('tag', None)
+        self.child_tag = tags['child_tag']
+        self.minimum_length = minimum_length
+
+    def __actual_set(self, instance, value):
+        if self.minimum_length is not None and len(value) < self.minimum_length:
+            if isinstance(value, numpy.ndarray):
+                msg = 'Field {} of class {} is a array of size {}, and must have size at least ' \
+                      '{}.'.format(self.name, instance.__class__.__name__, value.size, self.minimum_length)
+                if self.strict:
+                    raise ValueError(msg)
+                else:
+                    logging.warning(msg)
+            else:
+                msg = 'Field {} of class {} is a list of length {}, and must have length at least ' \
+                      '{}.'.format(self.name, instance.__class__.__name__, len(value), self.minimum_length)
+                if self.strict:
+                    raise ValueError(msg)
+                else:
+                    logging.warning(msg)
+        self.data[instance] = value
+
+    def __array_set(self, instance, value):
+        if isinstance(value, numpy.ndarray):
+            if value.dtype != numpy.object:
+                raise ValueError(
+                    'Field {} of array type functionality belonging to class {} got a ndarray of dtype {},'
+                    'but contains objects, so requires dtype=numpy.object.'.format(
+                        self.name, instance.__class__.__name__, value.dtype))
+            elif len(value.shape) != 1:
+                raise ValueError(
+                    'Field {} of array type functionality belonging to class {} got a ndarray of shape {},'
+                    'but requires a one dimensional array.'.format(
+                        self.name, instance.__class__.__name__, value.shape))
+            elif not isinstance(value[0], self.child_type):
+                raise TypeError(
+                    'Field {} of array type functionality belonging to class {} got a ndarray containing '
+                    'first element of incompaticble type {}.'.format(
+                        self.name, instance.__class__.__name__, type(value[0])))
+            self.__actual_set(instance, value)
+        elif isinstance(value, minidom.Element):
+            # this is the parent node from XML deserialization
+            size = int(value.getAttribute('size'))
+            # extract child nodes at top level
+            child_nodes = [entry for entry in value.getElementsByTagName(self.child_tag) if entry.parentNode == value]
+            if len(child_nodes) != size:
+                raise ValueError(
+                    'Field {} of array type functionality belonging to class {} got a minidom element with size '
+                    'attribute {}, but has {} child nodes with tag {}.'.format(
+                        self.name, instance.__class__.__name__, size, len(child_nodes), self.child_tag))
+            new_value = numpy.empty((size, ), dtype=numpy.object)
+            for i, entry in enumerate(child_nodes):
+                new_value[i] = self.child_type.from_node(entry).modify_tag(self.child_tag)
+            self.__actual_set(instance, new_value)
+        elif isinstance(value, list):
+            # this would arrive from users or json deserialization
+            if len(value) == 0:
+                self.__actual_set(instance, numpy.empty((0, ), dtype=numpy.object))
+            elif isinstance(value[0], self.child_type):
+                self.__actual_set(instance, numpy.array(value, dtype=numpy.object))
+            elif isinstance(value[0], dict):
+                # NB: charming errors are possible here if something stupid has been done.
+                self.__actual_set(instance, numpy.array(
+                    [self.child_type.from_dict(node).modify_tag(self.child_tag) for node in value], dtype=numpy.object))
+            else:
+                raise TypeError(
+                    'Field {} of array type functionality belonging to class {} got a list containing first element of '
+                    'incompatible type {}.'.format(self.name, instance.__class__.__name__, type(value[0])))
+        else:
+            raise TypeError(
+                'Field {} of array type functionality belonging to class {} got incompatible type {}.'.format(
+                    self.name, instance.__class__.__name__, type(value)))
+
+    def __list_set(self, instance, value):
+        if isinstance(value, self.child_type):
+            # this is the child element
+            self.__actual_set(instance, [value, ])
+        elif isinstance(value, minidom.Element):
+            # this is the child
+            self.__actual_set(instance, [self.child_type.from_node(value).modify_tag(self.child_tag), ])
+        elif isinstance(value, minidom.NodeList):
+            new_value = []
+            for node in value:  # NB: I am ignoring the index attribute (if it exists) and just leaving it in doc order
+                new_value.append(self.child_type.from_node(node).modify_tag(self.child_tag))
+            self.__actual_set(instance, value)
+        elif isinstance(value, list) or isinstance(value[0], self.child_type):
+            if len(value) == 0:
+                self.__actual_set(instance, value)
+            elif isinstance(value[0], dict):
+                # NB: charming errors are possible if something stupid has been done.
+                self.__actual_set(instance, [self.child_type.from_dict(node).modify_tag(self.child_tag) for node in value])
+            elif isinstance(value[0], minidom.Element):
+                self.__actual_set(instance, [self.child_type.from_node(node).modify_tag(self.child_tag) for node in value])
+            else:
+                raise TypeError(
+                    'Field {} of list type functionality belonging to class {} got a list containing first element of '
+                    'incompatible type {}.'.format(self.name, instance.__class__.__name__, type(value[0])))
+        else:
+            raise TypeError(
+                'Field {} of class {} got incompatible type {}.'.format(
+                    self.name, instance.__class__.__name__, type(value)))
 
     def __set__(self, instance, value):
         """
@@ -404,29 +560,10 @@ class _SerializableArrayDescriptor(_BasicDescriptor):
         if super(_SerializableArrayDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
             return
 
-        if isinstance(value, self.the_type):
-            self.data[instance] = [value, ]
-        elif isinstance(value, minidom.Element):
-            self.data[instance] = [self.the_type.from_node(value).modify_tag(self.tag), ]
-        elif isinstance(value, minidom.NodeList):
-            new_value = []
-            for node in value:  # NB: I am ignoring the index attribute (if it exists) and leaving it in doc order
-                new_value.append(self.the_type.from_node(node).modify_tag(self.tag))
-            self.data[instance] = value
-        elif isinstance(value, list):
-            if len(value) == 0:
-                self.data[instance] = value
-            elif isinstance(value[0], self.the_type):
-                self.data[instance] = value
-            elif isinstance(value[0], dict):
-                # NB: charming errors are possible if something stupid has been done.
-                self.data[instance] = [self.the_type.from_dict(node).modify_tag(self.tag) for node in value]
-            elif isinstance(value[0], minidom.Element):
-                self.data[instance] = [self.the_type.from_node(node).modify_tag(self.tag) for node in value]
+        if self.tag is None:
+            self.__list_set(instance, value)
         else:
-            raise TypeError(
-                'Field {} of class {} got incompatible type {}.'.format(
-                    self.name, instance.__class__.__name__, type(value)))
+            self.__array_set(instance, value)
 
 
 #################
@@ -511,7 +648,26 @@ class Serializable(object):
     __tag = None  # tag name when serializing
     __fields = ()  # collection of field names
     __required = ()  # define a non-empty tuple for required properties
-    __child_tags = {}  # only needed for children where attribute_name != tag_name
+
+    __array_tags = {}  # only needed for list/array type objects
+    # Possible entry form:
+
+    # - {'tag': None, 'child_tag': <child_name>} represents a number of things with tag=<child_name>.
+    #       This entries are not directly below one coherent container tag, but just dumped into an object.
+    #       For example of such usage search for "Parameter" in the SICD standard.
+    #
+    #       In this case, I've have to create an emphemeral variable in the class that doesn't exist in the standard,
+    #       and it's not clear what the intent is for this unstructured collection, so used a list object.
+    #       For example, I have a variable called 'Parameters' in CollectionInfoType, whose job it to contain the
+    #       parameters objects.
+
+    # - {'tag': <name>, 'child_tag': <child_name>} represents an array object with tag=<name> and int attribute 'size'
+    #   it has #size# children with tag=<child_name>, each of which has an attribute 'index', which is not always an
+    #   integer. Even when it is an integer, it apparently sometimes follows the matlab convention (1 based), and
+    #   sometimes the standard convention (0 based). In this case, I will deserialize as though the objects are
+    #   properly ordered, and the deserialized objects will have the 'index' property from the xml, but it will not
+    #   be used to determine array order - which will be simply carried over from file order.
+
     __numeric_format = {}  # define dict entries of numeric formatting for serialization
     __set_as_attribute = ()  # serialize these fields as xml attributes
     # NB: it may be good practice to use __slots__ to further control class functionality?
@@ -568,8 +724,21 @@ class Serializable(object):
             raise ValueError('attribute {} is not permitted for class {}'.format(attribute, self.__class__.__name__))
         self.__numeric_format[attribute] = format_string
 
-    def _get_numeric_format(self, attribute):  # type: (str) -> str
-        return None if attribute not in self.__numeric_format else '{0:' + self.__numeric_format[attribute] + '}'
+    def _get_formatter(self, attribute):
+        """
+        Return a formatting function for the given attribute. This will default to str if no other
+        option is presented.
+        :param str attribute: the given attribute name
+        :return:
+        """
+        entry = self.__numeric_format.get(attribute, None)
+        if isinstance(entry, str):
+            fmt_str = '{0:' + entry + '}'
+            return fmt_str.format
+        elif callable(entry):
+            return entry
+        else:
+            return str
 
     def is_valid(self, recursive=False):  # type: (bool) -> bool
         """
@@ -586,8 +755,8 @@ class Serializable(object):
 
         def check_item(value):
             good = True
-            if isinstance(val, Serializable):
-                good = val.is_valid(recursive=recursive)
+            if isinstance(value, Serializable):
+                good = value.is_valid(recursive=recursive)
             return good
 
         all_required = True
@@ -607,7 +776,7 @@ class Serializable(object):
             good = True
             if isinstance(val, Serializable):
                 good = check_item(val)
-            elif isinstance(val, list):
+            elif isinstance(val, list) or (isinstance(val, numpy.ndarray) and val.dtype == numpy.object):
                 for entry in val:
                     good &= check_item(entry)
             valid_children &= good
@@ -629,6 +798,21 @@ class Serializable(object):
         :return Serializable: corresponding class instance
         """
 
+        def handle_attribute(the_tag):
+            val = node.getAttribute(the_tag)  # this returns an empty string if the_tag doesn't exist
+            if len(val) > 0:
+                kwargs[the_tag] = val
+
+        def handle_single(the_tag):
+            pnodes = [entry for entry in node.getElementsByTagName(the_tag) if entry.parentNode == node]
+            if len(pnodes) > 0:
+                kwargs[the_tag] = pnodes[0]
+
+        def handle_list(attribute, child_tag):
+            pnodes = [entry for entry in node.getElementsByTagName(child_tag) if entry.parentNode == node]
+            if len(pnodes) > 0:
+                kwargs[attribute] = pnodes
+
         if kwargs is None:
             kwargs = {}
         if not isinstance(kwargs, dict):
@@ -639,21 +823,32 @@ class Serializable(object):
             if attribute in kwargs:
                 continue
 
+            kwargs[attribute] = None
+            # This value will be replaced if tags are present
+            # Note that we want to try explicitly setting to None to trigger descriptor behavior
+            # for required fields (warning or error)
+
             if attribute in cls.__set_as_attribute:
-                val = node.getAttribute(attribute)
-                kwargs[attribute] = None if len(val) == 0 else val
+                handle_attribute(attribute)
+            elif attribute in cls.__array_tags:
+                # it's an array type of a list type parameter
+                array_tag = cls.__array_tags[attribute]
+                tag = array_tag.get('tag', None)
+                child_tag = array_tag.get('child_tag', None)
+                if tag is not None:
+                    # it's an array
+                    handle_single(tag)
+                elif child_tag is not None:
+                    # it's  list
+                    handle_list(attribute, child_tag)
+                else:
+                    # the metadata is broken
+                    raise ValueError(
+                        'Attribute {} in class {} is listed in the __array_tags dictionary, but the '
+                        '"child_tags" value is either missing or None.'.format(attribute, cls.__class__.__name__))
             else:
-                child_tag = cls.__child_tags.get(attribute, None)
-                pnodes = [entry for entry in node.getElementsByTagName(attribute) if entry.parentNode == node]
-                cnodes = [] if child_tag is None else [
-                    entry for entry in node.getElementsByTagName(child_tag) if entry.parentNode == node]
-                if len(pnodes) == 1:
-                    kwargs[attribute] = pnodes[0]
-                elif len(pnodes) > 1:
-                    # this is for list type attributes. Probably should have an entry in __child_tags.
-                    kwargs[attribute] = pnodes
-                elif len(cnodes) > 0:
-                    kwargs[attribute] = cnodes
+                # it's a regular property
+                handle_single(attribute)
         return cls.from_dict(kwargs)
 
     def to_node(self,
@@ -676,42 +871,90 @@ class Serializable(object):
         :return minidom.Element: the constructed dom element, already assigned to the parent element.
         """
 
-        def serialize_child(value, attribute, child_tag, fmt, parent):
-            if isinstance(value, Serializable):
-                value.to_node(doc, tag=tag, par=parent, strict=strict)
-            elif isinstance(value, str):  # TODO: MEDIUM - unicode issues?
-                _create_text_node(doc, tag, value, par=parent)
-            elif isinstance(value, int) or isinstance(value, float):
-                if fmt is None:
-                    _create_text_node(doc, attribute, str(value), par=parent)
-                else:
-                    _create_text_node(doc, attribute, fmt.format(value), par=parent)
-            elif isinstance(value, complex):
-                raise NotImplementedError  # TODO: let's figure it out
-            elif isinstance(value, date):
-                _create_text_node(doc, attribute, value.isoformat(), par=parent)
-            elif isinstance(value, datetime):
-                _create_text_node(doc, attribute, value.isoformat(sep='T'), par=parent)
-                # TODO: LOW - this can be error prone with the naive vs zoned issue.
-                #   Discourage using this type?
-            elif isinstance(value, numpy.datetime64):
-                _create_text_node(doc, attribute, str(value), par=parent)
-            elif isinstance(value, list) or isinstance(value, tuple):
-                # this is assumed to be serialized straight in, versus having a parent tag
-                for val in value:
-                    serialize_child(val, child_tag, child_tag, fmt, parent)
-            elif isinstance(value, numpy.ndarray):
-                if len(value.shape) != 1 or numpy.dtype != numpy.float64:
-                    raise NotImplementedError
-                anode = _create_new_node(doc, attribute, par=parent)
+        def set_attribute(node, field, value, fmt_func):
+            node.setAttribute(field, fmt_func(value))
+
+        def serialize_array(node, the_tag, child_tag, value, fmt_func):
+            if not isinstance(value, numpy.ndarray):
+                # this should really never happen, unless someone broke the class badly by fiddling with
+                # __array_tag or the descriptor, probably at runtime
+                raise TypeError(
+                    'The value associated with attribute {} is an instance of class {} should be an array based on '
+                    'the metadata in the __arrays_tags dictionary, but we received an instance of '
+                    'type {}'.format(attribute, self.__class__.__name__, type(value)))
+            if not len(value.shape) == 1:
+                # again, I have no idea how we'd find ourselves here, unless inconsistencies have been introduced
+                # into the descriptor
+                raise ValueError(
+                    'The value associated with attribute {} is an instance of class {}, if None, is required to be'
+                    'a one-dimensional numpy.ndarray, but it has shape {}'.format(
+                        attribute, self.__class__.__name__, value.shape))
+            if value.size == 0:
+                return  # serializing an empty array is dumb
+
+            if value.dtype == numpy.float64:
+                anode = _create_new_node(doc, the_tag, par=node)
                 anode.setAttribute('size', str(value.size))
-                fmt_func = str if fmt is None else fmt.format
                 for i, val in enumerate(value):
                     vnode = _create_text_node(doc, child_tag, fmt_func(val), par=anode)
-                    vnode.setAttribute('index', str(i))
+                    vnode.setAttribute('index', str(i))  # I think that this is reliable
+            elif value.dtype == numpy.object:
+                anode = _create_new_node(doc, the_tag, par=node)
+                anode.setAttribute('size', str(value.size))
+                for i, entry in enumerate(value):
+                    if not isinstance(entry, Serializable):
+                        raise TypeError(
+                            'The value associated with attribute {} is an instance of class {} should be an object '
+                            'array based on the standard, but entry {} is of type {} and not an instance of '
+                            'Serializable'.format(attribute, self.__class__.__name__, i, type(entry)))
+                    serialize_plain(anode, child_tag, entry, fmt_func)
+            else:
+                # I have no idea how we'd find ourselves here, unless inconsistencies have been introduced
+                # into the descriptor
+                raise ValueError(
+                    'The value associated with attribute {} is an instance of class {}, if None, is required to be'
+                    'a numpy.ndarray of dtype float64 or object, but it has dtype {}'.format(
+                        attribute, self.__class__.__name__, value.dtype))
+
+        def serialize_list(node, child_tag, value, fmt_func):
+            if not isinstance(value, list):
+                # this should really never happen, unless someone broke the class badly by fiddling with
+                # __array_tags or the descriptor?
+                raise TypeError(
+                    'The value associated with attribute {} is an instance of class {} should be a list based on '
+                    'the metadata in the __arrays_tags dictionary, but we received an instance of '
+                    'type {}'.format(attribute, self.__class__.__name__, type(value)))
+            if len(value) == 0:
+                return  # serializing an empty list is dumb
+            else:
+                for entry in value:
+                    serialize_plain(node, child_tag, entry, fmt_func)
+
+        def serialize_plain(node, field, value, fmt_func):
+            # may be called not at top level - if object array or list is present
+            if isinstance(value, Serializable):
+                value.to_node(doc, tag=field, par=node, strict=strict)
+            elif isinstance(value, str):
+                # TODO: MEDIUM - unicode issues?
+                _create_text_node(doc, field, value, par=node)
+            elif isinstance(value, int) or isinstance(value, float):
+                _create_text_node(doc, field, fmt_func(value), par=node)
+            elif isinstance(value, bool):
+                # fmt_func here? note that str doesn't work, so...
+                _create_text_node(doc, field, '1' if value else '0', par=node)
+            elif isinstance(value, date):
+                _create_text_node(doc, field, value.isoformat(), par=node)
+            elif isinstance(value, datetime):
+                _create_text_node(doc, field, value.isoformat(sep='T'), par=node)
+            elif isinstance(value, numpy.datetime64):
+                _create_text_node(doc, field, str(value), par=node)
+            elif isinstance(value, complex):
+                # is this required anywhere? There's a complex thing in the SICD standard?
+                raise NotImplementedError
             else:
                 raise ValueError(
-                    'Attribute {} is of type {}, and not clearly serializable'.format(attribute, type(value)))
+                    'a entry for class {} using tag {} is of type {}, and serialization has not '
+                    'been implemented'.format(self.__class__.__name__, field, type(value)))
 
         if not self.is_valid():
             msg = "{} is not valid, and cannot be safely serialized to XML according to " \
@@ -727,18 +970,31 @@ class Serializable(object):
         for attribute in self.__fields:
             if attribute in exclude:
                 continue
+
             value = getattr(self, attribute)
             if value is None:
                 continue
-            child_tag = self.__child_tags.get(attribute, attribute)
-            fmt = self._get_numeric_format(attribute)
+
+            fmt_func = self._get_formatter(attribute)
+            array_tag = self.__array_tags.get(attribute, None)
             if attribute in self.__set_as_attribute:
-                if fmt is None:
-                    nod.setAttribute(attribute, str(value))
+                set_attribute(nod, attribute, value, fmt_func)
+            elif array_tag is not None:
+                the_tag = array_tag.get('tag', None)
+                child_tag = array_tag.get('child_tag', None)
+                if the_tag is not None:
+                    # this will be an numpy.ndarray
+                    serialize_array(nod, the_tag, child_tag, value, fmt_func)
+                elif child_tag is not None:
+                    # this will be a list
+                    serialize_list(nod, child_tag, value, fmt_func)
                 else:
-                    nod.setAttribute(attribute, fmt.format(value))
+                    # the metadata is broken
+                    raise ValueError(
+                        'Attribute {} in class {} is listed in the __array_tags dictionary, but the '
+                        '"child_tags" value is either missing or None.'.format(attribute, self.__class__.__name__))
             else:
-                serialize_child(value, attribute, child_tag, fmt)
+                serialize_plain(nod, attribute, value, fmt_func)
         return nod
 
     @classmethod
@@ -933,9 +1189,11 @@ class LatLonType(Serializable):
     __required = __fields
     __numeric_format = {'Lat': '2.8f', 'Lon': '3.8f'}  # TODO: desired precision?
     Lat = _FloatDescriptor(
-        'Lat', required=True, strict=DEFAULT_STRICT, docstring='The Latitude attribute. Assumed to be WGS 84 coordinates.')
+        'Lat', required=True, strict=DEFAULT_STRICT,
+        docstring='The Latitude attribute. Assumed to be WGS 84 coordinates.')
     Lon = _FloatDescriptor(
-        'Lon', required=True, strict=DEFAULT_STRICT, docstring='The Longitude attribute. Assumed to be WGS 84 coordinates.')
+        'Lon', required=True, strict=DEFAULT_STRICT,
+        docstring='The Longitude attribute. Assumed to be WGS 84 coordinates.')
 
     def __init__(self, **kwargs):
         """The constructor.
@@ -956,6 +1214,21 @@ class LatLonType(Serializable):
             return numpy.array([self.Lat, self.Lon], dtype=dtype)
         else:
             return numpy.array([self.Lon, self.Lat], dtype=dtype)
+
+
+class LatLonArrayElementType(LatLonType):
+    """An element of an array of points"""
+    __fields = ('Lat', 'Lon', 'index')
+    __required = __fields
+    __set_as_attribute = ('index', )
+    __numeric_format = {'Lat': '2.8f', 'Lon': '3.8f'}  # TODO: desired precision?
+    index = _IntegerDescriptor('index', required=True, strict=False, docstring="The index")
+
+    def __init__(self, **kwargs):
+        """The constructor.
+        :param dict kwargs: the valid keys are ('Lat', 'Lon', 'index'), all required.
+        """
+        super(LatLonArrayElementType, self).__init__(**kwargs)
 
 
 class LatLonRestrictionType(LatLonType):
@@ -1162,10 +1435,10 @@ class Poly1DType(Serializable):
     """
     __fields = ('Coefs', 'order1')
     __required = ('Coefs', )
-    __child_tags = {'Coefs': 'Coef'}
+    __array_tags = {'Coefs': {'tag': None, 'child_tag': 'Coef'}}
     __set_as_attribute = ('order1', )
     Coefs = _SerializableArrayDescriptor(
-        'Coefs', PolyCoef1DType, required=True, strict=DEFAULT_STRICT, tag='Coef',
+        'Coefs', PolyCoef1DType, __array_tags['Coefs'], required=True, strict=DEFAULT_STRICT,
         docstring='the collection of PolyCoef1DType monomial terms.')
 
     def __init__(self, **kwargs):
@@ -1193,10 +1466,10 @@ class Poly2DType(Serializable):
     """
     __fields = ('Coefs', 'order1', 'order2')
     __required = ('Coefs', )
-    __child_tags = {'Coefs': 'Coef'}
+    __array_tags = {'Coefs': {'tag': None, 'child_tag': 'Coef'}}
     __set_as_attribute = ('order1', 'order2')
     Coefs = _SerializableArrayDescriptor(
-        'Coefs', PolyCoef2DType, required=True, strict=DEFAULT_STRICT, tag='Coef',
+        'Coefs', PolyCoef2DType, __array_tags['Coefs'], required=True, strict=DEFAULT_STRICT,
         docstring='the collection of PolyCoef2DType monomial terms.')
 
     def __init__(self, **kwargs):
@@ -1285,156 +1558,6 @@ class GainPhasePolyType(Serializable):
         super(GainPhasePolyType, self).__init__(**kwargs)
 
 
-class LineType(Serializable):
-    """
-    A geographic line feature.
-    """
-    __fields = ('Endpoints', 'size')
-    __required = ('Endpoints', )
-    __child_tags = {'Endpoints': 'Endpoint'}
-    __set_as_attribute = ('size', )
-    # the descriptors
-    Endpoints = _SerializableArrayDescriptor(
-        'Endpoints', LatLonType, required=True, strict=DEFAULT_STRICT, tag='Endpoint',
-        docstring="A list of elements of type LatLonType. This isn't directly part of the SICD standard, and just "
-                  "represents an intermediate convenience object.")
-
-    def __init__(self, **kwargs):
-        """The constructor.
-        :param dict kwargs: the valid key is 'Endpoints', and it is required.
-        """
-        super(LineType, self).__init__(**kwargs)
-
-    def is_valid(self, recursive=False):  # type: (bool) -> bool
-        """
-        Returns the validity of this object according to the schema. In this case, that len(Endpoints) > 1.
-        :param bool recursive: Recursively check whether all attributes for validity.
-        :return bool: condition for validity of this element
-        """
-
-        all_required = True
-        if self.Endpoints is None:
-            all_required = False
-            logging.warning('Required field Endpoints is not populated for class {}'.format(self.__class__.__name__))
-        elif self.size < 2:
-            all_required = False
-            logging.warning(
-                'Required field Endpoints only has length {} for class {}'.format(self.size, self.__class__.__name__))
-        if not recursive or not all_required:
-            return all_required
-        all_children = True
-        for entry in self.Endpoints:
-            all_children &= entry.is_valid(recursive=recursive)
-        return all_required and all_children
-
-    @property
-    def size(self):  # type: () -> int
-        """
-        The size attribute.
-        :return int:
-        """
-
-        return 0 if self.Endpoints is None else len(self.Endpoints)
-
-    # TODO: helper methods for functionality, again?
-
-    def to_node(self,
-                doc,  # type: minidom.Document
-                tag=None,  # type: Union[None, str]
-                par=None,  # type: Union[None, minidom.Element]
-                strict=DEFAULT_STRICT,  # type: bool
-                exclude=()  # type: tuple
-                ):
-        # type: (...) -> minidom.Element
-        """
-        For XML serialization, to a dom element.
-
-        :param  minidom.Document doc: the xml Document
-        :param Union[None, str] tag: the tag name. The class name is unspecified.
-        :param Union[None, minidom.Element] par: parent element. The document root element will be used if unspecified.
-        :param bool strict: whether to raise an Exception if the structure is not valid.
-        :param tuple exclude: property names to exclude from this generic serialization. This allows for child classes
-            to provide specific serialization for special properties, but still use this super method.
-        :return minidom.Element: the constructed dom element, already assigned to the parent element.
-        """
-
-        node = super(LineType, self).to_node(
-            doc, tag=tag, par=par, strict=strict, exclude=exclude+('Endpoints', 'size'))
-        node.setAttribute('size', str(self.size))
-        for i, entry in enumerate(self.Endpoints):
-            entry.to_node(doc, par=node, tag='EndPoint', strict=strict, exclude=()).setAttribute('index', str(i))
-        return node
-
-
-class PolygonType(Serializable):
-    """
-    A geographic polygon element
-    """
-    __fields = ('Vertices', 'size')
-    __required = ('Vertices', )
-    __child_tags = {'Vertices': 'Vertex'}
-    __set_as_attribute = ('size', )
-    # child class definition
-
-    class LatLonArrayElement(LatLonRestrictionType):
-        """LatLon array element"""
-        __tag = 'Vertex'
-        __fields = ('Lat', 'Lon', 'index')
-        __required = __fields
-        __set_as_attribute = ('index', )
-        index = _IntegerDescriptor('index', required=True, strict=True)
-
-        def __init__(self, **kwargs):
-            """The constructor.
-            :param dict kwargs: the valid keys are in ('Lat', 'Lon', 'index'), all are required.
-            """
-            super(PolygonType.LatLonArrayElement, self).__init__(**kwargs)
-
-    # descriptors
-    Vertices = _SerializableArrayDescriptor(
-        'Vertices', LatLonArrayElement, required=True, strict=DEFAULT_STRICT, tag='Vertex',
-        docstring="A list of elements of type LatLonRestrictionType. This isn't directly part of the SICD standard, "
-                  "and just represents an intermediate convenience object.")
-
-    def __init__(self, **kwargs):
-        """The constructor.
-        :param dict kwargs: the valid keys is 'Vertices', and it is required.
-        """
-        super(PolygonType, self).__init__(**kwargs)
-
-    def is_valid(self, recursive=False):  # type: (bool) -> bool
-        """
-        Returns the validity of this object according to the schema. In this case, that len(Vertices) > 1.
-        :param bool recursive: whether to recursively check all attributes for validity.
-        :return bool: condition for validity of this element
-        """
-
-        all_required = True
-        if self.Vertices is None:
-            all_required = False
-            logging.warning('Required field Vertices is not populated for class {}'.format(self.__class__.__name__))
-        elif self.size < 3:
-            all_required = False
-            logging.warning(
-                'Required field Vertices only has length {} for class {}'.format(self.size, self.__class__.__name__))
-        if not recursive or not all_required:
-            return all_required
-        all_children = True
-        for entry in self.Vertices:
-            all_children &= entry.is_valid(recursive=recursive)
-        return all_required and all_children
-
-    @property
-    def size(self):  # type: () -> int
-        """
-        The size attribute.
-        :return int:
-        """
-        return 0 if self.Vertices is None else len(self.Vertices)
-
-    # TODO: helper methods for functionality, again?
-
-
 class ErrorDecorrFuncType(Serializable):
     """
     The Error Decorrelation Function?
@@ -1508,7 +1631,10 @@ class CollectionInfoType(Serializable):
     The collection information container.
     """
     __tag = 'CollectionInfo'
-    __child_tags = {'Parameters': 'Parameter', 'CountryCode': 'CountryCode'}  # these list type ones are hand-jammed
+    __array_tags = {
+        'Parameters': {'tag': None, 'child_tag': 'Parameter'},
+        'CountryCode': {'tag': None, 'child_tag': 'CountryCode'},
+    }
     __fields = (
         'CollectorName', 'IlluminatorName', 'CoreName', 'CollectType',
         'RadarMode', 'Classification', 'Parameters', 'CountryCodes')
@@ -1527,7 +1653,8 @@ class CollectionInfoType(Serializable):
     Classification = _StringDescriptor('Classification', required=True, strict=DEFAULT_STRICT, docstring='The Classification.')
     # list type descriptors
     Parameters = _SerializableArrayDescriptor(
-        'Parameters', ParameterType, required=False, strict=DEFAULT_STRICT, tag='Parameter', docstring='The parameters list.')
+        'Parameters', ParameterType, __array_tags['Parameters'], required=False, strict=DEFAULT_STRICT,
+        docstring='The parameters list.')
     CountryCodes = _StringListDescriptor(
         'CountryCodes', required=False, strict=DEFAULT_STRICT, docstring="The country code list.")
 
@@ -1567,67 +1694,15 @@ class ImageDataType(Serializable):
     """
     The image data container.
     """
-    __child_tags = {'AmpTable': 'Amplitude'}
+    __array_tags = {
+        'AmpTable': {'tag': 'AmpTable', 'child_tag': 'Amplitude'},
+        'ValidData': {'tag': 'ValidData', 'child_tag': 'Vertex'},
+    }
     __fields = ('PixelType', 'AmpTable', 'NumRows', 'NumCols', 'FirstRow', 'FirstCol', 'FullImage', 'SCPPixel',
                 'ValidData')
     __required = ('PixelType', 'NumRows', 'NumCols', 'FirstRow', 'FirstCol', 'FullImage', 'SCPPixel')
     __numeric_format = {'AmpTable': '0.8f'}  # TODO: precision for AmpTable?
     _PIXEL_TYPE_VALUES = ("RE32F_IM32F", "RE16I_IM16I", "AMP8I_PHS8I")
-    # child class definition
-
-    class ValidDataType(Serializable):
-        """
-        The valid data definition for the SICD image data.
-        """
-        __child_tags = {'Vertices': 'Vertex'}  # to account for the list type descriptor
-        __fields = ('Vertices', 'size')
-        __required = ('Vertices',)
-        __set_as_attribute = ('size',)
-        # descriptors
-        Vertices = _SerializableArrayDescriptor(
-            'Vertices', RowColvertexType, required=True, strict=DEFAULT_STRICT, tag='Vertex',
-            docstring="A list of elements of type RowColvertexType.")
-
-        def __init__(self, **kwargs):
-            """
-            The constructor.
-            :param dict kwargs: the only valid key is 'Vertices'.
-            """
-            super(ImageDataType.ValidDataType, self).__init__(**kwargs)
-
-        def is_valid(self, recursive=False):  # type: (bool) -> bool
-            """
-            Returns the validity of this object according to the schema. In this case, that len(Vertices) >= 3.
-            :param bool recursive: whether to recursively check all attributes for validity.
-            :return bool: condition for validity of this element
-            """
-
-            all_required = True
-            if self.Vertices is None:
-                all_required = False
-                logging.warning('Required field Vertices is not populated for class {}'.format(self.__class__.__name__))
-            elif self.size < 3:
-                all_required = False
-                logging.warning(
-                    'Required field Vertices only has length {} for class {}'.format(self.size,
-                                                                                     self.__class__.__name__))
-            if not recursive or not all_required:
-                return all_required
-            all_children = True
-            for entry in self.Vertices:
-                all_children &= entry.is_valid(recursive=recursive)
-            return all_required and all_children
-
-        @property
-        def size(self):  # type: () -> int
-            """
-            The size attribute.
-            :return int:
-            """
-            return 0 if self.Vertices is None else len(self.Vertices)
-
-        # TODO: helper methods for functionality, again?
-
     # descriptors
     PixelType = _StringEnumDescriptor(
         'PixelType', _PIXEL_TYPE_VALUES, required=True, strict=True,
@@ -1648,10 +1723,11 @@ class ImageDataType(Serializable):
     SCPPixel = _SerializableDescriptor(
         'SCPPixel', RowColType, required=True, strict=DEFAULT_STRICT, docstring='The SCP Pixel')
     # TODO: better explanation of this metadata
-    ValidData = _SerializableDescriptor(
-        'ValidData', ValidDataType, required=False, strict=DEFAULT_STRICT, docstring='The valid data area')
+    ValidData = _SerializableArrayDescriptor(
+        'ValidData', RowColvertexType, __array_tags['ValidData'], required=False, strict=DEFAULT_STRICT,
+        minimum_length=3, docstring='The valid data area')
     AmpTable = _FloatArrayDescriptor(
-        'AmpTable', required=False, strict=DEFAULT_STRICT, child_tag='Amplitude',
+        'AmpTable', __array_tags['AmpTable'], required=False, strict=DEFAULT_STRICT, minimum_length=256,
         docstring="The Amplitude lookup table. This must be defined if PixelType == 'AMP8I_PHS8I'")
 
     def __init__(self, **kwargs):
@@ -1688,20 +1764,28 @@ class GeoInfoType(Serializable):
     The GeoInfo container.
     """
     __tag = 'GeoInfo'
-    __child_tags = {'Descriptions': 'Desc'}
+    __array_tags = {
+        'Descriptions': {'tag': None, 'child_tag': 'Desc'},  # list type deal
+        'Line': {'tag': 'Line', 'child_tag': 'Endpoint'},  # an array
+        'Polygon': {'tag': 'Polygon', 'child_tag': 'Vertex'},
+    }
     __fields = ('name', 'Descriptions', 'Point', 'Line', 'Polygon')
     __required = ('name', )
     __set_as_attribute = ('name', )
     # descriptors
     name = _StringDescriptor('name', required=True, strict=True, docstring='The name.')
     Descriptions = _SerializableArrayDescriptor(
-        'Descriptions', ParameterType, required=False, strict=DEFAULT_STRICT, tag='Desc', docstring='The descriptions.')
+        'Descriptions', ParameterType, __array_tags['Descriptions'], required=False, strict=DEFAULT_STRICT,
+        docstring='The descriptions.')
     Point = _SerializableDescriptor(
-        'Point', LatLonRestrictionType, required=False, strict=DEFAULT_STRICT, docstring='A point.')
-    Line = _SerializableDescriptor(
-        'Line', LineType, required=False, strict=DEFAULT_STRICT, docstring='A line.')
-    Polygon = _SerializableDescriptor(
-        'Polygon', PolygonType, required=False, strict=DEFAULT_STRICT, docstring='A polygon.')
+        'Point', LatLonRestrictionType, required=False, strict=DEFAULT_STRICT,
+        docstring='A geographic point with WGS-84 coordinates.')
+    Line = _SerializableArrayDescriptor(
+        'Line', LatLonArrayElementType, required=False, strict=DEFAULT_STRICT, minimum_length=2,
+        docstring='A geographic line with WGS-84 coordinates.')
+    Polygon = _SerializableArrayDescriptor(
+        'Polygon', LatLonArrayElementType, required=False, strict=DEFAULT_STRICT, minimum_length=3,
+        docstring='A geographic polygon with WGS-84 coordinates.')
     # TODO: is the standard really self-referential here? I find that confusing.
 
     def __init__(self, **kwargs):
@@ -1710,19 +1794,18 @@ class GeoInfoType(Serializable):
         :param dict kwargs: the valid keys are ('name', 'Descriptions', 'Point', 'Line', 'Polygon'), where
             the only required key is 'name' , and only one of 'Point', 'Line', or 'Polygon' should be present.
         """
-        feature_count = 0
-        for typ in ['Point', 'Line', 'Polygon']:
-            if kwargs[typ] is not None:
-                feature_count += 1
-        if feature_count > 1:
-            raise ValueError("Only one of 'Point', 'Line', or 'Polygon' can be defined.")
-        super(GeoInfoType, self). __init__(**kwargs)
+        super(GeoInfoType, self).__init__(**kwargs)
 
 
 class GeoDataType(Serializable):
     """Container specifying the image coverage area in geographic coordinates."""
     __fields = ('EarthModel', 'SCP', 'ImageCorners', 'ValidData', 'GeoInfos')
     __required = ('EarthModel', 'SCP', 'ImageCorners')
+    __array_tags = {
+        'ValidData': {'tag': 'ValidData', 'child_tag': 'Vertex'},
+        'GeoInfos': {'tag': None, 'child_tag': 'GeoInfo'},
+        'ImageCorners': {'tag': 'ImageCorners', 'child_tag': 'ICP'},
+    }
     _EARTH_MODEL_VALUES = ('WGS_84', )
     # child class definitions
 
@@ -1744,57 +1827,22 @@ class GeoDataType(Serializable):
             """
             super(GeoDataType.SCPType, self).__init__(**kwargs)
 
-    class ImageCornersType(Serializable):
-        """The image corners container. """
-        __tag = 'ImageCorners'
-        __fields = ('ICPs', )
-        __child_tags = {'ICPs': 'ICP'}
-        __required = __fields
-        ICPs = _SerializableArrayDescriptor(
-            'ICPs', LatLonCornerStringType, tag='ICP', required=True, strict=DEFAULT_STRICT,
-            docstring='The image corner points.')
-
-        def __init__(self, **kwargs):
-            """
-            The constructor
-            :param dict kwargs: the only (required) key is 'ICPs'
-            """
-            super(GeoDataType.ImageCornersType, self).__init__(**kwargs)
-            if self.ICPs is None or len(self.ICPs) != 4:
-                raise ValueError('There sre not 4 image corner points defined.')
-
-        def is_valid(self, recursive=False):  # type: (bool) -> bool
-            valid = super(GeoDataType.ImageCornersType, self).is_valid(recursive=recursive)
-            if self.ICPs is not None:
-                if len(self.ICPs) != 4:
-                    logging.warning('There must be 4 image corner points defined')
-                    valid = False
-                else:
-                    indices = []
-                    for entry in self.ICPs:
-                        indices.append(entry.index)
-                    iset = set(indices)
-                    if not iset.issubset(LatLonCornerStringType._CORNER_VALUES) or len(iset) != 4:
-                        logging.warning(
-                            'The image corner data indices collection should match {}, '
-                            'but we have {}'.format(LatLonCornerStringType._CORNER_VALUES, indices))
-                        valid = False
-            return valid
-
     # descriptors
     EarthModel = _StringEnumDescriptor(
         'EarthModel', _EARTH_MODEL_VALUES, required=True, strict=True, default_value='WGS_84',
         docstring='The Earth Model, which taks values in {}.'.format(_EARTH_MODEL_VALUES))
     SCP = _SerializableDescriptor(
         'SCP', SCPType, required=True, strict=DEFAULT_STRICT, tag='SCP', docstring='The Scene Center Point.')
-    ImageCorners = _SerializableDescriptor(
-        'ImageCorners', ImageCornersType, required=True, strict=DEFAULT_STRICT, tag='ImageCorners',
-        docstring='The geographic image corner points')
-    ValidData = _SerializableDescriptor(
-        'ValidData', PolygonType, required=False, strict=DEFAULT_STRICT, tag='ValidData',
+    ImageCorners = _SerializableArrayDescriptor(
+        'ImageCorners', LatLonCornerStringType, __array_tags['ImageCorners'], required=True, strict=DEFAULT_STRICT,
+        minimum_length=4, # TODO: maximum_length=4,
+        docstring='The geographic image corner points array.')
+    ValidData = _SerializableArrayDescriptor(
+        'ValidData', LatLonArrayElementType, __array_tags['ValidData'], required=False,
+        strict=DEFAULT_STRICT, minimum_length=3,
         docstring='Indicates the full image includes both valid data and some zero filled pixels.')
     GeoInfos = _SerializableArrayDescriptor(
-        'GeoInfos', GeoInfoType, required=False, strict=DEFAULT_STRICT, tag='GeoInfo',
+        'GeoInfos', GeoInfoType, __array_tags['GeoInfos'], required=False, strict=DEFAULT_STRICT,
         docstring='Relevant geographic features.')
 
 
@@ -1807,17 +1855,17 @@ class DirParamType(Serializable):
     __numeric_format = {
         'SS': '0.8f', 'ImpRespWid': '0.8f', 'Sgn': '+d', 'ImpRespBW': '0.8f', 'KCtr': '0.8f',
         'DeltaK1': '0.8f', 'DeltaK2': '0.8f'}
-    __child_tags = {'WgtFunct': 'Wgt'}
+    __array_tags = {'WgtFunct': {'tag': 'WgtFunct', 'child_tag': 'Wgt'}}
     # child class definitions
 
     class WgtTypeType(Serializable):
         """The weight type parameters"""
         __fields = ('WindowName', 'Parameters')
         __required = ('WindowName', )
-        __child_tags = {'Parameters': 'Parameter'}
+        __array_tags = {'Parameters': {'tag': None, 'child_tag': None}}
         WindowName = _StringDescriptor('WindowName', required=True, strict=DEFAULT_STRICT, docstring='The window name')
         Parameters = _SerializableArrayDescriptor(
-            'Parameters', ParameterType, tag='Parameter', required=False, strict=DEFAULT_STRICT,
+            'Parameters', ParameterType, __array_tags['Parameters'], required=False, strict=DEFAULT_STRICT,
             docstring='The parameters list')
 
         def __init__(self, **kwargs):
@@ -1864,7 +1912,7 @@ class DirParamType(Serializable):
         docstring='Parameters describing aperture weighting type applied in the spatial frequency domain '
                   'to yield the impulse response in the given(row/col) direction.')
     WgtFunct = _FloatArrayDescriptor(
-        'WgtFunct', child_tag='Wgt', required=False, strict=DEFAULT_STRICT,
+        'WgtFunct', __array_tags['WgtFunct'], required=False, strict=DEFAULT_STRICT,
         docstring='Sampled aperture amplitude weighting function applied to form the SCP impulse response '
                   'in the given (row/col) direction. Attribute “size” equals the number of weights')
 
@@ -1939,12 +1987,12 @@ class GridType(Serializable):
 # TimelineType section
 
 
-class IPPType(Serializable):
-    """The Inter-Pulse Period parameters."""
-    __fields = ('Sets', 'size')
-    __required = ('Sets', )
-    __child_tags = {'Sets': 'Set'}
-    # child class
+class TimelineType(Serializable):
+    """The details for the imaging collection timeline."""
+    __fields = ('CollectStart', 'CollectDuration', 'IPP')
+    __required = ('CollectStart', 'CollectDuration', )
+    __array_tags = {'IPP': {'tag': 'IPP', 'child_tag': 'Set'}}
+    # child classes
 
     class SetType(Serializable):
         """"""
@@ -1973,50 +2021,8 @@ class IPPType(Serializable):
             :param dict kwargs: the valid keys are ('TStart', 'TEnd', 'IPPStart', 'IPPEnd', 'IPPPoly', 'index'),
             all required.
             """
-            super(IPPType.SetType, self).__init__(**kwargs)
+            super(TimelineType.SetType, self).__init__(**kwargs)
 
-    # descriptors
-    Sets = _SerializableArrayDescriptor(
-        'Sets', SetType, required=True, strict=DEFAULT_STRICT, tag='Set', docstring='The set container.')
-
-    def __init__(self, **kwargs):
-        """The constructor.
-        :param dict kwargs: the valid key is 'Sets', which must be defined.
-        """
-        super(IPPType, self).__init__(**kwargs)
-
-    def is_valid(self, recursive=False):  # type: (bool) -> bool
-        """
-        Returns the validity of this object according to the schema. This is done by inspecting that all required
-        fields (i.e. entries of `__required`) are not `None`.
-
-        :param bool recursive: should we recursively check that child are also valid?
-        :return bool: condition for validity of this element
-
-        .. Note: This DOES NOT recursively check if each attribute is itself valid, unless `recursive=True`. Note
-            that if a circular dependence is introduced at any point in the SICD standard (extremely unlikely) then
-            this will result in an infinite loop.
-        """
-
-        valid = super(IPPType, self).is_valid(recursive=recursive)
-        if self.Sets is not None and len(self.Sets) == 0:
-            valid = False
-            logging.warning('IPPType has an empty collection of Set objects.')
-        return valid
-
-    @property
-    def size(self):  # type: () -> int
-        """
-        The size attribute.
-        :return int:
-        """
-        return 0 if self.Sets is None else len(self.Sets)
-
-
-class TimelineType(Serializable):
-    """The details for the imaging collection timeline."""
-    __fields = ('CollectStart', 'CollectDuration', 'IPP')
-    __required = ('CollectStart', 'CollectDuration', )
     # descriptors
     CollectStart = _DateTimeDescriptor(
         'CollectStart', required=True, strict=DEFAULT_STRICT, numpy_datetime_units='us',
@@ -2024,8 +2030,9 @@ class TimelineType(Serializable):
                   'be microseconds.')
     CollectDuration = _FloatDescriptor(
         'CollectDuration', required=True, strict=DEFAULT_STRICT, docstring='The duration of the collection in seconds.')
-    IPP = _SerializableDescriptor(
-        'IPP', IPPType, required=False, strict=DEFAULT_STRICT, docstring="The Inter-Pulse Period (IPP) parameters.")
+    IPP = _SerializableArrayDescriptor(
+        'IPP', SetType, __array_tags['IPP'], required=False, strict=DEFAULT_STRICT, minimum_length=1,
+        docstring="The Inter-Pulse Period (IPP) parameters array.")
 
     def __init__(self, **kwargs):
         """The constructor.
@@ -2038,56 +2045,13 @@ class TimelineType(Serializable):
 ###################
 # PositionType child section
 
-class RcvAPCType(Serializable):
-    """The Receive Aperture Phase Center polynomials collection container"""
-    __fields = ('RcvAPCPolys', 'size')
-    __required = ('RcvAPCPolys', )
-    __child_tags = {'RcvAPCPolys': 'RcvAPCPoly'}
-
-    # descriptors
-    RcvAPCPolys = _SerializableArrayDescriptor(
-        'RcvAPCPolys', XYZPolyAttributeType, required=True, strict=DEFAULT_STRICT, tag='RcvAPCPoly',
-        docstring='Receive Aperture Phase Center polynomials. Each polynomial has output in ECF, and represents a '
-                  'function of elapsed seconds since start of collection.')
-
-    def __init__(self, **kwargs):
-        """The constructor.
-        :param dict kwargs: the valid key is 'RcvAPCPolys', which must be defined.
-        """
-        super(RcvAPCType, self).__init__(**kwargs)
-
-    def is_valid(self, recursive=False):  # type: (bool) -> bool
-        """
-        Returns the validity of this object according to the schema. This is done by inspecting that all required
-        fields (i.e. entries of `__required`) are not `None`.
-
-        :param bool recursive: should we recursively check that child are also valid?
-        :return bool: condition for validity of this element
-
-        .. Note: This DOES NOT recursively check if each attribute is itself valid, unless `recursive=True`. Note
-            that if a circular dependence is introduced at any point in the SICD standard (extremely unlikely) then
-            this will result in an infinite loop.
-        """
-
-        valid = super(RcvAPCType, self).is_valid(recursive=recursive)
-        if self.RcvAPCPolys is not None and len(self.RcvAPCPolys) == 0:
-            valid = False
-            logging.warning('RcvAPC has an empty collection of RcvAPCPoly objects.')
-        return valid
-
-    @property
-    def size(self):  # type: () -> int
-        """
-        The size attribute.
-        :return int:
-        """
-        return 0 if self.RcvAPCPolys is None else len(self.RcvAPCPolys)
-
 
 class PositionType(Serializable):
     """The details for platform and ground reference positions as a function of time since collection start."""
     __fields = ('ARPPoly', 'GRPPoly', 'TxAPCPoly', 'RcvAPC')
     __required = ('ARPPoly',)
+    __array_tags = {'RcvAPC': {'tag': 'RcvAPC', 'child_tag': 'RcvAPCPoly'}}
+
     # descriptors
     ARPPoly = _SerializableDescriptor(
         'ARPPoly', XYZPolyType, required=('ARPPoly' in __required), strict=DEFAULT_STRICT,
@@ -2101,9 +2065,10 @@ class PositionType(Serializable):
         'TxAPCPoly', XYZPolyType, required=('TxAPCPoly' in __required), strict=DEFAULT_STRICT,
         docstring='Transmit Aperture Phase Center (APC) position polynomial in ECF as a function of elapsed seconds '
                   'since start of collection.')
-    RcvAPC = _SerializableDescriptor(
-        'RcvAPC', RcvAPCType, required=('RcvAPC' in __required), strict=DEFAULT_STRICT,
-        docstring="The Receive Aperture Phase Center polynomials collection container.")
+    RcvAPC = _SerializableArrayDescriptor(
+        'RcvAPC', XYZPolyAttributeType, __array_tags['RcvAPC'], required=('RcvAPC' in __required), strict=DEFAULT_STRICT,
+        docstring='Receive Aperture Phase Center polynomials array. Each polynomial has output in ECF, and '
+                  'represents a function of elapsed seconds since start of collection.')
 
     def __init__(self, **kwargs):
         """The constructor.
