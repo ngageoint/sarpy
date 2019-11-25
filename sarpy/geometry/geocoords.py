@@ -19,11 +19,19 @@ def ecf_to_geodetic(x, y=None, z=None):
     """
     Converts ECF (Earth Centered Fixed) coordinates to geodetic latitude, longitude, and altitude.
 
-    :param x: numpy.ndarray of the form [[x, y, z]] or [x,]
-    :param y: None or numpy.ndarray of the form [y,]
-    :param z: None or numpy.ndarray of the form [z,]
-    :return: if `x` is `Nx3`, then returns `Nx3` numpy.ndarray of the form [latitude, longitude, altitude]
-        otherwise return tuple of numpy.ndarrays (latitude, longitude, altitude)
+    Parameters
+    ----------
+    x : numpy.ndarray
+        ECF coordinate(s) of the form [[x, y, z]] or [x,]
+    y : None|numpy.ndarray
+        ECF coordinate(s) of the form [y,] if `x` is one-dimensional
+    z : None|numpy.ndarray
+        ECF coordinate(s) of the form [z,] if `x` is one-dimensional
+
+    Returns
+    -------
+    numpy.ndarray
+        of size `N x 3` if `x` is two-dimensional. Otherwise returns a tuple of one-dimensional ndarrays.
 
     Implements transform described in *Zhu, J. Conversion of Earth-centered, Earth-fixed coordinates to
     geodetic coordinates. IEEE Transactions on Aerospace and Electronic Systems, 30, 3 (July 1994), 957-962.*
@@ -85,11 +93,19 @@ def geodetic_to_ecf(lat, lon=None, alt=None):
     """
     Converts geodetic latitude, longitude, and altitude to ECF (Earth Centered Fixed) coordinates.
 
-    :param lat: numpy.ndarray of the form [[latitude, longitude, altitude]] or [latitude,]
-    :param lon: None or numpy.ndarray of the form [longitude,]
-    :param alt: None or numpy.ndarray of the form [altitude,]
-    :return: if `lat` is `Nx3`, then returns `Nx3` numpy.ndarray of the form [x, y, z]
-        otherwise return tuple of numpy.ndarrays (x, y, z)
+    Parameters
+    ----------
+    lat : numpy.ndarray
+        WGS-84 coordinate(s) of the form [[latitude, longitude, altitude]] or [latitude,]
+    lon : None|numpy.ndarray
+        WGS-84 coordinate(s) of the form [longitude,] if `lon` is one-dimensional
+    alt : None|numpy.ndarray
+        WGS-84 coordinate(s) of the form [altitude,] if `lat` is one-dimensional
+
+    Returns
+    -------
+    numpy.ndarray
+        of size `N x 3` if `x` is two-dimensional. Otherwise returns a tuple of one-dimensional ndarrays.
 
     Implements transform described in *Zhu, J. Conversion of Earth-centered, Earth-fixed coordinates to
     geodetic coordinates. IEEE Transactions on Aerospace and Electronic Systems, 30, 3 (July 1994), 957-962.*
@@ -117,12 +133,21 @@ def wgs_84_norm(x, y=None, z=None):
     """
     Computes the normal vector to the WGS_84 ellipsoid at a given point in ECF space.
 
-    :param x: numpy.ndarray of the form [[x, y, z]] or [x,]
-    :param y: None or numpy.ndarray of the form [y,]
-    :param z: None or numpy.ndarray of the form [z,]
-    :return: if `x` is `Nx3`, then returns `Nx3` numpy.ndarray of the form [[x, y, z]]
-        otherwise return tuple of numpy.ndarrays (x, y, z)
+    Parameters
+    ----------
+    x : numpy.ndarray
+        array of the form [[x, y, z]] or [x,]
+    y : None|numpy.ndarray
+        array of the form [y,], if `x` is one-dimensional
+    z : None|numpy.ndarray
+        array of the form [z,], if `x` is one-dimensional
+
+    Returns
+    -------
+    numpy.ndarray
+        of size `N x 3` if `x` is two-dimensional. Otherwise returns a tuple of one-dimensional ndarrays.
     """
+
     # TODO: HIGH - replace this patterns with keyword args, something like coords=, x=,y=,z=
     #   LOW - the language in this doc string is confusing - WGS 84 ellipsoid in ECF space is nonsense?
 
@@ -147,10 +172,16 @@ def ric_ecf_mat(rarp, varp, frame_type):
     """
     Computes the ECF transformation matrix for RIC frame.
 
-    :param rarp:
-    :param varp:
-    :param frame_type: one of 'eci' or 'ecf'?
-    :return:
+    Parameters
+    ----------
+    rarp : numpy.ndarray
+    varp : numpy.ndarray
+    frame_type : str
+        one of 'eci' or 'ecf'?
+
+    Returns
+    -------
+    numpy.ndarray
     """
     # TODO: LOW - fix this docstring. These argument names are not descriptive, and I don't know what they represent.
 
@@ -173,11 +204,26 @@ def ric_ecf_mat(rarp, varp, frame_type):
 def _normalize_3dinputs(x, y, z):
     """
     Helper function for ensuring compatibility of arguments for module methods.
-    :param x: numpy.ndarray `Nx3` or `N`
-    :param y: None or one dimensional numpy.ndarray
-    :param z: None or one dimensional numpy.ndarray
-    :return: (x, y, z, componentwise) where `x,y,z` are one dimensional numpy.ndarrays and `componentwise` is a
-        boolean reflecting whether input argument signature of the form `y,z` not `None`
+
+    Parameters
+    ----------
+    x : numpy.ndarray
+        array of the form [[x, y, z]] or [x,]
+    y : None|numpy.ndarray
+        array of the form [y,], if `x` is one-dimensional
+    z : None|numpy.ndarray
+        array of the form [z,], if `x` is one-dimensional
+
+    Returns
+    -------
+    numpy.ndarray
+        the N element array of x coordinates
+    numpy.ndarray
+        the N element array of y coordinates
+    numpy.ndarray
+        the N element array of z coordinates
+    bool
+        `True` when input argument signature of the form `y` and `z` not `None`
     """
 
     # TODO: HIGH - This is only here to account for other confusion in the methods above.
