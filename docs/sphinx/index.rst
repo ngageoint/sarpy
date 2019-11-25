@@ -6,8 +6,10 @@
 Welcome to sarpy's documentation!
 =================================
 
-.. automodule:: sarpy.geometry.geocoords
+.. automodule:: sarpy.io.complex.sicd_update
     :members:
+    :show-inheritance:
+    :inherited-members:
 
 .. toctree::
    :maxdepth: 2
