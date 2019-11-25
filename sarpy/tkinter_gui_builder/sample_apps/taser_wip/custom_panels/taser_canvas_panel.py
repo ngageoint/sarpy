@@ -22,24 +22,30 @@ class TaserImageCanvasPanel(BasicImageCanvasPanel):
     def update_display_image(self,
                              remap_type,            # type: str
                              ):
-        self.remap_type = remap_type
+        display_data = self.remap_complex_data(self.cdata, remap_type)
+        self.set_image_from_numpy_array(display_data)
+
+    def remap_complex_data(self,
+                           complex_data,    # type: np.ndarray
+                           remap_type,      # type: str
+                           ):
         if remap_type == 'density':
-            pix = remap.density(self.cdata)
+            pix = remap.density(complex_data)
         elif remap_type == 'brighter':
-            pix = remap.brighter(self.cdata)
+            pix = remap.brighter(complex_data)
         elif remap_type == 'darker':
-            pix = remap.darker(self.cdata)
+            pix = remap.darker(complex_data)
         elif remap_type == 'highcontrast':
-            pix = remap.highcontrast(self.cdata)
+            pix = remap.highcontrast(complex_data)
         elif remap_type == 'linear':
-            pix = remap.linear(self.cdata)
+            pix = remap.linear(complex_data)
         elif remap_type == 'log':
-            pix = remap.log(self.cdata)
+            pix = remap.log(complex_data)
         elif remap_type == 'pedf':
-            pix = remap.pedf(self.cdata)
+            pix = remap.pedf(complex_data)
         elif remap_type == 'nrl':
-            pix = remap.nrl(self.cdata)
-        self.set_image_from_numpy_array(pix)
+            pix = remap.nrl(complex_data)
+        return pix
 
     def read_image(self):
         nx = self.reader_object.sicdmeta.ImageData.FullImage.NumCols
@@ -56,13 +62,19 @@ class TaserImageCanvasPanel(BasicImageCanvasPanel):
 
     def get_data_in_rect(self):
         print(self.rect_coords)
-        real_x_min = self.rect_coords[0] * self.decimation
-        real_x_max = self.rect_coords[2] * self.decimation
-        real_y_min = self.rect_coords[1] * self.decimation
-        real_y_max = self.rect_coords[3] * self.decimation
-        y_ul = int(self.rect_coords[0])
-        x_ul = int(self.rect_coords[1])
-        y_br = int(self.rect_coords[2])
-        x_br = int(self.rect_coords[3])
-        selected_image_data = self.image_data[y_ul: y_br, x_ul:x_br]
-        return selected_image_data
+        real_x_min = self.rect_coords[1] * self.decimation
+        real_x_max = self.rect_coords[3] * self.decimation
+        real_y_min = self.rect_coords[0] * self.decimation
+        real_y_max = self.rect_coords[2] * self.decimation
+
+        nx = real_x_max - real_x_min
+        ny = real_y_max - real_y_min
+
+        decimation_y = max(ny / self.canvas_height, 1)
+        decimation_x = max(nx / self.canvas_width, 1)
+
+        decimation = int(min(decimation_y, decimation_x))
+        print("selected data decimation: " + str(decimation))
+
+        rect_data = self.reader_object.read_chip[real_y_min:real_y_max:decimation, real_x_min:real_x_max:decimation]
+        return rect_data

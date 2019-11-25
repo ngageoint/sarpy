@@ -117,8 +117,10 @@ class Taser:
         self.taser_image_panel.set_image_from_numpy_array(new_image, scale_dynamic_range=True)
 
     def callback_display_canvas_rect_selection(self, event):
-        image_data = self.taser_image_panel.get_data_in_rect()
-        self.pyplot_panel.update_image(image_data)
+        complex_data = self.taser_image_panel.get_data_in_rect()
+        remap_type = self.taser_image_panel.remap_type
+        remapped_data = self.taser_image_panel.remap_complex_data(complex_data, remap_type)
+        self.pyplot_panel.update_image(remapped_data)
 
     def callback_update_basic_image_canvas_w_fname(self, event):
         self.taser_image_panel.set_image_from_fname(self.app_variables.fname)
