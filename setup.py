@@ -11,6 +11,10 @@ import os
 # drives), this will fix it:
 del os.link
 
+from sphinx.setup_command import BuildDoc
+cmdclass = {'build_sphinx': BuildDoc}
+
+
 # Get the long description from the README file
 here = os.path.abspath(os.path.dirname(__file__))
 # Get the long description from the README file
@@ -23,6 +27,8 @@ with open(os.path.join(here, 'sarpy', '__about__.py'), encoding='utf-8') as f:
 
 
 setup(name=parameters['__title__'],
+      version=parameters['__version__'],
+      release=parameters['__release__'],
       description=parameters['__summary__'],
       long_description=long_description,
       long_description_content_type='text/x-rst',
@@ -37,8 +43,8 @@ setup(name=parameters['__title__'],
         'csk':  ['h5py'],
       },
       zip_safe=False,  # Use of __file__ and __path__ in some code makes it unusable from zip
-      use_scm_version=True,
-      setup_requires=['setuptools_scm'],  # this is probably not used?
+      use_scm_version=False,
+      setup_requires=['setuptools_scm'],  # this is probably not used if we set the version?
       classifiers=[
           'Development Status :: 4 - Beta',
           'Intended Audience :: Developers',
@@ -50,5 +56,15 @@ setup(name=parameters['__title__'],
           'Programming Language :: Python :: 3.7'
       ],
       platforms=['any'],
-      license='MIT'
+      license='MIT',
+      cmdclass=cmdclass,
+      command_options={
+          'build_sphinx': {
+              'project': ('setup.py', 'sarpy'),
+              'version': ('setup.py', parameters['__version__']),
+              'release': ('setup.py', parameters['__release__']),
+              'copyright': ('setup.py', parameters['__copyright__']),
+              # 'author': ('setup.py', parameters['__author__']),
+              'source_dir': ('setup.py', os.path.join(here, 'docs', 'sphinx'))
+          }}
       )
