@@ -322,6 +322,60 @@ class _IntegerEnumDescriptor(_BasicDescriptor):
             self.data[instance] = iv
 
 
+class _IntegerListDescriptor(_BasicDescriptor):
+    """A descriptor for float array type properties"""
+
+    def __init__(self, name, tag_entry, required=False, strict=DEFAULT_STRICT, minimum_length=0, maximum_length=2**32, docstring=None):
+        super(_IntegerListDescriptor, self).__init__(name, required=required, strict=strict, docstring=docstring)
+        self.child_tag = tag_entry['child_tag']
+        self.minimum_length = minimum_length
+        self.maximum_length = maximum_length
+
+    def __set__(self, instance, value):
+        """
+        The setter method.
+        :param instance: the calling class instance
+        :param value: the input value
+        :return None:
+        """
+
+        def set_value(new_value):
+            if len(new_value) < self.minimum_length:
+                msg = 'Field {} of class {} is an integer list of size {}, and must have size at least ' \
+                      '{}.'.format(self.name, instance.__class__.__name__, value.size, self.minimum_length)
+                if self.strict:
+                    raise ValueError(msg)
+                else:
+                    logging.warning(msg)
+            if len(new_value) > self.maximum_length:
+                msg = 'Field {} of class {} is an integer list of size {}, and must have size no larger than ' \
+                      '{}.'.format(self.name, instance.__class__.__name__, value.size, self.maximum_length)
+                if self.strict:
+                    raise ValueError(msg)
+                else:
+                    logging.warning(msg)
+            self.data[instance] = new_value
+
+        if super(_IntegerListDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
+            return
+
+        if isinstance(value, int):
+            set_value([value, ])
+        elif isinstance(value, minidom.Element):
+            set_value([int(_get_node_value(value)), ])
+        elif isinstance(value, minidom.NodeList):
+            set_value([int(_get_node_value(nod)) for nod in value])
+        elif isinstance(value, list):
+            if len(value) == 0 or isinstance(value[0], int):
+                set_value(value)
+            elif isinstance(value[0], minidom.Element):
+                set_value([int(_get_node_value(nod)) for nod in value])
+        else:
+            raise TypeError(
+                'Field {} of class {} got incompatible type {}.'.format(
+                    self.name, instance.__class__.__name__, type(value)))
+
+
 class _FloatDescriptor(_BasicDescriptor):
     """A descriptor for float type properties"""
 
@@ -345,6 +399,39 @@ class _FloatDescriptor(_BasicDescriptor):
         else:
             # from user of json deserialization
             self.data[instance] = float(value)
+
+
+class _ComplexDescriptor(_BasicDescriptor):
+    """A descriptor for float type properties"""
+
+    def __init__(self, name, required=False, strict=DEFAULT_STRICT, docstring=None):
+        super(_ComplexDescriptor, self).__init__(name, required=required, strict=strict, docstring=docstring)
+
+    def __set__(self, instance, value):  # type: (object, float) -> None
+        """
+        The setter method.
+        :param instance: the calling class instance
+        :param value: the input value
+        :return None:
+        """
+
+        if super(_ComplexDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
+            return
+
+        if isinstance(value, minidom.Element):
+            # from XML deserialization
+            rnode = value.getElementsByTagName('Real')
+            inode = value.getElementsByTagName('Imag')
+            if len(rnode) != 1:
+                raise ValueError('There must be exactly one Real component of a complex type node defined.')
+            if len(inode) != 1:
+                raise ValueError('There must be exactly one Imag component of a complex type node defined.')
+            real = float(_get_node_value(rnode))
+            imag = float(_get_node_value(inode))
+            self.data[instance] = complex(re=real, im=imag)
+        else:
+            # from user or json deserialization
+            self.data[instance] = complex(value)
 
 
 class _FloatArrayDescriptor(_BasicDescriptor):
@@ -650,7 +737,7 @@ def _create_new_node(doc,  # type: minidom.Document
 
     :param minidom.Document doc: the xml Document
     :param str tag: name for new node
-    :param Union[None, minidom.Element] par: the parent element for the new element. Defaults to the document root
+    :param None|minidom.Element par: the parent element for the new element. Defaults to the document root
     element if unspecified.
     :return minidom.Element: the new node element
     """
@@ -675,7 +762,7 @@ def _create_text_node(doc,  # type: minidom.Document
     :param minidom.Document doc: xml Document
     :param str tag: name for new node
     :param str value: value for node contents
-    :param Union[None, minidom.Element] par: parent element. Defaults to the root element if unspecified.
+    :param None|minidom.Element par: parent element. Defaults to the root element if unspecified.
     :return minidom.Element: the new node element
     """
 
@@ -785,6 +872,7 @@ class Serializable(object):
         """
         Return a formatting function for the given attribute. This will default to str if no other
         option is presented.
+
         :param str attribute: the given attribute name
         :return:
         """
@@ -850,8 +938,8 @@ class Serializable(object):
         For XML deserialization.
 
         :param minidom.Element node: dom element for serialized class instance
-        :param Union[None, dict] kwargs: None or dictionary of previously serialized attributes. For use in
-        inheritance call, when certain attributes require specific deserialization.
+        :param None|dict kwargs: None or dictionary of previously serialized attributes. For use in
+            inheritance call, when certain attributes require specific deserialization.
         :return Serializable: corresponding class instance
         """
 
@@ -919,8 +1007,8 @@ class Serializable(object):
         For XML serialization, to a dom element.
 
         :param  minidom.Document doc: the xml Document
-        :param Union[None, str] tag: the tag name. The class name is unspecified.
-        :param Union[None, minidom.Element] par: parent element. The document root element will be used if unspecified.
+        :param None|str tag: the tag name. The class name is unspecified.
+        :param None|minidom.Element par: parent element. The document root element will be used if unspecified.
         :param bool strict: whether to raise an Exception if the structure is not valid.
         :param tuple exclude: property names to exclude from this generic serialization. This allows for child classes
             to provide specific serialization for special properties, but still use this super method.
@@ -1005,8 +1093,9 @@ class Serializable(object):
             elif isinstance(value, numpy.datetime64):
                 _create_text_node(doc, field, str(value), par=node)
             elif isinstance(value, complex):
-                # is this required anywhere? There's a complex thing in the SICD standard?
-                raise NotImplementedError
+                cnode = _create_new_node(doc, field, par=node)
+                _create_text_node(doc, 'Real', fmt_func(value.real), par=cnode)
+                _create_text_node(doc, 'Imag', fmt_func(value.imag), par=cnode)
             else:
                 raise ValueError(
                     'a entry for class {} using tag {} is of type {}, and serialization has not '
@@ -1070,10 +1159,10 @@ class Serializable(object):
 
         :param bool strict: whether to raise an Exception if the structure is not valid.
         :param tuple exclude: attribute names to exclude from this generic serialization. This allows for child classes
-        to provide specific serialization for special properties, but still use this super method.
+            to provide specific serialization for special properties, but still use this super method.
         :return orderedDict: dictionary representation of class instance appropriate for direct json serialization.
-        Recall that any elements of `exclude` will be omitted, and should likely be included by the extension class
-        implementation.
+            Recall that any elements of `exclude` will be omitted, and should likely be included by the extension class
+            implementation.
         """
 
         out = OrderedDict()
@@ -1090,7 +1179,7 @@ class PlainValueType(Serializable):
     __fields = ('value', )
     __required = __fields
     # descriptor
-    value = _StringDescriptor('value', required=True, strict=True, docstring='The value')
+    value = _StringDescriptor('value', required=True, strict=True, docstring=':str: The value')
 
     def __init__(self, **kwargs):
         """The constructor.
@@ -1103,8 +1192,8 @@ class PlainValueType(Serializable):
         """
         For XML deserialization.
         :param minidom.Element node: the dom Element to deserialize.
-        :param Union[None, dict] kwargs: None or dictionary of previously serialized attributes. For use in
-        inheritance call, when certain attributes require specific deserialization.
+        :param None|dict kwargs: None or dictionary of previously serialized attributes. For use in
+            inheritance call, when certain attributes require specific deserialization.
         :return PlainValueType: the deserialized class instance
         """
 
@@ -1122,8 +1211,8 @@ class PlainValueType(Serializable):
         For XML serialization, to a dom element.
 
         :param  minidom.Document doc: the xml Document
-        :param Union[None, str] tag: the tag name. The class name is unspecified.
-        :param Union[None, minidom.Element] par: parent element. The document root element will be used if unspecified.
+        :param None|str tag: the tag name. The class name is unspecified.
+        :param None|minidom.Element par: parent element. The document root element will be used if unspecified.
         :param bool strict: whether to raise an Exception if the structure is not valid.
         :param tuple exclude: property names to exclude from this generic serialization. This allows for child classes
             to provide specific serialization for special properties, but still use this super method.
@@ -1142,7 +1231,7 @@ class FloatValueType(Serializable):
     __fields = ('value', )
     __required = __fields
     # descriptor
-    value = _FloatDescriptor('value', required=True, strict=True, docstring='The value')
+    value = _FloatDescriptor('value', required=True, strict=True, docstring=':float: The value')
 
     def __init__(self, **kwargs):
         """The constructor.
@@ -1155,8 +1244,8 @@ class FloatValueType(Serializable):
         """
         For XML deserialization.
         :param minidom.Element node: the dom Element to deserialize.
-        :param Union[None, dict] kwargs: None or dictionary of previously serialized attributes. For use in
-        inheritance call, when certain attributes require specific deserialization.
+        :param None|dict kwargs: None or dictionary of previously serialized attributes. For use in
+            inheritance call, when certain attributes require specific deserialization.
         :return FloatValueType: the deserialized class instance
         """
 
@@ -1174,8 +1263,8 @@ class FloatValueType(Serializable):
         For XML serialization, to a dom element.
 
         :param  minidom.Document doc: the xml Document
-        :param Union[None, str] tag: the tag name. The class name is unspecified.
-        :param Union[None, minidom.Element] par: parent element. The document root element will be used if unspecified.
+        :param None|str tag: the tag name. The class name is unspecified.
+        :param None|minidom.Element par: parent element. The document root element will be used if unspecified.
         :param bool strict: whether to raise an Exception if the structure is not valid.
         :param tuple exclude: property names to exclude from this generic serialization. This allows for child classes
             to provide specific serialization for special properties, but still use this super method.
@@ -1193,6 +1282,21 @@ class FloatValueType(Serializable):
         return node
 
 
+class ComplexType(PlainValueType):
+    """A complex number"""
+    __fields = ('Real', 'Imag')
+    __required = __fields
+    # descriptor
+    Real = _FloatDescriptor('Real', required=True, strict=True, docstring=':float: The real component.')
+    Imag = _FloatDescriptor('Imag', required=True, strict=True, docstring=':float: The imaginary  component.')
+
+    def __init__(self, **kwargs):
+        """The constructor.
+        :param dict kwargs: the valid key are ('Real', 'Imag'), all required.
+        """
+        super(ComplexType, self).__init__(**kwargs)
+
+
 class ParameterType(PlainValueType):
     """A Parameter structure - just a name attribute and associated value"""
     __tag = 'Parameter'
@@ -1200,8 +1304,8 @@ class ParameterType(PlainValueType):
     __required = __fields
     __set_as_attribute = ('name', )
     # descriptor
-    name = _StringDescriptor('name', required=True, strict=True, docstring='The name')
-    value = _StringDescriptor('value', required=True, strict=True, docstring='The value')
+    name = _StringDescriptor('name', required=True, strict=True, docstring=':str: The name')
+    value = _StringDescriptor('value', required=True, strict=True, docstring=':str: The value')
 
     def __init__(self, **kwargs):
         """The constructor.
@@ -1217,11 +1321,14 @@ class XYZType(Serializable):
     __numeric_format = {'X': '0.8f', 'Y': '0.8f', 'Z': '0.8f'}  # TODO: desired precision? This is usually meters?
     # descriptors
     X = _FloatDescriptor(
-        'X', required=True, strict=DEFAULT_STRICT, docstring='The X attribute. Assumed to ECF or other, similar coordinates.')
+        'X', required=True, strict=DEFAULT_STRICT,
+        docstring=':float: The X attribute. Assumed to ECF or other, similar coordinates.')
     Y = _FloatDescriptor(
-        'Y', required=True, strict=DEFAULT_STRICT, docstring='The Y attribute. Assumed to ECF or other, similar coordinates.')
+        'Y', required=True, strict=DEFAULT_STRICT,
+        docstring=':float: The Y attribute. Assumed to ECF or other, similar coordinates.')
     Z = _FloatDescriptor(
-        'Z', required=True, strict=DEFAULT_STRICT, docstring='The Z attribute. Assumed to ECF or other, similar coordinates.')
+        'Z', required=True, strict=DEFAULT_STRICT,
+        docstring=':float: The Z attribute. Assumed to ECF or other, similar coordinates.')
 
     def __init__(self, **kwargs):
         """The constructor.
@@ -1248,10 +1355,10 @@ class LatLonType(Serializable):
     # descriptors
     Lat = _FloatDescriptor(
         'Lat', required=True, strict=DEFAULT_STRICT,
-        docstring='The Latitude attribute. Assumed to be WGS 84 coordinates.')
+        docstring=':float: The latitude attribute. Assumed to be WGS-84 coordinates.')
     Lon = _FloatDescriptor(
         'Lon', required=True, strict=DEFAULT_STRICT,
-        docstring='The Longitude attribute. Assumed to be WGS 84 coordinates.')
+        docstring=':float: The longitude attribute. Assumed to be WGS-84 coordinates.')
 
     def __init__(self, **kwargs):
         """The constructor.
@@ -1280,7 +1387,7 @@ class LatLonArrayElementType(LatLonType):
     __required = __fields
     __set_as_attribute = ('index', )
     __numeric_format = {'Lat': '2.8f', 'Lon': '3.8f'}  # TODO: desired precision?
-    index = _IntegerDescriptor('index', required=True, strict=False, docstring="The index")
+    index = _IntegerDescriptor('index', required=True, strict=False, docstring=":int: The array index")
 
     def __init__(self, **kwargs):
         """The constructor.
@@ -1297,10 +1404,10 @@ class LatLonRestrictionType(LatLonType):
     # descriptors
     Lat = _FloatModularDescriptor(
         'Lat', 90.0, required=True, strict=DEFAULT_STRICT,
-        docstring='The Latitude attribute. Assumed to be WGS 84 coordinates.')
+        docstring=':float: The latitude attribute. Assumed to be WGS-84 coordinates.')
     Lon = _FloatModularDescriptor(
         'Lon', 180.0, required=True, strict=DEFAULT_STRICT,
-        docstring='The Longitude attribute. Assumed to be WGS 84 coordinates.')
+        docstring=':float: The longitude attribute. Assumed to be WGS-84 coordinates.')
 
     def __init__(self, **kwargs):
         super(LatLonRestrictionType, self).__init__(**kwargs)
@@ -1314,7 +1421,7 @@ class LatLonHAEType(LatLonType):
     # descriptors
     HAE = _FloatDescriptor(
         'HAE', required=True, strict=DEFAULT_STRICT,
-        docstring='The Height Above Ellipsoid (in meters) attribute. Assumed to be WGS 84 coordinates.')
+        docstring=':float: The Height Above Ellipsoid (in meters) attribute. Assumed to be WGS-84 coordinates.')
 
     def __init__(self, **kwargs):
         """The constructor.
@@ -1342,10 +1449,10 @@ class LatLonHAERestrictionType(LatLonHAEType):
     """A three-dimensional geographic point in WGS-84 coordinates."""
     Lat = _FloatModularDescriptor(
         'Lat', 90.0, required=True, strict=DEFAULT_STRICT,
-        docstring='The Latitude attribute. Assumed to be WGS 84 coordinates.')
+        docstring=':float: The latitude attribute. Assumed to be WGS-84 coordinates.')
     Lon = _FloatModularDescriptor(
         'Lon', 180.0, required=True, strict=DEFAULT_STRICT,
-        docstring='The Longitude attribute. Assumed to be WGS 84 coordinates.')
+        docstring=':float: The longitude attribute. Assumed to be WGS-84 coordinates.')
 
     def __init__(self, **kwargs):
         """The constructor.
@@ -1361,7 +1468,7 @@ class LatLonCornerType(LatLonType):
     # descriptors
     index = _IntegerDescriptor(
         'index', required=True, strict=True, bounds=(1, 4),
-        docstring='The integer index in 1-4. This represents a clockwise enumeration of the rectangle vertices '
+        docstring=':int: The integer index in 1-4. This represents a clockwise enumeration of the rectangle vertices '
                   'wrt the frame of reference of the collector.')
 
     def __init__(self, **kwargs):
@@ -1380,7 +1487,7 @@ class LatLonCornerStringType(LatLonType):
     # descriptors
     index = _StringEnumDescriptor(
         'index', _CORNER_VALUES, required=True, strict=True,
-        docstring="The string index in {}".format(_CORNER_VALUES))
+        docstring=":str: The string index in {}".format(_CORNER_VALUES))
 
     def __init__(self, **kwargs):
         """The constructor.
@@ -1396,7 +1503,7 @@ class LatLonHAECornerRestrictionType(LatLonHAERestrictionType):
     # descriptors
     index = _IntegerDescriptor(
         'index', required=True, strict=True,
-        docstring='The integer index in 1-4. This represents a clockwise enumeration of the rectangle vertices '
+        docstring=':int: The integer index in 1-4. This represents a clockwise enumeration of the rectangle vertices '
                   'wrt the frame of reference of the collector.')
 
     def __init__(self, **kwargs):
@@ -1413,7 +1520,7 @@ class LatLonHAECornerStringType(LatLonHAEType):
     _CORNER_VALUES = ('1:FRFC', '2:FRLC', '3:LRLC', '4:LRFC')
     # descriptors
     index = _StringEnumDescriptor(
-        'index', _CORNER_VALUES, required=True, strict=True, docstring="The string index in {}".format(_CORNER_VALUES))
+        'index', _CORNER_VALUES, required=True, strict=True, docstring=":str: The string index in {}".format(_CORNER_VALUES))
 
     def __init__(self, **kwargs):
         """The constructor.
@@ -1426,9 +1533,9 @@ class RowColType(Serializable):
     __fields = ('Row', 'Col')
     __required = __fields
     Row = _IntegerDescriptor(
-        'Row', required=True, strict=DEFAULT_STRICT, docstring='The (integer valued) Row attribute.')
+        'Row', required=True, strict=DEFAULT_STRICT, docstring=':int: The Row attribute.')
     Col = _IntegerDescriptor(
-        'Col', required=True, strict=DEFAULT_STRICT, docstring='The (integer valued) Column attribute.')
+        'Col', required=True, strict=DEFAULT_STRICT, docstring=':int: The Column attribute.')
 
     def __init__(self, **kwargs):
         """The constructor.
@@ -1446,7 +1553,7 @@ class RowColArrayElement(RowColType):
     __set_as_attribute = ('index', )
     # descriptors
     index = _IntegerDescriptor(
-        'index', required=True, strict=DEFAULT_STRICT, docstring='The (integer valued) index attribute.')
+        'index', required=True, strict=DEFAULT_STRICT, docstring=':int: The index attribute.')
 
     def __init__(self, **kwargs):
         """The constructor.
@@ -1465,7 +1572,7 @@ class PolyCoef1DType(FloatValueType):
     __set_as_attribute = ('exponent1', )
     # descriptors
     exponent1 = _IntegerDescriptor(
-        'exponent1', required=True, strict=DEFAULT_STRICT, docstring='The (power) exponent1 attribute.')
+        'exponent1', required=True, strict=DEFAULT_STRICT, docstring=':int: The exponent1 attribute.')
 
     def __init__(self, **kwargs):
         """The constructor.
@@ -1488,9 +1595,9 @@ class PolyCoef2DType(FloatValueType):
     __set_as_attribute = ('exponent1', 'exponent2')
     # descriptors
     exponent1 = _IntegerDescriptor(
-        'exponent1', required=True, strict=DEFAULT_STRICT, docstring='The (power) exponent1 attribute.')
+        'exponent1', required=True, strict=DEFAULT_STRICT, docstring=':int: The exponent1 attribute.')
     exponent2 = _IntegerDescriptor(
-        'exponent2', required=True, strict=DEFAULT_STRICT, docstring='The (power) exponent2 attribute.')
+        'exponent2', required=True, strict=DEFAULT_STRICT, docstring=':int: The exponent2 attribute.')
 
     def __init__(self, **kwargs):
         """The constructor.
@@ -1508,7 +1615,7 @@ class Poly1DType(Serializable):
     # descriptos
     Coefs = _SerializableArrayDescriptor(
         'Coefs', PolyCoef1DType, __collections_tags['Coefs'], required=True, strict=DEFAULT_STRICT,
-        docstring='the collection of PolyCoef1DType monomial terms.')
+        docstring=':PolyCoef1DType: The **list** of monomial terms.')
 
     def __init__(self, **kwargs):
         """The constructor.
@@ -1519,8 +1626,7 @@ class Poly1DType(Serializable):
     @property
     def order1(self):  # type: () -> int
         """
-        The order1 attribute [READ ONLY]  - that is, largest exponent presented in the monomial terms of coefs.
-        :return int:
+        :int: The order1 attribute [READ ONLY]  - that is, largest exponent presented in the monomial terms of coefs.
         """
 
         return 0 if self.Coefs is None else max(entry.exponent1 for entry in self.Coefs)
@@ -1538,7 +1644,7 @@ class Poly2DType(Serializable):
     # descriptors
     Coefs = _SerializableArrayDescriptor(
         'Coefs', PolyCoef2DType, __collections_tags['Coefs'], required=True, strict=DEFAULT_STRICT,
-        docstring='the collection of PolyCoef2DType monomial terms.')
+        docstring=':PolyCoef2DType: The **list** of monomial terms.')
 
     def __init__(self, **kwargs):
         """The constructor.
@@ -1549,8 +1655,7 @@ class Poly2DType(Serializable):
     @property
     def order1(self):  # type: () -> int
         """
-        The order1 attribute [READ ONLY]  - that is, the largest exponent1 presented in the monomial terms of coefs.
-        :return int:
+        :int: The order1 attribute [READ ONLY]  - that is, the largest exponent1 presented in the monomial terms of coefs.
         """
 
         return 0 if self.Coefs is None else max(entry.exponent1 for entry in self.Coefs)
@@ -1558,8 +1663,7 @@ class Poly2DType(Serializable):
     @property
     def order2(self):  # type: () -> int
         """
-        The order2 attribute [READ ONLY]  - that is, the largest exponent2 presented in the monomial terms of coefs.
-        :return int:
+        :int: The order2 attribute [READ ONLY]  - that is, the largest exponent2 presented in the monomial terms of coefs.
         """
 
         return 0 if self.Coefs is None else max(entry.exponent2 for entry in self.Coefs)
@@ -1574,11 +1678,11 @@ class XYZPolyType(Serializable):
     __required = __fields
     # descriptors
     X = _SerializableDescriptor(
-        'X', Poly1DType, required=True, strict=DEFAULT_STRICT, docstring='The X polynomial.')
+        'X', Poly1DType, required=True, strict=DEFAULT_STRICT, docstring=':Poly1DType: The X polynomial.')
     Y = _SerializableDescriptor(
-        'Y', Poly1DType, required=True, strict=DEFAULT_STRICT, docstring='The Y polynomial.')
+        'Y', Poly1DType, required=True, strict=DEFAULT_STRICT, docstring=':Poly1DType: The Y polynomial.')
     Z = _SerializableDescriptor(
-        'Z', Poly1DType, required=True, strict=DEFAULT_STRICT, docstring='The Z polynomial.')
+        'Z', Poly1DType, required=True, strict=DEFAULT_STRICT, docstring=':Poly1DType: The Z polynomial.')
     # TODO: a better description would be good here
 
     def __init__(self, **kwargs):
@@ -1601,7 +1705,7 @@ class XYZPolyAttributeType(XYZPolyType):
     __set_as_attribute = ('index', )
     # descriptors
     index = _IntegerDescriptor(
-        'index', required=True, strict=DEFAULT_STRICT, docstring='The (array) index value.')
+        'index', required=True, strict=DEFAULT_STRICT, docstring=':int: The array index value.')
 
     def __init__(self, **kwargs):
         """The constructor. 
@@ -1616,9 +1720,9 @@ class GainPhasePolyType(Serializable):
     __required = __fields
     # descriptors
     GainPoly = _SerializableDescriptor(
-        'GainPoly', Poly2DType, required=True, strict=DEFAULT_STRICT, docstring='The Gain (two variable) Polygon.')
+        'GainPoly', Poly2DType, required=True, strict=DEFAULT_STRICT, docstring=':Poly2DType: The Gain Polygon.')
     PhasePoly = _SerializableDescriptor(
-        'GainPhasePoly', Poly2DType, required=True, strict=DEFAULT_STRICT, docstring='The Phase (two variable) Polygon.')
+        'GainPhasePoly', Poly2DType, required=True, strict=DEFAULT_STRICT, docstring=':Poly2DType: The Phase Polygon.')
 
     def __init__(self, **kwargs):
         """The constructor.
@@ -1636,9 +1740,9 @@ class ErrorDecorrFuncType(Serializable):
     __numeric_format = {'CorrCoefZero': '0.8f', 'DecorrRate': '0.8f'}  # TODO: desired precision?
     # descriptors
     CorrCoefZero = _FloatDescriptor(
-        'CorrCoefZero', required=True, strict=DEFAULT_STRICT, docstring='The CorrCoefZero attribute.')
+        'CorrCoefZero', required=True, strict=DEFAULT_STRICT, docstring=':float: The CorrCoefZero attribute.')
     DecorrRate = _FloatDescriptor(
-        'DecorrRate', required=True, strict=DEFAULT_STRICT, docstring='The DecorrRate attribute.')
+        'DecorrRate', required=True, strict=DEFAULT_STRICT, docstring=':float: The DecorrRate attribute.')
 
     def __init__(self, **kwargs):
         """
@@ -1658,10 +1762,10 @@ class RadarModeType(Serializable):
     # other class variable
     _MODE_TYPE_VALUES = ('SPOTLIGHT', 'STRIPMAP', 'DYNAMIC STRIPMAP')
     # descriptors
-    ModeId = _StringDescriptor('ModeId', required=False, docstring='The Mode Id.')
+    ModeId = _StringDescriptor('ModeId', required=False, docstring=':str: The (optional) Mode Id.')
     ModeType = _StringEnumDescriptor(
         'ModeType', _MODE_TYPE_VALUES, required=True, strict=DEFAULT_STRICT,
-        docstring="The ModeType, which will be one of {}.".format(_MODE_TYPE_VALUES))
+        docstring=":str: The mode type, which will be one of {}.".format(_MODE_TYPE_VALUES))
 
     def __init__(self, **kwargs):
         """
@@ -1677,8 +1781,8 @@ class FullImageType(Serializable):
     __fields = ('NumRows', 'NumCols')
     __required = __fields
     # descriptors
-    NumRows = _IntegerDescriptor('NumRows', required=True, strict=DEFAULT_STRICT, docstring='The number of rows.')
-    NumCols = _IntegerDescriptor('NumCols', required=True, strict=DEFAULT_STRICT, docstring='The number of columns.')
+    NumRows = _IntegerDescriptor('NumRows', required=True, strict=DEFAULT_STRICT, docstring=':int: The number of rows.')
+    NumCols = _IntegerDescriptor('NumCols', required=True, strict=DEFAULT_STRICT, docstring=':int: The number of columns.')
 
     def __init__(self, **kwargs):
         """
@@ -1707,30 +1811,33 @@ class CollectionInfoType(Serializable):
     # other class variable
     _COLLECT_TYPE_VALUES = ('MONOSTATIC', 'BISTATIC')
     # descriptors
-    CollectorName = _StringDescriptor('CollectorName', required=True, strict=DEFAULT_STRICT, docstring='The Collector Name.')
+    CollectorName = _StringDescriptor(
+        'CollectorName', required=True, strict=DEFAULT_STRICT, docstring=':str: The collector name.')
     IlluminatorName = _StringDescriptor(
-        'IlluminatorName', required=False, strict=DEFAULT_STRICT, docstring='The Illuminator Name.')
-    CoreName = _StringDescriptor('CoreName', required=True, strict=DEFAULT_STRICT, docstring='The Core Name.')
+        'IlluminatorName', required=False, strict=DEFAULT_STRICT, docstring=':str: The (optional) illuminator name.')
+    CoreName = _StringDescriptor(
+        'CoreName', required=True, strict=DEFAULT_STRICT, docstring=':str: The core name.')
     CollectType = _StringEnumDescriptor(
         'CollectType', _COLLECT_TYPE_VALUES, required=False,
-        docstring="The collect type, one of {}".format(_COLLECT_TYPE_VALUES))
+        docstring=":str: The collect type, one of {}".format(_COLLECT_TYPE_VALUES))
     RadarMode = _SerializableDescriptor(
-        'RadarMode', RadarModeType, required=True, strict=DEFAULT_STRICT, docstring='The Radar Mode')
-    Classification = _StringDescriptor('Classification', required=True, strict=DEFAULT_STRICT, docstring='The Classification.')
+        'RadarMode', RadarModeType, required=True, strict=DEFAULT_STRICT, docstring=':RadarModeType: The radar mode')
+    Classification = _StringDescriptor(
+        'Classification', required=True, strict=DEFAULT_STRICT, docstring=':str: The classification.')
     # list type descriptors
     Parameters = _SerializableArrayDescriptor(
         'Parameters', ParameterType, __collections_tags['Parameters'], required=False, strict=DEFAULT_STRICT,
-        docstring='The parameters list.')
+        docstring=':ParameterType: The (optional) parameters objects **list**.')
     CountryCodes = _StringListDescriptor(
-        'CountryCodes', required=False, strict=DEFAULT_STRICT, docstring="The country code list.")
+        'CountryCodes', required=False, strict=DEFAULT_STRICT, docstring=":str: The (optional) country code **list**.")
 
     def __init__(self, **kwargs):
         """
         The constructor.
         :param dict kwargs: the valid keys are
-            ['CollectorName', 'IlluminatorName', 'CoreName', 'CollectType',
-             'RadarMode', 'Classification', 'CountryCodes', 'Parameters'].
-        While the required fields are ['CollectorName', 'CoreName', 'RadarMode', 'Classification'].
+            ('CollectorName', 'IlluminatorName', 'CoreName', 'CollectType', 'RadarMode', 'Classification',
+            'CountryCodes', 'Parameters').
+            While the required fields are ('CollectorName', 'CoreName', 'RadarMode', 'Classification').
         """
         super(CollectionInfoType, self).__init__(**kwargs)
 
@@ -1746,9 +1853,9 @@ class ImageCreationType(Serializable):
     # descriptors
     Application = _StringDescriptor('Application', required=False, strict=DEFAULT_STRICT, docstring='The Application')
     DateTime = _DateTimeDescriptor(
-        'DateTime', required=False, strict=DEFAULT_STRICT, docstring='The Date/Time', numpy_datetime_units='us')
-    Site = _StringDescriptor('Site', required=False, strict=DEFAULT_STRICT, docstring='The Site')
-    Profile = _StringDescriptor('Profile', required=False, strict=DEFAULT_STRICT, docstring='The Profile')
+        'DateTime', required=False, strict=DEFAULT_STRICT, docstring=':numpy.datetime64: The Date/Time', numpy_datetime_units='us')
+    Site = _StringDescriptor('Site', required=False, strict=DEFAULT_STRICT, docstring=':str: The Site')
+    Profile = _StringDescriptor('Profile', required=False, strict=DEFAULT_STRICT, docstring=':str: The Profile')
 
     def __init__(self, **kwargs):
         """
@@ -1777,38 +1884,36 @@ class ImageDataType(Serializable):
     PixelType = _StringEnumDescriptor(
         'PixelType', _PIXEL_TYPE_VALUES, required=True, strict=True,
         docstring="""
-        The PixelType attribute which specifies the interpretation of the file data:
+        :str: The PixelType attribute which specifies the interpretation of the file data:
             * `"RE32F_IM32F"` - a pixel is specified as `(real, imaginary)` each 32 bit floating point.
             * `"RE16I_IM16I"` - a pixel is specified as `(real, imaginary)` each a 16 bit (short) integer.
             * `"AMP8I_PHS8I"` - a pixel is specified as `(amplitude, phase)` each an 8 bit unsigned integer. The
                 `amplitude` actually specifies the index into the `AmpTable` attribute. The `angle` is properly
                 interpreted (in radians) as `theta = 2*pi*angle/256`.
         """)
-    NumRows = _IntegerDescriptor('NumRows', required=True, strict=DEFAULT_STRICT, docstring='The number of Rows')
-    NumCols = _IntegerDescriptor('NumCols', required=True, strict=DEFAULT_STRICT, docstring='The number of Columns')
-    FirstRow = _IntegerDescriptor('FirstRow', required=True, strict=DEFAULT_STRICT, docstring='The first row')
-    FirstCol = _IntegerDescriptor('FirstCol', required=True, strict=DEFAULT_STRICT, docstring='The first column')
+    NumRows = _IntegerDescriptor('NumRows', required=True, strict=DEFAULT_STRICT, docstring=':int: The number of Rows')
+    NumCols = _IntegerDescriptor('NumCols', required=True, strict=DEFAULT_STRICT, docstring=':int: The number of Columns')
+    FirstRow = _IntegerDescriptor('FirstRow', required=True, strict=DEFAULT_STRICT, docstring=':int: The first row')
+    FirstCol = _IntegerDescriptor('FirstCol', required=True, strict=DEFAULT_STRICT, docstring=':int: The first column')
     FullImage = _SerializableDescriptor(
-        'FullImage', FullImageType, required=True, strict=DEFAULT_STRICT, docstring='The full image')
+        'FullImage', FullImageType, required=True, strict=DEFAULT_STRICT, docstring=':FullImageType: The full image')
     SCPPixel = _SerializableDescriptor(
-        'SCPPixel', RowColType, required=True, strict=DEFAULT_STRICT, docstring='The SCP Pixel')
-    # TODO: better explanation of this metadata
+        'SCPPixel', RowColType, required=True, strict=DEFAULT_STRICT, docstring=':RowColType: The SCP Pixel')
     ValidData = _SerializableArrayDescriptor(
         'ValidData', RowColArrayElement, __collections_tags['ValidData'], required=False, strict=DEFAULT_STRICT,
-        minimum_length=3, docstring='The valid data area')
+        minimum_length=3, docstring=':RowColArrayElement: The valid data area **array**')
     AmpTable = _FloatArrayDescriptor(
         'AmpTable', __collections_tags['AmpTable'], required=False, strict=DEFAULT_STRICT,
         minimum_length=256, maximum_length=256,
-        docstring="The 256 element amplitude look-up table. This must be defined if PixelType == 'AMP8I_PHS8I'")
+        docstring=":float: The 256 element amplitude look-up table **array**. This must be defined if PixelType == 'AMP8I_PHS8I'")
 
     def __init__(self, **kwargs):
         """
         The constructor.
         :param dict kwargs: the valid keys are
-            ('PixelType', 'AmpTable', 'NumRows', 'NumCols', 'FirstRow',
-            'FirstCol', 'FullImage', 'SCPPixel', 'ValidData')
-        Required are ('PixelType', 'NumRows', 'NumCols', 'FirstRow', 'FirstCol', 'FullImage', 'SCPPixel'),
-        and 'AmpTable' must conditionally be defined if PixelType == 'AMP8I_PHS8I'.
+            ('PixelType', 'AmpTable', 'NumRows', 'NumCols', 'FirstRow', 'FirstCol', 'FullImage', 'SCPPixel', 'ValidData')
+            Required are ('PixelType', 'NumRows', 'NumCols', 'FirstRow', 'FirstCol', 'FullImage', 'SCPPixel'),
+            and 'AmpTable' must conditionally be defined if `PixelType == 'AMP8I_PHS8I'`.
         """
         self._AmpTable = None
         super(ImageDataType, self).__init__(**kwargs)
@@ -1844,19 +1949,19 @@ class GeoInfoType(Serializable):
     __required = ('name', )
     __set_as_attribute = ('name', )
     # descriptors
-    name = _StringDescriptor('name', required=True, strict=True, docstring='The name.')
+    name = _StringDescriptor('name', required=True, strict=True, docstring=':str: The name.')
     Descriptions = _SerializableArrayDescriptor(
         'Descriptions', ParameterType, __collections_tags['Descriptions'], required=False, strict=DEFAULT_STRICT,
-        docstring='The descriptions.')
+        docstring=':ParameterType: The descriptions **list**.')
     Point = _SerializableDescriptor(
         'Point', LatLonRestrictionType, required=False, strict=DEFAULT_STRICT,
-        docstring='A geographic point with WGS-84 coordinates.')
+        docstring=':LatLonRestrictionType: A geographic point with WGS-84 coordinates.')
     Line = _SerializableArrayDescriptor(
-        'Line', LatLonArrayElementType, required=False, strict=DEFAULT_STRICT, minimum_length=2,
-        docstring='A geographic line with WGS-84 coordinates.')
+        'Line', LatLonArrayElementType, __collections_tags['Line'], required=False, strict=DEFAULT_STRICT, minimum_length=2,
+        docstring=':LatLonRestrictionType: A geographic line (**array**) with WGS-84 coordinates.')
     Polygon = _SerializableArrayDescriptor(
-        'Polygon', LatLonArrayElementType, required=False, strict=DEFAULT_STRICT, minimum_length=3,
-        docstring='A geographic polygon with WGS-84 coordinates.')
+        'Polygon', LatLonArrayElementType, __collections_tags['Polygon'], required=False, strict=DEFAULT_STRICT, minimum_length=3,
+        docstring=':LatLonRestrictionType: A geographic polygon (**array**) with WGS-84 coordinates.')
     # TODO: is the standard really self-referential here? I find that confusing.
 
     def __init__(self, **kwargs):
@@ -1878,16 +1983,16 @@ class SCPType(Serializable):
     __fields = ('ECF', 'LLH')
     __required = __fields  # isn't this redundant?
     ECF = _SerializableDescriptor(
-        'ECF', XYZType, required=True, strict=DEFAULT_STRICT, docstring='The ECF coordinates.')
+        'ECF', XYZType, required=True, strict=DEFAULT_STRICT, docstring=':XYZType: The ECF coordinates.')
     LLH = _SerializableDescriptor(
         'LLH', LatLonHAERestrictionType, required=True, strict=DEFAULT_STRICT,
-        docstring='The WGS 84 coordinates.'
+        docstring=':LatLonHAERestrictionType: The WGS 84 coordinates.'
     )
 
     def __init__(self, **kwargs):
         """
         The constructor.
-        :param dict kwargs: the keys are ['ECF', 'LLH'], all required.
+        :param dict kwargs: the keys are ('ECF', 'LLH'), all required.
         """
         super(SCPType, self).__init__(**kwargs)
 
@@ -1898,28 +2003,36 @@ class GeoDataType(Serializable):
     __required = ('EarthModel', 'SCP', 'ImageCorners')
     __collections_tags = {
         'ValidData': {'array': True, 'child_tag': 'Vertex'},
-        'GeoInfos': {'array': False, 'child_tag': 'GeoInfo'},
         'ImageCorners': {'array': True, 'child_tag': 'ICP'},
+        'GeoInfos': {'array': False, 'child_tag': 'GeoInfo'},
     }
     # other class variables
     _EARTH_MODEL_VALUES = ('WGS_84', )
     # descriptors
     EarthModel = _StringEnumDescriptor(
         'EarthModel', _EARTH_MODEL_VALUES, required=True, strict=True, default_value='WGS_84',
-        docstring='The Earth Model, which taks values in {}.'.format(_EARTH_MODEL_VALUES))
+        docstring=':str: The Earth Model, which taks values in {}.'.format(_EARTH_MODEL_VALUES))
     SCP = _SerializableDescriptor(
-        'SCP', SCPType, required=True, strict=DEFAULT_STRICT, tag='SCP', docstring='The Scene Center Point.')
+        'SCP', SCPType, required=True, strict=DEFAULT_STRICT, tag='SCP', docstring=':SCPType: The Scene Center Point.')
     ImageCorners = _SerializableArrayDescriptor(
         'ImageCorners', LatLonCornerStringType, __collections_tags['ImageCorners'], required=True, strict=DEFAULT_STRICT,
         minimum_length=4, maximum_length=4,
-        docstring='The geographic image corner points array.')
+        docstring=':LatLonCornerStringType: The (4) geographic image corner points **array**.')
     ValidData = _SerializableArrayDescriptor(
         'ValidData', LatLonArrayElementType, __collections_tags['ValidData'], required=False,
         strict=DEFAULT_STRICT, minimum_length=3,
-        docstring='Indicates the full image includes both valid data and some zero filled pixels.')
+        docstring=':LatLonArrayElementType: The full image **array** includes both valid data and some zero filled pixels.')
     GeoInfos = _SerializableArrayDescriptor(
         'GeoInfos', GeoInfoType, __collections_tags['GeoInfos'], required=False, strict=DEFAULT_STRICT,
-        docstring='Relevant geographic features.')
+        docstring=':GeoInfoType: Relevant geographic features **list**.')
+
+    def __init__(self, **kwargs):
+        """
+        The constructor.
+        :param dict kwargs: the valid keys are ('EarthModel', 'SCP', 'ImageCorners', 'ValidData', 'GeoInfos'), and
+            ('EarthModel', 'SCP', 'ImageCorners') are required.
+        """
+        super(GeoDataType, self).__init__(**kwargs)
 
 
 ################
@@ -1935,7 +2048,7 @@ class WgtTypeType(Serializable):
     WindowName = _StringDescriptor('WindowName', required=True, strict=DEFAULT_STRICT, docstring='The window name')
     Parameters = _SerializableArrayDescriptor(
         'Parameters', ParameterType, __collections_tags['Parameters'], required=False, strict=DEFAULT_STRICT,
-        docstring='The parameters list')
+        docstring=':ParameterType: The parameters **list**')
 
     def __init__(self, **kwargs):
         """
@@ -1958,43 +2071,44 @@ class DirParamType(Serializable):
     # descriptors
     UVectECF = _SerializableDescriptor(
         'UVectECF', XYZType, tag='UVectECF', required=True, strict=DEFAULT_STRICT,
-        docstring='Unit vector in the increasing (row/col) direction (ECF) at the SCP pixel.')
+        docstring=':XYZType: Unit vector in the increasing (row/col) direction (ECF) at the SCP pixel.')
     SS = _FloatDescriptor(
         'SS', required=True, strict=DEFAULT_STRICT,
-        docstring='Sample spacing in the increasing (row/col) direction. Precise spacing at the SCP.')
+        docstring=':float: Sample spacing in the increasing (row/col) direction. Precise spacing at the SCP.')
     ImpRespWid = _FloatDescriptor(
         'ImpRespWid', required=True, strict=DEFAULT_STRICT,
-        docstring='Half power impulse response width in the increasing (row/col) direction. Measured at the SCP.')
+        docstring=':float: Half power impulse response width in the increasing (row/col) direction. Measured at the SCP.')
     Sgn = _IntegerEnumDescriptor(
         'Sgn', values=(1, -1), required=True, strict=DEFAULT_STRICT,
-        docstring='sign for exponent in the DFT to transform the (row/col) dimension to spatial frequency dimension.')
+        docstring=':int: Sign (+1/-1) for exponent in the DFT to transform the (row/col) dimension to '
+                  'spatial frequency dimension.')
     ImpRespBW = _FloatDescriptor(
         'ImpRespBW', required=True, strict=DEFAULT_STRICT,
-        docstring='Spatial bandwidth in (row/col) used to form the impulse response in the (row/col) direction. '
+        docstring=':float: Spatial bandwidth in (row/col) used to form the impulse response in the (row/col) direction. '
                   'Measured at the center of support for the SCP.')
     KCtr = _FloatDescriptor(
         'KCtr', required=True, strict=DEFAULT_STRICT,
-        docstring='Center spatial frequency in the given dimension. '
+        docstring=':float: Center spatial frequency in the given dimension. '
                   'Corresponds to the zero frequency of the DFT in the given (row/col) direction.')
     DeltaK1 = _FloatDescriptor(
         'DeltaK1', required=True, strict=DEFAULT_STRICT,
-        docstring='Minimum (row/col) offset from KCtr of the spatial frequency support for the image.')
+        docstring=':float: Minimum (row/col) offset from KCtr of the spatial frequency support for the image.')
     DeltaK2 = _FloatDescriptor(
         'DeltaK2', required=True, strict=DEFAULT_STRICT,
-        docstring='Maximum (row/col) offset from KCtr of the spatial frequency support for the image.')
+        docstring=':float: Maximum (row/col) offset from KCtr of the spatial frequency support for the image.')
     DeltaKCOAPoly = _SerializableDescriptor(
         'DeltaKCOAPoly', Poly2DType, tag='DeltaKCOAPoly', required=False, strict=DEFAULT_STRICT,
-        docstring='Offset from KCtr of the center of support in the given (row/col) spatial frequency. '
+        docstring=':Poly2DType: Offset from KCtr of the center of support in the given (row/col) spatial frequency. '
                   'The polynomial is a function of image given (row/col) coordinate (variable 1) and '
                   'column coordinate (variable 2).')
     WgtType = _SerializableDescriptor(
         'WgtType', WgtTypeType, tag='WgtType', required=False, strict=DEFAULT_STRICT,
-        docstring='Parameters describing aperture weighting type applied in the spatial frequency domain '
+        docstring=':WgtTypeType: Parameters describing aperture weighting type applied in the spatial frequency domain '
                   'to yield the impulse response in the given(row/col) direction.')
     WgtFunct = _FloatArrayDescriptor(
         'WgtFunct', __collections_tags['WgtFunct'], required=False, strict=DEFAULT_STRICT, minimum_length=2,
-        docstring='Sampled aperture amplitude weighting function applied to form the SCP impulse response '
-                  'in the given (row/col) direction. Attribute “size” equals the number of weights')
+        docstring=':float: Sampled aperture amplitude weighting function (**array**) applied to form the SCP impulse '
+                  'response in the given (row/col) direction. If present, the size of the array is required to be at least 2..')
 
     def __init__(self, **kwargs):
         """
@@ -2037,10 +2151,10 @@ class GridType(Serializable):
     # descriptors
     ImagePlane = _StringEnumDescriptor(
         'ImagePlane', _IMAGE_PLANE_VALUES, required=True, strict=DEFAULT_STRICT,
-        docstring="The image plane. Possible values are {}".format(_IMAGE_PLANE_VALUES))
+        docstring=":str: The image plane. Possible values are {}".format(_IMAGE_PLANE_VALUES))
     Type = _StringEnumDescriptor(
         'Type', _TYPE_VALUES, required=True, strict=DEFAULT_STRICT,
-        docstring="""The possible values and meanings:
+        docstring=""":str: The possible values and meanings:
 * 'RGAZIM' - Range & azimuth relative to the ARP at a reference time.
 * 'RGZERO' - Range from ARP trajectory at zero Doppler and azimuth aligned with the strip being imaged.
 * 'XRGYCR' - Orthogonal slant plane grid oriented range and cross range relative to the ARP at a reference time.
@@ -2048,14 +2162,14 @@ class GridType(Serializable):
 * 'PLANE'  - Uniformly sampled in an arbitrary plane along directions U & V.""")
     TimeCOAPoly = _SerializableDescriptor(
         'TimeCOAPoly', Poly2DType, required=True, strict=DEFAULT_STRICT,
-        docstring="*Time of Center Of Aperture* as a polynomial function of image coordinates. The polynomial is a "
+        docstring=":Poly2DType: *Time of Center Of Aperture* as a polynomial function of image coordinates. The polynomial is a "
                   "function of image row coordinate (variable 1) and column coordinate (variable 2).")
     Row = _SerializableDescriptor(
         'Row', DirParamType, required=True, strict=DEFAULT_STRICT,
-        docstring="Row direction parameters of type DirParamType")
+        docstring=":DirParamType: Row direction parameters.")
     Col = _SerializableDescriptor(
         'Col', DirParamType, required=True, strict=DEFAULT_STRICT,
-        docstring="Column direction parameters of type DirParamType")
+        docstring=":DirParamType: Column direction parameters.")
 
     def __init__(self, **kwargs):
         """
@@ -2081,24 +2195,24 @@ class IPPSetType(Serializable):
     # descriptors
     TStart = _FloatDescriptor(
         'TStart', required=True, strict=DEFAULT_STRICT,
-        docstring='IPP start time relative to collection start time, i.e. offsets in seconds.')
+        docstring=':float: IPP start time relative to collection start time, i.e. offsets in seconds.')
     TEnd = _FloatDescriptor(
         'TEnd', required=True, strict=DEFAULT_STRICT,
-        docstring='IPP end time relative to collection start time, i.e. offsets in seconds.')
+        docstring=':float: IPP end time relative to collection start time, i.e. offsets in seconds.')
     IPPStart = _IntegerDescriptor(
-        'IPPStart', required=True, strict=True, docstring='Starting IPP index for the period described.')
+        'IPPStart', required=True, strict=True, docstring=':int: Starting IPP index for the period described.')
     IPPEnd = _IntegerDescriptor(
-        'IPPEnd', required=True, strict=True, docstring='Ending IPP index for the period described.')
+        'IPPEnd', required=True, strict=True, docstring=':int: Ending IPP index for the period described.')
     IPPPoly = _SerializableDescriptor(
         'IPPPoly', Poly1DType, required=True, strict=DEFAULT_STRICT,
-        docstring='IPP index polynomial coefficients yield IPP index as a function of time for TStart to TEnd.')
+        docstring=':Poly1DType: IPP index polynomial coefficients yield IPP index as a function of time for TStart to TEnd.')
     index = _IntegerDescriptor(
-        'index', required=True, strict=DEFAULT_STRICT, docstring='The element array index.')
+        'index', required=True, strict=DEFAULT_STRICT, docstring=':int: The element array index.')
 
     def __init__(self, **kwargs):
         """The constructor.
         :param dict kwargs: the valid keys are ('TStart', 'TEnd', 'IPPStart', 'IPPEnd', 'IPPPoly', 'index'),
-        all required.
+            all required.
         """
         super(IPPSetType, self).__init__(**kwargs)
 
@@ -2111,18 +2225,18 @@ class TimelineType(Serializable):
     # descriptors
     CollectStart = _DateTimeDescriptor(
         'CollectStart', required=True, strict=DEFAULT_STRICT, numpy_datetime_units='us',
-        docstring='The collection start time. This will be an instance of numpy.datetime64. The default precision will '
-                  'be microseconds.')
+        docstring=':numpy.datetime64: The collection start time. The default precision will be microseconds.')
     CollectDuration = _FloatDescriptor(
-        'CollectDuration', required=True, strict=DEFAULT_STRICT, docstring='The duration of the collection in seconds.')
+        'CollectDuration', required=True, strict=DEFAULT_STRICT,
+        docstring=':float: The duration of the collection in seconds.')
     IPP = _SerializableArrayDescriptor(
         'IPP', IPPSetType, __collections_tags['IPP'], required=False, strict=DEFAULT_STRICT, minimum_length=1,
-        docstring="The Inter-Pulse Period (IPP) parameters array.")
+        docstring=":IPPSetType: The Inter-Pulse Period (IPP) parameters **array**.")
 
     def __init__(self, **kwargs):
         """The constructor.
         :param dict kwargs: the valid keys are ('CollectStart', 'CollectDuration', 'IPP'), and
-        ('CollectStart', 'CollectDuration') are required.
+            ('CollectStart', 'CollectDuration') are required.
         """
         super(TimelineType, self).__init__(**kwargs)
 
@@ -2140,25 +2254,25 @@ class PositionType(Serializable):
     # descriptors
     ARPPoly = _SerializableDescriptor(
         'ARPPoly', XYZPolyType, required=('ARPPoly' in __required), strict=DEFAULT_STRICT,
-        docstring='Aperture Reference Point (ARP) position polynomial in ECF as a function of elapsed seconds '
+        docstring=':XYZPolyType: Aperture Reference Point (ARP) position polynomial in ECF as a function of elapsed seconds '
                   'since start of collection.')
     GRPPoly = _SerializableDescriptor(
         'GRPPoly', XYZPolyType, required=('GRPPoly' in __required), strict=DEFAULT_STRICT,
-        docstring='Ground Reference Point (GRP) position polynomial in ECF as a function of elapsed seconds '
+        docstring=':XYZPolyType: Ground Reference Point (GRP) position polynomial in ECF as a function of elapsed seconds '
                   'since start of collection.')
     TxAPCPoly = _SerializableDescriptor(
         'TxAPCPoly', XYZPolyType, required=('TxAPCPoly' in __required), strict=DEFAULT_STRICT,
-        docstring='Transmit Aperture Phase Center (APC) position polynomial in ECF as a function of elapsed seconds '
+        docstring=':XYZPolyType: Transmit Aperture Phase Center (APC) position polynomial in ECF as a function of elapsed seconds '
                   'since start of collection.')
     RcvAPC = _SerializableArrayDescriptor(
         'RcvAPC', XYZPolyAttributeType, __collections_tags['RcvAPC'], required=('RcvAPC' in __required), strict=DEFAULT_STRICT,
-        docstring='Receive Aperture Phase Center polynomials array. Each polynomial has output in ECF, and '
-                  'represents a function of elapsed seconds since start of collection.')
+        docstring=':XYZPolyAttributeType: Receive Aperture Phase Center polynomials **array**. Each polynomial has output '
+                  'in ECF, and represents a function of elapsed seconds since start of collection.')
 
     def __init__(self, **kwargs):
         """The constructor.
         :param dict kwargs: the valid keys are ('ARPPoly', 'GRPPoly', 'TxAPCPoly', 'RcvAPC'), and only '
-        ARPPoly' is required.
+            ARPPoly' is required.
         """
         super(PositionType, self).__init__(**kwargs)
 
@@ -2175,14 +2289,14 @@ class TxFrequencyType(Serializable):
     # descriptors
     Min = _FloatDescriptor(
         'Min', required=('Min' in __required), strict=DEFAULT_STRICT,
-        docstring='The transmit minimum frequency in Hz.')
+        docstring=':float: The transmit minimum frequency in Hz.')
     Max = _FloatDescriptor(
         'Max', required=('Max' in __required), strict=DEFAULT_STRICT,
-        docstring='The transmit maximum frequency in Hz.')
+        docstring=':float: The transmit maximum frequency in Hz.')
 
     def __init__(self, **kwargs):
         """The constructor.
-        :param dict kwargs: the valid keys are , and required.
+        :param dict kwargs: the valid keys are ('Min', 'Max'), all required.
         """
         super(TxFrequencyType, self).__init__(**kwargs)
 
@@ -2198,40 +2312,42 @@ class WaveformParametersType(Serializable):
     # descriptors
     TxPulseLength = _FloatDescriptor(
         'TxPulseLength', required=('TxPulseLength' in __required), strict=DEFAULT_STRICT,
-        docstring='Transmit pulse length in seconds.')
+        docstring=':float: Transmit pulse length in seconds.')
     TxRFBandwidth = _FloatDescriptor(
         'TxRFBandwidth', required=('TxRFBandwidth' in __required), strict=DEFAULT_STRICT,
-        docstring='Transmit RF bandwidth of the transmit pulse in Hz.')
+        docstring=':float: Transmit RF bandwidth of the transmit pulse in Hz.')
     TxFreqStart = _FloatDescriptor(
         'TxFreqStart', required=('TxFreqStart' in __required), strict=DEFAULT_STRICT,
-        docstring='Transmit Start frequency for Linear FM waveform in Hz, may be relative to reference frequency.')
+        docstring=':float: Transmit Start frequency for Linear FM waveform in Hz, may be relative to reference frequency.')
     TxFMRate = _FloatDescriptor(
         'TxFMRate', required=('TxFMRate' in __required), strict=DEFAULT_STRICT,
-        docstring='Transmit FM rate for Linear FM waveform in Hz/second.')
+        docstring=':float: Transmit FM rate for Linear FM waveform in Hz/second.')
     RcvWindowLength = _FloatDescriptor(
         'RcvWindowLength', required=('RcvWindowLength' in __required), strict=DEFAULT_STRICT,
-        docstring='Receive window duration in seconds.')
+        docstring=':float: Receive window duration in seconds.')
     ADCSampleRate = _FloatDescriptor(
         'ADCSampleRate', required=('ADCSampleRate' in __required), strict=DEFAULT_STRICT,
-        docstring='Analog-to-Digital Converter sampling rate in samples/second.')
+        docstring=':float: Analog-to-Digital Converter sampling rate in samples/second.')
     RcvIFBandwidth = _FloatDescriptor(
         'RcvIFBandwidth', required=('RcvIFBandwidth' in __required), strict=DEFAULT_STRICT,
-        docstring='Receive IF bandwidth in Hz.')
+        docstring=':float: Receive IF bandwidth in Hz.')
     RcvFreqStart = _FloatDescriptor(
         'RcvFreqStart', required=('RcvFreqStart' in __required), strict=DEFAULT_STRICT,
-        docstring='Receive demodulation start frequency in Hz, may be relative to reference frequency.')
+        docstring=':float: Receive demodulation start frequency in Hz, may be relative to reference frequency.')
     RcvFMRate = _FloatDescriptor(
         'RcvFMRate', required=('RcvFMRate' in __required), strict=DEFAULT_STRICT,
-        docstring='Receive FM rate. Should be 0 if RcvDemodType = "CHIRP".')
+        docstring=':float: Receive FM rate. Should be 0 if RcvDemodType = "CHIRP".')
     RcvDemodType = _StringEnumDescriptor(
         'RcvDemodType', _DEMOD_TYPE_VALUES, required=('RcvFMRate' in __required), strict=DEFAULT_STRICT,
-        docstring="""Receive demodulation used when Linear FM waveform is used on transmit.
+        docstring=""":str: Receive demodulation used when Linear FM waveform is used on transmit.
 * 'STRETCH' - De-ramp on Receive demodulation.
 * 'CHIRP'   - No De-ramp On Receive demodulation""")
 
     def __init__(self, **kwargs):
         """The constructor.
-        :param dict kwargs: the valid keys are , and required.
+        :param dict kwargs: the valid keys are ('TxPulseLength', 'TxRFBandwidth', 'TxFreqStart', 'TxFMRate',
+            'RcvDemodType', 'RcvWindowLength', 'ADCSampleRate', 'RcvIFBandwidth', 'RcvFreqStart', 'RcvFMRate'), and
+            none are required.
         """
         super(WaveformParametersType, self).__init__(**kwargs)
         if self.RcvDemodType == 'CHIRP':
@@ -2265,11 +2381,11 @@ class TxStepType(Serializable):
     _POLARIZATION2_VALUES = ('V', 'H', 'RHC', 'LHC', 'OTHER')
     # descriptors
     WFIndex = _IntegerDescriptor(
-        'WFIndex', required=True, strict=DEFAULT_STRICT, docstring='The waveform number for this step.')
+        'WFIndex', required=True, strict=DEFAULT_STRICT, docstring=':int: The waveform number for this step.')
     TxPolarization = _StringEnumDescriptor(
         'TxPolarization', _POLARIZATION2_VALUES, required=False, strict=DEFAULT_STRICT,
-        docstring='Transmit signal polarization for this step.')
-    index = _IntegerDescriptor('index', required=True, strict=DEFAULT_STRICT, docstring='The step index')
+        docstring=':str: Transmit signal polarization for this step.')
+    index = _IntegerDescriptor('index', required=True, strict=DEFAULT_STRICT, docstring=':int: The step index')
 
     def __init__(self, **kwargs):
         """The constructor.
@@ -2288,18 +2404,18 @@ class ChanParametersType(Serializable):
     # descriptors
     TxRcvPolarization = _StringEnumDescriptor(
         'TxRcvPolarization', _DUAL_POLARIZATION_VALUES, required=True, strict=DEFAULT_STRICT,
-        docstring='Combined Transmit and Receive signal polarization for the channel.')
-
+        docstring=':str: Combined Transmit and Receive signal polarization for the channel.')
     RcvAPCIndex = _IntegerDescriptor(
         'RcvAPCIndex', required=True, strict=DEFAULT_STRICT,
-        docstring='Index of the Receive Aperture Phase Center (Rcv APC). Only include if Receive APC position '
+        docstring=':int: Index of the Receive Aperture Phase Center (Rcv APC). Only include if Receive APC position '
                   'polynomial(s) are included.')
-    index = _IntegerDescriptor('index', required=True, strict=DEFAULT_STRICT, docstring='The parameter index')
+    index = _IntegerDescriptor(
+        'index', required=True, strict=DEFAULT_STRICT, docstring=':int: The parameter index')
 
     def __init__(self, **kwargs):
         """The constructor.
         :param dict kwargs: the valid keys are ('TxRcvPolarization', 'RcvAPCIndex', 'index'), and
-        ('TxRcvPolarization', 'index') are required.
+            ('TxRcvPolarization', 'index') are required.
         """
         super(ChanParametersType, self).__init__(**kwargs)
 
@@ -2312,16 +2428,16 @@ class ReferencePointType(Serializable):
     # descriptors
     ECF = _SerializableDescriptor(
         'ECF', XYZType, required=('ECF' in __required), strict=DEFAULT_STRICT,
-        docstring='The geographical coordinates for the reference point')
+        docstring=':XYZType: The geographical coordinates for the reference point')
     Line = _FloatDescriptor(
         'Line', required=('Line' in __required), strict=DEFAULT_STRICT,
-        docstring='The Line?')  # TODO: what is this?
+        docstring=':float: The Line?')  # TODO: what is this?
     Sample = _FloatDescriptor(
         'Sample', required=('Sample' in __required), strict=DEFAULT_STRICT,
-        docstring='The Sample?')
+        docstring=':float: The Sample?')
     name = _StringDescriptor(
         'name', required=('name' in __required), strict=DEFAULT_STRICT,
-        docstring='The reference point name')
+        docstring=':str: The reference point name')
 
     def __init__(self, **kwargs):
         """The constructor.
@@ -2337,16 +2453,16 @@ class XDirectionType(Serializable):
     # descriptors
     ECF = _SerializableDescriptor(
         'UVectECF', XYZType, required=('UVectECF' in __required), strict=DEFAULT_STRICT,
-        docstring='The unit vector')
+        docstring=':XYZType: The unit vector')
     LineSpacing = _FloatDescriptor(
         'LineSpacing', required=('LineSpacing' in __required), strict=DEFAULT_STRICT,
-        docstring='The collection line spacing in meters.')
+        docstring=':float: The collection line spacing in meters.')
     NumLines = _IntegerDescriptor(
         'NumLines', required=('NumLines' in __required), strict=DEFAULT_STRICT,
-        docstring='The number of lines')
+        docstring=':int: The number of lines')
     FirstLine = _IntegerDescriptor(
         'FirstLine', required=('FirstLine' in __required), strict=DEFAULT_STRICT,
-        docstring='The first line')
+        docstring=':int: The first line')
 
     def __init__(self, **kwargs):
         """The constructor.
@@ -2362,16 +2478,16 @@ class YDirectionType(Serializable):
     # descriptors
     ECF = _SerializableDescriptor(
         'UVectECF', XYZType, required=('UVectECF' in __required), strict=DEFAULT_STRICT,
-        docstring='The unit vector')
+        docstring=':XYZType: The unit vector')
     LineSpacing = _FloatDescriptor(
         'LineSpacing', required=('LineSpacing' in __required), strict=DEFAULT_STRICT,
-        docstring='The collection line spacing in meters.')
+        docstring=':float: The collection line spacing in meters.')
     NumSamples = _IntegerDescriptor(
         'NumSamples', required=('NumSamples' in __required), strict=DEFAULT_STRICT,
-        docstring='The number of samples')
+        docstring=':int: The number of samples')
     FirstSample = _IntegerDescriptor(
         'FirstSample', required=('FirstSample' in __required), strict=DEFAULT_STRICT,
-        docstring='The first sample')
+        docstring=':int: The first sample')
 
     def __init__(self, **kwargs):
         """The constructor.
@@ -2388,19 +2504,19 @@ class SegmentArrayElement(Serializable):
     # descriptors
     StartLine = _IntegerDescriptor(
         'StartLine', required=('StartLine' in __required), strict=DEFAULT_STRICT,
-        docstring='The starting line number.')
+        docstring=':int: The starting line number.')
     StartSample = _IntegerDescriptor(
         'StartSample', required=('StartSample' in __required), strict=DEFAULT_STRICT,
-        docstring='The starting sample number.')
+        docstring=':int: The starting sample number.')
     EndLine = _IntegerDescriptor(
         'EndLine', required=('EndLine' in __required), strict=DEFAULT_STRICT,
-        docstring='The ending line number.')
+        docstring=':int: The ending line number.')
     EndSample = _IntegerDescriptor(
         'EndSample', required=('EndSample' in __required), strict=DEFAULT_STRICT,
-        docstring='The ending sample number.')
+        docstring=':int: The ending sample number.')
     index = _IntegerDescriptor(
         'index', required=('index' in __required), strict=DEFAULT_STRICT,
-        docstring='The array index.')
+        docstring=':int: The array index.')
 
     def __init__(self, **kwargs):
         """The constructor.
@@ -2419,25 +2535,25 @@ class ReferencePlaneType(Serializable):
     # descriptors
     RefPt = _SerializableDescriptor(
         'RefPt', ReferencePointType, required=('RefPt' in __required), strict=DEFAULT_STRICT,
-        docstring='The reference point.')
+        docstring=':ReferencePointType: The reference point.')
     XDir = _SerializableDescriptor(
         'XDir', XDirectionType, required=('XDir' in __required), strict=DEFAULT_STRICT,
-        docstring='The X direction collection plane parameters.')
+        docstring=':XDirectionType: The X direction collection plane parameters.')
     YDir = _SerializableDescriptor(
-        'YDir', XDirectionType, required=('YDir' in __required), strict=DEFAULT_STRICT,
-        docstring='The Y direction collection plane parameters.')
+        'YDir', YDirectionType, required=('YDir' in __required), strict=DEFAULT_STRICT,
+        docstring=':YDirectionType: The Y direction collection plane parameters.')
     SegmentList = _SerializableArrayDescriptor(
         'SegmentList', SegmentArrayElement, __collections_tags['SegmentList'],
         required=('SegmentList' in __required), strict=DEFAULT_STRICT,
-        docstring='The segment list.')
+        docstring=':SegmentArrayElement: The segment **list**.')
     Orientation = _StringEnumDescriptor(
         'Orientation', _ORIENTATION_VALUES, required=('Orientation' in __required), strict=DEFAULT_STRICT,
-        docstring='The orientation enum, which takes values in {}.'.format(_ORIENTATION_VALUES))
+        docstring=':str: The orientation enum, which takes values in {}.'.format(_ORIENTATION_VALUES))
 
     def __init__(self, **kwargs):
         """The constructor.
         :param dict kwargs: the valid keys are ('RefPt', 'XDir', 'YDir', 'SegmentList', 'Orientation'), and
-        ('RefPt', 'XDir', 'YDir') are required.
+            ('RefPt', 'XDir', 'YDir') are required.
         """
         super(ReferencePlaneType, self).__init__(**kwargs)
 
@@ -2452,10 +2568,10 @@ class AreaType(Serializable):
     Corner = _SerializableArrayDescriptor(
         'Corner', LatLonHAECornerRestrictionType, __collections_tags['Corner'],
         required=('Corner' in __required), strict=DEFAULT_STRICT, minimum_length=4, maximum_length=4,
-        docstring='The collection area corner point definition.')
+        docstring=':LatLonHAECornerRestrictionType: The collection area corner point definition array.')
     Plane = _SerializableDescriptor(
         'Plane', ReferencePlaneType, required=('Plane' in __required), strict=DEFAULT_STRICT,
-        docstring='The collection area reference plane.')
+        docstring=':ReferencePlaneType: The collection area reference plane.')
 
     def __init__(self, **kwargs):
         """The constructor.
@@ -2480,45 +2596,205 @@ class RadarCollectionType(Serializable):
     # descriptors
     TxFrequencyType = _SerializableDescriptor(
         'TxFrequency', TxFrequencyType, required=('TxFrequency' in __required), strict=DEFAULT_STRICT,
-        docstring='The transmit frequency range')
+        docstring=':TxFrequencyType: The transmit frequency range')
     RefFreqIndex = _IntegerDescriptor(
         'RefFreqIndex', required=('RefFreqIndex' in __required), strict=DEFAULT_STRICT,
-        docstring='The reference frequency index, if applicable.')
+        docstring=':int: The reference frequency index, if applicable.')
     Waveform = _SerializableArrayDescriptor(
         'Waveform', WaveformParametersType, __collections_tags['Waveform'], required=('Waveform' in __required),
         strict=DEFAULT_STRICT, minimum_length=1,
-        docstring='The waveform parameters array.')
+        docstring=':WaveformParametersType: The waveform parameters **array**.')
     TxPolarization = _StringEnumDescriptor(
         'TxPolarization', _POLARIZATION1_VALUES, required=('TxPolarization' in __required), strict=DEFAULT_STRICT,
-        docstring='The transmit polarization')  # TODO: iff SEQUENCE, then TxSequence is defined?
+        docstring=':str: The transmit polarization')  # TODO: iff SEQUENCE, then TxSequence is defined?
     TxSequence = _SerializableArrayDescriptor(
         'TxSequence', TxStepType, __collections_tags['TxSequence'], required=('TxSequence' in __required),
         strict=DEFAULT_STRICT, minimum_length=1,
-        docstring='The transmit sequence parameters.')
+        docstring=':TxStepType: The transmit sequence parameters **array**.')
     RcvChannels = _SerializableArrayDescriptor(
         'RcvChannels', ChanParametersType, __collections_tags['RcvChannels'],
         required=('RcvChannels' in __required), strict=DEFAULT_STRICT, minimum_length=1,
-        docstring='Transmit receive sequence step details array')
+        docstring=':ChanParametersType: Transmit receive sequence step details **array**')
     Area = _SerializableDescriptor(
         'Area', AreaType, required=('Area' in __required), strict=DEFAULT_STRICT,
         docstring='The collection area')
     Parameters = _SerializableArrayDescriptor(
         'Parameters', ParameterType, __collections_tags['Parameters'],
         required=('Parameters' in __required), strict=DEFAULT_STRICT,
-        docstring='A parameters list')
+        docstring=':ParameterType: A parameters **list**')
 
     def __init__(self, **kwargs):
         """The constructor.
         :param dict kwargs: the valid keys are
-            ('TxFrequency', 'RefFreqIndex', 'Waveform', 'TxPolarization', 'TxSequence',
-            'RcvChannels', 'Area', 'Parameters'),
-        and ('TxFrequency', 'TxPolarization', 'RcvChannels') are required.
+            ('TxFrequency', 'RefFreqIndex', 'Waveform', 'TxPolarization', 'TxSequence', 'RcvChannels', 'Area',
+            'Parameters'), and ('TxFrequency', 'TxPolarization', 'RcvChannels') are required.
         """
         super(RadarCollectionType, self).__init__(**kwargs)
 
 
 ###############
 # ImageFormationType section
+
+
+class RcvChanProcType(Serializable):
+    """"""
+    __fields = ('NumChanProc', 'PRFScaleFactor', 'ChanIndices')
+    __required = ('NumChanProc', 'ChanIndices')  # TODO: make proper descriptor
+    __collections_tags = {
+        'ChanIndices': {'array': False, 'child_tag': 'ChanIndex'}}
+    # descriptors
+    NumChanProc = _IntegerDescriptor(
+        'NumChanProc', required=('NumChanProc' in __required), strict=DEFAULT_STRICT,
+        docstring=':int: The NumChanProc')
+    PRFScaleFactor = _FloatDescriptor(
+        'PRFScaleFactor', required=('PRFScaleFactor' in __required), strict=DEFAULT_STRICT,
+        docstring=':float: The (optional) PRF scale factor.')
+    ChanIndices = _IntegerListDescriptor(
+        'ChanIndices', __collections_tags['ChanIndices'], required=('ChanIndices' in __required), strict=DEFAULT_STRICT,
+        docstring=':int: The channel index **list**.')
+
+    def __init__(self, **kwargs):
+        """The constructor.
+        :param dict kwargs: the valid keys are ('NumChanProc', 'PRFScaleFactor', 'ChanIndices'), and
+            ('NumChanProc', 'ChanIndices') are required.
+        """
+        super(RcvChanProcType, self).__init__(**kwargs)
+
+
+class TxFrequencyProcType(Serializable):
+    """The transmit frequency range"""
+    __tag = 'TxFrequencyProc'
+    __fields = ('MinProc', 'MaxProc')
+    __required = __fields
+    # descriptors
+    MinProc = _FloatDescriptor(
+        'MinProc', required=('MinProc' in __required), strict=DEFAULT_STRICT,
+        docstring=':float: The transmit minimum frequency in Hz.')
+    MaxProc = _FloatDescriptor(
+        'MaxProc', required=('MaxProc' in __required), strict=DEFAULT_STRICT,
+        docstring=':float: The transmit maximum frequency in Hz.')
+
+    def __init__(self, **kwargs):
+        """The constructor.
+        :param dict kwargs: the valid keys are ('MinProc', 'MaxProc'), all required.
+        """
+        super(TxFrequencyProcType, self).__init__(**kwargs)
+
+
+class ProcessingType(Serializable):
+    """The transmit frequency range"""
+    __tag = 'Processing'
+    __fields = ('Type', 'Applied', 'Parameters')
+    __required = ('Type', 'Applied')
+    __collections_tags = {'Parameters': {'array': False, 'child_tag': 'Parameter'}}
+    # descriptors
+    Type = _StringDescriptor(
+        'Type', required=('Type' in __required), strict=DEFAULT_STRICT, docstring=':str: The type string.')
+    Applied = _BooleanDescriptor(
+        'Applied', required=('Applied' in __required), strict=DEFAULT_STRICT,
+        docstring=':bool: Whether the given type has been applied')
+    Parameters = _SerializableArrayDescriptor(
+        'Parameters', ParameterType, __collections_tags['Parameters'],
+        required=('Parameters' in __required), strict=DEFAULT_STRICT,
+        docstring=':ParameterType: The parameters **list**.')
+
+    def __init__(self, **kwargs):
+        """The constructor.
+        :param dict kwargs: the valid keys are ('Type', 'Applied', 'Parameters'), and ('Type', 'Applied') required.
+        """
+        super(ProcessingType, self).__init__(**kwargs)
+
+
+class DistortionType(Serializable):
+    """Distortion"""
+    __fields = (
+        'CalibrationDate', 'A', 'F1', 'F2', 'Q1', 'Q2', 'Q3', 'Q4',
+        'GainErrorA', 'GainErrorF1', 'GainErrorF2', 'PhaseErrorF1', 'PhaseErrorF2')
+    __required = ('A', 'F1', 'Q1', 'Q2', 'F2', 'Q3', 'Q4')
+    # descriptors
+    CalibrationDate = _DateTimeDescriptor(
+        'CalibrationDate', required=('CalibrationDate' in __required), strict=DEFAULT_STRICT,
+        docstring=':numpy.datetime64: The (optional) calibration date.')
+    A = _FloatDescriptor(
+        'A', required=('A' in __required), strict=DEFAULT_STRICT, docstring=':float: The A attribute.')
+    F1 = _ComplexDescriptor(
+        'F1', required=('F1' in __required), strict=DEFAULT_STRICT, docstring=':complex: The F1 attribute.')
+    F2 = _ComplexDescriptor(
+        'F2', required=('F2' in __required), strict=DEFAULT_STRICT, docstring=':complex: The F2 attribute.')
+    Q1 = _ComplexDescriptor(
+        'Q1', required=('Q1' in __required), strict=DEFAULT_STRICT, docstring=':complex: The Q1 attribute.')
+    Q2 = _ComplexDescriptor(
+        'Q2', required=('Q2' in __required), strict=DEFAULT_STRICT, docstring=':complex: The Q2 attribute.')
+    Q3 = _ComplexDescriptor(
+        'Q3', required=('Q3' in __required), strict=DEFAULT_STRICT, docstring=':complex: The Q3 attribute.')
+    Q4 = _ComplexDescriptor(
+        'Q4', required=('Q4' in __required), strict=DEFAULT_STRICT, docstring=':complex: The Q4 attribute.')
+    GainErrorA = _FloatDescriptor(
+        'GainErrorA', required=('GainErrorA' in __required), strict=DEFAULT_STRICT,
+        docstring=':float: The GainErrorA attribute.')
+    GainErrorF1 = _FloatDescriptor(
+        'GainErrorF1', required=('GainErrorF1' in __required), strict=DEFAULT_STRICT,
+        docstring=':float: The GainErrorF1 attribute.')
+    GainErrorF2 = _FloatDescriptor(
+        'GainErrorF2', required=('GainErrorF2' in __required), strict=DEFAULT_STRICT,
+        docstring=':float: The GainErrorF2 attribute.')
+    PhaseErrorF1 = _FloatDescriptor(
+        'PhaseErrorF1', required=('PhaseErrorF1' in __required), strict=DEFAULT_STRICT,
+        docstring=':float: The PhaseErrorF1 attribute.')
+    PhaseErrorF2 = _FloatDescriptor(
+        'PhaseErrorF2', required=('PhaseErrorF2' in __required), strict=DEFAULT_STRICT,
+        docstring=':float: The PhaseErrorF2 attribute.')
+
+    def __init__(self, **kwargs):
+        """The constructor.
+        :param dict kwargs: the valid keys are ('CalibrationDate', 'A', 'F1', 'Q1', 'Q2', 'F2', 'Q3', 'Q4',
+            'GainErrorA', 'GainErrorF1', 'GainErrorF2', 'PhaseErrorF1', 'PhaseErrorF2'), and
+            ('A', 'F1', 'Q1', 'Q2', 'F2', 'Q3', 'Q4') are required.
+        """
+        super(DistortionType, self).__init__(**kwargs)
+
+class PolarizationCalibrationType(Serializable):
+    """The polarization calibration"""
+    __fields = ('DistortCorrectApplied', 'Distortion')
+    __required = __fields
+    # descriptors
+    DistortCorrectApplied = _BooleanDescriptor(
+        'DistortCorrectApplied', required=('DistortCorrectApplied' in __required), strict=DEFAULT_STRICT,
+        docstring=':bool: Whether the distortion correction has been applied')
+    Distortion = _SerializableDescriptor(
+        'Distortion', DistortionType, required=('Distortion' in __required), strict=DEFAULT_STRICT,
+        docstring=':DistortionType: The distortion parameters.')
+
+    def __init__(self, **kwargs):
+        """The constructor.
+        :param dict kwargs: the valid keys are ('DistortCorrectApplied', 'Distortion'), and both required.
+        """
+        super(PolarizationCalibrationType, self).__init__(**kwargs)
+
+
+class ImageFormationType(Serializable):
+    """The image formation parameters type"""
+    __fields = (
+        'RcvChanProc', 'TxRcvPolarizationProc', 'TStartProc', 'TEndProc', 'TxFrequencyProc', 'SegmentIdentifier',
+        'ImageFormAlgo', 'STBeamComp', 'ImageBeamComp', 'AzAutofocus', 'RgAutofocus', 'Processings',
+        'PolarizationCalibration')
+    __required = (
+        'RcvChanProc', 'TxRcvPolarizationProc', 'TStartProc', 'TEndProc', 'TxFrequencyProc',
+        'ImageFormAlgo', 'STBeamComp', 'ImageBeamComp', 'AzAutofocus', 'RgAutofocus')
+    __collections_tags = {'Processings': {'array': False, 'child_tag': 'Processing'}}
+    # descriptors
+    # TODO: finish this here
+
+    def __init__(self, **kwargs):
+        """The constructor.
+        :param dict kwargs: the valid keys are ('RcvChanProc', 'TxRcvPolarizationProc', 'TStartProc', 'TEndProc',
+            'TxFrequencyProc', 'SegmentIdentifier', 'ImageFormAlgo', 'STBeamComp', 'ImageBeamComp', 'AzAutofocus',
+            'RgAutofocus', 'Processings', 'PolarizationCalibration'), and all EXCEPT
+            ('SegmentIdentifier', 'Processings', 'PolarizationCalibration')required.
+        """
+        super(ImageFormationType, self).__init__(**kwargs)
+
+
 ###############
 # SCPCOAType section
 ###############
