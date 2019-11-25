@@ -19,7 +19,7 @@ copyright = parameters.__copyright__
 author = parameters.__author__
 
 # The full version, including alpha/beta/rc tags
-release = parameters.__version__
+release = parameters.__release__
 
 
 # -- General configuration ---------------------------------------------------
@@ -27,7 +27,7 @@ release = parameters.__version__
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ['sphinx.ext.autodoc', 'sphinx.ext.coverage', 'sphinx.ext.napoleon']
+extensions = ['sphinx.ext.autodoc', 'sphinx.ext.coverage', 'sphinx.ext.napolean']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']

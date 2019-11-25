@@ -1,0 +1,5 @@
+# This details the important differences introduced in 0.1
+# In this case the beginning of versioning
+
+
+* .01 - Update docstrings to consistent numpy format in preparation for building documentation.
