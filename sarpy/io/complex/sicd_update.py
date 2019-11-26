@@ -34,7 +34,7 @@ bool: module level default behavior for whether to handle standards compliance s
 
 class _BasicDescriptor(object):
     """A descriptor object for reusable properties. Note that is is required that the calling instance is hashable."""
-    __typ_string = None
+    _typ_string = None
 
     def __init__(self, name, required, strict=DEFAULT_STRICT, docstring=''):
         self.data = WeakKeyDictionary()  # our instance reference dictionary
@@ -43,6 +43,7 @@ class _BasicDescriptor(object):
         self.name = name
         self.required = (name in required)
         self.strict = strict
+
         self.__doc__ = docstring
         self._format_docstring()
 
@@ -50,9 +51,8 @@ class _BasicDescriptor(object):
         docstring = self.__doc__
         if docstring is None:
             docstring = ''
-
-        if (self.__typ_string is not None) and (not docstring.startswith(self.__typ_string)):
-            docstring = '{} {}'.format(self.__typ_string, docstring)
+        if (self._typ_string is not None) and (not docstring.startswith(self._typ_string)):
+            docstring = '{} {}'.format(self._typ_string, docstring)
 
         suff = self._docstring_suffix()
         if suff is not None:
@@ -129,7 +129,7 @@ class _BasicDescriptor(object):
 
 class _StringDescriptor(_BasicDescriptor):
     """A descriptor for string type"""
-    __typ_string = 'str:'
+    _typ_string = 'str:'
 
     def __init__(self, name, required, strict=DEFAULT_STRICT, docstring=None):
         super(_StringDescriptor, self).__init__(name, required, strict=strict, docstring=docstring)
@@ -152,13 +152,13 @@ class _StringDescriptor(_BasicDescriptor):
 
 class _StringListDescriptor(_BasicDescriptor):
     """A descriptor for properties for an array type item for specified extension of string"""
-    __typ_string = 'str:'
-    __DEFAULT_MIN_LENGTH = 0
-    __DEFAULT_MAX_LENGTH = 2**32
+    _typ_string = ':obj:`list` of :obj:`str`:'
+    _DEFAULT_MIN_LENGTH = 0
+    _DEFAULT_MAX_LENGTH = 2**32
 
     def __init__(self, name, required, strict=DEFAULT_STRICT, minimum_length=None, maximum_length=None, docstring=None):
-        self.minimum_length = self.__DEFAULT_MIN_LENGTH if minimum_length is None else int(minimum_length)
-        self.maximum_length = self.__DEFAULT_MAX_LENGTH if maximum_length is None else int(maximum_length)
+        self.minimum_length = self._DEFAULT_MIN_LENGTH if minimum_length is None else int(minimum_length)
+        self.maximum_length = self._DEFAULT_MAX_LENGTH if maximum_length is None else int(maximum_length)
         if self.minimum_length > self.maximum_length:
             raise ValueError(
                 'Specified minimum length is {}, while specified maximum length is {}'.format(
@@ -166,14 +166,14 @@ class _StringListDescriptor(_BasicDescriptor):
         super(_StringListDescriptor, self).__init__(name, required, strict=strict, docstring=docstring)
 
     def _docstring_suffix(self):
-        if self.minimum_length == self.__DEFAULT_MIN_LENGTH and \
-                self.maximum_length == self.__DEFAULT_MAX_LENGTH:
+        if self.minimum_length == self._DEFAULT_MIN_LENGTH and \
+                self.maximum_length == self._DEFAULT_MAX_LENGTH:
             return ''
 
         lenstr = ' Must have length '
-        if self.minimum_length == self.__DEFAULT_MIN_LENGTH:
+        if self.minimum_length == self._DEFAULT_MIN_LENGTH:
             lenstr += '<= {0:d}.'.format(self.maximum_length)
-        elif self.maximum_length == self.__DEFAULT_MAX_LENGTH:
+        elif self.maximum_length == self._DEFAULT_MAX_LENGTH:
             lenstr += '>= {0:d}.'.format(self.minimum_length)
         elif self.minimum_length == self.maximum_length:
             lenstr += ' exactly {0:d}.'.format(self.minimum_length)
@@ -221,7 +221,7 @@ class _StringListDescriptor(_BasicDescriptor):
 
 class _StringEnumDescriptor(_BasicDescriptor):
     """A descriptor for enumerated (specified) string type"""
-    __typ_string = 'str:'
+    _typ_string = 'str:'
 
     def __init__(self, name, values, required, strict=DEFAULT_STRICT, docstring=None, default_value=None):
         self.values = values
@@ -229,9 +229,9 @@ class _StringEnumDescriptor(_BasicDescriptor):
         super(_StringEnumDescriptor, self).__init__(name, required, strict=strict, docstring=docstring)
 
     def _docstring_suffix(self):
-        suff = ' Takes values in {}.'.format(self.values)
+        suff = ' Takes values in :code:`{}`.'.format(self.values)
         if self.default_value is not None:
-            suff += ' Default values is {}.'.format(self.default_value)
+            suff += ' Default values is :code:`{}`.'.format(self.default_value)
         return suff
 
     def __set__(self, instance, value):
@@ -266,7 +266,7 @@ class _StringEnumDescriptor(_BasicDescriptor):
 
 class _BooleanDescriptor(_BasicDescriptor):
     """A descriptor for boolean type"""
-    __typ_string = 'bool:'
+    _typ_string = 'bool:'
 
     def __init__(self, name, required, strict=DEFAULT_STRICT, docstring=None):
         super(_BooleanDescriptor, self).__init__(name, required, strict=strict, docstring=docstring)
@@ -302,7 +302,7 @@ class _BooleanDescriptor(_BasicDescriptor):
 
 class _IntegerDescriptor(_BasicDescriptor):
     """A descriptor for integer type"""
-    __typ_string = 'int:'
+    _typ_string = 'int:'
 
     def __init__(self, name, required, strict=DEFAULT_STRICT, bounds=None, docstring=None):
         self.bounds = bounds
@@ -338,7 +338,7 @@ class _IntegerDescriptor(_BasicDescriptor):
 
 class _IntegerEnumDescriptor(_BasicDescriptor):
     """A descriptor for enumerated (specified) integer type"""
-    __typ_string = 'int:'
+    _typ_string = 'int:'
 
     def __init__(self, name, values, required, strict=DEFAULT_STRICT, docstring=None):
         self.values = values
@@ -374,15 +374,15 @@ class _IntegerEnumDescriptor(_BasicDescriptor):
 
 class _IntegerListDescriptor(_BasicDescriptor):
     """A descriptor for integer list type properties"""
-    __typ_string = 'int:'
-    __DEFAULT_MIN_LENGTH = 0
-    __DEFAULT_MAX_LENGTH = 2**32
+    _typ_string = ':obj:`list` of :obj:`int`:'
+    _DEFAULT_MIN_LENGTH = 0
+    _DEFAULT_MAX_LENGTH = 2**32
 
     def __init__(self, name, tag_dict, required, strict=DEFAULT_STRICT,
                  minimum_length=None, maximum_length=None, docstring=None):
         self.child_tag = tag_dict[name]['child_tag']
-        self.minimum_length = self.__DEFAULT_MIN_LENGTH if minimum_length is None else int(minimum_length)
-        self.maximum_length = self.__DEFAULT_MAX_LENGTH if maximum_length is None else int(maximum_length)
+        self.minimum_length = self._DEFAULT_MIN_LENGTH if minimum_length is None else int(minimum_length)
+        self.maximum_length = self._DEFAULT_MAX_LENGTH if maximum_length is None else int(maximum_length)
         if self.minimum_length > self.maximum_length:
             raise ValueError(
                 'Specified minimum length is {}, while specified maximum length is {}'.format(
@@ -390,14 +390,14 @@ class _IntegerListDescriptor(_BasicDescriptor):
         super(_IntegerListDescriptor, self).__init__(name, required, strict=strict, docstring=docstring)
 
     def _docstring_suffix(self):
-        if self.minimum_length == self.__DEFAULT_MIN_LENGTH and \
-                self.maximum_length == self.__DEFAULT_MAX_LENGTH:
+        if self.minimum_length == self._DEFAULT_MIN_LENGTH and \
+                self.maximum_length == self._DEFAULT_MAX_LENGTH:
             return ''
 
         lenstr = ' Must have length '
-        if self.minimum_length == self.__DEFAULT_MIN_LENGTH:
+        if self.minimum_length == self._DEFAULT_MIN_LENGTH:
             lenstr += '<= {0:d}.'.format(self.maximum_length)
-        elif self.maximum_length == self.__DEFAULT_MAX_LENGTH:
+        elif self.maximum_length == self._DEFAULT_MAX_LENGTH:
             lenstr += '>= {0:d}.'.format(self.minimum_length)
         elif self.minimum_length == self.maximum_length:
             lenstr += ' exactly {0:d}.'.format(self.minimum_length)
@@ -445,7 +445,7 @@ class _IntegerListDescriptor(_BasicDescriptor):
 
 class _FloatDescriptor(_BasicDescriptor):
     """A descriptor for float type properties"""
-    __typ_string = 'float:'
+    _typ_string = 'float:'
 
     def __init__(self, name, required, strict=DEFAULT_STRICT, bounds=None, docstring=None):
         self.bounds = bounds
@@ -481,7 +481,7 @@ class _FloatDescriptor(_BasicDescriptor):
 
 class _ComplexDescriptor(_BasicDescriptor):
     """A descriptor for float type properties"""
-    __typ_string = 'complex:'
+    _typ_string = 'complex:'
 
     def __init__(self, name, required, strict=DEFAULT_STRICT, docstring=None):
         super(_ComplexDescriptor, self).__init__(name, required, strict=strict, docstring=docstring)
@@ -508,14 +508,15 @@ class _ComplexDescriptor(_BasicDescriptor):
 
 class _FloatArrayDescriptor(_BasicDescriptor):
     """A descriptor for float array type properties"""
-    __typ_string = ':obj:numpy.ndarray of dtype=float64:'
-    __DEFAULT_MIN_LENGTH = 0
-    __DEFAULT_MAX_LENGTH = 2**32
+    _DEFAULT_MIN_LENGTH = 0
+    _DEFAULT_MAX_LENGTH = 2**32
+    _typ_string = ':obj:`numpy.ndarray` of :obj:`dtype=float64`:'
 
     def __init__(self, name, tag_dict, required, strict=DEFAULT_STRICT, minimum_length=None, maximum_length=None, docstring=None):
+
         self.child_tag = tag_dict[name]['child_tag']
-        self.minimum_length = self.__DEFAULT_MIN_LENGTH if minimum_length is None else int(minimum_length)
-        self.maximum_length = self.__DEFAULT_MAX_LENGTH if maximum_length is None else int(maximum_length)
+        self.minimum_length = self._DEFAULT_MIN_LENGTH if minimum_length is None else int(minimum_length)
+        self.maximum_length = self._DEFAULT_MAX_LENGTH if maximum_length is None else int(maximum_length)
         if self.minimum_length > self.maximum_length:
             raise ValueError(
                 'Specified minimum length is {}, while specified maximum length is {}'.format(
@@ -523,14 +524,14 @@ class _FloatArrayDescriptor(_BasicDescriptor):
         super(_FloatArrayDescriptor, self).__init__(name, required, strict=strict, docstring=docstring)
 
     def _docstring_suffix(self):
-        if self.minimum_length == self.__DEFAULT_MIN_LENGTH and \
-                self.maximum_length == self.__DEFAULT_MAX_LENGTH:
+        if self.minimum_length == self._DEFAULT_MIN_LENGTH and \
+                self.maximum_length == self._DEFAULT_MAX_LENGTH:
             return ''
 
         lenstr = ' Must have length '
-        if self.minimum_length == self.__DEFAULT_MIN_LENGTH:
+        if self.minimum_length == self._DEFAULT_MIN_LENGTH:
             lenstr += '<= {0:d}.'.format(self.maximum_length)
-        elif self.maximum_length == self.__DEFAULT_MAX_LENGTH:
+        elif self.maximum_length == self._DEFAULT_MAX_LENGTH:
             lenstr += '>= {0:d}.'.format(self.minimum_length)
         elif self.minimum_length == self.maximum_length:
             lenstr += ' exactly {0:d}.'.format(self.minimum_length)
@@ -585,11 +586,11 @@ class _FloatArrayDescriptor(_BasicDescriptor):
 
 class _DateTimeDescriptor(_BasicDescriptor):
     """A descriptor for date time type properties"""
-    __typ_string = 'numpy.datetime64:'
+    _typ_string = 'numpy.datetime64:'
 
     def __init__(self, name, required, strict=DEFAULT_STRICT, docstring=None, numpy_datetime_units='us'):
-        super(_DateTimeDescriptor, self).__init__(name, required, strict=strict, docstring=docstring)
         self.units = numpy_datetime_units  # s, ms, us, ns are likely choices here, depending on needs
+        super(_DateTimeDescriptor, self).__init__(name, required, strict=strict, docstring=docstring)
 
     def __set__(self, instance, value):
         if super(_DateTimeDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
@@ -610,11 +611,11 @@ class _FloatModularDescriptor(_BasicDescriptor):
     A descriptor for float type which will take values in a range [-limit, limit], set using modular
     arithmetic operations
     """
-    __typ_string = 'float:'
+    _typ_string = 'float:'
 
     def __init__(self, name, limit, required, strict=DEFAULT_STRICT, docstring=None):
-        super(_FloatModularDescriptor, self).__init__(name, required, strict=strict, docstring=docstring)
         self.limit = limit
+        super(_FloatModularDescriptor, self).__init__(name, required, strict=strict, docstring=docstring)
 
     def __set__(self, instance, value):
         if super(_FloatModularDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
@@ -637,7 +638,7 @@ class _SerializableDescriptor(_BasicDescriptor):
 
     def __init__(self, name, the_type, required, strict=DEFAULT_STRICT, tag=None, docstring=None):
         self.the_type = the_type
-        self.__typ_string = the_type.__class__.__name__+':'
+        self._typ_string = str(the_type).strip().split('.')[-1][:-2]+':'
         self.tag = tag
         super(_SerializableDescriptor, self).__init__(name, required, strict=strict, docstring=docstring)
 
@@ -659,18 +660,22 @@ class _SerializableDescriptor(_BasicDescriptor):
 
 class _SerializableArrayDescriptor(_BasicDescriptor):
     """A descriptor for properties of a list or array of specified extension of Serializable"""
-    __DEFAULT_MIN_LENGTH = 0
-    __DEFAULT_MAX_LENGTH = 2**32
+    _DEFAULT_MIN_LENGTH = 0
+    _DEFAULT_MAX_LENGTH = 2**32
 
     def __init__(self, name, child_type, tag_dict, required, strict=DEFAULT_STRICT,
                  minimum_length=None, maximum_length=None, docstring=None):
         self.child_type = child_type
-        self.__typ_string = child_type.__class__.__name__+':'
         tags = tag_dict[name]
         self.array = tags.get('array', False)
         self.child_tag = tags['child_tag']
-        self.minimum_length = self.__DEFAULT_MIN_LENGTH if minimum_length is None else int(minimum_length)
-        self.maximum_length = self.__DEFAULT_MAX_LENGTH if maximum_length is None else int(maximum_length)
+        if self.array:
+            self._typ_string = ':obj:`numpy.ndarray` of :obj:`'+str(child_type).strip().split('.')[-1][:-2]+'`:'
+        else:
+            self._typ_string = ':obj:`list` of :obj:`'+str(child_type).strip().split('.')[-1][:-2]+'`:'
+
+        self.minimum_length = self._DEFAULT_MIN_LENGTH if minimum_length is None else int(minimum_length)
+        self.maximum_length = self._DEFAULT_MAX_LENGTH if maximum_length is None else int(maximum_length)
         if self.minimum_length > self.maximum_length:
             raise ValueError(
                 'Specified minimum length is {}, while specified maximum length is {}'.format(
@@ -678,14 +683,14 @@ class _SerializableArrayDescriptor(_BasicDescriptor):
         super(_SerializableArrayDescriptor, self).__init__(name, required, strict=strict, docstring=docstring)
 
     def _docstring_suffix(self):
-        if self.minimum_length == self.__DEFAULT_MIN_LENGTH and \
-                self.maximum_length == self.__DEFAULT_MAX_LENGTH:
+        if self.minimum_length == self._DEFAULT_MIN_LENGTH and \
+                self.maximum_length == self._DEFAULT_MAX_LENGTH:
             return ''
 
         lenstr = ' Must have length '
-        if self.minimum_length == self.__DEFAULT_MIN_LENGTH:
+        if self.minimum_length == self._DEFAULT_MIN_LENGTH:
             lenstr += '<= {0:d}.'.format(self.maximum_length)
-        elif self.maximum_length == self.__DEFAULT_MAX_LENGTH:
+        elif self.maximum_length == self._DEFAULT_MAX_LENGTH:
             lenstr += '>= {0:d}.'.format(self.minimum_length)
         elif self.minimum_length == self.maximum_length:
             lenstr += ' exactly {0:d}.'.format(self.minimum_length)
@@ -886,19 +891,19 @@ class Serializable(object):
 
     Notes
     -----
-        All fields MUST BE LISTED in the `__fields` tuple. Everything listed in `__required` tuple will be checked
-        for inclusion in `__fields` tuple. Note that special care must be taken to ensure compatibility of `__fields`
+        All fields MUST BE LISTED in the `_fields` tuple. Everything listed in `_required` tuple will be checked
+        for inclusion in `_fields` tuple. Note that special care must be taken to ensure compatibility of `_fields`
         tuple, if inheriting from an extension of this class.
     """
 
-    __tag = None
+    _tag = None
     """tag name when serializing"""
-    __fields = ()
+    _fields = ()
     """collection of field names"""
-    __required = ()
-    """subset of `__fields` defining the required (for the given object, according to the sicd standard) fields"""
+    _required = ()
+    """subset of `_fields` defining the required (for the given object, according to the sicd standard) fields"""
 
-    __collections_tags = {}
+    _collections_tags = {}
     """Entries only appropriate for list/array type objects. Entry formatting:
 
     * `{'array': True, 'child_tag': <child_name>}` represents an array object, which will have int attribute `size`.
@@ -918,16 +923,16 @@ class Serializable(object):
           parameters objects.
     """
 
-    __numeric_format = {}
+    _numeric_format = {}
     """define dict entries of numeric formatting for serialization"""
-    __set_as_attribute = ()
+    _set_as_attribute = ()
     """serialize these fields as xml attributes"""
 
     # NB: it may be good practice to use __slots__ to further control class functionality?
 
     def __init__(self, **kwargs):
         """
-        The default constructor. For each attribute name in `self.__fields`, fetches the value (or None) from
+        The default constructor. For each attribute name in `self._fields`, fetches the value (or None) from
         the `kwargs` dict, and sets the class instance attribute value. The details for attribute value validation,
         present for virtually every attribute, will be implemented specifically as descriptors.
 
@@ -937,7 +942,7 @@ class Serializable(object):
             the keyword arguments dictionary - the possible entries match the attributes.
         """
 
-        for attribute in self.__fields:
+        for attribute in self._fields:
             try:
                 setattr(self, attribute, kwargs.get(attribute, None))
             except AttributeError:
@@ -950,7 +955,7 @@ class Serializable(object):
         Parameters
         ----------
         value : str
-            the appropriate value for the `__tag` attribute.
+            the appropriate value for the `_tag` attribute.
 
         Returns
         -------
@@ -960,7 +965,7 @@ class Serializable(object):
         if value is None:
             return self
         elif isinstance(value, str):
-            self.__tag = value
+            self._tag = value
             return self
         else:
             raise TypeError("tag requires string input")
@@ -971,7 +976,7 @@ class Serializable(object):
         Parameters
         ----------
         attribute : str
-            attribute for which the format applies - must be in `__fields`.
+            attribute for which the format applies - must be in `_fields`.
         format_string : str
             format string to be applied
         Returns
@@ -979,9 +984,9 @@ class Serializable(object):
         None
         """
         # TODO: extend this to include format function capabilities. numeric_format is not the right name.
-        if attribute not in self.__fields:
+        if attribute not in self._fields:
             raise ValueError('attribute {} is not permitted for class {}'.format(attribute, self.__class__.__name__))
-        self.__numeric_format[attribute] = format_string
+        self._numeric_format[attribute] = format_string
 
     def _get_formatter(self, attribute):
         """Return a formatting function for the given attribute. This will default to `str` if no other
@@ -998,7 +1003,7 @@ class Serializable(object):
             format function
         """
 
-        entry = self.__numeric_format.get(attribute, None)
+        entry = self._numeric_format.get(attribute, None)
         if isinstance(entry, str):
             fmt_str = '{0:' + entry + '}'
             return fmt_str.format
@@ -1009,7 +1014,7 @@ class Serializable(object):
 
     def is_valid(self, recursive=False):
         """Returns the validity of this object according to the schema. This is done by inspecting that all required
-        fields (i.e. entries of `__required`) are not `None`.
+        fields (i.e. entries of `_required`) are not `None`.
 
         Parameters
         ----------
@@ -1029,8 +1034,8 @@ class Serializable(object):
             return good
 
         all_required = True
-        if len(self.__required) > 0:
-            for attribute in self.__required:
+        if len(self._required) > 0:
+            for attribute in self._required:
                 present = getattr(self, attribute) is not None
                 if not present:
                     logging.warning(
@@ -1040,7 +1045,7 @@ class Serializable(object):
             return all_required
 
         valid_children = True
-        for attribute in self.__fields:
+        for attribute in self._fields:
             val = getattr(self, attribute)
             good = True
             if isinstance(val, Serializable):
@@ -1092,9 +1097,9 @@ class Serializable(object):
             kwargs = {}
         if not isinstance(kwargs, dict):
             raise ValueError(
-                "Named input argument kwargs for class {} must be dictionary instance".format(cls.__class__.__name__))
+                "Named input argument kwargs for class {} must be dictionary instance".format(cls))
 
-        for attribute in cls.__fields:
+        for attribute in cls._fields:
             if attribute in kwargs:
                 continue
 
@@ -1103,11 +1108,11 @@ class Serializable(object):
             # Note that we want to try explicitly setting to None to trigger descriptor behavior
             # for required fields (warning or error)
 
-            if attribute in cls.__set_as_attribute:
+            if attribute in cls._set_as_attribute:
                 handle_attribute(attribute)
-            elif attribute in cls.__collections_tags:
+            elif attribute in cls._collections_tags:
                 # it's an array type of a list type parameter
-                array_tag = cls.__collections_tags[attribute]
+                array_tag = cls._collections_tags[attribute]
                 array = array_tag.get('array', False)
                 child_tag = array_tag.get('child_tag', None)
                 if array:
@@ -1118,8 +1123,8 @@ class Serializable(object):
                 else:
                     # the metadata is broken
                     raise ValueError(
-                        'Attribute {} in class {} is listed in the __collections_tags dictionary, but the '
-                        '"child_tags" value is either missing or None.'.format(attribute, cls.__class__.__name__))
+                        'Attribute {} in class {} is listed in the _collections_tags dictionary, but the '
+                        '"child_tags" value is either missing or None.'.format(attribute, cls))
             else:
                 # it's a regular property
                 handle_single(attribute)
@@ -1133,7 +1138,7 @@ class Serializable(object):
         doc : minidom.Document
             The xml Document
         tag : None|str
-            The tag name. Defaults to the value of `self.__tag` and then the class name if unspecified.
+            The tag name. Defaults to the value of `self._tag` and then the class name if unspecified.
         par : None|minidom.Element
             The parent element. Defaults to the document root element if unspecified.
         strict : bool
@@ -1155,10 +1160,10 @@ class Serializable(object):
         def serialize_array(node, the_tag, child_tag, value, fmt_func):
             if not isinstance(value, numpy.ndarray):
                 # this should really never happen, unless someone broke the class badly by fiddling with
-                # __array_tag or the descriptor, probably at runtime
+                # _collections_tag or the descriptor, probably at runtime
                 raise TypeError(
                     'The value associated with attribute {} is an instance of class {} should be an array based on '
-                    'the metadata in the __arrays_tags dictionary, but we received an instance of '
+                    'the metadata in the _collections_tags dictionary, but we received an instance of '
                     'type {}'.format(attribute, self.__class__.__name__, type(value)))
             if not len(value.shape) == 1:
                 # again, I have no idea how we'd find ourselves here, unless inconsistencies have been introduced
@@ -1197,10 +1202,10 @@ class Serializable(object):
         def serialize_list(node, child_tag, value, fmt_func):
             if not isinstance(value, list):
                 # this should really never happen, unless someone broke the class badly by fiddling with
-                # __collections_tags or the descriptor?
+                # _collections_tags or the descriptor?
                 raise TypeError(
                     'The value associated with attribute {} is an instance of class {} should be a list based on '
-                    'the metadata in the __arrays_tags dictionary, but we received an instance of '
+                    'the metadata in the _collections_tags dictionary, but we received an instance of '
                     'type {}'.format(attribute, self.__class__.__name__, type(value)))
             if len(value) == 0:
                 return  # serializing an empty list is dumb
@@ -1243,12 +1248,12 @@ class Serializable(object):
             logging.warning(msg)
 
         if tag is None:
-            tag = self.__tag
+            tag = self._tag
         if tag is None:
             tag = self.__class__.__name__
         nod = _create_new_node(doc, tag, par=par)
 
-        for attribute in self.__fields:
+        for attribute in self._fields:
             if attribute in exclude:
                 continue
 
@@ -1257,8 +1262,8 @@ class Serializable(object):
                 continue
 
             fmt_func = self._get_formatter(attribute)
-            array_tag = self.__collections_tags.get(attribute, None)
-            if attribute in self.__set_as_attribute:
+            array_tag = self._collections_tags.get(attribute, None)
+            if attribute in self._set_as_attribute:
                 set_attribute(nod, attribute, value, fmt_func)
             elif array_tag is not None:
                 array = array_tag.get('array', False)
@@ -1272,7 +1277,7 @@ class Serializable(object):
                 else:
                     # the metadata is broken
                     raise ValueError(
-                        'Attribute {} in class {} is listed in the __collections_tags dictionary, but the '
+                        'Attribute {} in class {} is listed in the _collections_tags dictionary, but the '
                         '"child_tags" value is either missing or None.'.format(attribute, self.__class__.__name__))
             else:
                 serialize_plain(nod, attribute, value, fmt_func)
@@ -1324,10 +1329,10 @@ class Serializable(object):
 
 class PlainValueType(Serializable):
     """This is a basic xml building block element, and not actually specified in the SICD standard"""
-    __fields = ('value', )
-    __required = __fields
+    _fields = ('value', )
+    _required = _fields
     # descriptor
-    value = _StringDescriptor('value', __required, strict=True, docstring='The value')
+    value = _StringDescriptor('value', _required, strict=True, docstring='The value')
 
     @classmethod
     def from_node(cls, node, kwargs=None):
@@ -1336,7 +1341,7 @@ class PlainValueType(Serializable):
     def to_node(self, doc, tag=None, par=None, strict=DEFAULT_STRICT, exclude=()):
         # we have to short-circuit the super call here, because this is a really primitive element
         if tag is None:
-            tag = self.__tag
+            tag = self._tag
         if tag is None:
             tag = self.__class__.__name__
         node = _create_text_node(doc, tag, self.value, par=par)
@@ -1345,10 +1350,10 @@ class PlainValueType(Serializable):
 
 class FloatValueType(Serializable):
     """This is a basic xml building block element, and not actually specified in the SICD standard"""
-    __fields = ('value', )
-    __required = __fields
+    _fields = ('value', )
+    _required = _fields
     # descriptor
-    value = _FloatDescriptor('value', __required, strict=True, docstring='The value')
+    value = _FloatDescriptor('value', _required, strict=True, docstring='The value')
 
     @classmethod
     def from_node(cls, node, kwargs=None):
@@ -1357,7 +1362,7 @@ class FloatValueType(Serializable):
     def to_node(self, doc, tag=None, par=None, strict=DEFAULT_STRICT, exclude=()):
         # we have to short-circuit the call here, because this is a really primitive element
         if tag is None:
-            tag = self.__tag
+            tag = self._tag
         if tag is None:
             tag = self.__class__.__name__
         fmt_func = self._get_formatter('value')
@@ -1367,42 +1372,42 @@ class FloatValueType(Serializable):
 
 class ComplexType(PlainValueType):
     """A complex number"""
-    __fields = ('Real', 'Imag')
-    __required = __fields
+    _fields = ('Real', 'Imag')
+    _required = _fields
     # descriptor
     Real = _FloatDescriptor(
-        'Real', __required, strict=True, docstring='The real component.')
+        'Real', _required, strict=True, docstring='The real component.')
     Imag = _FloatDescriptor(
-        'Imag', __required, strict=True, docstring='The imaginary component.')
+        'Imag', _required, strict=True, docstring='The imaginary component.')
 
 
 class ParameterType(PlainValueType):
     """A Parameter structure - just a name attribute and associated value"""
-    __tag = 'Parameter'
-    __fields = ('name', 'value')
-    __required = __fields
-    __set_as_attribute = ('name', )
+    _tag = 'Parameter'
+    _fields = ('name', 'value')
+    _required = _fields
+    _set_as_attribute = ('name', )
     # descriptor
     name = _StringDescriptor(
-        'name', __required, strict=True, docstring='The name.')
+        'name', _required, strict=True, docstring='The name.')
     value = _StringDescriptor(
-        'value', __required, strict=True, docstring='The value.')
+        'value', _required, strict=True, docstring='The value.')
 
 
 class XYZType(Serializable):
     """A spatial point in ECF coordinates."""
-    __fields = ('X', 'Y', 'Z')
-    __required = __fields
-    __numeric_format = {'X': '0.8f', 'Y': '0.8f', 'Z': '0.8f'}  # TODO: desired precision? This is usually meters?
+    _fields = ('X', 'Y', 'Z')
+    _required = _fields
+    _numeric_format = {'X': '0.8f', 'Y': '0.8f', 'Z': '0.8f'}  # TODO: desired precision? This is usually meters?
     # descriptors
     X = _FloatDescriptor(
-        'X', __required, strict=DEFAULT_STRICT,
+        'X', _required, strict=DEFAULT_STRICT,
         docstring='The X attribute. Assumed to ECF or other, similar coordinates.')
     Y = _FloatDescriptor(
-        'Y', __required, strict=DEFAULT_STRICT,
+        'Y', _required, strict=DEFAULT_STRICT,
         docstring='The Y attribute. Assumed to ECF or other, similar coordinates.')
     Z = _FloatDescriptor(
-        'Z', __required, strict=DEFAULT_STRICT,
+        'Z', _required, strict=DEFAULT_STRICT,
         docstring='The Z attribute. Assumed to ECF or other, similar coordinates.')
 
     def getArray(self, dtype=numpy.float64):
@@ -1424,15 +1429,15 @@ class XYZType(Serializable):
 
 class LatLonType(Serializable):
     """A two-dimensional geographic point in WGS-84 coordinates."""
-    __fields = ('Lat', 'Lon')
-    __required = __fields
-    __numeric_format = {'Lat': '2.8f', 'Lon': '3.8f'}  # TODO: desired precision?
+    _fields = ('Lat', 'Lon')
+    _required = _fields
+    _numeric_format = {'Lat': '2.8f', 'Lon': '3.8f'}  # TODO: desired precision?
     # descriptors
     Lat = _FloatDescriptor(
-        'Lat', __required, strict=DEFAULT_STRICT,
+        'Lat', _required, strict=DEFAULT_STRICT,
         docstring='The latitude attribute. Assumed to be WGS-84 coordinates.')
     Lon = _FloatDescriptor(
-        'Lon', __required, strict=DEFAULT_STRICT,
+        'Lon', _required, strict=DEFAULT_STRICT,
         docstring='The longitude attribute. Assumed to be WGS-84 coordinates.')
 
     def getArray(self, order='LON', dtype=numpy.float64):
@@ -1459,36 +1464,36 @@ class LatLonType(Serializable):
 
 class LatLonArrayElementType(LatLonType):
     """An geographic point in an array"""
-    __fields = ('Lat', 'Lon', 'index')
-    __required = __fields
-    __set_as_attribute = ('index', )
-    __numeric_format = {'Lat': '2.8f', 'Lon': '3.8f'}  # TODO: desired precision?
+    _fields = ('Lat', 'Lon', 'index')
+    _required = _fields
+    _set_as_attribute = ('index', )
+    _numeric_format = {'Lat': '2.8f', 'Lon': '3.8f'}  # TODO: desired precision?
     index = _IntegerDescriptor(
-        'index', __required, strict=False, docstring="The array index")
+        'index', _required, strict=False, docstring="The array index")
 
 
 class LatLonRestrictionType(LatLonType):
     """A two-dimensional geographic point in WGS-84 coordinates."""
-    __fields = ('Lat', 'Lon')
-    __required = __fields
-    __numeric_format = {'Lat': '2.8f', 'Lon': '3.8f'}  # TODO: desired precision?
+    _fields = ('Lat', 'Lon')
+    _required = _fields
+    _numeric_format = {'Lat': '2.8f', 'Lon': '3.8f'}  # TODO: desired precision?
     # descriptors
     Lat = _FloatModularDescriptor(
-        'Lat', 90.0, __required, strict=DEFAULT_STRICT,
+        'Lat', 90.0, _required, strict=DEFAULT_STRICT,
         docstring='The latitude attribute. Assumed to be WGS-84 coordinates.')
     Lon = _FloatModularDescriptor(
-        'Lon', 180.0, __required, strict=DEFAULT_STRICT,
+        'Lon', 180.0, _required, strict=DEFAULT_STRICT,
         docstring='The longitude attribute. Assumed to be WGS-84 coordinates.')
 
 
 class LatLonHAEType(LatLonType):
     """A three-dimensional geographic point in WGS-84 coordinates."""
-    __fields = ('Lat', 'Lon', 'HAE')
-    __required = __fields
-    __numeric_format = {'Lat': '2.8f', 'Lon': '3.8f', 'HAE': '0.3f'}  # TODO: desired precision?
+    _fields = ('Lat', 'Lon', 'HAE')
+    _required = _fields
+    _numeric_format = {'Lat': '2.8f', 'Lon': '3.8f', 'HAE': '0.3f'}  # TODO: desired precision?
     # descriptors
     HAE = _FloatDescriptor(
-        'HAE', __required, strict=DEFAULT_STRICT,
+        'HAE', _required, strict=DEFAULT_STRICT,
         docstring='The Height Above Ellipsoid (in meters) attribute. Assumed to be WGS-84 coordinates.')
 
     def getArray(self, order='LON', dtype=numpy.float64):
@@ -1514,96 +1519,96 @@ class LatLonHAEType(LatLonType):
 
 
 class LatLonHAERestrictionType(LatLonHAEType):
-    __fields = ('Lat', 'Lon', 'HAE')
-    __required = __fields
+    _fields = ('Lat', 'Lon', 'HAE')
+    _required = _fields
     """A three-dimensional geographic point in WGS-84 coordinates."""
     Lat = _FloatModularDescriptor(
-        'Lat', 90.0, __required, strict=DEFAULT_STRICT,
+        'Lat', 90.0, _required, strict=DEFAULT_STRICT,
         docstring='The latitude attribute. Assumed to be WGS-84 coordinates.')
     Lon = _FloatModularDescriptor(
-        'Lon', 180.0, __required, strict=DEFAULT_STRICT,
+        'Lon', 180.0, _required, strict=DEFAULT_STRICT,
         docstring='The longitude attribute. Assumed to be WGS-84 coordinates.')
 
 
 class LatLonCornerType(LatLonType):
     """A two-dimensional geographic point in WGS-84 coordinates representing a collection area box corner point."""
-    __fields = ('Lat', 'Lon', 'index')
-    __required = __fields
-    __set_as_attribute = ('index', )
+    _fields = ('Lat', 'Lon', 'index')
+    _required = _fields
+    _set_as_attribute = ('index', )
     # descriptors
     index = _IntegerDescriptor(
-        'index', __required, strict=True, bounds=(1, 4),
+        'index', _required, strict=True, bounds=(1, 4),
         docstring='The integer index. This represents a clockwise enumeration of the rectangle vertices '
                   'wrt the frame of reference of the collector.')
 
 
 class LatLonCornerStringType(LatLonType):
     """A two-dimensional geographic point in WGS-84 coordinates representing a collection area box corner point."""
-    __fields = ('Lat', 'Lon', 'index')
-    __required = __fields
-    __set_as_attribute = ('index', )
+    _fields = ('Lat', 'Lon', 'index')
+    _required = _fields
+    _set_as_attribute = ('index', )
     # other specific class variable
     _CORNER_VALUES = ('1:FRFC', '2:FRLC', '3:LRLC', '4:LRFC')
     # descriptors
     index = _StringEnumDescriptor(
-        'index', _CORNER_VALUES, __required, strict=True,
+        'index', _CORNER_VALUES, _required, strict=True,
         docstring="The string index.")
 
 
 class LatLonHAECornerRestrictionType(LatLonHAERestrictionType):
     """A three-dimensional geographic point in WGS-84 coordinates representing a collection area box corner point."""
-    __fields = ('Lat', 'Lon', 'HAE', 'index')
-    __required = __fields
-    __set_as_attribute = ('index', )
+    _fields = ('Lat', 'Lon', 'HAE', 'index')
+    _required = _fields
+    _set_as_attribute = ('index', )
     # descriptors
     index = _IntegerDescriptor(
-        'index', __required, strict=True,
+        'index', _required, strict=True,
         docstring='The integer index. This represents a clockwise enumeration of the rectangle vertices '
                   'wrt the frame of reference of the collector.')
 
 
 class LatLonHAECornerStringType(LatLonHAEType):
     """A three-dimensional geographic point in WGS-84 coordinates representing a collection area box corner point."""
-    __fields = ('Lat', 'Lon', 'HAE', 'index')
-    __required = __fields
-    __set_as_attribute = ('index', )
+    _fields = ('Lat', 'Lon', 'HAE', 'index')
+    _required = _fields
+    _set_as_attribute = ('index', )
     _CORNER_VALUES = ('1:FRFC', '2:FRLC', '3:LRLC', '4:LRFC')
     # descriptors
     index = _StringEnumDescriptor(
-        'index', _CORNER_VALUES, __required, strict=True, docstring="The string index.")
+        'index', _CORNER_VALUES, _required, strict=True, docstring="The string index.")
 
 
 class RowColType(Serializable):
     """A row and column attribute container - used as indices into array(s)."""
-    __fields = ('Row', 'Col')
-    __required = __fields
+    _fields = ('Row', 'Col')
+    _required = _fields
     Row = _IntegerDescriptor(
-        'Row', __required, strict=DEFAULT_STRICT, docstring='The Row attribute.')
+        'Row', _required, strict=DEFAULT_STRICT, docstring='The Row attribute.')
     Col = _IntegerDescriptor(
-        'Col', __required, strict=DEFAULT_STRICT, docstring='The Column attribute.')
+        'Col', _required, strict=DEFAULT_STRICT, docstring='The Column attribute.')
 
 
 class RowColArrayElement(RowColType):
     """A array element row and column attribute container - used as indices into other array(s)."""
     # Note - in the SICD standard this type is listed as RowColvertexType. This is not a descriptive name
     # and has an inconsistency in camel case
-    __fields = ('Row', 'Col', 'index')
-    __required = __fields
-    __set_as_attribute = ('index', )
+    _fields = ('Row', 'Col', 'index')
+    _required = _fields
+    _set_as_attribute = ('index', )
     # descriptors
     index = _IntegerDescriptor(
-        'index', __required, strict=DEFAULT_STRICT, docstring='The array index attribute.')
+        'index', _required, strict=DEFAULT_STRICT, docstring='The array index attribute.')
 
 
 class PolyCoef1DType(FloatValueType):
     """Represents a monomial term of the form `value * x^{exponent1}`."""
-    __fields = ('value', 'exponent1')
-    __required = __fields
-    __numeric_format = {'value': '0.8f'}  # TODO: desired precision?
-    __set_as_attribute = ('exponent1', )
+    _fields = ('value', 'exponent1')
+    _required = _fields
+    _numeric_format = {'value': '0.8f'}  # TODO: desired precision?
+    _set_as_attribute = ('exponent1', )
     # descriptors
     exponent1 = _IntegerDescriptor(
-        'exponent1', __required, strict=DEFAULT_STRICT, docstring='The exponent1 attribute.')
+        'exponent1', _required, strict=DEFAULT_STRICT, docstring='The exponent1 attribute.')
 
 
 class PolyCoef2DType(FloatValueType):
@@ -1612,26 +1617,26 @@ class PolyCoef2DType(FloatValueType):
     #   be done here, because I would not want an instance of PolyCoef2DType to evaluate as True when testing if
     #   instance of PolyCoef1DType.
 
-    __fields = ('value', 'exponent1', 'exponent2')
-    __required = __fields
-    __numeric_format = {'value': '0.8f'}  # TODO: desired precision?
-    __set_as_attribute = ('exponent1', 'exponent2')
+    _fields = ('value', 'exponent1', 'exponent2')
+    _required = _fields
+    _numeric_format = {'value': '0.8f'}  # TODO: desired precision?
+    _set_as_attribute = ('exponent1', 'exponent2')
     # descriptors
     exponent1 = _IntegerDescriptor(
-        'exponent1', __required, strict=DEFAULT_STRICT, docstring='The exponent1 attribute.')
+        'exponent1', _required, strict=DEFAULT_STRICT, docstring='The exponent1 attribute.')
     exponent2 = _IntegerDescriptor(
-        'exponent2', __required, strict=DEFAULT_STRICT, docstring='The exponent2 attribute.')
+        'exponent2', _required, strict=DEFAULT_STRICT, docstring='The exponent2 attribute.')
 
 
 class Poly1DType(Serializable):
     """Represents a one-variable polynomial, defined as the sum of the given monomial terms."""
-    __fields = ('Coefs', 'order1')
-    __required = ('Coefs', )
-    __collections_tags = {'Coefs': {'array': False, 'child_tag': 'Coef'}}
-    __set_as_attribute = ('order1', )
+    _fields = ('Coefs', 'order1')
+    _required = ('Coefs', )
+    _collections_tags = {'Coefs': {'array': False, 'child_tag': 'Coef'}}
+    _set_as_attribute = ('order1', )
     # descriptors
     Coefs = _SerializableArrayDescriptor(
-        'Coefs', PolyCoef1DType, __collections_tags, __required, strict=DEFAULT_STRICT,
+        'Coefs', PolyCoef1DType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='The list of monomial terms.')
 
     @property
@@ -1648,13 +1653,13 @@ class Poly1DType(Serializable):
 
 class Poly2DType(Serializable):
     """Represents a one-variable polynomial, defined as the sum of the given monomial terms."""
-    __fields = ('Coefs', 'order1', 'order2')
-    __required = ('Coefs', )
-    __collections_tags = {'Coefs': {'array': False, 'child_tag': 'Coef'}}
-    __set_as_attribute = ('order1', 'order2')
+    _fields = ('Coefs', 'order1', 'order2')
+    _required = ('Coefs', )
+    _collections_tags = {'Coefs': {'array': False, 'child_tag': 'Coef'}}
+    _set_as_attribute = ('order1', 'order2')
     # descriptors
     Coefs = _SerializableArrayDescriptor(
-        'Coefs', PolyCoef2DType, __collections_tags, __required, strict=DEFAULT_STRICT,
+        'Coefs', PolyCoef2DType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='The list of monomial terms.')
 
     @property
@@ -1679,15 +1684,15 @@ class Poly2DType(Serializable):
 
 class XYZPolyType(Serializable):
     """Represents a single variable polynomial for each of `X`, `Y`, and `Z`."""
-    __fields = ('X', 'Y', 'Z')
-    __required = __fields
+    _fields = ('X', 'Y', 'Z')
+    _required = _fields
     # descriptors
     X = _SerializableDescriptor(
-        'X', Poly1DType, __required, strict=DEFAULT_STRICT, docstring='The X polynomial.')
+        'X', Poly1DType, _required, strict=DEFAULT_STRICT, docstring='The X polynomial.')
     Y = _SerializableDescriptor(
-        'Y', Poly1DType, __required, strict=DEFAULT_STRICT, docstring='The Y polynomial.')
+        'Y', Poly1DType, _required, strict=DEFAULT_STRICT, docstring='The Y polynomial.')
     Z = _SerializableDescriptor(
-        'Z', Poly1DType, __required, strict=DEFAULT_STRICT, docstring='The Z polynomial.')
+        'Z', Poly1DType, _required, strict=DEFAULT_STRICT, docstring='The Z polynomial.')
     # TODO: a better description would be good here
 
     # TODO: HIGH - helper method to get numpy.polynomial.polynomial objects and so forth?
@@ -1699,64 +1704,64 @@ class XYZPolyAttributeType(XYZPolyType):
     An array element of X, Y, Z polynomials. The output of these polynomials are expected to spatial variables in
     the ECF coordinate system.
     """
-    __fields = ('X', 'Y', 'Z', 'index')
-    __required = __fields
-    __set_as_attribute = ('index', )
+    _fields = ('X', 'Y', 'Z', 'index')
+    _required = _fields
+    _set_as_attribute = ('index', )
     # descriptors
     index = _IntegerDescriptor(
-        'index', __required, strict=DEFAULT_STRICT, docstring='The array index value.')
+        'index', _required, strict=DEFAULT_STRICT, docstring='The array index value.')
 
 
 class GainPhasePolyType(Serializable):
     """A container for the Gain and Phase Polygon definitions."""
-    __fields = ('GainPoly', 'PhasePoly')
-    __required = __fields
+    _fields = ('GainPoly', 'PhasePoly')
+    _required = _fields
     # descriptors
     GainPoly = _SerializableDescriptor(
-        'GainPoly', Poly2DType, __required, strict=DEFAULT_STRICT, docstring='The Gain Polygon.')
+        'GainPoly', Poly2DType, _required, strict=DEFAULT_STRICT, docstring='The Gain Polygon.')
     PhasePoly = _SerializableDescriptor(
-        'GainPhasePoly', Poly2DType, __required, strict=DEFAULT_STRICT, docstring='The Phase Polygon.')
+        'GainPhasePoly', Poly2DType, _required, strict=DEFAULT_STRICT, docstring='The Phase Polygon.')
 
 
 class ErrorDecorrFuncType(Serializable):
     """The Error Decorrelation Function?"""
-    __fields = ('CorrCoefZero', 'DecorrRate')
-    __required = __fields
-    __numeric_format = {'CorrCoefZero': '0.8f', 'DecorrRate': '0.8f'}  # TODO: desired precision?
+    _fields = ('CorrCoefZero', 'DecorrRate')
+    _required = _fields
+    _numeric_format = {'CorrCoefZero': '0.8f', 'DecorrRate': '0.8f'}  # TODO: desired precision?
     # descriptors
     CorrCoefZero = _FloatDescriptor(
-        'CorrCoefZero', __required, strict=DEFAULT_STRICT, docstring='The CorrCoefZero attribute.')
+        'CorrCoefZero', _required, strict=DEFAULT_STRICT, docstring='The CorrCoefZero attribute.')
     DecorrRate = _FloatDescriptor(
-        'DecorrRate', __required, strict=DEFAULT_STRICT, docstring='The DecorrRate attribute.')
+        'DecorrRate', _required, strict=DEFAULT_STRICT, docstring='The DecorrRate attribute.')
 
     # TODO: HIGH - this is supposed to be a "function". We should implement the functionality here.
 
 
 class RadarModeType(Serializable):
     """Radar mode type container class"""
-    __tag = 'RadarMode'
-    __fields = ('ModeType', 'ModeId')
-    __required = ('ModeType', )
+    _tag = 'RadarMode'
+    _fields = ('ModeType', 'ModeId')
+    _required = ('ModeType', )
     # other class variable
     _MODE_TYPE_VALUES = ('SPOTLIGHT', 'STRIPMAP', 'DYNAMIC STRIPMAP')
     # descriptors
     ModeId = _StringDescriptor(
-        'ModeId', __required, docstring='The Mode Id.')
+        'ModeId', _required, docstring='The Mode Id.')
     ModeType = _StringEnumDescriptor(
-        'ModeType', _MODE_TYPE_VALUES, __required, strict=DEFAULT_STRICT,
+        'ModeType', _MODE_TYPE_VALUES, _required, strict=DEFAULT_STRICT,
         docstring="The mode type, which will be one of {}.".format(_MODE_TYPE_VALUES))
 
 
 class FullImageType(Serializable):
     """The full image attributes"""
-    __tag = 'FullImage'
-    __fields = ('NumRows', 'NumCols')
-    __required = __fields
+    _tag = 'FullImage'
+    _fields = ('NumRows', 'NumCols')
+    _required = _fields
     # descriptors
     NumRows = _IntegerDescriptor(
-        'NumRows', __required, strict=DEFAULT_STRICT, docstring='The number of rows.')
+        'NumRows', _required, strict=DEFAULT_STRICT, docstring='The number of rows.')
     NumCols = _IntegerDescriptor(
-        'NumCols', __required, strict=DEFAULT_STRICT, docstring='The number of columns.')
+        'NumCols', _required, strict=DEFAULT_STRICT, docstring='The number of columns.')
 
 
 ####################################################################
@@ -1766,37 +1771,37 @@ class FullImageType(Serializable):
 
 class CollectionInfoType(Serializable):
     """The collection information container."""
-    __tag = 'CollectionInfo'
-    __collections_tags = {
+    _tag = 'CollectionInfo'
+    _collections_tags = {
         'Parameters': {'array': False, 'child_tag': 'Parameter'},
         'CountryCode': {'array': False, 'child_tag': 'CountryCode'},
     }
-    __fields = (
+    _fields = (
         'CollectorName', 'IlluminatorName', 'CoreName', 'CollectType',
         'RadarMode', 'Classification', 'Parameters', 'CountryCodes')
-    __required = ('CollectorName', 'CoreName', 'RadarMode', 'Classification')
+    _required = ('CollectorName', 'CoreName', 'RadarMode', 'Classification')
     # other class variable
     _COLLECT_TYPE_VALUES = ('MONOSTATIC', 'BISTATIC')
     # descriptors
     CollectorName = _StringDescriptor(
-        'CollectorName', __required, strict=DEFAULT_STRICT, docstring='The collector name.')
+        'CollectorName', _required, strict=DEFAULT_STRICT, docstring='The collector name.')
     IlluminatorName = _StringDescriptor(
-        'IlluminatorName', __required, strict=DEFAULT_STRICT, docstring='The illuminator name.')
+        'IlluminatorName', _required, strict=DEFAULT_STRICT, docstring='The illuminator name.')
     CoreName = _StringDescriptor(
-        'CoreName', __required, strict=DEFAULT_STRICT, docstring='The core name.')
+        'CoreName', _required, strict=DEFAULT_STRICT, docstring='The core name.')
     CollectType = _StringEnumDescriptor(
-        'CollectType', _COLLECT_TYPE_VALUES, __required,
+        'CollectType', _COLLECT_TYPE_VALUES, _required,
         docstring="The collect type, one of {}".format(_COLLECT_TYPE_VALUES))
     RadarMode = _SerializableDescriptor(
-        'RadarMode', RadarModeType, __required, strict=DEFAULT_STRICT, docstring='The radar mode')
+        'RadarMode', RadarModeType, _required, strict=DEFAULT_STRICT, docstring='The radar mode')
     Classification = _StringDescriptor(
-        'Classification', __required, strict=DEFAULT_STRICT, docstring='The classification.')
+        'Classification', _required, strict=DEFAULT_STRICT, docstring='The classification.')
     # list type descriptors
     Parameters = _SerializableArrayDescriptor(
-        'Parameters', ParameterType, __collections_tags, __required, strict=DEFAULT_STRICT,
-        docstring='The parameters objects **list**.')
+        'Parameters', ParameterType, _collections_tags, _required, strict=DEFAULT_STRICT,
+        docstring='The parameters objects list.')
     CountryCodes = _StringListDescriptor(
-        'CountryCodes', __required, strict=DEFAULT_STRICT, docstring="The country code **list**.")
+        'CountryCodes', _required, strict=DEFAULT_STRICT, docstring="The country code list.")
 
 
 ###############
@@ -1805,17 +1810,17 @@ class CollectionInfoType(Serializable):
 
 class ImageCreationType(Serializable):
     """The image creation data container."""
-    __fields = ('Application', 'DateTime', 'Site', 'Profile')
-    __required = ()
+    _fields = ('Application', 'DateTime', 'Site', 'Profile')
+    _required = ()
     # descriptors
-    Application = _StringDescriptor('Application', __required, strict=DEFAULT_STRICT, docstring='The application.')
+    Application = _StringDescriptor('Application', _required, strict=DEFAULT_STRICT, docstring='The application.')
     DateTime = _DateTimeDescriptor(
-        'DateTime', __required, strict=DEFAULT_STRICT, numpy_datetime_units='us',
+        'DateTime', _required, strict=DEFAULT_STRICT, numpy_datetime_units='us',
         docstring='The image creation date/time.')
     Site = _StringDescriptor(
-        'Site', __required, strict=DEFAULT_STRICT, docstring='The site.')
+        'Site', _required, strict=DEFAULT_STRICT, docstring='The site.')
     Profile = _StringDescriptor(
-        'Profile', __required, strict=DEFAULT_STRICT, docstring='The profile.')
+        'Profile', _required, strict=DEFAULT_STRICT, docstring='The profile.')
 
 
 ###############
@@ -1824,36 +1829,36 @@ class ImageCreationType(Serializable):
 
 class ImageDataType(Serializable):
     """The image data container."""
-    __collections_tags = {
+    _collections_tags = {
         'AmpTable': {'array': True, 'child_tag': 'Amplitude'},
         'ValidData': {'array': True, 'child_tag': 'Vertex'},
     }
-    __fields = ('PixelType', 'AmpTable', 'NumRows', 'NumCols', 'FirstRow', 'FirstCol', 'FullImage', 'SCPPixel',
+    _fields = ('PixelType', 'AmpTable', 'NumRows', 'NumCols', 'FirstRow', 'FirstCol', 'FullImage', 'SCPPixel',
                 'ValidData')
-    __required = ('PixelType', 'NumRows', 'NumCols', 'FirstRow', 'FirstCol', 'FullImage', 'SCPPixel')
-    __numeric_format = {'AmpTable': '0.8f'}  # TODO: precision for AmpTable?
+    _required = ('PixelType', 'NumRows', 'NumCols', 'FirstRow', 'FirstCol', 'FullImage', 'SCPPixel')
+    _numeric_format = {'AmpTable': '0.8f'}  # TODO: precision for AmpTable?
     _PIXEL_TYPE_VALUES = ("RE32F_IM32F", "RE16I_IM16I", "AMP8I_PHS8I")
     # descriptors
     PixelType = _StringEnumDescriptor(
-        'PixelType', _PIXEL_TYPE_VALUES, __required, strict=True,
+        'PixelType', _PIXEL_TYPE_VALUES, _required, strict=True,
         docstring="The PixelType attribute which specifies the interpretation of the file data")
     NumRows = _IntegerDescriptor(
-        'NumRows', __required, strict=DEFAULT_STRICT, docstring='The number of Rows')
+        'NumRows', _required, strict=DEFAULT_STRICT, docstring='The number of Rows')
     NumCols = _IntegerDescriptor(
-        'NumCols', __required, strict=DEFAULT_STRICT, docstring='The number of Columns')
+        'NumCols', _required, strict=DEFAULT_STRICT, docstring='The number of Columns')
     FirstRow = _IntegerDescriptor(
-        'FirstRow', __required, strict=DEFAULT_STRICT, docstring='The first row')
+        'FirstRow', _required, strict=DEFAULT_STRICT, docstring='The first row')
     FirstCol = _IntegerDescriptor(
-        'FirstCol', __required, strict=DEFAULT_STRICT, docstring='The first column')
+        'FirstCol', _required, strict=DEFAULT_STRICT, docstring='The first column')
     FullImage = _SerializableDescriptor(
-        'FullImage', FullImageType, __required, strict=DEFAULT_STRICT, docstring='The full image')
+        'FullImage', FullImageType, _required, strict=DEFAULT_STRICT, docstring='The full image')
     SCPPixel = _SerializableDescriptor(
-        'SCPPixel', RowColType, __required, strict=DEFAULT_STRICT, docstring='The SCP Pixel')
+        'SCPPixel', RowColType, _required, strict=DEFAULT_STRICT, docstring='The SCP Pixel')
     ValidData = _SerializableArrayDescriptor(
-        'ValidData', RowColArrayElement, __collections_tags, __required, strict=DEFAULT_STRICT,
-        minimum_length=3, docstring='The valid data area **array**')
+        'ValidData', RowColArrayElement, _collections_tags, _required, strict=DEFAULT_STRICT,
+        minimum_length=3, docstring='The valid data area array.')
     AmpTable = _FloatArrayDescriptor(
-        'AmpTable', __collections_tags, __required, strict=DEFAULT_STRICT,
+        'AmpTable', _collections_tags, _required, strict=DEFAULT_STRICT,
         minimum_length=256, maximum_length=256,
         docstring="The amplitude look-up table. This must be defined if PixelType == 'AMP8I_PHS8I'")
 
@@ -1872,29 +1877,29 @@ class ImageDataType(Serializable):
 
 class GeoInfoType(Serializable):
     """The GeoInfo container."""
-    __tag = 'GeoInfo'
-    __collections_tags = {
+    _tag = 'GeoInfo'
+    _collections_tags = {
         'Descriptions': {'array': False, 'child_tag': 'Desc'},
         'Line': {'array': True, 'child_tag': 'Endpoint'},
         'Polygon': {'array': True, 'child_tag': 'Vertex'}, }
-    __fields = ('name', 'Descriptions', 'Point', 'Line', 'Polygon')
-    __required = ('name', )
-    __set_as_attribute = ('name', )
+    _fields = ('name', 'Descriptions', 'Point', 'Line', 'Polygon')
+    _required = ('name', )
+    _set_as_attribute = ('name', )
     # descriptors
     name = _StringDescriptor(
-        'name', __required, strict=True, docstring='The name.')
+        'name', _required, strict=True, docstring='The name.')
     Descriptions = _SerializableArrayDescriptor(
-        'Descriptions', ParameterType, __collections_tags, __required, strict=DEFAULT_STRICT,
-        docstring='The descriptions **list**.')
+        'Descriptions', ParameterType, _collections_tags, _required, strict=DEFAULT_STRICT,
+        docstring='The descriptions list.')
     Point = _SerializableDescriptor(
-        'Point', LatLonRestrictionType, __required, strict=DEFAULT_STRICT,
+        'Point', LatLonRestrictionType, _required, strict=DEFAULT_STRICT,
         docstring='A geographic point with WGS-84 coordinates.')
     Line = _SerializableArrayDescriptor(
-        'Line', LatLonArrayElementType, __collections_tags, __required, strict=DEFAULT_STRICT, minimum_length=2,
-        docstring='A geographic line (**array**) with WGS-84 coordinates.')
+        'Line', LatLonArrayElementType, _collections_tags, _required, strict=DEFAULT_STRICT, minimum_length=2,
+        docstring='A geographic line (array) with WGS-84 coordinates.')
     Polygon = _SerializableArrayDescriptor(
-        'Polygon', LatLonArrayElementType, __collections_tags, __required, strict=DEFAULT_STRICT, minimum_length=3,
-        docstring='A geographic polygon (**array**) with WGS-84 coordinates.')
+        'Polygon', LatLonArrayElementType, _collections_tags, _required, strict=DEFAULT_STRICT, minimum_length=3,
+        docstring='A geographic polygon (array) with WGS-84 coordinates.')
     # TODO: is the standard really self-referential here? I find that confusing.
 
 
@@ -1904,21 +1909,21 @@ class GeoInfoType(Serializable):
 
 class SCPType(Serializable):
     """The Scene Center Point container"""
-    __tag = 'SCP'
-    __fields = ('ECF', 'LLH')
-    __required = __fields  # isn't this redundant?
+    _tag = 'SCP'
+    _fields = ('ECF', 'LLH')
+    _required = _fields  # isn't this redundant?
     ECF = _SerializableDescriptor(
-        'ECF', XYZType, __required, strict=DEFAULT_STRICT, docstring='The ECF coordinates.')
+        'ECF', XYZType, _required, strict=DEFAULT_STRICT, docstring='The ECF coordinates.')
     LLH = _SerializableDescriptor(
-        'LLH', LatLonHAERestrictionType, __required, strict=DEFAULT_STRICT,
+        'LLH', LatLonHAERestrictionType, _required, strict=DEFAULT_STRICT,
         docstring='The WGS 84 coordinates.')
 
 
 class GeoDataType(Serializable):
     """Container specifying the image coverage area in geographic coordinates."""
-    __fields = ('EarthModel', 'SCP', 'ImageCorners', 'ValidData', 'GeoInfos')
-    __required = ('EarthModel', 'SCP', 'ImageCorners')
-    __collections_tags = {
+    _fields = ('EarthModel', 'SCP', 'ImageCorners', 'ValidData', 'GeoInfos')
+    _required = ('EarthModel', 'SCP', 'ImageCorners')
+    _collections_tags = {
         'ValidData': {'array': True, 'child_tag': 'Vertex'},
         'ImageCorners': {'array': True, 'child_tag': 'ICP'},
         'GeoInfos': {'array': False, 'child_tag': 'GeoInfo'},
@@ -1927,21 +1932,21 @@ class GeoDataType(Serializable):
     _EARTH_MODEL_VALUES = ('WGS_84', )
     # descriptors
     EarthModel = _StringEnumDescriptor(
-        'EarthModel', _EARTH_MODEL_VALUES, __required, strict=True, default_value='WGS_84',
+        'EarthModel', _EARTH_MODEL_VALUES, _required, strict=True, default_value='WGS_84',
         docstring='The Earth Model.'.format(_EARTH_MODEL_VALUES))
     SCP = _SerializableDescriptor(
-        'SCP', SCPType, __required, strict=DEFAULT_STRICT, tag='SCP', docstring='The Scene Center Point.')
+        'SCP', SCPType, _required, strict=DEFAULT_STRICT, tag='SCP', docstring='The Scene Center Point.')
     ImageCorners = _SerializableArrayDescriptor(
-        'ImageCorners', LatLonCornerStringType, __collections_tags, __required, strict=DEFAULT_STRICT,
+        'ImageCorners', LatLonCornerStringType, _collections_tags, _required, strict=DEFAULT_STRICT,
         minimum_length=4, maximum_length=4,
-        docstring='The geographic image corner points **array**.')
+        docstring='The geographic image corner points array.')
     ValidData = _SerializableArrayDescriptor(
-        'ValidData', LatLonArrayElementType, __collections_tags, __required,
+        'ValidData', LatLonArrayElementType, _collections_tags, _required,
         strict=DEFAULT_STRICT, minimum_length=3,
-        docstring='The full image **array** includes both valid data and some zero filled pixels.')
+        docstring='The full image array includes both valid data and some zero filled pixels.')
     GeoInfos = _SerializableArrayDescriptor(
-        'GeoInfos', GeoInfoType, __collections_tags, __required, strict=DEFAULT_STRICT,
-        docstring='Relevant geographic features **list**.')
+        'GeoInfos', GeoInfoType, _collections_tags, _required, strict=DEFAULT_STRICT,
+        docstring='Relevant geographic features list.')
 
 
 ################
@@ -1950,67 +1955,67 @@ class GeoDataType(Serializable):
 
 class WgtTypeType(Serializable):
     """The weight type parameters of the direction parameters"""
-    __fields = ('WindowName', 'Parameters')
-    __required = ('WindowName', )
-    __collections_tags = {'Parameters': {'array': False, 'child_tag': 'Parameter'}}
+    _fields = ('WindowName', 'Parameters')
+    _required = ('WindowName', )
+    _collections_tags = {'Parameters': {'array': False, 'child_tag': 'Parameter'}}
     # descriptors
     WindowName = _StringDescriptor(
-        'WindowName', __required, strict=DEFAULT_STRICT, docstring='The window name')
+        'WindowName', _required, strict=DEFAULT_STRICT, docstring='The window name.')
     Parameters = _SerializableArrayDescriptor(
-        'Parameters', ParameterType, __collections_tags, required=__required, strict=DEFAULT_STRICT,
-        docstring='The parameters **list**')
+        'Parameters', ParameterType, _collections_tags, required=_required, strict=DEFAULT_STRICT,
+        docstring='The parameters list.')
 
 
 class DirParamType(Serializable):
     """The direction parameters container"""
-    __fields = (
+    _fields = (
         'UVectECF', 'SS', 'ImpRespWid', 'Sgn', 'ImpRespBW', 'KCtr', 'DeltaK1', 'DeltaK2', 'DeltaKCOAPoly',
         'WgtType', 'WgtFunct')
-    __required = ('UVectECF', 'SS', 'ImpRespWid', 'Sgn', 'ImpRespBW', 'KCtr', 'DeltaK1', 'DeltaK2')
-    __numeric_format = {
+    _required = ('UVectECF', 'SS', 'ImpRespWid', 'Sgn', 'ImpRespBW', 'KCtr', 'DeltaK1', 'DeltaK2')
+    _numeric_format = {
         'SS': '0.8f', 'ImpRespWid': '0.8f', 'Sgn': '+d', 'ImpRespBW': '0.8f', 'KCtr': '0.8f',
         'DeltaK1': '0.8f', 'DeltaK2': '0.8f'}
-    __collections_tags = {'WgtFunct': {'array': True, 'child_tag': 'Wgt'}}
+    _collections_tags = {'WgtFunct': {'array': True, 'child_tag': 'Wgt'}}
     # descriptors
     UVectECF = _SerializableDescriptor(
-        'UVectECF', XYZType, tag='UVectECF', required=__required, strict=DEFAULT_STRICT,
+        'UVectECF', XYZType, tag='UVectECF', required=_required, strict=DEFAULT_STRICT,
         docstring='Unit vector in the increasing (row/col) direction (ECF) at the SCP pixel.')
     SS = _FloatDescriptor(
-        'SS', __required, strict=DEFAULT_STRICT,
+        'SS', _required, strict=DEFAULT_STRICT,
         docstring='Sample spacing in the increasing (row/col) direction. Precise spacing at the SCP.')
     ImpRespWid = _FloatDescriptor(
-        'ImpRespWid', __required, strict=DEFAULT_STRICT,
+        'ImpRespWid', _required, strict=DEFAULT_STRICT,
         docstring='Half power impulse response width in the increasing (row/col) direction. Measured at the SCP.')
     Sgn = _IntegerEnumDescriptor(
-        'Sgn', __required, values=(1, -1), strict=DEFAULT_STRICT,
+        'Sgn', (1, -1), _required, strict=DEFAULT_STRICT,
         docstring='Sign for exponent in the DFT to transform the (row/col) dimension to '
                   'spatial frequency dimension.')
     ImpRespBW = _FloatDescriptor(
-        'ImpRespBW', __required, strict=DEFAULT_STRICT,
+        'ImpRespBW', _required, strict=DEFAULT_STRICT,
         docstring='Spatial bandwidth in (row/col) used to form the impulse response in the (row/col) direction. '
                   'Measured at the center of support for the SCP.')
     KCtr = _FloatDescriptor(
-        'KCtr', __required, strict=DEFAULT_STRICT,
+        'KCtr', _required, strict=DEFAULT_STRICT,
         docstring='Center spatial frequency in the given dimension. '
                   'Corresponds to the zero frequency of the DFT in the given (row/col) direction.')
     DeltaK1 = _FloatDescriptor(
-        'DeltaK1', __required, strict=DEFAULT_STRICT,
+        'DeltaK1', _required, strict=DEFAULT_STRICT,
         docstring='Minimum (row/col) offset from KCtr of the spatial frequency support for the image.')
     DeltaK2 = _FloatDescriptor(
-        'DeltaK2', __required, strict=DEFAULT_STRICT,
+        'DeltaK2', _required, strict=DEFAULT_STRICT,
         docstring='Maximum (row/col) offset from KCtr of the spatial frequency support for the image.')
     DeltaKCOAPoly = _SerializableDescriptor(
-        'DeltaKCOAPoly', Poly2DType, __required, tag='DeltaKCOAPoly', strict=DEFAULT_STRICT,
+        'DeltaKCOAPoly', Poly2DType, _required, tag='DeltaKCOAPoly', strict=DEFAULT_STRICT,
         docstring='Offset from KCtr of the center of support in the given (row/col) spatial frequency. '
                   'The polynomial is a function of image given (row/col) coordinate (variable 1) and '
                   'column coordinate (variable 2).')
     WgtType = _SerializableDescriptor(
-        'WgtType', WgtTypeType, __required, tag='WgtType', strict=DEFAULT_STRICT,
+        'WgtType', WgtTypeType, _required, tag='WgtType', strict=DEFAULT_STRICT,
         docstring='Parameters describing aperture weighting type applied in the spatial frequency domain '
                   'to yield the impulse response in the given(row/col) direction.')
     WgtFunct = _FloatArrayDescriptor(
-        'WgtFunct', __collections_tags, __required, strict=DEFAULT_STRICT, minimum_length=2,
-        docstring='Sampled aperture amplitude weighting function (**array**) applied to form the SCP impulse '
+        'WgtFunct', _collections_tags, _required, strict=DEFAULT_STRICT, minimum_length=2,
+        docstring='Sampled aperture amplitude weighting function (array) applied to form the SCP impulse '
                   'response in the given (row/col) direction.')
 
     def is_valid(self, recursive=False):
@@ -2027,27 +2032,27 @@ class DirParamType(Serializable):
 
 class GridType(Serializable):
     """Collection grid details container"""
-    __fields = ('ImagePlane', 'Type', 'TimeCOAPoly', 'Row', 'Col')
-    __required = __fields
+    _fields = ('ImagePlane', 'Type', 'TimeCOAPoly', 'Row', 'Col')
+    _required = _fields
     _IMAGE_PLANE_VALUES = ('SLANT', 'GROUND', 'OTHER')
     _TYPE_VALUES = ('RGAZIM', 'RGZERO', 'XRGYCR', 'XCTYAT', 'PLANE')
     # descriptors
     ImagePlane = _StringEnumDescriptor(
-        'ImagePlane', _IMAGE_PLANE_VALUES, __required, strict=DEFAULT_STRICT,
+        'ImagePlane', _IMAGE_PLANE_VALUES, _required, strict=DEFAULT_STRICT,
         docstring="The image plane. Possible values are {}".format(_IMAGE_PLANE_VALUES))
     Type = _StringEnumDescriptor(
-        'Type', _TYPE_VALUES, __required, strict=DEFAULT_STRICT,
+        'Type', _TYPE_VALUES, _required, strict=DEFAULT_STRICT,
         docstring="The possible grid type enumeration.")
     TimeCOAPoly = _SerializableDescriptor(
-        'TimeCOAPoly', Poly2DType, __required, strict=DEFAULT_STRICT,
+        'TimeCOAPoly', Poly2DType, _required, strict=DEFAULT_STRICT,
         docstring="*Time of Center Of Aperture* as a polynomial function of image coordinates. "
                   "The polynomial is a function of image row coordinate (variable 1) and column coordinate "
                   "(variable 2).")
     Row = _SerializableDescriptor(
-        'Row', DirParamType, __required, strict=DEFAULT_STRICT,
+        'Row', DirParamType, _required, strict=DEFAULT_STRICT,
         docstring="Row direction parameters.")
     Col = _SerializableDescriptor(
-        'Col', DirParamType, __required, strict=DEFAULT_STRICT,
+        'Col', DirParamType, _required, strict=DEFAULT_STRICT,
         docstring="Column direction parameters.")
 
 
@@ -2060,43 +2065,43 @@ class IPPSetType(Serializable):
     # NOTE that this is simply defined as a child class ("Set") of the TimelineType in the SICD standard
     #   Defining it at root level clarifies the documentation, and giving it a more descriptive name is
     #   appropriate.
-    __tag = 'Set'
-    __fields = ('TStart', 'TEnd', 'IPPStart', 'IPPEnd', 'IPPPoly', 'index')
-    __required = __fields
-    __set_as_attribute = ('index', )
+    _tag = 'Set'
+    _fields = ('TStart', 'TEnd', 'IPPStart', 'IPPEnd', 'IPPPoly', 'index')
+    _required = _fields
+    _set_as_attribute = ('index', )
     # descriptors
     TStart = _FloatDescriptor(
-        'TStart', __required, strict=DEFAULT_STRICT,
+        'TStart', _required, strict=DEFAULT_STRICT,
         docstring='IPP start time relative to collection start time, i.e. offsets in seconds.')
     TEnd = _FloatDescriptor(
-        'TEnd', __required, strict=DEFAULT_STRICT,
+        'TEnd', _required, strict=DEFAULT_STRICT,
         docstring='IPP end time relative to collection start time, i.e. offsets in seconds.')
     IPPStart = _IntegerDescriptor(
-        'IPPStart', __required, strict=True, docstring='Starting IPP index for the period described.')
+        'IPPStart', _required, strict=True, docstring='Starting IPP index for the period described.')
     IPPEnd = _IntegerDescriptor(
-        'IPPEnd', __required, strict=True, docstring='Ending IPP index for the period described.')
+        'IPPEnd', _required, strict=True, docstring='Ending IPP index for the period described.')
     IPPPoly = _SerializableDescriptor(
-        'IPPPoly', Poly1DType, __required, strict=DEFAULT_STRICT,
+        'IPPPoly', Poly1DType, _required, strict=DEFAULT_STRICT,
         docstring='IPP index polynomial coefficients yield IPP index as a function of time for TStart to TEnd.')
     index = _IntegerDescriptor(
-        'index', __required, strict=DEFAULT_STRICT, docstring='The element array index.')
+        'index', _required, strict=DEFAULT_STRICT, docstring='The element array index.')
 
 
 class TimelineType(Serializable):
     """The details for the imaging collection timeline."""
-    __fields = ('CollectStart', 'CollectDuration', 'IPP')
-    __required = ('CollectStart', 'CollectDuration', )
-    __collections_tags = {'IPP': {'array': True, 'child_tag': 'Set'}}
+    _fields = ('CollectStart', 'CollectDuration', 'IPP')
+    _required = ('CollectStart', 'CollectDuration', )
+    _collections_tags = {'IPP': {'array': True, 'child_tag': 'Set'}}
     # descriptors
     CollectStart = _DateTimeDescriptor(
-        'CollectStart', __required, strict=DEFAULT_STRICT, numpy_datetime_units='us',
+        'CollectStart', _required, strict=DEFAULT_STRICT, numpy_datetime_units='us',
         docstring='The collection start time. The default precision will be microseconds.')
     CollectDuration = _FloatDescriptor(
-        'CollectDuration', __required, strict=DEFAULT_STRICT,
+        'CollectDuration', _required, strict=DEFAULT_STRICT,
         docstring='The duration of the collection in seconds.')
     IPP = _SerializableArrayDescriptor(
-        'IPP', IPPSetType, __collections_tags, __required, strict=DEFAULT_STRICT, minimum_length=1,
-        docstring="The Inter-Pulse Period (IPP) parameters **array**.")
+        'IPP', IPPSetType, _collections_tags, _required, strict=DEFAULT_STRICT, minimum_length=1,
+        docstring="The Inter-Pulse Period (IPP) parameters array.")
 
 
 ###################
@@ -2105,26 +2110,26 @@ class TimelineType(Serializable):
 
 class PositionType(Serializable):
     """The details for platform and ground reference positions as a function of time since collection start."""
-    __fields = ('ARPPoly', 'GRPPoly', 'TxAPCPoly', 'RcvAPC')
-    __required = ('ARPPoly',)
-    __collections_tags = {'RcvAPC': {'array': True, 'child_tag': 'RcvAPCPoly'}}
+    _fields = ('ARPPoly', 'GRPPoly', 'TxAPCPoly', 'RcvAPC')
+    _required = ('ARPPoly',)
+    _collections_tags = {'RcvAPC': {'array': True, 'child_tag': 'RcvAPCPoly'}}
 
     # descriptors
     ARPPoly = _SerializableDescriptor(
-        'ARPPoly', XYZPolyType, __required, strict=DEFAULT_STRICT,
+        'ARPPoly', XYZPolyType, _required, strict=DEFAULT_STRICT,
         docstring='Aperture Reference Point (ARP) position polynomial in ECF as a function of elapsed '
                   'seconds since start of collection.')
     GRPPoly = _SerializableDescriptor(
-        'GRPPoly', XYZPolyType, __required, strict=DEFAULT_STRICT,
+        'GRPPoly', XYZPolyType, _required, strict=DEFAULT_STRICT,
         docstring='Ground Reference Point (GRP) position polynomial in ECF as a function of elapsed '
                   'seconds since start of collection.')
     TxAPCPoly = _SerializableDescriptor(
-        'TxAPCPoly', XYZPolyType, __required, strict=DEFAULT_STRICT,
+        'TxAPCPoly', XYZPolyType, _required, strict=DEFAULT_STRICT,
         docstring='Transmit Aperture Phase Center (APC) position polynomial in ECF as a function of '
                   'elapsed seconds since start of collection.')
     RcvAPC = _SerializableArrayDescriptor(
-        'RcvAPC', XYZPolyAttributeType, __collections_tags, __required, strict=DEFAULT_STRICT,
-        docstring='Receive Aperture Phase Center polynomials **array**. '
+        'RcvAPC', XYZPolyAttributeType, _collections_tags, _required, strict=DEFAULT_STRICT,
+        docstring='Receive Aperture Phase Center polynomials array. '
                   'Each polynomial has output in ECF, and represents a function of elapsed seconds since start of '
                   'collection.')
 
@@ -2135,56 +2140,56 @@ class PositionType(Serializable):
 
 class TxFrequencyType(Serializable):
     """The transmit frequency range"""
-    __tag = 'TxFrequency'
-    __fields = ('Min', 'Max')
-    __required = __fields
+    _tag = 'TxFrequency'
+    _fields = ('Min', 'Max')
+    _required = _fields
     # descriptors
     Min = _FloatDescriptor(
-        'Min', required=__required, strict=DEFAULT_STRICT,
+        'Min', required=_required, strict=DEFAULT_STRICT,
         docstring='The transmit minimum frequency in Hz.')
     Max = _FloatDescriptor(
-        'Max', required=__required, strict=DEFAULT_STRICT,
+        'Max', required=_required, strict=DEFAULT_STRICT,
         docstring='The transmit maximum frequency in Hz.')
 
 
 class WaveformParametersType(Serializable):
     """Transmit and receive demodulation waveform parameters."""
-    __fields = (
+    _fields = (
         'TxPulseLength', 'TxRFBandwidth', 'TxFreqStart', 'TxFMRate', 'RcvDemodType', 'RcvWindowLength',
         'ADCSampleRate', 'RcvIFBandwidth', 'RcvFreqStart', 'RcvFMRate')
-    __required = ()
+    _required = ()
     # other class variables
     _DEMOD_TYPE_VALUES = ('STRETCH', 'CHIRP')
     # descriptors
     TxPulseLength = _FloatDescriptor(
-        'TxPulseLength', __required, strict=DEFAULT_STRICT,
+        'TxPulseLength', _required, strict=DEFAULT_STRICT,
         docstring='Transmit pulse length in seconds.')
     TxRFBandwidth = _FloatDescriptor(
-        'TxRFBandwidth', __required, strict=DEFAULT_STRICT,
+        'TxRFBandwidth', _required, strict=DEFAULT_STRICT,
         docstring='Transmit RF bandwidth of the transmit pulse in Hz.')
     TxFreqStart = _FloatDescriptor(
-        'TxFreqStart', __required, strict=DEFAULT_STRICT,
+        'TxFreqStart', _required, strict=DEFAULT_STRICT,
         docstring='Transmit Start frequency for Linear FM waveform in Hz, may be relative to reference frequency.')
     TxFMRate = _FloatDescriptor(
-        'TxFMRate', __required, strict=DEFAULT_STRICT,
+        'TxFMRate', _required, strict=DEFAULT_STRICT,
         docstring='Transmit FM rate for Linear FM waveform in Hz/second.')
     RcvWindowLength = _FloatDescriptor(
-        'RcvWindowLength', __required, strict=DEFAULT_STRICT,
+        'RcvWindowLength', _required, strict=DEFAULT_STRICT,
         docstring='Receive window duration in seconds.')
     ADCSampleRate = _FloatDescriptor(
-        'ADCSampleRate', __required, strict=DEFAULT_STRICT,
+        'ADCSampleRate', _required, strict=DEFAULT_STRICT,
         docstring='Analog-to-Digital Converter sampling rate in samples/second.')
     RcvIFBandwidth = _FloatDescriptor(
-        'RcvIFBandwidth', __required, strict=DEFAULT_STRICT,
+        'RcvIFBandwidth', _required, strict=DEFAULT_STRICT,
         docstring='Receive IF bandwidth in Hz.')
     RcvFreqStart = _FloatDescriptor(
-        'RcvFreqStart', __required, strict=DEFAULT_STRICT,
+        'RcvFreqStart', _required, strict=DEFAULT_STRICT,
         docstring='Receive demodulation start frequency in Hz, may be relative to reference frequency.')
     RcvFMRate = _FloatDescriptor(
-        'RcvFMRate', __required, strict=DEFAULT_STRICT,
+        'RcvFMRate', _required, strict=DEFAULT_STRICT,
         docstring='Receive FM rate. Should be 0 if RcvDemodType = "CHIRP".')
     RcvDemodType = _StringEnumDescriptor(
-        'RcvDemodType', _DEMOD_TYPE_VALUES, __required, strict=DEFAULT_STRICT,
+        'RcvDemodType', _DEMOD_TYPE_VALUES, _required, strict=DEFAULT_STRICT,
         docstring="Receive demodulation used when Linear FM waveform is used on transmit.")
 
     def __init__(self, **kwargs):
@@ -2202,168 +2207,168 @@ class WaveformParametersType(Serializable):
 
 class TxStepType(Serializable):
     """Transmit sequence step details"""
-    __fields = ('WFIndex', 'TxPolarization', 'index')
-    __required = ('index', )
+    _fields = ('WFIndex', 'TxPolarization', 'index')
+    _required = ('index', )
     # other class variables
     _POLARIZATION2_VALUES = ('V', 'H', 'RHC', 'LHC', 'OTHER')
     # descriptors
     WFIndex = _IntegerDescriptor(
-        'WFIndex', __required, strict=DEFAULT_STRICT, docstring='The waveform number for this step.')
+        'WFIndex', _required, strict=DEFAULT_STRICT, docstring='The waveform number for this step.')
     TxPolarization = _StringEnumDescriptor(
-        'TxPolarization', _POLARIZATION2_VALUES, __required, strict=DEFAULT_STRICT,
+        'TxPolarization', _POLARIZATION2_VALUES, _required, strict=DEFAULT_STRICT,
         docstring='Transmit signal polarization for this step.')
     index = _IntegerDescriptor(
-        'index', __required, strict=DEFAULT_STRICT, docstring='The step index')
+        'index', _required, strict=DEFAULT_STRICT, docstring='The step index')
 
 
 class ChanParametersType(Serializable):
     """Transmit receive sequence step details"""
-    __fields = ('TxRcvPolarization', 'RcvAPCIndex', 'index')
-    __required = ('TxRcvPolarization', 'index', )
+    _fields = ('TxRcvPolarization', 'RcvAPCIndex', 'index')
+    _required = ('TxRcvPolarization', 'index', )
     # other class variables
     _DUAL_POLARIZATION_VALUES = (
         'V:V', 'V:H', 'H:V', 'H:H', 'RHC:RHC', 'RHC:LHC', 'LHC:RHC', 'LHC:LHC', 'OTHER', 'UNKNOWN')
     # descriptors
     TxRcvPolarization = _StringEnumDescriptor(
-        'TxRcvPolarization', _DUAL_POLARIZATION_VALUES, __required, strict=DEFAULT_STRICT,
+        'TxRcvPolarization', _DUAL_POLARIZATION_VALUES, _required, strict=DEFAULT_STRICT,
         docstring='Combined Transmit and Receive signal polarization for the channel.')
     RcvAPCIndex = _IntegerDescriptor(
-        'RcvAPCIndex', __required, strict=DEFAULT_STRICT,
+        'RcvAPCIndex', _required, strict=DEFAULT_STRICT,
         docstring='Index of the Receive Aperture Phase Center (Rcv APC). Only include if Receive APC position '
                   'polynomial(s) are included.')
     index = _IntegerDescriptor(
-        'index', __required, strict=DEFAULT_STRICT, docstring='The parameter index')
+        'index', _required, strict=DEFAULT_STRICT, docstring='The parameter index')
 
 
 class ReferencePointType(Serializable):
     """The reference point definition"""
-    __fields = ('ECF', 'Line', 'Sample', 'name')
-    __required = __fields
-    __set_as_attribute = ('name', )
+    _fields = ('ECF', 'Line', 'Sample', 'name')
+    _required = _fields
+    _set_as_attribute = ('name', )
     # descriptors
     ECF = _SerializableDescriptor(
-        'ECF', XYZType, __required, strict=DEFAULT_STRICT,
+        'ECF', XYZType, _required, strict=DEFAULT_STRICT,
         docstring='The geographical coordinates for the reference point.')
     Line = _FloatDescriptor(
-        'Line', __required, strict=DEFAULT_STRICT,
+        'Line', _required, strict=DEFAULT_STRICT,
         docstring='The Line?')  # TODO: what is this?
     Sample = _FloatDescriptor(
-        'Sample', __required, strict=DEFAULT_STRICT,
+        'Sample', _required, strict=DEFAULT_STRICT,
         docstring='The Sample?')
     name = _StringDescriptor(
-        'name', __required, strict=DEFAULT_STRICT,
+        'name', _required, strict=DEFAULT_STRICT,
         docstring='The reference point name.')
 
 
 class XDirectionType(Serializable):
     """The X direction of the collect"""
-    __fields = ('UVectECF', 'LineSpacing', 'NumLines', 'FirstLine')
-    __required = __fields
+    _fields = ('UVectECF', 'LineSpacing', 'NumLines', 'FirstLine')
+    _required = _fields
     # descriptors
     ECF = _SerializableDescriptor(
-        'UVectECF', XYZType,__required, strict=DEFAULT_STRICT,
+        'UVectECF', XYZType,_required, strict=DEFAULT_STRICT,
         docstring='The unit vector')
     LineSpacing = _FloatDescriptor(
-        'LineSpacing', __required, strict=DEFAULT_STRICT,
+        'LineSpacing', _required, strict=DEFAULT_STRICT,
         docstring='The collection line spacing in meters.')
     NumLines = _IntegerDescriptor(
-        'NumLines', __required, strict=DEFAULT_STRICT,
+        'NumLines', _required, strict=DEFAULT_STRICT,
         docstring='The number of lines')
     FirstLine = _IntegerDescriptor(
-        'FirstLine', __required, strict=DEFAULT_STRICT,
+        'FirstLine', _required, strict=DEFAULT_STRICT,
         docstring='The first line')
 
 
 class YDirectionType(Serializable):
     """The Y direction of the collect"""
-    __fields = ('UVectECF', 'LineSpacing', 'NumSamples', 'FirstSample')
-    __required = __fields
+    _fields = ('UVectECF', 'LineSpacing', 'NumSamples', 'FirstSample')
+    _required = _fields
     # descriptors
     ECF = _SerializableDescriptor(
-        'UVectECF', XYZType, __required, strict=DEFAULT_STRICT,
+        'UVectECF', XYZType, _required, strict=DEFAULT_STRICT,
         docstring='The unit vector.')
     LineSpacing = _FloatDescriptor(
-        'LineSpacing', __required, strict=DEFAULT_STRICT,
+        'LineSpacing', _required, strict=DEFAULT_STRICT,
         docstring='The collection line spacing in meters.')
     NumSamples = _IntegerDescriptor(
-        'NumSamples', __required, strict=DEFAULT_STRICT,
+        'NumSamples', _required, strict=DEFAULT_STRICT,
         docstring='The number of samples.')
     FirstSample = _IntegerDescriptor(
-        'FirstSample', __required, strict=DEFAULT_STRICT,
+        'FirstSample', _required, strict=DEFAULT_STRICT,
         docstring='The first sample.')
 
 
 class SegmentArrayElement(Serializable):
     """The reference point definition"""
-    __fields = ('StartLine', 'StartSample', 'EndLine', 'EndSample', 'index')
-    __required = __fields
-    __set_as_attribute = ('index', )
+    _fields = ('StartLine', 'StartSample', 'EndLine', 'EndSample', 'index')
+    _required = _fields
+    _set_as_attribute = ('index', )
     # descriptors
     StartLine = _IntegerDescriptor(
-        'StartLine', __required, strict=DEFAULT_STRICT,
+        'StartLine', _required, strict=DEFAULT_STRICT,
         docstring='The starting line number.')
     StartSample = _IntegerDescriptor(
-        'StartSample', __required, strict=DEFAULT_STRICT,
+        'StartSample', _required, strict=DEFAULT_STRICT,
         docstring='The starting sample number.')
     EndLine = _IntegerDescriptor(
-        'EndLine', __required, strict=DEFAULT_STRICT,
+        'EndLine', _required, strict=DEFAULT_STRICT,
         docstring='The ending line number.')
     EndSample = _IntegerDescriptor(
-        'EndSample', __required, strict=DEFAULT_STRICT,
+        'EndSample', _required, strict=DEFAULT_STRICT,
         docstring='The ending sample number.')
     index = _IntegerDescriptor(
-        'index', __required, strict=DEFAULT_STRICT,
+        'index', _required, strict=DEFAULT_STRICT,
         docstring='The array index.')
 
 
 class ReferencePlaneType(Serializable):
     """The reference plane"""
-    __fields = ('RefPt', 'XDir', 'YDir', 'SegmentList', 'Orientation')
-    __required = ('RefPt', 'XDir', 'YDir')
-    __collections_tags = {'SegmentList': {'array': True, 'child_tag': 'SegmentList'}}
+    _fields = ('RefPt', 'XDir', 'YDir', 'SegmentList', 'Orientation')
+    _required = ('RefPt', 'XDir', 'YDir')
+    _collections_tags = {'SegmentList': {'array': True, 'child_tag': 'SegmentList'}}
     # other class variable
     _ORIENTATION_VALUES = ('UP', 'DOWN', 'LEFT', 'RIGHT', 'ARBITRARY')
     # descriptors
     RefPt = _SerializableDescriptor(
-        'RefPt', ReferencePointType, __required, strict=DEFAULT_STRICT,
+        'RefPt', ReferencePointType, _required, strict=DEFAULT_STRICT,
         docstring='The reference point.')
     XDir = _SerializableDescriptor(
-        'XDir', XDirectionType, __required, strict=DEFAULT_STRICT,
+        'XDir', XDirectionType, _required, strict=DEFAULT_STRICT,
         docstring='The X direction collection plane parameters.')
     YDir = _SerializableDescriptor(
-        'YDir', YDirectionType, __required, strict=DEFAULT_STRICT,
+        'YDir', YDirectionType, _required, strict=DEFAULT_STRICT,
         docstring='The Y direction collection plane parameters.')
     SegmentList = _SerializableArrayDescriptor(
-        'SegmentList', SegmentArrayElement, __collections_tags, __required, strict=DEFAULT_STRICT,
-        docstring='The segment **list**.')
+        'SegmentList', SegmentArrayElement, _collections_tags, _required, strict=DEFAULT_STRICT,
+        docstring='The segment list.')
     Orientation = _StringEnumDescriptor(
-        'Orientation', _ORIENTATION_VALUES, __required, strict=DEFAULT_STRICT,
+        'Orientation', _ORIENTATION_VALUES, _required, strict=DEFAULT_STRICT,
         docstring='The orientation value.')
 
 
 class AreaType(Serializable):
     """The collection area"""
-    __fields = ('Corner', 'Plane')
-    __required = ('Corner', )
-    __collections_tags = {
+    _fields = ('Corner', 'Plane')
+    _required = ('Corner', )
+    _collections_tags = {
         'Corner': {'array': False, 'child_tag': 'ACP'},}
     # descriptors
     Corner = _SerializableArrayDescriptor(
-        'Corner', LatLonHAECornerRestrictionType, __collections_tags, __required, strict=DEFAULT_STRICT,
+        'Corner', LatLonHAECornerRestrictionType, _collections_tags, _required, strict=DEFAULT_STRICT,
         minimum_length=4, maximum_length=4,
         docstring='The collection area corner point definition array.')
     Plane = _SerializableDescriptor(
-        'Plane', ReferencePlaneType, __required, strict=DEFAULT_STRICT,
+        'Plane', ReferencePlaneType, _required, strict=DEFAULT_STRICT,
         docstring='The collection area reference plane.')
 
 
 class RadarCollectionType(Serializable):
     """The Radar Collection Type"""
-    __tag = 'RadarCollection'
-    __fields = ('TxFrequency', 'RefFreqIndex', 'Waveform', 'TxPolarization', 'TxSequence', 'RcvChannels',
+    _tag = 'RadarCollection'
+    _fields = ('TxFrequency', 'RefFreqIndex', 'Waveform', 'TxPolarization', 'TxSequence', 'RcvChannels',
                 'Area', 'Parameters')
-    __required = ('TxFrequency', 'TxPolarization', 'RcvChannels')
-    __collections_tags = {
+    _required = ('TxFrequency', 'TxPolarization', 'RcvChannels')
+    _collections_tags = {
         'Waveform': {'array': True, 'child_tag': 'WFParameters'},
         'TxSequence': {'array': True, 'child_tag': 'TxStep'},
         'RcvChannels': {'array': True, 'child_tag': 'RcvChannels'},
@@ -2372,31 +2377,31 @@ class RadarCollectionType(Serializable):
     _POLARIZATION1_VALUES = ('V', 'H', 'RHC', 'LHC', 'OTHER', 'UNKNOWN', 'SEQUENCE')
     # descriptors
     TxFrequencyType = _SerializableDescriptor(
-        'TxFrequency', TxFrequencyType, __required, strict=DEFAULT_STRICT,
+        'TxFrequency', TxFrequencyType, _required, strict=DEFAULT_STRICT,
         docstring='The transmit frequency range.')
     RefFreqIndex = _IntegerDescriptor(
-        'RefFreqIndex', __required, strict=DEFAULT_STRICT,
+        'RefFreqIndex', _required, strict=DEFAULT_STRICT,
         docstring='The reference frequency index, if applicable.')
     Waveform = _SerializableArrayDescriptor(
-        'Waveform', WaveformParametersType, __collections_tags, __required,
+        'Waveform', WaveformParametersType, _collections_tags, _required,
         strict=DEFAULT_STRICT, minimum_length=1,
-        docstring='The waveform parameters **array**.')
+        docstring='The waveform parameters array.')
     TxPolarization = _StringEnumDescriptor(
-        'TxPolarization', _POLARIZATION1_VALUES, __required, strict=DEFAULT_STRICT,
+        'TxPolarization', _POLARIZATION1_VALUES, _required, strict=DEFAULT_STRICT,
         docstring='The transmit polarization.')  # TODO: iff SEQUENCE, then TxSequence is defined?
     TxSequence = _SerializableArrayDescriptor(
-        'TxSequence', TxStepType, __collections_tags, __required, strict=DEFAULT_STRICT, minimum_length=1,
-        docstring='The transmit sequence parameters **array**.')
+        'TxSequence', TxStepType, _collections_tags, _required, strict=DEFAULT_STRICT, minimum_length=1,
+        docstring='The transmit sequence parameters array.')
     RcvChannels = _SerializableArrayDescriptor(
-        'RcvChannels', ChanParametersType, __collections_tags,
-        __required, strict=DEFAULT_STRICT, minimum_length=1,
-        docstring='Transmit receive sequence step details **array**.')
+        'RcvChannels', ChanParametersType, _collections_tags,
+        _required, strict=DEFAULT_STRICT, minimum_length=1,
+        docstring='Transmit receive sequence step details array.')
     Area = _SerializableDescriptor(
-        'Area', AreaType, __required, strict=DEFAULT_STRICT,
+        'Area', AreaType, _required, strict=DEFAULT_STRICT,
         docstring='The collection area.')
     Parameters = _SerializableArrayDescriptor(
-        'Parameters', ParameterType, __collections_tags, __required, strict=DEFAULT_STRICT,
-        docstring='A parameters **list**.')
+        'Parameters', ParameterType, _collections_tags, _required, strict=DEFAULT_STRICT,
+        docstring='A parameters list.')
 
 
 ###############
@@ -2405,117 +2410,117 @@ class RadarCollectionType(Serializable):
 
 class RcvChanProcType(Serializable):
     """Receive Channel Process Type"""
-    __fields = ('NumChanProc', 'PRFScaleFactor', 'ChanIndices')
-    __required = ('NumChanProc', 'ChanIndices')  # TODO: make proper descriptor
-    __collections_tags = {
+    _fields = ('NumChanProc', 'PRFScaleFactor', 'ChanIndices')
+    _required = ('NumChanProc', 'ChanIndices')  # TODO: make proper descriptor
+    _collections_tags = {
         'ChanIndices': {'array': False, 'child_tag': 'ChanIndex'}}
     # descriptors
     NumChanProc = _IntegerDescriptor(
-        'NumChanProc', __required, strict=DEFAULT_STRICT,
+        'NumChanProc', _required, strict=DEFAULT_STRICT,
         docstring='The Num Chan Proc?')
     PRFScaleFactor = _FloatDescriptor(
-        'PRFScaleFactor', __required, strict=DEFAULT_STRICT,
+        'PRFScaleFactor', _required, strict=DEFAULT_STRICT,
         docstring='The PRF scale factor.')
     ChanIndices = _IntegerListDescriptor(
-        'ChanIndices', __collections_tags, __required, strict=DEFAULT_STRICT,
-        docstring='The channel index **list**.')
+        'ChanIndices', _collections_tags, _required, strict=DEFAULT_STRICT,
+        docstring='The channel index list.')
 
 
 class TxFrequencyProcType(Serializable):
     """The transmit frequency range"""
-    __tag = 'TxFrequencyProc'
-    __fields = ('MinProc', 'MaxProc')
-    __required = __fields
+    _tag = 'TxFrequencyProc'
+    _fields = ('MinProc', 'MaxProc')
+    _required = _fields
     # descriptors
     MinProc = _FloatDescriptor(
-        'MinProc', __required, strict=DEFAULT_STRICT,
+        'MinProc', _required, strict=DEFAULT_STRICT,
         docstring='The transmit minimum frequency in Hz.')
     MaxProc = _FloatDescriptor(
-        'MaxProc', __required, strict=DEFAULT_STRICT,
+        'MaxProc', _required, strict=DEFAULT_STRICT,
         docstring='The transmit maximum frequency in Hz.')
 
 
 class ProcessingType(Serializable):
     """The transmit frequency range"""
-    __tag = 'Processing'
-    __fields = ('Type', 'Applied', 'Parameters')
-    __required = ('Type', 'Applied')
-    __collections_tags = {'Parameters': {'array': False, 'child_tag': 'Parameter'}}
+    _tag = 'Processing'
+    _fields = ('Type', 'Applied', 'Parameters')
+    _required = ('Type', 'Applied')
+    _collections_tags = {'Parameters': {'array': False, 'child_tag': 'Parameter'}}
     # descriptors
     Type = _StringDescriptor(
-        'Type', __required, strict=DEFAULT_STRICT, docstring='The type string.')
+        'Type', _required, strict=DEFAULT_STRICT, docstring='The type string.')
     Applied = _BooleanDescriptor(
-        'Applied', __required, strict=DEFAULT_STRICT,
+        'Applied', _required, strict=DEFAULT_STRICT,
         docstring='Whether the given type has been applied.')
     Parameters = _SerializableArrayDescriptor(
-        'Parameters', ParameterType, __collections_tags, __required, strict=DEFAULT_STRICT,
-        docstring='The parameters **list**.')
+        'Parameters', ParameterType, _collections_tags, _required, strict=DEFAULT_STRICT,
+        docstring='The parameters list.')
 
 
 class DistortionType(Serializable):
     """Distortion"""
-    __fields = (
+    _fields = (
         'CalibrationDate', 'A', 'F1', 'F2', 'Q1', 'Q2', 'Q3', 'Q4',
         'GainErrorA', 'GainErrorF1', 'GainErrorF2', 'PhaseErrorF1', 'PhaseErrorF2')
-    __required = ('A', 'F1', 'Q1', 'Q2', 'F2', 'Q3', 'Q4')
+    _required = ('A', 'F1', 'Q1', 'Q2', 'F2', 'Q3', 'Q4')
     # descriptors
     CalibrationDate = _DateTimeDescriptor(
-        'CalibrationDate', __required, strict=DEFAULT_STRICT,
+        'CalibrationDate', _required, strict=DEFAULT_STRICT,
         docstring='The calibration date.')
     A = _FloatDescriptor(
-        'A', __required, strict=DEFAULT_STRICT, docstring='The A attribute.')
+        'A', _required, strict=DEFAULT_STRICT, docstring='The A attribute.')
     F1 = _ComplexDescriptor(
-        'F1', __required, strict=DEFAULT_STRICT, docstring='The F1 attribute.')
+        'F1', _required, strict=DEFAULT_STRICT, docstring='The F1 attribute.')
     F2 = _ComplexDescriptor(
-        'F2', __required, strict=DEFAULT_STRICT, docstring='The F2 attribute.')
+        'F2', _required, strict=DEFAULT_STRICT, docstring='The F2 attribute.')
     Q1 = _ComplexDescriptor(
-        'Q1', __required, strict=DEFAULT_STRICT, docstring='The Q1 attribute.')
+        'Q1', _required, strict=DEFAULT_STRICT, docstring='The Q1 attribute.')
     Q2 = _ComplexDescriptor(
-        'Q2', __required, strict=DEFAULT_STRICT, docstring='The Q2 attribute.')
+        'Q2', _required, strict=DEFAULT_STRICT, docstring='The Q2 attribute.')
     Q3 = _ComplexDescriptor(
-        'Q3', __required, strict=DEFAULT_STRICT, docstring='The Q3 attribute.')
+        'Q3', _required, strict=DEFAULT_STRICT, docstring='The Q3 attribute.')
     Q4 = _ComplexDescriptor(
-        'Q4', __required, strict=DEFAULT_STRICT, docstring='The Q4 attribute.')
+        'Q4', _required, strict=DEFAULT_STRICT, docstring='The Q4 attribute.')
     GainErrorA = _FloatDescriptor(
-        'GainErrorA', __required, strict=DEFAULT_STRICT,
+        'GainErrorA', _required, strict=DEFAULT_STRICT,
         docstring='The GainErrorA attribute.')
     GainErrorF1 = _FloatDescriptor(
-        'GainErrorF1', __required, strict=DEFAULT_STRICT,
+        'GainErrorF1', _required, strict=DEFAULT_STRICT,
         docstring='The GainErrorF1 attribute.')
     GainErrorF2 = _FloatDescriptor(
-        'GainErrorF2', __required, strict=DEFAULT_STRICT,
+        'GainErrorF2', _required, strict=DEFAULT_STRICT,
         docstring='The GainErrorF2 attribute.')
     PhaseErrorF1 = _FloatDescriptor(
-        'PhaseErrorF1', __required, strict=DEFAULT_STRICT,
+        'PhaseErrorF1', _required, strict=DEFAULT_STRICT,
         docstring='The PhaseErrorF1 attribute.')
     PhaseErrorF2 = _FloatDescriptor(
-        'PhaseErrorF2', __required, strict=DEFAULT_STRICT,
+        'PhaseErrorF2', _required, strict=DEFAULT_STRICT,
         docstring='The PhaseErrorF2 attribute.')
 
 
 class PolarizationCalibrationType(Serializable):
     """The polarization calibration"""
-    __fields = ('DistortCorrectApplied', 'Distortion')
-    __required = __fields
+    _fields = ('DistortCorrectApplied', 'Distortion')
+    _required = _fields
     # descriptors
     DistortCorrectApplied = _BooleanDescriptor(
-        'DistortCorrectApplied', __required, strict=DEFAULT_STRICT,
+        'DistortCorrectApplied', _required, strict=DEFAULT_STRICT,
         docstring='Whether the distortion correction has been applied')
     Distortion = _SerializableDescriptor(
-        'Distortion', DistortionType, __required, strict=DEFAULT_STRICT,
+        'Distortion', DistortionType, _required, strict=DEFAULT_STRICT,
         docstring='The distortion parameters.')
 
 
 class ImageFormationType(Serializable):
     """The image formation parameters type"""
-    __fields = (
+    _fields = (
         'RcvChanProc', 'TxRcvPolarizationProc', 'TStartProc', 'TEndProc', 'TxFrequencyProc', 'SegmentIdentifier',
         'ImageFormAlgo', 'STBeamComp', 'ImageBeamComp', 'AzAutofocus', 'RgAutofocus', 'Processings',
         'PolarizationCalibration')
-    __required = (
+    _required = (
         'RcvChanProc', 'TxRcvPolarizationProc', 'TStartProc', 'TEndProc', 'TxFrequencyProc',
         'ImageFormAlgo', 'STBeamComp', 'ImageBeamComp', 'AzAutofocus', 'RgAutofocus')
-    __collections_tags = {'Processings': {'array': False, 'child_tag': 'Processing'}}
+    _collections_tags = {'Processings': {'array': False, 'child_tag': 'Processing'}}
     # class variables
     _DUAL_POLARIZATION_VALUES = (
         'V:V', 'V:H', 'H:V', 'H:H', 'RHC:RHC', 'RHC:LHC', 'LHC:RHC', 'LHC:LHC', 'OTHER', 'UNKNOWN')
@@ -2526,40 +2531,40 @@ class ImageFormationType(Serializable):
     _RG_AUTOFOCUS_VALUES = _ST_BEAM_COMP_VALUES
     # descriptors
     RcvChanProc = _SerializableDescriptor(
-        'RcvChanProc', RcvChanProcType, __required, strict=DEFAULT_STRICT,
+        'RcvChanProc', RcvChanProcType, _required, strict=DEFAULT_STRICT,
         docstring='The received channels processed?')
     TxRcvPolarizationProc = _StringEnumDescriptor(
-        'TxRcvPolarizationProc', _DUAL_POLARIZATION_VALUES, __required, strict=DEFAULT_STRICT,
+        'TxRcvPolarizationProc', _DUAL_POLARIZATION_VALUES, _required, strict=DEFAULT_STRICT,
         docstring='The transmit/receive polarization.')
     TStartProc = _FloatDescriptor(
-        'TStartProc', __required, strict=DEFAULT_STRICT, docstring='The processing start time.')
+        'TStartProc', _required, strict=DEFAULT_STRICT, docstring='The processing start time.')
     TEndProc = _FloatDescriptor(
-        'TEndProc', __required, strict=DEFAULT_STRICT, docstring='The processing end time.')
+        'TEndProc', _required, strict=DEFAULT_STRICT, docstring='The processing end time.')
     TxFrequencyProc = _SerializableDescriptor(
-        'TxFrequencyProc', TxFrequencyProcType, __required, strict=DEFAULT_STRICT,
+        'TxFrequencyProc', TxFrequencyProcType, _required, strict=DEFAULT_STRICT,
         docstring='The processing frequency range.')
     SegmentIdentifier = _StringDescriptor(
-        'SegmentIdentifier', __required, strict=DEFAULT_STRICT, docstring='The segment identifier.')
+        'SegmentIdentifier', _required, strict=DEFAULT_STRICT, docstring='The segment identifier.')
     ImageFormAlgo = _StringEnumDescriptor(
-        'ImageFormAlgo', _IMG_FORM_ALGO_VALUES, __required, strict=DEFAULT_STRICT,
+        'ImageFormAlgo', _IMG_FORM_ALGO_VALUES, _required, strict=DEFAULT_STRICT,
         docstring='The image formation algorithm used.')
     STBeamComp = _StringEnumDescriptor(
-        'STBeamComp', _ST_BEAM_COMP_VALUES, __required, strict=DEFAULT_STRICT,
+        'STBeamComp', _ST_BEAM_COMP_VALUES, _required, strict=DEFAULT_STRICT,
         docstring='The ST beam comp.')
     ImageBeamComp = _StringEnumDescriptor(
-        'ImageBeamComp', _IMG_BEAM_COMP_VALUES, __required, strict=DEFAULT_STRICT,
+        'ImageBeamComp', _IMG_BEAM_COMP_VALUES, _required, strict=DEFAULT_STRICT,
         docstring='The image beam comp.')
     AzAutofocus = _StringEnumDescriptor(
-        'AzAutofocus', _AZ_AUTOFOCUS_VALUES, __required, strict=DEFAULT_STRICT,
+        'AzAutofocus', _AZ_AUTOFOCUS_VALUES, _required, strict=DEFAULT_STRICT,
         docstring='The azimuth autofocus.')
     RgAutofocus = _StringEnumDescriptor(
-        'RgAutofocus', _RG_AUTOFOCUS_VALUES, __required, strict=DEFAULT_STRICT,
+        'RgAutofocus', _RG_AUTOFOCUS_VALUES, _required, strict=DEFAULT_STRICT,
         docstring='The range autofocus.')
     Processings = _SerializableArrayDescriptor(
-        'Processings', ProcessingType, __collections_tags, __required, strict=DEFAULT_STRICT,
+        'Processings', ProcessingType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='The processing collection.')
     PolarizationCalibration = _SerializableDescriptor(
-        'PolarizationCalibration', PolarizationCalibrationType, __required, strict=DEFAULT_STRICT,
+        'PolarizationCalibration', PolarizationCalibrationType, _required, strict=DEFAULT_STRICT,
         docstring='The polarization calibration details.')
 
 
@@ -2569,55 +2574,149 @@ class ImageFormationType(Serializable):
 
 class SCPCOAType(Serializable):
     """The scene center point - COA?"""
-    __fields = (
+    _fields = (
         'SCPTime', 'ARPPos', 'ARPVel', 'ARPAcc', 'SideOfTrack', 'SlantRange', 'GroundRange', 'DopplerConeAng',
         'GrazeAng', 'IncidenceAng', 'TwistAng', 'SlopeAng', 'AzimAng', 'LayoverAng')
-    __required = __fields
+    _required = _fields
     # class variables
     _SIDE_OF_TRACK_VALUES = ('L', 'R')
     # descriptors
     SCPTime = _FloatDescriptor(
-        'SCPTime', __required, strict=DEFAULT_STRICT, docstring='The scene center point time in seconds?')
+        'SCPTime', _required, strict=DEFAULT_STRICT, docstring='The scene center point time in seconds?')
     ARPPos = _SerializableDescriptor(
-        'ARPPos', XYZType, __required, strict=DEFAULT_STRICT, docstring='The aperture position.')
+        'ARPPos', XYZType, _required, strict=DEFAULT_STRICT, docstring='The aperture position.')
     ARPVel = _SerializableDescriptor(
-        'ARPVel', XYZType, __required, strict=DEFAULT_STRICT, docstring='The aperture velocity.')
+        'ARPVel', XYZType, _required, strict=DEFAULT_STRICT, docstring='The aperture velocity.')
     ARPAcc = _SerializableDescriptor(
-        'ARPAcc', XYZType, __required, strict=DEFAULT_STRICT, docstring='The aperture acceleration.')
+        'ARPAcc', XYZType, _required, strict=DEFAULT_STRICT, docstring='The aperture acceleration.')
     SideOfTrack = _StringEnumDescriptor(
-        'SideOfTrack', _SIDE_OF_TRACK_VALUES, __required, strict=DEFAULT_STRICT, docstring='The side of track.')
+        'SideOfTrack', _SIDE_OF_TRACK_VALUES, _required, strict=DEFAULT_STRICT, docstring='The side of track.')
     SlantRange = _FloatDescriptor(
-        'SlantRange', __required, strict=DEFAULT_STRICT, docstring='The slant range.')
+        'SlantRange', _required, strict=DEFAULT_STRICT, docstring='The slant range.')
     GroundRange = _FloatDescriptor(
-        'GroundRange', __required, strict=DEFAULT_STRICT, docstring='The ground range.')
+        'GroundRange', _required, strict=DEFAULT_STRICT, docstring='The ground range.')
     DopplerConeAng = _FloatDescriptor(
-        'DopplerConeAng', __required, strict=DEFAULT_STRICT, docstring='The Doppler cone angle.')
+        'DopplerConeAng', _required, strict=DEFAULT_STRICT, docstring='The Doppler cone angle.')
     GrazeAng = _FloatDescriptor(
-        'GrazeAng', __required, strict=DEFAULT_STRICT, bounds=(0., 90.), docstring='The graze angle.')
+        'GrazeAng', _required, strict=DEFAULT_STRICT, bounds=(0., 90.), docstring='The graze angle.')
     IncidenceAng = _FloatDescriptor(
-        'IncidenceAng', __required, strict=DEFAULT_STRICT, bounds=(0., 90.), docstring='The incidence angle.')
+        'IncidenceAng', _required, strict=DEFAULT_STRICT, bounds=(0., 90.), docstring='The incidence angle.')
     TwistAng = _FloatDescriptor(
-        'TwistAng', __required, strict=DEFAULT_STRICT, bounds=(-90., 90.), docstring='The twist angle.')
+        'TwistAng', _required, strict=DEFAULT_STRICT, bounds=(-90., 90.), docstring='The twist angle.')
     SlopeAng = _FloatDescriptor(
-        'SlopeAng', __required, strict=DEFAULT_STRICT, bounds=(0., 90.), docstring='The slope angle.')
+        'SlopeAng', _required, strict=DEFAULT_STRICT, bounds=(0., 90.), docstring='The slope angle.')
     AzimAng = _FloatDescriptor(
-        'AzimAng', __required, strict=DEFAULT_STRICT, bounds=(0., 360.), docstring='The azimuth angle.')
+        'AzimAng', _required, strict=DEFAULT_STRICT, bounds=(0., 360.), docstring='The azimuth angle.')
     LayoverAng = _FloatDescriptor(
-        'LayoverAng', __required, strict=DEFAULT_STRICT, bounds=(0., 360.), docstring='The layover angle.')
+        'LayoverAng', _required, strict=DEFAULT_STRICT, bounds=(0., 360.), docstring='The layover angle.')
 
 
 ###############
 # RadiometricType section
-###############
-# AntParamType section
+
+
+class NoiseLevelType(Serializable):
+    """Noise level type container."""
+    _fields = ('NoiseLevelType', 'NoisePoly')
+    _required = _fields
+    # class variables
+    _NOISE_LEVEL_TYPE_VALUES = ('ABSOLUTE', 'RELATIVE')
+    # descriptors
+    NoiseLevelType = _StringEnumDescriptor(
+        'NoiseLevelType', _NOISE_LEVEL_TYPE_VALUES, _required, strict=DEFAULT_STRICT,
+        docstring='The noise level type value.')
+    NoisePoly = _SerializableDescriptor(
+        'NoisePoly', Poly2DType, _required, strict=DEFAULT_STRICT, docstring='The noise level polynomial.')
+
+
+class RadiometricType(Serializable):
+    """The radiometric type container."""
+    _fields = ('NoiseLevel', 'RCSSFPoly', 'SigmaZeroSFPoly', 'BetaZeroSFPoly', 'GammaZeroSFPoly')
+    _required = ()
+    # descriptors
+    NoiseLevel = _SerializableDescriptor(
+        'NoiseLevel', NoiseLevelType, _required, strict=DEFAULT_STRICT, docstring='The noise level.')
+    RCSSFPoly = _SerializableDescriptor(
+        'RCSSFPoly', Poly2DType, _required, strict=DEFAULT_STRICT, docstring='The RCSSF polynomial.')
+    SigmaZeroSFPoly = _SerializableDescriptor(
+        'SigmaZeroSFPoly', Poly2DType, _required, strict=DEFAULT_STRICT, docstring='The Sigma_0 SF polynomial.')
+    BetaZeroSFPoly = _SerializableDescriptor(
+        'BetaZeroSFPoly', Poly2DType, _required, strict=DEFAULT_STRICT, docstring='The Beta_0 SF polynomial.')
+    GammaZeroSFPoly = _SerializableDescriptor(
+        'GammaZeroSFPoly', Poly2DType, _required, strict=DEFAULT_STRICT, docstring='The Gamma_0 SF polynomial.')
+
+
 ###############
 # AntennaType section
+
+
+class EBType(Serializable):
+    """"""
+    _fields = ('DCXPoly', 'DCYPoly')
+    _required = _fields
+    # descriptors
+    DCXPoly = _SerializableDescriptor(
+        'DCXPoly', Poly1DType, _required, strict=DEFAULT_STRICT, docstring='The DCX polynomial.')
+    DCYPoly = _SerializableDescriptor(
+        'DCYPoly', Poly1DType, _required, strict=DEFAULT_STRICT, docstring='The DCY polynomial.')
+
+
+class AntParamType(Serializable):
+    """The antenna parameters container."""
+    _fields = ('XAxisPoly', 'YAxisPoly', 'FreqZero', 'EB', 'Array', 'Elem', 'GainBSPoly', 'EBFreqShift', 'MLFreqDilation')
+    _required = ('XAxisPoly', 'YAxisPoly', 'FreqZero', 'Array')
+    # descriptors
+    XAxisPoly = _SerializableDescriptor(
+        'XAxisPoly', XYZPolyType, _required, strict=DEFAULT_STRICT, docstring='The X axis polynomial.')
+    YAxisPoly = _SerializableDescriptor(
+        'YAxisPoly', XYZPolyType, _required, strict=DEFAULT_STRICT, docstring='The Y axis polynomial.')
+    FreqZero = _FloatDescriptor(
+        'FreqZero', _required, strict=DEFAULT_STRICT, docstring='The frequency zero.')
+    EB = _SerializableDescriptor(
+        'EB', EBType, _required, strict=DEFAULT_STRICT, docstring='The EB.')
+    Array = _SerializableDescriptor(
+        'Array', GainPhasePolyType, _required, strict=DEFAULT_STRICT,
+        docstring='The antenna array gain/phase polynomial.')
+    Elem = _SerializableDescriptor(
+        'Elem', GainPhasePolyType, _required, strict=DEFAULT_STRICT, docstring='The element gain/phase polynomial.')
+    GainBSPoly = _SerializableDescriptor(
+        'GainBSPoly', Poly1DType, _required, strict=DEFAULT_STRICT, docstring='The Gain BS polynomial.')
+    EBFreqShift = _BooleanDescriptor(
+        'EBFreqShift', _required, strict=DEFAULT_STRICT, docstring='The EB shift boolean.')
+    MLFreqDilation = _BooleanDescriptor(
+        'MLFreqDilation', _required, strict=DEFAULT_STRICT, docstring='The ML frequency dilation boolean.')
+
+
+class AntennaType(Serializable):
+    """The antenna parameters."""
+    _fields = ('Tx', 'Rcv', 'TwoWay')
+    _required = ()
+    # descriptors
+    Tx = _SerializableDescriptor(
+        'Tx', AntParamType, _required, strict=DEFAULT_STRICT, docstring='The transmit antenna.')
+    Rcv = _SerializableDescriptor(
+        'Rcv', AntParamType, _required, strict=DEFAULT_STRICT, docstring='The receive antenna.')
+    TwoWay = _SerializableDescriptor(
+        'TwoWay', AntParamType, _required, strict=DEFAULT_STRICT, docstring='The bidirectional transmit/receive antenna.')
+
+
 ###############
 # ErrorStatisticsType section
 ###############
 # MatchInfoType section
 ###############
 # RgAzCompType section
+
+
+class ShellType(Serializable):
+    """"""
+    _fields = ('AzSF', 'KazPoly')
+    _required = _fields
+    # descriptors
+    AzSF = _FloatDescriptor('AzSF', _required, strict=DEFAULT_STRICT, docstring='The azimuth SF.')
+    KazPoly = _SerializableDescriptor('KazPoly', Poly1DType, _required, strict=DEFAULT_STRICT, docstring='The Kaz polynomial.')
+
+
 ###############
 # PFAType section
 ###############
@@ -2628,7 +2727,7 @@ class SCPCOAType(Serializable):
 
 # class ShellType(Serializable):
 #     """"""
-#     __fields = ()
-#     __required = ()
-#     __collections_tags = {'': {'array': False, 'child_tag': ''}}
+#     _fields = ()
+#     _required = ()
+#     _collections_tags = {'': {'array': False, 'child_tag': ''}}
 #     # descriptors
