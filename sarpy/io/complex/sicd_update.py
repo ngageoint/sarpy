@@ -88,12 +88,12 @@ class _BasicDescriptor(object):
         fetched = self.data.get(instance, self.default_value)
         if fetched is not None or not self.required:
             return fetched
-        elif self.strict:
-            raise AttributeError(
-                'Required field {} of class {} is not populated.'.format(self.name, instance.__class__.__name__))
         else:
-            logging.info(
-                'Required field {} of class {} is not populated.'.format(self.name, instance.__class__.__name__))
+            msg = 'Required field {} of class {} is not populated.'.format(self.name, instance.__class__.__name__)
+            if self.strict:
+                raise AttributeError(msg)
+            else:
+                logging.debug(msg)  # NB: this is at debug level to not be too verbose
             return fetched
 
     def __set__(self, instance, value):
@@ -118,10 +118,10 @@ class _BasicDescriptor(object):
         if value is None:
             if self.strict:
                 raise ValueError(
-                    'field {} of class {} cannot be assigned None.'.format(self.name, instance.__class__.__name__))
+                    'Attribute {} of class {} cannot be assigned None.'.format(self.name, instance.__class__.__name__))
             elif self.required:
-                logging.info(
-                    'Required field {} of class {} has been set to None.'.format(
+                logging.debug(  # NB: this is at debuglevel to not be too verbose
+                    'Required attribute {} of class {} has been set to None.'.format(
                         self.name, instance.__class__.__name__))
             self.data[instance] = None
             return True
@@ -189,19 +189,19 @@ class _StringListDescriptor(_BasicDescriptor):
     def __set__(self, instance, value):
         def set_value(new_value):
             if len(new_value) < self.minimum_length:
-                msg = 'Field {} of class {} is a string list of size {}, and must have length at least ' \
+                msg = 'Attribute {} of class {} is a string list of size {}, and must have length at least ' \
                       '{}.'.format(self.name, instance.__class__.__name__, value.size, self.minimum_length)
                 if self.strict:
                     raise ValueError(msg)
                 else:
-                    logging.warning(msg)
+                    logging.error(msg)
             if len(new_value) > self.maximum_length:
-                msg = 'Field {} of class {} is a string list of size {}, and must have length nu greater than ' \
+                msg = 'Attribute {} of class {} is a string list of size {}, and must have length no greater than ' \
                       '{}.'.format(self.name, instance.__class__.__name__, value.size, self.maximum_length)
                 if self.strict:
                     raise ValueError(msg)
                 else:
-                    logging.warning(msg)
+                    logging.error(msg)
             self.data[instance] = new_value
 
         if super(_StringListDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
@@ -255,19 +255,17 @@ class _StringEnumDescriptor(_BasicDescriptor):
             val = _get_node_value(value).upper()
         else:
             raise TypeError(
-                'field {} of class {} requires a string value.'.format(self.name, instance.__class__.__name__))
+                'Attribute {} of class {} requires a string value.'.format(self.name, instance.__class__.__name__))
 
         if val in self.values:
             self.data[instance] = val
         else:
+            msg = 'Attribute {} of class {} received {}, but values ARE REQUIRED to be ' \
+                  'one of {}'.format(self.name, instance.__class__.__name__, value, self.values)
             if self.strict:
-                raise ValueError(
-                    'Received value {} for field {} of class {}, but values ARE REQUIRED to be one of {}'.format(
-                        value, self.name, instance.__class__.__name__, self.values))
+                raise ValueError(msg)
             else:
-                logging.warning(
-                    'Received value {} for field {} of class {}, but values ARE REQUIRED to be one of {}. '.format(
-                        value, self.name, instance.__class__.__name__, self.values))
+                logging.error(msg)
             self.data[instance] = val
 
 
@@ -341,12 +339,12 @@ class _IntegerDescriptor(_BasicDescriptor):
         if self._in_bounds(iv):
             self.data[instance] = iv
         else:
-            msg = 'Field {} of class {} is required by standard to take value between {}.'.format(
-                self.name, instance.__class__.__name__, self.bounds)
+            msg = 'Attribute {} of class {} is required by standard to take value between {}. ' \
+                  'Invalid value {}'.format(self.name, instance.__class__.__name__, self.bounds, iv)
             if self.strict:
                 raise ValueError(msg)
             else:
-                logging.warning(msg)
+                logging.error(msg)
             self.data[instance] = iv
 
 
@@ -378,14 +376,12 @@ class _IntegerEnumDescriptor(_BasicDescriptor):
         if iv in self.values:
             self.data[instance] = iv
         else:
+            msg = 'Attribute {} of class {} must take value in {}. Invalid value {}.'.format(
+                        self.name, instance.__class__.__name__, self.values, iv)
             if self.strict:
-                raise ValueError(
-                    'field {} of class {} must take value in {}'.format(
-                        self.name, instance.__class__.__name__, self.values))
+                raise ValueError(msg)
             else:
-                logging.info(
-                    'Required field {} of class {} is required to take value in {}.'.format(
-                        self.name, instance.__class__.__name__, self.values))
+                logging.error(msg)
             self.data[instance] = iv
 
 
@@ -425,19 +421,19 @@ class _IntegerListDescriptor(_BasicDescriptor):
     def __set__(self, instance, value):
         def set_value(new_value):
             if len(new_value) < self.minimum_length:
-                msg = 'Field {} of class {} is an integer list of size {}, and must have size at least ' \
+                msg = 'Attribute {} of class {} is an integer list of size {}, and must have size at least ' \
                       '{}.'.format(self.name, instance.__class__.__name__, value.size, self.minimum_length)
                 if self.strict:
                     raise ValueError(msg)
                 else:
-                    logging.warning(msg)
+                    logging.info(msg)
             if len(new_value) > self.maximum_length:
-                msg = 'Field {} of class {} is an integer list of size {}, and must have size no larger than ' \
+                msg = 'Attribute {} of class {} is an integer list of size {}, and must have size no larger than ' \
                       '{}.'.format(self.name, instance.__class__.__name__, value.size, self.maximum_length)
                 if self.strict:
                     raise ValueError(msg)
                 else:
-                    logging.warning(msg)
+                    logging.info(msg)
             self.data[instance] = new_value
 
         if super(_IntegerListDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
@@ -493,12 +489,12 @@ class _FloatDescriptor(_BasicDescriptor):
         if self._in_bounds(iv):
             self.data[instance] = iv
         else:
-            msg = 'Field {} of class {} is required by standard to take value between {}.'.format(
+            msg = 'Attribute {} of class {} is required by standard to take value between {}.'.format(
                 self.name, instance.__class__.__name__, self.bounds)
             if self.strict:
                 raise ValueError(msg)
             else:
-                logging.warning(msg)
+                logging.info(msg)
             self.data[instance] = iv
 
 
@@ -578,19 +574,19 @@ class _FloatArrayDescriptor(_BasicDescriptor):
     def __set__(self, instance, value):
         def set_value(new_value):
             if len(new_value) < self.minimum_length:
-                msg = 'Field {} of class {} is a double array of size {}, and must have size at least ' \
+                msg = 'Attribute {} of class {} is a double array of size {}, and must have size at least ' \
                       '{}.'.format(self.name, instance.__class__.__name__, value.size, self.minimum_length)
                 if self.strict:
                     raise ValueError(msg)
                 else:
-                    logging.warning(msg)
+                    logging.error(msg)
             if len(new_value) > self.maximum_length:
-                msg = 'Field {} of class {} is a double array of size {}, and must have size no larger than ' \
+                msg = 'Attribute {} of class {} is a double array of size {}, and must have size no larger than ' \
                       '{}.'.format(self.name, instance.__class__.__name__, value.size, self.maximum_length)
                 if self.strict:
                     raise ValueError(msg)
                 else:
-                    logging.warning(msg)
+                    logging.error(msg)
             self.data[instance] = new_value
 
         if super(_FloatArrayDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
@@ -736,37 +732,37 @@ class _SerializableArrayDescriptor(_BasicDescriptor):
 
     def __actual_set(self, instance, value):
         if len(value) < self.minimum_length:
-            msg = 'Field {} of class {} is of size {}, and must have size at least ' \
+            msg = 'Attribute {} of class {} is of size {}, and must have size at least ' \
                   '{}.'.format(self.name, instance.__class__.__name__, value.size, self.minimum_length)
             if self.strict:
                 raise ValueError(msg)
             else:
-                logging.warning(msg)
+                logging.error(msg)
         if len(value) > self.maximum_length:
-            msg = 'Field {} of class {} is of size {}, and must have size no greater than ' \
+            msg = 'Attribute {} of class {} is of size {}, and must have size no greater than ' \
                   '{}.'.format(self.name, instance.__class__.__name__, value.size, self.maximum_length)
             if self.strict:
                 raise ValueError(msg)
             else:
-                logging.warning(msg)
+                logging.error(msg)
         self.data[instance] = value
 
     def __array_set(self, instance, value):
         if isinstance(value, numpy.ndarray):
             if value.dtype != numpy.object:
                 raise ValueError(
-                    'Field {} of array type functionality belonging to class {} got a ndarray of dtype {},'
+                    'Attribute {} of array type functionality belonging to class {} got an ndarray of dtype {},'
                     'but contains objects, so requires dtype=numpy.object.'.format(
                         self.name, instance.__class__.__name__, value.dtype))
             elif len(value.shape) != 1:
                 raise ValueError(
-                    'Field {} of array type functionality belonging to class {} got a ndarray of shape {},'
+                    'Attribute {} of array type functionality belonging to class {} got an ndarray of shape {},'
                     'but requires a one dimensional array.'.format(
                         self.name, instance.__class__.__name__, value.shape))
             elif not isinstance(value[0], self.child_type):
                 raise TypeError(
-                    'Field {} of array type functionality belonging to class {} got a ndarray containing '
-                    'first element of incompaticble type {}.'.format(
+                    'Attribute {} of array type functionality belonging to class {} got an ndarray containing '
+                    'first element of incompatible type {}.'.format(
                         self.name, instance.__class__.__name__, type(value[0])))
             self.__actual_set(instance, value)
         elif isinstance(value, minidom.Element):
@@ -1040,7 +1036,7 @@ class Serializable(object):
         Parameters
         ----------
         recursive : bool
-            True if we recursively check that child are also valid. This may result in noisy logging.
+            True if we recursively check that child are also valid. This may result in verbose (i.e. noisy) logging.
 
         Returns
         -------
@@ -1069,7 +1065,7 @@ class Serializable(object):
         for attribute in self._required:
             present = (getattr(self, attribute) is not None)
             if not present:
-                logging.warning(
+                logging.error(
                     "Class {} has missing required attribute {}".format(self.__class__.__name__, attribute))
             all_required &= present
 
@@ -1083,12 +1079,12 @@ class Serializable(object):
                 if getattr(self, attribute) is not None:
                     present.append(attribute)
             if len(present) == 0 and required:
-                logging.warning(
+                logging.error(
                     "Class {} has requires that exactly one of the attributes {} is set, but none are "
                     "set.".format(self.__class__.__name__, collect))
                 choices = False
             elif len(present) > 1:
-                logging.warning(
+                logging.error(
                     "Class {} has requires that no more than one of attributes {} is set, but multiple {} are "
                     "set.".format(self.__class__.__name__, collect, present))
                 choices = False
@@ -1121,8 +1117,8 @@ class Serializable(object):
                     good &= check_item(entry)
             # any issues will be logged as discovered, but we should help with the "stack"
             if not good:
-                logging.warning(
-                    "Issue discovered with {} attribute of type {} of class {}".format(
+                logging.error(  # I should probably do better with a stack type situation. This is traceable, at least.
+                    "Issue discovered with {} attribute of type {} of class {}.".format(
                     attribute, type(val), self.__class__.__name__))
             valid_children &= good
         return valid_children
@@ -1302,7 +1298,7 @@ class Serializable(object):
                 _create_text_node(doc, 'Imag', fmt_func(value.imag), par=cnode)
             else:
                 raise ValueError(
-                    'a entry for class {} using tag {} is of type {}, and serialization has not '
+                    'An entry for class {} using tag {} is of type {}, and serialization has not '
                     'been implemented'.format(self.__class__.__name__, field, type(value)))
 
         if not self.is_valid():
@@ -1339,7 +1335,7 @@ class Serializable(object):
                     # the metadata is broken
                     raise ValueError(
                         'Attribute {} in class {} is listed in the _collections_tags dictionary, but the '
-                        '"child_tags" value is either missing or None.'.format(attribute, self.__class__.__name__))
+                        '"child_tag" value is either missing or None.'.format(attribute, self.__class__.__name__))
             else:
                 serialize_plain(nod, attribute, value, fmt_func)
         return nod
@@ -2047,10 +2043,10 @@ class ImageDataType(Serializable):
     def _basic_validity_check(self):
         condition = super(ImageDataType, self)._basic_validity_check()
         if (self.PixelType == 'AMP8I_PHS8I') and (self.AmpTable is None):
-            logging.warning("We have `PixelType='AMP8I_PHS8I'` and `AmpTable` is not defined for ImageDataType.")
+            logging.error("We have `PixelType='AMP8I_PHS8I'` and `AmpTable` is not defined for ImageDataType.")
             condition = False
         if (self.ValidData is not None) and (len(self.ValidData) < 3):
-            logging.warning("We have `ValidData` defined, with fewer than 3 entries.")
+            logging.error("We have `ValidData` defined, with fewer than 3 entries.")
             condition = False
         return condition
 
@@ -2103,10 +2099,10 @@ class GeoInfoType(Serializable):
 
     def _validate_features(self):
         if self.Line is not None and self.Line.size < 2:
-            logging.warning('GeoInfo has a Line feature with {} points defined.'.format(self.Line.size))
+            logging.error('GeoInfo has a Line feature with {} points defined.'.format(self.Line.size))
             return False
         if self.Polygon is not None and self.Polygon.size < 3:
-            logging.warning('GeoInfo has a Polygon feature with {} points defined.'.format(self.Polygon.size))
+            logging.error('GeoInfo has a Polygon feature with {} points defined.'.format(self.Polygon.size))
             return False
         return True
 
@@ -2243,7 +2239,7 @@ class DirParamType(Serializable):
     def _basic_validity_check(self):
         condition = super(DirParamType, self)._basic_validity_check()
         if (self.WgtFunct is not None) and (self.WgtFunct.size < 2):
-            logging.warning(
+            logging.error(
                 'The WgtFunct array has been defined in DirParamType, but there are fewer than 2 entries.')
             condition = False
         return condition
@@ -2425,7 +2421,7 @@ class WaveformParametersType(Serializable):
         valid = super(WaveformParametersType, self)._basic_validity_check()
         if (self.RcvDemodType == 'CHIRP') and (self.RcvFMRate != 0):
             # TODO: should we simply reset?
-            logging.warning(
+            logging.error(
                 'In WaveformParameters, we have RcvDemodType == "CHIRP" and self.RcvFMRate non-zero.')
             valid = False
         return valid
