@@ -6,26 +6,25 @@ is the main purpose of this approach, versus the matlab struct based effort or u
 SIX library.
 """
 
-# Complete: 1.) complete to_dict functionality for serializable.
-# TODO: 2.) flesh out docstrings from the sicd standards document
-# TODO: 3.) determine necessary and appropriate formatting issues for serialization/deserialization
-# TODO: 4.) determine and implement appropriate class methods for proper functionality
+# TODO: 1.) flesh out docstrings from the sicd standards document
+# TODO: 2.) determine necessary and appropriate formatting issues for serialization/deserialization
+# TODO: 3.) determine and implement appropriate class methods for proper functionality
 
 from xml.dom import minidom
-import numpy
 from collections import OrderedDict
 from datetime import datetime, date
 import logging
 from weakref import WeakKeyDictionary
+import numpy
 
 #################
 # module constants
+
 DEFAULT_STRICT = False
 """
 bool: module level default behavior for whether to handle standards compliance strictly (raise exception) or more 
     loosely (by logging a warning)
 """
-
 
 #################
 # descriptor definitions - these are reusable properties that handle typing and deserialization in one place
@@ -1829,9 +1828,15 @@ class GainPhasePolyType(Serializable):
     _required = _fields
     # descriptors
     GainPoly = _SerializableDescriptor(
-        'GainPoly', Poly2DType, _required, strict=DEFAULT_STRICT, docstring='The Gain Polygon.')  # type: Poly2DType
+        'GainPoly', Poly2DType, _required, strict=DEFAULT_STRICT,
+        docstring='One-way signal gain (in dB) as a function of X-axis direction cosine (DCX) (variable 1) '
+                  'and Y-axis direction cosine (DCY) (variable 2). Gain relative to gain at DCX = 0 '
+                  'and DCY = 0, so constant coefficient is always 0.0.')  # type: Poly2DType
     PhasePoly = _SerializableDescriptor(
-        'GainPhasePoly', Poly2DType, _required, strict=DEFAULT_STRICT, docstring='The Phase Polygon.')  # type: Poly2DType
+        'GainPhasePoly', Poly2DType, _required, strict=DEFAULT_STRICT,
+        docstring='One-way signal phase (in cycles) as a function of DCX (variable 1) and '
+                  'DCY (variable 2). Phase relative to phase at DCX = 0 and DCY = 0, '
+                  'so constant coefficient is always 0.0.')  # type: Poly2DType
 
 
 class ErrorDecorrFuncType(Serializable):
@@ -1841,15 +1846,18 @@ class ErrorDecorrFuncType(Serializable):
     _numeric_format = {'CorrCoefZero': '0.8f', 'DecorrRate': '0.8f'}  # TODO: desired precision?
     # descriptors
     CorrCoefZero = _FloatDescriptor(
-        'CorrCoefZero', _required, strict=DEFAULT_STRICT, docstring='The CorrCoefZero attribute.')  # type: float
+        'CorrCoefZero', _required, strict=DEFAULT_STRICT,
+        docstring='Error correlation coefficient for zero time difference (CC0).')  # type: float
     DecorrRate = _FloatDescriptor(
-        'DecorrRate', _required, strict=DEFAULT_STRICT, docstring='The DecorrRate attribute.')  # type: float
+        'DecorrRate', _required, strict=DEFAULT_STRICT,
+        docstring='Error decorrelation rate. Simple linear decorrelation rate (DCR).')  # type: float
 
     # TODO: HIGH - this is supposed to be a "function". We should implement the functionality here.
 
 
 ####################################################################
 # Direct building blocks for SICD
+
 #############
 # CollectionInfoType section
 
@@ -2047,6 +2055,7 @@ class GeoInfoType(Serializable):
         docstring='A geographic polygon (array) with WGS-84 coordinates.')  # type: numpy.ndarray
 
     def _validate_features(self):
+        # exactly one of Point, Line, Polygon should be defined.
         feats = []
         for feat in ['Point', 'Line', 'Polygon']:
             if getattr(self, feat) is not None:
@@ -2060,7 +2069,7 @@ class GeoInfoType(Serializable):
         elif self.Line is not None and self.Line.size < 2:
             logging.warning('GeoInfo is a Line with {} points defined.'.format(self.Line.size))
             return False
-        elif self.Polygon is not None and self.LinePolygon.size < 3:
+        elif self.Polygon is not None and self.Polygon.size < 3:
             logging.warning('GeoInfo is a Polygon with {} points defined.'.format(self.Polygon.size))
             return False
 
@@ -2068,7 +2077,6 @@ class GeoInfoType(Serializable):
 
     def _basic_validity_check(self):
         condition = super(GeoInfoType, self)._basic_validity_check()
-        # exactly one of Point, Line, Polygon should be defined.
         return condition & self._validate_features()
 
 
@@ -2400,7 +2408,8 @@ class TxStepType(Serializable):
     _POLARIZATION2_VALUES = ('V', 'H', 'RHC', 'LHC', 'OTHER')
     # descriptors
     WFIndex = _IntegerDescriptor(
-        'WFIndex', _required, strict=DEFAULT_STRICT, docstring='The waveform number for this step.')  # type: int
+        'WFIndex', _required, strict=DEFAULT_STRICT,
+        docstring='The waveform number for this step.')  # type: int
     TxPolarization = _StringEnumDescriptor(
         'TxPolarization', _POLARIZATION2_VALUES, _required, strict=DEFAULT_STRICT,
         docstring='Transmit signal polarization for this step.')  # type: str
@@ -2605,7 +2614,7 @@ class RadarCollectionType(Serializable):
 class RcvChanProcType(Serializable):
     """The Received Processed Channels."""
     _fields = ('NumChanProc', 'PRFScaleFactor', 'ChanIndices')
-    _required = ('NumChanProc', 'ChanIndices')  # TODO: make proper descriptor
+    _required = ('NumChanProc', 'ChanIndices')
     _collections_tags = {
         'ChanIndices': {'array': False, 'child_tag': 'ChanIndex'}}
     # descriptors
@@ -2642,7 +2651,8 @@ class ProcessingType(Serializable):
     _collections_tags = {'Parameters': {'array': False, 'child_tag': 'Parameter'}}
     # descriptors
     Type = _StringDescriptor(
-        'Type', _required, strict=DEFAULT_STRICT, docstring='The processing type identifier.')  # type: str
+        'Type', _required, strict=DEFAULT_STRICT,
+        docstring='The processing type identifier.')  # type: str
     Applied = _BooleanDescriptor(
         'Applied', _required, strict=DEFAULT_STRICT,
         docstring='Indicates whether the given processing type has been applied.')  # type: bool
@@ -2793,8 +2803,7 @@ class ImageFormationType(Serializable):
 
 
 class SCPCOAType(Serializable):
-    """The scene center point - COA?"""
-    # TODO: page 44 of standard doc
+    """Center of Aperture (COA) for the Scene Center Point (SCP)."""
     _fields = (
         'SCPTime', 'ARPPos', 'ARPVel', 'ARPAcc', 'SideOfTrack', 'SlantRange', 'GroundRange', 'DopplerConeAng',
         'GrazeAng', 'IncidenceAng', 'TwistAng', 'SlopeAng', 'AzimAng', 'LayoverAng')
@@ -2803,34 +2812,51 @@ class SCPCOAType(Serializable):
     _SIDE_OF_TRACK_VALUES = ('L', 'R')
     # descriptors
     SCPTime = _FloatDescriptor(
-        'SCPTime', _required, strict=DEFAULT_STRICT, docstring='The scene center point time in seconds?')  # type: float
+        'SCPTime', _required, strict=DEFAULT_STRICT,
+        docstring='Center Of Aperture time for the SCP t_COA_SCP, relative to collection '
+                  'start in seconds.')  # type: float
     ARPPos = _SerializableDescriptor(
-        'ARPPos', XYZType, _required, strict=DEFAULT_STRICT, docstring='The aperture position.')  # type: XYZType
+        'ARPPos', XYZType, _required, strict=DEFAULT_STRICT,
+        docstring='Aperture position at t_COA_SCP in ECF.')  # type: XYZType
     ARPVel = _SerializableDescriptor(
-        'ARPVel', XYZType, _required, strict=DEFAULT_STRICT, docstring='The aperture velocity.')  # type: XYZType
+        'ARPVel', XYZType, _required, strict=DEFAULT_STRICT,
+        docstring='ARP Velocity at t_COA_SCP in ECF.')  # type: XYZType
     ARPAcc = _SerializableDescriptor(
-        'ARPAcc', XYZType, _required, strict=DEFAULT_STRICT, docstring='The aperture acceleration.')  # type: XYZType
+        'ARPAcc', XYZType, _required, strict=DEFAULT_STRICT,
+        docstring='ARP Acceleration at t_COA_SCP in ECF.')  # type: XYZType
     SideOfTrack = _StringEnumDescriptor(
         'SideOfTrack', _SIDE_OF_TRACK_VALUES, _required, strict=DEFAULT_STRICT,
-        docstring='The side of track.')  # type: str
+        docstring='Side of track.')  # type: str
     SlantRange = _FloatDescriptor(
-        'SlantRange', _required, strict=DEFAULT_STRICT, docstring='The slant range.')  # type: float
+        'SlantRange', _required, strict=DEFAULT_STRICT,
+        docstring='Slant range from the ARP to the SCP in meters.')  # type: float
     GroundRange = _FloatDescriptor(
-        'GroundRange', _required, strict=DEFAULT_STRICT, docstring='The ground range.')  # type: float
+        'GroundRange', _required, strict=DEFAULT_STRICT,
+        docstring='Ground Range from the ARP nadir to the SCP. Distance measured along spherical earth model '
+                  'passing through the SCP in meters.')  # type: float
     DopplerConeAng = _FloatDescriptor(
-        'DopplerConeAng', _required, strict=DEFAULT_STRICT, docstring='The Doppler cone angle.')  # type: float
+        'DopplerConeAng', _required, strict=DEFAULT_STRICT,
+        docstring='The Doppler Cone Angle to SCP at t_COA_SCP in degrees.')  # type: float
     GrazeAng = _FloatDescriptor(
-        'GrazeAng', _required, strict=DEFAULT_STRICT, bounds=(0., 90.), docstring='The graze angle.')  # type: float
+        'GrazeAng', _required, strict=DEFAULT_STRICT, bounds=(0., 90.),
+        docstring='Grazing Angle between the SCP Line of Sight (LOS) and Earth Tangent Plane (ETP).')  # type: float
     IncidenceAng = _FloatDescriptor(
-        'IncidenceAng', _required, strict=DEFAULT_STRICT, bounds=(0., 90.), docstring='The incidence angle.')  # type: float
+        'IncidenceAng', _required, strict=DEFAULT_STRICT, bounds=(0., 90.),
+        docstring='Incidence Angle between the SCP LOS and ETP normal.')  # type: float
     TwistAng = _FloatDescriptor(
-        'TwistAng', _required, strict=DEFAULT_STRICT, bounds=(-90., 90.), docstring='The twist angle.')  # type: float
+        'TwistAng', _required, strict=DEFAULT_STRICT, bounds=(-90., 90.),
+        docstring='Angle between cross range in the ETP and cross range in the slant plane.')  # type: float
     SlopeAng = _FloatDescriptor(
-        'SlopeAng', _required, strict=DEFAULT_STRICT, bounds=(0., 90.), docstring='The slope angle.')  # type: float
+        'SlopeAng', _required, strict=DEFAULT_STRICT, bounds=(0., 90.),
+        docstring='Slope Angle from the ETP to the slant plane at t_COA_SCP.')  # type: float
     AzimAng = _FloatDescriptor(
-        'AzimAng', _required, strict=DEFAULT_STRICT, bounds=(0., 360.), docstring='The azimuth angle.')  # type: float
+        'AzimAng', _required, strict=DEFAULT_STRICT, bounds=(0., 360.),
+        docstring='Angle from north to the line from the SCP to the ARP Nadir at COA. Measured '
+                  'clockwise in the ETP.')  # type: float
     LayoverAng = _FloatDescriptor(
-        'LayoverAng', _required, strict=DEFAULT_STRICT, bounds=(0., 360.), docstring='The layover angle.')  # type: float
+        'LayoverAng', _required, strict=DEFAULT_STRICT, bounds=(0., 360.),
+        docstring='Angle from north to the layover direction in the ETP at COA. Measured '
+                  'clockwise in the ETP.')  # type: float
 
 
 ###############
@@ -2838,7 +2864,7 @@ class SCPCOAType(Serializable):
 
 
 class NoiseLevelType(Serializable):
-    """Noise level type container."""
+    """Noise level structure."""
     _fields = ('NoiseLevelType', 'NoisePoly')
     _required = _fields
     # class variables
@@ -2846,33 +2872,42 @@ class NoiseLevelType(Serializable):
     # descriptors
     NoiseLevelType = _StringEnumDescriptor(
         'NoiseLevelType', _NOISE_LEVEL_TYPE_VALUES, _required, strict=DEFAULT_STRICT,
-        docstring='The noise level type value.')  # type: str
+        docstring='Indicates that the noise power polynomial yields either absolute power level or power '
+                  'level relative to the SCP pixel location.')  # type: str
     NoisePoly = _SerializableDescriptor(
         'NoisePoly', Poly2DType, _required, strict=DEFAULT_STRICT,
-        docstring='The noise level polynomial.')  # type: Poly2DType
+        docstring='Polynomial coefficients that yield thermal noise power (in dB) in a pixel as a function of '
+                  'image row coordinate (variable 1) and column coordinate (variable 2).')  # type: Poly2DType
 
 
 class RadiometricType(Serializable):
-    """The radiometric type container."""
-    # TODO: page 46 of standard doc
+    """The radiometric calibration parameters."""
     _fields = ('NoiseLevel', 'RCSSFPoly', 'SigmaZeroSFPoly', 'BetaZeroSFPoly', 'GammaZeroSFPoly')
     _required = ()
     # descriptors
     NoiseLevel = _SerializableDescriptor(
         'NoiseLevel', NoiseLevelType, _required, strict=DEFAULT_STRICT,
-        docstring='The noise level.')  # type: NoiseLevelType
+        docstring='Noise level structure.')  # type: NoiseLevelType
     RCSSFPoly = _SerializableDescriptor(
         'RCSSFPoly', Poly2DType, _required, strict=DEFAULT_STRICT,
-        docstring='The RCSSF polynomial.')  # type: Poly2DType
+        docstring='Polynomial that yields a scale factor to convert pixel power to RCS (sqm) '
+                  'as a function of image row coordinate (variable 1) and column coordinate (variable 2). '
+                  'Scale factor computed for a target at HAE = SCP_HAE.')  # type: Poly2DType
     SigmaZeroSFPoly = _SerializableDescriptor(
         'SigmaZeroSFPoly', Poly2DType, _required, strict=DEFAULT_STRICT,
-        docstring='The Sigma_0 SF polynomial.')  # type: Poly2DType
+        docstring='Polynomial that yields a scale factor to convert pixel power to clutter parameter '
+                  'Sigma-Zero as a function of image row coordinate (variable 1) and column coordinate (variable 2). '
+                  'Scale factor computed for a clutter cell at HAE = SCP_HAE.')  # type: Poly2DType
     BetaZeroSFPoly = _SerializableDescriptor(
         'BetaZeroSFPoly', Poly2DType, _required, strict=DEFAULT_STRICT,
-        docstring='The Beta_0 SF polynomial.')  # type: Poly2DType
+        docstring='Polynomial that yields a scale factor to convert pixel power to radar brightness '
+                  'or Beta-Zero as a function of image row coordinate (variable 1) and column coordinate (variable 2). '
+                  'Scale factor computed for a clutter cell at HAE = SCP_HAE.')  # type: Poly2DType
     GammaZeroSFPoly = _SerializableDescriptor(
         'GammaZeroSFPoly', Poly2DType, _required, strict=DEFAULT_STRICT,
-        docstring='The Gamma_0 SF polynomial.')  # type: Poly2DType
+        docstring='Polynomial that yields a scale factor to convert pixel power to clutter parameter '
+                  'Gamma-Zero as a function of image row coordinate (variable 1) and column coordinate (variable 2). '
+                  'Scale factor computed for a clutter cell at HAE = SCP_HAE.')  # type: Poly2DType
 
 
 ###############
@@ -2880,16 +2915,18 @@ class RadiometricType(Serializable):
 
 
 class EBType(Serializable):
-    """"""
+    """Electrical boresight (EB) steering directions for an electronically steered array."""
     _fields = ('DCXPoly', 'DCYPoly')
     _required = _fields
     # descriptors
     DCXPoly = _SerializableDescriptor(
         'DCXPoly', Poly1DType, _required, strict=DEFAULT_STRICT,
-        docstring='The DCX polynomial.')  # type: Poly1DType
+        docstring='Electrical boresight steering X-axis direction cosine (DCX) as a function of '
+                  'slow time (variable 1).')  # type: Poly1DType
     DCYPoly = _SerializableDescriptor(
         'DCYPoly', Poly1DType, _required, strict=DEFAULT_STRICT,
-        docstring='The DCY polynomial.')  # type: Poly1DType
+        docstring='Electrical boresight steering Y-axis direction cosine (DCY) as a function of '
+                  'slow time (variable 1).')  # type: Poly1DType
 
 
 class AntParamType(Serializable):
@@ -2899,48 +2936,55 @@ class AntParamType(Serializable):
     # descriptors
     XAxisPoly = _SerializableDescriptor(
         'XAxisPoly', XYZPolyType, _required, strict=DEFAULT_STRICT,
-        docstring='The X axis polynomial.')  # type: XYZPolyType
+        docstring='Antenna X-Axis unit vector in ECF as a function of time (variable 1).')  # type: XYZPolyType
     YAxisPoly = _SerializableDescriptor(
         'YAxisPoly', XYZPolyType, _required, strict=DEFAULT_STRICT,
-        docstring='The Y axis polynomial.')  # type: XYZPolyType
+        docstring='Antenna Y-Axis unit vector in ECF as a function of time (variable 1).')  # type: XYZPolyType
     FreqZero = _FloatDescriptor(
         'FreqZero', _required, strict=DEFAULT_STRICT,
-        docstring='The frequency zero.')  # type: float
+        docstring='RF frequency (f0) used to specify the array pattern and eletrical boresite (EB) '
+                  'steering direction cosines.')  # type: float
     EB = _SerializableDescriptor(
         'EB', EBType, _required, strict=DEFAULT_STRICT,
-        docstring='The EB.')  # type: EBType
+        docstring='Electrical boresight (EB) steering directions for an electronically steered array.')  # type: EBType
     Array = _SerializableDescriptor(
         'Array', GainPhasePolyType, _required, strict=DEFAULT_STRICT,
-        docstring='The antenna array gain/phase polynomial.')  # type: GainPhasePolyType
+        docstring='Array pattern polynomials that define the shape of the mainlobe.')  # type: GainPhasePolyType
     Elem = _SerializableDescriptor(
         'Elem', GainPhasePolyType, _required, strict=DEFAULT_STRICT,
-        docstring='The element gain/phase polynomial.')  # type: GainPhasePolyType
+        docstring='Element array pattern polynomials for electronically steered arrays.')  # type: GainPhasePolyType
     GainBSPoly = _SerializableDescriptor(
         'GainBSPoly', Poly1DType, _required, strict=DEFAULT_STRICT,
-        docstring='The Gain BS polynomial.')  # type: Poly1DType
+        docstring='Gain polynomial (dB) as a function of frequency for boresight (BS) at DCX = 0 and DCY = 0. '
+                  'Frequency ratio `(f-f0)/f0` is the input variable (variable 1), and the constant coefficient '
+                  'is always 0.0.')  # type: Poly1DType
     EBFreqShift = _BooleanDescriptor(
         'EBFreqShift', _required, strict=DEFAULT_STRICT,
-        docstring='The EB shift boolean.')  # type: bool
+        docstring="""Parameter indicating whether the elctronic boresite shifts with frequency for an 
+        electronically steered array.
+* `False` - No shift with frequency.
+* `True` - Shift with frequency per ideal array theory.""")  # type: bool
     MLFreqDilation = _BooleanDescriptor(
         'MLFreqDilation', _required, strict=DEFAULT_STRICT,
-        docstring='The ML frequency dilation boolean.')  # type: bool
+        docstring="""Parameter indicating the mainlobe (ML) width changes with frequency.
+* `False` - No change with frequency.
+* `True` - Change with frequency per ideal array theory.""")  # type: bool
 
 
 class AntennaType(Serializable):
-    """The antenna parameters."""
-    # TODO: page 48 of standard doc
+    """Parameters that describe the antenna illumination patterns during the collection."""
     _fields = ('Tx', 'Rcv', 'TwoWay')
     _required = ()
     # descriptors
     Tx = _SerializableDescriptor(
         'Tx', AntParamType, _required, strict=DEFAULT_STRICT,
-        docstring='The transmit antenna.')  # type: AntParamType
+        docstring='The transmit antenna parameters.')  # type: AntParamType
     Rcv = _SerializableDescriptor(
         'Rcv', AntParamType, _required, strict=DEFAULT_STRICT,
-        docstring='The receive antenna.')  # type: AntParamType
+        docstring='The receive antenna parameters.')  # type: AntParamType
     TwoWay = _SerializableDescriptor(
         'TwoWay', AntParamType, _required, strict=DEFAULT_STRICT,
-        docstring='The bidirectional transmit/receive antenna.')  # type: AntParamType
+        docstring='The bidirectional transmit/receive antenna parameters.')  # type: AntParamType
 
 
 ###############
@@ -3153,7 +3197,7 @@ class MatchType(Serializable):
     TypeId = _StringDescriptor(
         'TypeId', _required, strict=DEFAULT_STRICT,
         docstring='The match type identifier. *Examples - "COHERENT" or "STEREO"*')  # type: str
-    CurrentIndex = _IntegerDescriptor(  # TODO: is this to build an iterator?
+    CurrentIndex = _IntegerDescriptor(
         'CurrentIndex', _required, strict=DEFAULT_STRICT,
         docstring='Collection sequence index for the current collection.')  # type: int
     MatchCollections = _SerializableArrayDescriptor(
@@ -3173,7 +3217,7 @@ class MatchInfoType(Serializable):
     """The match information container."""
     _fields = ('NumMatchTypes', 'MatchTypes')
     _required = ('MatchTypes', )
-    _collections_tags = {'MatchTypes': {'array': False, 'child_tag': ''}}
+    _collections_tags = {'MatchTypes': {'array': False, 'child_tag': 'MatchType'}}
     # descriptors
     MatchTypes = _SerializableArrayDescriptor(
         'MatchTypes', MatchType, _collections_tags, _required, strict=DEFAULT_STRICT, minimum_length=1,
@@ -3410,13 +3454,13 @@ class SICDType(Serializable):
         docstring='The image formation process.')  # type: ImageFormationType
     SCPCOA = _SerializableDescriptor(
         'SCPCOA', SCPCOAType, _required, strict=DEFAULT_STRICT,
-        docstring='')  # type: SCPCOAType
+        docstring='Center of Aperture (COA) for the Scene Center Point (SCP).')  # type: SCPCOAType
     Radiometric = _SerializableDescriptor(
         'Radiometric', RadiometricType, _required, strict=DEFAULT_STRICT,
-        docstring='')  # type: RadiometricType
+        docstring='The radiometric calibration parameters.')  # type: RadiometricType
     Antenna = _SerializableDescriptor(
         'Antenna', AntennaType, _required, strict=DEFAULT_STRICT,
-        docstring='')  # type: AntennaType
+        docstring='Parameters that describe the antenna illumination patterns during the collection.')  # type: AntennaType
     ErrorStatistics = _SerializableDescriptor(
         'ErrorStatistics', ErrorStatisticsType, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: ErrorStatisticsType
