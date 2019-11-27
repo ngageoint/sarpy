@@ -1,14 +1,17 @@
 """
-**This module is a work in progress. The eventual structure of this is yet to be determined.**
+**This module is a work in progress - python object oriented SICD structure 1.1 (2014-09-30).**
 
-Object oriented SICD structure definition. Enabling effective documentation and streamlined use of the SICD information
-is the main purpose of this approach, versus the matlab struct based effort or using the Python bindings for the C++
-SIX library.
+This purpose of doing it this way is to encourage effective documentation and streamlined use of the SICD information.
+This provides more robustness than using structures with no built-in validation, and more flexibility than using the
+rigidity of C++ based standards validation.
 """
 
-# TODO: 1.) flesh out docstrings from the sicd standards document
-# TODO: 2.) determine necessary and appropriate formatting issues for serialization/deserialization
-# TODO: 3.) determine and implement appropriate class methods for proper functionality
+# TODO:
+#  1.) determine necessary and appropriate formatting issues for serialization/deserialization
+#   i.) proper precision for numeric serialization
+#   ii.) is there any ridiculous formatting for latitude or longitude?
+#  2.) determine and implement appropriate class methods for proper functionality
+#   how are things used, and what helper functions do we need?
 
 from xml.dom import minidom
 from collections import OrderedDict
@@ -28,6 +31,7 @@ bool: module level default behavior for whether to handle standards compliance s
 
 #################
 # descriptor definitions - these are reusable properties that handle typing and deserialization in one place
+
 
 class _BasicDescriptor(object):
     """A descriptor object for reusable properties. Note that is is required that the calling instance is hashable."""
@@ -77,7 +81,7 @@ class _BasicDescriptor(object):
 
         Returns
         -------
-        str
+        object
             the return value
         """
 
@@ -110,7 +114,7 @@ class _BasicDescriptor(object):
         """
 
         # NOTE: This is intended to handle this case for every extension of this class. Hence the boolean return,
-        # which extensions SHOULD NOT implement. This is merely to enable following DRY principles.
+        # which extensions SHOULD NOT implement. This is merely to follow DRY principles.
         if value is None:
             if self.strict:
                 raise ValueError(
@@ -957,6 +961,13 @@ class Serializable(object):
     """define dict entries of numeric formatting for serialization"""
     _set_as_attribute = ()
     """serialize these fields as xml attributes"""
+    _choice = ()
+    """Entries appropriate for choice selection between attributes. Entry formatting:
+    * `{'required': True, 'collection': <tuple of attribute names>}` - indicates that EXACTLY only one of the 
+        attributes should be populated.
+    * `{'required': False, 'collection': <tuple of attribute names>}` - indicates that no more than one of the 
+        attributes should be populated.
+    """
 
     # NB: it may be good practice to use __slots__ to further control class functionality?
 
@@ -993,7 +1004,7 @@ class Serializable(object):
         -------
         None
         """
-        # TODO: extend this to include format function capabilities. numeric_format is not the right name.
+        # Extend this to include format function capabilities. Maybe numeric_format is not the right name?
         if attribute not in self._fields:
             raise ValueError('attribute {} is not permitted for class {}'.format(attribute, self.__class__.__name__))
         self._numeric_format[attribute] = format_string
@@ -1061,7 +1072,28 @@ class Serializable(object):
                 logging.warning(
                     "Class {} has missing required attribute {}".format(self.__class__.__name__, attribute))
             all_required &= present
-        return all_required
+
+        choices = True
+        for entry in self._choice:
+            required = entry.get('required', False)
+            collect = entry['collection']
+            # verify that no more than one of the entries in collect is set.
+            present = []
+            for attribute in collect:
+                if getattr(self, attribute) is not None:
+                    present.append(attribute)
+            if len(present) == 0 and required:
+                logging.warning(
+                    "Class {} has requires that exactly one of the attributes {} is set, but none are "
+                    "set.".format(self.__class__.__name__, collect))
+                choices = False
+            elif len(present) > 1:
+                logging.warning(
+                    "Class {} has requires that no more than one of attributes {} is set, but multiple {} are "
+                    "set.".format(self.__class__.__name__, collect, present))
+                choices = False
+
+        return all_required and choices
 
     def _recursive_validity_check(self):
         """
@@ -1252,7 +1284,6 @@ class Serializable(object):
             if isinstance(value, Serializable):
                 value.to_node(doc, field, par=node, strict=strict)
             elif isinstance(value, str):
-                # TODO: MEDIUM - unicode issues?
                 _create_text_node(doc, field, value, par=node)
             elif isinstance(value, int) or isinstance(value, float):
                 _create_text_node(doc, field, fmt_func(value), par=node)
@@ -1401,7 +1432,6 @@ class Serializable(object):
             if isinstance(value, Serializable):
                 return value.to_dict(strict=strict)
             elif isinstance(value, (str, int, float, bool)):
-                # TODO: unicode issues?
                 return value
             elif isinstance(value, numpy.datetime64):
                 return str(value)
@@ -1508,7 +1538,7 @@ class XYZType(Serializable):
     """A spatial point in ECF coordinates."""
     _fields = ('X', 'Y', 'Z')
     _required = _fields
-    _numeric_format = {'X': '0.8f', 'Y': '0.8f', 'Z': '0.8f'}  # TODO: desired precision? This is usually meters?
+    _numeric_format = {'X': '0.8f', 'Y': '0.8f', 'Z': '0.8f'}
     # descriptors
     X = _FloatDescriptor(
         'X', _required, strict=DEFAULT_STRICT,
@@ -1541,7 +1571,7 @@ class LatLonType(Serializable):
     """A two-dimensional geographic point in WGS-84 coordinates."""
     _fields = ('Lat', 'Lon')
     _required = _fields
-    _numeric_format = {'Lat': '2.8f', 'Lon': '3.8f'}  # TODO: desired precision?
+    _numeric_format = {'Lat': '2.8f', 'Lon': '3.8f'}
     # descriptors
     Lat = _FloatDescriptor(
         'Lat', _required, strict=DEFAULT_STRICT,
@@ -1577,16 +1607,16 @@ class LatLonArrayElementType(LatLonType):
     _fields = ('Lat', 'Lon', 'index')
     _required = _fields
     _set_as_attribute = ('index', )
-    _numeric_format = {'Lat': '2.8f', 'Lon': '3.8f'}  # TODO: desired precision?
+    _numeric_format = {'Lat': '2.8f', 'Lon': '3.8f'}
     index = _IntegerDescriptor(
-        'index', _required, strict=False, docstring="The array index") # type: int
+        'index', _required, strict=False, docstring="The array index")  # type: int
 
 
 class LatLonRestrictionType(LatLonType):
     """A two-dimensional geographic point in WGS-84 coordinates."""
     _fields = ('Lat', 'Lon')
     _required = _fields
-    _numeric_format = {'Lat': '2.8f', 'Lon': '3.8f'}  # TODO: desired precision?
+    _numeric_format = {'Lat': '2.8f', 'Lon': '3.8f'}
     # descriptors
     Lat = _FloatModularDescriptor(
         'Lat', 90.0, _required, strict=DEFAULT_STRICT,
@@ -1600,7 +1630,7 @@ class LatLonHAEType(LatLonType):
     """A three-dimensional geographic point in WGS-84 coordinates."""
     _fields = ('Lat', 'Lon', 'HAE')
     _required = _fields
-    _numeric_format = {'Lat': '2.8f', 'Lon': '3.8f', 'HAE': '0.3f'}  # TODO: desired precision?
+    _numeric_format = {'Lat': '2.8f', 'Lon': '3.8f', 'HAE': '0.8f'}
     # descriptors
     HAE = _FloatDescriptor(
         'HAE', _required, strict=DEFAULT_STRICT,
@@ -1666,7 +1696,7 @@ class LatLonCornerStringType(LatLonType):
 
 
 class LatLonHAECornerRestrictionType(LatLonHAERestrictionType):
-    """A three-dimensional geographic point in WGS-84 coordinates representing a collection area box corner point."""
+    """A three-dimensional geographic point in WGS-84 coordinates. Represents a collection area box corner point."""
     _fields = ('Lat', 'Lon', 'HAE', 'index')
     _required = _fields
     _set_as_attribute = ('index', )
@@ -1678,7 +1708,7 @@ class LatLonHAECornerRestrictionType(LatLonHAERestrictionType):
 
 
 class LatLonHAECornerStringType(LatLonHAEType):
-    """A three-dimensional geographic point in WGS-84 coordinates representing a collection area box corner point."""
+    """A three-dimensional geographic point in WGS-84 coordinates. Represents a collection area box corner point."""
     _fields = ('Lat', 'Lon', 'HAE', 'index')
     _required = _fields
     _set_as_attribute = ('index', )
@@ -1714,7 +1744,7 @@ class PolyCoef1DType(FloatValueType):
     """Represents a monomial term of the form `value * x^{exponent1}`."""
     _fields = ('value', 'exponent1')
     _required = _fields
-    _numeric_format = {'value': '0.8f'}  # TODO: desired precision?
+    _numeric_format = {'value': '0.8f'}
     _set_as_attribute = ('exponent1', )
     # descriptors
     exponent1 = _IntegerDescriptor(
@@ -1729,7 +1759,7 @@ class PolyCoef2DType(FloatValueType):
 
     _fields = ('value', 'exponent1', 'exponent2')
     _required = _fields
-    _numeric_format = {'value': '0.8f'}  # TODO: desired precision?
+    _numeric_format = {'value': '0.8f'}
     _set_as_attribute = ('exponent1', 'exponent2')
     # descriptors
     exponent1 = _IntegerDescriptor(
@@ -1757,9 +1787,6 @@ class Poly1DType(Serializable):
 
         return 0 if self.Coefs is None else max(entry.exponent1 for entry in self.Coefs)
 
-    # TODO: HIGH - helper method to get numpy.polynomial.polynomial objects and so forth?
-    #   Look to SICD functionality for figuring out what we need here.
-
 
 class Poly2DType(Serializable):
     """Represents a one-variable polynomial, defined as the sum of the given monomial terms."""
@@ -1775,7 +1802,8 @@ class Poly2DType(Serializable):
     @property
     def order1(self):
         """
-        int: The order1 attribute [READ ONLY]  - that is, the largest exponent1 presented in the monomial terms of coefs.
+        int: The order1 attribute [READ ONLY]  - that is, the largest exponent1 presented in the
+        monomial terms of coefs.
         """
 
         return 0 if self.Coefs is None else max(entry.exponent1 for entry in self.Coefs)
@@ -1783,30 +1811,31 @@ class Poly2DType(Serializable):
     @property
     def order2(self):
         """
-        int: The order2 attribute [READ ONLY]  - that is, the largest exponent2 presented in the monomial terms of coefs.
+        int: The order2 attribute [READ ONLY]  - that is, the largest exponent2 presented in the
+        monomial terms of coefs.
         """
 
         return 0 if self.Coefs is None else max(entry.exponent2 for entry in self.Coefs)
 
-    # TODO: HIGH - helper method to get numpy.polynomial.polynomial objects and so forth?
-    #   Look to SICD functionality for figuring out what we need here.
-
 
 class XYZPolyType(Serializable):
-    """Represents a single variable polynomial for each of `X`, `Y`, and `Z`."""
+    """
+    Represents a single variable polynomial for each of `X`, `Y`, and `Z`. This gives position in ECF coordinates
+    as a function of a single dependent variable.
+    """
+
     _fields = ('X', 'Y', 'Z')
     _required = _fields
     # descriptors
     X = _SerializableDescriptor(
-        'X', Poly1DType, _required, strict=DEFAULT_STRICT, docstring='The X polynomial.')  # type: Poly1DType
+        'X', Poly1DType, _required, strict=DEFAULT_STRICT,
+        docstring='The polynomial for the X coordinate.')  # type: Poly1DType
     Y = _SerializableDescriptor(
-        'Y', Poly1DType, _required, strict=DEFAULT_STRICT, docstring='The Y polynomial.')  # type: Poly1DType
+        'Y', Poly1DType, _required, strict=DEFAULT_STRICT,
+        docstring='The polynomial for the Y coordinate.')  # type: Poly1DType
     Z = _SerializableDescriptor(
-        'Z', Poly1DType, _required, strict=DEFAULT_STRICT, docstring='The Z polynomial.')  # type: Poly1DType
-    # TODO: a better description would be good here
-
-    # TODO: HIGH - helper method to get numpy.polynomial.polynomial objects and so forth?
-    #   Look to SICD functionality for figuring out what we need here.
+        'Z', Poly1DType, _required, strict=DEFAULT_STRICT,
+        docstring='The polynomial for the Z coordinate.')  # type: Poly1DType
 
 
 class XYZPolyAttributeType(XYZPolyType):
@@ -1824,6 +1853,7 @@ class XYZPolyAttributeType(XYZPolyType):
 
 class GainPhasePolyType(Serializable):
     """A container for the Gain and Phase Polygon definitions."""
+
     _fields = ('GainPoly', 'PhasePoly')
     _required = _fields
     # descriptors
@@ -1840,10 +1870,14 @@ class GainPhasePolyType(Serializable):
 
 
 class ErrorDecorrFuncType(Serializable):
-    """The Error Decorrelation Function?"""
+    """
+    This container allows parameterization of linear error decorrelation rate model.
+    If `(Delta t) = |t2 – t1|`, then `CC(Delta t) = Min(1.0, Max(0.0, CC0 – DCR*(Delta t)))`.
+    """
+
     _fields = ('CorrCoefZero', 'DecorrRate')
     _required = _fields
-    _numeric_format = {'CorrCoefZero': '0.8f', 'DecorrRate': '0.8f'}  # TODO: desired precision?
+    _numeric_format = {'CorrCoefZero': '0.8f', 'DecorrRate': '0.8f'}
     # descriptors
     CorrCoefZero = _FloatDescriptor(
         'CorrCoefZero', _required, strict=DEFAULT_STRICT,
@@ -1851,8 +1885,6 @@ class ErrorDecorrFuncType(Serializable):
     DecorrRate = _FloatDescriptor(
         'DecorrRate', _required, strict=DEFAULT_STRICT,
         docstring='Error decorrelation rate. Simple linear decorrelation rate (DCR).')  # type: float
-
-    # TODO: HIGH - this is supposed to be a "function". We should implement the functionality here.
 
 
 ####################################################################
@@ -1966,6 +1998,7 @@ class FullImageType(Serializable):
 
 class ImageDataType(Serializable):
     """The image pixel data."""
+
     _collections_tags = {
         'AmpTable': {'array': True, 'child_tag': 'Amplitude'},
         'ValidData': {'array': True, 'child_tag': 'Vertex'},
@@ -1973,7 +2006,7 @@ class ImageDataType(Serializable):
     _fields = ('PixelType', 'AmpTable', 'NumRows', 'NumCols', 'FirstRow', 'FirstCol', 'FullImage', 'SCPPixel',
                 'ValidData')
     _required = ('PixelType', 'NumRows', 'NumCols', 'FirstRow', 'FirstCol', 'FullImage', 'SCPPixel')
-    _numeric_format = {'AmpTable': '0.8f'}  # TODO: precision for AmpTable?
+    _numeric_format = {'AmpTable': '0.8f'}
     _PIXEL_TYPE_VALUES = ("RE32F_IM32F", "RE16I_IM16I", "AMP8I_PHS8I")
     # descriptors
     PixelType = _StringEnumDescriptor(
@@ -2028,15 +2061,16 @@ class ImageDataType(Serializable):
 
 class GeoInfoType(Serializable):
     """A geographic feature."""
-    # TODO: the word document/pdf doesn't match the xsd.
+    # TODO: This needs to be verified with Wade. The word document/pdf doesn't match the xsd.
     #   Is the standard really self-referential here? I find that confusing.
+    _fields = ('name', 'Descriptions', 'Point', 'Line', 'Polygon')
+    _required = ('name', )
+    _set_as_attribute = ('name', )
+    _choice = ({'required': False, 'collection': ('Point', 'Line', 'Polygon')}, )
     _collections_tags = {
         'Descriptions': {'array': False, 'child_tag': 'Desc'},
         'Line': {'array': True, 'child_tag': 'Endpoint'},
         'Polygon': {'array': True, 'child_tag': 'Vertex'}, }
-    _fields = ('name', 'Descriptions', 'Point', 'Line', 'Polygon')
-    _required = ('name', )
-    _set_as_attribute = ('name', )
     # descriptors
     name = _StringDescriptor(
         'name', _required, strict=True,
@@ -2054,25 +2088,26 @@ class GeoInfoType(Serializable):
         'Polygon', LatLonArrayElementType, _collections_tags, _required, strict=DEFAULT_STRICT, minimum_length=3,
         docstring='A geographic polygon (array) with WGS-84 coordinates.')  # type: numpy.ndarray
 
-    def _validate_features(self):
-        # exactly one of Point, Line, Polygon should be defined.
-        feats = []
-        for feat in ['Point', 'Line', 'Polygon']:
-            if getattr(self, feat) is not None:
-                feats.append(feat)
-        if len(feats) < 1:
-            logging.warning('GeoInfo has no feature (Point, line, Polygon) defined.')
-            return False
-        elif len(feats) > 1:
-            logging.warning('GeoInfo has multiple features defined - {}.'.format(feats))
-            return False
-        elif self.Line is not None and self.Line.size < 2:
-            logging.warning('GeoInfo is a Line with {} points defined.'.format(self.Line.size))
-            return False
-        elif self.Polygon is not None and self.Polygon.size < 3:
-            logging.warning('GeoInfo is a Polygon with {} points defined.'.format(self.Polygon.size))
-            return False
+    @property
+    def FeatureType(self):  # type: () -> str
+        """
+        str: READ ONLY attribute. Identifies the feature type among. This is determined by
+        returning the (first) attribute among `Point`, `Line`, `Polygon` which is populated. None will be returned if
+        none of them are populated.
+        """
 
+        for attribute in self._choice[0]['collection']:
+            if getattr(self, attribute) is not None:
+                return attribute
+        return None
+
+    def _validate_features(self):
+        if self.Line is not None and self.Line.size < 2:
+            logging.warning('GeoInfo has a Line feature with {} points defined.'.format(self.Line.size))
+            return False
+        if self.Polygon is not None and self.Polygon.size < 3:
+            logging.warning('GeoInfo has a Polygon feature with {} points defined.'.format(self.Polygon.size))
+            return False
         return True
 
     def _basic_validity_check(self):
@@ -2386,16 +2421,12 @@ class WaveformParametersType(Serializable):
         'RcvDemodType', _DEMOD_TYPE_VALUES, _required, strict=DEFAULT_STRICT,
         docstring="Receive demodulation used when Linear FM waveform is used on transmit.")  # type: float
 
-    def __init__(self, **kwargs):
-        super(WaveformParametersType, self).__init__(**kwargs)
-        if self.RcvDemodType == 'CHIRP':
-            self.RcvFMRate = 0
-
     def _basic_validity_check(self):
         valid = super(WaveformParametersType, self)._basic_validity_check()
         if (self.RcvDemodType == 'CHIRP') and (self.RcvFMRate != 0):
             # TODO: should we simply reset?
-            logging.warning('In WaveformParameters, we have RcvDemodType == "CHIRP" and self.RcvFMRate non-zero.')
+            logging.warning(
+                'In WaveformParameters, we have RcvDemodType == "CHIRP" and self.RcvFMRate non-zero.')
             valid = False
         return valid
 
@@ -2551,7 +2582,7 @@ class AreaType(Serializable):
     _fields = ('Corner', 'Plane')
     _required = ('Corner', )
     _collections_tags = {
-        'Corner': {'array': False, 'child_tag': 'ACP'},}
+        'Corner': {'array': False, 'child_tag': 'ACP'}, }
     # descriptors
     Corner = _SerializableArrayDescriptor(
         'Corner', LatLonHAECornerRestrictionType, _collections_tags, _required, strict=DEFAULT_STRICT,
@@ -2663,7 +2694,6 @@ class ProcessingType(Serializable):
 
 class DistortionType(Serializable):
     """Distortion"""
-    # TODO: Look to matrix equation on page 42 of standard.
     _fields = (
         'CalibrationDate', 'A', 'F1', 'F2', 'Q1', 'Q2', 'Q3', 'Q4',
         'GainErrorA', 'GainErrorF1', 'GainErrorF2', 'PhaseErrorF1', 'PhaseErrorF2')
@@ -2992,23 +3022,26 @@ class AntennaType(Serializable):
 
 
 class CompositeSCPErrorType(Serializable):
-    """The composite SCP container for the error statistics."""
+    """
+    Composite error statistics for the Scene Center Point. Slant plane range (Rg) and azimuth (Az) error
+    statistics. Slant plane defined at SCP COA.
+    """
     _fields = ('Rg', 'Az', 'RgAz')
     _required = _fields
     # descriptors
     Rg = _FloatDescriptor(
         'Rg', _required, strict=DEFAULT_STRICT,
-        docstring='The range.')  # type: float
+        docstring='Estimated range error standard deviation.')  # type: float
     Az = _FloatDescriptor(
         'Az', _required, strict=DEFAULT_STRICT,
-        docstring='The azimuth.')  # type: float
+        docstring='Estimated azimuth error standard deviation.')  # type: float
     RgAz = _FloatDescriptor(
         'RgAz', _required, strict=DEFAULT_STRICT,
-        docstring='The range azimuth.')  # type: float
+        docstring='Estimated range and azimuth error correlation coefficient.')  # type: float
 
 
 class CorrCoefsType(Serializable):
-    """Correlation coefficients container for Pos Vel Err parameters of the error statistics components."""
+    """Correlation Coefficient parameters."""
     _fields = (
         'P1P2', 'P1P3', 'P1V1', 'P1V2', 'P1V3', 'P2P3', 'P2V1', 'P2V2', 'P2V3',
         'P3V1', 'P3V2', 'P3V3', 'V1V2', 'V1V3', 'V2V3')
@@ -3047,7 +3080,7 @@ class CorrCoefsType(Serializable):
 
 
 class PosVelErrType(Serializable):
-    """The Pos Vel Err container for the error statistics components."""
+    """Position and velocity error statistics for the radar platform."""
     _fields = ('Frame', 'P1', 'P2', 'P3', 'V1', 'V2', 'V3', 'CorrCoefs', 'PositionDecorr')
     _required = ('Frame', 'P1', 'P2', 'P3', 'V1', 'V2', 'V3')
     # class variables
@@ -3055,113 +3088,119 @@ class PosVelErrType(Serializable):
     # descriptors
     Frame = _StringEnumDescriptor(
         'Frame', _FRAME_VALUES, _required, strict=DEFAULT_STRICT,
-        docstring='The frame of reference?')  # type: str
+        docstring='Coordinate frame used for expressing P,V errors statistics. Note: '
+                  '*RIC = Radial, In-Track, Cross-Track*, where radial is defined to be from earth center through '
+                  'the platform position. ')  # type: str
     P1 = _FloatDescriptor(
-        'P1', _required, strict=DEFAULT_STRICT, docstring='')  # type: float
+        'P1', _required, strict=DEFAULT_STRICT, docstring='Position coordinate 1 standard deviation.')  # type: float
     P2 = _FloatDescriptor(
-        'P2', _required, strict=DEFAULT_STRICT, docstring='')  # type: float
+        'P2', _required, strict=DEFAULT_STRICT, docstring='Position coordinate 2 standard deviation.')  # type: float
     P3 = _FloatDescriptor(
-        'P3', _required, strict=DEFAULT_STRICT, docstring='')  # type: float
+        'P3', _required, strict=DEFAULT_STRICT, docstring='Position coordinate 3 standard deviation.')  # type: float
     V1 = _FloatDescriptor(
-        'V1', _required, strict=DEFAULT_STRICT, docstring='')  # type: float
+        'V1', _required, strict=DEFAULT_STRICT, docstring='Velocity coordinate 1 standard deviation.')  # type: float
     V2 = _FloatDescriptor(
-        'V2', _required, strict=DEFAULT_STRICT, docstring='')  # type: float
+        'V2', _required, strict=DEFAULT_STRICT, docstring='Velocity coordinate 2 standard deviation.')  # type: float
     V3 = _FloatDescriptor(
-        'V3', _required, strict=DEFAULT_STRICT, docstring='')  # type: float
+        'V3', _required, strict=DEFAULT_STRICT, docstring='Velocity coordinate 3 standard deviation.')  # type: float
     CorrCoefs = _SerializableDescriptor(
         'CorrCoefs', CorrCoefsType, _required, strict=DEFAULT_STRICT,
-        docstring='The correlation coefficients.')  # type: CorrCoefsType
+        docstring='Correlation Coefficient parameters.')  # type: CorrCoefsType
     PositionDecorr = _SerializableDescriptor(
         'PositionDecorr', ErrorDecorrFuncType, _required, strict=DEFAULT_STRICT,
-        docstring='The position decorrelation function.')  # type: ErrorDecorrFuncType
+        docstring='Platform position error decorrelation function.')  # type: ErrorDecorrFuncType
 
 
 class RadarSensorErrorType(Serializable):
-    """The radar sensor container for the error statistics components."""
+    """Radar sensor error statistics."""
     _fields = ('RangeBias', 'ClockFreqSF', 'TransmitFreqSF', 'RangeBiasDecorr')
     _required = ('RangeBias', )
     # descriptors
     RangeBias = _FloatDescriptor(
         'RangeBias', _required, strict=DEFAULT_STRICT,
-        docstring='The range bias.')  # type: float
+        docstring='Range bias error standard deviation.')  # type: float
     ClockFreqSF = _FloatDescriptor(
         'ClockFreqSF', _required, strict=DEFAULT_STRICT,
-        docstring='The clock frequency SF.')  # type: float
+        docstring='Payload clock frequency scale factor standard deviation, where SF = (Delta f)/f0.')  # type: float
     TransmitFreqSF = _FloatDescriptor(
         'TransmitFreqSF', _required, strict=DEFAULT_STRICT,
-        docstring='The tramsit frequency SF.')  # type: float
+        docstring='Transmit frequency scale factor standard deviation, where SF = (Delta f)/f0.')  # type: float
     RangeBiasDecorr = _SerializableDescriptor(
         'RangeBiasDecorr', ErrorDecorrFuncType, _required, strict=DEFAULT_STRICT,
-        docstring='The range bias decorrelation function.')  # type: ErrorDecorrFuncType
+        docstring='Range bias decorrelation rate.')  # type: ErrorDecorrFuncType
 
 
 class TropoErrorType(Serializable):
-    """The Troposphere error container for the error statistics components."""
+    """Troposphere delay error statistics."""
     _fields = ('TropoRangeVertical', 'TropoRangeSlant', 'TropoRangeDecorr')
     _required = ()
     # descriptors
     TropoRangeVertical = _FloatDescriptor(
         'TropoRangeVertical', _required, strict=DEFAULT_STRICT,
-        docstring='The Troposphere vertical range.')  # type: float
+        docstring='Troposphere two-way delay error for normal incidence standard deviation. '
+                  'Expressed as a range error. `(Delta R) = (Delta T) x c/2`.')  # type: float
     TropoRangeSlant = _FloatDescriptor(
         'TropoRangeSlant', _required, strict=DEFAULT_STRICT,
-        docstring='The Troposphere slant range.')  # type: float
+        docstring='Troposphere two-way delay error for the SCP line of sight at COA standard deviation. '
+                  'Expressed as a range error. `(Delta R) = (Delta T) x c/2`.')  # type: float
     TropoRangeDecorr = _SerializableDescriptor(
         'TropoRangeDecorr', ErrorDecorrFuncType, _required, strict=DEFAULT_STRICT,
-        docstring='The Troposphere range decorrelation function.')  # type: ErrorDecorrFuncType
+        docstring='Troposphere range error decorrelation function.')  # type: ErrorDecorrFuncType
 
 
 class IonoErrorType(Serializable):
-    """The Ionosphere error container for the error statistics components."""
+    """Ionosphere delay error statistics."""
     _fields = ('IonoRangeVertical', 'IonoRangeSlant', 'IonoRgRgRateCC', 'IonoRangeDecorr')
     _required = ('IonoRgRgRateCC', )
     # descriptors
     IonoRangeVertical = _FloatDescriptor(
         'IonoRangeVertical', _required, strict=DEFAULT_STRICT,
-        docstring='The Ionosphere vertical range.')  # type: float
+        docstring='Ionosphere two-way delay error for normal incidence standard deviation. '
+                  'Expressed as a range error. `(Delta R) = (Delta T) x c/2`.')  # type: float
     IonoRangeSlant = _FloatDescriptor(
         'IonoRangeSlant', _required, strict=DEFAULT_STRICT,
-        docstring='The Ionosphere slant range.')  # type: float
+        docstring='Ionosphere two-way delay rate of change error for normal incidence standard deviation. '
+                  'Expressed as a range rate error. `(Delta Rdot) = (Delta Tdot) x c/2`.')  # type: float
     IonoRgRgRateCC = _FloatDescriptor(
         'IonoRgRgRateCC', _required, strict=DEFAULT_STRICT,
-        docstring='The Ionosphere RgRg rate correlation coefficient.')  # type: float
+        docstring='Ionosphere range error and range rate error correlation coefficient.')  # type: float
     IonoRangeDecorr = _SerializableDescriptor(
         'IonoRangeDecorr', ErrorDecorrFuncType, _required, strict=DEFAULT_STRICT,
-        docstring='The Ionosphere range decorrelation function.')  # type: ErrorDecorrFuncType
+        docstring='Ionosphere range error decorrelation rate.')  # type: ErrorDecorrFuncType
 
 
 class ErrorComponentsType(Serializable):
-    """The error components container for the error statistics."""
+    """Error statistics by components."""
     _fields = ('PosVelErr', 'RadarSensor', 'TropoError', 'IonoError')
     _required = ('PosVelErr', 'RadarSensor')
     # descriptors
     PosVelErr = _SerializableDescriptor(
         'PosVelErr', PosVelErrType, _required, strict=DEFAULT_STRICT,
-        docstring='')  # type: PosVelErrType
+        docstring='Position and velocity error statistics for the radar platform.')  # type: PosVelErrType
     RadarSensor = _SerializableDescriptor(
         'RadarSensor', RadarSensorErrorType, _required, strict=DEFAULT_STRICT,
-        docstring='')  # type: RadarSensorErrorType
+        docstring='Radar sensor error statistics.')  # type: RadarSensorErrorType
     TropoError = _SerializableDescriptor(
         'TropoError', TropoErrorType, _required, strict=DEFAULT_STRICT,
-        docstring='')  # type: TropoErrorType
+        docstring='Troposphere delay error statistics.')  # type: TropoErrorType
     IonoError = _SerializableDescriptor(
         'IonoError', IonoErrorType, _required, strict=DEFAULT_STRICT,
-        docstring='')  # type: IonoErrorType
+        docstring='Ionosphere delay error statistics.')  # type: IonoErrorType
 
 
 class ErrorStatisticsType(Serializable):
-    """"""
-    # TODO: page 55 of standard doc
+    """Parameters used to compute error statistics within the SICD sensor model."""
     _fields = ('CompositeSCP', 'Components', 'AdditionalParms')
     _required = ()
     _collections_tags = {'AdditionalParms': {'array': True, 'child_tag': 'Parameter'}}
     # descriptors
     CompositeSCP = _SerializableDescriptor(
         'CompositeSCP', CompositeSCPErrorType, _required, strict=DEFAULT_STRICT,
-        docstring='')  # type: CompositeSCPErrorType
+        docstring='Composite error statistics for the Scene Center Point. Slant plane range (Rg) and azimuth (Az) '
+                  'error statistics. Slant plane defined at SCP COA.')  # type: CompositeSCPErrorType
     Components = _SerializableDescriptor(
         'Components', ErrorComponentsType, _required, strict=DEFAULT_STRICT,
-        docstring='')  # type: ErrorComponentsType
+        docstring='Error statistics by components.')  # type: ErrorComponentsType
     AdditionalParms = _SerializableArrayDescriptor(
         'AdditionalParms', ParameterType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Any additional paremeters.')  # type: numpy.ndarray
@@ -3295,7 +3334,7 @@ class PFAType(Serializable):
         'PolarAngPoly', Poly1DType, _required, strict=DEFAULT_STRICT,
         docstring='Polynomial function that yields Polar Angle (radians) as function of time '
                   'relative to Collection Start.')  # type: Poly1DType
-    SpatialFreqSFPoly = _SerializableDescriptor(  # TODO: math in sphinx doc?
+    SpatialFreqSFPoly = _SerializableDescriptor(
         'SpatialFreqSFPoly', Poly1DType, _required, strict=DEFAULT_STRICT,
         docstring='Polynomial that yields the Spatial Frequency Scale Factor (KSF) as a function of Polar '
                   'Angle. Polar Angle(radians) -> KSF (dimensionless). Used to scale RF frequency (fx, Hz) to '
@@ -3381,9 +3420,9 @@ class RMAType(Serializable):
     """Parameters included when the image is formed using the Range Migration Algorithm."""
     _fields = ('RMAlgoType', 'ImageType', 'RMAT', 'RMCR', 'INCA')
     _required = ('RMAlgoType', 'ImageType')
+    _choice = ({'required': True, 'collection': ('RMAT', 'RMCR', 'INCA')}, )
     # class variables
     _RM_ALGO_TYPE_VALUES = ('OMEGA_K', 'CSA', 'RG_DOP')
-    _IMAGE_TYPE_VALUES = ('RMAT', 'RMCR', 'INCA')
     # descriptors
     RMAlgoType = _StringEnumDescriptor(
         'RMAlgoType', _RM_ALGO_TYPE_VALUES, _required, strict=DEFAULT_STRICT,
@@ -3391,13 +3430,6 @@ class RMAType(Serializable):
 * `OMEGA_K` - Algorithms that employ Stolt interpolation of the Kxt dimension. `Kx = (Kf^2 – Ky^2)^0.5`
 * `CSA` - Wave number algorithm that process two-dimensional chirp signals.
 * `RG_DOP` - Range-Doppler algorithms that employ RCMC in the compressed range domain.""")  # type: str
-    ImageType = _StringEnumDescriptor(
-        'ImageType', _IMAGE_TYPE_VALUES, _required, strict=DEFAULT_STRICT,
-        docstring="""Identifies the specific RM image type / metadata type supplied.
-* `RMAT` - Range Migration w/ Along Track motion compensation.
-* `RMCR` - Range Migration w/ Cross Range motion compensation.
-* `INCA` - Imaging Near Closest Approach. Special RM processing used for imaging near 
-closest approach.""")  # type: str
     RMAT = _SerializableDescriptor(
         'RMAT', RMRefType, _required, strict=DEFAULT_STRICT,
         docstring='Parameters for RMA with Along Track (RMAT) motion compensation.')  # type: RMRefType
@@ -3407,8 +3439,19 @@ closest approach.""")  # type: str
     INCA = _SerializableDescriptor(
         'INCA', INCAType, _required, strict=DEFAULT_STRICT,
         docstring='Parameters for Imaging Near Closest Approach (INCA) image description.')  # type: INCAType
-    # TODO: validate the choice - exactly one of RMAT, RMCR, INCA should be populated,
-    #   and it should be in-keeping with ImageType selection - should be property?
+
+    @property
+    def ImageType(self):  # type: () -> str
+        """
+        str: READ ONLY attribute. Identifies the specific RM image type / metadata type supplied. This is determined by
+        returning the (first) attribute among `RMAT`, `RMCR`, `INCA` which is populated. None will be returned if
+        none of them are populated.
+        """
+
+        for attribute in self._choice[0]['collection']:
+            if getattr(self, attribute) is not None:
+                return attribute
+        return None
 
 
 ####################################################################
@@ -3424,6 +3467,7 @@ class SICDType(Serializable):
     _required = (
         'CollectionInfo', 'ImageData', 'GeoData', 'Grid', 'Timeline', 'Position',
         'RadarCollection', 'ImageFormation', 'SCPCOA')
+    _choice = ({'required': False, 'collection': ('RgAzComp', 'PFA', 'RMA')}, )
     # descriptors
     CollectionInfo = _SerializableDescriptor(
         'CollectionInfo', CollectionInfoType, _required, strict=DEFAULT_STRICT,
@@ -3463,7 +3507,7 @@ class SICDType(Serializable):
         docstring='Parameters that describe the antenna illumination patterns during the collection.')  # type: AntennaType
     ErrorStatistics = _SerializableDescriptor(
         'ErrorStatistics', ErrorStatisticsType, _required, strict=DEFAULT_STRICT,
-        docstring='')  # type: ErrorStatisticsType
+        docstring='Parameters used to compute error statistics within the SICD sensor model.')  # type: ErrorStatisticsType
     MatchInfo = _SerializableDescriptor(
         'MatchInfo', MatchInfoType, _required, strict=DEFAULT_STRICT,
         docstring='Information about other collections that are matched to the current collection. The current '
@@ -3478,70 +3522,113 @@ class SICDType(Serializable):
         'RMA', RMAType, _required, strict=DEFAULT_STRICT,
         docstring='Parameters included when the image is formed using the Range Migration Algorithm.')  # type: RMAType
 
-    def _validate_image_form(self):
+    @property
+    def ImageFormType(self):  # type: () -> str
+        """
+        str: READ ONLY attribute. Identifies the specific image formation type supplied. This is determined by
+        returning the (first) attribute among `RgAzComp`, `PFA`, `RMA` which is populated. `OTHER` will be returned if
+        none of them are populated.
+        """
+
+        for attribute in self._choice[0]['collection']:
+            if getattr(self, attribute) is not None:
+                return attribute
+        return 'OTHER'
+
+    def _validate_image_segment_id(self):  # type: () -> bool
+        if self.ImageFormation is None or self.RadarCollection is None:
+            return False
+
+        # get the segment identifier
+        seg_id = self.ImageFormation.SegmentIdentifier
+        # get the segment list
+        try:
+            seg_list = self.RadarCollection.Area.Plane.SegmentList
+        except AttributeError:
+            seg_list = None
+
+        if seg_id is None:
+            if seg_list is None:
+                return True
+            else:
+                logging.error(
+                    'ImageFormation.SegmentIdentifier is not populated, but RadarCollection.Area.Plane.SegmentList '
+                    'is populated. ImageFormation.SegmentIdentifier should be set to identify the appropriate segment.')
+                return False
+        else:
+            if seg_list is None:
+                logging.error(
+                    'ImageFormation.SegmentIdentifier is populated as {}, but RadarCollection.Area.Plane.SegmentList '
+                    'is not populated.'.format(seg_id))
+                return False
+            else:
+                # let's double check that seg_id is sensibly populated
+                the_ids = [entry.Identifier for entry in seg_list]
+                if seg_id in the_ids:
+                    return True
+                else:
+                    logging.error(
+                        'ImageFormation.SegmentIdentifier is populated as {}, but this is not one of the possible '
+                        'identifiers in the RadarCollection.Area.Plane.SegmentList definition {}. '
+                        'ImageFormation.SegmentIdentifier should be set to identify the '
+                        'appropriate segment.'.format(seg_id, the_ids))
+                    return False
+
+    def _validate_image_form(self):  # type: () -> bool
+        if self.ImageFormation is None:
+            logging.error(
+                'ImageFormation attribute is not populated, and ImagFormType is {}. This '
+                'cannot be valid.'.format(self.ImageFormType))
+            return False  # nothing more to be done.
+
         alg_types = []
         for alg in ['RgAzComp', 'PFA', 'RMA']:
             if getattr(self, alg) is not None:
                 alg_types.append(alg)
 
-        if self.ImageFormation is None:
-            logging.warning(
-                'Image formation algorithm(s) {} populated, but ImageFormation is not.'.format(alg_types))
-            return False  # nothing more to be done.
-
-        if len(alg_types) == 0:
+        if len(alg_types) > 1:
+            logging.error(
+                'ImageFormation.ImageFormAlgo is set as {}, and multiple SICD image formation parameters {} are set. '
+                'Only one image formation algorithm should be set, and ImageFormation.ImageFormAlgo '
+                'should match.'.format(self.ImageFormation.ImageFormAlgo, alg_types))
+            return False
+        elif len(alg_types) == 0:
             if self.ImageFormation.ImageFormAlgo is None:
+                # TODO: is this correct?
                 logging.warning(
                     'ImageFormation.ImageFormAlgo is not set, and there is no corresponding RgAzComp, PFA, or RMA '
-                    'SICD parameters.'.format(self.ImageFormation.ImageFormAlgo))
-                return False
+                    'SICD parameters. Setting it to "OTHER".'.format(self.ImageFormation.ImageFormAlgo))
+                self.ImageFormation.ImageFormAlgo = 'OTHER'
+                return True
             elif self.ImageFormation.ImageFormAlgo != 'OTHER':
-                logging.warning(
+                logging.error(
                     'No RgAzComp, PFA, or RMA SICD parameters exist, but ImageFormation.ImageFormAlgo '
                     'is set as {}.'.format(self.ImageFormation.ImageFormAlgo))
                 return False
             return True
-        elif len(alg_types) == 1:
+        else:
             if self.ImageFormation.ImageFormAlgo == alg_types[0].upper():
                 return True
             elif self.ImageFormation.ImageFormAlgo is None:
                 logging.warning(
                     'Image formation algorithm(s) {} is populated, but ImageFormation.ImageFormAlgo was not set. '
-                    'This has been rectified.'.format(alg_types[0]))
+                    'ImageFormation.ImageFormAlgo has been set.'.format(alg_types[0]))
                 self.ImageFormation.ImageFormAlgo = alg_types[0].upper()
                 return True
             else:  # they are different values
                 # TODO: is resetting it the correct decision?
                 logging.warning(
-                    'Only the image formation algorithm {} is populated, but ImageFormation.ImageFormAlgo was set as {}. '
-                    'ImageFormation.ImageFormAlgo has changed.'.format(alg_types[0], self.ImageFormation.ImageFormAlgo))
+                    'Only the image formation algorithm {} is populated, but ImageFormation.ImageFormAlgo '
+                    'was set as {}. ImageFormation.ImageFormAlgo has been '
+                    'changed.'.format(alg_types[0], self.ImageFormation.ImageFormAlgo))
                 self.ImageFormation.ImageFormAlgo = alg_types[0].upper()
                 return True
-        else:
-            alg_types_upper = [en.upper() for en in alg_types]
-            if self.ImageFormation.ImageFormAlgo is None:
-                logging.warning(
-                    'ImageFormation.ImageFormAlgo is not set, and SICD parameters {} are set. '
-                    'Only of of these should be set, and ImageFormation.ImageFormAlgo should be populated '
-                    'appropriately'.format(alg_types))
-                return False
-            elif self.ImageFormation.ImageFormAlgo in alg_types_upper:
-                # TODO: should we simply delete it here?
-                logging.warning(
-                    'ImageFormation.ImageFormAlgo is set as {}, and SICD parameters {} are set. '
-                    'The extraneous one should be deleted.'.format(self.ImageFormation.ImageFormAlgo, alg_types))
-                return False
-            else:
-                logging.warning(
-                    'ImageFormation.ImageFormAlgo is set as {}, and SICD parameters {} are set. '
-                    'This is not valid.'.format(self.ImageFormation.ImageFormAlgo, alg_types))
-                return False
 
     def _basic_validity_check(self):
         condition = super(SICDType, self)._basic_validity_check()
         # do our image formation parameters match, as appropriate?
-        return condition & self._validate_image_form()
-
-
-# TODO: validate - ImageFormation must be included when RadarCollection.Area.Plane.SegmentList is included.
+        condition &= self._validate_image_form()
+        # does the image formation segment identifier and radar collection make sense?
+        condition &= self._validate_image_segment_id()
+        return condition
 
