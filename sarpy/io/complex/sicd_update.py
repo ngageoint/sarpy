@@ -229,7 +229,7 @@ class _StringEnumDescriptor(_BasicDescriptor):
         self.values = values
         super(_StringEnumDescriptor, self).__init__(
             name, required, strict=strict, default_value=default_value, docstring=docstring)
-        if self.default_value not in self.values:
+        if (self.default_value is not None) and (self.default_value not in self.values):
             self.default_value = None
 
     def _docstring_suffix(self):
@@ -313,7 +313,7 @@ class _IntegerDescriptor(_BasicDescriptor):
         self.bounds = bounds
         super(_IntegerDescriptor, self).__init__(
             name, required, strict=strict, default_value=default_value, docstring=docstring)
-        if not self._in_bounds(self.default_value):
+        if (self.default_value is not None) and not self._in_bounds(self.default_value):
             self.default_value = None
 
     def _docstring_suffix(self):
@@ -355,7 +355,7 @@ class _IntegerEnumDescriptor(_BasicDescriptor):
         self.values = values
         super(_IntegerEnumDescriptor, self).__init__(
             name, required, strict=strict, default_value=default_value, docstring=docstring)
-        if self.default_value not in self.values:
+        if (self.default_value is not None) and (self.default_value not in self.values):
             self.default_value = None
 
     def _docstring_suffix(self):
@@ -465,7 +465,7 @@ class _FloatDescriptor(_BasicDescriptor):
         self.bounds = bounds
         super(_FloatDescriptor, self).__init__(
             name, required, strict=strict, default_value=default_value, docstring=docstring)
-        if not self._in_bounds(self.default_value):
+        if (self.default_value is not None) and not self._in_bounds(self.default_value):
             self.default_value = None
 
     def _docstring_suffix(self):
@@ -648,7 +648,7 @@ class _FloatModularDescriptor(_BasicDescriptor):
     _typ_string = 'float:'
 
     def __init__(self, name, limit, required, strict=DEFAULT_STRICT, docstring=None):
-        self.limit = limit
+        self.limit = float(limit)
         super(_FloatModularDescriptor, self).__init__(name, required, strict=strict, docstring=docstring)
 
     def __set__(self, instance, value):
