@@ -7,6 +7,7 @@ rigidity of C++ based standards validation.
 """
 
 # TODO:
+#   0.) modify Poly1D and Poly2D so that Coefs is numpy.ndarray, and implement __call__.
 #   1.) implement the necessary sicd version 0.4 & 0.5 compatibility manipulations - noted in the body.
 #   2.) determine necessary and appropriate formatting issues for serialization/deserialization
 #       i.) proper precision for numeric serialization
@@ -19,8 +20,11 @@ from collections import OrderedDict
 from datetime import datetime, date
 import logging
 from weakref import WeakKeyDictionary
-import numpy
 from typing import Union, List
+
+import numpy
+import numpy.polynomial.polynomial
+
 
 #################
 # module constants
@@ -1461,7 +1465,7 @@ class Serializable(object):
 # Basic building blocks for SICD standard
 
 class PlainValueType(Serializable):
-    """This is a basic xml building block element, and not actually specified in the SICD standard"""
+    """This is a basic xml building block element, and not actually specified in the SICD standard."""
     _fields = ('value', )
     _required = _fields
     # descriptor
@@ -1477,27 +1481,8 @@ class PlainValueType(Serializable):
         return node
 
 
-class FloatValueType(Serializable):
-    """This is a basic xml building block element, and not actually specified in the SICD standard"""
-    _fields = ('value', )
-    _required = _fields
-    # descriptor
-    value = _FloatDescriptor('value', _required, strict=True, docstring='The value')  # type: float
-
-    @classmethod
-    def from_node(cls, node, kwargs=None):
-        return cls(value=_get_node_value(node))
-
-    def to_node(self, doc, tag, parent=None, strict=DEFAULT_STRICT, exclude=()):
-        # we have to short-circuit the call here, because this is a really primitive element
-        fmt_func = self._get_formatter('value')
-        node = _create_text_node(doc, tag, fmt_func(self.value), parent=parent)
-        return node
-
-
 class ParameterType(PlainValueType):
     """A parameter - just a name attribute and associated value"""
-    _tag = 'Parameter'
     _fields = ('name', 'value')
     _required = _fields
     _set_as_attribute = ('name', )
@@ -1714,44 +1699,32 @@ class RowColArrayElement(RowColType):
         'index', _required, strict=DEFAULT_STRICT, docstring='The array index attribute.')  # type: int
 
 
-class PolyCoef1DType(FloatValueType):
-    """Represents a monomial term of the form `value * x^{exponent1}`."""
-    _fields = ('value', 'exponent1')
-    _required = _fields
-    _numeric_format = {'value': '0.8f'}
-    _set_as_attribute = ('exponent1', )
-    # descriptors
-    exponent1 = _IntegerDescriptor(
-        'exponent1', _required, strict=DEFAULT_STRICT, docstring='The exponent1 attribute.')  # type: int
-
-
-class PolyCoef2DType(FloatValueType):
-    """Represents a monomial term of the form `value * x^{exponent1} * y^{exponent2}`."""
-    # NB: based on field names, one could consider PolyCoef2DType an extension of PolyCoef1DType. This has not
-    #   be done here, because I would not want an instance of PolyCoef2DType to evaluate as True when testing if
-    #   instance of PolyCoef1DType.
-
-    _fields = ('value', 'exponent1', 'exponent2')
-    _required = _fields
-    _numeric_format = {'value': '0.8f'}
-    _set_as_attribute = ('exponent1', 'exponent2')
-    # descriptors
-    exponent1 = _IntegerDescriptor(
-        'exponent1', _required, strict=DEFAULT_STRICT, docstring='The exponent1 attribute.')  # type: int
-    exponent2 = _IntegerDescriptor(
-        'exponent2', _required, strict=DEFAULT_STRICT, docstring='The exponent2 attribute.')  # type: int
-
-
 class Poly1DType(Serializable):
-    """Represents a one-variable polynomial, defined as the sum of the given monomial terms."""
+    """Represents a one-variable polynomial, defined by one-dimensional coefficient array."""
     _fields = ('Coefs', 'order1')
     _required = ('Coefs', )
-    _collections_tags = {'Coefs': {'array': False, 'child_tag': 'Coef'}}
-    _set_as_attribute = ('order1', )
-    # descriptors
-    Coefs = _SerializableArrayDescriptor(
-        'Coefs', PolyCoef1DType, _collections_tags, _required, strict=DEFAULT_STRICT,
-        docstring='The list of monomial terms.')  # type: List[PolyCoef1DType]
+    _numeric_format = {'Coefs': '0.8f'}
+    # other class variables
+    _Coefs = None
+
+    def __call__(self, x):
+        """
+        Evaluate a polynomial at points `x`. This passes `x` straight through to :func:`polyval` of
+        :module:`numpy.polynomial.polynomial`.
+
+        Parameters
+        ----------
+        x : numpy.ndarray
+            The point(s) at which to evaluate.
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+
+        if self.Coefs is None:
+            return None
+        return numpy.polynomial.polynomial.polyval(x, self.Coefs)
 
     @property
     def order1(self):
@@ -1759,37 +1732,298 @@ class Poly1DType(Serializable):
         int: The order1 attribute [READ ONLY]  - that is, largest exponent presented in the monomial terms of coefs.
         """
 
-        return 0 if self.Coefs is None else max(entry.exponent1 for entry in self.Coefs)
+        if self.Coefs is None:
+            return None
+        else:
+            return self.Coefs.size - 1
+
+    @property
+    def Coefs(self):
+        """
+        numpy.ndarray: The one-dimensional polynomial coefficient array of dtype=float64. Assignment object must be a
+        one-dimensional numpy.ndarray, or naively convertible to one.
+        """
+
+        return self._Coefs
+
+    @Coefs.setter
+    def Coefs(self, value):
+        if value is None:
+            self._order1 = None
+            self._Coefs = None
+            return
+
+        if isinstance(value, (list, tuple)):
+            value = numpy.array(value, dtype=numpy.float64)
+
+        if not isinstance(value, numpy.ndarray):
+            raise ValueError(
+                'Coefs for class Poly1D must be a list or numpy.ndarray. Received type {}.'.format(type(value)))
+        elif len(value.shape) != 1:
+            raise ValueError(
+                'Coefs for class Poly1D must be one-dimensional. Received numpy.ndarray of shape {}.'.format(value.shape))
+        elif not value.dtype == numpy.float64:
+            raise ValueError(
+                'Coefs for class Poly1D must have dtype=float64. Received numpy.ndarray of dtype {}.'.format(value.dtype))
+        self._Coefs = value
+
+    @classmethod
+    def from_node(cls, node, kwargs=None):
+        """For XML deserialization.
+
+        Parameters
+        ----------
+        node : ElementTree.Element
+            dom element for serialized class instance
+        kwargs : None|dict
+            `None` or dictionary of previously serialized attributes. For use in inheritance call, when certain
+            attributes require specific deserialization.
+
+        Returns
+        -------
+        Serializable
+            corresponding class instance
+        """
+
+        order1 = int(node.attrib['order1'])
+        coefs = numpy.zeros((order1+1, ), dtype=numpy.float64)
+        for cnode in node.findall('Coef'):
+            ind = int(cnode.attrib['exponent1'])
+            val = float(_get_node_value(cnode))
+            coefs[ind] = val
+        return cls(Coefs=coefs)
+
+    def to_node(self, doc, tag, parent=None, strict=DEFAULT_STRICT, exclude=()):
+        """For XML serialization, to a dom element.
+
+        Parameters
+        ----------
+        doc : ElementTree.ElementTree
+            The xml Document
+        tag : None|str
+            The tag name. Defaults to the value of `self._tag` and then the class name if unspecified.
+        parent : None|ElementTree.Element
+            The parent element. Defaults to the document root element if unspecified.
+        strict : bool
+            If `True`, then raise an Exception (of appropriate type) if the structure is not valid.
+            Otherwise, log a hopefully helpful message.
+        exclude : tuple
+            Attribute names to exclude from this generic serialization. This allows for child classes
+            to provide specific serialization for special properties, after using this super method.
+
+        Returns
+        -------
+        ElementTree.Element
+            The constructed dom element, already assigned to the parent element.
+        """
+
+        if parent is None:
+            parent = doc.getroot()
+        node = _create_new_node(doc, tag, parent=parent)
+        if self.Coefs is None:
+            return node
+
+        node.attrib['order1'] = str(self.order1)
+        fmt_func = self._get_formatter('Coef')
+        for i, val in enumerate(self.Coefs):
+            # if val != 0.0:  # should we serialize it sparsely?
+            cnode = _create_text_node(doc, 'Coefs', fmt_func(val), parent=node)
+            cnode.attrib['exponent1'] = str(i)
+        return node
+
+    def to_dict(self, strict=DEFAULT_STRICT, exclude=()):
+        """For json serialization.
+
+        Parameters
+        ----------
+        strict : bool
+            If `True`, then raise an Exception (of appropriate type) if the structure is not valid.
+            Otherwise, log a hopefully helpful message.
+        exclude : tuple
+            Attribute names to exclude from this generic serialization. This allows for child classes
+            to provide specific serialization for special properties, after using this super method.
+
+        Returns
+        -------
+        OrderedDict
+            dict representation of class instance appropriate for direct json serialization.
+        """
+
+        out = OrderedDict()
+        out['Coefs'] = self.Coefs.tolist()
+        return out
 
 
 class Poly2DType(Serializable):
-    """Represents a one-variable polynomial, defined as the sum of the given monomial terms."""
+    """Represents a one-variable polynomial, defined by two-dimensional coefficient array."""
     _fields = ('Coefs', 'order1', 'order2')
     _required = ('Coefs', )
-    _collections_tags = {'Coefs': {'array': False, 'child_tag': 'Coef'}}
-    _set_as_attribute = ('order1', 'order2')
-    # descriptors
-    Coefs = _SerializableArrayDescriptor(
-        'Coefs', PolyCoef2DType, _collections_tags, _required, strict=DEFAULT_STRICT,
-        docstring='The list of monomial terms.')  # type: List[PolyCoef2DType]
+    _numeric_format = {'Coefs': '0.8f'}
+    # other class variables
+    _Coefs = None
+
+    def __call__(self, x, y):
+        """
+        Evaluate a polynomial at points [`x`, `y`]. This passes `x`,`y` straight through to :func:`polyval2d` of
+        :module:`numpy.polynomial.polynomial`.
+
+        Parameters
+        ----------
+        x : numpy.ndarray
+            The first dependent variable of point(s) at which to evaluate.
+        y : numpy.ndarray
+            The second dependent variable of point(s) at which to evaluate.
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+
+        if self.Coefs is None:
+            return None
+        return numpy.polynomial.polynomial.polyval2d(x, y, self.Coefs)
 
     @property
     def order1(self):
         """
-        int: The order1 attribute [READ ONLY]  - that is, the largest exponent1 presented in the
-        monomial terms of coefs.
+        int: The order1 attribute [READ ONLY]  - that is, largest exponent1 presented in the monomial terms of coefs.
         """
 
-        return 0 if self.Coefs is None else max(entry.exponent1 for entry in self.Coefs)
+        if self.Coefs is None:
+            return None
+        else:
+            return self.Coefs.shape[0] - 1
 
     @property
     def order2(self):
         """
-        int: The order2 attribute [READ ONLY]  - that is, the largest exponent2 presented in the
-        monomial terms of coefs.
+        int: The order1 attribute [READ ONLY]  - that is, largest exponent2 presented in the monomial terms of coefs.
         """
 
-        return 0 if self.Coefs is None else max(entry.exponent2 for entry in self.Coefs)
+        if self.Coefs is None:
+            return None
+        else:
+            return self.Coefs.shape[1] - 1
+
+    @property
+    def Coefs(self):
+        """
+        numpy.ndarray: The two-dimensional polynomial coefficient array of dtype=float64. Assignment object must be a
+        two-dimensional numpy.ndarray, or naively convertible to one.
+        """
+
+        return self._Coefs
+
+    @Coefs.setter
+    def Coefs(self, value):
+        if value is None:
+            self._Coefs = None
+            return
+
+        if isinstance(value, (list, tuple)):
+            value = numpy.array(value, dtype=numpy.float64)
+
+        if not isinstance(value, numpy.ndarray):
+            raise ValueError(
+                'Coefs for class Poly2D must be a list or numpy.ndarray. Received type {}.'.format(type(value)))
+        elif len(value.shape) != 2:
+            raise ValueError(
+                'Coefs for class Poly2D must be two-dimensional. Received numpy.ndarray of shape {}.'.format(value.shape))
+        elif not value.dtype == numpy.float64:
+            raise ValueError(
+                'Coefs for class Poly2D must have dtype=float64. Received numpy.ndarray of dtype {}.'.format(value.dtype))
+        self._Coefs = value
+
+    @classmethod
+    def from_node(cls, node, kwargs=None):
+        """For XML deserialization.
+
+        Parameters
+        ----------
+        node : ElementTree.Element
+            dom element for serialized class instance
+        kwargs : None|dict
+            `None` or dictionary of previously serialized attributes. For use in inheritance call, when certain
+            attributes require specific deserialization.
+
+        Returns
+        -------
+        Serializable
+            corresponding class instance
+        """
+
+        order1 = int(node.attrib['order1'])
+        order2 = int(node.attrib['order2'])
+        coefs = numpy.zeros((order1+1, order2+1), dtype=numpy.float64)
+        for cnode in node.findall('Coef'):
+            ind1 = int(cnode.attrib['exponent1'])
+            ind2 = int(cnode.attrib['exponent2'])
+            val = float(_get_node_value(cnode))
+            coefs[ind1, ind2] = val
+        return cls(Coefs=coefs)
+
+    def to_node(self, doc, tag, parent=None, strict=DEFAULT_STRICT, exclude=()):
+        """For XML serialization, to a dom element.
+
+        Parameters
+        ----------
+        doc : ElementTree.ElementTree
+            The xml Document
+        tag : None|str
+            The tag name. Defaults to the value of `self._tag` and then the class name if unspecified.
+        parent : None|ElementTree.Element
+            The parent element. Defaults to the document root element if unspecified.
+        strict : bool
+            If `True`, then raise an Exception (of appropriate type) if the structure is not valid.
+            Otherwise, log a hopefully helpful message.
+        exclude : tuple
+            Attribute names to exclude from this generic serialization. This allows for child classes
+            to provide specific serialization for special properties, after using this super method.
+
+        Returns
+        -------
+        ElementTree.Element
+            The constructed dom element, already assigned to the parent element.
+        """
+
+        if parent is None:
+            parent = doc.getroot()
+        node = _create_new_node(doc, tag, parent=parent)
+        if self.Coefs is None:
+            return node
+
+        node.attrib['order1'] = str(self.order1)
+        node.attrib['order2'] = str(self.order2)
+        fmt_func = self._get_formatter('Coefs')
+        for i, val1 in enumerate(self.Coefs):
+            for j, val in enumerate(val1):
+                # if val != 0.0:  # should we serialize it sparsely?
+                cnode = _create_text_node(doc, 'Coef', fmt_func(val), parent=node)
+                cnode.attrib['exponent1'] = str(i)
+                cnode.attrib['exponent2'] = str(j)
+        return node
+
+    def to_dict(self, strict=DEFAULT_STRICT, exclude=()):
+        """For json serialization.
+
+        Parameters
+        ----------
+        strict : bool
+            If `True`, then raise an Exception (of appropriate type) if the structure is not valid.
+            Otherwise, log a hopefully helpful message.
+        exclude : tuple
+            Attribute names to exclude from this generic serialization. This allows for child classes
+            to provide specific serialization for special properties, after using this super method.
+
+        Returns
+        -------
+        OrderedDict
+            dict representation of class instance appropriate for direct json serialization.
+        """
+
+        out = OrderedDict()
+        out['Coefs'] = self.Coefs.tolist()
+        return out
 
 
 class XYZPolyType(Serializable):
@@ -1870,7 +2104,6 @@ class ErrorDecorrFuncType(Serializable):
 
 class RadarModeType(Serializable):
     """Radar mode type container class"""
-    _tag = 'RadarMode'
     _fields = ('ModeType', 'ModeId')
     _required = ('ModeType', )
     # other class variable
@@ -1886,7 +2119,6 @@ class RadarModeType(Serializable):
 
 class CollectionInfoType(Serializable):
     """General information about the collection."""
-    _tag = 'CollectionInfo'
     _collections_tags = {
         'Parameters': {'array': False, 'child_tag': 'Parameter'},
         'CountryCode': {'array': False, 'child_tag': 'CountryCode'},
@@ -1958,7 +2190,6 @@ class ImageCreationType(Serializable):
 
 class FullImageType(Serializable):
     """The full image product attributes."""
-    _tag = 'FullImage'
     _fields = ('NumRows', 'NumCols')
     _required = _fields
     # descriptors
@@ -2097,7 +2328,6 @@ class GeoInfoType(Serializable):
 
 class SCPType(Serializable):
     """Scene Center Point (SCP) in full (global) image. This is the precise location."""
-    _tag = 'SCP'
     _fields = ('ECF', 'LLH')
     _required = _fields  # isn't this redundant?
     ECF = _SerializableDescriptor(
@@ -2274,7 +2504,6 @@ class IPPSetType(Serializable):
     # NOTE that this is simply defined as a child class ("Set") of the TimelineType in the SICD standard
     #   Defining it at root level clarifies the documentation, and giving it a more descriptive name is
     #   appropriate.
-    _tag = 'Set'
     _fields = ('TStart', 'TEnd', 'IPPStart', 'IPPEnd', 'IPPPoly', 'index')
     _required = _fields
     _set_as_attribute = ('index', )
@@ -2349,7 +2578,6 @@ class PositionType(Serializable):
 
 class TxFrequencyType(Serializable):
     """The transmit frequency range"""
-    _tag = 'TxFrequency'
     _fields = ('Min', 'Max')
     _required = _fields
     # descriptors
@@ -2577,7 +2805,6 @@ class AreaType(Serializable):
 
 class RadarCollectionType(Serializable):
     """The Radar Collection Type"""
-    _tag = 'RadarCollection'
     _fields = (
         'TxFrequency', 'RefFreqIndex', 'Waveform', 'TxPolarization', 'TxSequence', 'RcvChannels', 'Area', 'Parameters')
     _required = ('TxFrequency', 'TxPolarization', 'RcvChannels')
@@ -2645,8 +2872,7 @@ class RcvChanProcType(Serializable):
 
 
 class TxFrequencyProcType(Serializable):
-    """The transmit frequency range"""
-    _tag = 'TxFrequencyProc'
+    """The transmit frequency range."""
     _fields = ('MinProc', 'MaxProc')
     _required = _fields
     # descriptors
@@ -2660,7 +2886,6 @@ class TxFrequencyProcType(Serializable):
 
 class ProcessingType(Serializable):
     """The transmit frequency range"""
-    _tag = 'Processing'
     _fields = ('Type', 'Applied', 'Parameters')
     _required = ('Type', 'Applied')
     _collections_tags = {'Parameters': {'array': False, 'child_tag': 'Parameter'}}
