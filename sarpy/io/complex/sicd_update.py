@@ -7,7 +7,6 @@ rigidity of C++ based standards validation.
 """
 
 # TODO:
-#   0.) modify Poly1D and Poly2D so that Coefs is numpy.ndarray, and implement __call__.
 #   1.) implement the necessary sicd version 0.4 & 0.5 compatibility manipulations - noted in the body.
 #   2.) determine necessary and appropriate formatting issues for serialization/deserialization
 #       i.) proper precision for numeric serialization
@@ -927,23 +926,24 @@ class Serializable(object):
     """subset of `_fields` defining the required (for the given object, according to the sicd standard) fields"""
 
     _collections_tags = {}
-    """Entries only appropriate for list/array type objects. Entry formatting:
-
+    """
+    Entries only appropriate for list/array type objects. Entry formatting:
+    
     * `{'array': True, 'child_tag': <child_name>}` represents an array object, which will have int attribute `size`.
       It has *size* children with tag=<child_name>, each of which has an attribute `index`, which is not always an
       integer. Even when it is an integer, it apparently sometimes follows the matlab convention (1 based), and
       sometimes the standard convention (0 based). In this case, I will deserialize as though the objects are
       properly ordered, and the deserialized objects will have the `index` property from the xml, but it will not
       be used to determine array order - which will be simply carried over from file order.
+    
+    * `{'array': False, 'child_tag': <child_name>}` represents a collection of things with tag=<child_name>.
+      This entries are not directly below one coherent container tag, but just dumped into an object.
+      For example of such usage search for "Parameter" in the SICD standard.
 
-    - `{'array': False, 'child_tag': <child_name>}` represents a collection of things with tag=<child_name>.
-          This entries are not directly below one coherent container tag, but just dumped into an object.
-          For example of such usage search for "Parameter" in the SICD standard.
-
-          In this case, I've have to create an ephemeral variable in the class that doesn't exist in the standard,
-          and it's not clear what the intent is for this unstructured collection, so used a list object.
-          For example, I have a variable called `Parameters` in `CollectionInfoType`, whose job it to contain the
-          parameters objects.
+      In this case, I've have to create an ephemeral variable in the class that doesn't exist in the standard,
+      and it's not clear what the intent is for this unstructured collection, so used a list object.
+      For example, I have a variable called `Parameters` in `CollectionInfoType`, whose job it to contain the
+      parameters objects.
     """
 
     _numeric_format = {}
@@ -951,11 +951,14 @@ class Serializable(object):
     _set_as_attribute = ()
     """serialize these fields as xml attributes"""
     _choice = ()
-    """Entries appropriate for choice selection between attributes. Entry formatting:
+    """
+    Entries appropriate for choice selection between attributes. Entry formatting:
+
     * `{'required': True, 'collection': <tuple of attribute names>}` - indicates that EXACTLY only one of the 
-        attributes should be populated.
+      attributes should be populated.
+
     * `{'required': False, 'collection': <tuple of attribute names>}` - indicates that no more than one of the 
-        attributes should be populated.
+      attributes should be populated.
     """
 
     # NB: it may be good practice to use __slots__ to further control class functionality?
@@ -2388,7 +2391,7 @@ class WgtTypeType(Serializable):
         'WindowName', _required, strict=DEFAULT_STRICT,
         docstring='Type of aperture weighting applied in the spatial frequency domain (Krow) to yield '
                   'the impulse response in the row direction. '
-                  '*Example values: "UNIFORM", "TAYLOR", "UNKNOWN", "HAMMING"*')  # type: str
+                  '*Example values - "UNIFORM", "TAYLOR", "UNKNOWN", "HAMMING"*')  # type: str
     Parameters = _SerializableArrayDescriptor(
         'Parameters', ParameterType, _collections_tags, required=_required, strict=DEFAULT_STRICT,
         docstring='Free form parameters list.')  # type: List[ParameterType]
@@ -2473,15 +2476,24 @@ class GridType(Serializable):
                   "defined by Row Direction and Column Direction unit vectors.")  # type: str
     Type = _StringEnumDescriptor(
         'Type', _TYPE_VALUES, _required, strict=DEFAULT_STRICT,
-        docstring="""Defines the type of spatial sampling grid represented by the image sample grid. 
-        Row coordinate first, column coordinate second.
-* `RGAZIM` - Grid for a simple range, Doppler image. Also, the natural grid for images formed with the 
-    Polar Format Algorithm.
-* `RGZERO` - A grid for images formed with the Range Migration Algorithm. Used only for imaging near 
-    closest approach (i.e. near zero Doppler).
-* `XRGYCR` - Orthogonal slant plane grid oriented range and cross range relative to the ARP at a reference time.
-* `XCTYAT` – Orthogonal slant plane grid with X oriented cross track.
-* `PLANE` – Arbitrary plane with orientation other than the specific `XRGYCR` or `XCTYAT`.""")  # type: str
+        docstring="""
+        Defines the type of spatial sampling grid represented by the image sample grid. 
+        Row coordinate first, column coordinate second:
+
+        * `RGAZIM` - Grid for a simple range, Doppler image. Also, the natural grid for images formed with the Polar 
+          Format Algorithm.
+        
+        * `RGZERO` - A grid for images formed with the Range Migration Algorithm. Used only for imaging near closest 
+          approach (i.e. near zero Doppler).
+        
+        * `XRGYCR` - Orthogonal slant plane grid oriented range and cross range relative to the ARP at a 
+          reference time.
+        
+        * `XCTYAT` – Orthogonal slant plane grid with X oriented cross track.
+        
+        * `PLANE` – Arbitrary plane with orientation other than the specific `XRGYCR` or `XCTYAT`.
+        \n\n
+        """)  # type: str
     TimeCOAPoly = _SerializableDescriptor(
         'TimeCOAPoly', Poly2DType, _required, strict=DEFAULT_STRICT,
         docstring="*Time of Center Of Aperture* as a polynomial function of image coordinates. "
@@ -3005,21 +3017,38 @@ class ImageFormationType(Serializable):
                   'Must be included when SICD.RadarCollection.Area.Plane.SegmentList is included.')  # type: str
     ImageFormAlgo = _StringEnumDescriptor(
         'ImageFormAlgo', _IMG_FORM_ALGO_VALUES, _required, strict=DEFAULT_STRICT,
-        docstring="""The image formation algorithm used.
-* `PFA` - Polar Format Algorithm
-* `RMA` - Range Migration (Omega-K, Chirp Scaling, Range-Doppler)
-* `RGAZCOMP` - Simple range, Doppler compression.""")  # type: str
+        docstring="""
+        The image formation algorithm used:
+        
+        * `PFA` - Polar Format Algorithm
+        
+        * `RMA` - Range Migration (Omega-K, Chirp Scaling, Range-Doppler)
+        
+        * `RGAZCOMP` - Simple range, Doppler compression.
+        
+        """)  # type: str
     STBeamComp = _StringEnumDescriptor(
         'STBeamComp', _ST_BEAM_COMP_VALUES, _required, strict=DEFAULT_STRICT,
-        docstring="""Indicates if slow time beam shape compensation has been applied.
-* `"NO"` - No ST beam shape compensation.
-* `"GLOBAL"` - Global ST beam shape compensation applied.
-* `"SV"` - Spatially variant beam shape compensation applied.""")  # type: str
+        docstring="""
+        Indicates if slow time beam shape compensation has been applied.
+        
+        * `"NO"` - No ST beam shape compensation.
+        
+        * `"GLOBAL"` - Global ST beam shape compensation applied.
+        
+        * `"SV"` - Spatially variant beam shape compensation applied.
+        
+        """)  # type: str
     ImageBeamComp = _StringEnumDescriptor(
         'ImageBeamComp', _IMG_BEAM_COMP_VALUES, _required, strict=DEFAULT_STRICT,
-        docstring="""Indicates if image domain beam shape compensation has been applied.
-* `"NO"` - No image domain beam shape compensation.
-* `"SV"` - Spatially variant image domain beam shape compensation applied.""")  # type: str
+        docstring="""
+        Indicates if image domain beam shape compensation has been applied.
+        
+        * `"NO"` - No image domain beam shape compensation.
+        
+        * `"SV"` - Spatially variant image domain beam shape compensation applied.
+        
+        """)  # type: str
     AzAutofocus = _StringEnumDescriptor(
         'AzAutofocus', _AZ_AUTOFOCUS_VALUES, _required, strict=DEFAULT_STRICT,
         docstring='Indicates if azimuth autofocus correction has been applied, with similar '
@@ -3201,15 +3230,24 @@ class AntParamType(Serializable):
                   'is always 0.0.')  # type: Poly1DType
     EBFreqShift = _BooleanDescriptor(
         'EBFreqShift', _required, strict=DEFAULT_STRICT,
-        docstring="""Parameter indicating whether the elctronic boresite shifts with frequency for an 
-        electronically steered array.
-* `False` - No shift with frequency.
-* `True` - Shift with frequency per ideal array theory.""")  # type: bool
+        docstring="""
+        Parameter indicating whether the elctronic boresite shifts with frequency for an electronically steered array.
+        
+        * `False` - No shift with frequency.
+        
+        * `True` - Shift with frequency per ideal array theory.
+        
+        """)  # type: bool
     MLFreqDilation = _BooleanDescriptor(
         'MLFreqDilation', _required, strict=DEFAULT_STRICT,
-        docstring="""Parameter indicating the mainlobe (ML) width changes with frequency.
-* `False` - No change with frequency.
-* `True` - Change with frequency per ideal array theory.""")  # type: bool
+        docstring="""
+        Parameter indicating the mainlobe (ML) width changes with frequency.
+        
+        * `False` - No change with frequency.
+        
+        * `True` - Change with frequency per ideal array theory.
+        
+        """)  # type: bool
 
 
 class AntennaType(Serializable):
@@ -3638,10 +3676,16 @@ class RMAType(Serializable):
     # descriptors
     RMAlgoType = _StringEnumDescriptor(
         'RMAlgoType', _RM_ALGO_TYPE_VALUES, _required, strict=DEFAULT_STRICT,
-        docstring="""Identifies the type of migration algorithm used.
-* `OMEGA_K` - Algorithms that employ Stolt interpolation of the Kxt dimension. `Kx = (Kf^2 – Ky^2)^0.5`
-* `CSA` - Wave number algorithm that process two-dimensional chirp signals.
-* `RG_DOP` - Range-Doppler algorithms that employ RCMC in the compressed range domain.""")  # type: str
+        docstring="""
+        Identifies the type of migration algorithm used:
+        
+        * `OMEGA_K` - Algorithms that employ Stolt interpolation of the Kxt dimension. `Kx = (Kf^2 – Ky^2)^0.5`
+        
+        * `CSA` - Wave number algorithm that process two-dimensional chirp signals.
+        
+        * `RG_DOP` - Range-Doppler algorithms that employ RCMC in the compressed range domain.
+        
+        """)  # type: str
     RMAT = _SerializableDescriptor(
         'RMAT', RMRefType, _required, strict=DEFAULT_STRICT,
         docstring='Parameters for RMA with Along Track (RMAT) motion compensation.')  # type: RMRefType
