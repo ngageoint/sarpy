@@ -24,6 +24,7 @@ from typing import Union, List
 import numpy
 import numpy.polynomial.polynomial
 
+import sarpy.geometry.geocoords as geocoords
 
 #################
 # module constants
@@ -1752,7 +1753,6 @@ class Poly1DType(Serializable):
     @Coefs.setter
     def Coefs(self, value):
         if value is None:
-            self._order1 = None
             self._Coefs = None
             return
 
@@ -2270,7 +2270,8 @@ class ImageDataType(Serializable):
 class GeoInfoType(Serializable):
     """A geographic feature."""
     # TODO: This needs to be verified with Wade. The word document/pdf doesn't match the xsd.
-    #   Is the standard really self-referential here? I find that confusing.
+    #   Is the standard really self-referential here? I find that confusing. I suspect this part of the standard
+    #   may not have gotten much attention.
     _fields = ('name', 'Descriptions', 'Point', 'Line', 'Polygon')
     _required = ('name', )
     _set_as_attribute = ('name', )
@@ -2396,9 +2397,26 @@ class WgtTypeType(Serializable):
         'Parameters', ParameterType, _collections_tags, required=_required, strict=DEFAULT_STRICT,
         docstring='Free form parameters list.')  # type: List[ParameterType]
 
-    # @classmethod
-    # def from_node(cls, node, kwargs=None):
-    #     # TODO: accommodate SICD version 0.4 WgtType definition as spaced delimited string. See sicd.py line 1074.
+    @classmethod
+    def from_node(cls, node, kwargs=None):
+        if node.find('WindowName') is None:
+            # SICD 0.4 standard compliance, this could just be a space delimited string of the form
+            #   "<WindowName> <name1>=<value1> <name2>=<value2> ..."
+            if kwargs is None:
+                kwargs = {}
+            values = node.text.strip().split()
+            kwargs['WindowName'] = values[0]
+            params = []
+            for entry in values[1:]:
+                try:
+                    name, val = entry.split('=')
+                    params.append(ParameterType(name=name, value=val))
+                except ValueError:
+                    continue
+            kwargs['Parameters'] = params
+            return cls.from_dict(kwargs)
+        else:
+            return super(WgtTypeType, cls).from_node(node, kwargs)
 
 
 class DirParamType(Serializable):
@@ -2688,6 +2706,14 @@ class ChanParametersType(Serializable):
     index = _IntegerDescriptor(
         'index', _required, strict=DEFAULT_STRICT, docstring='The parameter index')  # type: int
 
+    def get_transmit_polarization(self):
+        if self.TxRcvPolarization is None:
+            return None
+        elif self.TxRcvPolarization in ['OTHER', 'UNKNOWN']:
+            return 'OTHER'
+        else:
+            return self.TxRcvPolarization.split(':')[0]
+
 
 class ReferencePointType(Serializable):
     """The reference point definition"""
@@ -2714,7 +2740,7 @@ class XDirectionType(Serializable):
     _fields = ('UVectECF', 'LineSpacing', 'NumLines', 'FirstLine')
     _required = _fields
     # descriptors
-    ECF = _SerializableDescriptor(
+    UVectECF = _SerializableDescriptor(
         'UVectECF', XYZType, _required, strict=DEFAULT_STRICT,
         docstring='The unit vector in the X direction.')  # type: XYZType
     LineSpacing = _FloatDescriptor(
@@ -2730,15 +2756,15 @@ class XDirectionType(Serializable):
 
 class YDirectionType(Serializable):
     """The Y direction of the collect"""
-    _fields = ('UVectECF', 'LineSpacing', 'NumSamples', 'FirstSample')
+    _fields = ('UVectECF', 'SampleSpacing', 'NumSamples', 'FirstSample')
     _required = _fields
     # descriptors
-    ECF = _SerializableDescriptor(
+    UVectECF = _SerializableDescriptor(
         'UVectECF', XYZType, _required, strict=DEFAULT_STRICT,
         docstring='The unit vector in the Y direction.')  # type: XYZType
-    LineSpacing = _FloatDescriptor(
-        'LineSpacing', _required, strict=DEFAULT_STRICT,
-        docstring='The collection line spacing in the Y direction in meters.')  # type: float
+    SampleSpacing = _FloatDescriptor(
+        'SampleSpacing', _required, strict=DEFAULT_STRICT,
+        docstring='The collection sample spacing in the Y direction in meters.')  # type: float
     NumSamples = _IntegerDescriptor(
         'NumSamples', _required, strict=DEFAULT_STRICT,
         docstring='The number of samples in the Y direction.')  # type: int
@@ -2812,7 +2838,30 @@ class AreaType(Serializable):
     Plane = _SerializableDescriptor(
         'Plane', ReferencePlaneType, _required, strict=DEFAULT_STRICT,
         docstring='A rectangular area in a geo-located display plane.')  # type: ReferencePlaneType
-    # TODO: try to construct Corner from Plane for sicd 0.5. See sicd.py line 1127.
+
+    def __init__(self, **kwargs):
+        super(AreaType, self).__init__(**kwargs)
+        self._derive_corner_from_plane()  # try in the event of sicd 0.5 or earlier standard.
+
+    def _derive_corner_from_plane(self):
+        if self.Corner is not None or self.Plane is None:
+            return  # nothing to be done
+        # define the corner points - for SICD 0.5.
+        reference_point = self.Plane.RefPt
+        ecf_ref = reference_point.ECF.getArray()
+        x_offset = numpy.array(
+            [self.Plane.XDir.FirstLine, self.Plane.XDir.FirstLine, self.Plane.XDir.NumLines, self.Plane.XDir.NumLines])
+        y_offset = numpy.array(
+            [self.Plane.YDir.FirstSample, self.Plane.YDir.NumSamples, self.Plane.YDir.NumSamples, self.Plane.YDir.FirstSample])
+        x_shift = self.Plane.XDir.UVectECF.getArray()*self.Plane.XDir.LineSpacing
+        y_shift = self.Plane.YDir.UVectECF.getArray()*self.Plane.YDir.SampleSpacing
+        corners = numpy.zeros((4, 3), dtype=numpy.float64)
+        for i in range(4):
+            corners[i, :] = \
+                ecf_ref + x_shift*(x_offset[i] - self.Plane.RefPt.Line) + y_shift*(y_offset[i] - self.Plane.RefPt.Sample)
+        self.Corner = [
+            LatLonHAECornerRestrictionType(**{'Lat': entry[0], 'Lon': entry[1], 'HAE': entry[2], 'index': i})
+            for i, entry in enumerate(geocoords.ecf_to_geodetic(corners))]
 
 
 class RadarCollectionType(Serializable):
@@ -2859,7 +2908,43 @@ class RadarCollectionType(Serializable):
         'Parameters', ParameterType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='A parameters list.')  # type: List[ParameterType]
 
-    # TODO: validate that TxPolarization issues from sicd 0.5, see scid.py line 1101.
+    def __init__(self, **kwargs):
+        super(RadarCollectionType, self).__init__(**kwargs)
+        self._derive_tx_polarization()  # check the validity of
+
+    def _derive_tx_polarization(self):
+        # TxPolarization was optional prior to SICD 1.0. It may need to be derived.
+        if self.TxSequence is not None:
+            self.TxPolarization = 'SEQUENCE'
+            return
+        if self.TxPolarization is not None:
+            return  # nothing to be done
+
+        if self.RcvChannels is None:
+            return  # nothing to derive from
+
+        if len(self.RcvChannels) > 1:
+            self._derive_tx_steps()
+        else:
+            self.TxPolarization = self.RcvChannels[0].get_transmit_polarization()
+
+    def _derive_tx_steps(self):
+        # TxSequence may need to be derived from RCvChannels, for SICD before 1.0 or poorly formed
+        if self.TxSequence is not None:
+            return
+        elif self.RcvChannels is None:
+            return  # nothing to derive from
+        elif len(self.RcvChannels) < 2:
+            return  # no need for step definition
+
+        steps = []
+        for i, chanparam in enumerate(self.RcvChannels):
+            # TODO: there's some effort to avoid repetition in sicd.py at line 1112. Is this dumb?
+            #   What about WFIndex? Is it possible to derive that?
+            steps.append(TxStepType(index=i, TxPolarization=chanparam.get_transmit_polarization()))
+        self.TxSequence = steps
+        self.TxPolarization = 'SEQUENCE'
+
 
 ###############
 # ImageFormationType section
@@ -3176,7 +3261,15 @@ class RadiometricType(Serializable):
         docstring='Polynomial that yields a scale factor to convert pixel power to clutter parameter '
                   'Gamma-Zero as a function of image row coordinate (variable 1) and column coordinate (variable 2). '
                   'Scale factor computed for a clutter cell at HAE = SCP_HAE.')  # type: Poly2DType
-    # TODO: NoiseLevelType and NoisePoly used to be at this level for sicd 0.5. See sicd.py line 1176.
+
+    @classmethod
+    def from_node(cls, node, kwargs=None):
+        if kwargs is not None:
+            kwargs = {}
+        # NoiseLevelType and NoisePoly used to be at this level prior to SICD 1.0.
+        if node.find('NoiseLevelType') is not None:
+            kwargs['NoiseLevel'] = NoiseLevelType.from_node(node, kwargs=kwargs)
+        return super(RadiometricType, cls).from_node(node, kwargs=kwargs)
 
 
 ###############
@@ -3520,6 +3613,7 @@ class MatchInfoType(Serializable):
             return len(self.MatchTypes)
 
     # TODO: allow for sicd 0.5 version, see sicd.py line 1196.
+
 
 ###############
 # RgAzCompType section
