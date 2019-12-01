@@ -3232,6 +3232,25 @@ class NoiseLevelType(Serializable):
         docstring='Polynomial coefficients that yield thermal noise power (in dB) in a pixel as a function of '
                   'image row coordinate (variable 1) and column coordinate (variable 2).')  # type: Poly2DType
 
+    def __init__(self, **kwargs):
+        super(NoiseLevelType, self).__init__(**kwargs)
+        self._derive_noise_level()
+
+    def _derive_noise_level(self):
+        if self.NoiseLevelType is not None:
+            return
+        if self.NoisePoly is None:
+            return  # nothing to be done
+
+
+        scp_val = self.NoisePoly[0, 0]  # the value at SCP
+        if abs(scp_val - 1) < numpy.spacing(1):
+            # TODO: verify the formula at sicd.py line 1190.
+            # the relative noise levels should be 1 at SCP
+            self.NoiseLevelType = 'RELATIVE'
+        else:
+            self.NoiseLevelType = 'ABSOLUTE'
+
 
 class RadiometricType(Serializable):
     """The radiometric calibration parameters."""
@@ -3245,22 +3264,22 @@ class RadiometricType(Serializable):
         'RCSSFPoly', Poly2DType, _required, strict=DEFAULT_STRICT,
         docstring='Polynomial that yields a scale factor to convert pixel power to RCS (sqm) '
                   'as a function of image row coordinate (variable 1) and column coordinate (variable 2). '
-                  'Scale factor computed for a target at HAE = SCP_HAE.')  # type: Poly2DType
+                  'Scale factor computed for a target at `HAE = SCP_HAE`.')  # type: Poly2DType
     SigmaZeroSFPoly = _SerializableDescriptor(
         'SigmaZeroSFPoly', Poly2DType, _required, strict=DEFAULT_STRICT,
         docstring='Polynomial that yields a scale factor to convert pixel power to clutter parameter '
                   'Sigma-Zero as a function of image row coordinate (variable 1) and column coordinate (variable 2). '
-                  'Scale factor computed for a clutter cell at HAE = SCP_HAE.')  # type: Poly2DType
+                  'Scale factor computed for a clutter cell at `HAE = SCP_HAE`.')  # type: Poly2DType
     BetaZeroSFPoly = _SerializableDescriptor(
         'BetaZeroSFPoly', Poly2DType, _required, strict=DEFAULT_STRICT,
         docstring='Polynomial that yields a scale factor to convert pixel power to radar brightness '
                   'or Beta-Zero as a function of image row coordinate (variable 1) and column coordinate (variable 2). '
-                  'Scale factor computed for a clutter cell at HAE = SCP_HAE.')  # type: Poly2DType
+                  'Scale factor computed for a clutter cell at `HAE = SCP_HAE`.')  # type: Poly2DType
     GammaZeroSFPoly = _SerializableDescriptor(
         'GammaZeroSFPoly', Poly2DType, _required, strict=DEFAULT_STRICT,
         docstring='Polynomial that yields a scale factor to convert pixel power to clutter parameter '
                   'Gamma-Zero as a function of image row coordinate (variable 1) and column coordinate (variable 2). '
-                  'Scale factor computed for a clutter cell at HAE = SCP_HAE.')  # type: Poly2DType
+                  'Scale factor computed for a clutter cell at `HAE = SCP_HAE`.')  # type: Poly2DType
 
     @classmethod
     def from_node(cls, node, kwargs=None):
@@ -3545,7 +3564,7 @@ class ErrorStatisticsType(Serializable):
         docstring='Error statistics by components.')  # type: ErrorComponentsType
     AdditionalParms = _SerializableArrayDescriptor(
         'AdditionalParms', ParameterType, _collections_tags, _required, strict=DEFAULT_STRICT,
-        docstring='Any additional paremeters.')  # type: numpy.ndarray
+        docstring='Any additional parameters.')  # type: numpy.ndarray
 
 
 ###############
@@ -3745,8 +3764,8 @@ class INCAType(Serializable):
                   'to center transmit frequency.')  # type: float
     DRateSFPoly = _SerializableDescriptor(
         'DRateSFPoly', Poly2DType, _required, strict=DEFAULT_STRICT,
-        docstring='Polynomial function that yields Doppler Rate scale factor (DRSF) as a function of image '
-                  'location. Yields DRSF as a function of image range coordinate (variable 1) and azimuth '
+        docstring='Polynomial function that yields *Doppler Rate scale factor (DRSF)* as a function of image '
+                  'location. Yields `DRSF` as a function of image range coordinate (variable 1) and azimuth '
                   'coordinate (variable 2). Used to compute Doppler Rate at closest approach.')  # type: Poly2DType
     DopCentroidPoly = _SerializableDescriptor(
         'DopCentroidPoly', Poly2DType, _required, strict=DEFAULT_STRICT,
