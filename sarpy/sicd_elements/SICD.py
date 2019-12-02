@@ -115,6 +115,22 @@ class SICDType(Serializable):
                 return attribute
         return 'OTHER'
 
+    def derive(self):
+        """
+        Populates any potential derived data in the SICD structure. This should get called after reading an XML,
+        or as a user desires.
+
+        Returns
+        -------
+        None
+        """
+
+        if self.GeoData is not None:
+            self.GeoData.derive()
+
+        if self.RadarCollection is not None:
+            self.RadarCollection.derive()
+
     def _validate_image_segment_id(self):  # type: () -> bool
         if self.ImageFormation is None or self.RadarCollection is None:
             return False

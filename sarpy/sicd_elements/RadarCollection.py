@@ -335,9 +335,16 @@ class RadarCollectionType(Serializable):
         'Parameters', ParameterType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='A parameters list.')  # type: List[ParameterType]
 
-    def __init__(self, **kwargs):
-        super(RadarCollectionType, self).__init__(**kwargs)
-        self._derive_tx_polarization()  # check the validity of
+    def derive(self):
+        """
+        Populates any potential derived data in RadarCollection.
+
+        Returns
+        -------
+        None
+        """
+
+        self._derive_tx_polarization()
 
     def _derive_tx_polarization(self):
         # TxPolarization was optional prior to SICD 1.0. It may need to be derived.

@@ -11,6 +11,7 @@ from ._base import Serializable, DEFAULT_STRICT, _StringEnumDescriptor, \
 from ._blocks import XYZType, LatLonHAERestrictionType, LatLonCornerStringType, LatLonArrayElementType
 from .GeoInfo import GeoInfoType
 
+from sarpy.geometry.geocoords import geodetic_to_ecf, ecf_to_geodetic
 
 __classification__ = "UNCLASSIFIED"
 
@@ -25,6 +26,22 @@ class SCPType(Serializable):
     LLH = _SerializableDescriptor(
         'LLH', LatLonHAERestrictionType, _required, strict=DEFAULT_STRICT,
         docstring='The WGS-84 coordinates.')  # type: LatLonHAERestrictionType
+
+    def derive(self):
+        """
+        Populates any potential derived data in SCP.
+
+        Returns
+        -------
+        None
+        """
+
+        if self.ECF is None and self.LLH is not None:
+            coords = geodetic_to_ecf(self.LLH.getArray(order='LAT'))
+            self.ECF = XYZType(X=coords[0], Y=coords[1], Z=coords[2])
+        elif self.LLH is None and self.ECF is not None:
+            coords = ecf_to_geodetic(self.ECF.getArray())
+            self.LLH = LatLonHAERestrictionType(Lat=coords[0], Lon=coords[1], HAE=coords[2])
 
 
 class GeoDataType(Serializable):
@@ -61,3 +78,15 @@ class GeoDataType(Serializable):
     GeoInfos = _SerializableArrayDescriptor(
         'GeoInfos', GeoInfoType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Relevant geographic features list.')  # type: List[GeoInfoType]
+
+    def derive(self):
+        """
+        Populates any potential derived data in GeoData.
+
+        Returns
+        -------
+        None
+        """
+
+        if self.SCP is not None:
+            self.SCP.derive()
