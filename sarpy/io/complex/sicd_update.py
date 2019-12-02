@@ -2823,6 +2823,29 @@ class ReferencePlaneType(Serializable):
         'Orientation', _ORIENTATION_VALUES, _required, strict=DEFAULT_STRICT,
         docstring='Describes the shadow intent of the display plane.')  # type: str
 
+    def get_ecf_corner_array(self):
+        """
+        Use the XDir and YDir definitions to return the corner points in ECF coordinates as a 4x3 array.
+
+        Returns
+        -------
+        numpy.ndarray
+            The corner points of the collection area, with order following the AreaType order convention.
+        """
+
+        ecf_ref = self.RefPt.ECF.getArray()
+        x_shift = self.XDir.UVectECF.getArray()*self.XDir.LineSpacing
+        y_shift = self.YDir.UVectECF.getArray()*self.YDir.SampleSpacing
+        # order convention
+        x_offset = numpy.array(
+            [self.XDir.FirstLine, self.XDir.FirstLine, self.XDir.NumLines, self.XDir.NumLines])
+        y_offset = numpy.array(
+            [self.YDir.FirstSample, self.YDir.NumSamples, self.YDir.NumSamples, self.YDir.FirstSample])
+        corners = numpy.zeros((4, 3), dtype=numpy.float64)
+        for i in range(4):
+            corners[i, :] = \
+                ecf_ref + x_shift*(x_offset[i] - self.RefPt.Line) + y_shift*(y_offset[i] - self.RefPt.Sample)
+        return corners
 
 class AreaType(Serializable):
     """The collection area"""
@@ -2844,21 +2867,12 @@ class AreaType(Serializable):
         self._derive_corner_from_plane()  # try in the event of sicd 0.5 or earlier standard.
 
     def _derive_corner_from_plane(self):
-        if self.Corner is not None or self.Plane is None:
+        # try to define the corner points - for SICD 0.5.
+        if self.Corner is not None:
             return  # nothing to be done
-        # define the corner points - for SICD 0.5.
-        reference_point = self.Plane.RefPt
-        ecf_ref = reference_point.ECF.getArray()
-        x_offset = numpy.array(
-            [self.Plane.XDir.FirstLine, self.Plane.XDir.FirstLine, self.Plane.XDir.NumLines, self.Plane.XDir.NumLines])
-        y_offset = numpy.array(
-            [self.Plane.YDir.FirstSample, self.Plane.YDir.NumSamples, self.Plane.YDir.NumSamples, self.Plane.YDir.FirstSample])
-        x_shift = self.Plane.XDir.UVectECF.getArray()*self.Plane.XDir.LineSpacing
-        y_shift = self.Plane.YDir.UVectECF.getArray()*self.Plane.YDir.SampleSpacing
-        corners = numpy.zeros((4, 3), dtype=numpy.float64)
-        for i in range(4):
-            corners[i, :] = \
-                ecf_ref + x_shift*(x_offset[i] - self.Plane.RefPt.Line) + y_shift*(y_offset[i] - self.Plane.RefPt.Sample)
+        if self.Plane is None:
+            return  # nothing to derive from
+        corners = self.Plane.get_ecf_corner_array()
         self.Corner = [
             LatLonHAECornerRestrictionType(**{'Lat': entry[0], 'Lon': entry[1], 'HAE': entry[2], 'index': i})
             for i, entry in enumerate(geocoords.ecf_to_geodetic(corners))]
@@ -3244,11 +3258,11 @@ class NoiseLevelType(Serializable):
 
 
         scp_val = self.NoisePoly[0, 0]  # the value at SCP
-        if abs(scp_val - 1) < numpy.spacing(1):
-            # TODO: verify the formula at sicd.py line 1190.
+        if scp_val == 1:
             # the relative noise levels should be 1 at SCP
             self.NoiseLevelType = 'RELATIVE'
         else:
+            # it seems safe that it's not absolute, in this case?
             self.NoiseLevelType = 'ABSOLUTE'
 
 
