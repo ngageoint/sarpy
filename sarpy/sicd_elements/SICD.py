@@ -102,11 +102,6 @@ class SICDType(Serializable):
         'RMA', RMAType, _required, strict=DEFAULT_STRICT,
         docstring='Parameters included when the image is formed using the Range Migration Algorithm.')  # type: RMAType
 
-    def __init__(self, **kwargs):
-        super(SICDType, self).__init__(**kwargs)
-        # MatchInfo was optional prior to sicd 0.5, so populate with nonsense for compliance
-        self._match_info_check()
-
     @property
     def ImageFormType(self):  # type: () -> str
         """
@@ -119,11 +114,6 @@ class SICDType(Serializable):
             if getattr(self, attribute) is not None:
                 return attribute
         return 'OTHER'
-
-    def _match_info_check(self):
-        # TODO: VERIFY - I may have confused myself here.
-        if self.MatchInfo is None:
-            self.MatchInfo = MatchInfoType(MatchTypes=[{'TypeId': ''}])  # unsatisfying, but nothing more to be done.
 
     def _validate_image_segment_id(self):  # type: () -> bool
         if self.ImageFormation is None or self.RadarCollection is None:
