@@ -581,7 +581,7 @@ class _ComplexDescriptor(_BasicDescriptor):
                 raise ValueError('There must be exactly one Imag component of a complex type node defined.')
             real = float(_get_node_value(rnode))
             imag = float(_get_node_value(inode))
-            self.data[instance] = complex(re=real, im=imag)
+            self.data[instance] = complex(real=real, imag=imag)
         elif isinstance(value, dict):
             # from json deserialization
             real = None
@@ -592,7 +592,7 @@ class _ComplexDescriptor(_BasicDescriptor):
                 imag = value.get(key, imag)
             if real is None or imag is None:
                 raise ValueError('Cannot convert dict {} to a complex number.'.format(value))
-            self.data[instance] = complex(re=real, im=imag)
+            self.data[instance] = complex(real=real, imag=imag)
         else:
             # from user - this could be dumb
             self.data[instance] = complex(value)
