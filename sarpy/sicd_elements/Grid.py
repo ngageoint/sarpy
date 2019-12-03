@@ -113,6 +113,7 @@ class DirParamType(Serializable):
             condition = False
         return condition
 
+    # TODO: derived field effort a la sicd.py line 1295 - 1381.
 
 class GridType(Serializable):
     """Collection grid details container"""
