@@ -24,6 +24,7 @@ comboExample.current(1)
 def callback_print_selection(event):
     print(comboExample.get())
 
+comboExample.update_combobox_values(['May', 'June', 'July', 'August'])
 
 comboExample.on_selection(callback_print_selection)
 

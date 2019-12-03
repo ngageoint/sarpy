@@ -63,7 +63,6 @@ class BasicButtonPanel(tk.Frame):
                 name = widget_and_name[1]
             setattr(self, widget, getattr(self, widget)(self.rows[row_num]))
             getattr(self, widget).pack(side="left", padx=5, pady=5)
-            getattr(self, widget).config(bd=2)
             getattr(self, widget).config(text=name)
             self.widget_list.append(widget)
 

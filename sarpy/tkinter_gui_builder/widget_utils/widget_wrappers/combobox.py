@@ -9,3 +9,7 @@ class Combobox(ttk.Combobox, WidgetEvents):
 
     def on_selection(self, event):
         self.bind("<<ComboboxSelected>>", event)
+
+    def update_combobox_values(self, val_list):
+        self['values'] = val_list
+        self.current(0)
