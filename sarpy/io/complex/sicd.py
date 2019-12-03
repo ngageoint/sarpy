@@ -1675,7 +1675,7 @@ def derived_fields(meta, set_default_values=True):
                 # a zero value, the KCtr computation will be wrong if the
                 # DFT was not "centered" (s_0 = s_coa and v_0 = v_coa in
                 # the terminology of the SICD spec).
-                if 'fc' in locals():
+                if 'fc' in locals():  # NOTE: this is defined at line 1517.
                     if (not hasattr(meta.Grid.Row, 'KCtr')):
                         if hasattr(meta.Grid.Row, 'DeltaKCOAPoly'):
                             # DeltaKCOAPoly populated, but not KCtr (would be odd)

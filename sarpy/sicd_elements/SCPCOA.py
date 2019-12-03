@@ -2,10 +2,16 @@
 The SCPCOAType definition.
 """
 
+import logging
+
+import numpy
+
 from ._base import Serializable, DEFAULT_STRICT, \
     _StringEnumDescriptor, _FloatDescriptor, \
     _SerializableDescriptor
 from ._blocks import XYZType
+
+from sarpy.geometry import geocoords
 
 
 __classification__ = "UNCLASSIFIED"
@@ -66,3 +72,120 @@ class SCPCOAType(Serializable):
         'LayoverAng', _required, strict=DEFAULT_STRICT, bounds=(0., 360.),
         docstring='Angle from north to the layover direction in the ETP at COA. Measured '
                   'clockwise in the ETP.')  # type: float
+
+    def derive(self, SCP):
+        """
+        Populates derived data in SCPCOA. Expected to be called by SICD parent.
+
+        Parameters
+        ----------
+        SCP : numpy.ndarray
+            The Scene control point in ECF coordinates
+
+        Returns
+        -------
+        None
+        """
+
+        norm = numpy.linalg.norm  # just a cheap alias
+
+        if SCP is None or self.ARPPos is None or self.ARPVel is None:
+            return  # nothing to be done
+
+        ARP = self.ARPPos.get_array()
+        ARP_vel = self.ARPVel.get_array()
+        LOS = (SCP - ARP)
+        # unit vector versions
+        uSCP = SCP/norm(SCP)
+        uARP = ARP/norm(ARP)
+        uARP_vel = ARP_vel/norm(ARP_vel)
+        uLOS = LOS/norm(LOS)
+        # cross product junk
+        left = numpy.cross(uARP, uARP_vel)
+        look = numpy.sign(numpy.dot(left, uLOS))
+
+        sot = 'R' if look < 0 else 'L'
+        if self.SideOfTrack is None:
+            self.SideOfTrack = sot
+        elif self.SideOfTrack != sot:
+            logging.error(
+                'In SCPCOAType, the derived value for SideOfTrack is {} and the set '
+                'value is {}'.format(sot, self.SideOfTrack))
+
+        slant_range = numpy.linalg.norm(LOS)
+        if self.SlantRange is None:
+            self.SlantRange = slant_range
+        elif abs(self.SlantRange - slant_range) > 10:  # TODO: what is a sensible tolerance here?
+            logging.error('In SCPCOAType, the derived value for SlantRange is {} and the set '
+                          'value is {}'.format(slant_range, self.SlantRange))
+
+        ground_range = norm(SCP)*numpy.arccos(numpy.dot(uSCP, uARP))
+        if self.GroundRange is None:
+            self.GroundRange = ground_range
+        elif abs(self.GroundRange - ground_range) > 10:  # TODO: what is a sensible tolerance here?
+            logging.error('In SCPCOAType, the derived value for GroundRange is {} and the set '
+                          'value is {}'.format(ground_range, self.GroundRange))
+
+        doppler_cone = numpy.rad2deg(numpy.arccos(numpy.dot(uARP_vel, uLOS)))
+        if self.DopplerConeAng is None:
+            self.DopplerConeAng = doppler_cone
+        elif abs(self.DopplerConeAng - doppler_cone) > 1:  # TODO: sensible tolerance?
+            logging.error('In SCPCOAType, the derived value for DopplerConeAng is {} and the set '
+                          'value is {}'.format(doppler_cone, self.DopplerConeAng))
+
+        # Earth Tangent Plane (ETP) at the SCP is the plane tangent to the surface of constant height
+        # above the WGS 84 ellipsoid (HAE) that contains the SCP. The ETP is an approximation to the
+        # ground plane at the SCP.
+        ETP = geocoords.wgs_84_norm(SCP)
+        graze_ang = numpy.rad2deg(numpy.arcsin(numpy.dot(ETP, -uLOS)))
+        if self.GrazeAng is None:
+            self.GrazeAng = graze_ang
+        elif abs(self.GrazeAng - graze_ang) > 1:  # TODO: sensible tolerance?
+            logging.error('In SCPCOAType, the derived value for GrazeAng is {} and the set '
+                          'value is {}'.format(graze_ang, self.GrazeAng))
+
+        if self.IncidenceAng is None:
+            self.IncidenceAng = 90 - self.GrazeAng
+
+        # slant plane unit normal
+        uSPZ = look*numpy.cross(ARP_vel, uLOS)
+        uSPZ /= norm(uSPZ)
+        # perpendicular component of range vector wrt the ground plane
+        uGPX = -uLOS + numpy.dot(ETP, uLOS)*ETP
+        uGPX /= norm(uGPX)
+        uGPY = numpy.cross(ETP, uGPX)  # already unit vector
+        twist_ang = -numpy.rad2deg(numpy.arcsin(numpy.dot(uGPY, uSPZ)))
+        if self.TwistAng is None:
+            self.TwistAng = twist_ang
+        elif abs(self.TwistAng - twist_ang) > 1:  # TODO: sensible tolerance?
+            logging.error('In SCPCOAType, the derived value for TwistAng is {} and the set '
+                          'value is {}'.format(twist_ang, self.TwistAng))
+
+        slope_ang = numpy.rad2deg(numpy.arccos(numpy.dot(ETP, uSPZ)))
+        if self.SlopeAng is None:
+            self.SlopeAng = slope_ang
+        elif abs(self.SlopeAng - slope_ang) > 1:  # TODO: sensible tolerance?
+            logging.error('In SCPCOAType, the derived value for SlopeAng is {} and the set '
+                          'value is {}'.format(slope_ang, self.SlopeAng))
+
+        # perpendicular component of north wrt the ground plane
+        NORTH = numpy.array([0, 0, 1]) - ETP[2]*ETP
+        uNORTH = NORTH/norm(NORTH)
+        uEAST = numpy.cross(uNORTH, ETP)  # already unit vector
+        azim_ang = numpy.rad2deg(numpy.arctan2(numpy.dot(uGPX, uEAST), numpy.dot(uGPX, uNORTH)))
+        azim_ang = azim_ang if azim_ang > 0 else azim_ang + 360
+        if self.AzimAng is None:
+            self.AzimAng = azim_ang
+        elif abs(self.AzimAng - azim_ang) > 1:  # TODO: sensible tolerance?
+            logging.error('In SCPCOAType, the derived value for AzimAng is {} and the set '
+                          'value is {}'.format(azim_ang, self.AzimAng))
+
+        # perpendicular component of ground plane wrt slant plane
+        layover_ground = ETP - numpy.dot(ETP, uSPZ)*uSPZ  # TODO: reciprocal in sicd.py line 1605?
+        layover_ang = numpy.rad2deg(numpy.arctan2(numpy.dot(layover_ground, uEAST), numpy.dot(layover_ground, uNORTH)))
+        layover_ang = layover_ang if layover_ang > 0 else layover_ang + 360
+        if self.LayoverAng is None:
+            self.LayoverAng = layover_ang
+        elif abs(self.LayoverAng - layover_ang) > 1:  # TODO: sensible tolerance?
+            logging.error('In SCPCOAType, the derived value for LayoverAng is {} and the set '
+                          'value is {}'.format(layover_ang, self.LayoverAng))

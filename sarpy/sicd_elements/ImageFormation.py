@@ -10,6 +10,7 @@ from ._base import Serializable, DEFAULT_STRICT, \
     _SerializableDescriptor, _SerializableArrayDescriptor
 from ._blocks import ParameterType
 
+from .RadarCollection import RadarCollectionType
 
 __classification__ = "UNCLASSIFIED"
 
@@ -213,3 +214,14 @@ class ImageFormationType(Serializable):
     PolarizationCalibration = _SerializableDescriptor(
         'PolarizationCalibration', PolarizationCalibrationType, _required, strict=DEFAULT_STRICT,
         docstring='The polarization calibration details.')  # type: PolarizationCalibrationType
+
+    def derive(self):
+        """
+        Populates derived data in ImageFormationType. Expected to be called by SICD parent.
+
+        Returns
+        -------
+        None
+        """
+
+        pass

@@ -85,3 +85,29 @@ class ImageDataType(Serializable):
             logging.error("We have `ValidData` defined, with fewer than 3 entries.")
             condition = False
         return condition
+
+    def get_valid_vertex_data(self, dtype=numpy.int64):
+        """
+        Gets an array of [row, col] indices defining the  valid data. If `ValidData` is defined, then it will
+        be used. Otherwise, the image corner points will be used.
+
+        Parameters
+        ----------
+        dtype : numpy.dtype
+            the data type for the array
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+
+        if self.ValidData is not None:
+            out = numpy.zeros((self.ValidData.size, 2), dtype=dtype)
+            for i, entry in enumerate(self.ValidData):
+                out[i, :] = entry.get_array(dtype=dtype)
+            return out
+        else:
+            if self.NumRows is None or self.NumCols is None:
+                return None
+            return numpy.array(
+                [[0, 0], [0, self.NumCols-1], [self.NumRows-1, self.NumCols-1], [self.NumRows-1, 0]], dtype=dtype)

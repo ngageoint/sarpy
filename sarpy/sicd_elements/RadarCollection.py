@@ -81,6 +81,26 @@ class WaveformParametersType(Serializable):
             valid = False
         return valid
 
+    def derive(self):
+        """
+        Populate any derived data in WaveformParametersType.
+
+        Returns
+        -------
+        None
+        """
+
+        if self.RcvDemodType == 'CHIRP' and self.RcvFMRate is None:
+            self.RcvFMRate = 0.0  # this should be 0 anyways?
+        if self.RcvFMRate == 0.0 and self.RcvDemodType is None:
+            self.RcvDemodType = 'CHIRP'
+        if self.TxPulseLength is not None and self.TxFMRate is not None and self.TxRFBandwidth is None:
+            self.TxRFBandwidth = self.TxPulseLength*self.TxFMRate
+        if self.TxPulseLength is not None and self.TxRFBandwidth is not None and self.TxFMRate is None:
+            self.TxFMRate = self.TxRFBandwidth/self.TxPulseLength
+        if self.TxFMRate is not None and self.TxRFBandwidth is not None and self.TxPulseLength is None:
+            self.TxPulseLength = self.TxRFBandwidth/self.TxFMRate
+
 
 class TxStepType(Serializable):
     """Transmit sequence step details"""
@@ -245,9 +265,9 @@ class ReferencePlaneType(Serializable):
             The corner points of the collection area, with order following the AreaType order convention.
         """
 
-        ecf_ref = self.RefPt.ECF.getArray()
-        x_shift = self.XDir.UVectECF.getArray()*self.XDir.LineSpacing
-        y_shift = self.YDir.UVectECF.getArray()*self.YDir.SampleSpacing
+        ecf_ref = self.RefPt.ECF.get_array()
+        x_shift = self.XDir.UVectECF.get_array() * self.XDir.LineSpacing
+        y_shift = self.YDir.UVectECF.get_array() * self.YDir.SampleSpacing
         # order convention
         x_offset = numpy.array(
             [self.XDir.FirstLine, self.XDir.FirstLine, self.XDir.NumLines, self.XDir.NumLines])
@@ -277,7 +297,6 @@ class AreaType(Serializable):
 
     def __init__(self, **kwargs):
         super(AreaType, self).__init__(**kwargs)
-        self._derive_corner_from_plane()  # try in the event of sicd 0.5 or earlier standard.
 
     def _derive_corner_from_plane(self):
         # try to define the corner points - for SICD 0.5.
@@ -289,6 +308,17 @@ class AreaType(Serializable):
         self.Corner = [
             LatLonHAECornerRestrictionType(**{'Lat': entry[0], 'Lon': entry[1], 'HAE': entry[2], 'index': i})
             for i, entry in enumerate(geocoords.ecf_to_geodetic(corners))]
+
+    def derive(self):
+        """
+        Populate any internally derived data for AreaType.
+
+        Returns
+        -------
+        None
+        """
+
+        self._derive_corner_from_plane()
 
 
 class RadarCollectionType(Serializable):
@@ -304,7 +334,7 @@ class RadarCollectionType(Serializable):
     # other class variables
     _POLARIZATION1_VALUES = ('V', 'H', 'RHC', 'LHC', 'OTHER', 'UNKNOWN', 'SEQUENCE')
     # descriptors
-    TxFrequencyType = _SerializableDescriptor(
+    TxFrequency = _SerializableDescriptor(
         'TxFrequency', TxFrequencyType, _required, strict=DEFAULT_STRICT,
         docstring='The transmit frequency range.')  # type: TxFrequencyType
     RefFreqIndex = _IntegerDescriptor(
@@ -337,7 +367,7 @@ class RadarCollectionType(Serializable):
 
     def derive(self):
         """
-        Populates any potential derived data in RadarCollection.
+        Populates derived data in RadarCollection. Expected to be called by SICD parent.
 
         Returns
         -------
@@ -345,6 +375,13 @@ class RadarCollectionType(Serializable):
         """
 
         self._derive_tx_polarization()
+        if self.Area is not None:
+            self.Area.derive()
+        if self.Waveform is not None:
+            for entry in self.Waveform:
+                entry.derive()
+        self._derive_tx_frequency()  # call after waveform entry derive call
+        self._derive_wf_params()
 
     def _derive_tx_polarization(self):
         # TxPolarization was optional prior to SICD 1.0. It may need to be derived.
@@ -358,23 +395,48 @@ class RadarCollectionType(Serializable):
             return  # nothing to derive from
 
         if len(self.RcvChannels) > 1:
-            self._derive_tx_steps()
+            # TxSequence may need to be derived from RCvChannels, for SICD before 1.0 or poorly formed
+            if self.TxSequence is not None:
+                return
+            elif self.RcvChannels is None:
+                return  # nothing to derive from
+            elif len(self.RcvChannels) < 2:
+                return  # no need for step definition
+
+            steps = []
+            for i, chanparam in enumerate(self.RcvChannels):
+                # TODO: VERIFY - there's some effort to avoid repetition in sicd.py at line 1112. Is this necessary?
+                #   What about WFIndex? Is it possible to derive that?
+                steps.append(TxStepType(index=i, TxPolarization=chanparam.get_transmit_polarization()))
+            self.TxSequence = steps
+            self.TxPolarization = 'SEQUENCE'
         else:
             self.TxPolarization = self.RcvChannels[0].get_transmit_polarization()
 
-    def _derive_tx_steps(self):
-        # TxSequence may need to be derived from RCvChannels, for SICD before 1.0 or poorly formed
-        if self.TxSequence is not None:
-            return
-        elif self.RcvChannels is None:
-            return  # nothing to derive from
-        elif len(self.RcvChannels) < 2:
-            return  # no need for step definition
+    def _derive_tx_frequency(self):
+        if self.Waveform is None or self.Waveform.size == 0:
+            return  # nothing to be done
+        if not(self.TxFrequency is None or self.TxFrequency.Min is None or self.TxFrequency.Max is None):
+            return  # no need to do anything
 
-        steps = []
-        for i, chanparam in enumerate(self.RcvChannels):
-            # TODO: VERIFY - there's some effort to avoid repetition in sicd.py at line 1112. Is this necessary?
-            #   What about WFIndex? Is it possible to derive that?
-            steps.append(TxStepType(index=i, TxPolarization=chanparam.get_transmit_polarization()))
-        self.TxSequence = steps
-        self.TxPolarization = 'SEQUENCE'
+        if self.TxFrequency is None:
+            self.TxFrequency = TxFrequencyType()
+        if self.TxFrequency.Min is None:
+            self.TxFrequency.Min = min(
+                entry.TxFreqStart for entry in self.Waveform if entry.TxFreqStart is not None)
+        if self.TxFrequency.Max is None:
+            self.TxFrequency.Max = max(
+                (entry.TxFreqStart + entry.TxRFBandwidth) for entry in self.Waveform if
+                entry.TxFreqStart is not None and entry.TxRFBandwidth is not None)
+
+    def _derive_wf_params(self):
+        if self.TxFrequency is None or self.TxFrequency.Min is None or self.TxFrequency.Max is None:
+            return  # nothing that we can do
+        if self.Waveform is None or self.Waveform.size != 1:
+            return  # nothing to be done
+
+        entry = self.Waveform[0]  # only true for single waveform definition
+        if entry.TxFreqStart is None:
+            entry.TxFreqStart = self.TxFrequency.Min
+        if entry.TxRFBandwidth is None:
+            entry.TxRFBandwidth = self.TxFrequency.Max - self.TxFrequency.Min

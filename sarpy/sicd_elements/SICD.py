@@ -4,7 +4,12 @@ The SICDType definition.
 
 import logging
 
+import numpy
+from numpy.polynomial import polynomial as numpy_poly
+
 from ._base import Serializable, DEFAULT_STRICT, _SerializableDescriptor
+from ._blocks import Poly1DType, Poly2DType, XYZType, XYZPolyType
+
 from .CollectionInfo import CollectionInfoType
 from .ImageCreation import ImageCreationType
 from .ImageData import ImageDataType
@@ -13,7 +18,7 @@ from .Grid import GridType
 from .Timeline import TimelineType
 from .Position import PositionType
 from .RadarCollection import RadarCollectionType
-from .ImageFormation import ImageFormationType
+from .ImageFormation import ImageFormationType, TxFrequencyProcType
 from .SCPCOA import SCPCOAType
 from .Radiometric import RadiometricType
 from .Antenna import AntennaType
@@ -115,22 +120,6 @@ class SICDType(Serializable):
                 return attribute
         return 'OTHER'
 
-    def derive(self):
-        """
-        Populates any potential derived data in the SICD structure. This should get called after reading an XML,
-        or as a user desires.
-
-        Returns
-        -------
-        None
-        """
-
-        if self.GeoData is not None:
-            self.GeoData.derive()
-
-        if self.RadarCollection is not None:
-            self.RadarCollection.derive()
-
     def _validate_image_segment_id(self):  # type: () -> bool
         if self.ImageFormation is None or self.RadarCollection is None:
             return False
@@ -227,6 +216,113 @@ class SICDType(Serializable):
         # does the image formation segment identifier and radar collection make sense?
         condition &= self._validate_image_segment_id()
         return condition
+
+    def derive(self):
+        """
+        Populates any potential derived data in the SICD structure. This should get called after reading an XML,
+        or as a user desires.
+
+        Returns
+        -------
+        None
+        """
+
+        def derive_scp_time():
+            if self.SCPCOA is not None and self.SCPCOA.SCPTime is None:
+                if self.Grid is None or self.Grid.TimeCOAPoly is None:
+                    return
+                self.SCPCOA.SCPTime = self.Grid.TimeCOAPoly.Coefs[0, 0]
+
+        def derive_time_coa_poly():
+            # this only works for spotlight mode collect
+            if self.SCPCOA is not None and self.SCPCOA.SCPTime is not None and \
+                    self.Grid is not None and self.Grid.TimeCOAPoly is None:
+                try:
+                    if self.CollectionInfo.RadarMode.ModeType == 'SPOTLIGHT':
+                        self.Grid.TimeCOAPoly = Poly2DType(Coefs=[[self.SCPCOA.SCPTime, ], ])
+                except (AttributeError, ValueError):
+                    pass
+
+        def derive_aperture_position():
+            if self.Position is not None and self.Position.ARPPoly is not None and \
+                    self.SCPCOA is not None and self.SCPCOA.SCPTime is not None:
+                # set aperture position, velocity, and acceleration at scptime from position polynomial, if necessary
+                poly = self.Position.ARPPoly
+                scptime = self.SCPCOA.SCPTime
+
+                if self.SCPCOA.ARPPos is None:
+                    self.SCPCOA.ARPPos = XYZType(X=poly.X(scptime),
+                                                 Y=poly.Y(scptime),
+                                                 Z=poly.Z(scptime))
+                if self.SCPCOA.ARPVel is None:
+                    self.SCPCOA.ARPVel = XYZType(X=numpy_poly.polyval(scptime, numpy_poly.polyder(poly.X.Coefs, 1)),
+                                                 Y=numpy_poly.polyval(scptime, numpy_poly.polyder(poly.Y.Coefs, 1)),
+                                                 Z=numpy_poly.polyval(scptime, numpy_poly.polyder(poly.Z.Coefs, 1)))
+                if self.SCPCOA.ARPAcc is None:
+                    self.SCPCOA.ARPAcc = XYZType(X=numpy_poly.polyval(scptime, numpy_poly.polyder(poly.X.Coefs, 2)),
+                                                 Y=numpy_poly.polyval(scptime, numpy_poly.polyder(poly.Y.Coefs, 2)),
+                                                 Z=numpy_poly.polyval(scptime, numpy_poly.polyder(poly.Z.Coefs, 2)))
+            elif self.SCPCOA is not None and self.SCPCOA.ARPPos is not None and \
+                    self.SCPCOA.ARPVel is not None and self.SCPCOA.SCPTime is not None:
+                # set the aperture position polynomial from position, time, acceleration at scptime, if necessary
+                # NB: this assumes constant velocity and acceleration. Maybe that's not terrible?
+                if self.Position is None:
+                    self.Position = PositionType()
+
+                if self.Position.ARPPoly is None:
+                    if self.SCPCOA.ARPAcc is None:
+                        self.SCPCOA.ARPAcc = XYZType(X=0, Y=0, Z=0)
+                    # define the polynomial
+                    coefs = numpy.zeros((3, 3), dtype=numpy.float64)
+                    scptime = self.SCPCOA.SCPTime
+                    pos = self.SCPCOA.ARPPos.get_array()
+                    vel = self.SCPCOA.ARPVel.get_array()
+                    acc = self.SCPCOA.ARPAcc.get_array()
+                    coefs[0, :] = pos - vel*scptime + 0.5*acc*scptime*scptime
+                    coefs[1, :] = vel - acc*scptime
+                    coefs[2, :] = acc
+                    self.Position.ARPPoly = XYZPolyType(X=Poly1DType(Coefs=coefs[:, 0]),
+                                                        Y=Poly1DType(Coefs=coefs[:, 1]),
+                                                        Z=Poly1DType(Coefs=coefs[:, 2]))
+
+        def derive_image_formation():
+            # TODO: introduce some boolean option for default settings?
+            if self.ImageFormation is None:
+                return  # nothing to be done
+            if self.RadarCollection is not None and self.RadarCollection.TxFrequency.Min is not None and \
+                    self.RadarCollection.TxFrequency.Max is not None:
+                # this is based on the assumption that the entire transmitted bandwidth was processed.
+                if self.ImageFormation.TxFrequencyProc is None:
+                    self.ImageFormation.TxFrequencyProc = TxFrequencyProcType(
+                        ProcMin=self.RadarCollection.TxFrequency.Min, ProcMax=self.RadarCollection.TxFrequency.Max)
+                elif self.ImageFormation.TxFrequencyProc.MinProc is None:  # does this really make sense?
+                    self.ImageFormation.TxFrequencyProc.MinProc = self.RadarCollection.TxFrequency.Min
+                elif self.ImageFormation.TxFrequencyProc.MaxProc is None:
+                    self.ImageFormation.TxFrequencyProc.MaxProc = self.RadarCollection.TxFrequency.Max
+
+        derive_scp_time()
+        derive_time_coa_poly()
+        derive_aperture_position()
+
+        if self.GeoData is not None:
+            self.GeoData.derive()  # ensures both coordinate systems are defined for SCP
+
+        if self.Grid is not None:
+            if self.ImageData is None:
+                self.Grid.derive(None)  # derives Row/Col parameters internal to Grid
+            else:
+                self.Grid.derive(self.ImageData.get_valid_vertex_data())
+
+        if self.RadarCollection is not None:
+            self.RadarCollection.derive()
+
+        derive_image_formation()  # call after RadarCollection.derive()
+
+        if self.SCPCOA is not None and self.GeoData is not None and self.GeoData.SCP is not None and \
+                self.GeoData.SCP.ECF is not None:
+            self.SCPCOA.derive(self.GeoData.SCP.ECF.get_array())
+
+        # TODO: continue here from sicd.py 1610-2013
 
 # TODO: properly incorporate derived fields kludgery. See sicd.py line 1261.
 #  This is quite long and unmodular. This should be implemented at the proper level,

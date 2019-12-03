@@ -61,7 +61,7 @@ class XYZType(Serializable):
         'Z', _required, strict=DEFAULT_STRICT,
         docstring='The Z attribute. Assumed to ECF or other, similar coordinates.')  # type: float
 
-    def getArray(self, dtype=numpy.float64):
+    def get_array(self, dtype=numpy.float64):
         """Gets an array representation of the class instance.
 
         Parameters
@@ -91,7 +91,7 @@ class LatLonType(Serializable):
         'Lon', _required, strict=DEFAULT_STRICT,
         docstring='The longitude attribute. Assumed to be WGS-84 coordinates.')  # type: float
 
-    def getArray(self, order='LON', dtype=numpy.float64):
+    def get_array(self, order='LON', dtype=numpy.float64):
         """Gets an array representation of the data.
 
         Parameters
@@ -147,7 +147,7 @@ class LatLonHAEType(LatLonType):
         'HAE', _required, strict=DEFAULT_STRICT,
         docstring='The Height Above Ellipsoid (in meters) attribute. Assumed to be WGS-84 coordinates.')  # type: float
 
-    def getArray(self, order='LON', dtype=numpy.float64):
+    def get_array(self, order='LON', dtype=numpy.float64):
         """Gets an array representation of the data.
 
         Parameters
@@ -237,6 +237,22 @@ class RowColType(Serializable):
         'Row', _required, strict=DEFAULT_STRICT, docstring='The Row attribute.')  # type: int
     Col = _IntegerDescriptor(
         'Col', _required, strict=DEFAULT_STRICT, docstring='The Column attribute.')  # type: int
+
+    def get_array(self, dtype=numpy.int64):
+        """Gets an array representation of the class instance.
+
+        Parameters
+        ----------
+        dtype : numpy.dtype
+            numpy data type of the return
+
+        Returns
+        -------
+        numpy.ndarray
+            array of the form [Row, Col]
+        """
+
+        return numpy.array([self.Row, self.Col], dtype=dtype)
 
 
 class RowColArrayElement(RowColType):
