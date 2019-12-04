@@ -616,6 +616,26 @@ class XYZPolyType(Serializable):
         'Z', Poly1DType, _required, strict=DEFAULT_STRICT,
         docstring='The polynomial for the Z coordinate.')  # type: Poly1DType
 
+    def __call__(self, t):
+        """
+        Evaluate the polynomial at points `t`. This passes `t` straight through
+        to :func:`polyval` of :module:`numpy.polynomial.polynomial` for each of
+        X,Y,Z components. If any of X,Y,Z is not populated, then None is returned.
+
+        Parameters
+        ----------
+        t : float|int|numpy.ndarray
+            The point(s) at which to evaluate.
+
+        Returns
+        -------
+        None|numpy.ndarray
+        """
+
+        if self.X is None or self.Y is None or self.Z is None:
+            return None
+        return numpy.array([self.X(t), self.Y(t), self.Z(t)])
+
 
 class XYZPolyAttributeType(XYZPolyType):
     """

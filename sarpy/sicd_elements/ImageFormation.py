@@ -215,6 +215,32 @@ class ImageFormationType(Serializable):
         'PolarizationCalibration', PolarizationCalibrationType, _required, strict=DEFAULT_STRICT,
         docstring='The polarization calibration details.')  # type: PolarizationCalibrationType
 
+    def _derive_tx_frequency_proc(self, RadarCollection):
+        """
+        Populate a default for processed frequency values, based on the assumption that the entire
+        transmitted bandwidth was processed. This is expected to be called by SICD parent.
+
+        Parameters
+        ----------
+        RadarCollection : RadarCollectionType
+
+        Returns
+        -------
+        None
+        """
+
+        if RadarCollection is not None and RadarCollection.TxFrequency is not None and \
+                RadarCollection.TxFrequency.Min is not None and RadarCollection.TxFrequency.Max is not None:
+            # this is based on the assumption that the entire transmitted bandwidth was processed.
+            if self.TxFrequencyProc is not None:
+                self.TxFrequencyProc = TxFrequencyProcType(
+                    ProcMin=RadarCollection.TxFrequency.Min, ProcMax=RadarCollection.TxFrequency.Max)
+                # TODO: does it make sense to set only one end or the other?
+            elif self.TxFrequencyProc.MinProc is None:
+                self.TxFrequencyProc.MinProc = RadarCollection.TxFrequency.Min
+            elif self.TxFrequencyProc.MaxProc is None:
+                self.TxFrequencyProc.MaxProc = RadarCollection.TxFrequency.Max
+
     def derive(self):
         """
         Populates derived data in ImageFormationType. Expected to be called by SICD parent.

@@ -4,10 +4,17 @@ The RMAType definition.
 
 from typing import Union
 
+import numpy
+from numpy.linalg import norm
+
 from ._base import Serializable, DEFAULT_STRICT, \
     _StringEnumDescriptor, _FloatDescriptor, _BooleanDescriptor, \
     _SerializableDescriptor
 from ._blocks import XYZType, Poly1DType, Poly2DType
+from .SCPCOA import SCPCOAType
+from .Position import PositionType
+from .RadarCollection import RadarCollectionType
+from .ImageFormation import ImageFormationType
 
 
 __classification__ = "UNCLASSIFIED"
@@ -106,3 +113,60 @@ class RMAType(Serializable):
             if getattr(self, attribute) is not None:
                 return attribute
         return None
+
+    def _derive_parameters(self, SCPCOA, Position, RadarCollection, ImageFormation):
+        """
+        Expected to be called from SICD parent.
+        Parameters
+        ----------
+        SCPCOA : SCPCOAType
+        Position : PositionType
+        RadarCollection : RadarCollectionType
+        ImageFormation : ImageFormationType
+
+        Returns
+        -------
+        None
+        """
+
+        def _get_center_frequency():
+            if RadarCollection is None or RadarCollection.RefFreqIndex is None or RadarCollection.RefFreqIndex == 0:
+                return None
+            if ImageFormation is None or ImageFormation.TxFrequencyProc is None or \
+                    ImageFormation.TxFrequencyProc.MinProc is None or ImageFormation.TxFrequencyProc.MaxProc is None:
+                return None
+            return 0.5 * (ImageFormation.TxFrequencyProc.MinProc + ImageFormation.TxFrequencyProc.MaxProc)
+
+        if SCPCOA is None:
+            return
+
+        SCP = None if SCPCOA.ARPPos is None else SCPCOA.ARPPos.get_array()
+
+        im_type = self.ImageType
+        if im_type in ['RMAT', 'RMCR']:
+            RmRef = getattr(self, im_type)  # type: RMRefType
+            if RmRef.PosRef is None and SCPCOA.ARPPos is not None:
+                RmRef.PosRef = XYZType(**SCPCOA.ARPPos.to_dict())
+            if RmRef.VelRef is None and SCPCOA.ARPVel is not None:
+                RmRef.VelRef = XYZType(**SCPCOA.ARPVel.to_dict())
+            if SCP is not None and RmRef.PosRef is not None and RmRef.VelRef is not None:
+                pos_ref = RmRef.PosRef.get_array()
+                vel_ref = RmRef.VelRef.get_array()
+                uvel_ref = vel_ref/norm(vel_ref)
+                uLOS = (SCP - pos_ref)  # it absolutely could be that SCP = pos_ref
+                uLos_norm = norm(uLOS)
+                if uLos_norm > 0:
+                    uLOS /= uLos_norm
+                    if RmRef.DopConeAngRef is None:
+                        RmRef.DopConeAngRef = numpy.rad2deg(numpy.arccos(numpy.dot(uvel_ref, uLOS)))
+        elif im_type == 'INCA':
+            if SCP is not None and self.INCA.TimeCAPoly is not None and \
+                    Position is not None and Position.ARPPoly is not None:
+                t_zero = self.INCA.TimeCAPoly.Coefs[0]
+                ca_pos = Position.ARPPoly(t_zero)
+                if self.INCA.R_CA_SCP is None:
+                    self.INCA.R_CA_SCP = norm(ca_pos - SCP)
+            if self.INCA.FreqZero is None:
+                center_frequency = _get_center_frequency()
+                if center_frequency is not None:
+                    self.INCA.FreqZero = center_frequency

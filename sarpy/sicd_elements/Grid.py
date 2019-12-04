@@ -6,14 +6,25 @@ import logging
 from typing import List
 
 import numpy
-
+from numpy.linalg import norm
+from numpy.polynomial import polynomial as numpy_poly
 from scipy.optimize import newton
-
+from scipy.constants import speed_of_light
 
 from ._base import Serializable, DEFAULT_STRICT, \
     _StringDescriptor, _StringEnumDescriptor, _FloatDescriptor, _FloatArrayDescriptor, _IntegerEnumDescriptor, \
     _SerializableDescriptor, _SerializableArrayDescriptor
 from ._blocks import ParameterType, XYZType, Poly2DType
+from .ImageData import ImageDataType
+from .CollectionInfo import CollectionInfoType
+from .SCPCOA import SCPCOAType
+from .GeoData import GeoDataType
+from .RadarCollection import RadarCollectionType
+from .ImageFormation import ImageFormationType
+from .Position import PositionType
+from .PFA import PFAType
+from .RMA import RMAType
+
 
 __classification__ = "UNCLASSIFIED"
 
@@ -293,8 +304,9 @@ class DirParamType(Serializable):
 
         # solve for the half-power point in an oversampled impulse response
         OVERSAMPLE = 1024
-        impulse_response = numpy.absolute(numpy.fft.fft(self.WgtFunct, self.WgtFunct.size*OVERSAMPLE))/numpy.sum(self.WgtFunct)
-        ind = numpy.flatnonzero(impulse_response < 1/numpy.sqrt(2))[0] # find the first index with less than half power.
+        impulse_response = numpy.absolute(
+            numpy.fft.fft(self.WgtFunct, self.WgtFunct.size*OVERSAMPLE))/numpy.sum(self.WgtFunct)
+        ind = numpy.flatnonzero(impulse_response < 1/numpy.sqrt(2))[0]  # find first index with less than half power.
         # linearly interpolate between impulse_response[ind-1] and impulse_response[ind] to find 1/sqrt(2)
         v0 = impulse_response[ind-1]
         v1 = impulse_response[ind]
@@ -302,14 +314,13 @@ class DirParamType(Serializable):
 
     def define_response_widths(self):
         """
-        Assuming that `WgtFunct` has been properly populated, define **OTHER THINGS**. This should likely be called
-        by `GridType` parent.
+        Assuming that `WgtFunct` has been properly populated, define the response widths.
+        This should likely be called by `GridType` parent.
 
         Returns
         -------
         None
         """
-        # TODO: fill in the docstring above.
 
         if self.ImpRespBW is not None and self.ImpRespWid is None:
             broadening_factor = self._get_broadening_factor()
@@ -405,23 +416,372 @@ class GridType(Serializable):
         'Col', DirParamType, _required, strict=DEFAULT_STRICT,
         docstring="Column direction parameters.")  # type: DirParamType
 
-    def derive(self, valid_vertices):
+    def _derive_direction_params(self, ImageData):
         """
-        Populate any potential derived data for GridType. Expected to be called from SICD parent.
+        Populate the Row/Col direction parameters from imageData, if necessary.
+        Expected to be called from SICD parent.
 
         Parameters
         ----------
-        valid_vertices : None|numpy.ndarray
-            The Nx2 numpy array of image corner points.
+        ImageData : ImageDataType
 
         Returns
         -------
         None
         """
 
+        valid_vertices = None if ImageData is None else ImageData.get_valid_vertex_data()
         for attribute in ['Row', 'Col']:
             value = getattr(self, attribute, None)
             if value is not None:
                 value.define_weight_function()
                 value.define_response_widths()
                 value.estimate_deltak(valid_vertices)
+
+    def _derive_time_coa_poly(self, CollectionInfo, SCPCOA):
+        """
+        Expected to be called from SICD parent.
+
+        Parameters
+        ----------
+        CollectionInfo : CollectionInfoType
+        SCPCOA : SCPCOAType
+
+        Returns
+        -------
+        None
+        """
+        if self.TimeCOAPoly is not None:
+            return  # nothing needs to be done
+
+        try:
+            if CollectionInfo.RadarMode.ModeType == 'SPOTLIGHT':
+                self.TimeCOAPoly = Poly2DType(Coefs=[[SCPCOA.SCPTime, ], ])
+        except (AttributeError, ValueError):
+            return
+
+    @staticmethod
+    def _get_center_frequency(RadarCollection, ImageFormation):
+        """
+        Helper method.
+
+        Parameters
+        ----------
+        RadarCollection : RadarCollectionType
+        ImageFormation : ImageFormationType
+
+        Returns
+        -------
+        None|float
+            The center processed frequency, in the event that RadarCollection.RefFreqIndex is None or 0.
+        """
+
+        if RadarCollection is None or RadarCollection.RefFreqIndex is None or RadarCollection.RefFreqIndex == 0:
+            return None
+        if ImageFormation is None or ImageFormation.TxFrequencyProc is None or \
+                ImageFormation.TxFrequencyProc.MinProc is None or ImageFormation.TxFrequencyProc.MaxProc is None:
+            return None
+        return 0.5*(ImageFormation.TxFrequencyProc.MinProc + ImageFormation.TxFrequencyProc.MaxProc)
+
+    def _derive_rg_az_comp(self, GeoData, SCPCOA, RadarCollection, ImageFormation):
+        """
+        Expected to be called by SICD parent.
+
+        Parameters
+        ----------
+        GeoData : GeoDataType
+        SCPCOA : SCPCOAType
+        RadarCollection : RadarCollectionType
+        ImageFormation : ImageFormationType
+
+        Returns
+        -------
+        None
+        """
+
+        if self.Row is None:
+            self.Row = DirParamType()
+        if self.Col is None:
+            self.Col = DirParamType()
+
+        if self.ImagePlane is None:
+            self.ImagePlane = 'SLANT'
+        elif self.ImagePlane != 'SLANT':
+            logging.warning(
+                'The Grid.ImagePlane is set to {}, but Image Formation Algorithm is RgAzComp, '
+                'which requires "SLANT". resetting.'.format(self.ImagePlane))
+            self.ImagePlane = 'SLANT'
+
+        if self.Type is None:
+            self.Type = 'RGAZIM'
+        elif self.Type != 'RGAZIM':
+            logging.warning(
+                'The Grid.Type is set to {}, but Image Formation Algorithm is RgAzComp, '
+                'which requires "RGAZIM". resetting.'.format(self.Type))
+
+        if GeoData is not None and GeoData.SCP is not None and GeoData.SCP.ECF is not None and \
+                SCPCOA.ARPPos is not None and SCPCOA.ARPVel is not None:
+            SCP = GeoData.SCP.ECF.get_array()
+            ARP = SCPCOA.ARPPos.get_array()
+            LOS = (SCP - ARP)
+            uLOS = LOS/norm(LOS)
+            if self.Row.UVectECF is None:
+                self.Row.UVectECF = XYZType(X=uLOS[0], Y=uLOS[1], Z=uLOS[2])
+
+            look = -1 if SCPCOA.SideOfTrack == 'R' else 1
+            ARP_vel = SCPCOA.ARPVel.get_array()
+            uSPZ = look*numpy.cross(ARP_vel, uLOS)
+            uSPZ /= norm(uSPZ)
+            uAZ = numpy.cross(uSPZ, uLOS)
+            if self.Col.UVectECF is None:
+                self.Col.UVectECF = XYZType(X=uAZ[0], Y=uAZ[1], Z=uAZ[2])
+
+        center_frequency = self._get_center_frequency(RadarCollection, ImageFormation)
+        if center_frequency is not None:
+            if self.Row.KCtr is None:
+                kctr = 2*center_frequency/speed_of_light
+                if self.Row.DeltaKCOAPoly is not None:  # assume it's 0 otherwise?
+                    kctr -= self.Row.DeltaKCOAPoly.Coefs[0, 0]
+                self.Row.KCtr = kctr
+            elif self.Row.DeltaKCOAPoly is None:
+                self.Row.DeltaKCOAPoly = Poly2DType(Coefs=[[*center_frequency/speed_of_light - self.Row.KCtr, ], ])
+
+            if self.Col.KCtr is None:
+                if self.Col.DeltaKCOAPoly is not None:
+                    self.Col.KCtr = -self.Col.DeltaKCOAPoly.Coefs[0, 0]
+            elif self.Col.DeltaKCOAPoly is None:
+                self.Col.DeltaKCOAPoly = Poly2DType(Coefs=[[-self.Col.KCtr, ], ])
+
+    def _derive_pfa(self, SCPCOA, RadarCollection, ImageFormation, Position, PFA):
+        """
+        Expected to be called by SICD parent.
+
+        Parameters
+        ----------
+        SCPCOA : SCPCOAType
+        RadarCollection : RadarCollectionType
+        ImageFormation : ImageFormationType
+        Position : PositionType
+        PFA : PFAType
+
+        Returns
+        -------
+        None
+        """
+
+        if PFA is None:
+            return  # nothing to be done
+
+        if self.Type is None:
+            self.Type = 'RGAZIM'  # the natural result for PFA
+
+        if SCPCOA.ARPPos is None:
+            return
+
+        SCP = SCPCOA.ARPPos.get_array()
+
+        if Position is not None and Position.ARPPoly is not None and PFA.PolarAngRefTime is not None:
+            polar_ref_pos = Position.ARPPoly(PFA.PolarAngRefTime)
+        else:
+            polar_ref_pos = SCP
+
+        if PFA.IPN is not None and PFA.FPN is not None and \
+                self.Row.UVectECF is None and self.Col.UVectECF is None:
+            ipn = PFA.IPN.get_array()
+            fpn = PFA.FPN.get_array()
+
+            dist = numpy.dot((SCP - polar_ref_pos), ipn) / numpy.dot(fpn, ipn)
+            ref_pos_ipn = polar_ref_pos + (dist * fpn)
+            uRG = SCP - ref_pos_ipn
+            uRG /= norm(uRG)
+            uAZ = numpy.cross(ipn, uRG)  # already unit
+            self.Row.UVectECF = XYZType(X=uRG[0], Y=uRG[1], Z=uRG[2])
+            self.Col.UVectECF = XYZType(X=uAZ[0], Y=uAZ[1], Z=uAZ[2])
+        if self.Col is not None and self.Col.KCtr is None:
+            self.Col.KCtr = 0  # almost always 0 for PFA
+
+        if self.Row is not None and self.Row.KCtr is None:
+            center_frequency = self._get_center_frequency(RadarCollection, ImageFormation)
+            if PFA.Krg1 is not None and PFA.Krg2 is not None:
+                self.Row.KCtr = 0.5*(PFA.Krg1 + PFA.Krg2)
+            elif center_frequency is not None and PFA.SpatialFreqSFPoly is not None:
+                # APPROXIMATION: may not be quite right, due to rectangular inscription loss in PFA.
+                self.Row.KCtr = 2*center_frequency/speed_of_light + PFA.SpatialFreqSFPoly.Coefs[0]
+
+    def _derive_rma(self, RMA, SCPCOA, RadarCollection, ImageFormation, Position):
+        """
+
+        Parameters
+        ----------
+        RMA : RMAType
+        SCPCOA : SCPCOAType
+        RadarCollection : RadarCollectionType
+        ImageFormation : ImageFormationType
+        Position : PositionType
+
+        Returns
+        -------
+        None
+        """
+
+        if RMA is None:
+            return   # nothing can be derived
+
+        im_type = RMA.ImageType
+        if im_type is None:
+            return
+        if im_type == 'RMAT':
+            self._derive_rma_rmat(RMA, SCPCOA, RadarCollection, ImageFormation)
+        elif im_type == 'RMCR':
+            self._derive_rma_rmcr(RMA, SCPCOA, RadarCollection, ImageFormation)
+        else:
+            self._derive_rma_inca(RMA, SCPCOA, Position)
+
+    def _derive_rma_rmat(self, RMA, SCPCOA, RadarCollection, ImageFormation):
+        """
+
+        Parameters
+        ----------
+        RMA : RMAType
+        SCPCOA : SCPCOAType
+        RadarCollection : RadarCollectionType
+        ImageFormation : ImageFormationType
+
+        Returns
+        -------
+        None
+        """
+
+        if RMA.RMAT is None:
+            return
+
+        if self.ImagePlane is None:
+            self.ImagePlane = 'SLANT'
+        if self.Type is None:
+            self.Type = 'XCTYAT'
+
+        if self.Row.UVectECF is None and self.Col.UVectECF is None:
+            if SCPCOA is not None and SCPCOA.ARPPos is not None:
+                SCP = SCPCOA.ARPPos.get_array()
+                pos_ref = RMA.RMAT.PosRef.get_array()
+                upos_ref = pos_ref / norm(pos_ref)
+                vel_ref = RMA.RMAT.VelRef.get_array()
+                uvel_ref = vel_ref / norm(vel_ref)
+                uLOS = (SCP - pos_ref)  # it absolutely could be that SCP = pos_ref
+                uLos_norm = norm(uLOS)
+                if uLos_norm > 0:
+                    uLOS /= uLos_norm
+                    left = numpy.cross(upos_ref, uvel_ref)
+                    look = numpy.sign(numpy.dot(left, uLOS))
+                    uYAT = -look*uvel_ref
+                    uSPZ = numpy.cross(uLOS, uYAT)
+                    uSPZ /= norm(uSPZ)
+                    uXCT = numpy.cross(uYAT, uSPZ)
+                    self.Row.UVectECF = XYZType(X=uXCT[0], Y=uXCT[1], Z=uXCT[2])
+                    self.Col.UVectECF = XYZType(X=uYAT[0], Y=uYAT[1], Z=uYAT[2])
+
+        center_frequency = self._get_center_frequency(RadarCollection, ImageFormation)
+        if center_frequency is not None and RMA.RMAT.DopConeAngRef is not None:
+            if self.Row.KCtr is None:
+                self.Row.KCtr = (2*center_frequency/speed_of_light)*numpy.sin(numpy.deg2rad(RMA.RMAT.DopConeAngRef))
+            if self.Col.KCtr is None:
+                self.Col.KCtr = (2*center_frequency/speed_of_light)*numpy.cos(numpy.deg2rad(RMA.RMAT.DopConeAngRef))
+
+    def _derive_rma_rmcr(self, RMA, SCPCOA, RadarCollection, ImageFormation):
+        """
+
+        Parameters
+        ----------
+        RMA : RMAType
+        SCPCOA : SCPCOAType
+        RadarCollection : RadarCollectionType
+        ImageFormation : ImageFormationType
+
+        Returns
+        -------
+        None
+        """
+
+        if RMA.RMCR is None:
+            return
+
+        if self.ImagePlane is None:
+            self.ImagePlane = 'SLANT'
+        if self.Type is None:
+            self.Type = 'XRGYCR'
+
+        if self.Row.UVectECF is None and self.Col.UVectECF is None:
+            if SCPCOA is not None and SCPCOA.ARPPos is not None:
+                SCP = SCPCOA.ARPPos.get_array()
+                pos_ref = RMA.RMAT.PosRef.get_array()
+                upos_ref = pos_ref / norm(pos_ref)
+                vel_ref = RMA.RMAT.VelRef.get_array()
+                uvel_ref = vel_ref / norm(vel_ref)
+                uLOS = (SCP - pos_ref)  # it absolutely could be that SCP = pos_ref
+                uLos_norm = norm(uLOS)
+                if uLos_norm > 0:
+                    uLOS /= uLos_norm
+                    left = numpy.cross(upos_ref, uvel_ref)
+                    look = numpy.sign(numpy.dot(left, uLOS))
+                    uXRG = uLOS
+                    uSPZ = look*numpy.cross(uvel_ref, uXRG)
+                    uSPZ /= norm(uSPZ)
+                    uYCR = numpy.cross(uSPZ, uXRG)
+                    self.Row.UVectECF = XYZType(X=uXRG[0], Y=uXRG[1], Z=uXRG[2])
+                    self.Col.UVectECF = XYZType(X=uYCR[0], Y=uYCR[1], Z=uYCR[2])
+
+        center_frequency = self._get_center_frequency(RadarCollection, ImageFormation)
+        if center_frequency is not None:
+            if self.Row.KCtr is None:
+                self.Row.KCtr = 2*center_frequency/speed_of_light
+            if self.Col.KCtr is None:
+                self.Col.KCtr = 2*center_frequency/speed_of_light
+
+    def _derive_rma_inca(self, RMA, SCPCOA, Position):
+        """
+
+        Parameters
+        ----------
+        RMA : RMAType
+        SCPCOA : SCPCOAType
+        Position : PositionType
+
+        Returns
+        -------
+        None
+        """
+
+        if RMA.INCA is None:
+            return
+
+        if self.Type is None:
+            self.Type = 'RGZERO'
+
+        if RMA.INCA.TimeCAPoly is not None and Position is not None and Position.ARPPoly is not None and \
+                self.Row.UVectECF is None and self.Col.UVectECF is None and SCPCOA is not None and \
+                SCPCOA.ARPPos is not None:
+            t_zero = RMA.INCA.TimeCAPoly.Coefs[0]
+            ca_pos = Position.ARPPoly(t_zero)
+            ca_vel = numpy.array([
+                numpy_poly.polyval(t_zero, numpy_poly.polyder(Position.ARPPoly.X.Coefs, 1)),
+                numpy_poly.polyval(t_zero, numpy_poly.polyder(Position.ARPPoly.Y.Coefs, 1)),
+                numpy_poly.polyval(t_zero, numpy_poly.polyder(Position.ARPPoly.Z.Coefs, 1)), ])
+            uca_pos = ca_pos/norm(ca_pos)
+            uca_vel = ca_vel/norm(ca_vel)
+            SCP = SCPCOA.ARPPos.get_array()
+            uRg = (SCP - ca_pos)
+            uRg_norm = norm(uRg)
+            if uRg_norm > 0:
+                uRg /= uRg_norm
+                left = numpy.cross(uca_pos, uca_vel)
+                look = numpy.sign(numpy.dot(left, uRg))
+                uSPZ = -look*numpy.cross(uRg, uca_vel)
+                uSPZ /= norm(uSPZ)
+                uAZ = numpy.cross(uSPZ, uRg)
+                self.Row.UVectECF = XYZType(X=uRg[0], Y=uRg[1], Z=uRg[2])
+                self.Col.UVectECF = XYZType(X=uAZ[0], Y=uAZ[1], Z=uAZ[2])
+
+        if self.Row is not None and self.Row.KCtr is None and RMA.INCA.FreqZero is not None:
+            self.Row.KCtr = 2*RMA.INCA.FreqZero/speed_of_light
+        if self.Col is not None and self.Col.KCtr is None:
+            self.Col.KCtr = 0

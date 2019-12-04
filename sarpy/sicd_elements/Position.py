@@ -2,13 +2,14 @@
 The PositionType definition.
 """
 
-import numpy
-
 from typing import List, Union
+
+import numpy
 
 from ._base import Serializable, DEFAULT_STRICT, \
     _SerializableDescriptor, _SerializableArrayDescriptor
-from ._blocks import XYZPolyType, XYZPolyAttributeType
+from ._blocks import XYZType, XYZPolyType, XYZPolyAttributeType, Poly1DType
+from .SCPCOA import SCPCOAType
 
 
 __classification__ = "UNCLASSIFIED"
@@ -38,3 +39,39 @@ class PositionType(Serializable):
         docstring='Receive Aperture Phase Center polynomials array. '
                   'Each polynomial has output in ECF, and represents a function of elapsed seconds since start of '
                   'collection.')  # type: Union[numpy.ndarray, List[XYZPolyAttributeType]]
+
+    def _derive_arp_poly(self, SCPCOA):
+        """
+        Expected to be called from SICD parent. Set the aperture position polynomial from position, time,
+        acceleration at scptime, if necessary.
+
+        Parameters
+        ----------
+        SCPCOA : SCPCOAType
+
+        Returns
+        -------
+        None
+
+        .. Note: This assumes constant velocity and acceleration. Maybe that's not terrible?
+        """
+
+        if self.ARPPoly is not None:
+            return  # nothing to be done
+
+        if SCPCOA is None or SCPCOA.ARPPos is None or SCPCOA.ARPVel is None or SCPCOA.SCPTime is None:
+            return  # not enough information to derive
+
+        if SCPCOA.ARPAcc is None:
+            SCPCOA.ARPAcc = XYZType(X=0, Y=0, Z=0)
+        # define the polynomial
+        coefs = numpy.zeros((3, 3), dtype=numpy.float64)
+        scptime = SCPCOA.SCPTime
+        pos = SCPCOA.ARPPos.get_array()
+        vel = SCPCOA.ARPVel.get_array()
+        acc = SCPCOA.ARPAcc.get_array()
+        coefs[0, :] = pos - vel * scptime + 0.5 * acc * scptime * scptime
+        coefs[1, :] = vel - acc * scptime
+        coefs[2, :] = acc
+        self.ARPPoly = XYZPolyType(
+            X=Poly1DType(Coefs=coefs[:, 0]), Y=Poly1DType(Coefs=coefs[:, 1]), Z=Poly1DType(Coefs=coefs[:, 2]))

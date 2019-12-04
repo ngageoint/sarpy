@@ -5,11 +5,16 @@ The SCPCOAType definition.
 import logging
 
 import numpy
+from numpy.linalg import norm
+from numpy.polynomial import polynomial as numpy_poly
 
 from ._base import Serializable, DEFAULT_STRICT, \
     _StringEnumDescriptor, _FloatDescriptor, \
     _SerializableDescriptor
 from ._blocks import XYZType
+from .Grid import GridType
+from .Position import PositionType
+from .GeoData import GeoDataType
 
 from sarpy.geometry import geocoords
 
@@ -73,25 +78,79 @@ class SCPCOAType(Serializable):
         docstring='Angle from north to the layover direction in the ETP at COA. Measured '
                   'clockwise in the ETP.')  # type: float
 
-    def derive(self, SCP):
+    def _derive_scp_time(self, Grid):
         """
-        Populates derived data in SCPCOA. Expected to be called by SICD parent.
+        Expected to be called by SICD parent.
 
         Parameters
         ----------
-        SCP : numpy.ndarray
-            The Scene control point in ECF coordinates
+        Grid : GridType
 
         Returns
         -------
         None
         """
 
-        norm = numpy.linalg.norm  # just a cheap alias
+        if Grid is None or Grid.TimeCOAPoly is None:
+            return  # nothing can be done
 
-        if SCP is None or self.ARPPos is None or self.ARPVel is None:
-            return  # nothing to be done
+        scp_time = Grid.TimeCOAPoly.Coefs[0, 0]
+        if self.SCPTime is None:
+            self.SCPTime = scp_time
+        elif abs(self.SCPTime - scp_time) > 1:  # TODO: what is a useful tolerance?
+            logging.warning(
+                'The SCPTime is derived from Grid.TimeCOAPoly as {}, and it is set '
+                'as {}'.format(scp_time, self.SCPTime))
 
+    def _derive_position(self, Position):
+        """
+        Derive aperture position parameters, if necessary. Expected to be called by SICD parent.
+
+        Parameters
+        ----------
+        Position : PositionType
+
+        Returns
+        -------
+        None
+        """
+
+        if Position is None or Position.ARPPoly is None or self.SCPTime is None:
+            return  # nothing can be derived
+
+        # set aperture position, velocity, and acceleration at scptime from position polynomial, if necessary
+        poly = Position.ARPPoly
+        scptime = self.SCPTime
+
+        if self.ARPPos is None:
+            self.ARPPos = XYZType(X=poly.X(scptime), Y=poly.Y(scptime), Z=poly.Z(scptime))
+        if self.ARPVel is None:
+            self.ARPVel = XYZType(X=numpy_poly.polyval(scptime, numpy_poly.polyder(poly.X.Coefs, 1)),
+                                  Y=numpy_poly.polyval(scptime, numpy_poly.polyder(poly.Y.Coefs, 1)),
+                                  Z=numpy_poly.polyval(scptime, numpy_poly.polyder(poly.Z.Coefs, 1)))
+        if self.ARPAcc is None:
+            self.ARPAcc = XYZType(X=numpy_poly.polyval(scptime, numpy_poly.polyder(poly.X.Coefs, 2)),
+                                  Y=numpy_poly.polyval(scptime, numpy_poly.polyder(poly.Y.Coefs, 2)),
+                                  Z=numpy_poly.polyval(scptime, numpy_poly.polyder(poly.Z.Coefs, 2)))
+
+    def _derive_geometry_parameters(self, GeoData):
+        """
+        Expected to be called by SICD parent.
+
+        Parameters
+        ----------
+        GeoData : GeoDataType
+
+        Returns
+        -------
+        None
+        """
+
+        if GeoData is None or GeoData.SCP is None or GeoData.SCP.ECF is None or \
+                self.ARPPos is None or self.ARPVel is None:
+            return  # nothing can be derived
+
+        SCP = GeoData.SCP.ECF.get_array()
         ARP = self.ARPPos.get_array()
         ARP_vel = self.ARPVel.get_array()
         LOS = (SCP - ARP)
@@ -170,6 +229,7 @@ class SCPCOAType(Serializable):
 
         # perpendicular component of north wrt the ground plane
         NORTH = numpy.array([0, 0, 1]) - ETP[2]*ETP
+        # TODO: is this really "NORTH" - looks like vertical to me. [0, 1, 0] and ETP[1]*?
         uNORTH = NORTH/norm(NORTH)
         uEAST = numpy.cross(uNORTH, ETP)  # already unit vector
         azim_ang = numpy.rad2deg(numpy.arctan2(numpy.dot(uGPX, uEAST), numpy.dot(uGPX, uNORTH)))

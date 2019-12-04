@@ -2,8 +2,16 @@
 The PFAType definition.
 """
 
+import numpy
+from numpy.linalg import norm
+
 from ._base import Serializable, DEFAULT_STRICT, _BooleanDescriptor, _FloatDescriptor, _SerializableDescriptor
 from ._blocks import Poly1DType, Poly2DType, XYZType
+from .Grid import GridType
+from .GeoData import GeoDataType
+from .SCPCOA import SCPCOAType
+
+from sarpy.geometry import geocoords
 
 
 __classification__ = "UNCLASSIFIED"
@@ -73,3 +81,48 @@ class PFAType(Serializable):
     StDeskew = _SerializableDescriptor(
         'StDeskew', STDeskewType, _required, strict=DEFAULT_STRICT,
         docstring='Parameters to describe image domain ST Deskew processing.')  # type: STDeskewType
+
+    def _derive_parameters(self, Grid, SCPCOA, GeoData):
+        """
+        Expected to be called from SICD parent.
+
+        Parameters
+        ----------
+        Grid : GridType
+        SCPCOA : SCPCOAType
+        GeoData : GeoDataType
+
+        Returns
+        -------
+        None
+        """
+
+        if self.PolarAngRefTime is None and SCPCOAType.SCPTime is not None:
+            self.PolarAngRefTime = SCPCOAType.SCPTime
+
+        if GeoData is not None and GeoData.SCP is not None and GeoData.SCP.ECF is not None and \
+                SCPCOA.ARPPos is not None and SCPCOA.ARPVel is not None:
+            SCP = GeoData.SCP.ECF.get_array()
+            ETP = geocoords.wgs_84_norm(SCP)
+
+            ARP = SCPCOA.ARPPos.get_array()
+            LOS = (SCP - ARP)
+            uLOS = LOS/norm(LOS)
+
+            look = -1 if SCPCOA.SideOfTrack == 'R' else 1
+            ARP_vel = SCPCOA.ARPVel.get_array()
+            uSPZ = look*numpy.cross(ARP_vel, uLOS)
+            uSPZ /= norm(uSPZ)
+            if Grid is not None and Grid.ImagePlane is not None:
+                if self.IPN is None:
+                    if Grid.ImagePlane == 'SLANT':
+                        self.IPN = XYZType(X=uSPZ[0], Y=uSPZ[1], Z=uSPZ[2])
+                    elif Grid.ImagePlane == 'GROUND':
+                        self.IPN = XYZType(X=ETP[0], Y=ETP[1], Z=ETP[2])
+            elif self.IPN is None:
+                self.IPN = XYZType(X=uSPZ[0], Y=uSPZ[1], Z=uSPZ[2])  # assuming slant -> most common
+
+            if self.FPN is None:
+                self.FPN = XYZType(X=ETP[0], Y=ETP[1], Z=ETP[2])
+
+        # TODO: PolarAngPoly, SpatialFreqSFPoly - carried over from sicd.py line 1742

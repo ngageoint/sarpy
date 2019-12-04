@@ -4,11 +4,7 @@ The SICDType definition.
 
 import logging
 
-import numpy
-from numpy.polynomial import polynomial as numpy_poly
-
 from ._base import Serializable, DEFAULT_STRICT, _SerializableDescriptor
-from ._blocks import Poly1DType, Poly2DType, XYZType, XYZPolyType
 
 from .CollectionInfo import CollectionInfoType
 from .ImageCreation import ImageCreationType
@@ -18,7 +14,7 @@ from .Grid import GridType
 from .Timeline import TimelineType
 from .Position import PositionType
 from .RadarCollection import RadarCollectionType
-from .ImageFormation import ImageFormationType, TxFrequencyProcType
+from .ImageFormation import ImageFormationType
 from .SCPCOA import SCPCOAType
 from .Radiometric import RadiometricType
 from .Antenna import AntennaType
@@ -227,102 +223,81 @@ class SICDType(Serializable):
         None
         """
 
-        def derive_scp_time():
-            if self.SCPCOA is not None and self.SCPCOA.SCPTime is None:
-                if self.Grid is None or self.Grid.TimeCOAPoly is None:
-                    return
-                self.SCPCOA.SCPTime = self.Grid.TimeCOAPoly.Coefs[0, 0]
+        # Note that there is dependency in calling order between steps - don't naively rearrange the following.
 
-        def derive_time_coa_poly():
-            # this only works for spotlight mode collect
-            if self.SCPCOA is not None and self.SCPCOA.SCPTime is not None and \
-                    self.Grid is not None and self.Grid.TimeCOAPoly is None:
-                try:
-                    if self.CollectionInfo.RadarMode.ModeType == 'SPOTLIGHT':
-                        self.Grid.TimeCOAPoly = Poly2DType(Coefs=[[self.SCPCOA.SCPTime, ], ])
-                except (AttributeError, ValueError):
-                    pass
+        if self.SCPCOA is not None:
+            # noinspection PyProtectedMember
+            self.SCPCOA._derive_scp_time(self.Grid)
 
-        def derive_aperture_position():
-            if self.Position is not None and self.Position.ARPPoly is not None and \
-                    self.SCPCOA is not None and self.SCPCOA.SCPTime is not None:
-                # set aperture position, velocity, and acceleration at scptime from position polynomial, if necessary
-                poly = self.Position.ARPPoly
-                scptime = self.SCPCOA.SCPTime
+        if self.Grid is not None:
+            # noinspection PyProtectedMember
+            self.Grid._derive_time_coa_poly(self.CollectionInfo, self.SCPCOA)
 
-                if self.SCPCOA.ARPPos is None:
-                    self.SCPCOA.ARPPos = XYZType(X=poly.X(scptime),
-                                                 Y=poly.Y(scptime),
-                                                 Z=poly.Z(scptime))
-                if self.SCPCOA.ARPVel is None:
-                    self.SCPCOA.ARPVel = XYZType(X=numpy_poly.polyval(scptime, numpy_poly.polyder(poly.X.Coefs, 1)),
-                                                 Y=numpy_poly.polyval(scptime, numpy_poly.polyder(poly.Y.Coefs, 1)),
-                                                 Z=numpy_poly.polyval(scptime, numpy_poly.polyder(poly.Z.Coefs, 1)))
-                if self.SCPCOA.ARPAcc is None:
-                    self.SCPCOA.ARPAcc = XYZType(X=numpy_poly.polyval(scptime, numpy_poly.polyder(poly.X.Coefs, 2)),
-                                                 Y=numpy_poly.polyval(scptime, numpy_poly.polyder(poly.Y.Coefs, 2)),
-                                                 Z=numpy_poly.polyval(scptime, numpy_poly.polyder(poly.Z.Coefs, 2)))
-            elif self.SCPCOA is not None and self.SCPCOA.ARPPos is not None and \
-                    self.SCPCOA.ARPVel is not None and self.SCPCOA.SCPTime is not None:
-                # set the aperture position polynomial from position, time, acceleration at scptime, if necessary
-                # NB: this assumes constant velocity and acceleration. Maybe that's not terrible?
-                if self.Position is None:
-                    self.Position = PositionType()
+        if self.SCPCOA is not None:
+            # noinspection PyProtectedMember
+            self.SCPCOA._derive_position(self.Position)
 
-                if self.Position.ARPPoly is None:
-                    if self.SCPCOA.ARPAcc is None:
-                        self.SCPCOA.ARPAcc = XYZType(X=0, Y=0, Z=0)
-                    # define the polynomial
-                    coefs = numpy.zeros((3, 3), dtype=numpy.float64)
-                    scptime = self.SCPCOA.SCPTime
-                    pos = self.SCPCOA.ARPPos.get_array()
-                    vel = self.SCPCOA.ARPVel.get_array()
-                    acc = self.SCPCOA.ARPAcc.get_array()
-                    coefs[0, :] = pos - vel*scptime + 0.5*acc*scptime*scptime
-                    coefs[1, :] = vel - acc*scptime
-                    coefs[2, :] = acc
-                    self.Position.ARPPoly = XYZPolyType(X=Poly1DType(Coefs=coefs[:, 0]),
-                                                        Y=Poly1DType(Coefs=coefs[:, 1]),
-                                                        Z=Poly1DType(Coefs=coefs[:, 2]))
-
-        def derive_image_formation():
-            # TODO: introduce some boolean option for default settings?
-            if self.ImageFormation is None:
-                return  # nothing to be done
-            if self.RadarCollection is not None and self.RadarCollection.TxFrequency.Min is not None and \
-                    self.RadarCollection.TxFrequency.Max is not None:
-                # this is based on the assumption that the entire transmitted bandwidth was processed.
-                if self.ImageFormation.TxFrequencyProc is None:
-                    self.ImageFormation.TxFrequencyProc = TxFrequencyProcType(
-                        ProcMin=self.RadarCollection.TxFrequency.Min, ProcMax=self.RadarCollection.TxFrequency.Max)
-                elif self.ImageFormation.TxFrequencyProc.MinProc is None:  # does this really make sense?
-                    self.ImageFormation.TxFrequencyProc.MinProc = self.RadarCollection.TxFrequency.Min
-                elif self.ImageFormation.TxFrequencyProc.MaxProc is None:
-                    self.ImageFormation.TxFrequencyProc.MaxProc = self.RadarCollection.TxFrequency.Max
-
-        derive_scp_time()
-        derive_time_coa_poly()
-        derive_aperture_position()
+        if self.Position is None and self.SCPCOA is not None and self.SCPCOA.ARPPos is not None and \
+                self.SCPCOA.ARPVel is not None and self.SCPCOA.SCPTime is not None:
+            self.Position = PositionType()  # important parameter derived in the next step
+        if self.Position is not None:
+            # noinspection PyProtectedMember
+            self.Position._derive_arp_poly(self.SCPCOA)
 
         if self.GeoData is not None:
             self.GeoData.derive()  # ensures both coordinate systems are defined for SCP
 
         if self.Grid is not None:
-            if self.ImageData is None:
-                self.Grid.derive(None)  # derives Row/Col parameters internal to Grid
-            else:
-                self.Grid.derive(self.ImageData.get_valid_vertex_data())
+            # noinspection PyProtectedMember
+            self.Grid._derive_direction_params(self.ImageData)
 
         if self.RadarCollection is not None:
             self.RadarCollection.derive()
 
-        derive_image_formation()  # call after RadarCollection.derive()
+        if self.ImageFormation is not None:
+            # call after RadarCollection.derive(), and only if the entire transmitted bandwidth was used to process.
+            # noinspection PyProtectedMember
+            self.ImageFormation._derive_tx_frequency_proc(self.RadarCollection)
 
-        if self.SCPCOA is not None and self.GeoData is not None and self.GeoData.SCP is not None and \
-                self.GeoData.SCP.ECF is not None:
-            self.SCPCOA.derive(self.GeoData.SCP.ECF.get_array())
+        if self.SCPCOA is not None:
+            # noinspection PyProtectedMember
+            self.SCPCOA._derive_geometry_parameters(self.GeoData)
 
-        # TODO: continue here from sicd.py 1610-2013
+        # verify ImageFormation things make sense
+        im_form_algo = None
+        if self.ImageFormation is not None and self.ImageFormation.ImageFormAlgo is not None:
+            im_form_algo = self.ImageFormation.ImageFormAlgo.upper()
+        if im_form_algo == 'RGAZCOMP':
+            # Check Grid settings
+            if self.Grid is None:
+                self.Grid = GridType()
+            # noinspection PyProtectedMember
+            self.Grid._derive_rg_az_comp(self.GeoData, self.SCPCOA, self.RadarCollection, self.ImageFormation)
+
+            # Check RgAzComp settings
+            if self.RgAzComp is None:
+                self.RgAzComp = RgAzCompType()
+            # noinspection PyProtectedMember
+            self.RgAzComp._derive_parameters(self.Grid, self.Timeline, self.SCPCOA)
+        elif im_form_algo == 'PFA':
+            if self.PFA is None:
+                self.PFA = PFAType()
+            # noinspection PyProtectedMember
+            self.PFA._derive_parameters(self.Grid, self.SCPCOA, self.GeoData)
+
+            if self.Grid is not None:
+                # noinspection PyProtectedMember
+                self.Grid._derive_pfa(
+                    self.SCPCOA, self.RadarCollection, self.ImageFormation, self.Position, self.PFA)
+        elif im_form_algo == 'RMA':
+            if self.RMA is not None:
+                # noinspection PyProtectedMember
+                self.RMA._derive_parameters(self.SCPCOA, self.Position, self.RadarCollection, self.ImageFormation)
+            if self.Grid is not None:
+                # noinspection PyProtectedMember
+                self.Grid._derive_rma(self.RMA, self.SCPCOA, self.RadarCollection, self.ImageFormation, self.Position)
+
+        # TODO: continue here from sicd.py 1938-2013
 
 # TODO: properly incorporate derived fields kludgery. See sicd.py line 1261.
 #  This is quite long and unmodular. This should be implemented at the proper level,
