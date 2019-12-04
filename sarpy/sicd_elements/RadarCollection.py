@@ -53,6 +53,9 @@ class WaveformParametersType(Serializable):
     TxFMRate = _FloatDescriptor(
         'TxFMRate', _required, strict=DEFAULT_STRICT,
         docstring='Transmit FM rate for Linear FM waveform in Hz/second.')  # type: float
+    RcvDemodType = _StringEnumDescriptor(
+        'RcvDemodType', _DEMOD_TYPE_VALUES, _required, strict=DEFAULT_STRICT,
+        docstring="Receive demodulation used when Linear FM waveform is used on transmit.")  # type: float
     RcvWindowLength = _FloatDescriptor(
         'RcvWindowLength', _required, strict=DEFAULT_STRICT,
         docstring='Receive window duration in seconds.')  # type: float
@@ -68,9 +71,6 @@ class WaveformParametersType(Serializable):
     RcvFMRate = _FloatDescriptor(
         'RcvFMRate', _required, strict=DEFAULT_STRICT,
         docstring='Receive FM rate. Should be 0 if RcvDemodType = "CHIRP".')  # type: float
-    RcvDemodType = _StringEnumDescriptor(
-        'RcvDemodType', _DEMOD_TYPE_VALUES, _required, strict=DEFAULT_STRICT,
-        docstring="Receive demodulation used when Linear FM waveform is used on transmit.")  # type: float
 
     def _basic_validity_check(self):
         valid = super(WaveformParametersType, self)._basic_validity_check()

@@ -642,7 +642,7 @@ class GainPhasePolyType(Serializable):
                   'and Y-axis direction cosine (DCY) (variable 2). Gain relative to gain at DCX = 0 '
                   'and DCY = 0, so constant coefficient is always 0.0.')  # type: Poly2DType
     PhasePoly = _SerializableDescriptor(
-        'GainPhasePoly', Poly2DType, _required, strict=DEFAULT_STRICT,
+        'PhasePoly', Poly2DType, _required, strict=DEFAULT_STRICT,
         docstring='One-way signal phase (in cycles) as a function of DCX (variable 1) and '
                   'DCY (variable 2). Phase relative to phase at DCX = 0 and DCY = 0, '
                   'so constant coefficient is always 0.0.')  # type: Poly2DType
