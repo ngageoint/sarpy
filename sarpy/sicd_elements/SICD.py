@@ -30,10 +30,10 @@ from sarpy.geometry import point_projection
 
 
 # TODO:
-#   1.) implement the necessary sicd version 0.4 & 0.5 compatibility manipulations - noted in the body.
-#   2.) determine necessary and appropriate formatting issues for serialization/deserialization
-#       i.) proper precision for numeric serialization
-#       ii.) is there any ridiculous formatting for latitude or longitude?
+#   0.) put actual __init__ for each SICD element, so we have some hinting.
+#   1.) Actual file handler deal for Serializable for json and xml.
+#   2.) Unit tests for SICD elements.
+#   3.) Can we refine the strict parameter population for the SICD elements?
 #   3.) determine and implement appropriate class methods for proper functionality
 #       how are things used, and what helper functions do we need?
 
@@ -355,6 +355,40 @@ class SICDType(Serializable):
 
         self.define_geo_image_corners()
         self.define_geo_valid_data()
+        if self.Radiometric is not None:
+            # noinspection PyProtectedMember
+            self.Radiometric._derive_parameters(self.Grid, self.SCPCOA)
 
-        # TODO: continue here from sicd.py 1968-2013
+    def apply_reference_frequency(self, reference_frequency):
+        """
+        If the reference frequency is used, adjust the necessary fields accordingly.
 
+        Parameters
+        ----------
+        reference_frequency : float
+            The reference frequency.
+
+        Returns
+        -------
+        None
+        """
+        # TODO: this functionality would never be reached in sicd.py at present. See line 547. What is the intent?
+
+        # TODO: should we raise an exception here? My best guess.
+        if self.RadarCollection is None:
+            raise ValueError('RadarCollection is not defined. The reference frequency cannot be applied.')
+        elif not self.RadarCollection.RefFreqIndex:  # it's None or 0
+            raise ValueError(
+                'RadarCollection.RefFreqIndex is not defined. The reference frequency should not be applied.')
+
+        # noinspection PyProtectedMember
+        self.RadarCollection._apply_reference_frequency(reference_frequency)
+        if self.ImageFormation is not None:
+            # noinspection PyProtectedMember
+            self.ImageFormation._apply_reference_frequency(reference_frequency)
+        if self.Antenna is not None:
+            # noinspection PyProtectedMember
+            self.Antenna._apply_reference_frequency(reference_frequency)
+        if self.RMA is not None:
+            # noinspection PyProtectedMember
+            self.RMA._apply_reference_frequency(reference_frequency)

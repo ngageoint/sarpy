@@ -2,6 +2,8 @@
 The RadiometricType definition.
 """
 
+import numpy
+
 from .base import Serializable, DEFAULT_STRICT, _StringEnumDescriptor, _SerializableDescriptor
 from .blocks import Poly2DType
 
@@ -81,3 +83,56 @@ class RadiometricType(Serializable):
         if node.find('NoiseLevelType') is not None:
             kwargs['NoiseLevel'] = NoiseLevelType.from_node(node, kwargs=kwargs)
         return super(RadiometricType, cls).from_node(node, kwargs=kwargs)
+
+    def _derive_parameters(self, Grid, SCPCOA):
+        """
+        Expected to be called by SICD parent.
+
+        Parameters
+        ----------
+        Grid : sarpy.sicd_elements.Grid.GridType
+        SCPCOA : sarpy.sicd_elements.SCPCOA.SCPCOAType
+
+        Returns
+        -------
+        None
+        """
+
+        if Grid is None or Grid.Row is None or Grid.Col is None:
+            return
+
+        range_weight_f = azimuth_weight_f = 1.0  # the default2
+        if Grid.Row.WgtFunct is not None:
+            var = numpy.var(Grid.Row.WgtFunct)
+            mean = numpy.mean(Grid.Row.WgtFunct)
+            range_weight_f += var/(mean*mean)
+        if Grid.Col.WgtFunct is not None:
+            var = numpy.var(Grid.Col.WgtFunct)
+            mean = numpy.mean(Grid.Col.WgtFunct)
+            azimuth_weight_f += var/(mean*mean)
+        area_sp = (range_weight_f*azimuth_weight_f)/(Grid.Row.ImpRespBW*Grid.Col.ImpRespBW)  # what is sp?
+
+        # We can define any SF polynomial from any other SF polynomial by just
+        # scaling the coefficient array. If any are defined, use BetaZeroSFPolynomial
+        # as the root, and derive them all
+        if self.BetaZeroSFPoly is None:
+            if self.RCSSFPoly is not None:
+                self.BetaZeroSFPoly = Poly2DType(Coefs=self.RCSSFPoly.Coefs/area_sp)
+            elif self.SigmaZeroSFPoly is not None:
+                self.BetaZeroSFPoly = Poly2DType(
+                    Coefs=self.SigmaZeroSFPoly.Coefs/numpy.cos(numpy.deg2rad(SCPCOA.SlopeAng)))
+            elif self.GammaZeroSFPoly is not None:
+                self.BetaZeroSFPoly = Poly2DType(
+                    Coefs=self.GammaZeroSFPoly.Coefs/(numpy.sin(numpy.deg2rad(SCPCOA.GrazeAng)) *
+                                                      numpy.cos(numpy.deg2rad(SCPCOA.SlopeAng))))
+        if self.BetaZeroSFPoly is not None:
+            # In other words, none of the SF polynomials are populated.
+            if self.RCSSFPoly is None:
+                self.RCSSFPoly = Poly2DType(Coefs=self.BetaZeroSFPoly.Coefs*area_sp)
+            if self.SigmaZeroSFPoly is None:
+                self.SigmaZeroSFPoly = Poly2DType(
+                    Coefs=self.BetaZeroSFPoly.Coefs*numpy.cos(numpy.deg2rad(SCPCOA.SlopeAng)))
+            if self.GammaZeroSFPoly is None:
+                self.GammaZeroSFPoly = Poly2DType(
+                    Coefs=self.BetaZeroSFPoly.Coefs*(numpy.sin(numpy.deg2rad(SCPCOA.GrazeAng)) *
+                                                     numpy.cos(numpy.deg2rad(SCPCOA.SlopeAng))))

@@ -75,6 +75,10 @@ class AntParamType(Serializable):
 
         """)  # type: bool
 
+    def _apply_reference_frequency(self, reference_frequency):
+        if self.FreqZero is not None:
+            self.FreqZero += reference_frequency
+
 
 class AntennaType(Serializable):
     """Parameters that describe the antenna illumination patterns during the collection."""
@@ -90,3 +94,28 @@ class AntennaType(Serializable):
     TwoWay = _SerializableDescriptor(
         'TwoWay', AntParamType, _required, strict=DEFAULT_STRICT,
         docstring='The bidirectional transmit/receive antenna parameters.')  # type: AntParamType
+
+    def _apply_reference_frequency(self, reference_frequency):
+        """
+        If the reference frequency is used, adjust the necessary fields accordingly.
+        Expected to be called by SICD parent.
+
+        Parameters
+        ----------
+        reference_frequency : float
+            The reference frequency.
+
+        Returns
+        -------
+        None
+        """
+
+        if self.Tx is not None:
+            # noinspection PyProtectedMember
+            self.Tx._apply_reference_frequency(reference_frequency)
+        if self.Rcv is not None:
+            # noinspection PyProtectedMember
+            self.Rcv._apply_reference_frequency(reference_frequency)
+        if self.TwoWay is not None:
+            # noinspection PyProtectedMember
+            self.TwoWay._apply_reference_frequency(reference_frequency)

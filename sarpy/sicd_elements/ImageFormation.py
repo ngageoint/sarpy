@@ -44,6 +44,12 @@ class TxFrequencyProcType(Serializable):
         'MaxProc', _required, strict=DEFAULT_STRICT,
         docstring='The maximum transmit frequency processed to form the image, in Hz.')  # type: float
 
+    def _apply_reference_frequency(self, reference_frequency):
+        if self.MinProc is not None:
+            self.MinProc += reference_frequency
+        if self.MaxProc is not None:
+            self.MaxProc += reference_frequency
+
 
 class ProcessingType(Serializable):
     """The transmit frequency range"""
@@ -240,13 +246,21 @@ class ImageFormationType(Serializable):
             elif self.TxFrequencyProc.MaxProc is None:
                 self.TxFrequencyProc.MaxProc = RadarCollection.TxFrequency.Max
 
-    def derive(self):
+    def _apply_reference_frequency(self, reference_frequency):
         """
-        Populates derived data in ImageFormationType. Expected to be called by SICD parent.
+        If the reference frequency is used, adjust the necessary fields accordingly.
+        Expected to be called by SICD parent.
+
+        Parameters
+        ----------
+        reference_frequency : float
+            The reference frequency.
 
         Returns
         -------
         None
         """
 
-        pass
+        if self.TxFrequencyProc is not None:
+            # noinspection PyProtectedMember
+            self.TxFrequencyProc._apply_reference_frequency(reference_frequency)

@@ -30,6 +30,12 @@ class TxFrequencyType(Serializable):
         'Max', required=_required, strict=DEFAULT_STRICT,
         docstring='The transmit maximum frequency in Hz.')  # type: float
 
+    def _apply_reference_frequency(self, reference_frequency):
+        if self.Min is not None:
+            self.Min += reference_frequency
+        if self.Max is not None:
+            self.Max += reference_frequency
+
 
 class WaveformParametersType(Serializable):
     """Transmit and receive demodulation waveform parameters."""
@@ -55,7 +61,7 @@ class WaveformParametersType(Serializable):
         docstring='Transmit FM rate for Linear FM waveform in Hz/second.')  # type: float
     RcvDemodType = _StringEnumDescriptor(
         'RcvDemodType', _DEMOD_TYPE_VALUES, _required, strict=DEFAULT_STRICT,
-        docstring="Receive demodulation used when Linear FM waveform is used on transmit.")  # type: float
+        docstring="Receive demodulation used when Linear FM waveform is used on transmit.")  # type: str
     RcvWindowLength = _FloatDescriptor(
         'RcvWindowLength', _required, strict=DEFAULT_STRICT,
         docstring='Receive window duration in seconds.')  # type: float
@@ -100,6 +106,12 @@ class WaveformParametersType(Serializable):
             self.TxFMRate = self.TxRFBandwidth/self.TxPulseLength
         if self.TxFMRate is not None and self.TxRFBandwidth is not None and self.TxPulseLength is None:
             self.TxPulseLength = self.TxRFBandwidth/self.TxFMRate
+
+    def _apply_reference_frequency(self, reference_frequency):
+        if self.TxFreqStart is not None:
+            self.TxFreqStart += reference_frequency
+        if self.RcvFreqStart is not None:
+            self.RcvFreqStart += reference_frequency
 
 
 class TxStepType(Serializable):
@@ -339,8 +351,9 @@ class RadarCollectionType(Serializable):
         docstring='The transmit frequency range.')  # type: TxFrequencyType
     RefFreqIndex = _IntegerDescriptor(
         'RefFreqIndex', _required, strict=DEFAULT_STRICT,
-        docstring='The reference frequency index, if applicable. if present, all RF frequency values are expressed '
-                  'as offsets from a reference frequency.')  # type: int
+        docstring='The reference frequency index, if applicable. If present and non-zero, '
+                  'all (most) RF frequency values are expressed as offsets from a reference '
+                  'frequency.')  # type: int
     Waveform = _SerializableArrayDescriptor(
         'Waveform', WaveformParametersType, _collections_tags, _required,
         strict=DEFAULT_STRICT, minimum_length=1,
@@ -440,3 +453,27 @@ class RadarCollectionType(Serializable):
             entry.TxFreqStart = self.TxFrequency.Min
         if entry.TxRFBandwidth is None:
             entry.TxRFBandwidth = self.TxFrequency.Max - self.TxFrequency.Min
+
+    def _apply_reference_frequency(self, reference_frequency):
+        """
+        If the reference frequency is used, adjust the necessary fields accordingly.
+        Expected to be called by SICD parent.
+
+        Parameters
+        ----------
+        reference_frequency : float
+            The reference frequency.
+
+        Returns
+        -------
+        None
+        """
+
+        if self.TxFrequency is not None:
+            # noinspection PyProtectedMember
+            self.TxFrequency._apply_reference_frequency(reference_frequency)
+        if self.Waveform is not None:
+            for entry in self.Waveform:
+                # noinspection PyProtectedMember
+                entry._apply_reference_frequency(reference_frequency)
+        self.RefFreqIndex = 0

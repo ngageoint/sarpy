@@ -66,6 +66,10 @@ class INCAType(Serializable):
         docstring="""Flag indicating that the COA is at the peak signal (fdop_COA = fdop_DC). `True` if Pixel COA at 
         peak signal for all pixels. `False` otherwise. *Only used for Stripmap and Dynamic Stripmap.*""")  # type: bool
 
+    def _apply_reference_frequency(self, reference_frequency):
+        if self.FreqZero is not None:
+            self.FreqZero += reference_frequency
+
 
 class RMAType(Serializable):
     """Parameters included when the image is formed using the Range Migration Algorithm."""
@@ -166,3 +170,22 @@ class RMAType(Serializable):
                 center_frequency = _get_center_frequency()
                 if center_frequency is not None:
                     self.INCA.FreqZero = center_frequency
+
+    def _apply_reference_frequency(self, reference_frequency):
+        """
+        If the reference frequency is used, adjust the necessary fields accordingly.
+        Expected to be called by SICD parent.
+
+        Parameters
+        ----------
+        reference_frequency : float
+            The reference frequency.
+
+        Returns
+        -------
+        None
+        """
+
+        if self.INCA is not None:
+            # noinspection PyProtectedMember
+            self.INCA._apply_reference_frequency(reference_frequency)
