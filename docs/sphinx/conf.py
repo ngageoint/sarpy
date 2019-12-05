@@ -19,7 +19,7 @@ copyright = parameters.__copyright__
 author = parameters.__author__
 
 # The full version, including alpha/beta/rc tags
-release = parameters.__release__
+version = parameters.__release__
 
 
 # -- General configuration ---------------------------------------------------

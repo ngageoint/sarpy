@@ -28,7 +28,6 @@ with open(os.path.join(here, 'sarpy', '__about__.py'), encoding='utf-8') as f:
 
 setup(name=parameters['__title__'],
       version=parameters['__version__'],
-      release=parameters['__release__'],
       description=parameters['__summary__'],
       long_description=long_description,
       long_description_content_type='text/x-rst',
