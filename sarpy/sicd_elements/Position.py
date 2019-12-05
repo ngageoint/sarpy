@@ -62,7 +62,7 @@ class PositionType(Serializable):
             return  # not enough information to derive
 
         if SCPCOA.ARPAcc is None:
-            SCPCOA.ARPAcc = XYZType(X=0, Y=0, Z=0)
+            SCPCOA.ARPAcc = XYZType(coords=(0, 0, 0))
         # define the polynomial
         coefs = numpy.zeros((3, 3), dtype=numpy.float64)
         scptime = SCPCOA.SCPTime
@@ -72,5 +72,4 @@ class PositionType(Serializable):
         coefs[0, :] = pos - vel * scptime + 0.5 * acc * scptime * scptime
         coefs[1, :] = vel - acc * scptime
         coefs[2, :] = acc
-        self.ARPPoly = XYZPolyType(
-            X=Poly1DType(Coefs=coefs[:, 0]), Y=Poly1DType(Coefs=coefs[:, 1]), Z=Poly1DType(Coefs=coefs[:, 2]))
+        self.ARPPoly = XYZPolyType(X=coefs[:, 0], Y=coefs[:, 1], Z=coefs[:, 2])

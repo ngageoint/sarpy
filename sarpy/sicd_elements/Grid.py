@@ -7,7 +7,6 @@ from typing import List
 
 import numpy
 from numpy.linalg import norm
-from numpy.polynomial import polynomial as numpy_poly
 from scipy.optimize import newton
 from scipy.constants import speed_of_light
 
@@ -522,7 +521,7 @@ class GridType(Serializable):
             LOS = (SCP - ARP)
             uLOS = LOS/norm(LOS)
             if self.Row.UVectECF is None:
-                self.Row.UVectECF = XYZType(X=uLOS[0], Y=uLOS[1], Z=uLOS[2])
+                self.Row.UVectECF = XYZType(coords=uLOS)
 
             look = -1 if SCPCOA.SideOfTrack == 'R' else 1
             ARP_vel = SCPCOA.ARPVel.get_array()
@@ -530,7 +529,7 @@ class GridType(Serializable):
             uSPZ /= norm(uSPZ)
             uAZ = numpy.cross(uSPZ, uLOS)
             if self.Col.UVectECF is None:
-                self.Col.UVectECF = XYZType(X=uAZ[0], Y=uAZ[1], Z=uAZ[2])
+                self.Col.UVectECF = XYZType(coords=uAZ)
 
         center_frequency = self._get_center_frequency(RadarCollection, ImageFormation)
         if center_frequency is not None:
@@ -591,8 +590,8 @@ class GridType(Serializable):
             uRG = SCP - ref_pos_ipn
             uRG /= norm(uRG)
             uAZ = numpy.cross(ipn, uRG)  # already unit
-            self.Row.UVectECF = XYZType(X=uRG[0], Y=uRG[1], Z=uRG[2])
-            self.Col.UVectECF = XYZType(X=uAZ[0], Y=uAZ[1], Z=uAZ[2])
+            self.Row.UVectECF = XYZType(coords=uRG)
+            self.Col.UVectECF = XYZType(coords=uAZ)
         if self.Col is not None and self.Col.KCtr is None:
             self.Col.KCtr = 0  # almost always 0 for PFA
 
@@ -673,8 +672,8 @@ class GridType(Serializable):
                     uSPZ = numpy.cross(uLOS, uYAT)
                     uSPZ /= norm(uSPZ)
                     uXCT = numpy.cross(uYAT, uSPZ)
-                    self.Row.UVectECF = XYZType(X=uXCT[0], Y=uXCT[1], Z=uXCT[2])
-                    self.Col.UVectECF = XYZType(X=uYAT[0], Y=uYAT[1], Z=uYAT[2])
+                    self.Row.UVectECF = XYZType(coords=uXCT)
+                    self.Col.UVectECF = XYZType(coords=uYAT)
 
         center_frequency = self._get_center_frequency(RadarCollection, ImageFormation)
         if center_frequency is not None and RMA.RMAT.DopConeAngRef is not None:
@@ -723,8 +722,8 @@ class GridType(Serializable):
                     uSPZ = look*numpy.cross(uvel_ref, uXRG)
                     uSPZ /= norm(uSPZ)
                     uYCR = numpy.cross(uSPZ, uXRG)
-                    self.Row.UVectECF = XYZType(X=uXRG[0], Y=uXRG[1], Z=uXRG[2])
-                    self.Col.UVectECF = XYZType(X=uYCR[0], Y=uYCR[1], Z=uYCR[2])
+                    self.Row.UVectECF = XYZType(coords=uXRG)
+                    self.Col.UVectECF = XYZType(coords=uYCR)
 
         center_frequency = self._get_center_frequency(RadarCollection, ImageFormation)
         if center_frequency is not None:
@@ -758,10 +757,7 @@ class GridType(Serializable):
                 SCPCOA.ARPPos is not None:
             t_zero = RMA.INCA.TimeCAPoly.Coefs[0]
             ca_pos = Position.ARPPoly(t_zero)
-            ca_vel = numpy.array([
-                numpy_poly.polyval(t_zero, numpy_poly.polyder(Position.ARPPoly.X.Coefs, 1)),
-                numpy_poly.polyval(t_zero, numpy_poly.polyder(Position.ARPPoly.Y.Coefs, 1)),
-                numpy_poly.polyval(t_zero, numpy_poly.polyder(Position.ARPPoly.Z.Coefs, 1)), ])
+            ca_vel = Position.ARPPoly.derivative_eval(t_zero)
             uca_pos = ca_pos/norm(ca_pos)
             uca_vel = ca_vel/norm(ca_vel)
             SCP = SCPCOA.ARPPos.get_array()
@@ -774,8 +770,8 @@ class GridType(Serializable):
                 uSPZ = -look*numpy.cross(uRg, uca_vel)
                 uSPZ /= norm(uSPZ)
                 uAZ = numpy.cross(uSPZ, uRg)
-                self.Row.UVectECF = XYZType(X=uRg[0], Y=uRg[1], Z=uRg[2])
-                self.Col.UVectECF = XYZType(X=uAZ[0], Y=uAZ[1], Z=uAZ[2])
+                self.Row.UVectECF = XYZType(coords=uRg)
+                self.Col.UVectECF = XYZType(coords=uAZ)
 
         if self.Row is not None and self.Row.KCtr is None and RMA.INCA.FreqZero is not None:
             self.Row.KCtr = 2*RMA.INCA.FreqZero/speed_of_light

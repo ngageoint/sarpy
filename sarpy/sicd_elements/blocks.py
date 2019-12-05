@@ -21,6 +21,17 @@ class PlainValueType(Serializable):
     # descriptor
     value = _StringDescriptor('value', _required, strict=True, docstring='The value')  # type: str
 
+    def __init__(self, value=None, **kwargs):
+        """
+        Parameters
+        ----------
+        value : str
+        kwargs : dict
+        """
+
+        self.value = value
+        super(PlainValueType, self).__init__(**kwargs)
+
     @classmethod
     def from_node(cls, node, kwargs=None):
         return cls(value=_get_node_value(node))
@@ -39,6 +50,18 @@ class ParameterType(PlainValueType):
     # descriptor
     name = _StringDescriptor(
         'name', _required, strict=True, docstring='The name.')  # type: str
+
+    def __init__(self, value=None, name=None, **kwargs):
+        """
+        Parameters
+        ----------
+        value : str
+        name : str
+        kwargs : dict
+        """
+
+        self.name = name
+        super(ParameterType, self).__init__(value=value, **kwargs)
 
 
 ##########
@@ -59,6 +82,24 @@ class XYZType(Serializable):
     Z = _FloatDescriptor(
         'Z', _required, strict=DEFAULT_STRICT,
         docstring='The Z attribute. Assumed to ECF or other, similar coordinates.')  # type: float
+
+    def __init__(self, coords=None, X=None, Y=None, Z=None, **kwargs):
+        """
+        Parameters
+        ----------
+        coords : numpy.ndarray|list|tuple
+            assumed [X, Y, Z]
+        X : float
+        Y : float
+        Z : float
+        kwargs : dict
+        """
+
+        if isinstance(coords, (numpy.ndarray, list, tuple)) and len(coords) >= 3:
+            self.X, self.Y, self.Z = coords[0], coords[1], coords[2]
+        else:
+            self.X, self.Y, self.Z = X, Y, Z
+        super(XYZType, self).__init__(**kwargs)
 
     def get_array(self, dtype=numpy.float64):
         """Gets an array representation of the class instance.
@@ -89,6 +130,22 @@ class LatLonType(Serializable):
     Lon = _FloatDescriptor(
         'Lon', _required, strict=DEFAULT_STRICT,
         docstring='The longitude attribute. Assumed to be WGS-84 coordinates.')  # type: float
+
+    def __init__(self, coords=None, Lat=None, Lon=None, **kwargs):
+        """
+        Parameters
+        ----------
+        coords : numpy.ndarray|list|tuple
+            assumed [Lat, Lon]
+        Lat : float
+        Lon : float
+        kwargs : dict
+        """
+        if isinstance(coords, (numpy.ndarray, list, tuple)) and len(coords) >= 2:
+            self.Lat, self.Lon = coords[0], coords[1]
+        else:
+            self.Lat, self.Lon = Lat, Lon
+        super(LatLonType, self).__init__(**kwargs)
 
     def get_array(self, order='LON', dtype=numpy.float64):
         """Gets an array representation of the data.
@@ -121,6 +178,21 @@ class LatLonArrayElementType(LatLonType):
     index = _IntegerDescriptor(
         'index', _required, strict=False, docstring="The array index")  # type: int
 
+    def __init__(self, coords=None, Lat=None, Lon=None, index=None, **kwargs):
+        """
+        Parameters
+        ----------
+        coords : numpy.ndarray|list|tuple
+            assumed [Lat, Lon]
+        Lat : float
+        Lon : float
+        index : int
+        kwargs : dict
+        """
+
+        self.index = index
+        super(LatLonArrayElementType, self).__init__(coords=coords, Lat=Lat, Lon=Lon, **kwargs)
+
 
 class LatLonRestrictionType(LatLonType):
     """A two-dimensional geographic point in WGS-84 coordinates."""
@@ -135,6 +207,19 @@ class LatLonRestrictionType(LatLonType):
         'Lon', 180.0, _required, strict=DEFAULT_STRICT,
         docstring='The longitude attribute. Assumed to be WGS-84 coordinates.')  # type: float
 
+    def __init__(self, coords=None, Lat=None, Lon=None, **kwargs):
+        """
+        Parameters
+        ----------
+        coords : numpy.ndarray|list|tuple
+            assumed [Lat, Lon]
+        Lat : float
+        Lon : float
+        kwargs : dict
+        """
+
+        super(LatLonRestrictionType, self).__init__(coords=coords, Lat=Lat, Lon=Lon, **kwargs)
+
 
 class LatLonHAEType(LatLonType):
     """A three-dimensional geographic point in WGS-84 coordinates."""
@@ -145,6 +230,23 @@ class LatLonHAEType(LatLonType):
     HAE = _FloatDescriptor(
         'HAE', _required, strict=DEFAULT_STRICT,
         docstring='The Height Above Ellipsoid (in meters) attribute. Assumed to be WGS-84 coordinates.')  # type: float
+
+    def __init__(self, coords=None, Lat=None, Lon=None, HAE=None, **kwargs):
+        """
+        Parameters
+        ----------
+        coords : numpy.ndarray|list|tuple
+            assumed [Lat, Lon, HAE]
+        Lat : float
+        Lon : float
+        HAE : float
+        kwargs : dict
+        """
+        if isinstance(coords, (numpy.ndarray, list, tuple)) and len(coords) >= 3:
+            Lat, Lon, self.HAE = coords[0], coords[1], coords[2]
+        else:
+            self.HAE = HAE
+        super(LatLonHAEType, self).__init__(Lat=Lat, Lon=Lon, **kwargs)
 
     def get_array(self, order='LON', dtype=numpy.float64):
         """Gets an array representation of the data.
@@ -179,6 +281,20 @@ class LatLonHAERestrictionType(LatLonHAEType):
         'Lon', 180.0, _required, strict=DEFAULT_STRICT,
         docstring='The longitude attribute. Assumed to be WGS-84 coordinates.')  # type: float
 
+    def __init__(self, coords=None, Lat=None, Lon=None, HAE=None, **kwargs):
+        """
+        Parameters
+        ----------
+        coords : numpy.ndarray|list|tuple
+            assumed [Lat, Lon, HAE]
+        Lat : float
+        Lon : float
+        HAE : float
+        kwargs : dict
+        """
+
+        super(LatLonHAERestrictionType, self).__init__(coords=coords, Lat=Lat, Lon=Lon, HAE=HAE, **kwargs)
+
 
 class LatLonCornerType(LatLonType):
     """A two-dimensional geographic point in WGS-84 coordinates representing a collection area box corner point."""
@@ -191,6 +307,20 @@ class LatLonCornerType(LatLonType):
         docstring='The integer index. This represents a clockwise enumeration of the rectangle vertices '
                   'wrt the frame of reference of the collector.')  # type: int
 
+    def __init__(self, coords=None, Lat=None, Lon=None, index=None, **kwargs):
+        """
+        Parameters
+        ----------
+        coords : numpy.ndarray|list|tuple
+            assumed [Lat, Lon]
+        Lat : float
+        Lon : float
+        index : int
+        kwargs : dict
+        """
+        self.index = index
+        super(LatLonCornerType, self).__init__(coords=coords, Lat=Lat, Lon=Lon, **kwargs)
+
 
 class LatLonCornerStringType(LatLonType):
     """A two-dimensional geographic point in WGS-84 coordinates representing a collection area box corner point."""
@@ -202,7 +332,21 @@ class LatLonCornerStringType(LatLonType):
     # descriptors
     index = _StringEnumDescriptor(
         'index', _CORNER_VALUES, _required, strict=True,
-        docstring="The string index.")  # type: int
+        docstring="The string index.")  # type: str
+
+    def __init__(self, coords=None, Lat=None, Lon=None, index=None, **kwargs):
+        """
+        Parameters
+        ----------
+        coords : numpy.ndarray|list|tuple
+            assumed [Lat, Lon]
+        Lat : float
+        Lon : float
+        index : str
+        kwargs : dict
+        """
+        self.index = index
+        super(LatLonCornerStringType, self).__init__(coords=coords, Lat=Lat, Lon=Lon, **kwargs)
 
 
 class LatLonHAECornerRestrictionType(LatLonHAERestrictionType):
@@ -216,6 +360,22 @@ class LatLonHAECornerRestrictionType(LatLonHAERestrictionType):
         docstring='The integer index. This represents a clockwise enumeration of the rectangle vertices '
                   'wrt the frame of reference of the collector.')  # type: int
 
+    def __init__(self, coords=None, Lat=None, Lon=None, HAE=None, index=None, **kwargs):
+        """
+
+        Parameters
+        ----------
+        coords : numpy.ndarray|list|tuple
+            assumed [Lat, Lon, HAE]
+        Lat : float
+        Lon : float
+        HAE : float
+        index : int
+        kwargs : dict
+        """
+        self.index = index
+        super(LatLonHAECornerRestrictionType, self).__init__(coords=coords, Lat=Lat, Lon=Lon, HAE=HAE, **kwargs)
+
 
 class LatLonHAECornerStringType(LatLonHAEType):
     """A three-dimensional geographic point in WGS-84 coordinates. Represents a collection area box corner point."""
@@ -225,7 +385,22 @@ class LatLonHAECornerStringType(LatLonHAEType):
     _CORNER_VALUES = ('1:FRFC', '2:FRLC', '3:LRLC', '4:LRFC')
     # descriptors
     index = _StringEnumDescriptor(
-        'index', _CORNER_VALUES, _required, strict=True, docstring="The string index.")  # type: int
+        'index', _CORNER_VALUES, _required, strict=True, docstring="The string index.")  # type: str
+
+    def __init__(self, coords=None, Lat=None, Lon=None, HAE=None, index=None, **kwargs):
+        """
+        Parameters
+        ----------
+        coords : numpy.ndarray|list|tuple
+            assumed [Lat, Lon, HAE]
+        Lat : float
+        Lon : float
+        HAE : float
+        index : str
+        kwargs : dict
+        """
+        self.index = index
+        super(LatLonHAECornerStringType, self).__init__(coords=coords, Lat=Lat, Lon=Lon, HAE=HAE, **kwargs)
 
 
 class RowColType(Serializable):
@@ -236,6 +411,22 @@ class RowColType(Serializable):
         'Row', _required, strict=DEFAULT_STRICT, docstring='The Row attribute.')  # type: int
     Col = _IntegerDescriptor(
         'Col', _required, strict=DEFAULT_STRICT, docstring='The Column attribute.')  # type: int
+
+    def __init__(self, coords=None, Row=None, Col=None, **kwargs):
+        """
+        Parameters
+        ----------
+        coords : numpy.ndarray|list|tuple
+            assumed [Row, Col]
+        Row : int
+        Col : int
+        kwargs : dict
+        """
+        if isinstance(coords, (numpy.ndarray, list, tuple)) and len(coords) >= 2:
+            self.Row, self.Col = coords[0], coords[1]
+        else:
+            self.Row, self.Col = Row, Col
+        super(RowColType, self).__init__(**kwargs)
 
     def get_array(self, dtype=numpy.int64):
         """Gets an array representation of the class instance.
@@ -265,6 +456,20 @@ class RowColArrayElement(RowColType):
     index = _IntegerDescriptor(
         'index', _required, strict=DEFAULT_STRICT, docstring='The array index attribute.')  # type: int
 
+    def __init__(self, coords=None, Row=None, Col=None, index=None, **kwargs):
+        """
+        Parameters
+        ----------
+        coords : numpy.ndarray|list|tuple
+            assumed [Row, Col]
+        Row : int
+        Col : int
+        index : int
+        kwargs : dict
+        """
+        self.index = index
+        super(RowColArrayElement, self).__init__(coords=coords, Row=Row, Col=Col, **kwargs)
+
 
 class Poly1DType(Serializable):
     """Represents a one-variable polynomial, defined by one-dimensional coefficient array."""
@@ -274,9 +479,19 @@ class Poly1DType(Serializable):
     # other class variables
     _Coefs = None
 
+    def __init__(self, Coefs=None, **kwargs):
+        """
+        Parameters
+        ----------
+        Coefs : numpy.ndarray
+        kwargs : dict
+        """
+        self.Coefs = Coefs
+        super(Poly1DType, self).__init__(**kwargs)
+
     def __call__(self, x):
         """
-        Evaluate a polynomial at points `x`. This passes `x` straight through to :func:`polyval` of
+        Evaluate the polynomial at points `x`. This passes `x` straight through to :func:`polyval` of
         :module:`numpy.polynomial.polynomial`.
 
         Parameters
@@ -292,6 +507,49 @@ class Poly1DType(Serializable):
         if self.Coefs is None:
             return None
         return numpy.polynomial.polynomial.polyval(x, self.Coefs)
+
+    def derivative(self, der_order=1, return_poly=False):
+        """
+        Calculate the `der_order` derivative of the polynomial.
+
+        Parameters
+        ----------
+        der_order : int
+            the order of the derivative
+        return_poly : bool
+            return a Poly1DType if True, otherwise return the coefficient array.
+
+        Returns
+        -------
+        Poly1DType|numpy.ndarray
+        """
+
+        if self.Coefs is None:
+            return None
+        coefs = numpy.polynomial.polynomial.polyder(self.Coefs, der_order)
+        if return_poly:
+            return Poly1DType(Coefs=coefs)
+        return coefs
+
+    def derivative_eval(self, x, der_order=1):
+        """
+        Evaluate the `der_order` derivative of the polynomial at points `x`. This uses the
+        functionality presented in :module:`numpy.polynomial.polynomial`.
+
+        Parameters
+        ----------
+        x : numpy.ndarray
+            The point(s) at which to evaluate.
+        der_order : int
+            The derivative.
+        Returns
+        -------
+        numpy.ndarray
+        """
+        if self.Coefs is None:
+            return None
+        coefs = self.derivative(der_order=der_order, return_poly=False)
+        return numpy.polynomial.polynomial.polyval(x, coefs)
 
     @property
     def order1(self):
@@ -429,6 +687,16 @@ class Poly2DType(Serializable):
     _numeric_format = {'Coefs': '0.8f'}
     # other class variables
     _Coefs = None
+
+    def __init__(self, Coefs=None, **kwargs):
+        """
+        Parameters
+        ----------
+        Coefs : numpy.ndarray
+        kwargs : dict
+        """
+        self.Coefs = Coefs
+        super(Poly2DType, self).__init__(**kwargs)
 
     def __call__(self, x, y):
         """
@@ -615,6 +883,29 @@ class XYZPolyType(Serializable):
         'Z', Poly1DType, _required, strict=DEFAULT_STRICT,
         docstring='The polynomial for the Z coordinate.')  # type: Poly1DType
 
+    def __init__(self, X=None, Y=None, Z=None, **kwargs):
+        """
+        Parameters
+        ----------
+        X : Poly1DType|numpy.ndarray|list|tuple
+        Y : Poly1DType|numpy.ndarray|list|tuple
+        Z : Poly1DType|numpy.ndarray|list|tuple
+        kwargs : dict
+        """
+        if isinstance(X, (numpy.ndarray, list, tuple)):
+            self.X = Poly1DType(Coefs=X)
+        else:
+            self.X = X
+        if isinstance(Y, (numpy.ndarray, list, tuple)):
+            self.Y = Poly1DType(Coefs=Y)
+        else:
+            self.Y = Y
+        if isinstance(Z, (numpy.ndarray, list, tuple)):
+            self.Z = Poly1DType(Coefs=Z)
+        else:
+            self.Z = Z
+        super(XYZPolyType, self).__init__(**kwargs)
+
     def __call__(self, t):
         """
         Evaluate the polynomial at points `t`. This passes `t` straight through
@@ -635,6 +926,58 @@ class XYZPolyType(Serializable):
             return None
         return numpy.array([self.X(t), self.Y(t), self.Z(t)])
 
+    def derivative(self, der_order=1, return_poly=False):
+        """
+        Calculate the `der_order` derivative of the polynomial in each component.
+
+        Parameters
+        ----------
+        der_order : int
+            the order of the derivative
+        return_poly : bool
+            return a XYZPolyType if True, otherwise return a list of the coefficient arrays.
+
+        Returns
+        -------
+        XYZPolyType|list
+        """
+
+        coefs = [None, None, None]
+        if self.X is not None:
+            coefs[0] = self.X.derivative(der_order=der_order, return_poly=False)
+        if self.Y is not None:
+            coefs[1] = self.Y.derivative(der_order=der_order, return_poly=False)
+        if self.Z is not None:
+            coefs[2] = self.Z.derivative(der_order=der_order, return_poly=False)
+
+        if any(entry is None for entry in coefs):
+            return None
+        if return_poly:
+            return XYZPolyType(X=coefs[0], Y=coefs[1], Z=coefs[2])
+        return coefs
+
+    def derivative_eval(self, t, der_order=1):
+        """
+        Evaluate the `der_order` derivative of the polynomial at points `x`. This uses the
+        functionality presented in :module:`numpy.polynomial.polynomial`.
+
+        Parameters
+        ----------
+        t : numpy.ndarray
+            The point(s) at which to evaluate.
+        der_order : int
+            The derivative.
+        Returns
+        -------
+        numpy.ndarray|None
+        """
+
+        coefs = self.derivative(der_order=der_order, return_poly=False)
+        if coefs is None:
+            return None
+
+        return numpy.array([numpy.polynomial.polynomial.polyval(t, entry) for entry in coefs], dtype=numpy.float64)
+
 
 class XYZPolyAttributeType(XYZPolyType):
     """
@@ -647,6 +990,19 @@ class XYZPolyAttributeType(XYZPolyType):
     # descriptors
     index = _IntegerDescriptor(
         'index', _required, strict=DEFAULT_STRICT, docstring='The array index value.')  # type: int
+
+    def __init__(self, X=None, Y=None, Z=None, index=None, **kwargs):
+        """
+        Parameters
+        ----------
+        X : Poly1DType|numpy.ndarray|list|tuple
+        Y : Poly1DType|numpy.ndarray|list|tuple
+        Z : Poly1DType|numpy.ndarray|list|tuple
+        index : int
+        kwargs : dict
+        """
+        self.index = index
+        super(XYZPolyAttributeType, self).__init__(X=X, Y=Y, Z=Z, **kwargs)
 
 
 class GainPhasePolyType(Serializable):
@@ -666,6 +1022,24 @@ class GainPhasePolyType(Serializable):
                   'DCY (variable 2). Phase relative to phase at DCX = 0 and DCY = 0, '
                   'so constant coefficient is always 0.0.')  # type: Poly2DType
 
+    def __init__(self, GainPoly=None, PhasePoly=None, **kwargs):
+        """
+        Parameters
+        ----------
+        GainPoly : Poly2DType|numpy.ndarray|list|tuple
+        PhasePoly : Poly2DType|numpy.ndarray|list|tuple
+        kwargs : dict
+        """
+        if isinstance(GainPoly, (numpy.ndarray, list, tuple)):
+            self.GainPoly = Poly2DType(Coefs=GainPoly)
+        else:
+            self.GainPoly = GainPoly
+        if isinstance(PhasePoly, (numpy.ndarray, list, tuple)):
+            self.PhasePoly = Poly2DType(Coefs=PhasePoly)
+        else:
+            self.PhasePolyGainPoly = PhasePoly
+        super(GainPhasePolyType, self).__init__(**kwargs)
+
 
 class ErrorDecorrFuncType(Serializable):
     """
@@ -683,3 +1057,15 @@ class ErrorDecorrFuncType(Serializable):
     DecorrRate = _FloatDescriptor(
         'DecorrRate', _required, strict=DEFAULT_STRICT,
         docstring='Error decorrelation rate. Simple linear decorrelation rate (DCR).')  # type: float
+
+    def __init__(self, CorrCoefZero=None, DecorrRate=None, **kwargs):
+        """
+        Parameters
+        ----------
+        CorrCoefZero : float
+        DecorrRate : float
+        kwargs : dict
+        """
+        self.CorrCoefZero = CorrCoefZero
+        self.DecorrRate = DecorrRate
+        super(ErrorDecorrFuncType, self).__init__(**kwargs)

@@ -5,7 +5,6 @@ The RgAzCompType definition.
 import logging
 
 import numpy
-from numpy.polynomial import polynomial as numpy_poly
 from numpy.linalg import norm
 
 from .base import Serializable, DEFAULT_STRICT, _FloatDescriptor, _SerializableDescriptor
@@ -58,8 +57,7 @@ class RgAzCompType(Serializable):
             if Grid.Row.KCtr is not None and Timeline is not None and Timeline.IPP is not None and \
                     Timeline.IPP.size == 1 and Timeline.IPP[0].IPPPoly is not None and SCPCOA.SCPTime is not None:
 
-                st_rate_coa = numpy_poly.polyval(
-                    SCPCOA.SCPTime, numpy_poly.polyder(Timeline.IPP[0].IPPPoly.Coefs, 1))
+                st_rate_coa = Timeline.IPP[0].IPPPoly.derivative_eval(SCPCOA.SCPTime, 1)
 
                 krg_coa = Grid.Row.KCtr
                 if Grid.Row is not None and Grid.Row.DeltaKCOAPoly is not None:

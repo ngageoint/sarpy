@@ -37,11 +37,9 @@ class SCPType(Serializable):
         """
 
         if self.ECF is None and self.LLH is not None:
-            coords = geodetic_to_ecf(self.LLH.get_array(order='LAT'))
-            self.ECF = XYZType(X=coords[0], Y=coords[1], Z=coords[2])
+            self.ECF = XYZType(coords=geodetic_to_ecf(self.LLH.get_array(order='LAT')))
         elif self.LLH is None and self.ECF is not None:
-            coords = ecf_to_geodetic(self.ECF.get_array())
-            self.LLH = LatLonHAERestrictionType(Lat=coords[0], Lon=coords[1], HAE=coords[2])
+            self.LLH = LatLonHAERestrictionType(coords=ecf_to_geodetic(self.ECF.get_array()))
 
 
 class GeoDataType(Serializable):

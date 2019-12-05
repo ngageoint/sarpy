@@ -6,7 +6,6 @@ import logging
 
 import numpy
 from numpy.linalg import norm
-from numpy.polynomial import polynomial as numpy_poly
 
 from .base import Serializable, DEFAULT_STRICT, \
     _StringEnumDescriptor, _FloatDescriptor, \
@@ -120,15 +119,11 @@ class SCPCOAType(Serializable):
         scptime = self.SCPTime
 
         if self.ARPPos is None:
-            self.ARPPos = XYZType(X=poly.X(scptime), Y=poly.Y(scptime), Z=poly.Z(scptime))
+            self.ARPPos = XYZType(coords=poly(scptime))
         if self.ARPVel is None:
-            self.ARPVel = XYZType(X=numpy_poly.polyval(scptime, numpy_poly.polyder(poly.X.Coefs, 1)),
-                                  Y=numpy_poly.polyval(scptime, numpy_poly.polyder(poly.Y.Coefs, 1)),
-                                  Z=numpy_poly.polyval(scptime, numpy_poly.polyder(poly.Z.Coefs, 1)))
+            self.ARPVel = XYZType(coords=poly.derivative_eval(scptime, 1))
         if self.ARPAcc is None:
-            self.ARPAcc = XYZType(X=numpy_poly.polyval(scptime, numpy_poly.polyder(poly.X.Coefs, 2)),
-                                  Y=numpy_poly.polyval(scptime, numpy_poly.polyder(poly.Y.Coefs, 2)),
-                                  Z=numpy_poly.polyval(scptime, numpy_poly.polyder(poly.Z.Coefs, 2)))
+            self.ARPAcc = XYZType(coords=poly.derivative_eval(scptime, 2))
 
     def _derive_geometry_parameters(self, GeoData):
         """
