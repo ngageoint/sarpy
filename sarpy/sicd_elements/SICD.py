@@ -4,8 +4,10 @@ The SICDType definition.
 
 import logging
 
-from .base import Serializable, DEFAULT_STRICT, _SerializableDescriptor
+import numpy
 
+from .base import Serializable, DEFAULT_STRICT, _SerializableDescriptor
+from .blocks import LatLonCornerStringType, LatLonArrayElementType
 from .CollectionInfo import CollectionInfoType
 from .ImageCreation import ImageCreationType
 from .ImageData import ImageDataType
@@ -23,6 +25,8 @@ from .MatchInfo import MatchInfoType
 from .RgAzComp import RgAzCompType
 from .PFA import PFAType
 from .RMA import RMAType
+
+from sarpy.geometry import point_projection
 
 
 # TODO:
@@ -213,6 +217,58 @@ class SICDType(Serializable):
         condition &= self._validate_image_segment_id()
         return condition
 
+    def define_geo_image_corners(self):
+        """
+        Defines the GeoData image corner points (if possible), if they are not already defined.
+
+        Returns
+        -------
+        None
+        """
+
+        if self.GeoData is None or self.GeoData.ImageCorners is not None:
+            return  # nothing to be done
+
+        # TODO: refactor geometry/point_projection.py contents into appropriate class methods
+        #   the below exception catching is half-baked, because the method should be refactored.
+
+        try:
+            corner_coords = point_projection.image_to_ground_geo(
+                self.ImageData.get_full_vertex_data(dtype=numpy.float64), self)
+        except (ValueError, AttributeError):
+            return
+
+        self.GeoData.ImageCorners = [
+            LatLonCornerStringType(Lat=corner_coords[0, 0], Lon=corner_coords[0, 1], index='1:FRFC'),
+            LatLonCornerStringType(Lat=corner_coords[1, 0], Lon=corner_coords[1, 1], index='2:FRLC'),
+            LatLonCornerStringType(Lat=corner_coords[2, 0], Lon=corner_coords[2, 1], index='3:LRLC'),
+            LatLonCornerStringType(Lat=corner_coords[3, 0], Lon=corner_coords[3, 1], index='4:LRFC'),
+        ]
+
+    def define_geo_valid_data(self):
+        """
+        Defines the GeoData valid data corner points (if possible), if they are not already defined.
+
+        Returns
+        -------
+        None
+        """
+
+        if self.GeoData is None or self.GeoData.ValidData is not None:
+            return  # nothing to be done
+
+        # TODO: refactor geometry/point_projection.py contents into appropriate class methods
+        #   the below exception catching is half-baked, because the method should be refactored.
+
+        try:
+            corner_coords = point_projection.image_to_ground_geo(
+                self.ImageData.get_valid_vertex_data(dtype=numpy.float64), self)
+        except (ValueError, AttributeError):
+            return
+
+        self.GeoData.ValidData = [
+            LatLonArrayElementType(Lat=entry[0], Lon=entry[1], index=i) for i, entry in enumerate(corner_coords)]
+
     def derive(self):
         """
         Populates any potential derived data in the SICD structure. This should get called after reading an XML,
@@ -297,8 +353,8 @@ class SICDType(Serializable):
                 # noinspection PyProtectedMember
                 self.Grid._derive_rma(self.RMA, self.SCPCOA, self.RadarCollection, self.ImageFormation, self.Position)
 
-        # TODO: continue here from sicd.py 1938-2013
+        self.define_geo_image_corners()
+        self.define_geo_valid_data()
 
-# TODO: properly incorporate derived fields kludgery. See sicd.py line 1261.
-#  This is quite long and unmodular. This should be implemented at the proper level,
-#  and then recursively called, but not until we are sure that we are done with construction.
+        # TODO: continue here from sicd.py 1968-2013
+

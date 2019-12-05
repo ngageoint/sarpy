@@ -421,7 +421,12 @@ class GridType(Serializable):
         None
         """
 
-        valid_vertices = None if ImageData is None else ImageData.get_valid_vertex_data()
+        valid_vertices = None
+        if ImageData is not None:
+            valid_vertices = ImageData.get_valid_vertex_data()
+            if valid_vertices is None:
+                valid_vertices = ImageData.get_full_vertex_data()
+
         for attribute in ['Row', 'Col']:
             value = getattr(self, attribute, None)
             if value is not None:
