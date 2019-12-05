@@ -6,10 +6,9 @@ from typing import List, Union
 
 import numpy
 
-from ._base import Serializable, DEFAULT_STRICT, \
+from .base import Serializable, DEFAULT_STRICT, \
     _SerializableDescriptor, _SerializableArrayDescriptor
-from ._blocks import XYZType, XYZPolyType, XYZPolyAttributeType, Poly1DType
-from .SCPCOA import SCPCOAType
+from .blocks import XYZType, XYZPolyType, XYZPolyAttributeType, Poly1DType
 
 
 __classification__ = "UNCLASSIFIED"
@@ -47,7 +46,7 @@ class PositionType(Serializable):
 
         Parameters
         ----------
-        SCPCOA : SCPCOAType
+        SCPCOA : sarpy.sicd_elements.SCPCOAType
 
         Returns
         -------

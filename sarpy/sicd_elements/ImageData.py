@@ -3,13 +3,14 @@ The ImageData definition.
 """
 
 import logging
-import numpy
 from typing import List, Union
 
-from ._base import Serializable, DEFAULT_STRICT, \
+import numpy
+
+from .base import Serializable, DEFAULT_STRICT, \
     _IntegerDescriptor, _FloatArrayDescriptor, _StringEnumDescriptor, \
     _SerializableDescriptor, _SerializableArrayDescriptor
-from ._blocks import RowColType, RowColArrayElement
+from .blocks import RowColType, RowColArrayElement
 
 
 __classification__ = "UNCLASSIFIED"

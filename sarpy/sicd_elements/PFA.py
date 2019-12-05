@@ -5,11 +5,8 @@ The PFAType definition.
 import numpy
 from numpy.linalg import norm
 
-from ._base import Serializable, DEFAULT_STRICT, _BooleanDescriptor, _FloatDescriptor, _SerializableDescriptor
-from ._blocks import Poly1DType, Poly2DType, XYZType
-from .Grid import GridType
-from .GeoData import GeoDataType
-from .SCPCOA import SCPCOAType
+from .base import Serializable, DEFAULT_STRICT, _BooleanDescriptor, _FloatDescriptor, _SerializableDescriptor
+from .blocks import Poly1DType, Poly2DType, XYZType
 
 from sarpy.geometry import geocoords
 
@@ -88,17 +85,17 @@ class PFAType(Serializable):
 
         Parameters
         ----------
-        Grid : GridType
-        SCPCOA : SCPCOAType
-        GeoData : GeoDataType
+        Grid : sarpy.sicd_elements.GridType
+        SCPCOA : sarpy.sicd_elements.SCPCOAType
+        GeoData : sarpy.sicd_elements.GeoDataType
 
         Returns
         -------
         None
         """
 
-        if self.PolarAngRefTime is None and SCPCOAType.SCPTime is not None:
-            self.PolarAngRefTime = SCPCOAType.SCPTime
+        if self.PolarAngRefTime is None and SCPCOA.SCPTime is not None:
+            self.PolarAngRefTime = SCPCOA.SCPTime
 
         if GeoData is not None and GeoData.SCP is not None and GeoData.SCP.ECF is not None and \
                 SCPCOA.ARPPos is not None and SCPCOA.ARPVel is not None:

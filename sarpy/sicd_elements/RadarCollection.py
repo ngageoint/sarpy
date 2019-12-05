@@ -7,10 +7,10 @@ from typing import List, Union
 
 import numpy
 
-from ._base import Serializable, DEFAULT_STRICT, \
+from .base import Serializable, DEFAULT_STRICT, \
     _StringDescriptor, _StringEnumDescriptor, _FloatDescriptor, _IntegerDescriptor, \
     _SerializableDescriptor, _SerializableArrayDescriptor
-from ._blocks import ParameterType, XYZType, LatLonHAECornerRestrictionType
+from .blocks import ParameterType, XYZType, LatLonHAECornerRestrictionType
 
 import sarpy.geometry.geocoords as geocoords
 

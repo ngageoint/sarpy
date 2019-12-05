@@ -11,19 +11,10 @@ from numpy.polynomial import polynomial as numpy_poly
 from scipy.optimize import newton
 from scipy.constants import speed_of_light
 
-from ._base import Serializable, DEFAULT_STRICT, \
+from .base import Serializable, DEFAULT_STRICT, \
     _StringDescriptor, _StringEnumDescriptor, _FloatDescriptor, _FloatArrayDescriptor, _IntegerEnumDescriptor, \
     _SerializableDescriptor, _SerializableArrayDescriptor
-from ._blocks import ParameterType, XYZType, Poly2DType
-from .ImageData import ImageDataType
-from .CollectionInfo import CollectionInfoType
-from .SCPCOA import SCPCOAType
-from .GeoData import GeoDataType
-from .RadarCollection import RadarCollectionType
-from .ImageFormation import ImageFormationType
-from .Position import PositionType
-from .PFA import PFAType
-from .RMA import RMAType
+from .blocks import ParameterType, XYZType, Poly2DType
 
 
 __classification__ = "UNCLASSIFIED"
@@ -423,7 +414,7 @@ class GridType(Serializable):
 
         Parameters
         ----------
-        ImageData : ImageDataType
+        ImageData : sarpy.sicd_elements.ImageDataType
 
         Returns
         -------
@@ -444,8 +435,8 @@ class GridType(Serializable):
 
         Parameters
         ----------
-        CollectionInfo : CollectionInfoType
-        SCPCOA : SCPCOAType
+        CollectionInfo : sarpy.sicd_elements.CollectionInfoType
+        SCPCOA : sarpy.sicd_elements.SCPCOAType
 
         Returns
         -------
@@ -467,8 +458,8 @@ class GridType(Serializable):
 
         Parameters
         ----------
-        RadarCollection : RadarCollectionType
-        ImageFormation : ImageFormationType
+        RadarCollection : sarpy.sicd_elements.RadarCollectionType
+        ImageFormation : sarpy.sicd_elements.ImageFormationType
 
         Returns
         -------
@@ -489,10 +480,10 @@ class GridType(Serializable):
 
         Parameters
         ----------
-        GeoData : GeoDataType
-        SCPCOA : SCPCOAType
-        RadarCollection : RadarCollectionType
-        ImageFormation : ImageFormationType
+        GeoData : sarpy.sicd_elements.GeoDataType
+        SCPCOA : sarpy.sicd_elements.SCPCOAType
+        RadarCollection : sarpy.sicd_elements.RadarCollectionType
+        ImageFormation : sarpy.sicd_elements.ImageFormationType
 
         Returns
         -------
@@ -558,11 +549,11 @@ class GridType(Serializable):
 
         Parameters
         ----------
-        SCPCOA : SCPCOAType
-        RadarCollection : RadarCollectionType
-        ImageFormation : ImageFormationType
-        Position : PositionType
-        PFA : PFAType
+        SCPCOA : sarpy.sicd_elements.SCPCOAType
+        RadarCollection : sarpy.sicd_elements.RadarCollectionType
+        ImageFormation : sarpy.sicd_elements.ImageFormationType
+        Position : sarpy.sicd_elements.PositionType
+        PFA : sarpy.sicd_elements.PFAType
 
         Returns
         -------
@@ -613,11 +604,11 @@ class GridType(Serializable):
 
         Parameters
         ----------
-        RMA : RMAType
-        SCPCOA : SCPCOAType
-        RadarCollection : RadarCollectionType
-        ImageFormation : ImageFormationType
-        Position : PositionType
+        RMA : sarpy.sicd_elements.RMAType
+        SCPCOA : sarpy.sicd_elements.SCPCOAType
+        RadarCollection : sarpy.sicd_elements.RadarCollectionType
+        ImageFormation : sarpy.sicd_elements.ImageFormationType
+        Position : sarpy.sicd_elements.PositionType
 
         Returns
         -------
@@ -642,10 +633,10 @@ class GridType(Serializable):
 
         Parameters
         ----------
-        RMA : RMAType
-        SCPCOA : SCPCOAType
-        RadarCollection : RadarCollectionType
-        ImageFormation : ImageFormationType
+        RMA : sarpy.sicd_elements.RMAType
+        SCPCOA : sarpy.sicd_elements.SCPCOAType
+        RadarCollection : sarpy.sicd_elements.RadarCollectionType
+        ImageFormation : sarpy.sicd_elements.ImageFormationType
 
         Returns
         -------
@@ -692,10 +683,10 @@ class GridType(Serializable):
 
         Parameters
         ----------
-        RMA : RMAType
-        SCPCOA : SCPCOAType
-        RadarCollection : RadarCollectionType
-        ImageFormation : ImageFormationType
+        RMA : sarpy.sicd_elements.RMAType
+        SCPCOA : sarpy.sicd_elements.SCPCOAType
+        RadarCollection : sarpy.sicd_elements.RadarCollectionType
+        ImageFormation : sarpy.sicd_elements.ImageFormationType
 
         Returns
         -------
@@ -742,9 +733,9 @@ class GridType(Serializable):
 
         Parameters
         ----------
-        RMA : RMAType
-        SCPCOA : SCPCOAType
-        Position : PositionType
+        RMA : sarpy.sicd_elements.RMAType
+        SCPCOA : sarpy.sicd_elements.SCPCOAType
+        Position : sarpy.sicd_elements.PositionType
 
         Returns
         -------

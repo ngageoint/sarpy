@@ -2,8 +2,8 @@
 The AntennaType definition.
 """
 
-from ._base import Serializable, DEFAULT_STRICT, _BooleanDescriptor, _FloatDescriptor, _SerializableDescriptor
-from ._blocks import Poly1DType, XYZPolyType, GainPhasePolyType
+from .base import Serializable, DEFAULT_STRICT, _BooleanDescriptor, _FloatDescriptor, _SerializableDescriptor
+from .blocks import Poly1DType, XYZPolyType, GainPhasePolyType
 
 
 __classification__ = "UNCLASSIFIED"

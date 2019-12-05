@@ -8,13 +8,10 @@ import numpy
 from numpy.linalg import norm
 from numpy.polynomial import polynomial as numpy_poly
 
-from ._base import Serializable, DEFAULT_STRICT, \
+from .base import Serializable, DEFAULT_STRICT, \
     _StringEnumDescriptor, _FloatDescriptor, \
     _SerializableDescriptor
-from ._blocks import XYZType
-from .Grid import GridType
-from .Position import PositionType
-from .GeoData import GeoDataType
+from .blocks import XYZType
 
 from sarpy.geometry import geocoords
 
@@ -84,7 +81,7 @@ class SCPCOAType(Serializable):
 
         Parameters
         ----------
-        Grid : GridType
+        Grid : sarpy.sicd_elements.GridType
 
         Returns
         -------
@@ -108,7 +105,7 @@ class SCPCOAType(Serializable):
 
         Parameters
         ----------
-        Position : PositionType
+        Position : sarpy.sicd_elements.PositionType
 
         Returns
         -------
@@ -139,7 +136,7 @@ class SCPCOAType(Serializable):
 
         Parameters
         ----------
-        GeoData : GeoDataType
+        GeoData : sarpy.sicd_elements.GeoDataType
 
         Returns
         -------

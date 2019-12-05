@@ -4,7 +4,7 @@ The SICDType definition.
 
 import logging
 
-from ._base import Serializable, DEFAULT_STRICT, _SerializableDescriptor
+from .base import Serializable, DEFAULT_STRICT, _SerializableDescriptor
 
 from .CollectionInfo import CollectionInfoType
 from .ImageCreation import ImageCreationType
@@ -106,7 +106,7 @@ class SICDType(Serializable):
     @property
     def ImageFormType(self):  # type: () -> str
         """
-        str: READ ONLY attribute. Identifies the specific image formation type supplied. This is determined by
+        str: *READ ONLY* Identifies the specific image formation type supplied. This is determined by
         returning the (first) attribute among `RgAzComp`, `PFA`, `RMA` which is populated. `OTHER` will be returned if
         none of them are populated.
         """

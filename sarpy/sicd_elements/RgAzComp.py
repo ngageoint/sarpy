@@ -8,11 +8,8 @@ import numpy
 from numpy.polynomial import polynomial as numpy_poly
 from numpy.linalg import norm
 
-from ._base import Serializable, DEFAULT_STRICT, _FloatDescriptor, _SerializableDescriptor
-from ._blocks import Poly1DType
-from .Grid import GridType
-from .Timeline import TimelineType
-from .SCPCOA import SCPCOAType
+from .base import Serializable, DEFAULT_STRICT, _FloatDescriptor, _SerializableDescriptor
+from .blocks import Poly1DType
 
 
 __classification__ = "UNCLASSIFIED"
@@ -39,9 +36,9 @@ class RgAzCompType(Serializable):
 
         Parameters
         ----------
-        Grid : GridType
-        Timeline : TimelineType
-        SCPCOA : SCPCOAType
+        Grid : sarpy.sicd_elements.GridType
+        Timeline : sarpy.sicd_elements.TimelineType
+        SCPCOA : sarpy.sicd_elements.SCPCOAType
 
         Returns
         -------

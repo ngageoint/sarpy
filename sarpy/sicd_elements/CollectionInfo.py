@@ -4,10 +4,10 @@ The CollectionInfo object definition.
 
 from typing import List
 
-from ._base import Serializable, DEFAULT_STRICT, \
+from .base import Serializable, DEFAULT_STRICT, \
     _StringDescriptor, _StringEnumDescriptor, _StringListDescriptor, \
     _SerializableDescriptor, _SerializableArrayDescriptor
-from ._blocks import ParameterType
+from .blocks import ParameterType
 
 
 __classification__ = "UNCLASSIFIED"

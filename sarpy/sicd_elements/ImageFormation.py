@@ -4,13 +4,12 @@ The ImageFormationType definition.
 
 from typing import List
 
-from ._base import Serializable, DEFAULT_STRICT, \
+from .base import Serializable, DEFAULT_STRICT, \
     _StringDescriptor, _StringEnumDescriptor, _FloatDescriptor, _IntegerDescriptor, \
     _BooleanDescriptor, _ComplexDescriptor, _DateTimeDescriptor, _IntegerListDescriptor, \
     _SerializableDescriptor, _SerializableArrayDescriptor
-from ._blocks import ParameterType
+from .blocks import ParameterType
 
-from .RadarCollection import RadarCollectionType
 
 __classification__ = "UNCLASSIFIED"
 
@@ -222,7 +221,7 @@ class ImageFormationType(Serializable):
 
         Parameters
         ----------
-        RadarCollection : RadarCollectionType
+        RadarCollection : sarpy.sicd_elements.RadarCollectionType
 
         Returns
         -------

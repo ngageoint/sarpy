@@ -6,10 +6,10 @@ from typing import List, Union
 
 import numpy
 
-from ._base import Serializable, DEFAULT_STRICT, \
+from .base import Serializable, DEFAULT_STRICT, \
     _FloatDescriptor, _IntegerDescriptor, _DateTimeDescriptor, \
     _SerializableDescriptor, _SerializableArrayDescriptor
-from ._blocks import Poly1DType
+from .blocks import Poly1DType
 
 
 __classification__ = "UNCLASSIFIED"

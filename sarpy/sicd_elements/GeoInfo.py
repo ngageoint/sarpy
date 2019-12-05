@@ -6,9 +6,9 @@ import logging
 import numpy
 from typing import List, Union
 
-from ._base import Serializable, DEFAULT_STRICT, _StringDescriptor, \
+from .base import Serializable, DEFAULT_STRICT, _StringDescriptor, \
     _SerializableDescriptor, _SerializableArrayDescriptor
-from ._blocks import ParameterType, LatLonRestrictionType, LatLonArrayElementType
+from .blocks import ParameterType, LatLonRestrictionType, LatLonArrayElementType
 
 
 __classification__ = "UNCLASSIFIED"

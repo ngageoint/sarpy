@@ -6,10 +6,9 @@ from typing import List, Union
 
 import numpy
 
-from ._base import Serializable, DEFAULT_STRICT, \
-    _StringEnumDescriptor, _FloatDescriptor, \
+from .base import Serializable, DEFAULT_STRICT, _StringEnumDescriptor, _FloatDescriptor, \
     _SerializableDescriptor, _SerializableArrayDescriptor
-from ._blocks import ParameterType, ErrorDecorrFuncType
+from .blocks import ParameterType, ErrorDecorrFuncType
 
 __classification__ = "UNCLASSIFIED"
 

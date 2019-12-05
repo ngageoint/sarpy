@@ -6,8 +6,7 @@ from collections import OrderedDict
 
 import numpy
 
-from ._base import _get_node_value, _create_text_node, _create_new_node, \
-    Serializable, DEFAULT_STRICT, \
+from .base import _get_node_value, _create_text_node, _create_new_node, Serializable, DEFAULT_STRICT, \
     _StringDescriptor, _StringEnumDescriptor, _IntegerDescriptor, _FloatDescriptor, _FloatModularDescriptor, \
     _SerializableDescriptor
 

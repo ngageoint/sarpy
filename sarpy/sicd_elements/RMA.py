@@ -7,14 +7,10 @@ from typing import Union
 import numpy
 from numpy.linalg import norm
 
-from ._base import Serializable, DEFAULT_STRICT, \
+from .base import Serializable, DEFAULT_STRICT, \
     _StringEnumDescriptor, _FloatDescriptor, _BooleanDescriptor, \
     _SerializableDescriptor
-from ._blocks import XYZType, Poly1DType, Poly2DType
-from .SCPCOA import SCPCOAType
-from .Position import PositionType
-from .RadarCollection import RadarCollectionType
-from .ImageFormation import ImageFormationType
+from .blocks import XYZType, Poly1DType, Poly2DType
 
 
 __classification__ = "UNCLASSIFIED"
@@ -119,10 +115,10 @@ class RMAType(Serializable):
         Expected to be called from SICD parent.
         Parameters
         ----------
-        SCPCOA : SCPCOAType
-        Position : PositionType
-        RadarCollection : RadarCollectionType
-        ImageFormation : ImageFormationType
+        SCPCOA : sarpy.sicd_elements.SCPCOAType
+        Position : sarpy.sicd_elements.PositionType
+        RadarCollection : sarpy.sicd_elements.RadarCollectionType
+        ImageFormation : sarpy.sicd_elements.ImageFormationType
 
         Returns
         -------

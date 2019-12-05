@@ -2,8 +2,8 @@
 The RadiometricType definition.
 """
 
-from ._base import Serializable, DEFAULT_STRICT, _StringEnumDescriptor, _SerializableDescriptor
-from ._blocks import Poly2DType
+from .base import Serializable, DEFAULT_STRICT, _StringEnumDescriptor, _SerializableDescriptor
+from .blocks import Poly2DType
 
 
 __classification__ = "UNCLASSIFIED"

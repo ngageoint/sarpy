@@ -5,9 +5,9 @@ The MatchInfoType definition.
 from xml.etree import ElementTree
 from typing import List
 
-from ._base import Serializable, _get_node_value, DEFAULT_STRICT, \
+from .base import Serializable, _get_node_value, DEFAULT_STRICT, \
     _StringDescriptor, _IntegerDescriptor, _SerializableArrayDescriptor
-from ._blocks import ParameterType
+from .blocks import ParameterType
 
 
 __classification__ = "UNCLASSIFIED"

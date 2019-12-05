@@ -6,9 +6,9 @@ from typing import List, Union
 
 import numpy
 
-from ._base import Serializable, DEFAULT_STRICT, _StringEnumDescriptor, \
+from .base import Serializable, DEFAULT_STRICT, _StringEnumDescriptor, \
     _SerializableDescriptor, _SerializableArrayDescriptor
-from ._blocks import XYZType, LatLonHAERestrictionType, LatLonCornerStringType, LatLonArrayElementType
+from .blocks import XYZType, LatLonHAERestrictionType, LatLonCornerStringType, LatLonArrayElementType
 from .GeoInfo import GeoInfoType
 
 from sarpy.geometry.geocoords import geodetic_to_ecf, ecf_to_geodetic
