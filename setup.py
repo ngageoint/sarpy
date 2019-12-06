@@ -7,13 +7,15 @@ from setuptools import setup, find_packages
 from codecs import open
 # from os import path
 import os
-# If attempting hard links cause "error removing..." errors (can occur in Windows on network
-# drives), this will fix it:
-del os.link
+try:
+    # If attempting hard links cause "error removing..." errors (can occur in Windows on network
+    # drives), this will fix it:
+    del os.link  # TODO: is this still viable?
+except AttributeError:
+    pass
 
 from sphinx.setup_command import BuildDoc
 cmdclass = {'build_sphinx': BuildDoc}
-
 
 # Get the long description from the README file
 here = os.path.abspath(os.path.dirname(__file__))
@@ -42,8 +44,9 @@ setup(name=parameters['__title__'],
         'csk':  ['h5py'],
       },
       zip_safe=False,  # Use of __file__ and __path__ in some code makes it unusable from zip
-      use_scm_version=False,
-      setup_requires=['setuptools_scm'],  # this is probably not used if we set the version?
+      test_suite="tests",
+      # use_scm_version=False,
+      # setup_requires=['setuptools_scm'],  # this is probably not used if we set the version?
       classifiers=[
           'Development Status :: 4 - Beta',
           'Intended Audience :: Developers',
@@ -63,7 +66,6 @@ setup(name=parameters['__title__'],
               'version': ('setup.py', parameters['__version__']),
               'release': ('setup.py', parameters['__release__']),
               'copyright': ('setup.py', parameters['__copyright__']),
-              # 'author': ('setup.py', parameters['__author__']),
               'source_dir': ('setup.py', os.path.join(here, 'docs', 'sphinx'))
           }}
       )

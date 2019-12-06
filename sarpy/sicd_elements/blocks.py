@@ -19,7 +19,7 @@ class PlainValueType(Serializable):
     _fields = ('value', )
     _required = _fields
     # descriptor
-    value = _StringDescriptor('value', _required, strict=True, docstring='The value')  # type: str
+    value = _StringDescriptor('value', _required, strict=False, docstring='The value')  # type: str
 
     def __init__(self, value=None, **kwargs):
         """
@@ -49,7 +49,7 @@ class ParameterType(PlainValueType):
     _set_as_attribute = ('name', )
     # descriptor
     name = _StringDescriptor(
-        'name', _required, strict=True, docstring='The name.')  # type: str
+        'name', _required, strict=False, docstring='The name.')  # type: str
 
     def __init__(self, value=None, name=None, **kwargs):
         """
@@ -1044,7 +1044,7 @@ class GainPhasePolyType(Serializable):
 class ErrorDecorrFuncType(Serializable):
     """
     This container allows parameterization of linear error decorrelation rate model.
-    If `(Delta t) = |t2 – t1|`, then `CC(Delta t) = Min(1.0, Max(0.0, CC0 – DCR*(Delta t)))`.
+    If `(Delta t) = |t2 - t1|`, then `CC(Delta t) = Min(1.0, Max(0.0, CC0 - DCR*(Delta t)))`.
     """
 
     _fields = ('CorrCoefZero', 'DecorrRate')
