@@ -161,7 +161,7 @@ class PFAType(Serializable):
             LOS = (SCP - ARP)
             uLOS = LOS/norm(LOS)
 
-            look = -1 if SCPCOA.SideOfTrack == 'R' else 1
+            look = SCPCOA.look
             ARP_vel = SCPCOA.ARPVel.get_array()
             uSPZ = look*numpy.cross(ARP_vel, uLOS)
             uSPZ /= norm(uSPZ)

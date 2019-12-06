@@ -598,7 +598,7 @@ class GridType(Serializable):
             if self.Row.UVectECF is None:
                 self.Row.UVectECF = XYZType(coords=uLOS)
 
-            look = -1 if SCPCOA.SideOfTrack == 'R' else 1
+            look = SCPCOA.look
             ARP_vel = SCPCOA.ARPVel.get_array()
             uSPZ = look*numpy.cross(ARP_vel, uLOS)
             uSPZ /= norm(uSPZ)

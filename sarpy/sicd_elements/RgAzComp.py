@@ -60,7 +60,7 @@ class RgAzCompType(Serializable):
         None
         """
 
-        look = -1 if SCPCOA.SideOfTrack == 'R' else 1
+        look = SCPCOA.look
         az_sf = -look*numpy.sin(numpy.deg2rad(SCPCOA.DopplerConeAng))/SCPCOA.SlantRange
         if self.AzSF is None:
             self.AzSF = az_sf
@@ -77,13 +77,10 @@ class RgAzCompType(Serializable):
 
                 krg_coa = Grid.Row.KCtr
                 if Grid.Row is not None and Grid.Row.DeltaKCOAPoly is not None:
-                    krg_coa += Grid.Row.DeltaKCOAPoly.Coefs
+                    krg_coa += Grid.Row.DeltaKCOAPoly.Coefs[0, 0]
 
                 # Scale factor described in SICD spec
-                # note that this is scalar or two-dimensional
                 delta_kaz_per_delta_v = \
                     look*krg_coa*norm(SCPCOA.ARPVel.get_array()) * \
                     numpy.sin(numpy.deg2rad(SCPCOA.DopplerConeAng))/(SCPCOA.SlantRange*st_rate_coa)
-                # TODO: note that this is scalar or two-dimensional * one-dimensional - that doesn't make sense.
-                #   maybe it should be .dot() and this is badly translated from matlab?
                 self.KazPoly = Poly1DType(Coefs=delta_kaz_per_delta_v*Timeline.IPP[0].IPPPoly.Coefs)

@@ -116,6 +116,23 @@ class SCPCOAType(Serializable):
         self.TwistAng, self.SlopeAng, self.AzimAng, self.LayoverAng = TwistAng, SlopeAng, AzimAng, LayoverAng
         super(SCPCOAType, self).__init__(**kwargs)
 
+    @property
+    def look(self):
+        """
+        This seems a common enough construct:
+            * None if `SideOfTrack` is not defined
+            * -1 if SideOfTrack == 'R'
+            * 1 if SideOftrack == 'L'
+
+        Returns
+        -------
+        None|int
+        """
+        if self.SideOfTrack is None:
+            return None
+        else:
+            return -1 if self.SideOfTrack == 'R' else 1
+
     def _derive_scp_time(self, Grid):
         """
         Expected to be called by SICD parent.
