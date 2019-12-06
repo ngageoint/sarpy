@@ -32,6 +32,27 @@ class RMRefType(Serializable):
         'DopConeAngRef', _required, strict=DEFAULT_STRICT,
         docstring='Reference Doppler Cone Angle in degrees.')  # type: float
 
+    def __init__(self, PosRef=None, VelRef=None, DopConeAngRef=None, **kwargs):
+        """
+
+        Parameters
+        ----------
+        PosRef : XYZType|numpy.ndarray|list|tuple
+        VelRef : XYZType|numpy.ndarray|list|tuple
+        DopConeAngRef : float
+        kwargs
+        """
+        if isinstance(PosRef, (numpy.ndarray, list, tuple)):
+            self.PosRef = XYZType(coords=PosRef)
+        else:
+            self.PosRef = PosRef
+        if isinstance(VelRef, (numpy.ndarray, list, tuple)):
+            self.VelRef = XYZType(coords=VelRef)
+        else:
+            self.VelRef = VelRef
+        self.DopConeAngRef = DopConeAngRef
+        super(RMRefType, self).__init__(**kwargs)
+
 
 class INCAType(Serializable):
     """Parameters for Imaging Near Closest Approach (INCA) image description."""
@@ -65,6 +86,37 @@ class INCAType(Serializable):
         'DopCentroidCOA', _required, strict=DEFAULT_STRICT,
         docstring="""Flag indicating that the COA is at the peak signal (fdop_COA = fdop_DC). `True` if Pixel COA at 
         peak signal for all pixels. `False` otherwise. *Only used for Stripmap and Dynamic Stripmap.*""")  # type: bool
+
+    def __init__(self, TimeCAPoly=None, R_CA_SCP=None, FreqZero=None, DRateSFPoly=None,
+                 DopCentroidPoly=None, DopCentroidCOA=None, **kwargs):
+        """
+
+        Parameters
+        ----------
+        TimeCAPoly : Poly1DType|numpy.ndarray|list|tuple
+        R_CA_SCP : float
+        FreqZero : float
+        DRateSFPoly : Poly2DType|numpy.ndarray|list|tuple
+        DopCentroidPoly : Poly2DType|numpy.ndarray|list|tuple
+        DopCentroidCOA : bool
+        kwargs : dict
+        """
+        if isinstance(TimeCAPoly, (numpy.ndarray, list, tuple)):
+            self.TimeCAPoly = Poly1DType(Coefs=TimeCAPoly)
+        else:
+            self.TimeCAPoly = TimeCAPoly
+        self.R_CA_SCP = R_CA_SCP
+        self.FreqZero = FreqZero
+        if isinstance(DRateSFPoly, (numpy.ndarray, list, tuple)):
+            self.DRateSFPoly = Poly2DType(Coefs=DRateSFPoly)
+        else:
+            self.DRateSFPoly = DRateSFPoly
+        if isinstance(DopCentroidPoly, (numpy.ndarray, list, tuple)):
+            self.DopCentroidPoly = Poly2DType(Coefs=DopCentroidPoly)
+        else:
+            self.DopCentroidPoly = DopCentroidPoly
+        self.DopCentroidCOA = DopCentroidCOA
+        super(INCAType, self).__init__(**kwargs)
 
     def _apply_reference_frequency(self, reference_frequency):
         if self.FreqZero is not None:
@@ -100,6 +152,23 @@ class RMAType(Serializable):
     INCA = _SerializableDescriptor(
         'INCA', INCAType, _required, strict=DEFAULT_STRICT,
         docstring='Parameters for Imaging Near Closest Approach (INCA) image description.')  # type: INCAType
+
+    def __init__(self, RMAlgoType=None, RMAT=None, RMCR=None, INCA=None, **kwargs):
+        """
+
+        Parameters
+        ----------
+        RMAlgoType : str
+        RMAT : RMRefType
+        RMCR : RMRefType
+        INCA : INCAType
+        kwargs : dict
+        """
+        self.RMAlgoType = RMAlgoType
+        self.RMAT = RMAT
+        self.RMCR = RMCR
+        self.INCA = INCA
+        super(RMAType, self).__init__(**kwargs)
 
     @property
     def ImageType(self):  # type: () -> Union[None, str]

@@ -2,6 +2,7 @@
 The AntennaType definition.
 """
 
+import numpy
 from .base import Serializable, DEFAULT_STRICT, _BooleanDescriptor, _FloatDescriptor, _SerializableDescriptor
 from .blocks import Poly1DType, XYZPolyType, GainPhasePolyType
 
@@ -22,6 +23,24 @@ class EBType(Serializable):
         'DCYPoly', Poly1DType, _required, strict=DEFAULT_STRICT,
         docstring='Electrical boresight steering Y-axis direction cosine (DCY) as a function of '
                   'slow time (variable 1).')  # type: Poly1DType
+
+    def __init__(self, DCXPoly=None, DCYPoly=None, **kwargs):
+        """
+        Parameters
+        ----------
+        DCXPoly : Poly1DType|numpy.ndarray|list|tuple
+        DCYPoly : Poly1DType|numpy.ndarray|list|tuple
+        kwargs : dict
+        """
+        if isinstance(DCXPoly, (numpy.ndarray, list, tuple)):
+            self.DCXPoly = Poly1DType(Coefs=DCXPoly)
+        else:
+            self.DCXPoly = DCXPoly
+        if isinstance(DCYPoly, (numpy.ndarray, list, tuple)):
+            self.DCYPoly = Poly1DType(Coefs=DCYPoly)
+        else:
+            self.DCYPoly = DCYPoly
+        super(EBType, self).__init__(**kwargs)
 
 
 class AntParamType(Serializable):
@@ -75,6 +94,33 @@ class AntParamType(Serializable):
 
         """)  # type: bool
 
+    def __init__(self, XAxisPoly=None, YAxisPoly=None, FreqZero=None, EB=None,
+                 Array=None, Elem=None, GainBSPoly=None, EBFreqShift=None, MLFreqDilation=None, **kwargs):
+        """
+        Parameters
+        ----------
+        XAxisPoly : XYZPolyType
+        YAxisPoly : XYZPolyType
+        FreqZero : float
+        EB : EBType
+        Array : GainPhasePolyType
+        Elem : GainPhasePolyType
+        GainBSPoly : Poly1DType|numpy.ndarray|list|tuple
+        EBFreqShift : bool
+        MLFreqDilation : bool
+        kwargs : dict
+        """
+        self.XAxisPoly, self.YAxisPoly = XAxisPoly, YAxisPoly
+        self.FreqZero = FreqZero
+        self.EB = EB
+        self.Array, self.Elem = Array, Elem
+        if isinstance(GainBSPoly, (numpy.ndarray, list, tuple)):
+            self.GainBSPoly = Poly1DType(Coefs=GainBSPoly)
+        else:
+            self.GainBSPoly = GainBSPoly
+        self.EBFreqShift, self.MLFreqDilation = EBFreqShift, MLFreqDilation
+        super(AntParamType, self).__init__(**kwargs)
+
     def _apply_reference_frequency(self, reference_frequency):
         if self.FreqZero is not None:
             self.FreqZero += reference_frequency
@@ -94,6 +140,19 @@ class AntennaType(Serializable):
     TwoWay = _SerializableDescriptor(
         'TwoWay', AntParamType, _required, strict=DEFAULT_STRICT,
         docstring='The bidirectional transmit/receive antenna parameters.')  # type: AntParamType
+
+    def __init__(self, Tx=None, Rcv=None, TwoWay=None, **kwargs):
+        """
+
+        Parameters
+        ----------
+        Tx : AntParamType
+        Rcv : AntParamType
+        TwoWay : AntParamType
+        kwargs : dict
+        """
+        self.Tx, self.Rcv, self.TwoWay = Tx, Rcv, TwoWay
+        super(AntennaType, self).__init__(**kwargs)
 
     def _apply_reference_frequency(self, reference_frequency):
         """

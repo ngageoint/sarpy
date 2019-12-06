@@ -28,6 +28,20 @@ class STDeskewType(Serializable):
                   'polynomial function of image range coordinate (variable 1) and '
                   'azimuth coordinate (variable 2).')  # type: Poly2DType
 
+    def __init__(self, Applied=None, STDSPhasePoly=None, **kwargs):
+        """
+
+        Parameters
+        ----------
+        Applied : bool
+        STDSPhasePoly : Poly2DType|numpy.ndarray|list|tuple
+        kwargs : dict
+        """
+        self.Applied = Applied
+        # noinspection PytypeChecker
+        self.STDSPhasePoly = STDSPhasePoly
+        super(STDeskewType, self).__init__(**kwargs)
+
 
 class PFAType(Serializable):
     """Parameters for the Polar Formation Algorithm."""
@@ -78,6 +92,47 @@ class PFAType(Serializable):
     StDeskew = _SerializableDescriptor(
         'StDeskew', STDeskewType, _required, strict=DEFAULT_STRICT,
         docstring='Parameters to describe image domain ST Deskew processing.')  # type: STDeskewType
+
+    def __init__(self, FPN=None, IPN=None, PolarAngRefTime=None, PolarAngPoly=None,
+                 SpatialFreqSFPoly=None, Krg1=None, Krg2=None, Kaz1=None, Kaz2=None,
+                 StDeskew=None, **kwargs):
+        """
+
+        Parameters
+        ----------
+        FPN : XYZType|numpy.ndarray|list|tuple
+        IPN : XYZType|numpy.ndarray|list|tuple
+        PolarAngRefTime : float
+        PolarAngPoly : Poly1DType|numpy.ndarray|list|tuple
+        SpatialFreqSFPoly : Poly1DType|numpy.ndarray|list|tuple
+        Krg1 : float
+        Krg2 : float
+        Kaz1 : float
+        Kaz2 : float
+        StDeskew : STDeskewType
+        kwargs : dict
+        """
+        if isinstance(FPN, (numpy.ndarray, list, tuple)):
+            self.FPN = XYZType(coords=FPN)
+        else:
+            self.FPN = FPN
+        if isinstance(IPN, (numpy.ndarray, list, tuple)):
+            self.IPN = XYZType(coords=IPN)
+        else:
+            self.IPN = IPN
+        self.PolarAngRefTime = PolarAngRefTime
+        if isinstance(PolarAngPoly, (numpy.ndarray, list, tuple)):
+            self.PolarAngPoly = Poly1DType(Coefs=PolarAngPoly)
+        else:
+            self.PolarAngPoly = PolarAngPoly
+        if isinstance(SpatialFreqSFPoly, (numpy.ndarray, list, tuple)):
+            self.SpatialFreqSFPoly = Poly1DType(Coefs=SpatialFreqSFPoly)
+        else:
+            self.SpatialFreqSFPoly = SpatialFreqSFPoly
+        self.Krg1, self.Krg2 = Krg1, Krg2
+        self.Kaz1, self.Kaz2 = Kaz1, Kaz2
+        self.StDeskew = StDeskew
+        super(PFAType, self).__init__(**kwargs)
 
     def _derive_parameters(self, Grid, SCPCOA, GeoData):
         """

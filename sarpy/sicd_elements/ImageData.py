@@ -28,10 +28,26 @@ class FullImageType(Serializable):
         'NumCols', _required, strict=DEFAULT_STRICT,
         docstring='Number of columns in the original full image product. May include zero pixels.')  # type: int
 
+    def __init__(self, coords=None, NumRows=None, NumCols=None, **kwargs):
+        """
+
+        Parameters
+        ----------
+        coords : numpy.ndarray|list|tuple
+            assumed [NumRows, NumCols]
+        NumRows : int
+        NumCols : int
+        kwargs : dict
+        """
+        if isinstance(coords, (numpy.ndarray, list, tuple)) and len(coords) >= 2:
+            self.NumRows, self.NumCols = coords[0], coords[1]
+        else:
+            self.NumRows, self.NumCols = NumRows, NumCols
+        super(FullImageType, self).__init__(**kwargs)
+
 
 class ImageDataType(Serializable):
     """The image pixel data."""
-
     _collections_tags = {
         'AmpTable': {'array': True, 'child_tag': 'Amplitude'},
         'ValidData': {'array': True, 'child_tag': 'Vertex'},
@@ -51,10 +67,10 @@ class ImageDataType(Serializable):
         docstring="The amplitude look-up table. This is required if "
                   "`PixelType == 'AMP8I_PHS8I'`")  # type: numpy.ndarray
     NumRows = _IntegerDescriptor(
-        'NumRows', _required, strict=DEFAULT_STRICT,
+        'NumRows', _required, strict=True,
         docstring='The number of Rows in the product. May include zero rows.')  # type: int
     NumCols = _IntegerDescriptor(
-        'NumCols', _required, strict=DEFAULT_STRICT,
+        'NumCols', _required, strict=True,
         docstring='The number of Columns in the product. May include zero rows.')  # type: int
     FirstRow = _IntegerDescriptor(
         'FirstRow', _required, strict=DEFAULT_STRICT,
@@ -76,6 +92,38 @@ class ImageDataType(Serializable):
         docstring='Indicates the full image includes both valid data and some zero filled pixels. '
                   'Simple polygon encloses the valid data (may include some zero filled pixels for simplification). '
                   'Vertices in clockwise order.')  # type: Union[numpy.ndarray, List[RowColArrayElement]]
+
+    def __init__(self, PixelType=None, AmpTable=None, NumRows=None, NumCols=None,
+                 FirstRow=None, FirstCol=None, FullImage=None, SCPPixel=None, ValidData=None, **kwargs):
+        """
+
+        Parameters
+        ----------
+        PixelType : str
+        AmpTable : numpy.ndarray|list|tuple
+        NumRows : int
+        NumCols : int
+        FirstRow : int
+        FirstCol : int
+        FullImage : FullImageType|numpy.ndarray|list|tuple
+        SCPPixel : RowColType|numpy.ndarray|list|tuple
+        ValidData : List[RowColArrayElement]
+        kwargs : dict
+        """
+        self.PixelType = PixelType
+        self.AmpTable = AmpTable
+        self.NumRows, self.NumCols = NumRows, NumCols
+        self.FirstRow, self.FirstCol = FirstRow, FirstCol
+        if isinstance(FullImage, (numpy.ndarray, list, tuple)):
+            self.FullImage = FullImageType(coords=FullImage)
+        else:
+            self.FullImage = FullImage
+        if isinstance(SCPPixel, (numpy.ndarray, list, tuple)):
+            self.SCPPixel = RowColType(coords=SCPPixel)
+        else:
+            self.SCPPixel = SCPPixel
+        self.ValidData = ValidData
+        super(ImageDataType, self).__init__(**kwargs)
 
     def _basic_validity_check(self):
         condition = super(ImageDataType, self)._basic_validity_check()

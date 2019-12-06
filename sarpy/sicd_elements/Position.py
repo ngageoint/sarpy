@@ -8,7 +8,7 @@ import numpy
 
 from .base import Serializable, DEFAULT_STRICT, \
     _SerializableDescriptor, _SerializableArrayDescriptor
-from .blocks import XYZType, XYZPolyType, XYZPolyAttributeType, Poly1DType
+from .blocks import XYZType, XYZPolyType, XYZPolyAttributeType
 
 
 __classification__ = "UNCLASSIFIED"
@@ -38,6 +38,23 @@ class PositionType(Serializable):
         docstring='Receive Aperture Phase Center polynomials array. '
                   'Each polynomial has output in ECF, and represents a function of elapsed seconds since start of '
                   'collection.')  # type: Union[numpy.ndarray, List[XYZPolyAttributeType]]
+
+    def __init__(self, ARPPoly=None, GRPPoly=None, TxAPCPoly=None, RcvAPC=None, **kwargs):
+        """
+
+        Parameters
+        ----------
+        ARPPoly : XYZPolyType
+        GRPPoly : XYZPolyType
+        TxAPCPoly : XYZPolyType
+        RcvAPC : List[XYZPolyAttributeType]
+        kwargs : dict
+        """
+        self.ARPPoly = ARPPoly
+        self.GRPPoly = GRPPoly
+        self.TxAPCPoly = TxAPCPoly
+        self.RcvAPC = RcvAPC
+        super(PositionType, self).__init__(**kwargs)
 
     def _derive_arp_poly(self, SCPCOA):
         """

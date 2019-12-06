@@ -27,6 +27,18 @@ class RadarModeType(Serializable):
         'ModeType', _MODE_TYPE_VALUES, _required, strict=DEFAULT_STRICT,
         docstring="The Radar imaging mode.")  # type: str
 
+    def __init__(self, ModeId=None, ModeType=None, **kwargs):
+        """
+
+        Parameters
+        ----------
+        ModeId : str
+        ModeType : str
+        kwargs : dict
+        """
+        self.ModeId, self.ModeType = ModeId, ModeType
+        super(RadarModeType, self).__init__(**kwargs)
+
 
 class CollectionInfoType(Serializable):
     """General information about the collection."""
@@ -70,3 +82,27 @@ class CollectionInfoType(Serializable):
     Parameters = _SerializableArrayDescriptor(
         'Parameters', ParameterType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Free form paramaters object list.')  # type: List[ParameterType]
+
+    def __init__(self, CollectorName=None, IlluminatorName=None, CoreName=None, CollectType=None,
+                 RadarMode=None, Classification="UNCLASSIFIED", CountryCodes=None, Parameters=None, **kwargs):
+        """
+
+        Parameters
+        ----------
+        CollectorName : str
+        IlluminatorName : str
+        CoreName : str
+        CollectType : str
+        RadarMode : RadarModeType
+        Classification : str
+        CountryCodes : list|str
+        Parameters : List[ParametersType]
+        kwargs : dict
+        """
+
+        self.CollectorName, self.IlluminatorName = CollectorName, IlluminatorName
+        self.CoreName, self.CollectType = CoreName, CollectType
+        self.RadarMode = RadarMode
+        self.Classification = Classification
+        self.CountryCodes, self.Parameters = CountryCodes, Parameters
+        super(CollectionInfoType, self).__init__(**kwargs)

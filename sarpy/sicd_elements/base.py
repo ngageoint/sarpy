@@ -581,7 +581,7 @@ class _ComplexDescriptor(_BasicDescriptor):
                 raise ValueError('There must be exactly one Imag component of a complex type node defined.')
             real = float(_get_node_value(rnode))
             imag = float(_get_node_value(inode))
-            self.data[instance] = complex(real=real, imag=imag)
+            self.data[instance] = complex(real, imag)
         elif isinstance(value, dict):
             # from json deserialization
             real = None
@@ -592,7 +592,7 @@ class _ComplexDescriptor(_BasicDescriptor):
                 imag = value.get(key, imag)
             if real is None or imag is None:
                 raise ValueError('Cannot convert dict {} to a complex number.'.format(value))
-            self.data[instance] = complex(real=real, imag=imag)
+            self.data[instance] = complex(real, imag)
         else:
             # from user - this could be dumb
             self.data[instance] = complex(value)
@@ -964,12 +964,13 @@ class Serializable(object):
         """
 
         for attribute in self._fields:
-            try:
-                setattr(self, attribute, kwargs.get(attribute, None))
-            except AttributeError:
-                # NB: this is included to allow for read only properties without breaking the paradigm
-                #   Silently catching errors can potentially cover up REAL issues.
-                pass
+            if attribute in kwargs:
+                try:
+                    setattr(self, attribute, kwargs.get(attribute, None))
+                except AttributeError:
+                    # NB: this is included to allow for read only properties without breaking the paradigm
+                    #   Silently catching errors can potentially cover up REAL issues.
+                    pass
 
     def set_numeric_format(self, attribute, format_string):
         """Sets the numeric format string for the given attribute.

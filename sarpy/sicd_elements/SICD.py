@@ -30,10 +30,8 @@ from sarpy.geometry import point_projection
 
 
 # TODO:
-#   0.) put actual __init__ for each SICD element, so we have some hinting.
-#   1.) Actual file handler deal for Serializable for json and xml.
-#   2.) Unit tests for SICD elements.
-#   3.) Can we refine the strict parameter population for the SICD elements?
+#   1.) Unit tests for SICD elements.
+#   2.) Can we refine the strict parameter population for the SICD elements?
 #   3.) determine and implement appropriate class methods for proper functionality
 #       how are things used, and what helper functions do we need?
 
@@ -106,6 +104,53 @@ class SICDType(Serializable):
     RMA = _SerializableDescriptor(
         'RMA', RMAType, _required, strict=DEFAULT_STRICT,
         docstring='Parameters included when the image is formed using the Range Migration Algorithm.')  # type: RMAType
+
+    def __init__(self, CollectionInfo=None, ImageCreation=None, ImageData=None,
+                 GeoData=None, Grid=None, Timeline=None, Position=None, RadarCollection=None,
+                 ImageFormation=None, SCPCOA=None, Radiometric=None, Antenna=None,
+                 ErrorStatistics=None, MatchInfo=None,
+                 RgAzComp=None, PFA=None, RMA=None, **kwargs):
+        """
+
+        Parameters
+        ----------
+        CollectionInfo : CollectionInfoType
+        ImageCreation : ImageCreationType
+        ImageData : ImageDataType
+        GeoData : GeoDataType
+        Grid : GridType
+        Timeline : TimelineType
+        Position : PositionType
+        RadarCollection : RadarCollectionType
+        ImageFormation : ImageFormationType
+        SCPCOA : SCPCOAType
+        Radiometric : RadiometricType
+        Antenna : AntennaType
+        ErrorStatistics : ErrorStatisticsType
+        MatchInfo : MatchInfoType
+        RgAzComp : RgAzCompType
+        PFA : PFAType
+        RMA : RMAType
+        kwargs : dict
+        """
+        self.CollectionInfo = CollectionInfo
+        self.ImageCreation = ImageCreation
+        self.ImageData = ImageData
+        self.GeoData = GeoData
+        self.Grid = Grid
+        self.Timeline = Timeline
+        self.Position = Position
+        self.RadarCollection = RadarCollection
+        self.ImageFormation = ImageFormation
+        self.SCPCOA = SCPCOA
+        self.Radiometric = Radiometric
+        self.Antenna = Antenna
+        self.ErrorStatistics = ErrorStatistics
+        self.MatchInfo = MatchInfo
+        self.RgAzComp = RgAzComp
+        self.PFA = PFA
+        self.RMA = RMA
+        super(SICDType, self).__init__(**kwargs)
 
     @property
     def ImageFormType(self):  # type: () -> str

@@ -2,6 +2,7 @@
 The ImageCreation elements.
 """
 
+import numpy
 
 from .base import Serializable, DEFAULT_STRICT, _StringDescriptor, _DateTimeDescriptor
 
@@ -26,3 +27,23 @@ class ImageCreationType(Serializable):
     Profile = _StringDescriptor(
         'Profile', _required, strict=DEFAULT_STRICT,
         docstring='Identifies what profile was used to create this SICD product.')  # type: str
+
+    def __init__(self, Application=None, DateTime=None, Site=None, Profile=None, **kwargs):
+        """
+
+        Parameters
+        ----------
+        Application : str
+        DateTime : numpy.datetime64|datetime|date|str
+        Site : str
+        Profile : str
+        kwargs : dict
+        """
+        self.Application = Application
+        if DateTime is None:
+            self.DateTime = numpy.datetime64('now')  # this is in seconds
+        else:
+            self.DateTime = DateTime
+        self.Site = Site
+        self.Profile = Profile
+        super(ImageCreationType, self).__init__(**kwargs)

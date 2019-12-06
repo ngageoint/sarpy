@@ -74,6 +74,48 @@ class SCPCOAType(Serializable):
         docstring='Angle from north to the layover direction in the ETP at COA. Measured '
                   'clockwise in the ETP.')  # type: float
 
+    def __init__(self, SCPTime=None, ARPPos=None, ARPVel=None, ARPAcc=None, SideOfTrack=None,
+                 SlantRange=None, GroundRange=None, DopplerConeAng=None, GrazeAng=None, IncidenceAng=None,
+                 TwistAng=None, SlopeAng=None, AzimAng=None, LayoverAng=None, **kwargs):
+        """
+
+        Parameters
+        ----------
+        SCPTime : float
+        ARPPos : XYZType|numpy.ndarray|list|tuple
+        ARPVel : XYZType|numpy.ndarray|list|tuple
+        ARPAcc : XYZType|numpy.ndarray|list|tuple
+        SideOfTrack : str
+        SlantRange : float
+        GroundRange : float
+        DopplerConeAng : float
+        GrazeAng : float
+        IncidenceAng : float
+        TwistAng : float
+        SlopeAng : float
+        AzimAng : float
+        LayoverAng : float
+        kwargs : dict
+        """
+        self.SCPTime = SCPTime
+        if isinstance(ARPPos, (numpy.ndarray, tuple, list)):
+            self.ARPPos = XYZType(coords=ARPPos)
+        else:
+            self.ARPPos = ARPPos
+        if isinstance(ARPVel, (numpy.ndarray, tuple, list)):
+            self.ARPVel = XYZType(coords=ARPVel)
+        else:
+            self.ARPVel = ARPVel
+        if isinstance(ARPAcc, (numpy.ndarray, tuple, list)):
+            self.ARPAcc = XYZType(coords=ARPAcc)
+        else:
+            self.ARPAcc = ARPAcc
+        self.SideOfTrack = SideOfTrack
+        self.SlantRange, self.GroundRange = SlantRange, GroundRange
+        self.DopplerConeAng, self.GrazeAng, self.IncidenceAng = DopplerConeAng, GrazeAng, IncidenceAng
+        self.TwistAng, self.SlopeAng, self.AzimAng, self.LayoverAng = TwistAng, SlopeAng, AzimAng, LayoverAng
+        super(SCPCOAType, self).__init__(**kwargs)
+
     def _derive_scp_time(self, Grid):
         """
         Expected to be called by SICD parent.

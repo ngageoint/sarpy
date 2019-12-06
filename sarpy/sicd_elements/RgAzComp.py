@@ -29,6 +29,22 @@ class RgAzCompType(Serializable):
                   'slow time (variable 1). Slow Time (sec) -> Azimuth spatial frequency (cycles/meter). '
                   'Time relative to collection start.')  # type: Poly1DType
 
+    def __init__(self, AzSF=None, KazPoly=None, **kwargs):
+        """
+
+        Parameters
+        ----------
+        AzSF : float
+        KazPoly : Poly1DType|numpy.ndarray|list|tuple
+        kwargs : dict
+        """
+        self.AzSF = AzSF
+        if isinstance(KazPoly, (numpy.ndarray, list, tuple)):
+            self.KazPoly = Poly1DType(Coefs=KazPoly)
+        else:
+            self.KazPoly = KazPoly
+        super(RgAzCompType, self).__init__(**kwargs)
+
     def _derive_parameters(self, Grid, Timeline, SCPCOA):
         """
         Expected to be called by the SICD object.

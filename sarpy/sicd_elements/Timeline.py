@@ -40,6 +40,28 @@ class IPPSetType(Serializable):
     index = _IntegerDescriptor(
         'index', _required, strict=DEFAULT_STRICT, docstring='The element array index.')  # type: int
 
+    def __init__(self, TStart=None, TEnd=None, IPPStart=None, IPPEnd=None, IPPPoly=None, index=None, **kwargs):
+        """
+
+        Parameters
+        ----------
+        TStart : float
+        TEnd : float
+        IPPStart : int
+        IPPEnd : int
+        IPPPoly : Poly1DType|numpy.ndarray|list|tuple
+        index : int
+        kwargs : dict
+        """
+        self.TStart, self.TEnd = TStart, TEnd
+        self.IPPStart, self.IPPEnd = IPPStart, IPPEnd
+        if isinstance(IPPPoly, (numpy.ndarray, list, tuple)):
+            self.IPPPoly = Poly1DType(Coefs=IPPPoly)
+        else:
+            self.IPPPoly = IPPPoly
+        self.index = index
+        super(IPPSetType, self).__init__(**kwargs)
+
 
 class TimelineType(Serializable):
     """The details for the imaging collection timeline."""
@@ -56,3 +78,18 @@ class TimelineType(Serializable):
     IPP = _SerializableArrayDescriptor(
         'IPP', IPPSetType, _collections_tags, _required, strict=DEFAULT_STRICT, minimum_length=1,
         docstring="The Inter-Pulse Period (IPP) parameters array.")  # type: Union[numpy.ndarray, List[IPPSetType]]
+
+    def __init__(self, CollectStart=None, CollectDuration=None, IPP=None, **kwargs):
+        """
+
+        Parameters
+        ----------
+        CollectStart : numpy.datetime64|datetime|date|str
+        CollectDuration : float
+        IPP : List[IPPSetType]
+        kwargs : dict
+        """
+        self.CollectStart = CollectStart
+        self.CollectDuration = CollectDuration
+        self.IPP = IPP
+        super(TimelineType, self).__init__(**kwargs)

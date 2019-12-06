@@ -30,6 +30,18 @@ class TxFrequencyType(Serializable):
         'Max', required=_required, strict=DEFAULT_STRICT,
         docstring='The transmit maximum frequency in Hz.')  # type: float
 
+    def __init__(self, Min=None, Max=None, **kwargs):
+        """
+
+        Parameters
+        ----------
+        Min : float
+        Max : float
+        kwargs : dict
+        """
+        self.Min, self.Max = Min, Max
+        super(TxFrequencyType, self).__init__(**kwargs)
+
     def _apply_reference_frequency(self, reference_frequency):
         if self.Min is not None:
             self.Min += reference_frequency
@@ -77,6 +89,35 @@ class WaveformParametersType(Serializable):
     RcvFMRate = _FloatDescriptor(
         'RcvFMRate', _required, strict=DEFAULT_STRICT,
         docstring='Receive FM rate. Should be 0 if RcvDemodType = "CHIRP".')  # type: float
+
+    def __init__(self, TxPulseLength=None, TxRFBandwidth=None, TxFreqStart=None, TxFMRate=None,
+                 RcvDemodType=None, RcvWindowLength=None, ADCSampleRate=None, RcvIFBandwidth=None,
+                 RcvFreqStart=None, RcvFMRate=None, **kwargs):
+        """
+
+        Parameters
+        ----------
+        TxPulseLength : float
+        TxRFBandwidth : float
+        TxFreqStart : float
+        TxFMRate : float
+        RcvDemodType : str
+        RcvWindowLength : float
+        ADCSampleRate : float
+        RcvIFBandwidth : float
+        RcvFreqStart : float
+        RcvFMRate : float
+        kwargs : dict
+        """
+        self.TxPulseLength, self.TxRFBandwidth = TxPulseLength, TxRFBandwidth
+        self.TxFreqStart, self.TxFMRate = TxFreqStart, TxFMRate
+        self.RcvDemodType = RcvDemodType
+        self.RcvWindowLength = RcvWindowLength
+        self.ADCSampleRate = ADCSampleRate
+        self.RcvIFBandwidth = RcvIFBandwidth
+        self.RcvFreqStart, self.RcvFMRate = RcvFreqStart, RcvFMRate
+
+        super(WaveformParametersType, self).__init__(**kwargs)
 
     def _basic_validity_check(self):
         valid = super(WaveformParametersType, self)._basic_validity_check()
@@ -131,6 +172,21 @@ class TxStepType(Serializable):
         'index', _required, strict=DEFAULT_STRICT,
         docstring='The step index')  # type: int
 
+    def __init__(self, WFIndex=None, TxPolarization=None, index=None, **kwargs):
+        """
+
+        Parameters
+        ----------
+        WFIndex : int
+        TxPolarization : str
+        index : int
+        kwargs : dict
+        """
+        self.WFIndex = WFIndex
+        self.TxPolarization = TxPolarization
+        self.index = index
+        super(TxStepType, self).__init__(**kwargs)
+
 
 class ChanParametersType(Serializable):
     """Transmit receive sequence step details"""
@@ -149,6 +205,21 @@ class ChanParametersType(Serializable):
                   'polynomial(s) are included.')  # type: int
     index = _IntegerDescriptor(
         'index', _required, strict=DEFAULT_STRICT, docstring='The parameter index')  # type: int
+
+    def __init__(self, TxRcvPolarization=None, RcvAPCIndex=None, index=None, **kwargs):
+        """
+
+        Parameters
+        ----------
+        TxRcvPolarization : str
+        RcvAPCIndex : int
+        index : int
+        kwargs : dict
+        """
+        self.TxRcvPolarization = TxRcvPolarization
+        self.RcvAPCIndex = RcvAPCIndex
+        self.index = index
+        super(ChanParametersType, self).__init__(**kwargs)
 
     def get_transmit_polarization(self):
         if self.TxRcvPolarization is None:
@@ -178,6 +249,26 @@ class ReferencePointType(Serializable):
         'name', _required, strict=DEFAULT_STRICT,
         docstring='The reference point name.')  # type: str
 
+    def __init__(self, ECF=None, Line=None, Sample=None, name=None, **kwargs):
+        """
+
+        Parameters
+        ----------
+        ECF : XYZType|numpy.ndarray|list|tuple
+        Line : float
+        Sample : float
+        name : str
+        kwargs : dict
+        """
+        if isinstance(ECF, (numpy.ndarray, list, tuple)):
+            self.ECF = XYZType(coords=ECF)
+        else:
+            self.ECF = ECF
+        self.Line = Line
+        self.Sample = Sample
+        self.name = name
+        super(ReferencePointType, self).__init__(**kwargs)
+
 
 class XDirectionType(Serializable):
     """The X direction of the collect"""
@@ -197,6 +288,26 @@ class XDirectionType(Serializable):
         'FirstLine', _required, strict=DEFAULT_STRICT,
         docstring='The first line index.')  # type: int
 
+    def __init__(self, UVectECF=None, LineSpacing=None, NumLines=None, FirstLine=None, **kwargs):
+        """
+
+        Parameters
+        ----------
+        UVectECF : XYZType|numpy.ndarray|list|tuple
+        LineSpacing : float
+        NumLines : int
+        FirstLine : int
+        kwargs : dict
+        """
+        if isinstance(UVectECF, (numpy.ndarray, list, tuple)):
+            self.UVectECF = XYZType(coords=UVectECF)
+        else:
+            self.UVectECF = UVectECF
+        self.LineSpacing = LineSpacing
+        self.NumLines = NumLines
+        self.FirstLine = FirstLine
+        super(XDirectionType, self).__init__(**kwargs)
+
 
 class YDirectionType(Serializable):
     """The Y direction of the collect"""
@@ -215,6 +326,26 @@ class YDirectionType(Serializable):
     FirstSample = _IntegerDescriptor(
         'FirstSample', _required, strict=DEFAULT_STRICT,
         docstring='The first sample index.')  # type: int
+
+    def __init__(self, UVectECF=None, SampleSpacing=None, NumSamples=None, FirstSample=None, **kwargs):
+        """
+
+        Parameters
+        ----------
+        UVectECF : XYZType|numpy.ndarray|list|tuple
+        SampleSpacing : float
+        NumSamples : int
+        FirstSample : int
+        kwargs : dict
+        """
+        if isinstance(UVectECF, (numpy.ndarray, list, tuple)):
+            self.UVectECF = XYZType(coords=UVectECF)
+        else:
+            self.UVectECF = UVectECF
+        self.SampleSpacing = SampleSpacing
+        self.NumSamples = NumSamples
+        self.FirstSample = FirstSample
+        super(YDirectionType, self).__init__(**kwargs)
 
 
 class SegmentArrayElement(Serializable):
@@ -242,6 +373,26 @@ class SegmentArrayElement(Serializable):
         'index', _required, strict=DEFAULT_STRICT,
         docstring='The array index.')  # type: int
 
+    def __init__(self, StartLine=None, StartSample=None, EndLine=None, EndSample=None,
+                 Identifier=None, index=None, **kwargs):
+        """
+
+        Parameters
+        ----------
+        StartLine : int
+        StartSample : int
+        EndLine : int
+        EndSample : int
+        Identifier : str
+        index : int
+        kwargs : dict
+        """
+        self.StartLine, self.EndLine = StartLine, EndLine
+        self.StartSample, self.EndSample = StartSample, EndSample
+        self.Identifier = Identifier
+        self.index = index
+        super(SegmentArrayElement, self).__init__(**kwargs)
+
 
 class ReferencePlaneType(Serializable):
     """The reference plane"""
@@ -266,6 +417,24 @@ class ReferencePlaneType(Serializable):
     Orientation = _StringEnumDescriptor(
         'Orientation', _ORIENTATION_VALUES, _required, strict=DEFAULT_STRICT,
         docstring='Describes the shadow intent of the display plane.')  # type: str
+
+    def __init__(self, RefPt=None, XDir=None, YDir=None, SegmentList=None, Orientation=None, **kwargs):
+        """
+
+        Parameters
+        ----------
+        RefPt : ReferencePointType
+        XDir : XDirectionType
+        YDir : YDirectionType
+        SegmentList : List[SegmentArrayElement]
+        Orientation : str
+        kwargs : dict
+        """
+        self.RefPt = RefPt
+        self.XDir, self.YDir = XDir, YDir
+        self.SegmentList = SegmentList
+        self.Orientation = Orientation
+        super(ReferencePlaneType, self).__init__(**kwargs)
 
     def get_ecf_corner_array(self):
         """
@@ -307,7 +476,17 @@ class AreaType(Serializable):
         'Plane', ReferencePlaneType, _required, strict=DEFAULT_STRICT,
         docstring='A rectangular area in a geo-located display plane.')  # type: ReferencePlaneType
 
-    def __init__(self, **kwargs):
+    def __init__(self, Corner=None, Plane=None, **kwargs):
+        """
+
+        Parameters
+        ----------
+        Corner : List[LatLonHAECornerRestrictionType]|numpy.ndarray
+        Plane : ReferencePlaneType
+        kwargs : dict
+        """
+        self.Corner = Corner
+        self.Plane = Plane
         super(AreaType, self).__init__(**kwargs)
 
     def _derive_corner_from_plane(self):
@@ -377,6 +556,33 @@ class RadarCollectionType(Serializable):
     Parameters = _SerializableArrayDescriptor(
         'Parameters', ParameterType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='A parameters list.')  # type: List[ParameterType]
+
+    def __init__(self, TxFrequency=None, RefFreqIndex=None, Waveform=None,
+                 TxPolarization=None, TxSequence=None, RcvChannels=None,
+                 Area=None, Parameters=None, **kwargs):
+        """
+
+        Parameters
+        ----------
+        TxFrequency : TxFrequencyType
+        RefFreqIndex : int
+        Waveform : List[WaveformParametersType]
+        TxPolarization : str
+        TxSequence : List[TxStepType]
+        RcvChannels : List[ChanParametersType]
+        Area : AreaType
+        Parameters : List[ParameterType]
+        kwargs : dict
+        """
+        self.TxFrequency = TxFrequency
+        self.RefFreqIndex = RefFreqIndex
+        self.Waveform = Waveform
+        self.TxPolarization = TxPolarization
+        self.TxSequence = TxSequence
+        self.RcvChannels = RcvChannels
+        self.Area = Area
+        self.Parameters = Parameters
+        super(RadarCollectionType, self).__init__(**kwargs)
 
     def derive(self):
         """

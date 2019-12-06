@@ -692,7 +692,7 @@ class Poly2DType(Serializable):
         """
         Parameters
         ----------
-        Coefs : numpy.ndarray
+        Coefs : numpy.ndarray|list|tuple
         kwargs : dict
         """
         self.Coefs = Coefs

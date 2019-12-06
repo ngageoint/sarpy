@@ -113,6 +113,19 @@ class WgtTypeType(Serializable):
         'Parameters', ParameterType, _collections_tags, required=_required, strict=DEFAULT_STRICT,
         docstring='Free form parameters list.')  # type: List[ParameterType]
 
+    def __init__(self, WindowName=None, Parameters=None, **kwargs):
+        """
+
+        Parameters
+        ----------
+        WindowName : str
+        Parameters : List[ParameterType]
+        kwargs : dict
+        """
+        self.WindowName = WindowName
+        self.Parameters = Parameters
+        super(WgtTypeType, self).__init__(**kwargs)
+
     def get_parameter_value(self, param_name, default=None):
         """
         Gets the value (first value found) associated with a given parameter name *(case insensitive)*.
@@ -218,6 +231,42 @@ class DirParamType(Serializable):
         docstring='Sampled aperture amplitude weighting function (array) applied to form the SCP impulse '
                   'response in the given (row/col) direction.')  # type: numpy.ndarray
 
+    def __init__(self, UVectECF=None, SS=None, ImpRespWid=None, Sgn=None, ImpRespBW=None,
+                 KCtr=None, DeltaK1=None, DeltaK2=None, DeltaKCOAPoly=None,
+                 WgtType=None, WgtFunct=None, **kwargs):
+        """
+
+        Parameters
+        ----------
+        UVectECF : XYZType|numpy.ndarray|list|tuple
+        SS : float
+        ImpRespWid : float
+        Sgn : int
+        ImpRespBW : float
+        KCtr : float
+        DeltaK1 : float
+        DeltaK2 : float
+        DeltaKCOAPoly : Poly2DType|numpy.ndarray|list|tuple
+        WgtType : WgtTypeType
+        WgtFunct : numpy.ndarray|list|tuple
+        kwargs : dict
+        """
+        if isinstance(UVectECF, (numpy.ndarray, list, tuple)):
+            self.UVectECF = XYZType(coords=UVectECF)
+        else:
+            self.UVectECF = UVectECF
+        self.SS = SS
+        self.ImpRespWid, self.ImpRespBW = ImpRespWid, ImpRespBW
+        self.Sgn = Sgn
+        self.KCtr, self.DeltaK1, self.DeltaK2 = KCtr, DeltaK1, DeltaK2
+        if isinstance(DeltaKCOAPoly, (numpy.ndarray, list, tuple)):
+            self.DeltaKCOAPoly = Poly2DType(Coefs=DeltaKCOAPoly)
+        else:
+            self.DeltaKCOAPoly = DeltaKCOAPoly
+        self.WgtType = WgtType
+        self.WgtFunct = WgtFunct
+        super(DirParamType, self).__init__(**kwargs)
+
     def define_weight_function(self, weight_size=DEFAULT_WEIGHT_SIZE):
         """
         Try to derive WgtFunct from WgtType, if necessary. This should likely be called from GridType.
@@ -241,6 +290,7 @@ class DirParamType(Serializable):
             # A Hamming window is defined in many places as a raised cosine of weight .54, so this is the default.
             # Some data use a generalized raised cosine and call it HAMMING, so we allow for both uses.
             try:
+                # noinspection PyTypeChecker
                 coef = float(self.WgtType.get_parameter_value(None, 0.54))  # just get first parameter - name?
             except ValueError:
                 coef = 0.54
@@ -249,12 +299,15 @@ class DirParamType(Serializable):
             self.WgtFunct = _raised_cos(weight_size, 0.5)
         elif window_name == 'KAISER':
             try:
+                # noinspection PyTypeChecker
                 beta = float(self.WgtType.get_parameter_value(None, 14))  # just get first parameter - name?
             except ValueError:
                 beta = 14.0  # default suggested in numpy.kaiser
             self.WgtFunct = numpy.kaiser(weight_size, beta)
         elif window_name == 'TAYLOR':
+            # noinspection PyTypeChecker
             sidelobes = int(self.WgtType.get_parameter_value('NBAR', 4))  # apparently the matlab argument name
+            # noinspection PyTypeChecker
             max_sidelobe_level = float(self.WgtType.get_parameter_value('SLL', -30))  # same
             if max_sidelobe_level > 0:
                 max_sidelobe_level *= -1
@@ -284,6 +337,7 @@ class DirParamType(Serializable):
                 coef = 1.0
             elif window_name == 'HAMMING':
                 try:
+                    # noinspection PyTypeChecker
                     coef = float(self.WgtType.get_parameter_value(None, 0.54))  # just get first parameter - name?
                 except ValueError:
                     coef = 0.54
@@ -405,6 +459,27 @@ class GridType(Serializable):
     Col = _SerializableDescriptor(
         'Col', DirParamType, _required, strict=DEFAULT_STRICT,
         docstring="Column direction parameters.")  # type: DirParamType
+
+    def __init__(self, ImagePlane=None, Type=None, TimeCOAPoly=None, Row=None, Col=None, **kwargs):
+        """
+
+        Parameters
+        ----------
+        ImagePlane : str
+        Type : str
+        TimeCOAPoly : Poly2DType|numpy.ndarray|list|tuple
+        Row : DirParamType
+        Col : DirParamType
+        kwargs : dict
+        """
+        self.ImagePlane = ImagePlane
+        self.Type = Type
+        if isinstance(TimeCOAPoly, (numpy.ndarray, list, tuple)):
+            self.TimeCOAPoly = Poly2DType(Coefs=TimeCOAPoly)
+        else:
+            self.TimeCOAPoly = TimeCOAPoly
+        self.Row, self.Col = Row, Col
+        super(GridType, self).__init__(**kwargs)
 
     def _derive_direction_params(self, ImageData):
         """

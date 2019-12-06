@@ -11,7 +11,8 @@ from .blocks import Poly2DType
 __classification__ = "UNCLASSIFIED"
 
 
-class NoiseLevelType(Serializable):
+# noinspection PyPep8Naming
+class NoiseLevelType_(Serializable):
     """Noise level structure."""
     _fields = ('NoiseLevelType', 'NoisePoly')
     _required = _fields
@@ -27,8 +28,21 @@ class NoiseLevelType(Serializable):
         docstring='Polynomial coefficients that yield thermal noise power (in dB) in a pixel as a function of '
                   'image row coordinate (variable 1) and column coordinate (variable 2).')  # type: Poly2DType
 
-    def __init__(self, **kwargs):
-        super(NoiseLevelType, self).__init__(**kwargs)
+    def __init__(self, NoiseLevelType=None, NoisePoly=None, **kwargs):
+        """
+
+        Parameters
+        ----------
+        NoiseLevelType : str
+        NoisePoly : Poly2DType|numpy.ndarray|list|tuple
+        kwargs : dict
+        """
+        self.NoiseLevelType = NoiseLevelType
+        if isinstance(NoisePoly, (numpy.ndarray, list, tuple)):
+            self.NoisePoly = Poly2DType(Coefs=NoisePoly)
+        else:
+            self.NoisePoly = NoisePoly
+        super(NoiseLevelType_, self).__init__(**kwargs)
         self._derive_noise_level()
 
     def _derive_noise_level(self):
@@ -52,8 +66,8 @@ class RadiometricType(Serializable):
     _required = ()
     # descriptors
     NoiseLevel = _SerializableDescriptor(
-        'NoiseLevel', NoiseLevelType, _required, strict=DEFAULT_STRICT,
-        docstring='Noise level structure.')  # type: NoiseLevelType
+        'NoiseLevel', NoiseLevelType_, _required, strict=DEFAULT_STRICT,
+        docstring='Noise level structure.')  # type: NoiseLevelType_
     RCSSFPoly = _SerializableDescriptor(
         'RCSSFPoly', Poly2DType, _required, strict=DEFAULT_STRICT,
         docstring='Polynomial that yields a scale factor to convert pixel power to RCS (sqm) '
@@ -75,13 +89,45 @@ class RadiometricType(Serializable):
                   'Gamma-Zero as a function of image row coordinate (variable 1) and column coordinate (variable 2). '
                   'Scale factor computed for a clutter cell at `HAE = SCP_HAE`.')  # type: Poly2DType
 
+    def __init__(self, NoiseLevel=None, RCSSFPoly=None, SigmaZeroSFPoly=None,
+                 BetaZeroSFPoly=None, GammaZeroSFPoly=None, **kwargs):
+        """
+
+        Parameters
+        ----------
+        NoiseLevel : NoiseLevelType_
+        RCSSFPoly : Poly2DType|numpy.ndarray|list|tuple
+        SigmaZeroSFPoly : Poly2DType|numpy.ndarray|list|tuple
+        BetaZeroSFPoly : Poly2DType|numpy.ndarray|list|tuple
+        GammaZeroSFPoly : Poly2DType|numpy.ndarray|list|tuple
+        kwargs : dict
+        """
+        self.NoiseLevel = NoiseLevel
+        if isinstance(RCSSFPoly, (numpy.ndarray, list, tuple)):
+            self.RCSSFPoly = Poly2DType(Coefs=RCSSFPoly)
+        else:
+            self.RCSSFPoly = RCSSFPoly
+        if isinstance(SigmaZeroSFPoly, (numpy.ndarray, list, tuple)):
+            self.SigmaZeroSFPoly = Poly2DType(Coefs=SigmaZeroSFPoly)
+        else:
+            self.SigmaZeroSFPoly = SigmaZeroSFPoly
+        if isinstance(BetaZeroSFPoly, (numpy.ndarray, list, tuple)):
+            self.BetaZeroSFPoly = Poly2DType(Coefs=BetaZeroSFPoly)
+        else:
+            self.BetaZeroSFPoly = BetaZeroSFPoly
+        if isinstance(GammaZeroSFPoly, (numpy.ndarray, list, tuple)):
+            self.GammaZeroSFPoly = Poly2DType(Coefs=GammaZeroSFPoly)
+        else:
+            self.GammaZeroSFPoly = GammaZeroSFPoly
+        super(RadiometricType, self).__init__(**kwargs)
+
     @classmethod
     def from_node(cls, node, kwargs=None):
         if kwargs is not None:
             kwargs = {}
         # NoiseLevelType and NoisePoly used to be at this level prior to SICD 1.0.
         if node.find('NoiseLevelType') is not None:
-            kwargs['NoiseLevel'] = NoiseLevelType.from_node(node, kwargs=kwargs)
+            kwargs['NoiseLevel'] = NoiseLevelType_.from_node(node, kwargs=kwargs)
         return super(RadiometricType, cls).from_node(node, kwargs=kwargs)
 
     def _derive_parameters(self, Grid, SCPCOA):

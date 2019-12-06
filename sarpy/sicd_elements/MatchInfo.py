@@ -30,6 +30,21 @@ class MatchCollectionType(Serializable):
         'Parameters', ParameterType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='The match parameters.')  # type: List[ParameterType]
 
+    def __init__(self, CoreName=None, MatchIndex=None, Parameters=None, **kwargs):
+        """
+
+        Parameters
+        ----------
+        CoreName : str
+        MatchIndex : int
+        Parameters : List[ParameterType]
+        kwargs : dict
+        """
+        self.CoreName = CoreName
+        self.MatchIndex = MatchIndex
+        self.Parameters = Parameters
+        super(MatchCollectionType, self).__init__(**kwargs)
+
 
 class MatchType(Serializable):
     """The is an array element for match information."""
@@ -48,6 +63,21 @@ class MatchType(Serializable):
     MatchCollections = _SerializableArrayDescriptor(
         'MatchCollections', MatchCollectionType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='The match collections.')  # type: List[MatchCollectionType]
+
+    def __init__(self, TypeId=None, CurrentIndex=None, MatchCollections=None, **kwargs):
+        """
+
+        Parameters
+        ----------
+        TypeId : str
+        CurrentIndex : int
+        MatchCollections : List[MatchCollectionType]
+        kwargs : dict
+        """
+        self.TypeId = TypeId
+        self.CurrentIndex = CurrentIndex
+        self.MatchCollections = MatchCollections
+        super(MatchType, self).__init__(**kwargs)
 
     @property
     def NumMatchCollections(self):
@@ -69,6 +99,18 @@ class MatchInfoType(Serializable):
     MatchTypes = _SerializableArrayDescriptor(
         'MatchTypes', MatchType, _collections_tags, _required, strict=DEFAULT_STRICT, minimum_length=1,
         docstring='The match types list.')  # type: List[MatchType]
+
+    def __init__(self, MatchTypes=None, **kwargs):
+        """
+
+        Parameters
+        ----------
+        MatchTypes : List[MatchType]
+        kwargs : dict
+        """
+
+        self.MatchTypes = MatchTypes
+        super(MatchInfoType, self).__init__(**kwargs)
 
     @property
     def NumMatchTypes(self):
@@ -126,6 +168,7 @@ class MatchInfoType(Serializable):
                 type_id = _get_node_value(tnode)
                 match_types.append(get_element(type_id, current_index, core_name, parameters))
         if len(match_types) > 0:
+            # noinspection PyTypeChecker
             return cls(MatchTypes=match_types)
         else:
             return None
