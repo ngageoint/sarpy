@@ -114,6 +114,3 @@ venv.bak/
 
 # temp file nonsense
 *.DS_Store
-
-# the doctree junk
-*/doctrees/*
