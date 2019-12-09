@@ -1127,8 +1127,7 @@ class Serializable(object):
             attributes require specific deserialization.
         Returns
         -------
-        Serializable
-            corresponding class instance
+            Corresponding class instance
         """
 
         def handle_attribute(the_tag):
@@ -1334,7 +1333,6 @@ class Serializable(object):
 
         Returns
         -------
-        Serializable
             Corresponding class instance
         """
 

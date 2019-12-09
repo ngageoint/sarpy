@@ -14,35 +14,7 @@ from .base import _get_node_value, _create_text_node, _create_new_node, Serializ
 __classification__ = "UNCLASSIFIED"
 
 
-class PlainValueType(Serializable):
-    """This is a basic xml building block element, and not actually specified in the SICD standard."""
-    _fields = ('value', )
-    _required = _fields
-    # descriptor
-    value = _StringDescriptor('value', _required, strict=False, docstring='The value')  # type: str
-
-    def __init__(self, value=None, **kwargs):
-        """
-        Parameters
-        ----------
-        value : str
-        kwargs : dict
-        """
-
-        self.value = value
-        super(PlainValueType, self).__init__(**kwargs)
-
-    @classmethod
-    def from_node(cls, node, kwargs=None):
-        return cls(value=_get_node_value(node))
-
-    def to_node(self, doc, tag, parent=None, strict=DEFAULT_STRICT, exclude=()):
-        # we have to short-circuit the super call here, because this is a really primitive element
-        node = _create_text_node(doc, tag, self.value, parent=parent)
-        return node
-
-
-class ParameterType(PlainValueType):
+class ParameterType(Serializable):
     """A parameter - just a name attribute and associated value"""
     _fields = ('name', 'value')
     _required = _fields
@@ -50,6 +22,7 @@ class ParameterType(PlainValueType):
     # descriptor
     name = _StringDescriptor(
         'name', _required, strict=False, docstring='The name.')  # type: str
+    value = _StringDescriptor('value', _required, strict=False, docstring='The value')  # type: str
 
     def __init__(self, value=None, name=None, **kwargs):
         """
@@ -61,7 +34,8 @@ class ParameterType(PlainValueType):
         """
 
         self.name = name
-        super(ParameterType, self).__init__(value=value, **kwargs)
+        self.value = value
+        super(ParameterType, self).__init__(**kwargs)
 
     @classmethod
     def from_node(cls, node, kwargs=None):
@@ -81,7 +55,7 @@ class XYZType(Serializable):
     """A spatial point in ECF coordinates."""
     _fields = ('X', 'Y', 'Z')
     _required = _fields
-    _numeric_format = {'X': '0.8f', 'Y': '0.8f', 'Z': '0.8f'}
+    _numeric_format = {}  # TODO: desired precision? 'X': '0.8f', 'Y': '0.8f', 'Z': '0.8f'
     # descriptors
     X = _FloatDescriptor(
         'X', _required, strict=DEFAULT_STRICT,
@@ -132,7 +106,7 @@ class LatLonType(Serializable):
     """A two-dimensional geographic point in WGS-84 coordinates."""
     _fields = ('Lat', 'Lon')
     _required = _fields
-    _numeric_format = {'Lat': '2.8f', 'Lon': '3.8f'}
+    _numeric_format = {}  # TODO: desired precision? {'Lat': '2.8f', 'Lon': '3.8f'}
     # descriptors
     Lat = _FloatDescriptor(
         'Lat', _required, strict=DEFAULT_STRICT,
@@ -366,7 +340,7 @@ class LatLonHAECornerRestrictionType(LatLonHAERestrictionType):
     _set_as_attribute = ('index', )
     # descriptors
     index = _IntegerDescriptor(
-        'index', _required, strict=True,
+        'index', _required, strict=True, bounds=(1, 4),
         docstring='The integer index. This represents a clockwise enumeration of the rectangle vertices '
                   'wrt the frame of reference of the collector.')  # type: int
 
@@ -411,6 +385,10 @@ class LatLonHAECornerStringType(LatLonHAEType):
         """
         self.index = index
         super(LatLonHAECornerStringType, self).__init__(coords=coords, Lat=Lat, Lon=Lon, HAE=HAE, **kwargs)
+
+
+#######
+# Image space coordinates
 
 
 class RowColType(Serializable):
@@ -481,6 +459,10 @@ class RowColArrayElement(RowColType):
         super(RowColArrayElement, self).__init__(coords=coords, Row=Row, Col=Col, **kwargs)
 
 
+###############
+# Polynomial Types
+
+
 class Poly1DType(Serializable):
     """Represents a one-variable polynomial, defined by one-dimensional coefficient array."""
     _fields = ('Coefs', 'order1')
@@ -493,7 +475,7 @@ class Poly1DType(Serializable):
         """
         Parameters
         ----------
-        Coefs : numpy.ndarray
+        Coefs : numpy.ndarray|tuple|list
         kwargs : dict
         """
         self.Coefs = Coefs
@@ -663,7 +645,7 @@ class Poly1DType(Serializable):
         fmt_func = self._get_formatter('Coef')
         for i, val in enumerate(self.Coefs):
             # if val != 0.0:  # should we serialize it sparsely?
-            cnode = _create_text_node(doc, 'Coefs', fmt_func(val), parent=node)
+            cnode = _create_text_node(doc, 'Coef', fmt_func(val), parent=node)
             cnode.attrib['exponent1'] = str(i)
         return node
 
@@ -1047,8 +1029,33 @@ class GainPhasePolyType(Serializable):
         if isinstance(PhasePoly, (numpy.ndarray, list, tuple)):
             self.PhasePoly = Poly2DType(Coefs=PhasePoly)
         else:
-            self.PhasePolyGainPoly = PhasePoly
+            self.PhasePoly = PhasePoly
         super(GainPhasePolyType, self).__init__(**kwargs)
+
+    def __call__(self, x, y):
+        """
+        Evaluate a polynomial at points [`x`, `y`]. This passes `x`,`y` straight
+        through to the call method for each component.
+
+        Parameters
+        ----------
+        x : numpy.ndarray
+            The first dependent variable of point(s) at which to evaluate.
+        y : numpy.ndarray
+            The second dependent variable of point(s) at which to evaluate.
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+
+        if self.GainPoly is None or self.PhasePoly is None:
+            return None
+        return numpy.array([self.GainPoly(x, y), self.PhasePoly(x, y)], dtype=numpy.float64)
+
+
+#############
+# Error Decorrelation type
 
 
 class ErrorDecorrFuncType(Serializable):
