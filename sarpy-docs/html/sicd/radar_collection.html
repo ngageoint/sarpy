@@ -1,0 +1,801 @@
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <title>The RadarCollection object and related elements &#8212; sarpy 0.1.01 documentation</title>
+    <link rel="stylesheet" href="../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="The ImageFormation object and related elements" href="image_formation.html" />
+    <link rel="prev" title="The Position object and related elements" href="position.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="image_formation.html" title="The ImageFormation object and related elements"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="position.html" title="The Position object and related elements"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">sarpy 0.1.01 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="sicd_elements.html" accesskey="U">The SICD elements</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="position.html"
+                        title="previous chapter">The Position object and related elements</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="image_formation.html"
+                        title="next chapter">The ImageFormation object and related elements</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/sicd/radar_collection.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="module-sarpy.sicd_elements.RadarCollection">
+<span id="the-radarcollection-object-and-related-elements"></span><h1>The RadarCollection object and related elements<a class="headerlink" href="#module-sarpy.sicd_elements.RadarCollection" title="Permalink to this headline">¶</a></h1>
+<p>The RadarCollectionType definition.</p>
+<dl class="class">
+<dt id="sarpy.sicd_elements.RadarCollection.TxFrequencyType">
+<em class="property">class </em><code class="sig-prename descclassname">sarpy.sicd_elements.RadarCollection.</code><code class="sig-name descname">TxFrequencyType</code><span class="sig-paren">(</span><em class="sig-param">Min=None</em>, <em class="sig-param">Max=None</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.TxFrequencyType" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="blocks.html#sarpy.sicd_elements.base.Serializable" title="sarpy.sicd_elements.base.Serializable"><code class="xref py py-class docutils literal notranslate"><span class="pre">sarpy.sicd_elements.base.Serializable</span></code></a></p>
+<p>The transmit frequency range</p>
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.RadarCollection.TxFrequencyType.Min">
+<code class="sig-name descname">Min</code><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.TxFrequencyType.Min" title="Permalink to this definition">¶</a></dt>
+<dd><p>The transmit minimum frequency in Hz.   <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.RadarCollection.TxFrequencyType.Max">
+<code class="sig-name descname">Max</code><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.TxFrequencyType.Max" title="Permalink to this definition">¶</a></dt>
+<dd><p>The transmit maximum frequency in Hz.   <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="sarpy.sicd_elements.RadarCollection.WaveformParametersType">
+<em class="property">class </em><code class="sig-prename descclassname">sarpy.sicd_elements.RadarCollection.</code><code class="sig-name descname">WaveformParametersType</code><span class="sig-paren">(</span><em class="sig-param">TxPulseLength=None</em>, <em class="sig-param">TxRFBandwidth=None</em>, <em class="sig-param">TxFreqStart=None</em>, <em class="sig-param">TxFMRate=None</em>, <em class="sig-param">RcvDemodType=None</em>, <em class="sig-param">RcvWindowLength=None</em>, <em class="sig-param">ADCSampleRate=None</em>, <em class="sig-param">RcvIFBandwidth=None</em>, <em class="sig-param">RcvFreqStart=None</em>, <em class="sig-param">RcvFMRate=None</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.WaveformParametersType" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="blocks.html#sarpy.sicd_elements.base.Serializable" title="sarpy.sicd_elements.base.Serializable"><code class="xref py py-class docutils literal notranslate"><span class="pre">sarpy.sicd_elements.base.Serializable</span></code></a></p>
+<p>Transmit and receive demodulation waveform parameters.</p>
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.RadarCollection.WaveformParametersType.TxPulseLength">
+<code class="sig-name descname">TxPulseLength</code><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.WaveformParametersType.TxPulseLength" title="Permalink to this definition">¶</a></dt>
+<dd><p>Transmit pulse length in seconds.   <strong>Optional.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.RadarCollection.WaveformParametersType.TxRFBandwidth">
+<code class="sig-name descname">TxRFBandwidth</code><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.WaveformParametersType.TxRFBandwidth" title="Permalink to this definition">¶</a></dt>
+<dd><p>Transmit RF bandwidth of the transmit pulse in Hz.   <strong>Optional.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.RadarCollection.WaveformParametersType.TxFreqStart">
+<code class="sig-name descname">TxFreqStart</code><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.WaveformParametersType.TxFreqStart" title="Permalink to this definition">¶</a></dt>
+<dd><p>Transmit Start frequency for Linear FM waveform in Hz, may be relative to reference frequency.   <strong>Optional.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.RadarCollection.WaveformParametersType.TxFMRate">
+<code class="sig-name descname">TxFMRate</code><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.WaveformParametersType.TxFMRate" title="Permalink to this definition">¶</a></dt>
+<dd><p>Transmit FM rate for Linear FM waveform in Hz/second.   <strong>Optional.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.RadarCollection.WaveformParametersType.RcvDemodType">
+<code class="sig-name descname">RcvDemodType</code><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.WaveformParametersType.RcvDemodType" title="Permalink to this definition">¶</a></dt>
+<dd><p>Receive demodulation used when Linear FM waveform is used on transmit.  Takes values in <code class="code docutils literal notranslate"><span class="pre">('STRETCH',</span> <span class="pre">'CHIRP')</span></code>.  <strong>Optional.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.RadarCollection.WaveformParametersType.RcvWindowLength">
+<code class="sig-name descname">RcvWindowLength</code><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.WaveformParametersType.RcvWindowLength" title="Permalink to this definition">¶</a></dt>
+<dd><p>Receive window duration in seconds.   <strong>Optional.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.RadarCollection.WaveformParametersType.ADCSampleRate">
+<code class="sig-name descname">ADCSampleRate</code><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.WaveformParametersType.ADCSampleRate" title="Permalink to this definition">¶</a></dt>
+<dd><p>Analog-to-Digital Converter sampling rate in samples/second.   <strong>Optional.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.RadarCollection.WaveformParametersType.RcvIFBandwidth">
+<code class="sig-name descname">RcvIFBandwidth</code><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.WaveformParametersType.RcvIFBandwidth" title="Permalink to this definition">¶</a></dt>
+<dd><p>Receive IF bandwidth in Hz.   <strong>Optional.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.RadarCollection.WaveformParametersType.RcvFreqStart">
+<code class="sig-name descname">RcvFreqStart</code><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.WaveformParametersType.RcvFreqStart" title="Permalink to this definition">¶</a></dt>
+<dd><p>Receive demodulation start frequency in Hz, may be relative to reference frequency.   <strong>Optional.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.RadarCollection.WaveformParametersType.RcvFMRate">
+<code class="sig-name descname">RcvFMRate</code><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.WaveformParametersType.RcvFMRate" title="Permalink to this definition">¶</a></dt>
+<dd><p>Receive FM rate. Should be 0 if RcvDemodType = “CHIRP”.   <strong>Optional.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sarpy.sicd_elements.RadarCollection.WaveformParametersType.derive">
+<code class="sig-name descname">derive</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.WaveformParametersType.derive" title="Permalink to this definition">¶</a></dt>
+<dd><p>Populate any derived data in WaveformParametersType.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p></p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="sarpy.sicd_elements.RadarCollection.TxStepType">
+<em class="property">class </em><code class="sig-prename descclassname">sarpy.sicd_elements.RadarCollection.</code><code class="sig-name descname">TxStepType</code><span class="sig-paren">(</span><em class="sig-param">WFIndex=None</em>, <em class="sig-param">TxPolarization=None</em>, <em class="sig-param">index=None</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.TxStepType" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="blocks.html#sarpy.sicd_elements.base.Serializable" title="sarpy.sicd_elements.base.Serializable"><code class="xref py py-class docutils literal notranslate"><span class="pre">sarpy.sicd_elements.base.Serializable</span></code></a></p>
+<p>Transmit sequence step details</p>
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.RadarCollection.TxStepType.WFIndex">
+<code class="sig-name descname">WFIndex</code><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.TxStepType.WFIndex" title="Permalink to this definition">¶</a></dt>
+<dd><p>The waveform number for this step.   <strong>Optional.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.RadarCollection.TxStepType.TxPolarization">
+<code class="sig-name descname">TxPolarization</code><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.TxStepType.TxPolarization" title="Permalink to this definition">¶</a></dt>
+<dd><p>Transmit signal polarization for this step.  Takes values in <code class="code docutils literal notranslate"><span class="pre">('V',</span> <span class="pre">'H',</span> <span class="pre">'RHC',</span> <span class="pre">'LHC',</span> <span class="pre">'OTHER')</span></code>.  <strong>Optional.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.RadarCollection.TxStepType.index">
+<code class="sig-name descname">index</code><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.TxStepType.index" title="Permalink to this definition">¶</a></dt>
+<dd><p>The step index   <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="sarpy.sicd_elements.RadarCollection.ChanParametersType">
+<em class="property">class </em><code class="sig-prename descclassname">sarpy.sicd_elements.RadarCollection.</code><code class="sig-name descname">ChanParametersType</code><span class="sig-paren">(</span><em class="sig-param">TxRcvPolarization=None</em>, <em class="sig-param">RcvAPCIndex=None</em>, <em class="sig-param">index=None</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.ChanParametersType" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="blocks.html#sarpy.sicd_elements.base.Serializable" title="sarpy.sicd_elements.base.Serializable"><code class="xref py py-class docutils literal notranslate"><span class="pre">sarpy.sicd_elements.base.Serializable</span></code></a></p>
+<p>Transmit receive sequence step details</p>
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.RadarCollection.ChanParametersType.TxRcvPolarization">
+<code class="sig-name descname">TxRcvPolarization</code><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.ChanParametersType.TxRcvPolarization" title="Permalink to this definition">¶</a></dt>
+<dd><p>Combined Transmit and Receive signal polarization for the channel.  Takes values in <code class="code docutils literal notranslate"><span class="pre">('V:V',</span> <span class="pre">'V:H',</span> <span class="pre">'H:V',</span> <span class="pre">'H:H',</span> <span class="pre">'RHC:RHC',</span> <span class="pre">'RHC:LHC',</span> <span class="pre">'LHC:RHC',</span> <span class="pre">'LHC:LHC',</span> <span class="pre">'OTHER',</span> <span class="pre">'UNKNOWN')</span></code>.  <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.RadarCollection.ChanParametersType.RcvAPCIndex">
+<code class="sig-name descname">RcvAPCIndex</code><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.ChanParametersType.RcvAPCIndex" title="Permalink to this definition">¶</a></dt>
+<dd><p>Index of the Receive Aperture Phase Center (Rcv APC). Only include if Receive APC position polynomial(s) are included.   <strong>Optional.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.RadarCollection.ChanParametersType.index">
+<code class="sig-name descname">index</code><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.ChanParametersType.index" title="Permalink to this definition">¶</a></dt>
+<dd><p>The parameter index   <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="sarpy.sicd_elements.RadarCollection.ReferencePointType">
+<em class="property">class </em><code class="sig-prename descclassname">sarpy.sicd_elements.RadarCollection.</code><code class="sig-name descname">ReferencePointType</code><span class="sig-paren">(</span><em class="sig-param">ECF=None</em>, <em class="sig-param">Line=None</em>, <em class="sig-param">Sample=None</em>, <em class="sig-param">name=None</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.ReferencePointType" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="blocks.html#sarpy.sicd_elements.base.Serializable" title="sarpy.sicd_elements.base.Serializable"><code class="xref py py-class docutils literal notranslate"><span class="pre">sarpy.sicd_elements.base.Serializable</span></code></a></p>
+<p>The reference point definition</p>
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.RadarCollection.ReferencePointType.ECF">
+<code class="sig-name descname">ECF</code><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.ReferencePointType.ECF" title="Permalink to this definition">¶</a></dt>
+<dd><p>The geographical coordinates for the reference point.  <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="blocks.html#sarpy.sicd_elements.blocks.XYZType" title="sarpy.sicd_elements.blocks.XYZType">XYZType</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.RadarCollection.ReferencePointType.Line">
+<code class="sig-name descname">Line</code><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.ReferencePointType.Line" title="Permalink to this definition">¶</a></dt>
+<dd><p>The reference point line index.   <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.RadarCollection.ReferencePointType.Sample">
+<code class="sig-name descname">Sample</code><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.ReferencePointType.Sample" title="Permalink to this definition">¶</a></dt>
+<dd><p>The reference point sample index.   <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.RadarCollection.ReferencePointType.name">
+<code class="sig-name descname">name</code><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.ReferencePointType.name" title="Permalink to this definition">¶</a></dt>
+<dd><p>The reference point name.  <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="sarpy.sicd_elements.RadarCollection.XDirectionType">
+<em class="property">class </em><code class="sig-prename descclassname">sarpy.sicd_elements.RadarCollection.</code><code class="sig-name descname">XDirectionType</code><span class="sig-paren">(</span><em class="sig-param">UVectECF=None</em>, <em class="sig-param">LineSpacing=None</em>, <em class="sig-param">NumLines=None</em>, <em class="sig-param">FirstLine=None</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.XDirectionType" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="blocks.html#sarpy.sicd_elements.base.Serializable" title="sarpy.sicd_elements.base.Serializable"><code class="xref py py-class docutils literal notranslate"><span class="pre">sarpy.sicd_elements.base.Serializable</span></code></a></p>
+<p>The X direction of the collect</p>
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.RadarCollection.XDirectionType.UVectECF">
+<code class="sig-name descname">UVectECF</code><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.XDirectionType.UVectECF" title="Permalink to this definition">¶</a></dt>
+<dd><p>The unit vector in the X direction.  <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="blocks.html#sarpy.sicd_elements.blocks.XYZType" title="sarpy.sicd_elements.blocks.XYZType">XYZType</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.RadarCollection.XDirectionType.LineSpacing">
+<code class="sig-name descname">LineSpacing</code><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.XDirectionType.LineSpacing" title="Permalink to this definition">¶</a></dt>
+<dd><p>The collection line spacing in the X direction in meters.   <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.RadarCollection.XDirectionType.NumLines">
+<code class="sig-name descname">NumLines</code><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.XDirectionType.NumLines" title="Permalink to this definition">¶</a></dt>
+<dd><p>The number of lines in the X direction.   <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.RadarCollection.XDirectionType.FirstLine">
+<code class="sig-name descname">FirstLine</code><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.XDirectionType.FirstLine" title="Permalink to this definition">¶</a></dt>
+<dd><p>The first line index.   <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="sarpy.sicd_elements.RadarCollection.YDirectionType">
+<em class="property">class </em><code class="sig-prename descclassname">sarpy.sicd_elements.RadarCollection.</code><code class="sig-name descname">YDirectionType</code><span class="sig-paren">(</span><em class="sig-param">UVectECF=None</em>, <em class="sig-param">SampleSpacing=None</em>, <em class="sig-param">NumSamples=None</em>, <em class="sig-param">FirstSample=None</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.YDirectionType" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="blocks.html#sarpy.sicd_elements.base.Serializable" title="sarpy.sicd_elements.base.Serializable"><code class="xref py py-class docutils literal notranslate"><span class="pre">sarpy.sicd_elements.base.Serializable</span></code></a></p>
+<p>The Y direction of the collect</p>
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.RadarCollection.YDirectionType.UVectECF">
+<code class="sig-name descname">UVectECF</code><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.YDirectionType.UVectECF" title="Permalink to this definition">¶</a></dt>
+<dd><p>The unit vector in the Y direction.  <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="blocks.html#sarpy.sicd_elements.blocks.XYZType" title="sarpy.sicd_elements.blocks.XYZType">XYZType</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.RadarCollection.YDirectionType.SampleSpacing">
+<code class="sig-name descname">SampleSpacing</code><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.YDirectionType.SampleSpacing" title="Permalink to this definition">¶</a></dt>
+<dd><p>The collection sample spacing in the Y direction in meters.   <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.RadarCollection.YDirectionType.NumSamples">
+<code class="sig-name descname">NumSamples</code><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.YDirectionType.NumSamples" title="Permalink to this definition">¶</a></dt>
+<dd><p>The number of samples in the Y direction.   <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.RadarCollection.YDirectionType.FirstSample">
+<code class="sig-name descname">FirstSample</code><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.YDirectionType.FirstSample" title="Permalink to this definition">¶</a></dt>
+<dd><p>The first sample index.   <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="sarpy.sicd_elements.RadarCollection.SegmentArrayElement">
+<em class="property">class </em><code class="sig-prename descclassname">sarpy.sicd_elements.RadarCollection.</code><code class="sig-name descname">SegmentArrayElement</code><span class="sig-paren">(</span><em class="sig-param">StartLine=None</em>, <em class="sig-param">StartSample=None</em>, <em class="sig-param">EndLine=None</em>, <em class="sig-param">EndSample=None</em>, <em class="sig-param">Identifier=None</em>, <em class="sig-param">index=None</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.SegmentArrayElement" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="blocks.html#sarpy.sicd_elements.base.Serializable" title="sarpy.sicd_elements.base.Serializable"><code class="xref py py-class docutils literal notranslate"><span class="pre">sarpy.sicd_elements.base.Serializable</span></code></a></p>
+<p>The reference point definition</p>
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.RadarCollection.SegmentArrayElement.StartLine">
+<code class="sig-name descname">StartLine</code><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.SegmentArrayElement.StartLine" title="Permalink to this definition">¶</a></dt>
+<dd><p>The starting line number of the segment.   <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.RadarCollection.SegmentArrayElement.EndLine">
+<code class="sig-name descname">EndLine</code><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.SegmentArrayElement.EndLine" title="Permalink to this definition">¶</a></dt>
+<dd><p>The ending line number of the segment.   <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.RadarCollection.SegmentArrayElement.StartSample">
+<code class="sig-name descname">StartSample</code><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.SegmentArrayElement.StartSample" title="Permalink to this definition">¶</a></dt>
+<dd><p>The starting sample number of the segment.   <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.RadarCollection.SegmentArrayElement.EndSample">
+<code class="sig-name descname">EndSample</code><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.SegmentArrayElement.EndSample" title="Permalink to this definition">¶</a></dt>
+<dd><p>The ending sample number of the segment.   <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.RadarCollection.SegmentArrayElement.Identifier">
+<code class="sig-name descname">Identifier</code><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.SegmentArrayElement.Identifier" title="Permalink to this definition">¶</a></dt>
+<dd><p>Identifier for the segment data boundary.  <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.RadarCollection.SegmentArrayElement.index">
+<code class="sig-name descname">index</code><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.SegmentArrayElement.index" title="Permalink to this definition">¶</a></dt>
+<dd><p>The array index.   <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="sarpy.sicd_elements.RadarCollection.ReferencePlaneType">
+<em class="property">class </em><code class="sig-prename descclassname">sarpy.sicd_elements.RadarCollection.</code><code class="sig-name descname">ReferencePlaneType</code><span class="sig-paren">(</span><em class="sig-param">RefPt=None</em>, <em class="sig-param">XDir=None</em>, <em class="sig-param">YDir=None</em>, <em class="sig-param">SegmentList=None</em>, <em class="sig-param">Orientation=None</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.ReferencePlaneType" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="blocks.html#sarpy.sicd_elements.base.Serializable" title="sarpy.sicd_elements.base.Serializable"><code class="xref py py-class docutils literal notranslate"><span class="pre">sarpy.sicd_elements.base.Serializable</span></code></a></p>
+<p>The reference plane</p>
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.RadarCollection.ReferencePlaneType.RefPt">
+<code class="sig-name descname">RefPt</code><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.ReferencePlaneType.RefPt" title="Permalink to this definition">¶</a></dt>
+<dd><p>The reference point.  <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="#sarpy.sicd_elements.RadarCollection.ReferencePointType" title="sarpy.sicd_elements.RadarCollection.ReferencePointType">ReferencePointType</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.RadarCollection.ReferencePlaneType.XDir">
+<code class="sig-name descname">XDir</code><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.ReferencePlaneType.XDir" title="Permalink to this definition">¶</a></dt>
+<dd><p>The X direction collection plane parameters.  <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="#sarpy.sicd_elements.RadarCollection.XDirectionType" title="sarpy.sicd_elements.RadarCollection.XDirectionType">XDirectionType</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.RadarCollection.ReferencePlaneType.YDir">
+<code class="sig-name descname">YDir</code><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.ReferencePlaneType.YDir" title="Permalink to this definition">¶</a></dt>
+<dd><p>The Y direction collection plane parameters.  <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="#sarpy.sicd_elements.RadarCollection.YDirectionType" title="sarpy.sicd_elements.RadarCollection.YDirectionType">YDirectionType</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.RadarCollection.ReferencePlaneType.SegmentList">
+<code class="sig-name descname">SegmentList</code><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.ReferencePlaneType.SegmentList" title="Permalink to this definition">¶</a></dt>
+<dd><p>The segment array.   <strong>Optional.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">numpy.ndarray</span></code> of <a class="reference internal" href="#sarpy.sicd_elements.RadarCollection.SegmentArrayElement" title="sarpy.sicd_elements.RadarCollection.SegmentArrayElement"><code class="xref py py-obj docutils literal notranslate"><span class="pre">SegmentArrayElement</span></code></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.RadarCollection.ReferencePlaneType.Orientation">
+<code class="sig-name descname">Orientation</code><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.ReferencePlaneType.Orientation" title="Permalink to this definition">¶</a></dt>
+<dd><p>Describes the shadow intent of the display plane.  Takes values in <code class="code docutils literal notranslate"><span class="pre">('UP',</span> <span class="pre">'DOWN',</span> <span class="pre">'LEFT',</span> <span class="pre">'RIGHT',</span> <span class="pre">'ARBITRARY')</span></code>.  <strong>Optional.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sarpy.sicd_elements.RadarCollection.ReferencePlaneType.get_ecf_corner_array">
+<code class="sig-name descname">get_ecf_corner_array</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.ReferencePlaneType.get_ecf_corner_array" title="Permalink to this definition">¶</a></dt>
+<dd><p>Use the XDir and YDir definitions to return the corner points in ECF coordinates as a 4x3 array.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>The corner points of the collection area, with order following the AreaType order convention.</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>numpy.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="sarpy.sicd_elements.RadarCollection.AreaType">
+<em class="property">class </em><code class="sig-prename descclassname">sarpy.sicd_elements.RadarCollection.</code><code class="sig-name descname">AreaType</code><span class="sig-paren">(</span><em class="sig-param">Corner=None</em>, <em class="sig-param">Plane=None</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.AreaType" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="blocks.html#sarpy.sicd_elements.base.Serializable" title="sarpy.sicd_elements.base.Serializable"><code class="xref py py-class docutils literal notranslate"><span class="pre">sarpy.sicd_elements.base.Serializable</span></code></a></p>
+<p>The collection area</p>
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.RadarCollection.AreaType.Corner">
+<code class="sig-name descname">Corner</code><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.AreaType.Corner" title="Permalink to this definition">¶</a></dt>
+<dd><p>The collection area corner point definition array.  Must have length  exactly 4.  <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">list</span></code> of <code class="xref py py-obj docutils literal notranslate"><span class="pre">LatLonHAECornerRestrictionType</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.RadarCollection.AreaType.Plane">
+<code class="sig-name descname">Plane</code><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.AreaType.Plane" title="Permalink to this definition">¶</a></dt>
+<dd><p>A rectangular area in a geo-located display plane.  <strong>Optional.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="#sarpy.sicd_elements.RadarCollection.ReferencePlaneType" title="sarpy.sicd_elements.RadarCollection.ReferencePlaneType">ReferencePlaneType</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sarpy.sicd_elements.RadarCollection.AreaType.derive">
+<code class="sig-name descname">derive</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.AreaType.derive" title="Permalink to this definition">¶</a></dt>
+<dd><p>Populate any internally derived data for AreaType.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p></p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="sarpy.sicd_elements.RadarCollection.RadarCollectionType">
+<em class="property">class </em><code class="sig-prename descclassname">sarpy.sicd_elements.RadarCollection.</code><code class="sig-name descname">RadarCollectionType</code><span class="sig-paren">(</span><em class="sig-param">TxFrequency=None</em>, <em class="sig-param">RefFreqIndex=None</em>, <em class="sig-param">Waveform=None</em>, <em class="sig-param">TxPolarization=None</em>, <em class="sig-param">TxSequence=None</em>, <em class="sig-param">RcvChannels=None</em>, <em class="sig-param">Area=None</em>, <em class="sig-param">Parameters=None</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.RadarCollectionType" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="blocks.html#sarpy.sicd_elements.base.Serializable" title="sarpy.sicd_elements.base.Serializable"><code class="xref py py-class docutils literal notranslate"><span class="pre">sarpy.sicd_elements.base.Serializable</span></code></a></p>
+<p>The Radar Collection Type</p>
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.RadarCollection.RadarCollectionType.TxFrequency">
+<code class="sig-name descname">TxFrequency</code><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.RadarCollectionType.TxFrequency" title="Permalink to this definition">¶</a></dt>
+<dd><p>The transmit frequency range.  <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="#sarpy.sicd_elements.RadarCollection.TxFrequencyType" title="sarpy.sicd_elements.RadarCollection.TxFrequencyType">TxFrequencyType</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.RadarCollection.RadarCollectionType.RefFreqIndex">
+<code class="sig-name descname">RefFreqIndex</code><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.RadarCollectionType.RefFreqIndex" title="Permalink to this definition">¶</a></dt>
+<dd><p>The reference frequency index, if applicable. If present and non-zero, all (most) RF frequency values are expressed as offsets from a reference frequency.   <strong>Optional.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.RadarCollection.RadarCollectionType.Waveform">
+<code class="sig-name descname">Waveform</code><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.RadarCollectionType.Waveform" title="Permalink to this definition">¶</a></dt>
+<dd><p>Transmit and receive demodulation waveform parameters.  Must have length &gt;= 1.  <strong>Optional.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">numpy.ndarray</span></code> of <a class="reference internal" href="#sarpy.sicd_elements.RadarCollection.WaveformParametersType" title="sarpy.sicd_elements.RadarCollection.WaveformParametersType"><code class="xref py py-obj docutils literal notranslate"><span class="pre">WaveformParametersType</span></code></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.RadarCollection.RadarCollectionType.TxPolarization">
+<code class="sig-name descname">TxPolarization</code><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.RadarCollectionType.TxPolarization" title="Permalink to this definition">¶</a></dt>
+<dd><p>The transmit polarization.  Takes values in <code class="code docutils literal notranslate"><span class="pre">('V',</span> <span class="pre">'H',</span> <span class="pre">'RHC',</span> <span class="pre">'LHC',</span> <span class="pre">'OTHER',</span> <span class="pre">'UNKNOWN',</span> <span class="pre">'SEQUENCE')</span></code>.  <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.RadarCollection.RadarCollectionType.TxSequence">
+<code class="sig-name descname">TxSequence</code><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.RadarCollectionType.TxSequence" title="Permalink to this definition">¶</a></dt>
+<dd><p>The transmit sequence parameters array. If present, indicates the transmit signal steps through a repeating sequence of waveforms and/or polarizations. One step per Inter-Pulse Period.  Must have length &gt;= 1.  <strong>Optional.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">numpy.ndarray</span></code> of <a class="reference internal" href="#sarpy.sicd_elements.RadarCollection.TxStepType" title="sarpy.sicd_elements.RadarCollection.TxStepType"><code class="xref py py-obj docutils literal notranslate"><span class="pre">TxStepType</span></code></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.RadarCollection.RadarCollectionType.RcvChannels">
+<code class="sig-name descname">RcvChannels</code><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.RadarCollectionType.RcvChannels" title="Permalink to this definition">¶</a></dt>
+<dd><p>Receive data channel parameters.  Must have length &gt;= 1.  <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">numpy.ndarray</span></code> of <a class="reference internal" href="#sarpy.sicd_elements.RadarCollection.ChanParametersType" title="sarpy.sicd_elements.RadarCollection.ChanParametersType"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ChanParametersType</span></code></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.RadarCollection.RadarCollectionType.Area">
+<code class="sig-name descname">Area</code><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.RadarCollectionType.Area" title="Permalink to this definition">¶</a></dt>
+<dd><p>The imaged area covered by the collection.  <strong>Optional.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="#sarpy.sicd_elements.RadarCollection.AreaType" title="sarpy.sicd_elements.RadarCollection.AreaType">AreaType</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.RadarCollection.RadarCollectionType.Parameters">
+<code class="sig-name descname">Parameters</code><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.RadarCollectionType.Parameters" title="Permalink to this definition">¶</a></dt>
+<dd><p>A parameters list.   <strong>Optional.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">list</span></code> of <code class="xref py py-obj docutils literal notranslate"><span class="pre">ParameterType</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sarpy.sicd_elements.RadarCollection.RadarCollectionType.derive">
+<code class="sig-name descname">derive</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sarpy.sicd_elements.RadarCollection.RadarCollectionType.derive" title="Permalink to this definition">¶</a></dt>
+<dd><p>Populates derived data in RadarCollection. Expected to be called by SICD parent.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p></p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="image_formation.html" title="The ImageFormation object and related elements"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="position.html" title="The Position object and related elements"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">sarpy 0.1.01 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="sicd_elements.html" >The SICD elements</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2019 National Geospatial-Intelligence Agency.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 2.2.2.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,369 @@
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <title>The Main SICD object &#8212; sarpy 0.1.01 documentation</title>
+    <link rel="stylesheet" href="../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="The CollectionInfo object and related elements" href="collection_info.html" />
+    <link rel="prev" title="The SICD elements" href="sicd_elements.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="collection_info.html" title="The CollectionInfo object and related elements"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="sicd_elements.html" title="The SICD elements"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">sarpy 0.1.01 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="sicd_elements.html" accesskey="U">The SICD elements</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="sicd_elements.html"
+                        title="previous chapter">The SICD elements</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="collection_info.html"
+                        title="next chapter">The CollectionInfo object and related elements</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/sicd/sicd.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="module-sarpy.sicd_elements.SICD">
+<span id="the-main-sicd-object"></span><h1>The Main SICD object<a class="headerlink" href="#module-sarpy.sicd_elements.SICD" title="Permalink to this headline">¶</a></h1>
+<p>The SICDType definition.</p>
+<dl class="class">
+<dt id="sarpy.sicd_elements.SICD.SICDType">
+<em class="property">class </em><code class="sig-prename descclassname">sarpy.sicd_elements.SICD.</code><code class="sig-name descname">SICDType</code><span class="sig-paren">(</span><em class="sig-param">CollectionInfo=None</em>, <em class="sig-param">ImageCreation=None</em>, <em class="sig-param">ImageData=None</em>, <em class="sig-param">GeoData=None</em>, <em class="sig-param">Grid=None</em>, <em class="sig-param">Timeline=None</em>, <em class="sig-param">Position=None</em>, <em class="sig-param">RadarCollection=None</em>, <em class="sig-param">ImageFormation=None</em>, <em class="sig-param">SCPCOA=None</em>, <em class="sig-param">Radiometric=None</em>, <em class="sig-param">Antenna=None</em>, <em class="sig-param">ErrorStatistics=None</em>, <em class="sig-param">MatchInfo=None</em>, <em class="sig-param">RgAzComp=None</em>, <em class="sig-param">PFA=None</em>, <em class="sig-param">RMA=None</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#sarpy.sicd_elements.SICD.SICDType" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="blocks.html#sarpy.sicd_elements.base.Serializable" title="sarpy.sicd_elements.base.Serializable"><code class="xref py py-class docutils literal notranslate"><span class="pre">sarpy.sicd_elements.base.Serializable</span></code></a></p>
+<p>Sensor Independent Complex Data object, containing all the relevant data to formulate products.</p>
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.SICD.SICDType.CollectionInfo">
+<code class="sig-name descname">CollectionInfo</code><a class="headerlink" href="#sarpy.sicd_elements.SICD.SICDType.CollectionInfo" title="Permalink to this definition">¶</a></dt>
+<dd><p>General information about the collection.  <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="collection_info.html#sarpy.sicd_elements.CollectionInfo.CollectionInfoType" title="sarpy.sicd_elements.CollectionInfo.CollectionInfoType">CollectionInfoType</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.SICD.SICDType.ImageCreation">
+<code class="sig-name descname">ImageCreation</code><a class="headerlink" href="#sarpy.sicd_elements.SICD.SICDType.ImageCreation" title="Permalink to this definition">¶</a></dt>
+<dd><p>General information about the image creation.  <strong>Optional.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="image_creation.html#sarpy.sicd_elements.ImageCreation.ImageCreationType" title="sarpy.sicd_elements.ImageCreation.ImageCreationType">ImageCreationType</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.SICD.SICDType.ImageData">
+<code class="sig-name descname">ImageData</code><a class="headerlink" href="#sarpy.sicd_elements.SICD.SICDType.ImageData" title="Permalink to this definition">¶</a></dt>
+<dd><p>The image pixel data.  <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="image_data.html#sarpy.sicd_elements.ImageData.ImageDataType" title="sarpy.sicd_elements.ImageData.ImageDataType">ImageDataType</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.SICD.SICDType.GeoData">
+<code class="sig-name descname">GeoData</code><a class="headerlink" href="#sarpy.sicd_elements.SICD.SICDType.GeoData" title="Permalink to this definition">¶</a></dt>
+<dd><p>The geographic coordinates of the image coverage area.  <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="geo_data.html#sarpy.sicd_elements.GeoData.GeoDataType" title="sarpy.sicd_elements.GeoData.GeoDataType">GeoDataType</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.SICD.SICDType.Grid">
+<code class="sig-name descname">Grid</code><a class="headerlink" href="#sarpy.sicd_elements.SICD.SICDType.Grid" title="Permalink to this definition">¶</a></dt>
+<dd><p>The image sample grid.  <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="grid.html#sarpy.sicd_elements.Grid.GridType" title="sarpy.sicd_elements.Grid.GridType">GridType</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.SICD.SICDType.Timeline">
+<code class="sig-name descname">Timeline</code><a class="headerlink" href="#sarpy.sicd_elements.SICD.SICDType.Timeline" title="Permalink to this definition">¶</a></dt>
+<dd><p>The imaging collection time line.  <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="timeline.html#sarpy.sicd_elements.Timeline.TimelineType" title="sarpy.sicd_elements.Timeline.TimelineType">TimelineType</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.SICD.SICDType.Position">
+<code class="sig-name descname">Position</code><a class="headerlink" href="#sarpy.sicd_elements.SICD.SICDType.Position" title="Permalink to this definition">¶</a></dt>
+<dd><p>The platform and ground reference point coordinates as a function of time.  <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="position.html#sarpy.sicd_elements.Position.PositionType" title="sarpy.sicd_elements.Position.PositionType">PositionType</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.SICD.SICDType.RadarCollection">
+<code class="sig-name descname">RadarCollection</code><a class="headerlink" href="#sarpy.sicd_elements.SICD.SICDType.RadarCollection" title="Permalink to this definition">¶</a></dt>
+<dd><p>The radar collection information.  <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="radar_collection.html#sarpy.sicd_elements.RadarCollection.RadarCollectionType" title="sarpy.sicd_elements.RadarCollection.RadarCollectionType">RadarCollectionType</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.SICD.SICDType.ImageFormation">
+<code class="sig-name descname">ImageFormation</code><a class="headerlink" href="#sarpy.sicd_elements.SICD.SICDType.ImageFormation" title="Permalink to this definition">¶</a></dt>
+<dd><p>The image formation process.  <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="image_formation.html#sarpy.sicd_elements.ImageFormation.ImageFormationType" title="sarpy.sicd_elements.ImageFormation.ImageFormationType">ImageFormationType</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.SICD.SICDType.SCPCOA">
+<code class="sig-name descname">SCPCOA</code><a class="headerlink" href="#sarpy.sicd_elements.SICD.SICDType.SCPCOA" title="Permalink to this definition">¶</a></dt>
+<dd><p>Center of Aperture (COA) for the Scene Center Point (SCP).  <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="scpcoa.html#sarpy.sicd_elements.SCPCOA.SCPCOAType" title="sarpy.sicd_elements.SCPCOA.SCPCOAType">SCPCOAType</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.SICD.SICDType.Radiometric">
+<code class="sig-name descname">Radiometric</code><a class="headerlink" href="#sarpy.sicd_elements.SICD.SICDType.Radiometric" title="Permalink to this definition">¶</a></dt>
+<dd><p>The radiometric calibration parameters.  <strong>Optional.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="radiometric.html#sarpy.sicd_elements.Radiometric.RadiometricType" title="sarpy.sicd_elements.Radiometric.RadiometricType">RadiometricType</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.SICD.SICDType.Antenna">
+<code class="sig-name descname">Antenna</code><a class="headerlink" href="#sarpy.sicd_elements.SICD.SICDType.Antenna" title="Permalink to this definition">¶</a></dt>
+<dd><p>Parameters that describe the antenna illumination patterns during the collection.  <strong>Optional.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="antenna.html#sarpy.sicd_elements.Antenna.AntennaType" title="sarpy.sicd_elements.Antenna.AntennaType">AntennaType</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.SICD.SICDType.ErrorStatistics">
+<code class="sig-name descname">ErrorStatistics</code><a class="headerlink" href="#sarpy.sicd_elements.SICD.SICDType.ErrorStatistics" title="Permalink to this definition">¶</a></dt>
+<dd><p>Parameters used to compute error statistics within the SICD sensor model.  <strong>Optional.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="error_statistics.html#sarpy.sicd_elements.ErrorStatistics.ErrorStatisticsType" title="sarpy.sicd_elements.ErrorStatistics.ErrorStatisticsType">ErrorStatisticsType</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.SICD.SICDType.MatchInfo">
+<code class="sig-name descname">MatchInfo</code><a class="headerlink" href="#sarpy.sicd_elements.SICD.SICDType.MatchInfo" title="Permalink to this definition">¶</a></dt>
+<dd><p>Information about other collections that are matched to the current collection. The current collection is the collection from which this SICD product was generated.  <strong>Optional.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="match_info.html#sarpy.sicd_elements.MatchInfo.MatchInfoType" title="sarpy.sicd_elements.MatchInfo.MatchInfoType">MatchInfoType</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.SICD.SICDType.RgAzComp">
+<code class="sig-name descname">RgAzComp</code><a class="headerlink" href="#sarpy.sicd_elements.SICD.SICDType.RgAzComp" title="Permalink to this definition">¶</a></dt>
+<dd><p>Parameters included for a Range, Doppler image.  <strong>Optional.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="rg_az_comp.html#sarpy.sicd_elements.RgAzComp.RgAzCompType" title="sarpy.sicd_elements.RgAzComp.RgAzCompType">RgAzCompType</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.SICD.SICDType.PFA">
+<code class="sig-name descname">PFA</code><a class="headerlink" href="#sarpy.sicd_elements.SICD.SICDType.PFA" title="Permalink to this definition">¶</a></dt>
+<dd><p>Parameters included when the image is formed using the Polar Formation Algorithm.  <strong>Optional.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="pfa.html#sarpy.sicd_elements.PFA.PFAType" title="sarpy.sicd_elements.PFA.PFAType">PFAType</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.SICD.SICDType.RMA">
+<code class="sig-name descname">RMA</code><a class="headerlink" href="#sarpy.sicd_elements.SICD.SICDType.RMA" title="Permalink to this definition">¶</a></dt>
+<dd><p>Parameters included when the image is formed using the Range Migration Algorithm.  <strong>Optional.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="rma.html#sarpy.sicd_elements.RMA.RMAType" title="sarpy.sicd_elements.RMA.RMAType">RMAType</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sarpy.sicd_elements.SICD.SICDType.ImageFormType">
+<em class="property">property </em><code class="sig-name descname">ImageFormType</code><a class="headerlink" href="#sarpy.sicd_elements.SICD.SICDType.ImageFormType" title="Permalink to this definition">¶</a></dt>
+<dd><p>str: <em>READ ONLY</em> Identifies the specific image formation type supplied. This is determined by
+returning the (first) attribute among <cite>RgAzComp</cite>, <cite>PFA</cite>, <cite>RMA</cite> which is populated. <cite>OTHER</cite> will be returned if
+none of them are populated.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="sarpy.sicd_elements.SICD.SICDType.define_geo_image_corners">
+<code class="sig-name descname">define_geo_image_corners</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sarpy.sicd_elements.SICD.SICDType.define_geo_image_corners" title="Permalink to this definition">¶</a></dt>
+<dd><p>Defines the GeoData image corner points (if possible), if they are not already defined.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p></p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sarpy.sicd_elements.SICD.SICDType.define_geo_valid_data">
+<code class="sig-name descname">define_geo_valid_data</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sarpy.sicd_elements.SICD.SICDType.define_geo_valid_data" title="Permalink to this definition">¶</a></dt>
+<dd><p>Defines the GeoData valid data corner points (if possible), if they are not already defined.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p></p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sarpy.sicd_elements.SICD.SICDType.derive">
+<code class="sig-name descname">derive</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#sarpy.sicd_elements.SICD.SICDType.derive" title="Permalink to this definition">¶</a></dt>
+<dd><p>Populates any potential derived data in the SICD structure. This should get called after reading an XML,
+or as a user desires.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p></p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sarpy.sicd_elements.SICD.SICDType.apply_reference_frequency">
+<code class="sig-name descname">apply_reference_frequency</code><span class="sig-paren">(</span><em class="sig-param">reference_frequency</em><span class="sig-paren">)</span><a class="headerlink" href="#sarpy.sicd_elements.SICD.SICDType.apply_reference_frequency" title="Permalink to this definition">¶</a></dt>
+<dd><p>If the reference frequency is used, adjust the necessary fields accordingly.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>reference_frequency</strong> (<em>float</em>) – The reference frequency.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p></p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="collection_info.html" title="The CollectionInfo object and related elements"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="sicd_elements.html" title="The SICD elements"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">sarpy 0.1.01 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="sicd_elements.html" >The SICD elements</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2019 National Geospatial-Intelligence Agency.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 2.2.2.
+    </div>
+  </body>
+</html>

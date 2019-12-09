@@ -1,0 +1,553 @@
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <title>The ImageFormation object and related elements &#8212; sarpy 0.1.01 documentation</title>
+    <link rel="stylesheet" href="../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="The SCPCOA object and related elements" href="scpcoa.html" />
+    <link rel="prev" title="The RadarCollection object and related elements" href="radar_collection.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="scpcoa.html" title="The SCPCOA object and related elements"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="radar_collection.html" title="The RadarCollection object and related elements"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">sarpy 0.1.01 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="sicd_elements.html" accesskey="U">The SICD elements</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="radar_collection.html"
+                        title="previous chapter">The RadarCollection object and related elements</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="scpcoa.html"
+                        title="next chapter">The SCPCOA object and related elements</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/sicd/image_formation.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="module-sarpy.sicd_elements.ImageFormation">
+<span id="the-imageformation-object-and-related-elements"></span><h1>The ImageFormation object and related elements<a class="headerlink" href="#module-sarpy.sicd_elements.ImageFormation" title="Permalink to this headline">¶</a></h1>
+<p>The ImageFormationType definition.</p>
+<dl class="class">
+<dt id="sarpy.sicd_elements.ImageFormation.RcvChanProcType">
+<em class="property">class </em><code class="sig-prename descclassname">sarpy.sicd_elements.ImageFormation.</code><code class="sig-name descname">RcvChanProcType</code><span class="sig-paren">(</span><em class="sig-param">NumChanProc=None</em>, <em class="sig-param">PRFScaleFactor=None</em>, <em class="sig-param">ChanIndices=None</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#sarpy.sicd_elements.ImageFormation.RcvChanProcType" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="blocks.html#sarpy.sicd_elements.base.Serializable" title="sarpy.sicd_elements.base.Serializable"><code class="xref py py-class docutils literal notranslate"><span class="pre">sarpy.sicd_elements.base.Serializable</span></code></a></p>
+<p>The Received Processed Channels.</p>
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.ImageFormation.RcvChanProcType.NumChanProc">
+<code class="sig-name descname">NumChanProc</code><a class="headerlink" href="#sarpy.sicd_elements.ImageFormation.RcvChanProcType.NumChanProc" title="Permalink to this definition">¶</a></dt>
+<dd><p>Number of receive data channels processed to form the image.   <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.ImageFormation.RcvChanProcType.PRFScaleFactor">
+<code class="sig-name descname">PRFScaleFactor</code><a class="headerlink" href="#sarpy.sicd_elements.ImageFormation.RcvChanProcType.PRFScaleFactor" title="Permalink to this definition">¶</a></dt>
+<dd><p>Factor indicating the ratio of the effective PRF to the actual PRF.   <strong>Optional.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.ImageFormation.RcvChanProcType.ChanIndices">
+<code class="sig-name descname">ChanIndices</code><a class="headerlink" href="#sarpy.sicd_elements.ImageFormation.RcvChanProcType.ChanIndices" title="Permalink to this definition">¶</a></dt>
+<dd><p>Index of a data channel that was processed.   <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">list</span></code> of <code class="xref py py-obj docutils literal notranslate"><span class="pre">int</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="sarpy.sicd_elements.ImageFormation.TxFrequencyProcType">
+<em class="property">class </em><code class="sig-prename descclassname">sarpy.sicd_elements.ImageFormation.</code><code class="sig-name descname">TxFrequencyProcType</code><span class="sig-paren">(</span><em class="sig-param">MinProc=None</em>, <em class="sig-param">MaxProc=None</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#sarpy.sicd_elements.ImageFormation.TxFrequencyProcType" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="blocks.html#sarpy.sicd_elements.base.Serializable" title="sarpy.sicd_elements.base.Serializable"><code class="xref py py-class docutils literal notranslate"><span class="pre">sarpy.sicd_elements.base.Serializable</span></code></a></p>
+<p>The transmit frequency range.</p>
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.ImageFormation.TxFrequencyProcType.MinProc">
+<code class="sig-name descname">MinProc</code><a class="headerlink" href="#sarpy.sicd_elements.ImageFormation.TxFrequencyProcType.MinProc" title="Permalink to this definition">¶</a></dt>
+<dd><p>The minimum transmit frequency processed to form the image, in Hz.   <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.ImageFormation.TxFrequencyProcType.MaxProc">
+<code class="sig-name descname">MaxProc</code><a class="headerlink" href="#sarpy.sicd_elements.ImageFormation.TxFrequencyProcType.MaxProc" title="Permalink to this definition">¶</a></dt>
+<dd><p>The maximum transmit frequency processed to form the image, in Hz.   <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="sarpy.sicd_elements.ImageFormation.ProcessingType">
+<em class="property">class </em><code class="sig-prename descclassname">sarpy.sicd_elements.ImageFormation.</code><code class="sig-name descname">ProcessingType</code><span class="sig-paren">(</span><em class="sig-param">Type=None</em>, <em class="sig-param">Applied=None</em>, <em class="sig-param">Parameters=None</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#sarpy.sicd_elements.ImageFormation.ProcessingType" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="blocks.html#sarpy.sicd_elements.base.Serializable" title="sarpy.sicd_elements.base.Serializable"><code class="xref py py-class docutils literal notranslate"><span class="pre">sarpy.sicd_elements.base.Serializable</span></code></a></p>
+<p>The transmit frequency range</p>
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.ImageFormation.ProcessingType.Type">
+<code class="sig-name descname">Type</code><a class="headerlink" href="#sarpy.sicd_elements.ImageFormation.ProcessingType.Type" title="Permalink to this definition">¶</a></dt>
+<dd><p>The processing type identifier.  <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.ImageFormation.ProcessingType.Applied">
+<code class="sig-name descname">Applied</code><a class="headerlink" href="#sarpy.sicd_elements.ImageFormation.ProcessingType.Applied" title="Permalink to this definition">¶</a></dt>
+<dd><p>Indicates whether the given processing type has been applied.  <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.ImageFormation.ProcessingType.Parameters">
+<code class="sig-name descname">Parameters</code><a class="headerlink" href="#sarpy.sicd_elements.ImageFormation.ProcessingType.Parameters" title="Permalink to this definition">¶</a></dt>
+<dd><p>The parameters list.   <strong>Optional.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">list</span></code> of <code class="xref py py-obj docutils literal notranslate"><span class="pre">ParameterType</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="sarpy.sicd_elements.ImageFormation.DistortionType">
+<em class="property">class </em><code class="sig-prename descclassname">sarpy.sicd_elements.ImageFormation.</code><code class="sig-name descname">DistortionType</code><span class="sig-paren">(</span><em class="sig-param">CalibrationDate=None</em>, <em class="sig-param">A=None</em>, <em class="sig-param">F1=None</em>, <em class="sig-param">Q1=None</em>, <em class="sig-param">Q2=None</em>, <em class="sig-param">F2=None</em>, <em class="sig-param">Q3=None</em>, <em class="sig-param">Q4=None</em>, <em class="sig-param">GainErrorA=None</em>, <em class="sig-param">GainErrorF1=None</em>, <em class="sig-param">GainErrorF2=None</em>, <em class="sig-param">PhaseErrorF1=None</em>, <em class="sig-param">PhaseErrorF2=None</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#sarpy.sicd_elements.ImageFormation.DistortionType" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="blocks.html#sarpy.sicd_elements.base.Serializable" title="sarpy.sicd_elements.base.Serializable"><code class="xref py py-class docutils literal notranslate"><span class="pre">sarpy.sicd_elements.base.Serializable</span></code></a></p>
+<p>Distortion</p>
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.ImageFormation.DistortionType.CalibrationDate">
+<code class="sig-name descname">CalibrationDate</code><a class="headerlink" href="#sarpy.sicd_elements.ImageFormation.DistortionType.CalibrationDate" title="Permalink to this definition">¶</a></dt>
+<dd><p>The calibration date.  <strong>Optional.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>numpy.datetime64</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.ImageFormation.DistortionType.A">
+<code class="sig-name descname">A</code><a class="headerlink" href="#sarpy.sicd_elements.ImageFormation.DistortionType.A" title="Permalink to this definition">¶</a></dt>
+<dd><p>Absolute amplitude scale factor.   <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.ImageFormation.DistortionType.F1">
+<code class="sig-name descname">F1</code><a class="headerlink" href="#sarpy.sicd_elements.ImageFormation.DistortionType.F1" title="Permalink to this definition">¶</a></dt>
+<dd><p>Receive distortion element (2,2).  <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>complex</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.ImageFormation.DistortionType.Q1">
+<code class="sig-name descname">Q1</code><a class="headerlink" href="#sarpy.sicd_elements.ImageFormation.DistortionType.Q1" title="Permalink to this definition">¶</a></dt>
+<dd><p>Receive distortion element (1,2).  <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>complex</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.ImageFormation.DistortionType.Q2">
+<code class="sig-name descname">Q2</code><a class="headerlink" href="#sarpy.sicd_elements.ImageFormation.DistortionType.Q2" title="Permalink to this definition">¶</a></dt>
+<dd><p>Receive distortion element (2,1).  <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>complex</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.ImageFormation.DistortionType.F2">
+<code class="sig-name descname">F2</code><a class="headerlink" href="#sarpy.sicd_elements.ImageFormation.DistortionType.F2" title="Permalink to this definition">¶</a></dt>
+<dd><p>Transmit distortion element (2,2).  <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>complex</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.ImageFormation.DistortionType.Q3">
+<code class="sig-name descname">Q3</code><a class="headerlink" href="#sarpy.sicd_elements.ImageFormation.DistortionType.Q3" title="Permalink to this definition">¶</a></dt>
+<dd><p>Transmit distortion element (2, 1).  <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>complex</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.ImageFormation.DistortionType.Q4">
+<code class="sig-name descname">Q4</code><a class="headerlink" href="#sarpy.sicd_elements.ImageFormation.DistortionType.Q4" title="Permalink to this definition">¶</a></dt>
+<dd><p>Transmit distortion element (1, 2).  <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>complex</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.ImageFormation.DistortionType.GainErrorA">
+<code class="sig-name descname">GainErrorA</code><a class="headerlink" href="#sarpy.sicd_elements.ImageFormation.DistortionType.GainErrorA" title="Permalink to this definition">¶</a></dt>
+<dd><p>Gain estimation error standard deviation (in dB) for parameter A.   <strong>Optional.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.ImageFormation.DistortionType.GainErrorF1">
+<code class="sig-name descname">GainErrorF1</code><a class="headerlink" href="#sarpy.sicd_elements.ImageFormation.DistortionType.GainErrorF1" title="Permalink to this definition">¶</a></dt>
+<dd><p>Gain estimation error standard deviation (in dB) for parameter F1.   <strong>Optional.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.ImageFormation.DistortionType.GainErrorF2">
+<code class="sig-name descname">GainErrorF2</code><a class="headerlink" href="#sarpy.sicd_elements.ImageFormation.DistortionType.GainErrorF2" title="Permalink to this definition">¶</a></dt>
+<dd><p>Gain estimation error standard deviation (in dB) for parameter F2.   <strong>Optional.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.ImageFormation.DistortionType.PhaseErrorF1">
+<code class="sig-name descname">PhaseErrorF1</code><a class="headerlink" href="#sarpy.sicd_elements.ImageFormation.DistortionType.PhaseErrorF1" title="Permalink to this definition">¶</a></dt>
+<dd><p>Phase estimation error standard deviation (in dB) for parameter F1.   <strong>Optional.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.ImageFormation.DistortionType.PhaseErrorF2">
+<code class="sig-name descname">PhaseErrorF2</code><a class="headerlink" href="#sarpy.sicd_elements.ImageFormation.DistortionType.PhaseErrorF2" title="Permalink to this definition">¶</a></dt>
+<dd><p>Phase estimation error standard deviation (in dB) for parameter F2.   <strong>Optional.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="sarpy.sicd_elements.ImageFormation.PolarizationCalibrationType">
+<em class="property">class </em><code class="sig-prename descclassname">sarpy.sicd_elements.ImageFormation.</code><code class="sig-name descname">PolarizationCalibrationType</code><span class="sig-paren">(</span><em class="sig-param">DistortCorrectApplied=None</em>, <em class="sig-param">Distortion=None</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#sarpy.sicd_elements.ImageFormation.PolarizationCalibrationType" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="blocks.html#sarpy.sicd_elements.base.Serializable" title="sarpy.sicd_elements.base.Serializable"><code class="xref py py-class docutils literal notranslate"><span class="pre">sarpy.sicd_elements.base.Serializable</span></code></a></p>
+<p>The polarization calibration</p>
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.ImageFormation.PolarizationCalibrationType.DistortCorrectApplied">
+<code class="sig-name descname">DistortCorrectApplied</code><a class="headerlink" href="#sarpy.sicd_elements.ImageFormation.PolarizationCalibrationType.DistortCorrectApplied" title="Permalink to this definition">¶</a></dt>
+<dd><p>Indicates whether the polarization calibration has been applied.  <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.ImageFormation.PolarizationCalibrationType.Distortion">
+<code class="sig-name descname">Distortion</code><a class="headerlink" href="#sarpy.sicd_elements.ImageFormation.PolarizationCalibrationType.Distortion" title="Permalink to this definition">¶</a></dt>
+<dd><p>The distortion parameters.  <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="#sarpy.sicd_elements.ImageFormation.DistortionType" title="sarpy.sicd_elements.ImageFormation.DistortionType">DistortionType</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="sarpy.sicd_elements.ImageFormation.ImageFormationType">
+<em class="property">class </em><code class="sig-prename descclassname">sarpy.sicd_elements.ImageFormation.</code><code class="sig-name descname">ImageFormationType</code><span class="sig-paren">(</span><em class="sig-param">RcvChanProc=None</em>, <em class="sig-param">TxRcvPolarizationProc=None</em>, <em class="sig-param">TStartProc=None</em>, <em class="sig-param">TEndProc=None</em>, <em class="sig-param">TxFrequencyProc=None</em>, <em class="sig-param">SegmentIdentifier=None</em>, <em class="sig-param">ImageFormAlgo=None</em>, <em class="sig-param">STBeamComp=None</em>, <em class="sig-param">ImageBeamComp=None</em>, <em class="sig-param">AzAutofocus=None</em>, <em class="sig-param">RgAutofocus=None</em>, <em class="sig-param">Processings=None</em>, <em class="sig-param">PolarizationCalibration=None</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#sarpy.sicd_elements.ImageFormation.ImageFormationType" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="blocks.html#sarpy.sicd_elements.base.Serializable" title="sarpy.sicd_elements.base.Serializable"><code class="xref py py-class docutils literal notranslate"><span class="pre">sarpy.sicd_elements.base.Serializable</span></code></a></p>
+<p>The image formation process parameters.</p>
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.ImageFormation.ImageFormationType.RcvChanProc">
+<code class="sig-name descname">RcvChanProc</code><a class="headerlink" href="#sarpy.sicd_elements.ImageFormation.ImageFormationType.RcvChanProc" title="Permalink to this definition">¶</a></dt>
+<dd><p>The received processed channels.  <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="#sarpy.sicd_elements.ImageFormation.RcvChanProcType" title="sarpy.sicd_elements.ImageFormation.RcvChanProcType">RcvChanProcType</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.ImageFormation.ImageFormationType.TxRcvPolarizationProc">
+<code class="sig-name descname">TxRcvPolarizationProc</code><a class="headerlink" href="#sarpy.sicd_elements.ImageFormation.ImageFormationType.TxRcvPolarizationProc" title="Permalink to this definition">¶</a></dt>
+<dd><p>The combined transmit/receive polarization processed to form the image.  Takes values in <code class="code docutils literal notranslate"><span class="pre">('V:V',</span> <span class="pre">'V:H',</span> <span class="pre">'H:V',</span> <span class="pre">'H:H',</span> <span class="pre">'RHC:RHC',</span> <span class="pre">'RHC:LHC',</span> <span class="pre">'LHC:RHC',</span> <span class="pre">'LHC:LHC',</span> <span class="pre">'OTHER',</span> <span class="pre">'UNKNOWN')</span></code>.  <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.ImageFormation.ImageFormationType.TStartProc">
+<code class="sig-name descname">TStartProc</code><a class="headerlink" href="#sarpy.sicd_elements.ImageFormation.ImageFormationType.TStartProc" title="Permalink to this definition">¶</a></dt>
+<dd><p>Earliest slow time value for data processed to form the image from CollectionStart.   <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.ImageFormation.ImageFormationType.TEndProc">
+<code class="sig-name descname">TEndProc</code><a class="headerlink" href="#sarpy.sicd_elements.ImageFormation.ImageFormationType.TEndProc" title="Permalink to this definition">¶</a></dt>
+<dd><p>Latest slow time value for data processed to form the image from CollectionStart.   <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.ImageFormation.ImageFormationType.TxFrequencyProc">
+<code class="sig-name descname">TxFrequencyProc</code><a class="headerlink" href="#sarpy.sicd_elements.ImageFormation.ImageFormationType.TxFrequencyProc" title="Permalink to this definition">¶</a></dt>
+<dd><p>The range of transmit frequency processed to form the image.  <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="#sarpy.sicd_elements.ImageFormation.TxFrequencyProcType" title="sarpy.sicd_elements.ImageFormation.TxFrequencyProcType">TxFrequencyProcType</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.ImageFormation.ImageFormationType.SegmentIdentifier">
+<code class="sig-name descname">SegmentIdentifier</code><a class="headerlink" href="#sarpy.sicd_elements.ImageFormation.ImageFormationType.SegmentIdentifier" title="Permalink to this definition">¶</a></dt>
+<dd><p>Identifier that describes the image that was processed. Must be included when SICD.RadarCollection.Area.Plane.SegmentList is included.  <strong>Optional.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.ImageFormation.ImageFormationType.ImageFormAlgo">
+<code class="sig-name descname">ImageFormAlgo</code><a class="headerlink" href="#sarpy.sicd_elements.ImageFormation.ImageFormationType.ImageFormAlgo" title="Permalink to this definition">¶</a></dt>
+<dd><p>str:
+The image formation algorithm used:</p>
+<ul>
+<li><p><cite>PFA</cite> - Polar Format Algorithm</p></li>
+<li><p><cite>RMA</cite> - Range Migration (Omega-K, Chirp Scaling, Range-Doppler)</p></li>
+<li><p><cite>RGAZCOMP</cite> - Simple range, Doppler compression.</p>
+<p>Takes values in <code class="code docutils literal notranslate"><span class="pre">('PFA',</span> <span class="pre">'RMA',</span> <span class="pre">'RGAZCOMP',</span> <span class="pre">'OTHER')</span></code>.  <strong>Required.</strong></p>
+</li>
+</ul>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.ImageFormation.ImageFormationType.STBeamComp">
+<code class="sig-name descname">STBeamComp</code><a class="headerlink" href="#sarpy.sicd_elements.ImageFormation.ImageFormationType.STBeamComp" title="Permalink to this definition">¶</a></dt>
+<dd><p>str:
+Indicates if slow time beam shape compensation has been applied.</p>
+<ul>
+<li><p><cite>“NO”</cite> - No ST beam shape compensation.</p></li>
+<li><p><cite>“GLOBAL”</cite> - Global ST beam shape compensation applied.</p></li>
+<li><p><cite>“SV”</cite> - Spatially variant beam shape compensation applied.</p>
+<p>Takes values in <code class="code docutils literal notranslate"><span class="pre">('NO',</span> <span class="pre">'GLOBAL',</span> <span class="pre">'SV')</span></code>.  <strong>Required.</strong></p>
+</li>
+</ul>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.ImageFormation.ImageFormationType.ImageBeamComp">
+<code class="sig-name descname">ImageBeamComp</code><a class="headerlink" href="#sarpy.sicd_elements.ImageFormation.ImageFormationType.ImageBeamComp" title="Permalink to this definition">¶</a></dt>
+<dd><p>str:
+Indicates if image domain beam shape compensation has been applied.</p>
+<ul>
+<li><p><cite>“NO”</cite> - No image domain beam shape compensation.</p></li>
+<li><p><cite>“SV”</cite> - Spatially variant image domain beam shape compensation applied.</p>
+<p>Takes values in <code class="code docutils literal notranslate"><span class="pre">('NO',</span> <span class="pre">'SV')</span></code>.  <strong>Required.</strong></p>
+</li>
+</ul>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.ImageFormation.ImageFormationType.AzAutofocus">
+<code class="sig-name descname">AzAutofocus</code><a class="headerlink" href="#sarpy.sicd_elements.ImageFormation.ImageFormationType.AzAutofocus" title="Permalink to this definition">¶</a></dt>
+<dd><p>Indicates if azimuth autofocus correction has been applied, with similar interpretation as <cite>STBeamComp</cite>.  Takes values in <code class="code docutils literal notranslate"><span class="pre">('NO',</span> <span class="pre">'GLOBAL',</span> <span class="pre">'SV')</span></code>.  <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.ImageFormation.ImageFormationType.RgAutofocus">
+<code class="sig-name descname">RgAutofocus</code><a class="headerlink" href="#sarpy.sicd_elements.ImageFormation.ImageFormationType.RgAutofocus" title="Permalink to this definition">¶</a></dt>
+<dd><p>Indicates if range autofocus correction has been applied, with similar interpretation as <cite>STBeamComp</cite>.  Takes values in <code class="code docutils literal notranslate"><span class="pre">('NO',</span> <span class="pre">'GLOBAL',</span> <span class="pre">'SV')</span></code>.  <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.ImageFormation.ImageFormationType.Processings">
+<code class="sig-name descname">Processings</code><a class="headerlink" href="#sarpy.sicd_elements.ImageFormation.ImageFormationType.Processings" title="Permalink to this definition">¶</a></dt>
+<dd><p>Parameters to describe types of specific processing that may have been applied such as additional compensations.   <strong>Optional.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">list</span></code> of <a class="reference internal" href="#sarpy.sicd_elements.ImageFormation.ProcessingType" title="sarpy.sicd_elements.ImageFormation.ProcessingType"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ProcessingType</span></code></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.ImageFormation.ImageFormationType.PolarizationCalibration">
+<code class="sig-name descname">PolarizationCalibration</code><a class="headerlink" href="#sarpy.sicd_elements.ImageFormation.ImageFormationType.PolarizationCalibration" title="Permalink to this definition">¶</a></dt>
+<dd><p>The polarization calibration details.  <strong>Optional.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="#sarpy.sicd_elements.ImageFormation.PolarizationCalibrationType" title="sarpy.sicd_elements.ImageFormation.PolarizationCalibrationType">PolarizationCalibrationType</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="scpcoa.html" title="The SCPCOA object and related elements"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="radar_collection.html" title="The RadarCollection object and related elements"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">sarpy 0.1.01 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="sicd_elements.html" >The SICD elements</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2019 National Geospatial-Intelligence Agency.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 2.2.2.
+    </div>
+  </body>
+</html>

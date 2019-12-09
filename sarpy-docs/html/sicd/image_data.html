@@ -1,0 +1,278 @@
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <title>The ImageData object and related elements &#8212; sarpy 0.1.01 documentation</title>
+    <link rel="stylesheet" href="../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="The GeoData object and related elements" href="geo_data.html" />
+    <link rel="prev" title="The ImageCreation object and related elements" href="image_creation.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="geo_data.html" title="The GeoData object and related elements"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="image_creation.html" title="The ImageCreation object and related elements"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">sarpy 0.1.01 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="sicd_elements.html" accesskey="U">The SICD elements</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="image_creation.html"
+                        title="previous chapter">The ImageCreation object and related elements</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="geo_data.html"
+                        title="next chapter">The GeoData object and related elements</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/sicd/image_data.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="module-sarpy.sicd_elements.ImageData">
+<span id="the-imagedata-object-and-related-elements"></span><h1>The ImageData object and related elements<a class="headerlink" href="#module-sarpy.sicd_elements.ImageData" title="Permalink to this headline">¶</a></h1>
+<p>The ImageData definition.</p>
+<dl class="class">
+<dt id="sarpy.sicd_elements.ImageData.FullImageType">
+<em class="property">class </em><code class="sig-prename descclassname">sarpy.sicd_elements.ImageData.</code><code class="sig-name descname">FullImageType</code><span class="sig-paren">(</span><em class="sig-param">coords=None</em>, <em class="sig-param">NumRows=None</em>, <em class="sig-param">NumCols=None</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#sarpy.sicd_elements.ImageData.FullImageType" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="blocks.html#sarpy.sicd_elements.base.Serializable" title="sarpy.sicd_elements.base.Serializable"><code class="xref py py-class docutils literal notranslate"><span class="pre">sarpy.sicd_elements.base.Serializable</span></code></a></p>
+<p>The full image product attributes.</p>
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.ImageData.FullImageType.NumRows">
+<code class="sig-name descname">NumRows</code><a class="headerlink" href="#sarpy.sicd_elements.ImageData.FullImageType.NumRows" title="Permalink to this definition">¶</a></dt>
+<dd><p>Number of rows in the original full image product. May include zero pixels.   <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.ImageData.FullImageType.NumCols">
+<code class="sig-name descname">NumCols</code><a class="headerlink" href="#sarpy.sicd_elements.ImageData.FullImageType.NumCols" title="Permalink to this definition">¶</a></dt>
+<dd><p>Number of columns in the original full image product. May include zero pixels.   <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="sarpy.sicd_elements.ImageData.ImageDataType">
+<em class="property">class </em><code class="sig-prename descclassname">sarpy.sicd_elements.ImageData.</code><code class="sig-name descname">ImageDataType</code><span class="sig-paren">(</span><em class="sig-param">PixelType=None</em>, <em class="sig-param">AmpTable=None</em>, <em class="sig-param">NumRows=None</em>, <em class="sig-param">NumCols=None</em>, <em class="sig-param">FirstRow=None</em>, <em class="sig-param">FirstCol=None</em>, <em class="sig-param">FullImage=None</em>, <em class="sig-param">SCPPixel=None</em>, <em class="sig-param">ValidData=None</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#sarpy.sicd_elements.ImageData.ImageDataType" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="blocks.html#sarpy.sicd_elements.base.Serializable" title="sarpy.sicd_elements.base.Serializable"><code class="xref py py-class docutils literal notranslate"><span class="pre">sarpy.sicd_elements.base.Serializable</span></code></a></p>
+<p>The image pixel data.</p>
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.ImageData.ImageDataType.PixelType">
+<code class="sig-name descname">PixelType</code><a class="headerlink" href="#sarpy.sicd_elements.ImageData.ImageDataType.PixelType" title="Permalink to this definition">¶</a></dt>
+<dd><p>The PixelType attribute which specifies the interpretation of the file data.  Takes values in <code class="code docutils literal notranslate"><span class="pre">('RE32F_IM32F',</span> <span class="pre">'RE16I_IM16I',</span> <span class="pre">'AMP8I_PHS8I')</span></code>.  <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.ImageData.ImageDataType.AmpTable">
+<code class="sig-name descname">AmpTable</code><a class="headerlink" href="#sarpy.sicd_elements.ImageData.ImageDataType.AmpTable" title="Permalink to this definition">¶</a></dt>
+<dd><p>The amplitude look-up table. This is required if <cite>PixelType == ‘AMP8I_PHS8I’</cite>  Must have length  exactly 256.  <strong>Optional.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">numpy.ndarray</span></code> of <code class="xref py py-obj docutils literal notranslate"><span class="pre">dtype=float64</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.ImageData.ImageDataType.NumRows">
+<code class="sig-name descname">NumRows</code><a class="headerlink" href="#sarpy.sicd_elements.ImageData.ImageDataType.NumRows" title="Permalink to this definition">¶</a></dt>
+<dd><p>The number of Rows in the product. May include zero rows.   <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.ImageData.ImageDataType.NumCols">
+<code class="sig-name descname">NumCols</code><a class="headerlink" href="#sarpy.sicd_elements.ImageData.ImageDataType.NumCols" title="Permalink to this definition">¶</a></dt>
+<dd><p>The number of Columns in the product. May include zero rows.   <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.ImageData.ImageDataType.FirstRow">
+<code class="sig-name descname">FirstRow</code><a class="headerlink" href="#sarpy.sicd_elements.ImageData.ImageDataType.FirstRow" title="Permalink to this definition">¶</a></dt>
+<dd><p>Global row index of the first row in the product. Equal to 0 in full image product.   <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.ImageData.ImageDataType.FirstCol">
+<code class="sig-name descname">FirstCol</code><a class="headerlink" href="#sarpy.sicd_elements.ImageData.ImageDataType.FirstCol" title="Permalink to this definition">¶</a></dt>
+<dd><p>Global column index of the first column in the product. Equal to 0 in full image product.   <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p>int</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.ImageData.ImageDataType.FullImage">
+<code class="sig-name descname">FullImage</code><a class="headerlink" href="#sarpy.sicd_elements.ImageData.ImageDataType.FullImage" title="Permalink to this definition">¶</a></dt>
+<dd><p>Original full image product.  <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="#sarpy.sicd_elements.ImageData.FullImageType" title="sarpy.sicd_elements.ImageData.FullImageType">FullImageType</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.ImageData.ImageDataType.SCPPixel">
+<code class="sig-name descname">SCPPixel</code><a class="headerlink" href="#sarpy.sicd_elements.ImageData.ImageDataType.SCPPixel" title="Permalink to this definition">¶</a></dt>
+<dd><p>Scene Center Point pixel global row and column index. Should be located near the center of the full image.  <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="blocks.html#sarpy.sicd_elements.blocks.RowColType" title="sarpy.sicd_elements.blocks.RowColType">RowColType</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.ImageData.ImageDataType.ValidData">
+<code class="sig-name descname">ValidData</code><a class="headerlink" href="#sarpy.sicd_elements.ImageData.ImageDataType.ValidData" title="Permalink to this definition">¶</a></dt>
+<dd><p>Indicates the full image includes both valid data and some zero filled pixels. Simple polygon encloses the valid data (may include some zero filled pixels for simplification). Vertices in clockwise order.  Must have length &gt;= 3.  <strong>Optional.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">numpy.ndarray</span></code> of <code class="xref py py-obj docutils literal notranslate"><span class="pre">RowColArrayElement</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sarpy.sicd_elements.ImageData.ImageDataType.get_valid_vertex_data">
+<code class="sig-name descname">get_valid_vertex_data</code><span class="sig-paren">(</span><em class="sig-param">dtype=&lt;class 'numpy.int64'&gt;</em><span class="sig-paren">)</span><a class="headerlink" href="#sarpy.sicd_elements.ImageData.ImageDataType.get_valid_vertex_data" title="Permalink to this definition">¶</a></dt>
+<dd><p>Gets an array of [row, col] indices defining the valid data. If this is not viable, then None
+will be returned.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>dtype</strong> (<em>object</em>) – the data type for the array</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p></p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>numpy.ndarray|None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="sarpy.sicd_elements.ImageData.ImageDataType.get_full_vertex_data">
+<code class="sig-name descname">get_full_vertex_data</code><span class="sig-paren">(</span><em class="sig-param">dtype=&lt;class 'numpy.int64'&gt;</em><span class="sig-paren">)</span><a class="headerlink" href="#sarpy.sicd_elements.ImageData.ImageDataType.get_full_vertex_data" title="Permalink to this definition">¶</a></dt>
+<dd><p>Gets an array of [row, col] indices defining the full vertex data. If this is not viable, then None
+will be returned.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>dtype</strong> (<em>object</em>) – the data type for the array</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p></p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>numpy.ndarray|None</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="geo_data.html" title="The GeoData object and related elements"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="image_creation.html" title="The ImageCreation object and related elements"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">sarpy 0.1.01 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="sicd_elements.html" >The SICD elements</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2019 National Geospatial-Intelligence Agency.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 2.2.2.
+    </div>
+  </body>
+</html>

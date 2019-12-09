@@ -1,0 +1,158 @@
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <title>The Position object and related elements &#8212; sarpy 0.1.01 documentation</title>
+    <link rel="stylesheet" href="../_static/sphinxdoc.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="The RadarCollection object and related elements" href="radar_collection.html" />
+    <link rel="prev" title="The Timeline object and related elements" href="timeline.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="radar_collection.html" title="The RadarCollection object and related elements"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="timeline.html" title="The Timeline object and related elements"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">sarpy 0.1.01 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="sicd_elements.html" accesskey="U">The SICD elements</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="timeline.html"
+                        title="previous chapter">The Timeline object and related elements</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="radar_collection.html"
+                        title="next chapter">The RadarCollection object and related elements</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/sicd/position.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="module-sarpy.sicd_elements.Position">
+<span id="the-position-object-and-related-elements"></span><h1>The Position object and related elements<a class="headerlink" href="#module-sarpy.sicd_elements.Position" title="Permalink to this headline">¶</a></h1>
+<p>The PositionType definition.</p>
+<dl class="class">
+<dt id="sarpy.sicd_elements.Position.PositionType">
+<em class="property">class </em><code class="sig-prename descclassname">sarpy.sicd_elements.Position.</code><code class="sig-name descname">PositionType</code><span class="sig-paren">(</span><em class="sig-param">ARPPoly=None</em>, <em class="sig-param">GRPPoly=None</em>, <em class="sig-param">TxAPCPoly=None</em>, <em class="sig-param">RcvAPC=None</em>, <em class="sig-param">**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#sarpy.sicd_elements.Position.PositionType" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="blocks.html#sarpy.sicd_elements.base.Serializable" title="sarpy.sicd_elements.base.Serializable"><code class="xref py py-class docutils literal notranslate"><span class="pre">sarpy.sicd_elements.base.Serializable</span></code></a></p>
+<p>The details for platform and ground reference positions as a function of time since collection start.</p>
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.Position.PositionType.ARPPoly">
+<code class="sig-name descname">ARPPoly</code><a class="headerlink" href="#sarpy.sicd_elements.Position.PositionType.ARPPoly" title="Permalink to this definition">¶</a></dt>
+<dd><p>Aperture Reference Point (ARP) position polynomial in ECF as a function of elapsed seconds since start of collection.  <strong>Required.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="blocks.html#sarpy.sicd_elements.blocks.XYZPolyType" title="sarpy.sicd_elements.blocks.XYZPolyType">XYZPolyType</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.Position.PositionType.GRPPoly">
+<code class="sig-name descname">GRPPoly</code><a class="headerlink" href="#sarpy.sicd_elements.Position.PositionType.GRPPoly" title="Permalink to this definition">¶</a></dt>
+<dd><p>Ground Reference Point (GRP) position polynomial in ECF as a function of elapsed seconds since start of collection.  <strong>Optional.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="blocks.html#sarpy.sicd_elements.blocks.XYZPolyType" title="sarpy.sicd_elements.blocks.XYZPolyType">XYZPolyType</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.Position.PositionType.TxAPCPoly">
+<code class="sig-name descname">TxAPCPoly</code><a class="headerlink" href="#sarpy.sicd_elements.Position.PositionType.TxAPCPoly" title="Permalink to this definition">¶</a></dt>
+<dd><p>Transmit Aperture Phase Center (APC) position polynomial in ECF as a function of elapsed seconds since start of collection.  <strong>Optional.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p><a class="reference internal" href="blocks.html#sarpy.sicd_elements.blocks.XYZPolyType" title="sarpy.sicd_elements.blocks.XYZPolyType">XYZPolyType</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="sarpy.sicd_elements.Position.PositionType.RcvAPC">
+<code class="sig-name descname">RcvAPC</code><a class="headerlink" href="#sarpy.sicd_elements.Position.PositionType.RcvAPC" title="Permalink to this definition">¶</a></dt>
+<dd><p>Receive Aperture Phase Center polynomials array. Each polynomial has output in ECF, and represents a function of elapsed seconds since start of collection.   <strong>Optional.</strong></p>
+<dl class="field-list simple">
+<dt class="field-odd">Type</dt>
+<dd class="field-odd"><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">numpy.ndarray</span></code> of <code class="xref py py-obj docutils literal notranslate"><span class="pre">XYZPolyAttributeType</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="radar_collection.html" title="The RadarCollection object and related elements"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="timeline.html" title="The Timeline object and related elements"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">sarpy 0.1.01 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="sicd_elements.html" >The SICD elements</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2019 National Geospatial-Intelligence Agency.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 2.2.2.
+    </div>
+  </body>
+</html>
