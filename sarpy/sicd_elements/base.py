@@ -65,8 +65,14 @@ def _create_new_node(doc, tag, parent=None):
     """
 
     if parent is None:
-        parent = doc.getroot()
-    return ElementTree.SubElement(parent, tag)
+        parent = doc.getroot()  # what if there is no root?
+    if parent is None:
+        element = ElementTree.Element(tag)
+        # noinspection PyProtectedMember
+        doc._setroot(element)
+        return element
+    else:
+        return ElementTree.SubElement(parent, tag)
 
 
 def _create_text_node(doc, tag, value, parent=None):

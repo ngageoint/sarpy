@@ -63,6 +63,16 @@ class ParameterType(PlainValueType):
         self.name = name
         super(ParameterType, self).__init__(value=value, **kwargs)
 
+    @classmethod
+    def from_node(cls, node, kwargs=None):
+        return cls(name=node.attrib['name'], value=_get_node_value(node))
+
+    def to_node(self, doc, tag, parent=None, strict=DEFAULT_STRICT, exclude=()):
+        # we have to short-circuit the super call here, because this is a really primitive element
+        node = _create_text_node(doc, tag, self.value, parent=parent)
+        node.attrib['name'] = self.name
+        return node
+
 
 ##########
 # Geographical coordinates
