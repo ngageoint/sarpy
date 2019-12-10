@@ -42,6 +42,27 @@ class EBType(Serializable):
             self.DCYPoly = DCYPoly
         super(EBType, self).__init__(**kwargs)
 
+    def __call__(self, t):
+        """
+        Evaluate the polynomial at points `t`. This passes `t` straight through
+        to :func:`polyval` of :module:`numpy.polynomial.polynomial` for each of
+        DCXPoly,DCYPoly components. If any of DCXPoly,DCYPoly is not populated,
+        then None is returned.
+
+        Parameters
+        ----------
+        t : float|int|numpy.ndarray
+            The point(s) at which to evaluate.
+
+        Returns
+        -------
+        None|numpy.ndarray
+        """
+
+        if self.DCXPoly is None or self.DCYPoly is None:
+            return None
+        return numpy.array([self.DCXPoly(t), self.DCYPoly(t)])
+
 
 class AntParamType(Serializable):
     """The antenna parameters container."""
@@ -59,7 +80,7 @@ class AntParamType(Serializable):
     )  # type: XYZPolyType
     FreqZero = _FloatDescriptor(
         'FreqZero', _required, strict=DEFAULT_STRICT,
-        docstring='RF frequency *(f0)* used to specify the array pattern and eletrical boresite *(EB)* '
+        docstring='RF frequency *(f0)* used to specify the array pattern and electrical boresite *(EB)* '
                   'steering direction cosines.')  # type: float
     EB = _SerializableDescriptor(
         'EB', EBType, _required, strict=DEFAULT_STRICT,
