@@ -21,10 +21,10 @@ class RadarModeType(Serializable):
     _MODE_TYPE_VALUES = ('SPOTLIGHT', 'STRIPMAP', 'DYNAMIC STRIPMAP')
     # descriptors
     ModeId = _StringDescriptor(
-        'ModeId', _required,
+        'ModeId', _required, strict=DEFAULT_STRICT,
         docstring='Radar imaging mode per Program Specific Implementation Document.')  # type: str
     ModeType = _StringEnumDescriptor(
-        'ModeType', _MODE_TYPE_VALUES, _required, strict=DEFAULT_STRICT,
+        'ModeType', _MODE_TYPE_VALUES, _required, strict=True,
         docstring="The Radar imaging mode.")  # type: str
 
     def __init__(self, ModeId=None, ModeType=None, **kwargs):
@@ -44,7 +44,7 @@ class CollectionInfoType(Serializable):
     """General information about the collection."""
     _collections_tags = {
         'Parameters': {'array': False, 'child_tag': 'Parameter'},
-        'CountryCode': {'array': False, 'child_tag': 'CountryCode'},
+        'CountryCodes': {'array': False, 'child_tag': 'CountryCode'},
     }
     _fields = (
         'CollectorName', 'IlluminatorName', 'CoreName', 'CollectType',

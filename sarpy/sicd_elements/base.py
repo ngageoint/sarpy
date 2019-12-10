@@ -187,14 +187,16 @@ class _BasicDescriptor(object):
         # NOTE: This is intended to handle this case for every extension of this class. Hence the boolean return,
         # which extensions SHOULD NOT implement. This is merely to follow DRY principles.
         if value is None:
-            if self.strict:
+            if self.default_value is not None:
+                self.data[instance] = self.default_value
+            elif self.strict:
                 raise ValueError(
                     'Attribute {} of class {} cannot be assigned None.'.format(self.name, instance.__class__.__name__))
             elif self.required:
                 logging.debug(  # NB: this is at debuglevel to not be too verbose
                     'Required attribute {} of class {} has been set to None.'.format(
                         self.name, instance.__class__.__name__))
-            self.data[instance] = None
+                self.data[instance] = None
             return True
         # note that the remainder must be implemented in each extension
         return False  # this is probably a bad habit, but this returns something for convenience alone
