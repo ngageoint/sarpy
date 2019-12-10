@@ -125,10 +125,10 @@ class PosVelErrType(Serializable):
     _FRAME_VALUES = ('ECF', 'RIC_ECF', 'RIC_ECI')
     # descriptors
     Frame = _StringEnumDescriptor(
-        'Frame', _FRAME_VALUES, _required, strict=DEFAULT_STRICT,
+        'Frame', _FRAME_VALUES, _required, strict=True,
         docstring='Coordinate frame used for expressing P,V errors statistics. Note: '
                   '*RIC = Radial, In-Track, Cross-Track*, where radial is defined to be from earth center through '
-                  'the platform position. ')  # type: str
+                  'the platform position.')  # type: str
     P1 = _FloatDescriptor(
         'P1', _required, strict=DEFAULT_STRICT, docstring='Position coordinate 1 standard deviation.')  # type: float
     P2 = _FloatDescriptor(

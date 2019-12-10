@@ -7,8 +7,6 @@ if sys.version_info[0] < 3:
 else:
     import unittest
 
-import numpy
-
 from sarpy.sicd_elements import CollectionInfo
 
 mode_dict = {'ModeId': 'TEST_ID', 'ModeType': 'SPOTLIGHT'}

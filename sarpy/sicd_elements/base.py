@@ -666,7 +666,7 @@ class _FloatArrayDescriptor(_BasicDescriptor):
                 raise ValueError('Only one-dimensional ndarrays of dtype float64 are supported here.')
             set_value(value)
         elif isinstance(value, ElementTree.Element):
-            size = int(value.getAttribute('size'))
+            size = int(value.attrib['size'])
             child_nodes = value.findall(self.child_tag)
             if len(child_nodes) != size:
                 raise ValueError(
@@ -836,7 +836,7 @@ class _SerializableArrayDescriptor(_BasicDescriptor):
             self.__actual_set(instance, value)
         elif isinstance(value, ElementTree.Element):
             # this is the parent node from XML deserialization
-            size = int(value.getAttribute('size'))
+            size = int(value.attrib['size'])
             # extract child nodes at top level
             child_nodes = value.findall(self.child_tag)
             if len(child_nodes) != size:
