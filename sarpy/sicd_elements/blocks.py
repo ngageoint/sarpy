@@ -5,6 +5,12 @@ Basic building blocks for SICD standard.
 from collections import OrderedDict
 
 import numpy
+import scipy
+if scipy.__version__ >= '1.0':
+    from scipy.special import comb
+else:
+    from scipy.misc import comb
+
 
 from .base import _get_node_value, _create_text_node, _create_new_node, Serializable, DEFAULT_STRICT, \
     _StringDescriptor, _StringEnumDescriptor, _IntegerDescriptor, _FloatDescriptor, _FloatModularDescriptor, \
@@ -481,6 +487,48 @@ class Poly1DType(Serializable):
         self.Coefs = Coefs
         super(Poly1DType, self).__init__(**kwargs)
 
+    @property
+    def order1(self):
+        """
+        int: The order1 attribute [READ ONLY]  - that is, largest exponent presented in the monomial terms of coefs.
+        """
+
+        if self.Coefs is None:
+            return None
+        else:
+            return self.Coefs.size - 1
+
+    @property
+    def Coefs(self):
+        """
+        numpy.ndarray: The one-dimensional polynomial coefficient array of dtype=float64. Assignment object must be a
+        one-dimensional numpy.ndarray, or naively convertible to one.
+        """
+
+        return self._Coefs
+
+    @Coefs.setter
+    def Coefs(self, value):
+        if value is None:
+            self._Coefs = None
+            return
+
+        if isinstance(value, (list, tuple)):
+            value = numpy.array(value, dtype=numpy.float64)
+
+        if not isinstance(value, numpy.ndarray):
+            raise ValueError(
+                'Coefs for class Poly1D must be a list or numpy.ndarray. Received type {}.'.format(type(value)))
+        elif len(value.shape) != 1:
+            raise ValueError(
+                'Coefs for class Poly1D must be one-dimensional. Received numpy.ndarray '
+                'of shape {}.'.format(value.shape))
+        elif not value.dtype == numpy.float64:
+            raise ValueError(
+                'Coefs for class Poly1D must have dtype=float64. Received numpy.ndarray '
+                'of dtype {}.'.format(value.dtype))
+        self._Coefs = value
+
     def __call__(self, x):
         """
         Evaluate the polynomial at points `x`. This passes `x` straight through to :func:`polyval` of
@@ -543,47 +591,56 @@ class Poly1DType(Serializable):
         coefs = self.derivative(der_order=der_order, return_poly=False)
         return numpy.polynomial.polynomial.polyval(x, coefs)
 
-    @property
-    def order1(self):
-        """
-        int: The order1 attribute [READ ONLY]  - that is, largest exponent presented in the monomial terms of coefs.
+    def shift(self, t_0, alpha=1, return_poly=False):
+        r"""
+        Transform a polynomial with respect to a affine shift in the coordinate system.
+        That is, :math:`P(x) = Q(\alpha\cdot(t-t_0))`.
+
+        Be careful to follow the convention that the transformation parameters express the *current coordinate system*
+        as a shifted, **and then** scaled version of the *new coordinate system*. If the new coordinate is
+        :math:`t = \beta\cdot x - t_0`, then :math:`x = (t - t_0)/\beta`, and :math:`\alpha = 1/\beta`.
+
+        Parameters
+        ----------
+        t_0 : float
+            the **current center coordinate** in the **new coordinate system.**
+            That is, `x=0` when `t=t_0`.
+
+        alpha : float
+            the scale. That is, when `t = t0 + 1`, then `x = alpha`. **NOTE:** it is assumed that the
+            coordinate system is re-centered, and **then** scaled.
+
+        return_poly : bool
+            if `True`, a Poly1DType object be returned, otherwise the coefficients array is returned.
+
+        Returns
+        -------
+        Poly1DType|numpy.ndarray
         """
 
         if self.Coefs is None:
             return None
+
+        coefs = self.Coefs
+
+        if t_0 == 0:
+            out = numpy.copy(coefs)
         else:
-            return self.Coefs.size - 1
+            out = numpy.zeros(coefs.shape, dtype=numpy.float64)
+            siz = out.size
+            for i in range(siz):
+                N = numpy.arange(i, siz)
+                K = N-i
+                out[i] = numpy.sum(comb(N, K)*coefs[i:]*numpy.power(-t_0, K))
+                # This is just the binomial expansion and gathering terms
 
-    @property
-    def Coefs(self):
-        """
-        numpy.ndarray: The one-dimensional polynomial coefficient array of dtype=float64. Assignment object must be a
-        one-dimensional numpy.ndarray, or naively convertible to one.
-        """
+        if alpha != 1:
+            out *= numpy.power(alpha, numpy.arange(out.size))
 
-        return self._Coefs
-
-    @Coefs.setter
-    def Coefs(self, value):
-        if value is None:
-            self._Coefs = None
-            return
-
-        if isinstance(value, (list, tuple)):
-            value = numpy.array(value, dtype=numpy.float64)
-
-        if not isinstance(value, numpy.ndarray):
-            raise ValueError(
-                'Coefs for class Poly1D must be a list or numpy.ndarray. Received type {}.'.format(type(value)))
-        elif len(value.shape) != 1:
-            raise ValueError(
-                'Coefs for class Poly1D must be one-dimensional. Received numpy.ndarray '
-                'of shape {}.'.format(value.shape))
-        elif not value.dtype == numpy.float64:
-            raise ValueError(
-                'Coefs for class Poly1D must have dtype=float64. Received numpy.ndarray '
-                'of dtype {}.'.format(value.dtype))
-        self._Coefs = value
+        if return_poly:
+            return Poly1DType(Coefs=out)
+        else:
+            return out
 
     @classmethod
     def from_node(cls, node, kwargs=None):
@@ -920,14 +977,14 @@ class XYZPolyType(Serializable):
 
     def derivative(self, der_order=1, return_poly=False):
         """
-        Calculate the `der_order` derivative of the polynomial in each component.
+        Calculate the `der_order` derivative of each component polynomial.
 
         Parameters
         ----------
         der_order : int
             the order of the derivative
         return_poly : bool
-            return a XYZPolyType if True, otherwise return a list of the coefficient arrays.
+            if `True`, a XYZPolyType if returned, otherwise a list of the coefficient arrays is returned.
 
         Returns
         -------
@@ -950,8 +1007,8 @@ class XYZPolyType(Serializable):
 
     def derivative_eval(self, t, der_order=1):
         """
-        Evaluate the `der_order` derivative of the polynomial at points `x`. This uses the
-        functionality presented in :module:`numpy.polynomial.polynomial`.
+        Evaluate the `der_order` derivative of the polynomial collection at points `x`.
+        This uses the functionality presented in :module:`numpy.polynomial.polynomial`.
 
         Parameters
         ----------
@@ -969,6 +1026,46 @@ class XYZPolyType(Serializable):
             return None
 
         return numpy.array([numpy.polynomial.polynomial.polyval(t, entry) for entry in coefs], dtype=numpy.float64)
+
+    def shift(self, t_0, alpha=1, return_poly=False):
+        r"""
+        Transform a polynomial with respect to a affine shift in the coordinate system.
+        That is, :math:`P(u) = Q(\alpha\cdot(t-t_0))`.
+
+        Be careful to follow the convention that the transformation parameters express the *current coordinate system*
+        as a shifted, **and then** scaled version of the *new coordinate system*. If the new coordinate is
+        :math:`t = \beta\cdot u - t_0`, then :math:`u = (t - t_0)/\beta`, and :math:`\alpha = 1/\beta`.
+
+        Parameters
+        ----------
+        t_0 : float
+            the **current center coordinate** in the **new coordinate system.**
+            That is, `u=0` when `t=t_0`.
+
+        alpha : float
+            the scale. That is, when `t = t0 + 1`, then :math:`u = \alpha`.
+
+        return_poly : bool
+            if `True`, an XYZPolyType instance is returned, otherwise a list of the coefficient arrays is returned.
+
+        Returns
+        -------
+        XYZPolyType|list
+        """
+
+        coefs = [None, None, None]
+        if self.X is not None:
+            coefs[0] = self.X.shift(t_0, alpha=alpha, return_poly=False)
+        if self.Y is not None:
+            coefs[1] = self.Y.shift(t_0, alpha=alpha, return_poly=False)
+        if self.Z is not None:
+            coefs[2] = self.Z.shift(t_0, alpha=alpha, return_poly=False)
+
+        if any(entry is None for entry in coefs):
+            return None
+        if return_poly:
+            return XYZPolyType(X=coefs[0], Y=coefs[1], Z=coefs[2])
+        return coefs
 
 
 class XYZPolyAttributeType(XYZPolyType):

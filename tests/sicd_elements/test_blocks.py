@@ -342,6 +342,27 @@ class TestPoly1D(unittest.TestCase):
         poly2 = poly.derivative(der_order=2, return_poly=True)
         self.assertTrue(numpy.all(poly2.Coefs == numpy.array([4, ])))
 
+    def test_shift(self):
+        array1 = numpy.array([1, 2, 1], dtype=numpy.float64)
+        array2 = numpy.array([0, 0, 1], dtype=numpy.float64)
+        array3 = numpy.array([1, 4, 4], dtype=numpy.float64)
+        array4 = array2*array3
+        with self.subTest(msg='Testing polynomial shift'):
+            poly = blocks.Poly1DType(Coefs=array1)
+            shift = poly.shift(1, alpha=1, return_poly=False)
+            self.assertTrue(
+                numpy.all(shift == array2), msg='calculated {}\nexpected {}'.format(shift, array2))
+        with self.subTest(msg="Testing polynomial scale"):
+            poly = blocks.Poly1DType(Coefs=array1)
+            scale = poly.shift(0, alpha=2, return_poly=False)
+            self.assertTrue(
+                numpy.all(scale == array3), msg='calculated {}\nexpected {}'.format(scale, array3))
+        with self.subTest(msg="Shift and scale"):
+            poly = blocks.Poly1DType(Coefs=array1)
+            shift_scale = poly.shift(1, alpha=2, return_poly=False)
+            self.assertTrue(
+                numpy.all(shift_scale == array4), msg='calculated {}\nexpected {}'.format(shift_scale, array4))
+
 
 class TestPoly2D(unittest.TestCase):
     def test_construction(self):
