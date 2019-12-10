@@ -27,7 +27,7 @@ __all__ = ['__version__', '__release__',
            '__license__', '__copyright__']
 
 __version__ = "0.1"
-__release__ = "0.1.01"
+__release__ = "0.1.03"
 
 __classification__ = "UNCLASSIFIED"  # This should be set appropriately in any high-side version
 __author__ = "National Geospatial-Intelligence Agency"

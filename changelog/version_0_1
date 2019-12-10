@@ -2,4 +2,6 @@
 # In this case the beginning of versioning
 
 
+* .03 - Created unit-test suite for new SICD framework
+* .02 - Created object-oriented SICD framework for safer and more robust functionality
 * .01 - Update docstrings to consistent numpy format in preparation for building documentation.
