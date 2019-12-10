@@ -193,4 +193,3 @@ class TestGeoData(unittest.TestCase):
 
         with self.subTest(msg="validity check"):
             self.assertTrue(item1.is_valid())
-

@@ -255,6 +255,7 @@ class DirParamType(Serializable):
             self.UVectECF = XYZType(coords=UVectECF)
         else:
             self.UVectECF = UVectECF
+        # TODO: should we verify that UVectECF is actually normalized?
         self.SS = SS
         self.ImpRespWid, self.ImpRespBW = ImpRespWid, ImpRespBW
         self.Sgn = Sgn

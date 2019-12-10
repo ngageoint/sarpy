@@ -674,7 +674,7 @@ class _FloatArrayDescriptor(_BasicDescriptor):
                     'with size attribute {}, but has {} child nodes with tag {}.'.format(
                         self.name, instance.__class__.__name__, size, len(child_nodes), self.child_tag))
             new_value = numpy.empty((size,), dtype=numpy.float64)
-            for i, node in enumerate(new_value):
+            for i, node in enumerate(child_nodes):
                 new_value[i] = float(_get_node_value(node))
             set_value(new_value)
         elif isinstance(value, list):
