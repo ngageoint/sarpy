@@ -581,14 +581,14 @@ class _ComplexDescriptor(_BasicDescriptor):
 
         if isinstance(value, ElementTree.Element):
             # from XML deserialization
-            rnode = value.getElementsByTagName('Real')
-            inode = value.getElementsByTagName('Imag')
+            rnode = value.findall('Real')
+            inode = value.findall('Imag')
             if len(rnode) != 1:
                 raise ValueError('There must be exactly one Real component of a complex type node defined.')
             if len(inode) != 1:
                 raise ValueError('There must be exactly one Imag component of a complex type node defined.')
-            real = float(_get_node_value(rnode))
-            imag = float(_get_node_value(inode))
+            real = float(_get_node_value(rnode[0]))
+            imag = float(_get_node_value(inode[0]))
             self.data[instance] = complex(real, imag)
         elif isinstance(value, dict):
             # from json deserialization
