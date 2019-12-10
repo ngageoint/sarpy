@@ -130,6 +130,9 @@ class ImageDataType(Serializable):
         if (self.PixelType == 'AMP8I_PHS8I') and (self.AmpTable is None):
             logging.error("We have `PixelType='AMP8I_PHS8I'` and `AmpTable` is not defined for ImageDataType.")
             condition = False
+        if (self.PixelType != 'AMP8I_PHS8I') and (self.AmpTable is not None):
+            logging.error("We have `PixelType != 'AMP8I_PHS8I'` and `AmpTable` is defined for ImageDataType.")
+            condition = False
         if (self.ValidData is not None) and (len(self.ValidData) < 3):
             logging.error("We have `ValidData` defined, with fewer than 3 entries.")
             condition = False
