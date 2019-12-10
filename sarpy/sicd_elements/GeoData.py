@@ -129,7 +129,7 @@ class SCPType(Serializable):
 
     def derive(self):
         """
-        Populates any potential derived data in SCP.
+        If only one of `ECF` or `LLH` is populated, this populates the one missing from the one present.
 
         Returns
         -------
@@ -198,7 +198,8 @@ class GeoDataType(Serializable):
 
     def derive(self):
         """
-        Populates any potential derived data in GeoData.
+        Populates any potential derived data in GeoData. In this case, just calls :func:`SCP.derive()`, and is expected
+        to be called by the `SICD` parent as part of a more extensive derived data effort.
 
         Returns
         -------

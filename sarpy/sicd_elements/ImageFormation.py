@@ -276,11 +276,11 @@ class ImageFormationType(Serializable):
         docstring="""
         Indicates if slow time beam shape compensation has been applied.
 
-        * `"NO"` - No ST beam shape compensation.
+        * `NO` - No ST beam shape compensation.
 
-        * `"GLOBAL"` - Global ST beam shape compensation applied.
+        * `GLOBAL` - Global ST beam shape compensation applied.
 
-        * `"SV"` - Spatially variant beam shape compensation applied.
+        * `SV` - Spatially variant beam shape compensation applied.
 
         """)  # type: str
     ImageBeamComp = _StringEnumDescriptor(
@@ -288,9 +288,9 @@ class ImageFormationType(Serializable):
         docstring="""
         Indicates if image domain beam shape compensation has been applied.
 
-        * `"NO"` - No image domain beam shape compensation.
+        * `NO` - No image domain beam shape compensation.
 
-        * `"SV"` - Spatially variant image domain beam shape compensation applied.
+        * `SV` - Spatially variant image domain beam shape compensation applied.
 
         """)  # type: str
     AzAutofocus = _StringEnumDescriptor(

@@ -22,11 +22,12 @@ class RgAzCompType(Serializable):
     AzSF = _FloatDescriptor(
         'AzSF', _required, strict=DEFAULT_STRICT,
         docstring='Scale factor that scales image coordinate az = ycol (meters) to a delta cosine of the '
-                  'Doppler Cone Angle at COA, (in 1/meter)')  # type: float
+                  'Doppler Cone Angle at COA, *(in 1/m)*')  # type: float
     KazPoly = _SerializableDescriptor(
         'KazPoly', Poly1DType, _required, strict=DEFAULT_STRICT,
-        docstring='Polynomial function that yields azimuth spatial frequency (Kaz = Kcol) as a function of '
-                  'slow time (variable 1). Slow Time (sec) -> Azimuth spatial frequency (cycles/meter). '
+        docstring='Polynomial function that yields azimuth spatial frequency *(Kaz = Kcol)* as a function of '
+                  'slow time *(variable 1)*. That is '
+                  ':math:`Slow Time (sec) -> Azimuth spatial frequency (cycles/meter)`. '
                   'Time relative to collection start.')  # type: Poly1DType
 
     def __init__(self, AzSF=None, KazPoly=None, **kwargs):

@@ -79,7 +79,7 @@ class SICDType(Serializable):
         docstring='The image formation process.')  # type: ImageFormationType
     SCPCOA = _SerializableDescriptor(
         'SCPCOA', SCPCOAType, _required, strict=DEFAULT_STRICT,
-        docstring='Center of Aperture (COA) for the Scene Center Point (SCP).')  # type: SCPCOAType
+        docstring='*Center of Aperture (COA)* for the *Scene Center Point (SCP)*.')  # type: SCPCOAType
     Radiometric = _SerializableDescriptor(
         'Radiometric', RadiometricType, _required, strict=DEFAULT_STRICT,
         docstring='The radiometric calibration parameters.')  # type: RadiometricType
@@ -89,21 +89,21 @@ class SICDType(Serializable):
     )  # type: AntennaType
     ErrorStatistics = _SerializableDescriptor(
         'ErrorStatistics', ErrorStatisticsType, _required, strict=DEFAULT_STRICT,
-        docstring='Parameters used to compute error statistics within the SICD sensor model.'
+        docstring='Parameters used to compute error statistics within the *SICD* sensor model.'
     )  # type: ErrorStatisticsType
     MatchInfo = _SerializableDescriptor(
         'MatchInfo', MatchInfoType, _required, strict=DEFAULT_STRICT,
         docstring='Information about other collections that are matched to the current collection. The current '
-                  'collection is the collection from which this SICD product was generated.')  # type: MatchInfoType
+                  'collection is the collection from which this *SICD* product was generated.')  # type: MatchInfoType
     RgAzComp = _SerializableDescriptor(
         'RgAzComp', RgAzCompType, _required, strict=DEFAULT_STRICT,
-        docstring='Parameters included for a Range, Doppler image.')  # type: RgAzCompType
+        docstring='Parameters included for a *Range, Doppler* image.')  # type: RgAzCompType
     PFA = _SerializableDescriptor(
         'PFA', PFAType, _required, strict=DEFAULT_STRICT,
-        docstring='Parameters included when the image is formed using the Polar Formation Algorithm.')  # type: PFAType
+        docstring='Parameters included when the image is formed using the *Polar Formation Algorithm (PFA)*.')  # type: PFAType
     RMA = _SerializableDescriptor(
         'RMA', RMAType, _required, strict=DEFAULT_STRICT,
-        docstring='Parameters included when the image is formed using the Range Migration Algorithm.')  # type: RMAType
+        docstring='Parameters included when the image is formed using the *Range Migration Algorithm (RMA)*.')  # type: RMAType
 
     def __init__(self, CollectionInfo=None, ImageCreation=None, ImageData=None,
                  GeoData=None, Grid=None, Timeline=None, Position=None, RadarCollection=None,

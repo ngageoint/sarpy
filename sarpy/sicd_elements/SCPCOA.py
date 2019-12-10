@@ -29,50 +29,50 @@ class SCPCOAType(Serializable):
     # descriptors
     SCPTime = _FloatDescriptor(
         'SCPTime', _required, strict=DEFAULT_STRICT,
-        docstring='Center Of Aperture time for the SCP t_COA_SCP, relative to collection '
+        docstring='*Center Of Aperture time for the SCP (t_COA_SCP)*, relative to collection '
                   'start in seconds.')  # type: float
     ARPPos = _SerializableDescriptor(
         'ARPPos', XYZType, _required, strict=DEFAULT_STRICT,
-        docstring='Aperture position at t_COA_SCP in ECF.')  # type: XYZType
+        docstring='Aperture position at *t_COA_SCP* in ECF coordinates.')  # type: XYZType
     ARPVel = _SerializableDescriptor(
         'ARPVel', XYZType, _required, strict=DEFAULT_STRICT,
-        docstring='ARP Velocity at t_COA_SCP in ECF.')  # type: XYZType
+        docstring='ARP Velocity at *t_COA_SCP* in ECF coordinates.')  # type: XYZType
     ARPAcc = _SerializableDescriptor(
         'ARPAcc', XYZType, _required, strict=DEFAULT_STRICT,
-        docstring='ARP Acceleration at t_COA_SCP in ECF.')  # type: XYZType
+        docstring='ARP Acceleration at *t_COA_SCP* in ECF coordinates.')  # type: XYZType
     SideOfTrack = _StringEnumDescriptor(
         'SideOfTrack', _SIDE_OF_TRACK_VALUES, _required, strict=DEFAULT_STRICT,
         docstring='Side of track.')  # type: str
     SlantRange = _FloatDescriptor(
         'SlantRange', _required, strict=DEFAULT_STRICT,
-        docstring='Slant range from the ARP to the SCP in meters.')  # type: float
+        docstring='Slant range from the aperture to the *SCP* in meters.')  # type: float
     GroundRange = _FloatDescriptor(
         'GroundRange', _required, strict=DEFAULT_STRICT,
-        docstring='Ground Range from the ARP nadir to the SCP. Distance measured along spherical earth model '
-                  'passing through the SCP in meters.')  # type: float
+        docstring='Ground Range from the aperture nadir to the *SCP*. Distance measured along spherical earth model '
+                  'passing through the *SCP* in meters.')  # type: float
     DopplerConeAng = _FloatDescriptor(
         'DopplerConeAng', _required, strict=DEFAULT_STRICT,
-        docstring='The Doppler Cone Angle to SCP at t_COA_SCP in degrees.')  # type: float
+        docstring='The Doppler Cone Angle to SCP at *t_COA_SCP* in degrees.')  # type: float
     GrazeAng = _FloatDescriptor(
         'GrazeAng', _required, strict=DEFAULT_STRICT, bounds=(0., 90.),
-        docstring='Grazing Angle between the SCP Line of Sight (LOS) and Earth Tangent Plane (ETP).')  # type: float
+        docstring='Grazing Angle between the SCP *Line of Sight (LOS)* and *Earth Tangent Plane (ETP)*.')  # type: float
     IncidenceAng = _FloatDescriptor(
         'IncidenceAng', _required, strict=DEFAULT_STRICT, bounds=(0., 90.),
-        docstring='Incidence Angle between the SCP LOS and ETP normal.')  # type: float
+        docstring='Incidence Angle between the *LOS* and *ETP* normal.')  # type: float
     TwistAng = _FloatDescriptor(
         'TwistAng', _required, strict=DEFAULT_STRICT, bounds=(-90., 90.),
-        docstring='Angle between cross range in the ETP and cross range in the slant plane.')  # type: float
+        docstring='Angle between cross range in the *ETP* and cross range in the slant plane.')  # type: float
     SlopeAng = _FloatDescriptor(
         'SlopeAng', _required, strict=DEFAULT_STRICT, bounds=(0., 90.),
-        docstring='Slope Angle from the ETP to the slant plane at t_COA_SCP.')  # type: float
+        docstring='Slope Angle from the *ETP* to the slant plane at *t_COA_SCP*.')  # type: float
     AzimAng = _FloatDescriptor(
         'AzimAng', _required, strict=DEFAULT_STRICT, bounds=(0., 360.),
-        docstring='Angle from north to the line from the SCP to the ARP Nadir at COA. Measured '
-                  'clockwise in the ETP.')  # type: float
+        docstring='Angle from north to the line from the *SCP* to the aperture nadir at *COA*. Measured '
+                  'clockwise in the *ETP*.')  # type: float
     LayoverAng = _FloatDescriptor(
         'LayoverAng', _required, strict=DEFAULT_STRICT, bounds=(0., 360.),
-        docstring='Angle from north to the layover direction in the ETP at COA. Measured '
-                  'clockwise in the ETP.')  # type: float
+        docstring='Angle from north to the layover direction in the *ETP* at *COA*. Measured '
+                  'clockwise in the *ETP*.')  # type: float
 
     def __init__(self, SCPTime=None, ARPPos=None, ARPVel=None, ARPAcc=None, SideOfTrack=None,
                  SlantRange=None, GroundRange=None, DopplerConeAng=None, GrazeAng=None, IncidenceAng=None,
@@ -119,15 +119,12 @@ class SCPCOAType(Serializable):
     @property
     def look(self):
         """
-        This seems a common enough construct:
+        int: An integer version of `SideOfTrack`:
             * None if `SideOfTrack` is not defined
             * -1 if SideOfTrack == 'R'
             * 1 if SideOftrack == 'L'
-
-        Returns
-        -------
-        None|int
         """
+
         if self.SideOfTrack is None:
             return None
         else:

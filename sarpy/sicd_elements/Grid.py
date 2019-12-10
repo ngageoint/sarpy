@@ -269,7 +269,7 @@ class DirParamType(Serializable):
 
     def define_weight_function(self, weight_size=DEFAULT_WEIGHT_SIZE):
         """
-        Try to derive WgtFunct from WgtType, if necessary. This should likely be called from GridType.
+        Try to derive WgtFunct from WgtType, if necessary. This should likely be called from the `GridType` parent.
 
         Parameters
         ----------
@@ -377,7 +377,8 @@ class DirParamType(Serializable):
 
     def estimate_deltak(self, valid_vertices):
         """
-        The `DeltaK1` and `DeltaK2` parameters can be estimated from `DeltaKCOAPoly`, if necessary.
+        The `DeltaK1` and `DeltaK2` parameters can be estimated from `DeltaKCOAPoly`, if necessary. This should likely
+        be called by the `GridType` parent.
 
         Parameters
         ----------

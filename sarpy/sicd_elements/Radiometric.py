@@ -22,11 +22,11 @@ class NoiseLevelType_(Serializable):
     NoiseLevelType = _StringEnumDescriptor(
         'NoiseLevelType', _NOISE_LEVEL_TYPE_VALUES, _required, strict=DEFAULT_STRICT,
         docstring='Indicates that the noise power polynomial yields either absolute power level or power '
-                  'level relative to the SCP pixel location.')  # type: str
+                  'level relative to the *SCP* pixel location.')  # type: str
     NoisePoly = _SerializableDescriptor(
         'NoisePoly', Poly2DType, _required, strict=DEFAULT_STRICT,
-        docstring='Polynomial coefficients that yield thermal noise power (in dB) in a pixel as a function of '
-                  'image row coordinate (variable 1) and column coordinate (variable 2).')  # type: Poly2DType
+        docstring='Polynomial coefficients that yield thermal noise power *(in dB)* in a pixel as a function of '
+                  'image row coordinate *(variable 1)* and column coordinate *(variable 2)*.')  # type: Poly2DType
 
     def __init__(self, NoiseLevelType=None, NoisePoly=None, **kwargs):
         """
@@ -70,24 +70,24 @@ class RadiometricType(Serializable):
         docstring='Noise level structure.')  # type: NoiseLevelType_
     RCSSFPoly = _SerializableDescriptor(
         'RCSSFPoly', Poly2DType, _required, strict=DEFAULT_STRICT,
-        docstring='Polynomial that yields a scale factor to convert pixel power to RCS (sqm) '
-                  'as a function of image row coordinate (variable 1) and column coordinate (variable 2). '
+        docstring='Polynomial that yields a scale factor to convert pixel power to RCS *(m^2)* '
+                  'as a function of image row coordinate *(variable 1)* and column coordinate *(variable 2)*. '
                   'Scale factor computed for a target at `HAE = SCP_HAE`.')  # type: Poly2DType
     SigmaZeroSFPoly = _SerializableDescriptor(
         'SigmaZeroSFPoly', Poly2DType, _required, strict=DEFAULT_STRICT,
         docstring='Polynomial that yields a scale factor to convert pixel power to clutter parameter '
-                  'Sigma-Zero as a function of image row coordinate (variable 1) and column coordinate (variable 2). '
-                  'Scale factor computed for a clutter cell at `HAE = SCP_HAE`.')  # type: Poly2DType
+                  'Sigma-Zero as a function of image row coordinate *(variable 1)* and column coordinate '
+                  '*(variable 2)*. Scale factor computed for a clutter cell at `HAE = SCP_HAE`.')  # type: Poly2DType
     BetaZeroSFPoly = _SerializableDescriptor(
         'BetaZeroSFPoly', Poly2DType, _required, strict=DEFAULT_STRICT,
         docstring='Polynomial that yields a scale factor to convert pixel power to radar brightness '
-                  'or Beta-Zero as a function of image row coordinate (variable 1) and column coordinate (variable 2). '
-                  'Scale factor computed for a clutter cell at `HAE = SCP_HAE`.')  # type: Poly2DType
+                  'or Beta-Zero as a function of image row coordinate *(variable 1)* and column coordinate '
+                  '*(variable 2)*. Scale factor computed for a clutter cell at `HAE = SCP_HAE`.')  # type: Poly2DType
     GammaZeroSFPoly = _SerializableDescriptor(
         'GammaZeroSFPoly', Poly2DType, _required, strict=DEFAULT_STRICT,
         docstring='Polynomial that yields a scale factor to convert pixel power to clutter parameter '
-                  'Gamma-Zero as a function of image row coordinate (variable 1) and column coordinate (variable 2). '
-                  'Scale factor computed for a clutter cell at `HAE = SCP_HAE`.')  # type: Poly2DType
+                  'Gamma-Zero as a function of image row coordinate *(variable 1)* and column coordinate '
+                  '*(variable 2)*. Scale factor computed for a clutter cell at `HAE = SCP_HAE`.')  # type: Poly2DType
 
     def __init__(self, NoiseLevel=None, RCSSFPoly=None, SigmaZeroSFPoly=None,
                  BetaZeroSFPoly=None, GammaZeroSFPoly=None, **kwargs):

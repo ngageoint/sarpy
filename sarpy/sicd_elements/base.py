@@ -226,7 +226,7 @@ class _StringDescriptor(_BasicDescriptor):
 
 class _StringListDescriptor(_BasicDescriptor):
     """A descriptor for properties for an array type item for specified extension of string"""
-    _typ_string = ':obj:`list` of :obj:`str`:'
+    _typ_string = 'list[str]'
     _DEFAULT_MIN_LENGTH = 0
     _DEFAULT_MAX_LENGTH = 2 ** 32
 
@@ -307,7 +307,7 @@ class _StringEnumDescriptor(_BasicDescriptor):
     def _docstring_suffix(self):
         suff = ' Takes values in :code:`{}`.'.format(self.values)
         if self.default_value is not None:
-            suff += ' Default values is :code:`{}`.'.format(self.default_value)
+            suff += ' Default value is :code:`{}`.'.format(self.default_value)
         return suff
 
     def __set__(self, instance, value):
@@ -456,7 +456,7 @@ class _IntegerEnumDescriptor(_BasicDescriptor):
 
 class _IntegerListDescriptor(_BasicDescriptor):
     """A descriptor for integer list type properties"""
-    _typ_string = ':obj:`list` of :obj:`int`:'
+    _typ_string = 'list[int]:'
     _DEFAULT_MIN_LENGTH = 0
     _DEFAULT_MAX_LENGTH = 2 ** 32
 
@@ -608,7 +608,7 @@ class _FloatArrayDescriptor(_BasicDescriptor):
     """A descriptor for float array type properties"""
     _DEFAULT_MIN_LENGTH = 0
     _DEFAULT_MAX_LENGTH = 2 ** 32
-    _typ_string = ':obj:`numpy.ndarray` of :obj:`dtype=float64`:'
+    _typ_string = 'numpy.ndarray[float64]:'
 
     def __init__(self, name, tag_dict, required, strict=DEFAULT_STRICT, minimum_length=None, maximum_length=None,
                  docstring=None):
@@ -769,9 +769,9 @@ class _SerializableArrayDescriptor(_BasicDescriptor):
         self.array = tags.get('array', False)
         self.child_tag = tags['child_tag']
         if self.array:
-            self._typ_string = ':obj:`numpy.ndarray` of :obj:`' + str(child_type).strip().split('.')[-1][:-2] + '`:'
+            self._typ_string = 'numpy.ndarray[{}]:'.format(str(child_type).strip().split('.')[-1][:-2])
         else:
-            self._typ_string = ':obj:`list` of :obj:`' + str(child_type).strip().split('.')[-1][:-2] + '`:'
+            self._typ_string = 'list[{}]:'.format(str(child_type).strip().split('.')[-1][:-2])
 
         self.minimum_length = self._DEFAULT_MIN_LENGTH if minimum_length is None else int(minimum_length)
         self.maximum_length = self._DEFAULT_MAX_LENGTH if maximum_length is None else int(maximum_length)

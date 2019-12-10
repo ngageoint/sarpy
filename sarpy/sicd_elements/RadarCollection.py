@@ -130,7 +130,7 @@ class WaveformParametersType(Serializable):
 
     def derive(self):
         """
-        Populate any derived data in WaveformParametersType.
+        Populate derived data in WaveformParametersType.
 
         Returns
         -------
@@ -438,7 +438,7 @@ class ReferencePlaneType(Serializable):
 
     def get_ecf_corner_array(self):
         """
-        Use the XDir and YDir definitions to return the corner points in ECF coordinates as a 4x3 array.
+        Use the XDir and YDir definitions to return the corner points in ECF coordinates as a `4x3` array.
 
         Returns
         -------
@@ -497,12 +497,12 @@ class AreaType(Serializable):
             return  # nothing to derive from
         corners = self.Plane.get_ecf_corner_array()
         self.Corner = [
-            LatLonHAECornerRestrictionType(**{'Lat': entry[0], 'Lon': entry[1], 'HAE': entry[2], 'index': i})
+            LatLonHAECornerRestrictionType(**{'Lat': entry[0], 'Lon': entry[1], 'HAE': entry[2], 'index': i+1})
             for i, entry in enumerate(geocoords.ecf_to_geodetic(corners))]
 
     def derive(self):
         """
-        Populate any internally derived data for AreaType.
+        Derive the corner points from the plane, if necessary.
 
         Returns
         -------
@@ -586,7 +586,7 @@ class RadarCollectionType(Serializable):
 
     def derive(self):
         """
-        Populates derived data in RadarCollection. Expected to be called by SICD parent.
+        Populates derived data in RadarCollection. Expected to be called by `SICD` parent.
 
         Returns
         -------
@@ -663,7 +663,7 @@ class RadarCollectionType(Serializable):
     def _apply_reference_frequency(self, reference_frequency):
         """
         If the reference frequency is used, adjust the necessary fields accordingly.
-        Expected to be called by SICD parent.
+        Expected to be called by `SICD` parent.
 
         Parameters
         ----------
