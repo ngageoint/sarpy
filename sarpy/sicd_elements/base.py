@@ -970,6 +970,11 @@ class Serializable(object):
         **kwargs :
             the keyword arguments dictionary - the possible entries match the attributes.
         """
+        unexpected_args = [key for key in kwargs if key not in self._fields]
+        if len(unexpected_args) > 0:
+            raise ValueError(
+                'Received unexpected construction argument {} for attribute '
+                'collection {}'.format(unexpected_args, self._fields))
 
         for attribute in self._fields:
             if attribute in kwargs:
