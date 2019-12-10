@@ -125,6 +125,11 @@ class SCPType(Serializable):
         else:
             self.LLH = LLH
 
+        # TODO: this constructor should probably be changed to use the first of ECF
+        #   and LLH which is not None, and derive the other. You can absolutely
+        #   construct this with non-matching points, and that's silly. At least we
+        #   should put this in the validity check.
+
         super(SCPType, self).__init__(**kwargs)
 
     def derive(self):

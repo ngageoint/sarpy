@@ -42,6 +42,9 @@ class TestRadarMode(unittest.TestCase):
             item2 = the_type.from_node(node)
             self.assertEqual(item1.to_dict(), item2.to_dict())
 
+        with self.subTest(msg="validity check"):
+            self.assertTrue(item1.is_valid())
+
     def test_alternate(self):
         # just verify that it doesn't raise an exception
         test = CollectionInfo.RadarModeType(ModeType='spotlight')
@@ -67,6 +70,9 @@ class TestCollectionInfo(unittest.TestCase):
             node = ElementTree.fromstring(xml)
             item2 = the_type.from_node(node)
             self.assertEqual(item1.to_dict(), item2.to_dict())
+
+        with self.subTest(msg="validity check"):
+            self.assertTrue(item1.is_valid())
 
     def test_default(self):
         junk = CollectionInfo.CollectionInfoType()

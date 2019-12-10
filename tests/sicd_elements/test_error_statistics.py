@@ -80,6 +80,9 @@ class TestCompositeSCPError(unittest.TestCase):
             item2 = the_type.from_node(node)
             self.assertEqual(item1.to_dict(), item2.to_dict())
 
+        with self.subTest(msg="validity check"):
+            self.assertTrue(item1.is_valid())
+
 
 class TestCorrCoefs(unittest.TestCase):
     def test_construction(self):
@@ -99,6 +102,9 @@ class TestCorrCoefs(unittest.TestCase):
             node = ElementTree.fromstring(xml)
             item2 = the_type.from_node(node)
             self.assertEqual(item1.to_dict(), item2.to_dict())
+
+        with self.subTest(msg="validity check"):
+            self.assertTrue(item1.is_valid())
 
 
 class TestPosVelError(unittest.TestCase):
@@ -120,6 +126,9 @@ class TestPosVelError(unittest.TestCase):
             item2 = the_type.from_node(node)
             self.assertEqual(item1.to_dict(), item2.to_dict())
 
+        with self.subTest(msg="validity check"):
+            self.assertTrue(item1.is_valid())
+
 
 class TestRadarSensorError(unittest.TestCase):
     def test_construction(self):
@@ -139,6 +148,9 @@ class TestRadarSensorError(unittest.TestCase):
             node = ElementTree.fromstring(xml)
             item2 = the_type.from_node(node)
             self.assertEqual(item1.to_dict(), item2.to_dict())
+
+        with self.subTest(msg="validity check"):
+            self.assertTrue(item1.is_valid())
 
 
 class TestTropoError(unittest.TestCase):
@@ -160,6 +172,9 @@ class TestTropoError(unittest.TestCase):
             item2 = the_type.from_node(node)
             self.assertEqual(item1.to_dict(), item2.to_dict())
 
+        with self.subTest(msg="validity check"):
+            self.assertTrue(item1.is_valid())
+
 
 class TestIonoError(unittest.TestCase):
     def test_construction(self):
@@ -179,6 +194,9 @@ class TestIonoError(unittest.TestCase):
             node = ElementTree.fromstring(xml)
             item2 = the_type.from_node(node)
             self.assertEqual(item1.to_dict(), item2.to_dict())
+
+        with self.subTest(msg="validity check"):
+            self.assertTrue(item1.is_valid())
 
 
 class TestErrorComponents(unittest.TestCase):
@@ -200,6 +218,9 @@ class TestErrorComponents(unittest.TestCase):
             item2 = the_type.from_node(node)
             self.assertEqual(item1.to_dict(), item2.to_dict())
 
+        with self.subTest(msg="validity check"):
+            self.assertTrue(item1.is_valid())
+
 
 class TestErrorStatistics(unittest.TestCase):
     def test_construction(self):
@@ -219,3 +240,6 @@ class TestErrorStatistics(unittest.TestCase):
             node = ElementTree.fromstring(xml)
             item2 = the_type.from_node(node)
             self.assertEqual(item1.to_dict(), item2.to_dict())
+
+        with self.subTest(msg="validity check"):
+            self.assertTrue(item1.is_valid())

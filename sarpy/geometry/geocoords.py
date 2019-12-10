@@ -231,7 +231,7 @@ def _normalize_3dinputs(x, y, z):
     x = np.atleast_2d(x)  # Assure a numpy array for componentwise or array versions
     if len(x.shape) > 2:
         raise ValueError("Input argument x is greater than two dimensional - shape = {}".format(x.shape))
-    if (x.shape[1] > 1) and (y is None or z is None):
+    if (x.shape[1] > 1) and (y is not None or z is not None):
         raise ValueError("If x is two-dimensional, then arguments y,z should be None")
     if (x.shape[1] > 1) and (x.shape[1] != 3):
         raise ValueError("If x is two-dimensional, then it should be N x 3 - shape = {}".format(x.shape))

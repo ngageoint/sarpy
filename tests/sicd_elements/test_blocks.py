@@ -32,6 +32,8 @@ class TestParameter(unittest.TestCase):
             etree = ElementTree.ElementTree()
             new_xml = ElementTree.tostring(item1.to_node(etree, 'Parameter')).decode('utf-8')
             self.assertEqual(self.xml, new_xml)
+        with self.subTest(msg="validity check"):
+            self.assertTrue(item1.is_valid())
 
 
 class TestXYZType(unittest.TestCase):
@@ -58,6 +60,9 @@ class TestXYZType(unittest.TestCase):
             tolerance = 1e-8
             equals = numpy.all(numpy.absolute(item1.get_array() - item3.get_array()) <= tolerance)
             self.assertTrue(equals, msg='xml - {}'.format(xml))
+
+        with self.subTest(msg="validity check"):
+            self.assertTrue(item1.is_valid())
 
     def test_methods(self):
         array = numpy.array([0.0, 1.0, 2.0])
@@ -92,6 +97,9 @@ class TestLatLon(unittest.TestCase):
             equals = numpy.all(numpy.absolute(item1.get_array() - item3.get_array()) <= tolerance)
             self.assertTrue(equals, msg='xml - {}'.format(xml))
 
+        with self.subTest(msg="validity check"):
+            self.assertTrue(item1.is_valid())
+
 
 class TestLatLonRestriction(unittest.TestCase):
     def test_construction(self):
@@ -118,6 +126,9 @@ class TestLatLonRestriction(unittest.TestCase):
             tolerance = 1e-8
             equals = numpy.all(numpy.absolute(item1.get_array() - item3.get_array()) <= tolerance)
             self.assertTrue(equals, msg='xml - {}'.format(xml))
+
+        with self.subTest(msg="validity check"):
+            self.assertTrue(item1.is_valid())
 
 
 class TestLatLonArrayElement(unittest.TestCase):
@@ -146,6 +157,9 @@ class TestLatLonArrayElement(unittest.TestCase):
                 and (item1.index == item3.index)
             self.assertTrue(equals, msg='xml - {}'.format(xml))
 
+        with self.subTest(msg="validity check"):
+            self.assertTrue(item1.is_valid())
+
 
 class TestLatLonHAE(unittest.TestCase):
     def test_construction(self):
@@ -171,6 +185,9 @@ class TestLatLonHAE(unittest.TestCase):
             tolerance = 1e-8
             equals = numpy.all(numpy.absolute(item1.get_array() - item3.get_array()) <= tolerance)
             self.assertTrue(equals, msg='xml - {}'.format(xml))
+
+        with self.subTest(msg="validity check"):
+            self.assertTrue(item1.is_valid())
 
 
 class TestLatLonHAERestriction(unittest.TestCase):
@@ -199,6 +216,9 @@ class TestLatLonHAERestriction(unittest.TestCase):
             equals = numpy.all(numpy.absolute(item1.get_array() - item3.get_array()) <= tolerance)
             self.assertTrue(equals, msg='xml - {}'.format(xml))
 
+        with self.subTest(msg="validity check"):
+            self.assertTrue(item1.is_valid())
+
 
 class TestLatLonCorner(unittest.TestCase):
     def test_construction(self):
@@ -225,6 +245,9 @@ class TestLatLonCorner(unittest.TestCase):
             equals = numpy.all(numpy.absolute(item1.get_array() - item3.get_array()) <= tolerance) \
                 and (item1.index == item3.index)
             self.assertTrue(equals, msg='xml - {}'.format(xml))
+
+        with self.subTest(msg="validity check"):
+            self.assertTrue(item1.is_valid())
 
     def test_index_validation(self):
         self.assertRaises(ValueError, blocks.LatLonCornerType, Lat=1, Lon=2, index=5)
@@ -257,6 +280,9 @@ class TestLatLonCornerString(unittest.TestCase):
                 and (item1.index == item3.index)
             self.assertTrue(equals, msg='xml - {}'.format(xml))
 
+        with self.subTest(msg="validity check"):
+            self.assertTrue(item1.is_valid())
+
     def test_index_validation(self):
         self.assertRaises(ValueError, blocks.LatLonCornerStringType, Lat=1, Lon=2, index='junk')
 
@@ -283,6 +309,9 @@ class TestRowCol(unittest.TestCase):
             item3 = blocks.RowColType.from_node(node)
             self.assertEqual(item1.to_dict(), item3.to_dict())
 
+        with self.subTest(msg="validity check"):
+            self.assertTrue(item1.is_valid())
+
 
 class TestRowColArrayElement(unittest.TestCase):
     def test_construction(self):
@@ -306,6 +335,9 @@ class TestRowColArrayElement(unittest.TestCase):
             item3 = blocks.RowColArrayElement.from_node(node)
             self.assertEqual(item1.to_dict(), item3.to_dict())
 
+        with self.subTest(msg="validity check"):
+            self.assertTrue(item1.is_valid())
+
 
 class TestPoly1D(unittest.TestCase):
     def test_construction(self):
@@ -328,6 +360,9 @@ class TestPoly1D(unittest.TestCase):
             node = ElementTree.fromstring(xml)
             item3 = blocks.Poly1DType.from_node(node)
             self.assertEqual(item1.to_dict(), item3.to_dict())
+
+        with self.subTest(msg="validity check"):
+            self.assertTrue(item1.is_valid())
 
     def test_eval(self):
         item = blocks.Poly1DType(Coefs=[0, 1, 2])
@@ -386,6 +421,9 @@ class TestPoly2D(unittest.TestCase):
             item3 = blocks.Poly2DType.from_node(node)
             self.assertEqual(item1.to_dict(), item3.to_dict())
 
+        with self.subTest(msg="validity check"):
+            self.assertTrue(item1.is_valid())
+
     def test_eval(self):
         item = blocks.Poly2DType(Coefs=[[0, 0, 0], [0, 1, 2]])
         self.assertEqual(item(1, 1), 3)
@@ -412,6 +450,9 @@ class TestXYZPoly(unittest.TestCase):
             node = ElementTree.fromstring(xml)
             item3 = blocks.XYZPolyType.from_node(node)
             self.assertEqual(item1.to_dict(), item3.to_dict())
+
+        with self.subTest(msg="validity check"):
+            self.assertTrue(item1.is_valid())
 
     def test_eval(self):
         item = blocks.XYZPolyType(X=[0, 1, 2], Y=[0, 2, 4], Z=[0, 3, 6])
@@ -454,6 +495,9 @@ class TestGainPhasePoly(unittest.TestCase):
             item3 = blocks.GainPhasePolyType.from_node(node)
             self.assertEqual(item1.to_dict(), item3.to_dict())
 
+        with self.subTest(msg="validity check"):
+            self.assertTrue(item1.is_valid())
+
     def test_eval(self):
         item = blocks.GainPhasePolyType(GainPoly=[[1, ], ], PhasePoly=[[2, ], ])
         self.assertTrue(numpy.all(item(1, 1) == numpy.array([1, 2])))
@@ -486,3 +530,6 @@ class TestErrorDecorrFunc(unittest.TestCase):
                                                                  'item3.CorrCoefZero = {}\n'
                                                                  'item3.DecorrRate = {}\n'.format(
                     item1.CorrCoefZero, item1.DecorrRate, item3.CorrCoefZero, item3.DecorrRate))
+
+        with self.subTest(msg="validity check"):
+            self.assertTrue(item1.is_valid())

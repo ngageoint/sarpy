@@ -51,6 +51,9 @@ class TestEB(unittest.TestCase):
             item3 = Antenna.EBType.from_node(node)
             self.assertEqual(item1.to_dict(), item3.to_dict())
 
+        with self.subTest(msg="validity check"):
+            self.assertTrue(item1.is_valid())
+
     def test_eval(self):
         item = Antenna.EBType(DCXPoly=[0, 1], DCYPoly=[1, -1])
         self.assertTrue(numpy.all(item(0) == numpy.array([0, 1])))
@@ -75,6 +78,9 @@ class TestAntParam(unittest.TestCase):
             item2 = the_type.from_node(node)
             self.assertEqual(item1.to_dict(), item2.to_dict())
 
+        with self.subTest(msg="validity check"):
+            self.assertTrue(item1.is_valid())
+
 
 class TestAntenna(unittest.TestCase):
     def test_construction(self):
@@ -94,3 +100,6 @@ class TestAntenna(unittest.TestCase):
             node = ElementTree.fromstring(xml)
             item2 = the_type.from_node(node)
             self.assertEqual(item1.to_dict(), item2.to_dict())
+
+        with self.subTest(msg="validity check"):
+            self.assertTrue(item1.is_valid())
