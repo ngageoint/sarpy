@@ -12,7 +12,7 @@ from scipy.constants import speed_of_light
 
 from .base import Serializable, DEFAULT_STRICT, \
     _StringDescriptor, _StringEnumDescriptor, _FloatDescriptor, _FloatArrayDescriptor, _IntegerEnumDescriptor, \
-    _SerializableDescriptor, _SerializableArrayDescriptor
+    _SerializableDescriptor, _SerializableArrayDescriptor, _PolynomialDescriptor
 from .blocks import ParameterType, XYZType, Poly2DType
 
 
@@ -217,7 +217,7 @@ class DirParamType(Serializable):
     DeltaK2 = _FloatDescriptor(
         'DeltaK2', _required, strict=DEFAULT_STRICT,
         docstring='Maximum (row/col) offset from KCtr of the spatial frequency support for the image.')  # type: float
-    DeltaKCOAPoly = _SerializableDescriptor(
+    DeltaKCOAPoly = _PolynomialDescriptor(
         'DeltaKCOAPoly', Poly2DType, _required, strict=DEFAULT_STRICT,
         docstring='Offset from KCtr of the center of support in the given (row/col) spatial frequency. '
                   'The polynomial is a function of image given (row/col) coordinate (variable 1) and '
@@ -260,10 +260,7 @@ class DirParamType(Serializable):
         self.ImpRespWid, self.ImpRespBW = ImpRespWid, ImpRespBW
         self.Sgn = Sgn
         self.KCtr, self.DeltaK1, self.DeltaK2 = KCtr, DeltaK1, DeltaK2
-        if isinstance(DeltaKCOAPoly, (numpy.ndarray, list, tuple)):
-            self.DeltaKCOAPoly = Poly2DType(Coefs=DeltaKCOAPoly)
-        else:
-            self.DeltaKCOAPoly = DeltaKCOAPoly
+        self.DeltaKCOAPoly = DeltaKCOAPoly
         self.WgtType = WgtType
         self.WgtFunct = WgtFunct
         super(DirParamType, self).__init__(**kwargs)
@@ -450,7 +447,7 @@ class GridType(Serializable):
         * `PLANE` – Arbitrary plane with orientation other than the specific `XRGYCR` or `XCTYAT`.
         \n\n
         """)  # type: str
-    TimeCOAPoly = _SerializableDescriptor(
+    TimeCOAPoly = _PolynomialDescriptor(
         'TimeCOAPoly', Poly2DType, _required, strict=DEFAULT_STRICT,
         docstring="*Time of Center Of Aperture* as a polynomial function of image coordinates. "
                   "The polynomial is a function of image row coordinate (variable 1) and column coordinate "
@@ -476,10 +473,7 @@ class GridType(Serializable):
         """
         self.ImagePlane = ImagePlane
         self.Type = Type
-        if isinstance(TimeCOAPoly, (numpy.ndarray, list, tuple)):
-            self.TimeCOAPoly = Poly2DType(Coefs=TimeCOAPoly)
-        else:
-            self.TimeCOAPoly = TimeCOAPoly
+        self.TimeCOAPoly = TimeCOAPoly
         self.Row, self.Col = Row, Col
         super(GridType, self).__init__(**kwargs)
 

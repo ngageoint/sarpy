@@ -4,7 +4,8 @@ The RadiometricType definition.
 
 import numpy
 
-from .base import Serializable, DEFAULT_STRICT, _StringEnumDescriptor, _SerializableDescriptor
+from .base import Serializable, DEFAULT_STRICT, _StringEnumDescriptor, \
+    _SerializableDescriptor, _PolynomialDescriptor
 from .blocks import Poly2DType
 
 
@@ -23,7 +24,7 @@ class NoiseLevelType_(Serializable):
         'NoiseLevelType', _NOISE_LEVEL_TYPE_VALUES, _required, strict=DEFAULT_STRICT,
         docstring='Indicates that the noise power polynomial yields either absolute power level or power '
                   'level relative to the *SCP* pixel location.')  # type: str
-    NoisePoly = _SerializableDescriptor(
+    NoisePoly = _PolynomialDescriptor(
         'NoisePoly', Poly2DType, _required, strict=DEFAULT_STRICT,
         docstring='Polynomial coefficients that yield thermal noise power *(in dB)* in a pixel as a function of '
                   'image row coordinate *(variable 1)* and column coordinate *(variable 2)*.')  # type: Poly2DType
@@ -38,10 +39,7 @@ class NoiseLevelType_(Serializable):
         kwargs : dict
         """
         self.NoiseLevelType = NoiseLevelType
-        if isinstance(NoisePoly, (numpy.ndarray, list, tuple)):
-            self.NoisePoly = Poly2DType(Coefs=NoisePoly)
-        else:
-            self.NoisePoly = NoisePoly
+        self.NoisePoly = NoisePoly
         super(NoiseLevelType_, self).__init__(**kwargs)
         self._derive_noise_level()
 
@@ -68,22 +66,22 @@ class RadiometricType(Serializable):
     NoiseLevel = _SerializableDescriptor(
         'NoiseLevel', NoiseLevelType_, _required, strict=DEFAULT_STRICT,
         docstring='Noise level structure.')  # type: NoiseLevelType_
-    RCSSFPoly = _SerializableDescriptor(
+    RCSSFPoly = _PolynomialDescriptor(
         'RCSSFPoly', Poly2DType, _required, strict=DEFAULT_STRICT,
         docstring='Polynomial that yields a scale factor to convert pixel power to RCS *(m^2)* '
                   'as a function of image row coordinate *(variable 1)* and column coordinate *(variable 2)*. '
                   'Scale factor computed for a target at `HAE = SCP_HAE`.')  # type: Poly2DType
-    SigmaZeroSFPoly = _SerializableDescriptor(
+    SigmaZeroSFPoly = _PolynomialDescriptor(
         'SigmaZeroSFPoly', Poly2DType, _required, strict=DEFAULT_STRICT,
         docstring='Polynomial that yields a scale factor to convert pixel power to clutter parameter '
                   'Sigma-Zero as a function of image row coordinate *(variable 1)* and column coordinate '
                   '*(variable 2)*. Scale factor computed for a clutter cell at `HAE = SCP_HAE`.')  # type: Poly2DType
-    BetaZeroSFPoly = _SerializableDescriptor(
+    BetaZeroSFPoly = _PolynomialDescriptor(
         'BetaZeroSFPoly', Poly2DType, _required, strict=DEFAULT_STRICT,
         docstring='Polynomial that yields a scale factor to convert pixel power to radar brightness '
                   'or Beta-Zero as a function of image row coordinate *(variable 1)* and column coordinate '
                   '*(variable 2)*. Scale factor computed for a clutter cell at `HAE = SCP_HAE`.')  # type: Poly2DType
-    GammaZeroSFPoly = _SerializableDescriptor(
+    GammaZeroSFPoly = _PolynomialDescriptor(
         'GammaZeroSFPoly', Poly2DType, _required, strict=DEFAULT_STRICT,
         docstring='Polynomial that yields a scale factor to convert pixel power to clutter parameter '
                   'Gamma-Zero as a function of image row coordinate *(variable 1)* and column coordinate '
@@ -103,22 +101,10 @@ class RadiometricType(Serializable):
         kwargs : dict
         """
         self.NoiseLevel = NoiseLevel
-        if isinstance(RCSSFPoly, (numpy.ndarray, list, tuple)):
-            self.RCSSFPoly = Poly2DType(Coefs=RCSSFPoly)
-        else:
-            self.RCSSFPoly = RCSSFPoly
-        if isinstance(SigmaZeroSFPoly, (numpy.ndarray, list, tuple)):
-            self.SigmaZeroSFPoly = Poly2DType(Coefs=SigmaZeroSFPoly)
-        else:
-            self.SigmaZeroSFPoly = SigmaZeroSFPoly
-        if isinstance(BetaZeroSFPoly, (numpy.ndarray, list, tuple)):
-            self.BetaZeroSFPoly = Poly2DType(Coefs=BetaZeroSFPoly)
-        else:
-            self.BetaZeroSFPoly = BetaZeroSFPoly
-        if isinstance(GammaZeroSFPoly, (numpy.ndarray, list, tuple)):
-            self.GammaZeroSFPoly = Poly2DType(Coefs=GammaZeroSFPoly)
-        else:
-            self.GammaZeroSFPoly = GammaZeroSFPoly
+        self.RCSSFPoly = RCSSFPoly
+        self.SigmaZeroSFPoly = SigmaZeroSFPoly
+        self.BetaZeroSFPoly = BetaZeroSFPoly
+        self.GammaZeroSFPoly = GammaZeroSFPoly
         super(RadiometricType, self).__init__(**kwargs)
 
     @classmethod

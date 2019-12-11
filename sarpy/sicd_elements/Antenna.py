@@ -3,7 +3,8 @@ The AntennaType definition.
 """
 
 import numpy
-from .base import Serializable, DEFAULT_STRICT, _BooleanDescriptor, _FloatDescriptor, _SerializableDescriptor
+from .base import Serializable, DEFAULT_STRICT, _BooleanDescriptor, _FloatDescriptor, \
+    _SerializableDescriptor, _PolynomialDescriptor
 from .blocks import Poly1DType, XYZPolyType, GainPhasePolyType
 
 
@@ -15,11 +16,11 @@ class EBType(Serializable):
     _fields = ('DCXPoly', 'DCYPoly')
     _required = _fields
     # descriptors
-    DCXPoly = _SerializableDescriptor(
+    DCXPoly = _PolynomialDescriptor(
         'DCXPoly', Poly1DType, _required, strict=DEFAULT_STRICT,
         docstring='Electrical boresight steering *X-axis direction cosine (DCX)* as a function of '
                   'slow time *(variable 1)*.')  # type: Poly1DType
-    DCYPoly = _SerializableDescriptor(
+    DCYPoly = _PolynomialDescriptor(
         'DCYPoly', Poly1DType, _required, strict=DEFAULT_STRICT,
         docstring='Electrical boresight steering *Y-axis direction cosine (DCY)* as a function of '
                   'slow time *(variable 1)*.')  # type: Poly1DType
@@ -32,14 +33,8 @@ class EBType(Serializable):
         DCYPoly : Poly1DType|numpy.ndarray|list|tuple
         kwargs : dict
         """
-        if isinstance(DCXPoly, (numpy.ndarray, list, tuple)):
-            self.DCXPoly = Poly1DType(Coefs=DCXPoly)
-        else:
-            self.DCXPoly = DCXPoly
-        if isinstance(DCYPoly, (numpy.ndarray, list, tuple)):
-            self.DCYPoly = Poly1DType(Coefs=DCYPoly)
-        else:
-            self.DCYPoly = DCYPoly
+        self.DCXPoly = DCXPoly
+        self.DCYPoly = DCYPoly
         super(EBType, self).__init__(**kwargs)
 
     def __call__(self, t):
@@ -91,7 +86,7 @@ class AntParamType(Serializable):
     Elem = _SerializableDescriptor(
         'Elem', GainPhasePolyType, _required, strict=DEFAULT_STRICT,
         docstring='Element array pattern polynomials for electronically steered arrays.')  # type: GainPhasePolyType
-    GainBSPoly = _SerializableDescriptor(
+    GainBSPoly = _PolynomialDescriptor(
         'GainBSPoly', Poly1DType, _required, strict=DEFAULT_STRICT,
         docstring='Gain polynomial *(in dB)* as a function of frequency for boresight *(BS)* at :math:`DCX=0, DCY=0`. '
                   'Frequency ratio :math:`(f-f0)/f0` is the input variable *(variable 1)*, and the constant '
@@ -137,10 +132,7 @@ class AntParamType(Serializable):
         self.FreqZero = FreqZero
         self.EB = EB
         self.Array, self.Elem = Array, Elem
-        if isinstance(GainBSPoly, (numpy.ndarray, list, tuple)):
-            self.GainBSPoly = Poly1DType(Coefs=GainBSPoly)
-        else:
-            self.GainBSPoly = GainBSPoly
+        self.GainBSPoly = GainBSPoly
         self.EBFreqShift, self.MLFreqDilation = EBFreqShift, MLFreqDilation
         super(AntParamType, self).__init__(**kwargs)
 

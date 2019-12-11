@@ -14,7 +14,7 @@ else:
 
 from .base import _get_node_value, _create_text_node, _create_new_node, Serializable, DEFAULT_STRICT, \
     _StringDescriptor, _StringEnumDescriptor, _IntegerDescriptor, _FloatDescriptor, _FloatModularDescriptor, \
-    _SerializableDescriptor
+    _SerializableDescriptor, _PolynomialDescriptor
 
 
 __classification__ = "UNCLASSIFIED"
@@ -922,13 +922,13 @@ class XYZPolyType(Serializable):
     _fields = ('X', 'Y', 'Z')
     _required = _fields
     # descriptors
-    X = _SerializableDescriptor(
+    X = _PolynomialDescriptor(
         'X', Poly1DType, _required, strict=DEFAULT_STRICT,
         docstring='The polynomial for the X coordinate.')  # type: Poly1DType
-    Y = _SerializableDescriptor(
+    Y = _PolynomialDescriptor(
         'Y', Poly1DType, _required, strict=DEFAULT_STRICT,
         docstring='The polynomial for the Y coordinate.')  # type: Poly1DType
-    Z = _SerializableDescriptor(
+    Z = _PolynomialDescriptor(
         'Z', Poly1DType, _required, strict=DEFAULT_STRICT,
         docstring='The polynomial for the Z coordinate.')  # type: Poly1DType
 
@@ -941,18 +941,9 @@ class XYZPolyType(Serializable):
         Z : Poly1DType|numpy.ndarray|list|tuple
         kwargs : dict
         """
-        if isinstance(X, (numpy.ndarray, list, tuple)):
-            self.X = Poly1DType(Coefs=X)
-        else:
-            self.X = X
-        if isinstance(Y, (numpy.ndarray, list, tuple)):
-            self.Y = Poly1DType(Coefs=Y)
-        else:
-            self.Y = Y
-        if isinstance(Z, (numpy.ndarray, list, tuple)):
-            self.Z = Poly1DType(Coefs=Z)
-        else:
-            self.Z = Z
+        self.X = X
+        self.Y = Y
+        self.Z = Z
         super(XYZPolyType, self).__init__(**kwargs)
 
     def __call__(self, t):
@@ -1100,12 +1091,12 @@ class GainPhasePolyType(Serializable):
     _fields = ('GainPoly', 'PhasePoly')
     _required = _fields
     # descriptors
-    GainPoly = _SerializableDescriptor(
+    GainPoly = _PolynomialDescriptor(
         'GainPoly', Poly2DType, _required, strict=DEFAULT_STRICT,
         docstring='One-way signal gain (in dB) as a function of X-axis direction cosine (DCX) (variable 1) '
                   'and Y-axis direction cosine (DCY) (variable 2). Gain relative to gain at DCX = 0 '
                   'and DCY = 0, so constant coefficient is always 0.0.')  # type: Poly2DType
-    PhasePoly = _SerializableDescriptor(
+    PhasePoly = _PolynomialDescriptor(
         'PhasePoly', Poly2DType, _required, strict=DEFAULT_STRICT,
         docstring='One-way signal phase (in cycles) as a function of DCX (variable 1) and '
                   'DCY (variable 2). Phase relative to phase at DCX = 0 and DCY = 0, '
@@ -1119,14 +1110,8 @@ class GainPhasePolyType(Serializable):
         PhasePoly : Poly2DType|numpy.ndarray|list|tuple
         kwargs : dict
         """
-        if isinstance(GainPoly, (numpy.ndarray, list, tuple)):
-            self.GainPoly = Poly2DType(Coefs=GainPoly)
-        else:
-            self.GainPoly = GainPoly
-        if isinstance(PhasePoly, (numpy.ndarray, list, tuple)):
-            self.PhasePoly = Poly2DType(Coefs=PhasePoly)
-        else:
-            self.PhasePoly = PhasePoly
+        self.GainPoly = GainPoly
+        self.PhasePoly = PhasePoly
         super(GainPhasePolyType, self).__init__(**kwargs)
 
     def __call__(self, x, y):

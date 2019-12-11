@@ -9,7 +9,7 @@ from numpy.linalg import norm
 
 from .base import Serializable, DEFAULT_STRICT, \
     _StringEnumDescriptor, _FloatDescriptor, _BooleanDescriptor, \
-    _SerializableDescriptor
+    _SerializableDescriptor, _PolynomialDescriptor
 from .blocks import XYZType, Poly1DType, Poly2DType
 
 
@@ -60,7 +60,7 @@ class INCAType(Serializable):
     _fields = ('TimeCAPoly', 'R_CA_SCP', 'FreqZero', 'DRateSFPoly', 'DopCentroidPoly', 'DopCentroidCOA')
     _required = ('TimeCAPoly', 'R_CA_SCP', 'FreqZero', 'DRateSFPoly')
     # descriptors
-    TimeCAPoly = _SerializableDescriptor(
+    TimeCAPoly = _PolynomialDescriptor(
         'TimeCAPoly', Poly1DType, _required, strict=DEFAULT_STRICT,
         docstring='Polynomial function that yields Time of Closest Approach as function of '
                   'image column *(azimuth)* coordinate in meters. Time relative to '
@@ -72,12 +72,12 @@ class INCAType(Serializable):
         'FreqZero', _required, strict=DEFAULT_STRICT,
         docstring='*RF frequency (f0)* in Hz used for computing Doppler Centroid values. Typical *f0* set equal '
                   'to center transmit frequency.')  # type: float
-    DRateSFPoly = _SerializableDescriptor(
+    DRateSFPoly = _PolynomialDescriptor(
         'DRateSFPoly', Poly2DType, _required, strict=DEFAULT_STRICT,
         docstring='Polynomial function that yields *Doppler Rate scale factor (DRSF)* as a function of image '
                   'location. Yields `DRSF` as a function of image range coordinate *(variable 1)* and azimuth '
                   'coordinate *(variable 2)*. Used to compute Doppler Rate at closest approach.')  # type: Poly2DType
-    DopCentroidPoly = _SerializableDescriptor(
+    DopCentroidPoly = _PolynomialDescriptor(
         'DopCentroidPoly', Poly2DType, _required, strict=DEFAULT_STRICT,
         docstring='Polynomial function that yields Doppler Centroid value as a function of image location *(fdop_DC)*. '
                   'The *fdop_DC* is the Doppler frequency at the peak signal response. The polynomial is a function '
@@ -107,20 +107,11 @@ class INCAType(Serializable):
         DopCentroidCOA : bool
         kwargs : dict
         """
-        if isinstance(TimeCAPoly, (numpy.ndarray, list, tuple)):
-            self.TimeCAPoly = Poly1DType(Coefs=TimeCAPoly)
-        else:
-            self.TimeCAPoly = TimeCAPoly
+        self.TimeCAPoly = TimeCAPoly
         self.R_CA_SCP = R_CA_SCP
         self.FreqZero = FreqZero
-        if isinstance(DRateSFPoly, (numpy.ndarray, list, tuple)):
-            self.DRateSFPoly = Poly2DType(Coefs=DRateSFPoly)
-        else:
-            self.DRateSFPoly = DRateSFPoly
-        if isinstance(DopCentroidPoly, (numpy.ndarray, list, tuple)):
-            self.DopCentroidPoly = Poly2DType(Coefs=DopCentroidPoly)
-        else:
-            self.DopCentroidPoly = DopCentroidPoly
+        self.DRateSFPoly = DRateSFPoly
+        self.DopCentroidPoly = DopCentroidPoly
         self.DopCentroidCOA = DopCentroidCOA
         super(INCAType, self).__init__(**kwargs)
 

@@ -7,7 +7,7 @@ import logging
 import numpy
 from numpy.linalg import norm
 
-from .base import Serializable, DEFAULT_STRICT, _FloatDescriptor, _SerializableDescriptor
+from .base import Serializable, DEFAULT_STRICT, _FloatDescriptor, _PolynomialDescriptor
 from .blocks import Poly1DType
 
 
@@ -23,7 +23,7 @@ class RgAzCompType(Serializable):
         'AzSF', _required, strict=DEFAULT_STRICT,
         docstring='Scale factor that scales image coordinate az = ycol (meters) to a delta cosine of the '
                   'Doppler Cone Angle at COA, *(in 1/m)*')  # type: float
-    KazPoly = _SerializableDescriptor(
+    KazPoly = _PolynomialDescriptor(
         'KazPoly', Poly1DType, _required, strict=DEFAULT_STRICT,
         docstring='Polynomial function that yields azimuth spatial frequency *(Kaz = Kcol)* as a function of '
                   'slow time *(variable 1)*. That is '
@@ -40,10 +40,7 @@ class RgAzCompType(Serializable):
         kwargs : dict
         """
         self.AzSF = AzSF
-        if isinstance(KazPoly, (numpy.ndarray, list, tuple)):
-            self.KazPoly = Poly1DType(Coefs=KazPoly)
-        else:
-            self.KazPoly = KazPoly
+        self.KazPoly = KazPoly
         super(RgAzCompType, self).__init__(**kwargs)
 
     def _derive_parameters(self, Grid, Timeline, SCPCOA):

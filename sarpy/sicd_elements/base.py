@@ -101,6 +101,221 @@ def _create_text_node(doc, tag, value, parent=None):
 
 
 ###
+# parsing functions - for reusable functionality in below descriptors or other property definitions
+
+
+def _parse_str(value, name, instance):
+    # it is assumed that None is handled before this
+    if isinstance(value, str):
+        return value
+    elif isinstance(value, ElementTree.Element):
+        return _get_node_value(value)
+    else:
+        raise TypeError(
+            'field {} of class {} requires a string value.'.format(name, instance.__class__.__name__))
+
+
+def _parse_bool(value, name, instance):
+    def parse_string(val):
+        if val.lower() in ['0', 'false']:
+            return False
+        elif val.lower() in ['1', 'true']:
+            return True
+        else:
+            raise ValueError(
+                'Boolean field {} of class {} cannot assign from string value {}. '
+                'It must be one of ["0", "false", "1", "true"]'.format(name, instance.__class__.__name__, val))
+
+    # it is assumed that None is handled before this
+    if isinstance(value, bool):
+        return value
+    elif isinstance(value, int):
+        return bool(value)
+    elif isinstance(value, ElementTree.Element):
+        # from XML deserialization
+        return parse_string(_get_node_value(value))
+    elif isinstance(value, str):
+        return parse_string(value)
+    else:
+        raise ValueError('Boolean field {} of class {} cannot assign from type {}.'.format(
+            name, instance.__class__.__name__, type(value)))
+
+
+def _parse_int(value, name, instance):
+    # it is assumed that None is handled before this
+    if isinstance(value, int):
+        return value
+    elif isinstance(value, ElementTree.Element):
+        # from XML deserialization
+        return int(_get_node_value(value))
+    else:
+        # user or json deserialization
+        try:
+            return int(value)
+        except Exception:
+            raise ValueError(
+                'Failed converting {} of type {} to `int` for field {} of '
+                'class {}'.format(value, type(value), name, instance.__class__.__name__))
+
+
+def _parse_float(value, name, instance):
+    # it is assumed that None is handled before this
+    if isinstance(value, float):
+        return value
+    elif isinstance(value, ElementTree.Element):
+        # from XML deserialization
+        return float(_get_node_value(value))
+    else:
+        # user or json deserialization
+        try:
+            return float(value)
+        except Exception:
+            raise ValueError(
+                'Failed converting {} of type {} to `float` for field {} of '
+                'class {}'.format(value, type(value), name, instance.__class__.__name__))
+
+
+def _parse_complex(value, name, instance):
+    # it is assumed that None is handled before this
+    if isinstance(value, complex):
+        return value
+    elif isinstance(value, ElementTree.Element):
+        # from XML deserialization
+        rnode = value.findall('Real')
+        inode = value.findall('Imag')
+        if len(rnode) != 1:
+            raise ValueError('There must be exactly one Real component of a complex type node defined.')
+        if len(inode) != 1:
+            raise ValueError('There must be exactly one Imag component of a complex type node defined.')
+        real = float(_get_node_value(rnode[0]))
+        imag = float(_get_node_value(inode[0]))
+        return complex(real, imag)
+    elif isinstance(value, dict):
+        # from json deserialization
+        real = None
+        for key in ['re', 'real', 'Real']:
+            real = value.get(key, real)
+        imag = None
+        for key in ['im', 'imag', 'Imag']:
+            imag = value.get(key, imag)
+        if real is None or imag is None:
+            raise ValueError('Cannot convert dict {} to a complex number.'.format(value))
+        return complex(real, imag)
+    else:
+        # from user - I can't imagine that this would ever work
+        return complex(value)
+
+
+def _parse_datetime(value, name, instance, units='us'):
+    # it is assumed that None is handled before this
+    if isinstance(value, numpy.datetime64):
+        return value
+    elif isinstance(value, ElementTree.Element):
+        # from XML deserialization
+        return numpy.datetime64(_get_node_value(value), units)
+    else:
+        # from user or json deserialization
+        # TODO: handle the timezone if str or datetime - numpy deprecation warning
+        return numpy.datetime64(value, units)
+
+
+def _parse_serializable(value, name, instance, the_type):
+    # it is assumed that None is handled before this
+    if isinstance(value, the_type):
+        return value
+    elif isinstance(value, dict):
+        return the_type.from_dict(value)
+    elif isinstance(value, ElementTree.Element):
+        return the_type.from_node(value)
+    else:
+        raise TypeError(
+            'Field {} of class {} is expecting type {}, but got an instance of incompatible '
+            'type {}.'.format(name, instance.__class__.__name__, the_type, type(value)))
+
+
+def _parse_serializable_array(value, name, instance, child_type, child_tag):
+    # it is assumed that None is handled before this
+    if isinstance(value, child_type):
+        # this is the child element
+        return numpy.array([value, ], dtype=numpy.object)
+    elif isinstance(value, numpy.ndarray):
+        if value.dtype != numpy.object:
+            raise ValueError(
+                'Attribute {} of array type functionality belonging to class {} got an ndarray of dtype {},'
+                'but contains objects, so requires dtype=numpy.object.'.format(
+                    name, instance.__class__.__name__, value.dtype))
+        elif len(value.shape) != 1:
+            raise ValueError(
+                'Attribute {} of array type functionality belonging to class {} got an ndarray of shape {},'
+                'but requires a one dimensional array.'.format(
+                    name, instance.__class__.__name__, value.shape))
+        elif not isinstance(value[0], child_type):
+            raise TypeError(
+                'Attribute {} of array type functionality belonging to class {} got an ndarray containing '
+                'first element of incompatible type {}.'.format(
+                    name, instance.__class__.__name__, type(value[0])))
+        return value
+    elif isinstance(value, ElementTree.Element):
+        # this is the parent node from XML deserialization
+        size = int(value.attrib['size'])
+        # extract child nodes at top level
+        child_nodes = value.findall(child_tag)
+        if len(child_nodes) != size:
+            raise ValueError(
+                'Attribute {} of array type functionality belonging to class {} got a ElementTree element '
+                'with size attribute {}, but has {} child nodes with tag {}.'.format(
+                    name, instance.__class__.__name__, size, len(child_nodes), child_tag))
+        new_value = numpy.empty((size,), dtype=numpy.object)
+        for i, entry in enumerate(child_nodes):
+            new_value[i] = child_type.from_node(entry)
+        return new_value
+    elif isinstance(value, list):
+        # this would arrive from users or json deserialization
+        if len(value) == 0:
+            return numpy.empty((0,), dtype=numpy.object)
+        elif isinstance(value[0], child_type):
+            return numpy.array(value, dtype=numpy.object)
+        elif isinstance(value[0], dict):
+            # NB: charming errors are possible here if something stupid has been done.
+            return numpy.array([child_type.from_dict(node) for node in value], dtype=numpy.object)
+        else:
+            raise TypeError(
+                'Attribute {} of array type functionality belonging to class {} got a list containing first '
+                'element of incompatible type {}.'.format(name, instance.__class__.__name__, type(value[0])))
+    else:
+        raise TypeError(
+            'Attribute {} of array type functionality belonging to class {} got incompatible type {}.'.format(
+                name, instance.__class__.__name__, type(value)))
+
+
+def _parse_serializable_list(value, name, instance, child_type):
+    # it is assumed that None is handled before this
+    if isinstance(value, child_type):
+        # this is the child element
+        return [value, ]
+    elif isinstance(value, ElementTree.Element):
+        # this is the child
+        return [child_type.from_node(value), ]
+    elif isinstance(value, list) or isinstance(value[0], child_type):
+        if len(value) == 0:
+            return value
+        elif isinstance(value[0], dict):
+            # NB: charming errors are possible if something stupid has been done.
+            return [child_type.from_dict(node) for node in value]
+        elif isinstance(value[0], ElementTree.Element):
+            return [child_type.from_node(node) for node in value]
+        else:
+            raise TypeError(
+                'Field {} of list type functionality belonging to class {} got a '
+                'list containing first element of incompatible type '
+                '{}.'.format(name, instance.__class__.__name__, type(value[0])))
+    else:
+        raise TypeError(
+            'Field {} of class {} got incompatible type {}.'.format(
+                name, instance.__class__.__name__, type(value)))
+
+
+###
 # descriptor definitions - these are reusable properties that handle typing and deserialization in one place
 
 
@@ -215,15 +430,7 @@ class _StringDescriptor(_BasicDescriptor):
         if super(_StringDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
             return
 
-        if isinstance(value, str):
-            # from user or json deserialization
-            self.data[instance] = value
-        elif isinstance(value, ElementTree.Element):
-            # from XML deserialization
-            self.data[instance] = _get_node_value(value)
-        else:
-            raise TypeError(
-                'field {} of class {} requires a string value.'.format(self.name, instance.__class__.__name__))
+        self.data[instance] = _parse_str(value, self.name, instance)
 
 
 class _StringListDescriptor(_BasicDescriptor):
@@ -296,7 +503,8 @@ class _StringListDescriptor(_BasicDescriptor):
 
 
 class _StringEnumDescriptor(_BasicDescriptor):
-    """A descriptor for enumerated (specified) string type"""
+    """A descriptor for enumerated (specified) string type.
+    **This implicitly assumes that the valid entries are upper case.**"""
     _typ_string = 'str:'
 
     def __init__(self, name, values, required, strict=DEFAULT_STRICT, default_value=None, docstring=None):
@@ -320,13 +528,7 @@ class _StringEnumDescriptor(_BasicDescriptor):
                 super(_StringEnumDescriptor, self).__set__(instance, value)
             return
 
-        if isinstance(value, str):
-            val = value.upper()
-        elif isinstance(value, ElementTree.Element):
-            val = _get_node_value(value).upper()
-        else:
-            raise TypeError(
-                'Attribute {} of class {} requires a string value.'.format(self.name, instance.__class__.__name__))
+        val = _parse_str(value, self.name, instance).upper()
 
         if val in self.values:
             self.data[instance] = val
@@ -352,29 +554,7 @@ class _BooleanDescriptor(_BasicDescriptor):
         if super(_BooleanDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
             return
 
-        if isinstance(value, ElementTree.Element):
-            # from XML deserialization
-            bv = self.parse_string(instance, _get_node_value(value))
-        elif isinstance(value, bool):
-            bv = value
-        elif isinstance(value, int):
-            bv = bool(value)
-        elif isinstance(value, str):
-            bv = self.parse_string(instance, value)
-        else:
-            raise ValueError('Boolean field {} of class {} cannot assign from type {}.'.format(
-                self.name, instance.__class__.__name__, type(value)))
-        self.data[instance] = bv
-
-    def parse_string(self, instance, value):
-        if value.lower() in ['0', 'false']:
-            return False
-        elif value.lower() in ['1', 'true']:
-            return True
-        else:
-            raise ValueError(
-                'Boolean field {} of class {} cannot assign from string value {}. It must be one of '
-                '["0", "false", "1", "true"]'.format(self.name, instance.__class__.__name__, value))
+        self.data[instance] = _parse_bool(value, self.name, instance)
 
 
 class _IntegerDescriptor(_BasicDescriptor):
@@ -400,12 +580,7 @@ class _IntegerDescriptor(_BasicDescriptor):
         if super(_IntegerDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
             return
 
-        if isinstance(value, ElementTree.Element):
-            # from XML deserialization
-            iv = int(_get_node_value(value))
-        else:
-            # user or json deserialization
-            iv = int(value)
+        iv = _parse_int(value, self.name, instance)
 
         if self._in_bounds(iv):
             self.data[instance] = iv
@@ -437,12 +612,7 @@ class _IntegerEnumDescriptor(_BasicDescriptor):
         if super(_IntegerEnumDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
             return
 
-        if isinstance(value, ElementTree.Element):
-            # from XML deserialization
-            iv = int(_get_node_value(value))
-        else:
-            # user or json deserialization
-            iv = int(value)
+        iv = _parse_int(value, self.name, instance)
 
         if iv in self.values:
             self.data[instance] = iv
@@ -548,12 +718,7 @@ class _FloatDescriptor(_BasicDescriptor):
         if super(_FloatDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
             return
 
-        if isinstance(value, ElementTree.Element):
-            # from XML deserialization
-            iv = float(_get_node_value(value))
-        else:
-            # from user of json deserialization
-            iv = float(value)
+        iv = _parse_float(value, self.name, instance)
 
         if self._in_bounds(iv):
             self.data[instance] = iv
@@ -579,31 +744,7 @@ class _ComplexDescriptor(_BasicDescriptor):
         if super(_ComplexDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
             return
 
-        if isinstance(value, ElementTree.Element):
-            # from XML deserialization
-            rnode = value.findall('Real')
-            inode = value.findall('Imag')
-            if len(rnode) != 1:
-                raise ValueError('There must be exactly one Real component of a complex type node defined.')
-            if len(inode) != 1:
-                raise ValueError('There must be exactly one Imag component of a complex type node defined.')
-            real = float(_get_node_value(rnode[0]))
-            imag = float(_get_node_value(inode[0]))
-            self.data[instance] = complex(real, imag)
-        elif isinstance(value, dict):
-            # from json deserialization
-            real = None
-            for key in ['re', 'real', 'Real']:
-                real = value.get(key, real)
-            imag = None
-            for key in ['im', 'imag', 'Imag']:
-                imag = value.get(key, imag)
-            if real is None or imag is None:
-                raise ValueError('Cannot convert dict {} to a complex number.'.format(value))
-            self.data[instance] = complex(real, imag)
-        else:
-            # from user - this could be dumb
-            self.data[instance] = complex(value)
+        self.data[instance] = _parse_complex(value, self.name, instance)
 
 
 class _FloatArrayDescriptor(_BasicDescriptor):
@@ -697,15 +838,7 @@ class _DateTimeDescriptor(_BasicDescriptor):
     def __set__(self, instance, value):
         if super(_DateTimeDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
             return
-        if isinstance(value, ElementTree.Element):
-            # from XML deserialization
-            self.data[instance] = numpy.datetime64(_get_node_value(value), self.units)
-        elif isinstance(value, numpy.datetime64):
-            # from user
-            self.data[instance] = value
-        else:
-            # from user or json deserialization
-            self.data[instance] = numpy.datetime64(value, self.units)
+        self.data[instance] = _parse_datetime(value, self.name, instance, self.units)
 
 
 class _FloatModularDescriptor(_BasicDescriptor):
@@ -723,12 +856,7 @@ class _FloatModularDescriptor(_BasicDescriptor):
         if super(_FloatModularDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
             return
 
-        if isinstance(value, ElementTree.Element):
-            # from XML deserialization
-            val = float(_get_node_value(value))
-        else:
-            # from user of json deserialization
-            val = float(value)
+        val = _parse_float(value, self.name, instance)
 
         # do modular arithmatic manipulations
         val = (val % (2 * self.limit))  # NB: % and * have same precedence, so it can be super dumb
@@ -747,16 +875,29 @@ class _SerializableDescriptor(_BasicDescriptor):
         if super(_SerializableDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
             return
 
-        if isinstance(value, self.the_type):
-            self.data[instance] = value
-        elif isinstance(value, dict):
-            self.data[instance] = self.the_type.from_dict(value)
-        elif isinstance(value, ElementTree.Element):
-            self.data[instance] = self.the_type.from_node(value)
-        else:
+        self.data[instance] = _parse_serializable(value, self.name, instance, self.the_type)
+
+
+class _PolynomialDescriptor(_BasicDescriptor):
+    """A descriptor for properties of a specified type assumed to be of type Poly1DType or Poly2DType"""
+
+    def __init__(self, name, the_type, required, strict=DEFAULT_STRICT, docstring=None):
+        if not hasattr(the_type, 'Coefs'):
             raise TypeError(
-                'Field {} of class {} got incompatible type {}.'.format(
-                    self.name, instance.__class__.__name__, type(value)))
+                'The input type {} for field {} must have attribute `Coefs`.'.format(the_type, name))
+        self.the_type = the_type
+
+        self._typ_string = str(the_type).strip().split('.')[-1][:-2] + ':'
+        super(_PolynomialDescriptor, self).__init__(name, required, strict=strict, docstring=docstring)
+
+    def __set__(self, instance, value):
+        if super(_PolynomialDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
+            return
+
+        if isinstance(value, (numpy.ndarray, list, tuple)):
+            self.data[instance] = self.the_type(Coefs=value)
+        else:
+            self.data[instance] = _parse_serializable(value, self.name, instance, self.the_type)
 
 
 class _SerializableArrayDescriptor(_BasicDescriptor):
@@ -816,89 +957,15 @@ class _SerializableArrayDescriptor(_BasicDescriptor):
                 logging.error(msg)
         self.data[instance] = value
 
-    def __array_set(self, instance, value):
-        if isinstance(value, numpy.ndarray):
-            if value.dtype != numpy.object:
-                raise ValueError(
-                    'Attribute {} of array type functionality belonging to class {} got an ndarray of dtype {},'
-                    'but contains objects, so requires dtype=numpy.object.'.format(
-                        self.name, instance.__class__.__name__, value.dtype))
-            elif len(value.shape) != 1:
-                raise ValueError(
-                    'Attribute {} of array type functionality belonging to class {} got an ndarray of shape {},'
-                    'but requires a one dimensional array.'.format(
-                        self.name, instance.__class__.__name__, value.shape))
-            elif not isinstance(value[0], self.child_type):
-                raise TypeError(
-                    'Attribute {} of array type functionality belonging to class {} got an ndarray containing '
-                    'first element of incompatible type {}.'.format(
-                        self.name, instance.__class__.__name__, type(value[0])))
-            self.__actual_set(instance, value)
-        elif isinstance(value, ElementTree.Element):
-            # this is the parent node from XML deserialization
-            size = int(value.attrib['size'])
-            # extract child nodes at top level
-            child_nodes = value.findall(self.child_tag)
-            if len(child_nodes) != size:
-                raise ValueError(
-                    'Attribute {} of array type functionality belonging to class {} got a ElementTree element '
-                    'with size attribute {}, but has {} child nodes with tag {}.'.format(
-                        self.name, instance.__class__.__name__, size, len(child_nodes), self.child_tag))
-            new_value = numpy.empty((size,), dtype=numpy.object)
-            for i, entry in enumerate(child_nodes):
-                new_value[i] = self.child_type.from_node(entry)
-            self.__actual_set(instance, new_value)
-        elif isinstance(value, list):
-            # this would arrive from users or json deserialization
-            if len(value) == 0:
-                self.__actual_set(instance, numpy.empty((0,), dtype=numpy.object))
-            elif isinstance(value[0], self.child_type):
-                self.__actual_set(instance, numpy.array(value, dtype=numpy.object))
-            elif isinstance(value[0], dict):
-                # NB: charming errors are possible here if something stupid has been done.
-                self.__actual_set(instance, numpy.array(
-                    [self.child_type.from_dict(node) for node in value], dtype=numpy.object))
-            else:
-                raise TypeError(
-                    'Attribute {} of array type functionality belonging to class {} got a list containing first '
-                    'element of incompatible type {}.'.format(self.name, instance.__class__.__name__, type(value[0])))
-        else:
-            raise TypeError(
-                'Attribute {} of array type functionality belonging to class {} got incompatible type {}.'.format(
-                    self.name, instance.__class__.__name__, type(value)))
-
-    def __list_set(self, instance, value):
-        if isinstance(value, self.child_type):
-            # this is the child element
-            self.__actual_set(instance, [value, ])
-        elif isinstance(value, ElementTree.Element):
-            # this is the child
-            self.__actual_set(instance, [self.child_type.from_node(value), ])
-        elif isinstance(value, list) or isinstance(value[0], self.child_type):
-            if len(value) == 0:
-                self.__actual_set(instance, value)
-            elif isinstance(value[0], dict):
-                # NB: charming errors are possible if something stupid has been done.
-                self.__actual_set(instance, [self.child_type.from_dict(node) for node in value])
-            elif isinstance(value[0], ElementTree.Element):
-                self.__actual_set(instance, [self.child_type.from_node(node) for node in value])
-            else:
-                raise TypeError(
-                    'Field {} of list type functionality belonging to class {} got a list containing first element of '
-                    'incompatible type {}.'.format(self.name, instance.__class__.__name__, type(value[0])))
-        else:
-            raise TypeError(
-                'Field {} of class {} got incompatible type {}.'.format(
-                    self.name, instance.__class__.__name__, type(value)))
-
     def __set__(self, instance, value):
         if super(_SerializableArrayDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
             return
 
         if self.array:
-            self.__array_set(instance, value)
+            self.__actual_set(
+                instance, _parse_serializable_array(value, self.name, instance, self.child_type, self.child_tag))
         else:
-            self.__list_set(instance, value)
+            self.__actual_set(instance, _parse_serializable_list(value, self.name, instance, self.child_type))
 
 
 #################
