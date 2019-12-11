@@ -171,6 +171,8 @@ class RadiometricType(Serializable):
                 self.BetaZeroSFPoly = Poly2DType(
                     Coefs=self.GammaZeroSFPoly.Coefs/(numpy.sin(numpy.deg2rad(SCPCOA.GrazeAng)) *
                                                       numpy.cos(numpy.deg2rad(SCPCOA.SlopeAng))))
+
+        # TODO: what if they are populated and do not follow the below pattern?
         if self.BetaZeroSFPoly is not None:
             # In other words, none of the SF polynomials are populated.
             if self.RCSSFPoly is None:
