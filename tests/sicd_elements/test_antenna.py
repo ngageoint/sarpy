@@ -26,6 +26,7 @@ antenna_type_dict = {
     'EBFreqShift': False,
     'MLFreqDilation': False
 }
+antenna_dict = {'Tx': antenna_type_dict, 'Rcv': antenna_type_dict, 'TwoWay': antenna_type_dict}
 
 
 class TestEB(unittest.TestCase):
@@ -85,7 +86,7 @@ class TestAntParam(unittest.TestCase):
 class TestAntenna(unittest.TestCase):
     def test_construction(self):
         the_type = Antenna.AntennaType
-        the_dict = {'Tx': antenna_type_dict, 'Rcv': antenna_type_dict, 'TwoWay': antenna_type_dict}
+        the_dict = antenna_dict
         item1 = the_type.from_dict(the_dict)
 
         with self.subTest(msg='Comparing json deserialization with original'):
