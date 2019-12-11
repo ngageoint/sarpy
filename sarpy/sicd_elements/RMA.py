@@ -8,8 +8,7 @@ import numpy
 from numpy.linalg import norm
 
 from .base import Serializable, DEFAULT_STRICT, \
-    _StringEnumDescriptor, _FloatDescriptor, _BooleanDescriptor, \
-    _SerializableDescriptor, _PolynomialDescriptor, _CoordinateDescriptor
+    _StringEnumDescriptor, _FloatDescriptor, _BooleanDescriptor, _SerializableDescriptor
 from .blocks import XYZType, Poly1DType, Poly2DType
 
 
@@ -21,11 +20,11 @@ class RMRefType(Serializable):
     _fields = ('PosRef', 'VelRef', 'DopConeAngRef')
     _required = _fields
     # descriptors
-    PosRef = _CoordinateDescriptor(
+    PosRef = _SerializableDescriptor(
         'PosRef', XYZType, _required, strict=DEFAULT_STRICT,
         docstring='Platform reference position in ECF coordinates used to establish '
                   'the reference slant plane.')  # type: XYZType
-    VelRef = _CoordinateDescriptor(
+    VelRef = _SerializableDescriptor(
         'VelRef', XYZType, _required, strict=DEFAULT_STRICT,
         docstring='Platform reference velocity vector in ECF coordinates used to establish '
                   'the reference slant plane.')  # type: XYZType
@@ -54,7 +53,7 @@ class INCAType(Serializable):
     _fields = ('TimeCAPoly', 'R_CA_SCP', 'FreqZero', 'DRateSFPoly', 'DopCentroidPoly', 'DopCentroidCOA')
     _required = ('TimeCAPoly', 'R_CA_SCP', 'FreqZero', 'DRateSFPoly')
     # descriptors
-    TimeCAPoly = _PolynomialDescriptor(
+    TimeCAPoly = _SerializableDescriptor(
         'TimeCAPoly', Poly1DType, _required, strict=DEFAULT_STRICT,
         docstring='Polynomial function that yields Time of Closest Approach as function of '
                   'image column *(azimuth)* coordinate in meters. Time relative to '
@@ -66,12 +65,12 @@ class INCAType(Serializable):
         'FreqZero', _required, strict=DEFAULT_STRICT,
         docstring='*RF frequency (f0)* in Hz used for computing Doppler Centroid values. Typical *f0* set equal '
                   'to center transmit frequency.')  # type: float
-    DRateSFPoly = _PolynomialDescriptor(
+    DRateSFPoly = _SerializableDescriptor(
         'DRateSFPoly', Poly2DType, _required, strict=DEFAULT_STRICT,
         docstring='Polynomial function that yields *Doppler Rate scale factor (DRSF)* as a function of image '
                   'location. Yields `DRSF` as a function of image range coordinate *(variable 1)* and azimuth '
                   'coordinate *(variable 2)*. Used to compute Doppler Rate at closest approach.')  # type: Poly2DType
-    DopCentroidPoly = _PolynomialDescriptor(
+    DopCentroidPoly = _SerializableDescriptor(
         'DopCentroidPoly', Poly2DType, _required, strict=DEFAULT_STRICT,
         docstring='Polynomial function that yields Doppler Centroid value as a function of image location *(fdop_DC)*. '
                   'The *fdop_DC* is the Doppler frequency at the peak signal response. The polynomial is a function '

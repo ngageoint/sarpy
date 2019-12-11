@@ -8,7 +8,7 @@ import numpy
 from numpy.linalg import norm
 
 from .base import Serializable, DEFAULT_STRICT, \
-    _StringEnumDescriptor, _FloatDescriptor, _CoordinateDescriptor
+    _StringEnumDescriptor, _FloatDescriptor, _SerializableDescriptor
 from .blocks import XYZType
 
 from sarpy.geometry import geocoords
@@ -30,13 +30,13 @@ class SCPCOAType(Serializable):
         'SCPTime', _required, strict=DEFAULT_STRICT,
         docstring='*Center Of Aperture time for the SCP (t_COA_SCP)*, relative to collection '
                   'start in seconds.')  # type: float
-    ARPPos = _CoordinateDescriptor(
+    ARPPos = _SerializableDescriptor(
         'ARPPos', XYZType, _required, strict=DEFAULT_STRICT,
         docstring='Aperture position at *t_COA_SCP* in ECF coordinates.')  # type: XYZType
-    ARPVel = _CoordinateDescriptor(
+    ARPVel = _SerializableDescriptor(
         'ARPVel', XYZType, _required, strict=DEFAULT_STRICT,
         docstring='ARP Velocity at *t_COA_SCP* in ECF coordinates.')  # type: XYZType
-    ARPAcc = _CoordinateDescriptor(
+    ARPAcc = _SerializableDescriptor(
         'ARPAcc', XYZType, _required, strict=DEFAULT_STRICT,
         docstring='ARP Acceleration at *t_COA_SCP* in ECF coordinates.')  # type: XYZType
     SideOfTrack = _StringEnumDescriptor(

@@ -251,7 +251,6 @@ class TestLatLonCorner(unittest.TestCase):
 
     def test_index_validation(self):
         self.assertRaises(ValueError, blocks.LatLonCornerType, Lat=1, Lon=2, index=5)
-        self.assertRaises(ValueError, blocks.LatLonCornerType, Lat=1, Lon=2, index=0)
 
 
 class TestLatLonCornerString(unittest.TestCase):

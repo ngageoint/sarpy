@@ -4,7 +4,7 @@ Basic building blocks for SICD standard.
 
 from .base import _get_node_value, _create_text_node, _create_new_node, Serializable, DEFAULT_STRICT, \
     _StringDescriptor, _StringEnumDescriptor, _IntegerDescriptor, _FloatDescriptor, _FloatModularDescriptor, \
-    _PolynomialDescriptor
+    _SerializableDescriptor, _parse_serializable_array
 
 from collections import OrderedDict
 
@@ -63,13 +63,13 @@ class XYZType(Serializable):
     _numeric_format = {}  # TODO: desired precision? 'X': '0.8f', 'Y': '0.8f', 'Z': '0.8f'
     # descriptors
     X = _FloatDescriptor(
-        'X', _required, strict=DEFAULT_STRICT,
+        'X', _required, strict=True,
         docstring='The X attribute. Assumed to ECF or other, similar coordinates.')  # type: float
     Y = _FloatDescriptor(
-        'Y', _required, strict=DEFAULT_STRICT,
+        'Y', _required, strict=True,
         docstring='The Y attribute. Assumed to ECF or other, similar coordinates.')  # type: float
     Z = _FloatDescriptor(
-        'Z', _required, strict=DEFAULT_STRICT,
+        'Z', _required, strict=True,
         docstring='The Z attribute. Assumed to ECF or other, similar coordinates.')  # type: float
 
     def __init__(self, coords=None, X=None, Y=None, Z=None, **kwargs):
@@ -84,8 +84,11 @@ class XYZType(Serializable):
         kwargs : dict
         """
 
-        if isinstance(coords, (numpy.ndarray, list, tuple)) and len(coords) >= 3:
-            self.X, self.Y, self.Z = coords[0], coords[1], coords[2]
+        if isinstance(coords, (numpy.ndarray, list, tuple)):
+            if len(coords) >= 3:
+                self.X, self.Y, self.Z = coords[0], coords[1], coords[2]
+            else:
+                raise ValueError('Expected coords to be of length 3, and received {}'.format(coords))
         else:
             self.X, self.Y, self.Z = X, Y, Z
         super(XYZType, self).__init__(**kwargs)
@@ -111,13 +114,13 @@ class LatLonType(Serializable):
     """A two-dimensional geographic point in WGS-84 coordinates."""
     _fields = ('Lat', 'Lon')
     _required = _fields
-    _numeric_format = {}  # TODO: desired precision? {'Lat': '2.8f', 'Lon': '3.8f'}
+    _numeric_format = {'Lat': '2.8f', 'Lon': '3.8f'}
     # descriptors
     Lat = _FloatDescriptor(
-        'Lat', _required, strict=DEFAULT_STRICT,
+        'Lat', _required, strict=True,
         docstring='The latitude attribute. Assumed to be WGS-84 coordinates.')  # type: float
     Lon = _FloatDescriptor(
-        'Lon', _required, strict=DEFAULT_STRICT,
+        'Lon', _required, strict=True,
         docstring='The longitude attribute. Assumed to be WGS-84 coordinates.')  # type: float
 
     def __init__(self, coords=None, Lat=None, Lon=None, **kwargs):
@@ -130,8 +133,11 @@ class LatLonType(Serializable):
         Lon : float
         kwargs : dict
         """
-        if isinstance(coords, (numpy.ndarray, list, tuple)) and len(coords) >= 2:
-            self.Lat, self.Lon = coords[0], coords[1]
+        if isinstance(coords, (numpy.ndarray, list, tuple)):
+            if len(coords) >= 2:
+                self.Lat, self.Lon = coords[0], coords[1]
+            else:
+                raise ValueError('Expected coords to be of length 2, and received {}'.format(coords))
         else:
             self.Lat, self.Lon = Lat, Lon
         super(LatLonType, self).__init__(**kwargs)
@@ -190,10 +196,10 @@ class LatLonRestrictionType(LatLonType):
     _numeric_format = {'Lat': '2.8f', 'Lon': '3.8f'}
     # descriptors
     Lat = _FloatModularDescriptor(
-        'Lat', 90.0, _required, strict=DEFAULT_STRICT,
+        'Lat', 90.0, _required, strict=True,
         docstring='The latitude attribute. Assumed to be WGS-84 coordinates.')  # type: float
     Lon = _FloatModularDescriptor(
-        'Lon', 180.0, _required, strict=DEFAULT_STRICT,
+        'Lon', 180.0, _required, strict=True,
         docstring='The longitude attribute. Assumed to be WGS-84 coordinates.')  # type: float
 
     def __init__(self, coords=None, Lat=None, Lon=None, **kwargs):
@@ -217,8 +223,9 @@ class LatLonHAEType(LatLonType):
     _numeric_format = {'Lat': '2.8f', 'Lon': '3.8f', 'HAE': '0.8f'}
     # descriptors
     HAE = _FloatDescriptor(
-        'HAE', _required, strict=DEFAULT_STRICT,
-        docstring='The Height Above Ellipsoid (in meters) attribute. Assumed to be WGS-84 coordinates.')  # type: float
+        'HAE', _required, strict=True,
+        docstring='The Height Above Ellipsoid (in meters) attribute. Assumed to be '
+                  'WGS-84 coordinates.')  # type: float
 
     def __init__(self, coords=None, Lat=None, Lon=None, HAE=None, **kwargs):
         """
@@ -231,8 +238,11 @@ class LatLonHAEType(LatLonType):
         HAE : float
         kwargs : dict
         """
-        if isinstance(coords, (numpy.ndarray, list, tuple)) and len(coords) >= 3:
-            Lat, Lon, self.HAE = coords[0], coords[1], coords[2]
+        if isinstance(coords, (numpy.ndarray, list, tuple)):
+            if len(coords) >= 3:
+                Lat, Lon, self.HAE = coords[0], coords[1], coords[2]
+            else:
+                raise ValueError('Expected coords to be of length 3, and received {}'.format(coords))
         else:
             self.HAE = HAE
         super(LatLonHAEType, self).__init__(Lat=Lat, Lon=Lon, **kwargs)
@@ -264,10 +274,10 @@ class LatLonHAERestrictionType(LatLonHAEType):
     _required = _fields
     """A three-dimensional geographic point in WGS-84 coordinates."""
     Lat = _FloatModularDescriptor(
-        'Lat', 90.0, _required, strict=DEFAULT_STRICT,
+        'Lat', 90.0, _required, strict=True,
         docstring='The latitude attribute. Assumed to be WGS-84 coordinates.')  # type: float
     Lon = _FloatModularDescriptor(
-        'Lon', 180.0, _required, strict=DEFAULT_STRICT,
+        'Lon', 180.0, _required, strict=True,
         docstring='The longitude attribute. Assumed to be WGS-84 coordinates.')  # type: float
 
     def __init__(self, coords=None, Lat=None, Lon=None, HAE=None, **kwargs):
@@ -292,9 +302,10 @@ class LatLonCornerType(LatLonType):
     _set_as_attribute = ('index', )
     # descriptors
     index = _IntegerDescriptor(
-        'index', _required, strict=True, bounds=(1, 4),
-        docstring='The integer index. This represents a clockwise enumeration of the rectangle vertices '
-                  'wrt the frame of reference of the collector.')  # type: int
+        'index', _required, strict=True, bounds=(0, 4),
+        docstring='The integer index. This represents a clockwise enumeration of '
+                  'the rectangle vertices wrt the frame of reference of the collector. '
+                  'Should be 1-4, but 0-3 may be permissible.')  # type: int
 
     def __init__(self, coords=None, Lat=None, Lon=None, index=None, **kwargs):
         """
@@ -345,9 +356,10 @@ class LatLonHAECornerRestrictionType(LatLonHAERestrictionType):
     _set_as_attribute = ('index', )
     # descriptors
     index = _IntegerDescriptor(
-        'index', _required, strict=True, bounds=(1, 4),
-        docstring='The integer index. This represents a clockwise enumeration of the rectangle vertices '
-                  'wrt the frame of reference of the collector.')  # type: int
+        'index', _required, strict=False, bounds=(0, 4),
+        docstring='The integer index. This represents a clockwise enumeration of the '
+                  'rectangle vertices wrt the frame of reference of the collector. '
+                  'Should be 1-4, but 0-3 may be permissible.')  # type: int
 
     def __init__(self, coords=None, Lat=None, Lon=None, HAE=None, index=None, **kwargs):
         """
@@ -401,9 +413,9 @@ class RowColType(Serializable):
     _fields = ('Row', 'Col')
     _required = _fields
     Row = _IntegerDescriptor(
-        'Row', _required, strict=DEFAULT_STRICT, docstring='The Row attribute.')  # type: int
+        'Row', _required, strict=True, docstring='The Row attribute.')  # type: int
     Col = _IntegerDescriptor(
-        'Col', _required, strict=DEFAULT_STRICT, docstring='The Column attribute.')  # type: int
+        'Col', _required, strict=True, docstring='The Column attribute.')  # type: int
 
     def __init__(self, coords=None, Row=None, Col=None, **kwargs):
         """
@@ -415,8 +427,11 @@ class RowColType(Serializable):
         Col : int
         kwargs : dict
         """
-        if isinstance(coords, (numpy.ndarray, list, tuple)) and len(coords) >= 2:
-            self.Row, self.Col = coords[0], coords[1]
+        if isinstance(coords, (numpy.ndarray, list, tuple)):
+            if len(coords) >= 2:
+                self.Row, self.Col = coords[0], coords[1]
+            else:
+                raise ValueError('Expected coords to be of length 2, and received {}'.format(coords))
         else:
             self.Row, self.Col = Row, Col
         super(RowColType, self).__init__(**kwargs)
@@ -447,7 +462,7 @@ class RowColArrayElement(RowColType):
     _set_as_attribute = ('index', )
     # descriptors
     index = _IntegerDescriptor(
-        'index', _required, strict=DEFAULT_STRICT, docstring='The array index attribute.')  # type: int
+        'index', _required, strict=False, docstring='The array index attribute.')  # type: int
 
     def __init__(self, coords=None, Row=None, Col=None, index=None, **kwargs):
         """
@@ -492,10 +507,7 @@ class Poly1DType(Serializable):
         int: The order1 attribute [READ ONLY]  - that is, largest exponent presented in the monomial terms of coefs.
         """
 
-        if self.Coefs is None:
-            return None
-        else:
-            return self.Coefs.size - 1
+        return self.Coefs.size - 1
 
     @property
     def Coefs(self):
@@ -509,8 +521,7 @@ class Poly1DType(Serializable):
     @Coefs.setter
     def Coefs(self, value):
         if value is None:
-            self._Coefs = None
-            return
+            raise ValueError('The coefficient array for a Poly1DType instance must be defined.')
 
         if isinstance(value, (list, tuple)):
             value = numpy.array(value, dtype=numpy.float64)
@@ -523,9 +534,7 @@ class Poly1DType(Serializable):
                 'Coefs for class Poly1D must be one-dimensional. Received numpy.ndarray '
                 'of shape {}.'.format(value.shape))
         elif not value.dtype == numpy.float64:
-            raise ValueError(
-                'Coefs for class Poly1D must have dtype=float64. Received numpy.ndarray '
-                'of dtype {}.'.format(value.dtype))
+            value = numpy.cast[numpy.float64](value)
         self._Coefs = value
 
     def __call__(self, x):
@@ -543,9 +552,7 @@ class Poly1DType(Serializable):
         numpy.ndarray
         """
 
-        if self.Coefs is None:
-            return None
-        return numpy.polynomial.polynomial.polyval(x, self.Coefs)
+        return numpy.polynomial.polynomial.polyval(x, self._Coefs)
 
     def derivative(self, der_order=1, return_poly=False):
         """
@@ -563,9 +570,7 @@ class Poly1DType(Serializable):
         Poly1DType|numpy.ndarray
         """
 
-        if self.Coefs is None:
-            return None
-        coefs = numpy.polynomial.polynomial.polyder(self.Coefs, der_order)
+        coefs = numpy.polynomial.polynomial.polyder(self._Coefs, der_order)
         if return_poly:
             return Poly1DType(Coefs=coefs)
         return coefs
@@ -585,8 +590,7 @@ class Poly1DType(Serializable):
         -------
         numpy.ndarray
         """
-        if self.Coefs is None:
-            return None
+
         coefs = self.derivative(der_order=der_order, return_poly=False)
         return numpy.polynomial.polynomial.polyval(x, coefs)
 
@@ -617,10 +621,7 @@ class Poly1DType(Serializable):
         Poly1DType|numpy.ndarray
         """
 
-        if self.Coefs is None:
-            return None
-
-        coefs = self.Coefs
+        coefs = self._Coefs
 
         if t_0 == 0:
             out = numpy.copy(coefs)
@@ -693,10 +694,8 @@ class Poly1DType(Serializable):
 
         if parent is None:
             parent = doc.getroot()
-        node = _create_new_node(doc, tag, parent=parent)
-        if self.Coefs is None:
-            return node
 
+        node = _create_new_node(doc, tag, parent=parent)
         node.attrib['order1'] = str(self.order1)
         fmt_func = self._get_formatter('Coef')
         for i, val in enumerate(self.Coefs):
@@ -763,8 +762,6 @@ class Poly2DType(Serializable):
         numpy.ndarray
         """
 
-        if self.Coefs is None:
-            return None
         return numpy.polynomial.polynomial.polyval2d(x, y, self.Coefs)
 
     @property
@@ -773,10 +770,7 @@ class Poly2DType(Serializable):
         int: The order1 attribute [READ ONLY]  - that is, largest exponent1 presented in the monomial terms of coefs.
         """
 
-        if self.Coefs is None:
-            return None
-        else:
-            return self.Coefs.shape[0] - 1
+        return self.Coefs.shape[0] - 1
 
     @property
     def order2(self):
@@ -784,10 +778,7 @@ class Poly2DType(Serializable):
         int: The order1 attribute [READ ONLY]  - that is, largest exponent2 presented in the monomial terms of coefs.
         """
 
-        if self.Coefs is None:
-            return None
-        else:
-            return self.Coefs.shape[1] - 1
+        return self.Coefs.shape[1] - 1
 
     @property
     def Coefs(self):
@@ -801,8 +792,7 @@ class Poly2DType(Serializable):
     @Coefs.setter
     def Coefs(self, value):
         if value is None:
-            self._Coefs = None
-            return
+            raise ValueError('The coefficient array for a Poly2DType instance must be defined.')
 
         if isinstance(value, (list, tuple)):
             value = numpy.array(value, dtype=numpy.float64)
@@ -815,9 +805,7 @@ class Poly2DType(Serializable):
                 'Coefs for class Poly2D must be two-dimensional. Received numpy.ndarray '
                 'of shape {}.'.format(value.shape))
         elif not value.dtype == numpy.float64:
-            raise ValueError(
-                'Coefs for class Poly2D must have dtype=float64. Received numpy.ndarray '
-                'of dtype {}.'.format(value.dtype))
+            value = numpy.cast[numpy.float64](value)
         self._Coefs = value
 
     @classmethod
@@ -875,9 +863,6 @@ class Poly2DType(Serializable):
         if parent is None:
             parent = doc.getroot()
         node = _create_new_node(doc, tag, parent=parent)
-        if self.Coefs is None:
-            return node
-
         node.attrib['order1'] = str(self.order1)
         node.attrib['order2'] = str(self.order2)
         fmt_func = self._get_formatter('Coefs')
@@ -921,28 +906,33 @@ class XYZPolyType(Serializable):
     _fields = ('X', 'Y', 'Z')
     _required = _fields
     # descriptors
-    X = _PolynomialDescriptor(
-        'X', Poly1DType, _required, strict=DEFAULT_STRICT,
+    X = _SerializableDescriptor(
+        'X', Poly1DType, _required, strict=True,
         docstring='The polynomial for the X coordinate.')  # type: Poly1DType
-    Y = _PolynomialDescriptor(
-        'Y', Poly1DType, _required, strict=DEFAULT_STRICT,
+    Y = _SerializableDescriptor(
+        'Y', Poly1DType, _required, strict=True,
         docstring='The polynomial for the Y coordinate.')  # type: Poly1DType
-    Z = _PolynomialDescriptor(
-        'Z', Poly1DType, _required, strict=DEFAULT_STRICT,
+    Z = _SerializableDescriptor(
+        'Z', Poly1DType, _required, strict=True,
         docstring='The polynomial for the Z coordinate.')  # type: Poly1DType
 
-    def __init__(self, X=None, Y=None, Z=None, **kwargs):
+    def __init__(self, coords=None, X=None, Y=None, Z=None, **kwargs):
         """
         Parameters
         ----------
+        coords : numpy.ndarray|list|tuple
         X : Poly1DType|numpy.ndarray|list|tuple
         Y : Poly1DType|numpy.ndarray|list|tuple
         Z : Poly1DType|numpy.ndarray|list|tuple
         kwargs : dict
         """
-        self.X = X
-        self.Y = Y
-        self.Z = Z
+        if isinstance(coords, (numpy.ndarray, list, tuple)):
+            if len(coords) >= 3:
+                self.X, self.Y, self.Z = coords[0], coords[1], coords[2]
+            else:
+                raise ValueError('Expected coords to be of length 3, and received {}'.format(coords))
+        else:
+            self.X, self.Y, self.Z = X, Y, Z
         super(XYZPolyType, self).__init__(**kwargs)
 
     def __call__(self, t):
@@ -958,12 +948,40 @@ class XYZPolyType(Serializable):
 
         Returns
         -------
-        None|numpy.ndarray
+        numpy.ndarray
         """
 
-        if self.X is None or self.Y is None or self.Z is None:
-            return None
         return numpy.array([self.X(t), self.Y(t), self.Z(t)])
+
+    def get_array(self, dtype=numpy.object):
+        """Gets an array representation of the class instance.
+
+        Parameters
+        ----------
+        dtype : numpy.dtype
+            numpy data type of the return.
+            If `object`, an array of Poly1DType objects is returned.
+            Otherwise, an ndarray of shape (3, N) of coefficient vectors is returned.
+
+        Returns
+        -------
+        numpy.ndarray
+            array of the form [X,Y,Z].
+        """
+
+        if dtype in ['object', numpy.object]:
+            return numpy.array([self.X, self.Y, self.Z], dtype=numpy.object)
+        else:
+            # return a 3 x N array of coefficients
+            xv = self.X.Coefs
+            yv = self.Y.Coefs
+            zv = self.Z.Coefs
+            length = max(xv.size, yv.size, zv.size)
+            out = numpy.zeros((3, length), dtype=dtype)
+            out[0, :xv.size] = xv
+            out[1, :yv.size] = yv
+            out[2, :zv.size] = zv
+            return out
 
     def derivative(self, der_order=1, return_poly=False):
         """
@@ -981,16 +999,9 @@ class XYZPolyType(Serializable):
         XYZPolyType|list
         """
 
-        coefs = [None, None, None]
-        if self.X is not None:
-            coefs[0] = self.X.derivative(der_order=der_order, return_poly=False)
-        if self.Y is not None:
-            coefs[1] = self.Y.derivative(der_order=der_order, return_poly=False)
-        if self.Z is not None:
-            coefs[2] = self.Z.derivative(der_order=der_order, return_poly=False)
+        coefs = [
+            getattr(self, attrib).derivative(der_order=der_order, return_poly=False) for attrib in ['X', 'Y', 'Z']]
 
-        if any(entry is None for entry in coefs):
-            return None
         if return_poly:
             return XYZPolyType(X=coefs[0], Y=coefs[1], Z=coefs[2])
         return coefs
@@ -1008,13 +1019,10 @@ class XYZPolyType(Serializable):
             The derivative.
         Returns
         -------
-        numpy.ndarray|None
+        numpy.ndarray
         """
 
         coefs = self.derivative(der_order=der_order, return_poly=False)
-        if coefs is None:
-            return None
-
         return numpy.array([numpy.polynomial.polynomial.polyval(t, entry) for entry in coefs], dtype=numpy.float64)
 
     def shift(self, t_0, alpha=1, return_poly=False):
@@ -1043,16 +1051,9 @@ class XYZPolyType(Serializable):
         XYZPolyType|list
         """
 
-        coefs = [None, None, None]
-        if self.X is not None:
-            coefs[0] = self.X.shift(t_0, alpha=alpha, return_poly=False)
-        if self.Y is not None:
-            coefs[1] = self.Y.shift(t_0, alpha=alpha, return_poly=False)
-        if self.Z is not None:
-            coefs[2] = self.Z.shift(t_0, alpha=alpha, return_poly=False)
+        coefs = [
+            getattr(self, attrib).shift(t_0, alpha=alpha, return_poly=False) for attrib in ['X', 'Y', 'Z']]
 
-        if any(entry is None for entry in coefs):
-            return None
         if return_poly:
             return XYZPolyType(X=coefs[0], Y=coefs[1], Z=coefs[2])
         return coefs
@@ -1060,8 +1061,8 @@ class XYZPolyType(Serializable):
 
 class XYZPolyAttributeType(XYZPolyType):
     """
-    An array element of X, Y, Z polynomials. The output of these polynomials are expected to spatial variables in
-    the ECF coordinate system.
+    An array element of X, Y, Z polynomials. The output of these polynomials are expected
+    to be spatial variables in the ECF coordinate system.
     """
     _fields = ('X', 'Y', 'Z', 'index')
     _required = _fields
@@ -1070,10 +1071,11 @@ class XYZPolyAttributeType(XYZPolyType):
     index = _IntegerDescriptor(
         'index', _required, strict=DEFAULT_STRICT, docstring='The array index value.')  # type: int
 
-    def __init__(self, X=None, Y=None, Z=None, index=None, **kwargs):
+    def __init__(self, coords=None, X=None, Y=None, Z=None, index=None, **kwargs):
         """
         Parameters
         ----------
+        coords : numpy.ndarray|list|tuple
         X : Poly1DType|numpy.ndarray|list|tuple
         Y : Poly1DType|numpy.ndarray|list|tuple
         Z : Poly1DType|numpy.ndarray|list|tuple
@@ -1081,7 +1083,7 @@ class XYZPolyAttributeType(XYZPolyType):
         kwargs : dict
         """
         self.index = index
-        super(XYZPolyAttributeType, self).__init__(X=X, Y=Y, Z=Z, **kwargs)
+        super(XYZPolyAttributeType, self).__init__(coords=coords, X=X, Y=Y, Z=Z, **kwargs)
 
 
 class GainPhasePolyType(Serializable):
@@ -1090,12 +1092,12 @@ class GainPhasePolyType(Serializable):
     _fields = ('GainPoly', 'PhasePoly')
     _required = _fields
     # descriptors
-    GainPoly = _PolynomialDescriptor(
+    GainPoly = _SerializableDescriptor(
         'GainPoly', Poly2DType, _required, strict=DEFAULT_STRICT,
         docstring='One-way signal gain (in dB) as a function of X-axis direction cosine (DCX) (variable 1) '
                   'and Y-axis direction cosine (DCY) (variable 2). Gain relative to gain at DCX = 0 '
                   'and DCY = 0, so constant coefficient is always 0.0.')  # type: Poly2DType
-    PhasePoly = _PolynomialDescriptor(
+    PhasePoly = _SerializableDescriptor(
         'PhasePoly', Poly2DType, _required, strict=DEFAULT_STRICT,
         docstring='One-way signal phase (in cycles) as a function of DCX (variable 1) and '
                   'DCY (variable 2). Phase relative to phase at DCX = 0 and DCY = 0, '
@@ -1130,6 +1132,7 @@ class GainPhasePolyType(Serializable):
         numpy.ndarray
         """
 
+        # TODO: is it remotely sensible that only one of these is defined?
         if self.GainPoly is None or self.PhasePoly is None:
             return None
         return numpy.array([self.GainPoly(x, y), self.PhasePoly(x, y)], dtype=numpy.float64)
@@ -1150,10 +1153,10 @@ class ErrorDecorrFuncType(Serializable):
     _numeric_format = {'CorrCoefZero': '0.8f', 'DecorrRate': '0.8f'}
     # descriptors
     CorrCoefZero = _FloatDescriptor(
-        'CorrCoefZero', _required, strict=DEFAULT_STRICT,
+        'CorrCoefZero', _required, strict=True,
         docstring='Error correlation coefficient for zero time difference (CC0).')  # type: float
     DecorrRate = _FloatDescriptor(
-        'DecorrRate', _required, strict=DEFAULT_STRICT,
+        'DecorrRate', _required, strict=True,
         docstring='Error decorrelation rate. Simple linear decorrelation rate (DCR).')  # type: float
 
     def __init__(self, CorrCoefZero=None, DecorrRate=None, **kwargs):
@@ -1167,3 +1170,130 @@ class ErrorDecorrFuncType(Serializable):
         self.CorrCoefZero = CorrCoefZero
         self.DecorrRate = DecorrRate
         super(ErrorDecorrFuncType, self).__init__(**kwargs)
+
+
+#############
+# Coordinate Array type
+
+class SerializableArray(object):
+    _child_tag = None
+    _child_type = None
+    _minimum_length = 0
+    _maximum_length = 2**32
+    _array = None
+    _name = None
+
+    def __init__(self, coords=None, name=None, child_tag=None, child_type=None, minimum_length=None,
+                 maximum_length=None, **kwargs):
+        if name is None:
+            raise ValueError('The name parameter is required.')
+        if not isinstance(name, str):
+            raise TypeError(
+                'The name parameter is required to be an instance of str, got {}'.format(type(name)))
+        self._name = name
+
+        if child_tag is None:
+            raise ValueError('The child_tag parameter is required.')
+        if not isinstance(child_tag, str):
+            raise TypeError(
+                'The child_tag parameter is required to be an instance of str, got {}'.format(type(child_tag)))
+        self._child_tag = child_tag
+
+        if child_type is None:
+            raise ValueError('The child_type parameter is required.')
+        if not issubclass(child_type, Serializable):
+            raise TypeError('The child_type is required to be a subclass of Serializable.')
+        self._child_type = child_type
+
+        if minimum_length is not None:
+            self._minimum_length = max(int(minimum_length), 0)
+        if maximum_length is not None:
+            self._maximum_length = max(int(maximum_length), self._minimum_length)
+
+        self.set_array(coords)
+
+    @property
+    def size(self):  # type: () -> int
+        """
+        int: the size of the array.
+        """
+
+        if self._array is None:
+            return 0
+        else:
+            return self._array.size
+
+    def get_array(self, dtype=numpy.object, **kwargs):
+        """Gets an array representation of the class instance.
+
+        Parameters
+        ----------
+        dtype : numpy.dtype
+            numpy data type of the return.
+        kwargs : keyword arguments for calls of the form child.get_array(**kwargs)
+
+        Returns
+        -------
+        numpy.ndarray
+            * If `dtype` in `(numpy.object`, 'object')`, then the literal array of
+              child objects is returned. *Note: Beware of mutating the elements.*
+            * If `dtype` has any other value, then the return value will be tried
+              as `numpy.array([child.get_array(dtype=dtype, **kwargs) for child in array]`.
+            * If there is any error, then `None` is returned.
+        """
+
+        if dtype in [numpy.object, 'object']:
+            return self._array
+        else:
+            try:
+                return numpy.array(
+                    [child.get_array(dtype=dtype, **kwargs) for child in self._array], dtype=dtype)
+            except Exception:
+                return None
+
+    def set_array(self, coords):
+        """
+        Sets the underlying array.
+
+        Parameters
+        ----------
+        coords : numpy.ndarray|list|tuple
+
+        Returns
+        -------
+        None
+        """
+        # TODO: flesh this docstring out more effectively.
+
+        if coords is None:
+            self._array = None
+        else:
+            self._array = _parse_serializable_array(
+                coords, 'coords', self, self._child_type, self._child_tag)
+
+    def to_node(self, doc, tag, parent=None, strict=DEFAULT_STRICT, exclude=()):
+        if self.size == 0:
+            return None  # nothing to be done
+
+        anode = _create_new_node(doc, tag, parent=parent)
+        anode.attrib['size'] = str(self.size)
+        for i, entry in enumerate(self._array):
+            entry.to_node(doc, self._child_tag, parent=anode, strict=strict)
+
+    @classmethod
+    def from_node(cls, node, name, child_tag, child_type, **kwargs):
+        return cls(coords=node, name=name, child_tag=child_tag, child_type=child_type, **kwargs)
+
+    def to_dict(self, strict=DEFAULT_STRICT):
+        if self.size == 0:
+            return []
+        return [entry.to_dict(strict=strict) for entry in self._array]
+
+# TODO:
+#  1.)  Move this into base.py
+#  2.) Make a special cornerstring version with the four attributes.
+#  3.)  Incorporate into the _SerializableArrayDescriptor
+#  4.)  Incorporate into the Serializable serialization process.
+#  5.)  Make a Serializable list & use that for all the lists
+#  6.)  This is mostly Parameters, so that should be a particular case.
+#       Like a dictionary descriptor or something?

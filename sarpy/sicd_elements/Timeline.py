@@ -8,7 +8,7 @@ import numpy
 
 from .base import Serializable, DEFAULT_STRICT, \
     _FloatDescriptor, _IntegerDescriptor, _DateTimeDescriptor, \
-    _SerializableArrayDescriptor, _PolynomialDescriptor
+    _SerializableArrayDescriptor, _SerializableDescriptor
 from .blocks import Poly1DType
 
 
@@ -34,7 +34,7 @@ class IPPSetType(Serializable):
         'IPPStart', _required, strict=True, docstring='Starting IPP index for the period described.')  # type: int
     IPPEnd = _IntegerDescriptor(
         'IPPEnd', _required, strict=True, docstring='Ending IPP index for the period described.')  # type: int
-    IPPPoly = _PolynomialDescriptor(
+    IPPPoly = _SerializableDescriptor(
         'IPPPoly', Poly1DType, _required, strict=DEFAULT_STRICT,
         docstring='IPP index polynomial coefficients yield IPP index as a function of time.')  # type: Poly1DType
     index = _IntegerDescriptor(

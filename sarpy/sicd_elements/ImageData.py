@@ -9,7 +9,7 @@ import numpy
 
 from .base import Serializable, DEFAULT_STRICT, \
     _IntegerDescriptor, _FloatArrayDescriptor, _StringEnumDescriptor, \
-    _SerializableArrayDescriptor, _CoordinateDescriptor
+    _SerializableArrayDescriptor, _SerializableDescriptor
 from .blocks import RowColType, RowColArrayElement
 
 
@@ -22,10 +22,10 @@ class FullImageType(Serializable):
     _required = _fields
     # descriptors
     NumRows = _IntegerDescriptor(
-        'NumRows', _required, strict=DEFAULT_STRICT,
+        'NumRows', _required, strict=True,
         docstring='Number of rows in the original full image product. May include zero pixels.')  # type: int
     NumCols = _IntegerDescriptor(
-        'NumCols', _required, strict=DEFAULT_STRICT,
+        'NumCols', _required, strict=True,
         docstring='Number of columns in the original full image product. May include zero pixels.')  # type: int
 
     def __init__(self, coords=None, NumRows=None, NumCols=None, **kwargs):
@@ -46,8 +46,19 @@ class FullImageType(Serializable):
         super(FullImageType, self).__init__(**kwargs)
 
     def get_array(self, dtype=numpy.int64):
-        if self.NumRows is None or self.NumCols is None:
-            return None
+        """Gets an array representation of the class instance.
+
+        Parameters
+        ----------
+        dtype : numpy.dtype
+            numpy data type of the return
+
+        Returns
+        -------
+        numpy.ndarray
+            array of the form [X,Y,Z]
+        """
+
         return numpy.array([self.NumRows, self.NumCols], dtype=dtype)
 
 
@@ -85,10 +96,10 @@ class ImageDataType(Serializable):
         'FirstCol', _required, strict=DEFAULT_STRICT,
         docstring='Global column index of the first column in the product. '
                   'Equal to 0 in full image product.')  # type: int
-    FullImage = _CoordinateDescriptor(
+    FullImage = _SerializableDescriptor(
         'FullImage', FullImageType, _required, strict=DEFAULT_STRICT,
         docstring='Original full image product.')  # type: FullImageType
-    SCPPixel = _CoordinateDescriptor(
+    SCPPixel = _SerializableDescriptor(
         'SCPPixel', RowColType, _required, strict=DEFAULT_STRICT,
         docstring='Scene Center Point pixel global row and column index. Should be located near the '
                   'center of the full image.')  # type: RowColType

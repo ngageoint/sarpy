@@ -30,9 +30,8 @@ from sarpy.geometry import point_projection
 
 
 # TODO:
-#   1.) Unit tests for SICD elements.
-#   2.) Can we refine the strict parameter population for the SICD elements?
-#   3.) determine and implement appropriate class methods for proper functionality
+#   1.) Can we refine the strict parameter population for the SICD elements?
+#   2.) determine and implement appropriate class methods for proper functionality
 #       how are things used, and what helper functions do we need?
 
 
@@ -283,11 +282,11 @@ class SICDType(Serializable):
         except (ValueError, AttributeError):
             return
 
-        self.GeoData.ImageCorners = [
-            LatLonCornerStringType(Lat=corner_coords[0, 0], Lon=corner_coords[0, 1], index='1:FRFC'),
-            LatLonCornerStringType(Lat=corner_coords[1, 0], Lon=corner_coords[1, 1], index='2:FRLC'),
-            LatLonCornerStringType(Lat=corner_coords[2, 0], Lon=corner_coords[2, 1], index='3:LRLC'),
-            LatLonCornerStringType(Lat=corner_coords[3, 0], Lon=corner_coords[3, 1], index='4:LRFC'),
+        self.GeoData.ImageCorners = [  # TODO: ImageCorners should be settable directly from corner_coords
+            LatLonCornerStringType(coords=corner_coords[0, :], index='1:FRFC'),
+            LatLonCornerStringType(coords=corner_coords[1, :], index='2:FRLC'),
+            LatLonCornerStringType(coords=corner_coords[2, :], index='3:LRLC'),
+            LatLonCornerStringType(coords=corner_coords[3, :], index='4:LRFC'),
         ]
 
     def define_geo_valid_data(self):
@@ -311,8 +310,8 @@ class SICDType(Serializable):
         except (ValueError, AttributeError):
             return
 
-        self.GeoData.ValidData = [
-            LatLonArrayElementType(Lat=entry[0], Lon=entry[1], index=i) for i, entry in enumerate(corner_coords)]
+        self.GeoData.ValidData = [  # TODO: this should be directly settable from corner_coords
+            LatLonArrayElementType(coords=entry, index=i) for i, entry in enumerate(corner_coords)]
 
     def derive(self):
         """

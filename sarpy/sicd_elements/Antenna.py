@@ -4,7 +4,7 @@ The AntennaType definition.
 
 import numpy
 from .base import Serializable, DEFAULT_STRICT, _BooleanDescriptor, _FloatDescriptor, \
-    _SerializableDescriptor, _PolynomialDescriptor
+    _SerializableDescriptor
 from .blocks import Poly1DType, XYZPolyType, GainPhasePolyType
 
 
@@ -16,11 +16,11 @@ class EBType(Serializable):
     _fields = ('DCXPoly', 'DCYPoly')
     _required = _fields
     # descriptors
-    DCXPoly = _PolynomialDescriptor(
+    DCXPoly = _SerializableDescriptor(
         'DCXPoly', Poly1DType, _required, strict=DEFAULT_STRICT,
         docstring='Electrical boresight steering *X-axis direction cosine (DCX)* as a function of '
                   'slow time *(variable 1)*.')  # type: Poly1DType
-    DCYPoly = _PolynomialDescriptor(
+    DCYPoly = _SerializableDescriptor(
         'DCYPoly', Poly1DType, _required, strict=DEFAULT_STRICT,
         docstring='Electrical boresight steering *Y-axis direction cosine (DCY)* as a function of '
                   'slow time *(variable 1)*.')  # type: Poly1DType
@@ -86,7 +86,7 @@ class AntParamType(Serializable):
     Elem = _SerializableDescriptor(
         'Elem', GainPhasePolyType, _required, strict=DEFAULT_STRICT,
         docstring='Element array pattern polynomials for electronically steered arrays.')  # type: GainPhasePolyType
-    GainBSPoly = _PolynomialDescriptor(
+    GainBSPoly = _SerializableDescriptor(
         'GainBSPoly', Poly1DType, _required, strict=DEFAULT_STRICT,
         docstring='Gain polynomial *(in dB)* as a function of frequency for boresight *(BS)* at :math:`DCX=0, DCY=0`. '
                   'Frequency ratio :math:`(f-f0)/f0` is the input variable *(variable 1)*, and the constant '

@@ -5,8 +5,7 @@ The PFAType definition.
 import numpy
 from numpy.linalg import norm
 
-from .base import Serializable, DEFAULT_STRICT, _BooleanDescriptor, _FloatDescriptor, \
-    _SerializableDescriptor, _PolynomialDescriptor, _CoordinateDescriptor
+from .base import Serializable, DEFAULT_STRICT, _BooleanDescriptor, _FloatDescriptor, _SerializableDescriptor
 from .blocks import Poly1DType, Poly2DType, XYZType
 
 from sarpy.geometry import geocoords
@@ -23,7 +22,7 @@ class STDeskewType(Serializable):
     Applied = _BooleanDescriptor(
         'Applied', _required, strict=DEFAULT_STRICT,
         docstring='Parameter indicating if slow time *(ST)* Deskew Phase function has been applied.')  # type: bool
-    STDSPhasePoly = _PolynomialDescriptor(
+    STDSPhasePoly = _SerializableDescriptor(
         'STDSPhasePoly', Poly2DType, _required, strict=DEFAULT_STRICT,
         docstring='Slow time deskew phase function to perform the *ST/Kaz* shift. Two-dimensional phase '
                   '(cycles) polynomial function of image range coordinate *(variable 1)* and '
@@ -51,11 +50,11 @@ class PFAType(Serializable):
         'StDeskew')
     _required = ('FPN', 'IPN', 'PolarAngRefTime', 'PolarAngPoly', 'SpatialFreqSFPoly', 'Krg1', 'Krg2', 'Kaz1', 'Kaz2')
     # descriptors
-    FPN = _CoordinateDescriptor(
+    FPN = _SerializableDescriptor(
         'FPN', XYZType, _required, strict=DEFAULT_STRICT,
         docstring='Focus Plane unit normal in ECF coordinates. Unit vector FPN points away from the center of '
                   'the Earth.')  # type: XYZType
-    IPN = _CoordinateDescriptor(
+    IPN = _SerializableDescriptor(
         'IPN', XYZType, _required, strict=DEFAULT_STRICT,
         docstring='Image Formation Plane unit normal in ECF coordinates. Unit vector IPN points away from the '
                   'center of the Earth.')  # type: XYZType
@@ -64,11 +63,11 @@ class PFAType(Serializable):
         docstring='Polar image formation reference time *(in seconds)*. Polar Angle = 0 at the reference time. '
                   'Measured relative to collection start. *Note: Reference time is typically set equal to the SCP '
                   'COA time but may be different.*')  # type: float
-    PolarAngPoly = _PolynomialDescriptor(
+    PolarAngPoly = _SerializableDescriptor(
         'PolarAngPoly', Poly1DType, _required, strict=DEFAULT_STRICT,
         docstring='Polynomial function that yields Polar Angle *(in radians)* as function of time '
                   'relative to Collection Start.')  # type: Poly1DType
-    SpatialFreqSFPoly = _PolynomialDescriptor(
+    SpatialFreqSFPoly = _SerializableDescriptor(
         'SpatialFreqSFPoly', Poly1DType, _required, strict=DEFAULT_STRICT,
         docstring='Polynomial that yields the *Spatial Frequency Scale Factor (KSF)* as a function of Polar '
                   'Angle. That is, *Polar Angle[radians] -> KSF[dimensionless]*. Used to scale RF '

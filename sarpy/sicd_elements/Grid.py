@@ -12,7 +12,7 @@ from scipy.constants import speed_of_light
 
 from .base import Serializable, DEFAULT_STRICT, \
     _StringDescriptor, _StringEnumDescriptor, _FloatDescriptor, _FloatArrayDescriptor, _IntegerEnumDescriptor, \
-    _SerializableDescriptor, _SerializableArrayDescriptor, _PolynomialDescriptor, _UnitVectorDescriptor
+    _SerializableDescriptor, _SerializableArrayDescriptor, _UnitVectorDescriptor
 from .blocks import ParameterType, XYZType, Poly2DType
 
 
@@ -217,7 +217,7 @@ class DirParamType(Serializable):
     DeltaK2 = _FloatDescriptor(
         'DeltaK2', _required, strict=DEFAULT_STRICT,
         docstring='Maximum (row/col) offset from KCtr of the spatial frequency support for the image.')  # type: float
-    DeltaKCOAPoly = _PolynomialDescriptor(
+    DeltaKCOAPoly = _SerializableDescriptor(
         'DeltaKCOAPoly', Poly2DType, _required, strict=DEFAULT_STRICT,
         docstring='Offset from KCtr of the center of support in the given (row/col) spatial frequency. '
                   'The polynomial is a function of image given (row/col) coordinate (variable 1) and '
@@ -443,7 +443,7 @@ class GridType(Serializable):
         * `PLANE` – Arbitrary plane with orientation other than the specific `XRGYCR` or `XCTYAT`.
         \n\n
         """)  # type: str
-    TimeCOAPoly = _PolynomialDescriptor(
+    TimeCOAPoly = _SerializableDescriptor(
         'TimeCOAPoly', Poly2DType, _required, strict=DEFAULT_STRICT,
         docstring="*Time of Center Of Aperture* as a polynomial function of image coordinates. "
                   "The polynomial is a function of image row coordinate (variable 1) and column coordinate "

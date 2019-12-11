@@ -9,7 +9,7 @@ from typing import List, Union
 import numpy
 
 from .base import Serializable, DEFAULT_STRICT, _StringDescriptor, _StringEnumDescriptor, \
-    _SerializableDescriptor, _SerializableArrayDescriptor, _CoordinateDescriptor
+    _SerializableDescriptor, _SerializableArrayDescriptor
 from .blocks import ParameterType, XYZType, LatLonRestrictionType, LatLonHAERestrictionType, \
     LatLonCornerStringType, LatLonArrayElementType
 
@@ -38,7 +38,7 @@ class GeoInfoType(Serializable):
     Descriptions = _SerializableArrayDescriptor(
         'Descriptions', ParameterType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Descriptions of the geographic feature.')  # type: List[ParameterType]
-    Point = _CoordinateDescriptor(
+    Point = _SerializableDescriptor(
         'Point', LatLonRestrictionType, _required, strict=DEFAULT_STRICT,
         docstring='A geographic point with WGS-84 coordinates.')  # type: LatLonRestrictionType
     Line = _SerializableArrayDescriptor(
@@ -100,10 +100,10 @@ class SCPType(Serializable):
     """Scene Center Point (SCP) in full (global) image. This is the precise location."""
     _fields = ('ECF', 'LLH')
     _required = _fields  # isn't this redundant?
-    ECF = _CoordinateDescriptor(
+    ECF = _SerializableDescriptor(
         'ECF', XYZType, _required, strict=DEFAULT_STRICT,
         docstring='The ECF coordinates.')  # type: XYZType
-    LLH = _CoordinateDescriptor(
+    LLH = _SerializableDescriptor(
         'LLH', LatLonHAERestrictionType, _required, strict=DEFAULT_STRICT,
         docstring='The WGS-84 coordinates.')  # type: LatLonHAERestrictionType
 
@@ -136,9 +136,9 @@ class SCPType(Serializable):
         """
 
         if self.ECF is None and self.LLH is not None:
-            self.ECF = XYZType(coords=geodetic_to_ecf(self.LLH.get_array(order='LAT')))
+            self.ECF = XYZType(coords=geodetic_to_ecf(self.LLH.get_array(order='LAT'))[0])
         elif self.LLH is None and self.ECF is not None:
-            self.LLH = LatLonHAERestrictionType(coords=ecf_to_geodetic(self.ECF.get_array()))
+            self.LLH = LatLonHAERestrictionType(coords=ecf_to_geodetic(self.ECF.get_array())[0])
 
 
 class GeoDataType(Serializable):

@@ -229,6 +229,18 @@ def _parse_serializable(value, name, instance, the_type):
         return the_type.from_dict(value)
     elif isinstance(value, ElementTree.Element):
         return the_type.from_node(value)
+    elif isinstance(value, (numpy.ndarray, list, tuple)):
+        if hasattr(the_type, 'Coefs'):
+            return the_type(Coefs=value)
+        elif hasattr(the_type, 'get_array'):
+            # TODO: this is hackneyed. I need to document this - make an abstract class?
+            return the_type(coords=value)
+        else:
+            raise TypeError(
+                'Field {} of class {} got instance of type {}, but is neither a coordinate type '
+                '(accepts `coords` as input argument and has attribute `get_array`) or '
+                'a polynomial type (accepts `Coefs` as input argument).'.format(
+                    name, instance.__class__.__name__, the_type, type(value)))
     else:
         raise TypeError(
             'Field {} of class {} is expecting type {}, but got an instance of incompatible '
@@ -242,10 +254,15 @@ def _parse_serializable_array(value, name, instance, child_type, child_tag):
         return numpy.array([value, ], dtype=numpy.object)
     elif isinstance(value, numpy.ndarray):
         if value.dtype != numpy.object:
-            raise ValueError(
-                'Attribute {} of array type functionality belonging to class {} got an ndarray of dtype {},'
-                'but contains objects, so requires dtype=numpy.object.'.format(
-                    name, instance.__class__.__name__, value.dtype))
+            if hasattr(child_type, 'get_array'):
+                return numpy.array([child_type(coords=array) for array in value], dtype=numpy.object)
+            elif hasattr(child_type, 'Coefs'):
+                return numpy.array([child_type(Coefs=array) for array in value], dtype=numpy.object)
+            else:
+                raise ValueError(
+                    'Attribute {} of array type functionality belonging to class {} got an ndarray of dtype {},'
+                    'and construction failed.'.format(
+                        name, instance.__class__.__name__, value.dtype))
         elif len(value.shape) != 1:
             raise ValueError(
                 'Attribute {} of array type functionality belonging to class {} got an ndarray of shape {},'
@@ -280,6 +297,16 @@ def _parse_serializable_array(value, name, instance, child_type, child_tag):
         elif isinstance(value[0], dict):
             # NB: charming errors are possible here if something stupid has been done.
             return numpy.array([child_type.from_dict(node) for node in value], dtype=numpy.object)
+        elif isinstance(value[0], (numpy.ndarray, list, tuple)):
+            if hasattr(child_type, 'get_array'):
+                return numpy.array([child_type(coords=array) for array in value], dtype=numpy.object)
+            elif hasattr(child_type, 'Coefs'):
+                return numpy.array([child_type(Coefs=array) for array in value], dtype=numpy.object)
+            else:
+                raise ValueError(
+                    'Attribute {} of array type functionality belonging to class {} got an list '
+                    'containing elements type {} and construction failed.'.format(
+                        name, instance.__class__.__name__, type(value[0])))
         else:
             raise TypeError(
                 'Attribute {} of array type functionality belonging to class {} got a list containing first '
@@ -880,51 +907,6 @@ class _SerializableDescriptor(_BasicDescriptor):
         self.data[instance] = _parse_serializable(value, self.name, instance, self.the_type)
 
 
-class _PolynomialDescriptor(_BasicDescriptor):
-    """A descriptor for properties of a specified type assumed to be of type Poly1DType or Poly2DType"""
-
-    def __init__(self, name, the_type, required, strict=DEFAULT_STRICT, docstring=None):
-        if not hasattr(the_type, 'Coefs'):
-            raise TypeError(
-                'The input type {} for field {} must have attribute `Coefs`.'.format(the_type, name))
-        self.the_type = the_type
-
-        self._typ_string = str(the_type).strip().split('.')[-1][:-2] + ':'
-        super(_PolynomialDescriptor, self).__init__(name, required, strict=strict, docstring=docstring)
-
-    def __set__(self, instance, value):
-        if super(_PolynomialDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
-            return
-
-        if isinstance(value, (numpy.ndarray, list, tuple)):
-            self.data[instance] = self.the_type(Coefs=value)
-        else:
-            self.data[instance] = _parse_serializable(value, self.name, instance, self.the_type)
-
-
-class _CoordinateDescriptor(_BasicDescriptor):
-    """A descriptor for properties of a specified type assumed to be of type Poly1DType or Poly2DType"""
-
-    def __init__(self, name, the_type, required, strict=DEFAULT_STRICT, docstring=None):
-        if not hasattr(the_type, 'get_array'):
-            raise TypeError(
-                'The input type {} for field {} must have attribute `get_array` and '
-                'corresponding construction parameter `coords`.'.format(the_type, name))
-        self.the_type = the_type
-
-        self._typ_string = str(the_type).strip().split('.')[-1][:-2] + ':'
-        super(_CoordinateDescriptor, self).__init__(name, required, strict=strict, docstring=docstring)
-
-    def __set__(self, instance, value):
-        if super(_CoordinateDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
-            return
-
-        if isinstance(value, (numpy.ndarray, list, tuple)):
-            self.data[instance] = self.the_type(coords=value)
-        else:
-            self.data[instance] = _parse_serializable(value, self.name, instance, self.the_type)
-
-
 class _UnitVectorDescriptor(_BasicDescriptor):
     """A descriptor for properties of a specified type assumed to be of type Poly1DType or Poly2DType"""
 
@@ -942,11 +924,7 @@ class _UnitVectorDescriptor(_BasicDescriptor):
         if super(_UnitVectorDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
             return
 
-        if isinstance(value, (numpy.ndarray, list, tuple)):
-            vec = self.the_type(coords=value)
-        else:
-            vec = _parse_serializable(value, self.name, instance, self.the_type)
-
+        vec = _parse_serializable(value, self.name, instance, self.the_type)
         coords = vec.get_array(dtype=numpy.float64)
         the_norm = norm(coords)
         if the_norm == 0:
@@ -1338,7 +1316,7 @@ class Serializable(object):
         def serialize_array(node, the_tag, ch_tag, val, format_function):
             if not isinstance(val, numpy.ndarray):
                 # this should really never happen, unless someone broke the class badly by fiddling with
-                # _collections_tag or the descriptor, probably at runtime
+                # _collections_tag or the descriptor at runtime
                 raise TypeError(
                     'The value associated with attribute {} is an instance of class {} should be an array based on '
                     'the metadata in the _collections_tags dictionary, but we received an instance of '

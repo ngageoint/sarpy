@@ -9,7 +9,7 @@ import numpy
 
 from .base import Serializable, DEFAULT_STRICT, \
     _StringDescriptor, _StringEnumDescriptor, _FloatDescriptor, _IntegerDescriptor, \
-    _SerializableDescriptor, _SerializableArrayDescriptor, _CoordinateDescriptor, _UnitVectorDescriptor
+    _SerializableDescriptor, _SerializableArrayDescriptor, _UnitVectorDescriptor, _parse_float
 from .blocks import ParameterType, XYZType, LatLonHAECornerRestrictionType
 
 import sarpy.geometry.geocoords as geocoords
@@ -56,7 +56,8 @@ class WaveformParametersType(Serializable):
         'ADCSampleRate', 'RcvIFBandwidth', 'RcvFreqStart', 'RcvFMRate')
     _required = ()
     # other class variables
-    _DEMOD_TYPE_VALUES = ('STRETCH', 'CHIRP')
+    _RcvFMRate = None
+
     # descriptors
     TxPulseLength = _FloatDescriptor(
         'TxPulseLength', _required, strict=DEFAULT_STRICT,
@@ -71,9 +72,6 @@ class WaveformParametersType(Serializable):
     TxFMRate = _FloatDescriptor(
         'TxFMRate', _required, strict=DEFAULT_STRICT,
         docstring='Transmit FM rate for Linear FM waveform in Hz/second.')  # type: float
-    RcvDemodType = _StringEnumDescriptor(
-        'RcvDemodType', _DEMOD_TYPE_VALUES, _required, strict=DEFAULT_STRICT,
-        docstring="Receive demodulation used when Linear FM waveform is used on transmit.")  # type: str
     RcvWindowLength = _FloatDescriptor(
         'RcvWindowLength', _required, strict=DEFAULT_STRICT,
         docstring='Receive window duration in seconds.')  # type: float
@@ -86,9 +84,6 @@ class WaveformParametersType(Serializable):
     RcvFreqStart = _FloatDescriptor(
         'RcvFreqStart', _required, strict=DEFAULT_STRICT,
         docstring='Receive demodulation start frequency in Hz, may be relative to reference frequency.')  # type: float
-    RcvFMRate = _FloatDescriptor(
-        'RcvFMRate', _required, strict=DEFAULT_STRICT,
-        docstring='Receive FM rate. Should be 0 if RcvDemodType = "CHIRP".')  # type: float
 
     def __init__(self, TxPulseLength=None, TxRFBandwidth=None, TxFreqStart=None, TxFMRate=None,
                  RcvDemodType=None, RcvWindowLength=None, ADCSampleRate=None, RcvIFBandwidth=None,
@@ -111,21 +106,53 @@ class WaveformParametersType(Serializable):
         """
         self.TxPulseLength, self.TxRFBandwidth = TxPulseLength, TxRFBandwidth
         self.TxFreqStart, self.TxFMRate = TxFreqStart, TxFMRate
-        self.RcvDemodType = RcvDemodType
         self.RcvWindowLength = RcvWindowLength
         self.ADCSampleRate = ADCSampleRate
         self.RcvIFBandwidth = RcvIFBandwidth
-        self.RcvFreqStart, self.RcvFMRate = RcvFreqStart, RcvFMRate
-
+        self.RcvFreqStart = RcvFreqStart
+        # NB: self.RcvDemodType is read only.
+        if RcvDemodType == 'CHIRP' and RcvFMRate is None:
+            self.RcvFMRate = 0.0
+        else:
+            self.RcvFMRate = RcvFMRate
         super(WaveformParametersType, self).__init__(**kwargs)
+
+    @property
+    def RcvDemodType(self):  # type: () -> Union[None, str]
+        """
+        str: READ ONLY. Receive demodulation used when Linear FM waveform is
+        used on transmit. This value is derived form the value of `RcvFMRate`.
+
+        * `None` - `RcvFMRate` is `None`.
+
+        * `'CHIRP'` - `RcvFMRate=0`.
+
+        * `'STRETCH'` - `RcvFMRate` is non-zero.
+        """
+
+        if self._RcvFMRate is None:
+            return None
+        elif self._RcvFMRate == 0:
+            return 'CHIRP'
+        else:
+            return 'STRETCH'
+
+    @property
+    def RcvFMRate(self):  # type: () -> Union[None, float]
+        """
+        float: Receive FM rate. Also, determines the value of `RcvDemodType`. **Optional.**
+        """
+        return self._RcvFMRate
+
+    @RcvFMRate.setter
+    def RcvFMRate(self, value):
+        if value is None:
+            self._RcvFMRate = None
+        else:
+            self._RcvFMRate = _parse_float(value, 'RcvFMRate', self)
 
     def _basic_validity_check(self):
         valid = super(WaveformParametersType, self)._basic_validity_check()
-        if (self.RcvDemodType == 'CHIRP') and (self.RcvFMRate != 0):
-            # TODO: VERIFY - should we simply reset RcvFMRate?
-            logging.error(
-                'In WaveformParameters, we have RcvDemodType == "CHIRP" and self.RcvFMRate non-zero.')
-            valid = False
         return valid
 
     def derive(self):
@@ -137,15 +164,8 @@ class WaveformParametersType(Serializable):
         None
         """
 
-        # TODO: RcvDemodType are related. This should be encoded in properties.
-        #   It seems that RcvDemodType should really just be derived from the value of RcvFMRate.
-        if self.RcvDemodType == 'CHIRP' and self.RcvFMRate is None:
-            self.RcvFMRate = 0.0  # this should be 0 anyways?
-        if self.RcvFMRate == 0.0 and self.RcvDemodType is None:
-            self.RcvDemodType = 'CHIRP'
-
-        # TODO: TxPulseLength, TxFMRate, and TxRFBandwidth are related.
-        #   Two should be set, and the third should be derived?
+        # TODO: TxPulseLength, TxFMRate, and TxRFBandwidth are ALWAYS related?
+        #   If so, two should be set, and the third should be derived.
         if self.TxPulseLength is not None and self.TxFMRate is not None and self.TxRFBandwidth is None:
             self.TxRFBandwidth = self.TxPulseLength*self.TxFMRate
         if self.TxPulseLength is not None and self.TxRFBandwidth is not None and self.TxFMRate is None:
@@ -241,7 +261,7 @@ class ReferencePointType(Serializable):
     _required = _fields
     _set_as_attribute = ('name', )
     # descriptors
-    ECF = _CoordinateDescriptor(
+    ECF = _SerializableDescriptor(
         'ECF', XYZType, _required, strict=DEFAULT_STRICT,
         docstring='The geographical coordinates for the reference point.')  # type: XYZType
     Line = _FloatDescriptor(
