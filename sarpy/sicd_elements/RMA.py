@@ -23,11 +23,12 @@ class RMRefType(Serializable):
     # descriptors
     PosRef = _SerializableDescriptor(
         'PosRef', XYZType, _required, strict=DEFAULT_STRICT,
-        docstring='Platform reference position in ECF coordinates used to establish the reference slant plane.')  # type: XYZType
+        docstring='Platform reference position in ECF coordinates used to establish '
+                  'the reference slant plane.')  # type: XYZType
     VelRef = _SerializableDescriptor(
         'VelRef', XYZType, _required, strict=DEFAULT_STRICT,
-        docstring='Platform reference velocity vector in ECF coordinates used to establish the reference '
-                  'slant plane.')  # type: XYZType
+        docstring='Platform reference velocity vector in ECF coordinates used to establish '
+                  'the reference slant plane.')  # type: XYZType
     DopConeAngRef = _FloatDescriptor(
         'DopConeAngRef', _required, strict=DEFAULT_STRICT,
         docstring='Reference Doppler Cone Angle in degrees.')  # type: float
