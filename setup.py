@@ -28,18 +28,19 @@ with open(os.path.join(here, 'sarpy', '__about__.py'), encoding='utf-8') as f:
     exec(f.read(), parameters)
 
 
-# try to prepare the sphinx arguments for doc building integeration
+# try to prepare the sphinx arguments for doc building integration
 try:
     from sphinx.setup_command import BuildDoc
     sphinx_args = {
         'cmdclass': {'build_sphinx': BuildDoc},
-        'command_options' : {
-        'build_sphinx': {
-            'project': ('setup.py', 'sarpy'),
-            'version': ('setup.py', parameters['__version__']),
-            'release': ('setup.py', parameters['__release__']),
-            'copyright': ('setup.py', parameters['__copyright__']),
-            'source_dir': ('setup.py', os.path.join(here, 'docs', 'sphinx'))}
+        'command_options': {
+            'build_sphinx': {
+                'project': ('setup.py', 'sarpy'),
+                'version': ('setup.py', parameters['__version__']),
+                'release': ('setup.py', parameters['__release__']),
+                'copyright': ('setup.py', parameters['__copyright__']),
+                'source_dir': ('setup.py', os.path.join(here, 'docs', 'sphinx'))
+            }
         }
     }
 except ImportError:

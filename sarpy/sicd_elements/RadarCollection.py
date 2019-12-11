@@ -137,10 +137,15 @@ class WaveformParametersType(Serializable):
         None
         """
 
+        # TODO: RcvDemodType are related. This should be encoded in properties.
+        #   It seems that RcvDemodType should really just be derived from the value of RcvFMRate.
         if self.RcvDemodType == 'CHIRP' and self.RcvFMRate is None:
             self.RcvFMRate = 0.0  # this should be 0 anyways?
         if self.RcvFMRate == 0.0 and self.RcvDemodType is None:
             self.RcvDemodType = 'CHIRP'
+
+        # TODO: TxPulseLength, TxFMRate, and TxRFBandwidth are related.
+        #   Two should be set, and the third should be derived?
         if self.TxPulseLength is not None and self.TxFMRate is not None and self.TxRFBandwidth is None:
             self.TxRFBandwidth = self.TxPulseLength*self.TxFMRate
         if self.TxPulseLength is not None and self.TxRFBandwidth is not None and self.TxFMRate is None:
@@ -308,6 +313,8 @@ class XDirectionType(Serializable):
         self.FirstLine = FirstLine
         super(XDirectionType, self).__init__(**kwargs)
 
+    # TODO: UVectECF a property handling unit vector business?
+
 
 class YDirectionType(Serializable):
     """The Y direction of the collect"""
@@ -346,6 +353,8 @@ class YDirectionType(Serializable):
         self.NumSamples = NumSamples
         self.FirstSample = FirstSample
         super(YDirectionType, self).__init__(**kwargs)
+
+    # TODO: UVectECF a property handling unit vector business?
 
 
 class SegmentArrayElement(Serializable):
@@ -436,6 +445,9 @@ class ReferencePlaneType(Serializable):
         self.Orientation = Orientation
         super(ReferencePlaneType, self).__init__(**kwargs)
 
+    # TODO: some kind of error checking to ensure that XDir and YDir make sense,
+    #   at least with respect to one another? Should the unit vectors be perpendicular or something?
+
     def get_ecf_corner_array(self):
         """
         Use the XDir and YDir definitions to return the corner points in ECF coordinates as a `4x3` array.
@@ -488,6 +500,9 @@ class AreaType(Serializable):
         self.Corner = Corner
         self.Plane = Plane
         super(AreaType, self).__init__(**kwargs)
+        self.derive()
+
+    # TODO: corner and plane should not be ridiculously out of whack?
 
     def _derive_corner_from_plane(self):
         # try to define the corner points - for SICD 0.5.
