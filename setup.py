@@ -64,7 +64,7 @@ setup(name=parameters['__title__'],
       },
       zip_safe=False,  # Use of __file__ and __path__ in some code makes it unusable from zip
       test_suite="tests",
-      test_requires=[],  # nothing for Python3, but unittest2 for Python2.7
+      tests_require=[],  # unittest2 only for Python2.7
       classifiers=[
           'Development Status :: 4 - Beta',
           'Intended Audience :: Developers',
