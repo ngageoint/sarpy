@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import ttk
-from sarpy.tkinter_gui_builder.sarpy_apps.taser_tool.taser_wip import Taser
+from sarpy.tkinter_gui_builder.sarpy_apps.taser_tool.taser_panel import Taser
 from sarpy.tkinter_gui_builder.sandbox.animation_plot_panel import AnimationPlotPanel
 
 
@@ -30,10 +30,10 @@ class NoteBook(ttk.Frame):
         self.aperture_tool_tab = Tab(self.notebook)
         self.animation_plot_tab = Tab(self.notebook)
         self.notebook.add(self.taser_tab, text="Taser")
-        self.notebook.add(self.aperture_tool_tab, text="Aperture Tool")
+        self.notebook.add(self.aperture_tool_tab, text="draw")
         self.notebook.add(self.animation_plot_tab, text="Tab3")
 
-        self.taser = Taser(self.aperture_tool_tab)
+        self.taser = Taser(self.taser_tab)
         self.animation_plot = AnimationPlotPanel(self.animation_plot_tab)
         self.notebook.pack()
 

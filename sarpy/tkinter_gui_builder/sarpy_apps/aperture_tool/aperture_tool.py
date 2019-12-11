@@ -36,6 +36,7 @@ class ApertureTool:
         master_frame.pack()
 
 
-root = tkinter.Tk()
-app = ApertureTool(root)
-root.mainloop()
+if __name__ == '__main__':
+    root = tkinter.Tk()
+    app = ApertureTool(root)
+    root.mainloop()

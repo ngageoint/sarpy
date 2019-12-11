@@ -6,12 +6,10 @@ import sarpy.utils.variable_utils as variable_utils
 
 
 @add_metaclass(abc.ABCMeta)
-class BasicButtonPanel(tk.Frame):
+class BasicWidgetsPanel(tk.LabelFrame):
     def __init__(self, parent):
-        tk.Frame.__init__(self, parent)
-        self.config(highlightbackground="black")
-        self.config(highlightthickness=1)
-        self.config(borderwidth=5)
+        tk.LabelFrame.__init__(self, parent)
+        self.config(borderwidth=2)
         self.widget_list = None     # type: list
         self.rows = None           # type: tk.Frame
 
@@ -19,15 +17,49 @@ class BasicButtonPanel(tk.Frame):
         # TODO: just find the right order then call init_w_basic_widget_list
         stop = 1
 
-    def init_w_horizontal_layout(self, basic_widget_list):
+    def init_w_horizontal_layout(self,
+                                 basic_widget_list,         # type: list
+                                 labelframe_text=None,      # type: str
+                                 ):
         self.init_w_basic_widget_list(basic_widget_list,
                                       n_rows=1,
                                       n_widgets_per_row_list=[len(basic_widget_list)])
 
-    def init_w_vertical_layout(self, basic_widget_list):
+    def init_w_vertical_layout(self,
+                               basic_widget_list,           # type: list
+                               ):
         self.init_w_basic_widget_list(basic_widget_list,
                                       n_rows=len(basic_widget_list),
                                       n_widgets_per_row_list=list(np.ones(len(basic_widget_list))))
+
+    def init_w_box_layout(self,
+                          basic_widget_list,                # type: list
+                          n_columns,                        # type: int
+                          widget_width=None,                # type: int
+                          widget_height=None,               # type: int
+                          ):
+        n_total_widgets = len(basic_widget_list)
+        n_rows = int(np.ceil(n_total_widgets/n_columns))
+        n_widgets_per_row = []
+        n_widgets_left = n_total_widgets
+        for i in range(n_rows):
+            n_widgets = n_widgets_left/n_columns
+            if n_widgets >= 1:
+                n_widgets_per_row.append(n_columns)
+            else:
+                n_widgets_per_row.append(n_widgets_left)
+            n_widgets_left -= n_columns
+        self.init_w_basic_widget_list(basic_widget_list, n_rows, n_widgets_per_row)
+        for i, widget_and_name in enumerate(basic_widget_list):
+            widget = widget_and_name
+            if type(("", "")) == type(widget_and_name):
+                widget = widget_and_name[0]
+                name = widget_and_name[1]
+            getattr(self, widget).config(anchor='w')
+            if widget_width is not None:
+                getattr(self, widget).config(width=widget_width)
+            if widget_height is not None:
+                getattr(self, widget).config(height=widget_height)
 
     def init_w_basic_widget_list(self,
                                  basic_widget_list,         # type: list
@@ -71,3 +103,8 @@ class BasicButtonPanel(tk.Frame):
             spacing_npix_y = spacing_npix_x
         for widget in self.widget_list:
             getattr(self, widget).pack(side="left", padx=spacing_npix_x, pady=spacing_npix_y)
+
+    def set_label_text(self,
+                       label,               # type: str
+                       ):
+        self.config(text=label)
