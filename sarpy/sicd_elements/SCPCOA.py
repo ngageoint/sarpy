@@ -8,8 +8,7 @@ import numpy
 from numpy.linalg import norm
 
 from .base import Serializable, DEFAULT_STRICT, \
-    _StringEnumDescriptor, _FloatDescriptor, \
-    _SerializableDescriptor
+    _StringEnumDescriptor, _FloatDescriptor, _CoordinateDescriptor
 from .blocks import XYZType
 
 from sarpy.geometry import geocoords
@@ -31,13 +30,13 @@ class SCPCOAType(Serializable):
         'SCPTime', _required, strict=DEFAULT_STRICT,
         docstring='*Center Of Aperture time for the SCP (t_COA_SCP)*, relative to collection '
                   'start in seconds.')  # type: float
-    ARPPos = _SerializableDescriptor(
+    ARPPos = _CoordinateDescriptor(
         'ARPPos', XYZType, _required, strict=DEFAULT_STRICT,
         docstring='Aperture position at *t_COA_SCP* in ECF coordinates.')  # type: XYZType
-    ARPVel = _SerializableDescriptor(
+    ARPVel = _CoordinateDescriptor(
         'ARPVel', XYZType, _required, strict=DEFAULT_STRICT,
         docstring='ARP Velocity at *t_COA_SCP* in ECF coordinates.')  # type: XYZType
-    ARPAcc = _SerializableDescriptor(
+    ARPAcc = _CoordinateDescriptor(
         'ARPAcc', XYZType, _required, strict=DEFAULT_STRICT,
         docstring='ARP Acceleration at *t_COA_SCP* in ECF coordinates.')  # type: XYZType
     SideOfTrack = _StringEnumDescriptor(
@@ -98,18 +97,7 @@ class SCPCOAType(Serializable):
         kwargs : dict
         """
         self.SCPTime = SCPTime
-        if isinstance(ARPPos, (numpy.ndarray, tuple, list)):
-            self.ARPPos = XYZType(coords=ARPPos)
-        else:
-            self.ARPPos = ARPPos
-        if isinstance(ARPVel, (numpy.ndarray, tuple, list)):
-            self.ARPVel = XYZType(coords=ARPVel)
-        else:
-            self.ARPVel = ARPVel
-        if isinstance(ARPAcc, (numpy.ndarray, tuple, list)):
-            self.ARPAcc = XYZType(coords=ARPAcc)
-        else:
-            self.ARPAcc = ARPAcc
+        self.ARPPos, self.ARPVel, self.ARPAcc = ARPPos, ARPVel, ARPAcc
         self.SideOfTrack = SideOfTrack
         self.SlantRange, self.GroundRange = SlantRange, GroundRange
         self.DopplerConeAng, self.GrazeAng, self.IncidenceAng = DopplerConeAng, GrazeAng, IncidenceAng

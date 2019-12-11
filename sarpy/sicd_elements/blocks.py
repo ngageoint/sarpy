@@ -2,6 +2,10 @@
 Basic building blocks for SICD standard.
 """
 
+from .base import _get_node_value, _create_text_node, _create_new_node, Serializable, DEFAULT_STRICT, \
+    _StringDescriptor, _StringEnumDescriptor, _IntegerDescriptor, _FloatDescriptor, _FloatModularDescriptor, \
+    _PolynomialDescriptor
+
 from collections import OrderedDict
 
 import numpy
@@ -10,11 +14,6 @@ if scipy.__version__ >= '1.0':
     from scipy.special import comb
 else:
     from scipy.misc import comb
-
-
-from .base import _get_node_value, _create_text_node, _create_new_node, Serializable, DEFAULT_STRICT, \
-    _StringDescriptor, _StringEnumDescriptor, _IntegerDescriptor, _FloatDescriptor, _FloatModularDescriptor, \
-    _SerializableDescriptor, _PolynomialDescriptor
 
 
 __classification__ = "UNCLASSIFIED"

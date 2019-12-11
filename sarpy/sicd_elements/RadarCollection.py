@@ -9,7 +9,7 @@ import numpy
 
 from .base import Serializable, DEFAULT_STRICT, \
     _StringDescriptor, _StringEnumDescriptor, _FloatDescriptor, _IntegerDescriptor, \
-    _SerializableDescriptor, _SerializableArrayDescriptor
+    _SerializableDescriptor, _SerializableArrayDescriptor, _CoordinateDescriptor, _UnitVectorDescriptor
 from .blocks import ParameterType, XYZType, LatLonHAECornerRestrictionType
 
 import sarpy.geometry.geocoords as geocoords
@@ -241,7 +241,7 @@ class ReferencePointType(Serializable):
     _required = _fields
     _set_as_attribute = ('name', )
     # descriptors
-    ECF = _SerializableDescriptor(
+    ECF = _CoordinateDescriptor(
         'ECF', XYZType, _required, strict=DEFAULT_STRICT,
         docstring='The geographical coordinates for the reference point.')  # type: XYZType
     Line = _FloatDescriptor(
@@ -265,10 +265,7 @@ class ReferencePointType(Serializable):
         name : str
         kwargs : dict
         """
-        if isinstance(ECF, (numpy.ndarray, list, tuple)):
-            self.ECF = XYZType(coords=ECF)
-        else:
-            self.ECF = ECF
+        self.ECF = ECF
         self.Line = Line
         self.Sample = Sample
         self.name = name
@@ -280,7 +277,7 @@ class XDirectionType(Serializable):
     _fields = ('UVectECF', 'LineSpacing', 'NumLines', 'FirstLine')
     _required = _fields
     # descriptors
-    UVectECF = _SerializableDescriptor(
+    UVectECF = _UnitVectorDescriptor(
         'UVectECF', XYZType, _required, strict=DEFAULT_STRICT,
         docstring='The unit vector in the X direction.')  # type: XYZType
     LineSpacing = _FloatDescriptor(
@@ -304,16 +301,11 @@ class XDirectionType(Serializable):
         FirstLine : int
         kwargs : dict
         """
-        if isinstance(UVectECF, (numpy.ndarray, list, tuple)):
-            self.UVectECF = XYZType(coords=UVectECF)
-        else:
-            self.UVectECF = UVectECF
+        self.UVectECF = UVectECF
         self.LineSpacing = LineSpacing
         self.NumLines = NumLines
         self.FirstLine = FirstLine
         super(XDirectionType, self).__init__(**kwargs)
-
-    # TODO: UVectECF a property handling unit vector business?
 
 
 class YDirectionType(Serializable):
@@ -321,7 +313,7 @@ class YDirectionType(Serializable):
     _fields = ('UVectECF', 'SampleSpacing', 'NumSamples', 'FirstSample')
     _required = _fields
     # descriptors
-    UVectECF = _SerializableDescriptor(
+    UVectECF = _UnitVectorDescriptor(
         'UVectECF', XYZType, _required, strict=DEFAULT_STRICT,
         docstring='The unit vector in the Y direction.')  # type: XYZType
     SampleSpacing = _FloatDescriptor(
@@ -345,16 +337,11 @@ class YDirectionType(Serializable):
         FirstSample : int
         kwargs : dict
         """
-        if isinstance(UVectECF, (numpy.ndarray, list, tuple)):
-            self.UVectECF = XYZType(coords=UVectECF)
-        else:
-            self.UVectECF = UVectECF
+        self.UVectECF = UVectECF
         self.SampleSpacing = SampleSpacing
         self.NumSamples = NumSamples
         self.FirstSample = FirstSample
         super(YDirectionType, self).__init__(**kwargs)
-
-    # TODO: UVectECF a property handling unit vector business?
 
 
 class SegmentArrayElement(Serializable):

@@ -9,7 +9,7 @@ import numpy
 
 from .base import Serializable, DEFAULT_STRICT, \
     _IntegerDescriptor, _FloatArrayDescriptor, _StringEnumDescriptor, \
-    _SerializableDescriptor, _SerializableArrayDescriptor
+    _SerializableArrayDescriptor, _CoordinateDescriptor
 from .blocks import RowColType, RowColArrayElement
 
 
@@ -44,6 +44,11 @@ class FullImageType(Serializable):
         else:
             self.NumRows, self.NumCols = NumRows, NumCols
         super(FullImageType, self).__init__(**kwargs)
+
+    def get_array(self, dtype=numpy.int64):
+        if self.NumRows is None or self.NumCols is None:
+            return None
+        return numpy.array([self.NumRows, self.NumCols], dtype=dtype)
 
 
 class ImageDataType(Serializable):
@@ -80,10 +85,10 @@ class ImageDataType(Serializable):
         'FirstCol', _required, strict=DEFAULT_STRICT,
         docstring='Global column index of the first column in the product. '
                   'Equal to 0 in full image product.')  # type: int
-    FullImage = _SerializableDescriptor(
+    FullImage = _CoordinateDescriptor(
         'FullImage', FullImageType, _required, strict=DEFAULT_STRICT,
         docstring='Original full image product.')  # type: FullImageType
-    SCPPixel = _SerializableDescriptor(
+    SCPPixel = _CoordinateDescriptor(
         'SCPPixel', RowColType, _required, strict=DEFAULT_STRICT,
         docstring='Scene Center Point pixel global row and column index. Should be located near the '
                   'center of the full image.')  # type: RowColType
@@ -114,14 +119,8 @@ class ImageDataType(Serializable):
         self.AmpTable = AmpTable
         self.NumRows, self.NumCols = NumRows, NumCols
         self.FirstRow, self.FirstCol = FirstRow, FirstCol
-        if isinstance(FullImage, (numpy.ndarray, list, tuple)):
-            self.FullImage = FullImageType(coords=FullImage)
-        else:
-            self.FullImage = FullImage
-        if isinstance(SCPPixel, (numpy.ndarray, list, tuple)):
-            self.SCPPixel = RowColType(coords=SCPPixel)
-        else:
-            self.SCPPixel = SCPPixel
+        self.FullImage = FullImage
+        self.SCPPixel = SCPPixel
         self.ValidData = ValidData
         super(ImageDataType, self).__init__(**kwargs)
 

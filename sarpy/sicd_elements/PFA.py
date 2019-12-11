@@ -6,7 +6,7 @@ import numpy
 from numpy.linalg import norm
 
 from .base import Serializable, DEFAULT_STRICT, _BooleanDescriptor, _FloatDescriptor, \
-    _SerializableDescriptor, _PolynomialDescriptor
+    _SerializableDescriptor, _PolynomialDescriptor, _CoordinateDescriptor
 from .blocks import Poly1DType, Poly2DType, XYZType
 
 from sarpy.geometry import geocoords
@@ -51,11 +51,11 @@ class PFAType(Serializable):
         'StDeskew')
     _required = ('FPN', 'IPN', 'PolarAngRefTime', 'PolarAngPoly', 'SpatialFreqSFPoly', 'Krg1', 'Krg2', 'Kaz1', 'Kaz2')
     # descriptors
-    FPN = _SerializableDescriptor(
+    FPN = _CoordinateDescriptor(
         'FPN', XYZType, _required, strict=DEFAULT_STRICT,
         docstring='Focus Plane unit normal in ECF coordinates. Unit vector FPN points away from the center of '
                   'the Earth.')  # type: XYZType
-    IPN = _SerializableDescriptor(
+    IPN = _CoordinateDescriptor(
         'IPN', XYZType, _required, strict=DEFAULT_STRICT,
         docstring='Image Formation Plane unit normal in ECF coordinates. Unit vector IPN points away from the '
                   'center of the Earth.')  # type: XYZType
@@ -114,14 +114,8 @@ class PFAType(Serializable):
         StDeskew : STDeskewType
         kwargs : dict
         """
-        if isinstance(FPN, (numpy.ndarray, list, tuple)):
-            self.FPN = XYZType(coords=FPN)
-        else:
-            self.FPN = FPN
-        if isinstance(IPN, (numpy.ndarray, list, tuple)):
-            self.IPN = XYZType(coords=IPN)
-        else:
-            self.IPN = IPN
+        self.FPN = FPN
+        self.IPN = IPN
         self.PolarAngRefTime = PolarAngRefTime
         self.PolarAngPoly = PolarAngPoly
         self.SpatialFreqSFPoly = SpatialFreqSFPoly

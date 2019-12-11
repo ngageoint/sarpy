@@ -9,7 +9,7 @@ from typing import List, Union
 import numpy
 
 from .base import Serializable, DEFAULT_STRICT, _StringDescriptor, _StringEnumDescriptor, \
-    _SerializableDescriptor, _SerializableArrayDescriptor
+    _SerializableDescriptor, _SerializableArrayDescriptor, _CoordinateDescriptor
 from .blocks import ParameterType, XYZType, LatLonRestrictionType, LatLonHAERestrictionType, \
     LatLonCornerStringType, LatLonArrayElementType
 
@@ -38,7 +38,7 @@ class GeoInfoType(Serializable):
     Descriptions = _SerializableArrayDescriptor(
         'Descriptions', ParameterType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Descriptions of the geographic feature.')  # type: List[ParameterType]
-    Point = _SerializableDescriptor(
+    Point = _CoordinateDescriptor(
         'Point', LatLonRestrictionType, _required, strict=DEFAULT_STRICT,
         docstring='A geographic point with WGS-84 coordinates.')  # type: LatLonRestrictionType
     Line = _SerializableArrayDescriptor(
@@ -57,7 +57,7 @@ class GeoInfoType(Serializable):
         ----------
         name : str
         Descriptions : List[ParametersType]
-        Point : LatLonRestrictionType
+        Point : LatLonRestrictionType|numpf.ndarray|list|tuple
         Line : List[LatLonArrayElementType]
         Polygon : List[LatLonArrayElementType]
         kwargs : dict
@@ -100,10 +100,10 @@ class SCPType(Serializable):
     """Scene Center Point (SCP) in full (global) image. This is the precise location."""
     _fields = ('ECF', 'LLH')
     _required = _fields  # isn't this redundant?
-    ECF = _SerializableDescriptor(
+    ECF = _CoordinateDescriptor(
         'ECF', XYZType, _required, strict=DEFAULT_STRICT,
         docstring='The ECF coordinates.')  # type: XYZType
-    LLH = _SerializableDescriptor(
+    LLH = _CoordinateDescriptor(
         'LLH', LatLonHAERestrictionType, _required, strict=DEFAULT_STRICT,
         docstring='The WGS-84 coordinates.')  # type: LatLonHAERestrictionType
 
@@ -116,14 +116,8 @@ class SCPType(Serializable):
         LLH : LatLonHAERestrictionType|numpy.ndarray|list|tuple
         kwargs : dict
         """
-        if isinstance(ECF, (numpy.ndarray, list, tuple)):
-            self.ECF = XYZType(coords=ECF)
-        else:
-            self.ECF = ECF
-        if isinstance(LLH, (numpy.ndarray, list, tuple)):
-            self.LLH = LatLonHAERestrictionType(coords=ECF)
-        else:
-            self.LLH = LLH
+        self.ECF = ECF
+        self.LLH = LLH
 
         # TODO: this constructor should probably be changed to use the first of ECF
         #   and LLH which is not None, and derive the other. You can absolutely

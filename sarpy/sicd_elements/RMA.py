@@ -9,7 +9,7 @@ from numpy.linalg import norm
 
 from .base import Serializable, DEFAULT_STRICT, \
     _StringEnumDescriptor, _FloatDescriptor, _BooleanDescriptor, \
-    _SerializableDescriptor, _PolynomialDescriptor
+    _SerializableDescriptor, _PolynomialDescriptor, _CoordinateDescriptor
 from .blocks import XYZType, Poly1DType, Poly2DType
 
 
@@ -21,11 +21,11 @@ class RMRefType(Serializable):
     _fields = ('PosRef', 'VelRef', 'DopConeAngRef')
     _required = _fields
     # descriptors
-    PosRef = _SerializableDescriptor(
+    PosRef = _CoordinateDescriptor(
         'PosRef', XYZType, _required, strict=DEFAULT_STRICT,
         docstring='Platform reference position in ECF coordinates used to establish '
                   'the reference slant plane.')  # type: XYZType
-    VelRef = _SerializableDescriptor(
+    VelRef = _CoordinateDescriptor(
         'VelRef', XYZType, _required, strict=DEFAULT_STRICT,
         docstring='Platform reference velocity vector in ECF coordinates used to establish '
                   'the reference slant plane.')  # type: XYZType
@@ -43,14 +43,8 @@ class RMRefType(Serializable):
         DopConeAngRef : float
         kwargs
         """
-        if isinstance(PosRef, (numpy.ndarray, list, tuple)):
-            self.PosRef = XYZType(coords=PosRef)
-        else:
-            self.PosRef = PosRef
-        if isinstance(VelRef, (numpy.ndarray, list, tuple)):
-            self.VelRef = XYZType(coords=VelRef)
-        else:
-            self.VelRef = VelRef
+        self.PosRef = PosRef
+        self.VelRef = VelRef
         self.DopConeAngRef = DopConeAngRef
         super(RMRefType, self).__init__(**kwargs)
 
@@ -130,7 +124,7 @@ class RMAType(Serializable):
     # descriptors
     RMAlgoType = _StringEnumDescriptor(
         'RMAlgoType', _RM_ALGO_TYPE_VALUES, _required, strict=DEFAULT_STRICT,
-        docstring="""
+        docstring=r"""
         Identifies the type of migration algorithm used:
 
         * `OMEGA_K` - Algorithms that employ Stolt interpolation of the Kxt dimension. :math:`Kx = \sqrt{Kf^2 – Ky^2}`

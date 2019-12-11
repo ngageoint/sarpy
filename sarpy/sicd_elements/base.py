@@ -10,6 +10,8 @@ from weakref import WeakKeyDictionary
 
 import numpy
 import numpy.polynomial.polynomial
+from numpy.linalg import norm
+
 
 __classification__ = "UNCLASSIFIED"
 
@@ -898,6 +900,63 @@ class _PolynomialDescriptor(_BasicDescriptor):
             self.data[instance] = self.the_type(Coefs=value)
         else:
             self.data[instance] = _parse_serializable(value, self.name, instance, self.the_type)
+
+
+class _CoordinateDescriptor(_BasicDescriptor):
+    """A descriptor for properties of a specified type assumed to be of type Poly1DType or Poly2DType"""
+
+    def __init__(self, name, the_type, required, strict=DEFAULT_STRICT, docstring=None):
+        if not hasattr(the_type, 'get_array'):
+            raise TypeError(
+                'The input type {} for field {} must have attribute `get_array` and '
+                'corresponding construction parameter `coords`.'.format(the_type, name))
+        self.the_type = the_type
+
+        self._typ_string = str(the_type).strip().split('.')[-1][:-2] + ':'
+        super(_CoordinateDescriptor, self).__init__(name, required, strict=strict, docstring=docstring)
+
+    def __set__(self, instance, value):
+        if super(_CoordinateDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
+            return
+
+        if isinstance(value, (numpy.ndarray, list, tuple)):
+            self.data[instance] = self.the_type(coords=value)
+        else:
+            self.data[instance] = _parse_serializable(value, self.name, instance, self.the_type)
+
+
+class _UnitVectorDescriptor(_BasicDescriptor):
+    """A descriptor for properties of a specified type assumed to be of type Poly1DType or Poly2DType"""
+
+    def __init__(self, name, the_type, required, strict=DEFAULT_STRICT, docstring=None):
+        if not hasattr(the_type, 'get_array'):
+            raise TypeError(
+                'The input type {} for field {} must have attribute `get_array` and '
+                'corresponding construction parameter `coords`.'.format(the_type, name))
+        self.the_type = the_type
+
+        self._typ_string = str(the_type).strip().split('.')[-1][:-2] + ':'
+        super(_UnitVectorDescriptor, self).__init__(name, required, strict=strict, docstring=docstring)
+
+    def __set__(self, instance, value):
+        if super(_UnitVectorDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
+            return
+
+        if isinstance(value, (numpy.ndarray, list, tuple)):
+            vec = self.the_type(coords=value)
+        else:
+            vec = _parse_serializable(value, self.name, instance, self.the_type)
+
+        coords = vec.get_array(dtype=numpy.float64)
+        the_norm = norm(coords)
+        if the_norm == 0:
+            raise ValueError(
+                'The input for field {} is expected to be made into a unit vector. '
+                'In this case, the norm of the input is 0.'.format(self.name))
+        elif the_norm == 1:
+            self.data[instance] = vec
+        else:
+            self.data[instance] = self.the_type(coords=coords/norm)
 
 
 class _SerializableArrayDescriptor(_BasicDescriptor):

@@ -12,7 +12,7 @@ from scipy.constants import speed_of_light
 
 from .base import Serializable, DEFAULT_STRICT, \
     _StringDescriptor, _StringEnumDescriptor, _FloatDescriptor, _FloatArrayDescriptor, _IntegerEnumDescriptor, \
-    _SerializableDescriptor, _SerializableArrayDescriptor, _PolynomialDescriptor
+    _SerializableDescriptor, _SerializableArrayDescriptor, _PolynomialDescriptor, _UnitVectorDescriptor
 from .blocks import ParameterType, XYZType, Poly2DType
 
 
@@ -189,7 +189,7 @@ class DirParamType(Serializable):
         'DeltaK1': '0.8f', 'DeltaK2': '0.8f'}
     _collections_tags = {'WgtFunct': {'array': True, 'child_tag': 'Wgt'}}
     # descriptors
-    UVectECF = _SerializableDescriptor(
+    UVectECF = _UnitVectorDescriptor(
         'UVectECF', XYZType, required=_required, strict=DEFAULT_STRICT,
         docstring='Unit vector in the increasing (row/col) direction (ECF) at the SCP pixel.')  # type: XYZType
     SS = _FloatDescriptor(
@@ -251,11 +251,7 @@ class DirParamType(Serializable):
         WgtFunct : numpy.ndarray|list|tuple
         kwargs : dict
         """
-        if isinstance(UVectECF, (numpy.ndarray, list, tuple)):
-            self.UVectECF = XYZType(coords=UVectECF)
-        else:
-            self.UVectECF = UVectECF
-        # TODO: should we verify that UVectECF is actually normalized?
+        self.UVectECF = UVectECF
         self.SS = SS
         self.ImpRespWid, self.ImpRespBW = ImpRespWid, ImpRespBW
         self.Sgn = Sgn
