@@ -28,9 +28,7 @@ from .RMA import RMAType
 from sarpy.geometry import point_projection
 
 
-# TODO:
-#   1.) Can we refine the strict parameter population for the SICD elements?
-#   2.) determine and implement appropriate class methods for proper functionality
+# TODO: determine and implement appropriate class methods for proper functionality
 #       how are things used, and what helper functions do we need?
 
 

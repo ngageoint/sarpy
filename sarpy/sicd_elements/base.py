@@ -233,7 +233,7 @@ def _parse_serializable(value, name, instance, the_type):
         if hasattr(the_type, 'Coefs'):
             return the_type(Coefs=value)
         elif hasattr(the_type, 'get_array'):
-            # TODO: this is hackneyed. I need to document this - make an abstract class?
+            # TODO: this is hackneyed. This needs to be clearly documented. Abstract class perhaps?
             return the_type(coords=value)
         else:
             raise TypeError(
