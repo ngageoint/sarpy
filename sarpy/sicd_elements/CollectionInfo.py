@@ -6,8 +6,7 @@ from typing import List
 
 from .base import Serializable, DEFAULT_STRICT, \
     _StringDescriptor, _StringEnumDescriptor, _StringListDescriptor, \
-    _SerializableDescriptor, _SerializableArrayDescriptor
-from .blocks import ParameterType
+    _SerializableDescriptor, _ParametersDescriptor, ParametersCollection
 
 
 __classification__ = "UNCLASSIFIED"
@@ -79,9 +78,9 @@ class CollectionInfoType(Serializable):
     CountryCodes = _StringListDescriptor(
         'CountryCodes', _required, strict=DEFAULT_STRICT,
         docstring="List of country codes for region covered by the image.")  # type: List[str]
-    Parameters = _SerializableArrayDescriptor(
-        'Parameters', ParameterType, _collections_tags, _required, strict=DEFAULT_STRICT,
-        docstring='Free form paramaters object list.')  # type: List[ParameterType]
+    Parameters = _ParametersDescriptor(
+        'Parameters', _collections_tags, _required, strict=DEFAULT_STRICT,
+        docstring='Free form parameters object collection.')  # type: ParametersCollection
 
     def __init__(self, CollectorName=None, IlluminatorName=None, CoreName=None, CollectType=None,
                  RadarMode=None, Classification="UNCLASSIFIED", CountryCodes=None, Parameters=None, **kwargs):
@@ -96,7 +95,7 @@ class CollectionInfoType(Serializable):
         RadarMode : RadarModeType
         Classification : str
         CountryCodes : list|str
-        Parameters : List[ParametersType]
+        Parameters : ParametersCollection|dict
         kwargs : dict
         """
 

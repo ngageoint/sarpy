@@ -3,8 +3,8 @@ Basic building blocks for SICD standard.
 """
 
 from .base import _get_node_value, _create_text_node, _create_new_node, Serializable, DEFAULT_STRICT, \
-    _StringDescriptor, _StringEnumDescriptor, _IntegerDescriptor, _FloatDescriptor, _FloatModularDescriptor, \
-    _SerializableDescriptor, _parse_serializable_array
+    _StringEnumDescriptor, _IntegerDescriptor, _FloatDescriptor, _FloatModularDescriptor, \
+    _SerializableDescriptor
 
 from collections import OrderedDict
 
@@ -17,40 +17,6 @@ else:
 
 
 __classification__ = "UNCLASSIFIED"
-
-
-class ParameterType(Serializable):
-    """A parameter - just a name attribute and associated value"""
-    _fields = ('name', 'value')
-    _required = _fields
-    _set_as_attribute = ('name', )
-    # descriptor
-    name = _StringDescriptor(
-        'name', _required, strict=False, docstring='The name.')  # type: str
-    value = _StringDescriptor('value', _required, strict=False, docstring='The value')  # type: str
-
-    def __init__(self, value=None, name=None, **kwargs):
-        """
-        Parameters
-        ----------
-        value : str
-        name : str
-        kwargs : dict
-        """
-
-        self.name = name
-        self.value = value
-        super(ParameterType, self).__init__(**kwargs)
-
-    @classmethod
-    def from_node(cls, node, kwargs=None):
-        return cls(name=node.attrib['name'], value=_get_node_value(node))
-
-    def to_node(self, doc, tag, parent=None, strict=DEFAULT_STRICT, exclude=()):
-        # we have to short-circuit the super call here, because this is a really primitive element
-        node = _create_text_node(doc, tag, self.value, parent=parent)
-        node.attrib['name'] = self.name
-        return node
 
 
 ##########
@@ -142,7 +108,7 @@ class LatLonType(Serializable):
             self.Lat, self.Lon = Lat, Lon
         super(LatLonType, self).__init__(**kwargs)
 
-    def get_array(self, order='LON', dtype=numpy.float64):
+    def get_array(self, order='LAT', dtype=numpy.float64):
         """Gets an array representation of the data.
 
         Parameters
@@ -247,7 +213,7 @@ class LatLonHAEType(LatLonType):
             self.HAE = HAE
         super(LatLonHAEType, self).__init__(Lat=Lat, Lon=Lon, **kwargs)
 
-    def get_array(self, order='LON', dtype=numpy.float64):
+    def get_array(self, order='LAT', dtype=numpy.float64):
         """Gets an array representation of the data.
 
         Parameters
@@ -1170,130 +1136,3 @@ class ErrorDecorrFuncType(Serializable):
         self.CorrCoefZero = CorrCoefZero
         self.DecorrRate = DecorrRate
         super(ErrorDecorrFuncType, self).__init__(**kwargs)
-
-
-#############
-# Coordinate Array type
-
-class SerializableArray(object):
-    _child_tag = None
-    _child_type = None
-    _minimum_length = 0
-    _maximum_length = 2**32
-    _array = None
-    _name = None
-
-    def __init__(self, coords=None, name=None, child_tag=None, child_type=None, minimum_length=None,
-                 maximum_length=None, **kwargs):
-        if name is None:
-            raise ValueError('The name parameter is required.')
-        if not isinstance(name, str):
-            raise TypeError(
-                'The name parameter is required to be an instance of str, got {}'.format(type(name)))
-        self._name = name
-
-        if child_tag is None:
-            raise ValueError('The child_tag parameter is required.')
-        if not isinstance(child_tag, str):
-            raise TypeError(
-                'The child_tag parameter is required to be an instance of str, got {}'.format(type(child_tag)))
-        self._child_tag = child_tag
-
-        if child_type is None:
-            raise ValueError('The child_type parameter is required.')
-        if not issubclass(child_type, Serializable):
-            raise TypeError('The child_type is required to be a subclass of Serializable.')
-        self._child_type = child_type
-
-        if minimum_length is not None:
-            self._minimum_length = max(int(minimum_length), 0)
-        if maximum_length is not None:
-            self._maximum_length = max(int(maximum_length), self._minimum_length)
-
-        self.set_array(coords)
-
-    @property
-    def size(self):  # type: () -> int
-        """
-        int: the size of the array.
-        """
-
-        if self._array is None:
-            return 0
-        else:
-            return self._array.size
-
-    def get_array(self, dtype=numpy.object, **kwargs):
-        """Gets an array representation of the class instance.
-
-        Parameters
-        ----------
-        dtype : numpy.dtype
-            numpy data type of the return.
-        kwargs : keyword arguments for calls of the form child.get_array(**kwargs)
-
-        Returns
-        -------
-        numpy.ndarray
-            * If `dtype` in `(numpy.object`, 'object')`, then the literal array of
-              child objects is returned. *Note: Beware of mutating the elements.*
-            * If `dtype` has any other value, then the return value will be tried
-              as `numpy.array([child.get_array(dtype=dtype, **kwargs) for child in array]`.
-            * If there is any error, then `None` is returned.
-        """
-
-        if dtype in [numpy.object, 'object']:
-            return self._array
-        else:
-            try:
-                return numpy.array(
-                    [child.get_array(dtype=dtype, **kwargs) for child in self._array], dtype=dtype)
-            except Exception:
-                return None
-
-    def set_array(self, coords):
-        """
-        Sets the underlying array.
-
-        Parameters
-        ----------
-        coords : numpy.ndarray|list|tuple
-
-        Returns
-        -------
-        None
-        """
-        # TODO: flesh this docstring out more effectively.
-
-        if coords is None:
-            self._array = None
-        else:
-            self._array = _parse_serializable_array(
-                coords, 'coords', self, self._child_type, self._child_tag)
-
-    def to_node(self, doc, tag, parent=None, strict=DEFAULT_STRICT, exclude=()):
-        if self.size == 0:
-            return None  # nothing to be done
-
-        anode = _create_new_node(doc, tag, parent=parent)
-        anode.attrib['size'] = str(self.size)
-        for i, entry in enumerate(self._array):
-            entry.to_node(doc, self._child_tag, parent=anode, strict=strict)
-
-    @classmethod
-    def from_node(cls, node, name, child_tag, child_type, **kwargs):
-        return cls(coords=node, name=name, child_tag=child_tag, child_type=child_type, **kwargs)
-
-    def to_dict(self, strict=DEFAULT_STRICT):
-        if self.size == 0:
-            return []
-        return [entry.to_dict(strict=strict) for entry in self._array]
-
-# TODO:
-#  1.)  Move this into base.py
-#  2.) Make a special cornerstring version with the four attributes.
-#  3.)  Incorporate into the _SerializableArrayDescriptor
-#  4.)  Incorporate into the Serializable serialization process.
-#  5.)  Make a Serializable list & use that for all the lists
-#  6.)  This is mostly Parameters, so that should be a particular case.
-#       Like a dictionary descriptor or something?

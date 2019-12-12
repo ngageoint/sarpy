@@ -2,15 +2,15 @@
 The RadarCollectionType definition.
 """
 
-import logging
 from typing import List, Union
 
 import numpy
 
 from .base import Serializable, DEFAULT_STRICT, \
     _StringDescriptor, _StringEnumDescriptor, _FloatDescriptor, _IntegerDescriptor, \
-    _SerializableDescriptor, _SerializableArrayDescriptor, _UnitVectorDescriptor, _parse_float
-from .blocks import ParameterType, XYZType, LatLonHAECornerRestrictionType
+    _SerializableDescriptor, _SerializableArrayDescriptor, _UnitVectorDescriptor, _parse_float, \
+    _ParametersDescriptor, ParametersCollection
+from .blocks import XYZType, LatLonHAECornerRestrictionType
 
 import sarpy.geometry.geocoords as geocoords
 
@@ -575,9 +575,9 @@ class RadarCollectionType(Serializable):
     Area = _SerializableDescriptor(
         'Area', AreaType, _required, strict=DEFAULT_STRICT,
         docstring='The imaged area covered by the collection.')  # type: AreaType
-    Parameters = _SerializableArrayDescriptor(
-        'Parameters', ParameterType, _collections_tags, _required, strict=DEFAULT_STRICT,
-        docstring='A parameters list.')  # type: List[ParameterType]
+    Parameters = _ParametersDescriptor(
+        'Parameters', _collections_tags, _required, strict=DEFAULT_STRICT,
+        docstring='A parameters collections.')  # type: ParametersCollection
 
     def __init__(self, TxFrequency=None, RefFreqIndex=None, Waveform=None,
                  TxPolarization=None, TxSequence=None, RcvChannels=None,
@@ -593,7 +593,7 @@ class RadarCollectionType(Serializable):
         TxSequence : List[TxStepType]
         RcvChannels : List[ChanParametersType]
         Area : AreaType
-        Parameters : List[ParameterType]
+        Parameters : ParametersCollection|dict
         kwargs : dict
         """
         self.TxFrequency = TxFrequency

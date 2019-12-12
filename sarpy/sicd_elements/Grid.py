@@ -3,7 +3,6 @@ The GridType definition.
 """
 
 import logging
-from typing import List
 
 import numpy
 from numpy.linalg import norm
@@ -12,8 +11,8 @@ from scipy.constants import speed_of_light
 
 from .base import Serializable, DEFAULT_STRICT, \
     _StringDescriptor, _StringEnumDescriptor, _FloatDescriptor, _FloatArrayDescriptor, _IntegerEnumDescriptor, \
-    _SerializableDescriptor, _SerializableArrayDescriptor, _UnitVectorDescriptor
-from .blocks import ParameterType, XYZType, Poly2DType
+    _SerializableDescriptor, _UnitVectorDescriptor, _ParametersDescriptor, ParametersCollection
+from .blocks import XYZType, Poly2DType
 
 
 __classification__ = "UNCLASSIFIED"
@@ -109,9 +108,9 @@ class WgtTypeType(Serializable):
         docstring='Type of aperture weighting applied in the spatial frequency domain (Krow) to yield '
                   'the impulse response in the row direction. '
                   '*Example values - "UNIFORM", "TAYLOR", "UNKNOWN", "HAMMING"*')  # type: str
-    Parameters = _SerializableArrayDescriptor(
-        'Parameters', ParameterType, _collections_tags, required=_required, strict=DEFAULT_STRICT,
-        docstring='Free form parameters list.')  # type: List[ParameterType]
+    Parameters = _ParametersDescriptor(
+        'Parameters', _collections_tags, required=_required, strict=DEFAULT_STRICT,
+        docstring='Free form parameters list.')  # type: ParametersCollection
 
     def __init__(self, WindowName=None, Parameters=None, **kwargs):
         """
@@ -119,7 +118,7 @@ class WgtTypeType(Serializable):
         Parameters
         ----------
         WindowName : str
-        Parameters : List[ParameterType]
+        Parameters : ParametersCollection|dict
         kwargs : dict
         """
         self.WindowName = WindowName
@@ -128,8 +127,8 @@ class WgtTypeType(Serializable):
 
     def get_parameter_value(self, param_name, default=None):
         """
-        Gets the value (first value found) associated with a given parameter name *(case insensitive)*.
-        Returns `None` if not found.
+        Gets the value (first value found) associated with a given parameter name.
+        Returns `default` if not found.
 
         Parameters
         ----------
@@ -144,17 +143,15 @@ class WgtTypeType(Serializable):
             the associated parameter value, or `default`.
         """
 
-        if self.Parameters is None or len(self.Parameters) == 0:
+        if self.Parameters is None:
+            return default
+        the_dict = self.Parameters.get_collection()
+        if len(the_dict) == 0:
             return default
         if param_name is None:
             # get the first value - this is dumb, but appears a use case. Leaving undocumented.
-            return self.Parameters[0].value
-
-        the_name = param_name.upper()
-        for param in self.Parameters:
-            if param.name.upper() == the_name:
-                return param.value
-        return default
+            return the_dict.values()[0]
+        return the_dict.get(param_name, default)
 
     @classmethod
     def from_node(cls, node, kwargs=None):
@@ -165,11 +162,11 @@ class WgtTypeType(Serializable):
                 kwargs = {}
             values = node.text.strip().split()
             kwargs['WindowName'] = values[0]
-            params = []
+            params = {}
             for entry in values[1:]:
                 try:
                     name, val = entry.split('=')
-                    params.append(ParameterType(name=name, value=val))
+                    params[name] = val
                 except ValueError:
                     continue
             kwargs['Parameters'] = params

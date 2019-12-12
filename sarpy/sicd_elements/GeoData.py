@@ -9,8 +9,8 @@ from typing import List, Union
 import numpy
 
 from .base import Serializable, DEFAULT_STRICT, _StringDescriptor, _StringEnumDescriptor, \
-    _SerializableDescriptor, _SerializableArrayDescriptor
-from .blocks import ParameterType, XYZType, LatLonRestrictionType, LatLonHAERestrictionType, \
+    _SerializableDescriptor, _SerializableArrayDescriptor, _ParametersDescriptor, ParametersCollection
+from .blocks import XYZType, LatLonRestrictionType, LatLonHAERestrictionType, \
     LatLonCornerStringType, LatLonArrayElementType
 
 from sarpy.geometry.geocoords import geodetic_to_ecf, ecf_to_geodetic
@@ -35,9 +35,8 @@ class GeoInfoType(Serializable):
     name = _StringDescriptor(
         'name', _required, strict=True,
         docstring='The name.')  # type: str
-    Descriptions = _SerializableArrayDescriptor(
-        'Descriptions', ParameterType, _collections_tags, _required, strict=DEFAULT_STRICT,
-        docstring='Descriptions of the geographic feature.')  # type: List[ParameterType]
+    Descriptions = _ParametersDescriptor('Descriptions', _collections_tags, _required, strict=DEFAULT_STRICT,
+        docstring='Descriptions of the geographic feature.')  # type: ParametersCollection
     Point = _SerializableDescriptor(
         'Point', LatLonRestrictionType, _required, strict=DEFAULT_STRICT,
         docstring='A geographic point with WGS-84 coordinates.')  # type: LatLonRestrictionType
@@ -56,7 +55,7 @@ class GeoInfoType(Serializable):
         Parameters
         ----------
         name : str
-        Descriptions : List[ParametersType]
+        Descriptions : ParametersCollection|dict
         Point : LatLonRestrictionType|numpf.ndarray|list|tuple
         Line : List[LatLonArrayElementType]
         Polygon : List[LatLonArrayElementType]

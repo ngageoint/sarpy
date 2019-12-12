@@ -344,6 +344,27 @@ def _parse_serializable_list(value, name, instance, child_type):
                 name, instance.__class__.__name__, type(value)))
 
 
+def _parse_parameters_collection(value, name, instance):
+    if isinstance(value, dict):
+        return value
+    elif isinstance(value, list):
+        out = OrderedDict()
+        if len(value) == 0:
+            return out
+        if isinstance(value[0], ElementTree.Element):
+            for entry in value:
+                out[entry.attrib['name']] = _get_node_value(entry)
+            return out
+        else:
+            raise TypeError(
+                'Field {} of list type functionality belonging to class {} got a '
+                'list containing first element of incompatible type '
+                '{}.'.format(name, instance.__class__.__name__, type(value[0])))
+    else:
+        raise TypeError(
+            'Field {} of class {} got incompatible type {}.'.format(
+                name, instance.__class__.__name__, type(value)))
+
 ###
 # descriptor definitions - these are reusable properties that handle typing and deserialization in one place
 
@@ -939,6 +960,7 @@ class _UnitVectorDescriptor(_BasicDescriptor):
 
 class _SerializableArrayDescriptor(_BasicDescriptor):
     """A descriptor for properties of a list or array of specified extension of Serializable"""
+    # TODO: this needs to be fixed.
     _DEFAULT_MIN_LENGTH = 0
     _DEFAULT_MAX_LENGTH = 2 ** 32
 
@@ -1005,8 +1027,30 @@ class _SerializableArrayDescriptor(_BasicDescriptor):
             self.__actual_set(instance, _parse_serializable_list(value, self.name, instance, self.child_type))
 
 
+class _ParametersDescriptor(_BasicDescriptor):
+    """A descriptor for properties of a Parameter type - that is, dictionary"""
+
+    def __init__(self, name, tag_dict, required, strict=DEFAULT_STRICT, docstring=None):
+        self.child_tag = tag_dict[name]['child_tag']
+        self._typ_string = 'ParametersCollection:'
+        super(_ParametersDescriptor, self).__init__(name, required, strict=strict, docstring=docstring)
+
+
+    def __set__(self, instance, value):
+        if super(_ParametersDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
+            return
+
+        if isinstance(value, ParametersCollection):
+            self.data[instance] = value
+        else:
+            self.data[instance] = ParametersCollection(
+                collection=_parse_parameters_collection(value, self.name, instance),
+                name=self.name, child_tag=self.child_tag)
+
+
 #################
 # base Serializable class.
+
 
 class Serializable(object):
     """
@@ -1204,7 +1248,7 @@ class Serializable(object):
         """
 
         def check_item(value):
-            if isinstance(value, Serializable):
+            if isinstance(value, (Serializable, SerializableArray)):
                 return value.is_valid(recursive=True)
             return True
 
@@ -1212,9 +1256,9 @@ class Serializable(object):
         for attribute in self._fields:
             val = getattr(self, attribute)
             good = True
-            if isinstance(val, Serializable):
+            if isinstance(val, (Serializable, SerializableArray)):
                 good = check_item(val)
-            elif isinstance(val, list) or (isinstance(val, numpy.ndarray) and val.dtype == numpy.object):
+            elif isinstance(val, list):
                 for entry in val:
                     good &= check_item(entry)
             # any issues will be logged as discovered, but we should help with the "stack"
@@ -1277,7 +1321,6 @@ class Serializable(object):
                 if array:
                     handle_single(attribute)
                 elif child_tag is not None:
-                    # it's a list
                     handle_list(attribute, child_tag)
                 else:
                     # the metadata is broken
@@ -1337,16 +1380,6 @@ class Serializable(object):
                 for i, val in enumerate(val):
                     vnode = _create_text_node(doc, ch_tag, format_function(val), parent=anode)
                     vnode.attrib['index'] = str(i)
-            elif val.dtype == numpy.object:
-                anode = _create_new_node(doc, the_tag, parent=node)
-                anode.attrib['size'] = str(val.size)
-                for i, entry in enumerate(val):
-                    if not isinstance(entry, Serializable):
-                        raise TypeError(
-                            'The value associated with attribute {} is an instance of class {} should be an object '
-                            'array based on the standard, but entry {} is of type {} and not an instance of '
-                            'Serializable'.format(attribute, self.__class__.__name__, i, type(entry)))
-                    serialize_plain(anode, ch_tag, entry, format_function)
             else:
                 # I have no idea how we'd find ourselves here, unless inconsistencies have been introduced
                 # into the descriptor
@@ -1371,11 +1404,13 @@ class Serializable(object):
 
         def serialize_plain(node, field, val, format_function):
             # may be called not at top level - if object array or list is present
-            if isinstance(val, Serializable):
+            if isinstance(val, (Serializable, SerializableArray)):
                 val.to_node(doc, field, parent=node, strict=strict)
+            elif isinstance(val, ParametersCollection):
+                val.to_node(doc, parent=node)
             elif isinstance(val, str):
                 _create_text_node(doc, field, val, parent=node)
-            elif isinstance(val, int) or isinstance(val, float):
+            elif isinstance(val, (int, float)):
                 _create_text_node(doc, field, format_function(val), parent=node)
             elif isinstance(val, bool):
                 _create_text_node(doc, field, 'true' if val else 'false', parent=node)
@@ -1416,13 +1451,12 @@ class Serializable(object):
             if attribute in self._set_as_attribute:
                 nod.attrib[attribute] = fmt_func(value)
             elif array_tag is not None:
-                array = array_tag.get('array', False)
                 child_tag = array_tag.get('child_tag', None)
-                if array:
-                    # this will be an numpy.ndarray
+                if isinstance(value, SerializableArray):
+                    serialize_plain(nod, attribute, value, fmt_func)
+                elif isinstance(value, numpy.ndarray):
                     serialize_array(nod, attribute, child_tag, value, fmt_func)
-                elif child_tag is not None:
-                    # this will be a list
+                elif isinstance(value, list):  # TODO: is this the right thing?
                     serialize_list(nod, child_tag, value, fmt_func)
                 else:
                     # the metadata is broken
@@ -1566,3 +1600,318 @@ class Serializable(object):
             else:
                 out[attribute] = serialize_plain(attribute, value)
         return out
+
+##########
+#  Some basic collections classes
+
+
+class SerializableArray(object):
+    # TODO: make an iterator.
+    _child_tag = None
+    _child_type = None
+    _minimum_length = 0
+    _maximum_length = 2**32
+    _array = None
+    _name = None
+
+    def __init__(self, coords=None, name=None, child_tag=None, child_type=None,
+                 minimum_length=None, maximum_length=None):
+        if name is None:
+            raise ValueError('The name parameter is required.')
+        if not isinstance(name, str):
+            raise TypeError(
+                'The name parameter is required to be an instance of str, got {}'.format(type(name)))
+        self._name = name
+
+        if child_tag is None:
+            raise ValueError('The child_tag parameter is required.')
+        if not isinstance(child_tag, str):
+            raise TypeError(
+                'The child_tag parameter is required to be an instance of str, got {}'.format(type(child_tag)))
+        self._child_tag = child_tag
+
+        if child_type is None:
+            raise ValueError('The child_type parameter is required.')
+        if not issubclass(child_type, Serializable):
+            raise TypeError('The child_type is required to be a subclass of Serializable.')
+        self._child_type = child_type
+
+        if minimum_length is not None:
+            self._minimum_length = max(int(minimum_length), 0)
+        if maximum_length is not None:
+            self._maximum_length = max(int(maximum_length), self._minimum_length)
+
+        self.set_array(coords)
+
+    def __len__(self):
+        return self.size
+
+    def __getitem__(self, index):
+        return self._array[index]
+
+    def __setitem__(self, index, value):
+        if value is None:
+            raise TypeError('Elements of {} must be of type {}, not None'.format(self._name, self._child_type))
+        self._array[index] = _parse_serializable(value, self._name, self, self._child_type)
+
+    def is_valid(self, recursive=False):
+        """Returns the validity of this object according to the schema. This is done by inspecting that the
+        array is populated.
+
+        Parameters
+        ----------
+        recursive : bool
+            True if we recursively check that children are also valid. This may result in verbose (i.e. noisy) logging.
+
+        Returns
+        -------
+        bool
+            condition for validity of this element
+        """
+        if self._array is None:
+            logging.error(
+                "Field {} has unpopulated array".format(self._name))
+            return False
+        if not recursive:
+            return True
+        valid_children = True
+        for i, entry in enumerate(self._array):
+            good = entry.is_valid(recursive=True)
+            if not good:
+                logging.error(  # I should probably do better with a stack type situation. This is traceable, at least.
+                    "Issue discovered with entry {} array field {}.".format(i, self._name))
+            valid_children &= good
+        return valid_children
+
+    @property
+    def size(self):  # type: () -> int
+        """
+        int: the size of the array.
+        """
+
+        if self._array is None:
+            return 0
+        else:
+            return self._array.size
+
+    def get_array(self, dtype=numpy.object, **kwargs):
+        """Gets an array representation of the class instance.
+
+        Parameters
+        ----------
+        dtype : numpy.dtype
+            numpy data type of the return.
+        kwargs : keyword arguments for calls of the form child.get_array(**kwargs)
+
+        Returns
+        -------
+        numpy.ndarray
+            * If `dtype` in `(numpy.object`, 'object')`, then the literal array of
+              child objects is returned. *Note: Beware of mutating the elements.*
+            * If `dtype` has any other value, then the return value will be tried
+              as `numpy.array([child.get_array(dtype=dtype, **kwargs) for child in array]`.
+            * If there is any error, then `None` is returned.
+        """
+
+        if dtype in [numpy.object, 'object']:
+            return self._array
+        else:
+            try:
+                return numpy.array(
+                    [child.get_array(dtype=dtype, **kwargs) for child in self._array], dtype=dtype)
+            except Exception:
+                return None
+
+    def set_array(self, coords):
+        """
+        Sets the underlying array.
+
+        Parameters
+        ----------
+        coords : numpy.ndarray|list|tuple
+
+        Returns
+        -------
+        None
+        """
+
+        if coords is None:
+            self._array = None
+            return
+        array = _parse_serializable_array(
+            coords, 'coords', self, self._child_type, self._child_tag)
+        if not (self._minimum_length <= array.size <= self._maximum_length):
+            raise ValueError(
+                'Field {} is required to be an array with {} <= length <= {}, and input of length {} '
+                'was received'.format(self._name, self._minimum_length, self._maximum_length, array.size))
+        self._array = array
+        for i, entry in enumerate(array):
+            try:
+                entry.index = i
+            except (AttributeError, ValueError, TypeError):
+                continue
+
+    def to_node(self, doc, tag, parent=None, strict=DEFAULT_STRICT):
+        if self.size == 0:
+            return None  # nothing to be done
+
+        anode = _create_new_node(doc, tag, parent=parent)
+        anode.attrib['size'] = str(self.size)
+        for i, entry in enumerate(self._array):
+            entry.to_node(doc, self._child_tag, parent=anode, strict=strict)
+        return anode
+
+    @classmethod
+    def from_node(cls, node, name, child_tag, child_type, **kwargs):
+        return cls(coords=node, name=name, child_tag=child_tag, child_type=child_type, **kwargs)
+
+    def to_json_list(self, strict=DEFAULT_STRICT):
+        """
+        For json serialization.
+        Parameters
+        ----------
+        strict : bool
+            passed through to child_type.to_dict() method.
+
+        Returns
+        -------
+        List[dict]
+        """
+
+        if self.size == 0:
+            return []
+        return [entry.to_dict(strict=strict) for entry in self._array]
+
+
+class SerializableCPArray(SerializableArray):
+    _child_tag = None
+    _child_type = None
+    _minimum_length = 4
+    _maximum_length = 4
+    _array = None
+    _name = None
+    _index_as_string = False
+
+    def __init__(self, coords=None, name=None, child_tag=None, child_type=None):
+        if hasattr(child_type, '_CORNER_VALUES'):
+            self._index_as_string = True
+        super(SerializableCPArray, self).__init__(coords=coords, name=name, child_tag=child_tag, child_type=child_type)
+
+    @property
+    def FRFC(self):
+        if self._array is None:
+            return None
+        return self._array[0].get_array()
+
+    @property
+    def FRLC(self):
+        if self._array is None:
+            return None
+        return self._array[1].get_array()
+
+    @property
+    def LRLC(self):
+        if self._array is None:
+            return None
+        return self._array[2].get_array()
+
+    @property
+    def LRFC(self):
+        if self._array is None:
+            return None
+        return self._array[3].get_array()
+
+    def set_array(self, coords):
+        """
+        Sets the underlying array.
+
+        Parameters
+        ----------
+        coords : numpy.ndarray|list|tuple
+
+        Returns
+        -------
+        None
+        """
+
+        super(SerializableCPArray, self).set_array(coords)
+
+        if self._array is None:
+            return
+
+        if not self._index_as_string:
+            self._array[0].index = 1
+            self._array[1].index = 2
+            self._array[2].index = 3
+            self._array[3].index = 4
+        else:
+            self._array[0].index = '1:FRFC'
+            self._array[1].index = '2:FRLC'
+            self._array[2].index = '3:LRLC'
+            self._array[3].index = '4:LRFC'
+
+
+class ParametersCollection(object):
+    _name = None
+    _child_tag = None
+    _dict = None
+
+    def __init__(self, collection=None, name=None, child_tag='Parameters'):
+        if name is None:
+            raise ValueError('The name parameter is required.')
+        if not isinstance(name, str):
+            raise TypeError(
+                'The name parameter is required to be an instance of str, got {}'.format(type(name)))
+        self._name = name
+
+        if child_tag is None:
+            raise ValueError('The child_tag parameter is required.')
+        if not isinstance(child_tag, str):
+            raise TypeError(
+                'The child_tag parameter is required to be an instance of str, got {}'.format(type(child_tag)))
+        self._child_tag = child_tag
+
+        self.set_collection(collection)
+
+    def __getitem__(self, name, default=None):
+        if self._dict is not None:
+            return self._dict.get(name, default)
+        return default
+
+    def __setitem__(self, name, value):
+        if not isinstance(name, str):
+            raise ValueError('Parameter name must be of type str, got {}'.format(type(name)))
+        if not isinstance(value, str):
+            raise ValueError('Parameter name must be of type str, got {}'.format(type(value)))
+
+        if self._dict is None:
+            self._dict = OrderedDict()
+        self._dict[name] = value
+
+    def set_collection(self, value):
+        if value is None:
+            self._dict = None
+        else:
+            self._dict = _parse_parameters_collection(value, self._name, self)
+
+    def get_collection(self):
+        return self._dict
+
+    def to_node(self, doc, parent=None):
+        if self._dict is None:
+            return None  # nothing to be done
+        for name in self._dict:
+            value = self._dict[name]
+            node = _create_text_node(doc, self._child_tag, value, parent=parent)
+            node.attrib['name'] = name
+
+    def to_dict(self):
+        return self._dict
+
+
+# TODO:
+#  0.) Make SerializableArray iterable?
+#  1.) Incorporate into the _SerializableArrayDescriptor
+#  2.) Incorporate into the Serializable serialization process.
+#  3.) Make a Serializable list & use that for all the lists?
+#  4.) Unit test all the things.

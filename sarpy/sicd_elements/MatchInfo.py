@@ -6,8 +6,8 @@ from xml.etree import ElementTree
 from typing import List
 
 from .base import Serializable, _get_node_value, DEFAULT_STRICT, \
-    _StringDescriptor, _IntegerDescriptor, _SerializableArrayDescriptor
-from .blocks import ParameterType
+    _StringDescriptor, _IntegerDescriptor, _SerializableArrayDescriptor, _ParametersDescriptor, \
+    ParametersCollection
 
 
 __classification__ = "UNCLASSIFIED"
@@ -26,9 +26,9 @@ class MatchCollectionType(Serializable):
         'MatchIndex', _required, strict=DEFAULT_STRICT,
         docstring='Collection sequence index for the match collection, assuming '
                   'that this makes sense.')  # type: int
-    Parameters = _SerializableArrayDescriptor(
-        'Parameters', ParameterType, _collections_tags, _required, strict=DEFAULT_STRICT,
-        docstring='The match parameters.')  # type: List[ParameterType]
+    Parameters = _ParametersDescriptor(
+        'Parameters', _collections_tags, _required, strict=DEFAULT_STRICT,
+        docstring='The match parameters.')  # type: ParametersCollection
 
     def __init__(self, CoreName=None, MatchIndex=None, Parameters=None, **kwargs):
         """
@@ -37,9 +37,10 @@ class MatchCollectionType(Serializable):
         ----------
         CoreName : str
         MatchIndex : int
-        Parameters : List[ParameterType]
+        Parameters : ParametersCollection|dict
         kwargs : dict
         """
+
         self.CoreName = CoreName
         self.MatchIndex = MatchIndex
         self.Parameters = Parameters

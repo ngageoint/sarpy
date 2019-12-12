@@ -9,8 +9,7 @@ import numpy
 from .base import Serializable, DEFAULT_STRICT, \
     _StringDescriptor, _StringEnumDescriptor, _FloatDescriptor, _IntegerDescriptor, \
     _BooleanDescriptor, _ComplexDescriptor, _DateTimeDescriptor, _IntegerListDescriptor, \
-    _SerializableDescriptor, _SerializableArrayDescriptor
-from .blocks import ParameterType
+    _SerializableDescriptor, _SerializableArrayDescriptor, _ParametersDescriptor, ParametersCollection
 
 
 __classification__ = "UNCLASSIFIED"
@@ -92,9 +91,9 @@ class ProcessingType(Serializable):
     Applied = _BooleanDescriptor(
         'Applied', _required, strict=DEFAULT_STRICT,
         docstring='Indicates whether the given processing type has been applied.')  # type: bool
-    Parameters = _SerializableArrayDescriptor(
-        'Parameters', ParameterType, _collections_tags, _required, strict=DEFAULT_STRICT,
-        docstring='The parameters list.')  # type: List[ParameterType]
+    Parameters = _ParametersDescriptor(
+        'Parameters', _collections_tags, _required, strict=DEFAULT_STRICT,
+        docstring='The parameters collection.')  # type: ParametersCollection
 
     def __init__(self, Type=None, Applied=None, Parameters=None, **kwargs):
         """
@@ -103,9 +102,10 @@ class ProcessingType(Serializable):
         ----------
         Type : str
         Applied : bool
-        Parameters : List[ParameterType]
+        Parameters : ParametersCollection|dict
         kwargs : dict
         """
+
         self.Type = Type
         self.Applied = Applied
         self.Parameters = Parameters

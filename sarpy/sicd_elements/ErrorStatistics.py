@@ -7,8 +7,8 @@ from typing import List, Union
 import numpy
 
 from .base import Serializable, DEFAULT_STRICT, _StringEnumDescriptor, _FloatDescriptor, \
-    _SerializableDescriptor, _SerializableArrayDescriptor
-from .blocks import ParameterType, ErrorDecorrFuncType
+    _SerializableDescriptor, _ParametersDescriptor, ParametersCollection
+from .blocks import ErrorDecorrFuncType
 
 __classification__ = "UNCLASSIFIED"
 
@@ -314,7 +314,7 @@ class ErrorStatisticsType(Serializable):
     """Parameters used to compute error statistics within the SICD sensor model."""
     _fields = ('CompositeSCP', 'Components', 'AdditionalParms')
     _required = ()
-    _collections_tags = {'AdditionalParms': {'array': True, 'child_tag': 'Parameter'}}
+    _collections_tags = {'AdditionalParms': {'array': False, 'child_tag': 'Parameter'}}
     # descriptors
     CompositeSCP = _SerializableDescriptor(
         'CompositeSCP', CompositeSCPErrorType, _required, strict=DEFAULT_STRICT,
@@ -324,9 +324,10 @@ class ErrorStatisticsType(Serializable):
     Components = _SerializableDescriptor(
         'Components', ErrorComponentsType, _required, strict=DEFAULT_STRICT,
         docstring='Error statistics by components.')  # type: ErrorComponentsType
-    AdditionalParms = _SerializableArrayDescriptor(
-        'AdditionalParms', ParameterType, _collections_tags, _required, strict=DEFAULT_STRICT,
-        docstring='Any additional parameters.')  # type: Union[numpy.ndarray, List[ParameterType]]
+
+    AdditionalParms = _ParametersDescriptor(
+        'AdditionalParms', _collections_tags, _required, strict=DEFAULT_STRICT,
+        docstring='Any additional parameters.')  # type: ParametersCollection
 
     def __init__(self, CompositeSCP=None, Components=None, AdditionalParms=None, **kwargs):
         """
@@ -335,9 +336,10 @@ class ErrorStatisticsType(Serializable):
         ----------
         CompositeSCP : CompositeSCPErrorType
         Components : ErrorComponentsType
-        AdditionalParms : List[ParameterType]
+        AdditionalParms : ParametersCollection|dict
         kwargs : dict
         """
+
         self.CompositeSCP = CompositeSCP
         self.Components = Components
         self.AdditionalParms = AdditionalParms
