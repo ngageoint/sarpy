@@ -4,8 +4,6 @@ The base elements for reading and writing files as appropriate.
 ** It is expected that this is not the final location for these files. **
 """
 
-from typing import List, Union
-
 import numpy
 
 
@@ -26,7 +24,11 @@ class BaseChipper(object):
     def __call__(self, range1, range2):
         data = self.read_raw_fun(self._reorder_arguments(range1, range2))
         data = self._data_to_complex(data)
-        data = self._drop_extraneous_band(data)
+
+        # make a one band image flat
+        if data.ndim == 3 and data.shape[0] == 1:
+            data = numpy.reshape(data, data.shape[1:])
+
         data = self._reorder_data(data)
         return data
 
@@ -34,9 +36,22 @@ class BaseChipper(object):
         dim1range, dim2range = self._slice_to_args(item)
         return self.__call__(dim1range, dim2range)
 
-    def _slice_to_args(self, item):
-        # TODO: parse the slice object to these arrays
-        pass
+    @staticmethod
+    def _slice_to_args(item):
+        def parse(entry):
+            if isinstance(entry, int):
+                return item, item+1, None
+            if isinstance(entry, slice):
+                return entry.start, entry.stop, entry.step
+
+        # this input is assumed to come from slice parsing
+        if isinstance(item, tuple) and len(item) > 2:
+            raise ValueError(
+                'Chipper received slice argument {}. We cannot slice on more than two dimensions.'.format(item))
+        if isinstance(item, tuple):
+            return parse(item[0]), parse(item[1])
+        else:
+            return parse(item), None
 
     def _reorder_arguments(self, range1, range2):
         """
@@ -66,18 +81,18 @@ class BaseChipper(object):
             if isinstance(arg, int):
                 step = arg
             elif len(arg) == 2:
-                stop, step = arg[0], arg[1]
+                stop, step = arg
             elif len(arg) == 3:
                 start, stop, step = arg
             start = 0 if start is None else int(start)
             stop = siz if stop is None else int(stop)
             step = 1 if step is None else int(step)
-
-            if not (0 <= start < siz):
+            # basic validity check
+            if not (-siz < start < siz):
                 raise ValueError(
                     'Range argument {} has extracted start {}, which is required '
                     'to be in the range [0, {})'.format(arg, start, siz))
-            if not (0 <= stop <= siz):
+            if not (-siz < stop <= siz):
                 raise ValueError(
                     'Range argument {} has extracted stop {}, which is required '
                     'to be in the range [0, {}]'.format(arg, start, siz))
@@ -89,6 +104,12 @@ class BaseChipper(object):
                 raise ValueError(
                     'Range argument {} has extracted start {}, stop {}, step {}, '
                     'which is not valid.'.format(arg, start, stop, step))
+
+            # reform negative values for start/stop appropriately
+            if start < 0:
+                start += siz
+            if stop < 0:
+                stop += siz
             return start, stop, step
 
         def reverse_arg(arg, siz):
@@ -107,6 +128,10 @@ class BaseChipper(object):
         if not (range2 is None or isinstance(range2, (int, tuple))):
             raise TypeError('range2 is of type {}, but must be an instance of None, '
                             'int or tuple.'.format(range2))
+        if isinstance(range1, tuple) and len(range1) > 3:
+            raise TypeError('range1 must have no more than 3 entries, received {}.'.format(range1))
+        if isinstance(range2, tuple) and len(range2) > 3:
+            raise TypeError('range2 must have no more than 3 entries, received {}.'.format(range2))
 
         # switch the axes if necessary
         real_arg1, real_arg2 = (range2, range1) if self._symmetry[2] else (range1, range2)
@@ -124,7 +149,7 @@ class BaseChipper(object):
 
     def _data_to_complex(self, data):
         if callable(self._complex_type):
-            # TODO: why not just implement it here? I think this was just total confusion.
+            # TODO: why not just implement it here? I think this is just total object-oriented confusion.
             return self._complex_type(data)
         elif self._complex_type:
             # TODO: 128 or 64?
@@ -138,12 +163,6 @@ class BaseChipper(object):
     def _reorder_data(self, data):
         if self._symmetry[2]:
             data = numpy.swapaxes(data, data.ndim-1, data.ndim-2)
-        return data
-
-    def _drop_extraneous_band(self, data):
-        # make a one band image flat
-        if data.ndim == 3 and data.shape[0] == 1:
-            data = numpy.reshape(data, data.shape()[1:])
         return data
 
     def read_raw_fun(self, range1, range2):
@@ -174,3 +193,26 @@ class BaseChipper(object):
         # TODO: why would a user want access to this? Should be private.
         raise NotImplementedError
 
+# TODO: subset chipper - from line utils/chipper.py line 217. There's still some confusion.
+
+
+class BaseReader(object):
+    """Abstract file reader class"""
+    _sicd_meta = None
+
+    # TODO: establish more generic capability?
+
+    def read_chip(self, dim1range, dim2range):
+        # TODO: document
+        raise NotImplementedError
+
+
+class Writer(object):
+    """Abstract file writer class"""
+    _sicd_meta = None
+
+    # TODO: establish more generic capability?
+
+    def write_chip(self, data, start_indices):
+        # TODO: document
+        raise NotImplementedError
