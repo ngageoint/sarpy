@@ -9,7 +9,7 @@ else:
 
 from sarpy.sicd_elements import MatchInfo
 
-match_collection_dict = {'CoreName': 'Name', 'MatchIndex': 2, 'Parameters': [{'name': 'PName', 'value': 'PValue'}, ]}
+match_collection_dict = {'CoreName': 'Name', 'MatchIndex': 2, 'Parameters': {'PName': 'PValue'}}
 match_dict = {
     'TypeId': 'COHERENT', 'CurrentIndex': 2, 'MatchCollections': [match_collection_dict, ], 'NumMatchCollections': 1}
 match_info_dict = {'NumMatchTypes': 1, 'MatchTypes': [match_dict, ]}

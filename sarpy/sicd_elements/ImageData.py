@@ -9,7 +9,7 @@ import numpy
 
 from .base import Serializable, DEFAULT_STRICT, \
     _IntegerDescriptor, _FloatArrayDescriptor, _StringEnumDescriptor, \
-    _SerializableArrayDescriptor, _SerializableDescriptor
+    _SerializableArrayDescriptor, _SerializableDescriptor, SerializableArray
 from .blocks import RowColType, RowColArrayElement
 
 
@@ -107,7 +107,7 @@ class ImageDataType(Serializable):
         'ValidData', RowColArrayElement, _collections_tags, _required, strict=DEFAULT_STRICT, minimum_length=3,
         docstring='Indicates the full image includes both valid data and some zero filled pixels. '
                   'Simple polygon encloses the valid data (may include some zero filled pixels for simplification). '
-                  'Vertices in clockwise order.')  # type: Union[numpy.ndarray, List[RowColArrayElement]]
+                  'Vertices in clockwise order.')  # type: Union[SerializableArray, List[RowColArrayElement]]
 
     def __init__(self, PixelType=None, AmpTable=None, NumRows=None, NumCols=None,
                  FirstRow=None, FirstCol=None, FullImage=None, SCPPixel=None, ValidData=None, **kwargs):
@@ -123,7 +123,7 @@ class ImageDataType(Serializable):
         FirstCol : int
         FullImage : FullImageType|numpy.ndarray|list|tuple
         SCPPixel : RowColType|numpy.ndarray|list|tuple
-        ValidData : List[RowColArrayElement]
+        ValidData : SerializableArray|List[RowColArrayElement]|numpy.ndarray|list|tuple
         kwargs : dict
         """
         self.PixelType = PixelType

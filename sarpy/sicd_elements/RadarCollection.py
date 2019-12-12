@@ -7,8 +7,11 @@ from typing import List, Union
 import numpy
 
 from .base import Serializable, DEFAULT_STRICT, \
-    _StringDescriptor, _StringEnumDescriptor, _FloatDescriptor, _IntegerDescriptor, \
-    _SerializableDescriptor, _SerializableArrayDescriptor, _UnitVectorDescriptor, _parse_float, \
+    _StringDescriptor, _StringEnumDescriptor, _FloatDescriptor,\
+    _IntegerDescriptor, _SerializableDescriptor, \
+    _SerializableArrayDescriptor, SerializableArray, \
+    _SerializableCPArrayDescriptor, SerializableCPArray, \
+    _UnitVectorDescriptor, _parse_float, \
     _ParametersDescriptor, ParametersCollection
 from .blocks import XYZType, LatLonHAECornerRestrictionType
 
@@ -429,7 +432,7 @@ class ReferencePlaneType(Serializable):
         docstring='The Y direction collection plane parameters.')  # type: YDirectionType
     SegmentList = _SerializableArrayDescriptor(
         'SegmentList', SegmentArrayElement, _collections_tags, _required, strict=DEFAULT_STRICT,
-        docstring='The segment array.')  # type: Union[numpy.ndarray, List[SegmentArrayElement]]
+        docstring='The segment array.')  # type: Union[SerializableArray, List[SegmentArrayElement]]
     Orientation = _StringEnumDescriptor(
         'Orientation', _ORIENTATION_VALUES, _required, strict=DEFAULT_STRICT,
         docstring='Describes the shadow intent of the display plane.')  # type: str
@@ -442,7 +445,7 @@ class ReferencePlaneType(Serializable):
         RefPt : ReferencePointType
         XDir : XDirectionType
         YDir : YDirectionType
-        SegmentList : List[SegmentArrayElement]
+        SegmentList : SerializableArray|List[SegmentArrayElement]
         Orientation : str
         kwargs : dict
         """
@@ -485,12 +488,12 @@ class AreaType(Serializable):
     _fields = ('Corner', 'Plane')
     _required = ('Corner', )
     _collections_tags = {
-        'Corner': {'array': False, 'child_tag': 'ACP'}, }
+        'Corner': {'array': True, 'child_tag': 'ACP'}, }
     # descriptors
-    Corner = _SerializableArrayDescriptor(
+    Corner = _SerializableCPArrayDescriptor(
         'Corner', LatLonHAECornerRestrictionType, _collections_tags, _required, strict=DEFAULT_STRICT,
-        minimum_length=4, maximum_length=4,
-        docstring='The collection area corner point definition array.')  # type: List[LatLonHAECornerRestrictionType]
+        docstring='The collection area corner point definition array.'
+    )  # type: Union[SerializableCPArray, List[LatLonHAECornerRestrictionType]]
     Plane = _SerializableDescriptor(
         'Plane', ReferencePlaneType, _required, strict=DEFAULT_STRICT,
         docstring='A rectangular area in a geo-located display plane.')  # type: ReferencePlaneType
@@ -500,7 +503,7 @@ class AreaType(Serializable):
 
         Parameters
         ----------
-        Corner : List[LatLonHAECornerRestrictionType]|numpy.ndarray
+        Corner : SerializableCPArray|List[LatLonHAECornerRestrictionType]|numpy.ndarray|list|tuple
         Plane : ReferencePlaneType
         kwargs : dict
         """
@@ -559,7 +562,7 @@ class RadarCollectionType(Serializable):
         'Waveform', WaveformParametersType, _collections_tags, _required,
         strict=DEFAULT_STRICT, minimum_length=1,
         docstring='Transmit and receive demodulation waveform parameters.'
-    )  # type: Union[numpy.ndarray, List[WaveformParametersType]]
+    )  # type: Union[SerializableArray, List[WaveformParametersType]]
     TxPolarization = _StringEnumDescriptor(
         'TxPolarization', _POLARIZATION1_VALUES, _required, strict=DEFAULT_STRICT,
         docstring='The transmit polarization.')  # type: str
@@ -567,11 +570,11 @@ class RadarCollectionType(Serializable):
         'TxSequence', TxStepType, _collections_tags, _required, strict=DEFAULT_STRICT, minimum_length=1,
         docstring='The transmit sequence parameters array. If present, indicates the transmit signal steps through '
                   'a repeating sequence of waveforms and/or polarizations. '
-                  'One step per Inter-Pulse Period.')  # type: Union[numpy.ndarray, List[TxStepType]]
+                  'One step per Inter-Pulse Period.')  # type: Union[SerializableArray, List[TxStepType]]
     RcvChannels = _SerializableArrayDescriptor(
         'RcvChannels', ChanParametersType, _collections_tags,
         _required, strict=DEFAULT_STRICT, minimum_length=1,
-        docstring='Receive data channel parameters.')  # type: Union[numpy.ndarray, List[ChanParametersType]]
+        docstring='Receive data channel parameters.')  # type: Union[SerializableArray, List[ChanParametersType]]
     Area = _SerializableDescriptor(
         'Area', AreaType, _required, strict=DEFAULT_STRICT,
         docstring='The imaged area covered by the collection.')  # type: AreaType
@@ -588,10 +591,10 @@ class RadarCollectionType(Serializable):
         ----------
         TxFrequency : TxFrequencyType
         RefFreqIndex : int
-        Waveform : List[WaveformParametersType]
+        Waveform : SerializableArray|List[WaveformParametersType]
         TxPolarization : str
-        TxSequence : List[TxStepType]
-        RcvChannels : List[ChanParametersType]
+        TxSequence : SerializableArray|List[TxStepType]
+        RcvChannels : SerializableArray|List[ChanParametersType]
         Area : AreaType
         Parameters : ParametersCollection|dict
         kwargs : dict

@@ -60,7 +60,7 @@ radar_collection_dict = {
     'TxSequence': [tx_step_dict, ],
     'RcvChannels': [chan_parameters_dict, ],
     'Area': area_dict,
-    'Parameters': [{'name': 'Name', 'value': 'Value'}, ],
+    'Parameters': {'name': 'value'},
 }
 
 

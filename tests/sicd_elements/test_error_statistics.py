@@ -57,7 +57,7 @@ error_components_dict = {
 error_statistics_dict = {
     'CompositeSCP': scp_error_dict,
     'Components': error_components_dict,
-    'AdditionalParms': [{'name': 'Name', 'value': 'Value'}, ]
+    'AdditionalParms': {'Name': 'Value'},
 }
 
 

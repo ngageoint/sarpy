@@ -268,7 +268,7 @@ class LatLonCornerType(LatLonType):
     _set_as_attribute = ('index', )
     # descriptors
     index = _IntegerDescriptor(
-        'index', _required, strict=True, bounds=(0, 4),
+        'index', _required, strict=False, bounds=(1, 4),
         docstring='The integer index. This represents a clockwise enumeration of '
                   'the rectangle vertices wrt the frame of reference of the collector. '
                   'Should be 1-4, but 0-3 may be permissible.')  # type: int
@@ -297,7 +297,7 @@ class LatLonCornerStringType(LatLonType):
     _CORNER_VALUES = ('1:FRFC', '2:FRLC', '3:LRLC', '4:LRFC')
     # descriptors
     index = _StringEnumDescriptor(
-        'index', _CORNER_VALUES, _required, strict=True,
+        'index', _CORNER_VALUES, _required, strict=False,
         docstring="The string index.")  # type: str
 
     def __init__(self, coords=None, Lat=None, Lon=None, index=None, **kwargs):
@@ -322,7 +322,7 @@ class LatLonHAECornerRestrictionType(LatLonHAERestrictionType):
     _set_as_attribute = ('index', )
     # descriptors
     index = _IntegerDescriptor(
-        'index', _required, strict=False, bounds=(0, 4),
+        'index', _required, strict=False, bounds=(1, 4),
         docstring='The integer index. This represents a clockwise enumeration of the '
                   'rectangle vertices wrt the frame of reference of the collector. '
                   'Should be 1-4, but 0-3 may be permissible.')  # type: int
@@ -352,7 +352,7 @@ class LatLonHAECornerStringType(LatLonHAEType):
     _CORNER_VALUES = ('1:FRFC', '2:FRLC', '3:LRLC', '4:LRFC')
     # descriptors
     index = _StringEnumDescriptor(
-        'index', _CORNER_VALUES, _required, strict=True, docstring="The string index.")  # type: str
+        'index', _CORNER_VALUES, _required, strict=False, docstring="The string index.")  # type: str
 
     def __init__(self, coords=None, Lat=None, Lon=None, HAE=None, index=None, **kwargs):
         """
@@ -1035,7 +1035,7 @@ class XYZPolyAttributeType(XYZPolyType):
     _set_as_attribute = ('index', )
     # descriptors
     index = _IntegerDescriptor(
-        'index', _required, strict=DEFAULT_STRICT, docstring='The array index value.')  # type: int
+        'index', _required, strict=False, docstring='The array index value.')  # type: int
 
     def __init__(self, coords=None, X=None, Y=None, Z=None, index=None, **kwargs):
         """

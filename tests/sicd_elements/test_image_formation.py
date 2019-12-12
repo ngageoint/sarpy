@@ -12,7 +12,7 @@ from sarpy.sicd_elements import ImageFormation
 
 rcv_chan_proc_dict = {'NumChanProc': 10, 'PRFScaleFactor': 1, 'ChanIndices': [1, 4], }
 tx_freq_proc_dict = {'MinProc': 1, 'MaxProc': 10}
-processing_dict = {'Type': 'Some Value', 'Applied': True, 'Parameters': [{'name': 'Name', 'value': 'Value'}, ]}
+processing_dict = {'Type': 'Some Value', 'Applied': True, 'Parameters': {'Name': 'Value'}}
 distortion_dict = {
     'CalibrationDate': '2019-12-10T19:40:31.000000',
     'A': 1,

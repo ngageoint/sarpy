@@ -10,8 +10,9 @@ from scipy.optimize import newton
 from scipy.constants import speed_of_light
 
 from .base import Serializable, DEFAULT_STRICT, \
-    _StringDescriptor, _StringEnumDescriptor, _FloatDescriptor, _FloatArrayDescriptor, _IntegerEnumDescriptor, \
-    _SerializableDescriptor, _UnitVectorDescriptor, _ParametersDescriptor, ParametersCollection
+    _StringDescriptor, _StringEnumDescriptor, _FloatDescriptor, _FloatArrayDescriptor, \
+    _IntegerEnumDescriptor, _SerializableDescriptor, _UnitVectorDescriptor, \
+    _ParametersDescriptor, ParametersCollection
 from .blocks import XYZType, Poly2DType
 
 

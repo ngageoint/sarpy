@@ -12,7 +12,7 @@ from sarpy.sicd_elements import Grid
 
 wgt_type_dict = {
     'WindowName': 'UNKNOWN',
-    'Parameters': [{'name': 'Name', 'value': '0.1'}, ]
+    'Parameters': {'Name': '0.1'},
 }
 
 dir_param_dict = {

@@ -7,7 +7,7 @@ from typing import List, Union
 import numpy
 
 from .base import Serializable, DEFAULT_STRICT, \
-    _SerializableDescriptor, _SerializableArrayDescriptor
+    _SerializableDescriptor, _SerializableArrayDescriptor, SerializableArray
 from .blocks import XYZType, XYZPolyType, XYZPolyAttributeType
 
 
@@ -37,7 +37,7 @@ class PositionType(Serializable):
         'RcvAPC', XYZPolyAttributeType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Receive Aperture Phase Center polynomials array. '
                   'Each polynomial has output in ECF, and represents a function of elapsed seconds since start of '
-                  'collection.')  # type: Union[numpy.ndarray, List[XYZPolyAttributeType]]
+                  'collection.')  # type: Union[SerializableArray, List[XYZPolyAttributeType]]
 
     def __init__(self, ARPPoly=None, GRPPoly=None, TxAPCPoly=None, RcvAPC=None, **kwargs):
         """
@@ -47,7 +47,7 @@ class PositionType(Serializable):
         ARPPoly : XYZPolyType
         GRPPoly : XYZPolyType
         TxAPCPoly : XYZPolyType
-        RcvAPC : List[XYZPolyAttributeType]
+        RcvAPC : SerializableArray|List[XYZPolyAttributeType]|list|tuple
         kwargs : dict
         """
         self.ARPPoly = ARPPoly

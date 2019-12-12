@@ -6,7 +6,7 @@ from xml.etree import ElementTree
 from typing import List
 
 from .base import Serializable, _get_node_value, DEFAULT_STRICT, \
-    _StringDescriptor, _IntegerDescriptor, _SerializableArrayDescriptor, _ParametersDescriptor, \
+    _StringDescriptor, _IntegerDescriptor, _SerializableListDescriptor, _ParametersDescriptor, \
     ParametersCollection
 
 
@@ -61,7 +61,7 @@ class MatchType(Serializable):
         docstring='Collection sequence index for the current collection. That is, which collection in the '
                   'collection series (defined in MatchCollections) is this collection? '
                   '(1-based enumeration).')  # type: int
-    MatchCollections = _SerializableArrayDescriptor(
+    MatchCollections = _SerializableListDescriptor(
         'MatchCollections', MatchCollectionType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='The match collections.')  # type: List[MatchCollectionType]
 
@@ -97,8 +97,8 @@ class MatchInfoType(Serializable):
     _required = ('MatchTypes', )
     _collections_tags = {'MatchTypes': {'array': False, 'child_tag': 'MatchType'}}
     # descriptors
-    MatchTypes = _SerializableArrayDescriptor(
-        'MatchTypes', MatchType, _collections_tags, _required, strict=DEFAULT_STRICT, minimum_length=1,
+    MatchTypes = _SerializableListDescriptor(
+        'MatchTypes', MatchType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='The match types list.')  # type: List[MatchType]
 
     def __init__(self, MatchTypes=None, **kwargs):

@@ -7,7 +7,6 @@ import logging
 import numpy
 
 from .base import Serializable, DEFAULT_STRICT, _SerializableDescriptor
-from .blocks import LatLonCornerStringType, LatLonArrayElementType
 from .CollectionInfo import CollectionInfoType
 from .ImageCreation import ImageCreationType
 from .ImageData import ImageDataType
@@ -92,17 +91,20 @@ class SICDType(Serializable):
     )  # type: ErrorStatisticsType
     MatchInfo = _SerializableDescriptor(
         'MatchInfo', MatchInfoType, _required, strict=DEFAULT_STRICT,
-        docstring='Information about other collections that are matched to the current collection. The current '
-                  'collection is the collection from which this *SICD* product was generated.')  # type: MatchInfoType
+        docstring='Information about other collections that are matched to the '
+                  'current collection. The current collection is the collection '
+                  'from which this *SICD* product was generated.')  # type: MatchInfoType
     RgAzComp = _SerializableDescriptor(
         'RgAzComp', RgAzCompType, _required, strict=DEFAULT_STRICT,
         docstring='Parameters included for a *Range, Doppler* image.')  # type: RgAzCompType
     PFA = _SerializableDescriptor(
         'PFA', PFAType, _required, strict=DEFAULT_STRICT,
-        docstring='Parameters included when the image is formed using the *Polar Formation Algorithm (PFA)*.')  # type: PFAType
+        docstring='Parameters included when the image is formed using the '
+                  '*Polar Formation Algorithm (PFA)*.')  # type: PFAType
     RMA = _SerializableDescriptor(
         'RMA', RMAType, _required, strict=DEFAULT_STRICT,
-        docstring='Parameters included when the image is formed using the *Range Migration Algorithm (RMA)*.')  # type: RMAType
+        docstring='Parameters included when the image is formed using the '
+                  '*Range Migration Algorithm (RMA)*.')  # type: RMAType
 
     def __init__(self, CollectionInfo=None, ImageCreation=None, ImageData=None,
                  GeoData=None, Grid=None, Timeline=None, Position=None, RadarCollection=None,
@@ -282,12 +284,7 @@ class SICDType(Serializable):
         except (ValueError, AttributeError):
             return
 
-        self.GeoData.ImageCorners = [  # TODO: ImageCorners should be settable directly from corner_coords
-            LatLonCornerStringType(coords=corner_coords[0, :], index='1:FRFC'),
-            LatLonCornerStringType(coords=corner_coords[1, :], index='2:FRLC'),
-            LatLonCornerStringType(coords=corner_coords[2, :], index='3:LRLC'),
-            LatLonCornerStringType(coords=corner_coords[3, :], index='4:LRFC'),
-        ]
+        self.GeoData.ImageCorners = corner_coords
 
     def define_geo_valid_data(self):
         """
@@ -310,8 +307,7 @@ class SICDType(Serializable):
         except (ValueError, AttributeError):
             return
 
-        self.GeoData.ValidData = [  # TODO: this should be directly settable from corner_coords
-            LatLonArrayElementType(coords=entry, index=i) for i, entry in enumerate(corner_coords)]
+        self.GeoData.ValidData = corner_coords
 
     def derive(self):
         """

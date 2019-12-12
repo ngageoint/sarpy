@@ -9,7 +9,7 @@ import numpy
 from .base import Serializable, DEFAULT_STRICT, \
     _StringDescriptor, _StringEnumDescriptor, _FloatDescriptor, _IntegerDescriptor, \
     _BooleanDescriptor, _ComplexDescriptor, _DateTimeDescriptor, _IntegerListDescriptor, \
-    _SerializableDescriptor, _SerializableArrayDescriptor, _ParametersDescriptor, ParametersCollection
+    _SerializableDescriptor, _SerializableListDescriptor, _ParametersDescriptor, ParametersCollection
 
 
 __classification__ = "UNCLASSIFIED"
@@ -301,7 +301,7 @@ class ImageFormationType(Serializable):
         'RgAutofocus', _RG_AUTOFOCUS_VALUES, _required, strict=DEFAULT_STRICT,
         docstring='Indicates if range autofocus correction has been applied, with similar '
                   'interpretation as `STBeamComp`.')  # type: str
-    Processings = _SerializableArrayDescriptor(
+    Processings = _SerializableListDescriptor(
         'Processings', ProcessingType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Parameters to describe types of specific processing that may have been applied '
                   'such as additional compensations.')  # type: List[ProcessingType]

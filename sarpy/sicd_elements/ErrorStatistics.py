@@ -2,10 +2,6 @@
 The ErrorStatisticsType definition.
 """
 
-from typing import List, Union
-
-import numpy
-
 from .base import Serializable, DEFAULT_STRICT, _StringEnumDescriptor, _FloatDescriptor, \
     _SerializableDescriptor, _ParametersDescriptor, ParametersCollection
 from .blocks import ErrorDecorrFuncType

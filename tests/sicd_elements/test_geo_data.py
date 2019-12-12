@@ -1,6 +1,8 @@
 import sys
 from xml.etree import ElementTree
 
+import numpy
+
 if sys.version_info[0] < 3:
     # so we can use subtests, which is pretty handy
     import unittest2 as unittest
@@ -12,14 +14,14 @@ from sarpy.sicd_elements import GeoData
 
 geo_info_dict1 = {
     'name': 'Name',
-    'Descriptions': [{'name': 'feature', 'value': 'some kind of words'}, ],
+    'Descriptions': {'feature': 'some kind of words'},
     'Point': {'Lat': 0, 'Lon': 0}}
 geo_info_dict2 = {
     'name': 'Name',
     'Line': [{'Lat': 0, 'Lon': 0, 'index': 0}, {'Lat': 1, 'Lon': 1, 'index': 1}]}
 geo_info_dict3 = {
     'name': 'Name',
-    'Polygon': [{'Lat': 0, 'Lon': 0, 'index': 0}, {'Lat': 1, 'Lon': 1, 'index': 1}, {'Lat': 0, 'Lon': 1, 'index': 3}]}
+    'Polygon': [{'Lat': 0, 'Lon': 0, 'index': 0}, {'Lat': 1, 'Lon': 1, 'index': 1}, {'Lat': 0, 'Lon': 1, 'index': 2}]}
 
 scp_dict = {
     'LLH': {'Lat': 0, 'Lon': 0, 'HAE': 100},
@@ -122,12 +124,10 @@ class TestGeoInfo(unittest.TestCase):
             self.assertFalse(item.is_valid(), False)
 
         with self.subTest(msg='Line with one point'):
-            item = GeoData.GeoInfoType.from_dict(bad_dict2)
-            self.assertFalse(item.is_valid(), False)
+            self.assertRaises(ValueError, GeoData.GeoInfoType.from_dict, bad_dict2)
 
         with self.subTest(msg='Polygon with two points'):
-            item = GeoData.GeoInfoType.from_dict(bad_dict3)
-            self.assertFalse(item.is_valid(), False)
+            self.assertRaises(ValueError, GeoData.GeoInfoType.from_dict, bad_dict3)
 
 
 class TestSCP(unittest.TestCase):
@@ -193,3 +193,13 @@ class TestGeoData(unittest.TestCase):
 
         with self.subTest(msg="validity check"):
             self.assertTrue(item1.is_valid())
+
+        with self.subTest(msg='Image Corners setting from array'):
+            test_value = numpy.array([[0, 0], [0, 2], [2, 2], [2, 0]])
+            item1.ImageCorners = test_value
+            self.assertTrue(numpy.all(item1.ImageCorners.get_array(dtype=numpy.float64) == test_value))
+
+        with self.subTest(msg='Valid Data setting from array'):
+            test_value = numpy.array([[0, 0], [1, 1], [1, 0]])
+            item1.ValidData = test_value
+            self.assertTrue(numpy.all(item1.ValidData.get_array(dtype=numpy.float64) == test_value))

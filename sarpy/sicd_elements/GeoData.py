@@ -9,7 +9,9 @@ from typing import List, Union
 import numpy
 
 from .base import Serializable, DEFAULT_STRICT, _StringDescriptor, _StringEnumDescriptor, \
-    _SerializableDescriptor, _SerializableArrayDescriptor, _ParametersDescriptor, ParametersCollection
+    _SerializableDescriptor, _SerializableArrayDescriptor, \
+    _ParametersDescriptor, ParametersCollection, SerializableArray, \
+    _SerializableCPArrayDescriptor, SerializableCPArray, _SerializableListDescriptor
 from .blocks import XYZType, LatLonRestrictionType, LatLonHAERestrictionType, \
     LatLonCornerStringType, LatLonArrayElementType
 
@@ -35,7 +37,8 @@ class GeoInfoType(Serializable):
     name = _StringDescriptor(
         'name', _required, strict=True,
         docstring='The name.')  # type: str
-    Descriptions = _ParametersDescriptor('Descriptions', _collections_tags, _required, strict=DEFAULT_STRICT,
+    Descriptions = _ParametersDescriptor(
+        'Descriptions', _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Descriptions of the geographic feature.')  # type: ParametersCollection
     Point = _SerializableDescriptor(
         'Point', LatLonRestrictionType, _required, strict=DEFAULT_STRICT,
@@ -43,11 +46,11 @@ class GeoInfoType(Serializable):
     Line = _SerializableArrayDescriptor(
         'Line', LatLonArrayElementType, _collections_tags, _required, strict=DEFAULT_STRICT, minimum_length=2,
         docstring='A geographic line (array) with WGS-84 coordinates.'
-    )  # type: Union[numpy.ndarray, List[LatLonArrayElementType]]
+    )  # type: Union[SerializableArray, List[LatLonArrayElementType]]
     Polygon = _SerializableArrayDescriptor(
         'Polygon', LatLonArrayElementType, _collections_tags, _required, strict=DEFAULT_STRICT, minimum_length=3,
         docstring='A geographic polygon (array) with WGS-84 coordinates.'
-    )  # type: Union[numpy.ndarray, List[LatLonArrayElementType]]
+    )  # type: Union[SerializableArray, List[LatLonArrayElementType]]
 
     def __init__(self, name=None, Descriptions=None, Point=None, Line=None, Polygon=None, **kwargs):
         """
@@ -56,9 +59,9 @@ class GeoInfoType(Serializable):
         ----------
         name : str
         Descriptions : ParametersCollection|dict
-        Point : LatLonRestrictionType|numpf.ndarray|list|tuple
-        Line : List[LatLonArrayElementType]
-        Polygon : List[LatLonArrayElementType]
+        Point : LatLonRestrictionType|numpy.ndarray|list|tuple
+        Line : SerializableArray|List[LatLonArrayElementType]|numpy.ndarray|list|tuple
+        Polygon : SerializableArray|List[LatLonArrayElementType]|numpy.ndarray|list|tuple
         kwargs : dict
         """
         self.name = name
@@ -136,6 +139,7 @@ class SCPType(Serializable):
 
         if self.ECF is None and self.LLH is not None:
             self.ECF = XYZType(coords=geodetic_to_ecf(self.LLH.get_array(order='LAT'))[0])
+            # TODO: this 2-d thing feels wrong - the [0] above.
         elif self.LLH is None and self.ECF is not None:
             self.LLH = LatLonHAERestrictionType(coords=ecf_to_geodetic(self.ECF.get_array())[0])
 
@@ -159,19 +163,18 @@ class GeoDataType(Serializable):
         'SCP', SCPType, _required, strict=DEFAULT_STRICT,
         docstring='The Scene Center Point (SCP) in full (global) image. This is the '
                   'precise location.')  # type: SCPType
-    ImageCorners = _SerializableArrayDescriptor(
+    ImageCorners = _SerializableCPArrayDescriptor(
         'ImageCorners', LatLonCornerStringType, _collections_tags, _required, strict=DEFAULT_STRICT,
-        minimum_length=4, maximum_length=4,
         docstring='The geographic image corner points array. Image corners points projected to the '
                   'ground/surface level. Points may be projected to the same height as the SCP if ground/surface '
                   'height data is not available. The corner positions are approximate geographic locations and '
-                  'not intended for analytical use.')  # type: Union[numpy.ndarray, List[LatLonCornerStringType]]
+                  'not intended for analytical use.')  # type: Union[SerializableCPArray, List[LatLonCornerStringType]]
     ValidData = _SerializableArrayDescriptor(
         'ValidData', LatLonArrayElementType, _collections_tags, _required,
         strict=DEFAULT_STRICT, minimum_length=3,
         docstring='The full image array includes both valid data and some zero filled pixels.'
-    )  # type: Union[numpy.ndarray, List[LatLonArrayElementType]]
-    GeoInfos = _SerializableArrayDescriptor(
+    )  # type: Union[SerializableArray, List[LatLonArrayElementType]]
+    GeoInfos = _SerializableListDescriptor(
         'GeoInfos', GeoInfoType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Relevant geographic features list.')  # type: List[GeoInfoType]
 
@@ -182,15 +185,15 @@ class GeoDataType(Serializable):
         ----------
         EarthModel : str
         SCP : SCPType
-        ImageCorners : List[LatLonCornerStringType]
-        ValidData : List[LatLonArrayElementType]
+        ImageCorners : SerializableCPArray|List[LatLonCornerStringType]|numpy.ndarray|list|tuple
+        ValidData : SerializableArray|List[LatLonArrayElementType]|numpy.ndarray|list|tuple
         GeoInfos : List[GeoInfoType]
         kwargs : dict
         """
         self.EarthModel = EarthModel
         self.SCP = SCP
-        self.ImageCorners = ImageCorners  # TODO: update either the descriptor or here to handle conversion
-        self.ValidData = ValidData  # TODO: update either the descriptor or here to handle conversion
+        self.ImageCorners = ImageCorners
+        self.ValidData = ValidData
         self.GeoInfos = GeoInfos
         super(GeoDataType, self).__init__(**kwargs)
 

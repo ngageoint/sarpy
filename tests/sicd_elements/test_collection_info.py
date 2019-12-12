@@ -19,7 +19,7 @@ info_dict = {
     'RadarMode': mode_dict,
     'Classification': 'UNCLASSIFIED',
     'CountryCodes': ['some-code', 'some-other-code'],
-    'Parameters': [{'name': 'Name1', 'value': 'Value1'}, {'name': 'Name2', 'value': 'Value2'}]
+    'Parameters': {'Name1': 'Value1', 'Name2': 'Value2'},
 }
 
 

@@ -365,6 +365,7 @@ def _parse_parameters_collection(value, name, instance):
             'Field {} of class {} got incompatible type {}.'.format(
                 name, instance.__class__.__name__, type(value)))
 
+
 ###
 # descriptor definitions - these are reusable properties that handle typing and deserialization in one place
 
@@ -396,11 +397,37 @@ class _BasicDescriptor(object):
         if suff is not None:
             docstring = '{} {}'.format(docstring, suff)
 
+        lenstr = self._len_string()
+        if lenstr is not None:
+            docstring = '{} {}'.format(docstring, lenstr)
+
         if self.required:
             docstring = '{} {}'.format(docstring, ' **Required.**')
         else:
             docstring = '{} {}'.format(docstring, ' **Optional.**')
         self.__doc__ = docstring
+
+    def _len_string(self):
+        minl = getattr(self, 'minimum_length', None)
+        maxl = getattr(self, 'minimum_length', None)
+        def_minl = getattr(self, '_DEFAULT_MIN_LENGTH', None)
+        def_maxl = getattr(self, '_DEFAULT_MAX_LENGTH', None)
+        if minl is not None and maxl is not None:
+            if minl == def_minl and maxl == def_maxl:
+                return None
+
+            lenstr = ' Must have length '
+            if minl == def_minl:
+                lenstr += '<= {0:d}.'.format(maxl)
+            elif maxl == def_maxl:
+                lenstr += '>= {0:d}.'.format(minl)
+            elif minl == maxl:
+                lenstr += ' exactly {0:d}.'.format(minl)
+            else:
+                lenstr += 'in the range [{0:d}, {1:d}].'.format(minl, maxl)
+            return lenstr
+        else:
+            return None
 
     def _docstring_suffix(self):
         return None
@@ -499,22 +526,6 @@ class _StringListDescriptor(_BasicDescriptor):
                     self.minimum_length, self.maximum_length))
         super(_StringListDescriptor, self).__init__(
             name, required, strict=strict, default_value=default_value, docstring=docstring)
-
-    def _docstring_suffix(self):
-        if self.minimum_length == self._DEFAULT_MIN_LENGTH and \
-                self.maximum_length == self._DEFAULT_MAX_LENGTH:
-            return ''
-
-        lenstr = ' Must have length '
-        if self.minimum_length == self._DEFAULT_MIN_LENGTH:
-            lenstr += '<= {0:d}.'.format(self.maximum_length)
-        elif self.maximum_length == self._DEFAULT_MAX_LENGTH:
-            lenstr += '>= {0:d}.'.format(self.minimum_length)
-        elif self.minimum_length == self.maximum_length:
-            lenstr += ' exactly {0:d}.'.format(self.minimum_length)
-        else:
-            lenstr += 'in the range [{0:d}, {1:d}].'.format(self.minimum_length, self.maximum_length)
-        return lenstr
 
     def __set__(self, instance, value):
         def set_value(new_value):
@@ -693,22 +704,6 @@ class _IntegerListDescriptor(_BasicDescriptor):
                     self.minimum_length, self.maximum_length))
         super(_IntegerListDescriptor, self).__init__(name, required, strict=strict, docstring=docstring)
 
-    def _docstring_suffix(self):
-        if self.minimum_length == self._DEFAULT_MIN_LENGTH and \
-                self.maximum_length == self._DEFAULT_MAX_LENGTH:
-            return ''
-
-        lenstr = ' Must have length '
-        if self.minimum_length == self._DEFAULT_MIN_LENGTH:
-            lenstr += '<= {0:d}.'.format(self.maximum_length)
-        elif self.maximum_length == self._DEFAULT_MAX_LENGTH:
-            lenstr += '>= {0:d}.'.format(self.minimum_length)
-        elif self.minimum_length == self.maximum_length:
-            lenstr += ' exactly {0:d}.'.format(self.minimum_length)
-        else:
-            lenstr += 'in the range [{0:d}, {1:d}].'.format(self.minimum_length, self.maximum_length)
-        return lenstr
-
     def __set__(self, instance, value):
         def set_value(new_value):
             if len(new_value) < self.minimum_length:
@@ -814,22 +809,6 @@ class _FloatArrayDescriptor(_BasicDescriptor):
                 'Specified minimum length is {}, while specified maximum length is {}'.format(
                     self.minimum_length, self.maximum_length))
         super(_FloatArrayDescriptor, self).__init__(name, required, strict=strict, docstring=docstring)
-
-    def _docstring_suffix(self):
-        if self.minimum_length == self._DEFAULT_MIN_LENGTH and \
-                self.maximum_length == self._DEFAULT_MAX_LENGTH:
-            return ''
-
-        lenstr = ' Must have length '
-        if self.minimum_length == self._DEFAULT_MIN_LENGTH:
-            lenstr += '<= {0:d}.'.format(self.maximum_length)
-        elif self.maximum_length == self._DEFAULT_MAX_LENGTH:
-            lenstr += '>= {0:d}.'.format(self.minimum_length)
-        elif self.minimum_length == self.maximum_length:
-            lenstr += ' exactly {0:d}.'.format(self.minimum_length)
-        else:
-            lenstr += 'in the range [{0:d}, {1:d}].'.format(self.minimum_length, self.maximum_length)
-        return lenstr
 
     def __set__(self, instance, value):
         def set_value(new_val):
@@ -958,9 +937,30 @@ class _UnitVectorDescriptor(_BasicDescriptor):
             self.data[instance] = self.the_type(coords=coords/norm)
 
 
+class _ParametersDescriptor(_BasicDescriptor):
+    """A descriptor for properties of a Parameter type - that is, dictionary"""
+
+    def __init__(self, name, tag_dict, required, strict=DEFAULT_STRICT, docstring=None):
+        self.child_tag = tag_dict[name]['child_tag']
+        self._typ_string = 'ParametersCollection:'
+        super(_ParametersDescriptor, self).__init__(name, required, strict=strict, docstring=docstring)
+
+    def __set__(self, instance, value):
+        if super(_ParametersDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
+            return
+
+        if isinstance(value, ParametersCollection):
+            self.data[instance] = value
+        else:
+            the_inst = self.data.get(instance, None)
+            if the_inst is None:
+                self.data[instance] = ParametersCollection(collection=value, name=self.name, child_tag=self.child_tag)
+            else:
+                the_inst.set_collection(value)
+
+
 class _SerializableArrayDescriptor(_BasicDescriptor):
     """A descriptor for properties of a list or array of specified extension of Serializable"""
-    # TODO: this needs to be fixed.
     _DEFAULT_MIN_LENGTH = 0
     _DEFAULT_MAX_LENGTH = 2 ** 32
 
@@ -969,11 +969,13 @@ class _SerializableArrayDescriptor(_BasicDescriptor):
         self.child_type = child_type
         tags = tag_dict[name]
         self.array = tags.get('array', False)
+        if not self.array:
+            raise ValueError(
+                'Attribute {} is populated in the `_collection_tags` dictionary without `array`=True. '
+                'This is inconsistent with using _SerializableArrayDescriptor.'.format(name))
+
         self.child_tag = tags['child_tag']
-        if self.array:
-            self._typ_string = 'numpy.ndarray[{}]:'.format(str(child_type).strip().split('.')[-1][:-2])
-        else:
-            self._typ_string = 'list[{}]:'.format(str(child_type).strip().split('.')[-1][:-2])
+        self._typ_string = 'numpy.ndarray[{}]:'.format(str(child_type).strip().split('.')[-1][:-2])
 
         self.minimum_length = self._DEFAULT_MIN_LENGTH if minimum_length is None else int(minimum_length)
         self.maximum_length = self._DEFAULT_MAX_LENGTH if maximum_length is None else int(maximum_length)
@@ -983,69 +985,77 @@ class _SerializableArrayDescriptor(_BasicDescriptor):
                     self.minimum_length, self.maximum_length))
         super(_SerializableArrayDescriptor, self).__init__(name, required, strict=strict, docstring=docstring)
 
-    def _docstring_suffix(self):
-        if self.minimum_length == self._DEFAULT_MIN_LENGTH and \
-                self.maximum_length == self._DEFAULT_MAX_LENGTH:
-            return ''
-
-        lenstr = ' Must have length '
-        if self.minimum_length == self._DEFAULT_MIN_LENGTH:
-            lenstr += '<= {0:d}.'.format(self.maximum_length)
-        elif self.maximum_length == self._DEFAULT_MAX_LENGTH:
-            lenstr += '>= {0:d}.'.format(self.minimum_length)
-        elif self.minimum_length == self.maximum_length:
-            lenstr += ' exactly {0:d}.'.format(self.minimum_length)
-        else:
-            lenstr += 'in the range [{0:d}, {1:d}].'.format(self.minimum_length, self.maximum_length)
-        return lenstr
-
-    def __actual_set(self, instance, value):
-        if len(value) < self.minimum_length:
-            msg = 'Attribute {} of class {} is of size {}, and must have size at least ' \
-                  '{}.'.format(self.name, instance.__class__.__name__, value.size, self.minimum_length)
-            if self.strict:
-                raise ValueError(msg)
-            else:
-                logging.error(msg)
-        if len(value) > self.maximum_length:
-            msg = 'Attribute {} of class {} is of size {}, and must have size no greater than ' \
-                  '{}.'.format(self.name, instance.__class__.__name__, value.size, self.maximum_length)
-            if self.strict:
-                raise ValueError(msg)
-            else:
-                logging.error(msg)
-        self.data[instance] = value
-
     def __set__(self, instance, value):
         if super(_SerializableArrayDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
             return
 
-        if self.array:
-            self.__actual_set(
-                instance, _parse_serializable_array(value, self.name, instance, self.child_type, self.child_tag))
-        else:
-            self.__actual_set(instance, _parse_serializable_list(value, self.name, instance, self.child_type))
-
-
-class _ParametersDescriptor(_BasicDescriptor):
-    """A descriptor for properties of a Parameter type - that is, dictionary"""
-
-    def __init__(self, name, tag_dict, required, strict=DEFAULT_STRICT, docstring=None):
-        self.child_tag = tag_dict[name]['child_tag']
-        self._typ_string = 'ParametersCollection:'
-        super(_ParametersDescriptor, self).__init__(name, required, strict=strict, docstring=docstring)
-
-
-    def __set__(self, instance, value):
-        if super(_ParametersDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
-            return
-
-        if isinstance(value, ParametersCollection):
+        if isinstance(value, SerializableArray):
             self.data[instance] = value
         else:
-            self.data[instance] = ParametersCollection(
-                collection=_parse_parameters_collection(value, self.name, instance),
-                name=self.name, child_tag=self.child_tag)
+            the_inst = self.data.get(instance, None)
+            if the_inst is None:
+                self.data[instance] = SerializableArray(
+                    coords=value, name=self.name, child_tag=self.child_tag, child_type=self.child_type,
+                    minimum_length=self.minimum_length, maximum_length=self.maximum_length)
+            else:
+                the_inst.set_array(value)
+
+
+class _SerializableCPArrayDescriptor(_BasicDescriptor):
+    """A descriptor for properties of a list or array of specified extension of Serializable"""
+    minimum_length = 4
+    maximum_length = 4
+
+    def __init__(self, name, child_type, tag_dict, required, strict=DEFAULT_STRICT, docstring=None):
+        self.child_type = child_type
+        tags = tag_dict[name]
+        self.array = tags.get('array', False)
+        if not self.array:
+            raise ValueError(
+                'Attribute {} is populated in the `_collection_tags` dictionary without `array`=True. '
+                'This is inconsistent with using _SerializableCPArrayDescriptor.'.format(name))
+
+        self.child_tag = tags['child_tag']
+        self._typ_string = 'numpy.ndarray[{}]:'.format(str(child_type).strip().split('.')[-1][:-2])
+
+        super(_SerializableCPArrayDescriptor, self).__init__(name, required, strict=strict, docstring=docstring)
+
+    def __set__(self, instance, value):
+        if super(_SerializableCPArrayDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
+            return
+
+        if isinstance(value, SerializableCPArray):
+            self.data[instance] = value
+        else:
+            the_inst = self.data.get(instance, None)
+            if the_inst is None:
+                self.data[instance] = SerializableCPArray(
+                    coords=value, name=self.name, child_tag=self.child_tag, child_type=self.child_type)
+            else:
+                the_inst.set_array(value)
+
+
+class _SerializableListDescriptor(_BasicDescriptor):
+    """A descriptor for properties of a list or array of specified extension of Serializable"""
+
+    def __init__(self, name, child_type, tag_dict, required, strict=DEFAULT_STRICT, docstring=None):
+        self.child_type = child_type
+        tags = tag_dict[name]
+        self.array = tags.get('array', False)
+        if self.array:
+            raise ValueError(
+                'Attribute {} is populated in the `_collection_tags` dictionary with `array`=True. '
+                'This is inconsistent with using _SerializableListDescriptor.'.format(name))
+
+        self.child_tag = tags['child_tag']
+        self._typ_string = 'List[{}]:'.format(str(child_type).strip().split('.')[-1][:-2])
+        super(_SerializableListDescriptor, self).__init__(name, required, strict=strict, docstring=docstring)
+
+    def __set__(self, instance, value):
+        if super(_SerializableListDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
+            return
+
+        self.data[instance] = _parse_serializable_list(value, self.name, instance, self.child_type)
 
 
 #################
@@ -1314,7 +1324,7 @@ class Serializable(object):
             if attribute in cls._set_as_attribute:
                 handle_attribute(attribute)
             elif attribute in cls._collections_tags:
-                # it's an array type of a list type parameter
+                # it's a collection type parameter
                 array_tag = cls._collections_tags[attribute]
                 array = array_tag.get('array', False)
                 child_tag = array_tag.get('child_tag', None)
@@ -1326,7 +1336,7 @@ class Serializable(object):
                     # the metadata is broken
                     raise ValueError(
                         'Attribute {} in class {} is listed in the _collections_tags dictionary, but the '
-                        '"child_tags" value is either missing or None.'.format(attribute, cls))
+                        '`child_tag` value is either not populated or None.'.format(attribute, cls))
             else:
                 # it's a regular property
                 handle_single(attribute)
@@ -1447,24 +1457,28 @@ class Serializable(object):
                 continue
 
             fmt_func = self._get_formatter(attribute)
-            array_tag = self._collections_tags.get(attribute, None)
             if attribute in self._set_as_attribute:
                 nod.attrib[attribute] = fmt_func(value)
-            elif array_tag is not None:
-                child_tag = array_tag.get('child_tag', None)
-                if isinstance(value, SerializableArray):
-                    serialize_plain(nod, attribute, value, fmt_func)
-                elif isinstance(value, numpy.ndarray):
-                    serialize_array(nod, attribute, child_tag, value, fmt_func)
-                elif isinstance(value, list):  # TODO: is this the right thing?
-                    serialize_list(nod, child_tag, value, fmt_func)
-                else:
-                    # the metadata is broken
-                    raise ValueError(
-                        'Attribute {} in class {} is listed in the _collections_tags dictionary, but the '
-                        '"child_tag" value is either missing or None.'.format(attribute, self.__class__.__name__))
             else:
-                serialize_plain(nod, attribute, value, fmt_func)
+                if isinstance(value, (numpy.ndarray, list)):
+                    array_tag = self._collections_tags.get(attribute, None)
+                    if array_tag is None:
+                        raise AttributeError(
+                            'The value associated with attribute {} in an instance of class {} is of type {}, '
+                            'but nothing is populated in the _collection_tags dictionary.'.format(
+                                attribute, self.__class__.__name__, type(value)))
+                    child_tag = array_tag.get('child_tag', None)
+                    if child_tag is None:
+                        raise AttributeError(
+                            'The value associated with attribute {} in an instance of class {} is of type {}, '
+                            'but `child_tag` is not populated in the _collection_tags dictionary.'.format(
+                                attribute, self.__class__.__name__, type(value)))
+                    if isinstance(value, numpy.ndarray):
+                        serialize_array(nod, attribute, child_tag, value, fmt_func)
+                    else:
+                        serialize_list(nod, child_tag, value, fmt_func)
+                else:
+                    serialize_plain(nod, attribute, value, fmt_func)
         return nod
 
     @classmethod
@@ -1502,13 +1516,6 @@ class Serializable(object):
         """
 
         def serialize_array(ch_tag, val):
-            if not isinstance(val, numpy.ndarray):
-                # this should really never happen, unless someone broke the class badly by fiddling with
-                # _collections_tag or the descriptor, probably at runtime
-                raise TypeError(
-                    'The value associated with attribute {} is an instance of class {} should be an array based on '
-                    'the metadata in the _collections_tags dictionary, but we received an instance of '
-                    'type {}'.format(attribute, self.__class__.__name__, type(val)))
             if not len(val.shape) == 1:
                 # again, I have no idea how we'd find ourselves here, unless inconsistencies have been introduced
                 # into the descriptor
@@ -1523,24 +1530,17 @@ class Serializable(object):
             if val.dtype == numpy.float64:
                 return [float(el) for el in val]
             elif val.dtype == numpy.object:
+                # TODO: Deprecated. Remove when eliminated.
                 return [serialize_plain(ch_tag, entry) for entry in val]
             else:
                 # I have no idea how we'd find ourselves here, unless inconsistencies have been introduced
                 # into the descriptor
                 raise ValueError(
-                    'The value associated with attribute {} is an instance of class {}, if None, is required to be'
-                    'a numpy.ndarray of dtype float64 or object, but it has dtype {}'.format(
+                    'The value associated with attribute {} is an instance of class {}. This is expected to be'
+                    'a numpy.ndarray of dtype float64, but it has dtype {}'.format(
                         attribute, self.__class__.__name__, val.dtype))
 
         def serialize_list(ch_tag, val):
-            if not isinstance(val, list):
-                # this should really never happen, unless someone broke the class badly by fiddling with
-                # _collections_tags or the descriptor?
-                raise TypeError(
-                    'The value associated with attribute {} is an instance of class {} should be a list based on '
-                    'the metadata in the _collections_tags dictionary, but we received an instance of '
-                    'type {}'.format(attribute, self.__class__.__name__, type(val)))
-
             if len(val) == 0:
                 return []
             else:
@@ -1550,6 +1550,10 @@ class Serializable(object):
             # may be called not at top level - if object array or list is present
             if isinstance(val, Serializable):
                 return val.to_dict(strict=strict)
+            elif isinstance(val, SerializableArray):
+                return val.to_json_list(strict=strict)
+            elif isinstance(val, ParametersCollection):
+                return val.to_dict()
             elif isinstance(val, (str, int, float, bool)):
                 return val
             elif isinstance(val, numpy.datetime64):
@@ -1582,31 +1586,34 @@ class Serializable(object):
             if value is None:
                 continue
 
-            array_tag = self._collections_tags.get(attribute, None)
-
-            if array_tag is not None:
-                array = array_tag.get('array', False)
+            if isinstance(value, (numpy.ndarray, list)):
+                array_tag = self._collections_tags.get(attribute, None)
+                if array_tag is None:
+                    raise AttributeError(
+                        'The value associated with attribute {} in an instance of class {} is of type {}, '
+                        'but nothing is populated in the _collection_tags dictionary.'.format(
+                            attribute, self.__class__.__name__, type(value)))
                 child_tag = array_tag.get('child_tag', None)
-                if array:
+                if child_tag is None:
+                    raise AttributeError(
+                        'The value associated with attribute {} in an instance of class {} is of type {}, '
+                        'but `child_tag` is not populated in the _collection_tags dictionary.'.format(
+                            attribute, self.__class__.__name__, type(value)))
+                if isinstance(value, numpy.ndarray):
                     out[attribute] = serialize_array(child_tag, value)
-                elif child_tag is not None:
-                    # this will be a list
-                    out[attribute] = serialize_list(child_tag, value)
                 else:
-                    # the metadata is broken
-                    raise ValueError(
-                        'Attribute {} in class {} is listed in the _collections_tags dictionary, but the '
-                        '"child_tags" value is either missing or None.'.format(attribute, self.__class__.__name__))
+                    out[attribute] = serialize_list(child_tag, value)
             else:
                 out[attribute] = serialize_plain(attribute, value)
         return out
+
 
 ##########
 #  Some basic collections classes
 
 
 class SerializableArray(object):
-    # TODO: make an iterator.
+    # TODO: make an iterator?
     _child_tag = None
     _child_type = None
     _minimum_length = 0
@@ -1744,6 +1751,7 @@ class SerializableArray(object):
             raise ValueError(
                 'Field {} is required to be an array with {} <= length <= {}, and input of length {} '
                 'was received'.format(self._name, self._minimum_length, self._maximum_length, array.size))
+
         self._array = array
         for i, entry in enumerate(array):
             try:
@@ -1834,11 +1842,17 @@ class SerializableCPArray(SerializableArray):
         None
         """
 
-        super(SerializableCPArray, self).set_array(coords)
-
-        if self._array is None:
+        if coords is None:
+            self._array = None
             return
+        array = _parse_serializable_array(
+            coords, 'coords', self, self._child_type, self._child_tag)
+        if not (self._minimum_length <= array.size <= self._maximum_length):
+            raise ValueError(
+                'Field {} is required to be an array with {} <= length <= {}, and input of length {} '
+                'was received'.format(self._name, self._minimum_length, self._maximum_length, array.size))
 
+        self._array = array
         if not self._index_as_string:
             self._array[0].index = 1
             self._array[1].index = 2
@@ -1907,11 +1921,3 @@ class ParametersCollection(object):
 
     def to_dict(self):
         return self._dict
-
-
-# TODO:
-#  0.) Make SerializableArray iterable?
-#  1.) Incorporate into the _SerializableArrayDescriptor
-#  2.) Incorporate into the Serializable serialization process.
-#  3.) Make a Serializable list & use that for all the lists?
-#  4.) Unit test all the things.

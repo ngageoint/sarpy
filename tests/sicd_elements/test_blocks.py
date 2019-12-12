@@ -12,30 +12,6 @@ import numpy
 from sarpy.sicd_elements import blocks
 
 
-class TestParameter(unittest.TestCase):
-    def setUp(self):
-        self.dict = {'name': 'Name', 'value': 'Value'}
-        self.xml = '<Parameter name="Name">Value</Parameter>'
-        self.node = ElementTree.fromstring(self.xml)
-
-    def test_construction(self):
-        item1 = blocks.ParameterType.from_dict(self.dict)
-        item2 = blocks.ParameterType.from_node(node=self.node)
-
-        # NB: I haven't implemented __eq__, so no instances will ever be equal.
-        with self.subTest(msg='Comparing from dict construction with xml construction'):
-            self.assertEqual(item1.to_dict(), item2.to_dict())
-        with self.subTest(msg='Comparing json deserialization with original'):
-            new_dict = item1.to_dict()
-            self.assertEqual(self.dict, new_dict)
-        with self.subTest(msg="Comparing xml serialization with original"):
-            etree = ElementTree.ElementTree()
-            new_xml = ElementTree.tostring(item1.to_node(etree, 'Parameter')).decode('utf-8')
-            self.assertEqual(self.xml, new_xml)
-        with self.subTest(msg="validity check"):
-            self.assertTrue(item1.is_valid())
-
-
 class TestXYZType(unittest.TestCase):
     def test_construction(self):
         the_dict = {'X': 1, 'Y': 2, 'Z': 3}
@@ -249,9 +225,6 @@ class TestLatLonCorner(unittest.TestCase):
         with self.subTest(msg="validity check"):
             self.assertTrue(item1.is_valid())
 
-    def test_index_validation(self):
-        self.assertRaises(ValueError, blocks.LatLonCornerType, Lat=1, Lon=2, index=5)
-
 
 class TestLatLonCornerString(unittest.TestCase):
     def test_construction(self):
@@ -281,9 +254,6 @@ class TestLatLonCornerString(unittest.TestCase):
 
         with self.subTest(msg="validity check"):
             self.assertTrue(item1.is_valid())
-
-    def test_index_validation(self):
-        self.assertRaises(ValueError, blocks.LatLonCornerStringType, Lat=1, Lon=2, index='junk')
 
 
 class TestRowCol(unittest.TestCase):
