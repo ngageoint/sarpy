@@ -62,7 +62,7 @@ def _taylor_win(n, sidelobes=4, max_sidelobe_level=-30, normalize=True):  # TODO
 
     sidelobes : int
         Number of nearly constant-level sidelobes adjacent to the mainlobe, specified as a positive integer.
-        These sidelobes are “nearly constant-level” because some decay occurs in the transition region.
+        These sidelobes are "nearly constant level" because some decay occurs in the transition region.
 
     max_sidelobe_level : float
         Maximum sidelobe level relative to mainlobe peak, specified as a real negative scalar in dB. It produces
@@ -436,9 +436,9 @@ class GridType(Serializable):
         * `XRGYCR` - Orthogonal slant plane grid oriented range and cross range relative to the ARP at a 
           reference time.
 
-        * `XCTYAT` – Orthogonal slant plane grid with X oriented cross track.
+        * `XCTYAT` - Orthogonal slant plane grid with X oriented cross track.
 
-        * `PLANE` – Arbitrary plane with orientation other than the specific `XRGYCR` or `XCTYAT`.
+        * `PLANE` - Arbitrary plane with orientation other than the specific `XRGYCR` or `XCTYAT`.
         \n\n
         """)  # type: str
     TimeCOAPoly = _SerializableDescriptor(
@@ -604,7 +604,7 @@ class GridType(Serializable):
                     kctr -= self.Row.DeltaKCOAPoly.Coefs[0, 0]
                 self.Row.KCtr = kctr
             elif self.Row.DeltaKCOAPoly is None:
-                self.Row.DeltaKCOAPoly = Poly2DType(Coefs=[[*center_frequency/speed_of_light - self.Row.KCtr, ], ])
+                self.Row.DeltaKCOAPoly = Poly2DType(Coefs=[[2*center_frequency/speed_of_light - self.Row.KCtr, ], ])
 
             if self.Col.KCtr is None:
                 if self.Col.DeltaKCOAPoly is not None:
