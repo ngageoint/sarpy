@@ -16,7 +16,7 @@ class TestXYZType(unittest.TestCase):
     def test_construction(self):
         the_dict = {'X': 1, 'Y': 2, 'Z': 3}
         item1 = blocks.XYZType.from_dict(the_dict)
-        item2 = blocks.XYZType(coords=(1, 2, 3))
+        item2 = blocks.XYZType.from_array((1, 2, 3))
 
         with self.subTest(msg='Comparing from dict construction with alternate construction'):
             self.assertEqual(item1.to_dict(), item2.to_dict())
@@ -42,7 +42,7 @@ class TestXYZType(unittest.TestCase):
 
     def test_methods(self):
         array = numpy.array([0.0, 1.0, 2.0])
-        item = blocks.XYZType(coords=array)
+        item = blocks.XYZType.from_array(array)
         with self.subTest(msg='get_array test'):
             array2 = item.get_array()
             self.assertTrue(numpy.all(array == array2), msg='{} != {}'.format(array, array2))
@@ -52,7 +52,7 @@ class TestLatLon(unittest.TestCase):
     def test_construction(self):
         the_dict = {'Lat': 1, 'Lon': 2}
         item1 = blocks.LatLonType.from_dict(the_dict)
-        item2 = blocks.LatLonType(coords=[1, 2])
+        item2 = blocks.LatLonType.from_array([1, 2])
 
         with self.subTest(msg='Comparing from dict construction with alternate construction'):
             self.assertEqual(item1.to_dict(), item2.to_dict())
@@ -81,7 +81,7 @@ class TestLatLonRestriction(unittest.TestCase):
     def test_construction(self):
         the_dict = {'Lat': 91, 'Lon': -182}
         item1 = blocks.LatLonRestrictionType.from_dict(the_dict)
-        item2 = blocks.LatLonRestrictionType(coords=[91, -182])
+        item2 = blocks.LatLonRestrictionType.from_array([91, -182])
 
         with self.subTest(msg='Comparing from dict construction with alternate construction'):
             self.assertEqual(item1.to_dict(), item2.to_dict())
@@ -111,7 +111,7 @@ class TestLatLonArrayElement(unittest.TestCase):
     def test_construction(self):
         the_dict = {'Lat': 1, 'Lon': 2, 'index': 3}
         item1 = blocks.LatLonArrayElementType.from_dict(the_dict)
-        item2 = blocks.LatLonArrayElementType(coords=[1, 2], index=3)
+        item2 = blocks.LatLonArrayElementType.from_array([1, 2], index=3)
 
         with self.subTest(msg='Comparing from dict construction with alternate construction'):
             self.assertEqual(item1.to_dict(), item2.to_dict())
@@ -141,7 +141,7 @@ class TestLatLonHAE(unittest.TestCase):
     def test_construction(self):
         the_dict = {'Lat': 1, 'Lon': 2, 'HAE': 3}
         item1 = blocks.LatLonHAEType.from_dict(the_dict)
-        item2 = blocks.LatLonHAEType(coords=[1, 2, 3])
+        item2 = blocks.LatLonHAEType.from_array([1, 2, 3])
 
         with self.subTest(msg='Comparing from dict construction with alternate construction'):
             self.assertEqual(item1.to_dict(), item2.to_dict())
@@ -170,7 +170,7 @@ class TestLatLonHAERestriction(unittest.TestCase):
     def test_construction(self):
         the_dict = {'Lat': 91, 'Lon': -182, 'HAE': 3}
         item1 = blocks.LatLonHAERestrictionType.from_dict(the_dict)
-        item2 = blocks.LatLonHAERestrictionType(coords=[91, -182, 3])
+        item2 = blocks.LatLonHAERestrictionType.from_array([91, -182, 3])
 
         with self.subTest(msg='Comparing from dict construction with alternate construction'):
             self.assertEqual(item1.to_dict(), item2.to_dict())
@@ -200,7 +200,7 @@ class TestLatLonCorner(unittest.TestCase):
     def test_construction(self):
         the_dict = {'Lat': 1, 'Lon': 2, 'index': 3}
         item1 = blocks.LatLonCornerType.from_dict(the_dict)
-        item2 = blocks.LatLonCornerType(coords=[1, 2], index=3)
+        item2 = blocks.LatLonCornerType.from_array([1, 2], index=3)
 
         with self.subTest(msg='Comparing from dict construction with alternate construction'):
             self.assertEqual(item1.to_dict(), item2.to_dict())
@@ -230,7 +230,7 @@ class TestLatLonCornerString(unittest.TestCase):
     def test_construction(self):
         the_dict = {'Lat': 1, 'Lon': 2, 'index': '1:FRFC'}
         item1 = blocks.LatLonCornerStringType.from_dict(the_dict)
-        item2 = blocks.LatLonCornerStringType(coords=[1, 2], index='1:FRFC')
+        item2 = blocks.LatLonCornerStringType.from_array([1, 2], index='1:FRFC')
 
         with self.subTest(msg='Comparing from dict construction with alternate construction'):
             self.assertEqual(item1.to_dict(), item2.to_dict())
@@ -260,7 +260,7 @@ class TestRowCol(unittest.TestCase):
     def test_construction(self):
         the_dict = {'Row': 1, 'Col': 2}
         item1 = blocks.RowColType.from_dict(the_dict)
-        item2 = blocks.RowColType(coords=[1, 2])
+        item2 = blocks.RowColType.from_array([1, 2])
 
         with self.subTest(msg='Comparing from dict construction with alternate construction'):
             self.assertEqual(item1.to_dict(), item2.to_dict())
@@ -286,7 +286,7 @@ class TestRowColArrayElement(unittest.TestCase):
     def test_construction(self):
         the_dict = {'Row': 1, 'Col': 2, 'index': 3}
         item1 = blocks.RowColArrayElement.from_dict(the_dict)
-        item2 = blocks.RowColArrayElement(coords=[1, 2], index=3)
+        item2 = blocks.RowColArrayElement.from_array([1, 2], index=3)
 
         with self.subTest(msg='Comparing from dict construction with alternate construction'):
             self.assertEqual(item1.to_dict(), item2.to_dict())

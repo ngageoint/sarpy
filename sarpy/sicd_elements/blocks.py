@@ -534,7 +534,8 @@ class RowColType(Serializable, Arrayable):
         super(RowColType, self).__init__(**kwargs)
 
     def get_array(self, dtype=numpy.int64):
-        """Gets an array representation of the class instance.
+        """
+        Gets an array representation of the class instance.
 
         Parameters
         ----------
@@ -653,6 +654,9 @@ class Poly1DType(Serializable, Arrayable):
         """
         numpy.ndarray: The one-dimensional polynomial coefficient array of dtype=float64. Assignment object must be a
         one-dimensional numpy.ndarray, or naively convertible to one.
+
+        .. Note: this returns the direct coefficient array. Use the `get_array()` method to get a copy of the
+            coefficient array of specified data type.
         """
 
         return self._coefs
@@ -781,9 +785,36 @@ class Poly1DType(Serializable, Arrayable):
 
     @classmethod
     def from_array(cls, array):
+        """
+        Create from the coefficients array type entry.
+
+        Parameters
+        ----------
+        array: numpy.ndarray|list|tuple
+            must be one-dimensional
+
+        Returns
+        -------
+        Poly1DType
+        """
+
         return cls(Coefs=array)
 
     def get_array(self, dtype=numpy.float64):
+        """
+        Gets *a copy* of the coefficent array of specified data type.
+
+        Parameters
+        ----------
+        dtype : numpy.dtype
+            numpy data type of the return
+
+        Returns
+        -------
+        numpy.ndarray
+            one-dimensional coefficient array
+        """
+
         return numpy.array(self._coefs, dtype=dtype)
 
     @classmethod
@@ -929,6 +960,9 @@ class Poly2DType(Serializable, Arrayable):
         """
         numpy.ndarray: The two-dimensional polynomial coefficient array of dtype=float64. Assignment object must be a
         two-dimensional numpy.ndarray, or naively convertible to one.
+
+        .. Note: this returns the direct coefficient array. Use the `get_array()` method to get a copy of the
+            coefficient array of specified data type.
         """
 
         return self._coefs
@@ -954,9 +988,36 @@ class Poly2DType(Serializable, Arrayable):
 
     @classmethod
     def from_array(cls, array):
+        """
+        Create from the coefficients array type entry.
+
+        Parameters
+        ----------
+        array: numpy.ndarray|list|tuple
+            must be two-dimensional.
+
+        Returns
+        -------
+        Poly2DType
+        """
+
         return cls(Coefs=array)
 
     def get_array(self, dtype=numpy.float64):
+        """
+        Gets *a copy* of the coefficent array of specified data type.
+
+        Parameters
+        ----------
+        dtype : numpy.dtype
+            numpy data type of the return
+
+        Returns
+        -------
+        numpy.ndarray
+            two-dimensional coefficient array
+        """
+
         return numpy.array(self._coefs, dtype=dtype)
 
     @classmethod
