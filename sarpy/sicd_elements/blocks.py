@@ -2,7 +2,7 @@
 Basic building blocks for SICD standard.
 """
 
-from .base import _get_node_value, _create_text_node, _create_new_node, Serializable, DEFAULT_STRICT, \
+from .base import _get_node_value, _create_text_node, _create_new_node, Serializable, Arrayable, DEFAULT_STRICT, \
     _StringEnumDescriptor, _IntegerDescriptor, _FloatDescriptor, _FloatModularDescriptor, \
     _SerializableDescriptor
 
@@ -22,7 +22,8 @@ __classification__ = "UNCLASSIFIED"
 ##########
 # Geographical coordinates
 
-class XYZType(Serializable):
+
+class XYZType(Serializable, Arrayable):
     """A spatial point in ECF coordinates."""
     _fields = ('X', 'Y', 'Z')
     _required = _fields
@@ -38,29 +39,43 @@ class XYZType(Serializable):
         'Z', _required, strict=True,
         docstring='The Z attribute. Assumed to ECF or other, similar coordinates.')  # type: float
 
-    def __init__(self, coords=None, X=None, Y=None, Z=None, **kwargs):
+    def __init__(self, X=None, Y=None, Z=None, **kwargs):
         """
         Parameters
         ----------
-        coords : numpy.ndarray|list|tuple
-            assumed [X, Y, Z]
         X : float
         Y : float
         Z : float
         kwargs : dict
         """
 
-        if isinstance(coords, (numpy.ndarray, list, tuple)):
-            if len(coords) >= 3:
-                self.X, self.Y, self.Z = coords[0], coords[1], coords[2]
-            else:
-                raise ValueError('Expected coords to be of length 3, and received {}'.format(coords))
-        else:
-            self.X, self.Y, self.Z = X, Y, Z
+        self.X, self.Y, self.Z = X, Y, Z
         super(XYZType, self).__init__(**kwargs)
 
+    @classmethod
+    def from_array(cls, array):
+        """
+        Create from an array type entry.
+
+        Parameters
+        ----------
+        array: numpy.ndarray|list|tuple
+            assumed [X, Y, Z]
+
+        Returns
+        -------
+        XYZType
+        """
+
+        if isinstance(array, (numpy.ndarray, list, tuple)):
+            if len(array) < 3:
+                raise ValueError('Expected array to be of length 3, and received {}'.format(array))
+            return cls(X=array[0], Y=array[1], Z=array[2])
+        raise ValueError('Expected array to be numpy.ndarray, list, or tuple, got {}'.format(type(array)))
+
     def get_array(self, dtype=numpy.float64):
-        """Gets an array representation of the class instance.
+        """
+        Gets an array representation of the class instance.
 
         Parameters
         ----------
@@ -76,7 +91,7 @@ class XYZType(Serializable):
         return numpy.array([self.X, self.Y, self.Z], dtype=dtype)
 
 
-class LatLonType(Serializable):
+class LatLonType(Serializable, Arrayable):
     """A two-dimensional geographic point in WGS-84 coordinates."""
     _fields = ('Lat', 'Lon')
     _required = _fields
@@ -89,27 +104,20 @@ class LatLonType(Serializable):
         'Lon', _required, strict=True,
         docstring='The longitude attribute. Assumed to be WGS-84 coordinates.')  # type: float
 
-    def __init__(self, coords=None, Lat=None, Lon=None, **kwargs):
+    def __init__(self, Lat=None, Lon=None, **kwargs):
         """
         Parameters
         ----------
-        coords : numpy.ndarray|list|tuple
-            assumed [Lat, Lon]
         Lat : float
         Lon : float
         kwargs : dict
         """
-        if isinstance(coords, (numpy.ndarray, list, tuple)):
-            if len(coords) >= 2:
-                self.Lat, self.Lon = coords[0], coords[1]
-            else:
-                raise ValueError('Expected coords to be of length 2, and received {}'.format(coords))
-        else:
-            self.Lat, self.Lon = Lat, Lon
+        self.Lat, self.Lon = Lat, Lon
         super(LatLonType, self).__init__(**kwargs)
 
-    def get_array(self, order='LAT', dtype=numpy.float64):
-        """Gets an array representation of the data.
+    def get_array(self, dtype=numpy.float64, order='LAT'):
+        """
+        Gets an array representation of the data.
 
         Parameters
         ----------
@@ -129,6 +137,27 @@ class LatLonType(Serializable):
         else:
             return numpy.array([self.Lon, self.Lat], dtype=dtype)
 
+    @classmethod
+    def from_array(cls, array):
+        """
+        Create from an array type entry.
+
+        Parameters
+        ----------
+        array: numpy.ndarray|list|tuple
+            assumed [Lat, Lon]
+
+        Returns
+        -------
+        LatLonType
+        """
+
+        if isinstance(array, (numpy.ndarray, list, tuple)):
+            if len(array) < 2:
+                raise ValueError('Expected array to be of length 2, and received {}'.format(array))
+            return cls(Lat=array[0], Lon=array[1])
+        raise ValueError('Expected array to be numpy.ndarray, list, or tuple, got {}'.format(type(array)))
+
 
 class LatLonArrayElementType(LatLonType):
     """An geographic point in an array"""
@@ -139,12 +168,10 @@ class LatLonArrayElementType(LatLonType):
     index = _IntegerDescriptor(
         'index', _required, strict=False, docstring="The array index")  # type: int
 
-    def __init__(self, coords=None, Lat=None, Lon=None, index=None, **kwargs):
+    def __init__(self, Lat=None, Lon=None, index=None, **kwargs):
         """
         Parameters
         ----------
-        coords : numpy.ndarray|list|tuple
-            assumed [Lat, Lon]
         Lat : float
         Lon : float
         index : int
@@ -152,7 +179,29 @@ class LatLonArrayElementType(LatLonType):
         """
 
         self.index = index
-        super(LatLonArrayElementType, self).__init__(coords=coords, Lat=Lat, Lon=Lon, **kwargs)
+        super(LatLonArrayElementType, self).__init__(Lat=Lat, Lon=Lon, **kwargs)
+
+    @classmethod
+    def from_array(cls, array, index=0):
+        """
+        Create from an array type entry.
+
+        Parameters
+        ----------
+        array: numpy.ndarray|list|tuple
+            assumed [Lat, Lon]
+        index : int
+            array index
+        Returns
+        -------
+        LatLonArrayElementType
+        """
+
+        if isinstance(array, (numpy.ndarray, list, tuple)):
+            if len(array) < 2:
+                raise ValueError('Expected array to be of length 2, and received {}'.format(array))
+            return cls(Lat=array[0], Lon=array[1], index=index)
+        raise ValueError('Expected array to be numpy.ndarray, list, or tuple, got {}'.format(type(array)))
 
 
 class LatLonRestrictionType(LatLonType):
@@ -168,18 +217,16 @@ class LatLonRestrictionType(LatLonType):
         'Lon', 180.0, _required, strict=True,
         docstring='The longitude attribute. Assumed to be WGS-84 coordinates.')  # type: float
 
-    def __init__(self, coords=None, Lat=None, Lon=None, **kwargs):
+    def __init__(self, Lat=None, Lon=None, **kwargs):
         """
         Parameters
         ----------
-        coords : numpy.ndarray|list|tuple
-            assumed [Lat, Lon]
         Lat : float
         Lon : float
         kwargs : dict
         """
 
-        super(LatLonRestrictionType, self).__init__(coords=coords, Lat=Lat, Lon=Lon, **kwargs)
+        super(LatLonRestrictionType, self).__init__(Lat=Lat, Lon=Lon, **kwargs)
 
 
 class LatLonHAEType(LatLonType):
@@ -193,28 +240,21 @@ class LatLonHAEType(LatLonType):
         docstring='The Height Above Ellipsoid (in meters) attribute. Assumed to be '
                   'WGS-84 coordinates.')  # type: float
 
-    def __init__(self, coords=None, Lat=None, Lon=None, HAE=None, **kwargs):
+    def __init__(self, Lat=None, Lon=None, HAE=None, **kwargs):
         """
         Parameters
         ----------
-        coords : numpy.ndarray|list|tuple
-            assumed [Lat, Lon, HAE]
         Lat : float
         Lon : float
         HAE : float
         kwargs : dict
         """
-        if isinstance(coords, (numpy.ndarray, list, tuple)):
-            if len(coords) >= 3:
-                Lat, Lon, self.HAE = coords[0], coords[1], coords[2]
-            else:
-                raise ValueError('Expected coords to be of length 3, and received {}'.format(coords))
-        else:
-            self.HAE = HAE
+        self.HAE = HAE
         super(LatLonHAEType, self).__init__(Lat=Lat, Lon=Lon, **kwargs)
 
-    def get_array(self, order='LAT', dtype=numpy.float64):
-        """Gets an array representation of the data.
+    def get_array(self, dtype=numpy.float64, order='LAT'):
+        """
+        Gets an array representation of the data.
 
         Parameters
         ----------
@@ -234,6 +274,27 @@ class LatLonHAEType(LatLonType):
         else:
             return numpy.array([self.Lon, self.Lat, self.HAE], dtype=dtype)
 
+    @classmethod
+    def from_array(cls, array):
+        """
+        Create from an array type entry.
+
+        Parameters
+        ----------
+        array: numpy.ndarray|list|tuple
+            assumed [Lat, Lon, HAE]
+
+        Returns
+        -------
+        LatLonHAEType
+        """
+
+        if isinstance(array, (numpy.ndarray, list, tuple)):
+            if len(array) < 3:
+                raise ValueError('Expected array to be of length 3, and received {}'.format(array))
+            return cls(Lat=array[0], Lon=array[1], HAE=array[2])
+        raise ValueError('Expected array to be numpy.ndarray, list, or tuple, got {}'.format(type(array)))
+
 
 class LatLonHAERestrictionType(LatLonHAEType):
     _fields = ('Lat', 'Lon', 'HAE')
@@ -246,19 +307,17 @@ class LatLonHAERestrictionType(LatLonHAEType):
         'Lon', 180.0, _required, strict=True,
         docstring='The longitude attribute. Assumed to be WGS-84 coordinates.')  # type: float
 
-    def __init__(self, coords=None, Lat=None, Lon=None, HAE=None, **kwargs):
+    def __init__(self, Lat=None, Lon=None, HAE=None, **kwargs):
         """
         Parameters
         ----------
-        coords : numpy.ndarray|list|tuple
-            assumed [Lat, Lon, HAE]
         Lat : float
         Lon : float
         HAE : float
         kwargs : dict
         """
 
-        super(LatLonHAERestrictionType, self).__init__(coords=coords, Lat=Lat, Lon=Lon, HAE=HAE, **kwargs)
+        super(LatLonHAERestrictionType, self).__init__(Lat=Lat, Lon=Lon, HAE=HAE, **kwargs)
 
 
 class LatLonCornerType(LatLonType):
@@ -273,19 +332,39 @@ class LatLonCornerType(LatLonType):
                   'the rectangle vertices wrt the frame of reference of the collector. '
                   'Should be 1-4, but 0-3 may be permissible.')  # type: int
 
-    def __init__(self, coords=None, Lat=None, Lon=None, index=None, **kwargs):
+    def __init__(self, Lat=None, Lon=None, index=None, **kwargs):
         """
         Parameters
         ----------
-        coords : numpy.ndarray|list|tuple
-            assumed [Lat, Lon]
         Lat : float
         Lon : float
         index : int
         kwargs : dict
         """
         self.index = index
-        super(LatLonCornerType, self).__init__(coords=coords, Lat=Lat, Lon=Lon, **kwargs)
+        super(LatLonCornerType, self).__init__(Lat=Lat, Lon=Lon, **kwargs)
+
+    @classmethod
+    def from_array(cls, array, index=1):
+        """
+        Create from an array type entry.
+
+        Parameters
+        ----------
+        array: numpy.ndarray|list|tuple
+            assumed [Lat, Lon]
+        index : int
+            array index
+        Returns
+        -------
+        LatLonCornerType
+        """
+
+        if isinstance(array, (numpy.ndarray, list, tuple)):
+            if len(array) < 2:
+                raise ValueError('Expected coords to be of length 2, and received {}'.format(array))
+            return cls(Lat=array[0], Lon=array[1], index=index)
+        raise ValueError('Expected array to be numpy.ndarray, list, or tuple, got {}'.format(type(array)))
 
 
 class LatLonCornerStringType(LatLonType):
@@ -300,19 +379,39 @@ class LatLonCornerStringType(LatLonType):
         'index', _CORNER_VALUES, _required, strict=False,
         docstring="The string index.")  # type: str
 
-    def __init__(self, coords=None, Lat=None, Lon=None, index=None, **kwargs):
+    def __init__(self, Lat=None, Lon=None, index=None, **kwargs):
         """
         Parameters
         ----------
-        coords : numpy.ndarray|list|tuple
-            assumed [Lat, Lon]
         Lat : float
         Lon : float
         index : str
         kwargs : dict
         """
         self.index = index
-        super(LatLonCornerStringType, self).__init__(coords=coords, Lat=Lat, Lon=Lon, **kwargs)
+        super(LatLonCornerStringType, self).__init__(Lat=Lat, Lon=Lon, **kwargs)
+
+    @classmethod
+    def from_array(cls, array, index='1:FRFC'):
+        """
+        Create from an array type entry.
+
+        Parameters
+        ----------
+        array: numpy.ndarray|list|tuple
+            assumed [Lat, Lon]
+        index : str
+            array index in  ('1:FRFC', '2:FRLC', '3:LRLC', '4:LRFC')
+        Returns
+        -------
+        LatLonCornerStringType
+        """
+
+        if isinstance(array, (numpy.ndarray, list, tuple)):
+            if len(array) < 2:
+                raise ValueError('Expected array to be of length 2, and received {}'.format(array))
+            return cls(Lat=array[0], Lon=array[1], index=index)
+        raise ValueError('Expected array to be numpy.ndarray, list, or tuple, got {}'.format(type(array)))
 
 
 class LatLonHAECornerRestrictionType(LatLonHAERestrictionType):
@@ -327,13 +426,11 @@ class LatLonHAECornerRestrictionType(LatLonHAERestrictionType):
                   'rectangle vertices wrt the frame of reference of the collector. '
                   'Should be 1-4, but 0-3 may be permissible.')  # type: int
 
-    def __init__(self, coords=None, Lat=None, Lon=None, HAE=None, index=None, **kwargs):
+    def __init__(self, Lat=None, Lon=None, HAE=None, index=None, **kwargs):
         """
 
         Parameters
         ----------
-        coords : numpy.ndarray|list|tuple
-            assumed [Lat, Lon, HAE]
         Lat : float
         Lon : float
         HAE : float
@@ -341,7 +438,29 @@ class LatLonHAECornerRestrictionType(LatLonHAERestrictionType):
         kwargs : dict
         """
         self.index = index
-        super(LatLonHAECornerRestrictionType, self).__init__(coords=coords, Lat=Lat, Lon=Lon, HAE=HAE, **kwargs)
+        super(LatLonHAECornerRestrictionType, self).__init__(Lat=Lat, Lon=Lon, HAE=HAE, **kwargs)
+
+    @classmethod
+    def from_array(cls, array, index=1):
+        """
+        Create from an array type entry.
+
+        Parameters
+        ----------
+        array: numpy.ndarray|list|tuple
+            assumed [Lat, Lon, HAE]
+        index : int
+            array index
+        Returns
+        -------
+        LatLonHAECornerRestrictionType
+        """
+
+        if isinstance(array, (numpy.ndarray, list, tuple)):
+            if len(array) < 3:
+                raise ValueError('Expected array to be of length 3, and received {}'.format(array))
+            return cls(Lat=array[0], Lon=array[1], HAE=array[2], index=index)
+        raise ValueError('Expected array to be numpy.ndarray, list, or tuple, got {}'.format(type(array)))
 
 
 class LatLonHAECornerStringType(LatLonHAEType):
@@ -354,12 +473,10 @@ class LatLonHAECornerStringType(LatLonHAEType):
     index = _StringEnumDescriptor(
         'index', _CORNER_VALUES, _required, strict=False, docstring="The string index.")  # type: str
 
-    def __init__(self, coords=None, Lat=None, Lon=None, HAE=None, index=None, **kwargs):
+    def __init__(self, Lat=None, Lon=None, HAE=None, index=None, **kwargs):
         """
         Parameters
         ----------
-        coords : numpy.ndarray|list|tuple
-            assumed [Lat, Lon, HAE]
         Lat : float
         Lon : float
         HAE : float
@@ -367,14 +484,36 @@ class LatLonHAECornerStringType(LatLonHAEType):
         kwargs : dict
         """
         self.index = index
-        super(LatLonHAECornerStringType, self).__init__(coords=coords, Lat=Lat, Lon=Lon, HAE=HAE, **kwargs)
+        super(LatLonHAECornerStringType, self).__init__(Lat=Lat, Lon=Lon, HAE=HAE, **kwargs)
+
+    @classmethod
+    def from_array(cls, array, index='1:FRFC'):
+        """
+        Create from an array type entry.
+
+        Parameters
+        ----------
+        array: numpy.ndarray|list|tuple
+            assumed [Lat, Lon, HAE]
+        index : str
+            array index in ('1:FRFC', '2:FRLC', '3:LRLC', '4:LRFC')
+        Returns
+        -------
+        LatLonHAECornerStringType
+        """
+
+        if isinstance(array, (numpy.ndarray, list, tuple)):
+            if len(array) < 3:
+                raise ValueError('Expected array to be of length 3, and received {}'.format(array))
+            return cls(Lat=array[0], Lon=array[1], HAE=array[2], index=index)
+        raise ValueError('Expected array to be numpy.ndarray, list, or tuple, got {}'.format(type(array)))
 
 
 #######
 # Image space coordinates
 
 
-class RowColType(Serializable):
+class RowColType(Serializable, Arrayable):
     """A row and column attribute container - used as indices into array(s)."""
     _fields = ('Row', 'Col')
     _required = _fields
@@ -383,23 +522,15 @@ class RowColType(Serializable):
     Col = _IntegerDescriptor(
         'Col', _required, strict=True, docstring='The Column attribute.')  # type: int
 
-    def __init__(self, coords=None, Row=None, Col=None, **kwargs):
+    def __init__(self, Row=None, Col=None, **kwargs):
         """
         Parameters
         ----------
-        coords : numpy.ndarray|list|tuple
-            assumed [Row, Col]
         Row : int
         Col : int
         kwargs : dict
         """
-        if isinstance(coords, (numpy.ndarray, list, tuple)):
-            if len(coords) >= 2:
-                self.Row, self.Col = coords[0], coords[1]
-            else:
-                raise ValueError('Expected coords to be of length 2, and received {}'.format(coords))
-        else:
-            self.Row, self.Col = Row, Col
+        self.Row, self.Col = Row, Col
         super(RowColType, self).__init__(**kwargs)
 
     def get_array(self, dtype=numpy.int64):
@@ -418,6 +549,27 @@ class RowColType(Serializable):
 
         return numpy.array([self.Row, self.Col], dtype=dtype)
 
+    @classmethod
+    def from_array(cls, array):
+        """
+        Create from an array type entry.
+
+        Parameters
+        ----------
+        array: numpy.ndarray|list|tuple
+            assumed [Row, Col]
+
+        Returns
+        -------
+        RowColType
+        """
+
+        if isinstance(array, (numpy.ndarray, list, tuple)):
+            if len(array) < 2:
+                raise ValueError('Expected array to be of length 2, and received {}'.format(array))
+            return cls(Row=array[0], Col=array[1])
+        raise ValueError('Expected array to be numpy.ndarray, list, or tuple, got {}'.format(type(array)))
+
 
 class RowColArrayElement(RowColType):
     """A array element row and column attribute container - used as indices into other array(s)."""
@@ -430,19 +582,40 @@ class RowColArrayElement(RowColType):
     index = _IntegerDescriptor(
         'index', _required, strict=False, docstring='The array index attribute.')  # type: int
 
-    def __init__(self, coords=None, Row=None, Col=None, index=None, **kwargs):
+    def __init__(self, Row=None, Col=None, index=None, **kwargs):
         """
         Parameters
         ----------
-        coords : numpy.ndarray|list|tuple
-            assumed [Row, Col]
         Row : int
         Col : int
         index : int
         kwargs : dict
         """
         self.index = index
-        super(RowColArrayElement, self).__init__(coords=coords, Row=Row, Col=Col, **kwargs)
+        super(RowColArrayElement, self).__init__(Row=Row, Col=Col, **kwargs)
+
+    @classmethod
+    def from_array(cls, array, index=0):
+        """
+        Create from an array type entry.
+
+        Parameters
+        ----------
+        array: numpy.ndarray|list|tuple
+            assumed [Row, Col]
+        index : int
+            the array index
+
+        Returns
+        -------
+        RowColArrayElement
+        """
+
+        if isinstance(array, (numpy.ndarray, list, tuple)):
+            if len(array) < 2:
+                raise ValueError('Expected array to be of length 2, and received {}'.format(array))
+            return cls(Row=array[0], Col=array[1], index=index)
+        raise ValueError('Expected array to be numpy.ndarray, list, or tuple, got {}'.format(type(array)))
 
 
 ###############
@@ -451,11 +624,10 @@ class RowColArrayElement(RowColType):
 
 class Poly1DType(Serializable):
     """Represents a one-variable polynomial, defined by one-dimensional coefficient array."""
+    __slots__ = ('_coefs', )
     _fields = ('Coefs', 'order1')
     _required = ('Coefs', )
     _numeric_format = {'Coefs': '0.8f'}
-    # other class variables
-    _Coefs = None
 
     def __init__(self, Coefs=None, **kwargs):
         """
@@ -464,6 +636,7 @@ class Poly1DType(Serializable):
         Coefs : numpy.ndarray|tuple|list
         kwargs : dict
         """
+        self._coefs = None
         self.Coefs = Coefs
         super(Poly1DType, self).__init__(**kwargs)
 
@@ -482,7 +655,7 @@ class Poly1DType(Serializable):
         one-dimensional numpy.ndarray, or naively convertible to one.
         """
 
-        return self._Coefs
+        return self._coefs
 
     @Coefs.setter
     def Coefs(self, value):
@@ -501,7 +674,7 @@ class Poly1DType(Serializable):
                 'of shape {}.'.format(value.shape))
         elif not value.dtype == numpy.float64:
             value = numpy.cast[numpy.float64](value)
-        self._Coefs = value
+        self._coefs = value
 
     def __call__(self, x):
         """
@@ -518,7 +691,7 @@ class Poly1DType(Serializable):
         numpy.ndarray
         """
 
-        return numpy.polynomial.polynomial.polyval(x, self._Coefs)
+        return numpy.polynomial.polynomial.polyval(x, self._coefs)
 
     def derivative(self, der_order=1, return_poly=False):
         """
@@ -536,7 +709,7 @@ class Poly1DType(Serializable):
         Poly1DType|numpy.ndarray
         """
 
-        coefs = numpy.polynomial.polynomial.polyder(self._Coefs, der_order)
+        coefs = numpy.polynomial.polynomial.polyder(self._coefs, der_order)
         if return_poly:
             return Poly1DType(Coefs=coefs)
         return coefs
@@ -587,17 +760,15 @@ class Poly1DType(Serializable):
         Poly1DType|numpy.ndarray
         """
 
-        coefs = self._Coefs
-
         if t_0 == 0:
-            out = numpy.copy(coefs)
+            out = numpy.copy(self._coefs)
         else:
-            out = numpy.zeros(coefs.shape, dtype=numpy.float64)
+            out = numpy.zeros(self._coefs.shape, dtype=numpy.float64)
             siz = out.size
             for i in range(siz):
                 N = numpy.arange(i, siz)
                 K = N-i
-                out[i] = numpy.sum(comb(N, K)*coefs[i:]*numpy.power(-t_0, K))
+                out[i] = numpy.sum(comb(N, K)*self._coefs[i:]*numpy.power(-t_0, K))
                 # This is just the binomial expansion and gathering terms
 
         if alpha != 1:
@@ -695,11 +866,10 @@ class Poly1DType(Serializable):
 
 class Poly2DType(Serializable):
     """Represents a one-variable polynomial, defined by two-dimensional coefficient array."""
+    __slots__ = '_coefs'
     _fields = ('Coefs', 'order1', 'order2')
     _required = ('Coefs', )
     _numeric_format = {'Coefs': '0.8f'}
-    # other class variables
-    _Coefs = None
 
     def __init__(self, Coefs=None, **kwargs):
         """
@@ -708,6 +878,7 @@ class Poly2DType(Serializable):
         Coefs : numpy.ndarray|list|tuple
         kwargs : dict
         """
+        self._coefs = None
         self.Coefs = Coefs
         super(Poly2DType, self).__init__(**kwargs)
 
@@ -728,7 +899,7 @@ class Poly2DType(Serializable):
         numpy.ndarray
         """
 
-        return numpy.polynomial.polynomial.polyval2d(x, y, self.Coefs)
+        return numpy.polynomial.polynomial.polyval2d(x, y, self._coefs)
 
     @property
     def order1(self):
@@ -736,7 +907,7 @@ class Poly2DType(Serializable):
         int: The order1 attribute [READ ONLY]  - that is, largest exponent1 presented in the monomial terms of coefs.
         """
 
-        return self.Coefs.shape[0] - 1
+        return self._coefs.shape[0] - 1
 
     @property
     def order2(self):
@@ -744,7 +915,7 @@ class Poly2DType(Serializable):
         int: The order1 attribute [READ ONLY]  - that is, largest exponent2 presented in the monomial terms of coefs.
         """
 
-        return self.Coefs.shape[1] - 1
+        return self._coefs.shape[1] - 1
 
     @property
     def Coefs(self):
@@ -753,7 +924,7 @@ class Poly2DType(Serializable):
         two-dimensional numpy.ndarray, or naively convertible to one.
         """
 
-        return self._Coefs
+        return self._coefs
 
     @Coefs.setter
     def Coefs(self, value):
@@ -772,7 +943,7 @@ class Poly2DType(Serializable):
                 'of shape {}.'.format(value.shape))
         elif not value.dtype == numpy.float64:
             value = numpy.cast[numpy.float64](value)
-        self._Coefs = value
+        self._coefs = value
 
     @classmethod
     def from_node(cls, node, kwargs=None):
@@ -832,7 +1003,7 @@ class Poly2DType(Serializable):
         node.attrib['order1'] = str(self.order1)
         node.attrib['order2'] = str(self.order2)
         fmt_func = self._get_formatter('Coefs')
-        for i, val1 in enumerate(self.Coefs):
+        for i, val1 in enumerate(self._coefs):
             for j, val in enumerate(val1):
                 # if val != 0.0:  # should we serialize it sparsely?
                 cnode = _create_text_node(doc, 'Coef', fmt_func(val), parent=node)
@@ -863,7 +1034,7 @@ class Poly2DType(Serializable):
         return out
 
 
-class XYZPolyType(Serializable):
+class XYZPolyType(Serializable, Arrayable):
     """
     Represents a single variable polynomial for each of `X`, `Y`, and `Z`. This gives position in ECF coordinates
     as a function of a single dependent variable.
@@ -882,23 +1053,16 @@ class XYZPolyType(Serializable):
         'Z', Poly1DType, _required, strict=True,
         docstring='The polynomial for the Z coordinate.')  # type: Poly1DType
 
-    def __init__(self, coords=None, X=None, Y=None, Z=None, **kwargs):
+    def __init__(self, X=None, Y=None, Z=None, **kwargs):
         """
         Parameters
         ----------
-        coords : numpy.ndarray|list|tuple
         X : Poly1DType|numpy.ndarray|list|tuple
         Y : Poly1DType|numpy.ndarray|list|tuple
         Z : Poly1DType|numpy.ndarray|list|tuple
         kwargs : dict
         """
-        if isinstance(coords, (numpy.ndarray, list, tuple)):
-            if len(coords) >= 3:
-                self.X, self.Y, self.Z = coords[0], coords[1], coords[2]
-            else:
-                raise ValueError('Expected coords to be of length 3, and received {}'.format(coords))
-        else:
-            self.X, self.Y, self.Z = X, Y, Z
+
         super(XYZPolyType, self).__init__(**kwargs)
 
     def __call__(self, t):
@@ -948,6 +1112,27 @@ class XYZPolyType(Serializable):
             out[1, :yv.size] = yv
             out[2, :zv.size] = zv
             return out
+
+    @classmethod
+    def from_array(cls, array):
+        """
+        Create from an array type entry.
+
+        Parameters
+        ----------
+        array: numpy.ndarray|list|tuple
+            assumed [X, Y, Z]
+
+        Returns
+        -------
+        XYZPolyType
+        """
+
+        if isinstance(array, (numpy.ndarray, list, tuple)):
+            if len(array) < 3:
+                raise ValueError('Expected array to be of length 3, and received {}'.format(array))
+            return cls(X=array[0], Y=array[1], Z=array[2])
+        raise ValueError('Expected array to be numpy.ndarray, list, or tuple, got {}'.format(type(array)))
 
     def derivative(self, der_order=1, return_poly=False):
         """
@@ -1037,11 +1222,10 @@ class XYZPolyAttributeType(XYZPolyType):
     index = _IntegerDescriptor(
         'index', _required, strict=False, docstring='The array index value.')  # type: int
 
-    def __init__(self, coords=None, X=None, Y=None, Z=None, index=None, **kwargs):
+    def __init__(self, X=None, Y=None, Z=None, index=None, **kwargs):
         """
         Parameters
         ----------
-        coords : numpy.ndarray|list|tuple
         X : Poly1DType|numpy.ndarray|list|tuple
         Y : Poly1DType|numpy.ndarray|list|tuple
         Z : Poly1DType|numpy.ndarray|list|tuple
@@ -1049,7 +1233,30 @@ class XYZPolyAttributeType(XYZPolyType):
         kwargs : dict
         """
         self.index = index
-        super(XYZPolyAttributeType, self).__init__(coords=coords, X=X, Y=Y, Z=Z, **kwargs)
+        super(XYZPolyAttributeType, self).__init__(X=X, Y=Y, Z=Z, **kwargs)
+
+    @classmethod
+    def from_array(cls, array, index=0):
+        """
+        Create from an array type entry.
+
+        Parameters
+        ----------
+        array: numpy.ndarray|list|tuple
+            assumed [X, Y, Z]
+        index : int
+            the array index
+
+        Returns
+        -------
+        XYZPolyAttributeType
+        """
+
+        if isinstance(array, (numpy.ndarray, list, tuple)):
+            if len(array) < 3:
+                raise ValueError('Expected array to be of length 3, and received {}'.format(array))
+            return cls(X=array[0], Y=array[1], Z=array[2], index=index)
+        raise ValueError('Expected array to be numpy.ndarray, list, or tuple, got {}'.format(type(array)))
 
 
 class GainPhasePolyType(Serializable):

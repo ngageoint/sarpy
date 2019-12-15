@@ -7,7 +7,7 @@ from typing import List, Union
 
 import numpy
 
-from .base import Serializable, DEFAULT_STRICT, \
+from .base import Arrayable, Serializable, DEFAULT_STRICT, \
     _IntegerDescriptor, _FloatArrayDescriptor, _StringEnumDescriptor, \
     _SerializableArrayDescriptor, _SerializableDescriptor, SerializableArray
 from .blocks import RowColType, RowColArrayElement
@@ -16,7 +16,7 @@ from .blocks import RowColType, RowColArrayElement
 __classification__ = "UNCLASSIFIED"
 
 
-class FullImageType(Serializable):
+class FullImageType(Serializable, Arrayable):
     """The full image product attributes."""
     _fields = ('NumRows', 'NumCols')
     _required = _fields
@@ -28,21 +28,16 @@ class FullImageType(Serializable):
         'NumCols', _required, strict=True,
         docstring='Number of columns in the original full image product. May include zero pixels.')  # type: int
 
-    def __init__(self, coords=None, NumRows=None, NumCols=None, **kwargs):
+    def __init__(self, NumRows=None, NumCols=None, **kwargs):
         """
 
         Parameters
         ----------
-        coords : numpy.ndarray|list|tuple
-            assumed [NumRows, NumCols]
         NumRows : int
         NumCols : int
         kwargs : dict
         """
-        if isinstance(coords, (numpy.ndarray, list, tuple)) and len(coords) >= 2:
-            self.NumRows, self.NumCols = coords[0], coords[1]
-        else:
-            self.NumRows, self.NumCols = NumRows, NumCols
+        self.NumRows, self.NumCols = NumRows, NumCols
         super(FullImageType, self).__init__(**kwargs)
 
     def get_array(self, dtype=numpy.int64):
@@ -60,6 +55,27 @@ class FullImageType(Serializable):
         """
 
         return numpy.array([self.NumRows, self.NumCols], dtype=dtype)
+
+    @classmethod
+    def from_array(cls, array):
+        """
+        Create from an array type entry.
+
+        Parameters
+        ----------
+        array: numpy.ndarray|list|tuple
+            assumed [NumRows, NumCols]
+
+        Returns
+        -------
+        FullImageType
+        """
+
+        if isinstance(array, (numpy.ndarray, list, tuple)):
+            if len(array) < 2:
+                raise ValueError('Expected array to be of length 2, and received {}'.format(array))
+            return cls(NUmRows=array[0], NumCols=array[1])
+        raise ValueError('Expected array to be numpy.ndarray, list, or tuple, got {}'.format(type(array)))
 
 
 class ImageDataType(Serializable):

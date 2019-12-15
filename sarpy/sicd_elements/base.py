@@ -232,9 +232,8 @@ def _parse_serializable(value, name, instance, the_type):
     elif isinstance(value, (numpy.ndarray, list, tuple)):
         if hasattr(the_type, 'Coefs'):
             return the_type(Coefs=value)
-        elif hasattr(the_type, 'get_array'):
-            # TODO: this is hackneyed. This needs to be clearly documented. Abstract class perhaps?
-            return the_type(coords=value)
+        elif issubclass(the_type, Arrayable):
+            return the_type.from_array(value)
         else:
             raise TypeError(
                 'Field {} of class {} got instance of type {}, but is neither a coordinate type '
@@ -254,8 +253,8 @@ def _parse_serializable_array(value, name, instance, child_type, child_tag):
         return numpy.array([value, ], dtype=numpy.object)
     elif isinstance(value, numpy.ndarray):
         if value.dtype != numpy.object:
-            if hasattr(child_type, 'get_array'):
-                return numpy.array([child_type(coords=array) for array in value], dtype=numpy.object)
+            if issubclass(child_type, Arrayable):
+                return numpy.array([child_type.from_array(array) for array in value], dtype=numpy.object)
             elif hasattr(child_type, 'Coefs'):
                 return numpy.array([child_type(Coefs=array) for array in value], dtype=numpy.object)
             else:
@@ -298,8 +297,8 @@ def _parse_serializable_array(value, name, instance, child_type, child_tag):
             # NB: charming errors are possible here if something stupid has been done.
             return numpy.array([child_type.from_dict(node) for node in value], dtype=numpy.object)
         elif isinstance(value[0], (numpy.ndarray, list, tuple)):
-            if hasattr(child_type, 'get_array'):
-                return numpy.array([child_type(coords=array) for array in value], dtype=numpy.object)
+            if issubclass(child_type, Arrayable):
+                return numpy.array([child_type.from_array(array) for array in value], dtype=numpy.object)
             elif hasattr(child_type, 'Coefs'):
                 return numpy.array([child_type(Coefs=array) for array in value], dtype=numpy.object)
             else:
@@ -911,10 +910,9 @@ class _UnitVectorDescriptor(_BasicDescriptor):
     """A descriptor for properties of a specified type assumed to be of type Poly1DType or Poly2DType"""
 
     def __init__(self, name, the_type, required, strict=DEFAULT_STRICT, docstring=None):
-        if not hasattr(the_type, 'get_array'):
+        if not issubclass(the_type, Arrayable):
             raise TypeError(
-                'The input type {} for field {} must have attribute `get_array` and '
-                'corresponding construction parameter `coords`.'.format(the_type, name))
+                'The input type {} for field {} must be a subclass of Arrayable.'.format(the_type, name))
         self.the_type = the_type
 
         self._typ_string = str(the_type).strip().split('.')[-1][:-2] + ':'
@@ -934,7 +932,7 @@ class _UnitVectorDescriptor(_BasicDescriptor):
         elif the_norm == 1:
             self.data[instance] = vec
         else:
-            self.data[instance] = self.the_type(coords=coords/norm)
+            self.data[instance] = self.the_type.from_array(coords/norm)
 
 
 class _ParametersDescriptor(_BasicDescriptor):
@@ -1073,7 +1071,8 @@ class Serializable(object):
         for inclusion in `_fields` tuple. Note that special care must be taken to ensure compatibility of `_fields`
         tuple, if inheriting from an extension of this class.
     """
-
+    __slots__ = ()  # this has the effect of preventing someone from creating a random attribute.
+    # Intended to Help spot typos for field values
     _fields = ()
     """collection of field names"""
     _required = ()
@@ -1611,18 +1610,49 @@ class Serializable(object):
 ##########
 #  Some basic collections classes
 
+class Arrayable(object):
+    """Abstract class specifying basic functionality for assigning from/to an array"""
+
+    @classmethod
+    def from_array(cls, array):
+        """
+        Create from an array type object.
+
+        Parameters
+        ----------
+        array: numpy.ndarray|list|tuple
+
+        Returns
+        -------
+        Arrayable
+        """
+
+        raise NotImplementedError
+
+    def get_array(self, dtype=numpy.float64):
+        """Gets an array representation of the class instance.
+
+        Parameters
+        ----------
+        dtype : numpy.dtype
+            numpy data type of the return
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+        raise NotImplementedError
+
 
 class SerializableArray(object):
-    # TODO: make an iterator?
-    _child_tag = None
-    _child_type = None
-    _minimum_length = 0
-    _maximum_length = 2**32
-    _array = None
-    _name = None
+    __slots__ = ('_child_tag', '_child_type', '_array', '_name', '_minimum_length', '_maximum_length')
+    # TODO: make an iterator? I think it gets inferred from
+    _default_minimum_length = 0
+    _default_maximum_length = 2**32
 
     def __init__(self, coords=None, name=None, child_tag=None, child_type=None,
                  minimum_length=None, maximum_length=None):
+        self._array = None
         if name is None:
             raise ValueError('The name parameter is required.')
         if not isinstance(name, str):
@@ -1643,9 +1673,14 @@ class SerializableArray(object):
             raise TypeError('The child_type is required to be a subclass of Serializable.')
         self._child_type = child_type
 
-        if minimum_length is not None:
+        if minimum_length is None:
+            self._minimum_length = self._default_minimum_length
+        else:
             self._minimum_length = max(int(minimum_length), 0)
-        if maximum_length is not None:
+
+        if maximum_length is None:
+            self._maximum_length = max(self._default_maximum_length, self._minimum_length)
+        else:
             self._maximum_length = max(int(maximum_length), self._minimum_length)
 
         self.set_array(coords)
@@ -1753,11 +1788,15 @@ class SerializableArray(object):
                 'was received'.format(self._name, self._minimum_length, self._maximum_length, array.size))
 
         self._array = array
-        for i, entry in enumerate(array):
+        self._check_indices()
+
+    def _check_indices(self):
+        for i, entry in enumerate(self._array):
             try:
                 entry.index = i
             except (AttributeError, ValueError, TypeError):
                 continue
+
 
     def to_node(self, doc, tag, parent=None, strict=DEFAULT_STRICT):
         if self.size == 0:
@@ -1792,18 +1831,14 @@ class SerializableArray(object):
 
 
 class SerializableCPArray(SerializableArray):
-    _child_tag = None
-    _child_type = None
-    _minimum_length = 4
-    _maximum_length = 4
-    _array = None
-    _name = None
-    _index_as_string = False
+    __slots__ = ('_child_tag', '_child_type', '_array', '_name', '_minimum_length', '_maximum_length', '_index_as_string')
 
     def __init__(self, coords=None, name=None, child_tag=None, child_type=None):
         if hasattr(child_type, '_CORNER_VALUES'):
             self._index_as_string = True
         super(SerializableCPArray, self).__init__(coords=coords, name=name, child_tag=child_tag, child_type=child_type)
+        self._minimum_length = 4
+        self._maximum_length = 4
 
     @property
     def FRFC(self):
@@ -1829,30 +1864,7 @@ class SerializableCPArray(SerializableArray):
             return None
         return self._array[3].get_array()
 
-    def set_array(self, coords):
-        """
-        Sets the underlying array.
-
-        Parameters
-        ----------
-        coords : numpy.ndarray|list|tuple
-
-        Returns
-        -------
-        None
-        """
-
-        if coords is None:
-            self._array = None
-            return
-        array = _parse_serializable_array(
-            coords, 'coords', self, self._child_type, self._child_tag)
-        if not (self._minimum_length <= array.size <= self._maximum_length):
-            raise ValueError(
-                'Field {} is required to be an array with {} <= length <= {}, and input of length {} '
-                'was received'.format(self._name, self._minimum_length, self._maximum_length, array.size))
-
-        self._array = array
+    def _check_indices(self):
         if not self._index_as_string:
             self._array[0].index = 1
             self._array[1].index = 2
@@ -1866,11 +1878,10 @@ class SerializableCPArray(SerializableArray):
 
 
 class ParametersCollection(object):
-    _name = None
-    _child_tag = None
-    _dict = None
+    __slots__ = ('_name', '_child_tag', '_dict')
 
     def __init__(self, collection=None, name=None, child_tag='Parameters'):
+        self._dict = None
         if name is None:
             raise ValueError('The name parameter is required.')
         if not isinstance(name, str):

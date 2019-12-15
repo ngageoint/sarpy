@@ -163,11 +163,11 @@ class SCPCOAType(Serializable):
         scptime = self.SCPTime
 
         if self.ARPPos is None:
-            self.ARPPos = XYZType(coords=poly(scptime))
+            self.ARPPos = XYZType.from_array(poly(scptime))
         if self.ARPVel is None:
-            self.ARPVel = XYZType(coords=poly.derivative_eval(scptime, 1))
+            self.ARPVel = XYZType.from_array(poly.derivative_eval(scptime, 1))
         if self.ARPAcc is None:
-            self.ARPAcc = XYZType(coords=poly.derivative_eval(scptime, 2))
+            self.ARPAcc = XYZType.from_array(poly.derivative_eval(scptime, 2))
 
     def _derive_geometry_parameters(self, GeoData):
         """

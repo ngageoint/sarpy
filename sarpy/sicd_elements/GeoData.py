@@ -138,10 +138,10 @@ class SCPType(Serializable):
         """
 
         if self.ECF is None and self.LLH is not None:
-            self.ECF = XYZType(coords=geodetic_to_ecf(self.LLH.get_array(order='LAT'))[0])
+            self.ECF = XYZType.from_array(geodetic_to_ecf(self.LLH.get_array(order='LAT'))[0])
             # TODO: this 2-d thing feels wrong - the [0] above.
         elif self.LLH is None and self.ECF is not None:
-            self.LLH = LatLonHAERestrictionType(coords=ecf_to_geodetic(self.ECF.get_array())[0])
+            self.LLH = LatLonHAERestrictionType.from_array(ecf_to_geodetic(self.ECF.get_array())[0])
 
 
 class GeoDataType(Serializable):

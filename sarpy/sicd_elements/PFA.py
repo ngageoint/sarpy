@@ -157,13 +157,13 @@ class PFAType(Serializable):
             if Grid is not None and Grid.ImagePlane is not None:
                 if self.IPN is None:
                     if Grid.ImagePlane == 'SLANT':
-                        self.IPN = XYZType(coords=uSPZ)
+                        self.IPN = XYZType.from_array(uSPZ)
                     elif Grid.ImagePlane == 'GROUND':
-                        self.IPN = XYZType(coords=ETP)
+                        self.IPN = XYZType.from_array(ETP)
             elif self.IPN is None:
-                self.IPN = XYZType(coords=uSPZ)  # assuming slant -> most common
+                self.IPN = XYZType.from_array(uSPZ)  # assuming slant -> most common
 
             if self.FPN is None:
-                self.FPN = XYZType(coords=ETP)
+                self.FPN = XYZType.from_array(ETP)
 
         # TODO: PolarAngPoly, SpatialFreqSFPoly - carried over from sicd.py line 1742

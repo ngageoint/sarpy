@@ -586,7 +586,7 @@ class GridType(Serializable):
             LOS = (SCP - ARP)
             uLOS = LOS/norm(LOS)
             if self.Row.UVectECF is None:
-                self.Row.UVectECF = XYZType(coords=uLOS)
+                self.Row.UVectECF = XYZType.from_array(uLOS)
 
             look = SCPCOA.look
             ARP_vel = SCPCOA.ARPVel.get_array()
@@ -594,7 +594,7 @@ class GridType(Serializable):
             uSPZ /= norm(uSPZ)
             uAZ = numpy.cross(uSPZ, uLOS)
             if self.Col.UVectECF is None:
-                self.Col.UVectECF = XYZType(coords=uAZ)
+                self.Col.UVectECF = XYZType.from_array(uAZ)
 
         center_frequency = self._get_center_frequency(RadarCollection, ImageFormation)
         if center_frequency is not None:
@@ -655,8 +655,8 @@ class GridType(Serializable):
             uRG = SCP - ref_pos_ipn
             uRG /= norm(uRG)
             uAZ = numpy.cross(ipn, uRG)  # already unit
-            self.Row.UVectECF = XYZType(coords=uRG)
-            self.Col.UVectECF = XYZType(coords=uAZ)
+            self.Row.UVectECF = XYZType.from_array(uRG)
+            self.Col.UVectECF = XYZType.from_array(uAZ)
         if self.Col is not None and self.Col.KCtr is None:
             self.Col.KCtr = 0  # almost always 0 for PFA
 
@@ -737,8 +737,8 @@ class GridType(Serializable):
                     uSPZ = numpy.cross(uLOS, uYAT)
                     uSPZ /= norm(uSPZ)
                     uXCT = numpy.cross(uYAT, uSPZ)
-                    self.Row.UVectECF = XYZType(coords=uXCT)
-                    self.Col.UVectECF = XYZType(coords=uYAT)
+                    self.Row.UVectECF = XYZType.from_array(uXCT)
+                    self.Col.UVectECF = XYZType.from_array(uYAT)
 
         center_frequency = self._get_center_frequency(RadarCollection, ImageFormation)
         if center_frequency is not None and RMA.RMAT.DopConeAngRef is not None:
@@ -787,8 +787,8 @@ class GridType(Serializable):
                     uSPZ = look*numpy.cross(uvel_ref, uXRG)
                     uSPZ /= norm(uSPZ)
                     uYCR = numpy.cross(uSPZ, uXRG)
-                    self.Row.UVectECF = XYZType(coords=uXRG)
-                    self.Col.UVectECF = XYZType(coords=uYCR)
+                    self.Row.UVectECF = XYZType.from_array(uXRG)
+                    self.Col.UVectECF = XYZType.from_array(uYCR)
 
         center_frequency = self._get_center_frequency(RadarCollection, ImageFormation)
         if center_frequency is not None:
@@ -835,8 +835,8 @@ class GridType(Serializable):
                 uSPZ = -look*numpy.cross(uRg, uca_vel)
                 uSPZ /= norm(uSPZ)
                 uAZ = numpy.cross(uSPZ, uRg)
-                self.Row.UVectECF = XYZType(coords=uRg)
-                self.Col.UVectECF = XYZType(coords=uAZ)
+                self.Row.UVectECF = XYZType.from_array(uRg)
+                self.Col.UVectECF = XYZType.from_array(uAZ)
 
         if self.Row is not None and self.Row.KCtr is None and RMA.INCA.FreqZero is not None:
             self.Row.KCtr = 2*RMA.INCA.FreqZero/speed_of_light
