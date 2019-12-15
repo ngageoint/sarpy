@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 The RMAType definition.
 """
@@ -126,7 +127,7 @@ class RMAType(Serializable):
         docstring=r"""
         Identifies the type of migration algorithm used:
 
-        * `OMEGA_K` - Algorithms that employ Stolt interpolation of the Kxt dimension. :math:`Kx = \sqrt{Kf^2 – Ky^2}`
+        * `OMEGA_K` - Algorithms that employ Stolt interpolation of the Kxt dimension. :math:`Kx = \sqrt{Kf^2 - Ky^2}`
 
         * `CSA` - Wave number algorithm that process two-dimensional chirp signals.
 

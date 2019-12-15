@@ -67,7 +67,7 @@ setup(name=parameters['__title__'],
       install_requires=['numpy>=1.9.0', 'scipy'],
       extras_require={
         'csk':  ['h5py', ],
-        'docs': ['Sphinx', 'sphinxcontrib.napoleon'],
+        'docs': ['Sphinx', 'sphinxcontrib-napoleon'],
       },
       zip_safe=False,  # Use of __file__ and __path__ in some code makes it unusable from zip
       test_suite="tests",

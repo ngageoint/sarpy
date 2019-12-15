@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 The base elements for reading and writing files as appropriate.
 

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 This module contains the base objects for use in the SICD elements, and the base serializable functionality.
 """
@@ -1830,6 +1831,8 @@ class SerializableCPArray(SerializableArray):
     def __init__(self, coords=None, name=None, child_tag=None, child_type=None):
         if hasattr(child_type, '_CORNER_VALUES'):
             self._index_as_string = True
+        else:
+            self._index_as_string = False
         super(SerializableCPArray, self).__init__(coords=coords, name=name, child_tag=child_tag, child_type=child_type)
         self._minimum_length = 4
         self._maximum_length = 4

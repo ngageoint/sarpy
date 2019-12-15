@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 
 import os
 import sys
@@ -162,9 +163,6 @@ class SICDReader(BaseReader):
 
 class MultiSegmentChipper(BaseChipper):
     def __init__(self, data_size, symmetry=None, complex_type=None):
-
+        # TODO: this is a fragment
         # this data_size should NOT be passed straight through.
         super(MultiSegmentChipper, self).__init__(data_size, symmetry=symmetry, complex_type=False)
-
-        pass
-

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 This provides implementation of Reading and writing capabilities for files with
 data stored in *Band Interleaved By Pixel (BIP)* format.

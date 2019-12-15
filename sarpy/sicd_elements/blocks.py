@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Basic building blocks for SICD standard.
 """
@@ -1137,7 +1138,7 @@ class XYZPolyType(Serializable, Arrayable):
         Z : Poly1DType|numpy.ndarray|list|tuple
         kwargs : dict
         """
-
+        self.X, self.Y, self.Z = X, Y, Z
         super(XYZPolyType, self).__init__(**kwargs)
 
     def __call__(self, t):
