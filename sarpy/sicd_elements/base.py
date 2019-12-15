@@ -230,15 +230,11 @@ def _parse_serializable(value, name, instance, the_type):
     elif isinstance(value, ElementTree.Element):
         return the_type.from_node(value)
     elif isinstance(value, (numpy.ndarray, list, tuple)):
-        if hasattr(the_type, 'Coefs'):
-            return the_type(Coefs=value)
-        elif issubclass(the_type, Arrayable):
+        if issubclass(the_type, Arrayable):
             return the_type.from_array(value)
         else:
             raise TypeError(
-                'Field {} of class {} got instance of type {}, but is neither a coordinate type '
-                '(accepts `coords` as input argument and has attribute `get_array`) or '
-                'a polynomial type (accepts `Coefs` as input argument).'.format(
+                'Field {} of class {} is of type {} (not a subclass of Arrayable) and got an argument of type {}.'.format(
                     name, instance.__class__.__name__, the_type, type(value)))
     else:
         raise TypeError(
@@ -255,12 +251,10 @@ def _parse_serializable_array(value, name, instance, child_type, child_tag):
         if value.dtype != numpy.object:
             if issubclass(child_type, Arrayable):
                 return numpy.array([child_type.from_array(array) for array in value], dtype=numpy.object)
-            elif hasattr(child_type, 'Coefs'):
-                return numpy.array([child_type(Coefs=array) for array in value], dtype=numpy.object)
             else:
                 raise ValueError(
                     'Attribute {} of array type functionality belonging to class {} got an ndarray of dtype {},'
-                    'and construction failed.'.format(
+                    'and child type is not a subclass of Arrayable.'.format(
                         name, instance.__class__.__name__, value.dtype))
         elif len(value.shape) != 1:
             raise ValueError(

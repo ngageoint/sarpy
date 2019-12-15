@@ -622,7 +622,7 @@ class RowColArrayElement(RowColType):
 # Polynomial Types
 
 
-class Poly1DType(Serializable):
+class Poly1DType(Serializable, Arrayable):
     """Represents a one-variable polynomial, defined by one-dimensional coefficient array."""
     __slots__ = ('_coefs', )
     _fields = ('Coefs', 'order1')
@@ -780,6 +780,13 @@ class Poly1DType(Serializable):
             return out
 
     @classmethod
+    def from_array(cls, array):
+        return cls(Coefs=array)
+
+    def get_array(self, dtype=numpy.float64):
+        return numpy.array(self._coefs, dtype=dtype)
+
+    @classmethod
     def from_node(cls, node, kwargs=None):
         """For XML deserialization.
 
@@ -864,7 +871,7 @@ class Poly1DType(Serializable):
         return out
 
 
-class Poly2DType(Serializable):
+class Poly2DType(Serializable, Arrayable):
     """Represents a one-variable polynomial, defined by two-dimensional coefficient array."""
     __slots__ = '_coefs'
     _fields = ('Coefs', 'order1', 'order2')
@@ -944,6 +951,13 @@ class Poly2DType(Serializable):
         elif not value.dtype == numpy.float64:
             value = numpy.cast[numpy.float64](value)
         self._coefs = value
+
+    @classmethod
+    def from_array(cls, array):
+        return cls(Coefs=array)
+
+    def get_array(self, dtype=numpy.float64):
+        return numpy.array(self._coefs, dtype=dtype)
 
     @classmethod
     def from_node(cls, node, kwargs=None):
