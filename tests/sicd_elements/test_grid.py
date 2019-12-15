@@ -1,11 +1,4 @@
-import sys
-from xml.etree import ElementTree
-
-if sys.version_info[0] < 3:
-    # so we can use subtests, which is pretty handy
-    import unittest2 as unittest
-else:
-    import unittest
+from .. import generic_construction_test, unittest
 
 from sarpy.sicd_elements import Grid
 
@@ -42,47 +35,14 @@ class TestWgtType(unittest.TestCase):
     def test_construction(self):
         the_type = Grid.WgtTypeType
         the_dict = wgt_type_dict
-        item1 = the_type.from_dict(the_dict)
-
-        with self.subTest(msg='Comparing json deserialization with original'):
-            new_dict = item1.to_dict()
-            self.assertEqual(the_dict, new_dict)
-
-        with self.subTest(msg='Test xml serialization issues'):
-            # let's serialize to xml
-            etree = ElementTree.ElementTree()
-            xml = ElementTree.tostring(item1.to_node(etree, 'The_Type')).decode('utf-8')
-            # let's deserialize from xml
-            node = ElementTree.fromstring(xml)
-            item2 = the_type.from_node(node)
-            self.assertEqual(item1.to_dict(), item2.to_dict())
-
-        with self.subTest(msg='get_parameter_value tests'):
-            self.assertEqual(item1.get_parameter_value('Name'), '0.1')
-            self.assertEqual(item1.get_parameter_value('Junk', default='default'), 'default')
+        item1 = generic_construction_test(self, the_type, the_dict)
 
 
 class TestDirParam(unittest.TestCase):
     def test_construction(self):
         the_type = Grid.DirParamType
         the_dict = dir_param_dict
-        item1 = the_type.from_dict(the_dict)
-
-        with self.subTest(msg='Comparing json deserialization with original'):
-            new_dict = item1.to_dict()
-            self.assertEqual(the_dict, new_dict)
-
-        with self.subTest(msg='Test xml serialization issues'):
-            # let's serialize to xml
-            etree = ElementTree.ElementTree()
-            xml = ElementTree.tostring(item1.to_node(etree, 'The_Type')).decode('utf-8')
-            # let's deserialize from xml
-            node = ElementTree.fromstring(xml)
-            item2 = the_type.from_node(node)
-            self.assertEqual(item1.to_dict(), item2.to_dict())
-
-        with self.subTest(msg='Test validity'):
-            self.assertTrue(item1.is_valid())
+        item1 = generic_construction_test(self, the_type, the_dict)
 
     # TODO: test define_weight_function() in a sensible way
     #       test define_response_widths()
@@ -93,23 +53,7 @@ class TestGrid(unittest.TestCase):
     def test_construction(self):
         the_type = Grid.GridType
         the_dict = grid_dict
-        item1 = the_type.from_dict(the_dict)
-
-        with self.subTest(msg='Comparing json deserialization with original'):
-            new_dict = item1.to_dict()
-            self.assertEqual(the_dict, new_dict)
-
-        with self.subTest(msg='Test xml serialization issues'):
-            # let's serialize to xml
-            etree = ElementTree.ElementTree()
-            xml = ElementTree.tostring(item1.to_node(etree, 'The_Type')).decode('utf-8')
-            # let's deserialize from xml
-            node = ElementTree.fromstring(xml)
-            item2 = the_type.from_node(node)
-            self.assertEqual(item1.to_dict(), item2.to_dict())
-
-        with self.subTest(msg='Test validity'):
-            self.assertTrue(item1.is_valid())
+        item1 = generic_construction_test(self, the_type, the_dict)
 
     # TODO: all the derived things. This will be painful.
 

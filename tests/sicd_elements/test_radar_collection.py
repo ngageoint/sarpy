@@ -1,11 +1,4 @@
-import sys
-from xml.etree import ElementTree
-
-if sys.version_info[0] < 3:
-    # so we can use subtests, which is pretty handy
-    import unittest2 as unittest
-else:
-    import unittest
+from .. import generic_construction_test, unittest
 
 from sarpy.sicd_elements import RadarCollection
 
@@ -68,92 +61,28 @@ class TestTxFrequency(unittest.TestCase):
     def test_construction(self):
         the_type = RadarCollection.TxFrequencyType
         the_dict = tx_frequency_dict
-        item1 = the_type.from_dict(the_dict)
-
-        with self.subTest(msg='Comparing json deserialization with original'):
-            new_dict = item1.to_dict()
-            self.assertEqual(the_dict, new_dict)
-
-        with self.subTest(msg='Test xml serialization issues'):
-            # let's serialize to xml
-            etree = ElementTree.ElementTree()
-            xml = ElementTree.tostring(item1.to_node(etree, 'The_Type')).decode('utf-8')
-            # let's deserialize from xml
-            node = ElementTree.fromstring(xml)
-            item2 = the_type.from_node(node)
-            self.assertEqual(item1.to_dict(), item2.to_dict())
-
-        with self.subTest(msg='Test validity'):
-            self.assertTrue(item1.is_valid())
+        item1 = generic_construction_test(self, the_type, the_dict)
 
 
 class TestWaveformParameters(unittest.TestCase):
     def test_construction(self):
         the_type = RadarCollection.WaveformParametersType
         the_dict = waveform_parameters_dict
-        item1 = the_type.from_dict(the_dict)
-
-        with self.subTest(msg='Comparing json deserialization with original'):
-            new_dict = item1.to_dict()
-            self.assertEqual(the_dict, new_dict)
-
-        with self.subTest(msg='Test xml serialization issues'):
-            # let's serialize to xml
-            etree = ElementTree.ElementTree()
-            xml = ElementTree.tostring(item1.to_node(etree, 'The_Type')).decode('utf-8')
-            # let's deserialize from xml
-            node = ElementTree.fromstring(xml)
-            item2 = the_type.from_node(node)
-            self.assertEqual(item1.to_dict(), item2.to_dict())
-
-        with self.subTest(msg='Test validity'):
-            self.assertTrue(item1.is_valid())
+        item1 = generic_construction_test(self, the_type, the_dict)
 
 
 class TestTxStep(unittest.TestCase):
     def test_construction(self):
         the_type = RadarCollection.TxStepType
         the_dict = tx_step_dict
-        item1 = the_type.from_dict(the_dict)
-
-        with self.subTest(msg='Comparing json deserialization with original'):
-            new_dict = item1.to_dict()
-            self.assertEqual(the_dict, new_dict)
-
-        with self.subTest(msg='Test xml serialization issues'):
-            # let's serialize to xml
-            etree = ElementTree.ElementTree()
-            xml = ElementTree.tostring(item1.to_node(etree, 'The_Type')).decode('utf-8')
-            # let's deserialize from xml
-            node = ElementTree.fromstring(xml)
-            item2 = the_type.from_node(node)
-            self.assertEqual(item1.to_dict(), item2.to_dict())
-
-        with self.subTest(msg='Test validity'):
-            self.assertTrue(item1.is_valid())
+        item1 = generic_construction_test(self, the_type, the_dict)
 
 
 class TestChanParameters(unittest.TestCase):
     def test_construction(self):
         the_type = RadarCollection.ChanParametersType
         the_dict = chan_parameters_dict
-        item1 = the_type.from_dict(the_dict)
-
-        with self.subTest(msg='Comparing json deserialization with original'):
-            new_dict = item1.to_dict()
-            self.assertEqual(the_dict, new_dict)
-
-        with self.subTest(msg='Test xml serialization issues'):
-            # let's serialize to xml
-            etree = ElementTree.ElementTree()
-            xml = ElementTree.tostring(item1.to_node(etree, 'The_Type')).decode('utf-8')
-            # let's deserialize from xml
-            node = ElementTree.fromstring(xml)
-            item2 = the_type.from_node(node)
-            self.assertEqual(item1.to_dict(), item2.to_dict())
-
-        with self.subTest(msg='Test validity'):
-            self.assertTrue(item1.is_valid())
+        item1 = generic_construction_test(self, the_type, the_dict)
 
         with self.subTest(msg="get_transmit_polarization"):
             self.assertEqual(item1.get_transmit_polarization(), 'V')
@@ -163,158 +92,46 @@ class TestReferencePoint(unittest.TestCase):
     def test_construction(self):
         the_type = RadarCollection.ReferencePointType
         the_dict = reference_point_dict
-        item1 = the_type.from_dict(the_dict)
-
-        with self.subTest(msg='Comparing json deserialization with original'):
-            new_dict = item1.to_dict()
-            self.assertEqual(the_dict, new_dict)
-
-        with self.subTest(msg='Test xml serialization issues'):
-            # let's serialize to xml
-            etree = ElementTree.ElementTree()
-            xml = ElementTree.tostring(item1.to_node(etree, 'The_Type')).decode('utf-8')
-            # let's deserialize from xml
-            node = ElementTree.fromstring(xml)
-            item2 = the_type.from_node(node)
-            self.assertEqual(item1.to_dict(), item2.to_dict())
-
-        with self.subTest(msg='Test validity'):
-            self.assertTrue(item1.is_valid())
+        item1 = generic_construction_test(self, the_type, the_dict)
 
 
 class TestXDirection(unittest.TestCase):
     def test_construction(self):
         the_type = RadarCollection.XDirectionType
         the_dict = x_direction_dict
-        item1 = the_type.from_dict(the_dict)
-
-        with self.subTest(msg='Comparing json deserialization with original'):
-            new_dict = item1.to_dict()
-            self.assertEqual(the_dict, new_dict)
-
-        with self.subTest(msg='Test xml serialization issues'):
-            # let's serialize to xml
-            etree = ElementTree.ElementTree()
-            xml = ElementTree.tostring(item1.to_node(etree, 'The_Type')).decode('utf-8')
-            # let's deserialize from xml
-            node = ElementTree.fromstring(xml)
-            item2 = the_type.from_node(node)
-            self.assertEqual(item1.to_dict(), item2.to_dict())
-
-        with self.subTest(msg='Test validity'):
-            self.assertTrue(item1.is_valid())
+        item1 = generic_construction_test(self, the_type, the_dict)
 
 
 class TestYDirection(unittest.TestCase):
     def test_construction(self):
         the_type = RadarCollection.YDirectionType
         the_dict = y_direction_dict
-        item1 = the_type.from_dict(the_dict)
-
-        with self.subTest(msg='Comparing json deserialization with original'):
-            new_dict = item1.to_dict()
-            self.assertEqual(the_dict, new_dict)
-
-        with self.subTest(msg='Test xml serialization issues'):
-            # let's serialize to xml
-            etree = ElementTree.ElementTree()
-            xml = ElementTree.tostring(item1.to_node(etree, 'The_Type')).decode('utf-8')
-            # let's deserialize from xml
-            node = ElementTree.fromstring(xml)
-            item2 = the_type.from_node(node)
-            self.assertEqual(item1.to_dict(), item2.to_dict())
-
-        with self.subTest(msg='Test validity'):
-            self.assertTrue(item1.is_valid())
+        item1 = generic_construction_test(self, the_type, the_dict)
 
 
 class TestSegmentArray(unittest.TestCase):
     def test_construction(self):
         the_type = RadarCollection.SegmentArrayElement
         the_dict = segment_array_dict
-        item1 = the_type.from_dict(the_dict)
-
-        with self.subTest(msg='Comparing json deserialization with original'):
-            new_dict = item1.to_dict()
-            self.assertEqual(the_dict, new_dict)
-
-        with self.subTest(msg='Test xml serialization issues'):
-            # let's serialize to xml
-            etree = ElementTree.ElementTree()
-            xml = ElementTree.tostring(item1.to_node(etree, 'The_Type')).decode('utf-8')
-            # let's deserialize from xml
-            node = ElementTree.fromstring(xml)
-            item2 = the_type.from_node(node)
-            self.assertEqual(item1.to_dict(), item2.to_dict())
-
-        with self.subTest(msg='Test validity'):
-            self.assertTrue(item1.is_valid())
+        item1 = generic_construction_test(self, the_type, the_dict)
 
 
 class TestReferencePlane(unittest.TestCase):
     def test_construction(self):
         the_type = RadarCollection.ReferencePlaneType
         the_dict = reference_plane_dict
-        item1 = the_type.from_dict(the_dict)
-
-        with self.subTest(msg='Comparing json deserialization with original'):
-            new_dict = item1.to_dict()
-            self.assertEqual(the_dict, new_dict)
-
-        with self.subTest(msg='Test xml serialization issues'):
-            # let's serialize to xml
-            etree = ElementTree.ElementTree()
-            xml = ElementTree.tostring(item1.to_node(etree, 'The_Type')).decode('utf-8')
-            # let's deserialize from xml
-            node = ElementTree.fromstring(xml)
-            item2 = the_type.from_node(node)
-            self.assertEqual(item1.to_dict(), item2.to_dict())
-
-        with self.subTest(msg='Test validity'):
-            self.assertTrue(item1.is_valid())
+        item1 = generic_construction_test(self, the_type, the_dict)
 
 
 class TestArea(unittest.TestCase):
     def test_construction(self):
         the_type = RadarCollection.AreaType
         the_dict = area_dict
-        item1 = the_type.from_dict(the_dict)
-
-        with self.subTest(msg='Comparing json deserialization with original'):
-            new_dict = item1.to_dict()
-            self.assertEqual(the_dict, new_dict)
-
-        with self.subTest(msg='Test xml serialization issues'):
-            # let's serialize to xml
-            etree = ElementTree.ElementTree()
-            xml = ElementTree.tostring(item1.to_node(etree, 'The_Type')).decode('utf-8')
-            # let's deserialize from xml
-            node = ElementTree.fromstring(xml)
-            item2 = the_type.from_node(node)
-            self.assertEqual(item1.to_dict(), item2.to_dict())
-
-        with self.subTest(msg='Test validity'):
-            self.assertTrue(item1.is_valid())
+        item1 = generic_construction_test(self, the_type, the_dict)
 
 
 class TestRadarCollection(unittest.TestCase):
     def test_construction(self):
         the_type = RadarCollection.RadarCollectionType
         the_dict = radar_collection_dict
-        item1 = the_type.from_dict(the_dict)
-
-        with self.subTest(msg='Comparing json deserialization with original'):
-            new_dict = item1.to_dict()
-            self.assertEqual(the_dict, new_dict)
-
-        with self.subTest(msg='Test xml serialization issues'):
-            # let's serialize to xml
-            etree = ElementTree.ElementTree()
-            xml = ElementTree.tostring(item1.to_node(etree, 'The_Type')).decode('utf-8')
-            # let's deserialize from xml
-            node = ElementTree.fromstring(xml)
-            item2 = the_type.from_node(node)
-            self.assertEqual(item1.to_dict(), item2.to_dict())
-
-        with self.subTest(msg='Test validity'):
-            self.assertTrue(item1.is_valid())
+        item1 = generic_construction_test(self, the_type, the_dict)

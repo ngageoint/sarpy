@@ -1,12 +1,4 @@
-import sys
-from xml.etree import ElementTree
-
-if sys.version_info[0] < 3:
-    # so we can use subtests, which is pretty handy
-    import unittest2 as unittest
-else:
-    import unittest
-
+from .. import generic_construction_test, unittest
 from sarpy.sicd_elements import RMA
 
 
@@ -28,69 +20,21 @@ class TestRMRef(unittest.TestCase):
     def test_construction(self):
         the_type = RMA.RMRefType
         the_dict = rm_ref_dict
-        item1 = the_type.from_dict(the_dict)
-
-        with self.subTest(msg='Comparing json deserialization with original'):
-            new_dict = item1.to_dict()
-            self.assertEqual(the_dict, new_dict)
-
-        with self.subTest(msg='Test xml serialization issues'):
-            # let's serialize to xml
-            etree = ElementTree.ElementTree()
-            xml = ElementTree.tostring(item1.to_node(etree, 'The_Type')).decode('utf-8')
-            # let's deserialize from xml
-            node = ElementTree.fromstring(xml)
-            item2 = the_type.from_node(node)
-            self.assertEqual(item1.to_dict(), item2.to_dict())
-
-        with self.subTest(msg='Test validity'):
-            self.assertTrue(item1.is_valid())
+        item1 = generic_construction_test(self, the_type, the_dict)
 
 
 class TestINCA(unittest.TestCase):
     def test_construction(self):
         the_type = RMA.INCAType
         the_dict = inca_dict
-        item1 = the_type.from_dict(the_dict)
-
-        with self.subTest(msg='Comparing json deserialization with original'):
-            new_dict = item1.to_dict()
-            self.assertEqual(the_dict, new_dict)
-
-        with self.subTest(msg='Test xml serialization issues'):
-            # let's serialize to xml
-            etree = ElementTree.ElementTree()
-            xml = ElementTree.tostring(item1.to_node(etree, 'The_Type')).decode('utf-8')
-            # let's deserialize from xml
-            node = ElementTree.fromstring(xml)
-            item2 = the_type.from_node(node)
-            self.assertEqual(item1.to_dict(), item2.to_dict())
-
-        with self.subTest(msg='Test validity'):
-            self.assertTrue(item1.is_valid())
+        item1 = generic_construction_test(self, the_type, the_dict)
 
 
 class TestRMA(unittest.TestCase):
     def test_construction1(self):
         the_type = RMA.RMAType
         the_dict = rma_dict1
-        item1 = the_type.from_dict(the_dict)
-
-        with self.subTest(msg='Comparing json deserialization with original'):
-            new_dict = item1.to_dict()
-            self.assertEqual(the_dict, new_dict)
-
-        with self.subTest(msg='Test xml serialization issues'):
-            # let's serialize to xml
-            etree = ElementTree.ElementTree()
-            xml = ElementTree.tostring(item1.to_node(etree, 'The_Type')).decode('utf-8')
-            # let's deserialize from xml
-            node = ElementTree.fromstring(xml)
-            item2 = the_type.from_node(node)
-            self.assertEqual(item1.to_dict(), item2.to_dict())
-
-        with self.subTest(msg='Test validity'):
-            self.assertTrue(item1.is_valid())
+        item1 = generic_construction_test(self, the_type, the_dict)
 
         with self.subTest(msg='ImageType'):
             self.assertEqual(item1.ImageType, 'RMAT')
@@ -98,23 +42,7 @@ class TestRMA(unittest.TestCase):
     def test_construction2(self):
         the_type = RMA.RMAType
         the_dict = rma_dict2
-        item1 = the_type.from_dict(the_dict)
-
-        with self.subTest(msg='Comparing json deserialization with original'):
-            new_dict = item1.to_dict()
-            self.assertEqual(the_dict, new_dict)
-
-        with self.subTest(msg='Test xml serialization issues'):
-            # let's serialize to xml
-            etree = ElementTree.ElementTree()
-            xml = ElementTree.tostring(item1.to_node(etree, 'The_Type')).decode('utf-8')
-            # let's deserialize from xml
-            node = ElementTree.fromstring(xml)
-            item2 = the_type.from_node(node)
-            self.assertEqual(item1.to_dict(), item2.to_dict())
-
-        with self.subTest(msg='Test validity'):
-            self.assertTrue(item1.is_valid())
+        item1 = generic_construction_test(self, the_type, the_dict)
 
         with self.subTest(msg='ImageType'):
             self.assertEqual(item1.ImageType, 'RMCR')
@@ -122,23 +50,7 @@ class TestRMA(unittest.TestCase):
     def test_construction3(self):
         the_type = RMA.RMAType
         the_dict = rma_dict3
-        item1 = the_type.from_dict(the_dict)
-
-        with self.subTest(msg='Comparing json deserialization with original'):
-            new_dict = item1.to_dict()
-            self.assertEqual(the_dict, new_dict)
-
-        with self.subTest(msg='Test xml serialization issues'):
-            # let's serialize to xml
-            etree = ElementTree.ElementTree()
-            xml = ElementTree.tostring(item1.to_node(etree, 'The_Type')).decode('utf-8')
-            # let's deserialize from xml
-            node = ElementTree.fromstring(xml)
-            item2 = the_type.from_node(node)
-            self.assertEqual(item1.to_dict(), item2.to_dict())
-
-        with self.subTest(msg='Test validity'):
-            self.assertTrue(item1.is_valid())
+        item1 = generic_construction_test(self, the_type, the_dict)
 
         with self.subTest(msg='ImageType'):
             self.assertEqual(item1.ImageType, 'INCA')

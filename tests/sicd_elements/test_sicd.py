@@ -1,7 +1,9 @@
 
+from .. import generic_construction_test, ElementTree, unittest
+
 from sarpy.sicd_elements import SICD
 
-from .test_collection_info import unittest, ElementTree, info_dict
+from .test_collection_info import info_dict
 from .test_image_creation import image_creation_dict
 from .test_image_data import image_data_dict
 from .test_geo_data import geo_data_dict
@@ -40,104 +42,36 @@ sicd_dict = {
 
 class TestSICD(unittest.TestCase):
     def test_construction1(self):
-        the_type = SICD.SICDType
         the_dict = sicd_dict
         the_dict['ImageFormation']['ImageFormAlgo'] = 'OTHER'
-        item1 = the_type.from_dict(the_dict)
-
-        with self.subTest(msg='Comparing json deserialization with original'):
-            new_dict = item1.to_dict()
-            self.assertEqual(the_dict, new_dict)
-
-        with self.subTest(msg='Test xml serialization issues'):
-            # let's serialize to xml
-            etree = ElementTree.ElementTree()
-            xml = ElementTree.tostring(item1.to_node(etree, 'The_Type')).decode('utf-8')
-            # let's deserialize from xml
-            node = ElementTree.fromstring(xml)
-            item2 = the_type.from_node(node)
-            self.assertEqual(item1.to_dict(), item2.to_dict())
-
-        with self.subTest(msg='Test validity'):
-            self.assertTrue(item1.is_valid())
+        item1 = generic_construction_test(self, SICD.SICDType, the_dict)
 
         with self.subTest(msg='ImageFormType'):
             self.assertEqual(item1.ImageFormType, 'OTHER')
 
     def test_construction2(self):
-        the_type = SICD.SICDType
         the_dict = sicd_dict.copy()  # this is shallowish copy.
         the_dict['RgAzComp'] = rg_az_comp_dict
         the_dict['ImageFormation']['ImageFormAlgo'] = 'RGAZCOMP'
-        item1 = the_type.from_dict(the_dict)
-
-        with self.subTest(msg='Comparing json deserialization with original'):
-            new_dict = item1.to_dict()
-            self.assertEqual(the_dict, new_dict)
-
-        with self.subTest(msg='Test xml serialization issues'):
-            # let's serialize to xml
-            etree = ElementTree.ElementTree()
-            xml = ElementTree.tostring(item1.to_node(etree, 'The_Type')).decode('utf-8')
-            # let's deserialize from xml
-            node = ElementTree.fromstring(xml)
-            item2 = the_type.from_node(node)
-            self.assertEqual(item1.to_dict(), item2.to_dict())
-
-        with self.subTest(msg='Test validity'):
-            self.assertTrue(item1.is_valid())
+        item1 = generic_construction_test(self, SICD.SICDType, the_dict)
 
         with self.subTest(msg='ImageFormType'):
             self.assertEqual(item1.ImageFormType, 'RgAzComp')
 
     def test_construction3(self):
-        the_type = SICD.SICDType
         the_dict = sicd_dict.copy()  # this is shallowish copy.
         the_dict['PFA'] = pfa_dict
         the_dict['ImageFormation']['ImageFormAlgo'] = 'PFA'
-        item1 = the_type.from_dict(the_dict)
-
-        with self.subTest(msg='Comparing json deserialization with original'):
-            new_dict = item1.to_dict()
-            self.assertEqual(the_dict, new_dict)
-
-        with self.subTest(msg='Test xml serialization issues'):
-            # let's serialize to xml
-            etree = ElementTree.ElementTree()
-            xml = ElementTree.tostring(item1.to_node(etree, 'The_Type')).decode('utf-8')
-            # let's deserialize from xml
-            node = ElementTree.fromstring(xml)
-            item2 = the_type.from_node(node)
-            self.assertEqual(item1.to_dict(), item2.to_dict())
-
-        with self.subTest(msg='Test validity'):
-            self.assertTrue(item1.is_valid())
+        item1 = generic_construction_test(self, SICD.SICDType, the_dict)
 
         with self.subTest(msg='ImageFormType'):
             self.assertEqual(item1.ImageFormType, 'PFA')
 
     def test_construction4(self):
-        the_type = SICD.SICDType
         the_dict = sicd_dict.copy()  # this is shallowish copy.
         the_dict['RMA'] = rma_dict1
         the_dict['ImageFormation']['ImageFormAlgo'] = 'RMA'
-        item1 = the_type.from_dict(the_dict)
-
-        with self.subTest(msg='Comparing json deserialization with original'):
-            new_dict = item1.to_dict()
-            self.assertEqual(the_dict, new_dict)
-
-        with self.subTest(msg='Test xml serialization issues'):
-            # let's serialize to xml
-            etree = ElementTree.ElementTree()
-            xml = ElementTree.tostring(item1.to_node(etree, 'The_Type')).decode('utf-8')
-            # let's deserialize from xml
-            node = ElementTree.fromstring(xml)
-            item2 = the_type.from_node(node)
-            self.assertEqual(item1.to_dict(), item2.to_dict())
-
-        with self.subTest(msg='Test validity'):
-            self.assertTrue(item1.is_valid())
+        item1 = generic_construction_test(self, SICD.SICDType, the_dict)
 
         with self.subTest(msg='ImageFormType'):
             self.assertEqual(item1.ImageFormType, 'RMA')

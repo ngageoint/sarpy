@@ -2,6 +2,7 @@
 Setup module for SarPy.
 """
 
+import sys
 from setuptools import setup, find_packages
 # To use a consistent encoding
 from codecs import open
@@ -47,6 +48,11 @@ except ImportError:
     sphinx_args = {}
 
 
+tests_require = []
+if sys.version_info[0] < 3:
+    tests_require.append('unittest2') # unittest2 only for Python2.7, which backported subTest
+
+
 setup(name=parameters['__title__'],
       version=parameters['__version__'],
       description=parameters['__summary__'],
@@ -65,7 +71,7 @@ setup(name=parameters['__title__'],
       },
       zip_safe=False,  # Use of __file__ and __path__ in some code makes it unusable from zip
       test_suite="tests",
-      tests_require=[],  # unittest2 only for Python2.7
+      tests_require=tests_require,
       classifiers=[
           'Development Status :: 4 - Beta',
           'Intended Audience :: Developers',

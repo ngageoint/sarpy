@@ -1,13 +1,6 @@
-import sys
-from xml.etree import ElementTree
-
 import numpy
 
-if sys.version_info[0] < 3:
-    # so we can use subtests, which is pretty handy
-    import unittest2 as unittest
-else:
-    import unittest
+from .. import generic_construction_test, unittest
 
 from sarpy.sicd_elements import GeoData
 
@@ -44,74 +37,18 @@ class TestGeoInfo(unittest.TestCase):
     def test_construction1(self):
         the_type = GeoData.GeoInfoType
         the_dict = geo_info_dict1
-        item1 = the_type.from_dict(the_dict)
+        item1 = generic_construction_test(self, the_type, the_dict)
 
-        with self.subTest(msg='Comparing json deserialization with original'):
-            new_dict = item1.to_dict()
-            self.assertEqual(the_dict, new_dict)
-
-        with self.subTest(msg='Test xml serialization issues'):
-            # let's serialize to xml
-            etree = ElementTree.ElementTree()
-            xml = ElementTree.tostring(item1.to_node(etree, 'The_Type')).decode('utf-8')
-            # let's deserialize from xml
-            node = ElementTree.fromstring(xml)
-            item2 = the_type.from_node(node)
-            self.assertEqual(item1.to_dict(), item2.to_dict())
-
-        with self.subTest(msg='Check FeatureType'):
-            self.assertEqual(item1.FeatureType, 'Point')
-
-        with self.subTest(msg="validity check"):
-            self.assertTrue(item1.is_valid())
 
     def test_construction2(self):
         the_type = GeoData.GeoInfoType
         the_dict = geo_info_dict2
-        item1 = the_type.from_dict(the_dict)
-
-        with self.subTest(msg='Comparing json deserialization with original'):
-            new_dict = item1.to_dict()
-            self.assertEqual(the_dict, new_dict)
-
-        with self.subTest(msg='Test xml serialization issues'):
-            # let's serialize to xml
-            etree = ElementTree.ElementTree()
-            xml = ElementTree.tostring(item1.to_node(etree, 'The_Type')).decode('utf-8')
-            # let's deserialize from xml
-            node = ElementTree.fromstring(xml)
-            item2 = the_type.from_node(node)
-            self.assertEqual(item1.to_dict(), item2.to_dict())
-
-        with self.subTest(msg='Check FeatureType'):
-            self.assertEqual(item1.FeatureType, 'Line')
-
-        with self.subTest(msg="validity check"):
-            self.assertTrue(item1.is_valid())
+        item1 = generic_construction_test(self, the_type, the_dict)
 
     def test_construction3(self):
         the_type = GeoData.GeoInfoType
         the_dict = geo_info_dict3
-        item1 = the_type.from_dict(the_dict)
-
-        with self.subTest(msg='Comparing json deserialization with original'):
-            new_dict = item1.to_dict()
-            self.assertEqual(the_dict, new_dict)
-
-        with self.subTest(msg='Test xml serialization issues'):
-            # let's serialize to xml
-            etree = ElementTree.ElementTree()
-            xml = ElementTree.tostring(item1.to_node(etree, 'The_Type')).decode('utf-8')
-            # let's deserialize from xml
-            node = ElementTree.fromstring(xml)
-            item2 = the_type.from_node(node)
-            self.assertEqual(item1.to_dict(), item2.to_dict())
-
-        with self.subTest(msg='Check FeatureType'):
-            self.assertEqual(item1.FeatureType, 'Polygon')
-
-        with self.subTest(msg="validity check"):
-            self.assertTrue(item1.is_valid())
+        item1 = generic_construction_test(self, the_type, the_dict)
 
     def test_validity(self):
         bad_dict = geo_info_dict1.copy()
@@ -134,23 +71,7 @@ class TestSCP(unittest.TestCase):
     def test_construction(self):
         the_type = GeoData.SCPType
         the_dict = scp_dict
-        item1 = the_type.from_dict(the_dict)
-
-        with self.subTest(msg='Comparing json deserialization with original'):
-            new_dict = item1.to_dict()
-            self.assertEqual(the_dict, new_dict)
-
-        with self.subTest(msg='Test xml serialization issues'):
-            # let's serialize to xml
-            etree = ElementTree.ElementTree()
-            xml = ElementTree.tostring(item1.to_node(etree, 'The_Type')).decode('utf-8')
-            # let's deserialize from xml
-            node = ElementTree.fromstring(xml)
-            item2 = the_type.from_node(node)
-            self.assertEqual(item1.to_dict(), item2.to_dict())
-
-        with self.subTest(msg="validity check"):
-            self.assertTrue(item1.is_valid())
+        item1 = generic_construction_test(self, the_type, the_dict)
 
     def test_derive(self):
         the_type = GeoData.SCPType
@@ -176,23 +97,7 @@ class TestGeoData(unittest.TestCase):
     def test_construction(self):
         the_type = GeoData.GeoDataType
         the_dict = geo_data_dict
-        item1 = the_type.from_dict(the_dict)
-
-        with self.subTest(msg='Comparing json deserialization with original'):
-            new_dict = item1.to_dict()
-            self.assertEqual(the_dict, new_dict)
-
-        with self.subTest(msg='Test xml serialization issues'):
-            # let's serialize to xml
-            etree = ElementTree.ElementTree()
-            xml = ElementTree.tostring(item1.to_node(etree, 'The_Type')).decode('utf-8')
-            # let's deserialize from xml
-            node = ElementTree.fromstring(xml)
-            item2 = the_type.from_node(node)
-            self.assertEqual(item1.to_dict(), item2.to_dict())
-
-        with self.subTest(msg="validity check"):
-            self.assertTrue(item1.is_valid())
+        item1 = generic_construction_test(self, the_type, the_dict)
 
         with self.subTest(msg='Image Corners setting from array'):
             test_value = numpy.array([[0, 0], [0, 2], [2, 2], [2, 0]])

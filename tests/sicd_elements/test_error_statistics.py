@@ -1,11 +1,5 @@
-import sys
-from xml.etree import ElementTree
 
-if sys.version_info[0] < 3:
-    # so we can use subtests, which is pretty handy
-    import unittest2 as unittest
-else:
-    import unittest
+from .. import generic_construction_test, unittest
 
 from sarpy.sicd_elements import ErrorStatistics
 
@@ -65,181 +59,53 @@ class TestCompositeSCPError(unittest.TestCase):
     def test_construction(self):
         the_type = ErrorStatistics.CompositeSCPErrorType
         the_dict = scp_error_dict
-        item1 = the_type.from_dict(the_dict)
-
-        with self.subTest(msg='Comparing json deserialization with original'):
-            new_dict = item1.to_dict()
-            self.assertEqual(the_dict, new_dict)
-
-        with self.subTest(msg='Test xml serialization issues'):
-            # let's serialize to xml
-            etree = ElementTree.ElementTree()
-            xml = ElementTree.tostring(item1.to_node(etree, 'The_Type')).decode('utf-8')
-            # let's deserialize from xml
-            node = ElementTree.fromstring(xml)
-            item2 = the_type.from_node(node)
-            self.assertEqual(item1.to_dict(), item2.to_dict())
-
-        with self.subTest(msg="validity check"):
-            self.assertTrue(item1.is_valid())
+        item1 = generic_construction_test(self, the_type, the_dict)
 
 
 class TestCorrCoefs(unittest.TestCase):
     def test_construction(self):
         the_type = ErrorStatistics.CorrCoefsType
         the_dict = corr_coefs_dict
-        item1 = the_type.from_dict(the_dict)
-
-        with self.subTest(msg='Comparing json deserialization with original'):
-            new_dict = item1.to_dict()
-            self.assertEqual(the_dict, new_dict)
-
-        with self.subTest(msg='Test xml serialization issues'):
-            # let's serialize to xml
-            etree = ElementTree.ElementTree()
-            xml = ElementTree.tostring(item1.to_node(etree, 'The_Type')).decode('utf-8')
-            # let's deserialize from xml
-            node = ElementTree.fromstring(xml)
-            item2 = the_type.from_node(node)
-            self.assertEqual(item1.to_dict(), item2.to_dict())
-
-        with self.subTest(msg="validity check"):
-            self.assertTrue(item1.is_valid())
+        item1 = generic_construction_test(self, the_type, the_dict)
 
 
 class TestPosVelError(unittest.TestCase):
     def test_construction(self):
         the_type = ErrorStatistics.PosVelErrType
         the_dict = pos_vel_err_dict
-        item1 = the_type.from_dict(the_dict)
-
-        with self.subTest(msg='Comparing json deserialization with original'):
-            new_dict = item1.to_dict()
-            self.assertEqual(the_dict, new_dict)
-
-        with self.subTest(msg='Test xml serialization issues'):
-            # let's serialize to xml
-            etree = ElementTree.ElementTree()
-            xml = ElementTree.tostring(item1.to_node(etree, 'The_Type')).decode('utf-8')
-            # let's deserialize from xml
-            node = ElementTree.fromstring(xml)
-            item2 = the_type.from_node(node)
-            self.assertEqual(item1.to_dict(), item2.to_dict())
-
-        with self.subTest(msg="validity check"):
-            self.assertTrue(item1.is_valid())
+        item1 = generic_construction_test(self, the_type, the_dict)
 
 
 class TestRadarSensorError(unittest.TestCase):
     def test_construction(self):
         the_type = ErrorStatistics.RadarSensorErrorType
         the_dict = radar_sensor_error_dict
-        item1 = the_type.from_dict(the_dict)
-
-        with self.subTest(msg='Comparing json deserialization with original'):
-            new_dict = item1.to_dict()
-            self.assertEqual(the_dict, new_dict)
-
-        with self.subTest(msg='Test xml serialization issues'):
-            # let's serialize to xml
-            etree = ElementTree.ElementTree()
-            xml = ElementTree.tostring(item1.to_node(etree, 'The_Type')).decode('utf-8')
-            # let's deserialize from xml
-            node = ElementTree.fromstring(xml)
-            item2 = the_type.from_node(node)
-            self.assertEqual(item1.to_dict(), item2.to_dict())
-
-        with self.subTest(msg="validity check"):
-            self.assertTrue(item1.is_valid())
+        item1 = generic_construction_test(self, the_type, the_dict)
 
 
 class TestTropoError(unittest.TestCase):
     def test_construction(self):
         the_type = ErrorStatistics.TropoErrorType
         the_dict = tropo_error_dict
-        item1 = the_type.from_dict(the_dict)
-
-        with self.subTest(msg='Comparing json deserialization with original'):
-            new_dict = item1.to_dict()
-            self.assertEqual(the_dict, new_dict)
-
-        with self.subTest(msg='Test xml serialization issues'):
-            # let's serialize to xml
-            etree = ElementTree.ElementTree()
-            xml = ElementTree.tostring(item1.to_node(etree, 'The_Type')).decode('utf-8')
-            # let's deserialize from xml
-            node = ElementTree.fromstring(xml)
-            item2 = the_type.from_node(node)
-            self.assertEqual(item1.to_dict(), item2.to_dict())
-
-        with self.subTest(msg="validity check"):
-            self.assertTrue(item1.is_valid())
+        item1 = generic_construction_test(self, the_type, the_dict)
 
 
 class TestIonoError(unittest.TestCase):
     def test_construction(self):
         the_type = ErrorStatistics.IonoErrorType
         the_dict = iono_error_dict
-        item1 = the_type.from_dict(the_dict)
-
-        with self.subTest(msg='Comparing json deserialization with original'):
-            new_dict = item1.to_dict()
-            self.assertEqual(the_dict, new_dict)
-
-        with self.subTest(msg='Test xml serialization issues'):
-            # let's serialize to xml
-            etree = ElementTree.ElementTree()
-            xml = ElementTree.tostring(item1.to_node(etree, 'The_Type')).decode('utf-8')
-            # let's deserialize from xml
-            node = ElementTree.fromstring(xml)
-            item2 = the_type.from_node(node)
-            self.assertEqual(item1.to_dict(), item2.to_dict())
-
-        with self.subTest(msg="validity check"):
-            self.assertTrue(item1.is_valid())
+        item1 = generic_construction_test(self, the_type, the_dict)
 
 
 class TestErrorComponents(unittest.TestCase):
     def test_construction(self):
         the_type = ErrorStatistics.ErrorComponentsType
         the_dict = error_components_dict
-        item1 = the_type.from_dict(the_dict)
-
-        with self.subTest(msg='Comparing json deserialization with original'):
-            new_dict = item1.to_dict()
-            self.assertEqual(the_dict, new_dict)
-
-        with self.subTest(msg='Test xml serialization issues'):
-            # let's serialize to xml
-            etree = ElementTree.ElementTree()
-            xml = ElementTree.tostring(item1.to_node(etree, 'The_Type')).decode('utf-8')
-            # let's deserialize from xml
-            node = ElementTree.fromstring(xml)
-            item2 = the_type.from_node(node)
-            self.assertEqual(item1.to_dict(), item2.to_dict())
-
-        with self.subTest(msg="validity check"):
-            self.assertTrue(item1.is_valid())
+        item1 = generic_construction_test(self, the_type, the_dict)
 
 
 class TestErrorStatistics(unittest.TestCase):
     def test_construction(self):
         the_type = ErrorStatistics.ErrorStatisticsType
         the_dict = error_statistics_dict
-        item1 = the_type.from_dict(the_dict)
-
-        with self.subTest(msg='Comparing json deserialization with original'):
-            new_dict = item1.to_dict()
-            self.assertEqual(the_dict, new_dict)
-
-        with self.subTest(msg='Test xml serialization issues'):
-            # let's serialize to xml
-            etree = ElementTree.ElementTree()
-            xml = ElementTree.tostring(item1.to_node(etree, 'The_Type')).decode('utf-8')
-            # let's deserialize from xml
-            node = ElementTree.fromstring(xml)
-            item2 = the_type.from_node(node)
-            self.assertEqual(item1.to_dict(), item2.to_dict())
-
-        with self.subTest(msg="validity check"):
-            self.assertTrue(item1.is_valid())
+        item1 = generic_construction_test(self, the_type, the_dict)
