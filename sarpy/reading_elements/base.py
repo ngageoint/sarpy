@@ -7,6 +7,9 @@ The base elements for reading and writing files as appropriate.
 
 import numpy
 
+from ..sicd_elements.SICD import SICDType
+
+
 __classification__ = "UNCLASSIFIED"
 
 
@@ -29,12 +32,9 @@ class BaseChipper(object):
     conversion of raw data to complex data requires something more nuanced than
     the default provided in the `_data_to_complex` method.
     """
+    __slots__ = ('_data_size', '_complex_type', '_symmetry')
 
-    _data_size = None
-    _complex_type = None
-    _symmetry = (False, False, False)
-
-    def __init__(self, data_size, symmetry=None, complex_type=None):
+    def __init__(self, data_size, symmetry=(False, False, False), complex_type=False):
         """
 
         Parameters
@@ -51,7 +51,6 @@ class BaseChipper(object):
             components are stored in adjacent bands, which will be combined into a
             single band upon extraction.
         """
-
         self._complex_type = complex_type
 
         if not isinstance(data_size, tuple):
@@ -69,8 +68,7 @@ class BaseChipper(object):
         if len(symmetry) != 3:
             raise ValueError(
                 'The symmetry parameter must have length 3, and got {}.'.format(symmetry))
-        junk = tuple([bool(entry) for entry in symmetry])
-        self._symmetry = junk
+        self._symmetry = tuple([bool(entry) for entry in symmetry])
 
     @property
     def symmetry(self):
@@ -281,6 +279,8 @@ class BaseChipper(object):
 
 
 class SubsetChipper(BaseChipper):
+    __slots__ = ('_data_size', '_complex_type', '_symmetry', 'shift1', 'shift2', 'parent_chipper')
+
     """Permits transparent extraction from a particular subset of the possible data range"""
 
     def __init__(self, parent_chipper, dim1bounds, dim2bounds):
@@ -314,20 +314,49 @@ class SubsetChipper(BaseChipper):
 
 class BaseReader(object):
     """Abstract file reader class"""
-    _sicd_meta = None
+    __slots__ = ('_sicd_meta', '_chipper')
 
-    # TODO: establish more generic capability?
+    def __init__(self, sicd_meta, chipper):
+        """
+
+        Parameters
+        ----------
+        sicd_meta : SICDType
+            the SICD metadata object
+        chipper : BaseChipper
+            a chipper instance
+        """
+
+        self._chipper = chipper
+        self._sicd_meta = sicd_meta
+        self._sicd_meta.derive()  # try to fix up the structure and derive any missing attributes
+        # TODO: should we check that it's valid?
+        #   This potentially prints a bunch of feedback about issues to the console
+        # self._sicd_meta.is_valid(recursive=True)
+
+    @property
+    def sicd_meta(self):
+        return self._sicd_meta
+
+    def __call__(self, dim1range, dim2range):
+        self._chipper(dim1range, dim2range)
+
+    def __getitem__(self, item):
+        self._chipper.__getitem__(item)
 
     def read_chip(self, dim1range, dim2range):
-        # TODO: document
-        raise NotImplementedError
+        return self._chipper(dim1range, dim2range)
 
 
 class BaseWriter(object):
     """Abstract file writer class"""
-    _sicd_meta = None
+    __slots__ = ('_sicd_meta', )
 
     # TODO: establish more generic capability?
+
+    @property
+    def sicd_meta(self):
+        return self._sicd_meta
 
     def write_chip(self, data, start_indices):
         # TODO: document

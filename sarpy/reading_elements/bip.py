@@ -15,13 +15,16 @@ __classification__ = "UNCLASSIFIED"
 
 
 class BIPChipper(BaseChipper):
-    def __init__(self, file_name, data_type, data_size, symmetry=(False, False, False),
-                 complex_type=False, data_offset=0, swap_bytes=False, bands_ip=1):
+    __slots__ = ('_file_name', '_data_size', '_complex_type', '_symmetry', '_swap_bytes', '_memory_map')
+
+    def __init__(self, file_name, data_type, data_size,
+                 symmetry=(False, False, False), complex_type=False,
+                 data_offset=0, swap_bytes=False, bands_ip=1):
         """
 
         Parameters
         ----------
-        filename : str
+        file_name : str
             The name of the file from which to read
         data_type : numpy.dtype
             The data type of the underlying file
