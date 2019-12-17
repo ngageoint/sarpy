@@ -2,7 +2,6 @@ import PIL.Image
 from PIL import ImageTk
 import tkinter as tk
 from sarpy.tkinter_gui_builder.widget_utils.basic_widgets import Canvas
-import os
 import numpy as np
 
 

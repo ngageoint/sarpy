@@ -11,7 +11,7 @@ class ButtonPanel(BasicWidgetsPanel):
         self.calculate_wake = basic_widgets.Button
         self.foreground_color = basic_widgets.Button
 
-        self.buttons_list = ["rect_draw", "line_draw", "point_draw", ('calculate_wake', 'calc'), ("foreground_color", "fg color")]
+        self.buttons_list = ["line_draw", "point_draw", ('calculate_wake', 'calc'), ("foreground_color", "fg color")]
         self.init_w_box_layout(self.buttons_list, 2, widget_width=8, widget_height=2)
         self.set_label_text("wake tool buttons")
 

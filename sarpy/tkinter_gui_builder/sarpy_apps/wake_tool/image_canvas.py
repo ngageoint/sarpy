@@ -51,11 +51,6 @@ class ImageCanvas(tk.Frame):
         self.line_id = None         # type: int
         self.point_ids = []         # type: [int]
 
-        self.rect_coords = None
-
-        self.start_x = None
-        self.start_y = None
-
         self.nx_pix = None      # type: int
         self.ny_pix = None      # type: int
 
@@ -117,8 +112,6 @@ class ImageCanvas(tk.Frame):
         start_y = self.canvas.canvasy(event.y)
 
         print(self.variables.current_object_id)
-
-
         # create rectangle if not yet exist
         if self.variables.current_object_id in self.variables.object_ids:
             self.canvas.coords(self.variables.current_object_id, start_x, start_y, start_x+1, start_y+1)
@@ -137,14 +130,11 @@ class ImageCanvas(tk.Frame):
 
         # expand rectangle as you drag the mouse
         self.canvas.coords(self.variables.current_object_id, coords[0], coords[1], event_x_pos, event_y_pos)
-        self.rect_coords = [self.start_y, self.start_x, event_y_pos, event_x_pos]
 
     def event_initiate_line(self, event):
         # save mouse drag start position
         start_x = self.canvas.canvasx(event.x)
         start_y = self.canvas.canvasy(event.y)
-
-        print(self.variables.current_object_id)
 
         # create line if not yet exist
         if self.variables.current_object_id in self.variables.object_ids:
@@ -163,18 +153,25 @@ class ImageCanvas(tk.Frame):
         coords = self.canvas.coords(self.variables.current_object_id)
 
         # expand rectangle as you drag the mouse
-        self.canvas.coords(self.line_id, coords[0], coords[1], event_x_pos, event_y_pos)
+        self.canvas.coords(self.variables.current_object_id, coords[0], coords[1], event_x_pos, event_y_pos)
 
     def event_draw_point(self, event):
-        x1, y1 = (event.x - self.variables.point_size), (event.y - self.variables.point_size)
-        x2, y2 = (event.x + self.variables.point_size), (event.y + self.variables.point_size)
-        self.canvas.create_oval(x1, y1, x2, y2, fill=self.variables.foreground_color)
+        x1, y1 = (self.canvas.canvasx(event.x) - self.variables.point_size), (self.canvas.canvasy(event.y) - self.variables.point_size)
+        x2, y2 = (self.canvas.canvasx(event.x) + self.variables.point_size), (self.canvas.canvasy(event.y) + self.variables.point_size)
+        print(self.variables.current_object_id)
+        if self.variables.current_object_id in self.variables.object_ids:
+            self.canvas.coords(self.variables.current_object_id, x1, y1, x2, y2)
+        else:
+            point_id = self.canvas.create_oval(x1, y1, x2, y2, fill=self.variables.foreground_color)
+            self.variables.object_ids.append(point_id)
+            self.variables.current_object_id = point_id
 
-    def get_data_in_rect(self):
-        print(self.rect_coords)
-        y_ul = int(self.rect_coords[0])
-        x_ul = int(self.rect_coords[1])
-        y_br = int(self.rect_coords[2])
-        x_br = int(self.rect_coords[3])
+    # TODO needs testing
+    def get_data_in_rect(self, rect_id):
+        coords = self.canvas.coords(rect_id)
+        y_ul = int(coords[0])
+        x_ul = int(coords[1])
+        y_br = int(coords[2])
+        x_br = int(coords[3])
         selected_image_data = self.image_data[y_ul: y_br, x_ul:x_br]
         return selected_image_data

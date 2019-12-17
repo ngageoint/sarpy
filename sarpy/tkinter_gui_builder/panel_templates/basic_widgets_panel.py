@@ -18,7 +18,6 @@ class BasicWidgetsPanel(tk.LabelFrame):
 
     def init_w_horizontal_layout(self,
                                  basic_widget_list,         # type: list
-                                 labelframe_text=None,      # type: str
                                  ):
         self.init_w_basic_widget_list(basic_widget_list,
                                       n_rows=1,
@@ -53,7 +52,6 @@ class BasicWidgetsPanel(tk.LabelFrame):
             widget = widget_and_name
             if type(("", "")) == type(widget_and_name):
                 widget = widget_and_name[0]
-                name = widget_and_name[1]
             getattr(self, widget).config(anchor='w')
             if widget_width is not None:
                 getattr(self, widget).config(width=widget_width)
@@ -92,9 +90,7 @@ class BasicWidgetsPanel(tk.LabelFrame):
             if type(("", "")) == type(widget_and_name):
                 widget = widget_and_name[0]
                 name = widget_and_name[1]
-            # only call this if we are initializing a basic widget that has not been instantiated.
-            if callable(getattr(self, widget)):
-                setattr(self, widget, getattr(self, widget)(self.rows[row_num]))
+            setattr(self, widget, getattr(self, widget)(self.rows[row_num]))
             getattr(self, widget).pack(side="left", padx=5, pady=5)
             getattr(self, widget).config(text=name)
             self.widget_list.append(widget)
