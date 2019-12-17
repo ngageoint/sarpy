@@ -74,23 +74,36 @@ class BaseScraper(object):
 
         raise NotImplementedError
 
-    def to_bytes(self):
+    def to_string(self):
         """
-        Write the object to a bytes array, suitable for outputing to a file object.
+        Write the object to a properly packed str.
 
         Returns
         -------
-        bytes
+        str
         """
 
         raise NotImplementedError
+
+    @classmethod
+    def _validate(cls, value, start):
+        if isinstance(value, bytes):
+            value = value.decode('utf-8')
+        if not isinstance(value, str):
+            raise TypeError('Requires a bytes or str type input, got {}'.format(type(value)))
+
+        min_length = cls.minimum_length()
+        if len(value[start:]) < min_length:
+            raise TypeError('Requires a bytes or str type input of length at least {}, '
+                            'got {}'.format(min_length, len(value[start:])))
+        return value
 
 
 class HeaderScraper(BaseScraper):
     __slots__ = ()  # the possible attribute collection
     _types = {}  # for elements which will be scraped by another class
     _args = {}  # for elements which will be scraped by another class, these are args for the from_string method
-    _lengths = {}  # form attribute: <length> for each entry in __slots__ not in types
+    _formats = {}  # {attribute: '<length>d/s'} for each entry in __slots__ not in types
     _defaults = {}  # any default values.
     # If a given attribute doesn't have a give default it is assumed that all spaces is the default
 
@@ -100,19 +113,50 @@ class HeaderScraper(BaseScraper):
             raise KeyError('Arguments {} are not in the list of allowed '
                            'attributes {}'.format(unmatched, self.__slots__))
         for attribute in self.__slots__:
-            if attribute not in kwargs:
-                if attribute in self._types:
-                    setattr(self, attribute, self._types[attribute]())
-                elif attribute in self._defaults:
-                    setattr(self, attribute, self._defaults[attribute])
-                else:
-                    setattr(self, attribute, ' '*self._lengths[attribute])
+            self.set_attribute(attribute, kwargs.get(attribute, None))
+
+    def set_attribute(self, attribute, value):
+        if attribute not in self.__slots__:
+            raise AttributeError('No attribute {}'.format(attribute))
+        if attribute in self._types:
+            typ = self._types[attribute]
+            if value is None:
+                setattr(self, attribute, typ())
+            elif isinstance(value, BaseScraper):
+                setattr(self, attribute, value)
             else:
-                val = kwargs[attribute]
-                if attribute not in self._types and not isinstance(val, str):
-                    raise ValueError('This requires that argument {} be string '
-                                     'instance, and got {}'.format(attribute, type(val)))
-                setattr(self, attribute, val)
+                raise ValueError('Attribute {} is expected to be of type {}, '
+                                 'got {}'.format(attribute, typ, type(value)))
+        else:
+            frmt = self._formats[attribute]
+            lng = int(frmt[:-1])
+            if value is None:
+                value = self._defaults.get(attribute, None)
+
+            if frmt[-1] == 'd':  # an integer
+                if value is None:
+                    setattr(self, attribute, 0)
+                else:
+                    val = int(value)
+                    if 0 <= val < 10**lng:
+                        setattr(self, attribute, val)
+                    else:
+                        raise ValueError('Attribute {} is expected to be an integer expressible in {} digits. '
+                                         'Got {}.'.format(attribute, lng, value))
+            elif frmt[-1] == 's':  # a string
+                if value is None:
+                    setattr(self, attribute, ' '*lng)
+                else:
+                    if not isinstance(value, str):
+                        raise TypeError('Attribute {} is expected to a string, got {}'.format(attribute, type(value)))
+
+                    if len(value) > lng:
+                        logging.warning('Attribute {} is expected to be a string of at most {} characters. '
+                                        'Got a value of {} characters, '
+                                        'so truncating'.format(attribute, lng, len(value)))
+                        setattr(self, attribute, value[:lng])
+                    else:
+                        setattr(self, attribute, value)
 
     def __len__(self):
         length = 0
@@ -121,7 +165,7 @@ class HeaderScraper(BaseScraper):
                 val = getattr(self, attribute)
                 length += val.length
             else:
-                length += self._lengths[attribute]
+                length += int(self._formats[attribute][:-1])
         return length
 
     @classmethod
@@ -133,22 +177,15 @@ class HeaderScraper(BaseScraper):
                 if issubclass(typ, BaseScraper):
                     min_length += typ.minimum_length()
             else:
-                min_length += cls._lengths[attribute]
+                min_length += int(cls._formats[attribute][:-1])
         return min_length
 
     @classmethod
     def from_string(cls, value, start, *args):
         if value is None:
             return cls()
-        if isinstance(value, bytes):
-            value = value.decode('utf-8')
-        if not isinstance(value, str):
-            raise TypeError('Requires a bytes or str type input, got {}'.format(type(value)))
 
-        min_length = cls.minimum_length()
-        if len(value[start:]) < min_length:
-            raise TypeError('Requires a bytes or str type input of length at least {}, '
-                            'got {}'.format(min_length, len(value[start:])))
+        value = cls._validate(value, start)
 
         fields = OrderedDict()
         loc = start
@@ -161,22 +198,34 @@ class HeaderScraper(BaseScraper):
                 val = typ.from_string(value, loc, *args)
                 lngt = len(val)
             else:
-                lngt = cls._lengths[attribute]
+                lngt = int(cls._formats[attribute][:-1])
                 fields[attribute] = value[loc:lngt]
             loc += lngt
         return cls(**fields)
 
-    def to_bytes(self):
+    def to_string(self):
         out = ''
         for attribute in self.__slots__:
-            flen = self._lengths[attribute]
-            fstr = '{0:' + flen + 's}'
-            val = getattr(self, attribute, ' ')
-            if len(val) <= flen:
+            val = getattr(self, attribute)
+            if isinstance(val, BaseScraper):
+                out += val.to_string()
+            elif isinstance(val, int):
+                fstr = self._formats[attribute]
+                flen = int(fstr[:-1])
+                val = getattr(self, attribute)
+                if val >= 10**flen:
+                    raise ValueError('Attribute {} has integer value {}, which cannot be written as '
+                                     'a string of length {}'.format(attribute, val, flen))
                 out += fstr.format(val)
-            else:
-                out += val[:flen]
-        return out.encode('utf-8')
+            elif isinstance(val, str):
+                fstr = self._formats[attribute]
+                flen = int(fstr[:-1])
+                val = getattr(self, attribute)
+                if len(val) <= flen:
+                    out += fstr.format(val)  # left justified of length flen
+                else:
+                    out += val[:flen]
+        return out
 
 
 class ItemArrayHeaders(BaseScraper):
@@ -217,15 +266,9 @@ class ItemArrayHeaders(BaseScraper):
 
         subhead_size, item_size = args
         subhead_size, item_size = int(subhead_size), int(item_size)
-        if isinstance(value, bytes):
-            value = value.decode('utf-8')
-        if not isinstance(value, str):
-            raise TypeError('Requires a bytes or str type input, got {}'.format(type(value)))
 
-        min_length = cls.minimum_length()
-        if len(value[start:]) < min_length:
-            raise TypeError('Requires a bytes or str type input of length at least {}, '
-                            'got {}'.format(min_length, len(value[start:])))
+        value = cls._validate(value, start)
+
         loc = start
         count = int(value[loc:loc+3])
         loc += 3
@@ -237,13 +280,71 @@ class ItemArrayHeaders(BaseScraper):
             item_offsets[i] = int(value[loc: loc+item_size])
             loc += item_size
 
-    def to_bytes(self):
+    def to_string(self):
         out = '{0:3d}'.format(self.subhead_sizes.size)
         subh_frm = '{0:'+self.subhead_len + 'd}'
         item_frm = '{0:' + self.item_len + 'd}'
         for sh_off, it_off in zip(self.subhead_sizes, self.item_sizes):
             out += subh_frm.format(sh_off) + item_frm.format(it_off)
-        return out.encode('utf-8')
+        return out
+
+
+class ImageComments(BaseScraper):
+    """Image comments in the image subheader"""
+    __slots__ = ('comments', )
+
+    def __init__(self, comments):
+        if comments is None:
+            self.comments = []
+        else:
+            if len(comments) > 9:
+                raise ValueError('comments must have length less than 10. Got {}'.format(len(comments)))
+
+    def __len__(self):
+        return 1 + 80*min(len(self.comments), 9)
+
+    @classmethod
+    def minimum_length(cls):
+        return 1
+
+    @classmethod
+    def from_string(cls, value, start, *args):
+        """
+
+        Parameters
+        ----------
+        value : bytes|str
+        start : int
+        args : iterable
+            this must have two integer elements, which designate the number of
+            bytes for the subheader size and the number of bytes for the item size
+        Returns
+        -------
+        ItemArrayHeaders
+        """
+
+        value = cls._validate(value, start)
+        loc = start
+        count = int(value[loc:loc+1])
+        loc += 1
+        comments = []
+        for i in range(count):
+            comments.append(value[loc: loc+80])
+            loc += 80
+
+    def to_string(self):
+        if self.comments is None or len(self.comments) == 0:
+            return '0'
+
+        siz = min(len(self.comments), 9)
+        out = '{0:1d}'.format(siz)
+        for i in range(siz):
+            val = self.comments[i]
+            if len(val) < 80:
+                out += '{0:80s}'.format(val)
+            else:
+                out += val[:80]
+        return out
 
 
 class OtherHeader(BaseScraper):
@@ -277,14 +378,7 @@ class OtherHeader(BaseScraper):
 
     @classmethod
     def from_string(cls, value, start, *args):
-        if isinstance(value, bytes):
-            value = value.decode('utf-8')
-        if not isinstance(value, str):
-            raise TypeError('Requires a bytes or str type input, got {}'.format(type(value)))
-
-        if len(value[start:]) < 5:
-            raise TypeError('Requires a bytes or str type input of length at least 5, '
-                            'got {}'.format(len(value[start:])))
+        value = cls._validate(value, start)
 
         siz = int(value[start:start+5])
         if siz == 0:
@@ -294,7 +388,7 @@ class OtherHeader(BaseScraper):
             header = value[start+8:start+siz]
             return cls(overflow=overflow, header=header)
 
-    def to_bytes(self):
+    def to_string(self):
         out = '{0:5d}'.format(self.__len__())
         if self.header is not None:
             if self.overflow > 999:
@@ -302,7 +396,7 @@ class OtherHeader(BaseScraper):
             else:
                 out += '{0:3d}'.format(self.overflow)
             out += self.header
-        return out.encode('utf-8')
+        return out
 
 
 class NITFSecurityTags(HeaderScraper):
@@ -312,17 +406,12 @@ class NITFSecurityTags(HeaderScraper):
         'REL', 'DCTP', 'DCDT', 'DCXM',
         'DG', 'DGDT', 'CLTX', 'CAPT',
         'CAUT', 'CRSN', 'SRDT', 'CTLN')
-    _lengths = {
-        'CLAS': 1, 'CLSY': 2, 'CODE': 11, 'CTLH': 2,
-        'REL': 20, 'DCTP': 2, 'DCDT': 8, 'DCXM': 4,
-        'DG': 1, 'DGDT': 8, 'CLTX': 43, 'CAPT': 1,
-        'CAUT': 40, 'CRSN': 1, 'SRDT': 8, 'CTLN': 15}
+    _formats = {
+        'CLAS': '1s', 'CLSY': '2s', 'CODE': '11s', 'CTLH': '2s',
+        'REL': '20s', 'DCTP': '2s', 'DCDT': '8s', 'DCXM': '4s',
+        'DG': '1s', 'DGDT': '8s', 'CLTX': '43s', 'CAPT': '1s',
+        'CAUT': '40s', 'CRSN': '1s', 'SRDT': '8s', 'CTLN': '15s'}
     _defaults = {'CLAS': 'U'}
-
-
-class ImageSegments(HeaderScraper):
-    """The NITF file header - described in SICD standard 2014-09-30, Volume II, page 17"""
-    __slots__ = ('NUMI', 'ImageSegments')
 
 
 class NITFHeader(HeaderScraper):
@@ -347,17 +436,37 @@ class NITFHeader(HeaderScraper):
         'TextSegments': (4, 5),
         'DataExtensions': (4, 9), }
     _lengths = {
-        'FHDR': 4, 'FVER': 5, 'CLEVEL': 2, 'STYPE': 4,
-        'OSTAID': 10, 'FDT': 14, 'FTITLE': 80,
-        'FSCOP': 5, 'FSCPYS': 5, 'ENCRYP': 1, 'FBKGC': 3,
-        'ONAME': 24, 'OPHONE': 18, 'FL': 12, 'HL': 6,
-        'NUMS': 3, 'NUMX': 3, 'NUMRES': 3, 'UDHDL': 5, }
+        'FHDR': '4s', 'FVER': '5s', 'CLEVEL': '2d', 'STYPE': '4s',
+        'OSTAID': '10s', 'FDT': '14s', 'FTITLE': '80s',
+        'FSCOP': '5d', 'FSCPYS': '5d', 'ENCRYP': '1s', 'FBKGC': '3d',
+        'ONAME': '24s', 'OPHONE': '18s', 'FL': '12d', 'HL': '6d',
+        'NUMS': '3d', 'NUMX': '3d', 'NUMRES': '3d', }
     _defaults = {
         'FHDR': 'NITF', 'FVER': '02.10', 'STYPE': 'BF01',
-        'OSTAID': 'Unknown', 'FSCOP': '00000', 'FSCPYS': '00000',
-        'ENCRYP': '0', 'FBKGC': '000', 'NUMS': '000', 'NUMX': '000',
-        'NUMRES': '000', 'UDHDL': '00000', }
+        'OSTAID': 'Unknown', 'ENCRYP': '0', }
 
+
+class ImageSegmentHeader(HeaderScraper):
+    """The Image Segment header - described in SICD standard 2014-09-30, Volume II, page 24"""
+    __slots__ = (
+        'IM', 'IID1', 'IDATIM', 'TGTID',
+        'IID2', 'Security', 'ENCRYP', 'ISORCE',
+        'NROWS', 'NCOLS', 'PVTYPE', 'IREP',
+        'ICAT', 'ABPP', 'PJUST', 'ICORDS',
+        'IGEOLO', 'ImageComments', 'IC')
+    _lengths = {
+        'IM': '2s', 'IID1': '10s', 'IDATIM': '14s', 'TGTID': '17s',
+        'IID2': '80s', 'ENCRYP': '1s', 'ISORCE': '42s',
+        'NROWS': '8d', 'NCOLS': '8d', 'PVTYPE': '3s', 'IREP': '8s',
+        'ICAT': '8s', 'ABPP': '2d', 'PJUST': '1s', 'ICORDS': '1s',
+        'IGEOLO': '60s', 'IC': '2s'}
+    _defaults = {
+        'IM': 'IM', 'IID1': 'SICD000', 'ENCRYP': '0',
+        'IREP': 'NODISPLY', 'ICAT': 'SAR', 'PJUST': 'R',
+        'ICORDS': 'G', 'IC': 'NC'}
+    _types = {'Security': NITFSecurityTags, 'ImageComments': ImageComments}
+    # TODO: bands and after
+    _args = {}
 
 # TODO: ImageSegmentHeader page 24 of SICD 2014-09-30 Volume II
 
