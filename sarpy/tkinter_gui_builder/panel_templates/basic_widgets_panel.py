@@ -2,7 +2,6 @@ import abc
 from six import add_metaclass
 import tkinter as tk
 import numpy as np
-import sarpy.utils.variable_utils as variable_utils
 
 
 @add_metaclass(abc.ABCMeta)
@@ -93,7 +92,9 @@ class BasicWidgetsPanel(tk.LabelFrame):
             if type(("", "")) == type(widget_and_name):
                 widget = widget_and_name[0]
                 name = widget_and_name[1]
-            setattr(self, widget, getattr(self, widget)(self.rows[row_num]))
+            # only call this if we are initializing a basic widget that has not been instantiated.
+            if callable(getattr(self, widget)):
+                setattr(self, widget, getattr(self, widget)(self.rows[row_num]))
             getattr(self, widget).pack(side="left", padx=5, pady=5)
             getattr(self, widget).config(text=name)
             self.widget_list.append(widget)

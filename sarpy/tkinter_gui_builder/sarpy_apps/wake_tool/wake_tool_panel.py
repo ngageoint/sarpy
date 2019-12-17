@@ -1,100 +1,102 @@
 import tkinter
-from tkinter.filedialog import askopenfilename
-from sarpy.tkinter_gui_builder.sarpy_apps.wake_tool.button_panel import ButtonPanel
+from sarpy.tkinter_gui_builder.sarpy_apps.wake_tool.side_panel import SidePanel
 from sarpy.tkinter_gui_builder.sarpy_apps.wake_tool.image_canvas import ImageCanvas
-import numpy as np
-import imageio
-import os
+import tkinter.colorchooser as colorchooser
+
+RECT_DRAW_TOOL = "rect_draw_tool"
+LINE_DRAW_TOOL = "line_draw_tool"
+POINT_DRAW_TOOL = "point_draw_tool"
 
 
 class AppVariables:
     def __init__(self):
-        self.fname = "None"       # type: str
+        self.image_fname = "None"       # type: str
+        self.current_tool_selection = None      # type: str
+
+        self.first_rect_drawn = False           # type: bool
+        self.first_line_drawn = False           # type: bool
+
+        self.rect_id = None             # type: int
+        self.line_id = None             # type: int
+        self.point_id = None            # type: int
 
 
 class WakeTool:
     def __init__(self, master):
-        # Create a container
         # set the master frame
         master_frame = tkinter.Frame(master)
         self.app_variables = AppVariables()
 
         # define panels widget_wrappers in master frame
-        self.button_panel = ButtonPanel(master_frame)
-        self.button_panel.set_spacing_between_buttons(0)
-        self.taser_image_panel = ImageCanvas(master_frame)
-        self.taser_image_panel.set_canvas_size(600, 400)
+        self.side_panel = SidePanel(master_frame)
+        self.side_panel.set_spacing_between_buttons(0)
+        self.image_canvas = ImageCanvas(master_frame)
+        self.image_canvas.set_canvas_size(600, 400)
 
         # specify layout of widget_wrappers in master frame
-        self.button_panel.pack(side="left")
-        self.taser_image_panel.pack(side="left")
-
+        self.side_panel.pack(side="left")
+        self.image_canvas.pack(side="left")
         master_frame.pack()
 
-        # bind events to callbacks here
+        # set up event listeners
+        self.side_panel.buttons.rect_draw.on_left_mouse_click(self.callback_press_rect_button)
+        self.side_panel.buttons.line_draw.on_left_mouse_click(self.callback_press_line_button)
+        self.side_panel.buttons.point_draw.on_left_mouse_click(self.callback_press_point_button)
+        self.side_panel.buttons.foreground_color.on_left_mouse_click(self.callback_select_color)
 
-        self.taser_image_panel.canvas.on_left_mouse_press(self.callback_start_drawing_new_rect)
-        self.taser_image_panel.canvas.on_left_mouse_motion(self.callback_drag_rect)
+        self.image_canvas.canvas.on_left_mouse_press(self.callback_handle_canvas_mouse_press_event)
+        self.image_canvas.canvas.on_left_mouse_motion(self.callback_handle_canvas_mouse_motion_event)
 
-        self.taser_image_panel.canvas.on_right_mouse_press(self.callback_start_drawing_new_line)
-        self.taser_image_panel.canvas.on_right_mouse_motion(self.callback_drag_line)
+    def callback_press_rect_button(self, event):
+        self.side_panel.buttons.unpress_all_buttons()
+        self.side_panel.buttons.activate_all_buttons()
+        self.side_panel.buttons.rect_draw.config(state="disabled")
+        self.side_panel.buttons.rect_draw.config(relief="sunken")
+        self.app_variables.current_tool_selection = RECT_DRAW_TOOL
 
-    # define custom callbacks here
-    def callback_remap(self, event):
-        remap_dict = {"density": "density",
-                      "brighter": "brighter",
-                      "darker": "darker",
-                      "high contrast": "highcontrast",
-                      "linear": "linear",
-                      "log": "log",
-                      "pedf": "pedf",
-                      "nrl": "nrl"}
-        selection = self.button_panel.remap_dropdown.get()
-        self.taser_image_panel.update_display_image(remap_dict[selection])
+    def callback_press_line_button(self, event):
+        self.side_panel.buttons.unpress_all_buttons()
+        self.side_panel.buttons.activate_all_buttons()
+        self.side_panel.buttons.line_draw.config(state="disabled")
+        self.side_panel.buttons.line_draw.config(relief="sunken")
+        self.app_variables.current_tool_selection = LINE_DRAW_TOOL
 
-    def callback_update_pyplot_image_w_fname(self, event):
-        image_data = imageio.imread(self.app_variables.fname)
-        self.pyplot_panel.update_image(image_data)
+    def callback_press_point_button(self, event):
+        self.side_panel.buttons.unpress_all_buttons()
+        self.side_panel.buttons.activate_all_buttons()
+        self.side_panel.buttons.point_draw.config(state="disabled")
+        self.side_panel.buttons.point_draw.config(relief="sunken")
+        self.app_variables.current_tool_selection = POINT_DRAW_TOOL
 
-    def callback_get_and_save_fname(self, event):
-        image_file_extensions = ['*.nitf', '*.NITF']
-        ftypes = [
-            ('image files', image_file_extensions),
-            ('All files', '*'),
-        ]
-        new_fname = askopenfilename(initialdir=os.path.expanduser("~"), filetypes=ftypes)
-        if new_fname:
-            self.app_variables.fname = new_fname
-        self.taser_image_panel.set_image_from_fname(self.app_variables.fname)
-        return "break"
+    def callback_handle_canvas_mouse_press_event(self, event):
+        if self.app_variables.current_tool_selection is RECT_DRAW_TOOL:
+            if self.app_variables.rect_id is None:
+                self.image_canvas.variables.current_object_id = None
+                self.image_canvas.event_initiate_rect(event)
+                self.app_variables.rect_id = self.image_canvas.variables.current_object_id
+            else:
+                self.image_canvas.variables.current_object_id = self.app_variables.rect_id
 
-    def callback_start_drawing_new_rect(self, event):
-        self.taser_image_panel.event_initiate_rect(event)
+        if self.app_variables.current_tool_selection is LINE_DRAW_TOOL:
+            if self.app_variables.line_id is None:
+                self.image_canvas.variables.current_object_id = None
+                self.image_canvas.event_initiate_line(event)
+                self.app_variables.line_id = self.image_canvas.variables.current_object_id
+            else:
+                self.image_canvas.variables.current_object_id = self.app_variables.line_id
+            self.image_canvas.event_initiate_line(event)
 
-    def callback_drag_rect(self, event):
-        self.taser_image_panel.event_drag_rect(event)
+        if self.app_variables.current_tool_selection is POINT_DRAW_TOOL:
+            self.image_canvas.event_draw_point(event)
 
-    def callback_start_drawing_new_line(self, event):
-        self.taser_image_panel.event_initiate_line(event)
+    def callback_handle_canvas_mouse_motion_event(self, event):
+        if self.app_variables.current_tool_selection is RECT_DRAW_TOOL:
+            self.image_canvas.event_drag_rect(event)
+        if self.app_variables.current_tool_selection is LINE_DRAW_TOOL:
+            self.image_canvas.event_drag_line(event)
 
-    def callback_drag_line(self, event):
-        self.taser_image_panel.event_drag_line(event)
-
-    def callback_random_canvas_image(self, event):
-        new_image = np.random.random((200, 200))
-        self.taser_image_panel.set_image_from_numpy_array(new_image, scale_dynamic_range=True)
-
-    def callback_display_canvas_rect_selection(self, event):
-        complex_data = self.taser_image_panel.get_data_in_rect()
-        remap_type = self.taser_image_panel.remap_type
-        remapped_data = self.taser_image_panel.remap_complex_data(complex_data, remap_type)
-        self.pyplot_panel.update_image(remapped_data)
-
-    def update_image_from_app_variable_arg(self,
-                                           args,  # type: AppVariables
-                                           ):
-        image_data = imageio.imread(args.fname)
-        self.pyplot_panel.update_image(image_data)
+    def callback_select_color(self, event):
+        self.image_canvas.variables.foreground_color = colorchooser.askcolor()[1]
 
 
 if __name__ == '__main__':

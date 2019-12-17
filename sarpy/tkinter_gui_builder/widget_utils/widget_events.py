@@ -1,6 +1,3 @@
-import tkinter as tk
-
-
 class WidgetEvents:
     def __init__(self):
         pass
@@ -16,7 +13,7 @@ class WidgetEvents:
         self.bind("<B1-Motion>", event)
 
     def on_left_mouse_release(self, event):
-        self.bind("<ButtonRelease-1", event)
+        self.bind("<ButtonRelease-1>", event)
 
     def on_right_mouse_click(self, event):
         self.bind("<Button-3>", event)

@@ -2,7 +2,6 @@ import tkinter as tk
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.pyplot as plt
 import numpy as np
-from tkinter import Canvas
 
 
 class BasicPyplotImagePanel(tk.Frame):
@@ -14,8 +13,6 @@ class BasicPyplotImagePanel(tk.Frame):
 
         # this is a dummy placeholder for now
         self.image_data = np.zeros((200, 200))
-        self.image_data[30:40, 30:40] = 0.5
-        self.image_data[40:50, 40:50] = 1.0
 
         # default dpi is 100, so npix will be 100 times the numbers passed to figsize
         fig = plt.figure(figsize=(canvas_width/100, canvas_height/100))
