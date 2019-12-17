@@ -88,7 +88,7 @@ class BIPWriter(object):
     #   This is much more limited than the reader.
 
     def __init__(self, file_name, data_size, data_type, complex_type, data_offset=0):
-        # no swap_bytes argument?
+        # TODO: swap_bytes argument?
 
         if not isinstance(data_size, tuple):
             data_size = tuple(data_size)
@@ -105,7 +105,7 @@ class BIPWriter(object):
         self._data_offset = int(data_offset)
         self._file_name = file_name
         if self._complex_type:
-            self._shape = (self._data_size[0], self._data_size[1]*2)
+            self._shape = (self._data_size[0], self._data_size[1]*2)  # make bands at end
         else:
             self._shape = self._data_size
 
@@ -127,15 +127,15 @@ class BIPWriter(object):
         -------
         None
         """
-        # TODO: no strides?
 
+        # TODO: fix complex type to permit a callable, in keeping with the above
         if self._complex_type:
-            start_indices = (start_indices[0], 2*start_indices[1])
+            start_indices = (start_indices[0], 2*start_indices[1])  # TODO: explicitly make bands at end
             if data.dtype.name != 'complex64':
                 data = data.astype(numpy.complex64)
             if not data.flags.c_contiguous:
                 data = numpy.ascontiguousarray(data)  # can't memory map otherwise?
-            data_view = data.view(numpy.float32)  # now shape = (rows, cols, 2)
+            data_view = data.view(numpy.float32)  # now shape = (rows, cols*2)
         else:
             data_view = data.view()
         start1, stop1 = start_indices[0], start_indices[0]+data_view.shape[0]
