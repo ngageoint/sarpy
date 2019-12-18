@@ -1,0 +1,5 @@
+from tkinter_gui_builder.widgets.widget_wrappers.button import Button
+from tkinter_gui_builder.widgets.widget_wrappers.canvas import Canvas
+from tkinter_gui_builder.widgets.widget_wrappers.combobox import Combobox
+from tkinter_gui_builder.widgets.widget_wrappers.scale import Scale
+from tkinter_gui_builder.widgets.widget_wrappers.label import Label
