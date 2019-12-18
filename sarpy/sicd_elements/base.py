@@ -1137,6 +1137,9 @@ class Serializable(object):
                     #   Silently catching errors can potentially cover up REAL issues.
                     pass
 
+    def __repr__(self):
+        return '{}(**{})'.format(self.__class__.__name__, self.to_dict(strict=False))
+
     def set_numeric_format(self, attribute, format_string):
         """Sets the numeric format string for the given attribute.
 

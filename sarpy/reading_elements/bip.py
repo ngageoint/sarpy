@@ -16,11 +16,11 @@ __classification__ = "UNCLASSIFIED"
 
 
 class BIPChipper(BaseChipper):
-    __slots__ = ('_file_name', '_data_size', '_complex_type', '_symmetry', '_swap_bytes', '_memory_map')
+    __slots__ = ('_file_name', '_data_size', '_complex_type', '_symmetry', '_memory_map')
 
     def __init__(self, file_name, data_type, data_size,
                  symmetry=(False, False, False), complex_type=False,
-                 data_offset=0, swap_bytes=False, bands_ip=1):
+                 data_offset=0, bands_ip=1):
         """
 
         Parameters
@@ -42,8 +42,6 @@ class BIPChipper(BaseChipper):
             single band upon extraction.
         data_offset : int
             byte offset from the start of the file at which the data actually starts
-        swap_bytes : bool
-            swap the byte order of the data after reading, i.e. endian-ness of the os and file different
         bands_ip : int
             number of bands - really intended for complex data
         """
@@ -56,9 +54,6 @@ class BIPChipper(BaseChipper):
 
         true_shape = self._data_size + (bands, )
         data_offset = int(data_offset)
-
-        # try to set up a memory map. If this fails, default to pure file reading.
-        self._swap_bytes = bool(swap_bytes)
 
         if not os.path.isfile(file_name):
             raise IOError('Path {} either does not exists, or is not a file.'.format(file_name))
@@ -78,8 +73,6 @@ class BIPChipper(BaseChipper):
         range1, range2 = self._reorder_arguments(range1, range2)
         # just read the data from the memory mapped region
         data = numpy.array(self._memory_map[range1[0]:range1[1]:range1[2], range2[0]:range2[1]:range2[2]])
-        if self._swap_bytes:
-            data.byteswap(True)  # this swaps bytes in place
         return data.transpose((2, 0, 1))  # switches from band interleaved to band sequential
 
 
@@ -90,8 +83,7 @@ class BIPWriter(object):
     That is, SICD with enough rows/columns.
     """
 
-    def __init__(self, file_name, data_size, data_type, complex_type,
-                 data_offset=0, swap_bytes=False):
+    def __init__(self, file_name, data_size, data_type, complex_type, data_offset=0):
         """
         For writing the SICD data into the NITF container. This is abstracted generally
         because an array of these writers is used for multi-image segment NITF files.
@@ -122,8 +114,6 @@ class BIPWriter(object):
               match `data_type`.
         data_offset : int
             byte offset from the start of the file at which the data actually starts
-        swap_bytes : bool
-            swap the byte order of the data when writing, i.e. endian-ness of the os and file different
         """
 
         if not isinstance(data_size, tuple):
@@ -154,7 +144,6 @@ class BIPWriter(object):
 
         self._file_name = file_name
         self._data_offset = int(data_offset)
-        self._swap_bytes = swap_bytes
         if self._complex_type is False:
             self._shape = self._data_size
         else:
@@ -194,20 +183,13 @@ class BIPWriter(object):
             if data.dtype != self._data_type:
                 raise ValueError(
                     'Writer expects data type {}, and got data of type {}.'.format(self._data_type, data.dtype))
-            # The data should be suitable to directly write.
-            # numpy should handles data type issues - this may have unfortunate consequences?
-            if self._swap_bytes:
-                self._memory_map[start1:stop1, start2:stop2] = data.byteswap(inplace=False)
-            else:
-                self._memory_map[start1:stop1, start2:stop2] = data
+            self._memory_map[start1:stop1, start2:stop2] = data
         elif callable(self._complex_type):
             new_data = self._complex_type(data)
             if new_data.dtype != self._data_type:
                 raise ValueError(
                     'Writer expects data type {}, and got data of type {} from the '
                     'callable method complex_type.'.format(self._data_type, new_data.dtype))
-            if self._swap_bytes:
-                new_data.byteswap(inplace=True)
             self._memory_map[start1:stop1, start2:stop2, :] = new_data
         else:  # complex_type is True
             if data.dtype not in (numpy.complex64, numpy.complex128):
@@ -218,7 +200,4 @@ class BIPWriter(object):
                 data = data.astype(numpy.complex64)
 
             data_view = data.view(numpy.float32).reshape((data.shape[0], data.shape[1], 2))
-            if self._swap_bytes:
-                self._memory_map[start1:stop1, start2:stop2, :] = data_view.byteswap(inplace=False)
-            else:
-                self._memory_map[start1:stop1, start2:stop2, :] = data_view
+            self._memory_map[start1:stop1, start2:stop2, :] = data_view

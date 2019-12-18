@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
-import os
-import logging
 import sys
+import re
+import logging
 from xml.etree import ElementTree
 from collections import OrderedDict
 from typing import Union
@@ -13,10 +13,19 @@ from .base import BaseChipper, BaseReader, BaseWriter
 from .bip import BIPChipper
 from ..sicd_elements.SICD import SICDType
 
+##########
+# Some hard coded defaults based on current SICD standard
+#   used in the NITF Data Extension Header
+#   These are used in the SICDDESSSubheader class below
+
+SPECIFICATION_IDENTIFIER = 'SICD Volume 1 Design & Implementation Description Document'
+SPECIFICATION_VERSION = '1.1'
+SPECIFICATION_DATE = '2014-09-30T00:00:00Z'
+SPECIFICATION_NAMESPACE = 'urn:SICD:1.1.0'
 
 ##########
 # NITF Header reading and writing objects
-
+#   splinter these into their own file
 
 class BaseScraper(object):
     """Describes the abstract functionality"""
@@ -81,11 +90,26 @@ class BaseScraper(object):
         return value
 
 
-class ItemArrayHeaders(BaseScraper):
-    """Item array in the NITF header (i.e. Image Segment, Text Segment)"""
+class _ItemArrayHeaders(BaseScraper):
+    """
+    Item array in the NITF header (i.e. Image Segment, Text Segment).
+    This is not really meant to be used directly.
+    """
     __slots__ = ('subhead_len', 'subhead_sizes', 'item_len', 'item_sizes')
 
-    def __init__(self, subhead_len, subhead_sizes, item_len, item_sizes):
+    def __init__(self, subhead_len=0, subhead_sizes=None, item_len=0, item_sizes=None):
+        """
+
+        Parameters
+        ----------
+        subhead_len : int
+        subhead_sizes : numpy.ndarray|None
+        item_len : int
+        item_sizes : numpy.ndarray|None
+        """
+        if subhead_sizes is None or item_sizes is None:
+            subhead_sizes = numpy.array((0, ), dtype=numpy.int64)
+            item_sizes = numpy.array((0,), dtype=numpy.int64)
         if subhead_sizes.shape != item_sizes.shape or len(item_sizes.shape) != 1:
             raise ValueError(
                 'the subhead_offsets and item_offsets arrays must one-dimensional and the same length')
@@ -114,7 +138,7 @@ class ItemArrayHeaders(BaseScraper):
             bytes for the subheader size and the number of bytes for the item size
         Returns
         -------
-        ItemArrayHeaders
+        _ItemArrayHeaders
         """
 
         subhead_len, item_len = args
@@ -174,7 +198,7 @@ class ImageComments(BaseScraper):
             bytes for the subheader size and the number of bytes for the item size
         Returns
         -------
-        ItemArrayHeaders
+        _ItemArrayHeaders
         """
 
         value = cls._validate(value, start)
@@ -285,7 +309,7 @@ class ImageBands(BaseScraper):
             bytes for the subheader size and the number of bytes for the item size
         Returns
         -------
-        ItemArrayHeaders
+        _ItemArrayHeaders
         """
 
         value = cls._validate(value, start)
@@ -323,6 +347,11 @@ class ImageBands(BaseScraper):
 
 
 class OtherHeader(BaseScraper):
+    """
+    User defined header section at the end of the NITF header
+    (i.e. Image Segment, Text Segment). This is not really meant to be
+    used directly.
+    """
     __slots__ = ('overflow', 'header')
 
     def __init__(self, overflow=None, header=None):
@@ -390,13 +419,14 @@ class HeaderScraper(BaseScraper):
             raise KeyError('Arguments {} are not in the list of allowed '
                            'attributes {}'.format(unmatched, settable_attributes))
         # the things with no defaults
-        no_defaults = [key for key in settable_attributes if (key not in kwargs and key not in self._defaults)]
+        no_defaults = [key for key in settable_attributes if
+                       (key not in kwargs and not (key in self._defaults or '_'+key in self._types))]
 
         if len(no_defaults) > 0:
             logging.warning(
                 'Attributes {} of class {} are not provided in the construction, '
-                'but do not allow for suitable defaults. They will be initialized, '
-                'probably to a foolish or invalid value. Be sure to set them appropriately '
+                'but do not allow for suitable defaults.\nThey will be initialized, '
+                'probably to a foolish or invalid value.\nBe sure to set them appropriately '
                 'for a valid NITF header.'.format(no_defaults, self.__class__.__name__))
 
         for attribute in settable_attributes:
@@ -471,7 +501,7 @@ class HeaderScraper(BaseScraper):
         for attribute in self.__slots__:
             if attribute in self._types:
                 val = getattr(self, attribute)
-                length += val.length
+                length += len(val)
             else:
                 length += int(self._formats[attribute][:-1])
         return length
@@ -553,8 +583,8 @@ class NITFSecurityTags(HeaderScraper):
     _defaults = {
         'CLAS': 'U', 'CLSY': '\x20', 'CODE': '\x20', 'CTLH': '\x20',
         'REL': '\x20', 'DCTP': '\x20', 'DCDT': '\x20', 'DCXM': '\x20',
-        'DG': '\x20', 'CLTX': '\x20', 'CAPT': '\x20', 'CAUT': '\x20',
-        'CRSN': '\x20', 'SRDT': '\x20', 'CTLN': '\x20'}
+        'DG': '\x20', 'DGDT': '\x20', 'CLTX': '\x20', 'CAPT': '\x20',
+        'CAUT': '\x20', 'CRSN': '\x20', 'SRDT': '\x20', 'CTLN': '\x20'}
 
 
 class NITFHeader(HeaderScraper):
@@ -580,9 +610,9 @@ class NITFHeader(HeaderScraper):
         'HL': 338, 'NUMS': 0, 'NUMX': 0, 'NUMRES': 0}
     _types = {
         '_Security': NITFSecurityTags,
-        '_ImageSegments': ItemArrayHeaders,
-        '_TextSegments': ItemArrayHeaders,
-        '_DataExtensions': ItemArrayHeaders,
+        '_ImageSegments': _ItemArrayHeaders,
+        '_TextSegments': _ItemArrayHeaders,
+        '_DataExtensions': _ItemArrayHeaders,
         '_UserHeader': OtherHeader,
         '_ExtendedHeader': OtherHeader, }
     _args = {
@@ -603,7 +633,7 @@ class NITFHeader(HeaderScraper):
         self.set_attribute('_Security', value)
 
     @property
-    def ImageSegments(self):  # type: () -> ItemArrayHeaders
+    def ImageSegments(self):  # type: () -> _ItemArrayHeaders
         return self._ImageSegments
 
     @ImageSegments.setter
@@ -611,7 +641,7 @@ class NITFHeader(HeaderScraper):
         self.set_attribute('_ImageSegments', value)
 
     @property
-    def TextSegments(self):  # type: () -> ItemArrayHeaders
+    def TextSegments(self):  # type: () -> _ItemArrayHeaders
         return self._TextSegments
 
     @TextSegments.setter
@@ -619,7 +649,7 @@ class NITFHeader(HeaderScraper):
         self.set_attribute('_TextSegments', value)
 
     @property
-    def DataExtensions(self):  # type: () -> ItemArrayHeaders
+    def DataExtensions(self):  # type: () -> _ItemArrayHeaders
         return self._DataExtensions
 
     @DataExtensions.setter
@@ -699,6 +729,7 @@ class ImageSegmentHeader(HeaderScraper):
 
 
 class SICDDESSubheader(HeaderScraper):
+    """The SICD Data Extension header - described in SICD standard 2014-09-30, Volume II, page 29"""
     __slots__ = (
         'DESCRC', 'DESSHFT', 'DESSHDT',
         'DESSHRP', 'DESSHSI', 'DESSHSV', 'DESSHSD',
@@ -712,8 +743,9 @@ class SICDDESSubheader(HeaderScraper):
         'DESSHABS': '200s', }
     _defaults = {
         'DESCRC': 99999, 'DESSHFT': 'XML',
-        'DESSHRP': '\x20', 'DESSHSI': 'SICD Volume 1 Design & Implementation Description Document',
-        'DESSHSV': '1.1', 'DESSHSD': '2014-09-30T00:00:00Z', 'DESSHTN': 'urn:SICD:1.1.0',
+        'DESSHRP': '\x20', 'DESSHSI': SPECIFICATION_IDENTIFIER,
+        'DESSHSV': SPECIFICATION_VERSION, 'DESSHSD': SPECIFICATION_DATE,
+        'DESSHTN': SPECIFICATION_NAMESPACE,
         'DESSHLPT': '\x20', 'DESSHLI': '\x20', 'DESSHLIN': '\x20',
         'DESSHABS': '\x20', }
 
@@ -1001,11 +1033,11 @@ class MultiSegmentChipper(BaseChipper):
     We must have a parser to transparently extract data between this collection of image segments.
     """
     __slots__ = ('_file_name', '_data_size', '_dtype', '_complex_out',
-                 '_symmetry', '_swap_bytes', '_row_starts', '_row_ends',
+                 '_symmetry', '_row_starts', '_row_ends',
                  '_bands_ip', '_child_chippers')
 
     def __init__(self, file_name, data_sizes, data_offsets, data_type, symmetry=None,
-                 complex_type=True, swap_bytes=False, bands_ip=1):
+                 complex_type=True, bands_ip=1):
         """
 
         Parameters
@@ -1022,8 +1054,6 @@ class MultiSegmentChipper(BaseChipper):
             See `BaseChipper` for description of 3 element tuple of booleans.
         complex_type : callable|bool
             See `BaseChipper` for description of `complex_type`
-        swap_bytes : bool
-            are the endian-ness of the os and file different?
         bands_ip : int
             number of bands - this will always be one for sicd.
         """
@@ -1033,6 +1063,7 @@ class MultiSegmentChipper(BaseChipper):
         if not (len(data_sizes.shape) == 2 and data_sizes.shape[1] == 2):
             raise ValueError('data_sizes must be an Nx2 numpy.ndarray, not shape {}'.format(data_sizes.shape))
         if not numpy.all(data_sizes[0, :] == data_sizes[0, 1]):
+            # TODO: account for things broken up along more than just row order
             raise ValueError(
                 'SICDs are broken up by row only, so the the second column of data_sizes '
                 'must be have constant value {}'.format(data_sizes))
@@ -1058,8 +1089,7 @@ class MultiSegmentChipper(BaseChipper):
         # child chippers, which will read from their respective image segments
         self._child_chippers = tuple(
             BIPChipper(file_name, data_type, img_siz, symmetry=symmetry,
-                       complex_type=complex_type, data_offset=img_off,
-                       swap_bytes=swap_bytes, bands_ip=bands_ip)
+                       complex_type=complex_type, data_offset=img_off, bands_ip=bands_ip)
             for img_siz, img_off in zip(data_sizes, data_offsets))
 
         self._row_starts = numpy.zeros((data_sizes.shape[0], ), dtype=numpy.int64)
@@ -1091,6 +1121,45 @@ class MultiSegmentChipper(BaseChipper):
                 else:
                     out[:, row_bool, :] = child_chipper(crange1, range2)
         return out
+
+
+class SICDReader(BaseReader):
+    __slots__ = ('_nitf_details', '_sicd_meta', '_chipper')
+
+    def __init__(self, file_name):
+        self._nitf_details = NITFDetails(file_name)
+        if not self._nitf_details.is_sicd:
+            raise ValueError(
+                'The input file passed in appears to be a NITF 2.1 file that does not contain valid sicd metadata.')
+
+        self._sicd_meta = self._nitf_details.sicd_meta
+
+        pixel_type = self._sicd_meta.ImageData.PixelType
+        complex_type = True
+        # NB: SICDs are required to be stored as big-endian, so the endian-ness of the memmap must be explicit
+        if pixel_type == 'RE32F_IM32F':
+            dtype = numpy.dtype('>f4')  # big-endian float32
+        elif pixel_type == 'RE16I_IM16I':
+            dtype = numpy.dtype('>i2')  # big-endian int16
+        elif pixel_type == 'AMP8I_PHS8I':
+            dtype = numpy.dtype('>u1')  # big-endian uint8
+            complex_type = amp_phase_to_complex(self._sicd_meta.ImageData.AmpTable)
+            # TODO: is the above correct?
+            # raise ValueError('Pixel Type `AMP8I_PHS8I` is not currently supported.')
+        else:
+            raise ValueError('Pixel Type {} not recognized.'.format(pixel_type))
+
+        data_sizes = numpy.column_stack(
+            (self._nitf_details.img_segment_rows, self._nitf_details.img_segment_columns), dtype=numpy.int64)
+        # TODO: account for things broken up along more than just rows
+        # SICDs require no symmetry reorientation
+        symmetry = (False, False, False)
+        # construct our chipper
+        chipper = MultiSegmentChipper(
+            file_name, data_sizes, self._nitf_details.img_segment_rows.copy(), dtype,
+            symmetry=symmetry, complex_type=complex_type, bands_ip=1)
+
+        super(SICDReader, self).__init__(self._sicd_meta, chipper)
 
 
 def complex_to_amp_phase(lookup_table):
@@ -1148,6 +1217,7 @@ def complex_to_int(data):
     numpy.ndarray
     """
 
+    # TODO: this is naive. Scaling down to 16-bit limits requires thought.
     if not isinstance(data, numpy.ndarray):
         raise ValueError('Requires a numpy.ndarray, got {}'.format(type(data)))
     if data.dtype not in (numpy.complex64, numpy.complex128):
@@ -1172,47 +1242,77 @@ def complex_to_int(data):
     return out
 
 
-class SICDReader(BaseReader):
-    __slots__ = ('_nitf_details', '_sicd_meta', '_chipper')
+class SICDWriter(BaseWriter):
+    __slots__ = (
+        '_file_name', '_sicd_meta', '_pixel_size', '_dtype',
+        '_security_tags', '_nitf_header', '_image_segment_headers',
+        '_data_extension_header')
+    _IM_SEG_LIMIT = 10**10-2  # as big as can be stored in 10 digits, given at least 2 bytes per pixel
+    _DIM_LIMIT = 10**5-1  # as big as can be stored in 5 digits
 
-    def __init__(self, file_name):
-        self._nitf_details = NITFDetails(file_name)
-        if not self._nitf_details.is_sicd:
-            raise ValueError(
-                'The input file passed in appears to be a NITF 2.1 file that does not contain valid sicd metadata.')
+    def __init__(self, file_name, sicd_meta):
+        if not isinstance(sicd_meta, SICDType):
+            raise ValueError('sicd_meta is required to be an instance of SICDType, got {}'.format(type(sicd_meta)))
 
-        self._sicd_meta = self._nitf_details.sicd_meta
+        self._file_name = file_name
+        self._sicd_meta = sicd_meta
+
+        if self._sicd_meta.ImageData is None:
+            raise ValueError('The sicd_meta has un-populated ImageData, and nothing useful can be inferred.')
+        if self._sicd_meta.ImageData.PixelType is None:
+            logging.warning('The PixelType for sicd_meta is unset, so defaulting to RE32F_IM32F.')
+            self._sicd_meta.ImageData.PixelType = 'RE32F_IM32F'
 
         pixel_type = self._sicd_meta.ImageData.PixelType
         complex_type = True
+        # NB: SICDs are required to be stored as big-endian, so the endian-ness of the memmap must be explicit
         if pixel_type == 'RE32F_IM32F':
-            dtype = numpy.float32
+            self._dtype = numpy.dtype('>f4')  # big-endian float32
         elif pixel_type == 'RE16I_IM16I':
-            dtype = numpy.int16
-        elif pixel_type == 'AMP8I_PHS8I':
-            dtype = numpy.uint8
-            complex_type = amp_phase_to_complex(self._sicd_meta.ImageData.AmpTable)
-            # TODO: is the above correct?
-            # raise ValueError('Pixel Type `AMP8I_PHS8I` is not currently supported.')
-        else:
-            raise ValueError('Pixel Type {} not recognized.'.format(pixel_type))
+            self._dtype = numpy.dtype('>i2')  # big-endian int16
+            complex_type = complex_to_int
+        else:  # pixel_type == 'AMP8I_PHS8I':
+            self._dtype = numpy.dtype('>u1')  # big-endian uint8
+            complex_type = complex_to_amp_phase(self._sicd_meta.ImageData.AmpTable)
 
-        data_sizes = numpy.column_stack(
-            (self._nitf_details.img_segment_rows, self._nitf_details.img_segment_columns), dtype=numpy.int64)
-        # SICDs are required to be stored as big-endian
-        swap_bytes = (sys.byteorder != 'big')
-        # SICDs require no symmetry reorientation
-        symmetry = (False, False, False)
-        # construct our chipper
-        chipper = MultiSegmentChipper(
-            file_name, data_sizes, self._nitf_details.img_segment_rows.copy(), dtype,
-            symmetry=symmetry, complex_type=complex_type, swap_bytes=swap_bytes, bands_ip=1)
+        # TODO: define image segmentation
+        # define _security_tags
+        self._security_tags = self._default_security_tags()
+        # TODO: define _nitf_header
+        # Attributes ['CLEVEL', 'OSTAID', 'FDT', 'FTITLE', 'FL'] of class NITFHeader
 
-        super(SICDReader, self).__init__(self._sicd_meta, chipper)
+        # TODO: define _image_segment_headers
 
+        # TODO: define _data_extension_header
 
-class SICDWriter(BaseWriter):
-    pass
+        # set up the chipper situation
 
+    @property
+    def security_tags(self):  # type: () -> NITFSecurityTags
+        return self._security_tags
 
-# TODO: complete SICDWriter - make sure it's coherent
+    @property
+    def nitf_header(self):  # type: () -> NITFHeader
+        return self._nitf_header
+
+    @property
+    def image_segment_headers(self):  # type: () -> List[ImageSegmentHeader]
+        return self._image_segment_headers
+
+    @property
+    def data_extension_header(self):  # type: () -> DataExtensionHeader
+        return self._data_extension_header
+
+    def _default_security_tags(self):
+        sec = NITFSecurityTags()
+        if self._sicd_meta.CollectionInfo is not None:
+            sec.CLAS = self._sicd_meta.CollectionInfo.Classification[0]
+            code = re.search('(?<=/)[^/].*', self._sicd_meta.CollectionInfo.Classification)
+            if code is not None:
+                sec.CODE = code.group()
+        return sec
+
+    def write_chip(self, data, start_indices):
+        # TODO: push more generic capability into BaseWriter.
+        #   this is sort of the only writer.
+        raise NotImplementedError

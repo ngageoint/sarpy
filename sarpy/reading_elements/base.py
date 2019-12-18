@@ -56,7 +56,7 @@ class BaseChipper(object):
             raise ValueError('complex-type must be a boolean or a callable')
         self._complex_type = complex_type
 
-        if not isinstance(data_size, tuple):
+        if not isinstance(data_size, tuple):  # TODO: band handling?
             data_size = tuple(data_size)
         if len(data_size) != 2:
             raise ValueError(
@@ -352,7 +352,7 @@ class BaseReader(object):
 
 
 class BaseWriter(object):
-    """Abstract file writer class"""
+    """Abstract file writer class for SICD data"""
     __slots__ = ('_sicd_meta', )
 
     # TODO: establish more generic capability?
@@ -362,5 +362,4 @@ class BaseWriter(object):
         return self._sicd_meta
 
     def write_chip(self, data, start_indices):
-        # TODO: document
         raise NotImplementedError
