@@ -5,6 +5,7 @@ data stored in *Band Interleaved By Pixel (BIP)* format.
 """
 
 import os
+import logging
 
 import numpy
 
@@ -42,7 +43,7 @@ class BIPChipper(BaseChipper):
         data_offset : int
             byte offset from the start of the file at which the data actually starts
         swap_bytes : bool
-            are the endian-ness of the os and file different?
+            swap the byte order of the data after reading, i.e. endian-ness of the os and file different
         bands_ip : int
             number of bands - really intended for complex data
         """
@@ -83,12 +84,47 @@ class BIPChipper(BaseChipper):
 
 
 class BIPWriter(object):
-    """Work in progress carried over from legacy."""
-    # TODO: what should be improved here?
-    #   This is much more limited than the reader.
+    """
+    For writing the SICD data into the NITF container. This is abstracted generally
+    because an array of these writers is used for multi-image segment NITF files.
+    That is, SICD with enough rows/columns.
+    """
 
-    def __init__(self, file_name, data_size, data_type, complex_type, data_offset=0):
-        # TODO: swap_bytes argument?
+    def __init__(self, file_name, data_size, data_type, complex_type,
+                 data_offset=0, swap_bytes=False):
+        """
+        For writing the SICD data into the NITF container. This is abstracted generally
+        because an array of these writers is used for multi-image segment NITF files.
+        That is, SICD with enough rows/columns.
+
+        Parameters
+        ----------
+        file_name : str
+            the file_name
+        data_size : tuple
+            the shape of the form (rows, cols)
+        data_type : numpy.dtype
+            the underlying data type of the output data.
+        complex_type : callable|bool
+            For complex type handling.
+
+            * If callable, then this is expected to transform the complex data
+              to the raw data. A ValueError will be raised if the data type of
+              the output doesn't match `data_type`. By the sicd standard,
+              `data_type` should be int16 or uint8.
+
+            * If `True`, then the data is dtype complex128 or complex64, and will
+              be written out to raw after appropriate manipulation. This requires
+              that `data_type` is float32 - for the sicd standard.
+
+            * If `False`, the then data will be written directly to raw. A ValueError
+              will be raised if the data type of the data to be written doesn't
+              match `data_type`.
+        data_offset : int
+            byte offset from the start of the file at which the data actually starts
+        swap_bytes : bool
+            swap the byte order of the data when writing, i.e. endian-ness of the os and file different
+        """
 
         if not isinstance(data_size, tuple):
             data_size = tuple(data_size)
@@ -101,13 +137,28 @@ class BIPWriter(object):
         self._data_size = data_size
 
         self._data_type = numpy.dtype(data_type)
-        self._complex_type = bool(complex_type)
-        self._data_offset = int(data_offset)
+        if not (isinstance(complex_type, bool) or callable(complex_type)):
+            raise ValueError('complex-type must be a boolean or a callable')
+        self._complex_type = complex_type
+
+        if self._complex_type is True:
+            raise ValueError(
+                'complex_type = `True`, which requires that data for writing has '
+                'dtype complex64/128, and output is written as float32 (data_type). '
+                'data_type is given as {}.'.format(data_type))
+        if callable(self._complex_type) and self._data_type not in (numpy.uint8, numpy.int16):
+            raise ValueError(
+                'complex_type is callable, which requires that dtype complex64/128, '
+                'and output is written as uint8 or uint16. '
+                'data_type is given as {}.'.format(data_type))
+
         self._file_name = file_name
-        if self._complex_type:
-            self._shape = (self._data_size[0], self._data_size[1]*2)  # make bands at end
-        else:
+        self._data_offset = int(data_offset)
+        self._swap_bytes = swap_bytes
+        if self._complex_type is False:
             self._shape = self._data_size
+        else:
+            self._shape = (self._data_size[0], self._data_size[1], 2)
 
         self._memory_map = numpy.memmap(self._file_name,
                                         dtype=self._data_type,
@@ -117,6 +168,7 @@ class BIPWriter(object):
 
     def __call__(self, data, start_indices=(0, 0)):
         """
+        Write the specified data.
 
         Parameters
         ----------
@@ -128,16 +180,45 @@ class BIPWriter(object):
         None
         """
 
-        # TODO: fix complex type to permit a callable, in keeping with the above
-        if self._complex_type:
-            start_indices = (start_indices[0], 2*start_indices[1])  # TODO: explicitly make bands at end
-            if data.dtype.name != 'complex64':
+        if not isinstance(data, numpy.ndarray):
+            raise TypeError('Requires data is a numpy.ndarray, got {}'.format(type(data)))
+
+        start1, stop1 = start_indices[0], start_indices[0] + data.shape[0]
+        start2, stop2 = start_indices[1], start_indices[1] + data.shape[1]
+
+        # make sure we are using the proper data ordering for memory map
+        if not data.flags.c_contiguous:
+            data = numpy.ascontiguousarray(data)
+
+        if self._complex_type is False:
+            if data.dtype != self._data_type:
+                raise ValueError(
+                    'Writer expects data type {}, and got data of type {}.'.format(self._data_type, data.dtype))
+            # The data should be suitable to directly write.
+            # numpy should handles data type issues - this may have unfortunate consequences?
+            if self._swap_bytes:
+                self._memory_map[start1:stop1, start2:stop2] = data.byteswap(inplace=False)
+            else:
+                self._memory_map[start1:stop1, start2:stop2] = data
+        elif callable(self._complex_type):
+            new_data = self._complex_type(data)
+            if new_data.dtype != self._data_type:
+                raise ValueError(
+                    'Writer expects data type {}, and got data of type {} from the '
+                    'callable method complex_type.'.format(self._data_type, new_data.dtype))
+            if self._swap_bytes:
+                new_data.byteswap(inplace=True)
+            self._memory_map[start1:stop1, start2:stop2, :] = new_data
+        else:  # complex_type is True
+            if data.dtype not in (numpy.complex64, numpy.complex128):
+                raise ValueError(
+                    'Writer expects data type {}, and got data of type {} from the '
+                    'callable method complex_type.'.format(self._data_type, data.dtype))
+            if data.dtype != numpy.complex64:
                 data = data.astype(numpy.complex64)
-            if not data.flags.c_contiguous:
-                data = numpy.ascontiguousarray(data)  # can't memory map otherwise?
-            data_view = data.view(numpy.float32)  # now shape = (rows, cols*2)
-        else:
-            data_view = data.view()
-        start1, stop1 = start_indices[0], start_indices[0]+data_view.shape[0]
-        start2, stop2 = start_indices[1], start_indices[1]+data_view.shape[1]
-        self._memory_map[start1:stop1, start2:stop2] = data_view
+
+            data_view = data.view(numpy.float32).reshape((data.shape[0], data.shape[1], 2))
+            if self._swap_bytes:
+                self._memory_map[start1:stop1, start2:stop2, :] = data_view.byteswap(inplace=False)
+            else:
+                self._memory_map[start1:stop1, start2:stop2, :] = data_view

@@ -51,6 +51,9 @@ class BaseChipper(object):
             components are stored in adjacent bands, which will be combined into a
             single band upon extraction.
         """
+
+        if not (isinstance(complex_type, bool) or callable(complex_type)):
+            raise ValueError('complex-type must be a boolean or a callable')
         self._complex_type = complex_type
 
         if not isinstance(data_size, tuple):
