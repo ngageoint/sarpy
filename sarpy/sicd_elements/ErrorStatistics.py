@@ -17,6 +17,7 @@ class CompositeSCPErrorType(Serializable):
     """
     _fields = ('Rg', 'Az', 'RgAz')
     _required = _fields
+    _numeric_format = {key: '0.10G' for key in _fields}
     # descriptors
     Rg = _FloatDescriptor(
         'Rg', _required, strict=DEFAULT_STRICT,
@@ -48,6 +49,7 @@ class CorrCoefsType(Serializable):
         'P1P2', 'P1P3', 'P1V1', 'P1V2', 'P1V3', 'P2P3', 'P2V1', 'P2V2', 'P2V3',
         'P3V1', 'P3V2', 'P3V3', 'V1V2', 'V1V3', 'V2V3')
     _required = _fields
+    _numeric_format = {key: '0.10G' for key in _fields}
     # descriptors
     P1P2 = _FloatDescriptor(
         'P1P2', _required, strict=DEFAULT_STRICT, docstring='`P1` and `P2` correlation coefficient.')  # type: float
@@ -118,6 +120,7 @@ class PosVelErrType(Serializable):
     """Position and velocity error statistics for the radar platform."""
     _fields = ('Frame', 'P1', 'P2', 'P3', 'V1', 'V2', 'V3', 'CorrCoefs', 'PositionDecorr')
     _required = ('Frame', 'P1', 'P2', 'P3', 'V1', 'V2', 'V3')
+    _numeric_format = {'P1': '0.10G', 'P2': '0.10G', 'P3': '0.10G', 'V1': '0.10G', 'V2': '0.10G', 'V3': '0.10G'}
     # class variables
     _FRAME_VALUES = ('ECF', 'RIC_ECF', 'RIC_ECI')
     # descriptors
@@ -173,6 +176,7 @@ class RadarSensorErrorType(Serializable):
     """Radar sensor error statistics."""
     _fields = ('RangeBias', 'ClockFreqSF', 'TransmitFreqSF', 'RangeBiasDecorr')
     _required = ('RangeBias', )
+    _numeric_format = {'RangeBias': '0.10G', 'ClockFreqSF': '0.10G', 'TransmitFreqSF': '0.10G'}
     # descriptors
     RangeBias = _FloatDescriptor(
         'RangeBias', _required, strict=DEFAULT_STRICT,
@@ -207,6 +211,7 @@ class TropoErrorType(Serializable):
     """Troposphere delay error statistics."""
     _fields = ('TropoRangeVertical', 'TropoRangeSlant', 'TropoRangeDecorr')
     _required = ()
+    _numeric_format = {'TropoRangeVertical': '0.10G', 'TropoRangeSlant': '0.10G'}
     # descriptors
     TropoRangeVertical = _FloatDescriptor(
         'TropoRangeVertical', _required, strict=DEFAULT_STRICT,
@@ -239,6 +244,7 @@ class IonoErrorType(Serializable):
     """Ionosphere delay error statistics."""
     _fields = ('IonoRangeVertical', 'IonoRangeSlant', 'IonoRgRgRateCC', 'IonoRangeDecorr')
     _required = ('IonoRgRgRateCC', )
+    _numeric_format = {'IonoRangeVertical': '0.10G', 'IonoRangeSlant': '0.10G', 'IonoRgRgRateCC': '0.10G'}
     # descriptors
     IonoRangeVertical = _FloatDescriptor(
         'IonoRangeVertical', _required, strict=DEFAULT_STRICT,

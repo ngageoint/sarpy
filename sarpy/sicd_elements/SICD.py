@@ -207,7 +207,7 @@ class SICDType(Serializable):
     def _validate_image_form(self):  # type: () -> bool
         if self.ImageFormation is None:
             logging.error(
-                'ImageFormation attribute is not populated, and ImagFormType is {}. This '
+                'ImageFormation attribute is not populated, and ImageFormType is {}. This '
                 'cannot be valid.'.format(self.ImageFormType))
             return False  # nothing more to be done.
 
@@ -227,12 +227,12 @@ class SICDType(Serializable):
                 # TODO: is this correct?
                 logging.warning(
                     'ImageFormation.ImageFormAlgo is not set, and there is no corresponding RgAzComp, PFA, or RMA '
-                    'SICD parameters. Setting it to "OTHER".'.format(self.ImageFormation.ImageFormAlgo))
+                    'SICD parameters set. Setting ImageFormAlgo to "OTHER".'.format(self.ImageFormation.ImageFormAlgo))
                 self.ImageFormation.ImageFormAlgo = 'OTHER'
                 return True
             elif self.ImageFormation.ImageFormAlgo != 'OTHER':
                 logging.error(
-                    'No RgAzComp, PFA, or RMA SICD parameters exist, but ImageFormation.ImageFormAlgo '
+                    'No RgAzComp, PFA, or RMA SICD parameters populated, but ImageFormation.ImageFormAlgo '
                     'is set as {}.'.format(self.ImageFormation.ImageFormAlgo))
                 return False
             return True
@@ -241,7 +241,7 @@ class SICDType(Serializable):
                 return True
             elif self.ImageFormation.ImageFormAlgo is None:
                 logging.warning(
-                    'Image formation algorithm(s) {} is populated, but ImageFormation.ImageFormAlgo was not set. '
+                    'Image formation algorithm(s) {} populated, but ImageFormation.ImageFormAlgo was not set. '
                     'ImageFormation.ImageFormAlgo has been set.'.format(alg_types[0]))
                 self.ImageFormation.ImageFormAlgo = alg_types[0].upper()
                 return True

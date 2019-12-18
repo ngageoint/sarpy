@@ -3,7 +3,6 @@
 The GeoData definition.
 """
 
-
 import logging
 from typing import List, Union
 

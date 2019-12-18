@@ -184,8 +184,8 @@ class DirParamType(Serializable):
         'WgtType', 'WgtFunct')
     _required = ('UVectECF', 'SS', 'ImpRespWid', 'Sgn', 'ImpRespBW', 'KCtr', 'DeltaK1', 'DeltaK2')
     _numeric_format = {
-        'SS': '0.8f', 'ImpRespWid': '0.8f', 'Sgn': '+d', 'ImpRespBW': '0.8f', 'KCtr': '0.8f',
-        'DeltaK1': '0.8f', 'DeltaK2': '0.8f'}
+        'SS': '0.10G', 'ImpRespWid': '0.10G', 'Sgn': '+d', 'ImpRespBW': '0.10G', 'KCtr': '0.10G',
+        'DeltaK1': '0.10G', 'DeltaK2': '0.10G', 'WgtFunct': '0.10G'}
     _collections_tags = {'WgtFunct': {'array': True, 'child_tag': 'Wgt'}}
     # descriptors
     UVectECF = _UnitVectorDescriptor(

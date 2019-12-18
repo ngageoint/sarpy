@@ -28,7 +28,7 @@ class XYZType(Serializable, Arrayable):
     """A spatial point in ECF coordinates."""
     _fields = ('X', 'Y', 'Z')
     _required = _fields
-    _numeric_format = {}  # TODO: desired precision? 'X': '0.8f', 'Y': '0.8f', 'Z': '0.8f'
+    _numeric_format = {'X': '0.4f', 'Y': '0.4f', 'Z': '0.4f'}
     # descriptors
     X = _FloatDescriptor(
         'X', _required, strict=True,
@@ -96,7 +96,7 @@ class LatLonType(Serializable, Arrayable):
     """A two-dimensional geographic point in WGS-84 coordinates."""
     _fields = ('Lat', 'Lon')
     _required = _fields
-    _numeric_format = {'Lat': '2.8f', 'Lon': '3.8f'}
+    _numeric_format = {'Lat': '0.8f', 'Lon': '0.8f'}
     # descriptors
     Lat = _FloatDescriptor(
         'Lat', _required, strict=True,
@@ -165,7 +165,7 @@ class LatLonArrayElementType(LatLonType):
     _fields = ('Lat', 'Lon', 'index')
     _required = _fields
     _set_as_attribute = ('index', )
-    _numeric_format = {'Lat': '2.8f', 'Lon': '3.8f'}
+    _numeric_format = {'Lat': '0.8f', 'Lon': '0.8f'}
     index = _IntegerDescriptor(
         'index', _required, strict=False, docstring="The array index")  # type: int
 
@@ -209,7 +209,7 @@ class LatLonRestrictionType(LatLonType):
     """A two-dimensional geographic point in WGS-84 coordinates."""
     _fields = ('Lat', 'Lon')
     _required = _fields
-    _numeric_format = {'Lat': '2.8f', 'Lon': '3.8f'}
+    _numeric_format = {'Lat': '0.8f', 'Lon': '0.8f'}
     # descriptors
     Lat = _FloatModularDescriptor(
         'Lat', 90.0, _required, strict=True,
@@ -229,12 +229,34 @@ class LatLonRestrictionType(LatLonType):
 
         super(LatLonRestrictionType, self).__init__(Lat=Lat, Lon=Lon, **kwargs)
 
+    @classmethod
+    def from_array(cls, array):
+        """
+        Create from an array type entry.
+
+        Parameters
+        ----------
+        array: numpy.ndarray|list|tuple
+            assumed [Lat, Lon]
+        index : int
+            array index
+        Returns
+        -------
+        LatLonRestrictionType
+        """
+
+        if isinstance(array, (numpy.ndarray, list, tuple)):
+            if len(array) < 2:
+                raise ValueError('Expected array to be of length 2, and received {}'.format(array))
+            return cls(Lat=array[0], Lon=array[1])
+        raise ValueError('Expected array to be numpy.ndarray, list, or tuple, got {}'.format(type(array)))
+
 
 class LatLonHAEType(LatLonType):
     """A three-dimensional geographic point in WGS-84 coordinates."""
     _fields = ('Lat', 'Lon', 'HAE')
     _required = _fields
-    _numeric_format = {'Lat': '2.8f', 'Lon': '3.8f', 'HAE': '0.8f'}
+    _numeric_format = {'Lat': '0.8f', 'Lon': '0.8f', 'HAE': '0.6f'}
     # descriptors
     HAE = _FloatDescriptor(
         'HAE', _required, strict=True,
@@ -319,6 +341,27 @@ class LatLonHAERestrictionType(LatLonHAEType):
         """
 
         super(LatLonHAERestrictionType, self).__init__(Lat=Lat, Lon=Lon, HAE=HAE, **kwargs)
+
+    @classmethod
+    def from_array(cls, array):
+        """
+        Create from an array type entry.
+
+        Parameters
+        ----------
+        array: numpy.ndarray|list|tuple
+            assumed [Lat, Lon, HAE]
+
+        Returns
+        -------
+        LatLonHAERestrictionType
+        """
+
+        if isinstance(array, (numpy.ndarray, list, tuple)):
+            if len(array) < 3:
+                raise ValueError('Expected array to be of length 3, and received {}'.format(array))
+            return cls(Lat=array[0], Lon=array[1], HAE=array[2])
+        raise ValueError('Expected array to be numpy.ndarray, list, or tuple, got {}'.format(type(array)))
 
 
 class LatLonCornerType(LatLonType):
@@ -629,7 +672,7 @@ class Poly1DType(Serializable, Arrayable):
     __slots__ = ('_coefs', )
     _fields = ('Coefs', 'order1')
     _required = ('Coefs', )
-    _numeric_format = {'Coefs': '0.8f'}
+    _numeric_format = {'Coefs': '0.10G'}
 
     def __init__(self, Coefs=None, **kwargs):
         """
@@ -908,7 +951,7 @@ class Poly2DType(Serializable, Arrayable):
     __slots__ = '_coefs'
     _fields = ('Coefs', 'order1', 'order2')
     _required = ('Coefs', )
-    _numeric_format = {'Coefs': '0.8f'}
+    _numeric_format = {'Coefs': '0.10G'}
 
     def __init__(self, Coefs=None, **kwargs):
         """
@@ -1399,7 +1442,7 @@ class ErrorDecorrFuncType(Serializable):
 
     _fields = ('CorrCoefZero', 'DecorrRate')
     _required = _fields
-    _numeric_format = {'CorrCoefZero': '0.8f', 'DecorrRate': '0.8f'}
+    _numeric_format = {'CorrCoefZero': '0.10G', 'DecorrRate': '0.10G'}
     # descriptors
     CorrCoefZero = _FloatDescriptor(
         'CorrCoefZero', _required, strict=True,

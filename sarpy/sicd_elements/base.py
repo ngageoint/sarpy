@@ -1216,7 +1216,7 @@ class Serializable(object):
             present = (getattr(self, attribute) is not None)
             if not present:
                 logging.error(
-                    "Class {} has missing required attribute {}".format(self.__class__.__name__, attribute))
+                    "Class {} is missing required attribute {}".format(self.__class__.__name__, attribute))
             all_required &= present
 
         choices = True
@@ -1230,12 +1230,12 @@ class Serializable(object):
                     present.append(attribute)
             if len(present) == 0 and required:
                 logging.error(
-                    "Class {} has requires that exactly one of the attributes {} is set, but none are "
+                    "Class {} requires that exactly one of the attributes {} is set, but none are "
                     "set.".format(self.__class__.__name__, collect))
                 choices = False
             elif len(present) > 1:
                 logging.error(
-                    "Class {} has requires that no more than one of attributes {} is set, but multiple {} are "
+                    "Class {} requires that no more than one of attributes {} is set, but multiple {} are "
                     "set.".format(self.__class__.__name__, collect, present))
                 choices = False
 
@@ -1605,6 +1605,7 @@ class Serializable(object):
 ##########
 #  Some basic collections classes
 
+
 class Arrayable(object):
     """Abstract class specifying basic functionality for assigning from/to an array"""
 
@@ -1641,7 +1642,7 @@ class Arrayable(object):
 
 class SerializableArray(object):
     __slots__ = ('_child_tag', '_child_type', '_array', '_name', '_minimum_length', '_maximum_length')
-    # TODO: make an iterator? I think it gets inferred from
+    # TODO: make an iterator? I think it gets inferred.
     _default_minimum_length = 0
     _default_maximum_length = 2**32
 
