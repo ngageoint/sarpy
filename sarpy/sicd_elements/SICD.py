@@ -54,7 +54,7 @@ class SICDType(Serializable):
         'ImageCreation', ImageCreationType, _required, strict=DEFAULT_STRICT,
         docstring='General information about the image creation.')  # type: ImageCreationType
     ImageData = _SerializableDescriptor(
-        'ImageData', ImageDataType, _required, strict=DEFAULT_STRICT,
+        'ImageData', ImageDataType, _required, strict=True,  # it is senseless to not have this element
         docstring='The image pixel data.')  # type: ImageDataType
     GeoData = _SerializableDescriptor(
         'GeoData', GeoDataType, _required, strict=DEFAULT_STRICT,

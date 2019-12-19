@@ -1,17 +1,21 @@
 # -*- coding: utf-8 -*-
 
-import sys
 import re
 import logging
 from xml.etree import ElementTree
 from collections import OrderedDict
 from typing import Union
+import getpass
 
 import numpy
 
 from .base import BaseChipper, BaseReader, BaseWriter
 from .bip import BIPChipper
 from ..sicd_elements.SICD import SICDType
+from ..sicd_elements.ImageCreation import ImageCreationType
+from ..sicd_elements.blocks import LatLonType
+from ..__about__ import __title__, __release__
+
 
 ##########
 # Some hard coded defaults based on current SICD standard
@@ -26,6 +30,7 @@ SPECIFICATION_NAMESPACE = 'urn:SICD:1.1.0'
 ##########
 # NITF Header reading and writing objects
 #   splinter these into their own file
+
 
 class BaseScraper(object):
     """Describes the abstract functionality"""
@@ -160,8 +165,8 @@ class _ItemArrayHeaders(BaseScraper):
 
     def to_string(self):
         out = '{0:3d}'.format(self.subhead_sizes.size)
-        subh_frm = '{0:'+self.subhead_len + 'd}'
-        item_frm = '{0:' + self.item_len + 'd}'
+        subh_frm = '{0:'+str(self.subhead_len) + 'd}'
+        item_frm = '{0:' + str(self.item_len) + 'd}'
         for sh_off, it_off in zip(self.subhead_sizes, self.item_sizes):
             out += subh_frm.format(sh_off) + item_frm.format(it_off)
         return out
@@ -171,7 +176,7 @@ class ImageComments(BaseScraper):
     """Image comments in the image subheader"""
     __slots__ = ('comments', )
 
-    def __init__(self, comments):
+    def __init__(self, comments=None):
         if comments is None:
             self.comments = []
         else:
@@ -694,7 +699,7 @@ class ImageSegmentHeader(HeaderScraper):
         'NBPP': '2d', 'IDLVL': '3d', 'IALVL': '3d', 'ILOC': '10s',
         'IMAG': '4s', 'UDIDL': '5d', 'IXSHDL': '5d'}
     _defaults = {
-        'IM': 'IM', 'TGTIM': '\x20', 'ENCRYP': '0',
+        'IM': 'IM', 'TGTID': '\x20', 'ENCRYP': '0',
         'IREP': 'NODISPLY', 'ICAT': 'SAR', 'PJUST': 'R',
         'ICORDS': 'G', 'IC': 'NC', 'ISYNC': 0, 'IMODE': 'P',
         'NBPR': 1, 'NBPC': 1, 'IMAG': '1.0 ', 'UDIDL': 0, 'IXSHDL': 0}
@@ -1244,66 +1249,101 @@ def complex_to_int(data):
 
 class SICDWriter(BaseWriter):
     __slots__ = (
-        '_file_name', '_sicd_meta', '_pixel_size', '_dtype',
-        '_security_tags', '_nitf_header', '_image_segment_headers',
-        '_data_extension_header')
-    _IM_SEG_LIMIT = 10**10-2  # as big as can be stored in 10 digits, given at least 2 bytes per pixel
-    _DIM_LIMIT = 10**5-1  # as big as can be stored in 5 digits
+        '_file_name', '_sicd_meta', '_pixel_size', '_dtype', '_image_segment_limits',
+        '_security_tags', '_image_segment_headers', '_data_extension_header', '_nitf_header',
+        '_headers_locked')
+    _NITF_LIMIT = 10**12-1  # as big as can be stored in 12 digits
 
     def __init__(self, file_name, sicd_meta):
         if not isinstance(sicd_meta, SICDType):
             raise ValueError('sicd_meta is required to be an instance of SICDType, got {}'.format(type(sicd_meta)))
+        if sicd_meta.ImageData is None:
+            raise ValueError('The sicd_meta has un-populated ImageData, and nothing useful can be inferred.')
+        if sicd_meta.ImageData.PixelType is None:
+            logging.warning('The PixelType for sicd_meta is unset, so defaulting to RE32F_IM32F.')
+            sicd_meta.ImageData.PixelType = 'RE32F_IM32F'
+        # TODO: Verify - modify sicd_meta in place, or make copy?
+        # should probably set ImageCreation this way no matter what?
+        if self._sicd_meta.ImageCreation is None:
+            try:
+                profile = getpass.getuser()
+            except Exception:  # unsure what exception is raised
+                profile = None
+            self._sicd_meta.ImageCreation = ImageCreationType(
+                Application='{} {}'.format(__title__, __release__),
+                DateTime=numpy.datetime64('now'),
+                Profile=profile)
+        elif self._sicd_meta.ImageCreation.DateTime is None:
+            self._sicd_meta.ImageCreation.DateTime = numpy.datetime64('now')
 
         self._file_name = file_name
         self._sicd_meta = sicd_meta
-
-        if self._sicd_meta.ImageData is None:
-            raise ValueError('The sicd_meta has un-populated ImageData, and nothing useful can be inferred.')
-        if self._sicd_meta.ImageData.PixelType is None:
-            logging.warning('The PixelType for sicd_meta is unset, so defaulting to RE32F_IM32F.')
-            self._sicd_meta.ImageData.PixelType = 'RE32F_IM32F'
-
-        pixel_type = self._sicd_meta.ImageData.PixelType
-        complex_type = True
-        # NB: SICDs are required to be stored as big-endian, so the endian-ness of the memmap must be explicit
-        if pixel_type == 'RE32F_IM32F':
-            self._dtype = numpy.dtype('>f4')  # big-endian float32
-        elif pixel_type == 'RE16I_IM16I':
-            self._dtype = numpy.dtype('>i2')  # big-endian int16
-            complex_type = complex_to_int
-        else:  # pixel_type == 'AMP8I_PHS8I':
-            self._dtype = numpy.dtype('>u1')  # big-endian uint8
-            complex_type = complex_to_amp_phase(self._sicd_meta.ImageData.AmpTable)
-
-        # TODO: define image segmentation
         # define _security_tags
-        self._security_tags = self._default_security_tags()
-        # TODO: define _nitf_header
-        # Attributes ['CLEVEL', 'OSTAID', 'FDT', 'FTITLE', 'FL'] of class NITFHeader
+        self._security_tags = self.default_security_tags()
+        # get image segment details
+        self._pixel_size, self._dtype, complex_type, pv_type, isubcat, \
+            self._image_segment_limits = self._image_segment_details()
+        # define _image_segment_headers
+        self._image_segment_headers = self._create_image_segment_headers(pv_type, isubcat)
+        # define _data_extension_header
+        self._data_extension_header = self._create_data_extension_header()
+        # define _nitf_header
+        self._nitf_header = self._create_nitf_header()
+        # TODO: set up the chipper situation
 
-        # TODO: define _image_segment_headers
-
-        # TODO: define _data_extension_header
-
-        # set up the chipper situation
+        self._headers_locked = False
+        # initialize our final header containers
+        # initialize our checker for whether each image segment has been written
 
     @property
     def security_tags(self):  # type: () -> NITFSecurityTags
+        """
+        NITFSecurityTags: The NITF security tags, which will be constructed initially using
+        the :func:`default_security_tags` method. This object will be populated as the
+        `SecurityTags` property for `nitf_header`, each entry of `image_segment_headers`,
+        and `data_extension_header`. Changing any attributes here will change them in all
+        these locations.
+        """
+
         return self._security_tags
 
     @property
     def nitf_header(self):  # type: () -> NITFHeader
+        """
+        NITFHeader: The NITF header object. The `SecurityTags` property will be populated
+        using `security_tags` by default.
+        """
+
         return self._nitf_header
 
     @property
     def image_segment_headers(self):  # type: () -> List[ImageSegmentHeader]
+        """
+        tuple[ImageSegmentHeader]: The NITF image segment headers. Each entry will have
+        the `SecurityTags` property will be populated using `security_tags` by default.
+        """
+
         return self._image_segment_headers
 
     @property
     def data_extension_header(self):  # type: () -> DataExtensionHeader
+        """
+        DataExtensionHeader: the NITF data extension header. The `SecurityTags`
+        property will be populated using `security_tags` by default.
+        """
+
         return self._data_extension_header
 
-    def _default_security_tags(self):
+    def default_security_tags(self):
+        """
+        Returns the default NITF security tags object with `CLAS` and `CODE`
+        attributes set from the SICD.CollectionInfo.Classification value.
+
+        Returns
+        -------
+        NITFSecurityTags
+        """
+
         sec = NITFSecurityTags()
         if self._sicd_meta.CollectionInfo is not None:
             sec.CLAS = self._sicd_meta.CollectionInfo.Classification[0]
@@ -1311,6 +1351,170 @@ class SICDWriter(BaseWriter):
             if code is not None:
                 sec.CODE = code.group()
         return sec
+
+    def _image_segment_details(self):
+        pixel_type = self._sicd_meta.ImageData.PixelType  # required to be defined
+        # NB: SICDs are required to be stored as big-endian, so the endian-ness
+        #   of the memmap must be explicit
+        if pixel_type == 'RE32F_IM32F':
+            pv_type, isubcat = 'R', ('I', 'Q')
+            pixel_size = 8
+            dtype = numpy.dtype('>f4')  # big-endian float32
+            complex_type = True
+        elif pixel_type == 'RE16I_IM16I':
+            pv_type, isubcat = 'SI', ('I', 'Q')
+            pixel_size = 4
+            dtype = numpy.dtype('>i2')  # big-endian int16
+            complex_type = complex_to_int
+        else:  # pixel_type == 'AMP8I_PHS8I':
+            pv_type, isubcat = 'INT', ('M', 'P')
+            pixel_size = 2
+            dtype = numpy.dtype('>u1')  # big-endian uint8
+            complex_type = complex_to_amp_phase(self._sicd_meta.ImageData.AmpTable)
+
+        IM_SEG_LIMIT = 10**10 - 2  # as big as can be stored in 10 digits, given at least 2 bytes per pixel
+        DIM_LIMIT = 10**5 - 1  # as big as can be stored in 5 digits
+        IM_ROWS = self._sicd_meta.ImageData.NumRows  # required to be defined
+        IM_COLS = self._sicd_meta.ImageData.NumCols  # required to be defined
+        im_segments = []
+
+        row_offset = 0
+        col_offset = 0
+        col_limit = min(DIM_LIMIT, IM_COLS)
+        while (row_offset < IM_ROWS) or (col_offset < IM_COLS):
+            # determine row count, given row_offset, col_offset, and col_limit
+            # how many bytes per row for this column section
+            row_memory_size = (col_limit-col_offset)*pixel_size
+            # how many rows can we use
+            row_count = min(DIM_LIMIT, IM_ROWS-row_offset, int(IM_SEG_LIMIT/row_memory_size))
+            im_segment_size = pixel_size*row_count*(col_limit-col_offset)
+            im_segments.append((row_offset, row_offset + row_count, col_offset, col_limit, im_segment_size))
+            row_offset += row_count  # move the next row offset
+            if row_offset == IM_ROWS:
+                # move over to the next column section
+                col_offset = col_limit
+                col_limit = min(col_offset+DIM_LIMIT, IM_COLS)
+                row_offset = 0
+        # we now have [(row_start, row_stop, col_start, col_stop, size_in_bytes)]
+        #   following the python convention with starts inclusive, stops not inclusive
+        return pixel_size, dtype, complex_type, pv_type, isubcat, numpy.array(im_segments, dtype=numpy.int64)
+
+    def _create_image_segment_headers(self, pv_type, isubcat):
+        def get_corner_points_string(entry):
+            # entry = (row_start, row_stop, col_start, col_stop)
+            if icp is None:
+                return ''
+            const = 1./(rows*cols)
+            pattern = entry[numpy.array([(0, 2), (1, 2), (1, 4), (0, 4)], dtype=numpy.int64)]
+            out = []
+            for row, col in pattern:
+                pt = LatLonType.from_array(const*numpy.sum(icp.T*\
+                                           numpy.array([rows-row, row, row, rows-row])*\
+                                           numpy.array([cols-col, cols-col, col, col]), axis=0))
+                dms = pt.dms_format(frac_secs=False)
+                out.append('{0:2d}{1:2d}{2:2d}{3:s}'.format(*dms[0]) + '{0:3d}{1:2d}{2:2d}{3:s}'.format(*dms[1]))
+            return ''.join(out)
+
+        if self._sicd_meta.CollectionInfo is not None and self._sicd_meta.CollectionInfo.CoreName is not None:
+            ftitle = 'SICD: {}'.format(self._sicd_meta.CollectionInfo.CoreName)
+        else:
+            ftitle = 'SICD: Unknown'
+
+        idatim = ' '
+        if self._sicd_meta.Timeline is not None and self._sicd_meta.Timeline.CollectStart is not None:
+            idatim = re.sub(r'[^0-9]', '', str(self._sicd_meta.Timeline.CollectStart.astype('datetime64[s]')))
+
+        isource = 'SICD: Unknown Collector'
+        if self._sicd_meta.CollectionInfo is not None and self._sicd_meta.CollectionInfo.CollectorName is not None:
+            isource = 'SICD: {}'.format(self._sicd_meta.CollectionInfo.CollectorName)
+
+        icp, rows, cols = None, None, None
+        if self._sicd_meta.GeoData is not None and self._sicd_meta.GeoData.ImageCorners is not None:
+            icp = self._sicd_meta.GeoData.ImageCorners.get_array(dtype=numpy.float64)
+            rows = self._sicd_meta.ImageData.NumRows
+            cols = self._sicd_meta.ImageData.NumCols
+        abpp = 4*self._pixel_size
+        nppbh = 0 if rows > 8192 else rows
+        nppbv = 0 if cols > 8192 else cols
+        im_seg_heads = []
+        for i, entry in enumerate(self._image_segment_limits):
+            im_seg_heads.append(ImageSegmentHeader(
+                IID1='SICD{0:3d}'.format(0 if len(self._image_segment_limits) == 1 else i+1),
+                IDATIM=idatim,
+                IID2=ftitle,
+                ISORCE=isource,
+                NROWS=entry[1]-entry[0],
+                NCOLS=entry[3]-entry[2],
+                PVTYPE=pv_type,
+                ABPP=abpp,
+                IGEOLO=get_corner_points_string(entry),
+                NPPBH=nppbh,
+                NPPBV=nppbv,
+                NBPP=abpp,
+                IDLVL=i+1,
+                IALVL=i,
+                ILOC='{0:5d}{1:5d}'.format(entry[0], entry[2]),
+                ImageBands=ImageBands(ISUBCAT=isubcat),
+                Security=self._security_tags))
+        return tuple(im_seg_heads)
+
+    def _create_data_extension_header(self):
+        desshdt = str(self._sicd_meta.ImageCreation.DateTime.astype('datetime64[s]'))
+        if desshdt[-1] != 'Z':
+            desshdt += 'Z'
+        desshlpg = ' '
+        if self._sicd_meta.GeoData is not None and self._sicd_meta.GeoData.ImageCorners is not None:
+            icp = self._sicd_meta.GeoData.ImageCorners.get_array(dtype=numpy.float64)
+            temp = []
+            for entry in icp:
+                temp.append('{0:+2.8f}{1:+3.8f}'.format(entry[0], entry[1]))
+            temp.append(temp[0])
+            desshlpg = ''.join(temp)
+        return DataExtensionHeader(DESSHDT=desshdt, DESSHLPG=desshlpg, Security=self._security_tags)
+
+    def _create_nitf_header(self):
+        im_size = self._sicd_meta.ImageData.NumRows*self._sicd_meta.ImageData.NumCols*self._pixel_size
+        if im_size < 50*(1024**2):
+            clevel = 3
+        elif im_size < (1024**3):
+            clevel = 5
+        elif im_size < 2*(1024**3):
+            clevel = 6
+        else:
+            clevel = 7
+        ostaid = 'Unknown '
+        fdt = re.sub(r'[^0-9]', '', str(self._sicd_meta.ImageCreation.DateTime.astype('datetime64[s]')))
+        if self._sicd_meta.CollectionInfo is not None and self._sicd_meta.CollectionInfo.CoreName is not None:
+            ftitle = 'SICD: {}'.format(self._sicd_meta.CollectionInfo.CoreName)
+        else:
+            ftitle = 'SICD: Unknown'
+        # get image segment details - the size of the headers will be redefined when locking down details
+        im_sizes = numpy.copy(self._image_segment_limits[:, 4])
+        im_segs = _ItemArrayHeaders(
+            subhead_len=6, subhead_sizes=numpy.zeros(im_sizes.shape, dtype=numpy.int64),
+            item_len=10, item_sizes=im_sizes)
+        # get data extension details - the size of the headers and items
+        #   will be redefined when locking down details
+        des = _ItemArrayHeaders(
+            subhead_len=4, subhead_sizes=numpy.array([773, ], dtype=numpy.int64),
+            item_len=9, item_sizes=numpy.array([0, ], dtype=numpy.int64))
+        return NITFHeader(CLEVEL=clevel, OSTAID=ostaid, FDT=fdt, FTITLE=ftitle,
+                          FL=0, ImageSegments=im_segs, DataExtensions=des)
+
+    def _finalize_headers(self):
+        # lock down the representation of all the headers and items in the file
+        #   lengths described in NITF header for various things must be correct,
+        #   so they can't be permitted to change mid-write
+        if self._headers_locked:
+            return
+        # TODO:
+        #   1.) get xml and populate nitf_header.DataExtensions.item_sizes[0]
+        #   2.) get des header string and populate nitf_header.DataExtensions.subhead_sizes[0]
+        #   3.) get image_segment_header strings and populate nitf_header.ImageSegments.subhead_sizes entries
+        #   4.) get file length, populate nitf_header.FL, then get nitf header string
+
+        # set the lockdown state to True
+        self._headers_locked = True
 
     def write_chip(self, data, start_indices):
         # TODO: push more generic capability into BaseWriter.

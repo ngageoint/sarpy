@@ -159,6 +159,35 @@ class LatLonType(Serializable, Arrayable):
             return cls(Lat=array[0], Lon=array[1])
         raise ValueError('Expected array to be numpy.ndarray, list, or tuple, got {}'.format(type(array)))
 
+    def dms_format(self, frac_secs=False):
+        """
+        Get degree-minutes-seconds representation.
+        Parameters
+        ----------
+        frac_secs : bool
+            Should a fractional seconds (i.e. a float), otherwise integer
+
+        Returns
+        -------
+        tuple
+            of the form ((deg lat, mins lat, secs lat, N/S), (deg lon, mins lon, secs lon, E/W))
+        Here degrees and minutes will be int, secs will be float.
+        """
+
+        def reduce(value):
+            val = abs(value)
+            deg = int(val)
+            val = 60*(val - deg)
+            mins = int(val)
+            secs = 60*(val - mins)
+            if not frac_secs:
+                secs = int(secs)
+            return deg, mins, secs
+
+        X = 'S' if self.Lat < 0 else 'N'
+        Y = 'W' if self.Lon < 0 else 'E'
+        return reduce(self.Lat) + (X, ), reduce(self.Lon) + (Y, )
+
 
 class LatLonArrayElementType(LatLonType):
     """An geographic point in an array"""

@@ -41,10 +41,7 @@ class ImageCreationType(Serializable):
         kwargs : dict
         """
         self.Application = Application
-        if DateTime is None:
-            self.DateTime = numpy.datetime64('now')  # this is in seconds
-        else:
-            self.DateTime = DateTime
+        self.DateTime = DateTime
         self.Site = Site
         self.Profile = Profile
         super(ImageCreationType, self).__init__(**kwargs)
