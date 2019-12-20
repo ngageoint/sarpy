@@ -8,7 +8,7 @@ from sarpy_apps.sarpy_app_helper_utils.sarpy_canvas_image import SarpyCanvasDisp
 class TaserImageCanvasPanel(BasicImageCanvasPanel):
     def __init__(self, master):
         BasicImageCanvasPanel.__init__(self, master)
-        canvas_display_image = SarpyCanvasDisplayImage
+        self.canvas_display_image = SarpyCanvasDisplayImage()
         self.decimation = 1
         self.reader_object = None
         self.remap_type = "density"
@@ -19,7 +19,8 @@ class TaserImageCanvasPanel(BasicImageCanvasPanel):
                              remap_type='density',      # type: str
                              ):
         self.reader_object = sarpy_complex.open(fname)
-        self.read_image()
+        self.canvas_display_image.init_from_fname_and_canvas_size(fname, self.canvas_height, self.canvas_width)
+        self.set_image_from_numpy_array(self.canvas_display_image.canvas_display_image)
 
     def update_display_image(self,
                              remap_type,            # type: str
@@ -78,5 +79,7 @@ class TaserImageCanvasPanel(BasicImageCanvasPanel):
         decimation = int(min(decimation_y, decimation_x))
         print("selected data decimation: " + str(decimation))
 
-        rect_data = self.reader_object.read_chip[real_y_min:real_y_max:decimation, real_x_min:real_x_max:decimation]
+        # rect_data = self.reader_object.read_chip[real_y_min:real_y_max:decimation, real_x_min:real_x_max:decimation]
+        image_coords = self.canvas_display_image.canvas_rect_to_full_image_rect(self.rect_coords)
+        rect_data = self.canvas_display_image.get_image_data_in_full_image_rect(int(image_coords[0]), int(image_coords[1]), int(image_coords[2]), int(image_coords[3]))
         return rect_data
