@@ -2,11 +2,13 @@ from tkinter_gui_builder.panel_templates.basic_image_canvas_panel import BasicIm
 import numpy as np
 import sarpy.io.complex as sarpy_complex
 import sarpy.visualization.remap as remap
+from sarpy_apps.sarpy_app_helper_utils.sarpy_canvas_image import SarpyCanvasDisplayImage
 
 
 class TaserImageCanvasPanel(BasicImageCanvasPanel):
     def __init__(self, master):
         BasicImageCanvasPanel.__init__(self, master)
+        canvas_display_image = SarpyCanvasDisplayImage
         self.decimation = 1
         self.reader_object = None
         self.remap_type = "density"

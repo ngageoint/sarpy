@@ -1,6 +1,6 @@
 import tkinter
-from sarpy.sarpy_apps.wake_tool.panels.side_panel import SidePanel
-from sarpy.sarpy_apps.wake_tool.panels.image_canvas import ImageCanvas
+from sarpy_apps.wake_tool.panels.side_panel import SidePanel
+from tkinter_gui_builder.panel_templates.image_canvas import ImageCanvas
 import tkinter.colorchooser as colorchooser
 
 RECT_DRAW_TOOL = "rect_draw_tool"

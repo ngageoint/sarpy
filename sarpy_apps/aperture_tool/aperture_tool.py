@@ -1,7 +1,7 @@
 import tkinter
-from sarpy.sarpy_apps.taser_tool.panels import TaserButtonPanel
+from sarpy_apps.taser_tool.panels import TaserButtonPanel
 from tkinter_gui_builder.panel_templates.basic_plot_panel import BasicPlotPanel
-from sarpy.sarpy_apps.taser_tool.panels import TaserImageCanvasPanel
+from sarpy_apps.taser_tool.panels import TaserImageCanvasPanel
 
 
 class AppVariables:

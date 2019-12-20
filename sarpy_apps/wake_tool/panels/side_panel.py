@@ -1,5 +1,5 @@
 from tkinter_gui_builder.panel_templates.basic_widgets_panel import BasicWidgetsPanel
-from sarpy.sarpy_apps.wake_tool.panels.button_panel import ButtonPanel
+from sarpy_apps.wake_tool.panels.button_panel import ButtonPanel
 from tkinter_gui_builder.panel_templates.file_selector import FileSelector
 
 

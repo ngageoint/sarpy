@@ -1,8 +1,8 @@
 import tkinter
 from tkinter.filedialog import askopenfilename
-from sarpy.sarpy_apps.taser_tool.panels.taser_button_panel import TaserButtonPanel
+from sarpy_apps.taser_tool.panels.taser_button_panel import TaserButtonPanel
 from tkinter_gui_builder.panel_templates.basic_pyplot_image_panel import BasicPyplotImagePanel
-from sarpy.sarpy_apps.taser_tool.panels.taser_canvas_panel import TaserImageCanvasPanel
+from sarpy_apps.taser_tool.panels.taser_canvas_panel import TaserImageCanvasPanel
 import numpy as np
 import imageio
 import os

@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import ttk
-from sarpy.sarpy_apps.taser_tool.taser import Taser
-from sarpy.sarpy_apps.wake_tool.wake_tool import WakeTool
+from sarpy_apps.taser_tool.taser import Taser
+from sarpy_apps.wake_tool.wake_tool import WakeTool
 from tkinter_gui_builder.panel_templates.temporal_plot_panel import TemporalPlotPanel
 
 
