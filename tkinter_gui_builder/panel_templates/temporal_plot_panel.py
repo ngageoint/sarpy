@@ -6,7 +6,7 @@ from matplotlib.collections import LineCollection
 import numpy as np
 
 
-class AnimationPlotPanel:
+class TemporalPlotPanel:
     def __init__(self, master):
         master_frame = tkinter.Frame(master)
         fig = Figure()

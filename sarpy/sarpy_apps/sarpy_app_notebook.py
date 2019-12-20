@@ -1,7 +1,8 @@
 import tkinter as tk
 from tkinter import ttk
 from sarpy.sarpy_apps.taser_tool.taser import Taser
-from tkinter_gui_builder.panel_templates.temporal_plot_panel import AnimationPlotPanel
+from sarpy.sarpy_apps.wake_tool.wake_tool import WakeTool
+from tkinter_gui_builder.panel_templates.temporal_plot_panel import TemporalPlotPanel
 
 
 # Root class to create the interface and define the controller function to switch frames
@@ -27,14 +28,15 @@ class NoteBook(ttk.Frame):
         # set up the tabs
         self.notebook = ttk.Notebook()
         self.taser_tab = Tab(self.notebook)
-        self.aperture_tool_tab = Tab(self.notebook)
-        self.animation_plot_tab = Tab(self.notebook)
+        self.wake_tool_tab = Tab(self.notebook)
+        self.temporal_plot_tab = Tab(self.notebook)
         self.notebook.add(self.taser_tab, text="Taser")
-        self.notebook.add(self.aperture_tool_tab, text="draw")
-        self.notebook.add(self.animation_plot_tab, text="Tab3")
+        self.notebook.add(self.wake_tool_tab, text="wake tool")
+        self.notebook.add(self.temporal_plot_tab, text="temporal plot")
 
         self.taser = Taser(self.taser_tab)
-        self.animation_plot = AnimationPlotPanel(self.animation_plot_tab)
+        self.wake = WakeTool(self.wake_tool_tab)
+        self.animation_plot = TemporalPlotPanel(self.temporal_plot_tab)
         self.notebook.pack()
 
 
