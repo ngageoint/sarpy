@@ -11,10 +11,17 @@ geo_info_dict1 = {
     'Point': {'Lat': 0, 'Lon': 0}}
 geo_info_dict2 = {
     'name': 'Name',
-    'Line': [{'Lat': 0, 'Lon': 0, 'index': 0}, {'Lat': 1, 'Lon': 1, 'index': 1}]}
+    'Line': [{'Lat': 0, 'Lon': 0, 'index': 0}, {'Lat': 1, 'Lon': 1, 'index': 1}],
+}
 geo_info_dict3 = {
     'name': 'Name',
-    'Polygon': [{'Lat': 0, 'Lon': 0, 'index': 0}, {'Lat': 1, 'Lon': 1, 'index': 1}, {'Lat': 0, 'Lon': 1, 'index': 2}]}
+    'Polygon': [{'Lat': 0, 'Lon': 0, 'index': 0}, {'Lat': 1, 'Lon': 1, 'index': 1}, {'Lat': 0, 'Lon': 1, 'index': 2}],
+}
+geo_info_dict3 = {
+    'name': 'Name',
+    'Polygon': [{'Lat': 0, 'Lon': 0, 'index': 0}, {'Lat': 1, 'Lon': 1, 'index': 1}, {'Lat': 0, 'Lon': 1, 'index': 2}],
+    'GeoInfos': [geo_info_dict1, ],
+}
 
 scp_dict = {
     'LLH': {'Lat': 0, 'Lon': 0, 'HAE': 100},
