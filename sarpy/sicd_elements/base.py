@@ -1066,8 +1066,6 @@ class Serializable(object):
         for inclusion in `_fields` tuple. Note that special care must be taken to ensure compatibility of `_fields`
         tuple, if inheriting from an extension of this class.
     """
-    __slots__ = ()  # this has the effect of preventing someone from creating a random attribute.
-    # Intended to Help spot typos for field values
     _fields = ()
     """collection of field names"""
     _required = ()

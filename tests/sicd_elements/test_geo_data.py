@@ -17,7 +17,7 @@ geo_info_dict3 = {
     'name': 'Name',
     'Polygon': [{'Lat': 0, 'Lon': 0, 'index': 0}, {'Lat': 1, 'Lon': 1, 'index': 1}, {'Lat': 0, 'Lon': 1, 'index': 2}],
 }
-geo_info_dict3 = {
+geo_info_dict4 = {
     'name': 'Name',
     'Polygon': [{'Lat': 0, 'Lon': 0, 'index': 0}, {'Lat': 1, 'Lon': 1, 'index': 1}, {'Lat': 0, 'Lon': 1, 'index': 2}],
     'GeoInfos': [geo_info_dict1, ],
@@ -46,7 +46,6 @@ class TestGeoInfo(unittest.TestCase):
         the_dict = geo_info_dict1
         item1 = generic_construction_test(self, the_type, the_dict)
 
-
     def test_construction2(self):
         the_type = GeoData.GeoInfoType
         the_dict = geo_info_dict2
@@ -55,6 +54,11 @@ class TestGeoInfo(unittest.TestCase):
     def test_construction3(self):
         the_type = GeoData.GeoInfoType
         the_dict = geo_info_dict3
+        item1 = generic_construction_test(self, the_type, the_dict)
+
+    def test_construction4(self):
+        the_type = GeoData.GeoInfoType
+        the_dict = geo_info_dict4
         item1 = generic_construction_test(self, the_type, the_dict)
 
     def test_validity(self):
