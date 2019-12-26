@@ -238,8 +238,8 @@ class BaseChipper(object):
         if callable(self._complex_type):
             return self._complex_type(data)  # is this actually necessary?
         if self._complex_type:
-            # TODO: complex128 or complex64?
-            out = numpy.zeros((data.shape(0)/2, data.shape(1), data.shape(2)), dtype=numpy.complex128)
+            # TODO: complex128?
+            out = numpy.zeros((data.shape(0)/2, data.shape(1), data.shape(2)), dtype=numpy.complex64)
             out.real = data[0::2, :, :]
             out.imag = data[1::2, :, :]
             return out

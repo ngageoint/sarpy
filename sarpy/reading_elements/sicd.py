@@ -4,13 +4,13 @@ import re
 import logging
 from xml.etree import ElementTree
 from collections import OrderedDict
-from typing import Union
+from typing import Tuple, Union
 import getpass
 
 import numpy
 
 from .base import BaseChipper, BaseReader, BaseWriter
-from .bip import BIPChipper
+from .bip import BIPChipper, BIPWriter
 from ..sicd_elements.SICD import SICDType
 from ..sicd_elements.ImageCreation import ImageCreationType
 from ..sicd_elements.blocks import LatLonType
@@ -25,7 +25,7 @@ from ..__about__ import __title__, __release__
 SPECIFICATION_IDENTIFIER = 'SICD Volume 1 Design & Implementation Description Document'
 SPECIFICATION_VERSION = '1.1'
 SPECIFICATION_DATE = '2014-09-30T00:00:00Z'
-SPECIFICATION_NAMESPACE = 'urn:SICD:1.1.0'
+SPECIFICATION_NAMESPACE = 'urn:SICD:1.1.0'  # this is expected to be of the form 'urn:SICD:<version>'
 
 ##########
 # NITF Header reading and writing objects
@@ -51,7 +51,7 @@ class BaseScraper(object):
         raise NotImplementedError
 
     @classmethod
-    def from_string(cls, value, start, *args):
+    def from_string(cls, value, start, **args):
         """
 
         Parameters
@@ -61,8 +61,8 @@ class BaseScraper(object):
 
         start : int
             the beginning location in the string
-        args : list
-            other argumemnts
+        args : dict
+            keyword arguments
 
         Returns
         -------
@@ -590,7 +590,10 @@ class NITFSecurityTags(HeaderScraper):
 
 
 class NITFHeader(HeaderScraper):
-    """The NITF file header - described in SICD standard 2014-09-30, Volume II, page 17"""
+    """
+    The NITF file header - described in SICD standard 2014-09-30, Volume II, page 17
+    """
+
     __slots__ = (
         'FHDR', 'FVER', 'CLEVEL', 'STYPE',
         'OSTAID', 'FDT', 'FTITLE', '_Security',
@@ -599,6 +602,7 @@ class NITFHeader(HeaderScraper):
         '_ImageSegments', 'NUMS', 'NUMX',
         '_TextSegments', '_DataExtensions', 'NUMRES',
         '_UserHeader', '_ExtendedHeader')
+    # NB: it appears that NUMS and NUMX are not actually used, and should always be 0
     _formats = {
         'FHDR': '4s', 'FVER': '5s', 'CLEVEL': '2d', 'STYPE': '4s',
         'OSTAID': '10s', 'FDT': '14s', 'FTITLE': '80s',
@@ -731,7 +735,10 @@ class ImageSegmentHeader(HeaderScraper):
 
 
 class SICDDESSubheader(HeaderScraper):
-    """The SICD Data Extension header - described in SICD standard 2014-09-30, Volume II, page 29"""
+    """
+    The SICD Data Extension header - described in SICD standard 2014-09-30, Volume II, page 29
+    """
+
     __slots__ = (
         'DESCRC', 'DESSHFT', 'DESSHDT',
         'DESSHRP', 'DESSHSI', 'DESSHSV', 'DESSHSD',
@@ -760,7 +767,11 @@ class SICDDESSubheader(HeaderScraper):
 
 
 class DataExtensionHeader(HeaderScraper):
-    """The data extension header - this will only really work for SICD headers"""
+    """
+    The data extension header - this may only work for SICD data extension headers?
+    described in SICD standard 2014-09-30, Volume II, page 29.
+    """
+
     __slots__ = (
         'DE', 'DESID', 'DESVER', '_Security',
         'DESSHL', '_SICDHeader')
@@ -786,10 +797,12 @@ class DataExtensionHeader(HeaderScraper):
         return 33
 
     def __len__(self):
-        if self._SICDHeader is None:
-            return 33
-        else:
-            return 773+33
+        length = 33
+        if self._Security is not None:
+            length += len(self._Security)
+        if self._SICDHeader is not None:
+            length += 773
+        return length
 
     @property
     def Security(self):  # type: () -> NITFSecurityTags
@@ -829,8 +842,8 @@ class DataExtensionHeader(HeaderScraper):
                 typ = cls._types[attribute]
                 if not issubclass(typ, BaseScraper):
                     raise TypeError('Invalid class definition, any entry of _types must extend BaseScraper')
-                args = cls._args.get(attribute, [])
-                val = typ.from_string(value, loc, *args)
+                args = cls._args.get(attribute, {})
+                val = typ.from_string(value, loc, **args)
                 aname = attribute[1:] if attribute[0] == '_' else attribute
                 fields[aname] = val  # exclude the underscore from the name
                 lngt = len(val)
@@ -960,16 +973,15 @@ class NITFDetails(object):
             fi.seek(total_offset)
             data_extension = fi.read(des_length)
 
-            try:
-                root_node = ElementTree.fromstring(data_extension)  # handles bytes?
-                if root_node.tag.split('}', 1)[-1] == 'SICD':
-                    self._is_sicd = True
-            except Exception:
-                raise
+            root_node = ElementTree.fromstring(data_extension)  # handles bytes?
+            if root_node.tag.split('}', 1)[-1] == 'SICD':
+                # TODO: account for CPHD xml?
+                self._is_sicd = True
 
             if self._is_sicd:
                 try:
-                    self._sicd_meta = SICDType.from_node(root_node.find('SICD'))
+                    self._sicd_meta = SICDType.from_node(root_node)
+                    # TODO: account for the reference frequency offset situation
                 except Exception:
                     self._is_sicd = False
                     raise
@@ -984,12 +996,12 @@ class NITFDetails(object):
 
 
 #######
-#  The actual reading and writing implementation
+#  The actual reading implementation
 
 
 def amp_phase_to_complex(lookup_table):
     """
-    This constructs the function to convert from AMP8I_PHS8I format data to complex128 data.
+    This constructs the function to convert from AMP8I_PHS8I format data to complex64 data.
 
     Parameters
     ----------
@@ -1019,9 +1031,9 @@ def amp_phase_to_complex(lookup_table):
             raise ValueError('Requires a three-dimensional numpy.ndarray (with band '
                              'in the first dimension), got shape {}'.format(data.shape))
 
-        out = numpy.zeros((data.shape[0] / 2, data.shape[1], data.shape[2]), dtype=numpy.complex128)
+        out = numpy.zeros((data.shape[0] / 2, data.shape[1], data.shape[2]), dtype=numpy.complex64)
         amp = lookup_table[data[0::2, :, :]]
-        theta = data[1::2, :, :]*(2*numpy.pi/256)  # TODO: complex 64 or 128?
+        theta = data[1::2, :, :]*(2*numpy.pi/256)  # TODO: complex128?
         out.real = amp*numpy.cos(theta)
         out.imag = amp*numpy.sin(theta)
         return out
@@ -1164,6 +1176,10 @@ class SICDReader(BaseReader):
         super(SICDReader, self).__init__(self._sicd_meta, chipper)
 
 
+#######
+#  The actual writing implementation
+
+
 def complex_to_amp_phase(lookup_table):
     """
     This constructs the function to convert from complex64 or 128 to AMP8I_PHS8I format data.
@@ -1245,21 +1261,39 @@ def complex_to_int(data):
 
 
 class SICDWriter(BaseWriter):
+    """
+    Writer object for SICD file - that is, a NITF file containing SICD data
+    following standard 1.1.0.
+    """
     __slots__ = (
-        '_file_name', '_sicd_meta', '_pixel_size', '_dtype', '_image_segment_limits',
+        '_file_name', '_sicd_meta', '_shape', '_pixel_size', '_dtype',
+        '_complex_type', '_image_segment_limits',
         '_security_tags', '_image_segment_headers', '_data_extension_header', '_nitf_header',
-        '_headers_locked')
-    _NITF_LIMIT = 10**12-1  # as big as can be stored in 12 digits
+        '_header_offsets', '_image_offsets',
+        '_final_header_info', '_writing_chippers', '_pixels_written', '_des_written')
 
     def __init__(self, file_name, sicd_meta):
+        """
+
+        Parameters
+        ----------
+        file_name : str
+        sicd_meta : SICDType
+        """
+
         if not isinstance(sicd_meta, SICDType):
             raise ValueError('sicd_meta is required to be an instance of SICDType, got {}'.format(type(sicd_meta)))
         if sicd_meta.ImageData is None:
             raise ValueError('The sicd_meta has un-populated ImageData, and nothing useful can be inferred.')
+        if sicd_meta.ImageData.NumCols is None or sicd_meta.ImageData.NumRows is None:
+            raise ValueError('The sicd_meta has ImageData with unpopulated NumRows or NumCols, '
+                             'and nothing useful can be inferred.')
+        self._shape = (sicd_meta.ImageData.NumRows, sicd_meta.ImageData.NumCols)
         if sicd_meta.ImageData.PixelType is None:
             logging.warning('The PixelType for sicd_meta is unset, so defaulting to RE32F_IM32F.')
             sicd_meta.ImageData.PixelType = 'RE32F_IM32F'
-        # TODO: Verify - modify sicd_meta in place, or make copy?
+        # TODO: Verify - modify sicd_meta in place, or make copy? 
+        #   maybe that should be an init option?
         # should probably set ImageCreation this way no matter what?
         if self._sicd_meta.ImageCreation is None:
             try:
@@ -1278,7 +1312,7 @@ class SICDWriter(BaseWriter):
         # define _security_tags
         self._security_tags = self.default_security_tags()
         # get image segment details
-        self._pixel_size, self._dtype, complex_type, pv_type, isubcat, \
+        self._pixel_size, self._dtype, self._complex_type, pv_type, isubcat, \
             self._image_segment_limits = self._image_segment_details()
         # define _image_segment_headers
         self._image_segment_headers = self._create_image_segment_headers(pv_type, isubcat)
@@ -1286,11 +1320,12 @@ class SICDWriter(BaseWriter):
         self._data_extension_header = self._create_data_extension_header()
         # define _nitf_header
         self._nitf_header = self._create_nitf_header()
-        # TODO: set up the chipper situation
-
-        self._headers_locked = False
-        # initialize our final header containers
-        # initialize our checker for whether each image segment has been written
+        self._header_offsets = None
+        self._image_offsets = None
+        self._final_header_info = None
+        self._writing_chippers = None
+        self._pixels_written = None
+        self._des_written = False
 
     @property
     def security_tags(self):  # type: () -> NITFSecurityTags
@@ -1300,6 +1335,8 @@ class SICDWriter(BaseWriter):
         `SecurityTags` property for `nitf_header`, each entry of `image_segment_headers`,
         and `data_extension_header`. Changing any attributes here will change them in all
         these locations.
+
+        .. Note: required edits should be made before adding any data via :func:`write_chip`.
         """
 
         return self._security_tags
@@ -1309,15 +1346,19 @@ class SICDWriter(BaseWriter):
         """
         NITFHeader: The NITF header object. The `SecurityTags` property will be populated
         using `security_tags` by default.
+
+        .. Note: required edits should be made before adding any data via :func:`write_chip`.
         """
 
         return self._nitf_header
 
     @property
-    def image_segment_headers(self):  # type: () -> List[ImageSegmentHeader]
+    def image_segment_headers(self):  # type: () -> Tuple[ImageSegmentHeader]
         """
         tuple[ImageSegmentHeader]: The NITF image segment headers. Each entry will have
         the `SecurityTags` property will be populated using `security_tags` by default.
+
+        .. Note: required edits should be made before adding any data via :func:`write_chip`.
         """
 
         return self._image_segment_headers
@@ -1327,6 +1368,8 @@ class SICDWriter(BaseWriter):
         """
         DataExtensionHeader: the NITF data extension header. The `SecurityTags`
         property will be populated using `security_tags` by default.
+
+        .. Note: required edits should be made before adding any data via :func:`write_chip`.
         """
 
         return self._data_extension_header
@@ -1335,6 +1378,10 @@ class SICDWriter(BaseWriter):
         """
         Returns the default NITF security tags object with `CLAS` and `CODE`
         attributes set from the SICD.CollectionInfo.Classification value.
+
+        It is expected that output from this will be modified as appropriate
+        and used to set specific security tags in `data_extension_header` or
+        elements of `image_segment_headers`.
 
         Returns
         -------
@@ -1397,16 +1444,16 @@ class SICDWriter(BaseWriter):
         return pixel_size, dtype, complex_type, pv_type, isubcat, numpy.array(im_segments, dtype=numpy.int64)
 
     def _create_image_segment_headers(self, pv_type, isubcat):
-        def get_corner_points_string(entry):
-            # entry = (row_start, row_stop, col_start, col_stop)
+        def get_corner_points_string(ent):
+            # ent = (row_start, row_stop, col_start, col_stop)
             if icp is None:
                 return ''
             const = 1./(rows*cols)
-            pattern = entry[numpy.array([(0, 2), (1, 2), (1, 4), (0, 4)], dtype=numpy.int64)]
+            pattern = ent[numpy.array([(0, 2), (1, 2), (1, 4), (0, 4)], dtype=numpy.int64)]
             out = []
             for row, col in pattern:
-                pt = LatLonType.from_array(const*numpy.sum(icp.T*\
-                                           numpy.array([rows-row, row, row, rows-row])*\
+                pt = LatLonType.from_array(const*numpy.sum(icp.T *
+                                           numpy.array([rows-row, row, row, rows-row]) *
                                            numpy.array([cols-col, cols-col, col, col]), axis=0))
                 dms = pt.dms_format(frac_secs=False)
                 out.append('{0:2d}{1:2d}{2:2d}{3:s}'.format(*dms[0]) + '{0:3d}{1:2d}{2:2d}{3:s}'.format(*dms[1]))
@@ -1427,6 +1474,7 @@ class SICDWriter(BaseWriter):
 
         icp, rows, cols = None, None, None
         if self._sicd_meta.GeoData is not None and self._sicd_meta.GeoData.ImageCorners is not None:
+            # noinspection PyTypeChecker
             icp = self._sicd_meta.GeoData.ImageCorners.get_array(dtype=numpy.float64)
             rows = self._sicd_meta.ImageData.NumRows
             cols = self._sicd_meta.ImageData.NumCols
@@ -1461,6 +1509,7 @@ class SICDWriter(BaseWriter):
             desshdt += 'Z'
         desshlpg = ' '
         if self._sicd_meta.GeoData is not None and self._sicd_meta.GeoData.ImageCorners is not None:
+            # noinspection PyTypeChecker
             icp = self._sicd_meta.GeoData.ImageCorners.get_array(dtype=numpy.float64)
             temp = []
             for entry in icp:
@@ -1493,27 +1542,237 @@ class SICDWriter(BaseWriter):
         # get data extension details - the size of the headers and items
         #   will be redefined when locking down details
         des = _ItemArrayHeaders(
-            subhead_len=4, subhead_sizes=numpy.array([773, ], dtype=numpy.int64),
+            subhead_len=4, subhead_sizes=numpy.array([973, ], dtype=numpy.int64),
             item_len=9, item_sizes=numpy.array([0, ], dtype=numpy.int64))
         return NITFHeader(CLEVEL=clevel, OSTAID=ostaid, FDT=fdt, FTITLE=ftitle,
                           FL=0, ImageSegments=im_segs, DataExtensions=des)
 
-    def _finalize_headers(self):
-        # lock down the representation of all the headers and items in the file
-        #   lengths described in NITF header for various things must be correct,
-        #   so they can't be permitted to change mid-write
-        if self._headers_locked:
-            return
-        # TODO:
-        #   1.) get xml and populate nitf_header.DataExtensions.item_sizes[0]
-        #   2.) get des header string and populate nitf_header.DataExtensions.subhead_sizes[0]
-        #   3.) get image_segment_header strings and populate nitf_header.ImageSegments.subhead_sizes entries
-        #   4.) get file length, populate nitf_header.FL, then get nitf header string
+    def prepare_for_writing(self):
+        """
+        The NITF file header makes specific reference of the lengths of various components,
+        specifically the image segment subheader lengths and the data extension (i.e. SICD xml)
+        subheader and item lengths. These items must be locked down BEFORE we can allocate
+        the required file writing specifics from the OS.
 
-        # set the lockdown state to True
-        self._headers_locked = True
+        Any desired header modifications (i.e. security tags or any other issues) must be
+        finalized, before the final steps to actually begin writing data. Calling
+        this method prepares the final versions of the headers, and prepares for actual file
+        writing. Any modifications to any header information made AFTER calling this method
+        will not be reflected in the produced NITF file.
+
+        .. Note: This will be implicitly called at first attempted chip writing
+            if it has not be explicitly called before.
+
+        Returns
+        -------
+        None
+        """
+
+        if self._writing_chippers is not None:
+            return
+
+        self._final_header_info = {}
+        # get des header, xml and populate nitf_header.DataExtensions information
+        des_info = {
+            'header': self._data_extension_header.to_string(),
+            'xml': self._sicd_meta.to_xml_string(SPECIFICATION_NAMESPACE)}
+        self._nitf_header.DataExtensions.subhead_sizes[0] = len(des_info['header'])
+        self._nitf_header.DataExtensions.item_sizes[0] = len(des_info['xml'])  # size should be no issue
+        # there would be no satisfactory resolution in the case of an oversized header - we should raise an exception
+        if len(des_info['header']) >= 10**4:
+            raise ValueError(
+                'The data extension subheader is {} characters, and NITF limits the possible '
+                'size of a data extension to fewer than 10^4 characters. '
+                'This is likely the result of an error.'.format(len(des_info['header'])))
+        # there would be no satisfactory resolution in the case of an oversized xml - we should raise an exception
+        if len(des_info['xml']) >= 10**9:
+            raise ValueError(
+                'The xml for our SICD is {} characters, and NITF limits the possible '
+                'size of a data extension to fewer than 10^9 characters.'.format(len(des_info['xml'])))
+        self._final_header_info['des'] = des_info
+
+        # get image_segment_header strings and populate nitf_header.ImageSegments.subhead_sizes entries
+        im_segment_headers = []
+        for i, entry in enumerate(self._image_segment_headers):
+            head = entry.to_string()
+            # no satisfactory resolution in the case of an oversized header
+            if len(head) >= 10**6:
+                raise ValueError(
+                    'Image subheader ({} of {}) is {} characters, and NITF limits the possible '
+                    'size of an image subheader to fewer than 10^6 characters. '
+                    'This is likely the result of an error.'.format(i+1, len(self._image_segment_headers), len(head)))
+            im_segment_headers.append(head)
+            self._nitf_header.ImageSegments.subhead_sizes[i] = len(head)
+        self._final_header_info['image_headers'] = tuple(im_segment_headers)
+
+        # calculate image offsets and file length
+        header_length = len(self._nitf_header)
+        cumulative_size = header_length
+        header_offsets = numpy.zeros((len(self._image_segment_headers), ), dtype=numpy.int64)
+        image_offsets = numpy.zeros((len(self._image_segment_headers), ), dtype=numpy.int64)
+        for i, (head_size, im_size) in enumerate(
+                zip(self._nitf_header.ImageSegments.subhead_sizes, self._nitf_header.ImageSegments.item_sizes)):
+            header_offsets[i] = cumulative_size
+            cumulative_size += head_size
+            image_offsets[i] = cumulative_size
+            cumulative_size += im_size
+        self._header_offsets = header_offsets
+        self._image_offsets = image_offsets
+        # NB: this is where text segments would be packed, but we do not enable creation of such currently
+        cumulative_size += numpy.sum(
+            self._nitf_header.DataExtensions.subhead_sizes + self._nitf_header.DataExtensions.item_sizes)
+        if cumulative_size >= 10**12:
+            raise ValueError(
+                'The calculated file size is {} bytes, and NITF requires it to '
+                'be fewer than 10^12 bytes.'.format(cumulative_size))
+        self._nitf_header.FL = cumulative_size
+        self._final_header_info['nitf'] = self._nitf_header.to_string()
+
+        # prepare out writing chippers
+        self._writing_chippers = tuple(
+            BIPWriter(self._file_name, (ent[1]-ent[0], ent[3]-ent[2]),
+                      self._dtype, self._complex_type, data_offset=offset)
+            for ent, offset in zip(self._image_segment_limits, image_offsets))
+        # prepare our pixels written counter
+        self._pixels_written = numpy.zeros((self._image_segment_limits.shape[0],), dtype=numpy.int64)
+
+    def _write_image_header(self, index):
+        if self._pixels_written[index] > 0:
+            return
+        with open(self._file_name, mode='r+b') as fi:
+            fi.seek(self._header_offsets[index])
+            fi.write(self._final_header_info['image_header'][index].encode('utf-8'))
+
+    def _write_data_extension(self):
+        if self._des_written:
+            return
+
+        with open(self._file_name, mode='r+b') as fi:
+            fi.seek(self._image_offsets[-1] + self._image_segment_limits[-1, 4])
+            fi.write(self._final_header_info['des']['header'].encode('utf-8'))
+            fi.write(self._final_header_info['des']['xml'].encode('utf-8'))
+        self._des_written = True
+        logging.info('Data file {} fully written'.format(self._file_name))
+
+    def close(self):
+        """
+        Checks that data appears to be satisfactorily written, and logs some details
+        at error level, if not. Then, it finalizes the SICD file by writing the final
+        data extension header and data extension (i.e. SICD xml).
+
+        Returns
+        -------
+        None
+        """
+
+        # let's double check that everything is written
+        insufficiently_written = [[], [], []]
+        for i, (entry, pix_written) in enumerate(zip(self._image_segment_limits, self._pixels_written)):
+            im_siz = entry[4]
+            im_written = pix_written*self._pixel_size
+            if im_written < im_siz:
+                insufficiently_written[0].append(i)
+                insufficiently_written[1].append(im_siz)
+                insufficiently_written[2].append(im_written)
+        if len(insufficiently_written[0]) > 0:
+            logging.error(
+                'Attempting to create file {}, which will be corrupt. Image segment(s) {} '
+                'were expected to be of size {}, but only {} bytes were written.'.format(
+                    self._file_name,
+                    insufficiently_written[0],
+                    insufficiently_written[1],
+                    insufficiently_written[2]))
+        # let's write the data extension
+        self._write_data_extension()
 
     def write_chip(self, data, start_indices):
-        # TODO: push more generic capability into BaseWriter.
-        #   this is sort of the only writer.
-        raise NotImplementedError
+        def overlap(rrange, crange):
+            def element_overlap(this_range, segment_range):
+                if segment_range[0] <= this_range[0] < segment_range[1]:
+                    # this_range starts in this image segment?
+                    if segment_range[0] < this_range[1] <= segment_range[1]:
+                        return this_range[0], this_range[1]
+                    else:
+                        return this_range[0], segment_range[1]
+                elif segment_range[0] < this_range[1] <= segment_range[1]:
+                    # does this_range stops (but doesn't start) in this image segment
+                    return segment_range[0], this_range[1]
+                elif (this_range[0] < segment_range[0]) and (segment_range[1] <= this_range[1]):
+                    # this_range encompasses this entire segment
+                    return segment_range[0], segment_range[1]
+                else:
+                    return None
+
+            need_segs = numpy.zeros((len(self._image_segment_limits),), dtype=numpy.bool)
+            data_ents = numpy.zeros((len(self._image_segment_limits), 4), dtype=numpy.int64)
+            for j, ent in enumerate(self._image_segment_limits):
+                row_inds = element_overlap(rrange, ent[0:2])
+                col_inds = element_overlap(crange, ent[2:4])
+                if (row_inds is not None) and (col_inds is not None):
+                    need_segs[j] = True
+                    data_ents[j, :2] = row_inds
+                    data_ents[j, 2:] = col_inds
+            return need_segs, data_ents
+
+        if not isinstance(data, numpy.ndarray):
+            raise ValueError('data is required to be an instance of numpy.ndarray, got {}'.format(type(data)))
+
+        start_indices = (int(start_indices[0]), int(start_indices[1]))
+        if (start_indices[0] < 0) or (start_indices[1] < 0):
+            raise ValueError('start_indices must have positive entries. Got {}'.format(start_indices))
+        if (start_indices[0] >= self._shape[0]) or \
+                (start_indices[1] >= self._shape[1]):
+            raise ValueError(
+                'start_indices must be bounded from above by {}. Got {}'.format(self._shape, start_indices))
+
+        row_range = start_indices[0], start_indices[0] + data.shape[0]
+        col_range = start_indices[1], start_indices[1] + data.shape[1]
+        if (row_range[1] > self._shape[0]) or (col_range[1] > self._shape[1]):
+            raise ValueError(
+                'Got start_indices = {} and data of shape {}. '
+                'This is incompatible with total data shape {}.'.format(start_indices, data.shape, self._shape))
+
+        if self._writing_chippers is None:
+            self.prepare_for_writing()
+
+        # which segment(s) will we write in?
+        need_segments, data_entries = overlap(row_range, col_range)
+        # need_segments - boolean array of which segments that we'll write in
+        # data entries - array of [row start, row end, col start, col end] wrt to full image coordinates.
+        for i, need_seg in enumerate(need_segments):
+            if not need_seg:
+                continue
+            self._write_image_header(i)  # will just exit if already written
+            entry = data_entries[i, :]
+            # how many elements will we write?
+            write_els = (entry[1] - entry[0])*(entry[3] - entry[2])
+            # write the data using this chipper
+            drows = (entry[0]-start_indices[0], entry[1]-start_indices[0])
+            dcols = (entry[2] - start_indices[1], entry[3]-start_indices[1])
+            sinds = (
+                start_indices[0] - self._image_segment_limits[0],
+                start_indices[1] - self._image_segment_limits[2])
+            self._writing_chippers[i](data[drows[0]:drows[1], dcols[0]:dcols[1]], sinds)
+            # update how many pixels we have written to this segment
+            self._pixels_written[i] += write_els
+
+    def __del__(self):
+        if not self._des_written:
+            # TODO: VERIFY - I really think this is wrong
+            #   you have to wait for the object to fall out of scope for this.
+            #   we should emphasize using this object as a context manager.
+            self.close()
+
+    def __enter__(self):
+        # TODO: VERIFY - should be written as a context manager. Concurrence?
+        return self
+
+    def __exit__(self, exception_type, exception_value, traceback):
+        if exception_type is None:
+            self.close()
+        else:
+            logging.error(
+                'The SICD file writer generated an exception during processing. '
+                'The file {} has been partially generated and is certainly corrupt.'.format(self._file_name))
+            # The exception will be reraised.
+            # It's unclear how any exception could be caught.

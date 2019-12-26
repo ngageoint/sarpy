@@ -105,7 +105,7 @@ class BIPWriter(object):
               the output doesn't match `data_type`. By the sicd standard,
               `data_type` should be int16 or uint8.
 
-            * If `True`, then the data is dtype complex128 or complex64, and will
+            * If `True`, then the data is dtype complex64 or complex128, and will
               be written out to raw after appropriate manipulation. This requires
               that `data_type` is float32 - for the sicd standard.
 
