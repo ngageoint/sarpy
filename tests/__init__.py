@@ -8,7 +8,7 @@ else:
     import unittest
 
 
-def generic_construction_test(instance, the_type, the_dict):
+def generic_construction_test(instance, the_type, the_dict, tag='The_Type', print_xml=False):
     the_item = the_type.from_dict(the_dict)
 
     with instance.subTest(msg='Comparing json deserialization with original'):
@@ -18,7 +18,9 @@ def generic_construction_test(instance, the_type, the_dict):
     with instance.subTest(msg='Test xml serialization issues'):
         # let's serialize to xml
         etree = ElementTree.ElementTree()
-        xml = ElementTree.tostring(the_item.to_node(etree, 'The_Type')).decode('utf-8')
+        xml = ElementTree.tostring(the_item.to_node(etree, tag)).decode('utf-8')
+        if print_xml:
+            print(xml)
         # let's deserialize from xml
         node = ElementTree.fromstring(xml)
         item2 = the_type.from_node(node)

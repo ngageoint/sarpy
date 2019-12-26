@@ -6,19 +6,19 @@ from sarpy.sicd_elements import GeoData
 
 
 geo_info_dict1 = {
-    'name': 'Name',
+    'name': 'Name1',
     'Descriptions': {'feature': 'some kind of words'},
     'Point': {'Lat': 0, 'Lon': 0}}
 geo_info_dict2 = {
-    'name': 'Name',
+    'name': 'Name2',
     'Line': [{'Lat': 0, 'Lon': 0, 'index': 0}, {'Lat': 1, 'Lon': 1, 'index': 1}],
 }
 geo_info_dict3 = {
-    'name': 'Name',
+    'name': 'Name3',
     'Polygon': [{'Lat': 0, 'Lon': 0, 'index': 0}, {'Lat': 1, 'Lon': 1, 'index': 1}, {'Lat': 0, 'Lon': 1, 'index': 2}],
 }
 geo_info_dict4 = {
-    'name': 'Name',
+    'name': 'Name4',
     'Polygon': [{'Lat': 0, 'Lon': 0, 'index': 0}, {'Lat': 1, 'Lon': 1, 'index': 1}, {'Lat': 0, 'Lon': 1, 'index': 2}],
     'GeoInfos': [geo_info_dict1, ],
 }
@@ -44,22 +44,36 @@ class TestGeoInfo(unittest.TestCase):
     def test_construction1(self):
         the_type = GeoData.GeoInfoType
         the_dict = geo_info_dict1
-        item1 = generic_construction_test(self, the_type, the_dict)
+        item1 = generic_construction_test(self, the_type, the_dict, tag='GeoInfo')
 
     def test_construction2(self):
         the_type = GeoData.GeoInfoType
         the_dict = geo_info_dict2
-        item1 = generic_construction_test(self, the_type, the_dict)
+        item2 = generic_construction_test(self, the_type, the_dict, tag='GeoInfo')
 
     def test_construction3(self):
         the_type = GeoData.GeoInfoType
         the_dict = geo_info_dict3
-        item1 = generic_construction_test(self, the_type, the_dict)
+        item3 = generic_construction_test(self, the_type, the_dict, tag='GeoInfo')
 
     def test_construction4(self):
         the_type = GeoData.GeoInfoType
         the_dict = geo_info_dict4
-        item1 = generic_construction_test(self, the_type, the_dict)
+        item4 = generic_construction_test(self, the_type, the_dict, tag='GeoInfo')
+
+    def test_get_item(self):
+        item4 = GeoData.GeoInfoType.from_dict(geo_info_dict4)
+        item1 = item4['Name1']
+        self.assertEqual(item1.to_dict(), geo_info_dict1)
+
+    def test_set_item(self):
+        item2 = GeoData.GeoInfoType.from_dict(geo_info_dict2)
+        item4 = GeoData.GeoInfoType.from_dict(geo_info_dict4)
+        item4['Name2'] = item2
+        item1 = item4['Name1']
+        item2_2 = item4['Name2']
+        self.assertEqual(item1.to_dict(), geo_info_dict1)
+        self.assertEqual(item2_2.to_dict(), geo_info_dict2)
 
     def test_validity(self):
         bad_dict = geo_info_dict1.copy()
@@ -108,7 +122,7 @@ class TestGeoData(unittest.TestCase):
     def test_construction(self):
         the_type = GeoData.GeoDataType
         the_dict = geo_data_dict
-        item1 = generic_construction_test(self, the_type, the_dict)
+        item1 = generic_construction_test(self, the_type, the_dict, print_xml=True)
 
         with self.subTest(msg='Image Corners setting from array'):
             test_value = numpy.array([[0, 0], [0, 2], [2, 2], [2, 0]])
@@ -119,3 +133,16 @@ class TestGeoData(unittest.TestCase):
             test_value = numpy.array([[0, 0], [1, 1], [1, 0]])
             item1.ValidData = test_value
             self.assertTrue(numpy.all(item1.ValidData.get_array(dtype=numpy.float64) == test_value))
+
+    def test_get_item(self):
+        geodata = GeoData.GeoDataType.from_dict(geo_data_dict)
+        self.assertEqual(geodata['Name1'].to_dict(), geo_info_dict1)
+        self.assertEqual(geodata['Name2'].to_dict(), geo_info_dict2)
+        self.assertEqual(geodata['Name3'].to_dict(), geo_info_dict3)
+
+    def test_set_item(self):
+        item4 = GeoData.GeoInfoType.from_dict(geo_info_dict4)
+        geodata = GeoData.GeoDataType.from_dict(geo_data_dict)
+        geodata['Name4'] = item4
+        item4_2 = geodata['Name4']
+        self.assertEqual(item4_2.to_dict(), geo_info_dict4)
