@@ -122,7 +122,7 @@ class TestGeoData(unittest.TestCase):
     def test_construction(self):
         the_type = GeoData.GeoDataType
         the_dict = geo_data_dict
-        item1 = generic_construction_test(self, the_type, the_dict, print_xml=True)
+        item1 = generic_construction_test(self, the_type, the_dict, print_xml=False)
 
         with self.subTest(msg='Image Corners setting from array'):
             test_value = numpy.array([[0, 0], [0, 2], [2, 2], [2, 0]])
