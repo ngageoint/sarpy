@@ -1,17 +1,18 @@
+# -*- coding: utf-8 -*-
 """
 Setup module for SarPy.
 """
 
 import sys
 from setuptools import setup, find_packages
-# To use a consistent encoding
 from codecs import open
-# from os import path
+
 import os
 try:
-    # If attempting hard links cause "error removing..." errors (can occur in Windows on network
-    # drives), this will fix it:
-    del os.link  # TODO: is this still viable?
+    # If attempting hard links cause "error removing..." errors,
+    # which can occur in Windows on network drives.
+    # This may fix it, but may be deprecated?
+    del os.link
 except AttributeError:
     pass
 
@@ -50,7 +51,8 @@ except ImportError:
 
 tests_require = []
 if sys.version_info[0] < 3:
-    tests_require.append('unittest2') # unittest2 only for Python2.7, which backported subTest
+    tests_require.append('unittest2')
+    # unittest2 only for Python2.7, we rely on the backport of subTest
 
 
 setup(name=parameters['__title__'],
