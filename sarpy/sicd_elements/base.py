@@ -1153,6 +1153,14 @@ class Serializable(object):
     def __repr__(self):
         return '{}(**{})'.format(self.__class__.__name__, self.to_dict(strict=False))
 
+    def __setattr__(self, key, value):
+        if not ((key in self._fields) or hasattr(self.__class__, key) or hasattr(self, key)):
+            # not expected attribute - descriptors, properties, etc
+            logging.warning(
+                'Class {} instance receiving unexpected attribute {}.\n'
+                '\tEnsure that this is not a typo of an expected field name.'.format(self.__class__.__name__, key))
+        object.__setattr__(self, key, value)
+
     def set_numeric_format(self, attribute, format_string):
         """Sets the numeric format string for the given attribute.
 

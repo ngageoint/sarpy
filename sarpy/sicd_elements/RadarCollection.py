@@ -57,8 +57,9 @@ class WaveformParametersType(Serializable):
     """Transmit and receive demodulation waveform parameters."""
     _fields = (
         'TxPulseLength', 'TxRFBandwidth', 'TxFreqStart', 'TxFMRate', 'RcvDemodType', 'RcvWindowLength',
-        'ADCSampleRate', 'RcvIFBandwidth', 'RcvFreqStart', 'RcvFMRate')
+        'ADCSampleRate', 'RcvIFBandwidth', 'RcvFreqStart', 'RcvFMRate', 'index')
     _required = ()
+    _set_as_attribute = ('index', )
     # other class variables
     _RcvFMRate = None
 
@@ -88,10 +89,12 @@ class WaveformParametersType(Serializable):
     RcvFreqStart = _FloatDescriptor(
         'RcvFreqStart', _required, strict=DEFAULT_STRICT,
         docstring='Receive demodulation start frequency in Hz, may be relative to reference frequency.')  # type: float
+    index = _IntegerDescriptor(
+        'index', _required, strict=False, docstring="The array index.")  # type: int
 
     def __init__(self, TxPulseLength=None, TxRFBandwidth=None, TxFreqStart=None, TxFMRate=None,
                  RcvDemodType=None, RcvWindowLength=None, ADCSampleRate=None, RcvIFBandwidth=None,
-                 RcvFreqStart=None, RcvFMRate=None, **kwargs):
+                 RcvFreqStart=None, RcvFMRate=None, index=None, **kwargs):
         """
 
         Parameters
@@ -106,6 +109,7 @@ class WaveformParametersType(Serializable):
         RcvIFBandwidth : float
         RcvFreqStart : float
         RcvFMRate : float
+        index : int
         kwargs : dict
         """
         self.TxPulseLength, self.TxRFBandwidth = TxPulseLength, TxRFBandwidth
@@ -119,6 +123,7 @@ class WaveformParametersType(Serializable):
             self.RcvFMRate = 0.0
         else:
             self.RcvFMRate = RcvFMRate
+        self.index = index
         super(WaveformParametersType, self).__init__(**kwargs)
 
     @property

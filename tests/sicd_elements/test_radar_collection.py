@@ -15,6 +15,7 @@ waveform_parameters_dict = {
     'RcvIFBandwidth': 1,
     'RcvFreqStart': 1,
     'RcvFMRate': 0,
+    'index': 0,
 }
 tx_step_dict = {'WFIndex': 0, 'TxPolarization': 'V', 'index': 0}
 chan_parameters_dict = {'TxRcvPolarization': 'V:V', 'RcvAPCIndex': 0, 'index': 0}

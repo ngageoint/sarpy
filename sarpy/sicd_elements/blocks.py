@@ -976,7 +976,7 @@ class Poly1DType(Serializable, Arrayable):
 
 class Poly2DType(Serializable, Arrayable):
     """Represents a one-variable polynomial, defined by two-dimensional coefficient array."""
-    __slots__ = '_coefs'
+    __slots__ = ('_coefs', )
     _fields = ('Coefs', 'order1', 'order2')
     _required = ('Coefs', )
     _numeric_format = {'Coefs': '0.10G'}
