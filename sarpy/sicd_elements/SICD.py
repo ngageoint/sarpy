@@ -4,7 +4,6 @@ The SICDType definition.
 """
 
 import logging
-from xml.etree import ElementTree
 
 import numpy
 
@@ -432,29 +431,3 @@ class SICDType(Serializable):
         if self.RMA is not None:
             # noinspection PyProtectedMember
             self.RMA._apply_reference_frequency(reference_frequency)
-
-    def to_xml_string(self, urn, tag='SICD', strict=DEFAULT_STRICT):
-        """
-        Gets an xml string in (utf-8 encoding), identified as using the namespace
-        given by `urn`.
-
-        Parameters
-        ----------
-        urn : str
-            The xml namespace. This should be "urn:SICD:<version>".
-        tag : str
-            The root node tag to use.
-        strict : bool
-            If `True`, then raise an Exception (of appropriate type) if the structure is not valid.
-            Otherwise, log a hopefully helpful message.
-
-        Returns
-        -------
-        str
-            xml string from :func:`ElementTree.tostring()` call.
-        """
-
-        etree = ElementTree.ElementTree()
-        node = self.to_node(etree, tag, strict=strict)
-        node.attrib['xmlns'] = urn
-        return ElementTree.tostring(node, encoding='utf-8', method='xml').decode('utf-8')

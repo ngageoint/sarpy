@@ -1617,6 +1617,46 @@ class Serializable(object):
                 out[attribute] = serialize_plain(attribute, value)
         return out
 
+    def copy(self):
+        """
+        Create a deep copy.
+
+        Returns
+        -------
+
+        """
+
+        return self.__class__.from_dict(self.to_dict(strict=False))
+
+    def to_xml_string(self, urn=None, tag=None, strict=DEFAULT_STRICT):
+        """
+        Gets an xml string with utf-8 encoding, identified as using the namespace
+        given by `urn` (if given).
+
+        Parameters
+        ----------
+        urn : Union[None, str]
+            The xml namespace.
+        tag : Union[None, str]
+            The root node tag to use. If not given, then the class name will be used.
+        strict : bool
+            If `True`, then raise an Exception (of appropriate type) if the structure is not valid.
+            Otherwise, log a hopefully helpful message.
+
+        Returns
+        -------
+        str
+            xml string from :func:`ElementTree.tostring()` call.
+        """
+
+        if tag is None:
+            tag = self.__class__.__name__
+        etree = ElementTree.ElementTree()
+        node = self.to_node(etree, tag, strict=strict)
+        if urn is not None:
+            node.attrib['xmlns'] = urn
+        return ElementTree.tostring(node, encoding='utf-8', method='xml').decode('utf-8')
+
 
 ##########
 #  Some basic collections classes

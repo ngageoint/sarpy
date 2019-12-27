@@ -700,7 +700,7 @@ class SICDWriter(BaseWriter):
         # get des header, xml and populate nitf_header.DataExtensions information
         des_info = {
             'header': self._data_extension_header.to_string(),
-            'xml': self._sicd_meta.to_xml_string(SPECIFICATION_NAMESPACE)}
+            'xml': self._sicd_meta.to_xml_string(urn=SPECIFICATION_NAMESPACE, tag='SICD')}
         self._nitf_header.DataExtensions.subhead_sizes[0] = len(des_info['header'])
         self._nitf_header.DataExtensions.item_sizes[0] = len(des_info['xml'])  # size should be no issue
         # there would be no satisfactory resolution in the case of an oversized header - we should raise an exception
