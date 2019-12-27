@@ -420,6 +420,7 @@ class SICDWriter(BaseWriter):
         #   maybe that should be an init option?
         # should probably set ImageCreation this way no matter what?
         if self._sicd_meta.ImageCreation is None:
+            # noinspection PyBroadException
             try:
                 profile = getpass.getuser()
             except Exception:  # unsure what exception is raised

@@ -267,8 +267,7 @@ class LatLonRestrictionType(LatLonType):
         ----------
         array: numpy.ndarray|list|tuple
             assumed [Lat, Lon]
-        index : int
-            array index
+
         Returns
         -------
         LatLonRestrictionType

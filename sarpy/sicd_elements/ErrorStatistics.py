@@ -183,10 +183,12 @@ class RadarSensorErrorType(Serializable):
         docstring='Range bias error standard deviation.')  # type: float
     ClockFreqSF = _FloatDescriptor(
         'ClockFreqSF', _required, strict=DEFAULT_STRICT,
-        docstring='Payload clock frequency scale factor standard deviation, where :math:`SF = (Delta f)/f0`.')  # type: float
+        docstring='Payload clock frequency scale factor standard deviation, '
+                  'where :math:`SF = (Delta f)/f0`.')  # type: float
     TransmitFreqSF = _FloatDescriptor(
         'TransmitFreqSF', _required, strict=DEFAULT_STRICT,
-        docstring='Transmit frequency scale factor standard deviation, where :math:`SF = (Delta f)/f0`.')  # type: float
+        docstring='Transmit frequency scale factor standard deviation, '
+                  'where :math:`SF = (Delta f)/f0`.')  # type: float
     RangeBiasDecorr = _SerializableDescriptor(
         'RangeBiasDecorr', ErrorDecorrFuncType, _required, strict=DEFAULT_STRICT,
         docstring='Range bias decorrelation rate.')  # type: ErrorDecorrFuncType

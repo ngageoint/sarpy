@@ -5,7 +5,6 @@ data stored in *Band Interleaved By Pixel (BIP)* format.
 """
 
 import os
-import logging
 
 import numpy
 

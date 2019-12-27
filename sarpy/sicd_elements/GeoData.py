@@ -13,7 +13,7 @@ import numpy
 from .base import Serializable, DEFAULT_STRICT, _StringDescriptor, _StringEnumDescriptor, \
     _SerializableDescriptor, _SerializableArrayDescriptor, \
     _ParametersDescriptor, ParametersCollection, SerializableArray, \
-    _SerializableCPArrayDescriptor, SerializableCPArray, _SerializableListDescriptor
+    _SerializableCPArrayDescriptor, SerializableCPArray
 from .blocks import XYZType, LatLonRestrictionType, LatLonHAERestrictionType, \
     LatLonCornerStringType, LatLonArrayElementType
 
@@ -277,7 +277,6 @@ class GeoDataType(Serializable):
     )  # type: Union[SerializableArray, List[LatLonArrayElementType]]
     _GeoInfos = None
 
-
     def __init__(self, EarthModel='WGS_84', SCP=None, ImageCorners=None, ValidData=None, GeoInfos=None, **kwargs):
         """
 
@@ -290,6 +289,7 @@ class GeoDataType(Serializable):
         GeoInfos : List[GeoInfoType]
         kwargs : dict
         """
+
         self.EarthModel = EarthModel
         self.SCP = SCP
         self.ImageCorners = ImageCorners

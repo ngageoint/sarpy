@@ -165,12 +165,14 @@ class BaseChipper(object):
             start, stop, step = None, None, None
             if isinstance(arg, int):
                 step = arg
-            elif len(arg) == 1:
-                step = arg[0]
-            elif len(arg) == 2:
-                stop, step = arg
-            elif len(arg) == 3:
-                start, stop, step = arg
+            else:
+                # NB: following this pattern to avoid confused pycharm inspection
+                if len(arg) == 1:
+                    step = arg[0]
+                elif len(arg) == 2:
+                    stop, step = arg
+                elif len(arg) == 3:
+                    start, stop, step = arg
             start = 0 if start is None else int(start)
             stop = siz if stop is None else int(stop)
             step = 1 if step is None else int(step)

@@ -187,9 +187,13 @@ def _parse_complex(value, name, instance):
         rnode = value.findall('Real')
         inode = value.findall('Imag')
         if len(rnode) != 1:
-            raise ValueError('There must be exactly one Real component of a complex type node defined.')
+            raise ValueError(
+                'There must be exactly one Real component of a complex type node '
+                'defined for field {} of class {}.'.format(name, instance.__class__.__name__))
         if len(inode) != 1:
-            raise ValueError('There must be exactly one Imag component of a complex type node defined.')
+            raise ValueError(
+                'There must be exactly one Imag component of a complex type node '
+                'defined for field {} of class {}.'.format(name, instance.__class__.__name__))
         real = float(_get_node_value(rnode[0]))
         imag = float(_get_node_value(inode[0]))
         return complex(real, imag)
@@ -202,7 +206,9 @@ def _parse_complex(value, name, instance):
         for key in ['im', 'imag', 'Imag']:
             imag = value.get(key, imag)
         if real is None or imag is None:
-            raise ValueError('Cannot convert dict {} to a complex number.'.format(value))
+            raise ValueError(
+                'Cannot convert dict {} to a complex number for field {} of '
+                'class {}.'.format(value, name, instance.__class__.__name__))
         return complex(real, imag)
     else:
         # from user - I can't imagine that this would ever work
@@ -213,13 +219,21 @@ def _parse_datetime(value, name, instance, units='us'):
     # it is assumed that None is handled before this
     if isinstance(value, numpy.datetime64):
         return value
+    elif isinstance(value, str):
+        # handle Z timezone identifier explicitly - any timezone identifier is deprecated
+        if value[-1] == 'Z':
+            return numpy.datetime64(value[:-1], units)
+        else:
+            return numpy.datetime64(value, units)
     elif isinstance(value, ElementTree.Element):
-        # from XML deserialization
-        return numpy.datetime64(_get_node_value(value), units)
-    else:
-        # from user or json deserialization
-        # TODO: handle the timezone if str or datetime - numpy deprecation warning
+        # from XML deserialization - extract the string
+        return _parse_datetime(_get_node_value(value), name, instance, units=units)
+    elif isinstance(value, (date, datetime, int, numpy.int64, numpy.float64)):
         return numpy.datetime64(value, units)
+    else:
+        raise TypeError(
+            'Field {} for class {} expects datetime convertible input, and '
+            'got {}'.format(name, instance.__class__.__name__, type(value)))
 
 
 def _parse_serializable(value, name, instance, the_type):
@@ -235,8 +249,8 @@ def _parse_serializable(value, name, instance, the_type):
             return the_type.from_array(value)
         else:
             raise TypeError(
-                'Field {} of class {} is of type {} (not a subclass of Arrayable) and got an argument of type {}.'.format(
-                    name, instance.__class__.__name__, the_type, type(value)))
+                'Field {} of class {} is of type {} (not a subclass of Arrayable) and '
+                'got an argument of type {}.'.format(name, instance.__class__.__name__, the_type, type(value)))
     else:
         raise TypeError(
             'Field {} of class {} is expecting type {}, but got an instance of incompatible '
@@ -918,6 +932,7 @@ class _UnitVectorDescriptor(_BasicDescriptor):
             return
 
         vec = _parse_serializable(value, self.name, instance, self.the_type)
+        # noinspection PyTypeChecker
         coords = vec.get_array(dtype=numpy.float64)
         the_norm = norm(coords)
         if the_norm == 0:
@@ -1755,6 +1770,7 @@ class SerializableArray(object):
         if dtype in [numpy.object, 'object']:
             return self._array
         else:
+            # noinspection PyBroadException
             try:
                 return numpy.array(
                     [child.get_array(dtype=dtype, **kwargs) for child in self._array], dtype=dtype)
@@ -1794,7 +1810,6 @@ class SerializableArray(object):
             except (AttributeError, ValueError, TypeError):
                 continue
 
-
     def to_node(self, doc, tag, parent=None, strict=DEFAULT_STRICT):
         if self.size == 0:
             return None  # nothing to be done
@@ -1828,7 +1843,9 @@ class SerializableArray(object):
 
 
 class SerializableCPArray(SerializableArray):
-    __slots__ = ('_child_tag', '_child_type', '_array', '_name', '_minimum_length', '_maximum_length', '_index_as_string')
+    __slots__ = (
+        '_child_tag', '_child_type', '_array', '_name', '_minimum_length',
+        '_maximum_length', '_index_as_string')
 
     def __init__(self, coords=None, name=None, child_tag=None, child_type=None):
         if hasattr(child_type, '_CORNER_VALUES'):
