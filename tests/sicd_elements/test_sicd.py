@@ -1,5 +1,5 @@
 
-from .. import generic_construction_test, ElementTree, unittest
+from .. import generic_construction_test, unittest
 
 from sarpy.sicd_elements import SICD
 

@@ -31,7 +31,6 @@ class TestCollectionInfo(unittest.TestCase):
     def test_construction(self):
         item1 = generic_construction_test(self, CollectionInfo.CollectionInfoType, info_dict)
 
-
     def test_default(self):
         junk = CollectionInfo.CollectionInfoType()
         self.assertEqual(junk.Classification, 'UNCLASSIFIED')

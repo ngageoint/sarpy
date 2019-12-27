@@ -15,8 +15,7 @@ def generic_arrayable_construction_test(instance, the_type, the_dict, array):
 
     with instance.subTest(msg='Test xml serialization issues'):
         # let's serialize to xml
-        etree = ElementTree.ElementTree()
-        xml = ElementTree.tostring(the_item.to_node(etree, 'The_Type')).decode('utf-8')
+        xml = the_item.to_xml_string(tag='The_Type')
         # let's deserialize from xml
         node = ElementTree.fromstring(xml)
         item2 = the_type.from_node(node)
@@ -252,8 +251,7 @@ class TestErrorDecorrFunc(unittest.TestCase):
 
         with self.subTest(msg='Test xml serialization issues'):
             # let's serialize to xml
-            etree = ElementTree.ElementTree()
-            xml = ElementTree.tostring(item1.to_node(etree, 'ErrorDecorrFuncType')).decode('utf-8')
+            xml = item1.to_xml_string(tag='ErrorDecorrFuncType')
             # let's deserialize from xml
             node = ElementTree.fromstring(xml)
             item3 = blocks.ErrorDecorrFuncType.from_node(node)

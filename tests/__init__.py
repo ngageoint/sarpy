@@ -7,8 +7,12 @@ if sys.version_info[0] < 3:
 else:
     import unittest
 
+from sarpy.sicd_elements.base import Serializable
+
 
 def generic_construction_test(instance, the_type, the_dict, tag='The_Type', print_xml=False):
+    if not issubclass(the_type, Serializable):
+        raise TypeError('Class {} must be a subclass of Serializable'.format(the_type))
     the_item = the_type.from_dict(the_dict)
 
     with instance.subTest(msg='Comparing json deserialization with original'):
@@ -17,8 +21,7 @@ def generic_construction_test(instance, the_type, the_dict, tag='The_Type', prin
 
     with instance.subTest(msg='Test xml serialization issues'):
         # let's serialize to xml
-        etree = ElementTree.ElementTree()
-        xml = ElementTree.tostring(the_item.to_node(etree, tag)).decode('utf-8')
+        xml = the_item.to_xml_string(tag=tag)
         if print_xml:
             print(xml)
         # let's deserialize from xml
