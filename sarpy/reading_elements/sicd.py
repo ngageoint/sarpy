@@ -889,7 +889,8 @@ class SICDWriter(BaseWriter):
             self.close()
 
     def __enter__(self):
-        # TODO: VERIFY - should be written as a context manager. Concurrence?
+        # TODO: VERIFY - should be written as a context manager.
+        #   Let's dump the __del__ and make it deliberate.
         return self
 
     def __exit__(self, exception_type, exception_value, traceback):

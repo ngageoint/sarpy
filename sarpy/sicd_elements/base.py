@@ -1547,9 +1547,6 @@ class Serializable(object):
 
             if val.dtype == numpy.float64:
                 return [float(el) for el in val]
-            elif val.dtype == numpy.object:
-                # TODO: Deprecated. Remove when eliminated.
-                return [serialize_plain(ch_tag, entry) for entry in val]
             else:
                 # I have no idea how we'd find ourselves here, unless inconsistencies have been introduced
                 # into the descriptor

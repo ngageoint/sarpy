@@ -29,7 +29,7 @@ class RcvChanProcType(Serializable):
     PRFScaleFactor = _FloatDescriptor(
         'PRFScaleFactor', _required, strict=DEFAULT_STRICT,
         docstring='Factor indicating the ratio of the effective PRF to the actual PRF.')  # type: float
-    ChanIndices = _IntegerListDescriptor(  # TODO: CLARIFY - what is the intent of this one?
+    ChanIndices = _IntegerListDescriptor(
         'ChanIndices', _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Index of a data channel that was processed.')  # type: List[int]
 
@@ -369,7 +369,7 @@ class ImageFormationType(Serializable):
             if self.TxFrequencyProc is not None:
                 self.TxFrequencyProc = TxFrequencyProcType(
                     ProcMin=RadarCollection.TxFrequency.Min, ProcMax=RadarCollection.TxFrequency.Max)
-                # TODO: does it make sense to set only one end or the other?
+                # how would it make sense to set only one end?
             elif self.TxFrequencyProc.MinProc is None:
                 self.TxFrequencyProc.MinProc = RadarCollection.TxFrequency.Min
             elif self.TxFrequencyProc.MaxProc is None:

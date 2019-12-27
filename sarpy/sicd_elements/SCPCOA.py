@@ -138,7 +138,7 @@ class SCPCOAType(Serializable):
         scp_time = Grid.TimeCOAPoly.Coefs[0, 0]
         if self.SCPTime is None:
             self.SCPTime = scp_time
-        elif abs(self.SCPTime - scp_time) > 1:  # TODO: what is a useful tolerance?
+        elif abs(self.SCPTime - scp_time) > 1e-8:  # useful tolerance?
             logging.warning(
                 'The SCPTime is derived from Grid.TimeCOAPoly as {}, and it is set '
                 'as {}'.format(scp_time, self.SCPTime))
@@ -211,21 +211,21 @@ class SCPCOAType(Serializable):
         slant_range = numpy.linalg.norm(LOS)
         if self.SlantRange is None:
             self.SlantRange = slant_range
-        elif abs(self.SlantRange - slant_range) > 10:  # TODO: what is a sensible tolerance here?
+        elif abs(self.SlantRange - slant_range) > 1e-5:  # sensible tolerance?
             logging.error('In SCPCOAType, the derived value for SlantRange is {} and the set '
                           'value is {}'.format(slant_range, self.SlantRange))
 
         ground_range = norm(SCP)*numpy.arccos(numpy.dot(uSCP, uARP))
         if self.GroundRange is None:
             self.GroundRange = ground_range
-        elif abs(self.GroundRange - ground_range) > 10:  # TODO: what is a sensible tolerance here?
+        elif abs(self.GroundRange - ground_range) > 1e-5:  # sensible tolerance?
             logging.error('In SCPCOAType, the derived value for GroundRange is {} and the set '
                           'value is {}'.format(ground_range, self.GroundRange))
 
         doppler_cone = numpy.rad2deg(numpy.arccos(numpy.dot(uARP_vel, uLOS)))
         if self.DopplerConeAng is None:
             self.DopplerConeAng = doppler_cone
-        elif abs(self.DopplerConeAng - doppler_cone) > 1:  # TODO: sensible tolerance?
+        elif abs(self.DopplerConeAng - doppler_cone) > 1e-5:  # sensible tolerance?
             logging.error('In SCPCOAType, the derived value for DopplerConeAng is {} and the set '
                           'value is {}'.format(doppler_cone, self.DopplerConeAng))
 
@@ -236,7 +236,7 @@ class SCPCOAType(Serializable):
         graze_ang = numpy.rad2deg(numpy.arcsin(numpy.dot(ETP, -uLOS)))
         if self.GrazeAng is None:
             self.GrazeAng = graze_ang
-        elif abs(self.GrazeAng - graze_ang) > 1:  # TODO: sensible tolerance?
+        elif abs(self.GrazeAng - graze_ang) > 1e-5:  # sensible tolerance?
             logging.error('In SCPCOAType, the derived value for GrazeAng is {} and the set '
                           'value is {}'.format(graze_ang, self.GrazeAng))
 
@@ -253,14 +253,14 @@ class SCPCOAType(Serializable):
         twist_ang = -numpy.rad2deg(numpy.arcsin(numpy.dot(uGPY, uSPZ)))
         if self.TwistAng is None:
             self.TwistAng = twist_ang
-        elif abs(self.TwistAng - twist_ang) > 1:  # TODO: sensible tolerance?
+        elif abs(self.TwistAng - twist_ang) > 1e-5:  # sensible tolerance?
             logging.error('In SCPCOAType, the derived value for TwistAng is {} and the set '
                           'value is {}'.format(twist_ang, self.TwistAng))
 
         slope_ang = numpy.rad2deg(numpy.arccos(numpy.dot(ETP, uSPZ)))
         if self.SlopeAng is None:
             self.SlopeAng = slope_ang
-        elif abs(self.SlopeAng - slope_ang) > 1:  # TODO: sensible tolerance?
+        elif abs(self.SlopeAng - slope_ang) > 1e-5:  # sensible tolerance?
             logging.error('In SCPCOAType, the derived value for SlopeAng is {} and the set '
                           'value is {}'.format(slope_ang, self.SlopeAng))
 
@@ -273,7 +273,7 @@ class SCPCOAType(Serializable):
         azim_ang = azim_ang if azim_ang > 0 else azim_ang + 360
         if self.AzimAng is None:
             self.AzimAng = azim_ang
-        elif abs(self.AzimAng - azim_ang) > 1:  # TODO: sensible tolerance?
+        elif abs(self.AzimAng - azim_ang) > 1e-5:  # sensible tolerance?
             logging.error('In SCPCOAType, the derived value for AzimAng is {} and the set '
                           'value is {}'.format(azim_ang, self.AzimAng))
 
@@ -283,6 +283,6 @@ class SCPCOAType(Serializable):
         layover_ang = layover_ang if layover_ang > 0 else layover_ang + 360
         if self.LayoverAng is None:
             self.LayoverAng = layover_ang
-        elif abs(self.LayoverAng - layover_ang) > 1:  # TODO: sensible tolerance?
+        elif abs(self.LayoverAng - layover_ang) > 1e-5:  # sensible tolerance?
             logging.error('In SCPCOAType, the derived value for LayoverAng is {} and the set '
                           'value is {}'.format(layover_ang, self.LayoverAng))
