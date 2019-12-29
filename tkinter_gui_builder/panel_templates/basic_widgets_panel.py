@@ -105,3 +105,24 @@ class BasicWidgetsPanel(tk.LabelFrame):
                        label,               # type: str
                        ):
         self.config(text=label)
+
+    def unpress_all_buttons(self):
+        for i, widget_and_name in enumerate(self.widget_list):
+            widget = widget_and_name
+            if type(("", "")) == type(widget_and_name):
+                widget = widget_and_name[0]
+            getattr(self, widget).config(relief="raised")
+
+    def press_all_buttons(self):
+        for i, widget_and_name in enumerate(self.widget_list):
+            widget = widget_and_name
+            if type(("", "")) == type(widget_and_name):
+                widget = widget_and_name[0]
+            getattr(self, widget).config(relief="sunken")
+
+    def activate_all_buttons(self):
+        for i, widget_and_name in enumerate(self.widget_list):
+            widget = widget_and_name
+            if type(("", "")) == type(widget_and_name):
+                widget = widget_and_name[0]
+            getattr(self, widget).config(state="active")

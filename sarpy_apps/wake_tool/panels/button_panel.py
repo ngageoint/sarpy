@@ -11,27 +11,6 @@ class ButtonPanel(BasicWidgetsPanel):
         self.calculate_wake = basic_widgets.Button
         self.foreground_color = basic_widgets.Button
 
-        self.buttons_list = ["line_draw", "point_draw", ('calculate_wake', 'calc'), ("foreground_color", "fg color")]
-        self.init_w_box_layout(self.buttons_list, 2, widget_width=8, widget_height=2)
+        widget_list = ["line_draw", "point_draw", ('calculate_wake', 'calc'), ("foreground_color", "fg color")]
+        self.init_w_box_layout(widget_list, 2, widget_width=8, widget_height=2)
         self.set_label_text("wake tool buttons")
-
-    def unpress_all_buttons(self):
-        for i, widget_and_name in enumerate(self.buttons_list):
-            widget = widget_and_name
-            if type(("", "")) == type(widget_and_name):
-                widget = widget_and_name[0]
-            getattr(self, widget).config(relief="raised")
-
-    def press_all_buttons(self):
-        for i, widget_and_name in enumerate(self.buttons_list):
-            widget = widget_and_name
-            if type(("", "")) == type(widget_and_name):
-                widget = widget_and_name[0]
-            getattr(self, widget).config(relief="sunken")
-
-    def activate_all_buttons(self):
-        for i, widget_and_name in enumerate(self.buttons_list):
-            widget = widget_and_name
-            if type(("", "")) == type(widget_and_name):
-                widget = widget_and_name[0]
-            getattr(self, widget).config(state="active")
