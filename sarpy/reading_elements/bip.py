@@ -258,6 +258,7 @@ class BIPWriter(object):
         None
         """
 
+        # NB: it is expected that start-indices has been validate before getting here
         if not isinstance(data, numpy.ndarray):
             raise TypeError('Requires data is a numpy.ndarray, got {}'.format(type(data)))
 
