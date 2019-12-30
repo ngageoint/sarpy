@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import re
+import sys
 import logging
 from xml.etree import ElementTree
 from typing import Tuple
@@ -16,6 +17,11 @@ from ..sicd_elements.SICD import SICDType
 from ..sicd_elements.ImageCreation import ImageCreationType
 from ..sicd_elements.blocks import LatLonType
 from ..__about__ import __title__, __release__
+
+int_func = int
+if sys.version_info[0] < 3:
+    # noinspection PyUnresolvedReferences
+    int_func = long
 
 
 #########
@@ -56,7 +62,7 @@ class NITFDetails(object):
                 raise IOError('Note a NITF 2.1 file, and cannot contain a SICD')
             # get the header length
             fi.seek(354)  # offset to first field of interest
-            header_length = int(fi.read(6))
+            header_length = int_func(fi.read(6))
             # go back to the beginning of the file, and parse the whole header
             fi.seek(0)
             header_string = fi.read(header_length)
@@ -233,7 +239,7 @@ class MultiSegmentChipper(BaseChipper):
         self._row_starts = numpy.zeros((data_sizes.shape[0], ), dtype=numpy.int64)
         self._row_ends = numpy.cumsum(data_sizes[: 0])
         self._row_starts[1:] = self._row_ends[:-1]
-        self._bands_ip = int(bands_ip)
+        self._bands_ip = int_func(bands_ip)
 
         data_size = (self._row_ends[-1], data_sizes[0, 1])
         # all of the actual reading and reorienting done by child chippers,
@@ -244,7 +250,7 @@ class MultiSegmentChipper(BaseChipper):
         range1, range2 = self._reorder_arguments(range1, range2)
         # this method just assembles the final data from the child chipper pieces
         rows = numpy.arange(*range1, dtype=numpy.int64)  # array
-        cols_size = int((range2[1] - range2[0] - 1)/range2[2]) + 1
+        cols_size = int_func((range2[1] - range2[0] - 1)/range2[2]) + 1
         if self._bands_ip == 1:
             out = numpy.empty((rows.size, cols_size), dtype=self._dtype)
         else:
@@ -555,7 +561,7 @@ class SICDWriter(BaseWriter):
             # how many bytes per row for this column section
             row_memory_size = (col_limit-col_offset)*pixel_size
             # how many rows can we use
-            row_count = min(DIM_LIMIT, IM_ROWS-row_offset, int(IM_SEG_LIMIT/row_memory_size))
+            row_count = min(DIM_LIMIT, IM_ROWS-row_offset, int_func(IM_SEG_LIMIT/row_memory_size))
             im_segment_size = pixel_size*row_count*(col_limit-col_offset)
             im_segments.append((row_offset, row_offset + row_count, col_offset, col_limit, im_segment_size))
             row_offset += row_count  # move the next row offset
@@ -768,17 +774,6 @@ class SICDWriter(BaseWriter):
             fi.seek(self._header_offsets[index])
             fi.write(self._final_header_info['image_header'][index].encode('utf-8'))
 
-    def _write_data_extension(self):
-        if self._des_written:
-            return
-
-        with open(self._file_name, mode='r+b') as fi:
-            fi.seek(self._image_offsets[-1] + self._image_segment_limits[-1, 4])
-            fi.write(self._final_header_info['des']['header'].encode('utf-8'))
-            fi.write(self._final_header_info['des']['xml'].encode('utf-8'))
-        self._des_written = True
-        logging.info('Data file {} fully written'.format(self._file_name))
-
     def close(self):
         """
         Checks that data appears to be satisfactorily written, and logs some details
@@ -789,6 +784,8 @@ class SICDWriter(BaseWriter):
         -------
         None
         """
+        if self._des_written:
+            return
 
         # let's double check that everything is written
         insufficiently_written = [[], [], []]
@@ -807,8 +804,18 @@ class SICDWriter(BaseWriter):
                     insufficiently_written[0],
                     insufficiently_written[1],
                     insufficiently_written[2]))
+
         # let's write the data extension
-        self._write_data_extension()
+        with open(self._file_name, mode='r+b') as fi:
+            fi.seek(self._image_offsets[-1] + self._image_segment_limits[-1, 4])
+            fi.write(self._final_header_info['des']['header'].encode('utf-8'))
+            fi.write(self._final_header_info['des']['xml'].encode('utf-8'))
+        self._des_written = True
+        logging.info('Data file {} fully written.'.format(self._file_name))
+
+        # now, we close all the chippers
+        for entry in self._writing_chippers:
+            entry.close()
 
     def write_chip(self, data, start_indices):
         def overlap(rrange, crange):
@@ -842,7 +849,7 @@ class SICDWriter(BaseWriter):
         if not isinstance(data, numpy.ndarray):
             raise ValueError('data is required to be an instance of numpy.ndarray, got {}'.format(type(data)))
 
-        start_indices = (int(start_indices[0]), int(start_indices[1]))
+        start_indices = (int_func(start_indices[0]), int_func(start_indices[1]))
         if (start_indices[0] < 0) or (start_indices[1] < 0):
             raise ValueError('start_indices must have positive entries. Got {}'.format(start_indices))
         if (start_indices[0] >= self._shape[0]) or \
@@ -882,15 +889,13 @@ class SICDWriter(BaseWriter):
             self._pixels_written[i] += write_els
 
     def __del__(self):
-        if not self._des_written:
-            # TODO: VERIFY - I really think this is wrong
-            #   you have to wait for the object to fall out of scope for this.
-            #   we should emphasize using this object as a context manager.
-            self.close()
+        # TODO: VERIFY - I really think this is wrong
+        #   you have to wait for the object to fall out of scope for this.
+        #   we should emphasize using this object as a context manager.
+        self.close()
 
     def __enter__(self):
         # TODO: VERIFY - should be written as a context manager.
-        #   Let's dump the __del__ and make it deliberate.
         return self
 
     def __exit__(self, exception_type, exception_value, traceback):

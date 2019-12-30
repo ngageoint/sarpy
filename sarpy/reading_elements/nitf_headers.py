@@ -1,10 +1,18 @@
 # -*- coding: utf-8 -*-
 
 import logging
+import sys
 from collections import OrderedDict
 from typing import Union
 
 import numpy
+
+integer_types = (int, )
+int_func = int
+if sys.version_info[0] < 3:
+    # noinspection PyUnresolvedReferences
+    int_func = long  # to accommodate for 32-bit python 2
+    integer_types = (int, long)
 
 ##########
 # Some hard coded defaults based on current SICD standard
@@ -132,19 +140,19 @@ class _ItemArrayHeaders(BaseScraper):
         """
 
         subhead_len, item_len = args
-        subhead_len, item_len = int(subhead_len), int(item_len)
+        subhead_len, item_len = int_func(subhead_len), int_func(item_len)
 
         value = cls._validate(value, start)
 
         loc = start
-        count = int(value[loc:loc+3])
+        count = int_func(value[loc:loc+3])
         loc += 3
         subhead_sizes = numpy.array((count, ), dtype=numpy.int64)
         item_sizes = numpy.array((count, ), dtype=numpy.int64)
         for i in range(count):
-            subhead_sizes[i] = int(value[loc: loc+subhead_len])
+            subhead_sizes[i] = int_func(value[loc: loc+subhead_len])
             loc += subhead_len
-            item_sizes[i] = int(value[loc: loc+item_len])
+            item_sizes[i] = int_func(value[loc: loc+item_len])
             loc += item_len
         return cls(subhead_len, subhead_sizes, item_len, item_sizes)
 
@@ -193,7 +201,7 @@ class ImageComments(BaseScraper):
 
         value = cls._validate(value, start)
         loc = start
-        count = int(value[loc:loc+1])
+        count = int_func(value[loc:loc+1])
         loc += 1
         comments = []
         for i in range(count):
@@ -261,7 +269,7 @@ class ImageBands(BaseScraper):
                              'but {} != {}'.format(attribute, len(value), len(self.ISUBCAT)))
 
         fmstr = self._formats[attribute]
-        flen = int(fmstr[:-1])
+        flen = int_func(fmstr[:-1])
         for i, entry in value:
             if fmstr[-1] == 's':
                 if not isinstance(entry, str):
@@ -271,7 +279,7 @@ class ImageBands(BaseScraper):
                     raise TypeError('All entries of {} must be strings of length at most {}, '
                                     'got {} for entry {}'.format(attribute, flen, len(entry), i))
             if fmstr[-1] == 'd':
-                if not isinstance(entry, int):
+                if not isinstance(entry, integer_types):
                     raise TypeError('All entries of {} must be an instance of int, '
                                     'got {} for entry {}'.format(attribute, type(entry), i))
                 if entry >= 10**flen:
@@ -304,7 +312,7 @@ class ImageBands(BaseScraper):
 
         value = cls._validate(value, start)
         loc = start
-        count = int(value[loc:loc+1])
+        count = int_func(value[loc:loc+1])
         loc += 1
 
         isubcat = []
@@ -318,7 +326,7 @@ class ImageBands(BaseScraper):
             isubcat.append(value[loc+2:loc+8])
             ifc.append(value[loc+8:loc+9])
             imflt.append(value[loc+9:loc+12])
-            nluts.append(int(value[loc+12:loc+13]))
+            nluts.append(int_func(value[loc+12:loc+13]))
             loc += 13
         return cls(isubcat, IREPBAND=irepband, IFC=ifc, IMFLT=imflt, NLUTS=nluts)
 
@@ -329,7 +337,7 @@ class ImageBands(BaseScraper):
             for attribute in self.__slots__:
                 frmstr = self._formats[attribute]
                 val = frmstr.format(getattr(self, attribute)[i])
-                if len(val) > int(frmstr[:-1]):
+                if len(val) > int_func(frmstr[:-1]):
                     raise ValueError('Entry {} for attribute {} got formatted as a length {} string, '
                                      'but required to be {}'.format(i, attribute, len(val), frmstr[:-1]))
                 items.append(val)
@@ -348,7 +356,7 @@ class OtherHeader(BaseScraper):
         if overflow is None:
             self.overflow = 0
         else:
-            self.overflow = int(overflow)
+            self.overflow = int_func(overflow)
         if header is None:
             self.header = header
         elif not isinstance(header, str):
@@ -374,11 +382,11 @@ class OtherHeader(BaseScraper):
     def from_string(cls, value, start, *args):
         value = cls._validate(value, start)
 
-        siz = int(value[start:start+5])
+        siz = int_func(value[start:start+5])
         if siz == 0:
             return cls()
         else:
-            overflow = int(value[start+5:start+8])
+            overflow = int_func(value[start+5:start+8])
             header = value[start+8:start+siz]
             return cls(overflow=overflow, header=header)
 
@@ -445,7 +453,7 @@ class HeaderScraper(BaseScraper):
                                  'got {}'.format(attribute, typ, type(value)))
         else:
             frmt = self._formats[attribute]
-            lng = int(frmt[:-1])
+            lng = int_func(frmt[:-1])
             if value is None:
                 value = self._defaults.get(attribute, None)
 
@@ -453,8 +461,8 @@ class HeaderScraper(BaseScraper):
                 if value is None:
                     super(HeaderScraper, self).__setattr__(attribute, 0)
                 else:
-                    val = int(value)
-                    if 0 <= val < 10**lng:
+                    val = int_func(value)
+                    if 0 <= val < int_func(10)**lng:
                         super(HeaderScraper, self).__setattr__(attribute, val)
                     else:
                         raise ValueError('Attribute {} is expected to be an integer expressible in {} digits. '
@@ -483,7 +491,7 @@ class HeaderScraper(BaseScraper):
             return super(HeaderScraper, self).__getattribute__(attribute)
         else:
             frmt = self._formats[attribute]
-            lng = int(frmt[:-1])
+            lng = int_func(frmt[:-1])
             frmtstr = '{0:' + frmt + '}'
             if frmt[-1] == 'd':  # an integer
                 return super(HeaderScraper, self).__getattribute__(attribute)
@@ -501,7 +509,7 @@ class HeaderScraper(BaseScraper):
                 val = getattr(self, attribute)
                 length += len(val)
             else:
-                length += int(self._formats[attribute][:-1])
+                length += int_func(self._formats[attribute][:-1])
         return length
 
     @classmethod
@@ -513,7 +521,7 @@ class HeaderScraper(BaseScraper):
                 if issubclass(typ, BaseScraper):
                     min_length += typ.minimum_length()
             else:
-                min_length += int(cls._formats[attribute][:-1])
+                min_length += int_func(cls._formats[attribute][:-1])
         return min_length
 
     @classmethod
@@ -536,7 +544,7 @@ class HeaderScraper(BaseScraper):
                 fields[aname] = val  # exclude the underscore from the name
                 lngt = len(val)
             else:
-                lngt = int(cls._formats[attribute][:-1])
+                lngt = int_func(cls._formats[attribute][:-1])
                 fields[attribute] = value[loc:lngt]
             loc += lngt
         return cls(**fields)
@@ -547,7 +555,7 @@ class HeaderScraper(BaseScraper):
             val = getattr(self, attribute)
             if isinstance(val, BaseScraper):
                 out += val.to_string()
-            elif isinstance(val, int):
+            elif isinstance(val, integer_types):
                 fstr = '{0:'+self._formats[attribute]+'}'
                 out += fstr.format(val)
             elif isinstance(val, str):
@@ -833,10 +841,10 @@ class DataExtensionHeader(HeaderScraper):
                 fields[aname] = val  # exclude the underscore from the name
                 lngt = len(val)
             else:
-                lngt = int(cls._formats[attribute][:-1])
+                lngt = int_func(cls._formats[attribute][:-1])
                 fields[attribute] = value[loc:lngt]
             loc += lngt
-        if int(fields['DESSHL']) == 773:
+        if int_func(fields['DESSHL']) == 773:
             fields['SICDHeader'] = SICDDESSubheader.from_string(value[loc:loc+773], 0)
         else:
             fields['DESSHL'] = 0
@@ -855,9 +863,9 @@ class DataExtensionHeader(HeaderScraper):
             val = getattr(self, attribute)
             if isinstance(val, BaseScraper):
                 out += val.to_string()
-            elif isinstance(val, int):
+            elif isinstance(val, integer_types):
                 fstr = self._formats[attribute]
-                flen = int(fstr[:-1])
+                flen = int_func(fstr[:-1])
                 val = getattr(self, attribute)
                 if val >= 10**flen:
                     raise ValueError('Attribute {} has integer value {}, which cannot be written as '
@@ -865,7 +873,7 @@ class DataExtensionHeader(HeaderScraper):
                 out += fstr.format(val)
             elif isinstance(val, str):
                 fstr = self._formats[attribute]
-                flen = int(fstr[:-1])
+                flen = int_func(fstr[:-1])
                 val = getattr(self, attribute)
                 if len(val) <= flen:
                     out += fstr.format(val)  # left justified of length flen

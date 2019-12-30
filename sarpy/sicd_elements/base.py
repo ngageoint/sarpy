@@ -3,6 +3,8 @@
 This module contains the base objects for use in the SICD elements, and the base serializable functionality.
 """
 
+import sys
+
 from xml.etree import ElementTree
 from collections import OrderedDict
 from datetime import datetime, date
@@ -13,6 +15,13 @@ import numpy
 import numpy.polynomial.polynomial
 from numpy.linalg import norm
 
+integer_types = (int, )
+int_func = int
+if sys.version_info[0] < 3:
+    # noinspection PyUnresolvedReferences
+    int_func = long  # to account for 32-bit python 2
+    # noinspection PyUnresolvedReferences
+    integer_types = (int, long)
 
 __classification__ = "UNCLASSIFIED"
 
@@ -132,7 +141,7 @@ def _parse_bool(value, name, instance):
     # it is assumed that None is handled before this
     if isinstance(value, bool):
         return value
-    elif isinstance(value, int):
+    elif isinstance(value, integer_types):
         return bool(value)
     elif isinstance(value, ElementTree.Element):
         # from XML deserialization
@@ -146,15 +155,15 @@ def _parse_bool(value, name, instance):
 
 def _parse_int(value, name, instance):
     # it is assumed that None is handled before this
-    if isinstance(value, int):
+    if isinstance(value, integer_types):
         return value
     elif isinstance(value, ElementTree.Element):
         # from XML deserialization
-        return int(_get_node_value(value))
+        return int_func(_get_node_value(value))
     else:
         # user or json deserialization
         try:
-            return int(value)
+            return int_func(value)
         except Exception:
             raise ValueError(
                 'Failed converting {} of type {} to `int` for field {} of '
@@ -228,7 +237,10 @@ def _parse_datetime(value, name, instance, units='us'):
     elif isinstance(value, ElementTree.Element):
         # from XML deserialization - extract the string
         return _parse_datetime(_get_node_value(value), name, instance, units=units)
-    elif isinstance(value, (date, datetime, int, numpy.int64, numpy.float64)):
+    elif isinstance(value, (date, datetime, numpy.int64, numpy.float64)):
+        return numpy.datetime64(value, units)
+    elif isinstance(value, integer_types):
+        # this is less safe, because the units are unknown...
         return numpy.datetime64(value, units)
     else:
         raise TypeError(
@@ -284,7 +296,7 @@ def _parse_serializable_array(value, name, instance, child_type, child_tag):
         return value
     elif isinstance(value, ElementTree.Element):
         # this is the parent node from XML deserialization
-        size = int(value.attrib['size'])
+        size = int_func(value.attrib['size'])
         # extract child nodes at top level
         child_nodes = value.findall(child_tag)
         if len(child_nodes) != size:
@@ -526,8 +538,8 @@ class _StringListDescriptor(_BasicDescriptor):
 
     def __init__(self, name, required, strict=DEFAULT_STRICT, minimum_length=None, maximum_length=None,
                  default_value=None, docstring=None):
-        self.minimum_length = self._DEFAULT_MIN_LENGTH if minimum_length is None else int(minimum_length)
-        self.maximum_length = self._DEFAULT_MAX_LENGTH if maximum_length is None else int(maximum_length)
+        self.minimum_length = self._DEFAULT_MIN_LENGTH if minimum_length is None else int_func(minimum_length)
+        self.maximum_length = self._DEFAULT_MAX_LENGTH if maximum_length is None else int_func(maximum_length)
         if self.minimum_length > self.maximum_length:
             raise ValueError(
                 'Specified minimum length is {}, while specified maximum length is {}'.format(
@@ -704,8 +716,8 @@ class _IntegerListDescriptor(_BasicDescriptor):
     def __init__(self, name, tag_dict, required, strict=DEFAULT_STRICT,
                  minimum_length=None, maximum_length=None, docstring=None):
         self.child_tag = tag_dict[name]['child_tag']
-        self.minimum_length = self._DEFAULT_MIN_LENGTH if minimum_length is None else int(minimum_length)
-        self.maximum_length = self._DEFAULT_MAX_LENGTH if maximum_length is None else int(maximum_length)
+        self.minimum_length = self._DEFAULT_MIN_LENGTH if minimum_length is None else int_func(minimum_length)
+        self.maximum_length = self._DEFAULT_MAX_LENGTH if maximum_length is None else int_func(maximum_length)
         if self.minimum_length > self.maximum_length:
             raise ValueError(
                 'Specified minimum length is {}, while specified maximum length is {}'.format(
@@ -733,15 +745,15 @@ class _IntegerListDescriptor(_BasicDescriptor):
         if super(_IntegerListDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
             return
 
-        if isinstance(value, int):
+        if isinstance(value, integer_types):
             set_value([value, ])
         elif isinstance(value, ElementTree.Element):
-            set_value([int(_get_node_value(value)), ])
+            set_value([int_func(_get_node_value(value)), ])
         elif isinstance(value, list):
-            if len(value) == 0 or isinstance(value[0], int):
+            if len(value) == 0 or isinstance(value[0], integer_types):
                 set_value(value)
             elif isinstance(value[0], ElementTree.Element):
-                set_value([int(_get_node_value(nod)) for nod in value])
+                set_value([int_func(_get_node_value(nod)) for nod in value])
         else:
             raise TypeError(
                 'Field {} of class {} got incompatible type {}.'.format(
@@ -810,8 +822,8 @@ class _FloatArrayDescriptor(_BasicDescriptor):
                  docstring=None):
 
         self.child_tag = tag_dict[name]['child_tag']
-        self.minimum_length = self._DEFAULT_MIN_LENGTH if minimum_length is None else int(minimum_length)
-        self.maximum_length = self._DEFAULT_MAX_LENGTH if maximum_length is None else int(maximum_length)
+        self.minimum_length = self._DEFAULT_MIN_LENGTH if minimum_length is None else int_func(minimum_length)
+        self.maximum_length = self._DEFAULT_MAX_LENGTH if maximum_length is None else int_func(maximum_length)
         if self.minimum_length > self.maximum_length:
             raise ValueError(
                 'Specified minimum length is {}, while specified maximum length is {}'.format(
@@ -844,7 +856,7 @@ class _FloatArrayDescriptor(_BasicDescriptor):
                 raise ValueError('Only one-dimensional ndarrays of dtype float64 are supported here.')
             set_value(value)
         elif isinstance(value, ElementTree.Element):
-            size = int(value.attrib['size'])
+            size = int_func(value.attrib['size'])
             child_nodes = value.findall(self.child_tag)
             if len(child_nodes) != size:
                 raise ValueError(
@@ -985,8 +997,8 @@ class _SerializableArrayDescriptor(_BasicDescriptor):
         self.child_tag = tags['child_tag']
         self._typ_string = 'numpy.ndarray[{}]:'.format(str(child_type).strip().split('.')[-1][:-2])
 
-        self.minimum_length = self._DEFAULT_MIN_LENGTH if minimum_length is None else int(minimum_length)
-        self.maximum_length = self._DEFAULT_MAX_LENGTH if maximum_length is None else int(maximum_length)
+        self.minimum_length = self._DEFAULT_MIN_LENGTH if minimum_length is None else int_func(minimum_length)
+        self.maximum_length = self._DEFAULT_MAX_LENGTH if maximum_length is None else int_func(maximum_length)
         if self.minimum_length > self.maximum_length:
             raise ValueError(
                 'Specified minimum length is {}, while specified maximum length is {}'.format(
@@ -1438,7 +1450,9 @@ class Serializable(object):
                 val.to_node(doc, parent=node)
             elif isinstance(val, str):
                 _create_text_node(doc, field, val, parent=node)
-            elif isinstance(val, (int, float)):
+            elif isinstance(val, integer_types):
+                _create_text_node(doc, field, format_function(val), parent=node)
+            elif isinstance(val, float):
                 _create_text_node(doc, field, format_function(val), parent=node)
             elif isinstance(val, bool):
                 _create_text_node(doc, field, 'true' if val else 'false', parent=node)
@@ -1569,10 +1583,13 @@ class Serializable(object):
                 return val.to_json_list(strict=strict)
             elif isinstance(val, ParametersCollection):
                 return val.to_dict()
-            elif isinstance(val, (str, int, float, bool)):
+            elif isinstance(val, integer_types):
+                return val
+            elif isinstance(val, (str, float, bool)):
                 return val
             elif isinstance(val, numpy.datetime64):
-                return str(val)
+                out = str(val)
+                return out + 'Z' if out[-1] != 'Z' else out
             elif isinstance(val, complex):
                 return {'Real': val.real, 'Imag': val.imag}
             elif isinstance(val, date):  # probably never present
@@ -1733,12 +1750,12 @@ class SerializableArray(object):
         if minimum_length is None:
             self._minimum_length = self._default_minimum_length
         else:
-            self._minimum_length = max(int(minimum_length), 0)
+            self._minimum_length = max(int_func(minimum_length), 0)
 
         if maximum_length is None:
             self._maximum_length = max(self._default_maximum_length, self._minimum_length)
         else:
-            self._maximum_length = max(int(maximum_length), self._minimum_length)
+            self._maximum_length = max(int_func(maximum_length), self._minimum_length)
 
         self.set_array(coords)
 

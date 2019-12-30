@@ -4,18 +4,27 @@ This provides implementation of Reading and writing capabilities for files with
 data stored in *Band Interleaved By Pixel (BIP)* format.
 """
 
+import logging
 import os
+import sys
 
 import numpy
 
 from .base import BaseChipper
+
+size_func = int
+if sys.version_info[0] < 3:
+    # noinspection PyUnresolvedReferences
+    int_func = long  # to accommodate 32-bit python 2
 
 
 __classification__ = "UNCLASSIFIED"
 
 
 class BIPChipper(BaseChipper):
-    __slots__ = ('_file_name', '_data_size', '_complex_type', '_symmetry', '_memory_map')
+    __slots__ = (
+        '_file_name', '_data_size', '_data_type', '_data_offset', '_bands',
+        '_complex_type', '_symmetry', '_memory_map', '_fid')
 
     def __init__(self, file_name, data_type, data_size,
                  symmetry=(False, False, False), complex_type=False,
@@ -47,12 +56,13 @@ class BIPChipper(BaseChipper):
 
         super(BIPChipper, self).__init__(data_size, symmetry=symmetry, complex_type=complex_type)
 
-        bands = int(bands_ip)
+        bands = int_func(bands_ip)
         if self._complex_type is not False:
             bands *= 2
 
-        true_shape = self._data_size + (bands, )
-        data_offset = int(data_offset)
+        self._data_offset = int_func(data_offset)
+        self._data_type = data_type
+        self._bands = bands
 
         if not os.path.isfile(file_name):
             raise IOError('Path {} either does not exists, or is not a file.'.format(file_name))
@@ -60,19 +70,66 @@ class BIPChipper(BaseChipper):
             raise IOError('User does not appear to have read access for file {}.'.format(file_name))
         self._file_name = file_name
 
-        # NOTE: does holding a memory map open come with any penalty?
-        #   should we just open on read_raw_fun?
-        self._memory_map = numpy.memmap(self._file_name,
-                                        dtype=data_type,
-                                        mode='r',
-                                        offset=data_offset,
-                                        shape=true_shape)
+        self._memory_map = None
+        self._fid = None
+        try:
+            self._memory_map = numpy.memmap(self._file_name,
+                                            dtype=data_type,
+                                            mode='r',
+                                            offset=data_offset,
+                                            shape=self._data_size + (self._bands, ))
+        except (OverflowError, OSError):
+            # if 32-bit python, then we'll fail for any file larger than 2GB
+            # we fall-back to a slower version of reading manually
+            self._fid = open(self._file_name, mode='rb')
+            logging.warning(
+                'Falling back to reading file {} manually (instead of using mem-map). This has almost '
+                'certainly occurred because you are 32-bit python to try to read (portions of) a file '
+                'which is larger than 2GB.'.format(self._file_name))
+
+    def __del__(self):
+        if self._fid is not None and hasattr(self._fid, 'closed') and not self._fid.closed:
+            self._fid.close()
 
     def _read_raw_fun(self, range1, range2):
         range1, range2 = self._reorder_arguments(range1, range2)
-        # just read the data from the memory mapped region
+        if self._memory_map is not None:
+            return self._read_memory_map(range1, range2)
+        elif self._fid is not None:
+            return self._read_file(range1, range2)
+
+    def _read_memory_map(self, range1, range2):
         data = numpy.array(self._memory_map[range1[0]:range1[1]:range1[2], range2[0]:range2[1]:range2[2]])
         return data.transpose((2, 0, 1))  # switches from band interleaved to band sequential
+
+    def _read_file(self, range1, range2):
+        def get_row_location(rr, cc):
+            return self._data_offset + \
+                   rr*stride + \
+                   cc*element_size
+
+        # we have to manually map out the stride and all that for the array ourselves
+        element_size = int_func(numpy.dtype(self._data_type).itemsize*self._bands)
+        stride = element_size*int_func(self.data_size[0])  # how much to skip a whole row?
+        entries_per_row = abs(range1[1] - range1[0])  # not including the stride, if not +/-1
+        # let's determine the specific row/column arrays that we are going to read
+        dim1array = numpy.arange(range1)
+        dim2array = numpy.arange(range2)
+        # allocate our output array
+        out = numpy.empty((self._bands, len(dim1array), len(dim2array)), dtype=self._data_type)
+        # determine the first column reading location (may be reading cols backwards)
+        col_begin = dim2array[0] if range2[2] > 0 else col_begin = dim2array[-1]
+
+        for i, row in enumerate(dim1array):
+            # go to the appropriate point in the file for (row/col)
+            self._fid.seek(get_row_location(row, col_begin))
+            # interpret this of line as numpy.ndarray - inherently flat array
+            line = numpy.fromfile(self._fid, self._data_type, entries_per_row*self._bands)
+            # note that we purposely read without considering skipping elements, which
+            #   is factored in (along with any potential order reversal) below
+            for j in range(self._bands):
+                out[j, i, :] = line[j::range2[2]*self._bands]
+        return out
 
 
 class BIPWriter(object):
@@ -81,6 +138,9 @@ class BIPWriter(object):
     because an array of these writers is used for multi-image segment NITF files.
     That is, SICD with enough rows/columns.
     """
+    __slots__ = (
+        '_file_name', '_data_size', '_data_type', '_complex_type', '_data_offset',
+        '_shape', '_memory_map', '_fid')
 
     def __init__(self, file_name, data_size, data_type, complex_type, data_offset=0):
         """
@@ -120,7 +180,7 @@ class BIPWriter(object):
         if len(data_size) != 2:
             raise ValueError(
                 'The data_size parameter must have length 2, and got {}.'.format(data_size))
-        data_size = (int(data_size[0]), int(data_size[1]))
+        data_size = (int_func(data_size[0]), int_func(data_size[1]))
         if data_size[0] < 0 or data_size[1] < 0:
             raise ValueError('All entries of data_size {} must be non-negative.'.format(data_size))
         self._data_size = data_size
@@ -130,7 +190,7 @@ class BIPWriter(object):
             raise ValueError('complex-type must be a boolean or a callable')
         self._complex_type = complex_type
 
-        if self._complex_type is True:
+        if self._complex_type is True and self._data_type != numpy.float32:
             raise ValueError(
                 'complex_type = `True`, which requires that data for writing has '
                 'dtype complex64/128, and output is written as float32 (data_type). '
@@ -142,17 +202,47 @@ class BIPWriter(object):
                 'data_type is given as {}.'.format(data_type))
 
         self._file_name = file_name
-        self._data_offset = int(data_offset)
+        self._data_offset = int_func(data_offset)
         if self._complex_type is False:
             self._shape = self._data_size
         else:
             self._shape = (self._data_size[0], self._data_size[1], 2)
 
-        self._memory_map = numpy.memmap(self._file_name,
-                                        dtype=self._data_type,
-                                        mode='r+',
-                                        offset=self._data_offset,
-                                        shape=self._shape)
+        self._memory_map = None
+        self._fid = None
+        try:
+            self._memory_map = numpy.memmap(self._file_name,
+                                            dtype=self._data_type,
+                                            mode='r+',
+                                            offset=self._data_offset,
+                                            shape=self._shape)
+        except (OverflowError, OSError):
+            # if 32-bit python, then we'll fail for any file larger than 2GB
+            # we fall-back to a slower version of reading manually
+            self._fid = open(self._file_name, mode='r+b')
+            logging.warning(
+                'Falling back to writing file {} manually (instead of using mem-map). This has almost '
+                'certainly occurred because you are 32-bit python to try to read (portions of) a file '
+                'which is larger than 2GB.'.format(self._file_name))
+
+    def __del__(self):
+        # TODO: VERIFY - I really think this is wrong
+        #   you have to wait for the object to fall out of scope for this.
+        #   we should emphasize calling close(), and this is a helper method anyways.
+        self.close()
+
+    def close(self):
+        """
+        **Should be called on exit.** Cleanly close the file. This is actually only
+        required if memory map failed, and we fell back to manually writing the file.
+
+        Returns
+        -------
+        None
+        """
+
+        if self._fid is not None and hasattr(self._fid, 'closed') and not self._fid.closed:
+            self._fid.close()
 
     def __call__(self, data, start_indices=(0, 0)):
         """
@@ -174,7 +264,7 @@ class BIPWriter(object):
         start1, stop1 = start_indices[0], start_indices[0] + data.shape[0]
         start2, stop2 = start_indices[1], start_indices[1] + data.shape[1]
 
-        # make sure we are using the proper data ordering for memory map
+        # make sure we are using the proper data ordering
         if not data.flags.c_contiguous:
             data = numpy.ascontiguousarray(data)
 
@@ -182,14 +272,14 @@ class BIPWriter(object):
             if data.dtype != self._data_type:
                 raise ValueError(
                     'Writer expects data type {}, and got data of type {}.'.format(self._data_type, data.dtype))
-            self._memory_map[start1:stop1, start2:stop2] = data
+            self._call(start1, stop1, start2, stop2, data)
         elif callable(self._complex_type):
             new_data = self._complex_type(data)
             if new_data.dtype != self._data_type:
                 raise ValueError(
                     'Writer expects data type {}, and got data of type {} from the '
                     'callable method complex_type.'.format(self._data_type, new_data.dtype))
-            self._memory_map[start1:stop1, start2:stop2, :] = new_data
+            self._call(start1, stop1, start2, stop2, new_data)
         else:  # complex_type is True
             if data.dtype not in (numpy.complex64, numpy.complex128):
                 raise ValueError(
@@ -199,4 +289,29 @@ class BIPWriter(object):
                 data = data.astype(numpy.complex64)
 
             data_view = data.view(numpy.float32).reshape((data.shape[0], data.shape[1], 2))
-            self._memory_map[start1:stop1, start2:stop2, :] = data_view
+            self._call(start1, stop1, start2, stop2, data_view)
+
+    def _call(self, start1, stop1, start2, stop2, data):
+        if self._memory_map is not None:
+            self._memory_map[start1:stop1, start2:stop2, :] = data
+            return
+
+        # we have to fall-back to manually write
+        element_size = int_func(self._data_type.itemsize)
+        if len(self._shape) == 3:
+            element_size *= int_func(self._shape)
+        stride = element_size*int_func(self._data_size[0])
+        # go to the appropriate spot in the file for first entry
+        self._fid.seek(self._data_offset + stride*start1 + element_size*start2)
+        if start1 == 0 and stop1 == self._data_size[0]:
+            # we can write the block all at once
+            data.astype(self._data_type).tofile(self._fid)  # astype may be required for bit order
+        else:
+            # have to write one row at a time
+            bytes_to_skip_per_row = element_size*(self._data_size[0]-(stop1-start1))
+            for i, row in enumerate(data):
+                # we the row, and then skip to where the next row starts
+                row.astype(self._data_type).tofile(self._fid)  # astype may be required for bit order
+                if i < len(data) - 1:
+                    # don't seek on last entry (avoid segfault, or whatever)
+                    self._fid.seek(bytes_to_skip_per_row, os.SEEK_CUR)

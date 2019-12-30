@@ -5,10 +5,19 @@ The base elements for reading and writing files as appropriate.
 ** It is expected that this is not the final location for these files. **
 """
 
+import sys
+
 import numpy
 
 from ..sicd_elements.SICD import SICDType
 
+integer_types = (int, )
+int_func = int
+if sys.version_info[0] < 3:
+    # noinspection PyUnresolvedReferences
+    int_func = long  # to accommodate 32-bit python 2
+    # noinspection PyUnresolvedReferences
+    integer_types = (int, long)
 
 __classification__ = "UNCLASSIFIED"
 
@@ -61,7 +70,7 @@ class BaseChipper(object):
         if len(data_size) != 2:
             raise ValueError(
                 'The data_size parameter must have length 2, and got {}.'.format(data_size))
-        data_size = (int(data_size[0]), int(data_size[1]))
+        data_size = (int_func(data_size[0]), int_func(data_size[1]))
         if data_size[0] < 0 or data_size[1] < 0:
             raise ValueError('All entries of data_size {} must be non-negative.'.format(data_size))
         self._data_size = data_size
@@ -124,7 +133,7 @@ class BaseChipper(object):
     @staticmethod
     def _slice_to_args(item):
         def parse(entry):
-            if isinstance(entry, int):
+            if isinstance(entry, integer_types):
                 return item, item+1, None
             if isinstance(entry, slice):
                 return entry.start, entry.stop, entry.step
@@ -163,7 +172,7 @@ class BaseChipper(object):
 
         def extract(arg, siz):
             start, stop, step = None, None, None
-            if isinstance(arg, int):
+            if isinstance(arg, integer_types):
                 step = arg
             else:
                 # NB: following this pattern to avoid confused pycharm inspection
@@ -173,9 +182,9 @@ class BaseChipper(object):
                     stop, step = arg
                 elif len(arg) == 3:
                     start, stop, step = arg
-            start = 0 if start is None else int(start)
-            stop = siz if stop is None else int(stop)
-            step = 1 if step is None else int(step)
+            start = 0 if start is None else int_func(start)
+            stop = siz if stop is None else int_func(stop)
+            step = 1 if step is None else int_func(step)
             # basic validity check
             if not (-siz < start < siz):
                 raise ValueError(
@@ -211,10 +220,10 @@ class BaseChipper(object):
         if isinstance(range2, (numpy.ndarray, list)):
             range2 = tuple(range2)
 
-        if not (range1 is None or isinstance(range1, (int, tuple))):
+        if not (range1 is None or isinstance(range1, integer_types + (tuple, ))):
             raise TypeError('range1 is of type {}, but must be an instance of None, '
                             'int or tuple.'.format(range1))
-        if not (range2 is None or isinstance(range2, (int, tuple))):
+        if not (range2 is None or isinstance(range2, integer_types + (tuple, ))):
             raise TypeError('range2 is of type {}, but must be an instance of None, '
                             'int or tuple.'.format(range2))
         if isinstance(range1, tuple) and len(range1) > 3:
