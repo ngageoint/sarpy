@@ -13,11 +13,11 @@ class TaserButtonPanel(BasicWidgetsPanel):
         self.remap_dropdown = basic_widgets.Combobox
 
         self.init_w_vertical_layout(["fname_select",
-                                     ("zoom_in", "zoom in"),
-                                     ("zoom_out", "zoom out"),
-                                     ("rect_select", "select"),
-                                     ("update_rect_image", "update rect selection"),
-                                     ("remap_dropdown", "remap dropdown"),])
+                                     "zoom_in",
+                                     "zoom_out",
+                                     "rect_select",
+                                     "update_rect_image",
+                                     "remap_dropdown"])
 
         self.remap_dropdown.update_combobox_values(["density",
                                                     "brighter",

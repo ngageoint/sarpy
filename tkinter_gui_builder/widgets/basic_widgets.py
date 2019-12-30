@@ -5,3 +5,4 @@ from tkinter_gui_builder.widgets.widget_wrappers.scale import Scale
 from tkinter_gui_builder.widgets.widget_wrappers.label import Label
 from tkinter_gui_builder.widgets.widget_wrappers.labelFrame import LabelFrame
 from tkinter_gui_builder.widgets.widget_wrappers.entry import Entry
+from tkinter_gui_builder.widgets.widget_wrappers.text import Text

@@ -8,10 +8,10 @@ class SarpyCanvasDisplayImage(CanvasDisplayImage):
     def __init__(self):
         super(CanvasDisplayImage, self).__init__()
         self.reader_object = None           # type: Reader
-        self.remap_type = "density"              # type: str
+        self.remap_type = "density"         # type: str
 
     def init_from_fname_and_canvas_size(self,
-                                        fname,  # type: str
+                                        fname,      # type: str
                                         canvas_ny,  # type: int
                                         canvas_nx,  # type: int
                                         ):

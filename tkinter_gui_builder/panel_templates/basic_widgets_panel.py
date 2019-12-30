@@ -2,6 +2,7 @@ import abc
 from six import add_metaclass
 import tkinter as tk
 import numpy as np
+from typing import Union
 
 
 @add_metaclass(abc.ABCMeta)
@@ -31,10 +32,10 @@ class BasicWidgetsPanel(tk.LabelFrame):
                                       n_widgets_per_row_list=list(np.ones(len(basic_widget_list))))
 
     def init_w_box_layout(self,
-                          basic_widget_list,                # type: list
-                          n_columns,                        # type: int
-                          widget_width=None,                # type: int
-                          widget_height=None,               # type: int
+                          basic_widget_list,  # type: list
+                          n_columns,  # type: int
+                          column_widths=None,  # type: Union[int, list]
+                          row_heights=None,  # type: Union[int, list]
                           ):
         n_total_widgets = len(basic_widget_list)
         n_rows = int(np.ceil(n_total_widgets/n_columns))
@@ -48,56 +49,24 @@ class BasicWidgetsPanel(tk.LabelFrame):
                 n_widgets_per_row.append(n_widgets_left)
             n_widgets_left -= n_columns
         self.init_w_basic_widget_list(basic_widget_list, n_rows, n_widgets_per_row)
-        for i, widget_and_name in enumerate(basic_widget_list):
-            widget = widget_and_name
-            if type(("", "")) == type(widget_and_name):
-                widget = widget_and_name[0]
-            getattr(self, widget).config(anchor='w')
-            if widget_width is not None:
-                getattr(self, widget).config(width=widget_width)
-            if widget_height is not None:
-                getattr(self, widget).config(height=widget_height)
-
-    def init_w_grid_layout(self,
-                                 basic_widget_list,         # type: list
-                                 n_rows,                    # type: int
-                                 n_widgets_per_row_list,    # type: list
-                                 ):
-        """
-        This is a convenience method to initialize a basic widget panel.  To use this first make a subclass
-        This should also be the master method to initialize a panel.  Other convenience methods can be made
-        to perform the button/widget location initialization, but all of those methods should perform their
-        ordering then reference this method to actually perform the initialization.
-        :param basic_widget_list:
-        :param n_rows:
-        :param n_widgets_per_row_list:
-        :return:
-        """
-        self.rows = [tk.Frame(self) for i in range(n_rows)]
-        for row in self.rows:
-            row.config(borderwidth=2)
-
-        # find transition points
-        transitions = np.cumsum(n_widgets_per_row_list)
-        self.widget_list = []
-        row_num = 0
-        for i, widget_and_name in enumerate(basic_widget_list):
-            if i in transitions:
-                row_num += 1
-            widget = widget_and_name
-            name = widget_and_name
-            if type(("", "")) == type(widget_and_name):
-                widget = widget_and_name[0]
-                name = widget_and_name[1]
-            setattr(self, widget, getattr(self, widget)(self.rows[row_num]))
-            getattr(self, widget).pack()
-            getattr(self, widget).config(text=name)
-            self.widget_list.append(widget)
+        for i, widget in enumerate(basic_widget_list):
+            column_num = np.mod(i, n_columns)
+            row_num = int(i/n_columns)
+            if column_widths is not None and isinstance(column_widths, type(1)):
+                getattr(self, widget).config(width=column_widths)
+            elif column_widths is not None and isinstance(column_widths, type([])):
+                col_width = column_widths[column_num]
+                getattr(self, widget).config(width=col_width)
+            if row_heights is not None and isinstance(row_heights, type(1)):
+                getattr(self, widget).config(height=row_heights)
+            elif row_heights is not None and isinstance(row_heights, type([])):
+                row_height = row_heights[row_num]
+                getattr(self, widget).config(height=row_height)
 
     def init_w_basic_widget_list(self,
-                                 basic_widget_list,         # type: list
+                                 basic_widget_list,         # type: [str]
                                  n_rows,                    # type: int
-                                 n_widgets_per_row_list,    # type: list
+                                 n_widgets_per_row_list,    # type: [int]
                                  ):
         """
         This is a convenience method to initialize a basic widget panel.  To use this first make a subclass
@@ -118,17 +87,12 @@ class BasicWidgetsPanel(tk.LabelFrame):
         transitions = np.cumsum(n_widgets_per_row_list)
         self.widget_list = []
         row_num = 0
-        for i, widget_and_name in enumerate(basic_widget_list):
+        for i, widget in enumerate(basic_widget_list):
             if i in transitions:
                 row_num += 1
-            widget = widget_and_name
-            name = widget_and_name
-            if type(("", "")) == type(widget_and_name):
-                widget = widget_and_name[0]
-                name = widget_and_name[1]
             setattr(self, widget, getattr(self, widget)(self.rows[row_num]))
             getattr(self, widget).pack(side="left", padx=5, pady=5)
-            getattr(self, widget).config(text=name)
+            getattr(self, widget).config(text=widget.replace("_", " "))
             self.widget_list.append(widget)
 
     def set_spacing_between_buttons(self, spacing_npix_x=0, spacing_npix_y=None):
@@ -162,3 +126,11 @@ class BasicWidgetsPanel(tk.LabelFrame):
             if type(("", "")) == type(widget_and_name):
                 widget = widget_and_name[0]
             getattr(self, widget).config(state="active")
+
+    def set_active_button(self,
+                          button,
+                          ):
+        self.unpress_all_buttons()
+        self.activate_all_buttons()
+        button.config(state="disabled")
+        button.config(relief="sunken")

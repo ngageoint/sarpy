@@ -13,6 +13,6 @@ class SidePanel(BasicWidgetsPanel):
 
         widget_list = ["file_selector", "buttons", "info_panel"]
 
-        self.init_w_horizontal_layout(widget_list)
+        self.init_w_basic_widget_list(widget_list, 2, [1, 2])
 
         self.set_label_text("wake tool controls")
