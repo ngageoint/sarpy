@@ -58,6 +58,42 @@ class BasicWidgetsPanel(tk.LabelFrame):
             if widget_height is not None:
                 getattr(self, widget).config(height=widget_height)
 
+    def init_w_grid_layout(self,
+                                 basic_widget_list,         # type: list
+                                 n_rows,                    # type: int
+                                 n_widgets_per_row_list,    # type: list
+                                 ):
+        """
+        This is a convenience method to initialize a basic widget panel.  To use this first make a subclass
+        This should also be the master method to initialize a panel.  Other convenience methods can be made
+        to perform the button/widget location initialization, but all of those methods should perform their
+        ordering then reference this method to actually perform the initialization.
+        :param basic_widget_list:
+        :param n_rows:
+        :param n_widgets_per_row_list:
+        :return:
+        """
+        self.rows = [tk.Frame(self) for i in range(n_rows)]
+        for row in self.rows:
+            row.config(borderwidth=2)
+
+        # find transition points
+        transitions = np.cumsum(n_widgets_per_row_list)
+        self.widget_list = []
+        row_num = 0
+        for i, widget_and_name in enumerate(basic_widget_list):
+            if i in transitions:
+                row_num += 1
+            widget = widget_and_name
+            name = widget_and_name
+            if type(("", "")) == type(widget_and_name):
+                widget = widget_and_name[0]
+                name = widget_and_name[1]
+            setattr(self, widget, getattr(self, widget)(self.rows[row_num]))
+            getattr(self, widget).pack()
+            getattr(self, widget).config(text=name)
+            self.widget_list.append(widget)
+
     def init_w_basic_widget_list(self,
                                  basic_widget_list,         # type: list
                                  n_rows,                    # type: int

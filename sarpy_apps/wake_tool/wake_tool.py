@@ -9,7 +9,7 @@ class AppVariables:
         self.image_fname = "None"       # type: str
         self.current_tool_selection = None      # type: str
 
-        self.line_id = None             # type: int
+        self.arrow_id = None             # type: int
         self.point_id = None            # type: int
         self.horizontal_line_id = None      # type: int
 
@@ -61,8 +61,8 @@ class WakeTool:
         self.side_panel.buttons.activate_all_buttons()
         self.side_panel.buttons.line_draw.config(state="disabled")
         self.side_panel.buttons.line_draw.config(relief="sunken")
-        self.image_canvas.set_current_tool_to_draw_line()
-        self.image_canvas.variables.current_object_id = self.app_variables.line_id
+        self.image_canvas.set_current_tool_to_draw_arrow()
+        self.image_canvas.variables.current_object_id = self.app_variables.arrow_id
 
     def callback_press_point_button(self, event):
         self.side_panel.buttons.unpress_all_buttons()
@@ -76,11 +76,11 @@ class WakeTool:
         # first do all the normal mouse click functionality of the canvas
         self.image_canvas.callback_handle_left_mouse_click(event)
         # now set the object ID's accordingly
-        if self.image_canvas.variables.current_tool == self.image_canvas.constants.DRAW_LINE_TOOL:
-            self.app_variables.line_id = self.image_canvas.variables.current_object_id
+        if self.image_canvas.variables.current_tool == self.image_canvas.constants.DRAW_ARROW_TOOL:
+            self.app_variables.arrow_id = self.image_canvas.variables.current_object_id
         if self.image_canvas.variables.current_tool == self.image_canvas.constants.DRAW_POINT_TOOL:
             self.app_variables.point_id = self.image_canvas.variables.current_object_id
-        if self.app_variables.point_id is not None and self.app_variables.line_id is not None:
+        if self.app_variables.point_id is not None and self.app_variables.arrow_id is not None:
             self.draw_horizontal_line()
 
     def callback_on_left_mouse_motion(self, event):
@@ -89,7 +89,7 @@ class WakeTool:
 
     def draw_horizontal_line(self):
         # draw horizontal line
-        if self.app_variables.point_id is not None and self.app_variables.line_id is not None:
+        if self.app_variables.point_id is not None and self.app_variables.arrow_id is not None:
             point_x, point_y = self.image_canvas.get_point_xy_center(self.app_variables.point_id)
 
             line_slope, line_intercept = self.get_line_slope_and_intercept()
@@ -117,7 +117,7 @@ class WakeTool:
         print(horizontal_distance)
 
     def get_line_slope_and_intercept(self):
-        line_coords = self.image_canvas.canvas.coords(self.app_variables.line_id)
+        line_coords = self.image_canvas.canvas.coords(self.app_variables.arrow_id)
 
         line_x1, line_x2 = line_coords[0], line_coords[2]
         line_y1, line_y2 = line_coords[1], line_coords[3]

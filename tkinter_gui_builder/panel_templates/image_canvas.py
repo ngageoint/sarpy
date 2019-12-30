@@ -12,6 +12,7 @@ class ToolConstants:
     DRAW_RECT_TOOL = "draw rect"
     DRAW_LINE_TOOL = "draw line"
     DRAW_POINT_TOOL = "draw point"
+    DRAW_ARROW_TOOL = "draw arrow"
 
 
 class AppVariables:
@@ -157,8 +158,6 @@ class ImageCanvas(tk.Frame):
                               new_coords,                # type: tuple
                               ):
         self.show_shape(shape_id)
-        print(new_coords)
-
         if self.get_object_type(shape_id) == 'point':
             x1, y1 = (new_coords[2] - self.variables.point_size), (new_coords[3] - self.variables.point_size)
             x2, y2 = (new_coords[2] + self.variables.point_size), (new_coords[3] + self.variables.point_size)
@@ -180,6 +179,8 @@ class ImageCanvas(tk.Frame):
                 self.create_new_rect(coords)
             elif self.variables.current_tool == self.constants.DRAW_POINT_TOOL:
                 self.create_new_point(coords)
+            elif self.variables.current_tool == self.constants.DRAW_ARROW_TOOL:
+                self.create_new_arrow(coords)
             else:
                 print("no shape tool selected")
         else:
@@ -195,6 +196,10 @@ class ImageCanvas(tk.Frame):
 
     def event_initiate_line(self, event):
         self.variables.current_tool = self.constants.DRAW_LINE_TOOL
+        self.event_initiate_shape(event)
+
+    def event_initiate_arrow(self, event):
+        self.variables.current_tool = self.constants.DRAW_ARROW_TOOL
         self.event_initiate_shape(event)
 
     def event_draw_point(self, event):
@@ -216,6 +221,12 @@ class ImageCanvas(tk.Frame):
                         **options,
                         ):
         return self.create_new_shape('rect', coords, **options)
+
+    def create_new_arrow(self,
+                         coords,
+                         **options,
+                         ):
+        return self.create_new_shape('arrow', coords, **options)
 
     def create_new_point(self,
                          coords,
@@ -244,6 +255,14 @@ class ImageCanvas(tk.Frame):
                                                        width=self.variables.line_width)
             else:
                 shape_id = self.canvas.create_line(coords[0], coords[1], coords[2], coords[3], options)
+        if shape_type.lower() == 'arrow':
+            if options == {}:
+                shape_id = self.canvas.create_line(coords[0], coords[1], coords[2], coords[3],
+                                                       fill=self.variables.foreground_color,
+                                                       width=self.variables.line_width,
+                                                       arrow=tk.LAST)
+            else:
+                shape_id = self.canvas.create_line(coords[0], coords[1], coords[2], coords[3], options, arrow=tk.LAST)
         if shape_type.lower() == 'point':
             x1, y1 = (coords[0] - self.variables.point_size), (coords[1] - self.variables.point_size)
             x2, y2 = (coords[0] + self.variables.point_size), (coords[1] + self.variables.point_size)
@@ -313,6 +332,11 @@ class ImageCanvas(tk.Frame):
         self.variables.current_object_id = line_id
         self.variables.current_tool = self.constants.DRAW_LINE_TOOL
         self.show_shape(line_id)
+
+    def set_current_tool_to_draw_arrow(self, arrow_id=None):
+        self.variables.current_object_id = arrow_id
+        self.variables.current_tool = self.constants.DRAW_ARROW_TOOL
+        self.show_shape(arrow_id)
 
     def set_current_tool_to_draw_point(self, point_id=None):
         self.variables.current_object_id = point_id
