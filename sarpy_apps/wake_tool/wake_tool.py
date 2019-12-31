@@ -98,7 +98,7 @@ class WakeTool:
     def update_distance(self):
         if self.app_variables.point_id is not None and self.app_variables.arrow_id is not None:
             # calculate horizontal line segment
-            point_x, point_y = self.image_canvas.get_point_xy_center(self.app_variables.point_id)
+            point_x, point_y = self.image_canvas.get_point_xy_canvas_center(self.app_variables.point_id)
             line_slope, line_intercept = self.get_line_slope_and_intercept()
             end_x = (point_y - line_intercept) / line_slope
             end_y = point_y
@@ -111,7 +111,7 @@ class WakeTool:
                                                       fill=self.app_variables.horizontal_line_color,
                                                       width=self.app_variables.horizontal_line_width)
             else:
-                self.image_canvas.modify_existing_shape(self.app_variables.horizontal_line_id, horizontal_line_coords)
+                self.image_canvas.modify_existing_shape_using_canvas_coords(self.app_variables.horizontal_line_id, horizontal_line_coords)
             # set current object ID back to what it was after drawing the horizontal line
             self.image_canvas.variables.current_object_id = last_obj_id
             canvas_distance = self.image_canvas.get_canvas_line_length(self.app_variables.horizontal_line_id)
