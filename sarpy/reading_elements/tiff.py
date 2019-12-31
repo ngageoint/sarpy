@@ -3,7 +3,7 @@
 Module providing api consistent with other file types for reading tiff files.
 """
 
-import sys
+import logging
 import numpy
 
 
@@ -14,7 +14,7 @@ except ImportError:
     gdal = None
     _USE_GDAL = False
 
-from .base import BaseReader, BaseChipper
+from .base import BaseChipper
 from .bip import BIPChipper
 
 
@@ -130,14 +130,24 @@ _GEOTIFF_TAGS = {
     34737: 'GeoAsciiParamsTag',
 }
 
-# TODO:
-#   1.) port tiff version in io.complex
-#   2.) make similar bigtiff port
-#   3.) make version using gdal
 
+class TiffMetadata(object):
+    """
+    For checking tiff metadata, and parsing in the event we are not using GDAL
+    """
 
-class TiffMetadataParser(object):
-    __slots__ = ('_file_name', '_endian', '_magic_number', 'tags', '_TYPE_SIZES', '_TYPE_DTYPES')
+    __slots__ = ('_file_name', '_endian', '_magic_number', '_tags')
+    _DTYPES = {i+1: entry for i, entry in enumerate(
+        ['u1', 'a', 'u2', 'u4', 'u4',
+         'i1', 'u1', 'i2', 'i4', 'i4',
+         'f4', 'f8', 'u4', None, None,
+         'u8', 'i8', 'u8'])}
+    _SIZES = numpy.array(
+        [1, 1, 2, 4, 8,
+         1, 1, 2, 4, 8,
+         4, 8, 4, 0, 0,
+         8, 8, 8], dtype=numpy.uint64)
+    # no definition for entries for 14 & 15
 
     def __init__(self, file_name):
         with open(file_name, 'rb') as fi:
@@ -162,18 +172,37 @@ class TiffMetadataParser(object):
                     raise ValueError('Not a valid bigtiff. The reserved entry of '
                                      'the header is given as {} != 0'.format(rhead[1]))
         self._file_name = file_name
-        self.tags = None
+        self._tags = None
 
-        self._TYPE_SIZES = numpy.array([1, 1, 2, 4, 8, 1, 1, 2, 4, 8, 4, 8, 0, 0, 0, 8, 8, 8], dtype=numpy.uint64)
-        self._TYPE_DTYPES = ['{}{}'.format(self._endian, entry) if entry is not None else None
-                             for entry in ['u1', 'a', 'u2', 'u4', None,
-                                           'i1', 'u1', 'i2', 'i4', None,
-                                           'f4', 'f8', None, None, None,
-                                           'u8', 'i8', 'u8']]
-        # TODO: no definition for entries for 13-15?
-        #   these last 3 entries (16-18) are for bigtiff only. no rational extension?
+    @property
+    def file_name(self):
+        """str: READ ONLY. The file name."""
+        return self._file_name
+
+    @property
+    def endian(self):
+        """str: READ ONLY. The numpy dtype style ('>' = big, '<' = little) endian string for the tiff file."""
+        return self._endian
+
+    @property
+    def tags(self):
+        """
+        None|dict: READ ONLY. the tiff tags dictionary, provided that func:`parse_tags` has been called.
+        This dictionary is of the form `{<tag name> : numpy.ndarray value}`, even for
+        those tags containing only a single entry (i.e. `count=1`).
+        """
+
+        return self._tags
 
     def parse_tags(self):
+        """
+        Parse the tags from the file, if desired. This sets the `tags` attribute.
+
+        Returns
+        -------
+        None
+        """
+
         if self._magic_number == 42:
             type_dtype = '{}u2'.format(self._endian)
             offset_dtype = '{}u4'.format(self._endian)
@@ -191,6 +220,7 @@ class TiffMetadataParser(object):
             # extract the tags information
             tags = {}
             self._parse_ifd(fi, tags, type_dtype, offset_dtype, offset_size)
+        self._tags = tags
 
     def _read_tag(self, fi, tiff_type, num_tag, count):
         # find which tags we belong to
@@ -206,15 +236,16 @@ class TiffMetadataParser(object):
         else:
             ext, name = None, None
         # Now extract from file based on type number
-        if tiff_type == 5:  # unsigned rational
-            val = numpy.fromfile(fi, dtype='{}u4'.format(self._endian), count=2*count).reshape((-1, 2))
-        elif tiff_type == 10:  # signed rational
-            val = numpy.fromfile(fi, dtype='{}i4'.format(self._endian), count=2*count).reshape((-1, 2))
-        elif tiff_type == 2:
-            val = str(numpy.fromfile(fi, '{}a{}'.format(self._endian, count), count=1))
+        dtype = self._DTYPES.get(int(tiff_type), None)
+        if dtype is None:
+            logging.warning('Failed to extract tiff data type {}, for {} - {}'.format(tiff_type, ext, name))
+            return {'Value': None, 'Name': name, 'Extension': ext}
+        if tiff_type == 2:  # ascii field
+            val = str(numpy.fromfile(fi, '{}{}{}'.format(self._endian, dtype, count), count=1))
+        elif tiff_type in [5, 10]:  # unsigned or signed rational
+            val = numpy.fromfile(fi, dtype='{}{}'.format(self._endian, dtype), count=2*count).reshape((-1, 2))
         else:
-            dtype = self._TYPE_DTYPES[tiff_type]
-            val = numpy.fromfile(fi, dtype=dtype, count=count)
+            val = numpy.fromfile(fi, dtype='{}{}'.format(self._endian, dtype), count=count)
         return {'Value': val, 'Name': name, 'Extension': ext}
 
     def _parse_ifd(self, fi, tags, type_dtype, offset_dtype, offset_size):
@@ -226,7 +257,7 @@ class TiffMetadataParser(object):
         for entry in range(int(num_entries)):
             num_tag, tiff_type = numpy.fromfile(fi, dtype=type_dtype, count=2)
             count = numpy.fromfile(fi, dtype=offset_dtype, count=1)[0]
-            total_size = self._TYPE_SIZES[tiff_type-1]*count
+            total_size = self._SIZES[tiff_type-1]*count
             if total_size <= offset_size:
                 value = self._read_tag(fi, tiff_type, num_tag, count)
             else:
@@ -239,22 +270,99 @@ class TiffMetadataParser(object):
         self._parse_ifd(fi, tags, type_dtype, offset_dtype, offset_size)  # recurse
 
 
-class TiffChipper(BIPChipper):
+class NativeTiffChipper(BIPChipper):
+    """
+    Direct reading of data from tiff file, failing if compression is present
+    """
+
     __slots__ = ('_tiff_meta', )
+    _SAMPLE_FORMATS = {
+        1: 'u', 2: 'i', 3: 'f', 5: 'i', 6: 'f'}  # 5 and 6 are complex int/float
 
-    def __init__(self, file_name, tiff_meta, symmetry=(False, False, True)):
+    def __init__(self, tiff_meta, symmetry=(False, False, True)):
+        """
+
+        Parameters
+        ----------
+        tiff_meta : TiffMetadata
+        symmetry : Tuple[bool]
+        """
+        logging.warning('Using a custom tiff reader, with potentially limited functionality.')
+
+        if tiff_meta.tags is None:
+            tiff_meta.parse_tags()
+        compression_tag = int(tiff_meta.tags['Compression'][0])
+        if compression_tag != 1:
+            raise ValueError('Tiff has compression tag {}, but only 1 (no compression) '
+                             'is supported.'.format(compression_tag))
+
         self._tiff_meta = tiff_meta
-        # TODO: extract the below from the tiff meta-data, line 63 from complex/tiff.py
-        data_type = ''
-        data_size = ''
-        complex_type = False
-        data_offset = 0
-        bands_ip = 1
+        samp_form = tiff_meta.tags['SampleFormat'][0]
+        if samp_form not in self._SAMPLE_FORMATS:
+            raise ValueError('Invalid sample format {}'.format(samp_form))
+        bits_per_sample = tiff_meta.tags['BitsPerSample'][0]
+        complex_type = (int(tiff_meta.tags['SamplesPerPixel'][0]) == 2)  # NB: this is obviously not general
+        if samp_form in [5, 6]:
+            bits_per_sample /= 2
+            complex_type = True
+        data_size = numpy.array([tiff_meta.tags['ImageLength'][0], tiff_meta.tags['ImageWidth'][0]])
+        data_type = numpy.dtype('{}{}{}'.format(
+            tiff_meta.tags['endian'], self._SAMPLE_FORMATS[samp_form], bits_per_sample/8))
+        data_offset = tiff_meta.tags['StripOffsets'][0]
 
-        super(TiffChipper, self).__init__(
-            file_name, data_type, data_size, symmetry=symmetry, complex_type=complex_type,
-            data_offset=data_offset, bands_ip=bands_ip)
+        super(NativeTiffChipper, self).__init__(
+            tiff_meta.file_name, data_type, data_size, symmetry=symmetry, complex_type=complex_type,
+            data_offset=data_offset, bands_ip=1)
 
 
-class GdalChipper(BaseChipper):
-    pass
+class GdalTiffChipper(BaseChipper):
+    """
+    Utilizing gdal for reading of data from tiff file, should be much more robust
+    """
+
+    __slots__ = ('_tiff_meta', '_data_set', '_bands', '_virt_array')
+
+    def __init__(self, tiff_meta, symmetry=(False, False, True)):
+        """
+
+        Parameters
+        ----------
+        tiff_meta : TiffMetadata
+        symmetry : Tuple[bool]
+        """
+
+        self._tiff_meta = tiff_meta
+        logging.warning('Using the tiff reader from gdal.')
+        # initialize our dataset - NB: this should close gracefully on garbage collection
+        self._data_set = gdal.Open(tiff_meta.file_name, gdal.GA_ReadOnly)
+        if self._data_set is None:
+            raise ValueError(
+                'GDAL failed with unspecified error in opening file {}'.format(tiff_meta.file_name))
+        # get data_size information
+        data_size = (self._data_set.RasterYSize, self._data_set.RasterXSize)
+        self._bands = self._data_set.RasterCount
+        # TODO: get data_type information
+        complex_type = ''
+        super(GdalTiffChipper, self).__init__(data_size, symmetry=symmetry, complex_type=complex_type)
+        # 5.) set up our virtual array using GetVirtualMemArray
+        self._virt_array = self._data_set.GetVirtualMemoryArray()
+
+    def _read_raw_fun(self, range1, range2):
+        arange1, arange2 = self._reorder_arguments(range1, range2)
+        # TODO: does the below actually copy the data?
+        if self._bands == 1:
+            out = self._virt_array[arange1[0]:arange1[1]:arange1[2], arange2[0]:arange2[1]:arange2[2]]
+        elif self._data_set.band_sequential:
+            out = self._virt_array[:, arange1[0]:arange1[1]:arange1[2], arange2[0]:arange2[1]:arange2[2]]
+        else:
+            # push the bands to the front
+            out = self._virt_array[arange1[0]:arange1[1]:arange1[2],
+                  arange2[0]:arange2[1]:arange2[2], :].transpose((2, 0, 1))
+        # TODO: dtype manipulation nonsense?
+        return out
+
+
+if _USE_GDAL:
+    TiffChipper = GdalTiffChipper
+else:
+    TiffChipper = NativeTiffChipper

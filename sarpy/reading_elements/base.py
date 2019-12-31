@@ -85,7 +85,7 @@ class BaseChipper(object):
     @property
     def symmetry(self):
         """
-        tuple: with boolean entries of the form (`flip1`, `flip2`, `swapaxes`).
+        tuple: with boolean entries of the form (`flip1`, `flip2`, `swap_axes`).
         This describes necessary symmetry transformation to be performed to convert
         from raw (file storage) order into the order expected (analysis order).
 
@@ -93,7 +93,7 @@ class BaseChipper(object):
 
         * `flip2=True` - we reverse order in the second axis, wrt raw order).
 
-        * `swapaxes=True` - we switch the two axes, after any required flipping.
+        * `swap_axes=True` - we switch the two axes, after any required flipping.
         """
 
         return self._symmetry
