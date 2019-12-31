@@ -1,4 +1,4 @@
-class WidgetEvents:
+class WidgetEvents(object):
     def __init__(self):
         pass
 

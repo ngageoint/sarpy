@@ -3,11 +3,15 @@ from sarpy_apps.wake_tool.panels.side_panel import SidePanel
 from tkinter_gui_builder.panel_templates.image_canvas import ImageCanvas
 import tkinter.colorchooser as colorchooser
 from sarpy_apps.sarpy_app_helper_utils.sarpy_canvas_image import SarpyCanvasDisplayImage
-
+import sarpy.geometry.point_projection as point_projection
+import sarpy.geometry.geocoords as geocoords
+import numpy as np
+import math
 
 class AppVariables:
     def __init__(self):
         self.image_fname = "None"       # type: str
+        self.sicd_metadata = None
         self.current_tool_selection = None      # type: str
 
         self.arrow_id = None             # type: int
@@ -116,8 +120,23 @@ class WakeTool:
             self.image_canvas.variables.current_object_id = last_obj_id
             canvas_distance = self.image_canvas.get_canvas_line_length(self.app_variables.horizontal_line_id)
             pixel_distance = self.image_canvas.get_image_line_length(self.app_variables.horizontal_line_id)
+            geo_distance = self.calculate_wake_distance()
             self.side_panel.info_panel.canvas_distance_val.set_text("{:.2f}".format(canvas_distance))
             self.side_panel.info_panel.pixel_distance_val.set_text("{:.2f}".format(pixel_distance))
+            self.side_panel.info_panel.geo_distance_val.set_text("{:.2f}".format(geo_distance))
+            print(self.calculate_wake_distance())
+
+    def calculate_wake_distance(self):
+        horizontal_line_image_coords = self.image_canvas.canvas_object_coords_to_image_coords(self.app_variables.horizontal_line_id)
+        sicd_meta = self.image_canvas.variables.canvas_image_object.reader_object.sicdmeta
+        points = np.asarray(horizontal_line_image_coords)
+        ecf_ground_points = point_projection.image_to_ground(points, sicd_meta)
+        geo_ground_point_1 = geocoords.ecf_to_geodetic(ecf_ground_points[0, 0], ecf_ground_points[0, 1], ecf_ground_points[0, 2])
+        geo_ground_point_2 = geocoords.ecf_to_geodetic(ecf_ground_points[1, 0], ecf_ground_points[1, 1], ecf_ground_points[1, 2])
+        distance = math.sqrt( (ecf_ground_points[0, 0] - ecf_ground_points[1, 0])**2 +
+                              (ecf_ground_points[0, 1] - ecf_ground_points[1, 1])**2 +
+                              (ecf_ground_points[0, 2] - ecf_ground_points[1, 2])**2)
+        return distance
 
     def get_line_slope_and_intercept(self):
         line_coords = self.image_canvas.canvas.coords(self.app_variables.arrow_id)

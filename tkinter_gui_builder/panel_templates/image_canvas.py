@@ -34,7 +34,7 @@ class AppVariables:
         self.object_properties = {}
         self.canvas_image_object = None         # type: CanvasDisplayImage
         self.zoom_rect_id = None                # type: int
-        self.zoom_rect_color = "blue"
+        self.zoom_rect_color = "cyan"
         self.zoom_rect_border_width = 2
 
         self.animate_zoom = True

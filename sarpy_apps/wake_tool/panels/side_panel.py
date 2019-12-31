@@ -5,14 +5,12 @@ from tkinter_gui_builder.panel_templates.file_selector import FileSelector
 
 
 class SidePanel(BasicWidgetsPanel):
+    buttons = ButtonPanel
+    file_selector = FileSelector
+    info_panel = InfoPanel
+
     def __init__(self, parent):
         BasicWidgetsPanel.__init__(self, parent)
-        self.buttons = ButtonPanel          # type: ButtonPanel
-        self.file_selector = FileSelector
-        self.info_panel = InfoPanel
-
         widget_list = ["file_selector", "buttons", "info_panel"]
-
         self.init_w_basic_widget_list(widget_list, 2, [1, 2])
-
         self.set_label_text("wake tool controls")
