@@ -26,6 +26,33 @@ if sys.version_info[0] < 3:
     # noinspection PyUnresolvedReferences
     int_func = long
 
+########
+# base expected functionality for a module with an implemented Reader
+
+
+def is_a(file_name):
+    """
+    Tests whether a given file_name corresponds to a SICD file. Returns a reader instance, if so.
+
+    Parameters
+    ----------
+    file_name : str
+        the file_name to check
+
+    Returns
+    -------
+    SICDReader|None
+        `SICDReader` instance if SICD file, `None` otherwise
+    """
+
+    try:
+        nitf_details = NITFDetails(file_name)
+        print('File {} is determined to be a sicd (NITF format) file.'.format(file_name))
+        return SICDReader(nitf_details)
+    except IOError:
+        # we don't want to catch parsing errors, for now
+        return None
+
 
 #########
 # Helper object for initially parses NITF header
@@ -120,11 +147,18 @@ class NITFDetails(object):
                     raise
 
     @property
+    def file_name(self):
+        """str: the file name."""
+        return self._file_name
+
+    @property
     def is_sicd(self):
+        """bool: whether file name corresponds to a SICD file, or not."""
         return self._is_sicd
 
     @property
     def sicd_meta(self):
+        """SICDType: the sicd meta-data structure."""
         return self._sicd_meta
 
 
@@ -273,8 +307,16 @@ class MultiSegmentChipper(BaseChipper):
 class SICDReader(BaseReader):
     __slots__ = ('_nitf_details', '_sicd_meta', '_chipper')
 
-    def __init__(self, file_name):
-        self._nitf_details = NITFDetails(file_name)
+    def __init__(self, nitf_details):
+        """
+
+        Parameters
+        ----------
+        nitf_details : NITFDetails
+            the NITFDetails object
+        """
+
+        self._nitf_details = nitf_details
         if not self._nitf_details.is_sicd:
             raise ValueError(
                 'The input file passed in appears to be a NITF 2.1 file that does not contain valid sicd metadata.')
@@ -303,10 +345,14 @@ class SICDReader(BaseReader):
         symmetry = (False, False, False)
         # construct our chipper
         chipper = MultiSegmentChipper(
-            file_name, data_sizes, self._nitf_details.img_segment_rows.copy(), dtype,
+            nitf_details.file_name, data_sizes, self._nitf_details.img_segment_rows.copy(), dtype,
             symmetry=symmetry, complex_type=complex_type, bands_ip=1)
 
         super(SICDReader, self).__init__(self._sicd_meta, chipper)
+
+        # should we do a preliminary check that the structure is valid?
+        #   note that this results in potentially noisy logging for troubled sicd files
+        self._sicd_meta.is_valid(recursive=True)
 
 
 #######

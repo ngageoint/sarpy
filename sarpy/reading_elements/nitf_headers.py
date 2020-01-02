@@ -1,4 +1,8 @@
 # -*- coding: utf-8 -*-
+"""
+Functionality for dealing with NITF file header information. This is specifically
+geared towards SICD file usage, and some funcitonality is not completely general.
+"""
 
 import logging
 import sys
@@ -12,6 +16,7 @@ int_func = int
 if sys.version_info[0] < 3:
     # noinspection PyUnresolvedReferences
     int_func = long  # to accommodate for 32-bit python 2
+    # noinspection PyUnresolvedReferences
     integer_types = (int, long)
 
 ##########

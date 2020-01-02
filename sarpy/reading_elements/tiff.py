@@ -14,8 +14,10 @@ except ImportError:
     gdal = None
     _USE_GDAL = False
 
-from .base import BaseChipper
+from .base import BaseChipper, BaseReader
 from .bip import BIPChipper
+
+from ..sicd_elements.SICD import SICDType, ImageDataType
 
 
 __classification__ = "UNCLASSIFIED"
@@ -130,8 +132,38 @@ _GEOTIFF_TAGS = {
     34737: 'GeoAsciiParamsTag',
 }
 
+########
+# base expected functionality for a module with an implemented Reader
 
-class TiffMetadata(object):
+
+def is_a(file_name):
+    """
+    Tests whether a given file_name corresponds to a SICD file. Returns a reader instance, if so.
+
+    Parameters
+    ----------
+    file_name : str
+        the file_name to check
+
+    Returns
+    -------
+    TiffReader|None
+        `TiffReader` instance if tiff file, `None` otherwise
+    """
+
+    try:
+        tiff_details = TiffDetails(file_name)
+        print('File {} is determined to be a tiff file.'.format(file_name))
+        return TiffReader(tiff_details)
+    except IOError:
+        # we don't want to catch parsing errors, for now
+        return None
+
+
+##########
+
+
+class TiffDetails(object):
     """
     For checking tiff metadata, and parsing in the event we are not using GDAL
     """
@@ -158,19 +190,19 @@ class TiffMetadata(object):
             elif fi_endian == 'MM':
                 self._endian = '>'
             else:
-                raise ValueError('Invalid tiff endian string {}'.format(fi_endian))
+                raise IOError('Invalid tiff endian string {}'.format(fi_endian))
             # check the magic number
             self._magic_number = numpy.fromfile(fi, dtype='{}i2'.format(self._endian), count=1)[0]
             if self._magic_number not in [42, 43]:
-                raise ValueError('Not a valid tiff file, got magic number {}'.format(self._magic_number))
+                raise IOError('Not a valid tiff file, got magic number {}'.format(self._magic_number))
 
             if self._magic_number == 43:
                 rhead = numpy.fromfile(fi, dtype='{}i2'.format(self._endian), count=2)
                 if rhead[0] != 8:
-                    raise ValueError('Not a valid bigtiff. The offset size is given as {}'.format(rhead[0]))
+                    raise IOError('Not a valid bigtiff. The offset size is given as {}'.format(rhead[0]))
                 if rhead[1] != 0:
-                    raise ValueError('Not a valid bigtiff. The reserved entry of '
-                                     'the header is given as {} != 0'.format(rhead[1]))
+                    raise IOError('Not a valid bigtiff. The reserved entry of '
+                                  'the header is given as {} != 0'.format(rhead[1]))
         self._file_name = file_name
         self._tags = None
 
@@ -253,7 +285,7 @@ class TiffMetadata(object):
         if nifd == 0:
             return
         fi.seek(nifd)
-        num_entries = numpy.fromfile(dtype=type_dtype, count=1)[0]
+        num_entries = numpy.fromfile(fi, dtype=type_dtype, count=1)[0]
         for entry in range(int(num_entries)):
             num_tag, tiff_type = numpy.fromfile(fi, dtype=type_dtype, count=2)
             count = numpy.fromfile(fi, dtype=offset_dtype, count=1)[0]
@@ -356,8 +388,8 @@ class GdalTiffChipper(BaseChipper):
             out = self._virt_array[:, arange1[0]:arange1[1]:arange1[2], arange2[0]:arange2[1]:arange2[2]]
         else:
             # push the bands to the front
-            out = self._virt_array[arange1[0]:arange1[1]:arange1[2],
-                  arange2[0]:arange2[1]:arange2[2], :].transpose((2, 0, 1))
+            out = (self._virt_array[arange1[0]:arange1[1]:arange1[2],
+                   arange2[0]:arange2[1]:arange2[2], :]).transpose((2, 0, 1))
         # TODO: dtype manipulation nonsense?
         return out
 
@@ -366,3 +398,31 @@ if _USE_GDAL:
     TiffChipper = GdalTiffChipper
 else:
     TiffChipper = NativeTiffChipper
+
+
+class TiffReader(BaseReader):
+    __slots__ = ('_tiff_meta', '_sicd_meta', '_chipper')
+    _DEFAULT_SYMMETRY = (False, False, False)
+
+    def __init__(self, tiff_details, sicd_meta=None, symmetry=None):
+        """
+
+        Parameters
+        ----------
+        tiff_details : TiffDetails
+        sicd_meta : None|SICDType
+        symmetry: Tuple[bool]
+        """
+
+        self._tiff_meta = tiff_details
+        if symmetry is None:
+            symmetry = self._DEFAULT_SYMMETRY
+        if sicd_meta is None:
+            # construct absolutely minimal sicd meta data
+            rows = tiff_details.tags['ImageWidth'][0]
+            cols = tiff_details.tags['ImageLength'][0]
+            if symmetry[2]:
+                rows, cols = cols, rows
+            sicd_meta = SICDType(ImageData=ImageDataType(NumRows=rows, NumCols=cols))
+        chipper = TiffChipper(tiff_details, symmetry=symmetry)
+        super(TiffReader, self).__init__(sicd_meta, chipper)

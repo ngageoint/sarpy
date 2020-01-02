@@ -344,9 +344,6 @@ class BaseReader(object):
         self._chipper = chipper
         self._sicd_meta = sicd_meta
         self._sicd_meta.derive()  # try to fix up the structure and derive any missing attributes
-        # TODO: should we check that it's valid?
-        #   This potentially prints a bunch of feedback about issues to the console
-        # self._sicd_meta.is_valid(recursive=True)
 
     @property
     def sicd_meta(self):
