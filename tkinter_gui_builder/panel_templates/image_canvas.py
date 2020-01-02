@@ -30,7 +30,6 @@ class ShapeTypeConstants:
 
 
 class AppVariables:
-
     def __init__(self):
         self.rect_border_width = 2
         self.line_width = 2
@@ -215,7 +214,11 @@ class ImageCanvas(tk.Frame):
                 print("no shape tool selected")
         else:
             if self.variables.current_shape_id in self.variables.shape_ids:
-                self.modify_existing_shape_using_canvas_coords(self.variables.current_shape_id, coords)
+                if self.get_shape_type(self.variables.current_shape_id) == self.SHAPE_TYPES.POINT:
+                    self.modify_existing_shape_using_canvas_coords(self.variables.current_shape_id,
+                                                                   (start_x, start_y))
+                else:
+                    self.modify_existing_shape_using_canvas_coords(self.variables.current_shape_id, coords)
 
     def event_drag_shape(self, event):
         if self.variables.current_shape_id:
@@ -292,6 +295,16 @@ class ImageCanvas(tk.Frame):
         self.set_shape_pixel_coords_from_canvas_coords(shape_id)
         self.variables.current_shape_id = shape_id
         return shape_id
+
+    def change_shape_color(self,
+                           shape_id,        # type: int
+                           color,           # type: str
+                           ):
+        shape_type = self.get_shape_type(shape_id)
+        if shape_type == self.SHAPE_TYPES.RECT:
+            self.canvas.itemconfig(shape_id, outline=color)
+        else:
+            self.canvas.itemconfig(shape_id, fill=color)
 
     def set_shape_canvas_coords(self,
                                 shape_id,

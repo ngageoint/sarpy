@@ -15,7 +15,7 @@ class BasicWidgetsPanel(tk.LabelFrame):
 
     def init_w_xy_positions_dict(self, positions_dict):
         # TODO: just find the right order then call init_w_basic_widget_list
-        stop = 1
+        pass
 
     def init_w_horizontal_layout(self,
                                  basic_widget_list,         # type: list

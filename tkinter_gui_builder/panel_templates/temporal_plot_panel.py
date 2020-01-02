@@ -48,7 +48,7 @@ class TemporalPlotPanel:
         self.scale = basic_widgets.Scale(master_frame, orient=tkinter.HORIZONTAL, length=284, from_=0, to=100)
         self.scale.set(0)
         self.scale.pack(side='bottom')
-        self.scale.on_left_mouse_motion(self.callback_update_plot)
+        self.scale.on_left_mouse_motion(self.callback_update_from_slider)
 
         self.canvas = FigureCanvasTkAgg(fig, master=master_frame)
         self.canvas.get_tk_widget().pack(fill='both')
@@ -109,16 +109,6 @@ class TemporalPlotPanel:
         self.ax.add_collection(line_segments)
         self.canvas.draw()
 
-    def callback_update_plot(self, event):
+    def callback_update_from_slider(self, event):
         time_index = int(np.round(self.scale.get()))
         self.update_plot(time_index)
-
-    def decrease(self):
-        x, y = self.line.get_data()
-        self.line.set_ydata(y - 0.2 * x)
-        self.canvas.draw()
-
-    def increase(self):
-        x, y = self.line.get_data()
-        self.line.set_ydata(y + 0.2 * x)
-        self.canvas.draw()

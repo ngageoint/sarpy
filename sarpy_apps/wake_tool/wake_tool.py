@@ -8,6 +8,7 @@ import sarpy.geometry.geocoords as geocoords
 import numpy as np
 import math
 
+
 class AppVariables:
     def __init__(self):
         self.image_fname = "None"       # type: str
@@ -21,7 +22,7 @@ class AppVariables:
         self.line_color = "red"
         self.line_width = 3
         self.horizontal_line_width = 2
-        self.horizontal_line_color = "blue"
+        self.horizontal_line_color = "green"
 
 
 class WakeTool:
@@ -82,7 +83,8 @@ class WakeTool:
 
     def callback_select_color(self, event):
         self.side_panel.buttons.set_active_button(self.side_panel.buttons.foreground_color)
-        self.image_canvas.variables.foreground_color = colorchooser.askcolor()[1]
+        color = colorchooser.askcolor()[1]
+        self.image_canvas.change_shape_color(self.image_canvas.variables.current_shape_id, color)
 
     def callback_handle_left_mouse_click(self, event):
         # first do all the normal mouse click functionality of the canvas
