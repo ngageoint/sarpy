@@ -82,7 +82,7 @@ class Taser:
         self.taser_image_panel.set_canvas_image_from_fname(self.app_variables.fname)
 
     def callback_display_canvas_rect_selection_in_pyplot_frame(self, event):
-        complex_data = self.taser_image_panel.get_image_data_in_canvas_rect_by_id(self.taser_image_panel.variables.current_object_id)
+        complex_data = self.taser_image_panel.get_image_data_in_canvas_rect_by_id(self.taser_image_panel.variables.current_shape_id)
         remapped_data = self.taser_image_panel.variables.canvas_image_object.remap_complex_data(complex_data)
         self.pyplot_panel.update_image(remapped_data)
 

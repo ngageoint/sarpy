@@ -86,27 +86,23 @@ class CanvasDisplayImage:
         self.image_decimation_factor = dec_factor
 
     def canvas_coords_to_full_image_yx(self,
-                                       canvas_coords,       # type: Union[(int, int), list]
+                                       canvas_coords,       # type: [int]
                                        ):
-        if isinstance(canvas_coords, type((1, 1))):
-            x = canvas_coords[0]
-            y = canvas_coords[1]
-            image_x = x * self.image_decimation_factor + self.canvas_full_image_upper_left_yx[1]
-            image_y = y * self.image_decimation_factor + self.canvas_full_image_upper_left_yx[0]
-            return image_y, image_x
-        elif isinstance(canvas_coords, type([(1, 1), (2, 2)])):
-            image_yx_list = []
-            for canvas_coord in canvas_coords:
-                x = canvas_coord[0]
-                y = canvas_coord[1]
-                image_x = x * self.image_decimation_factor + self.canvas_full_image_upper_left_yx[1]
-                image_y = y * self.image_decimation_factor + self.canvas_full_image_upper_left_yx[0]
-                image_yx_list.append((image_y, image_x))
-            return image_yx_list
+        x_coords = canvas_coords[0::2]
+        y_coords = canvas_coords[1::2]
+        xy_coords = zip(x_coords, y_coords)
+        image_yx_coords = []
+        # TODO: this can be optimized for speed
+        for xy in xy_coords:
+            image_x = xy[0] * self.image_decimation_factor + self.canvas_full_image_upper_left_yx[1]
+            image_y = xy[1] * self.image_decimation_factor + self.canvas_full_image_upper_left_yx[0]
+            image_yx_coords.append(image_y)
+            image_yx_coords.append(image_x)
+        return image_yx_coords
 
     def canvas_rect_to_full_image_rect(self,
                                        canvas_rect,  # type: (int, int, int, int)
-                                       ):            # type: (...) -> Union[(int, int), list]
+                                       ):            # type: (...) ->[float]
         image_y1, image_x1 = self.canvas_coords_to_full_image_yx((canvas_rect[0], canvas_rect[1]))
         image_y2, image_x2 = self.canvas_coords_to_full_image_yx((canvas_rect[2], canvas_rect[3]))
 
@@ -124,18 +120,14 @@ class CanvasDisplayImage:
     def full_image_yx_to_canvas_coords(self,
                                        full_image_yx,           # type: Union[(int, int), list]
                                        ):                       # type: (...) -> Union[(int, int), list]
-        if isinstance(full_image_yx, type((1, 1))):
-            image_x = full_image_yx[1]
-            image_y = full_image_yx[0]
-            canvas_x = (image_x - self.canvas_full_image_upper_left_yx[1]) / self.image_decimation_factor
-            canvas_y = (image_y - self.canvas_full_image_upper_left_yx[0]) / self.image_decimation_factor
-            return canvas_x, canvas_y
-        elif isinstance(full_image_yx, type([(1, 1), (2, 2)])):
-            canvas_xy_list = []
-            for image_yx in full_image_yx:
-                image_x = image_yx[1]
-                image_y = image_yx[0]
-                canvas_x = (image_x - self.canvas_full_image_upper_left_yx[1]) / self.image_decimation_factor
-                canvas_y = (image_y - self.canvas_full_image_upper_left_yx[0]) / self.image_decimation_factor
-                canvas_xy_list.append((canvas_x, canvas_y))
-            return canvas_xy_list
+        y_coords = full_image_yx[0::2]
+        x_coords = full_image_yx[1::2]
+        image_yx_coords = zip(y_coords, x_coords)
+        canvas_xy_coords = []
+        for image_yx in image_yx_coords:
+            canvas_x = (image_yx[1] - self.canvas_full_image_upper_left_yx[1]) / self.image_decimation_factor
+            canvas_y = (image_yx[0] - self.canvas_full_image_upper_left_yx[0]) / self.image_decimation_factor
+            canvas_xy_coords.append(canvas_x)
+            canvas_xy_coords.append(canvas_y)
+        return canvas_xy_coords
+
