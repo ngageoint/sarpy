@@ -7,7 +7,7 @@ rcv_chan_proc_dict = {'NumChanProc': 10, 'PRFScaleFactor': 1, 'ChanIndices': [1,
 tx_freq_proc_dict = {'MinProc': 1, 'MaxProc': 10}
 processing_dict = {'Type': 'Some Value', 'Applied': True, 'Parameters': {'Name': 'Value'}}
 distortion_dict = {
-    'CalibrationDate': '2019-12-10T19:40:31.000000',
+    'CalibrationDate': '2019-12-10T19:40:31.000000Z',
     'A': 1,
     'F1': {'Real': 1, 'Imag': 1},
     'Q1': {'Real': 1, 'Imag': 1},

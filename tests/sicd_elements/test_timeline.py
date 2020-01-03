@@ -12,7 +12,7 @@ ipp_set_dict = {
     'index': 0,
 }
 timeline_dict = {
-    'CollectStart': '2019-12-11T13:58:27.000000',
+    'CollectStart': '2019-12-11T13:58:27.000000Z',
     'CollectDuration': 54,
     'IPP': [ipp_set_dict, ],
 }
