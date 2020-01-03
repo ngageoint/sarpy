@@ -5,20 +5,19 @@ Functionality for reading Radarsat (RS2 and RCM) data into a SICD model.
 
 __classification__ = "UNCLASSIFIED"
 
-import logging
 import re
 import os
 from datetime import datetime
 from xml.etree import ElementTree
-from typing import Union
+from typing import Tuple
 
 import numpy
 from numpy.polynomial import polynomial
 from scipy.constants import speed_of_light
 
-from .base import BaseReader
-from .bip import BIPChipper
+from .tiff import TiffDetails, TiffReader
 
+from ..sicd_elements.blocks import Poly1DType
 from ..sicd_elements.SICD import SICDType
 from ..sicd_elements.CollectionInfo import CollectionInfoType, RadarModeType
 from ..sicd_elements.ImageCreation import ImageCreationType
@@ -28,6 +27,77 @@ from ..sicd_elements.Position import PositionType, XYZPolyType
 from ..sicd_elements.Grid import GridType, DirParamType, WgtTypeType
 from ..sicd_elements.RadarCollection import RadarCollectionType, WaveformParametersType, \
     TxFrequencyType, ChanParametersType, TxStepType
+from ..sicd_elements.Timeline import TimelineType, IPPSetType
+from ..sicd_elements.ImageFormation import ImageFormationType, RcvChanProcType
+from ..sicd_elements.RMA import RMAType, INCAType
+from ..sicd_elements.SCPCOA import SCPCOAType
+from ..sicd_elements.Radiometric import RadiometricType, NoiseLevelType_
+from ..geometry import point_projection
+
+
+########
+# base expected functionality for a module with an implemented Reader
+
+
+def is_a(file_name):
+    """
+    Tests whether a given file_name corresponds to a RadarSat file. Returns a reader instance, if so.
+
+    Parameters
+    ----------
+    file_name : str
+        the file_name to check
+
+    Returns
+    -------
+    RadarSatDetails|None
+        `RadarSatDetails` instance if tiff file, `None` otherwise
+    """
+
+    try:
+        radar_sat_details = RadarSatDetails(file_name)
+        print('File {} is determined to be a RadarSat product.xml file.'.format(file_name))
+        return RadarSatReader(radar_sat_details)
+    except IOError:
+        # we don't want to catch parsing errors, for now
+        return None
+
+
+##########
+# helper functions
+
+
+def _2d_poly_fit(x, y, z, x_order=2, y_order=2):
+    # first, we need to formulate this as A*t = z
+    # where t has shape ((x_order+1)*(y_order+1), ) is our solution
+    # and A has shape (x.size, (x_order+1)*(y_order+1))
+    A = numpy.empty(((x_order+1)*(y_order+1), x.size), dtype=numpy.float64)
+    for i, index in enumerate(numpy.ndindex(x_order+1, y_order+1)):
+        A[:, i] = numpy.power(x, index[0])*numpy.power(y, index[1])
+    sol = numpy.linalg.lstsq(A, z)
+    # TODO: I'm relatively confident that this needs to be transposed.
+    #   Test this explicitly.
+    return numpy.reshape(sol, (x_order+1, y_order+1)).T
+
+
+def _get_seconds(dt1, dt2):  # type: (numpy.datetime64, numpy.datetime64) -> float
+    tdt1 = dt1.astype('datetime64[us]')
+    tdt2 = dt2.astype('datetime64[us]')  # convert both to microsecond precision
+    return (tdt1.astype('int64') - tdt2.astype('int64'))*1e-6
+
+
+def _parse_xml(file_name, without_ns=False):  # type: (str, bool) -> ElementTree.Element
+    if without_ns:
+        with open(file_name, 'r') as fi:
+            xml_string = fi.read()
+        # Remove the (first) default namespace definition (xmlns="http://some/namespace") and parse
+        return ElementTree.fromstring(re.sub('\\sxmlns="[^"]+"', '', xml_string, count=1))
+    else:
+        return ElementTree.parse(file_name)
+
+
+###########
+# parser and interpreter for radarsat product.xml
 
 
 class RadarSatDetails(object):
@@ -49,10 +119,7 @@ class RadarSatDetails(object):
             raise IOError('File {} does not appear to be an SLC product for a RADARSAT-2 '
                           'or RCM mission.'.format(self._file_name))
         # this is a radarsat file. Let's junk the default namespace.
-        with open(file_name) as fi:
-            xmlstring = fi.read()
-        # Remove the (first) default namespace definition (xmlns="http://some/namespace") and parse
-        self._root_node = ElementTree.fromstring(re.sub('\\sxmlns="[^"]+"', '', xmlstring, count=1))
+        self._root_node = _parse_xml(file_name, without_ns=True).getroot()
 
     @property
     def file_name(self):
@@ -66,100 +133,106 @@ class RadarSatDetails(object):
     def product_type(self):
         return self._product_type
 
+    @property
+    def generation(self):
+        if self._satellite == 'RADARSAT-2':
+            return 'RS2'
+        else:
+            return 'RCM'
+
     def find(self, tag):
         return self._root_node.find(tag)
 
     def findall(self, tag):
         return self._root_node.findall(tag)
 
+    def get_symmetry(self):
+        """
+        Get the symmetry tuple.
 
-# RADARSAT files correspond to one tiff per polarimetric band.
-# As such, we will have one reader per polarimetric band (just a tiff)
-class RadarSatReader(object):
-    __slots__ = ('_radar_sat_details', '_readers')
-
-    def __init__(self, radar_sat_details):
+        Returns
+        -------
+        Tuple[bool]
         """
 
-        Parameters
-        ----------
-        radar_sat_details : RadarSatDetails
-        """
-
-        self._radar_sat_details = radar_sat_details
-        # determine symmetry
-        symmetry = self._get_symmetry()
-        # determine datafiles
-        data_files = self._get_data_file_names()
-        # let's extract the sicd meta-data(s)
-        # basic_sicd = self._get_default_sicd()  # not sure this will hold up
-        # self._readers = ''
-
-    def _get_symmetry(self):
-        if self._radar_sat_details.satellite == 'RADARSAT-2':
+        if self.generation == 'RS2':
             ia = 'imageAttributes'
         else:
             ia = 'imageReferenceAttributes'
 
-        line_order = self._radar_sat_details.find('./default:' + ia +
-                                                  '/default:rasterAttributes'
-                                                  '/default:lineTimeOrdering').text.upper()
-        look_dir = self._radar_sat_details.find('./default:sourceAttributes'
-                                                '/default:radarParameters'
-                                                '/default:antennaPointing').text.upper()
-        sample_order = self._radar_sat_details.find('./default:' + ia +
-                                                    '/default:rasterAttributes'
-                                                    '/default:pixelTimeOrdering').text.upper()
+        line_order = self.find('./{}/rasterAttributes/lineTimeOrdering'.format(ia)).text.upper()
+        look_dir = self.find('./sourceAttributes/radarParameters/antennaPointing').text.upper()
+        sample_order = self.find('./{}/rasterAttributes/pixelTimeOrdering'.format(ia)).text.upper()
         return ((line_order == 'DECREASING') != (look_dir.startswith('L')),
                 sample_order == 'DECREASING',
                 True)
 
-    def _get_data_file_names(self):
-        if self._radar_sat_details.satellite == 'RADARSAT-2':
-            data_file_tag = './default:imageAttributes/default:fullResolutionImageData'
-        else:
-            data_file_tag = './default:sceneAttributes/default:imageAttributes/default:ipdf'
-        base_path = os.path.dirname(self._radar_sat_details.file_name)
-        return (os.path.join(base_path, entry.text) for entry in self._radar_sat_details.findall(data_file_tag))
+    def get_data_file_names(self):
+        """
+        Gets the list of data file names.
 
-    def _get_default_sicd(self):
-        def find(tag):  # type: (str) -> Union[None, str]
-            val = self._radar_sat_details.find(tag)
-            if val is None:
-                return val
-            return val.text
+        Returns
+        -------
+        Tuple[str]
+        """
 
-        def get_seconds(dt1, dt2):  # type: (numpy.datetime64, numpy.datetime64) -> float
-            tdt1 = dt1.astype('datetime64[us]')
-            tdt2 = dt2.astype('datetime64[us]')  # convert both to microsecond precision
-            return (tdt1.astype('int64') - tdt2.astype('int64'))*1e-6
+        if self.generation == 'RS2':
+            data_file_tag = './imageAttributes/fullResolutionImageData'
+        else:
+            data_file_tag = './sceneAttributes/imageAttributes/ipdf'
+        base_path = os.path.dirname(self.file_name)
+        return (os.path.join(base_path, entry.text) for entry in self.findall(data_file_tag))
 
-        ISO_FMT = '%Y-%m-%dT%H:%M:%S.%fZ'
-        # basic meta data used in a variety of places
-        start_time_str = find('./sourceAttributes/rawDataStartTime')
-        start_time_dt = datetime.strptime(start_time_str, ISO_FMT)  # still a naive dt?
-        start_time = numpy.datetime64(start_time_dt, 'us')
-        if self._radar_sat_details.satellite == 'RADARSAT-2':
-            GEN = 'RS2'
+    def _get_start_time(self, get_datetime=False):
+        """
+        Gets the Collection start time
+
+        Returns
+        -------
+        numpy.datetime64|datetime
+        """
+        if get_datetime:
+            return datetime.strptime(
+                self.find('./sourceAttributes/rawDataStartTime').text,
+                '%Y-%m-%dT%H:%M:%S.%fZ')  # still a naive datetime?
         else:
-            GEN = 'RCM'
-        #################
-        # CollectionInfo
-        classification = 'UNCLASSIFIED'
-        if GEN == 'RCM':
-            class_str = find('./securityAttributes/securityClassification').upper()
-            if 'UNCLASS' not in class_str:
-                classification = class_str
-        collector_name = self._radar_sat_details.satellite
-        date_str = start_time_dt.strftime('%d%B%y').upper()
-        if GEN == 'RS2':
-            core_name = date_str + GEN + find('./sourceAttributes/imageId')
-        else:
-            core_name = date_str + collector_name.replace('-', '') + start_time_dt.strftime('%H%M%S')
-        # CollectionInfo.RadarMode
-        mode_id = find('./sourceAttributes/beamModeMnemonic')
-        beam_mode = find('./sourceAttributes/beamMode')
-        acq_type = find('./sourceAttributes/radarParameters/acquisitionType')
+            return numpy.datetime64(self.find('./sourceAttributes/rawDataStartTime').text, 'us')
+
+    def _get_radar_params(self):
+        return self.find('./sourceAttributes/radarParameters')
+
+    def _get_center_frequency(self):
+        """
+        Gets the center frequency.
+
+        Returns
+        -------
+        float
+        """
+        return float(self.find('./sourceAttributes/radarParameters/radarCenterFrequency').text)
+
+    def _get_polarizations(self, radar_params=None):
+        if radar_params is None:
+            radar_params = self._get_radar_params()
+        polarizations = radar_params.find('polarizations').text.split()
+        tx_polarizations = ['RHC' if entry[0] == 'C' else entry[0] for entry in polarizations]
+        rcv_polarizations = ['RHC' if entry[1] == 'C' else entry[1] for entry in polarizations]
+        tx_rcv_polarizations = ['{}:{}'.format(*entry) for entry in zip(tx_polarizations, rcv_polarizations)]
+        tx_pols = tuple(set(tx_polarizations))
+        return tx_pols, tx_rcv_polarizations
+
+    def _get_radar_mode(self):
+        """
+        Gets the RadarMode.
+
+        Returns
+        -------
+        RadarModeType
+        """
+
+        mode_id = self.find('./sourceAttributes/beamModeMnemonic').text
+        beam_mode = self.find('./sourceAttributes/beamMode').text
+        acq_type = self.find('./sourceAttributes/radarParameters/acquisitionType')
         if (beam_mode is not None and beam_mode.upper().startswith("SPOTLIGHT")) \
                 or (acq_type is not None and acq_type.upper().startswith("SPOTLIGHT")) \
                 or 'SL' in mode_id:
@@ -168,36 +241,76 @@ class RadarSatReader(object):
             raise ValueError('ScanSAR mode data is not currently handled.')
         else:
             mode_type = 'STRIPMAP'
-        radar_mode = RadarModeType(ModeId=mode_id, ModeType=mode_type)
-        collection_info = CollectionInfoType(
+        return RadarModeType(ModeId=mode_id, ModeType=mode_type)
+
+    def _get_collection_info(self):
+        """
+        Gets the CollectionInfo.
+
+        Returns
+        -------
+        CollectionInfoType
+        """
+
+        start_time_dt = self._get_start_time(get_datetime=True)
+
+        GEN = self.generation
+        classification = 'UNCLASSIFIED'
+        if GEN == 'RCM':
+            class_str = self.find('./securityAttributes/securityClassification').text.upper()
+            if 'UNCLASS' not in class_str:
+                classification = class_str
+        collector_name = self.satellite
+        date_str = start_time_dt.strftime('%d%B%y').upper()
+        if GEN == 'RS2':
+            core_name = date_str + GEN + self.find('./sourceAttributes/imageId').text
+        else:
+            core_name = date_str + collector_name.replace('-', '') + start_time_dt.strftime('%H%M%S')
+        return CollectionInfoType(
             Classification=classification, CollectorName=collector_name,
-            CoreName=core_name, RadarMode=radar_mode, CollectType='MONOSTATIC')
-        ###################
-        # ImageCreation - all in one tag of product xml
-        processing_info = self._radar_sat_details.find('./imageGenerationParameters/generalProcessingInformation')
-        image_creation = ImageCreationType(
+            CoreName=core_name, RadarMode=self._get_radar_mode(), CollectType='MONOSTATIC')
+
+    def _get_image_creation(self):
+        """
+        Gets the ImageCreation metadata.
+
+        Returns
+        -------
+        ImageCreationType
+        """
+
+        processing_info = self.find('./imageGenerationParameters/generalProcessingInformation')
+        return ImageCreationType(
             Application=processing_info.find('softwareVersion').text,
             DateTime=processing_info.find('processingTime').text,
             Site=processing_info.find('processingFacility').text,
             Profile='Prototype')
-        ###################
-        # ImageData
+
+    def _get_image_data(self):
+        """
+        Gets the ImageData metadata.
+
+        Returns
+        -------
+        ImageDataType
+        """
+
         pixel_type = 'RE16I_IM16I'
-        if GEN == 'RS2':
-            cols = int(find('./imageAttributes/rasterAttributes/numberOfLines'))
-            rows = int(find('./imageAttributes/rasterAttributes/numberOfSamplesPerLine'))
-            tie_points = self._radar_sat_details.findall('./imageAttributes'
-                                                         '/geographicInformation'
-                                                         '/geolocationGrid'
-                                                         '/imageTiePoint')
+        if self.generation == 'RS2':
+            cols = int(self.find('./imageAttributes/rasterAttributes/numberOfLines').text)
+            rows = int(self.find('./imageAttributes/rasterAttributes/numberOfSamplesPerLine').text)
+            tie_points = self.findall('./imageAttributes'
+                                      '/geographicInformation'
+                                      '/geolocationGrid'
+                                      '/imageTiePoint')
         else:
-            cols = int(find('./sceneAttributes/imageAttributes/numLines'))
-            rows = int(find('./sceneAttributes/imageAttributes/samplesPerLine'))
-            tie_points = self._radar_sat_details.findall('./imageReferenceAttributes'
-                                                         '/geographicInformation'
-                                                         '/geolocationGrid'
-                                                         '/imageTiePoint')
-            if find('./imageReferenceAttributes/rasterAttributes/bitsPerSample') == '32':
+            cols = int(self.find('./sceneAttributes/imageAttributes/numLines').text)
+            rows = int(self.find('./sceneAttributes/imageAttributes/samplesPerLine').text)
+            tie_points = self.findall('./imageReferenceAttributes'
+                                      '/geographicInformation'
+                                      '/geolocationGrid'
+                                      '/imageTiePoint')
+            if self.find('./imageReferenceAttributes/rasterAttributes/bitsPerSample').text == '32':
                 pixel_type = 'RE32F_IM32F'
         # let's use the tie point closest to the center as the SCP
         center_pixel = 0.5*numpy.array([rows-1, cols-1], dtype=numpy.float64)
@@ -205,27 +318,33 @@ class RadarSatReader(object):
             [float(tp.find('imageCoordinate/pixel').text) for tp in tie_points],
             [float(tp.find('imageCoordinate/line').text) for tp in tie_points]], dtype=numpy.float64)
         scp_index = numpy.argmin(numpy.sum((tp_pixels - center_pixel)**2), axis=1)
-        image_data = ImageDataType(NumRows=rows, NumCols=cols, FirstRow=0, FirstCol=0, PixelType=pixel_type,
-                                   FullImage=(rows, cols),
-                                   ValidData=((0, 0), (0, cols-1), (rows-1, cols-1), (rows-1, 0)),
-                                   SCPPixel=numpy.round(tp_pixels[scp_index, :]))
-        ###################
-        # GeoData
-        # TODO: why populate this in order to repopulate it later?
-        scp = SCPType(LLH=(
-            float(tie_points[scp_index].find('geodeticCoordinate/latitude').text),
-            float(tie_points[scp_index].find('geodeticCoordinate/longitude').text),
-            float(tie_points[scp_index].find('geodeticCoordinate/height').text),))
-        geo_data = GeoDataType(SCP=scp)  # everything else will be derived
-        ###################
-        # Position
+        return ImageDataType(NumRows=rows,
+                             NumCols=cols,
+                             FirstRow=0,
+                             FirstCol=0,
+                             PixelType=pixel_type,
+                             FullImage=(rows, cols),
+                             ValidData=((0, 0), (0, cols-1), (rows-1, cols-1), (rows-1, 0)),
+                             SCPPixel=numpy.round(tp_pixels[scp_index, :]))
+
+    def _get_position(self):
+        """
+        Gets the Position.
+
+        Returns
+        -------
+        PositionType
+        """
+
+        start_time = self._get_start_time()
         # get radar position state information
-        state_vectors = self._radar_sat_details.findall('./sourceAttributes'
-                                                        '/orbitAndAttitude'
-                                                        '/orbitInformation'
-                                                        '/stateVector')
+        state_vectors = self.findall('./sourceAttributes'
+                                     '/orbitAndAttitude'
+                                     '/orbitInformation'
+                                     '/stateVector')
         # convert to relevant numpy arrays for polynomial fitting
-        T = numpy.array([get_seconds(state_vec.find('timeStamp').text, start_time)
+        T = numpy.array([_get_seconds(numpy.datetime64(state_vec.find('timeStamp').text, 'us'),
+                                      start_time)
                          for state_vec in state_vectors], dtype=numpy.float64)
         X_pos = numpy.array([float(state_vec.find('xPosition').text)
                              for state_vec in state_vectors], dtype=numpy.float64)
@@ -258,40 +377,84 @@ class RadarSatReader(object):
             # TODO: find objectively bad fit?
             if cur_vel_error >= prev_vel_error:
                 break
-        position = PositionType(ARPPoly=XYZPolyType(X=P_x, Y=P_y, Z=P_z))  # everything else will be derived
-        ###################
-        # Grid
-        # get radar parameters node
-        radar_params = self._radar_sat_details.find('./sourceAttributes/radarParameters')
-        center_freq = float(radar_params.find('radarCenterFrequency').text)
-        grid = GridType(ImagePlane='SLANT', Type='RGZERO')
-        if GEN == 'RS2':
-            row_ss = float(find('./imageAttributes/geographicInformation/geolocationGrid/imageTiePoint'))
+        return PositionType(ARPPoly=XYZPolyType(X=P_x, Y=P_y, Z=P_z))
+
+    def _get_grid_row(self):
+        """
+        Gets the Grid.Row metadata.
+
+        Returns
+        -------
+        DirParamType
+        """
+        center_freq = self._get_center_frequency()
+        if self.generation == 'RS2':
+            row_ss = float(self.find('./imageAttributes'
+                                     '/geographicInformation'
+                                     '/geolocationGrid'
+                                     '/imageTiePoint').text)
         else:
-            row_ss = float(find('./imageReferenceAttributes/geographicInformation/geolocationGrid/imageTiePoint'))
-        row_irbw = 2*float(find('./imageGenerationParameters'
-                                '/sarProcessingInformation'
-                                '/totalProcessedRangeBandwidth'))/speed_of_light
-        row_wgt_type = WgtTypeType(WindowName=find('./imageGenerationParameters'
-                                                   '/sarProcessingInformation'
-                                                   '/rangeWindow/windowName').upper())
+            row_ss = float(self.find('./imageReferenceAttributes'
+                                     '/geographicInformation'
+                                     '/geolocationGrid'
+                                     '/imageTiePoint').text)
+        row_irbw = 2*float(self.find('./imageGenerationParameters'
+                                     '/sarProcessingInformation'
+                                     '/totalProcessedRangeBandwidth').text)/speed_of_light
+        row_wgt_type = WgtTypeType(WindowName=self.find('./imageGenerationParameters'
+                                                        '/sarProcessingInformation'
+                                                        '/rangeWindow/windowName').text.upper())
         if row_wgt_type.WindowName == 'KAISER':
-            row_wgt_type.Parameters['BETA'] = find('./imageGenerationParameters'
-                                                   '/sarProcessingInformation'
-                                                   '/rangeWindow/windowCoefficient').text
-        col_wgt_type = WgtTypeType(WindowName=find('./imageGenerationParameters'
-                                                   '/sarProcessingInformation'
-                                                   '/azimuthWindow/windowName').upper())
-        if col_wgt_type.WindowName == 'KAISER':
-            col_wgt_type.Parameters['BETA'] = find('./imageGenerationParameters'
-                                                   '/sarProcessingInformation'
-                                                   '/azimuthWindow/windowCoefficient').text
-        grid.Row = DirParamType(
+            row_wgt_type.Parameters['BETA'] = self.find('./imageGenerationParameters'
+                                                        '/sarProcessingInformation'
+                                                        '/rangeWindow/windowCoefficient').text
+
+        return DirParamType(
             SS=row_ss, ImpRespBW=row_irbw, Sgn=-1, KCtr=2*center_freq/speed_of_light,
             DeltaKCOAPoly=((0,),), WgtType=row_wgt_type)
-        grid.Col = DirParamType(Sgn=-1, KCtr=0, WgtType=col_wgt_type)
-        ###################
-        # RadarCollection
+
+    def _get_grid_col(self):
+        """
+        Gets the Grid.Col metadata.
+
+        Returns
+        -------
+        DirParamType
+        """
+
+        col_wgt_type = WgtTypeType(WindowName=self.find('./imageGenerationParameters'
+                                                        '/sarProcessingInformation'
+                                                        '/azimuthWindow/windowName').text.upper())
+        if col_wgt_type.WindowName == 'KAISER':
+            col_wgt_type.Parameters['BETA'] = self.find('./imageGenerationParameters'
+                                                        '/sarProcessingInformation'
+                                                        '/azimuthWindow/windowCoefficient').text
+
+        return DirParamType(Sgn=-1, KCtr=0, WgtType=col_wgt_type)
+
+    def _get_grid(self):
+        """
+        Gets the Grid.
+
+        Returns
+        -------
+        GridType
+        """
+        return GridType(ImagePlane='SLANT',
+                        Type='RGZERO',
+                        Row=self._get_grid_row(),
+                        Col=self._get_grid_col())
+
+    def _get_radar_collection(self):
+        """
+        Gets the RadarCollection.
+
+        Returns
+        -------
+        RadarCollectionType
+        """
+        radar_params = self._get_radar_params()
+        center_freq = self._get_center_frequency()
         # Ultrafine and spotlight modes have two pulses, otherwise just one.
         bandwidth_elements = sorted(radar_params.findall('pulseBandwidth'), key=lambda x: x.get('pulse'))
         pulse_length_elements = sorted(radar_params.findall('pulseLength'), key=lambda x: x.get('pulse'))
@@ -316,29 +479,446 @@ class RadarSatReader(object):
         for i in range(1, len(bandwidth_elements)):
             radar_collection.Waveform[i].TxFreqStart = radar_collection.Waveform[i-1].TxFreqStart + \
                                                        radar_collection.Waveform[i-1].TxRFBandwidth
-        polarizations = radar_params.find('polarizations').text.split()
-        tx_polarizations = ('RHC' if entry[0] == 'C' else entry[0] for entry in polarizations)
-        rcv_polarizations = ('RHC' if entry[1] == 'C' else entry[1] for entry in polarizations)
-        tx_rcv_polarizations = ('{}:{}'.format(*entry) for entry in zip(tx_polarizations, rcv_polarizations))
+        tx_pols, tx_rcv_polarizations = self._get_polarizations(radar_params=radar_params)
         radar_collection.RcvChannels = [ChanParametersType(TxRcvPolarization=entry, index=i)
                                         for i, entry in enumerate(tx_rcv_polarizations)]
-        tx_pols = tuple(set(tx_polarizations))
         if len(tx_pols) == 1:
             radar_collection.TxPolarization = tx_pols[0]
         else:
             radar_collection.TxPolarization = 'SEQUENCE'
         radar_collection.TxSequence = [TxStepType(TxPolarization=entry, index=i) for i, entry in enumerate(tx_pols)]
-        ###################
-        # Timeline - line 414
+        return radar_collection
 
-        ###################
-        # basic SICD
+    def _get_timeline(self):
+        """
+        Gets the Timeline metadata.
+
+        Returns
+        -------
+        TimelineType
+        """
+
+        timeline = TimelineType(CollectStart=self._get_start_time())
+        pulse_parts = len(self.findall('./sourceAttributes/radarParameters/pulseBandwidth'))
+        tx_pols, tx_rcv_polarizations = self._get_polarizations()
+        if self.generation == 'RS2':
+            pulse_rep_freq = float(self.find('pulseRepetitionFrequency').text)
+        else:
+            pulse_rep_freq = float(self.find('prfInformation/pulseRepetitionFrequency').text)
+        pulse_rep_freq *= pulse_parts
+        if pulse_parts == 2 and self._get_radar_mode().ModeType == 'STRIPMAP':
+            # it's not completely clear why we need an additional factor of 2 for strip map
+            pulse_rep_freq *= 2
+        lines_processed = [
+            float(entry.text) for entry in self.findall('imageGenerationParameters'
+                                                        '/sarProcessingInformation'
+                                                        '/numberOfLinesProcessed')]
+        # there should be one entry of num_lines_processed for each transmit/receive polarization
+        # and they should all be the same. Omit if this is not the case.
+        if (len(lines_processed) == len(tx_rcv_polarizations)) and \
+                all(x == lines_processed[0] for x in lines_processed):
+            num_lines_processed = lines_processed[0]*len(tx_pols)
+            duration = num_lines_processed/pulse_rep_freq
+            timeline.CollectDuration = duration
+            timeline.IPP = [IPPSetType(
+                index=0, TStart=0, TEnd=duration, IPPStart=0,
+                IPPEnd=int(num_lines_processed), IPPPoly=(0, pulse_rep_freq)), ]
+        return timeline
+
+    def _get_image_formation(self, timeline, radar_collection):
+        """
+        Gets the ImageFormation.
+
+        Parameters
+        ----------
+        timeline : TimelineType
+        radar_collection : RadarCollectionType
+
+        Returns
+        -------
+        ImageFormationType
+        """
+        pulse_parts = len(self.findall('./sourceAttributes/radarParameters/pulseBandwidth'))
+        tx_pols, tx_rcv_polarizations = self._get_polarizations()
+
+        return ImageFormationType(
+            # PRFScaleFactor for either polarimetric or multi-step, but not both.
+            RcvChanProc=RcvChanProcType(NumChanProc=1,
+                                        PRFScaleFactor=1./max(pulse_parts, len(tx_pols))),
+            ImageFormAlgo='RMA',
+            TStartProc=0,
+            TEndProc=timeline.CollectDuration,
+            TxFrequencyProc=(radar_collection.TxFrequency.Min,
+                             radar_collection.TxFrequency.Max),
+            STBeamComp='NO',
+            ImageBeamComp='NO',
+            AzAutofocus='NO',
+            RgAutofocus='NO')
+
+    def _get_scpcoa(self):
+        """
+        Gets (minimal) SCPCOA.
+
+        Returns
+        -------
+        SCPCOAType
+        """
+        side_of_track = self.find('./sourceAttributes/radarParameters/antennaPointing').text[0].upper()
+        return SCPCOAType(SideOfTrack=side_of_track)
+
+    def _get_rma_adjust_grid(self, scpcoa, grid, image_data, position, collection_info):
+        """
+        Gets the RMA metadata, and adjust the Grid.Col metadata.
+
+        Parameters
+        ----------
+        scpcoa : SCPCOAType
+        grid : GridType
+        image_data : ImageDataType
+        position : PositionType
+        collection_info : CollectionInfoType
+
+        Returns
+        -------
+        RMAType
+        """
+
+        look = scpcoa.look
+        start_time = self._get_start_time()
+        center_freq = self._get_center_frequency()
+        doppler_bandwidth = float(self.find('./imageGenerationParameters'
+                                            '/sarProcessingInformation'
+                                            '/totalProcessedAzimuthBandwidth').text)
+        zero_dop_last_line = numpy.datetime64(self.find('./imageGenerationParameters'
+                                                        '/sarProcessingInformation'
+                                                        '/zeroDopplerTimeLastLine').text, 'us')
+        zero_dop_first_line = numpy.datetime64(self.find('./imageGenerationParameters'
+                                                         '/sarProcessingInformation'
+                                                         '/zeroDopplerTimeFirstLine').text, 'us')
+        if look > 1:  # SideOfTrack == 'L'
+            # we explicitly want negative time order
+            if zero_dop_first_line < zero_dop_last_line:
+                zero_dop_first_line, zero_dop_last_line = zero_dop_last_line, zero_dop_first_line
+        else:
+            # we explicitly want positive time order
+            if zero_dop_first_line > zero_dop_last_line:
+                zero_dop_first_line, zero_dop_last_line = zero_dop_last_line, zero_dop_first_line
+        col_spacing_zd = _get_seconds(zero_dop_last_line, zero_dop_first_line) / (image_data.NumCols - 1)
+        # zero doppler time of SCP relative to collect start
+        time_scp_zd = _get_seconds(zero_dop_first_line, start_time) + image_data.SCPPixel.Col * col_spacing_zd
+        if self.generation == 'RS2':
+            near_range = float(self.find('./imageGenerationParameters'
+                                         '/sarProcessingInformation'
+                                         '/slantRangeNearEdge').text)
+        else:
+            near_range = float(self.find('./imageGenerationParameters'
+                                         '/sarProcessingInformation'
+                                         '/slantRangeNearEdge').text)
+        inca = INCAType(
+            R_CA_SCP=near_range + (image_data.SCPPixel.Row * grid.Row.SS),
+            FreqZero=center_freq)
+        # doppler rate calculations
+        velocity = position.ARPPoly.derivative_eval(time_scp_zd, 1)
+        vel_ca_squared = numpy.sum(velocity*velocity)
+        # polynomial representing range as a function of range distance from SCP
+        r_ca = numpy.array([inca.R_CA_SCP, 1], dtype=numpy.float64)
+        # doppler rate coefficients
+        if self.generation == 'RS2':
+            doppler_rate_coeffs = numpy.array(
+                [float(entry) for entry in self.find('./imageGenerationParameters'
+                                                     '/dopplerRateValues'
+                                                     '/dopplerRateValuesCoefficients').text.split()],
+                dtype=numpy.float64)
+            doppler_rate_ref_time = float(self.find('./imageGenerationParameters'
+                                                    '/dopplerRateValues'
+                                                    '/dopplerRateReferenceTime').text)
+        else:
+            doppler_rate_coeffs = numpy.array(
+                [float(entry) for entry in self.find('./dopplerRate'
+                                                     '/dopplerRateEstimate'
+                                                     '/dopplerRateCoefficients').text.split()],
+                dtype=numpy.float64)
+            doppler_rate_ref_time = float(self.find('./dopplerRate'
+                                                     '/dopplerRateEstimate'
+                                                    '/dopplerRateReferenceTime').text)
+
+        # the doppler_rate_coeffs represents a polynomial in time, relative to
+        #   doppler_rate_ref_time.
+        # to construct the doppler centroid polynomial, we need to change scales
+        #   to a polynomial in space, relative to SCP.
+        doppler_rate_poly = Poly1DType(Coefs=doppler_rate_coeffs)
+        alpha = 2.0/speed_of_light
+        t_0 = doppler_rate_ref_time - alpha*inca.R_CA_SCP
+        dop_rate_scaled_coeffs = doppler_rate_poly.shift(t_0, alpha, return_poly=False)
+        # DRateSFPoly is then a scaled multiple of this scaled poly and r_ca above
+        coeffs = -numpy.convolve(dop_rate_scaled_coeffs, r_ca)/(alpha*center_freq*vel_ca_squared)
+        inca.DRateSFPoly = numpy.reshape(coeffs, (coeffs.size, 1))
+
+        # modify a few of the other fields
+        ss_scale = numpy.sqrt(vel_ca_squared)*inca.DRateSFPoly[0, 0]
+        grid.Col.SS = col_spacing_zd*ss_scale
+        grid.Col.ImpRespBW = -look*doppler_bandwidth/ss_scale
+        inca.TimeCAPoly = [time_scp_zd, 1./ss_scale]
+
+        # doppler centroid
+        if self.generation == 'RS2':
+            doppler_cent_coeffs = numpy.array(
+                [float(entry) for entry in self.find('./imageGenerationParameters'
+                                                     '/dopplerCentroid'
+                                                     '/dopplerCentroidCoefficients').text.split()],
+                dtype=numpy.float64)
+            doppler_cent_ref_time = float(self.find('./imageGenerationParameters'
+                                                    '/dopplerCentroid'
+                                                    '/dopplerCentroidReferenceTime').text)
+            doppler_cent_time_est = numpy.datetime64(self.find('./imageGenerationParameters'
+                                                               '/dopplerCentroid'
+                                                               '/timeOfDopplerCentroidEstimate').text, 'us')
+        else:
+            doppler_cent_coeffs = numpy.array(
+                [float(entry) for entry in self.find('./dopplerCentroid'
+                                                     '/dopplerCentroidEstimate'
+                                                     '/dopplerCentroidCoefficients').text.split()],
+                dtype=numpy.float64)
+            doppler_cent_ref_time = float(self.find('./dopplerCentroid'
+                                                    '/dopplerCentroidEstimate'
+                                                    '/dopplerCentroidReferenceTime').text)
+            doppler_cent_time_est = numpy.datetime64(self.find('./dopplerCentroid'
+                                                               '/dopplerCentroidEstimate'
+                                                               '/timeOfDopplerCentroidEstimate').text, 'us')
+        doppler_cent_poly = Poly1DType(Coefs=doppler_cent_coeffs)
+        alpha = 2.0/speed_of_light
+        t_0 = doppler_cent_ref_time - alpha*inca.R_CA_SCP
+        scaled_coeffs = doppler_cent_poly.shift(t_0, alpha, return_poly=False)
+        inca.DopCentroidPoly = numpy.reshape(scaled_coeffs, (scaled_coeffs.size, 1))
+        # adjust doppler centroid for spotlight, we need to add a second
+        # dimension to DopCentroidPoly
+        if collection_info.RadarMode.ModeType == 'SPOTLIGHT':
+            doppler_cent_est = _get_seconds(doppler_cent_time_est, start_time)
+            doppler_cent_col = (doppler_cent_est - time_scp_zd)/col_spacing_zd
+            dop_poly = numpy.zeros((scaled_coeffs.shape[0], 2), dtype=numpy.float64)
+            dop_poly[:, 0] = scaled_coeffs
+            dop_poly[0, 1] = -look*center_freq*alpha*numpy.sqrt(vel_ca_squared)/inca.R_CA_SCP
+            # dopplerCentroid in native metadata was defined at specific column,
+            # which might not be our SCP column.  Adjust so that SCP column is correct.
+            dop_poly[0, 0] = dop_poly[0, 0] - (dop_poly[0, 1]*doppler_cent_col*grid.Col.SS)
+            inca.DopCentroidPoly = dop_poly
+
+        grid.Col.DeltaKCOAPoly = inca.DopCentroidPoly.get_array()*col_spacing_zd/grid.Col.SS
+        # compute grid.Col.DeltaK1/K2 from DeltaKCOAPoly
+        coeffs = grid.Col.DeltaKCOAPoly.get_array()[:, 0]
+        # get roots
+        roots = polynomial.polyroots(coeffs)
+        # construct range bounds (in meters)
+        range_bounds = (numpy.array([0, image_data.NumRows-1], dtype=numpy.float64)
+                        - image_data.SCPPixel.Row)*grid.Row.SS
+        possible_ranges = numpy.copy(range_bounds)
+        useful_roots = (roots > numpy.min(range_bounds) & roots < numpy.max(range_bounds))
+        if numpy.any(useful_roots):
+            possible_ranges = numpy.concatenate((possible_ranges, roots[useful_roots]), axis=0)
+        azimuth_bounds = (numpy.array([0, (image_data.NumCols-1)], dtype=numpy.float64)
+                          - image_data.SCPPixel.Col) * grid.Col.SS
+        coords_az_2d, coords_rg_2d = numpy.meshgrid(azimuth_bounds, range_bounds)
+        possible_bounds_deltak = grid.Col.DeltaKCOAPoly(coords_rg_2d, coords_az_2d)
+        grid.Col.DeltaK1 = numpy.min(possible_bounds_deltak) - 0.5*grid.Col.ImpRespBW
+        grid.Col.DeltaK2 = numpy.max(possible_bounds_deltak) - 0.5*grid.Col.ImpRespBW
+        # Wrapped spectrum
+        if (grid.Col.DeltaK1 < -0.5/grid.Col.SS) or (grid.Col.DeltaK2 > 0.5/grid.Col.SS):
+            grid.Col.DeltaK1 = -0.5/grid.Col.SS
+            grid.Col.DeltaK2 = -grid.Col.DeltaK1
+        # extract TimeCOAPoly for grid
+        poly_order = 2
+        grid_samples = poly_order + 2
+        coords_az = (numpy.linspace(0, image_data.NumCols-1, grid_samples)-image_data.SCPPixel.Col)*grid.Col.SS
+        coords_rg = (numpy.linspace(0, image_data.NumRows-1, grid_samples)-image_data.SCPPixel.Row)*grid.Row.SS
+        coords_az_2d, coords_rg_2d = numpy.meshgrid(coords_az, coords_rg)
+        time_ca_sampled = inca.TimeCAPoly(coords_rg_2d, coords_az_2d)
+        dop_centroid_sampled = inca.DopCentroidPoly(coords_rg_2d, coords_az_2d)
+        doppler_rate_sampled = polynomial.polyval(coords_rg_2d, dop_rate_scaled_coeffs)
+        time_coa_sampled = time_ca_sampled + dop_centroid_sampled/doppler_rate_sampled
+        grid.TimeCOAPoly = _2d_poly_fit(
+            coords_rg_2d.flatten(), coords_az_2d.flatten(), time_coa_sampled.flatten(),
+            x_order=poly_order, y_order=poly_order)
+        if collection_info.RadarMode.ModeType == 'SPOTLIGHT':
+            # using above was convenience, but not really sensible in spotlight mode
+            grid.TimeCOAPoly = [[grid.TimeCOAPoly.get_array()[0, 0], ], ]  # make the constant version
+            inca.DopCentroidPoly = None
+        else:
+            inca.DopCentroidCOA = True
+        return RMAType(RMAlgoType='OMEGA_K', INCA=inca)
+
+    def _get_radiometric(self, image_data, grid):
+        """
+        Gets the Radiometric metadata.
+
+        Parameters
+        ----------
+        image_data : ImageDataType
+        grid : GridType
+
+        Returns
+        -------
+        RadiometricType
+        """
+
+        base_path = os.path.dirname(self.file_name)
+        noise_file = None
+        if self.generation == 'RS2':
+            beta_file = os.path.join(
+                base_path,
+                self.find('./imageAttributes/lookupTable[@incidenceAngleCorrection="Beta Nought"]').text)
+        else:
+            beta_file = os.path.join(
+                base_path,
+                self.find('./imageReferenceAttributes/lookupTableFileName[@sarCalibrationType="Beta Nought"]').text)
+            noise_file = os.path.join(
+                base_path,
+                self.find('./imageReferenceAttributes/noiseLevelFileName').text)
+        if not os.path.isfile(beta_file):
+            return None
+
+        beta_struct = _parse_xml(beta_file, without_ns=(self.generation != 'RS2')).getroot()
+        betas = numpy.array(
+            [float(entry) for entry in beta_struct.find('./gains').text.split()], dtype=numpy.float64)
+
+        if numpy.all(betas == betas[0]):
+            beta_zero_sf_poly = numpy.array([[1./betas[0]**2, ], ], dtype=numpy.float64)
+        else:
+            # fit a 1-d polynomial in range
+            coords_rg = (numpy.arange(image_data.NumRows) - image_data.SCPPixel.Row)*grid.Row.SS
+            if self.generation == 'RCM':  # the rows are sub-sampled
+                rng_indices = numpy.arange(
+                    int(beta_struct.find('./pixelFirstAnglesValue').text),
+                    int(beta_struct.find('./numberOfValues').text)*int(beta_struct.find('./stepSize').text))
+                coords_rg = coords_rg[rng_indices]
+            # For the datasets observed so far, this function is very close to linear.
+            beta_zero_sf_poly = numpy.atleast_2d(polynomial.polyfit(coords_rg, betas, 2))
+        noise_level = None
+        beta0_element = None
+        if self.generation == 'RS2':
+            # noise is in the main product.xml
+            beta0_element = self.find('./sourceAttributes/radarParameters'
+                                      '/referenceNoiseLevel[@incidenceAngleCorrection="Beta Nought"]')
+        elif noise_file is not None:
+            noise_root = _parse_xml(noise_file, without_ns=True)
+            noise_levels = noise_root.findall('./referenceNoiseLevel')
+            betas = [entry for entry in noise_levels if entry.find('sarCalibrationType').text.stratswith('Beta')]
+            beta0_element = betas[0] if len(betas) > 0 else None
+        if beta0_element is not None:
+            noise_level = NoiseLevelType_(NoiseLevelType='ABSOLUTE')
+            pfv = float(beta0_element.find('pixelFirstNoiseValue').text)
+            step = float(beta0_element.find('stepSize').text)
+            beta0s = numpy.array(
+                [float(x) for x in beta0_element.find('noiseLevelValues').text.split()])
+            range_coords = grid.Row.SS*(numpy.arange(len(beta0s)*step) + pfv - image_data.SCPPixel.Row)
+            noise_poly = polynomial.polyfit(
+                range_coords,
+                beta0s - 10*numpy.log10(polynomial.polyval(range_coords, beta_zero_sf_poly[:, 0])), 2)
+            noise_level.NoisePoly = numpy.atleast_2d(noise_poly)
+        return RadiometricType(BetaZeroSFPoly=beta_zero_sf_poly, NoiseLevel=noise_level)
+
+    def _populate_geo_data(self, sicd):
+        """
+        Populates the GeoData.
+
+        Parameters
+        ----------
+        sicd : SICDType
+
+        Returns
+        -------
+        None
+        """
+
+        ecf = point_projection.image_to_ground(
+            [sicd.ImageData.SCPPixel.Row, sicd.ImageData.SCPPixel.Col], sicd)[0]
+        sicd.GeoData = GeoDataType(SCP=SCPType(ECF=ecf))  # everything else is derived
+
+    def get_sicd_collection(self):
+        """
+        Gets the list of sicd objects, one per polarimetric entry.
+
+        Returns
+        -------
+        Tuple[SICDType]
+        """
+
+        collection_info = self._get_collection_info()
+        image_creation = self._get_image_creation()
+        image_data = self._get_image_data()
+        position = self._get_position()
+        grid = self._get_grid()
+        radar_collection = self._get_radar_collection()
+        timeline = self._get_timeline()
+        image_formation = self._get_image_formation(timeline, radar_collection)
+        scpcoa = self._get_scpcoa()
+        rma = self._get_rma_adjust_grid(scpcoa, grid, image_data, position, collection_info)
+        radiometric = self._get_radiometric(image_data, grid)
         base_sicd = SICDType(
             CollectionInfo=collection_info,
             ImageCreation=image_creation,
             ImageData=image_data,
-            GeoData=geo_data,
-            Position=position)
+            Position=position,
+            RadarCollection=radar_collection,
+            Timeline=timeline,
+            ImageFormation=image_formation,
+            SCPCOA=scpcoa,
+            RMA=rma,
+            Radiometric=radiometric)
+        self._populate_geo_data(base_sicd)
+        base_sicd.derive()  # derive all the fields
+        # now, make one copy per polarimetric entry, as appropriate
+        tx_pols, tx_rcv_pols = self._get_polarizations()
+        sicd_list = []
+        for i, entry in enumerate(tx_rcv_pols):
+            this_sicd = base_sicd.copy()
+            this_sicd.ImageFormation.RcvChanProc.ChanIndices = [i+1, ]
+            this_sicd.ImageFormation.TxRcvPolarizationProc = \
+                this_sicd.RadarCollection.RcvChannels[i].TxRcvPolarization
+            sicd_list.append(this_sicd)
+        return tuple(sicd_list)
 
-        out = ()
-        return out
+
+################
+# The actual reader -
+# note that this is motivated by BaseReader, but not an extension because of the
+# multiple aspect of RadarSat
+
+
+class RadarSatReader(object):
+    """
+    Gets a reader type object for RadarSat SAR files.
+    RadarSat files correspond to one tiff per polarimetric band, so this will result
+    in one tiff reader per polarimetric band.
+    """
+    __slots__ = ('_radar_sat_details', '_readers')
+
+    def __init__(self, radar_sat_details):
+        """
+
+        Parameters
+        ----------
+        radar_sat_details : RadarSatDetails
+        """
+
+        self._radar_sat_details = radar_sat_details
+        # determine symmetry
+        symmetry = self._radar_sat_details.get_symmetry()
+        # get the datafiles
+        data_files = self._radar_sat_details.get_data_file_names()
+        # get the sicd metadata objects
+        sicds = self._radar_sat_details.get_sicd_collection()
+        readers = []
+        for sicd, file_name in zip(sicds, data_files):
+            # create one reader per file/sicd
+            # NB: the files are implicitly listed in the same order as polarizations
+            tiff_details = TiffDetails(file_name)
+            readers.append(TiffReader(tiff_details, sicd_meta=sicd, symmetry=symmetry))
+        self._readers = tuple(readers)  # type: Tuple[TiffReader]
+
+    def read_chip(self, index, dim1range, dim2range):
+        # TODO: is this how we should handle reading?
+        index = int(index)
+        if not (0 <= index < len(self._readers)):
+            raise ValueError(
+                'index must be in the range [0, {}], and got {}'.format(len(self._readers), index))
+        return self._readers[index].read_chip(dim1range, dim2range)

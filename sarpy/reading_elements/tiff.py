@@ -138,7 +138,7 @@ _GEOTIFF_TAGS = {
 
 def is_a(file_name):
     """
-    Tests whether a given file_name corresponds to a SICD file. Returns a reader instance, if so.
+    Tests whether a given file_name corresponds to a tiff file. Returns a reader instance, if so.
 
     Parameters
     ----------
