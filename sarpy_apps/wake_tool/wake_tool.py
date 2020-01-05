@@ -1,6 +1,6 @@
 import tkinter
 from sarpy_apps.wake_tool.panels.side_panel import SidePanel
-from tkinter_gui_builder.panel_templates.image_canvas import ImageCanvas
+from tkinter_gui_builder.panel_templates.image_canvas.image_canvas import ImageCanvas
 import tkinter.colorchooser as colorchooser
 from sarpy_apps.sarpy_app_helper_utils.sarpy_canvas_image import SarpyCanvasDisplayImage
 import sarpy.geometry.point_projection as point_projection

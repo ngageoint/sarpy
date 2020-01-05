@@ -4,29 +4,9 @@ import tkinter as tk
 from tkinter_gui_builder.widgets import basic_widgets
 from tkinter_gui_builder.canvas_image_objects.canvas_image import CanvasDisplayImage
 import numpy as np
-
-
-class ToolConstants:
-    ZOOM_IN_TOOL = "zoom in"
-    ZOOM_OUT_TOOL = "zoom out"
-    DRAW_RECT_TOOL = "draw rect"
-    DRAW_LINE_TOOL = "draw line"
-    DRAW_POINT_TOOL = "draw point"
-    DRAW_ARROW_TOOL = "draw arrow"
-
-
-class ShapePropertyConstants:
-    SHAPE_TYPE = "shape type"
-    CANVAS_COORDS = "canvas coords"
-    IMAGE_COORDS = "image coords"
-    POINT_SIZE = "point size"
-
-
-class ShapeTypeConstants:
-    POINT = "point"
-    LINE = "line"
-    RECT = "rect"
-    ARROW = "arrow"
+from .tool_constants import ShapePropertyConstants as SHAPE_PROPERTIES
+from .tool_constants import ShapeTypeConstants as SHAPE_TYPES
+from .tool_constants import ToolConstants as TOOLS
 
 
 class AppVariables:
@@ -59,14 +39,14 @@ class AppVariables:
 
 
 class ImageCanvas(tk.Frame):
-    SHAPE_TYPES = ShapeTypeConstants()
-    SHAPE_PROPERTIES = ShapePropertyConstants()
-    TOOLS = ToolConstants()
 
     def __init__(self, master):
         tk.Frame.__init__(self, master)
 
         self.variables = AppVariables()
+        self.TOOLS = TOOLS
+        self.SHAPE_PROPERTIES = SHAPE_PROPERTIES
+        self.SHAPE_TYPES = SHAPE_TYPES
 
         self.scale_dynamic_range = False
         self.canvas_height = None
@@ -111,12 +91,12 @@ class ImageCanvas(tk.Frame):
 
     def get_image_line_length(self, line_id):
         canvas_line_length = self.get_canvas_line_length(line_id)
-        return canvas_line_length * self.variables.canvas_image_object.image_decimation_factor
+        return canvas_line_length * self.variables.canvas_image_object.true_decimation_factor
 
     def get_shape_type(self,
                        shape_id,  # type: int
                        ):
-        return self._get_shape_property(shape_id, self.SHAPE_PROPERTIES.SHAPE_TYPE)
+        return self._get_shape_property(shape_id, SHAPE_PROPERTIES.SHAPE_TYPE)
 
     def hide_shape(self, shape_id):
         if shape_id:
@@ -127,11 +107,11 @@ class ImageCanvas(tk.Frame):
             self.canvas.itemconfigure(shape_id, state="normal")
 
     def callback_handle_left_mouse_release(self, event):
-        if self.variables.current_tool == self.TOOLS.ZOOM_IN_TOOL:
+        if self.variables.current_tool == TOOLS.ZOOM_IN_TOOL:
             rect_coords = self.canvas.coords(self.variables.zoom_rect_id)
             self.zoom_to_selection(rect_coords)
             self.hide_shape(self.variables.zoom_rect_id)
-        if self.variables.current_tool == self.TOOLS.ZOOM_OUT_TOOL:
+        if self.variables.current_tool == TOOLS.ZOOM_OUT_TOOL:
             rect_coords = self.canvas.coords(self.variables.zoom_rect_id)
             x1 = -rect_coords[0]
             x2 = self.canvas_width + rect_coords[2]
@@ -151,7 +131,7 @@ class ImageCanvas(tk.Frame):
                                     fname,  # type: str
                                     ):
         self.variables.canvas_image_object.init_from_fname_and_canvas_size(fname, self.canvas_height, self.canvas_width)
-        self.set_image_from_numpy_array(self.variables.canvas_image_object.canvas_display_image)
+        self.set_image_from_numpy_array(self.variables.canvas_image_object.canvas_decimated_image)
 
     def set_image_from_numpy_array(self,
                                    numpy_data,                      # type: np.ndarray
@@ -184,8 +164,8 @@ class ImageCanvas(tk.Frame):
                                                   ):
         self.show_shape(shape_id)
         canvas_drawing_coords = new_coords
-        if self.get_shape_type(shape_id) == self.SHAPE_TYPES.POINT:
-            point_size = self._get_shape_property(shape_id, self.SHAPE_PROPERTIES.POINT_SIZE)
+        if self.get_shape_type(shape_id) == SHAPE_TYPES.POINT:
+            point_size = self._get_shape_property(shape_id, SHAPE_PROPERTIES.POINT_SIZE)
             x1, y1 = (new_coords[0] - point_size), (new_coords[1] - point_size)
             x2, y2 = (new_coords[0] + point_size), (new_coords[1] + point_size)
             canvas_drawing_coords = (x1, y1, x2, y2)
@@ -202,19 +182,19 @@ class ImageCanvas(tk.Frame):
         coords = (start_x, start_y, start_x + 1, start_y + 1)
 
         if self.variables.current_shape_id not in self.variables.shape_ids:
-            if self.variables.current_tool == self.TOOLS.DRAW_LINE_TOOL:
+            if self.variables.current_tool == TOOLS.DRAW_LINE_TOOL:
                 self.create_new_line(coords)
-            elif self.variables.current_tool == self.TOOLS.DRAW_RECT_TOOL:
+            elif self.variables.current_tool == TOOLS.DRAW_RECT_TOOL:
                 self.create_new_rect(coords)
-            elif self.variables.current_tool == self.TOOLS.DRAW_ARROW_TOOL:
+            elif self.variables.current_tool == TOOLS.DRAW_ARROW_TOOL:
                 self.create_new_arrow(coords)
-            elif self.variables.current_tool == self.TOOLS.DRAW_POINT_TOOL:
+            elif self.variables.current_tool == TOOLS.DRAW_POINT_TOOL:
                 self.create_new_point((start_x, start_y))
             else:
                 print("no shape tool selected")
         else:
             if self.variables.current_shape_id in self.variables.shape_ids:
-                if self.get_shape_type(self.variables.current_shape_id) == self.SHAPE_TYPES.POINT:
+                if self.get_shape_type(self.variables.current_shape_id) == SHAPE_TYPES.POINT:
                     self.modify_existing_shape_using_canvas_coords(self.variables.current_shape_id,
                                                                    (start_x, start_y))
                 else:
@@ -226,7 +206,7 @@ class ImageCanvas(tk.Frame):
             event_x_pos = self.canvas.canvasx(event.x)
             event_y_pos = self.canvas.canvasy(event.y)
             coords = self.canvas.coords(self.variables.current_shape_id)
-            if self.get_shape_type(self.variables.current_shape_id) == self.SHAPE_TYPES.POINT:
+            if self.get_shape_type(self.variables.current_shape_id) == SHAPE_TYPES.POINT:
                 self.modify_existing_shape_using_canvas_coords(self.variables.current_shape_id, (event_x_pos, event_y_pos))
             else:
                 self.modify_existing_shape_using_canvas_coords(self.variables.current_shape_id, (coords[0], coords[1], event_x_pos, event_y_pos))
@@ -258,21 +238,21 @@ class ImageCanvas(tk.Frame):
                                 coords,  # type: tuple
                                 **options,
                                 ):
-        if shape_type == self.SHAPE_TYPES.RECT:
+        if shape_type == SHAPE_TYPES.RECT:
             if options == {}:
                 shape_id = self.canvas.create_rectangle(coords[0], coords[1], coords[2], coords[3],
                                                        outline=self.variables.foreground_color,
                                                        width=self.variables.rect_border_width)
             else:
                 shape_id = self.canvas.create_rectangle(coords[0], coords[1], coords[2], coords[3], options)
-        if shape_type == self.SHAPE_TYPES.LINE:
+        if shape_type == SHAPE_TYPES.LINE:
             if options == {}:
                 shape_id = self.canvas.create_line(coords[0], coords[1], coords[2], coords[3],
                                                        fill=self.variables.foreground_color,
                                                        width=self.variables.line_width)
             else:
                 shape_id = self.canvas.create_line(coords[0], coords[1], coords[2], coords[3], options)
-        if shape_type == self.SHAPE_TYPES.ARROW:
+        if shape_type == SHAPE_TYPES.ARROW:
             if options == {}:
                 shape_id = self.canvas.create_line(coords[0], coords[1], coords[2], coords[3],
                                                        fill=self.variables.foreground_color,
@@ -280,17 +260,17 @@ class ImageCanvas(tk.Frame):
                                                        arrow=tk.LAST)
             else:
                 shape_id = self.canvas.create_line(coords[0], coords[1], coords[2], coords[3], options, arrow=tk.LAST)
-        if shape_type == self.SHAPE_TYPES.POINT:
+        if shape_type == SHAPE_TYPES.POINT:
             x1, y1 = (coords[0] - self.variables.point_size), (coords[1] - self.variables.point_size)
             x2, y2 = (coords[0] + self.variables.point_size), (coords[1] + self.variables.point_size)
             if options == {}:
                 shape_id = self.canvas.create_oval(x1, y1, x2, y2, fill=self.variables.foreground_color)
             else:
                 shape_id = self.canvas.create_oval(x1, y1, x2, y2, options)
-            self._set_shape_property(shape_id, self.SHAPE_PROPERTIES.POINT_SIZE, self.variables.point_size)
+            self._set_shape_property(shape_id, SHAPE_PROPERTIES.POINT_SIZE, self.variables.point_size)
 
         self.variables.shape_ids.append(shape_id)
-        self._set_shape_property(shape_id, self.SHAPE_PROPERTIES.SHAPE_TYPE, shape_type)
+        self._set_shape_property(shape_id, SHAPE_PROPERTIES.SHAPE_TYPE, shape_type)
         self.set_shape_canvas_coords(shape_id, coords)
         self.set_shape_pixel_coords_from_canvas_coords(shape_id)
         self.variables.current_shape_id = shape_id
@@ -301,7 +281,7 @@ class ImageCanvas(tk.Frame):
                            color,           # type: str
                            ):
         shape_type = self.get_shape_type(shape_id)
-        if shape_type == self.SHAPE_TYPES.RECT:
+        if shape_type == SHAPE_TYPES.RECT:
             self.canvas.itemconfig(shape_id, outline=color)
         else:
             self.canvas.itemconfig(shape_id, fill=color)
@@ -309,24 +289,24 @@ class ImageCanvas(tk.Frame):
     def set_shape_canvas_coords(self,
                                 shape_id,
                                 coords):
-        self._set_shape_property(shape_id, self.SHAPE_PROPERTIES.CANVAS_COORDS, coords)
+        self._set_shape_property(shape_id, SHAPE_PROPERTIES.CANVAS_COORDS, coords)
 
     def set_shape_pixel_coords_from_canvas_coords(self, shape_id):
         if self.variables.canvas_image_object is None:
-            self._set_shape_property(shape_id, self.SHAPE_PROPERTIES.IMAGE_COORDS, None)
+            self._set_shape_property(shape_id, SHAPE_PROPERTIES.IMAGE_COORDS, None)
         else:
             image_coords = self.canvas_shape_coords_to_image_coords(shape_id)
-            self._set_shape_property(shape_id, self.SHAPE_PROPERTIES.IMAGE_COORDS, image_coords)
+            self._set_shape_property(shape_id, SHAPE_PROPERTIES.IMAGE_COORDS, image_coords)
 
     def canvas_shape_coords_to_image_coords(self, shape_id):
         canvas_coords = self.get_shape_canvas_coords(shape_id)
         return self.variables.canvas_image_object.canvas_coords_to_full_image_yx(canvas_coords)
 
     def get_shape_canvas_coords(self, shape_id):
-        return self._get_shape_property(shape_id, self.SHAPE_PROPERTIES.CANVAS_COORDS)
+        return self._get_shape_property(shape_id, SHAPE_PROPERTIES.CANVAS_COORDS)
 
     def get_shape_image_coords(self, shape_id):
-        return self._get_shape_property(shape_id, self.SHAPE_PROPERTIES.IMAGE_COORDS)
+        return self._get_shape_property(shape_id, SHAPE_PROPERTIES.IMAGE_COORDS)
 
     def image_coords_to_canvas_coords(self, shape_id):
         image_coords = self.get_shape_image_coords(shape_id)
@@ -337,9 +317,9 @@ class ImageCanvas(tk.Frame):
         return self.variables.canvas_image_object.get_image_data_in_canvas_rect(coords)
 
     def zoom_to_selection(self, canvas_rect):
-        background_image = self.variables.canvas_image_object.canvas_display_image
+        background_image = self.variables.canvas_image_object.canvas_decimated_image
         self.variables.canvas_image_object.update_canvas_display_image_from_canvas_rect(canvas_rect)
-        new_image = PIL.Image.fromarray(self.variables.canvas_image_object.canvas_display_image)
+        new_image = PIL.Image.fromarray(self.variables.canvas_image_object.canvas_decimated_image)
         if self.variables.animate_zoom is True:
             n_animations = self.variables.n_zoom_animations
             background_image = background_image / 2
@@ -360,43 +340,43 @@ class ImageCanvas(tk.Frame):
                 new_display_image.paste(resized_zoom_image, (new_x_ul, new_y_ul))
                 self._set_image_from_pil_image(new_display_image)
                 self.canvas.update()
-        self.set_image_from_numpy_array(self.variables.canvas_image_object.canvas_display_image)
+        self.set_image_from_numpy_array(self.variables.canvas_image_object.canvas_decimated_image)
         self.canvas.update()
         self.redraw_all_shapes()
 
     def redraw_all_shapes(self):
         for shape_id in self.variables.shape_ids:
-            pixel_coords = self._get_shape_property(shape_id, self.SHAPE_PROPERTIES.IMAGE_COORDS)
+            pixel_coords = self._get_shape_property(shape_id, SHAPE_PROPERTIES.IMAGE_COORDS)
             if pixel_coords:
                 new_canvas_coords = self.image_coords_to_canvas_coords(shape_id)
                 self.modify_existing_shape_using_canvas_coords(shape_id, new_canvas_coords, update_pixel_coords=False)
 
     def set_current_tool_to_zoom_out(self):
         self.variables.current_shape_id = self.variables.zoom_rect_id
-        self.variables.current_tool = self.TOOLS.ZOOM_OUT_TOOL
+        self.variables.current_tool = TOOLS.ZOOM_OUT_TOOL
 
     def set_current_tool_to_zoom_in(self):
         self.variables.current_shape_id = self.variables.zoom_rect_id
-        self.variables.current_tool = self.TOOLS.ZOOM_IN_TOOL
+        self.variables.current_tool = TOOLS.ZOOM_IN_TOOL
 
     def set_current_tool_to_draw_rect(self, rect_id=None):
         self.variables.current_shape_id = rect_id
-        self.variables.current_tool = self.TOOLS.DRAW_RECT_TOOL
+        self.variables.current_tool = TOOLS.DRAW_RECT_TOOL
         self.show_shape(rect_id)
 
     def set_current_tool_to_draw_line(self, line_id=None):
         self.variables.current_shape_id = line_id
-        self.variables.current_tool = self.TOOLS.DRAW_LINE_TOOL
+        self.variables.current_tool = TOOLS.DRAW_LINE_TOOL
         self.show_shape(line_id)
 
     def set_current_tool_to_draw_arrow(self, arrow_id=None):
         self.variables.current_shape_id = arrow_id
-        self.variables.current_tool = self.TOOLS.DRAW_ARROW_TOOL
+        self.variables.current_tool = TOOLS.DRAW_ARROW_TOOL
         self.show_shape(arrow_id)
 
     def set_current_tool_to_draw_point(self, point_id=None):
         self.variables.current_shape_id = point_id
-        self.variables.current_tool = self.TOOLS.DRAW_POINT_TOOL
+        self.variables.current_tool = TOOLS.DRAW_POINT_TOOL
         self.show_shape(point_id)
 
     def _set_image_from_pil_image(self, pil_image):
