@@ -220,10 +220,10 @@ class BaseChipper(object):
         if isinstance(range2, (numpy.ndarray, list)):
             range2 = tuple(range2)
 
-        if not (range1 is None or isinstance(range1, integer_types + (tuple, ))):
+        if not (range1 is None or isinstance(range1, integer_types) or isinstance(range1, tuple)):
             raise TypeError('range1 is of type {}, but must be an instance of None, '
                             'int or tuple.'.format(range1))
-        if not (range2 is None or isinstance(range2, integer_types + (tuple, ))):
+        if not (range2 is None or isinstance(range2, integer_types) or isinstance(range2, tuple)):
             raise TypeError('range2 is of type {}, but must be an instance of None, '
                             'int or tuple.'.format(range2))
         if isinstance(range1, tuple) and len(range1) > 3:

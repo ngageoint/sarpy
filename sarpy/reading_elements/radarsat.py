@@ -819,7 +819,8 @@ class RadarSatDetails(object):
             noise_level.NoisePoly = Poly2DType(Coefs=numpy.atleast_2d(noise_poly))
         return RadiometricType(BetaZeroSFPoly=beta_zero_sf_poly, NoiseLevel=noise_level)
 
-    def _populate_geo_data(self, sicd):
+    @staticmethod
+    def _populate_geo_data(sicd):
         """
         Populates the GeoData.
 
