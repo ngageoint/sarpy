@@ -61,7 +61,7 @@ class WakeTool:
         self.side_panel.file_selector.event_select_file(event)
         if self.side_panel.file_selector.fname:
             self.app_variables.image_fname = self.side_panel.file_selector.fname
-        self.image_canvas.set_canvas_image_from_fname(self.app_variables.image_fname)
+        self.image_canvas.init_with_fname(self.app_variables.image_fname)
 
     def callback_press_line_button(self, event):
         self.side_panel.buttons.set_active_button(self.side_panel.buttons.line_draw)
@@ -105,8 +105,6 @@ class WakeTool:
         if self.app_variables.point_id is not None and self.app_variables.arrow_id is not None:
             # calculate horizontal line segment
             point_x, point_y = self.image_canvas.get_shape_canvas_coords(self.app_variables.point_id)
-            print("point x: " + str(point_x))
-            print("point y: " + str(point_y))
             line_slope, line_intercept = self.get_line_slope_and_intercept()
             end_x = (point_y - line_intercept) / line_slope
             end_y = point_y

@@ -2,23 +2,22 @@ from numpy import ndarray
 from six import add_metaclass
 import abc
 from typing import Union
+import PIL.Image
 
 
 @add_metaclass(abc.ABCMeta)
-class CanvasDisplayImage:
-    def __init__(self):
-        self.canvas_decimated_image = None                 # type: ndarray
-        self.display_image_scaled_to_fit = None              # type: ndarray
-        self.fname = None                       # type: str
-        self.true_decimation_factor = 1           # type: int
-        self.display_image_decimation_factor = 1           # type: float
-        self.full_image_nx = None                   # type: int
-        self.full_image_ny = None                        # type: int
-        self.canvas_full_image_upper_left_yx = (0, 0)  # type: (int, int)
-        self.canvas_ny = None
-        self.canvas_nx = None
-
-        self.scale_to_fit_canvas = True
+class AbstractCanvasImage:
+    canvas_decimated_image = None  # type: ndarray
+    display_image_scaled_to_fit = None  # type: ndarray
+    fname = None  # type: str
+    true_decimation_factor = 1  # type: int
+    display_image_decimation_factor = 1  # type: float
+    full_image_nx = None  # type: int
+    full_image_ny = None  # type: int
+    canvas_full_image_upper_left_yx = (0, 0)  # type: (int, int)
+    canvas_ny = None
+    canvas_nx = None
+    scale_to_fit_canvas = True
 
     @abc.abstractmethod
     def get_image_data_in_full_image_rect(self,
@@ -43,12 +42,10 @@ class CanvasDisplayImage:
         """
         pass
 
-    @staticmethod
-    def get_scaled_display_data_from_decimated_image(decimated_image,          # type: (int, int, int, int)
-                                                     true_decimation_factor,               # type: int
-                                                     display_decimation_factor          # type: float
-                                                     ):
-        stop = 1
+    def get_scaled_display_data(self):
+        pil_image = PIL.Image.fromarray(self.canvas_decimated_image)
+        display_image = pil_image.resize((self.canvas_nx, self.canvas_ny))
+        return display_image
 
     def get_image_data_in_canvas_rect(self,
                                       canvas_rect,          # type: (int, int, int, int)
@@ -66,8 +63,6 @@ class CanvasDisplayImage:
     def update_canvas_display_image_from_full_image_rect(self, full_image_rect):
         self.set_decimation_from_full_image_rect(full_image_rect)
         im_data = self.get_image_data_in_full_image_rect(full_image_rect, self.true_decimation_factor)
-        if self.scale_to_fit_canvas:
-            display_data = self.get_scaled_display_data_from_decimated_image(im_data, self.true_decimation_factor, self.display_image_decimation_factor)
         self.update_canvas_display_from_numpy_array(im_data)
         self.canvas_full_image_upper_left_yx = (full_image_rect[0], full_image_rect[1])
 
@@ -92,7 +87,7 @@ class CanvasDisplayImage:
         nx = full_image_rect[3] - full_image_rect[1]
         decimation_y = ny / self.canvas_ny
         decimation_x = nx / self.canvas_nx
-        decimation_factor = min(decimation_y, decimation_x)
+        decimation_factor = max(decimation_y, decimation_x)
         return decimation_factor
 
     def get_decimation_from_canvas_rect(self, canvas_rect):
@@ -100,8 +95,10 @@ class CanvasDisplayImage:
         return self.get_true_decimation_factor_from_full_image_rect(full_image_rect)
 
     def set_decimation_from_full_image_rect(self, full_image_rect):
-        dec_factor = self.get_true_decimation_factor_from_full_image_rect(full_image_rect)
-        self.true_decimation_factor = dec_factor
+        true_decimation_factor = self.get_true_decimation_factor_from_full_image_rect(full_image_rect)
+        display_decimation_factor = self.get_display_decimation_factor_from_full_image_rect(full_image_rect)
+        self.true_decimation_factor = true_decimation_factor
+        self.display_image_decimation_factor = display_decimation_factor
 
     def canvas_coords_to_full_image_yx(self,
                                        canvas_coords,       # type: [int]

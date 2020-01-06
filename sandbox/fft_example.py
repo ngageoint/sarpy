@@ -8,7 +8,7 @@ import numpy as np
 output_dir = os.path.expanduser('~/sarpy_data/output')
 
 # Open file
-fname = os.path.expanduser(os.path.join('~/sarpy_data/nitf', 'sicd_example_1_PFA_RE32F_IM32F_HH.nitf'))
+fname = os.path.expanduser(os.path.join('~/Data/sarpy_data/nitf', 'sicd_example_1_PFA_RE32F_IM32F_HH.nitf'))
 ro = cf.open(fname)
 
 print("compute the fft to display in range / polar azimuth")

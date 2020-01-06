@@ -79,7 +79,7 @@ class Taser:
         new_fname = askopenfilename(initialdir=os.path.expanduser("~"), filetypes=ftypes)
         if new_fname:
             self.app_variables.fname = new_fname
-        self.taser_image_panel.set_canvas_image_from_fname(self.app_variables.fname)
+        self.taser_image_panel.init_with_fname(self.app_variables.fname)
 
     def callback_display_canvas_rect_selection_in_pyplot_frame(self, event):
         complex_data = self.taser_image_panel.get_image_data_in_canvas_rect_by_id(self.taser_image_panel.variables.current_shape_id)

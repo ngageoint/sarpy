@@ -1,12 +1,11 @@
 import sarpy.io.complex as sarpy_complex
 from sarpy.io.complex import Reader
 import sarpy.visualization.remap as remap
-from tkinter_gui_builder.canvas_image_objects.canvas_image import CanvasDisplayImage
+from tkinter_gui_builder.canvas_image_objects.abstract_canvas_image import AbstractCanvasImage
 
 
-class SarpyCanvasDisplayImage(CanvasDisplayImage):
+class SarpyCanvasDisplayImage(AbstractCanvasImage):
     def __init__(self):
-        super(CanvasDisplayImage, self).__init__()
         self.reader_object = None           # type: Reader
         self.remap_type = "density"         # type: str
 

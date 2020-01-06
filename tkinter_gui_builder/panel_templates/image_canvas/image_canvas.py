@@ -2,7 +2,8 @@ import PIL.Image
 from PIL import ImageTk
 import tkinter as tk
 from tkinter_gui_builder.widgets import basic_widgets
-from tkinter_gui_builder.canvas_image_objects.canvas_image import CanvasDisplayImage
+from tkinter_gui_builder.canvas_image_objects.abstract_canvas_image import AbstractCanvasImage
+from tkinter_gui_builder.canvas_image_objects.numpy_canvas_image import NumpyCanvasDisplayImage
 import numpy as np
 from .tool_constants import ShapePropertyConstants as SHAPE_PROPERTIES
 from .tool_constants import ShapeTypeConstants as SHAPE_TYPES
@@ -24,7 +25,7 @@ class AppVariables:
         self.current_shape_id = None
         self.shape_ids = []            # type: [int]
         self.shape_properties = {}
-        self.canvas_image_object = None         # type: CanvasDisplayImage
+        self.canvas_image_object = None         # type: AbstractCanvasImage
         self.zoom_rect_id = None                # type: int
         self.zoom_rect_color = "cyan"
         self.zoom_rect_border_width = 2
@@ -38,10 +39,10 @@ class AppVariables:
         self.current_tool = None
 
 
-class ImageCanvas(tk.Frame):
+class ImageCanvas(tk.LabelFrame):
 
     def __init__(self, master):
-        tk.Frame.__init__(self, master)
+        tk.LabelFrame.__init__(self, master)
 
         self.variables = AppVariables()
         self.TOOLS = TOOLS
@@ -67,8 +68,6 @@ class ImageCanvas(tk.Frame):
         self.sbarv.grid(row=0, column=1, stick=tk.N+tk.S)
         self.sbarh.grid(row=1, column=0, sticky=tk.E+tk.W)
 
-        self.tk_im = None               # type: ImageTk.PhotoImage
-
         self.variables.zoom_rect_id = self.create_new_rect((0, 0, 1, 1), outline=self.variables.zoom_rect_color, width=self.variables.zoom_rect_border_width)
         self.variables.select_rect_id = self.create_new_rect((0, 0, 1, 1), outline=self.variables.select_rect_color, width=self.variables.select_rect_border_width)
         self.hide_shape(self.variables.select_rect_id)
@@ -79,6 +78,24 @@ class ImageCanvas(tk.Frame):
 
         self.variables.current_tool = None
         self.variables.current_shape_id = None
+
+        self._tk_im = None               # type: ImageTk.PhotoImage
+
+    def init_with_fname(self,
+                        fname,  # type: str
+                        ):
+        self.variables.canvas_image_object.init_from_fname_and_canvas_size(fname, self.canvas_height, self.canvas_width)
+        self.set_image_from_numpy_array(self.variables.canvas_image_object.canvas_decimated_image)
+
+    def init_with_numpy_image(self,
+                              numpy_array,      # type: np.ndarray
+                              ):
+        self.variables.canvas_image_object = NumpyCanvasDisplayImage()
+        self.variables.canvas_image_object.init_from_numpy_array_and_canvas_size(numpy_array, self.canvas_height, self.canvas_width)
+        self.set_image_from_numpy_array(self.variables.canvas_image_object.canvas_decimated_image)
+
+    def set_labelframe_text(self, label):
+        self.config(text=label)
 
     def get_canvas_line_length(self, line_id):
         line_coords = self.canvas.coords(line_id)
@@ -126,12 +143,6 @@ class ImageCanvas(tk.Frame):
 
     def callback_handle_left_mouse_motion(self, event):
         self.event_drag_shape(event)
-
-    def set_canvas_image_from_fname(self,
-                                    fname,  # type: str
-                                    ):
-        self.variables.canvas_image_object.init_from_fname_and_canvas_size(fname, self.canvas_height, self.canvas_width)
-        self.set_image_from_numpy_array(self.variables.canvas_image_object.canvas_decimated_image)
 
     def set_image_from_numpy_array(self,
                                    numpy_data,                      # type: np.ndarray
@@ -364,6 +375,10 @@ class ImageCanvas(tk.Frame):
         self.variables.current_tool = TOOLS.DRAW_RECT_TOOL
         self.show_shape(rect_id)
 
+    def set_current_tool_to_selection_tool(self):
+        self.variables.current_shape_id = self.variables.select_rect_id
+        self.variables.current_tool = TOOLS.SELECT_TOOL
+
     def set_current_tool_to_draw_line(self, line_id=None):
         self.variables.current_shape_id = line_id
         self.variables.current_tool = TOOLS.DRAW_LINE_TOOL
@@ -382,8 +397,8 @@ class ImageCanvas(tk.Frame):
     def _set_image_from_pil_image(self, pil_image):
         nx_pix, ny_pix = pil_image.size
         self.canvas.config(scrollregion=(0, 0, nx_pix, ny_pix))
-        self.tk_im = ImageTk.PhotoImage(pil_image)
-        self.variables.image_id = self.canvas.create_image(0, 0, anchor="nw", image=self.tk_im)
+        self._tk_im = ImageTk.PhotoImage(pil_image)
+        self.variables.image_id = self.canvas.create_image(0, 0, anchor="nw", image=self._tk_im)
         self.canvas.tag_lower(self.variables.image_id)
 
     def _get_shape_property(self,
