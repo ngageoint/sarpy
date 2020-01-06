@@ -1,4 +1,5 @@
 import sys
+import logging
 from xml.etree import ElementTree
 
 if sys.version_info[0] < 3:
@@ -8,6 +9,8 @@ else:
     import unittest
 
 from sarpy.sicd_elements.base import Serializable
+
+logging.basicConfig(level=logging.INFO)
 
 
 def generic_construction_test(instance, the_type, the_dict, tag='The_Type', print_xml=False):
