@@ -118,7 +118,7 @@ class BIPChipper(BaseChipper):
         # allocate our output array
         out = numpy.empty((self._bands, len(dim1array), len(dim2array)), dtype=self._data_type)
         # determine the first column reading location (may be reading cols backwards)
-        col_begin = dim2array[0] if range2[2] > 0 else col_begin = dim2array[-1]
+        col_begin = dim2array[0] if range2[2] > 0 else dim2array[-1]
 
         for i, row in enumerate(dim1array):
             # go to the appropriate point in the file for (row/col)

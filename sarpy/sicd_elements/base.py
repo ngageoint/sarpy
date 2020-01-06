@@ -1717,6 +1717,9 @@ class Arrayable(object):
         """
         raise NotImplementedError
 
+    def __getitem__(self, item):
+        return self.get_array()[item]
+
 
 class SerializableArray(object):
     __slots__ = ('_child_tag', '_child_type', '_array', '_name', '_minimum_length', '_maximum_length')

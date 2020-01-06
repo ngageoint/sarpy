@@ -759,7 +759,7 @@ class Poly1DType(Serializable, Arrayable):
 
         Parameters
         ----------
-        x : numpy.ndarray
+        x : float|int|numpy.ndarray
             The point(s) at which to evaluate.
 
         Returns
@@ -768,6 +768,9 @@ class Poly1DType(Serializable, Arrayable):
         """
 
         return numpy.polynomial.polynomial.polyval(x, self._coefs)
+
+    def __getitem__(self, item):
+        return self._coefs[item]
 
     def derivative(self, der_order=1, return_poly=False):
         """
@@ -797,7 +800,7 @@ class Poly1DType(Serializable, Arrayable):
 
         Parameters
         ----------
-        x : numpy.ndarray
+        x : float|int|numpy.ndarray
             The point(s) at which to evaluate.
         der_order : int
             The derivative.
@@ -999,9 +1002,9 @@ class Poly2DType(Serializable, Arrayable):
 
         Parameters
         ----------
-        x : numpy.ndarray
+        x : float|int|numpy.ndarray
             The first dependent variable of point(s) at which to evaluate.
-        y : numpy.ndarray
+        y : float|int|numpy.ndarray
             The second dependent variable of point(s) at which to evaluate.
 
         Returns
@@ -1057,6 +1060,9 @@ class Poly2DType(Serializable, Arrayable):
         elif not value.dtype == numpy.float64:
             value = numpy.cast[numpy.float64](value)
         self._coefs = value
+
+    def __getitem__(self, item):
+        return self._coefs[item]
 
     @classmethod
     def from_array(cls, array):
@@ -1311,7 +1317,7 @@ class XYZPolyType(Serializable, Arrayable):
 
         Parameters
         ----------
-        t : numpy.ndarray
+        t : float|int|numpy.ndarray
             The point(s) at which to evaluate.
         der_order : int
             The derivative.
@@ -1442,9 +1448,9 @@ class GainPhasePolyType(Serializable):
 
         Parameters
         ----------
-        x : numpy.ndarray
+        x : float|int|numpy.ndarray
             The first dependent variable of point(s) at which to evaluate.
-        y : numpy.ndarray
+        y : float|int|numpy.ndarray
             The second dependent variable of point(s) at which to evaluate.
 
         Returns

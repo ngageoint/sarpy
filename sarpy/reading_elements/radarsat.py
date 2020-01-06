@@ -5,6 +5,7 @@ Functionality for reading Radarsat (RS2 and RCM) data into a SICD model.
 
 __classification__ = "UNCLASSIFIED"
 
+import logging
 import re
 import os
 from datetime import datetime
@@ -17,7 +18,7 @@ from scipy.constants import speed_of_light
 
 from .tiff import TiffDetails, TiffReader
 
-from ..sicd_elements.blocks import Poly1DType
+from ..sicd_elements.blocks import Poly1DType, Poly2DType
 from ..sicd_elements.SICD import SICDType
 from ..sicd_elements.CollectionInfo import CollectionInfoType, RadarModeType
 from ..sicd_elements.ImageCreation import ImageCreationType
@@ -71,13 +72,13 @@ def _2d_poly_fit(x, y, z, x_order=2, y_order=2):
     # first, we need to formulate this as A*t = z
     # where t has shape ((x_order+1)*(y_order+1), ) is our solution
     # and A has shape (x.size, (x_order+1)*(y_order+1))
-    A = numpy.empty(((x_order+1)*(y_order+1), x.size), dtype=numpy.float64)
-    for i, index in enumerate(numpy.ndindex(x_order+1, y_order+1)):
+    A = numpy.empty((x.size, (x_order+1)*(y_order+1)), dtype=numpy.float64)
+    for i, index in enumerate(numpy.ndindex((x_order+1, y_order+1))):
         A[:, i] = numpy.power(x, index[0])*numpy.power(y, index[1])
-    sol = numpy.linalg.lstsq(A, z)
-    # TODO: I'm relatively confident that this needs to be transposed.
-    #   Test this explicitly.
-    return numpy.reshape(sol, (x_order+1, y_order+1)).T
+    sol, residuals, rank, sing_values = numpy.linalg.lstsq(A, z, rcond=None)
+    logging.info(
+        'Residuals from polynomial fit = {}, and rank of solution = {}'.format(residuals, rank))
+    return numpy.reshape(sol, (x_order+1, y_order+1))
 
 
 def _get_seconds(dt1, dt2):  # type: (numpy.datetime64, numpy.datetime64) -> float
@@ -411,7 +412,7 @@ class RadarSatDetails(object):
 
         return DirParamType(
             SS=row_ss, ImpRespBW=row_irbw, Sgn=-1, KCtr=2*center_freq/speed_of_light,
-            DeltaKCOAPoly=((0,),), WgtType=row_wgt_type)
+            DeltaKCOAPoly=Poly2DType(Coefs=((0,),)), WgtType=row_wgt_type)
 
     def _get_grid_col(self):
         """
@@ -522,7 +523,8 @@ class RadarSatDetails(object):
             timeline.CollectDuration = duration
             timeline.IPP = [IPPSetType(
                 index=0, TStart=0, TEnd=duration, IPPStart=0,
-                IPPEnd=int(num_lines_processed), IPPPoly=(0, pulse_rep_freq)), ]
+                IPPEnd=int(num_lines_processed),
+                IPPPoly=Poly1DType(Coefs=(0, pulse_rep_freq))), ]
         return timeline
 
     def _get_image_formation(self, timeline, radar_collection):
@@ -639,7 +641,7 @@ class RadarSatDetails(object):
                                                      '/dopplerRateCoefficients').text.split()],
                 dtype=numpy.float64)
             doppler_rate_ref_time = float(self.find('./dopplerRate'
-                                                     '/dopplerRateEstimate'
+                                                    '/dopplerRateEstimate'
                                                     '/dopplerRateReferenceTime').text)
 
         # the doppler_rate_coeffs represents a polynomial in time, relative to
@@ -652,13 +654,13 @@ class RadarSatDetails(object):
         dop_rate_scaled_coeffs = doppler_rate_poly.shift(t_0, alpha, return_poly=False)
         # DRateSFPoly is then a scaled multiple of this scaled poly and r_ca above
         coeffs = -numpy.convolve(dop_rate_scaled_coeffs, r_ca)/(alpha*center_freq*vel_ca_squared)
-        inca.DRateSFPoly = numpy.reshape(coeffs, (coeffs.size, 1))
+        inca.DRateSFPoly = Poly2DType(Coefs=numpy.reshape(coeffs, (coeffs.size, 1)))
 
         # modify a few of the other fields
         ss_scale = numpy.sqrt(vel_ca_squared)*inca.DRateSFPoly[0, 0]
         grid.Col.SS = col_spacing_zd*ss_scale
         grid.Col.ImpRespBW = -look*doppler_bandwidth/ss_scale
-        inca.TimeCAPoly = [time_scp_zd, 1./ss_scale]
+        inca.TimeCAPoly = Poly1DType(Coefs=[time_scp_zd, 1./ss_scale])
 
         # doppler centroid
         if self.generation == 'RS2':
@@ -689,7 +691,7 @@ class RadarSatDetails(object):
         alpha = 2.0/speed_of_light
         t_0 = doppler_cent_ref_time - alpha*inca.R_CA_SCP
         scaled_coeffs = doppler_cent_poly.shift(t_0, alpha, return_poly=False)
-        inca.DopCentroidPoly = numpy.reshape(scaled_coeffs, (scaled_coeffs.size, 1))
+        inca.DopCentroidPoly = Poly2DType(Coefs=numpy.reshape(scaled_coeffs, (scaled_coeffs.size, 1)))
         # adjust doppler centroid for spotlight, we need to add a second
         # dimension to DopCentroidPoly
         if collection_info.RadarMode.ModeType == 'SPOTLIGHT':
@@ -701,9 +703,9 @@ class RadarSatDetails(object):
             # dopplerCentroid in native metadata was defined at specific column,
             # which might not be our SCP column.  Adjust so that SCP column is correct.
             dop_poly[0, 0] = dop_poly[0, 0] - (dop_poly[0, 1]*doppler_cent_col*grid.Col.SS)
-            inca.DopCentroidPoly = dop_poly
+            inca.DopCentroidPoly = Poly2DType(Coefs=dop_poly)
 
-        grid.Col.DeltaKCOAPoly = inca.DopCentroidPoly.get_array()*col_spacing_zd/grid.Col.SS
+        grid.Col.DeltaKCOAPoly = Poly2DType(Coefs=inca.DopCentroidPoly.get_array()*col_spacing_zd/grid.Col.SS)
         # compute grid.Col.DeltaK1/K2 from DeltaKCOAPoly
         coeffs = grid.Col.DeltaKCOAPoly.get_array()[:, 0]
         # get roots
@@ -717,7 +719,7 @@ class RadarSatDetails(object):
             possible_ranges = numpy.concatenate((possible_ranges, roots[useful_roots]), axis=0)
         azimuth_bounds = (numpy.array([0, (image_data.NumCols-1)], dtype=numpy.float64)
                           - image_data.SCPPixel.Col) * grid.Col.SS
-        coords_az_2d, coords_rg_2d = numpy.meshgrid(azimuth_bounds, range_bounds)
+        coords_az_2d, coords_rg_2d = numpy.meshgrid(azimuth_bounds, possible_ranges)
         possible_bounds_deltak = grid.Col.DeltaKCOAPoly(coords_rg_2d, coords_az_2d)
         grid.Col.DeltaK1 = numpy.min(possible_bounds_deltak) - 0.5*grid.Col.ImpRespBW
         grid.Col.DeltaK2 = numpy.max(possible_bounds_deltak) - 0.5*grid.Col.ImpRespBW
@@ -735,12 +737,13 @@ class RadarSatDetails(object):
         dop_centroid_sampled = inca.DopCentroidPoly(coords_rg_2d, coords_az_2d)
         doppler_rate_sampled = polynomial.polyval(coords_rg_2d, dop_rate_scaled_coeffs)
         time_coa_sampled = time_ca_sampled + dop_centroid_sampled/doppler_rate_sampled
-        grid.TimeCOAPoly = _2d_poly_fit(
-            coords_rg_2d.flatten(), coords_az_2d.flatten(), time_coa_sampled.flatten(),
-            x_order=poly_order, y_order=poly_order)
+        grid.TimeCOAPoly = Poly2DType(
+            Coefs=_2d_poly_fit(
+                coords_rg_2d.flatten(), coords_az_2d.flatten(), time_coa_sampled.flatten(),
+                x_order=poly_order, y_order=poly_order))
         if collection_info.RadarMode.ModeType == 'SPOTLIGHT':
             # using above was convenience, but not really sensible in spotlight mode
-            grid.TimeCOAPoly = [[grid.TimeCOAPoly.get_array()[0, 0], ], ]  # make the constant version
+            grid.TimeCOAPoly = Poly2DType(Coefs=[[grid.TimeCOAPoly.get_array()[0, 0], ], ])
             inca.DopCentroidPoly = None
         else:
             inca.DopCentroidCOA = True
@@ -813,7 +816,7 @@ class RadarSatDetails(object):
             noise_poly = polynomial.polyfit(
                 range_coords,
                 beta0s - 10*numpy.log10(polynomial.polyval(range_coords, beta_zero_sf_poly[:, 0])), 2)
-            noise_level.NoisePoly = numpy.atleast_2d(noise_poly)
+            noise_level.NoisePoly = Poly2DType(Coefs=numpy.atleast_2d(noise_poly))
         return RadiometricType(BetaZeroSFPoly=beta_zero_sf_poly, NoiseLevel=noise_level)
 
     def _populate_geo_data(self, sicd):
