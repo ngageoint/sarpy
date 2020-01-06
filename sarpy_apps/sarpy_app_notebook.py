@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk
 from sarpy_apps.taser_tool.taser import Taser
 from sarpy_apps.wake_tool.wake_tool import WakeTool
+from sarpy_apps.aperture_tool.aperture_tool import ApertureTool
 from tkinter_gui_builder.panel_templates.temporal_plot_panel import TemporalPlotPanel
 
 
@@ -29,13 +30,17 @@ class NoteBook(ttk.Frame):
         self.notebook = ttk.Notebook()
         self.taser_tab = Tab(self.notebook)
         self.wake_tool_tab = Tab(self.notebook)
+        self.aperture_tool_tab = Tab(self.notebook)
         self.temporal_plot_tab = Tab(self.notebook)
+
         self.notebook.add(self.taser_tab, text="Taser")
         self.notebook.add(self.wake_tool_tab, text="wake tool")
+        self.notebook.add(self.aperture_tool_tab, text="aperture tool")
         self.notebook.add(self.temporal_plot_tab, text="temporal plot")
 
         self.taser = Taser(self.taser_tab)
         self.wake = WakeTool(self.wake_tool_tab)
+        self.aperture = ApertureTool(self.aperture_tool_tab)
         self.animation_plot = TemporalPlotPanel(self.temporal_plot_tab)
         self.notebook.pack()
 
