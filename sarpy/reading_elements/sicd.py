@@ -312,9 +312,15 @@ class SICDReader(BaseReader):
 
         Parameters
         ----------
-        nitf_details : NITFDetails
-            the NITFDetails object
+        nitf_details : str|NITFDetails
+            filename or NITFDetails object
         """
+
+        if isinstance(nitf_details, str):
+            nitf_details = NITFDetails(nitf_details)
+        if not isinstance(nitf_details, NITFDetails):
+            raise TypeError('The input argument for SICDReader must be a filename or '
+                            'NITFDetails object.')
 
         self._nitf_details = nitf_details
         if not self._nitf_details.is_sicd:

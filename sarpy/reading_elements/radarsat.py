@@ -51,8 +51,8 @@ def is_a(file_name):
 
     Returns
     -------
-    RadarSatDetails|None
-        `RadarSatDetails` instance if tiff file, `None` otherwise
+    RadarSatReader|None
+        `RadarSatReader` instance if RadarSat file, `None` otherwise
     """
 
     try:
@@ -108,7 +108,7 @@ class RadarSatDetails(object):
         self._file_name = file_name
         ns = dict([node for event, node in ElementTree.iterparse(file_name, events=('start-ns', ))])
         ns['default'] = ns.get('')
-        # TODO: what the hell is the above doing?
+        # TODO: what is the above doing? It really looks non-functional.
         root_node = ElementTree.parse(file_name).getroot()
         self._satellite = root_node.find('./default:sourceAttributes/default:satellite', ns).text.upper()
         self._product_type = root_node.find(
@@ -901,9 +901,15 @@ class RadarSatReader(object):
 
         Parameters
         ----------
-        radar_sat_details : RadarSatDetails
+        radar_sat_details : str|RadarSatDetails
+            file name or RadarSatDeatils object
         """
 
+        if isinstance(radar_sat_details, str):
+            radar_sat_details = RadarSatDetails(radar_sat_details)
+        if not isinstance(radar_sat_details, RadarSatDetails):
+            raise TypeError('The input argument for RadarSatReader must be a '
+                            'filename or RadarSatDetails object')
         self._radar_sat_details = radar_sat_details
         # determine symmetry
         symmetry = self._radar_sat_details.get_symmetry()

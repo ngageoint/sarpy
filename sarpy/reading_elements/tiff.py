@@ -319,6 +319,13 @@ class NativeTiffChipper(BIPChipper):
         tiff_meta : TiffMetadata
         symmetry : Tuple[bool]
         """
+
+        if isinstance(tiff_meta, str):
+            tiff_meta = TiffDetails(tiff_meta)
+        if not isinstance(tiff_meta, TiffDetails):
+            raise TypeError('NativeTiffChipper input argument must be a filename '
+                            'or TiffDetails object.')
+
         logging.warning('Using a custom tiff reader, with potentially limited functionality.')
 
         if tiff_meta.tags is None:
@@ -362,6 +369,11 @@ class GdalTiffChipper(BaseChipper):
         tiff_meta : TiffMetadata
         symmetry : Tuple[bool]
         """
+        if isinstance(tiff_meta, str):
+            tiff_meta = TiffDetails(tiff_meta)
+        if not isinstance(tiff_meta, TiffDetails):
+            raise TypeError('GdalTiffChipper input argument must be a filename '
+                            'or TiffDetails object.')
 
         self._tiff_meta = tiff_meta
         logging.warning('Using the tiff reader from gdal.')
@@ -404,7 +416,7 @@ class TiffReader(BaseReader):
     __slots__ = ('_tiff_meta', '_sicd_meta', '_chipper')
     _DEFAULT_SYMMETRY = (False, False, False)
 
-    def __init__(self, tiff_details, sicd_meta=None, symmetry=None):
+    def __init__(self, tiff_meta, sicd_meta=None, symmetry=None):
         """
 
         Parameters
@@ -414,15 +426,21 @@ class TiffReader(BaseReader):
         symmetry: Tuple[bool]
         """
 
-        self._tiff_meta = tiff_details
+        if isinstance(tiff_meta, str):
+            tiff_meta = TiffDetails(tiff_meta)
+        if not isinstance(tiff_meta, TiffDetails):
+            raise TypeError('TiffReader input argument must be a filename '
+                            'or TiffDetails object.')
+
+        self._tiff_meta = tiff_meta
         if symmetry is None:
             symmetry = self._DEFAULT_SYMMETRY
         if sicd_meta is None:
             # construct absolutely minimal sicd meta data
-            rows = tiff_details.tags['ImageWidth'][0]
-            cols = tiff_details.tags['ImageLength'][0]
+            rows = tiff_meta.tags['ImageWidth'][0]
+            cols = tiff_meta.tags['ImageLength'][0]
             if symmetry[2]:
                 rows, cols = cols, rows
             sicd_meta = SICDType(ImageData=ImageDataType(NumRows=rows, NumCols=cols))
-        chipper = TiffChipper(tiff_details, symmetry=symmetry)
+        chipper = TiffChipper(tiff_meta, symmetry=symmetry)
         super(TiffReader, self).__init__(sicd_meta, chipper)
