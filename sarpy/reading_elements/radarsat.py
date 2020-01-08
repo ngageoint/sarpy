@@ -29,7 +29,7 @@ from ..sicd_elements.Grid import GridType, DirParamType, WgtTypeType
 from ..sicd_elements.RadarCollection import RadarCollectionType, WaveformParametersType, \
     TxFrequencyType, ChanParametersType, TxStepType
 from ..sicd_elements.Timeline import TimelineType, IPPSetType
-from ..sicd_elements.ImageFormation import ImageFormationType, RcvChanProcType
+from ..sicd_elements.ImageFormation import ImageFormationType, RcvChanProcType, TxFrequencyProcType
 from ..sicd_elements.RMA import RMAType, INCAType
 from ..sicd_elements.SCPCOA import SCPCOAType
 from ..sicd_elements.Radiometric import RadiometricType, NoiseLevelType_
@@ -69,6 +69,9 @@ def is_a(file_name):
 
 
 def _2d_poly_fit(x, y, z, x_order=2, y_order=2):
+    x = x.flatten()
+    y = y.flatten()
+    z = z.flatten()
     # first, we need to formulate this as A*t = z
     # where t has shape ((x_order+1)*(y_order+1), ) is our solution
     # and A has shape (x.size, (x_order+1)*(y_order+1))
@@ -550,8 +553,8 @@ class RadarSatDetails(object):
             ImageFormAlgo='RMA',
             TStartProc=0,
             TEndProc=timeline.CollectDuration,
-            TxFrequencyProc=(radar_collection.TxFrequency.Min,
-                             radar_collection.TxFrequency.Max),
+            TxFrequencyProc=TxFrequencyProcType(MinProc=radar_collection.TxFrequency.Min,
+                                                MaxProc=radar_collection.TxFrequency.Max),
             STBeamComp='NO',
             ImageBeamComp='NO',
             AzAutofocus='NO',
@@ -733,14 +736,12 @@ class RadarSatDetails(object):
         coords_az = (numpy.linspace(0, image_data.NumCols-1, grid_samples)-image_data.SCPPixel.Col)*grid.Col.SS
         coords_rg = (numpy.linspace(0, image_data.NumRows-1, grid_samples)-image_data.SCPPixel.Row)*grid.Row.SS
         coords_az_2d, coords_rg_2d = numpy.meshgrid(coords_az, coords_rg)
-        time_ca_sampled = inca.TimeCAPoly(coords_rg_2d, coords_az_2d)
+        time_ca_sampled = inca.TimeCAPoly(coords_rg_2d)  #, coords_az_2d) 1-D polynomial
         dop_centroid_sampled = inca.DopCentroidPoly(coords_rg_2d, coords_az_2d)
         doppler_rate_sampled = polynomial.polyval(coords_rg_2d, dop_rate_scaled_coeffs)
         time_coa_sampled = time_ca_sampled + dop_centroid_sampled/doppler_rate_sampled
         grid.TimeCOAPoly = Poly2DType(
-            Coefs=_2d_poly_fit(
-                coords_rg_2d.flatten(), coords_az_2d.flatten(), time_coa_sampled.flatten(),
-                x_order=poly_order, y_order=poly_order))
+            Coefs=_2d_poly_fit(coords_rg_2d, coords_az_2d, time_coa_sampled, x_order=poly_order, y_order=poly_order))
         if collection_info.RadarMode.ModeType == 'SPOTLIGHT':
             # using above was convenience, but not really sensible in spotlight mode
             grid.TimeCOAPoly = Poly2DType(Coefs=[[grid.TimeCOAPoly.get_array()[0, 0], ], ])

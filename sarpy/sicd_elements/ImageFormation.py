@@ -323,7 +323,7 @@ class ImageFormationType(Serializable):
         TxRcvPolarizationProc : str
         TStartProc : float
         TEndProc : float
-        TxFrequencyProc : TxFrequencyProcType|numpy.ndarray|list|tuple
+        TxFrequencyProc : TxFrequencyProcType
         SegmentIdentifier : str
         ImageFormAlgo : str
         STBeamComp : str
