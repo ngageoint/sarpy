@@ -60,7 +60,7 @@ def is_a(file_name):
         print('File {} is determined to be a RadarSat product.xml file.'.format(file_name))
         return RadarSatReader(radar_sat_details)
     except IOError:
-        # we don't want to catch parsing errors, for now
+        # TODO: what all should we catch?
         return None
 
 
@@ -144,10 +144,10 @@ class RadarSatDetails(object):
         else:
             return 'RCM'
 
-    def find(self, tag):
+    def _find(self, tag):
         return self._root_node.find(tag)
 
-    def findall(self, tag):
+    def _findall(self, tag):
         return self._root_node.findall(tag)
 
     def get_symmetry(self):
@@ -164,9 +164,9 @@ class RadarSatDetails(object):
         else:
             ia = 'imageReferenceAttributes'
 
-        line_order = self.find('./{}/rasterAttributes/lineTimeOrdering'.format(ia)).text.upper()
-        look_dir = self.find('./sourceAttributes/radarParameters/antennaPointing').text.upper()
-        sample_order = self.find('./{}/rasterAttributes/pixelTimeOrdering'.format(ia)).text.upper()
+        line_order = self._find('./{}/rasterAttributes/lineTimeOrdering'.format(ia)).text.upper()
+        look_dir = self._find('./sourceAttributes/radarParameters/antennaPointing').text.upper()
+        sample_order = self._find('./{}/rasterAttributes/pixelTimeOrdering'.format(ia)).text.upper()
         return ((line_order == 'DECREASING') != (look_dir.startswith('L')),
                 sample_order == 'DECREASING',
                 True)
@@ -185,7 +185,7 @@ class RadarSatDetails(object):
         else:
             data_file_tag = './sceneAttributes/imageAttributes/ipdf'
         base_path = os.path.dirname(self.file_name)
-        return (os.path.join(base_path, entry.text) for entry in self.findall(data_file_tag))
+        return (os.path.join(base_path, entry.text) for entry in self._findall(data_file_tag))
 
     def _get_start_time(self, get_datetime=False):
         """
@@ -197,13 +197,13 @@ class RadarSatDetails(object):
         """
         if get_datetime:
             return datetime.strptime(
-                self.find('./sourceAttributes/rawDataStartTime').text,
+                self._find('./sourceAttributes/rawDataStartTime').text,
                 '%Y-%m-%dT%H:%M:%S.%fZ')  # still a naive datetime?
         else:
-            return numpy.datetime64(self.find('./sourceAttributes/rawDataStartTime').text, 'us')
+            return numpy.datetime64(self._find('./sourceAttributes/rawDataStartTime').text, 'us')
 
     def _get_radar_params(self):
-        return self.find('./sourceAttributes/radarParameters')
+        return self._find('./sourceAttributes/radarParameters')
 
     def _get_center_frequency(self):
         """
@@ -213,7 +213,7 @@ class RadarSatDetails(object):
         -------
         float
         """
-        return float(self.find('./sourceAttributes/radarParameters/radarCenterFrequency').text)
+        return float(self._find('./sourceAttributes/radarParameters/radarCenterFrequency').text)
 
     def _get_polarizations(self, radar_params=None):
         if radar_params is None:
@@ -234,9 +234,9 @@ class RadarSatDetails(object):
         RadarModeType
         """
 
-        mode_id = self.find('./sourceAttributes/beamModeMnemonic').text
-        beam_mode = self.find('./sourceAttributes/beamMode').text
-        acq_type = self.find('./sourceAttributes/radarParameters/acquisitionType')
+        mode_id = self._find('./sourceAttributes/beamModeMnemonic').text
+        beam_mode = self._find('./sourceAttributes/beamMode').text
+        acq_type = self._find('./sourceAttributes/radarParameters/acquisitionType')
         if (beam_mode is not None and beam_mode.upper().startswith("SPOTLIGHT")) \
                 or (acq_type is not None and acq_type.upper().startswith("SPOTLIGHT")) \
                 or 'SL' in mode_id:
@@ -261,13 +261,13 @@ class RadarSatDetails(object):
         GEN = self.generation
         classification = 'UNCLASSIFIED'
         if GEN == 'RCM':
-            class_str = self.find('./securityAttributes/securityClassification').text.upper()
+            class_str = self._find('./securityAttributes/securityClassification').text.upper()
             if 'UNCLASS' not in class_str:
                 classification = class_str
         collector_name = self.satellite
         date_str = start_time_dt.strftime('%d%B%y').upper()
         if GEN == 'RS2':
-            core_name = date_str + GEN + self.find('./sourceAttributes/imageId').text
+            core_name = date_str + GEN + self._find('./sourceAttributes/imageId').text
         else:
             core_name = date_str + collector_name.replace('-', '') + start_time_dt.strftime('%H%M%S')
         return CollectionInfoType(
@@ -283,7 +283,7 @@ class RadarSatDetails(object):
         ImageCreationType
         """
 
-        processing_info = self.find('./imageGenerationParameters/generalProcessingInformation')
+        processing_info = self._find('./imageGenerationParameters/generalProcessingInformation')
         return ImageCreationType(
             Application=processing_info.find('softwareVersion').text,
             DateTime=processing_info.find('processingTime').text,
@@ -301,20 +301,20 @@ class RadarSatDetails(object):
 
         pixel_type = 'RE16I_IM16I'
         if self.generation == 'RS2':
-            cols = int(self.find('./imageAttributes/rasterAttributes/numberOfLines').text)
-            rows = int(self.find('./imageAttributes/rasterAttributes/numberOfSamplesPerLine').text)
-            tie_points = self.findall('./imageAttributes'
-                                      '/geographicInformation'
-                                      '/geolocationGrid'
-                                      '/imageTiePoint')
+            cols = int(self._find('./imageAttributes/rasterAttributes/numberOfLines').text)
+            rows = int(self._find('./imageAttributes/rasterAttributes/numberOfSamplesPerLine').text)
+            tie_points = self._findall('./imageAttributes'
+                                       '/geographicInformation'
+                                       '/geolocationGrid'
+                                       '/imageTiePoint')
         else:
-            cols = int(self.find('./sceneAttributes/imageAttributes/numLines').text)
-            rows = int(self.find('./sceneAttributes/imageAttributes/samplesPerLine').text)
-            tie_points = self.findall('./imageReferenceAttributes'
-                                      '/geographicInformation'
-                                      '/geolocationGrid'
-                                      '/imageTiePoint')
-            if self.find('./imageReferenceAttributes/rasterAttributes/bitsPerSample').text == '32':
+            cols = int(self._find('./sceneAttributes/imageAttributes/numLines').text)
+            rows = int(self._find('./sceneAttributes/imageAttributes/samplesPerLine').text)
+            tie_points = self._findall('./imageReferenceAttributes'
+                                       '/geographicInformation'
+                                       '/geolocationGrid'
+                                       '/imageTiePoint')
+            if self._find('./imageReferenceAttributes/rasterAttributes/bitsPerSample').text == '32':
                 pixel_type = 'RE32F_IM32F'
         # let's use the tie point closest to the center as the SCP
         center_pixel = 0.5*numpy.array([rows-1, cols-1], dtype=numpy.float64)
@@ -342,10 +342,10 @@ class RadarSatDetails(object):
 
         start_time = self._get_start_time()
         # get radar position state information
-        state_vectors = self.findall('./sourceAttributes'
-                                     '/orbitAndAttitude'
-                                     '/orbitInformation'
-                                     '/stateVector')
+        state_vectors = self._findall('./sourceAttributes'
+                                      '/orbitAndAttitude'
+                                      '/orbitInformation'
+                                      '/stateVector')
         # convert to relevant numpy arrays for polynomial fitting
         T = numpy.array([_get_seconds(numpy.datetime64(state_vec.find('timeStamp').text, 'us'),
                                       start_time)
@@ -393,25 +393,25 @@ class RadarSatDetails(object):
         """
         center_freq = self._get_center_frequency()
         if self.generation == 'RS2':
-            row_ss = float(self.find('./imageAttributes'
-                                     '/geographicInformation'
-                                     '/geolocationGrid'
-                                     '/imageTiePoint').text)
+            row_ss = float(self._find('./imageAttributes'
+                                      '/geographicInformation'
+                                      '/geolocationGrid'
+                                      '/imageTiePoint').text)
         else:
-            row_ss = float(self.find('./imageReferenceAttributes'
-                                     '/geographicInformation'
-                                     '/geolocationGrid'
-                                     '/imageTiePoint').text)
-        row_irbw = 2*float(self.find('./imageGenerationParameters'
-                                     '/sarProcessingInformation'
-                                     '/totalProcessedRangeBandwidth').text)/speed_of_light
-        row_wgt_type = WgtTypeType(WindowName=self.find('./imageGenerationParameters'
-                                                        '/sarProcessingInformation'
-                                                        '/rangeWindow/windowName').text.upper())
+            row_ss = float(self._find('./imageReferenceAttributes'
+                                      '/geographicInformation'
+                                      '/geolocationGrid'
+                                      '/imageTiePoint').text)
+        row_irbw = 2*float(self._find('./imageGenerationParameters'
+                                      '/sarProcessingInformation'
+                                      '/totalProcessedRangeBandwidth').text)/speed_of_light
+        row_wgt_type = WgtTypeType(WindowName=self._find('./imageGenerationParameters'
+                                                         '/sarProcessingInformation'
+                                                         '/rangeWindow/windowName').text.upper())
         if row_wgt_type.WindowName == 'KAISER':
-            row_wgt_type.Parameters['BETA'] = self.find('./imageGenerationParameters'
-                                                        '/sarProcessingInformation'
-                                                        '/rangeWindow/windowCoefficient').text
+            row_wgt_type.Parameters['BETA'] = self._find('./imageGenerationParameters'
+                                                         '/sarProcessingInformation'
+                                                         '/rangeWindow/windowCoefficient').text
 
         return DirParamType(
             SS=row_ss, ImpRespBW=row_irbw, Sgn=-1, KCtr=2*center_freq/speed_of_light,
@@ -426,13 +426,13 @@ class RadarSatDetails(object):
         DirParamType
         """
 
-        col_wgt_type = WgtTypeType(WindowName=self.find('./imageGenerationParameters'
-                                                        '/sarProcessingInformation'
-                                                        '/azimuthWindow/windowName').text.upper())
+        col_wgt_type = WgtTypeType(WindowName=self._find('./imageGenerationParameters'
+                                                         '/sarProcessingInformation'
+                                                         '/azimuthWindow/windowName').text.upper())
         if col_wgt_type.WindowName == 'KAISER':
-            col_wgt_type.Parameters['BETA'] = self.find('./imageGenerationParameters'
-                                                        '/sarProcessingInformation'
-                                                        '/azimuthWindow/windowCoefficient').text
+            col_wgt_type.Parameters['BETA'] = self._find('./imageGenerationParameters'
+                                                         '/sarProcessingInformation'
+                                                         '/azimuthWindow/windowCoefficient').text
 
         return DirParamType(Sgn=-1, KCtr=0, WgtType=col_wgt_type)
 
@@ -503,20 +503,20 @@ class RadarSatDetails(object):
         """
 
         timeline = TimelineType(CollectStart=self._get_start_time())
-        pulse_parts = len(self.findall('./sourceAttributes/radarParameters/pulseBandwidth'))
+        pulse_parts = len(self._findall('./sourceAttributes/radarParameters/pulseBandwidth'))
         tx_pols, tx_rcv_polarizations = self._get_polarizations()
         if self.generation == 'RS2':
-            pulse_rep_freq = float(self.find('pulseRepetitionFrequency').text)
+            pulse_rep_freq = float(self._find('pulseRepetitionFrequency').text)
         else:
-            pulse_rep_freq = float(self.find('prfInformation/pulseRepetitionFrequency').text)
+            pulse_rep_freq = float(self._find('prfInformation/pulseRepetitionFrequency').text)
         pulse_rep_freq *= pulse_parts
         if pulse_parts == 2 and self._get_radar_mode().ModeType == 'STRIPMAP':
             # it's not completely clear why we need an additional factor of 2 for strip map
             pulse_rep_freq *= 2
         lines_processed = [
-            float(entry.text) for entry in self.findall('imageGenerationParameters'
-                                                        '/sarProcessingInformation'
-                                                        '/numberOfLinesProcessed')]
+            float(entry.text) for entry in self._findall('imageGenerationParameters'
+                                                         '/sarProcessingInformation'
+                                                         '/numberOfLinesProcessed')]
         # there should be one entry of num_lines_processed for each transmit/receive polarization
         # and they should all be the same. Omit if this is not the case.
         if (len(lines_processed) == len(tx_rcv_polarizations)) and \
@@ -543,7 +543,7 @@ class RadarSatDetails(object):
         -------
         ImageFormationType
         """
-        pulse_parts = len(self.findall('./sourceAttributes/radarParameters/pulseBandwidth'))
+        pulse_parts = len(self._findall('./sourceAttributes/radarParameters/pulseBandwidth'))
         tx_pols, tx_rcv_polarizations = self._get_polarizations()
 
         return ImageFormationType(
@@ -568,7 +568,7 @@ class RadarSatDetails(object):
         -------
         SCPCOAType
         """
-        side_of_track = self.find('./sourceAttributes/radarParameters/antennaPointing').text[0].upper()
+        side_of_track = self._find('./sourceAttributes/radarParameters/antennaPointing').text[0].upper()
         return SCPCOAType(SideOfTrack=side_of_track)
 
     def _get_rma_adjust_grid(self, scpcoa, grid, image_data, position, collection_info):
@@ -591,15 +591,15 @@ class RadarSatDetails(object):
         look = scpcoa.look
         start_time = self._get_start_time()
         center_freq = self._get_center_frequency()
-        doppler_bandwidth = float(self.find('./imageGenerationParameters'
-                                            '/sarProcessingInformation'
-                                            '/totalProcessedAzimuthBandwidth').text)
-        zero_dop_last_line = numpy.datetime64(self.find('./imageGenerationParameters'
-                                                        '/sarProcessingInformation'
-                                                        '/zeroDopplerTimeLastLine').text, 'us')
-        zero_dop_first_line = numpy.datetime64(self.find('./imageGenerationParameters'
+        doppler_bandwidth = float(self._find('./imageGenerationParameters'
+                                             '/sarProcessingInformation'
+                                             '/totalProcessedAzimuthBandwidth').text)
+        zero_dop_last_line = numpy.datetime64(self._find('./imageGenerationParameters'
                                                          '/sarProcessingInformation'
-                                                         '/zeroDopplerTimeFirstLine').text, 'us')
+                                                         '/zeroDopplerTimeLastLine').text, 'us')
+        zero_dop_first_line = numpy.datetime64(self._find('./imageGenerationParameters'
+                                                          '/sarProcessingInformation'
+                                                          '/zeroDopplerTimeFirstLine').text, 'us')
         if look > 1:  # SideOfTrack == 'L'
             # we explicitly want negative time order
             if zero_dop_first_line < zero_dop_last_line:
@@ -612,13 +612,13 @@ class RadarSatDetails(object):
         # zero doppler time of SCP relative to collect start
         time_scp_zd = _get_seconds(zero_dop_first_line, start_time) + image_data.SCPPixel.Col * col_spacing_zd
         if self.generation == 'RS2':
-            near_range = float(self.find('./imageGenerationParameters'
-                                         '/sarProcessingInformation'
-                                         '/slantRangeNearEdge').text)
+            near_range = float(self._find('./imageGenerationParameters'
+                                          '/sarProcessingInformation'
+                                          '/slantRangeNearEdge').text)
         else:
-            near_range = float(self.find('./imageGenerationParameters'
-                                         '/sarProcessingInformation'
-                                         '/slantRangeNearEdge').text)
+            near_range = float(self._find('./imageGenerationParameters'
+                                          '/sarProcessingInformation'
+                                          '/slantRangeNearEdge').text)
         inca = INCAType(
             R_CA_SCP=near_range + (image_data.SCPPixel.Row * grid.Row.SS),
             FreqZero=center_freq)
@@ -630,22 +630,22 @@ class RadarSatDetails(object):
         # doppler rate coefficients
         if self.generation == 'RS2':
             doppler_rate_coeffs = numpy.array(
-                [float(entry) for entry in self.find('./imageGenerationParameters'
-                                                     '/dopplerRateValues'
-                                                     '/dopplerRateValuesCoefficients').text.split()],
+                [float(entry) for entry in self._find('./imageGenerationParameters'
+                                                      '/dopplerRateValues'
+                                                      '/dopplerRateValuesCoefficients').text.split()],
                 dtype=numpy.float64)
-            doppler_rate_ref_time = float(self.find('./imageGenerationParameters'
-                                                    '/dopplerRateValues'
-                                                    '/dopplerRateReferenceTime').text)
+            doppler_rate_ref_time = float(self._find('./imageGenerationParameters'
+                                                     '/dopplerRateValues'
+                                                     '/dopplerRateReferenceTime').text)
         else:
             doppler_rate_coeffs = numpy.array(
-                [float(entry) for entry in self.find('./dopplerRate'
-                                                     '/dopplerRateEstimate'
-                                                     '/dopplerRateCoefficients').text.split()],
+                [float(entry) for entry in self._find('./dopplerRate'
+                                                      '/dopplerRateEstimate'
+                                                      '/dopplerRateCoefficients').text.split()],
                 dtype=numpy.float64)
-            doppler_rate_ref_time = float(self.find('./dopplerRate'
-                                                    '/dopplerRateEstimate'
-                                                    '/dopplerRateReferenceTime').text)
+            doppler_rate_ref_time = float(self._find('./dopplerRate'
+                                                     '/dopplerRateEstimate'
+                                                     '/dopplerRateReferenceTime').text)
 
         # the doppler_rate_coeffs represents a polynomial in time, relative to
         #   doppler_rate_ref_time.
@@ -668,28 +668,28 @@ class RadarSatDetails(object):
         # doppler centroid
         if self.generation == 'RS2':
             doppler_cent_coeffs = numpy.array(
-                [float(entry) for entry in self.find('./imageGenerationParameters'
-                                                     '/dopplerCentroid'
-                                                     '/dopplerCentroidCoefficients').text.split()],
+                [float(entry) for entry in self._find('./imageGenerationParameters'
+                                                      '/dopplerCentroid'
+                                                      '/dopplerCentroidCoefficients').text.split()],
                 dtype=numpy.float64)
-            doppler_cent_ref_time = float(self.find('./imageGenerationParameters'
-                                                    '/dopplerCentroid'
-                                                    '/dopplerCentroidReferenceTime').text)
-            doppler_cent_time_est = numpy.datetime64(self.find('./imageGenerationParameters'
-                                                               '/dopplerCentroid'
-                                                               '/timeOfDopplerCentroidEstimate').text, 'us')
+            doppler_cent_ref_time = float(self._find('./imageGenerationParameters'
+                                                     '/dopplerCentroid'
+                                                     '/dopplerCentroidReferenceTime').text)
+            doppler_cent_time_est = numpy.datetime64(self._find('./imageGenerationParameters'
+                                                                '/dopplerCentroid'
+                                                                '/timeOfDopplerCentroidEstimate').text, 'us')
         else:
             doppler_cent_coeffs = numpy.array(
-                [float(entry) for entry in self.find('./dopplerCentroid'
-                                                     '/dopplerCentroidEstimate'
-                                                     '/dopplerCentroidCoefficients').text.split()],
+                [float(entry) for entry in self._find('./dopplerCentroid'
+                                                      '/dopplerCentroidEstimate'
+                                                      '/dopplerCentroidCoefficients').text.split()],
                 dtype=numpy.float64)
-            doppler_cent_ref_time = float(self.find('./dopplerCentroid'
-                                                    '/dopplerCentroidEstimate'
-                                                    '/dopplerCentroidReferenceTime').text)
-            doppler_cent_time_est = numpy.datetime64(self.find('./dopplerCentroid'
-                                                               '/dopplerCentroidEstimate'
-                                                               '/timeOfDopplerCentroidEstimate').text, 'us')
+            doppler_cent_ref_time = float(self._find('./dopplerCentroid'
+                                                     '/dopplerCentroidEstimate'
+                                                     '/dopplerCentroidReferenceTime').text)
+            doppler_cent_time_est = numpy.datetime64(self._find('./dopplerCentroid'
+                                                                '/dopplerCentroidEstimate'
+                                                                '/timeOfDopplerCentroidEstimate').text, 'us')
         doppler_cent_poly = Poly1DType(Coefs=doppler_cent_coeffs)
         alpha = 2.0/speed_of_light
         t_0 = doppler_cent_ref_time - alpha*inca.R_CA_SCP
@@ -736,7 +736,7 @@ class RadarSatDetails(object):
         coords_az = (numpy.linspace(0, image_data.NumCols-1, grid_samples)-image_data.SCPPixel.Col)*grid.Col.SS
         coords_rg = (numpy.linspace(0, image_data.NumRows-1, grid_samples)-image_data.SCPPixel.Row)*grid.Row.SS
         coords_az_2d, coords_rg_2d = numpy.meshgrid(coords_az, coords_rg)
-        time_ca_sampled = inca.TimeCAPoly(coords_rg_2d)  #, coords_az_2d) 1-D polynomial
+        time_ca_sampled = inca.TimeCAPoly(coords_rg_2d)  # coords_az_2d) 1-D polynomial
         dop_centroid_sampled = inca.DopCentroidPoly(coords_rg_2d, coords_az_2d)
         doppler_rate_sampled = polynomial.polyval(coords_rg_2d, dop_rate_scaled_coeffs)
         time_coa_sampled = time_ca_sampled + dop_centroid_sampled/doppler_rate_sampled
@@ -769,14 +769,14 @@ class RadarSatDetails(object):
         if self.generation == 'RS2':
             beta_file = os.path.join(
                 base_path,
-                self.find('./imageAttributes/lookupTable[@incidenceAngleCorrection="Beta Nought"]').text)
+                self._find('./imageAttributes/lookupTable[@incidenceAngleCorrection="Beta Nought"]').text)
         else:
             beta_file = os.path.join(
                 base_path,
-                self.find('./imageReferenceAttributes/lookupTableFileName[@sarCalibrationType="Beta Nought"]').text)
+                self._find('./imageReferenceAttributes/lookupTableFileName[@sarCalibrationType="Beta Nought"]').text)
             noise_file = os.path.join(
                 base_path,
-                self.find('./imageReferenceAttributes/noiseLevelFileName').text)
+                self._find('./imageReferenceAttributes/noiseLevelFileName').text)
         if not os.path.isfile(beta_file):
             return None
 
@@ -792,7 +792,7 @@ class RadarSatDetails(object):
             if self.generation == 'RCM':  # the rows are sub-sampled
                 rng_indices = numpy.arange(
                     int(beta_struct.find('./pixelFirstAnglesValue').text),
-                    int(beta_struct.find('./numberOfValues').text)*int(beta_struct.find('./stepSize').text))
+                    int(beta_struct.find('./numberOfValues').text) * int(beta_struct.find('./stepSize').text))
                 coords_rg = coords_rg[rng_indices]
             # For the datasets observed so far, this function is very close to linear.
             beta_zero_sf_poly = numpy.atleast_2d(polynomial.polyfit(coords_rg, betas, 2))
@@ -800,8 +800,8 @@ class RadarSatDetails(object):
         beta0_element = None
         if self.generation == 'RS2':
             # noise is in the main product.xml
-            beta0_element = self.find('./sourceAttributes/radarParameters'
-                                      '/referenceNoiseLevel[@incidenceAngleCorrection="Beta Nought"]')
+            beta0_element = self._find('./sourceAttributes/radarParameters'
+                                       '/referenceNoiseLevel[@incidenceAngleCorrection="Beta Nought"]')
         elif noise_file is not None:
             noise_root = _parse_xml(noise_file, without_ns=True)
             noise_levels = noise_root.findall('./referenceNoiseLevel')
@@ -933,3 +933,5 @@ class RadarSatReader(object):
             raise ValueError(
                 'index must be in the range [0, {}], and got {}'.format(len(self._readers), index))
         return self._readers[index].read_chip(dim1range, dim2range)
+
+    # TODO: __call__ and __getitem__?

@@ -293,9 +293,9 @@ class BaseChipper(object):
 
 
 class SubsetChipper(BaseChipper):
-    __slots__ = ('_data_size', '_complex_type', '_symmetry', 'shift1', 'shift2', 'parent_chipper')
-
     """Permits transparent extraction from a particular subset of the possible data range"""
+
+    __slots__ = ('_data_size', '_complex_type', '_symmetry', 'shift1', 'shift2', 'parent_chipper')
 
     def __init__(self, parent_chipper, dim1bounds, dim2bounds):
         """
@@ -357,6 +357,27 @@ class BaseReader(object):
 
     def read_chip(self, dim1range, dim2range):
         return self._chipper(dim1range, dim2range)
+
+
+class SubsetReader(BaseReader):
+    """Permits transparent extraction from a particular subset of the possible data range"""
+    __slots__ = ('_parent_reader', )
+
+    def __init__(self, parent_reader, sicd_meta, dim1bounds, dim2bounds):
+        """
+
+        Parameters
+        ----------
+        parent_reader : BaseReader
+        sicd_meta : SICDType
+        dim1bounds : tuple
+        dim2bounds : tuple
+        """
+
+        self._parent_reader = parent_reader
+        # noinspection PyProtectedMember
+        chipper = SubsetChipper(parent_reader._chipper, dim1bounds, dim2bounds)
+        super(SubsetReader, self).__init__(sicd_meta, chipper)
 
 
 class BaseWriter(object):
