@@ -936,7 +936,13 @@ class SentinelDetails(object):
 
 
 class SentinelReader(object):
+    """
+    Gets a reader type object for Sentinel-1 SAR files.
+    """
+
     __slots__ = ('_sentinel_details', '_readers')
+    # TODO: access to the sicd objects, and the tiff objects?
+    #   __call__ and __getitem__ - contingent on read_chip?
 
     def __init__(self, sentinel_details):
         """
@@ -979,5 +985,3 @@ class SentinelReader(object):
             raise ValueError(
                 'index must be in the range [0, {}], and got {}'.format(len(self._readers), index))
         return self._readers[index].read_chip(dim1range, dim2range)
-
-    # TODO: __call__ and __getitem__?

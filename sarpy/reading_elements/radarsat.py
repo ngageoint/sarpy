@@ -896,6 +896,8 @@ class RadarSatReader(object):
     in one tiff reader per polarimetric band.
     """
     __slots__ = ('_radar_sat_details', '_readers')
+    # TODO: access to the sicd objects, and the tiff objects?
+    #   __call__ and __getitem__ - contingent on read_chip?
 
     def __init__(self, radar_sat_details):
         """
@@ -933,5 +935,3 @@ class RadarSatReader(object):
             raise ValueError(
                 'index must be in the range [0, {}], and got {}'.format(len(self._readers), index))
         return self._readers[index].read_chip(dim1range, dim2range)
-
-    # TODO: __call__ and __getitem__?
