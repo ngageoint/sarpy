@@ -319,20 +319,20 @@ class SICDType(Serializable):
         """
 
         # Note that there is dependency in calling order between steps - don't naively rearrange the following.
+        if self.SCPCOA is None:
+            self.SCPCOA = SCPCOAType()
 
-        if self.SCPCOA is not None:
-            # noinspection PyProtectedMember
-            self.SCPCOA._derive_scp_time(self.Grid)
+        # noinspection PyProtectedMember
+        self.SCPCOA._derive_scp_time(self.Grid)
 
         if self.Grid is not None:
             # noinspection PyProtectedMember
             self.Grid._derive_time_coa_poly(self.CollectionInfo, self.SCPCOA)
 
-        if self.SCPCOA is not None:
-            # noinspection PyProtectedMember
-            self.SCPCOA._derive_position(self.Position)
+        # noinspection PyProtectedMember
+        self.SCPCOA._derive_position(self.Position)
 
-        if self.Position is None and self.SCPCOA is not None and self.SCPCOA.ARPPos is not None and \
+        if self.Position is None and self.SCPCOA.ARPPos is not None and \
                 self.SCPCOA.ARPVel is not None and self.SCPCOA.SCPTime is not None:
             self.Position = PositionType()  # important parameter derived in the next step
         if self.Position is not None:
@@ -354,9 +354,8 @@ class SICDType(Serializable):
             # noinspection PyProtectedMember
             self.ImageFormation._derive_tx_frequency_proc(self.RadarCollection)
 
-        if self.SCPCOA is not None:
-            # noinspection PyProtectedMember
-            self.SCPCOA._derive_geometry_parameters(self.GeoData)
+        # noinspection PyProtectedMember
+        self.SCPCOA._derive_geometry_parameters(self.GeoData)
 
         # verify ImageFormation things make sense
         im_form_algo = None

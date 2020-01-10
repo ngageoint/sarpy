@@ -343,7 +343,6 @@ class BaseReader(object):
 
         self._chipper = chipper
         self._sicd_meta = sicd_meta
-        self._sicd_meta.derive()  # try to fix up the structure and derive any missing attributes
 
     @property
     def sicd_meta(self):

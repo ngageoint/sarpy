@@ -389,7 +389,6 @@ class SentinelDetails(object):
                                        TxPulseLength=tx_pulse_length,
                                        TxFMRate=tx_fm_rate,
                                        TxRFBandwidth=band_width,
-                                       RcvDemodType='CHIRP',
                                        RcvFMRate=0,
                                        ADCSampleRate=adc_sample_rate,
                                        RcvWindowLength=float(swl.find('./value').text))

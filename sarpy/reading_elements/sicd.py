@@ -141,6 +141,7 @@ class NITFDetails(object):
             if self._is_sicd:
                 try:
                     self._sicd_meta = SICDType.from_node(root_node)
+                    self._sicd_meta.derive()
                     # TODO: account for the reference frequency offset situation
                 except Exception:
                     self._is_sicd = False

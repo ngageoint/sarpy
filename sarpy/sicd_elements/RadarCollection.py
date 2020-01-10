@@ -60,8 +60,6 @@ class WaveformParametersType(Serializable):
         'ADCSampleRate', 'RcvIFBandwidth', 'RcvFreqStart', 'RcvFMRate', 'index')
     _required = ()
     _set_as_attribute = ('index', )
-    # other class variables
-    _RcvFMRate = None
 
     # descriptors
     TxPulseLength = _FloatDescriptor(
@@ -112,6 +110,7 @@ class WaveformParametersType(Serializable):
         index : int
         kwargs : dict
         """
+        self._RcvFMRate = None
         self.TxPulseLength, self.TxRFBandwidth = TxPulseLength, TxRFBandwidth
         self.TxFreqStart, self.TxFMRate = TxFreqStart, TxFMRate
         self.RcvWindowLength = RcvWindowLength
@@ -149,7 +148,7 @@ class WaveformParametersType(Serializable):
     @property
     def RcvFMRate(self):  # type: () -> Union[None, float]
         """
-        float: Receive FM rate. Also, determines the value of `RcvDemodType`. **Optional.**
+        float: Receive FM rate in Hz/sec. Also, determines the value of `RcvDemodType`. **Optional.**
         """
         return self._RcvFMRate
 
