@@ -15,16 +15,13 @@
 
 """
 
-# TODO: HIGH - review all of this.
-#   Dangling task: "Should check_args go in __call__ rather than each derived class?"
-
 import numpy as np
 
 
 __classification__ = "UNCLASSIFIED"
 
 
-class Base():  # TODO: HIGH - this is not how to make an "abstract" class. This name is terrible.
+class Base():
     """Abstract class from which read chipper function object can be derived.
 
     FlatFile is a basic implementation of a chipper function object for complex
@@ -84,7 +81,6 @@ class Base():  # TODO: HIGH - this is not how to make an "abstract" class. This 
 
     """
 
-    # TODO: Add decimation types
     def __call__(self, dim1range=None, dim2range=None):
         dim1range, dim2range = reorient_chipper_args(
             self.symmetry, self.datasize, dim1range, dim2range)
@@ -113,12 +109,9 @@ class Base():  # TODO: HIGH - this is not how to make an "abstract" class. This 
 
 def data2complex(data_in, complextype):
     """Takes data in multiple bands and converts them to complex."""
-    # TODO: HIGH - make a class method...
     if callable(complextype):
         return complextype(data_in)
     elif complextype:
-        # TODO: HIGH - better way here? At least setting real and imaginary parts is better.
-        #   Is this how the file is packed? I would anticipate [:, :, 0::2] and [:, :, 1::2] - conventional order.
         return data_in[0::2, :, :] + (data_in[1::2, :, :] * 1j)
     else:
         return data_in
@@ -131,7 +124,6 @@ def reorient_chipper_args(symmetry, datasize, dim1range=None, dim2range=None):
 
     """
 
-    # TODO: HIGH - make a class method...
     if symmetry[2]:
         dim1range, dim2range = dim2range, dim1range
     if (symmetry[0] and (dim1range is not None) and
@@ -150,7 +142,6 @@ def reorient_chipper_data(symmetry, data_in):
 
     """
 
-    # TODO: HIGH - make a class method...
     # Data may have 3 dimensions if multi-band.  If so, first dimension is band,
     # and we only want to change the last two.
     reoriented_data = data_in
@@ -181,8 +172,6 @@ def check_args(datasize, dim1range, dim2range):
     language.  MATLAB superior here.
 
     """
-
-    # TODO: HIGH - should be a class method here. Gets used by extensions of this class.
 
     # Check datasize first
     datasize = np.array(datasize, dtype='uint64')
@@ -218,7 +207,6 @@ def subset(full_image_chipper, dim1bounds, dim2bounds):
     """Take a chipper object and return another chipper object that only has visibility into a
     subset of the original."""
 
-    # TODO: HIGH - I am confused by this. This should be a class method. Appears to only get used in sentinel.py.
     class SubsetChipper(Base):
         """Object wrapper for calling base chipper."""
         def __init__(self, full_image_chipper, dim1bounds, dim2bounds):

@@ -8,10 +8,6 @@ from . import chipper
 __classification__ = "UNCLASSIFIED"
 
 
-# TODO: HIGH - review with Jason. This is, in all likelihood, most easily accomplished by simply reordering axes.
-#   Reusing class names is bad practice, and quite confusing. Do we need a utils package? Why this organization?
-
-
 class Chipper(chipper.Base):
     """Chipper function object for files band interleaved by pixel (BIP)."""
     def __init__(self, filename, datasize, datatype, complextype,  # Required params

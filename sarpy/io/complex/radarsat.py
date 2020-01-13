@@ -44,7 +44,7 @@ def isa(filename):
         pass
 
 
-class Reader(ReaderSuper):  # TODO: HIGH - object oriented paradigm
+class Reader(ReaderSuper):
     def __init__(self, product_filename):
         basepathname = os.path.dirname(product_filename)
         ns = dict([node for _, node in ET.iterparse(product_filename,
@@ -112,7 +112,7 @@ def meta2sicd(filename, betafile, noisefile):
 
     def _polyshift(a, shift):
         b = np.zeros(a.size)
-        for j in range(1, len(a)+1):  # TODO: HIGH - use numpy.polynomial
+        for j in range(1, len(a)+1):
             for k in range(j, len(a)+1):
                 b[j-1] = b[j-1] + (a[k-1]*comb(k-1, j-1)*np.power(shift, (k-j)))
         return b

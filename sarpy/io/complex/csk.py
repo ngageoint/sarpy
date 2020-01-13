@@ -4,7 +4,7 @@ import copy  # TLM - What's being copied? I don't trust it.
 import datetime
 
 import numpy as np
-import h5py  # TODO: HIGH - modify things for this optional dependency?
+import h5py
 from numpy.polynomial import polynomial
 import scipy
 from scipy.constants import speed_of_light
@@ -33,7 +33,6 @@ def datenum_w_frac(datestring, as_datetime=False):
     `as_datetime` returns a Python datetime object.
     '''
 
-    # TODO: we should use numpy datetime64[ns] dtype
     epoch = datetime.datetime.strptime('2000-01-01 00:00:00',
                                        '%Y-%m-%d %H:%M:%S')
     if '.' in datestring:
@@ -66,12 +65,12 @@ def isa(filename):
         pass
 
 
-class CSMChipper(chipper.Base):  # TODO: HIGH - update object oriented paradigm
+class CSMChipper(chipper.Base):
     def __init__(self, filename, band, meta):
         self.filename = filename
 
         def complextype(data):
-            return data[..., 0] + data[..., 1] * 1j  # TODO: High - this should not be here?
+            return data[..., 0] + data[..., 1] * 1j
 
         self.band = band
         self.complextype = complextype
@@ -102,7 +101,7 @@ class CSMChipper(chipper.Base):  # TODO: HIGH - update object oriented paradigm
             return h5[key]['SBI'][s1:e1:k1, s2:e2:k2, :]
 
 
-class Reader(ReaderSuper):  # TODO: HIGH - fix object oriented paradigm
+class Reader(ReaderSuper):
     def __init__(self, product_filename):
         self.sicdmeta = meta2sicd(product_filename)
         self.read_chip = [
@@ -111,7 +110,6 @@ class Reader(ReaderSuper):  # TODO: HIGH - fix object oriented paradigm
         ]
 
 
-# TODO: HIGH - everything below should be properly constructed class methods?
 def meta2sicd(filename):
     '''
     Extract attributes from CSM HDF5 file and format as SICD
@@ -171,8 +169,7 @@ def _convert_meta(h5meta, band_meta, band_shapes):
     band_shapes: The dataset shapes of each band dataset.
     '''
 
-    # TODO: HIGH - this especially needs to be chopped up into conceptual pieces.
-    def _polyshift(a, shift):  # TODO: HIGH - use np.polynomial.polynomial. Appear to mistakenly be using matlab index convention?
+    def _polyshift(a, shift):
         b = np.zeros(a.size)
         for j in range(1, len(a) + 1):
             for k in range(j, len(a) + 1):

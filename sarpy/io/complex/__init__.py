@@ -30,7 +30,7 @@ import sys
 __classification__ = "UNCLASSIFIED"
 
 
-class Reader(object):  # TODO: HIGH - update this to sensibility. file type object? Move down.
+class Reader(object):
     """Currently a placeholder used as an abstract class."""
     # Any subclass deriving from this class should implement these things:
     sicdmeta = None
@@ -39,7 +39,7 @@ class Reader(object):  # TODO: HIGH - update this to sensibility. file type obje
         pass
 
 
-class Writer(object):  # TODO: HIGH - update this to sensibility. file-type object? Move down.
+class Writer(object):
     """Currently a placeholder used as an abstract class."""
     # Any subclass deriving from this class should implement these things:
     filename = None

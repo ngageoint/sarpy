@@ -5,7 +5,7 @@ import warnings
 import re
 import numpy as np
 
-from . import Reader as ReaderSuper, WriterSuper
+from . import Reader as ReaderSuper, Writer as WriterSuper
 from .utils import bip
 from . import sicd
 
@@ -26,7 +26,7 @@ def isa(filename):
             return Reader
 
 
-class Reader(ReaderSuper):  # TODO: HIGH - object oriented
+class Reader(ReaderSuper):
     """Creates a file reader object for an SIO file."""
     def __init__(self, filename):
         # Read SIO itself
@@ -54,7 +54,6 @@ class Reader(ReaderSuper):  # TODO: HIGH - object oriented
                     self.sicdmeta = meta2sicd(ihdr[[0, 2, 1, 3, 4]], user_data)
                 elif not native_metadata['Image Parameters']['image illumination direction [top, left, bottom, right]'] == 'top':
                     ValueError('Unhandled illumination direction.')
-            # TODO: Convert CASPR metadata to SICD format and merge with other SICD metadata
             # self.sicdmeta.merge(meta2sicd_caspr(native_metadata))
             if not hasattr(self.sicdmeta, 'native'):
                 self.sicdmeta.native = sicd.MetaNode()
@@ -68,7 +67,7 @@ class Reader(ReaderSuper):  # TODO: HIGH - object oriented
                                      bands_ip=1)
 
 
-class Writer(WriterSuper):  # todo: HIGH - object oriented
+class Writer(WriterSuper):
     def __init__(self, filename, sicdmeta):
         # SIO format allows for either endianness, but we just pick it arbitrarily.
         ENDIAN = '>'
@@ -108,7 +107,7 @@ class Writer(WriterSuper):  # todo: HIGH - object oriented
         self.write_chip = bip.Writer(filename, image_size, datatype, True, 20)
 
 
-def read_meta(filename):  # TODO: HIGH - make the initial magic number list a map, and subsume into class method.
+def read_meta(filename):
     """Parse SIO header."""
     with open(filename, mode='rb') as fid:
         ihdr = np.fromfile(fid, dtype='uint32', count=5)
@@ -136,7 +135,6 @@ def read_meta(filename):  # TODO: HIGH - make the initial magic number list a ma
         return ihdr, swapbytes, data_offset, user_data
 
 
-# TODO: HIGH - this should all be class methods
 
 def _read_userdata(fid, swapbytes):
     """Extracts user data from SIO files

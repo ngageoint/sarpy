@@ -45,7 +45,7 @@ def isa(filename):
         pass
 
 
-class Reader(ReaderSuper): # TODO: HIGH - object oriented
+class Reader(ReaderSuper):
     """Creates a file reader object for an Sentinel Data."""
     def __init__(self, manifest_filename):
         # print('Opening Sentinel reader object.')
