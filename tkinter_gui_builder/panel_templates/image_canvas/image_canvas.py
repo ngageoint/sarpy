@@ -139,7 +139,7 @@ class ImageCanvas(tk.LabelFrame):
             self.hide_shape(self.variables.zoom_rect_id)
 
     def callback_handle_left_mouse_click(self, event):
-        self.event_create_or_modify_shape(event)
+        self.event_create_or_reinitialize_shape(event)
 
     def callback_handle_left_mouse_motion(self, event):
         self.event_drag_shape(event)
@@ -180,12 +180,21 @@ class ImageCanvas(tk.LabelFrame):
             x1, y1 = (new_coords[0] - point_size), (new_coords[1] - point_size)
             x2, y2 = (new_coords[0] + point_size), (new_coords[1] + point_size)
             canvas_drawing_coords = (x1, y1, x2, y2)
+        else:
+            # print(new_coords)
+            if new_coords[0] >= new_coords[2]:
+                new_coords = list(new_coords)
+                left_x = new_coords[2]
+                right_x = new_coords[0]
+                new_coords[0] = left_x
+                new_coords[2] = right_x
+                canvas_drawing_coords = tuple(new_coords)
         self.canvas.coords(shape_id, canvas_drawing_coords)
         self.set_shape_canvas_coords(shape_id, new_coords)
         if update_pixel_coords:
             self.set_shape_pixel_coords_from_canvas_coords(shape_id)
 
-    def event_create_or_modify_shape(self, event):
+    def event_create_or_reinitialize_shape(self, event):
         # save mouse drag start position
         start_x = self.canvas.canvasx(event.x)
         start_y = self.canvas.canvasy(event.y)
@@ -220,7 +229,47 @@ class ImageCanvas(tk.LabelFrame):
             if self.get_shape_type(self.variables.current_shape_id) == SHAPE_TYPES.POINT:
                 self.modify_existing_shape_using_canvas_coords(self.variables.current_shape_id, (event_x_pos, event_y_pos))
             else:
-                self.modify_existing_shape_using_canvas_coords(self.variables.current_shape_id, (coords[0], coords[1], event_x_pos, event_y_pos))
+                min_x = coords[0]
+                min_y = coords[1]
+                max_x = coords[2]
+                max_y = coords[3]
+                # determine which corner we're dragging from
+                left_right_corner = None
+                top_bottom_corner = None
+
+                if event_x_pos > min_x and event_x_pos > max_x:
+                    left_right_corner = "right"
+                if event_x_pos < min_x and event_x_pos < max_x:
+                    left_right_corner = "left"
+                if min_x < event_x_pos < max_x:
+                    left_dist = abs(min_x - event_x_pos)
+                    right_dist = abs(max_x - event_x_pos)
+                    if left_dist < right_dist:
+                        left_right_corner = "left"
+                    else:
+                        left_right_corner = "right"
+                if left_right_corner == "right":
+                    max_x = event_x_pos
+                else:
+                    min_x = event_x_pos
+
+                if event_y_pos > min_y and event_y_pos > max_y:
+                    top_bottom_corner = "bottom"
+                if event_y_pos < min_y and event_y_pos < max_y:
+                    top_bottom_corner = "top"
+                if min_y < event_y_pos < max_y:
+                    top_dist = abs(min_y - event_y_pos)
+                    bottom_dist = abs(max_y - event_y_pos)
+                    if top_dist < bottom_dist:
+                        top_bottom_corner = "top"
+                    else:
+                        top_bottom_corner = "bottom"
+                if top_bottom_corner == "bottom":
+                    max_y = event_y_pos
+                else:
+                    min_y = event_y_pos
+                self.modify_existing_shape_using_canvas_coords(self.variables.current_shape_id, (min_x, min_y, max_x, max_y))
+                print((min_x, max_x, min_y, max_y))
         else:
             pass
 
