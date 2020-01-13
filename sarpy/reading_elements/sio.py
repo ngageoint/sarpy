@@ -47,7 +47,6 @@ def is_a(file_name):
         print('File {} is determined to be a SIO file.'.format(file_name))
         return SIOReader(sio_details)
     except IOError:
-        # TODO: what all should we catch?
         return None
 
 

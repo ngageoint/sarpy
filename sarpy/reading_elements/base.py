@@ -65,7 +65,7 @@ class BaseChipper(object):
             raise ValueError('complex-type must be a boolean or a callable')
         self._complex_type = complex_type
 
-        if not isinstance(data_size, tuple):  # TODO: band handling?
+        if not isinstance(data_size, tuple):
             data_size = tuple(data_size)
         if len(data_size) != 2:
             raise ValueError(

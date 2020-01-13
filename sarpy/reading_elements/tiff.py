@@ -358,7 +358,7 @@ class GdalTiffChipper(BaseChipper):
     """
     Utilizing gdal for reading of data from tiff file, should be much more robust
     """
-
+    # TODO: this is a work in progress and not quite functional
     __slots__ = ('_tiff_meta', '_data_set', '_bands', '_virt_array')
 
     def __init__(self, tiff_meta, symmetry=(False, False, True)):
@@ -385,7 +385,7 @@ class GdalTiffChipper(BaseChipper):
         # get data_size information
         data_size = (self._data_set.RasterYSize, self._data_set.RasterXSize)
         self._bands = self._data_set.RasterCount
-        # TODO: get data_type information
+        # TODO: get data_type information - specifically how does complex really work?
         complex_type = ''
         super(GdalTiffChipper, self).__init__(data_size, symmetry=symmetry, complex_type=complex_type)
         # 5.) set up our virtual array using GetVirtualMemArray
@@ -393,7 +393,6 @@ class GdalTiffChipper(BaseChipper):
 
     def _read_raw_fun(self, range1, range2):
         arange1, arange2 = self._reorder_arguments(range1, range2)
-        # TODO: does the below actually copy the data?
         if self._bands == 1:
             out = self._virt_array[arange1[0]:arange1[1]:arange1[2], arange2[0]:arange2[1]:arange2[2]]
         elif self._data_set.band_sequential:

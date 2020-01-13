@@ -340,8 +340,6 @@ class SICDReader(BaseReader):
         elif pixel_type == 'AMP8I_PHS8I':
             dtype = numpy.dtype('>u1')  # big-endian uint8
             complex_type = amp_phase_to_complex(self._sicd_meta.ImageData.AmpTable)
-            # TODO: is the above correct?
-            # raise ValueError('Pixel Type `AMP8I_PHS8I` is not currently supported.')
         else:
             raise ValueError('Pixel Type {} not recognized.'.format(pixel_type))
 
@@ -430,7 +428,7 @@ def complex_to_int(data):
         raise ValueError('Requires a two-dimensional numpy.ndarray, got {}'.format(data.shape))
 
     new_shape = (data.shape[0], data.shape[1], 2)
-    # TODO: BSQ nonsense for 3-d array?
+    # TODO: BSQ nonsense for 3-d array? Does that ever figure in?
 
     if data.dtype == numpy.complex128:
         view_dtype = numpy.float64

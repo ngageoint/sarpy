@@ -442,7 +442,6 @@ class SentinelDetails(object):
 
         def get_collection_info():  # type: () -> CollectionInfoType
             collection_info = out_sicd.CollectionInfo.copy()
-            # TODO: why previously define the below two in order to redefine here?
             collection_info.CollectorName = root_node.find('./adsHeader/missionId').text
             collection_info.RadarMode.ModeId = root_node.find('./adsHeader/mode').text
             t_slice = get_slice()
