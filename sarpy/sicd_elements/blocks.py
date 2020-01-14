@@ -1234,7 +1234,17 @@ class XYZPolyType(Serializable, Arrayable):
         numpy.ndarray
         """
 
-        return numpy.array([self.X(t), self.Y(t), self.Z(t)])
+        X = self.X(t)
+        Y = self.Y(t)
+        Z = self.Z(t)
+        if numpy.ndim(X) == 0:
+            return numpy.array([X, Y, Z])
+        else:
+            out = numpy.empty(X.shape + (3, ), dtype=X.dtype)
+            out[..., 0] = X
+            out[..., 1] = Y
+            out[..., 2] = Z
+            return out
 
     def get_array(self, dtype=numpy.object):
         """Gets an array representation of the class instance.
@@ -1326,8 +1336,8 @@ class XYZPolyType(Serializable, Arrayable):
         numpy.ndarray
         """
 
-        coefs = self.derivative(der_order=der_order, return_poly=False)
-        return numpy.array([numpy.polynomial.polynomial.polyval(t, entry) for entry in coefs], dtype=numpy.float64)
+        der_poly = self.derivative(der_order=der_order, return_poly=True)
+        return der_poly(t)
 
     def shift(self, t_0, alpha=1, return_poly=False):
         r"""
