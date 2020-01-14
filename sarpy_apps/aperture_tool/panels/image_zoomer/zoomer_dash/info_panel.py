@@ -1,10 +1,10 @@
-from tkinter_gui_builder.panel_templates.basic_widgets_panel import BasicWidgetsPanel
+from tkinter_gui_builder.panel_templates.widget_panel.widget_panel import AbstractWidgetPanel
 from tkinter_gui_builder.widgets import basic_widgets
 
 
-class InfoPanel(BasicWidgetsPanel):
+class InfoPanel(AbstractWidgetPanel):
     def __init__(self, parent):
-        BasicWidgetsPanel.__init__(self, parent)
+        AbstractWidgetPanel.__init__(self, parent)
         self.decimation_label = basic_widgets.Label
         self.decimation_val = basic_widgets.Entry
 

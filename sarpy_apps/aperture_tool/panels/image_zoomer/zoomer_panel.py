@@ -2,7 +2,7 @@ from sarpy_apps.aperture_tool.panels.image_zoomer.zoomer_dash.zoomer_dash import
 import tkinter.colorchooser as colorchooser
 from sarpy_apps.sarpy_app_helper_utils.sarpy_canvas_image import SarpyCanvasDisplayImage
 from tkinter_gui_builder.panel_templates.image_canvas.image_canvas import ImageCanvas
-from tkinter_gui_builder.panel_templates.basic_widgets_panel import BasicWidgetsPanel
+from tkinter_gui_builder.panel_templates.widget_panel.widget_panel import AbstractWidgetPanel
 
 
 class AppVariables:
@@ -11,13 +11,13 @@ class AppVariables:
         self.sicd_metadata = None
 
 
-class ZoomerPanel(BasicWidgetsPanel):
+class ZoomerPanel(AbstractWidgetPanel):
     side_panel = ZoomerDash         # type: ZoomerDash
     image_canvas = ImageCanvas      # type: ImageCanvas
 
     def __init__(self, parent):
         # set the master frame
-        BasicWidgetsPanel.__init__(self, parent)
+        AbstractWidgetPanel.__init__(self, parent)
         self.app_variables = AppVariables()
         widgets_list = ["image_canvas", "side_panel"]
 

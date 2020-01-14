@@ -1,10 +1,9 @@
 import tkinter
 from tkinter.filedialog import askopenfilename
 from sarpy_apps.taser_tool.panels.taser_button_panel import TaserButtonPanel
-from tkinter_gui_builder.panel_templates.basic_pyplot_image_panel import BasicPyplotImagePanel
+from tkinter_gui_builder.panel_templates.pyplot_image_panel.pyplot_image_panel import PyplotImagePanel
 from tkinter_gui_builder.panel_templates.image_canvas.image_canvas import ImageCanvas
 from sarpy_apps.sarpy_app_helper_utils.sarpy_canvas_image import SarpyCanvasDisplayImage
-import numpy as np
 import os
 
 
@@ -25,7 +24,7 @@ class Taser:
         # define panels widget_wrappers in master frame
         self.button_panel = TaserButtonPanel(master_frame)
         self.button_panel.set_spacing_between_buttons(0)
-        self.pyplot_panel = BasicPyplotImagePanel(master_frame, 800, 600)
+        self.pyplot_panel = PyplotImagePanel(master_frame, 800, 600)
         self.taser_image_panel = ImageCanvas(master_frame)
         self.taser_image_panel.variables.canvas_image_object = SarpyCanvasDisplayImage()        # type: SarpyCanvasDisplayImage
         self.taser_image_panel.set_canvas_size(600, 400)

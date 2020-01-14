@@ -17,7 +17,6 @@ class AppVariables:
         self.point_size = 3
 
         self.foreground_color = "red"
-
         self.rect_border_width = 2
 
         self.image_id = None                # type: int
@@ -77,8 +76,12 @@ class ImageCanvas(tk.LabelFrame):
         self.canvas.on_left_mouse_motion(self.callback_handle_left_mouse_motion)
         self.canvas.on_left_mouse_release(self.callback_handle_left_mouse_release)
 
+        self.canvas.on_mouse_wheel(self.callback_mouse_zoom)
+
         self.variables.current_tool = None
         self.variables.current_shape_id = None
+
+        self.zoom_on_wheel = True
 
         self._tk_im = None               # type: ImageTk.PhotoImage
 
@@ -123,6 +126,19 @@ class ImageCanvas(tk.LabelFrame):
     def show_shape(self, shape_id):
         if shape_id:
             self.canvas.itemconfigure(shape_id, state="normal")
+
+    def callback_mouse_zoom(self, event):
+        print("mouse zoom")
+        single_delta = 120
+        box_percent = 1.1
+        canvas_coords = [0, 0, self.canvas_width, self.canvas_height]
+
+        zoom_in_multipler = box_percent
+        zoom_out_multiplier = 2 - box_percent
+
+        x = event.x
+        y = event.y
+        print(event)
 
     def callback_handle_left_mouse_release(self, event):
         if self.variables.current_tool == TOOLS.ZOOM_IN_TOOL:
@@ -175,7 +191,6 @@ class ImageCanvas(tk.LabelFrame):
                                                   update_pixel_coords=True,         # type: bool
                                                   ):
         self.show_shape(shape_id)
-        canvas_drawing_coords = new_coords
         if self.get_shape_type(shape_id) == SHAPE_TYPES.POINT:
             point_size = self._get_shape_property(shape_id, SHAPE_PROPERTIES.POINT_SIZE)
             x1, y1 = (new_coords[0] - point_size), (new_coords[1] - point_size)

@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-class BasicPyplotImagePanel(tk.Frame):
+class PyplotImagePanel(tk.Frame):
     def __init__(self, parent, canvas_width=600, canvas_height=300):
         tk.Frame.__init__(self, parent)
         self.config(highlightbackground="black")

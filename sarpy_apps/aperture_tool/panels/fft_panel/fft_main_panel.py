@@ -1,15 +1,15 @@
 from sarpy_apps.aperture_tool.panels.fft_panel.fft_select_button_panel import FFTSelectButtonPanel
 from sarpy_apps.sarpy_app_helper_utils.sarpy_canvas_image import SarpyCanvasDisplayImage
 from tkinter_gui_builder.panel_templates.image_canvas.image_canvas import ImageCanvas
-from tkinter_gui_builder.panel_templates.basic_widgets_panel import BasicWidgetsPanel
+from tkinter_gui_builder.panel_templates.widget_panel.widget_panel import AbstractWidgetPanel
 
 
-class FFTPanel(BasicWidgetsPanel):
+class FFTPanel(AbstractWidgetPanel):
     fft_button_panel = FFTSelectButtonPanel         # type: FFTSelectButtonPanel
     image_canvas = ImageCanvas                      # type: ImageCanvas
 
     def __init__(self, parent):
-        BasicWidgetsPanel.__init__(self, parent)
+        AbstractWidgetPanel.__init__(self, parent)
 
         widgets_list = ["image_canvas", "fft_button_panel"]
 

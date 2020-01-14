@@ -3,7 +3,7 @@ from tkinter import ttk
 from sarpy_apps.taser_tool.taser import Taser
 from sarpy_apps.wake_tool.wake_tool import WakeTool
 from sarpy_apps.aperture_tool.aperture_tool import ApertureTool
-from tkinter_gui_builder.panel_templates.temporal_plot_panel import TemporalPlotPanel
+from tkinter_gui_builder.panel_templates.pyplot_panel.temporal_plot_panel import TemporalPlotPanel
 
 
 # Root class to create the interface and define the controller function to switch frames

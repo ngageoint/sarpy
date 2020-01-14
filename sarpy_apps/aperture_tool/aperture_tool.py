@@ -5,6 +5,7 @@ from sarpy_apps.aperture_tool.panels.adjusted_image_panel.adjusted_image_panel i
 from tkinter_gui_builder.canvas_image_objects.numpy_canvas_image import NumpyCanvasDisplayImage
 import sarpy.visualization.remap as remap
 from scipy.fftpack import fft2, ifft2, fftshift
+from tkinter_gui_builder.panel_templates.widget_panel.widget_panel import AbstractWidgetPanel
 import numpy as np
 
 
@@ -15,22 +16,21 @@ class AppVariables:
         self.fft_image_object = NumpyCanvasDisplayImage()        # type: NumpyCanvasDisplayImage
 
 
-class ApertureTool:
+class ApertureTool(AbstractWidgetPanel):
+    zoomer_panel = ZoomerPanel
+    fft_panel = FFTPanel
+    adjusted_view_panel = AdjustedViewPanel
+
     def __init__(self, master):
-        # set the master frame
         master_frame = tkinter.Frame(master)
-        self.app_variables = AppVariables()
+        AbstractWidgetPanel.__init__(self, master_frame)
 
-        # define panels widget_wrappers in master frame
-        self.zoomer_panel = ZoomerPanel(master_frame)
-        self.fft_panel = FFTPanel(master_frame)
-        self.adjusted_view_panel = AdjustedViewPanel(master_frame)
-
-        self.zoomer_panel.pack(side="left")
-        self.fft_panel.pack(side="left")
-        self.adjusted_view_panel.pack(side="left")
+        widgets_list = ["zoomer_panel", "fft_panel", 'adjusted_view_panel']
+        self.init_w_horizontal_layout(widgets_list)
         master_frame.pack()
+        self.pack()
 
+        self.app_variables = AppVariables()
         self.zoomer_panel.image_canvas.canvas.on_left_mouse_release(self.callback_handle_zoomer_left_mouse_release)
         self.fft_panel.fft_button_panel.inv_fft.on_left_mouse_click(self.callback_get_adjusted_image)
 

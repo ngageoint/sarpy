@@ -6,11 +6,11 @@ from typing import Union
 
 
 @add_metaclass(abc.ABCMeta)
-class BasicWidgetsPanel(tk.LabelFrame):
+class AbstractWidgetPanel(tk.LabelFrame):
     def __init__(self, parent):
         tk.LabelFrame.__init__(self, parent)
         self.config(borderwidth=2)
-        self.widget_list = None     # type: list
+        self._widget_list = None     # type: list
         self.rows = None           # type: tk.Frame
 
     def init_w_xy_positions_dict(self, positions_dict):
@@ -85,7 +85,7 @@ class BasicWidgetsPanel(tk.LabelFrame):
 
         # find transition points
         transitions = np.cumsum(n_widgets_per_row_list)
-        self.widget_list = []
+        self._widget_list = []
         row_num = 0
         for i, widget in enumerate(basic_widget_list):
             if i in transitions:
@@ -93,12 +93,12 @@ class BasicWidgetsPanel(tk.LabelFrame):
             setattr(self, widget, getattr(self, widget)(self.rows[row_num]))
             getattr(self, widget).pack(side="left", padx=5, pady=5)
             getattr(self, widget).config(text=widget.replace("_", " "))
-            self.widget_list.append(widget)
+            self._widget_list.append(widget)
 
     def set_spacing_between_buttons(self, spacing_npix_x=0, spacing_npix_y=None):
         if spacing_npix_y is None:
             spacing_npix_y = spacing_npix_x
-        for widget in self.widget_list:
+        for widget in self._widget_list:
             getattr(self, widget).pack(side="left", padx=spacing_npix_x, pady=spacing_npix_y)
 
     def set_label_text(self,
@@ -107,21 +107,21 @@ class BasicWidgetsPanel(tk.LabelFrame):
         self.config(text=label)
 
     def unpress_all_buttons(self):
-        for i, widget_and_name in enumerate(self.widget_list):
+        for i, widget_and_name in enumerate(self._widget_list):
             widget = widget_and_name
             if type(("", "")) == type(widget_and_name):
                 widget = widget_and_name[0]
             getattr(self, widget).config(relief="raised")
 
     def press_all_buttons(self):
-        for i, widget_and_name in enumerate(self.widget_list):
+        for i, widget_and_name in enumerate(self._widget_list):
             widget = widget_and_name
             if type(("", "")) == type(widget_and_name):
                 widget = widget_and_name[0]
             getattr(self, widget).config(relief="sunken")
 
     def activate_all_buttons(self):
-        for i, widget_and_name in enumerate(self.widget_list):
+        for i, widget_and_name in enumerate(self._widget_list):
             widget = widget_and_name
             if type(("", "")) == type(widget_and_name):
                 widget = widget_and_name[0]

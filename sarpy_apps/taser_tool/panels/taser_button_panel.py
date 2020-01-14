@@ -1,10 +1,10 @@
-from tkinter_gui_builder.panel_templates.basic_widgets_panel import BasicWidgetsPanel
+from tkinter_gui_builder.panel_templates.widget_panel.widget_panel import AbstractWidgetPanel
 from tkinter_gui_builder.widgets import basic_widgets
 
 
-class TaserButtonPanel(BasicWidgetsPanel):
+class TaserButtonPanel(AbstractWidgetPanel):
     def __init__(self, parent):
-        BasicWidgetsPanel.__init__(self, parent)
+        AbstractWidgetPanel.__init__(self, parent)
         self.fname_select = basic_widgets.Button
         self.zoom_in = basic_widgets.Button
         self.zoom_out = basic_widgets.Button
