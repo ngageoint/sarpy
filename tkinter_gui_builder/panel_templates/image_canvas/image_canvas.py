@@ -182,14 +182,7 @@ class ImageCanvas(tk.LabelFrame):
             x2, y2 = (new_coords[0] + point_size), (new_coords[1] + point_size)
             canvas_drawing_coords = (x1, y1, x2, y2)
         else:
-            # print(new_coords)
-            if new_coords[0] >= new_coords[2]:
-                new_coords = list(new_coords)
-                left_x = new_coords[2]
-                right_x = new_coords[0]
-                new_coords[0] = left_x
-                new_coords[2] = right_x
-                canvas_drawing_coords = tuple(new_coords)
+            canvas_drawing_coords = tuple(new_coords)
         self.canvas.coords(shape_id, canvas_drawing_coords)
         self.set_shape_canvas_coords(shape_id, new_coords)
         if update_pixel_coords:
@@ -230,6 +223,8 @@ class ImageCanvas(tk.LabelFrame):
             coords = self.canvas.coords(self.variables.current_shape_id)
             if self.get_shape_type(self.variables.current_shape_id) == SHAPE_TYPES.POINT:
                 self.modify_existing_shape_using_canvas_coords(self.variables.current_shape_id, (event_x_pos, event_y_pos))
+            elif self.get_shape_type(self.variables.current_shape_id) == SHAPE_TYPES.ARROW or self.get_shape_type(self.variables.current_shape_id) == SHAPE_TYPES.LINE:
+                self.modify_existing_shape_using_canvas_coords(self.variables.current_shape_id, (self.variables.current_shape_canvas_anchor_point_xy[0], self.variables.current_shape_canvas_anchor_point_xy[1], event_x_pos, event_y_pos))
             else:
                 min_x = coords[0]
                 min_y = coords[1]
