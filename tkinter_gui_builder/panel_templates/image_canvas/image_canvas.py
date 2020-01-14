@@ -23,6 +23,7 @@ class AppVariables:
         self.image_id = None                # type: int
 
         self.current_shape_id = None
+        self.current_shape_canvas_anchor_point_xy = None
         self.shape_ids = []            # type: [int]
         self.shape_properties = {}
         self.canvas_image_object = None         # type: AbstractCanvasImage
@@ -200,6 +201,7 @@ class ImageCanvas(tk.LabelFrame):
         start_y = self.canvas.canvasy(event.y)
 
         coords = (start_x, start_y, start_x + 1, start_y + 1)
+        self.variables.current_shape_canvas_anchor_point_xy = (start_x, start_y)
 
         if self.variables.current_shape_id not in self.variables.shape_ids:
             if self.variables.current_tool == TOOLS.DRAW_LINE_TOOL:
@@ -237,39 +239,47 @@ class ImageCanvas(tk.LabelFrame):
                 left_right_corner = None
                 top_bottom_corner = None
 
-                if event_x_pos > min_x and event_x_pos > max_x:
-                    left_right_corner = "right"
-                if event_x_pos < min_x and event_x_pos < max_x:
-                    left_right_corner = "left"
-                if min_x < event_x_pos < max_x:
-                    left_dist = abs(min_x - event_x_pos)
-                    right_dist = abs(max_x - event_x_pos)
-                    if left_dist < right_dist:
-                        left_right_corner = "left"
-                    else:
-                        left_right_corner = "right"
-                if left_right_corner == "right":
-                    max_x = event_x_pos
+                # do nothing if the event is at one of the rect boundaries:
+                if event_x_pos == min_x or event_x_pos == max_x or event_y_pos == min_y or event_y_pos == max_y:
+                    pass
                 else:
-                    min_x = event_x_pos
 
-                if event_y_pos > min_y and event_y_pos > max_y:
-                    top_bottom_corner = "bottom"
-                if event_y_pos < min_y and event_y_pos < max_y:
-                    top_bottom_corner = "top"
-                if min_y < event_y_pos < max_y:
-                    top_dist = abs(min_y - event_y_pos)
-                    bottom_dist = abs(max_y - event_y_pos)
-                    if top_dist < bottom_dist:
-                        top_bottom_corner = "top"
+                    if event_x_pos > min_x and event_x_pos > max_x:
+                        left_right_corner = "right"
+                    if event_x_pos < min_x and event_x_pos < max_x:
+                        left_right_corner = "left"
+                    if min_x < event_x_pos < max_x:
+                        left_dist = abs(min_x - event_x_pos)
+                        right_dist = abs(max_x - event_x_pos)
+                        if left_dist < right_dist:
+                            left_right_corner = "left"
+                        else:
+                            left_right_corner = "right"
+                    if left_right_corner == "right":
+                        max_x = event_x_pos
+                        min_x = self.variables.current_shape_canvas_anchor_point_xy[0]
                     else:
+                        min_x = event_x_pos
+                        max_x = self.variables.current_shape_canvas_anchor_point_xy[0]
+
+                    if event_y_pos > min_y and event_y_pos > max_y:
                         top_bottom_corner = "bottom"
-                if top_bottom_corner == "bottom":
-                    max_y = event_y_pos
-                else:
-                    min_y = event_y_pos
-                self.modify_existing_shape_using_canvas_coords(self.variables.current_shape_id, (min_x, min_y, max_x, max_y))
-                print((min_x, max_x, min_y, max_y))
+                    if event_y_pos < min_y and event_y_pos < max_y:
+                        top_bottom_corner = "top"
+                    if min_y < event_y_pos < max_y:
+                        top_dist = abs(min_y - event_y_pos)
+                        bottom_dist = abs(max_y - event_y_pos)
+                        if top_dist < bottom_dist:
+                            top_bottom_corner = "top"
+                        else:
+                            top_bottom_corner = "bottom"
+                    if top_bottom_corner == "bottom":
+                        max_y = event_y_pos
+                        min_y = self.variables.current_shape_canvas_anchor_point_xy[1]
+                    else:
+                        min_y = event_y_pos
+                        max_y = self.variables.current_shape_canvas_anchor_point_xy[1]
+                    self.modify_existing_shape_using_canvas_coords(self.variables.current_shape_id, (min_x, min_y, max_x, max_y))
         else:
             pass
 
