@@ -1,8 +1,7 @@
 """
-Functions to map between the pixel grid in the image space and geolocated points in 3D space.
+Functions to map between the coordinates in image pixel space and geographical coordinates.
 """
 
-import os
 import logging
 from typing import Tuple
 
@@ -15,10 +14,11 @@ from ..sicd_elements.blocks import Poly2DType
 __classification__ = "UNCLASSIFIED"
 
 
-def ground_to_image(coords, sicd, delta_gp_max=None, max_iterations=10, block_size=50000, **kwargs):
+def ground_to_image(coords, sicd, delta_gp_max=None, max_iterations=10, block_size=50000,
+                    delta_arp=None, delta_varp=None, range_bias=None, adj_params_frame='ECF'):
     """
-    Transforms a 3D ECF point to pixel (row, column) coordinates. This is implemented in accordance with the SICD Image
-    Projections Description Document: http://www.gwg.nga.mil/ntb/baseline/docs/SICD/index.html
+    Transforms a 3D ECF point to pixel (row/column) coordinates. This is
+    implemented in accordance with the SICD Image Projections Description Document.
 
     Parameters
     ----------
@@ -32,8 +32,15 @@ def ground_to_image(coords, sicd, delta_gp_max=None, max_iterations=10, block_si
         maximum number of iterations to perform
     block_size : int|None
         size of blocks of coordinates to transform at a time
-    kwargs : dict
-        keywords arguments passed through to :func:`image_to_ground_plane`.
+    delta_arp : None|numpy.ndarray|list|tuple
+        ARP position adjustable parameter (ECF, m).  Defaults to 0 in each coordinate.
+    delta_varp : None|numpy.ndarray|list|tuple
+        VARP position adjustable parameter (ECF, m/s).  Defaults to 0 in each coordinate.
+    range_bias : float|int
+        Range bias adjustable parameter (m), defaults to 0.
+    adj_params_frame : str
+        One of ['ECF', 'RIC_ECF', 'RIC_ECI'], specifying the coordinate frame used for
+        expressing `delta_arp` and `delta_varp` parameters.
 
     Returns
     -------
@@ -80,6 +87,9 @@ def ground_to_image(coords, sicd, delta_gp_max=None, max_iterations=10, block_si
     sf = numpy.dot(uSPN, uIPN)  # scale factor
 
     # prepare the work space
+    kwargs = {
+        'delta_arp': delta_arp, 'delta_varp': delta_varp,
+        'range_bias': range_bias, 'adj_params_frame': adj_params_frame}
     orig_shape = coords.shape
     coords_view = numpy.reshape(coords, (-1, 3))  # possibly or make 2-d flatten
     num_points = coords_view.shape[0]
@@ -111,13 +121,53 @@ def ground_to_image(coords, sicd, delta_gp_max=None, max_iterations=10, block_si
 
 def _ground_to_image(coords, sicd,
                      SCP, SCP_Pixel, uIPN, sf, row_ss, col_ss, uProj, row_col_transform, ipp_transform,
-                     delta_gp_max, max_iterations, **kwargs):
-    # TODO: docstring - after this is finalized
-    im_pts = numpy.zeros((coords.shape[0], 2), dtype=numpy.float64)
-    del_gp = numpy.zeros((coords.shape[0],), dtype=numpy.float64)
-    t_iters = numpy.zeros((coords.shape[0],), dtype=numpy.int16)
+                     delta_gp_max, max_iterations,
+                     delta_arp=None, delta_varp=None, range_bias=None, adj_params_frame='ECF'):
+    """
+    Basic level helper function.
+
+    Parameters
+    ----------
+    coords : numpy.ndarray|tuple|list
+        ECF coordinate to map to scene coordinates, of size `N x 3`.
+    sicd : SICDType
+        SICD meta data structure.
+    SCP : numpy.ndarray
+    SCP_Pixel : numpy.ndarray
+    uIPN : numpy.ndarray
+    sf : numpy.ndarray
+    row_ss : float
+    col_ss : float
+    uProj : numpy.ndarray
+    row_col_transform : numnpy.ndarray
+    ipp_transform : numpy.ndarray
+    delta_gp_max : float
+    max_iterations : int
+    delta_arp : numpy.ndarray
+    delta_varp : numpy.ndarray
+    range_bias : float
+    adj_params_frame : str
+
+    Returns
+    -------
+    Tuple[numpy.ndarray, float, int]
+        * `image_points` - the determined image point array, of size `N x 2`. Following SICD convention,
+           the upper-left pixel is [0, 0].
+        * `delta_gpn` - residual ground plane displacement (m).
+        * `iterations` - the number of iterations performed.
+    """
+
+    delta_arp, delta_varp, range_bias = _validate_adjustment_params(delta_arp, delta_varp, range_bias)
+    ARP_SCP_COA = sicd.SCPCOA.ARPPos.get_array()
+    VARP_SCP_COA = sicd.SCPCOA.ARPVel.get_array()
+
+    uGPN = sicd.PFA.FPN.get_array() if sicd.ImageFormation.ImageFormAlgo == 'PFA' \
+        else geocoords.wgs_84_norm(SCP)
+
+    im_points = numpy.zeros((coords.shape[0], 2), dtype=numpy.float64)
+    delta_gpn = numpy.zeros((coords.shape[0],), dtype=numpy.float64)
+    iterations = numpy.zeros((coords.shape[0],), dtype=numpy.int16)
     it_here = numpy.ones((coords.shape[0],), dtype=numpy.bool)
-    uGPN = (coords.T / numpy.linalg.norm(coords, axis=1)).T
     cont = True
     iteration = 0
     while cont:
@@ -128,29 +178,29 @@ def _ground_to_image(coords, sicd,
         i_n = g_n + numpy.outer(dist_n, uProj)
         delta_ipp = i_n - SCP  # N x 3
         ip_iter = numpy.dot(numpy.dot(delta_ipp, row_col_transform), ipp_transform)
-        im_pts[it_here, 0] = ip_iter[:, 0] / row_ss + SCP_Pixel[0]
-        im_pts[it_here, 1] = ip_iter[:, 1] / col_ss + SCP_Pixel[1]
-        # transform to ground plane containing the scene points
-        # TODO: refactor this to use the appropriate direct method
-        #   _image_to_ground_plane()
-        gnd_pln = image_to_ground(
-            im_pts[it_here, :], sicd, projection_type='PLANE', gref=g_n, ugpn=uGPN[it_here, :], **kwargs)
+        im_points[it_here, 0] = ip_iter[:, 0] / row_ss + SCP_Pixel[0]
+        im_points[it_here, 1] = ip_iter[:, 1] / col_ss + SCP_Pixel[1]
+        # transform to ground plane containing the scene points and check how it compares
+        gnd_pln = _image_to_ground_plane(im_points, sicd, delta_arp, delta_varp, range_bias, adj_params_frame,
+                               SCP, row_ss, col_ss, ARP_SCP_COA, VARP_SCP_COA, g_n, uGPN)
         # compute displacement
         disp_gpn_pln = numpy.linalg.norm(g_n - gnd_pln, axis=1)
-        del_gp[it_here] = disp_gpn_pln
+        delta_gpn[it_here] = disp_gpn_pln
         # update the iterations
-        t_iters[it_here] = iteration
+        iterations[it_here] = iteration
         # where are we finished?
         must_continue = (disp_gpn_pln > delta_gp_max)
         it_here[it_here] = must_continue
         # should we continue?
         if not numpy.any(must_continue) or (iteration >= max_iterations):
             cont = False
-    return im_pts, del_gp, t_iters
+    return im_points, delta_gpn, iterations
 
 
 def ground_to_image_geo(coords, sicd, **kwargs):
     """
+    Transforms a 3D Lat/Lon/HAE point to pixel (row/column) coordinates.
+    This is implemented in accordance with the SICD Image Projections Description Document.
 
     Parameters
     ----------
@@ -160,6 +210,7 @@ def ground_to_image_geo(coords, sicd, **kwargs):
         SICD meta data structure.
     kwargs : dict
         See the key word arguments of :func:`ground_to_image`
+
     Returns
     -------
     Tuple[numpy.ndarray, float, int]
@@ -167,7 +218,6 @@ def ground_to_image_geo(coords, sicd, **kwargs):
            the upper-left pixel is [0, 0].
         * `delta_gpn` - residual ground plane displacement (m).
         * `iterations` - the number of iterations performed.
-
     """
 
     return ground_to_image(geocoords.geodetic_to_ecf(coords), sicd, **kwargs)
@@ -176,7 +226,58 @@ def ground_to_image_geo(coords, sicd, **kwargs):
 ############
 # Items for Image-To-Ground projections
 
-def _validate_im_points(im_points):
+def _validate_adjustment_params(delta_arp, delta_varp, range_bias):
+    """
+    Helper function for validating the basic adjustment arguments.
+
+    Parameters
+    ----------
+    delta_arp : numpy.ndarray
+    delta_varp : numpy.ndarray
+    range_bias : float
+
+    Returns
+    -------
+    Tuple[numpy.ndarray, numpy.ndarray, float]
+    """
+
+    if delta_arp is None:
+        delta_arp = numpy.array([0, 0, 0], dtype=numpy.float64)
+    if not isinstance(delta_arp, numpy.ndarray):
+        delta_arp = numpy.array(delta_arp, dtype=numpy.float64)
+    if delta_arp.shape != (3, ):
+        raise ValueError('delta_arp must have shape (3, ). Got {}'.format(delta_arp.shape))
+
+    if delta_varp is None:
+        delta_varp = numpy.array([0, 0, 0], dtype=numpy.float64)
+    if not isinstance(delta_varp, numpy.ndarray):
+        delta_varp = numpy.array(delta_varp, dtype=numpy.float64)
+    if delta_varp.shape != (3, ):
+        raise ValueError('delta_varp must have shape (3, ). Got {}'.format(delta_varp.shape))
+
+    if range_bias is None:
+        range_bias = 0.0
+    else:
+        range_bias = float(range_bias)
+    return delta_arp, delta_varp, range_bias
+
+def _validate_basic(sicd, im_points, delta_arp, delta_varp, range_bias):
+    """
+    Helper functions.
+
+    Parameters
+    ----------
+    sicd : SICDType
+    im_points : numpy.ndarray|list|tuple
+    delta_arp : None|numpy.ndarray|list|tuple
+    delta_varp : None|numpy.ndarray|list|tuple
+    range_bias : None|float|int
+
+    Returns
+    -------
+    Tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray, float, numpy.ndarray, numpy.ndarray, numpy.ndarray, float, float]
+    """
+
     if not isinstance(im_points, numpy.ndarray):
         im_points = numpy.array(im_points, dtype=numpy.float64)
 
@@ -184,7 +285,49 @@ def _validate_im_points(im_points):
         raise ValueError(
             'The im_points array must represent an array of points in pixel coordinates, '
             'so the final dimension of im_points must have length 2. Have im_points.shape = {}'.format(im_points.shape))
-    return im_points
+
+    delta_arp, delta_varp, range_bias = _validate_adjustment_params(delta_arp, delta_varp, range_bias)
+
+    ARP_SCP_COA = sicd.SCPCOA.ARPPos.get_array()
+    VARP_SCP_COA = sicd.SCPCOA.ARPVel.get_array()
+    SCP = sicd.GeoData.SCP.ECF.get_array()
+    row_ss = sicd.Grid.Row.SS
+    col_ss = sicd.Grid.Col.SS
+
+    return im_points, delta_arp, delta_varp, range_bias, ARP_SCP_COA, VARP_SCP_COA, SCP, row_ss, col_ss
+
+
+def _apply_adjustment(ARP_SCP_COA, VARP_SCP_COA,
+                      adj_params_frame, r_tgt_coa, arp_coa, varp_coa,
+                      delta_arp, delta_varp, range_bias):
+    """
+    Common use helper function for applying the adjustment parameters.
+
+    Parameters
+    ----------
+    ARP_SCP_COA : numpoy.ndarray
+    VARP_SCP_COA : numpoy.ndarray
+    adj_params_frame : str
+    r_tgt_coa : numpy.ndarray
+    arp_coa : numpy.ndarray
+    varp_coa : numpy.ndarray
+    delta_arp : numpy.ndarray
+    delta_varp : numpy.ndarray
+    range_bias : float
+
+    Returns
+    -------
+    Tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray]
+    """
+
+    if adj_params_frame in ['RIC_ECI', 'RIC_ECF']:
+        # Translate from RIC frame to ECF frame
+        # Use the RIC frame at SCP COA time, not at COA time for im_points
+        T_ECEF_RIC = _ric_ecf_mat(ARP_SCP_COA, VARP_SCP_COA, adj_params_frame)
+        # NB: transpose since we are multiplying on the right for dimensionality
+        delta_arp = delta_arp.dot(T_ECEF_RIC.T)
+        delta_varp = delta_varp.dot(T_ECEF_RIC.T)
+    return arp_coa+delta_arp, varp_coa+delta_varp, r_tgt_coa+range_bias
 
 
 def _ric_ecf_mat(rarp, varp, frame_type):
@@ -217,47 +360,18 @@ def _ric_ecf_mat(rarp, varp, frame_type):
     return numpy.array([r, i, c], dtype=numpy.float64)
 
 
-def _validate_basic(delta_arp=None, delta_varp=None, range_bias=0):
-    if delta_arp is None:
-        delta_arp = numpy.array([0, 0, 0], dtype=numpy.float64)
-    if not isinstance(delta_arp, numpy.ndarray):
-        delta_arp = numpy.array(delta_arp, dtype=numpy.float64)
-    if delta_arp.shape != (3, ):
-        raise ValueError('delta_arp must have shape (3, ). Got {}'.format(delta_arp.shape))
-
-    if delta_varp is None:
-        delta_varp = numpy.array([0, 0, 0], dtype=numpy.float64)
-    if not isinstance(delta_varp, numpy.ndarray):
-        delta_varp = numpy.array(delta_varp, dtype=numpy.float64)
-    if delta_varp.shape != (3, ):
-        raise ValueError('delta_varp must have shape (3, ). Got {}'.format(delta_varp.shape))
-    if range_bias is None:
-        range_bias = 0.0
-    else:
-        range_bias = float(range_bias)
-    return delta_arp, delta_varp, range_bias
-
-
-def _apply_adjustment(ARP_SCP_COA, VARP_SCP_COA,
-                      adj_params_frame, r_tgt_coa, arp_coa, varp_coa, delta_arp, delta_varp, range_bias):
-    if adj_params_frame in ['RIC_ECI', 'RIC_ECF']:
-        # Translate from RIC frame to ECF frame
-        # Use the RIC frame at SCP COA time, not at COA time for im_points
-        T_ECEF_RIC = _ric_ecf_mat(ARP_SCP_COA, VARP_SCP_COA, adj_params_frame)
-        # NB: transpose since we are multiplying on the right for dimensionality
-        delta_arp = delta_arp.dot(T_ECEF_RIC.T)
-        delta_varp = delta_varp.dot(T_ECEF_RIC.T)
-    return arp_coa+delta_arp, varp_coa+delta_varp, r_tgt_coa+range_bias
-
-
 def _coa_projection_set(im_points, sicd, SCP, row_ss, col_ss):
     """
-    Computes the set of fundamental parameters for projecting a pixel down to the ground.
+    Helper function which computes the set of fundamental parameters for projecting
+    a pixel down to the ground.
 
     Parameters
     ----------
     im_points : numpy.ndarray
     sicd : SICDType
+    SCP : numpy.ndarray
+    row_ss : float
+    col_ss : float
 
     Returns
     -------
@@ -340,8 +454,7 @@ def _coa_projection_set(im_points, sicd, SCP, row_ss, col_ss):
 
 
 def image_to_ground(im_points, sicd, block_size=50000, projection_type='HAE',
-                    delta_arp=None, delta_varp=None, range_bias=0,
-                    adj_params_frame='ECF', **kwargs):
+                    delta_arp=None, delta_varp=None, range_bias=None, adj_params_frame='ECF', **kwargs):
     """
     Transforms image coordinates to ground plane ECF coordinate via the algorithm(s)
     described in SICD Image Projections document.
@@ -373,7 +486,7 @@ def image_to_ground(im_points, sicd, block_size=50000, projection_type='HAE',
     Returns
     -------
     numpy.ndarray
-        ECF Ground Points along the R/Rdot contour
+        Ground Plane Point (in ECF coordinates) along the R/Rdot contour.
     """
 
     p_type = projection_type.upper()
@@ -397,15 +510,51 @@ def image_to_ground(im_points, sicd, block_size=50000, projection_type='HAE',
 
 
 def image_to_ground_geo(im_points, sicd, **kwargs):
-    # TODO: docstring
+    """
+    Transforms image coordinates to ground plane Lat/Lon/HAE coordinate via the algorithm(s)
+    described in SICD Image Projections document.
+
+    Parameters
+    ----------
+    im_points : numpy.ndarray|list|tuple
+        (row, column) coordinates of N points in image (or subimage if FirstRow/FirstCol are nonzero).
+        Following SICD convention, the upper-left pixel is [0, 0].
+    sicd : SICDType
+            SICD meta data structure.
+    kwargs : dict
+        See the keyword argumments in :func:`image_to_ground`.
+
+    Returns
+    -------
+    numpy.ndarray
+        Ground Plane Point (in Lat/Lon/HAE coordinates) along the R/Rdot contour.
+    """
+
     return geocoords.ecf_to_geodetic(image_to_ground(im_points, sicd, **kwargs))
 
 
 #####
 # Projection type is PLANE
 
-def _image_to_ground_plane_perform(
-        r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa, gref, uZ):
+def _image_to_ground_plane_perform(r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa, gref, uZ):
+    """
+    Base level helper function for completing the actual projection.
+
+    Parameters
+    ----------
+    r_tgt_coa : numpy.ndarray
+    r_dot_tgt_coa : numpy.ndarray
+    arp_coa : numpy.ndarray
+    varp_coa : numpy.ndarray
+    gref : numpy.ndarray
+    uZ : numpy.ndarray
+
+    Returns
+    -------
+    numpy.ndarray
+        Ground Plane Point in ground plane and along the R/Rdot contour
+    """
+
     # Solve for the intersection of a R/Rdot contour and a ground plane.
     arpZ = numpy.sum((arp_coa - gref)*uZ, axis=-1)
     arpZ[arpZ > r_tgt_coa] = numpy.nan
@@ -438,6 +587,45 @@ def _image_to_ground_plane_perform(
 
 def _image_to_ground_plane(im_points, sicd, delta_arp, delta_varp, range_bias, adj_params_frame,
                            SCP, row_ss, col_ss, ARP_SCP_COA, VARP_SCP_COA, gref, uZ):
+    """
+    Intermediate helper function for projection.
+
+    Parameters
+    ----------
+    im_points : numpy.ndarray
+        the image coordinate array
+    sicd : SICDType
+        the SICD metadata structure.
+    delta_arp : numpy.ndarray
+        ARP position adjustable parameter (ECF, m).  Defaults to 0 in each coordinate.
+    delta_varp : numpy.ndarray
+        VARP position adjustable parameter (ECF, m/s).  Defaults to 0 in each coordinate.
+    range_bias : float
+        Range bias adjustable parameter (m), defaults to 0.
+    adj_params_frame : str
+        One of ['ECF', 'RIC_ECF', 'RIC_ECI'], specifying the coordinate frame used for
+        expressing `delta_arp` and `delta_varp` parameters.
+    SCP : numpy.ndarray
+        the Scene Center Point array
+    row_ss : float
+        the row spacing parameter
+    col_ss : float
+        the column spacing parameter
+    ARP_SCP_COA : numpy.ndarray
+        the SCP COA position array
+    VARP_SCP_COA : numpy.ndarray
+        the SCP COA velocity array
+    gref : numpy.ndarray
+        Ground plane reference point ECF coordinates (m).
+    uZ : numpy.ndarray
+        Vector normal to the plane to which we are projecting.
+
+    Returns
+    -------
+    numpy.ndarray
+        Ground Plane Point in ground plane and along the R/Rdot contour
+    """
+
     # get (image formation specific) projection parameters
     r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa, t_coa = _coa_projection_set(im_points, sicd, SCP, row_ss, col_ss)
 
@@ -483,7 +671,7 @@ def image_to_ground_plane(
     Returns
     -------
     numpy.ndarray
-        ECF Ground Points along the R/Rdot contour
+        Ground Plane Point (in ECF coordinates) along the R/Rdot contour.
     """
 
     if gref is None:
@@ -495,15 +683,9 @@ def image_to_ground_plane(
         ugpn = numpy.reshape(ugpn, (3, ))
     uZ = ugpn/numpy.linalg.norm(ugpn)
 
-    im_points = _validate_im_points(im_points)
-
-    ARP_SCP_COA = sicd.SCPCOA.ARPPos.get_array()
-    VARP_SCP_COA = sicd.SCPCOA.ARPVel.get_array()
-    SCP = sicd.GeoData.SCP.ECF.get_array()
-    row_ss = sicd.Grid.Row.SS
-    col_ss = sicd.Grid.Col.SS
-
-    delta_arp, delta_varp, range_bias = _validate_basic(delta_arp, delta_varp, range_bias)
+    im_points, delta_arp, delta_varp, range_bias, \
+        ARP_SCP_COA, VARP_SCP_COA, SCP, \
+        row_ss, col_ss = _validate_basic(sicd, im_points, delta_arp, delta_varp, range_bias)
 
     # prepare workspace
     orig_shape = im_points.shape
@@ -535,6 +717,48 @@ def image_to_ground_plane(
 def _image_to_ground_hae(
         im_points, sicd, delta_arp, delta_varp, range_bias, adj_params_frame,
         SCP, row_ss, col_ss, ARP_SCP_COA, VARP_SCP_COA, hae0, delta_hae_max, hae_nlim, scp_hae):
+    """
+    Intermediate helper function for projection.
+
+    Parameters
+    ----------
+    im_points : numpy.ndarray
+        the image coordinate array
+    sicd : SICDType
+        the SICD metadata structure.
+    delta_arp : numpy.ndarray
+        ARP position adjustable parameter (ECF, m).  Defaults to 0 in each coordinate.
+    delta_varp : numpy.ndarray
+        VARP position adjustable parameter (ECF, m/s).  Defaults to 0 in each coordinate.
+    range_bias : float
+        Range bias adjustable parameter (m), defaults to 0.
+    adj_params_frame : str
+        One of ['ECF', 'RIC_ECF', 'RIC_ECI'], specifying the coordinate frame used for
+        expressing `delta_arp` and `delta_varp` parameters.
+    SCP : numpy.ndarray
+        the Scene Center Point array
+    row_ss : float
+        the row spacing parameter
+    col_ss : float
+        the column spacing parameter
+    ARP_SCP_COA : numpy.ndarray
+        the SCP COA position array
+    VARP_SCP_COA : numpy.ndarray
+        the SCP COA velocity array
+    hae0 : float
+        Surface height (m) above the WGS-84 reference ellipsoid for projection point.
+    delta_hae_max : float
+        Height threshold for convergence of iterative constant HAE computation (m).
+    hae_nlim : int
+        Maximum number of iterations allowed for constant hae computation. Defaults to 5.
+    scp_hae : float
+        The HAE of the SCP.
+
+    Returns
+    -------
+    numpy.ndarray
+        Ground Plane Point (in ECF coordinates) along the R/Rdot contour.
+    """
 
     # get (image formation specific) projection parameters
     r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa, t_coa = _coa_projection_set(im_points, sicd, SCP, row_ss, col_ss)
@@ -564,8 +788,8 @@ def _image_to_ground_hae(
         delta_hae = gpp_llh[:, 2] - hae0
         gref = gpp - numpy.outer(delta_hae, ugpn)
         # should we stop our iteration?
-        cont = numpy.all(numpy.abs(delta_hae) > delta_hae_max) and (iters <= hae_nlim)
-    # TODO: what if the above is bad?
+        cont = numpy.any(numpy.abs(delta_hae) > delta_hae_max) and (iters <= hae_nlim)
+        # TODO: why numpy.all? I changed it to any. what if the above is not very good?
     # Compute the unit slant plane normal vector, uspn, that is tangent to the R/Rdot contour at point gpp
     spn = (numpy.cross(varp_coa, (gpp - arp_coa)).T*look).T
     uspn = (spn.T/numpy.linalg.norm(spn, axis=-1)).T
@@ -609,6 +833,7 @@ def image_to_ground_hae(im_points, sicd, block_size=50000,
         expressing `delta_arp` and `delta_varp` parameters.
     hae0 : None|float|int
         Surface height (m) above the WGS-84 reference ellipsoid for projection point.
+        The HAE at the SCP is the default.
     delta_hae_max : None|float|int
         Height threshold for convergence of iterative constant HAE computation (m). Defaults to 1.
     hae_nlim : int
@@ -617,7 +842,7 @@ def image_to_ground_hae(im_points, sicd, block_size=50000,
     Returns
     -------
     numpy.ndarray
-        ECF Ground Points along the R/Rdot contour
+        Ground Plane Point (in ECF coordinates) along the R/Rdot contour.
     """
 
     scp_hae = sicd.GeoData.SCP.LLH.HAE
@@ -635,15 +860,9 @@ def image_to_ground_hae(im_points, sicd, block_size=50000,
     if hae_nlim <= 0:
         raise ValueError('hae_nlim must be a positive integer. Got {}'.format(hae_nlim))
 
-    im_points = _validate_im_points(im_points)
-
-    ARP_SCP_COA = sicd.SCPCOA.ARPPos.get_array()
-    VARP_SCP_COA = sicd.SCPCOA.ARPVel.get_array()
-    SCP = sicd.GeoData.SCP.ECF.get_array()
-    row_ss = sicd.Grid.Row.SS
-    col_ss = sicd.Grid.Col.SS
-
-    delta_arp, delta_varp, range_bias = _validate_basic(delta_arp, delta_varp, range_bias)
+    im_points, delta_arp, delta_varp, range_bias, \
+        ARP_SCP_COA, VARP_SCP_COA, SCP, \
+        row_ss, col_ss = _validate_basic(sicd, im_points, delta_arp, delta_varp, range_bias)
 
     # prepare workspace
     orig_shape = im_points.shape
@@ -712,7 +931,11 @@ def image_to_ground_dem(im_points, sicd, block_size=50000,
     Returns
     -------
     numpy.ndarray
-        ECF Ground Points along the R/Rdot contour
+        Ground Plane Point (in ECF coordinates) along the R/Rdot contour.
     """
+
+    im_points, delta_arp, delta_varp, range_bias, \
+        ARP_SCP_COA, VARP_SCP_COA, SCP, \
+        row_ss, col_ss = _validate_basic(sicd, im_points, delta_arp, delta_varp, range_bias)
 
     raise NotImplementedError
