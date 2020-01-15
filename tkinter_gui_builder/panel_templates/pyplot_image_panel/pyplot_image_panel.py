@@ -5,7 +5,7 @@ import numpy as np
 
 
 class PyplotImagePanel(tk.LabelFrame):
-    def __init__(self, parent, canvas_width=600, canvas_height=300):
+    def __init__(self, parent, canvas_width=600, canvas_height=400):
         tk.LabelFrame.__init__(self, parent)
         self.config(highlightbackground="black")
         self.config(highlightthickness=1)

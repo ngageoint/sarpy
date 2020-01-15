@@ -23,6 +23,7 @@ class AppVariables:
 
         self.current_shape_id = None
         self.current_shape_canvas_anchor_point_xy = None
+        self.pan_anchor_point_xy = None
         self.shape_ids = []            # type: [int]
         self.shape_properties = {}
         self.canvas_image_object = None         # type: AbstractCanvasImage
@@ -45,9 +46,6 @@ class ImageCanvas(tk.LabelFrame):
         tk.LabelFrame.__init__(self, master)
 
         self.variables = AppVariables()
-        self.TOOLS = TOOLS
-        self.SHAPE_PROPERTIES = SHAPE_PROPERTIES
-        self.SHAPE_TYPES = SHAPE_TYPES
 
         self.scale_dynamic_range = False
         self.canvas_height = 200            # default width
@@ -85,18 +83,26 @@ class ImageCanvas(tk.LabelFrame):
 
         self._tk_im = None               # type: ImageTk.PhotoImage
 
+        self.rescale_image_to_fit_canvas = True
+
     def init_with_fname(self,
                         fname,  # type: str
                         ):
-        self.variables.canvas_image_object.init_from_fname_and_canvas_size(fname, self.canvas_height, self.canvas_width)
-        self.set_image_from_numpy_array(self.variables.canvas_image_object.canvas_decimated_image)
+        self.variables.canvas_image_object.init_from_fname_and_canvas_size(fname, self.canvas_height, self.canvas_width, scale_to_fit_canvas=self.rescale_image_to_fit_canvas)
+        if self.rescale_image_to_fit_canvas:
+            self.set_image_from_numpy_array(self.variables.canvas_image_object.display_image_scaled_to_fit)
+        else:
+            self.set_image_from_numpy_array(self.variables.canvas_image_object.canvas_decimated_image)
 
     def init_with_numpy_image(self,
                               numpy_array,      # type: np.ndarray
                               ):
         self.variables.canvas_image_object = NumpyCanvasDisplayImage()
         self.variables.canvas_image_object.init_from_numpy_array_and_canvas_size(numpy_array, self.canvas_height, self.canvas_width)
-        self.set_image_from_numpy_array(self.variables.canvas_image_object.canvas_decimated_image)
+        if self.rescale_image_to_fit_canvas:
+            self.set_image_from_numpy_array(self.variables.canvas_image_object.display_image_scaled_to_fit)
+        else:
+            self.set_image_from_numpy_array(self.variables.canvas_image_object.canvas_decimated_image)
 
     def set_labelframe_text(self, label):
         self.config(text=label)
@@ -172,13 +178,18 @@ class ImageCanvas(tk.LabelFrame):
 
     def callback_handle_left_mouse_click(self, event):
         if self.variables.current_tool == TOOLS.PAN_TOOL:
+            self.variables.pan_anchor_point_xy = event.x, event.y
+            self.variables.tmp_anchor_point = event.x, event.y
             print("pan tool")
         else:
             self.event_create_or_reinitialize_shape(event)
 
     def callback_handle_left_mouse_motion(self, event):
         if self.variables.current_tool == TOOLS.PAN_TOOL:
-            self.canvas.scan_dragto(event.x, event.y, gain=1)
+            x_dist = event.x - self.variables.tmp_anchor_point[0]
+            y_dist = event.y - self.variables.tmp_anchor_point[1]
+            self.canvas.move(self.variables.image_id, x_dist, y_dist)
+            self.variables.tmp_anchor_point = event.x, event.y
         else:
             self.event_drag_shape(event)
 
@@ -415,12 +426,15 @@ class ImageCanvas(tk.LabelFrame):
 
     def get_image_data_in_canvas_rect_by_id(self, rect_id):
         coords = self.canvas.coords(rect_id)
-        return self.variables.canvas_image_object.get_image_data_in_canvas_rect(coords)
+        return self.variables.canvas_image_object.get_true_decimated_image_data_in_canvas_rect(coords)
 
     def zoom_to_selection(self, canvas_rect):
         background_image = self.variables.canvas_image_object.canvas_decimated_image
         self.variables.canvas_image_object.update_canvas_display_image_from_canvas_rect(canvas_rect)
-        new_image = PIL.Image.fromarray(self.variables.canvas_image_object.canvas_decimated_image)
+        if self.rescale_image_to_fit_canvas:
+            new_image = PIL.Image.fromarray(self.variables.canvas_image_object.display_image_scaled_to_fit)
+        else:
+            new_image = PIL.Image.fromarray(self.variables.canvas_image_object.canvas_decimated_image)
         if self.variables.animate_zoom is True:
             n_animations = self.variables.n_zoom_animations
             background_image = background_image / 2
@@ -441,7 +455,10 @@ class ImageCanvas(tk.LabelFrame):
                 new_display_image.paste(resized_zoom_image, (new_x_ul, new_y_ul))
                 self._set_image_from_pil_image(new_display_image)
                 self.canvas.update()
-        self.set_image_from_numpy_array(self.variables.canvas_image_object.canvas_decimated_image)
+        if self.rescale_image_to_fit_canvas:
+            self.set_image_from_numpy_array(self.variables.canvas_image_object.display_image_scaled_to_fit)
+        else:
+            self.set_image_from_numpy_array(self.variables.canvas_image_object.canvas_decimated_image)
         self.canvas.update()
         self.redraw_all_shapes()
 

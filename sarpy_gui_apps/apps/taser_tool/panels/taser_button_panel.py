@@ -8,6 +8,7 @@ class TaserButtonPanel(AbstractWidgetPanel):
     zoom_out = basic_widgets.Button
     rect_select = basic_widgets.Button
     update_rect_image = basic_widgets.Button
+    pan = basic_widgets.Button
     remap_dropdown = basic_widgets.Combobox         # type: basic_widgets.Combobox
 
     def __init__(self, parent):
@@ -16,6 +17,7 @@ class TaserButtonPanel(AbstractWidgetPanel):
         self.init_w_vertical_layout(["fname_select",
                                      "zoom_in",
                                      "zoom_out",
+                                     "pan",
                                      "rect_select",
                                      "update_rect_image",
                                      "remap_dropdown"])

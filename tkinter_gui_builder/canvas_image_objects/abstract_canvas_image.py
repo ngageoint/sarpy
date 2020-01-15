@@ -3,6 +3,7 @@ from six import add_metaclass
 import abc
 from typing import Union
 import PIL.Image
+import numpy as np
 
 
 @add_metaclass(abc.ABCMeta)
@@ -11,19 +12,19 @@ class AbstractCanvasImage:
     display_image_scaled_to_fit = None  # type: ndarray
     fname = None  # type: str
     true_decimation_factor = 1  # type: int
-    display_image_decimation_factor = 1  # type: float
+    display_rescaling_factor = 1  # type: float
     full_image_nx = None  # type: int
     full_image_ny = None  # type: int
     canvas_full_image_upper_left_yx = (0, 0)  # type: (int, int)
     canvas_ny = None
     canvas_nx = None
-    scale_to_fit_canvas = True
+    scale_to_fit_canvas = False
 
     @abc.abstractmethod
-    def get_image_data_in_full_image_rect(self,
-                                          full_image_rect,          # type: (int, int, int, int)
-                                          decimation,               # type: int
-                                          ):
+    def get_true_decimated_image_data_in_full_image_rect(self,
+                                                         full_image_rect,  # type: (int, int, int, int)
+                                                         decimation,  # type: int
+                                                         ):
         pass
 
     @abc.abstractmethod
@@ -31,6 +32,7 @@ class AbstractCanvasImage:
                                         fname,  # type: str
                                         canvas_ny,      # type: int
                                         canvas_nx,      # type: int
+                                        scale_to_fit_canvas=False,        # type: bool
                                         ):
         """
         All subclassed methods of this should set an image reader object, self.canvas_ny, and self.canvas_nx, then call this
@@ -38,23 +40,39 @@ class AbstractCanvasImage:
         :param fname:
         :param canvas_ny:
         :param canvas_nx:
+        :param scale_to_fit_canvas:
         :return:
         """
         pass
 
-    def get_scaled_display_data(self):
-        pil_image = PIL.Image.fromarray(self.canvas_decimated_image)
-        display_image = pil_image.resize((self.canvas_nx, self.canvas_ny))
-        return display_image
+    def get_scaled_display_data(self, decimated_image):
+        scale_factor = self.compute_display_scale_factor(decimated_image)
+        new_nx = int(decimated_image.shape[1] * scale_factor)
+        new_ny = int(decimated_image.shape[0] * scale_factor)
+        if new_nx > self.canvas_nx:
+            new_nx = self.canvas_nx
+        if new_ny > self.canvas_ny:
+            new_ny = self.canvas_ny
+        pil_image = PIL.Image.fromarray(decimated_image)
+        display_image = pil_image.resize((new_nx, new_ny))
+        return np.array(display_image)
 
-    def get_image_data_in_canvas_rect(self,
-                                      canvas_rect,          # type: (int, int, int, int)
-                                      decimation=None,           # type: int
-                                      ):
+    def compute_display_scale_factor(self, decimated_image):
+        decimated_image_nx = decimated_image.shape[1]
+        decimated_image_ny = decimated_image.shape[0]
+        scale_factor_1 = self.canvas_nx / decimated_image_nx
+        scale_factor_2 = self.canvas_ny / decimated_image_ny
+        scale_factor = np.min((scale_factor_1, scale_factor_2))
+        return scale_factor
+
+    def get_true_decimated_image_data_in_canvas_rect(self,
+                                                     canvas_rect,  # type: (int, int, int, int)
+                                                     decimation=None,  # type: int
+                                                     ):
         full_image_rect = self.canvas_rect_to_full_image_rect(canvas_rect)
         if decimation is None:
-            decimation = self.get_decimation_from_canvas_rect(canvas_rect)
-        return self.get_image_data_in_full_image_rect(full_image_rect, decimation)
+            decimation = self.get_true_decimation_from_canvas_rect(canvas_rect)
+        return self.get_true_decimated_image_data_in_full_image_rect(full_image_rect, decimation)
 
     def update_canvas_display_image_from_full_image(self):
         full_image_rect = (0, 0, self.full_image_ny, self.full_image_nx)
@@ -62,8 +80,8 @@ class AbstractCanvasImage:
 
     def update_canvas_display_image_from_full_image_rect(self, full_image_rect):
         self.set_decimation_from_full_image_rect(full_image_rect)
-        im_data = self.get_image_data_in_full_image_rect(full_image_rect, self.true_decimation_factor)
-        self.update_canvas_display_from_numpy_array(im_data)
+        true_decimated_im_data = self.get_true_decimated_image_data_in_full_image_rect(full_image_rect, self.true_decimation_factor)
+        self.update_canvas_display_from_numpy_array(true_decimated_im_data)
         self.canvas_full_image_upper_left_yx = (full_image_rect[0], full_image_rect[1])
 
     def update_canvas_display_image_from_canvas_rect(self, canvas_rect):
@@ -74,6 +92,10 @@ class AbstractCanvasImage:
                                                image_data,  # type: ndarray
                                                ):
         self.canvas_decimated_image = image_data
+        if self.scale_to_fit_canvas:
+            scale_factor = self.compute_display_scale_factor(image_data)
+            self.display_rescaling_factor = scale_factor
+            self.display_image_scaled_to_fit = self.get_scaled_display_data(image_data)
 
     def get_true_decimation_factor_from_full_image_rect(self, full_image_rect):
         display_decimation_factor = self.get_display_decimation_factor_from_full_image_rect(full_image_rect)
@@ -90,15 +112,19 @@ class AbstractCanvasImage:
         decimation_factor = max(decimation_y, decimation_x)
         return decimation_factor
 
-    def get_decimation_from_canvas_rect(self, canvas_rect):
+    def get_true_decimation_from_canvas_rect(self, canvas_rect):
         full_image_rect = self.canvas_rect_to_full_image_rect(canvas_rect)
         return self.get_true_decimation_factor_from_full_image_rect(full_image_rect)
+
+    def get_display_decimation_from_canvas_rect(self, canvas_rect):
+        full_image_rect = self.canvas_rect_to_full_image_rect(canvas_rect)
+        return self.get_display_decimation_factor_from_full_image_rect(full_image_rect)
 
     def set_decimation_from_full_image_rect(self, full_image_rect):
         true_decimation_factor = self.get_true_decimation_factor_from_full_image_rect(full_image_rect)
         display_decimation_factor = self.get_display_decimation_factor_from_full_image_rect(full_image_rect)
         self.true_decimation_factor = true_decimation_factor
-        self.display_image_decimation_factor = display_decimation_factor
+        self.display_rescaling_factor = display_decimation_factor
 
     def canvas_coords_to_full_image_yx(self,
                                        canvas_coords,       # type: [int]
@@ -109,8 +135,11 @@ class AbstractCanvasImage:
         image_yx_coords = []
         # TODO: this can be optimized for speed
         for xy in xy_coords:
-            image_x = xy[0] * self.true_decimation_factor + self.canvas_full_image_upper_left_yx[1]
-            image_y = xy[1] * self.true_decimation_factor + self.canvas_full_image_upper_left_yx[0]
+            decimation_factor = self.true_decimation_factor
+            if self.scale_to_fit_canvas:
+                decimation_factor = decimation_factor / self.display_rescaling_factor
+            image_x = xy[0] * decimation_factor + self.canvas_full_image_upper_left_yx[1]
+            image_y = xy[1] * decimation_factor + self.canvas_full_image_upper_left_yx[0]
             image_yx_coords.append(image_y)
             image_yx_coords.append(image_x)
         return image_yx_coords

@@ -13,6 +13,7 @@ class SarpyCanvasDisplayImage(AbstractCanvasImage):
                                         fname,      # type: str
                                         canvas_ny,  # type: int
                                         canvas_nx,  # type: int
+                                        scale_to_fit_canvas=False,      # type: bool
                                         ):
         self.fname = fname
         self.reader_object = sarpy_complex.open(fname)
@@ -20,18 +21,19 @@ class SarpyCanvasDisplayImage(AbstractCanvasImage):
         self.full_image_ny = self.reader_object.sicdmeta.ImageData.FullImage.NumRows
         self.canvas_nx = canvas_nx
         self.canvas_ny = canvas_ny
+        self.scale_to_fit_canvas = scale_to_fit_canvas
         self.update_canvas_display_image_from_full_image()
 
-    def get_image_data_in_full_image_rect(self,
-                                          full_image_rect,          # type: (int, int, int, int)
-                                          decimation,               # type: int
-                                          ):
+    def get_true_decimated_image_data_in_full_image_rect(self,
+                                                         full_image_rect,  # type: (int, int, int, int)
+                                                         decimation,  # type: int
+                                                         ):
         if decimation < 1:
             decimation = 1
         y1, x1, y2, x2 = full_image_rect[0], full_image_rect[1], full_image_rect[2], full_image_rect[3]
         cdata = self.reader_object.read_chip[y1:y2:decimation, x1:x2:decimation]
-        display_data = self.remap_complex_data(cdata)
-        return display_data
+        decimated_image_data = self.remap_complex_data(cdata)
+        return decimated_image_data
 
     def remap_complex_data(self,
                            complex_data,    # type: np.ndarray

@@ -31,7 +31,8 @@ class Taser(AbstractWidgetPanel):
         # define panels widget_wrappers in master frame
         self.button_panel.set_spacing_between_buttons(0)
         self.taser_image_panel.variables.canvas_image_object = SarpyCanvasDisplayImage()  # type: SarpyCanvasDisplayImage
-        self.taser_image_panel.set_canvas_size(600, 400)
+        self.taser_image_panel.set_canvas_size(700, 400)
+        self.taser_image_panel.rescale_image_to_fit_canvas = True
 
         # need to pack both master frame and self, since this is the main app window.
         master_frame.pack()
@@ -43,6 +44,7 @@ class Taser(AbstractWidgetPanel):
         self.button_panel.remap_dropdown.on_selection(self.callback_remap)
         self.button_panel.zoom_in.on_left_mouse_click(self.callback_set_to_zoom_in)
         self.button_panel.zoom_out.on_left_mouse_click(self.callback_set_to_zoom_out)
+        self.button_panel.pan.on_left_mouse_click(self.callback_set_to_pan)
         self.button_panel.rect_select.on_left_mouse_click(self.callback_set_to_select)
 
     def callback_set_to_zoom_in(self, event):
@@ -52,6 +54,10 @@ class Taser(AbstractWidgetPanel):
     def callback_set_to_zoom_out(self, event):
         self.taser_image_panel.set_current_tool_to_zoom_out()
         self.taser_image_panel.hide_shape(self.taser_image_panel.variables.select_rect_id)
+
+    def callback_set_to_pan(self, event):
+        self.taser_image_panel.set_current_tool_to_pan()
+        self.taser_image_panel.hide_shape(self.taser_image_panel.variables.zoom_rect_id)
 
     def callback_set_to_select(self, event):
         self.taser_image_panel.set_current_tool_to_draw_rect(self.taser_image_panel.variables.select_rect_id)
@@ -79,7 +85,7 @@ class Taser(AbstractWidgetPanel):
         new_fname = askopenfilename(initialdir=os.path.expanduser("~"), filetypes=ftypes)
         if new_fname:
             self.variables.fname = new_fname
-        self.taser_image_panel.init_with_fname(self.variables.fname)
+            self.taser_image_panel.init_with_fname(self.variables.fname)
 
     def callback_display_canvas_rect_selection_in_pyplot_frame(self, event):
         complex_data = self.taser_image_panel.get_image_data_in_canvas_rect_by_id(self.taser_image_panel.variables.current_shape_id)
