@@ -45,6 +45,10 @@ class ImageCanvas(tk.LabelFrame):
     def __init__(self, master):
         tk.LabelFrame.__init__(self, master)
 
+        self.SHAPE_PROPERTIES = SHAPE_PROPERTIES
+        self.SHAPE_TYPES = SHAPE_TYPES
+        self.TOOLS = TOOLS
+
         self.variables = AppVariables()
 
         self.scale_dynamic_range = False

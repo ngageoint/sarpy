@@ -168,9 +168,12 @@ class AbstractCanvasImage:
         x_coords = full_image_yx[1::2]
         image_yx_coords = zip(y_coords, x_coords)
         canvas_xy_coords = []
+        decimation_factor = self.true_decimation_factor
+        if self.scale_to_fit_canvas:
+            decimation_factor = decimation_factor / self.display_rescaling_factor
         for image_yx in image_yx_coords:
-            canvas_x = (image_yx[1] - self.canvas_full_image_upper_left_yx[1]) / self.true_decimation_factor
-            canvas_y = (image_yx[0] - self.canvas_full_image_upper_left_yx[0]) / self.true_decimation_factor
+            canvas_x = (image_yx[1] - self.canvas_full_image_upper_left_yx[1]) / decimation_factor
+            canvas_y = (image_yx[0] - self.canvas_full_image_upper_left_yx[0]) / decimation_factor
             canvas_xy_coords.append(canvas_x)
             canvas_xy_coords.append(canvas_y)
         return canvas_xy_coords
