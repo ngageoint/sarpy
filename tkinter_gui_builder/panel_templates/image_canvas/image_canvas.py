@@ -50,8 +50,8 @@ class ImageCanvas(tk.LabelFrame):
         self.SHAPE_TYPES = SHAPE_TYPES
 
         self.scale_dynamic_range = False
-        self.canvas_height = None
-        self.canvas_width = None
+        self.canvas_height = 200            # default width
+        self.canvas_width = 300             # default height
         self.canvas = basic_widgets.Canvas(self)
         self.canvas.pack(fill=tk.BOTH, expand=tk.YES)
         self.canvas.pack()
@@ -171,10 +171,16 @@ class ImageCanvas(tk.LabelFrame):
             self.hide_shape(self.variables.zoom_rect_id)
 
     def callback_handle_left_mouse_click(self, event):
-        self.event_create_or_reinitialize_shape(event)
+        if self.variables.current_tool == TOOLS.PAN_TOOL:
+            print("pan tool")
+        else:
+            self.event_create_or_reinitialize_shape(event)
 
     def callback_handle_left_mouse_motion(self, event):
-        self.event_drag_shape(event)
+        if self.variables.current_tool == TOOLS.PAN_TOOL:
+            self.canvas.scan_dragto(event.x, event.y, gain=1)
+        else:
+            self.event_drag_shape(event)
 
     def set_image_from_numpy_array(self,
                                    numpy_data,                      # type: np.ndarray
@@ -477,6 +483,9 @@ class ImageCanvas(tk.LabelFrame):
         self.variables.current_shape_id = point_id
         self.variables.current_tool = TOOLS.DRAW_POINT_TOOL
         self.show_shape(point_id)
+
+    def set_current_tool_to_pan(self):
+        self.variables.current_tool = TOOLS.PAN_TOOL
 
     def _set_image_from_pil_image(self, pil_image):
         nx_pix, ny_pix = pil_image.size
