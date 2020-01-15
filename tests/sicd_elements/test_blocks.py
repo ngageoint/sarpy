@@ -205,7 +205,9 @@ class TestXYZPoly(unittest.TestCase):
 
     def test_eval(self):
         item = blocks.XYZPolyType(X=[0, 1, 2], Y=[0, 2, 4], Z=[0, 3, 6])
-        self.assertTrue(numpy.all(item(1) == numpy.array([3, 6, 9])))
+        t = numpy.array([0, 1])
+        out = numpy.array([[0, 0, 0], [3, 6, 9]])
+        self.assertTrue(numpy.all(item(t) == out))
 
     def test_derivative(self):
         item = blocks.XYZPolyType(X=[0, 1, 2], Y=[0, 2, 4], Z=[0, 3, 6])

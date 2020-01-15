@@ -14,6 +14,7 @@ import scipy
 if scipy.__version__ >= '1.0':
     from scipy.special import comb
 else:
+    # noinspection PyUnresolvedReferences
     from scipy.misc import comb
 
 
@@ -1240,11 +1241,7 @@ class XYZPolyType(Serializable, Arrayable):
         if numpy.ndim(X) == 0:
             return numpy.array([X, Y, Z])
         else:
-            out = numpy.empty(X.shape + (3, ), dtype=X.dtype)
-            out[..., 0] = X
-            out[..., 1] = Y
-            out[..., 2] = Z
-            return out
+            return numpy.stack((X, Y, Z), axis=-1)
 
     def get_array(self, dtype=numpy.object):
         """Gets an array representation of the class instance.
