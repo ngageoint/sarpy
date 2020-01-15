@@ -128,16 +128,31 @@ class ImageCanvas(tk.LabelFrame):
             self.canvas.itemconfigure(shape_id, state="normal")
 
     def callback_mouse_zoom(self, event):
+        # TODO: This kind of works.  Change it so that the zoom location moves to the mouse, rather than the center
+        # TODO: of the image.  This will also require a refactor to make the image fit to the canvas, rather than
+        # TODO: go off the edge and use scroll bars.  Could also be made smoother, handle multiple events for a single
+        # TODO: long mouse scroll
         print("mouse zoom")
         single_delta = 120
         box_percent = 1.1
-        canvas_coords = [0, 0, self.canvas_width, self.canvas_height]
 
-        zoom_in_multipler = box_percent
-        zoom_out_multiplier = 2 - box_percent
+        zoom_in_box_half_width = int(self.canvas_width / box_percent / 2)
+        zoom_out_box_half_width = int(self.canvas_width * box_percent / 2)
+        zoom_in_box_half_height = int(self.canvas_height / box_percent / 2)
+        zoom_out_box_half_height = int(self.canvas_height * box_percent / 2)
 
         x = event.x
         y = event.y
+
+        zoom_in_box = [x - zoom_in_box_half_width, y - zoom_in_box_half_height, x + zoom_in_box_half_width, y + zoom_in_box_half_height]
+        zoom_out_box = [x - zoom_out_box_half_width, y - zoom_out_box_half_height, x + zoom_out_box_half_width, y + zoom_out_box_half_height]
+
+        if event.delta > 0:
+            self.zoom_to_selection(zoom_in_box)
+        else:
+            self.zoom_to_selection(zoom_out_box)
+            print(zoom_out_box)
+
         print(event)
 
     def callback_handle_left_mouse_release(self, event):
