@@ -16,7 +16,7 @@ __classification__ = "UNCLASSIFIED"
 
 
 #############
-# Ground-to-Image projection.
+# Ground-to-Image (aka Scene-to-Image) projection.
 
 def _validate_coords(coords, sicd):
     if not isinstance(coords, numpy.ndarray):
@@ -71,7 +71,7 @@ def _ground_to_image(coords, coa_proj, uGPN,
     while cont:
         # TODO: is there any point in progressively stopping iteration?
         #  It doesn't really save much computation time.
-        #  I set it to iterate over everything.
+        #  I set it to iterate over everything or nothing.
         # project ground plane to image plane iteration
         iteration += 1
         dist_n = numpy.dot(SCP - g_n, uIPN)/sf
@@ -84,11 +84,12 @@ def _ground_to_image(coords, coa_proj, uGPN,
         p_n = _image_to_ground_plane(im_points, coa_proj, g_n, uGPN)
         # compute displacement between scene point and this new projected point
         diff_n = coords - p_n
-        g_n += diff_n
         disp_pn = numpy.linalg.norm(diff_n, axis=1)
         # should we continue iterating?
-        if (iteration >= max_iterations) or numpy.all(disp_pn < delta_gp_max):
-            cont = False
+        cont = numpy.any(disp_pn > delta_gp_max) or (iteration <= max_iterations)
+        if cont:
+            g_n += diff_n
+
     return im_points, delta_gpn, iteration
 
 
@@ -97,6 +98,7 @@ def ground_to_image(coords, sicd, delta_gp_max=None, max_iterations=10, block_si
     """
     Transforms a 3D ECF point to pixel (row/column) coordinates. This is
     implemented in accordance with the SICD Image Projections Description Document.
+    **Really Scene-To-Image projection.**"
 
     Parameters
     ----------
@@ -123,19 +125,26 @@ def ground_to_image(coords, sicd, delta_gp_max=None, max_iterations=10, block_si
     Returns
     -------
     Tuple[numpy.ndarray, float, int]
-        * `image_points` - the determined image point array, of size `N x 2`. Following SICD convention,
-           the upper-left pixel is [0, 0].
+        * `image_points` - the determined image point array, of size `N x 2`. Following
+          the SICD convention, he upper-left pixel is [0, 0].
         * `delta_gpn` - residual ground plane displacement (m).
         * `iterations` - the number of iterations performed.
     """
 
     coords = _validate_coords(coords, sicd)
-    coa_proj = COAProjection(sicd, delta_arp, delta_varp, range_bias, adj_params_frame)
 
     row_ss = sicd.Grid.Row.SS
     col_ss = sicd.Grid.Col.SS
+    pixel_size = numpy.sqrt(row_ss*row_ss + col_ss*col_ss)
     if delta_gp_max is None:
-        delta_gp_max = 0.1*numpy.sqrt(row_ss*row_ss + col_ss*col_ss)
+        delta_gp_max = 0.1*pixel_size
+    delta_gp_max = float(delta_gp_max)
+    if delta_gp_max < 0.01*pixel_size:
+        delta_gp_max = 0.01*pixel_size
+        logging.warning('delta_gp_max was less than 0.01*pixel_size, '
+                        'and has been reset to {}'.format(delta_gp_max))
+
+    coa_proj = COAProjection(sicd, delta_arp, delta_varp, range_bias, adj_params_frame)
 
     # establishing the basic projection components
     SCP_Pixel = sicd.ImageData.SCPPixel.get_array()
@@ -219,15 +228,8 @@ def ground_to_image_geo(coords, sicd, **kwargs):
     return ground_to_image(geocoords.geodetic_to_ecf(coords), sicd, **kwargs)
 
 
-###########
-# Scene-to-image projection
-
-# TODO: fill this stuff in. The above should be fixed, and called this.
-#   The Ground-to-image should be populated (page 47 & 48).
-
-
 ############
-# Items for Image-To-Ground projections
+# Image-To-Ground projections
 
 def _ric_ecf_mat(rarp, varp, frame_type):
     """
@@ -692,7 +694,7 @@ def image_to_ground_geo(im_points, sicd, **kwargs):
 
 
 #####
-# Projection type is PLANE
+# Image-to-Ground Plane
 
 def _image_to_ground_plane_perform(r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa, gref, uZ):
     """
@@ -715,7 +717,7 @@ def _image_to_ground_plane_perform(r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa, 
     arpZ = numpy.sum((arp_coa - gref)*uZ, axis=-1)
     arpZ[arpZ > r_tgt_coa] = numpy.nan
     # ARP ground plane nadir
-    aGPN = arp_coa - numpy.outer(arpZ, uZ)  # TODO:
+    aGPN = arp_coa - numpy.outer(arpZ, uZ)
     # Compute ground plane distance (gd) from ARP nadir to circle of const range
     gd = numpy.sqrt(r_tgt_coa*r_tgt_coa - arpZ*arpZ)
     # Compute sine and cosine of grazing angle
@@ -724,17 +726,17 @@ def _image_to_ground_plane_perform(r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa, 
 
     # Velocity components normal to ground plane and parallel to ground plane.
     vMag = numpy.linalg.norm(varp_coa, axis=-1)
-    vZ = numpy.dot(varp_coa, uZ)  # TODO:
+    vZ = numpy.dot(varp_coa, uZ)
     vX = numpy.sqrt(vMag*vMag - vZ*vZ)  # Note: For Vx = 0, no Solution
     # Orient X such that Vx > 0 and compute unit vectors uX and uY
-    uX = ((varp_coa - numpy.outer(vZ, uZ)).T/vX).T  # TODO:
+    uX = ((varp_coa - numpy.outer(vZ, uZ)).T/vX).T
     uY = numpy.cross(uZ, uX)
     # Compute cosine of azimuth angle to ground plane point
     cosAz = (-r_dot_tgt_coa+vZ*sinGraz) / (vX * cosGraz)
     cosAz[numpy.abs(cosAz) > 1] = numpy.nan  # R/Rdot combination not possible in given plane
 
     # Compute sine of azimuth angle. Use LOOK to establish sign.
-    look = numpy.sign(numpy.dot(numpy.cross(arp_coa-gref, varp_coa), uZ))  # TODO:
+    look = numpy.sign(numpy.dot(numpy.cross(arp_coa-gref, varp_coa), uZ))
     sinAz = look * numpy.sqrt(1-cosAz*cosAz)
 
     # Compute Ground Plane Point in ground plane and along the R/Rdot contour
@@ -742,7 +744,20 @@ def _image_to_ground_plane_perform(r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa, 
 
 
 def _image_to_ground_plane(im_points, coa_projection, gref, uZ):
-    # type: (numpy.ndarray, COAProjection, numpy.ndarray, numpy.ndarray) -> numpy.ndarray
+    """
+
+    Parameters
+    ----------
+    im_points : numpy.ndarray
+    coa_projection : COAProjection
+    gref : numpy.ndarray
+    uZ : numpy.ndarray
+
+    Returns
+    -------
+    numpy.ndarray
+    """
+
     r_tgt_coa, r_dot_tgt_coa, t_coa, arp_coa, varp_coa = coa_projection.projection(im_points)
     return _image_to_ground_plane_perform(r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa, gref, uZ)
 
@@ -810,7 +825,7 @@ def image_to_ground_plane(im_points, sicd, block_size=50000, gref=None, ugpn=Non
 
 
 #####
-# Projection type is HAE
+# Image-to-HAE
 
 def _image_to_ground_hae_perform(
         r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa, SCP, ugpn,
@@ -846,20 +861,20 @@ def _image_to_ground_hae_perform(
     iters = 0
     while cont:
         iters += 1
-        # Compute the precise projection along the R/Rdot contour to Ground Plane n.
+        # Compute the precise projection along the R/Rdot contour to Ground Plane.
         gpp = _image_to_ground_plane_perform(r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa, gref, ugpn)
-        # Compute the unit vector in the increasing height direction
-        ugpn = geocoords.wgs_84_norm(gpp)
         # check our hae value versus hae0
         gpp_llh = geocoords.ecf_to_geodetic(gpp)
         delta_hae = gpp_llh[:, 2] - hae0
-        gref = gpp - numpy.outer(delta_hae, ugpn)
+        abs_delta_hae = numpy.abs(delta_hae)
         # should we stop our iteration?
-        cont = numpy.any(numpy.abs(delta_hae) > delta_hae_max) and (iters <= hae_nlim)
-        # TODO: why numpy.all? I changed it to any. what if the above is not very good?
+        cont = numpy.all(abs_delta_hae > delta_hae_max) and (iters <= hae_nlim)
+        if cont:
+            delta_hae_min = delta_hae[numpy.argmin(abs_delta_hae)]
+            gref -= delta_hae_min*ugpn
     # Compute the unit slant plane normal vector, uspn, that is tangent to the R/Rdot contour at point gpp
-    spn = (numpy.cross(varp_coa, (gpp - arp_coa)).T*look).T
-    uspn = (spn.T/numpy.linalg.norm(spn, axis=-1)).T
+    uspn = (numpy.cross(varp_coa, (gpp - arp_coa)).T*look).T
+    uspn = (uspn.T/numpy.linalg.norm(uspn, axis=-1)).T
     # For the final straight line projection, project from point gpp along
     # the slant plane normal (as opposed to the ground plane normal that was
     # used in the iteration) to point slp.
@@ -883,13 +898,9 @@ def _image_to_ground_hae(im_points, coa_projection, hae0, delta_hae_max, hae_nli
         the image coordinate array
     coa_projection : COAProjection
     hae0 : float
-        Surface height (m) above the WGS-84 reference ellipsoid for projection point.
     delta_hae_max : float
-        Height threshold for convergence of iterative constant HAE computation (m).
     hae_nlim : int
-        Maximum number of iterations allowed for constant hae computation. Defaults to 5.
     scp_hae : float
-        The HAE of the SCP.
 
     Returns
     -------
@@ -922,7 +933,7 @@ def image_to_ground_hae(im_points, sicd, block_size=50000,
         transformed as a single block if `None`.
     hae0 : None|float|int
         Surface height (m) above the WGS-84 reference ellipsoid for projection point.
-        The HAE at the SCP is the default.
+        Defaults to HAE at the SCP.
     delta_hae_max : None|float|int
         Height threshold for convergence of iterative constant HAE computation (m). Defaults to 1.
     hae_nlim : int
@@ -945,8 +956,8 @@ def image_to_ground_hae(im_points, sicd, block_size=50000,
     if delta_hae_max is None:
         delta_hae_max = 1.0  # TODO: is this the best value?
     delta_hae_max = float(delta_hae_max)
-    if delta_hae_max <= 1e-4:
-        raise ValueError('delta_hae_max must be at least 1e-4. Got {0:8f}'.format(delta_hae_max))
+    if delta_hae_max <= 1e-2:
+        raise ValueError('delta_hae_max must be at least 1e-2 (1 cm). Got {0:8f}'.format(delta_hae_max))
     if hae_nlim is None:
         hae_nlim = 5  # TODO: is this the best value?
     hae_nlim = int(hae_nlim)
@@ -979,7 +990,7 @@ def image_to_ground_hae(im_points, sicd, block_size=50000,
 
 
 #####
-# Projection type is HAE
+# Image-to-DEM
 
 def _image_to_ground_dem(im_points, coa_projection):
     raise NotImplementedError
@@ -1021,11 +1032,20 @@ def image_to_ground_dem(im_points, sicd, block_size=50000,
         coordinates, assuming detected features actually correspond to the DEM.
     """
 
-    # method parameter validation
+    # load up appropriate DEM data - potentially stupidly as one large array
+    # lons (M, ), lats (N,), haes (M x N)
+    # create RectBivariateSpline interpolator of DEM data
+    # determine max/min hae in the DEM
 
-    # coa projection creation
+    # construct coa projector
 
-    # im_points = _validate_im_points(im_points, sicd)
-    # coa_proj = COAProjection(sicd, **coa_args)
+    # chunk process as follows
+    #   maybe we should add some/subtract some from hae extrema - just to be sure.
+    #   convert im-to-hae at max (B x 3)
+    #   convert im_to-hae at min (B x 3)
+    #   we should probably test using cython for the below:
+    #       loop over points and find the first zero crossing of "level" - HAE from DEM
+    #       do simple zero finder between these two points
+    #       it's not clear how cython will do with spline look-up?
 
     raise NotImplementedError
