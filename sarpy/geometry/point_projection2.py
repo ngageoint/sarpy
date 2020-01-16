@@ -261,7 +261,7 @@ def _ric_ecf_mat(rarp, varp, frame_type):
 
 class COAProjection(object):
     """
-    The COA projection object - provide common projection functionality for all Image-to-Ground projections.
+    The COA projection object - provide common projection functionality for all Image-to-R/Rdot projection.
     """
 
     def __init__(self, sicd, delta_arp=None, delta_varp=None, range_bias=None, adj_params_frame='ECF'):
@@ -296,6 +296,13 @@ class COAProjection(object):
 
         if sicd.Grid.Type is None:
             raise ValueError('The Grid.Type parameter is not populated, and no projection can be done.')
+        if sicd.GeoData.SCP is None:
+            raise ValueError('The GeoData.SCP is not populated, and no projection can be done.')
+        if adj_params_frame != 'ECF' and (sicd.SCPCOA.ARPPos is None or sicd.SCPCOA.ARPVel):
+            raise ValueError(
+                'The adj_params_frame is of RIC type, but one of SCPCOA.ARPPos or '
+                'SCPCOA.ARPVel is not populated.')
+
         if sicd.Grid.Type == 'RGAZIM':
             if sicd.ImageFormation.ImageFormAlgo == 'PFA':
                 if sicd.PFA is None:
@@ -560,7 +567,7 @@ class COAProjection(object):
 
     def projection(self, im_points):
         """
-        Perform the COA projection and adjustment.
+        Perform the projection from image coordinates to R/Rdot coordinates.
 
         Parameters
         ----------
@@ -570,6 +577,11 @@ class COAProjection(object):
         Returns
         -------
         Tuple[numpy.ndarray,numpy.ndarray,numpy.ndarray,numpy.ndarray,numpy.ndarray]
+            * `r_tgt_coa` - range to the ARP at COA
+            * `r_dot_tgt_coa` - range rate relative to the ARP at COA
+            * `t_coa` - center of aperture time since CDP start for input ip
+            * `arp_coa` - aperture reference position at t_coa
+            * `varp_coa` - velocity at t_coa
         """
 
         row, col, t_coa, arp_coa, varp_coa = self._init_proj(im_points)
@@ -578,7 +590,7 @@ class COAProjection(object):
         arp_coa += self.delta_arp
         varp_coa += self.delta_varp
         r_tgt_coa += self.range_bias
-        return r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa, t_coa
+        return r_tgt_coa, r_dot_tgt_coa, t_coa, arp_coa, varp_coa
 
 
 def _validate_im_points(im_points, sicd):
@@ -617,99 +629,6 @@ def _validate_im_points(im_points, sicd):
     return im_points
 
 
-def _coa_projection_set(im_points, sicd, SCP, row_ss, col_ss):
-    """
-    Helper function which computes the set of fundamental parameters for projecting
-    a pixel down to the ground.
-
-    Parameters
-    ----------
-    im_points : numpy.ndarray
-    sicd : SICDType
-    SCP : numpy.ndarray
-    row_ss : float
-    col_ss : float
-
-    Returns
-    -------
-    Tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray, numpy.ndarray, numpy.ndarray]
-        * `r_tgt_coa` - range to the ARP at COA
-        * `r_dot_tgt_coa` - range rate relative to the ARP at COA
-        * `arp_coa` - aperture reference position at t_coa
-        * `varp_coa` - velocity at t_coa
-        * `t_coa` - center of aperture time since CDP start for input ip
-    """
-
-    # convert pixels coordinates to meters from SCP
-    row = (im_points[:, 0] + sicd.ImageData.FirstRow - sicd.ImageData.SCPPixel.Row)*row_ss
-    col = (im_points[:, 1] + sicd.ImageData.FirstCol - sicd.ImageData.SCPPixel.Col)*col_ss
-
-    # compute target pixel time
-    time_coa_poly = sicd.Grid.TimeCOAPoly
-    # fall back to (bad?) approximation if TimeCOAPoly is not populated
-    if time_coa_poly is None:
-        time_coa_poly = Poly2DType(Coefs=[[sicd.Timeline.CollectDuration/2, ], ])
-        logging.warning('Using (constant) approximation to TimeCOAPoly, which may result in poor projection results.')
-
-    t_coa = time_coa_poly(row, col)
-    # calculate aperture reference position and velocity at target time
-    arp_coa = sicd.Position.ARPPoly(t_coa)
-    varp_coa = sicd.Position.ARPPoly.derivative_eval(t_coa, der_order=1)
-
-    # image grid to R/Rdot
-    if sicd.Grid.Type == 'RGAZIM':
-        # Compute range and range rate to the SCP at target pixel COA time
-        ARP_minus_SCP = arp_coa - SCP
-        rSCPTgtCoa = numpy.linalg.norm(ARP_minus_SCP, axis=-1)
-        rDotSCPTgtCoa = numpy.sum(varp_coa*ARP_minus_SCP, axis=-1)/rSCPTgtCoa
-        # This computation is dependent on Grid type and image formation algorithm.
-        if sicd.ImageFormation.ImageFormAlgo == 'PFA':
-            # Compute polar angle theta and its derivative wrt time at the target pixel COA
-            thetaTgtCoa = sicd.PFA.PolarAngPoly(t_coa)
-            dThetaDtTgtCoa = sicd.PFA.PolarAngPoly.derivative_eval(t_coa, der_order=1)
-            # Compute polar aperture scale factor (KSF) and derivative wrt polar angle
-            ksfTgtCoa = sicd.PFA.SpatialFreqSFPoly(thetaTgtCoa)
-            dKsfDThetaTgtCoa = sicd.PFA.SpatialFreqSFPoly.derivative_eval(thetaTgtCoa, der_order=1)
-            # Compute spatial frequency domain phase slopes in Ka and Kc directions
-            # NB: sign for the phase may be ignored as it is cancelled in a subsequent computation.
-            dPhiDKaTgtCoa = row*numpy.cos(thetaTgtCoa) + col*numpy.sin(thetaTgtCoa)
-            dPhiDKcTgtCoa = -row*numpy.sin(thetaTgtCoa) + col*numpy.cos(thetaTgtCoa)
-            # Compute range relative to SCP
-            deltaRTgtCoa = ksfTgtCoa*dPhiDKaTgtCoa
-            # Compute derivative of range relative to SCP wrt polar angle.
-            # Scale by derivative of polar angle wrt time.
-            dDeltaRDThetaTgtCoa = dKsfDThetaTgtCoa*dPhiDKaTgtCoa + ksfTgtCoa*dPhiDKcTgtCoa
-            deltaRDotTgtCoa = dDeltaRDThetaTgtCoa*dThetaDtTgtCoa
-        elif sicd.ImageFormation.ImageFormAlgo == 'RGAZCOMP':
-            deltaRTgtCoa = row
-            deltaRDotTgtCoa = -numpy.linalg.norm(varp_coa, axis=-1)*sicd.RgAzComp.AzSF*col
-        else:
-            raise ValueError('Unhandled Image Formation Algorithm {}'.format(sicd.ImageFormation.ImageFormAlgo))
-        r_tgt_coa = rSCPTgtCoa + deltaRTgtCoa
-        r_dot_tgt_coa = rDotSCPTgtCoa + deltaRDotTgtCoa
-    elif sicd.Grid.Type == 'RGZERO':
-        # compute range/time of closest approach
-        R_CA_TGT = sicd.RMA.INCA.R_CA_SCP + row  # Range at closest approach
-        t_CA_TGT = sicd.RMA.INCA.TimeCAPoly(col)  # Time of closest approach
-        # Compute ARP velocity magnitude (actually squared, since that's how it's used) at t_CA_TGT
-        VEL2_CA_TGT = numpy.sum(sicd.Position.ARPPoly.derivative_eval(t_CA_TGT, der_order=1)**2, axis=-1)
-        # Compute the Doppler Rate Scale Factor for image Grid location
-        DRSF_TGT = sicd.RMA.INCA.DRateSFPoly(row, col)
-        # Difference between COA time and CA time
-        dt_COA_TGT = t_coa - t_CA_TGT
-        r_tgt_coa = numpy.sqrt(R_CA_TGT*R_CA_TGT + DRSF_TGT*VEL2_CA_TGT*dt_COA_TGT*dt_COA_TGT)
-        r_dot_tgt_coa = (DRSF_TGT/r_tgt_coa)*VEL2_CA_TGT*dt_COA_TGT
-    elif sicd.Grid.Type in ('XRGYCR', 'XCTYAT', 'PLANE'):
-        uRow = sicd.Grid.Row.UVectECF.get_array()
-        uCol = sicd.Grid.Col.UVectECF.get_array()
-        ARP_minus_IPP = arp_coa - (SCP + numpy.outer(row, uRow) + numpy.outer(col, uCol))
-        r_tgt_coa = numpy.linalg.norm(ARP_minus_IPP, axis=-1)
-        r_dot_tgt_coa = numpy.sum(varp_coa * ARP_minus_IPP, axis=-1)/r_tgt_coa
-    else:
-        raise ValueError('Unhandled Grid type {}'.format(sicd.Grid.Type))
-    return r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa, t_coa
-
-
 def image_to_ground(im_points, sicd, block_size=50000, projection_type='HAE', **kwargs):
     """
     Transforms image coordinates to ground plane ECF coordinate via the algorithm(s)
@@ -733,7 +652,8 @@ def image_to_ground(im_points, sicd, block_size=50000, projection_type='HAE', **
     Returns
     -------
     numpy.ndarray
-        Ground Plane Point (in ECF coordinates) along the R/Rdot contour.
+        Physical coordinates (in ECF) corresponding input image coordinates. The interpretation
+        or meaning of the physical coordinates depends on `projection_type` chosen.
     """
 
     p_type = projection_type.upper()
@@ -823,7 +743,7 @@ def _image_to_ground_plane_perform(r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa, 
 
 def _image_to_ground_plane(im_points, coa_projection, gref, uZ):
     # type: (numpy.ndarray, COAProjection, numpy.ndarray, numpy.ndarray) -> numpy.ndarray
-    r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa, t_coa = coa_projection.projection(im_points)
+    r_tgt_coa, r_dot_tgt_coa, t_coa, arp_coa, varp_coa = coa_projection.projection(im_points)
     return _image_to_ground_plane_perform(r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa, gref, uZ)
 
 
@@ -851,7 +771,7 @@ def image_to_ground_plane(im_points, sicd, block_size=50000, gref=None, ugpn=Non
     Returns
     -------
     numpy.ndarray
-        Ground Plane Point (in ECF coordinates) along the R/Rdot contour.
+        Ground Plane Point (in ECF coordinates) corresponding to the input image coordinates.
     """
 
     # method parameter validation
@@ -914,7 +834,6 @@ def _image_to_ground_hae_perform(
     Returns
     -------
     numpy.ndarray
-        Ground Plane Point (in ECF coordinates) along the R/Rdot contour.
     """
 
     # Compute the geodetic ground plane normal at the SCP.
@@ -975,11 +894,10 @@ def _image_to_ground_hae(im_points, coa_projection, hae0, delta_hae_max, hae_nli
     Returns
     -------
     numpy.ndarray
-        Ground Plane Point (in ECF coordinates) along the R/Rdot contour.
     """
 
     # get (image formation specific) projection parameters
-    r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa, t_coa = coa_projection.projection(im_points)
+    r_tgt_coa, r_dot_tgt_coa, t_coa, arp_coa, varp_coa = coa_projection.projection(im_points)
     SCP = coa_projection.SCP
     ugpn = geocoords.wgs_84_norm(SCP)
     return _image_to_ground_hae_perform(
@@ -1015,7 +933,8 @@ def image_to_ground_hae(im_points, sicd, block_size=50000,
     Returns
     -------
     numpy.ndarray
-        Ground Plane Point (in ECF coordinates) along the R/Rdot contour.
+        Ground Plane Point (in ECF coordinates) with target hae corresponding to
+        the input image coordinates.
     """
 
     # method parameter validation
@@ -1098,8 +1017,10 @@ def image_to_ground_dem(im_points, sicd, block_size=50000,
     Returns
     -------
     numpy.ndarray
-        Ground Plane Point (in ECF coordinates) along the R/Rdot contour.
+        Physical coordinates (in ECF coordinates) with corresponding to the input image
+        coordinates, assuming detected features actually correspond to the DEM.
     """
+
     # method parameter validation
 
     # coa projection creation
