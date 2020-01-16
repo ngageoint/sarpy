@@ -220,15 +220,16 @@ class SCPType(Serializable):
         LLH : LatLonHAERestrictionType|numpy.ndarray|list|tuple
         kwargs : dict
         """
-        self.ECF = ECF
-        self.LLH = LLH
 
-        # TODO: this constructor should probably be changed to use the first of ECF
-        #   and LLH which is not None, and derive the other. You can absolutely
-        #   construct this with non-matching points, and that's silly. At least we
-        #   should put this in the validity check.
+        if ECF is None:
+            self.ECF = ECF
+            self.LLH = None
+        elif LLH is None:
+            self.LLH = LLH
+            self.ECF = None
 
         super(SCPType, self).__init__(**kwargs)
+        self.derive()  # populate one coordinates system from the other
 
     def derive(self):
         """
