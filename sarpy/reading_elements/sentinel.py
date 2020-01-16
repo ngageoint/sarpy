@@ -643,7 +643,7 @@ class SentinelDetails(object):
             # SCPPixel - points at which to interpolate geo_pixels & geo_coords data
             scp_pixels = numpy.zeros((count, 2), dtype=numpy.float64)
             scp_pixels[:, 0] = out_sicd.ImageData.NumRows/2.
-            scp_pixels[:, 1] = (0.5 + numpy.arange(count))*out_sicd.ImageData.NumCols
+            scp_pixels[:, 1] = (0.5 + numpy.arange(count, dtype=numpy.float64))*out_sicd.ImageData.NumCols/float(count)
 
             scps = numpy.zeros((count, 3), dtype=numpy.float64)
             # TODO: is the structure of geo_pixels appropriate for griddata?
