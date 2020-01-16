@@ -24,8 +24,8 @@ geo_info_dict4 = {
 }
 
 scp_dict = {
-    'LLH': {'Lat': 0, 'Lon': 0, 'HAE': 100},
-    'ECF': {'X': 0, 'Y': 0, 'Z': 0}
+    'LLH': {'Lat': 0, 'Lon': 0, 'HAE': 0},
+    'ECF': {'X': 6378137, 'Y': 0, 'Z': 0}
 }
 
 geo_data_dict = {
@@ -103,17 +103,11 @@ class TestSCP(unittest.TestCase):
 
         with self.subTest(msg='Derive ECF from LLH'):
             item = the_type.from_dict({'LLH': scp_dict['LLH'], })
-            self.assertIsNone(item.ECF)
-            self.assertFalse(item.is_valid())
-            item.derive()
             self.assertIsNotNone(item.ECF)
             self.assertTrue(item.is_valid())
 
         with self.subTest(msg='Derive LLH from ECF'):
             item = the_type.from_dict({'ECF': scp_dict['ECF'], })
-            self.assertIsNone(item.LLH)
-            self.assertFalse(item.is_valid())
-            item.derive()
             self.assertIsNotNone(item.LLH)
             self.assertTrue(item.is_valid())
 
