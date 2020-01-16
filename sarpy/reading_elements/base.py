@@ -328,34 +328,113 @@ class SubsetChipper(BaseChipper):
 
 class BaseReader(object):
     """Abstract file reader class"""
-    __slots__ = ('_sicd_meta', '_chipper')
+    __slots__ = ('_sicd_meta', '_chipper', '_data_size')
 
     def __init__(self, sicd_meta, chipper):
         """
 
         Parameters
         ----------
-        sicd_meta : SICDType
-            the SICD metadata object
-        chipper : BaseChipper
-            a chipper instance
+        sicd_meta : SICDType|Tuple[SICDType]
+            the SICD metadata object, or tuple of objects
+        chipper : BaseChipper|Tuple[BaseChipper]
+            a chipper object, or tuple of chipper objects
         """
 
-        self._chipper = chipper
+        if isinstance(sicd_meta, list):
+            sicd_meta = tuple(sicd_meta)
+        if isinstance(chipper, list):
+            chipper = tuple(chipper)
+
+        if sicd_meta is None:
+            pass
+        elif isinstance(sicd_meta, tuple):
+            for el in sicd_meta:
+                if not isinstance(el, SICDType):
+                    raise TypeError(
+                        'Got a collection for sicd_meta, and all elements are required '
+                        'to be instances of SICDType.')
+        elif not isinstance(sicd_meta, SICDType):
+            raise TypeError('sicd_meta argument is required to be a SICDType, or collection of SICDType objects')
+
+        if isinstance(chipper, tuple):
+            for el in chipper:
+                if not isinstance(el, BaseChipper):
+                    raise TypeError(
+                        'Got a collection for chipper, and all elements are required '
+                        'to be instances of BaseChipper.')
+        elif not isinstance(chipper, BaseChipper):
+            raise TypeError(
+                'chipper argument is required to be a BaseChipper instance, or collection of BaseChipper objects')
+
+        data_size = None
+        if isinstance(sicd_meta, SICDType):
+            if not isinstance(chipper, BaseChipper):
+                raise ValueError('sicd_meta is a single SICDType, so chipper must be a single BaseChipper')
+            data_size = chipper.data_size
+        elif isinstance(sicd_meta, tuple):
+            if not (isinstance(chipper, tuple) and len(chipper) == len(sicd_meta)):
+                raise ValueError('sicd_meta is a collection, so chipper must be a collection of the same size.')
+            if len(sicd_meta) == 1:
+                sicd_meta = sicd_meta[0]
+                chipper = chipper[0]
+                data_size = chipper.data_size
+            else:
+                data_size = tuple(el.data_size for el in chipper)
+
         self._sicd_meta = sicd_meta
+        self._chipper = chipper
+        self._data_size = data_size
 
     @property
     def sicd_meta(self):
         return self._sicd_meta
 
-    def __call__(self, dim1range, dim2range):
-        self._chipper(dim1range, dim2range)
+    @property
+    def data_size(self):
+        return self._data_size
+
+    def _validate_index(self, index):
+        index = int(index)
+        siz = len(self._chipper)
+        if not (-siz < index < siz):
+            raise ValueError('index must be in the range ({}, {})'.format(-siz, siz))
+        return index
+
+    def _validate_slice(self, item):
+        if isinstance(item, tuple):
+            if len(item) > 3:
+                raise ValueError(
+                    'Reader received slice argument {}. We cannot slice on more than '
+                    'three dimensions.'.format(item))
+            if len(item) == 3:
+                index = item[2]
+                if not isinstance(index, integer_types):
+                    raise ValueError('Cannot slice in multiple indices on the third dimension.')
+                index = self._validate_index(index)
+                return item[:2], index
+        return item, 0
+
+    def __call__(self, dim1range, dim2range, index=0):
+        if isinstance(self._chipper, tuple):
+            index = self._validate_index(index)
+            return self._chipper[index](dim1range, dim2range)
+        else:
+            return self._chipper(dim1range, dim2range)
 
     def __getitem__(self, item):
-        self._chipper.__getitem__(item)
+        item, index = self._validate_slice(item)
+        if isinstance(self._chipper, tuple):
+            return self._chipper[index].__getitem__(item)
+        else:
+            return self._chipper.__getitem__(item)
 
-    def read_chip(self, dim1range, dim2range):
-        return self._chipper(dim1range, dim2range)
+    def read_chip(self, dim1range, dim2range, index=0):
+        if isinstance(self._chipper, tuple):
+            index = self._validate_index(index)
+            return self._chipper[index](dim1range, dim2range)
+        else:
+            return self._chipper(dim1range, dim2range)
 
 
 class SubsetReader(BaseReader):

@@ -37,7 +37,7 @@ from ..sicd_elements.RMA import RMAType, INCAType
 from ..sicd_elements.Radiometric import RadiometricType
 from ..geometry import point_projection
 from .radarsat import _2d_poly_fit
-from .base import BaseChipper
+from .base import BaseChipper, BaseReader
 
 
 ########
@@ -511,19 +511,12 @@ class CSKBandChipper(BaseChipper):
         return data.transpose((2, 0, 1))
 
 
-################
-# The actual reader -
-# note that this is motivated by BaseReader
-
-
-class CSKReader(object):
+class CSKReader(BaseReader):
     """
     Gets a reader type object for Cosmo Skymed files
     """
 
-    __slots__ = ('_csk_details', '_chippers')
-    # TODO: access to the sicd objects?
-    #   __call__ and __getitem__ - contingent on read_chip?
+    __slots__ = ('_csk_details', )
 
     def __init__(self, csk_details):
         """
@@ -541,14 +534,8 @@ class CSKReader(object):
                             'filename or CSKDetails object')
         sicd_data, shape_dict, symmetry = csk_details.get_sicd_collection()
         chippers = []
+        sicds = []
         for band_name in sicd_data:
+            sicds.append(sicd_data[band_name])
             chippers.append(CSKBandChipper(csk_details.file_name, band_name, shape_dict[band_name], symmetry))
-        self._chippers = tuple(chippers)  # type: Tuple[CSKBandChipper]
-
-    def read_chip(self, index, dim1range, dim2range):
-        # TODO: is this how we should handle reading?
-        index = int(index)
-        if not (0 <= index < len(self._chippers)):
-            raise ValueError(
-                'index must be in the range [0, {}], and got {}'.format(len(self._chippers), index))
-        return self._chippers[index](dim1range, dim2range)
+        super(CSKReader, self).__init__(sicds, chippers)

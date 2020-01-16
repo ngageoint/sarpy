@@ -15,7 +15,7 @@ from numpy.polynomial import polynomial
 from scipy.constants import speed_of_light
 from scipy.interpolate import griddata
 
-from .base import SubsetReader
+from .base import SubsetReader, BaseReader
 from .tiff import TiffDetails, TiffReader
 
 from ..sicd_elements.blocks import Poly1DType, Poly2DType
@@ -969,14 +969,12 @@ class SentinelDetails(object):
         return out
 
 
-class SentinelReader(object):
+class SentinelReader(BaseReader):
     """
     Gets a reader type object for Sentinel-1 SAR files.
     """
 
     __slots__ = ('_sentinel_details', '_readers')
-    # TODO: access to the sicd objects, and the tiff objects?
-    #   __call__ and __getitem__ - contingent on read_chip?
 
     def __init__(self, sentinel_details):
         """
@@ -1011,11 +1009,7 @@ class SentinelReader(object):
                     dim2bounds = (b_row, b_row)
                     readers.append(SubsetReader(p_reader, sicd, dim1bounds, dim2bounds))
                     b_row = e_row
-
-    def read_chip(self, index, dim1range, dim2range):
-        # TODO: is this how we should handle reading?
-        index = int(index)
-        if not (0 <= index < len(self._readers)):
-            raise ValueError(
-                'index must be in the range [0, {}], and got {}'.format(len(self._readers), index))
-        return self._readers[index].read_chip(dim1range, dim2range)
+        self._readers = tuple(readers)  # type: Tuple[Union[TiffReader, SubsetReader]]
+        sicd_tuple = tuple(reader.sicd_meta for reader in readers)
+        chipper_tuple = tuple(reader._chipper for reader in readers)
+        super(SentinelReader, self).__init__(sicd_tuple, chipper_tuple)
