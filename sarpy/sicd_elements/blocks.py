@@ -124,7 +124,7 @@ class LatLonType(Serializable, Arrayable):
         Parameters
         ----------
         order : str
-            Determines array order. 'LAT' yields [Lat, Lon], and anything else yields  [Lon, Lat].
+            Determines array order. 'LAT' yields [Lat, Lon], and anything else yields [Lon, Lat].
         dtype : numpy.dtype
             data type of the return
 

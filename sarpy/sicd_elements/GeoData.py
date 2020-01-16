@@ -13,7 +13,7 @@ import numpy
 from .base import Serializable, DEFAULT_STRICT, _StringDescriptor, _StringEnumDescriptor, \
     _SerializableDescriptor, _SerializableArrayDescriptor, \
     _ParametersDescriptor, ParametersCollection, SerializableArray, \
-    _SerializableCPArrayDescriptor, SerializableCPArray
+    _SerializableCPArrayDescriptor, SerializableCPArray, _parse_serializable
 from .blocks import XYZType, LatLonRestrictionType, LatLonHAERestrictionType, \
     LatLonCornerStringType, LatLonArrayElementType
 
@@ -201,18 +201,21 @@ class GeoInfoType(Serializable):
 
 
 class SCPType(Serializable):
-    """Scene Center Point (SCP) in full (global) image. This is the precise location."""
+    """
+    Scene Center Point (SCP) in full (global) image. This should be the the precise location.
+    Note that setting one of ECF or LLH will implicitly set the other to it's corresponding matched value.
+    """
+
     _fields = ('ECF', 'LLH')
-    _required = _fields  # isn't this redundant?
-    ECF = _SerializableDescriptor(
-        'ECF', XYZType, _required, strict=DEFAULT_STRICT,
-        docstring='The ECF coordinates.')  # type: XYZType
-    LLH = _SerializableDescriptor(
-        'LLH', LatLonHAERestrictionType, _required, strict=DEFAULT_STRICT,
-        docstring='The WGS-84 coordinates.')  # type: LatLonHAERestrictionType
+    _required = _fields
+    _ECF = None
+    _LLH = None
 
     def __init__(self, ECF=None, LLH=None, **kwargs):
         """
+        To avoid the potential of inconsistent state, ECF and LLH are not simultaneously
+        used. If ECF is provided, it is used to populate LLH. Otherwise, if LLH is provided,
+        then it is used the populate ECF.
 
         Parameters
         ----------
@@ -221,30 +224,39 @@ class SCPType(Serializable):
         kwargs : dict
         """
 
-        if ECF is None:
+        if ECF is not None:
             self.ECF = ECF
-            self.LLH = None
-        elif LLH is None:
+        elif LLH is not None:
             self.LLH = LLH
-            self.ECF = None
-
         super(SCPType, self).__init__(**kwargs)
-        self.derive()  # populate one coordinates system from the other
 
-    def derive(self):
+    @property
+    def ECF(self):  # type: () -> XYZType
         """
-        If only one of `ECF` or `LLH` is populated, this populates the one missing from the one present.
-
-        Returns
-        -------
-        None
+        XYZType: The ECF coordinates.
         """
 
-        if self.ECF is None and self.LLH is not None:
-            self.ECF = XYZType.from_array(geodetic_to_ecf(self.LLH.get_array(order='LAT'))[0])
-            # TODO: this 2-d thing feels wrong - the [0] above.
-        elif self.LLH is None and self.ECF is not None:
-            self.LLH = LatLonHAERestrictionType.from_array(ecf_to_geodetic(self.ECF.get_array())[0])
+        return self._ECF
+
+    @ECF.setter
+    def ECF(self, value):
+        if value is not None:
+            self._ECF = _parse_serializable(value, 'ECF', self, XYZType)
+            self._LLH = LatLonHAERestrictionType.from_array(ecf_to_geodetic(self._ECF.get_array())[0])
+
+    @property
+    def LLH(self):  # type: () -> LatLonHAERestrictionType
+        """
+        LatLonHAERestrictionType: The WGS-84 coordinates.
+        """
+
+        return self._LLH
+
+    @LLH.setter
+    def LLH(self, value):
+        if value is not None:
+            self._LLH = _parse_serializable(value, 'LLH', self, LatLonHAERestrictionType)
+            self._ECF = XYZType.from_array(geodetic_to_ecf(self._LLH.get_array(order='LAT'))[0])
 
 
 class GeoDataType(Serializable):
@@ -313,16 +325,15 @@ class GeoDataType(Serializable):
 
     def derive(self):
         """
-        Populates any potential derived data in GeoData. In this case, just calls :func:`SCP.derive()`, and is expected
-        to be called by the `SICD` parent as part of a more extensive derived data effort.
+        Populates any potential derived data in GeoData. Is expected to be called by
+        the `SICD` parent as part of a more extensive derived data effort.
 
         Returns
         -------
         None
         """
 
-        if self.SCP is not None:
-            self.SCP.derive()
+        pass
 
     @property
     def GeoInfos(self):

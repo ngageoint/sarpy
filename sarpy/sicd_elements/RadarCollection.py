@@ -60,7 +60,7 @@ class WaveformParametersType(Serializable):
         'ADCSampleRate', 'RcvIFBandwidth', 'RcvFreqStart', 'RcvFMRate', 'index')
     _required = ()
     _set_as_attribute = ('index', )
-
+    _RcvFMRate = None  # this is here for consistency
     # descriptors
     TxPulseLength = _FloatDescriptor(
         'TxPulseLength', _required, strict=DEFAULT_STRICT,
@@ -110,7 +110,7 @@ class WaveformParametersType(Serializable):
         index : int
         kwargs : dict
         """
-        self._RcvFMRate = None
+
         self.TxPulseLength, self.TxRFBandwidth = TxPulseLength, TxRFBandwidth
         self.TxFreqStart, self.TxFMRate = TxFreqStart, TxFMRate
         self.RcvWindowLength = RcvWindowLength
