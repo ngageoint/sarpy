@@ -298,6 +298,11 @@ class CSKDetails(object):
         ref_time = numpy.datetime64(h5_dict['Reference UTC'], 'ns')
         ref_time_offset = _get_seconds(ref_time, collect_start)
 
+        def update_scp_prelim(sicd, band_name):
+            # type: (SICDType, str) -> None
+            LLH = band_dict[band_name]['Centre Geodetic Coordinates']
+            sicd.GeoData = GeoDataType(SCP=SCPType(LLH=LLH))  # EarthModel & ECF will be populated
+
         def update_image_data(sicd, band_name):
             # type: (SICDType, str) -> Tuple[float, float, float, float]
 
@@ -441,11 +446,12 @@ class CSKDetails(object):
 
         def update_geodata(sicd):  # type: (SICDType) -> None
             ecf = point_projection.image_to_ground([sicd.ImageData.SCPPixel.Row, sicd.ImageData.SCPPixel.Col], sicd)
-            sicd.GeoData = GeoDataType(SCP=SCPType(ECF=ecf))
+            sicd.GeoData.SCP = SCPType(ECF=ecf)  # LLH will be populated
 
         out = {}
         for i, bd_name in enumerate(band_dict):
             t_sicd = base_sicd.copy()
+            update_scp_prelim(t_sicd, bd_name)  # set preliminary value for SCP (required for projection)
             row_bw = band_dict[bd_name]['Range Focusing Bandwidth']*2/speed_of_light
             row_ss = band_dict[bd_name]['Column Spacing']
             rg_first_time, ss_rg_s, az_first_time, ss_az_s = update_image_data(t_sicd, bd_name)

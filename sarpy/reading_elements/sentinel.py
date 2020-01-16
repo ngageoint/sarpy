@@ -13,6 +13,7 @@ from typing import List, Tuple, Union
 import numpy
 from numpy.polynomial import polynomial
 from scipy.constants import speed_of_light
+from scipy.interpolate import griddata
 
 from .base import SubsetReader
 from .tiff import TiffDetails, TiffReader
@@ -33,7 +34,7 @@ from ..sicd_elements.RMA import RMAType, INCAType
 from ..sicd_elements.Radiometric import RadiometricType, NoiseLevelType_
 from ..geometry import point_projection
 from .radarsat import _2d_poly_fit
-
+from ..geometry.geocoords import geodetic_to_ecf
 
 ########
 # base expected functionality for a module with an implemented Reader
@@ -270,6 +271,18 @@ class SentinelDetails(object):
         DT_FMT = '%Y-%m-%dT%H:%M:%S.%f'
         root_node = _parse_xml(product_file_name, without_ns=True)
         burst_list = root_node.findall('./swathTiming/burstList/burst')
+        # parse the geolocation infoarmation - for SCP caluclation
+        geo_grid_point_list = root_node.findall('./geolocationGrid/geolocationGridPointList/geolocationGridPoint')
+        geo_pixels = numpy.zeros((len(geo_grid_point_list), 2), dtype=numpy.float64)
+        geo_coords = numpy.zeros((len(geo_grid_point_list), 3), dtype=numpy.float64)
+        for i, grid_point in enumerate(geo_grid_point_list):
+            geo_pixels[i, :] = (float(grid_point.find('./pixel').text),
+                                float(grid_point.find('./line').text))
+            geo_coords[i, :] = (float(grid_point.find('./latitude').text),
+                                float(grid_point.find('./longitude').text),
+                                float(grid_point.find('./height').text))
+        geo_coords = geodetic_to_ecf(geo_coords)
+        # maintain the original CollectorName
         or_coll_name = self._base_sicd.CollectionInfo.CollectorName
 
         def get_center_frequency():  # type: () -> float
@@ -384,7 +397,7 @@ class SentinelDetails(object):
             swl_list = root_node.findall('./generalAnnotation/downlinkInformationList/' +
                                          'downlinkInformation/downlinkValues/swlList/swl')
             radar_collection.Waveform = [
-                WaveformParametersType(index=i,
+                WaveformParametersType(index=j,
                                        TxFreqStart=min_frequency,
                                        TxPulseLength=tx_pulse_length,
                                        TxFMRate=tx_fm_rate,
@@ -392,7 +405,7 @@ class SentinelDetails(object):
                                        RcvFMRate=0,
                                        ADCSampleRate=adc_sample_rate,
                                        RcvWindowLength=float(swl.find('./value').text))
-                for i, swl in enumerate(swl_list)]
+                for j, swl in enumerate(swl_list)]
             return radar_collection
 
         def get_image_formation():  # type: () -> ImageFormationType
@@ -458,11 +471,11 @@ class SentinelDetails(object):
             Xs = numpy.empty(shp, dtype=numpy.float64)
             Ys = numpy.empty(shp, dtype=numpy.float64)
             Zs = numpy.empty(shp, dtype=numpy.float64)
-            for i, orbit in enumerate(orbit_list):
-                Ts[i] = _get_seconds(numpy.datetime64(orbit.find('./time').text, 'us'), start)
-                Xs[i] = float(orbit.find('./position/x').text)
-                Ys[i] = float(orbit.find('./position/y').text)
-                Zs[i] = float(orbit.find('./position/z').text)
+            for j, orbit in enumerate(orbit_list):
+                Ts[j] = _get_seconds(numpy.datetime64(orbit.find('./time').text, 'us'), start)
+                Xs[j] = float(orbit.find('./position/x').text)
+                Ys[j] = float(orbit.find('./position/y').text)
+                Zs[j] = float(orbit.find('./position/z').text)
             return Ts, Xs, Ys, Zs
 
         def get_doppler_estimates(start):
@@ -472,9 +485,9 @@ class SentinelDetails(object):
             dc_az_time = numpy.empty(shp, dtype=numpy.float64)
             dc_t0 = numpy.empty(shp, dtype=numpy.float64)
             data_dc_poly = []
-            for i, dc_estimate in enumerate(dc_estimate_list):
-                dc_az_time[i] = _get_seconds(numpy.datetime64(dc_estimate.find('./azimuthTime').text, 'us'), start)
-                dc_t0[i] = float(dc_estimate.find('./t0').text)
+            for j, dc_estimate in enumerate(dc_estimate_list):
+                dc_az_time[j] = _get_seconds(numpy.datetime64(dc_estimate.find('./azimuthTime').text, 'us'), start)
+                dc_t0[j] = float(dc_estimate.find('./t0').text)
                 data_dc_poly.append(numpy.fromstring(dc_estimate.find('./dataDcPolynomial').text, sep=' '))
             return dc_az_time, dc_t0, data_dc_poly
 
@@ -485,9 +498,9 @@ class SentinelDetails(object):
             az_t = numpy.empty(shp, dtype=numpy.float64)
             az_t0 = numpy.empty(shp, dtype=numpy.float64)
             k_a_poly = []
-            for i, az_fm_rate in enumerate(azimuth_fm_rate_list):
-                az_t[i] = _get_seconds(numpy.datetime64(az_fm_rate.find('./azimuthTime').text, 'us'), start)
-                az_t0[i] = float(az_fm_rate.find('./t0').text)
+            for j, az_fm_rate in enumerate(azimuth_fm_rate_list):
+                az_t[j] = _get_seconds(numpy.datetime64(az_fm_rate.find('./azimuthTime').text, 'us'), start)
+                az_t0[j] = float(az_fm_rate.find('./t0').text)
                 if az_fm_rate.find('c0') is not None:
                     # old style annotation xml file
                     k_a_poly.append(numpy.array([float(az_fm_rate.find('./c0').text),
@@ -624,10 +637,26 @@ class SentinelDetails(object):
 
         def update_geodata(sicd):  # type: (SICDType) -> None
             ecf = point_projection.image_to_ground([sicd.ImageData.SCPPixel.Row, sicd.ImageData.SCPPixel.Col], sicd)
-            sicd.GeoData = GeoDataType(SCP=SCPType(ECF=ecf))
+            sicd.GeoData.SCP = SCPType(ECF=ecf)  # LLH will be populated.
+
+        def get_scps(count):
+            # SCPPixel - points at which to interpolate geo_pixels & geo_coords data
+            scp_pixels = numpy.zeros((count, 2), dtype=numpy.float64)
+            scp_pixels[:, 0] = out_sicd.ImageData.NumRows/2.
+            scp_pixels[:, 1] = (0.5 + numpy.arange(count))*out_sicd.ImageData.NumCols
+
+            scps = numpy.zeros((count, 3), dtype=numpy.float64)
+            # TODO: is the structure of geo_pixels appropriate for griddata?
+            for j in range(3):
+                scps[:, j] = griddata(geo_pixels, geo_coords[:, j], scp_pixels)
+            return scp_pixels, scps
 
         def finalize_stripmap():  # type: () -> SICDType
-            # out_sicd is the one, we just complete it
+            # out_sicd is the one that we return, just complete it
+            # set preliminary geodata (required for projection)
+            _, scp = get_scps(1)
+            out_sicd.GeoData = GeoDataType(SCP=SCPType(ECF=scp[0, :]))  # EarthModel & LLH are implicitly set
+            # NB: SCPPixel is already set to the correct thing
             im_dat = out_sicd.ImageData
             im_dat.ValidData = (
                 (0, 0), (0, im_dat.NumCols-1), (im_dat.NumRows-1, im_dat.NumCols-1), (im_dat.NumRows-1, 0))
@@ -654,14 +683,21 @@ class SentinelDetails(object):
         def finalize_bursts():  # type: () -> List[SICDType]
             # we will have one sicd per burst.
             sicds = []
-            for i, burst in enumerate(burst_list):
+            scp_pixels, scps = get_scps(len(burst_list))
+
+            for j, burst in enumerate(burst_list):
                 t_sicd = out_sicd.copy()
-                t_sicd.CollectionInfo.Parameters['BURST'] = '{0:d}'.format(i+1)
+                # update scp pixel
+                t_sicd.ImageData.SCPPixel = scp_pixels[j, :]
+                # set preliminary geodata (required for projection)
+                t_sicd.GeoData = GeoDataType(SCP=SCPType(ECF=scps[j, :]))  # EarthModel & LLH are implicitly set
+
+                t_sicd.CollectionInfo.Parameters['BURST'] = '{0:d}'.format(j+1)
                 xml_first_cols = numpy.fromstring(burst.find('./firstValidSample').text, sep=' ', dtype=numpy.int64)
                 xml_last_cols = numpy.fromstring(burst.find('./lastValidSample').text, sep=' ', dtype=numpy.int64)
                 valid = (xml_first_cols >= 0) & (xml_last_cols >= 0)
                 valid_cols = numpy.arange(xml_first_cols.size, dtype=numpy.int64)
-                # TODO: I'm guessing - look at line 569
+                # TODO: I'm guessing this is the intended for valid_cols - look at line 569
                 first_row = int(numpy.min(xml_first_cols[valid]))
                 last_row = int(numpy.max(xml_last_cols[valid]))
                 first_col = valid_cols[0]
@@ -673,7 +709,7 @@ class SentinelDetails(object):
                 # Not really CollectStart and CollectDuration in SICD (first last pulse time)
                 start_dt = datetime.strptime(burst.find('./azimuthTime').text, DT_FMT)
                 start = numpy.datetime64(start_dt, 'us')
-                set_core_name(t_sicd, start_dt, i)
+                set_core_name(t_sicd, start_dt, j)
                 set_position(t_sicd, start)
                 early, late = update_rma_and_grid(t_sicd, 0, start, return_time_dets=True)
                 new_start = start + numpy.timedelta64(numpy.int64(early * 1e6), 'us')

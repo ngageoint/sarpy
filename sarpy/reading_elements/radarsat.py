@@ -290,13 +290,13 @@ class RadarSatDetails(object):
             Site=processing_info.find('processingFacility').text,
             Profile='Prototype')
 
-    def _get_image_data(self):
+    def _get_image_and_geo_data(self):
         """
-        Gets the ImageData metadata.
+        Gets the ImageData and GeoData metadata.
 
         Returns
         -------
-        ImageDataType
+        Tuple[ImageDataType, GeoDataType]
         """
 
         pixel_type = 'RE16I_IM16I'
@@ -318,18 +318,25 @@ class RadarSatDetails(object):
                 pixel_type = 'RE32F_IM32F'
         # let's use the tie point closest to the center as the SCP
         center_pixel = 0.5*numpy.array([rows-1, cols-1], dtype=numpy.float64)
-        tp_pixels = numpy.array([
-            [float(tp.find('imageCoordinate/pixel').text) for tp in tie_points],
-            [float(tp.find('imageCoordinate/line').text) for tp in tie_points]], dtype=numpy.float64)
+        tp_pixels = numpy.array(len(tie_points, 2), dtype=numpy.float64)
+        tp_llh = numpy.array(len(tie_points, 3), dtype=numpy.float64)
+        for j, tp in enumerate(tie_points):
+            tp_pixels[j, :] = (float(tp.find('imageCoordinate/pixel').text),
+                               float(tp.find('imageCoordinate/line').text))
+            tp_llh[j, :] = (float(tp.find('geodeticCoordinate/latitude').text),
+                            float(tp.find('geodeticCoordinate/longitude').text),
+                            float(tp.find('geodeticCoordinate/height').text))
         scp_index = numpy.argmin(numpy.sum((tp_pixels - center_pixel)**2), axis=1)
-        return ImageDataType(NumRows=rows,
-                             NumCols=cols,
-                             FirstRow=0,
-                             FirstCol=0,
-                             PixelType=pixel_type,
-                             FullImage=(rows, cols),
-                             ValidData=((0, 0), (0, cols-1), (rows-1, cols-1), (rows-1, 0)),
-                             SCPPixel=numpy.round(tp_pixels[scp_index, :]))
+        im_data = ImageDataType(NumRows=rows,
+                                NumCols=cols,
+                                FirstRow=0,
+                                FirstCol=0,
+                                PixelType=pixel_type,
+                                FullImage=(rows, cols),
+                                ValidData=((0, 0), (0, cols-1), (rows-1, cols-1), (rows-1, 0)),
+                                SCPPixel=numpy.round(tp_pixels[scp_index, :]))
+        geo_data = GeoDataType(SCP=SCPType(LLH=tp_llh[scp_index, :]))
+        return im_data, geo_data
 
     def _get_position(self):
         """
@@ -821,7 +828,7 @@ class RadarSatDetails(object):
         return RadiometricType(BetaZeroSFPoly=beta_zero_sf_poly, NoiseLevel=noise_level)
 
     @staticmethod
-    def _populate_geo_data(sicd):
+    def _update_geo_data(sicd):
         """
         Populates the GeoData.
 
@@ -836,7 +843,7 @@ class RadarSatDetails(object):
 
         ecf = point_projection.image_to_ground(
             [sicd.ImageData.SCPPixel.Row, sicd.ImageData.SCPPixel.Col], sicd)[0]
-        sicd.GeoData = GeoDataType(SCP=SCPType(ECF=ecf))  # everything else is derived
+        sicd.GeoData.SCP = SCPType(ECF=ecf)  # LLH implicitly populated
 
     def get_sicd_collection(self):
         """
@@ -849,7 +856,7 @@ class RadarSatDetails(object):
 
         collection_info = self._get_collection_info()
         image_creation = self._get_image_creation()
-        image_data = self._get_image_data()
+        image_data, geo_data = self._get_image_and_geo_data()
         position = self._get_position()
         grid = self._get_grid()
         radar_collection = self._get_radar_collection()
@@ -861,6 +868,7 @@ class RadarSatDetails(object):
         base_sicd = SICDType(
             CollectionInfo=collection_info,
             ImageCreation=image_creation,
+            GeoData=geo_data,
             ImageData=image_data,
             Position=position,
             RadarCollection=radar_collection,
@@ -869,7 +877,7 @@ class RadarSatDetails(object):
             SCPCOA=scpcoa,
             RMA=rma,
             Radiometric=radiometric)
-        self._populate_geo_data(base_sicd)
+        self._update_geo_data(base_sicd)
         base_sicd.derive()  # derive all the fields
         # now, make one copy per polarimetric entry, as appropriate
         tx_pols, tx_rcv_pols = self._get_polarizations()
