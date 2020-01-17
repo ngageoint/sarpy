@@ -242,7 +242,7 @@ class SCPType(Serializable):
     def ECF(self, value):
         if value is not None:
             self._ECF = _parse_serializable(value, 'ECF', self, XYZType)
-            self._LLH = LatLonHAERestrictionType.from_array(ecf_to_geodetic(self._ECF.get_array())[0])
+            self._LLH = LatLonHAERestrictionType.from_array(ecf_to_geodetic(self._ECF.get_array()))
 
     @property
     def LLH(self):  # type: () -> LatLonHAERestrictionType
@@ -256,7 +256,7 @@ class SCPType(Serializable):
     def LLH(self, value):
         if value is not None:
             self._LLH = _parse_serializable(value, 'LLH', self, LatLonHAERestrictionType)
-            self._ECF = XYZType.from_array(geodetic_to_ecf(self._LLH.get_array(order='LAT'))[0])
+            self._ECF = XYZType.from_array(geodetic_to_ecf(self._LLH.get_array(order='LAT')))
 
 
 class GeoDataType(Serializable):
