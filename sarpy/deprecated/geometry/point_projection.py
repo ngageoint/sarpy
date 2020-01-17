@@ -11,8 +11,7 @@ import warnings
 # External dependencies
 import numpy as np
 from numpy.polynomial import polynomial as poly
-from sarpy.io.DEM import geoid
-from sarpy.io.DEM import DEM as DEM
+from ..io.DEM import geoid, DEM
 
 __classification__ = "UNCLASSIFIED"
 __email__ = "Wade.C.Schwartzkopf.ctr@nga.mil"

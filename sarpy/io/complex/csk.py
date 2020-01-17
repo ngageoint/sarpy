@@ -1,673 +1,541 @@
-'''
-Module for reading Cosmo Skymed HDF5 imagery.  This is more or less
-a line-for-line port of the reader from NGA's MATLAB SAR Toolbox.
-'''
-# SarPy imports
-from .sicd import MetaNode
-from . import Reader as ReaderSuper  # Reader superclass
-from . import sicd
-from ...geometry import geocoords as gc
-from ...geometry import point_projection as point
-from .utils import chipper
+# -*- coding: utf-8 -*-
+"""
+Functionality for reading Cosmo Skymed data into a SICD model.
+"""
 
-# Python standard library imports
-import copy
-import datetime
-# External dependencies
-import numpy as np
-import h5py
-# We prefer numpy.polynomial.polynomial over numpy.polyval/polyfit since its coefficient
-# ordering is consistent with SICD, and because it supports 2D polynomials.
-from numpy.polynomial import polynomial as poly
+from collections import OrderedDict
+from typing import Tuple, Dict
+import warnings
+
+import numpy
+from numpy.polynomial import polynomial
 from scipy.constants import speed_of_light
-# try to import comb from scipy.special.
-# If an old version of scipy is being used then import from scipy.misc
-from scipy import __version__ as scipy_version
-dot_locs = []
-for i, version_char in enumerate(scipy_version):
-    if version_char == '.':
-        dot_locs.append(i)
-major_version = int(scipy_version[0:dot_locs[0]])
-if major_version >= 1:
-    from scipy.special import comb
-else:
-    from scipy.misc import comb
+
+try:
+    import h5py
+except ImportError:
+    h5py = None
+    warnings.warn('The h5py module is not successfully imported, '
+                  'which precludes Cosmo Skymed reading capability!')
+
+from .sicd_elements.blocks import Poly1DType, Poly2DType, RowColType
+from .sicd_elements.SICD import SICDType
+from .sicd_elements.CollectionInfo import CollectionInfoType, RadarModeType
+from .sicd_elements.ImageCreation import ImageCreationType
+from .sicd_elements.RadarCollection import RadarCollectionType, WaveformParametersType, \
+    TxFrequencyType, ChanParametersType, TxStepType
+from .sicd_elements.ImageData import ImageDataType
+from .sicd_elements.GeoData import GeoDataType, SCPType
+from .sicd_elements.SCPCOA import SCPCOAType
+from .sicd_elements.Position import PositionType, XYZPolyType
+from .sicd_elements.Grid import GridType, DirParamType, WgtTypeType
+from .sicd_elements.Timeline import TimelineType, IPPSetType
+from .sicd_elements.ImageFormation import ImageFormationType, TxFrequencyProcType
+from .sicd_elements.RMA import RMAType, INCAType
+from .sicd_elements.Radiometric import RadiometricType
+from ...geometry import point_projection
+from .radarsat import _2d_poly_fit
+from .base import BaseChipper, BaseReader
 
 __classification__ = "UNCLASSIFIED"
-__author__ = ["Jarred Barber", "Wade Schwartzkopf"]
-__email__ = "jpb5082@gmail.com"
 
 
-def datenum_w_frac(datestring, as_datetime=False):
-    '''
-    Python's datetime type won't parse or stores times with finer than microsecond
-    precision, but CSK time are often represented down to the nanosecond.  In order
-    to handle this precision we handle the fractional seconds separately so we can
-    process with the precision we need.
-
-    `as_datetime` returns a Python datetime object.
-    '''
-    epoch = datetime.datetime.strptime('2000-01-01 00:00:00',
-                                       '%Y-%m-%d %H:%M:%S')
-    if '.' in datestring:
-        date, frac = datestring.split('.')
-    else:
-        date = datestring
-        frac = '0'
-
-    date = datetime.datetime.strptime(date, '%Y-%m-%d %H:%M:%S')
-
-    datenum_s = (date - epoch).total_seconds()
-    datenum_frac = float('0.' + frac)
-
-    if np.isnan(datenum_frac):
-        datenum_frac = 0
-
-    if as_datetime:
-        return date + datetime.timedelta(seconds=datenum_frac)
-    else:
-        return datenum_s, datenum_frac
+########
+# base expected functionality for a module with an implemented Reader
 
 
-def isa(filename):
-    """Test to see if file is a product.xml file."""
+def is_a(file_name):
+    """
+    Tests whether a given file_name corresponds to a Cosmo Skymed file. Returns a reader instance, if so.
+
+    Parameters
+    ----------
+    file_name : str
+        the file_name to check
+
+    Returns
+    -------
+    CSKReader|None
+        `CSKReader` instance if Cosmo Skymed file, `None` otherwise
+    """
+
+    if h5py is None:
+        return None
+
     try:
-        with h5py.File(filename, 'r') as h5:
-            if 'CSK' in h5.attrs['Satellite ID'].decode('ascii'):
-                return Reader
-    except Exception:
-        pass
+        csk_details = CSKDetails(file_name)
+        print('File {} is determined to be a Cosmo Skymed file.'.format(file_name))
+        return CSKReader(csk_details)
+    except (IOError, KeyError, ValueError):
+        # TODO: what all should we catch?
+        return None
 
 
-class CSMChipper(chipper.Base):
-    def __init__(self, filename, band, meta):
-        self.filename = filename
+##########
+# helper functions
 
-        def complextype(data):
-            return data[..., 0] + data[..., 1] * 1j
-
-        self.band = band
-        self.complextype = complextype
-        self.symmetry = [False, False, True]
-
-        with h5py.File(filename, 'r') as h5:
-            lineorder = h5.attrs['Lines Order'].decode('ascii')
-            columnorder = h5.attrs['Columns Order'].decode('ascii')
-
-            key = 'S%02d' % (self.band+1)
-
-            self.datasize = np.array(h5[key]['SBI'].shape[:2])
-
-        self.symmetry[1] = (columnorder != 'NEAR-FAR')
-        self.symmetry[0] = (lineorder == 'EARLY-LATE') != (
-            meta.SCPCOA.SideOfTrack == 'R')
-
-    def read_raw_fun(self, dim1rg, dim2rg):
-        if len(dim1rg) == 2:
-            dim1rg = list(dim1rg) + [1]
-        if len(dim2rg) == 2:
-            dim2rg = list(dim2rg) + [1]
-
-        with h5py.File(self.filename, 'r') as h5:
-            s1, e1, k1 = dim1rg
-            s2, e2, k2 = dim2rg
-            key = 'S%02d' % (self.band+1)
-            return h5[key]['SBI'][s1:e1:k1, s2:e2:k2, :]
+def _extract_attrs(h5_element):
+    out = OrderedDict()
+    for key in h5_element.attrs:
+        val = h5_element.attrs[key]
+        out[key] = val.decode('utf-8') if isinstance(val, bytes) else val
+    return out
 
 
-class Reader(ReaderSuper):
-    def __init__(self, product_filename):
-        self.sicdmeta = meta2sicd(product_filename)
-        self.read_chip = [
-            CSMChipper(product_filename, band, self.sicdmeta[band])
-            for band in range(len(self.sicdmeta))
-        ]
+def _get_seconds(dt1, dt2):  # type: (numpy.datetime64, numpy.datetime64) -> float
+    tdt1 = dt1.astype('datetime64[ns]')
+    tdt2 = dt2.astype('datetime64[ns]')  # convert both to nanosecond precision
+    return (tdt1.astype('int64') - tdt2.astype('int64'))*1e-9
 
 
-def meta2sicd(filename):
-    '''
-    Extract attributes from CSM HDF5 file and format as SICD
-    '''
-    return _convert_meta(*_extract_meta_from_HDF(filename))
+###########
+# parser and interpreter for hdf5 attributes
+
+class CSKDetails(object):
+    __slots__ = ('_file_name', )
+
+    def __init__(self, file_name):
+        if h5py is None:
+            raise ImportError("Can't read Cosmo Skymed files, because the h5py dependency is missing.")
+
+        with h5py.File(file_name, 'r') as hf:
+            sat_id = hf.attrs['Satellite ID'].decode('utf-8')
+            prod_type = hf['Product Type'].decode('utf-8')
+
+        if 'CSK' not in sat_id:
+            raise ValueError('Expected hdf5 to be a CSK (attribute `Satellite ID` which contains "CSK"). '
+                             'Got Satellite ID = {}.'.format(sat_id))
+        if 'SCS' not in prod_type:
+            raise ValueError('Expected hdf to contain complex products '
+                             '(attribute `Product Type` which contains "SCS"). '
+                             'Got Product Type = {}'.format(prod_type))
+
+        self._file_name = file_name
+
+    @property
+    def file_name(self):
+        return self._file_name
+
+    def _get_hdf_dicts(self):
+        with h5py.File(self._file_name, 'r') as hf:
+            h5_dict = _extract_attrs(hf)
+            band_dict = OrderedDict()
+            shape_dict = OrderedDict()
+
+            for gp_name in sorted(hf.keys()):
+                gp = hf[gp_name]
+                band_dict[gp_name] = _extract_attrs(gp)
+                shape_dict[gp_name] = gp['SBI'].shape[:2]
+        return h5_dict, band_dict, shape_dict
+
+    @staticmethod
+    def _parse_pol(str_in):
+        return '{}:{}'.format(str_in[0], str_in[1])
+
+    def _get_base_sicd(self, h5_dict, band_dict):
+        # type: (dict, dict) -> SICDType
+
+        def get_collection_info():  # type: () -> CollectionInfoType
+            mode_type = 'STRIPMAP' if h5_dict['Acquisition Mode'] in \
+                                      ['HIMAGE', 'PINGPONG', 'WIDEREGION', 'HUGEREGION'] else 'DYNAMIC STRIPMAP'
+            return CollectionInfoType(Classification='UNCLASSIFIED',
+                                      CollectorName=h5_dict['Satellite ID'],
+                                      CoreName=str(h5_dict['Programmed Image ID']),
+                                      CollectType='MONOSTATIC',
+                                      RadarMode=RadarModeType(ModeId=h5_dict['Multi-Beam ID'],
+                                                              ModeType=mode_type))
+
+        def get_image_creation():  # type: () -> ImageCreationType
+            return ImageCreationType(DateTime=numpy.datetime64(h5_dict['Product Generation UTC'], 'ns'))
+
+        def get_grid():  # type: () -> GridType
+            if h5_dict['Projection ID'] == 'SLANT RANGE/AZIMUTH':
+                image_plane = 'SLANT'
+                gr_type = 'RGZERO'
+            else:
+                image_plane = 'GROUND'
+                gr_type = None
+            # Row
+            row_window_name = h5_dict['Range Focusing Weighting Function'].rstrip().upper()
+            row_params = None
+            if row_window_name == 'HAMMING':
+                row_params = {'COEFFICIENT': '{0:15f}'.format(h5_dict['Range Focusing Weighting Coefficient'])}
+            row = DirParamType(Sgn=-1,
+                               KCtr=2*center_frequency/speed_of_light,
+                               DeltaKCOAPoly=Poly2DType(Coefs=[[0, ], ]),
+                               WgtType=WgtTypeType(WindowName=row_window_name, Parameters=row_params))
+            # Col
+            col_window_name = h5_dict['Azimuth Focusing Weighting Function'].rstrip().upper()
+            col_params = None
+            if col_window_name == 'HAMMING':
+                col_params = {'COEFFICIENT': '{0:15f}'.format(h5_dict['Azimuth Focusing Weighting Coefficient'])}
+            col = DirParamType(Sgn=-1,
+                               KCtr=0,
+                               WgtType=WgtTypeType(WindowName=col_window_name, Parameters=col_params))
+            return GridType(ImagePlane=image_plane, Type=gr_type, Row=row, Col=col)
+
+        def get_timeline():  # type: () -> TimelineType
+            return TimelineType(CollectStart=collect_start,
+                                CollectDuration=duration,
+                                IPP=[IPPSetType(index=0, TStart=0, TEnd=0, IPPStart=0), ])
+
+        def get_position():  # type: () -> PositionType
+            T = h5_dict['State Vectors Times']  # in seconds relative to ref time
+            T += ref_time_offset
+            Pos = h5_dict['ECEF Satellite Position']
+            Vel = h5_dict['ECEF Satellite Velocity']  # for cross validation
+            # Let's perform polynomial fitting for the position with cross validation for overfitting checks
+            deg = 1
+            prev_vel_error = numpy.inf
+            P_x, P_y, P_z = None, None, None
+            while deg < Pos.shape[0]:
+                # fit position
+                P_x = polynomial.polyfit(T, Pos[:, 0], deg=deg)
+                P_y = polynomial.polyfit(T, Pos[:, 1], deg=deg)
+                P_z = polynomial.polyfit(T, Pos[:, 2], deg=deg)
+                # extract estimated velocities
+                Vel_est = numpy.array(
+                    [polynomial.polyval(T, polynomial.polyder(P_x)),
+                     polynomial.polyval(T, polynomial.polyder(P_y)),
+                     polynomial.polyval(T, polynomial.polyder(P_z))], dtype=numpy.float64)
+                # check our velocity error
+                vel_err = Vel_est - Vel
+                cur_vel_error = numpy.sum((vel_err*vel_err))
+                # stop if the error is not smaller than at the previous step
+                if cur_vel_error >= prev_vel_error:
+                    break
+            return PositionType(ARPPoly=XYZPolyType(X=P_x, Y=P_y, Z=P_z))
+
+        def get_radar_collection():  # type: () -> RadarCollectionType
+            tx_pols = []
+            chan_params = []
+            for i, bdname in enumerate(band_dict):
+                pol = band_dict[bdname]['Polarisation']
+                tx_pols.append(pol[0])
+                chan_params.append(ChanParametersType(TxRcvPolarization=self._parse_pol(pol), index=i))
+            if len(tx_pols) == 1:
+                return RadarCollectionType(RcvChannels=chan_params, TxPolarization=tx_pols[0])
+            else:
+                return RadarCollectionType(RcvChannels=chan_params,
+                                           TxPolarization='SEQUENCE',
+                                           TxSequence=[TxStepType(TxPolarization=pol,
+                                                                  index=i+1) for i, pol in enumerate(tx_pols)])
+
+        def get_image_formation():  # type: () -> ImageFormationType
+            return ImageFormationType(ImageFormAlgo='RMA',
+                                      TStartProc=0,
+                                      TEndProc=duration,
+                                      STBeamComp='SV',
+                                      ImageBeamComp='NO',
+                                      AzAutofocus='NO',
+                                      RgAutofocus='NO')
+
+        def get_rma():  # type: () -> RMAType
+            inca = INCAType(FreqZero=center_frequency)
+            return RMAType(RMAlgoType='OMEGA_K',
+                           INCA=inca)
+
+        def get_scpcoa():  # type: () -> SCPCOAType
+            return SCPCOAType(SideOfTrack=h5_dict['Look Side'][0:1].upper())
+
+        # some common use parameters
+        center_frequency = h5_dict['Radar Frequency']
+        # relative times in csk are wrt some reference time - for sicd they should be relative to start time
+        collect_start = numpy.datetime64(h5_dict['Scene Sensing Start UTC'], 'ns')
+        collect_end = numpy.datetime64(h5_dict['Scene Sensing Stop UTC'], 'ns')
+        duration = _get_seconds(collect_end, collect_start)
+        ref_time = numpy.datetime64(h5_dict['Reference UTC'], 'ns')
+        ref_time_offset = _get_seconds(ref_time, collect_start)
+
+        # assemble our pieces
+        collection_info = get_collection_info()
+        image_creation = get_image_creation()
+        grid = get_grid()
+        timeline = get_timeline()
+        position = get_position()
+        radar_collection = get_radar_collection()
+        image_formation = get_image_formation()
+        rma = get_rma()
+        scpcoa = get_scpcoa()
+
+        return SICDType(CollectionInfo=collection_info,
+                        ImageCreation=image_creation,
+                        Grid=grid,
+                        Timeline=timeline,
+                        Position=position,
+                        RadarCollection=radar_collection,
+                        ImageFormation=image_formation,
+                        RMA=rma,
+                        SCPCOA=scpcoa)
+
+    @staticmethod
+    def _get_dop_poly_details(h5_dict):
+        # type: (dict) -> Tuple[float, float, Poly1DType, Poly1DType, Poly1DType]
+        def strip_poly(arr):
+            # strip worthless (all zero) highest order terms
+            # find last non-zero index
+            last_ind = arr.size
+            for i in range(arr.size-1, -1, -1):
+                if arr[i] != 0:
+                    break
+                last_ind = i
+            return Poly1DType(Coefs=arr[:last_ind])
+
+        az_ref_time = h5_dict['Azimuth Polynomial Reference Time']  # seconds
+        rg_ref_time = h5_dict['Range Polynomial Reference Time']
+        dop_poly_az = strip_poly(h5_dict['Centroid vs Azimuth Time Polynomial'])
+        dop_poly_rg = strip_poly(h5_dict['Centroid vs Range Time Polynomial'])
+        dop_rate_poly_rg = strip_poly(h5_dict['Doppler Rate vs Range Time Polynomial'])
+        return az_ref_time, rg_ref_time, dop_poly_az, dop_poly_rg, dop_rate_poly_rg
+
+    def _get_band_specific_sicds(self, base_sicd, h5_dict, band_dict):
+        # type: (SICDType, dict, dict) -> Dict[str, SICDType]
+
+        az_ref_time, rg_ref_time, dop_poly_az, dop_poly_rg, dop_rate_poly_rg = self._get_dop_poly_details(h5_dict)
+        center_frequency = h5_dict['Radar Frequency']
+        # relative times in csk are wrt some reference time - for sicd they should be relative to start time
+        collect_start = numpy.datetime64(h5_dict['Scene Sensing Start UTC'], 'ns')
+        ref_time = numpy.datetime64(h5_dict['Reference UTC'], 'ns')
+        ref_time_offset = _get_seconds(ref_time, collect_start)
+
+        def update_scp_prelim(sicd, band_name):
+            # type: (SICDType, str) -> None
+            LLH = band_dict[band_name]['Centre Geodetic Coordinates']
+            sicd.GeoData = GeoDataType(SCP=SCPType(LLH=LLH))  # EarthModel & ECF will be populated
+
+        def update_image_data(sicd, band_name):
+            # type: (SICDType, str) -> Tuple[float, float, float, float]
+
+            # def scp_option2():  # type: () -> RowColType
+            #     # Choose the SCP as the point closest to the middle of the image
+            #     return RowColType(Row=int(rows/2), Col=int(cols/2))
+
+            def scp_option1():  # type: () -> Tuple[RowColType, float, float, float, float]
+                # Choose the SCP as the point closest to the reference zero-doppler and range
+                # times in the CSK metadata.
+                tt_az_first_time = band_dict[band_name]['Zero Doppler Azimuth First Time']
+                # zero doppler time of first column
+                tt_ss_az_s = band_dict[band_name]['Line Time Interval']
+                scp_col_base = round((az_ref_time - tt_az_first_time) / tt_ss_az_s)
+                if base_sicd.SCPCOA.SideOfTrack == 'L':
+                    # we ned to reverse time order
+                    scp_col = cols - 1 - scp_col_base
+                    tt_ss_az_s *= -1
+                    tt_az_first_time = band_dict[band_name]['Zero Doppler Azimuth Last Time']
+                else:
+                    scp_col = scp_col_base
+                # zero doppler time of first row
+                tt_rg_first_time = band_dict[band_name]['Zero Doppler Range First Time']
+                # row spacing in range time (seconds)
+                tt_ss_rg_s = band_dict[band_name]['Column Time Interval']
+                scp_row = round((rg_ref_time - tt_rg_first_time) / tt_ss_rg_s)
+                return RowColType(Row=scp_row, Col=scp_col), tt_rg_first_time, tt_ss_rg_s, tt_az_first_time, tt_ss_az_s
+
+            cols, rows = band_dict[band_name]['shape']
+            scp_pixel, t_rg_first_time, t_ss_rg_s, t_az_first_time, t_ss_az_s = scp_option1()
+            sicd.ImageData = ImageDataType(NumRows=rows,
+                                           NumCols=cols,
+                                           FirstRow=0,
+                                           FirstCol=0,
+                                           PixelType='RE16I_IM16I',
+                                           SCPPixel=scp_pixel)
+
+            return t_rg_first_time, t_ss_rg_s, t_az_first_time, t_ss_az_s
+
+        def update_timeline(sicd, band_name):  # type: (SICDType, str) -> None
+            prf = band_dict[band_name]['PRF']
+            duration = sicd.Timeline.CollectDuration
+            ipp_el = sicd.Timeline.IPP[0]
+            ipp_el.IPPEnd = duration
+            ipp_el.TEnd = duration
+            ipp_el.IPPPoly = Poly1DType(Coefs=(0, prf))
+
+        def update_radar_collection(sicd, band_name, ind):  # type: (SICDType, str, int) -> None
+            chirp_length = band_dict[band_name]['Range Chirp Length']
+            chirp_rate = abs(band_dict[band_name]['Range Chirp Rate'])
+            sample_rate = band_dict[band_name]['Sampling Rate']
+            ref_dechirp_time = band_dict[band_name]['Reference Dechirping Time']
+            win_length = band_dict[band_name]['Echo Sampling Window Length']
+            rcv_fm_rate = 0 if numpy.isnan(ref_dechirp_time) else ref_dechirp_time  # TODO: is this the correct value?
+            band_width = chirp_length*chirp_rate
+            fr_min = center_frequency - 0.5*band_width
+            fr_max = center_frequency + 0.5*band_width
+            sicd.RadarCollection.TxFrequency = TxFrequencyType(Min=fr_min,
+                                                               Max=fr_max)
+            sicd.RadarCollection.Waveform = [WaveformParametersType(index=0,
+                                                                    TxPulseLength=chirp_length,
+                                                                    TxRFBandwidth=band_width,
+                                                                    TxFreqStart=fr_min,
+                                                                    TxFMRate=chirp_rate,
+                                                                    ADCSampleRate=sample_rate,
+                                                                    RcvFMRate=rcv_fm_rate,
+                                                                    RcvWindowLength=win_length/sample_rate), ]
+            sicd.ImageFormation.RcvChanProc.ChanIndices = [ind, ]
+            sicd.ImageFormation.TxFrequencyProc = TxFrequencyProcType(MinProc=fr_min, MaxProc=fr_max)
+            sicd.ImageFormation.TxRcvPolarizationProc = sicd.RadarCollection.RcvChannels[ind].TxRcvPolarization
+
+        def update_rma_and_grid(sicd, band_name):  # type: (SICDType, str) -> None
+            rg_scp_time = rg_first_time + (ss_rg_s*sicd.ImageData.SCPPixel.Row)
+            az_scp_time = az_first_time + (ss_az_s*sicd.ImageData.SCPPixel.Col)
+            r_ca_scp = rg_scp_time*speed_of_light/2
+            sicd.RMA.INCA.R_CA_SCP = r_ca_scp
+            # compute DRateSFPoly
+            scp_ca_time = az_scp_time + ref_time_offset
+            vel_poly = sicd.Position.ARPPoly.derivative(der_order=1, return_poly=True)
+            vel_ca_vec = vel_poly(scp_ca_time)
+            vel_ca_sq = numpy.sum(vel_ca_vec*vel_ca_vec)
+            vel_ca = numpy.sqrt(vel_ca_sq)
+            r_ca = numpy.array([r_ca_scp, 1.], dtype=numpy.float64)
+            dop_rate_poly_rg_shifted = dop_rate_poly_rg.shift(
+                rg_ref_time-rg_scp_time, alpha=ss_rg_s/row_ss, return_poly=False)
+            drate_sf_poly = -(polynomial.polymul(dop_rate_poly_rg_shifted, r_ca) *
+                              speed_of_light/(2*center_frequency*vel_ca_sq))
+            # update grid
+            sicd.Grid.Row.SS = row_ss
+            sicd.Grid.Row.ImpRespBW = row_bw
+            sicd.Grid.Row.DeltaK1 = -0.5 * row_bw
+            sicd.Grid.Row.DeltaK2 = 0.5 * row_bw
+            col_ss = vel_ca*ss_az_s*drate_sf_poly[0]
+            sicd.Grid.Col.SS = col_ss
+            col_bw = min(band_dict[band_name]['Azimuth Focusing Bandwidth'] * abs(ss_az_s), 1) / col_ss
+            sicd.Grid.Col.ImpRespBW = col_bw
+            # update inca
+            sicd.RMA.INCA.DRateSFPoly = Poly2DType(Coefs=numpy.reshape(drate_sf_poly, (-1, 1)))
+            sicd.RMA.INCA.TimeCAPoly = Poly1DType(Coefs=[scp_ca_time, ss_az_s/col_ss])
+            # compute DopCentroidPoly & DeltaKCOAPoly
+            dop_centroid_poly = numpy.zeros((dop_poly_rg.order1+1, dop_poly_az.order1+1), dtype=numpy.float64)
+            dop_centroid_poly[0, 0] = dop_poly_rg(rg_scp_time-rg_ref_time) + \
+                dop_poly_az(az_scp_time-az_ref_time) + \
+                0.5*(dop_poly_rg[0] + dop_poly_az[0])
+            dop_poly_rg_shifted = dop_poly_rg.shift(rg_ref_time-rg_scp_time, alpha=ss_rg_s/row_ss)
+            dop_poly_az_shifted = dop_poly_az.shift(az_ref_time-az_scp_time, alpha=ss_az_s/col_ss)
+            dop_centroid_poly[1:, 0] = dop_poly_rg_shifted[1:]
+            dop_centroid_poly[0, 1:] = dop_poly_az_shifted[1:]
+            sicd.RMA.INCA.DopCentroidPoly = Poly2DType(Coefs=dop_centroid_poly)
+            sicd.RMA.INCA.DopCentroidCOA = True
+            sicd.Grid.Col.DeltaKCOAPoly = Poly2DType(Coefs=dop_centroid_poly*ss_az_s/col_ss)
+
+            image_data = sicd.ImageData
+            grid = sicd.Grid
+            inca = sicd.RMA.INCA
+            poly_order = 2
+            grid_samples = poly_order + 2
+            coords_az = (numpy.linspace(0, image_data.NumCols - 1,
+                                        grid_samples) - image_data.SCPPixel.Col) * grid.Col.SS
+            coords_rg = (numpy.linspace(0, image_data.NumRows - 1,
+                                        grid_samples) - image_data.SCPPixel.Row) * grid.Row.SS
+            coords_az_2d, coords_rg_2d = numpy.meshgrid(coords_az, coords_rg)
+            time_ca_sampled = inca.TimeCAPoly(coords_rg_2d)  # coords_az_2d) 1-D polynomial
+            dop_centroid_sampled = inca.DopCentroidPoly(coords_rg_2d, coords_az_2d)
+            doppler_rate_sampled = polynomial.polyval(coords_rg_2d, dop_rate_poly_rg_shifted)
+            time_coa_sampled = time_ca_sampled + dop_centroid_sampled / doppler_rate_sampled
+            grid.TimeCOAPoly = Poly2DType(
+                Coefs=_2d_poly_fit(coords_rg_2d, coords_az_2d, time_coa_sampled, x_order=poly_order,
+                                   y_order=poly_order))
+
+        def update_radiometric(sicd, band_name):  # type: (SICDType, str) -> None
+            if h5_dict['Range Spreading Loss Compensation Geometry'] != 'NONE':
+                slant_range = h5_dict['Reference Slant Range']
+                exp = h5_dict['Reference Slant Range Exponent']
+                sf = slant_range**(2*exp)
+                if h5_dict['Calibration Constant Compensation Flag'] == 0:
+                    rsf = h5_dict['Rescaling Factor']
+                    cal = band_dict[band_name]['Calibration Constant']
+                    sf /= cal*(rsf**2)
+                sicd.Radiometric = RadiometricType(BetaZeroSFPoly=Poly2DType(Coefs=[[sf, ], ]))
+
+        def update_geodata(sicd):  # type: (SICDType) -> None
+            ecf = point_projection.image_to_ground([sicd.ImageData.SCPPixel.Row, sicd.ImageData.SCPPixel.Col], sicd)
+            sicd.GeoData.SCP = SCPType(ECF=ecf)  # LLH will be populated
+
+        out = {}
+        for i, bd_name in enumerate(band_dict):
+            t_sicd = base_sicd.copy()
+            update_scp_prelim(t_sicd, bd_name)  # set preliminary value for SCP (required for projection)
+            row_bw = band_dict[bd_name]['Range Focusing Bandwidth']*2/speed_of_light
+            row_ss = band_dict[bd_name]['Column Spacing']
+            rg_first_time, ss_rg_s, az_first_time, ss_az_s = update_image_data(t_sicd, bd_name)
+            update_timeline(t_sicd, bd_name)
+            update_radar_collection(t_sicd, bd_name, i)
+            update_rma_and_grid(t_sicd, bd_name)
+            update_radiometric(t_sicd, bd_name)
+            update_geodata(t_sicd)
+            t_sicd.derive()
+            out[bd_name] = t_sicd
+        return out
+
+    @staticmethod
+    def _get_symmetry(base_sicd, h5_dict):
+        line_order = h5_dict['Lines Order']
+        column_order = h5_dict['Columns Order']
+        symmetry = (
+            (line_order == 'EARLY-LATE') != (base_sicd.SCPCOA.SideOfTrack == 'R'),
+            column_order != 'NEAR-FAR',
+            True)
+        return symmetry
+
+    def get_sicd_collection(self):
+        """
+        Get the sicd collection for the bands.
+
+        Returns
+        -------
+        Tuple[Dict[str, SICDType], Dict[str, str], Tuple[bool, bool, bool]]
+            the first entry is a dictionary of the form {band_name: sicd}
+            the second entry is of the form {band_name: shape}
+            the third entry is the symmetry tuple
+        """
+
+        h5_dict, band_dict, shape_dict = self._get_hdf_dicts()
+        base_sicd = self._get_base_sicd(h5_dict, band_dict)
+        return self._get_band_specific_sicds(base_sicd, h5_dict, band_dict), \
+            shape_dict, self._get_symmetry(base_sicd, h5_dict)
 
 
-def _populate_meta(root, recurse=True):
-    '''
-    DFS to merge all attrs into a single dict
-    '''
+################
+# The CSK chipper and reader
 
-    def f(v):
-        if isinstance(v, bytes):
-            return v.decode('ascii')
-        return v
+class CSKBandChipper(BaseChipper):
+    __slots__ = ('_file_name', '_band_name')
 
-    meta = {k: f(v) for k, v in root.attrs.items()}
+    def __init__(self, file_name, band_name, data_size, symmetry):
+        self._file_name = file_name
+        self._band_name = band_name
+        super(CSKBandChipper, self).__init__(data_size, symmetry=symmetry, complex_type=True)
 
-    if recurse:
-        try:
-            for v in root.values():
-                try:
-                    meta.update(_populate_meta(v))
-                except Exception:  # Doesn't have attrs
-                    pass
-        except AttributeError:  # Doesn't have values()
-            pass
-    return meta
+    def _read_raw_fun(self, range1, range2):
+        r1, r2 = self._reorder_arguments(range1, range2)
+        with h5py.File(self._file_name, 'r') as hf:
+            gp = hf['{}/SBI'.format(self._band_name)]
+            data = gp[r1[0]:r1[1]:r1[2], r2[0]:r2[1]:r2[2], :]
+        return data.transpose((2, 0, 1))
 
 
-def _extract_meta_from_HDF(filename):
-    '''
-    Extract the attribute metadata from the HDF5 files
-    '''
-    band_meta = []
-    band_shapes = []
-    with h5py.File(filename, 'r') as h5:
-        h5meta = _populate_meta(h5, recurse=False)
+class CSKReader(BaseReader):
+    """
+    Gets a reader type object for Cosmo Skymed files
+    """
 
-        # per-band data
-        numbands = len(h5.keys())
-        for i in range(numbands):  # "pingpong" mode has multiple polarizations
-            groupname = '/S%02d' % (i+1)
-            band_meta.append(_populate_meta(h5[groupname]))
-            band_shapes.append(h5[groupname]['SBI'].shape[:2])
-    return h5meta, band_meta, band_shapes
+    __slots__ = ('_csk_details', )
 
+    def __init__(self, csk_details):
+        """
 
-def _convert_meta(h5meta, band_meta, band_shapes):
-    '''
-    Extract the CSM metadata into SICD format
+        Parameters
+        ----------
+        csk_details : str|CSKDetails
+            file name or CSKDetails object
+        """
 
-    Inputs:
-    h5meta: The attributes from the HDF5 root
-    band_meta: A list of dicts, with dict i containing the attributes from /S0{i+1}
-    band_shapes: The dataset shapes of each band dataset.
-    '''
-
-    def _polyshift(a, shift):
-        b = np.zeros(a.size)
-        for j in range(1, len(a) + 1):
-            for k in range(j, len(a) + 1):
-                b[j - 1] = b[j - 1] + (
-                    a[k - 1] * comb(k - 1, j - 1) * np.power(shift, (k - j)))
-        return b
-
-    numbands = len(band_meta)
-    # CollectionInfo
-    output_meta = MetaNode()
-    output_meta.CollectionInfo = MetaNode()
-    output_meta.CollectionInfo.CollectorName = h5meta['Satellite ID']
-    output_meta.CollectionInfo.CoreName = str(h5meta['Programmed Image ID'])
-    output_meta.CollectionInfo.CollectType = 'MONOSTATIC'
-
-    output_meta.CollectionInfo.RadarMode = MetaNode()
-
-    if h5meta['Acquisition Mode'] in [
-            'HIMAGE', 'PINGPONG', 'WIDEREGION', 'HUGEREGION'
-    ]:
-        output_meta.CollectionInfo.RadarMode.ModeType = 'STRIPMAP'
-    else:
-        # case {'ENHANCED SPOTLIGHT','SMART'} # "Spotlight"
-        output_meta.CollectionInfo.RadarMode.ModeType = 'DYNAMIC STRIPMAP'
-    output_meta.CollectionInfo.RadarMode.ModeID = h5meta['Multi-Beam ID']
-    output_meta.CollectionInfo.Classification = 'UNCLASSIFIED'
-
-    # ImageCreation
-    output_meta.ImageCreation = MetaNode()
-    img_create_time = datenum_w_frac(h5meta['Product Generation UTC'], True)
-    output_meta.ImageCreation.DateTime = img_create_time
-    output_meta.ImageCreation.Profile = 'Prototype'
-
-    # ImageData
-    output_meta.ImageData = MetaNode()  # Just a placeholder
-    # Most subfields added below in "per band" section
-    # Used for computing SCP later
-
-    # GeoData
-    output_meta.GeoData = MetaNode()
-    if h5meta['Ellipsoid Designator'] == 'WGS84':
-        output_meta.GeoData.EarthModel = 'WGS_84'
-
-    # Most subfields added below in "per band" section
-
-    # Grid
-    output_meta.Grid = MetaNode()
-    if h5meta['Projection ID'] == 'SLANT RANGE/AZIMUTH':
-        output_meta.Grid.ImagePlane = 'SLANT'
-        output_meta.Grid.Type = 'RGZERO'
-    else:
-        output_meta.Grid.ImagePlane = 'GROUND'
-    output_meta.Grid.Row = MetaNode()
-    output_meta.Grid.Col = MetaNode()
-    output_meta.Grid.Row.Sgn = -1  # Always true for CSM
-    output_meta.Grid.Col.Sgn = -1  # Always true for CSM
-    fc = h5meta['Radar Frequency']  # Center frequency
-    output_meta.Grid.Row.KCtr = 2 * fc / speed_of_light
-    output_meta.Grid.Col.KCtr = 0
-    output_meta.Grid.Row.DeltaKCOAPoly = np.atleast_2d(0)
-    output_meta.Grid.Row.WgtType = MetaNode()
-    output_meta.Grid.Col.WgtType = MetaNode()
-    output_meta.Grid.Row.WgtType.WindowName = h5meta[
-        'Range Focusing Weighting Function'].rstrip().upper()
-    if output_meta.Grid.Row.WgtType.WindowName == 'HAMMING':  # The usual CSM weigting
-        output_meta.Grid.Row.WgtType.Parameter = MetaNode()
-        output_meta.Grid.Row.WgtType.Parameter.name = 'COEFFICIENT'
-        output_meta.Grid.Row.WgtType.Parameter.value = \
-            str(h5meta['Range Focusing Weighting Coefficient'])
-    output_meta.Grid.Col.WgtType.WindowName = h5meta[
-        'Azimuth Focusing Weighting Function'].rstrip().upper()
-    if output_meta.Grid.Col.WgtType.WindowName == 'HAMMING':  # The usual CSM weigting
-        output_meta.Grid.Col.WgtType.Parameter = MetaNode()
-        output_meta.Grid.Col.WgtType.Parameter.name = 'COEFFICIENT'
-        output_meta.Grid.Col.WgtType.Parameter.value = \
-            str(h5meta['Azimuth Focusing Weighting Coefficient'])
-    # WgtFunct will be populated in sicd.derived_fields
-    # More subfields added below in "per band" section
-
-    # Timeline
-    [collectStart,
-     collectStartFrac] = datenum_w_frac(h5meta['Scene Sensing Start UTC'])
-    [collectEnd,
-     collectEndFrac] = datenum_w_frac(h5meta['Scene Sensing Stop UTC'])
-    # We loose a bit of precision when assigning the SICD CollectStart
-    # field, since a Python datetime type just doesn't have enough
-    # bits to handle the full precision given in the CSK metadata. However, all
-    # relative times within the SICD metadata structure will be computed at
-    # full precision.
-    output_meta.Timeline = MetaNode()
-    output_meta.Timeline.IPP = MetaNode()
-    output_meta.Timeline.IPP.Set = MetaNode()
-    output_meta.Timeline.CollectStart = datenum_w_frac(
-        h5meta['Scene Sensing Start UTC'], True)
-    output_meta.Timeline.CollectDuration = datenum_w_frac(
-        h5meta['Scene Sensing Stop UTC'], True)
-    output_meta.Timeline.CollectDuration = (
-        output_meta.Timeline.CollectDuration -
-        output_meta.Timeline.CollectStart).total_seconds()
-    output_meta.Timeline.IPP.Set.TStart = 0
-    output_meta.Timeline.IPP.Set.TEnd = 0  # Apply real value later.  Just a placeholder.
-    output_meta.Timeline.IPP.Set.IPPStart = 0
-    # More subfields added below in "per band" section
-
-    # Position
-    # Compute polynomial from state vectors
-    [ref_time, ref_time_frac] = datenum_w_frac(h5meta['Reference UTC'])
-    # Times in SICD are with respect to time from start of collect, but
-    # time in CSM are generally with respect to reference time.
-    ref_time_offset = np.round(ref_time - collectStart)
-    ref_time_offset += (
-        ref_time_frac - collectStartFrac)  # Handle fractional seconds
-    state_vector_T = h5meta['State Vectors Times']  # In seconds
-    state_vector_T = state_vector_T + ref_time_offset  # Make with respect to Timeline.CollectStart
-    state_vector_pos = h5meta['ECEF Satellite Position']
-    # sv2poly.m in MATLAB SAR Toolbox shows ways to determine best polynomial order,
-    # but 5th is almost always best
-    polyorder = np.minimum(5, len(state_vector_T) - 1)
-
-    P_x = poly.polyfit(state_vector_T, state_vector_pos[:, 0], polyorder)
-    P_y = poly.polyfit(state_vector_T, state_vector_pos[:, 1], polyorder)
-    P_z = poly.polyfit(state_vector_T, state_vector_pos[:, 2], polyorder)
-
-    # We don't use these since they are derivable from the position polynomial
-    # state_vector_vel = h5meta['ECEF Satellite Velocity']
-    # state_vector_acc = h5meta['ECEF Satellite Acceleration']
-    # P_vx = polyfit(state_vector_T, state_vector_vel(1,:), polyorder)
-    # P_vy = polyfit(state_vector_T, state_vector_vel(2,:), polyorder)
-    # P_vz = polyfit(state_vector_T, state_vector_vel(3,:), polyorder)
-    # P_ax = polyfit(state_vector_T, state_vector_acc(1,:), polyorder)
-    # P_ay = polyfit(state_vector_T, state_vector_acc(2,:), polyorder)
-    # P_az = polyfit(state_vector_T, state_vector_acc(3,:), polyorder)
-    # Store position polynomial
-    output_meta.Position = MetaNode()
-    output_meta.Position.ARPPoly = MetaNode()
-    output_meta.Position.ARPPoly.X = P_x
-    output_meta.Position.ARPPoly.Y = P_y
-    output_meta.Position.ARPPoly.Z = P_z
-
-    # RadarCollection
-    output_meta.RadarCollection = MetaNode()
-    output_meta.RadarCollection.RcvChannels = MetaNode()
-    output_meta.RadarCollection.RcvChannels.ChanParameters = []
-    tx_pol = []
-    for i in range(numbands):
-        pol = band_meta[i]['Polarisation']
-        output_meta.RadarCollection.RcvChannels.ChanParameters.append(MetaNode())
-        output_meta.RadarCollection.RcvChannels.ChanParameters[i].TxRcvPolarization = \
-            pol[0] + ':' + pol[1]
-        if pol[0] not in tx_pol:
-            tx_pol.append(pol[0])
-    if len(tx_pol) == 1:
-        output_meta.RadarCollection.TxPolarization = tx_pol
-    else:
-        output_meta.RadarCollection.TxPolarization = 'SEQUENCE'
-        output_meta.RadarCollection.TxSequence = []
-        for i in range(len(tx_pol)):
-            output_meta.RadarCollection.TxSequence.append(MetaNode())
-            output_meta.RadarCollection.TxSequence[i].TxStep = i + 1
-            output_meta.RadarCollection.TxSequence[i].TxPolarization = tx_pol[i]
-    # Most subfields added below in "per band" section
-
-    # ImageFormation
-    output_meta.ImageFormation = MetaNode()
-    output_meta.ImageFormation.RcvChanProc = MetaNode()
-    output_meta.ImageFormation.RcvChanProc.NumChanProc = 1
-    output_meta.ImageFormation.RcvChanProc.PRFScaleFactor = 1
-    output_meta.ImageFormation.ImageFormAlgo = 'RMA'
-    output_meta.ImageFormation.TStartProc = 0
-    output_meta.ImageFormation.TEndProc = output_meta.Timeline.CollectDuration
-    output_meta.ImageFormation.STBeamComp = 'SV'
-    output_meta.ImageFormation.ImageBeamComp = 'NO'
-    output_meta.ImageFormation.AzAutofocus = 'NO'
-    output_meta.ImageFormation.RgAutofocus = 'NO'
-    # More subfields added below in "per band" section
-    output_meta.RMA = MetaNode()
-    output_meta.RMA.RMAlgoType = 'OMEGA_K'
-    output_meta.RMA.ImageType = 'INCA'
-    output_meta.RMA.INCA = MetaNode()
-    output_meta.RMA.INCA.FreqZero = fc
-    # These polynomials are used later to determine RMA.INCA.DopCentroidPoly
-    t_az_ref = h5meta['Azimuth Polynomial Reference Time']
-    t_rg_ref = h5meta['Range Polynomial Reference Time']
-    # Strip of zero coefficients at end of polynomials.  Not required but makes things cleaner.
-    dop_poly_az = h5meta['Centroid vs Azimuth Time Polynomial']
-    dop_poly_az = dop_poly_az[:(np.argwhere(dop_poly_az != 0.0)[-1, 0] + 1)]
-    dop_poly_rg = h5meta['Centroid vs Range Time Polynomial']
-    dop_poly_rg = dop_poly_rg[:(np.argwhere(dop_poly_rg != 0.0)[-1, 0] + 1)]
-    # dop_rate_poly_az = h5meta['Doppler Rate vs Azimuth Time Polynomial']
-    dop_rate_poly_rg = h5meta['Doppler Rate vs Range Time Polynomial']
-    dop_rate_poly_rg = dop_rate_poly_rg[:(np.argwhere(dop_poly_rg != 0.0)[-1, 0] + 1)]
-
-    # SCPCOA
-    output_meta.SCPCOA = MetaNode()
-    output_meta.SCPCOA.SideOfTrack = h5meta['Look Side'][0:1].upper()
-    # Most subfields added below in "per band" section, but we grab this field
-    # now so we know to flip from CSM's EARLY-LATE column order to SICD's
-    # view-from-above column order.
-
-    # Process fields specific to each polarimetric band
-    band_independent_meta = copy.deepcopy(
-        output_meta)  # Values that are consistent across all bands
-    grouped_meta = []
-
-    for i in range(numbands):
-        output_meta = copy.deepcopy(band_independent_meta)
-        # ImageData
-        datasize = band_shapes[i]  # All polarizations should be same size
-        output_meta.ImageData = MetaNode()
-        output_meta.ImageData.NumCols = datasize[0]
-        output_meta.ImageData.NumRows = datasize[1]
-        output_meta.ImageData.FullImage = copy.deepcopy(output_meta.ImageData)
-        output_meta.ImageData.FirstRow = 0
-        output_meta.ImageData.FirstCol = 0
-        output_meta.ImageData.PixelType = 'RE16I_IM16I'
-        # There are many different options for picking the SCP point.  We chose
-        # the point that is closest to the reference zero-doppler and range
-        # times in the CSM metadata.
-        t_az_first = band_meta[i]['Zero Doppler Azimuth First Time']
-        # Zero doppler time of first column
-        ss_az_s = band_meta[i]['Line Time Interval']
-        # Image column spacing in zero doppler time (seconds)
-        output_meta.ImageData.SCPPixel = MetaNode()
-        output_meta.ImageData.SCPPixel.Col = int(
-            np.round((t_az_ref - t_az_first) / ss_az_s) + 1)
-        if output_meta.SCPCOA.SideOfTrack == 'L':
-            # Order of columns in SICD goes in reverse time for left-looking
-            ss_az_s = -ss_az_s
-            output_meta.ImageData.SCPPixel.Col = int(
-                output_meta.ImageData.NumCols -
-                output_meta.ImageData.SCPPixel.Col - 1)
-            # First column in SICD is actually last line in CSM terminology
-            t_az_first = band_meta[i]['Zero Doppler Azimuth Last Time']
-
-        t_rg_first = band_meta[i][
-            'Zero Doppler Range First Time']  # Range time of first row
-
-        if 'SCS' in h5meta['Product Type']:
-            # 'Column Time Interval' does not exist in detected products.
-            ss_rg_s = band_meta[i][
-                'Column Time Interval']  # Row spacing in range time (seconds)
-            output_meta.ImageData.SCPPixel.Row = int(
-                round((t_rg_ref - t_rg_first) / ss_rg_s) + 1)
-        else:
-            raise NotImplementedError('Only complex products supported')
-
-        # How Lockheed seems to pick the SCP:
-        output_meta.ImageData.SCPPixel = MetaNode()
-        output_meta.ImageData.SCPPixel.Col = datasize[0] // 2
-        output_meta.ImageData.SCPPixel.Row = int(np.ceil(datasize[1] / 2) - 1)
-
-        # GeoData
-        # Initially, we just seed this with a rough value.  Later we will put
-        # in something more precise.
-        latlon = band_meta[i]['Centre Geodetic Coordinates']
-        output_meta.GeoData.SCP = MetaNode()
-        output_meta.GeoData.SCP.LLH = MetaNode()
-        output_meta.GeoData.SCP.ECF = MetaNode()
-        output_meta.GeoData.SCP.LLH.Lat = latlon[0]
-        output_meta.GeoData.SCP.LLH.Lon = latlon[1]
-        # CSM generally gives HAE as zero.  Perhaps we should adjust this to DEM.
-        output_meta.GeoData.SCP.LLH.HAE = latlon[2]
-        ecf = gc.geodetic_to_ecf(latlon)[0]
-
-        output_meta.GeoData.SCP.ECF.X = ecf[0]
-        output_meta.GeoData.SCP.ECF.Y = ecf[1]
-        output_meta.GeoData.SCP.ECF.Z = ecf[2]
-        # Calling derived_sicd_fields at the end will populate these fields
-        # with the sensor model, so we don't need to do it here.
-        # latlon=get_hdf_attribute(dset_id(i),'Top Left Geodetic Coordinates')
-        # output_meta.GeoData.ImageCorners.ICP.FRFC.Lat=latlon(1)
-        # output_meta.GeoData.ImageCorners.ICP.FRFC.Lon=latlon(2)
-        # latlon=get_hdf_attribute(dset_id(i),'Bottom Left Geodetic Coordinates')
-        # output_meta.GeoData.ImageCorners.ICP.FRLC.Lat=latlon(1)
-        # output_meta.GeoData.ImageCorners.ICP.FRLC.Lon=latlon(2)
-        # latlon=get_hdf_attribute(dset_id(i),'Bottom Right Geodetic Coordinates')
-        # output_meta.GeoData.ImageCorners.ICP.LRLC.Lat=latlon(1)
-        # output_meta.GeoData.ImageCorners.ICP.LRLC.Lon=latlon(2)
-        # latlon=get_hdf_attribute(dset_id(i),'Top Right Geodetic Coordinates')
-        # output_meta.GeoData.ImageCorners.ICP.LRFC.Lat=latlon(1)
-        # output_meta.GeoData.ImageCorners.ICP.LRFC.Lon=latlon(2)
-
-        # Grid
-        output_meta.Grid.Row.SS = band_meta[i]['Column Spacing']
-        # Exactly equivalent to above:
-        # Grid.Row.SS=get_hdf_attribute(dset_id(i),'Column Time Interval')*speed_of_light/2
-        # Col.SS is derived after DRateSFPoly below, rather than used from this
-        # given field, so that SICD metadata can be internally consistent:
-        # output_meta.Grid.Col.SS = band_meta[i]['Line Spacing']
-        output_meta.Grid.Row.ImpRespBW = 2 * band_meta[i][
-            'Range Focusing Bandwidth'] / speed_of_light
-        output_meta.Grid.Row.DeltaK1 = -output_meta.Grid.Row.ImpRespBW / 2
-        output_meta.Grid.Row.DeltaK2 = -output_meta.Grid.Row.DeltaK1
-        # output_meta.Grid.Col.DeltaK1/2 will be populated by sicd.derived_fields
-        # ImpRespWid will be populated by sicd.derived_fields
-
-        # Timeline
-        prf = band_meta[i]['PRF']
-        output_meta.Timeline.IPP.Set.IPPEnd = int(
-            np.floor(prf * output_meta.Timeline.CollectDuration))
-        output_meta.Timeline.IPP.Set.IPPPoly = np.array([0, prf])
-        output_meta.Timeline.IPP.Set.TEnd = output_meta.Timeline.CollectDuration
-
-        # RadarCollection
-        # Absence of RefFreqIndex means all frequencies are true values
-        # output_meta.RadarCollection.RefFreqIndex=uint32(0)
-        chirp_length = band_meta[i]['Range Chirp Length']
-        chirp_rate = abs(band_meta[i]['Range Chirp Rate'])
-        bw = chirp_length * chirp_rate
-        output_meta.RadarCollection.TxFrequency = MetaNode()
-        output_meta.RadarCollection.TxFrequency.Min = fc - (bw / 2)
-        output_meta.RadarCollection.TxFrequency.Max = fc + (bw / 2)
-        output_meta.RadarCollection.Waveform = MetaNode()
-        output_meta.RadarCollection.Waveform.WFParameters = MetaNode()
-        output_meta.RadarCollection.Waveform.WFParameters.TxPulseLength = chirp_length
-        output_meta.RadarCollection.Waveform.WFParameters.TxRFBandwidth = bw
-        output_meta.RadarCollection.Waveform.WFParameters.TxFreqStart = \
-            output_meta.RadarCollection.TxFrequency.Min
-        output_meta.RadarCollection.Waveform.WFParameters.TxFMRate = chirp_rate
-        sample_rate = band_meta[i]['Sampling Rate']
-        if np.isnan(band_meta[i]['Reference Dechirping Time']):
-            output_meta.RadarCollection.Waveform.WFParameters.RcvDemodType = 'CHIRP'
-            output_meta.RadarCollection.Waveform.WFParameters.RcvFMRate = 0
-        else:
-            output_meta.RadarCollection.Waveform.WFParameters.RcvDemodType = 'STRETCH'
-
-        output_meta.RadarCollection.Waveform.WFParameters.RcvWindowLength = (
-            band_meta[i]['Echo Sampling Window Length']) / sample_rate
-        output_meta.RadarCollection.Waveform.WFParameters.ADCSampleRate = sample_rate
-
-        # ImageFormation
-        output_meta.ImageFormation.RcvChanProc.ChanIndex = i + 1
-        output_meta.ImageFormation.TxFrequencyProc = MetaNode()
-        output_meta.ImageFormation.TxFrequencyProc.MinProc = \
-            output_meta.RadarCollection.TxFrequency.Min
-        output_meta.ImageFormation.TxFrequencyProc.MaxProc = \
-            output_meta.RadarCollection.TxFrequency.Max
-        output_meta.ImageFormation.TxRcvPolarizationProc = \
-            output_meta.RadarCollection.RcvChannels.ChanParameters[i].TxRcvPolarization
-
-        # RMA
-        # Range time to SCP
-        t_rg_scp = t_rg_first + (ss_rg_s * float(output_meta.ImageData.SCPPixel.Row))
-        output_meta.RMA.INCA.R_CA_SCP = t_rg_scp * speed_of_light / 2
-        # Zero doppler time of SCP
-        t_az_scp = t_az_first + (ss_az_s * float(output_meta.ImageData.SCPPixel.Col))
-        # Compute DRateSFPoly
-        # We do this first since some other things are dependent on it.
-        # For the purposes of the DRateSFPoly computation, we ignore any
-        # changes in velocity or doppler rate over the azimuth dimension.
-        # Velocity is derivate of position.
-        scp_ca_time = t_az_scp + ref_time_offset  # With respect to start of collect
-        vel_x = poly.polyval(scp_ca_time, poly.polyder(P_x))
-        vel_y = poly.polyval(scp_ca_time, poly.polyder(P_y))
-        vel_z = poly.polyval(scp_ca_time, poly.polyder(P_z))
-        vm_ca_sq = vel_x**2 + vel_y**2 + vel_z**2  # Magnitude of the velocity squared
-        # Polynomial representing range as a function of range distance from SCP
-        r_ca = np.array([output_meta.RMA.INCA.R_CA_SCP, 1.])
-        dop_rate_poly_rg_shifted = _polyshift(dop_rate_poly_rg, t_rg_scp - t_rg_ref)
-        dop_rate_poly_rg_scaled = dop_rate_poly_rg_shifted * np.power(
-            ss_rg_s / output_meta.Grid.Row.SS,
-            np.arange(0, len(dop_rate_poly_rg)))
-        output_meta.RMA.INCA.DRateSFPoly = -poly.polymul(
-            dop_rate_poly_rg_scaled, r_ca) * (
-                speed_of_light / (2.0 * fc * vm_ca_sq))  # Assumes a SGN of -1
-        output_meta.RMA.INCA.DRateSFPoly = np.array(
-            [output_meta.RMA.INCA.DRateSFPoly])  # .transpose()
-
-        # Fields dependent on Doppler rate
-        # This computation of SS is actually better than the claimed SS
-        # (Line Spacing) in many ways, because this makes all of the metadata
-        # internally consistent.  This must be the sample spacing exactly at SCP
-        # (which is the definition for SS in SICD), if the other metadata from
-        # which is it computed is correct and consistent. Since column SS can vary
-        # slightly over a RGZERO image, we don't know if the claimed sample spacing
-        # in the native metadata is at our chosen SCP, or another point, or an
-        # average across image or something else.
-        output_meta.Grid.Col.SS = (np.sqrt(vm_ca_sq) * ss_az_s *
-                                   output_meta.RMA.INCA.DRateSFPoly[0, 0])
-        # Convert to azimuth spatial bandwidth (cycles per meter)
-        output_meta.Grid.Col.ImpRespBW = min(
-             band_meta[i]['Azimuth Focusing Bandwidth'] * abs(ss_az_s),
-             1) / output_meta.Grid.Col.SS  # Can't have more bandwidth in data than sample spacing
-        output_meta.RMA.INCA.TimeCAPoly = np.array([scp_ca_time,
-                                                    ss_az_s / output_meta.Grid.Col.SS])
-
-        # Compute DopCentroidPoly/DeltaKCOAPoly
-        output_meta.RMA.INCA.DopCentroidPoly = np.zeros((len(dop_poly_rg),
-                                                         len(dop_poly_az)))
-        # Compute doppler centroid value at SCP
-        output_meta.RMA.INCA.DopCentroidPoly[0] = (
-            poly.polyval(t_rg_scp - t_rg_ref, dop_poly_rg) + poly.polyval(
-                t_az_scp - t_az_ref, dop_poly_az) - 0.5 *
-            (dop_poly_az[0] + dop_poly_rg[0]))  # These should be identical
-        # Shift 1D polynomials to account for SCP
-        dop_poly_az_shifted = _polyshift(dop_poly_az, t_az_scp - t_az_ref)
-        dop_poly_rg_shifted = _polyshift(dop_poly_rg, t_rg_scp - t_rg_ref)
-        # Scale 1D polynomials to from Hz/s^n to Hz/m^n
-        dop_poly_az_scaled = dop_poly_az_shifted * np.power(
-            ss_az_s / output_meta.Grid.Col.SS, np.arange(0, len(dop_poly_az)))
-        dop_poly_rg_scaled = dop_poly_rg_shifted * np.power(
-            ss_rg_s / output_meta.Grid.Row.SS, np.arange(0, len(dop_poly_rg)))
-        output_meta.RMA.INCA.DopCentroidPoly[1:, 0] = dop_poly_rg_scaled[1:]
-        output_meta.RMA.INCA.DopCentroidPoly[0, 1:] = dop_poly_az_scaled[1:]
-        output_meta.RMA.INCA.DopCentroidCOA = True
-        output_meta.Grid.Col.DeltaKCOAPoly = (output_meta.RMA.INCA.DopCentroidPoly * ss_az_s /
-                                              output_meta.Grid.Col.SS)
-
-        # TimeCOAPoly
-        # TimeCOAPoly=TimeCA+(DopCentroid/dop_rate)
-        # Since we can't evaluate this equation analytically, we will evaluate
-        # samples of it across our image and fit a 2D polynomial to it.
-        # From radarsat.py
-        POLY_ORDER = 2  # Order of polynomial which we want to compute in each dimension
-        grid_samples = POLY_ORDER + 1
-        coords_az_m = np.linspace(
-            -output_meta.ImageData.SCPPixel.Col,
-            (output_meta.ImageData.NumCols - output_meta.ImageData.SCPPixel.Col - 1),
-            grid_samples) * output_meta.Grid.Col.SS
-        coords_rg_m = np.linspace(
-            -output_meta.ImageData.SCPPixel.Row,
-            (output_meta.ImageData.NumRows - output_meta.ImageData.SCPPixel.Row - 1),
-            grid_samples) * output_meta.Grid.Row.SS
-        [coords_az_m_2d, coords_rg_m_2d] = np.meshgrid(coords_az_m,
-                                                       coords_rg_m)
-        timeca_sampled = poly.polyval2d(
-            coords_rg_m_2d, coords_az_m_2d,
-            np.atleast_2d(output_meta.RMA.INCA.TimeCAPoly))
-        dopcentroid_sampled = poly.polyval2d(
-            coords_rg_m_2d, coords_az_m_2d,
-            output_meta.RMA.INCA.DopCentroidPoly)
-        doprate_sampled = poly.polyval2d(
-            coords_rg_m_2d, coords_az_m_2d,
-            np.atleast_2d(dop_rate_poly_rg_scaled))
-        timecoa_sampled = timeca_sampled + (
-            dopcentroid_sampled / doprate_sampled)
-        # Least squares fit for 2D polynomial
-        a = np.zeros(((POLY_ORDER + 1)**2, (POLY_ORDER + 1)**2))
-        for k in range(POLY_ORDER + 1):
-            for j in range(POLY_ORDER + 1):
-                a[:, k * (POLY_ORDER + 1) + j] = np.multiply(
-                    np.power(coords_az_m_2d.flatten(), j),
-                    np.power(coords_rg_m_2d.flatten(), k))
-        A = np.zeros(((POLY_ORDER + 1)**2, (POLY_ORDER + 1)**2))
-        for k in range((POLY_ORDER + 1)**2):
-            for j in range((POLY_ORDER + 1)**2):
-                A[k, j] = np.multiply(a[:, k], a[:, j]).sum()
-        b_coa = [
-            np.multiply(timecoa_sampled.flatten(), a[:, k]).sum()
-            for k in range((POLY_ORDER + 1)**2)
-        ]
-        x_coa = np.linalg.solve(A, b_coa)
-        output_meta.Grid.TimeCOAPoly = np.reshape(
-            x_coa, (POLY_ORDER + 1, POLY_ORDER + 1))
-
-        # Radiometric
-        output_meta.Radiometric = MetaNode()
-        if h5meta['Range Spreading Loss Compensation Geometry'] != 'NONE':
-            fact = h5meta['Reference Slant Range']**(
-                2 * h5meta['Reference Slant Range Exponent'])
-            if h5meta['Calibration Constant Compensation Flag'] == 0:
-                fact = fact * (1 / (h5meta['Rescaling Factor']**2))
-                fact = fact / band_meta[i]['Calibration Constant']
-                output_meta.Radiometric.BetaZeroSFPoly = np.array([[fact]])
-
-        # GeoData
-        # Now that sensor model fields have been populated, we can populate
-        # GeoData.SCP more precisely.
-        ecf = point.image_to_ground([
-            output_meta.ImageData.SCPPixel.Row,
-            output_meta.ImageData.SCPPixel.Col
-        ], output_meta)[0]
-
-        output_meta.GeoData.SCP.ECF.X = ecf[0]
-        output_meta.GeoData.SCP.ECF.Y = ecf[1]
-        output_meta.GeoData.SCP.ECF.Z = ecf[2]
-        llh = gc.ecf_to_geodetic(ecf)[0]
-        output_meta.GeoData.SCP.LLH.Lat = llh[0]
-        output_meta.GeoData.SCP.LLH.Lon = llh[1]
-        output_meta.GeoData.SCP.LLH.HAE = llh[2]
-
-        # SCPCOA
-        sicd.derived_fields(output_meta)
-
-        grouped_meta.append(output_meta)
-
-    return grouped_meta
+        if isinstance(csk_details, str):
+            csk_details = CSKDetails(csk_details)
+        if not isinstance(csk_details, CSKDetails):
+            raise TypeError('The input argument for RadarSatCSKReader must be a '
+                            'filename or CSKDetails object')
+        sicd_data, shape_dict, symmetry = csk_details.get_sicd_collection()
+        chippers = []
+        sicds = []
+        for band_name in sicd_data:
+            sicds.append(sicd_data[band_name])
+            chippers.append(CSKBandChipper(csk_details.file_name, band_name, shape_dict[band_name], symmetry))
+        super(CSKReader, self).__init__(sicds, chippers)

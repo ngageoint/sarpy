@@ -114,6 +114,7 @@ def geodetic_to_ecf(llh):
     out[:, 2] = (r + alt - _E2*r)*numpy.sin(numpy.deg2rad(lat))
     return numpy.reshape(out, orig_shape)
 
+
 def wgs_84_norm(ecf):
     """
     Calculates the normal vector to the WGS_84 ellipsoid at the given ECF coordinates.

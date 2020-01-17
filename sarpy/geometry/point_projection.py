@@ -8,8 +8,7 @@ from typing import Tuple, Union
 import numpy
 
 from . import geocoords
-from ..sicd_elements.blocks import Poly1DType, Poly2DType, XYZPolyType
-
+from ..io.complex.sicd_elements.blocks import Poly1DType, Poly2DType, XYZPolyType
 
 __classification__ = "UNCLASSIFIED"
 
@@ -103,7 +102,7 @@ def ground_to_image(coords, sicd, delta_gp_max=None, max_iterations=10, block_si
     ----------
     coords : numpy.ndarray|tuple|list
         ECF coordinate to map to scene coordinates, of size `N x 3`.
-    sicd : sarpy.sicd_elements.SICD.SICDType
+    sicd : sarpy.io.complex.sicd_elements.SICD.SICDType
         SICD meta data structure.
     delta_gp_max : float|None
         Ground plane displacement tol (m). Defaults to 0.1*pixel.
@@ -210,7 +209,7 @@ def ground_to_image_geo(coords, sicd, **kwargs):
     ----------
     coords : numpy.ndarray|tuple|list
         Lat/Lon/HAE coordinate to map to scene coordinates, of size `N x 3`.
-    sicd : sarpy.sicd_elements.SICD.SICDType
+    sicd : sarpy.io.complex.sicd_elements.SICD.SICDType
         SICD meta data structure.
     kwargs : dict
         See the key word arguments of :func:`ground_to_image`
@@ -270,7 +269,7 @@ class COAProjection(object):
 
         Parameters
         ----------
-        sicd : sarpy.sicd_elements.SICD.SICDType
+        sicd : sarpy.io.complex.sicd_elements.SICD.SICDType
             The SICD metadata structure.
         delta_arp : None|numpy.ndarray|list|tuple
             ARP position adjustable parameter (ECF, m).  Defaults to 0 in each coordinate.
@@ -600,7 +599,7 @@ def _validate_im_points(im_points, sicd):
     Parameters
     ----------
     im_points : numpy.ndarray|list|tuple
-    sicd : sarpy.sicd_elements.SICD.SICDType
+    sicd : sarpy.io.complex.sicd_elements.SICD.SICDType
 
     Returns
     -------
@@ -640,7 +639,7 @@ def image_to_ground(im_points, sicd, block_size=50000, projection_type='HAE', **
     im_points : numpy.ndarray|list|tuple
         (row, column) coordinates of N points in image (or subimage if FirstRow/FirstCol are nonzero).
         Following SICD convention, the upper-left pixel is [0, 0].
-    sicd : sarpy.sicd_elements.SICD.SICDType
+    sicd : sarpy.io.complex.sicd_elements.SICD.SICDType
             SICD meta data structure.
     block_size : None|int
         Size of blocks of coordinates to transform at a time. The entire array will be
@@ -678,7 +677,7 @@ def image_to_ground_geo(im_points, sicd, **kwargs):
     im_points : numpy.ndarray|list|tuple
         (row, column) coordinates of N points in image (or subimage if FirstRow/FirstCol are nonzero).
         Following SICD convention, the upper-left pixel is [0, 0].
-    sicd : sarpy.sicd_elements.SICD.SICDType
+    sicd : sarpy.io.complex.sicd_elements.SICD.SICDType
             SICD meta data structure.
     kwargs : dict
         See the keyword argumments in :func:`image_to_ground`.
@@ -770,7 +769,7 @@ def image_to_ground_plane(im_points, sicd, block_size=50000, gref=None, ugpn=Non
     ----------
     im_points : numpy.ndarray|list|tuple
         the image coordinate array
-    sicd : sarpy.sicd_elements.SICD.SICDType
+    sicd : sarpy.io.complex.sicd_elements.SICD.SICDType
         the SICD metadata structure.
     block_size : None|int
         Size of blocks of coordinates to transform at a time. The entire array will be
@@ -925,7 +924,7 @@ def image_to_ground_hae(im_points, sicd, block_size=50000,
     ----------
     im_points : numpy.ndarray|list|tuple
         the image coordinate array
-    sicd : sarpy.sicd_elements.SICD.SICDType
+    sicd : sarpy.io.complex.sicd_elements.SICD.SICDType
         the SICD metadata structure.
     block_size : None|int
         Size of blocks of coordinates to transform at a time. The entire array will be
@@ -1005,7 +1004,7 @@ def image_to_ground_dem(im_points, sicd, block_size=50000,
     ----------
     im_points : numpy.ndarray|list|tuple
         the image coordinate array
-    sicd : sarpy.sicd_elements.SICD.SICDType
+    sicd : sarpy.io.complex.sicd_elements.SICD.SICDType
         the SICD metadata structure.
     block_size : None|int
         Size of blocks of coordinates to transform at a time. The entire array will be transformed as a single block if `None`.
