@@ -10,7 +10,7 @@ import sys
 
 import numpy
 
-from .base import BaseChipper
+from .base import BaseChipper, AbstractWriter
 
 size_func = int
 if sys.version_info[0] < 3:
@@ -132,14 +132,14 @@ class BIPChipper(BaseChipper):
         return out
 
 
-class BIPWriter(object):
+class BIPWriter(AbstractWriter):
     """
     For writing the SICD data into the NITF container. This is abstracted generally
     because an array of these writers is used for multi-image segment NITF files.
     That is, SICD with enough rows/columns.
     """
     __slots__ = (
-        '_file_name', '_data_size', '_data_type', '_complex_type', '_data_offset',
+        '_data_size', '_data_type', '_complex_type', '_data_offset',
         '_shape', '_memory_map', '_fid')
 
     def __init__(self, file_name, data_size, data_type, complex_type, data_offset=0):
@@ -175,6 +175,7 @@ class BIPWriter(object):
             byte offset from the start of the file at which the data actually starts
         """
 
+        super(BIPWriter, self).__init__(file_name)
         if not isinstance(data_size, tuple):
             data_size = tuple(data_size)
         if len(data_size) != 2:
@@ -201,7 +202,6 @@ class BIPWriter(object):
                 'and output is written as uint8 or uint16. '
                 'data_type is given as {}.'.format(data_type))
 
-        self._file_name = file_name
         self._data_offset = int_func(data_offset)
         if self._complex_type is False:
             self._shape = self._data_size
@@ -225,24 +225,21 @@ class BIPWriter(object):
                 'certainly occurred because you are 32-bit python to try to read (portions of) a file '
                 'which is larger than 2GB.'.format(self._file_name))
 
-    def __del__(self):
-        # TODO: VERIFY - I really think this is wrong
-        #   you have to wait for the object to fall out of scope for this.
-        #   we should emphasize calling close(), and this is a helper method anyways.
-        self.close()
-
-    def close(self):
+    def write_chip(self, data, start_indices=(0, 0)):
         """
-        **Should be called on exit.** Cleanly close the file. This is actually only
-        required if memory map failed, and we fell back to manually writing the file.
+        Write the specified data.
+
+        Parameters
+        ----------
+        data : numpy.ndarray
+        start_indices : tuple
 
         Returns
         -------
         None
         """
 
-        if self._fid is not None and hasattr(self._fid, 'closed') and not self._fid.closed:
-            self._fid.close()
+        self.__call__(data, start_indices=start_indices)
 
     def __call__(self, data, start_indices=(0, 0)):
         """
@@ -316,3 +313,32 @@ class BIPWriter(object):
                 if i < len(data) - 1:
                     # don't seek on last entry (avoid segfault, or whatever)
                     self._fid.seek(bytes_to_skip_per_row, os.SEEK_CUR)
+
+    def close(self):
+        """
+        **Should be called on exit.** Cleanly close the file. This is actually only
+        required if memory map failed, and we fell back to manually writing the file.
+
+        Returns
+        -------
+        None
+        """
+
+        if self._fid is not None and hasattr(self._fid, 'closed') and not self._fid.closed:
+            self._fid.close()
+
+    def __del__(self):
+        self.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exception_type, exception_value, traceback):
+        if exception_type is None:
+            self.close()
+        else:
+            logging.error(
+                'The {} file writer generated an exception during processing. The file {} may be '
+                'only partially generated and corrupt.'.format(self.__class__.__name__, self._file_name))
+            # The exception will be reraised.
+            # It's unclear how any exception could be caught.

@@ -6,10 +6,14 @@ The base elements for reading and writing files as appropriate.
 """
 
 import sys
+import logging
+import getpass
 
 import numpy
 
 from .sicd_elements.SICD import SICDType
+from .sicd_elements.ImageCreation import ImageCreationType
+from ...__about__ import __title__, __release__
 
 integer_types = (int, )
 int_func = int
@@ -458,11 +462,75 @@ class SubsetReader(BaseReader):
         super(SubsetReader, self).__init__(sicd_meta, chipper)
 
 
-class BaseWriter(object):
+class AbstractWriter(object):
     """Abstract file writer class for SICD data"""
-    __slots__ = ('_sicd_meta', )
+    __slots__ = ('_file_name', )
 
-    # TODO: establish more generic capability?
+    def __init__(self, file_name):
+        self._file_name = file_name
+
+    def close(self):
+        """
+        Completes and necessary final steps.
+
+        Returns
+        -------
+        None
+        """
+
+        pass
+
+    def write_chip(self, data, start_indices):
+        raise NotImplementedError
+
+    def __del__(self):
+        self.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exception_type, exception_value, traceback):
+        if exception_type is None:
+            self.close()
+        else:
+            logging.error(
+                'The {} file writer generated an exception during processing. The file {} may be '
+                'only partially generated and corrupt.'.format(self.__class__.__name__, self._file_name))
+            # The exception will be reraised.
+            # It's unclear how any exception could be caught.
+
+
+class BaseWriter(AbstractWriter):
+    """Abstract file writer class for SICD data"""
+    __slots__ = ('_file_name', '_sicd_meta', )
+
+    def __init__(self, file_name, sicd_meta):
+        super(BaseWriter, self).__init__(file_name)
+        if not isinstance(sicd_meta, SICDType):
+            raise ValueError('sicd_meta is required to be an instance of SICDType, got {}'.format(type(sicd_meta)))
+        if sicd_meta.ImageData is None:
+            raise ValueError('The sicd_meta has un-populated ImageData, and nothing useful can be inferred.')
+        if sicd_meta.ImageData.NumCols is None or sicd_meta.ImageData.NumRows is None:
+            raise ValueError('The sicd_meta has ImageData with unpopulated NumRows or NumCols, '
+                             'and nothing useful can be inferred.')
+        if sicd_meta.ImageData.PixelType is None:
+            logging.warning('The PixelType for sicd_meta is unset, so defaulting to RE32F_IM32F.')
+            sicd_meta.ImageData.PixelType = 'RE32F_IM32F'
+        self._sicd_meta = sicd_meta.copy()
+
+        # TODO: should probably set ImageCreation this way no matter what?
+        if self._sicd_meta.ImageCreation is None:
+            # noinspection PyBroadException
+            try:
+                profile = getpass.getuser()
+            except Exception:  # unsure what exception is raised
+                profile = None
+            self._sicd_meta.ImageCreation = ImageCreationType(
+                Application='{} {}'.format(__title__, __release__),
+                DateTime=numpy.datetime64('now'),
+                Profile=profile)
+        elif self._sicd_meta.ImageCreation.DateTime is None:
+            self._sicd_meta.ImageCreation.DateTime = numpy.datetime64('now')
 
     @property
     def sicd_meta(self):

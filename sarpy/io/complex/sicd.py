@@ -8,7 +8,6 @@ import sys
 import logging
 from xml.etree import ElementTree
 from typing import Tuple
-import getpass
 
 import numpy
 
@@ -17,9 +16,7 @@ from .nitf_headers import NITFHeader, NITFSecurityTags, ImageSegmentHeader, Imag
 from .base import BaseChipper, BaseReader, BaseWriter
 from .bip import BIPChipper, BIPWriter
 from .sicd_elements.SICD import SICDType
-from .sicd_elements.ImageCreation import ImageCreationType
 from .sicd_elements.blocks import LatLonType
-from ...__about__ import __title__, __release__
 
 int_func = int
 if sys.version_info[0] < 3:
@@ -468,35 +465,9 @@ class SICDWriter(BaseWriter):
         sicd_meta : SICDType
         """
 
-        if not isinstance(sicd_meta, SICDType):
-            raise ValueError('sicd_meta is required to be an instance of SICDType, got {}'.format(type(sicd_meta)))
-        if sicd_meta.ImageData is None:
-            raise ValueError('The sicd_meta has un-populated ImageData, and nothing useful can be inferred.')
-        if sicd_meta.ImageData.NumCols is None or sicd_meta.ImageData.NumRows is None:
-            raise ValueError('The sicd_meta has ImageData with unpopulated NumRows or NumCols, '
-                             'and nothing useful can be inferred.')
+        super(SICDWriter, self).__init__(file_name, sicd_meta)
         self._shape = (sicd_meta.ImageData.NumRows, sicd_meta.ImageData.NumCols)
-        if sicd_meta.ImageData.PixelType is None:
-            logging.warning('The PixelType for sicd_meta is unset, so defaulting to RE32F_IM32F.')
-            sicd_meta.ImageData.PixelType = 'RE32F_IM32F'
-        # TODO: Verify - modify sicd_meta in place, or make copy? 
-        #   maybe that should be an init option?
-        # should probably set ImageCreation this way no matter what?
-        if self._sicd_meta.ImageCreation is None:
-            # noinspection PyBroadException
-            try:
-                profile = getpass.getuser()
-            except Exception:  # unsure what exception is raised
-                profile = None
-            self._sicd_meta.ImageCreation = ImageCreationType(
-                Application='{} {}'.format(__title__, __release__),
-                DateTime=numpy.datetime64('now'),
-                Profile=profile)
-        elif self._sicd_meta.ImageCreation.DateTime is None:
-            self._sicd_meta.ImageCreation.DateTime = numpy.datetime64('now')
 
-        self._file_name = file_name
-        self._sicd_meta = sicd_meta
         # define _security_tags
         self._security_tags = self.default_security_tags()
         # get image segment details
@@ -944,23 +915,3 @@ class SICDWriter(BaseWriter):
             self._writing_chippers[i](data[drows[0]:drows[1], dcols[0]:dcols[1]], sinds)
             # update how many pixels we have written to this segment
             self._pixels_written[i] += write_els
-
-    def __del__(self):
-        # TODO: VERIFY - I really think this is wrong
-        #   you have to wait for the object to fall out of scope for this.
-        #   we should emphasize using this object as a context manager.
-        self.close()
-
-    def __enter__(self):
-        # TODO: VERIFY - should be written as a context manager.
-        return self
-
-    def __exit__(self, exception_type, exception_value, traceback):
-        if exception_type is None:
-            self.close()
-        else:
-            logging.error(
-                'The SICD file writer generated an exception during processing. '
-                'The file {} has been partially generated and is certainly corrupt.'.format(self._file_name))
-            # The exception will be reraised.
-            # It's unclear how any exception could be caught.
