@@ -1,28 +1,40 @@
 """Module for reading Sentinel-1 data into a SICD model."""
 
+# SarPy imports
+from .sicd import MetaNode
+from .utils import chipper
+from . import Reader as ReaderSuper  # Reader superclass
+from . import sicd
+from . import tiff
+from ...geometry import geocoords as gc
+from ...geometry import point_projection as point
+# Python standard library imports
 import copy
 import os
 import datetime
 import xml.etree.ElementTree as ET
-
+# External dependencies
 import numpy as np
+# We prefer numpy.polynomial.polynomial over numpy.polyval/polyfit since its coefficient
+# ordering is consistent with SICD, and because it supports 2D polynomials.
 from numpy.polynomial import polynomial as poly
-import scipy
 from scipy.interpolate import griddata
-if scipy.__version__ >= '1.0':
+# try to import comb from scipy.special.
+# If an old version of scipy is being used then import from scipy.misc
+from scipy import __version__ as scipy_version
+dot_locs = []
+for i, version_char in enumerate(scipy_version):
+    if version_char == '.':
+        dot_locs.append(i)
+major_version = int(scipy_version[0:dot_locs[0]])
+if major_version >= 1:
     from scipy.special import comb
 else:
     from scipy.misc import comb
 
-from .sicd import MetaNode
-from .utils import chipper
-from . import Reader as ReaderSuper  # Reader superclass
-from . import sicd, tiff
-from ...geometry import geocoords, point_projection
-
-
-__classification__ = "UNCLASSIFIED"
-
+_classification__ = "UNCLASSIFIED"
+__author__ = "Daniel Haverporth"
+__email__ = "Daniel.L.Haverporth@nga.mil"
 
 DATE_FMT = '%Y-%m-%dT%H:%M:%S.%f'  # The datetime format Sentinel1 always uses
 
@@ -319,7 +331,7 @@ def meta2sicd_annot(filename):
         hgt = float(grid_point.find('./height').text)
         # Can't interpolate across international date line -180/180 longitude,
         # so move to ECF space from griddata interpolation
-        ecf = geocoords.geodetic_to_ecf((lat, lon, hgt))
+        ecf = gc.geodetic_to_ecf((lat, lon, hgt))
         x.append(ecf[0, 0])
         y.append(ecf[0, 1])
         z.append(ecf[0, 2])
@@ -817,7 +829,7 @@ def meta2sicd_annot(filename):
         # Note also that some Sentinel-1 data we have see has different heights
         # in the geolocation grid for polarimetric channels from the same
         # swath/burst!?!
-        llh = geocoords.ecf_to_geodetic((burst_meta.GeoData.SCP.ECF.X,
+        llh = gc.ecf_to_geodetic((burst_meta.GeoData.SCP.ECF.X,
                                  burst_meta.GeoData.SCP.ECF.Y,
                                  burst_meta.GeoData.SCP.ECF.Z))
         burst_meta.GeoData.SCP.LLH = MetaNode()
@@ -825,12 +837,12 @@ def meta2sicd_annot(filename):
         burst_meta.GeoData.SCP.LLH.Lon = llh[0, 1]
         burst_meta.GeoData.SCP.LLH.HAE = llh[0, 2]
         # Now that SCP has been populated, populate GeoData.SCP more precisely.
-        ecf = point_projection.image_to_ground([burst_meta.ImageData.SCPPixel.Row,
+        ecf = point.image_to_ground([burst_meta.ImageData.SCPPixel.Row,
                                      burst_meta.ImageData.SCPPixel.Col], burst_meta)[0]
         burst_meta.GeoData.SCP.ECF.X = ecf[0]
         burst_meta.GeoData.SCP.ECF.Y = ecf[1]
         burst_meta.GeoData.SCP.ECF.Z = ecf[2]
-        llh = geocoords.ecf_to_geodetic(ecf)[0]
+        llh = gc.ecf_to_geodetic(ecf)[0]
         burst_meta.GeoData.SCP.LLH.Lat = llh[0]
         burst_meta.GeoData.SCP.LLH.Lon = llh[1]
         burst_meta.GeoData.SCP.LLH.HAE = llh[2]

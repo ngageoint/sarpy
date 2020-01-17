@@ -1,28 +1,40 @@
 """Module for reading Radarsat (RS2 and RCM) data into a SICD model."""
 
+# SarPy imports
+from .sicd import MetaNode
+from . import Reader as ReaderSuper  # Reader superclass
+from . import sicd
+from . import tiff
+from ...geometry import geocoords as gc
+from ...geometry import point_projection as point
+# Python standard library imports
 import copy
 import datetime
 import os
 import re
 import xml.etree.ElementTree as ET
-
+# External dependencies
 import numpy as np
+# We prefer numpy.polynomial.polynomial over numpy.polyval/polyfit since its coefficient
+# ordering is consistent with SICD, and because it supports 2D polynomials.
 from numpy.polynomial import polynomial as poly
-import scipy
 from scipy.constants import speed_of_light
-if scipy.__version__ >= '1.0':
+# try to import comb from scipy.special.
+# If an old version of scipy is being used then import from scipy.misc
+from scipy import __version__ as scipy_version
+dot_locs = []
+for i, version_char in enumerate(scipy_version):
+    if version_char == '.':
+        dot_locs.append(i)
+major_version = int(scipy_version[0:dot_locs[0]])
+if major_version >= 1:
     from scipy.special import comb
 else:
     from scipy.misc import comb
 
-from .sicd import MetaNode
-from . import Reader as ReaderSuper  # Reader superclass
-from . import sicd, tiff
-from ...geometry import geocoords, point_projection
-
-
-__classification__ = "UNCLASSIFIED"
-
+_classification__ = "UNCLASSIFIED"
+__author__ = ["Khanh Ho", "Wade Schwartzkopf"]
+__email__ = "Wade.C.Schwartzkopf.ctr@nga.mil"
 
 DATE_FMT = '%Y-%m-%dT%H:%M:%S.%fZ'  # The datetime format Sentinel1 always uses
 
@@ -239,7 +251,7 @@ def meta2sicd(filename, betafile, noisefile):
     meta.GeoData.SCP.LLH.Lat = lats[scp_index]
     meta.GeoData.SCP.LLH.Lon = longs[scp_index]
     meta.GeoData.SCP.LLH.HAE = hgts[scp_index]
-    pos_ecf = geocoords.geodetic_to_ecf((meta.GeoData.SCP.LLH.Lat,
+    pos_ecf = gc.geodetic_to_ecf((meta.GeoData.SCP.LLH.Lat,
                                   meta.GeoData.SCP.LLH.Lon,
                                   meta.GeoData.SCP.LLH.HAE))
     meta.GeoData.SCP.ECF = MetaNode()
@@ -646,12 +658,12 @@ def meta2sicd(filename, betafile, noisefile):
     # GeoData
     # Now that sensor model fields have been populated, we can populate
     # GeoData.SCP more precisely.
-    ecf = point_projection.image_to_ground([meta.ImageData.SCPPixel.Row,
+    ecf = point.image_to_ground([meta.ImageData.SCPPixel.Row,
                                  meta.ImageData.SCPPixel.Col], meta)[0]
     meta.GeoData.SCP.ECF.X = ecf[0]
     meta.GeoData.SCP.ECF.Y = ecf[1]
     meta.GeoData.SCP.ECF.Z = ecf[2]
-    llh = geocoords.ecf_to_geodetic(ecf)[0]
+    llh = gc.ecf_to_geodetic(ecf)[0]
     meta.GeoData.SCP.LLH.Lat = llh[0]
     meta.GeoData.SCP.LLH.Lon = llh[1]
     meta.GeoData.SCP.LLH.HAE = llh[2]

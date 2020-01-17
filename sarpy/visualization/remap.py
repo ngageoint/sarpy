@@ -2,13 +2,9 @@
 
 import numpy as np
 
-
 __classification__ = "UNCLASSIFIED"
-
-
-# TODO: there's a whole package for this. Is this necessary? Where are these even used?
-#   I question this collection of methods, so I'm setting aside docstring editing until later.
-#   I think that methods are only called in the example code in docs, so let's look there.
+__author__ = "Wade Schwartzkopf"
+__email__ = "wschwartzkopf@integrity-apps.com"
 
 
 def get_remap_list():
@@ -17,9 +13,6 @@ def get_remap_list():
     Returned list is of (function name, function object) tuples.
 
     """
-
-    # TODO: LOW - this is not called anywhere in the code base. It's probably better handled with decent docs
-    #   and/or a call to help(sarpy.visualization.remap).
 
     # These imports are only used within this function.  Additionally, we don't
     # expect this function to be called frequently, so the small overhead of
@@ -42,9 +35,6 @@ def get_remap_list():
 
 def amplitude_to_density(a, dmin=30, mmult=40, data_mean=None):
     """Convert to density data for remap."""
-    # TODO: LOW - mixed numpy and native methods and terrible variables names.
-    #   Why all these hard-coded parameter values? I need a good explanation so that I can form a good docstring.
-
     EPS = 1e-5
 
     a = abs(a)
@@ -61,19 +51,9 @@ def amplitude_to_density(a, dmin=30, mmult=40, data_mean=None):
 # Does Python not have a builtin way to do this fundamental operation???
 def _clip_cast(x, dtype='uint8'):
     """Cast by clipping values outside of valid range, rather than wrapping."""
-
-    # TODO: LOW - dtype = uint8 or uint16, then just scale anyways...max -> top value, min -> minimum value?
-    #   I think that the behavior presented here (clipping to min/max values) is native numpy behavior when
-    #   converting float types to int types. Converting int types to lower bit depth int type is simply truncation
-    #   (i.e. rollover observed)
-    #   Am i right in assuming that discretization is actually what's desired, for colormap usage?
-    #   This should be made clear...
-
     np_type = np.dtype(dtype)
     return np.clip(x, np.iinfo(np_type).min, np.iinfo(np_type).max).astype(dtype)
 
-
-# TODO: hard-coded parameters applied to amplitude_to_density...why? Need good explanation to make good docstrings.
 
 def density(x):
     """Standard set of parameters for density remap."""
@@ -82,30 +62,30 @@ def density(x):
 
 def brighter(x):
     """Brighter set of parameters for density remap."""
-    return _clip_cast(amplitude_to_density(x, dmin=60, mmult=40))
+    return _clip_cast(amplitude_to_density(x, 60, 40))
 
 
 def darker(x):
     """Darker set of parameters for density remap."""
-    return _clip_cast(amplitude_to_density(x, dmin=0, mmult=40))
+    return _clip_cast(amplitude_to_density(x, 0, 40))
 
 
 def highcontrast(x):
     """Increased contrast set of parameters for density remap."""
-    return _clip_cast(amplitude_to_density(x, dmin=30, mmult=4))
+    return _clip_cast(amplitude_to_density(x, 30, 4))
 
 
 def linear(x):
     """Dumb linear remap."""
     if np.iscomplexobj(x):
-        return abs(x)  # TODO: HIGH - native method...
+        return abs(x)
     else:
         return x
 
 
 def log(x):
     """Logarithmic remap."""
-    out = np.log(abs(x))  # TODO: HIGH - native method...
+    out = np.log(abs(x))
     out[np.logical_not(np.isfinite(out))] = np.min(out[np.isfinite(out)])
     return out
 
@@ -132,13 +112,14 @@ def nrl(x, a=1, c=220):
     # have scipy.
     from scipy.stats import scoreatpercentile as prctile
 
-    x = abs(x)  # native method...
+    x = abs(x)
     xmin = np.min(x)
     p99 = prctile(x[np.isfinite(x)], 99)
     b = (255 - c) / np.log10((np.max(x) - xmin) / ((a * p99) - xmin))
 
-    out = np.zeros_like(x, np.uint8)  # np.zeros()? jeez.
+    out = np.zeros_like(x, np.uint8)
     linear_region = (x <= a*p99)
     out[linear_region] = (x[linear_region] - xmin) * c / ((a * p99) - xmin)
-    out[np.logical_not(linear_region)] = c + (b*np.log10((x[np.logical_not(linear_region)] - xmin)/((a*p99) - xmin)))
+    out[np.logical_not(linear_region)] = c + (b *
+                                              np.log10((x[np.logical_not(linear_region)] - xmin) / ((a * p99) - xmin)))
     return out

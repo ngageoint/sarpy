@@ -1,17 +1,20 @@
 """Module for reading SIO files."""
 
+# SarPy imports
+from . import Reader as ReaderSuper  # Reader superclass
+from . import Writer as WriterSuper  # Writer superclass
+from .utils import bip
+from . import sicd
+# Python standard library imports
 import os.path
 import warnings
 import re
+# External dependencies
 import numpy as np
 
-from . import Reader as ReaderSuper, Writer as WriterSuper
-from .utils import bip
-from . import sicd
-
-
 __classification__ = "UNCLASSIFIED"
-
+__author__ = "Wade Schwartzkopf"
+__email__ = "wschwartzkopf@integrity-apps.com"
 
 MAGIC_NUMBERS = (int('FF017FFE', 16),
                  int('FE7F01FF', 16),
@@ -54,6 +57,7 @@ class Reader(ReaderSuper):
                     self.sicdmeta = meta2sicd(ihdr[[0, 2, 1, 3, 4]], user_data)
                 elif not native_metadata['Image Parameters']['image illumination direction [top, left, bottom, right]'] == 'top':
                     ValueError('Unhandled illumination direction.')
+            # TODO: Convert CASPR metadata to SICD format and merge with other SICD metadata
             # self.sicdmeta.merge(meta2sicd_caspr(native_metadata))
             if not hasattr(self.sicdmeta, 'native'):
                 self.sicdmeta.native = sicd.MetaNode()
@@ -133,7 +137,6 @@ def read_meta(filename):
             ihdr = swapbytes = data_offset = user_data = None
 
         return ihdr, swapbytes, data_offset, user_data
-
 
 
 def _read_userdata(fid, swapbytes):

@@ -1,26 +1,41 @@
-"""Reading Cosmo Skymed HDF5 imagery."""
+'''
+Module for reading Cosmo Skymed HDF5 imagery.  This is more or less
+a line-for-line port of the reader from NGA's MATLAB SAR Toolbox.
+'''
+# SarPy imports
+from .sicd import MetaNode
+from . import Reader as ReaderSuper  # Reader superclass
+from . import sicd
+from ...geometry import geocoords as gc
+from ...geometry import point_projection as point
+from .utils import chipper
 
-import copy  # TLM - What's being copied? I don't trust it.
+# Python standard library imports
+import copy
 import datetime
-
+# External dependencies
 import numpy as np
 import h5py
-from numpy.polynomial import polynomial
-import scipy
+# We prefer numpy.polynomial.polynomial over numpy.polyval/polyfit since its coefficient
+# ordering is consistent with SICD, and because it supports 2D polynomials.
+from numpy.polynomial import polynomial as poly
 from scipy.constants import speed_of_light
-if scipy.__version__ >= '1.0':
+# try to import comb from scipy.special.
+# If an old version of scipy is being used then import from scipy.misc
+from scipy import __version__ as scipy_version
+dot_locs = []
+for i, version_char in enumerate(scipy_version):
+    if version_char == '.':
+        dot_locs.append(i)
+major_version = int(scipy_version[0:dot_locs[0]])
+if major_version >= 1:
     from scipy.special import comb
 else:
     from scipy.misc import comb
 
-from .sicd import MetaNode
-from . import Reader as ReaderSuper  # Reader superclass
-from . import sicd
-from ...geometry import geocoords, point_projection
-from .utils import chipper
-
-
 __classification__ = "UNCLASSIFIED"
+__author__ = ["Jarred Barber", "Wade Schwartzkopf"]
+__email__ = "jpb5082@gmail.com"
 
 
 def datenum_w_frac(datestring, as_datetime=False):
@@ -32,7 +47,6 @@ def datenum_w_frac(datestring, as_datetime=False):
 
     `as_datetime` returns a Python datetime object.
     '''
-
     epoch = datetime.datetime.strptime('2000-01-01 00:00:00',
                                        '%Y-%m-%d %H:%M:%S')
     if '.' in datestring:
@@ -289,9 +303,9 @@ def _convert_meta(h5meta, band_meta, band_shapes):
     # but 5th is almost always best
     polyorder = np.minimum(5, len(state_vector_T) - 1)
 
-    P_x = polynomial.polyfit(state_vector_T, state_vector_pos[:, 0], polyorder)
-    P_y = polynomial.polyfit(state_vector_T, state_vector_pos[:, 1], polyorder)
-    P_z = polynomial.polyfit(state_vector_T, state_vector_pos[:, 2], polyorder)
+    P_x = poly.polyfit(state_vector_T, state_vector_pos[:, 0], polyorder)
+    P_y = poly.polyfit(state_vector_T, state_vector_pos[:, 1], polyorder)
+    P_z = poly.polyfit(state_vector_T, state_vector_pos[:, 2], polyorder)
 
     # We don't use these since they are derivable from the position polynomial
     # state_vector_vel = h5meta['ECEF Satellite Velocity']
@@ -432,7 +446,7 @@ def _convert_meta(h5meta, band_meta, band_shapes):
         output_meta.GeoData.SCP.LLH.Lon = latlon[1]
         # CSM generally gives HAE as zero.  Perhaps we should adjust this to DEM.
         output_meta.GeoData.SCP.LLH.HAE = latlon[2]
-        ecf = geocoords.geodetic_to_ecf(latlon)[0]
+        ecf = gc.geodetic_to_ecf(latlon)[0]
 
         output_meta.GeoData.SCP.ECF.X = ecf[0]
         output_meta.GeoData.SCP.ECF.Y = ecf[1]
@@ -522,9 +536,9 @@ def _convert_meta(h5meta, band_meta, band_shapes):
         # changes in velocity or doppler rate over the azimuth dimension.
         # Velocity is derivate of position.
         scp_ca_time = t_az_scp + ref_time_offset  # With respect to start of collect
-        vel_x = polynomial.polyval(scp_ca_time, polynomial.polyder(P_x))
-        vel_y = polynomial.polyval(scp_ca_time, polynomial.polyder(P_y))
-        vel_z = polynomial.polyval(scp_ca_time, polynomial.polyder(P_z))
+        vel_x = poly.polyval(scp_ca_time, poly.polyder(P_x))
+        vel_y = poly.polyval(scp_ca_time, poly.polyder(P_y))
+        vel_z = poly.polyval(scp_ca_time, poly.polyder(P_z))
         vm_ca_sq = vel_x**2 + vel_y**2 + vel_z**2  # Magnitude of the velocity squared
         # Polynomial representing range as a function of range distance from SCP
         r_ca = np.array([output_meta.RMA.INCA.R_CA_SCP, 1.])
@@ -532,7 +546,7 @@ def _convert_meta(h5meta, band_meta, band_shapes):
         dop_rate_poly_rg_scaled = dop_rate_poly_rg_shifted * np.power(
             ss_rg_s / output_meta.Grid.Row.SS,
             np.arange(0, len(dop_rate_poly_rg)))
-        output_meta.RMA.INCA.DRateSFPoly = -polynomial.polymul(
+        output_meta.RMA.INCA.DRateSFPoly = -poly.polymul(
             dop_rate_poly_rg_scaled, r_ca) * (
                 speed_of_light / (2.0 * fc * vm_ca_sq))  # Assumes a SGN of -1
         output_meta.RMA.INCA.DRateSFPoly = np.array(
@@ -561,7 +575,7 @@ def _convert_meta(h5meta, band_meta, band_shapes):
                                                          len(dop_poly_az)))
         # Compute doppler centroid value at SCP
         output_meta.RMA.INCA.DopCentroidPoly[0] = (
-            polynomial.polyval(t_rg_scp - t_rg_ref, dop_poly_rg) + polynomial.polyval(
+            poly.polyval(t_rg_scp - t_rg_ref, dop_poly_rg) + poly.polyval(
                 t_az_scp - t_az_ref, dop_poly_az) - 0.5 *
             (dop_poly_az[0] + dop_poly_rg[0]))  # These should be identical
         # Shift 1D polynomials to account for SCP
@@ -595,13 +609,13 @@ def _convert_meta(h5meta, band_meta, band_shapes):
             grid_samples) * output_meta.Grid.Row.SS
         [coords_az_m_2d, coords_rg_m_2d] = np.meshgrid(coords_az_m,
                                                        coords_rg_m)
-        timeca_sampled = polynomial.polyval2d(
+        timeca_sampled = poly.polyval2d(
             coords_rg_m_2d, coords_az_m_2d,
             np.atleast_2d(output_meta.RMA.INCA.TimeCAPoly))
-        dopcentroid_sampled = polynomial.polyval2d(
+        dopcentroid_sampled = poly.polyval2d(
             coords_rg_m_2d, coords_az_m_2d,
             output_meta.RMA.INCA.DopCentroidPoly)
-        doprate_sampled = polynomial.polyval2d(
+        doprate_sampled = poly.polyval2d(
             coords_rg_m_2d, coords_az_m_2d,
             np.atleast_2d(dop_rate_poly_rg_scaled))
         timecoa_sampled = timeca_sampled + (
@@ -638,7 +652,7 @@ def _convert_meta(h5meta, band_meta, band_shapes):
         # GeoData
         # Now that sensor model fields have been populated, we can populate
         # GeoData.SCP more precisely.
-        ecf = point_projection.image_to_ground([
+        ecf = point.image_to_ground([
             output_meta.ImageData.SCPPixel.Row,
             output_meta.ImageData.SCPPixel.Col
         ], output_meta)[0]
@@ -646,7 +660,7 @@ def _convert_meta(h5meta, band_meta, band_shapes):
         output_meta.GeoData.SCP.ECF.X = ecf[0]
         output_meta.GeoData.SCP.ECF.Y = ecf[1]
         output_meta.GeoData.SCP.ECF.Z = ecf[2]
-        llh = geocoords.ecf_to_geodetic(ecf)[0]
+        llh = gc.ecf_to_geodetic(ecf)[0]
         output_meta.GeoData.SCP.LLH.Lat = llh[0]
         output_meta.GeoData.SCP.LLH.Lon = llh[1]
         output_meta.GeoData.SCP.LLH.HAE = llh[2]

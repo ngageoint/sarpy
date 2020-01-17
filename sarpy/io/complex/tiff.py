@@ -1,12 +1,17 @@
-import sys
-import numpy as np
-
+# SarPy imports
 from .sicd import MetaNode
 from .utils import bip
 from . import Reader as ReaderSuper  # Reader superclass
-
+# Python standard library imports
+import sys
+# External dependencies
+import numpy as np
 
 __classification__ = "UNCLASSIFIED"
+__author__ = "Daniel Haverporth"
+__email__ = "Daniel.L.Haverporth@nga.mil"
+
+# TODO: Add way to find associated metadata files for sensor-specific formats that use TIFF
 
 
 def isa(filename):

@@ -1,9 +1,11 @@
-"""Compute a color subaperture image."""
+"""This module demonstrates how to compute a color subaperture image."""
 
-from ..io import complex
+from ..io import complex as cf
 import numpy as np
 
 __classification__ = "UNCLASSIFIED"
+__author__ = "Melanie Baker"
+__email__ = "Melanie.R.Baker@nga.mil"
 
 
 def _jet_wrapped(m):
@@ -17,13 +19,8 @@ def _jet_wrapped(m):
 
     Returns:
         3 bands of color filters
+
     """
-
-    # TODO: MEDIUM - I have ignored docstring here. This functionality should be cleaned up significantly.
-    #   Possibly introduce matplotlib colormap choices? Provides a nice library of colormaps, and is easy to use.
-    #   The choice of dimension ordering is ridiculous, so should be changed. Move the default away from jet
-    #   with its famously bad luminance issues.
-
     n = np.ceil(float(m)/4)
     u = np.r_[(np.arange(n)+1)/n, np.ones(int(round(n))-1), np.arange(n, 0, -1)/n]
     g = int(round((m-len(u))/2)) + np.arange(len(u))
@@ -38,24 +35,19 @@ def _jet_wrapped(m):
 
 
 def mem(im0, dim=1, pdir='right', fill=1):
+    """Displays subaperture information as color on full resolution data.
+
+    Args:
+        im0: complex valued SAR map in the image domain.
+        pdir: platform direction, 'right' (default) or 'left'. Assumption is
+             that 2nd dimension is increasing range.
+        dim: dimension over which to split subaperture. (default = 1)
+        fill: fill factor. (default = 1)
+
+    Returns:
+        A 3-dimensional array of complex image data, with each
+        band representing red, green, and blue.
     """
-    Displays subaperture information as color on full resolution data.
-
-    :param im0: complex valued SAR map in the image domain.
-    :param dim: dimension over which to split subaperture.
-    :param pdir: platform direction, 'right' (default) or 'left'. Assumption is that 2nd dimension is increasing range.
-    :param fill: fill factor.
-    :return: A 3-dimensional array of complex image data, with each band representing red, green, and blue.
-    """
-
-    # TODO: HIGH -
-    #   1.) this description is not descriptive. What does this do?
-    #   2.) Rename this method to a more descriptive name?
-    #   3.) Coherent dimension ordering convention should be followed - this is confusing.
-    #   4.) This dim argument handling should be unhacked
-    #   5.) There's a bunch of native methods mixed in with numpy methods - should all be numpy methods
-    #   6.) Unit test
-
     # Purely out of laziness, so the same code processes both dimensions
     if dim == 0:
         im0 = im0.transpose()
@@ -99,20 +91,20 @@ def mem(im0, dim=1, pdir='right', fill=1):
 
 
 def file(fname, dim=1, row_range=None, col_range=None):
+    """Displays subaperture information as color on full resolution data.
+
+    Args:
+        fname: filename of complex image
+        dim: dimension over which to split subaperture. (default = 1)
+        row_range: range of row values for image. If None (default) all image
+                   rows will be processed.
+        col_range: range of column values for image. If None(default) all
+                   image columns will be processed.
+    Returns:
+        A 3-dimensional array of complex image data, with each dimension
+        representing red, green, and blue bands
     """
-    Displays subaperture information as color on full resolution data.
-
-    :param fname: filename of complex image.
-    :param dim: dimension over which to split subaperture.
-    :param row_range: range of row values for image. If None (default) all image rows will be processed.
-    :param col_range: range of column values for image. If None(default) all image columns will be processed.
-    :return: A 3-dimensional array of complex image data, with each dimension representing red, green, and blue bands.
-    """
-
-    # TODO: HIGH - unit test this thing? Just this? Just above? Both?
-    #  Are both of these methods even actually user facing? naming again.
-
-    readerObj = complex.open(fname)
+    readerObj = cf.open(fname)
     b = readerObj.read_chip(row_range, col_range)
     if readerObj.sicdmeta.SCPCOA.SideOfTrack == 'L':
         pdir = 'left'

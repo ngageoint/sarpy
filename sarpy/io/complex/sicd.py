@@ -1,20 +1,27 @@
 """Module for reading SICD files (version 0.3 and above)."""
 
+# SarPy imports
+from . import Reader as ReaderSuper  # Reader superclass
+from . import Writer as WriterSuper  # Writer superclass
+from .utils import bip
+from .utils import chipper
+from ...geometry import geocoords as gc
+from ...geometry import latlon as ll
+from ...geometry import point_projection as point
+# Python standard library imports
 import copy
 from datetime import datetime
 import os
 import re
 import sys
 import xml.etree.ElementTree as ET
+# External dependencies
 import numpy as np
 from numpy.polynomial import polynomial as poly
 
-from . import Reader as ReaderSuper, Writer as WriterSuper
-from .utils import bip, chipper
-from ...geometry import geocoords, latlon, point_projection
-
-
 __classification__ = "UNCLASSIFIED"
+__author__ = "Wade Schwartzkopf"
+__email__ = "Wade.C.Schwartzkopf.ctr@nga.mil"
 
 
 def isa(filename):
@@ -162,7 +169,6 @@ class Writer(WriterSuper):
             sicdmeta.ImageData.PixelType = 'RE32F_IM32F'
             bytes_per_pixel = 8
             datatype = np.dtype('>f4')
-
         self.bytes_per_row = int(sicdmeta.ImageData.NumCols) * bytes_per_pixel
         num_rows_limit = min(int(np.floor(self.ISSIZEMAX / float(self.bytes_per_row))),
                              self.ILOCMAX)
@@ -354,48 +360,49 @@ class Writer(WriterSuper):
         self.fid.write(('%02d' % abpp).encode())
         self.fid.write(b'R')
         self.fid.write(b'G')
+        # TODO: The corner lat/lons used here aren't really right for the case of
         # multiple image segments, since GeoData.ImageCorners describes the
         # entire image, not each segment.  However, these fields in the image
         # subheader aren't really used by any tool we know anyway, since all SICD
         #  metadata should be extracted from the DES XML.
         try:  # Use TRY here since Lat/lon strings may be invalid
-            frfc_lat = latlon.string(self.sicdmeta.GeoData.ImageCorners.FRFC.Lat, 'lat',
-                                     num_units=3, include_symbols=False)
+            frfc_lat = ll.string(self.sicdmeta.GeoData.ImageCorners.FRFC.Lat, 'lat',
+                                 num_units=3, include_symbols=False)
         except:
             frfc_lat = ''
         try:
-            frfc_lon = latlon.string(self.sicdmeta.GeoData.ImageCorners.FRFC.Lon, 'lon',
-                                     num_units=3, include_symbols=False)
+            frfc_lon = ll.string(self.sicdmeta.GeoData.ImageCorners.FRFC.Lon, 'lon',
+                                 num_units=3, include_symbols=False)
         except:
             frfc_lon = ''
         try:
-            frlc_lat = latlon.string(self.sicdmeta.GeoData.ImageCorners.FRLC.Lat, 'lat',
-                                     num_units=3, include_symbols=False)
+            frlc_lat = ll.string(self.sicdmeta.GeoData.ImageCorners.FRLC.Lat, 'lat',
+                                 num_units=3, include_symbols=False)
         except:
             frlc_lat = ''
         try:
-            frlc_lon = latlon.string(self.sicdmeta.GeoData.ImageCorners.FRLC.Lon, 'lon',
-                                     num_units=3, include_symbols=False)
+            frlc_lon = ll.string(self.sicdmeta.GeoData.ImageCorners.FRLC.Lon, 'lon',
+                                 num_units=3, include_symbols=False)
         except:
             frlc_lon = ''
         try:
-            lrlc_lat = latlon.string(self.sicdmeta.GeoData.ImageCorners.LRLC.Lat, 'lat',
-                                     num_units=3, include_symbols=False)
+            lrlc_lat = ll.string(self.sicdmeta.GeoData.ImageCorners.LRLC.Lat, 'lat',
+                                 num_units=3, include_symbols=False)
         except:
             lrlc_lat = ''
         try:
-            lrlc_lon = latlon.string(self.sicdmeta.GeoData.ImageCorners.LRLC.Lon, 'lon',
-                                     num_units=3, include_symbols=False)
+            lrlc_lon = ll.string(self.sicdmeta.GeoData.ImageCorners.LRLC.Lon, 'lon',
+                                 num_units=3, include_symbols=False)
         except:
             lrlc_lon = ''
         try:
-            lrfc_lat = latlon.string(self.sicdmeta.GeoData.ImageCorners.LRFC.Lat, 'lat',
-                                     num_units=3, include_symbols=False)
+            lrfc_lat = ll.string(self.sicdmeta.GeoData.ImageCorners.LRFC.Lat, 'lat',
+                                 num_units=3, include_symbols=False)
         except:
             lrfc_lat = ''
         try:
-            lrfc_lon = latlon.string(self.sicdmeta.GeoData.ImageCorners.LRFC.Lon, 'lon',
-                                     num_units=3, include_symbols=False)
+            lrfc_lon = ll.string(self.sicdmeta.GeoData.ImageCorners.LRFC.Lon, 'lon',
+                                 num_units=3, include_symbols=False)
         except:
             lrfc_lon = ''
         self.fid.write(frfc_lat.ljust(7).encode())
@@ -1136,7 +1143,7 @@ def update_meta(sicd_meta, version_string):
                     acp_ecf = ref_pt + \
                         x_uvect * plane.XDir.LineSpacing * (x_offsets[i] - plane.RefPt.Line) + \
                         y_uvect * plane.YDir.SampleSpacing * (y_offsets[i] - plane.RefPt.Sample)
-                    acp_llh = geocoords.ecf_to_geodetic(acp_ecf).squeeze()
+                    acp_llh = gc.ecf_to_geodetic(acp_ecf).squeeze()
                     sicd_meta.RadarCollection.Area.Corner.ACP[i].Lat = acp_llh[0]
                     sicd_meta.RadarCollection.Area.Corner.ACP[i].Lon = acp_llh[1]
                     sicd_meta.RadarCollection.Area.Corner.ACP[i].HAE = acp_llh[2]
@@ -1508,7 +1515,7 @@ def derived_fields(meta, set_default_values=True):
     # DERIVED: GeoData.SCP
     if (hasattr(meta, 'GeoData') and hasattr(meta.GeoData, 'SCP') and
             hasattr(meta.GeoData.SCP, 'ECF') and not hasattr(meta.GeoData.SCP, 'LLH')):
-        llh = geocoords.ecf_to_geodetic([meta.GeoData.SCP.ECF.X,
+        llh = gc.ecf_to_geodetic([meta.GeoData.SCP.ECF.X,
                                   meta.GeoData.SCP.ECF.Y,
                                   meta.GeoData.SCP.ECF.Z])[0]
         meta.GeoData.SCP.LLH = MetaNode()
@@ -1517,7 +1524,7 @@ def derived_fields(meta, set_default_values=True):
         meta.GeoData.SCP.LLH.HAE = llh[2]
     if (hasattr(meta, 'GeoData') and hasattr(meta.GeoData, 'SCP') and
             hasattr(meta.GeoData.SCP, 'LLH') and not hasattr(meta.GeoData.SCP, 'ECF')):
-        ecf = geocoords.geodetic_to_ecf([meta.GeoData.SCP.LLH.Lat,
+        ecf = gc.geodetic_to_ecf([meta.GeoData.SCP.LLH.Lat,
                                   meta.GeoData.SCP.LLH.Lon,
                                   meta.GeoData.SCP.LLH.HAE])[0]
         meta.GeoData.SCP.ECF = MetaNode()
@@ -1553,7 +1560,7 @@ def derived_fields(meta, set_default_values=True):
         # surface of constant height above the WGS 84 ellipsoid (HAE) that
         # contains the SCP. The ETP is an approximation to the ground plane at
         # the SCP.
-        ETP = geocoords.wgs_84_norm(SCP)[0]
+        ETP = gc.wgs_84_norm(SCP)[0]
         if not hasattr(meta.SCPCOA, 'GrazeAng'):
             # Angle between ground plane and line-of-site vector
             meta.SCPCOA.GrazeAng = np.rad2deg(np.arcsin(np.dot(ETP, -uLOS)))
@@ -1664,7 +1671,7 @@ def derived_fields(meta, set_default_values=True):
                 # a zero value, the KCtr computation will be wrong if the
                 # DFT was not "centered" (s_0 = s_coa and v_0 = v_coa in
                 # the terminology of the SICD spec).
-                if 'fc' in locals():  # NOTE: this is defined at line 1517.
+                if 'fc' in locals():
                     if (not hasattr(meta.Grid.Row, 'KCtr')):
                         if hasattr(meta.Grid.Row, 'DeltaKCOAPoly'):
                             # DeltaKCOAPoly populated, but not KCtr (would be odd)
@@ -1727,6 +1734,7 @@ def derived_fields(meta, set_default_values=True):
                     pol_ref_pos = ARP
                     if hasattr(meta, 'SCPCOA') and hasattr(meta.SCPCOA, 'SCPTime'):
                         meta.PFA.PolarAngRefTime = meta.SCPCOA.SCPTime
+                # TODO: PolarAngPoly, SpatialFreqSFPoly
                 if (hasattr(meta.PFA, 'IPN') and hasattr(meta.PFA, 'FPN') and
                    not hasattr(meta.Grid.Row, 'UVectECF') and
                    not hasattr(meta.Grid.Col, 'UVectECF')):
@@ -1939,7 +1947,7 @@ def derived_fields(meta, set_default_values=True):
         try:
             for i in range(len(meta.ImageData.ValidData.Vertex)):
                 meta.GeoData.ValidData.Vertex[i] = MetaNode()
-                valid_latlon = point_projection.image_to_ground_geo(
+                valid_latlon = point.image_to_ground_geo(
                     [meta.ImageData.ValidData.Vertex[i].Row,
                      meta.ImageData.ValidData.Vertex[i].Col], meta)[0]
                 meta.GeoData.ValidData.Vertex[i].Lat = valid_latlon[0]
@@ -2006,7 +2014,7 @@ def update_corners(meta):
         meta.GeoData = MetaNode()
     if not hasattr(meta.GeoData, 'ImageCorners'):
         meta.GeoData.ImageCorners = MetaNode()
-    corner_latlons = point_projection.image_to_ground_geo(
+    corner_latlons = point.image_to_ground_geo(
         [[0, 0],
          [0, meta.ImageData.NumCols-1],
          [meta.ImageData.NumRows-1, meta.ImageData.NumCols-1],
