@@ -43,3 +43,23 @@ class TestGeocoords(unittest.TestCase):
 
         with self.subTest(msg="error check"):
             self.assertRaises(ValueError, geocoords.geodetic_to_ecf, numpy.arange(4))
+
+    def test_values_both_ways(self):
+        shp = (8, 5)
+        rand_llh = numpy.empty(shp + (3, ), dtype=numpy.float64)
+        rand_llh[:, :, 0] = 180*(numpy.random.rand(*shp) - 0.5)
+        rand_llh[:, :, 1] = 360*(numpy.random.rand(*shp) - 0.5)
+        rand_llh[:, :, 2] = 1e5*numpy.random.rand(*shp)
+
+        rand_ecf = geocoords.geodetic_to_ecf(rand_llh)
+        rand_llh2 = geocoords.ecf_to_geodetic(rand_ecf)
+        rand_ecf2 = geocoords.geodetic_to_ecf(rand_llh2)
+
+        llh_diff = numpy.abs(rand_llh - rand_llh2)
+        ecf_diff = numpy.abs(rand_ecf - rand_ecf2)
+
+        with self.subTest(msg="llh match"):
+            self.assertTrue(numpy.all(llh_diff < tolerance))
+
+        with self.subTest(msg="ecf match"):
+            self.assertTrue(numpy.all(ecf_diff < tolerance))
