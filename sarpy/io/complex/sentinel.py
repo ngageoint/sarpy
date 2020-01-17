@@ -4,6 +4,7 @@ Functionality for reading Sentinel-1 data into a SICD model.
 """
 
 import os
+import logging
 from datetime import datetime
 from xml.etree import ElementTree
 from typing import List, Tuple, Union
@@ -865,13 +866,13 @@ class SentinelDetails(object):
                 assert isinstance(noise, numpy.ndarray)
 
                 # do some validity checks
-                # TODO: this seems harsh? Can we not catch this somehow, or skip?
                 if (mode_id == 'IW') and numpy.any((line % lines_per_burst) != 0) and (i != len(noise_vector_list)-1):
                     # NB: the final burst has different timing
-                    raise ValueError('Noise file should have one lut per burst, but more are present.')
-                # TODO: again, is this actually a problem? Not catchable in any way?
+                    logging.error('Noise file should have one lut per burst, but more are present. Skipping this noise vector.')
+                    continue
                 if (pixel is not None) and (pixel[-1] > range_size_pixels):
-                    raise ValueError('Noise file has more pixels in LUT than range size.')
+                    logging.error('Noise file has more pixels in LUT than range size. Skipping this noise vector.')
+                    continue
 
                 lines.append(line)
                 pixels.append(pixel)
@@ -923,7 +924,7 @@ class SentinelDetails(object):
             sicd.Radiometric.NoiseLevel = NoiseLevelType_(NoiseLevelType='ABSOLUTE',
                                                           NoisePoly=Poly2DType(Coefs=noise_poly))
 
-        # extract our noise vectors
+        # extract our noise vectors (used in populate_noise through implicit reference)
         if root_node.find('./noiseVectorList') is not None:
             # probably prior to March 2018
             range_line, range_pixel, range_noise = extract_vector('noise')
