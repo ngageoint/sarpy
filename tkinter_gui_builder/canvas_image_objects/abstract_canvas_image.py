@@ -111,8 +111,8 @@ class AbstractCanvasImage:
 
     def update_canvas_display_image_from_full_image_rect(self, full_image_rect):
         self.set_decimation_from_full_image_rect(full_image_rect)
-        true_decimated_im_data = self.get_decimated_image_data_in_full_image_rect(full_image_rect, self.decimation_factor)
-        self.update_canvas_display_from_numpy_array(true_decimated_im_data)
+        decimated_image_data = self.get_decimated_image_data_in_full_image_rect(full_image_rect, self.decimation_factor)
+        self.update_canvas_display_from_numpy_array(decimated_image_data)
         self.canvas_full_image_upper_left_yx = (full_image_rect[0], full_image_rect[1])
 
     def update_canvas_display_image_from_canvas_rect(self, canvas_rect):
@@ -131,18 +131,14 @@ class AbstractCanvasImage:
             self.display_image = image_data
 
     def get_decimation_factor_from_full_image_rect(self, full_image_rect):
-        display_decimation_factor = self.get_display_decimation_factor_from_full_image_rect(full_image_rect)
-        true_decimation_factor = int(display_decimation_factor)
-        if true_decimation_factor < 1:
-            true_decimation_factor = 1
-        return true_decimation_factor
-
-    def get_display_decimation_factor_from_full_image_rect(self, full_image_rect):
         ny = full_image_rect[2] - full_image_rect[0]
         nx = full_image_rect[3] - full_image_rect[1]
         decimation_y = ny / self.canvas_ny
         decimation_x = nx / self.canvas_nx
         decimation_factor = max(decimation_y, decimation_x)
+        decimation_factor = int(decimation_factor)
+        if decimation_factor < 1:
+            decimation_factor = 1
         return decimation_factor
 
     def get_decimation_from_canvas_rect(self, canvas_rect):
@@ -151,9 +147,7 @@ class AbstractCanvasImage:
 
     def set_decimation_from_full_image_rect(self, full_image_rect):
         decimation_factor = self.get_decimation_factor_from_full_image_rect(full_image_rect)
-        display_decimation_factor = self.get_display_decimation_factor_from_full_image_rect(full_image_rect)
         self.decimation_factor = decimation_factor
-        self.display_rescaling_factor = display_decimation_factor
 
     def canvas_coords_to_full_image_yx(self,
                                        canvas_coords,       # type: [int]

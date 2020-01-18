@@ -65,6 +65,6 @@ class ZoomerPanel(AbstractWidgetPanel):
 
     def callback_handle_left_mouse_release(self, event):
         self.image_canvas.callback_handle_left_mouse_release(event)
-        decimation_value = self.image_canvas.variables.canvas_image_object.true_decimation_factor
+        decimation_value = self.image_canvas.variables.canvas_image_object.decimation_factor
         self.side_panel.info_panel.decimation_val.set_text(str(decimation_value))
 

@@ -36,7 +36,7 @@ class ApertureTool(AbstractWidgetPanel):
 
     def callback_handle_zoomer_left_mouse_release(self, event):
         self.zoomer_panel.callback_handle_left_mouse_release(event)
-        if self.zoomer_panel.image_canvas.variables.canvas_image_object.true_decimation_factor == 1:
+        if self.zoomer_panel.image_canvas.variables.canvas_image_object.decimation_factor == 1:
             fft_data = self.get_all_fft_display_data()
             self.fft_panel.image_canvas.init_with_numpy_image(fft_data)
         else:
