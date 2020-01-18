@@ -70,7 +70,6 @@ class ApertureTool(AbstractWidgetPanel):
             cdata_clip = ifft2(filtered_cdata)
 
         updated_image_display_data = remap.density(cdata_clip)
-
         self.adjusted_view_panel.image_canvas.init_with_numpy_image(updated_image_display_data)
 
     def get_all_fft_display_data(self):

@@ -32,12 +32,15 @@ class AppVariables:
         self.zoom_rect_border_width = 2
 
         self.animate_zoom = True
+        self.animate_pan = False
         self.n_zoom_animations = 15
 
         self.select_rect_id = None
         self.select_rect_color = "red"
         self.select_rect_border_width = 2
         self.current_tool = None
+
+        self.pan_anchor_point_xy = (0, 0)
 
 
 class ImageCanvas(tk.LabelFrame):
@@ -58,6 +61,7 @@ class ImageCanvas(tk.LabelFrame):
         self.canvas.pack(fill=tk.BOTH, expand=tk.YES)
         self.canvas.pack()
 
+        self.canvas.grid(row=0, column=0, sticky=tk.N+tk.S+tk.E+tk.W)
         self.sbarv=tk.Scrollbar(self, orient=tk.VERTICAL)
         self.sbarh=tk.Scrollbar(self, orient=tk.HORIZONTAL)
         self.sbarv.config(command=self.canvas.yview)
@@ -65,8 +69,6 @@ class ImageCanvas(tk.LabelFrame):
 
         self.canvas.config(yscrollcommand=self.sbarv.set)
         self.canvas.config(xscrollcommand=self.sbarh.set)
-
-        self.canvas.grid(row=0, column=0, sticky=tk.N+tk.S+tk.E+tk.W)
         self.sbarv.grid(row=0, column=1, stick=tk.N+tk.S)
         self.sbarh.grid(row=1, column=0, sticky=tk.E+tk.W)
 
@@ -93,8 +95,9 @@ class ImageCanvas(tk.LabelFrame):
                         fname,  # type: str
                         ):
         self.variables.canvas_image_object.init_from_fname_and_canvas_size(fname, self.canvas_height, self.canvas_width, scale_to_fit_canvas=self.rescale_image_to_fit_canvas)
+        self.variables.canvas_image_object.scale_to_fit_canvas = self.rescale_image_to_fit_canvas
         if self.rescale_image_to_fit_canvas:
-            self.set_image_from_numpy_array(self.variables.canvas_image_object.display_image_scaled_to_fit)
+            self.set_image_from_numpy_array(self.variables.canvas_image_object.display_image)
         else:
             self.set_image_from_numpy_array(self.variables.canvas_image_object.canvas_decimated_image)
 
@@ -102,9 +105,10 @@ class ImageCanvas(tk.LabelFrame):
                               numpy_array,      # type: np.ndarray
                               ):
         self.variables.canvas_image_object = NumpyCanvasDisplayImage()
+        self.variables.canvas_image_object.scale_to_fit_canvas = self.rescale_image_to_fit_canvas
         self.variables.canvas_image_object.init_from_numpy_array_and_canvas_size(numpy_array, self.canvas_height, self.canvas_width)
         if self.rescale_image_to_fit_canvas:
-            self.set_image_from_numpy_array(self.variables.canvas_image_object.display_image_scaled_to_fit)
+            self.set_image_from_numpy_array(self.variables.canvas_image_object.display_image)
         else:
             self.set_image_from_numpy_array(self.variables.canvas_image_object.canvas_decimated_image)
 
@@ -122,7 +126,7 @@ class ImageCanvas(tk.LabelFrame):
 
     def get_image_line_length(self, line_id):
         canvas_line_length = self.get_canvas_line_length(line_id)
-        return canvas_line_length * self.variables.canvas_image_object.true_decimation_factor
+        return canvas_line_length * self.variables.canvas_image_object.decimation_factor
 
     def get_shape_type(self,
                        shape_id,  # type: int
@@ -142,7 +146,6 @@ class ImageCanvas(tk.LabelFrame):
         # TODO: of the image.  This will also require a refactor to make the image fit to the canvas, rather than
         # TODO: go off the edge and use scroll bars.  Could also be made smoother, handle multiple events for a single
         # TODO: long mouse scroll
-        print("mouse zoom")
         single_delta = 120
         box_percent = 1.1
 
@@ -158,17 +161,16 @@ class ImageCanvas(tk.LabelFrame):
         zoom_out_box = [x - zoom_out_box_half_width, y - zoom_out_box_half_height, x + zoom_out_box_half_width, y + zoom_out_box_half_height]
 
         if event.delta > 0:
-            self.zoom_to_selection(zoom_in_box)
+            self.zoom_to_selection(zoom_in_box, self.variables.animate_zoom)
         else:
-            self.zoom_to_selection(zoom_out_box)
-            print(zoom_out_box)
-
-        print(event)
+            self.zoom_to_selection(zoom_out_box, self.variables.animate_zoom)
 
     def callback_handle_left_mouse_release(self, event):
+        if self.variables.current_tool == TOOLS.PAN_TOOL:
+            self._pan(event)
         if self.variables.current_tool == TOOLS.ZOOM_IN_TOOL:
             rect_coords = self.canvas.coords(self.variables.zoom_rect_id)
-            self.zoom_to_selection(rect_coords)
+            self.zoom_to_selection(rect_coords, self.variables.animate_zoom)
             self.hide_shape(self.variables.zoom_rect_id)
         if self.variables.current_tool == TOOLS.ZOOM_OUT_TOOL:
             rect_coords = self.canvas.coords(self.variables.zoom_rect_id)
@@ -177,14 +179,13 @@ class ImageCanvas(tk.LabelFrame):
             y1 = -rect_coords[1]
             y2 = self.canvas_height + rect_coords[3]
             zoom_rect = (x1, y1, x2, y2)
-            self.zoom_to_selection(zoom_rect)
+            self.zoom_to_selection(zoom_rect, self.variables.animate_zoom)
             self.hide_shape(self.variables.zoom_rect_id)
 
     def callback_handle_left_mouse_click(self, event):
         if self.variables.current_tool == TOOLS.PAN_TOOL:
             self.variables.pan_anchor_point_xy = event.x, event.y
             self.variables.tmp_anchor_point = event.x, event.y
-            print("pan tool")
         else:
             self.event_create_or_reinitialize_shape(event)
 
@@ -226,7 +227,6 @@ class ImageCanvas(tk.LabelFrame):
                                                   new_coords,  # type: tuple
                                                   update_pixel_coords=True,         # type: bool
                                                   ):
-        self.show_shape(shape_id)
         if self.get_shape_type(shape_id) == SHAPE_TYPES.POINT:
             point_size = self._get_shape_property(shape_id, SHAPE_PROPERTIES.POINT_SIZE)
             x1, y1 = (new_coords[0] - point_size), (new_coords[1] - point_size)
@@ -429,17 +429,19 @@ class ImageCanvas(tk.LabelFrame):
         return self.variables.canvas_image_object.full_image_yx_to_canvas_coords(image_coords)
 
     def get_image_data_in_canvas_rect_by_id(self, rect_id):
-        coords = self.canvas.coords(rect_id)
-        return self.variables.canvas_image_object.get_true_decimated_image_data_in_canvas_rect(coords)
+        image_coords = self._get_shape_property(rect_id, SHAPE_PROPERTIES.IMAGE_COORDS)
+        print(image_coords)
+        image_data_in_rect = self.variables.canvas_image_object.get_decimated_image_data_in_full_image_rect(image_coords, self.variables.canvas_image_object.decimation_factor)
+        return image_data_in_rect
 
-    def zoom_to_selection(self, canvas_rect):
+    def zoom_to_selection(self, canvas_rect, animate=False):
         background_image = self.variables.canvas_image_object.canvas_decimated_image
         self.variables.canvas_image_object.update_canvas_display_image_from_canvas_rect(canvas_rect)
         if self.rescale_image_to_fit_canvas:
-            new_image = PIL.Image.fromarray(self.variables.canvas_image_object.display_image_scaled_to_fit)
+            new_image = PIL.Image.fromarray(self.variables.canvas_image_object.display_image)
         else:
             new_image = PIL.Image.fromarray(self.variables.canvas_image_object.canvas_decimated_image)
-        if self.variables.animate_zoom is True:
+        if animate is True:
             n_animations = self.variables.n_zoom_animations
             background_image = background_image / 2
             canvas_x1, canvas_y1, canvas_x2, canvas_y2 = canvas_rect
@@ -460,7 +462,7 @@ class ImageCanvas(tk.LabelFrame):
                 self._set_image_from_pil_image(new_display_image)
                 self.canvas.update()
         if self.rescale_image_to_fit_canvas:
-            self.set_image_from_numpy_array(self.variables.canvas_image_object.display_image_scaled_to_fit)
+            self.set_image_from_numpy_array(self.variables.canvas_image_object.display_image)
         else:
             self.set_image_from_numpy_array(self.variables.canvas_image_object.canvas_decimated_image)
         self.canvas.update()
@@ -538,3 +540,37 @@ class ImageCanvas(tk.LabelFrame):
         for key in properties.keys():
             val = properties[key]
             self._set_shape_property(shape_id, key, val)
+
+    def _pan(self, event):
+        new_canvas_x_ul = self.variables.pan_anchor_point_xy[0] - event.x
+        new_canvas_y_ul = self.variables.pan_anchor_point_xy[1] - event.y
+        new_canvas_x_br = new_canvas_x_ul + self.canvas_width
+        new_canvas_y_br = new_canvas_y_ul + self.canvas_height
+        canvas_coords = (new_canvas_x_ul, new_canvas_y_ul, new_canvas_x_br, new_canvas_y_br)
+        image_coords = self.variables.canvas_image_object.canvas_coords_to_full_image_yx(canvas_coords)
+        image_y_ul = image_coords[0]
+        image_x_ul = image_coords[1]
+        image_y_br = image_coords[2]
+        image_x_br = image_coords[3]
+        if image_y_ul < 0:
+            new_canvas_y_ul = 0
+            new_canvas_y_br = self.canvas_height
+        if image_x_ul < 0:
+            new_canvas_x_ul = 0
+            new_canvas_x_br = self.canvas_width
+        if image_y_br > self.variables.canvas_image_object.full_image_ny:
+            image_y_br = self.variables.canvas_image_object.full_image_ny
+            new_canvas_x_br, new_canvas_y_br = self.variables.canvas_image_object.full_image_yx_to_canvas_coords(
+                (image_y_br, image_x_br))
+            new_canvas_x_ul, new_canvas_y_ul = int(new_canvas_x_br - self.canvas_width), int(
+                new_canvas_y_br - self.canvas_height)
+        if image_x_br > self.variables.canvas_image_object.full_image_nx:
+            image_x_br = self.variables.canvas_image_object.full_image_nx
+            new_canvas_x_br, new_canvas_y_br = self.variables.canvas_image_object.full_image_yx_to_canvas_coords(
+                (image_y_br, image_x_br))
+            new_canvas_x_ul, new_canvas_y_ul = int(new_canvas_x_br - self.canvas_width), int(
+                new_canvas_y_br - self.canvas_height)
+
+        canvas_rect = (new_canvas_x_ul, new_canvas_y_ul, new_canvas_x_br, new_canvas_y_br)
+        self.zoom_to_selection(canvas_rect, self.variables.animate_pan)
+        self.hide_shape(self.variables.zoom_rect_id)

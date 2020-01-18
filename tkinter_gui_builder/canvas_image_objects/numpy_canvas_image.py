@@ -11,6 +11,7 @@ class NumpyCanvasDisplayImage(AbstractCanvasImage):
                                         numpy_data,      # type: np.ndarray
                                         canvas_ny,  # type: int
                                         canvas_nx,  # type: int
+                                        scale_to_fit_canvas=True,        # type: bool
                                         ):
         print("This is a special case of image object. use 'init_from_numpy_array_and_canvas_size' instead.")
         pass
@@ -24,10 +25,10 @@ class NumpyCanvasDisplayImage(AbstractCanvasImage):
         self.canvas_ny = canvas_ny
         self.update_canvas_display_image_from_full_image()
 
-    def get_true_decimated_image_data_in_full_image_rect(self,
-                                                         full_image_rect,  # type: (int, int, int, int)
-                                                         decimation,  # type: int
-                                                         ):
+    def get_decimated_image_data_in_full_image_rect(self,
+                                                    full_image_rect,  # type: (int, int, int, int)
+                                                    decimation,  # type: int
+                                                    ):
         if decimation < 1:
             decimation = 1
         y1, x1, y2, x2 = int(full_image_rect[0]), int(full_image_rect[1]), int(full_image_rect[2]), int(full_image_rect[3])

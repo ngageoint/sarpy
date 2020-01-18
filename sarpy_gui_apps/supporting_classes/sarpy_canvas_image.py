@@ -24,10 +24,10 @@ class SarpyCanvasDisplayImage(AbstractCanvasImage):
         self.scale_to_fit_canvas = scale_to_fit_canvas
         self.update_canvas_display_image_from_full_image()
 
-    def get_true_decimated_image_data_in_full_image_rect(self,
-                                                         full_image_rect,  # type: (int, int, int, int)
-                                                         decimation,  # type: int
-                                                         ):
+    def get_decimated_image_data_in_full_image_rect(self,
+                                                    full_image_rect,  # type: (int, int, int, int)
+                                                    decimation,  # type: int
+                                                    ):
         if decimation < 1:
             decimation = 1
         y1, x1, y2, x2 = full_image_rect[0], full_image_rect[1], full_image_rect[2], full_image_rect[3]

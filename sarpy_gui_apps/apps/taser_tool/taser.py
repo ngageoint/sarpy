@@ -49,11 +49,9 @@ class Taser(AbstractWidgetPanel):
 
     def callback_set_to_zoom_in(self, event):
         self.taser_image_panel.set_current_tool_to_zoom_in()
-        self.taser_image_panel.hide_shape(self.taser_image_panel.variables.select_rect_id)
 
     def callback_set_to_zoom_out(self, event):
         self.taser_image_panel.set_current_tool_to_zoom_out()
-        self.taser_image_panel.hide_shape(self.taser_image_panel.variables.select_rect_id)
 
     def callback_set_to_pan(self, event):
         self.taser_image_panel.set_current_tool_to_pan()
