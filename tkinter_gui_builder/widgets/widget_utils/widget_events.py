@@ -1,3 +1,5 @@
+import platform
+
 class WidgetEvents(object):
     def __init__(self):
         pass
@@ -25,7 +27,11 @@ class WidgetEvents(object):
         self.bind("<B3-Motion>", event)
 
     def on_mouse_wheel(self, event):
-        self.bind("<MouseWheel>", event)
+        if platform.system() == "Linux":
+            self.bind("<Button-4>", event)
+            self.bind("<Button-5>", event)
+        else:
+            self.bind("<MouseWheel>", event)
 
     def on_left_mouse_click_with_args(self, event_w_args, args):
         self.bind("<Button-1>", lambda event, arg=args: event_w_args(arg))

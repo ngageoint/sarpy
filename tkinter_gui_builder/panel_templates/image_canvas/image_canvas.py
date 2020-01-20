@@ -4,7 +4,9 @@ import tkinter as tk
 from tkinter_gui_builder.widgets import basic_widgets
 from tkinter_gui_builder.canvas_image_objects.abstract_canvas_image import AbstractCanvasImage
 from tkinter_gui_builder.canvas_image_objects.numpy_canvas_image import NumpyCanvasDisplayImage
+import platform
 import numpy as np
+import time
 from .tool_constants import ShapePropertyConstants as SHAPE_PROPERTIES
 from .tool_constants import ShapeTypeConstants as SHAPE_TYPES
 from .tool_constants import ToolConstants as TOOLS
@@ -33,7 +35,8 @@ class AppVariables:
 
         self.animate_zoom = True
         self.animate_pan = False
-        self.n_zoom_animations = 15
+        self.n_zoom_animations = 50
+        self.animation_time_in_seconds = 0.3
 
         self.select_rect_id = None
         self.select_rect_color = "red"
@@ -62,19 +65,15 @@ class ImageCanvas(tk.LabelFrame):
         self.canvas.pack()
 
         self.canvas.grid(row=0, column=0, sticky=tk.N+tk.S+tk.E+tk.W)
-        self.sbarv=tk.Scrollbar(self, orient=tk.VERTICAL)
-        self.sbarh=tk.Scrollbar(self, orient=tk.HORIZONTAL)
-        self.sbarv.config(command=self.canvas.yview)
-        self.sbarh.config(command=self.canvas.xview)
-
-        self.canvas.config(yscrollcommand=self.sbarv.set)
-        self.canvas.config(xscrollcommand=self.sbarh.set)
-        self.sbarv.grid(row=0, column=1, stick=tk.N+tk.S)
-        self.sbarh.grid(row=1, column=0, sticky=tk.E+tk.W)
+        self.sbarv = None         # type: tk.Scrollbar
+        self.sbarh = None         # type: tk.Scrollbar
 
         self.variables.zoom_rect_id = self.create_new_rect((0, 0, 1, 1), outline=self.variables.zoom_rect_color, width=self.variables.zoom_rect_border_width)
         self.variables.select_rect_id = self.create_new_rect((0, 0, 1, 1), outline=self.variables.select_rect_color, width=self.variables.select_rect_border_width)
+
+        # hide the shapes we initialize
         self.hide_shape(self.variables.select_rect_id)
+        self.hide_shape(self.variables.zoom_rect_id)
 
         self.canvas.on_left_mouse_click(self.callback_handle_left_mouse_click)
         self.canvas.on_left_mouse_motion(self.callback_handle_left_mouse_motion)
@@ -146,24 +145,66 @@ class ImageCanvas(tk.LabelFrame):
         # TODO: of the image.  This will also require a refactor to make the image fit to the canvas, rather than
         # TODO: go off the edge and use scroll bars.  Could also be made smoother, handle multiple events for a single
         # TODO: long mouse scroll
-        single_delta = 120
-        box_percent = 1.1
 
-        zoom_in_box_half_width = int(self.canvas_width / box_percent / 2)
-        zoom_out_box_half_width = int(self.canvas_width * box_percent / 2)
-        zoom_in_box_half_height = int(self.canvas_height / box_percent / 2)
-        zoom_out_box_half_height = int(self.canvas_height * box_percent / 2)
+        if self.zoom_on_wheel:
+            delta = event.delta
+            single_delta = 120
 
-        x = event.x
-        y = event.y
+            # handle case where platform is linux:
+            if platform.system() == "Linux":
+                delta = single_delta
+                if event.num == 5:
+                    delta = delta*-1
 
-        zoom_in_box = [x - zoom_in_box_half_width, y - zoom_in_box_half_height, x + zoom_in_box_half_width, y + zoom_in_box_half_height]
-        zoom_out_box = [x - zoom_out_box_half_width, y - zoom_out_box_half_height, x + zoom_out_box_half_width, y + zoom_out_box_half_height]
+            box_percent = 1.20
 
-        if event.delta > 0:
-            self.zoom_to_selection(zoom_in_box, self.variables.animate_zoom)
+            zoom_in_box_half_width = int(self.canvas_width / box_percent / 2)
+            zoom_out_box_half_width = int(self.canvas_width * box_percent / 2)
+            zoom_in_box_half_height = int(self.canvas_height / box_percent / 2)
+            zoom_out_box_half_height = int(self.canvas_height * box_percent / 2)
+
+            x = event.x
+            y = event.y
+
+            after_zoom_x_offset = (self.canvas_width/2 - x)/box_percent
+            after_zoom_y_offset = (self.canvas_height/2 - y)/box_percent
+
+            x_offset_point = x + after_zoom_x_offset
+            y_offset_point = y + after_zoom_y_offset
+
+            zoom_in_box = [x_offset_point - zoom_in_box_half_width,
+                           y_offset_point - zoom_in_box_half_height,
+                           x_offset_point + zoom_in_box_half_width,
+                           y_offset_point + zoom_in_box_half_height]
+
+            zoom_out_box = [x_offset_point - zoom_out_box_half_width,
+                            y_offset_point - zoom_out_box_half_height,
+                            x_offset_point + zoom_out_box_half_width,
+                            y_offset_point + zoom_out_box_half_height]
+
+            if delta > 0:
+                self.zoom_to_selection(zoom_in_box, self.variables.animate_zoom)
+            else:
+                self.zoom_to_selection(zoom_out_box, self.variables.animate_zoom)
         else:
-            self.zoom_to_selection(zoom_out_box, self.variables.animate_zoom)
+            pass
+
+    def animate_with_frame_sequence(self,
+                                    frame_sequence,         # type: np.ndarray
+                                    frames_per_second=15,      # type: float
+                                    ):
+        sleep_time = 1/frames_per_second
+        for animation_frame in frame_sequence:
+            tic = time.time()
+            self.set_image_from_numpy_array(animation_frame)
+            self.canvas.update()
+            toc = time.time()
+            frame_generation_time = toc-tic
+            if frame_generation_time < sleep_time:
+                new_sleep_time = sleep_time - frame_generation_time
+                time.sleep(new_sleep_time)
+            else:
+                pass
 
     def callback_handle_left_mouse_release(self, event):
         if self.variables.current_tool == TOOLS.PAN_TOOL:
@@ -186,6 +227,9 @@ class ImageCanvas(tk.LabelFrame):
         if self.variables.current_tool == TOOLS.PAN_TOOL:
             self.variables.pan_anchor_point_xy = event.x, event.y
             self.variables.tmp_anchor_point = event.x, event.y
+        elif self.variables.current_tool == TOOLS.TRANSLATE_SHAPE_TOOL:
+            self.variables.translate_anchor_point_xy = event.x, event.y
+            self.variables.tmp_anchor_point = event.x, event.y
         else:
             self.event_create_or_reinitialize_shape(event)
 
@@ -194,6 +238,15 @@ class ImageCanvas(tk.LabelFrame):
             x_dist = event.x - self.variables.tmp_anchor_point[0]
             y_dist = event.y - self.variables.tmp_anchor_point[1]
             self.canvas.move(self.variables.image_id, x_dist, y_dist)
+            self.variables.tmp_anchor_point = event.x, event.y
+        if self.variables.current_tool == TOOLS.TRANSLATE_SHAPE_TOOL:
+            x_dist = event.x - self.variables.tmp_anchor_point[0]
+            y_dist = event.y - self.variables.tmp_anchor_point[1]
+            new_x1 = self.get_shape_canvas_coords(self.variables.current_shape_id)[0] + x_dist
+            new_y1 = self.get_shape_canvas_coords(self.variables.current_shape_id)[1] + y_dist
+            new_x2 = self.get_shape_canvas_coords(self.variables.current_shape_id)[2] + x_dist
+            new_y2 = self.get_shape_canvas_coords(self.variables.current_shape_id)[3] + y_dist
+            self.modify_existing_shape_using_canvas_coords(self.variables.current_shape_id, (new_x1, new_y1, new_x2, new_y2), update_pixel_coords=True)
             self.variables.tmp_anchor_point = event.x, event.y
         else:
             self.event_drag_shape(event)
@@ -289,7 +342,6 @@ class ImageCanvas(tk.LabelFrame):
                 if event_x_pos == min_x or event_x_pos == max_x or event_y_pos == min_y or event_y_pos == max_y:
                     pass
                 else:
-
                     if event_x_pos > min_x and event_x_pos > max_x:
                         left_right_corner = "right"
                     if event_x_pos < min_x and event_x_pos < max_x:
@@ -430,11 +482,12 @@ class ImageCanvas(tk.LabelFrame):
 
     def get_image_data_in_canvas_rect_by_id(self, rect_id):
         image_coords = self._get_shape_property(rect_id, SHAPE_PROPERTIES.IMAGE_COORDS)
-        print(image_coords)
-        image_data_in_rect = self.variables.canvas_image_object.get_decimated_image_data_in_full_image_rect(image_coords, self.variables.canvas_image_object.decimation_factor)
+        decimation_factor = self.variables.canvas_image_object.get_decimation_factor_from_full_image_rect(image_coords)
+        image_data_in_rect = self.variables.canvas_image_object.get_decimated_image_data_in_full_image_rect(image_coords, decimation_factor)
         return image_data_in_rect
 
     def zoom_to_selection(self, canvas_rect, animate=False):
+        # TODO: change this so that the canvas rect stays within the image bounds
         background_image = self.variables.canvas_image_object.canvas_decimated_image
         self.variables.canvas_image_object.update_canvas_display_image_from_canvas_rect(canvas_rect)
         if self.rescale_image_to_fit_canvas:
@@ -442,6 +495,7 @@ class ImageCanvas(tk.LabelFrame):
         else:
             new_image = PIL.Image.fromarray(self.variables.canvas_image_object.canvas_decimated_image)
         if animate is True:
+            #create frame sequence
             n_animations = self.variables.n_zoom_animations
             background_image = background_image / 2
             canvas_x1, canvas_y1, canvas_x2, canvas_y2 = canvas_rect
@@ -452,6 +506,7 @@ class ImageCanvas(tk.LabelFrame):
             x_diff = new_image.width - (display_x_br - display_x_ul)
             y_diff = new_image.height - (display_y_br - display_y_ul)
             new_display_image = PIL.Image.fromarray(background_image)
+            frame_sequence = []
             for i in range(n_animations):
                 new_x_ul = int(display_x_ul * (1 - i/(n_animations-1)))
                 new_y_ul = int(display_y_ul * (1 - i/(n_animations-1)))
@@ -459,8 +514,10 @@ class ImageCanvas(tk.LabelFrame):
                 new_size_y = int((display_y_br - display_y_ul) + y_diff * (i/(n_animations-1)))
                 resized_zoom_image = new_image.resize((new_size_x, new_size_y))
                 new_display_image.paste(resized_zoom_image, (new_x_ul, new_y_ul))
-                self._set_image_from_pil_image(new_display_image)
-                self.canvas.update()
+                animation_frame = np.array(new_display_image)
+                frame_sequence.append(animation_frame)
+            fps = n_animations / self.variables.animation_time_in_seconds
+            self.animate_with_frame_sequence(frame_sequence, frames_per_second=fps)
         if self.rescale_image_to_fit_canvas:
             self.set_image_from_numpy_array(self.variables.canvas_image_object.display_image)
         else:
@@ -506,6 +563,9 @@ class ImageCanvas(tk.LabelFrame):
         self.variables.current_shape_id = point_id
         self.variables.current_tool = TOOLS.DRAW_POINT_TOOL
         self.show_shape(point_id)
+
+    def set_current_tool_to_translate_shape(self):
+        self.variables.current_tool = TOOLS.TRANSLATE_SHAPE_TOOL
 
     def set_current_tool_to_pan(self):
         self.variables.current_tool = TOOLS.PAN_TOOL
@@ -574,3 +634,14 @@ class ImageCanvas(tk.LabelFrame):
         canvas_rect = (new_canvas_x_ul, new_canvas_y_ul, new_canvas_x_br, new_canvas_y_br)
         self.zoom_to_selection(canvas_rect, self.variables.animate_pan)
         self.hide_shape(self.variables.zoom_rect_id)
+
+    def config_do_not_scale_image_to_fit(self):
+        self.sbarv=tk.Scrollbar(self, orient=tk.VERTICAL)
+        self.sbarh=tk.Scrollbar(self, orient=tk.HORIZONTAL)
+        self.sbarv.config(command=self.canvas.yview)
+        self.sbarh.config(command=self.canvas.xview)
+
+        self.canvas.config(yscrollcommand=self.sbarv.set)
+        self.canvas.config(xscrollcommand=self.sbarh.set)
+        self.sbarv.grid(row=0, column=1, stick=tk.N+tk.S)
+        self.sbarh.grid(row=1, column=0, sticky=tk.E+tk.W)

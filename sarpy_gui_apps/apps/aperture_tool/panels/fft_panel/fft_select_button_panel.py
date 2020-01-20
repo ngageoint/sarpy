@@ -5,8 +5,19 @@ from tkinter_gui_builder.widgets import basic_widgets
 class FFTSelectButtonPanel(AbstractWidgetPanel):
     def __init__(self, parent):
         AbstractWidgetPanel.__init__(self, parent)
+        self.select_data = basic_widgets.Button
+        self.move_rect = basic_widgets.Button
         self.inv_fft = basic_widgets.Button
 
-        widget_list = ["inv_fft"]
-        self.init_w_horizontal_layout(widget_list)
+        self.n_pixels_label = basic_widgets.Label
+        self.n_pixels_horizontal = basic_widgets.Entry
+        self.n_steps_label = basic_widgets.Label
+        self.n_steps = basic_widgets.Entry
+        self.animate = basic_widgets.Button
+
+        widget_list = ["select_data", "move_rect", "inv_fft", "n_pixels_label", "n_pixels_horizontal", "n_steps_label", "n_steps", "animate"]
+        self.init_w_basic_widget_list(widget_list, 2, [3, 5])
         self.set_label_text("fft select")
+
+        self.n_pixels_label.config(text="n pixel sweep")
+        self.n_steps_label.config(text="n steps")

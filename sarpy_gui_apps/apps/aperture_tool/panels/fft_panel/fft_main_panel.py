@@ -23,11 +23,15 @@ class FFTPanel(AbstractWidgetPanel):
         self.fft_button_panel.pack(side="bottom")
         self.image_canvas.pack(side="top")
 
-        # set up event listeners
-        self.fft_button_panel.inv_fft.on_left_mouse_click(self.callback_get_adjusted_image)
         self.image_canvas.set_labelframe_text("FFT View")
+
+        # set up event listeners
+        self.fft_button_panel.select_data.on_left_mouse_click(self.callback_set_to_selection_tool)
+        self.fft_button_panel.move_rect.on_left_mouse_click(self.callback_set_to_translate_shape)
         self.image_canvas.set_current_tool_to_selection_tool()
 
-    def callback_get_adjusted_image(self, event):
-        image_in_rect = self.image_canvas.get_image_data_in_canvas_rect_by_id(self.image_canvas.variables.select_rect_id)
-        stop = 1
+    def callback_set_to_selection_tool(self, event):
+        self.image_canvas.set_current_tool_to_selection_tool()
+
+    def callback_set_to_translate_shape(self, event):
+        self.image_canvas.set_current_tool_to_translate_shape()

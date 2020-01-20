@@ -7,6 +7,7 @@ class ToolConstants:
     DRAW_ARROW_TOOL = "draw arrow"
     SELECT_TOOL = "select tool"
     PAN_TOOL = "pan tool"
+    TRANSLATE_SHAPE_TOOL = "translate shape tool"
 
 
 class ShapePropertyConstants:

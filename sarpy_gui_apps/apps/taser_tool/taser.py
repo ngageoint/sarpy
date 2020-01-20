@@ -49,11 +49,9 @@ class Taser(AbstractWidgetPanel):
 
     def callback_set_to_zoom_in(self, event):
         self.taser_image_panel.set_current_tool_to_zoom_in()
-        self.taser_image_panel.hide_shape(self.taser_image_panel.variables.select_rect_id)
 
     def callback_set_to_zoom_out(self, event):
         self.taser_image_panel.set_current_tool_to_zoom_out()
-        self.taser_image_panel.hide_shape(self.taser_image_panel.variables.select_rect_id)
 
     def callback_set_to_pan(self, event):
         self.taser_image_panel.set_current_tool_to_pan()
@@ -61,6 +59,7 @@ class Taser(AbstractWidgetPanel):
 
     def callback_set_to_select(self, event):
         self.taser_image_panel.set_current_tool_to_draw_rect(self.taser_image_panel.variables.select_rect_id)
+        self.variables.selection_rect_id = self.taser_image_panel.variables.current_shape_id
 
     # define custom callbacks here
     def callback_remap(self, event):
@@ -88,7 +87,7 @@ class Taser(AbstractWidgetPanel):
             self.taser_image_panel.init_with_fname(self.variables.fname)
 
     def callback_display_canvas_rect_selection_in_pyplot_frame(self, event):
-        complex_data = self.taser_image_panel.get_image_data_in_canvas_rect_by_id(self.taser_image_panel.variables.current_shape_id)
+        complex_data = self.taser_image_panel.get_image_data_in_canvas_rect_by_id(self.variables.selection_rect_id)
         remapped_data = self.taser_image_panel.variables.canvas_image_object.remap_complex_data(complex_data)
         self.pyplot_panel.update_image(remapped_data)
 

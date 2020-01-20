@@ -40,7 +40,7 @@ class ApertureTool(AbstractWidgetPanel):
             fft_data = self.get_all_fft_display_data()
             self.fft_panel.image_canvas.init_with_numpy_image(fft_data)
         else:
-            print("not one.")
+            pass
 
     def callback_get_adjusted_image(self, event):
         fft_canvas = self.fft_panel.image_canvas
