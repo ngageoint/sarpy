@@ -27,6 +27,8 @@ class PyplotCanvas(tk.LabelFrame):
         self.scale.pack(side='bottom')
         self.scale.on_left_mouse_motion(self.callback_update_from_slider)
 
+        self.scale.state(["disabled"])
+
         self.canvas = FigureCanvasTkAgg(fig, master=master)
         self.canvas.get_tk_widget().pack(fill='both')
 
@@ -50,6 +52,7 @@ class PyplotCanvas(tk.LabelFrame):
             segments = np.zeros((n_overplots, nx, 2))
             for i in range(n_overplots):
                 segments[i, :, 1] = plot_data[:, i, 0]
+            self.scale.state(['!disabled'])
         if x is None:
             x = np.arange(nx)
         segments[:, :, 0] = x
@@ -66,12 +69,19 @@ class PyplotCanvas(tk.LabelFrame):
         self.plot_data = plot_data
         self.segments = segments
 
-        self.update_plot(0)
+        if len(plot_data.shape) == 3:
+            self.update_plot_animation(0)
 
-    def update_plot(self, time_index):
+        else:
+            self.ax.clear()
+            self.ax.plot(self.plot_data)
+            self.canvas.draw()
+
+
+    def update_plot_animation(self, animation_index):
         n_overplots = np.shape(self.segments)[0]
         for i in range(n_overplots):
-            self.segments[i, :, 1] = self.plot_data[:, i, time_index]
+            self.segments[i, :, 1] = self.plot_data[:, i, animation_index]
 
         self.ax.clear()
 
@@ -83,5 +93,8 @@ class PyplotCanvas(tk.LabelFrame):
         self.canvas.draw()
 
     def callback_update_from_slider(self, event):
-        time_index = int(np.round(self.scale.get()))
-        self.update_plot(time_index)
+        if "disabled" in self.scale.state():
+            pass
+        else:
+            animation_index = int(np.round(self.scale.get()))
+            self.update_plot_animation(animation_index)

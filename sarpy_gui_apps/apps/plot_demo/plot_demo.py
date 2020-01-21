@@ -37,24 +37,25 @@ class PlotDemo(AbstractWidgetPanel):
         self.pack()
 
         # set up event listeners
-        self.button_panel.single_sine.on_left_mouse_click(self.callback_single_sin)
-        self.button_panel.multi_sine.on_left_mouse_click(self.callback_muli_sine)
-        self.button_panel.animated_sine.on_left_mouse_click(self.callback_animated_sine)
+        self.button_panel.single_sine.on_left_mouse_click(self.callback_single_plot)
+        self.button_panel.multi_sine.on_left_mouse_click(self.callback_muli_plot)
+        self.button_panel.animated_sine.on_left_mouse_click(self.callback_animated_plot)
 
-    def callback_single_sin(self, event):
+    def callback_single_plot(self, event):
         print("single sine")
 
-    def callback_muli_sine(self, event):
-        stuff = self.winfo_exists()
+    def callback_muli_plot(self, event):
         print("multi sine")
+        plot_data = self.mockup_animation_data_2()
+        self.pyplot_panel.set_data(plot_data)
 
-    def callback_animated_sine(self, event):
+    def callback_animated_plot(self, event):
         print("animated sine")
-        plot_data = self.mockup_animation_data()
+        plot_data = self.mockup_animation_data_3()
         self.pyplot_panel.set_data(plot_data)
 
     @staticmethod
-    def mockup_animation_data():
+    def mockup_animation_data_3():
         n_overplots = 10
         nx = 200
         n_times = 100
@@ -78,7 +79,34 @@ class PlotDemo(AbstractWidgetPanel):
             y = np.sin(x)
             for j in range(n_overplots):
                 y_data_3[:, j, i] = y * scaling_factors[j]
-        return y_data_3/2
+        return y_data_3
+
+    @staticmethod
+    def mockup_animation_data_2():
+        n_overplots = 10
+        nx = 200
+        n_times = 100
+
+        x_axis = np.linspace(0, 2 * np.pi, nx)
+        y_data_1 = np.sin(x_axis)
+        y_data_2 = np.zeros((len(x_axis), n_overplots))
+        y_data_3 = np.zeros((len(x_axis), n_overplots, n_times))
+
+        scaling_factors = np.linspace(0.7, 1, n_overplots)
+
+        for i in range(n_overplots):
+            y_data_2[:, i] = y_data_1 * scaling_factors[i]
+
+        x_over_time = np.zeros((nx, n_times))
+        x_over_time_start = np.linspace(0, 2 * np.pi, n_times)
+        for i in range(n_times):
+            x_start = x_over_time_start[i]
+            x = np.linspace(x_start, 2 * np.pi + x_start, nx)
+            x_over_time[:, i] = x
+            y = x
+            for j in range(n_overplots):
+                y_data_3[:, j, i] = y * scaling_factors[j]
+        return y_data_3[:, :, 0]
 
 
 if __name__ == '__main__':
