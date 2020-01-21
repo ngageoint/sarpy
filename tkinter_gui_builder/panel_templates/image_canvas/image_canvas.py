@@ -11,6 +11,11 @@ from .tool_constants import ShapePropertyConstants as SHAPE_PROPERTIES
 from .tool_constants import ShapeTypeConstants as SHAPE_TYPES
 from .tool_constants import ToolConstants as TOOLS
 
+if platform.system() == "Linux":
+    import pyscreenshot as ImageGrab
+else:
+    from PIL import ImageGrab
+
 
 class AppVariables:
     def __init__(self):
@@ -234,12 +239,13 @@ class ImageCanvas(tk.LabelFrame):
             self.event_create_or_reinitialize_shape(event)
 
     def callback_handle_left_mouse_motion(self, event):
+        print(self.variables.current_tool)
         if self.variables.current_tool == TOOLS.PAN_TOOL:
             x_dist = event.x - self.variables.tmp_anchor_point[0]
             y_dist = event.y - self.variables.tmp_anchor_point[1]
             self.canvas.move(self.variables.image_id, x_dist, y_dist)
             self.variables.tmp_anchor_point = event.x, event.y
-        if self.variables.current_tool == TOOLS.TRANSLATE_SHAPE_TOOL:
+        elif self.variables.current_tool == TOOLS.TRANSLATE_SHAPE_TOOL:
             x_dist = event.x - self.variables.tmp_anchor_point[0]
             y_dist = event.y - self.variables.tmp_anchor_point[1]
             new_x1 = self.get_shape_canvas_coords(self.variables.current_shape_id)[0] + x_dist
@@ -645,3 +651,20 @@ class ImageCanvas(tk.LabelFrame):
         self.canvas.config(xscrollcommand=self.sbarh.set)
         self.sbarv.grid(row=0, column=1, stick=tk.N+tk.S)
         self.sbarh.grid(row=1, column=0, sticky=tk.E+tk.W)
+
+    def save_as_png(self,
+                    output_fname,           # type: str
+                    ):
+        # put a sleep in here in case there is a dialog covering the screen before this method is called.
+        time.sleep(0.2)
+        im = self.save_to_numpy_array()
+        im.save(output_fname)
+
+    def save_to_numpy_array(self):
+        x_ul = self.canvas.winfo_rootx() + 1
+        y_ul = self.canvas.winfo_rooty() + 1
+        x_lr = x_ul + self.canvas_width
+        y_lr = y_ul + self.canvas_height
+        im = ImageGrab.grab()
+        im = im.crop((x_ul, y_ul, x_lr, y_lr))
+        return im

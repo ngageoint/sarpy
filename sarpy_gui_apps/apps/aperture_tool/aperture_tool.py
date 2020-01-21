@@ -6,7 +6,10 @@ from tkinter_gui_builder.canvas_image_objects.numpy_canvas_image import NumpyCan
 import sarpy.visualization.remap as remap
 from scipy.fftpack import fft2, ifft2, fftshift
 from tkinter_gui_builder.panel_templates.widget_panel.widget_panel import AbstractWidgetPanel
+from tkinter_gui_builder.image_utils import frame_sequence_utils
+from tkinter import filedialog
 import numpy as np
+import os
 
 
 class AppVariables:
@@ -33,6 +36,8 @@ class ApertureTool(AbstractWidgetPanel):
         self.app_variables = AppVariables()
         self.zoomer_panel.image_canvas.canvas.on_left_mouse_release(self.callback_handle_zoomer_left_mouse_release)
         self.fft_panel.fft_button_panel.inv_fft.on_left_mouse_click(self.callback_get_adjusted_image)
+        self.fft_panel.fft_button_panel.animate.on_left_mouse_click(self.callback_animate_horizontal_fft_sweep)
+        self.fft_panel.fft_button_panel.save_animation_as_gif.on_left_mouse_click(self.callback_save_animation)
 
     def callback_handle_zoomer_left_mouse_release(self, event):
         self.zoomer_panel.callback_handle_left_mouse_release(event)
@@ -43,6 +48,10 @@ class ApertureTool(AbstractWidgetPanel):
             pass
 
     def callback_get_adjusted_image(self, event):
+        filtered_image = self.get_filtered_image()
+        self.adjusted_view_panel.image_canvas.init_with_numpy_image(filtered_image)
+
+    def get_filtered_image(self):
         fft_canvas = self.fft_panel.image_canvas
         canvas_rect = fft_canvas.get_shape_canvas_coords(fft_canvas.variables.select_rect_id)
         full_image_rect = fft_canvas.variables.canvas_image_object.canvas_rect_to_full_image_rect(canvas_rect)
@@ -69,8 +78,8 @@ class ApertureTool(AbstractWidgetPanel):
         else:
             cdata_clip = ifft2(filtered_cdata)
 
-        updated_image_display_data = remap.density(cdata_clip)
-        self.adjusted_view_panel.image_canvas.init_with_numpy_image(updated_image_display_data)
+        filtered_image = remap.density(cdata_clip)
+        return filtered_image
 
     def get_all_fft_display_data(self):
         ft_cdata = self.get_all_fft_complex_data()
@@ -92,6 +101,47 @@ class ApertureTool(AbstractWidgetPanel):
 
         ft_cdata = fftshift(ft_cdata)
         return ft_cdata
+
+    def callback_animate_horizontal_fft_sweep(self, event):
+        select_box_id = self.fft_panel.image_canvas.variables.current_shape_id
+        start_fft_select_box = self.fft_panel.image_canvas.get_shape_canvas_coords(select_box_id)
+        n_steps = int(self.fft_panel.fft_button_panel.n_steps.get())
+        n_pixel_translate = int(self.fft_panel.fft_button_panel.n_pixels_horizontal.get())
+        step_factor = np.linspace(0, n_pixel_translate, n_steps)
+        for step in step_factor:
+            x1 = start_fft_select_box[0] + step
+            y1 = start_fft_select_box[1]
+            x2 = start_fft_select_box[2] + step
+            y2 = start_fft_select_box[3]
+            self.fft_panel.image_canvas.modify_existing_shape_using_canvas_coords(select_box_id, (x1, y1, x2, y2), update_pixel_coords=True)
+            self.fft_panel.image_canvas.update()
+            self.callback_get_adjusted_image(event)
+        self.fft_panel.image_canvas.modify_existing_shape_using_canvas_coords(select_box_id, start_fft_select_box, update_pixel_coords=True)
+        self.fft_panel.image_canvas.update()
+
+    def callback_save_animation(self, event):
+        filename = filedialog.asksaveasfilename(initialdir=os.path.expanduser("~"), title="Select file",
+                                                filetypes=(("animated gif", "*.gif"), ("all files", "*.*")))
+        select_box_id = self.fft_panel.image_canvas.variables.current_shape_id
+        start_fft_select_box = self.fft_panel.image_canvas.get_shape_canvas_coords(select_box_id)
+        n_steps = int(self.fft_panel.fft_button_panel.n_steps.get())
+        n_pixel_translate = int(self.fft_panel.fft_button_panel.n_pixels_horizontal.get())
+        step_factor = np.linspace(0, n_pixel_translate, n_steps)
+        fps = float(self.fft_panel.fft_button_panel.animation_fps.get())
+
+        frame_sequence = []
+        for step in step_factor:
+            x1 = start_fft_select_box[0] + step
+            y1 = start_fft_select_box[1]
+            x2 = start_fft_select_box[2] + step
+            y2 = start_fft_select_box[3]
+            self.fft_panel.image_canvas.modify_existing_shape_using_canvas_coords(select_box_id, (x1, y1, x2, y2), update_pixel_coords=True)
+            self.fft_panel.image_canvas.update()
+            filtered_image = self.get_filtered_image()
+            frame_sequence.append(filtered_image)
+        frame_sequence_utils.save_numpy_frame_sequence_to_animated_gif(frame_sequence, filename, fps)
+        self.fft_panel.image_canvas.modify_existing_shape_using_canvas_coords(select_box_id, start_fft_select_box, update_pixel_coords=True)
+        self.fft_panel.image_canvas.update()
 
 
 if __name__ == '__main__':
