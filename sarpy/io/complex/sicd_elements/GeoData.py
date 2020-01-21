@@ -50,7 +50,6 @@ class GeoInfoType(Serializable):
         'Polygon', LatLonArrayElementType, _collections_tags, _required, strict=DEFAULT_STRICT, minimum_length=3,
         docstring='A geographic polygon (array) with WGS-84 coordinates.'
     )  # type: Union[SerializableArray, List[LatLonArrayElementType]]
-    _GeoInfos = None
 
     def __init__(self, name=None, Descriptions=None, Point=None, Line=None, Polygon=None, GeoInfos=None, **kwargs):
         """
@@ -72,17 +71,14 @@ class GeoInfoType(Serializable):
         self.Line = Line
         self.Polygon = Polygon
 
-        self._GeoInfos = OrderedDict()
+        self._GeoInfos = []
         if GeoInfos is None:
             pass
         elif isinstance(GeoInfos, GeoInfoType):
             self.addGeoInfo(GeoInfos)
-        elif isinstance(GeoInfos, list):
+        elif isinstance(GeoInfos, (list, tuple)):
             for el in GeoInfos:
                 self.addGeoInfo(el)
-        elif isinstance(GeoInfos, dict):
-            for key in GeoInfos:
-                self.addGeoInfo(GeoInfos[key])
         else:
             raise ('GeoInfos got unexpected type {}'.format(type(GeoInfos)))
         super(GeoInfoType, self).__init__(**kwargs)
@@ -103,48 +99,29 @@ class GeoInfoType(Serializable):
     @property
     def GeoInfos(self):
         """
-        Dict[GeoInfoType]: dictionary of GeoInfos. *Only use this directly if you have a good reason.* Instead, use
-        `getGeoInfo`, `setGeoInfo`, or the getter/setter syntax directly. That is, `the_geo_info = GeoData[<name>]`
-        or GeoInfo[<name>] = theGeoInfo`, the latter requires that `theGeoINfo.name == '<name>'`.
+        List[GeoInfoType]: list of GeoInfos.
         """
 
         return self._GeoInfos
 
-    def __getitem__(self, item):
-        return self._GeoInfos[item]
-
-    def __setitem__(self, key, value):
-        if not isinstance(value, GeoInfoType):
-            raise TypeError('The value must be an instance of GeoInfoType, got {}'.format(type(value)))
-        if value.name != key:
-            raise ValueError('The key must be the name attribute.')
-        self._GeoInfos[key] = value
-
-    def __delitem__(self, key):
-        self._GeoInfos.__delitem__(key)
-
-    def __iter__(self):
-        return self._GeoInfos.__iter__()
-
-    def getGeoInfo(self, key, default=None):
+    def getGeoInfo(self, key):
         """
-        Get the GeoInfo with name attribute == `key`, or `default` if the lookup fails.
+        Get GeoInfo(s) with name attribute == `key`.
 
         Parameters
         ----------
         key : str
-        default : object
 
         Returns
         -------
-        GeoInfoType
+        List[GeoInfoType]
         """
 
-        return self._GeoInfos.get(key, default=default)
+        return [entry for entry in self._GeoInfos if entry.name == key]
 
     def addGeoInfo(self, value):
         """
-        Add the given GeoInfo to the GeoInfos dict, keyed on name attribute.
+        Add the given GeoInfo to the GeoInfos list.
 
         Parameters
         ----------
@@ -161,7 +138,7 @@ class GeoInfoType(Serializable):
             value = GeoInfoType.from_dict(value)
 
         if isinstance(value, GeoInfoType):
-            self._GeoInfos[value.name] = value
+            self._GeoInfos.append(value)
         else:
             raise TypeError('Trying to set GeoInfo element with unexpected type {}'.format(type(value)))
 
@@ -188,7 +165,7 @@ class GeoInfoType(Serializable):
     def to_node(self, doc, tag, parent=None, strict=DEFAULT_STRICT, exclude=()):
         node = super(GeoInfoType, self).to_node(doc, tag, parent=parent, strict=strict, exclude=exclude)
         # slap on the GeoInfo children
-        for entry in self._GeoInfos.values():
+        for entry in self._GeoInfos:
             entry.to_node(doc, tag, parent=node, strict=strict)
         return node
 
@@ -196,7 +173,7 @@ class GeoInfoType(Serializable):
         out = super(GeoInfoType, self).to_dict(strict=strict, exclude=exclude)
         # slap on the GeoInfo children
         if len(self.GeoInfos) > 0:
-            out['GeoInfos'] = [entry.to_dict(strict=strict) for entry in self._GeoInfos.values()]
+            out['GeoInfos'] = [entry.to_dict(strict=strict) for entry in self._GeoInfos]
         return out
 
 
@@ -288,7 +265,6 @@ class GeoDataType(Serializable):
         strict=DEFAULT_STRICT, minimum_length=3,
         docstring='The full image array includes both valid data and some zero filled pixels.'
     )  # type: Union[SerializableArray, List[LatLonArrayElementType]]
-    _GeoInfos = None
 
     def __init__(self, EarthModel='WGS_84', SCP=None, ImageCorners=None, ValidData=None, GeoInfos=None, **kwargs):
         """
@@ -308,17 +284,14 @@ class GeoDataType(Serializable):
         self.ImageCorners = ImageCorners
         self.ValidData = ValidData
 
-        self._GeoInfos = OrderedDict()
+        self._GeoInfos = []
         if GeoInfos is None:
             pass
         elif isinstance(GeoInfos, GeoInfoType):
             self.setGeoInfo(GeoInfos)
-        elif isinstance(GeoInfos, list):
+        elif isinstance(GeoInfos, (list, tuple)):
             for el in GeoInfos:
                 self.setGeoInfo(el)
-        elif isinstance(GeoInfos, dict):
-            for key in GeoInfos:
-                self.setGeoInfo(GeoInfos[key])
         else:
             raise ('GeoInfos got unexpected type {}'.format(type(GeoInfos)))
         super(GeoDataType, self).__init__(**kwargs)
@@ -338,48 +311,29 @@ class GeoDataType(Serializable):
     @property
     def GeoInfos(self):
         """
-        Dict[GeoInfoType]: dictionary of GeoInfos. *Only use this directly if you have a good reason.* Instead, use
-        `getGeoInfo`, `setGeoInfo`, or the getter/setter syntax directly. That is, `the_geo_info = GeoData[<name>]`
-        or GeoInfo[<name>] = theGeoInfo`, the latter requires that `theGeoINfo.name == '<name>'`.
+        List[GeoInfoType]: list of GeoInfos.
         """
 
         return self._GeoInfos
 
-    def __getitem__(self, item):
-        return self._GeoInfos[item]
-
-    def __setitem__(self, key, value):
-        if not isinstance(value, GeoInfoType):
-            raise TypeError('The value must be an instance of GeoInfoType, got {}'.format(type(value)))
-        if value.name != key:
-            raise ValueError('The key must be the name attribute.')
-        self._GeoInfos[key] = value
-
-    def __delitem__(self, key):
-        self._GeoInfos.__delitem__(key)
-
-    def __iter__(self):
-        return self._GeoInfos.__iter__()
-
-    def getGeoInfo(self, key, default=None):
+    def getGeoInfo(self, key):
         """
-        Get the GeoInfo with name attribute == `key`, or `default` if the lookup fails.
+        Get the GeoInfo(s) with name attribute == `key`
 
         Parameters
         ----------
         key : str
-        default : object
 
         Returns
         -------
-        GeoInfoType
+        List[GeoInfoType]
         """
 
-        return self._GeoInfos.get(key, default=default)
+        return [entry for entry in self._GeoInfos if entry.name == key]
 
     def setGeoInfo(self, value):
         """
-        Add the given GeoInfo to the GeoInfos dict, keyed on name attribute.
+        Add the given GeoInfo to the GeoInfos list.
 
         Parameters
         ----------
@@ -396,7 +350,7 @@ class GeoDataType(Serializable):
             value = GeoInfoType.from_dict(value)
 
         if isinstance(value, GeoInfoType):
-            self._GeoInfos[value.name] = value
+            self._GeoInfos.append(value)
         else:
             raise TypeError('Trying to set GeoInfo element with unexpected type {}'.format(type(value)))
 
@@ -410,7 +364,7 @@ class GeoDataType(Serializable):
     def to_node(self, doc, tag, parent=None, strict=DEFAULT_STRICT, exclude=()):
         node = super(GeoDataType, self).to_node(doc, tag, parent=parent, strict=strict, exclude=exclude)
         # slap on the GeoInfo children
-        for entry in self._GeoInfos.values():
+        for entry in self._GeoInfos:
             entry.to_node(doc, 'GeoInfo', parent=node, strict=strict)
         return node
 
@@ -418,5 +372,5 @@ class GeoDataType(Serializable):
         out = super(GeoDataType, self).to_dict(strict=strict, exclude=exclude)
         # slap on the GeoInfo children
         if len(self.GeoInfos) > 0:
-            out['GeoInfos'] = [entry.to_dict(strict=strict) for entry in self._GeoInfos.values()]
+            out['GeoInfos'] = [entry.to_dict(strict=strict) for entry in self._GeoInfos]
         return out

@@ -259,7 +259,7 @@ class SICDType(Serializable):
         condition &= self._validate_image_segment_id()
         return condition
 
-    def define_geo_image_corners(self):
+    def define_geo_image_corners(self, override=False):
         """
         Defines the GeoData image corner points (if possible), if they are not already defined.
 
@@ -268,11 +268,11 @@ class SICDType(Serializable):
         None
         """
 
-        if self.GeoData is None or self.GeoData.ImageCorners is not None:
-            return  # nothing to be done
+        if self.GeoData is None:
+            self.GeoData = GeoDataType()
 
-        # TODO: refactor geometry/point_projection.py contents into appropriate class methods
-        #   the below exception catching is half-baked, because the method should be refactored.
+        if self.GeoData.ImageCorners is not None and not override:
+            return  # nothing to be done
 
         try:
             corner_coords = point_projection.image_to_ground_geo(

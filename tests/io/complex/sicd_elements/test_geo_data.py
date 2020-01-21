@@ -62,17 +62,8 @@ class TestGeoInfo(unittest.TestCase):
 
     def test_get_item(self):
         item4 = GeoData.GeoInfoType.from_dict(geo_info_dict4)
-        item1 = item4['Name1']
-        self.assertEqual(item1.to_dict(), geo_info_dict1)
-
-    def test_set_item(self):
-        item2 = GeoData.GeoInfoType.from_dict(geo_info_dict2)
-        item4 = GeoData.GeoInfoType.from_dict(geo_info_dict4)
-        item4['Name2'] = item2
-        item1 = item4['Name1']
-        item2_2 = item4['Name2']
-        self.assertEqual(item1.to_dict(), geo_info_dict1)
-        self.assertEqual(item2_2.to_dict(), geo_info_dict2)
+        item1 = item4.getGeoInfo('Name1')
+        self.assertEqual(item1[0].to_dict(), geo_info_dict1)
 
     def test_validity(self):
         bad_dict = geo_info_dict1.copy()
@@ -129,13 +120,6 @@ class TestGeoData(unittest.TestCase):
 
     def test_get_item(self):
         geodata = GeoData.GeoDataType.from_dict(geo_data_dict)
-        self.assertEqual(geodata['Name1'].to_dict(), geo_info_dict1)
-        self.assertEqual(geodata['Name2'].to_dict(), geo_info_dict2)
-        self.assertEqual(geodata['Name3'].to_dict(), geo_info_dict3)
-
-    def test_set_item(self):
-        item4 = GeoData.GeoInfoType.from_dict(geo_info_dict4)
-        geodata = GeoData.GeoDataType.from_dict(geo_data_dict)
-        geodata['Name4'] = item4
-        item4_2 = geodata['Name4']
-        self.assertEqual(item4_2.to_dict(), geo_info_dict4)
+        self.assertEqual(geodata.getGeoInfo('Name1')[0].to_dict(), geo_info_dict1)
+        self.assertEqual(geodata.getGeoInfo('Name2')[0].to_dict(), geo_info_dict2)
+        self.assertEqual(geodata.getGeoInfo('Name3')[0].to_dict(), geo_info_dict3)

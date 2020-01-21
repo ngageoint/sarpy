@@ -1166,7 +1166,7 @@ class Serializable(object):
         return '{}(**{})'.format(self.__class__.__name__, self.to_dict(strict=False))
 
     def __setattr__(self, key, value):
-        if not ((key in self._fields) or hasattr(self.__class__, key) or hasattr(self, key)):
+        if not (key.startswith('_') or (key in self._fields) or hasattr(self.__class__, key) or hasattr(self, key)):
             # not expected attribute - descriptors, properties, etc
             logging.warning(
                 'Class {} instance receiving unexpected attribute {}.\n'

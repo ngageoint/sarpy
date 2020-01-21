@@ -3,10 +3,7 @@
 Basic building blocks for SICD standard.
 """
 
-from .base import _get_node_value, _create_text_node, _create_new_node, Serializable, Arrayable, DEFAULT_STRICT, \
-    _StringEnumDescriptor, _IntegerDescriptor, _FloatDescriptor, _FloatModularDescriptor, \
-    _SerializableDescriptor
-
+import sys
 from collections import OrderedDict
 
 import numpy
@@ -16,6 +13,19 @@ if scipy.__version__ >= '1.0':
 else:
     # noinspection PyUnresolvedReferences
     from scipy.misc import comb
+
+from .base import _get_node_value, _create_text_node, _create_new_node, Serializable, Arrayable, DEFAULT_STRICT, \
+    _StringEnumDescriptor, _IntegerDescriptor, _FloatDescriptor, _FloatModularDescriptor, \
+    _SerializableDescriptor
+
+
+integer_types = (int, )
+int_func = int
+if sys.version_info[0] < 3:
+    # noinspection PyUnresolvedReferences
+    int_func = long  # to accommodate for 32-bit python 2
+    # noinspection PyUnresolvedReferences
+    integer_types = (int, long)
 
 
 __classification__ = "UNCLASSIFIED"
@@ -177,12 +187,12 @@ class LatLonType(Serializable, Arrayable):
 
         def reduce(value):
             val = abs(value)
-            deg = int(val)
+            deg = int_func(val)
             val = 60*(val - deg)
-            mins = int(val)
+            mins = int_func(val)
             secs = 60*(val - mins)
             if not frac_secs:
-                secs = int(secs)
+                secs = int_func(secs)
             return deg, mins, secs
 
         X = 'S' if self.Lat < 0 else 'N'
@@ -911,10 +921,10 @@ class Poly1DType(Serializable, Arrayable):
             corresponding class instance
         """
 
-        order1 = int(node.attrib['order1'])
+        order1 = int_func(node.attrib['order1'])
         coefs = numpy.zeros((order1+1, ), dtype=numpy.float64)
         for cnode in node.findall('Coef'):
-            ind = int(cnode.attrib['exponent1'])
+            ind = int_func(cnode.attrib['exponent1'])
             val = float(_get_node_value(cnode))
             coefs[ind] = val
         return cls(Coefs=coefs)
@@ -1117,12 +1127,12 @@ class Poly2DType(Serializable, Arrayable):
             corresponding class instance
         """
 
-        order1 = int(node.attrib['order1'])
-        order2 = int(node.attrib['order2'])
+        order1 = int_func(node.attrib['order1'])
+        order2 = int_func(node.attrib['order2'])
         coefs = numpy.zeros((order1+1, order2+1), dtype=numpy.float64)
         for cnode in node.findall('Coef'):
-            ind1 = int(cnode.attrib['exponent1'])
-            ind2 = int(cnode.attrib['exponent2'])
+            ind1 = int_func(cnode.attrib['exponent1'])
+            ind2 = int_func(cnode.attrib['exponent2'])
             val = float(_get_node_value(cnode))
             coefs[ind1, ind2] = val
         return cls(Coefs=coefs)

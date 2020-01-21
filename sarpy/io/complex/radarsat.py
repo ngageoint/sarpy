@@ -70,6 +70,8 @@ def is_a(file_name):
 
 
 def _2d_poly_fit(x, y, z, x_order=2, y_order=2):
+    # TODO: move this to some utilities area, make non-hidden, and document.
+    #   also used in csk & sentinel - don't forget to refactor the unit test
     x = x.flatten()
     y = y.flatten()
     z = z.flatten()
