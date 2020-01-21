@@ -40,7 +40,7 @@ class AppVariables:
 
         self.animate_zoom = True
         self.animate_pan = False
-        self.n_zoom_animations = 50
+        self.n_zoom_animations = 5
         self.animation_time_in_seconds = 0.3
 
         self.select_rect_id = None
@@ -194,17 +194,36 @@ class ImageCanvas(tk.LabelFrame):
         else:
             pass
 
-    def animate_with_frame_sequence(self,
-                                    frame_sequence,         # type: np.ndarray
-                                    frames_per_second=15,      # type: float
-                                    ):
+    def animate_with_numpy_frame_sequence(self,
+                                          numpy_frame_sequence,  # type: [np.ndarray]
+                                          frames_per_second=15,  # type: float
+                                          ):
         sleep_time = 1/frames_per_second
-        for animation_frame in frame_sequence:
+        for animation_frame in numpy_frame_sequence:
             tic = time.time()
             self.set_image_from_numpy_array(animation_frame)
             self.canvas.update()
             toc = time.time()
             frame_generation_time = toc-tic
+            print(frame_generation_time)
+            if frame_generation_time < sleep_time:
+                new_sleep_time = sleep_time - frame_generation_time
+                time.sleep(new_sleep_time)
+            else:
+                pass
+
+    def animate_with_pil_frame_sequence(self,
+                                        pil_frame_sequence,  # type: [PIL.Image]
+                                        frames_per_second=15,  # type: float
+                                        ):
+        sleep_time = 1/frames_per_second
+        for animation_frame in pil_frame_sequence:
+            tic = time.time()
+            self._set_image_from_pil_image(animation_frame)
+            self.canvas.update()
+            toc = time.time()
+            frame_generation_time = toc-tic
+            print(frame_generation_time)
             if frame_generation_time < sleep_time:
                 new_sleep_time = sleep_time - frame_generation_time
                 time.sleep(new_sleep_time)
@@ -493,9 +512,18 @@ class ImageCanvas(tk.LabelFrame):
         return image_data_in_rect
 
     def zoom_to_selection(self, canvas_rect, animate=False):
-        # TODO: change this so that the canvas rect stays within the image bounds
+        # keep the rect within the image bounds
+        image_coords = self.variables.canvas_image_object.canvas_coords_to_full_image_yx(canvas_rect)
+        image_y_ul = max(image_coords[0], 0)
+        image_x_ul = max(image_coords[1], 0)
+        image_y_br = min(image_coords[2], self.variables.canvas_image_object.full_image_ny)
+        image_x_br = min(image_coords[3], self.variables.canvas_image_object.full_image_nx)
+
+        new_canvas_rect = self.variables.canvas_image_object.full_image_yx_to_canvas_coords((image_y_ul, image_x_ul, image_y_br, image_x_br))
+        new_canvas_rect = (int(new_canvas_rect[0]), int(new_canvas_rect[1]), int(new_canvas_rect[2]), int(new_canvas_rect[3]))
+
         background_image = self.variables.canvas_image_object.canvas_decimated_image
-        self.variables.canvas_image_object.update_canvas_display_image_from_canvas_rect(canvas_rect)
+        self.variables.canvas_image_object.update_canvas_display_image_from_canvas_rect(new_canvas_rect)
         if self.rescale_image_to_fit_canvas:
             new_image = PIL.Image.fromarray(self.variables.canvas_image_object.display_image)
         else:
@@ -504,14 +532,14 @@ class ImageCanvas(tk.LabelFrame):
             #create frame sequence
             n_animations = self.variables.n_zoom_animations
             background_image = background_image / 2
-            canvas_x1, canvas_y1, canvas_x2, canvas_y2 = canvas_rect
+            canvas_x1, canvas_y1, canvas_x2, canvas_y2 = new_canvas_rect
             display_x_ul = min(canvas_x1, canvas_x2)
             display_x_br = max(canvas_x1, canvas_x2)
             display_y_ul = min(canvas_y1, canvas_y2)
             display_y_br = max(canvas_y1, canvas_y2)
             x_diff = new_image.width - (display_x_br - display_x_ul)
             y_diff = new_image.height - (display_y_br - display_y_ul)
-            new_display_image = PIL.Image.fromarray(background_image)
+            pil_background_image = PIL.Image.fromarray(background_image)
             frame_sequence = []
             for i in range(n_animations):
                 new_x_ul = int(display_x_ul * (1 - i/(n_animations-1)))
@@ -519,11 +547,12 @@ class ImageCanvas(tk.LabelFrame):
                 new_size_x = int((display_x_br - display_x_ul) + x_diff * (i/(n_animations-1)))
                 new_size_y = int((display_y_br - display_y_ul) + y_diff * (i/(n_animations-1)))
                 resized_zoom_image = new_image.resize((new_size_x, new_size_y))
-                new_display_image.paste(resized_zoom_image, (new_x_ul, new_y_ul))
-                animation_frame = np.array(new_display_image)
-                frame_sequence.append(animation_frame)
+                animation_image = pil_background_image.copy()
+                animation_image.paste(resized_zoom_image, (new_x_ul, new_y_ul))
+                frame_sequence.append(animation_image)
             fps = n_animations / self.variables.animation_time_in_seconds
-            self.animate_with_frame_sequence(frame_sequence, frames_per_second=fps)
+            print("fps :" + str(fps))
+            self.animate_with_pil_frame_sequence(frame_sequence, frames_per_second=fps)
         if self.rescale_image_to_fit_canvas:
             self.set_image_from_numpy_array(self.variables.canvas_image_object.display_image)
         else:
