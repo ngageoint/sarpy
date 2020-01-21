@@ -266,7 +266,6 @@ class SCPCOAType(Serializable):
 
         # perpendicular component of north wrt the ground plane
         NORTH = numpy.array([0, 0, 1]) - ETP[2]*ETP
-        # TODO: is this really "NORTH" - looks like vertical to me. [0, 1, 0] and ETP[1]*?
         uNORTH = NORTH/norm(NORTH)
         uEAST = numpy.cross(uNORTH, ETP)  # already unit vector
         azim_ang = numpy.rad2deg(numpy.arctan2(numpy.dot(uGPX, uEAST), numpy.dot(uGPX, uNORTH)))

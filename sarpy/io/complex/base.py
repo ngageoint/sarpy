@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-The base elements for reading and writing files as appropriate.
-
-** It is expected that this is not the final location for these files. **
+The base elements for reading and writing complex data files.
 """
 
 import sys
@@ -28,11 +26,12 @@ __classification__ = "UNCLASSIFIED"
 
 class BaseChipper(object):
     """
-    Abstract base class defining basic functionality for the literal extraction of data
+    Base class defining basic functionality for the literal extraction of data
     from a file. The intent of this class is to be a callable in the following form:
     .. code-block:
         data = BaseChipper(entry1, entry2)
-    where each entry is a tuple or int of the form `[[start], stop,] step`.
+    where each entry is a tuple or int of the form `[[[start], stop,] step]`.
+
     Similarly, we are able to use more traditional Python slicing syntax
     .. code-block:
         data = BaseChipper[slice1[, slice2]]
@@ -89,7 +88,7 @@ class BaseChipper(object):
     @property
     def symmetry(self):
         """
-        tuple: with boolean entries of the form (`flip1`, `flip2`, `swap_axes`).
+        Tuple[bool, bool, bool]: Entries of the form (`flip1`, `flip2`, `swap_axes`).
         This describes necessary symmetry transformation to be performed to convert
         from raw (file storage) order into the order expected (analysis order).
 
@@ -105,19 +104,12 @@ class BaseChipper(object):
     @property
     def data_size(self):
         """
-        tuple: Two element tuple of the form `(rows, columns)`, which provides the
+        Tuple[int, int]: Two element tuple of the form `(rows, columns)`, which provides the
         size of the data, after any necessary symmetry transformations have been applied.
         Note that this excludes the number of bands in the image.
         """
 
         return self._data_size
-
-    @property
-    def shape(self):
-        if self._symmetry[2]:
-            return self._data_size[::-1]
-        else:
-            return self._data_size
 
     def __call__(self, range1, range2):
         data = self._read_raw_fun(range1, range2)
@@ -253,7 +245,6 @@ class BaseChipper(object):
         if callable(self._complex_type):
             return self._complex_type(data)  # is this actually necessary?
         if self._complex_type:
-            # TODO: complex128?
             out = numpy.zeros((data.shape(0)/2, data.shape(1), data.shape(2)), dtype=numpy.complex64)
             out.real = data[0::2, :, :]
             out.imag = data[1::2, :, :]
@@ -459,11 +450,18 @@ class BaseReader(object):
             The complex data, explicitly of dtype=complex.64. Be sure to upcast to
             complex128 if so desired.
 
-        Also available is basic call syntax :code: `data = reader(dim1range, dim2range, index)`.
-        Another, more pythonic, alternative is slice syntax
-        :code:`data = reader[start:stop:stride, start:stop:stride]` or
-        :code:`data = reader[start:stop:stride, start:stop:stride, index]`.
-        The slice on index is limited to a single integer.
+        Also available is basic call syntax
+        .. code-block:
+            data = reader(dim1range, dim2range, index)
+
+        Another alternative is slice syntax
+        ..code-block:
+            data = reader[start:stop:stride, start:stop:stride]  # or
+            data = reader[start:stop:stride, start:stop:stride, index]
+
+        Here the slice on index (dimension 3) is limited to a single integer, and
+        no slice on index :code:`reader[:, :]` will default to `index=0`,
+        :code:`reader[:, :, 0]` (where appropriate).
         """
 
         if isinstance(self._chipper, tuple):
