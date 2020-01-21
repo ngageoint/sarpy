@@ -34,8 +34,8 @@ from .sicd_elements.ImageFormation import ImageFormationType, TxFrequencyProcTyp
 from .sicd_elements.RMA import RMAType, INCAType
 from .sicd_elements.Radiometric import RadiometricType
 from ...geometry import point_projection
-from .radarsat import _2d_poly_fit
 from .base import BaseChipper, BaseReader
+from .utils import two_dim_poly_fit, get_seconds
 
 __classification__ = "UNCLASSIFIED"
 
@@ -80,12 +80,6 @@ def _extract_attrs(h5_element):
         val = h5_element.attrs[key]
         out[key] = val.decode('utf-8') if isinstance(val, bytes) else val
     return out
-
-
-def _get_seconds(dt1, dt2):  # type: (numpy.datetime64, numpy.datetime64) -> float
-    tdt1 = dt1.astype('datetime64[ns]')
-    tdt2 = dt2.astype('datetime64[ns]')  # convert both to nanosecond precision
-    return (tdt1.astype('int64') - tdt2.astype('int64'))*1e-9
 
 
 ###########
@@ -243,9 +237,9 @@ class CSKDetails(object):
         # relative times in csk are wrt some reference time - for sicd they should be relative to start time
         collect_start = numpy.datetime64(h5_dict['Scene Sensing Start UTC'], 'ns')
         collect_end = numpy.datetime64(h5_dict['Scene Sensing Stop UTC'], 'ns')
-        duration = _get_seconds(collect_end, collect_start)
+        duration = get_seconds(collect_end, collect_start, precision='ns')
         ref_time = numpy.datetime64(h5_dict['Reference UTC'], 'ns')
-        ref_time_offset = _get_seconds(ref_time, collect_start)
+        ref_time_offset = get_seconds(ref_time, collect_start, precision='ns')
 
         # assemble our pieces
         collection_info = get_collection_info()
@@ -296,7 +290,7 @@ class CSKDetails(object):
         # relative times in csk are wrt some reference time - for sicd they should be relative to start time
         collect_start = numpy.datetime64(h5_dict['Scene Sensing Start UTC'], 'ns')
         ref_time = numpy.datetime64(h5_dict['Reference UTC'], 'ns')
-        ref_time_offset = _get_seconds(ref_time, collect_start)
+        ref_time_offset = get_seconds(ref_time, collect_start, precision='ns')
 
         def update_scp_prelim(sicd, band_name):
             # type: (SICDType, str) -> None
@@ -430,8 +424,8 @@ class CSKDetails(object):
             doppler_rate_sampled = polynomial.polyval(coords_rg_2d, dop_rate_poly_rg_shifted)
             time_coa_sampled = time_ca_sampled + dop_centroid_sampled / doppler_rate_sampled
             grid.TimeCOAPoly = Poly2DType(
-                Coefs=_2d_poly_fit(coords_rg_2d, coords_az_2d, time_coa_sampled, x_order=poly_order,
-                                   y_order=poly_order))
+                Coefs=two_dim_poly_fit(coords_rg_2d, coords_az_2d, time_coa_sampled,
+                                       x_order=poly_order, y_order=poly_order))
 
         def update_radiometric(sicd, band_name):  # type: (SICDType, str) -> None
             if h5_dict['Range Spreading Loss Compensation Geometry'] != 'NONE':

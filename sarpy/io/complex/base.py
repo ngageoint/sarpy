@@ -518,19 +518,15 @@ class BaseWriter(AbstractWriter):
             sicd_meta.ImageData.PixelType = 'RE32F_IM32F'
         self._sicd_meta = sicd_meta.copy()
 
-        # TODO: should probably set ImageCreation this way no matter what?
-        if self._sicd_meta.ImageCreation is None:
-            # noinspection PyBroadException
-            try:
-                profile = getpass.getuser()
-            except Exception:  # unsure what exception is raised
-                profile = None
-            self._sicd_meta.ImageCreation = ImageCreationType(
-                Application='{} {}'.format(__title__, __release__),
-                DateTime=numpy.datetime64('now'),
-                Profile=profile)
-        elif self._sicd_meta.ImageCreation.DateTime is None:
-            self._sicd_meta.ImageCreation.DateTime = numpy.datetime64('now')
+        # noinspection PyBroadException
+        try:
+            profile = getpass.getuser()
+        except Exception:  # unsure what exception is raised
+            profile = None
+        self._sicd_meta.ImageCreation = ImageCreationType(
+            Application='{} {}'.format(__title__, __release__),
+            DateTime=numpy.datetime64('now'),
+            Profile=profile)
 
     @property
     def sicd_meta(self):

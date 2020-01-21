@@ -33,7 +33,7 @@ from .sicd_elements.RMA import RMAType, INCAType
 from .sicd_elements.Radiometric import RadiometricType, NoiseLevelType_
 from ...geometry import point_projection
 from ...geometry.geocoords import geodetic_to_ecf
-from .radarsat import _2d_poly_fit
+from .utils import two_dim_poly_fit, get_seconds
 
 __classification__ = "UNCLASSIFIED"
 
@@ -76,12 +76,6 @@ def _parse_xml(file_name, without_ns=False):
     else:
         ns = dict([node for _, node in ElementTree.iterparse(file_name, events=('start-ns', ))])
         return ns, root_node
-
-
-def _get_seconds(dt1, dt2):  # type: (numpy.datetime64, numpy.datetime64) -> float
-    tdt1 = dt1.astype('datetime64[us]')
-    tdt2 = dt2.astype('datetime64[us]')  # convert both to microsecond precision
-    return (tdt1.astype('int64') - tdt2.astype('int64'))*1e-6
 
 
 ###########
@@ -474,7 +468,7 @@ class SentinelDetails(object):
             Ys = numpy.empty(shp, dtype=numpy.float64)
             Zs = numpy.empty(shp, dtype=numpy.float64)
             for j, orbit in enumerate(orbit_list):
-                Ts[j] = _get_seconds(numpy.datetime64(orbit.find('./time').text, 'us'), start)
+                Ts[j] = get_seconds(numpy.datetime64(orbit.find('./time').text, 'us'), start, precision='us')
                 Xs[j] = float(orbit.find('./position/x').text)
                 Ys[j] = float(orbit.find('./position/y').text)
                 Zs[j] = float(orbit.find('./position/z').text)
@@ -488,7 +482,8 @@ class SentinelDetails(object):
             dc_t0 = numpy.empty(shp, dtype=numpy.float64)
             data_dc_poly = []
             for j, dc_estimate in enumerate(dc_estimate_list):
-                dc_az_time[j] = _get_seconds(numpy.datetime64(dc_estimate.find('./azimuthTime').text, 'us'), start)
+                dc_az_time[j] = get_seconds(numpy.datetime64(dc_estimate.find('./azimuthTime').text, 'us'),
+                                            start, precision='us')
                 dc_t0[j] = float(dc_estimate.find('./t0').text)
                 data_dc_poly.append(numpy.fromstring(dc_estimate.find('./dataDcPolynomial').text, sep=' '))
             return dc_az_time, dc_t0, data_dc_poly
@@ -501,7 +496,8 @@ class SentinelDetails(object):
             az_t0 = numpy.empty(shp, dtype=numpy.float64)
             k_a_poly = []
             for j, az_fm_rate in enumerate(azimuth_fm_rate_list):
-                az_t[j] = _get_seconds(numpy.datetime64(az_fm_rate.find('./azimuthTime').text, 'us'), start)
+                az_t[j] = get_seconds(numpy.datetime64(az_fm_rate.find('./azimuthTime').text, 'us'),
+                                      start, precision='us')
                 az_t0[j] = float(az_fm_rate.find('./t0').text)
                 if az_fm_rate.find('c0') is not None:
                     # old style annotation xml file
@@ -611,7 +607,7 @@ class SentinelDetails(object):
             deramp_phase = k_t*(eta_arg*eta_arg)/2
             demod_phase = f_eta_c*eta_arg
             total_phase = deramp_phase + demod_phase
-            phase = _2d_poly_fit(
+            phase = two_dim_poly_fit(
                 coords_az_2d, coords_rg_2d, total_phase, x_order=poly_order, y_order=poly_order)
             delta_kcoa_poly = polynomial.polyder(phase, axis=1)
             grid.Col.DeltaKCOAPoly = Poly2DType(Coefs=delta_kcoa_poly)
@@ -619,7 +615,7 @@ class SentinelDetails(object):
             inca.DopCentroidPoly = Poly2DType(Coefs=dop_centroid_poly)
             dop_centroid_sampled = inca.DopCentroidPoly(coords_rg_2d, coords_az_2d)
             time_coa_sampled = time_ca_sampled + dop_centroid_sampled / doppler_rate_sampled
-            time_coa_poly = _2d_poly_fit(
+            time_coa_poly = two_dim_poly_fit(
                 coords_rg_2d, coords_az_2d, time_coa_sampled, x_order=poly_order, y_order=poly_order)
             grid.TimeCOAPoly = Poly2DType(Coefs=time_coa_poly)
             if return_time_dets:
@@ -672,12 +668,12 @@ class SentinelDetails(object):
                                                    '/downlinkInformation'
                                                    '/lastLineSensingTime').text, 'us')
             set_core_name(out_sicd, start_dt, 0)
-            set_timeline(out_sicd, start, _get_seconds(stop, start))
+            set_timeline(out_sicd, start, get_seconds(stop, start, precision='us'))
             set_position(out_sicd, start)
 
             azimuth_time_first_line = numpy.datetime64(
                 root_node.find('./imageAnnotation/imageInformation/productFirstLineUtcTime').text, 'us')
-            first_line_relative_start = int(_get_seconds(azimuth_time_first_line, start))
+            first_line_relative_start = int(get_seconds(azimuth_time_first_line, start, precision='us'))
             update_rma_and_grid(out_sicd, first_line_relative_start, start)
             update_geodata(out_sicd)
             return out_sicd

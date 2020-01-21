@@ -394,7 +394,6 @@ def complex_to_amp_phase(lookup_table):
             raise ValueError('Requires a two-dimensional numpy.ndarray, got {}'.format(data.shape))
 
         new_shape = (data.shape[0], data.shape[1], 2)
-        # TODO: BSQ nonsense for 3-d array?
 
         out = numpy.zeros(new_shape, dtype=numpy.uint8)
         # NB: for numpy before 1.10, digitize requires 1-d
@@ -428,7 +427,6 @@ def complex_to_int(data):
         raise ValueError('Requires a two-dimensional numpy.ndarray, got {}'.format(data.shape))
 
     new_shape = (data.shape[0], data.shape[1], 2)
-    # TODO: BSQ nonsense for 3-d array? Does that ever figure in?
 
     if data.dtype == numpy.complex128:
         view_dtype = numpy.float64

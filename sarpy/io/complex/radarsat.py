@@ -33,6 +33,7 @@ from .sicd_elements.RMA import RMAType, INCAType
 from .sicd_elements.SCPCOA import SCPCOAType
 from .sicd_elements.Radiometric import RadiometricType, NoiseLevelType_
 from ...geometry import point_projection
+from .utils import two_dim_poly_fit, get_seconds
 
 __classification__ = "UNCLASSIFIED"
 
@@ -67,31 +68,6 @@ def is_a(file_name):
 
 ##########
 # helper functions
-
-
-def _2d_poly_fit(x, y, z, x_order=2, y_order=2):
-    # TODO: move this to some utilities area, make non-hidden, and document.
-    #   also used in csk & sentinel - don't forget to refactor the unit test
-    x = x.flatten()
-    y = y.flatten()
-    z = z.flatten()
-    # first, we need to formulate this as A*t = z
-    # where t has shape ((x_order+1)*(y_order+1), ) is our solution
-    # and A has shape (x.size, (x_order+1)*(y_order+1))
-    A = numpy.empty((x.size, (x_order+1)*(y_order+1)), dtype=numpy.float64)
-    for i, index in enumerate(numpy.ndindex((x_order+1, y_order+1))):
-        A[:, i] = numpy.power(x, index[0])*numpy.power(y, index[1])
-    sol, residuals, rank, sing_values = numpy.linalg.lstsq(A, z, rcond=None)
-    logging.info(
-        'Residuals from polynomial fit = {}, and rank of solution = {}'.format(residuals, rank))
-    return numpy.reshape(sol, (x_order+1, y_order+1))
-
-
-def _get_seconds(dt1, dt2):  # type: (numpy.datetime64, numpy.datetime64) -> float
-    tdt1 = dt1.astype('datetime64[us]')
-    tdt2 = dt2.astype('datetime64[us]')  # convert both to microsecond precision
-    return (tdt1.astype('int64') - tdt2.astype('int64'))*1e-6
-
 
 def _parse_xml(file_name, without_ns=False):  # type: (str, bool) -> ElementTree.Element
     if without_ns:
@@ -357,8 +333,8 @@ class RadarSatDetails(object):
                                       '/orbitInformation'
                                       '/stateVector')
         # convert to relevant numpy arrays for polynomial fitting
-        T = numpy.array([_get_seconds(numpy.datetime64(state_vec.find('timeStamp').text, 'us'),
-                                      start_time)
+        T = numpy.array([get_seconds(numpy.datetime64(state_vec.find('timeStamp').text, 'us'),
+                                      start_time, precision='us')
                          for state_vec in state_vectors], dtype=numpy.float64)
         X_pos = numpy.array([float(state_vec.find('xPosition').text)
                              for state_vec in state_vectors], dtype=numpy.float64)
@@ -618,9 +594,9 @@ class RadarSatDetails(object):
             # we explicitly want positive time order
             if zero_dop_first_line > zero_dop_last_line:
                 zero_dop_first_line, zero_dop_last_line = zero_dop_last_line, zero_dop_first_line
-        col_spacing_zd = _get_seconds(zero_dop_last_line, zero_dop_first_line) / (image_data.NumCols - 1)
+        col_spacing_zd = get_seconds(zero_dop_last_line, zero_dop_first_line, precision='us') / (image_data.NumCols - 1)
         # zero doppler time of SCP relative to collect start
-        time_scp_zd = _get_seconds(zero_dop_first_line, start_time) + image_data.SCPPixel.Col * col_spacing_zd
+        time_scp_zd = get_seconds(zero_dop_first_line, start_time, precision='us') + image_data.SCPPixel.Col * col_spacing_zd
         if self.generation == 'RS2':
             near_range = float(self._find('./imageGenerationParameters'
                                           '/sarProcessingInformation'
@@ -708,7 +684,7 @@ class RadarSatDetails(object):
         # adjust doppler centroid for spotlight, we need to add a second
         # dimension to DopCentroidPoly
         if collection_info.RadarMode.ModeType == 'SPOTLIGHT':
-            doppler_cent_est = _get_seconds(doppler_cent_time_est, start_time)
+            doppler_cent_est = get_seconds(doppler_cent_time_est, start_time, precision='us')
             doppler_cent_col = (doppler_cent_est - time_scp_zd)/col_spacing_zd
             dop_poly = numpy.zeros((scaled_coeffs.shape[0], 2), dtype=numpy.float64)
             dop_poly[:, 0] = scaled_coeffs
@@ -751,7 +727,7 @@ class RadarSatDetails(object):
         doppler_rate_sampled = polynomial.polyval(coords_rg_2d, dop_rate_scaled_coeffs)
         time_coa_sampled = time_ca_sampled + dop_centroid_sampled/doppler_rate_sampled
         grid.TimeCOAPoly = Poly2DType(
-            Coefs=_2d_poly_fit(coords_rg_2d, coords_az_2d, time_coa_sampled, x_order=poly_order, y_order=poly_order))
+            Coefs=two_dim_poly_fit(coords_rg_2d, coords_az_2d, time_coa_sampled, x_order=poly_order, y_order=poly_order))
         if collection_info.RadarMode.ModeType == 'SPOTLIGHT':
             # using above was convenience, but not really sensible in spotlight mode
             grid.TimeCOAPoly = Poly2DType(Coefs=[[grid.TimeCOAPoly.get_array()[0, 0], ], ])
