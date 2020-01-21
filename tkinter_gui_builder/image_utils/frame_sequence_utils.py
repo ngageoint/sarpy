@@ -13,14 +13,14 @@ def save_numpy_frame_sequence_to_animated_gif(frame_sequence,  # type: [ndarray]
         pil_frame_sequence.append(PIL.Image.fromarray(frame))
     if loop_animation:
         pil_frame_sequence[0].save(fname,
-                               save_all=True,
-                               append_images=pil_frame_sequence[1:],
-                               optimize=True,
-                               duration=duration,
-                               loop=0)
+                                   save_all=True,
+                                   append_images=pil_frame_sequence[1:],
+                                   optimize=True,
+                                   duration=duration,
+                                   loop=0)
     else:
         pil_frame_sequence[0].save(fname,
-                               save_all=True,
-                               append_images=pil_frame_sequence[1:],
-                               optimize=True,
-                               duration=duration)
+                                   save_all=True,
+                                   append_images=pil_frame_sequence[1:],
+                                   optimize=True,
+                                   duration=duration)
