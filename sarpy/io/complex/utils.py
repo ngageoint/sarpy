@@ -34,8 +34,8 @@ def get_seconds(dt1, dt2, precision='us'):
         scale = 1e-9
     else:
         raise ValueError('unrecognized precision {}'.format(precision))
-    dtype = 'datetime64[{}]'.format(precision)
 
+    dtype = 'datetime64[{}]'.format(precision)
     tdt1 = dt1.astype(dtype)
     tdt2 = dt2.astype(dtype)
     return float((tdt1.astype('int64') - tdt2.astype('int64'))*scale)

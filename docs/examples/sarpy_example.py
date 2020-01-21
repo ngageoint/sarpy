@@ -11,22 +11,21 @@ fname = 'C:/Temp/my_sicd.nitf'
 ro = cf.open(fname)
 
 # Access SICD metadata (even if file read is not in SICD format)
-print(ro.sicdmeta)  # Displays metadata from file in SICD format in human-readable form
-ro.sicdmeta  # Displays XML representation of SICD metadata
-print(ro.sicdmeta.CollectionInfo.CollectorName)  # Notation for extracting fields from metadata
+print(ro.sicd_meta)  # Displays metadata from file in SICD format in human-readable form
+print(ro.sicd_meta.CollectionInfo.CollectorName)  # Notation for extracting fields from metadata
 
 # Read complex pixel data from file
 # cdata = reader_object.read_chip[...] # Reads all complex data from file
 # Read every 10th pixel:
-cdata = ro.read_chip[::10, ::10]
+cdata = ro[::10, ::10]
 plt.figure()
 plt.imshow(remap.density(cdata), cmap='gray')  # Display subsampled image
 # Reads every other row and column from the first thousand rows and columns:
-cdata = ro.read_chip[:1000:2, :1000:2]
+cdata = ro[:1000:2, :1000:2]
 plt.figure()
 plt.imshow(remap.density(cdata), cmap='gray')  # Display subsampled image
 # Reads every row and column from the first thousand rows and columns:
-cdata = ro.read_chip[0:1000, 0:1000]
+cdata = ro[0:1000, 0:1000]
 plt.figure()
 plt.imshow(remap.density(cdata), cmap='gray')  # Display subsampled image
 

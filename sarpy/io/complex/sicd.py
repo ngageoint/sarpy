@@ -843,7 +843,7 @@ class SICDWriter(BaseWriter):
         for entry in self._writing_chippers:
             entry.close()
 
-    def write_chip(self, data, start_indices):
+    def write_chip(self, data, start_indices=(0, 0)):
         def overlap(rrange, crange):
             def element_overlap(this_range, segment_range):
                 if segment_range[0] <= this_range[0] < segment_range[1]:

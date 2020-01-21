@@ -392,13 +392,18 @@ class BaseReader(object):
 
     @property
     def sicd_meta(self):
+        """SICDType|Tuple[SICDType]: the sicd meta_data or meta_data collection"""
         return self._sicd_meta
 
     @property
     def data_size(self):
+        """Tuple[int, int]|Tuple[Tuple[int, int]]: the data size(s) of the form (rows, cols)."""
         return self._data_size
 
     def _validate_index(self, index):
+        if isinstance(self._chipper, BaseChipper) or index is None:
+            return 0
+
         index = int(index)
         siz = len(self._chipper)
         if not (-siz < index < siz):
@@ -433,7 +438,34 @@ class BaseReader(object):
         else:
             return self._chipper.__getitem__(item)
 
-    def read_chip(self, dim1range, dim2range, index=0):
+    def read_chip(self, dim1range, dim2range, index=None):
+        """
+        Read the given section of data as an array.
+
+        Parameters
+        ----------
+        dim1range : None|int|Tuple[int, int]|Tuple[int, int, int]
+            The row data selection of the form `[start, [stop, [stride]]]`, and
+            `None` defaults to all rows (i.e. `(0, NumRows, 1)`)
+        dim2range : None|int|Tuple[int, int]|Tuple[int, int, int]
+            The column data selection of the form `[start, [stop, [stride]]]`, and
+            `None` defaults to all rows (i.e. `(0, NumCols, 1)`)
+        index : int|None
+            Relative to which sicd/chipper, and only used in the event of multiple
+            sicd/chippers. Defaults to `0`, if not provided.
+        Returns
+        -------
+        numpy.ndarray
+            The complex data, explicitly of dtype=complex.64. Be sure to upcast to
+            complex128 if so desired.
+
+        Also available is basic call syntax :code: `data = reader(dim1range, dim2range, index)`.
+        Another, more pythonic, alternative is slice syntax
+        :code:`data = reader[start:stop:stride, start:stop:stride]` or
+        :code:`data = reader[start:stop:stride, start:stop:stride, index]`.
+        The slice on index is limited to a single integer.
+        """
+
         if isinstance(self._chipper, tuple):
             index = self._validate_index(index)
             return self._chipper[index](dim1range, dim2range)
@@ -471,7 +503,7 @@ class AbstractWriter(object):
 
     def close(self):
         """
-        Completes and necessary final steps.
+        Completes any necessary final steps.
 
         Returns
         -------
@@ -480,7 +512,21 @@ class AbstractWriter(object):
 
         pass
 
-    def write_chip(self, data, start_indices):
+    def write_chip(self, data, start_indices=(0, 0)):
+        """
+        Write the data to the file(s).
+
+        Parameters
+        ----------
+        data : numpy.ndarray
+            the complex data
+        start_indices : Tuple[int, int]
+            the starting index for the data.
+        Returns
+        -------
+        None
+        """
+
         raise NotImplementedError
 
     def __del__(self):
@@ -530,7 +576,8 @@ class BaseWriter(AbstractWriter):
 
     @property
     def sicd_meta(self):
+        """SICDType: the sicd metadata"""
         return self._sicd_meta
 
-    def write_chip(self, data, start_indices):
+    def write_chip(self, data, start_indices=(0, 0)):
         raise NotImplementedError
