@@ -51,7 +51,6 @@ class AppVariables:
         self.pan_anchor_point_xy = (0, 0)
 
         self.the_canvas_is_currently_zooming = False        # type: bool
-
         self.mouse_wheel_zoom_percent_per_event = 1.5
 
 

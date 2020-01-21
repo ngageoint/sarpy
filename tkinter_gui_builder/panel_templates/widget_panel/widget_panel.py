@@ -4,6 +4,8 @@ import tkinter as tk
 import numpy as np
 from typing import Union
 
+NO_TEXT_UPDATE_WIDGETS = ['ttk::scale']
+
 
 @add_metaclass(abc.ABCMeta)
 class AbstractWidgetPanel(tk.LabelFrame):
@@ -88,11 +90,15 @@ class AbstractWidgetPanel(tk.LabelFrame):
         self._widget_list = []
         row_num = 0
         for i, widget in enumerate(basic_widget_list):
+            print(widget)
             if i in transitions:
                 row_num += 1
             setattr(self, widget, getattr(self, widget)(self.rows[row_num]))
             getattr(self, widget).pack(side="left", padx=5, pady=5)
-            getattr(self, widget).config(text=widget.replace("_", " "))
+            if getattr(self, widget).widgetName in NO_TEXT_UPDATE_WIDGETS:
+                pass
+            else:
+                getattr(self, widget).config(text=widget.replace("_", " "))
             self._widget_list.append(widget)
 
     def set_spacing_between_buttons(self, spacing_npix_x=0, spacing_npix_y=None):

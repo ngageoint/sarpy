@@ -1,4 +1,4 @@
-import tkinter
+import tkinter as tk
 from tkinter_gui_builder.widgets import basic_widgets
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
@@ -6,9 +6,10 @@ from matplotlib.collections import LineCollection
 import numpy as np
 
 
-class TemporalPlotPanel:
+class PyplotCanvas(tk.LabelFrame):
     def __init__(self, master):
-        master_frame = tkinter.Frame(master)
+        tk.LabelFrame.__init__(self, master)
+
         fig = Figure()
         self.ax = fig.add_subplot(111)
         self.x_axis = None          # type: np.ndarray
@@ -45,17 +46,15 @@ class TemporalPlotPanel:
             for j in range(n_overplots):
                 y_data_3[:, j, i] = y * scaling_factors[j]
 
-        self.scale = basic_widgets.Scale(master_frame, orient=tkinter.HORIZONTAL, length=284, from_=0, to=100)
+        self.scale = basic_widgets.Scale(master, orient=tk.HORIZONTAL, length=284, from_=0, to=100)
         self.scale.set(0)
         self.scale.pack(side='bottom')
         self.scale.on_left_mouse_motion(self.callback_update_from_slider)
 
-        self.canvas = FigureCanvasTkAgg(fig, master=master_frame)
+        self.canvas = FigureCanvasTkAgg(fig, master=master)
         self.canvas.get_tk_widget().pack(fill='both')
 
         self.set_data(y_data_3, x_axis)
-
-        master_frame.pack()
 
     def set_data(self, plot_data, x_axis=None):
         x = x_axis
@@ -112,9 +111,3 @@ class TemporalPlotPanel:
     def callback_update_from_slider(self, event):
         time_index = int(np.round(self.scale.get()))
         self.update_plot(time_index)
-
-
-if __name__ == '__main__':
-    root = tkinter.Tk()
-    app = TemporalPlotPanel(root)
-    root.mainloop()
