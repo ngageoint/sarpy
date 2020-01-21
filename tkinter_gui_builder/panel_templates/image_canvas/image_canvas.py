@@ -50,6 +50,10 @@ class AppVariables:
 
         self.pan_anchor_point_xy = (0, 0)
 
+        self.the_canvas_is_currently_zooming = False        # type: bool
+
+        self.mouse_wheel_zoom_percent_per_event = 1.5
+
 
 class ImageCanvas(tk.LabelFrame):
 
@@ -161,18 +165,16 @@ class ImageCanvas(tk.LabelFrame):
                 if event.num == 5:
                     delta = delta*-1
 
-            box_percent = 1.20
-
-            zoom_in_box_half_width = int(self.canvas_width / box_percent / 2)
-            zoom_out_box_half_width = int(self.canvas_width * box_percent / 2)
-            zoom_in_box_half_height = int(self.canvas_height / box_percent / 2)
-            zoom_out_box_half_height = int(self.canvas_height * box_percent / 2)
+            zoom_in_box_half_width = int(self.canvas_width / self.variables.mouse_wheel_zoom_percent_per_event / 2)
+            zoom_out_box_half_width = int(self.canvas_width * self.variables.mouse_wheel_zoom_percent_per_event / 2)
+            zoom_in_box_half_height = int(self.canvas_height / self.variables.mouse_wheel_zoom_percent_per_event / 2)
+            zoom_out_box_half_height = int(self.canvas_height * self.variables.mouse_wheel_zoom_percent_per_event / 2)
 
             x = event.x
             y = event.y
 
-            after_zoom_x_offset = (self.canvas_width/2 - x)/box_percent
-            after_zoom_y_offset = (self.canvas_height/2 - y)/box_percent
+            after_zoom_x_offset = (self.canvas_width/2 - x)/self.variables.mouse_wheel_zoom_percent_per_event
+            after_zoom_y_offset = (self.canvas_height/2 - y)/self.variables.mouse_wheel_zoom_percent_per_event
 
             x_offset_point = x + after_zoom_x_offset
             y_offset_point = y + after_zoom_y_offset
@@ -187,10 +189,13 @@ class ImageCanvas(tk.LabelFrame):
                             x_offset_point + zoom_out_box_half_width,
                             y_offset_point + zoom_out_box_half_height]
 
-            if delta > 0:
-                self.zoom_to_selection(zoom_in_box, self.variables.animate_zoom)
+            if self.variables.the_canvas_is_currently_zooming:
+                pass
             else:
-                self.zoom_to_selection(zoom_out_box, self.variables.animate_zoom)
+                if delta > 0:
+                    self.zoom_to_selection(zoom_in_box, self.variables.animate_zoom)
+                else:
+                    self.zoom_to_selection(zoom_out_box, self.variables.animate_zoom)
         else:
             pass
 
@@ -205,7 +210,6 @@ class ImageCanvas(tk.LabelFrame):
             self.canvas.update()
             toc = time.time()
             frame_generation_time = toc-tic
-            print(frame_generation_time)
             if frame_generation_time < sleep_time:
                 new_sleep_time = sleep_time - frame_generation_time
                 time.sleep(new_sleep_time)
@@ -223,7 +227,6 @@ class ImageCanvas(tk.LabelFrame):
             self.canvas.update()
             toc = time.time()
             frame_generation_time = toc-tic
-            print(frame_generation_time)
             if frame_generation_time < sleep_time:
                 new_sleep_time = sleep_time - frame_generation_time
                 time.sleep(new_sleep_time)
@@ -258,7 +261,6 @@ class ImageCanvas(tk.LabelFrame):
             self.event_create_or_reinitialize_shape(event)
 
     def callback_handle_left_mouse_motion(self, event):
-        print(self.variables.current_tool)
         if self.variables.current_tool == TOOLS.PAN_TOOL:
             x_dist = event.x - self.variables.tmp_anchor_point[0]
             y_dist = event.y - self.variables.tmp_anchor_point[1]
@@ -512,8 +514,45 @@ class ImageCanvas(tk.LabelFrame):
         return image_data_in_rect
 
     def zoom_to_selection(self, canvas_rect, animate=False):
-        # keep the rect within the image bounds
+        self.variables.the_canvas_is_currently_zooming = True
+        # fill up empty canvas space due to inconsistent ratios between the canvas rect and the canvas dimensions
         image_coords = self.variables.canvas_image_object.canvas_coords_to_full_image_yx(canvas_rect)
+
+        zoomed_image_height = image_coords[2] - image_coords[0]
+        zoomed_image_width = image_coords[3] - image_coords[1]
+
+        canvas_height_width_ratio = self.canvas_height / self.canvas_width
+        zoomed_image_height_width_ratio = zoomed_image_height / zoomed_image_width
+
+        new_image_width = zoomed_image_height / canvas_height_width_ratio
+        new_image_height = zoomed_image_width * canvas_height_width_ratio
+
+        if zoomed_image_height_width_ratio > canvas_height_width_ratio:
+            image_zoom_point_center = (image_coords[3] + image_coords[1]) / 2
+            image_coords[1] = image_zoom_point_center - new_image_width/2
+            image_coords[3] = image_zoom_point_center + new_image_width/2
+        else:
+            image_zoom_point_center = (image_coords[2] + image_coords[0]) / 2
+            image_coords[0] = image_zoom_point_center - new_image_height / 2
+            image_coords[2] = image_zoom_point_center + new_image_height / 2
+
+        # keep the rect within the image bounds
+        image_y_ul = max(image_coords[0], 0)
+        image_x_ul = max(image_coords[1], 0)
+        image_y_br = min(image_coords[2], self.variables.canvas_image_object.full_image_ny)
+        image_x_br = min(image_coords[3], self.variables.canvas_image_object.full_image_nx)
+
+        # re-adjust if we ran off one of the edges
+        if image_x_ul == 0:
+            image_coords[3] = new_image_width
+        if image_x_br == self.variables.canvas_image_object.full_image_nx:
+            image_coords[1] = self.variables.canvas_image_object.full_image_nx - new_image_width
+        if image_y_ul == 0:
+            image_coords[2] = new_image_height
+        if image_y_br == self.variables.canvas_image_object.full_image_ny:
+            image_coords[0] = self.variables.canvas_image_object.full_image_ny - new_image_height
+
+        # keep the rect within the image bounds
         image_y_ul = max(image_coords[0], 0)
         image_x_ul = max(image_coords[1], 0)
         image_y_br = min(image_coords[2], self.variables.canvas_image_object.full_image_ny)
@@ -522,7 +561,7 @@ class ImageCanvas(tk.LabelFrame):
         new_canvas_rect = self.variables.canvas_image_object.full_image_yx_to_canvas_coords((image_y_ul, image_x_ul, image_y_br, image_x_br))
         new_canvas_rect = (int(new_canvas_rect[0]), int(new_canvas_rect[1]), int(new_canvas_rect[2]), int(new_canvas_rect[3]))
 
-        background_image = self.variables.canvas_image_object.canvas_decimated_image
+        background_image = self.variables.canvas_image_object.display_image
         self.variables.canvas_image_object.update_canvas_display_image_from_canvas_rect(new_canvas_rect)
         if self.rescale_image_to_fit_canvas:
             new_image = PIL.Image.fromarray(self.variables.canvas_image_object.display_image)
@@ -551,7 +590,6 @@ class ImageCanvas(tk.LabelFrame):
                 animation_image.paste(resized_zoom_image, (new_x_ul, new_y_ul))
                 frame_sequence.append(animation_image)
             fps = n_animations / self.variables.animation_time_in_seconds
-            print("fps :" + str(fps))
             self.animate_with_pil_frame_sequence(frame_sequence, frames_per_second=fps)
         if self.rescale_image_to_fit_canvas:
             self.set_image_from_numpy_array(self.variables.canvas_image_object.display_image)
@@ -559,6 +597,7 @@ class ImageCanvas(tk.LabelFrame):
             self.set_image_from_numpy_array(self.variables.canvas_image_object.canvas_decimated_image)
         self.canvas.update()
         self.redraw_all_shapes()
+        self.variables.the_canvas_is_currently_zooming = False
 
     def redraw_all_shapes(self):
         for shape_id in self.variables.shape_ids:
