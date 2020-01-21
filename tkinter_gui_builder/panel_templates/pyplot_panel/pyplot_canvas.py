@@ -15,36 +15,12 @@ class PyplotCanvas(tk.LabelFrame):
         self.x_axis = None          # type: np.ndarray
         self.plot_data = None       # type: np.ndarray
 
-        self.segs = None            # type: np.ndarray
-
         self.xmin = None            # type: float
         self.xmax = None            # type: float
         self.ymin = None            # type: float
         self.ymax = None            # type: float
 
-        n_overplots = 10
-        nx = 200
-        n_times = 100
-
-        x_axis = np.linspace(0, 2*np.pi, nx)
-        y_data_1 = np.sin(x_axis)
-        y_data_2 = np.zeros((len(x_axis), n_overplots))
-        y_data_3 = np.zeros((len(x_axis), n_overplots, n_times))
-
-        scaling_factors = np.linspace(0.7, 1, n_overplots)
-
-        for i in range(n_overplots):
-            y_data_2[:, i] = y_data_1 * scaling_factors[i]
-
-        x_over_time = np.zeros((nx, n_times))
-        x_over_time_start = np.linspace(0, 2*np.pi, n_times)
-        for i in range(n_times):
-            x_start = x_over_time_start[i]
-            x = np.linspace(x_start, 2*np.pi + x_start, nx)
-            x_over_time[:, i] = x
-            y = np.sin(x)
-            for j in range(n_overplots):
-                y_data_3[:, j, i] = y * scaling_factors[j]
+        self.segments = None            # type: np.ndarray
 
         self.scale = basic_widgets.Scale(master, orient=tk.HORIZONTAL, length=284, from_=0, to=100)
         self.scale.set(0)
@@ -54,31 +30,29 @@ class PyplotCanvas(tk.LabelFrame):
         self.canvas = FigureCanvasTkAgg(fig, master=master)
         self.canvas.get_tk_widget().pack(fill='both')
 
-        self.set_data(y_data_3, x_axis)
-
     def set_data(self, plot_data, x_axis=None):
         x = x_axis
         n_times = 1
         if len(plot_data.shape) == 1:
             nx = len(plot_data)
-            segs = np.zeros((1, nx, 2))
-            segs[0, :, 1] = plot_data
+            segments = np.zeros((1, nx, 2))
+            segments[0, :, 1] = plot_data
         elif len(plot_data.shape) == 2:
             nx = len(plot_data[:, 0])
             n_overplots = len(plot_data[0])
-            segs = np.zeros((n_overplots, nx, 2))
+            segments = np.zeros((n_overplots, nx, 2))
             for i in range(n_overplots):
-                segs[i, :, 1] = plot_data[:, i]
+                segments[i, :, 1] = plot_data[:, i]
         elif len(plot_data.shape) == 3:
             nx = np.shape(plot_data)[0]
             n_overplots = np.shape(plot_data)[1]
             n_times = np.shape(plot_data)[2]
-            segs = np.zeros((n_overplots, nx, 2))
+            segments = np.zeros((n_overplots, nx, 2))
             for i in range(n_overplots):
-                segs[i, :, 1] = plot_data[:, i, 0]
+                segments[i, :, 1] = plot_data[:, i, 0]
         if x is None:
             x = np.arange(nx)
-        segs[:, :, 0] = x
+        segments[:, :, 0] = x
 
         self.xmin = x.min()
         self.xmax = x.max()
@@ -90,21 +64,21 @@ class PyplotCanvas(tk.LabelFrame):
         self.scale.config(to=n_times-1)
         self.x_axis = x
         self.plot_data = plot_data
-        self.segs = segs
+        self.segments = segments
 
         self.update_plot(0)
 
     def update_plot(self, time_index):
-        n_overplots = np.shape(self.segs)[0]
+        n_overplots = np.shape(self.segments)[0]
         for i in range(n_overplots):
-            self.segs[i, :, 1] = self.plot_data[:, i, time_index]
+            self.segments[i, :, 1] = self.plot_data[:, i, time_index]
 
         self.ax.clear()
 
         self.ax.set_xlim(self.xmin, self.xmax)
         self.ax.set_ylim(self.ymin, self.ymax)
 
-        line_segments = LineCollection(self.segs, linewidths=(0.5, 0.75, 1., 1.25), linestyle='solid')
+        line_segments = LineCollection(self.segments, linewidths=(0.5, 0.75, 1., 1.25), linestyle='solid')
         self.ax.add_collection(line_segments)
         self.canvas.draw()
 
