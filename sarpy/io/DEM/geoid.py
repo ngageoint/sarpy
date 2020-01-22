@@ -1,17 +1,59 @@
 # -*- coding: utf-8 -*-
+"""
+Provides a class for calculating the height of the WGS84 geoid above the ellipsoid
+at any given latitude and longitude.
+
+**Some Accuracy Details:**
+Using the 5 minute pgm and linear interpolation, the average error `|calculated - real|`
+is around 5 millimeters, and the worst case error is around 30 centimeters. Using cubic
+interpolation (which takes 2-3 times longer, but is still quite fast), the average error
+drops to about 3 mm, and the worst case is about 17 cm.
+
+Using the 1 minute pgm and linear interpolation, the average error is around 0.5 mm and
+worst case error around 1 cm. Using cubic interpolation, the average error is still around 0.5 mm,
+and worst case error around 2 mm.
+
+The accuracy obtained using the 5, 2.5, or 1 minute pgm are likely all more than suitable
+for any SAR application. The the accuracy clearly increases with finer grid.
+
+**Some Processing Speed and Resource Details:**
+A memory map into the pgm file is established, which requires relatively little "real"
+RAM, but an amount of virtual memory on par with the file size. Processing using the
+1 minute pgm and 5 minute pgm are not appreciably different, in terms of speed or real
+memory resources. Slow end speeds of around 1.5 million points/second for linear
+interpolation and 500,000 points/second for cubic interpolation are expected.
+
+The only benefit for using the 5 minute (or 2.5 minute) pgm instead of the 1 minute
+pgm is file size. The 1 minute pgm file is around 450 MB, while the 5 minute pgm is about
+25 times smaller at around 18 MB.
+
+**File Locations:**
+As of January 2020, the egm2008 pgm files are available for download at
+https://geographiclib.sourceforge.io/html/geoid.html
+
+Specifically 1 minute data is available at
+https://sourceforge.net/projects/geographiclib/files/geoids-distrib/egm2008-1.tar.bz2
+or
+https://sourceforge.net/projects/geographiclib/files/geoids-distrib/egm2008-1.zip
+
+Specifically the 5 minute data is available at
+https://sourceforge.net/projects/geographiclib/files/geoids-distrib/egm2008-5.tar.bz2
+or
+https://sourceforge.net/projects/geographiclib/files/geoids-distrib/egm2008-5.zip
+"""
 
 import numpy
 
-
-class GeoidBadDataFile(Exception):
-    pass
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
 
 
 class GeoidHeight(object):
     """
-    Calculate the height of the WGS84 geoid above the ellipsoid at any given latitude and longitude.
-    The appropriate file is available for download at http://geographiclib.sourceforge.net/1.18/geoid.html
+    Calculator for the height of the WGS84 geoid above the ellipsoid at any
+    given latitude and longitude, based on a the egm2008 pgm file.
     """
+
     __slots__ = ('_offset', '_scale', '_width', '_height', '_header_length', '_memory_map', '_lon_res', '_lat_res')
 
     c0 = 240
@@ -59,49 +101,57 @@ class GeoidHeight(object):
         (-18,   36,  -64,   0,   66,   51, 0,   0, -102,  31),
         (18,   -36,    2,   0,  -66,  -51, 0,   0,  102,  31)), dtype=numpy.float64)
 
-    def __init__(self, file_name="egm2008-1.pgm"):
+    def __init__(self, file_name):
+        """
+
+        Parameters
+        ----------
+        file_name : str
+            path to a egm2008 pgm file
+        """
+
         self._offset = None
         self._scale = None
 
         with open(file_name, "rb") as f:
             line = f.readline()
             if line != b"P5\012" and line != b"P5\015\012":
-                raise GeoidBadDataFile("No PGM header")
+                raise IOError("No PGM header")
             headerlen = len(line)
             while True:
                 line = f.readline().decode('utf-8')
                 if len(line) == 0:
-                    raise GeoidBadDataFile("EOF before end of file header")
+                    raise IOError("EOF before end of file header")
                 headerlen += len(line)
                 if line.startswith('# Offset '):
                     try:
                         self._offset = int(line[9:])
                     except ValueError as e:
-                        raise GeoidBadDataFile("Error reading offset", e)
+                        raise IOError("Error reading offset", e)
                 elif line.startswith('# Scale '):
                     try:
                         self._scale = float(line[8:])
                     except ValueError as e:
-                        raise GeoidBadDataFile("Error reading scale", e)
+                        raise IOError("Error reading scale", e)
                 elif not line.startswith('#'):
                     try:
                         slin = line.split()
                         self._width, self._height = int(slin[0]), int(slin[1])
                     except ValueError as e:
-                        raise GeoidBadDataFile("Bad PGM width&height line", e)
+                        raise IOError("Bad PGM width&height line", e)
                     break
             line = f.readline().decode('utf-8')
             headerlen += len(line)
             levels = int(line)
             if levels != 65535:
-                raise GeoidBadDataFile("PGM file must have 65535 gray levels")
+                raise IOError("PGM file must have 65535 gray levels")
             if self._offset is None:
-                raise GeoidBadDataFile("PGM file does not contain offset")
+                raise IOError("PGM file does not contain offset")
             if self._scale is None:
-                raise GeoidBadDataFile("PGM file does not contain scale")
+                raise IOError("PGM file does not contain scale")
 
             if self._width < 2 or self._height < 2:
-                raise GeoidBadDataFile("Raster size too small")
+                raise IOError("Raster size too small")
             self._header_length = headerlen
 
         self._memory_map = numpy.memmap(file_name,
@@ -113,13 +163,14 @@ class GeoidHeight(object):
         self._lat_res = (self._height - 1)/180.0
 
     def _get_raw(self, ix, iy):
+        # these manipulations are required for edge effects
         boolc = (iy < 0)
         iy[boolc] *= -1
-        ix[boolc] += int(self._width/2)
+        # ix[boolc] += int(self._width/2)  # why is this here?
 
         boolc = (iy >= self._height)
         iy[boolc] = 2*(self._height - 1) - iy[boolc]
-        ix[boolc] += int(self._width/2)
+        # ix[boolc] += int(self._width/2)  # why is this here?
 
         boolc = (ix < 0)
         ix[boolc] += self._width
@@ -130,44 +181,44 @@ class GeoidHeight(object):
         return self._memory_map[iy, ix]
 
     def _linear(self, ix, dx, iy, dy):
-        a = (1 - dx) * self._get_raw(ix, iy) + dx * self._get_raw(ix +1, iy)
+        a = (1 - dx) * self._get_raw(ix, iy) + dx * self._get_raw(ix + 1, iy)
         b = (1 - dx) * self._get_raw(ix, iy+1) + dx * self._get_raw(ix+1, iy+1)
         return (1 - dy) * a + dy * b
 
     def _cubic(self, ix, dx, iy, dy):
         v = numpy.vstack((
-            self._get_raw(ix    , iy - 1),
+            self._get_raw(ix, iy - 1),
             self._get_raw(ix + 1, iy - 1),
-            self._get_raw(ix - 1, iy    ),
-            self._get_raw(ix    , iy    ),
-            self._get_raw(ix + 1, iy    ),
-            self._get_raw(ix + 2, iy    ),
+            self._get_raw(ix - 1, iy),
+            self._get_raw(ix, iy),
+            self._get_raw(ix + 1, iy),
+            self._get_raw(ix + 2, iy),
             self._get_raw(ix - 1, iy + 1),
-            self._get_raw(ix    , iy + 1),
+            self._get_raw(ix, iy + 1),
             self._get_raw(ix + 1, iy + 1),
             self._get_raw(ix + 2, iy + 1),
-            self._get_raw(ix    , iy + 2),
+            self._get_raw(ix, iy + 2),
             self._get_raw(ix + 1, iy + 2)))
 
         t = numpy.zeros((10, ix.size), dtype=numpy.float64)
         b1 = (iy == 0)
-        b2 = (iy == self._height -2)
+        b2 = (iy == self._height - 2)
         b3 = ~(b1 | b2)
         if numpy.any(b1):
-            t[:,b1] = (self.c3n.T/self.c0n).dot(v[:, b1])
+            t[:, b1] = (self.c3n.T/self.c0n).dot(v[:, b1])
         if numpy.any(b2):
             t[:, b2] = (self.c3s.T/self.c0s).dot(v[:, b2])
         if numpy.any(b3):
             t[:, b3] = (self.c3.T/self.c0).dot(v[:, b3])
 
         return t[0] + \
-               dx*(t[1] + dx*(t[3] + dx*t[6])) + \
-               dy*(t[2] + dx*(t[4] + dx*t[7]) + dy*(t[5] + dx*t[8] + dy*t[9]))
+            dx*(t[1] + dx*(t[3] + dx*t[6])) + \
+            dy*(t[2] + dx*(t[4] + dx*t[7]) + dy*(t[5] + dx*t[8] + dy*t[9]))
 
     def _do_block(self, lat, lon, cubic):
-        lon[lon < 0] += 360
         fx = lon*self._lon_res
-        fy = (90 - lat)* self._lat_res
+        fx[fx < 0] += 360*self._lon_res
+        fy = (90 - lat)*self._lat_res
 
         ix = numpy.cast[numpy.int32](numpy.floor(fx))
         iy = numpy.cast[numpy.int32](numpy.floor(fy))
@@ -175,7 +226,7 @@ class GeoidHeight(object):
         dx = fx - ix
         dy = fy - iy
 
-        iy[iy == self._height -1] -= 1  # edge effects?
+        iy[iy == self._height - 1] -= 1  # edge effects?
 
         if cubic:
             return self._offset + self._scale*self._cubic(ix, dx, iy, dy)
@@ -183,6 +234,27 @@ class GeoidHeight(object):
             return self._offset + self._scale*self._linear(ix, dx, iy, dy)
 
     def get(self, lat, lon, cubic=True, blocksize=50000):
+        """
+        Calculate the height of the geoid above the ellipsoid in meters at the given points.
+
+        Parameters
+        ----------
+        lat : numpy.ndarray
+        lon : numpy.ndarray
+        cubic : bool
+            Use a simple cubic spline interpolation, otherwise us simple linear.
+            Default is `True`.
+        blocksize : None|int
+            If `None`, then the entire calculation will proceed as a single block.
+            Otherwise, block processing using blocks of the given size will be used.
+            The minimum value used for this is 50,000, and any smaller value will be
+            replaced with 50000. Default is 50,000.
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+
         if not isinstance(lat, numpy.ndarray):
             lat = numpy.array(lat)
         if not isinstance(lon, numpy.ndarray):
@@ -195,68 +267,21 @@ class GeoidHeight(object):
         lat = numpy.reshape(lat, (-1, ))
         lon = numpy.reshape(lon, (-1, ))
 
-        out = numpy.empty(lat.shape, dtype=numpy.float64)
-
-        blocksize = max(10000, int(blocksize))
-        start_block = 0
-        while start_block < lat.size:
-            end_block = min(start_block+blocksize, lat.size)
-            out[start_block:end_block] = self._do_block(lat[start_block:end_block], lon[start_block:end_block], cubic)
-            start_block = end_block
+        if blocksize is None:
+            out = self._do_block(lat, lon, cubic)
+        else:
+            blocksize = max(50000, int(blocksize))
+            out = numpy.empty(lat.shape, dtype=numpy.float64)
+            start_block = 0
+            while start_block < lat.size:
+                end_block = min(start_block+blocksize, lat.size)
+                out[start_block:end_block] = self._do_block(lat[start_block:end_block], lon[start_block:end_block], cubic)
+                start_block = end_block
 
         if o_shape == ():
             return float(out[0])
         else:
             return numpy.reshape(out, o_shape)
 
-
-if __name__ == '__main__':
-    import time
-    # parse test set
-    test_file = '/Users/tom/Downloads/GeoidHeights.dat'
-    with open(test_file, 'r') as fi:
-        lins = fi.read().splitlines()
-    lats = numpy.zeros((len(lins), ), dtype=numpy.float64)
-    lons = numpy.zeros((len(lins), ), dtype=numpy.float64)
-    zs = numpy.zeros((len(lins), ), dtype=numpy.float64)
-    for i, lin in enumerate(lins):
-        slin = lin.strip().split()
-        lats[i] = float(slin[0])
-        lons[i] = float(slin[1])
-        zs[i] = float(slin[4])
-    print('number of test points {}'.format(lats.size))
-
-    gh = GeoidHeight(file_name='/Users/tom/Downloads/geoids/egm2008-5.pgm')
-    from sarpy.deprecated.io.DEM.geoid import GeoidHeight as GH2
-    gh2 = GH2(name='/Users/tom/Downloads/geoids/egm2008-5.pgm')
-    recs = 10
-    # test one
-    start = time.time()
-    zs1 = gh.get(lats[:recs], lons[:recs], cubic=False)
-    print('linear - {}, {}, {}'.format(zs[:recs], zs1, time.time() - start))
-    # test two
-    start = time.time()
-    zs1 = gh.get(lats[:recs], lons[:recs], cubic=True)
-    print('cubic - {}, {}, {}'.format(zs[:recs], zs1, time.time() - start))
-    # test three
-    zs1 = numpy.zeros((recs, ), dtype=numpy.float64)
-    start = time.time()
-    for i in range(recs):
-        zs1[i] = gh2.get(lats[i], lons[i], cubic=False)
-    print('old - {}, {}, {}'.format(zs[:recs], zs1, time.time() - start))
-
-    recs = 100000
-    # test one
-    start = time.time()
-    zs1 = gh.get(lats[:recs], lons[:recs], cubic=False)
-    print('linear - {}'.format(time.time() - start))
-    # test two
-    start = time.time()
-    zs1 = gh.get(lats[:recs], lons[:recs], cubic=True)
-    print('cubic - {}'.format(time.time() - start))
-    # test three
-    zs1 = numpy.zeros((recs, ), dtype=numpy.float64)
-    start = time.time()
-    for i in range(recs):
-        zs1[i] = gh2.get(lats[i], lons[i], cubic=False)
-    print('old - {}'.format(time.time() - start))
+    def __call__(self, lat, lon):
+        return self.get(lat, lon)
