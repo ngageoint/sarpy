@@ -1,6 +1,10 @@
 # -*- coding: utf-8 -*-
 
 import os
+import numpy
+import struct
+
+
 from copy import copy  # TODO: HIGH - usage should be replace with numpy.copy() method
 import numpy as np
 from scipy.interpolate import interpn
@@ -9,8 +13,249 @@ from .dem_log import dem_logger
 
 __classification__ = "UNCLASSIFIED"
 
+#######
+# module variables
+_SUPPORTED_FILE_TYPES = {
+    'DTED1': {'fext': '.dtd'},
+    'DTED2': {'fext': '.dtd'},
+    'SRTM1': {'fext': '.dt1'},
+    'SRTM2': {'fext': '.dt2'},
+    'SRTM2F': {'fext': '.dt2'}}
 
-# TODO: HIGH - there seems to be some assumption about directory structure. Let's be explicit.
+
+class DTEDList(object):
+    """
+    The DEM directory structure is assumed to look like the following:
+    For DTED<1,2>: `<root_dir>/dted/<1, 2>/<lon_string>/<lat_string>.dtd`
+    For SRTM<1,2,2F>: `<root_dir>/srtm/<1, 2, 2f>/<lon_string>/<lat_string>.dt<1,2,2>`
+
+    Here `<lon_string>` corresponds to a string of the form `X###`, where
+    `X` is one of 'N' or 'S', and `###` is the zero-padded formatted string for
+    the integer value `floor(lon)`.
+
+    Similarly, `<lat_string>` corresponds to a string of the form `Y##`, where
+    `Y` is one of 'E' or 'W', and `##` is the zero-padded formatted string for
+    the integer value `floor(lat)`.
+
+    <lon_string>, <lat_string> corresponds to the upper left? lower left? corner
+    of the DEM tile.
+    """
+    # TODO: complete the doc string - which corner?
+
+    __slots__ = ('_root_dir', )
+
+    def __init__(self, root_directory):
+        self._root_dir = root_directory
+
+    def get_file_list(self, lat, lon, dem_type):
+        def get_box(la, lo):
+            la = int(numpy.floor(la))
+            lo = int(numpy.floor(lo))
+            if lo > 180:
+                lo -= 360
+            x = 'n' if la >= 0 else 's'
+            y = 'e' if lo >= 0 else 'w'
+            return '{0:s}{1:03d}{2:s}{3:02d}'.format(y, lo, x, la)
+
+        # validate dem_type options
+        dem_type = dem_type.upper()
+        if dem_type not in _SUPPORTED_FILE_TYPES:
+            raise ValueError(
+                'dem_type must be one of the supported types {}'.format(list(_SUPPORTED_FILE_TYPES.keys())))
+        if dem_type.startswith('DTED'):
+            dstem = os.path.join(self._root_dir, dem_type[:4].lower(), dem_type[-1])
+        elif dem_type.startswith('SRTM'):
+            dstem = os.path.join(self._root_dir, dem_type[:4].lower(), dem_type[4:].lower())
+        else:
+            raise ValueError('Unhandled dem_type {}'.format(dem_type))
+
+        if not os.path.isdir(dstem):
+            raise IOError(
+                "Based on configured of root_dir, it is expected that {} type dem "
+                "files will lie below {}, which doesn't exist".format(dem_type, dstem))
+        # get file extension
+        fext = _SUPPORTED_FILE_TYPES[dem_type]['fext']
+
+        # move data to numpy arrays
+        if not isinstance(lat, numpy.ndarray):
+            lat = numpy.array(lat)
+        if not isinstance(lon, numpy.ndarray):
+            lon = numpy.array(lon)
+
+        files = []
+        missing_boxes = []
+        for box in set(get_box(*pair) for pair in zip(numpy.reshape(lat, (-1, )), numpy.reshape(lon, (-1, )))):
+            fil = os.path.join(dstem, box[:4], box[4:] + fext)
+            if os.path.isfile(fil):
+                files.append(fil)
+            else:
+                missing_boxes.append(fil)
+        if len(missing_boxes) > 0:
+            raise ValueError('Missing required dem files {}'.format(missing_boxes))
+        # TODO: is automatically fetching these from some source feasible?
+        return files
+
+
+class DTEDReader(object):
+    __slots__ = ('_file_name', '_origin', '_spacing', '_bounding_box', '_shape')
+
+    def __init__(self, file_name):
+        self._file_name = file_name
+        self._origin = None
+        self._spacing = None
+        self._bounding_box = None
+        self._shape = None
+
+    def _read_dted_header(self):
+        def convert_format(str_in):
+            lon = float(str_in[4:7]) + float(str_in[7:9])/60. + float(str_in[9:11])/3600.
+            lon = -lon if str_in[11] == 'W' else lon
+            lat = float(str_in[12:15]) + float(str_in[15:17])/60. + float(str_in[17:19])/3600.
+            lat = -lat if str_in[19] == 'S' else lat
+            return lon, lat
+
+        # the header is only 80 characters long
+        with open(self._file_name, 'rb') as fi:
+            # NB: DTED is always big-endian
+            header = struct.unpack('>80s', fi.read(80))[0].decode('utf-8')
+
+        if header[:3] != 'UHL':
+            raise IOError('File {} does not appear to be a DTED file.'.format(self._file_name))
+
+        # DTED is always in Lat/Lon order
+        self._origin = numpy.array(convert_format(header), dtype=numpy.float64)
+        self._spacing = numpy.array([float(header[20:24]), float(header[24:28])], dtype=numpy.float64)/36000.
+        self._shape = numpy.array([int(header[47:51]), int(header[51:55])], dtype=numpy.int64)
+        self._bounding_box = numpy.zeros((2, 2), dtype=numpy.float64)
+        self._bounding_box[0, :] = self._origin
+        self._bounding_box[1, :] = self._origin + self._spacing*self._shape
+
+    def _get_mem_map(self):
+        # the first 80 characters are header
+        # characters 80:728 are data set identification record
+        # characters 728:3428 are accuracy record
+        # the remainder is data records...each row has 8 extra bytes at the beginning and 4 extra at the end...why?
+        shp = (int(self._shape[0]), int(self._shape[1]) + 4 + 2)  # extra bytes...why?
+        return numpy.memmap(self._file_name,
+                            dtype=numpy.dtype('>i2'),
+                            mode='r',
+                            offset=3428,
+                            shape=shp)
+
+    def _linear(self, ix, dx, iy, dy, mem_map):
+        a = (1 - dx) * self._get_elevations(ix, iy, mem_map) + dx * self._get_elevations(ix + 1, iy, mem_map)
+        b = (1 - dx) * self._get_elevations(ix, iy+1, mem_map) + dx * self._get_elevations(ix+1, iy+1, mem_map)
+        return (1 - dy) * a + dy * b
+
+    def _get_elevations(self, ix, iy, mem_map):
+        t_ix = numpy.copy(ix)
+        t_ix[t_ix >= self._shape[0]] = self._shape[0] - 1
+        t_ix[t_ix < 0] = 0
+
+        # adjust iy to account for 8 extra bytes at the beginning of each column
+        t_iy = iy + 4
+        t_iy[t_iy >= self._shape[1]+4] = self._shape[1] + 3
+        t_iy[t_iy < 4] = 4
+
+        elevations = mem_map[t_ix, t_iy]
+
+        # BASED ON MIL-PRF-89020B SECTION 3.11.1, 3.11.2
+        # There is some byte-swapping nonsense that is poorly explained.
+        # The following steps appear to correct for the "complemented" values.
+        neg_voids = (elevations < -15000.0)  # Find negative voids
+        elevations[neg_voids] = np.abs(elevations[neg_voids]) - 32768.0  # And fill them in (2**15 = 32768)
+        pos_voids = (elevations > 15000.0)  # Find positive voids
+        elevations[pos_voids] = 32768.0 - elevations[pos_voids]  # And fill them in
+        return elevations
+
+    def in_bounds(self, lat, lon):
+        return (lat >= self._bounding_box[1][0]) & (lat <= self._bounding_box[1][1]) & \
+               (lon >= self._bounding_box[0][0]) & (lon <= self._bounding_box[0][1])
+
+    def interp(self, lat, lon):
+        mem_map = self._get_mem_map()
+
+        # get indices
+        fx = (lon - self._origin[0])/self._spacing[0]
+        fy = (lat - self._origin[1])/self._spacing[1]
+
+        ix = numpy.cast[numpy.int32](numpy.floor(fx))
+        iy = numpy.cast[numpy.int32](numpy.floor(fy))
+
+        dx = fx - ix
+        dy = fy - iy
+        return self._linear(ix, dx, iy, dy, mem_map)
+
+
+class DTEDInterpolator(object):
+    __slots__ = ('_readers', )
+
+    def __init__(self, files):
+        if isinstance(files, str):
+            files = [files, ]
+        # get a reader object for each file
+        self._readers = [DTEDReader(fil) for fil in files]
+
+    def interp(self, lat, lon):
+        if not isinstance(lat, numpy.ndarray):
+            lat = numpy.array(lat)
+        if not isinstance(lon, numpy.ndarray):
+            lon = numpy.array(lon)
+        if lat.shape != lon.shape:
+            raise ValueError(
+                'lat and lon must have the same shape, got '
+                'lat.shape = {}, lon.shape = {}'.format(lat.shape, lon.shape))
+        o_shape = lat.shape
+        lat = numpy.reshape(lat, (-1, ))
+        lon = numpy.reshape(lon, (-1, ))
+
+        out = numpy.full(lat.shape, numpy.nan, dtype=numpy.float64)
+        remaining = numpy.ones(lat.shape, dtype=numpy.bool)
+        for reader in self._readers:
+            if not numpy.any(remaining):
+                break
+            t_lat = lat[remaining]
+            t_lon = lon[remaining]
+            this = reader.in_bounds(t_lat, t_lon)
+            if numpy.any(this):
+                out[remaining[this]] = reader.interp(t_lat[this], t_lon[this])
+                remaining[remaining[this]] = False
+
+        if o_shape == ():
+            return float(out[0])
+        else:
+            return numpy.reshape(out, o_shape)
+
+    @classmethod
+    def from_coords_and_list(cls, lats, lons, dted_list, dem_type):
+        """
+        Construct a DTEDInterpolator from a coordinate collection and DTEDList object.
+
+        Parameters
+        ----------
+        lats : numpy.ndarray|list|tuple|int|float
+        lons : numpy.ndarray|list|tuple|int|float
+        dted_list : DTEDList|str
+            the dtedList object or root directory
+        dem_type : str
+            the DEM type.
+
+        Returns
+        -------
+        DTEDInterpolator
+        """
+
+        if isinstance(dted_list, str):
+            dted_list = DTEDList(dted_list)
+        if not isinstance(dted_list, DTEDList):
+            raise ValueError(
+                'dted_list os required to be a path (directory) or DTEDList instance.')
+
+        return cls(dted_list.get_file_list(lats, lons, dem_type))
+
+
+# TODO: REFACTOR the below, or just kill it?
+
 
 class DEM(object):
     """Class for handling DEM files."""
@@ -246,13 +491,6 @@ class DEM(object):
         Returns
         -------
 
-        """
-        """
-        Calculate elevation (i.e. DEM value) at geographic coordinate(s).
-        :param coord: [lat, lon] or [[lat, lon]]
-        :param method: passed to `scipy.interpolate.interpn` method
-        :param lonlat:
-        :return:
         """
 
         # TODO: MEDIUM - what is the "real" intent of this whole method?

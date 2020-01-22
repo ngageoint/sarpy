@@ -25,7 +25,7 @@ for i, lin in enumerate(lins):
 print('number of test points {}'.format(lats.size))
 
 start = time.time()
-gh = geoid.GeoidHeight(file_name=os.path.join(stem, 'egm2008-1.pgm'))
+gh = geoid.GeoidHeight(file_name=os.path.join(stem, 'egm2008-5.pgm'))
 print('time initializing {}'.format(time.time() - start))
 
 recs = 10
