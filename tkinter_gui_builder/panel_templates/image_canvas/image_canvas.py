@@ -409,13 +409,13 @@ class ImageCanvas(tk.LabelFrame):
 
     def create_new_rect(self,
                         coords,         # type: (int, int, int, int)
-                        **options,
+                        **options
                         ):
         return self.create_new_canvas_shape('rect', coords, **options)
 
     def create_new_arrow(self,
                          coords,
-                         **options,
+                         **options
                          ):
         return self.create_new_canvas_shape('arrow', coords, **options)
 
@@ -430,7 +430,7 @@ class ImageCanvas(tk.LabelFrame):
     def create_new_canvas_shape(self,
                                 shape_type,  # type: str
                                 coords,  # type: tuple
-                                **options,
+                                **options
                                 ):
         if shape_type == SHAPE_TYPES.RECT:
             if options == {}:
