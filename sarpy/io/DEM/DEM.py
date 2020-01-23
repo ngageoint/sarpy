@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import os
+import logging
 import numpy
 import struct
 from typing import List
@@ -69,6 +70,28 @@ class DEMInterpolator(object):
 
         raise NotImplementedError
 
+    def get_max_dem(self):
+        """
+        Get the maximum dem entry.
+
+        Returns
+        -------
+        float
+        """
+
+        raise NotImplementedError
+
+    def get_min_dem(self):
+        """
+        Get the minimum dem entry.
+
+        Returns
+        -------
+        float
+        """
+
+        raise NotImplementedError
+
 
 class DTEDList(object):
     """
@@ -84,14 +107,13 @@ class DTEDList(object):
     `Y` is one of 'E' or 'W', and `##` is the zero-padded formatted string for
     the integer value `floor(lat)`.
 
-    <lon_string>, <lat_string> corresponds to the upper left? lower left? corner
+    <lon_string>, <lat_string> corresponds to the origin in the lower left corner
     of the DEM tile.
     """
-    # TODO: complete the doc string - which corner?
 
     __slots__ = ('_root_dir', )
 
-    def __init__(self, root_directory):
+    def __init__(self, root_directory=None):
         """
 
         Parameters
@@ -99,6 +121,7 @@ class DTEDList(object):
         root_directory : str
         """
 
+        # TODO: handle root-directory is None
         self._root_dir = root_directory
 
     @property
@@ -168,8 +191,10 @@ class DTEDList(object):
             else:
                 missing_boxes.append(fil)
         if len(missing_boxes) > 0:
-            raise ValueError('Missing required dem files {}'.format(missing_boxes))
-        # TODO: is automatically fetching these from some source feasible?
+            logging.warning(
+                'Missing required dem files {}. This will result in getting missing values '
+                'for some points during any interpolation'.format(missing_boxes))
+        # TODO: try automatically fetching these from some source?
         return files
 
 
@@ -336,6 +361,28 @@ class DTEDReader(object):
         else:
             return numpy.reshape(out, o_shape)
 
+    def get_max_entry(self):
+        """
+        Get the maximum DTED entry
+
+        Returns
+        -------
+        float
+        """
+
+        return float(numpy.max(self._mem_map[:, 4:-2]))
+
+    def get_min_entry(self):
+        """
+        Get the maximum DTED entry
+
+        Returns
+        -------
+        float
+        """
+
+        return float(numpy.min(self._mem_map[:, 4:-2]))
+
 
 class DTEDInterpolator(DEMInterpolator):
     """
@@ -374,7 +421,7 @@ class DTEDInterpolator(DEMInterpolator):
         ----------
         lats : numpy.ndarray|list|tuple|int|float
         lons : numpy.ndarray|list|tuple|int|float
-        dted_list : DTEDList|str
+        dted_list : None|DTEDList|str
             the dtedList object or root directory
         dem_type : str
             the DEM type.
@@ -391,6 +438,7 @@ class DTEDInterpolator(DEMInterpolator):
             to get the relevant file list.
         """
 
+        # TODO: handle dted_list is None
         if isinstance(dted_list, str):
             dted_list = DTEDList(dted_list)
         if not isinstance(dted_list, DTEDList):
@@ -402,6 +450,11 @@ class DTEDInterpolator(DEMInterpolator):
             geoid_file = dted_list.root_dir
 
         return cls(dted_list.get_file_list(lats, lons, dem_type), geoid_file)
+
+    @property
+    def geoid(self):  # type: () -> GeoidHeight
+        """GeoidHeight: Get the geoid height calculator"""
+        return self._geoid
 
     def _get_elevation_geoid(self, lat, lon):
         out = numpy.full(lat.shape, numpy.nan, dtype=numpy.float64)
@@ -486,7 +539,7 @@ class DTEDInterpolator(DEMInterpolator):
         if block_size is None:
             out = self._get_elevation_geoid(lat, lon)
         else:
-            out = numpy.empty(lat.shape, dtype=numpy.float64)
+            out = numpy.full(lat.shape, numpy.nan, dtype=numpy.float64)
             start_block = 0
             while start_block < lat.size:
                 end_block = min(lat.size, start_block+block_size)
@@ -497,3 +550,25 @@ class DTEDInterpolator(DEMInterpolator):
             return float(out[0])
         else:
             return numpy.reshape(out, o_shape)
+
+    def get_max_dem(self):
+        """
+        Get the maximum DTED entry - note that this is relative to the geoid.
+
+        Returns
+        -------
+        float
+        """
+
+        return max(reader.get_max_entry() for reader in self._readers)
+
+    def get_min_dem(self):
+        """
+        Get the minimum DTED entry - note that this is relative to the geoid.
+
+        Returns
+        -------
+        float
+        """
+
+        return min(reader.get_min_entry() for reader in self._readers)

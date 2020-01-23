@@ -9,6 +9,8 @@ import numpy
 
 from . import geocoords
 from ..io.complex.sicd_elements.blocks import Poly1DType, Poly2DType, XYZPolyType
+from ..io.DEM.DEM import DTEDList, GeoidHeight, DTEDInterpolator
+
 
 __classification__ = "UNCLASSIFIED"
 
@@ -25,7 +27,7 @@ def _validate_coords(coords, sicd):
             'The coords array must represent an array of points in ECF coordinates, '
             'so the final dimension of coords must have length 3. Have coords.shape = {}'.format(coords.shape))
 
-    # TODO: check for coordinates too far from the sicd box
+    # TODO: possibly check for coordinates too far from the sicd box?
     return coords
 
 
@@ -952,12 +954,12 @@ def image_to_ground_hae(im_points, sicd, block_size=50000,
         hae0 = scp_hae
 
     if delta_hae_max is None:
-        delta_hae_max = 1.0  # TODO: is this the best value?
+        delta_hae_max = 1.0
     delta_hae_max = float(delta_hae_max)
     if delta_hae_max <= 1e-2:
         raise ValueError('delta_hae_max must be at least 1e-2 (1 cm). Got {0:8f}'.format(delta_hae_max))
     if hae_nlim is None:
-        hae_nlim = 5  # TODO: is this the best value?
+        hae_nlim = 5
     hae_nlim = int(hae_nlim)
     if hae_nlim <= 0:
         raise ValueError('hae_nlim must be a positive integer. Got {}'.format(hae_nlim))
@@ -990,12 +992,87 @@ def image_to_ground_hae(im_points, sicd, block_size=50000,
 #####
 # Image-to-DEM
 
-def _image_to_ground_dem(im_points, coa_projection):
-    raise NotImplementedError
+def _image_to_ground_dem(
+        im_points, coa_projection, dem_interpolator, min_dem, max_dem, horizontal_step_size, scp_hae):
+    """
+
+    Parameters
+    ----------
+    im_points : numpy.ndarray
+    coa_projection : COAProjection
+    dem_interpolator : DTEDInterpolator
+    min_dem : float
+    max_dem : float
+    horizontal_step_size : float|int
+    scp_hae: float
+
+    Returns
+    -------
+    numpy.ndarray
+    """
+
+    # get (image formation specific) projection parameters
+    r_tgt_coa, r_dot_tgt_coa, t_coa, arp_coa, varp_coa = coa_projection.projection(im_points)
+    SCP = coa_projection.SCP
+    ugpn = geocoords.wgs_84_norm(SCP)
+    delta_hae_max = 1
+    hae_nlim = 5
+
+    # if max_dem - min_dem is sufficiently small, then just do the simplest thing
+    if max_dem - min_dem < 1:
+        return _image_to_ground_hae_perform(
+            r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa, SCP, ugpn, max_dem,
+            delta_hae_max, hae_nlim, scp_hae)
+    # get projection to hae at high/low points
+    coords_high = _image_to_ground_hae_perform(
+        r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa, SCP, ugpn, max_dem,
+        delta_hae_max, hae_nlim, scp_hae)
+    coords_low = _image_to_ground_hae_perform(
+        r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa, SCP, ugpn, min_dem,
+        delta_hae_max, hae_nlim, scp_hae)
+    ecf_diffs = coords_low - coords_high
+    dists = numpy.linalg.norm(ecf_diffs, axis=1)
+    # NB: the proper projection point will be the HIGHEST point
+    #   on the DEM along the straight line between the high and low point
+    sin_ang = (max_dem - min_dem)/numpy.min(dists)
+    cos_ang = numpy.sqrt(1 - sin_ang*sin_ang)
+    num_pts = numpy.max(dists)/(cos_ang*horizontal_step_size)
+    step = numpy.linspace(0., 1., num_pts, dtype=numpy.float64)
+    # construct our lat lon space of lines
+    llh_high = geocoords.ecf_to_geodetic(coords_high)
+    llh_low = geocoords.ecf_to_geodetic(coords_low)
+    # I'm drawing these lines in lat/lon space, because this should be incredibly local
+    diffs = llh_low - llh_high
+    elevations = numpy.linspace(max_dem, min_dem, num_pts, dtype=numpy.float64)
+    # construct the space of points connecting high to low of shape (N, 2, num_pts)
+    lat_lon_space = llh_low[:, :2] + numpy.multiply.outer(diffs[:, :2], step)  # NB: this is a numpy.ufunc trick
+    # determine the ground hae elevation at these points according to the dem interpolator
+    # NB: lat_lon_elevations is shape (N, num_pts)
+    lat_lon_elevation = dem_interpolator.get_elevation_hae(lat_lon_space[:, 0, :], lat_lon_space[:, 1, :], block_size=50000)
+    del lat_lon_space  # we can free this up, since it's potentially large
+    bad_values = numpy.isnan(lat_lon_elevation)
+    if numpy.any(bad_values):
+        lat_lon_elevation[bad_values] = scp_hae
+    # adjust by the hae, to find the diff between our line in elevation
+    lat_lon_elevation -= elevations
+    # these elevations should be guaranteed to start positive because we used to
+    #   total bounds for the DEM values
+    # we find the "first" (in high to low order) element where the elevation is close enough to negative
+    # NB: this is shape (N, )
+    indices = numpy.argmax(lat_lon_elevation < 0.5, axis=1)
+    # linearly interpolate to find the best guess for 0 crossing.
+    prev_indices = indices - 1
+    if numpy.any(prev_indices < 0):
+        raise ValueError("The first negative entry should have occurred at a strictly positive index")
+    d1 = lat_lon_elevation[:, indices]
+    d0 = lat_lon_elevation[:, prev_indices]
+    frac_indices = indices + (d1/(d0 - d1))
+    return coords_high + ((frac_indices/(num_pts - 1))*ecf_diffs.T).T
 
 
 def image_to_ground_dem(im_points, sicd, block_size=50000,
-                        dem=None, dem_type='SRTM2F', geoid_path=None, del_DISTrrc=10, del_HDlim=0.001, **coa_args):
+                        dted_list=None, dem_type='SRTM2F', geoid_file=None,
+                        horizontal_step_size=10, **coa_args):
     """
     Transforms image coordinates to ground plane ECF coordinate via the algorithm(s)
     described in SICD Image Projections document.
@@ -1008,18 +1085,12 @@ def image_to_ground_dem(im_points, sicd, block_size=50000,
         the SICD metadata structure.
     block_size : None|int
         Size of blocks of coordinates to transform at a time. The entire array will be transformed as a single block if `None`.
-    dem : str
-        SRTM pathname or structure with lats/lons/elevations fields where are all are arrays of same size
-        and elevation is height above WGS-84 ellipsoid.
+    dted_list : None|str|DTEDList|DTEDInterpolator
     dem_type : str
         One of ['DTED1', 'DTED2', 'SRTM1', 'SRTM2', 'SRTM2F'], specifying the DEM type.
-    geoid_path : str
-        Parent path to EGM2008 file(s).
-    del_DISTrrc : None|float|int
+    geoid_file : None|str|GeoidHeight
+    horizontal_step_size : None|float|int
         Maximum distance between adjacent points along the R/Rdot contour.
-    del_HDlim : None|float|int
-        Height difference threshold for determining if a point on the R/Rdot contour
-        is on the DEM surface (m).
     coa_args : dict
         keyword arguments for COAProjection constructor.
 
@@ -1030,20 +1101,58 @@ def image_to_ground_dem(im_points, sicd, block_size=50000,
         coordinates, assuming detected features actually correspond to the DEM.
     """
 
-    # load up appropriate DEM data - potentially stupidly as one large array
-    # lons (M, ), lats (N,), haes (M x N)
-    # create RectBivariateSpline interpolator of DEM data
+    # coa projection creation
+    im_points = _validate_im_points(im_points, sicd)
+    coa_proj = COAProjection(sicd, **coa_args)
+
+    # TODO: handle dted_list is None
+    if isinstance(dted_list, str):
+        dted_list = DTEDList(dted_list)
+
+    scp = sicd.GeoData.SCP.LLH.get_array()
+    if isinstance(dted_list, DTEDList):
+        # find sensible bounds for the DEMs that we need to load up
+        t_lats = numpy.array([scp[0]-0.1, scp[0], scp[0] + 0.1], dtype=numpy.float64)
+        lon_diff = min(10., abs(10.0/(112*numpy.sin(numpy.rad2deg(scp[0])))))
+        t_lons = numpy.arange(scp[1]-lon_diff, scp[1]+lon_diff+1, lon_diff, dtype=numpy.float64)
+        t_lats[t_lats > 90] = 90.0
+        t_lats[t_lats < -90] = -90.0
+        t_lons[t_lons > 180] -= 360
+        t_lons[t_lons < -180] += 360
+        lats, lons = numpy.meshgrid(t_lats, t_lons)
+        dem_interpolator = DTEDInterpolator.from_coords_and_list(lats, lons, dted_list, dem_type, geoid_file=geoid_file)
+    elif isinstance(dted_list, DTEDInterpolator):
+        dem_interpolator = dted_list
+    else:
+        raise ValueError(
+            'dted_list is expected to be a string suitable for constructing a DTEDList, '
+            'an instance of a DTEDList suitable for constructing a DTEDInterpolator, '
+            'or DTEDInterpolator instance. Got {}'.format(type(dted_list)))
     # determine max/min hae in the DEM
+    # not the ellipsoid
+    scp_geoid = dem_interpolator.geoid.get(scp[0], scp[1])
+    # remember that min/max in a DTED is relative to the geoid, not hae
+    min_dem = dem_interpolator.get_min_dem() + scp_geoid + 10
+    max_dem = dem_interpolator.get_max_dem() + scp_geoid - 10
 
-    # construct coa projector
+    # prepare workspace
+    orig_shape = im_points.shape
+    im_points_view = numpy.reshape(im_points, (-1, 2))  # possibly or make 2-d flatten
+    num_points = im_points_view.shape[0]
+    if block_size is None or num_points <= block_size:
+        coords = _image_to_ground_dem(
+            im_points_view, coa_proj, dem_interpolator, min_dem, max_dem, horizontal_step_size, scp[2])
+    else:
+        coords = numpy.zeros((num_points, 3), dtype=numpy.float64)
+        # proceed with block processing
+        start_block = 0
+        while start_block < num_points:
+            end_block = min(start_block + block_size, num_points)
+            coords[start_block:end_block, :] = _image_to_ground_dem(
+                im_points_view[start_block:end_block], coa_proj, dem_interpolator,
+                min_dem, max_dem, horizontal_step_size, scp[2])
+            start_block = end_block
 
-    # chunk process as follows
-    #   maybe we should add some/subtract some from hae extrema - just to be sure.
-    #   convert im-to-hae at max (B x 3)
-    #   convert im_to-hae at min (B x 3)
-    #   we should probably test using cython for the below:
-    #       loop over points and find the first zero crossing of "level" - HAE from DEM
-    #       do simple zero finder between these two points
-    #       it's not clear how cython will do with spline look-up?
-
-    raise NotImplementedError
+    if len(orig_shape) > 1:
+        coords = numpy.reshape(coords, orig_shape[:-1] + (3,))
+    return coords
