@@ -42,64 +42,100 @@ or
 https://sourceforge.net/projects/geographiclib/files/geoids-distrib/egm2008-5.zip
 """
 
+import os
 import numpy
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 
+############
+# module variables
+_C0 = 240
+_C3 = numpy.array((
+    (9,   -18, -88,    0,  96,   90,   0,   0, -60, -20),
+    (-9,   18,   8,    0, -96,   30,   0,   0,  60, -20),
+    (9,   -88, -18,   90,  96,    0, -20, -60,   0,   0),
+    (186, -42, -42, -150, -96, -150,  60,  60,  60,  60),
+    (54,  162, -78,   30, -24,  -90, -60,  60, -60,  60),
+    (-9,  -32,  18,   30,  24,    0,  20, -60,   0,   0),
+    (-9,    8,  18,   30, -96,    0, -20,  60,   0,   0),
+    (54,  -78, 162,  -90, -24,   30,  60, -60,  60, -60),
+    (-54,  78,  78,   90, 144,   90, -60, -60, -60, -60),
+    (9,    -8, -18,  -30, -24,    0,  20,  60,   0,   0),
+    (-9,   18, -32,    0,  24,   30,   0,   0, -60,  20),
+    (9,   -18,  -8,    0, -24,  -30,   0,   0,  60,  20)), dtype=numpy.float64)
+
+_C0N = 372
+_C3N = numpy.array((
+    (0, 0, -131, 0, 138, 144, 0, 0, -102, -31),
+    (0, 0, 7, 0, -138, 42, 0, 0, 102, -31),
+    (62, 0, -31, 0, 0, -62, 0, 0, 0, 31),
+    (124, 0, -62, 0, 0, -124, 0, 0, 0, 62),
+    (124, 0, -62, 0, 0, -124, 0, 0, 0, 62),
+    (62, 0, -31, 0, 0, -62, 0, 0, 0, 31),
+    (0, 0, 45, 0, -183, -9, 0, 93, 18, 0),
+    (0, 0, 216, 0, 33, 87, 0, -93, 12, -93),
+    (0, 0, 156, 0, 153, 99, 0, -93, -12, -93),
+    (0, 0, -45, 0, -3, 9, 0, 93, -18, 0),
+    (0, 0, -55, 0, 48, 42, 0, 0, -84, 31),
+    (0, 0, -7, 0, -48, -42, 0, 0, 84, 31)), dtype=numpy.float64)
+
+_C0S = 372
+_C3S = numpy.array((
+    (18, -36, -122, 0, 120, 135, 0, 0, -84, -31),
+    (-18, 36, -2, 0, -120, 51, 0, 0, 84, -31),
+    (36, -165, -27, 93, 147, -9, 0, -93, 18, 0),
+    (210, 45, -111, -93, -57, -192, 0, 93, 12, 93),
+    (162, 141, -75, -93, -129, -180, 0, 93, -12, 93),
+    (-36, -21, 27, 93, 39, 9, 0, -93, -18, 0),
+    (0, 0, 62, 0, 0, 31, 0, 0, 0, -31),
+    (0, 0, 124, 0, 0, 62, 0, 0, 0, -62),
+    (0, 0, 124, 0, 0, 62, 0, 0, 0, -62),
+    (0, 0, 62, 0, 0, 31, 0, 0, 0, -31),
+    (-18, 36, -64, 0, 66, 51, 0, 0, -102, 31),
+    (18, -36, 2, 0, -66, -51, 0, 0, 102, 31)), dtype=numpy.float64)
+
+_SEARCH_FILES = ('egm2008-1.pgm', 'egm2008-2_5.pgm', 'egm2008-5.pgm', 'egm96-5.pgm', 'egm96-15.pgm')
+
+
+def find_geoid_file_from_dir(dir_name, search_files=None):
+    geoid_dir = os.path.join(dir_name, 'geoid')
+    if not os.path.exists(geoid_dir):
+        raise IOError(
+            'Input is a directory, and beneath it we expect to find '
+            'files in directory "geoid"')
+    if search_files is None:
+        search_files = _SEARCH_FILES
+    else:
+        search_files = tuple(search_files) + _SEARCH_FILES
+
+    for fil in search_files:
+        file_name = os.path.join(geoid_dir, fil)
+        if os.path.exists(file_name):
+            break
+        file_name = None
+
+    if file_name is None:
+        raise IOError(
+            'input is a directory and we expect to find one of the files {} '
+            'in the directory "geoid" beneath it'.format(search_files))
+
+    return file_name
+
+
 class GeoidHeight(object):
     """
     Calculator for the height of the WGS84 geoid above the ellipsoid at any
-    given latitude and longitude, based on a the egm2008 pgm file.
+    given latitude and longitude, based on one of the egm .pgm files.
+
+    We are set up to use a dem/geoid parent directory. In this case, we expect
+    our egm .pgm to be in the `<root_dir>/geoid` directory, and we will search
+    in order of preference
+    ('egm2008-1.pgm', 'egm2008-2_5.pgm', 'egm2008-5.pgm', 'egm96-5.pgm', 'egm96-15.pgm')
     """
 
     __slots__ = ('_offset', '_scale', '_width', '_height', '_header_length', '_memory_map', '_lon_res', '_lat_res')
-
-    c0 = 240
-    c3 = numpy.array((
-        (9,   -18, -88,    0,  96,   90,   0,   0, -60, -20),
-        (-9,   18,   8,    0, -96,   30,   0,   0,  60, -20),
-        (9,   -88, -18,   90,  96,    0, -20, -60,   0,   0),
-        (186, -42, -42, -150, -96, -150,  60,  60,  60,  60),
-        (54,  162, -78,   30, -24,  -90, -60,  60, -60,  60),
-        (-9,  -32,  18,   30,  24,    0,  20, -60,   0,   0),
-        (-9,    8,  18,   30, -96,    0, -20,  60,   0,   0),
-        (54,  -78, 162,  -90, -24,   30,  60, -60,  60, -60),
-        (-54,  78,  78,   90, 144,   90, -60, -60, -60, -60),
-        (9,    -8, -18,  -30, -24,    0,  20,  60,   0,   0),
-        (-9,   18, -32,    0,  24,   30,   0,   0, -60,  20),
-        (9,   -18,  -8,    0, -24,  -30,   0,   0,  60,  20)), dtype=numpy.float64)
-
-    c0n = 372
-    c3n = numpy.array((
-        (0,   0, -131, 0,  138,  144, 0,   0, -102, -31),
-        (0,   0,    7, 0, -138,   42, 0,   0,  102, -31),
-        (62,  0,  -31, 0,    0,  -62, 0,   0,    0,  31),
-        (124, 0,  -62, 0,    0, -124, 0,   0,    0,  62),
-        (124, 0,  -62, 0,    0, -124, 0,   0,    0,  62),
-        (62,  0,  -31, 0,    0,  -62, 0,   0,    0,  31),
-        (0,   0,   45, 0, -183,   -9, 0,  93,   18,   0),
-        (0,   0,  216, 0,   33,   87, 0, -93,   12, -93),
-        (0,   0,  156, 0,  153,   99, 0, -93,  -12, -93),
-        (0,   0,  -45, 0,   -3,    9, 0,  93,  -18,   0),
-        (0,   0,  -55, 0,   48,   42, 0,   0,  -84,  31),
-        (0,   0,   -7, 0,  -48,  -42, 0,   0,   84,  31)), dtype=numpy.float64)
-
-    c0s = 372
-    c3s = numpy.array((
-        (18,   -36, -122,   0,  120,  135, 0,   0,  -84, -31),
-        (-18,   36,   -2,   0, -120,   51, 0,   0,   84, -31),
-        (36,  -165,  -27,  93,  147,   -9, 0, -93,   18,   0),
-        (210,   45, -111, -93,  -57, -192, 0,  93,   12,  93),
-        (162,  141,  -75, -93, -129, -180, 0,  93,  -12,  93),
-        (-36,  -21,   27,  93,   39,    9, 0, -93,  -18,   0),
-        (0,      0,   62,   0,    0,   31, 0,   0,    0, -31),
-        (0,      0,  124,   0,    0,   62, 0,   0,    0, -62),
-        (0,      0,  124,   0,    0,   62, 0,   0,    0, -62),
-        (0,      0,   62,   0,    0,   31, 0,   0,    0, -31),
-        (-18,   36,  -64,   0,   66,   51, 0,   0, -102,  31),
-        (18,   -36,    2,   0,  -66,  -51, 0,   0,  102,  31)), dtype=numpy.float64)
 
     def __init__(self, file_name):
         """
@@ -112,6 +148,9 @@ class GeoidHeight(object):
 
         self._offset = None
         self._scale = None
+
+        if os.path.isdir(file_name):
+            file_name = find_geoid_file_from_dir(file_name)
 
         with open(file_name, "rb") as f:
             line = f.readline()
@@ -205,11 +244,11 @@ class GeoidHeight(object):
         b2 = (iy == self._height - 2)
         b3 = ~(b1 | b2)
         if numpy.any(b1):
-            t[:, b1] = (self.c3n.T/self.c0n).dot(v[:, b1])
+            t[:, b1] = (_C3N.T/_C0N).dot(v[:, b1])
         if numpy.any(b2):
-            t[:, b2] = (self.c3s.T/self.c0s).dot(v[:, b2])
+            t[:, b2] = (_C3S.T/_C0S).dot(v[:, b2])
         if numpy.any(b3):
-            t[:, b3] = (self.c3.T/self.c0).dot(v[:, b3])
+            t[:, b3] = (_C3.T/_C0).dot(v[:, b3])
 
         return t[0] + \
             dx*(t[1] + dx*(t[3] + dx*t[6])) + \
@@ -233,7 +272,7 @@ class GeoidHeight(object):
         else:
             return self._offset + self._scale*self._linear(ix, dx, iy, dy)
 
-    def get(self, lat, lon, cubic=True, blocksize=50000):
+    def get(self, lat, lon, cubic=True, block_size=50000):
         """
         Calculate the height of the geoid above the ellipsoid in meters at the given points.
 
@@ -244,11 +283,11 @@ class GeoidHeight(object):
         cubic : bool
             Use a simple cubic spline interpolation, otherwise us simple linear.
             Default is `True`.
-        blocksize : None|int
+        block_size : None|int
             If `None`, then the entire calculation will proceed as a single block.
             Otherwise, block processing using blocks of the given size will be used.
             The minimum value used for this is 50,000, and any smaller value will be
-            replaced with 50000. Default is 50,000.
+            replaced with 50,000. Default is 50,000.
 
         Returns
         -------
@@ -267,14 +306,14 @@ class GeoidHeight(object):
         lat = numpy.reshape(lat, (-1, ))
         lon = numpy.reshape(lon, (-1, ))
 
-        if blocksize is None:
+        if block_size is None:
             out = self._do_block(lat, lon, cubic)
         else:
-            blocksize = max(50000, int(blocksize))
+            block_size = max(50000, int(block_size))
             out = numpy.empty(lat.shape, dtype=numpy.float64)
             start_block = 0
             while start_block < lat.size:
-                end_block = min(start_block+blocksize, lat.size)
+                end_block = min(start_block+block_size, lat.size)
                 out[start_block:end_block] = self._do_block(lat[start_block:end_block], lon[start_block:end_block], cubic)
                 start_block = end_block
 
