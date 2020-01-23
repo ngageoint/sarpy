@@ -89,6 +89,7 @@ class _ItemArrayHeaders(BaseScraper):
     Item array in the NITF header (i.e. Image Segment, Text Segment).
     This is not really meant to be used directly.
     """
+
     __slots__ = ('subhead_len', 'subhead_sizes', 'item_len', 'item_sizes')
 
     def __init__(self, subhead_len=0, subhead_sizes=None, item_len=0, item_sizes=None):
@@ -162,7 +163,10 @@ class _ItemArrayHeaders(BaseScraper):
 
 
 class ImageComments(BaseScraper):
-    """Image comments in the image subheader"""
+    """
+    Image comments in the image subheader
+    """
+
     __slots__ = ('comments', )
 
     def __init__(self, comments=None):
@@ -221,7 +225,10 @@ class ImageComments(BaseScraper):
 
 
 class ImageBands(BaseScraper):
-    """Image bands in the image subheader"""
+    """
+    Image bands in the image sub-header.
+    """
+
     __slots__ = ('IREPBAND', 'ISUBCAT', 'IFC', 'IMFLT', 'NLUTS')
     _formats = {'ISUBCAT': '6s', 'IREPBAND': '2s', 'IFC': '1s', 'IMFLT': '3s', 'NLUTS': '1d'}
     _defaults = {'IREPBAND': '\x20'*2, 'IFC': 'N', 'IMFLT': '\x20'*3, 'NLUTS': 0}
@@ -346,6 +353,7 @@ class OtherHeader(BaseScraper):
     (i.e. Image Segment, Text Segment). This is not really meant to be
     used directly.
     """
+
     __slots__ = ('overflow', 'header')
 
     def __init__(self, overflow=None, header=None):
@@ -398,7 +406,10 @@ class OtherHeader(BaseScraper):
 
 
 class HeaderScraper(BaseScraper):
-    """Generally abstract class for scraping NITF header components"""
+    """
+    Generally abstract class for scraping NITF header components
+    """
+
     __slots__ = ()  # the possible attribute collection
     _types = {}  # for elements which will be scraped by another class
     _args = {}  # for elements which will be scraped by another class, these are args for the from_string method
@@ -428,6 +439,7 @@ class HeaderScraper(BaseScraper):
 
     @classmethod
     def _get_settable_attributes(cls):  # type: () -> tuple
+        # properties
         return tuple(map(lambda x: x[1:] if x[0] == '_' else x, cls.__slots__))
 
     def __setattr__(self, attribute, value):
@@ -560,7 +572,10 @@ class HeaderScraper(BaseScraper):
 
 
 class NITFSecurityTags(HeaderScraper):
-    """The NITF security tags - described in SICD standard 2014-09-30, Volume II, page 20"""
+    """
+    The NITF security tags - described in SICD standard 2014-09-30, Volume II, page 20
+    """
+
     __slots__ = (
         'CLAS', 'CLSY', 'CODE', 'CTLH',
         'REL', 'DCTP', 'DCDT', 'DCXM',
@@ -616,11 +631,18 @@ class NITFHeader(HeaderScraper):
         '_DataExtensions': {'subhead_len': 4, 'item_len': 9}, }
 
     def __init__(self, **kwargs):
+        self._Security = None
+        self._ImageSegments = None
+        self._TextSegments = None
+        self._DataExtensions = None
+        self._UserHeader = None
+        self._ExtendedHeader = None
         super(NITFHeader, self).__init__(**kwargs)
         self.HL = self.__len__()
 
     @property
     def Security(self):  # type: () -> NITFSecurityTags
+        """NITFSecurityTags: the security tags instance"""
         return self._Security
 
     @Security.setter
@@ -669,7 +691,10 @@ class NITFHeader(HeaderScraper):
 
 
 class ImageSegmentHeader(HeaderScraper):
-    """The Image Segment header - described in SICD standard 2014-09-30, Volume II, page 24"""
+    """
+    The Image Segment header - described in SICD standard 2014-09-30, Volume II, page 24
+    """
+
     __slots__ = (
         'IM', 'IID1', 'IDATIM', 'TGTID',
         'IID2', '_Security', 'ENCRYP', 'ISORCE',
@@ -700,6 +725,7 @@ class ImageSegmentHeader(HeaderScraper):
 
     @property
     def Security(self):  # type: () -> NITFSecurityTags
+        """NITFSecurityTags: the security tags instance"""
         return self._Security
 
     @Security.setter
@@ -708,6 +734,7 @@ class ImageSegmentHeader(HeaderScraper):
 
     @property
     def ImageComments(self):  # type: () -> ImageComments
+        """ImageComments: the image comments instance"""
         return self._ImageComments
 
     @ImageComments.setter
@@ -716,6 +743,7 @@ class ImageSegmentHeader(HeaderScraper):
 
     @property
     def ImageBands(self):  # type: () -> ImageBands
+        """ImageBands: the image bands instance"""
         return self._ImageBands
 
     @ImageBands.setter
