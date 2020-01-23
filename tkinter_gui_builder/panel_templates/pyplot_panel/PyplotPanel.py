@@ -12,6 +12,8 @@ import numpy as np
 SCALE_Y_AXIS_PER_FRAME_TRUE = "scale y axis per frame"
 SCALE_Y_AXIS_PER_FRAME_FALSE = "don't scale y axis per frame"
 
+PYPLOT_UTILS = PlotStyleUtils()
+
 
 class PyplotCanvas(tk.LabelFrame):
     def __init__(self, master):
@@ -25,6 +27,7 @@ class PyplotCanvas(tk.LabelFrame):
 
 
 class PyplotControlPanel(AbstractWidgetPanel):
+    color_palette = basic_widgets.Combobox          # type: basic_widgets.Combobox
     scale = basic_widgets.Scale         # type: basic_widgets.Scale
     rescale_y_axis_per_frame = basic_widgets.Combobox         # type: basic_widgets.Combobox
     animate = basic_widgets.Button          # type: basic_widgets.Button
@@ -33,9 +36,10 @@ class PyplotControlPanel(AbstractWidgetPanel):
 
     def __init__(self, parent):
         AbstractWidgetPanel.__init__(self, parent)
-        widget_list = ["scale", "rescale_y_axis_per_frame", "fps_label", "fps_entry", "animate"]
+        widget_list = ["color_palette", "scale", "rescale_y_axis_per_frame", "fps_label", "fps_entry", "animate"]
 
-        self.init_w_basic_widget_list(widget_list, 3, [1, 1, 3])
+        self.init_w_basic_widget_list(widget_list, 4, [1, 1, 1, 3])
+        self.color_palette.update_combobox_values(PYPLOT_UTILS.get_all_palettes_list())
         self.scale.set(0)
         self.rescale_y_axis_per_frame.update_combobox_values([SCALE_Y_AXIS_PER_FRAME_TRUE, SCALE_Y_AXIS_PER_FRAME_FALSE])
         self.fps_label.set_text("fps")
@@ -61,7 +65,6 @@ class AppVariables():
         self.animation_related_controls = []
 
         self.pyplot_utils = PlotStyleUtils()
-        self.color_cycler = self.pyplot_utils.plot_color_cycle
 
 
 class PyplotPanel(AbstractWidgetPanel):
@@ -88,6 +91,7 @@ class PyplotPanel(AbstractWidgetPanel):
         self.control_panel.scale.on_left_mouse_motion(self.callback_update_from_slider)
         self.control_panel.rescale_y_axis_per_frame.on_selection(self.callback_set_y_rescale)
         self.control_panel.animate.on_left_mouse_click(self.callback_animate)
+        self.control_panel.color_palette.on_selection(self.callback_update_plot_colors)
 
         self.hide_animation_related_controls()
 
@@ -164,7 +168,7 @@ class PyplotPanel(AbstractWidgetPanel):
 
         self.pyplot_canvas.ax.set_xlim(self.variables.xmin, self.variables.xmax)
         line_segments = LineCollection(self.variables.segments, linewidths=(0.5, 0.75, 1., 1.25), linestyle='solid')
-        line_segments.set_color(self.variables.color_cycler)
+        line_segments.set_color(self.variables.pyplot_utils.plot_colors)
         if self.variables.set_y_margins_per_frame:
             plot_data = self.variables.segments[:, :, 1]
             y_range = plot_data.max() - plot_data.min()
@@ -209,4 +213,12 @@ class PyplotPanel(AbstractWidgetPanel):
         stop_frame = self.variables.n_frames
         fps = float(self.control_panel.fps_entry.get())
         self.animate(start_frame, stop_frame, fps)
+
+    def callback_update_plot_colors(self, event):
+        color_palette_text = self.control_panel.color_palette.get()
+        self.variables.pyplot_utils.set_palette_by_name(color_palette_text)
+        if len(self.variables.plot_data.shape) == 3:
+            self.update_plot_animation(int(self.control_panel.scale.get()))
+
+
 
