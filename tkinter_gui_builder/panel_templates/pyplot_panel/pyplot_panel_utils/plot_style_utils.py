@@ -1,49 +1,34 @@
-import seaborn
 import matplotlib.pyplot as plt
 import math
 import numpy as np
-
-SEABORN_DEEP = "deep"
-SEABORN_MUTED = "muted"
-SEABORN_BRIGHT = "bright"
-SEABORN_PASTEL = "pastel"
-SEABORN_DARK = "dark"
-SEABORN_COLORBLIND = "colorblind"
-SEABORN_BLUES = "Blues"
+from tkinter_gui_builder.utils.color_utils.hex_color_palettes import SeabornPaletteNames
+from tkinter_gui_builder.utils.color_utils.hex_color_palettes import SeabornHexPalettes
+import tkinter_gui_builder.utils.color_utils.color_converter as color_converter
 
 
 class PlotStyleUtils:
     def __init__(self):
-        self.n_color_bins = 10
-        self.set_palette_by_name(SEABORN_DEEP)
-
-    def set_palette_array(self, colors_list):
-        self.plot_colors = colors_list
-
-    def set_plot_colors(self,
-                        color_palette,          # type: [[float]]
-                        n_colors                # type: int
-                        ):
-        colors = self.get_colors_from_palette(color_palette, n_colors)
-        self.plot_colors = colors
+        self.n_color_bins = 3
+        self.rgb_array_fixed_bin_palette = None           # type: [[float]]
+        self.rgb_array_full_palette = None          # type: [[float]]
+        self.set_palette_by_name(SeabornPaletteNames.muted)
 
     def set_palette_by_name(self, palette_name):
-        self.palette = seaborn.color_palette(palette_name, self.n_color_bins)
-        self.plot_colors = self.get_colors_from_palette(self.palette, self.n_color_bins)
+        hex_palette = SeabornHexPalettes.get_palette_by_name(palette_name)
+        rgb_palette = color_converter.hex_list_to_rgb_list(hex_palette)
+        self.rgb_array_fixed_bin_palette = rgb_palette
+        full_palette = self.get_full_rgb_palette(rgb_palette, self.n_color_bins)
+        self.rgb_array_full_palette = full_palette
+
+    def set_n_colors(self, n_colors):
+        self.n_color_bins = n_colors
+        full_palette = self.get_full_rgb_palette(self.rgb_array_fixed_bin_palette, n_colors)
+        self.rgb_array_full_palette = full_palette
 
     @staticmethod
-    def get_all_palettes_list():
-        palettes_list = [SEABORN_DEEP,
-                         SEABORN_MUTED,
-                         SEABORN_BRIGHT,
-                         SEABORN_PASTEL,
-                         SEABORN_DARK,
-                         SEABORN_COLORBLIND,
-                         SEABORN_BLUES]
-        return palettes_list
-
-    @staticmethod
-    def get_colors_from_palette(palette, n_colors):
+    def get_full_rgb_palette(palette, n_colors=None):
+        if n_colors is None:
+            n_colors = len(palette)
         color_array = []
         n_color_bins = len(palette)
         indices = np.linspace(0, n_colors, n_colors)
@@ -58,3 +43,7 @@ class PlotStyleUtils:
     @staticmethod
     def get_available_matplotlib_styles():
         return ['default', 'classic'] + sorted(style for style in plt.style.available if style != 'classic')
+
+    @staticmethod
+    def get_all_palettes_list():
+        return SeabornPaletteNames.get_seaborn_palette_names_list()

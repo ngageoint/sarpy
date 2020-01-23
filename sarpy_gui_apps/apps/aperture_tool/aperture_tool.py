@@ -6,7 +6,7 @@ from tkinter_gui_builder.canvas_image_objects.numpy_canvas_image import NumpyCan
 import sarpy.visualization.remap as remap
 from scipy.fftpack import fft2, ifft2, fftshift
 from tkinter_gui_builder.panel_templates.widget_panel.widget_panel import AbstractWidgetPanel
-from tkinter_gui_builder.image_utils import frame_sequence_utils
+from tkinter_gui_builder.utils.image_utils import frame_sequence_utils
 from tkinter import filedialog
 import numpy as np
 import os

@@ -1,5 +1,6 @@
 import platform
 
+
 class WidgetEvents(object):
     def __init__(self):
         pass
@@ -32,6 +33,9 @@ class WidgetEvents(object):
             self.bind("<Button-5>", event)
         else:
             self.bind("<MouseWheel>", event)
+
+    def on_enter_or_return_key(self, event):
+        self.bind('<Return>', event)
 
     def on_left_mouse_click_with_args(self, event_w_args, args):
         self.bind("<Button-1>", lambda event, arg=args: event_w_args(arg))
