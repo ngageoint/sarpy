@@ -5,7 +5,7 @@ from matplotlib.figure import Figure
 from matplotlib.collections import LineCollection
 from tkinter_gui_builder.panel_templates.widget_panel.widget_panel import AbstractWidgetPanel
 import time
-
+from tkinter_gui_builder.panel_templates.pyplot_panel.pyplot_panel_utils.plot_style_utils import PlotStyleUtils
 import numpy as np
 
 
@@ -39,7 +39,7 @@ class PyplotControlPanel(AbstractWidgetPanel):
         self.scale.set(0)
         self.rescale_y_axis_per_frame.update_combobox_values([SCALE_Y_AXIS_PER_FRAME_TRUE, SCALE_Y_AXIS_PER_FRAME_FALSE])
         self.fps_label.set_text("fps")
-        self.fps_entry.set_text("10")
+        self.fps_entry.set_text("30")
 
 
 class AppVariables():
@@ -59,6 +59,9 @@ class AppVariables():
         self.segments = None  # type: np.ndarray
 
         self.animation_related_controls = []
+
+        self.pyplot_utils = PlotStyleUtils()
+        self.color_cycler = self.pyplot_utils.plot_color_cycle
 
 
 class PyplotPanel(AbstractWidgetPanel):
@@ -85,6 +88,8 @@ class PyplotPanel(AbstractWidgetPanel):
         self.control_panel.scale.on_left_mouse_motion(self.callback_update_from_slider)
         self.control_panel.rescale_y_axis_per_frame.on_selection(self.callback_set_y_rescale)
         self.control_panel.animate.on_left_mouse_click(self.callback_animate)
+
+        self.hide_animation_related_controls()
 
     def hide_animation_related_controls(self):
         for widget in self.variables.animation_related_controls:
@@ -159,6 +164,7 @@ class PyplotPanel(AbstractWidgetPanel):
 
         self.pyplot_canvas.ax.set_xlim(self.variables.xmin, self.variables.xmax)
         line_segments = LineCollection(self.variables.segments, linewidths=(0.5, 0.75, 1., 1.25), linestyle='solid')
+        line_segments.set_color(self.variables.color_cycler)
         if self.variables.set_y_margins_per_frame:
             plot_data = self.variables.segments[:, :, 1]
             y_range = plot_data.max() - plot_data.min()
@@ -184,19 +190,23 @@ class PyplotPanel(AbstractWidgetPanel):
             self.variables.ymin = self.variables.plot_data.min() - y_range * self.variables.y_margin
             self.variables.ymax = self.variables.plot_data.max() + y_range * self.variables.y_margin
 
-    def animate(self):
-        fps = float(self.control_panel.fps_entry.get())
-        self.control_panel.scale.set(20)
-        self.update_plot_animation(20)
+    def animate(self, start_frame, stop_frame, fps):
+        time_between_frames = 1/fps
 
-        self.control_panel.scale.set(25)
-        self.update_plot_animation(25)
-
-        self.control_panel.scale.set(30)
-        self.update_plot_animation(30)
-
-        self.control_panel.scale.set(50)
-        self.update_plot_animation(50)
+        for i in range(start_frame, stop_frame):
+            tic = time.time()
+            self.control_panel.scale.set(i)
+            self.update_plot_animation(i)
+            toc = time.time()
+            time_to_update_plot = toc-tic
+            if time_between_frames > time_to_update_plot:
+                time.sleep(time_between_frames - time_to_update_plot)
+            else:
+                pass
 
     def callback_animate(self, event):
-        self.animate()
+        start_frame = 0
+        stop_frame = self.variables.n_frames
+        fps = float(self.control_panel.fps_entry.get())
+        self.animate(start_frame, stop_frame, fps)
+
