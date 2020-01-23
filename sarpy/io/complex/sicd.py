@@ -7,28 +7,198 @@ import re
 import sys
 import logging
 from xml.etree import ElementTree
-from typing import Tuple
+from typing import Union, Tuple
+from collections import OrderedDict
 
 import numpy
 
-from .nitf_headers import NITFHeader, NITFSecurityTags, ImageSegmentHeader, ImageBands, \
-    _ItemArrayHeaders, DataExtensionHeader, SPECIFICATION_NAMESPACE
+from ..nitf_headers import BaseScraper, HeaderScraper, NITFHeader, NITFSecurityTags, \
+    ImageSegmentHeader, ImageBands, _ItemArrayHeaders
 from .base import BaseChipper, BaseReader, BaseWriter
 from .bip import BIPChipper, BIPWriter
 from .sicd_elements.SICD import SICDType
 from .sicd_elements.blocks import LatLonType
 
+integer_types = (int, )
 int_func = int
 if sys.version_info[0] < 3:
     # noinspection PyUnresolvedReferences
-    int_func = long
+    int_func = long  # to accommodate for 32-bit python 2
+    # noinspection PyUnresolvedReferences
+    integer_types = (int, long)
 
 __classification__ = "UNCLASSIFIED"
+
+########
+# NITF header details specific to SICD files
+
+_SPECIFICATION_IDENTIFIER = 'SICD Volume 1 Design & Implementation Description Document'
+_SPECIFICATION_VERSION = '1.1'
+_SPECIFICATION_DATE = '2014-09-30T00:00:00Z'
+_SPECIFICATION_NAMESPACE = 'urn:SICD:1.1.0'  # this is expected to be of the form 'urn:SICD:<version>'
+
+
+class SICDDESSubheader(HeaderScraper):
+    """
+    The SICD Data Extension header - described in SICD standard 2014-09-30, Volume II, page 29
+    """
+
+    __slots__ = (
+        'DESCRC', 'DESSHFT', 'DESSHDT',
+        'DESSHRP', 'DESSHSI', 'DESSHSV', 'DESSHSD',
+        'DESSHTN', 'DESSHLPG', 'DESSHLPT', 'DESSHLI',
+        'DESSHLIN', 'DESSHABS', )
+    _formats = {
+        'DESCRC': '5d', 'DESSHFT': '8s', 'DESSHDT': '20s',
+        'DESSHRP': '40s', 'DESSHSI': '60s', 'DESSHSV': '10s',
+        'DESSHSD': '20s', 'DESSHTN': '120s', 'DESSHLPG': '125s',
+        'DESSHLPT': '25s', 'DESSHLI': '20s', 'DESSHLIN': '120s',
+        'DESSHABS': '200s', }
+    _defaults = {
+        'DESCRC': 99999, 'DESSHFT': 'XML',
+        'DESSHRP': '\x20', 'DESSHSI': _SPECIFICATION_IDENTIFIER,
+        'DESSHSV': _SPECIFICATION_VERSION, 'DESSHSD': _SPECIFICATION_DATE,
+        'DESSHTN': _SPECIFICATION_NAMESPACE,
+        'DESSHLPT': '\x20', 'DESSHLI': '\x20', 'DESSHLIN': '\x20',
+        'DESSHABS': '\x20', }
+
+    @classmethod
+    def minimum_length(cls):
+        return 773
+
+    def __len__(self):
+        return 773
+
+
+class DataExtensionHeader(HeaderScraper):
+    """
+    The data extension header - this may only work for SICD data extension headers?
+    described in SICD standard 2014-09-30, Volume II, page 29.
+    """
+
+    __slots__ = (
+        'DE', 'DESID', 'DESVER', '_Security',
+        'DESSHL', '_SICDHeader')
+    _formats = {
+        'DE': '2s', 'DESID': '25s', 'DESVER': '2d',
+        'DESSHL': '4d', }
+    _defaults = {
+        'DE': 'DE', 'DESID': 'XML_DATA_CONTENT', 'DESVER': 1,
+        'DESSHL': 773, }
+    _types = {
+        '_Security': NITFSecurityTags,
+        '_SICDHeader': SICDDESSubheader,
+    }
+
+    def __init__(self, **kwargs):
+        self.DESSHL = None
+        self._Security = None
+        self._SICDHeader = None
+        super(DataExtensionHeader, self).__init__(**kwargs)
+
+    @classmethod
+    def minimum_length(cls):
+        return 33
+
+    def __len__(self):
+        length = 33
+        if self._Security is not None:
+            length += len(self._Security)
+        if self._SICDHeader is not None:
+            length += 773
+        return length
+
+    @property
+    def Security(self):  # type: () -> NITFSecurityTags
+        return self._Security
+
+    @Security.setter
+    def Security(self, value):
+        self.set_attribute('_Security', value)
+
+    @property
+    def SICDHeader(self):  # type: () -> Union[SICDDESSubheader, None]
+        return self._SICDHeader
+
+    @SICDHeader.setter
+    def SICDHeader(self, value):
+        if isinstance(value, SICDDESSubheader):
+            self.DESSHL = 773
+            self._SICDHeader = value
+        if value is None:
+            if self.DESSHL == 773:
+                self._SICDHeader = SICDDESSubheader()
+            else:
+                self.DESSHL = 0
+                self._SICDHeader = None
+
+    @classmethod
+    def from_string(cls, value, start, *args):
+        if value is None:
+            return cls()
+
+        value = cls._validate(value, start)
+
+        fields = OrderedDict()
+        loc = start
+        for attribute in cls.__slots__[:-1]:
+            if attribute in cls._types:
+                typ = cls._types[attribute]
+                if not issubclass(typ, BaseScraper):
+                    raise TypeError('Invalid class definition, any entry of _types must extend BaseScraper')
+                args = cls._args.get(attribute, {})
+                val = typ.from_string(value, loc, **args)
+                aname = attribute[1:] if attribute[0] == '_' else attribute
+                fields[aname] = val  # exclude the underscore from the name
+                lngt = len(val)
+            else:
+                lngt = int_func(cls._formats[attribute][:-1])
+                fields[attribute] = value[loc:lngt]
+            loc += lngt
+        if int_func(fields['DESSHL']) == 773:
+            fields['SICDHeader'] = SICDDESSubheader.from_string(value[loc:loc+773], 0)
+        else:
+            fields['DESSHL'] = 0
+            fields['SICDHeader'] = None
+        return cls(**fields)
+
+    def to_string(self):
+        if self.DESSHL == 773 and self.SICDHeader is None:
+            self.SICDHeader = SICDDESSubheader()
+        elif self.DESSHL != 773:
+            self.DESSHL = 0
+            self.SICDHeader = None
+
+        out = ''
+        for attribute in self.__slots__[:-2]:
+            val = getattr(self, attribute)
+            if isinstance(val, BaseScraper):
+                out += val.to_string()
+            elif isinstance(val, integer_types):
+                fstr = self._formats[attribute]
+                flen = int_func(fstr[:-1])
+                val = getattr(self, attribute)
+                if val >= 10**flen:
+                    raise ValueError('Attribute {} has integer value {}, which cannot be written as '
+                                     'a string of length {}'.format(attribute, val, flen))
+                out += fstr.format(val)
+            elif isinstance(val, str):
+                fstr = self._formats[attribute]
+                flen = int_func(fstr[:-1])
+                val = getattr(self, attribute)
+                if len(val) <= flen:
+                    out += fstr.format(val)  # left justified of length flen
+                else:
+                    out += val[:flen]
+        if self.SICDHeader is not None:
+            out += '0773' + self.SICDHeader.to_string()
+        else:
+            out += '0000'
+        return out
 
 
 ########
 # base expected functionality for a module with an implemented Reader
-
 
 def is_a(file_name):
     """
@@ -732,7 +902,7 @@ class SICDWriter(BaseWriter):
         # get des header, xml and populate nitf_header.DataExtensions information
         des_info = {
             'header': self._data_extension_header.to_string(),
-            'xml': self._sicd_meta.to_xml_string(urn=SPECIFICATION_NAMESPACE, tag='SICD')}
+            'xml': self._sicd_meta.to_xml_string(urn=_SPECIFICATION_NAMESPACE, tag='SICD')}
         self._nitf_header.DataExtensions.subhead_sizes[0] = len(des_info['header'])
         self._nitf_header.DataExtensions.item_sizes[0] = len(des_info['xml'])  # size should be no issue
         # there would be no satisfactory resolution in the case of an oversized header - we should raise an exception
