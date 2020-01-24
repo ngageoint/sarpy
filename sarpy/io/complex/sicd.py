@@ -12,7 +12,7 @@ from collections import OrderedDict
 
 import numpy
 
-from ..nitf_headers import BaseScraper, HeaderScraper, NITFHeader, NITFSecurityTags, \
+from ..nitf_headers import NITFDetails, BaseScraper, HeaderScraper, NITFHeader, NITFSecurityTags, \
     ImageSegmentHeader, ImageBands, _ItemArrayHeaders
 from .base import BaseChipper, BaseReader, BaseWriter
 from .bip import BIPChipper, BIPWriter
@@ -216,7 +216,7 @@ def is_a(file_name):
     """
 
     try:
-        nitf_details = NITFDetails(file_name)
+        nitf_details = SICDDetails(file_name)
         print('File {} is determined to be a sicd (NITF format) file.'.format(file_name))
         return SICDReader(nitf_details)
     except IOError:
@@ -225,17 +225,15 @@ def is_a(file_name):
 
 
 #########
-# Helper object for initially parses NITF header
+# Helper object for initially parses NITF header - specifically looking for SICD elements
 
 
-class NITFDetails(object):
+class SICDDetails(NITFDetails):
     """
-    SICD are stored in NITF 2.1 files. This class allows for suitable parsing
-    of the header information in a NITF 2.1 file.
+    SICD are stored in NITF 2.1 files.
     """
     __slots__ = (
-        '_file_name', '_nitf_header', '_is_sicd', '_sicd_meta', '_img_headers',
-        'img_segment_offsets', 'img_segment_rows', 'img_segment_columns')
+        '_is_sicd', '_sicd_meta', 'img_segment_rows', 'img_segment_columns')
 
     def __init__(self, file_name):
         """
@@ -246,81 +244,24 @@ class NITFDetails(object):
             file name for a NITF 2.1 file containing a SICD
         """
 
-        self._file_name = file_name
-        self._nitf_header = None
-        self._is_sicd = False
-        self._sicd_meta = None
-        self._img_headers = None
-        self.img_segment_offsets = None
-        self.img_segment_rows = None
-        self.img_segment_columns = None
-
-        with open(file_name, mode='rb') as fi:
-            # Read the first 9 bytes to verify NITF
-            version_info = fi.read(9).decode('utf-8')
-            if version_info != 'NITF02.10':
-                raise IOError('Note a NITF 2.1 file, and cannot contain a SICD')
-            # get the header length
-            fi.seek(354)  # offset to first field of interest
-            header_length = int_func(fi.read(6))
-            # go back to the beginning of the file, and parse the whole header
-            fi.seek(0)
-            header_string = fi.read(header_length)
-            self._nitf_header = NITFHeader.from_string(header_string, 0)
-            if self._nitf_header.NUMS > 0:
-                raise IOError('SICD does not allow for graphics segments.')
-            if self._nitf_header.NUMX > 0:
-                raise IOError('SICD does not allow for reserved extension segments.')
-            if self._nitf_header.DataExtensions.subhead_sizes.size != 1:
-                raise IOError('SICD requires exactly one data extension, containing the '
-                              'SICD xml structure.')
-            # construct the image offset arrays
-            # the image data is packed immediately after the header as
-            #   subheader data then image data
-            self.img_segment_offsets = header_length + numpy.cumsum(self._nitf_header.ImageSegments.subhead_sizes)
-            self.img_segment_offsets[1:] += numpy.cumsum(self._nitf_header.ImageSegments.item_sizes)
-            self.img_segment_rows = numpy.zeros(self.img_segment_offsets.shape, dtype=numpy.int64)
-            self.img_segment_columns = numpy.zeros(self.img_segment_offsets.shape, dtype=numpy.int64)
-            # we should parse the image subheaders collection
-            self._img_headers = []
-            for i, img_segment_offset in enumerate(self.img_segment_offsets):
-                img_head_size = self._nitf_header.ImageSegments.subhead_sizes[i]
-                img_head_offset = img_segment_offset - img_head_size
-                fi.seek(img_head_offset)
-                header_string = fi.read(img_head_size)
-                im_header = ImageSegmentHeader.from_string(header_string, 0)
-                self._img_headers.append(im_header)
-                self.img_segment_rows[i] = im_header.NROWS
-                self.img_segment_columns[i] = im_header.NCOLS
-            total_offset = self.img_segment_offsets[-1] + self._nitf_header.ImageSegments.item_sizes[-1]
-            # the text extensions are packed next - this appears to play no particular role in SICD
-            total_offset += numpy.sum(self._nitf_header.TextSegments.subhead_sizes +
-                                      self._nitf_header.TextSegments.item_sizes)
-            # the data extensions are packed next - note that we already verify
-            # exactly one data extension
-            total_offset += self._nitf_header.DataExtensions.subhead_sizes[0]
-            des_length = self._nitf_header.DataExtensions.item_sizes[0]
-            fi.seek(total_offset)
-            data_extension = fi.read(des_length)
-
-            root_node = ElementTree.fromstring(data_extension)  # handles bytes?
-            if root_node.tag.split('}', 1)[-1] == 'SICD':
-                # TODO: account for CPHD xml?
-                self._is_sicd = True
-
-            if self._is_sicd:
-                try:
-                    self._sicd_meta = SICDType.from_node(root_node)
-                    self._sicd_meta.derive()
-                    # TODO: account for the reference frequency offset situation
-                except Exception:
-                    self._is_sicd = False
-                    raise
-
-    @property
-    def file_name(self):
-        """str: the file name."""
-        return self._file_name
+        super(SICDDetails, self).__init__(file_name)
+        if self._nitf_header.NUMS > 0:
+            raise IOError('SICD does not allow for graphics segments.')
+        if self._nitf_header.NUMX > 0:
+            raise IOError('SICD does not allow for reserved extension segments.')
+        if self._nitf_header.ImageSegments.subhead_sizes.size == 0:
+            raise IOError('There are no image segments defined.')
+        if self._nitf_header.DataExtensions.subhead_sizes.size != 1:
+            raise IOError('SICD requires exactly one data extension, containing the '
+                          'SICD xml structure.')
+        # define the sicd metadata
+        self._parse_des()
+        # populate the image details
+        self.img_segment_rows = numpy.zeros(self.img_segment_offsets.shape, dtype=numpy.int64)
+        self.img_segment_columns = numpy.zeros(self.img_segment_offsets.shape, dtype=numpy.int64)
+        for i, im_header in self.img_headers:
+            self.img_segment_rows[i] = im_header.NROWS
+            self.img_segment_columns[i] = im_header.NCOLS
 
     @property
     def is_sicd(self):
@@ -331,6 +272,29 @@ class NITFDetails(object):
     def sicd_meta(self):
         """SICDType: the sicd meta-data structure."""
         return self._sicd_meta
+
+    def _parse_des(self):
+        if self.des_subheader_offsets is None:
+            self._is_sicd = False
+            self._sicd_meta = None
+
+        with open(self._file_name, 'rb') as fi:
+            fi.seek(int_func(self.des_subheader_offsets[0]))
+            data_extension = fi.read(self._nitf_header.DataExtensions.item_sizes[0])
+
+        root_node = ElementTree.fromstring(data_extension)  # handles bytes?
+        if root_node.tag.split('}', 1)[-1] == 'SICD':
+            # TODO: account for CPHD xml?
+            self._is_sicd = True
+
+        if self._is_sicd:
+            try:
+                self._sicd_meta = SICDType.from_node(root_node)
+                self._sicd_meta.derive()
+                # TODO: account for the reference frequency offset situation
+            except Exception:
+                self._is_sicd = False
+                raise
 
 
 #######
@@ -483,15 +447,15 @@ class SICDReader(BaseReader):
 
         Parameters
         ----------
-        nitf_details : str|NITFDetails
-            filename or NITFDetails object
+        nitf_details : str|SICDDetails
+            filename or SICDDetails object
         """
 
         if isinstance(nitf_details, str):
-            nitf_details = NITFDetails(nitf_details)
-        if not isinstance(nitf_details, NITFDetails):
+            nitf_details = SICDDetails(nitf_details)
+        if not isinstance(nitf_details, SICDDetails):
             raise TypeError('The input argument for SICDReader must be a filename or '
-                            'NITFDetails object.')
+                            'SICDDetails object.')
 
         self._nitf_details = nitf_details
         if not self._nitf_details.is_sicd:

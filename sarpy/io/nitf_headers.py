@@ -7,6 +7,7 @@ geared towards SICD file usage, and some functionality may not allow full genera
 import logging
 import sys
 from collections import OrderedDict
+from typing import Union, Tuple
 
 import numpy
 
@@ -749,3 +750,94 @@ class ImageSegmentHeader(HeaderScraper):
     @ImageBands.setter
     def ImageBands(self, value):
         self.set_attribute('_ImageBands', value)
+
+
+class NITFDetails(object):
+    """
+    This class allows for somewhat general parsing of the header information in
+    a NITF 2.1 file. It is expected that the text segment and data extension
+    segments must be handled individually, probably by extending this class.
+    """
+
+    __slots__ = (
+        '_file_name', '_nitf_header', '_img_headers',
+        'img_subheader_offsets', 'img_segment_offsets',
+        'text_subheader_offsets', 'text_segment_offsets',
+        'des_subheader_offsets', 'des_segment_offsets')
+
+    def __init__(self, file_name):
+        """
+
+        Parameters
+        ----------
+        file_name : str
+            file name for a NITF 2.1 file
+        """
+
+        self._file_name = file_name
+        self._img_headers = None
+
+        with open(file_name, mode='rb') as fi:
+            # Read the first 9 bytes to verify NITF
+            version_info = fi.read(9).decode('utf-8')
+            if version_info != 'NITF02.10':
+                raise IOError('Not a NITF 2.1 file.')
+            # get the header length
+            fi.seek(354)  # offset to first field of interest
+            header_length = int_func(fi.read(6))
+            # go back to the beginning of the file, and parse the whole header
+            fi.seek(0)
+            header_string = fi.read(header_length)
+            self._nitf_header = NITFHeader.from_string(header_string, 0)
+
+        curLoc = self._nitf_header.HL
+        # populate image segment offset information
+        curLoc, self.img_subheader_offsets, self.img_segment_offsets = self._element_offsets(
+            curLoc, self._nitf_header.ImageSegments)
+        # populate text segment offset information
+        curLoc, self.text_subheader_offsets, self.text_segment_offsets = self._element_offsets(
+            curLoc, self._nitf_header.TextSegments)
+
+        # populate data extension offset information
+        curLoc, self.des_subheader_offsets, self.des_segment_offsets = self._element_offsets(
+            curLoc, self._nitf_header.DataExtensions)
+
+    @staticmethod
+    def _element_offsets(curLoc, item_array_details):
+        # type: (int, _ItemArrayHeaders) -> Tuple[int, Union[None, numpy.ndarray], Union[None, numpy.ndarray]]
+        subhead_sizes = item_array_details.subhead_sizes
+        item_sizes = item_array_details.item_sizes
+        if subhead_sizes.size == 0:
+            return curLoc, None, None
+
+        subhead_offsets = numpy.full(subhead_sizes.shape, curLoc, dtype=numpy.int64)
+        subhead_offsets[1:] += numpy.cumsum(subhead_sizes[:-1]) + numpy.cumsum(item_sizes[:-1])
+        item_offsets = subhead_offsets + subhead_sizes
+        curLoc = item_offsets[-1] + item_sizes[-1]
+        return curLoc, subhead_offsets, item_offsets
+
+    @property
+    def file_name(self):
+        """str: the file name."""
+        return self._file_name
+
+    @property
+    def img_headers(self):
+        """None|List[ImageSegmentHeader]: the image segment headers"""
+        if self._img_headers is not None:
+            return self._img_headers
+        self._parse_img_headers()
+        return self._img_headers
+
+    def _parse_img_headers(self):
+        if self.img_segment_offsets is None:
+            return
+
+        img_headers = []
+        with open(self._file_name, mode='rb') as fi:
+            for offset, subhead_size in zip(
+                    self.img_segment_offsets, self._nitf_header.ImageSegments.subhead_sizes):
+                fi.seek(int_func(offset))
+                header_string = fi.read(int_func(subhead_size))
+                img_headers.append(ImageSegmentHeader.from_string(header_string, 0))
+        self._img_headers = img_headers
