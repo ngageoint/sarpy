@@ -82,7 +82,6 @@ def _parse_xml(file_name, without_ns=False):  # type: (str, bool) -> ElementTree
 ###########
 # parser and interpreter for radarsat product.xml
 
-
 class RadarSatDetails(object):
     __slots__ = ('_file_name', '_root_node', '_satellite', '_product_type')
 
@@ -334,7 +333,7 @@ class RadarSatDetails(object):
                                       '/stateVector')
         # convert to relevant numpy arrays for polynomial fitting
         T = numpy.array([get_seconds(numpy.datetime64(state_vec.find('timeStamp').text, 'us'),
-                                      start_time, precision='us')
+                                     start_time, precision='us')
                          for state_vec in state_vectors], dtype=numpy.float64)
         X_pos = numpy.array([float(state_vec.find('xPosition').text)
                              for state_vec in state_vectors], dtype=numpy.float64)

@@ -1,6 +1,11 @@
 # This details the important differences introduced in 0.1
 # NB: bump the version number in __about__.py to reflect the below.
 
+* .17 - Refactored generic complex data file opening and conversion capability.
+* .16 - Split (to some degree) general NITF headers from SICD specific usage.
+* .15 - Refactored geometry.point_projection to dem for more consistent behavior.
+* .14 - Refactored io.DEM.DEM for better performance and more consistent behavior.
+* .13 - Refactored io.DEM.geoid for better performance and more consistent behavior.
 * .12 - Refactored geometry.point_projection for more consistent behavior (dem remains).
 * .11 - Refactored geometry.geocoords for more consistent behavior.
 * .10 - switch for using gdal for tiff reading introduced (in principle, details remain).

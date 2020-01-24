@@ -110,6 +110,7 @@ def find_geoid_file_from_dir(dir_name, search_files=None):
     else:
         search_files = tuple(search_files) + _SEARCH_FILES
 
+    file_name = None
     for fil in search_files:
         file_name = os.path.join(geoid_dir, fil)
         if os.path.exists(file_name):

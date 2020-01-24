@@ -13,7 +13,7 @@ import sys
 import pkgutil
 import numpy
 import logging
-from typing import List, Tuple
+from typing import Union, List, Tuple
 
 from .base import BaseReader
 from .sicd import SICDWriter
@@ -102,6 +102,7 @@ def convert(input_file, output_file, frames=None, output_format='SICD',
     """
 
     def validate_lims(lims, typ):
+        # type: (Union[None, tuple, list, numpy.ndarray], str) -> Tuple[Tuple[int, int], ...]
         def validate_entry(st, ed, shap, i_fr):
             if not ((0 <= st < shap[ind]) and (st < ed <= shap[ind])):
                 raise ValueError('{}_limits is {}, and frame {} has shape {}'.format(typ, lims, i_fr, shap))

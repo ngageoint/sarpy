@@ -388,7 +388,7 @@ class BaseReader(object):
 
     @property
     def data_size(self):
-        """Tuple[int, int]|Tuple[Tuple[int, int]]: the data size(s) of the form (rows, cols)."""
+        """Tuple[int, int]|Tuple[Tuple[int, int], ...]: the data size(s) of the form (rows, cols)."""
         return self._data_size
 
     def _validate_index(self, index):

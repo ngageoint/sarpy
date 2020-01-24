@@ -1,12 +1,21 @@
 # -*- coding: utf-8 -*-
 
 import os
+import sys
 import logging
 import numpy
 import struct
 from typing import List
 
 from .geoid import GeoidHeight, find_geoid_file_from_dir
+
+integer_types = (int, )
+int_func = int
+if sys.version_info[0] < 3:
+    # noinspection PyUnresolvedReferences
+    int_func = long  # to accommodate for 32-bit python 2
+    # noinspection PyUnresolvedReferences
+    integer_types = (int, long)
 
 
 __classification__ = "UNCLASSIFIED"
@@ -244,12 +253,73 @@ class DTEDReader(object):
                                      offset=3428,
                                      shape=shp)
 
+    def __getitem__(self, item):
+        def new_col_int(val, begin):
+            if val is None:
+                if begin:
+                    return 4
+                else:
+                    return -2
+            return val + 4 if val >= 0 else val - 2
+
+        # we need to manipulate in the second dimension
+        if isinstance(item, tuple):
+            if len(item) > 2:
+                raise ValueError('Cannot slice on more than 2 dimensions')
+            it = item[1]
+            if isinstance(it, integer_types):
+                it1 = new_col_int(it, True)
+            elif isinstance(it, slice):
+                start = new_col_int(it.start, True)
+                stop = new_col_int(it.stop, False)
+                it1 = slice(start, stop, step=it.step)
+            elif isinstance(item[1], numpy.ndarray):
+                it1 = numpy.copy(item[1])
+                it1[it1 >= 0] += 4
+                it1[it1 < 0] -= 2
+            else:
+                raise ValueError('Cannot slice using {}'.format(type(item[1])))
+            data = self._mem_map.__getitem__((item[0], it1))
+        else:
+            data = self._mem_map[item, 4:-2]
+
+        return self._repair_values(data)
+
+    @staticmethod
+    def _repair_values(elevations):
+        """
+        This is a helper method for repairing the weird entries in a DTED.
+        The array is modified in place.
+
+        Parameters
+        ----------
+        elevations : numpy.ndarray
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+
+        elevations = numpy.copy(elevations)
+        # BASED ON MIL-PRF-89020B SECTION 3.11.1, 3.11.2
+        # There are some byte-swapping details that are poorly explained.
+        # The following steps appear to correct for the "complemented" values.
+        # Find negative voids and repair them
+        neg_voids = (elevations < -15000)
+        elevations[neg_voids] = numpy.abs(elevations[neg_voids]) - 32768
+        # Find positive voids and repair them
+        pos_voids = (elevations > 15000)
+        elevations[pos_voids] = 32768 - elevations[pos_voids]
+        return elevations
+
     def _linear(self, ix, dx, iy, dy):
+        # type: (numpy.ndarray, numpy.ndarray, numpy.ndarray, numpy.ndarray) -> numpy.ndarray
         a = (1 - dx) * self._lookup_elevation(ix, iy) + dx * self._lookup_elevation(ix + 1, iy)
         b = (1 - dx) * self._lookup_elevation(ix, iy+1) + dx * self._lookup_elevation(ix+1, iy+1)
         return (1 - dy) * a + dy * b
 
     def _lookup_elevation(self, ix, iy):
+        # type: (numpy.ndarray, numpy.ndarray) -> numpy.ndarray
         t_ix = numpy.copy(ix)
         t_ix[t_ix >= self._shape[0]] = self._shape[0] - 1
         t_ix[t_ix < 0] = 0
@@ -259,16 +329,7 @@ class DTEDReader(object):
         t_iy[t_iy >= self._shape[1]+4] = self._shape[1] + 3
         t_iy[t_iy < 4] = 4
 
-        elevations = self._mem_map[t_ix, t_iy]
-
-        # BASED ON MIL-PRF-89020B SECTION 3.11.1, 3.11.2
-        # There are some byte-swapping details that are poorly explained.
-        # The following steps appear to correct for the "complemented" values.
-        neg_voids = (elevations < -15000.0)  # Find negative voids
-        elevations[neg_voids] = numpy.abs(elevations[neg_voids]) - 32768.0  # And fill them in (2**15 = 32768)
-        pos_voids = (elevations > 15000.0)  # Find positive voids
-        elevations[pos_voids] = 32768.0 - elevations[pos_voids]  # And fill them in
-        return elevations
+        return self._repair_values(self._mem_map[t_ix, t_iy])
 
     def in_bounds(self, lat, lon):
         """
@@ -289,8 +350,9 @@ class DTEDReader(object):
                (lon >= self._bounding_box[0][0]) & (lon <= self._bounding_box[0][1])
 
     def _get_elevation(self, lat, lon):
-        # we implicitly expect that lat/lon make sense
-        #   and are contained in this DTED
+        # type: (numpy.ndarray, numpy.ndarray) -> numpy.ndarray
+
+        # we implicitly require that lat/lon make sense and are contained in this DTED
 
         # get indices
         fx = (lon - self._origin[0])/self._spacing[0]
@@ -360,28 +422,6 @@ class DTEDReader(object):
             return float(out[0])
         else:
             return numpy.reshape(out, o_shape)
-
-    def get_max_entry(self):
-        """
-        Get the maximum DTED entry
-
-        Returns
-        -------
-        float
-        """
-
-        return float(numpy.max(self._mem_map[:, 4:-2]))
-
-    def get_min_entry(self):
-        """
-        Get the maximum DTED entry
-
-        Returns
-        -------
-        float
-        """
-
-        return float(numpy.min(self._mem_map[:, 4:-2]))
 
 
 class DTEDInterpolator(DEMInterpolator):
@@ -453,7 +493,10 @@ class DTEDInterpolator(DEMInterpolator):
 
     @property
     def geoid(self):  # type: () -> GeoidHeight
-        """GeoidHeight: Get the geoid height calculator"""
+        """
+        GeoidHeight: Get the geoid height calculator
+        """
+
         return self._geoid
 
     def _get_elevation_geoid(self, lat, lon):
@@ -560,7 +603,7 @@ class DTEDInterpolator(DEMInterpolator):
         float
         """
 
-        return max(reader.get_max_entry() for reader in self._readers)
+        return float(max(numpy.max(reader[:, :]) for reader in self._readers))
 
     def get_min_dem(self):
         """
@@ -571,4 +614,4 @@ class DTEDInterpolator(DEMInterpolator):
         float
         """
 
-        return min(reader.get_min_entry() for reader in self._readers)
+        return float(min(numpy.min(reader[:, :]) for reader in self._readers))

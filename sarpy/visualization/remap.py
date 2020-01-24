@@ -1,6 +1,5 @@
 """Module for remapping complex data for display."""
 
-from typing import List, Tuple
 from inspect import getmembers, isfunction
 import sys
 
@@ -17,7 +16,7 @@ def get_remap_list():
 
     Returns
     -------
-    List[Tuple[str, callable]]
+    List[Tuple[str, callable], ...]
         List of tuples of the form `(<function name>, <function>)`.
     """
 
