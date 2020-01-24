@@ -24,9 +24,21 @@ __classification__ = "UNCLASSIFIED"
 
 class BaseScraper(object):
     """Describes the abstract functionality"""
+    __slots__ = ()
 
     def __len__(self):
         raise NotImplementedError
+
+    def __str__(self):
+        # TODO: improve this behavior...
+        def get_str(el):
+            if isinstance(el, str):
+                return '"{}"'.format(el.strip())
+            else:
+                return str(el)
+
+        var_str = ','.join('{}={}'.format(el, get_str(getattr(self, el)).strip()) for el in self.__slots__)
+        return '{}(\n\t{}\n)'.format(self.__class__.__name__, var_str)
 
     @classmethod
     def minimum_length(cls):
@@ -79,7 +91,7 @@ class BaseScraper(object):
             raise TypeError('Requires a bytes or str type input, got {}'.format(type(value)))
 
         min_length = cls.minimum_length()
-        if len(value[start:]) < min_length:
+        if len(value) < start + min_length:
             raise TypeError('Requires a bytes or str type input of length at least {}, '
                             'got {}'.format(min_length, len(value[start:])))
         return value
@@ -104,8 +116,8 @@ class _ItemArrayHeaders(BaseScraper):
         item_sizes : numpy.ndarray|None
         """
         if subhead_sizes is None or item_sizes is None:
-            subhead_sizes = numpy.array((0, ), dtype=numpy.int64)
-            item_sizes = numpy.array((0,), dtype=numpy.int64)
+            subhead_sizes = numpy.zeros((0, ), dtype=numpy.int64)
+            item_sizes = numpy.zeros((0,), dtype=numpy.int64)
         if subhead_sizes.shape != item_sizes.shape or len(item_sizes.shape) != 1:
             raise ValueError(
                 'the subhead_offsets and item_offsets arrays must one-dimensional and the same length')
@@ -122,22 +134,20 @@ class _ItemArrayHeaders(BaseScraper):
         return 3
 
     @classmethod
-    def from_string(cls, value, start, *args):
+    def from_string(cls, value, start, subhead_len=0, item_len=0):
         """
 
         Parameters
         ----------
         value : bytes|str
         start : int
-        args : iterable
-            this must have two integer elements, which designate the number of
-            bytes for the subheader size and the number of bytes for the item size
+        subhead_len : int
+        item_len : int
         Returns
         -------
         _ItemArrayHeaders
         """
 
-        subhead_len, item_len = args
         subhead_len, item_len = int_func(subhead_len), int_func(item_len)
 
         value = cls._validate(value, start)
@@ -145,8 +155,8 @@ class _ItemArrayHeaders(BaseScraper):
         loc = start
         count = int_func(value[loc:loc+3])
         loc += 3
-        subhead_sizes = numpy.array((count, ), dtype=numpy.int64)
-        item_sizes = numpy.array((count, ), dtype=numpy.int64)
+        subhead_sizes = numpy.zeros((count, ), dtype=numpy.int64)
+        item_sizes = numpy.zeros((count, ), dtype=numpy.int64)
         for i in range(count):
             subhead_sizes[i] = int_func(value[loc: loc+subhead_len])
             loc += subhead_len
@@ -173,9 +183,14 @@ class ImageComments(BaseScraper):
     def __init__(self, comments=None):
         if comments is None:
             self.comments = []
+        elif isinstance(comments, str):
+            self.comments = [comments, ]
         else:
-            if len(comments) > 9:
-                raise ValueError('comments must have length less than 10. Got {}'.format(len(comments)))
+            comments = list(comments)
+            self.comments = comments
+
+        if len(self.comments) > 9:
+            logging.warning('Only the first 9 comments will be used, got a list of length {}'.format(len(self.comments)))
 
     def __len__(self):
         return 1 + 80*min(len(self.comments), 9)
@@ -230,7 +245,7 @@ class ImageBands(BaseScraper):
     Image bands in the image sub-header.
     """
 
-    __slots__ = ('IREPBAND', 'ISUBCAT', 'IFC', 'IMFLT', 'NLUTS')
+    __slots__ = ('IREPBAND', '_ISUBCAT', 'IFC', 'IMFLT', 'NLUTS')
     _formats = {'ISUBCAT': '6s', 'IREPBAND': '2s', 'IFC': '1s', 'IMFLT': '3s', 'NLUTS': '1d'}
     _defaults = {'IREPBAND': '\x20'*2, 'IFC': 'N', 'IMFLT': '\x20'*3, 'NLUTS': 0}
 
@@ -241,55 +256,57 @@ class ImageBands(BaseScraper):
             raise ValueError('ISUBCAT must have length > 0.')
         if len(ISUBCAT) > 9:
             raise ValueError('ISUBCAT must have length <= 9. Got {}'.format(ISUBCAT))
-        for i, entry in ISUBCAT:
+        for i, entry in enumerate(ISUBCAT):
             if not isinstance(entry, str):
                 raise TypeError('All entries of ISUBCAT must be an instance of str, '
                                 'got {} for entry {}'.format(type(entry), i))
             if len(entry) > 6:
                 raise TypeError('All entries of ISUBCAT must be strings of length at most 6, '
                                 'got {} for entry {}'.format(len(entry), i))
-        self.ISUBCAT = tuple(ISUBCAT)
+        self._ISUBCAT = tuple(ISUBCAT)
 
         for attribute in self.__slots__:
-            if attribute == 'ISUBCAT':
+            if attribute == '_ISUBCAT':
                 continue
             setattr(self, attribute, kwargs.get(attribute, None))
 
+    @property
+    def ISUBCAT(self):
+        return self._ISUBCAT
+
     def __setattr__(self, attribute, value):
-        if attribute not in self.__slots__:
-            raise AttributeError('No attribute {}'.format(attribute))
-        elif attribute == 'ISUBCAT':
-            raise AttributeError('ISUBCAT is intended to be immutable.')
+        if attribute in self._formats:
+            if value is None:
+                object.__setattr__(self, attribute, (self._defaults[attribute], )*len(self.ISUBCAT))
+                return
 
-        if value is None:
-            super(ImageBands, self).__setattr__(attribute, (self._defaults[attribute], )*len(self.ISUBCAT))
-            return
+            if not isinstance(value, (list, tuple)):
+                raise ValueError('Attribute {} must be a list or tuple, '
+                                 'got {}'.format(attribute, type(value)))
+            if not len(value) == len(self.ISUBCAT):
+                raise ValueError('Attribute {} must have the same length as ISUBCAT, '
+                                 'but {} != {}'.format(attribute, len(value), len(self.ISUBCAT)))
 
-        if not isinstance(value, (list, tuple)):
-            raise ValueError('Attribute {} must be a list or tuple, '
-                             'got {}'.format(attribute, type(value)))
-        if not len(value) == len(self.ISUBCAT):
-            raise ValueError('Attribute {} must have the same length as ISUBCAT, '
-                             'but {} != {}'.format(attribute, len(value), len(self.ISUBCAT)))
-
-        fmstr = self._formats[attribute]
-        flen = int_func(fmstr[:-1])
-        for i, entry in value:
-            if fmstr[-1] == 's':
-                if not isinstance(entry, str):
-                    raise TypeError('All entries of {} must be an instance of str, '
-                                    'got {} for entry {}'.format(attribute, type(entry), i))
-                if len(entry) > flen:
-                    raise TypeError('All entries of {} must be strings of length at most {}, '
-                                    'got {} for entry {}'.format(attribute, flen, len(entry), i))
-            if fmstr[-1] == 'd':
-                if not isinstance(entry, integer_types):
-                    raise TypeError('All entries of {} must be an instance of int, '
-                                    'got {} for entry {}'.format(attribute, type(entry), i))
-                if entry >= 10**flen:
-                    raise TypeError('All entries of {} must be expressible as strings of length '
-                                    'at most {}, got {} for entry {}'.format(attribute, flen, entry, i))
-        super(ImageBands, self).__setattr__(attribute, tuple(value))
+            fmstr = self._formats[attribute]
+            flen = int_func(fmstr[:-1])
+            for i, entry in enumerate(value):
+                if fmstr[-1] == 's':
+                    if not isinstance(entry, str):
+                        raise TypeError('All entries of {} must be an instance of str, '
+                                        'got {} for entry {}'.format(attribute, type(entry), i))
+                    if len(entry) > flen:
+                        raise TypeError('All entries of {} must be strings of length at most {}, '
+                                        'got {} for entry {}'.format(attribute, flen, len(entry), i))
+                if fmstr[-1] == 'd':
+                    if not isinstance(entry, integer_types):
+                        raise TypeError('All entries of {} must be an instance of int, '
+                                        'got {} for entry {}'.format(attribute, type(entry), i))
+                    if entry >= 10**flen:
+                        raise TypeError('All entries of {} must be expressible as strings of length '
+                                        'at most {}, got {} for entry {}'.format(attribute, flen, entry, i))
+            object.__setattr__(self, attribute, tuple(value))
+        else:
+            object.__setattr__(self, attribute, value)
 
     def __len__(self):
         return 1 + 13*len(self.ISUBCAT)
@@ -444,23 +461,21 @@ class HeaderScraper(BaseScraper):
         return tuple(map(lambda x: x[1:] if x[0] == '_' else x, cls.__slots__))
 
     def __setattr__(self, attribute, value):
-        if attribute not in (self.__slots__+self._get_settable_attributes()):
-            raise AttributeError('No attribute {}'.format(attribute))
         # is this thing a property? If so, just pass it straight through to setter
         if isinstance(getattr(type(self), attribute, None), property):
-            super(HeaderScraper, self).__setattr__(attribute, value)
+            object.__setattr__(self, attribute, value)
             return
 
         if attribute in self._types:
             typ = self._types[attribute]
             if value is None:
-                super(HeaderScraper, self).__setattr__(attribute, typ())
+                object.__setattr__(self, attribute, typ())
             elif isinstance(value, BaseScraper):
-                super(HeaderScraper, self).__setattr__(attribute, value)
+                object.__setattr__(self, attribute, value)
             else:
                 raise ValueError('Attribute {} is expected to be of type {}, '
                                  'got {}'.format(attribute, typ, type(value)))
-        else:
+        elif attribute in self._formats:
             frmt = self._formats[attribute]
             lng = int_func(frmt[:-1])
             if value is None:
@@ -468,17 +483,22 @@ class HeaderScraper(BaseScraper):
 
             if frmt[-1] == 'd':  # an integer
                 if value is None:
-                    super(HeaderScraper, self).__setattr__(attribute, 0)
+                    object.__setattr__(self, attribute, 0)
                 else:
-                    val = int_func(value)
+                    if isinstance(value, str):
+                        value = value.strip().strip('\x00')  # who's padding with null characters?
+                        val = int_func(value) if len(value) > 0 else 0
+                    else:
+                        val = int_func(value)
                     if 0 <= val < int_func(10)**lng:
-                        super(HeaderScraper, self).__setattr__(attribute, val)
+                        object.__setattr__(self, attribute, val)
                     else:
                         raise ValueError('Attribute {} is expected to be an integer expressible in {} digits. '
                                          'Got {}.'.format(attribute, lng, value))
             elif frmt[-1] == 's':  # a string
+                frmtstr = '{0:' + frmt + '}'
                 if value is None:
-                    super(HeaderScraper, self).__setattr__(attribute, ' ')
+                    object.__setattr__(self, attribute, frmtstr.format('\x20'))  # spaces
                 else:
                     if not isinstance(value, str):
                         raise TypeError('Attribute {} is expected to a string, got {}'.format(attribute, type(value)))
@@ -487,29 +507,11 @@ class HeaderScraper(BaseScraper):
                         logging.warning('Attribute {} is expected to be a string of at most {} characters. '
                                         'Got a value of {} characters, '
                                         'so truncating'.format(attribute, lng, len(value)))
-                        super(HeaderScraper, self).__setattr__(attribute, value[:lng])
+                        object.__setattr__(self, attribute, value[:lng])
                     else:
-                        super(HeaderScraper, self).__setattr__(attribute, value)
-
-    def __getattribute__(self, attribute):
-        if attribute not in (self.__slots__+self._get_settable_attributes()):
-            raise AttributeError('No attribute {}'.format(attribute))
-        if isinstance(getattr(type(self), attribute, None), property):
-            return super(HeaderScraper, self).__getattribute__(attribute)
-        if attribute in self._types:
-            return super(HeaderScraper, self).__getattribute__(attribute)
+                        object.__setattr__(self, attribute, frmtstr.format(value))
         else:
-            frmt = self._formats[attribute]
-            lng = int_func(frmt[:-1])
-            frmtstr = '{0:' + frmt + '}'
-            if frmt[-1] == 'd':  # an integer
-                return super(HeaderScraper, self).__getattribute__(attribute)
-            elif frmt[-1] == 's':  # a string
-                val = super(HeaderScraper, self).__getattribute__(attribute)
-                if len(val) >= lng:
-                    return val[:lng]
-                else:
-                    return frmtstr.format(val)
+            object.__setattr__(self, attribute, value)
 
     def __len__(self):
         length = 0
@@ -554,7 +556,7 @@ class HeaderScraper(BaseScraper):
                 lngt = len(val)
             else:
                 lngt = int_func(cls._formats[attribute][:-1])
-                fields[attribute] = value[loc:lngt]
+                fields[attribute] = value[loc:loc+lngt]
             loc += lngt
         return cls(**fields)
 
@@ -648,7 +650,7 @@ class NITFHeader(HeaderScraper):
 
     @Security.setter
     def Security(self, value):
-        self.set_attribute('_Security', value)
+        self._Security = value
 
     @property
     def ImageSegments(self):  # type: () -> _ItemArrayHeaders
@@ -656,7 +658,7 @@ class NITFHeader(HeaderScraper):
 
     @ImageSegments.setter
     def ImageSegments(self, value):
-        self.set_attribute('_ImageSegments', value)
+        self._ImageSegments = value
 
     @property
     def TextSegments(self):  # type: () -> _ItemArrayHeaders
@@ -664,7 +666,7 @@ class NITFHeader(HeaderScraper):
 
     @TextSegments.setter
     def TextSegments(self, value):
-        self.set_attribute('_TextSegments', value)
+        self._TextSegments = value
 
     @property
     def DataExtensions(self):  # type: () -> _ItemArrayHeaders
@@ -672,7 +674,7 @@ class NITFHeader(HeaderScraper):
 
     @DataExtensions.setter
     def DataExtensions(self, value):
-        self.set_attribute('_DataExtensions', value)
+        self._DataExtensions = value
 
     @property
     def UserHeader(self):  # type: () -> OtherHeader
@@ -680,7 +682,7 @@ class NITFHeader(HeaderScraper):
 
     @UserHeader.setter
     def UserHeader(self, value):
-        self.set_attribute('_UserHeader', value)
+        self._UserHeader = value
 
     @property
     def ExtendedHeader(self):  # type: () -> OtherHeader
@@ -688,7 +690,7 @@ class NITFHeader(HeaderScraper):
 
     @ExtendedHeader.setter
     def ExtendedHeader(self, value):
-        self.set_attribute('_ExtendedHeader', value)
+        self._ExtendedHeader = value
 
 
 class ImageSegmentHeader(HeaderScraper):
@@ -731,7 +733,7 @@ class ImageSegmentHeader(HeaderScraper):
 
     @Security.setter
     def Security(self, value):
-        self.set_attribute('_Security', value)
+        self._Security = value
 
     @property
     def ImageComments(self):  # type: () -> ImageComments
@@ -740,7 +742,7 @@ class ImageSegmentHeader(HeaderScraper):
 
     @ImageComments.setter
     def ImageComments(self, value):
-        self.set_attribute('_ImageComments', value)
+        self._ImageComments = value
 
     @property
     def ImageBands(self):  # type: () -> ImageBands
@@ -749,7 +751,7 @@ class ImageSegmentHeader(HeaderScraper):
 
     @ImageBands.setter
     def ImageBands(self, value):
-        self.set_attribute('_ImageBands', value)
+        self._ImageBands = value
 
 
 class NITFDetails(object):
@@ -826,6 +828,7 @@ class NITFDetails(object):
         """None|List[ImageSegmentHeader]: the image segment headers"""
         if self._img_headers is not None:
             return self._img_headers
+
         self._parse_img_headers()
         return self._img_headers
 
@@ -836,7 +839,7 @@ class NITFDetails(object):
         img_headers = []
         with open(self._file_name, mode='rb') as fi:
             for offset, subhead_size in zip(
-                    self.img_segment_offsets, self._nitf_header.ImageSegments.subhead_sizes):
+                    self.img_subheader_offsets, self._nitf_header.ImageSegments.subhead_sizes):
                 fi.seek(int_func(offset))
                 header_string = fi.read(int_func(subhead_size))
                 img_headers.append(ImageSegmentHeader.from_string(header_string, 0))

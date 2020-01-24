@@ -368,7 +368,7 @@ class ImageFormationType(Serializable):
             # this is based on the assumption that the entire transmitted bandwidth was processed.
             if self.TxFrequencyProc is not None:
                 self.TxFrequencyProc = TxFrequencyProcType(
-                    ProcMin=RadarCollection.TxFrequency.Min, ProcMax=RadarCollection.TxFrequency.Max)
+                    MinProc=RadarCollection.TxFrequency.Min, MaxProc=RadarCollection.TxFrequency.Max)
                 # how would it make sense to set only one end?
             elif self.TxFrequencyProc.MinProc is None:
                 self.TxFrequencyProc.MinProc = RadarCollection.TxFrequency.Min

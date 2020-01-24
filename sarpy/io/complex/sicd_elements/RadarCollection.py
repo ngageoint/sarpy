@@ -550,7 +550,7 @@ class RadarCollectionType(Serializable):
     _collections_tags = {
         'Waveform': {'array': True, 'child_tag': 'WFParameters'},
         'TxSequence': {'array': True, 'child_tag': 'TxStep'},
-        'RcvChannels': {'array': True, 'child_tag': 'RcvChannels'},
+        'RcvChannels': {'array': True, 'child_tag': 'ChanParameters'},
         'Parameters': {'array': False, 'child_tag': 'Parameters'}}
     # other class variables
     _POLARIZATION1_VALUES = ('V', 'H', 'RHC', 'LHC', 'OTHER', 'UNKNOWN', 'SEQUENCE')

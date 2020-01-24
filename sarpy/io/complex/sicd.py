@@ -259,7 +259,7 @@ class SICDDetails(NITFDetails):
         # populate the image details
         self.img_segment_rows = numpy.zeros(self.img_segment_offsets.shape, dtype=numpy.int64)
         self.img_segment_columns = numpy.zeros(self.img_segment_offsets.shape, dtype=numpy.int64)
-        for i, im_header in self.img_headers:
+        for i, im_header in enumerate(self.img_headers):
             self.img_segment_rows[i] = im_header.NROWS
             self.img_segment_columns[i] = im_header.NCOLS
 
@@ -279,11 +279,13 @@ class SICDDetails(NITFDetails):
             self._sicd_meta = None
 
         with open(self._file_name, 'rb') as fi:
-            fi.seek(int_func(self.des_subheader_offsets[0]))
-            data_extension = fi.read(self._nitf_header.DataExtensions.item_sizes[0])
+            fi.seek(int_func(self.des_segment_offsets[0]))
+            data_extension = fi.read(int_func(self._nitf_header.DataExtensions.item_sizes[0])).decode('utf-8')
 
-        root_node = ElementTree.fromstring(data_extension)  # handles bytes?
-        if root_node.tag.split('}', 1)[-1] == 'SICD':
+        if data_extension.startswith('<SICD'):
+            # junk the namespace (for now)
+            data_extension = re.sub('\\sxmlns="[^"]+"', '', data_extension, count=1)
+            root_node = ElementTree.fromstring(data_extension)  # handles bytes?
             # TODO: account for CPHD xml?
             self._is_sicd = True
 

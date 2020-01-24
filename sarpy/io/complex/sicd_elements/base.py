@@ -296,9 +296,11 @@ def _parse_serializable_array(value, name, instance, child_type, child_tag):
         return value
     elif isinstance(value, ElementTree.Element):
         # this is the parent node from XML deserialization
-        size = int_func(value.attrib['size'])
+        size = int_func(value.attrib.get('size', -1))  # NB: Corner Point arrays don't have
         # extract child nodes at top level
         child_nodes = value.findall(child_tag)
+        if size == -1:  # fill in, if it's missing
+            size = len(child_nodes)
         if len(child_nodes) != size:
             raise ValueError(
                 'Attribute {} of array type functionality belonging to class {} got a ElementTree element '
@@ -954,7 +956,7 @@ class _UnitVectorDescriptor(_BasicDescriptor):
         elif the_norm == 1:
             self.data[instance] = vec
         else:
-            self.data[instance] = self.the_type.from_array(coords/norm)
+            self.data[instance] = self.the_type.from_array(coords/the_norm)
 
 
 class _ParametersDescriptor(_BasicDescriptor):
@@ -1978,6 +1980,15 @@ class SerializableCPArray(SerializableArray):
             self._array[1].index = '2:FRLC'
             self._array[2].index = '3:LRLC'
             self._array[3].index = '4:LRFC'
+
+    def to_node(self, doc, tag, parent=None, strict=DEFAULT_STRICT):
+        if self.size == 0:
+            return None  # nothing to be done
+
+        anode = _create_new_node(doc, tag, parent=parent)
+        for i, entry in enumerate(self._array):
+            entry.to_node(doc, self._child_tag, parent=anode, strict=strict)
+        return anode
 
 
 class ParametersCollection(object):

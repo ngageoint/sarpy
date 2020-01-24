@@ -608,9 +608,15 @@ def _validate_im_points(im_points, sicd):
     numpy.ndarray
     """
 
+    if im_points is None:
+        raise ValueError('The argument cannot be None')
+
     if not isinstance(im_points, numpy.ndarray):
         im_points = numpy.array(im_points, dtype=numpy.float64)
 
+    if len(im_points.shape) == 1:
+        im_points = numpy.reshape(im_points, (1, -1))
+    print(im_points.shape, im_points)
     if im_points.shape[-1] != 2:
         raise ValueError(
             'The im_points array must represent an array of points in pixel coordinates, '

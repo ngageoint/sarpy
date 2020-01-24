@@ -298,12 +298,11 @@ class SICDType(Serializable):
         #   the below exception catching is half-baked, because the method should be refactored.
 
         try:
-            corner_coords = point_projection.image_to_ground_geo(
-                self.ImageData.get_valid_vertex_data(dtype=numpy.float64), self)
-        except (ValueError, AttributeError):
-            return
-
-        self.GeoData.ValidData = corner_coords
+            valid_vertices = self.ImageData.get_valid_vertex_data(dtype=numpy.float64)
+            if valid_vertices is not None:
+                self.GeoData.ValidData = point_projection.image_to_ground_geo(valid_vertices, self)
+        except AttributeError:
+            pass
 
     def derive(self):
         """

@@ -35,13 +35,12 @@ def _raised_cos(n, coef):  # TODO: This name also stinks
     """Helper method"""
     weights = numpy.zeros((n,), dtype=numpy.float64)
     if (n % 2) == 0:
-        theta = 2*numpy.pi*numpy.arange(n/2)/(n-1)  # TODO: why n-1?
-        weights[:n] = (coef - (1-coef)*numpy.cos(theta))
-        weights[:n] = weights[:n]
+        k = int(n/2)
     else:
-        theta = 2*numpy.pi*numpy.arange((n+1)/2)/(n-1)
-        weights[:n+1] = (coef - (1-coef)*numpy.cos(theta))
-        weights[:n+1] = weights[:n]
+        k = int((n+1)/2)
+    theta = 2*numpy.pi*numpy.arange(k)/(n-1)   # TODO: why n-1?
+    weights[:k] = (coef - (1-coef)*numpy.cos(theta))
+    weights[k:] = weights[k-1::-1]
     return weights
 
 
@@ -152,7 +151,7 @@ class WgtTypeType(Serializable):
             return default
         if param_name is None:
             # get the first value - this is dumb, but appears a use case. Leaving undocumented.
-            return the_dict.values()[0]
+            return list(the_dict.values())[0]
         return the_dict.get(param_name, default)
 
     @classmethod
