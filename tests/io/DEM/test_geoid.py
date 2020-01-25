@@ -28,6 +28,7 @@ start = time.time()
 gh = geoid.GeoidHeight(file_name=os.path.join(stem, 'egm2008-5.pgm'))
 print('time initializing {}'.format(time.time() - start))
 
+
 recs = 10
 # test one
 start = time.time()
@@ -38,14 +39,14 @@ start = time.time()
 zs1 = gh.get(lats[:recs], lons[:recs], cubic=True)
 print('cubic - time {}, diff {}'.format(time.time() - start, zs1 - zs[:recs]))
 
-recs = 500000
+
 # test one
 start = time.time()
-zs1 = gh.get(lats[:recs], lons[:recs], cubic=False)
-diff = numpy.abs(zs1 - zs[:recs])
+zs1 = gh.get(lats, lons, cubic=False)
+diff = numpy.abs(zs1 - zs)
 print('linear - time {}, max diff - {}, mean diff - {}'.format(time.time() - start, numpy.max(diff), numpy.mean(diff)))
 # test two
 start = time.time()
-zs1 = gh.get(lats[:recs], lons[:recs], cubic=True)
-diff = numpy.abs(zs1 - zs[:recs])
+zs1 = gh.get(lats, lons, cubic=True)
+diff = numpy.abs(zs1 - zs)
 print('cubic - time {}, max diff - {}, mean diff - {}'.format(time.time() - start, numpy.max(diff), numpy.mean(diff)))

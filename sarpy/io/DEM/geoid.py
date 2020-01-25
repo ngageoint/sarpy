@@ -6,26 +6,30 @@ at any given latitude and longitude.
 **Some Accuracy Details:**
 Using the 5 minute pgm and linear interpolation, the average error `|calculated - real|`
 is around 5 millimeters, and the worst case error is around 30 centimeters. Using cubic
-interpolation (which takes 2-3 times longer, but is still quite fast), the average error
-drops to about 3 mm, and the worst case is about 17 cm.
+interpolation, the average error drops to about 3 mm, and the worst case is about 17 cm.
 
 Using the 1 minute pgm and linear interpolation, the average error is around 0.5 mm and
-worst case error around 1 cm. Using cubic interpolation, the average error is still around 0.5 mm,
-and worst case error around 2 mm.
+worst case error around 1 cm. Using cubic interpolation, the average error is still around
+0.5 mm, and worst case error around 2 mm.
 
 The accuracy obtained using the 5, 2.5, or 1 minute pgm are likely all more than suitable
 for any SAR application. The the accuracy clearly increases with finer grid.
 
 **Some Processing Speed and Resource Details:**
-A memory map into the pgm file is established, which requires relatively little "real"
-RAM, but an amount of virtual memory on par with the file size. Processing using the
-1 minute pgm and 5 minute pgm are not appreciably different, in terms of speed or real
-memory resources. Slow end speeds of around 1.5 million points/second for linear
-interpolation and 500,000 points/second for cubic interpolation are expected.
+A memory map into the pgm file is established, which requires relatively little "real" RAM,
+but an amount of virtual memory on par with the file size. The speed seems to generally scale
+close to inverse linearly with pixel size, so using the 5 minute pgm is generally ~4-5 times
+faster than using the 1 minute pgm.
 
-The only benefit for using the 5 minute (or 2.5 minute) pgm instead of the 1 minute
-pgm is file size. The 1 minute pgm file is around 450 MB, while the 5 minute pgm is about
-25 times smaller at around 18 MB.
+Using the 5 minute pgm, processing rate of around 4-8 million points per second for linear
+interpolation and 1-2 million points per second for cubic interpolation. Using the 1 minute pgm,
+this processing rate drops to 1-2 million points per second for linear interpolation, and
+~million points per second using the cubic interpolation. These rates depend of a variety
+of factors including processor speed, hard drive speed, and how your operating system handles
+memory maps.
+
+The 5 minute pgm is about 25 times smaller at around 18 MB, while the 1 minute pgm file is
+around 450 MB.
 
 **File Locations:**
 As of January 2020, the egm2008 pgm files are available for download at
