@@ -7,6 +7,7 @@ import numpy
 import struct
 from typing import List
 
+from . import _argument_validation
 from .geoid import GeoidHeight, find_geoid_file_from_dir
 
 integer_types = (int, )
@@ -386,20 +387,7 @@ class DTEDReader(object):
             elevation values of the same shape as lat/lon.
         """
 
-        if block_size is not None:
-            block_size = min(50000, int(block_size))
-
-        if not isinstance(lat, numpy.ndarray):
-            lat = numpy.array(lat)
-        if not isinstance(lon, numpy.ndarray):
-            lon = numpy.array(lon)
-        if lat.shape != lon.shape:
-            raise ValueError(
-                'lat and lon must have the same shape, got '
-                'lat.shape = {}, lon.shape = {}'.format(lat.shape, lon.shape))
-        o_shape = lat.shape
-        lat = numpy.reshape(lat, (-1, ))
-        lon = numpy.reshape(lon, (-1, ))
+        o_shape, lat, lon = _argument_validation(lat, lon)
 
         out = numpy.full(lat.shape, numpy.nan, dtype=numpy.float64)
         if block_size is None:
@@ -407,6 +395,7 @@ class DTEDReader(object):
             if numpy.any(boolc):
                 out[boolc] = self._get_elevation(lat[boolc], lon[boolc])
         else:
+            block_size = min(50000, int(block_size))
             start_block = 0
             while start_block < lat.size:
                 end_block = min(lat.size, start_block + block_size)
@@ -564,24 +553,12 @@ class DTEDInterpolator(DEMInterpolator):
             model will result in only minor differences.
         """
 
-        if block_size is not None:
-            block_size = min(50000, int(block_size))
-
-        if not isinstance(lat, numpy.ndarray):
-            lat = numpy.array(lat)
-        if not isinstance(lon, numpy.ndarray):
-            lon = numpy.array(lon)
-        if lat.shape != lon.shape:
-            raise ValueError(
-                'lat and lon must have the same shape, got '
-                'lat.shape = {}, lon.shape = {}'.format(lat.shape, lon.shape))
-        o_shape = lat.shape
-        lat = numpy.reshape(lat, (-1, ))
-        lon = numpy.reshape(lon, (-1, ))
+        o_shape, lat, lon = _argument_validation(lat, lon)
 
         if block_size is None:
             out = self._get_elevation_geoid(lat, lon)
         else:
+            block_size = min(50000, int(block_size))
             out = numpy.full(lat.shape, numpy.nan, dtype=numpy.float64)
             start_block = 0
             while start_block < lat.size:
