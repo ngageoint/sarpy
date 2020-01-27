@@ -12,6 +12,8 @@ class PlotStyleUtils:
         self.rgb_array_fixed_bin_palette = None           # type: [[float]]
         self.rgb_array_full_palette = None          # type: [[float]]
         self.set_palette_by_name(SeabornPaletteNames.muted)
+        self.linewidths = (0.5)
+        self.linestyle = 'solid'
 
     def set_palette_by_name(self, palette_name):
         hex_palette = SeabornHexPalettes.get_palette_by_name(palette_name)
