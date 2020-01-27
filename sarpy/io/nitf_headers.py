@@ -4,6 +4,9 @@ Functionality for dealing with NITF file header information. This is specificall
 geared towards SICD file usage, and some functionality may not allow full generality.
 """
 
+# TODO: See MIL-STD-2500C for ability to parse the other types of subheaders in the
+#   tables in appendix A.
+
 import logging
 import sys
 from collections import OrderedDict
@@ -620,38 +623,45 @@ class NITFHeader(HeaderScraper):
         'OSTAID', 'FDT', 'FTITLE', '_Security',
         'FSCOP', 'FSCPYS', 'ENCRYP', 'FBKGC',
         'ONAME', 'OPHONE', 'FL', 'HL',
-        '_ImageSegments', 'NUMS', 'NUMX',
-        '_TextSegments', '_DataExtensions', 'NUMRES',
+        '_ImageSegments', '_GraphicsSegments', 'NUMX',
+        '_TextSegments', '_DataExtensions', '_ReservedExtensions',
         '_UserHeader', '_ExtendedHeader')
-    # NB: it appears that NUMS and NUMX are not actually used, and should always be 0
+    # NB: NUMX is truly reserved for future use, and should always be 0
     _formats = {
         'FHDR': '4s', 'FVER': '5s', 'CLEVEL': '2d', 'STYPE': '4s',
         'OSTAID': '10s', 'FDT': '14s', 'FTITLE': '80s',
         'FSCOP': '5d', 'FSCPYS': '5d', 'ENCRYP': '1s', 'FBKGC': '3d',
         'ONAME': '24s', 'OPHONE': '18s', 'FL': '12d', 'HL': '6d',
-        'NUMS': '3d', 'NUMX': '3d', 'NUMRES': '3d', }
+        'NUMX': '3d', }
     _defaults = {
         'FHDR': 'NITF', 'FVER': '02.10', 'STYPE': 'BF01',
         'FSCOP': 0, 'FSCPYS': 0, 'ENCRYP': '0',
         'FBKGC': 0, 'ONAME': '\x20', 'OPHONE': '\x20',
-        'HL': 338, 'NUMS': 0, 'NUMX': 0, 'NUMRES': 0}
+        'HL': 338, 'NUMX': 0, }
     _types = {
         '_Security': NITFSecurityTags,
         '_ImageSegments': _ItemArrayHeaders,
+        '_GraphicsSegments': _ItemArrayHeaders,
         '_TextSegments': _ItemArrayHeaders,
         '_DataExtensions': _ItemArrayHeaders,
+        '_ReservedExtensions': _ItemArrayHeaders,
         '_UserHeader': OtherHeader,
         '_ExtendedHeader': OtherHeader, }
     _args = {
         '_ImageSegments': {'subhead_len': 6, 'item_len': 10},
+        '_GraphicsSegments': {'subhead_len': 4, 'item_len': 6},
         '_TextSegments': {'subhead_len': 4, 'item_len': 5},
-        '_DataExtensions': {'subhead_len': 4, 'item_len': 9}, }
+        '_DataExtensions': {'subhead_len': 4, 'item_len': 9},
+        '_ReservedExtensions': {'subhead_len': 4, 'item_len': 7},
+    }
 
     def __init__(self, **kwargs):
         self._Security = None
         self._ImageSegments = None
+        self._GraphicsSegments = None
         self._TextSegments = None
         self._DataExtensions = None
+        self._ReservedExtensions = None
         self._UserHeader = None
         self._ExtendedHeader = None
         super(NITFHeader, self).__init__(**kwargs)
@@ -675,6 +685,14 @@ class NITFHeader(HeaderScraper):
         self._ImageSegments = value
 
     @property
+    def GraphicsSegments(self):  # type: () -> _ItemArrayHeaders
+        return self._GraphicsSegments
+
+    @GraphicsSegments.setter
+    def GraphicsSegments(self, value):
+        self._GraphicsSegments = value
+
+    @property
     def TextSegments(self):  # type: () -> _ItemArrayHeaders
         return self._TextSegments
 
@@ -689,6 +707,14 @@ class NITFHeader(HeaderScraper):
     @DataExtensions.setter
     def DataExtensions(self, value):
         self._DataExtensions = value
+
+    @property
+    def ReservedExtensions(self):  # type: () -> _ItemArrayHeaders
+        return self._ReservedExtensions
+
+    @ReservedExtensions.setter
+    def ReservedExtensions(self, value):
+        self._ReservedExtensions = value
 
     @property
     def UserHeader(self):  # type: () -> OtherHeader
@@ -784,8 +810,10 @@ class NITFDetails(object):
     __slots__ = (
         '_file_name', '_nitf_header', '_img_headers',
         'img_subheader_offsets', 'img_segment_offsets',
+        'graphics_subheader_offsets', 'graphics_segment_offsets',
         'text_subheader_offsets', 'text_segment_offsets',
-        'des_subheader_offsets', 'des_segment_offsets')
+        'des_subheader_offsets', 'des_segment_offsets',
+        'res_subheader_offsets', 'res_segment_offsets')
 
     def __init__(self, file_name):
         """
@@ -816,13 +844,18 @@ class NITFDetails(object):
         # populate image segment offset information
         curLoc, self.img_subheader_offsets, self.img_segment_offsets = self._element_offsets(
             curLoc, self._nitf_header.ImageSegments)
+        # populate graphics segment offset information
+        curLoc, self.graphics_subheader_offsets, self.graphics_segment_offsets = self._element_offsets(
+            curLoc, self._nitf_header.GraphicsSegments)
         # populate text segment offset information
         curLoc, self.text_subheader_offsets, self.text_segment_offsets = self._element_offsets(
             curLoc, self._nitf_header.TextSegments)
-
         # populate data extension offset information
         curLoc, self.des_subheader_offsets, self.des_segment_offsets = self._element_offsets(
             curLoc, self._nitf_header.DataExtensions)
+        # populate data extension offset information
+        curLoc, self.res_subheader_offsets, self.res_segment_offsets = self._element_offsets(
+            curLoc, self._nitf_header.ReservedExtensions)
 
     @staticmethod
     def _element_offsets(curLoc, item_array_details):

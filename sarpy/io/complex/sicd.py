@@ -229,12 +229,12 @@ class SICDDetails(NITFDetails):
         """
 
         super(SICDDetails, self).__init__(file_name)
-        if self._nitf_header.NUMS > 0:
-            raise IOError('SICD does not allow for graphics segments.')
-        if self._nitf_header.NUMX > 0:
-            raise IOError('SICD does not allow for reserved extension segments.')
         if self._nitf_header.ImageSegments.subhead_sizes.size == 0:
             raise IOError('There are no image segments defined.')
+        if self._nitf_header.GraphicsSegments.item_sizes.size > 0:
+            raise IOError('SICD does not allow for graphics segments.')
+        if self._nitf_header.ReservedSegments.item_sizes.size > 0:
+            raise IOError('SICD does not allow for reserved extension segments.')
         if self._nitf_header.DataExtensions.subhead_sizes.size != 1:
             raise IOError('SICD requires exactly one data extension, containing the '
                           'SICD xml structure.')
