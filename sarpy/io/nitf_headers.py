@@ -13,12 +13,15 @@ from typing import Union, Tuple
 import numpy
 
 integer_types = (int, )
+string_types = (str, )
 int_func = int
 if sys.version_info[0] < 3:
     # noinspection PyUnresolvedReferences
     int_func = long  # to accommodate for 32-bit python 2
     # noinspection PyUnresolvedReferences
     integer_types = (int, long)
+    # noinspection PyUnresolvedReferences
+    string_types = (str, unicode)
 
 __classification__ = "UNCLASSIFIED"
 
@@ -33,7 +36,7 @@ class BaseScraper(object):
     def __str__(self):
         # TODO: improve this behavior...
         def get_str(el):
-            if isinstance(el, str):
+            if isinstance(el, string_types):
                 return '"{}"'.format(el.strip())
             else:
                 return str(el)
@@ -86,7 +89,7 @@ class BaseScraper(object):
 
     @classmethod
     def _validate(cls, value, start):
-        if isinstance(value, str):
+        if isinstance(value, string_types):
             value = value.encode()
         if not isinstance(value, bytes):
             raise TypeError('Requires a bytes or str type input, got {}'.format(type(value)))
@@ -184,7 +187,7 @@ class ImageComments(BaseScraper):
     def __init__(self, comments=None):
         if comments is None:
             self.comments = []
-        elif isinstance(comments, str):
+        elif isinstance(comments, string_types):
             self.comments = [comments, ]
         else:
             comments = list(comments)
@@ -265,7 +268,7 @@ class ImageBands(BaseScraper):
         for i, entry in enumerate(ISUBCAT):
             if isinstance(entry, bytes):
                 entry = entry.decode('utf-8')
-            if not isinstance(entry, str):
+            if not isinstance(entry, string_types):
                 raise TypeError('All entries of ISUBCAT must be an instance of str, '
                                 'got {} for entry {}'.format(type(entry), i))
             if len(entry) > 6:
@@ -300,7 +303,7 @@ class ImageBands(BaseScraper):
             flen = int_func(fmstr[:-1])
             for i, entry in enumerate(value):
                 if fmstr[-1] == 's':
-                    if not isinstance(entry, str):
+                    if not isinstance(entry, string_types):
                         raise TypeError('All entries of {} must be an instance of str, '
                                         'got {} for entry {}'.format(attribute, type(entry), i))
                     if len(entry) > flen:
@@ -390,7 +393,7 @@ class OtherHeader(BaseScraper):
             self.overflow = int_func(overflow)
         if header is None:
             self.header = header
-        elif not isinstance(header, str):
+        elif not isinstance(header, string_types):
             raise ValueError('header must be of string type')
         elif len(header) > 99991:
             logging.warning('Other header will be truncated to 99,9991 characters from {}'.format(header))
@@ -516,7 +519,7 @@ class HeaderScraper(BaseScraper):
                 else:
                     if isinstance(value, bytes):
                         value = value.decode('utf-8')
-                    if not isinstance(value, str):
+                    if not isinstance(value, string_types):
                         raise TypeError('Attribute {} is expected to a string, got {}'.format(attribute, type(value)))
 
                     if len(value) > lng:
@@ -534,7 +537,7 @@ class HeaderScraper(BaseScraper):
                     if len(value) != lng:
                         raise ValueError('Attribute {} must take a bytes of length {}'.format(attribute, lng))
                     object.__setattr__(self, attribute, value)
-                elif isinstance(value, str):
+                elif isinstance(value, string_types):
                     if len(value) != lng:
                         raise ValueError('Attribute {} must take a bytes of length {}'.format(attribute, lng))
                     object.__setattr__(self, attribute, value.encode())
@@ -603,7 +606,7 @@ class HeaderScraper(BaseScraper):
             elif isinstance(val, integer_types):
                 _, fstr = self.get_format_string(attribute)
                 out += fstr.format(val).encode()
-            elif isinstance(val, str):
+            elif isinstance(val, string_types):
                 out += val.encode()
             elif isinstance(val, bytes):
                 out += val
@@ -866,7 +869,7 @@ class DataExtensionHeader(HeaderScraper):
         if self.DESSHL > 0:
             if other_string is None:
                 raise ValueError('There should be a specific des subhead of length {} provided'.format(self.DESSHL))
-            if isinstance(other_string, str):
+            if isinstance(other_string, string_types):
                 other_string = other_string.encode()
             if not isinstance(other_string, bytes):
                 raise TypeError('The specific des subhead must be of type bytes or str, got {}'.format(type(other_string)))
