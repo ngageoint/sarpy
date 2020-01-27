@@ -20,20 +20,25 @@ print('unpacked nitf details in {}'.format(time.time() - start))
 
 # is the output as long as it should be?
 header_string = details._nitf_header.to_string()
-assert len(header_string) == details._nitf_header.HL
+equality = (len(header_string) == details._nitf_header.HL)
+if not equality:
+    print('len(produced header) = {}, nitf_header.HL = {}'.format(len(header_string), details._nitf_header.HL))
+assert equality
 
 # is the output what it should be?
 with open(test_file, 'rb') as fi:
     file_header = fi.read(details._nitf_header.HL)
 
-# chunk_size = 80
-# start_chunk = 0
-# while start_chunk < len(header_string):
-#     end_chunk = min(start_chunk+chunk_size, len(header_string))
-#     print('real[{}:{}] = {}'.format(
-#         start_chunk, end_chunk, file_header[start_chunk:end_chunk]))
-#     print('prod[{}:{}] = {}'.format(
-#         start_chunk, end_chunk, header_string[start_chunk:end_chunk]))
-#     start_chunk = end_chunk
+equality = (file_header == header_string)
+if not equality:
+    chunk_size = 80
+    start_chunk = 0
+    while start_chunk < len(header_string):
+        end_chunk = min(start_chunk+chunk_size, len(header_string))
+        print('real[{}:{}] = {}'.format(
+            start_chunk, end_chunk, file_header[start_chunk:end_chunk]))
+        print('prod[{}:{}] = {}'.format(
+            start_chunk, end_chunk, header_string[start_chunk:end_chunk]))
+        start_chunk = end_chunk
 
-assert file_header == header_string
+assert equality
