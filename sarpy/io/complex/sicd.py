@@ -8,12 +8,11 @@ import sys
 import logging
 from xml.etree import ElementTree
 from typing import Union, Tuple
-from collections import OrderedDict
 
 import numpy
 
-from ..nitf_headers import NITFDetails, BaseScraper, HeaderScraper, NITFHeader, NITFSecurityTags, \
-    ImageSegmentHeader, ImageBands, _ItemArrayHeaders
+from ..nitf_headers import NITFDetails, DataExtensionHeader, HeaderScraper, \
+    NITFHeader, NITFSecurityTags, ImageSegmentHeader, ImageBands, _ItemArrayHeaders
 from .base import BaseChipper, BaseReader, BaseWriter
 from .bip import BIPChipper, BIPWriter
 from .sicd_elements.SICD import SICDType
@@ -35,7 +34,7 @@ __classification__ = "UNCLASSIFIED"
 _SPECIFICATION_IDENTIFIER = 'SICD Volume 1 Design & Implementation Description Document'
 _SPECIFICATION_VERSION = '1.1'
 _SPECIFICATION_DATE = '2014-09-30T00:00:00Z'
-_SPECIFICATION_NAMESPACE = 'urn:SICD:1.1.0'  # this is expected to be of the form 'urn:SICD:<version>'
+_SPECIFICATION_NAMESPACE = 'urn:SICD:1.1.0'  # must be of the form 'urn:SICD:<version>'
 
 
 class SICDDESSubheader(HeaderScraper):
@@ -70,18 +69,13 @@ class SICDDESSubheader(HeaderScraper):
         return 773
 
 
-class DataExtensionHeader(HeaderScraper):
+class SICDDataExtensionHeader(DataExtensionHeader):
     """
     The data extension header - this may only work for SICD data extension headers?
     described in SICD standard 2014-09-30, Volume II, page 29.
     """
 
-    __slots__ = (
-        'DE', 'DESID', 'DESVER', '_Security',
-        'DESSHL', '_SICDHeader')
-    _formats = {
-        'DE': '2s', 'DESID': '25s', 'DESVER': '2d',
-        'DESSHL': '4d', }
+    __slots__ = ('_SICDHeader', )
     _defaults = {
         'DE': 'DE', 'DESID': 'XML_DATA_CONTENT', 'DESVER': 1,
         'DESSHL': 773, }
@@ -94,27 +88,17 @@ class DataExtensionHeader(HeaderScraper):
         self.DESSHL = None
         self._Security = None
         self._SICDHeader = None
-        super(DataExtensionHeader, self).__init__(**kwargs)
+        super(SICDDataExtensionHeader, self).__init__(**kwargs)
 
     @classmethod
     def minimum_length(cls):
-        return 33
+        return 200
 
     def __len__(self):
-        length = 33
-        if self._Security is not None:
-            length += len(self._Security)
+        length = 200
         if self._SICDHeader is not None:
             length += 773
         return length
-
-    @property
-    def Security(self):  # type: () -> NITFSecurityTags
-        return self._Security
-
-    @Security.setter
-    def Security(self, value):
-        self._Security = value
 
     @property
     def SICDHeader(self):  # type: () -> Union[SICDDESSubheader, None]
@@ -148,37 +132,18 @@ class DataExtensionHeader(HeaderScraper):
 
         return cls(**fields)
 
-    def to_string(self):
+    def to_string(self, other_string=None):
         if self.DESSHL == 773 and self.SICDHeader is None:
             self.SICDHeader = SICDDESSubheader()
         elif self.DESSHL != 773:
             self.DESSHL = 0
             self.SICDHeader = None
 
-        out = ''
-        for attribute in self.__slots__[:-2]:
-            val = getattr(self, attribute)
-            if isinstance(val, BaseScraper):
-                out += val.to_string()
-            elif isinstance(val, integer_types):
-                flen, fstr = self.get_format_string(attribute)
-                val = getattr(self, attribute)
-                if val >= 10**flen:
-                    raise ValueError('Attribute {} has integer value {}, which cannot be written as '
-                                     'a string of length {}'.format(attribute, val, flen))
-                out += fstr.format(val)
-            elif isinstance(val, str):
-                flen, fstr = self.get_format_string(attribute)
-                val = getattr(self, attribute)
-                if len(val) <= flen:
-                    out += fstr.format(val)  # left justified of length flen
-                else:
-                    out += val[:flen]
-        if self.SICDHeader is not None:
-            out += '0773' + self.SICDHeader.to_string()
+        if self.SICDHeader is None:
+            other_string = None
         else:
-            out += '0000'
-        return out
+            other_string = self.SICDHeader.to_string()
+        return super(SICDDataExtensionHeader, self).to_string(other_string=other_string)
 
 
 ########
@@ -633,9 +598,9 @@ class SICDWriter(BaseWriter):
         return self._image_segment_headers
 
     @property
-    def data_extension_header(self):  # type: () -> DataExtensionHeader
+    def data_extension_header(self):  # type: () -> SICDDataExtensionHeader
         """
-        DataExtensionHeader: the NITF data extension header. The `SecurityTags`
+        SICDDataExtensionHeader: the NITF data extension header. The `SecurityTags`
         property will be populated using `security_tags` by default.
 
         .. Note: required edits should be made before adding any data via :func:`write_chip`.
@@ -785,7 +750,7 @@ class SICDWriter(BaseWriter):
                 temp.append('{0:+2.8f}{1:+3.8f}'.format(entry[0], entry[1]))
             temp.append(temp[0])
             desshlpg = ''.join(temp)
-        return DataExtensionHeader(DESSHDT=desshdt, DESSHLPG=desshlpg, Security=self._security_tags)
+        return SICDDataExtensionHeader(DESSHDT=desshdt, DESSHLPG=desshlpg, Security=self._security_tags)
 
     def _create_nitf_header(self):
         im_size = self._sicd_meta.ImageData.NumRows*self._sicd_meta.ImageData.NumCols*self._pixel_size

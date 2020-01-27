@@ -2,10 +2,8 @@
 """
 Functionality for dealing with NITF file header information. This is specifically
 geared towards SICD file usage, and some functionality may not allow full generality.
+See MIL-STD-2500C for specification details.
 """
-
-# TODO: See MIL-STD-2500C for ability to parse the other types of subheaders in the
-#   tables in appendix A.
 
 import logging
 import sys
@@ -81,16 +79,16 @@ class BaseScraper(object):
 
         Returns
         -------
-        str
+        bytes
         """
 
         raise NotImplementedError
 
     @classmethod
     def _validate(cls, value, start):
-        if isinstance(value, bytes):
-            value = value.decode('utf-8')
-        if not isinstance(value, str):
+        if isinstance(value, str):
+            value = value.encode()
+        if not isinstance(value, bytes):
             raise TypeError('Requires a bytes or str type input, got {}'.format(type(value)))
 
         min_length = cls.minimum_length()
@@ -173,7 +171,7 @@ class _ItemArrayHeaders(BaseScraper):
         item_frm = '{0:0' + str(self.item_len) + 'd}'
         for sh_off, it_off in zip(self.subhead_sizes, self.item_sizes):
             out += subh_frm.format(sh_off) + item_frm.format(it_off)
-        return out
+        return out.encode()
 
 
 class ImageComments(BaseScraper):
@@ -241,7 +239,7 @@ class ImageComments(BaseScraper):
                 out += '{0:80s}'.format(val)
             else:
                 out += val[:80]
-        return out
+        return out.encode()
 
 
 class ImageBands(BaseScraper):
@@ -366,7 +364,7 @@ class ImageBands(BaseScraper):
                     raise ValueError('Entry {} for attribute {} got formatted as a length {} string, '
                                      'but required to be {}'.format(i, attribute, len(val), frmstr[:-1]))
                 items.append(val)
-        return ''.join(items)
+        return (''.join(items)).encode()
 
 
 class OtherHeader(BaseScraper):
@@ -417,14 +415,14 @@ class OtherHeader(BaseScraper):
             return cls(overflow=overflow, header=header)
 
     def to_string(self):
-        out = '{0:05d}'.format(self.__len__())
+        out = '{0:05d}'.format(self.overflow)
         if self.header is not None:
             if self.overflow > 999:
                 out += '999'
             else:
                 out += '{0:03d}'.format(self.overflow)
             out += self.header
-        return out
+        return out.encode()
 
 
 class HeaderScraper(BaseScraper):
@@ -469,7 +467,7 @@ class HeaderScraper(BaseScraper):
         if attribute not in cls._formats:
             return None
         fstr = cls._formats[attribute]
-        leng = int_func(fstr[-1])
+        leng = int_func(fstr[:-1])
         frmstr = '{0:0' + fstr + '}' if fstr[-1] == 'd' else '{0:' + fstr + '}'
         return leng, frmstr
 
@@ -498,11 +496,7 @@ class HeaderScraper(BaseScraper):
                 if value is None:
                     object.__setattr__(self, attribute, 0)
                 else:
-                    if isinstance(value, str):
-                        value = value.strip().strip('\x00')  # who's padding with null characters?
-                        val = int_func(value) if len(value) > 0 else 0
-                    else:
-                        val = int_func(value)
+                    val = int_func(value)
                     if 0 <= val < int_func(10)**lng:
                         object.__setattr__(self, attribute, val)
                     else:
@@ -513,6 +507,8 @@ class HeaderScraper(BaseScraper):
                 if value is None:
                     object.__setattr__(self, attribute, frmtstr.format('\x20'))  # spaces
                 else:
+                    if isinstance(value, bytes):
+                        value = value.decode('utf-8')
                     if not isinstance(value, str):
                         raise TypeError('Attribute {} is expected to a string, got {}'.format(attribute, type(value)))
 
@@ -523,6 +519,20 @@ class HeaderScraper(BaseScraper):
                         object.__setattr__(self, attribute, value[:lng])
                     else:
                         object.__setattr__(self, attribute, frmtstr.format(value))
+            elif frmt[-1] == 'b':  # don't interpret
+                lng = int(frmt[:-1])
+                if value is None:
+                    object.__setattr__(self, attribute, b'\x00'*lng)
+                elif isinstance(value, bytes):
+                    if len(value) != lng:
+                        raise ValueError('Attribute {} must take a bytes of length {}'.format(attribute, lng))
+                    object.__setattr__(self, attribute, value)
+                elif isinstance(value, str):
+                    if len(value) != lng:
+                        raise ValueError('Attribute {} must take a bytes of length {}'.format(attribute, lng))
+                    object.__setattr__(self, attribute, value.encode())
+            else:
+                raise ValueError('Unhandled format {}'.format(frmt))
         else:
             object.__setattr__(self, attribute, value)
 
@@ -578,16 +588,20 @@ class HeaderScraper(BaseScraper):
         return cls(**fields)
 
     def to_string(self):
-        out = ''
+        out = b''
         for attribute in self.__slots__:
             val = getattr(self, attribute)
             if isinstance(val, BaseScraper):
                 out += val.to_string()
             elif isinstance(val, integer_types):
                 _, fstr = self.get_format_string(attribute)
-                out += fstr.format(val)
+                out += fstr.format(val).encode()
             elif isinstance(val, str):
+                out += val.encode()
+            elif isinstance(val, bytes):
                 out += val
+            else:
+                raise TypeError('Got unhandled attribute value type {}'.format(type(val)))
         return out
 
 
@@ -630,13 +644,13 @@ class NITFHeader(HeaderScraper):
     _formats = {
         'FHDR': '4s', 'FVER': '5s', 'CLEVEL': '2d', 'STYPE': '4s',
         'OSTAID': '10s', 'FDT': '14s', 'FTITLE': '80s',
-        'FSCOP': '5d', 'FSCPYS': '5d', 'ENCRYP': '1s', 'FBKGC': '3d',
+        'FSCOP': '5d', 'FSCPYS': '5d', 'ENCRYP': '1s', 'FBKGC': '3b',
         'ONAME': '24s', 'OPHONE': '18s', 'FL': '12d', 'HL': '6d',
         'NUMX': '3d', }
     _defaults = {
         'FHDR': 'NITF', 'FVER': '02.10', 'STYPE': 'BF01',
         'FSCOP': 0, 'FSCPYS': 0, 'ENCRYP': '0',
-        'FBKGC': 0, 'ONAME': '\x20', 'OPHONE': '\x20',
+        'FBKGC': b'\x00\x00\x00', 'ONAME': '\x20', 'OPHONE': '\x20',
         'HL': 338, 'NUMX': 0, }
     _types = {
         '_Security': NITFSecurityTags,
@@ -798,6 +812,57 @@ class ImageSegmentHeader(HeaderScraper):
     @ImageBands.setter
     def ImageBands(self, value):
         self._ImageBands = value
+
+
+class DataExtensionHeader(HeaderScraper):
+    """
+    This requires an extension for essentially any non-trivial DES.
+    """
+
+    __slots__ = (
+        'DE', 'DESID', 'DESVER', '_Security', 'DESSHL')
+    _formats = {
+        'DE': '2s', 'DESID': '25s', 'DESVER': '2d', 'DESSHL': '4d', }
+    _defaults = {
+        'DE': 'DE', }
+    _types = {
+        '_Security': NITFSecurityTags,
+    }
+
+    def __init__(self, **kwargs):
+        self._Security = None
+        super(DataExtensionHeader, self).__init__(**kwargs)
+
+    @classmethod
+    def minimum_length(cls):
+        return 33 + 167
+
+    def __len__(self):
+        return 33 + 167 + self.DESSHL
+
+    @property
+    def Security(self):  # type: () -> NITFSecurityTags
+        return self._Security
+
+    @Security.setter
+    def Security(self, value):
+        self._Security = value
+
+    def to_string(self, other_string=None):
+        out = super(DataExtensionHeader, self).to_string()
+        if self.DESSHL > 0:
+            if other_string is None:
+                raise ValueError('There should be a specific des subhead of length {} provided'.format(self.DESSHL))
+            if isinstance(other_string, str):
+                other_string = other_string.encode()
+            if not isinstance(other_string, bytes):
+                raise TypeError('The specific des subhead must be of type bytes or str, got {}'.format(type(other_string)))
+            elif len(other_string) != self.DESSHL:
+                raise ValueError(
+                    'There should be a specific des subhead of length {} provided, '
+                    'got one of length {}'.format(self.DESSHL, len(other_string)))
+            out += other_string
+        return out
 
 
 class NITFDetails(object):
