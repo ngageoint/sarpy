@@ -61,7 +61,7 @@ def generic_geoid_test(instance, test_file, geoid_file):
         diff = numpy.abs(zs1 - zs)
         max_diff = numpy.max(diff)
         mean_diff = numpy.mean(diff)
-        logging.info('linear - time {}, max diff - {}, mean diff - {}'.format(time.time() - start, max_diff, mean_diff))
+        logging.info('cubic - time {}, max diff - {}, mean diff - {}'.format(time.time() - start, max_diff, mean_diff))
         instance.assertLessEqual(max_diff, 2, msg="Max difference should be less than 2 meters")
         instance.assertLessEqual(mean_diff, 0.5, msg="Mean difference should be (much) less than 0.5 meters.")
 
