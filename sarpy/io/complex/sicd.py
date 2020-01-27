@@ -182,7 +182,7 @@ class SICDDetails(NITFDetails):
     SICD are stored in NITF 2.1 files.
     """
     __slots__ = (
-        '_is_sicd', '_sicd_meta', 'img_segment_rows', 'img_segment_columns')
+        '_img_headers', '_is_sicd', '_sicd_meta', 'img_segment_rows', 'img_segment_columns')
 
     def __init__(self, file_name):
         """
@@ -193,6 +193,9 @@ class SICDDetails(NITFDetails):
             file name for a NITF 2.1 file containing a SICD
         """
 
+        self._img_headers = None
+        self._is_sicd = False
+        self._sicd_meta = None
         super(SICDDetails, self).__init__(file_name)
         if self._nitf_header.ImageSegments.subhead_sizes.size == 0:
             raise IOError('There are no image segments defined.')
@@ -221,6 +224,28 @@ class SICDDetails(NITFDetails):
     def sicd_meta(self):
         """SICDType: the sicd meta-data structure."""
         return self._sicd_meta
+
+    @property
+    def img_headers(self):
+        """None|List[ImageSegmentHeader]: the image segment headers"""
+        if self._img_headers is not None:
+            return self._img_headers
+
+        self._parse_img_headers()
+        return self._img_headers
+
+    def _parse_img_headers(self):
+        if self.img_segment_offsets is None:
+            return
+
+        img_headers = []
+        with open(self._file_name, mode='rb') as fi:
+            for offset, subhead_size in zip(
+                    self.img_subheader_offsets, self._nitf_header.ImageSegments.subhead_sizes):
+                fi.seek(int_func(offset))
+                header_string = fi.read(int_func(subhead_size))
+                img_headers.append(ImageSegmentHeader.from_string(header_string, 0))
+        self._img_headers = img_headers
 
     def _parse_des(self):
         if self.des_subheader_offsets is None:

@@ -873,7 +873,7 @@ class NITFDetails(object):
     """
 
     __slots__ = (
-        '_file_name', '_nitf_header', '_img_headers',
+        '_file_name', '_nitf_header',
         'img_subheader_offsets', 'img_segment_offsets',
         'graphics_subheader_offsets', 'graphics_segment_offsets',
         'text_subheader_offsets', 'text_segment_offsets',
@@ -890,7 +890,6 @@ class NITFDetails(object):
         """
 
         self._file_name = file_name
-        self._img_headers = None
 
         with open(file_name, mode='rb') as fi:
             # Read the first 9 bytes to verify NITF
@@ -940,25 +939,3 @@ class NITFDetails(object):
     def file_name(self):
         """str: the file name."""
         return self._file_name
-
-    @property
-    def img_headers(self):
-        """None|List[ImageSegmentHeader]: the image segment headers"""
-        if self._img_headers is not None:
-            return self._img_headers
-
-        self._parse_img_headers()
-        return self._img_headers
-
-    def _parse_img_headers(self):
-        if self.img_segment_offsets is None:
-            return
-
-        img_headers = []
-        with open(self._file_name, mode='rb') as fi:
-            for offset, subhead_size in zip(
-                    self.img_subheader_offsets, self._nitf_header.ImageSegments.subhead_sizes):
-                fi.seek(int_func(offset))
-                header_string = fi.read(int_func(subhead_size))
-                img_headers.append(ImageSegmentHeader.from_string(header_string, 0))
-        self._img_headers = img_headers
