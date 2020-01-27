@@ -11,6 +11,7 @@ import numpy as np
 import os
 
 
+
 class AppVariables:
     def __init__(self):
         self.fname = "None"       # type: str
@@ -86,6 +87,37 @@ class Ortho(AbstractWidgetPanel):
 
         ground_points_ecf = point_projection.image_to_ground(image_points, sicd_meta)
         ground_points_latlon = geocoords.ecf_to_geodetic(ground_points_ecf)
+
+        world_y_coordinates = ground_points_latlon[:, 0]
+        world_x_coordinates = ground_points_latlon[:, 1]
+
+        x = np.ravel(world_x_coordinates)
+        y = np.ravel(world_y_coordinates)
+
+        min_x = min(x)
+        max_x = max(x)
+        min_y = min(y)
+        max_y = max(y)
+
+        ground_x_grid, ground_y_grid = self.create_ground_grid(min_x, max_x, min_y, max_y, canvas_image_object.canvas_nx, canvas_image_object.canvas_ny)
+        ground_x_grid_1d = ground_x_grid.ravel()
+        ground_y_grid_1d = ground_y_grid.ravel()
+        height_1d = ground_x_grid_1d * 0
+
+        s = np.zeros((len(ground_x_grid_1d), 3))
+        s[:, 0] = ground_y_grid_1d
+        s[:, 1] = ground_x_grid_1d
+        s[:, 2] = height_1d
+
+        s_ecf = geocoords.geodetic_to_ecf(ground_y_grid_1d, ground_x_grid_1d, height_1d)
+
+        s_ecf_3 = np.zeros((len(ground_x_grid_1d), 3))
+        s_ecf_3[:, 0] = s_ecf[0][0]
+        s_ecf_3[:, 1] = s_ecf[1][0]
+        #
+        # gridded_image_pixels = point_projection.ground_to_image(s_ecf, sicd_meta)
+        # gridded_canvas_pixels = canvas_image_object.full_image_yx_to_canvas_coords(gridded_image_pixels)
+
         orthod_image = self.create_ortho(display_image_data, ground_points_latlon, canvas_image_object.canvas_ny, canvas_image_object.canvas_nx)
         self.ortho_image_panel.init_with_numpy_image(orthod_image)
 
@@ -110,17 +142,8 @@ class Ortho(AbstractWidgetPanel):
 
         ground_x_grid, ground_y_grid = self.create_ground_grid(min_x, max_x, min_y, max_y, output_nx, output_ny)
 
-        border_z_image = input_image_data * 0 + 255
-        border_z_image[:, 0] = 0
-        border_z_image[:, -1] = 0
-        border_z_image[0, :] = 0
-        border_z_image[-1, :] = 0
-
-        border_z_1d = np.ravel(border_z_image)
-
         zi = interp.griddata((x, y), z, (ground_x_grid, ground_y_grid), method='nearest')
-        zi2 = interp.griddata((x, y), border_z_1d, (ground_x_grid, ground_y_grid), method='nearest')
-        return border_z_image
+        return zi
 
     @staticmethod
     def create_ground_grid(min_x,  # type: float

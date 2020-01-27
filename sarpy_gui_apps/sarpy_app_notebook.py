@@ -3,6 +3,7 @@ from tkinter import ttk
 from sarpy_gui_apps.apps.taser_tool.taser import Taser
 from sarpy_gui_apps.apps.wake_tool.wake_tool import WakeTool
 from sarpy_gui_apps.apps.aperture_tool.aperture_tool import ApertureTool
+from sarpy_gui_apps.apps.make_ortho.quick_ortho_tool import Ortho
 from sarpy_gui_apps.apps.plot_demo.plot_demo import PlotDemo
 
 
@@ -31,16 +32,19 @@ class NoteBook(ttk.Frame):
         self.taser_tab = Tab(self.notebook)
         self.wake_tool_tab = Tab(self.notebook)
         self.aperture_tool_tab = Tab(self.notebook)
+        self.quick_ortho_tab = Tab(self.notebook)
         self.plot_demo_tab = Tab(self.notebook)
 
         self.notebook.add(self.taser_tab, text="Taser")
         self.notebook.add(self.wake_tool_tab, text="wake tool")
         self.notebook.add(self.aperture_tool_tab, text="aperture tool")
+        self.notebook.add(self.quick_ortho_tab, text="quick ortho")
         self.notebook.add(self.plot_demo_tab, text="temporal plot")
 
         self.taser = Taser(self.taser_tab)
         self.wake = WakeTool(self.wake_tool_tab)
         self.aperture = ApertureTool(self.aperture_tool_tab)
+        self.quick_ortho = Ortho(self.quick_ortho_tab)
         self.animation_plot = PlotDemo(self.plot_demo_tab)
         self.notebook.pack()
 
