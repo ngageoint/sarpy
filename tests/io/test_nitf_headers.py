@@ -17,21 +17,21 @@ def generic_nitf_header_test(instance, test_file):
         # how long does it take?
         logging.info('unpacked nitf details in {}'.format(time.time() - start))
         # how does it look?
-        logging.info(details._nitf_header)
+        logging.info(details.nitf_header)
 
     # is the output as long as it should be?
     with instance.subTest(msg="header length match"):
-        header_string = details._nitf_header.to_string()
-        equality = (len(header_string) == details._nitf_header.HL)
+        header_string = details.nitf_header.to_string()
+        equality = (len(header_string) == details.nitf_header.HL)
         if not equality:
             print('len(produced header) = {}, nitf_header.HL = {}'.format(len(header_string),
-                                                                          details._nitf_header.HL))
+                                                                          details.nitf_header.HL))
         instance.assertTrue(equality)
 
     # is the output what it should be?
     with instance.subTest(msg="header content match"):
         with open(test_file, 'rb') as fi:
-            file_header = fi.read(details._nitf_header.HL)
+            file_header = fi.read(details.nitf_header.HL)
 
         equality = (file_header == header_string)
         if not equality:

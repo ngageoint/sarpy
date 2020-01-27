@@ -247,6 +247,9 @@ class ImageBands(BaseScraper):
     Image bands in the image sub-header.
     """
 
+    # TODO: LOW - allow more than NBANDS <= 9 bands by parsing XBANDS
+    #   LOW - extract LUT values in NLUTS != 0
+
     __slots__ = ('IREPBAND', '_ISUBCAT', 'IFC', 'IMFLT', 'NLUTS')
     _formats = {'ISUBCAT': '6s', 'IREPBAND': '2s', 'IFC': '1s', 'IMFLT': '3s', 'NLUTS': '1d'}
     _defaults = {'IREPBAND': '\x20'*2, 'IFC': 'N', 'IMFLT': '\x20'*3, 'NLUTS': 0}
@@ -258,14 +261,18 @@ class ImageBands(BaseScraper):
             raise ValueError('ISUBCAT must have length > 0.')
         if len(ISUBCAT) > 9:
             raise ValueError('ISUBCAT must have length <= 9. Got {}'.format(ISUBCAT))
+        t_isubcat = []
         for i, entry in enumerate(ISUBCAT):
+            if isinstance(entry, bytes):
+                entry = entry.decode('utf-8')
             if not isinstance(entry, str):
                 raise TypeError('All entries of ISUBCAT must be an instance of str, '
                                 'got {} for entry {}'.format(type(entry), i))
             if len(entry) > 6:
                 raise TypeError('All entries of ISUBCAT must be strings of length at most 6, '
                                 'got {} for entry {}'.format(len(entry), i))
-        self._ISUBCAT = tuple(ISUBCAT)
+            t_isubcat.append(entry)
+        self._ISUBCAT = tuple(t_isubcat)
 
         for attribute in self.__slots__:
             if attribute == '_ISUBCAT':
@@ -345,10 +352,10 @@ class ImageBands(BaseScraper):
         nluts = []
 
         for i in range(count):
-            irepband.append(value[loc:loc+2])
-            isubcat.append(value[loc+2:loc+8])
-            ifc.append(value[loc+8:loc+9])
-            imflt.append(value[loc+9:loc+12])
+            irepband.append(value[loc:loc+2].decode('utf-8'))
+            isubcat.append(value[loc+2:loc+8].decode('utf-8'))
+            ifc.append(value[loc+8:loc+9].decode('utf-8'))
+            imflt.append(value[loc+9:loc+12].decode('utf-8'))
             nluts.append(int_func(value[loc+12:loc+13]))
             loc += 13
         return cls(isubcat, IREPBAND=irepband, IFC=ifc, IMFLT=imflt, NLUTS=nluts)
@@ -670,14 +677,6 @@ class NITFHeader(HeaderScraper):
     }
 
     def __init__(self, **kwargs):
-        self._Security = None
-        self._ImageSegments = None
-        self._GraphicsSegments = None
-        self._TextSegments = None
-        self._DataExtensions = None
-        self._ReservedExtensions = None
-        self._UserHeader = None
-        self._ExtendedHeader = None
         super(NITFHeader, self).__init__(**kwargs)
         self.HL = self.__len__()
 
@@ -688,6 +687,7 @@ class NITFHeader(HeaderScraper):
 
     @Security.setter
     def Security(self, value):
+        # noinspection PyAttributeOutsideInit
         self._Security = value
 
     @property
@@ -696,6 +696,7 @@ class NITFHeader(HeaderScraper):
 
     @ImageSegments.setter
     def ImageSegments(self, value):
+        # noinspection PyAttributeOutsideInit
         self._ImageSegments = value
 
     @property
@@ -704,6 +705,7 @@ class NITFHeader(HeaderScraper):
 
     @GraphicsSegments.setter
     def GraphicsSegments(self, value):
+        # noinspection PyAttributeOutsideInit
         self._GraphicsSegments = value
 
     @property
@@ -712,6 +714,7 @@ class NITFHeader(HeaderScraper):
 
     @TextSegments.setter
     def TextSegments(self, value):
+        # noinspection PyAttributeOutsideInit
         self._TextSegments = value
 
     @property
@@ -720,6 +723,7 @@ class NITFHeader(HeaderScraper):
 
     @DataExtensions.setter
     def DataExtensions(self, value):
+        # noinspection PyAttributeOutsideInit
         self._DataExtensions = value
 
     @property
@@ -728,6 +732,7 @@ class NITFHeader(HeaderScraper):
 
     @ReservedExtensions.setter
     def ReservedExtensions(self, value):
+        # noinspection PyAttributeOutsideInit
         self._ReservedExtensions = value
 
     @property
@@ -736,6 +741,7 @@ class NITFHeader(HeaderScraper):
 
     @UserHeader.setter
     def UserHeader(self, value):
+        # noinspection PyAttributeOutsideInit
         self._UserHeader = value
 
     @property
@@ -744,6 +750,7 @@ class NITFHeader(HeaderScraper):
 
     @ExtendedHeader.setter
     def ExtendedHeader(self, value):
+        # noinspection PyAttributeOutsideInit
         self._ExtendedHeader = value
 
 
@@ -751,6 +758,13 @@ class ImageSegmentHeader(HeaderScraper):
     """
     The Image Segment header - described in SICD standard 2014-09-30, Volume II, page 24
     """
+
+    # TODO: this is not general, and is really tailored to a sicd
+    #   it should be general, or moved into sicd.
+
+    # TODO: LOW - if IC != "NC", we need to have a COMRAT field
+    #  LOW - accommodate UDIDL > 0
+    #  LOW - accommodate IXSHDL > 0
 
     __slots__ = (
         'IM', 'IID1', 'IDATIM', 'TGTID',
@@ -781,9 +795,6 @@ class ImageSegmentHeader(HeaderScraper):
         '_ImageBands': ImageBands}
 
     def __init__(self, **kwargs):
-        self._Security = None
-        self._ImageComments = None
-        self._ImageBands = None
         super(ImageSegmentHeader, self).__init__(**kwargs)
 
     @property
@@ -793,6 +804,7 @@ class ImageSegmentHeader(HeaderScraper):
 
     @Security.setter
     def Security(self, value):
+        # noinspection PyAttributeOutsideInit
         self._Security = value
 
     @property
@@ -802,6 +814,7 @@ class ImageSegmentHeader(HeaderScraper):
 
     @ImageComments.setter
     def ImageComments(self, value):
+        # noinspection PyAttributeOutsideInit
         self._ImageComments = value
 
     @property
@@ -811,6 +824,7 @@ class ImageSegmentHeader(HeaderScraper):
 
     @ImageBands.setter
     def ImageBands(self, value):
+        # noinspection PyAttributeOutsideInit
         self._ImageBands = value
 
 
@@ -818,6 +832,8 @@ class DataExtensionHeader(HeaderScraper):
     """
     This requires an extension for essentially any non-trivial DES.
     """
+
+    # TODO: Create TRE_OVERFLOW extension
 
     __slots__ = (
         'DE', 'DESID', 'DESVER', '_Security', 'DESSHL')
@@ -828,10 +844,6 @@ class DataExtensionHeader(HeaderScraper):
     _types = {
         '_Security': NITFSecurityTags,
     }
-
-    def __init__(self, **kwargs):
-        self._Security = None
-        super(DataExtensionHeader, self).__init__(**kwargs)
 
     @classmethod
     def minimum_length(cls):
@@ -846,6 +858,7 @@ class DataExtensionHeader(HeaderScraper):
 
     @Security.setter
     def Security(self, value):
+        # noinspection PyAttributeOutsideInit
         self._Security = value
 
     def to_string(self, other_string=None):
@@ -939,3 +952,8 @@ class NITFDetails(object):
     def file_name(self):
         """str: the file name."""
         return self._file_name
+
+    @property
+    def nitf_header(self):  # type: () -> NITFHeader
+        """NITFHeader: the nitf header object"""
+        return self._nitf_header
