@@ -114,7 +114,7 @@ class DataExtensionHeader(HeaderScraper):
 
     @Security.setter
     def Security(self, value):
-        self.set_attribute('_Security', value)
+        self._Security = value
 
     @property
     def SICDHeader(self):  # type: () -> Union[SICDDESSubheader, None]
@@ -133,33 +133,19 @@ class DataExtensionHeader(HeaderScraper):
                 self._SICDHeader = None
 
     @classmethod
-    def from_string(cls, value, start, *args):
+    def from_string(cls, value, start, **kwargs):
         if value is None:
-            return cls()
+            return cls(**kwargs)
 
         value = cls._validate(value, start)
+        fields, loc = cls._parse_attributes(value, start)
 
-        fields = OrderedDict()
-        loc = start
-        for attribute in cls.__slots__[:-1]:
-            if attribute in cls._types:
-                typ = cls._types[attribute]
-                if not issubclass(typ, BaseScraper):
-                    raise TypeError('Invalid class definition, any entry of _types must extend BaseScraper')
-                args = cls._args.get(attribute, {})
-                val = typ.from_string(value, loc, **args)
-                aname = attribute[1:] if attribute[0] == '_' else attribute
-                fields[aname] = val  # exclude the underscore from the name
-                lngt = len(val)
-            else:
-                lngt = int_func(cls._formats[attribute][:-1])
-                fields[attribute] = value[loc:lngt]
-            loc += lngt
         if int_func(fields['DESSHL']) == 773:
             fields['SICDHeader'] = SICDDESSubheader.from_string(value[loc:loc+773], 0)
         else:
             fields['DESSHL'] = 0
             fields['SICDHeader'] = None
+
         return cls(**fields)
 
     def to_string(self):
@@ -175,16 +161,14 @@ class DataExtensionHeader(HeaderScraper):
             if isinstance(val, BaseScraper):
                 out += val.to_string()
             elif isinstance(val, integer_types):
-                fstr = self._formats[attribute]
-                flen = int_func(fstr[:-1])
+                flen, fstr = self.get_format_string(attribute)
                 val = getattr(self, attribute)
                 if val >= 10**flen:
                     raise ValueError('Attribute {} has integer value {}, which cannot be written as '
                                      'a string of length {}'.format(attribute, val, flen))
                 out += fstr.format(val)
             elif isinstance(val, str):
-                fstr = self._formats[attribute]
-                flen = int_func(fstr[:-1])
+                flen, fstr = self.get_format_string(attribute)
                 val = getattr(self, attribute)
                 if len(val) <= flen:
                     out += fstr.format(val)  # left justified of length flen
@@ -289,7 +273,6 @@ class SICDDetails(NITFDetails):
             # TODO: account for CPHD xml?
             self._is_sicd = True
 
-        if self._is_sicd:
             try:
                 self._sicd_meta = SICDType.from_node(root_node)
                 self._sicd_meta.derive()
@@ -301,6 +284,15 @@ class SICDDetails(NITFDetails):
 
 #######
 #  The actual reading implementation
+
+def _validate_lookup(lookup_table):
+    if not isinstance(lookup_table, numpy.ndarray):
+        raise ValueError('requires a numpy.ndarray, got {}'.format(type(lookup_table)))
+    if lookup_table.dtype != numpy.float64:
+        raise ValueError('requires a numpy.ndarray of float64 dtype, got {}'.format(lookup_table.dtype))
+    if lookup_table.shape != (256, ):
+        raise ValueError('Requires a one-dimensional numpy.ndarray with 256 elements, '
+                         'got shape {}'.format(lookup_table.shape))
 
 
 def amp_phase_to_complex(lookup_table):
@@ -316,13 +308,7 @@ def amp_phase_to_complex(lookup_table):
     callable
     """
 
-    if not isinstance(lookup_table, numpy.ndarray):
-        raise ValueError('requires a numpy.ndarray, got {}'.format(type(lookup_table)))
-    if lookup_table.dtype != numpy.float64:
-        raise ValueError('requires a numpy.ndarray of float64 dtype, got {}'.format(lookup_table.dtype))
-    if lookup_table.shape != (256, ):
-        raise ValueError('Requires a one-dimensional numpy.ndarray with 256 elements, '
-                         'got shape {}'.format(lookup_table.shape))
+    _validate_lookup(lookup_table)
 
     def converter(data):
         if not isinstance(data, numpy.ndarray):
@@ -499,6 +485,17 @@ class SICDReader(BaseReader):
 #######
 #  The actual writing implementation
 
+def _validate_input(data):
+    if not isinstance(data, numpy.ndarray):
+        raise ValueError('Requires a numpy.ndarray, got {}'.format(type(data)))
+    if data.dtype not in (numpy.complex64, numpy.complex128):
+        raise ValueError('Requires a numpy.ndarray of complex dtype, got {}'.format(data.dtype))
+    if len(data.shape) == 2:
+        raise ValueError('Requires a two-dimensional numpy.ndarray, got {}'.format(data.shape))
+
+    new_shape = (data.shape[0], data.shape[1], 2)
+    return new_shape
+
 
 def complex_to_amp_phase(lookup_table):
     """
@@ -513,24 +510,10 @@ def complex_to_amp_phase(lookup_table):
     callable
     """
 
-    if not isinstance(lookup_table, numpy.ndarray):
-        raise ValueError('requires a numpy.ndarray, got {}'.format(type(lookup_table)))
-    if lookup_table.dtype != numpy.float64:
-        raise ValueError('requires a numpy.ndarray of float64 dtype, got {}'.format(lookup_table.dtype))
-    if lookup_table.shape != (256, ):
-        raise ValueError('Requires a one-dimensional numpy.ndarray with 256 elements, '
-                         'got shape {}'.format(lookup_table.shape))
+    _validate_lookup(lookup_table)
 
     def converter(data):
-        if not isinstance(data, numpy.ndarray):
-            raise ValueError('Requires a numpy.ndarray, got {}'.format(type(data)))
-        if data.dtype not in (numpy.complex64, numpy.complex128):
-            raise ValueError('Requires a numpy.ndarray of complex dtype, got {}'.format(data.dtype))
-        if len(data.shape) == 2:
-            raise ValueError('Requires a two-dimensional numpy.ndarray, got {}'.format(data.shape))
-
-        new_shape = (data.shape[0], data.shape[1], 2)
-
+        new_shape = _validate_input(data)
         out = numpy.zeros(new_shape, dtype=numpy.uint8)
         # NB: for numpy before 1.10, digitize requires 1-d
         out[:, :, 0] = numpy.digitize(numpy.abs(data).ravel(), lookup_table, right=False).reshape(data.shape)
@@ -555,14 +538,7 @@ def complex_to_int(data):
     """
 
     # TODO: this is naive. Scaling down to 16-bit limits requires thought.
-    if not isinstance(data, numpy.ndarray):
-        raise ValueError('Requires a numpy.ndarray, got {}'.format(type(data)))
-    if data.dtype not in (numpy.complex64, numpy.complex128):
-        raise ValueError('Requires a numpy.ndarray of complex dtype, got {}'.format(data.dtype))
-    if len(data.shape) == 2:
-        raise ValueError('Requires a two-dimensional numpy.ndarray, got {}'.format(data.shape))
-
-    new_shape = (data.shape[0], data.shape[1], 2)
+    new_shape = _validate_input(data)
 
     if data.dtype == numpy.complex128:
         view_dtype = numpy.float64

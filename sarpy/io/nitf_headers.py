@@ -165,9 +165,9 @@ class _ItemArrayHeaders(BaseScraper):
         return cls(subhead_len, subhead_sizes, item_len, item_sizes)
 
     def to_string(self):
-        out = '{0:3d}'.format(self.subhead_sizes.size)
-        subh_frm = '{0:'+str(self.subhead_len) + 'd}'
-        item_frm = '{0:' + str(self.item_len) + 'd}'
+        out = '{0:03d}'.format(self.subhead_sizes.size)
+        subh_frm = '{0:0' + str(self.subhead_len) + 'd}'
+        item_frm = '{0:0' + str(self.item_len) + 'd}'
         for sh_off, it_off in zip(self.subhead_sizes, self.item_sizes):
             out += subh_frm.format(sh_off) + item_frm.format(it_off)
         return out
@@ -190,7 +190,8 @@ class ImageComments(BaseScraper):
             self.comments = comments
 
         if len(self.comments) > 9:
-            logging.warning('Only the first 9 comments will be used, got a list of length {}'.format(len(self.comments)))
+            logging.warning('Only the first 9 comments will be used, got a list of '
+                            'length {}'.format(len(self.comments)))
 
     def __len__(self):
         return 1 + 80*min(len(self.comments), 9)
@@ -356,7 +357,7 @@ class ImageBands(BaseScraper):
         items = ['{0:1d}'.format(siz), ]
         for i in range(siz):
             for attribute in self.__slots__:
-                frmstr = self._formats[attribute]
+                frmstr = '{0:' + self._formats[attribute] + '}'
                 val = frmstr.format(getattr(self, attribute)[i])
                 if len(val) > int_func(frmstr[:-1]):
                     raise ValueError('Entry {} for attribute {} got formatted as a length {} string, '
@@ -413,12 +414,12 @@ class OtherHeader(BaseScraper):
             return cls(overflow=overflow, header=header)
 
     def to_string(self):
-        out = '{0:5d}'.format(self.__len__())
+        out = '{0:05d}'.format(self.__len__())
         if self.header is not None:
             if self.overflow > 999:
                 out += '999'
             else:
-                out += '{0:3d}'.format(self.overflow)
+                out += '{0:03d}'.format(self.overflow)
             out += self.header
         return out
 
@@ -459,6 +460,15 @@ class HeaderScraper(BaseScraper):
     def _get_settable_attributes(cls):  # type: () -> tuple
         # properties
         return tuple(map(lambda x: x[1:] if x[0] == '_' else x, cls.__slots__))
+
+    @classmethod
+    def get_format_string(cls, attribute):
+        if attribute not in cls._formats:
+            return None
+        fstr = cls._formats[attribute]
+        leng = int_func(fstr[-1])
+        frmstr = '{0:0' + fstr + '}' if fstr[-1] == 'd' else '{0:' + fstr + '}'
+        return leng, frmstr
 
     def __setattr__(self, attribute, value):
         # is this thing a property? If so, just pass it straight through to setter
@@ -536,12 +546,7 @@ class HeaderScraper(BaseScraper):
         return min_length
 
     @classmethod
-    def from_string(cls, value, start, **kwargs):
-        if value is None:
-            return cls(**kwargs)
-
-        value = cls._validate(value, start)
-
+    def _parse_attributes(cls, value, start):
         fields = OrderedDict()
         loc = start
         for attribute in cls.__slots__:
@@ -556,8 +561,17 @@ class HeaderScraper(BaseScraper):
                 lngt = len(val)
             else:
                 lngt = int_func(cls._formats[attribute][:-1])
-                fields[attribute] = value[loc:loc+lngt]
+                fields[attribute] = value[loc:loc + lngt]
             loc += lngt
+        return fields, loc
+
+    @classmethod
+    def from_string(cls, value, start, **kwargs):
+        if value is None:
+            return cls(**kwargs)
+
+        value = cls._validate(value, start)
+        fields, _ = cls._parse_attributes(value, start)
         return cls(**fields)
 
     def to_string(self):
@@ -567,7 +581,7 @@ class HeaderScraper(BaseScraper):
             if isinstance(val, BaseScraper):
                 out += val.to_string()
             elif isinstance(val, integer_types):
-                fstr = '{0:'+self._formats[attribute]+'}'
+                _, fstr = self.get_format_string(attribute)
                 out += fstr.format(val)
             elif isinstance(val, str):
                 out += val
@@ -725,6 +739,12 @@ class ImageSegmentHeader(HeaderScraper):
         '_Security': NITFSecurityTags,
         '_ImageComments': ImageComments,
         '_ImageBands': ImageBands}
+
+    def __init__(self, **kwargs):
+        self._Security = None
+        self._ImageComments = None
+        self._ImageBands = None
+        super(ImageSegmentHeader, self).__init__(**kwargs)
 
     @property
     def Security(self):  # type: () -> NITFSecurityTags
