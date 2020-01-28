@@ -67,6 +67,7 @@ def generic_geoid_test(instance, test_file, geoid_file):
 
 
 class TestGeoidHeight(unittest.TestCase):
+
     @classmethod
     def setUp(cls):
         # todo: fix this up
@@ -74,8 +75,7 @@ class TestGeoidHeight(unittest.TestCase):
 
     def test_geoid_height(self):
         # establish file location
-        test_root = os.path.expanduser(os.path.join('~', 'Desktop', 'sarpy_testing', 'geoid'))
-        test_file = os.path.join(test_root, 'GeoidHeights.dat')
+        test_file = os.path.join(self.test_root, 'GeoidHeights.dat')
 
         tested = 0
         for fil in ['egm2008-5.pgm', 'egm2008-2_5.pgm', 'egm2008-1.pgm']:

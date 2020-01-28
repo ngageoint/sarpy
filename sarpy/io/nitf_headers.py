@@ -950,27 +950,21 @@ class NITFDetails(object):
             self._nitf_header = NITFHeader.from_string(header_string, 0)
 
         curLoc = self._nitf_header.HL
-        print('starting location {}'.format(curLoc))
         # populate image segment offset information
         curLoc, self.img_subheader_offsets, self.img_segment_offsets = self._element_offsets(
             curLoc, self._nitf_header.ImageSegments)
-        print('after image segments {}'.format(curLoc))
         # populate graphics segment offset information
         curLoc, self.graphics_subheader_offsets, self.graphics_segment_offsets = self._element_offsets(
             curLoc, self._nitf_header.GraphicsSegments)
-        print('after graphics segments {}'.format(curLoc))
         # populate text segment offset information
         curLoc, self.text_subheader_offsets, self.text_segment_offsets = self._element_offsets(
             curLoc, self._nitf_header.TextSegments)
-        print('after text segments {}'.format(curLoc))
         # populate data extension offset information
         curLoc, self.des_subheader_offsets, self.des_segment_offsets = self._element_offsets(
             curLoc, self._nitf_header.DataExtensions)
-        print('after des segments {}'.format(curLoc))
         # populate data extension offset information
         curLoc, self.res_subheader_offsets, self.res_segment_offsets = self._element_offsets(
             curLoc, self._nitf_header.ReservedExtensions)
-        print('after res segments {}'.format(curLoc))
 
     @staticmethod
     def _element_offsets(curLoc, item_array_details):
