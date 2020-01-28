@@ -205,21 +205,7 @@ class ImageComments(BaseScraper):
         return 1
 
     @classmethod
-    def from_string(cls, value, start, *args):
-        """
-
-        Parameters
-        ----------
-        value : bytes|str
-        start : int
-        args : iterable
-            this must have two integer elements, which designate the number of
-            bytes for the subheader size and the number of bytes for the item size
-        Returns
-        -------
-        _ItemArrayHeaders
-        """
-
+    def from_string(cls, value, start, **args):
         value = cls._validate(value, start)
         loc = start
         count = int_func(value[loc:loc+1])
@@ -250,8 +236,7 @@ class ImageBands(BaseScraper):
     Image bands in the image sub-header.
     """
 
-    # TODO: LOW - allow more than NBANDS <= 9 bands by parsing XBANDS
-    #   LOW - extract LUT values in NLUTS != 0
+    # TODO: LOW - extract LUT values in NLUTS != 0
 
     __slots__ = ('IREPBAND', '_ISUBCAT', 'IFC', 'IMFLT', 'NLUTS')
     _formats = {'ISUBCAT': '6s', 'IREPBAND': '2s', 'IFC': '1s', 'IMFLT': '3s', 'NLUTS': '1d'}
@@ -262,8 +247,6 @@ class ImageBands(BaseScraper):
             raise ValueError('ISUBCAT must be a list or tuple, got {}'.format(type(ISUBCAT)))
         if len(ISUBCAT) == 0:
             raise ValueError('ISUBCAT must have length > 0.')
-        if len(ISUBCAT) > 9:
-            raise ValueError('ISUBCAT must have length <= 9. Got {}'.format(ISUBCAT))
         t_isubcat = []
         for i, entry in enumerate(ISUBCAT):
             if isinstance(entry, bytes):
@@ -321,32 +304,25 @@ class ImageBands(BaseScraper):
             object.__setattr__(self, attribute, value)
 
     def __len__(self):
-        return 1 + 13*len(self.ISUBCAT)
+        bands = len(self.ISUBCAT)
+        if bands <= 9:
+            return 1 + 13*bands
+        return 6 + 13*bands
 
     @classmethod
     def minimum_length(cls):
         return 14
 
     @classmethod
-    def from_string(cls, value, start, *args):
-        """
-
-        Parameters
-        ----------
-        value : bytes|str
-        start : int
-        args : iterable
-            this must have two integer elements, which designate the number of
-            bytes for the subheader size and the number of bytes for the item size
-        Returns
-        -------
-        _ItemArrayHeaders
-        """
+    def from_string(cls, value, start, **kwargs):
 
         value = cls._validate(value, start)
         loc = start
-        count = int_func(value[loc:loc+1])
+        count = int_func(value[loc:loc+1])  # check nbands
         loc += 1
+        if count == 0:  # it was xbands
+            count = int_func(value[loc:loc+5])
+            loc += 5
 
         isubcat = []
         irepband = []
@@ -365,7 +341,10 @@ class ImageBands(BaseScraper):
 
     def to_string(self):
         siz = len(self.ISUBCAT)
-        items = ['{0:1d}'.format(siz), ]
+        if siz <= 9:
+            items = ['{0:1d}'.format(siz), ]
+        else:
+            items = ['0{0:05d}'.format(siz), ]
         for i in range(siz):
             for attribute in self.__slots__:
                 frmstr = '{0:' + self._formats[attribute] + '}'
@@ -413,9 +392,11 @@ class OtherHeader(BaseScraper):
         return 5
 
     @classmethod
-    def from_string(cls, value, start, *args):
-        value = cls._validate(value, start)
+    def from_string(cls, value, start, **args):
+        if value is None:
+            return cls(**args)
 
+        value = cls._validate(value, start)
         siz = int_func(value[start:start+5])
         if siz == 0:
             return cls()
@@ -763,9 +744,7 @@ class ImageSegmentHeader(HeaderScraper):
     """
 
     # TODO: this is not general, and is really tailored to a sicd
-    #   it should be general, or moved into sicd.
-
-    # TODO: LOW - if IC != "NC", we need to have a COMRAT field
+    #  LOW - if IC != "NC", we need to have a COMRAT field
     #  LOW - accommodate UDIDL > 0
     #  LOW - accommodate IXSHDL > 0
 
@@ -836,8 +815,6 @@ class DataExtensionHeader(HeaderScraper):
     This requires an extension for essentially any non-trivial DES.
     """
 
-    # TODO: Create TRE_OVERFLOW extension
-
     __slots__ = (
         'DE', 'DESID', 'DESVER', '_Security', 'DESSHL')
     _formats = {
@@ -847,6 +824,11 @@ class DataExtensionHeader(HeaderScraper):
     _types = {
         '_Security': NITFSecurityTags,
     }
+
+    def __init__(self, **kwargs):
+        if self._check_desid_for_value(kwargs, 'TRE_OVERFLOW'):
+            raise ValueError('DESID="TRE_OVERFLOW" indicates specific use of DESTreOverflow type')
+        super(DataExtensionHeader, self).__init__(**kwargs)
 
     @classmethod
     def minimum_length(cls):
@@ -864,6 +846,27 @@ class DataExtensionHeader(HeaderScraper):
         # noinspection PyAttributeOutsideInit
         self._Security = value
 
+    @staticmethod
+    def _check_desid_for_value(kwargs, val):  # type: (dict, str) -> bool
+        desid = kwargs.get('DESID', '')
+        if isinstance(desid, bytes):
+            desid.decode('utf-8')
+        return desid.strip() == val
+
+    @classmethod
+    def from_string(cls, value, start, **kwargs):
+        if value is None:
+            if cls._check_desid_for_value(kwargs, 'TRE_OVERFLOW'):
+                return DESTreOverflow(**kwargs)
+            return cls(**kwargs)
+
+        value = cls._validate(value, start)
+        fields, _ = cls._parse_attributes(value, start)
+        if cls._check_desid_for_value(fields, 'TRE_OVERFLOW'):
+            # there were extra fields and the parsing was wrong, but that's okay
+            return DESTreOverflow.from_string(value, start)
+        return cls(**fields)
+
     def to_string(self, other_string=None):
         out = super(DataExtensionHeader, self).to_string()
         if self.DESSHL > 0:
@@ -879,6 +882,32 @@ class DataExtensionHeader(HeaderScraper):
                     'got one of length {}'.format(self.DESSHL, len(other_string)))
             out += other_string
         return out
+
+
+class DESTreOverflow(DataExtensionHeader):
+    __slots__ = (
+        'DE', 'DESID', 'DESVER', '_Security',
+        'DESCTLN', 'DESOFLOW', 'DESITEM', 'DESSHL')
+    _formats = {
+        'DE': '2s', 'DESID': '25s', 'DESVER': '2d',
+        'DESCTLN': '15s', 'DESOFLOW': '6s', 'DESITEM': '3d', 'DESSHL': '4d', }
+    _defaults = {
+        'DE': 'DE', 'DESID': 'TRE_OVERFLOW', 'DESVER': 1, 'DESCTLN': '\x20', }
+    _types = {
+        '_Security': NITFSecurityTags,
+    }
+
+    @classmethod
+    def minimum_length(cls):
+        return 57 + 167
+
+    def __len__(self):
+        return 57 + 167 + self.DESSHL
+
+    def to_string(self, other_string=None):
+        # noinspection PyAttributeOutsideInit
+        self.DESID = 'TRE_OVERFLOW'
+        super(DESTreOverflow, self).to_string(other_string=other_string)
 
 
 class NITFDetails(object):
@@ -921,21 +950,27 @@ class NITFDetails(object):
             self._nitf_header = NITFHeader.from_string(header_string, 0)
 
         curLoc = self._nitf_header.HL
+        print('starting location {}'.format(curLoc))
         # populate image segment offset information
         curLoc, self.img_subheader_offsets, self.img_segment_offsets = self._element_offsets(
             curLoc, self._nitf_header.ImageSegments)
+        print('after image segments {}'.format(curLoc))
         # populate graphics segment offset information
         curLoc, self.graphics_subheader_offsets, self.graphics_segment_offsets = self._element_offsets(
             curLoc, self._nitf_header.GraphicsSegments)
+        print('after graphics segments {}'.format(curLoc))
         # populate text segment offset information
         curLoc, self.text_subheader_offsets, self.text_segment_offsets = self._element_offsets(
             curLoc, self._nitf_header.TextSegments)
+        print('after text segments {}'.format(curLoc))
         # populate data extension offset information
         curLoc, self.des_subheader_offsets, self.des_segment_offsets = self._element_offsets(
             curLoc, self._nitf_header.DataExtensions)
+        print('after des segments {}'.format(curLoc))
         # populate data extension offset information
         curLoc, self.res_subheader_offsets, self.res_segment_offsets = self._element_offsets(
             curLoc, self._nitf_header.ReservedExtensions)
+        print('after res segments {}'.format(curLoc))
 
     @staticmethod
     def _element_offsets(curLoc, item_array_details):
