@@ -4,7 +4,6 @@ Functionality for reading SIO data into a SICD model.
 """
 
 import os
-import sys
 import struct
 import logging
 import re
@@ -122,12 +121,6 @@ class SIODetails(object):
             return 'uint8'
         else:
             raise ValueError('Got unsupported sio data type/pixel size = {}'.format(self._head[2:]))
-
-    @property
-    def swap_bytes(self):
-        endian = self.ENDIAN[self._magic_number]
-        return (endian == '>' and sys.byteorder != 'little') or \
-            (endian == '<' and sys.byteorder != 'big')
 
     @property
     def pixel_type(self):  # type: () -> Union[None, str]
@@ -313,7 +306,7 @@ class SIOReader(BaseReader):
             complex_type = True
         chipper = BIPChipper(sio_details.file_name, sio_details.data_type, sio_details.data_size,
                              symmetry=sio_details.symmetry, complex_type=complex_type,
-                             data_offset=sio_details.data_offset, swap_bytes=sio_details.swap_bytes)
+                             data_offset=sio_details.data_offset)
         super(SIOReader, self).__init__(sicd_meta, chipper)
 
 
@@ -334,31 +327,29 @@ class SIOWriter(BIPWriter):
         # choose magic number (with user data) and corresponding endian-ness
         magic_number = 0xFD7F02FF
         endian = SIODetails.ENDIAN[magic_number]
-        swap_bytes = (endian == '>' and sys.byteorder != 'big') or \
-            (endian == '<' and sys.byteorder != 'little')
 
         # define basic image details
         image_size = (sicd_meta.ImageData.NumRows, sicd_meta.ImageData.NumCols)
         pixel_type = sicd_meta.ImageData.PixelType
         if pixel_type == 'RE32F_IM32F':
-            data_type = 'float32'
+            data_type = numpy.dtype('{}f4'.format(endian))
             element_type = 13
             element_size = 8
             complex_type = True
         elif pixel_type == 'RE16I_IM16I':
-            data_type = 'int16'
+            data_type = numpy.dtype('{}i2'.format(endian))
             element_type = 12
             element_size = 4
             complex_type = complex_to_int
         else:
-            data_type = 'uint8'
+            data_type = numpy.dtype('{}u1'.format(endian))
             element_type = 11
             element_size = 2
             complex_type = complex_to_amp_phase(sicd_meta.ImageData.AmpTable)
         # construct the sio header
         header = numpy.array(
             [magic_number, image_size[0], image_size[1], element_type, element_size],
-            dtype='uint32')
+            dtype='>u4')
         # construct the user data - must be {str : str}
         if user_data is None:
             user_data = {}
@@ -377,4 +368,4 @@ class SIOWriter(BIPWriter):
                 data_offset += 4 + len(name_bytes) + 4 + len(val_bytes)
         # initialize the bip writer - we're ready to go
         super(SIOWriter, self).__init__(file_name, image_size, data_type,
-                                        complex_type=complex_type, data_offset=data_offset, swap_bytes=swap_bytes)
+                                        complex_type=complex_type, data_offset=data_offset)
