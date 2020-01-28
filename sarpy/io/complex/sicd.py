@@ -329,7 +329,7 @@ class MultiSegmentChipper(BaseChipper):
                  '_bands_ip', '_child_chippers')
 
     def __init__(self, file_name, data_sizes, data_offsets, data_type, symmetry=None,
-                 complex_type=True, bands_ip=1):
+                 complex_type=True, bands_ip=1, swap_bytes=False):
         """
 
         Parameters
@@ -348,13 +348,15 @@ class MultiSegmentChipper(BaseChipper):
             See `BaseChipper` for description of `complex_type`
         bands_ip : int
             number of bands - this will always be one for sicd.
+        swap_bytes : bool
+            should we swap the endianess upon reading - sicd is always big-endian
         """
 
         if not isinstance(data_sizes, numpy.ndarray):
             raise ValueError('data_sizes must be an numpy.ndarray, not {}'.format(type(data_sizes)))
         if not (len(data_sizes.shape) == 2 and data_sizes.shape[1] == 2):
             raise ValueError('data_sizes must be an Nx2 numpy.ndarray, not shape {}'.format(data_sizes.shape))
-        if not numpy.all(data_sizes[0, :] == data_sizes[0, 1]):
+        if not numpy.all(data_sizes[:, 1] == data_sizes[0, 1]):
             # TODO: account for things broken up along more than just row order
             raise ValueError(
                 'SICDs are broken up by row only, so the the second column of data_sizes '
@@ -373,19 +375,16 @@ class MultiSegmentChipper(BaseChipper):
                 'shape {} - {}'.format(data_sizes.shape, data_sizes.size))
 
         self._file_name = file_name
-        if complex_type is not False:
-            self._dtype = numpy.complex64
-        else:
-            self._dtype = data_type
         # all of the actual reading and reorienting work will be done by these
         # child chippers, which will read from their respective image segments
         self._child_chippers = tuple(
             BIPChipper(file_name, data_type, img_siz, symmetry=symmetry,
-                       complex_type=complex_type, data_offset=img_off, bands_ip=bands_ip)
+                       complex_type=complex_type, data_offset=img_off,
+                       bands_ip=bands_ip, swap_bytes=swap_bytes)
             for img_siz, img_off in zip(data_sizes, data_offsets))
 
         self._row_starts = numpy.zeros((data_sizes.shape[0], ), dtype=numpy.int64)
-        self._row_ends = numpy.cumsum(data_sizes[: 0])
+        self._row_ends = numpy.cumsum(data_sizes[:, 0])
         self._row_starts[1:] = self._row_ends[:-1]
         self._bands_ip = int_func(bands_ip)
 
@@ -400,9 +399,9 @@ class MultiSegmentChipper(BaseChipper):
         rows = numpy.arange(*range1, dtype=numpy.int64)  # array
         cols_size = int_func((range2[1] - range2[0] - 1)/range2[2]) + 1
         if self._bands_ip == 1:
-            out = numpy.empty((rows.size, cols_size), dtype=self._dtype)
+            out = numpy.empty((rows.size, cols_size), dtype=numpy.complex64)
         else:
-            out = numpy.empty((self._bands_ip, rows.size, cols_size), dtype=numpy.complex64)
+            out = numpy.empty((rows.size, cols_size, self._bands_ip), dtype=numpy.complex64)
         for row_start, row_end, child_chipper in zip(self._row_starts, self._row_ends, self._child_chippers):
             row_bool = ((rows >= row_start) & (rows < row_end))
             if numpy.any(row_bool):
@@ -411,7 +410,7 @@ class MultiSegmentChipper(BaseChipper):
                 if self._bands_ip == 1:
                     out[row_bool, :] = child_chipper(crange1, range2)
                 else:
-                    out[:, row_bool, :] = child_chipper(crange1, range2)
+                    out[row_bool, :, :] = child_chipper(crange1, range2)
         return out
 
 
@@ -442,26 +441,27 @@ class SICDReader(BaseReader):
 
         pixel_type = self._sicd_meta.ImageData.PixelType
         complex_type = True
-        # NB: SICDs are required to be stored as big-endian, so the endian-ness of the memmap must be explicit
+        # NB: SICDs are required to be stored as big-endian
         if pixel_type == 'RE32F_IM32F':
-            dtype = numpy.dtype('>f4')  # big-endian float32
+            dtype = 'float32'
         elif pixel_type == 'RE16I_IM16I':
-            dtype = numpy.dtype('>i2')  # big-endian int16
+            dtype = 'int16'
         elif pixel_type == 'AMP8I_PHS8I':
-            dtype = numpy.dtype('>u1')  # big-endian uint8
+            dtype = 'uint8'
             complex_type = amp_phase_to_complex(self._sicd_meta.ImageData.AmpTable)
         else:
             raise ValueError('Pixel Type {} not recognized.'.format(pixel_type))
 
         data_sizes = numpy.column_stack(
-            (self._nitf_details.img_segment_rows, self._nitf_details.img_segment_columns), dtype=numpy.int64)
+            (self._nitf_details.img_segment_rows, self._nitf_details.img_segment_columns))
         # TODO: account for things broken up along more than just rows
         # SICDs require no symmetry reorientation
         symmetry = (False, False, False)
         # construct our chipper
         chipper = MultiSegmentChipper(
-            nitf_details.file_name, data_sizes, self._nitf_details.img_segment_rows.copy(), dtype,
-            symmetry=symmetry, complex_type=complex_type, bands_ip=1)
+            nitf_details.file_name, data_sizes, self._nitf_details.img_segment_offsets.copy(), dtype,
+            symmetry=symmetry, complex_type=complex_type,
+            bands_ip=1, swap_bytes=(sys.byteorder != 'big'))
 
         super(SICDReader, self).__init__(self._sicd_meta, chipper)
 
@@ -660,17 +660,17 @@ class SICDWriter(BaseWriter):
         if pixel_type == 'RE32F_IM32F':
             pv_type, isubcat = 'R', ('I', 'Q')
             pixel_size = 8
-            dtype = numpy.dtype('>f4')  # big-endian float32
+            dtype = 'float32'
             complex_type = True
         elif pixel_type == 'RE16I_IM16I':
             pv_type, isubcat = 'SI', ('I', 'Q')
             pixel_size = 4
-            dtype = numpy.dtype('>i2')  # big-endian int16
+            dtype = 'int16'
             complex_type = complex_to_int
         else:  # pixel_type == 'AMP8I_PHS8I':
             pv_type, isubcat = 'INT', ('M', 'P')
             pixel_size = 2
-            dtype = numpy.dtype('>u1')  # big-endian uint8
+            dtype = 'uint8'
             complex_type = complex_to_amp_phase(self._sicd_meta.ImageData.AmpTable)
 
         IM_SEG_LIMIT = 10**10 - 2  # as big as can be stored in 10 digits, given at least 2 bytes per pixel
@@ -888,7 +888,8 @@ class SICDWriter(BaseWriter):
         # prepare out writing chippers
         self._writing_chippers = tuple(
             BIPWriter(self._file_name, (ent[1]-ent[0], ent[3]-ent[2]),
-                      self._dtype, self._complex_type, data_offset=offset)
+                      self._dtype, self._complex_type, data_offset=offset,
+                      swap_bytes=(sys.byteorder != 'big'))
             for ent, offset in zip(self._image_segment_limits, image_offsets))
         # prepare our pixels written counter
         self._pixels_written = numpy.zeros((self._image_segment_limits.shape[0],), dtype=numpy.int64)

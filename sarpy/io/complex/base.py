@@ -116,8 +116,8 @@ class BaseChipper(object):
         data = self._data_to_complex(data)
 
         # make a one band image flat
-        if data.ndim == 3 and data.shape[0] == 1:
-            data = numpy.reshape(data, data.shape[1:])
+        if data.ndim == 3 and data.shape[2] == 1:
+            data = numpy.reshape(data, data.shape[:-1])
 
         data = self._reorder_data(data)
         return data
@@ -244,16 +244,18 @@ class BaseChipper(object):
     def _data_to_complex(self, data):
         if callable(self._complex_type):
             return self._complex_type(data)  # is this actually necessary?
-        if self._complex_type:
-            out = numpy.zeros((data.shape(0)/2, data.shape(1), data.shape(2)), dtype=numpy.complex64)
-            out.real = data[0::2, :, :]
-            out.imag = data[1::2, :, :]
+        elif self._complex_type:
+            out = numpy.zeros((data.shape[0], data.shape[1], int_func(data.shape[2]/2)), dtype=numpy.complex64)
+            out.real = data[:, :, 0::2]
+            out.imag = data[:, :, 1::2]
             return out
-        return data
+        else:
+            # nothing to be done
+            return data
 
     def _reorder_data(self, data):
         if self._symmetry[2]:
-            data = numpy.swapaxes(data, data.ndim-1, data.ndim-2)
+            data = numpy.swapaxes(data, 1, 0)
         return data
 
     def _read_raw_fun(self, range1, range2):

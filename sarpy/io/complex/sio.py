@@ -4,6 +4,7 @@ Functionality for reading SIO data into a SICD model.
 """
 
 import os
+import sys
 import struct
 import logging
 import re
@@ -59,9 +60,9 @@ class SIODetails(object):
 
     # NB: there are really just two types of SIO file (with user_data and without),
     #   with endian-ness layered on top
-    #   The first two are without user data (each endian-ness)
-    #   The last two are with user data (each endian-ness)
-    MAGIC_NUMBERS = {0xFF017FFE: '>', 0xFE7F01FF: '<', 0xFF027FFD: '>', 0xFD7F02FF: '<'}
+    ENDIAN = {
+        0xFF017FFE: '>', 0xFE7F01FF: '<',  # no user data
+        0xFF027FFD: '>', 0xFD7F02FF: '<'}  # with user data
 
     def __init__(self, file_name):
         self._file_name = file_name
@@ -72,7 +73,7 @@ class SIODetails(object):
         self._sicd = None
         with open(file_name, 'rb') as fi:
             self._magic_number = struct.unpack('I', fi.read(4))[0]
-            endian = self.MAGIC_NUMBERS.get(self._magic_number, None)
+            endian = self.ENDIAN.get(self._magic_number, None)
             if endian is None:
                 raise IOError('File {} is not an SIO file. Got magic number {}'.format(file_name, self._magic_number))
 
@@ -107,21 +108,26 @@ class SIODetails(object):
             return rows, cols
 
     @property
-    def data_type(self):  # type: () -> Union[None, numpy.dtype]
+    def data_type(self):  # type: () -> Union[None, str]
         # head[2] = (2X = vector, 1X = complex/scalar, 0X = real/scalar), where
         #   X = (1 = unsigned int, 2 = signed int, 3 = float, (4=double? I would guess)
         # head[3] = pixel size in bytes (2*bit depth for complex, or band*bit depth for vector)
         pixel_size = self._head[3]
-        endian = self.MAGIC_NUMBERS[self._magic_number]
         # we require (for sicd) that either head[2:] is [13, 8], [12, 4], [11, 2]
         if pixel_size == 8:
-            return numpy.dtype('{}f4'.format(endian))
+            return 'float32'
         elif pixel_size == 4:
-            return numpy.dtype('{}i2'.format(endian))
+            return 'int16'
         elif pixel_size == 2:
-            return numpy.dtype('{}u1'.format(endian))
+            return 'uint8'
         else:
             raise ValueError('Got unsupported sio data type/pixel size = {}'.format(self._head[2:]))
+
+    @property
+    def swap_bytes(self):
+        endian = self.ENDIAN[self._magic_number]
+        return (endian == '>' and sys.byteorder != 'little') or \
+            (endian == '<' and sys.byteorder != 'big')
 
     @property
     def pixel_type(self):  # type: () -> Union[None, str]
@@ -162,7 +168,7 @@ class SIODetails(object):
                     user_dat_len += 4 + name_length + 4 + value_length
                 return out, user_dat_len
 
-            endian = self.MAGIC_NUMBERS[self._magic_number]
+            endian = self.ENDIAN[self._magic_number]
             with open(self._file_name, 'rb') as fi:
                 fi.seek(20)  # skip the basic header
                 # read the user data (some type of header), if necessary
@@ -307,7 +313,7 @@ class SIOReader(BaseReader):
             complex_type = True
         chipper = BIPChipper(sio_details.file_name, sio_details.data_type, sio_details.data_size,
                              symmetry=sio_details.symmetry, complex_type=complex_type,
-                             data_offset=sio_details.data_offset)
+                             data_offset=sio_details.data_offset, swap_bytes=sio_details.swap_bytes)
         super(SIOReader, self).__init__(sicd_meta, chipper)
 
 
@@ -326,37 +332,40 @@ class SIOWriter(BIPWriter):
         """
 
         # choose magic number (with user data) and corresponding endian-ness
-        magic_number = 0xFF027FFD
-        endian = SIODetails.MAGIC_NUMBERS[magic_number]
+        magic_number = 0xFD7F02FF
+        endian = SIODetails.ENDIAN[magic_number]
+        swap_bytes = (endian == '>' and sys.byteorder != 'big') or \
+            (endian == '<' and sys.byteorder != 'little')
+
         # define basic image details
         image_size = (sicd_meta.ImageData.NumRows, sicd_meta.ImageData.NumCols)
         pixel_type = sicd_meta.ImageData.PixelType
         if pixel_type == 'RE32F_IM32F':
-            data_type = numpy.dtype('{}f4'.format(endian))
+            data_type = 'float32'
             element_type = 13
             element_size = 8
             complex_type = True
         elif pixel_type == 'RE16I_IM16I':
-            data_type = numpy.dtype('{}i4'.format(endian))
+            data_type = 'int16'
             element_type = 12
             element_size = 4
             complex_type = complex_to_int
         else:
-            data_type = numpy.dtype('{}u1'.format(endian))
+            data_type = 'uint8'
             element_type = 11
             element_size = 2
             complex_type = complex_to_amp_phase(sicd_meta.ImageData.AmpTable)
         # construct the sio header
         header = numpy.array(
             [magic_number, image_size[0], image_size[1], element_type, element_size],
-            dtype='{}u4'.format(endian))
+            dtype='uint32')
         # construct the user data - must be {str : str}
         if user_data is None:
             user_data = {}
         user_data['SICDMETA'] = sicd_meta.to_xml_string(urn=_SPECIFICATION_NAMESPACE, tag='SICD')
         data_offset = 20
         with open(file_name, 'wb') as fi:
-            fi.write(struct.pack('>5I', *header))
+            fi.write(struct.pack('{}5I'.format(endian), *header))
             # write the user data - name size, name, value size, value
             for name in user_data:
                 name_bytes = name.encode('utf-8')
@@ -368,4 +377,4 @@ class SIOWriter(BIPWriter):
                 data_offset += 4 + len(name_bytes) + 4 + len(val_bytes)
         # initialize the bip writer - we're ready to go
         super(SIOWriter, self).__init__(file_name, image_size, data_type,
-                                        complex_type=complex_type, data_offset=data_offset)
+                                        complex_type=complex_type, data_offset=data_offset, swap_bytes=swap_bytes)

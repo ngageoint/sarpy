@@ -13,6 +13,7 @@ import numpy
 from .base import BaseChipper, AbstractWriter
 
 size_func = int
+int_func = int
 if sys.version_info[0] < 3:
     # noinspection PyUnresolvedReferences
     int_func = long  # to accommodate 32-bit python 2
@@ -24,19 +25,19 @@ __classification__ = "UNCLASSIFIED"
 class BIPChipper(BaseChipper):
     __slots__ = (
         '_file_name', '_data_size', '_data_type', '_data_offset', '_bands',
-        '_complex_type', '_symmetry', '_memory_map', '_fid')
+        '_complex_type', '_symmetry', '_memory_map', '_fid', '_swap_bytes')
 
     def __init__(self, file_name, data_type, data_size,
                  symmetry=(False, False, False), complex_type=False,
-                 data_offset=0, bands_ip=1):
+                 data_offset=0, bands_ip=1, swap_bytes=False):
         """
 
         Parameters
         ----------
         file_name : str
             The name of the file from which to read
-        data_type : numpy.dtype
-            The data type of the underlying file
+        data_type : numpy.dtype|str
+            The data type of the underlying file. **Note: use `swap_bytes` versus specifying endianness.**
         data_size : tuple
             The full size of the data *after* any required transformation. See
             `data_size` property.
@@ -52,6 +53,8 @@ class BIPChipper(BaseChipper):
             byte offset from the start of the file at which the data actually starts
         bands_ip : int
             number of bands - really intended for complex data
+        swap_bytes : bool
+            Whether to switch the endianness of the data when reading
         """
 
         super(BIPChipper, self).__init__(data_size, symmetry=symmetry, complex_type=complex_type)
@@ -63,6 +66,7 @@ class BIPChipper(BaseChipper):
         self._data_offset = int_func(data_offset)
         self._data_type = data_type
         self._bands = bands
+        self._swap_bytes = swap_bytes
 
         if not os.path.isfile(file_name):
             raise IOError('Path {} either does not exists, or is not a file.'.format(file_name))
@@ -77,7 +81,7 @@ class BIPChipper(BaseChipper):
                                             dtype=data_type,
                                             mode='r',
                                             offset=data_offset,
-                                            shape=self._data_size + (self._bands, ))
+                                            shape=self._data_size + (self._bands, ))  # type: numpy.memmap
         except (OverflowError, OSError):
             # if 32-bit python, then we'll fail for any file larger than 2GB
             # we fall-back to a slower version of reading manually
@@ -99,8 +103,10 @@ class BIPChipper(BaseChipper):
             return self._read_file(range1, range2)
 
     def _read_memory_map(self, range1, range2):
-        data = numpy.array(self._memory_map[range1[0]:range1[1]:range1[2], range2[0]:range2[1]:range2[2]])
-        return data.transpose((2, 0, 1))  # switches from band interleaved to band sequential
+        out = numpy.array(self._memory_map[range1[0]:range1[1]:range1[2], range2[0]:range2[1]:range2[2]], dtype=self._data_type)
+        if self._swap_bytes:
+            return out.byteswap(inplace=False)
+        return out
 
     def _read_file(self, range1, range2):
         def get_row_location(rr, cc):
@@ -116,7 +122,7 @@ class BIPChipper(BaseChipper):
         dim1array = numpy.arange(range1)
         dim2array = numpy.arange(range2)
         # allocate our output array
-        out = numpy.empty((self._bands, len(dim1array), len(dim2array)), dtype=self._data_type)
+        out = numpy.empty((len(dim1array), len(dim2array), self._bands), dtype=self._data_type)
         # determine the first column reading location (may be reading cols backwards)
         col_begin = dim2array[0] if range2[2] > 0 else dim2array[-1]
 
@@ -127,8 +133,9 @@ class BIPChipper(BaseChipper):
             line = numpy.fromfile(self._fid, self._data_type, entries_per_row*self._bands)
             # note that we purposely read without considering skipping elements, which
             #   is factored in (along with any potential order reversal) below
-            for j in range(self._bands):
-                out[j, i, :] = line[j::range2[2]*self._bands]
+            out[i, :, :] = line[::range2[2]]
+        if self._swap_bytes:
+            return out.byteswap(inplace=False)
         return out
 
 
@@ -140,9 +147,9 @@ class BIPWriter(AbstractWriter):
     """
     __slots__ = (
         '_data_size', '_data_type', '_complex_type', '_data_offset',
-        '_shape', '_memory_map', '_fid')
+        '_shape', '_memory_map', '_fid', '_swap_bytes')
 
-    def __init__(self, file_name, data_size, data_type, complex_type, data_offset=0):
+    def __init__(self, file_name, data_size, data_type, complex_type, data_offset=0, swap_bytes=False):
         """
         For writing the SICD data into the NITF container. This is abstracted generally
         because an array of these writers is used for multi-image segment NITF files.
@@ -154,8 +161,9 @@ class BIPWriter(AbstractWriter):
             the file_name
         data_size : tuple
             the shape of the form (rows, cols)
-        data_type : numpy.dtype
-            the underlying data type of the output data.
+        data_type : numpy.dtype|str
+            the underlying data type of the output data. Specify `swap_bytes` versus
+            specifying endianess here.
         complex_type : callable|bool
             For complex type handling.
 
@@ -173,6 +181,8 @@ class BIPWriter(AbstractWriter):
               match `data_type`.
         data_offset : int
             byte offset from the start of the file at which the data actually starts
+        swap_bytes : bool
+            Whether to versus byte order when writing.
         """
 
         super(BIPWriter, self).__init__(file_name)
@@ -190,6 +200,7 @@ class BIPWriter(AbstractWriter):
         if not (isinstance(complex_type, bool) or callable(complex_type)):
             raise ValueError('complex-type must be a boolean or a callable')
         self._complex_type = complex_type
+        self._swap_bytes = swap_bytes
 
         if self._complex_type is True and self._data_type != numpy.float32:
             raise ValueError(
@@ -259,6 +270,9 @@ class BIPWriter(AbstractWriter):
         if not isinstance(data, numpy.ndarray):
             raise TypeError('Requires data is a numpy.ndarray, got {}'.format(type(data)))
 
+        if self._swap_bytes:
+            data = data.byteswap(inplace=False)
+
         start1, stop1 = start_indices[0], start_indices[0] + data.shape[0]
         start2, stop2 = start_indices[1], start_indices[1] + data.shape[1]
 
@@ -297,19 +311,19 @@ class BIPWriter(AbstractWriter):
         # we have to fall-back to manually write
         element_size = int_func(self._data_type.itemsize)
         if len(self._shape) == 3:
-            element_size *= int_func(self._shape)
+            element_size *= int_func(self._shape[2])
         stride = element_size*int_func(self._data_size[0])
         # go to the appropriate spot in the file for first entry
         self._fid.seek(self._data_offset + stride*start1 + element_size*start2)
         if start1 == 0 and stop1 == self._data_size[0]:
             # we can write the block all at once
-            data.astype(self._data_type).tofile(self._fid)  # astype may be required for bit order
+            data.astype(self._data_type).tofile(self._fid)
         else:
             # have to write one row at a time
             bytes_to_skip_per_row = element_size*(self._data_size[0]-(stop1-start1))
             for i, row in enumerate(data):
                 # we the row, and then skip to where the next row starts
-                row.astype(self._data_type).tofile(self._fid)  # astype may be required for bit order
+                row.astype(self._data_type).tofile(self._fid)
                 if i < len(data) - 1:
                     # don't seek on last entry (avoid segfault, or whatever)
                     self._fid.seek(bytes_to_skip_per_row, os.SEEK_CUR)

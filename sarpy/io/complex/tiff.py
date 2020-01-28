@@ -3,6 +3,7 @@
 Module providing api consistent with other file types for reading tiff files.
 """
 
+import sys
 import logging
 import numpy
 
@@ -217,6 +218,11 @@ class TiffDetails(object):
         return self._endian
 
     @property
+    def swap_bytes(self):
+        return (self._endian == '<' and sys.byteorder != 'little') or \
+            (self._endian == '>' and sys.byteorder != 'big')
+
+    @property
     def tags(self):
         """
         None|dict: READ ONLY. the tiff tags dictionary, provided that func:`parse_tags` has been called.
@@ -345,13 +351,13 @@ class NativeTiffChipper(BIPChipper):
             bits_per_sample /= 2
             complex_type = True
         data_size = numpy.array([tiff_meta.tags['ImageLength'][0], tiff_meta.tags['ImageWidth'][0]])
-        data_type = numpy.dtype('{}{}{}'.format(
-            tiff_meta.tags['endian'], self._SAMPLE_FORMATS[samp_form], bits_per_sample/8))
+        data_type = '{0:s}{1:d}'.format(self._SAMPLE_FORMATS[samp_form], int(bits_per_sample/8))
+        swap_bytes = tiff_meta.swap_bytes
         data_offset = tiff_meta.tags['StripOffsets'][0]
 
         super(NativeTiffChipper, self).__init__(
             tiff_meta.file_name, data_type, data_size, symmetry=symmetry, complex_type=complex_type,
-            data_offset=data_offset, bands_ip=1)
+            data_offset=data_offset, bands_ip=1, swap_bytes=swap_bytes)
 
 
 class GdalTiffChipper(BaseChipper):
