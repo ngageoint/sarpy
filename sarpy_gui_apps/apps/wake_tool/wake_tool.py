@@ -93,9 +93,9 @@ class WakeTool(AbstractWidgetPanel):
         # first do all the normal mouse click functionality of the canvas
         self.image_canvas.callback_handle_left_mouse_click(event)
         # now set the object ID's accordingly, we do this so we don't draw multiple arrows or points
-        if self.image_canvas.variables.current_tool == self.image_canvas.TOOLS.DRAW_ARROW_TOOL:
+        if self.image_canvas.variables.current_tool == self.image_canvas.TOOLS.DRAW_ARROW_BY_DRAGGING:
             self.variables.arrow_id = self.image_canvas.variables.current_shape_id
-        if self.image_canvas.variables.current_tool == self.image_canvas.TOOLS.DRAW_POINT_TOOL:
+        if self.image_canvas.variables.current_tool == self.image_canvas.TOOLS.DRAW_POINT_BY_CLICKING:
             self.variables.point_id = self.image_canvas.variables.current_shape_id
         if self.variables.point_id is not None and self.variables.arrow_id is not None:
             self.update_distance()

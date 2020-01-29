@@ -53,7 +53,12 @@ class CanvasDemo(AbstractWidgetPanel):
         self.button_panel.draw_rect_w_click.on_left_mouse_click(self.callback_draw_rect_w_click)
         self.button_panel.color_selector.on_left_mouse_click(self.callback_activate_color_selector)
 
+        self.button_panel.modify_existing_shape.on_left_mouse_click(self.callback_highlight_shape)
+
         self._init_w_image()
+
+    def callback_highlight_shape(self, event):
+        self.canvas_demo_image_panel.highlight_existing_shape(self.canvas_demo_image_panel.variables.current_shape_id)
 
     def callback_activate_color_selector(self, event):
         self.canvas_demo_image_panel.activate_color_selector(event)
@@ -131,7 +136,8 @@ class CanvasDemo(AbstractWidgetPanel):
             self.canvas_demo_image_panel.init_with_fname(self.variables.fname)
 
     def _init_w_image(self):
-        fname = '/media/psf/mac_external_ssd/Data/sarpy_data/nitf/sicd_example_1_PFA_RE32F_IM32F_HH.nitf'
+        # fname = '/media/psf/mac_external_ssd/Data/sarpy_data/nitf/sicd_example_1_PFA_RE32F_IM32F_HH.nitf'
+        fname = os.path.expanduser('~/Data/sarpy/sicd_example_1_PFA_RE32F_IM32F_HH.nitf')
         self.variables.fname = fname
         self.canvas_demo_image_panel.init_with_fname(fname)
 

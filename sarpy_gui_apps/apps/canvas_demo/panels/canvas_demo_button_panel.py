@@ -20,7 +20,9 @@ class CanvasDemoButtonPanel(AbstractWidgetPanel):
     draw_ellipse_w_drag = basic_widgets.Button
     draw_ellipse_w_click = basic_widgets.Button
     draw_polygon_w_click = basic_widgets.Button
+    modify_existing_shape = basic_widgets.Button
     color_selector = basic_widgets.Button
+    select_existing_shape = basic_widgets.Combobox  # type: basic_widgets.Combobox
     remap_dropdown = basic_widgets.Combobox         # type: basic_widgets.Combobox
 
     def __init__(self, parent):
@@ -41,6 +43,7 @@ class CanvasDemoButtonPanel(AbstractWidgetPanel):
                     "draw_ellipse_w_drag",
                     "draw_ellipse_w_click",
                     "draw_polygon_w_click",
+                    "modify_existing_shape",
                     "color_selector",
                     "rect_select",
                     "update_rect_image",
