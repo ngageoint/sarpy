@@ -4,6 +4,7 @@ import tkinter as tk
 from tkinter_gui_builder.widgets import basic_widgets
 from tkinter_gui_builder.canvas_image_objects.abstract_canvas_image import AbstractCanvasImage
 from tkinter_gui_builder.canvas_image_objects.numpy_canvas_image import NumpyCanvasDisplayImage
+import tkinter.colorchooser as colorchooser
 import platform
 import numpy as np
 import time
@@ -724,10 +725,10 @@ class ImageCanvas(tk.LabelFrame):
                     ):
         # put a sleep in here in case there is a dialog covering the screen before this method is called.
         time.sleep(0.2)
-        im = self.save_to_numpy_array()
+        im = self.save_currently_displayed_canvas_to_numpy_array()
         im.save(output_fname)
 
-    def save_to_numpy_array(self):
+    def save_currently_displayed_canvas_to_numpy_array(self):
         x_ul = self.canvas.winfo_rootx() + 1
         y_ul = self.canvas.winfo_rooty() + 1
         x_lr = x_ul + self.canvas_width
@@ -735,3 +736,8 @@ class ImageCanvas(tk.LabelFrame):
         im = ImageGrab.grab()
         im = im.crop((x_ul, y_ul, x_lr, y_lr))
         return im
+
+    def activate_color_selector(self, event):
+        color = colorchooser.askcolor()[1]
+        self.variables.foreground_color = color
+        self.change_shape_color(self.variables.current_shape_id, color)
