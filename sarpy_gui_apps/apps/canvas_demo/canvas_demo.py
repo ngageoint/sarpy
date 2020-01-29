@@ -13,6 +13,7 @@ class AppVariables:
         self.fname = "None"       # type: str
         self.remap_type = "density"
         self.selection_rect_id = None           # type: int
+        self.shapes_in_selector = []
 
 
 class CanvasDemo(AbstractWidgetPanel):
@@ -49,13 +50,33 @@ class CanvasDemo(AbstractWidgetPanel):
 
         self.button_panel.draw_line_w_drag.on_left_mouse_click(self.callback_draw_line_w_drag)
         self.button_panel.draw_line_w_click.on_left_mouse_click(self.callback_draw_line_w_click)
+        self.button_panel.draw_arrow_w_drag.on_left_mouse_click(self.callback_draw_arrow_w_drag)
+        self.button_panel.draw_arrow_w_click.on_left_mouse_click(self.callback_draw_arrow_w_click)
+
         self.button_panel.draw_rect_w_drag.on_left_mouse_click(self.callback_draw_rect_w_drag)
         self.button_panel.draw_rect_w_click.on_left_mouse_click(self.callback_draw_rect_w_click)
         self.button_panel.color_selector.on_left_mouse_click(self.callback_activate_color_selector)
 
         self.button_panel.modify_existing_shape.on_left_mouse_click(self.callback_highlight_shape)
+        self.button_panel.select_existing_shape.on_selection(self.callback_handle_shape_selector)
+
+        self.canvas_demo_image_panel.canvas.on_left_mouse_click(self.callback_handle_canvas_left_mouse_click)
 
         self._init_w_image()
+
+    def callback_handle_canvas_left_mouse_click(self, event):
+        self.canvas_demo_image_panel.callback_handle_left_mouse_click(event)
+        current_shape = self.canvas_demo_image_panel.variables.current_shape_id
+        if current_shape:
+            self.variables.shapes_in_selector.append(current_shape)
+            self.variables.shapes_in_selector = sorted(list(set(self.variables.shapes_in_selector)))
+            self.button_panel.select_existing_shape.update_combobox_values(self.variables.shapes_in_selector)
+            print(current_shape)
+
+    def callback_handle_shape_selector(self, event):
+        current_shape_id = int(self.button_panel.select_existing_shape.get())
+        self.canvas_demo_image_panel.variables.current_shape_id = current_shape_id
+        self.canvas_demo_image_panel.highlight_existing_shape(current_shape_id)
 
     def callback_highlight_shape(self, event):
         self.canvas_demo_image_panel.highlight_existing_shape(self.canvas_demo_image_panel.variables.current_shape_id)
@@ -79,7 +100,7 @@ class CanvasDemo(AbstractWidgetPanel):
         self.canvas_demo_image_panel.set_current_tool_to_draw_rect()
 
     def callback_draw_rect_w_click(self, event):
-        self.canvas_demo_image_panel.set_current_tool_to_draw_rect()
+        self.canvas_demo_image_panel.set_current_tool_to_draw_rect_by_clicking()
 
     def callback_draw_circle_w_drag(self, event):
         self.canvas_demo_image_panel.set_current_tool_to_draw_circle()

@@ -43,6 +43,7 @@ class CanvasDemoButtonPanel(AbstractWidgetPanel):
                     "draw_ellipse_w_drag",
                     "draw_ellipse_w_click",
                     "draw_polygon_w_click",
+                    "select_existing_shape",
                     "modify_existing_shape",
                     "color_selector",
                     "rect_select",
