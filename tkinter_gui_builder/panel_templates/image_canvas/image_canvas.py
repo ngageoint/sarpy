@@ -329,11 +329,18 @@ class ImageCanvas(tk.LabelFrame):
         # self.hide_shape(current_shape)
 
     def highlight_existing_shape(self, shape_id):
+        original_color = self._get_shape_property(shape_id, SHAPE_PROPERTIES.COLOR)
         colors = color_utils.get_full_hex_palette(self.variables.highlight_color_palette, self.variables.highlight_n_colors_cycle)
         for color in colors:
             self.change_shape_color(shape_id, color)
             time.sleep(0.01)
             self.canvas.update()
+        colors.reverse()
+        for color in colors:
+            self.change_shape_color(shape_id, color)
+            time.sleep(0.01)
+            self.canvas.update()
+        self.change_shape_color(shape_id, original_color)
 
     def callback_handle_right_mouse_click(self, event):
         if self.variables.current_tool == TOOLS.DRAW_LINE_BY_CLICKING:
@@ -491,6 +498,7 @@ class ImageCanvas(tk.LabelFrame):
             shape_id = self.canvas.create_line(coords[0], coords[1], coords[2], coords[3], options)
         self.variables.shape_ids.append(shape_id)
         self._set_shape_property(shape_id, SHAPE_PROPERTIES.SHAPE_TYPE, SHAPE_TYPES.LINE)
+        self._set_shape_property(shape_id, SHAPE_PROPERTIES.COLOR, self.variables.foreground_color)
         self.set_shape_canvas_coords(shape_id, coords)
         self.set_shape_pixel_coords_from_canvas_coords(shape_id)
         self.variables.current_shape_id = shape_id
@@ -529,6 +537,7 @@ class ImageCanvas(tk.LabelFrame):
 
         self.variables.shape_ids.append(shape_id)
         self._set_shape_property(shape_id, SHAPE_PROPERTIES.SHAPE_TYPE, shape_type)
+        self._set_shape_property(shape_id, SHAPE_PROPERTIES.COLOR, self.variables.foreground_color)
         self.set_shape_canvas_coords(shape_id, coords)
         self.set_shape_pixel_coords_from_canvas_coords(shape_id)
         self.variables.current_shape_id = shape_id
@@ -543,6 +552,7 @@ class ImageCanvas(tk.LabelFrame):
             self.canvas.itemconfig(shape_id, outline=color)
         else:
             self.canvas.itemconfig(shape_id, fill=color)
+        self._set_shape_property(shape_id, SHAPE_PROPERTIES.COLOR, color)
 
     def set_shape_canvas_coords(self,
                                 shape_id,

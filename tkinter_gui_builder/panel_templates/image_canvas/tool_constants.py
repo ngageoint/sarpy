@@ -16,6 +16,7 @@ class ShapePropertyConstants:
     CANVAS_COORDS = "canvas coords"
     IMAGE_COORDS = "image coords"
     POINT_SIZE = "point size"
+    COLOR = "color"
 
 
 class ShapeTypeConstants:
