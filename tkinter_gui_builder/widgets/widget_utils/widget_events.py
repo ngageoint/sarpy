@@ -27,6 +27,9 @@ class WidgetEvents(object):
     def on_right_mouse_motion(self, event):
         self.bind("<B3-Motion>", event)
 
+    def on_mouse_motion(self, event):
+        self.bind("<Motion>", event)
+
     def on_mouse_wheel(self, event):
         if platform.system() == "Linux":
             self.bind("<Button-4>", event)

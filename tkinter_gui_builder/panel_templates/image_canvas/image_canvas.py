@@ -87,6 +87,8 @@ class ImageCanvas(tk.LabelFrame):
         self.canvas.on_left_mouse_click(self.callback_handle_left_mouse_click)
         self.canvas.on_left_mouse_motion(self.callback_handle_left_mouse_motion)
         self.canvas.on_left_mouse_release(self.callback_handle_left_mouse_release)
+        self.canvas.on_right_mouse_click(self.callback_handle_right_mouse_click)
+        self.canvas.on_mouse_motion(self.callback_handle_mouse_motion)
 
         self.canvas.on_mouse_wheel(self.callback_mouse_zoom)
 
@@ -233,6 +235,45 @@ class ImageCanvas(tk.LabelFrame):
             else:
                 pass
 
+    def callback_handle_left_mouse_click(self, event):
+        if self.variables.current_tool == TOOLS.PAN_TOOL:
+            self.variables.pan_anchor_point_xy = event.x, event.y
+            self.variables.tmp_anchor_point = event.x, event.y
+        elif self.variables.current_tool == TOOLS.TRANSLATE_SHAPE_TOOL:
+            self.variables.translate_anchor_point_xy = event.x, event.y
+            self.variables.tmp_anchor_point = event.x, event.y
+        else:
+            # create or re-initialize shape
+            # save mouse drag start position
+            start_x = self.canvas.canvasx(event.x)
+            start_y = self.canvas.canvasy(event.y)
+
+            self.variables.current_shape_canvas_anchor_point_xy = (start_x, start_y)
+
+            if self.variables.current_shape_id not in self.variables.shape_ids:
+                coords = (start_x, start_y, start_x + 1, start_y + 1)
+                if self.variables.current_tool == TOOLS.DRAW_LINE_BY_DRAGGING:
+                    self.create_new_line(coords)
+                elif self.variables.current_tool == TOOLS.DRAW_LINE_BY_CLICKING:
+                    self.create_new_line(coords)
+                elif self.variables.current_tool == TOOLS.DRAW_RECT_BY_DRAGGING:
+                    self.create_new_rect(coords)
+                elif self.variables.current_tool == TOOLS.DRAW_ARROW_BY_DRAGGING:
+                    self.create_new_arrow(coords)
+                elif self.variables.current_tool == TOOLS.DRAW_POINT_BY_CLICKING:
+                    self.create_new_point((start_x, start_y))
+                else:
+                    print("no shape tool selected")
+            else:
+                if self.variables.current_shape_id in self.variables.shape_ids:
+                    if self.get_shape_type(self.variables.current_shape_id) == SHAPE_TYPES.POINT:
+                        self.modify_existing_shape_using_canvas_coords(self.variables.current_shape_id,
+                                                                       (start_x, start_y))
+                    elif self.variables.current_tool == TOOLS.DRAW_LINE_BY_CLICKING:
+                        old_coords = self.get_shape_canvas_coords(self.variables.current_shape_id)
+                        new_coords = list(old_coords) + [event.x, event.y]
+                        self.modify_existing_shape_using_canvas_coords(self.variables.current_shape_id, new_coords)
+
     def callback_handle_left_mouse_release(self, event):
         if self.variables.current_tool == TOOLS.PAN_TOOL:
             self._pan(event)
@@ -249,16 +290,6 @@ class ImageCanvas(tk.LabelFrame):
             zoom_rect = (x1, y1, x2, y2)
             self.zoom_to_selection(zoom_rect, self.variables.animate_zoom)
             self.hide_shape(self.variables.zoom_rect_id)
-
-    def callback_handle_left_mouse_click(self, event):
-        if self.variables.current_tool == TOOLS.PAN_TOOL:
-            self.variables.pan_anchor_point_xy = event.x, event.y
-            self.variables.tmp_anchor_point = event.x, event.y
-        elif self.variables.current_tool == TOOLS.TRANSLATE_SHAPE_TOOL:
-            self.variables.translate_anchor_point_xy = event.x, event.y
-            self.variables.tmp_anchor_point = event.x, event.y
-        else:
-            self.event_create_or_reinitialize_shape(event)
 
     def callback_handle_left_mouse_motion(self, event):
         if self.variables.current_tool == TOOLS.PAN_TOOL:
@@ -277,6 +308,14 @@ class ImageCanvas(tk.LabelFrame):
             self.variables.tmp_anchor_point = event.x, event.y
         else:
             self.event_drag_shape(event)
+
+    def callback_handle_right_mouse_click(self, event):
+        if self.variables.current_tool == TOOLS.DRAW_LINE_BY_CLICKING:
+            self.variables.current_shape_id = None
+
+    def callback_handle_mouse_motion(self, event):
+        if self.variables.current_tool == TOOLS.DRAW_LINE_BY_CLICKING:
+            self.event_draw_multipoint_shape(event)
 
     def set_image_from_numpy_array(self,
                                    numpy_data,                      # type: np.ndarray
@@ -319,32 +358,19 @@ class ImageCanvas(tk.LabelFrame):
         if update_pixel_coords:
             self.set_shape_pixel_coords_from_canvas_coords(shape_id)
 
-    def event_create_or_reinitialize_shape(self, event):
-        # save mouse drag start position
-        start_x = self.canvas.canvasx(event.x)
-        start_y = self.canvas.canvasy(event.y)
-
-        coords = (start_x, start_y, start_x + 1, start_y + 1)
-        self.variables.current_shape_canvas_anchor_point_xy = (start_x, start_y)
-
-        if self.variables.current_shape_id not in self.variables.shape_ids:
-            if self.variables.current_tool == TOOLS.DRAW_LINE_TOOL:
-                self.create_new_line(coords)
-            elif self.variables.current_tool == TOOLS.DRAW_RECT_TOOL:
-                self.create_new_rect(coords)
-            elif self.variables.current_tool == TOOLS.DRAW_ARROW_TOOL:
-                self.create_new_arrow(coords)
-            elif self.variables.current_tool == TOOLS.DRAW_POINT_TOOL:
-                self.create_new_point((start_x, start_y))
-            else:
-                print("no shape tool selected")
+    def event_draw_multipoint_shape(self, event):
+        if self.variables.current_shape_id:
+            self.show_shape(self.variables.current_shape_id)
+            event_x_pos = self.canvas.canvasx(event.x)
+            event_y_pos = self.canvas.canvasy(event.y)
+            coords = self.canvas.coords(self.variables.current_shape_id)
+            new_coords = list(coords[0:-2]) + [event_x_pos, event_y_pos]
+            if self.get_shape_type(self.variables.current_shape_id) == SHAPE_TYPES.POINT:
+                self.modify_existing_shape_using_canvas_coords(self.variables.current_shape_id, (event_x_pos, event_y_pos))
+            elif self.get_shape_type(self.variables.current_shape_id) == SHAPE_TYPES.ARROW or self.get_shape_type(self.variables.current_shape_id) == SHAPE_TYPES.LINE:
+                self.modify_existing_shape_using_canvas_coords(self.variables.current_shape_id, new_coords)
         else:
-            if self.variables.current_shape_id in self.variables.shape_ids:
-                if self.get_shape_type(self.variables.current_shape_id) == SHAPE_TYPES.POINT:
-                    self.modify_existing_shape_using_canvas_coords(self.variables.current_shape_id,
-                                                                   (start_x, start_y))
-                else:
-                    self.modify_existing_shape_using_canvas_coords(self.variables.current_shape_id, coords)
+            pass
 
     def event_drag_shape(self, event):
         if self.variables.current_shape_id:
@@ -426,7 +452,18 @@ class ImageCanvas(tk.LabelFrame):
         return self.create_new_canvas_shape('point', coords, **options)
 
     def create_new_line(self, coords, **options):
-        return self.create_new_canvas_shape('line', coords, **options)
+        if options == {}:
+            shape_id = self.canvas.create_line(coords,
+                                               fill=self.variables.foreground_color,
+                                               width=self.variables.line_width)
+        else:
+            shape_id = self.canvas.create_line(coords[0], coords[1], coords[2], coords[3], options)
+        self.variables.shape_ids.append(shape_id)
+        self._set_shape_property(shape_id, SHAPE_PROPERTIES.SHAPE_TYPE, SHAPE_TYPES.LINE)
+        self.set_shape_canvas_coords(shape_id, coords)
+        self.set_shape_pixel_coords_from_canvas_coords(shape_id)
+        self.variables.current_shape_id = shape_id
+        return shape_id
 
     def create_new_canvas_shape(self,
                                 shape_type,  # type: str
@@ -441,12 +478,7 @@ class ImageCanvas(tk.LabelFrame):
             else:
                 shape_id = self.canvas.create_rectangle(coords[0], coords[1], coords[2], coords[3], options)
         if shape_type == SHAPE_TYPES.LINE:
-            if options == {}:
-                shape_id = self.canvas.create_line(coords[0], coords[1], coords[2], coords[3],
-                                                       fill=self.variables.foreground_color,
-                                                       width=self.variables.line_width)
-            else:
-                shape_id = self.canvas.create_line(coords[0], coords[1], coords[2], coords[3], options)
+            pass
         if shape_type == SHAPE_TYPES.ARROW:
             if options == {}:
                 shape_id = self.canvas.create_line(coords[0], coords[1], coords[2], coords[3],
@@ -616,26 +648,31 @@ class ImageCanvas(tk.LabelFrame):
 
     def set_current_tool_to_draw_rect(self, rect_id=None):
         self.variables.current_shape_id = rect_id
-        self.variables.current_tool = TOOLS.DRAW_RECT_TOOL
+        self.variables.current_tool = TOOLS.DRAW_RECT_BY_DRAGGING
         self.show_shape(rect_id)
 
     def set_current_tool_to_selection_tool(self):
         self.variables.current_shape_id = self.variables.select_rect_id
         self.variables.current_tool = TOOLS.SELECT_TOOL
 
-    def set_current_tool_to_draw_line(self, line_id=None):
+    def set_current_tool_to_draw_line_by_dragging(self, line_id=None):
         self.variables.current_shape_id = line_id
-        self.variables.current_tool = TOOLS.DRAW_LINE_TOOL
+        self.variables.current_tool = TOOLS.DRAW_LINE_BY_DRAGGING
+        self.show_shape(line_id)
+
+    def set_current_tool_to_draw_line_by_clicking(self, line_id=None):
+        self.variables.current_shape_id = line_id
+        self.variables.current_tool = TOOLS.DRAW_LINE_BY_CLICKING
         self.show_shape(line_id)
 
     def set_current_tool_to_draw_arrow(self, arrow_id=None):
         self.variables.current_shape_id = arrow_id
-        self.variables.current_tool = TOOLS.DRAW_ARROW_TOOL
+        self.variables.current_tool = TOOLS.DRAW_ARROW_BY_DRAGGING
         self.show_shape(arrow_id)
 
     def set_current_tool_to_draw_point(self, point_id=None):
         self.variables.current_shape_id = point_id
-        self.variables.current_tool = TOOLS.DRAW_POINT_TOOL
+        self.variables.current_tool = TOOLS.DRAW_POINT_BY_CLICKING
         self.show_shape(point_id)
 
     def set_current_tool_to_translate_shape(self):

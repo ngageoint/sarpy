@@ -49,6 +49,8 @@ class CanvasDemo(AbstractWidgetPanel):
 
         self.button_panel.draw_line_w_drag.on_left_mouse_click(self.callback_draw_line_w_drag)
         self.button_panel.draw_line_w_click.on_left_mouse_click(self.callback_draw_line_w_click)
+        self.button_panel.draw_rect_w_drag.on_left_mouse_click(self.callback_draw_rect_w_drag)
+        self.button_panel.draw_rect_w_click.on_left_mouse_click(self.callback_draw_rect_w_click)
         self.button_panel.color_selector.on_left_mouse_click(self.callback_activate_color_selector)
 
         self._init_w_image()
@@ -57,10 +59,10 @@ class CanvasDemo(AbstractWidgetPanel):
         self.canvas_demo_image_panel.activate_color_selector(event)
 
     def callback_draw_line_w_drag(self, event):
-        self.canvas_demo_image_panel.set_current_tool_to_draw_line()
+        self.canvas_demo_image_panel.set_current_tool_to_draw_line_by_dragging()
 
     def callback_draw_line_w_click(self, event):
-        self.canvas_demo_image_panel.set_current_tool_to_draw_line()
+        self.canvas_demo_image_panel.set_current_tool_to_draw_line_by_clicking()
 
     def callback_draw_arrow_w_drag(self, event):
         self.canvas_demo_image_panel.set_current_tool_to_draw_arrow()
