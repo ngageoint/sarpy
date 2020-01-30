@@ -324,7 +324,7 @@ class ImageCanvas(tk.LabelFrame):
             self.modify_existing_shape_using_canvas_coords(self.variables.current_shape_id, (new_x1, new_y1, new_x2, new_y2), update_pixel_coords=True)
             self.variables.tmp_anchor_point = event.x, event.y
         elif self.variables.current_tool == TOOLS.DRAW_RECT_BY_DRAGGING:
-            self.event_drag_rect(event)
+            self.event_drag_line(event)
         elif self.variables.current_tool == TOOLS.DRAW_LINE_BY_DRAGGING:
             self.event_drag_line(event)
         elif self.variables.current_tool == TOOLS.DRAW_ARROW_BY_DRAGGING:
@@ -362,7 +362,7 @@ class ImageCanvas(tk.LabelFrame):
             elif self.variables.current_tool == TOOLS.DRAW_ARROW_BY_CLICKING:
                 self.event_draw_multipoint_shape(event)
             elif self.variables.current_tool == TOOLS.DRAW_RECT_BY_CLICKING:
-                self.event_drag_rect(event)
+                self.event_drag_line(event)
 
     def set_image_from_numpy_array(self,
                                    numpy_data,                      # type: np.ndarray
@@ -438,62 +438,6 @@ class ImageCanvas(tk.LabelFrame):
 
     def event_drag_arrow(self, event):
         self.event_drag_line(event)
-
-    def event_drag_rect(self, event):
-        if self.variables.current_shape_id:
-            self.show_shape(self.variables.current_shape_id)
-            event_x_pos = self.canvas.canvasx(event.x)
-            event_y_pos = self.canvas.canvasy(event.y)
-            coords = self.canvas.coords(self.variables.current_shape_id)
-
-            min_x = coords[0]
-            min_y = coords[1]
-            max_x = coords[2]
-            max_y = coords[3]
-            # determine which corner we're dragging from
-            left_right_corner = None
-            top_bottom_corner = None
-
-            # do nothing if the event is at one of the rect boundaries:
-            if event_x_pos == min_x or event_x_pos == max_x or event_y_pos == min_y or event_y_pos == max_y:
-                pass
-            else:
-                if event_x_pos > min_x and event_x_pos > max_x:
-                    left_right_corner = "right"
-                if event_x_pos < min_x and event_x_pos < max_x:
-                    left_right_corner = "left"
-                if min_x < event_x_pos < max_x:
-                    left_dist = abs(min_x - event_x_pos)
-                    right_dist = abs(max_x - event_x_pos)
-                    if left_dist < right_dist:
-                        left_right_corner = "left"
-                    else:
-                        left_right_corner = "right"
-                if left_right_corner == "right":
-                    max_x = event_x_pos
-                    min_x = self.variables.current_shape_canvas_anchor_point_xy[0]
-                else:
-                    min_x = event_x_pos
-                    max_x = self.variables.current_shape_canvas_anchor_point_xy[0]
-
-                if event_y_pos > min_y and event_y_pos > max_y:
-                    top_bottom_corner = "bottom"
-                if event_y_pos < min_y and event_y_pos < max_y:
-                    top_bottom_corner = "top"
-                if min_y < event_y_pos < max_y:
-                    top_dist = abs(min_y - event_y_pos)
-                    bottom_dist = abs(max_y - event_y_pos)
-                    if top_dist < bottom_dist:
-                        top_bottom_corner = "top"
-                    else:
-                        top_bottom_corner = "bottom"
-                if top_bottom_corner == "bottom":
-                    max_y = event_y_pos
-                    min_y = self.variables.current_shape_canvas_anchor_point_xy[1]
-                else:
-                    min_y = event_y_pos
-                    max_y = self.variables.current_shape_canvas_anchor_point_xy[1]
-                self.modify_existing_shape_using_canvas_coords(self.variables.current_shape_id, (min_x, min_y, max_x, max_y))
 
     def create_new_rect(self,
                         coords,         # type: (int, int, int, int)
