@@ -71,7 +71,6 @@ class CanvasDemo(AbstractWidgetPanel):
             self.variables.shapes_in_selector.append(current_shape)
             self.variables.shapes_in_selector = sorted(list(set(self.variables.shapes_in_selector)))
             self.button_panel.select_existing_shape.update_combobox_values(self.variables.shapes_in_selector)
-            print(current_shape)
 
     def callback_handle_shape_selector(self, event):
         current_shape_id = int(self.button_panel.select_existing_shape.get())
@@ -91,10 +90,10 @@ class CanvasDemo(AbstractWidgetPanel):
         self.canvas_demo_image_panel.set_current_tool_to_draw_line_by_clicking()
 
     def callback_draw_arrow_w_drag(self, event):
-        self.canvas_demo_image_panel.set_current_tool_to_draw_arrow()
+        self.canvas_demo_image_panel.set_current_tool_to_draw_arrow_by_dragging()
 
     def callback_draw_arrow_w_click(self, event):
-        self.canvas_demo_image_panel.set_current_tool_to_draw_arrow()
+        self.canvas_demo_image_panel.set_current_tool_to_draw_arrow_by_clicking()
 
     def callback_draw_rect_w_drag(self, event):
         self.canvas_demo_image_panel.set_current_tool_to_draw_rect()
@@ -158,7 +157,8 @@ class CanvasDemo(AbstractWidgetPanel):
 
     def _init_w_image(self):
         # fname = '/media/psf/mac_external_ssd/Data/sarpy_data/nitf/sicd_example_1_PFA_RE32F_IM32F_HH.nitf'
-        fname = os.path.expanduser('~/Data/sarpy/sicd_example_1_PFA_RE32F_IM32F_HH.nitf')
+        # fname = os.path.expanduser('~/Data/sarpy/sicd_example_1_PFA_RE32F_IM32F_HH.nitf')
+        fname = 'D:/Users/jcasey/Data/sarpy/nitf/sicd_example_1_PFA_RE32F_IM32F_HH.nitf'
         self.variables.fname = fname
         self.canvas_demo_image_panel.init_with_fname(fname)
 

@@ -68,7 +68,7 @@ class WakeTool(AbstractWidgetPanel):
 
     def callback_press_line_button(self, event):
         self.side_panel.buttons.set_active_button(self.side_panel.buttons.line_draw)
-        self.image_canvas.set_current_tool_to_draw_arrow()
+        self.image_canvas.set_current_tool_to_draw_arrow_by_dragging()
         self.image_canvas.variables.current_shape_id = self.variables.arrow_id
 
     def callback_press_point_button(self, event):
