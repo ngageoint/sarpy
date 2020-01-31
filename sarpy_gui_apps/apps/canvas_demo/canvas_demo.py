@@ -61,7 +61,7 @@ class CanvasDemo(AbstractWidgetPanel):
 
         self.button_panel.color_selector.on_left_mouse_click(self.callback_activate_color_selector)
 
-        self.button_panel.modify_existing_shape.on_left_mouse_click(self.callback_highlight_shape)
+        self.button_panel.modify_existing_shape.on_left_mouse_click(self.callback_edit_shape)
         self.button_panel.select_existing_shape.on_selection(self.callback_handle_shape_selector)
 
         self.canvas_demo_image_panel.canvas.on_left_mouse_click(self.callback_handle_canvas_left_mouse_click)
@@ -83,6 +83,9 @@ class CanvasDemo(AbstractWidgetPanel):
 
     def callback_highlight_shape(self, event):
         self.canvas_demo_image_panel.highlight_existing_shape(self.canvas_demo_image_panel.variables.current_shape_id)
+        
+    def callback_edit_shape(self, event):
+        self.canvas_demo_image_panel.set_current_tool_to_edite_shape()
 
     def callback_activate_color_selector(self, event):
         self.canvas_demo_image_panel.activate_color_selector(event)

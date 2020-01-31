@@ -67,7 +67,6 @@ class AppVariables:
 
 
 class ImageCanvas(tk.LabelFrame):
-
     def __init__(self, master):
         tk.LabelFrame.__init__(self, master)
 
@@ -253,6 +252,8 @@ class ImageCanvas(tk.LabelFrame):
         elif self.variables.current_tool == TOOLS.TRANSLATE_SHAPE_TOOL:
             self.variables.translate_anchor_point_xy = event.x, event.y
             self.variables.tmp_anchor_point = event.x, event.y
+        elif self.variables.current_tool == TOOLS.EDIT_SHAPE_COORDS_TOOL:
+            self.find_closest_shape_coord(self.variables.current_shape_id, event.x, event.y)
         else:
             start_x = self.canvas.canvasx(event.x)
             start_y = self.canvas.canvasy(event.y)
@@ -346,11 +347,6 @@ class ImageCanvas(tk.LabelFrame):
             self.event_drag_line(event)
         elif self.variables.current_tool == TOOLS.DRAW_POINT_BY_CLICKING:
             self.modify_existing_shape_using_canvas_coords(self.variables.current_shape_id, (event.x, event.y))
-
-    def callback_modify_existing_line(self, event):
-        pass
-        # current_shape = self.variables.current_shape_id
-        # self.hide_shape(current_shape)
 
     def highlight_existing_shape(self, shape_id):
         original_color = self._get_shape_property(shape_id, SHAPE_PROPERTIES.COLOR)
@@ -768,6 +764,9 @@ class ImageCanvas(tk.LabelFrame):
     def set_current_tool_to_translate_shape(self):
         self.variables.current_tool = TOOLS.TRANSLATE_SHAPE_TOOL
 
+    def set_current_tool_to_edite_shape(self):
+        self.variables.current_tool = TOOLS.EDIT_SHAPE_COORDS_TOOL
+
     def set_current_tool_to_pan(self):
         self.variables.current_tool = TOOLS.PAN_TOOL
 
@@ -868,3 +867,12 @@ class ImageCanvas(tk.LabelFrame):
         color = colorchooser.askcolor()[1]
         self.variables.foreground_color = color
         self.change_shape_color(self.variables.current_shape_id, color)
+
+    def find_closest_shape_coord(self, shape_id, canvas_x, canvas_y):
+        coords = self.get_shape_canvas_coords(shape_id)
+        squared_distances = []
+        for i in range(int(len(coords)/2)):
+            coord_x, coord_y = coords[i], coords[i+1]
+            d = (coord_x - canvas_x)**2 + (coord_y - canvas_y)**2
+            squared_distances.append(d)
+        stop = 1
