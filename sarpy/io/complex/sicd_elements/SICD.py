@@ -3,8 +3,6 @@
 The SICDType definition.
 """
 
-# TODO: should point_projection functions also be presented as class methods here?
-
 import logging
 
 import numpy
@@ -31,6 +29,16 @@ from .RMA import RMAType
 from sarpy.geometry import point_projection
 
 __classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
+
+# TODO:
+#  1.) method to populate a COAProjection object in an attribute
+#  2.) refactor the point_projection.ground_to_image and
+#       point.projection.image_to_ground methods to use that COAProjection
+#       object if one is populated.
+#  3.) present point_projection functions as class methods.
+#  4.) refactor define_geo_image_corners() & define-geo_valid_data()
 
 
 class SICDType(Serializable):
@@ -406,7 +414,7 @@ class SICDType(Serializable):
         -------
         None
         """
-        # TODO: this functionality would never be reached in sicd.py at present. See line 547. What is the intent?
+        # TODO: this should be hidden and automatically applied, if necessary.
 
         # TODO: should we raise an exception here? My best guess.
         if self.RadarCollection is None:
@@ -426,3 +434,148 @@ class SICDType(Serializable):
         if self.RMA is not None:
             # noinspection PyProtectedMember
             self.RMA._apply_reference_frequency(reference_frequency)
+
+    def can_project_coordinates(self):
+        """
+        Determines whether the necessary elements are populated to permit projection
+        between image and physical coordinates. If False, then the (first discovered)
+        reason why not will be logged at error level.
+
+        Returns
+        -------
+        bool
+        """
+
+        # GeoData elements?
+        if self.GeoData is None:
+            logging.error('Formulating a projection is not feasible because GeoData is not populated.')
+            return False
+        if self.GeoData.SCP is None:
+            logging.error('Formulating a projection is not feasible because GeoData.SCP is not populated.')
+            return False
+        if self.GeoData.SCP.ECF is None:
+            logging.error('Formulating a projection is not feasible because GeoData.SCP.ECF is not populated.')
+            return False
+
+        # ImageData elements?
+        if self.ImageData is None:
+            logging.error('Formulating a projection is not feasible because ImageData is not populated.')
+            return False
+        if self.ImageData.FirstRow is None:
+            logging.error('Formulating a projection is not feasible because ImageData.FirstRow is not populated.')
+            return False
+        if self.ImageData.FirstCol is None:
+            logging.error('Formulating a projection is not feasible because ImageData.FirstCol is not populated.')
+            return False
+        if self.ImageData.SCPPixel is None:
+            logging.error('Formulating a projection is not feasible because ImageData.SCPPixel is not populated.')
+            return False
+        if self.ImageData.SCPPixel.Row is None:
+            logging.error('Formulating a projection is not feasible because ImageData.SCPPixel.Row is not populated.')
+            return False
+        if self.ImageData.SCPPixel.Col is None:
+            logging.error('Formulating a projection is not feasible because ImageData.SCPPixel.Col is not populated.')
+            return False
+
+        # Position elements?
+        if self.Position is None:
+            logging.error('Formulating a projection is not feasible because Position is not populated.')
+            return False
+        if self.Position.ARPPoly is None:
+            logging.error('Formulating a projection is not feasible because Position.ARPPoly is not populated.')
+            return False
+
+        # Grid elements?
+        if self.Grid is None:
+            logging.error('Formulating a projection is not feasible because Grid is not populated.')
+            return False
+        if self.Grid.TimeCOAPoly is None:
+            logging.warning(
+                'Formulating a projection may be inaccurate, because Grid.TimeCOAPoly is not populated and '
+                'a constant approximation will be used.')
+        if self.Grid.Row is None:
+            logging.error('Formulating a projection is not feasible because Grid.Row is not populated.')
+            return False
+        if self.Grid.Row.SS is None:
+            logging.error('Formulating a projection is not feasible because Grid.Row.SS is not populated.')
+            return False
+        if self.Grid.Col is None:
+            logging.error('Formulating a projection is not feasible because Grid.Col is not populated.')
+            return False
+        if self.Grid.Col.SS is None:
+            logging.error('Formulating a projection is not feasible because Grid.Col.SS is not populated.')
+            return False
+        if self.Grid.Type is None:
+            logging.error('Formulating a projection is not feasible because Grid.Type is not populated.')
+            return False
+
+        # specifics for Grid.Type value
+        if self.Grid.Type == 'RGAZIM':
+            if self.ImageFormation is None:
+                logging.error(
+                    'Formulating a projection is not feasible because Grid.Type = "RGAZIM", but '
+                    'ImageFormation is not populated.')
+                return False
+            if self.ImageFormation.ImageFormAlgo is None:
+                logging.error(
+                    'Formulating a projection is not feasible because Grid.Type = "RGAZIM", but '
+                    'ImageFormation.ImageFormAlgo is not populated.')
+                return False
+
+            if self.ImageFormation.ImageFormAlgo == 'PFA':
+                if self.PFA is None:
+                    logging.error(
+                        'ImageFormation.ImageFormAlgo is "PFA", but the PFA parameter is not populated. '
+                        'No projection can be done.')
+                    return False
+                if self.PFA.PolarAngPoly is None:
+                    logging.error(
+                        'ImageFormation.ImageFormAlgo is "PFA", but the PFA.PolarAngPoly parameter is not '
+                        'populated. No projection can be done.')
+                    return False
+                if self.PFA.SpatialFreqSFPoly is None:
+                    logging.error(
+                        'ImageFormation.ImageFormAlgo is "PFA", but the PFA.SpatialFreqSFPoly parameter is not '
+                        'populated. No projection can be done.')
+                    return False
+            elif self.ImageFormation.ImageFormAlgo == 'RGAZCOMP':
+                if self.RgAzComp is None:
+                    logging.error(
+                        'ImageFormation.ImageFormAlgo is "RGAZCOMP", but the RgAzComp parameter '
+                        'is not populated. '
+                        'No projection can be done.')
+                    return False
+                if self.RgAzComp.AzSF is None:
+                    logging.error(
+                        'ImageFormation.ImageFormAlgo is "RGAZCOMP", but the RgAzComp.AzSF '
+                        'parameter is not populated. '
+                        'No projection can be done.')
+                    return False
+            else:
+                logging.error(
+                    'Grid.Type = "RGAZIM", and got unhandled ImageFormation.ImageFormAlgo {}. '
+                    'No projection can be done.'.format(self.ImageFormation.ImageFormAlgo))
+                return False
+        elif self.Grid.Type == 'RGZERO':
+            if self.RMA is None or self.RMA.INCA is None:
+                logging.error(
+                    'Grid.Type is "RGZERO", but the RMA.INCA parameter is not populated. '
+                    'No projection can be done.')
+                return False
+            if self.RMA.INCA.R_CA_SCP is None or self.RMA.INCA.TimeCAPoly is None \
+                    or self.RMA.INCA.DRateSFPoly is None:
+                logging.error(
+                    'Grid.Type is "RGZERO", but the parameters R_CA_SCP, TimeCAPoly, or DRateSFPoly of '
+                    'RMA.INCA parameter are not populated. '
+                    'No projection can be done.')
+                return False
+        elif self.Grid.Type == ['XRGYCR', 'XCTYAT', 'PLANE']:
+            if self.Grid.Row.UVectECF is None or self.Grid.Col.UVectECF is None:
+                logging.error(
+                    'Grid.Type is one of ["XRGYCR", "XCTYAT", "PLANE"], but the UVectECF parameter of '
+                    'Grid.Row or Grid.Col is not populated. No projection can be formulated.')
+                return False
+        else:
+            logging.error('Unhandled Grid.Type {}, unclear how to formulate a projection.'.format(self.Grid.Type))
+            return False
+        return True

@@ -2,6 +2,7 @@
 The Grid object and related elements
 ================================================
 
-.. automodule:: sarpy.sicd_elements.Grid
+.. automodule:: sarpy.io.complex.sicd_elements.Grid
     :members:
     :show-inheritance:
+    :inherited-members:

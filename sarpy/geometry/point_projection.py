@@ -3,21 +3,24 @@ Functions to map between the coordinates in image pixel space and geographical c
 """
 
 import logging
-from typing import Tuple, Union
+from typing import Tuple
+from types import MethodType  # for binding a method dynamically to a class
 
 import numpy
 
 from . import geocoords
-from ..io.complex.sicd_elements.blocks import Poly1DType, Poly2DType, XYZPolyType
+from ..io.complex.sicd_elements.blocks import Poly2DType, XYZPolyType
 from ..io.DEM.DEM import DTEDList, GeoidHeight, DTEDInterpolator
 
 
 __classification__ = "UNCLASSIFIED"
+__author__ = ("Thomas McCullough", "Wade Schwartzkopf")
 
 
 #############
 # Ground-to-Image (aka Scene-to-Image) projection.
 
+# noinspection PyUnusedLocal
 def _validate_coords(coords, sicd):
     if not isinstance(coords, numpy.ndarray):
         coords = numpy.array(coords, dtype=numpy.float64)
@@ -284,125 +287,26 @@ class COAProjection(object):
             expressing `delta_arp` and `delta_varp` parameters.
         """
 
-        self._method_proj = None
-        self.polar_ang_poly = None  # type: Union[None, Poly1DType]
-        self.polar_ang_poly_der = None  # type: Union[None, Poly1DType]
-        self.spatial_freq_sf_poly = None  # type: Union[None, Poly1DType]
-        self.spatial_freq_sf_poly_der = None  # type: Union[None, Poly1DType]
-        self.az_sf = None  # type: Union[None, float]
-        self.r_ca_scp = None  # type: Union[None, float]
-        self.time_ca_poly = None  # type: Union[None, Poly1DType]
-        self.drate_sf_poly = None  # type: Union[None, Poly2DType]
-        self.uRow = None  # type: Union[None, numpy.ndarray]
-        self.uCol = None  # type: Union[None, numpy.ndarray]
+        if not sicd.can_project_coordinates():
+            raise ValueError('Insufficient metadata populated to formulate projection.')
 
-        if sicd.Grid.Type is None:
-            raise ValueError('The Grid.Type parameter is not populated, and no projection can be done.')
-        if sicd.GeoData.SCP is None:
-            raise ValueError('The GeoData.SCP is not populated, and no projection can be done.')
-        if adj_params_frame != 'ECF' and (sicd.SCPCOA.ARPPos is None or sicd.SCPCOA.ARPVel):
-            raise ValueError(
-                'The adj_params_frame is of RIC type, but one of SCPCOA.ARPPos or '
-                'SCPCOA.ARPVel is not populated.')
-
-        if sicd.Grid.Type == 'RGAZIM':
-            if sicd.ImageFormation.ImageFormAlgo == 'PFA':
-                if sicd.PFA is None:
-                    raise ValueError(
-                        'ImageFormation.ImageFormAlgo is "PFA", but the PFA parameter is not populated. '
-                        'No projection can be done.')
-                pfa = sicd.PFA
-                self.polar_ang_poly = pfa.PolarAngPoly
-                self.spatial_freq_sf_poly = pfa.SpatialFreqSFPoly
-                self._method_proj = self._pfa_proj
-                if self.polar_ang_poly is None or self.spatial_freq_sf_poly is None:
-                    raise ValueError(
-                        'ImageFormation.ImageFormAlgo is "PFA", but the one of '
-                        'PFA.PolarAngPoly or PFA.SpatialFreqSFPoly is not populated. '
-                        'No projection can be done.')
-                self.polar_ang_poly_der = self.polar_ang_poly.derivative(der_order=1, return_poly=True)
-                self.spatial_freq_sf_poly_der = self.spatial_freq_sf_poly.derivative(der_order=1, return_poly=True)
-            elif sicd.ImageFormation.ImageFormAlgo == 'RGAZCOMP':
-                if sicd.RgAzComp is None:
-                    raise ValueError(
-                        'ImageFormation.ImageFormAlgo is "RGAZCOMP", but the RgAzComp parameter '
-                        'is not populated. '
-                        'No projection can be done.')
-                elif sicd.RgAzComp.AzSF is None:
-                    raise ValueError(
-                        'ImageFormation.ImageFormAlgo is "RGAZCOMP", but the RgAzComp.AzSF '
-                        'parameter is not populated. '
-                        'No projection can be done.')
-                self.az_sf = sicd.RgAzComp.AzSF
-                self._method_proj = self._rgazcomp_proj
-            else:
-                raise ValueError(
-                    'Got unhandled ImageFormation.ImageFormAlgo, and no projection can be done.')
-        elif sicd.Grid.Type == 'RGZERO':
-            if sicd.RMA is None or sicd.RMA.INCA is None:
-                raise ValueError(
-                    'Grid.Type is "RGZERO", but the RMA.INCA parameter is not populated. '
-                    'No projection can be done.')
-            inca = sicd.RMA.INCA
-            self.r_ca_scp = inca.R_CA_SCP
-            self.time_ca_poly = inca.TimeCAPoly
-            self.drate_sf_poly = inca.DRateSFPoly
-            self._method_proj = self._inca_proj
-            if self.r_ca_scp is None or self.time_ca_poly is None or self.drate_sf_poly is None:
-                raise ValueError(
-                    'Grid.Type is "RGZERO", but the parameters R_CA_SCP, TimeCAPoly, or DRateSFPoly of '
-                    'RMA.INCA parameter are not populated. '
-                    'No projection can be done.')
-        elif sicd.Grid.Type in ['XRGYCR', 'XCTYAT', 'PLANE']:
-            if sicd.Grid.Row.UVectECF is None or sicd.Grid.Col.UVectECF:
-                raise ValueError(
-                    'Grid.Type is one of ["XRGYCR", "XCTYAT", "PLANE"], but the UVectECF parameter of '
-                    'Grid.Row or Grid.Col is not populated. No projection can be done.')
-            self.uRow = sicd.Grid.Row.UVectECF.get_array()
-            self.uCol = sicd.Grid.Row.UVectECF.get_array()
-            self._method_proj = self._plane_proj
-
-        time_coa_poly = sicd.Grid.TimeCOAPoly  # type: Poly2DType
-        # fall back to (bad?) approximation if TimeCOAPoly is not populated
+        time_coa_poly = sicd.Grid.TimeCOAPoly
+        # fall back to approximation if TimeCOAPoly is not populated
         if time_coa_poly is None:
             time_coa_poly = Poly2DType(Coefs=[[sicd.Timeline.CollectDuration/2, ], ])
             logging.warning(
                 'Using (constant) approximation to TimeCOAPoly, which may result in poor projection results.')
         self.time_coa_poly = time_coa_poly  # type: Poly2DType
 
-        arp_poly = sicd.Position.ARPPoly
-        if arp_poly is None:
-            raise ValueError('The ARPPoly is not populated. No projection can be performed.')
-        self.arp_poly = arp_poly  # type: XYZPolyType
+        self.arp_poly = sicd.Position.ARPPoly  # type: XYZPolyType
         self.varp_poly = self.arp_poly.derivative(der_order=1, return_poly=True)  # type: XYZPolyType
 
-        self.SCP = sicd.GeoData.SCP.ECF.get_array()  # type: numpy.ndarray
         self.row_ss = sicd.Grid.Row.SS  # type: float
         self.col_ss = sicd.Grid.Col.SS  # type: float
-        if self.row_ss is None:
-            raise ValueError(
-                'The Grid.Row.SS parameter is not populated, and no projection can be performed.')
-        if self.col_ss is None:
-            raise ValueError(
-                'The Grid.Col.SS parameter is not populated, and no projection can be performed.')
-
         self.first_row = sicd.ImageData.FirstRow  # type: int
         self.first_col = sicd.ImageData.FirstCol  # type: int
-        if self.first_row is None:
-            raise ValueError(
-                'The ImageData.FirstRow parameter is not populated, and no projection can be performed.')
-        if self.first_col is None:
-            raise ValueError(
-                'The ImageData.FirstCol parameter is not populated, and no projection can be performed.')
-
         self.scp_row = sicd.ImageData.SCPPixel.Row  # type: int
         self.scp_col = sicd.ImageData.SCPPixel.Col  # type: int
-        if self.scp_row is None:
-            raise ValueError(
-                'The ImageData.SCPPixel.Row parameter is not populated, and no projection can be performed.')
-        if self.scp_col is None:
-            raise ValueError(
-                'The ImageData.SCPPixel.Col parameter is not populated, and no projection can be performed.')
 
         if delta_arp is None:
             delta_arp = numpy.array([0, 0, 0], dtype=numpy.float64)
@@ -410,7 +314,6 @@ class COAProjection(object):
             delta_arp = numpy.array(delta_arp, dtype=numpy.float64)
         if delta_arp.shape != (3, ):
             raise ValueError('delta_arp must have shape (3, ). Got {}'.format(delta_arp.shape))
-        self.delta_arp = delta_arp  # type: numpy.ndarray
 
         if delta_varp is None:
             delta_varp = numpy.array([0, 0, 0], dtype=numpy.float64)
@@ -418,20 +321,27 @@ class COAProjection(object):
             delta_varp = numpy.array(delta_varp, dtype=numpy.float64)
         if delta_varp.shape != (3, ):
             raise ValueError('delta_varp must have shape (3, ). Got {}'.format(delta_varp.shape))
-        self.delta_varp = delta_varp  # type: numpy.ndarray
 
         if adj_params_frame in ['RIC_ECI', 'RIC_ECF']:
+            if sicd.SCPCOA.ARPPos is None or sicd.SCPCOA.ARPVel is None:
+                raise ValueError(
+                    'The adj_params_frame is of RIC type, but one of SCPCOA.ARPPos or '
+                    'SCPCOA.ARPVel is not populated.')
             ARP_SCP_COA = sicd.SCPCOA.ARPPos.get_array()
             VARP_SCP_COA = sicd.SCPCOA.ARPVel.get_array()
             ric_matrix = _ric_ecf_mat(ARP_SCP_COA, VARP_SCP_COA, adj_params_frame)
-            self.delta_arp = ric_matrix.dot(delta_arp)
-            self.delta_varp = ric_matrix.dot(delta_varp)
+            delta_arp = ric_matrix.dot(delta_arp)
+            delta_varp = ric_matrix.dot(delta_varp)
+        self.delta_arp = delta_arp  # type: numpy.ndarray
+        self.delta_varp = delta_varp  # type: numpy.ndarray
 
         if range_bias is None:
             range_bias = 0.0
         else:
             range_bias = float(range_bias)
         self.range_bias = range_bias  # type: float
+        # bind the method specific intermediate projection method
+        self._method_proj = MethodType(_get_type_specific_projection(sicd), self)
 
     def _init_proj(self, im_points):
         """
@@ -442,130 +352,17 @@ class COAProjection(object):
 
         Returns
         -------
-        Tuple[numpy.ndarray,numpy.ndarray,numpy.ndarray,numpy.ndarray,numpy.ndarray]
+        Tuple[numpy.ndarray,...]
         """
 
-        row = (im_points[:, 0] + self.first_row - self.scp_row)*self.row_ss
-        col = (im_points[:, 1] + self.first_col - self.scp_col)*self.col_ss
+        row_meters = (im_points[:, 0] + self.first_row - self.scp_row)*self.row_ss
+        col_meters = (im_points[:, 1] + self.first_col - self.scp_col)*self.col_ss
 
-        t_coa = self.time_coa_poly(row, col)
+        t_coa = self.time_coa_poly(row_meters, col_meters)
         # calculate aperture reference position and velocity at target time
         arp_coa = self.arp_poly(t_coa)
-        varp_coa = self.varp_poly(t_coa, der_order=1)
-        return row, col, t_coa, arp_coa, varp_coa
-
-    def _pfa_proj(self, row, col, t_coa, arp_coa, varp_coa):
-        """
-
-        Parameters
-        ----------
-        row : numpy.ndarray
-        col : numpy.ndarray
-        t_coa : numpy.ndarray
-        arp_coa : numpy.ndarray
-        varp_coa : numpy.ndarray
-
-        Returns
-        -------
-        Tuple[numpy.ndarray, numpy.ndarray]
-        """
-
-        ARP_minus_SCP = arp_coa - self.SCP
-        rSCPTgtCoa = numpy.linalg.norm(ARP_minus_SCP, axis=-1)
-        rDotSCPTgtCoa = numpy.sum(varp_coa*ARP_minus_SCP, axis=-1)/rSCPTgtCoa
-
-        thetaTgtCoa = self.polar_ang_poly(t_coa)
-        dThetaDtTgtCoa = self.polar_ang_poly_der(t_coa)
-        # Compute polar aperture scale factor (KSF) and derivative wrt polar angle
-        ksfTgtCoa = self.spatial_freq_sf_poly(thetaTgtCoa)
-        dKsfDThetaTgtCoa = self.spatial_freq_sf_poly_der(thetaTgtCoa)
-        # Compute spatial frequency domain phase slopes in Ka and Kc directions
-        # NB: sign for the phase may be ignored as it is cancelled in a subsequent computation.
-        dPhiDKaTgtCoa = row * numpy.cos(thetaTgtCoa) + col * numpy.sin(thetaTgtCoa)
-        dPhiDKcTgtCoa = -row * numpy.sin(thetaTgtCoa) + col * numpy.cos(thetaTgtCoa)
-        # Compute range relative to SCP
-        deltaRTgtCoa = ksfTgtCoa * dPhiDKaTgtCoa
-        # Compute derivative of range relative to SCP wrt polar angle.
-        # Scale by derivative of polar angle wrt time.
-        dDeltaRDThetaTgtCoa = dKsfDThetaTgtCoa * dPhiDKaTgtCoa + ksfTgtCoa * dPhiDKcTgtCoa
-        deltaRDotTgtCoa = dDeltaRDThetaTgtCoa * dThetaDtTgtCoa
-        return rSCPTgtCoa + deltaRTgtCoa, rDotSCPTgtCoa + deltaRDotTgtCoa
-
-    # noinspection PyUnusedLocal
-    def _rgazcomp_proj(self, row, col, t_coa, arp_coa, varp_coa):
-        """
-
-        Parameters
-        ----------
-        row
-        col
-        t_coa
-        arp_coa
-        varp_coa
-
-        Returns
-        -------
-        Tuple[numpy.ndarray, numpy.ndarray]
-        """
-
-        ARP_minus_SCP = arp_coa - self.SCP
-        rSCPTgtCoa = numpy.linalg.norm(ARP_minus_SCP, axis=-1)
-        rDotSCPTgtCoa = numpy.sum(varp_coa*ARP_minus_SCP, axis=-1)/rSCPTgtCoa
-        deltaRTgtCoa = row
-        deltaRDotTgtCoa = -numpy.linalg.norm(varp_coa, axis=-1)*self.az_sf*col
-        return rSCPTgtCoa + deltaRTgtCoa, rDotSCPTgtCoa + deltaRDotTgtCoa
-
-    # noinspection PyUnusedLocal
-    def _inca_proj(self, row, col, t_coa, arp_coa, varp_coa):
-        """
-
-        Parameters
-        ----------
-        row : numpy.ndarray
-        col : numpy.ndarray
-        t_coa : numpy.ndarray
-        arp_coa : numpy.ndarray
-        varp_coa : numpy.ndarray
-
-        Returns
-        -------
-        Tuple[numpy.ndarray, numpy.ndarray]
-        """
-
-        # compute range/time of closest approach
-        R_CA_TGT = self.r_ca_scp + row  # Range at closest approach
-        t_CA_TGT = self.time_ca_poly(col)  # Time of closest approach
-        # Compute ARP velocity magnitude (actually squared, since that's how it's used) at t_CA_TGT
-        VEL2_CA_TGT = numpy.sum(self.varp_poly(t_CA_TGT)**2, axis=-1)
-        # Compute the Doppler Rate Scale Factor for image Grid location
-        DRSF_TGT = self.drate_sf_poly(row, col)
-        # Difference between COA time and CA time
-        dt_COA_TGT = t_coa - t_CA_TGT
-        r_tgt_coa = numpy.sqrt(R_CA_TGT*R_CA_TGT + DRSF_TGT*VEL2_CA_TGT*dt_COA_TGT*dt_COA_TGT)
-        r_dot_tgt_coa = (DRSF_TGT/r_tgt_coa)*VEL2_CA_TGT*dt_COA_TGT
-        return r_tgt_coa, r_dot_tgt_coa
-
-    # noinspection PyUnusedLocal
-    def _plane_proj(self, row, col, t_coa, arp_coa, varp_coa):
-        """
-
-        Parameters
-        ----------
-        row : numpy.ndarray
-        col : numpy.ndarray
-        t_coa : numpy.ndarray
-        arp_coa : numpy.ndarray
-        varp_coa : numpy.ndarray
-
-        Returns
-        -------
-        Tuple[numpy.ndarray, numpy.ndarray]
-        """
-
-        ARP_minus_IPP = arp_coa - (self.SCP + numpy.outer(row, self.uRow) + numpy.outer(col, self.uCol))
-        r_tgt_coa = numpy.linalg.norm(ARP_minus_IPP, axis=-1)
-        r_dot_tgt_coa = numpy.sum(varp_coa * ARP_minus_IPP, axis=-1)/r_tgt_coa
-        return r_tgt_coa, r_dot_tgt_coa
+        varp_coa = self.varp_poly(t_coa)
+        return row_meters, col_meters, t_coa, arp_coa, varp_coa
 
     def projection(self, im_points):
         """
@@ -574,7 +371,7 @@ class COAProjection(object):
         Parameters
         ----------
         im_points : numpy.ndarray
-            This array of image point coordinates, expected to have shape (N, 2).
+            This array of image point coordinates, **expected to have shape (N, 2)**.
 
         Returns
         -------
@@ -586,13 +383,196 @@ class COAProjection(object):
             * `varp_coa` - velocity at t_coa
         """
 
-        row, col, t_coa, arp_coa, varp_coa = self._init_proj(im_points)
-        r_tgt_coa, r_dot_tgt_coa = self._method_proj(row, col, t_coa, arp_coa, varp_coa)
+        row_meters, col_meters, t_coa, arp_coa, varp_coa = self._init_proj(im_points)
+        r_tgt_coa, r_dot_tgt_coa = self._method_proj(row_meters, col_meters, t_coa, arp_coa, varp_coa)
         # adjust parameters (TODO: after all the calculations?)
         arp_coa += self.delta_arp
         varp_coa += self.delta_varp
         r_tgt_coa += self.range_bias
         return r_tgt_coa, r_dot_tgt_coa, t_coa, arp_coa, varp_coa
+
+
+def _get_type_specific_projection(sicd):
+    """
+    Gets an intermediate method specific projection method with six required
+    calling arguments (self, row_meters, col_meters, t_coa, arp_coa, varp_coa).
+
+    Parameters
+    ----------
+    sicd : sarpy.io.complex.sicd_elements.SICD.SICDType
+
+    Returns
+    -------
+    callable
+    """
+    # triple-nested function - it was conceptually clearest...
+
+    def pfa_projection():
+        SCP = sicd.GeoData.SCP.ECF.get_array()
+        pfa = sicd.PFA
+        polar_ang_poly = pfa.PolarAngPoly
+        spatial_freq_sf_poly = pfa.SpatialFreqSFPoly
+        polar_ang_poly_der = polar_ang_poly.derivative(der_order=1, return_poly=True)
+        spatial_freq_sf_poly_der = spatial_freq_sf_poly.derivative(der_order=1, return_poly=True)
+
+        polar_ang_poly_der = polar_ang_poly.derivative(der_order=1, return_poly=True)
+        spatial_freq_sf_poly_der = spatial_freq_sf_poly.derivative(der_order=1, return_poly=True)
+
+        # noinspection PyUnusedLocal, PyIncorrectDocstring
+        def method_projection(instance, row_meters, col_meters, t_coa, arp_coa, varp_coa):
+            """
+            PFA specific intermediate projection.
+
+            Parameters
+            ----------
+            row_meters : numpy.ndarray
+            col_meters : numpy.ndarray
+            t_coa : numpy.ndarray
+            arp_coa : numpy.ndarray
+            varp_coa : numpy.ndarray
+
+            Returns
+            -------
+            Tuple[numpy.ndarray, numpy.ndarray]
+            """
+
+            ARP_minus_SCP = arp_coa - SCP
+            rSCPTgtCoa = numpy.linalg.norm(ARP_minus_SCP, axis=-1)
+            rDotSCPTgtCoa = numpy.sum(varp_coa * ARP_minus_SCP, axis=-1) / rSCPTgtCoa
+
+            thetaTgtCoa = polar_ang_poly(t_coa)
+            dThetaDtTgtCoa = polar_ang_poly_der(t_coa)
+            # Compute polar aperture scale factor (KSF) and derivative wrt polar angle
+            ksfTgtCoa = spatial_freq_sf_poly(thetaTgtCoa)
+            dKsfDThetaTgtCoa = spatial_freq_sf_poly_der(thetaTgtCoa)
+            # Compute spatial frequency domain phase slopes in Ka and Kc directions
+            # NB: sign for the phase may be ignored as it is cancelled in a subsequent computation.
+            dPhiDKaTgtCoa = row_meters * numpy.cos(thetaTgtCoa) + col_meters * numpy.sin(thetaTgtCoa)
+            dPhiDKcTgtCoa = -row_meters * numpy.sin(thetaTgtCoa) + col_meters * numpy.cos(thetaTgtCoa)
+            # Compute range relative to SCP
+            deltaRTgtCoa = ksfTgtCoa * dPhiDKaTgtCoa
+            # Compute derivative of range relative to SCP wrt polar angle.
+            # Scale by derivative of polar angle wrt time.
+            dDeltaRDThetaTgtCoa = dKsfDThetaTgtCoa * dPhiDKaTgtCoa + ksfTgtCoa * dPhiDKcTgtCoa
+            deltaRDotTgtCoa = dDeltaRDThetaTgtCoa * dThetaDtTgtCoa
+            return rSCPTgtCoa + deltaRTgtCoa, rDotSCPTgtCoa + deltaRDotTgtCoa
+
+        return method_projection
+
+    def rgazcomp_projection():
+        SCP = sicd.GeoData.SCP.ECF.get_array()
+        az_sf = sicd.RgAzComp.AzSF
+
+        # noinspection PyUnusedLocal, PyIncorrectDocstring
+        def method_projection(instance, row_meters, col_meters, t_coa, arp_coa, varp_coa):
+            """
+            RgAzComp specific intermediate projection.
+
+            Parameters
+            ----------
+            row_meters : numpy.ndarray
+            col_meters : numpy.ndarray
+            t_coa : numpy.ndarray
+            arp_coa : numpy.ndarray
+            varp_coa : numpy.ndarray
+
+            Returns
+            -------
+            Tuple[numpy.ndarray, numpy.ndarray]
+            """
+
+            ARP_minus_SCP = arp_coa - SCP
+            rSCPTgtCoa = numpy.linalg.norm(ARP_minus_SCP, axis=-1)
+            rDotSCPTgtCoa = numpy.sum(varp_coa*ARP_minus_SCP, axis=-1)/rSCPTgtCoa
+            deltaRTgtCoa = row_meters
+            deltaRDotTgtCoa = -numpy.linalg.norm(varp_coa, axis=-1)*az_sf*col_meters
+            return rSCPTgtCoa + deltaRTgtCoa, rDotSCPTgtCoa + deltaRDotTgtCoa
+
+        return method_projection
+
+    def inca_projection():
+        inca = sicd.RMA.INCA
+        r_ca_scp = inca.R_CA_SCP
+        time_ca_poly = inca.TimeCAPoly
+        drate_sf_poly = inca.DRateSFPoly
+
+        # noinspection PyUnusedLocal, PyIncorrectDocstring
+        def method_projection(instance, row_meters, col_meters, t_coa, arp_coa, varp_coa):
+            """
+            INCA specific intermediate projection.
+
+            Parameters
+            ----------
+            row_meters : numpy.ndarray
+            col_meters : numpy.ndarray
+            t_coa : numpy.ndarray
+            arp_coa : numpy.ndarray
+            varp_coa : numpy.ndarray
+
+            Returns
+            -------
+            Tuple[numpy.ndarray, numpy.ndarray]
+            """
+
+            # compute range/time of closest approach
+            R_CA_TGT = r_ca_scp + row_meters  # Range at closest approach
+            t_CA_TGT = time_ca_poly(col_meters)  # Time of closest approach
+            # Compute ARP velocity magnitude (actually squared, since that's how it's used) at t_CA_TGT
+            VEL2_CA_TGT = numpy.sum(instance.varp_poly(t_CA_TGT)**2, axis=-1)
+            # Compute the Doppler Rate Scale Factor for image Grid location
+            DRSF_TGT = drate_sf_poly(row_meters, col_meters)
+            # Difference between COA time and CA time
+            dt_COA_TGT = t_coa - t_CA_TGT
+            r_tgt_coa = numpy.sqrt(R_CA_TGT*R_CA_TGT + DRSF_TGT*VEL2_CA_TGT*dt_COA_TGT*dt_COA_TGT)
+            r_dot_tgt_coa = (DRSF_TGT/r_tgt_coa)*VEL2_CA_TGT*dt_COA_TGT
+            return r_tgt_coa, r_dot_tgt_coa
+
+        return method_projection
+
+    def plane_projection():
+        SCP = sicd.GeoData.SCP.ECF.get_array()
+        uRow = sicd.Grid.Row.UVectECF.get_array()
+        uCol = sicd.Grid.Row.UVectECF.get_array()
+
+        # noinspection PyUnusedLocal, PyIncorrectDocstring
+        def method_projection(instance, row_meters, col_meters, t_coa, arp_coa, varp_coa):
+            """
+            Plane specific intermediate projection.
+
+            Parameters
+            ----------
+            row_meters : numpy.ndarray
+            col_meters : numpy.ndarray
+            t_coa : numpy.ndarray
+            arp_coa : numpy.ndarray
+            varp_coa : numpy.ndarray
+
+            Returns
+            -------
+            Tuple[numpy.ndarray, numpy.ndarray]
+            """
+
+            ARP_minus_IPP = arp_coa - (SCP + numpy.outer(row_meters, uRow) + numpy.outer(col_meters, uCol))
+            r_tgt_coa = numpy.linalg.norm(ARP_minus_IPP, axis=-1)
+            r_dot_tgt_coa = numpy.sum(varp_coa * ARP_minus_IPP, axis=-1)/r_tgt_coa
+            return r_tgt_coa, r_dot_tgt_coa
+        return method_projection
+
+    # NB: sicd.can_project_coordinates() has been called, so all required attributes
+    #   must be populated
+    if sicd.Grid.Type == 'RGAZIM':
+        if sicd.ImageFormation.ImageFormAlgo == 'PFA':
+            return pfa_projection()
+        elif sicd.ImageFormation.ImageFormAlgo == 'RGAZCOMP':
+            return rgazcomp_projection()
+    elif sicd.Grid.Type == 'RGZERO':
+        return inca_projection()
+    elif sicd.Grid.Type in ['XRGYCR', 'XCTYAT', 'PLANE']:
+        return plane_projection()
+    else:
+        # NB: this will have been noted by sicd.can_project_coordinates(), but is
+        #   here for completeness
+        raise ValueError('Unhandled Grid.Type'.format(sicd.Grid.Type))
 
 
 def _validate_im_points(im_points, sicd):
@@ -648,7 +628,7 @@ def image_to_ground(im_points, sicd, block_size=50000, projection_type='HAE', **
         (row, column) coordinates of N points in image (or subimage if FirstRow/FirstCol are nonzero).
         Following SICD convention, the upper-left pixel is [0, 0].
     sicd : sarpy.io.complex.sicd_elements.SICD.SICDType
-            SICD meta data structure.
+        SICD meta data structure.
     block_size : None|int
         Size of blocks of coordinates to transform at a time. The entire array will be
         transformed as a single block if `None`.
@@ -686,9 +666,9 @@ def image_to_ground_geo(im_points, sicd, **kwargs):
         (row, column) coordinates of N points in image (or subimage if FirstRow/FirstCol are nonzero).
         Following SICD convention, the upper-left pixel is [0, 0].
     sicd : sarpy.io.complex.sicd_elements.SICD.SICDType
-            SICD meta data structure.
+        SICD meta data structure.
     kwargs : dict
-        See the keyword argumments in :func:`image_to_ground`.
+        See the keyword arguments in :func:`image_to_ground`.
 
     Returns
     -------
@@ -894,7 +874,7 @@ def _image_to_ground_hae_perform(
     return spp
 
 
-def _image_to_ground_hae(im_points, coa_projection, hae0, delta_hae_max, hae_nlim, scp_hae):
+def _image_to_ground_hae(im_points, coa_projection, hae0, delta_hae_max, hae_nlim, scp_hae, SCP):
     """
     Intermediate helper function for projection.
 
@@ -907,6 +887,7 @@ def _image_to_ground_hae(im_points, coa_projection, hae0, delta_hae_max, hae_nli
     delta_hae_max : float
     hae_nlim : int
     scp_hae : float
+    SCP : numpy.ndarray
 
     Returns
     -------
@@ -915,7 +896,6 @@ def _image_to_ground_hae(im_points, coa_projection, hae0, delta_hae_max, hae_nli
 
     # get (image formation specific) projection parameters
     r_tgt_coa, r_dot_tgt_coa, t_coa, arp_coa, varp_coa = coa_projection.projection(im_points)
-    SCP = coa_projection.SCP
     ugpn = geocoords.wgs_84_norm(SCP)
     return _image_to_ground_hae_perform(
         r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa, SCP, ugpn,
@@ -955,6 +935,7 @@ def image_to_ground_hae(im_points, sicd, block_size=50000,
     """
 
     # method parameter validation
+    SCP = sicd.GeoData.SCP.ECF.get_array()
     scp_hae = sicd.GeoData.SCP.LLH.HAE
     if hae0 is None:
         hae0 = scp_hae
@@ -979,7 +960,7 @@ def image_to_ground_hae(im_points, sicd, block_size=50000,
     im_points_view = numpy.reshape(im_points, (-1, 2))  # possibly or make 2-d flatten
     num_points = im_points_view.shape[0]
     if block_size is None or num_points <= block_size:
-        coords = _image_to_ground_hae(im_points_view, coa_proj, hae0, delta_hae_max, hae_nlim, scp_hae)
+        coords = _image_to_ground_hae(im_points_view, coa_proj, hae0, delta_hae_max, hae_nlim, scp_hae, SCP)
     else:
         coords = numpy.zeros((num_points, 3), dtype=numpy.float64)
         # proceed with block processing
@@ -987,7 +968,7 @@ def image_to_ground_hae(im_points, sicd, block_size=50000,
         while start_block < num_points:
             end_block = min(start_block + block_size, num_points)
             coords[start_block:end_block, :] = _image_to_ground_hae(
-                im_points_view[start_block:end_block], coa_proj, hae0, delta_hae_max, hae_nlim, scp_hae)
+                im_points_view[start_block:end_block], coa_proj, hae0, delta_hae_max, hae_nlim, scp_hae, SCP)
             start_block = end_block
 
     if len(orig_shape) > 1:
@@ -999,7 +980,7 @@ def image_to_ground_hae(im_points, sicd, block_size=50000,
 # Image-to-DEM
 
 def _image_to_ground_dem(
-        im_points, coa_projection, dem_interpolator, min_dem, max_dem, horizontal_step_size, scp_hae):
+        im_points, coa_projection, dem_interpolator, min_dem, max_dem, horizontal_step_size, scp_hae, SCP):
     """
 
     Parameters
@@ -1011,6 +992,7 @@ def _image_to_ground_dem(
     max_dem : float
     horizontal_step_size : float|int
     scp_hae: float
+    SCP : numpy.ndarray
 
     Returns
     -------
@@ -1019,7 +1001,6 @@ def _image_to_ground_dem(
 
     # get (image formation specific) projection parameters
     r_tgt_coa, r_dot_tgt_coa, t_coa, arp_coa, varp_coa = coa_projection.projection(im_points)
-    SCP = coa_projection.SCP
     ugpn = geocoords.wgs_84_norm(SCP)
     delta_hae_max = 1
     hae_nlim = 5
@@ -1147,7 +1128,8 @@ def image_to_ground_dem(im_points, sicd, block_size=50000,
     num_points = im_points_view.shape[0]
     if block_size is None or num_points <= block_size:
         coords = _image_to_ground_dem(
-            im_points_view, coa_proj, dem_interpolator, min_dem, max_dem, horizontal_step_size, scp[2])
+            im_points_view, coa_proj, dem_interpolator, min_dem, max_dem, horizontal_step_size,
+            scp[2], sicd.GeoData.SCP.ECF.get_array())
     else:
         coords = numpy.zeros((num_points, 3), dtype=numpy.float64)
         # proceed with block processing
@@ -1156,7 +1138,7 @@ def image_to_ground_dem(im_points, sicd, block_size=50000,
             end_block = min(start_block + block_size, num_points)
             coords[start_block:end_block, :] = _image_to_ground_dem(
                 im_points_view[start_block:end_block], coa_proj, dem_interpolator,
-                min_dem, max_dem, horizontal_step_size, scp[2])
+                min_dem, max_dem, horizontal_step_size, scp[2], sicd.GeoData.SCP.ECF.get_array())
             start_block = end_block
 
     if len(orig_shape) > 1:

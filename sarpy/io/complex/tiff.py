@@ -21,6 +21,7 @@ from .sicd_elements.SICD import SICDType, ImageDataType
 
 
 __classification__ = "UNCLASSIFIED"
+__author__ = ("Thomas McCullough", "Daniel Haverporth")
 
 
 _BASELINE_TAGS = {
@@ -182,6 +183,13 @@ class TiffDetails(object):
     # no definition for entries for 14 & 15
 
     def __init__(self, file_name):
+        """
+
+        Parameters
+        ----------
+        file_name : str
+        """
+
         with open(file_name, 'rb') as fi:
             # Try to read the basic tiff header
             fi_endian = fi.read(2).decode('utf-8')
@@ -208,12 +216,18 @@ class TiffDetails(object):
 
     @property
     def file_name(self):
-        """str: READ ONLY. The file name."""
+        """
+        str: READ ONLY. The file name.
+        """
+
         return self._file_name
 
     @property
     def endian(self):
-        """str: READ ONLY. The numpy dtype style ('>' = big, '<' = little) endian string for the tiff file."""
+        """
+        str: READ ONLY. The numpy dtype style ('>' = big, '<' = little) endian string for the tiff file.
+        """
+
         return self._endian
 
     @property
@@ -236,12 +250,12 @@ class TiffDetails(object):
         """
 
         if self._magic_number == 42:
-            type_dtype = '{}u2'.format(self._endian)
-            offset_dtype = '{}u4'.format(self._endian)
+            type_dtype = numpy.dtype('{}u2'.format(self._endian))
+            offset_dtype = numpy.dtype('{}u4'.format(self._endian))
             offset_size = 4
         elif self._magic_number == 43:
-            type_dtype = '{}u2'.format(self._endian)
-            offset_dtype = '{}u8'.format(self._endian)
+            type_dtype = numpy.dtype('{}u2'.format(self._endian))
+            offset_dtype = numpy.dtype('{}u8'.format(self._endian))
             offset_size = 8
         else:
             raise ValueError('Unrecognized magic number {}'.format(self._magic_number))
@@ -255,6 +269,25 @@ class TiffDetails(object):
         self._tags = tags
 
     def _read_tag(self, fi, tiff_type, num_tag, count):
+        """
+        Parse the specific tag information.
+
+        Parameters
+        ----------
+        fi
+            The file type object
+        tiff_type : int
+            The tag data type identifier value
+        num_tag : int
+            The numeric tag identifier
+        count : int
+            The number of such tags
+
+        Returns
+        -------
+        dict
+        """
+
         # find which tags we belong to
         if num_tag in _BASELINE_TAGS:
             ext = 'BaselineTag'
@@ -281,9 +314,29 @@ class TiffDetails(object):
         return {'Value': val, 'Name': name, 'Extension': ext}
 
     def _parse_ifd(self, fi, tags, type_dtype, offset_dtype, offset_size):
+        """
+        Recursively parses the tag data and populates a provided dictionary
+        Parameters
+        ----------
+        fi
+            The file type object
+        tags : dict
+            The tag data dictionary being populated
+        type_dtype : numpy.dtype|str
+            The data type for the data element - note that endian-ness is included
+        offset_dtype : numpy.dtype|str
+            The data type for the offset - note that endian-ness is included
+        offset_size : int
+            The size of the offset
+        Returns
+        -------
+        None
+        """
+
         nifd = numpy.fromfile(fi, dtype=offset_dtype, count=1)[0]
         if nifd == 0:
-            return
+            return  # termination criterion
+
         fi.seek(nifd)
         num_entries = numpy.fromfile(fi, dtype=type_dtype, count=1)[0]
         for entry in range(int(num_entries)):

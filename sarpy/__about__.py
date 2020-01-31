@@ -21,13 +21,12 @@
 # SOFTWARE.
 
 
-__all__ = ['__version__', '__release__',
+__all__ = ['__version__',
            '__classification__', '__author__', '__url__', '__email__',
            '__title__', '__summary__',
            '__license__', '__copyright__']
 
-__version__ = "0.1"
-__release__ = "0.1.17"
+__version__ = "0.1.21"
 
 __classification__ = "UNCLASSIFIED"  # This should be set appropriately in any high-side version
 __author__ = "National Geospatial-Intelligence Agency"

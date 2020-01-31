@@ -12,6 +12,7 @@ from .base import Serializable, _get_node_value, DEFAULT_STRICT, \
 
 
 __classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
 
 
 class MatchCollectionType(Serializable):

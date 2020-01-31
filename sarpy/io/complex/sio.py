@@ -19,8 +19,9 @@ from .base import BaseReader
 from .bip import BIPChipper, BIPWriter
 from .sicd import complex_to_amp_phase, complex_to_int, amp_phase_to_complex, _SPECIFICATION_NAMESPACE
 
-
 __classification__ = "UNCLASSIFIED"
+__author__ = ("Thomas McCullough", "Wade Schwartzkopf")
+
 
 ########
 # base expected functionality for a module with an implemented Reader

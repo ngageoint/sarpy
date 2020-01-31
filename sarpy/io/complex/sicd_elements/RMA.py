@@ -14,6 +14,7 @@ from .blocks import XYZType, Poly1DType, Poly2DType
 
 
 __classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
 
 
 class RMRefType(Serializable):

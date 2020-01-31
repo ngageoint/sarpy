@@ -6,12 +6,13 @@ The base elements for reading and writing complex data files.
 import sys
 import logging
 import getpass
+from typing import Union, Tuple
 
 import numpy
 
 from .sicd_elements.SICD import SICDType
 from .sicd_elements.ImageCreation import ImageCreationType
-from ...__about__ import __title__, __release__
+from ...__about__ import __title__, __version__
 
 integer_types = (int, )
 int_func = int
@@ -22,6 +23,7 @@ if sys.version_info[0] < 3:
     integer_types = (int, long)
 
 __classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
 
 
 class BaseChipper(object):
@@ -112,6 +114,20 @@ class BaseChipper(object):
         return self._data_size
 
     def __call__(self, range1, range2):
+        """
+        Reads and fetches data. Note that :code:`chipper(range1, range2)` is an alias
+        for :code:`chipper.read_chip(range1, range2)`.
+
+        Parameters
+        ----------
+        range1 : None|int|tuple
+        range2 : none|int|tuple
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+
         data = self._read_raw_fun(range1, range2)
         data = self._data_to_complex(data)
 
@@ -123,11 +139,25 @@ class BaseChipper(object):
         return data
 
     def __getitem__(self, item):
+        """
+        Reads and returns data using more traditional to python slice functionality.
+        After slice interpretation, this is analogous to :func:`__call__` or :func:`read_chip`.
+
+        Parameters
+        ----------
+        item : None|int|slice|tuple
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+
         range1, range2 = self._slice_to_args(item)
         return self.__call__(range1, range2)
 
     @staticmethod
     def _slice_to_args(item):
+        # type: (Union[None, int, slice, tuple]) -> tuple
         def parse(entry):
             if isinstance(entry, integer_types):
                 return item, item+1, None
@@ -242,6 +272,7 @@ class BaseChipper(object):
         return real_arg1, real_arg2
 
     def _data_to_complex(self, data):
+        # type: (numpy.ndarray) -> numpy.ndarray
         if callable(self._complex_type):
             return self._complex_type(data)  # is this actually necessary?
         elif self._complex_type:
@@ -254,6 +285,7 @@ class BaseChipper(object):
             return data
 
     def _reorder_data(self, data):
+        # type: (numpy.ndarray) -> numpy.ndarray
         if self._symmetry[2]:
             data = numpy.swapaxes(data, 1, 0)
         return data
@@ -290,7 +322,9 @@ class BaseChipper(object):
 
 
 class SubsetChipper(BaseChipper):
-    """Permits transparent extraction from a particular subset of the possible data range"""
+    """
+    Permits transparent extraction from a particular subset of the possible data range
+    """
 
     __slots__ = ('_data_size', '_complex_type', '_symmetry', 'shift1', 'shift2', 'parent_chipper')
 
@@ -324,7 +358,10 @@ class SubsetChipper(BaseChipper):
 
 
 class BaseReader(object):
-    """Abstract file reader class"""
+    """
+    Abstract file reader class
+    """
+
     __slots__ = ('_sicd_meta', '_chipper', '_data_size')
 
     def __init__(self, sicd_meta, chipper):
@@ -385,12 +422,18 @@ class BaseReader(object):
 
     @property
     def sicd_meta(self):
-        """SICDType|Tuple[SICDType]: the sicd meta_data or meta_data collection"""
+        """
+        SICDType|Tuple[SICDType]: the sicd meta_data or meta_data collection.
+        """
+
         return self._sicd_meta
 
     @property
     def data_size(self):
-        """Tuple[int, int]|Tuple[Tuple[int, int], ...]: the data size(s) of the form (rows, cols)."""
+        """
+        Tuple[int, int]|Tuple[Tuple[int, int], ...]: the data size(s) of the form (rows, cols).
+        """
+
         return self._data_size
 
     def _validate_index(self, index):
@@ -417,14 +460,42 @@ class BaseReader(object):
                 return item[:2], index
         return item, 0
 
-    def __call__(self, dim1range, dim2range, index=0):
+    def __call__(self, range1, range2, index=0):
+        """
+        Reads and fetches data. Note that :code:`reader(range1, range2, index)` is an alias
+        for :code:`reader.read_chip(range1, range2, index)`.
+
+        Parameters
+        ----------
+        range1 : None|int|tuple
+        range2 : None|int|tuple
+        index : None|int
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+
         if isinstance(self._chipper, tuple):
             index = self._validate_index(index)
-            return self._chipper[index](dim1range, dim2range)
+            return self._chipper[index](range1, range2)
         else:
-            return self._chipper(dim1range, dim2range)
+            return self._chipper(range1, range2)
 
     def __getitem__(self, item):
+        """
+        Reads and returns data using more traditional to python slice functionality.
+        After slice interpretation, this is analogous to :func:`__call__` or :func:`read_chip`.
+
+        Parameters
+        ----------
+        item : None|int|slice|tuple
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+
         item, index = self._validate_slice(item)
         if isinstance(self._chipper, tuple):
             return self._chipper[index].__getitem__(item)
@@ -474,7 +545,7 @@ class BaseReader(object):
 
 
 class SubsetReader(BaseReader):
-    """Permits transparent extraction from a particular subset of the possible data range"""
+    """Permits extraction from a particular subset of the possible data range"""
     __slots__ = ('_parent_reader', )
 
     def __init__(self, parent_reader, sicd_meta, dim1bounds, dim2bounds):
@@ -499,6 +570,13 @@ class AbstractWriter(object):
     __slots__ = ('_file_name', )
 
     def __init__(self, file_name):
+        """
+
+        Parameters
+        ----------
+        file_name : str
+        """
+
         self._file_name = file_name
 
     def close(self):
@@ -513,6 +591,23 @@ class AbstractWriter(object):
         pass
 
     def write_chip(self, data, start_indices=(0, 0)):
+        """
+        Write the data to the file(s). This is an alias to :code:`writer(data, start_indices)`.
+
+        Parameters
+        ----------
+        data : numpy.ndarray
+            the complex data
+        start_indices : Tuple[int, int]
+            the starting index for the data.
+        Returns
+        -------
+        None
+        """
+
+        self.__call__(data, start_indices=start_indices)
+
+    def __call__(self, data, start_indices=(0, 0)):
         """
         Write the data to the file(s).
 
@@ -547,10 +642,21 @@ class AbstractWriter(object):
 
 
 class BaseWriter(AbstractWriter):
-    """Abstract file writer class for SICD data"""
+    """
+    Abstract file writer class for SICD data
+    """
+
     __slots__ = ('_file_name', '_sicd_meta', )
 
     def __init__(self, file_name, sicd_meta):
+        """
+
+        Parameters
+        ----------
+        file_name : str
+        sicd_meta : SICDType
+        """
+
         super(BaseWriter, self).__init__(file_name)
         if not isinstance(sicd_meta, SICDType):
             raise ValueError('sicd_meta is required to be an instance of SICDType, got {}'.format(type(sicd_meta)))
@@ -570,14 +676,17 @@ class BaseWriter(AbstractWriter):
         except Exception:  # unsure what exception is raised
             profile = None
         self._sicd_meta.ImageCreation = ImageCreationType(
-            Application='{} {}'.format(__title__, __release__),
+            Application='{} {}'.format(__title__, __version__),
             DateTime=numpy.datetime64('now'),
             Profile=profile)
 
     @property
     def sicd_meta(self):
-        """SICDType: the sicd metadata"""
+        """
+        SICDType: the sicd metadata
+        """
+
         return self._sicd_meta
 
-    def write_chip(self, data, start_indices=(0, 0)):
+    def __call__(self, data, start_indices=(0, 0)):
         raise NotImplementedError

@@ -4,10 +4,12 @@ Welcome to sarpy's documentation!
 =================================
 
 .. toctree::
-    :maxdepth: 2
+    :maxdepth: 3
     :caption: Contents:
 
-    sicd/sicd_elements
+    io/index
+    geometry/index
+
 
 Indices and tables
 ==================

@@ -20,6 +20,7 @@ import sarpy.geometry.geocoords as geocoords
 
 
 __classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
 
 
 class TxFrequencyType(Serializable):

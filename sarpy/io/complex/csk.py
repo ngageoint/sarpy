@@ -38,6 +38,7 @@ from .base import BaseChipper, BaseReader
 from .utils import two_dim_poly_fit, get_seconds
 
 __classification__ = "UNCLASSIFIED"
+__author__ = ("Thomas McCullough", "Jarred Barber", "Wade Schwartzkopf")
 
 
 ########
@@ -89,6 +90,12 @@ class CSKDetails(object):
     __slots__ = ('_file_name', )
 
     def __init__(self, file_name):
+        """
+
+        Parameters
+        ----------
+        file_name : str
+        """
         if h5py is None:
             raise ImportError("Can't read Cosmo Skymed files, because the h5py dependency is missing.")
 
@@ -108,6 +115,7 @@ class CSKDetails(object):
 
     @property
     def file_name(self):
+        """str: the file name"""
         return self._file_name
 
     def _get_hdf_dicts(self):
@@ -532,4 +540,4 @@ class CSKReader(BaseReader):
         for band_name in sicd_data:
             sicds.append(sicd_data[band_name])
             chippers.append(CSKBandChipper(csk_details.file_name, band_name, shape_dict[band_name], symmetry))
-        super(CSKReader, self).__init__(sicds, chippers)
+        super(CSKReader, self).__init__(tuple(sicds), tuple(chippers))

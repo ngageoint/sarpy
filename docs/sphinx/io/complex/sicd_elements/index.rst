@@ -1,5 +1,4 @@
-
-The SICD elements
+sarpy.io.complex.sicd_elements elements
 =================================
 
 .. toctree::

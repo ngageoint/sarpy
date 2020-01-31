@@ -12,7 +12,13 @@ import sarpy.io.DEM.geoid as geoid
 def generic_geoid_test(instance, test_file, geoid_file):
     assert isinstance(instance, unittest.TestCase)
 
-    zcol = 4  # TODO: determine this appropriately
+    _, gname = os.path.split(geoid_file)
+    if gname.lower().startswith('egm84'):
+        zcol = 2
+    elif gname.lower().startswith('egm96'):
+        zcol = 3
+    else:
+        zcol = 4
     with open(test_file, 'r') as fi:
         lins = fi.read().splitlines()
     lats = numpy.zeros((len(lins),), dtype=numpy.float64)

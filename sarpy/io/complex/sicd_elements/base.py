@@ -24,6 +24,8 @@ if sys.version_info[0] < 3:
     integer_types = (int, long)
 
 __classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
 
 ###
 # module level constant - each module in the package will start with this

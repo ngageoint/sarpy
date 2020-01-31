@@ -5,7 +5,7 @@ Provides coordinate transforms for WGS-84 and ECF coordinate systems
 import numpy
 
 __classification__ = "UNCLASSIFIED"
-
+__author__ = ("Thomas McCullough", "Wade Schwartzkopf")
 
 #####
 # WGS-84 parameters and related derived parameters

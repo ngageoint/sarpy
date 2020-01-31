@@ -1,7 +1,7 @@
-
-The Main SICD object
+The DEM objects
 ==============================================
 
-.. automodule:: sarpy.sicd_elements.SICD
+.. automodule:: sarpy.io.DEM.DEM
     :members:
     :show-inheritance:
+    :inherited-members:

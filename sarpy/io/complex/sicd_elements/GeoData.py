@@ -20,6 +20,7 @@ from .blocks import XYZType, LatLonRestrictionType, LatLonHAERestrictionType, \
 from sarpy.geometry.geocoords import geodetic_to_ecf, ecf_to_geodetic
 
 __classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
 
 
 class GeoInfoType(Serializable):

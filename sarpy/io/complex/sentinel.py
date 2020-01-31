@@ -36,6 +36,7 @@ from ...geometry.geocoords import geodetic_to_ecf
 from .utils import two_dim_poly_fit, get_seconds
 
 __classification__ = "UNCLASSIFIED"
+__author__ = ("Thomas McCullough", "Daniel Haverporth")
 
 
 ########
@@ -85,6 +86,12 @@ class SentinelDetails(object):
     __slots__ = ('_file_name', '_root_node', '_ns', '_satellite', '_product_type', '_base_sicd')
 
     def __init__(self, file_name):
+        """
+
+        Parameters
+        ----------
+        file_name : str
+        """
         self._file_name = file_name
         self._ns, self._root_node = _parse_xml(file_name)
         self._satellite = self._find('./metadataSection'
@@ -109,14 +116,26 @@ class SentinelDetails(object):
 
     @property
     def file_name(self):
+        """
+        str: the file name
+        """
+
         return self._file_name
 
     @property
     def satellite(self):
+        """
+        str: the satellite
+        """
+
         return self._satellite
 
     @property
     def product_type(self):
+        """
+        str: the product type
+        """
+
         return self._product_type
 
     def _find(self, tag):
@@ -151,6 +170,7 @@ class SentinelDetails(object):
 
     @staticmethod
     def _parse_pol(str_in):
+        # type: (str) -> str
         return '{}:{}'.format(str_in[0], str_in[1])
 
     def _get_file_sets(self):
@@ -934,7 +954,8 @@ class SentinelDetails(object):
             populate_noise(sic, ind)
 
     @staticmethod
-    def _derive(sicds):  # type: (Union[SICDType, List[SICDType]]) -> None
+    def _derive(sicds):
+        # type: (Union[SICDType, List[SICDType]]) -> None
         if isinstance(sicds, SICDType):
             sicds.derive()
         else:
@@ -986,7 +1007,9 @@ class SentinelReader(BaseReader):
             sentinel_details = SentinelDetails(sentinel_details)
         if not isinstance(sentinel_details, SentinelDetails):
             raise TypeError('Input argument for SentinelReader must be a file name or SentinelReader object.')
-        self._sentinel_details = sentinel_details
+
+        self._sentinel_details = sentinel_details  # type: SentinelDetails
+
         symmetry = (False, False, True)  # True for all Sentinel-1 data
         readers = []
         sicd_collection = self._sentinel_details.get_sicd_collection()
@@ -1007,7 +1030,9 @@ class SentinelReader(BaseReader):
                     dim2bounds = (b_row, b_row)
                     readers.append(SubsetReader(p_reader, sicd, dim1bounds, dim2bounds))
                     b_row = e_row
+
         self._readers = tuple(readers)  # type: Tuple[Union[TiffReader, SubsetReader]]
+
         sicd_tuple = tuple(reader.sicd_meta for reader in readers)
         chipper_tuple = tuple(reader._chipper for reader in readers)
         super(SentinelReader, self).__init__(sicd_tuple, chipper_tuple)

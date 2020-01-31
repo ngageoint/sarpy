@@ -2,6 +2,7 @@
 The RadarCollection object and related elements
 =====================================================
 
-.. automodule:: sarpy.sicd_elements.RadarCollection
+.. automodule:: sarpy.io.complex.sicd_elements.RadarCollection
     :members:
     :show-inheritance:
+    :inherited-members:

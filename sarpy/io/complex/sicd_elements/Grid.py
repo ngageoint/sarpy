@@ -18,6 +18,8 @@ from .blocks import XYZType, Poly2DType
 
 
 __classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
 
 # module variable
 DEFAULT_WEIGHT_SIZE = 512

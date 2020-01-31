@@ -11,6 +11,7 @@ from .base import Serializable, DEFAULT_STRICT, \
 
 
 __classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
 
 
 class RadarModeType(Serializable):

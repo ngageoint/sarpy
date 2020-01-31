@@ -20,9 +20,14 @@ if sys.version_info[0] < 3:
 
 
 __classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
 
 
 class BIPChipper(BaseChipper):
+    """
+    Band interleaved format file chipper
+    """
+
     __slots__ = (
         '_file_name', '_data_size', '_data_type', '_data_offset', '_bands',
         '_complex_type', '_symmetry', '_memory_map', '_fid')
@@ -138,6 +143,7 @@ class BIPWriter(AbstractWriter):
     because an array of these writers is used for multi-image segment NITF files.
     That is, SICD with enough rows/columns.
     """
+
     __slots__ = (
         '_data_size', '_data_type', '_complex_type', '_data_offset',
         '_shape', '_memory_map', '_fid')
@@ -226,19 +232,6 @@ class BIPWriter(AbstractWriter):
                 'which is larger than 2GB.'.format(self._file_name))
 
     def write_chip(self, data, start_indices=(0, 0)):
-        """
-        Write the specified data.
-
-        Parameters
-        ----------
-        data : numpy.ndarray
-        start_indices : tuple
-
-        Returns
-        -------
-        None
-        """
-
         self.__call__(data, start_indices=start_indices)
 
     def __call__(self, data, start_indices=(0, 0)):

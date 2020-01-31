@@ -3,12 +3,11 @@
 Functionality for reading Radarsat (RS2 and RCM) data into a SICD model.
 """
 
-import logging
 import re
 import os
 from datetime import datetime
 from xml.etree import ElementTree
-from typing import Tuple
+from typing import Tuple, List, Union
 
 import numpy
 from numpy.polynomial import polynomial
@@ -36,6 +35,7 @@ from ...geometry import point_projection
 from .utils import two_dim_poly_fit, get_seconds
 
 __classification__ = "UNCLASSIFIED"
+__author__ = ("Thomas McCullough", "Khanh Ho", "Wade Schwartzkopf")
 
 
 ########
@@ -69,7 +69,8 @@ def is_a(file_name):
 ##########
 # helper functions
 
-def _parse_xml(file_name, without_ns=False):  # type: (str, bool) -> ElementTree.Element
+def _parse_xml(file_name, without_ns=False):
+    # type: (str, bool) -> ElementTree.Element
     if without_ns:
         with open(file_name, 'r') as fi:
             xml_string = fi.read()
@@ -86,6 +87,13 @@ class RadarSatDetails(object):
     __slots__ = ('_file_name', '_root_node', '_satellite', '_product_type')
 
     def __init__(self, file_name):
+        """
+
+        Parameters
+        ----------
+        file_name : str
+        """
+
         self._file_name = file_name
         ns = dict([node for event, node in ElementTree.iterparse(file_name, events=('start-ns', ))])
         ns['default'] = ns.get('')
@@ -105,27 +113,45 @@ class RadarSatDetails(object):
 
     @property
     def file_name(self):
+        """
+        str: the file name
+        """
+
         return self._file_name
 
     @property
     def satellite(self):
+        """
+        str: the satellite name
+        """
+
         return self._satellite
 
     @property
     def product_type(self):
+        """
+        str: the product type
+        """
+
         return self._product_type
 
     @property
     def generation(self):
+        """
+        str: RS2 or RCM
+        """
+
         if self._satellite == 'RADARSAT-2':
             return 'RS2'
         else:
             return 'RCM'
 
     def _find(self, tag):
+        # type: (str) -> ElementTree.Element
         return self._root_node.find(tag)
 
     def _findall(self, tag):
+        # type: (str) -> List[ElementTree.Element, ...]
         return self._root_node.findall(tag)
 
     def get_symmetry(self):
@@ -181,6 +207,7 @@ class RadarSatDetails(object):
             return numpy.datetime64(self._find('./sourceAttributes/rawDataStartTime').text, 'us')
 
     def _get_radar_params(self):
+        # type: () -> ElementTree.Element
         return self._find('./sourceAttributes/radarParameters')
 
     def _get_center_frequency(self):
@@ -194,12 +221,13 @@ class RadarSatDetails(object):
         return float(self._find('./sourceAttributes/radarParameters/radarCenterFrequency').text)
 
     def _get_polarizations(self, radar_params=None):
+        # type: (Union[None, ElementTree.Element]) -> (Tuple[str, ...], Tuple[str, ...])
         if radar_params is None:
             radar_params = self._get_radar_params()
         polarizations = radar_params.find('polarizations').text.split()
         tx_polarizations = ['RHC' if entry[0] == 'C' else entry[0] for entry in polarizations]
         rcv_polarizations = ['RHC' if entry[1] == 'C' else entry[1] for entry in polarizations]
-        tx_rcv_polarizations = ['{}:{}'.format(*entry) for entry in zip(tx_polarizations, rcv_polarizations)]
+        tx_rcv_polarizations = tuple('{}:{}'.format(*entry) for entry in zip(tx_polarizations, rcv_polarizations))
         tx_pols = tuple(set(tx_polarizations))
         return tx_pols, tx_rcv_polarizations
 
@@ -220,6 +248,7 @@ class RadarSatDetails(object):
                 or 'SL' in mode_id:
             mode_type = 'SPOTLIGHT'
         elif mode_id.startswith('SC'):
+            # TODO: what about all of this?
             raise ValueError('ScanSAR mode data is not currently handled.')
         else:
             mode_type = 'STRIPMAP'
@@ -376,6 +405,7 @@ class RadarSatDetails(object):
         -------
         DirParamType
         """
+
         center_freq = self._get_center_frequency()
         if self.generation == 'RS2':
             row_ss = float(self._find('./imageAttributes'

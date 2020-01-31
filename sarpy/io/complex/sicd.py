@@ -11,7 +11,7 @@ from typing import Union, Tuple
 
 import numpy
 
-from ..nitf_headers import NITFDetails, DataExtensionHeader, HeaderScraper, \
+from ..nitf_headers import NITFDetails, DataExtensionHeader, _HeaderScraper, \
     NITFHeader, NITFSecurityTags, ImageSegmentHeader, ImageBands, _ItemArrayHeaders
 from .base import BaseChipper, BaseReader, BaseWriter
 from .bip import BIPChipper, BIPWriter
@@ -27,6 +27,8 @@ if sys.version_info[0] < 3:
     integer_types = (int, long)
 
 __classification__ = "UNCLASSIFIED"
+__author__ = ("Thomas McCullough", "Wade Schwartzkopf")
+
 
 ########
 # NITF header details specific to SICD files
@@ -37,7 +39,7 @@ _SPECIFICATION_DATE = '2014-09-30T00:00:00Z'
 _SPECIFICATION_NAMESPACE = 'urn:SICD:1.1.0'  # must be of the form 'urn:SICD:<version>'
 
 
-class SICDDESSubheader(HeaderScraper):
+class SICDDESSubheader(_HeaderScraper):
     """
     The SICD Data Extension header - described in SICD standard 2014-09-30, Volume II, page 29
     """
@@ -71,11 +73,11 @@ class SICDDESSubheader(HeaderScraper):
 
 class SICDDataExtensionHeader(DataExtensionHeader):
     """
-    The data extension header - this may only work for SICD data extension headers?
-    described in SICD standard 2014-09-30, Volume II, page 29.
+    The data extension header described in SICD standard 2014-09-30, Volume II, page 29.
     """
 
-    __slots__ = ('_SICDHeader', )
+    __slots__ = (
+        'DE', 'DESID', 'DESVER', '_Security', 'DESSHL', '_SICDHeader', )
     _defaults = {
         'DE': 'DE', 'DESID': 'XML_DATA_CONTENT', 'DESVER': 1,
         'DESSHL': 773, }
@@ -85,9 +87,6 @@ class SICDDataExtensionHeader(DataExtensionHeader):
     }
 
     def __init__(self, **kwargs):
-        self.DESSHL = None
-        self._Security = None
-        self._SICDHeader = None
         super(SICDDataExtensionHeader, self).__init__(**kwargs)
 
     @classmethod
@@ -102,19 +101,29 @@ class SICDDataExtensionHeader(DataExtensionHeader):
 
     @property
     def SICDHeader(self):  # type: () -> Union[SICDDESSubheader, None]
+        """SICDDESSubheader|None: the SICD specific DES subheader object"""
         return self._SICDHeader
 
     @SICDHeader.setter
     def SICDHeader(self, value):
-        if isinstance(value, SICDDESSubheader):
-            self.DESSHL = 773
-            self._SICDHeader = value
         if value is None:
             if self.DESSHL == 773:
+                # noinspection PyAttributeOutsideInit
                 self._SICDHeader = SICDDESSubheader()
             else:
+                # noinspection PyAttributeOutsideInit
                 self.DESSHL = 0
-                self._SICDHeader = None
+                # short circuit the setter
+                object.__setattr__(self, '_SICDHeader', None)
+        elif isinstance(value, SICDDESSubheader):
+            # noinspection PyAttributeOutsideInit
+            self.DESSHL = 773
+            # noinspection PyAttributeOutsideInit
+            self._SICDHeader = value
+        else:
+            raise TypeError(
+                'The SICDHeader attribute is required to be None or of type '
+                'SICDDESSubheader. Got {}'.format(type(value)))
 
     @classmethod
     def from_string(cls, value, start, **kwargs):
@@ -124,9 +133,7 @@ class SICDDataExtensionHeader(DataExtensionHeader):
         value = cls._validate(value, start)
         fields, loc = cls._parse_attributes(value, start)
 
-        if int_func(fields['DESSHL']) == 773:
-            fields['SICDHeader'] = SICDDESSubheader.from_string(value[loc:loc+773], 0)
-        else:
+        if int_func(fields['DESSHL']) != 773:
             fields['DESSHL'] = 0
             fields['SICDHeader'] = None
 
@@ -136,6 +143,7 @@ class SICDDataExtensionHeader(DataExtensionHeader):
         if self.DESSHL == 773 and self.SICDHeader is None:
             self.SICDHeader = SICDDESSubheader()
         elif self.DESSHL != 773:
+            # noinspection PyAttributeOutsideInit
             self.DESSHL = 0
             self.SICDHeader = None
 
@@ -182,7 +190,7 @@ class SICDDetails(NITFDetails):
     SICD are stored in NITF 2.1 files.
     """
     __slots__ = (
-        '_img_headers', '_is_sicd', '_sicd_meta', 'img_segment_rows', 'img_segment_columns')
+        '_des_header', '_img_headers', '_is_sicd', '_sicd_meta', 'img_segment_rows', 'img_segment_columns')
 
     def __init__(self, file_name):
         """
@@ -193,6 +201,7 @@ class SICDDetails(NITFDetails):
             file name for a NITF 2.1 file containing a SICD
         """
 
+        self._des_header = None
         self._img_headers = None
         self._is_sicd = False
         self._sicd_meta = None
@@ -200,9 +209,9 @@ class SICDDetails(NITFDetails):
         if self._nitf_header.ImageSegments.subhead_sizes.size == 0:
             raise IOError('There are no image segments defined.')
         if self._nitf_header.GraphicsSegments.item_sizes.size > 0:
-            raise IOError('SICD does not allow for graphics segments.')
-        if self._nitf_header.DataExtensions.subhead_sizes.size != 1:
-            raise IOError('SICD requires exactly one data extension, containing the '
+            raise IOError('A SICD file does not allow for graphics segments.')
+        if self._nitf_header.DataExtensions.subhead_sizes.size == 0:
+            raise IOError('A SICD file requires at least one data extension, containing the '
                           'SICD xml structure.')
         # define the sicd metadata
         self._parse_des()
@@ -215,17 +224,26 @@ class SICDDetails(NITFDetails):
 
     @property
     def is_sicd(self):
-        """bool: whether file name corresponds to a SICD file, or not."""
+        """
+        bool: whether file name corresponds to a SICD file, or not.
+        """
+
         return self._is_sicd
 
     @property
     def sicd_meta(self):
-        """SICDType: the sicd meta-data structure."""
+        """
+        SICDType: the sicd meta-data structure.
+        """
+
         return self._sicd_meta
 
     @property
     def img_headers(self):
-        """None|List[ImageSegmentHeader]: the image segment headers"""
+        """
+        None|List[ImageSegmentHeader]: the image segment headers
+        """
+
         if self._img_headers is not None:
             return self._img_headers
 
@@ -246,34 +264,39 @@ class SICDDetails(NITFDetails):
         self._img_headers = img_headers
 
     def _parse_des(self):
+        self._is_sicd = False
+        self._sicd_meta = None
         if self.des_subheader_offsets is None:
-            self._is_sicd = False
-            self._sicd_meta = None
+            return
 
+        des_header = None
+        data_extension = None
         with open(self._file_name, 'rb') as fi:
-            fi.seek(int_func(self.des_segment_offsets[0]))
-            data_extension = fi.read(int_func(self._nitf_header.DataExtensions.item_sizes[0])).decode('utf-8')
+            for i in range(self.des_subheader_offsets.size):
+                fi.seek(int_func(self.des_subheader_offsets[0]))
+                subhead_bytes = fi.read(self._nitf_header.DataExtensions.subhead_sizes[0])
+                if subhead_bytes.startswith(b'DEXML_DATA_CONTENT'):
+                    des_header = SICDDataExtensionHeader.from_string(subhead_bytes, start=0)
+                    fi.seek(int_func(self.des_segment_offsets[0]))
+                    data_extension = fi.read(int_func(self._nitf_header.DataExtensions.item_sizes[0])).decode('utf-8')
+        if des_header is None or not data_extension.startswith('<SICD'):
+            return
 
-        if data_extension.startswith('<SICD'):
-            # junk the namespace (for now)
-            data_extension = re.sub('\\sxmlns="[^"]+"', '', data_extension, count=1)
-            root_node = ElementTree.fromstring(data_extension)  # handles bytes?
-            # TODO: account for CPHD xml?
-            self._is_sicd = True
+        # junk the namespace (for now)
+        data_extension = re.sub('\\sxmlns="[^"]+"', '', data_extension, count=1)
+        root_node = ElementTree.fromstring(data_extension)  # handles bytes?
+        self._is_sicd = True
+        self._des_header = des_header
 
-            try:
-                self._sicd_meta = SICDType.from_node(root_node)
-                self._sicd_meta.derive()
-                # TODO: account for the reference frequency offset situation
-            except Exception:
-                self._is_sicd = False
-                raise
+        self._sicd_meta = SICDType.from_node(root_node)
+        self._sicd_meta.derive()
+        # TODO: account for the reference frequency offset situation
 
 
 #######
 #  The actual reading implementation
 
-def _validate_lookup(lookup_table):
+def _validate_lookup(lookup_table):  # type: (numpy.ndarray) -> None
     if not isinstance(lookup_table, numpy.ndarray):
         raise ValueError('requires a numpy.ndarray, got {}'.format(type(lookup_table)))
     if lookup_table.dtype != numpy.float64:
@@ -289,7 +312,7 @@ def amp_phase_to_complex(lookup_table):
 
     Parameters
     ----------
-    lookup_table
+    lookup_table : numpy.ndarray
 
     Returns
     -------
@@ -320,10 +343,12 @@ def amp_phase_to_complex(lookup_table):
 
 class MultiSegmentChipper(BaseChipper):
     """
-    This is required because NITF files have specified size and row/column limits.
-    Any sufficiently large SICD collect must be broken into a series of image segments (along rows).
-    We must have a parser to transparently extract data between this collection of image segments.
+    required chipping extension to accommodate for the fact that NITF files have specified size
+    and row/column limits. Any sufficiently large SICD collect must be broken into a series of
+    image segments (along rows). We must have a parser to transparently extract data between
+    this collection of image segments.
     """
+
     __slots__ = ('_file_name', '_data_size', '_dtype', '_complex_out',
                  '_symmetry', '_row_starts', '_row_ends',
                  '_bands_ip', '_child_chippers')
@@ -413,6 +438,10 @@ class MultiSegmentChipper(BaseChipper):
 
 
 class SICDReader(BaseReader):
+    """
+    A reader object for a SICD file (NITF container with SICD contents)
+    """
+
     __slots__ = ('_nitf_details', '_sicd_meta', '_chipper')
 
     def __init__(self, nitf_details):
@@ -472,6 +501,7 @@ class SICDReader(BaseReader):
 #  The actual writing implementation
 
 def _validate_input(data):
+    # type: (numpy.ndarray) -> tuple
     if not isinstance(data, numpy.ndarray):
         raise ValueError('Requires a numpy.ndarray, got {}'.format(type(data)))
     if data.dtype not in (numpy.complex64, numpy.complex128):
@@ -489,7 +519,7 @@ def complex_to_amp_phase(lookup_table):
 
     Parameters
     ----------
-    lookup_table
+    lookup_table : numpy.ndarray
 
     Returns
     -------
@@ -531,7 +561,7 @@ def complex_to_int(data):
     else:
         view_dtype = numpy.float32
 
-    i16_info = numpy.iinfo(numpy.int16)
+    i16_info = numpy.iinfo(numpy.int16)  # for getting max/min type values
     data_view = data.view(dtype=view_dtype).reshape(new_shape)
     out = numpy.zeros(new_shape, dtype=numpy.int16)
     out[:] = numpy.round(numpy.clip(data_view, i16_info.min, i16_info.max))
@@ -543,8 +573,9 @@ def complex_to_int(data):
 class SICDWriter(BaseWriter):
     """
     Writer object for SICD file - that is, a NITF file containing SICD data
-    following standard 1.1.0.
+    following standard 1.1.0
     """
+
     __slots__ = (
         '_file_name', '_sicd_meta', '_shape', '_pixel_size', '_dtype',
         '_complex_type', '_image_segment_limits',
@@ -586,10 +617,9 @@ class SICDWriter(BaseWriter):
     def security_tags(self):  # type: () -> NITFSecurityTags
         """
         NITFSecurityTags: The NITF security tags, which will be constructed initially using
-        the :func:`default_security_tags` method. This object will be populated as the
-        `SecurityTags` property for `nitf_header`, each entry of `image_segment_headers`,
-        and `data_extension_header`. Changing any attributes here will change them in all
-        these locations.
+        the :func:`default_security_tags` method. This object will be populated **by reference**
+        upon construction as the `SecurityTags` property for `nitf_header`, each entry of
+        `image_segment_headers`, and `data_extension_header`.
 
         .. Note: required edits should be made before adding any data via :func:`write_chip`.
         """
@@ -599,8 +629,8 @@ class SICDWriter(BaseWriter):
     @property
     def nitf_header(self):  # type: () -> NITFHeader
         """
-        NITFHeader: The NITF header object. The `SecurityTags` property will be populated
-        using `security_tags` by default.
+        NITFHeader: The NITF header object. The `SecurityTags` property is populated
+        using `security_tags` **by reference** upon construction.
 
         .. Note: required edits should be made before adding any data via :func:`write_chip`.
         """
@@ -611,7 +641,8 @@ class SICDWriter(BaseWriter):
     def image_segment_headers(self):  # type: () -> Tuple[ImageSegmentHeader]
         """
         tuple[ImageSegmentHeader]: The NITF image segment headers. Each entry will have
-        the `SecurityTags` property will be populated using `security_tags` by default.
+        the `SecurityTags` property is populated using `security_tags` **by reference**
+        upon construction.
 
         .. Note: required edits should be made before adding any data via :func:`write_chip`.
         """
@@ -622,7 +653,7 @@ class SICDWriter(BaseWriter):
     def data_extension_header(self):  # type: () -> SICDDataExtensionHeader
         """
         SICDDataExtensionHeader: the NITF data extension header. The `SecurityTags`
-        property will be populated using `security_tags` by default.
+        property is populated using `security_tags` **by reference** upon construction.
 
         .. Note: required edits should be made before adding any data via :func:`write_chip`.
         """
@@ -631,12 +662,15 @@ class SICDWriter(BaseWriter):
 
     def default_security_tags(self):
         """
-        Returns the default NITF security tags object with `CLAS` and `CODE`
+        Returns a NITF security tags object with `CLAS` and `CODE`
         attributes set from the SICD.CollectionInfo.Classification value.
 
         It is expected that output from this will be modified as appropriate
-        and used to set specific security tags in `data_extension_header` or
+        and used to set ONLY specific security tags in `data_extension_header` or
         elements of `image_segment_headers`.
+
+        If simultaneous modification of all security tags attributes for the entire
+        SICD is the goal, then directly modify the value(s) using `security_tags`.
 
         Returns
         -------
@@ -652,6 +686,7 @@ class SICDWriter(BaseWriter):
         return sec
 
     def _image_segment_details(self):
+        # type: () -> (int, numpy.dtype, Union[bool, callable], str, tuple, numpy.ndarray)
         pixel_type = self._sicd_meta.ImageData.PixelType  # required to be defined
         # NB: SICDs are required to be stored as big-endian, so the endian-ness
         #   of the memmap must be explicit
@@ -699,6 +734,8 @@ class SICDWriter(BaseWriter):
         return pixel_size, dtype, complex_type, pv_type, isubcat, numpy.array(im_segments, dtype=numpy.int64)
 
     def _create_image_segment_headers(self, pv_type, isubcat):
+        # type: (str, tuple) -> Tuple[ImageSegmentHeader, ...]
+
         def get_corner_points_string(ent):
             # ent = (row_start, row_stop, col_start, col_stop)
             if icp is None:
@@ -759,6 +796,7 @@ class SICDWriter(BaseWriter):
         return tuple(im_seg_heads)
 
     def _create_data_extension_header(self):
+        # type: () -> SICDDataExtensionHeader
         desshdt = str(self._sicd_meta.ImageCreation.DateTime.astype('datetime64[s]'))
         if desshdt[-1] != 'Z':
             desshdt += 'Z'
@@ -774,6 +812,7 @@ class SICDWriter(BaseWriter):
         return SICDDataExtensionHeader(DESSHDT=desshdt, DESSHLPG=desshlpg, Security=self._security_tags)
 
     def _create_nitf_header(self):
+        # type: () -> NITFHeader
         im_size = self._sicd_meta.ImageData.NumRows*self._sicd_meta.ImageData.NumCols*self._pixel_size
         if im_size < 50*(1024**2):
             clevel = 3
@@ -892,6 +931,7 @@ class SICDWriter(BaseWriter):
         self._pixels_written = numpy.zeros((self._image_segment_limits.shape[0],), dtype=numpy.int64)
 
     def _write_image_header(self, index):
+        # type: (int) -> None
         if self._pixels_written[index] > 0:
             return
         with open(self._file_name, mode='r+b') as fi:
@@ -941,7 +981,7 @@ class SICDWriter(BaseWriter):
         for entry in self._writing_chippers:
             entry.close()
 
-    def write_chip(self, data, start_indices=(0, 0)):
+    def __call__(self, data, start_indices=(0, 0)):
         def overlap(rrange, crange):
             def element_overlap(this_range, segment_range):
                 if segment_range[0] <= this_range[0] < segment_range[1]:

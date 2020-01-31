@@ -13,6 +13,7 @@ from .blocks import XYZType, XYZPolyType, XYZPolyAttributeType
 
 
 __classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
 
 
 class PositionType(Serializable):

@@ -1,6 +1,10 @@
 # This details the important differences introduced in 0.1
 # NB: bump the version number in __about__.py to reflect the below.
 
+* .21 - Unit testing for basic sicd opening and interpretation
+* .20 - Unit testing for nitf header behavior and application to sicd
+* .19 - Refactoring to split general nitf capability and sicd specific behavior more clearly
+* .18 - Unit testing for basic capability in geoid
 * .17 - Refactored generic complex data file opening and conversion capability.
 * .16 - Split (to some degree) general NITF headers from SICD specific usage.
 * .15 - Refactored geometry.point_projection to dem for more consistent behavior.

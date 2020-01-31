@@ -14,6 +14,7 @@ from .blocks import Poly1DType
 
 
 __classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
 
 
 class IPPSetType(Serializable):

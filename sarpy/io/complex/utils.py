@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 """
-Common functionality for reading data and converting metadata
+Common functionality for converting metadata
 """
 
 import logging
 import numpy
 
 __classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
 
 
 def get_seconds(dt1, dt2, precision='us'):

@@ -16,6 +16,7 @@ from sarpy.geometry import geocoords
 
 
 __classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
 
 
 class SCPCOAType(Serializable):

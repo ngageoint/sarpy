@@ -9,6 +9,7 @@ from .base import Serializable, DEFAULT_STRICT, _StringDescriptor, _DateTimeDesc
 
 
 __classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
 
 
 class ImageCreationType(Serializable):

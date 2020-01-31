@@ -29,6 +29,7 @@ if sys.version_info[0] < 3:
 
 
 __classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
 
 
 ##########

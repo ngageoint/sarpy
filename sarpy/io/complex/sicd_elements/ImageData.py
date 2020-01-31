@@ -15,6 +15,7 @@ from .blocks import RowColType, RowColArrayElement
 
 
 __classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
 
 
 class FullImageType(Serializable, Arrayable):

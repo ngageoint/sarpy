@@ -39,7 +39,6 @@ try:
             'build_sphinx': {
                 'project': ('setup.py', 'sarpy'),
                 'version': ('setup.py', parameters['__version__']),
-                'release': ('setup.py', parameters['__release__']),
                 'copyright': ('setup.py', parameters['__copyright__']),
                 'source_dir': ('setup.py', os.path.join(here, 'docs', 'sphinx'))
             }

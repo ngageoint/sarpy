@@ -8,6 +8,10 @@ __classification__ = "UNCLASSIFIED"
 __author__ = ("Wade Schwartzkopf", "Daniel Haverporth")
 
 
+# TODO: It seems clear that these three methods are part of a single workflow
+#   which should be tidied up. How does it happen?
+
+
 def is_normalized(sicd_meta, dim=1):
     """
 
@@ -24,22 +28,22 @@ def is_normalized(sicd_meta, dim=1):
         normalization state in the given dimension
     """
 
-    # TODO: this should be a class method of SICDType
+    def dimension_check(dir_param):
+        # type: (sarpy.io.complex.sicd_elements.Grid.DirParamType) -> bool
+        # Several reasons that we might need to applied normalization
+        needs_deskew = ((dir_param.DeltaKCOAPoly is not None) and
+                        np.any(dir_param.DeltaKCOAPoly.get_array() != 0))
+        not_uniform_weight = (
+                (dir_param.WgtType is not None and dir_param.WgtType.WindowName is not None
+                 and dir_param.WgtType.WindowName != 'UNIFORM') or
+                (dir_param.WgtFunct is not None and np.any(np.diff(dir_param.WgtFunct))))
+        needs_fft_sgn_flip = (dir_param.Sgn == 1)
+        return not (needs_deskew or not_uniform_weight or needs_fft_sgn_flip)
 
     if dim == 1:  # slow-time
-        sicd_grid_struct = sicd_meta.Grid.Col
+        return dimension_check(sicd_meta.Grid.Col)
     else:  # fast-time
-        sicd_grid_struct = sicd_meta.Grid.Row
-
-    # Several reasons that we might need to applied normalization
-    needs_deskew = ((sicd_grid_struct.DeltaKCOAPoly is not None) and
-                    np.any(sicd_grid_struct.DeltaKCOAPoly.get_array() != 0))
-    not_uniform_weight = (
-            (sicd_grid_struct.WgtType is not None and sicd_grid_struct.WgtType.WindowName is not None
-             and sicd_grid_struct.WgtType.WindowName != 'UNIFORM') or
-            (sicd_grid_struct.WgtFunct is not None and np.any(np.diff(sicd_grid_struct.WgtFunct))))
-    needs_fft_sgn_flip = (sicd_grid_struct.Sgn == 1)
-    return not (needs_deskew or not_uniform_weight or needs_fft_sgn_flip)
+        return dimension_check(sicd_meta.Grid.Row)
 
 
 def deskewparams(sicd_meta, dim):
@@ -111,8 +115,6 @@ def deskewmem(input_data, DeltaKCOAPoly, dim0_coords_m, dim1_coords_m, dim, fft_
         * `new_DeltaKCOAPoly` - Frequency support shift in the non-deskew dimension caused by the deskew.
     """
 
-    # TODO: HIGH - this should be class method of SICD class (or something like that)
-
     # Integrate DeltaKCOA polynomial (in meters) to form new polynomial DeltaKCOAPoly_int
     DeltaKCOAPoly_int = polynomial.polyint(DeltaKCOAPoly, axis=dim)
     # New DeltaKCOAPoly in other dimension will be negative of the derivative of
@@ -151,8 +153,7 @@ def deweightmem(input_data, weight_fun=None, oversample_rate=1, dim=1):
     .. Note: This implementation ASSUMES that the data has already been de-skewed and that the frequency support
         is centered.
     """
-    # TODO: HIGH - this should be class method of SICD class (or something like that)
-    #   Note that there was a prexisting comment "Test this function"
+    # TODO: HIGH - there was a prexisting comment "Test this function"
 
     # Weighting only valid across ImpRespBW
     weight_size = round(input_data.shape[dim]/oversample_rate)

@@ -20,6 +20,8 @@ if sys.version_info[0] < 3:
 
 
 __classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
 
 #######
 # module variables
@@ -204,7 +206,6 @@ class DTEDList(object):
             logging.warning(
                 'Missing required dem files {}. This will result in getting missing values '
                 'for some points during any interpolation'.format(missing_boxes))
-        # TODO: try automatically fetching these from some source?
         return files
 
 

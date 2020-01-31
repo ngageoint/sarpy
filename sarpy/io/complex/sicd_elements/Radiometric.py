@@ -11,6 +11,7 @@ from .blocks import Poly2DType
 
 
 __classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
 
 
 # noinspection PyPep8Naming

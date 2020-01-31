@@ -10,6 +10,7 @@ from .blocks import Poly1DType, XYZPolyType, GainPhasePolyType
 
 
 __classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
 
 
 class EBType(Serializable):
