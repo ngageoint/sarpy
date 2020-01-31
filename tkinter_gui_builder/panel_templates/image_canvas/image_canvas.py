@@ -278,7 +278,8 @@ class ImageCanvas(tk.LabelFrame):
                 elif self.variables.current_tool == TOOLS.DRAW_POINT_BY_CLICKING:
                     self.create_new_point((start_x, start_y))
                 elif self.variables.current_tool == TOOLS.DRAW_POLYGON_BY_CLICKING:
-                    self.create_new_line(coords)
+                    self.create_new_polygon(coords)
+                    self.variables.actively_drawing_shape = True
                 else:
                     print("no tool selected")
             else:
@@ -291,7 +292,7 @@ class ImageCanvas(tk.LabelFrame):
                     elif self.variables.current_tool == TOOLS.DRAW_ARROW_BY_CLICKING:
                         self.event_click_line(event)
                     elif self.variables.current_tool == TOOLS.DRAW_POLYGON_BY_CLICKING:
-                        self.event_click_line(event)
+                        self.event_click_polygon(event)
                     elif self.variables.current_tool == TOOLS.DRAW_RECT_BY_CLICKING:
                         if self.variables.actively_drawing_shape:
                             self.variables.actively_drawing_shape = False
@@ -444,10 +445,6 @@ class ImageCanvas(tk.LabelFrame):
             coords = self.canvas.coords(self.variables.current_shape_id)
             new_coords = list(coords[0:-2]) + [event_x_pos, event_y_pos]
             self.modify_existing_shape_using_canvas_coords(self.variables.current_shape_id, new_coords)
-            if len(new_coords) == 6:
-                self.current_shape_id = self.create_new_polygon(new_coords)
-            if len(new_coords) > 6:
-                self.modify_existing_shape_using_canvas_coords(self.variables.current_shape_id, new_coords)
         else:
             pass
 
@@ -463,6 +460,23 @@ class ImageCanvas(tk.LabelFrame):
             old_coords = self.get_shape_canvas_coords(self.variables.current_shape_id)
             new_coords = tuple(list(old_coords) + [event.x, event.y])
             self.modify_existing_shape_using_canvas_coords(self.variables.current_shape_id, new_coords)
+        else:
+            new_coords = (event.x, event.y, event.x+1, event.y+1)
+            self.modify_existing_shape_using_canvas_coords(self.variables.current_shape_id, new_coords)
+            self.variables.actively_drawing_shape = True
+
+    def delete_shape(self, shape_id):
+        self.variables.shape_ids.remove(shape_id)
+        self.canvas.delete(shape_id)
+        if shape_id == self.variables.current_shape_id:
+            self.variables.current_shape_id = None
+
+    def event_click_polygon(self, event):
+        if self.variables.actively_drawing_shape:
+            old_coords = self.get_shape_canvas_coords(self.variables.current_shape_id)
+            new_coords = tuple(list(old_coords) + [event.x, event.y])
+            self.modify_existing_shape_using_canvas_coords(self.variables.current_shape_id, new_coords)
+        # re-initialize shape if we're not actively drawing
         else:
             new_coords = (event.x, event.y, event.x+1, event.y+1)
             self.modify_existing_shape_using_canvas_coords(self.variables.current_shape_id, new_coords)
