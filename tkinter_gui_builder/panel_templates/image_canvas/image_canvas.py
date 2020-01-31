@@ -25,9 +25,10 @@ class AppVariables:
         self.rect_border_width = 2
         self.line_width = 2
         self.point_size = 3
+        self.poly_border_width = 2
+        self.poly_fill = None
 
         self.foreground_color = "red"
-        self.rect_border_width = 2
 
         self.image_id = None                # type: int
 
@@ -508,7 +509,8 @@ class ImageCanvas(tk.LabelFrame):
         if options == {}:
             shape_id = self.canvas.create_polygon(coords[0], coords[1], coords[2], coords[3],
                                                   outline=self.variables.foreground_color,
-                                                  width=self.variables.rect_border_width)
+                                                  width=self.variables.poly_border_width,
+                                                  fill='')
         else:
             shape_id = self.canvas.create_polygon(coords[0], coords[1], coords[2], coords[3], options)
 
@@ -579,6 +581,8 @@ class ImageCanvas(tk.LabelFrame):
                            ):
         shape_type = self.get_shape_type(shape_id)
         if shape_type == SHAPE_TYPES.RECT:
+            self.canvas.itemconfig(shape_id, outline=color)
+        elif shape_type == SHAPE_TYPES.POLYGON:
             self.canvas.itemconfig(shape_id, outline=color)
         else:
             self.canvas.itemconfig(shape_id, fill=color)
