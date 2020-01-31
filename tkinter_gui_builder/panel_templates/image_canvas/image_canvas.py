@@ -277,6 +277,8 @@ class ImageCanvas(tk.LabelFrame):
                     self.variables.actively_drawing_shape = True
                 elif self.variables.current_tool == TOOLS.DRAW_POINT_BY_CLICKING:
                     self.create_new_point((start_x, start_y))
+                elif self.variables.current_tool == TOOLS.DRAW_POLYGON_BY_CLICKING:
+                    self.create_new_line(coords)
                 else:
                     print("no tool selected")
             else:
@@ -287,6 +289,8 @@ class ImageCanvas(tk.LabelFrame):
                     elif self.variables.current_tool == TOOLS.DRAW_LINE_BY_CLICKING:
                         self.event_click_line(event)
                     elif self.variables.current_tool == TOOLS.DRAW_ARROW_BY_CLICKING:
+                        self.event_click_line(event)
+                    elif self.variables.current_tool == TOOLS.DRAW_POLYGON_BY_CLICKING:
                         self.event_click_line(event)
                     elif self.variables.current_tool == TOOLS.DRAW_RECT_BY_CLICKING:
                         if self.variables.actively_drawing_shape:
@@ -365,13 +369,17 @@ class ImageCanvas(tk.LabelFrame):
             self.variables.actively_drawing_shape = False
         elif self.variables.current_tool == TOOLS.DRAW_ARROW_BY_CLICKING:
             self.variables.actively_drawing_shape = False
+        elif self.variables.current_tool == TOOLS.DRAW_POLYGON_BY_CLICKING:
+            self.variables.actively_drawing_shape = False
 
     def callback_handle_mouse_motion(self, event):
         if self.variables.actively_drawing_shape:
             if self.variables.current_tool == TOOLS.DRAW_LINE_BY_CLICKING:
-                self.event_drag_multipoint_shape(event)
+                self.event_drag_multipoint_line(event)
             elif self.variables.current_tool == TOOLS.DRAW_ARROW_BY_CLICKING:
-                self.event_drag_multipoint_shape(event)
+                self.event_drag_multipoint_line(event)
+            elif self.variables.current_tool == TOOLS.DRAW_POLYGON_BY_CLICKING:
+                self.event_drag_multipoint_polygon(event)
             elif self.variables.current_tool == TOOLS.DRAW_RECT_BY_CLICKING:
                 self.event_drag_line(event)
 
@@ -416,7 +424,7 @@ class ImageCanvas(tk.LabelFrame):
         if update_pixel_coords:
             self.set_shape_pixel_coords_from_canvas_coords(shape_id)
 
-    def event_drag_multipoint_shape(self, event):
+    def event_drag_multipoint_line(self, event):
         if self.variables.current_shape_id:
             self.show_shape(self.variables.current_shape_id)
             event_x_pos = self.canvas.canvasx(event.x)
@@ -424,6 +432,21 @@ class ImageCanvas(tk.LabelFrame):
             coords = self.canvas.coords(self.variables.current_shape_id)
             new_coords = list(coords[0:-2]) + [event_x_pos, event_y_pos]
             if self.get_shape_type(self.variables.current_shape_id) == SHAPE_TYPES.ARROW or self.get_shape_type(self.variables.current_shape_id) == SHAPE_TYPES.LINE:
+                self.modify_existing_shape_using_canvas_coords(self.variables.current_shape_id, new_coords)
+        else:
+            pass
+
+    def event_drag_multipoint_polygon(self, event):
+        if self.variables.current_shape_id:
+            self.show_shape(self.variables.current_shape_id)
+            event_x_pos = self.canvas.canvasx(event.x)
+            event_y_pos = self.canvas.canvasy(event.y)
+            coords = self.canvas.coords(self.variables.current_shape_id)
+            new_coords = list(coords[0:-2]) + [event_x_pos, event_y_pos]
+            self.modify_existing_shape_using_canvas_coords(self.variables.current_shape_id, new_coords)
+            if len(new_coords) == 6:
+                self.current_shape_id = self.create_new_polygon(new_coords)
+            if len(new_coords) > 6:
                 self.modify_existing_shape_using_canvas_coords(self.variables.current_shape_id, new_coords)
         else:
             pass
@@ -449,18 +472,58 @@ class ImageCanvas(tk.LabelFrame):
                         coords,         # type: (int, int, int, int)
                         **options
                         ):
-        return self.create_new_canvas_shape('rect', coords, **options)
+        if options == {}:
+            shape_id = self.canvas.create_rectangle(coords[0], coords[1], coords[2], coords[3],
+                                                    outline=self.variables.foreground_color,
+                                                    width=self.variables.rect_border_width)
+        else:
+            shape_id = self.canvas.create_rectangle(coords[0], coords[1], coords[2], coords[3], options)
+
+        self.variables.shape_ids.append(shape_id)
+        self._set_shape_property(shape_id, SHAPE_PROPERTIES.SHAPE_TYPE, SHAPE_TYPES.RECT)
+        self._set_shape_property(shape_id, SHAPE_PROPERTIES.COLOR, self.variables.foreground_color)
+        self.set_shape_canvas_coords(shape_id, coords)
+        self.set_shape_pixel_coords_from_canvas_coords(shape_id)
+        self.variables.current_shape_id = shape_id
+        return shape_id
+
+    def create_new_polygon(self,
+                           coords,  # type: (int, int, int, int)
+                           **options
+                           ):
+        if options == {}:
+            shape_id = self.canvas.create_polygon(coords[0], coords[1], coords[2], coords[3],
+                                                  outline=self.variables.foreground_color,
+                                                  width=self.variables.rect_border_width)
+        else:
+            shape_id = self.canvas.create_polygon(coords[0], coords[1], coords[2], coords[3], options)
+
+        self.variables.shape_ids.append(shape_id)
+        self._set_shape_property(shape_id, SHAPE_PROPERTIES.SHAPE_TYPE, SHAPE_TYPES.POLYGON)
+        self._set_shape_property(shape_id, SHAPE_PROPERTIES.COLOR, self.variables.foreground_color)
+        self.set_shape_canvas_coords(shape_id, coords)
+        self.set_shape_pixel_coords_from_canvas_coords(shape_id)
+        self.variables.current_shape_id = shape_id
+        return shape_id
 
     def create_new_arrow(self,
                          coords,
                          **options
                          ):
-        return self.create_new_canvas_shape('arrow', coords, **options)
-
-    def create_new_point(self,
-                         coords,
-                         **options):
-        return self.create_new_canvas_shape('point', coords, **options)
+        if options == {}:
+            shape_id = self.canvas.create_line(coords[0], coords[1], coords[2], coords[3],
+                                               fill=self.variables.foreground_color,
+                                               width=self.variables.line_width,
+                                               arrow=tk.LAST)
+        else:
+            shape_id = self.canvas.create_line(coords[0], coords[1], coords[2], coords[3], options, arrow=tk.LAST)
+        self.variables.shape_ids.append(shape_id)
+        self._set_shape_property(shape_id, SHAPE_PROPERTIES.SHAPE_TYPE, SHAPE_TYPES.ARROW)
+        self._set_shape_property(shape_id, SHAPE_PROPERTIES.COLOR, self.variables.foreground_color)
+        self.set_shape_canvas_coords(shape_id, coords)
+        self.set_shape_pixel_coords_from_canvas_coords(shape_id)
+        self.variables.current_shape_id = shape_id
+        return shape_id
 
     def create_new_line(self, coords, **options):
         if options == {}:
@@ -477,39 +540,19 @@ class ImageCanvas(tk.LabelFrame):
         self.variables.current_shape_id = shape_id
         return shape_id
 
-    def create_new_canvas_shape(self,
-                                shape_type,  # type: str
-                                coords,  # type: tuple
-                                **options
-                                ):
-        if shape_type == SHAPE_TYPES.RECT:
-            if options == {}:
-                shape_id = self.canvas.create_rectangle(coords[0], coords[1], coords[2], coords[3],
-                                                       outline=self.variables.foreground_color,
-                                                       width=self.variables.rect_border_width)
-            else:
-                shape_id = self.canvas.create_rectangle(coords[0], coords[1], coords[2], coords[3], options)
-        if shape_type == SHAPE_TYPES.LINE:
-            pass
-        if shape_type == SHAPE_TYPES.ARROW:
-            if options == {}:
-                shape_id = self.canvas.create_line(coords[0], coords[1], coords[2], coords[3],
-                                                       fill=self.variables.foreground_color,
-                                                       width=self.variables.line_width,
-                                                       arrow=tk.LAST)
-            else:
-                shape_id = self.canvas.create_line(coords[0], coords[1], coords[2], coords[3], options, arrow=tk.LAST)
-        if shape_type == SHAPE_TYPES.POINT:
-            x1, y1 = (coords[0] - self.variables.point_size), (coords[1] - self.variables.point_size)
-            x2, y2 = (coords[0] + self.variables.point_size), (coords[1] + self.variables.point_size)
-            if options == {}:
-                shape_id = self.canvas.create_oval(x1, y1, x2, y2, fill=self.variables.foreground_color)
-            else:
-                shape_id = self.canvas.create_oval(x1, y1, x2, y2, options)
-            self._set_shape_property(shape_id, SHAPE_PROPERTIES.POINT_SIZE, self.variables.point_size)
+    def create_new_point(self,
+                         coords,
+                         **options):
+        x1, y1 = (coords[0] - self.variables.point_size), (coords[1] - self.variables.point_size)
+        x2, y2 = (coords[0] + self.variables.point_size), (coords[1] + self.variables.point_size)
+        if options == {}:
+            shape_id = self.canvas.create_oval(x1, y1, x2, y2, fill=self.variables.foreground_color)
+        else:
+            shape_id = self.canvas.create_oval(x1, y1, x2, y2, options)
+        self._set_shape_property(shape_id, SHAPE_PROPERTIES.POINT_SIZE, self.variables.point_size)
 
         self.variables.shape_ids.append(shape_id)
-        self._set_shape_property(shape_id, SHAPE_PROPERTIES.SHAPE_TYPE, shape_type)
+        self._set_shape_property(shape_id, SHAPE_PROPERTIES.SHAPE_TYPE, self.SHAPE_TYPES.POINT)
         self._set_shape_property(shape_id, SHAPE_PROPERTIES.COLOR, self.variables.foreground_color)
         self.set_shape_canvas_coords(shape_id, coords)
         self.set_shape_pixel_coords_from_canvas_coords(shape_id)
@@ -693,6 +736,11 @@ class ImageCanvas(tk.LabelFrame):
         self.variables.current_shape_id = line_id
         self.variables.current_tool = TOOLS.DRAW_ARROW_BY_CLICKING
         self.show_shape(line_id)
+
+    def set_current_tool_to_draw_polygon_by_clicking(self, polygon_id=None):
+        self.variables.current_shape_id = polygon_id
+        self.variables.current_tool = TOOLS.DRAW_POLYGON_BY_CLICKING
+        self.show_shape(polygon_id)
 
     def set_current_tool_to_draw_point(self, point_id=None):
         self.variables.current_shape_id = point_id

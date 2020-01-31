@@ -7,6 +7,7 @@ class ToolConstants:
     DRAW_LINE_BY_CLICKING = "draw line by clicking"
     DRAW_ARROW_BY_DRAGGING = "draw arrow by dragging"
     DRAW_ARROW_BY_CLICKING = "draw arrow by clicking"
+    DRAW_POLYGON_BY_CLICKING = "draw polygon by clicking"
     DRAW_POINT_BY_CLICKING = "draw point by clicking"
     SELECT_TOOL = "select tool"
     PAN_TOOL = "pan tool"
@@ -26,3 +27,4 @@ class ShapeTypeConstants:
     LINE = "line"
     RECT = "rect"
     ARROW = "arrow"
+    POLYGON = "polygon"

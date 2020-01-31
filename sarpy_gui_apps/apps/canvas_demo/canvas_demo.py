@@ -55,6 +55,10 @@ class CanvasDemo(AbstractWidgetPanel):
 
         self.button_panel.draw_rect_w_drag.on_left_mouse_click(self.callback_draw_rect_w_drag)
         self.button_panel.draw_rect_w_click.on_left_mouse_click(self.callback_draw_rect_w_click)
+
+        self.button_panel.draw_polygon_w_click.on_left_mouse_click(self.callback_draw_polygon_w_click)
+        self.button_panel.draw_point_w_click.on_left_mouse_click(self.callback_draw_point_w_click)
+
         self.button_panel.color_selector.on_left_mouse_click(self.callback_activate_color_selector)
 
         self.button_panel.modify_existing_shape.on_left_mouse_click(self.callback_highlight_shape)
@@ -114,7 +118,10 @@ class CanvasDemo(AbstractWidgetPanel):
         self.canvas_demo_image_panel.set_current_tool_to_draw_ellipse()
 
     def callback_draw_polygon_w_click(self, event):
-        self.canvas_demo_image_panel.set_current_tool_to_draw_polygon()
+        self.canvas_demo_image_panel.set_current_tool_to_draw_polygon_by_clicking()
+
+    def callback_draw_point_w_click(self, event):
+        self.canvas_demo_image_panel.set_current_tool_to_draw_point()
 
     def callback_set_to_zoom_in(self, event):
         self.canvas_demo_image_panel.set_current_tool_to_zoom_in()
