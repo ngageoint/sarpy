@@ -158,7 +158,8 @@ class CanvasDemo(AbstractWidgetPanel):
     def _init_w_image(self):
         # fname = '/media/psf/mac_external_ssd/Data/sarpy_data/nitf/sicd_example_1_PFA_RE32F_IM32F_HH.nitf'
         # fname = os.path.expanduser('~/Data/sarpy/sicd_example_1_PFA_RE32F_IM32F_HH.nitf')
-        fname = 'D:/Users/jcasey/Data/sarpy/nitf/sicd_example_1_PFA_RE32F_IM32F_HH.nitf'
+        # fname = 'D:/Users/jcasey/Data/sarpy/nitf/sicd_example_1_PFA_RE32F_IM32F_HH.nitf'
+        fname = 'C:/Users/caseyjt/sarpy_data/nitf/sicd_example_1_PFA_RE32F_IM32F_HH.nitf'
         self.variables.fname = fname
         self.canvas_demo_image_panel.init_with_fname(fname)
 

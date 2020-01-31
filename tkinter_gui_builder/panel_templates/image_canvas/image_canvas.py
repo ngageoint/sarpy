@@ -61,6 +61,9 @@ class AppVariables:
         self.highlight_color_palette = SeabornHexPalettes.blues
         self.highlight_n_colors_cycle = 30
 
+        self.tmp_line = None
+        self.tmp_points = None
+
 
 class ImageCanvas(tk.LabelFrame):
 
@@ -323,12 +326,20 @@ class ImageCanvas(tk.LabelFrame):
             new_y2 = self.get_shape_canvas_coords(self.variables.current_shape_id)[3] + y_dist
             self.modify_existing_shape_using_canvas_coords(self.variables.current_shape_id, (new_x1, new_y1, new_x2, new_y2), update_pixel_coords=True)
             self.variables.tmp_anchor_point = event.x, event.y
+        elif self.variables.current_tool == TOOLS.ZOOM_IN_TOOL:
+            self.event_drag_line(event)
+        elif self.variables.current_tool == TOOLS.ZOOM_OUT_TOOL:
+            self.event_drag_line(event)
+        elif self.variables.current_tool == TOOLS.SELECT_TOOL:
+            self.event_drag_line(event)
         elif self.variables.current_tool == TOOLS.DRAW_RECT_BY_DRAGGING:
             self.event_drag_line(event)
         elif self.variables.current_tool == TOOLS.DRAW_LINE_BY_DRAGGING:
             self.event_drag_line(event)
         elif self.variables.current_tool == TOOLS.DRAW_ARROW_BY_DRAGGING:
-            self.event_drag_arrow(event)
+            self.event_drag_line(event)
+        elif self.variables.current_tool == TOOLS.DRAW_POINT_BY_CLICKING:
+            self.modify_existing_shape_using_canvas_coords(self.variables.current_shape_id, (event.x, event.y))
 
     def callback_modify_existing_line(self, event):
         pass
@@ -358,9 +369,9 @@ class ImageCanvas(tk.LabelFrame):
     def callback_handle_mouse_motion(self, event):
         if self.variables.actively_drawing_shape:
             if self.variables.current_tool == TOOLS.DRAW_LINE_BY_CLICKING:
-                self.event_draw_multipoint_shape(event)
+                self.event_drag_multipoint_shape(event)
             elif self.variables.current_tool == TOOLS.DRAW_ARROW_BY_CLICKING:
-                self.event_draw_multipoint_shape(event)
+                self.event_drag_multipoint_shape(event)
             elif self.variables.current_tool == TOOLS.DRAW_RECT_BY_CLICKING:
                 self.event_drag_line(event)
 
@@ -405,16 +416,14 @@ class ImageCanvas(tk.LabelFrame):
         if update_pixel_coords:
             self.set_shape_pixel_coords_from_canvas_coords(shape_id)
 
-    def event_draw_multipoint_shape(self, event):
+    def event_drag_multipoint_shape(self, event):
         if self.variables.current_shape_id:
             self.show_shape(self.variables.current_shape_id)
             event_x_pos = self.canvas.canvasx(event.x)
             event_y_pos = self.canvas.canvasy(event.y)
             coords = self.canvas.coords(self.variables.current_shape_id)
             new_coords = list(coords[0:-2]) + [event_x_pos, event_y_pos]
-            if self.get_shape_type(self.variables.current_shape_id) == SHAPE_TYPES.POINT:
-                self.modify_existing_shape_using_canvas_coords(self.variables.current_shape_id, (event_x_pos, event_y_pos))
-            elif self.get_shape_type(self.variables.current_shape_id) == SHAPE_TYPES.ARROW or self.get_shape_type(self.variables.current_shape_id) == SHAPE_TYPES.LINE:
+            if self.get_shape_type(self.variables.current_shape_id) == SHAPE_TYPES.ARROW or self.get_shape_type(self.variables.current_shape_id) == SHAPE_TYPES.LINE:
                 self.modify_existing_shape_using_canvas_coords(self.variables.current_shape_id, new_coords)
         else:
             pass
@@ -435,9 +444,6 @@ class ImageCanvas(tk.LabelFrame):
             new_coords = (event.x, event.y, event.x+1, event.y+1)
             self.modify_existing_shape_using_canvas_coords(self.variables.current_shape_id, new_coords)
             self.variables.actively_drawing_shape = True
-
-    def event_drag_arrow(self, event):
-        self.event_drag_line(event)
 
     def create_new_rect(self,
                         coords,         # type: (int, int, int, int)
