@@ -877,7 +877,10 @@ class ImageCanvas(tk.LabelFrame):
         self.variables.foreground_color = color
         self.change_shape_color(self.variables.current_shape_id, color)
 
-    def find_closest_shape_coord(self, shape_id, canvas_x, canvas_y):
+    def find_closest_shape_coord(self, shape_id,    # type: int
+                                 canvas_x,          # type: int
+                                 canvas_y,          # type: int
+                                 ):                 # type: (...) -> int
         coords = self.get_shape_canvas_coords(shape_id)
         squared_distances = []
         coord_indices = np.arange(0, len(coords), step=2)
