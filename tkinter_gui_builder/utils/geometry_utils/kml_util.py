@@ -1,20 +1,21 @@
 from xml.etree.ElementTree import Element, SubElement, Comment
 from xml.etree import ElementTree
 from xml.dom import minidom
-import os
 
 
 class KmlUtil:
     def __init__(self):
         self.xml_top_element = Element('kml', {'xmlns': "http://www.opengis.net/kml/2.2"})
+        self.xml_document = SubElement(self.xml_top_element, "Document")
         self.indent = "  "
 
     def write_to_file(self, output_fname):
         """Return a pretty-printed XML string for the Element.
         """
-        rough_string = ElementTree.tostring(self.xml_top_element, 'UTF-8')
-        reparsed = minidom.parseString(rough_string)
-        all_text = reparsed.toprettyxml(indent=self.indent, encoding="UTF-8")
+        all_text = ElementTree.tostring(self.xml_top_element, encoding='UTF-8', method='xml')
+        file_handle = open(output_fname, mode='wb')
+        file_handle.write(all_text)
+        file_handle.close()
 
     def write_to_python_terminal(self):
         """Return a pretty-printed XML string for the Element.
@@ -28,7 +29,7 @@ class KmlUtil:
                   xy_coord,  # type: (float, float, float)
                   description=None,  # type: str
                   ):
-        placemark = SubElement(self.xml_top_element, 'Placemark')
+        placemark = SubElement(self.xml_document, 'Placemark')
         placemark_name = SubElement(placemark, "name")
         placemark_name.text = name
         placemark_point = SubElement(placemark, "Point")
@@ -43,7 +44,7 @@ class KmlUtil:
                   xy_coords,  # type: [(float, float, float)]
                   description=None,  # type: str
                   ):
-        placemark = SubElement(self.xml_top_element, 'Placemark')
+        placemark = SubElement(self.xml_document, 'Placemark')
         placemark_name = SubElement(placemark, "name")
         placemark_name.text = name
         placemark_linestring = SubElement(placemark, "LineString")
@@ -57,13 +58,3 @@ class KmlUtil:
         if description:
             placemark_description = SubElement(placemark, "description")
             placemark_description.text = description
-
-    def mockup(self,
-               output_fname,  # type: str
-               ):
-        point = (-94.75, 31.56)
-        linestring = [(94, 31), (95, 30), (96, 35)]
-        self.add_point("point1", point)
-        self.add_linestring("linestring1", linestring)
-
-        print(self.write_to_python_terminal())
