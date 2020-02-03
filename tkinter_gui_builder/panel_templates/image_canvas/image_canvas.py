@@ -62,8 +62,9 @@ class AppVariables:
         self.highlight_color_palette = SeabornHexPalettes.blues
         self.highlight_n_colors_cycle = 30
 
-        self.tmp_line = None
-        self.tmp_points = None
+        self.tmp_points = None              # type: [int]
+
+        self.tmp_closest_coord_index = 0        # type: int
 
 
 class ImageCanvas(tk.LabelFrame):
@@ -253,7 +254,8 @@ class ImageCanvas(tk.LabelFrame):
             self.variables.translate_anchor_point_xy = event.x, event.y
             self.variables.tmp_anchor_point = event.x, event.y
         elif self.variables.current_tool == TOOLS.EDIT_SHAPE_COORDS_TOOL:
-            self.find_closest_shape_coord(self.variables.current_shape_id, event.x, event.y)
+            closest_coord_index = self.find_closest_shape_coord(self.variables.current_shape_id, event.x, event.y)
+            self.variables.tmp_closest_coord_index = closest_coord_index
         else:
             start_x = self.canvas.canvasx(event.x)
             start_y = self.canvas.canvasy(event.y)
@@ -333,6 +335,13 @@ class ImageCanvas(tk.LabelFrame):
             new_y2 = self.get_shape_canvas_coords(self.variables.current_shape_id)[3] + y_dist
             self.modify_existing_shape_using_canvas_coords(self.variables.current_shape_id, (new_x1, new_y1, new_x2, new_y2), update_pixel_coords=True)
             self.variables.tmp_anchor_point = event.x, event.y
+        elif self.variables.current_tool == TOOLS.EDIT_SHAPE_COORDS_TOOL:
+            previous_coords = self.get_shape_canvas_coords(self.variables.current_shape_id)
+            coord_x_index = self.variables.tmp_closest_coord_index*2
+            new_coords = list(previous_coords)
+            new_coords[coord_x_index] = event.x
+            new_coords[coord_x_index + 1] = event.y
+            self.modify_existing_shape_using_canvas_coords(self.variables.current_shape_id, tuple(new_coords))
         elif self.variables.current_tool == TOOLS.ZOOM_IN_TOOL:
             self.event_drag_line(event)
         elif self.variables.current_tool == TOOLS.ZOOM_OUT_TOOL:
@@ -871,8 +880,10 @@ class ImageCanvas(tk.LabelFrame):
     def find_closest_shape_coord(self, shape_id, canvas_x, canvas_y):
         coords = self.get_shape_canvas_coords(shape_id)
         squared_distances = []
-        for i in range(int(len(coords)/2)):
+        coord_indices = np.arange(0, len(coords), step=2)
+        for i in coord_indices:
             coord_x, coord_y = coords[i], coords[i+1]
             d = (coord_x - canvas_x)**2 + (coord_y - canvas_y)**2
             squared_distances.append(d)
-        stop = 1
+        closest_coord_index = np.where(squared_distances == np.min(squared_distances))[0][0]
+        return closest_coord_index
