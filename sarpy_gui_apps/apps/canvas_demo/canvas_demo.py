@@ -63,10 +63,25 @@ class CanvasDemo(AbstractWidgetPanel):
 
         self.button_panel.modify_existing_shape.on_left_mouse_click(self.callback_edit_shape)
         self.button_panel.select_existing_shape.on_selection(self.callback_handle_shape_selector)
+        self.button_panel.save_kml.on_left_mouse_click(self.callback_save_kml)
 
         self.canvas_demo_image_panel.canvas.on_left_mouse_click(self.callback_handle_canvas_left_mouse_click)
 
         self._init_w_image()
+
+    def callback_save_kml(self, event):
+        kml_save_fname = tkinter.filedialog.asksaveasfilename()
+
+        canvas_shapes = self.canvas_demo_image_panel.variables.shape_ids
+        for shape_id in canvas_shapes:
+            image_coords = self.canvas_demo_image_panel.get_shape_image_coords(shape_id)
+            shape_type = self.canvas_demo_image_panel.get_shape_type(shape_id)
+            if shape_type == self.canvas_demo_image_panel.SHAPE_TYPES.POINT:
+                pass
+            elif canvas_shapes == self.canvas_demo_image_panel.SHAPE_TYPES.LINE:
+                pass
+            elif shape_type == self.canvas_demo_image_panel.SHAPE_TYPES.POLYGON:
+                pass
 
     def callback_handle_canvas_left_mouse_click(self, event):
         self.canvas_demo_image_panel.callback_handle_left_mouse_click(event)
@@ -107,18 +122,6 @@ class CanvasDemo(AbstractWidgetPanel):
 
     def callback_draw_rect_w_click(self, event):
         self.canvas_demo_image_panel.set_current_tool_to_draw_rect_by_clicking()
-
-    def callback_draw_circle_w_drag(self, event):
-        self.canvas_demo_image_panel.set_current_tool_to_draw_circle()
-
-    def callback_draw_circle_w_click(self, event):
-        self.canvas_demo_image_panel.set_current_tool_to_draw_circle()
-
-    def callback_draw_ellipse_w_drag(self, event):
-        self.canvas_demo_image_panel.set_current_tool_to_draw_ellipse()
-
-    def callback_draw_ellipse_w_click(self, event):
-        self.canvas_demo_image_panel.set_current_tool_to_draw_ellipse()
 
     def callback_draw_polygon_w_click(self, event):
         self.canvas_demo_image_panel.set_current_tool_to_draw_polygon_by_clicking()
@@ -166,10 +169,10 @@ class CanvasDemo(AbstractWidgetPanel):
             self.canvas_demo_image_panel.init_with_fname(self.variables.fname)
 
     def _init_w_image(self):
-        # fname = '/media/psf/mac_external_ssd/Data/sarpy_data/nitf/sicd_example_1_PFA_RE32F_IM32F_HH.nitf'
+        fname = '/media/psf/mac_external_ssd/Data/sarpy_data/nitf/sicd_example_1_PFA_RE32F_IM32F_HH.nitf'
         # fname = os.path.expanduser('~/Data/sarpy/sicd_example_1_PFA_RE32F_IM32F_HH.nitf')
         # fname = 'D:/Users/jcasey/Data/sarpy/nitf/sicd_example_1_PFA_RE32F_IM32F_HH.nitf'
-        fname = 'C:/Users/caseyjt/sarpy_data/nitf/sicd_example_1_PFA_RE32F_IM32F_HH.nitf'
+        # fname = 'C:/Users/caseyjt/sarpy_data/nitf/sicd_example_1_PFA_RE32F_IM32F_HH.nitf'
         self.variables.fname = fname
         self.canvas_demo_image_panel.init_with_fname(fname)
 

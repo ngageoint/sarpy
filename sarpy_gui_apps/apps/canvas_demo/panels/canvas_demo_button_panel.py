@@ -15,14 +15,11 @@ class CanvasDemoButtonPanel(AbstractWidgetPanel):
     draw_arrow_w_click = basic_widgets.Button
     draw_rect_w_drag = basic_widgets.Button
     draw_rect_w_click = basic_widgets.Button
-    draw_circle_w_drag = basic_widgets.Button
-    draw_circle_w_click = basic_widgets.Button
-    draw_ellipse_w_drag = basic_widgets.Button
-    draw_ellipse_w_click = basic_widgets.Button
     draw_polygon_w_click = basic_widgets.Button
     draw_point_w_click = basic_widgets.Button
     modify_existing_shape = basic_widgets.Button
     color_selector = basic_widgets.Button
+    save_kml = basic_widgets.Button
     select_existing_shape = basic_widgets.Combobox  # type: basic_widgets.Combobox
     remap_dropdown = basic_widgets.Combobox         # type: basic_widgets.Combobox
 
@@ -39,14 +36,11 @@ class CanvasDemoButtonPanel(AbstractWidgetPanel):
                     "draw_arrow_w_click",
                     "draw_rect_w_drag",
                     "draw_rect_w_click",
-                    "draw_circle_w_drag",
-                    "draw_circle_w_click",
-                    "draw_ellipse_w_drag",
-                    "draw_ellipse_w_click",
                     "draw_polygon_w_click",
                     "draw_point_w_click",
                     "select_existing_shape",
                     "modify_existing_shape",
+                    "save_kml",
                     "color_selector",
                     "rect_select",
                     "update_rect_image",
