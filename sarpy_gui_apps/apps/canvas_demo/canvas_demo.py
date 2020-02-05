@@ -3,9 +3,13 @@ from tkinter.filedialog import askopenfilename
 from sarpy_gui_apps.apps.canvas_demo.panels.canvas_demo_button_panel import CanvasDemoButtonPanel
 from tkinter_gui_builder.panel_templates.pyplot_image_panel.pyplot_image_panel import PyplotImagePanel
 from tkinter_gui_builder.panel_templates.image_canvas.image_canvas import ImageCanvas
+from tkinter_gui_builder.utils.geometry_utils.kml_util import KmlUtil
 from sarpy_gui_apps.supporting_classes.sarpy_canvas_image import SarpyCanvasDisplayImage
 from tkinter_gui_builder.panel_templates.widget_panel.widget_panel import AbstractWidgetPanel
+import sarpy.geometry.point_projection as point_projection
+import sarpy.geometry.geocoords as geocoords
 import os
+import numpy as np
 
 
 class AppVariables:
@@ -70,18 +74,41 @@ class CanvasDemo(AbstractWidgetPanel):
         self._init_w_image()
 
     def callback_save_kml(self, event):
-        kml_save_fname = tkinter.filedialog.asksaveasfilename()
+        kml_save_fname = tkinter.filedialog.asksaveasfilename(initialdir = os.path.expanduser("~/Downloads"))
+
+        kml_util = KmlUtil()
 
         canvas_shapes = self.canvas_demo_image_panel.variables.shape_ids
         for shape_id in canvas_shapes:
             image_coords = self.canvas_demo_image_panel.get_shape_image_coords(shape_id)
             shape_type = self.canvas_demo_image_panel.get_shape_type(shape_id)
-            if shape_type == self.canvas_demo_image_panel.SHAPE_TYPES.POINT:
-                pass
-            elif canvas_shapes == self.canvas_demo_image_panel.SHAPE_TYPES.LINE:
-                pass
-            elif shape_type == self.canvas_demo_image_panel.SHAPE_TYPES.POLYGON:
-                pass
+            if image_coords:
+                sicd_meta = self.canvas_demo_image_panel.variables.canvas_image_object.reader_object.sicdmeta
+                image_points = np.zeros((int(len(image_coords)/2), 2))
+                image_points[:, 0] = image_coords[0::2]
+                image_points[:, 1] = image_coords[1::2]
+
+                ground_points_ecf = point_projection.image_to_ground(image_points, sicd_meta)
+                ground_points_latlon = geocoords.ecf_to_geodetic(ground_points_ecf)
+
+                world_y_coordinates = ground_points_latlon[:, 0]
+                world_x_coordinates = ground_points_latlon[:, 1]
+
+                xy_point_list = [(x, y) for x, y in zip(world_x_coordinates, world_y_coordinates)]
+
+                if shape_id == self.canvas_demo_image_panel.variables.zoom_rect_id:
+                    pass
+                elif shape_type == self.canvas_demo_image_panel.variables.select_rect_id:
+                    pass
+                elif shape_type == self.canvas_demo_image_panel.SHAPE_TYPES.POINT:
+                    kml_util.add_point(str(shape_id), xy_point_list[0])
+                elif canvas_shapes == self.canvas_demo_image_panel.SHAPE_TYPES.LINE:
+                    kml_util.add_linestring(str(shape_id), xy_point_list)
+                elif shape_type == self.canvas_demo_image_panel.SHAPE_TYPES.POLYGON:
+                    kml_util.add_polygon(str(shape_id), xy_point_list)
+                elif shape_type == self.canvas_demo_image_panel.SHAPE_TYPES.RECT:
+                    kml_util.add_polygon(str(shape_id), xy_point_list)
+        kml_util.write_to_file(kml_save_fname)
 
     def callback_handle_canvas_left_mouse_click(self, event):
         self.canvas_demo_image_panel.callback_handle_left_mouse_click(event)

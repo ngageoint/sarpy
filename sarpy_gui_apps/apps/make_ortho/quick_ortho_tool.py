@@ -11,7 +11,6 @@ import numpy as np
 import os
 
 
-
 class AppVariables:
     def __init__(self):
         self.fname = "None"       # type: str
