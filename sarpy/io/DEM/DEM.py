@@ -1,288 +1,595 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""
-This module defines the DEM class and its associated files
-"""
-from __future__ import print_function
+
 import os
-from copy import copy
-import numpy as np
-from .dem_log import dem_logger
-from .readers import read_dted
-from scipy.interpolate import interpn
+import sys
+import logging
+import numpy
+import struct
+from typing import List
 
-class DEM:
+from . import _argument_validation
+from .geoid import GeoidHeight, find_geoid_file_from_dir
+
+integer_types = (int, )
+int_func = int
+if sys.version_info[0] < 3:
+    # noinspection PyUnresolvedReferences
+    int_func = long  # to accommodate for 32-bit python 2
+    # noinspection PyUnresolvedReferences
+    integer_types = (int, long)
+
+
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
+
+#######
+# module variables
+_SUPPORTED_DTED_FILE_TYPES = {
+    'DTED1': {'fext': '.dtd'},
+    'DTED2': {'fext': '.dtd'},
+    'SRTM1': {'fext': '.dt1'},
+    'SRTM2': {'fext': '.dt2'},
+    'SRTM2F': {'fext': '.dt2'}}
+
+
+class DEMInterpolator(object):
     """
-        Abstract class for handling DEM files.
+    Abstract DEM class presenting base required functionality.
     """
 
-    def __init__(self, coordinates = [], masterpath = '', dempaths = [], dem_type = 'DTED1', dem_buffer = 0.0167,
-                 lonlat=False, log_to_console=True, log_to_file = '', log_level = 'WARNING'):
-        '''
-        Initialize the DEM class.
-        coordinates - (list/ndarray) A point/list of LAT/LON coordinates to use for grabbing a DEM. REQUIRES masterpath!
-        masterpath - (str) Top Level directory were DEMs are held. REQUIRES coordinates!
-        dempaths - (list) Specify exactly the file(s) needed instead of using coords. Can be used with coords/masterpath
-        dem_type - (str) Specify the DEM type. Currently accepts DTED1, DTED2, SRTM1, SRTM2, SRTM2F. Default is DTED1.
-        dem_buffer - (float) Ensures that coordinates (see above) on the edge of have enough DEM points for
-                      proper interpolation. Default is 0.0167 decimal degrees (60 seconds).
-        log_to_console - (bool) Print log messages to console/terminal. Default is True.
-        log_to_file - (str) Provide a filepath if a log file is wanted. Default is no log file.
-        log_level - (str) Define what messages to print. In order of increasing severity (i.e. number of messages)
-                     options are: NOTSET, DEBUG, INFO, WARNING, ERROR, CRITICAL,FATAL. Default is WARNING
-        '''
-        if log_to_console == True and log_to_file != '': # If a pre-set logger hasn't been passed create one
-            self.logger = dem_logger('ELEVATOR', level=log_level, logfile=log_to_file)  # LOG TO CONSOLE AND FILE
-        elif log_to_console == True and log_to_file == '':
-            self.logger = dem_logger('ELEVATOR', level=log_level)  # LOG TO CONSOLE ONLY
-        elif log_to_console == False and log_to_file != '':
-            self.logger = dem_logger('ELEVATOR', level=log_level, console=False, logfile=log_to_file)  # LOG TO FILE ONLY
-        elif log_to_console == False and log_to_file == '':
-            self.logger = dem_logger('ELEVATOR', level='FATAL')  # ONLY LOG FATAL LEVEL MESSAGES
+    def get_elevation_hae(self, lat, lon, block_size=50000):
+        """
+        Get the elevation value relative to the WGS-84 ellipsoid.
+
+        Parameters
+        ----------
+        lat : numpy.ndarray|list|tuple|int|float
+        lon : numpy.ndarray|list|tuple|int|float
+        block_size : int|None
+            If `None`, then the entire calculation will proceed as a single block.
+            Otherwise, block processing using blocks of the given size will be used.
+            The minimum value used for this is 50,000, and any smaller value will be
+            replaced with 50,000. Default is 50,000.
+
+        Returns
+        -------
+        numpy.ndarray
+            the elevation relative to the WGS-84 ellipsoid.
+        """
+
+        raise NotImplementedError
+
+    def get_elevation_geoid(self, lat, lon, block_size=50000):
+        """
+        Get the elevation value relative to the geoid.
+
+        Parameters
+        ----------
+        lat : numpy.ndarray|list|tuple|int|float
+        lon : numpy.ndarray|list|tuple|int|float
+        block_size : int|None
+            If `None`, then the entire calculation will proceed as a single block.
+            Otherwise, block processing using blocks of the given size will be used.
+            The minimum value used for this is 50,000, and any smaller value will be
+            replaced with 50,000. Default is 50,000.
+
+        Returns
+        -------
+        numpy.ndarray
+            the elevation relative to the geoid
+        """
+
+        raise NotImplementedError
+
+    def get_max_dem(self):
+        """
+        Get the maximum dem entry.
+
+        Returns
+        -------
+        float
+        """
+
+        raise NotImplementedError
+
+    def get_min_dem(self):
+        """
+        Get the minimum dem entry.
+
+        Returns
+        -------
+        float
+        """
+
+        raise NotImplementedError
+
+
+class DTEDList(object):
+    """
+    The DEM directory structure is assumed to look like the following:
+    For DTED<1,2>: `<root_dir>/dted/<1, 2>/<lon_string>/<lat_string>.dtd`
+    For SRTM<1,2,2F>: `<root_dir>/srtm/<1, 2, 2f>/<lon_string>/<lat_string>.dt<1,2,2>`
+
+    Here `<lon_string>` corresponds to a string of the form `X###`, where
+    `X` is one of 'N' or 'S', and `###` is the zero-padded formatted string for
+    the integer value `floor(lon)`.
+
+    Similarly, `<lat_string>` corresponds to a string of the form `Y##`, where
+    `Y` is one of 'E' or 'W', and `##` is the zero-padded formatted string for
+    the integer value `floor(lat)`.
+
+    <lon_string>, <lat_string> corresponds to the origin in the lower left corner
+    of the DEM tile.
+    """
+
+    __slots__ = ('_root_dir', )
+
+    def __init__(self, root_directory=None):
+        """
+
+        Parameters
+        ----------
+        root_directory : str
+        """
+
+        # TODO: handle root-directory is None
+        self._root_dir = root_directory
+
+    @property
+    def root_dir(self):
+        """
+        str: the root directory
+        """
+
+        return self._root_dir
+
+    def get_file_list(self, lat, lon, dem_type):
+        """
+        Get the file list required for the given coordinates.
+
+        Parameters
+        ----------
+        lat : numpy.ndarray|list|tuple|int|float
+        lon : numpy.ndarray|list|tuple|int|float
+        dem_type : str
+            the DTED type - one of ("DTED1", "DTED2", "SRTM1", "SRTM2", "SRTM2F")
+
+        Returns
+        -------
+        List[str]
+        """
+
+        def get_box(la, lo):
+            la = int(numpy.floor(la))
+            lo = int(numpy.floor(lo))
+            if lo > 180:
+                lo -= 360
+            x = 'n' if la >= 0 else 's'
+            y = 'e' if lo >= 0 else 'w'
+            return '{0:s}{1:03d}{2:s}{3:02d}'.format(y, lo, x, la)
+
+        # validate dem_type options
+        dem_type = dem_type.upper()
+        if dem_type not in _SUPPORTED_DTED_FILE_TYPES:
+            raise ValueError(
+                'dem_type must be one of the supported types {}'.format(list(_SUPPORTED_DTED_FILE_TYPES.keys())))
+        if dem_type.startswith('DTED'):
+            dstem = os.path.join(self._root_dir, dem_type[:4].lower(), dem_type[-1])
+        elif dem_type.startswith('SRTM'):
+            dstem = os.path.join(self._root_dir, dem_type[:4].lower(), dem_type[4:].lower())
         else:
-            print('LOGGER IS NOT SURE WHAT TO DO!')
+            raise ValueError('Unhandled dem_type {}'.format(dem_type))
 
-        self.avaiable_dems = ['DTED1', 'DTED2', 'SRTM1', 'SRTM2', 'SRTM2F']
+        if not os.path.isdir(dstem):
+            raise IOError(
+                "Based on configured of root_dir, it is expected that {} type dem "
+                "files will lie below {}, which doesn't exist".format(dem_type, dstem))
+        # get file extension
+        fext = _SUPPORTED_DTED_FILE_TYPES[dem_type]['fext']
 
-        # Add any user specified dempaths to self
-        if dempaths == []:
-            self.dempaths = []
-        else: # If there are dempaths do some stuff
-            self.dempaths = dempaths
-            if 'list' not in str(type(self.dempaths)):  # Ensure type == list for reading single or multiple files
-                self.dempaths = [dempaths]
-            for dempath in self.dempaths:
-                if not os.path.exists(dempath):  # If the user path does not exist, remove it.
-                    self.dempaths.remove(dempath)
-                    self.logger.warning('Could not locate user specified file {}'.format(dempath))
+        # move data to numpy arrays
+        if not isinstance(lat, numpy.ndarray):
+            lat = numpy.array(lat)
+        if not isinstance(lon, numpy.ndarray):
+            lon = numpy.array(lon)
 
-        # If coordinates are specified, find the right DEMS and use those
-        if coordinates != []:
-            if lonlat:  # If coordinates are [LON,LAT] instead of [LAT/LON]
-                self.logger.debug('Switching Coordinates')
-                coordinates = self.geo_swap(coordinates)  # Then swap to ensure correctness
-            self.include(coordinates, masterpath, dem_type, dem_buffer)
-        ndems = len(self.dempaths)
-        self.origin = np.zeros([ndems,2]).astype(str)  # DDMMSS [LAT, LON] origin for LOWER LEFT corner of the data
-        self.origindd = np.zeros([ndems,2]) # [LAT, LON] Origin in decimal degrees
-        self.delta = np.zeros([ndems,2])   # [LAT, LON] spacing in tenths of arcseconds
-        self.deltadd = np.zeros([ndems,2]) # [LAT, LON] spacing in decimal degrees
-        self.deltam = np.zeros([ndems,2])  # [LAT, LON] spacing in meters
-        self.lat_list_1D = []  # List to hold 1-D LAT arrays
-        self.lon_list_1D = []  # List to hold 1-D LON arrays
-        self.lat_list_2D = []  # List to hold 2-D LAT matrices
-        self.lon_list_2D = []  # List to hold 2-D LON matrices
-        self.elevation_list = []  # List to hold 2-D elevation matrices
-
-        if self.dempaths != []:  # If there are files in the list and init_read is set
-            self.read_dempath()
-
-        if len(self.elevation_list) > 0:
-            self.join_dems()              # Join multiple dems if they exist then join the DEMs together
-        return  # END OF INIT
-
-    def include(self,coordinates, masterpath, dem_type, dem_buffer):
-        '''
-        Find DEM file (or files) to read based on a coordinate (or coordinates) MUST BE LAT,LON
-        Return - A list of valid files to pass to the actual reader
-        '''
-        self.logger.info('Including filepaths.')
-        if coordinates != []:
-            if dem_type in self.avaiable_dems:  # Check DEM type
-                if ('DTED' in dem_type) or ('SRTM1' in dem_type) or ('SRTM2' in dem_type) and not('SRTM2F' in dem_type):  # Check to see if DTED
-                    suffix = '.dt' + dem_type[-1]  # Append the 1 or 2 to the suffix
-                elif('SRTM2F' in dem_type):
-                    suffix = '.dt2'
-                # Add elif statements for other DEM formats
+        files = []
+        missing_boxes = []
+        for box in set(get_box(*pair) for pair in zip(numpy.reshape(lat, (-1, )), numpy.reshape(lon, (-1, )))):
+            fil = os.path.join(dstem, box[:4], box[4:] + fext)
+            if os.path.isfile(fil):
+                files.append(fil)
             else:
-                self.logger.critical('Cannot read DEM type {}'.format(dem_type))
-                return None
-            if not os.path.exists(masterpath):
-                self.logger.warning('Master DEM path --  {}  -- does not appear to exist.'.format(masterpath))
+                missing_boxes.append(fil)
+        if len(missing_boxes) > 0:
+            logging.warning(
+                'Missing required dem files {}. This will result in getting missing values '
+                'for some points during any interpolation'.format(missing_boxes))
+        return files
+
+
+class DTEDReader(object):
+    """
+    Reader/interpreter for DTED files, generally expected to be a helper class.
+    As such, some implementation choices have been made for computational efficiency,
+    and not user convenience.
+    """
+
+    __slots__ = ('_file_name', '_origin', '_spacing', '_bounding_box', '_shape', '_mem_map')
+
+    def __init__(self, file_name):
+        self._file_name = file_name
+
+        with open(self._file_name, 'rb') as fi:
+            # NB: DTED is always big-endian
+            # the first 80 characters are header
+            # characters 80:728 are data set identification record
+            # characters 728:3428 are accuracy record
+            # the remainder is data records, but DTED is not quite a raster
+            header = struct.unpack('>80s', fi.read(80))[0].decode('utf-8')
+
+        if header[:3] != 'UHL':
+            raise IOError('File {} does not appear to be a DTED file.'.format(self._file_name))
+
+        lon = float(header[4:7]) + float(header[7:9])/60. + float(header[9:11])/3600.
+        lon = -lon if header[11] == 'W' else lon
+        lat = float(header[12:15]) + float(header[15:17])/60. + float(header[17:19])/3600.
+        lat = -lat if header[19] == 'S' else lat
+
+        self._origin = numpy.array([lon, lat], dtype=numpy.float64)
+        self._spacing = numpy.array([float(header[20:24]), float(header[24:28])], dtype=numpy.float64)/36000.
+        self._shape = numpy.array([int(header[47:51]), int(header[51:55])], dtype=numpy.int64)
+        self._bounding_box = numpy.zeros((2, 2), dtype=numpy.float64)
+        self._bounding_box[0, :] = self._origin
+        self._bounding_box[1, :] = self._origin + self._spacing*self._shape
+
+        # starting at 3428, the rest of the file is data records, but not quite a raster
+        #   each "row" is a data record with 8 extra bytes at the beginning,
+        #   and 4 extra (checksum) at the end - look to MIL-PRF-89020B for an explanation
+        # To enable memory map usage, we will spoof it as a raster and adjust column indices
+        shp = (int(self._shape[0]), int(self._shape[1]) + 6)
+        self._mem_map = numpy.memmap(self._file_name,
+                                     dtype=numpy.dtype('>i2'),
+                                     mode='r',
+                                     offset=3428,
+                                     shape=shp)
+
+    def __getitem__(self, item):
+        def new_col_int(val, begin):
+            if val is None:
+                if begin:
+                    return 4
+                else:
+                    return -2
+            return val + 4 if val >= 0 else val - 2
+
+        # we need to manipulate in the second dimension
+        if isinstance(item, tuple):
+            if len(item) > 2:
+                raise ValueError('Cannot slice on more than 2 dimensions')
+            it = item[1]
+            if isinstance(it, integer_types):
+                it1 = new_col_int(it, True)
+            elif isinstance(it, slice):
+                start = new_col_int(it.start, True)
+                stop = new_col_int(it.stop, False)
+                it1 = slice(start, stop, step=it.step)
+            elif isinstance(item[1], numpy.ndarray):
+                it1 = numpy.copy(item[1])
+                it1[it1 >= 0] += 4
+                it1[it1 < 0] -= 2
             else:
-                coordinates = np.array(coordinates)  # Make sure coordinates are an Nx2 array, not a list
-                if len(coordinates.shape) == 1:
-                    coordinates = np.array([coordinates])  # If coordinates is a 1D array, convert to 2D
-                elif len(coordinates.shape) >= 3:
-                    self.logger.warning('3-Dimensional array detected. May cause unknown errors!')
-                lat_range = np.array([np.floor(np.min(coordinates[:,0])-dem_buffer),np.ceil(np.max(coordinates[:,0])+dem_buffer)])  # Full LAT range
-                if lat_range[0] < -90.0:  # Set limits on LAT range
-                    lat_range[0] = -90.0
-                if lat_range[1] >= 90.0:
-                    lat_range[1] = 90.0
-                # In order to handle longitudes properly at the international dateline (180 meets -180)
-                # set new range from 0 -> 360 for ease of creating DEM range. Then just reset for dempath
-                lon_360 = copy(coordinates[:,1])
-#                hemi_w = (lon_360 < 0)
-                lon_360[(lon_360 < 0)] += 360.0
-                lon_range = np.array([np.floor(np.min(lon_360)-dem_buffer),np.ceil(np.max(lon_360)+dem_buffer)])  # Full LON
-
-
-                if lat_range.size*lon_range.size > 25.0 and lat_range.size*lon_range.size <= 100.0:
-                    self.logger.warning('Coordinate range extends beyond 25 square degrees.')
-                elif lat_range.size*lon_range.size >= 100.0:
-                    self.logger.warning('Coordinate range too large (>100 square degrees).')
-                    self.logger.warning('Quitting DEM reading.')
-                    return
-                for lat in np.arange(lat_range[0],lat_range[1],1):
-                    for lon in np.arange(lon_range[0],lon_range[1],1):
-                        if lon >= 180.0:
-                            lon -= 360.0
-                        if np.sign(lat) >= 0:
-                            lat_hemi = 'n'  # Northern hemisphere
-                        else:
-                            lat_hemi = 's'  # Southern hemisphere
-                        if np.sign(lon) >= 0:
-                            lon_hemi = 'e'  # Eastern hemisphere
-                        else:
-                            lon_hemi = 'w'  # Western hemisphere
-                        lat_short = lat_hemi + str(np.abs(lat).astype(int)).zfill(2)
-                        lon_short = lon_hemi + str(np.abs(lon).astype(int)).zfill(3)
-
-                        if(dem_type[0:4].upper() == 'DTED'):
-                            include_path = os.path.join(masterpath, dem_type[0:4].lower(), dem_type[-1], lon_short, lat_short + suffix)
-                        elif(dem_type[0:4].upper() == 'SRTM' and dem_type[-1].upper() == "F"):
-                            include_path = os.path.join(masterpath, dem_type[0:4].lower(), dem_type[-2:].lower(), lon_short, lat_short + suffix)
-                        if os.path.exists(include_path):
-                            if include_path not in self.dempaths:
-                                self.dempaths.append(include_path)
-                        else:
-                            self.logger.warning('include() could not find file {}'.format(include_path))
-                self.logger.debug('include_path {}'.format(include_path))
+                raise ValueError('Cannot slice using {}'.format(type(item[1])))
+            data = self._mem_map.__getitem__((item[0], it1))
         else:
-            self.logger.critical('No DEM files used. Could not find appropriate files.')
-        return  # END OF INCLUDE
+            data = self._mem_map[item, 4:-2]
 
-    def read_dempath(self):
-        '''
-        Read all files within DEM.dempaths
-        '''
-        self.logger.info('Going to read {} DEM(s).'.format(len(self.dempaths)))
-        if self.dempaths == []:
-            self.logger.warning('Nothing to read.')
-            return []
-        for i, dempath in enumerate(self.dempaths):  # Cycle through list of dempaths
-            self.logger.debug('Reading DEM file {}'.format(dempath))
-            try:
-                dem_specs, geos_1D, geos_2D, elevations = read_dted(dempath)  # Read each file one at a time.
-            except:
-                self.logger.warning('read_dted failed for {}'.format(dempath))  # Print warning
-                continue  # Then skip the rest of the loop and continue on
-            self.origin[i,:] = dem_specs[0]
-            self.origindd[i,:] = dem_specs[1]
-            self.delta[i,:] = dem_specs[2]
-            self.deltadd[i,:] = dem_specs[3]
-            self.deltam[i,:]= dem_specs[4]
-            self.lat_list_1D.append(geos_1D[0])
-            self.lon_list_1D.append(geos_1D[1])
-            self.lat_list_2D.append(geos_2D[0])
-            self.lon_list_2D.append(geos_2D[1])
-            self.elevation_list.append(elevations)
-        return  # END OF READ_DEMPATH
+        return self._repair_values(data)
 
-    def join_dems(self):
-        '''
-        Take all the DEMs in dempath and stick them together.
-        '''
-        self.logger.info('Joining DEMs together if necessary.')
-        olon_360 = copy(self.origindd[:, 1])  # Get the lon origins
-        self.logger.debug('DEM origins: {}'.format(self.origindd))
-        self.logger.debug('DEM LON min/max: {}/{}'.format(np.min(self.origindd[:,1]),np.max(self.origindd[:,1])))
-        if np.max(self.origindd[:,1]) == 179.0 and np.min(self.origindd[:,1]) == -180.0:  # If DEM range crosses the dateline
-            olon_360[(olon_360 < 0)] += 360.0  # Convert to -180 to 180 -> 0 to 360
+    @staticmethod
+    def _repair_values(elevations):
+        """
+        This is a helper method for repairing the weird entries in a DTED.
+        The array is modified in place.
 
-        # indices labels which files go together in LAT space and LON space.
-        indices = np.array([np.max(self.origindd[:,0]) - self.origindd[:,0],  # Get LAT rows
-                            olon_360 - np.min(olon_360)]).astype(int)   # Get LON cols
-        nlats = np.unique(indices[0,:]).shape[0]  # Get number of lat rows
-        nlons = np.unique(indices[1,:]).shape[0]  # Get number of lon rows
+        Parameters
+        ----------
+        elevations : numpy.ndarray
 
-        i = 0
-        while i < nlats:
-            j = 0
-            while j < nlons:
-                # To fill grid from top left to bottom right, match i,j to indices from above
-                image_index = np.where((indices[0,:] == i) & (indices[1,:] == j))[0][0].astype(int)  # Get index
-                if j == 0:  # Get the values for the first LON row
-                    self.lons_1D = self.lon_list_1D[image_index]
-                    elevrow = self.elevation_list[image_index]
-                else:  # Remove the common columns and join, ex. (73...74, 74....75), so remove the first 74 row
-                    if np.sign(self.lons_1D[1]) == 1 and np.sign(self.lon_list_1D[image_index][1]) == -1:  # If at dateline
-                        self.lons_1D = np.hstack((self.lons_1D[0:-1],(360.0 + self.lon_list_1D[image_index])))  # Convert
-                    else:
-                        self.lons_1D = np.hstack((self.lons_1D[0:-1], self.lon_list_1D[image_index]))
-                    elevrow = np.vstack((elevrow[0:-1,:],self.elevation_list[image_index]))
-                j += 1
-            if i == 0:  # Get the values for the first LAT col
-                self.dem = elevrow
-                self.lats_1D = self.lat_list_1D[image_index]
-            else:  # Remove the common rows and join, ex. (34...35, 35....36), so remove the first 36 col
-                self.lats_1D = np.hstack((self.lat_list_1D[image_index][0:-1],self.lats_1D))
-                self.dem = np.hstack((elevrow[:,0:-1],self.dem))
-            i += 1
-        return  # END OF JOIN_DEMS
+        Returns
+        -------
+        numpy.ndarray
+        """
 
-    def elevate(self, coord, method='linear',lonlat=False):
-        '''
-        Given a geographic coordinate, return an elevation from the DEM
-        Coord may be a sinlge coord (c  = [lat,lon]) or multiples (c = [[lat,lon],[lat,lon],...]
-        '''
-        if not 'dem' in dir(self):  # Check to see if dem is an attribute
-            self.logger.warning('There are no DEMs to interpolate from.')  # If not, no dems have been read in
-            return np.zeros(coord.shape[0]) + -1234.5
-        if np.max(self.origindd[:,1]) == 179.0 and np.min(self.origindd[:,1]) == -180.0:  # If DEM range crosses the dateline
-            coord[(coord < 0)] += 360.0  # Convert to -180 to 180 -> 0 to 360
-        # interpolated_elevation = interpn((1-D LON array, 1-D LAT array), 2-D elev array, coord array)
-        coord = np.array(coord)  # Ensure coord is an array for the following line to work
-        if len(coord.shape) == 1:  # If only one point is specified
-            coord = coord.reshape((1,2))  # Then make sure its a 2-D array of 1 by 2 [[x,y]]
-        if not lonlat:  # If coords are given at LAT/LON (y,x), then switch to LON/LAT (x,y)
-            coord = self.geo_swap(coord)  # Convert [[lat,lon],...] to [[lon, lat], ...]
-        # The following is to ensure interpn evaluates all the good, valid coordinates instead
-        # of throwing the baby out with the bath water.
-        elev = np.zeros(coord.shape[0]) + -1234.5  # Create a list of dummy elevations the same length as input list
-        elev2 = elev
-        # Get all valid coordinates
-        in_bounds = np.where((coord[:,1] > np.min(self.lats_1D)) & (coord[:,1] < np.max(self.lats_1D)) &
-                             (coord[:,0] > np.min(self.lons_1D)) & (coord[:,0] < np.max(self.lons_1D)))[0]
-        
-        self.logger.debug('Coord LAT range: {}'.format((np.min(coord[:,1]),np.max(coord[:,1]))))
-        self.logger.debug('Coord LON range: {}'.format((np.min(coord[:,0]),np.max(coord[:,0]))))
-        self.logger.debug('DEM LAT range: {}'.format((np.min(self.lats_1D),np.max(self.lats_1D))))
-        self.logger.debug('DEM LON range: {}'.format((np.min(self.lons_1D),np.max(self.lons_1D))))
-        self.logger.debug('Coord shape: {}'.format(coord.shape))
-        self.logger.debug('Elev size: {}'.format(elev.size))
-        self.logger.debug('In_bounds size: {}'.format(in_bounds.size))
-        if in_bounds.size < elev.size:
-            self.logger.warning('Some points may be outside of DEM boundary. Check coordinate list.')
-        if in_bounds.size > 0:  # If there are any valid points, then do try the interpolation
-            try:
-                self.logger.info('Interpolating elevation points.')
-                elev[in_bounds] = interpn((self.lons_1D, self.lats_1D), self.dem, coord[in_bounds,:], method=method)
-                #f = spint.interp2d(self.lon_1D, self.lats_1D, self.dem)
-                #elev2[in_bounds] = f(coord[in_bounds,:])
-            except Exception as err:
-                self.logger.critical('Interpolation error: {}'.format(err))
-        good_heights = np.where(elev > -1234.5)[0]  # Do stats on valid points only.
-        if good_heights.size > 0:  # If there are good points then print stats
-            emin = np.round(np.min(elev[good_heights]),2)
-            emean = np.round(np.mean(elev[good_heights]),2)
-            emax = np.round(np.max(elev[good_heights]),2)
-            self.logger.info('Elevation stats (min/mean/max): {}/{}/{}'.format(emin,emean,emax))
+        elevations = numpy.copy(elevations)
+        # BASED ON MIL-PRF-89020B SECTION 3.11.1, 3.11.2
+        # There are some byte-swapping details that are poorly explained.
+        # The following steps appear to correct for the "complemented" values.
+        # Find negative voids and repair them
+        neg_voids = (elevations < -15000)
+        elevations[neg_voids] = numpy.abs(elevations[neg_voids]) - 32768
+        # Find positive voids and repair them
+        pos_voids = (elevations > 15000)
+        elevations[pos_voids] = 32768 - elevations[pos_voids]
+        return elevations
+
+    def _linear(self, ix, dx, iy, dy):
+        # type: (numpy.ndarray, numpy.ndarray, numpy.ndarray, numpy.ndarray) -> numpy.ndarray
+        a = (1 - dx) * self._lookup_elevation(ix, iy) + dx * self._lookup_elevation(ix + 1, iy)
+        b = (1 - dx) * self._lookup_elevation(ix, iy+1) + dx * self._lookup_elevation(ix+1, iy+1)
+        return (1 - dy) * a + dy * b
+
+    def _lookup_elevation(self, ix, iy):
+        # type: (numpy.ndarray, numpy.ndarray) -> numpy.ndarray
+        t_ix = numpy.copy(ix)
+        t_ix[t_ix >= self._shape[0]] = self._shape[0] - 1
+        t_ix[t_ix < 0] = 0
+
+        # adjust iy to account for 8 extra bytes at the beginning of each column
+        t_iy = iy + 4
+        t_iy[t_iy >= self._shape[1]+4] = self._shape[1] + 3
+        t_iy[t_iy < 4] = 4
+
+        return self._repair_values(self._mem_map[t_ix, t_iy])
+
+    def in_bounds(self, lat, lon):
+        """
+        Determine which of the given points are inside the extent of the DTED
+
+        Parameters
+        ----------
+        lat : numpy.ndarray
+        lon : numpy.ndarray
+
+        Returns
+        -------
+        numpy.ndarray
+            Of the same shape as lat/lon
+        """
+
+        return (lat >= self._bounding_box[1][0]) & (lat <= self._bounding_box[1][1]) & \
+               (lon >= self._bounding_box[0][0]) & (lon <= self._bounding_box[0][1])
+
+    def _get_elevation(self, lat, lon):
+        # type: (numpy.ndarray, numpy.ndarray) -> numpy.ndarray
+
+        # we implicitly require that lat/lon make sense and are contained in this DTED
+
+        # get indices
+        fx = (lon - self._origin[0])/self._spacing[0]
+        fy = (lat - self._origin[1])/self._spacing[1]
+
+        ix = numpy.cast[numpy.int32](numpy.floor(fx))
+        iy = numpy.cast[numpy.int32](numpy.floor(fy))
+
+        dx = fx - ix
+        dy = fy - iy
+        return self._linear(ix, dx, iy, dy)
+
+    def get_elevation(self, lat, lon, block_size=50000):
+        """
+        Interpolate the elevation values for lat/lon. This is relative to the EGM96
+        geoid by DTED specification.
+
+        Parameters
+        ----------
+        lat : numpy.ndarray
+        lon : numpy.ndarray
+        block_size : None|int
+            If `None`, then the entire calculation will proceed as a single block.
+            Otherwise, block processing using blocks of the given size will be used.
+            The minimum value used for this is 50,000, and any smaller value will be
+            replaced with 50,000. Default is 50,000.
+
+        Returns
+        -------
+        numpy.ndarray
+            elevation values of the same shape as lat/lon.
+        """
+
+        o_shape, lat, lon = _argument_validation(lat, lon)
+
+        out = numpy.full(lat.shape, numpy.nan, dtype=numpy.float64)
+        if block_size is None:
+            boolc = self.in_bounds(lat, lon)
+            if numpy.any(boolc):
+                out[boolc] = self._get_elevation(lat[boolc], lon[boolc])
         else:
-            self.logger.info('No valid points found.')
-        return elev  # END OF ELEVATE
+            block_size = min(50000, int(block_size))
+            start_block = 0
+            while start_block < lat.size:
+                end_block = min(lat.size, start_block + block_size)
+                lat1 = lat[start_block:end_block]
+                lon1 = lon[start_block:end_block]
+                boolc = self.in_bounds(lat1, lon1)
+                out1 = numpy.full(lat1.shape, numpy.nan, dtype=numpy.float64)
+                out1[boolc] = self._get_elevation(lat1[boolc], lon[boolc])
+                out[start_block:end_block] = out1
+                start_block = end_block
 
-    def geo_swap(self,incoord):
-        '''
-        Provides a way for users to input LON/LAT coords instead of LAT/LON.
-        '''
-        incoord = np.array(incoord)  # Ensure input coords are numpy arrays
-        if len(incoord.shape) == 1:  # If only one point is specified
-            incoord = incoord.reshape((1,2))  # Then make sure its a 2-D array of 1 by 2 [[x,y]]
-        outcoord = np.array(copy(incoord))
-        outcoord[:,0] = incoord[:,1]
-        outcoord[:,1] = incoord[:,0]
-        return outcoord
+        if o_shape == ():
+            return float(out[0])
+        else:
+            return numpy.reshape(out, o_shape)
 
-# END OF FILE
+
+class DTEDInterpolator(DEMInterpolator):
+    """
+    DEM Interpolator using DTED/SRTM files for the DEM information.
+    """
+
+    __slots__ = ('_readers', '_geoid')
+
+    def __init__(self, files, geoid_file):
+        if isinstance(files, str):
+            files = [files, ]
+        # get a reader object for each file
+        self._readers = [DTEDReader(fil) for fil in files]
+
+        # get the geoid object - we should prefer egm96 .pgm files, since that's the DTED spec
+        #   in reality, it makes very little difference, though
+        if isinstance(geoid_file, str):
+            if os.path.isdir(geoid_file):
+                geoid_file = GeoidHeight(
+                    find_geoid_file_from_dir(geoid_file, search_files=('egm96-5.pgm', 'egm96-15.pgm')))
+            else:
+                geoid_file = GeoidHeight(geoid_file)
+        if not isinstance(geoid_file, GeoidHeight):
+            raise TypeError(
+                'geoid_file is expected to be the path where one of the standard '
+                'egm .pgm files can be found, or an instance of GeoidHeight reader. '
+                'Got {}'.format(type(geoid_file)))
+        self._geoid = geoid_file
+
+    @classmethod
+    def from_coords_and_list(cls, lats, lons, dted_list, dem_type, geoid_file=None):
+        """
+        Construct a DTEDInterpolator from a coordinate collection and DTEDList object.
+
+        Parameters
+        ----------
+        lats : numpy.ndarray|list|tuple|int|float
+        lons : numpy.ndarray|list|tuple|int|float
+        dted_list : None|DTEDList|str
+            the dtedList object or root directory
+        dem_type : str
+            the DEM type.
+        geoid_file : None|str|GeoidHeight
+            The GeoidHeight object, a egm file name, or root directory containing
+            one in th sub-directory "geoid". If `None`, then default to the root
+            directory of dted_list.
+
+        Returns
+        -------
+        DTEDInterpolator
+
+        .. Note: this depends on using `DTEDList.get_file_list(lats, lons, dted_type)`
+            to get the relevant file list.
+        """
+
+        # TODO: handle dted_list is None
+        if isinstance(dted_list, str):
+            dted_list = DTEDList(dted_list)
+        if not isinstance(dted_list, DTEDList):
+            raise ValueError(
+                'dted_list os required to be a path (directory) or DTEDList instance.')
+
+        # default the geoid argument to the root directory of the dted_list
+        if geoid_file is None:
+            geoid_file = dted_list.root_dir
+
+        return cls(dted_list.get_file_list(lats, lons, dem_type), geoid_file)
+
+    @property
+    def geoid(self):  # type: () -> GeoidHeight
+        """
+        GeoidHeight: Get the geoid height calculator
+        """
+
+        return self._geoid
+
+    def _get_elevation_geoid(self, lat, lon):
+        out = numpy.full(lat.shape, numpy.nan, dtype=numpy.float64)
+        remaining = numpy.ones(lat.shape, dtype=numpy.bool)
+        for reader in self._readers:
+            if not numpy.any(remaining):
+                break
+            t_lat = lat[remaining]
+            t_lon = lon[remaining]
+            this = reader.in_bounds(t_lat, t_lon)
+            if numpy.any(this):
+                # noinspection PyProtectedMember
+                out[remaining[this]] = reader._get_elevation(t_lat[this], t_lon[this])
+                remaining[remaining[this]] = False
+        return out
+
+    def get_elevation_hae(self, lat, lon, block_size=50000):
+        """
+        Get the elevation value relative to the WGS-84 ellipsoid.
+
+        Parameters
+        ----------
+        lat : numpy.ndarray|list|tuple|int|float
+        lon : numpy.ndarray|list|tuple|int|float
+        block_size : None|int
+            If `None`, then the entire calculation will proceed as a single block.
+            Otherwise, block processing using blocks of the given size will be used.
+            The minimum value used for this is 50,000, and any smaller value will be
+            replaced with 50,000. Default is 50,000.
+
+        Returns
+        -------
+        numpy.ndarray
+            the elevation relative to the WGS-84 ellipsoid.
+
+        .. Note: DTED elevation is relative to the egm96 geoid, and we are simply adding
+            values determined by a geoid calculator. Using a the egm2008 model will result
+            in only minor differences.
+        """
+
+        return self.get_elevation_geoid(lat, lon, block_size=block_size) + \
+            self._geoid.get(lat, lon, block_size=block_size)
+
+    def get_elevation_geoid(self, lat, lon, block_size=50000):
+        """
+        Get the elevation value relative to the geoid.
+
+        Parameters
+        ----------
+        lat : numpy.ndarray|list|tuple|int|float
+        lon : numpy.ndarray|list|tuple|int|float
+        block_size : None|int
+            If `None`, then the entire calculation will proceed as a single block.
+            Otherwise, block processing using blocks of the given size will be used.
+            The minimum value used for this is 50,000, and any smaller value will be
+            replaced with 50,000. Default is 50,000.
+
+        Returns
+        -------
+        numpy.ndarray
+            the elevation relative to the geoid
+
+        .. Note: DTED elevation is relative to the egm96 geoid, though using the egm2008
+            model will result in only minor differences.
+        """
+
+        o_shape, lat, lon = _argument_validation(lat, lon)
+
+        if block_size is None:
+            out = self._get_elevation_geoid(lat, lon)
+        else:
+            block_size = min(50000, int(block_size))
+            out = numpy.full(lat.shape, numpy.nan, dtype=numpy.float64)
+            start_block = 0
+            while start_block < lat.size:
+                end_block = min(lat.size, start_block+block_size)
+                out[start_block:end_block] = self._get_elevation_geoid(lat[start_block:end_block], lon[start_block:end_block])
+                start_block = end_block
+
+        if o_shape == ():
+            return float(out[0])
+        else:
+            return numpy.reshape(out, o_shape)
+
+    def get_max_dem(self):
+        """
+        Get the maximum DTED entry - note that this is relative to the geoid.
+
+        Returns
+        -------
+        float
+        """
+
+        return float(max(numpy.max(reader[:, :]) for reader in self._readers))
+
+    def get_min_dem(self):
+        """
+        Get the minimum DTED entry - note that this is relative to the geoid.
+
+        Returns
+        -------
+        float
+        """
+
+        return float(min(numpy.min(reader[:, :]) for reader in self._readers))

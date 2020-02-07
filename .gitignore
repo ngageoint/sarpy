@@ -110,3 +110,7 @@ venv.bak/
 .mypy_cache/
 *.xml
 .idea/workspace.xml
+
+
+# temp file nonsense
+*.DS_Store

@@ -1,291 +1,372 @@
-"""Module for reading SIO files."""
+# -*- coding: utf-8 -*-
+"""
+Functionality for reading SIO data into a SICD model.
+"""
 
-# SarPy imports
-from . import Reader as ReaderSuper  # Reader superclass
-from . import Writer as WriterSuper  # Writer superclass
-from .utils import bip
-from . import sicd
-# Python standard library imports
-import os.path
-import warnings
+import os
+import struct
+import logging
 import re
-# External dependencies
-import numpy as np
+from xml.etree import ElementTree
+from typing import Union, Dict, Tuple
+
+import numpy
+
+from .sicd_elements.blocks import RowColType
+from .sicd_elements.SICD import SICDType
+from .sicd_elements.ImageData import ImageDataType, FullImageType
+from .base import BaseReader
+from .bip import BIPChipper, BIPWriter
+from .sicd import complex_to_amp_phase, complex_to_int, amp_phase_to_complex, _SPECIFICATION_NAMESPACE
 
 __classification__ = "UNCLASSIFIED"
-__author__ = "Wade Schwartzkopf"
-__email__ = "wschwartzkopf@integrity-apps.com"
-
-MAGIC_NUMBERS = (int('FF017FFE', 16),
-                 int('FE7F01FF', 16),
-                 int('FF027FFD', 16),
-                 int('FD7F02FF', 16))
+__author__ = ("Thomas McCullough", "Wade Schwartzkopf")
 
 
-def isa(filename):
-    """Test to see if file is a SIO.  If so, return reader object."""
-    with open(filename, mode='rb') as fid:
-        if np.fromfile(fid, dtype='uint32', count=1) in MAGIC_NUMBERS:
-            return Reader
+########
+# base expected functionality for a module with an implemented Reader
 
 
-class Reader(ReaderSuper):
-    """Creates a file reader object for an SIO file."""
-    def __init__(self, filename):
-        # Read SIO itself
-        ihdr, swapbytes, data_offset, user_data = read_meta(filename)
-        self.sicdmeta = meta2sicd(ihdr, user_data)
-        # ihdr is uint32 in file.  Without double cast, file size computations
-        # over 4 Gig can overflow
-        ihdr = np.array(ihdr, dtype='uint64')
-        # Check that header matches filesize
-        if os.path.getsize(filename) != (np.uint64(data_offset) +
-                                         (ihdr[1] * ihdr[2] * ihdr[4])):
-            warnings.warn(UserWarning('File appears to be SIO, ' +
-                                      'but header does not match file size.'))
+def is_a(file_name):
+    """
+    Tests whether a given file_name corresponds to a SIO file. Returns a reader instance, if so.
 
-        # Check for CASPR metadata file and read
-        caspr_filename = locate_caspr(filename)
-        symmetry = (False, False, False)  # Energy from top
-        if caspr_filename:
-            native_metadata = read_caspr(caspr_filename)
-            if ('Image Parameters' in native_metadata and
-               'image illumination direction [top, left, bottom, right]' in native_metadata['Image Parameters']):
-                if native_metadata['Image Parameters']['image illumination direction [top, left, bottom, right]'] == 'left':
-                    symmetry = (True, False, True)
-                    # Reorient size info
-                    self.sicdmeta = meta2sicd(ihdr[[0, 2, 1, 3, 4]], user_data)
-                elif not native_metadata['Image Parameters']['image illumination direction [top, left, bottom, right]'] == 'top':
-                    ValueError('Unhandled illumination direction.')
-            # TODO: Convert CASPR metadata to SICD format and merge with other SICD metadata
-            # self.sicdmeta.merge(meta2sicd_caspr(native_metadata))
-            if not hasattr(self.sicdmeta, 'native'):
-                self.sicdmeta.native = sicd.MetaNode()
-            self.sicdmeta.native.caspr = native_metadata
+    Parameters
+    ----------
+    file_name : str
+        the file_name to check
 
-        # Build object
-        datasize = ihdr[1:3]
-        datatype, complexbool = sio2numpytype(ihdr[3], ihdr[4])
-        self.read_chip = bip.Chipper(filename, datasize, datatype, complexbool,
-                                     data_offset, swapbytes, symmetry,
-                                     bands_ip=1)
+    Returns
+    -------
+    SIOReader|None
+        `SIOReader` instance if SIO file, `None` otherwise
+    """
+
+    try:
+        sio_details = SIODetails(file_name)
+        print('File {} is determined to be a SIO file.'.format(file_name))
+        return SIOReader(sio_details)
+    except IOError:
+        return None
 
 
-class Writer(WriterSuper):
-    def __init__(self, filename, sicdmeta):
-        # SIO format allows for either endianness, but we just pick it arbitrarily.
-        ENDIAN = '>'
+###########
+# parser and interpreter for hdf5 attributes
 
-        self.filename = filename
-        self.sicdmeta = sicdmeta
-        if (hasattr(sicdmeta, 'ImageData') and
-           hasattr(sicdmeta.ImageData, 'PixelType')):
-            if sicdmeta.ImageData.PixelType == 'RE32F_IM32F':
-                datatype = np.dtype(ENDIAN + 'f4')
-                element_type = 13
-                element_length = 8
-            elif sicdmeta.ImageData.PixelType == 'RE16I_IM16I':
-                datatype = np.dtype(ENDIAN + 'i2')
-                element_type = 12
-                element_length = 4
-            elif sicdmeta.ImageData.PixelType == 'AMP8I_PHS8I':
-                datatype = np.dtype(ENDIAN + 'u1')
-                element_type = 11
-                element_length = 2
-                raise(ValueError('AMP8I_PHS8I is currently an unsupported pixel type.'))
-            else:
-                raise(ValueError('PixelType must be RE32F_IM32F, RE16I_IM16I, or AMP8I_PHS8I.'))
+class SIODetails(object):
+    __slots__ = (
+        '_file_name', '_magic_number', '_head', '_user_data', '_data_offset',
+        '_caspr_data', '_symmetry', '_sicd')
+
+    # NB: there are really just two types of SIO file (with user_data and without),
+    #   with endian-ness layered on top
+    ENDIAN = {
+        0xFF017FFE: '>', 0xFE7F01FF: '<',  # no user data
+        0xFF027FFD: '>', 0xFD7F02FF: '<'}  # with user data
+
+    def __init__(self, file_name):
+        self._file_name = file_name
+        self._user_data = None
+        self._data_offset = 20
+        self._caspr_data = None
+        self._symmetry = (False, False, False)
+        self._sicd = None
+        with open(file_name, 'rb') as fi:
+            self._magic_number = struct.unpack('I', fi.read(4))[0]
+            endian = self.ENDIAN.get(self._magic_number, None)
+            if endian is None:
+                raise IOError('File {} is not an SIO file. Got magic number {}'.format(file_name, self._magic_number))
+
+            # reader basic header - (rows, columns, data_type, pixel_size)?
+            init_head = numpy.array(struct.unpack('{}4I'.format(endian), fi.read(16)), dtype=numpy.uint64)
+            if not (numpy.all(init_head[2:] == numpy.array([13, 8]))
+                    or numpy.all(init_head[2:] == numpy.array([12, 4]))
+                    or numpy.all(init_head[2:] == numpy.array([11, 2]))):
+                raise IOError('Got unsupported sio data type/pixel size = {}'.format(init_head[2:]))
+            self._head = init_head
+
+    @property
+    def file_name(self):  # type: () -> str
+        return self._file_name
+
+    @property
+    def symmetry(self):  # type: () -> Tuple[bool, bool, bool]
+        return self._symmetry
+
+    @property
+    def data_offset(self):  # type: () -> int
+        return self._data_offset
+
+    @property
+    def data_size(self):  # type: () -> Union[None, Tuple[int, int]]
+        if self._head is None:
+            return None
+        rows, cols = self._head[:2]
+        if self._symmetry[0]:
+            return cols, rows
         else:
-            sicdmeta.ImageData.PixelType = 'RE32F_IM32F'
-            datatype = np.dtype(ENDIAN + 'f4')
-        # Write header
-        with open(filename, mode='w') as fid:
-            header = np.array([MAGIC_NUMBERS[0],
-                               sicdmeta.ImageData.NumRows,
-                               sicdmeta.ImageData.NumCols,
-                               element_type,
-                               element_length], dtype=np.dtype(ENDIAN + 'u4'))
-            header.tofile(fid)
-        # Setup pixel writing
-        image_size = (sicdmeta.ImageData.NumRows, sicdmeta.ImageData.NumCols)
-        self.write_chip = bip.Writer(filename, image_size, datatype, True, 20)
+            return rows, cols
 
+    @property
+    def data_type(self):  # type: () -> Union[None, str]
+        # head[2] = (2X = vector, 1X = complex/scalar, 0X = real/scalar), where
+        #   X = (1 = unsigned int, 2 = signed int, 3 = float, (4=double? I would guess)
+        # head[3] = pixel size in bytes (2*bit depth for complex, or band*bit depth for vector)
+        pixel_size = self._head[3]
+        # we require (for sicd) that either head[2:] is [13, 8], [12, 4], [11, 2]
+        if pixel_size == 8:
+            return 'float32'
+        elif pixel_size == 4:
+            return 'int16'
+        elif pixel_size == 2:
+            return 'uint8'
+        else:
+            raise ValueError('Got unsupported sio data type/pixel size = {}'.format(self._head[2:]))
 
-def read_meta(filename):
-    """Parse SIO header."""
-    with open(filename, mode='rb') as fid:
-        ihdr = np.fromfile(fid, dtype='uint32', count=5)
-        if ihdr[0] == MAGIC_NUMBERS[0]:  # File is the same endian as our file IO
-            data_offset = 20
-            swapbytes = False
-            user_data = {}
-        elif ihdr[0] == MAGIC_NUMBERS[1]:  # File is different endian
-            data_offset = 20
-            swapbytes = True
-            ihdr = ihdr.byteswap()
-            user_data = {}
-        elif ihdr[0] == MAGIC_NUMBERS[2]:  # Same endian, with user data
-            swapbytes = False
-            user_data, user_data_length = _read_userdata(fid, swapbytes)
-            data_offset = 20 + user_data_length
-        elif ihdr[0] == MAGIC_NUMBERS[3]:  # Different endian, with user data
-            swapbytes = True
-            ihdr = ihdr.byteswap()
-            user_data, user_data_length = _read_userdata(fid, swapbytes)
-            data_offset = 20 + user_data_length
-        else:  # Not an SIO file
-            ihdr = swapbytes = data_offset = user_data = None
+    @property
+    def pixel_type(self):  # type: () -> Union[None, str]
+        if self._head[2] == 13 and self._head[3] == 8:
+            return 'RE32F_IM32F'
+        elif self._head[2] == 12 and self._head[3] == 4:
+            return 'RE16I_IM16I'
+        elif self._head[2] == 11 and self._head[3] == 2:
+            return 'AMP8I_PHS8I'
+        else:
+            raise ValueError('Got unsupported sio data type/pixel size = {}'.format(self._head[2:]))
 
-        return ihdr, swapbytes, data_offset, user_data
+    def _read_user_data(self):
+        if self._user_data is not None:
+            return
+        if self._magic_number in (0xFF017FFE, 0xFE7F01FF):  # no user data
+            self._user_data = {}
+        else:
+            def read_user_data():
+                out = {}
+                user_dat_len = 0
+                if self._magic_number in (0xFF017FFE, 0xFE7F01FF):  # no user data
+                    return out, user_dat_len
 
+                num_data_pairs = struct.unpack('{}I'.format(endian), fi.read(4))[0]
 
-def _read_userdata(fid, swapbytes):
-    """Extracts user data from SIO files
+                for i in range(num_data_pairs):
+                    name_length = struct.unpack('{}I'.format(endian), fi.read(4))[0]
+                    name = struct.unpack('{}{}s'.format(endian, name_length), fi.read(name_length))[0].decode('utf-8')
+                    value_length = struct.unpack('{}I'.format(endian), fi.read(4))[0]
+                    value = struct.unpack('{}{}s'.format(endian, value_length), fi.read(value_length))[0]
+                    try:
+                        value = value.decode('utf-8')
+                    except UnicodeDecodeError:
+                        # leave value as bytes - it may just be some other type
+                        pass
+                    out[name] = value
+                    user_dat_len += 4 + name_length + 4 + value_length
+                return out, user_dat_len
 
-    Assumes that you already know the endianness and that the file has user data
+            endian = self.ENDIAN[self._magic_number]
+            with open(self._file_name, 'rb') as fi:
+                fi.seek(20)  # skip the basic header
+                # read the user data (some type of header), if necessary
+                user_data, user_data_length = read_user_data()
+            self._user_data = user_data
+            self._data_offset = 20 + user_data_length
+        # validate file size
+        exp_file_size = self._data_offset + self._head[0]*self._head[1]*self._head[3]
+        act_file_size = os.path.getsize(self._file_name)
+        if exp_file_size != act_file_size:
+            logging.warning(
+                'File {} appears to be an SIO file, but size calculated from the header {} '
+                'does not match the actual file size {}'.format(self._file_name, exp_file_size, act_file_size))
 
-    """
-    num_data_pairs = np.fromfile(fid, dtype='uint32', count=1)
-    if swapbytes:
-        num_data_pairs.byteswap(True)
-    userdata_length_in_bytes = 4  # Size in bytes of num_data_pairs
-    userdata_dict = {}  # Initialize dictionary
-    for i in range(num_data_pairs):
-        namebytes = np.fromfile(fid, dtype='uint32', count=1)  # 4 bytes
-        if swapbytes:
-            namebytes.byteswap(True)
-        # Switching back and forth repeatedly between NumPy np.fromfile and
-        # Python fid.read apparently results in bad things happening--
-        # fid.tell() gets confused, among other things.  Thus we will try to
-        # force all our reads to be NumPy fromfile for consistency.
-        # name = fid.read(namebytes).decode('ascii') # This causes problems
-        name = np.fromfile(fid, dtype='int8', count=namebytes)  # This works
-        name = ''.join(map(chr, name))  # Decode bytes to ASCII string
+    def _find_caspr_data(self):
+        def find_caspr():
+            dir_name, fil_name = os.path.split(self._file_name)
+            file_stem = os.path.splitext(fil_name)
+            for fil in [os.path.join(dir_name, '{}.hydra'.format(file_stem)),
+                        os.path.join(dir_name, '{}.hdr'.format(file_stem)),
+                        os.path.join(dir_name, '..', 'RPHDHeader.out'),
+                        os.path.join(dir_name, '..', '_RPHDHeader.out')]:
+                if os.path.exists(fil) and os.path.isfile(fil):
+                    # generally redundant, except for broken link?
+                    return fil
+            return None
 
-        valuebytes = np.fromfile(fid, dtype='uint32', count=1)  # 4 bytes
-        if swapbytes:
-            valuebytes.byteswap(True)
-        # value = fid.read(valuebytes) # This cause problems
-        value = np.fromfile(fid, dtype='int8', count=valuebytes)  # This works
-        try:
-            value = ''.join(map(chr, value))  # Decode bytes to ASCII string
-        except UnicodeDecodeError:  # Not all userdata values are strings.
-            pass  # Leave as bytes so user can cast to int, float, etc.
+        casp_fil = find_caspr()
+        if casp_fil is None:
+            return
 
-        userdata_dict[name] = value
-        userdata_length_in_bytes = userdata_length_in_bytes + namebytes + valuebytes + 8
-
-    return userdata_dict, userdata_length_in_bytes
-
-
-def sio2numpytype(element_type, element_length):
-    """Convert the SIO description of data type in a NumPy dtype."""
-    iscomplex = int(element_type/10)  # Tens place is zero => real, tens place is one => complex
-    if iscomplex > 1:  # Tens place is two => vector
-        raise(ValueError('Vector types for SIO files are not supported by this reader.'))
-    iscomplex = iscomplex > 0  # Convert to boolean
-    datatypenum = element_type % 10  # 1: unsigned int, 2: signed int, 3: float
-    if datatypenum == 1:
-        datatype = 'uint'
-    elif datatypenum == 2:
-        datatype = 'int'
-    elif datatypenum == 3:
-        datatype = 'float'
-    else:
-        raise(ValueError('Reader only recognizes unsigned and signed integers and floats.'))
-    datalength = element_length * 8
-    if(iscomplex):
-        datalength = int(datalength / 2)
-    return np.dtype(datatype + str(datalength)), iscomplex
-
-
-def meta2sicd(sio_hdr, user_data={}):
-    """Converts SIO header into SICD-style structure
-
-    Really not much to do here since SIO header is so minimal.  Just fill in
-    image size and datatype.
-
-    """
-
-    # Check to see if we have a SICD-in-SIO type file.  If there's a SICDMETA
-    # field in the user_data structure we'll assume that has all the valid
-    # metadata for this file and we'll use that.  Otherwise we'll just return a
-    # small 'stub' SICD metadata structure (not much information in the SIO
-    # header).
-    if 'SICDMETA' in user_data:  # user_data should be dictionary
-        # We assume this condition is rarely used, so we put include inside here
-        from xml.dom.minidom import parseString
-        return sicd.sicdxml2struct(parseString(user_data['SICDMETA']))
-    else:
-        sicdstruct = sicd.MetaNode()
-        sicdstruct.ImageData = sicd.MetaNode()
-        sicdstruct.ImageData.NumRows = sio_hdr[1]
-        sicdstruct.ImageData.NumCols = sio_hdr[2]
-        # Assume full image, but no way to know for sure
-        sicdstruct.ImageData.FullImage = sicd.MetaNode()
-        sicdstruct.ImageData.FullImage.NumRows = sio_hdr[1]
-        sicdstruct.ImageData.FullImage.NumCols = sio_hdr[2]
-        sicdstruct.ImageData.FirstRow = int(0)
-        sicdstruct.ImageData.FirstCol = int(0)
-        if (sio_hdr[3] == 13) and (sio_hdr[4] == 8):
-            sicdstruct.ImageData.PixelType = 'RE32F_IM32F'
-        elif (sio_hdr[3] == 12) and (sio_hdr[4] == 4):
-            sicdstruct.ImageData.PixelType = 'RE16I_IM16I'
-        # Not usually given explicitly in accompanying metadata, so just guess center
-        sicdstruct.ImageData.SCPPixel = sicd.MetaNode()
-        sicdstruct.ImageData.SCPPixel.Row = int(sicdstruct.ImageData.NumRows/2)
-        sicdstruct.ImageData.SCPPixel.Col = int(sicdstruct.ImageData.NumCols/2)
-        sicdstruct.native = sicd.MetaNode()
-        sicdstruct.native.sio = user_data
-        return sicdstruct
-
-
-# Everything below handles CASPR files, the metadata files that often accompany SIOs
-def locate_caspr(filename):
-    """Locate CASPR metadata file that might be associated with an SIO file."""
-    path, extension = os.path.splitext(filename)
-    path, name = os.path.split(path)
-    possible_filenames = (os.path.join(path, name + '.hydra'),
-                          os.path.join(path, name + '.hdr'),
-                          os.path.join(path, '..', 'RPHDHeader.out'),
-                          os.path.join(path, name + '_RPHDHeader.out'))
-    for i in possible_filenames:
-        if os.path.exists(i) and os.path.isfile(i):
-            return i
-
-
-def read_caspr(filename):
-    """Read metadata from CASPR header."""
-    with open(filename, mode='r') as fid:
+        out = {}
+        with open(casp_fil, 'r') as fi:
+            lines = fi.read().splitlines(keepends=False)
+        # this is generally just copied from the previous version - maybe refactor eventually
         current_subfield = ''
         reading_subfield = False
-        metadata = {}
-        for linetoparse in fid:
-            linetoparse = linetoparse.rstrip('\n')
-            if linetoparse != '' and not linetoparse.startswith(' '):  # Not empty
-                if linetoparse.startswith(';;;'):
-                    reading_subfield = not reading_subfield
-                    if reading_subfield:
-                        current_subfield = ''
-                    else:
-                        metadata[current_subfield] = {}
+        for line in lines:
+            if len(line.strip()) == 0:
+                continue  # skip blank lines
+            if line.startswith(';;;'):  # I guess this is the subfield delimiter?
+                reading_subfield = ~reading_subfield  # change state
+                if reading_subfield:
+                    current_subfield = ''
                 else:
-                    quoted_token = re.match('"(?P<quoted>[^"]+)"', linetoparse)
-                    if quoted_token:  # Some values with spaces are surrounded by quotes
-                        import pdb
-                        pdb.set_trace()
-                        tokens = [quoted_token.group('quoted'),
-                                  linetoparse[quoted_token.end('quoted')+1:].strip()]
-                    else:  # No quoted values were found
-                        # If not using quotes, split with whitespace
-                        tokens = linetoparse.split(None, 1)
-                    if (len(tokens) > 1) and tokens[1] != '':
-                        if reading_subfield:  # Subsection heading
-                            current_subfield = current_subfield + tokens[1]
-                        elif not current_subfield == '':  # Actual field value
-                            try:
-                                floatval = float(tokens[0])
-                                metadata[current_subfield][tokens[1]] = floatval
-                            except ValueError:  # Value is string not numeric
-                                metadata[current_subfield][tokens[1]] = tokens[0]
-        return metadata
+                    out[current_subfield] = {}  # prepare the workspace
+            else:
+                quoted_token = re.match('"(?P<quoted>[^"]+)"', line)
+                if quoted_token:  # Some values with spaces are surrounded by quotes
+                    # import pdb
+                    # pdb.set_trace()
+                    tokens = [quoted_token.group('quoted'),
+                              line[quoted_token.end('quoted') + 1:].strip()]
+                else:  # No quoted values were found
+                    # If not using quotes, split with whitespace
+                    tokens = line.split(None, 1)
+                if (len(tokens) > 1) and tokens[1] != '':
+                    if reading_subfield:  # Subsection heading
+                        current_subfield = current_subfield + tokens[1]
+                    elif not current_subfield == '':  # Actual field value
+                        try:
+                            out[current_subfield][tokens[1]] = float(tokens[0])
+                        except ValueError:  # Value is string not numeric
+                            out[current_subfield][tokens[1]] = tokens[0]
+        self._caspr_data = out
+        # set symmetry
+        im_params = out.get('Image Parameters', None)
+        if im_params is None:
+            return
+        illum_dir = im_params.get('image illumination direction [top, left, bottom, right]', None)
+        if illum_dir is None:
+            return
+        elif illum_dir == 'left':
+            self._symmetry = (True, False, True)
+        elif illum_dir != 'top':
+            raise ValueError('unhandled illumination direction {}'.format(illum_dir))
+
+    def get_sicd(self):
+        """
+        Extract the SICD details.
+
+        Returns
+        -------
+        SICDType
+        """
+
+        if self._sicd is not None:
+            return self._sicd
+        if self._user_data is None:
+            self._read_user_data()
+        if self._caspr_data is None:
+            self._find_caspr_data()
+        # Check if the user data contains a sicd structure.
+        sicd_string = None
+        for nam in ['SICDMETA', 'SICD_META', 'SICD']:
+            if sicd_string is None:
+                sicd_string = self._user_data.get(nam, None)
+        # If so, assume that this SICD is valid and simply present it
+        if sicd_string is not None:
+            self._sicd = SICDType.from_node(ElementTree.fromstring(sicd_string))
+            self._sicd.derive()
+        else:
+            # otherwise, we populate a really minimal sicd structure
+            num_rows, num_cols = self.data_size
+            self._sicd = SICDType(ImageData=ImageDataType(NumRows=num_rows,
+                                                          NumCols=num_cols,
+                                                          FirstRow=0,
+                                                          FirstCol=0,
+                                                          PixelType=self.pixel_type,
+                                                          FullImage=FullImageType(NumRows=num_rows,
+                                                                                  NumCols=num_cols),
+                                                          SCPPixel=RowColType(Row=num_rows/2,
+                                                                              Col=num_cols/2)))
+        return self._sicd
+
+
+#######
+#  The actual reading implementation
+
+class SIOReader(BaseReader):
+    __slots__ = ('_sio_details', )
+
+    def __init__(self, sio_details):
+        """
+
+        Parameters
+        ----------
+        sio_details : str|SIODetails
+            filename or SIODetails object
+        """
+
+        if isinstance(sio_details, str):
+            sio_details = SIODetails(sio_details)
+        if not isinstance(sio_details, SIODetails):
+            raise TypeError('The input argument for SIOReader must be a filename or '
+                            'SIODetails object.')
+        self._sio_details = sio_details
+        sicd_meta = sio_details.get_sicd()
+        if sicd_meta.ImageData.PixelType == 'AMP8I_PHS8I':
+            complex_type = amp_phase_to_complex(sicd_meta.ImageData.AmpTable)
+        else:
+            complex_type = True
+        chipper = BIPChipper(sio_details.file_name, sio_details.data_type, sio_details.data_size,
+                             symmetry=sio_details.symmetry, complex_type=complex_type,
+                             data_offset=sio_details.data_offset)
+        super(SIOReader, self).__init__(sicd_meta, chipper)
+
+
+#######
+#  The actual writing implementation
+
+class SIOWriter(BIPWriter):
+    def __init__(self, file_name, sicd_meta, user_data=None):
+        """
+
+        Parameters
+        ----------
+        file_name : str
+        sicd_meta : SICDType
+        user_data : None|Dict[str, str]
+        """
+
+        # choose magic number (with user data) and corresponding endian-ness
+        magic_number = 0xFD7F02FF
+        endian = SIODetails.ENDIAN[magic_number]
+
+        # define basic image details
+        image_size = (sicd_meta.ImageData.NumRows, sicd_meta.ImageData.NumCols)
+        pixel_type = sicd_meta.ImageData.PixelType
+        if pixel_type == 'RE32F_IM32F':
+            data_type = numpy.dtype('{}f4'.format(endian))
+            element_type = 13
+            element_size = 8
+            complex_type = True
+        elif pixel_type == 'RE16I_IM16I':
+            data_type = numpy.dtype('{}i2'.format(endian))
+            element_type = 12
+            element_size = 4
+            complex_type = complex_to_int
+        else:
+            data_type = numpy.dtype('{}u1'.format(endian))
+            element_type = 11
+            element_size = 2
+            complex_type = complex_to_amp_phase(sicd_meta.ImageData.AmpTable)
+        # construct the sio header
+        header = numpy.array(
+            [magic_number, image_size[0], image_size[1], element_type, element_size],
+            dtype='>u4')
+        # construct the user data - must be {str : str}
+        if user_data is None:
+            user_data = {}
+        user_data['SICDMETA'] = sicd_meta.to_xml_string(urn=_SPECIFICATION_NAMESPACE, tag='SICD')
+        data_offset = 20
+        with open(file_name, 'wb') as fi:
+            fi.write(struct.pack('{}5I'.format(endian), *header))
+            # write the user data - name size, name, value size, value
+            for name in user_data:
+                name_bytes = name.encode('utf-8')
+                fi.write(struct.pack('{}I'.format(endian), len(name_bytes)))
+                fi.write(struct.pack('{}{}s'.format(endian, len(name_bytes), name_bytes)))
+                val_bytes = user_data[name].encode('utf-8')
+                fi.write(struct.pack('{}I'.format(endian), len(val_bytes)))
+                fi.write(struct.pack('{}{}s'.format(endian, len(val_bytes), val_bytes)))
+                data_offset += 4 + len(name_bytes) + 4 + len(val_bytes)
+        # initialize the bip writer - we're ready to go
+        super(SIOWriter, self).__init__(file_name, image_size, data_type,
+                                        complex_type=complex_type, data_offset=data_offset)
