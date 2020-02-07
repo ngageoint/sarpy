@@ -29,8 +29,7 @@ class BIPChipper(BaseChipper):
     """
 
     __slots__ = (
-        '_file_name', '_data_size', '_data_type', '_data_offset', '_bands',
-        '_complex_type', '_symmetry', '_memory_map', '_fid')
+        '_file_name', '_data_type', '_data_offset', '_shape', '_bands', '_memory_map', '_fid')
 
     def __init__(self, file_name, data_type, data_size,
                  symmetry=(False, False, False), complex_type=False,
@@ -69,6 +68,7 @@ class BIPChipper(BaseChipper):
         self._data_offset = int_func(data_offset)
         self._data_type = data_type
         self._bands = bands
+        self._shape = data_size + (self._bands, )
 
         if not os.path.isfile(file_name):
             raise IOError('Path {} either does not exists, or is not a file.'.format(file_name))
@@ -83,7 +83,7 @@ class BIPChipper(BaseChipper):
                                             dtype=data_type,
                                             mode='r',
                                             offset=data_offset,
-                                            shape=self._data_size + (self._bands, ))  # type: numpy.memmap
+                                            shape=self._shape)  # type: numpy.memmap
         except (OverflowError, OSError):
             # if 32-bit python, then we'll fail for any file larger than 2GB
             # we fall-back to a slower version of reading manually
@@ -94,7 +94,8 @@ class BIPChipper(BaseChipper):
                 'which is larger than 2GB.'.format(self._file_name))
 
     def __del__(self):
-        if self._fid is not None and hasattr(self._fid, 'closed') and not self._fid.closed:
+        if hasattr(self, '_fid') and self._fid is not None and \
+                hasattr(self._fid, 'closed') and not self._fid.closed:
             self._fid.close()
 
     def _read_raw_fun(self, range1, range2):
@@ -105,7 +106,16 @@ class BIPChipper(BaseChipper):
             return self._read_file(range1, range2)
 
     def _read_memory_map(self, range1, range2):
-        out = numpy.array(self._memory_map[range1[0]:range1[1]:range1[2], range2[0]:range2[1]:range2[2]], dtype=self._data_type)
+        if (range1[1] == -1 and range1[2] < 0) and (range2[1] == -1 and range2[2] < 0):
+            out = numpy.array(self._memory_map[range1[0]::range1[2], range2[0]::range2[2]], dtype=self._data_type)
+        elif range1[1] == -1 and range1[2] < 0:
+            out = numpy.array(self._memory_map[range1[0]::range1[2], range2[0]:range2[1]:range2[2]], dtype=self._data_type)
+        elif range2[1] == -1 and range2[2] < 0:
+            out = numpy.array(self._memory_map[range1[0]:range1[1]:range1[2], range2[0]::range2[2]],
+                              dtype=self._data_type)
+        else:
+            out = numpy.array(self._memory_map[range1[0]:range1[1]:range1[2], range2[0]:range2[1]:range2[2]],
+                              dtype=self._data_type)
         return out
 
     def _read_file(self, range1, range2):
@@ -116,7 +126,7 @@ class BIPChipper(BaseChipper):
 
         # we have to manually map out the stride and all that for the array ourselves
         element_size = int_func(numpy.dtype(self._data_type).itemsize*self._bands)
-        stride = element_size*int_func(self.data_size[0])  # how much to skip a whole row?
+        stride = element_size*int_func(self._shape[0])  # how much to skip a whole (real) row?
         entries_per_row = abs(range1[1] - range1[0])  # not including the stride, if not +/-1
         # let's determine the specific row/column arrays that we are going to read
         dim1array = numpy.arange(range1)
@@ -197,16 +207,16 @@ class BIPWriter(AbstractWriter):
             raise ValueError('complex-type must be a boolean or a callable')
         self._complex_type = complex_type
 
-        if self._complex_type is True and self._data_type != numpy.float32:
+        if self._complex_type is True and self._data_type.name != 'float32':
             raise ValueError(
                 'complex_type = `True`, which requires that data for writing has '
                 'dtype complex64/128, and output is written as float32 (data_type). '
                 'data_type is given as {}.'.format(data_type))
-        if callable(self._complex_type) and self._data_type not in (numpy.uint8, numpy.int16):
+        if callable(self._complex_type) and self._data_type.name not in ('uint8', 'int16'):
             raise ValueError(
                 'complex_type is callable, which requires that dtype complex64/128, '
                 'and output is written as uint8 or uint16. '
-                'data_type is given as {}.'.format(data_type))
+                'data_type is given as {}.'.format(self._data_type.name))
 
         self._data_offset = int_func(data_offset)
         if self._complex_type is False:
@@ -260,23 +270,23 @@ class BIPWriter(AbstractWriter):
             data = numpy.ascontiguousarray(data)
 
         if self._complex_type is False:
-            if data.dtype != self._data_type:
+            if data.dtype.name != self._data_type.name:
                 raise ValueError(
                     'Writer expects data type {}, and got data of type {}.'.format(self._data_type, data.dtype))
             self._call(start1, stop1, start2, stop2, data)
         elif callable(self._complex_type):
             new_data = self._complex_type(data)
-            if new_data.dtype != self._data_type:
+            if new_data.dtype.name != self._data_type.name:
                 raise ValueError(
                     'Writer expects data type {}, and got data of type {} from the '
                     'callable method complex_type.'.format(self._data_type, new_data.dtype))
             self._call(start1, stop1, start2, stop2, new_data)
         else:  # complex_type is True
-            if data.dtype not in (numpy.complex64, numpy.complex128):
+            if data.dtype.name not in ('complex64', 'complex128'):
                 raise ValueError(
                     'Writer expects data type {}, and got data of type {} from the '
                     'callable method complex_type.'.format(self._data_type, data.dtype))
-            if data.dtype != numpy.complex64:
+            if data.dtype.name != 'complex64':
                 data = data.astype(numpy.complex64)
 
             data_view = data.view(numpy.float32).reshape((data.shape[0], data.shape[1], 2))
@@ -317,7 +327,8 @@ class BIPWriter(AbstractWriter):
         None
         """
 
-        if self._fid is not None and hasattr(self._fid, 'closed') and not self._fid.closed:
+        if hasattr(self, '_fid') and self._fid is not None and \
+                hasattr(self._fid, 'closed') and not self._fid.closed:
             self._fid.close()
 
     def __del__(self):

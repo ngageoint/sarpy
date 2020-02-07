@@ -15,6 +15,7 @@ from .base import Serializable, DEFAULT_STRICT, \
     _IntegerEnumDescriptor, _SerializableDescriptor, _UnitVectorDescriptor, \
     _ParametersDescriptor, ParametersCollection
 from .blocks import XYZType, Poly2DType
+from .utils import _get_center_frequency
 
 
 __classification__ = "UNCLASSIFIED"
@@ -30,7 +31,7 @@ int: the default size when generating WgtFunct from a named WgtType.
 
 def _hamming_ipr(x, a):  # TODO: what is a? This name stinks.
     """Helper method"""
-    return a*numpy.sinc(x) + (1-a)*(numpy.sinc(x-1) + numpy.sinc(x+1)) - a/numpy.sqrt(2)
+    return a*numpy.sinc(x) + 0.5*(1-a)*(numpy.sinc(x-1) + numpy.sinc(x+1)) - a/numpy.sqrt(2)
 
 
 def _raised_cos(n, coef):  # TODO: This name also stinks
@@ -185,8 +186,8 @@ class DirParamType(Serializable):
         'WgtType', 'WgtFunct')
     _required = ('UVectECF', 'SS', 'ImpRespWid', 'Sgn', 'ImpRespBW', 'KCtr', 'DeltaK1', 'DeltaK2')
     _numeric_format = {
-        'SS': '0.10G', 'ImpRespWid': '0.10G', 'Sgn': '+d', 'ImpRespBW': '0.10G', 'KCtr': '0.10G',
-        'DeltaK1': '0.10G', 'DeltaK2': '0.10G', 'WgtFunct': '0.10G'}
+        'SS': '0.16G', 'ImpRespWid': '0.16G', 'Sgn': '+d', 'ImpRespBW': '0.16G', 'KCtr': '0.16G',
+        'DeltaK1': '0.16G', 'DeltaK2': '0.16G', 'WgtFunct': '0.16G'}
     _collections_tags = {'WgtFunct': {'array': True, 'child_tag': 'Wgt'}}
     # descriptors
     UVectECF = _UnitVectorDescriptor(
@@ -319,10 +320,6 @@ class DirParamType(Serializable):
         float
             the broadening factor
         """
-        # TODO: CLARIFY - what is this?
-
-        if self.WgtFunct is None:
-            return None  # nothing to be done
 
         if self.WgtType is not None and self.WgtType.WindowName is not None:
             window_name = self.WgtType.WindowName.upper()
@@ -337,18 +334,24 @@ class DirParamType(Serializable):
                     coef = 0.54
             elif window_name == 'HANNING':
                 coef = 0.5
+
             if coef is not None:
-                return 2 * newton(_hamming_ipr, 0.1, args=(coef,), tol=1e-12, maxiter=10000)
+                zero = newton(_hamming_ipr, 0.1, args=(coef,), tol=1e-12, maxiter=10000)
+                return 2*zero
+
+        if self.WgtFunct is None:
+            return None  # nothing to be done
 
         # solve for the half-power point in an oversampled impulse response
         OVERSAMPLE = 1024
-        impulse_response = numpy.absolute(
+        impulse_response = numpy.abs(
             numpy.fft.fft(self.WgtFunct, self.WgtFunct.size*OVERSAMPLE))/numpy.sum(self.WgtFunct)
         ind = numpy.flatnonzero(impulse_response < 1/numpy.sqrt(2))[0]  # find first index with less than half power.
         # linearly interpolate between impulse_response[ind-1] and impulse_response[ind] to find 1/sqrt(2)
         v0 = impulse_response[ind-1]
         v1 = impulse_response[ind]
-        return 2*(ind + (1./numpy.sqrt(2) - v0)/v1)/OVERSAMPLE
+        zero_ind = ind - 1 + (1./numpy.sqrt(2) - v0)/(v1 - v0)
+        return 2*zero_ind/OVERSAMPLE
 
     def define_response_widths(self):
         """
@@ -391,14 +394,16 @@ class DirParamType(Serializable):
             return  # nothing can be done
 
         if self.DeltaKCOAPoly is not None and valid_vertices is not None:
-            deltaKs = self.DeltaKCOAPoly(valid_vertices[0, :], valid_vertices[1, :])
+            deltaKs = self.DeltaKCOAPoly(valid_vertices[:, 0], valid_vertices[:, 1])
             min_deltak = numpy.amin(deltaKs) - 0.5*self.ImpRespBW
-            max_deltak = numpy.amax(deltaKs) - 0.5*self.ImpRespBW
+            max_deltak = numpy.amax(deltaKs) + 0.5*self.ImpRespBW
         else:
-            min_deltak = max_deltak = -0.5*self.ImpRespBW
+            min_deltak = -0.5*self.ImpRespBW
+            max_deltak = 0.5*self.ImpRespBW
+
         # wrapped spectrum (TLM - what does that mean?)
-        if (min_deltak < -0.5/self.SS) or (max_deltak > 0.5/self.SS):
-            min_deltak = -0.5/self.SS
+        if (min_deltak < -0.5/abs(self.SS)) or (max_deltak > 0.5/abs(self.SS)):
+            min_deltak = -0.5/abs(self.SS)
             max_deltak = -min_deltak
         self.DeltaK1 = min_deltak
         self.DeltaK2 = max_deltak
@@ -480,7 +485,7 @@ class GridType(Serializable):
 
         Parameters
         ----------
-        ImageData : sarpy.sicd_elements.ImageDataType
+        ImageData : sarpy.io.complex.sicd_elements.ImageData.ImageDataType
 
         Returns
         -------
@@ -506,8 +511,8 @@ class GridType(Serializable):
 
         Parameters
         ----------
-        CollectionInfo : sarpy.sicd_elements.CollectionInfoType
-        SCPCOA : sarpy.sicd_elements.SCPCOAType
+        CollectionInfo : sarpy.io.complex.sicd_elements.CollectionInfo.CollectionInfoType
+        SCPCOA : sarpy.io.complex.sicd_elements.SCPCOA.SCPCOAType
 
         Returns
         -------
@@ -522,39 +527,16 @@ class GridType(Serializable):
         except (AttributeError, ValueError):
             return
 
-    @staticmethod
-    def _get_center_frequency(RadarCollection, ImageFormation):
-        """
-        Helper method.
-
-        Parameters
-        ----------
-        RadarCollection : sarpy.sicd_elements.RadarCollectionType
-        ImageFormation : sarpy.sicd_elements.ImageFormationType
-
-        Returns
-        -------
-        None|float
-            The center processed frequency, in the event that RadarCollection.RefFreqIndex is None or 0.
-        """
-
-        if RadarCollection is None or RadarCollection.RefFreqIndex is None or RadarCollection.RefFreqIndex == 0:
-            return None
-        if ImageFormation is None or ImageFormation.TxFrequencyProc is None or \
-                ImageFormation.TxFrequencyProc.MinProc is None or ImageFormation.TxFrequencyProc.MaxProc is None:
-            return None
-        return 0.5*(ImageFormation.TxFrequencyProc.MinProc + ImageFormation.TxFrequencyProc.MaxProc)
-
     def _derive_rg_az_comp(self, GeoData, SCPCOA, RadarCollection, ImageFormation):
         """
         Expected to be called by SICD parent.
 
         Parameters
         ----------
-        GeoData : sarpy.sicd_elements.GeoDataType
-        SCPCOA : sarpy.sicd_elements.SCPCOAType
-        RadarCollection : sarpy.sicd_elements.RadarCollectionType
-        ImageFormation : sarpy.sicd_elements.ImageFormationType
+        GeoData : sarpy.io.complex.sicd_elements.GeoData.GeoDataType
+        SCPCOA : sarpy.io.complex.sicd_elements.SCPCOA.SCPCOAType
+        RadarCollection : sarpy.io.complex.sicd_elements.RadarCollection.RadarCollectionType
+        ImageFormation : sarpy.io.complex.sicd_elements.ImageFormation.ImageFormationType
 
         Returns
         -------
@@ -598,7 +580,7 @@ class GridType(Serializable):
             if self.Col.UVectECF is None:
                 self.Col.UVectECF = XYZType.from_array(uAZ)
 
-        center_frequency = self._get_center_frequency(RadarCollection, ImageFormation)
+        center_frequency = _get_center_frequency(RadarCollection, ImageFormation)
         if center_frequency is not None:
             if self.Row.KCtr is None:
                 kctr = 2*center_frequency/speed_of_light
@@ -614,35 +596,35 @@ class GridType(Serializable):
             elif self.Col.DeltaKCOAPoly is None:
                 self.Col.DeltaKCOAPoly = Poly2DType(Coefs=[[-self.Col.KCtr, ], ])
 
-    def _derive_pfa(self, SCPCOA, RadarCollection, ImageFormation, Position, PFA):
+    def _derive_pfa(self, GeoData, RadarCollection, ImageFormation, Position, PFA):
         """
         Expected to be called by SICD parent.
 
         Parameters
         ----------
-        SCPCOA : sarpy.sicd_elements.SCPCOAType
-        RadarCollection : sarpy.sicd_elements.RadarCollectionType
-        ImageFormation : sarpy.sicd_elements.ImageFormationType
-        Position : sarpy.sicd_elements.PositionType
-        PFA : sarpy.sicd_elements.PFAType
+        GeoData : sarpy.io.complex.sicd_elements.GeoData.GeoDataType
+        RadarCollection : sarpy.io.complex.sicd_elements.RadarCollection.RadarCollectionType
+        ImageFormation : sarpy.io.complex.sicd_elements.ImageFormation.ImageFormationType
+        Position : sarpy.io.complex.sicd_elements.Position.PositionType
+        PFA : sarpy.io.complex.sicd_elements.PFA.PFAType
 
         Returns
         -------
         None
         """
 
-        if PFA is None:
-            return  # nothing to be done
-
         if self.Type is None:
             self.Type = 'RGAZIM'  # the natural result for PFA
 
-        if SCPCOA.ARPPos is None:
-            return
+        if PFA is None:
+            return  # nothing to be done
+        if GeoData is None or GeoData.SCP is None:
+            return  # nothing to be done
 
-        SCP = SCPCOA.ARPPos.get_array()
+        SCP = GeoData.SCP.ECF.get_array()
 
-        if Position is not None and Position.ARPPoly is not None and PFA.PolarAngRefTime is not None:
+        if Position is not None and Position.ARPPoly is not None \
+                and PFA.PolarAngRefTime is not None:
             polar_ref_pos = Position.ARPPoly(PFA.PolarAngRefTime)
         else:
             polar_ref_pos = SCP
@@ -659,27 +641,28 @@ class GridType(Serializable):
             uAZ = numpy.cross(ipn, uRG)  # already unit
             self.Row.UVectECF = XYZType.from_array(uRG)
             self.Col.UVectECF = XYZType.from_array(uAZ)
+
         if self.Col is not None and self.Col.KCtr is None:
             self.Col.KCtr = 0  # almost always 0 for PFA
 
         if self.Row is not None and self.Row.KCtr is None:
-            center_frequency = self._get_center_frequency(RadarCollection, ImageFormation)
+            center_frequency = _get_center_frequency(RadarCollection, ImageFormation)
             if PFA.Krg1 is not None and PFA.Krg2 is not None:
                 self.Row.KCtr = 0.5*(PFA.Krg1 + PFA.Krg2)
             elif center_frequency is not None and PFA.SpatialFreqSFPoly is not None:
                 # APPROXIMATION: may not be quite right, due to rectangular inscription loss in PFA.
                 self.Row.KCtr = 2*center_frequency/speed_of_light + PFA.SpatialFreqSFPoly.Coefs[0]
 
-    def _derive_rma(self, RMA, SCPCOA, RadarCollection, ImageFormation, Position):
+    def _derive_rma(self, RMA, GeoData, RadarCollection, ImageFormation, Position):
         """
 
         Parameters
         ----------
-        RMA : sarpy.sicd_elements.RMAType
-        SCPCOA : sarpy.sicd_elements.SCPCOAType
-        RadarCollection : sarpy.sicd_elements.RadarCollectionType
-        ImageFormation : sarpy.sicd_elements.ImageFormationType
-        Position : sarpy.sicd_elements.PositionType
+        RMA : sarpy.io.complex.sicd_elements.RMA.RMAType
+        GeoData : sarpy.io.complex.sicd_elements.GeoData.GeoDataType
+        RadarCollection : sarpy.io.complex.sicd_elements.RadarCollection.RadarCollectionType
+        ImageFormation : sarpy.io.complex.sicd_elements.ImageFormation.ImageFormationType
+        Position : sarpy.io.complex.sicd_elements.Position.PositionType
 
         Returns
         -------
@@ -692,22 +675,58 @@ class GridType(Serializable):
         im_type = RMA.ImageType
         if im_type is None:
             return
-        if im_type == 'RMAT':
-            self._derive_rma_rmat(RMA, SCPCOA, RadarCollection, ImageFormation)
-        elif im_type == 'RMCR':
-            self._derive_rma_rmcr(RMA, SCPCOA, RadarCollection, ImageFormation)
+        if im_type == 'INCA':
+            self._derive_rma_inca(RMA, GeoData, Position)
         else:
-            self._derive_rma_inca(RMA, SCPCOA, Position)
 
-    def _derive_rma_rmat(self, RMA, SCPCOA, RadarCollection, ImageFormation):
+            if im_type == 'RMAT':
+                self._derive_rma_rmat(RMA, GeoData, RadarCollection, ImageFormation)
+            elif im_type == 'RMCR':
+                self._derive_rma_rmcr(RMA, GeoData, RadarCollection, ImageFormation)
+
+    @staticmethod
+    def _derive_unit_vector_params(GeoData, RMAParam):
+        """
+        Helper method.
+
+        Parameters
+        ----------
+        GeoData : sarpy.io.complex.sicd_elements.GeoData.GeoDataType
+        RMAParam : sarpy.io.complex.sicd_elements.RMA.RMATType|sarpy.io.complex.sicd_elements.RMA.RMCRType
+
+        Returns
+        -------
+        Tuple[numpy.ndarray,...]
+        """
+
+        if GeoData is None or GeoData.SCP is None:
+            return None
+
+        SCP = GeoData.SCP.ECF.get_array()
+        pos_ref = RMAParam.PosRef.get_array()
+        upos_ref = pos_ref / norm(pos_ref)
+        vel_ref = RMAParam.VelRef.get_array()
+        uvel_ref = vel_ref / norm(vel_ref)
+        LOS = (SCP - pos_ref)  # it absolutely could be that SCP = pos_ref
+        LOS_norm = norm(LOS)
+        if LOS_norm < 1:
+            logging.error(
+                msg="Row/Col UVectECF cannot be derived from RMA, because the Reference "
+                    "Position is too close (less than 1 meter) to the SCP.")
+        uLOS = LOS /LOS_norm
+        left = numpy.cross(upos_ref, uvel_ref)
+        look = numpy.sign(numpy.dot(left, uLOS))
+        return SCP, upos_ref, uvel_ref, uLOS, left, look
+
+    def _derive_rma_rmat(self, RMA, GeoData, RadarCollection, ImageFormation):
         """
 
         Parameters
         ----------
-        RMA : sarpy.sicd_elements.RMAType
-        SCPCOA : sarpy.sicd_elements.SCPCOAType
-        RadarCollection : sarpy.sicd_elements.RadarCollectionType
-        ImageFormation : sarpy.sicd_elements.ImageFormationType
+        RMA : sarpy.io.complex.sicd_elements.RMA.RMAType
+        GeoData : sarpy.io.complex.sicd_elements.GeoData.GeoDataType
+        RadarCollection : sarpy.io.complex.sicd_elements.RadarCollection.RadarCollectionType
+        ImageFormation : sarpy.io.complex.sicd_elements.ImageFormation.ImageFormationType
 
         Returns
         -------
@@ -723,41 +742,32 @@ class GridType(Serializable):
             self.Type = 'XCTYAT'
 
         if self.Row.UVectECF is None and self.Col.UVectECF is None:
-            if SCPCOA is not None and SCPCOA.ARPPos is not None:
-                SCP = SCPCOA.ARPPos.get_array()
-                pos_ref = RMA.RMAT.PosRef.get_array()
-                upos_ref = pos_ref / norm(pos_ref)
-                vel_ref = RMA.RMAT.VelRef.get_array()
-                uvel_ref = vel_ref / norm(vel_ref)
-                uLOS = (SCP - pos_ref)  # it absolutely could be that SCP = pos_ref
-                uLos_norm = norm(uLOS)
-                if uLos_norm > 0:
-                    uLOS /= uLos_norm
-                    left = numpy.cross(upos_ref, uvel_ref)
-                    look = numpy.sign(numpy.dot(left, uLOS))
-                    uYAT = -look*uvel_ref
-                    uSPZ = numpy.cross(uLOS, uYAT)
-                    uSPZ /= norm(uSPZ)
-                    uXCT = numpy.cross(uYAT, uSPZ)
-                    self.Row.UVectECF = XYZType.from_array(uXCT)
-                    self.Col.UVectECF = XYZType.from_array(uYAT)
+            params = self._derive_unit_vector_params(GeoData, RMA.RMAT)
+            if params is not None:
+                SCP, upos_ref, uvel_ref, uLOS, left, look = params
+                uYAT = -look*uvel_ref
+                uSPZ = numpy.cross(uLOS, uYAT)
+                uSPZ /= norm(uSPZ)
+                uXCT = numpy.cross(uYAT, uSPZ)
+                self.Row.UVectECF = XYZType.from_array(uXCT)
+                self.Col.UVectECF = XYZType.from_array(uYAT)
 
-        center_frequency = self._get_center_frequency(RadarCollection, ImageFormation)
+        center_frequency = _get_center_frequency(RadarCollection, ImageFormation)
         if center_frequency is not None and RMA.RMAT.DopConeAngRef is not None:
             if self.Row.KCtr is None:
                 self.Row.KCtr = (2*center_frequency/speed_of_light)*numpy.sin(numpy.deg2rad(RMA.RMAT.DopConeAngRef))
             if self.Col.KCtr is None:
                 self.Col.KCtr = (2*center_frequency/speed_of_light)*numpy.cos(numpy.deg2rad(RMA.RMAT.DopConeAngRef))
 
-    def _derive_rma_rmcr(self, RMA, SCPCOA, RadarCollection, ImageFormation):
+    def _derive_rma_rmcr(self, RMA, GeoData, RadarCollection, ImageFormation):
         """
 
         Parameters
         ----------
-        RMA : sarpy.sicd_elements.RMAType
-        SCPCOA : sarpy.sicd_elements.SCPCOAType
-        RadarCollection : sarpy.sicd_elements.RadarCollectionType
-        ImageFormation : sarpy.sicd_elements.ImageFormationType
+        RMA : sarpy.io.complex.sicd_elements.RMA.RMAType
+        GeoData : sarpy.io.complex.sicd_elements.GeoData.GeoDataType
+        RadarCollection : sarpy.io.complex.sicd_elements.RadarCollection.RadarCollectionType
+        ImageFormation : sarpy.io.complex.sicd_elements.ImageFormation.ImageFormationType
 
         Returns
         -------
@@ -773,40 +783,31 @@ class GridType(Serializable):
             self.Type = 'XRGYCR'
 
         if self.Row.UVectECF is None and self.Col.UVectECF is None:
-            if SCPCOA is not None and SCPCOA.ARPPos is not None:
-                SCP = SCPCOA.ARPPos.get_array()
-                pos_ref = RMA.RMAT.PosRef.get_array()
-                upos_ref = pos_ref / norm(pos_ref)
-                vel_ref = RMA.RMAT.VelRef.get_array()
-                uvel_ref = vel_ref / norm(vel_ref)
-                uLOS = (SCP - pos_ref)  # it absolutely could be that SCP = pos_ref
-                uLos_norm = norm(uLOS)
-                if uLos_norm > 0:
-                    uLOS /= uLos_norm
-                    left = numpy.cross(upos_ref, uvel_ref)
-                    look = numpy.sign(numpy.dot(left, uLOS))
-                    uXRG = uLOS
-                    uSPZ = look*numpy.cross(uvel_ref, uXRG)
-                    uSPZ /= norm(uSPZ)
-                    uYCR = numpy.cross(uSPZ, uXRG)
-                    self.Row.UVectECF = XYZType.from_array(uXRG)
-                    self.Col.UVectECF = XYZType.from_array(uYCR)
+            params = self._derive_unit_vector_params(GeoData, RMA.RMAT)
+            if params is not None:
+                SCP, upos_ref, uvel_ref, uLOS, left, look = params
+                uXRG = uLOS
+                uSPZ = look*numpy.cross(uvel_ref, uXRG)
+                uSPZ /= norm(uSPZ)
+                uYCR = numpy.cross(uSPZ, uXRG)
+                self.Row.UVectECF = XYZType.from_array(uXRG)
+                self.Col.UVectECF = XYZType.from_array(uYCR)
 
-        center_frequency = self._get_center_frequency(RadarCollection, ImageFormation)
+        center_frequency = _get_center_frequency(RadarCollection, ImageFormation)
         if center_frequency is not None:
             if self.Row.KCtr is None:
                 self.Row.KCtr = 2*center_frequency/speed_of_light
             if self.Col.KCtr is None:
                 self.Col.KCtr = 2*center_frequency/speed_of_light
 
-    def _derive_rma_inca(self, RMA, SCPCOA, Position):
+    def _derive_rma_inca(self, RMA, GeoData, Position):
         """
 
         Parameters
         ----------
-        RMA : sarpy.sicd_elements.RMAType
-        SCPCOA : sarpy.sicd_elements.SCPCOAType
-        Position : sarpy.sicd_elements.PositionType
+        RMA : sarpy.io.complex.sicd_elements.RMA.RMAType
+        GeoData : sarpy.io.complex.sicd_elements.GeoData.GeoDataType
+        Position : sarpy.io.complex.sicd_elements.Position.PositionType
 
         Returns
         -------
@@ -820,14 +821,16 @@ class GridType(Serializable):
             self.Type = 'RGZERO'
 
         if RMA.INCA.TimeCAPoly is not None and Position is not None and Position.ARPPoly is not None and \
-                self.Row.UVectECF is None and self.Col.UVectECF is None and SCPCOA is not None and \
-                SCPCOA.ARPPos is not None:
+                self.Row.UVectECF is None and self.Col.UVectECF is None and \
+                GeoData is not None and GeoData.SCP is not None:
+            SCP = GeoData.SCP.ECF.get_array()
+
             t_zero = RMA.INCA.TimeCAPoly.Coefs[0]
             ca_pos = Position.ARPPoly(t_zero)
-            ca_vel = Position.ARPPoly.derivative_eval(t_zero)
+            ca_vel = Position.ARPPoly.derivative_eval(t_zero, der_order=1)
+
             uca_pos = ca_pos/norm(ca_pos)
             uca_vel = ca_vel/norm(ca_vel)
-            SCP = SCPCOA.ARPPos.get_array()
             uRg = (SCP - ca_pos)
             uRg_norm = norm(uRg)
             if uRg_norm > 0:

@@ -8,16 +8,16 @@ from collections import OrderedDict
 
 import numpy
 import scipy
-if scipy.__version__ >= '1.0':
-    from scipy.special import comb
-else:
-    # noinspection PyUnresolvedReferences
-    from scipy.misc import comb
 
 from .base import _get_node_value, _create_text_node, _create_new_node, Serializable, Arrayable, DEFAULT_STRICT, \
     _StringEnumDescriptor, _IntegerDescriptor, _FloatDescriptor, _FloatModularDescriptor, \
     _SerializableDescriptor
 
+if scipy.__version__ >= '1.0':
+    from scipy.special import comb
+else:
+    # noinspection PyUnresolvedReferences
+    from scipy.misc import comb
 
 integer_types = (int, )
 int_func = int
@@ -40,7 +40,7 @@ class XYZType(Serializable, Arrayable):
     """A spatial point in ECF coordinates."""
     _fields = ('X', 'Y', 'Z')
     _required = _fields
-    _numeric_format = {'X': '0.4f', 'Y': '0.4f', 'Z': '0.4f'}
+    _numeric_format = {'X': '0.16G', 'Y': '0.16G', 'Z': '0.16G'}
     # descriptors
     X = _FloatDescriptor(
         'X', _required, strict=True,
@@ -108,7 +108,7 @@ class LatLonType(Serializable, Arrayable):
     """A two-dimensional geographic point in WGS-84 coordinates."""
     _fields = ('Lat', 'Lon')
     _required = _fields
-    _numeric_format = {'Lat': '0.8f', 'Lon': '0.8f'}
+    _numeric_format = {'Lat': '0.16G', 'Lon': '0.16G'}
     # descriptors
     Lat = _FloatDescriptor(
         'Lat', _required, strict=True,
@@ -206,7 +206,6 @@ class LatLonArrayElementType(LatLonType):
     _fields = ('Lat', 'Lon', 'index')
     _required = _fields
     _set_as_attribute = ('index', )
-    _numeric_format = {'Lat': '0.8f', 'Lon': '0.8f'}
     index = _IntegerDescriptor(
         'index', _required, strict=False, docstring="The array index")  # type: int
 
@@ -250,7 +249,6 @@ class LatLonRestrictionType(LatLonType):
     """A two-dimensional geographic point in WGS-84 coordinates."""
     _fields = ('Lat', 'Lon')
     _required = _fields
-    _numeric_format = {'Lat': '0.8f', 'Lon': '0.8f'}
     # descriptors
     Lat = _FloatModularDescriptor(
         'Lat', 90.0, _required, strict=True,
@@ -296,7 +294,7 @@ class LatLonHAEType(LatLonType):
     """A three-dimensional geographic point in WGS-84 coordinates."""
     _fields = ('Lat', 'Lon', 'HAE')
     _required = _fields
-    _numeric_format = {'Lat': '0.8f', 'Lon': '0.8f', 'HAE': '0.6f'}
+    _numeric_format = {'Lat': '0.16G', 'Lon': '0.16G', 'HAE': '0.16G'}
     # descriptors
     HAE = _FloatDescriptor(
         'HAE', _required, strict=True,
@@ -712,7 +710,7 @@ class Poly1DType(Serializable, Arrayable):
     __slots__ = ('_coefs', )
     _fields = ('Coefs', 'order1')
     _required = ('Coefs', )
-    _numeric_format = {'Coefs': '0.10G'}
+    _numeric_format = {'Coefs': '0.16G'}
 
     def __init__(self, Coefs=None, **kwargs):
         """
@@ -760,7 +758,7 @@ class Poly1DType(Serializable, Arrayable):
             raise ValueError(
                 'Coefs for class Poly1D must be one-dimensional. Received numpy.ndarray '
                 'of shape {}.'.format(value.shape))
-        elif not value.dtype == numpy.float64:
+        elif not value.dtype.name == 'float64':
             value = numpy.cast[numpy.float64](value)
         self._coefs = value
 
@@ -930,30 +928,7 @@ class Poly1DType(Serializable, Arrayable):
             coefs[ind] = val
         return cls(Coefs=coefs)
 
-    def to_node(self, doc, tag, parent=None, strict=DEFAULT_STRICT, exclude=()):
-        """For XML serialization, to a dom element.
-
-        Parameters
-        ----------
-        doc : ElementTree.ElementTree
-            The xml Document
-        tag : None|str
-            The tag name. Defaults to the value of `self._tag` and then the class name if unspecified.
-        parent : None|ElementTree.Element
-            The parent element. Defaults to the document root element if unspecified.
-        strict : bool
-            If `True`, then raise an Exception (of appropriate type) if the structure is not valid.
-            Otherwise, log a hopefully helpful message.
-        exclude : tuple
-            Attribute names to exclude from this generic serialization. This allows for child classes
-            to provide specific serialization for special properties, after using this super method.
-
-        Returns
-        -------
-        ElementTree.Element
-            The constructed dom element, already assigned to the parent element.
-        """
-
+    def to_node(self, doc, tag, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
         if parent is None:
             parent = doc.getroot()
 
@@ -966,24 +941,7 @@ class Poly1DType(Serializable, Arrayable):
             cnode.attrib['exponent1'] = str(i)
         return node
 
-    def to_dict(self, strict=DEFAULT_STRICT, exclude=()):
-        """For json serialization.
-
-        Parameters
-        ----------
-        strict : bool
-            If `True`, then raise an Exception (of appropriate type) if the structure is not valid.
-            Otherwise, log a hopefully helpful message.
-        exclude : tuple
-            Attribute names to exclude from this generic serialization. This allows for child classes
-            to provide specific serialization for special properties, after using this super method.
-
-        Returns
-        -------
-        OrderedDict
-            dict representation of class instance appropriate for direct json serialization.
-        """
-
+    def to_dict(self, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
         out = OrderedDict()
         out['Coefs'] = self.Coefs.tolist()
         return out
@@ -994,7 +952,7 @@ class Poly2DType(Serializable, Arrayable):
     __slots__ = ('_coefs', )
     _fields = ('Coefs', 'order1', 'order2')
     _required = ('Coefs', )
-    _numeric_format = {'Coefs': '0.10G'}
+    _numeric_format = {'Coefs': '0.16G'}
 
     def __init__(self, Coefs=None, **kwargs):
         """
@@ -1069,7 +1027,7 @@ class Poly2DType(Serializable, Arrayable):
             raise ValueError(
                 'Coefs for class Poly2D must be two-dimensional. Received numpy.ndarray '
                 'of shape {}.'.format(value.shape))
-        elif not value.dtype == numpy.float64:
+        elif not value.dtype.name == 'float64':
             value = numpy.cast[numpy.float64](value)
         self._coefs = value
 
@@ -1138,30 +1096,7 @@ class Poly2DType(Serializable, Arrayable):
             coefs[ind1, ind2] = val
         return cls(Coefs=coefs)
 
-    def to_node(self, doc, tag, parent=None, strict=DEFAULT_STRICT, exclude=()):
-        """For XML serialization, to a dom element.
-
-        Parameters
-        ----------
-        doc : ElementTree.ElementTree
-            The xml Document
-        tag : None|str
-            The tag name. Defaults to the value of `self._tag` and then the class name if unspecified.
-        parent : None|ElementTree.Element
-            The parent element. Defaults to the document root element if unspecified.
-        strict : bool
-            If `True`, then raise an Exception (of appropriate type) if the structure is not valid.
-            Otherwise, log a hopefully helpful message.
-        exclude : tuple
-            Attribute names to exclude from this generic serialization. This allows for child classes
-            to provide specific serialization for special properties, after using this super method.
-
-        Returns
-        -------
-        ElementTree.Element
-            The constructed dom element, already assigned to the parent element.
-        """
-
+    def to_node(self, doc, tag, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
         if parent is None:
             parent = doc.getroot()
         node = _create_new_node(doc, tag, parent=parent)
@@ -1176,24 +1111,7 @@ class Poly2DType(Serializable, Arrayable):
                 cnode.attrib['exponent2'] = str(j)
         return node
 
-    def to_dict(self, strict=DEFAULT_STRICT, exclude=()):
-        """For json serialization.
-
-        Parameters
-        ----------
-        strict : bool
-            If `True`, then raise an Exception (of appropriate type) if the structure is not valid.
-            Otherwise, log a hopefully helpful message.
-        exclude : tuple
-            Attribute names to exclude from this generic serialization. This allows for child classes
-            to provide specific serialization for special properties, after using this super method.
-
-        Returns
-        -------
-        OrderedDict
-            dict representation of class instance appropriate for direct json serialization.
-        """
-
+    def to_dict(self,  check_validity=False, strict=DEFAULT_STRICT, exclude=()):
         out = OrderedDict()
         out['Coefs'] = self.Coefs.tolist()
         return out
@@ -1494,7 +1412,7 @@ class ErrorDecorrFuncType(Serializable):
 
     _fields = ('CorrCoefZero', 'DecorrRate')
     _required = _fields
-    _numeric_format = {'CorrCoefZero': '0.10G', 'DecorrRate': '0.10G'}
+    _numeric_format = {'CorrCoefZero': '0.16G', 'DecorrRate': '0.16G'}
     # descriptors
     CorrCoefZero = _FloatDescriptor(
         'CorrCoefZero', _required, strict=True,

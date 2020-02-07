@@ -51,6 +51,7 @@ class PFAType(Serializable):
         'FPN', 'IPN', 'PolarAngRefTime', 'PolarAngPoly', 'SpatialFreqSFPoly', 'Krg1', 'Krg2', 'Kaz1', 'Kaz2',
         'StDeskew')
     _required = ('FPN', 'IPN', 'PolarAngRefTime', 'PolarAngPoly', 'SpatialFreqSFPoly', 'Krg1', 'Krg2', 'Kaz1', 'Kaz2')
+    _numeric_format = {'PolarAngRefTime': '0.16G', 'Krg1': '0.16G', 'Krg2': '0.16G', 'Kaz1': '0.16G', 'Kaz2': '0.16G'}
     # descriptors
     FPN = _SerializableDescriptor(
         'FPN', XYZType, _required, strict=DEFAULT_STRICT,
@@ -131,9 +132,9 @@ class PFAType(Serializable):
 
         Parameters
         ----------
-        Grid : sarpy.sicd_elements.GridType
-        SCPCOA : sarpy.sicd_elements.SCPCOAType
-        GeoData : sarpy.sicd_elements.GeoDataType
+        Grid : sarpy.io.complex.sicd_elements.GridType
+        SCPCOA : sarpy.io.complex.sicd_elements.SCPCOA.SCPCOAType
+        GeoData : sarpy.io.complex.sicd_elements.GeoData.GeoDataType
 
         Returns
         -------

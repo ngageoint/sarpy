@@ -66,6 +66,7 @@ class AntParamType(Serializable):
     _fields = (
         'XAxisPoly', 'YAxisPoly', 'FreqZero', 'EB', 'Array', 'Elem', 'GainBSPoly', 'EBFreqShift', 'MLFreqDilation')
     _required = ('XAxisPoly', 'YAxisPoly', 'FreqZero', 'Array')
+    _numeric_format = {'FreqZero': '0.16G'}
     # descriptors
     XAxisPoly = _SerializableDescriptor(
         'XAxisPoly', XYZPolyType, _required, strict=DEFAULT_STRICT,
@@ -96,7 +97,7 @@ class AntParamType(Serializable):
     EBFreqShift = _BooleanDescriptor(
         'EBFreqShift', _required, strict=DEFAULT_STRICT,
         docstring="""
-        Parameter indicating whether the elctronic boresite shifts with frequency for an electronically steered array.
+        Parameter indicating whether the electronic boresite shifts with frequency for an electronically steered array.
         
         * `False` - No shift with frequency.
         

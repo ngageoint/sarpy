@@ -11,7 +11,7 @@ from numpy.linalg import norm
 from .base import Serializable, DEFAULT_STRICT, \
     _StringEnumDescriptor, _FloatDescriptor, _BooleanDescriptor, _SerializableDescriptor
 from .blocks import XYZType, Poly1DType, Poly2DType
-
+from .utils import _get_center_frequency
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
@@ -21,6 +21,7 @@ class RMRefType(Serializable):
     """Range migration reference element of RMA type."""
     _fields = ('PosRef', 'VelRef', 'DopConeAngRef')
     _required = _fields
+    _numeric_format = {'DopConeAngRef': '0.16G', }
     # descriptors
     PosRef = _SerializableDescriptor(
         'PosRef', XYZType, _required, strict=DEFAULT_STRICT,
@@ -54,6 +55,7 @@ class INCAType(Serializable):
     """Parameters for Imaging Near Closest Approach (INCA) image description."""
     _fields = ('TimeCAPoly', 'R_CA_SCP', 'FreqZero', 'DRateSFPoly', 'DopCentroidPoly', 'DopCentroidCOA')
     _required = ('TimeCAPoly', 'R_CA_SCP', 'FreqZero', 'DRateSFPoly')
+    _numeric_format = {'R_CA_SCP': '0.16G', 'FreqZero': '0.16G'}
     # descriptors
     TimeCAPoly = _SerializableDescriptor(
         'TimeCAPoly', Poly1DType, _required, strict=DEFAULT_STRICT,
@@ -180,23 +182,15 @@ class RMAType(Serializable):
         Expected to be called from SICD parent.
         Parameters
         ----------
-        SCPCOA : sarpy.sicd_elements.SCPCOAType
-        Position : sarpy.sicd_elements.PositionType
-        RadarCollection : sarpy.sicd_elements.RadarCollectionType
-        ImageFormation : sarpy.sicd_elements.ImageFormationType
+        SCPCOA : sarpy.io.complex.sicd_elements.SCPCOA.SCPCOAType
+        Position : sarpy.io.complex.sicd_elements.Position.PositionType
+        RadarCollection : sarpy.io.complex.sicd_elements.RadarCollection.RadarCollectionType
+        ImageFormation : sarpy.io.complex.sicd_elements.ImageFormation.ImageFormationType
 
         Returns
         -------
         None
         """
-
-        def _get_center_frequency():
-            if RadarCollection is None or RadarCollection.RefFreqIndex is None or RadarCollection.RefFreqIndex == 0:
-                return None
-            if ImageFormation is None or ImageFormation.TxFrequencyProc is None or \
-                    ImageFormation.TxFrequencyProc.MinProc is None or ImageFormation.TxFrequencyProc.MaxProc is None:
-                return None
-            return 0.5 * (ImageFormation.TxFrequencyProc.MinProc + ImageFormation.TxFrequencyProc.MaxProc)
 
         if SCPCOA is None:
             return
@@ -207,9 +201,9 @@ class RMAType(Serializable):
         if im_type in ['RMAT', 'RMCR']:
             RmRef = getattr(self, im_type)  # type: RMRefType
             if RmRef.PosRef is None and SCPCOA.ARPPos is not None:
-                RmRef.PosRef = XYZType(**SCPCOA.ARPPos.to_dict())
+                RmRef.PosRef = SCPCOA.ARPPos.copy()
             if RmRef.VelRef is None and SCPCOA.ARPVel is not None:
-                RmRef.VelRef = XYZType(**SCPCOA.ARPVel.to_dict())
+                RmRef.VelRef = SCPCOA.ARPVel.copy()
             if SCP is not None and RmRef.PosRef is not None and RmRef.VelRef is not None:
                 pos_ref = RmRef.PosRef.get_array()
                 vel_ref = RmRef.VelRef.get_array()
@@ -228,9 +222,7 @@ class RMAType(Serializable):
                 if self.INCA.R_CA_SCP is None:
                     self.INCA.R_CA_SCP = norm(ca_pos - SCP)
             if self.INCA.FreqZero is None:
-                center_frequency = _get_center_frequency()
-                if center_frequency is not None:
-                    self.INCA.FreqZero = center_frequency
+                self.INCA.FreqZero = _get_center_frequency(RadarCollection, ImageFormation)
 
     def _apply_reference_frequency(self, reference_frequency):
         """

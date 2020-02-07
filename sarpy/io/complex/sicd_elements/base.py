@@ -4,6 +4,7 @@ This module contains the base objects for use in the SICD elements, and the base
 """
 
 import sys
+import copy
 
 from xml.etree import ElementTree
 from collections import OrderedDict
@@ -17,11 +18,14 @@ from numpy.linalg import norm
 
 integer_types = (int, )
 int_func = int
+string_types = str
 if sys.version_info[0] < 3:
     # noinspection PyUnresolvedReferences
     int_func = long  # to account for 32-bit python 2
     # noinspection PyUnresolvedReferences
     integer_types = (int, long)
+    # noinspection PyUnresolvedReferences
+    string_types = (str, unicode)
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
@@ -120,7 +124,7 @@ def _create_text_node(doc, tag, value, parent=None):
 
 def _parse_str(value, name, instance):
     # it is assumed that None is handled before this
-    if isinstance(value, str):
+    if isinstance(value, string_types):
         return value
     elif isinstance(value, ElementTree.Element):
         return _get_node_value(value)
@@ -148,7 +152,7 @@ def _parse_bool(value, name, instance):
     elif isinstance(value, ElementTree.Element):
         # from XML deserialization
         return parse_string(_get_node_value(value))
-    elif isinstance(value, str):
+    elif isinstance(value, string_types):
         return parse_string(value)
     else:
         raise ValueError('Boolean field {} of class {} cannot assign from type {}.'.format(
@@ -230,7 +234,7 @@ def _parse_datetime(value, name, instance, units='us'):
     # it is assumed that None is handled before this
     if isinstance(value, numpy.datetime64):
         return value
-    elif isinstance(value, str):
+    elif isinstance(value, string_types):
         # handle Z timezone identifier explicitly - any timezone identifier is deprecated
         if value[-1] == 'Z':
             return numpy.datetime64(value[:-1], units)
@@ -277,7 +281,7 @@ def _parse_serializable_array(value, name, instance, child_type, child_tag):
         # this is the child element
         return numpy.array([value, ], dtype=numpy.object)
     elif isinstance(value, numpy.ndarray):
-        if value.dtype != numpy.object:
+        if value.dtype.name != 'object':
             if issubclass(child_type, Arrayable):
                 return numpy.array([child_type.from_array(array) for array in value], dtype=numpy.object)
             else:
@@ -312,7 +316,7 @@ def _parse_serializable_array(value, name, instance, child_type, child_tag):
         for i, entry in enumerate(child_nodes):
             new_value[i] = child_type.from_node(entry)
         return new_value
-    elif isinstance(value, list):
+    elif isinstance(value, (list, tuple)):
         # this would arrive from users or json deserialization
         if len(value) == 0:
             return numpy.empty((0,), dtype=numpy.object)
@@ -505,14 +509,16 @@ class _BasicDescriptor(object):
         if value is None:
             if self.default_value is not None:
                 self.data[instance] = self.default_value
-            elif self.strict:
-                raise ValueError(
-                    'Attribute {} of class {} cannot be assigned None.'.format(self.name, instance.__class__.__name__))
+                return True
             elif self.required:
-                logging.debug(  # NB: this is at debuglevel to not be too verbose
-                    'Required attribute {} of class {} has been set to None.'.format(
-                        self.name, instance.__class__.__name__))
-                self.data[instance] = None
+                if self.strict:
+                    raise ValueError(
+                        'Attribute {} of class {} cannot be assigned None.'.format(self.name, instance.__class__.__name__))
+                else:
+                    logging.debug(  # NB: this is at debuglevel to not be too verbose
+                        'Required attribute {} of class {} has been set to None.'.format(
+                            self.name, instance.__class__.__name__))
+            self.data[instance] = None
             return True
         # note that the remainder must be implemented in each extension
         return False  # this is probably a bad habit, but this returns something for convenience alone
@@ -572,12 +578,12 @@ class _StringListDescriptor(_BasicDescriptor):
         if super(_StringListDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
             return
 
-        if isinstance(value, str):
+        if isinstance(value, string_types):
             set_value([value, ])
         elif isinstance(value, ElementTree.Element):
             set_value([_get_node_value(value), ])
         elif isinstance(value, list):
-            if len(value) == 0 or isinstance(value[0], str):
+            if len(value) == 0 or isinstance(value[0], string_types):
                 set_value(value)
             elif isinstance(value[0], ElementTree.Element):
                 set_value([_get_node_value(nod) for nod in value])
@@ -856,7 +862,7 @@ class _FloatArrayDescriptor(_BasicDescriptor):
             return
 
         if isinstance(value, numpy.ndarray):
-            if not (len(value) == 1) and (numpy.dtype == numpy.float64):
+            if not (len(value) == 1) and (numpy.dtype.name == 'float64'):
                 raise ValueError('Only one-dimensional ndarrays of dtype float64 are supported here.')
             set_value(value)
         elif isinstance(value, ElementTree.Element):
@@ -1167,7 +1173,7 @@ class Serializable(object):
                     pass
 
     def __repr__(self):
-        return '{}(**{})'.format(self.__class__.__name__, self.to_dict(strict=False))
+        return '{}(**{})'.format(self.__class__.__name__, self.to_dict(check_validity=False))
 
     def __setattr__(self, key, value):
         if not (key.startswith('_') or (key in self._fields) or hasattr(self.__class__, key) or hasattr(self, key)):
@@ -1211,7 +1217,7 @@ class Serializable(object):
         """
 
         entry = self._numeric_format.get(attribute, None)
-        if isinstance(entry, str):
+        if isinstance(entry, string_types):
             fmt_str = '{0:' + entry + '}'
             return fmt_str.format
         elif callable(entry):
@@ -1376,7 +1382,7 @@ class Serializable(object):
                 handle_single(attribute)
         return cls.from_dict(kwargs)
 
-    def to_node(self, doc, tag, parent=None, strict=DEFAULT_STRICT, exclude=()):
+    def to_node(self, doc, tag, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
         """For XML serialization, to a dom element.
 
         Parameters
@@ -1387,9 +1393,12 @@ class Serializable(object):
             The tag name. Defaults to the value of `self._tag` and then the class name if unspecified.
         parent : None|ElementTree.Element
             The parent element. Defaults to the document root element if unspecified.
+        check_validity : bool
+            Check whether the element is valid before serializing, by calling :func:`is_valid`.
         strict : bool
-            If `True`, then raise an Exception (of appropriate type) if the structure is not valid.
-            Otherwise, log a hopefully helpful message.
+            Only used if `check_validity = True`. In that case, if `True` then raise an
+            Exception (of appropriate type) if the structure is not valid, if `False` then log a
+            hopefully helpful message.
         exclude : tuple
             Attribute names to exclude from this generic serialization. This allows for child classes
             to provide specific serialization for special properties, after using this super method.
@@ -1418,7 +1427,7 @@ class Serializable(object):
             if val.size == 0:
                 return  # serializing an empty array is dumb
 
-            if val.dtype == numpy.float64:
+            if val.dtype.name == 'float64':
                 anode = _create_new_node(doc, the_tag, parent=node)
                 anode.attrib['size'] = str(val.size)
                 for i, val in enumerate(val):
@@ -1449,38 +1458,41 @@ class Serializable(object):
         def serialize_plain(node, field, val, format_function):
             # may be called not at top level - if object array or list is present
             if isinstance(val, (Serializable, SerializableArray)):
-                val.to_node(doc, field, parent=node, strict=strict)
+                val.to_node(doc, field, parent=node, check_validity=check_validity, strict=strict)
             elif isinstance(val, ParametersCollection):
-                val.to_node(doc, parent=node)
-            elif isinstance(val, str):
+                val.to_node(doc, parent=node, check_validity=check_validity, strict=strict)
+            elif isinstance(val, bool):  # this must come before int, where it would evaluate as true
+                _create_text_node(doc, field, 'true' if val else 'false', parent=node)
+            elif isinstance(val, string_types):
                 _create_text_node(doc, field, val, parent=node)
             elif isinstance(val, integer_types):
                 _create_text_node(doc, field, format_function(val), parent=node)
             elif isinstance(val, float):
                 _create_text_node(doc, field, format_function(val), parent=node)
-            elif isinstance(val, bool):
-                _create_text_node(doc, field, 'true' if val else 'false', parent=node)
-            elif isinstance(val, date):
-                _create_text_node(doc, field, val.isoformat(), parent=node)
-            elif isinstance(val, datetime):
-                _create_text_node(doc, field, val.isoformat(sep='T'), parent=node)
             elif isinstance(val, numpy.datetime64):
-                _create_text_node(doc, field, str(val), parent=node)
+                out2 = str(val)
+                out2 = out2 + 'Z' if out2[-1] != 'Z' else out2
+                _create_text_node(doc, field, out2, parent=node)
             elif isinstance(val, complex):
                 cnode = _create_new_node(doc, field, parent=node)
                 _create_text_node(doc, 'Real', format_function(val.real), parent=cnode)
                 _create_text_node(doc, 'Imag', format_function(val.imag), parent=cnode)
+            elif isinstance(val, date):  # should never exist
+                _create_text_node(doc, field, val.isoformat(), parent=node)
+            elif isinstance(val, datetime):  # should never exist
+                _create_text_node(doc, field, val.isoformat(sep='T'), parent=node)
             else:
                 raise ValueError(
                     'An entry for class {} using tag {} is of type {}, and serialization has not '
                     'been implemented'.format(self.__class__.__name__, field, type(val)))
 
-        if not self.is_valid():
-            msg = "{} is not valid, and cannot be SAFELY serialized to XML according to " \
-                  "the SICD standard.".format(self.__class__.__name__)
-            if strict:
-                raise ValueError(msg)
-            logging.warning(msg)
+        if check_validity:
+            if not self.is_valid():
+                msg = "{} is not valid, and cannot be SAFELY serialized to XML according to " \
+                      "the SICD standard.".format(self.__class__.__name__)
+                if strict:
+                    raise ValueError(msg)
+                logging.warning(msg)
 
         nod = _create_new_node(doc, tag, parent=parent)
 
@@ -1533,14 +1545,17 @@ class Serializable(object):
 
         return cls(**input_dict)
 
-    def to_dict(self, strict=DEFAULT_STRICT, exclude=()):
+    def to_dict(self, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
         """For json serialization.
 
         Parameters
         ----------
+        check_validity : bool
+            Check whether the element is valid before serializing, by calling :func:`is_valid`.
         strict : bool
-            If `True`, then raise an Exception (of appropriate type) if the structure is not valid.
-            Otherwise, log a hopefully helpful message.
+            Only used if `check_validity = True`. In that case, if `True` then raise an
+            Exception (of appropriate type) if the structure is not valid, if `False` then log a
+            hopefully helpful message.
         exclude : tuple
             Attribute names to exclude from this generic serialization. This allows for child classes
             to provide specific serialization for special properties, after using this super method.
@@ -1551,6 +1566,7 @@ class Serializable(object):
             dict representation of class instance appropriate for direct json serialization.
         """
 
+        # noinspection PyUnusedLocal
         def serialize_array(ch_tag, val):
             if not len(val.shape) == 1:
                 # again, I have no idea how we'd find ourselves here, unless inconsistencies have been introduced
@@ -1563,7 +1579,7 @@ class Serializable(object):
             if val.size == 0:
                 return []
 
-            if val.dtype == numpy.float64:
+            if val.dtype.name == 'float64':
                 return [float(el) for el in val]
             else:
                 # I have no idea how we'd find ourselves here, unless inconsistencies have been introduced
@@ -1582,18 +1598,16 @@ class Serializable(object):
         def serialize_plain(field, val):
             # may be called not at top level - if object array or list is present
             if isinstance(val, Serializable):
-                return val.to_dict(strict=strict)
+                return val.to_dict(check_validity=check_validity, strict=strict)
             elif isinstance(val, SerializableArray):
-                return val.to_json_list(strict=strict)
+                return val.to_json_list(check_validity=check_validity, strict=strict)
             elif isinstance(val, ParametersCollection):
                 return val.to_dict()
-            elif isinstance(val, integer_types):
-                return val
-            elif isinstance(val, (str, float, bool)):
+            elif isinstance(val, integer_types) or isinstance(val, string_types) or isinstance(val, float):
                 return val
             elif isinstance(val, numpy.datetime64):
-                out = str(val)
-                return out + 'Z' if out[-1] != 'Z' else out
+                out2 = str(val)
+                return out2 + 'Z' if out2[-1] != 'Z' else out2
             elif isinstance(val, complex):
                 return {'Real': val.real, 'Imag': val.imag}
             elif isinstance(val, date):  # probably never present
@@ -1605,12 +1619,13 @@ class Serializable(object):
                     'a entry for class {} using tag {} is of type {}, and serialization has not '
                     'been implemented'.format(self.__class__.__name__, field, type(val)))
 
-        if not self.is_valid():
-            msg = "{} is not valid, and cannot be SAFELY serialized to a dictionary valid in " \
-                  "the SICD standard.".format(self.__class__.__name__)
-            if strict:
-                raise ValueError(msg)
-            logging.warning(msg)
+        if check_validity:
+            if not self.is_valid():
+                msg = "{} is not valid, and cannot be SAFELY serialized to a dictionary valid in " \
+                      "the SICD standard.".format(self.__class__.__name__)
+                if strict:
+                    raise ValueError(msg)
+                logging.warning(msg)
 
         out = OrderedDict()
 
@@ -1652,9 +1667,9 @@ class Serializable(object):
 
         """
 
-        return self.__class__.from_dict(self.to_dict(strict=False))
+        return self.__class__.from_dict(copy.deepcopy(self.to_dict(check_validity=False)))
 
-    def to_xml_bytes(self, urn=None, tag=None, strict=DEFAULT_STRICT):
+    def to_xml_bytes(self, urn=None, tag=None, check_validity=False, strict=DEFAULT_STRICT):
         """
         Gets a bytes array, which corresponds to the xml string in utf-8 encoding,
         identified as using the namespace given by `urn` (if given).
@@ -1665,9 +1680,12 @@ class Serializable(object):
             The xml namespace.
         tag : Union[None, str]
             The root node tag to use. If not given, then the class name will be used.
+        check_validity : bool
+            Check whether the element is valid before serializing, by calling :func:`is_valid`.
         strict : bool
-            If `True`, then raise an Exception (of appropriate type) if the structure is not valid.
-            Otherwise, log a hopefully helpful message.
+            Only used if `check_validity = True`. In that case, if `True` then raise an
+            Exception (of appropriate type) if the structure is not valid, if `False` then log a
+            hopefully helpful message.
 
         Returns
         -------
@@ -1677,12 +1695,12 @@ class Serializable(object):
         if tag is None:
             tag = self.__class__.__name__
         etree = ElementTree.ElementTree()
-        node = self.to_node(etree, tag, strict=strict)
+        node = self.to_node(etree, tag, check_validity=check_validity, strict=strict)
         if urn is not None:
             node.attrib['xmlns'] = urn
         return ElementTree.tostring(node, encoding='utf-8', method='xml')
 
-    def to_xml_string(self, urn=None, tag=None, strict=DEFAULT_STRICT):
+    def to_xml_string(self, urn=None, tag=None, check_validity=False, strict=DEFAULT_STRICT):
         """
         Gets an xml string with utf-8 encoding, identified as using the namespace
         given by `urn` (if given).
@@ -1693,9 +1711,12 @@ class Serializable(object):
             The xml namespace.
         tag : Union[None, str]
             The root node tag to use. If not given, then the class name will be used.
+        check_validity : bool
+            Check whether the element is valid before serializing, by calling :func:`is_valid`.
         strict : bool
-            If `True`, then raise an Exception (of appropriate type) if the structure is not valid.
-            Otherwise, log a hopefully helpful message.
+            Only used if `check_validity = True`. In that case, if `True` then raise an
+            Exception (of appropriate type) if the structure is not valid, if `False` then log a
+            hopefully helpful message.
 
         Returns
         -------
@@ -1703,7 +1724,7 @@ class Serializable(object):
             xml string from :func:`ElementTree.tostring()` call.
         """
 
-        return self.to_xml_bytes(urn=urn, tag=tag, strict=strict).decode('utf-8')
+        return self.to_xml_bytes(urn=urn, tag=tag, check_validity=check_validity, strict=strict).decode('utf-8')
 
 
 ##########
@@ -1758,14 +1779,14 @@ class SerializableArray(object):
         self._array = None
         if name is None:
             raise ValueError('The name parameter is required.')
-        if not isinstance(name, str):
+        if not isinstance(name, string_types):
             raise TypeError(
                 'The name parameter is required to be an instance of str, got {}'.format(type(name)))
         self._name = name
 
         if child_tag is None:
             raise ValueError('The child_tag parameter is required.')
-        if not isinstance(child_tag, str):
+        if not isinstance(child_tag, string_types):
             raise TypeError(
                 'The child_tag parameter is required to be an instance of str, got {}'.format(type(child_tag)))
         self._child_tag = child_tag
@@ -1901,25 +1922,27 @@ class SerializableArray(object):
             except (AttributeError, ValueError, TypeError):
                 continue
 
-    def to_node(self, doc, tag, parent=None, strict=DEFAULT_STRICT):
+    def to_node(self, doc, tag, parent=None, check_validity=False, strict=DEFAULT_STRICT):
         if self.size == 0:
             return None  # nothing to be done
 
         anode = _create_new_node(doc, tag, parent=parent)
         anode.attrib['size'] = str(self.size)
         for i, entry in enumerate(self._array):
-            entry.to_node(doc, self._child_tag, parent=anode, strict=strict)
+            entry.to_node(doc, self._child_tag, parent=anode, check_validity=check_validity, strict=strict)
         return anode
 
     @classmethod
     def from_node(cls, node, name, child_tag, child_type, **kwargs):
         return cls(coords=node, name=name, child_tag=child_tag, child_type=child_type, **kwargs)
 
-    def to_json_list(self, strict=DEFAULT_STRICT):
+    def to_json_list(self, check_validity=False, strict=DEFAULT_STRICT):
         """
         For json serialization.
         Parameters
         ----------
+        check_validity : bool
+            passed through to child_type.to_dict() method.
         strict : bool
             passed through to child_type.to_dict() method.
 
@@ -1930,7 +1953,7 @@ class SerializableArray(object):
 
         if self.size == 0:
             return []
-        return [entry.to_dict(strict=strict) for entry in self._array]
+        return [entry.to_dict(check_validity=check_validity, strict=strict) for entry in self._array]
 
 
 class SerializableCPArray(SerializableArray):
@@ -1983,13 +2006,13 @@ class SerializableCPArray(SerializableArray):
             self._array[2].index = '3:LRLC'
             self._array[3].index = '4:LRFC'
 
-    def to_node(self, doc, tag, parent=None, strict=DEFAULT_STRICT):
+    def to_node(self, doc, tag, parent=None, check_validity=False, strict=DEFAULT_STRICT):
         if self.size == 0:
             return None  # nothing to be done
 
         anode = _create_new_node(doc, tag, parent=parent)
         for i, entry in enumerate(self._array):
-            entry.to_node(doc, self._child_tag, parent=anode, strict=strict)
+            entry.to_node(doc, self._child_tag, parent=anode, check_validity=check_validity, strict=strict)
         return anode
 
 
@@ -2000,14 +2023,14 @@ class ParametersCollection(object):
         self._dict = None
         if name is None:
             raise ValueError('The name parameter is required.')
-        if not isinstance(name, str):
+        if not isinstance(name, string_types):
             raise TypeError(
                 'The name parameter is required to be an instance of str, got {}'.format(type(name)))
         self._name = name
 
         if child_tag is None:
             raise ValueError('The child_tag parameter is required.')
-        if not isinstance(child_tag, str):
+        if not isinstance(child_tag, string_types):
             raise TypeError(
                 'The child_tag parameter is required to be an instance of str, got {}'.format(type(child_tag)))
         self._child_tag = child_tag
@@ -2020,9 +2043,9 @@ class ParametersCollection(object):
         return default
 
     def __setitem__(self, name, value):
-        if not isinstance(name, str):
+        if not isinstance(name, string_types):
             raise ValueError('Parameter name must be of type str, got {}'.format(type(name)))
-        if not isinstance(value, str):
+        if not isinstance(value, string_types):
             raise ValueError('Parameter name must be of type str, got {}'.format(type(value)))
 
         if self._dict is None:
@@ -2038,7 +2061,8 @@ class ParametersCollection(object):
     def get_collection(self):
         return self._dict
 
-    def to_node(self, doc, parent=None):
+    # noinspection PyUnusedLocal
+    def to_node(self, doc, parent=None, check_validity=False, strict=False):
         if self._dict is None:
             return None  # nothing to be done
         for name in self._dict:
@@ -2046,5 +2070,6 @@ class ParametersCollection(object):
             node = _create_text_node(doc, self._child_tag, value, parent=parent)
             node.attrib['name'] = name
 
-    def to_dict(self):
+    # noinspection PyUnusedLocal
+    def to_dict(self, check_validity=False, strict=False):
         return self._dict

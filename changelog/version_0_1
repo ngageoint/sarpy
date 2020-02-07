@@ -1,6 +1,12 @@
 # This details the important differences introduced in 0.1
 # NB: bump the version number in __about__.py to reflect the below.
 
+* .27 - Tested conversion capability 
+* .26 - Tested basic SICD file writing capability
+* .25 - Tested data reading for sentinel, radarsat, and cosmo-skymed formats
+* .24 - Tested for cosmo-skymed meta-data conversion
+* .23 - Tested for radarsat meta-data conversion for rs2 and rcm
+* .22 - Tested for sentinel meta-data conversion for both spotlight and swath
 * .21 - Unit testing for basic sicd opening and interpretation
 * .20 - Unit testing for nitf header behavior and application to sicd
 * .19 - Refactoring to split general nitf capability and sicd specific behavior more clearly

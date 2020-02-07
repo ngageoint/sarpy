@@ -139,7 +139,7 @@ class SICDDataExtensionHeader(DataExtensionHeader):
 
         return cls(**fields)
 
-    def to_string(self, other_string=None):
+    def to_bytes(self, other_string=None):
         if self.DESSHL == 773 and self.SICDHeader is None:
             self.SICDHeader = SICDDESSubheader()
         elif self.DESSHL != 773:
@@ -150,8 +150,8 @@ class SICDDataExtensionHeader(DataExtensionHeader):
         if self.SICDHeader is None:
             other_string = None
         else:
-            other_string = self.SICDHeader.to_string()
-        return super(SICDDataExtensionHeader, self).to_string(other_string=other_string)
+            other_string = self.SICDHeader.to_bytes()
+        return super(SICDDataExtensionHeader, self).to_bytes(other_string=other_string)
 
 
 ########
@@ -299,7 +299,7 @@ class SICDDetails(NITFDetails):
 def _validate_lookup(lookup_table):  # type: (numpy.ndarray) -> None
     if not isinstance(lookup_table, numpy.ndarray):
         raise ValueError('requires a numpy.ndarray, got {}'.format(type(lookup_table)))
-    if lookup_table.dtype != numpy.float64:
+    if lookup_table.dtype.name != 'float64':
         raise ValueError('requires a numpy.ndarray of float64 dtype, got {}'.format(lookup_table.dtype))
     if lookup_table.shape != (256, ):
         raise ValueError('Requires a one-dimensional numpy.ndarray with 256 elements, '
@@ -325,8 +325,8 @@ def amp_phase_to_complex(lookup_table):
         if not isinstance(data, numpy.ndarray):
             raise ValueError('requires a numpy.ndarray, got {}'.format(type(data)))
 
-        if data.dtype != numpy.uint8:
-            raise ValueError('requires a numpy.ndarray of uint8 dtype, got {}'.format(data.dtype))
+        if data.dtype.name != 'uint8':
+            raise ValueError('requires a numpy.ndarray of uint8 dtype, got {}'.format(data.dtype.name))
 
         if len(data.shape) == 3:
             raise ValueError('Requires a three-dimensional numpy.ndarray (with band '
@@ -504,9 +504,9 @@ def _validate_input(data):
     # type: (numpy.ndarray) -> tuple
     if not isinstance(data, numpy.ndarray):
         raise ValueError('Requires a numpy.ndarray, got {}'.format(type(data)))
-    if data.dtype not in (numpy.complex64, numpy.complex128):
-        raise ValueError('Requires a numpy.ndarray of complex dtype, got {}'.format(data.dtype))
-    if len(data.shape) == 2:
+    if data.dtype.name not in ('complex64', 'complex128'):
+        raise ValueError('Requires a numpy.ndarray of complex dtype, got {}'.format(data.dtype.name))
+    if len(data.shape) != 2:
         raise ValueError('Requires a two-dimensional numpy.ndarray, got {}'.format(data.shape))
 
     new_shape = (data.shape[0], data.shape[1], 2)
@@ -556,7 +556,7 @@ def complex_to_int(data):
     # TODO: this is naive. Scaling down to 16-bit limits requires thought.
     new_shape = _validate_input(data)
 
-    if data.dtype == numpy.complex128:
+    if data.dtype.name == 'complex128':
         view_dtype = numpy.float64
     else:
         view_dtype = numpy.float32
@@ -600,6 +600,8 @@ class SICDWriter(BaseWriter):
         # get image segment details
         self._pixel_size, self._dtype, self._complex_type, pv_type, isubcat, \
             self._image_segment_limits = self._image_segment_details()
+        # prepare our pixels written counter
+        self._pixels_written = numpy.zeros((self._image_segment_limits.shape[0],), dtype=numpy.int64)
         # define _image_segment_headers
         self._image_segment_headers = self._create_image_segment_headers(pv_type, isubcat)
         # define _data_extension_header
@@ -610,7 +612,6 @@ class SICDWriter(BaseWriter):
         self._image_offsets = None
         self._final_header_info = None
         self._writing_chippers = None
-        self._pixels_written = None
         self._des_written = False
 
     @property
@@ -715,7 +716,7 @@ class SICDWriter(BaseWriter):
         row_offset = 0
         col_offset = 0
         col_limit = min(DIM_LIMIT, IM_COLS)
-        while (row_offset < IM_ROWS) or (col_offset < IM_COLS):
+        while (row_offset < IM_ROWS) and (col_offset < IM_COLS):
             # determine row count, given row_offset, col_offset, and col_limit
             # how many bytes per row for this column section
             row_memory_size = (col_limit-col_offset)*pixel_size
@@ -741,14 +742,15 @@ class SICDWriter(BaseWriter):
             if icp is None:
                 return ''
             const = 1./(rows*cols)
-            pattern = ent[numpy.array([(0, 2), (1, 2), (1, 4), (0, 4)], dtype=numpy.int64)]
+            pattern = ent[numpy.array([(0, 2), (1, 2), (1, 3), (0, 3)], dtype=numpy.int64)]
             out = []
             for row, col in pattern:
-                pt = LatLonType.from_array(const*numpy.sum(icp.T *
-                                           numpy.array([rows-row, row, row, rows-row]) *
-                                           numpy.array([cols-col, cols-col, col, col]), axis=0))
+                pt_array = const*numpy.sum(icp *
+                                           (numpy.array([rows-row, row, row, rows-row]) *
+                                            numpy.array([cols-col, cols-col, col, col]))[:, numpy.newaxis], axis=0)
+                pt = LatLonType.from_array(pt_array)
                 dms = pt.dms_format(frac_secs=False)
-                out.append('{0:2d}{1:2d}{2:2d}{3:s}'.format(*dms[0]) + '{0:3d}{1:2d}{2:2d}{3:s}'.format(*dms[1]))
+                out.append('{0:02d}{1:02d}{2:02d}{3:s}'.format(*dms[0]) + '{0:03d}{1:02d}{2:02d}{3:s}'.format(*dms[1]))
             return ''.join(out)
 
         if self._sicd_meta.CollectionInfo is not None and self._sicd_meta.CollectionInfo.CoreName is not None:
@@ -809,7 +811,8 @@ class SICDWriter(BaseWriter):
                 temp.append('{0:+2.8f}{1:+3.8f}'.format(entry[0], entry[1]))
             temp.append(temp[0])
             desshlpg = ''.join(temp)
-        return SICDDataExtensionHeader(DESSHDT=desshdt, DESSHLPG=desshlpg, Security=self._security_tags)
+        return SICDDataExtensionHeader(
+            Security=self._security_tags, SICDHeader=SICDDESSubheader(DESSHDT=desshdt, DESSHLPG=desshlpg))
 
     def _create_nitf_header(self):
         # type: () -> NITFHeader
@@ -868,8 +871,8 @@ class SICDWriter(BaseWriter):
         self._final_header_info = {}
         # get des header, xml and populate nitf_header.DataExtensions information
         des_info = {
-            'header': self._data_extension_header.to_string(),
-            'xml': self._sicd_meta.to_xml_string(urn=_SPECIFICATION_NAMESPACE, tag='SICD')}
+            'header': self._data_extension_header.to_bytes(),
+            'xml': self._sicd_meta.to_xml_bytes(urn=_SPECIFICATION_NAMESPACE, tag='SICD')}
         self._nitf_header.DataExtensions.subhead_sizes[0] = len(des_info['header'])
         self._nitf_header.DataExtensions.item_sizes[0] = len(des_info['xml'])  # size should be no issue
         # there would be no satisfactory resolution in the case of an oversized header - we should raise an exception
@@ -888,7 +891,7 @@ class SICDWriter(BaseWriter):
         # get image_segment_header strings and populate nitf_header.ImageSegments.subhead_sizes entries
         im_segment_headers = []
         for i, entry in enumerate(self._image_segment_headers):
-            head = entry.to_string()
+            head = entry.to_bytes()
             # no satisfactory resolution in the case of an oversized header
             if len(head) >= 10**6:
                 raise ValueError(
@@ -920,15 +923,20 @@ class SICDWriter(BaseWriter):
                 'The calculated file size is {} bytes, and NITF requires it to '
                 'be fewer than 10^12 bytes.'.format(cumulative_size))
         self._nitf_header.FL = cumulative_size
-        self._final_header_info['nitf'] = self._nitf_header.to_string()
+        self._final_header_info['nitf'] = self._nitf_header.to_bytes()
+        logging.info(
+            'Writing NITF header and setting up the chippers, this likely causes '
+            'a large physical memory allocation and may be time consuming.')
+
+        # write the nitf header
+        with open(self._file_name, mode='r+b') as fi:
+            fi.write(self._final_header_info['nitf'])
 
         # prepare out writing chippers
         self._writing_chippers = tuple(
             BIPWriter(self._file_name, (ent[1]-ent[0], ent[3]-ent[2]),
                       self._dtype, self._complex_type, data_offset=offset)
             for ent, offset in zip(self._image_segment_limits, image_offsets))
-        # prepare our pixels written counter
-        self._pixels_written = numpy.zeros((self._image_segment_limits.shape[0],), dtype=numpy.int64)
 
     def _write_image_header(self, index):
         # type: (int) -> None
@@ -936,7 +944,7 @@ class SICDWriter(BaseWriter):
             return
         with open(self._file_name, mode='r+b') as fi:
             fi.seek(self._header_offsets[index])
-            fi.write(self._final_header_info['image_header'][index].encode('utf-8'))
+            fi.write(self._final_header_info['image_headers'][index])
 
     def close(self):
         """
@@ -948,7 +956,8 @@ class SICDWriter(BaseWriter):
         -------
         None
         """
-        if self._des_written:
+
+        if not hasattr(self, '_des_written') or self._des_written:
             return
 
         # let's double check that everything is written
@@ -969,17 +978,24 @@ class SICDWriter(BaseWriter):
                     insufficiently_written[1],
                     insufficiently_written[2]))
 
-        # let's write the data extension
-        with open(self._file_name, mode='r+b') as fi:
-            fi.seek(self._image_offsets[-1] + self._image_segment_limits[-1, 4])
-            fi.write(self._final_header_info['des']['header'].encode('utf-8'))
-            fi.write(self._final_header_info['des']['xml'].encode('utf-8'))
-        self._des_written = True
-        logging.info('Data file {} fully written.'.format(self._file_name))
-
+        # let's write the data extension, if we can
+        # noinspection PyBroadException
+        try:
+            with open(self._file_name, mode='r+b') as fi:
+                fi.seek(self._image_offsets[-1] + self._image_segment_limits[-1, 4])
+                fi.write(self._final_header_info['des']['header'])
+                fi.write(self._final_header_info['des']['xml'])
+            self._des_written = True
+            logging.info('Data file {} fully written.'.format(self._file_name))
+        except FileNotFoundError:
+            logging.info('Data file {} not created.'.format(self._file_name))
+        except Exception:
+            logging.info('Data file {} improperly created, and is likely corrupt.'.format(self._file_name))
         # now, we close all the chippers
-        for entry in self._writing_chippers:
-            entry.close()
+        if hasattr(self, '_writing_chippers'):
+            if self._writing_chippers is not None:
+                for entry in self._writing_chippers:
+                    entry.close()
 
     def __call__(self, data, start_indices=(0, 0)):
         def overlap(rrange, crange):
@@ -1044,10 +1060,10 @@ class SICDWriter(BaseWriter):
             write_els = (entry[1] - entry[0])*(entry[3] - entry[2])
             # write the data using this chipper
             drows = (entry[0]-start_indices[0], entry[1]-start_indices[0])
-            dcols = (entry[2] - start_indices[1], entry[3]-start_indices[1])
+            dcols = (entry[2]-start_indices[1], entry[3]-start_indices[1])
             sinds = (
-                start_indices[0] - self._image_segment_limits[0],
-                start_indices[1] - self._image_segment_limits[2])
+                start_indices[0] - self._image_segment_limits[i, 0],
+                start_indices[1] - self._image_segment_limits[i, 2])
             self._writing_chippers[i](data[drows[0]:drows[1], dcols[0]:dcols[1]], sinds)
             # update how many pixels we have written to this segment
             self._pixels_written[i] += write_els

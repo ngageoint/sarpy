@@ -5,19 +5,18 @@ Module providing api consistent with other file types for reading tiff files.
 
 import logging
 import numpy
-
+import warnings
 
 try:
     from osgeo import gdal
-    _USE_GDAL = True
+    _HAS_GDAL = True
 except ImportError:
+    warnings.warn("gdal is not successfully imported, which precludes reading tiffs via gdal")
     gdal = None
-    _USE_GDAL = False
+    _HAS_GDAL = False
 
 from .base import BaseChipper, BaseReader
 from .bip import BIPChipper
-
-from .sicd_elements.SICD import SICDType, ImageDataType
 
 
 __classification__ = "UNCLASSIFIED"
@@ -237,7 +236,8 @@ class TiffDetails(object):
         This dictionary is of the form `{<tag name> : numpy.ndarray value}`, even for
         those tags containing only a single entry (i.e. `count=1`).
         """
-
+        if self._tags is None:
+            self.parse_tags()
         return self._tags
 
     def parse_tags(self):
@@ -344,11 +344,13 @@ class TiffDetails(object):
             count = numpy.fromfile(fi, dtype=offset_dtype, count=1)[0]
             total_size = self._SIZES[tiff_type-1]*count
             if total_size <= offset_size:
+                save_ptr = fi.tell() + offset_size  # we should advance past the entire block
                 value = self._read_tag(fi, tiff_type, num_tag, count)
+                fi.seek(save_ptr)
             else:
                 offset = numpy.fromfile(fi, dtype=offset_dtype, count=1)[0]
                 save_ptr = fi.tell()  # save our current spot
-                fi.seek(offset)  # got to the offset location
+                fi.seek(offset)  # get to the offset location
                 value = self._read_tag(fi, tiff_type, num_tag, count)  # read the tag value
                 fi.seek(save_ptr)  # return to our location
             tags[value['Name']] = value['Value']
@@ -379,10 +381,6 @@ class NativeTiffChipper(BIPChipper):
             raise TypeError('NativeTiffChipper input argument must be a filename '
                             'or TiffDetails object.')
 
-        logging.warning('Using a custom tiff reader, with potentially limited functionality.')
-
-        if tiff_meta.tags is None:
-            tiff_meta.parse_tags()
         compression_tag = int(tiff_meta.tags['Compression'][0])
         if compression_tag != 1:
             raise ValueError('Tiff has compression tag {}, but only 1 (no compression) '
@@ -397,7 +395,7 @@ class NativeTiffChipper(BIPChipper):
         if samp_form in [5, 6]:
             bits_per_sample /= 2
             complex_type = True
-        data_size = numpy.array([tiff_meta.tags['ImageLength'][0], tiff_meta.tags['ImageWidth'][0]])
+        data_size = (tiff_meta.tags['ImageLength'][0], tiff_meta.tags['ImageWidth'][0])
         data_type = numpy.dtype('{0:s}{1:s}{2:d}'.format(self._tiff_meta.endian,
                                                          self._SAMPLE_FORMATS[samp_form],
                                                          int(bits_per_sample/8)))
@@ -430,7 +428,6 @@ class GdalTiffChipper(BaseChipper):
                             'or TiffDetails object.')
 
         self._tiff_meta = tiff_meta
-        logging.warning('Using the tiff reader from gdal.')
         # initialize our dataset - NB: this should close gracefully on garbage collection
         self._data_set = gdal.Open(tiff_meta.file_name, gdal.GA_ReadOnly)
         if self._data_set is None:
@@ -443,7 +440,15 @@ class GdalTiffChipper(BaseChipper):
         complex_type = ''
         super(GdalTiffChipper, self).__init__(data_size, symmetry=symmetry, complex_type=complex_type)
         # 5.) set up our virtual array using GetVirtualMemArray
-        self._virt_array = self._data_set.GetVirtualMemoryArray()
+        try:
+            self._virt_array = self._data_set.GetVirtualMemArray()
+        except Exception:
+            logging.error(
+                msg="There has been some error using the gdal method GetVirtualMemArray(). "
+                    "Consider falling back to the base sarpy tiff reader implementation (use_gdal=False)")
+            raise
+        # TODO: this does not generally work should we clunkily fall back to dataset.band.ReadAsArray()?
+        #   This doesn't support slicing...
 
     def _read_raw_fun(self, range1, range2):
         arange1, arange2 = self._reorder_arguments(range1, range2)
@@ -458,24 +463,20 @@ class GdalTiffChipper(BaseChipper):
         return out
 
 
-if _USE_GDAL:
-    TiffChipper = GdalTiffChipper
-else:
-    TiffChipper = NativeTiffChipper
-
-
 class TiffReader(BaseReader):
     __slots__ = ('_tiff_meta', '_sicd_meta', '_chipper')
     _DEFAULT_SYMMETRY = (False, False, False)
 
-    def __init__(self, tiff_meta, sicd_meta=None, symmetry=None):
+    def __init__(self, tiff_meta, sicd_meta=None, symmetry=None, use_gdal=False):
         """
 
         Parameters
         ----------
         tiff_meta : TiffDetails
-        sicd_meta : None|SICDType
-        symmetry: Tuple[bool]
+        sicd_meta : None|sarpy.io.complex.sicd_elements.SICD.SICDType
+        symmetry : Tuple[bool]
+        use_gdal : bool
+            Should we use gdal to read the tiff (required if compressed)
         """
 
         if isinstance(tiff_meta, str):
@@ -487,12 +488,21 @@ class TiffReader(BaseReader):
         self._tiff_meta = tiff_meta
         if symmetry is None:
             symmetry = self._DEFAULT_SYMMETRY
-        if sicd_meta is None:
-            # construct absolutely minimal sicd meta data
-            rows = tiff_meta.tags['ImageWidth'][0]
-            cols = tiff_meta.tags['ImageLength'][0]
-            if symmetry[2]:
-                rows, cols = cols, rows
-            sicd_meta = SICDType(ImageData=ImageDataType(NumRows=rows, NumCols=cols))
-        chipper = TiffChipper(tiff_meta, symmetry=symmetry)
+
+        if use_gdal:
+            # TODO: finish this capability
+            logging.warning(
+                msg="The option use_gdal=True, but this functionality is a work in progress. "
+                    "Falling back to the sarpy base version.")
+            use_gdal = False
+
+        if use_gdal and not _HAS_GDAL:
+            logging.warning(
+                msg="The option use_gdal=True, but there does not appear to be "
+                    "a functional gdal installed. Falling back to the sarpy base version.")
+            use_gdal = False
+        if use_gdal:
+            chipper = GdalTiffChipper(tiff_meta, symmetry=symmetry)
+        else:
+            chipper = NativeTiffChipper(tiff_meta, symmetry=symmetry)
         super(TiffReader, self).__init__(sicd_meta, chipper)

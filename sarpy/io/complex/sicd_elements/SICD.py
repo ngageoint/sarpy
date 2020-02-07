@@ -7,7 +7,7 @@ import logging
 
 import numpy
 
-from .base import Serializable, DEFAULT_STRICT, _SerializableDescriptor
+from .base import Serializable, _SerializableDescriptor
 from .CollectionInfo import CollectionInfoType
 from .ImageCreation import ImageCreationType
 from .ImageData import ImageDataType
@@ -53,60 +53,60 @@ class SICDType(Serializable):
     _choice = ({'required': False, 'collection': ('RgAzComp', 'PFA', 'RMA')}, )
     # descriptors
     CollectionInfo = _SerializableDescriptor(
-        'CollectionInfo', CollectionInfoType, _required, strict=DEFAULT_STRICT,
+        'CollectionInfo', CollectionInfoType, _required, strict=False,
         docstring='General information about the collection.')  # type: CollectionInfoType
     ImageCreation = _SerializableDescriptor(
-        'ImageCreation', ImageCreationType, _required, strict=DEFAULT_STRICT,
+        'ImageCreation', ImageCreationType, _required, strict=False,
         docstring='General information about the image creation.')  # type: ImageCreationType
     ImageData = _SerializableDescriptor(
-        'ImageData', ImageDataType, _required, strict=True,  # it is senseless to not have this element
+        'ImageData', ImageDataType, _required, strict=False,  # it is senseless to not have this element
         docstring='The image pixel data.')  # type: ImageDataType
     GeoData = _SerializableDescriptor(
-        'GeoData', GeoDataType, _required, strict=DEFAULT_STRICT,
+        'GeoData', GeoDataType, _required, strict=False,
         docstring='The geographic coordinates of the image coverage area.')  # type: GeoDataType
     Grid = _SerializableDescriptor(
-        'Grid', GridType, _required, strict=DEFAULT_STRICT,
+        'Grid', GridType, _required, strict=False,
         docstring='The image sample grid.')  # type: GridType
     Timeline = _SerializableDescriptor(
-        'Timeline', TimelineType, _required, strict=DEFAULT_STRICT,
+        'Timeline', TimelineType, _required, strict=False,
         docstring='The imaging collection time line.')  # type: TimelineType
     Position = _SerializableDescriptor(
-        'Position', PositionType, _required, strict=DEFAULT_STRICT,
+        'Position', PositionType, _required, strict=False,
         docstring='The platform and ground reference point coordinates as a function of time.')  # type: PositionType
     RadarCollection = _SerializableDescriptor(
-        'RadarCollection', RadarCollectionType, _required, strict=DEFAULT_STRICT,
+        'RadarCollection', RadarCollectionType, _required, strict=False,
         docstring='The radar collection information.')  # type: RadarCollectionType
     ImageFormation = _SerializableDescriptor(
-        'ImageFormation', ImageFormationType, _required, strict=DEFAULT_STRICT,
+        'ImageFormation', ImageFormationType, _required, strict=False,
         docstring='The image formation process.')  # type: ImageFormationType
     SCPCOA = _SerializableDescriptor(
-        'SCPCOA', SCPCOAType, _required, strict=DEFAULT_STRICT,
+        'SCPCOA', SCPCOAType, _required, strict=False,
         docstring='*Center of Aperture (COA)* for the *Scene Center Point (SCP)*.')  # type: SCPCOAType
     Radiometric = _SerializableDescriptor(
-        'Radiometric', RadiometricType, _required, strict=DEFAULT_STRICT,
+        'Radiometric', RadiometricType, _required, strict=False,
         docstring='The radiometric calibration parameters.')  # type: RadiometricType
     Antenna = _SerializableDescriptor(
-        'Antenna', AntennaType, _required, strict=DEFAULT_STRICT,
+        'Antenna', AntennaType, _required, strict=False,
         docstring='Parameters that describe the antenna illumination patterns during the collection.'
     )  # type: AntennaType
     ErrorStatistics = _SerializableDescriptor(
-        'ErrorStatistics', ErrorStatisticsType, _required, strict=DEFAULT_STRICT,
+        'ErrorStatistics', ErrorStatisticsType, _required, strict=False,
         docstring='Parameters used to compute error statistics within the *SICD* sensor model.'
     )  # type: ErrorStatisticsType
     MatchInfo = _SerializableDescriptor(
-        'MatchInfo', MatchInfoType, _required, strict=DEFAULT_STRICT,
+        'MatchInfo', MatchInfoType, _required, strict=False,
         docstring='Information about other collections that are matched to the '
                   'current collection. The current collection is the collection '
                   'from which this *SICD* product was generated.')  # type: MatchInfoType
     RgAzComp = _SerializableDescriptor(
-        'RgAzComp', RgAzCompType, _required, strict=DEFAULT_STRICT,
+        'RgAzComp', RgAzCompType, _required, strict=False,
         docstring='Parameters included for a *Range, Doppler* image.')  # type: RgAzCompType
     PFA = _SerializableDescriptor(
-        'PFA', PFAType, _required, strict=DEFAULT_STRICT,
+        'PFA', PFAType, _required, strict=False,
         docstring='Parameters included when the image is formed using the '
                   '*Polar Formation Algorithm (PFA)*.')  # type: PFAType
     RMA = _SerializableDescriptor(
-        'RMA', RMAType, _required, strict=DEFAULT_STRICT,
+        'RMA', RMAType, _required, strict=False,
         docstring='Parameters included when the image is formed using the '
                   '*Range Migration Algorithm (RMA)*.')  # type: RMAType
 
@@ -283,8 +283,8 @@ class SICDType(Serializable):
             return  # nothing to be done
 
         try:
-            corner_coords = point_projection.image_to_ground_geo(
-                self.ImageData.get_full_vertex_data(dtype=numpy.float64), self)
+            vertex_data = self.ImageData.get_full_vertex_data(dtype=numpy.float64)
+            corner_coords = point_projection.image_to_ground_geo(vertex_data, self)
         except (ValueError, AttributeError):
             return
 
@@ -386,14 +386,14 @@ class SICDType(Serializable):
             if self.Grid is not None:
                 # noinspection PyProtectedMember
                 self.Grid._derive_pfa(
-                    self.SCPCOA, self.RadarCollection, self.ImageFormation, self.Position, self.PFA)
+                    self.GeoData, self.RadarCollection, self.ImageFormation, self.Position, self.PFA)
         elif im_form_algo == 'RMA':
             if self.RMA is not None:
                 # noinspection PyProtectedMember
                 self.RMA._derive_parameters(self.SCPCOA, self.Position, self.RadarCollection, self.ImageFormation)
             if self.Grid is not None:
                 # noinspection PyProtectedMember
-                self.Grid._derive_rma(self.RMA, self.SCPCOA, self.RadarCollection, self.ImageFormation, self.Position)
+                self.Grid._derive_rma(self.RMA, self.GeoData, self.RadarCollection, self.ImageFormation, self.Position)
 
         self.define_geo_image_corners()
         self.define_geo_valid_data()

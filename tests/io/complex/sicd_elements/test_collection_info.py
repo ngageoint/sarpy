@@ -4,7 +4,7 @@ from sarpy.io.complex.sicd_elements import CollectionInfo
 from . import generic_construction_test, unittest
 
 
-mode_dict = {'ModeId': 'TEST_ID', 'ModeType': 'SPOTLIGHT'}
+mode_dict = {'ModeID': 'TEST_ID', 'ModeType': 'SPOTLIGHT'}
 
 info_dict = {
     'CollectorName': 'Collector',

@@ -23,6 +23,7 @@ class RcvChanProcType(Serializable):
     _required = ('NumChanProc', 'ChanIndices')
     _collections_tags = {
         'ChanIndices': {'array': False, 'child_tag': 'ChanIndex'}}
+    _numeric_format = {'PRFScaleFactor': '0.16G'}
     # descriptors
     NumChanProc = _IntegerDescriptor(
         'NumChanProc', _required, strict=DEFAULT_STRICT,
@@ -54,6 +55,7 @@ class TxFrequencyProcType(Serializable):
     """The transmit frequency range."""
     _fields = ('MinProc', 'MaxProc')
     _required = _fields
+    _numeric_format = {'MinProc': '0.16G', 'MaxProc': '0.16G'}
     # descriptors
     MinProc = _FloatDescriptor(
         'MinProc', _required, strict=DEFAULT_STRICT,
@@ -120,6 +122,7 @@ class DistortionType(Serializable):
         'CalibrationDate', 'A', 'F1', 'F2', 'Q1', 'Q2', 'Q3', 'Q4',
         'GainErrorA', 'GainErrorF1', 'GainErrorF2', 'PhaseErrorF1', 'PhaseErrorF2')
     _required = ('A', 'F1', 'Q1', 'Q2', 'F2', 'Q3', 'Q4')
+    _numeric_format = {key : '0.16G' for key in _fields[1:]}
     # descriptors
     CalibrationDate = _DateTimeDescriptor(
         'CalibrationDate', _required, strict=DEFAULT_STRICT,
@@ -233,6 +236,7 @@ class ImageFormationType(Serializable):
         'RcvChanProc', 'TxRcvPolarizationProc', 'TStartProc', 'TEndProc', 'TxFrequencyProc',
         'ImageFormAlgo', 'STBeamComp', 'ImageBeamComp', 'AzAutofocus', 'RgAutofocus')
     _collections_tags = {'Processings': {'array': False, 'child_tag': 'Processing'}}
+    _numeric_format = {'TStartProc': '0.16G', 'EndProc': '0.16G'}
     # class variables
     _DUAL_POLARIZATION_VALUES = (
         'V:V', 'V:H', 'H:V', 'H:H', 'RHC:RHC', 'RHC:LHC', 'LHC:RHC', 'LHC:LHC', 'OTHER', 'UNKNOWN')
@@ -357,7 +361,7 @@ class ImageFormationType(Serializable):
 
         Parameters
         ----------
-        RadarCollection : sarpy.sicd_elements.RadarCollectionType
+        RadarCollection : sarpy.io.complex.sicd_elements.RadarCollection.RadarCollectionType
 
         Returns
         -------

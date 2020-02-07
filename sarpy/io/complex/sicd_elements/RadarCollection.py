@@ -27,6 +27,7 @@ class TxFrequencyType(Serializable):
     """The transmit frequency range"""
     _fields = ('Min', 'Max')
     _required = _fields
+    _numeric_format = {'Min': '0.16G', 'Max': '0.16G'}
     # descriptors
     Min = _FloatDescriptor(
         'Min', required=_required, strict=DEFAULT_STRICT,
@@ -61,6 +62,8 @@ class WaveformParametersType(Serializable):
         'ADCSampleRate', 'RcvIFBandwidth', 'RcvFreqStart', 'RcvFMRate', 'index')
     _required = ()
     _set_as_attribute = ('index', )
+    _numeric_format = {key: '0.16G' for key in _fields if key not in ('RcvDemodType', 'index')}
+
     # descriptors
     TxPulseLength = _FloatDescriptor(
         'TxPulseLength', _required, strict=DEFAULT_STRICT,
@@ -193,6 +196,7 @@ class TxStepType(Serializable):
     """Transmit sequence step details"""
     _fields = ('WFIndex', 'TxPolarization', 'index')
     _required = ('index', )
+    _set_as_attribute = ('index', )
     # other class variables
     _POLARIZATION2_VALUES = ('V', 'H', 'RHC', 'LHC', 'OTHER')
     # descriptors
@@ -226,6 +230,7 @@ class ChanParametersType(Serializable):
     """Transmit receive sequence step details"""
     _fields = ('TxRcvPolarization', 'RcvAPCIndex', 'index')
     _required = ('TxRcvPolarization', 'index', )
+    _set_as_attribute = ('index', )
     # other class variables
     _DUAL_POLARIZATION_VALUES = (
         'V:V', 'V:H', 'H:V', 'H:H', 'RHC:RHC', 'RHC:LHC', 'LHC:RHC', 'LHC:LHC', 'OTHER', 'UNKNOWN')
@@ -269,6 +274,7 @@ class ReferencePointType(Serializable):
     _fields = ('ECF', 'Line', 'Sample', 'name')
     _required = _fields
     _set_as_attribute = ('name', )
+    _numeric_format = {'Line': '0.16G', 'Sample': '0.16G'}
     # descriptors
     ECF = _SerializableDescriptor(
         'ECF', XYZType, _required, strict=DEFAULT_STRICT,
@@ -305,6 +311,7 @@ class XDirectionType(Serializable):
     """The X direction of the collect"""
     _fields = ('UVectECF', 'LineSpacing', 'NumLines', 'FirstLine')
     _required = _fields
+    _numeric_format = {'LineSpacing': '0.16G', }
     # descriptors
     UVectECF = _UnitVectorDescriptor(
         'UVectECF', XYZType, _required, strict=DEFAULT_STRICT,
@@ -341,6 +348,7 @@ class YDirectionType(Serializable):
     """The Y direction of the collect"""
     _fields = ('UVectECF', 'SampleSpacing', 'NumSamples', 'FirstSample')
     _required = _fields
+    _numeric_format = {'SampleSpacing': '0.16G', }
     # descriptors
     UVectECF = _UnitVectorDescriptor(
         'UVectECF', XYZType, _required, strict=DEFAULT_STRICT,

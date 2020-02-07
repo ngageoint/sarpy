@@ -25,6 +25,10 @@ class SCPCOAType(Serializable):
         'SCPTime', 'ARPPos', 'ARPVel', 'ARPAcc', 'SideOfTrack', 'SlantRange', 'GroundRange', 'DopplerConeAng',
         'GrazeAng', 'IncidenceAng', 'TwistAng', 'SlopeAng', 'AzimAng', 'LayoverAng')
     _required = _fields
+    _numeric_format = {
+        'SCPTime': '0.16G', 'SlantRange': '0.16G', 'GroundRange': '0.16G', 'DopplerConeAng': '0.16G',
+        'GrazeAng': '0.16G', 'IncidenceAng': '0.16G', 'TwistAng': '0.16G', 'SlopeAng': '0.16G',
+        'AzimAng': '0.16G', 'LayoverAng': '0.16G'}
     # class variables
     _SIDE_OF_TRACK_VALUES = ('L', 'R')
     # descriptors
@@ -126,7 +130,7 @@ class SCPCOAType(Serializable):
 
         Parameters
         ----------
-        Grid : sarpy.sicd_elements.GridType
+        Grid : sarpy.io.complex.sicd_elements.GridType
 
         Returns
         -------
@@ -150,7 +154,7 @@ class SCPCOAType(Serializable):
 
         Parameters
         ----------
-        Position : sarpy.sicd_elements.PositionType
+        Position : sarpy.io.complex.sicd_elements.Position.PositionType
 
         Returns
         -------
@@ -177,7 +181,7 @@ class SCPCOAType(Serializable):
 
         Parameters
         ----------
-        GeoData : sarpy.sicd_elements.GeoDataType
+        GeoData : sarpy.io.complex.sicd_elements.GeoData.GeoDataType
 
         Returns
         -------

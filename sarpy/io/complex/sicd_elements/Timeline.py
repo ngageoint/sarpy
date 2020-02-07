@@ -25,6 +25,7 @@ class IPPSetType(Serializable):
     _fields = ('TStart', 'TEnd', 'IPPStart', 'IPPEnd', 'IPPPoly', 'index')
     _required = _fields
     _set_as_attribute = ('index', )
+    _numeric_format = {'TStart': '0.16G', 'TEnd': '0.16G', }
     # descriptors
     TStart = _FloatDescriptor(
         'TStart', _required, strict=DEFAULT_STRICT,
@@ -67,6 +68,7 @@ class TimelineType(Serializable):
     _fields = ('CollectStart', 'CollectDuration', 'IPP')
     _required = ('CollectStart', 'CollectDuration', )
     _collections_tags = {'IPP': {'array': True, 'child_tag': 'Set'}}
+    _numeric_format = {'CollectDuration': '0.16G', }
     # descriptors
     CollectStart = _DateTimeDescriptor(
         'CollectStart', _required, strict=DEFAULT_STRICT, numpy_datetime_units='us',

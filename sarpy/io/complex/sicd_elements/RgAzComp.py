@@ -20,6 +20,7 @@ class RgAzCompType(Serializable):
     """Parameters included for a Range, Doppler image."""
     _fields = ('AzSF', 'KazPoly')
     _required = _fields
+    _numeric_format = {'AzSF': '0.16G'}
     # descriptors
     AzSF = _FloatDescriptor(
         'AzSF', _required, strict=DEFAULT_STRICT,
@@ -51,9 +52,9 @@ class RgAzCompType(Serializable):
 
         Parameters
         ----------
-        Grid : sarpy.sicd_elements.GridType
-        Timeline : sarpy.sicd_elements.TimelineType
-        SCPCOA : sarpy.sicd_elements.SCPCOAType
+        Grid : sarpy.io.complex.sicd_elements.GridType
+        Timeline : sarpy.io.complex.sicd_elements.TimelineType
+        SCPCOA : sarpy.io.complex.sicd_elements.SCPCOA.SCPCOAType
 
         Returns
         -------

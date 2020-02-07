@@ -124,8 +124,8 @@ class RadiometricType(Serializable):
 
         Parameters
         ----------
-        Grid : sarpy.sicd_elements.Grid.GridType
-        SCPCOA : sarpy.sicd_elements.SCPCOA.SCPCOAType
+        Grid : sarpy.io.complex.sicd_elements.Grid.GridType
+        SCPCOA : sarpy.io.complex.sicd_elements.SCPCOA.SCPCOAType
 
         Returns
         -------
@@ -157,7 +157,7 @@ class RadiometricType(Serializable):
                     Coefs=self.SigmaZeroSFPoly.Coefs/numpy.cos(numpy.deg2rad(SCPCOA.SlopeAng)))
             elif self.GammaZeroSFPoly is not None:
                 self.BetaZeroSFPoly = Poly2DType(
-                    Coefs=self.GammaZeroSFPoly.Coefs/(numpy.sin(numpy.deg2rad(SCPCOA.GrazeAng)) *
+                    Coefs=self.GammaZeroSFPoly.Coefs*(numpy.sin(numpy.deg2rad(SCPCOA.GrazeAng)) /
                                                       numpy.cos(numpy.deg2rad(SCPCOA.SlopeAng))))
 
         # TODO: what if they are populated and do not follow the below pattern?
@@ -170,5 +170,5 @@ class RadiometricType(Serializable):
                     Coefs=self.BetaZeroSFPoly.Coefs*numpy.cos(numpy.deg2rad(SCPCOA.SlopeAng)))
             if self.GammaZeroSFPoly is None:
                 self.GammaZeroSFPoly = Poly2DType(
-                    Coefs=self.BetaZeroSFPoly.Coefs*(numpy.sin(numpy.deg2rad(SCPCOA.GrazeAng)) *
-                                                     numpy.cos(numpy.deg2rad(SCPCOA.SlopeAng))))
+                    Coefs=self.BetaZeroSFPoly.Coefs*(numpy.cos(numpy.deg2rad(SCPCOA.SlopeAng)) /
+                                                     numpy.sin(numpy.deg2rad(SCPCOA.GrazeAng))))

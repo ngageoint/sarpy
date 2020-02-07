@@ -25,13 +25,17 @@ def _validate_coords(coords, sicd):
     if not isinstance(coords, numpy.ndarray):
         coords = numpy.array(coords, dtype=numpy.float64)
 
+    orig_shape = coords.shape
+
+    if len(orig_shape) == 1:
+        coords = numpy.reshape(coords, (1, -1))
     if coords.shape[-1] != 3:
         raise ValueError(
             'The coords array must represent an array of points in ECF coordinates, '
             'so the final dimension of coords must have length 3. Have coords.shape = {}'.format(coords.shape))
 
     # TODO: possibly check for coordinates too far from the sicd box?
-    return coords
+    return coords, orig_shape
 
 
 def _ground_to_image(coords, coa_proj, uGPN,
@@ -52,7 +56,7 @@ def _ground_to_image(coords, coa_proj, uGPN,
     row_ss : float
     col_ss : float
     uProj : numpy.ndarray
-    row_col_transform : numnpy.ndarray
+    row_col_transform : numpy.ndarray
     ipp_transform : numpy.ndarray
     delta_gp_max : float
     max_iterations : int
@@ -71,16 +75,19 @@ def _ground_to_image(coords, coa_proj, uGPN,
     cont = True
     iteration = 0
 
+    matrix_transform = numpy.dot(row_col_transform, ipp_transform)
+    # (3 x 2)*(2 x 2) = (3 x 2)
+
     while cont:
         # TODO: is there any point in progressively stopping iteration?
         #  It doesn't really save much computation time.
         #  I set it to iterate over everything or nothing.
         # project ground plane to image plane iteration
         iteration += 1
-        dist_n = numpy.dot(SCP - g_n, uIPN)/sf
-        i_n = g_n + numpy.outer(dist_n, uProj)
-        delta_ipp = i_n - SCP  # N x 3
-        ip_iter = numpy.dot(numpy.dot(delta_ipp, row_col_transform), ipp_transform)
+        dist_n = numpy.dot(SCP - g_n, uIPN)/sf  # (N, )
+        i_n = g_n + numpy.outer(dist_n, uProj)  # (N, 3)
+        delta_ipp = i_n - SCP  # (N, 3)
+        ip_iter = numpy.dot(delta_ipp, matrix_transform)  # (N, 2)
         im_points[:, 0] = ip_iter[:, 0]/row_ss + SCP_Pixel[0]
         im_points[:, 1] = ip_iter[:, 1]/col_ss + SCP_Pixel[1]
         # transform to ground plane containing the scene points and check how it compares
@@ -134,7 +141,7 @@ def ground_to_image(coords, sicd, delta_gp_max=None, max_iterations=10, block_si
         * `iterations` - the number of iterations performed.
     """
 
-    coords = _validate_coords(coords, sicd)
+    coords, orig_shape = _validate_coords(coords, sicd)
 
     row_ss = sicd.Grid.Row.SS
     col_ss = sicd.Grid.Col.SS
@@ -174,7 +181,6 @@ def ground_to_image(coords, sicd, delta_gp_max=None, max_iterations=10, block_si
     sf = float(numpy.dot(uSPN, uIPN))  # scale factor
 
     # prepare the work space
-    orig_shape = coords.shape
     coords_view = numpy.reshape(coords, (-1, 3))  # possibly or make 2-d flatten
     num_points = coords_view.shape[0]
     if block_size is None or num_points <= block_size:
@@ -198,7 +204,9 @@ def ground_to_image(coords, sicd, delta_gp_max=None, max_iterations=10, block_si
                     row_col_transform, ipp_transform, delta_gp_max, max_iterations)
             start_block = end_block
 
-    if len(orig_shape) > 1:
+    if len(orig_shape) == 1:
+        image_points = numpy.reshape(image_points, (-1,))
+    elif len(orig_shape) > 1:
         image_points = numpy.reshape(image_points, orig_shape[:-1]+(2, ))
         delta_gpn = numpy.reshape(delta_gpn, orig_shape[:-1])
         iters = numpy.reshape(iters, orig_shape[:-1])
@@ -357,7 +365,6 @@ class COAProjection(object):
 
         row_meters = (im_points[:, 0] + self.first_row - self.scp_row)*self.row_ss
         col_meters = (im_points[:, 1] + self.first_col - self.scp_col)*self.col_ss
-
         t_coa = self.time_coa_poly(row_meters, col_meters)
         # calculate aperture reference position and velocity at target time
         arp_coa = self.arp_poly(t_coa)
@@ -594,9 +601,10 @@ def _validate_im_points(im_points, sicd):
     if not isinstance(im_points, numpy.ndarray):
         im_points = numpy.array(im_points, dtype=numpy.float64)
 
+    orig_shape = im_points.shape
+
     if len(im_points.shape) == 1:
         im_points = numpy.reshape(im_points, (1, -1))
-    print(im_points.shape, im_points)
     if im_points.shape[-1] != 2:
         raise ValueError(
             'The im_points array must represent an array of points in pixel coordinates, '
@@ -614,7 +622,7 @@ def _validate_im_points(im_points, sicd):
             'The sicd is has {} rows and {} cols. image_to_ground projection effort '
             'requires row coordinates in the range {} and column coordinates '
             'in the range {}'.format(rows, cols, row_bounds, col_bounds))
-    return im_points
+    return im_points, orig_shape
 
 
 def image_to_ground(im_points, sicd, block_size=50000, projection_type='HAE', **kwargs):
@@ -726,7 +734,7 @@ def _image_to_ground_plane_perform(r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa, 
     sinAz = look * numpy.sqrt(1-cosAz*cosAz)
 
     # Compute Ground Plane Point in ground plane and along the R/Rdot contour
-    return aGPN + numpy.outer(gd*cosAz, uX) + numpy.outer(gd*sinAz, uY)
+    return aGPN + (uX.T*gd*cosAz + uY.T*gd*sinAz).T
 
 
 def _image_to_ground_plane(im_points, coa_projection, gref, uZ):
@@ -786,11 +794,10 @@ def image_to_ground_plane(im_points, sicd, block_size=50000, gref=None, ugpn=Non
     uZ = ugpn/numpy.linalg.norm(ugpn)
 
     # coa projection creation
-    im_points = _validate_im_points(im_points, sicd)
+    im_points, orig_shape = _validate_im_points(im_points, sicd)
     coa_proj = COAProjection(sicd, **coa_args)
 
     # prepare workspace
-    orig_shape = im_points.shape
     im_points_view = numpy.reshape(im_points, (-1, 2))  # possibly or make 2-d flatten
     num_points = im_points_view.shape[0]
     if block_size is None or num_points <= block_size:
@@ -805,7 +812,9 @@ def image_to_ground_plane(im_points, sicd, block_size=50000, gref=None, ugpn=Non
                 im_points_view[start_block:end_block], coa_proj, gref, uZ)
             start_block = end_block
 
-    if len(orig_shape) > 1:
+    if len(orig_shape) == 1:
+        coords = numpy.reshape(coords, (-1, ))
+    elif len(orig_shape) > 1:
         coords = numpy.reshape(coords, orig_shape[:-1] + (3,))
     return coords
 
@@ -838,7 +847,7 @@ def _image_to_ground_hae_perform(
     """
 
     # Compute the geodetic ground plane normal at the SCP.
-    look = numpy.sign(numpy.dot(numpy.cross(arp_coa, varp_coa), SCP-arp_coa))
+    look = numpy.sign(numpy.sum(numpy.cross(arp_coa, varp_coa)*(SCP-arp_coa), axis=1))
     gref = SCP - (scp_hae - hae0)*ugpn
     # iteration variables
     gpp = None
@@ -952,11 +961,10 @@ def image_to_ground_hae(im_points, sicd, block_size=50000,
         raise ValueError('hae_nlim must be a positive integer. Got {}'.format(hae_nlim))
 
     # coa projection creation
-    im_points = _validate_im_points(im_points, sicd)
+    im_points, orig_shape = _validate_im_points(im_points, sicd)
     coa_proj = COAProjection(sicd, **coa_args)
 
     # prepare workspace
-    orig_shape = im_points.shape
     im_points_view = numpy.reshape(im_points, (-1, 2))  # possibly or make 2-d flatten
     num_points = im_points_view.shape[0]
     if block_size is None or num_points <= block_size:
@@ -971,7 +979,9 @@ def image_to_ground_hae(im_points, sicd, block_size=50000,
                 im_points_view[start_block:end_block], coa_proj, hae0, delta_hae_max, hae_nlim, scp_hae, SCP)
             start_block = end_block
 
-    if len(orig_shape) > 1:
+    if len(orig_shape) == 1:
+        coords = numpy.reshape(coords, (-1,))
+    elif len(orig_shape) > 1:
         coords = numpy.reshape(coords, orig_shape[:-1] + (3,))
     return coords
 
@@ -1089,7 +1099,7 @@ def image_to_ground_dem(im_points, sicd, block_size=50000,
     """
 
     # coa projection creation
-    im_points = _validate_im_points(im_points, sicd)
+    im_points, orig_shape = _validate_im_points(im_points, sicd)
     coa_proj = COAProjection(sicd, **coa_args)
 
     # TODO: handle dted_list is None
@@ -1123,7 +1133,6 @@ def image_to_ground_dem(im_points, sicd, block_size=50000,
     max_dem = dem_interpolator.get_max_dem() + scp_geoid - 10
 
     # prepare workspace
-    orig_shape = im_points.shape
     im_points_view = numpy.reshape(im_points, (-1, 2))  # possibly or make 2-d flatten
     num_points = im_points_view.shape[0]
     if block_size is None or num_points <= block_size:
@@ -1141,6 +1150,8 @@ def image_to_ground_dem(im_points, sicd, block_size=50000,
                 min_dem, max_dem, horizontal_step_size, scp[2], sicd.GeoData.SCP.ECF.get_array())
             start_block = end_block
 
-    if len(orig_shape) > 1:
+    if len(orig_shape) == 1:
+        coords = numpy.reshape(coords, (-1,))
+    elif len(orig_shape) > 1:
         coords = numpy.reshape(coords, orig_shape[:-1] + (3,))
     return coords

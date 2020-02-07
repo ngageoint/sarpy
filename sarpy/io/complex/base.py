@@ -3,9 +3,10 @@
 The base elements for reading and writing complex data files.
 """
 
+import os
+import re
 import sys
 import logging
-import getpass
 from typing import Union, Tuple
 
 import numpy
@@ -70,6 +71,13 @@ class BaseChipper(object):
             raise ValueError('complex-type must be a boolean or a callable')
         self._complex_type = complex_type
 
+        if not isinstance(symmetry, tuple):
+            symmetry = tuple(symmetry)
+        if len(symmetry) != 3:
+            raise ValueError(
+                'The symmetry parameter must have length 3, and got {}.'.format(symmetry))
+        self._symmetry = tuple([bool(entry) for entry in symmetry])
+
         if not isinstance(data_size, tuple):
             data_size = tuple(data_size)
         if len(data_size) != 2:
@@ -78,14 +86,10 @@ class BaseChipper(object):
         data_size = (int_func(data_size[0]), int_func(data_size[1]))
         if data_size[0] < 0 or data_size[1] < 0:
             raise ValueError('All entries of data_size {} must be non-negative.'.format(data_size))
-        self._data_size = data_size
-
-        if not isinstance(symmetry, tuple):
-            symmetry = tuple(symmetry)
-        if len(symmetry) != 3:
-            raise ValueError(
-                'The symmetry parameter must have length 3, and got {}.'.format(symmetry))
-        self._symmetry = tuple([bool(entry) for entry in symmetry])
+        if self._symmetry[2]:
+            self._data_size = (data_size[1], data_size[0])
+        else:
+            self._data_size = data_size
 
     @property
     def symmetry(self):
@@ -160,7 +164,7 @@ class BaseChipper(object):
         # type: (Union[None, int, slice, tuple]) -> tuple
         def parse(entry):
             if isinstance(entry, integer_types):
-                return item, item+1, None
+                return entry, entry+1, 1
             if isinstance(entry, slice):
                 return entry.start, entry.stop, entry.step
 
@@ -218,8 +222,8 @@ class BaseChipper(object):
                     'to be in the range [0, {})'.format(arg, start, siz))
             if not (-siz < stop <= siz):
                 raise ValueError(
-                    'Range argument {} has extracted stop {}, which is required '
-                    'to be in the range [0, {}]'.format(arg, start, siz))
+                    'Range argument {} has extracted "stop" {}, which is required '
+                    'to be in the range [0, {}]'.format(arg, stop, siz))
             if not ((0 < step < siz) or (-siz < step < 0)):
                 raise ValueError(
                     'Range argument {} has extracted step {}, for an axis of length '
@@ -249,26 +253,28 @@ class BaseChipper(object):
         if not (range1 is None or isinstance(range1, integer_types) or isinstance(range1, tuple)):
             raise TypeError('range1 is of type {}, but must be an instance of None, '
                             'int or tuple.'.format(range1))
+        if isinstance(range1, tuple) and len(range1) > 3:
+            raise TypeError('range1 must have no more than 3 entries, received {}.'.format(range1))
+
         if not (range2 is None or isinstance(range2, integer_types) or isinstance(range2, tuple)):
             raise TypeError('range2 is of type {}, but must be an instance of None, '
                             'int or tuple.'.format(range2))
-        if isinstance(range1, tuple) and len(range1) > 3:
-            raise TypeError('range1 must have no more than 3 entries, received {}.'.format(range1))
         if isinstance(range2, tuple) and len(range2) > 3:
             raise TypeError('range2 must have no more than 3 entries, received {}.'.format(range2))
 
-        # switch the axes if necessary
-        real_arg1, real_arg2 = (range2, range1) if self._symmetry[2] else (range1, range2)
         # validate the first range
         if self._symmetry[0]:
-            real_arg1 = reverse_arg(real_arg1, self._data_size[0])
+            real_arg1 = reverse_arg(range1, self._data_size[0])
         else:
-            real_arg1 = extract(real_arg1, self._data_size[0])
+            real_arg1 = extract(range1, self._data_size[0])
         # validate the second range
         if self._symmetry[1]:
-            real_arg2 = reverse_arg(real_arg2, self._data_size[1])
+            real_arg2 = reverse_arg(range2, self._data_size[1])
         else:
-            real_arg2 = extract(real_arg2, self._data_size[1])
+            real_arg2 = extract(range2, self._data_size[1])
+
+        # switch the axes symmetry dictates
+        real_arg1, real_arg2 = (real_arg2, real_arg1) if self._symmetry[2] else (real_arg1, real_arg2)
         return real_arg1, real_arg2
 
     def _data_to_complex(self, data):
@@ -346,15 +352,45 @@ class SubsetChipper(BaseChipper):
         self.shift1 = dim1bounds[0]
         self.shift2 = dim2bounds[0]
         self.parent_chipper = parent_chipper
-        super(SubsetChipper, self).__init__(data_size, symmetry=parent_chipper.symmetry)
+        super(SubsetChipper, self).__init__(data_size, symmetry=(False, False, False), complex_type=False)
 
-    def _data_to_complex(self, data):
-        return self.parent_chipper._data_to_complex(data)
+    def _reformat_bounds(self, range1, range2):
+        def _get_start(entry, shift, bound):
+            if entry is None:
+                return shift
+            entry = int_func(entry)
+            if -bound < entry < 0:
+                return shift + bound + entry
+            elif 0 <= entry < bound:
+                return shift + entry
+            raise ValueError(
+                'Got slice start entry {}, which must be in the range '
+                '({}, {})'.format(entry, -bound, bound))
+
+        def _get_end(entry, shift, bound):
+            if entry is None:
+                return shift
+            entry = int_func(entry)
+            if -bound <= entry < 0:
+                return shift + bound + entry
+            elif 0 <= entry <= bound:
+                return shift + entry
+            raise ValueError(
+                'Got slice end entry {}, which must be in the range '
+                '[{}, {}]'.format(entry, -bound, bound))
+
+        def _get_range(rng, shift, bound):
+            return (
+                _get_start(rng[0], shift, bound),
+                _get_end(rng[1], shift, bound),
+                rng[2])
+        arange1 = _get_range(range1, self.shift1, self._data_size[0])
+        arange2 = _get_range(range2, self.shift2, self._data_size[1])
+        return arange1, arange2
 
     def _read_raw_fun(self, range1, range2):
-        arange1 = (range1[0] + self.shift1, range1[1] + self.shift1, range1[2])
-        arange2 = (range2[0] + self.shift2, range2[1] + self.shift2, range2[2])
-        return self.parent_chipper._read_raw_fun(arange1, arange2)
+        arange1, arange2 = self._reformat_bounds(range1, range2)
+        return self.parent_chipper.__call__(arange1, arange2)
 
 
 class BaseReader(object):
@@ -409,13 +445,7 @@ class BaseReader(object):
         elif isinstance(sicd_meta, tuple):
             if not (isinstance(chipper, tuple) and len(chipper) == len(sicd_meta)):
                 raise ValueError('sicd_meta is a collection, so chipper must be a collection of the same size.')
-            if len(sicd_meta) == 1:
-                sicd_meta = sicd_meta[0]
-                chipper = chipper[0]
-                data_size = chipper.data_size
-            else:
-                data_size = tuple(el.data_size for el in chipper)
-
+            data_size = tuple(el.data_size for el in chipper)
         self._sicd_meta = sicd_meta
         self._chipper = chipper
         self._data_size = data_size
@@ -435,6 +465,40 @@ class BaseReader(object):
         """
 
         return self._data_size
+
+    def get_sicds_as_tuple(self):
+        """
+        Get the sicd or sicd collection as a tuple - for simplicity and consistency of use.
+
+        Returns
+        -------
+        Tuple[SICDType]
+        """
+
+        if self._sicd_meta is None:
+            return None
+        elif isinstance(self._sicd_meta, tuple):
+            return self._sicd_meta
+        else:
+            # noinspection PyRedundantParentheses
+            return (self._sicd_meta, )
+
+    def get_data_size_as_tuple(self):
+        """
+        Get the data size wrapped in a tuple - for simplicity and ease of use.
+
+        Returns
+        -------
+        Tuple[Tuple[int, int]]
+        """
+
+        if self._sicd_meta is None:
+            return None
+        elif isinstance(self._sicd_meta, tuple):
+            return self._data_size
+        else:
+            # noinspection PyRedundantParentheses
+            return (self._data_size, )
 
     def _validate_index(self, index):
         if isinstance(self._chipper, BaseChipper) or index is None:
@@ -543,6 +607,37 @@ class BaseReader(object):
         else:
             return self._chipper(dim1range, dim2range)
 
+    def get_suggestive_name(self, frame=None):
+        """
+        Get a suggestive name for the frame in question.
+
+        Parameters
+        ----------
+        frame : None|int
+            Defaults to the first frame.
+        Returns
+        -------
+        str
+        """
+
+        if frame is None:
+            frame = 0
+        else:
+            frame = int_func(frame)
+        the_sicd = self._sicd_meta if isinstance(self._sicd_meta, SICDType) else self._sicd_meta[frame]
+        core_name = ''
+        try:
+            core_name += the_sicd.CollectionInfo.CoreName
+        except (AttributeError, ValueError, TypeError):
+            core_name = 'UnknownCoreName'
+
+        pols = ''
+        try:
+            pols += re.sub(':', '', the_sicd.ImageFormation.TxRcvPolarizationProc)
+        except (AttributeError, ValueError, TypeError):
+            pols = 'UnknownPolarization'
+        return '{}_{}_SICD.nitf'.format(core_name, pols)
+
 
 class SubsetReader(BaseReader):
     """Permits extraction from a particular subset of the possible data range"""
@@ -578,6 +673,9 @@ class AbstractWriter(object):
         """
 
         self._file_name = file_name
+        if not os.path.exists(self._file_name):
+            with open(self._file_name, 'wb') as fi:
+                fi.write(b'')
 
     def close(self):
         """
@@ -598,7 +696,7 @@ class AbstractWriter(object):
         ----------
         data : numpy.ndarray
             the complex data
-        start_indices : Tuple[int, int]
+        start_indices : tuple[int, int]
             the starting index for the data.
         Returns
         -------
@@ -670,15 +768,14 @@ class BaseWriter(AbstractWriter):
             sicd_meta.ImageData.PixelType = 'RE32F_IM32F'
         self._sicd_meta = sicd_meta.copy()
 
-        # noinspection PyBroadException
-        try:
-            profile = getpass.getuser()
-        except Exception:  # unsure what exception is raised
-            profile = None
-        self._sicd_meta.ImageCreation = ImageCreationType(
-            Application='{} {}'.format(__title__, __version__),
-            DateTime=numpy.datetime64('now'),
-            Profile=profile)
+        profile = '{} {}'.format(__title__, __version__)
+        if self._sicd_meta.ImageCreation is None:
+            self._sicd_meta.ImageCreation = ImageCreationType(
+                Application=profile,
+                DateTime=numpy.datetime64('now', 'us'),
+                Profile=profile)
+        else:
+            self._sicd_meta.ImageCreation.Profile = profile
 
     @property
     def sicd_meta(self):

@@ -10,6 +10,7 @@ import warnings
 import numpy
 from numpy.polynomial import polynomial
 from scipy.constants import speed_of_light
+from datetime import date
 
 try:
     import h5py
@@ -30,12 +31,12 @@ from .sicd_elements.SCPCOA import SCPCOAType
 from .sicd_elements.Position import PositionType, XYZPolyType
 from .sicd_elements.Grid import GridType, DirParamType, WgtTypeType
 from .sicd_elements.Timeline import TimelineType, IPPSetType
-from .sicd_elements.ImageFormation import ImageFormationType, TxFrequencyProcType
+from .sicd_elements.ImageFormation import ImageFormationType, TxFrequencyProcType, RcvChanProcType
 from .sicd_elements.RMA import RMAType, INCAType
 from .sicd_elements.Radiometric import RadiometricType
 from ...geometry import point_projection
 from .base import BaseChipper, BaseReader
-from .utils import two_dim_poly_fit, get_seconds
+from .utils import get_seconds, fit_time_coa_polynomial
 
 __classification__ = "UNCLASSIFIED"
 __author__ = ("Thomas McCullough", "Jarred Barber", "Wade Schwartzkopf")
@@ -75,8 +76,9 @@ def is_a(file_name):
 ##########
 # helper functions
 
-def _extract_attrs(h5_element):
-    out = OrderedDict()
+def _extract_attrs(h5_element, out=None):
+    if out is None:
+        out = OrderedDict()
     for key in h5_element.attrs:
         val = h5_element.attrs[key]
         out[key] = val.decode('utf-8') if isinstance(val, bytes) else val
@@ -87,7 +89,7 @@ def _extract_attrs(h5_element):
 # parser and interpreter for hdf5 attributes
 
 class CSKDetails(object):
-    __slots__ = ('_file_name', )
+    __slots__ = ('_file_name', '_satellite', '_product_type')
 
     def __init__(self, file_name):
         """
@@ -100,16 +102,16 @@ class CSKDetails(object):
             raise ImportError("Can't read Cosmo Skymed files, because the h5py dependency is missing.")
 
         with h5py.File(file_name, 'r') as hf:
-            sat_id = hf.attrs['Satellite ID'].decode('utf-8')
-            prod_type = hf['Product Type'].decode('utf-8')
+            self._satellite = hf.attrs['Satellite ID'].decode('utf-8')
+            self._product_type = hf.attrs['Product Type'].decode('utf-8')
 
-        if 'CSK' not in sat_id:
+        if 'CSK' not in self._satellite:
             raise ValueError('Expected hdf5 to be a CSK (attribute `Satellite ID` which contains "CSK"). '
-                             'Got Satellite ID = {}.'.format(sat_id))
-        if 'SCS' not in prod_type:
+                             'Got Satellite ID = {}.'.format(self._satellite))
+        if 'SCS' not in self._product_type:
             raise ValueError('Expected hdf to contain complex products '
                              '(attribute `Product Type` which contains "SCS"). '
-                             'Got Product Type = {}'.format(prod_type))
+                             'Got Product Type = {}'.format(self._product_type))
 
         self._file_name = file_name
 
@@ -117,6 +119,22 @@ class CSKDetails(object):
     def file_name(self):
         """str: the file name"""
         return self._file_name
+
+    @property
+    def satellite(self):
+        """
+        str: the satellite name
+        """
+
+        return self._satellite
+
+    @property
+    def product_type(self):
+        """
+        str: the product type
+        """
+
+        return self._product_type
 
     def _get_hdf_dicts(self):
         with h5py.File(self._file_name, 'r') as hf:
@@ -126,7 +144,9 @@ class CSKDetails(object):
 
             for gp_name in sorted(hf.keys()):
                 gp = hf[gp_name]
-                band_dict[gp_name] = _extract_attrs(gp)
+                band_dict[gp_name] = OrderedDict()
+                _extract_attrs(gp, out=band_dict[gp_name])
+                _extract_attrs(gp['SBI'], out=band_dict[gp_name])
                 shape_dict[gp_name] = gp['SBI'].shape[:2]
         return h5_dict, band_dict, shape_dict
 
@@ -144,7 +164,7 @@ class CSKDetails(object):
                                       CollectorName=h5_dict['Satellite ID'],
                                       CoreName=str(h5_dict['Programmed Image ID']),
                                       CollectType='MONOSTATIC',
-                                      RadarMode=RadarModeType(ModeId=h5_dict['Multi-Beam ID'],
+                                      RadarMode=RadarModeType(ModeID=h5_dict['Multi-Beam ID'],
                                                               ModeType=mode_type))
 
         def get_image_creation():  # type: () -> ImageCreationType
@@ -179,7 +199,7 @@ class CSKDetails(object):
         def get_timeline():  # type: () -> TimelineType
             return TimelineType(CollectStart=collect_start,
                                 CollectDuration=duration,
-                                IPP=[IPPSetType(index=0, TStart=0, TEnd=0, IPPStart=0), ])
+                                IPP=[IPPSetType(index=0, TStart=0, TEnd=0, IPPStart=0, IPPEnd=0), ])  # NB: IPPEnd must be set, but will be replaced
 
         def get_position():  # type: () -> PositionType
             T = h5_dict['State Vectors Times']  # in seconds relative to ref time
@@ -190,19 +210,20 @@ class CSKDetails(object):
             deg = 1
             prev_vel_error = numpy.inf
             P_x, P_y, P_z = None, None, None
-            while deg < Pos.shape[0]:
+            while deg < min(6, Pos.shape[0]):
                 # fit position
                 P_x = polynomial.polyfit(T, Pos[:, 0], deg=deg)
                 P_y = polynomial.polyfit(T, Pos[:, 1], deg=deg)
                 P_z = polynomial.polyfit(T, Pos[:, 2], deg=deg)
                 # extract estimated velocities
-                Vel_est = numpy.array(
-                    [polynomial.polyval(T, polynomial.polyder(P_x)),
+                Vel_est = numpy.stack(
+                    (polynomial.polyval(T, polynomial.polyder(P_x)),
                      polynomial.polyval(T, polynomial.polyder(P_y)),
-                     polynomial.polyval(T, polynomial.polyder(P_z))], dtype=numpy.float64)
+                     polynomial.polyval(T, polynomial.polyder(P_z))), axis=-1)
                 # check our velocity error
                 vel_err = Vel_est - Vel
                 cur_vel_error = numpy.sum((vel_err*vel_err))
+                deg += 1
                 # stop if the error is not smaller than at the previous step
                 if cur_vel_error >= prev_vel_error:
                     break
@@ -230,7 +251,9 @@ class CSKDetails(object):
                                       STBeamComp='SV',
                                       ImageBeamComp='NO',
                                       AzAutofocus='NO',
-                                      RgAutofocus='NO')
+                                      RgAutofocus='NO',
+                                      RcvChanProc=RcvChanProcType(NumChanProc=1,
+                                                                  PRFScaleFactor=1))
 
         def get_rma():  # type: () -> RMAType
             inca = INCAType(FreqZero=center_frequency)
@@ -290,8 +313,8 @@ class CSKDetails(object):
         dop_rate_poly_rg = strip_poly(h5_dict['Doppler Rate vs Range Time Polynomial'])
         return az_ref_time, rg_ref_time, dop_poly_az, dop_poly_rg, dop_rate_poly_rg
 
-    def _get_band_specific_sicds(self, base_sicd, h5_dict, band_dict):
-        # type: (SICDType, dict, dict) -> Dict[str, SICDType]
+    def _get_band_specific_sicds(self, base_sicd, h5_dict, band_dict, shape_dict):
+        # type: (SICDType, dict, dict, dict) -> Dict[str, SICDType]
 
         az_ref_time, rg_ref_time, dop_poly_az, dop_poly_rg, dop_rate_poly_rg = self._get_dop_poly_details(h5_dict)
         center_frequency = h5_dict['Radar Frequency']
@@ -308,39 +331,25 @@ class CSKDetails(object):
         def update_image_data(sicd, band_name):
             # type: (SICDType, str) -> Tuple[float, float, float, float]
 
-            # def scp_option2():  # type: () -> RowColType
-            #     # Choose the SCP as the point closest to the middle of the image
-            #     return RowColType(Row=int(rows/2), Col=int(cols/2))
+            cols, rows = shape_dict[band_name]
+            t_az_first_time = band_dict[band_name]['Zero Doppler Azimuth First Time']
+            # zero doppler time of first column
+            t_ss_az_s = band_dict[band_name]['Line Time Interval']
+            if base_sicd.SCPCOA.SideOfTrack == 'L':
+                # we need to reverse time order
+                t_ss_az_s *= -1
+                t_az_first_time = band_dict[band_name]['Zero Doppler Azimuth Last Time']
+            # zero doppler time of first row
+            t_rg_first_time = band_dict[band_name]['Zero Doppler Range First Time']
+            # row spacing in range time (seconds)
+            t_ss_rg_s = band_dict[band_name]['Column Time Interval']
 
-            def scp_option1():  # type: () -> Tuple[RowColType, float, float, float, float]
-                # Choose the SCP as the point closest to the reference zero-doppler and range
-                # times in the CSK metadata.
-                tt_az_first_time = band_dict[band_name]['Zero Doppler Azimuth First Time']
-                # zero doppler time of first column
-                tt_ss_az_s = band_dict[band_name]['Line Time Interval']
-                scp_col_base = round((az_ref_time - tt_az_first_time) / tt_ss_az_s)
-                if base_sicd.SCPCOA.SideOfTrack == 'L':
-                    # we ned to reverse time order
-                    scp_col = cols - 1 - scp_col_base
-                    tt_ss_az_s *= -1
-                    tt_az_first_time = band_dict[band_name]['Zero Doppler Azimuth Last Time']
-                else:
-                    scp_col = scp_col_base
-                # zero doppler time of first row
-                tt_rg_first_time = band_dict[band_name]['Zero Doppler Range First Time']
-                # row spacing in range time (seconds)
-                tt_ss_rg_s = band_dict[band_name]['Column Time Interval']
-                scp_row = round((rg_ref_time - tt_rg_first_time) / tt_ss_rg_s)
-                return RowColType(Row=scp_row, Col=scp_col), tt_rg_first_time, tt_ss_rg_s, tt_az_first_time, tt_ss_az_s
-
-            cols, rows = band_dict[band_name]['shape']
-            scp_pixel, t_rg_first_time, t_ss_rg_s, t_az_first_time, t_ss_az_s = scp_option1()
             sicd.ImageData = ImageDataType(NumRows=rows,
                                            NumCols=cols,
                                            FirstRow=0,
                                            FirstCol=0,
                                            PixelType='RE16I_IM16I',
-                                           SCPPixel=scp_pixel)
+                                           SCPPixel=RowColType(Row=int(rows/2), Col=int(cols/2)))
 
             return t_rg_first_time, t_ss_rg_s, t_az_first_time, t_ss_az_s
 
@@ -407,7 +416,7 @@ class CSKDetails(object):
             # compute DopCentroidPoly & DeltaKCOAPoly
             dop_centroid_poly = numpy.zeros((dop_poly_rg.order1+1, dop_poly_az.order1+1), dtype=numpy.float64)
             dop_centroid_poly[0, 0] = dop_poly_rg(rg_scp_time-rg_ref_time) + \
-                dop_poly_az(az_scp_time-az_ref_time) + \
+                dop_poly_az(az_scp_time-az_ref_time) - \
                 0.5*(dop_poly_rg[0] + dop_poly_az[0])
             dop_poly_rg_shifted = dop_poly_rg.shift(rg_ref_time-rg_scp_time, alpha=ss_rg_s/row_ss)
             dop_poly_az_shifted = dop_poly_az.shift(az_ref_time-az_scp_time, alpha=ss_az_s/col_ss)
@@ -416,24 +425,9 @@ class CSKDetails(object):
             sicd.RMA.INCA.DopCentroidPoly = Poly2DType(Coefs=dop_centroid_poly)
             sicd.RMA.INCA.DopCentroidCOA = True
             sicd.Grid.Col.DeltaKCOAPoly = Poly2DType(Coefs=dop_centroid_poly*ss_az_s/col_ss)
-
-            image_data = sicd.ImageData
-            grid = sicd.Grid
-            inca = sicd.RMA.INCA
-            poly_order = 2
-            grid_samples = poly_order + 2
-            coords_az = (numpy.linspace(0, image_data.NumCols - 1,
-                                        grid_samples) - image_data.SCPPixel.Col) * grid.Col.SS
-            coords_rg = (numpy.linspace(0, image_data.NumRows - 1,
-                                        grid_samples) - image_data.SCPPixel.Row) * grid.Row.SS
-            coords_az_2d, coords_rg_2d = numpy.meshgrid(coords_az, coords_rg)
-            time_ca_sampled = inca.TimeCAPoly(coords_rg_2d)  # coords_az_2d) 1-D polynomial
-            dop_centroid_sampled = inca.DopCentroidPoly(coords_rg_2d, coords_az_2d)
-            doppler_rate_sampled = polynomial.polyval(coords_rg_2d, dop_rate_poly_rg_shifted)
-            time_coa_sampled = time_ca_sampled + dop_centroid_sampled / doppler_rate_sampled
-            grid.TimeCOAPoly = Poly2DType(
-                Coefs=two_dim_poly_fit(coords_rg_2d, coords_az_2d, time_coa_sampled,
-                                       x_order=poly_order, y_order=poly_order))
+            # fit TimeCOAPoly
+            sicd.Grid.TimeCOAPoly = fit_time_coa_polynomial(
+                sicd.RMA.INCA, sicd.ImageData, sicd.Grid, dop_rate_poly_rg_shifted, poly_order=2)
 
         def update_radiometric(sicd, band_name):  # type: (SICDType, str) -> None
             if h5_dict['Range Spreading Loss Compensation Geometry'] != 'NONE':
@@ -490,7 +484,7 @@ class CSKDetails(object):
 
         h5_dict, band_dict, shape_dict = self._get_hdf_dicts()
         base_sicd = self._get_base_sicd(h5_dict, band_dict)
-        return self._get_band_specific_sicds(base_sicd, h5_dict, band_dict), \
+        return self._get_band_specific_sicds(base_sicd, h5_dict, band_dict, shape_dict), \
             shape_dict, self._get_symmetry(base_sicd, h5_dict)
 
 
@@ -510,7 +504,7 @@ class CSKBandChipper(BaseChipper):
         with h5py.File(self._file_name, 'r') as hf:
             gp = hf['{}/SBI'.format(self._band_name)]
             data = gp[r1[0]:r1[1]:r1[2], r2[0]:r2[1]:r2[2], :]
-        return data.transpose((2, 0, 1))
+        return data
 
 
 class CSKReader(BaseReader):
@@ -541,3 +535,15 @@ class CSKReader(BaseReader):
             sicds.append(sicd_data[band_name])
             chippers.append(CSKBandChipper(csk_details.file_name, band_name, shape_dict[band_name], symmetry))
         super(CSKReader, self).__init__(tuple(sicds), tuple(chippers))
+
+    def get_suggestive_name(self, frame=0):
+        frame = int(frame)
+        out = super(CSKReader, self).get_suggestive_name(frame=frame)
+        the_sicd = self._sicd_meta if isinstance(self._sicd_meta, SICDType) else self._sicd_meta[frame]
+        try:
+            sdatestr = date.fromisoformat(str(the_sicd.Timeline.CollectStart)[:10]).strftime('%d%b%y')
+            out = '{}_{}_{}_{}'.format(sdatestr, the_sicd.CollectionInfo.CollectorName, the_sicd.CollectionInfo.RadarMode.ModeID, out)
+        except (AttributeError, ValueError, TypeError):
+            pass
+
+        return out

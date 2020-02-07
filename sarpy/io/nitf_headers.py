@@ -80,7 +80,7 @@ class _BaseScraper(object):
 
         raise NotImplementedError
 
-    def to_string(self):
+    def to_bytes(self):
         """
         Write the object to a properly packed str.
 
@@ -172,7 +172,7 @@ class _ItemArrayHeaders(_BaseScraper):
             loc += item_len
         return cls(subhead_len, subhead_sizes, item_len, item_sizes)
 
-    def to_string(self):
+    def to_bytes(self):
         out = '{0:03d}'.format(self.subhead_sizes.size)
         subh_frm = '{0:0' + str(self.subhead_len) + 'd}'
         item_frm = '{0:0' + str(self.item_len) + 'd}'
@@ -230,7 +230,7 @@ class OtherHeader(_BaseScraper):
             header = value[start+8:start+siz]
             return cls(overflow=overflow, header=header)
 
-    def to_string(self):
+    def to_bytes(self):
         out = '{0:05d}'.format(self.overflow)
         if self.header is not None:
             if self.overflow > 999:
@@ -403,12 +403,12 @@ class _HeaderScraper(_BaseScraper):
         fields, _ = cls._parse_attributes(value, start)
         return cls(**fields)
 
-    def to_string(self):
+    def to_bytes(self):
         out = b''
         for attribute in self.__slots__:
             val = getattr(self, attribute)
             if isinstance(val, _BaseScraper):
-                out += val.to_string()
+                out += val.to_bytes()
             elif isinstance(val, integer_types):
                 _, fstr = self._get_format_string(attribute)
                 out += fstr.format(val).encode()
@@ -557,7 +557,7 @@ class ImageBands(_BaseScraper):
             loc += 13
         return cls(isubcat, IREPBAND=irepband, IFC=ifc, IMFLT=imflt, NLUTS=nluts)
 
-    def to_string(self):
+    def to_bytes(self):
         siz = len(self.ISUBCAT)
         if siz <= 9:
             items = ['{0:1d}'.format(siz), ]
@@ -565,11 +565,13 @@ class ImageBands(_BaseScraper):
             items = ['0{0:05d}'.format(siz), ]
         for i in range(siz):
             for attribute in self.__slots__:
-                frmstr = '{0:' + self._formats[attribute] + '}'
-                val = frmstr.format(getattr(self, attribute)[i])
-                if len(val) > int_func(frmstr[:-1]):
+                aname = attribute[1:] if attribute[0] == '_' else attribute
+                fstr = self._formats[aname]
+                frmstr = '{0:' + fstr + '}'
+                val = frmstr.format(getattr(self, aname)[i])
+                if len(val) > int_func(fstr[:-1]):
                     raise ValueError('Entry {} for attribute {} got formatted as a length {} string, '
-                                     'but required to be {}'.format(i, attribute, len(val), frmstr[:-1]))
+                                     'but required to be {}'.format(i, aname, len(val), fstr[:-1]))
                 items.append(val)
         return (''.join(items)).encode()
 
@@ -613,9 +615,9 @@ class ImageComments(_BaseScraper):
             loc += 80
         return cls(comments)
 
-    def to_string(self):
+    def to_bytes(self):
         if self.comments is None or len(self.comments) == 0:
-            return '0'
+            return b'0'
 
         siz = min(len(self.comments), 9)
         out = '{0:1d}'.format(siz)
@@ -805,8 +807,8 @@ class DataExtensionHeader(_HeaderScraper):
             return DESTreOverflow.from_string(value, start)
         return cls(**fields)
 
-    def to_string(self, other_string=None):
-        out = super(DataExtensionHeader, self).to_string()
+    def to_bytes(self, other_string=None):
+        out = super(DataExtensionHeader, self).to_bytes()
         if self.DESSHL > 0:
             if other_string is None:
                 raise ValueError('There should be a specific des subhead of length {} provided'.format(self.DESSHL))
@@ -842,10 +844,10 @@ class DESTreOverflow(DataExtensionHeader):
     def __len__(self):
         return 42 + 167 + self.DESSHL
 
-    def to_string(self, other_string=None):
+    def to_bytes(self, other_string=None):
         # noinspection PyAttributeOutsideInit
         self.DESID = 'TRE_OVERFLOW'
-        super(DESTreOverflow, self).to_string(other_string=other_string)
+        super(DESTreOverflow, self).to_bytes(other_string=other_string)
 
 
 ######

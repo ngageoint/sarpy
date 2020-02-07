@@ -163,18 +163,19 @@ class GeoInfoType(Serializable):
         kwargs['GeoInfos'] = node.findall('GeoInfo')
         return super(GeoInfoType, cls).from_node(node, kwargs=kwargs)
 
-    def to_node(self, doc, tag, parent=None, strict=DEFAULT_STRICT, exclude=()):
-        node = super(GeoInfoType, self).to_node(doc, tag, parent=parent, strict=strict, exclude=exclude)
+    def to_node(self, doc, tag, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
+        node = super(GeoInfoType, self).to_node(
+            doc, tag, parent=parent, check_validity=check_validity, strict=strict, exclude=exclude)
         # slap on the GeoInfo children
         for entry in self._GeoInfos:
             entry.to_node(doc, tag, parent=node, strict=strict)
         return node
 
-    def to_dict(self, strict=DEFAULT_STRICT, exclude=()):
-        out = super(GeoInfoType, self).to_dict(strict=strict, exclude=exclude)
+    def to_dict(self, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
+        out = super(GeoInfoType, self).to_dict(check_validity=check_validity, strict=strict, exclude=exclude)
         # slap on the GeoInfo children
         if len(self.GeoInfos) > 0:
-            out['GeoInfos'] = [entry.to_dict(strict=strict) for entry in self._GeoInfos]
+            out['GeoInfos'] = [entry.to_dict(check_validity=check_validity, strict=strict) for entry in self._GeoInfos]
         return out
 
 
@@ -362,16 +363,17 @@ class GeoDataType(Serializable):
         kwargs['GeoInfos'] = node.findall('GeoInfo')
         return super(GeoDataType, cls).from_node(node, kwargs=kwargs)
 
-    def to_node(self, doc, tag, parent=None, strict=DEFAULT_STRICT, exclude=()):
-        node = super(GeoDataType, self).to_node(doc, tag, parent=parent, strict=strict, exclude=exclude)
+    def to_node(self, doc, tag, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
+        node = super(GeoDataType, self).to_node(
+            doc, tag, parent=parent, check_validity=check_validity, strict=strict, exclude=exclude)
         # slap on the GeoInfo children
         for entry in self._GeoInfos:
             entry.to_node(doc, 'GeoInfo', parent=node, strict=strict)
         return node
 
-    def to_dict(self, strict=DEFAULT_STRICT, exclude=()):
-        out = super(GeoDataType, self).to_dict(strict=strict, exclude=exclude)
+    def to_dict(self, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
+        out = super(GeoDataType, self).to_dict(check_validity=check_validity, strict=strict, exclude=exclude)
         # slap on the GeoInfo children
         if len(self.GeoInfos) > 0:
-            out['GeoInfos'] = [entry.to_dict(strict=strict) for entry in self._GeoInfos]
+            out['GeoInfos'] = [entry.to_dict(check_validity=check_validity, strict=strict) for entry in self._GeoInfos]
         return out

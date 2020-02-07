@@ -65,7 +65,7 @@ class PositionType(Serializable):
 
         Parameters
         ----------
-        SCPCOA : sarpy.sicd_elements.SCPCOAType
+        SCPCOA : sarpy.io.complex.sicd_elements.SCPCOA.SCPCOAType
 
         Returns
         -------

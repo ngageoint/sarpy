@@ -76,7 +76,7 @@ class FullImageType(Serializable, Arrayable):
         if isinstance(array, (numpy.ndarray, list, tuple)):
             if len(array) < 2:
                 raise ValueError('Expected array to be of length 2, and received {}'.format(array))
-            return cls(NUmRows=array[0], NumCols=array[1])
+            return cls(NumRows=array[0], NumCols=array[1])
         raise ValueError('Expected array to be numpy.ndarray, list, or tuple, got {}'.format(type(array)))
 
 
@@ -89,7 +89,7 @@ class ImageDataType(Serializable):
     _fields = (
         'PixelType', 'AmpTable', 'NumRows', 'NumCols', 'FirstRow', 'FirstCol', 'FullImage', 'SCPPixel', 'ValidData')
     _required = ('PixelType', 'NumRows', 'NumCols', 'FirstRow', 'FirstCol', 'FullImage', 'SCPPixel')
-    _numeric_format = {'AmpTable': '0.8f'}
+    _numeric_format = {'AmpTable': '0.16G'}
     _PIXEL_TYPE_VALUES = ("RE32F_IM32F", "RE16I_IM16I", "AMP8I_PHS8I")
     # descriptors
     PixelType = _StringEnumDescriptor(

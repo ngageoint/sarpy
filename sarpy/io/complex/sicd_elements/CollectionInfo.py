@@ -16,28 +16,28 @@ __author__ = "Thomas McCullough"
 
 class RadarModeType(Serializable):
     """Radar mode type container class"""
-    _fields = ('ModeType', 'ModeId')
+    _fields = ('ModeType', 'ModeID')
     _required = ('ModeType', )
     # other class variable
     _MODE_TYPE_VALUES = ('SPOTLIGHT', 'STRIPMAP', 'DYNAMIC STRIPMAP')
     # descriptors
-    ModeId = _StringDescriptor(
-        'ModeId', _required, strict=DEFAULT_STRICT,
+    ModeID = _StringDescriptor(
+        'ModeID', _required, strict=DEFAULT_STRICT,
         docstring='Radar imaging mode per Program Specific Implementation Document.')  # type: str
     ModeType = _StringEnumDescriptor(
         'ModeType', _MODE_TYPE_VALUES, _required, strict=True,
         docstring="The Radar imaging mode.")  # type: str
 
-    def __init__(self, ModeId=None, ModeType=None, **kwargs):
+    def __init__(self, ModeID=None, ModeType=None, **kwargs):
         """
 
         Parameters
         ----------
-        ModeId : str
+        ModeID : str
         ModeType : str
         kwargs : dict
         """
-        self.ModeId, self.ModeType = ModeId, ModeType
+        self.ModeID, self.ModeType = ModeID, ModeType
         super(RadarModeType, self).__init__(**kwargs)
 
 
