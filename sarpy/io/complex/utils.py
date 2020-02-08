@@ -45,7 +45,7 @@ def get_seconds(dt1, dt2, precision='us'):
     return float((tdt1.astype('int64') - tdt2.astype('int64'))*scale)
 
 
-def two_dim_poly_fit(x, y, z, x_order=2, y_order=2, rcond=None):
+def two_dim_poly_fit(x, y, z, x_order=2, y_order=2, x_scale=1, y_scale=1, rcond=None):
     """
     Perform fit of data to two dimensional polynomial.
 
@@ -61,6 +61,10 @@ def two_dim_poly_fit(x, y, z, x_order=2, y_order=2, rcond=None):
         the order for x
     y_order : int
         the order for y
+    x_scale : float
+        In order to help the fitting problem to become better conditioned, the independent
+        variables can be scaled, the fit performed, and then the solution rescaled.
+    y_scale : float
     rcond : None|float
         passed through to :func:`numpy.linalg.lstsq`.
     Returns
@@ -74,8 +78,8 @@ def two_dim_poly_fit(x, y, z, x_order=2, y_order=2, rcond=None):
     if (x.size != z.size) or (y.size != z.size):
         raise ValueError('x, y, z must have the same cardinality size.')
 
-    x = x.flatten()
-    y = y.flatten()
+    x = x.flatten()*x_scale
+    y = y.flatten()*y_scale
     z = z.flatten()
     # first, we need to formulate this as A*t = z
     # where A has shape (x.size, (x_order+1)*(y_order+1))
@@ -88,7 +92,11 @@ def two_dim_poly_fit(x, y, z, x_order=2, y_order=2, rcond=None):
     # NB: it seems like this problem is not always well-conditioned (TimeCOAPoly, at least)
     if len(residuals) != 0:
         residuals /= float(x.size)
-    return numpy.reshape(sol, (x_order+1, y_order+1)), residuals, rank, sing_values
+    sol = numpy.power(x_scale, numpy.arange(x_order+1))[:, numpy.newaxis] * \
+          numpy.reshape(sol, (x_order+1, y_order+1)) * \
+          numpy.power(y_scale, numpy.arange(y_order+1))
+    print('sol = {}'.format(sol))
+    return sol, residuals, rank, sing_values
 
 
 def get_im_physical_coords(array, grid, image_data, direction):
@@ -147,6 +155,7 @@ def fit_time_coa_polynomial(inca, image_data, grid, dop_rate_scaled_coeffs, poly
     doppler_rate_sampled = polynomial.polyval(coords_rg_2d, dop_rate_scaled_coeffs)
     time_coa_sampled = time_ca_sampled + dop_centroid_sampled / doppler_rate_sampled
     coefs, residuals, rank, sing_values = two_dim_poly_fit(
-        coords_rg_2d, coords_az_2d, time_coa_sampled, x_order=poly_order, y_order=poly_order, rcond=1e-40)
+        coords_rg_2d, coords_az_2d, time_coa_sampled,
+        x_order=poly_order, y_order=poly_order, x_scale=1e-3, y_scale=1e-3, rcond=1e-40)
     logging.info('The time_coa_fit details:\nroot mean square residuals = {}\nrank = {}\nsingular values = {}'.format(residuals, rank, sing_values))
     return Poly2DType(Coefs=coefs)
