@@ -4,6 +4,7 @@ The ImageFormationType definition.
 """
 
 from typing import List
+import logging
 
 import numpy
 
@@ -81,6 +82,14 @@ class TxFrequencyProcType(Serializable):
             self.MinProc += reference_frequency
         if self.MaxProc is not None:
             self.MaxProc += reference_frequency
+
+    def _basic_validity_check(self):
+        condition = super(TxFrequencyProcType, self)._basic_validity_check()
+        if self.MinProc is not None and self.MaxProc is not None and self.MaxProc < self.MinProc:
+            logging.error(
+                'Invalid frequency bounds MinProc ({}) > MaxProc ({})'.format(self.MinProc, self.MaxProc))
+            condition = False
+        return condition
 
 
 class ProcessingType(Serializable):
@@ -398,3 +407,12 @@ class ImageFormationType(Serializable):
         if self.TxFrequencyProc is not None:
             # noinspection PyProtectedMember
             self.TxFrequencyProc._apply_reference_frequency(reference_frequency)
+
+    def _basic_validity_check(self):
+        condition = super(ImageFormationType, self)._basic_validity_check()
+        if self.TStartProc is not None and self.TEndProc is not None and self.TEndProc < self.TStartProc:
+            logging.error(
+                'Invalid time processing bounds '
+                'TStartProc ({}) > TEndProc ({})'.format(self.TStartProc, self.TEndProc))
+            condition = False
+        return condition

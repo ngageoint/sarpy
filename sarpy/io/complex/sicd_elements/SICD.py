@@ -259,12 +259,36 @@ class SICDType(Serializable):
                 self.ImageFormation.ImageFormAlgo = alg_types[0].upper()
                 return True
 
+    def _validate_spotlight_mode(self):
+        if self.CollectionInfo is not None or self.CollectionInfo.RadarMode is not None \
+                or self.CollectionInfo.RadarMode.ModeType is not None:
+            return True
+
+        if self.Grid is None or self.Grid.TimeCOAPoly is None:
+            return True
+
+        if self.CollectionInfo.RadarMode.ModeType == 'SPOTLIGHT' and \
+                self.Grid.TimeCOAPoly.Coefs.shape != (1, 1):
+            logging.error(
+                'CollectionInfo.RadarMode.ModeType is SPOTLIGHT, but the Grid.TimeCOAPoly '
+                'is not scalar - {}. This cannot be valid.'.format(self.Grid.TimeCOAPoly.Coefs))
+            return False
+        elif self.Grid.TimeCOAPoly.Coefs.shape == (1, 1) and \
+                self.CollectionInfo.RadarMode.ModeType != 'SPOTLIGHT':
+            logging.warning(
+                'The Grid.TimeCOAPoly is scalar, but the CollectionInfo.RadarMode.ModeType '
+                'is not SPOTLIGHT - {}. This is likely not valid.'.format(self.CollectionInfo.RadarMode.ModeType))
+            return True
+        return True
+
     def _basic_validity_check(self):
         condition = super(SICDType, self)._basic_validity_check()
         # do our image formation parameters match, as appropriate?
         condition &= self._validate_image_form()
         # does the image formation segment identifier and radar collection make sense?
         condition &= self._validate_image_segment_id()
+        # do the mode and timecoapoly make sense?
+        condition &= self._validate_spotlight_mode()
         return condition
 
     def define_geo_image_corners(self, override=False):

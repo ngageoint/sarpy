@@ -153,6 +153,26 @@ class ImageDataType(Serializable):
         self.ValidData = ValidData
         super(ImageDataType, self).__init__(**kwargs)
 
+    def _check_valid_data(self):
+        if self.ValidData is None:
+            return True
+        if len(self.ValidData) < 2:
+            return True
+        if self.ValidData[0].Row > self.ValidData[1].Row or \
+                (self.ValidData[0].Row == self.ValidData[1].Row and
+                 self.ValidData[0].Col >= self.ValidData[1].Col):
+            logging.error(
+                "ValidData must have first vertex with minimum row/column. "
+                "Got first two vertices {} and {}".format(self.ValidData[0], self.ValidData[1]))
+            return False
+        if float(numpy.cross(
+                [self.ValidData[0].Row - self.ValidData[1].Row, self.ValidData[0].Col - self.ValidData[1].Col],
+                [self.ValidData[0].Row - self.ValidData[3].Row, self.ValidData[0].Col - self.ValidData[3].Col])) <= 0:
+            logging.error(
+                "ValidData must be traversed in clockwise direction.")
+            return False
+        return True
+
     def _basic_validity_check(self):
         condition = super(ImageDataType, self)._basic_validity_check()
         if (self.PixelType == 'AMP8I_PHS8I') and (self.AmpTable is None):
@@ -164,6 +184,7 @@ class ImageDataType(Serializable):
         if (self.ValidData is not None) and (len(self.ValidData) < 3):
             logging.error("We have `ValidData` defined, with fewer than 3 entries.")
             condition = False
+        condition &= self._check_valid_data()
         return condition
 
     def get_valid_vertex_data(self, dtype=numpy.int64):
