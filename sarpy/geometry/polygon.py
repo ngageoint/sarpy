@@ -222,23 +222,32 @@ class Polygon(object):
         # we require that all these points are relevant to this slice
         in_poly = numpy.zeros(x.shape, dtype=numpy.bool)
         crossing_counts = numpy.zeros(x.shape, dtype=numpy.int32)
-        indices= segment['inds']
+        indices = segment['inds']
 
         for i in indices:
-            nx, ny = self._y_diff[i],  -self._x_diff[i]
-            crossing = (x - self._x_coords[i])*nx + (y - self._y_coords[i])*ny
-            # dot product of vector connecting (x, y) to segment vertex with normal vector of segment
-            crossing_counts[crossing > 0] += 1 # positive crossing number
-            crossing_counts[crossing < 0] -= 1 # negative crossing number
-            if numpy.any(crossing_counts == 0):
-                # include points on the edge
-                if direction == 'x':
-                    y_min , y_max= min(self._y_coords[i], self._y_coords[i+1]), max(self._y_coords[i], self._y_coords[i+1])
-                    in_poly[(crossing == 0) & (y_min <= y) & (y <= y_max)] = True
-                else:
-                    x_min , x_max= min(self._x_coords[i], self._x_coords[i+1]), max(self._x_coords[i], self._x_coords[i+1])
-                    in_poly[(crossing == 0) & (x_min <= x) & (x <= x_max)] = True
-        in_poly |= (crossing_counts != 0) # the interior points are defined by the sum of crossing numbers being non-zero
+            if direction == 'x' and self._x_coords[i] == self._x_coords[i+1]:
+                # we are segmented horizontally and processing vertically.
+                # This is a vertical line - only consider inclusion.
+                y_min = min(self._y_coords[i], self._y_coords[i + 1])
+                y_max = max(self._y_coords[i], self._y_coords[i + 1])
+                # points on the edge are included
+                in_poly[(x == self._x_coords[i]) & (y_min <= y) & (y <= y_max)] = True
+            elif direction == 'y' and self._y_coords[i] == self._y_coords[i+1]:
+                # we are segmented vertically and processing horizontally.
+                # This is a horizontal line - only consider inclusion.
+                x_min = min(self._x_coords[i], self._x_coords[i + 1])
+                x_max = max(self._x_coords[i], self._x_coords[i + 1])
+                # points on the edge are included
+                in_poly[(y == self._y_coords[i]) & (x_min <= x) & (x <= x_max)] = True
+            else:
+                nx, ny = self._y_diff[i],  -self._x_diff[i]
+                crossing = (x - self._x_coords[i])*nx + (y - self._y_coords[i])*ny
+                # dot product of vector connecting (x, y) to segment vertex with normal vector of segment
+                crossing_counts[crossing > 0] += 1  # positive crossing number
+                crossing_counts[crossing < 0] -= 1  # negative crossing number
+                # points on the edge are included
+                in_poly[(crossing == 0)] = True
+        in_poly |= (crossing_counts != 0)
         return in_poly
 
     def _contained(self, x, y):

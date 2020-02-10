@@ -6,7 +6,7 @@ from sarpy.geometry.polygon import Polygon
 
 
 # craft our sample polygon
-segment_count = 40
+segment_count = 12
 xs = numpy.zeros((2 * segment_count + 1,))
 ys = numpy.zeros((2 * segment_count + 1,))
 
@@ -20,7 +20,7 @@ ys[1:segment_count] = numpy.random.rand(segment_count - 1)
 ys[segment_count + 1:2 * segment_count] = -numpy.random.rand(segment_count - 1)
 
 # craft some sample points
-samples = 1000
+samples = 100000
 pts = numpy.random.rand(samples, 2)
 pts[:, 0] *= 1.2
 pts[:, 0] -= 0.1
@@ -44,7 +44,7 @@ in_poly_condition2 = poly.grid_contained(x_grid[:-1], y_grid[:-1])
 lapsed = time.time() - start
 print('lapsed = {}, lapsed/point = {}'.format(lapsed, lapsed/((grid_samples - 1)**2)))
 
-fig, axs = pyplot.subplots(nrows=2, ncols=1, sharex='row')
+fig, axs = pyplot.subplots(nrows=2, ncols=1, sharex='col', sharey='col')
 axs[0].scatter(pts[in_poly_condition, 0], pts[in_poly_condition, 1], color='r', marker='.', s=16)
 axs[0].scatter(pts[~in_poly_condition, 0], pts[~in_poly_condition, 1], color='b', marker='.', s=16)
 axs[0].plot(xs, ys, 'k-')
