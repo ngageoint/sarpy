@@ -1,212 +1,139 @@
-'''This module contains coordinate transformations on the WGS 84 ellipsoid.'''
+"""
+Provides coordinate transforms for WGS-84 and ECF coordinate systems
+"""
 
-import numpy as np
+import numpy
 
 __classification__ = "UNCLASSIFIED"
-__email__ = "Wade.C.Schwartzkopf.ctr@nga.mil"
+__author__ = ("Thomas McCullough", "Wade Schwartzkopf")
 
-# WGS 84 defining parameters
-a = 6378137.0           # Semi-major radius (m)
-f = 1/298.257223563     # Flattening
-GM = 3986004.418E8      # Earth's gravitational constant (including atmosphere)
-w = 7292115.1467E-11    # Angular velocity (radians/second), not including precession
-# WGS 84 derived geometric constants
-b = a - f*a               # 6356752.3142, Semi-minor radius (m)
-e2 = ((a*a)-(b*b))/(a*a)  # 6.69437999014E-3, First eccentricity squared
+#####
+# WGS-84 parameters and related derived parameters
+_A = 6378137.0            # Semi-major radius (m)
+_F = 1/298.257223563      # Flattening
+_GM = 3986004.418E8       # Earth's gravitational constant (including atmosphere)
+_W = 7292115.1467E-11     # Angular velocity (radians/second), not including precession
+_B = _A - _F*_A           # 6356752.3142, Semi-minor radius (m)
+_A2 = _A*_A
+_B2 = _B*_B
+_E2 = (_A2-_B2)/_A2  # 6.69437999014E-3, First eccentricity squared
+_E4 = _E2*_E2
+_OME2 = 1.0 - _E2
+_EB2 = (_A2 - _B2)/_B2
 
 
-def ecf_to_geodetic(x, y=None, z=None):
-    '''Convert ECF (Earth Centered Fixed) coordinates to geodetic latitude,
-    longitude, and altitude.
+def _validate(arr):
+    if not isinstance(arr, numpy.ndarray):
+        arr = numpy.array(arr, dtype=numpy.float64)
 
-    USAGE:
-       pos_lla = ecf_to_geodetic(pos_ecf)
-       [lat, lon, alt] = ecf_to_geodetic(pos_ecf_x, pos_ecf_y, pos_ecf_z)
+    if arr.shape[-1] != 3:
+        raise ValueError(
+            'The input argument should represent geographical coordinates, so the final dimension should have size 3. '
+            'Got shape {}.'.format(arr.shape))
+    orig_shape = arr.shape
+    arr = numpy.reshape(arr, (-1, 3))  # this is just a view
+    return arr, orig_shape
 
-    INPUTS:
-       pos_ecf - required : ecf x, y, z coordinates                      [m, m, m]
 
-    OUTPUTS:
-       pos_lla - required : geodetic latitude, longitude, and altitude   [deg, deg, m]
+def ecf_to_geodetic(ecf):
+    """
+    Converts ECF (Earth Centered Fixed) coordinates to WGS-84 coordinates.
 
-    NOTES:
-       Zhu, J. Conversion of Earth-centered, Earth-fixed coordinates to
-       geodetic coordinates. IEEE Transactions on Aerospace and Electronic
-       Systems, 30, 3 (July 1994), 957-962.
+    Parameters
+    ----------
+    ecf : numpy.ndarray|list|tuple
 
-    VERSION:
-       1.0
-         - Sean Hatch 20070911
-         - initial version
-       1.1
-         - Wade Schwartzkopf 20130708
-         - vectorized and componentwise data handling
-       1.2
-         - Nick Tobin 20140625, nickolas.w.tobin@nga.ic.gov, NGA/IIG
-         - translation to Python
-       1.3
-         - Wade Schwartzkopf 20161012
-         - wrapped into geocoords module
-    '''
+    Returns
+    -------
+    numpy.ndarray
+        The WGS-84 coordinates, of the same shape as `ecf`.
+    """
 
-    x, y, z, componentwise = _normalize_3dinputs(x, y, z)
+    ecf, orig_shape = _validate(ecf)
 
-    # calculate derived constants
-    e4 = e2 * e2
-    ome2 = 1.0 - e2
-    a2 = a * a
-    b2 = b * b
-    e_b2 = (a2 - b2) / b2
+    x = ecf[:, 0]
+    y = ecf[:, 1]
+    z = ecf[:, 2]
 
-    # calculate intermediates
-    z2 = z * z
-    r2 = (x * x) + (y * y)
-    r = np.sqrt(r2)
+    llh = numpy.full(ecf.shape, numpy.nan, dtype=numpy.float64)
+
+    r = numpy.sqrt((x * x) + (y * y))
 
     # Check for invalid solution
-    valid = ((a * r) * (a * r) + (b * z) * (b * z) > (a2 - b2) * (a2 - b2))
-    # Default values for invalid solutions
-    lon = np.empty(x.shape) * np.nan
-    lat = np.empty(x.shape) * np.nan
-    alt = np.empty(x.shape) * np.nan
-
-    # calculate longitude
-    lon[valid] = np.rad2deg(np.arctan2(y[valid], x[valid]))
+    valid = ((_A*r)*(_A*r) + (_B*z)*(_B*z) > (_A2 - _B2)*(_A2 - _B2))
 
     # calculate intermediates
-    f_ = 54.0 * b2 * z2  # not the WGS 84 flattening parameter
-    g = r2 + ome2 * z2 - e2 * (a2 - b2)
-    c = e4 * f_ * r2 / (g * g * g)
-    s = (1.0 + c + np.sqrt(c * c + 2 * c)) ** (1. / 3.)
-    templ = s + 1.0 / s + 1.0
-    p = f_ / (3.0 * templ * templ * g * g)
-    q = np.sqrt(1.0 + 2.0 * e4 * p)
-    r0 = -p * e2 * r / (1.0 + q) + \
-        np.sqrt(abs(0.5 * a2 * (1.0 + 1.0 / q) -
-                    p * ome2 * z2 / (q * (1.0 + q)) - 0.5 * p * r2))
-    temp2 = r - e2 * r0
-    temp22 = temp2 * temp2
-    u = np.sqrt(temp22 + z2)
-    v = np.sqrt(temp22 + ome2 * z2)
-    z0 = b2 * z / (a * v)
+    F = 54.0*_B2*z*z  # not the WGS 84 flattening parameter
+    G = r*r + _OME2*z*z - _E2*(_A2 - _B2)
+    C = _E4*F*r*r/(G*G*G)
+    S = (1.0 + C + numpy.sqrt(C*C + 2*C))**(1./3)
+    P = F/(3.0*(G*(S + 1.0/S + 1.0))**2)
+    Q = numpy.sqrt(1.0 + 2.0*_E4*P)
+    R0 = -P*_E2*r/(1.0 + Q) + numpy.sqrt(numpy.abs(0.5*_A2*(1.0 + 1/Q) - P*_OME2*z*z/(Q*(1.0 + Q)) - 0.5*P*r*r))
+    T = r - _E2*R0
+    U = numpy.sqrt(T*T + z*z)
+    V = numpy.sqrt(T*T + _OME2*z*z)
+    z0 = _B2*z/(_A*V)
 
+    # calculate longitude
+    llh[valid, 1] = numpy.rad2deg(numpy.arctan2(y[valid], x[valid]))
     # calculate latitude
-    lat[valid] = np.rad2deg(np.arctan2(z[valid] + e_b2 * z0[valid], r[valid]))
-
+    llh[valid, 0] = numpy.rad2deg(numpy.arctan2(z[valid] + _EB2*z0[valid], r[valid]))
     # calculate altitude
-    alt[valid] = u[valid] * (1.0 - b2 / (a * v[valid]))
-    if componentwise:
-        return lat, lon, alt
-    else:
-        return np.column_stack((lat, lon, alt))
+    llh[valid, 2] = U[valid]*(1.0 - _B2/(_A*V[valid]))
+    return numpy.reshape(llh, orig_shape)
 
 
-def geodetic_to_ecf(lat, lon=None, alt=None):
-    '''Convert geodetic coordinates to ECF
+def geodetic_to_ecf(llh):
+    """
+    Converts WGS-84 coordinates to ECF (Earth Centered Fixed).
 
-    Convert geodetic latitude, longitude, and altitude to ECF (Earth
-    Centered Fixed) coordinates.
+    Parameters
+    ----------
+    llh : numpy.ndarray|list|tuple
 
-    USAGE:
-       pos_ecf = geodetic_to_ecf(pos_lla)
-       [pos_ecf_x, pos_ecf_y, pos_ecf_z] = geodetic_to_ecf(lat, lon, alt)
+    Returns
+    -------
+    numpy.ndarray
+        The ECF coordinates, of the same shape as `llh`.
+    """
 
-    INPUTS:
-       pos_lla - required : geodetic latitude, longitude, and altitude   [deg, deg, m]
+    llh, orig_shape = _validate(llh)
 
-    OUTPUTS:
-       pos_ecf - required : ecf x, y, z coordinates                      [m, m, m]
+    lat = llh[:, 0]
+    lon = llh[:, 1]
+    alt = llh[:, 2]
 
-    NOTES:
-       Zhu, J. Conversion of Earth-centered, Earth-fixed coordinates to
-       geodetic coordinates. IEEE Transactions on Aerospace and Electronic
-       Systems, 30, 3 (July 1994), 957-962.
-
-    VERSION:
-       1.0
-         - Sean Hatch 20070911
-         - initial version
-       1.1
-         - Wade Schwartzkopf 20130708
-         - vectorized and componentwise data handling
-       1.2
-         - Clayton Williams 20160511
-         - translation to Python
-       1.3
-         - Wade Schwartzkopf 20161012
-         - wrapped into geocoords module
-    '''
-
-    lat, lon, alt, componentwise = _normalize_3dinputs(lat, lon, alt)
-
+    out = numpy.full(llh.shape, numpy.nan, dtype=numpy.float64)
     # calculate distance to surface of ellipsoid
-    r = a / np.sqrt(1.0 - e2 * np.sin(np.deg2rad(lat)) * np.sin(np.deg2rad(lat)))
+    r = _A / numpy.sqrt(1.0 - _E2*numpy.sin(numpy.deg2rad(lat)) * numpy.sin(numpy.deg2rad(lat)))
 
     # calculate coordinates
-    x = (r + alt) * np.cos(np.deg2rad(lat)) * np.cos(np.deg2rad(lon))
-    y = (r + alt) * np.cos(np.deg2rad(lat)) * np.sin(np.deg2rad(lon))
-    z = (r + alt - e2 * r) * np.sin(np.deg2rad(lat))
-
-    if componentwise:
-        return x, y, z
-    else:
-        return np.column_stack((x, y, z))
+    out[:, 0] = (r + alt)*numpy.cos(numpy.deg2rad(lat))*numpy.cos(numpy.deg2rad(lon))
+    out[:, 1] = (r + alt)*numpy.cos(numpy.deg2rad(lat))*numpy.sin(numpy.deg2rad(lon))
+    out[:, 2] = (r + alt - _E2*r)*numpy.sin(numpy.deg2rad(lat))
+    return numpy.reshape(out, orig_shape)
 
 
-def wgs_84_norm(x, y=None, z=None):
-    """This function computes the normal vector to the WGS_84 ellipsoid at a given point in ECF
-    space"""
+def wgs_84_norm(ecf):
+    """
+    Calculates the normal vector to the WGS_84 ellipsoid at the given ECF coordinates.
 
-    x, y, z, componentwise = _normalize_3dinputs(x, y, z)
+    Parameters
+    ----------
+    ecf : numpy.ndarray|list|tuple
 
-    # Calculate normal vector
-    x = x/(a**2)
-    y = y/(a**2)
-    z = z/(b**2)
-    mag = np.sqrt(x**2 + y**2 + z**2)
-    x = x/mag
-    y = y/mag
-    z = z/mag
+    Returns
+    -------
+    numpy.ndarray
+        The normal vector, of the same shape as `llh`.
+    """
 
-    if componentwise:
-        return x, y, z
-    else:
-        return np.column_stack((x, y, z))
+    ecf, orig_shape = _validate(ecf)
 
-
-def ric_ecf_mat(rarp, varp, frame_type):
-    """Compute ECF transformation matrix for RIC frame"""
-
-    if frame_type == 'eci':  # RIC_ECI frame
-        vi = varp + np.cross([0, 0, w], rarp)
-    elif frame_type == 'ecf':  # RIC_ECF frame
-        vi = varp
-
-    r = rarp/np.sqrt(np.sum(np.power(rarp, 2)))
-    c = np.cross(rarp, vi)
-    c = c/np.sqrt(np.sum(np.power(c, 2)))
-    i = np.cross(c, r)
-
-    return np.matrix([r, i, c])
-
-
-def _normalize_3dinputs(x, y, z):
-    """Allow for a variety of different input types, but convert them all to componentwise
-    numpy arrays that the functions in this module assume."""
-
-    # Handle different forms in input arguments
-    x = np.atleast_2d(x)  # Assure a numpy array for componentwise or array versions
-    componentwise = False
-    if y is not None and z is not None:
-        # Componentwise inputs, separate arguments for X,Y,Z
-        componentwise = True
-        y = np.atleast_2d(y)
-        z = np.atleast_2d(z)
-    elif x.ndim == 2 and x.shape[1] == 3:  # Array of 3-element vectors
-        y = x[:, 1]
-        z = x[:, 2]
-        x = x[:, 0]
-    else:
-        raise ValueError()  # Must be right type if np.array(x) worked above
-
-    return x, y, z, componentwise
+    out = numpy.empty(ecf.shape, dtype=numpy.float64)
+    out[:, 0] = ecf[:, 0]/_A2
+    out[:, 1] = ecf[:, 1]/_A2
+    out[:, 2] = ecf[:, 2]/_B2
+    out = (out.T/numpy.linalg.norm(out, axis=1)).T
+    return numpy.reshape(out, orig_shape)

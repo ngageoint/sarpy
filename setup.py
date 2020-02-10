@@ -1,44 +1,78 @@
+# -*- coding: utf-8 -*-
 """
 Setup module for SarPy.
 """
 
+import sys
 from setuptools import setup, find_packages
-# To use a consistent encoding
 from codecs import open
-# from os import path
+
 import os
-# If attempting hard links cause "error removing..." errors (can occur in Windows on network
-# drives), this will fix it:
-del os.link
+try:
+    # If attempting hard links cause "error removing..." errors,
+    # which can occur in Windows on network drives.
+    # This may fix it, but may be deprecated?
+    del os.link
+except AttributeError:
+    pass
+
 
 # Get the long description from the README file
 here = os.path.abspath(os.path.dirname(__file__))
+# Get the long description from the README file
 with open(os.path.join(here, 'README.rst'), encoding='utf-8') as f:
     long_description = f.read()
 
-setup(name='sarpy',
-      description='Reading/writing/simple processing of complex SAR data in Python via SICD',
+
+# Get the relevant setup parameters from the package
+parameters = {}
+with open(os.path.join(here, 'sarpy', '__about__.py'), encoding='utf-8') as f:
+    exec(f.read(), parameters)
+
+
+# try to prepare the sphinx arguments for doc building integration
+try:
+    from sphinx.setup_command import BuildDoc
+    sphinx_args = {
+        'cmdclass': {'build_sphinx': BuildDoc},
+        'command_options': {
+            'build_sphinx': {
+                'project': ('setup.py', 'sarpy'),
+                'version': ('setup.py', parameters['__version__']),
+                'copyright': ('setup.py', parameters['__copyright__']),
+                'source_dir': ('setup.py', os.path.join(here, 'docs', 'sphinx'))
+            }
+        }
+    }
+except ImportError:
+    sphinx_args = {}
+
+
+tests_require = []
+if sys.version_info[0] < 3:
+    tests_require.append('unittest2')
+    # unittest2 only for Python2.7, we rely on the backport of subTest
+
+
+setup(name=parameters['__title__'],
+      version=parameters['__version__'],
+      description=parameters['__summary__'],
       long_description=long_description,
-      long_description_content_type='text/x-rst',  # Default but "Explicit is better than implicit"
+      long_description_content_type='text/x-rst',
       packages=find_packages(),  # Should find SarPy and all subpackages
       package_data={'': ['*.xsd']},  # Schema files are required for parsing SICD
-      url='https://github.com/ngageoint/sarpy',
-      author='National Geospatial-Intelligence Agency',
-      # Not the only author, but currently the primary POC
-      author_email='Wade.C.Schwartzkopf.ctr@nga.mil',
-      # Many portions of sarpy run fine without scipy, and we have tried to avoid this dependency
-      # wherever possible, but there are enough of these dependencies scattered throughout that we
-      # declare it here.
-      install_requires=['numpy', 'scipy'],
+      url=parameters['__url__'],
+      author=parameters['__author__'],
+      # The primary POC, rather than the author really
+      author_email=parameters['__email__'],
+      install_requires=['numpy>=1.9.0', 'scipy'],
       extras_require={
-        'csk':  ['h5py'],
+        'csk':  ['h5py', ],
+        'docs': ['Sphinx', 'sphinxcontrib-napoleon'],
       },
-      zip_safe=False,  # Use of __file__ and __path__ in some code makes it unusuable from zip
-      use_scm_version=True,
-      setup_requires=['setuptools_scm'],
-      # python_requires is really just the NumPy requirement, so maybe we don't need to state
-      # python_requires explicitly as it is already implicitly declared in dependency stated above
-      # python_requires='>=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*',
+      zip_safe=False,  # Use of __file__ and __path__ in some code makes it unusable from zip
+      test_suite="tests",
+      tests_require=tests_require,
       classifiers=[
           'Development Status :: 4 - Beta',
           'Intended Audience :: Developers',
@@ -46,11 +80,11 @@ setup(name='sarpy',
           'Programming Language :: Python :: 2',
           'Programming Language :: Python :: 2.7',
           'Programming Language :: Python :: 3',
-          'Programming Language :: Python :: 3.4',
-          'Programming Language :: Python :: 3.5',
           'Programming Language :: Python :: 3.6',
-          'Programming Language :: Python :: 3.7'
+          'Programming Language :: Python :: 3.7',
+          'Programming Language :: Python :: 3.8'
       ],
       platforms=['any'],
-      license='MIT'
+      license='MIT',
+      **sphinx_args
       )

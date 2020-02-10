@@ -1,5 +1,6 @@
-import os
+from .__about__ import *
 
-home_dir = os.path.expanduser("~")
-sarpy_dir = os.path.join(home_dir, ".sarpy")
-sarpy_support_dir = os.path.join(sarpy_dir, "support_data")
+__all__ = ['__version__',
+           '__classification__', '__author__', '__url__', '__email__',
+           '__title__', '__summary__',
+           '__license__', '__copyright__']

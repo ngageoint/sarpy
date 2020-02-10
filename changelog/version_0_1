@@ -1,0 +1,30 @@
+# This details the important differences introduced in 0.1
+# NB: bump the version number in __about__.py to reflect the below.
+
+* .27 - Tested conversion capability 
+* .26 - Tested basic SICD file writing capability
+* .25 - Tested data reading for sentinel, radarsat, and cosmo-skymed formats
+* .24 - Tested for cosmo-skymed meta-data conversion
+* .23 - Tested for radarsat meta-data conversion for rs2 and rcm
+* .22 - Tested for sentinel meta-data conversion for both spotlight and swath
+* .21 - Unit testing for basic sicd opening and interpretation
+* .20 - Unit testing for nitf header behavior and application to sicd
+* .19 - Refactoring to split general nitf capability and sicd specific behavior more clearly
+* .18 - Unit testing for basic capability in geoid
+* .17 - Refactored generic complex data file opening and conversion capability.
+* .16 - Split (to some degree) general NITF headers from SICD specific usage.
+* .15 - Refactored geometry.point_projection to dem for more consistent behavior.
+* .14 - Refactored io.DEM.DEM for better performance and more consistent behavior.
+* .13 - Refactored io.DEM.geoid for better performance and more consistent behavior.
+* .12 - Refactored geometry.point_projection for more consistent behavior (dem remains).
+* .11 - Refactored geometry.geocoords for more consistent behavior.
+* .10 - switch for using gdal for tiff reading introduced (in principle, details remain).
+* .09 - bigtiff support introduced for tiff reading.
+* .08 - Reading/writing SIO files has been refactored for new sicd structure.
+* .07 - Reading csk files has been refactored for new sicd structure.
+* .06 - Reading sentinel files has been refactored for new sicd structure.
+* .05 - Reading tiff and radarsat files has been refactored for new sicd structure.
+* .04 - Reading/writing SICD files has been refactored for new sicd structure.
+* .03 - Created unit-test suite for new SICD framework.
+* .02 - Created object-oriented SICD framework for safer and more robust functionality.
+* .01 - Update docstrings to consistent numpy format in preparation for building documentation.
