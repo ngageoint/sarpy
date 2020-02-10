@@ -46,7 +46,7 @@ def _jet_wrapped(siz):
     return out
 
 
-def mem(image, dim=1, pdir='R', fill=1):
+def mem(image, dim=0, pdir='R', fill=1):
     """
     Creates a color subaperture image (csi) from full-resolution complex data.
 
@@ -55,7 +55,7 @@ def mem(image, dim=1, pdir='R', fill=1):
     image : numpy.ndarray
         the complex valued SAR data in the image domain.
     dim : int
-        dimension over which to split the sub-aperture, defaults to 1.
+        dimension over which to split the sub-aperture, defaults to 0.
     pdir : str
         platform direction, 'RIGHT'/'R' (default) or 'LEFT'/'L'. The assumption
         is that 2nd dimension is increasing range.
@@ -83,7 +83,8 @@ def mem(image, dim=1, pdir='R', fill=1):
         raise ValueError('It is expected that pdir is one of "R", "RIGHT", "L", or "LEFT". Got {}'.format(pdir))
 
     # move to phase history domain
-    cmap = _jet_wrapped(image.shape[0]/fill)
+    cmap = _jet_wrapped(image.shape[0]/fill)  # which axis?
+    # ph0 = numpy.fft.fftshift(numpy.fft.ifft(image, axis=1), axes=1)  # what about the initial shift?
     ph0 = numpy.fft.fftshift(numpy.fft.ifft(image, axis=1), axes=1)
     # apply the sub-aperture filters
     ph_indices = int(numpy.floor(0.5*(image.shape[1] - cmap.shape[0]))) + numpy.arange(cmap.shape[0], dtype=numpy.int32)
@@ -103,8 +104,8 @@ def mem(image, dim=1, pdir='R', fill=1):
 
     # Replace the intensity with the original image intensity to main full resolution
     # (in intensity, but not in color).
-    scale_factor = numpy.abs(image)/numpy.abs(im0_RGB).max(0)
-    im0_RGB = numpy.abs(im0_RGB)*scale_factor
+    scale_factor = numpy.abs(image)/numpy.abs(im0_RGB).max(axis=2)
+    im0_RGB = numpy.abs(im0_RGB)*scale_factor[:, :, numpy.newaxis]
 
     # reorient images
     if dim == 0:
