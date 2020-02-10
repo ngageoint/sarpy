@@ -1,6 +1,8 @@
 # This details the important differences introduced in 0.1
 # NB: bump the version number in __about__.py to reflect the below.
 
+* .29 - Added more sicd validation checking
+* .28 - Included some polygon inclusion capability
 * .27 - Tested conversion capability 
 * .26 - Tested basic SICD file writing capability
 * .25 - Tested data reading for sentinel, radarsat, and cosmo-skymed formats
