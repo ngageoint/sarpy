@@ -233,9 +233,11 @@ class Polygon(object):
             if numpy.any(crossing_counts == 0):
                 # include points on the edge
                 if direction == 'x':
-                    in_poly[(crossing == 0) & (segment['min_value'] <= y) & (y <= segment['max_value'])] = True
+                    y_min , y_max= min(self._y_coords[i], self._y_coords[i+1]), max(self._y_coords[i], self._y_coords[i+1])
+                    in_poly[(crossing == 0) & (y_min <= y) & (y <= y_max)] = True
                 else:
-                    in_poly[(crossing == 0) & (segment['min_value'] <= x) & (x <= segment['max_value'])] = True
+                    x_min , x_max= min(self._x_coords[i], self._x_coords[i+1]), max(self._x_coords[i], self._x_coords[i+1])
+                    in_poly[(crossing == 0) & (x_min <= x) & (x <= x_max)] = True
         in_poly |= (crossing_counts != 0) # the interior points are defined by the sum of crossing numbers being non-zero
         return in_poly
 
