@@ -203,7 +203,7 @@ class Polygon(object):
             return y_first_ind, y_last_ind, 'y'
         return x_first_ind, x_last_ind, 'x'
 
-    def _contained_do_segment(self, x, y, indices):
+    def _contained_do_segment(self, x, y, segment, direction):
         """
         Helper function for polygon containment effort.
 
@@ -211,7 +211,8 @@ class Polygon(object):
         ----------
         x : numpy.ndarray
         y : numpy.ndarray
-        indices : List[int]
+        segment : dict
+        direction : str
 
         Returns
         -------
@@ -221,18 +222,21 @@ class Polygon(object):
         # we require that all these points are relevant to this slice
         in_poly = numpy.zeros(x.shape, dtype=numpy.bool)
         crossing_counts = numpy.zeros(x.shape, dtype=numpy.int32)
+        indices= segment['inds']
 
         for i in indices:
             nx, ny = self._y_diff[i],  -self._x_diff[i]
             crossing = (x - self._x_coords[i])*nx + (y - self._y_coords[i])*ny
-            # print(f'index = {i}, crossing={crossing}')
             # dot product of vector connecting (x, y) to segment vertex with normal vector of segment
             crossing_counts[crossing > 0] += 1 # positive crossing number
             crossing_counts[crossing < 0] -= 1 # negative crossing number
-            in_poly[crossing == 0] = True  # include points on the edge
-            # print(f'crossing count = {crossing_counts}')
+            if numpy.any(crossing_counts == 0):
+                # include points on the edge
+                if direction == 'x':
+                    in_poly[(crossing == 0) & (segment['min_value'] <= y) & (y <= segment['max_value'])] = True
+                else:
+                    in_poly[(crossing == 0) & (segment['min_value'] <= x) & (x <= segment['max_value'])] = True
         in_poly |= (crossing_counts != 0) # the interior points are defined by the sum of crossing numbers being non-zero
-        # print(f'in_poly = {in_poly}')
         return in_poly
 
     def _contained(self, x, y):
@@ -262,7 +266,7 @@ class Polygon(object):
                 seg = self._y_segments[index]
                 mask = ((y >= seg['min']) & (y <= seg['max']) & (x >= seg['min_value']) & (x <= seg['max_value']))
             if numpy.any(mask):
-                out[mask] = self._contained_do_segment(x[mask], y[mask], seg['inds'])
+                out[mask] = self._contained_do_segment(x[mask], y[mask], seg, direction)
         return out
 
     def contained(self, pts_x, pts_y, block_size=None):
@@ -380,5 +384,5 @@ class Polygon(object):
 
             if start_x is not None and end_x is not None and start_y is not None and end_y is not None:
                 y_temp, x_temp = numpy.meshgrid(grid_y[start_y:end_y], grid_x[start_x:end_x], indexing='xy')
-                out[start_x:end_x, start_y:end_y] = self._contained_do_segment(x_temp, y_temp, seg['inds'])
+                out[start_x:end_x, start_y:end_y] = self._contained_do_segment(x_temp, y_temp, seg, direction)
         return out
