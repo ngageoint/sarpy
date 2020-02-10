@@ -5,6 +5,7 @@ sarpy.io.complex elements
     :maxdepth: 2
     :caption: Contents:
 
+    converter
     sicd
     sio
     csk
