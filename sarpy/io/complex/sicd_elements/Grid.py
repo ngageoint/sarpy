@@ -401,12 +401,50 @@ class DirParamType(Serializable):
             min_deltak = -0.5*self.ImpRespBW
             max_deltak = 0.5*self.ImpRespBW
 
-        # wrapped spectrum (TLM - what does that mean?)
         if (min_deltak < -0.5/abs(self.SS)) or (max_deltak > 0.5/abs(self.SS)):
             min_deltak = -0.5/abs(self.SS)
             max_deltak = -min_deltak
         self.DeltaK1 = min_deltak
         self.DeltaK2 = max_deltak
+
+    def _check_deltak(self):
+        out = True
+        try:
+            if self.DeltaK2 <= self.DeltaK1:
+                logging.error(
+                    'DeltaK2 ({}) must be greater than DeltaK1 ({})'.format(self.DeltaK2, self.DeltaK1))
+                out = False
+        except (AttributeError, TypeError, ValueError):
+            pass
+
+        try:
+            if self.DeltaK2 > 1./(2*self.SS):
+                logging.error(
+                    'DeltaK2 ({}) must be <= 1/(2*SS) ({})'.format(self.DeltaK2, 1./(2*self.SS)))
+                out = False
+        except (AttributeError, TypeError, ValueError):
+            pass
+
+        try:
+            if self.DeltaK1 < -1./(2*self.SS):
+                logging.error(
+                    'DeltaK1 ({}) must be >= -1/(2*SS) ({})'.format(self.DeltaK1, -1./(2*self.SS)))
+                out = False
+        except (AttributeError, TypeError, ValueError):
+            pass
+        return out
+
+    def _check_bw(self):
+        out = True
+        try:
+            if self.ImpRespBW > (self.DeltaK1 - self.DeltaK1):
+                logging.error(
+                    'ImpRespBW ({}) must be <= DeltaK2 - DeltaK1 '
+                    '({})'.format(self.ImpRespBW, self.DeltaK2 - self.DeltaK1))
+                out = False
+        except (AttributeError, TypeError, ValueError):
+            pass
+        return out
 
     def _basic_validity_check(self):
         condition = super(DirParamType, self)._basic_validity_check()
@@ -414,6 +452,10 @@ class DirParamType(Serializable):
             logging.error(
                 'The WgtFunct array has been defined in DirParamType, but there are fewer than 2 entries.')
             condition = False
+
+        condition &= self._check_deltak()
+        condition &= self._check_bw()
+
         return condition
 
 
@@ -713,7 +755,7 @@ class GridType(Serializable):
             logging.error(
                 msg="Row/Col UVectECF cannot be derived from RMA, because the Reference "
                     "Position is too close (less than 1 meter) to the SCP.")
-        uLOS = LOS /LOS_norm
+        uLOS = LOS/LOS_norm
         left = numpy.cross(upos_ref, uvel_ref)
         look = numpy.sign(numpy.dot(left, uLOS))
         return SCP, upos_ref, uvel_ref, uLOS, left, look
@@ -847,3 +889,12 @@ class GridType(Serializable):
             self.Row.KCtr = 2*RMA.INCA.FreqZero/speed_of_light
         if self.Col is not None and self.Col.KCtr is None:
             self.Col.KCtr = 0
+
+    def _basic_validity_check(self):
+        condition = super(GridType, self)._basic_validity_check()
+        if self.Row is not None and self.Row.Sgn is not None and self.Col is not None \
+                and self.Col.Sgn is not None and self.Row.Sgn != self.Col.Sgn:
+            logging.warning(
+                'Row.Sgn ({}) and Col.Sgn ({}) should almost certainly be the '
+                'same value'.format(self.Row.Sgn, self.Col.Sgn))
+        return condition

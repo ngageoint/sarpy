@@ -4,6 +4,7 @@ The RadarCollectionType definition.
 """
 
 from typing import List, Union
+import logging
 
 import numpy
 
@@ -53,6 +54,14 @@ class TxFrequencyType(Serializable):
             self.Min += reference_frequency
         if self.Max is not None:
             self.Max += reference_frequency
+
+    def _basic_validity_check(self):
+        condition = super(TxFrequencyType, self)._basic_validity_check()
+        if self.Min is not None and self.Max is not None and self.Max < self.Min:
+            logging.error(
+                'Invalid frequency bounds Min ({}) > Max ({})'.format(self.Min, self.Max))
+            condition = False
+        return condition
 
 
 class WaveformParametersType(Serializable):

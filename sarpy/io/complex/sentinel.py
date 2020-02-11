@@ -610,7 +610,7 @@ class SentinelDetails(object):
             inca = sicd.RMA.INCA
             # common use for the fitting efforts
             poly_order = 2
-            grid_samples = poly_order + 3
+            grid_samples = poly_order + 4
             cols = numpy.linspace(0, image_data.NumCols - 1, grid_samples, dtype=numpy.int64)
             rows = numpy.linspace(0, image_data.NumRows - 1, grid_samples, dtype=numpy.int64)
             coords_az = get_im_physical_coords(cols, grid, image_data, 'col')
@@ -634,8 +634,12 @@ class SentinelDetails(object):
             deramp_phase = 0.5*k_t[:, numpy.newaxis]*eta_arg*eta_arg
             demod_phase = eta_arg*f_eta_c[:, numpy.newaxis]
             total_phase = deramp_phase + demod_phase
-            phase, _, _, _ = two_dim_poly_fit(
-                coords_rg_2d, coords_az_2d, total_phase, x_order=poly_order, y_order=poly_order, rcond=1e-35)
+            phase, residuals, rank, sing_values = two_dim_poly_fit(
+                coords_rg_2d, coords_az_2d, total_phase,
+                x_order=poly_order, y_order=poly_order, x_scale=1e-3, y_scale=1e-3, rcond=1e-35)
+            logging.info(
+                'The phase polynomial fit details:\nroot mean square residuals = {}\nrank = {}\n'
+                'singular values = {}'.format(residuals, rank, sing_values))
 
             # DeltaKCOAPoly is derivative of phase in azimuth/Col direction
             delta_kcoa_poly = polynomial.polyder(phase, axis=1)
@@ -651,7 +655,8 @@ class SentinelDetails(object):
             dop_centroid_sampled = inca.DopCentroidPoly(coords_rg_2d, coords_az_2d)
             time_coa_sampled = time_ca_sampled + dop_centroid_sampled / doppler_rate_sampled
             time_coa_poly, residuals, rank, sing_values = two_dim_poly_fit(
-                coords_rg_2d, coords_az_2d, time_coa_sampled, x_order=poly_order, y_order=poly_order, rcond=1e-40)
+                coords_rg_2d, coords_az_2d, time_coa_sampled,
+                x_order=poly_order, y_order=poly_order, x_scale=1e-3, y_scale=1e-3, rcond=1e-40)
             logging.info(
                 'The TimeCOAPoly fit details:\nroot mean square residuals = {}\nrank = {}\n'
                 'singular values = {}'.format(residuals, rank, sing_values))
@@ -903,11 +908,11 @@ class SentinelDetails(object):
 
         def populate_noise(sicd, index):  # type: (SICDType, int) -> None
             # NB: the default order was 7 before refactoring...that seems excessive.
-            rg_poly_order = min(2, range_pixel[0].size-1)
+            rg_poly_order = min(6, range_pixel[0].size-1)
             if sicd.CollectionInfo.RadarMode.ModeID[0] == 'S':
                 # STRIPMAP - all LUTs apply
                 # Treat range and azimuth polynomial components as fully independent
-                az_poly_order = min(2, len(range_line) - 1)
+                az_poly_order = min(4, len(range_line) - 1)
 
                 # NB: the previous rammed together two one-dimensional polys, but
                 # we should do a 2-d fit.
@@ -917,7 +922,8 @@ class SentinelDetails(object):
 
                 coords_az_2d, coords_rg_2d = numpy.meshgrid(coords_az, coords_rg)
                 noise_poly, res, rank, sing_vals = two_dim_poly_fit(
-                    coords_rg_2d, coords_az_2d, numpy.array(range_noise), x_order=rg_poly_order, y_order=az_poly_order, rcond=1e-40)
+                    coords_rg_2d, coords_az_2d, numpy.array(range_noise),
+                    x_order=rg_poly_order, y_order=az_poly_order, x_scale=1e-3, y_scale=1e-3, rcond=1e-40)
                 logging.info(
                     'NoisePoly fit details:\nroot mean square residuals = {}\nrank = {}\n'
                     'singular values = {}'.format(res, rank, sing_vals))

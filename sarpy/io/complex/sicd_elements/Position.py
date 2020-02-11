@@ -4,6 +4,7 @@ The PositionType definition.
 """
 
 from typing import List, Union
+import logging
 
 import numpy
 
@@ -92,3 +93,15 @@ class PositionType(Serializable):
         coefs[1, :] = vel - acc * scptime
         coefs[2, :] = acc
         self.ARPPoly = XYZPolyType.from_array(coefs)
+
+    def _basic_validity_check(self):
+        condition = super(PositionType, self)._basic_validity_check()
+        if self.ARPPoly is not None and \
+                (self.ARPPoly.X.order1 < 2 or self.ARPPoly.Y.order1 < 2 or self.ARPPoly.Z.order1 < 2):
+            logging.error(
+                'ARPPoly should be order at least 2 in each component. '
+                'Got X.order1 = {}, Y.order1 = {}, and Z.order1 = {}'.format(self.ARPPoly.X.order1,
+                                                                             self.ARPPoly.Y.order1,
+                                                                             self.ARPPoly.Z.order1))
+            condition = False
+        return condition

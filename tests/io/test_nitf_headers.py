@@ -21,7 +21,7 @@ def generic_nitf_header_test(instance, test_file):
 
     # is the output as long as it should be?
     with instance.subTest(msg="header length match"):
-        header_string = details.nitf_header.to_string()
+        header_string = details.nitf_header.to_bytes()
         equality = (len(header_string) == details.nitf_header.HL)
         if not equality:
             logging.error(

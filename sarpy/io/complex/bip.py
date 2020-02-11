@@ -68,7 +68,7 @@ class BIPChipper(BaseChipper):
         self._data_offset = int_func(data_offset)
         self._data_type = data_type
         self._bands = bands
-        self._shape = data_size + (self._bands, )
+        self._shape = (int_func(data_size[0]), int_func(data_size[1]), self._bands)
 
         if not os.path.isfile(file_name):
             raise IOError('Path {} either does not exists, or is not a file.'.format(file_name))
