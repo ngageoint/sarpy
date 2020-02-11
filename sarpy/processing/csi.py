@@ -84,7 +84,6 @@ def mem(image, dim=0, pdir='R', fill=1):
 
     # move to phase history domain
     cmap = _jet_wrapped(image.shape[0]/fill)  # which axis?
-    # ph0 = numpy.fft.fftshift(numpy.fft.ifft(image, axis=1), axes=1)  # what about the initial shift?
     ph0 = numpy.fft.fftshift(numpy.fft.ifft(image, axis=1), axes=1)
     # apply the sub-aperture filters
     ph_indices = int(numpy.floor(0.5*(image.shape[1] - cmap.shape[0]))) + numpy.arange(cmap.shape[0], dtype=numpy.int32)

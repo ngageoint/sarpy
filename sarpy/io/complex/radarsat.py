@@ -483,7 +483,7 @@ class RadarSatDetails(object):
         """
         radar_params = self._get_radar_params()
         center_freq = self._get_center_frequency()
-        # Ultrafine and spotlight modes have t pulses, otherwise just one.
+        # Ultrafine and spotlight modes have two pulses, otherwise just one.
         bandwidth_elements = sorted(radar_params.findall('pulseBandwidth'), key=lambda x: x.get('pulse'))
         pulse_length_elements = sorted(radar_params.findall('pulseLength'), key=lambda x: x.get('pulse'))
         adc_elements = sorted(radar_params.findall('adcSamplingRate'), key=lambda x: x.get('pulse'))

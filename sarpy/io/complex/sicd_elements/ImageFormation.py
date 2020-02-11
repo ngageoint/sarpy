@@ -91,7 +91,6 @@ class TxFrequencyProcType(Serializable):
             condition = False
         return condition
 
-
 class ProcessingType(Serializable):
     """The transmit frequency range"""
     _fields = ('Type', 'Applied', 'Parameters')

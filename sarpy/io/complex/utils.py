@@ -95,7 +95,6 @@ def two_dim_poly_fit(x, y, z, x_order=2, y_order=2, x_scale=1, y_scale=1, rcond=
     sol = numpy.power(x_scale, numpy.arange(x_order+1))[:, numpy.newaxis] * \
           numpy.reshape(sol, (x_order+1, y_order+1)) * \
           numpy.power(y_scale, numpy.arange(y_order+1))
-    print('sol = {}'.format(sol))
     return sol, residuals, rank, sing_values
 
 
