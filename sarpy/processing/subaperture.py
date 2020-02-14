@@ -56,8 +56,8 @@ def mem(ci,
     list
         the list of frame data
 
-    .. Note: All desired frames will be held in memory at once.
-    .. Warning: The input array is assumed to have been de-skewed already.
+    .. Note:: All desired frames will be held in memory at once.
+    .. Warning:: The input array is assumed to have been de-skewed already.
     """
 
     return mem_ph(np.fft.fftshift(np.fft.fft(ci, axis=dim), axes=dim),
@@ -109,8 +109,8 @@ def mem_ph(ph,
     list
         the list of frame data
 
-    .. Note: All desired frames will be held in memory at once.
-    .. Warning: Assumes that the data has had an FFTSHIFT applied to it -
+    .. Note:: All desired frames will be held in memory at once.
+    .. Warning:: Assumes that the data has had an FFTSHIFT applied to it -
         DC is in the center, not at index 0.
     """
 

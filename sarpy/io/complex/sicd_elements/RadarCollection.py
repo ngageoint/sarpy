@@ -25,7 +25,10 @@ __author__ = "Thomas McCullough"
 
 
 class TxFrequencyType(Serializable):
-    """The transmit frequency range"""
+    """
+    The transmit frequency range.
+    """
+
     _fields = ('Min', 'Max')
     _required = _fields
     _numeric_format = {'Min': '0.16G', 'Max': '0.16G'}
@@ -178,7 +181,7 @@ class WaveformParametersType(Serializable):
 
     def derive(self):
         """
-        Populate derived data in WaveformParametersType.
+        Populate derived data in `WaveformParametersType`.
 
         Returns
         -------

@@ -14,18 +14,21 @@ __author__ = "Thomas McCullough"
 
 
 class EBType(Serializable):
-    """Electrical boresight (EB) steering directions for an electronically steered array."""
+    """
+    Electrical boresight (EB) steering directions for an electronically steered array.
+    """
+
     _fields = ('DCXPoly', 'DCYPoly')
     _required = _fields
     # descriptors
     DCXPoly = _SerializableDescriptor(
         'DCXPoly', Poly1DType, _required, strict=DEFAULT_STRICT,
         docstring='Electrical boresight steering *X-axis direction cosine (DCX)* as a function of '
-                  'slow time *(variable 1)*.')  # type: Poly1DType
+                  'slow time ``(variable 1)``.')  # type: Poly1DType
     DCYPoly = _SerializableDescriptor(
         'DCYPoly', Poly1DType, _required, strict=DEFAULT_STRICT,
         docstring='Electrical boresight steering *Y-axis direction cosine (DCY)* as a function of '
-                  'slow time *(variable 1)*.')  # type: Poly1DType
+                  'slow time ``(variable 1)``.')  # type: Poly1DType
 
     def __init__(self, DCXPoly=None, DCYPoly=None, **kwargs):
         """
@@ -42,9 +45,9 @@ class EBType(Serializable):
     def __call__(self, t):
         """
         Evaluate the polynomial at points `t`. This passes `t` straight through
-        to :func:`polyval` of :module:`numpy.polynomial.polynomial` for each of
-        DCXPoly,DCYPoly components. If any of DCXPoly,DCYPoly is not populated,
-        then None is returned.
+        to :func:`polyval` of `numpy.polynomial.polynomial` for each of
+        `DCXPoly,DCYPoly` components. If any of `DCXPoly,DCYPoly` is not populated,
+        then `None` is returned.
 
         Parameters
         ----------
@@ -70,11 +73,11 @@ class AntParamType(Serializable):
     # descriptors
     XAxisPoly = _SerializableDescriptor(
         'XAxisPoly', XYZPolyType, _required, strict=DEFAULT_STRICT,
-        docstring='Antenna X-Axis unit vector in ECF coordinates as a function of time *(variable 1)*.'
+        docstring='Antenna X-Axis unit vector in ECF coordinates as a function of time ``(variable 1)``.'
     )  # type: XYZPolyType
     YAxisPoly = _SerializableDescriptor(
         'YAxisPoly', XYZPolyType, _required, strict=DEFAULT_STRICT,
-        docstring='Antenna Y-Axis unit vector in ECF coordinates as a function of time *(variable 1)*.'
+        docstring='Antenna Y-Axis unit vector in ECF coordinates as a function of time ``(variable 1)``.'
     )  # type: XYZPolyType
     FreqZero = _FloatDescriptor(
         'FreqZero', _required, strict=DEFAULT_STRICT,
@@ -92,7 +95,7 @@ class AntParamType(Serializable):
     GainBSPoly = _SerializableDescriptor(
         'GainBSPoly', Poly1DType, _required, strict=DEFAULT_STRICT,
         docstring='Gain polynomial *(in dB)* as a function of frequency for boresight *(BS)* at :math:`DCX=0, DCY=0`. '
-                  'Frequency ratio :math:`(f-f0)/f0` is the input variable *(variable 1)*, and the constant '
+                  'Frequency ratio :math:`(f-f0)/f0` is the input variable ``(variable 1)``, and the constant '
                   'coefficient is always `0.0`.')  # type: Poly1DType
     EBFreqShift = _BooleanDescriptor(
         'EBFreqShift', _required, strict=DEFAULT_STRICT,

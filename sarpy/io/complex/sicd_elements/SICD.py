@@ -42,7 +42,10 @@ __author__ = "Thomas McCullough"
 
 
 class SICDType(Serializable):
-    """Sensor Independent Complex Data object, containing all the relevant data to formulate products."""
+    """
+    Sensor Independent Complex Data object, containing all the relevant data to formulate products.
+    """
+
     _fields = (
         'CollectionInfo', 'ImageCreation', 'ImageData', 'GeoData', 'Grid', 'Timeline', 'Position',
         'RadarCollection', 'ImageFormation', 'SCPCOA', 'Radiometric', 'Antenna', 'ErrorStatistics',

@@ -19,7 +19,10 @@ __author__ = "Thomas McCullough"
 
 
 class FullImageType(Serializable, Arrayable):
-    """The full image product attributes."""
+    """
+    The full image product attributes.
+    """
+
     _fields = ('NumRows', 'NumCols')
     _required = _fields
     # descriptors
@@ -53,7 +56,7 @@ class FullImageType(Serializable, Arrayable):
         Returns
         -------
         numpy.ndarray
-            array of the form [X,Y,Z]
+            array of the form `[X,Y,Z]`
         """
 
         return numpy.array([self.NumRows, self.NumCols], dtype=dtype)
@@ -66,7 +69,7 @@ class FullImageType(Serializable, Arrayable):
         Parameters
         ----------
         array: numpy.ndarray|list|tuple
-            assumed [NumRows, NumCols]
+            assumed `[NumRows, NumCols]`
 
         Returns
         -------
@@ -189,7 +192,7 @@ class ImageDataType(Serializable):
 
     def get_valid_vertex_data(self, dtype=numpy.int64):
         """
-        Gets an array of [row, col] indices defining the valid data. If this is not viable, then None
+        Gets an array of `[row, col]` indices defining the valid data. If this is not viable, then `None`
         will be returned.
 
         Parameters
@@ -211,7 +214,7 @@ class ImageDataType(Serializable):
 
     def get_full_vertex_data(self, dtype=numpy.int64):
         """
-        Gets an array of [row, col] indices defining the full vertex data. If this is not viable, then None
+        Gets an array of `[row, col]` indices defining the full vertex data. If this is not viable, then `None`
         will be returned.
 
         Parameters

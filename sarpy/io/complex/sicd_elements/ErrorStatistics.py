@@ -13,8 +13,8 @@ __author__ = "Thomas McCullough"
 
 class CompositeSCPErrorType(Serializable):
     """
-    Composite error statistics for the Scene Center Point. Slant plane range (Rg) and azimuth (Az) error
-    statistics. Slant plane defined at SCP COA.
+    Composite error statistics for the Scene Center Point. Slant plane range *(Rg)*
+    and azimuth *(Az)* error statistics. Slant plane defined at *SCP COA*.
     """
     _fields = ('Rg', 'Az', 'RgAz')
     _required = _fields
@@ -118,7 +118,10 @@ class CorrCoefsType(Serializable):
 
 
 class PosVelErrType(Serializable):
-    """Position and velocity error statistics for the radar platform."""
+    """
+    Position and velocity error statistics for the radar platform.
+    """
+
     _fields = ('Frame', 'P1', 'P2', 'P3', 'V1', 'V2', 'V3', 'CorrCoefs', 'PositionDecorr')
     _required = ('Frame', 'P1', 'P2', 'P3', 'V1', 'V2', 'V3')
     _numeric_format = {'P1': '0.16G', 'P2': '0.16G', 'P3': '0.16G', 'V1': '0.16G', 'V2': '0.16G', 'V3': '0.16G'}
@@ -185,11 +188,11 @@ class RadarSensorErrorType(Serializable):
     ClockFreqSF = _FloatDescriptor(
         'ClockFreqSF', _required, strict=DEFAULT_STRICT,
         docstring='Payload clock frequency scale factor standard deviation, '
-                  'where :math:`SF = (Delta f)/f0`.')  # type: float
+                  r'where :math:`SF = (\Delta f)/f_0`.')  # type: float
     TransmitFreqSF = _FloatDescriptor(
         'TransmitFreqSF', _required, strict=DEFAULT_STRICT,
         docstring='Transmit frequency scale factor standard deviation, '
-                  'where :math:`SF = (Delta f)/f0`.')  # type: float
+                  r'where :math:`SF = (\Delta f)/f_0`.')  # type: float
     RangeBiasDecorr = _SerializableDescriptor(
         'RangeBiasDecorr', ErrorDecorrFuncType, _required, strict=DEFAULT_STRICT,
         docstring='Range bias decorrelation rate.')  # type: ErrorDecorrFuncType
@@ -219,11 +222,11 @@ class TropoErrorType(Serializable):
     TropoRangeVertical = _FloatDescriptor(
         'TropoRangeVertical', _required, strict=DEFAULT_STRICT,
         docstring='Troposphere two-way delay error for normal incidence standard deviation. '
-                  'Expressed as a range error. :math:`(Delta R) = (Delta T) x c/2`.')  # type: float
+                  r'Expressed as a range error. :math:`(\Delta R) = (\Delta T) \cdot (c/2)`.')  # type: float
     TropoRangeSlant = _FloatDescriptor(
         'TropoRangeSlant', _required, strict=DEFAULT_STRICT,
-        docstring='Troposphere two-way delay error for the SCP line of sight at COA standard deviation. '
-                  'Expressed as a range error. :math:`(Delta R) = (Delta T) x c/2`.')  # type: float
+        docstring='Troposphere two-way delay error for the *SCP* line of sight at *COA* standard deviation. '
+                  r'Expressed as a range error. :math:`(\Delta R) = (\Delta T) \cdot (c/2)`.')  # type: float
     TropoRangeDecorr = _SerializableDescriptor(
         'TropoRangeDecorr', ErrorDecorrFuncType, _required, strict=DEFAULT_STRICT,
         docstring='Troposphere range error decorrelation function.')  # type: ErrorDecorrFuncType
@@ -252,11 +255,11 @@ class IonoErrorType(Serializable):
     IonoRangeVertical = _FloatDescriptor(
         'IonoRangeVertical', _required, strict=DEFAULT_STRICT,
         docstring='Ionosphere two-way delay error for normal incidence standard deviation. '
-                  'Expressed as a range error. :math:`(Delta R) = (Delta T) x c/2`.')  # type: float
+                  r'Expressed as a range error. :math:`(\Delta R) = (\Delta T) \cdot (c/2)`.')  # type: float
     IonoRangeSlant = _FloatDescriptor(
         'IonoRangeSlant', _required, strict=DEFAULT_STRICT,
         docstring='Ionosphere two-way delay rate of change error for normal incidence standard deviation. '
-                  'Expressed as a range rate error. :math:`(Delta Rdot) = (Delta Tdot) x c/2`.')  # type: float
+                  r'Expressed as a range rate error. :math:`(\Delta \dot{R}) = (\Delta \dot{T}) \cdot (c/2)`.')  # type: float
     IonoRgRgRateCC = _FloatDescriptor(
         'IonoRgRgRateCC', _required, strict=DEFAULT_STRICT,
         docstring='Ionosphere range error and range rate error correlation coefficient.')  # type: float
