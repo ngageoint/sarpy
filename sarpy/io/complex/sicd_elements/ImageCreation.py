@@ -13,7 +13,10 @@ __author__ = "Thomas McCullough"
 
 
 class ImageCreationType(Serializable):
-    """General information about the image creation."""
+    """
+    General information about the image creation.
+    """
+
     _fields = ('Application', 'DateTime', 'Site', 'Profile')
     _required = ()
     # descriptors

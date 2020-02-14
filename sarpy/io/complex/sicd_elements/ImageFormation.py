@@ -154,10 +154,10 @@ class DistortionType(Serializable):
         docstring='Transmit distortion element (2,2).')  # type: complex
     Q3 = _ComplexDescriptor(
         'Q3', _required, strict=DEFAULT_STRICT,
-        docstring='Transmit distortion element (2, 1).')  # type: complex
+        docstring='Transmit distortion element (2,1).')  # type: complex
     Q4 = _ComplexDescriptor(
         'Q4', _required, strict=DEFAULT_STRICT,
-        docstring='Transmit distortion element (1, 2).')  # type: complex
+        docstring='Transmit distortion element (1,2).')  # type: complex
     # gain estimation error
     GainErrorA = _FloatDescriptor(
         'GainErrorA', _required, strict=DEFAULT_STRICT,
@@ -262,17 +262,17 @@ class ImageFormationType(Serializable):
         docstring='The combined transmit/receive polarization processed to form the image.')  # type: str
     TStartProc = _FloatDescriptor(
         'TStartProc', _required, strict=DEFAULT_STRICT,
-        docstring='Earliest slow time value for data processed to form the image from CollectionStart.')  # type: float
+        docstring='Earliest slow time value for data processed to form the image from `CollectionStart`.')  # type: float
     TEndProc = _FloatDescriptor(
         'TEndProc', _required, strict=DEFAULT_STRICT,
-        docstring='Latest slow time value for data processed to form the image from CollectionStart.')  # type: float
+        docstring='Latest slow time value for data processed to form the image from `CollectionStart`.')  # type: float
     TxFrequencyProc = _SerializableDescriptor(
         'TxFrequencyProc', TxFrequencyProcType, _required, strict=DEFAULT_STRICT,
         docstring='The range of transmit frequency processed to form the image.')  # type: TxFrequencyProcType
     SegmentIdentifier = _StringDescriptor(
         'SegmentIdentifier', _required, strict=DEFAULT_STRICT,
         docstring='Identifier that describes the image that was processed. '
-                  'Must be included when SICD.RadarCollection.Area.Plane.SegmentList is included.')  # type: str
+                  'Must be included when `SICD.RadarCollection.Area.Plane.SegmentList` is included.')  # type: str
     ImageFormAlgo = _StringEnumDescriptor(
         'ImageFormAlgo', _IMG_FORM_ALGO_VALUES, _required, strict=DEFAULT_STRICT,
         docstring="""

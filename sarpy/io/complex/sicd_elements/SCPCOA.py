@@ -20,7 +20,10 @@ __author__ = "Thomas McCullough"
 
 
 class SCPCOAType(Serializable):
-    """Center of Aperture (COA) for the Scene Center Point (SCP)."""
+    """
+    Center of Aperture (COA) for the Scene Center Point (SCP).
+    """
+
     _fields = (
         'SCPTime', 'ARPPos', 'ARPVel', 'ARPAcc', 'SideOfTrack', 'SlantRange', 'GroundRange', 'DopplerConeAng',
         'GrazeAng', 'IncidenceAng', 'TwistAng', 'SlopeAng', 'AzimAng', 'LayoverAng')
@@ -114,8 +117,11 @@ class SCPCOAType(Serializable):
     def look(self):
         """
         int: An integer version of `SideOfTrack`:
+
             * None if `SideOfTrack` is not defined
+
             * -1 if SideOfTrack == 'R'
+
             * 1 if SideOftrack == 'L'
         """
 

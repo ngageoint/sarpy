@@ -102,7 +102,10 @@ def _taylor_win(n, sidelobes=4, max_sidelobe_level=-30, normalize=True):  # TODO
 
 
 class WgtTypeType(Serializable):
-    """The weight type parameters of the direction parameters"""
+    """
+    The weight type parameters of the direction parameters.
+    """
+
     _fields = ('WindowName', 'Parameters')
     _required = ('WindowName',)
     _collections_tags = {'Parameters': {'array': False, 'child_tag': 'Parameter'}}
@@ -192,45 +195,45 @@ class DirParamType(Serializable):
     # descriptors
     UVectECF = _UnitVectorDescriptor(
         'UVectECF', XYZType, required=_required, strict=DEFAULT_STRICT,
-        docstring='Unit vector in the increasing (row/col) direction (ECF) at the SCP pixel.')  # type: XYZType
+        docstring='Unit vector in the increasing ``(row/col)`` direction *(ECF)* at the SCP pixel.')  # type: XYZType
     SS = _FloatDescriptor(
         'SS', _required, strict=DEFAULT_STRICT,
-        docstring='Sample spacing in the increasing (row/col) direction. Precise spacing at the SCP.')  # type: float
+        docstring='Sample spacing in the increasing ``(row/col)`` direction. Precise spacing at the SCP.')  # type: float
     ImpRespWid = _FloatDescriptor(
         'ImpRespWid', _required, strict=DEFAULT_STRICT,
-        docstring='Half power impulse response width in the increasing (row/col) direction. '
+        docstring='Half power impulse response width in the increasing ``(row/col)`` direction. '
                   'Measured at the scene center point.')  # type: float
     Sgn = _IntegerEnumDescriptor(
         'Sgn', (1, -1), _required, strict=DEFAULT_STRICT,
-        docstring='Sign for exponent in the DFT to transform the (row/col) dimension to '
+        docstring='Sign for exponent in the DFT to transform the ``(row/col)`` dimension to '
                   'spatial frequency dimension.')  # type: int
     ImpRespBW = _FloatDescriptor(
         'ImpRespBW', _required, strict=DEFAULT_STRICT,
-        docstring='Spatial bandwidth in (row/col) used to form the impulse response in the (row/col) direction. '
+        docstring='Spatial bandwidth in ``(row/col)`` used to form the impulse response in the ``(row/col)`` direction. '
                   'Measured at the center of support for the SCP.')  # type: float
     KCtr = _FloatDescriptor(
         'KCtr', _required, strict=DEFAULT_STRICT,
         docstring='Center spatial frequency in the given dimension. '
-                  'Corresponds to the zero frequency of the DFT in the given (row/col) direction.')  # type: float
+                  'Corresponds to the zero frequency of the DFT in the given ``(row/col)`` direction.')  # type: float
     DeltaK1 = _FloatDescriptor(
         'DeltaK1', _required, strict=DEFAULT_STRICT,
-        docstring='Minimum (row/col) offset from KCtr of the spatial frequency support for the image.')  # type: float
+        docstring='Minimum ``(row/col)`` offset from KCtr of the spatial frequency support for the image.')  # type: float
     DeltaK2 = _FloatDescriptor(
         'DeltaK2', _required, strict=DEFAULT_STRICT,
-        docstring='Maximum (row/col) offset from KCtr of the spatial frequency support for the image.')  # type: float
+        docstring='Maximum ``(row/col)`` offset from KCtr of the spatial frequency support for the image.')  # type: float
     DeltaKCOAPoly = _SerializableDescriptor(
         'DeltaKCOAPoly', Poly2DType, _required, strict=DEFAULT_STRICT,
-        docstring='Offset from KCtr of the center of support in the given (row/col) spatial frequency. '
-                  'The polynomial is a function of image given (row/col) coordinate (variable 1) and '
-                  'column coordinate (variable 2).')  # type: Poly2DType
+        docstring='Offset from KCtr of the center of support in the given ``(row/col)`` spatial frequency. '
+                  'The polynomial is a function of image given ``(row/col)`` coordinate ``(variable 1)`` and '
+                  'column coordinate ``(variable 2)``.')  # type: Poly2DType
     WgtType = _SerializableDescriptor(
         'WgtType', WgtTypeType, _required, strict=DEFAULT_STRICT,
         docstring='Parameters describing aperture weighting type applied in the spatial frequency domain '
-                  'to yield the impulse response in the given(row/col) direction.')  # type: WgtTypeType
+                  'to yield the impulse response in the given ``(row/col)`` direction.')  # type: WgtTypeType
     WgtFunct = _FloatArrayDescriptor(
         'WgtFunct', _collections_tags, _required, strict=DEFAULT_STRICT, minimum_length=2,
         docstring='Sampled aperture amplitude weighting function (array) applied to form the SCP impulse '
-                  'response in the given (row/col) direction.')  # type: numpy.ndarray
+                  'response in the given ``(row/col)`` direction.')  # type: numpy.ndarray
 
     def __init__(self, UVectECF=None, SS=None, ImpRespWid=None, Sgn=None, ImpRespBW=None,
                  KCtr=None, DeltaK1=None, DeltaK2=None, DeltaKCOAPoly=None,
@@ -269,7 +272,7 @@ class DirParamType(Serializable):
         Parameters
         ----------
         weight_size : int
-            the size of the WgtFunct to generate.
+            the size of the `WgtFunct` to generate.
 
         Returns
         -------
@@ -460,7 +463,10 @@ class DirParamType(Serializable):
 
 
 class GridType(Serializable):
-    """Collection grid details container"""
+    """
+    Collection grid details container
+    """
+
     _fields = ('ImagePlane', 'Type', 'TimeCOAPoly', 'Row', 'Col')
     _required = _fields
     _IMAGE_PLANE_VALUES = ('SLANT', 'GROUND', 'OTHER')
@@ -493,8 +499,8 @@ class GridType(Serializable):
     TimeCOAPoly = _SerializableDescriptor(
         'TimeCOAPoly', Poly2DType, _required, strict=DEFAULT_STRICT,
         docstring="*Time of Center Of Aperture* as a polynomial function of image coordinates. "
-                  "The polynomial is a function of image row coordinate (variable 1) and column coordinate "
-                  "(variable 2).")  # type: Poly2DType
+                  "The polynomial is a function of image row coordinate ``(variable 1)`` and column coordinate "
+                  "``(variable 2)``.")  # type: Poly2DType
     Row = _SerializableDescriptor(
         'Row', DirParamType, _required, strict=DEFAULT_STRICT,
         docstring="Row direction parameters.")  # type: DirParamType
@@ -522,7 +528,7 @@ class GridType(Serializable):
 
     def _derive_direction_params(self, ImageData):
         """
-        Populate the Row/Col direction parameters from imageData, if necessary.
+        Populate the ``Row/Col`` direction parameters from ImageData, if necessary.
         Expected to be called from SICD parent.
 
         Parameters

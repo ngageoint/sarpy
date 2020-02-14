@@ -17,7 +17,10 @@ __author__ = "Thomas McCullough"
 
 
 class STDeskewType(Serializable):
-    """Parameters to describe image domain ST Deskew processing."""
+    """
+    Parameters to describe image domain ST Deskew processing.
+    """
+
     _fields = ('Applied', 'STDSPhasePoly')
     _required = _fields
     # descriptors
@@ -73,9 +76,9 @@ class PFAType(Serializable):
     SpatialFreqSFPoly = _SerializableDescriptor(
         'SpatialFreqSFPoly', Poly1DType, _required, strict=DEFAULT_STRICT,
         docstring='Polynomial that yields the *Spatial Frequency Scale Factor (KSF)* as a function of Polar '
-                  'Angle. That is, *Polar Angle[radians] -> KSF[dimensionless]*. Used to scale RF '
+                  r'Angle. That is, :math:`Polar Angle[radians] \to KSF[dimensionless]`. Used to scale RF '
                   'frequency *(fx, Hz)* to aperture spatial frequency *(Kap, cycles/m)*. Where,'
-                  '*Kap = fx* ``*`` *(2/c)* ``*`` *KSF*, and *Kap* is the effective spatial '
+                  r':math:`Kap = fx\cdot (2/c)\cdot KSF`, and `Kap` is the effective spatial '
                   'frequency in the polar aperture.')  # type: Poly1DType
     Krg1 = _FloatDescriptor(
         'Krg1', _required, strict=DEFAULT_STRICT,

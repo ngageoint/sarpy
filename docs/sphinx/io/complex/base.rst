@@ -1,6 +1,6 @@
 
 The basic sarpy.io.complex reading/writing objects for indirect use
-==============================================
+====================================================================
 
 .. automodule:: sarpy.io.complex.utils
     :members:

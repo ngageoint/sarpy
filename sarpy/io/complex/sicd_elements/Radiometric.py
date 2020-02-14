@@ -16,7 +16,10 @@ __author__ = "Thomas McCullough"
 
 # noinspection PyPep8Naming
 class NoiseLevelType_(Serializable):
-    """Noise level structure."""
+    """
+    Noise level structure.
+    """
+
     _fields = ('NoiseLevelType', 'NoisePoly')
     _required = _fields
     # class variables

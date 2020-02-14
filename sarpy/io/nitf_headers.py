@@ -68,7 +68,6 @@ class _BaseScraper(object):
         ----------
         value: bytes|str
             the header string to scrape
-
         start : int
             the beginning location in the string
         args : dict
@@ -151,6 +150,7 @@ class _ItemArrayHeaders(_BaseScraper):
         start : int
         subhead_len : int
         item_len : int
+
         Returns
         -------
         _ItemArrayHeaders

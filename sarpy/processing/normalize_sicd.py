@@ -134,6 +134,9 @@ def deweightmem(input_data, weight_fun=None, oversample_rate=1, dim=1):
     """
     Uniformly weights complex SAR data in given dimension.
 
+    .. Note:: This implementation ASSUMES that the data has already been de-skewed and that the frequency support
+        is centered.
+
     Parameters
     ----------
     input_data : numpy.ndarray
@@ -149,9 +152,6 @@ def deweightmem(input_data, weight_fun=None, oversample_rate=1, dim=1):
     Returns
     -------
     numpy.ndarray
-
-    .. Note: This implementation ASSUMES that the data has already been de-skewed and that the frequency support
-        is centered.
     """
     # TODO: HIGH - there was a prexisting comment "Test this function"
 

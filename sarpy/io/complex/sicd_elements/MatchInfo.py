@@ -125,7 +125,8 @@ class MatchInfoType(Serializable):
 
     @classmethod
     def _from_node_0_5(cls, node):
-        """Helper method, not really for public usage. For XML deserialization from SICD version prior to 1.0.
+        """
+        Helper method, not really for public usage. For XML deserialization from SICD version prior to 1.0.
 
         Parameters
         ----------

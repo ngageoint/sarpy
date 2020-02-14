@@ -254,7 +254,7 @@ class GeoDataType(Serializable):
         docstring='The Earth Model.'.format(_EARTH_MODEL_VALUES))  # type: str
     SCP = _SerializableDescriptor(
         'SCP', SCPType, _required, strict=DEFAULT_STRICT,
-        docstring='The Scene Center Point (SCP) in full (global) image. This is the '
+        docstring='The Scene Center Point *(SCP)* in full (global) image. This is the '
                   'precise location.')  # type: SCPType
     ImageCorners = _SerializableCPArrayDescriptor(
         'ImageCorners', LatLonCornerStringType, _collections_tags, _required, strict=DEFAULT_STRICT,
