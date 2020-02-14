@@ -413,7 +413,7 @@ class DirParamType(Serializable):
     def _check_deltak(self):
         out = True
         try:
-            if self.DeltaK2 <= self.DeltaK1:
+            if self.DeltaK2 <= self.DeltaK1 + 1e-10:
                 logging.error(
                     'DeltaK2 ({}) must be greater than DeltaK1 ({})'.format(self.DeltaK2, self.DeltaK1))
                 out = False
@@ -421,7 +421,7 @@ class DirParamType(Serializable):
             pass
 
         try:
-            if self.DeltaK2 > 1./(2*self.SS):
+            if self.DeltaK2 > 1./(2*self.SS) + 1e-10:
                 logging.error(
                     'DeltaK2 ({}) must be <= 1/(2*SS) ({})'.format(self.DeltaK2, 1./(2*self.SS)))
                 out = False
@@ -429,7 +429,7 @@ class DirParamType(Serializable):
             pass
 
         try:
-            if self.DeltaK1 < -1./(2*self.SS):
+            if self.DeltaK1 < -1./(2*self.SS) - 1e-10:
                 logging.error(
                     'DeltaK1 ({}) must be >= -1/(2*SS) ({})'.format(self.DeltaK1, -1./(2*self.SS)))
                 out = False
@@ -440,7 +440,7 @@ class DirParamType(Serializable):
     def _check_bw(self):
         out = True
         try:
-            if self.ImpRespBW > (self.DeltaK1 - self.DeltaK1):
+            if self.ImpRespBW > (self.DeltaK2 - self.DeltaK1) + 1e-10:
                 logging.error(
                     'ImpRespBW ({}) must be <= DeltaK2 - DeltaK1 '
                     '({})'.format(self.ImpRespBW, self.DeltaK2 - self.DeltaK1))
