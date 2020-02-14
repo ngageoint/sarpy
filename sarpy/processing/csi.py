@@ -83,13 +83,15 @@ def mem(image, dim=0, pdir='R', fill=1):
         raise ValueError('It is expected that pdir is one of "R", "RIGHT", "L", or "LEFT". Got {}'.format(pdir))
 
     # move to phase history domain
-    cmap = _jet_wrapped(image.shape[0]/fill)  # which axis?
-    ph0 = numpy.fft.fftshift(numpy.fft.ifft(image, axis=1), axes=1)
-    # apply the sub-aperture filters
+    cmap = _jet_wrapped(image.shape[1]/fill)  # which axis?
     ph_indices = int(numpy.floor(0.5*(image.shape[1] - cmap.shape[0]))) + numpy.arange(cmap.shape[0], dtype=numpy.int32)
-    ph0_RGB = numpy.zeros((image.shape[0], cmap.shape[0], 3), dtype=numpy.complex128)
+    ph0 = numpy.fft.fftshift(numpy.fft.ifft(image, axis=1), axes=1)[:, ph_indices]
+    # apply the sub-aperture filters
+    # ph0_RGB = ph0[:, :, numpy.newaxis]*cmap
+    ph0_RGB = numpy.zeros((image.shape[0], cmap.shape[0], 3), dtype=numpy.complex64)
     for i in range(3):
-        ph0_RGB[:, :, i] = ph0[:, ph_indices]*cmap[:, i]
+        ph0_RGB[:, :, i] = ph0*cmap[:, i]
+    del ph0
 
     # Shift phase history to avoid having zeropad in middle of filter.
     # This fixes the purple sidelobe artifact.
@@ -100,6 +102,7 @@ def mem(image, dim=0, pdir='R', fill=1):
 
     # FFT back to the image domain
     im0_RGB = numpy.fft.fft(numpy.fft.fftshift(ph0_RGB, axes=1), n=image.shape[1], axis=1)
+    del ph0_RGB
 
     # Replace the intensity with the original image intensity to main full resolution
     # (in intensity, but not in color).
