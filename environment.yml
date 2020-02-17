@@ -1,0 +1,15 @@
+name: sarpy
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - pip
+  - numpy
+  - h5py
+  - scipy
+  - h5py
+  - flask
+  - pillow
+  - pip:
+    - setuptools_scm
+
