@@ -4,7 +4,6 @@ from sarpy_gui_apps.apps.taser_tool.taser import Taser
 from sarpy_gui_apps.apps.wake_tool.wake_tool import WakeTool
 from sarpy_gui_apps.apps.aperture_tool.aperture_tool import ApertureTool
 from sarpy_gui_apps.apps.make_ortho.quick_ortho_tool import Ortho
-from sarpy_gui_apps.apps.plot_demo.plot_demo import PlotDemo
 
 
 # Root class to create the interface and define the controller function to switch frames
@@ -45,7 +44,6 @@ class NoteBook(ttk.Frame):
         self.wake = WakeTool(self.wake_tool_tab)
         self.aperture = ApertureTool(self.aperture_tool_tab)
         self.quick_ortho = Ortho(self.quick_ortho_tab)
-        self.animation_plot = PlotDemo(self.plot_demo_tab)
         self.notebook.pack()
 
 

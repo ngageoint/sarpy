@@ -67,7 +67,7 @@ class Ortho(AbstractWidgetPanel):
         display_image_data = canvas_image_object.display_image
         display_image_nx = display_image_data.shape[1]
         display_image_ny = display_image_data.shape[0]
-        sicd_meta = self.raw_frame_image_panel.variables.canvas_image_object.reader_object.sicdmeta
+        sicd_meta = self.raw_frame_image_panel.variables.canvas_image_object.reader_object.sicd_meta
 
         image_points = np.zeros((display_image_nx * display_image_ny, 2))
         canvas_coords_1d = np.zeros(2*display_image_nx*display_image_ny)
@@ -108,7 +108,7 @@ class Ortho(AbstractWidgetPanel):
         s[:, 1] = ground_x_grid_1d
         s[:, 2] = height_1d
 
-        s_ecf = geocoords.geodetic_to_ecf(ground_y_grid_1d, ground_x_grid_1d, height_1d)
+        s_ecf = geocoords.geodetic_to_ecf(s)
 
         s_ecf_3 = np.zeros((len(ground_x_grid_1d), 3))
         s_ecf_3[:, 0] = s_ecf[0][0]

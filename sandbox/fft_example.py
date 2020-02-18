@@ -12,10 +12,10 @@ fname = os.path.expanduser(os.path.join('~/Data/sarpy_data/nitf', 'sicd_example_
 ro = cf.open(fname)
 
 print("compute the fft to display in range / polar azimuth")
-cdata = ro.read_chip()
+cdata = ro.read_chip((0, ro.data_size[0] - 1, 1), (0, ro.data_size[1] - 1, 1))
 
 inverseFlag = False
-if ro.sicdmeta.Grid.Col.Sgn > 0 and ro.sicdmeta.Grid.Row.Sgn > 0:
+if ro.sicd_meta.Grid.Col.Sgn > 0 and ro.sicdmeta.Grid.Row.Sgn > 0:
     # use fft2 to go from image to spatial freq
     ft_cdata = fft2(cdata)
 else:

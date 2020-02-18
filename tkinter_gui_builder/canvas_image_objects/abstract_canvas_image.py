@@ -156,7 +156,6 @@ class AbstractCanvasImage:
         y_coords = canvas_coords[1::2]
         xy_coords = zip(x_coords, y_coords)
         image_yx_coords = []
-        # TODO: this can be optimized for speed
         for xy in xy_coords:
             decimation_factor = self.decimation_factor
             if self.scale_to_fit_canvas:

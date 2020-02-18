@@ -620,7 +620,15 @@ class ImageCanvas(tk.LabelFrame):
         return self.variables.canvas_image_object.full_image_yx_to_canvas_coords(image_coords)
 
     def get_image_data_in_canvas_rect_by_id(self, rect_id):
-        image_coords = self._get_shape_property(rect_id, SHAPE_PROPERTIES.IMAGE_COORDS)
+        image_coords = self.get_shape_image_coords(rect_id)
+        if image_coords[0] > image_coords[2]:
+            tmp = image_coords[0]
+            image_coords[0] = image_coords[2]
+            image_coords[2] = tmp
+        if image_coords[1] > image_coords[3]:
+            tmp = image_coords[1]
+            image_coords[1] = image_coords[3]
+            image_coords[3] = tmp
         decimation_factor = self.variables.canvas_image_object.get_decimation_factor_from_full_image_rect(image_coords)
         image_data_in_rect = self.variables.canvas_image_object.get_decimated_image_data_in_full_image_rect(image_coords, decimation_factor)
         return image_data_in_rect
