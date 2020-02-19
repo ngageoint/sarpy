@@ -1,7 +1,7 @@
-The sarpy.geometry.polygon elements
+The sarpy.annotate.schema_processing elements
 ====================================
 
-.. automodule:: sarpy.geometry.polygon
+.. automodule:: sarpy.annotate.schema_processing
     :members:
     :show-inheritance:
     :inherited-members:

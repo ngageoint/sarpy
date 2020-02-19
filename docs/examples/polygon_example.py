@@ -2,7 +2,7 @@ import numpy
 from matplotlib import pyplot
 import time
 
-from sarpy.geometry.polygon import Polygon
+from sarpy.annotation.geometry import Polygon
 
 
 # craft our sample polygon
