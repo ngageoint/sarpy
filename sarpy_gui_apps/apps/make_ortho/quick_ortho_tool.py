@@ -64,6 +64,7 @@ class Ortho(AbstractWidgetPanel):
 
     def callback_display_ortho_image(self, event):
         canvas_image_object = self.raw_frame_image_panel.variables.canvas_image_object
+
         display_image_data = canvas_image_object.display_image
         display_image_nx = display_image_data.shape[1]
         display_image_ny = display_image_data.shape[0]
@@ -71,13 +72,14 @@ class Ortho(AbstractWidgetPanel):
 
         image_points = np.zeros((display_image_nx * display_image_ny, 2))
         canvas_coords_1d = np.zeros(2*display_image_nx*display_image_ny)
-        # TODO: replace this terribleness with something faster
-        counter_2 = 0
+
+        tmp_x_vals = np.arange(0, display_image_ny)
+        tmp_y_vals = np.zeros(display_image_ny)
         for x in range(display_image_nx):
-            for y in range(display_image_ny):
-                canvas_coords_1d[counter_2] = x
-                canvas_coords_1d[counter_2+1] = y
-                counter_2 = counter_2 + 2
+            start_index = display_image_ny*2*x+1
+            end_index = start_index + display_image_ny*2
+            canvas_coords_1d[start_index:end_index:2] = tmp_x_vals
+            canvas_coords_1d[display_image_ny*x*2::2][0:display_image_ny] = tmp_y_vals + x
 
         full_image_coords = canvas_image_object.canvas_coords_to_full_image_yx(canvas_coords_1d)
 
@@ -101,7 +103,7 @@ class Ortho(AbstractWidgetPanel):
         ground_x_grid, ground_y_grid = self.create_ground_grid(min_x, max_x, min_y, max_y, canvas_image_object.canvas_nx, canvas_image_object.canvas_ny)
         ground_x_grid_1d = ground_x_grid.ravel()
         ground_y_grid_1d = ground_y_grid.ravel()
-        height_1d = ground_x_grid_1d * 0
+        height_1d = ground_x_grid_1d * 0 + ground_points_latlon[0, 2]
 
         s = np.zeros((len(ground_x_grid_1d), 3))
         s[:, 0] = ground_y_grid_1d
@@ -110,14 +112,32 @@ class Ortho(AbstractWidgetPanel):
 
         s_ecf = geocoords.geodetic_to_ecf(s)
 
-        s_ecf_3 = np.zeros((len(ground_x_grid_1d), 3))
-        s_ecf_3[:, 0] = s_ecf[0][0]
-        s_ecf_3[:, 1] = s_ecf[1][0]
-        #
-        # gridded_image_pixels = point_projection.ground_to_image(s_ecf, sicd_meta)
-        # gridded_canvas_pixels = canvas_image_object.full_image_yx_to_canvas_coords(gridded_image_pixels)
+        gridded_image_pixels = point_projection.ground_to_image(s_ecf, sicd_meta)
 
-        orthod_image = self.create_ortho(display_image_data, ground_points_latlon, canvas_image_object.canvas_ny, canvas_image_object.canvas_nx)
+        full_image_coords_y = full_image_coords[0::2]
+        full_image_coords_x = full_image_coords[1::2]
+
+        mask = np.ones_like(gridded_image_pixels[0][:, 0])
+        indices_1 = np.where(gridded_image_pixels[0][:, 0] < min(full_image_coords_y))
+        indices_2 = np.where(gridded_image_pixels[0][:, 1] < min(full_image_coords_x))
+        indices_3 = np.where(gridded_image_pixels[0][:, 0] > max(full_image_coords_y))
+        indices_4 = np.where(gridded_image_pixels[0][:, 1] > max(full_image_coords_x))
+
+        mask[indices_1] = 0
+        mask[indices_2] = 0
+        mask[indices_3] = 0
+        mask[indices_4] = 0
+
+        ortho_nx = self.ortho_image_panel.canvas_width
+        ortho_ny = self.ortho_image_panel.canvas_height
+
+        mask_2d = np.reshape(mask, (ortho_ny, ortho_nx))
+
+        orthod_image = self.create_ortho(display_image_data,
+                                         ground_points_latlon,
+                                         canvas_image_object.canvas_ny,
+                                         canvas_image_object.canvas_nx)
+        orthod_image = orthod_image * mask_2d
         self.ortho_image_panel.init_with_numpy_image(orthod_image)
 
     def create_ortho(self,
