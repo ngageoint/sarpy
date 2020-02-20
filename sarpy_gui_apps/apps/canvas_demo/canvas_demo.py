@@ -71,8 +71,6 @@ class CanvasDemo(AbstractWidgetPanel):
 
         self.canvas_demo_image_panel.canvas.on_left_mouse_click(self.callback_handle_canvas_left_mouse_click)
 
-        self._init_w_image()
-
     def callback_save_kml(self, event):
         kml_save_fname = tkinter.filedialog.asksaveasfilename(initialdir = os.path.expanduser("~/Downloads"))
 
@@ -194,14 +192,6 @@ class CanvasDemo(AbstractWidgetPanel):
         if new_fname:
             self.variables.fname = new_fname
             self.canvas_demo_image_panel.init_with_fname(self.variables.fname)
-
-    def _init_w_image(self):
-        fname = '/media/psf/mac_external_ssd/Data/sarpy_data/nitf/sicd_example_1_PFA_RE32F_IM32F_HH.nitf'
-        # fname = os.path.expanduser('~/Data/sarpy/sicd_example_1_PFA_RE32F_IM32F_HH.nitf')
-        # fname = 'D:/Users/jcasey/Data/sarpy/nitf/sicd_example_1_PFA_RE32F_IM32F_HH.nitf'
-        # fname = 'C:/Users/caseyjt/sarpy_data/nitf/sicd_example_1_PFA_RE32F_IM32F_HH.nitf'
-        self.variables.fname = fname
-        self.canvas_demo_image_panel.init_with_fname(fname)
 
     def callback_display_canvas_rect_selection_in_pyplot_frame(self, event):
         complex_data = self.canvas_demo_image_panel.get_image_data_in_canvas_rect_by_id(self.variables.selection_rect_id)

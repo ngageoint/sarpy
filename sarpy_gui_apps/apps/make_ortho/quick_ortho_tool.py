@@ -4,10 +4,6 @@ from sarpy_gui_apps.apps.make_ortho.panels.ortho_button_panel import OrthoButton
 from tkinter_gui_builder.panel_templates.image_canvas.image_canvas import ImageCanvas
 from sarpy_gui_apps.supporting_classes.sarpy_canvas_image import SarpyCanvasDisplayImage
 from tkinter_gui_builder.panel_templates.widget_panel.widget_panel import AbstractWidgetPanel
-import sarpy.geometry.point_projection as point_projection
-import sarpy.geometry.geocoords as geocoords
-import scipy.interpolate as interp
-import numpy as np
 import os
 
 
@@ -35,7 +31,7 @@ class Ortho(AbstractWidgetPanel):
         self.raw_frame_image_panel.variables.canvas_image_object = SarpyCanvasDisplayImage()  # type: SarpyCanvasDisplayImage
         self.raw_frame_image_panel.set_canvas_size(500, 400)
         self.raw_frame_image_panel.rescale_image_to_fit_canvas = True
-        self.ortho_image_panel.set_canvas_size(500, 400)
+        self.ortho_image_panel.set_canvas_size(300, 200)
         self.ortho_image_panel.rescale_image_to_fit_canvas = True
 
         # need to pack both master frame and self, since this is the main app window.
@@ -63,124 +59,8 @@ class Ortho(AbstractWidgetPanel):
             self.raw_frame_image_panel.init_with_fname(self.variables.fname)
 
     def callback_display_ortho_image(self, event):
-        canvas_image_object = self.raw_frame_image_panel.variables.canvas_image_object
-
-        display_image_data = canvas_image_object.display_image
-        display_image_nx = display_image_data.shape[1]
-        display_image_ny = display_image_data.shape[0]
-        sicd_meta = self.raw_frame_image_panel.variables.canvas_image_object.reader_object.sicd_meta
-
-        image_points = np.zeros((display_image_nx * display_image_ny, 2))
-        canvas_coords_1d = np.zeros(2*display_image_nx*display_image_ny)
-
-        tmp_x_vals = np.arange(0, display_image_ny)
-        tmp_y_vals = np.zeros(display_image_ny)
-        for x in range(display_image_nx):
-            start_index = display_image_ny*2*x+1
-            end_index = start_index + display_image_ny*2
-            canvas_coords_1d[start_index:end_index:2] = tmp_x_vals
-            canvas_coords_1d[display_image_ny*x*2::2][0:display_image_ny] = tmp_y_vals + x
-
-        full_image_coords = canvas_image_object.canvas_coords_to_full_image_yx(canvas_coords_1d)
-
-        image_points[:, 0] = full_image_coords[0::2]
-        image_points[:, 1] = full_image_coords[1::2]
-
-        ground_points_ecf = point_projection.image_to_ground(image_points, sicd_meta)
-        ground_points_latlon = geocoords.ecf_to_geodetic(ground_points_ecf)
-
-        world_y_coordinates = ground_points_latlon[:, 0]
-        world_x_coordinates = ground_points_latlon[:, 1]
-
-        x = np.ravel(world_x_coordinates)
-        y = np.ravel(world_y_coordinates)
-
-        min_x = min(x)
-        max_x = max(x)
-        min_y = min(y)
-        max_y = max(y)
-
-        ground_x_grid, ground_y_grid = self.create_ground_grid(min_x, max_x, min_y, max_y, canvas_image_object.canvas_nx, canvas_image_object.canvas_ny)
-        ground_x_grid_1d = ground_x_grid.ravel()
-        ground_y_grid_1d = ground_y_grid.ravel()
-        height_1d = ground_x_grid_1d * 0 + ground_points_latlon[0, 2]
-
-        s = np.zeros((len(ground_x_grid_1d), 3))
-        s[:, 0] = ground_y_grid_1d
-        s[:, 1] = ground_x_grid_1d
-        s[:, 2] = height_1d
-
-        s_ecf = geocoords.geodetic_to_ecf(s)
-
-        gridded_image_pixels = point_projection.ground_to_image(s_ecf, sicd_meta)
-
-        full_image_coords_y = full_image_coords[0::2]
-        full_image_coords_x = full_image_coords[1::2]
-
-        mask = np.ones_like(gridded_image_pixels[0][:, 0])
-        indices_1 = np.where(gridded_image_pixels[0][:, 0] < min(full_image_coords_y))
-        indices_2 = np.where(gridded_image_pixels[0][:, 1] < min(full_image_coords_x))
-        indices_3 = np.where(gridded_image_pixels[0][:, 0] > max(full_image_coords_y))
-        indices_4 = np.where(gridded_image_pixels[0][:, 1] > max(full_image_coords_x))
-
-        mask[indices_1] = 0
-        mask[indices_2] = 0
-        mask[indices_3] = 0
-        mask[indices_4] = 0
-
-        ortho_nx = self.ortho_image_panel.canvas_width
-        ortho_ny = self.ortho_image_panel.canvas_height
-
-        mask_2d = np.reshape(mask, (ortho_ny, ortho_nx))
-
-        orthod_image = self.create_ortho(display_image_data,
-                                         ground_points_latlon,
-                                         canvas_image_object.canvas_ny,
-                                         canvas_image_object.canvas_nx)
-        orthod_image = orthod_image * mask_2d
+        orthod_image = self.raw_frame_image_panel.variables.canvas_image_object.create_ortho(self.ortho_image_panel.canvas_height, self.ortho_image_panel.canvas_width)
         self.ortho_image_panel.init_with_numpy_image(orthod_image)
-
-    def create_ortho(self,
-                     input_image_data,
-                     ground_points_latlon,
-                     output_ny,
-                     output_nx,
-                     ):  # type: (...) -> GeotiffImage
-
-        world_y_coordinates = ground_points_latlon[:, 0]
-        world_x_coordinates = ground_points_latlon[:, 1]
-
-        x = np.ravel(world_x_coordinates)
-        y = np.ravel(world_y_coordinates)
-        z = np.ravel(np.transpose(input_image_data))
-
-        min_x = min(x)
-        max_x = max(x)
-        min_y = min(y)
-        max_y = max(y)
-
-        ground_x_grid, ground_y_grid = self.create_ground_grid(min_x, max_x, min_y, max_y, output_nx, output_ny)
-
-        zi = interp.griddata((x, y), z, (ground_x_grid, ground_y_grid), method='nearest')
-        return zi
-
-    @staticmethod
-    def create_ground_grid(min_x,  # type: float
-                           max_x,  # type: float
-                           min_y,  # type: float
-                           max_y,  # type: float
-                           npix_x,  # type: int
-                           npix_y,  # type: int
-                           ):  # type: (...) -> (ndarray, ndarray)
-        ground_y_arr, ground_x_arr = np.mgrid[0:npix_y, 0:npix_x]
-        ground_x_arr = ground_x_arr / npix_x * (max_x - min_x)
-        ground_y_arr = (ground_y_arr - npix_y) * -1
-        ground_y_arr = ground_y_arr / npix_y * (max_y - min_y)
-        ground_x_arr = ground_x_arr + min_x
-        ground_y_arr = ground_y_arr + min_y
-        x_gsd = np.abs(ground_x_arr[0, 1] - ground_x_arr[0, 0])
-        y_gsd = np.abs(ground_y_arr[0, 0] - ground_y_arr[1, 0])
-        return ground_x_arr + x_gsd / 2.0, ground_y_arr - y_gsd / 2.0
 
 
 if __name__ == '__main__':
