@@ -9,18 +9,11 @@ from collections import OrderedDict
 import os
 import logging
 import json
+from typing import Union, List
 
 # noinspection PyProtectedMember
 from ..geometry.geometry_elements import _Jsonable, FeatureList, Feature
 from .schema_processing import LabelSchema
-
-
-# TODO:
-#   X 1.) Create basic annotation building block
-#   X 2.) Create AnnotationList to stand in a Feature.properties.
-#   X 3.) Extend Feature which has this as properties.
-#   X 4.) Extend FeatureList to handle this.
-#   5.) Create overall annotation container class and serialization/deserialization
 
 
 class AnnotationMetadata(_Jsonable):
@@ -45,7 +38,7 @@ class AnnotationMetadata(_Jsonable):
         self.timestamp = timestamp  # type: float
 
     @classmethod
-    def from_json(cls, the_json):
+    def from_dict(cls, the_json):
         typ = the_json['type']
         if typ != cls._type:
             raise ValueError('AnnotationMetadata cannot be constructed from {}'.format(the_json))
@@ -56,7 +49,7 @@ class AnnotationMetadata(_Jsonable):
             confidence=the_json.get('confidence', None),
             timestamp=the_json.get('timestamp', None))
 
-    def to_json(self, parent_dict=None):
+    def to_dict(self, parent_dict=None):
         if parent_dict is None:
             parent_dict = OrderedDict()
         for attr in self.__slots__:
@@ -100,7 +93,7 @@ class AnnotationMetadataList(_Jsonable):
             if isinstance(element, AnnotationMetadata):
                 self._elements.append(element)
             elif isinstance(element, dict):
-                self._elements.append(AnnotationMetadata.from_json(element))
+                self._elements.append(AnnotationMetadata.from_dict(element))
             else:
                 raise TypeError(
                     'Entries of elements must be an AnnotationMetadata, or dict '
@@ -146,20 +139,20 @@ class AnnotationMetadataList(_Jsonable):
             self._elements.insert(0, element)
 
     @classmethod
-    def from_json(cls, the_json):
+    def from_dict(cls, the_json):
         typ = the_json['type']
         if typ != cls._type:
             raise ValueError('AnnotationMetadataList cannot be constructed from {}'.format(the_json))
         return cls(elements=the_json.get('elements', None))
 
-    def to_json(self, parent_dict=None):
+    def to_dict(self, parent_dict=None):
         if parent_dict is None:
             parent_dict = OrderedDict()
         parent_dict['type'] = self.type
         if self._elements is None:
             parent_dict['elements'] = None
         else:
-            parent_dict['elements'] = [entry.to_json() for entry in self._elements]
+            parent_dict['elements'] = [entry.to_dict() for entry in self._elements]
         return parent_dict
 
 
@@ -188,17 +181,17 @@ class Annotation(Feature):
         elif isinstance(properties, AnnotationMetadataList):
             self._properties = properties
         elif isinstance(properties, dict):
-            self._properties = AnnotationMetadataList.from_json(properties)
+            self._properties = AnnotationMetadataList.from_dict(properties)
         else:
             raise TypeError('properties must be an AnnotationMetadataList')
 
-    def to_json(self, parent_dict=None):
+    def to_dict(self, parent_dict=None):
         if parent_dict is None:
             parent_dict = OrderedDict()
         parent_dict['type'] = self.type
         parent_dict['id'] = self.uid
-        parent_dict['geometry'] = self.geometry.to_json()
-        parent_dict['properties'] = self.properties.to_json()
+        parent_dict['geometry'] = self.geometry.to_dict()
+        parent_dict['properties'] = self.properties.to_dict()
         return parent_dict
 
 
@@ -234,7 +227,7 @@ class AnnotationList(FeatureList):
             if isinstance(entry, Annotation):
                 self._features.append(entry)
             elif isinstance(entry, dict):
-                self._features.append(Annotation.from_json(entry))
+                self._features.append(Annotation.from_dict(entry))
             else:
                 raise TypeError(
                     'Entries of features are required to be instances of Annotation or '
@@ -343,7 +336,7 @@ class FileAnnotationCollection(object):
         elif isinstance(annotations, AnnotationList):
             self._annotations = annotations
         elif isinstance(annotations, dict):
-            self._annotations = AnnotationList.from_json(annotations)
+            self._annotations = AnnotationList.from_dict(annotations)
         else:
             raise TypeError(
                 'annotations must be an AnnotationList. Got type {}'.format(type(annotations)))
@@ -384,11 +377,32 @@ class FileAnnotationCollection(object):
 
         with open(file_name, 'r') as fi:
             the_dict = json.load(fi)
-        return cls(the_dict['label_schema'],
-                   annotations=the_dict.get('annotations', None),
-                   image_file_name=the_dict.get('image_file_name', None),
-                   image_id=the_dict.get('image_id', None),
-                   core_name=the_dict.get('core_name', None))
+        return cls.from_dict(the_dict)
+
+    @classmethod
+    def from_dict(cls, the_dict):
+        """
+        Define from a dictionary representation.
+
+        Parameters
+        ----------
+        the_dict : dict
+
+        Returns
+        -------
+        FileAnnotationCollection
+        """
+
+        if not isinstance(the_dict, dict):
+            raise TypeError('This requires a dict. Got type {}'.format(type(the_dict)))
+        if 'label_schema' not in the_dict:
+            raise KeyError('this dictionary must contain a label_schema')
+        return cls(
+            the_dict['label_schema'],
+            annotations=the_dict.get('annotations', None),
+            image_file_name=the_dict.get('image_file_name', None),
+            image_id=the_dict.get('image_id', None),
+            core_name=the_dict.get('core_name', None))
 
     def to_dict(self, parent_dict=None):
         if parent_dict is None:
@@ -401,7 +415,7 @@ class FileAnnotationCollection(object):
         if self.core_name is not None:
             parent_dict['core_name'] = self.core_name
         if self.annotations is not None:
-            parent_dict['annotations'] = self.annotations.to_json()
+            parent_dict['annotations'] = self.annotations.to_dict()
         return parent_dict
 
     def to_file(self, file_name):

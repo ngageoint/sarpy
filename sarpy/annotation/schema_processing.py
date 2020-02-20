@@ -27,7 +27,7 @@ class LabelSchema(object):
     __slots__ = ('_version', '_labels', '_subtypes', '_parent_types', '_confidence_values')
     _DEFAULT_CONF_VALUES = [0, 1, 2, 3, 4]
 
-    def __init__(self, version, labels, subtypes, confidence_values=None):
+    def __init__(self, version, labels, subtypes=None, confidence_values=None):
         """
 
         Parameters
@@ -120,7 +120,9 @@ class LabelSchema(object):
     def confidence_values(self, conf_values):
         if conf_values is None:
             self._confidence_values = self._DEFAULT_CONF_VALUES
-        elif not isinstance(conf_values, list):
+            return
+
+        if not isinstance(conf_values, list):
             raise TypeError('confidence_values must be a list. Got type {}'.format(type(conf_values)))
         self._confidence_values = conf_values
 
@@ -231,27 +233,70 @@ class LabelSchema(object):
 
     @classmethod
     def from_file(cls, file_name):
+        """
+        Read schema from a file.
+
+        Parameters
+        ----------
+        file_name : str
+
+        Returns
+        -------
+        LabelSchema
+        """
+
         with open(file_name, 'r') as fi:
             input_dict = json.load(fi)
         return cls.from_dict(input_dict)
 
     @classmethod
     def from_dict(cls, input_dict):
+        """
+        Construct from a dictionary.
+
+        Parameters
+        ----------
+        input_dict : dict
+
+        Returns
+        -------
+        LabelSchema
+        """
+
         version = input_dict['version']
         labels = input_dict['labels']
         subtypes = input_dict.get('subtypes', None)
-        return cls(version, labels, subtypes)
+        conf_values = input_dict.get('confidence_values', None)
+        return cls(version, labels, subtypes=subtypes, confidence_values=conf_values)
 
     def to_dict(self):
+        """
+        Serialize to a dictionary representation.
+
+        Returns
+        -------
+        dict
+        """
+
         out = OrderedDict()
         out['version'] = self.version
+        out['confidence_values'] = self.confidence_values
         out['labels'] = self._labels
         out['subtypes'] = self._subtypes
         return out
 
     def to_file(self, file_name):
+        """
+        Write to a (json) file.
+
+        Parameters
+        ----------
+        file_name : str
+
+        Returns
+        -------
+        None
+        """
+
         with open(file_name, 'w') as fi:
             json.dump(self.to_dict(), fi, indent=1)
-
-
-# TODO: convert annotation from one schema to another

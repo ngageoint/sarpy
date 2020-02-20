@@ -86,7 +86,7 @@ class _Jsonable(object):
         return self._type
 
     @classmethod
-    def from_json(cls, the_json):
+    def from_dict(cls, the_json):
         """
         Deserialize from json.
 
@@ -101,7 +101,7 @@ class _Jsonable(object):
 
         raise NotImplementedError
 
-    def to_json(self, parent_dict=None):
+    def to_dict(self, parent_dict=None):
         """
         Deserialize from json.
 
@@ -117,10 +117,10 @@ class _Jsonable(object):
         raise NotImplementedError
 
     def __str__(self):
-        return '{}(**{})'.format(self.__class__.__name__, json.dumps(self.to_json(), indent=1))
+        return '{}(**{})'.format(self.__class__.__name__, json.dumps(self.to_dict(), indent=1))
 
     def __repr__(self):
-        return '{}(**{})'.format(self.__class__.__name__, self.to_json())
+        return '{}(**{})'.format(self.__class__.__name__, self.to_dict())
 
     def copy(self):
         """
@@ -132,7 +132,7 @@ class _Jsonable(object):
         """
 
         the_type = self.__class__
-        return the_type.from_json(self.to_json())
+        return the_type.from_dict(self.to_dict())
 
 
 class Feature(_Jsonable):
@@ -188,7 +188,7 @@ class Feature(_Jsonable):
         elif isinstance(geometry, Geometry):
             self._geometry = geometry
         elif isinstance(geometry, dict):
-            self._geometry = Geometry.from_json(geometry)
+            self._geometry = Geometry.from_dict(geometry)
         else:
             raise TypeError('geometry must be an instance of Geometry base class')
 
@@ -209,7 +209,7 @@ class Feature(_Jsonable):
         self._properties = properties
 
     @classmethod
-    def from_json(cls, the_json):
+    def from_dict(cls, the_json):
         typ = the_json['type']
         if typ != cls._type:
             raise ValueError('Feature cannot be constructed from {}'.format(the_json))
@@ -217,12 +217,12 @@ class Feature(_Jsonable):
                    geometry=the_json.get('geometry', None),
                    properties=the_json.get('properties', None))
 
-    def to_json(self, parent_dict=None):
+    def to_dict(self, parent_dict=None):
         if parent_dict is None:
             parent_dict = OrderedDict()
         parent_dict['type'] = self.type
         parent_dict['id'] = self.uid
-        parent_dict['geometry'] = self.geometry.to_json()
+        parent_dict['geometry'] = self.geometry.to_dict()
         parent_dict['properties'] = self.properties
         return parent_dict
 
@@ -267,27 +267,27 @@ class FeatureList(_Jsonable):
             if isinstance(entry, Feature):
                 self._features.append(entry)
             elif isinstance(entry, dict):
-                self._features.append(Feature.from_json(entry))
+                self._features.append(Feature.from_dict(entry))
             else:
                 raise TypeError(
                     'Entries of features are required to be instances of Feature or '
                     'dictionary to be deserialized. Got {}'.format(type(entry)))
 
     @classmethod
-    def from_json(cls, the_json):
+    def from_dict(cls, the_json):
         typ = the_json['type']
         if typ != cls._type:
             raise ValueError('FeatureList cannot be constructed from {}'.format(the_json))
         return cls(features=the_json['features'])
 
-    def to_json(self, parent_dict=None):
+    def to_dict(self, parent_dict=None):
         if parent_dict is None:
             parent_dict = OrderedDict()
         parent_dict['type'] = self.type
         if self._features is None:
             parent_dict['features'] = None
         else:
-            parent_dict['features'] = [entry.to_json() for entry in self._features]
+            parent_dict['features'] = [entry.to_dict() for entry in self._features]
         return parent_dict
 
     def add_feature(self, feature):
@@ -319,7 +319,7 @@ class Geometry(_Jsonable):
     _type = 'Geometry'
 
     @classmethod
-    def from_json(cls, geometry):
+    def from_dict(cls, geometry):
         """
         Deserialize from json.
 
@@ -334,11 +334,11 @@ class Geometry(_Jsonable):
 
         typ = geometry['type']
         if typ == 'GeometryCollection':
-            return GeometryCollection.from_json(geometry)
+            return GeometryCollection.from_dict(geometry)
         else:
-            return GeometryObject.from_json(geometry)
+            return GeometryObject.from_dict(geometry)
 
-    def to_json(self, parent_dict=None):
+    def to_dict(self, parent_dict=None):
         raise NotImplementedError
 
 
@@ -390,7 +390,7 @@ class GeometryCollection(Geometry):
                     'geometries must be a list of Geometry objects. Got an element of type {}'.format(type(entry)))
 
     @classmethod
-    def from_json(cls, geometry):  # type: (Union[None, dict]) -> GeometryCollection
+    def from_dict(cls, geometry):  # type: (Union[None, dict]) -> GeometryCollection
         typ = geometry.get('type', None)
         if typ != cls._type:
             raise ValueError('GeometryCollection cannot be constructed from {}'.format(geometry))
@@ -399,19 +399,19 @@ class GeometryCollection(Geometry):
             if isinstance(entry, Geometry):
                 geometries.append(entry)
             elif isinstance(entry, dict):
-                geometries.append(Geometry.from_json(entry))
+                geometries.append(Geometry.from_dict(entry))
             else:
                 raise TypeError(
                     'The geometries attribute must contain either a Geometry or json serialization of a Geometry. '
                     'Got an entry of type {}'.format(type(entry)))
         return cls(geometries)
 
-    def to_json(self, parent_dict=None):
+    def to_dict(self, parent_dict=None):
         if parent_dict is None:
             parent_dict = OrderedDict()
         parent_dict['type'] = self.type
         if self.geometries is not None:
-            parent_dict['geometries'] = [entry.to_json() for entry in self.geometries]
+            parent_dict['geometries'] = [entry.to_dict() for entry in self.geometries]
         return parent_dict
 
 
@@ -434,7 +434,7 @@ class GeometryObject(Geometry):
         raise NotImplementedError
 
     @classmethod
-    def from_json(cls, geometry):  # type: (dict) -> GeometryObject
+    def from_dict(cls, geometry):  # type: (dict) -> GeometryObject
         typ = geometry.get('type', None)
         if typ is None:
             raise ValueError('Poorly formed json for GeometryObject {}'.format(geometry))
@@ -453,7 +453,7 @@ class GeometryObject(Geometry):
         else:
             raise ValueError('Unknown type {} for GeometryObject from json {}'.format(typ, geometry))
 
-    def to_json(self, parent_dict=None):
+    def to_dict(self, parent_dict=None):
         if parent_dict is None:
             parent_dict = OrderedDict()
         parent_dict['type'] = self.type
@@ -505,7 +505,7 @@ class Point(GeometryObject):
             return self._coordinates.tolist()
 
     @classmethod
-    def from_json(cls, geometry):  # type: (dict) -> Point
+    def from_dict(cls, geometry):  # type: (dict) -> Point
         if not geometry.get('type', None) == cls._type:
             raise ValueError('Poorly formed json {}'.format(geometry))
         cls(coordinates=geometry['coordinates'])
@@ -548,7 +548,7 @@ class MultiPoint(GeometryObject):
         return [point.get_coordinate_list() for point in self._points]
 
     @classmethod
-    def from_json(cls, geometry):  # type: (dict) -> MultiPoint
+    def from_dict(cls, geometry):  # type: (dict) -> MultiPoint
         if not geometry.get('type', None) == cls._type:
             raise ValueError('Poorly formed json {}'.format(geometry))
         cls(coordinates=geometry['coordinates'])
@@ -606,7 +606,7 @@ class LineString(GeometryObject):
             return self._coordinates.tolist()
 
     @classmethod
-    def from_json(cls, geometry):  # type: (dict) -> LineString
+    def from_dict(cls, geometry):  # type: (dict) -> LineString
         if not geometry.get('type', None) == cls._type:
             raise ValueError('Poorly formed json {}'.format(geometry))
         cls(coordinates=geometry['coordinates'])
@@ -664,7 +664,7 @@ class MultiLineString(GeometryObject):
         return [line.get_coordinate_list() for line in self._lines]
 
     @classmethod
-    def from_json(cls, geometry):  # type: (dict) -> MultiLineString
+    def from_dict(cls, geometry):  # type: (dict) -> MultiLineString
         if not geometry.get('type', None) == cls._type:
             raise ValueError('Poorly formed json {}'.format(geometry))
         cls(coordinates=geometry['coordinates'])
@@ -1102,7 +1102,7 @@ class Polygon(GeometryObject):
                 return
 
     @classmethod
-    def from_json(cls, geometry):  # type: (dict) -> Polygon
+    def from_dict(cls, geometry):  # type: (dict) -> Polygon
         if not geometry.get('type', None) == cls._type:
             raise ValueError('Poorly formed json {}'.format(geometry))
         cls(coordinates=geometry['coordinates'])
@@ -1322,7 +1322,7 @@ class MultiPolygon(GeometryObject):
         self._polygons = [Polygon(coordinates=entry) for entry in polygons]
 
     @classmethod
-    def from_json(cls, geometry):  # type: (dict) -> MultiPolygon
+    def from_dict(cls, geometry):  # type: (dict) -> MultiPolygon
         if not geometry.get('type', None) == cls._type:
             raise ValueError('Poorly formed json {}'.format(geometry))
         cls(coordinates=geometry['coordinates'])
