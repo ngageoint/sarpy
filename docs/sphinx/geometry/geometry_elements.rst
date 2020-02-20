@@ -1,7 +1,7 @@
-The sarpy.annotate.geometry elements
+The sarpy.geometry.geometry_elements elements
 ====================================
 
-.. automodule:: sarpy.annotate.geometry
+.. automodule:: sarpy.geometry.geometry_elements
     :members:
     :show-inheritance:
     :inherited-members:

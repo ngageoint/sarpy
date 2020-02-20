@@ -24,9 +24,10 @@ class LabelSchema(object):
     will likely be introduced.
     """
 
-    __slots__ = ('_version', '_labels', '_subtypes', '_parent_types')
+    __slots__ = ('_version', '_labels', '_subtypes', '_parent_types', '_confidence_values')
+    _DEFAULT_CONF_VALUES = [0, 1, 2, 3, 4]
 
-    def __init__(self, version, labels, subtypes):
+    def __init__(self, version, labels, subtypes, confidence_values=None):
         """
 
         Parameters
@@ -42,12 +43,15 @@ class LabelSchema(object):
             entry with empty string key (i.e. ''). Every key and entry of subtypes
             (excluding the subtypes root '') must correspond to an entry of labels,
             and no id can be a direct subtype of more than one id.
+        confidence_values : None|List[str]
         """
 
         self._version = None
         self._labels = None
         self._subtypes = None
         self._parent_types = None
+        self._confidence_values = None
+        self.confidence_values = confidence_values
         self.set_labels_and_subtypes(version, labels, subtypes)
 
     @property
@@ -98,6 +102,27 @@ class LabelSchema(object):
         """
 
         return self._parent_types
+
+    @property
+    def confidence_values(self):
+        """
+        The list of confidence values.
+
+        Returns
+        -------
+        List
+            Each element should be a json type (most likely use cases are str or int).
+        """
+
+        return self._confidence_values
+
+    @confidence_values.setter
+    def confidence_values(self, conf_values):
+        if conf_values is None:
+            self._confidence_values = self._DEFAULT_CONF_VALUES
+        elif not isinstance(conf_values, list):
+            raise TypeError('confidence_values must be a list. Got type {}'.format(type(conf_values)))
+        self._confidence_values = conf_values
 
     def __str__(self):
         return json.dumps(self.to_dict(), indent=1)

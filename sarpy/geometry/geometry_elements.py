@@ -5,7 +5,7 @@ This module provides basic geometry elements generally geared towards (geo)json 
 
 from collections import OrderedDict
 from uuid import uuid4
-from typing import List
+from typing import Union, List
 import json
 import logging
 
@@ -39,6 +39,7 @@ def _compress_identical(coords):
 
 
 def _validate_contain_arguments(pts_x, pts_y):
+    # helper method for Polygon functionality
     if not isinstance(pts_x, numpy.ndarray):
         pts_x = numpy.array(pts_x, dtype=numpy.float64)
     if not isinstance(pts_y, numpy.ndarray):
@@ -51,6 +52,7 @@ def _validate_contain_arguments(pts_x, pts_y):
 
 
 def _validate_grid_contain_arguments(grid_x, grid_y):
+    # helper method for Polygon functionality
     if not isinstance(grid_x, numpy.ndarray):
         grid_x = numpy.array(grid_x, dtype=numpy.float64)
     if not isinstance(grid_y, numpy.ndarray):
@@ -105,11 +107,11 @@ class _Jsonable(object):
 
         Parameters
         ----------
-        the_json : Dict
+        parent_dict : None|Dict
 
         Returns
         -------
-
+        Dict
         """
 
         raise NotImplementedError
@@ -121,8 +123,16 @@ class _Jsonable(object):
         return '{}(**{})'.format(self.__class__.__name__, self.to_json())
 
     def copy(self):
-        typ = self.__class__
-        return typ.from_json(self.to_json())
+        """
+        Make a deep copy of the item.
+
+        Returns
+        -------
+
+        """
+
+        the_type = self.__class__
+        return the_type.from_json(self.to_json())
 
 
 class Feature(_Jsonable):
@@ -134,13 +144,13 @@ class Feature(_Jsonable):
     __slots__ = ('_uid', '_geometry', '_properties')
     _type = 'Feature'
 
-    def __init__(self, id=None, geometry=None, properties=None):
-        if id is None:
+    def __init__(self, uid=None, geometry=None, properties=None):
+        if uid is None:
             self._uid = str(uuid4())
-        elif not isinstance(id, str):
-            raise TypeError('id must be a string.')
+        elif not isinstance(uid, str):
+            raise TypeError('uid must be a string.')
         else:
-            self._uid = id
+            self._uid = uid
         self._geometry = None
         self._properties = None
 
@@ -201,9 +211,9 @@ class Feature(_Jsonable):
     @classmethod
     def from_json(cls, the_json):
         typ = the_json['type']
-        if typ != 'Feature':
+        if typ != cls._type:
             raise ValueError('Feature cannot be constructed from {}'.format(the_json))
-        return cls(id=the_json.get('id', None),
+        return cls(uid=the_json.get('id', None),
                    geometry=the_json.get('geometry', None),
                    properties=the_json.get('properties', None))
 
@@ -266,7 +276,7 @@ class FeatureList(_Jsonable):
     @classmethod
     def from_json(cls, the_json):
         typ = the_json['type']
-        if typ != 'FeatureList':
+        if typ != cls._type:
             raise ValueError('FeatureList cannot be constructed from {}'.format(the_json))
         return cls(features=the_json['features'])
 
@@ -279,6 +289,27 @@ class FeatureList(_Jsonable):
         else:
             parent_dict['features'] = [entry.to_json() for entry in self._features]
         return parent_dict
+
+    def add_feature(self, feature):
+        """
+        Add a feature.
+
+        Parameters
+        ----------
+        feature : Feature
+
+        Returns
+        -------
+        None
+        """
+
+        if not isinstance(feature, Feature):
+            raise TypeError('This requires a Feature instance, got {}'.format(type(feature)))
+
+        if self._features is None:
+            self._features = [feature, ]
+        else:
+            self._features.append(feature)
 
 
 class Geometry(_Jsonable):
@@ -361,7 +392,7 @@ class GeometryCollection(Geometry):
     @classmethod
     def from_json(cls, geometry):  # type: (Union[None, dict]) -> GeometryCollection
         typ = geometry.get('type', None)
-        if typ != 'GeometryCollection':
+        if typ != cls._type:
             raise ValueError('GeometryCollection cannot be constructed from {}'.format(geometry))
         geometries = []
         for entry in geometry['geometries']:
@@ -475,7 +506,7 @@ class Point(GeometryObject):
 
     @classmethod
     def from_json(cls, geometry):  # type: (dict) -> Point
-        if not geometry.get('type', None) == 'Point':
+        if not geometry.get('type', None) == cls._type:
             raise ValueError('Poorly formed json {}'.format(geometry))
         cls(coordinates=geometry['coordinates'])
 
@@ -518,7 +549,7 @@ class MultiPoint(GeometryObject):
 
     @classmethod
     def from_json(cls, geometry):  # type: (dict) -> MultiPoint
-        if not geometry.get('type', None) == 'MultiPoint':
+        if not geometry.get('type', None) == cls._type:
             raise ValueError('Poorly formed json {}'.format(geometry))
         cls(coordinates=geometry['coordinates'])
 
@@ -576,7 +607,7 @@ class LineString(GeometryObject):
 
     @classmethod
     def from_json(cls, geometry):  # type: (dict) -> LineString
-        if not geometry.get('type', None) == 'LineString':
+        if not geometry.get('type', None) == cls._type:
             raise ValueError('Poorly formed json {}'.format(geometry))
         cls(coordinates=geometry['coordinates'])
 
@@ -634,7 +665,7 @@ class MultiLineString(GeometryObject):
 
     @classmethod
     def from_json(cls, geometry):  # type: (dict) -> MultiLineString
-        if not geometry.get('type', None) == 'MultiLineString':
+        if not geometry.get('type', None) == cls._type:
             raise ValueError('Poorly formed json {}'.format(geometry))
         cls(coordinates=geometry['coordinates'])
 
@@ -1072,7 +1103,7 @@ class Polygon(GeometryObject):
 
     @classmethod
     def from_json(cls, geometry):  # type: (dict) -> Polygon
-        if not geometry.get('type', None) == 'Polygon':
+        if not geometry.get('type', None) == cls._type:
             raise ValueError('Poorly formed json {}'.format(geometry))
         cls(coordinates=geometry['coordinates'])
 
@@ -1292,7 +1323,7 @@ class MultiPolygon(GeometryObject):
 
     @classmethod
     def from_json(cls, geometry):  # type: (dict) -> MultiPolygon
-        if not geometry.get('type', None) == 'MultiPolygon':
+        if not geometry.get('type', None) == cls._type:
             raise ValueError('Poorly formed json {}'.format(geometry))
         cls(coordinates=geometry['coordinates'])
 
