@@ -941,7 +941,7 @@ class RadarSatDetails(object):
         sicd_list = []
         for i, entry in enumerate(tx_rcv_pols):
             this_sicd = base_sicd.copy()
-            this_sicd.ImageFormation.RcvChanProc.ChanIndices = [i, ]
+            this_sicd.ImageFormation.RcvChanProc.ChanIndices = [i+1, ]
             this_sicd.ImageFormation.TxRcvPolarizationProc = \
                 this_sicd.RadarCollection.RcvChannels[i].TxRcvPolarization
             sicd_list.append(this_sicd)

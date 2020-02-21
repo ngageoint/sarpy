@@ -381,7 +381,7 @@ class CSKDetails(object):
                                                                     ADCSampleRate=sample_rate,
                                                                     RcvFMRate=rcv_fm_rate,
                                                                     RcvWindowLength=win_length/sample_rate), ]
-            sicd.ImageFormation.RcvChanProc.ChanIndices = [ind, ]
+            sicd.ImageFormation.RcvChanProc.ChanIndices = [ind+1, ]
             sicd.ImageFormation.TxFrequencyProc = TxFrequencyProcType(MinProc=fr_min, MaxProc=fr_max)
             sicd.ImageFormation.TxRcvPolarizationProc = sicd.RadarCollection.RcvChannels[ind].TxRcvPolarization
 

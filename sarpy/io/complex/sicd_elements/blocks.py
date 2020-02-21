@@ -223,7 +223,7 @@ class LatLonArrayElementType(LatLonType):
         super(LatLonArrayElementType, self).__init__(Lat=Lat, Lon=Lon, **kwargs)
 
     @classmethod
-    def from_array(cls, array, index=0):
+    def from_array(cls, array, index=1):
         """
         Create from an array type entry.
 
@@ -678,7 +678,7 @@ class RowColArrayElement(RowColType):
         super(RowColArrayElement, self).__init__(Row=Row, Col=Col, **kwargs)
 
     @classmethod
-    def from_array(cls, array, index=0):
+    def from_array(cls, array, index=1):
         """
         Create from an array type entry.
 
@@ -1330,7 +1330,7 @@ class XYZPolyAttributeType(XYZPolyType):
         super(XYZPolyAttributeType, self).__init__(X=X, Y=Y, Z=Z, **kwargs)
 
     @classmethod
-    def from_array(cls, array, index=0):
+    def from_array(cls, array, index=1):
         """
         Create from an array type entry.
 

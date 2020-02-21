@@ -1989,7 +1989,7 @@ class SerializableArray(object):
     def _check_indices(self):
         for i, entry in enumerate(self._array):
             try:
-                entry.index = i
+                entry.index = i+1
             except (AttributeError, ValueError, TypeError):
                 continue
 
