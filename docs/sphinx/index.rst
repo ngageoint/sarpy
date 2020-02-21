@@ -9,6 +9,7 @@ Welcome to sarpy's documentation!
 
     io/index
     geometry/index
+    annotation/index
 
 
 Indices and tables

@@ -5,6 +5,7 @@ This module contains the base objects for use in the SICD elements, and the base
 
 import sys
 import copy
+import json
 
 from xml.etree import ElementTree
 from collections import OrderedDict
@@ -1238,6 +1239,9 @@ class Serializable(object):
                     # NB: this is included to allow for read only properties without breaking the paradigm
                     #   Silently catching errors can potentially cover up REAL issues.
                     pass
+
+    def __str__(self):
+        return '{}(**{})'.format(self.__class__.__name__, json.dumps(self.to_dict(check_validity=False), indent=1))
 
     def __repr__(self):
         return '{}(**{})'.format(self.__class__.__name__, self.to_dict(check_validity=False))
