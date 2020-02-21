@@ -876,7 +876,7 @@ class LinearRing(object):
                 return None, None
 
             if len(segments) == 1:
-                return 0, 0
+                return 0, 1
 
             t_first_ind = None if tmin > segments[0]['max'] else 0
             t_last_ind = None if tmax < segments[-1]['min'] else len(segments)
@@ -1095,11 +1095,15 @@ class Polygon(GeometryObject):
     def __init__(self, coordinates=None):
         self._outer_ring = None  # type: Union[None, LinearRing]
         self._inner_rings = None  # type: Union[None, List[LinearRing]]
-        if coordinates is not None:
-            if not isinstance(coordinates, list):
-                raise TypeError('coordinates must be a list of linear ring coordinate arrays.')
-            if len(coordinates) < 1:
-                return
+        if coordinates is None:
+            return
+        if not isinstance(coordinates, list):
+            raise TypeError('coordinates must be a list of linear ring coordinate arrays.')
+        if len(coordinates) < 1:
+            return
+        self.set_outer_ring(coordinates[0])
+        for entry in coordinates[1:]:
+            self.add_inner_ring(entry)
 
     @classmethod
     def from_dict(cls, geometry):  # type: (dict) -> Polygon
@@ -1419,3 +1423,16 @@ class MultiPolygon(GeometryObject):
         for entry in self._polygons[1:]:
             in_poly |= entry.grid_contained(grid_x, grid_y)
         return in_poly
+
+
+if __name__ == '__main__':
+    import numpy
+    # from matplotlib import pyplot
+
+    coords = numpy.array([[0, 0], [1, 0], [1, 1], [0, 1]])
+
+    lr = LinearRing(coordinates=coords)
+
+    print(lr.contain_coordinates(0.5, 0.5))
+    print(lr.contain_coordinates(-0.5, 0.5))
+    print(lr.contain_coordinates(0.5, -0.5))
