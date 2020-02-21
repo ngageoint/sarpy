@@ -24,10 +24,11 @@ class LabelSchema(object):
     will likely be introduced.
     """
 
-    __slots__ = ('_version', '_labels', '_subtypes', '_parent_types', '_confidence_values')
-    _DEFAULT_CONF_VALUES = [0, 1, 2, 3, 4]
+    __slots__ = (
+        '_version', '_labels', '_subtypes', '_parent_types', '_confidence_values',
+        '_permitted_geometries')
 
-    def __init__(self, version, labels, subtypes=None, confidence_values=None):
+    def __init__(self, version, labels, subtypes=None, confidence_values=None, permitted_geometries=None):
         """
 
         Parameters
@@ -43,7 +44,10 @@ class LabelSchema(object):
             entry with empty string key (i.e. ''). Every key and entry of subtypes
             (excluding the subtypes root '') must correspond to an entry of labels,
             and no id can be a direct subtype of more than one id.
-        confidence_values : None|List[str]
+        confidence_values : None|List[Union[str, int]]
+            The possible confidence values.
+        permitted_geometries : None|List[str]
+            The possible geometry types.
         """
 
         self._version = None
@@ -51,7 +55,10 @@ class LabelSchema(object):
         self._subtypes = None
         self._parent_types = None
         self._confidence_values = None
+        self._permitted_geometries = None
+
         self.confidence_values = confidence_values
+        self.permitted_geometries = permitted_geometries
         self.set_labels_and_subtypes(version, labels, subtypes)
 
     @property
@@ -119,12 +126,33 @@ class LabelSchema(object):
     @confidence_values.setter
     def confidence_values(self, conf_values):
         if conf_values is None:
-            self._confidence_values = self._DEFAULT_CONF_VALUES
+            self._confidence_values = None
             return
 
         if not isinstance(conf_values, list):
             raise TypeError('confidence_values must be a list. Got type {}'.format(type(conf_values)))
         self._confidence_values = conf_values
+
+    @property
+    def permitted_geometries(self):
+        """
+        The collection of permitted geometry types. None corresponds to all.
+
+        Returns
+        -------
+        None|List[str]
+        """
+
+        return self._permitted_geometries
+
+    @permitted_geometries.setter
+    def permitted_geometries(self, values):
+        if values is None:
+            self._permitted_geometries = None
+            return
+        if not isinstance(values, list):
+            values = list(values)
+        self._permitted_geometries = values
 
     def __str__(self):
         return json.dumps(self.to_dict(), indent=1)
@@ -267,7 +295,10 @@ class LabelSchema(object):
         labels = input_dict['labels']
         subtypes = input_dict.get('subtypes', None)
         conf_values = input_dict.get('confidence_values', None)
-        return cls(version, labels, subtypes=subtypes, confidence_values=conf_values)
+        perm_geometries = input_dict.get('permitted_geometries', None)
+        return cls(
+            version, labels, subtypes=subtypes, confidence_values=conf_values,
+            permitted_geometries=perm_geometries)
 
     def to_dict(self):
         """
@@ -280,7 +311,10 @@ class LabelSchema(object):
 
         out = OrderedDict()
         out['version'] = self.version
-        out['confidence_values'] = self.confidence_values
+        if self.confidence_values is not None:
+            out['confidence_values'] = self.confidence_values
+        if self.permitted_geometries is not None:
+            out['permitted_geometries'] = self.permitted_geometries
         out['labels'] = self._labels
         out['subtypes'] = self._subtypes
         return out
@@ -300,3 +334,45 @@ class LabelSchema(object):
 
         with open(file_name, 'w') as fi:
             json.dump(self.to_dict(), fi, indent=1)
+
+    def is_valid_confidence(self, value):
+        """
+        Is the given value a valid confidence (i.e. is in `confidence_values`)?
+        Note that `None` is always considered valid here.
+
+        Parameters
+        ----------
+        value
+
+        Returns
+        -------
+        bool
+        """
+
+        if self._confidence_values is None or value is None:
+            return True
+        else:
+            return value in self._confidence_values
+
+    def is_valid_geometry(self, value):
+        """
+        Is the given geometry type allowed (i.e. is in `permitted_geometries`)?
+        Note that `None` is always considered valid here.
+
+        Parameters
+        ----------
+        value
+            If string, it should likely be the geometry type string (Point, Linestring, etc).
+            For any other object, the exact name of the class will be used for the check.
+
+        Returns
+        -------
+        bool
+        """
+
+        if self._permitted_geometries is None or value is None:
+            return True
+        elif isinstance(value, str):
+            return value in self._permitted_geometries
+        else:
+            return value.__class__.__name__ in self._permitted_geometries

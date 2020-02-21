@@ -334,21 +334,29 @@ class FileAnnotationCollection(object):
         # type: (Union[None, AnnotationList, dict]) -> None
         if annotations is None:
             self._annotations = None
-        elif isinstance(annotations, AnnotationList):
+            return
+
+        if isinstance(annotations, AnnotationList):
             self._annotations = annotations
         elif isinstance(annotations, dict):
             self._annotations = AnnotationList.from_dict(annotations)
         else:
             raise TypeError(
                 'annotations must be an AnnotationList. Got type {}'.format(type(annotations)))
+        self.validate_annotations(strict=False)
 
-    def add_annotation(self, annotation):
+    def add_annotation(self, annotation, validate_confidence=True, validate_geometry=True):
         """
-        Add an annotation.
+        Add an annotation, with a check for valid values in confidence and geometry type.
 
         Parameters
         ----------
         annotation : Annotation
+            The prospective annotation.
+        validate_confidence : bool
+            Should we check that all confidence values follow the schema?
+        validate_geometry : bool
+            Should we check that all geometries are of allowed type?
 
         Returns
         -------
@@ -360,7 +368,70 @@ class FileAnnotationCollection(object):
 
         if self._annotations is None:
             self._annotations = AnnotationList()
+
+        valid = True
+        if validate_confidence:
+            valid &= self._valid_confidences(annotation)
+        if validate_geometry:
+            valid &= self._valid_geometry(annotation)
+        if not valid:
+            raise ValueError('Annotation does not follow the schema.')
         self._annotations.add_feature(annotation)
+
+    def is_annotation_valid(self, annotation):
+        """
+        Is the given annotation valid according to the schema?
+
+        Parameters
+        ----------
+        annotation : Annotation
+
+        Returns
+        -------
+        bool
+        """
+
+        if not isinstance(annotation, Annotation):
+            return False
+
+        if self._label_schema is None:
+            return True
+        valid = self._valid_confidences(annotation)
+        valid &= self._valid_geometry(annotation)
+        return valid
+
+    def _valid_confidences(self, annotation):
+        if self._label_schema is None:
+            return True
+
+        if annotation.properties is None or annotation.properties.elements is None:
+            return True
+
+        valid = True
+        for entry in annotation.properties.elements:
+            if not self._label_schema.is_valid_confidence(entry.confidence):
+                valid = False
+                logging.error('Invalid confidence value {}'.format(entry.confidence))
+        return valid
+
+    def _valid_geometry(self, annotation):
+        if self._label_schema is None:
+            return True
+        if not self._label_schema.is_valid_geometry(annotation.geometry):
+            logging.error('Invalid geometry type {}'.format(type(annotation.geometry)))
+            return False
+        return True
+
+    def validate_annotations(self, strict=True):
+        if self._annotations is None:
+            return True
+
+        valid = True
+        for entry in self._annotations:
+            valid &= self.is_annotation_valid(entry)
+        if strict and not valid:
+            raise ValueError('Some annotation does not follow the schema.')
+        return valid
 
     @classmethod
     def from_file(cls, file_name):
