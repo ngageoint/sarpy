@@ -52,6 +52,7 @@ class AnnotationMetadata(_Jsonable):
     def to_dict(self, parent_dict=None):
         if parent_dict is None:
             parent_dict = OrderedDict()
+        parent_dict['type'] = self.type
         for attr in self.__slots__:
             parent_dict[attr] = getattr(self, attr)
         return parent_dict

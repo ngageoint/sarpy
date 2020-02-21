@@ -145,14 +145,15 @@ class Feature(_Jsonable):
     _type = 'Feature'
 
     def __init__(self, uid=None, geometry=None, properties=None):
+        self._geometry = None
+        self._properties = None
+
         if uid is None:
             self._uid = str(uuid4())
         elif not isinstance(uid, str):
             raise TypeError('uid must be a string.')
         else:
             self._uid = uid
-        self._geometry = None
-        self._properties = None
 
         self.geometry = geometry
         self.properties = properties
@@ -222,7 +223,10 @@ class Feature(_Jsonable):
             parent_dict = OrderedDict()
         parent_dict['type'] = self.type
         parent_dict['id'] = self.uid
-        parent_dict['geometry'] = self.geometry.to_dict()
+        if self.geometry is None:
+            parent_dict['geometry'] = None
+        else:
+            parent_dict['geometry'] = self.geometry.to_dict()
         parent_dict['properties'] = self.properties
         return parent_dict
 
@@ -334,9 +338,13 @@ class Geometry(_Jsonable):
 
         typ = geometry['type']
         if typ == 'GeometryCollection':
-            return GeometryCollection.from_dict(geometry)
+            obj = GeometryCollection.from_dict(geometry)
+            print('returning {}'.format(obj.__class__.__name__))
+            return obj
         else:
-            return GeometryObject.from_dict(geometry)
+            obj = GeometryObject.from_dict(geometry)
+            print('returning {}'.format(obj.__class__.__name__))
+            return obj
 
     def to_dict(self, parent_dict=None):
         raise NotImplementedError
@@ -410,7 +418,9 @@ class GeometryCollection(Geometry):
         if parent_dict is None:
             parent_dict = OrderedDict()
         parent_dict['type'] = self.type
-        if self.geometries is not None:
+        if self.geometries is None:
+            parent_dict['geometries'] = None
+        else:
             parent_dict['geometries'] = [entry.to_dict() for entry in self.geometries]
         return parent_dict
 
@@ -443,13 +453,13 @@ class GeometryObject(Geometry):
         elif typ == 'MultiPoint':
             return MultiPoint(coordinates=geometry['coordinates'])
         elif typ == 'LineString':
-            pass
+            return LineString(coordinates=geometry['coordinates'])
         elif typ == 'MultiLineString':
-            pass
+            return MultiLineString(coordinates=geometry['coordinates'])
         elif typ == 'Polygon':
-            pass
+            return Polygon(coordinates=geometry['coordinates'])
         elif typ == 'MultiPolygon':
-            pass
+            return MultiPolygon(coordinates=geometry['coordinates'])
         else:
             raise ValueError('Unknown type {} for GeometryObject from json {}'.format(typ, geometry))
 
@@ -457,9 +467,7 @@ class GeometryObject(Geometry):
         if parent_dict is None:
             parent_dict = OrderedDict()
         parent_dict['type'] = self.type
-        coords = self.get_coordinate_list()
-        if coords is not None:
-            parent_dict['coordinates'] = coords
+        parent_dict['coordinates'] = self.get_coordinate_list()
         return parent_dict
 
 
@@ -1143,7 +1151,7 @@ class Polygon(GeometryObject):
         if area == 0:
             logging.warning("The outer ring for this Polygon has zero area. This is likely an error.")
         elif area < 0:
-            logging.warning(
+            logging.info(
                 "The outer ring of a Polygon is required to have counter-clockwise orientation. "
                 "This outer ring has clockwise orientation, so the orientation will be reversed.")
             outer_ring.reverse_orientation()
@@ -1163,7 +1171,7 @@ class Polygon(GeometryObject):
         if area == 0:
             logging.warning("The defined inner ring for this Polygon has zero area. This is likely an error.")
         elif area > 0:
-            logging.warning(
+            logging.info(
                 "An inner ring of a Polygon is required to have clockwise orientation. "
                 "This inner ring has counter-clockwise orientation, so the orientation will be reversed.")
             inner_ring.reverse_orientation()
@@ -1423,16 +1431,3 @@ class MultiPolygon(GeometryObject):
         for entry in self._polygons[1:]:
             in_poly |= entry.grid_contained(grid_x, grid_y)
         return in_poly
-
-
-if __name__ == '__main__':
-    import numpy
-    # from matplotlib import pyplot
-
-    coords = numpy.array([[0, 0], [1, 0], [1, 1], [0, 1]])
-
-    lr = LinearRing(coordinates=coords)
-
-    print(lr.contain_coordinates(0.5, 0.5))
-    print(lr.contain_coordinates(-0.5, 0.5))
-    print(lr.contain_coordinates(0.5, -0.5))
