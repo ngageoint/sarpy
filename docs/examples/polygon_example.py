@@ -2,6 +2,7 @@ import numpy
 from matplotlib import pyplot
 import time
 
+
 import sys
 sys.path.append('../..')
 
@@ -28,11 +29,13 @@ poly = Polygon(coordinates=[coords, ])
 
 # craft some sample points
 samples = 10000
+
 pts = numpy.random.rand(samples, 2)
 pts[:, 0] *= 1.2
 pts[:, 0] -= 0.1
 pts[:, 1] *= 2
 pts[:, 1] -= 1
+
 
 start = time.time()
 in_poly_condition = poly.contain_coordinates(pts[:, 0], pts[:, 1])

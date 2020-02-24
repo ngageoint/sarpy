@@ -1,6 +1,7 @@
 # This details the important differences introduced in 0.1
 # NB: bump the version number in __about__.py to reflect the below.
 
+* .31 - Added GUI tools
 * .30 - Added catching for most SICD element parsing failures
 * .29 - Added more sicd validation checking
 * .28 - Included some polygon inclusion capability
