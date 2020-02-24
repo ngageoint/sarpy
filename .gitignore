@@ -111,6 +111,8 @@ venv.bak/
 *.xml
 .idea/workspace.xml
 
+history/
+logs/
 
-# temp file nonsense
+# mac
 *.DS_Store
