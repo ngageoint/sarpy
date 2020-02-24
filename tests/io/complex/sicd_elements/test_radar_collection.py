@@ -16,10 +16,10 @@ waveform_parameters_dict = {
     'RcvIFBandwidth': 1,
     'RcvFreqStart': 1,
     'RcvFMRate': 0,
-    'index': 0,
+    'index': 1,
 }
-tx_step_dict = {'WFIndex': 0, 'TxPolarization': 'V', 'index': 0}
-chan_parameters_dict = {'TxRcvPolarization': 'V:V', 'RcvAPCIndex': 0, 'index': 0}
+tx_step_dict = {'WFIndex': 0, 'TxPolarization': 'V', 'index': 1}
+chan_parameters_dict = {'TxRcvPolarization': 'V:V', 'RcvAPCIndex': 1, 'index': 1}
 reference_point_dict = {'ECF': {'X': 0, 'Y': 0, 'Z': 0}, 'Line': 0.5, 'Sample': 0.5, 'name': 'Name'}
 x_direction_dict = {'UVectECF': {'X': 1, 'Y': 0, 'Z': 0}, 'LineSpacing': 1, 'NumLines': 10, 'FirstLine': 2}
 y_direction_dict = {'UVectECF': {'X': 1, 'Y': 0, 'Z': 0}, 'SampleSpacing': 1, 'NumSamples': 10, 'FirstSample': 2}
@@ -29,7 +29,7 @@ segment_array_dict = {
     'EndLine': 2,
     'EndSample': 2,
     'Identifier': 'the_id',
-    'index': 0,
+    'index': 1,
 }
 reference_plane_dict = {
     'RefPt': reference_point_dict,

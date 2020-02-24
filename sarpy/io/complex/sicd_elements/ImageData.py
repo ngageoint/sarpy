@@ -13,6 +13,7 @@ from .base import Arrayable, Serializable, DEFAULT_STRICT, \
     _SerializableArrayDescriptor, _SerializableDescriptor, SerializableArray
 from .blocks import RowColType, RowColArrayElement
 
+from sarpy.geometry.geometry_elements import LinearRing
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
@@ -168,9 +169,13 @@ class ImageDataType(Serializable):
                 "ValidData must have first vertex with minimum row/column. "
                 "Got first two vertices {} and {}".format(self.ValidData[0], self.ValidData[1]))
             return False
-        if float(numpy.cross(
-                [self.ValidData[0].Row - self.ValidData[1].Row, self.ValidData[0].Col - self.ValidData[1].Col],
-                [self.ValidData[0].Row - self.ValidData[3].Row, self.ValidData[0].Col - self.ValidData[3].Col])) <= 0:
+        # check the details for valid data
+        lin_ring = LinearRing(coordinates=self.ValidData.get_array(dtype=numpy.float64))
+        area = lin_ring.get_area()
+        if area == 0:
+            logging.error('ValidData enclosed no area.')
+            return False
+        elif area > 0:
             logging.error(
                 "ValidData must be traversed in clockwise direction.")
             return False

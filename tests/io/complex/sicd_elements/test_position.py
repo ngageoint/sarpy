@@ -8,7 +8,7 @@ position_dict = {
     'ARPPoly': {'X': {'Coefs': [0, 0, 0]}, 'Y': {'Coefs': [0, 0, 0]}, 'Z': {'Coefs': [0, 0, 0]}, },
     'GRPPoly': {'X': {'Coefs': [0, ]}, 'Y': {'Coefs': [0, ]}, 'Z': {'Coefs': [0, ]}, },
     'TxAPCPoly': {'X': {'Coefs': [0, ]}, 'Y': {'Coefs': [0, ]}, 'Z': {'Coefs': [0, ]}, },
-    'RcvAPC': [{'X': {'Coefs': [0, ]}, 'Y': {'Coefs': [0, ]}, 'Z': {'Coefs': [0, ]}, 'index': 0}, ],
+    'RcvAPC': [{'X': {'Coefs': [0, ]}, 'Y': {'Coefs': [0, ]}, 'Z': {'Coefs': [0, ]}, 'index': 1}, ],
 }
 
 

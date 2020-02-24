@@ -908,7 +908,7 @@ class SentinelDetails(object):
 
         def populate_noise(sicd, index):  # type: (SICDType, int) -> None
             # NB: the default order was 7 before refactoring...that seems excessive.
-            rg_poly_order = min(6, range_pixel[0].size-1)
+            rg_poly_order = min(5, range_pixel[0].size-1)
             if sicd.CollectionInfo.RadarMode.ModeID[0] == 'S':
                 # STRIPMAP - all LUTs apply
                 # Treat range and azimuth polynomial components as fully independent

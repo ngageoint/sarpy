@@ -17,10 +17,10 @@ image_data_dict = {
     'FullImage': full_image_dict,
     'SCPPixel': {'Row': 5, 'Col': 4},
     'ValidData': [
-        {'Row': 0, 'Col': 1, 'index': 0},
-        {'Row': 3, 'Col': 1, 'index': 1},
-        {'Row': 3, 'Col': 7, 'index': 2},
-        {'Row': 0, 'Col': 7, 'index': 3},
+        {'Row': 0, 'Col': 1, 'index': 1},
+        {'Row': 0, 'Col': 7, 'index': 2},
+        {'Row': 3, 'Col': 7, 'index': 3},
+        {'Row': 3, 'Col': 1, 'index': 4},
     ],
 }
 
