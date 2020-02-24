@@ -18,7 +18,10 @@ __author__ = "Thomas McCullough"
 
 
 class RMRefType(Serializable):
-    """Range migration reference element of RMA type."""
+    """
+    Range migration reference element of RMA type.
+    """
+
     _fields = ('PosRef', 'VelRef', 'DopConeAngRef')
     _required = _fields
     _numeric_format = {'DopConeAngRef': '0.16G', }
@@ -59,7 +62,7 @@ class INCAType(Serializable):
     # descriptors
     TimeCAPoly = _SerializableDescriptor(
         'TimeCAPoly', Poly1DType, _required, strict=DEFAULT_STRICT,
-        docstring='Polynomial function that yields Time of Closest Approach as function of '
+        docstring='Polynomial function that yields *Time of Closest Approach* as function of '
                   'image column *(azimuth)* coordinate in meters. Time relative to '
                   'collection start in seconds.')  # type: Poly1DType
     R_CA_SCP = _FloatDescriptor(
@@ -67,22 +70,22 @@ class INCAType(Serializable):
         docstring='*Range at Closest Approach (R_CA)* for the *Scene Center Point (SCP)* in meters.')  # type: float
     FreqZero = _FloatDescriptor(
         'FreqZero', _required, strict=DEFAULT_STRICT,
-        docstring='*RF frequency (f0)* in Hz used for computing Doppler Centroid values. Typical *f0* set equal '
-                  'to center transmit frequency.')  # type: float
+        docstring=r'*RF frequency* :\math:`(f_0)` in Hz used for computing Doppler Centroid values. Typical :math:`f_0` '
+                  r'set equal o center transmit frequency.')  # type: float
     DRateSFPoly = _SerializableDescriptor(
         'DRateSFPoly', Poly2DType, _required, strict=DEFAULT_STRICT,
         docstring='Polynomial function that yields *Doppler Rate scale factor (DRSF)* as a function of image '
-                  'location. Yields `DRSF` as a function of image range coordinate *(variable 1)* and azimuth '
-                  'coordinate *(variable 2)*. Used to compute Doppler Rate at closest approach.')  # type: Poly2DType
+                  'location. Yields `DRSF` as a function of image range coordinate ``(variable 1)`` and azimuth '
+                  'coordinate ``(variable 2)``. Used to compute Doppler Rate at closest approach.')  # type: Poly2DType
     DopCentroidPoly = _SerializableDescriptor(
         'DopCentroidPoly', Poly2DType, _required, strict=DEFAULT_STRICT,
         docstring='Polynomial function that yields Doppler Centroid value as a function of image location *(fdop_DC)*. '
                   'The *fdop_DC* is the Doppler frequency at the peak signal response. The polynomial is a function '
-                  'of image range coordinate *(variable 1)* and azimuth coordinate *(variable 2)*. '
-                  '*Note:* Only used for Stripmap and Dynamic Stripmap collections.')  # type: Poly2DType
+                  'of image range coordinate ``(variable 1)`` and azimuth coordinate ``(variable 2)``. '
+                  '*Note: Only used for Stripmap and Dynamic Stripmap collections.*')  # type: Poly2DType
     DopCentroidCOA = _BooleanDescriptor(
         'DopCentroidCOA', _required, strict=DEFAULT_STRICT,
-        docstring="""Flag indicating that the COA is at the peak signal *(fdop_COA = fdop_DC)*.
+        docstring="""Flag indicating that the COA is at the peak signal :math`fdop_COA = fdop_DC`.
         
         * `True` - if Pixel COA at peak signal for all pixels.
         
@@ -139,13 +142,13 @@ class RMAType(Serializable):
         """)  # type: str
     RMAT = _SerializableDescriptor(
         'RMAT', RMRefType, _required, strict=DEFAULT_STRICT,
-        docstring='Parameters for RMA with Along Track (RMAT) motion compensation.')  # type: RMRefType
+        docstring='Parameters for *RMA with Along Track (RMAT)* motion compensation.')  # type: RMRefType
     RMCR = _SerializableDescriptor(
         'RMCR', RMRefType, _required, strict=DEFAULT_STRICT,
-        docstring='Parameters for RMA with Cross Range (RMCR) motion compensation.')  # type: RMRefType
+        docstring='Parameters for *RMA with Cross Range (RMCR)* motion compensation.')  # type: RMRefType
     INCA = _SerializableDescriptor(
         'INCA', INCAType, _required, strict=DEFAULT_STRICT,
-        docstring='Parameters for Imaging Near Closest Approach (INCA) image description.')  # type: INCAType
+        docstring='Parameters for *Imaging Near Closest Approach (INCA)* image description.')  # type: INCAType
 
     def __init__(self, RMAlgoType=None, RMAT=None, RMCR=None, INCA=None, **kwargs):
         """
@@ -168,7 +171,7 @@ class RMAType(Serializable):
     def ImageType(self):  # type: () -> Union[None, str]
         """
         str: READ ONLY attribute. Identifies the specific RM image type / metadata type supplied. This is determined by
-        returning the (first) attribute among `RMAT`, `RMCR`, `INCA` which is populated. None will be returned if
+        returning the (first) attribute among `'RMAT', 'RMCR', 'INCA'` which is populated. `None` will be returned if
         none of them are populated.
         """
 
@@ -180,6 +183,7 @@ class RMAType(Serializable):
     def _derive_parameters(self, SCPCOA, Position, RadarCollection, ImageFormation):
         """
         Expected to be called from SICD parent.
+
         Parameters
         ----------
         SCPCOA : sarpy.io.complex.sicd_elements.SCPCOA.SCPCOAType

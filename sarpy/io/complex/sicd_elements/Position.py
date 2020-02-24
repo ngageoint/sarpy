@@ -64,6 +64,10 @@ class PositionType(Serializable):
         Expected to be called from SICD parent. Set the aperture position polynomial from position, time,
         acceleration at scptime, if necessary.
 
+        .. Note::
+
+            This assumes constant velocity and acceleration.
+
         Parameters
         ----------
         SCPCOA : sarpy.io.complex.sicd_elements.SCPCOA.SCPCOAType
@@ -71,8 +75,6 @@ class PositionType(Serializable):
         Returns
         -------
         None
-
-        .. Note: This assumes constant velocity and acceleration. Maybe that's not terrible?
         """
 
         if self.ARPPoly is not None:

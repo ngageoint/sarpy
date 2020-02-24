@@ -18,7 +18,10 @@ __author__ = "Thomas McCullough"
 
 
 class IPPSetType(Serializable):
-    """The Inter-Pulse Parameter array element container."""
+    """
+    The Inter-Pulse Parameter array element container.
+    """
+
     # NOTE that this is simply defined as a child class ("Set") of the TimelineType in the SICD standard
     #   Defining it at root level clarifies the documentation, and giving it a more descriptive name is
     #   appropriate.
@@ -64,7 +67,10 @@ class IPPSetType(Serializable):
 
 
 class TimelineType(Serializable):
-    """The details for the imaging collection timeline."""
+    """
+    The details for the imaging collection timeline.
+    """
+
     _fields = ('CollectStart', 'CollectDuration', 'IPP')
     _required = ('CollectStart', 'CollectDuration', )
     _collections_tags = {'IPP': {'array': True, 'child_tag': 'Set'}}

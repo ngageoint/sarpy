@@ -224,7 +224,7 @@ class TiffDetails(object):
     @property
     def endian(self):
         """
-        str: READ ONLY. The numpy dtype style ('>' = big, '<' = little) endian string for the tiff file.
+        str: READ ONLY. The numpy dtype style ``('>' = big, '<' = little)`` endian string for the tiff file.
         """
 
         return self._endian
@@ -233,7 +233,7 @@ class TiffDetails(object):
     def tags(self):
         """
         None|dict: READ ONLY. the tiff tags dictionary, provided that func:`parse_tags` has been called.
-        This dictionary is of the form `{<tag name> : numpy.ndarray value}`, even for
+        This dictionary is of the form ``{<tag name> : numpy.ndarray value}``, even for
         those tags containing only a single entry (i.e. `count=1`).
         """
         if self._tags is None:

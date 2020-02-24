@@ -15,7 +15,10 @@ __author__ = "Thomas McCullough"
 
 
 class RadarModeType(Serializable):
-    """Radar mode type container class"""
+    """
+    Radar mode type container class
+    """
+
     _fields = ('ModeType', 'ModeID')
     _required = ('ModeType', )
     # other class variable

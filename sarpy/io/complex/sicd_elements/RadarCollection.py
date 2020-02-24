@@ -25,7 +25,10 @@ __author__ = "Thomas McCullough"
 
 
 class TxFrequencyType(Serializable):
-    """The transmit frequency range"""
+    """
+    The transmit frequency range.
+    """
+
     _fields = ('Min', 'Max')
     _required = _fields
     _numeric_format = {'Min': '0.16G', 'Max': '0.16G'}
@@ -170,7 +173,13 @@ class WaveformParametersType(Serializable):
         if value is None:
             self._RcvFMRate = None
         else:
-            self._RcvFMRate = _parse_float(value, 'RcvFMRate', self)
+            try:
+                self._RcvFMRate = _parse_float(value, 'RcvFMRate', self)
+            except Exception as e:
+                logging.error(
+                    'Failed parsing value {} for field RCVFMRate of type "float", with error {} - {}.'
+                    'The value has been set to None.'.format(value, type(e), e))
+                self._RcvFMRate = None
 
     def _basic_validity_check(self):
         valid = super(WaveformParametersType, self)._basic_validity_check()
@@ -178,7 +187,7 @@ class WaveformParametersType(Serializable):
 
     def derive(self):
         """
-        Populate derived data in WaveformParametersType.
+        Populate derived data in `WaveformParametersType`.
 
         Returns
         -------

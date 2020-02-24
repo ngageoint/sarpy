@@ -108,8 +108,10 @@ class DEMInterpolator(object):
 class DTEDList(object):
     """
     The DEM directory structure is assumed to look like the following:
-    For DTED<1,2>: `<root_dir>/dted/<1, 2>/<lon_string>/<lat_string>.dtd`
-    For SRTM<1,2,2F>: `<root_dir>/srtm/<1, 2, 2f>/<lon_string>/<lat_string>.dt<1,2,2>`
+
+        * For DTED<1,2>: `<root_dir>/dted/<1, 2>/<lon_string>/<lat_string>.dtd`
+
+        * For SRTM<1,2,2F>: `<root_dir>/srtm/<1, 2, 2f>/<lon_string>/<lat_string>.dt<1,2,2>`
 
     Here `<lon_string>` corresponds to a string of the form `X###`, where
     `X` is one of 'N' or 'S', and `###` is the zero-padded formatted string for
@@ -345,7 +347,7 @@ class DTEDReader(object):
         Returns
         -------
         numpy.ndarray
-            Of the same shape as lat/lon
+            boolean array of the same shape as lat/lon
         """
 
         return (lat >= self._bounding_box[1][0]) & (lat <= self._bounding_box[1][1]) & \
@@ -385,7 +387,7 @@ class DTEDReader(object):
         Returns
         -------
         numpy.ndarray
-            elevation values of the same shape as lat/lon.
+            Elevation values of the same shape as lat/lon.
         """
 
         o_shape, lat, lon = _argument_validation(lat, lon)
@@ -445,27 +447,27 @@ class DTEDInterpolator(DEMInterpolator):
     @classmethod
     def from_coords_and_list(cls, lats, lons, dted_list, dem_type, geoid_file=None):
         """
-        Construct a DTEDInterpolator from a coordinate collection and DTEDList object.
+        Construct a `DTEDInterpolator` from a coordinate collection and `DTEDList` object.
+
+        .. Note:: This depends on using `DTEDList.get_file_list(lats, lons, dted_type)`
+            to get the relevant file list.
 
         Parameters
         ----------
         lats : numpy.ndarray|list|tuple|int|float
         lons : numpy.ndarray|list|tuple|int|float
         dted_list : None|DTEDList|str
-            the dtedList object or root directory
+            The dted list object or root directory
         dem_type : str
-            the DEM type.
+            The DEM type.
         geoid_file : None|str|GeoidHeight
-            The GeoidHeight object, a egm file name, or root directory containing
-            one in th sub-directory "geoid". If `None`, then default to the root
-            directory of dted_list.
+            The `GeoidHeight` object, an egm file name, or root directory containing
+            one of the egm files in the sub-directory "geoid". If `None`, then default
+            to the root directory of `dted_list`.
 
         Returns
         -------
         DTEDInterpolator
-
-        .. Note: this depends on using `DTEDList.get_file_list(lats, lons, dted_type)`
-            to get the relevant file list.
         """
 
         # TODO: handle dted_list is None
@@ -508,6 +510,10 @@ class DTEDInterpolator(DEMInterpolator):
         """
         Get the elevation value relative to the WGS-84 ellipsoid.
 
+        .. Note:: DTED elevation is relative to the egm96 geoid, and we are simply adding
+            values determined by a geoid calculator. Using a the egm2008 model will result
+            in only minor differences.
+
         Parameters
         ----------
         lat : numpy.ndarray|list|tuple|int|float
@@ -522,10 +528,6 @@ class DTEDInterpolator(DEMInterpolator):
         -------
         numpy.ndarray
             the elevation relative to the WGS-84 ellipsoid.
-
-        .. Note: DTED elevation is relative to the egm96 geoid, and we are simply adding
-            values determined by a geoid calculator. Using a the egm2008 model will result
-            in only minor differences.
         """
 
         return self.get_elevation_geoid(lat, lon, block_size=block_size) + \
@@ -534,6 +536,9 @@ class DTEDInterpolator(DEMInterpolator):
     def get_elevation_geoid(self, lat, lon, block_size=50000):
         """
         Get the elevation value relative to the geoid.
+
+        .. Note:: DTED elevation is relative to the egm96 geoid, though using the egm2008
+            model will result in only minor differences.
 
         Parameters
         ----------
@@ -549,9 +554,6 @@ class DTEDInterpolator(DEMInterpolator):
         -------
         numpy.ndarray
             the elevation relative to the geoid
-
-        .. Note: DTED elevation is relative to the egm96 geoid, though using the egm2008
-            model will result in only minor differences.
         """
 
         o_shape, lat, lon = _argument_validation(lat, lon)

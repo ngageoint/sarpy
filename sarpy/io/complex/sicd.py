@@ -622,7 +622,7 @@ class SICDWriter(BaseWriter):
         upon construction as the `SecurityTags` property for `nitf_header`, each entry of
         `image_segment_headers`, and `data_extension_header`.
 
-        .. Note: required edits should be made before adding any data via :func:`write_chip`.
+        .. Note:: required edits should be made before adding any data via :func:`write_chip`.
         """
 
         return self._security_tags
@@ -633,7 +633,7 @@ class SICDWriter(BaseWriter):
         NITFHeader: The NITF header object. The `SecurityTags` property is populated
         using `security_tags` **by reference** upon construction.
 
-        .. Note: required edits should be made before adding any data via :func:`write_chip`.
+        .. Note:: required edits should be made before adding any data via :func:`write_chip`.
         """
 
         return self._nitf_header
@@ -645,7 +645,7 @@ class SICDWriter(BaseWriter):
         the `SecurityTags` property is populated using `security_tags` **by reference**
         upon construction.
 
-        .. Note: required edits should be made before adding any data via :func:`write_chip`.
+        .. Note:: required edits should be made before adding any data via :func:`write_chip`.
         """
 
         return self._image_segment_headers
@@ -656,7 +656,7 @@ class SICDWriter(BaseWriter):
         SICDDataExtensionHeader: the NITF data extension header. The `SecurityTags`
         property is populated using `security_tags` **by reference** upon construction.
 
-        .. Note: required edits should be made before adding any data via :func:`write_chip`.
+        .. Note:: required edits should be made before adding any data via :func:`write_chip`.
         """
 
         return self._data_extension_header
@@ -857,7 +857,7 @@ class SICDWriter(BaseWriter):
         writing. Any modifications to any header information made AFTER calling this method
         will not be reflected in the produced NITF file.
 
-        .. Note: This will be implicitly called at first attempted chip writing
+        .. Note:: This will be implicitly called at first attempted chip writing
             if it has not be explicitly called before.
 
         Returns

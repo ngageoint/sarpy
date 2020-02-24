@@ -5,6 +5,7 @@ This module contains the base objects for use in the SICD elements, and the base
 
 import sys
 import copy
+import json
 
 from xml.etree import ElementTree
 from collections import OrderedDict
@@ -168,12 +169,7 @@ def _parse_int(value, name, instance):
         return int_func(_get_node_value(value))
     else:
         # user or json deserialization
-        try:
-            return int_func(value)
-        except Exception:
-            raise ValueError(
-                'Failed converting {} of type {} to `int` for field {} of '
-                'class {}'.format(value, type(value), name, instance.__class__.__name__))
+        return int_func(value)
 
 
 def _parse_float(value, name, instance):
@@ -185,12 +181,7 @@ def _parse_float(value, name, instance):
         return float(_get_node_value(value))
     else:
         # user or json deserialization
-        try:
-            return float(value)
-        except Exception:
-            raise ValueError(
-                'Failed converting {} of type {} to `float` for field {} of '
-                'class {}'.format(value, type(value), name, instance.__class__.__name__))
+        return float(value)
 
 
 def _parse_complex(value, name, instance):
@@ -536,7 +527,6 @@ class _StringDescriptor(_BasicDescriptor):
 
         if super(_StringDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
             return
-
         self.data[instance] = _parse_str(value, self.name, instance)
 
 
@@ -644,8 +634,15 @@ class _BooleanDescriptor(_BasicDescriptor):
     def __set__(self, instance, value):
         if super(_BooleanDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
             return
-
-        self.data[instance] = _parse_bool(value, self.name, instance)
+        try:
+            self.data[instance] = _parse_bool(value, self.name, instance)
+        except Exception as e:
+            logging.error(
+                'Failed converting {} of type {} to `bool` for field {} of '
+                'class {} with exception {} - {}. Setting value to None, '
+                'which may be against the standard'.format(
+                    value, type(value), self.name, instance.__class__.__name__, type(e), e))
+            self.data[instance] = None
 
 
 class _IntegerDescriptor(_BasicDescriptor):
@@ -671,7 +668,16 @@ class _IntegerDescriptor(_BasicDescriptor):
         if super(_IntegerDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
             return
 
-        iv = _parse_int(value, self.name, instance)
+        try:
+            iv = _parse_int(value, self.name, instance)
+        except Exception as e:
+            logging.error(
+                'Failed converting {} of type {} to `int` for field {} of '
+                'class {} with exception {} - {}. Setting value to None, '
+                'which may be against the standard'.format(
+                    value, type(value), self.name, instance.__class__.__name__, type(e), e))
+            self.data[instance] = None
+            return
 
         if self._in_bounds(iv):
             self.data[instance] = iv
@@ -703,7 +709,16 @@ class _IntegerEnumDescriptor(_BasicDescriptor):
         if super(_IntegerEnumDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
             return
 
-        iv = _parse_int(value, self.name, instance)
+        try:
+            iv = _parse_int(value, self.name, instance)
+        except Exception as e:
+            logging.error(
+                'Failed converting {} of type {} to `int` for field {} of '
+                'class {} with exception {} - {}. Setting value to None, '
+                'which may be against the standard'.format(
+                    value, type(value), self.name, instance.__class__.__name__, type(e), e))
+            self.data[instance] = None
+            return
 
         if iv in self.values:
             self.data[instance] = iv
@@ -793,7 +808,16 @@ class _FloatDescriptor(_BasicDescriptor):
         if super(_FloatDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
             return
 
-        iv = _parse_float(value, self.name, instance)
+        try:
+            iv = _parse_float(value, self.name, instance)
+        except Exception as e:
+            logging.error(
+                'Failed converting {} of type {} to `float` for field {} of '
+                'class {} with exception {} - {}. Setting value to None, '
+                'which may be against the standard'.format(
+                    value, type(value), self.name, instance.__class__.__name__, type(e), e))
+            self.data[instance] = None
+            return
 
         if self._in_bounds(iv):
             self.data[instance] = iv
@@ -819,7 +843,15 @@ class _ComplexDescriptor(_BasicDescriptor):
         if super(_ComplexDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
             return
 
-        self.data[instance] = _parse_complex(value, self.name, instance)
+        try:
+            self.data[instance] = _parse_complex(value, self.name, instance)
+        except Exception as e:
+            logging.error(
+                'Failed converting {} of type {} to `complex` for field {} of '
+                'class {} with exception {} - {}. Setting value to None, '
+                'which may be against the standard'.format(
+                    value, type(value), self.name, instance.__class__.__name__, type(e), e))
+            self.data[instance] = None
 
 
 class _FloatArrayDescriptor(_BasicDescriptor):
@@ -915,7 +947,16 @@ class _FloatModularDescriptor(_BasicDescriptor):
         if super(_FloatModularDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
             return
 
-        val = _parse_float(value, self.name, instance)
+        try:
+            val = _parse_float(value, self.name, instance)
+        except Exception as e:
+            logging.error(
+                'Failed converting {} of type {} to `float` for field {} of '
+                'class {} with exception {} - {}. Setting value to None, '
+                'which may be against the standard'.format(
+                    value, type(value), self.name, instance.__class__.__name__, type(e), e))
+            self.data[instance] = None
+            return
 
         # do modular arithmatic manipulations
         val = (val % (2 * self.limit))  # NB: % and * have same precedence, so it can be super dumb
@@ -934,11 +975,19 @@ class _SerializableDescriptor(_BasicDescriptor):
         if super(_SerializableDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
             return
 
-        self.data[instance] = _parse_serializable(value, self.name, instance, self.the_type)
+        try:
+            self.data[instance] = _parse_serializable(value, self.name, instance, self.the_type)
+        except Exception as e:
+            logging.error(
+                'Failed converting {} of type {} to type {} for field {} of '
+                'class {} with exception {} - {}. Setting value to None, '
+                'which may be against the standard'.format(
+                    value, type(value), self.the_type, self.name, instance.__class__.__name__, type(e), e))
+            self.data[instance] = None
 
 
 class _UnitVectorDescriptor(_BasicDescriptor):
-    """A descriptor for properties of a specified type assumed to be of type Poly1DType or Poly2DType"""
+    """A descriptor for properties of a specified type assumed to be of subtype of Arrayable"""
 
     def __init__(self, name, the_type, required, strict=DEFAULT_STRICT, docstring=None):
         if not issubclass(the_type, Arrayable):
@@ -953,14 +1002,26 @@ class _UnitVectorDescriptor(_BasicDescriptor):
         if super(_UnitVectorDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
             return
 
-        vec = _parse_serializable(value, self.name, instance, self.the_type)
+        try:
+            vec = _parse_serializable(value, self.name, instance, self.the_type)
+        except Exception as e:
+            logging.error(
+                'Failed converting {} of type {} to type {} for field {} of '
+                'class {} with exception {} - {}. Setting value to None, '
+                'which may be against the standard'.format(
+                    value, type(value), self.the_type, self.name, instance.__class__.__name__, type(e), e))
+            self.data[instance] = None
+            return None
+
         # noinspection PyTypeChecker
         coords = vec.get_array(dtype=numpy.float64)
         the_norm = norm(coords)
         if the_norm == 0:
-            raise ValueError(
+            logging.error(
                 'The input for field {} is expected to be made into a unit vector. '
-                'In this case, the norm of the input is 0.'.format(self.name))
+                'In this case, the norm of the input is 0. The value is set to None, '
+                'which may be against the standard.'.format(self.name))
+            self.data[instance] = None
         elif the_norm == 1:
             self.data[instance] = vec
         else:
@@ -1085,8 +1146,15 @@ class _SerializableListDescriptor(_BasicDescriptor):
         if super(_SerializableListDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
             return
 
-        self.data[instance] = _parse_serializable_list(value, self.name, instance, self.child_type)
-
+        try:
+            self.data[instance] = _parse_serializable_list(value, self.name, instance, self.child_type)
+        except Exception as e:
+            logging.error(
+                'Failed converting {} of type {} to list of type {} for field {} of '
+                'class {} with exception {} - {}. Setting value to None, '
+                'which may be against the standard'.format(
+                    value, type(value), self.child_type, self.name, instance.__class__.__name__, type(e), e))
+            self.data[instance] = None
 
 #################
 # base Serializable class.
@@ -1171,6 +1239,9 @@ class Serializable(object):
                     # NB: this is included to allow for read only properties without breaking the paradigm
                     #   Silently catching errors can potentially cover up REAL issues.
                     pass
+
+    def __str__(self):
+        return '{}(**{})'.format(self.__class__.__name__, json.dumps(self.to_dict(check_validity=False), indent=1))
 
     def __repr__(self):
         return '{}(**{})'.format(self.__class__.__name__, self.to_dict(check_validity=False))

@@ -17,7 +17,10 @@ __author__ = "Thomas McCullough"
 
 
 class RgAzCompType(Serializable):
-    """Parameters included for a Range, Doppler image."""
+    """
+    Parameters included for a Range, Doppler image.
+    """
+
     _fields = ('AzSF', 'KazPoly')
     _required = _fields
     _numeric_format = {'AzSF': '0.16G'}
@@ -29,8 +32,8 @@ class RgAzCompType(Serializable):
     KazPoly = _SerializableDescriptor(
         'KazPoly', Poly1DType, _required, strict=DEFAULT_STRICT,
         docstring='Polynomial function that yields azimuth spatial frequency *(Kaz = Kcol)* as a function of '
-                  'slow time *(variable 1)*. That is '
-                  ':math:`Slow Time (sec) -> Azimuth spatial frequency (cycles/meter)`. '
+                  'slow time ``(variable 1)``. That is '
+                  r':math:`\text{Slow Time (sec)} \to \text{Azimuth spatial frequency (cycles/meter)}`. '
                   'Time relative to collection start.')  # type: Poly1DType
 
     def __init__(self, AzSF=None, KazPoly=None, **kwargs):

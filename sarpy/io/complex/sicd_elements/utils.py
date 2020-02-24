@@ -16,7 +16,7 @@ def _get_center_frequency(RadarCollection, ImageFormation):
     Returns
     -------
     None|float
-        The center processed frequency, in the event that RadarCollection.RefFreqIndex is None or 0.
+        The center processed frequency, in the event that RadarCollection.RefFreqIndex is `None` or `0`.
     """
 
     if RadarCollection is None or RadarCollection.RefFreqIndex is None or RadarCollection.RefFreqIndex == 0:

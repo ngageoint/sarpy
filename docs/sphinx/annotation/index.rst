@@ -1,10 +1,9 @@
-sarpy.geometry elements
+sarpy.annotation elements
 =================================
 
 .. toctree::
     :maxdepth: 1
     :caption: Contents:
 
-    geocoords
-    point_projection
-    geometry_elements
+    schema_processing
+    annotate

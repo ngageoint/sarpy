@@ -706,7 +706,10 @@ class RowColArrayElement(RowColType):
 
 
 class Poly1DType(Serializable, Arrayable):
-    """Represents a one-variable polynomial, defined by one-dimensional coefficient array."""
+    """
+    Represents a one-variable polynomial, defined by one-dimensional coefficient array.
+    """
+
     __slots__ = ('_coefs', )
     _fields = ('Coefs', 'order1')
     _required = ('Coefs', )
@@ -714,6 +717,7 @@ class Poly1DType(Serializable, Arrayable):
 
     def __init__(self, Coefs=None, **kwargs):
         """
+
         Parameters
         ----------
         Coefs : numpy.ndarray|tuple|list
@@ -737,7 +741,7 @@ class Poly1DType(Serializable, Arrayable):
         numpy.ndarray: The one-dimensional polynomial coefficient array of dtype=float64. Assignment object must be a
         one-dimensional numpy.ndarray, or naively convertible to one.
 
-        .. Note: this returns the direct coefficient array. Use the `get_array()` method to get a copy of the
+        .. Note:: this returns the direct coefficient array. Use the `get_array()` method to get a copy of the
             coefficient array of specified data type.
         """
 
@@ -765,7 +769,7 @@ class Poly1DType(Serializable, Arrayable):
     def __call__(self, x):
         """
         Evaluate the polynomial at points `x`. This passes `x` straight through to :func:`polyval` of
-        :module:`numpy.polynomial.polynomial`.
+        `numpy.polynomial.polynomial`.
 
         Parameters
         ----------
@@ -806,7 +810,7 @@ class Poly1DType(Serializable, Arrayable):
     def derivative_eval(self, x, der_order=1):
         """
         Evaluate the `der_order` derivative of the polynomial at points `x`. This uses the
-        functionality presented in :module:`numpy.polynomial.polynomial`.
+        functionality presented in `numpy.polynomial.polynomial`.
 
         Parameters
         ----------
@@ -968,7 +972,7 @@ class Poly2DType(Serializable, Arrayable):
     def __call__(self, x, y):
         """
         Evaluate a polynomial at points [`x`, `y`]. This passes `x`,`y` straight through to :func:`polyval2d` of
-        :module:`numpy.polynomial.polynomial`.
+        `numpy.polynomial.polynomial`.
 
         Parameters
         ----------
@@ -1006,7 +1010,7 @@ class Poly2DType(Serializable, Arrayable):
         numpy.ndarray: The two-dimensional polynomial coefficient array of dtype=float64. Assignment object must be a
         two-dimensional numpy.ndarray, or naively convertible to one.
 
-        .. Note: this returns the direct coefficient array. Use the `get_array()` method to get a copy of the
+        .. Note:: this returns the direct coefficient array. Use the `get_array()` method to get a copy of the
             coefficient array of specified data type.
         """
 
@@ -1053,7 +1057,7 @@ class Poly2DType(Serializable, Arrayable):
 
     def get_array(self, dtype=numpy.float64):
         """
-        Gets *a copy* of the coefficent array of specified data type.
+        Gets **a copy** of the coefficent array of specified data type.
 
         Parameters
         ----------
@@ -1151,8 +1155,8 @@ class XYZPolyType(Serializable, Arrayable):
     def __call__(self, t):
         """
         Evaluate the polynomial at points `t`. This passes `t` straight through
-        to :func:`polyval` of :module:`numpy.polynomial.polynomial` for each of
-        X,Y,Z components. If any of X,Y,Z is not populated, then None is returned.
+        to :func:`polyval` of `numpy.polynomial.polynomial` for each of
+        `X,Y,Z` components. If any of `X,Y,Z` is not populated, then None is returned.
 
         Parameters
         ----------
@@ -1185,7 +1189,7 @@ class XYZPolyType(Serializable, Arrayable):
         Returns
         -------
         numpy.ndarray
-            array of the form [X,Y,Z].
+            array of the form `[X,Y,Z]`.
         """
 
         if dtype in ['object', numpy.object]:
@@ -1210,7 +1214,7 @@ class XYZPolyType(Serializable, Arrayable):
         Parameters
         ----------
         array: numpy.ndarray|list|tuple
-            assumed [X, Y, Z]
+            assumed `[X, Y, Z]`
 
         Returns
         -------
@@ -1249,7 +1253,7 @@ class XYZPolyType(Serializable, Arrayable):
     def derivative_eval(self, t, der_order=1):
         """
         Evaluate the `der_order` derivative of the polynomial collection at points `x`.
-        This uses the functionality presented in :module:`numpy.polynomial.polynomial`.
+        This uses the functionality presented in `numpy.polynomial.polynomial`.
 
         Parameters
         ----------
@@ -1257,6 +1261,7 @@ class XYZPolyType(Serializable, Arrayable):
             The point(s) at which to evaluate.
         der_order : int
             The derivative.
+
         Returns
         -------
         numpy.ndarray
@@ -1405,9 +1410,13 @@ class GainPhasePolyType(Serializable):
 
 
 class ErrorDecorrFuncType(Serializable):
-    """
+    r"""
     This container allows parameterization of linear error decorrelation rate model.
-    If `(Delta t) = |t2 - t1|`, then `CC(Delta t) = Min(1.0, Max(0.0, CC0 - DCR*(Delta t)))`.
+    If :math:`(\Delta t) = |t2 - t1|`, then
+
+    .. math::
+
+        CC(\Delta t) = \min(1.0, \max(0.0, CC0 - DCR\cdot(\Delta t)))
     """
 
     _fields = ('CorrCoefZero', 'DecorrRate')

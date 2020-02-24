@@ -31,12 +31,13 @@ class BaseChipper(object):
     """
     Base class defining basic functionality for the literal extraction of data
     from a file. The intent of this class is to be a callable in the following form:
-    .. code-block:
-        data = BaseChipper(entry1, entry2)
-    where each entry is a tuple or int of the form `[[[start], stop,] step]`.
+    :code:`data = BaseChipper(entry1, entry2)`, where each entry is a tuple or
+    int of the form `[[[start], stop,] step]`.
 
     Similarly, we are able to use more traditional Python slicing syntax
-    .. code-block:
+
+    .. code-block::
+
         data = BaseChipper[slice1[, slice2]]
 
     **Extension Requirement:** This provides the basic implementation for the work
@@ -581,19 +582,28 @@ class BaseReader(object):
         index : int|None
             Relative to which sicd/chipper, and only used in the event of multiple
             sicd/chippers. Defaults to `0`, if not provided.
+
         Returns
         -------
         numpy.ndarray
             The complex data, explicitly of dtype=complex.64. Be sure to upcast to
             complex128 if so desired.
 
+        Examples
+        ------------
+        :code:`data = reader.read_chip((start1, stop1, stride1), (start2, stop2, stride2))`
+
         Also available is basic call syntax
-        .. code-block:
-            data = reader(dim1range, dim2range, index)
+
+        .. code-block::
+
+            data = reader(dim1range, dim2range, index).
 
         Another alternative is slice syntax
-        ..code-block:
-            data = reader[start:stop:stride, start:stop:stride]  # or
+
+        .. code-block:: python
+
+            data = reader[start1:stop1:stride1, start:stop:stride]  # or
             data = reader[start:stop:stride, start:stop:stride, index]
 
         Here the slice on index (dimension 3) is limited to a single integer, and
@@ -615,6 +625,7 @@ class BaseReader(object):
         ----------
         frame : None|int
             Defaults to the first frame.
+
         Returns
         -------
         str
@@ -698,6 +709,7 @@ class AbstractWriter(object):
             the complex data
         start_indices : tuple[int, int]
             the starting index for the data.
+
         Returns
         -------
         None
@@ -715,6 +727,7 @@ class AbstractWriter(object):
             the complex data
         start_indices : Tuple[int, int]
             the starting index for the data.
+
         Returns
         -------
         None

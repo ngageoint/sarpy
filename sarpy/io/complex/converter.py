@@ -190,15 +190,15 @@ class Converter(object):
         return self._writer
 
     def write_data(self, max_block_size=None):
-        """
+        r"""
         Assuming that the desired changes have been made to the writer instance
         nitf header tags, write the data.
 
         Parameters
         ----------
         max_block_size : None|int
-            (nominal) maximum block size in bytes. Minimum value is 2**20 = 1 MB.
-            Default value is 2**26 = 64MB.
+            (nominal) maximum block size in bytes. Minimum value is :math:`2^{20} = 1~\text{MB}`.
+            Default value is :math:`2^{26} = 64~\text{MB}`.
 
         Returns
         -------
