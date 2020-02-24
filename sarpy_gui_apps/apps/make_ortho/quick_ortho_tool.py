@@ -59,6 +59,7 @@ class Ortho(AbstractWidgetPanel):
             self.raw_frame_image_panel.init_with_fname(self.variables.fname)
 
     def callback_display_ortho_image(self, event):
+        assert isinstance(self.raw_frame_image_panel.variables.canvas_image_object, SarpyCanvasDisplayImage)
         orthod_image = self.raw_frame_image_panel.variables.canvas_image_object.create_ortho(self.ortho_image_panel.canvas_height, self.ortho_image_panel.canvas_width)
         self.ortho_image_panel.init_with_numpy_image(orthod_image)
 

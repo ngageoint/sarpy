@@ -57,3 +57,7 @@ class CanvasDemoButtonPanel(AbstractWidgetPanel):
                                                     "pedf",
                                                     "nrl"])
         self.set_label_text("taser buttons")
+
+
+if __name__ == '__main__':
+    print(dir(AbstractWidgetPanel))

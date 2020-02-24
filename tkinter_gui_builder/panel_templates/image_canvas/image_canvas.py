@@ -37,7 +37,7 @@ class AppVariables:
         self.pan_anchor_point_xy = None
         self.shape_ids = []            # type: [int]
         self.shape_properties = {}
-        self.canvas_image_object = None         # type: AbstractCanvasImage
+        self._canvas_image_object = None         # type: AbstractCanvasImage
         self.zoom_rect_id = None                # type: int
         self.zoom_rect_color = "cyan"
         self.zoom_rect_border_width = 2
@@ -65,6 +65,36 @@ class AppVariables:
         self.tmp_points = None              # type: [int]
 
         self.tmp_closest_coord_index = 0        # type: int
+
+    # @property
+    # def canvas_image_object(self):  # type: () -> AbstractCanvasImage
+    #     return self._canvas_image_object
+    #
+    # @canvas_image_object.setter
+    # def canvas_image_object(self, value):
+    #     if value is None:
+    #         self._canvas_image_object = None
+    #         return
+    #
+    #     if not isinstance(value, AbstractCanvasImage):
+    #         raise TypeError('Requires instance of AbstractCanvasImage, got {}'.format(type(value)))
+    #     self._canvas_image_object = value
+
+
+# class SpecificAppVariables(AppVariables):
+#     @property
+#     def canvas_image_object(self):  # type: () -> object
+#         return self._canvas_image_object
+#
+#     @canvas_image_object.setter
+#     def canvas_image_object(self, value):
+#         if value is None:
+#             self._canvas_image_object = None
+#             return
+#
+#         if not isinstance(value, object):
+#             raise TypeError('Requires instance of AbstractCanvasImage, got {}'.format(type(value)))
+#         self._canvas_image_object = value
 
 
 class ImageCanvas(tk.LabelFrame):
@@ -163,11 +193,6 @@ class ImageCanvas(tk.LabelFrame):
             self.canvas.itemconfigure(shape_id, state="normal")
 
     def callback_mouse_zoom(self, event):
-        # TODO: This kind of works.  Change it so that the zoom location moves to the mouse, rather than the center
-        # TODO: of the image.  This will also require a refactor to make the image fit to the canvas, rather than
-        # TODO: go off the edge and use scroll bars.  Could also be made smoother, handle multiple events for a single
-        # TODO: long mouse scroll
-
         if self.zoom_on_wheel:
             delta = event.delta
             single_delta = 120
