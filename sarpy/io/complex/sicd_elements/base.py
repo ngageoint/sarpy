@@ -1503,7 +1503,7 @@ class Serializable(object):
                 anode.attrib['size'] = str(val.size)
                 for i, val in enumerate(val):
                     vnode = _create_text_node(doc, ch_tag, format_function(val), parent=anode)
-                    vnode.attrib['index'] = str(i)
+                    vnode.attrib['index'] = str(i) if ch_tag == 'Amplitude' else str(i+1)
             else:
                 # I have no idea how we'd find ourselves here, unless inconsistencies have been introduced
                 # into the descriptor
