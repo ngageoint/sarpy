@@ -10,15 +10,15 @@ geo_info_dict1 = {
     'Point': {'Lat': 0, 'Lon': 0}}
 geo_info_dict2 = {
     'name': 'Name2',
-    'Line': [{'Lat': 0, 'Lon': 0, 'index': 0}, {'Lat': 1, 'Lon': 1, 'index': 1}],
+    'Line': [{'Lat': 0, 'Lon': 0, 'index': 1}, {'Lat': 1, 'Lon': 1, 'index': 2}],
 }
 geo_info_dict3 = {
     'name': 'Name3',
-    'Polygon': [{'Lat': 0, 'Lon': 0, 'index': 0}, {'Lat': 1, 'Lon': 1, 'index': 1}, {'Lat': 0, 'Lon': 1, 'index': 2}],
+    'Polygon': [{'Lat': 0, 'Lon': 0, 'index': 1}, {'Lat': 1, 'Lon': 1, 'index': 2}, {'Lat': 0, 'Lon': 1, 'index': 3}],
 }
 geo_info_dict4 = {
     'name': 'Name4',
-    'Polygon': [{'Lat': 0, 'Lon': 0, 'index': 0}, {'Lat': 1, 'Lon': 1, 'index': 1}, {'Lat': 0, 'Lon': 1, 'index': 2}],
+    'Polygon': [{'Lat': 0, 'Lon': 0, 'index': 1}, {'Lat': 1, 'Lon': 1, 'index': 2}, {'Lat': 0, 'Lon': 1, 'index': 3}],
     'GeoInfos': [geo_info_dict1, ],
 }
 
@@ -34,7 +34,7 @@ geo_data_dict = {
         {'Lat': 0, 'Lon': 0, 'index': '1:FRFC'}, {'Lat': 0, 'Lon': 1, 'index': '2:FRLC'},
         {'Lat': 1, 'Lon': 1, 'index': '3:LRLC'}, {'Lat': 1, 'Lon': 0, 'index': '4:LRFC'}],
     'ValidData': [
-        {'Lat': 0, 'Lon': 0, 'index': 0}, {'Lat': 1, 'Lon': 1, 'index': 1}, {'Lat': 1, 'Lon': 0, 'index': 2}, ],
+        {'Lat': 0, 'Lon': 0, 'index': 1}, {'Lat': 1, 'Lon': 1, 'index': 2}, {'Lat': 1, 'Lon': 0, 'index': 3}, ],
     'GeoInfos': [geo_info_dict1, geo_info_dict2, geo_info_dict3],
 }
 

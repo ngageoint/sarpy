@@ -170,7 +170,7 @@ class ImageDataType(Serializable):
                 "Got first two vertices {} and {}".format(self.ValidData[0], self.ValidData[1]))
             return False
         # check the details for valid data
-        lin_ring = LinearRing(coordinates=self.ValidData.get_array())
+        lin_ring = LinearRing(coordinates=self.ValidData.get_array(dtype=numpy.float64))
         area = lin_ring.get_area()
         if area == 0:
             logging.error('ValidData enclosed no area.')

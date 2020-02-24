@@ -8,7 +8,7 @@ ipp_set_dict = {
     'IPPStart': 1,
     'IPPEnd': 3,
     'IPPPoly': {'Coefs': [1, 2]},
-    'index': 0,
+    'index': 1,
 }
 timeline_dict = {
     'CollectStart': '2019-12-11T13:58:27.000000Z',

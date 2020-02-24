@@ -1,18 +1,22 @@
 
 from xml.etree import ElementTree
+import json
 
 from sarpy.io.complex.sicd_elements.base import Serializable
 
 from .. import unittest
 
 
-def generic_construction_test(instance, the_type, the_dict, tag='The_Type', print_xml=False):
+def generic_construction_test(instance, the_type, the_dict, tag='The_Type', print_xml=False, print_json=False):
     if not issubclass(the_type, Serializable):
         raise TypeError('Class {} must be a subclass of Serializable'.format(the_type))
     the_item = the_type.from_dict(the_dict)
 
     with instance.subTest(msg='Comparing json deserialization with original'):
         new_dict = the_item.to_dict()
+        if print_json:
+            print(json.dumps(the_dict, indent=1))
+            print(json.dumps(new_dict, indent=1))
         instance.assertEqual(the_dict, new_dict)
 
     with instance.subTest(msg='Test xml serialization issues'):
