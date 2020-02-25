@@ -1,6 +1,7 @@
 # This details the important differences introduced in 0.1
 # NB: bump the version number in __about__.py to reflect the below.
 
+* .34 - Refactoring so that projection methods are also presented as SICD class methods
 * .33 - Adding decent support for exporting to kml
 * .32 - Fixed erroneous zero-based indexing in sicd elements to be one-based
 * .31 - Added GUI tools
