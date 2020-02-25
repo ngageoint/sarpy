@@ -37,7 +37,7 @@ class AppVariables:
         self.pan_anchor_point_xy = None
         self.shape_ids = []            # type: [int]
         self.shape_properties = {}
-        self._canvas_image_object = None         # type: AbstractCanvasImage
+        self.canvas_image_object = None         # type: AbstractCanvasImage
         self.zoom_rect_id = None                # type: int
         self.zoom_rect_color = "cyan"
         self.zoom_rect_border_width = 2
