@@ -11,6 +11,8 @@ import logging
 
 import numpy
 
+from sarpy.io.kml import Document as KML_Document
+
 
 def _compress_identical(coords):
     """
@@ -65,6 +67,20 @@ def _validate_grid_contain_arguments(grid_x, grid_y):
         raise ValueError('grid_y must be monotonically increasing')
 
     return grid_x, grid_y
+
+
+def _get_kml_coordinate_string(coordinates, transform):
+    # type: (numpy.ndarray, Union[None, callable]) -> str
+    def identity(x):
+        return x
+
+    if transform is None:
+        transform = identity
+
+    if coordinates.ndim == 1:
+        return '{1:0.9f},{0:0.9f}'.format(*transform(coordinates)[:2])
+    return ' '.join(
+        '{1:0.9f},{0:0.9f}'.format(*el[:2]) for el in transform(coordinates))
 
 
 class _Jsonable(object):
@@ -230,6 +246,29 @@ class Feature(_Jsonable):
         parent_dict['properties'] = self.properties
         return parent_dict
 
+    def add_to_kml(self, doc, coord_transform):
+        """
+        Add this feature to the kml document.
+
+        Parameters
+        ----------
+        doc : sarpy.io.kml.Document
+        coord_transform : None|callable
+
+        Returns
+        -------
+        None
+        """
+
+        params = {}
+        if self.uid is not None:
+            params['id'] = self.uid
+        if self.properties is not None:
+            params['description'] = str(self.properties)
+        placemark = doc.add_container(typ='Placemark', **params)
+        if self.geometry is not None:
+            self.geometry.add_to_kml(doc, placemark, coord_transform)
+
 
 class FeatureList(_Jsonable):
     """
@@ -315,6 +354,27 @@ class FeatureList(_Jsonable):
         else:
             self._features.append(feature)
 
+    def export_to_kml(self, file_name, coord_transform=None, **params):
+        """
+        Export to a kml document.
+
+        Parameters
+        ----------
+        file_name : str|zipfile.ZipFile|file like
+        coord_transform : None|callable
+            The coordinate transform function.
+        params : dict
+
+        Returns
+        -------
+        None
+        """
+
+        with KML_Document(file_name=file_name, **params) as doc:
+            if self.features is not None:
+                for feat in self.features:
+                    feat.add_to_kml(doc, coord_transform)
+
 
 class Geometry(_Jsonable):
     """
@@ -347,6 +407,23 @@ class Geometry(_Jsonable):
             return obj
 
     def to_dict(self, parent_dict=None):
+        raise NotImplementedError
+
+    def add_to_kml(self, doc, parent, coord_transform):
+        """
+        Add the geometry to the kml document.
+
+        Parameters
+        ----------
+        doc : sarpy.io.kml.Document
+        parent : xml.dom.minidom.Element
+        coord_transform : None|callable
+
+        Returns
+        -------
+        None
+        """
+
         raise NotImplementedError
 
 
@@ -424,6 +501,14 @@ class GeometryCollection(Geometry):
             parent_dict['geometries'] = [entry.to_dict() for entry in self.geometries]
         return parent_dict
 
+    def add_to_kml(self, doc, parent, coord_transform):
+        if self.geometries is None:
+            return
+        multigeometry = doc.add_multi_geometry(parent)
+        for geometry in self.geometries:
+            if geometry is not None:
+                geometry.add_to_kml(doc, multigeometry, coord_transform)
+
 
 class GeometryObject(Geometry):
     """
@@ -469,6 +554,9 @@ class GeometryObject(Geometry):
         parent_dict['type'] = self.type
         parent_dict['coordinates'] = self.get_coordinate_list()
         return parent_dict
+
+    def add_to_kml(self, doc, parent, coord_transform):
+        raise NotImplementedError
 
 
 class Point(GeometryObject):
@@ -518,6 +606,11 @@ class Point(GeometryObject):
             raise ValueError('Poorly formed json {}'.format(geometry))
         cls(coordinates=geometry['coordinates'])
 
+    def add_to_kml(self, doc, parent, coord_transform):
+        if self.coordinates is None:
+            return
+        doc.add_point(_get_kml_coordinate_string(self.coordinates, coord_transform), par=parent)
+
 
 class MultiPoint(GeometryObject):
     """
@@ -560,6 +653,14 @@ class MultiPoint(GeometryObject):
         if not geometry.get('type', None) == cls._type:
             raise ValueError('Poorly formed json {}'.format(geometry))
         cls(coordinates=geometry['coordinates'])
+
+    def add_to_kml(self, doc, parent, coord_transform):
+        if self._points is None:
+            return
+        multigeometry = doc.add_multi_geometry(parent)
+        for geometry in self._points:
+            if geometry is not None:
+                geometry.add_to_kml(doc, multigeometry, coord_transform)
 
 
 class LineString(GeometryObject):
@@ -633,6 +734,11 @@ class LineString(GeometryObject):
         diffs = self._coordinates[1:, :] - self._coordinates[:-1, :]
         return float(numpy.sum(numpy.sqrt(diffs[:, 0]*diffs[:, 0] + diffs[:, 1]*diffs[:, 1])))
 
+    def add_to_kml(self, doc, parent, coord_transform):
+        if self.coordinates is None:
+            return
+        doc.add_line_string(_get_kml_coordinate_string(self.coordinates, coord_transform), par=parent)
+
 
 class MultiLineString(GeometryObject):
     """
@@ -689,6 +795,14 @@ class MultiLineString(GeometryObject):
         if self._lines is None:
             return None
         return sum(entry.get_length() for entry in self._lines)
+
+    def add_to_kml(self, doc, parent, coord_transform):
+        if self._lines is None:
+            return
+        multigeometry = doc.add_multi_geometry(parent)
+        for geometry in self._lines:
+            if geometry is not None:
+                geometry.add_to_kml(doc, multigeometry, coord_transform)
 
 
 class LinearRing(object):
@@ -777,6 +891,18 @@ class LinearRing(object):
         x = numpy.sum(0.5*(self._coordinates[:-1, 0] + self._coordinates[1:, 0])*arr)
         y = numpy.sum(0.5*(self._coordinates[:-1, 1] + self._coordinates[1:, 1])*arr)
         return numpy.array([x, y], dtype=numpy.float64)/(3*area)
+
+    @property
+    def coordinates(self):
+        """
+        Gets the coordinates array.
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+
+        return self._coordinates
 
     def set_coordinates(self, coordinates):
         if coordinates is None:
@@ -1299,6 +1425,15 @@ class Polygon(GeometryObject):
                 in_poly &= ~ir.grid_contained(grid_x, grid_y)
         return in_poly
 
+    def add_to_kml(self, doc, parent, coord_transform):
+        if self._outer_ring is None:
+            return
+        outCoords = _get_kml_coordinate_string(self._outer_ring.coordinates, coord_transform)
+        inCoords = []
+        if self._inner_rings is not None:
+            inCoords = [_get_kml_coordinate_string(ir.coordinates, coord_transform) for ir in self._inner_rings]
+        doc.add_polygon(outCoords, inCoords=inCoords, par=parent)
+
 
 class MultiPolygon(GeometryObject):
     """
@@ -1431,3 +1566,11 @@ class MultiPolygon(GeometryObject):
         for entry in self._polygons[1:]:
             in_poly |= entry.grid_contained(grid_x, grid_y)
         return in_poly
+
+    def add_to_kml(self, doc, parent, coord_transform):
+        if self._polygons is None:
+            return
+        multigeometry = doc.add_multi_geometry(parent)
+        for geometry in self._polygons:
+            if geometry is not None:
+                geometry.add_to_kml(doc, multigeometry, coord_transform)

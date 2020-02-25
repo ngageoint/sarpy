@@ -887,8 +887,6 @@ class Document(object):
         self._add_text_node(ic, 'href', im_name)
         return overlay
 
-    # TODO: add sarpy.geometry.geometry_elements method(s)? maybe specifically just for Feature?
-
     # regionation - likely rarely used
     def _add_lod(self, par, **params):
         """
