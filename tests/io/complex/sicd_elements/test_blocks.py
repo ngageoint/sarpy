@@ -16,7 +16,7 @@ def generic_arrayable_construction_test(instance, the_type, the_dict, array):
         xml = the_item.to_xml_string(tag='The_Type')
         # let's deserialize from xml
         node = ElementTree.fromstring(xml)
-        item2 = the_type.from_node(node)
+        item2 = the_type.from_node(node, None)
         # let's verify that things are sufficiently equal
         tolerance = 1e-8
         equals = numpy.all(numpy.absolute(the_item.get_array(dtype=numpy.float64) - item2.get_array(dtype=numpy.float64)) <= tolerance)
@@ -254,7 +254,7 @@ class TestErrorDecorrFunc(unittest.TestCase):
             xml = item1.to_xml_string(tag='ErrorDecorrFuncType')
             # let's deserialize from xml
             node = ElementTree.fromstring(xml)
-            item3 = blocks.ErrorDecorrFuncType.from_node(node)
+            item3 = blocks.ErrorDecorrFuncType.from_node(node, None)
             self.assertTrue(
                 abs(item1.CorrCoefZero - item3.CorrCoefZero) < 1e-8 and
                 abs(item1.DecorrRate - item3.DecorrRate) < 1e-8, 'item1.CorrCoefZero = {}\n'

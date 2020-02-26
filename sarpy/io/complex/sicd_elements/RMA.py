@@ -48,6 +48,9 @@ class RMRefType(Serializable):
         DopConeAngRef : float
         kwargs
         """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         self.PosRef = PosRef
         self.VelRef = VelRef
         self.DopConeAngRef = DopConeAngRef
@@ -107,6 +110,9 @@ class INCAType(Serializable):
         DopCentroidCOA : bool
         kwargs : dict
         """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         self.TimeCAPoly = TimeCAPoly
         self.R_CA_SCP = R_CA_SCP
         self.FreqZero = FreqZero
@@ -161,6 +167,9 @@ class RMAType(Serializable):
         INCA : INCAType
         kwargs : dict
         """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         self.RMAlgoType = RMAlgoType
         self.RMAT = RMAT
         self.RMCR = RMCR

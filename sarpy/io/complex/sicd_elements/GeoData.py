@@ -66,6 +66,8 @@ class GeoInfoType(Serializable):
         kwargs : dict
         """
 
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         self.name = name
         self.Descriptions = Descriptions
         self.Point = Point
@@ -134,7 +136,7 @@ class GeoInfoType(Serializable):
         """
 
         if isinstance(value, ElementTree.Element):
-            value = GeoInfoType.from_node(value)
+            value = GeoInfoType.from_node(value, self._xml_ns)
         elif isinstance(value, dict):
             value = GeoInfoType.from_dict(value)
 
@@ -157,11 +159,12 @@ class GeoInfoType(Serializable):
         return condition & self._validate_features()
 
     @classmethod
-    def from_node(cls, node, kwargs=None):
+    def from_node(cls, node, xml_ns, kwargs=None):
         if kwargs is None:
             kwargs = OrderedDict()
-        kwargs['GeoInfos'] = node.findall('GeoInfo')
-        return super(GeoInfoType, cls).from_node(node, kwargs=kwargs)
+        kwargs['GeoInfos'] = node.findall('GeoInfo') if xml_ns is None else \
+            node.findall('default:GeoInfo', xml_ns)
+        return super(GeoInfoType, cls).from_node(node, xml_ns, kwargs=kwargs)
 
     def to_node(self, doc, tag, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
         node = super(GeoInfoType, self).to_node(
@@ -203,6 +206,8 @@ class SCPType(Serializable):
         kwargs : dict
         """
 
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         if ECF is not None:
             self.ECF = ECF
         elif LLH is not None:
@@ -281,6 +286,8 @@ class GeoDataType(Serializable):
         kwargs : dict
         """
 
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         self.EarthModel = EarthModel
         self.SCP = SCP
         self.ImageCorners = ImageCorners
@@ -347,7 +354,7 @@ class GeoDataType(Serializable):
         """
 
         if isinstance(value, ElementTree.Element):
-            value = GeoInfoType.from_node(value)
+            value = GeoInfoType.from_node(value, self._xml_ns)
         elif isinstance(value, dict):
             value = GeoInfoType.from_dict(value)
 
@@ -357,11 +364,12 @@ class GeoDataType(Serializable):
             raise TypeError('Trying to set GeoInfo element with unexpected type {}'.format(type(value)))
 
     @classmethod
-    def from_node(cls, node, kwargs=None):
+    def from_node(cls, node, xml_ns, kwargs=None):
         if kwargs is None:
             kwargs = OrderedDict()
-        kwargs['GeoInfos'] = node.findall('GeoInfo')
-        return super(GeoDataType, cls).from_node(node, kwargs=kwargs)
+        kwargs['GeoInfos'] = node.findall('GeoInfo') if xml_ns is None else \
+            node.findall('default:GeoInfo', xml_ns)
+        return super(GeoDataType, cls).from_node(node, xml_ns, kwargs=kwargs)
 
     def to_node(self, doc, tag, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
         node = super(GeoDataType, self).to_node(

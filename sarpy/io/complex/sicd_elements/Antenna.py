@@ -38,6 +38,9 @@ class EBType(Serializable):
         DCYPoly : Poly1DType|numpy.ndarray|list|tuple
         kwargs : dict
         """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         self.DCXPoly = DCXPoly
         self.DCYPoly = DCYPoly
         super(EBType, self).__init__(**kwargs)
@@ -134,6 +137,9 @@ class AntParamType(Serializable):
         MLFreqDilation : bool
         kwargs : dict
         """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         self.XAxisPoly, self.YAxisPoly = XAxisPoly, YAxisPoly
         self.FreqZero = FreqZero
         self.EB = EB
@@ -172,6 +178,9 @@ class AntennaType(Serializable):
         TwoWay : AntParamType
         kwargs : dict
         """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         self.Tx, self.Rcv, self.TwoWay = Tx, Rcv, TwoWay
         super(AntennaType, self).__init__(**kwargs)
 
