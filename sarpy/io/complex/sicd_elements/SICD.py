@@ -133,6 +133,8 @@ class SICDType(Serializable):
         kwargs : dict
         """
 
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         self._coa_projection = None
         self.CollectionInfo = CollectionInfo
         self.ImageCreation = ImageCreation

@@ -43,6 +43,9 @@ class NoiseLevelType_(Serializable):
         NoisePoly : Poly2DType|numpy.ndarray|list|tuple
         kwargs : dict
         """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         self.NoiseLevelType = NoiseLevelType
         self.NoisePoly = NoisePoly
         super(NoiseLevelType_, self).__init__(**kwargs)
@@ -105,6 +108,9 @@ class RadiometricType(Serializable):
         GammaZeroSFPoly : Poly2DType|numpy.ndarray|list|tuple
         kwargs : dict
         """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         self.NoiseLevel = NoiseLevel
         self.RCSSFPoly = RCSSFPoly
         self.SigmaZeroSFPoly = SigmaZeroSFPoly
@@ -113,13 +119,14 @@ class RadiometricType(Serializable):
         super(RadiometricType, self).__init__(**kwargs)
 
     @classmethod
-    def from_node(cls, node, kwargs=None):
+    def from_node(cls, node, xml_ns, kwargs=None):
         if kwargs is not None:
             kwargs = {}
         # NoiseLevelType and NoisePoly used to be at this level prior to SICD 1.0.
-        if node.find('NoiseLevelType') is not None:
-            kwargs['NoiseLevel'] = NoiseLevelType_.from_node(node, kwargs=kwargs)
-        return super(RadiometricType, cls).from_node(node, kwargs=kwargs)
+        nlevel = node.find('NoiseLevelType') if xml_ns is None else node.find('default:NoiseLevelType', xml_ns)
+        if nlevel is not None:
+            kwargs['NoiseLevel'] = NoiseLevelType_.from_node(nlevel, xml_ns, kwargs=kwargs)
+        return super(RadiometricType, cls).from_node(node, xml_ns, kwargs=kwargs)
 
     def _derive_parameters(self, Grid, SCPCOA):
         """

@@ -42,6 +42,9 @@ class STDeskewType(Serializable):
         STDSPhasePoly : Poly2DType|numpy.ndarray|list|tuple
         kwargs : dict
         """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         self.Applied = Applied
         # noinspection PytypeChecker
         self.STDSPhasePoly = STDSPhasePoly
@@ -119,6 +122,9 @@ class PFAType(Serializable):
         StDeskew : STDeskewType
         kwargs : dict
         """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         self.FPN = FPN
         self.IPN = IPN
         self.PolarAngRefTime = PolarAngRefTime

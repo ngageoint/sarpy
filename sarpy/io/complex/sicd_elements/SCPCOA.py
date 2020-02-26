@@ -105,6 +105,9 @@ class SCPCOAType(Serializable):
         LayoverAng : float
         kwargs : dict
         """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         self.SCPTime = SCPTime
         self.ARPPos, self.ARPVel, self.ARPAcc = ARPPos, ARPVel, ARPAcc
         self.SideOfTrack = SideOfTrack

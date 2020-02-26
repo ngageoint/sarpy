@@ -43,6 +43,9 @@ class FullImageType(Serializable, Arrayable):
         NumCols : int
         kwargs : dict
         """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         self.NumRows, self.NumCols = NumRows, NumCols
         super(FullImageType, self).__init__(**kwargs)
 
@@ -148,6 +151,9 @@ class ImageDataType(Serializable):
         ValidData : SerializableArray|List[RowColArrayElement]|numpy.ndarray|list|tuple
         kwargs : dict
         """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         self.PixelType = PixelType
         self.AmpTable = AmpTable
         self.NumRows, self.NumCols = NumRows, NumCols
@@ -170,7 +176,7 @@ class ImageDataType(Serializable):
                 "Got first two vertices {} and {}".format(self.ValidData[0], self.ValidData[1]))
             return False
         # check the details for valid data
-        lin_ring = LinearRing(coordinates=self.ValidData.get_array(dtype=numpy.float64))
+        lin_ring = LinearRing(coordinates=self.ValidData.get_array(dtype=numpy.dtype('float64')))
         area = lin_ring.get_area()
         if area == 0:
             logging.error('ValidData enclosed no area.')

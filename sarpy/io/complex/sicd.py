@@ -9,6 +9,7 @@ import logging
 from xml.etree import ElementTree
 from typing import Union, Tuple
 
+
 import numpy
 
 from ..nitf_headers import NITFDetails, DataExtensionHeader, _HeaderScraper, \
@@ -25,6 +26,12 @@ if sys.version_info[0] < 3:
     int_func = long  # to accommodate for 32-bit python 2
     # noinspection PyUnresolvedReferences
     integer_types = (int, long)
+
+if sys.version_info[0] < 3:
+    # noinspection PyUnresolvedReferences
+    from cStringIO import StringIO
+else:
+    from io import StringIO
 
 __classification__ = "UNCLASSIFIED"
 __author__ = ("Thomas McCullough", "Wade Schwartzkopf")
@@ -280,16 +287,23 @@ class SICDDetails(NITFDetails):
                     fi.seek(int_func(self.des_segment_offsets[0]))
                     data_extension = fi.read(int_func(self._nitf_header.DataExtensions.item_sizes[0])).decode('utf-8')
         if des_header is None or not data_extension.startswith('<SICD'):
+            # TODO: is there any reason that this isn't safe?
             return
 
-        # junk the namespace (for now)
-        data_extension = re.sub('\\sxmlns="[^"]+"', '', data_extension, count=1)
-        root_node = ElementTree.fromstring(data_extension)  # handles bytes?
+        root_node = ElementTree.fromstring(data_extension)
+        # define the namespace dictionary
+        xml_ns = dict([node for _, node in ElementTree.iterparse(StringIO(data_extension), events=('start-ns', ))])
+        if len(xml_ns.keys()) == 0:
+            xml_ns = None
+        elif '' in xml_ns:
+            xml_ns['default'] = xml_ns['']
+
         self._is_sicd = True
         self._des_header = des_header
 
-        self._sicd_meta = SICDType.from_node(root_node)
+        self._sicd_meta = SICDType.from_node(root_node, xml_ns)
         self._sicd_meta.derive()
+
         # TODO: account for the reference frequency offset situation
 
 

@@ -26,7 +26,7 @@ def generic_construction_test(instance, the_type, the_dict, tag='The_Type', prin
             print(xml)
         # let's deserialize from xml
         node = ElementTree.fromstring(xml)
-        item2 = the_type.from_node(node)
+        item2 = the_type.from_node(node, None)
         instance.assertEqual(the_item.to_dict(), item2.to_dict())
 
     with instance.subTest(msg='Test validity'):

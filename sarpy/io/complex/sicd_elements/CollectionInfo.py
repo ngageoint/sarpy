@@ -40,6 +40,9 @@ class RadarModeType(Serializable):
         ModeType : str
         kwargs : dict
         """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         self.ModeID, self.ModeType = ModeID, ModeType
         super(RadarModeType, self).__init__(**kwargs)
 
@@ -104,6 +107,8 @@ class CollectionInfoType(Serializable):
         kwargs : dict
         """
 
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         self.CollectorName, self.IlluminatorName = CollectorName, IlluminatorName
         self.CoreName, self.CollectType = CoreName, CollectType
         self.RadarMode = RadarMode

@@ -46,6 +46,9 @@ class RcvChanProcType(Serializable):
         ChanIndices : List[int]
         kwargs : dict
         """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         self.NumChanProc = NumChanProc
         self.PRFScaleFactor = PRFScaleFactor
         self.ChanIndices = ChanIndices
@@ -74,6 +77,9 @@ class TxFrequencyProcType(Serializable):
         MaxProc : float
         kwargs : dict
         """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         self.MinProc, self.MaxProc = MinProc, MaxProc
         super(TxFrequencyProcType, self).__init__(**kwargs)
 
@@ -90,6 +96,7 @@ class TxFrequencyProcType(Serializable):
                 'Invalid frequency bounds MinProc ({}) > MaxProc ({})'.format(self.MinProc, self.MaxProc))
             condition = False
         return condition
+
 
 class ProcessingType(Serializable):
     """The transmit frequency range"""
@@ -118,6 +125,8 @@ class ProcessingType(Serializable):
         kwargs : dict
         """
 
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         self.Type = Type
         self.Applied = Applied
         self.Parameters = Parameters
@@ -198,6 +207,9 @@ class DistortionType(Serializable):
         PhaseErrorF2 : float
         kwargs : dict
         """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         self.CalibrationDate = CalibrationDate
         self.A = A
         self.F1, self.Q1, self.Q2 = F1, Q1, Q2
@@ -229,6 +241,9 @@ class PolarizationCalibrationType(Serializable):
         Distortion : DistortionType
         kwargs : dict
         """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         self.DistortCorrectApplied = DistortCorrectApplied
         self.Distortion = Distortion
         super(PolarizationCalibrationType, self).__init__(**kwargs)
@@ -347,6 +362,9 @@ class ImageFormationType(Serializable):
         PolarizationCalibration : PolarizationCalibrationType
         kwargs : dict
         """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         self.RcvChanProc = RcvChanProc
         self.TxRcvPolarizationProc = TxRcvPolarizationProc
         self.TStartProc, self.TEndProc = TStartProc, TEndProc
