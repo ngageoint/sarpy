@@ -78,9 +78,9 @@ def _get_kml_coordinate_string(coordinates, transform):
         transform = identity
 
     if coordinates.ndim == 1:
-        return '{1:0.9f},{0:0.9f}'.format(*transform(coordinates)[:2])
+        return '{0:0.9f},{1:0.9f}'.format(*transform(coordinates)[:2])
     return ' '.join(
-        '{1:0.9f},{0:0.9f}'.format(*el[:2]) for el in transform(coordinates))
+        '{0:0.9f},{1:0.9f}'.format(*el[:2]) for el in transform(coordinates))
 
 
 class _Jsonable(object):
@@ -246,14 +246,21 @@ class Feature(_Jsonable):
         parent_dict['properties'] = self.properties
         return parent_dict
 
-    def add_to_kml(self, doc, coord_transform):
+    def add_to_kml(self, doc, coord_transform, parent=None):
         """
-        Add this feature to the kml document.
+        Add this feature to the kml document. **Note that coordinates or transformed
+        coordinates are assumed to be WGS-84 coordinates in longitude, latitude order.**
+        Currently only the first two (i.e. longitude and latitude) are used in
+        this export.
 
         Parameters
         ----------
         doc : sarpy.io.kml.Document
         coord_transform : None|callable
+            If callable, the the transform will be applied to the coordinates before
+            adding to the document.
+        parent : None|minidom.Element
+            The parent node.
 
         Returns
         -------
@@ -265,7 +272,7 @@ class Feature(_Jsonable):
             params['id'] = self.uid
         if self.properties is not None:
             params['description'] = str(self.properties)
-        placemark = doc.add_container(typ='Placemark', **params)
+        placemark = doc.add_container(par=parent, typ='Placemark', **params)
         if self.geometry is not None:
             self.geometry.add_to_kml(doc, placemark, coord_transform)
 
@@ -356,7 +363,9 @@ class FeatureList(_Jsonable):
 
     def export_to_kml(self, file_name, coord_transform=None, **params):
         """
-        Export to a kml document.
+        Export to a kml document. **Note that underlying geometry coordinates or
+        transformed coordinates are assumed in longitude, latitude order.**
+        Currently only the first two (i.e. longitude and latitude) are used in this export.
 
         Parameters
         ----------
@@ -411,7 +420,8 @@ class Geometry(_Jsonable):
 
     def add_to_kml(self, doc, parent, coord_transform):
         """
-        Add the geometry to the kml document.
+        Add the geometry to the kml document. **Note that coordinates or transformed
+        coordinates are assumed in longitude, latitude order.**
 
         Parameters
         ----------

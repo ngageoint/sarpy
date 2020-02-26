@@ -678,7 +678,7 @@ class SICDType(Serializable):
         kwargs['use_sicd_coa'] = True
         return point_projection.ground_to_image(coords, self, **kwargs)
 
-    def project_ground_to_image_geo(self, coords, **kwargs):
+    def project_ground_to_image_geo(self, coords, ordering='latlong', **kwargs):
         """
         Transforms a 3D Lat/Lon/HAE point to pixel (row/column) coordinates. This is
         implemented in accordance with the SICD Image Projections Description Document.
@@ -688,6 +688,10 @@ class SICDType(Serializable):
         ----------
         coords : numpy.ndarray|tuple|list
             ECF coordinate to map to scene coordinates, of size `N x 3`.
+        ordering : str
+            If 'longlat', then the input is `[longitude, latitude, hae]`.
+            Otherwise, the input is `[latitude, longitude, hae]`. Passed through
+            to :func:`sarpy.geometry.geocoords.geodetic_to_ecf`.
         kwargs : dict
             The keyword arguments for the :func:`sarpy.geometry.point_projection.ground_to_image_geo` method.
 
@@ -705,7 +709,7 @@ class SICDType(Serializable):
         """
 
         kwargs['use_sicd_coa'] = True
-        return point_projection.ground_to_image_geo(coords, self, **kwargs)
+        return point_projection.ground_to_image_geo(coords, self, ordering=ordering, **kwargs)
 
     def project_image_to_ground(self, im_points, projection_type='HAE', **kwargs):
         """
@@ -735,7 +739,7 @@ class SICDType(Serializable):
         return point_projection.image_to_ground(
             im_points, self, projection_type=projection_type, **kwargs)
 
-    def project_image_to_ground_geo(self, im_points, projection_type='HAE', **kwargs):
+    def project_image_to_ground_geo(self, im_points, ordering='latlong', projection_type='HAE', **kwargs):
         """
         Transforms image coordinates to ground plane WGS-84 coordinate via the algorithm(s)
         described in SICD Image Projections document.
@@ -746,6 +750,9 @@ class SICDType(Serializable):
             the image coordinate array
         projection_type : str
             One of `['PLANE', 'HAE', 'DEM']`. Type `DEM` is a work in progress.
+        ordering : str
+            Determines whether return is ordered as `[lat, long, hae]` or `[long, lat, hae]`.
+            Passed through to :func:`sarpy.geometry.geocoords.ecf_to_geodetic`.
         kwargs : dict
             The keyword arguments for the :func:`sarpy.geometry.point_projection.image_to_ground_geo` method.
 
@@ -760,4 +767,4 @@ class SICDType(Serializable):
 
         kwargs['use_sicd_coa'] = True
         return point_projection.image_to_ground_geo(
-            im_points, self, projection_type=projection_type, **kwargs)
+            im_points, self, ordering=ordering, projection_type=projection_type, **kwargs)
