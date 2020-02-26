@@ -45,6 +45,9 @@ class RgAzCompType(Serializable):
         KazPoly : Poly1DType|numpy.ndarray|list|tuple
         kwargs : dict
         """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         self.AzSF = AzSF
         self.KazPoly = KazPoly
         super(RgAzCompType, self).__init__(**kwargs)

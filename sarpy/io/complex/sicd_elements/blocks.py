@@ -62,6 +62,8 @@ class XYZType(Serializable, Arrayable):
         kwargs : dict
         """
 
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         self.X, self.Y, self.Z = X, Y, Z
         super(XYZType, self).__init__(**kwargs)
 
@@ -125,6 +127,9 @@ class LatLonType(Serializable, Arrayable):
         Lon : float
         kwargs : dict
         """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         self.Lat, self.Lon = Lat, Lon
         super(LatLonType, self).__init__(**kwargs)
 
@@ -219,6 +224,8 @@ class LatLonArrayElementType(LatLonType):
         kwargs : dict
         """
 
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         self.index = index
         super(LatLonArrayElementType, self).__init__(Lat=Lat, Lon=Lon, **kwargs)
 
@@ -266,6 +273,8 @@ class LatLonRestrictionType(LatLonType):
         kwargs : dict
         """
 
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         super(LatLonRestrictionType, self).__init__(Lat=Lat, Lon=Lon, **kwargs)
 
     @classmethod
@@ -310,6 +319,9 @@ class LatLonHAEType(LatLonType):
         HAE : float
         kwargs : dict
         """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         self.HAE = HAE
         super(LatLonHAEType, self).__init__(Lat=Lat, Lon=Lon, **kwargs)
 
@@ -378,6 +390,8 @@ class LatLonHAERestrictionType(LatLonHAEType):
         kwargs : dict
         """
 
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         super(LatLonHAERestrictionType, self).__init__(Lat=Lat, Lon=Lon, HAE=HAE, **kwargs)
 
     @classmethod
@@ -423,6 +437,9 @@ class LatLonCornerType(LatLonType):
         index : int
         kwargs : dict
         """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         self.index = index
         super(LatLonCornerType, self).__init__(Lat=Lat, Lon=Lon, **kwargs)
 
@@ -470,6 +487,9 @@ class LatLonCornerStringType(LatLonType):
         index : str
         kwargs : dict
         """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         self.index = index
         super(LatLonCornerStringType, self).__init__(Lat=Lat, Lon=Lon, **kwargs)
 
@@ -519,6 +539,9 @@ class LatLonHAECornerRestrictionType(LatLonHAERestrictionType):
         index : int
         kwargs : dict
         """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         self.index = index
         super(LatLonHAECornerRestrictionType, self).__init__(Lat=Lat, Lon=Lon, HAE=HAE, **kwargs)
 
@@ -565,6 +588,9 @@ class LatLonHAECornerStringType(LatLonHAEType):
         index : str
         kwargs : dict
         """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         self.index = index
         super(LatLonHAECornerStringType, self).__init__(Lat=Lat, Lon=Lon, HAE=HAE, **kwargs)
 
@@ -612,6 +638,9 @@ class RowColType(Serializable, Arrayable):
         Col : int
         kwargs : dict
         """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         self.Row, self.Col = Row, Col
         super(RowColType, self).__init__(**kwargs)
 
@@ -674,6 +703,9 @@ class RowColArrayElement(RowColType):
         index : int
         kwargs : dict
         """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         self.index = index
         super(RowColArrayElement, self).__init__(Row=Row, Col=Col, **kwargs)
 
@@ -723,6 +755,9 @@ class Poly1DType(Serializable, Arrayable):
         Coefs : numpy.ndarray|tuple|list
         kwargs : dict
         """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         self._coefs = None
         self.Coefs = Coefs
         super(Poly1DType, self).__init__(**kwargs)
@@ -907,13 +942,15 @@ class Poly1DType(Serializable, Arrayable):
         return numpy.array(self._coefs, dtype=dtype)
 
     @classmethod
-    def from_node(cls, node, kwargs=None):
+    def from_node(cls, node, xml_ns, kwargs=None):
         """For XML deserialization.
 
         Parameters
         ----------
         node : ElementTree.Element
             dom element for serialized class instance
+        xml_ns : dict
+            The xml namespace dictionary.
         kwargs : None|dict
             `None` or dictionary of previously serialized attributes. For use in inheritance call, when certain
             attributes require specific deserialization.
@@ -926,7 +963,8 @@ class Poly1DType(Serializable, Arrayable):
 
         order1 = int_func(node.attrib['order1'])
         coefs = numpy.zeros((order1+1, ), dtype=numpy.float64)
-        for cnode in node.findall('Coef'):
+        coef_nodes = node.findall('Coef') if xml_ns is None else node.findall('default:Coef', xml_ns)
+        for cnode in coef_nodes:
             ind = int_func(cnode.attrib['exponent1'])
             val = float(_get_node_value(cnode))
             coefs[ind] = val
@@ -965,6 +1003,9 @@ class Poly2DType(Serializable, Arrayable):
         Coefs : numpy.ndarray|list|tuple
         kwargs : dict
         """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         self._coefs = None
         self.Coefs = Coefs
         super(Poly2DType, self).__init__(**kwargs)
@@ -1073,13 +1114,15 @@ class Poly2DType(Serializable, Arrayable):
         return numpy.array(self._coefs, dtype=dtype)
 
     @classmethod
-    def from_node(cls, node, kwargs=None):
+    def from_node(cls, node, xml_ns, kwargs=None):
         """For XML deserialization.
 
         Parameters
         ----------
         node : ElementTree.Element
             dom element for serialized class instance
+        xml_ns : dict
+            The xml namespace dictionary.
         kwargs : None|dict
             `None` or dictionary of previously serialized attributes. For use in inheritance call, when certain
             attributes require specific deserialization.
@@ -1093,7 +1136,8 @@ class Poly2DType(Serializable, Arrayable):
         order1 = int_func(node.attrib['order1'])
         order2 = int_func(node.attrib['order2'])
         coefs = numpy.zeros((order1+1, order2+1), dtype=numpy.float64)
-        for cnode in node.findall('Coef'):
+        coef_nodes = node.findall('Coef') if xml_ns is None else node.findall('default:Coef', xml_ns)
+        for cnode in coef_nodes:
             ind1 = int_func(cnode.attrib['exponent1'])
             ind2 = int_func(cnode.attrib['exponent2'])
             val = float(_get_node_value(cnode))
@@ -1149,6 +1193,9 @@ class XYZPolyType(Serializable, Arrayable):
         Z : Poly1DType|numpy.ndarray|list|tuple
         kwargs : dict
         """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         self.X, self.Y, self.Z = X, Y, Z
         super(XYZPolyType, self).__init__(**kwargs)
 
@@ -1326,6 +1373,9 @@ class XYZPolyAttributeType(XYZPolyType):
         index : int
         kwargs : dict
         """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         self.index = index
         super(XYZPolyAttributeType, self).__init__(X=X, Y=Y, Z=Z, **kwargs)
 
@@ -1378,6 +1428,9 @@ class GainPhasePolyType(Serializable):
         PhasePoly : Poly2DType|numpy.ndarray|list|tuple
         kwargs : dict
         """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         self.GainPoly = GainPoly
         self.PhasePoly = PhasePoly
         super(GainPhasePolyType, self).__init__(**kwargs)
@@ -1438,6 +1491,9 @@ class ErrorDecorrFuncType(Serializable):
         DecorrRate : float
         kwargs : dict
         """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         self.CorrCoefZero = CorrCoefZero
         self.DecorrRate = DecorrRate
         super(ErrorDecorrFuncType, self).__init__(**kwargs)

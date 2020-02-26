@@ -128,6 +128,9 @@ class WgtTypeType(Serializable):
         Parameters : ParametersCollection|dict
         kwargs : dict
         """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         self.WindowName = WindowName
         self.Parameters = Parameters
         super(WgtTypeType, self).__init__(**kwargs)
@@ -161,8 +164,10 @@ class WgtTypeType(Serializable):
         return the_dict.get(param_name, default)
 
     @classmethod
-    def from_node(cls, node, kwargs=None):
-        if node.find('WindowName') is None:
+    def from_node(cls, node, xml_ns, kwargs=None):
+        win_name = node.find('WindowName', xml_ns) if xml_ns is None else \
+            node.find('default:WindowName', xml_ns)
+        if win_name is None:
             # SICD 0.4 standard compliance, this could just be a space delimited string of the form
             #   "<WindowName> <name1>=<value1> <name2>=<value2> ..."
             if kwargs is None:
@@ -179,7 +184,7 @@ class WgtTypeType(Serializable):
             kwargs['Parameters'] = params
             return cls.from_dict(kwargs)
         else:
-            return super(WgtTypeType, cls).from_node(node, kwargs)
+            return super(WgtTypeType, cls).from_node(node, xml_ns, kwargs)
 
 
 class DirParamType(Serializable):
@@ -255,6 +260,9 @@ class DirParamType(Serializable):
         WgtFunct : numpy.ndarray|list|tuple
         kwargs : dict
         """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         self.UVectECF = UVectECF
         self.SS = SS
         self.ImpRespWid, self.ImpRespBW = ImpRespWid, ImpRespBW
@@ -520,6 +528,9 @@ class GridType(Serializable):
         Col : DirParamType
         kwargs : dict
         """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         self.ImagePlane = ImagePlane
         self.Type = Type
         self.TimeCOAPoly = TimeCOAPoly

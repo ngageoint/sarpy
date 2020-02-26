@@ -59,6 +59,9 @@ class IPPSetType(Serializable):
         index : int
         kwargs : dict
         """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         self.TStart, self.TEnd = TStart, TEnd
         self.IPPStart, self.IPPEnd = IPPStart, IPPEnd
         self.IPPPoly = IPPPoly
@@ -96,6 +99,9 @@ class TimelineType(Serializable):
         IPP : List[IPPSetType]
         kwargs : dict
         """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         self.CollectStart = CollectStart
         self.CollectDuration = CollectDuration
         self.IPP = IPP

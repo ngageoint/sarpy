@@ -43,6 +43,8 @@ class MatchCollectionType(Serializable):
         kwargs : dict
         """
 
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         self.CoreName = CoreName
         self.MatchIndex = MatchIndex
         self.Parameters = Parameters
@@ -77,6 +79,9 @@ class MatchType(Serializable):
         MatchCollections : List[MatchCollectionType]
         kwargs : dict
         """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         self.TypeId = TypeId
         self.CurrentIndex = CurrentIndex
         self.MatchCollections = MatchCollections
@@ -112,6 +117,8 @@ class MatchInfoType(Serializable):
         kwargs : dict
         """
 
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         self.MatchTypes = MatchTypes
         super(MatchInfoType, self).__init__(**kwargs)
 
@@ -124,7 +131,7 @@ class MatchInfoType(Serializable):
             return len(self.MatchTypes)
 
     @classmethod
-    def _from_node_0_5(cls, node):
+    def _from_node_0_5(cls, node, xml_ns):
         """
         Helper method, not really for public usage. For XML deserialization from SICD version prior to 1.0.
 
@@ -132,6 +139,8 @@ class MatchInfoType(Serializable):
         ----------
         node : ElementTree.Element
             dom element for serialized class instance
+        xml_ns : dict
+            The xml namespace dictionary
 
         Returns
         -------
@@ -152,14 +161,18 @@ class MatchInfoType(Serializable):
         # collection index number (likely larger than 1). This is at least confusing, but more likely
         # completely misleading.
         match_types = []
-        for cnode in node.findall('Collect'):  # assumed non-empty
+        cnodes = node.findall('Collect') if xml_ns is None else \
+            node.findall('default:Collect', xml_ns)
+        for cnode in cnodes:  # assumed non-empty
             # this describes one series of collects, possibly with more than one MatchType = TypeId
             # It is not clear how it would be possible to deconflict a repeat of MatchType between
             # Collect tags, so I will not.
-            core_name = _get_node_value(cnode.find('CoreName'))
+            core_name = _get_node_value(cnode.find('CoreName')) if xml_ns is None else \
+                _get_node_value(cnode.find('default:CoreName', xml_ns))
             current_index = None
             parameters = []
-            for pnode in cnode.findall('Parameter'):
+            pnodes = cnode.findall('Parameter') if xml_ns is None else cnode.findall('default:Parameter', xml_ns)
+            for pnode in pnodes:
                 name = pnode.attrib['name']
                 value = _get_node_value(pnode)
                 if name == 'CURRENT_INSTANCE':
@@ -168,7 +181,9 @@ class MatchInfoType(Serializable):
                     parameters.append({'name': name, 'value': value})  # copy the parameter
             if current_index is None:
                 continue  # I don't know what we would do?
-            for tnode in cnode.findall('MatchType'):
+            mtypes = cnode.findall('MatchType') if xml_ns is None else \
+                cnode.findall('default:MatchType', xml_ns)
+            for tnode in mtypes:
                 type_id = _get_node_value(tnode)
                 match_types.append(get_element(type_id, current_index, core_name, parameters))
         if len(match_types) > 0:
@@ -178,9 +193,11 @@ class MatchInfoType(Serializable):
             return None
 
     @classmethod
-    def from_node(cls, node, kwargs=None):
-        if node.find('Collect') is not None:
+    def from_node(cls, node, xml_ns, kwargs=None):
+        coll = node.find('Collect', xml_ns) if xml_ns is None else \
+            node.find('default:Collect', xml_ns)
+        if coll is not None:
             # This is from SICD version prior to 1.0, so handle manually.
-            return cls._from_node_0_5(node)
+            return cls._from_node_0_5(node, xml_ns)
         else:
-            return super(MatchInfoType, cls).from_node(node, kwargs=kwargs)
+            return super(MatchInfoType, cls).from_node(node, xml_ns, kwargs=kwargs)
