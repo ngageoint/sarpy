@@ -219,7 +219,7 @@ def ground_to_image(coords, sicd, delta_gp_max=None, max_iterations=10, block_si
     return image_points, delta_gpn, iters
 
 
-def ground_to_image_geo(coords, sicd, **kwargs):
+def ground_to_image_geo(coords, sicd, ordering='latlong', **kwargs):
     """
     Transforms a 3D Lat/Lon/HAE point to pixel (row/column) coordinates.
     This is implemented in accordance with the SICD Image Projections Description Document.
@@ -230,6 +230,10 @@ def ground_to_image_geo(coords, sicd, **kwargs):
         Lat/Lon/HAE coordinate to map to scene coordinates, of size `N x 3`.
     sicd : sarpy.io.complex.sicd_elements.SICD.SICDType
         SICD meta data structure.
+    ordering : str
+        If 'longlat', then the input is `[longitude, latitude, hae]`.
+        Otherwise, the input is `[latitude, longitude, hae]`. Passed through
+        to :func:`sarpy.geometry.geocoords.geodetic_to_ecf`.
     kwargs : dict
         See the key word arguments of :func:`ground_to_image`
 
@@ -242,7 +246,7 @@ def ground_to_image_geo(coords, sicd, **kwargs):
         * `iterations` - the number of iterations performed.
     """
 
-    return ground_to_image(geocoords.geodetic_to_ecf(coords), sicd, **kwargs)
+    return ground_to_image(geocoords.geodetic_to_ecf(coords, ordering=ordering), sicd, **kwargs)
 
 
 ############
@@ -669,7 +673,7 @@ def image_to_ground(im_points, sicd, block_size=50000, projection_type='HAE', **
         raise ValueError('Got unrecognized projection type {}'.format(projection_type))
 
 
-def image_to_ground_geo(im_points, sicd, block_size=50000, projection_type='HAE', **kwargs):
+def image_to_ground_geo(im_points, sicd, ordering='latlong', block_size=50000, projection_type='HAE', **kwargs):
     """
     Transforms image coordinates to ground plane Lat/Lon/HAE coordinate via the algorithm(s)
     described in SICD Image Projections document.
@@ -681,6 +685,9 @@ def image_to_ground_geo(im_points, sicd, block_size=50000, projection_type='HAE'
         Following SICD convention, the upper-left pixel is [0, 0].
     sicd : sarpy.io.complex.sicd_elements.SICD.SICDType
         SICD meta data structure.
+    ordering : str
+        Determines whether return is ordered as `[lat, long, hae]` or `[long, lat, hae]`.
+        Passed through to :func:`sarpy.geometry.geocoords.ecf_to_geodetic`.
     block_size : None|int
         Size of blocks of coordinates to transform at a time. The entire array will be
         transformed as a single block if `None`.
@@ -696,7 +703,8 @@ def image_to_ground_geo(im_points, sicd, block_size=50000, projection_type='HAE'
     """
 
     return geocoords.ecf_to_geodetic(image_to_ground(
-        im_points, sicd, block_size=block_size, projection_type=projection_type, **kwargs))
+        im_points, sicd, block_size=block_size, projection_type=projection_type, **kwargs),
+        ordering=ordering)
 
 
 #####
