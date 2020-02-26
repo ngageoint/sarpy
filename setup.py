@@ -48,11 +48,12 @@ except ImportError:
     sphinx_args = {}
 
 
+install_requires = ['numpy>=1.9.0', 'scipy']
 tests_require = []
 if sys.version_info[0] < 3:
     tests_require.append('unittest2')
-    # unittest2 only for Python2.7, we rely on the backport of subTest
-
+    # unittest2 only for Python2.7, we rely on subTest usage
+    install_requires.append('typing')
 
 setup(name=parameters['__title__'],
       version=parameters['__version__'],
@@ -65,7 +66,7 @@ setup(name=parameters['__title__'],
       author=parameters['__author__'],
       # The primary POC, rather than the author really
       author_email=parameters['__email__'],
-      install_requires=['numpy>=1.9.0', 'scipy'],
+      install_requires=install_requires,
       extras_require={
         'csk':  ['h5py', ],
         'docs': ['Sphinx', 'sphinxcontrib-napoleon'],
