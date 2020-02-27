@@ -12,8 +12,10 @@ from typing import Union, Tuple
 
 import numpy
 
-from ..nitf_headers import NITFDetails, DataExtensionHeader, _HeaderScraper, \
-    NITFHeader, NITFSecurityTags, ImageSegmentHeader, ImageBands, _ItemArrayHeaders
+# noinspection PyProtectedMember
+from ..nitf.headers import NITFDetails, DataExtensionHeader, _HeaderScraper, \
+    NITFHeader, NITFSecurityTags, ImageSegmentHeader, ImageBands, ImageBand, \
+    _ItemArrayHeaders
 from .base import BaseChipper, BaseReader, BaseWriter
 from .bip import BIPChipper, BIPWriter
 from .sicd_elements.SICD import SICDType
@@ -133,7 +135,7 @@ class SICDDataExtensionHeader(DataExtensionHeader):
                 'SICDDESSubheader. Got {}'.format(type(value)))
 
     @classmethod
-    def from_string(cls, value, start, **kwargs):
+    def from_bytes(cls, value, start, **kwargs):
         if value is None:
             return cls(**kwargs)
 
@@ -267,7 +269,7 @@ class SICDDetails(NITFDetails):
                     self.img_subheader_offsets, self._nitf_header.ImageSegments.subhead_sizes):
                 fi.seek(int_func(offset))
                 header_string = fi.read(int_func(subhead_size))
-                img_headers.append(ImageSegmentHeader.from_string(header_string, 0))
+                img_headers.append(ImageSegmentHeader.from_bytes(header_string, 0))
         self._img_headers = img_headers
 
     def _parse_des(self):
@@ -283,11 +285,11 @@ class SICDDetails(NITFDetails):
                 fi.seek(int_func(self.des_subheader_offsets[0]))
                 subhead_bytes = fi.read(self._nitf_header.DataExtensions.subhead_sizes[0])
                 if subhead_bytes.startswith(b'DEXML_DATA_CONTENT'):
-                    des_header = SICDDataExtensionHeader.from_string(subhead_bytes, start=0)
+                    des_header = SICDDataExtensionHeader.from_bytes(subhead_bytes, start=0)
                     fi.seek(int_func(self.des_segment_offsets[0]))
                     data_extension = fi.read(int_func(self._nitf_header.DataExtensions.item_sizes[0])).decode('utf-8')
         if des_header is None or not data_extension.startswith('<SICD'):
-            # TODO: is there any reason that this isn't safe?
+            # TODO: is this generally safe?
             return
 
         root_node = ElementTree.fromstring(data_extension)
@@ -790,6 +792,7 @@ class SICDWriter(BaseWriter):
         nppbh = 0 if rows > 8192 else rows
         nppbv = 0 if cols > 8192 else cols
         im_seg_heads = []
+        bands = [ImageBand(ISUBCAT=entry) for entry in isubcat]
         for i, entry in enumerate(self._image_segment_limits):
             im_seg_heads.append(ImageSegmentHeader(
                 IID1='SICD{0:3d}'.format(0 if len(self._image_segment_limits) == 1 else i+1),
@@ -807,7 +810,7 @@ class SICDWriter(BaseWriter):
                 IDLVL=i+1,
                 IALVL=i,
                 ILOC='{0:5d}{1:5d}'.format(entry[0], entry[2]),
-                ImageBands=ImageBands(ISUBCAT=isubcat),
+                ImageBands=ImageBands(bands=bands),
                 Security=self._security_tags))
         return tuple(im_seg_heads)
 
