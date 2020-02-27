@@ -39,7 +39,6 @@ class _BaseScraper(object):
         raise NotImplementedError
 
     def __str__(self):
-        # TODO: improve this behavior...
         def get_str(el):
             if isinstance(el, string_types):
                 return '"{}"'.format(el.strip())
@@ -502,7 +501,7 @@ class ImageBand(_HeaderScraper):
         if nluts == 0:
             return 13
         else:
-            neluts = self.NELUT
+            neluts = self.NELUTS
             return 18 + nluts*neluts
 
     @classmethod
@@ -527,8 +526,9 @@ class ImageBand(_HeaderScraper):
             fields['LUTD'] = None
         else:
             neluts = int_func(value[loc + 13:loc + 18])
+            siz = nluts*neluts
             lutd = numpy.array(
-                struct.unpack('{}B'.format(nluts*neluts)), dtype=numpy.uint8).reshape((nluts, neluts))
+                struct.unpack('{}B'.format(siz), value[loc+18:loc+18+siz]), dtype=numpy.uint8).reshape((nluts, neluts))
             fields['LUTD'] = lutd
         return cls(**fields)
 
@@ -656,22 +656,96 @@ class ImageComments(_BaseScraper):
         return out.encode()
 
 
+class ImageCompression(_BaseScraper):
+    __slots__ = ('_IC', '_COMRAT')
+    _IC_VALUES = (
+        'NC', 'NM', 'C1', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'I1',
+        'M1', 'M3', 'M4', 'M5', 'M6', 'M7', 'M8')
+    _NO_COMRAT = ('NC', 'NM')
+
+    def __init__(self, IC='NC', COMRAT=None):
+        self._IC = None
+        self._COMRAT = None
+        self.IC = IC
+        self.COMRAT = COMRAT
+
+    @property
+    def IC(self):  # type: () -> str
+        return self._IC
+
+    @IC.setter
+    def IC(self, value):
+        if value in self._IC_VALUES:
+            self._IC = value
+        else:
+            raise ValueError('Got unsupported IC value {}'.format(value))
+
+    @property
+    def COMRAT(self):  # type: () -> Union[None, str]
+        if self._IC in self._NO_COMRAT:
+            return None
+        elif self._COMRAT is None:
+            return '\x20'*4
+        elif len(self._COMRAT) > 4:
+            return self._COMRAT[:4]
+        else:
+            return '{0:4d}'.format(self._COMRAT)
+
+    @COMRAT.setter
+    def COMRAT(self, value):
+        if value is None:
+            if self._IC not in self._NO_COMRAT:
+                logging.warning(
+                    'ImageCompression IC value {} requires a non-empty '
+                    'COMRAT value.'.format(self._IC))
+            self._COMRAT = None
+            return
+        if not isinstance(value, str):
+            raise TypeError('COMRAT requires a str. Got type {}'.format(type(value)))
+        self._COMRAT = value.strip()
+
+    def __len__(self):
+        if self._IC in self._NO_COMRAT:
+            return 2
+        else:
+            return 6
+
+    @classmethod
+    def minimum_length(cls):
+        return 2
+
+    @classmethod
+    def from_bytes(cls, value, start, **args):
+        value = cls._validate(value, start)
+        loc = start
+        ic = value[loc:loc+2].decode('utf-8')
+        if ic not in cls._IC_VALUES:
+            raise ValueError('Got unexpected IC value {}'.format(ic))
+
+        comrat = None
+        if ic not in cls._NO_COMRAT:
+            comrat = value[loc+2:loc+7]
+        return cls(IC=ic, COMRAT=comrat)
+
+    def to_bytes(self):
+        if self._IC in self._NO_COMRAT:
+            return self._IC.encode()
+        return '{0:s}{1:5s}'.format(self._IC, self.COMRAT).encode()
+
+
 class ImageSegmentHeader(_HeaderScraper):
     """
     The Image Segment header - described in SICD standard 2014-09-30, Volume II, page 24
     """
 
-    # TODO: this is not general, and is really tailored to a sicd
-    #  LOW - if IC != "NC", we need to have a COMRAT field
-    #  LOW - accommodate UDIDL > 0
-    #  LOW - accommodate IXSHDL > 0
+    # TODO: LOW - accommodate UDIDL > 0 & IXSHDL > 0
 
     __slots__ = (
         'IM', 'IID1', 'IDATIM', 'TGTID',
         'IID2', '_Security', 'ENCRYP', 'ISORCE',
         'NROWS', 'NCOLS', 'PVTYPE', 'IREP',
         'ICAT', 'ABPP', 'PJUST', 'ICORDS',
-        'IGEOLO', '_ImageComments', 'IC', '_ImageBands',
+        'IGEOLO', '_ImageComments', '_ImageCompression', '_ImageBands',
         'ISYNC', 'IMODE', 'NBPR', 'NBPC', 'NPPBH',
         'NPPBV', 'NBPP', 'IDLVL', 'IALVL',
         'ILOC', 'IMAG', 'UDIDL', 'IXSHDL')
@@ -680,19 +754,20 @@ class ImageSegmentHeader(_HeaderScraper):
         'IID2': '80s', 'ENCRYP': '1s', 'ISORCE': '42s',
         'NROWS': '8d', 'NCOLS': '8d', 'PVTYPE': '3s', 'IREP': '8s',
         'ICAT': '8s', 'ABPP': '2d', 'PJUST': '1s', 'ICORDS': '1s',
-        'IGEOLO': '60s', 'IC': '2s', 'ISYNC': '1d', 'IMODE': '1s',
+        'IGEOLO': '60s', 'ISYNC': '1d', 'IMODE': '1s',
         'NBPR': '4d', 'NBPC': '4d', 'NPPBH': '4d', 'NPPBV': '4d',
         'NBPP': '2d', 'IDLVL': '3d', 'IALVL': '3d', 'ILOC': '10s',
         'IMAG': '4s', 'UDIDL': '5d', 'IXSHDL': '5d'}
     _defaults = {
         'IM': 'IM', 'TGTID': '\x20', 'ENCRYP': '0',
         'IREP': 'NODISPLY', 'ICAT': 'SAR', 'PJUST': 'R',
-        'ICORDS': 'G', 'IC': 'NC', 'ISYNC': 0, 'IMODE': 'P',
+        'ICORDS': 'G', 'ISYNC': 0, 'IMODE': 'P',
         'NBPR': 1, 'NBPC': 1, 'IMAG': '1.0 ', 'UDIDL': 0, 'IXSHDL': 0}
     _types = {
         '_Security': NITFSecurityTags,
         '_ImageComments': ImageComments,
-        '_ImageBands': ImageBands}
+        '_ImageBands': ImageBands,
+        '_ImageCompression': ImageCompression}
 
     def __init__(self, **kwargs):
         super(ImageSegmentHeader, self).__init__(**kwargs)
@@ -704,6 +779,10 @@ class ImageSegmentHeader(_HeaderScraper):
 
     @Security.setter
     def Security(self, value):
+        if not isinstance(value, NITFSecurityTags):
+            raise TypeError(
+                'Security attribute must be of type NITFSecurityTags. '
+                'Got type {}'.format(type(value)))
         # noinspection PyAttributeOutsideInit
         self._Security = value
 
@@ -714,8 +793,26 @@ class ImageSegmentHeader(_HeaderScraper):
 
     @ImageComments.setter
     def ImageComments(self, value):
+        if not isinstance(value, ImageComments):
+            raise TypeError(
+                'ImageComments attribute must be of type ImageComments. '
+                'Got type {}'.format(type(value)))
         # noinspection PyAttributeOutsideInit
         self._ImageComments = value
+
+    @property
+    def ImageCompression(self):  # type: () -> ImageCompression
+        """ImageCompression: the image compression instance"""
+        return self._ImageCompression
+
+    @ImageCompression.setter
+    def ImageCompression(self, value):
+        if not isinstance(value, ImageCompression):
+            raise TypeError(
+                'ImageCompression attribute must be of type ImageCompression. '
+                'Got type {}'.format(type(value)))
+        # noinspection PyAttributeOutsideInit
+        self._ImageCompression = value
 
     @property
     def ImageBands(self):  # type: () -> ImageBands
@@ -769,8 +866,93 @@ class TextSegmentHeader(_HeaderScraper):
 
     @Security.setter
     def Security(self, value):
+        if not isinstance(value, NITFSecurityTags):
+            raise TypeError(
+                'Security attribute must be of type NITFSecurityTags. '
+                'Got type {}'.format(type(value)))
         # noinspection PyAttributeOutsideInit
         self._Security = value
+
+
+class TRE(_BaseScraper):
+    __slots__ = ('_TAG', '_DATA')
+
+    def __init__(self, TAG=None, DATA=None):
+        self._TAG = None
+        self._DATA = None
+        self.TAG = TAG
+        self.DATA = DATA
+
+    @property
+    def TAG(self):
+        if self._TAG is None:
+            return '\x20'*6
+        return self._TAG
+
+    @TAG.setter
+    def TAG(self, value):
+        if self._TAG is not None:
+            raise ValueError('TAG is immutable.')
+        if value is None:
+            self._TAG = None
+            return
+        if not isinstance(value, str) or len(value) != 6:
+            raise ValueError(
+                'TAG must be a string of length 6. Got {} '
+                'of type {}'.format(value, type(value)))
+        self._TAG = value
+
+    @property
+    def DATA(self):
+        return self._DATA
+
+    @DATA.setter
+    def DATA(self, value):
+        if value is None:
+            self._DATA = None
+        if not isinstance(value, (str, bytes, _HeaderScraper)):
+            raise TypeError(
+                'DATA requires bytes, str, or _HeaderScraper type. '
+                'Got type {}'.format(type(value)))
+        if len(value) > 99985:
+            raise ValueError('The provided data is longer than 99985')
+        self._DATA = value
+
+    def __len__(self):
+        if self._DATA is None:
+            return 11
+        else:
+            return 11 + len(self._DATA)
+
+    @classmethod
+    def minimum_length(cls):
+        return 11
+
+    @classmethod
+    def from_bytes(cls, value, start, **args):
+        value = cls._validate(value, start)
+        loc = start
+        tag = value[loc:loc+6].decode('utf-8')
+        length = int_func(value[loc+6:loc+11])
+        loc += 11
+        data = value[loc:loc+length]
+        # TODO: handle TRE registry situation
+        return cls(TAG=tag, DATA=data)
+
+    def to_bytes(self):
+        data = self.DATA
+        if data is None:
+            return '{0:s}00000'.format(self.TAG).encode()
+        out = '{0:s}{1:05d}'.format(self.TAG, len(data)).encode()
+        if isinstance(data, str):
+            out += data.encode()
+        elif isinstance(data, bytes):
+            out += data
+        elif isinstance(data, _HeaderScraper):
+            out += data.to_bytes()
+        else:
+            raise TypeError('Unhandled DATA type {}'.format(type(data)))
+        return out
 
 
 ######
@@ -809,6 +991,10 @@ class DataExtensionHeader(_HeaderScraper):
 
     @Security.setter
     def Security(self, value):
+        if not isinstance(value, NITFSecurityTags):
+            raise TypeError(
+                'Security attribute must be of type NITFSecurityTags. '
+                'Got type {}'.format(type(value)))
         # noinspection PyAttributeOutsideInit
         self._Security = value
 
@@ -932,6 +1118,10 @@ class NITFHeader(_HeaderScraper):
 
     @Security.setter
     def Security(self, value):
+        if not isinstance(value, NITFSecurityTags):
+            raise TypeError(
+                'Security attribute must be of type NITFSecurityTags. '
+                'Got type {}'.format(type(value)))
         # noinspection PyAttributeOutsideInit
         self._Security = value
 
