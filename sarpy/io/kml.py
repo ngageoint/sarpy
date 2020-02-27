@@ -25,6 +25,9 @@ try:
 except ImportError:
     PIL = None
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
 #################
 # default values
 _DEFAULT_ICON = 'http://maps.google.com/mapfiles/kml/shapes/shaded_dot.png'
