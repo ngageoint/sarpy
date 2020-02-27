@@ -43,9 +43,9 @@ __author__ = ("Thomas McCullough", "Wade Schwartzkopf")
 # NITF header details specific to SICD files
 
 _SPECIFICATION_IDENTIFIER = 'SICD Volume 1 Design & Implementation Description Document'
-_SPECIFICATION_VERSION = '1.1'
-_SPECIFICATION_DATE = '2014-09-30T00:00:00Z'
-_SPECIFICATION_NAMESPACE = 'urn:SICD:1.1.0'  # must be of the form 'urn:SICD:<version>'
+_SPECIFICATION_VERSION = '1.2'
+_SPECIFICATION_DATE = '2018-12-13T00:00:00Z'
+_SPECIFICATION_NAMESPACE = 'urn:SICD:1.2.1'  # must be of the form 'urn:SICD:<version>'
 
 
 class SICDDESSubheader(_HeaderScraper):
@@ -589,7 +589,7 @@ def complex_to_int(data):
 class SICDWriter(BaseWriter):
     """
     Writer object for SICD file - that is, a NITF file containing SICD data
-    following standard 1.1.0
+    following standard 1.2.1
     """
 
     __slots__ = (
