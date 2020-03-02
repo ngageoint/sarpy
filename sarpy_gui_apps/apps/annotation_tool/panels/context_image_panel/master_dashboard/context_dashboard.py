@@ -16,7 +16,7 @@ class ButtonPanel(AbstractWidgetPanel):
         self.set_label_text("controls")
 
 
-class InfoPanel(AbstractWidgetPanel):
+class ContextInfoPanel(AbstractWidgetPanel):
     def __init__(self, parent):
         AbstractWidgetPanel.__init__(self, parent)
         self.decimation_label = basic_widgets.Label
@@ -34,7 +34,7 @@ class InfoPanel(AbstractWidgetPanel):
 class ContextMasterDash(AbstractWidgetPanel):
     buttons = ButtonPanel
     file_selector = FileSelector
-    info_panel = InfoPanel
+    info_panel = ContextInfoPanel
 
     def __init__(self, parent):
         AbstractWidgetPanel.__init__(self, parent)

@@ -1,14 +1,17 @@
 import tkinter
 from sarpy_gui_apps.apps.annotation_tool.panels.context_image_panel.context_image_panel import ContextImagePanel
 from sarpy_gui_apps.apps.annotation_tool.panels.annotate_panel.annotate_image_panel import AnnotateImagePanel
+from sarpy_gui_apps.apps.canvas_demo.canvas_demo import CanvasDemo
 from tkinter_gui_builder.panel_templates.widget_panel.widget_panel import AbstractWidgetPanel
+from tkinter_gui_builder.panel_templates.image_canvas.tool_constants import ToolConstants
 import numpy as np
 import os
 
 
 class AppVariables:
     def __init__(self):
-        pass
+        self.image_fname = None     # type: str
+        self.shapes_in_selector = []
 
 
 class AnnotationTool(AbstractWidgetPanel):
@@ -24,11 +27,80 @@ class AnnotationTool(AbstractWidgetPanel):
         master_frame.pack()
         self.pack()
 
-        self.app_variables = AppVariables()
+        self.variables = AppVariables()
+
+        self.context_panel.context_dashboard.file_selector.select_file.on_left_mouse_click(self.callback_select_file)
         self.context_panel.image_canvas.canvas.on_left_mouse_release(self.callback_handle_context_left_mouse_release)
+        self.annotate_panel.image_canvas.canvas.on_mouse_wheel(self.callback_handle_annotate_mouse_wheel)
+        self.annotate_panel.image_canvas.canvas.on_left_mouse_click(self.callback_annotate_handle_canvas_left_mouse_click)
+        self.annotate_panel.image_canvas.canvas.on_left_mouse_release(self.callback_handle_annotate_left_mouse_release)
+        self.annotate_panel.annotate_dashboard.controls.select_existing_shape.on_selection(self.callback_handle_shape_selector)
+        self.annotate_panel.annotate_dashboard.controls.draw_polygon.on_left_mouse_click(self.callback_set_to_draw_polygon)
+        self.annotate_panel.annotate_dashboard.controls.popup.on_left_mouse_click(self.callback_popup)
+
+    def callback_popup(self, event):
+        self.canvas_demo_popup = tkinter.Toplevel(self.master)
+        self.app = CanvasDemo(self.canvas_demo_popup)
+
+    def callback_annotate_handle_canvas_left_mouse_click(self, event):
+        self.annotate_panel.image_canvas.callback_handle_left_mouse_click(event)
+        current_shape = self.annotate_panel.image_canvas.variables.current_shape_id
+        if current_shape:
+            self.variables.shapes_in_selector.append(current_shape)
+            self.variables.shapes_in_selector = sorted(list(set(self.variables.shapes_in_selector)))
+            self.annotate_panel.annotate_dashboard.controls.select_existing_shape.update_combobox_values(self.variables.shapes_in_selector)
+
+    def callback_handle_shape_selector(self, event):
+        current_shape_id = int(self.annotate_panel.annotate_dashboard.controls.select_existing_shape.get())
+        self.annotate_panel.image_canvas.variables.current_shape_id = current_shape_id
+        self.annotate_panel.image_canvas.highlight_existing_shape(current_shape_id)
+
+    def callback_set_to_draw_polygon(self, event):
+        self.annotate_panel.annotate_dashboard.controls.set_active_button(self.annotate_panel.annotate_dashboard.controls.draw_polygon)
+        self.annotate_panel.image_canvas.set_current_tool_to_draw_polygon_by_clicking()
+
+    def draw_context_rect(self):
+        annotate_canvas_nx = self.annotate_panel.image_canvas.variables.canvas_image_object.canvas_nx
+        annotate_canvas_ny = self.annotate_panel.image_canvas.variables.canvas_image_object.canvas_ny
+        annotate_canvas_extents = [0, 0, annotate_canvas_nx, annotate_canvas_ny]
+        image_rect = self.annotate_panel.image_canvas.variables.canvas_image_object.canvas_coords_to_full_image_yx(
+            annotate_canvas_extents)
+        context_rect = self.context_panel.image_canvas.variables.canvas_image_object.full_image_yx_to_canvas_coords(
+            image_rect)
+        self.context_panel.image_canvas.modify_existing_shape_using_canvas_coords(
+            self.context_panel.image_canvas.variables.select_rect_id, context_rect)
+
+    def callback_handle_annotate_mouse_wheel(self, event):
+        self.annotate_panel.image_canvas.callback_mouse_zoom(event)
+        self.draw_context_rect()
+        self.annotate_panel.update_decimation_value()
 
     def callback_handle_context_left_mouse_release(self, event):
         self.context_panel.callback_handle_left_mouse_release(event)
+        if self.context_panel.image_canvas.variables.current_tool == ToolConstants.SELECT_TOOL:
+            rect_id = self.context_panel.image_canvas.variables.select_rect_id
+            image_rect = self.context_panel.image_canvas.canvas_shape_coords_to_image_coords(rect_id)
+            annotate_zoom_rect = self.annotate_panel.image_canvas.variables.canvas_image_object.full_image_yx_to_canvas_coords(image_rect)
+            self.annotate_panel.image_canvas.zoom_to_selection(annotate_zoom_rect, animate=True)
+        self.draw_context_rect()
+        self.annotate_panel.update_decimation_value()
+        self.context_panel.update_decimation_value()
+
+    def callback_handle_annotate_left_mouse_release(self, event):
+        self.annotate_panel.callback_handle_left_mouse_release(event)
+        self.draw_context_rect()
+        self.context_panel.update_decimation_value()
+        self.annotate_panel.update_decimation_value()
+
+    def callback_select_file(self, event):
+        self.context_panel.context_dashboard.file_selector.event_select_file(event)
+        if self.context_panel.context_dashboard.file_selector.fname:
+            self.variables.image_fname = self.context_panel.context_dashboard.file_selector.fname
+        self.context_panel.image_canvas.init_with_fname(self.variables.image_fname)
+        self.context_panel.update_decimation_value()
+        self.annotate_panel.image_canvas.init_with_fname(self.variables.image_fname)
+        self.annotate_panel.update_decimation_value()
+        self.annotate_panel.image_canvas.set_image_from_numpy_array(np.zeros((self.annotate_panel.image_canvas.canvas_height, self.annotate_panel.image_canvas.canvas_width)))
 
 
 if __name__ == '__main__':
