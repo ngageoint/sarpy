@@ -695,6 +695,8 @@ class SICDWriter(BaseWriter):
                 IDATIM=idatim,
                 IID2=ftitle,
                 ISORCE=isource,
+                IREP='NODISPLY',
+                ICAT='SAR',
                 NROWS=entry[1]-entry[0],
                 NCOLS=entry[3]-entry[2],
                 PVTYPE=pv_type,

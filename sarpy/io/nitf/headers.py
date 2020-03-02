@@ -166,7 +166,8 @@ class _NITFElement(object):
     # for non-primitive element, this should be a dictionary with keys
     # 'args' and 'kwargs' to pass into the constructor. If the default constructor
     # is desired, then put an empty dict.
-    _enums = {}  # allowed values for enum type variables, entries should be set (frozen) type
+    _enums = {}  # allowed values for enum type variables, entries should be set type
+    # NOTE: the string entries of enums should be stripped of the white space characters
     _ranges = {}  # ranges for limited int variables, entries should be (min|None, max|None) tuples.
 
     def __init__(self, **kwargs):
@@ -224,7 +225,11 @@ class _NITFElement(object):
         def validate_enum():
             if attribute not in self._enums or value is None:
                 return
-            if value not in self._enums[attribute]:
+            contained = value in self._enums[attribute]
+            if not contained and isinstance(value, str):
+                contained = value.strip() in self._enums[attribute]
+
+            if not contained:
                 raise ValueError(
                     "Attribute {} must take values in {}. "
                     "Got {}".format(attribute, list(self._enums[attribute]), value))
@@ -707,7 +712,15 @@ class NITFSecurityTags(_NITFElement):
         'DG': '1s', 'DGDT': '8s', 'CLTX': '43s', 'CAPT': '1s',
         'CAUT': '40s', 'CRSN': '1s', 'SRDT': '8s', 'CTLN': '15s'}
     _defaults = {'CLAS': 'U', }
-    _enums = {'CLAS': {'U', 'C', 'S', 'T'}}  # TODO: is that it?
+    _enums = {
+        'CLAS': {'U', 'R', 'C', 'S', 'T'},
+        'DCTP': {'', 'DD', 'DE', 'GD', 'GE', 'O', 'X'},
+        'DCXM': {
+            '', 'X1', 'X2', 'X3', 'X4', 'X5', 'X6', 'X7', 'X8',
+            'X251', 'X252', 'X253', 'X254', 'X255', 'X256', 'X257', 'X258'},
+        'DG': {'', 'S', 'C', 'R'},
+        'CATP': {'', 'O', 'D', 'M'},
+        'CRSN': {'', 'A', 'B', 'C', 'D', 'E', 'F', 'G'}}
 
 
 ######
@@ -720,6 +733,7 @@ class ImageBand(_NITFElement):
     __slots__ = ('IREPBAND', 'ISUBCAT', 'IFC', 'IMFLT', '_LUTD')
     _formats = {'IREPBAND': '2s', 'ISUBCAT': '6s', 'IFC': '1s', 'IMFLT': '3s'}
     _defaults = {'IFC': 'N'}
+    _enums = {'IFC': {'N'}}
 
     def __init__(self, **kwargs):
         self._LUTD = None
@@ -873,7 +887,20 @@ class ImageSegmentHeader(_NITFElement):
     _enums = {
         'IC': {
             'NC', 'NM', 'C1', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'I1',
-            'M1', 'M3', 'M4', 'M5', 'M6', 'M7', 'M8'}}
+            'M1', 'M3', 'M4', 'M5', 'M6', 'M7', 'M8'},
+        'ENCRYP': {'0', },
+        'PVTYPE': {'INT', 'B', 'SI', 'R', 'C'},
+        'IREP': {
+            'MONO', 'RGB', 'RGB/LUT', 'MULTI', 'NODISPLY', 'NVECTOR',
+            'POLAR', 'VPH', 'YCbCr601'},
+        'ICAT': {
+            'VIS', 'SL', 'TI', 'FL', 'RD', 'EO', 'OP', 'HR', 'HS', 'CP',
+            'BP', 'SAR', 'SARIQ', 'IR', 'MAP', 'MS', 'FP', 'MRI', 'XRAY',
+            'CAT', 'VD', 'PAT', 'LEG', 'DTEM', 'MATR', 'LOCG', 'BARO',
+            'CURRENT', 'DEPTH', 'WIND'},
+        'PJUST': {'L', 'R'},
+        'ICOORDS': {'', 'U', 'G', 'N', 'S', 'D'}
+    }
 
     def __init__(self, **kwargs):
         self._skips = set()
