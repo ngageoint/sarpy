@@ -154,9 +154,10 @@ def _get_bytes(frmt, value, name):
         raise ValueError('Unparseable format {} for field {}'.format(frmt, name))
 
 
-class _NITFElement(object):
+class NITFElement(object):
     """
-    Describes the basic nitf header reading and writing functionality
+    Describes the basic nitf header reading and writing functionality. This is
+    an abstract element, and not meant to be used directly.
     """
 
     __slots__ = ('_skips', )  # the possible attribute collection
@@ -249,7 +250,7 @@ class _NITFElement(object):
                 value = self._get_default(attribute)  # NB: might still be None
             if isinstance(value, bytes):
                 value = typ.from_bytes(value, 0)
-            if not (value is None or isinstance(value, _NITFElement)):
+            if not (value is None or isinstance(value, NITFElement)):
                 raise ValueError('Attribute {} is expected to be of type {}, '
                                  'got {}'.format(attribute, typ, type(value)))
             object.__setattr__(self, attribute, value)
@@ -293,9 +294,9 @@ class _NITFElement(object):
         if val is None:
             return b''
         if attribute in self._types:
-            if not isinstance(val, _NITFElement):
+            if not isinstance(val, NITFElement):
                 raise TypeError(
-                    'Elements in _bytes must be an instance of _NITFElement. '
+                    'Elements in _bytes must be an instance of NITFElement. '
                     'Got type {} for attribute {}'.format(type(val), attribute))
             return val.to_bytes()
         else:
@@ -310,9 +311,9 @@ class _NITFElement(object):
             val = getattr(self, attribute)
             if val is None:
                 return 0
-            if not isinstance(val, _NITFElement):
+            if not isinstance(val, NITFElement):
                 raise TypeError(
-                    'Elements in _bytes must be an instance of _NITFElement. '
+                    'Elements in _bytes must be an instance of NITFElement. '
                     'Got type {} for attribute {}'.format(type(val), attribute))
             return val.get_bytes_length()
         elif attribute in self._formats:
@@ -336,7 +337,7 @@ class _NITFElement(object):
         for attribute in cls.__slots__:
             if attribute in cls._types:
                 typ = cls._types[attribute]
-                if issubclass(typ, _NITFElement):
+                if issubclass(typ, NITFElement):
                     min_length += typ.minimum_length()
             elif attribute in cls._formats:
                 min_length += int_func(cls._formats[attribute][:-1])
@@ -371,9 +372,9 @@ class _NITFElement(object):
             return start
         if attribute in cls._types:
             typ = cls._types[attribute]
-            if not issubclass(typ, _NITFElement):
+            if not issubclass(typ, NITFElement):
                 raise TypeError(
-                    'Class {}, attribute {} must be a type which is a subclass of _NITFElement. '
+                    'Class {}, attribute {} must be a type which is a subclass of NITFElement. '
                     'Got {}'.format(cls.__name__, attribute, typ))
             val = typ.from_bytes(value, start)
             fields[attribute] = val
@@ -448,16 +449,16 @@ class _NITFElement(object):
         return b''.join(items)
 
 
-class _NITFLoop(_NITFElement):
+class NITFLoop(NITFElement):
     __slots__ = ('_values', )
-    _child_class = None  # must be a subclass of _NITFElement
+    _child_class = None  # must be a subclass of NITFElement
     _count_size = 0  # type: int
 
     def __init__(self, values=None):
-        if not issubclass(self._child_class, _NITFElement):
-            raise TypeError('_child_class for {} must be a subclass of _NITFElement'.format(self.__class__.__name__))
+        if not issubclass(self._child_class, NITFElement):
+            raise TypeError('_child_class for {} must be a subclass of NITFElement'.format(self.__class__.__name__))
         self._values = tuple()
-        super(_NITFLoop, self).__init__(values=values)
+        super(NITFLoop, self).__init__(values=values)
 
     @property
     def values(self):  # type: () -> Tuple[_child_class, ...]
@@ -498,8 +499,8 @@ class _NITFLoop(_NITFElement):
 
     @classmethod
     def from_bytes(cls, value, start):
-        if not issubclass(cls._child_class, _NITFElement):
-            raise TypeError('_child_class for {} must be a subclass of _NITFElement'.format(cls.__name__))
+        if not issubclass(cls._child_class, NITFElement):
+            raise TypeError('_child_class for {} must be a subclass of NITFElement'.format(cls.__name__))
 
         count, loc = cls._parse_count(value, start)
         if count == 0:
@@ -520,7 +521,7 @@ class _NITFLoop(_NITFElement):
         return self._counts_bytes() + b''.join(entry.to_bytes() for entry in self._values)
 
 
-class Unstructured(_NITFElement):
+class Unstructured(NITFElement):
     """
     A possible NITF element pattern which is largely unparsed -
     just a bytes array of a given length
@@ -539,21 +540,37 @@ class Unstructured(_NITFElement):
         super(Unstructured, self).__init__(**kwargs)
 
     @property
-    def data(self):  # type: () -> Union[None, bytes, _NITFElement]
+    def data(self):  # type: () -> Union[None, bytes, NITFElement]
         return self._data
 
     @data.setter
     def data(self, value):
         if value is None:
             self._data = None
-        if not isinstance(value, (str, bytes, _NITFElement)):
+        if not isinstance(value, (bytes, NITFElement)):
             raise TypeError(
-                'data requires bytes, str, or _NITFElement type. '
+                'data requires bytes or NITFElement type. '
                 'Got type {}'.format(type(value)))
         siz_lim = 10**self._size_len - 1
-        if len(value) > siz_lim:
+        if isinstance(value, bytes):
+            len_cond = (len(value) > siz_lim)
+        else:
+            len_cond = value.get_bytes_length() > siz_lim
+        if len_cond:
             raise ValueError('The provided data is longer than {}'.format(siz_lim))
         self._data = value
+        self._populate_data()
+
+    def _populate_data(self):
+        """
+        Populate the _data attribute from bytes to some other appropriate object.
+
+        Returns
+        -------
+        None
+        """
+
+        pass
 
     @classmethod
     def minimum_length(cls):
@@ -565,7 +582,7 @@ class Unstructured(_NITFElement):
             data = self.data
             if data is None:
                 return b'0'*self._size_len
-            if isinstance(data, _NITFElement):
+            if isinstance(data, NITFElement):
                 data = data.to_bytes()
             if isinstance(data, bytes):
                 return siz_frm.format(len(data)).encode('utf-8') + data
@@ -578,7 +595,7 @@ class Unstructured(_NITFElement):
             data = self.data
             if data is None:
                 return self._size_len
-            elif isinstance(data, _NITFElement):
+            elif isinstance(data, NITFElement):
                 return self._size_len + data.get_bytes_length()
             else:
                 return self._size_len + len(data)
@@ -594,7 +611,7 @@ class Unstructured(_NITFElement):
         return super(Unstructured, cls)._parse_attribute(fields, skips, attribute, value, start)
 
 
-class _ItemArrayHeaders(_NITFElement):
+class _ItemArrayHeaders(NITFElement):
     """
     Item array in the NITF header (i.e. Image Segment, Text Segment).
     This is not really meant to be used directly.
@@ -674,29 +691,10 @@ class _ItemArrayHeaders(_NITFElement):
         return out.encode()
 
 
-class UserHeaderType(Unstructured):
-    _size_len = 5
-    _ofl_len = 3
-
-    @property
-    def OFL(self):
-        if self._data is None:
-            return None
-        elif isinstance(self._data, bytes):
-            if len(self._data) < self._ofl_len:
-                raise ValueError(
-                    'data has length {}, which is shorter than ofl_len {}'.format(len(self._data), self._ofl_len))
-            return int_func(self._data[:self._ofl_len])
-        elif hasattr(self._data, 'OFL'):
-            return self._data.OFL
-        else:
-            raise AttributeError('The data is of type {}'.format(type(self._data)))
-
-
 #######
 # Security tags - this is used in a variety of places
 
-class NITFSecurityTags(_NITFElement):
+class NITFSecurityTags(NITFElement):
     """
     The NITF security tags - described in SICD standard 2014-09-30, Volume II, page 20
     """
@@ -726,7 +724,7 @@ class NITFSecurityTags(_NITFElement):
 ######
 # TRE
 
-class TRE(_NITFElement):
+class TRE(NITFElement):
     class TREData(Unstructured):
         _size_len = 5
 
@@ -776,7 +774,7 @@ class TRE(_NITFElement):
         pass
 
 
-class TREList(_NITFElement):
+class TREList(NITFElement):
     """
     A list of TREs. This is meant to be used indirectly through one of the header
     type objects, which controls the parsing appropriately.
@@ -845,10 +843,87 @@ class TREList(_NITFElement):
         return self._tres[item]
 
 
+class UserHeaderType(Unstructured):
+    __slots__ = ('_ofl', '_data')
+    _size_len = 5
+    _ofl_len = 3
+
+    def __init__(self, OFL=None, data=None):
+        self._ofl = None
+        self._data = None
+        self.OFL = OFL
+        super(UserHeaderType, self).__init__(data=data)
+
+    @property
+    def OFL(self):  # type: () -> int
+        return self._ofl
+
+    @OFL.setter
+    def OFL(self, value):
+        if value is None:
+            self._ofl = 0
+            return
+
+        value = int_func(value)
+        if not (0 <= value <= 999):
+            raise ValueError('ofl requires an integer value in the range 0-999.')
+        self._ofl = value
+
+    def _populate_data(self):
+        if isinstance(self._data, bytes):
+            data = TREList.from_bytes(self._data, 0)
+            self._data = data
+
+    @classmethod
+    def minimum_length(cls):
+        return cls._size_len
+
+    def _get_bytes_attribute(self, attribute):
+        if attribute == '_data':
+            siz_frm = '{0:0' + str(self._size_len) + '}'
+            ofl_frm = '{0:0' + str(self._ofl_len) + '}'
+            data = self.data
+            if data is None:
+                return b'0'*self._size_len
+            if isinstance(data, NITFElement):
+                data = data.to_bytes()
+            if isinstance(data, bytes):
+                return siz_frm.format(len(data)+self._ofl_len).encode('utf-8') + ofl_frm.format(self._ofl) + data
+            else:
+                raise TypeError('Got unexpected data type {}'.format(type(data)))
+        return super(Unstructured, self)._get_bytes_attribute(attribute)
+
+    def _get_length_attribute(self, attribute):
+        if attribute == '_data':
+            data = self.data
+            if data is None:
+                return self._size_len
+            elif isinstance(data, NITFElement):
+                return self._size_len + self._ofl_len + data.get_bytes_length()
+            else:
+                return self._size_len + self._ofl_len + len(data)
+        return super(UserHeaderType, self)._get_length_attribute(attribute)
+
+    @classmethod
+    def _parse_attribute(cls, fields, skips, attribute, value, start):
+        if attribute == '_data':
+            length = int_func(value[start:start + cls._size_len])
+            start += cls._size_len
+            if length > 0:
+                ofl = int_func(value[start:start+cls._ofl_len])
+                fields['OFL'] = ofl
+                fields['data'] = value[start+cls._ofl_len:start + length]
+            else:
+                fields['OFL'] = 0
+                fields['data'] = None
+            return start + length
+        return super(UserHeaderType, cls)._parse_attribute(fields, skips, attribute, value, start)
+
+
 ######
 # Partially general image segment header
 
-class ImageBand(_NITFElement):
+class ImageBand(NITFElement):
     """
     Single image band, part of the image bands collection
     """
@@ -941,7 +1016,7 @@ class ImageBand(_NITFElement):
         return super(ImageBand, cls)._parse_attribute(fields, skips, attribute, value, start)
 
 
-class ImageBands(_NITFLoop):
+class ImageBands(NITFLoop):
     _child_class = ImageBand
     _count_size = 1
 
@@ -964,17 +1039,17 @@ class ImageBands(_NITFLoop):
             return '0{0:05d}'.format(siz).encode()
 
 
-class ImageComment(_NITFElement):
+class ImageComment(NITFElement):
     __slots__ = ('comment',)
     _formats = {'comment': '80s'}
 
 
-class ImageComments(_NITFLoop):
+class ImageComments(NITFLoop):
     _child_class = ImageComment
     _count_size = 1
 
 
-class ImageSegmentHeader(_NITFElement):
+class ImageSegmentHeader(NITFElement):
     """
     The Image Segment header - described in SICD standard 2014-09-30, Volume II, page 24
     """
@@ -1062,7 +1137,7 @@ class ImageSegmentHeader(_NITFElement):
         self._Security = value
 
     @property
-    def UserHeader(self):  # type: () -> Union[UserHeaderType, _NITFElement]
+    def UserHeader(self):  # type: () -> Union[UserHeaderType, NITFElement]
         return self._UserHeader
 
     @UserHeader.setter
@@ -1072,7 +1147,7 @@ class ImageSegmentHeader(_NITFElement):
         self._load_user_header_data()
 
     @property
-    def ExtendedHeader(self):  # type: () -> Union[UserHeaderType, _NITFElement]
+    def ExtendedHeader(self):  # type: () -> Union[UserHeaderType, NITFElement]
         return self._ExtendedHeader
 
     @ExtendedHeader.setter
@@ -1131,7 +1206,7 @@ class ImageSegmentHeader(_NITFElement):
 ######
 # Text segment header
 
-class TextSegmentHeader(_NITFElement):
+class TextSegmentHeader(NITFElement):
     """
     This requires an extension for essentially any non-trivial text segment
     """
@@ -1164,7 +1239,7 @@ class TextSegmentHeader(_NITFElement):
         self._Security = value
 
     @property
-    def UserHeader(self):  # type: () -> Union[_NITFElement, UserHeaderType]
+    def UserHeader(self):  # type: () -> Union[NITFElement, UserHeaderType]
         return self._UserHeader
 
     @UserHeader.setter
@@ -1188,7 +1263,7 @@ class TextSegmentHeader(_NITFElement):
 ######
 # Data Extension header
 
-class DataExtensionHeader(_NITFElement):
+class DataExtensionHeader(NITFElement):
     """
     This requires an extension for essentially any non-trivial DES.
     """
@@ -1221,7 +1296,7 @@ class DataExtensionHeader(_NITFElement):
         self._Security = value
 
     @property
-    def UserHeader(self):  # type: () -> Union[SICDHeader, _NITFElement, SICDDESSubheader]
+    def UserHeader(self):  # type: () -> Union[SICDHeader, NITFElement, SICDDESSubheader]
         return self._UserHeader
 
     @UserHeader.setter
@@ -1286,7 +1361,7 @@ class DataExtensionHeader(_NITFElement):
 ######
 # The overall header
 
-class NITFHeader(_NITFElement):
+class NITFHeader(NITFElement):
     """
     The NITF file header - described in SICD standard 2014-09-30, Volume II, page 17
     """
@@ -1403,7 +1478,7 @@ class NITFHeader(_NITFElement):
         self._ReservedExtensions = value
 
     @property
-    def UserHeader(self):  # type: () -> Union[UserHeaderType, _NITFElement]
+    def UserHeader(self):  # type: () -> Union[UserHeaderType, NITFElement]
         return self._UserHeader
 
     @UserHeader.setter
@@ -1412,7 +1487,7 @@ class NITFHeader(_NITFElement):
         self._UserHeader = value
 
     @property
-    def ExtendedHeader(self):  # type: () -> Union[UserHeaderType, _NITFElement]
+    def ExtendedHeader(self):  # type: () -> Union[UserHeaderType, NITFElement]
         return self._ExtendedHeader
 
     @ExtendedHeader.setter
@@ -1511,7 +1586,7 @@ class NITFDetails(object):
 ##############
 # SICD specific elements
 
-class SICDDESSubheader(_NITFElement):
+class SICDDESSubheader(NITFElement):
     """
     The SICD Data Extension header - described in SICD standard 2014-09-30, Volume II, page 29
     """
@@ -1533,7 +1608,3 @@ class SICDDESSubheader(_NITFElement):
         'DESSHSV': _SICD_SPECIFICATION_VERSION,
         'DESSHSD': _SICD_SPECIFICATION_DATE,
         'DESSHTN': _SICD_SPECIFICATION_NAMESPACE}
-
-
-if __name__ == '__main__':
-    print(SICDDESSubheader.minimum_length())
