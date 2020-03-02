@@ -773,10 +773,10 @@ class ImageBand(_NITFElement):
         if attribute == '_LUTD':
             nluts = self.NLUTS
             if nluts == 0:
-                return 13
+                return 1
             else:
                 neluts = self.NELUTS
-                return 18 + nluts * neluts
+                return 6 + nluts * neluts
         else:
             return super(ImageBand, self)._get_length_attribute(attribute)
 
@@ -957,9 +957,6 @@ class ImageSegmentHeader(_NITFElement):
             val = fields['IC']
             if val in ('NC', 'NM'):
                 skips.add('COMRAT')
-
-        if attribute in ['_ImageBands', 'ImageBands']:
-            print('CHECK! = {}'.format(fields[attribute].to_bytes()))
         return loc
 
     def _set_attribute(self, attribute, value):
