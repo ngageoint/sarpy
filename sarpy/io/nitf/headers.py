@@ -8,7 +8,7 @@ See MIL-STD-2500C for specification details.
 import logging
 import sys
 from collections import OrderedDict
-from typing import Union, Tuple
+from typing import Union, Tuple, List
 import struct
 
 import numpy
@@ -724,6 +724,128 @@ class NITFSecurityTags(_NITFElement):
 
 
 ######
+# TRE
+
+class TRE(_NITFElement):
+    class TREData(Unstructured):
+        _size_len = 5
+
+    __slots__ = ('_tag', '_data')
+    _formats = {'_tag': '6s'}
+    _types = {'_data': TREData}
+    _defaults = {'_data': {}}
+
+    def __init__(self, **kwargs):
+        self._tag = None
+        self._data = None
+        super(TRE, self).__init__(**kwargs)
+        if self._tag is None:
+            raise ValueError('tag must be defined for TRE.')
+
+    @property
+    def tag(self):
+        return self._tag
+
+    @tag.setter
+    def tag(self, value):
+        if self._tag is None:
+            self._tag = value
+        elif self._tag.strip() == value.strip():
+            return
+        else:
+            raise ValueError('tag is immutable')
+
+    @property
+    def data(self):
+        return self._data
+
+    @data.setter
+    def data(self, value):
+        self._data = value
+        self._load_data_definition()
+
+    def _load_data_definition(self):
+        """
+        The defines interpreting data versus known extensions.
+
+        Returns
+        -------
+        None
+        """
+
+        pass
+
+
+class TREList(_NITFElement):
+    """
+    A list of TREs. This is meant to be used indirectly through one of the header
+    type objects, which controls the parsing appropriately.
+    """
+
+    __slots__ = ('_tres', )
+
+    def __init__(self, tres=None):
+        self._tres = []
+        super(TREList, self).__init__(tres=tres)
+
+    @property
+    def tres(self):  # type: () -> List[TRE]
+        return self._tres
+
+    @tres.setter
+    def tres(self, value):
+        if value is None:
+            self._tres = []
+            return
+
+        if not isinstance(value, (list, tuple)):
+            raise TypeError('tres must be a list or tuple')
+
+        for i, entry in enumerate(value):
+            if not isinstance(entry, TRE):
+                raise TypeError(
+                    'Each entry of tres must be of type TRE. '
+                    'Entry {} is type {}'.format(i, type(entry)))
+        self._tres = value
+
+    def _get_bytes_attribute(self, attribute):
+        if attribute == '_tres':
+            if len(self._tres) == 0:
+                return b''
+            return b''.join(entry.to_bytes() for entry in self._tres)
+        return super(TREList, self)._get_bytes_attribute(attribute)
+
+    def _get_length_attribute(self, attribute):
+        if attribute == '_tres':
+            if len(self._tres) == 0:
+                return 0
+            return sum(entry.get_bytes_length() for entry in self._tres)
+        return super(TREList, self)._get_length_attribute(attribute)
+
+    @classmethod
+    def _parse_attribute(cls, fields, skips, attribute, value, start):
+        if attribute == '_tres':
+            if len(value) == start:
+                fields['tres'] = []
+                return start
+            tres = []
+            loc = start
+            while loc < len(value):
+                tre = TRE.from_bytes(value, loc)
+                loc += tre.get_bytes_length()
+                tres.append(tre)
+            fields['tres'] = tres
+            return len(value)
+        return super(TREList, cls)._parse_attribute(fields, skips, attribute, value, start)
+
+    def __len__(self):
+        return len(self._tres)
+
+    def __getitem__(self, item):
+        return self._tres[item]
+
+
+######
 # Partially general image segment header
 
 class ImageBand(_NITFElement):
@@ -738,6 +860,10 @@ class ImageBand(_NITFElement):
     def __init__(self, **kwargs):
         self._LUTD = None
         super(ImageBand, self).__init__(**kwargs)
+
+    @classmethod
+    def minimum_length(cls):
+        return 13
 
     @property
     def LUTD(self):
@@ -1001,59 +1127,9 @@ class ImageSegmentHeader(_NITFElement):
         # COMRAT may not be there
         return super(ImageSegmentHeader, cls).minimum_length() - 4
 
+
 ######
 # Text segment header
-
-
-class TRE(_NITFElement):
-    class TREData(Unstructured):
-        _size_len = 5
-
-    __slots__ = ('_tag', '_data')
-    _formats = {'_tag': '6s'}
-    _types = {'_data': TREData}
-    _defaults = {'_data': {}}
-
-    def __init__(self, **kwargs):
-        self._tag = None
-        self._data = None
-        super(TRE, self).__init__(**kwargs)
-        if self._tag is None:
-            raise ValueError('tag must be defined for TRE.')
-
-    @property
-    def tag(self):
-        return self._tag
-
-    @tag.setter
-    def tag(self, value):
-        if self._tag is None:
-            self._tag = value
-        elif self._tag.strip() == value.strip():
-            return
-        else:
-            raise ValueError('tag is immutable')
-
-    @property
-    def data(self):
-        return self._data
-
-    @data.setter
-    def data(self, value):
-        self._data = value
-        self._load_data_definition()
-
-    def _load_data_definition(self):
-        """
-        The defines interpreting data versus known extensions.
-
-        Returns
-        -------
-        None
-        """
-
-        pass
-
 
 class TextSegmentHeader(_NITFElement):
     """
