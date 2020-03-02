@@ -17,7 +17,8 @@ from .sicd_elements.SICD import SICDType
 from .sicd_elements.ImageData import ImageDataType, FullImageType
 from .base import BaseReader
 from .bip import BIPChipper, BIPWriter
-from .sicd import complex_to_amp_phase, complex_to_int, amp_phase_to_complex, _SPECIFICATION_NAMESPACE
+from .sicd import complex_to_amp_phase, complex_to_int, amp_phase_to_complex
+from ..nitf.headers import _SICD_SPECIFICATION_NAMESPACE
 
 __classification__ = "UNCLASSIFIED"
 __author__ = ("Thomas McCullough", "Wade Schwartzkopf")
@@ -354,7 +355,7 @@ class SIOWriter(BIPWriter):
         # construct the user data - must be {str : str}
         if user_data is None:
             user_data = {}
-        user_data['SICDMETA'] = sicd_meta.to_xml_string(urn=_SPECIFICATION_NAMESPACE, tag='SICD')
+        user_data['SICDMETA'] = sicd_meta.to_xml_string(urn=_SICD_SPECIFICATION_NAMESPACE, tag='SICD')
         data_offset = 20
         with open(file_name, 'wb') as fi:
             fi.write(struct.pack('{}5I'.format(endian), *header))

@@ -1,6 +1,8 @@
 # This details the important differences introduced in 0.1
 # NB: bump the version number in __about__.py to reflect the below.
 
+* .39 - Bumped to SICD version 1.2.1 and included schemas
+* .38 - Established TRE framework and incorporated unparsed TRE objects.
 * .37 - Improved some nitf header element handling for generality, in preparation for SIDD
 * .36 - Enabled some handling of namespace in the serializable classes, prep for SIDD
 * .35 - Introduced some WGS-84 coordinate order options

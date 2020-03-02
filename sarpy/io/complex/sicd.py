@@ -9,13 +9,12 @@ import logging
 from xml.etree import ElementTree
 from typing import Union, Tuple
 
-
 import numpy
 
 # noinspection PyProtectedMember
-from ..nitf.headers import NITFDetails, DataExtensionHeader, _HeaderScraper, \
-    NITFHeader, NITFSecurityTags, ImageSegmentHeader, ImageBands, ImageBand, \
-    _ItemArrayHeaders
+from ..nitf.headers import NITFDetails, DataExtensionHeader, NITFHeader, \
+    NITFSecurityTags, ImageSegmentHeader, ImageBands, ImageBand, \
+    SICDDESSubheader, _SICD_SPECIFICATION_NAMESPACE
 from .base import BaseChipper, BaseReader, BaseWriter
 from .bip import BIPChipper, BIPWriter
 from .sicd_elements.SICD import SICDType
@@ -37,130 +36,6 @@ else:
 
 __classification__ = "UNCLASSIFIED"
 __author__ = ("Thomas McCullough", "Wade Schwartzkopf")
-
-
-########
-# NITF header details specific to SICD files
-
-_SPECIFICATION_IDENTIFIER = 'SICD Volume 1 Design & Implementation Description Document'
-_SPECIFICATION_VERSION = '1.1'
-_SPECIFICATION_DATE = '2014-09-30T00:00:00Z'
-_SPECIFICATION_NAMESPACE = 'urn:SICD:1.1.0'  # must be of the form 'urn:SICD:<version>'
-
-
-class SICDDESSubheader(_HeaderScraper):
-    """
-    The SICD Data Extension header - described in SICD standard 2014-09-30, Volume II, page 29
-    """
-
-    __slots__ = (
-        'DESCRC', 'DESSHFT', 'DESSHDT',
-        'DESSHRP', 'DESSHSI', 'DESSHSV', 'DESSHSD',
-        'DESSHTN', 'DESSHLPG', 'DESSHLPT', 'DESSHLI',
-        'DESSHLIN', 'DESSHABS', )
-    _formats = {
-        'DESCRC': '5d', 'DESSHFT': '8s', 'DESSHDT': '20s',
-        'DESSHRP': '40s', 'DESSHSI': '60s', 'DESSHSV': '10s',
-        'DESSHSD': '20s', 'DESSHTN': '120s', 'DESSHLPG': '125s',
-        'DESSHLPT': '25s', 'DESSHLI': '20s', 'DESSHLIN': '120s',
-        'DESSHABS': '200s', }
-    _defaults = {
-        'DESCRC': 99999, 'DESSHFT': 'XML',
-        'DESSHRP': '\x20', 'DESSHSI': _SPECIFICATION_IDENTIFIER,
-        'DESSHSV': _SPECIFICATION_VERSION, 'DESSHSD': _SPECIFICATION_DATE,
-        'DESSHTN': _SPECIFICATION_NAMESPACE,
-        'DESSHLPT': '\x20', 'DESSHLI': '\x20', 'DESSHLIN': '\x20',
-        'DESSHABS': '\x20', }
-
-    @classmethod
-    def minimum_length(cls):
-        return 773
-
-    def __len__(self):
-        return 773
-
-
-class SICDDataExtensionHeader(DataExtensionHeader):
-    """
-    The data extension header described in SICD standard 2014-09-30, Volume II, page 29.
-    """
-
-    __slots__ = (
-        'DE', 'DESID', 'DESVER', '_Security', 'DESSHL', '_SICDHeader', )
-    _defaults = {
-        'DE': 'DE', 'DESID': 'XML_DATA_CONTENT', 'DESVER': 1,
-        'DESSHL': 773, }
-    _types = {
-        '_Security': NITFSecurityTags,
-        '_SICDHeader': SICDDESSubheader,
-    }
-
-    def __init__(self, **kwargs):
-        super(SICDDataExtensionHeader, self).__init__(**kwargs)
-
-    @classmethod
-    def minimum_length(cls):
-        return 200
-
-    def __len__(self):
-        length = 200
-        if self._SICDHeader is not None:
-            length += 773
-        return length
-
-    @property
-    def SICDHeader(self):  # type: () -> Union[SICDDESSubheader, None]
-        """SICDDESSubheader|None: the SICD specific DES subheader object"""
-        return self._SICDHeader
-
-    @SICDHeader.setter
-    def SICDHeader(self, value):
-        if value is None:
-            if self.DESSHL == 773:
-                # noinspection PyAttributeOutsideInit
-                self._SICDHeader = SICDDESSubheader()
-            else:
-                # noinspection PyAttributeOutsideInit
-                self.DESSHL = 0
-                # short circuit the setter
-                object.__setattr__(self, '_SICDHeader', None)
-        elif isinstance(value, SICDDESSubheader):
-            # noinspection PyAttributeOutsideInit
-            self.DESSHL = 773
-            # noinspection PyAttributeOutsideInit
-            self._SICDHeader = value
-        else:
-            raise TypeError(
-                'The SICDHeader attribute is required to be None or of type '
-                'SICDDESSubheader. Got {}'.format(type(value)))
-
-    @classmethod
-    def from_bytes(cls, value, start, **kwargs):
-        if value is None:
-            return cls(**kwargs)
-
-        value = cls._validate(value, start)
-        fields, loc = cls._parse_attributes(value, start)
-
-        if int_func(fields['DESSHL']) != 773:
-            fields['DESSHL'] = 0
-            fields['SICDHeader'] = None
-
-        return cls(**fields)
-
-    def to_bytes(self, other_string=None):
-        if self.DESSHL == 773 and self.SICDHeader is None:
-            self.SICDHeader = SICDDESSubheader()
-        elif self.DESSHL != 773:
-            # noinspection PyAttributeOutsideInit
-            self.DESSHL = 0
-            self.SICDHeader = None
-
-        if self.SICDHeader is None:
-            other_string = None
-        else:
-            other_string = self.SICDHeader.to_bytes()
-        return super(SICDDataExtensionHeader, self).to_bytes(other_string=other_string)
 
 
 ########
@@ -199,7 +74,8 @@ class SICDDetails(NITFDetails):
     SICD are stored in NITF 2.1 files.
     """
     __slots__ = (
-        '_des_header', '_img_headers', '_is_sicd', '_sicd_meta', 'img_segment_rows', 'img_segment_columns')
+        '_des_index', '_des_header', '_img_headers',
+        '_is_sicd', '_sicd_meta', 'img_segment_rows', 'img_segment_columns')
 
     def __init__(self, file_name):
         """
@@ -210,6 +86,7 @@ class SICDDetails(NITFDetails):
             file name for a NITF 2.1 file containing a SICD
         """
 
+        self._des_index = None
         self._des_header = None
         self._img_headers = None
         self._is_sicd = False
@@ -278,18 +155,22 @@ class SICDDetails(NITFDetails):
         if self.des_subheader_offsets is None:
             return
 
-        des_header = None
         data_extension = None
         with open(self._file_name, 'rb') as fi:
             for i in range(self.des_subheader_offsets.size):
                 fi.seek(int_func(self.des_subheader_offsets[0]))
                 subhead_bytes = fi.read(self._nitf_header.DataExtensions.subhead_sizes[0])
                 if subhead_bytes.startswith(b'DEXML_DATA_CONTENT'):
-                    des_header = SICDDataExtensionHeader.from_bytes(subhead_bytes, start=0)
+                    des_header = DataExtensionHeader.from_bytes(subhead_bytes, start=0)
                     fi.seek(int_func(self.des_segment_offsets[0]))
                     data_extension = fi.read(int_func(self._nitf_header.DataExtensions.item_sizes[0])).decode('utf-8')
-        if des_header is None or not data_extension.startswith('<SICD'):
-            # TODO: is this generally safe?
+                    if data_extension.startswith('<SICD'):
+                        # TODO: is this generally safe? Is anyone putting the xml header?
+                        self._des_index = i
+                        self._des_header = des_header
+                        self._is_sicd = True
+
+        if not self._is_sicd:
             return
 
         root_node = ElementTree.fromstring(data_extension)
@@ -300,13 +181,28 @@ class SICDDetails(NITFDetails):
         elif '' in xml_ns:
             xml_ns['default'] = xml_ns['']
 
-        self._is_sicd = True
-        self._des_header = des_header
-
         self._sicd_meta = SICDType.from_node(root_node, xml_ns)
         self._sicd_meta.derive()
-
         # TODO: account for the reference frequency offset situation
+
+    def is_des_well_formed(self):
+        """
+        Is the data extension subheader well-formed?
+
+        Returns
+        -------
+        bool
+        """
+
+        if not self._is_sicd or self._des_header is None or \
+                not isinstance(self._des_header, DataExtensionHeader):
+            return True
+
+        sicd_des = self._des_header.UserHeader
+        if not isinstance(sicd_des, SICDDESSubheader):
+            return False
+        # noinspection PyProtectedMember
+        return sicd_des.DESSHSI == SICDDESSubheader._defaults['DESSHSI']
 
 
 #######
@@ -589,7 +485,7 @@ def complex_to_int(data):
 class SICDWriter(BaseWriter):
     """
     Writer object for SICD file - that is, a NITF file containing SICD data
-    following standard 1.1.0
+    following standard 1.2.1
     """
 
     __slots__ = (
@@ -667,9 +563,9 @@ class SICDWriter(BaseWriter):
         return self._image_segment_headers
 
     @property
-    def data_extension_header(self):  # type: () -> SICDDataExtensionHeader
+    def data_extension_header(self):  # type: () -> DataExtensionHeader
         """
-        SICDDataExtensionHeader: the NITF data extension header. The `SecurityTags`
+        DataExtensionHeader: the NITF data extension header. The `SecurityTags`
         property is populated using `security_tags` **by reference** upon construction.
 
         .. Note:: required edits should be made before adding any data via :func:`write_chip`.
@@ -799,6 +695,8 @@ class SICDWriter(BaseWriter):
                 IDATIM=idatim,
                 IID2=ftitle,
                 ISORCE=isource,
+                IREP='NODISPLY',
+                ICAT='SAR',
                 NROWS=entry[1]-entry[0],
                 NCOLS=entry[3]-entry[2],
                 PVTYPE=pv_type,
@@ -810,12 +708,12 @@ class SICDWriter(BaseWriter):
                 IDLVL=i+1,
                 IALVL=i,
                 ILOC='{0:5d}{1:5d}'.format(entry[0], entry[2]),
-                ImageBands=ImageBands(bands=bands),
+                ImageBands=ImageBands(values=bands),
                 Security=self._security_tags))
         return tuple(im_seg_heads)
 
     def _create_data_extension_header(self):
-        # type: () -> SICDDataExtensionHeader
+        # type: () -> DataExtensionHeader
         desshdt = str(self._sicd_meta.ImageCreation.DateTime.astype('datetime64[s]'))
         if desshdt[-1] != 'Z':
             desshdt += 'Z'
@@ -828,8 +726,8 @@ class SICDWriter(BaseWriter):
                 temp.append('{0:+2.8f}{1:+3.8f}'.format(entry[0], entry[1]))
             temp.append(temp[0])
             desshlpg = ''.join(temp)
-        return SICDDataExtensionHeader(
-            Security=self._security_tags, SICDHeader=SICDDESSubheader(DESSHDT=desshdt, DESSHLPG=desshlpg))
+        return DataExtensionHeader(
+            Security=self._security_tags, UserHeader=SICDDESSubheader(DESSHDT=desshdt, DESSHLPG=desshlpg))
 
     def _create_nitf_header(self):
         # type: () -> NITFHeader
@@ -850,14 +748,14 @@ class SICDWriter(BaseWriter):
             ftitle = 'SICD: Unknown'
         # get image segment details - the size of the headers will be redefined when locking down details
         im_sizes = numpy.copy(self._image_segment_limits[:, 4])
-        im_segs = _ItemArrayHeaders(
-            subhead_len=6, subhead_sizes=numpy.zeros(im_sizes.shape, dtype=numpy.int64),
-            item_len=10, item_sizes=im_sizes)
+        im_segs = NITFHeader.ImageSegmentsType(
+            subhead_sizes=numpy.zeros(im_sizes.shape, dtype=numpy.int64),
+            item_sizes=im_sizes)
         # get data extension details - the size of the headers and items
         #   will be redefined when locking down details
-        des = _ItemArrayHeaders(
-            subhead_len=4, subhead_sizes=numpy.array([973, ], dtype=numpy.int64),
-            item_len=9, item_sizes=numpy.array([0, ], dtype=numpy.int64))
+        des = NITFHeader.DataExtensionsType(
+            subhead_sizes=numpy.array([973, ], dtype=numpy.int64),
+            item_sizes=numpy.array([0, ], dtype=numpy.int64))
         return NITFHeader(CLEVEL=clevel, OSTAID=ostaid, FDT=fdt, FTITLE=ftitle,
                           FL=0, ImageSegments=im_segs, DataExtensions=des)
 
@@ -889,7 +787,7 @@ class SICDWriter(BaseWriter):
         # get des header, xml and populate nitf_header.DataExtensions information
         des_info = {
             'header': self._data_extension_header.to_bytes(),
-            'xml': self._sicd_meta.to_xml_bytes(urn=_SPECIFICATION_NAMESPACE, tag='SICD')}
+            'xml': self._sicd_meta.to_xml_bytes(urn=_SICD_SPECIFICATION_NAMESPACE, tag='SICD')}
         self._nitf_header.DataExtensions.subhead_sizes[0] = len(des_info['header'])
         self._nitf_header.DataExtensions.item_sizes[0] = len(des_info['xml'])  # size should be no issue
         # there would be no satisfactory resolution in the case of an oversized header - we should raise an exception
@@ -920,7 +818,7 @@ class SICDWriter(BaseWriter):
         self._final_header_info['image_headers'] = tuple(im_segment_headers)
 
         # calculate image offsets and file length
-        header_length = len(self._nitf_header)
+        header_length = self._nitf_header.get_bytes_length()
         cumulative_size = header_length
         header_offsets = numpy.zeros((len(self._image_segment_headers), ), dtype=numpy.int64)
         image_offsets = numpy.zeros((len(self._image_segment_headers), ), dtype=numpy.int64)
