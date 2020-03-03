@@ -5,6 +5,11 @@ from sarpy_gui_apps.apps.canvas_demo.canvas_demo import CanvasDemo
 from tkinter_gui_builder.panel_templates.widget_panel.widget_panel import AbstractWidgetPanel
 from tkinter_gui_builder.panel_templates.image_canvas.tool_constants import ToolConstants
 import numpy as np
+from sarpy.annotation.annotate import FileAnnotationCollection
+from sarpy.annotation.schema_processing import LabelSchema
+from sarpy.annotation.annotate import Annotation
+from sarpy.geometry.geometry_elements import Polygon
+from sarpy.geometry.geometry_elements import LinearRing
 import os
 
 
@@ -12,6 +17,18 @@ class AppVariables:
     def __init__(self):
         self.image_fname = None     # type: str
         self.shapes_in_selector = []
+
+        # set up label schema stuff
+        self.label_schema = LabelSchema("0.0",
+                                        {"ice 1": "ice",
+                                         "ice 2": "ice",
+                                         "water": "water",
+                                         "land": "land"},
+                                        # subtypes={"ice": ["ice 1", "ice 2"]},
+                                        confidence_values=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+                                        permitted_geometries=["polygon"]
+                                        )
+        self.file_annotation_collection = FileAnnotationCollection(self.label_schema)      # type: FileAnnotationCollection
 
 
 class AnnotationTool(AbstractWidgetPanel):
@@ -116,6 +133,15 @@ class AnnotationTool(AbstractWidgetPanel):
             self.variables.shapes_in_selector.append(current_shape)
             self.variables.shapes_in_selector = sorted(list(set(self.variables.shapes_in_selector)))
             self.annotate_panel.annotate_dashboard.controls.select_existing_shape.update_combobox_values(self.variables.shapes_in_selector)
+
+    def callback_annotate_handle_right_mouse_click(self, event):
+        self.annotate_panel.image_canvas.callback_handle_right_mouse_click(event)
+        if self.annotate_panel.image_canvas.variables.current_tool == ToolConstants.DRAW_POLYGON_BY_CLICKING:
+            shape_properties = self.annotate_panel.image_canvas.variables.shape_properties[self.annotate_panel.image_canvas.variables.current_shape_id]
+            linear_ring = LinearRing()
+            polygon = Polygon()
+            annotation = Annotation()
+            self.variables.file_annotation_collection.an
 
     def callback_handle_shape_selector(self, event):
         current_shape_id = int(self.annotate_panel.annotate_dashboard.controls.select_existing_shape.get())
