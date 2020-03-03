@@ -189,9 +189,15 @@ def _parse_complex(value, name, instance):
     if isinstance(value, complex):
         return value
     elif isinstance(value, ElementTree.Element):
+        xml_ns = getattr(instance, '_xml_ns', None)
         # from XML deserialization
-        rnode = value.findall('Real')
-        inode = value.findall('Imag')
+        if xml_ns is None:
+            rnode = value.findall('Real')
+            inode = value.findall('Imag')
+        else:
+            rnode = value.findall('default:Real', xml_ns)
+            inode = value.findall('default:Imag', xml_ns)
+
         if len(rnode) != 1:
             raise ValueError(
                 'There must be exactly one Real component of a complex type node '
@@ -252,7 +258,8 @@ def _parse_serializable(value, name, instance, the_type):
     elif isinstance(value, dict):
         return the_type.from_dict(value)
     elif isinstance(value, ElementTree.Element):
-        return the_type.from_node(value)
+        xml_ns = getattr(instance, '_xml_ns', None)
+        return the_type.from_node(value, xml_ns)
     elif isinstance(value, (numpy.ndarray, list, tuple)):
         if issubclass(the_type, Arrayable):
             return the_type.from_array(value)
@@ -292,10 +299,14 @@ def _parse_serializable_array(value, name, instance, child_type, child_tag):
                     name, instance.__class__.__name__, type(value[0])))
         return value
     elif isinstance(value, ElementTree.Element):
+        xml_ns = getattr(instance, '_xml_ns', None)
+
         # this is the parent node from XML deserialization
         size = int_func(value.attrib.get('size', -1))  # NB: Corner Point arrays don't have
         # extract child nodes at top level
-        child_nodes = value.findall(child_tag)
+        child_nodes = value.findall(child_tag, xml_ns) if xml_ns is None or ':' in child_tag \
+            else value.findall('default:{}'.format(child_tag), xml_ns)
+
         if size == -1:  # fill in, if it's missing
             size = len(child_nodes)
         if len(child_nodes) != size:
@@ -305,7 +316,7 @@ def _parse_serializable_array(value, name, instance, child_type, child_tag):
                     name, instance.__class__.__name__, size, len(child_nodes), child_tag))
         new_value = numpy.empty((size,), dtype=numpy.object)
         for i, entry in enumerate(child_nodes):
-            new_value[i] = child_type.from_node(entry)
+            new_value[i] = child_type.from_node(entry, xml_ns)
         return new_value
     elif isinstance(value, (list, tuple)):
         # this would arrive from users or json deserialization
@@ -341,9 +352,11 @@ def _parse_serializable_list(value, name, instance, child_type):
     if isinstance(value, child_type):
         # this is the child element
         return [value, ]
-    elif isinstance(value, ElementTree.Element):
+
+    xml_ns = getattr(instance, '_xml_ns', None)
+    if isinstance(value, ElementTree.Element):
         # this is the child
-        return [child_type.from_node(value), ]
+        return [child_type.from_node(value, xml_ns), ]
     elif isinstance(value, list) or isinstance(value[0], child_type):
         if len(value) == 0:
             return value
@@ -351,7 +364,7 @@ def _parse_serializable_list(value, name, instance, child_type):
             # NB: charming errors are possible if something stupid has been done.
             return [child_type.from_dict(node) for node in value]
         elif isinstance(value[0], ElementTree.Element):
-            return [child_type.from_node(node) for node in value]
+            return [child_type.from_node(node, xml_ns) for node in value]
         else:
             raise TypeError(
                 'Field {} of list type functionality belonging to class {} got a '
@@ -898,8 +911,10 @@ class _FloatArrayDescriptor(_BasicDescriptor):
                 raise ValueError('Only one-dimensional ndarrays of dtype float64 are supported here.')
             set_value(value)
         elif isinstance(value, ElementTree.Element):
+            xml_ns = getattr(instance, '_xml_ns', None)
             size = int_func(value.attrib['size'])
-            child_nodes = value.findall(self.child_tag)
+            child_nodes = value.findall(self.child_tag, xml_ns) if xml_ns is None or ":" in self.child_tag \
+                else value.findall('default:{}'.format(self.child_tag), xml_ns)
             if len(child_nodes) != size:
                 raise ValueError(
                     'Field {} of double array type functionality belonging to class {} got a ElementTree element '
@@ -979,9 +994,9 @@ class _SerializableDescriptor(_BasicDescriptor):
             self.data[instance] = _parse_serializable(value, self.name, instance, self.the_type)
         except Exception as e:
             logging.error(
-                'Failed converting {} of type {} to type {} for field {} of '
+                'Failed converting {} of type {} to Serializable type {} for field {} of '
                 'class {} with exception {} - {}. Setting value to None, '
-                'which may be against the standard'.format(
+                'which may be against the standard.'.format(
                     value, type(value), self.the_type, self.name, instance.__class__.__name__, type(e), e))
             self.data[instance] = None
 
@@ -1006,7 +1021,7 @@ class _UnitVectorDescriptor(_BasicDescriptor):
             vec = _parse_serializable(value, self.name, instance, self.the_type)
         except Exception as e:
             logging.error(
-                'Failed converting {} of type {} to type {} for field {} of '
+                'Failed converting {} of type {} to Unit Vector Type type {} for field {} of '
                 'class {} with exception {} - {}. Setting value to None, '
                 'which may be against the standard'.format(
                     value, type(value), self.the_type, self.name, instance.__class__.__name__, type(e), e))
@@ -1083,11 +1098,12 @@ class _SerializableArrayDescriptor(_BasicDescriptor):
         if isinstance(value, SerializableArray):
             self.data[instance] = value
         else:
+            xml_ns = getattr(instance, '_xml_ns', None)
             the_inst = self.data.get(instance, None)
             if the_inst is None:
                 self.data[instance] = SerializableArray(
                     coords=value, name=self.name, child_tag=self.child_tag, child_type=self.child_type,
-                    minimum_length=self.minimum_length, maximum_length=self.maximum_length)
+                    minimum_length=self.minimum_length, maximum_length=self.maximum_length, _xml_ns=xml_ns)
             else:
                 the_inst.set_array(value)
 
@@ -1118,10 +1134,12 @@ class _SerializableCPArrayDescriptor(_BasicDescriptor):
         if isinstance(value, SerializableCPArray):
             self.data[instance] = value
         else:
+            xml_ns = getattr(instance, '_xml_ns', None)
             the_inst = self.data.get(instance, None)
             if the_inst is None:
                 self.data[instance] = SerializableCPArray(
-                    coords=value, name=self.name, child_tag=self.child_tag, child_type=self.child_type)
+                    coords=value, name=self.name, child_tag=self.child_tag,
+                    child_type=self.child_type, _xml_ns=xml_ns)
             else:
                 the_inst.set_array(value)
 
@@ -1150,7 +1168,7 @@ class _SerializableListDescriptor(_BasicDescriptor):
             self.data[instance] = _parse_serializable_list(value, self.name, instance, self.child_type)
         except Exception as e:
             logging.error(
-                'Failed converting {} of type {} to list of type {} for field {} of '
+                'Failed converting {} of type {} to serializable list of type {} for field {} of '
                 'class {} with exception {} - {}. Setting value to None, '
                 'which may be against the standard'.format(
                     value, type(value), self.child_type, self.name, instance.__class__.__name__, type(e), e))
@@ -1225,7 +1243,10 @@ class Serializable(object):
         **kwargs :
             the keyword arguments dictionary - the possible entries match the attributes.
         """
-        unexpected_args = [key for key in kwargs if key not in self._fields]
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
+        unexpected_args = [key for key in kwargs if key not in self._fields and key[0] != '_']
         if len(unexpected_args) > 0:
             raise ValueError(
                 'Received unexpected construction argument {} for attribute '
@@ -1391,13 +1412,15 @@ class Serializable(object):
         return valid_children
 
     @classmethod
-    def from_node(cls, node, kwargs=None):
+    def from_node(cls, node, xml_ns, kwargs=None):
         """For XML deserialization.
 
         Parameters
         ----------
         node : ElementTree.Element
             dom element for serialized class instance
+        xml_ns : dict
+            The xml namespace dictionary.
         kwargs : None|dict
             `None` or dictionary of previously serialized attributes. For use in inheritance call, when certain
             attributes require specific deserialization.
@@ -1407,18 +1430,23 @@ class Serializable(object):
         """
 
         def handle_attribute(the_tag):
+            # TODO: namespace for attributes?
             kwargs[the_tag] = node.attrib.get(the_tag, None)
 
         def handle_single(the_tag):
-            kwargs[the_tag] = node.find(the_tag)
+            kwargs[the_tag] = node.find(the_tag, xml_ns) if xml_ns is None or ':' in the_tag else \
+                node.find('default:{}'.format(the_tag), xml_ns)
 
         def handle_list(attrib, ch_tag):
-            cnodes = node.findall(ch_tag)
+            cnodes = node.findall(ch_tag, xml_ns) if xml_ns is None or ':' in ch_tag else \
+                node.findall('default:{}'.format(ch_tag), xml_ns)
+
             if len(cnodes) > 0:
                 kwargs[attrib] = cnodes
 
         if kwargs is None:
             kwargs = {}
+        kwargs['_xml_ns'] = xml_ns
         if not isinstance(kwargs, dict):
             raise ValueError(
                 "Named input argument kwargs for class {} must be dictionary instance".format(cls))
@@ -1840,13 +1868,16 @@ class Arrayable(object):
 
 
 class SerializableArray(object):
-    __slots__ = ('_child_tag', '_child_type', '_array', '_name', '_minimum_length', '_maximum_length')
+    __slots__ = (
+        '_child_tag', '_child_type', '_array', '_name', '_minimum_length',
+        '_maximum_length', '_xml_ns')
     # TODO: make an iterator? I think it gets inferred.
     _default_minimum_length = 0
     _default_maximum_length = 2**32
 
     def __init__(self, coords=None, name=None, child_tag=None, child_type=None,
-                 minimum_length=None, maximum_length=None):
+                 minimum_length=None, maximum_length=None, _xml_ns=None):
+        self._xml_ns = _xml_ns
         self._array = None
         if name is None:
             raise ValueError('The name parameter is required.')
@@ -2032,12 +2063,12 @@ class SerializableCPArray(SerializableArray):
         '_child_tag', '_child_type', '_array', '_name', '_minimum_length',
         '_maximum_length', '_index_as_string')
 
-    def __init__(self, coords=None, name=None, child_tag=None, child_type=None):
+    def __init__(self, coords=None, name=None, child_tag=None, child_type=None, _xml_ns=None):
         if hasattr(child_type, '_CORNER_VALUES'):
             self._index_as_string = True
         else:
             self._index_as_string = False
-        super(SerializableCPArray, self).__init__(coords=coords, name=name, child_tag=child_tag, child_type=child_type)
+        super(SerializableCPArray, self).__init__(coords=coords, name=name, child_tag=child_tag, child_type=child_type, _xml_ns=_xml_ns)
         self._minimum_length = 4
         self._maximum_length = 4
 

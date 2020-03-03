@@ -49,6 +49,9 @@ class TxFrequencyType(Serializable):
         Max : float
         kwargs : dict
         """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         self.Min, self.Max = Min, Max
         super(TxFrequencyType, self).__init__(**kwargs)
 
@@ -126,6 +129,8 @@ class WaveformParametersType(Serializable):
         kwargs : dict
         """
 
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         self._RcvFMRate = None
         self.TxPulseLength, self.TxRFBandwidth = TxPulseLength, TxRFBandwidth
         self.TxFreqStart, self.TxFMRate = TxFreqStart, TxFMRate
@@ -238,6 +243,9 @@ class TxStepType(Serializable):
         index : int
         kwargs : dict
         """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         self.WFIndex = WFIndex
         self.TxPolarization = TxPolarization
         self.index = index
@@ -251,7 +259,11 @@ class ChanParametersType(Serializable):
     _set_as_attribute = ('index', )
     # other class variables
     _DUAL_POLARIZATION_VALUES = (
-        'V:V', 'V:H', 'H:V', 'H:H', 'RHC:RHC', 'RHC:LHC', 'LHC:RHC', 'LHC:LHC', 'OTHER', 'UNKNOWN')
+        'V:V', 'V:H', 'V:RHC', 'V:LHC',
+        'H:V', 'H:H', 'H:RHC', 'H:LHC',
+        'RHC:V', 'RHC:H', 'RHC:RHC', 'RHC:LHC',
+        'LHC:V', 'LHC:H', 'LHC:RHC', 'LHC:LHC',
+        'OTHER', 'UNKNOWN')
     # descriptors
     TxRcvPolarization = _StringEnumDescriptor(
         'TxRcvPolarization', _DUAL_POLARIZATION_VALUES, _required, strict=DEFAULT_STRICT,
@@ -273,6 +285,9 @@ class ChanParametersType(Serializable):
         index : int
         kwargs : dict
         """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         self.TxRcvPolarization = TxRcvPolarization
         self.RcvAPCIndex = RcvAPCIndex
         self.index = index
@@ -318,6 +333,9 @@ class ReferencePointType(Serializable):
         name : str
         kwargs : dict
         """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         self.ECF = ECF
         self.Line = Line
         self.Sample = Sample
@@ -355,6 +373,9 @@ class XDirectionType(Serializable):
         FirstLine : int
         kwargs : dict
         """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         self.UVectECF = UVectECF
         self.LineSpacing = LineSpacing
         self.NumLines = NumLines
@@ -392,6 +413,9 @@ class YDirectionType(Serializable):
         FirstSample : int
         kwargs : dict
         """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         self.UVectECF = UVectECF
         self.SampleSpacing = SampleSpacing
         self.NumSamples = NumSamples
@@ -438,6 +462,9 @@ class SegmentArrayElement(Serializable):
         index : int
         kwargs : dict
         """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         self.StartLine, self.EndLine = StartLine, EndLine
         self.StartSample, self.EndSample = StartSample, EndSample
         self.Identifier = Identifier
@@ -481,14 +508,17 @@ class ReferencePlaneType(Serializable):
         Orientation : str
         kwargs : dict
         """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         self.RefPt = RefPt
         self.XDir, self.YDir = XDir, YDir
         self.SegmentList = SegmentList
         self.Orientation = Orientation
         super(ReferencePlaneType, self).__init__(**kwargs)
 
-    # TODO: some kind of error checking to ensure that XDir and YDir make sense,
-    #   at least with respect to one another? Should the unit vectors be perpendicular or something?
+    # TODO: some kind of error checking to ensure that XDir and YDir make sense
+    #  with respect to one another?
 
     def get_ecf_corner_array(self):
         """
@@ -539,6 +569,9 @@ class AreaType(Serializable):
         Plane : ReferencePlaneType
         kwargs : dict
         """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         self.Corner = Corner
         self.Plane = Plane
         super(AreaType, self).__init__(**kwargs)
@@ -631,6 +664,9 @@ class RadarCollectionType(Serializable):
         Parameters : ParametersCollection|dict
         kwargs : dict
         """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         self.TxFrequency = TxFrequency
         self.RefFreqIndex = RefFreqIndex
         self.Waveform = Waveform

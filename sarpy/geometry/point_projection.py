@@ -104,7 +104,8 @@ def _ground_to_image(coords, coa_proj, uGPN,
 
 
 def ground_to_image(coords, sicd, delta_gp_max=None, max_iterations=10, block_size=50000,
-                    delta_arp=None, delta_varp=None, range_bias=None, adj_params_frame='ECF'):
+                    delta_arp=None, delta_varp=None, range_bias=None, adj_params_frame='ECF',
+                    use_sicd_coa=True):
     """
     Transforms a 3D ECF point to pixel (row/column) coordinates. This is
     implemented in accordance with the SICD Image Projections Description Document.
@@ -131,6 +132,8 @@ def ground_to_image(coords, sicd, delta_gp_max=None, max_iterations=10, block_si
     adj_params_frame : str
         One of ['ECF', 'RIC_ECF', 'RIC_ECI'], specifying the coordinate frame used for
         expressing `delta_arp` and `delta_varp` parameters.
+    use_sicd_coa : bool
+        If sicd.coa_projection is populated, use that one **ignoring the COAProjection parameters.**
 
     Returns
     -------
@@ -154,7 +157,10 @@ def ground_to_image(coords, sicd, delta_gp_max=None, max_iterations=10, block_si
         logging.warning('delta_gp_max was less than 0.01*pixel_size, '
                         'and has been reset to {}'.format(delta_gp_max))
 
-    coa_proj = COAProjection(sicd, delta_arp, delta_varp, range_bias, adj_params_frame)
+    if use_sicd_coa and sicd.coa_projection is not None:
+        coa_proj = sicd.coa_projection
+    else:
+        coa_proj = COAProjection(sicd, delta_arp, delta_varp, range_bias, adj_params_frame)
 
     # establishing the basic projection components
     SCP_Pixel = sicd.ImageData.SCPPixel.get_array()
@@ -213,7 +219,7 @@ def ground_to_image(coords, sicd, delta_gp_max=None, max_iterations=10, block_si
     return image_points, delta_gpn, iters
 
 
-def ground_to_image_geo(coords, sicd, **kwargs):
+def ground_to_image_geo(coords, sicd, ordering='latlong', **kwargs):
     """
     Transforms a 3D Lat/Lon/HAE point to pixel (row/column) coordinates.
     This is implemented in accordance with the SICD Image Projections Description Document.
@@ -224,6 +230,10 @@ def ground_to_image_geo(coords, sicd, **kwargs):
         Lat/Lon/HAE coordinate to map to scene coordinates, of size `N x 3`.
     sicd : sarpy.io.complex.sicd_elements.SICD.SICDType
         SICD meta data structure.
+    ordering : str
+        If 'longlat', then the input is `[longitude, latitude, hae]`.
+        Otherwise, the input is `[latitude, longitude, hae]`. Passed through
+        to :func:`sarpy.geometry.geocoords.geodetic_to_ecf`.
     kwargs : dict
         See the key word arguments of :func:`ground_to_image`
 
@@ -236,7 +246,7 @@ def ground_to_image_geo(coords, sicd, **kwargs):
         * `iterations` - the number of iterations performed.
     """
 
-    return ground_to_image(geocoords.geodetic_to_ecf(coords), sicd, **kwargs)
+    return ground_to_image(geocoords.geodetic_to_ecf(coords, ordering=ordering), sicd, **kwargs)
 
 
 ############
@@ -663,7 +673,7 @@ def image_to_ground(im_points, sicd, block_size=50000, projection_type='HAE', **
         raise ValueError('Got unrecognized projection type {}'.format(projection_type))
 
 
-def image_to_ground_geo(im_points, sicd, **kwargs):
+def image_to_ground_geo(im_points, sicd, ordering='latlong', block_size=50000, projection_type='HAE', **kwargs):
     """
     Transforms image coordinates to ground plane Lat/Lon/HAE coordinate via the algorithm(s)
     described in SICD Image Projections document.
@@ -675,6 +685,14 @@ def image_to_ground_geo(im_points, sicd, **kwargs):
         Following SICD convention, the upper-left pixel is [0, 0].
     sicd : sarpy.io.complex.sicd_elements.SICD.SICDType
         SICD meta data structure.
+    ordering : str
+        Determines whether return is ordered as `[lat, long, hae]` or `[long, lat, hae]`.
+        Passed through to :func:`sarpy.geometry.geocoords.ecf_to_geodetic`.
+    block_size : None|int
+        Size of blocks of coordinates to transform at a time. The entire array will be
+        transformed as a single block if `None`.
+    projection_type : str
+        One of ['PLANE', 'HAE', 'DEM'].
     kwargs : dict
         See the keyword arguments in :func:`image_to_ground`.
 
@@ -684,7 +702,9 @@ def image_to_ground_geo(im_points, sicd, **kwargs):
         Ground Plane Point (in Lat/Lon/HAE coordinates) along the R/Rdot contour.
     """
 
-    return geocoords.ecf_to_geodetic(image_to_ground(im_points, sicd, **kwargs))
+    return geocoords.ecf_to_geodetic(image_to_ground(
+        im_points, sicd, block_size=block_size, projection_type=projection_type, **kwargs),
+        ordering=ordering)
 
 
 #####
@@ -795,7 +815,10 @@ def image_to_ground_plane(im_points, sicd, block_size=50000, gref=None, ugpn=Non
 
     # coa projection creation
     im_points, orig_shape = _validate_im_points(im_points, sicd)
-    coa_proj = COAProjection(sicd, **coa_args)
+    if coa_args.get('use_sicd_coa', True) and sicd.coa_projection is not None:
+        coa_proj = sicd.coa_projection
+    else:
+        coa_proj = COAProjection(sicd, **coa_args)
 
     # prepare workspace
     im_points_view = numpy.reshape(im_points, (-1, 2))  # possibly or make 2-d flatten
@@ -962,7 +985,10 @@ def image_to_ground_hae(im_points, sicd, block_size=50000,
 
     # coa projection creation
     im_points, orig_shape = _validate_im_points(im_points, sicd)
-    coa_proj = COAProjection(sicd, **coa_args)
+    if coa_args.get('use_sicd_coa', False) and sicd.coa_projection is not None:
+        coa_proj = sicd.coa_projection
+    else:
+        coa_proj = COAProjection(sicd, **coa_args)
 
     # prepare workspace
     im_points_view = numpy.reshape(im_points, (-1, 2))  # possibly or make 2-d flatten
@@ -1100,7 +1126,10 @@ def image_to_ground_dem(im_points, sicd, block_size=50000,
 
     # coa projection creation
     im_points, orig_shape = _validate_im_points(im_points, sicd)
-    coa_proj = COAProjection(sicd, **coa_args)
+    if coa_args.get('use_sicd_coa', True) and sicd.coa_projection is not None:
+        coa_proj = sicd.coa_projection
+    else:
+        coa_proj = COAProjection(sicd, **coa_args)
 
     # TODO: handle dted_list is None
     if isinstance(dted_list, str):

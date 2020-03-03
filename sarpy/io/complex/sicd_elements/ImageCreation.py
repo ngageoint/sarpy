@@ -44,6 +44,9 @@ class ImageCreationType(Serializable):
         Profile : str
         kwargs : dict
         """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
         self.Application = Application
         self.DateTime = DateTime
         self.Site = Site

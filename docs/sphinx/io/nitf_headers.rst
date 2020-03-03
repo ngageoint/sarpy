@@ -1,8 +1,8 @@
 
-The nitf header objects
+The sarpy.io.nitf.headers objects
 ==============================================
 
-.. automodule:: sarpy.io.nitf_headers
+.. automodule:: sarpy.io.nitf.headers
     :members:
     :show-inheritance:
     :inherited-members:

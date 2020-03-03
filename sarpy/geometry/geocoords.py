@@ -35,13 +35,16 @@ def _validate(arr):
     return arr, orig_shape
 
 
-def ecf_to_geodetic(ecf):
+def ecf_to_geodetic(ecf, ordering='latlong'):
     """
     Converts ECF (Earth Centered Fixed) coordinates to WGS-84 coordinates.
 
     Parameters
     ----------
     ecf : numpy.ndarray|list|tuple
+    ordering : str
+        If 'longlat', then the return will be `[longitude, latitude, hae]`.
+        Otherwise, the return will be `[latitude, longitude, hae]`.
 
     Returns
     -------
@@ -75,22 +78,30 @@ def ecf_to_geodetic(ecf):
     V = numpy.sqrt(T*T + _OME2*z*z)
     z0 = _B2*z/(_A*V)
 
+    # account for ordering
+    if ordering.lower() == 'longlat':
+        inds = [0, 1, 2]
+    else:
+        inds = [1, 0, 2]
     # calculate longitude
-    llh[valid, 1] = numpy.rad2deg(numpy.arctan2(y[valid], x[valid]))
+    llh[valid, inds[0]] = numpy.rad2deg(numpy.arctan2(y[valid], x[valid]))
     # calculate latitude
-    llh[valid, 0] = numpy.rad2deg(numpy.arctan2(z[valid] + _EB2*z0[valid], r[valid]))
+    llh[valid, inds[1]] = numpy.rad2deg(numpy.arctan2(z[valid] + _EB2*z0[valid], r[valid]))
     # calculate altitude
-    llh[valid, 2] = U[valid]*(1.0 - _B2/(_A*V[valid]))
+    llh[valid, inds[2]] = U[valid]*(1.0 - _B2/(_A*V[valid]))
     return numpy.reshape(llh, orig_shape)
 
 
-def geodetic_to_ecf(llh):
+def geodetic_to_ecf(llh, ordering='latlong'):
     """
     Converts WGS-84 coordinates to ECF (Earth Centered Fixed).
 
     Parameters
     ----------
     llh : numpy.ndarray|list|tuple
+    ordering : str
+        If 'longlat', then the input is `[longitude, latitude, hae]`.
+        Otherwise, the input is `[latitude, longitude, hae]`.
 
     Returns
     -------
@@ -100,9 +111,14 @@ def geodetic_to_ecf(llh):
 
     llh, orig_shape = _validate(llh)
 
-    lat = llh[:, 0]
-    lon = llh[:, 1]
-    alt = llh[:, 2]
+    # account for ordering
+    if ordering.lower() == 'longlat':
+        inds = [0, 1, 2]
+    else:
+        inds = [1, 0, 2]
+    lon = llh[:, inds[0]]
+    lat = llh[:, inds[1]]
+    alt = llh[:, inds[2]]
 
     out = numpy.full(llh.shape, numpy.nan, dtype=numpy.float64)
     # calculate distance to surface of ellipsoid
@@ -126,14 +142,10 @@ def wgs_84_norm(ecf):
     Returns
     -------
     numpy.ndarray
-        The normal vector, of the same shape as `llh`.
+        The normal vector, of the same shape as `ecf`.
     """
 
     ecf, orig_shape = _validate(ecf)
-
-    out = numpy.empty(ecf.shape, dtype=numpy.float64)
-    out[:, 0] = ecf[:, 0]/_A2
-    out[:, 1] = ecf[:, 1]/_A2
-    out[:, 2] = ecf[:, 2]/_B2
-    out = (out.T/numpy.linalg.norm(out, axis=1)).T
+    out = numpy.copy(ecf)/numpy.array([_A2, _A2, _B2], dtype=numpy.float64)
+    out = out/(numpy.linalg.norm(out, axis=1)[:, numpy.newaxis])
     return numpy.reshape(out, orig_shape)

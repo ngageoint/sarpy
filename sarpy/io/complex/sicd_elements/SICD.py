@@ -32,15 +32,6 @@ __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 
-# TODO:
-#  1.) method to populate a COAProjection object in an attribute
-#  2.) refactor the point_projection.ground_to_image and
-#       point.projection.image_to_ground methods to use that COAProjection
-#       object if one is populated.
-#  3.) present point_projection functions as class methods.
-#  4.) refactor define_geo_image_corners() & define-geo_valid_data()
-
-
 class SICDType(Serializable):
     """
     Sensor Independent Complex Data object, containing all the relevant data to formulate products.
@@ -141,6 +132,10 @@ class SICDType(Serializable):
         RMA : RMAType
         kwargs : dict
         """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
+        self._coa_projection = None
         self.CollectionInfo = CollectionInfo
         self.ImageCreation = ImageCreation
         self.ImageData = ImageData
@@ -159,6 +154,18 @@ class SICDType(Serializable):
         self.PFA = PFA
         self.RMA = RMA
         super(SICDType, self).__init__(**kwargs)
+
+    @property
+    def coa_projection(self):
+        """
+        The COA Projection object, if previously defined through using :func:`define_coa_projection`.
+
+        Returns
+        -------
+        None|sarpy.geometry.point_projection.COAProjection
+        """
+
+        return self._coa_projection
 
     @property
     def ImageFormType(self):  # type: () -> str
@@ -311,7 +318,7 @@ class SICDType(Serializable):
 
         try:
             vertex_data = self.ImageData.get_full_vertex_data(dtype=numpy.float64)
-            corner_coords = point_projection.image_to_ground_geo(vertex_data, self)
+            corner_coords = self.project_image_to_ground_geo(vertex_data)
         except (ValueError, AttributeError):
             return
 
@@ -329,13 +336,10 @@ class SICDType(Serializable):
         if self.GeoData is None or self.GeoData.ValidData is not None:
             return  # nothing to be done
 
-        # TODO: refactor geometry/point_projection.py contents into appropriate class methods
-        #   the below exception catching is half-baked, because the method should be refactored.
-
         try:
             valid_vertices = self.ImageData.get_valid_vertex_data(dtype=numpy.float64)
             if valid_vertices is not None:
-                self.GeoData.ValidData = point_projection.image_to_ground_geo(valid_vertices, self)
+                self.GeoData.ValidData = self.project_image_to_ground_geo(valid_vertices)
         except AttributeError:
             pass
 
@@ -473,6 +477,9 @@ class SICDType(Serializable):
         bool
         """
 
+        if self._coa_projection is not None:
+            return True
+
         # GeoData elements?
         if self.GeoData is None:
             logging.error('Formulating a projection is not feasible because GeoData is not populated.')
@@ -605,4 +612,161 @@ class SICDType(Serializable):
         else:
             logging.error('Unhandled Grid.Type {}, unclear how to formulate a projection.'.format(self.Grid.Type))
             return False
+
+        logging.info('Consider calling sicd.define_coa_projection if the sicd structure is defined.')
         return True
+
+    def define_coa_projection(self, delta_arp=None, delta_varp=None, range_bias=None,
+                              adj_params_frame='ECF', overide=True):
+        """
+        Define the COAProjection object.
+
+        Parameters
+        ----------
+        delta_arp : None|numpy.ndarray|list|tuple
+            ARP position adjustable parameter (ECF, m).  Defaults to 0 in each coordinate.
+        delta_varp : None|numpy.ndarray|list|tuple
+            VARP position adjustable parameter (ECF, m/s).  Defaults to 0 in each coordinate.
+        range_bias : float|int
+            Range bias adjustable parameter (m), defaults to 0.
+        adj_params_frame : str
+            One of ['ECF', 'RIC_ECF', 'RIC_ECI'], specifying the coordinate frame used for
+            expressing `delta_arp` and `delta_varp` parameters.
+        overide : bool
+            should we redefine, if it is previously defined?
+
+        Returns
+        -------
+        None
+        """
+
+        if not self.can_project_coordinates():
+            logging.error('The COAProjection object cannot be defined.')
+            return
+
+        if self._coa_projection is not None and not overide:
+            return
+
+        self._coa_projection = point_projection.COAProjection(
+            self, delta_arp=delta_arp, delta_varp=delta_varp, range_bias=range_bias,
+            adj_params_frame=adj_params_frame)
+
+    def project_ground_to_image(self, coords, **kwargs):
+        """
+        Transforms a 3D ECF point to pixel (row/column) coordinates. This is
+        implemented in accordance with the SICD Image Projections Description Document.
+        **Really Scene-To-Image projection.**"
+
+        Parameters
+        ----------
+        coords : numpy.ndarray|tuple|list
+            ECF coordinate to map to scene coordinates, of size `N x 3`.
+        kwargs : dict
+            The keyword arguments for the :func:`sarpy.geometry.point_projection.ground_to_image` method.
+
+        Returns
+        -------
+        Tuple[numpy.ndarray, float, int]
+            * `image_points` - the determined image point array, of size `N x 2`. Following
+              the SICD convention, he upper-left pixel is [0, 0].
+            * `delta_gpn` - residual ground plane displacement (m).
+            * `iterations` - the number of iterations performed.
+
+        See Also
+        --------
+        sarpy.geometry.point_projection.ground_to_image
+        """
+
+        kwargs['use_sicd_coa'] = True
+        return point_projection.ground_to_image(coords, self, **kwargs)
+
+    def project_ground_to_image_geo(self, coords, ordering='latlong', **kwargs):
+        """
+        Transforms a 3D Lat/Lon/HAE point to pixel (row/column) coordinates. This is
+        implemented in accordance with the SICD Image Projections Description Document.
+        **Really Scene-To-Image projection.**"
+
+        Parameters
+        ----------
+        coords : numpy.ndarray|tuple|list
+            ECF coordinate to map to scene coordinates, of size `N x 3`.
+        ordering : str
+            If 'longlat', then the input is `[longitude, latitude, hae]`.
+            Otherwise, the input is `[latitude, longitude, hae]`. Passed through
+            to :func:`sarpy.geometry.geocoords.geodetic_to_ecf`.
+        kwargs : dict
+            The keyword arguments for the :func:`sarpy.geometry.point_projection.ground_to_image_geo` method.
+
+        Returns
+        -------
+        Tuple[numpy.ndarray, float, int]
+            * `image_points` - the determined image point array, of size `N x 2`. Following
+              the SICD convention, he upper-left pixel is [0, 0].
+            * `delta_gpn` - residual ground plane displacement (m).
+            * `iterations` - the number of iterations performed.
+
+        See Also
+        --------
+        sarpy.geometry.point_projection.ground_to_image_geo
+        """
+
+        kwargs['use_sicd_coa'] = True
+        return point_projection.ground_to_image_geo(coords, self, ordering=ordering, **kwargs)
+
+    def project_image_to_ground(self, im_points, projection_type='HAE', **kwargs):
+        """
+        Transforms image coordinates to ground plane ECF coordinate via the algorithm(s)
+        described in SICD Image Projections document.
+
+        Parameters
+        ----------
+        im_points : numpy.ndarray|list|tuple
+            the image coordinate array
+        projection_type : str
+            One of `['PLANE', 'HAE', 'DEM']`. Type `DEM` is a work in progress.
+        kwargs : dict
+            The keyword arguments for the :func:`sarpy.geometry.point_projection.image_to_ground` method.
+
+        Returns
+        -------
+        numpy.ndarray
+            Ground Plane Point (in ECF coordinates) corresponding to the input image coordinates.
+
+        See Also
+        --------
+        sarpy.geometry.point_projection.image_to_ground
+        """
+
+        kwargs['use_sicd_coa'] = True
+        return point_projection.image_to_ground(
+            im_points, self, projection_type=projection_type, **kwargs)
+
+    def project_image_to_ground_geo(self, im_points, ordering='latlong', projection_type='HAE', **kwargs):
+        """
+        Transforms image coordinates to ground plane WGS-84 coordinate via the algorithm(s)
+        described in SICD Image Projections document.
+
+        Parameters
+        ----------
+        im_points : numpy.ndarray|list|tuple
+            the image coordinate array
+        projection_type : str
+            One of `['PLANE', 'HAE', 'DEM']`. Type `DEM` is a work in progress.
+        ordering : str
+            Determines whether return is ordered as `[lat, long, hae]` or `[long, lat, hae]`.
+            Passed through to :func:`sarpy.geometry.geocoords.ecf_to_geodetic`.
+        kwargs : dict
+            The keyword arguments for the :func:`sarpy.geometry.point_projection.image_to_ground_geo` method.
+
+        Returns
+        -------
+        numpy.ndarray
+            Ground Plane Point (in ECF coordinates) corresponding to the input image coordinates.
+        See Also
+        --------
+        sarpy.geometry.point_projection.image_to_ground_geo
+        """
+
+        kwargs['use_sicd_coa'] = True
+        return point_projection.image_to_ground_geo(
+            im_points, self, ordering=ordering, projection_type=projection_type, **kwargs)
