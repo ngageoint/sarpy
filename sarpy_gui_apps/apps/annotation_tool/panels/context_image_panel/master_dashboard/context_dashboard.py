@@ -10,8 +10,9 @@ class ButtonPanel(AbstractWidgetPanel):
         self.zoom_out = basic_widgets.Button
         self.pan = basic_widgets.Button
         self.select = basic_widgets.Button
+        self.move_rect = basic_widgets.Button
 
-        widget_list = ["zoom_in", "zoom_out", "pan", "select"]
+        widget_list = ["zoom_in", "zoom_out", "pan", "select", "move_rect"]
         self.init_w_horizontal_layout(widget_list)
         self.set_label_text("controls")
 
