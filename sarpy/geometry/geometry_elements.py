@@ -283,13 +283,24 @@ class FeatureList(_Jsonable):
     extended to coherently handle specific Feature extension.
     """
 
-    __slots__ = ('_features', )
+    __slots__ = ('_features', '_feature_dict')
     _type = 'FeatureList'
 
     def __init__(self, features=None):
         self._features = None
+        self._feature_dict = None
         if features is not None:
             self.features = features
+
+    def __len__(self):
+        if self._features is None:
+            return 0
+        return len(self._features)
+
+    def __getitem__(self, item):  # type: () -> Feature|List[Feature]
+        if isinstance(item, str):
+            return self._feature_dict[item]
+        return self._features[item]
 
     @property
     def features(self):
@@ -307,17 +318,17 @@ class FeatureList(_Jsonable):
     def features(self, features):
         if features is None:
             self._features = None
+            self._feature_dict = None
             return
 
         if not isinstance(features, list):
             raise TypeError('features must be a list of features. Got {}'.format(type(features)))
 
-        self._features = []
         for entry in features:
             if isinstance(entry, Feature):
-                self._features.append(entry)
+                self.add_feature(entry)
             elif isinstance(entry, dict):
-                self._features.append(Feature.from_dict(entry))
+                self.add_feature(Feature.from_dict(entry))
             else:
                 raise TypeError(
                     'Entries of features are required to be instances of Feature or '
@@ -357,8 +368,10 @@ class FeatureList(_Jsonable):
             raise TypeError('This requires a Feature instance, got {}'.format(type(feature)))
 
         if self._features is None:
+            self._feature_dict = {feature.uid: 0}
             self._features = [feature, ]
         else:
+            self._feature_dict[feature.uid] = len(self._features)
             self._features.append(feature)
 
     def export_to_kml(self, file_name, coord_transform=None, **params):

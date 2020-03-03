@@ -25,6 +25,21 @@ class AnnotationMetadata(_Jsonable):
     _type = 'AnnotationMetadata'
 
     def __init__(self, label_id=None, user_id=None, comment=None, confidence=None, timestamp=None):
+        """
+
+        Parameters
+        ----------
+        label_id : None|str
+            The label id
+        user_id : None|str
+            The user id - will default to current user name
+        comment : None|str
+        confidence : None|str|int
+            The confidence value
+        timestamp : None|float|int
+            The POSIX timestamp (in seconds) - should be construction time.
+        """
+
         self.label_id = label_id  # type: Union[None, str]
         if user_id is None:
             user_id = getpass.getuser()
@@ -67,9 +82,24 @@ class AnnotationMetadataList(_Jsonable):
     _type = 'AnnotationMetadataList'
 
     def __init__(self, elements=None):
+        """
+
+        Parameters
+        ----------
+        elements : None|List[AnnotationMetadata|dict]
+        """
+
         self._elements = None
         if elements is not None:
             self.elements = elements
+
+    def __len__(self):
+        if self._elements is None:
+            return 0
+        return len(self._elements)
+
+    def __getitem__(self, item):  # type: () -> AnnotationMetadata
+        return self._elements[item]
 
     @property
     def elements(self):
@@ -134,13 +164,14 @@ class AnnotationMetadataList(_Jsonable):
             self._elements = [element, ]
         else:
             if element.timestamp < self._elements[0].timestamp:
+                # TODO; is there a good alternative to this?
                 raise ValueError(
                     'Element with timestamp {} cannot be inserted in front of element '
                     'with timestamp {}.'.format(element.timestamp, self._elements[0].timestamp))
             self._elements.insert(0, element)
 
     @classmethod
-    def from_dict(cls, the_json):
+    def from_dict(cls, the_json):  # type: (dict) -> AnnotationMetadataList
         typ = the_json['type']
         if typ != cls._type:
             raise ValueError('AnnotationMetadataList cannot be constructed from {}'.format(the_json))
@@ -195,6 +226,11 @@ class Annotation(Feature):
         parent_dict['properties'] = self.properties.to_dict()
         return parent_dict
 
+    def add_annotation_metadata(self, value):
+        if self._properties is None:
+            self._properties = AnnotationMetadataList()
+        self._properties.insert_new_element(value)
+
 
 class AnnotationList(FeatureList):
     """
@@ -233,6 +269,11 @@ class AnnotationList(FeatureList):
                 raise TypeError(
                     'Entries of features are required to be instances of Annotation or '
                     'dictionary to be deserialized. Got {}'.format(type(entry)))
+
+    def __getitem__(self, item):  # type: () -> Annotation|List[Annotation]
+        if isinstance(item, str):
+            return self._feature_dict[item]
+        return self._features[item]
 
 
 class FileAnnotationCollection(object):
