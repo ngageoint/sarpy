@@ -13,6 +13,7 @@ import struct
 
 import numpy
 
+from .tres.registration import find_tre
 
 ########
 # NITF header details specific to SICD files
@@ -511,7 +512,7 @@ class NITFLoop(NITFElement):
     def __len__(self):
         return len(self._values)
 
-    def __getitem__(self, item):
+    def __getitem__(self, item):  # type: () -> Union[_child_class, List[_child_class]]
         return self._values[item]
 
     def get_bytes_length(self):
@@ -786,7 +787,14 @@ class TRE(NITFElement):
     @classmethod
     def from_bytes(cls, value, start):
         tag = value[start:start+6]
-        # TODO: deal with TRE registry
+        known_tre = find_tre(tag.encode('utf-8').strip())
+        if known_tre is not None:
+            try:
+                return known_tre.from_bytes(value, start)
+            except Exception as e:
+                logging.error(
+                    "Failed parsing tre as type {} with error {}. "
+                    "Returning unparsed.".format(known_tre.__name__, e))
         return UnknownTRE.from_bytes(value, start)
 
 
@@ -889,7 +897,7 @@ class TREList(NITFElement):
     def __len__(self):
         return len(self._tres)
 
-    def __getitem__(self, item):
+    def __getitem__(self, item):  # type: () -> Union[TRE, List[TRE]]
         return self._tres[item]
 
 
