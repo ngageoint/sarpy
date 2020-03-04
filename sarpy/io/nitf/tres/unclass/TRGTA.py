@@ -44,15 +44,15 @@ class SCENE_TGTS(NITFElement):
     __slots__ = (
         'TGT_NAME', 'TGT_TYPE', 'TGT_VER', 'TGT_CAT', 'TGT_BE', 'TGT_SN', 'TGT_POSNUM', 'TGT_ATTITUDE_PITCH',
         'TGT_ATTITUDE_ROLL', 'TGT_ATTITUDE_YAW', 'TGT_DIM_LENGTH', 'TGT_DIM_WIDTH', 'TGT_DIM_HEIGHT',
-        'TGT_AZIMUTH', 'TGT_CLTR_RATIO', 'TGT_STATE', 'TGT_COND', 'TGT_OBSCR', 'TGT_OBSCR%', 'TGT_CAMO',
-        'TGT_CAMO%', 'TGT_UNDER', 'TGT_OVER', 'TGT_TTEXTURE', 'TGT_PAINT', 'TGT_SPEED', 'TGT_HEADING',
+        'TGT_AZIMUTH', 'TGT_CLTR_RATIO', 'TGT_STATE', 'TGT_COND', 'TGT_OBSCR', 'TGT_OBSCR_PCT', 'TGT_CAMO',
+        'TGT_CAMO_PCT', 'TGT_UNDER', 'TGT_OVER', 'TGT_TTEXTURE', 'TGT_PAINT', 'TGT_SPEED', 'TGT_HEADING',
         '_TGT_QCs', '_TGT_CCs', '_REF_PTs')
     _formats = {
         'TGT_NAME': '25s', 'TGT_TYPE': '15s', 'TGT_VER': '6s', 'TGT_CAT': '5s', 'TGT_BE': '17s',
         'TGT_SN': '10s', 'TGT_POSNUM': '2s', 'TGT_ATTITUDE_PITCH': '6s', 'TGT_ATTITUDE_ROLL': '6s',
         'TGT_ATTITUDE_YAW': '6s', 'TGT_DIM_LENGTH': '5s', 'TGT_DIM_WIDTH': '5s', 'TGT_DIM_HEIGHT': '5s',
         'TGT_AZIMUTH': '6s', 'TGT_CLTR_RATIO': '8s', 'TGT_STATE': '10s', 'TGT_COND': '30s', 'TGT_OBSCR': '20s',
-        'TGT_OBSCR%': '3s', 'TGT_CAMO': '20s', 'TGT_CAMO%': '3s', 'TGT_UNDER': '12s', 'TGT_OVER': '30s',
+        'TGT_OBSCR_PCT': '3s', 'TGT_CAMO': '20s', 'TGT_CAMO_PCT': '3s', 'TGT_UNDER': '12s', 'TGT_OVER': '30s',
         'TGT_TTEXTURE': '45s', 'TGT_PAINT': '40s', 'TGT_SPEED': '3s', 'TGT_HEADING': '3s'}
     _types = {'_TGT_QCs': TGT_QCs, '_TGT_CCs': TGT_CCs, '_REF_PTs': REF_PTs}
     _defaults = {'_TGT_QCs': {}, '_TGT_CCs': {}, '_REF_PTs': {}}
