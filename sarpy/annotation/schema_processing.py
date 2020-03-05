@@ -105,7 +105,7 @@ class LabelSchema(object):
 
         Returns
         -------
-        Dict[str, Set[str]]
+        Dict[str, List[str]]
         """
 
         return self._parent_types
@@ -245,19 +245,19 @@ class LabelSchema(object):
         self._construct_parent_types()
 
     def _construct_parent_types(self):
-        def iterate(key, entries):
+        def iterate(key, parents):
+            entry = [key, ]
+            entry.extend(parents)
+            self._parent_types[key] = entry
             if key not in self._subtypes:
-                self._parent_types[key].union(entries)
                 return
 
-            self._parent_types[key].union(entries)
-            for entry in self._subtypes[key]:
-                iterate(entry, {key, }.union(entries))
-            return
+            for child_key in self._subtypes[key]:
+                iterate(child_key, entry)
 
-        self._parent_types = OrderedDict((key, {key, }) for key in self._labels)
+        self._parent_types = {}
         for key in self._subtypes['']:
-            iterate(key, set())
+            iterate(key, [])
 
     @classmethod
     def from_file(cls, file_name):

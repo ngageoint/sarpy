@@ -11,7 +11,6 @@ import numpy
 import logging
 from typing import Union, List, Tuple
 
-from . import __path__ as _complex_package_path, __name__ as _complex_package_name
 from .base import BaseReader
 from .sicd import SICDWriter
 from .sio import SIOWriter
@@ -28,9 +27,72 @@ if sys.version_info[0] < 3:
 
 
 _writer_types = {'SICD': SICDWriter, 'SIO': SIOWriter}
+_openers = []
+_parsed_openers = False
+
 
 __classification__ = "UNCLASSIFIED"
 __author__ = ("Wade Schwartzkopf", "Thomas McCullough")
+
+
+def register_opener(open_func):
+    """
+    Provide a new opener.
+
+    Parameters
+    ----------
+    open_func : callable
+        This is required to be a function which takes a single argument (file name).
+        This function should return a sarpy.io.complex.base.BaseReader instance
+        if the referenced file is viable for the underlying type, and None otherwise.
+
+    Returns
+    -------
+    None
+    """
+
+    if not isinstance(open_func, callable):
+        raise TypeError('open_func must be a callable')
+    if open_func not in _openers:
+        _openers.append(open_func)
+
+
+def parse_openers():
+    """
+    Automatically find the viable openers (i.e. :func:`is_a`) in the various modules.
+
+    Returns
+    -------
+
+    """
+
+    global _parsed_openers
+    if _parsed_openers:
+        return
+    _parsed_openers = True
+
+    def check_module(mod_name):
+        # get the module loader
+        loader = pkgutil.get_loader(mod_name)
+        # load the module
+        module = loader.load_module(mod_name)
+
+        # see if it has an is_a function, if so, register it
+        opener = getattr(module, 'is_a', None)
+        if opener is not None:
+            register_opener(opener)
+
+        # walk down any subpackages
+        path, fil = os.path.split(module.__file__)
+        if fil != '__init__.py':
+            # there are no subpackages
+            return
+        for sub_module in pkgutil.walk_packages([path, ]):
+            _, sub_module_name, _ = sub_module
+            sub_name = "{}.{}".format(mod_name, sub_module_name)
+            check_module(sub_name)
+
+    check_module('sarpy.io.complex')
 
 
 def open_complex(file_name):
@@ -52,19 +114,14 @@ def open_complex(file_name):
 
     if not os.path.exists(file_name):
         raise IOError('File {} does not exist.'.format(file_name))
+    # parse openers, if not already done
+    parse_openers()
+    # see if we can find a reader though trial and error
+    for opener in _openers:
+        reader = opener(file_name)
+        if reader is not None:
+            return reader
 
-    # Get a list of all the modules that describe SAR complex image file
-    # formats.  For this to work, all of the file format handling modules
-    # must be in the top level of this package.
-    mod_iter = pkgutil.iter_modules(path=_complex_package_path, prefix='{}.'.format(_complex_package_name))
-    module_names = [name for loader, name, ispkg in mod_iter if not ispkg]
-    modules = [sys.modules[names] for names in module_names if __import__(names)]
-    # Determine file format and return the proper file reader object
-    for current_mod in modules:
-        if hasattr(current_mod, 'is_a'):  # Make sure its a file format handling module
-            reader = current_mod.is_a(file_name)
-            if reader is not None:
-                return reader
     # If for loop completes, no matching file format was found.
     raise IOError('Unable to determine complex image format.')
 

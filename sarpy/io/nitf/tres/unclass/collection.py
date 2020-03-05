@@ -105,12 +105,12 @@ class BCKGDA(TRE):
 
 class BLOCKA(TRE):
     __slots__ = (
-        'TAG', 'BLOCK_INSTANCE', 'N_GRAY', 'L_LINES', 'LAYOVER_ANGLE', 'SHADOW_ANGLE', 'RESERVED-001', 'FRLC_LOC',
-        'LRLC_LOC', 'LRFC_LOC', 'FRFC_LOC', 'RESERVED-002')
+        'TAG', 'BLOCK_INSTANCE', 'N_GRAY', 'L_LINES', 'LAYOVER_ANGLE', 'SHADOW_ANGLE', 'RESERVED_001', 'FRLC_LOC',
+        'LRLC_LOC', 'LRFC_LOC', 'FRFC_LOC', 'RESERVED_002')
     _formats = {
         'TAG': '6s', 'BLOCK_INSTANCE': '2d', 'N_GRAY': '5s', 'L_LINES': '5d', 'LAYOVER_ANGLE': '3s',
-        'SHADOW_ANGLE': '3s', 'RESERVED-001': '16s', 'FRLC_LOC': '21s', 'LRLC_LOC': '21s', 'LRFC_LOC': '21s',
-        'FRFC_LOC': '21s', 'RESERVED-002': '5s'}
+        'SHADOW_ANGLE': '3s', 'RESERVED_001': '16s', 'FRLC_LOC': '21s', 'LRLC_LOC': '21s', 'LRFC_LOC': '21s',
+        'FRFC_LOC': '21s', 'RESERVED_002': '5s'}
     _defaults = {'TAG': 'BLOCKA'}
     _enums = {'TAG': {'BLOCKA', }}
 
