@@ -33,12 +33,12 @@ def register_tre(tre_type, tre_id=None, replace=False):
     None
     """
 
-    from sarpy.io.nitf.headers import TRE
+    from sarpy.io.nitf.headers import TRE, UnknownTRE
 
     if not issubclass(tre_type, TRE):
         raise TypeError('tre_type must be a subclass of sarpy.io.nitf.header.TRE')
 
-    if tre_type == TRE:
+    if tre_type in [TRE, UnknownTRE]:
         return
 
     if tre_id is None:
@@ -63,7 +63,7 @@ def find_tre(tre_id):
 
     Parameters
     ----------
-    tre_id : str
+    tre_id : str|bytes
 
     Returns
     -------
@@ -72,7 +72,12 @@ def find_tre(tre_id):
 
     if not _parsed_package:
         parse_package()
-    return _TRE_Registry.get(tre_id, None)
+
+    if isinstance(tre_id, bytes):
+        tre_id = tre_id.decode('utf-8')
+    if not isinstance(tre_id, str):
+        raise TypeError('tre_id must be of type string. Got {}'.format(tre_id))
+    return _TRE_Registry.get(tre_id.strip(), None)
 
 
 def parse_package(packages=None):

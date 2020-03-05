@@ -8,7 +8,7 @@ See MIL-STD-2500C for specification details.
 import logging
 import sys
 from collections import OrderedDict
-from typing import Union, Tuple, List
+from typing import Union, Tuple, List, Set
 import struct
 
 import numpy
@@ -246,6 +246,7 @@ class NITFElement(object):
             if rng[1] is not None and value > rng[1]:
                 logging.error('Attribute {} must be <= {}. Got {}'.format(attribute, rng[1], value))
 
+        # noinspection PyUnusedLocal
         def check_conditions(the_value):
             dd = self._if_skips.get(attribute, None)
             if dd is None:
@@ -366,7 +367,7 @@ class NITFElement(object):
         ----------
         fields : dict
             The attribute:value dictionary.
-        skips : set
+        skips : Set
             The set of attributes to skip - for conditional values.
         attribute : str
             The attribute name.
@@ -381,6 +382,7 @@ class NITFElement(object):
             The position in `value` after parsing this attribute.
         """
 
+        # noinspection PyUnusedLocal
         def check_conditions(the_value):
             dd = cls._if_skips.get(attribute, None)
             if dd is None:
@@ -512,7 +514,7 @@ class NITFLoop(NITFElement):
     def __len__(self):
         return len(self._values)
 
-    def __getitem__(self, item):  # type: () -> Union[_child_class, List[_child_class]]
+    def __getitem__(self, item):  # type: (Union[int, slice]) -> Union[_child_class, List[_child_class]]
         return self._values[item]
 
     def get_bytes_length(self):
@@ -787,7 +789,7 @@ class TRE(NITFElement):
     @classmethod
     def from_bytes(cls, value, start):
         tag = value[start:start+6]
-        known_tre = find_tre(tag.encode('utf-8').strip())
+        known_tre = find_tre(tag)
         if known_tre is not None:
             try:
                 return known_tre.from_bytes(value, start)
@@ -897,7 +899,7 @@ class TREList(NITFElement):
     def __len__(self):
         return len(self._tres)
 
-    def __getitem__(self, item):  # type: () -> Union[TRE, List[TRE]]
+    def __getitem__(self, item):  # type: (Union[int, slice]) -> Union[TRE, List[TRE]]
         return self._tres[item]
 
 
@@ -946,7 +948,8 @@ class UserHeaderType(Unstructured):
             if isinstance(data, NITFElement):
                 data = data.to_bytes()
             if isinstance(data, bytes):
-                return siz_frm.format(len(data)+self._ofl_len).encode('utf-8') + ofl_frm.format(self._ofl) + data
+                return siz_frm.format(len(data) + self._ofl_len).encode('utf-8') + \
+                    ofl_frm.format(self._ofl).encode('utf-8') + data
             else:
                 raise TypeError('Got unexpected data type {}'.format(type(data)))
         return super(Unstructured, self)._get_bytes_attribute(attribute)
