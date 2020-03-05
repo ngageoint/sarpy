@@ -8,7 +8,7 @@ See MIL-STD-2500C for specification details.
 import logging
 import sys
 from collections import OrderedDict
-from typing import Union, Tuple, List
+from typing import Union, Tuple, List, Set
 import struct
 
 import numpy
@@ -113,10 +113,6 @@ def _validate_value(frmt, value, name):
                 'Field {} requires an integer of {} or fewer digits. '
                 'Got {}'.format(name, length, value))
         return value
-    elif typ == 'f':
-        if isinstance(value, (str, bytes)):
-            value = value
-        return value
     elif typ == 'b':
         if isinstance(value, str):
             value = value.encode()
@@ -141,10 +137,6 @@ def _get_bytes(frmt, value, name):
         return fmt_out.format(value).encode('utf-8')
     elif typ == 'd':
         fmt_out = '{0:0' + frmt + '}'
-        return fmt_out.format(value).encode('utf-8')
-    elif typ == 'f':
-        fmt_out = '{0:0' + frmt + '}'
-        # TODO: I highly doubt that this is correct
         return fmt_out.format(value).encode('utf-8')
     elif typ == 'b':
         if len(value) >= length:
@@ -190,10 +182,10 @@ class NITFElement(object):
         for attribute in self.__slots__:
             if not hasattr(self, attribute):
                 # this attribute wasn't defined above, so let's initialize it
-                setattr(self, attribute, self._get_default(attribute))
+                setattr(self, attribute, self.get_default_value(attribute))
 
     @classmethod
-    def _get_default(cls, attribute):
+    def get_default_value(cls, attribute):
         if attribute in cls._defaults:
             if attribute in cls._types:
                 arg_dict = cls._defaults[attribute]
@@ -246,6 +238,7 @@ class NITFElement(object):
             if rng[1] is not None and value > rng[1]:
                 logging.error('Attribute {} must be <= {}. Got {}'.format(attribute, rng[1], value))
 
+        # noinspection PyUnusedLocal
         def check_conditions(the_value):
             dd = self._if_skips.get(attribute, None)
             if dd is None:
@@ -260,7 +253,7 @@ class NITFElement(object):
         if attribute in self._types:
             typ = self._types[attribute]
             if value is None:
-                value = self._get_default(attribute)  # NB: might still be None
+                value = self.get_default_value(attribute)  # NB: might still be None
             if isinstance(value, bytes):
                 value = typ.from_bytes(value, 0)
             if not (value is None or isinstance(value, NITFElement)):
@@ -366,7 +359,7 @@ class NITFElement(object):
         ----------
         fields : dict
             The attribute:value dictionary.
-        skips : set
+        skips : Set
             The set of attributes to skip - for conditional values.
         attribute : str
             The attribute name.
@@ -381,6 +374,7 @@ class NITFElement(object):
             The position in `value` after parsing this attribute.
         """
 
+        # noinspection PyUnusedLocal
         def check_conditions(the_value):
             dd = cls._if_skips.get(attribute, None)
             if dd is None:
@@ -512,7 +506,7 @@ class NITFLoop(NITFElement):
     def __len__(self):
         return len(self._values)
 
-    def __getitem__(self, item):  # type: () -> Union[_child_class, List[_child_class]]
+    def __getitem__(self, item):  # type: (Union[int, slice]) -> Union[_child_class, List[_child_class]]
         return self._values[item]
 
     def get_bytes_length(self):
@@ -787,7 +781,7 @@ class TRE(NITFElement):
     @classmethod
     def from_bytes(cls, value, start):
         tag = value[start:start+6]
-        known_tre = find_tre(tag.encode('utf-8').strip())
+        known_tre = find_tre(tag)
         if known_tre is not None:
             try:
                 return known_tre.from_bytes(value, start)
@@ -897,7 +891,7 @@ class TREList(NITFElement):
     def __len__(self):
         return len(self._tres)
 
-    def __getitem__(self, item):  # type: () -> Union[TRE, List[TRE]]
+    def __getitem__(self, item):  # type: (Union[int, slice]) -> Union[TRE, List[TRE]]
         return self._tres[item]
 
 
@@ -946,7 +940,8 @@ class UserHeaderType(Unstructured):
             if isinstance(data, NITFElement):
                 data = data.to_bytes()
             if isinstance(data, bytes):
-                return siz_frm.format(len(data)+self._ofl_len).encode('utf-8') + ofl_frm.format(self._ofl) + data
+                return siz_frm.format(len(data) + self._ofl_len).encode('utf-8') + \
+                    ofl_frm.format(self._ofl).encode('utf-8') + data
             else:
                 raise TypeError('Got unexpected data type {}'.format(type(data)))
         return super(Unstructured, self)._get_bytes_attribute(attribute)
@@ -999,7 +994,7 @@ class ImageBand(NITFElement):
         return 13
 
     @property
-    def LUTD(self):
+    def LUTD(self):  # type: () -> Union[None, numpy.ndarray]
         return self._LUTD
 
     @LUTD.setter
@@ -1033,12 +1028,13 @@ class ImageBand(NITFElement):
         return 0 if self._LUTD is None else self._LUTD.shape[1]
 
     def _get_bytes_attribute(self, attribute):
-        if attribute == '_LUTS':
+        if attribute == '_LUTD':
             if self.NLUTS == 0:
-                return b'0'
+                out = b'0'
             else:
-                return '{0:d}{1:05d}'.format(self.NLUTS, self.NELUTS).encode() + \
-                       struct.pack('{}B'.format(self.NLUTS * self.NELUTS, *self.LUTD.flatten()))
+                out = '{0:d}{1:05d}'.format(self.NLUTS, self.NELUTS).encode() + \
+                      struct.pack('{}B'.format(self.NLUTS * self.NELUTS, *self.LUTD.flatten()))
+            return out
         else:
             return super(ImageBand, self)._get_bytes_attribute(attribute)
 
@@ -1203,7 +1199,6 @@ class ImageSegmentHeader(NITFElement):
     def UserHeader(self, value):
         # noinspection PyAttributeOutsideInit
         self._UserHeader = value
-        self._load_user_header_data()
 
     @property
     def ExtendedHeader(self):  # type: () -> Union[UserHeaderType, NITFElement]
@@ -1213,7 +1208,13 @@ class ImageSegmentHeader(NITFElement):
     def ExtendedHeader(self, value):
         # noinspection PyAttributeOutsideInit
         self._ExtendedHeader = value
-        self._load_ext_header_data()
+
+    def _set_attribute(self, attribute, value):
+        NITFElement._set_attribute(self, attribute, value)
+        if attribute == '_UserHeader':
+            self._load_user_header_data()
+        elif attribute == '_ExtendedHeader':
+            self._load_ext_header_data()
 
     def _load_user_header_data(self):
         """
@@ -1286,7 +1287,11 @@ class TextSegmentHeader(NITFElement):
     def UserHeader(self, value):
         # noinspection PyAttributeOutsideInit
         self._UserHeader = value
-        self._load_header_data()
+
+    def _set_attribute(self, attribute, value):
+        NITFElement._set_attribute(self, attribute, value)
+        if attribute == '_UserHeader':
+            self._load_header_data()
 
     def _load_header_data(self):
         """
@@ -1308,7 +1313,7 @@ class DataExtensionHeader(NITFElement):
     This requires an extension for essentially any non-trivial DES.
     """
 
-    class SICDHeader(Unstructured):
+    class DESUserHeader(Unstructured):
         _size_len = 4
 
     __slots__ = ('DE', 'DESID', 'DESVER', '_Security', 'DESOFLOW', 'DESITEM', '_UserHeader')
@@ -1320,7 +1325,7 @@ class DataExtensionHeader(NITFElement):
         '_Security': {}, '_UserHeader': {}}
     _types = {
         '_Security': NITFSecurityTags,
-        '_UserHeader': SICDHeader}
+        '_UserHeader': DESUserHeader}
     _if_skips = {
         'DESID': {'condition': '!= "TRE_OVERFLOW"', 'vars': ['DESOFLOW', 'DESITEM']}}
 
@@ -1338,14 +1343,18 @@ class DataExtensionHeader(NITFElement):
         self._Security = value
 
     @property
-    def UserHeader(self):  # type: () -> Union[SICDHeader, NITFElement, SICDDESSubheader]
+    def UserHeader(self):  # type: () -> Union[DESUserHeader, SICDDESSubheader]
         return self._UserHeader
 
     @UserHeader.setter
     def UserHeader(self, value):
         # noinspection PyAttributeOutsideInit
         self._UserHeader = value
-        self._load_header_data()
+
+    def _set_attribute(self, attribute, value):
+        NITFElement._set_attribute(self, attribute, value)
+        if attribute == '_UserHeader':
+            self._load_header_data()
 
     def _load_header_data(self):
         """
@@ -1356,7 +1365,7 @@ class DataExtensionHeader(NITFElement):
         None
         """
 
-        if not isinstance(self._UserHeader, UserHeaderType):
+        if not isinstance(self._UserHeader, DataExtensionHeader.DESUserHeader):
             return
         # try loading sicd
         if self.DESID.strip() == 'XML_DATA_CONTENT':
@@ -1624,7 +1633,7 @@ class SICDDESSubheader(NITFElement):
         'DESSHLPT': '25s', 'DESSHLI': '20s', 'DESSHLIN': '120s',
         'DESSHABS': '200s', }
     _defaults = {
-        'DESSHL': 777, 'DESCRC': 99999, 'DESSHFT': 'XML',
+        'DESSHL': 773, 'DESCRC': 99999, 'DESSHFT': 'XML',
         'DESSHSI': _SICD_SPECIFICATION_IDENTIFIER,
         'DESSHSV': _SICD_SPECIFICATION_VERSION,
         'DESSHSD': _SICD_SPECIFICATION_DATE,
