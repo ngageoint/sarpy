@@ -10,6 +10,20 @@ __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 
+class ACFTA(TRE):
+    __slots__ = (
+        'TAG', 'AC_MSN_ID', 'SCTYPE', 'SCNUM', 'SENSOR_ID', 'PATCH_TOT', 'MTI_TOT', 'PDATE', 'IMHOSTNO', 'IMREQID',
+        'SCENE_SOURCE', 'MPLAN', 'ENTLOC', 'ENTALT', 'EXITLOC', 'EXITALT', 'TMAP', 'RCS', 'ROW_SPACING', 'COL_SPACING',
+        'SENSERIAL', 'ABSWVER')
+    _formats = {
+        'TAG': '6s', 'AC_MSN_ID': '10s', 'SCTYPE': '1s', 'SCNUM': '4s', 'SENSOR_ID': '3s', 'PATCH_TOT': '4s',
+        'MTI_TOT': '3s', 'PDATE': '7s', 'IMHOSTNO': '3s', 'IMREQID': '5s', 'SCENE_SOURCE': '1s', 'MPLAN': '2s',
+        'ENTLOC': '21s', 'ENTALT': '6s', 'EXITLOC': '21s', 'EXITALT': '6s', 'TMAP': '7s', 'RCS': '3s',
+        'ROW_SPACING': '7s', 'COL_SPACING': '7s', 'SENSERIAL': '4s', 'ABSWVER': '7s'}
+    _defaults = {'TAG': 'ACFTA'}
+    _enums = {'TAG': {'ACFTA', }}
+
+
 class ACFTB(TRE):
     __slots__ = (
         'TAG', 'AC_MSN_ID', 'AC_TAIL_NO', 'AC_TO', 'SENSOR_ID_TYPE', 'SENSOR_ID',
@@ -28,6 +42,20 @@ class ACFTB(TRE):
         'ABSWVER': '7s', 'CAL_DATE': '8s', 'PATCH_TOT': '4d', 'MTI_TOT': '3d'}
     _defaults = {'TAG': 'ACFTB'}
     _enums = {'TAG': {'ACFTB', }}
+
+
+class AIMIDA(TRE):
+    __slots__ = (
+        'TAG', 'MISSION_DATE', 'MISSION_NO', 'FLIGHT_NO', 'OP_NUM', 'START_SEGMENT', 'REPRO_NUM', 'REPLAY', 'RESVD001',
+        'START_COLUMN', 'START_ROW', 'END_SEGMENT', 'END_COLUMN', 'END_ROW', 'COUNTRY', 'RESVD002', 'LOCATION', 'TIME',
+        'CREATION_DATE')
+    _formats = {
+        'TAG': '6s', 'MISSION_DATE': '7s', 'MISSION_NO': '4s', 'FLIGHT_NO': '2s', 'OP_NUM': '3s', 'START_SEGMENT': '2s',
+        'REPRO_NUM': '2s', 'REPLAY': '3s', 'RESVD001': '1s', 'START_COLUMN': '2s', 'START_ROW': '5s',
+        'END_SEGMENT': '2s', 'END_COLUMN': '2s', 'END_ROW': '5s', 'COUNTRY': '2s', 'RESVD002': '4s', 'LOCATION': '11s',
+        'TIME': '5s', 'CREATION_DATE': '7s'}
+    _defaults = {'TAG': 'AIMIDA'}
+    _enums = {'TAG': {'AIMIDA', }}
 
 
 class AIMIDB(TRE):
@@ -204,6 +232,20 @@ class EXOPTA(TRE):
         'SUNAZ': '5s'}
     _defaults = {'TAG': 'EXOPTA'}
     _enums = {'TAG': {'EXOPTA', }}
+
+
+class EXPLTA(TRE):
+    __slots__ = (
+        'TAG', 'ANGLE_TO_NORTH', 'SQUINT_ANGLE', 'MODE', 'RESVD001', 'GRAZE_ANG', 'SLOPE_ANG', 'POLAR', 'NSAMP',
+        'RESVD002', 'SEQ_NUM', 'PRIME_ID', 'PRIME_BE', 'RESVD003', 'N_SEC', 'IPR', 'RESVD004', 'RESVD005', 'RESVD006',
+        'RESVD007')
+    _formats = {
+        'TAG': '6s', 'ANGLE_TO_NORTH': '3s', 'SQUINT_ANGLE': '3s', 'MODE': '3s', 'RESVD001': '16s', 'GRAZE_ANG': '2s',
+        'SLOPE_ANG': '2s', 'POLAR': '2s', 'NSAMP': '5s', 'RESVD002': '1s', 'SEQ_NUM': '1s', 'PRIME_ID': '12s',
+        'PRIME_BE': '15s', 'RESVD003': '1s', 'N_SEC': '2s', 'IPR': '2s', 'RESVD004': '2s', 'RESVD005': '2s',
+        'RESVD006': '5s', 'RESVD007': '8s'}
+    _defaults = {'TAG': 'EXPLTA'}
+    _enums = {'TAG': {'EXPLTA', }}
 
 
 class EXPLTB(TRE):
