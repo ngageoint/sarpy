@@ -9,3 +9,6 @@ class Label(tk.Label, WidgetEvents):
 
     def set_text(self, txt):
         self.config(text=txt)
+
+    def get_text(self):
+        return self.cget("text")
