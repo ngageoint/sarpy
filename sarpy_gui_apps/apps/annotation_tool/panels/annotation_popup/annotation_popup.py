@@ -18,6 +18,8 @@ class AnnotationPopup(AbstractWidgetPanel):
         self.init_w_vertical_layout(widget_list)
         self.set_label_text("annotate")
 
+        # set up base types for initial dropdown menu
+
         master_frame.pack()
         self.pack()
 
