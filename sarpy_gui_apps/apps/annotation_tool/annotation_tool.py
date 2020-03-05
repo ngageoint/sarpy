@@ -1,7 +1,7 @@
 import tkinter
 from sarpy_gui_apps.apps.annotation_tool.panels.context_image_panel.context_image_panel import ContextImagePanel
 from sarpy_gui_apps.apps.annotation_tool.panels.annotate_image_panel.annotate_image_panel import AnnotateImagePanel
-from sarpy_gui_apps.apps.canvas_demo.canvas_demo import CanvasDemo
+from sarpy_gui_apps.apps.annotation_tool.panels.annotation_popup.annotation_popup import AnnotationPopup
 from tkinter_gui_builder.panel_templates.widget_panel.widget_panel import AbstractWidgetPanel
 from tkinter_gui_builder.panel_templates.image_canvas.tool_constants import ToolConstants
 import numpy as np
@@ -20,11 +20,21 @@ class AppVariables:
 
         # set up label schema stuff
         self.label_schema = LabelSchema("0.0",
-                                        {"ice 1": "ice",
-                                         "ice 2": "ice",
-                                         "water": "water",
-                                         "land": "land"},
-                                        # subtypes={"ice": ["ice 1", "ice 2"]},
+                                        {"1": "space",
+                                         "2": "earth",
+                                         "3": "land",
+                                         "4": "water",
+                                         "5": "ocean",
+                                         "6": "lake",
+                                         "7": "river",
+                                         "8": "forest",
+                                         "9": "grassland",
+                                         "10": "pine",
+                                         "11": "redwood"},
+                                        subtypes={"2": ["3", "4"],
+                                                  "3": ["8", "9"],
+                                                  "4": ["5", "6", "7"],
+                                                  "8": ["10", "11"]},
                                         confidence_values=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
                                         permitted_geometries=["polygon"]
                                         )
@@ -141,7 +151,7 @@ class AnnotationTool(AbstractWidgetPanel):
             linear_ring = LinearRing()
             polygon = Polygon()
             annotation = Annotation()
-            self.variables.file_annotation_collection.an
+            self.variables.file_annotation_collection.add_annotation(annotation)
 
     def callback_handle_shape_selector(self, event):
         current_shape_id = int(self.annotate_panel.annotate_dashboard.controls.select_existing_shape.get())
@@ -158,8 +168,8 @@ class AnnotationTool(AbstractWidgetPanel):
         self.update_annotate_decimation_value()
 
     def callback_popup(self, event):
-        canvas_demo_popup = tkinter.Toplevel(self.master)
-        CanvasDemo(canvas_demo_popup)
+        popup = tkinter.Toplevel(self.master)
+        AnnotationPopup(popup, self.variables.label_schema)
 
     # non callback defs
     def update_context_decimation_value(self):
