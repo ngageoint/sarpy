@@ -1,44 +1,45 @@
 from tkinter_gui_builder.panel_templates.widget_panel.widget_panel import AbstractWidgetPanel
 from tkinter_gui_builder.widgets import basic_widgets
-from sarpy.annotation.annotate import LabelSchema
+from sarpy_gui_apps.apps.annotation_tool.main_app_variables import AppVariables
 import tkinter
+
+
+class AppVariables:
+    parent_types_main_text = ""
 
 
 class AnnotationPopup(AbstractWidgetPanel):
     parent_types = basic_widgets.Label      # type: basic_widgets.Label
     thing_type = basic_widgets.Combobox  # type: basic_widgets.Combobox
+    reset = basic_widgets.Button        # type: basic_widgets.Button
+    submit = basic_widgets.Button       # type: basic_widgets.Button
 
     def __init__(self,
                  parent,
-                 label_schema,          # type: LabelSchema
+                 main_app_variables,    # type: AppVariables
                  ):
-
-        self.label_schema = label_schema
+        self.label_schema = main_app_variables.label_schema
+        self.main_app_variables = main_app_variables
+        self.variables = AppVariables
 
         master_frame = tkinter.Frame(parent)
         AbstractWidgetPanel.__init__(self, master_frame)
-        widget_list = ["parent_types", "thing_type"]
-        self.init_w_vertical_layout(widget_list)
+        widget_list = ["parent_types", "thing_type", "reset", "submit"]
+        self.init_w_basic_widget_list(widget_list, 3, [1, 1, 2])
         self.set_label_text("annotate")
 
         # set up base types for initial dropdown menu
-        base_type_ids = []
-        for id, parents in label_schema.parent_types.items():
-            main_parent = parents[-1]
-            base_type_ids.append(main_parent)
-        base_type_ids = set(base_type_ids)
-        base_labels = []
-        for id in base_type_ids:
-            base_labels.append(label_schema.labels[id])
-        self.thing_type.update_combobox_values(base_labels)
-
-        self.parent_types.set_text("parents: ")
+        self.setup_main_parent_selections()
 
         master_frame.pack()
         self.pack()
 
+        self.parent_types.set_text(self.variables.parent_types_main_text)
+
         # set up callbacks
         self.thing_type.on_selection(self.callback_update_selection)
+        self.reset.on_left_mouse_click(self.callback_reset)
+        self.submit.on_left_mouse_click(self.callback_submit)
 
     def callback_update_selection(self, event):
         selection_id = [key for key, val in self.label_schema.labels.items() if val == self.thing_type.get()][0]
@@ -48,16 +49,33 @@ class AnnotationPopup(AbstractWidgetPanel):
                 child_index = val.index(selection_id) - 1
                 if child_index >= 0:
                     children_ids.append(val[child_index])
-        if children_ids != []:
-            children_ids = set(children_ids)
-            child_labels = []
-            current_parent_text = self.parent_types.get_text()
+        children_ids = set(children_ids)
+        child_labels = []
+        current_parent_text = self.parent_types.get_text()
+        if current_parent_text == self.variables.parent_types_main_text:
+            new_parent_text = self.label_schema.labels[selection_id]
+        else:
             new_parent_text = current_parent_text + " -> " + self.label_schema.labels[selection_id]
-            self.parent_types.set_text(new_parent_text)
+        if children_ids:
             for id in children_ids:
                 child_labels.append(self.label_schema.labels[id])
             self.thing_type.update_combobox_values(child_labels)
-            stop = 1
+            self.parent_types.set_text(new_parent_text)
 
+    def callback_reset(self, event):
+        self.setup_main_parent_selections()
 
+    def callback_submit(self, event):
+        self.main_app_variables.temp_annotation_submission = 7
 
+    def setup_main_parent_selections(self):
+        base_type_ids = []
+        for type_id, parents in self.label_schema.parent_types.items():
+            main_parent = parents[-1]
+            base_type_ids.append(main_parent)
+        base_type_ids = set(base_type_ids)
+        base_labels = []
+        for type_id in base_type_ids:
+            base_labels.append(self.label_schema.labels[type_id])
+        self.thing_type.update_combobox_values(base_labels)
+        self.parent_types.set_text("")
