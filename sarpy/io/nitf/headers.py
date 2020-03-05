@@ -113,10 +113,6 @@ def _validate_value(frmt, value, name):
                 'Field {} requires an integer of {} or fewer digits. '
                 'Got {}'.format(name, length, value))
         return value
-    elif typ == 'f':
-        if isinstance(value, (str, bytes)):
-            value = value
-        return value
     elif typ == 'b':
         if isinstance(value, str):
             value = value.encode()
@@ -141,10 +137,6 @@ def _get_bytes(frmt, value, name):
         return fmt_out.format(value).encode('utf-8')
     elif typ == 'd':
         fmt_out = '{0:0' + frmt + '}'
-        return fmt_out.format(value).encode('utf-8')
-    elif typ == 'f':
-        fmt_out = '{0:0' + frmt + '}'
-        # TODO: I highly doubt that this is correct
         return fmt_out.format(value).encode('utf-8')
     elif typ == 'b':
         if len(value) >= length:
@@ -190,10 +182,10 @@ class NITFElement(object):
         for attribute in self.__slots__:
             if not hasattr(self, attribute):
                 # this attribute wasn't defined above, so let's initialize it
-                setattr(self, attribute, self._get_default(attribute))
+                setattr(self, attribute, self.get_default_value(attribute))
 
     @classmethod
-    def _get_default(cls, attribute):
+    def get_default_value(cls, attribute):
         if attribute in cls._defaults:
             if attribute in cls._types:
                 arg_dict = cls._defaults[attribute]
@@ -261,7 +253,7 @@ class NITFElement(object):
         if attribute in self._types:
             typ = self._types[attribute]
             if value is None:
-                value = self._get_default(attribute)  # NB: might still be None
+                value = self.get_default_value(attribute)  # NB: might still be None
             if isinstance(value, bytes):
                 value = typ.from_bytes(value, 0)
             if not (value is None or isinstance(value, NITFElement)):
@@ -1002,7 +994,7 @@ class ImageBand(NITFElement):
         return 13
 
     @property
-    def LUTD(self):
+    def LUTD(self):  # type: () -> Union[None, numpy.ndarray]
         return self._LUTD
 
     @LUTD.setter
@@ -1036,12 +1028,13 @@ class ImageBand(NITFElement):
         return 0 if self._LUTD is None else self._LUTD.shape[1]
 
     def _get_bytes_attribute(self, attribute):
-        if attribute == '_LUTS':
+        if attribute == '_LUTD':
             if self.NLUTS == 0:
-                return b'0'
+                out = b'0'
             else:
-                return '{0:d}{1:05d}'.format(self.NLUTS, self.NELUTS).encode() + \
-                       struct.pack('{}B'.format(self.NLUTS * self.NELUTS, *self.LUTD.flatten()))
+                out = '{0:d}{1:05d}'.format(self.NLUTS, self.NELUTS).encode() + \
+                      struct.pack('{}B'.format(self.NLUTS * self.NELUTS, *self.LUTD.flatten()))
+            return out
         else:
             return super(ImageBand, self)._get_bytes_attribute(attribute)
 
@@ -1206,7 +1199,6 @@ class ImageSegmentHeader(NITFElement):
     def UserHeader(self, value):
         # noinspection PyAttributeOutsideInit
         self._UserHeader = value
-        self._load_user_header_data()
 
     @property
     def ExtendedHeader(self):  # type: () -> Union[UserHeaderType, NITFElement]
@@ -1216,7 +1208,13 @@ class ImageSegmentHeader(NITFElement):
     def ExtendedHeader(self, value):
         # noinspection PyAttributeOutsideInit
         self._ExtendedHeader = value
-        self._load_ext_header_data()
+
+    def _set_attribute(self, attribute, value):
+        NITFElement._set_attribute(self, attribute, value)
+        if attribute == '_UserHeader':
+            self._load_user_header_data()
+        elif attribute == '_ExtendedHeader':
+            self._load_ext_header_data()
 
     def _load_user_header_data(self):
         """
@@ -1289,7 +1287,11 @@ class TextSegmentHeader(NITFElement):
     def UserHeader(self, value):
         # noinspection PyAttributeOutsideInit
         self._UserHeader = value
-        self._load_header_data()
+
+    def _set_attribute(self, attribute, value):
+        NITFElement._set_attribute(self, attribute, value)
+        if attribute == '_UserHeader':
+            self._load_header_data()
 
     def _load_header_data(self):
         """
@@ -1311,7 +1313,7 @@ class DataExtensionHeader(NITFElement):
     This requires an extension for essentially any non-trivial DES.
     """
 
-    class SICDHeader(Unstructured):
+    class DESUserHeader(Unstructured):
         _size_len = 4
 
     __slots__ = ('DE', 'DESID', 'DESVER', '_Security', 'DESOFLOW', 'DESITEM', '_UserHeader')
@@ -1323,7 +1325,7 @@ class DataExtensionHeader(NITFElement):
         '_Security': {}, '_UserHeader': {}}
     _types = {
         '_Security': NITFSecurityTags,
-        '_UserHeader': SICDHeader}
+        '_UserHeader': DESUserHeader}
     _if_skips = {
         'DESID': {'condition': '!= "TRE_OVERFLOW"', 'vars': ['DESOFLOW', 'DESITEM']}}
 
@@ -1341,14 +1343,18 @@ class DataExtensionHeader(NITFElement):
         self._Security = value
 
     @property
-    def UserHeader(self):  # type: () -> Union[SICDHeader, NITFElement, SICDDESSubheader]
+    def UserHeader(self):  # type: () -> Union[DESUserHeader, SICDDESSubheader]
         return self._UserHeader
 
     @UserHeader.setter
     def UserHeader(self, value):
         # noinspection PyAttributeOutsideInit
         self._UserHeader = value
-        self._load_header_data()
+
+    def _set_attribute(self, attribute, value):
+        NITFElement._set_attribute(self, attribute, value)
+        if attribute == '_UserHeader':
+            self._load_header_data()
 
     def _load_header_data(self):
         """
@@ -1359,7 +1365,7 @@ class DataExtensionHeader(NITFElement):
         None
         """
 
-        if not isinstance(self._UserHeader, UserHeaderType):
+        if not isinstance(self._UserHeader, DataExtensionHeader.DESUserHeader):
             return
         # try loading sicd
         if self.DESID.strip() == 'XML_DATA_CONTENT':
@@ -1627,7 +1633,7 @@ class SICDDESSubheader(NITFElement):
         'DESSHLPT': '25s', 'DESSHLI': '20s', 'DESSHLIN': '120s',
         'DESSHABS': '200s', }
     _defaults = {
-        'DESSHL': 777, 'DESCRC': 99999, 'DESSHFT': 'XML',
+        'DESSHL': 773, 'DESCRC': 99999, 'DESSHFT': 'XML',
         'DESSHSI': _SICD_SPECIFICATION_IDENTIFIER,
         'DESSHSV': _SICD_SPECIFICATION_VERSION,
         'DESSHSD': _SICD_SPECIFICATION_DATE,

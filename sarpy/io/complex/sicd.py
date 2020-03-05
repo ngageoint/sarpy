@@ -219,8 +219,7 @@ class SICDDetails(NITFDetails):
         sicd_des = self._des_header.UserHeader
         if not isinstance(sicd_des, SICDDESSubheader):
             return None
-        # noinspection PyProtectedMember
-        return sicd_des.DESSHSI.strip() == SICDDESSubheader._defaults['DESSHSI'].strip()
+        return sicd_des.DESSHSI.strip() == SICDDESSubheader.get_default_value('DESSHSI').strip()
 
     def repair_des_header(self):
         """
@@ -245,7 +244,7 @@ class SICDDetails(NITFDetails):
 
         sicd_des = self._des_header.UserHeader
         # noinspection PyProtectedMember
-        sicd_des.DESSHSI = SICDDESSubheader._defaults['DESSHSI']
+        sicd_des.DESSHSI = SICDDESSubheader.get_default_value('DESSHSI')
         stat = self.rewrite_des_header()
         return 2 if stat else 3
 
