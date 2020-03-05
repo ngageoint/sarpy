@@ -13,6 +13,7 @@ import struct
 
 import numpy
 
+from .tres.registration import find_tre
 
 ########
 # NITF header details specific to SICD files
@@ -170,6 +171,7 @@ class NITFElement(object):
     _enums = {}  # allowed values for enum type variables, entries should be set type
     # NOTE: the string entries of enums should be stripped of the white space characters
     _ranges = {}  # ranges for limited int variables, entries should be (min|None, max|None) tuples.
+    _if_skips = {}  # dictionary of the form {<variable>: {'condition': <condition, 'vars': []}}
 
     def __init__(self, **kwargs):
         """
@@ -231,7 +233,7 @@ class NITFElement(object):
                 contained = value.strip() in self._enums[attribute]
 
             if not contained:
-                raise ValueError(
+                logging.error(
                     "Attribute {} must take values in {}. "
                     "Got {}".format(attribute, list(self._enums[attribute]), value))
 
@@ -240,9 +242,20 @@ class NITFElement(object):
                 return
             rng = self._ranges[attribute]
             if rng[0] is not None and value < rng[0]:
-                raise ValueError('Attribute {} must be >= {}. Got {}'.format(attribute, rng[0], value))
+                logging.error('Attribute {} must be >= {}. Got {}'.format(attribute, rng[0], value))
             if rng[1] is not None and value > rng[1]:
-                raise ValueError('Attribute {} must be <= {}. Got {}'.format(attribute, rng[1], value))
+                logging.error('Attribute {} must be <= {}. Got {}'.format(attribute, rng[1], value))
+
+        def check_conditions(the_value):
+            dd = self._if_skips.get(attribute, None)
+            if dd is None:
+                return
+            cstr = 'the_value {}'.format(dd['condition'])
+            condition = eval(cstr)
+            if condition:
+                self._skips = self._skips.union(dd['vars'])
+            else:
+                self._skips = self._skips.difference(dd['vars'])
 
         if attribute in self._types:
             typ = self._types[attribute]
@@ -253,6 +266,7 @@ class NITFElement(object):
             if not (value is None or isinstance(value, NITFElement)):
                 raise ValueError('Attribute {} is expected to be of type {}, '
                                  'got {}'.format(attribute, typ, type(value)))
+            check_conditions(value)
             object.__setattr__(self, attribute, value)
         elif attribute in self._formats:
             frmt = self._formats[attribute]
@@ -262,6 +276,7 @@ class NITFElement(object):
                 value = _validate_value(frmt, value, attribute)
             validate_enum()
             validate_range()
+            check_conditions(value)
             object.__setattr__(self, attribute, value)
         else:
             raise ValueError(
@@ -366,9 +381,23 @@ class NITFElement(object):
             The position in `value` after parsing this attribute.
         """
 
+        def check_conditions(the_value):
+            dd = cls._if_skips.get(attribute, None)
+            if dd is None:
+                return
+            cstr = 'the_value {}'.format(dd['condition'])
+            condition = eval(cstr)
+            if condition:
+                for var in dd['vars']:
+                    skips.add(var)
+                    fields[var] = None
+            else:
+                for var in dd['vars']:
+                    skips.remove(var)
+
         if attribute not in cls.__slots__:
             raise ValueError('No attribute {}'.format(attribute))
-        if attribute in skips:
+        if attribute in skips or attribute in fields:
             return start
         if attribute in cls._types:
             typ = cls._types[attribute]
@@ -378,6 +407,7 @@ class NITFElement(object):
                     'Got {}'.format(cls.__name__, attribute, typ))
             val = typ.from_bytes(value, start)
             fields[attribute] = val
+            check_conditions(val)
             return start+val.get_bytes_length()
         elif attribute in cls._formats:
             frmt = cls._formats[attribute]
@@ -387,7 +417,9 @@ class NITFElement(object):
                 raise ValueError(
                     'Class {}, attribute {} must have value string of length {}, '
                     'but is only length {}'.format(cls.__name__, attribute, end, len(value)))
-            fields[attribute] = _validate_value(frmt, value[start:end], attribute)
+            val = _validate_value(frmt, value[start:end], attribute)
+            fields[attribute] = val
+            check_conditions(val)
             return end
         else:
             return start
@@ -454,11 +486,11 @@ class NITFLoop(NITFElement):
     _child_class = None  # must be a subclass of NITFElement
     _count_size = 0  # type: int
 
-    def __init__(self, values=None):
+    def __init__(self, values=None, **kwargs):
         if not issubclass(self._child_class, NITFElement):
             raise TypeError('_child_class for {} must be a subclass of NITFElement'.format(self.__class__.__name__))
         self._values = tuple()
-        super(NITFLoop, self).__init__(values=values)
+        super(NITFLoop, self).__init__(values=values, **kwargs)
 
     @property
     def values(self):  # type: () -> Tuple[_child_class, ...]
@@ -480,7 +512,7 @@ class NITFLoop(NITFElement):
     def __len__(self):
         return len(self._values)
 
-    def __getitem__(self, item):
+    def __getitem__(self, item):  # type: () -> Union[_child_class, List[_child_class]]
         return self._values[item]
 
     def get_bytes_length(self):
@@ -547,6 +579,8 @@ class Unstructured(NITFElement):
     def data(self, value):
         if value is None:
             self._data = None
+            return
+
         if not isinstance(value, (bytes, NITFElement)):
             raise TypeError(
                 'data requires bytes or NITFElement type. '
@@ -621,7 +655,7 @@ class _ItemArrayHeaders(NITFElement):
     _subhead_len = 0
     _item_len = 0
 
-    def __init__(self, subhead_sizes=None, item_sizes=None):
+    def __init__(self, subhead_sizes=None, item_sizes=None, **kwargs):
         """
 
         Parameters
@@ -639,7 +673,7 @@ class _ItemArrayHeaders(NITFElement):
         self.subhead_sizes = subhead_sizes
         self.item_sizes = item_sizes
         self._skips = set()
-        super(_ItemArrayHeaders, self).__init__()
+        super(_ItemArrayHeaders, self).__init__(**kwargs)
 
     def get_bytes_length(self):
         return 3 + (self._subhead_len + self._item_len)*self.subhead_sizes.size
@@ -725,33 +759,59 @@ class NITFSecurityTags(NITFElement):
 # TRE
 
 class TRE(NITFElement):
+    """
+    An abstract TRE class - this should not be instantiated directly.
+    """
+
+    __slots__ = ('TAG', )
+    _formats = {'TAG': '6s'}
+
+    def _get_bytes_attribute(self, attribute):
+        if attribute == 'TAG':
+            other_length = sum(self._get_length_attribute(attribute) for attribute in self.__slots__[1:])
+            return '{0:s}{1:05d}'.format(self.TAG, other_length).encode('utf-8')
+        return super(TRE, self)._get_bytes_attribute(attribute)
+
+    def _get_length_attribute(self, attribute):
+        if attribute == 'TAG':
+            return 11
+        return super(TRE, self)._get_length_attribute(attribute)
+
+    @classmethod
+    def _parse_attribute(cls, fields, skips, attribute, value, start):
+        if attribute == 'TAG':
+            pass
+        else:
+            super(TRE, cls)._parse_attribute(fields, skips, attribute, value, start)
+
+    @classmethod
+    def from_bytes(cls, value, start):
+        tag = value[start:start+6]
+        known_tre = find_tre(tag.encode('utf-8').strip())
+        if known_tre is not None:
+            try:
+                return known_tre.from_bytes(value, start)
+            except Exception as e:
+                logging.error(
+                    "Failed parsing tre as type {} with error {}. "
+                    "Returning unparsed.".format(known_tre.__name__, e))
+        return UnknownTRE.from_bytes(value, start)
+
+
+class UnknownTRE(TRE):
     class TREData(Unstructured):
         _size_len = 5
 
-    __slots__ = ('_tag', '_data')
-    _formats = {'_tag': '6s'}
+    __slots__ = ('TAG', '_data')
+    _formats = {'TAG': '6s'}
     _types = {'_data': TREData}
     _defaults = {'_data': {}}
 
     def __init__(self, **kwargs):
-        self._tag = None
         self._data = None
-        super(TRE, self).__init__(**kwargs)
-        if self._tag is None:
-            raise ValueError('tag must be defined for TRE.')
-
-    @property
-    def tag(self):
-        return self._tag
-
-    @tag.setter
-    def tag(self, value):
-        if self._tag is None:
-            self._tag = value
-        elif self._tag.strip() == value.strip():
-            return
-        else:
-            raise ValueError('tag is immutable')
+        super(UnknownTRE, self).__init__(**kwargs)
+        if self.TAG.strip() == '':
+            raise ValueError('TAG must be defined for TRE.')
 
     @property
     def data(self):
@@ -760,18 +820,16 @@ class TRE(NITFElement):
     @data.setter
     def data(self, value):
         self._data = value
-        self._load_data_definition()
 
-    def _load_data_definition(self):
-        """
-        The defines interpreting data versus known extensions.
+    def _get_bytes_attribute(self, attribute):
+        return NITFElement._get_bytes_attribute(self, attribute)
 
-        Returns
-        -------
-        None
-        """
+    def _get_length_attribute(self, attribute):
+        return NITFElement._get_length_attribute(self, attribute)
 
-        pass
+    @classmethod
+    def _parse_attribute(cls, fields, skips, attribute, value, start):
+        return NITFElement._parse_attribute(fields, skips, attribute, value, start)
 
 
 class TREList(NITFElement):
@@ -782,9 +840,9 @@ class TREList(NITFElement):
 
     __slots__ = ('_tres', )
 
-    def __init__(self, tres=None):
+    def __init__(self, tres=None, **kwargs):
         self._tres = []
-        super(TREList, self).__init__(tres=tres)
+        super(TREList, self).__init__(tres=tres, **kwargs)
 
     @property
     def tres(self):  # type: () -> List[TRE]
@@ -839,7 +897,7 @@ class TREList(NITFElement):
     def __len__(self):
         return len(self._tres)
 
-    def __getitem__(self, item):
+    def __getitem__(self, item):  # type: () -> Union[TRE, List[TRE]]
         return self._tres[item]
 
 
@@ -848,11 +906,11 @@ class UserHeaderType(Unstructured):
     _size_len = 5
     _ofl_len = 3
 
-    def __init__(self, OFL=None, data=None):
+    def __init__(self, OFL=None, data=None, **kwargs):
         self._ofl = None
         self._data = None
         self.OFL = OFL
-        super(UserHeaderType, self).__init__(data=data)
+        super(UserHeaderType, self).__init__(data=data, **kwargs)
 
     @property
     def OFL(self):  # type: () -> int
@@ -1100,8 +1158,9 @@ class ImageSegmentHeader(NITFElement):
             'CAT', 'VD', 'PAT', 'LEG', 'DTEM', 'MATR', 'LOCG', 'BARO',
             'CURRENT', 'DEPTH', 'WIND'},
         'PJUST': {'L', 'R'},
-        'ICOORDS': {'', 'U', 'G', 'N', 'S', 'D'}
-    }
+        'ICOORDS': {'', 'U', 'G', 'N', 'S', 'D'}}
+    _if_skips = {
+        'IC': {'condition': 'in ("NC", "NM")', 'vars': ['COMRAT', ]}}
 
     def __init__(self, **kwargs):
         self._skips = set()
@@ -1177,25 +1236,6 @@ class ImageSegmentHeader(NITFElement):
         """
 
         pass
-
-    @classmethod
-    def _parse_attribute(cls, fields, skips, attribute, value, start):
-        loc = super(ImageSegmentHeader, cls)._parse_attribute(fields, skips, attribute, value, start)
-        if attribute == 'IC':
-            val = fields['IC']
-            if val in ('NC', 'NM'):
-                skips.add('COMRAT')
-        return loc
-
-    def _set_attribute(self, attribute, value):
-        super(ImageSegmentHeader, self)._set_attribute(attribute, value)
-        if attribute == 'IC':
-            val = self.IC
-            if val in ('NC', 'NM'):
-                self._skips.add('COMRAT')
-                self.COMRAT = None
-            else:
-                self._skips.remove('COMRAT')
 
     @classmethod
     def minimum_length(cls):
@@ -1281,6 +1321,8 @@ class DataExtensionHeader(NITFElement):
     _types = {
         '_Security': NITFSecurityTags,
         '_UserHeader': SICDHeader}
+    _if_skips = {
+        'DESID': {'condition': '!= "TRE_OVERFLOW"', 'vars': ['DESOFLOW', 'DESITEM']}}
 
     def __init__(self, **kwargs):
         self._skips = set()
@@ -1335,27 +1377,6 @@ class DataExtensionHeader(NITFElement):
     @classmethod
     def minimum_length(cls):
         return 200
-
-    @classmethod
-    def _parse_attribute(cls, fields, skips, attribute, value, start):
-        loc = super(DataExtensionHeader, cls)._parse_attribute(fields, skips, attribute, value, start)
-        if attribute == 'DESID':
-            val = fields['DESID']
-            if val != "TRE_OVERFLOW":
-                skips.add('DESOFLOW')
-                skips.add('DESITEM')
-        return loc
-
-    def _set_attribute(self, attribute, value):
-        super(DataExtensionHeader, self)._set_attribute(attribute, value)
-        if attribute == 'DESID':
-            val = self.DESID.strip()
-            if val != "TRE_OVERFLOW":
-                self._skips.add('DESOFLOW')
-                self._skips.add('DESITEM')
-            else:
-                self._skips.remove('DESOFLOW')
-                self._skips.remove('DESITEM')
 
 
 ######

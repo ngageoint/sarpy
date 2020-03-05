@@ -71,6 +71,7 @@ class TestSICDReader(unittest.TestCase):
     def test_reader(self):
         tested = 0
         for fil in [
+                'sicd_example_1_PFA_RE32F_IM32F_HH.nitf',
                 'sicd_example_RMA_RGZERO_RE16I_IM16I.nitf',
                 'sicd_example_RMA_RGZERO_RE32F_IM32F.nitf',
                 'sicd_example_RMA_RGZERO_RE32F_IM32F_cropped_multiple_image_segments_v1.2.nitf']:
