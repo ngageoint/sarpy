@@ -234,7 +234,7 @@ def ground_to_image_geo(coords, sicd, ordering='latlong', **kwargs):
         If 'longlat', then the input is `[longitude, latitude, hae]`.
         Otherwise, the input is `[latitude, longitude, hae]`. Passed through
         to :func:`sarpy.geometry.geocoords.geodetic_to_ecf`.
-    kwargs : dict
+    kwargs
         See the key word arguments of :func:`ground_to_image`
 
     Returns
@@ -635,7 +635,7 @@ def _validate_im_points(im_points, sicd):
     return im_points, orig_shape
 
 
-def image_to_ground(im_points, sicd, block_size=50000, projection_type='HAE', **kwargs):
+def image_to_ground(im_points, sicd, block_size=50000, projection_type='HAE', use_sicd_coa=True, **kwargs):
     """
     Transforms image coordinates to ground plane ECF coordinate via the algorithm(s)
     described in SICD Image Projections document.
@@ -652,7 +652,9 @@ def image_to_ground(im_points, sicd, block_size=50000, projection_type='HAE', **
         transformed as a single block if `None`.
     projection_type : str
         One of ['PLANE', 'HAE', 'DEM'].
-    kwargs : dict
+    use_sicd_coa : bool
+        If sicd.coa_projection is populated, use that one **ignoring the COAProjection parameters.**
+    kwargs
         keyword arguments relevant for the given projection type. See image_to_ground_plane/hae/dem methods.
 
     Returns
@@ -664,16 +666,16 @@ def image_to_ground(im_points, sicd, block_size=50000, projection_type='HAE', **
 
     p_type = projection_type.upper()
     if p_type == 'PLANE':
-        return image_to_ground_plane(im_points, sicd, block_size=block_size, **kwargs)
+        return image_to_ground_plane(im_points, sicd, block_size=block_size, use_sicd_coa=use_sicd_coa, **kwargs)
     elif p_type == 'HAE':
-        return image_to_ground_hae(im_points, sicd, block_size=block_size, **kwargs)
+        return image_to_ground_hae(im_points, sicd, block_size=block_size, use_sicd_coa=use_sicd_coa, **kwargs)
     elif p_type == 'DEM':
-        return image_to_ground_dem(im_points, sicd, block_size=block_size, **kwargs)
+        return image_to_ground_dem(im_points, sicd, block_size=block_size, use_sicd_coa=use_sicd_coa, **kwargs)
     else:
         raise ValueError('Got unrecognized projection type {}'.format(projection_type))
 
 
-def image_to_ground_geo(im_points, sicd, ordering='latlong', block_size=50000, projection_type='HAE', **kwargs):
+def image_to_ground_geo(im_points, sicd, ordering='latlong', block_size=50000, projection_type='HAE', use_sicd_coa=True, **kwargs):
     """
     Transforms image coordinates to ground plane Lat/Lon/HAE coordinate via the algorithm(s)
     described in SICD Image Projections document.
@@ -693,7 +695,9 @@ def image_to_ground_geo(im_points, sicd, ordering='latlong', block_size=50000, p
         transformed as a single block if `None`.
     projection_type : str
         One of ['PLANE', 'HAE', 'DEM'].
-    kwargs : dict
+    use_sicd_coa : bool
+        If sicd.coa_projection is populated, use that one **ignoring the COAProjection parameters.**
+    kwargs
         See the keyword arguments in :func:`image_to_ground`.
 
     Returns
@@ -703,7 +707,7 @@ def image_to_ground_geo(im_points, sicd, ordering='latlong', block_size=50000, p
     """
 
     return geocoords.ecf_to_geodetic(image_to_ground(
-        im_points, sicd, block_size=block_size, projection_type=projection_type, **kwargs),
+        im_points, sicd, block_size=block_size, projection_type=projection_type, use_sicd_coa=use_sicd_coa, **kwargs),
         ordering=ordering)
 
 
@@ -776,7 +780,7 @@ def _image_to_ground_plane(im_points, coa_projection, gref, uZ):
     return _image_to_ground_plane_perform(r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa, gref, uZ)
 
 
-def image_to_ground_plane(im_points, sicd, block_size=50000, gref=None, ugpn=None, **coa_args):
+def image_to_ground_plane(im_points, sicd, block_size=50000, gref=None, ugpn=None, use_sicd_coa=True, **coa_args):
     """
     Transforms image coordinates to ground plane ECF coordinate via the algorithm(s)
     described in SICD Image Projections document.
@@ -794,7 +798,9 @@ def image_to_ground_plane(im_points, sicd, block_size=50000, gref=None, ugpn=Non
         Ground plane reference point ECF coordinates (m). The default is the SCP
     ugpn : None|numpy.ndarray|list|tuple
         Vector normal to the plane to which we are projecting.
-    coa_args : dict
+    use_sicd_coa : bool
+        If sicd.coa_projection is populated, use that one **ignoring the COAProjection parameters.**
+    coa_args
         keyword arguments for COAProjection constructor.
 
     Returns
@@ -815,7 +821,7 @@ def image_to_ground_plane(im_points, sicd, block_size=50000, gref=None, ugpn=Non
 
     # coa projection creation
     im_points, orig_shape = _validate_im_points(im_points, sicd)
-    if coa_args.get('use_sicd_coa', True) and sicd.coa_projection is not None:
+    if use_sicd_coa and sicd.coa_projection is not None:
         coa_proj = sicd.coa_projection
     else:
         coa_proj = COAProjection(sicd, **coa_args)
@@ -935,7 +941,7 @@ def _image_to_ground_hae(im_points, coa_projection, hae0, delta_hae_max, hae_nli
 
 
 def image_to_ground_hae(im_points, sicd, block_size=50000,
-                        hae0=None, delta_hae_max=None, hae_nlim=None, **coa_args):
+                        hae0=None, delta_hae_max=None, hae_nlim=None, use_sicd_coa=True, **coa_args):
     """
     Transforms image coordinates to ground plane ECF coordinate via the algorithm(s)
     described in SICD Image Projections document.
@@ -956,7 +962,9 @@ def image_to_ground_hae(im_points, sicd, block_size=50000,
         Height threshold for convergence of iterative constant HAE computation (m). Defaults to 1.
     hae_nlim : int
         Maximum number of iterations allowed for constant hae computation. Defaults to 5.
-    coa_args : dict
+    use_sicd_coa : bool
+        If sicd.coa_projection is populated, use that one **ignoring the COAProjection parameters.**
+    coa_args
         keyword arguments for COAProjection constructor.
 
     Returns
@@ -985,7 +993,7 @@ def image_to_ground_hae(im_points, sicd, block_size=50000,
 
     # coa projection creation
     im_points, orig_shape = _validate_im_points(im_points, sicd)
-    if coa_args.get('use_sicd_coa', False) and sicd.coa_projection is not None:
+    if use_sicd_coa and sicd.coa_projection is not None:
         coa_proj = sicd.coa_projection
     else:
         coa_proj = COAProjection(sicd, **coa_args)
@@ -1095,7 +1103,7 @@ def _image_to_ground_dem(
 
 def image_to_ground_dem(im_points, sicd, block_size=50000,
                         dted_list=None, dem_type='SRTM2F', geoid_file=None,
-                        horizontal_step_size=10, **coa_args):
+                        horizontal_step_size=10, use_sicd_coa=True, **coa_args):
     """
     Transforms image coordinates to ground plane ECF coordinate via the algorithm(s)
     described in SICD Image Projections document.
@@ -1114,7 +1122,9 @@ def image_to_ground_dem(im_points, sicd, block_size=50000,
     geoid_file : None|str|GeoidHeight
     horizontal_step_size : None|float|int
         Maximum distance between adjacent points along the R/Rdot contour.
-    coa_args : dict
+    use_sicd_coa : bool
+        If sicd.coa_projection is populated, use that one **ignoring the COAProjection parameters.**
+    coa_args
         keyword arguments for COAProjection constructor.
 
     Returns
@@ -1126,7 +1136,7 @@ def image_to_ground_dem(im_points, sicd, block_size=50000,
 
     # coa projection creation
     im_points, orig_shape = _validate_im_points(im_points, sicd)
-    if coa_args.get('use_sicd_coa', True) and sicd.coa_projection is not None:
+    if use_sicd_coa and sicd.coa_projection is not None:
         coa_proj = sicd.coa_projection
     else:
         coa_proj = COAProjection(sicd, **coa_args)

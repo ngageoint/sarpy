@@ -127,7 +127,11 @@ class SICDDetails(NITFDetails):
     @property
     def img_headers(self):
         """
-        None|List[ImageSegmentHeader]: the image segment headers
+        The image segment headers.
+
+        Returns
+        -------
+            None|List[ImageSegmentHeader]
         """
 
         if self._img_headers is not None:
@@ -135,6 +139,18 @@ class SICDDetails(NITFDetails):
 
         self._parse_img_headers()
         return self._img_headers
+
+    @property
+    def des_header(self):
+        """
+        The DES subheader object associated with the SICD.
+
+        Returns
+        -------
+        None|DataExtensionHeader
+        """
+
+        return self._des_header
 
     def _parse_img_headers(self):
         if self.img_segment_offsets is None:
@@ -158,12 +174,12 @@ class SICDDetails(NITFDetails):
         data_extension = None
         with open(self._file_name, 'rb') as fi:
             for i in range(self.des_subheader_offsets.size):
-                fi.seek(int_func(self.des_subheader_offsets[0]))
-                subhead_bytes = fi.read(self._nitf_header.DataExtensions.subhead_sizes[0])
+                fi.seek(int_func(self.des_subheader_offsets[i]))
+                subhead_bytes = fi.read(self._nitf_header.DataExtensions.subhead_sizes[i])
                 if subhead_bytes.startswith(b'DEXML_DATA_CONTENT'):
                     des_header = DataExtensionHeader.from_bytes(subhead_bytes, start=0)
-                    fi.seek(int_func(self.des_segment_offsets[0]))
-                    data_extension = fi.read(int_func(self._nitf_header.DataExtensions.item_sizes[0])).decode('utf-8')
+                    fi.seek(int_func(self.des_segment_offsets[i]))
+                    data_extension = fi.read(int_func(self._nitf_header.DataExtensions.item_sizes[i])).decode('utf-8')
                     if data_extension.startswith('<SICD'):
                         # TODO: is this generally safe? Is anyone putting the xml header?
                         self._des_index = i
@@ -187,22 +203,80 @@ class SICDDetails(NITFDetails):
 
     def is_des_well_formed(self):
         """
-        Is the data extension subheader well-formed?
+        Returns whether the data extension subheader well-formed. Returns `None`
+        if the DataExtensionHeader or the UserHeader section of it was not successfully
+        parsed. Currently just checks the `DESSHSI` field for the required value.
+
+        Returns
+        -------
+        bool|None
+        """
+
+        if not self._is_sicd or self.des_header is None or \
+                not isinstance(self.des_header, DataExtensionHeader):
+            return None
+
+        sicd_des = self._des_header.UserHeader
+        if not isinstance(sicd_des, SICDDESSubheader):
+            return None
+        return sicd_des.DESSHSI.strip() == SICDDESSubheader.get_default_value('DESSHSI').strip()
+
+    def repair_des_header(self):
+        """
+        Determines whether the data extension subheader is well-formed, and tries
+        to repair it if not. Currently just sets the `DESSHSI` field to the
+        required value.
+
+        Returns `0` if wellformedness could not be evaluated, `1` if no change was
+        required, `2` if the subheader was replaced, and `3` if the replacement effort
+        failed (details logged at error level).
+
+        Returns
+        -------
+        int
+        """
+
+        stat = self.is_des_well_formed()
+        if stat is None:
+            return 0
+        elif stat:
+            return 1
+
+        sicd_des = self._des_header.UserHeader
+        # noinspection PyProtectedMember
+        sicd_des.DESSHSI = SICDDESSubheader.get_default_value('DESSHSI')
+        stat = self.rewrite_des_header()
+        return 2 if stat else 3
+
+    def rewrite_des_header(self):
+        """
+        Rewrites the DES subheader associated with the SICD from the current
+        value in `des_header` property. This allows minor modifications to the
+        security tags or user header information.
 
         Returns
         -------
         bool
+            True is the modification was successful and False otherwise. Note that
+            no errors, in particular io errors from write permission issues,
+            are caught.
         """
 
-        if not self._is_sicd or self._des_header is None or \
-                not isinstance(self._des_header, DataExtensionHeader):
-            return True
-
-        sicd_des = self._des_header.UserHeader
-        if not isinstance(sicd_des, SICDDESSubheader):
+        if not self._is_sicd:
             return False
-        # noinspection PyProtectedMember
-        return sicd_des.DESSHSI == SICDDESSubheader._defaults['DESSHSI']
+
+        des_bytes = self.des_header.to_bytes()
+        des_size = self._nitf_header.DataExtensions.subhead_sizes[self._des_index]
+        if len(des_bytes) != des_size:
+            logging.error(
+                "The size of the current des header {} bytes, does not match the "
+                "previous {} bytes. They cannot be trivially replaced.".format(des_bytes, des_size))
+            return False
+        des_loc = self.des_subheader_offsets[self._des_index]
+        with open(self._file_name, 'r+b') as fi:
+            fi.seek(des_loc)
+            fi.write(des_bytes)
+        return True
 
 
 #######
