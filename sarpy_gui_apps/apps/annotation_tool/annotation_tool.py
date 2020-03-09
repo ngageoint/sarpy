@@ -52,8 +52,8 @@ class AnnotationTool(AbstractWidgetPanel):
         self.annotate_panel.annotate_dashboard.controls.draw_polygon.on_left_mouse_click(self.callback_set_to_draw_polygon)
         self.annotate_panel.annotate_dashboard.controls.popup.on_left_mouse_click(self.callback_popup)
         self.annotate_panel.annotate_dashboard.controls.pan.on_left_mouse_click(self.callback_annotate_set_to_pan)
-
         self.annotate_panel.annotate_dashboard.controls.save_annotations.on_left_mouse_click(self.callback_save_annotations)
+        self.annotate_panel.annotate_dashboard.controls.select_closest_shape.on_left_mouse_click(self.callback_set_to_select_closest_shape)
 
         self.annotate_panel.image_canvas.set_labelframe_text("Image View")
 
@@ -106,6 +106,9 @@ class AnnotationTool(AbstractWidgetPanel):
         self.update_context_decimation_value()
 
     # annotate callbacks
+    def callback_set_to_select_closest_shape(self, event):
+        self.annotate_panel.image_canvas.set_current_tool_to_select_closest_shape()
+
     def callback_annotate_set_to_pan(self, event):
         self.annotate_panel.annotate_dashboard.controls.set_active_button(self.annotate_panel.annotate_dashboard.controls.pan)
         self.annotate_panel.image_canvas.set_current_tool_to_pan()

@@ -281,6 +281,10 @@ class ImageCanvas(tk.LabelFrame):
         elif self.variables.current_tool == TOOLS.EDIT_SHAPE_COORDS_TOOL:
             closest_coord_index = self.find_closest_shape_coord(self.variables.current_shape_id, event.x, event.y)
             self.variables.tmp_closest_coord_index = closest_coord_index
+        elif self.variables.current_tool == TOOLS.SELECT_CLOSEST_SHAPE_TOOL:
+            closest_shape_id = self.find_closest_shape(event.x, event.y)
+            self.variables.current_shape_id = closest_shape_id
+            self.highlight_existing_shape(self.variables.current_shape_id)
         else:
             start_x = self.canvas.canvasx(event.x)
             start_y = self.canvas.canvasy(event.y)
@@ -381,9 +385,6 @@ class ImageCanvas(tk.LabelFrame):
             self.event_drag_line(event)
         elif self.variables.current_tool == TOOLS.DRAW_POINT_BY_CLICKING:
             self.modify_existing_shape_using_canvas_coords(self.variables.current_shape_id, (event.x, event.y))
-        elif self.variables.current_tool == TOOLS.SELECT_CLOSEST_SHAPE_TOOL:
-            # TODO
-            pass
 
     def highlight_existing_shape(self, shape_id):
         original_color = self._get_shape_property(shape_id, SHAPE_PROPERTIES.COLOR)
@@ -753,6 +754,9 @@ class ImageCanvas(tk.LabelFrame):
             if pixel_coords:
                 new_canvas_coords = self.image_coords_to_canvas_coords(shape_id)
                 self.modify_existing_shape_using_canvas_coords(shape_id, new_canvas_coords, update_pixel_coords=False)
+                
+    def set_current_tool_to_select_closest_shape(self):
+        self.variables.current_tool = TOOLS.SELECT_CLOSEST_SHAPE_TOOL
 
     def set_current_tool_to_zoom_out(self):
         self.variables.current_shape_id = self.variables.zoom_rect_id
@@ -927,3 +931,26 @@ class ImageCanvas(tk.LabelFrame):
             squared_distances.append(d)
         closest_coord_index = np.where(squared_distances == np.min(squared_distances))[0][0]
         return closest_coord_index
+
+    def find_closest_shape(self,
+                           canvas_x,
+                           canvas_y):
+        non_tool_shape_ids = self.get_non_tool_shape_ids()
+        closest_distances = []
+        for shape_id in non_tool_shape_ids:
+            coords = self.get_shape_canvas_coords(shape_id)
+            squared_distances = []
+            coord_indices = np.arange(0, len(coords), step=2)
+            for i in coord_indices:
+                coord_x, coord_y = coords[i], coords[i + 1]
+                d = (coord_x - canvas_x) ** 2 + (coord_y - canvas_y) ** 2
+                squared_distances.append(d)
+            closest_distances.append(np.min(squared_distances))
+        closest_shape_id = non_tool_shape_ids[np.where(closest_distances == np.min(closest_distances))[0][0]]
+        return closest_shape_id
+
+    def get_non_tool_shape_ids(self):
+        all_shape_ids = self.variables.shape_ids
+        tool_shape_ids = [self.variables.zoom_rect_id,
+                          self.variables.select_rect_id]
+        return list(np.setdiff1d(all_shape_ids, tool_shape_ids))
