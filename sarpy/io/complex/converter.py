@@ -7,6 +7,7 @@ read to SICD or SIO format. The same conversion utility can be used to subset da
 import os
 import sys
 import pkgutil
+from importlib import import_module
 import numpy
 import logging
 from typing import Union, List, Tuple
@@ -41,7 +42,7 @@ def register_opener(open_func):
 
     Parameters
     ----------
-    open_func : callable
+    open_func : dict
         This is required to be a function which takes a single argument (file name).
         This function should return a sarpy.io.complex.base.BaseReader instance
         if the referenced file is viable for the underlying type, and None otherwise.
@@ -51,7 +52,7 @@ def register_opener(open_func):
     None
     """
 
-    if not isinstance(open_func, callable):
+    if not callable(open_func):
         raise TypeError('open_func must be a callable')
     if open_func not in _openers:
         _openers.append(open_func)
@@ -72,15 +73,13 @@ def parse_openers():
     _parsed_openers = True
 
     def check_module(mod_name):
-        # get the module loader
-        loader = pkgutil.get_loader(mod_name)
-        # load the module
-        module = loader.load_module(mod_name)
-
+        # import the module
+        import_module(mod_name)
+        # fetch the module from the modules dict
+        module = sys.modules[mod_name]
         # see if it has an is_a function, if so, register it
-        opener = getattr(module, 'is_a', None)
-        if opener is not None:
-            register_opener(opener)
+        if hasattr(module, 'is_a'):
+            register_opener(module.is_a)
 
         # walk down any subpackages
         path, fil = os.path.split(module.__file__)
@@ -93,6 +92,7 @@ def parse_openers():
             check_module(sub_name)
 
     check_module('sarpy.io.complex')
+    print('\n\nParsed Openers = {}\n\n'.format(_openers))
 
 
 def open_complex(file_name):
