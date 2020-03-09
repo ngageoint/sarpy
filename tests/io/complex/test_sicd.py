@@ -5,6 +5,7 @@ import logging
 from . import unittest
 
 from sarpy.io.complex.sicd import SICDDetails, SICDReader
+from sarpy.io.complex.converter import open_complex
 
 
 def generic_sicd_check(instance, test_file):
@@ -43,6 +44,13 @@ def generic_sicd_check(instance, test_file):
         reader = SICDReader(test_details)
         # how long does it take to unpack details and load file?
         logging.info('loaded sicd file from sicd details in {}'.format(time.time() - start))
+
+    # can we use the open_complex method?
+    with instance.subTest(msg="SICD reader from open_complex"):
+        start = time.time()
+        reader = open_complex(test_file)
+        # how long does it take to unpack details and load file?
+        logging.info('Used open_complex to unpack sicd details from file name and loaded sicd file in {}'.format(time.time() - start))
 
     with instance.subTest(msg="data_size access"):
         # how about the sizes?

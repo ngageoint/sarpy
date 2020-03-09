@@ -4,8 +4,10 @@ Module for maintaining the TRE registry
 
 import logging
 import pkgutil
+from importlib import import_module
 import inspect
 import os
+import sys
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas Mccullough"
@@ -106,10 +108,10 @@ def parse_package(packages=None):
     # walk the packages, find all subclasses of TRE, dump them into our dictionary
 
     def check_module(module_name):
-        # get the module loader
-        loader = pkgutil.get_loader(module_name)
-        # load the module
-        module = loader.load_module(module_name)
+        # import the module
+        import_module(module_name)
+        # fetch the module from the modules dict
+        module = sys.modules[module_name]
         # check all classes of the module itself
         for element_name, element_type in inspect.getmembers(module, inspect.isclass):
             if issubclass(element_type, TRE) and element_type != TRE:
