@@ -14,6 +14,7 @@ class AnnotationPopup(AbstractWidgetPanel):
     thing_type = basic_widgets.Combobox  # type: basic_widgets.Combobox
     reset = basic_widgets.Button        # type: basic_widgets.Button
     submit = basic_widgets.Button       # type: basic_widgets.Button
+    comment = basic_widgets.Entry       # type: basic_widgets.Entry
 
     def __init__(self,
                  parent,
@@ -25,8 +26,8 @@ class AnnotationPopup(AbstractWidgetPanel):
 
         master_frame = tkinter.Frame(parent)
         AbstractWidgetPanel.__init__(self, master_frame)
-        widget_list = ["parent_types", "thing_type", "reset", "submit"]
-        self.init_w_basic_widget_list(widget_list, 3, [1, 1, 2])
+        widget_list = ["parent_types", "thing_type", "reset", "submit", "comment"]
+        self.init_w_basic_widget_list(widget_list, 3, [1, 1, 3])
         self.set_label_text("annotate")
 
         # set up base types for initial dropdown menu
@@ -70,6 +71,8 @@ class AnnotationPopup(AbstractWidgetPanel):
         self.setup_main_parent_selections()
 
     def callback_submit(self, event):
+        comment_text = self.comment.get()
+        thing_type = self.thing_type.get()
         stop = 1
 
     def setup_main_parent_selections(self):

@@ -1,14 +1,18 @@
-import tkinter
 from sarpy_gui_apps.apps.annotation_tool.panels.context_image_panel.context_image_panel import ContextImagePanel
 from sarpy_gui_apps.apps.annotation_tool.panels.annotate_image_panel.annotate_image_panel import AnnotateImagePanel
 from sarpy_gui_apps.apps.annotation_tool.panels.annotation_popup.annotation_popup import AnnotationPopup
+from sarpy_gui_apps.apps.annotation_tool.main_app_variables import AppVariables
+
 from tkinter_gui_builder.panel_templates.widget_panel.widget_panel import AbstractWidgetPanel
 from tkinter_gui_builder.panel_templates.image_canvas.tool_constants import ToolConstants
-import numpy as np
-from sarpy.annotation.annotate import Annotation
 from sarpy.geometry.geometry_elements import Polygon
-from sarpy.geometry.geometry_elements import LinearRing
-from sarpy_gui_apps.apps.annotation_tool.main_app_variables import AppVariables
+from sarpy.annotation.annotate import FileAnnotationCollection
+from sarpy.annotation.annotate import Annotation
+from sarpy.annotation.annotate import AnnotationMetadata
+from sarpy.annotation.annotate import AnnotationMetadataList
+
+import tkinter
+import numpy as np
 import os
 
 
@@ -49,8 +53,9 @@ class AnnotationTool(AbstractWidgetPanel):
         self.annotate_panel.annotate_dashboard.controls.popup.on_left_mouse_click(self.callback_popup)
         self.annotate_panel.annotate_dashboard.controls.pan.on_left_mouse_click(self.callback_annotate_set_to_pan)
 
-        self.annotate_panel.image_canvas.set_labelframe_text("Image View")
+        self.annotate_panel.annotate_dashboard.controls.save_annotations.on_left_mouse_click(self.callback_save_annotations)
 
+        self.annotate_panel.image_canvas.set_labelframe_text("Image View")
 
     # context callbacks
     def callback_context_select_file(self, event):
@@ -61,6 +66,7 @@ class AnnotationTool(AbstractWidgetPanel):
         self.update_context_decimation_value()
         self.annotate_panel.image_canvas.init_with_fname(self.variables.image_fname)
         self.annotate_panel.image_canvas.set_image_from_numpy_array(np.zeros((self.annotate_panel.image_canvas.canvas_height, self.annotate_panel.image_canvas.canvas_width)))
+        self.variables.file_annotation_collection = FileAnnotationCollection(self.variables.label_schema, image_file_name=self.variables.image_fname)
 
     def callback_context_set_to_select(self, event):
         self.context_panel.context_dashboard.buttons.set_active_button(self.context_panel.context_dashboard.buttons.select)
@@ -124,9 +130,16 @@ class AnnotationTool(AbstractWidgetPanel):
         if self.annotate_panel.image_canvas.variables.current_tool == ToolConstants.DRAW_POLYGON_BY_CLICKING:
             current_canvas_shape_id = self.annotate_panel.image_canvas.variables.current_shape_id
             image_coords = self.annotate_panel.image_canvas.get_shape_image_coords(current_canvas_shape_id)
-            linear_ring = LinearRing(image_coords)
-            polygon = Polygon(linear_ring)
-            annotation = Annotation(geometry=polygon)
+            geometry_coords = np.asarray([x for x in zip(image_coords[0::2], image_coords[1::2])])
+            polygon = Polygon(coordinates=[geometry_coords])
+            annotation = Annotation()
+            annotation.geometry = polygon
+
+            metadata = AnnotationMetadata()
+            annotation_metadataList = AnnotationMetadataList([metadata])
+
+            annotation.add_annotation_metadata(metadata)
+
             self.variables.file_annotation_collection.add_annotation(annotation)
 
     def callback_handle_shape_selector(self, event):
@@ -147,8 +160,10 @@ class AnnotationTool(AbstractWidgetPanel):
         popup = tkinter.Toplevel(self.master)
         current_canvas_id = self.annotate_panel.image_canvas.variables.current_shape_id
         current_geometry = self.annotate_panel.image_canvas.get_shape_image_coords(current_canvas_id)
-
         AnnotationPopup(popup, self.variables)
+
+    def callback_save_annotations(self, event):
+        self.variables.file_annotation_collection.to_file(os.path.expanduser("~/Downloads/tmp_annotation.json"))
 
     # non callback defs
     def update_context_decimation_value(self):

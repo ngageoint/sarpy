@@ -26,7 +26,8 @@ class AppVariables:
                                                   "4": ["5", "6", "7"],
                                                   "8": ["10", "11"]},
                                         confidence_values=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-                                        permitted_geometries=["polygon"]
+                                        permitted_geometries=["Polygon"]
                                         )
-        self.file_annotation_collection = FileAnnotationCollection(self.label_schema)      # type: FileAnnotationCollection
+        self.file_annotation_collection = FileAnnotationCollection
         self.temp_annotation_submission = Annotation        # type: Annotation
+        self.canvas_geom_ids_to_annotations_id_dict = {}

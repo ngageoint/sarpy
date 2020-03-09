@@ -381,6 +381,9 @@ class ImageCanvas(tk.LabelFrame):
             self.event_drag_line(event)
         elif self.variables.current_tool == TOOLS.DRAW_POINT_BY_CLICKING:
             self.modify_existing_shape_using_canvas_coords(self.variables.current_shape_id, (event.x, event.y))
+        elif self.variables.current_tool == TOOLS.SELECT_CLOSEST_SHAPE_TOOL:
+            # TODO
+            pass
 
     def highlight_existing_shape(self, shape_id):
         original_color = self._get_shape_property(shape_id, SHAPE_PROPERTIES.COLOR)
@@ -910,7 +913,8 @@ class ImageCanvas(tk.LabelFrame):
         self.variables.foreground_color = color
         self.change_shape_color(self.variables.current_shape_id, color)
 
-    def find_closest_shape_coord(self, shape_id,    # type: int
+    def find_closest_shape_coord(self,
+                                 shape_id,          # type: int
                                  canvas_x,          # type: int
                                  canvas_y,          # type: int
                                  ):                 # type: (...) -> int

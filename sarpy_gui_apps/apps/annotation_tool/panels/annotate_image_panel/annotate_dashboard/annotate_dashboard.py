@@ -9,8 +9,9 @@ class ButtonPanel(AbstractWidgetPanel):
         self.draw_polygon = basic_widgets.Button
         self.select_existing_shape = basic_widgets.Combobox  # type: basic_widgets.Combobox
         self.popup = basic_widgets.Button
+        self.save_annotations = basic_widgets.Button
 
-        widget_list = ["pan", "draw_polygon", "select_existing_shape", "popup"]
+        widget_list = ["pan", "draw_polygon", "select_existing_shape", "popup", "save_annotations"]
         self.init_w_horizontal_layout(widget_list)
         self.set_label_text("annotate controls")
 
