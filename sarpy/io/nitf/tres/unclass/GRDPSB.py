@@ -1,34 +1,29 @@
 # -*- coding: utf-8 -*-
 
-from ...headers import NITFElement, NITFLoop, TRE
-
+from ..tre_elements import TREExtension, TREElement
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 
-class GRD(NITFElement):
-    __slots__ = ('ZVL', 'BAD', 'LOD', 'LAD', 'LSO', 'PSO')
-    _formats = {'ZVL': '10d', 'BAD': '10s', 'LOD': '12d', 'LAD': '12d', 'LSO': '11d', 'PSO': '11d'}
+class GRD(TREElement):
+    def __init__(self, value):
+        super(GRD, self).__init__()
+        self.add_field('ZVL', 'd', 10, value)
+        self.add_field('BAD', 's', 10, value)
+        self.add_field('LOD', 'd', 12, value)
+        self.add_field('LAD', 'd', 12, value)
+        self.add_field('LSO', 'd', 11, value)
+        self.add_field('PSO', 'd', 11, value)
 
 
-class GRDs(NITFLoop):
-    _child_class = GRD
-    _count_size = 2
+class GRDPSBType(TREElement):
+    def __init__(self, value):
+        super(GRDPSBType, self).__init__()
+        self.add_field('NUM_GRDS', 'd', 2, value)
+        self.add_loop('GRDs', self.NUM_GRDS, GRD, value)
 
 
-class GRDPSB(TRE):
-    __slots__ = ('TAG', '_GRDs')
-    _formats = {'TAG': '6s'}
-    _types = {'_GRDs': GRDs}
-    _defaults = {'_GRDs': {}, 'TAG': 'GRDPSB'}
-    _enums = {'TAG': {'GRDPSB', }}
-
-    @property
-    def GRDs(self):  # type: () -> GRDs
-        return self._GRDs
-
-    @GRDs.setter
-    def GRDs(self, value):
-        # noinspection PyAttributeOutsideInit
-        self._GRDs = value
+class GRDPSB(TREExtension):
+    _tag_value = 'GRDPSB'
+    _data_type = GRDPSBType

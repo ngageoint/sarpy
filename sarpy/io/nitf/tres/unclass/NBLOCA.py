@@ -1,34 +1,25 @@
 # -*- coding: utf-8 -*-
 
-from ...headers import NITFElement, NITFLoop, TRE
-
+from ..tre_elements import TREExtension, TREElement
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 
-class FRAME(NITFElement):
-    __slots__ = ('FRAME_OFFSET',)
-    _formats = {'FRAME_OFFSET': '4b'}
+class FRAME(TREElement):
+    def __init__(self, value):
+        super(FRAME, self).__init__()
+        self.add_field('FRAME_OFFSET', 'b', 4, value)
 
 
-class FRAMEs(NITFLoop):
-    _child_class = FRAME
-    _count_size = 4
+class NBLOCAType(TREElement):
+    def __init__(self, value):
+        super(NBLOCAType, self).__init__()
+        self.add_field('FRAME_1_OFFSET', 'b', 4, value)
+        self.add_field('NUMBER_OF_FRAMES', 'b', 4, value)
+        self.add_loop('FRAMEs', self.NUMBER_OF_FRAMES, FRAME, value)
 
 
-class NBLOCA(TRE):
-    __slots__ = ('TAG', 'FRAME_1_OFFSET', '_FRAMEs')
-    _formats = {'TAG': '6s', 'FRAME_1_OFFSET': '4b'}
-    _types = {'_FRAMEs': FRAMEs}
-    _defaults = {'_FRAMEs': {}, 'TAG': 'NBLOCA'}
-    _enums = {'TAG': {'NBLOCA', }}
-
-    @property
-    def FRAMEs(self):  # type: () -> FRAMEs
-        return self._FRAMEs
-
-    @FRAMEs.setter
-    def FRAMEs(self, value):
-        # noinspection PyAttributeOutsideInit
-        self._FRAMEs = value
+class NBLOCA(TREExtension):
+    _tag_value = 'NBLOCA'
+    _data_type = NBLOCAType

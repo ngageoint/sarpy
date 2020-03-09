@@ -1,37 +1,37 @@
 # -*- coding: utf-8 -*-
 
-from ...headers import NITFElement, NITFLoop, TRE
-
+from ..tre_elements import TREExtension, TREElement
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 
-class VTGT(NITFElement):
-    __slots__ = ('TGLOC', 'TGRDV', 'TGGSP', 'TGHEA', 'TGSIG', 'TGCAT')
-    _formats = {'TGLOC': '21s', 'TGRDV': '4s', 'TGGSP': '3s', 'TGHEA': '3s', 'TGSIG': '2s', 'TGCAT': '1s'}
+class VTGT(TREElement):
+    def __init__(self, value):
+        super(VTGT, self).__init__()
+        self.add_field('TGLOC', 's', 21, value)
+        self.add_field('TGRDV', 's', 4, value)
+        self.add_field('TGGSP', 's', 3, value)
+        self.add_field('TGHEA', 's', 3, value)
+        self.add_field('TGSIG', 's', 2, value)
+        self.add_field('TGCAT', 's', 1, value)
 
 
-class VTGTs(NITFLoop):
-    _child_class = VTGT
-    _count_size = 3
+class MTIRPAType(TREElement):
+    def __init__(self, value):
+        super(MTIRPAType, self).__init__()
+        self.add_field('DESTP', 's', 2, value)
+        self.add_field('MTPID', 's', 3, value)
+        self.add_field('PCHNO', 's', 4, value)
+        self.add_field('WAMFN', 's', 5, value)
+        self.add_field('WAMBN', 's', 1, value)
+        self.add_field('UTC', 's', 8, value)
+        self.add_field('SQNTA', 's', 5, value)
+        self.add_field('COSGZ', 's', 7, value)
+        self.add_field('NVTGT', 'd', 3, value)
+        self.add_loop('VTGTs', self.NVTGT, VTGT, value)
 
 
-class MTIRPA(TRE):
-    __slots__ = (
-        'TAG', 'DESTP', 'MTPID', 'PCHNO', 'WAMFN', 'WAMBN', 'UTC', 'SQNTA', 'COSGZ', '_VTGTs')
-    _formats = {
-        'TAG': '6s', 'DESTP': '2s', 'MTPID': '3s', 'PCHNO': '4s', 'WAMFN': '5s', 'WAMBN': '1s', 'UTC': '8s',
-        'SQNTA': '5s', 'COSGZ': '7s'}
-    _types = {'_VTGTs': VTGTs}
-    _defaults = {'_VTGTs': {}, 'TAG': 'MTIRPA'}
-    _enums = {'TAG': {'MTIRPA', }}
-
-    @property
-    def VTGTs(self):  # type: () -> VTGTs
-        return self._VTGTs
-
-    @VTGTs.setter
-    def VTGTs(self, value):
-        # noinspection PyAttributeOutsideInit
-        self._VTGTs = value
+class MTIRPA(TREExtension):
+    _tag_value = 'MTIRPA'
+    _data_type = MTIRPAType

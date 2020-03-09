@@ -73,8 +73,8 @@ class TREElement(object):
         self._field_format[attribute] = _create_format(typ_string, leng)
         return
 
-    def add_loop(self, attribute, length, child_type, value):
-        obj = TRELoop(length, child_type, value, self._bytes_length)
+    def add_loop(self, attribute, length, child_type, value, *args):
+        obj = TRELoop(length, child_type, value, self._bytes_length, *args)
         setattr(self, attribute, obj)
         self._bytes_length += obj.get_bytes_length()
         self._field_ordering.append(attribute)
@@ -127,7 +127,7 @@ class TREElement(object):
 
 
 class TRELoop(TREElement):
-    def __init__(self, length, child_type, value, start):
+    def __init__(self, length, child_type, value, start, *args, **kwargs):
         """
 
         Parameters
@@ -136,6 +136,10 @@ class TRELoop(TREElement):
         child_type : type
         value : bytes
         start : int
+        args
+            optional positional args for child class construction
+        kwargs
+            optional keyword arguments for child class construction
         """
 
         if not issubclass(child_type, TREElement):
@@ -145,7 +149,7 @@ class TRELoop(TREElement):
         self._data = []
         loc = start
         for i in range(length):
-            entry = child_type(value)
+            entry = child_type(value, *args, **kwargs)
             leng = entry.get_bytes_length()
             self._bytes_length += leng
             loc += leng

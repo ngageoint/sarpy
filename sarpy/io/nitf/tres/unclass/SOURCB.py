@@ -1,169 +1,137 @@
 # -*- coding: utf-8 -*-
 
-from ...headers import NITFElement, NITFLoop, TRE
-
+from ..tre_elements import TREExtension, TREElement
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 
-class PTS(NITFElement):
-    __slots__ = ('LON', 'LAT')
-    _formats = {'LON': '15d', 'LAT': '15d'}
+class PT(TREElement):
+    def __init__(self, value):
+        super(PT, self).__init__()
+        self.add_field('LON', 'd', 15, value)
+        self.add_field('LAT', 'd', 15, value)
 
 
-class PTSs(NITFLoop):
-    _child_class = PTS
-    _count_size = 3
+class BP(TREElement):
+    def __init__(self, value):
+        super(BP, self).__init__()
+        self.add_field('NUM_PTS', 'd', 3, value)
+        self.add_loop('PTs', self.NUM_PTS, PT, value)
 
 
-class BP(NITFElement):
-    __slots__ = ('_PTSs',)
-    _types = {'_PTSs': PTSs}
-    _defaults = {'_PTSs': {}}
-
-    @property
-    def PTSs(self):  # type: () -> PTSs
-        return self._PTSs
-
-    @PTSs.setter
-    def PTSs(self, value):
-        # noinspection PyAttributeOutsideInit
-        self._PTSs = value
-
-
-class BPs(NITFLoop):
-    _child_class = BP
-    _count_size = 2
+class MI(TREElement):
+    def __init__(self, value):
+        super(MI, self).__init__()
+        self.add_field('CDV30', 's', 8, value)
+        self.add_field('UNIRAT', 's', 3, value)
+        self.add_field('RAT', 'd', 8, value)
+        self.add_field('UNIGMA', 's', 3, value)
+        self.add_field('GMA', 'd', 8, value)
+        self.add_field('LONGMA', 'd', 15, value)
+        self.add_field('LATGMA', 'd', 15, value)
+        self.add_field('UNIGCA', 's', 3, value)
+        self.add_field('GCA', 'd', 8, value)
 
 
-class MI(NITFElement):
-    __slots__ = (
-        'CDV30', 'UNIRAT', 'RAT', 'UNIGMA', 'GMA', 'LONGMA', 'LATGMA', 'UNIGCA', 'GCA')
-    _formats = {
-        'CDV30': '8s', 'UNIRAT': '3s', 'RAT': '8d', 'UNIGMA': '3s', 'GMA': '8d', 'LONGMA': '15d',
-        'LATGMA': '15d', 'UNIGCA': '3s', 'GCA': '8d'}
+class LI(TREElement):
+    def __init__(self, value):
+        super(LI, self).__init__()
+        self.add_field('BAD', 's', 10, value)
 
 
-class MIs(NITFLoop):
-    _child_class = MI
-    _count_size = 2
+class PRJ(TREElement):
+    def __init__(self, value):
+        super(PRJ, self).__init__()
+        self.add_field('PRJ', 'd', 15, value)
 
 
-class LI(NITFElement):
-    __slots__ = ('BAD',)
-    _formats = {'BAD': '10s'}
+class IN(TREElement):
+    def __init__(self, value):
+        super(IN, self).__init__()
+        self.add_field('INT', 's', 10, value)
+        self.add_field('INS_SCA', 'd', 9, value)
+        self.add_field('NTL', 'd', 15, value)
+        self.add_field('TTL', 'd', 15, value)
+        self.add_field('NVL', 'd', 15, value)
+        self.add_field('TVL', 'd', 15, value)
+        self.add_field('NTR', 'd', 15, value)
+        self.add_field('TTR', 'd', 15, value)
+        self.add_field('NVR', 'd', 15, value)
+        self.add_field('TVR', 'd', 15, value)
+        self.add_field('NRL', 'd', 15, value)
+        self.add_field('TRL', 'd', 15, value)
+        self.add_field('NSL', 'd', 15, value)
+        self.add_field('TSL', 'd', 15, value)
+        self.add_field('NRR', 'd', 15, value)
+        self.add_field('TRR', 'd', 15, value)
+        self.add_field('NSR', 'd', 15, value)
+        self.add_field('TSR', 'd', 15, value)
 
 
-class LIs(NITFLoop):
-    _child_class = LI
-    _count_size = 2
+class SOUR(TREElement):
+    def __init__(self, value):
+        super(SOUR, self).__init__()
+        self.add_field('NUM_BP', 'd', 2, value)
+        self.add_loop('BPs', self.NUM_BP, BP, value)
+        self.add_field('PRT', 's', 10, value)
+        self.add_field('URF', 's', 20, value)
+        self.add_field('EDN', 's', 7, value)
+        self.add_field('NAM', 's', 20, value)
+        self.add_field('CDP', 'd', 3, value)
+        self.add_field('CDV', 's', 8, value)
+        self.add_field('CDV27', 's', 8, value)
+        self.add_field('SRN', 's', 80, value)
+        self.add_field('SCA', 's', 9, value)
+        self.add_field('UNISQU', 's', 3, value)
+        self.add_field('SQU', 'd', 10, value)
+        self.add_field('UNIPCI', 's', 3, value)
+        self.add_field('PCI', 'd', 4, value)
+        self.add_field('WPC', 'd', 3, value)
+        self.add_field('NST', 'd', 3, value)
+        self.add_field('UNIHKE', 's', 3, value)
+        self.add_field('HKE', 'd', 6, value)
+        self.add_field('LONHKE', 'd', 15, value)
+        self.add_field('LATHKE', 'd', 15, value)
+        self.add_field('QSS', 's', 1, value)
+        self.add_field('QOD', 's', 1, value)
+        self.add_field('CDV10', 's', 8, value)
+        self.add_field('QLE', 's', 80, value)
+        self.add_field('CPY', 's', 80, value)
+        self.add_field('NMI', 'd', 2, value)
+        self.add_loop('MIs', self.NMI, MI, value)
+        self.add_field('NLI', 'd', 2, value)
+        self.add_loop('LIs', self.NLI, LI, value)
+        self.add_field('DAG', 's', 80, value)
+        self.add_field('DCD', 's', 4, value)
+        self.add_field('ELL', 's', 80, value)
+        self.add_field('ELC', 's', 3, value)
+        self.add_field('DVR', 's', 80, value)
+        self.add_field('VDCDVR', 's', 4, value)
+        self.add_field('SDA', 's', 80, value)
+        self.add_field('VDCSDA', 's', 4, value)
+        self.add_field('PRN', 's', 80, value)
+        self.add_field('PCO', 's', 2, value)
+        self.add_field('NUM_PRJ', 'd', 1, value)
+        self.add_loop('PRJs', self.NUM_PRJ, PRJ, value)
+        self.add_field('XOR', 'd', 15, value)
+        self.add_field('YOR', 'd', 15, value)
+        self.add_field('GRD', 's', 3, value)
+        self.add_field('GRN', 's', 80, value)
+        self.add_field('ZNA', 'd', 4, value)
+        self.add_field('NIN', 'd', 2, value)
+        self.add_loop('INs', self.NIN, IN, value)
 
 
-class PRJ(NITFElement):
-    __slots__ = ('PRJ',)
-    _formats = {'PRJ': '15d'}
+class SOURCBType(TREElement):
+    def __init__(self, value):
+        super(SOURCBType, self).__init__()
+        self.add_field('IS_SCA', 'd', 9, value)
+        self.add_field('CPATCH', 's', 10, value)
+        self.add_field('NUM_SOUR', 'd', 2, value)
+        self.add_loop('SOURs', self.NUM_SOUR, SOUR, value)
 
 
-class PRJs(NITFLoop):
-    _child_class = PRJ
-    _count_size = 1
-
-
-class IN(NITFElement):
-    __slots__ = (
-        'INT', 'INS_SCA', 'NTL', 'TTL', 'NVL', 'TVL', 'NTR', 'TTR', 'NVR', 'TVR', 'NRL', 'TRL', 'NSL',
-        'TSL', 'NRR', 'TRR', 'NSR', 'TSR')
-    _formats = {
-        'INT': '10s', 'INS_SCA': '9d', 'NTL': '15d', 'TTL': '15d', 'NVL': '15d', 'TVL': '15d',
-        'NTR': '15d', 'TTR': '15d', 'NVR': '15d', 'TVR': '15d', 'NRL': '15d', 'TRL': '15d',
-        'NSL': '15d', 'TSL': '15d', 'NRR': '15d', 'TRR': '15d', 'NSR': '15d', 'TSR': '15d'}
-
-
-class INs(NITFLoop):
-    _child_class = IN
-    _count_size = 2
-
-
-class SOUR(NITFElement):
-    __slots__ = (
-        '_BPs', 'PRT', 'URF', 'EDN', 'NAM', 'CDP', 'CDV', 'CDV27', 'SRN', 'SCA', 'UNISQU', 'SQU', 'UNIPCI',
-        'PCI', 'WPC', 'NST', 'UNIHKE', 'HKE', 'LONHKE', 'LATHKE', 'QSS', 'QOD', 'CDV10', 'QLE', 'CPY', '_MIs',
-        '_LIs', 'DAG', 'DCD', 'ELL', 'ELC', 'DVR', 'VDCDVR', 'SDA', 'VDCSDA', 'PRN', 'PCO', '_PRJs', 'XOR',
-        'YOR', 'GRD', 'GRN', 'ZNA', '_INs')
-    _formats = {
-        'PRT': '10s', 'URF': '20s', 'EDN': '7s', 'NAM': '20s', 'CDP': '3d', 'CDV': '8s', 'CDV27': '8s',
-        'SRN': '80s', 'SCA': '9s', 'UNISQU': '3s', 'SQU': '10d', 'UNIPCI': '3s', 'PCI': '4d', 'WPC': '3d',
-        'NST': '3d', 'UNIHKE': '3s', 'HKE': '6d', 'LONHKE': '15d', 'LATHKE': '15d', 'QSS': '1s', 'QOD': '1s',
-        'CDV10': '8s', 'QLE': '80s', 'CPY': '80s', 'DAG': '80s', 'DCD': '4s', 'ELL': '80s', 'ELC': '3s',
-        'DVR': '80s', 'VDCDVR': '4s', 'SDA': '80s', 'VDCSDA': '4s', 'PRN': '80s', 'PCO': '2s', 'XOR': '15d',
-        'YOR': '15d', 'GRD': '3s', 'GRN': '80s', 'ZNA': '4d'}
-    _types = {'_BPs': BPs, '_MIs': MIs, '_LIs': LIs, '_PRJs': PRJs, '_INs': INs}
-    _defaults = {'_BPs': {}, '_MIs': {}, '_LIs': {}, '_PRJs': {}, '_INs': {}}
-
-    @property
-    def BPs(self):  # type: () -> BPs
-        return self._BPs
-
-    @BPs.setter
-    def BPs(self, value):
-        # noinspection PyAttributeOutsideInit
-        self._BPs = value
-
-    @property
-    def MIs(self):  # type: () -> MIs
-        return self._MIs
-
-    @MIs.setter
-    def MIs(self, value):
-        # noinspection PyAttributeOutsideInit
-        self._MIs = value
-
-    @property
-    def LIs(self):  # type: () -> LIs
-        return self._LIs
-
-    @LIs.setter
-    def LIs(self, value):
-        # noinspection PyAttributeOutsideInit
-        self._LIs = value
-
-    @property
-    def PRJs(self):  # type: () -> PRJs
-        return self._PRJs
-
-    @PRJs.setter
-    def PRJs(self, value):
-        # noinspection PyAttributeOutsideInit
-        self._PRJs = value
-
-    @property
-    def INs(self):  # type: () -> INs
-        return self._INs
-
-    @INs.setter
-    def INs(self, value):
-        # noinspection PyAttributeOutsideInit
-        self._INs = value
-
-
-class SOURs(NITFLoop):
-    _child_class = SOUR
-    _count_size = 2
-
-
-class SOURCB(TRE):
-    __slots__ = ('TAG', 'IS_SCA', 'CPATCH', '_SOURs')
-    _formats = {'TAG': '6s', 'IS_SCA': '9d', 'CPATCH': '10s'}
-    _types = {'_SOURs': SOURs}
-    _defaults = {'_SOURs': {}, 'TAG': 'SOURCB'}
-    _enums = {'TAG': {'SOURCB', }}
-
-    @property
-    def SOURs(self):  # type: () -> SOURs
-        return self._SOURs
-
-    @SOURs.setter
-    def SOURs(self, value):
-        # noinspection PyAttributeOutsideInit
-        self._SOURs = value
+class SOURCB(TREExtension):
+    _tag_value = 'SOURCB'
+    _data_type = SOURCBType

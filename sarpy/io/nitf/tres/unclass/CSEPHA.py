@@ -1,34 +1,30 @@
 # -*- coding: utf-8 -*-
 
-from ...headers import NITFElement, NITFLoop, TRE
-
+from ..tre_elements import TREExtension, TREElement
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 
-class EPHEM(NITFElement):
-    __slots__ = ('EPHEM_X', 'EPHEM_Y', 'EPHEM_Z')
-    _formats = {'EPHEM_X': '12d', 'EPHEM_Y': '12d', 'EPHEM_Z': '12d'}
+class EPHEM(TREElement):
+    def __init__(self, value):
+        super(EPHEM, self).__init__()
+        self.add_field('EPHEM_X', 'd', 12, value)
+        self.add_field('EPHEM_Y', 'd', 12, value)
+        self.add_field('EPHEM_Z', 'd', 12, value)
 
 
-class EPHEMs(NITFLoop):
-    _child_class = EPHEM
-    _count_size = 3
+class CSEPHAType(TREElement):
+    def __init__(self, value):
+        super(CSEPHAType, self).__init__()
+        self.add_field('EPHEM_FLAG', 's', 12, value)
+        self.add_field('DT_EPHEM', 'd', 5, value)
+        self.add_field('DATE_EPHEM', 'd', 8, value)
+        self.add_field('T0_EPHEM', 'd', 13, value)
+        self.add_field('NUM_EPHEM', 'd', 3, value)
+        self.add_loop('EPHEMs', self.NUM_EPHEM, EPHEM, value)
 
 
-class CSEPHA(TRE):
-    __slots__ = ('TAG', 'EPHEM_FLAG', 'DT_EPHEM', 'DATE_EPHEM', 'T0_EPHEM', '_EPHEMs')
-    _formats = {'TAG': '6s', 'EPHEM_FLAG': '12s', 'DT_EPHEM': '5d', 'DATE_EPHEM': '8d', 'T0_EPHEM': '13d'}
-    _types = {'_EPHEMs': EPHEMs}
-    _defaults = {'_EPHEMs': {}, 'TAG': 'CSEPHA'}
-    _enums = {'TAG': {'CSEPHA', }}
-
-    @property
-    def EPHEMs(self):  # type: () -> EPHEMs
-        return self._EPHEMs
-
-    @EPHEMs.setter
-    def EPHEMs(self, value):
-        # noinspection PyAttributeOutsideInit
-        self._EPHEMs = value
+class CSEPHA(TREExtension):
+    _tag_value = 'CSEPHA'
+    _data_type = CSEPHAType
