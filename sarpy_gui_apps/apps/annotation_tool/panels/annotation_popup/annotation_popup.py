@@ -1,6 +1,7 @@
 from tkinter_gui_builder.panel_templates.widget_panel.widget_panel import AbstractWidgetPanel
 from tkinter_gui_builder.widgets import basic_widgets
 from sarpy_gui_apps.apps.annotation_tool.main_app_variables import AppVariables
+from sarpy.annotation.annotate import Annotation
 import tkinter
 
 
@@ -61,12 +62,15 @@ class AnnotationPopup(AbstractWidgetPanel):
                 child_labels.append(self.label_schema.labels[id])
             self.thing_type.update_combobox_values(child_labels)
             self.parent_types.set_text(new_parent_text)
+        else:
+            self.thing_type.configure(state="disabled")
 
     def callback_reset(self, event):
+        self.thing_type.configure(state="normal")
         self.setup_main_parent_selections()
 
     def callback_submit(self, event):
-        self.main_app_variables.temp_annotation_submission = 7
+        stop = 1
 
     def setup_main_parent_selections(self):
         base_type_ids = []

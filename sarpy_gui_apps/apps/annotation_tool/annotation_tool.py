@@ -41,12 +41,16 @@ class AnnotationTool(AbstractWidgetPanel):
         # set up annotate panel event listeners
         self.annotate_panel.image_canvas.canvas.on_mouse_wheel(self.callback_handle_annotate_mouse_wheel)
         self.annotate_panel.image_canvas.canvas.on_left_mouse_click(self.callback_annotate_handle_canvas_left_mouse_click)
+        self.annotate_panel.image_canvas.canvas.on_left_mouse_release(self.callback_annotate_handle_left_mouse_release)
+        self.annotate_panel.image_canvas.canvas.on_right_mouse_click(self.callback_annotate_handle_right_mouse_click)
+
         self.annotate_panel.annotate_dashboard.controls.select_existing_shape.on_selection(self.callback_handle_shape_selector)
         self.annotate_panel.annotate_dashboard.controls.draw_polygon.on_left_mouse_click(self.callback_set_to_draw_polygon)
         self.annotate_panel.annotate_dashboard.controls.popup.on_left_mouse_click(self.callback_popup)
         self.annotate_panel.annotate_dashboard.controls.pan.on_left_mouse_click(self.callback_annotate_set_to_pan)
-        self.annotate_panel.image_canvas.canvas.on_left_mouse_release(self.callback_annotate_handle_left_mouse_release)
+
         self.annotate_panel.image_canvas.set_labelframe_text("Image View")
+
 
     # context callbacks
     def callback_context_select_file(self, event):
@@ -118,10 +122,11 @@ class AnnotationTool(AbstractWidgetPanel):
     def callback_annotate_handle_right_mouse_click(self, event):
         self.annotate_panel.image_canvas.callback_handle_right_mouse_click(event)
         if self.annotate_panel.image_canvas.variables.current_tool == ToolConstants.DRAW_POLYGON_BY_CLICKING:
-            shape_properties = self.annotate_panel.image_canvas.variables.shape_properties[self.annotate_panel.image_canvas.variables.current_shape_id]
-            linear_ring = LinearRing()
-            polygon = Polygon()
-            annotation = Annotation()
+            current_canvas_shape_id = self.annotate_panel.image_canvas.variables.current_shape_id
+            image_coords = self.annotate_panel.image_canvas.get_shape_image_coords(current_canvas_shape_id)
+            linear_ring = LinearRing(image_coords)
+            polygon = Polygon(linear_ring)
+            annotation = Annotation(geometry=polygon)
             self.variables.file_annotation_collection.add_annotation(annotation)
 
     def callback_handle_shape_selector(self, event):
@@ -140,6 +145,9 @@ class AnnotationTool(AbstractWidgetPanel):
 
     def callback_popup(self, event):
         popup = tkinter.Toplevel(self.master)
+        current_canvas_id = self.annotate_panel.image_canvas.variables.current_shape_id
+        current_geometry = self.annotate_panel.image_canvas.get_shape_image_coords(current_canvas_id)
+
         AnnotationPopup(popup, self.variables)
 
     # non callback defs

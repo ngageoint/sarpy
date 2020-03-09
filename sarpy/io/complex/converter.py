@@ -51,7 +51,7 @@ def register_opener(open_func):
     None
     """
 
-    if not isinstance(open_func, callable):
+    if not callable(open_func):
         raise TypeError('open_func must be a callable')
     if open_func not in _openers:
         _openers.append(open_func)
