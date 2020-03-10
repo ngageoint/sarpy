@@ -60,16 +60,15 @@ setup(name=parameters['__title__'],
       description=parameters['__summary__'],
       long_description=long_description,
       long_description_content_type='text/x-rst',
-      packages=find_packages(),  # Should find SarPy and all subpackages
-      package_data={'': ['*.xsd']},  # Schema files are required for parsing SICD
+      packages=['sarpy', 'sarpy_gui_apps', 'tkinter_gui_builder'],
+      package_data={'sarpy': ['*.xsd']},  # Schema files for SICD standard(s)
       url=parameters['__url__'],
       author=parameters['__author__'],
-      # The primary POC, rather than the author really
-      author_email=parameters['__email__'],
+      author_email=parameters['__email__'],  # The primary POC
       install_requires=install_requires,
       extras_require={
         'csk':  ['h5py', ],
-        'docs': ['Sphinx', 'sphinxcontrib-napoleon'],
+        'tkinter_gui_builder': ['pillow', 'matplotlib'],
       },
       zip_safe=False,  # Use of __file__ and __path__ in some code makes it unusable from zip
       test_suite="tests",

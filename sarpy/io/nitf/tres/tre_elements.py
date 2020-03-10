@@ -49,6 +49,10 @@ def _create_format(typ_string, leng):
 
 
 class TREElement(object):
+    """
+    Basic TRE element class
+    """
+
     def __init__(self):
         self._field_ordering = []
         self._field_format = {}
@@ -61,20 +65,71 @@ class TREElement(object):
         return '{0:s}(b"'.format(self.__class__.__name__) + self.to_bytes().decode() + '")'
 
     def add_field(self, attribute, typ_string, leng, value):
+        """
+        Add a field/attribute to the object - as we deserialize.
+
+        Parameters
+        ----------
+        attribute : str
+            The new field/attribute name for out object instance.
+        typ_string : str
+            One of 's' (string attribute), 'd' (integer attribute), or 'b' raw/bytes attribute
+        leng : int
+            The length in bytes of the representation of this attribute
+        value : bytes
+            The bytes array of the object we are deserializing
+
+        Returns
+        -------
+        None
+        """
+
         val = _parse_type(typ_string, leng, value, self._bytes_length)
         setattr(self, attribute, val)
         self._bytes_length += leng
         self._field_ordering.append(attribute)
         self._field_format[attribute] = _create_format(typ_string, leng)
-        return
 
     def add_loop(self, attribute, length, child_type, value, *args):
+        """
+        Add an attribute from a loop construct of a given type to the object - as we deserialize.
+
+        Parameters
+        ----------
+        attribute : str
+            The new field/attribute name for out object instance.
+        length : int
+            The number of loop iterations present.
+        child_type : type
+            The type of the child - must extend TREElement
+        value : bytes
+            The bytes array of the object we are deserializing
+        args
+            Any optional positional arguments that the child_type constructor should have.
+
+        Returns
+        -------
+        None
+        """
+
         obj = TRELoop(length, child_type, value, self._bytes_length, *args)
         setattr(self, attribute, obj)
         self._bytes_length += obj.get_bytes_length()
         self._field_ordering.append(attribute)
 
     def _attribute_to_bytes(self, attribute):
+        """
+        Get byte representation for the given attribute.
+
+        Parameters
+        ----------
+        attribute : str
+
+        Returns
+        -------
+        bytes
+        """
+
         val = getattr(self, attribute, None)
         if val is None:
             return b''
@@ -86,6 +141,14 @@ class TREElement(object):
             return self._field_format[attribute].format(val)
 
     def to_dict(self):
+        """
+        Create a dictionary representation of the object.
+
+        Returns
+        -------
+        dict
+        """
+
         out = OrderedDict()
         for fld in self._field_ordering:
             val = getattr(self, fld)
@@ -98,14 +161,34 @@ class TREElement(object):
         return out
 
     def get_bytes_length(self):
+        """
+        The length in bytes of the serialized representation.
+
+        Returns
+        -------
+        int
+        """
+
         return self._bytes_length
 
     def to_bytes(self):
+        """
+        Serialize to bytes.
+
+        Returns
+        -------
+        bytes
+        """
+
         items = [self._attribute_to_bytes(fld) for fld in self._field_ordering]
         return b''.join(items)
 
 
 class TRELoop(TREElement):
+    """
+    Provides the TRE loop construct
+    """
+
     def __init__(self, length, child_type, value, start, *args, **kwargs):
         """
 
@@ -148,6 +231,10 @@ class TRELoop(TREElement):
 
 
 class TREExtension(TRE):
+    """
+    Extend this object to provide concrete TRE implementations.
+    """
+
     __slots__ = ('_data', )
     _tag_value = None
     _data_type = None
@@ -167,11 +254,11 @@ class TREExtension(TRE):
         return self._tag_value
 
     @property
-    def data(self):  # type: () -> _data_type
+    def DATA(self):  # type: () -> _data_type
         return self._data
 
-    @data.setter
-    def data(self, value):
+    @DATA.setter
+    def DATA(self, value):
         # type: (Union[bytes, _data_type]) -> None
         if isinstance(value, self._data_type):
             self._data = value
@@ -181,16 +268,20 @@ class TREExtension(TRE):
             raise TypeError(
                 'data must be of {} type or a bytes array. '
                 'Got {}'.format(self._data_type, type(value)))
+
+    @property
+    def EL(self):
+        return self._data.get_bytes_length()
+
     @classmethod
     def minimum_length(cls):
         return 11
 
     def get_bytes_length(self):
-        return 11 + self.data.get_bytes_length()
+        return 11 + self.EL
 
     def to_bytes(self):
-        byts = self.data.to_bytes()
-        return '{0:6s}{1:05d}'.format(self.TAG, len(byts)).encode('utf-8') + byts
+        return '{0:6s}{1:05d}'.format(self.TAG, self.EL).encode('utf-8') + self._data.to_bytes()
 
     @classmethod
     def from_bytes(cls, value, start):

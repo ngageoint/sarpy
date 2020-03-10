@@ -9,6 +9,8 @@ Welcome to sarpy's documentation!
 
     io/index
     geometry/index
+    processing/index
+    visualization/index
     annotation/index
 
 
