@@ -9,6 +9,7 @@ import inspect
 import os
 import sys
 
+
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas Mccullough"
 
@@ -35,12 +36,12 @@ def register_tre(tre_type, tre_id=None, replace=False):
     None
     """
 
-    from sarpy.io.nitf.headers import TRE, UnknownTRE
+    from sarpy.io.nitf.tres.tre_elements import TREExtension
 
-    if not issubclass(tre_type, TRE):
+    if not issubclass(tre_type, TREExtension):
         raise TypeError('tre_type must be a subclass of sarpy.io.nitf.header.TRE')
 
-    if tre_type in [TRE, UnknownTRE]:
+    if tre_type in [TREExtension, ]:
         return
 
     if tre_id is None:
@@ -91,7 +92,7 @@ def parse_package(packages=None):
     None
     """
 
-    from sarpy.io.nitf.headers import TRE
+    from sarpy.io.nitf.tres.tre_elements import TREExtension
 
     if packages is None:
         global _parsed_package
@@ -114,7 +115,7 @@ def parse_package(packages=None):
         module = sys.modules[module_name]
         # check all classes of the module itself
         for element_name, element_type in inspect.getmembers(module, inspect.isclass):
-            if issubclass(element_type, TRE) and element_type != TRE:
+            if issubclass(element_type, TREExtension) and element_type != TREExtension:
                 register_tre(element_type, tre_id=element_name, replace=False)
         # walk down any subpackages
         path, fil = os.path.split(module.__file__)

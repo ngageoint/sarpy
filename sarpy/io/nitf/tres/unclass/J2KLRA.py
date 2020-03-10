@@ -1,38 +1,32 @@
 # -*- coding: utf-8 -*-
 
-from ...headers import NITFElement, NITFLoop, TRE
-
+from ..tre_elements import TREExtension, TREElement
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 
-class LAYER(NITFElement):
-    __slots__ = ('LAYER_ID', 'BITRATE')
-    _formats = {'LAYER_ID': '3d', 'BITRATE': '9s'}
+class LAYER(TREElement):
+    def __init__(self, value):
+        super(LAYER, self).__init__()
+        self.add_field('LAYER_ID', 'd', 3, value)
+        self.add_field('BITRATE', 's', 9, value)
 
 
-class LAYERs(NITFLoop):
-    _child_class = LAYER
-    _count_size = 3
+class J2KLRAType(TREElement):
+    def __init__(self, value):
+        super(J2KLRAType, self).__init__()
+        self.add_field('ORIG', 'd', 1, value)
+        self.add_field('NLEVELS_O', 'd', 2, value)
+        self.add_field('NBANDS_O', 'd', 5, value)
+        self.add_field('NLAYERS_O', 'd', 3, value)
+        self.add_loop('LAYERs', self.NLAYERS_O, LAYER, value)
+        if self.ORIG in [1, 3, 9]:
+            self.add_field('NLEVELS_I', 'd', 2, value)
+            self.add_field('NBANDS_I', 'd', 5, value)
+            self.add_field('NLAYERS_I', 'd', 3, value)
 
 
-class J2KLRA(TRE):
-    __slots__ = (
-        'TAG', 'ORIG', 'NLEVELS_O', 'NBANDS_O', '_LAYERs', 'NLEVELS_I', 'NBANDS_I', 'NLAYERS_I')
-    _formats = {
-        'TAG': '6s', 'ORIG': '1d', 'NLEVELS_O': '2d', 'NBANDS_O': '5d', 'NLEVELS_I': '2d', 'NBANDS_I': '5d',
-        'NLAYERS_I': '3d'}
-    _types = {'_LAYERs': LAYERs}
-    _defaults = {'_LAYERSs': {}, 'TAG': 'J2KLRA'}
-    _enums = {'TAG': {'J2KLRA', }}
-    _if_skips = {'ORIG': {'condition': 'not in [1, 3, 9]', 'vars': ['NLEVELS_I', 'NBANDS_I', 'NLAYERS_I']}}
-
-    @property
-    def LAYERs(self):  # type: () -> LAYERs
-        return self._LAYERs
-
-    @LAYERs.setter
-    def LAYERs(self, value):
-        # noinspection PyAttributeOutsideInit
-        self._LAYERs = value
+class J2KLRA(TREExtension):
+    _tag_value = 'J2KLRA'
+    _data_type = J2KLRAType

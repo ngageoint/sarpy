@@ -1,34 +1,25 @@
 # -*- coding: utf-8 -*-
 
-from ...headers import NITFElement, NITFLoop, TRE
-
+from ..tre_elements import TREExtension, TREElement
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 
-class PTS(NITFElement):
-    __slots__ = ('LON', 'LAT')
-    _formats = {'LON': '15d', 'LAT': '15d'}
+class PT(TREElement):
+    def __init__(self, value):
+        super(PT, self).__init__()
+        self.add_field('LON', 'd', 15, value)
+        self.add_field('LAT', 'd', 15, value)
 
 
-class PTSs(NITFLoop):
-    _child_class = PTS
-    _count_size = 4
+class BNDPLBType(TREElement):
+    def __init__(self, value):
+        super(BNDPLBType, self).__init__()
+        self.add_field('NUMPTS', 'd', 4, value)
+        self.add_loop('PTs', self.NUMPTS, PT, value)
 
 
-class BNDPLB(TRE):
-    __slots__ = ('TAG', '_PTSs')
-    _formats = {'TAG': '6s'}
-    _types = {'_PTSs': PTSs}
-    _defaults = {'_PTSs': {}, 'TAG': 'BNDPLB'}
-    _enums = {'TAG': {'BNDPLB', }}
-
-    @property
-    def PTSs(self):  # type: () -> PTSs
-        return self._PTSs
-
-    @PTSs.setter
-    def PTSs(self, value):
-        # noinspection PyAttributeOutsideInit
-        self._PTSs = value
+class BNDPLB(TREExtension):
+    _tag_value = 'BNDPLB'
+    _data_type = BNDPLBType

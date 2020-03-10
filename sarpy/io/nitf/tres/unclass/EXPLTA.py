@@ -1,53 +1,95 @@
 # -*- coding: utf-8 -*-
-"""
-Selected simple unclassified NITF file header TRE objects.
-"""
 
-from ...headers import TRE, UnknownTRE
-
+from ..tre_elements import TREExtension, TREElement
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 
-class EXPLTA(TRE):
-    def __init__(self, **kwargs):
+class EXPLTA_87Type(TREElement):
+    def __init__(self, value):
+        super(EXPLTA_87Type, self).__init__()
+        self.add_field('ANGLE_TO_NORTH', 's', 3, value)
+        self.add_field('SQUINT_ANGLE', 's', 3, value)
+        self.add_field('MODE', 's', 3, value)
+        self.add_field('RESVD001', 's', 16, value)
+        self.add_field('GRAZE_ANG', 's', 2, value)
+        self.add_field('SLOPE_ANG', 's', 2, value)
+        self.add_field('POLAR', 's', 2, value)
+        self.add_field('NSAMP', 's', 5, value)
+        self.add_field('RESVD002', 's', 1, value)
+        self.add_field('SEQ_NUM', 's', 1, value)
+        self.add_field('PRIME_ID', 's', 12, value)
+        self.add_field('PRIME_BE', 's', 15, value)
+        self.add_field('RESVD003', 's', 1, value)
+        self.add_field('N_SEC', 's', 2, value)
+        self.add_field('IPR', 's', 2, value)
+        self.add_field('RESVD004', 's', 2, value)
+        self.add_field('RESVD005', 's', 2, value)
+        self.add_field('RESVD006', 's', 5, value)
+        self.add_field('RESVD007', 's', 8, value)
+
+
+class EXPLTA_87(TREExtension):
+    _tag_value = 'EXPLTA'
+    _data_type = EXPLTA_87Type
+
+
+class EXPLTA_101Type(TREElement):
+    def __init__(self, value):
+        super(EXPLTA_101Type, self).__init__()
+        self.add_field('ANGLE_TO_NORTH', 's', 7, value)
+        self.add_field('SQUINT_ANGLE', 's', 7, value)
+        self.add_field('MODE', 's', 3, value)
+        self.add_field('RESVD001', 's', 16, value)
+        self.add_field('GRAZE_ANG', 's', 5, value)
+        self.add_field('SLOPE_ANG', 's', 5, value)
+        self.add_field('POLAR', 's', 2, value)
+        self.add_field('NSAMP', 's', 5, value)
+        self.add_field('RESVD002', 's', 1, value)
+        self.add_field('SEQ_NUM', 's', 1, value)
+        self.add_field('PRIME_ID', 's', 12, value)
+        self.add_field('PRIME_BE', 's', 15, value)
+        self.add_field('RESVD003', 's', 1, value)
+        self.add_field('N_SEC', 's', 2, value)
+        self.add_field('IPR', 's', 2, value)
+
+
+class EXPLTA_101(TREExtension):
+    _tag_value = 'EXPLTA'
+    _data_type = EXPLTA_101Type
+
+
+class EXPLTA(TREExtension):
+    _tag_value = 'EXPLTA'
+
+    def __init__(self):
         raise ValueError(
-            'This is an abstract class, not meant to be implemented directly. Use one of'
-            'EXPLTA_87 (approved default) or EXPLTA_101 for a direct implementation')
+            'Not to be implemented directly. '
+            'Use of one EXPLTA_87 or  EXPLTA_101')
 
     @classmethod
     def from_bytes(cls, value, start):
-        length = int(value[start+6:start+11])
-        if length == 87:
+        """
+
+        Parameters
+        ----------
+        value : bytes
+        start : int
+
+        Returns
+        -------
+        EXPLTA_87|EXPLTA_101
+        """
+
+        tag_value = value[start:start+6].decode('utf-8').strip()
+        if tag_value != cls._tag_value:
+            raise ValueError('tag value must be {}. Got {}'.format(cls._tag_value, tag_value))
+
+        lng = int(value[start+6:start+11])
+        if lng == 87:
             return EXPLTA_87.from_bytes(value, start)
-        elif length == 101:
+        elif lng == 101:
             return EXPLTA_101.from_bytes(value, start)
         else:
-            return UnknownTRE.from_bytes(value, start)
-
-
-class EXPLTA_87(TRE):
-    __slots__ = (
-        'TAG', 'ANGLE_TO_NORTH', 'SQUINT_ANGLE', 'MODE', 'RESVD001', 'GRAZE_ANG', 'SLOPE_ANG', 'POLAR', 'NSAMP',
-        'RESVD002', 'SEQ_NUM', 'PRIME_ID', 'PRIME_BE', 'RESVD003', 'N_SEC', 'IPR', 'RESVD004', 'RESVD005', 'RESVD006',
-        'RESVD007')
-    _formats = {
-        'TAG': '6s', 'ANGLE_TO_NORTH': '3s', 'SQUINT_ANGLE': '3s', 'MODE': '3s', 'RESVD001': '16s', 'GRAZE_ANG': '2s',
-        'SLOPE_ANG': '2s', 'POLAR': '2s', 'NSAMP': '5s', 'RESVD002': '1s', 'SEQ_NUM': '1s', 'PRIME_ID': '12s',
-        'PRIME_BE': '15s', 'RESVD003': '1s', 'N_SEC': '2s', 'IPR': '2s', 'RESVD004': '2s', 'RESVD005': '2s',
-        'RESVD006': '5s', 'RESVD007': '8s'}
-    _defaults = {'TAG': 'EXPLTA'}
-    _enums = {'TAG': {'EXPLTA', }}
-
-
-class EXPLTA_101(TRE):
-    __slots__ = (
-        'TAG', 'ANGLE_TO_NORTH', 'SQUINT_ANGLE', 'MODE', 'RESVD001', 'GRAZE_ANG', 'SLOPE_ANG', 'POLAR', 'NSAMP',
-        'RESVD002', 'SEQ_NUM', 'PRIME_ID', 'PRIME_BE', 'RESVD003', 'N_SEC', 'IPR')
-    _formats = {
-        'TAG': '6s', 'ANGLE_TO_NORTH': '7s', 'SQUINT_ANGLE': '7s', 'MODE': '3s', 'RESVD001': '16s', 'GRAZE_ANG': '5s',
-        'SLOPE_ANG': '5s', 'POLAR': '2s', 'NSAMP': '5s', 'RESVD002': '1s', 'SEQ_NUM': '1s', 'PRIME_ID': '12s',
-        'PRIME_BE': '15s', 'RESVD003': '1s', 'N_SEC': '2s', 'IPR': '2s'}
-    _defaults = {'TAG': 'EXPLTA'}
-    _enums = {'TAG': {'EXPLTA', }}
+            raise ValueError('the data must be length 87 or 101. Got {}'.format(lng))
