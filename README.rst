@@ -58,12 +58,13 @@ fast and simple prototyping to enable research. Most notably, some of the most c
 used TASER capabilities from the MATLAB SAR Toolbox have been recreated using these GUI
 components.
 
-The decision was made to use `tkinter <https://docs.python.org/3/library/tkinter.html>`
+The decision was made to use `tkinter <https://docs.python.org/3/library/tkinter.html>`_
 for this capability. The particulars of this choice are entirely pragmatic. Most
 importantly, `tkinter` is well supported for essentially every architecture that
-Python is supported, and there are no complicating factors in configuration or
-installation. For better or for worse, `tkinter` will work on essentially any
-government system with a viable Python environment right out of the box.
+Python is supported, and there are no complicating factors in licensing, configuration,
+or installation. For better or for worse, `tkinter` will work on essentially any
+government system with a viable Python environment right out of the box. The same
+cannot generally be said for the other popular GUI frameworks like QT, WX, or GTK.
 
 Documentation
 -------------
