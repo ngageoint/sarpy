@@ -92,7 +92,6 @@ def parse_openers():
             check_module(sub_name)
 
     check_module('sarpy.io.complex')
-    print('\n\nParsed Openers = {}\n\n'.format(_openers))
 
 
 def open_complex(file_name):

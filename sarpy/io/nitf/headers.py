@@ -147,7 +147,62 @@ def _get_bytes(frmt, value, name):
         raise ValueError('Unparseable format {} for field {}'.format(frmt, name))
 
 
-class NITFElement(object):
+class BaseNITFElement(object):
+
+    @classmethod
+    def minimum_length(cls):
+        """
+        The minimum size in bytes that takes to write this header element.
+
+        Returns
+        -------
+        int
+        """
+
+        raise NotImplementedError
+
+    def get_bytes_length(self):
+        """
+        Get the length of the serialized bytes array
+
+        Returns
+        -------
+        int
+        """
+
+        raise NotImplementedError
+
+    def to_bytes(self):
+        """
+        Write the object to a properly packed str.
+
+        Returns
+        -------
+        bytes
+        """
+
+        raise NotImplementedError
+
+    @classmethod
+    def from_bytes(cls, value, start):
+        """
+
+        Parameters
+        ----------
+        value: bytes|str
+            the header string to scrape
+        start : int
+            the beginning location in the string
+
+        Returns
+        -------
+
+        """
+
+        raise NotImplementedError
+
+
+class NITFElement(BaseNITFElement):
     """
     Describes the basic nitf header reading and writing functionality. This is
     an abstract element, and not meant to be used directly.
@@ -256,7 +311,7 @@ class NITFElement(object):
                 value = self.get_default_value(attribute)  # NB: might still be None
             if isinstance(value, bytes):
                 value = typ.from_bytes(value, 0)
-            if not (value is None or isinstance(value, NITFElement)):
+            if not (value is None or isinstance(value, BaseNITFElement)):
                 raise ValueError('Attribute {} is expected to be of type {}, '
                                  'got {}'.format(attribute, typ, type(value)))
             check_conditions(value)
@@ -302,7 +357,7 @@ class NITFElement(object):
         if val is None:
             return b''
         if attribute in self._types:
-            if not isinstance(val, NITFElement):
+            if not isinstance(val, BaseNITFElement):
                 raise TypeError(
                     'Elements in _bytes must be an instance of NITFElement. '
                     'Got type {} for attribute {}'.format(type(val), attribute))
@@ -319,7 +374,7 @@ class NITFElement(object):
             val = getattr(self, attribute)
             if val is None:
                 return 0
-            if not isinstance(val, NITFElement):
+            if not isinstance(val, BaseNITFElement):
                 raise TypeError(
                     'Elements in _bytes must be an instance of NITFElement. '
                     'Got type {} for attribute {}'.format(type(val), attribute))
@@ -341,11 +396,12 @@ class NITFElement(object):
         -------
         int
         """
+
         min_length = 0
         for attribute in cls.__slots__:
             if attribute in cls._types:
                 typ = cls._types[attribute]
-                if issubclass(typ, NITFElement):
+                if issubclass(typ, BaseNITFElement):
                     min_length += typ.minimum_length()
             elif attribute in cls._formats:
                 min_length += int_func(cls._formats[attribute][:-1])
@@ -445,32 +501,11 @@ class NITFElement(object):
 
     @classmethod
     def from_bytes(cls, value, start):
-        """
-
-        Parameters
-        ----------
-        value: bytes|str
-            the header string to scrape
-        start : int
-            the beginning location in the string
-
-        Returns
-        -------
-        """
-
         fields, skips = cls._parse_attributes(value, start)
         fields['_skips'] = skips
         return cls(**fields)
 
     def to_bytes(self):
-        """
-        Write the object to a properly packed str.
-
-        Returns
-        -------
-        bytes
-        """
-
         items = [self._get_bytes_attribute(attribute) for attribute in self.__slots__]
         return b''.join(items)
 
@@ -752,31 +787,44 @@ class NITFSecurityTags(NITFElement):
 ######
 # TRE
 
-class TRE(NITFElement):
+class TRE(BaseNITFElement):
     """
     An abstract TRE class - this should not be instantiated directly.
     """
 
-    __slots__ = ('TAG', )
-    _formats = {'TAG': '6s'}
+    @property
+    def TAG(self):
+        """
+        The TRE tag.
 
-    def _get_bytes_attribute(self, attribute):
-        if attribute == 'TAG':
-            other_length = sum(self._get_length_attribute(attribute) for attribute in self.__slots__[1:])
-            return '{0:s}{1:05d}'.format(self.TAG, other_length).encode('utf-8')
-        return super(TRE, self)._get_bytes_attribute(attribute)
+        Returns
+        -------
+        str
+        """
 
-    def _get_length_attribute(self, attribute):
-        if attribute == 'TAG':
-            return 11
-        return super(TRE, self)._get_length_attribute(attribute)
+        raise NotImplementedError
+
+    @property
+    def data(self):
+        """
+        The TRE data.
+
+        Returns
+        -------
+
+        """
+
+        raise NotImplementedError
+
+    def get_bytes_length(self):
+        raise NotImplementedError
+
+    def to_bytes(self):
+        raise NotImplementedError
 
     @classmethod
-    def _parse_attribute(cls, fields, skips, attribute, value, start):
-        if attribute == 'TAG':
-            pass
-        else:
-            super(TRE, cls)._parse_attribute(fields, skips, attribute, value, start)
+    def minimum_length(cls):
+        return 11
 
     @classmethod
     def from_bytes(cls, value, start):
@@ -793,37 +841,55 @@ class TRE(NITFElement):
 
 
 class UnknownTRE(TRE):
-    class TREData(Unstructured):
-        _size_len = 5
+    __slots__ = ('_TAG', '_data')
 
-    __slots__ = ('TAG', '_data')
-    _formats = {'TAG': '6s'}
-    _types = {'_data': TREData}
-    _defaults = {'_data': {}}
+    def __init__(self, TAG, data):
+        """
 
-    def __init__(self, **kwargs):
+        Parameters
+        ----------
+        TAG : str
+        data : bytes
+        """
+
         self._data = None
-        super(UnknownTRE, self).__init__(**kwargs)
-        if self.TAG.strip() == '':
-            raise ValueError('TAG must be defined for TRE.')
+        if isinstance(TAG, bytes):
+            TAG = TAG.decode('utf-8')
+
+        if not isinstance(TAG, str):
+            raise TypeError('TAG must be a string. Got {}'.format(type(TAG)))
+        if len(TAG) > 6:
+            raise ValueError('TAG must be 6 or fewer characters')
+
+        self._TAG = TAG
+        self.data = data
 
     @property
-    def data(self):
+    def TAG(self):
+        return self._TAG
+
+    @property
+    def data(self):  # type: () -> bytes
         return self._data
 
     @data.setter
     def data(self, value):
+        if not isinstance(value, bytes):
+            raise TypeError('data must be a bytes instance. Got {}'.format(type(value)))
         self._data = value
 
-    def _get_bytes_attribute(self, attribute):
-        return NITFElement._get_bytes_attribute(self, attribute)
+    def get_bytes_length(self):
+        return 11 + len(self.data)
 
-    def _get_length_attribute(self, attribute):
-        return NITFElement._get_length_attribute(self, attribute)
+    def to_bytes(self):
+        byts = self.data
+        return '{0:6s}{1:05d}'.format(self.TAG, len(byts)).encode('utf-8') + byts
 
     @classmethod
-    def _parse_attribute(cls, fields, skips, attribute, value, start):
-        return NITFElement._parse_attribute(fields, skips, attribute, value, start)
+    def from_bytes(cls, value, start):
+        tag = value[start:start+6]
+        lng = int_func(value[start+6:start+11])
+        return cls(tag, value[start+11:start+11+lng])
 
 
 class TREList(NITFElement):

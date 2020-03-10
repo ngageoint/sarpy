@@ -3,21 +3,10 @@
 Module contained elements for defining TREs - really intended as read only objects.
 """
 
-import sys
 from collections import OrderedDict
 from typing import Union, List
 
-
-integer_types = (int, )
-string_types = (str, )
-int_func = int
-if sys.version_info[0] < 3:
-    # noinspection PyUnresolvedReferences
-    int_func = long  # to accommodate for 32-bit python 2
-    # noinspection PyUnresolvedReferences
-    integer_types = (int, long)
-    # noinspection PyUnresolvedReferences
-    string_types = (str, unicode)
+from ..headers import TRE, int_func
 
 
 __classification__ = "UNCLASSIFIED"
@@ -65,6 +54,12 @@ class TREElement(object):
         self._field_format = {}
         self._bytes_length = 0
 
+    def __str__(self):
+        return '{0:s}({1:s})'.format(self.__class__.__name__, self.to_dict())
+
+    def __repr__(self):
+        return '{0:s}(b"'.format(self.__class__.__name__) + self.to_bytes().decode() + '")'
+
     def add_field(self, attribute, typ_string, leng, value):
         val = _parse_type(typ_string, leng, value, self._bytes_length)
         setattr(self, attribute, val)
@@ -102,28 +97,12 @@ class TREElement(object):
                 raise TypeError('Unhandled type {}'.format(type(val)))
         return out
 
+    def get_bytes_length(self):
+        return self._bytes_length
+
     def to_bytes(self):
-        """
-        Get the bytes string
-
-        Returns
-        -------
-        bytes
-        """
-
         items = [self._attribute_to_bytes(fld) for fld in self._field_ordering]
         return b''.join(items)
-
-    def get_bytes_length(self):
-        """
-        Get the length of the bytes string.
-
-        Returns
-        -------
-        int
-        """
-
-        return self._bytes_length
 
 
 class TRELoop(TREElement):
@@ -168,7 +147,7 @@ class TRELoop(TREElement):
         return self._data[item]
 
 
-class TREExtension(object):
+class TREExtension(TRE):
     __slots__ = ('_data', )
     _tag_value = None
     _data_type = None
@@ -202,6 +181,9 @@ class TREExtension(object):
             raise TypeError(
                 'data must be of {} type or a bytes array. '
                 'Got {}'.format(self._data_type, type(value)))
+    @classmethod
+    def minimum_length(cls):
+        return 11
 
     def get_bytes_length(self):
         return 11 + self.data.get_bytes_length()
@@ -212,18 +194,6 @@ class TREExtension(object):
 
     @classmethod
     def from_bytes(cls, value, start):
-        """
-
-        Parameters
-        ----------
-        value : bytes
-        start : int
-
-        Returns
-        -------
-
-        """
-
         tag_value = value[start:start+6].decode('utf-8').strip()
         lng = int_func(value[start+6:start+11])
         if tag_value != cls._tag_value:
