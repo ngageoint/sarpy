@@ -33,13 +33,14 @@ class ContextInfoPanel(AbstractWidgetPanel):
 
 
 class ContextMasterDash(AbstractWidgetPanel):
-    buttons = ButtonPanel
-    file_selector = FileSelector
-    info_panel = ContextInfoPanel
+    buttons = ButtonPanel                   # type: ButtonPanel
+    file_selector = FileSelector            # type: FileSelector
+    annotation_selector = FileSelector      # type: FileSelector
+    info_panel = ContextInfoPanel           # type: ContextInfoPanel
 
     def __init__(self, parent):
         AbstractWidgetPanel.__init__(self, parent)
-        widget_list = ["file_selector", "buttons", "info_panel"]
-        self.init_w_basic_widget_list(widget_list, 2, [1, 2])
+        widget_list = ["file_selector", "annotation_selector", "buttons", "info_panel"]
+        self.init_w_basic_widget_list(widget_list, 3, [1, 1, 2])
         self.set_label_text("wake tool controls")
 

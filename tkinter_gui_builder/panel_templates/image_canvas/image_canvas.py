@@ -932,6 +932,9 @@ class ImageCanvas(tk.LabelFrame):
         closest_coord_index = np.where(squared_distances == np.min(squared_distances))[0][0]
         return closest_coord_index
 
+    # TODO: improve this.  Right now it finds closest shape just based on distance to corners.  Improvements should
+    # TODO: include finding a closest point if the x/y coordinate is inside a polygon, and also finding closest
+    # TODO: distance to each line of a polygon, not just the corners.
     def find_closest_shape(self,
                            canvas_x,
                            canvas_y):
@@ -951,6 +954,10 @@ class ImageCanvas(tk.LabelFrame):
 
     def get_non_tool_shape_ids(self):
         all_shape_ids = self.variables.shape_ids
+        tool_shape_ids = self.get_tool_shape_ids()
+        return list(np.setdiff1d(all_shape_ids, tool_shape_ids))
+
+    def get_tool_shape_ids(self):
         tool_shape_ids = [self.variables.zoom_rect_id,
                           self.variables.select_rect_id]
-        return list(np.setdiff1d(all_shape_ids, tool_shape_ids))
+        return tool_shape_ids

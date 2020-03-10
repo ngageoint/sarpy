@@ -199,7 +199,11 @@ class CanvasDemo(AbstractWidgetPanel):
         self.pyplot_panel.update_image(remapped_data)
 
 
-if __name__ == '__main__':
+def main():
     root = tkinter.Tk()
     app = CanvasDemo(root)
     root.mainloop()
+
+
+if __name__ == '__main__':
+    main()
