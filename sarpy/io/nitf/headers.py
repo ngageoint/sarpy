@@ -805,13 +805,25 @@ class TRE(BaseNITFElement):
         raise NotImplementedError
 
     @property
-    def data(self):
+    def DATA(self):
         """
         The TRE data.
 
         Returns
         -------
 
+        """
+
+        raise NotImplementedError
+
+    @property
+    def EL(self):
+        """
+        The TRE element length.
+
+        Returns
+        -------
+        int
         """
 
         raise NotImplementedError
@@ -869,21 +881,24 @@ class UnknownTRE(TRE):
         return self._TAG
 
     @property
-    def data(self):  # type: () -> bytes
+    def DATA(self):  # type: () -> bytes
         return self._data
 
-    @data.setter
-    def data(self, value):
+    @DATA.setter
+    def DATA(self, value):
         if not isinstance(value, bytes):
             raise TypeError('data must be a bytes instance. Got {}'.format(type(value)))
         self._data = value
 
+    @property
+    def EL(self):
+        return len(self._data)
+
     def get_bytes_length(self):
-        return 11 + len(self.data)
+        return 11 + self.EL
 
     def to_bytes(self):
-        byts = self.data
-        return '{0:6s}{1:05d}'.format(self.TAG, len(byts)).encode('utf-8') + byts
+        return '{0:6s}{1:05d}'.format(self.TAG, self.EL).encode('utf-8') + self._data
 
     @classmethod
     def from_bytes(cls, value, start):
