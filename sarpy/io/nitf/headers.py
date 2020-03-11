@@ -1402,7 +1402,7 @@ class DataExtensionHeader(NITFElement):
     This requires an extension for essentially any non-trivial DES.
     """
 
-    class DESUserHeader(TREHeader):
+    class DESUserHeader(Unstructured):
         _size_len = 4
 
     __slots__ = ('DE', 'DESID', 'DESVER', '_Security', 'DESOFLOW', 'DESITEM', '_UserHeader')
@@ -1486,7 +1486,7 @@ class ReservedExtensionHeader(NITFElement):
     This requires an extension for essentially any non-trivial RES.
     """
 
-    class RESUserHeader(TREHeader):
+    class RESUserHeader(Unstructured):
         _size_len = 4
 
     __slots__ = ('RE', 'RESID', 'RESVER', '_Security', '_UserHeader')
