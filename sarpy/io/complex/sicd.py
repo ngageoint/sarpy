@@ -100,7 +100,7 @@ class SICDDetails(NITFDetails):
             raise IOError('A SICD file requires at least one data extension, containing the '
                           'SICD xml structure.')
         # define the sicd metadata
-        self._parse_des()
+        self._find_sicd()
         # populate the image details
         self.img_segment_rows = numpy.zeros(self.img_segment_offsets.shape, dtype=numpy.int64)
         self.img_segment_columns = numpy.zeros(self.img_segment_offsets.shape, dtype=numpy.int64)
@@ -153,19 +153,12 @@ class SICDDetails(NITFDetails):
         return self._des_header
 
     def _parse_img_headers(self):
-        if self.img_segment_offsets is None:
+        if self.img_segment_offsets is None or self._img_headers is not None:
             return
 
-        img_headers = []
-        with open(self._file_name, mode='rb') as fi:
-            for offset, subhead_size in zip(
-                    self.img_subheader_offsets, self._nitf_header.ImageSegments.subhead_sizes):
-                fi.seek(int_func(offset))
-                header_string = fi.read(int_func(subhead_size))
-                img_headers.append(ImageSegmentHeader.from_bytes(header_string, 0))
-        self._img_headers = img_headers
+        self._img_headers = [self.parse_image_subheader(i) for i in range(self.img_subheader_offsets.size)]
 
-    def _parse_des(self):
+    def _find_sicd(self):
         self._is_sicd = False
         self._sicd_meta = None
         if self.des_subheader_offsets is None:

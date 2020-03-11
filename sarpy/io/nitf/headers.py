@@ -976,6 +976,13 @@ class TREList(NITFElement):
         return self._tres[item]
 
 
+class TREHeader(Unstructured):
+    def _populate_data(self):
+        if isinstance(self._data, bytes):
+            data = TREList.from_bytes(self._data, 0)
+            self._data = data
+
+
 class UserHeaderType(Unstructured):
     __slots__ = ('_ofl', '_data')
     _size_len = 5
@@ -1290,35 +1297,6 @@ class ImageSegmentHeader(NITFElement):
         # noinspection PyAttributeOutsideInit
         self._ExtendedHeader = value
 
-    def _set_attribute(self, attribute, value):
-        NITFElement._set_attribute(self, attribute, value)
-        if attribute == '_UserHeader':
-            self._load_user_header_data()
-        elif attribute == '_ExtendedHeader':
-            self._load_ext_header_data()
-
-    def _load_user_header_data(self):
-        """
-        Load any user defined header specifics.
-
-        Returns
-        -------
-        None
-        """
-
-        pass
-
-    def _load_ext_header_data(self):
-        """
-        Load any extended header specifics.
-
-        Returns
-        -------
-        None
-        """
-
-        pass
-
     @classmethod
     def minimum_length(cls):
         # COMRAT may not be there
@@ -1326,11 +1304,58 @@ class ImageSegmentHeader(NITFElement):
 
 
 ######
+# Graphics segment header
+
+class GraphicsSegmentHeader(NITFElement):
+    """
+    Graphics Segment Subheader
+    """
+
+    __slots__ = (
+        'SY', 'SID', 'SNAME', '_Security', 'ENCRYP', 'SFMT',
+        'SSTRUCT', 'SDLVL', 'SALVL', 'SLOC', 'SBND1',
+        'SCOLOR', 'SBND2', 'SRES2', '_UserHeader')
+    _formats = {
+        'SY': '2s', 'SID': '10s', 'SNAME': '20s', 'ENCRYP': '1d',
+        'SFMT': '1s', 'SSTRUCT': '13d', 'SDLVL': '3d', 'SALVL': '3d',
+        'SLOC': '10d', 'SBND1': '10d', 'SCOLOR': '1s', 'SBND2': '10d',
+        'SRES2': '2d'}
+    _defaults = {
+        'SY': 'SY', 'SFMT': 'C', 'SDLVL': 1,
+        '_Security': {}, '_UserHeader': {}}
+    _types = {
+        '_Security': NITFSecurityTags,
+        '_UserHeader': UserHeaderType}
+    _enums = {'SCOLOR': {'C', 'M'}}
+
+    def __init__(self, **kwargs):
+        super(GraphicsSegmentHeader, self).__init__(**kwargs)
+
+    @property
+    def Security(self):  # type: () -> NITFSecurityTags
+        return self._Security
+
+    @Security.setter
+    def Security(self, value):
+        # noinspection PyAttributeOutsideInit
+        self._Security = value
+
+    @property
+    def UserHeader(self):  # type: () -> Union[NITFElement, UserHeaderType]
+        return self._UserHeader
+
+    @UserHeader.setter
+    def UserHeader(self, value):
+        # noinspection PyAttributeOutsideInit
+        self._UserHeader = value
+
+
+######
 # Text segment header
 
 class TextSegmentHeader(NITFElement):
     """
-    This requires an extension for essentially any non-trivial text segment
+    Text Segment Subheader
     """
 
     __slots__ = (
@@ -1344,8 +1369,7 @@ class TextSegmentHeader(NITFElement):
     _defaults = {'TE': 'TE', '_Security': {}, '_UserHeader': {}}
     _types = {
         '_Security': NITFSecurityTags,
-        '_UserHeader': UserHeaderType
-    }
+        '_UserHeader': UserHeaderType}
 
     def __init__(self, **kwargs):
         self._skips = set()
@@ -1369,22 +1393,6 @@ class TextSegmentHeader(NITFElement):
         # noinspection PyAttributeOutsideInit
         self._UserHeader = value
 
-    def _set_attribute(self, attribute, value):
-        NITFElement._set_attribute(self, attribute, value)
-        if attribute == '_UserHeader':
-            self._load_header_data()
-
-    def _load_header_data(self):
-        """
-        Load any user defined header specifics.
-
-        Returns
-        -------
-        None
-        """
-
-        pass
-
 
 ######
 # Data Extension header
@@ -1394,7 +1402,7 @@ class DataExtensionHeader(NITFElement):
     This requires an extension for essentially any non-trivial DES.
     """
 
-    class DESUserHeader(Unstructured):
+    class DESUserHeader(TREHeader):
         _size_len = 4
 
     __slots__ = ('DE', 'DESID', 'DESVER', '_Security', 'DESOFLOW', 'DESITEM', '_UserHeader')
@@ -1407,6 +1415,7 @@ class DataExtensionHeader(NITFElement):
     _types = {
         '_Security': NITFSecurityTags,
         '_UserHeader': DESUserHeader}
+    _enums = {'DESOFLOW': {'', 'XHD', 'IXSHD', 'SXSHD', 'TXSHD', 'UDHD', 'UDID'}}
     _if_skips = {
         'DESID': {'condition': '!= "TRE_OVERFLOW"', 'vars': ['DESOFLOW', 'DESITEM']}}
 
@@ -1448,8 +1457,8 @@ class DataExtensionHeader(NITFElement):
 
         if not isinstance(self._UserHeader, DataExtensionHeader.DESUserHeader):
             return
-        # try loading sicd
         if self.DESID.strip() == 'XML_DATA_CONTENT':
+            # try loading sicd
             if self._UserHeader.get_bytes_length() == 777:
                 # It could be a version 1.0 or greater SICD
                 data = self._UserHeader.to_bytes()
@@ -1460,9 +1469,72 @@ class DataExtensionHeader(NITFElement):
                     logging.error(
                         'DESID is "XML_DATA_CONTENT" and data is the right length for SICD, '
                         'but parsing failed with error {}'.format(e))
-        elif self.DESID.strip() == 'TRE_OVERFLOW':
-            # TODO: LOW Priority - DESID=TRE_OVERFLOW - I think maybe this is deprecated?
+        elif self.DESID.strip() == 'STREAMING_FILE_HEADER':
+            # TODO: LOW Priority - I think that this is deprecated?
             pass
+
+    @classmethod
+    def minimum_length(cls):
+        return 200
+
+
+######
+# Reserved Extension header
+
+class ReservedExtensionHeader(NITFElement):
+    """
+    This requires an extension for essentially any non-trivial RES.
+    """
+
+    class RESUserHeader(TREHeader):
+        _size_len = 4
+
+    __slots__ = ('RE', 'RESID', 'RESVER', '_Security', '_UserHeader')
+    _formats = {'RE': '2s', 'RESID': '25s', 'RESVER': '2d'}
+    _defaults = {'RE': 'RE', 'RESVER': 1, '_Security': {}, '_UserHeader': {}}
+    _types = {
+        '_Security': NITFSecurityTags,
+        '_UserHeader': RESUserHeader}
+
+    def __init__(self, **kwargs):
+        self._skips = set()
+        super(ReservedExtensionHeader, self).__init__(**kwargs)
+
+    @property
+    def Security(self):  # type: () -> NITFSecurityTags
+        return self._Security
+
+    @Security.setter
+    def Security(self, value):
+        # noinspection PyAttributeOutsideInit
+        self._Security = value
+
+    @property
+    def UserHeader(self):  # type: () -> RESUserHeader
+        return self._UserHeader
+
+    @UserHeader.setter
+    def UserHeader(self, value):
+        # noinspection PyAttributeOutsideInit
+        self._UserHeader = value
+
+    def _set_attribute(self, attribute, value):
+        NITFElement._set_attribute(self, attribute, value)
+        if attribute == '_UserHeader':
+            self._load_header_data()
+
+    def _load_header_data(self):
+        """
+        Load any user defined header specifics.
+
+        Returns
+        -------
+        None
+        """
+
+        if not isinstance(self._UserHeader, ReservedExtensionHeader.RESUserHeader):
+            return
+        pass
 
     @classmethod
     def minimum_length(cls):
@@ -1692,6 +1764,130 @@ class NITFDetails(object):
     def nitf_header(self):  # type: () -> NITFHeader
         """NITFHeader: the nitf header object"""
         return self._nitf_header
+
+    def parse_image_subheader(self, index):
+        """
+        Parse the image segment subheader at the given index.
+
+        Parameters
+        ----------
+        index : int
+
+        Returns
+        -------
+        ImageSegmentHeader
+        """
+
+        if index >= self.img_subheader_offsets:
+            raise IndexError(
+                'There are only {} image segments, invalid image segment position {}'.format(self.img_subheader_offsets, index))
+        offset = self.img_subheader_offsets[index]
+        subhead_size = self._nitf_header.ImageSegments.subhead_sizes[index]
+        with open(self._file_name, mode='rb') as fi:
+            fi.seek(int_func(offset))
+            header_string = fi.read(int_func(subhead_size))
+            out = ImageSegmentHeader.from_bytes(header_string, 0)
+        return out
+
+    def parse_text_subheader(self, index):
+        """
+        Parse the text segment subheader at the given index.
+
+        Parameters
+        ----------
+        index : int
+
+        Returns
+        -------
+        TextSegmentHeader
+        """
+
+        if index >= self.text_subheader_offsets.size:
+            raise IndexError(
+                'There are only {} image segments, invalid image segment position {}'.format(
+                    self.text_subheader_offsets.size, index))
+        offset = self.text_subheader_offsets[index]
+        subhead_size = self._nitf_header.TextSegments.subhead_sizes[index]
+        with open(self._file_name, mode='rb') as fi:
+            fi.seek(int_func(offset))
+            header_string = fi.read(int_func(subhead_size))
+            out = TextSegmentHeader.from_bytes(header_string, 0)
+        return out
+
+    def parse_graphics_subheader(self, index):
+        """
+        Parse the graphics segment subheader at the given index.
+
+        Parameters
+        ----------
+        index : int
+
+        Returns
+        -------
+        GraphicsSegmentHeader
+        """
+
+        if index >= self.graphics_subheader_offsets.size:
+            raise IndexError(
+                'There are only {} image segments, invalid image segment position {}'.format(
+                    self.graphics_subheader_offsets.size, index))
+        offset = self.graphics_subheader_offsets[index]
+        subhead_size = self._nitf_header.GraphicsSegments.subhead_sizes[index]
+        with open(self._file_name, mode='rb') as fi:
+            fi.seek(int_func(offset))
+            header_string = fi.read(int_func(subhead_size))
+            out = GraphicsSegmentHeader.from_bytes(header_string, 0)
+        return out
+
+    def parse_des_subheader(self, index):
+        """
+        Parse the data extension segment subheader at the given index.
+
+        Parameters
+        ----------
+        index : int
+
+        Returns
+        -------
+        DataExtensionHeader
+        """
+
+        if index >= self.des_subheader_offsets.size:
+            raise IndexError(
+                'There are only {} image segments, invalid image segment position {}'.format(
+                    self.des_subheader_offsets.size, index))
+        offset = self.des_subheader_offsets[index]
+        subhead_size = self._nitf_header.DataExtensions.subhead_sizes[index]
+        with open(self._file_name, mode='rb') as fi:
+            fi.seek(int_func(offset))
+            header_string = fi.read(int_func(subhead_size))
+            out = DataExtensionHeader.from_bytes(header_string, 0)
+        return out
+
+    def parse_res_subheader(self, index):
+        """
+        Parse the reserved extension subheader at the given index.
+
+        Parameters
+        ----------
+        index : int
+
+        Returns
+        -------
+        ReservedExtensionHeader
+        """
+
+        if index >= self.res_subheader_offsets.size:
+            raise IndexError(
+                'There are only {} image segments, invalid image segment position {}'.format(
+                    self.res_subheader_offsets.size, index))
+        offset = self.res_subheader_offsets[index]
+        subhead_size = self._nitf_header.ReservedExtensions.subhead_sizes[index]
+        with open(self._file_name, mode='rb') as fi:
+            fi.seek(int_func(offset))
+            header_string = fi.read(int_func(subhead_size))
+            out = ReservedExtensionHeader.from_bytes(header_string, 0)
+        return out
 
 
 ##############
