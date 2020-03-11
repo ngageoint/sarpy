@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """
 Script for repairing any potential broken SICD DES header - should work for any
 environment with sarpy installed
@@ -6,9 +5,6 @@ environment with sarpy installed
 
 import argparse
 from sarpy.io.complex.sicd import SICDDetails
-
-parser = argparse.ArgumentParser(description="Repair SICD DES Header information (if necessary).")
-parser.add_argument('files', metavar='filename', nargs='+', help="a SICD file")
 
 
 def repair(in_file):
@@ -39,6 +35,8 @@ def repair(in_file):
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description="Repair SICD DES Header information (if necessary).")
+    parser.add_argument('files', metavar='filename', nargs='+', help="a SICD file")
     args = parser.parse_args()
 
     for fil in args.files:
