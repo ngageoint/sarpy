@@ -1,3 +1,7 @@
+import os
+import numpy as np
+from shutil import copyfile
+
 from sarpy_gui_apps.apps.annotation_tool.panels.context_image_panel.context_image_panel import ContextImagePanel
 from sarpy_gui_apps.apps.annotation_tool.panels.annotate_image_panel.annotate_image_panel import AnnotateImagePanel
 from sarpy_gui_apps.apps.annotation_tool.panels.annotation_popup.annotation_popup import AnnotationPopup
@@ -11,9 +15,6 @@ from sarpy.geometry.geometry_elements import Polygon
 from sarpy.annotation.annotate import FileAnnotationCollection
 from sarpy.annotation.annotate import Annotation
 from sarpy.annotation.annotate import LabelSchema
-
-import numpy as np
-import os
 
 
 class AnnotationTool(AbstractWidgetPanel):
@@ -116,6 +117,9 @@ class AnnotationTool(AbstractWidgetPanel):
             self.context_panel.context_dashboard.annotation_selector.event_select_file(event)
             annotation_fname = self.context_panel.context_dashboard.annotation_selector.fname
             if annotation_fname != '':
+                # save a backup
+                backup_file_fname = os.path.join(os.path.dirname(annotation_fname), os.path.basename(annotation_fname) + '.bak' )
+                copyfile(annotation_fname, backup_file_fname)
                 self.variables.file_annotation_fname = annotation_fname
                 self.variables.file_annotation_collection = FileAnnotationCollection.from_file(annotation_fname)
                 self.variables.label_schema = self.variables.file_annotation_collection.label_schema

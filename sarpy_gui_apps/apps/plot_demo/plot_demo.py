@@ -25,7 +25,6 @@ class PlotDemo(AbstractWidgetPanel):
         self.button_panel.single_plot.on_left_mouse_click(self.callback_single_plot)
         self.button_panel.multi_plot.on_left_mouse_click(self.callback_muli_plot)
         self.button_panel.animated_plot.on_left_mouse_click(self.callback_animated_plot)
-        self.button_panel.color_button.on_left_mouse_click(self.callback_color)
 
         self.pyplot_panel.set_y_margin_percent(5)
         self.pyplot_panel.variables.set_y_margins_per_frame = True
@@ -58,10 +57,6 @@ class PlotDemo(AbstractWidgetPanel):
         print("and " + str(n_overplots) + " overplots")
         print("and " + str(n_animation_frames) + " animation frames")
         self.pyplot_panel.set_data(plot_data)
-
-    def callback_color(self, event):
-        style_utils = PlotStyleUtils()
-        style_utils.test_stuff()
 
     @staticmethod
     def mockup_animation_data_3():
