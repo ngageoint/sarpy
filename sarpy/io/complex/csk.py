@@ -35,7 +35,7 @@ from .sicd_elements.ImageFormation import ImageFormationType, TxFrequencyProcTyp
 from .sicd_elements.RMA import RMAType, INCAType
 from .sicd_elements.Radiometric import RadiometricType
 from ...geometry import point_projection
-from .base import BaseChipper, BaseReader
+from .base import BaseChipper, BaseReader, string_types
 from .utils import get_seconds, fit_time_coa_polynomial
 
 __classification__ = "UNCLASSIFIED"
@@ -523,7 +523,7 @@ class CSKReader(BaseReader):
             file name or CSKDetails object
         """
 
-        if isinstance(csk_details, str):
+        if isinstance(csk_details, string_types):
             csk_details = CSKDetails(csk_details)
         if not isinstance(csk_details, CSKDetails):
             raise TypeError('The input argument for RadarSatCSKReader must be a '
@@ -542,7 +542,9 @@ class CSKReader(BaseReader):
         the_sicd = self._sicd_meta if isinstance(self._sicd_meta, SICDType) else self._sicd_meta[frame]
         try:
             sdatestr = date.fromisoformat(str(the_sicd.Timeline.CollectStart)[:10]).strftime('%d%b%y')
-            out = '{}_{}_{}_{}'.format(sdatestr, the_sicd.CollectionInfo.CollectorName, the_sicd.CollectionInfo.RadarMode.ModeID, out)
+            out = '{}_{}_{}_{}'.format(
+                sdatestr, the_sicd.CollectionInfo.CollectorName,
+                the_sicd.CollectionInfo.RadarMode.ModeID, out)
         except (AttributeError, ValueError, TypeError):
             pass
 

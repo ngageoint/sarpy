@@ -14,7 +14,7 @@ from numpy.polynomial import polynomial
 from scipy.constants import speed_of_light
 from scipy.interpolate import griddata
 
-from .base import SubsetReader, BaseReader
+from .base import SubsetReader, BaseReader, string_types
 from .tiff import TiffDetails, TiffReader
 
 from .sicd_elements.blocks import Poly1DType, Poly2DType
@@ -196,7 +196,7 @@ class SentinelDetails(object):
         """
 
         def get_file_location(schema_type, tids):
-            if isinstance(tids, str):
+            if isinstance(tids, string_types):
                 tids = [tids, ]
             for tid in tids:
                 do = self._find('dataObjectSection/dataObject[@repID="{}"]/[@ID="{}"]'.format(schema_type, tid))
@@ -1026,7 +1026,7 @@ class SentinelReader(BaseReader):
             Should we attempt to use gdal to read the underlying data files?
         """
 
-        if isinstance(sentinel_details, str):
+        if isinstance(sentinel_details, string_types):
             sentinel_details = SentinelDetails(sentinel_details)
         if not isinstance(sentinel_details, SentinelDetails):
             raise TypeError('Input argument for SentinelReader must be a file name or SentinelReader object.')

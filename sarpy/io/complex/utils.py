@@ -2,12 +2,23 @@
 """
 Common functionality for converting metadata
 """
-
+import sys
 import logging
+from xml.etree import ElementTree
+
 import numpy
 from numpy.polynomial import polynomial
 
 from .sicd_elements.blocks import Poly2DType
+
+
+if sys.version_info[0] < 3:
+    # noinspection PyUnresolvedReferences
+    from cStringIO import StringIO
+else:
+    # noinspection PyUnresolvedReferences
+    from io import StringIO
+
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
@@ -158,3 +169,26 @@ def fit_time_coa_polynomial(inca, image_data, grid, dop_rate_scaled_coeffs, poly
         x_order=poly_order, y_order=poly_order, x_scale=1e-3, y_scale=1e-3, rcond=1e-40)
     logging.info('The time_coa_fit details:\nroot mean square residuals = {}\nrank = {}\nsingular values = {}'.format(residuals, rank, sing_values))
     return Poly2DType(Coefs=coefs)
+
+
+def parse_xml_from_string(xml_string):
+    """
+    Parse the ElementTree root node and xml namespace dict from an xml string.
+
+    Parameters
+    ----------
+    xml_string : str
+
+    Returns
+    -------
+    (ElementTree.Element, dict)
+    """
+
+    root_node = ElementTree.fromstring(xml_string)
+    # define the namespace dictionary
+    xml_ns = dict([node for _, node in ElementTree.iterparse(StringIO(xml_string), events=('start-ns',))])
+    if len(xml_ns.keys()) == 0:
+        xml_ns = None
+    elif '' in xml_ns:
+        xml_ns['default'] = xml_ns['']
+    return root_node, xml_ns
