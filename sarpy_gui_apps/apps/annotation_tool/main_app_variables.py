@@ -8,7 +8,6 @@ import os
 class AppVariables:
     def __init__(self):
         self.image_fname = None     # type: str
-        self.shapes_in_selector = []
 
         # set up label schema stuff
         self.label_schema = LabelSchema

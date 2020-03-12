@@ -175,6 +175,7 @@ class AnnotationTool(AbstractWidgetPanel):
 
     # annotate callbacks
     def callback_set_to_select_closest_shape(self, event):
+        self.annotate_panel.annotate_dashboard.controls.set_active_button(self.annotate_panel.annotate_dashboard.controls.select_closest_shape)
         self.annotate_panel.image_canvas.set_current_tool_to_select_closest_shape()
 
     def callback_annotate_set_to_pan(self, event):
@@ -189,11 +190,9 @@ class AnnotationTool(AbstractWidgetPanel):
         self.update_annotate_decimation_value()
 
     def callback_annotate_handle_canvas_left_mouse_click(self, event):
-        self.annotate_panel.image_canvas.callback_handle_left_mouse_click(event)
         current_shape = self.annotate_panel.image_canvas.variables.current_shape_id
-        if current_shape:
-            self.variables.shapes_in_selector.append(current_shape)
-            self.variables.shapes_in_selector = sorted(list(set(self.variables.shapes_in_selector)))
+        self.annotate_panel.image_canvas.variables.current_shape_id = current_shape
+        self.annotate_panel.image_canvas.callback_handle_left_mouse_click(event)
 
     def callback_annotate_handle_right_mouse_click(self, event):
         self.annotate_panel.image_canvas.callback_handle_right_mouse_click(event)
@@ -218,6 +217,7 @@ class AnnotationTool(AbstractWidgetPanel):
         self.update_annotate_decimation_value()
 
     def callback_delete_shape(self, event):
+        self.annotate_panel.annotate_dashboard.controls.set_active_button(self.annotate_panel.annotate_dashboard.controls.delete_shape)
         tool_shape_ids = self.annotate_panel.image_canvas.get_tool_shape_ids()
         current_geom_id = self.annotate_panel.image_canvas.variables.current_shape_id
         if current_geom_id:
@@ -231,10 +231,13 @@ class AnnotationTool(AbstractWidgetPanel):
             print("no shape selected")
 
     def callback_annotation_popup(self, event):
-        popup = tkinter.Toplevel(self.master)
         current_canvas_shape_id = self.annotate_panel.image_canvas.variables.current_shape_id
-        self.variables.current_canvas_geom_id = current_canvas_shape_id
-        AnnotationPopup(popup, self.variables)
+        if current_canvas_shape_id:
+            popup = tkinter.Toplevel(self.master)
+            self.variables.current_canvas_geom_id = current_canvas_shape_id
+            AnnotationPopup(popup, self.variables)
+        else:
+            print("Please select a geometry first.")
 
     # non callback defs
     def update_context_decimation_value(self):

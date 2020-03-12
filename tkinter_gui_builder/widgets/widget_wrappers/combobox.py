@@ -12,3 +12,4 @@ class Combobox(ttk.Combobox, WidgetEvents):
     def update_combobox_values(self, val_list):
         self['values'] = val_list
         self.current(0)
+

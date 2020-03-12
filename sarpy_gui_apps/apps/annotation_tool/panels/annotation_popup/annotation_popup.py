@@ -60,10 +60,18 @@ class AnnotationPopup(AbstractWidgetPanel):
 
         # populate existing fields if editing an existing geometry
         previous_annotation = self.main_app_variables.canvas_geom_ids_to_annotations_id_dict[str(self.main_app_variables.current_canvas_geom_id)]
-        comment = previous_annotation.properties.elements[0].comment
-        confidence = previous_annotation.properties.elements[0].confidence
+        if previous_annotation.properties:
+            object_type = previous_annotation.properties.elements[0].label_id
+            comment = previous_annotation.properties.elements[0].comment
+            confidence = previous_annotation.properties.elements[0].confidence
 
-        stop = 1
+            self.thing_type.set(object_type)
+            self.comment.set_text(comment)
+            self.confidence.set(confidence)
+        else:
+            self.thing_type.set("")
+            self.comment.set_text("")
+            self.confidence.set("")
 
     def callback_update_selection(self, event):
         selection_id = [key for key, val in self.label_schema.labels.items() if val == self.thing_type.get()][0]
@@ -93,23 +101,26 @@ class AnnotationPopup(AbstractWidgetPanel):
         self.setup_main_parent_selections()
 
     def callback_submit(self, event):
-        comment_text = self.comment.get()
-        thing_type = self.thing_type.get()
-        confidence_val = self.confidence.get()
+        if 'disabled' in self.thing_type.state():
+            comment_text = self.comment.get()
+            thing_type = self.thing_type.get()
+            confidence_val = self.confidence.get()
 
-        current_canvas_geom_id = self.main_app_variables.current_canvas_geom_id
-        annotation = self.main_app_variables.canvas_geom_ids_to_annotations_id_dict[str(current_canvas_geom_id)]     # type: Annotation
-        annotation_metadata = AnnotationMetadata(comment=comment_text,
-                                                 label_id=thing_type,
-                                                 confidence=confidence_val)
-        annotation.add_annotation_metadata(annotation_metadata)
-        new_file_annotation_collection = FileAnnotationCollection(self.main_app_variables.label_schema,
-                                                                  image_file_name=self.main_app_variables.image_fname)
-        self.main_app_variables.file_annotation_collection = new_file_annotation_collection
-        for key, val in self.main_app_variables.canvas_geom_ids_to_annotations_id_dict.items():
-            self.main_app_variables.file_annotation_collection.add_annotation(val)
-        self.main_app_variables.file_annotation_collection.to_file(self.main_app_variables.file_annotation_fname)
-        self.parent.destroy()
+            current_canvas_geom_id = self.main_app_variables.current_canvas_geom_id
+            annotation = self.main_app_variables.canvas_geom_ids_to_annotations_id_dict[str(current_canvas_geom_id)]     # type: Annotation
+            annotation_metadata = AnnotationMetadata(comment=comment_text,
+                                                     label_id=thing_type,
+                                                     confidence=confidence_val)
+            annotation.add_annotation_metadata(annotation_metadata)
+            new_file_annotation_collection = FileAnnotationCollection(self.main_app_variables.label_schema,
+                                                                      image_file_name=self.main_app_variables.image_fname)
+            self.main_app_variables.file_annotation_collection = new_file_annotation_collection
+            for key, val in self.main_app_variables.canvas_geom_ids_to_annotations_id_dict.items():
+                self.main_app_variables.file_annotation_collection.add_annotation(val)
+            self.main_app_variables.file_annotation_collection.to_file(self.main_app_variables.file_annotation_fname)
+            self.parent.destroy()
+        else:
+            print("please select a valid type.")
 
     def setup_main_parent_selections(self):
         base_type_ids = []
