@@ -1,4 +1,4 @@
-from tkinter_gui_builder import tkinter
+import tkinter
 
 
 def simulate_event_at_x_y_position(x,  # type: int

@@ -2,7 +2,9 @@ from sarpy_gui_apps.apps.taser_tool.taser import Taser
 from sarpy_gui_apps.apps.wake_tool.wake_tool import WakeTool
 from sarpy_gui_apps.apps.aperture_tool.aperture_tool import ApertureTool
 from sarpy_gui_apps.apps.make_ortho.quick_ortho_tool import Ortho
-from tkinter_gui_builder import tkinter, ttk
+import tkinter
+import ttk
+
 
 # Root class to create the interface and define the controller function to switch frames
 class RootApp(tkinter.Tk):

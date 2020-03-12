@@ -1,6 +1,6 @@
 from tkinter_gui_builder.panel_templates.image_canvas.image_canvas import ImageCanvas
 from tkinter_gui_builder.panel_templates.widget_panel.widget_panel import AbstractWidgetPanel
-from tkinter_gui_builder import tkinter
+import tkinter
 
 
 class AdjustedViewPanel(tkinter.LabelFrame):

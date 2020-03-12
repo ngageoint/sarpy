@@ -1,5 +1,6 @@
 import platform
-from tkinter_gui_builder import tkinter
+import tkinter
+
 
 # TODO: I'm fairly confident that this is what you want
 class WidgetEvents(tkinter.Misc):

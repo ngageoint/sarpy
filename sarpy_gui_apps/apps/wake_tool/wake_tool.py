@@ -1,4 +1,4 @@
-from tkinter_gui_builder import tkinter
+import tkinter
 from sarpy_gui_apps.apps.wake_tool.panels.side_panel import SidePanel
 from tkinter_gui_builder.panel_templates.image_canvas.image_canvas import ImageCanvas
 import tkinter.colorchooser as colorchooser

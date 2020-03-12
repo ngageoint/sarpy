@@ -4,7 +4,7 @@ from matplotlib.collections import LineCollection
 import time
 import numpy as np
 
-from tkinter_gui_builder import tkinter
+import tkinter
 from tkinter_gui_builder.widgets import basic_widgets
 from tkinter_gui_builder.panel_templates.pyplot_panel.pyplot_panel_utils.plot_style_utils import PlotStyleUtils
 from tkinter_gui_builder.panel_templates.widget_panel.widget_panel import AbstractWidgetPanel

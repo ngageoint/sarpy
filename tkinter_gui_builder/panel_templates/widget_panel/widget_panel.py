@@ -2,7 +2,7 @@ import abc
 from six import add_metaclass
 import numpy as np
 from typing import Union
-from tkinter_gui_builder import tkinter
+import tkinter
 
 NO_TEXT_UPDATE_WIDGETS = ['ttk::scale']
 

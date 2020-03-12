@@ -1,8 +1,8 @@
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.pyplot as plt
 import numpy as np
+import tkinter
 
-from tkinter_gui_builder import tkinter
 
 class PyplotImagePanel(tkinter.LabelFrame):
     def __init__(self, parent, canvas_width=600, canvas_height=400):

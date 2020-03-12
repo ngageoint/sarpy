@@ -1,15 +1,8 @@
 import os
-import sys
-
+import tkinter
+from tkinter.filedialog import askopenfilename, asksaveasfilename
 from tkinter_gui_builder.panel_templates.widget_panel.widget_panel import AbstractWidgetPanel
 from tkinter_gui_builder.widgets import basic_widgets
-
-if sys.version_info[0] < 3:
-    from tkinter.filedialog import askopenfilename, asksaveasfilename
-    import Tkinter as tkinter
-else:
-    import tkinter
-    from tkinter.filedialog import askopenfilename, asksaveasfilename
 
 
 class FileSelector(AbstractWidgetPanel):

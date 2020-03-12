@@ -1,4 +1,4 @@
-from tkinter_gui_builder import tkinter
+import tkinter
 from tkinter_gui_builder.widgets.widget_utils.widget_events import WidgetEvents
 
 

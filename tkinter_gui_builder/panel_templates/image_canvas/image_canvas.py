@@ -9,17 +9,12 @@ import tkinter_gui_builder.utils.color_utils.color_utils as color_utils
 import platform
 import numpy as np
 import time
+import tkinter
+import tkinter.colorchooser as colorchooser
 
 from .tool_constants import ShapePropertyConstants as SHAPE_PROPERTIES
 from .tool_constants import ShapeTypeConstants as SHAPE_TYPES
 from .tool_constants import ToolConstants as TOOLS
-
-if sys.version_info[0] < 3:
-    import tkinter.colorchooser as colorchooser
-    import Tkinter as tkinter
-else:
-    import tkinter
-    import tkinter.colorchooser as colorchooser
 
 
 if platform.system() == "Linux":

@@ -1,4 +1,4 @@
-from tkinter_gui_builder import tkinter
+import tkinter
 from tkinter_gui_builder.panel_templates.widget_panel.widget_panel import AbstractWidgetPanel
 from tkinter_gui_builder.widgets import basic_widgets
 from sarpy_gui_apps.apps.annotation_tool.main_app_variables import AppVariables

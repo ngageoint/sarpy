@@ -1,5 +1,6 @@
-from tkinter_gui_builder import ttk
+from tkinter import ttk
 from tkinter_gui_builder.widgets.widget_utils.widget_events import WidgetEvents
+
 
 class Combobox(ttk.Combobox, WidgetEvents):
     def __init__(self, master=None, **kw):
