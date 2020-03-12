@@ -9,6 +9,11 @@ import inspect
 import os
 import sys
 
+string_types = (str, )
+if sys.version_info[0] < 3:
+    # noinspection PyUnresolvedReferences
+    string_types = (str, unicode)
+
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas Mccullough"
@@ -46,7 +51,7 @@ def register_tre(tre_type, tre_id=None, replace=False):
 
     if tre_id is None:
         tre_id = tre_type.__name__
-    if not isinstance(tre_id, str):
+    if not isinstance(tre_id, string_types):
         raise TypeError('tre_id must be a string, got type {}'.format(type(tre_id)))
 
     if tre_id in _TRE_Registry:
@@ -78,7 +83,7 @@ def find_tre(tre_id):
 
     if isinstance(tre_id, bytes):
         tre_id = tre_id.decode('utf-8')
-    if not isinstance(tre_id, str):
+    if not isinstance(tre_id, string_types):
         raise TypeError('tre_id must be of type string. Got {}'.format(tre_id))
     return _TRE_Registry.get(tre_id.strip(), None)
 
@@ -102,7 +107,7 @@ def parse_package(packages=None):
             _parsed_package = True
             packages = _default_tre_packages
 
-    if isinstance(packages, str):
+    if isinstance(packages, string_types):
         packages = [packages, ]
 
     logging.info('Finding and registering TREs contained in packages {}'.format(packages))

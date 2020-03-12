@@ -6,7 +6,7 @@ Module contained elements for defining TREs - really intended as read only objec
 from collections import OrderedDict
 from typing import Union, List
 
-from ..headers import TRE, int_func
+from ..headers import TRE, int_func, string_types
 
 
 __classification__ = "UNCLASSIFIED"
@@ -137,7 +137,7 @@ class TREElement(object):
             return val.to_bytes()
         elif isinstance(val, bytes):
             return val
-        elif isinstance(val, (int, str)):
+        elif isinstance(val, int) or isinstance(val, string_types):
             return self._field_format[attribute].format(val)
 
     def to_dict(self):
@@ -152,7 +152,7 @@ class TREElement(object):
         out = OrderedDict()
         for fld in self._field_ordering:
             val = getattr(self, fld)
-            if val is None or isinstance(val, (int, str, bytes)):
+            if val is None or isinstance(val, string_types) or isinstance(val, (int, bytes)):
                 out[fld] = val
             elif isinstance(val, TREElement):
                 out[fld] = val.to_dict()
@@ -242,7 +242,7 @@ class TREExtension(TRE):
     def __init__(self, value):
         if not issubclass(self._data_type, TREElement):
             raise TypeError('_data_type must be a subclass of TREElement. Got type {}'.format(self._data_type))
-        if not isinstance(self._tag_value, str):
+        if not isinstance(self._tag_value, string_types):
             raise TypeError('_tag_value must be a string')
         if len(self._tag_value) > 6:
             raise ValueError('Tag value must have 6 or fewer characters.')
