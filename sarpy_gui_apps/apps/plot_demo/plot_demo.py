@@ -1,4 +1,4 @@
-import tkinter
+from tkinter_gui_builder import tkinter
 from tkinter_gui_builder.panel_templates.pyplot_panel.PyplotPanel import PyplotPanel
 from sarpy_gui_apps.apps.plot_demo.panels.plot_demo_button_panel import ButtonPanel
 from tkinter_gui_builder.panel_templates.widget_panel.widget_panel import AbstractWidgetPanel

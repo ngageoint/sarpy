@@ -1,4 +1,4 @@
-import tkinter
+from tkinter_gui_builder import tkinter
 from tkinter.filedialog import askopenfilename
 from sarpy_gui_apps.apps.canvas_demo.panels.canvas_demo_button_panel import CanvasDemoButtonPanel
 from tkinter_gui_builder.panel_templates.pyplot_image_panel.pyplot_image_panel import PyplotImagePanel

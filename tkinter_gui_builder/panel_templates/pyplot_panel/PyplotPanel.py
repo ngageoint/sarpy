@@ -1,13 +1,13 @@
-import tkinter as tk
-from tkinter_gui_builder.widgets import basic_widgets
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 from matplotlib.collections import LineCollection
-from tkinter_gui_builder.panel_templates.widget_panel.widget_panel import AbstractWidgetPanel
 import time
-from tkinter_gui_builder.panel_templates.pyplot_panel.pyplot_panel_utils.plot_style_utils import PlotStyleUtils
 import numpy as np
 
+from tkinter_gui_builder import tkinter
+from tkinter_gui_builder.widgets import basic_widgets
+from tkinter_gui_builder.panel_templates.pyplot_panel.pyplot_panel_utils.plot_style_utils import PlotStyleUtils
+from tkinter_gui_builder.panel_templates.widget_panel.widget_panel import AbstractWidgetPanel
 
 SCALE_Y_AXIS_PER_FRAME_TRUE = "scale y axis per frame"
 SCALE_Y_AXIS_PER_FRAME_FALSE = "don't scale y axis per frame"
@@ -15,9 +15,9 @@ SCALE_Y_AXIS_PER_FRAME_FALSE = "don't scale y axis per frame"
 PYPLOT_UTILS = PlotStyleUtils()
 
 
-class PyplotCanvas(tk.LabelFrame):
+class PyplotCanvas(tkinter.LabelFrame):
     def __init__(self, master):
-        tk.LabelFrame.__init__(self, master)
+        tkinter.LabelFrame.__init__(self, master)
 
         fig = Figure()
         self.ax = fig.add_subplot(111)

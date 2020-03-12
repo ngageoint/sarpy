@@ -1,11 +1,9 @@
-from tkinter import ttk
+from tkinter_gui_builder import ttk
 from tkinter_gui_builder.widgets.widget_utils.widget_events import WidgetEvents
-
 
 class Combobox(ttk.Combobox, WidgetEvents):
     def __init__(self, master=None, **kw):
-        super(ttk.Combobox, self).__init__(master, "ttk::combobox", **kw)
-        super(WidgetEvents, self).__init__()
+        ttk.Combobox.__init__(self, master, "ttk::combobox", **kw)
 
     def on_selection(self, event):
         self.bind("<<ComboboxSelected>>", event)

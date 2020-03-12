@@ -1,4 +1,4 @@
-import tkinter
+from tkinter_gui_builder import tkinter
 from sarpy_gui_apps.apps.aperture_tool.panels.image_zoomer.zoomer_panel import ZoomerPanel
 from sarpy_gui_apps.apps.aperture_tool.panels.fft_panel.fft_main_panel import FFTPanel
 from sarpy_gui_apps.apps.aperture_tool.panels.adjusted_image_panel.adjusted_image_panel import AdjustedViewPanel

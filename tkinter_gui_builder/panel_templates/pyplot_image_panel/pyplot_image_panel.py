@@ -1,12 +1,12 @@
-import tkinter as tk
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.pyplot as plt
 import numpy as np
 
+from tkinter_gui_builder import tkinter
 
-class PyplotImagePanel(tk.LabelFrame):
+class PyplotImagePanel(tkinter.LabelFrame):
     def __init__(self, parent, canvas_width=600, canvas_height=400):
-        tk.LabelFrame.__init__(self, parent)
+        tkinter.LabelFrame.__init__(self, parent)
         self.config(highlightbackground="black")
         self.config(highlightthickness=1)
         self.config(borderwidth=5)
@@ -28,4 +28,3 @@ class PyplotImagePanel(tk.LabelFrame):
         self.image_data = image_data
         plt.imshow(self.image_data)
         self.canvas.draw()
-
