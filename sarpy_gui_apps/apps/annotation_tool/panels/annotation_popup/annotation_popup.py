@@ -1,9 +1,10 @@
-import tkinter
 from tkinter_gui_builder.panel_templates.widget_panel.widget_panel import AbstractWidgetPanel
 from tkinter_gui_builder.widgets import basic_widgets
 from sarpy_gui_apps.apps.annotation_tool.main_app_variables import AppVariables
 from sarpy.annotation.annotate import AnnotationMetadata
 from sarpy.annotation.annotate import Annotation
+from sarpy.annotation.annotate import FileAnnotationCollection
+import tkinter
 
 
 # TODO: did you mean to do the import above and then redefine here?
@@ -59,6 +60,9 @@ class AnnotationPopup(AbstractWidgetPanel):
 
         # populate existing fields if editing an existing geometry
         previous_annotation = self.main_app_variables.canvas_geom_ids_to_annotations_id_dict[str(self.main_app_variables.current_canvas_geom_id)]
+        comment = previous_annotation.properties.elements[0].comment
+        confidence = previous_annotation.properties.elements[0].confidence
+
         stop = 1
 
     def callback_update_selection(self, event):
@@ -99,7 +103,12 @@ class AnnotationPopup(AbstractWidgetPanel):
                                                  label_id=thing_type,
                                                  confidence=confidence_val)
         annotation.add_annotation_metadata(annotation_metadata)
-        self.main_app_variables.file_annotation_collection
+        new_file_annotation_collection = FileAnnotationCollection(self.main_app_variables.label_schema,
+                                                                  image_file_name=self.main_app_variables.image_fname)
+        self.main_app_variables.file_annotation_collection = new_file_annotation_collection
+        for key, val in self.main_app_variables.canvas_geom_ids_to_annotations_id_dict.items():
+            self.main_app_variables.file_annotation_collection.add_annotation(val)
+        self.main_app_variables.file_annotation_collection.to_file(self.main_app_variables.file_annotation_fname)
         self.parent.destroy()
 
     def setup_main_parent_selections(self):

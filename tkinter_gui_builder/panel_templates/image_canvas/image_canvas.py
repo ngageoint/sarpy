@@ -637,6 +637,12 @@ class ImageCanvas(tkinter.LabelFrame):
             image_coords = self.canvas_shape_coords_to_image_coords(shape_id)
             self._set_shape_property(shape_id, SHAPE_PROPERTIES.IMAGE_COORDS, image_coords)
 
+    def set_shape_pixel_coords(self,
+                               shape_id,            # type: int
+                               image_coords,        # type: list
+                               ):
+        self._set_shape_property(shape_id, SHAPE_PROPERTIES.IMAGE_COORDS, image_coords)
+
     def canvas_shape_coords_to_image_coords(self, shape_id):
         canvas_coords = self.get_shape_canvas_coords(shape_id)
         return self.variables.canvas_image_object.canvas_coords_to_full_image_yx(canvas_coords)

@@ -9,7 +9,6 @@ from tkinter_gui_builder.panel_templates.widget_panel.widget_panel import Abstra
 from tkinter_gui_builder.utils.image_utils import frame_sequence_utils
 from tkinter import filedialog
 import numpy as np
-from sarpy.io.complex.base import BaseReader
 import os
 
 

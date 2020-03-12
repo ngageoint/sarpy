@@ -31,6 +31,10 @@ class AnnotationTool(AbstractWidgetPanel):
 
         self.variables = AppVariables()
 
+        self.annotate_panel.annotate_dashboard.controls.disable_all_buttons()
+        self.context_panel.context_dashboard.annotation_selector.disable_all_buttons()
+        self.context_panel.context_dashboard.buttons.disable_all_buttons()
+
         # set up context panel event listeners
         self.context_panel.context_dashboard.buttons.zoom_in.on_left_mouse_click(self.callback_context_set_to_zoom_in)
         self.context_panel.context_dashboard.buttons.zoom_out.on_left_mouse_click(self.callback_context_set_to_zoom_out)
@@ -52,7 +56,6 @@ class AnnotationTool(AbstractWidgetPanel):
         self.annotate_panel.annotate_dashboard.controls.draw_polygon.on_left_mouse_click(self.callback_set_to_draw_polygon)
         self.annotate_panel.annotate_dashboard.controls.popup.on_left_mouse_click(self.callback_annotation_popup)
         self.annotate_panel.annotate_dashboard.controls.pan.on_left_mouse_click(self.callback_annotate_set_to_pan)
-        self.annotate_panel.annotate_dashboard.controls.save_annotations.on_left_mouse_click(self.callback_save_annotations)
         self.annotate_panel.annotate_dashboard.controls.select_closest_shape.on_left_mouse_click(self.callback_set_to_select_closest_shape)
         self.annotate_panel.annotate_dashboard.controls.delete_shape.on_left_mouse_click(self.callback_delete_shape)
 
@@ -67,9 +70,9 @@ class AnnotationTool(AbstractWidgetPanel):
         self.context_panel.image_canvas.init_with_fname(self.variables.image_fname)
         self.update_context_decimation_value()
         self.annotate_panel.image_canvas.init_with_fname(self.variables.image_fname)
-        self.annotate_panel.image_canvas.set_image_from_numpy_array(np.zeros((self.annotate_panel.image_canvas.canvas_height, self.annotate_panel.image_canvas.canvas_width)))
-        self.variables.file_annotation_collection = FileAnnotationCollection(self.variables.label_schema, image_file_name=self.variables.image_fname)
+        # self.annotate_panel.image_canvas.set_image_from_numpy_array(np.zeros((self.annotate_panel.image_canvas.canvas_height, self.annotate_panel.image_canvas.canvas_width)))
         self.variables.annotate_canvas = self.annotate_panel.image_canvas
+        self.context_panel.context_dashboard.annotation_selector.activate_all_buttons()
 
     def callback_content_select_annotation_file(self, event):
         popup = tkinter.Toplevel(self.master)
@@ -95,19 +98,43 @@ class AnnotationTool(AbstractWidgetPanel):
             self.context_panel.context_dashboard.annotation_selector.event_select_file(event)
             self.context_panel.context_dashboard.annotation_selector.set_label_text("select schema template")
             schema_fname = self.context_panel.context_dashboard.annotation_selector.fname
-            self.variables.label_schema.from_file(schema_fname)
-            self.context_panel.context_dashboard.annotation_selector.event_new_file(event)
-            self.variables.file_annotation_fname = self.context_panel.context_dashboard.annotation_selector.fname
-            self.variables.file_annotation_collection.label_schema = self.variables.label_schema
-            self.variables.file_annotation_collection.image_file_name = self.variables.image_fname
+            if schema_fname != '':
+                self.variables.label_schema = LabelSchema.from_file(schema_fname)
+                self.context_panel.context_dashboard.annotation_selector.event_new_file(event)
+                file_annotation_fname = self.context_panel.context_dashboard.annotation_selector.fname
+                if file_annotation_fname != '':
+                    self.variables.file_annotation_fname = file_annotation_fname
+                    self.variables.file_annotation_collection = FileAnnotationCollection(label_schema=self.variables.label_schema,
+                                                                                         image_file_name=self.variables.image_fname)
+                    self.context_panel.context_dashboard.buttons.activate_all_buttons()
+                    self.annotate_panel.annotate_dashboard.controls.activate_all_buttons()
+                else:
+                    print("provide a valid file annotation filename.")
+            else:
+                print("select a valid label schema file.")
         else:
             self.context_panel.context_dashboard.annotation_selector.event_select_file(event)
-            self.variables.file_annotation_fname = self.context_panel.context_dashboard.annotation_selector.fname
+            annotation_fname = self.context_panel.context_dashboard.annotation_selector.fname
+            if annotation_fname != '':
+                self.variables.file_annotation_fname = annotation_fname
+                self.variables.file_annotation_collection = FileAnnotationCollection.from_file(annotation_fname)
+                self.variables.label_schema = self.variables.file_annotation_collection.label_schema
+                # TODO: check to make sure the annotation collection image filename and the file that was opened match.
+                self.context_panel.context_dashboard.buttons.activate_all_buttons()
+                self.annotate_panel.annotate_dashboard.controls.activate_all_buttons()
 
-        fname = self.context_panel.context_dashboard.annotation_selector.fname
-        if fname != '':
-            stop = 1
-        stop = 1
+                # create canvas shapes from existing annotations and create dictionary to keep track of canvas geometries
+                # that are mapped to the annotations
+                for feature in self.variables.file_annotation_collection.annotations.features:
+                    image_coords = feature.geometry.get_coordinate_list()[0]
+                    image_coords_1d = list(np.reshape(image_coords, np.asarray(image_coords).size))
+                    tmp_shape_id = self.annotate_panel.image_canvas.create_new_polygon((0, 0, 1, 1))
+                    self.annotate_panel.image_canvas.set_shape_pixel_coords(tmp_shape_id, image_coords_1d)
+                    self.variables.canvas_geom_ids_to_annotations_id_dict[str(tmp_shape_id)] = feature
+                self.annotate_panel.image_canvas.redraw_all_shapes()
+
+            else:
+                print("select a valid label file annotation collection.")
 
     def callback_context_set_to_select(self, event):
         self.context_panel.context_dashboard.buttons.set_active_button(self.context_panel.context_dashboard.buttons.select)
@@ -208,11 +235,6 @@ class AnnotationTool(AbstractWidgetPanel):
         current_canvas_shape_id = self.annotate_panel.image_canvas.variables.current_shape_id
         self.variables.current_canvas_geom_id = current_canvas_shape_id
         AnnotationPopup(popup, self.variables)
-
-    def callback_save_annotations(self, event):
-        for key, val in self.variables.canvas_geom_ids_to_annotations_id_dict.items():
-            self.variables.file_annotation_collection.add_annotation(val)
-        self.variables.file_annotation_collection.to_file(os.path.expanduser("~/Downloads/tmp_annotation.json"))
 
     # non callback defs
     def update_context_decimation_value(self):

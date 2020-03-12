@@ -130,7 +130,14 @@ class AbstractWidgetPanel(tkinter.LabelFrame):
             widget = widget_and_name
             if type(("", "")) == type(widget_and_name):
                 widget = widget_and_name[0]
-            getattr(self, widget).config(state="active")
+            getattr(self, widget).config(state="normal")
+
+    def disable_all_buttons(self):
+        for i, widget_and_name in enumerate(self._widget_list):
+            widget = widget_and_name
+            if type(("", "")) == type(widget_and_name):
+                widget = widget_and_name[0]
+            getattr(self, widget).config(state="disabled")
 
     def set_active_button(self,
                           button,
