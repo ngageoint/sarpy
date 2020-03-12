@@ -1,19 +1,16 @@
-import abc
-from six import add_metaclass
-import tkinter as tk
 import numpy as np
 from typing import Union
+import tkinter
 
 NO_TEXT_UPDATE_WIDGETS = ['ttk::scale']
 
 
-@add_metaclass(abc.ABCMeta)
-class AbstractWidgetPanel(tk.LabelFrame):
+class AbstractWidgetPanel(tkinter.LabelFrame):
     def __init__(self, parent):
-        tk.LabelFrame.__init__(self, parent)
+        tkinter.LabelFrame.__init__(self, parent)
         self.config(borderwidth=2)
         self._widget_list = None     # type: list
-        self.rows = None           # type: tk.Frame
+        self.rows = None           # type: tkinter.Frame
 
     def init_w_xy_positions_dict(self, positions_dict):
         # TODO: just find the right order then call init_w_basic_widget_list
@@ -80,7 +77,7 @@ class AbstractWidgetPanel(tk.LabelFrame):
         :param n_widgets_per_row_list:
         :return:
         """
-        self.rows = [tk.Frame(self) for i in range(n_rows)]
+        self.rows = [tkinter.Frame(self) for i in range(n_rows)]
         for row in self.rows:
             row.config(borderwidth=2)
             row.pack()

@@ -1,12 +1,13 @@
 from tkinter_gui_builder.panel_templates.image_canvas.image_canvas import ImageCanvas
 from tkinter_gui_builder.panel_templates.widget_panel.widget_panel import AbstractWidgetPanel
-import tkinter as tk
+import tkinter
 
 
-class AdjustedViewPanel(tk.LabelFrame):
+class AdjustedViewPanel(tkinter.LabelFrame):
     image_canvas = ImageCanvas                      # type: ImageCanvas
 
     def __init__(self, parent):
+        # TODO: there is bad super behavior going on here? Wrong parent?
         AbstractWidgetPanel.__init__(self, parent)
 
         self.image_canvas = ImageCanvas(parent)

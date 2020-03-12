@@ -1,18 +1,21 @@
+import sys
 import PIL.Image
 from PIL import ImageTk
-import tkinter as tk
 from tkinter_gui_builder.widgets import basic_widgets
 from tkinter_gui_builder.canvas_image_objects.abstract_canvas_image import AbstractCanvasImage
 from tkinter_gui_builder.canvas_image_objects.numpy_canvas_image import NumpyCanvasDisplayImage
 from tkinter_gui_builder.utils.color_utils.hex_color_palettes import SeabornHexPalettes
 import tkinter_gui_builder.utils.color_utils.color_utils as color_utils
-import tkinter.colorchooser as colorchooser
 import platform
 import numpy as np
 import time
+import tkinter
+import tkinter.colorchooser as colorchooser
+
 from .tool_constants import ShapePropertyConstants as SHAPE_PROPERTIES
 from .tool_constants import ShapeTypeConstants as SHAPE_TYPES
 from .tool_constants import ToolConstants as TOOLS
+
 
 if platform.system() == "Linux":
     import pyscreenshot as ImageGrab
@@ -97,9 +100,9 @@ class AppVariables:
 #         self._canvas_image_object = value
 
 
-class ImageCanvas(tk.LabelFrame):
+class ImageCanvas(tkinter.LabelFrame):
     def __init__(self, master):
-        tk.LabelFrame.__init__(self, master)
+        tkinter.LabelFrame.__init__(self, master)
 
         self.SHAPE_PROPERTIES = SHAPE_PROPERTIES
         self.SHAPE_TYPES = SHAPE_TYPES
@@ -111,12 +114,12 @@ class ImageCanvas(tk.LabelFrame):
         self.canvas_height = 200            # default width
         self.canvas_width = 300             # default height
         self.canvas = basic_widgets.Canvas(self)
-        self.canvas.pack(fill=tk.BOTH, expand=tk.YES)
+        self.canvas.pack(fill=tkinter.BOTH, expand=tkinter.YES)
         self.canvas.pack()
 
-        self.canvas.grid(row=0, column=0, sticky=tk.N+tk.S+tk.E+tk.W)
-        self.sbarv = None         # type: tk.Scrollbar
-        self.sbarh = None         # type: tk.Scrollbar
+        self.canvas.grid(row=0, column=0, sticky=tkinter.N+tkinter.S+tkinter.E+tkinter.W)
+        self.sbarv = None         # type: tkinter.Scrollbar
+        self.sbarh = None         # type: tkinter.Scrollbar
 
         self.variables.zoom_rect_id = self.create_new_rect((0, 0, 1, 1), outline=self.variables.zoom_rect_color, width=self.variables.zoom_rect_border_width)
         self.variables.select_rect_id = self.create_new_rect((0, 0, 1, 1), outline=self.variables.select_rect_color, width=self.variables.select_rect_border_width)
@@ -564,9 +567,9 @@ class ImageCanvas(tk.LabelFrame):
             shape_id = self.canvas.create_line(coords[0], coords[1], coords[2], coords[3],
                                                fill=self.variables.foreground_color,
                                                width=self.variables.line_width,
-                                               arrow=tk.LAST)
+                                               arrow=tkinter.LAST)
         else:
-            shape_id = self.canvas.create_line(coords[0], coords[1], coords[2], coords[3], options, arrow=tk.LAST)
+            shape_id = self.canvas.create_line(coords[0], coords[1], coords[2], coords[3], options, arrow=tkinter.LAST)
         self.variables.shape_ids.append(shape_id)
         self._set_shape_property(shape_id, SHAPE_PROPERTIES.SHAPE_TYPE, SHAPE_TYPES.ARROW)
         self._set_shape_property(shape_id, SHAPE_PROPERTIES.COLOR, self.variables.foreground_color)
@@ -885,15 +888,15 @@ class ImageCanvas(tk.LabelFrame):
         self.hide_shape(self.variables.zoom_rect_id)
 
     def config_do_not_scale_image_to_fit(self):
-        self.sbarv=tk.Scrollbar(self, orient=tk.VERTICAL)
-        self.sbarh=tk.Scrollbar(self, orient=tk.HORIZONTAL)
+        self.sbarv=tkinter.Scrollbar(self, orient=tkinter.VERTICAL)
+        self.sbarh=tkinter.Scrollbar(self, orient=tkinter.HORIZONTAL)
         self.sbarv.config(command=self.canvas.yview)
         self.sbarh.config(command=self.canvas.xview)
 
         self.canvas.config(yscrollcommand=self.sbarv.set)
         self.canvas.config(xscrollcommand=self.sbarh.set)
-        self.sbarv.grid(row=0, column=1, stick=tk.N+tk.S)
-        self.sbarh.grid(row=1, column=0, sticky=tk.E+tk.W)
+        self.sbarv.grid(row=0, column=1, stick=tkinter.N+tkinter.S)
+        self.sbarh.grid(row=1, column=0, sticky=tkinter.E+tkinter.W)
 
     def save_as_png(self,
                     output_fname,           # type: str

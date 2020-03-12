@@ -1,11 +1,12 @@
+import tkinter
 from tkinter_gui_builder.panel_templates.widget_panel.widget_panel import AbstractWidgetPanel
 from tkinter_gui_builder.widgets import basic_widgets
 from sarpy_gui_apps.apps.annotation_tool.main_app_variables import AppVariables
 from sarpy.annotation.annotate import AnnotationMetadata
 from sarpy.annotation.annotate import Annotation
-import tkinter
 
 
+# TODO: did you mean to do the import above and then redefine here?
 class AppVariables:
     parent_types_main_text = ""
 

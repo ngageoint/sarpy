@@ -4,6 +4,7 @@ from sarpy_gui_apps.apps.annotation_tool.panels.annotation_popup.annotation_popu
 from sarpy_gui_apps.apps.annotation_tool.panels.annotation_fname_popup.annotation_fname_popup import AnnotationFnamePopup
 from sarpy_gui_apps.apps.annotation_tool.main_app_variables import AppVariables
 
+import tkinter
 from tkinter_gui_builder.panel_templates.widget_panel.widget_panel import AbstractWidgetPanel
 from tkinter_gui_builder.panel_templates.image_canvas.tool_constants import ToolConstants
 from sarpy.geometry.geometry_elements import Polygon
@@ -11,7 +12,6 @@ from sarpy.annotation.annotate import FileAnnotationCollection
 from sarpy.annotation.annotate import Annotation
 from sarpy.annotation.annotate import LabelSchema
 
-import tkinter
 import numpy as np
 import os
 
