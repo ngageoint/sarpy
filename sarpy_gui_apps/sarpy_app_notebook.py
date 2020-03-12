@@ -3,7 +3,7 @@ from sarpy_gui_apps.apps.wake_tool.wake_tool import WakeTool
 from sarpy_gui_apps.apps.aperture_tool.aperture_tool import ApertureTool
 from sarpy_gui_apps.apps.make_ortho.quick_ortho_tool import Ortho
 import tkinter
-import ttk
+from tkinter import ttk
 
 
 # Root class to create the interface and define the controller function to switch frames
