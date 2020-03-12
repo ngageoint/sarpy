@@ -10,9 +10,8 @@ class ButtonPanel(AbstractWidgetPanel):
         self.select_closest_shape = basic_widgets.Button        # type: basic_widgets.Button
         self.delete_shape = basic_widgets.Button                # type: basic_widgets.Button
         self.popup = basic_widgets.Button                       # type: basic_widgets.Button
-        self.save_annotations = basic_widgets.Button            # type: basic_widgets.Button
 
-        widget_list = ["pan", "draw_polygon", "select_closest_shape", "delete_shape", "popup", "save_annotations"]
+        widget_list = ["pan", "draw_polygon", "select_closest_shape", "delete_shape", "popup"]
         self.init_w_horizontal_layout(widget_list)
         self.set_label_text("annotate controls")
 
