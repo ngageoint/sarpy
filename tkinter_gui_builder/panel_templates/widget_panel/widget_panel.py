@@ -1,5 +1,3 @@
-import abc
-from six import add_metaclass
 import numpy as np
 from typing import Union
 import tkinter
@@ -7,7 +5,6 @@ import tkinter
 NO_TEXT_UPDATE_WIDGETS = ['ttk::scale']
 
 
-@add_metaclass(abc.ABCMeta)
 class AbstractWidgetPanel(tkinter.LabelFrame):
     def __init__(self, parent):
         tkinter.LabelFrame.__init__(self, parent)
