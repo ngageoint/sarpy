@@ -18,6 +18,9 @@ if sys.version_info[0] < 3:
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas Mccullough"
 
+
+###############
+# module variables
 _TRE_Registry = {}
 _parsed_package = False
 _default_tre_packages = 'sarpy.io.nitf.tres'
@@ -124,13 +127,14 @@ def parse_package(packages=None):
                 register_tre(element_type, tre_id=element_name, replace=False)
         # walk down any subpackages
         path, fil = os.path.split(module.__file__)
-        if fil != '__init__.py':
+        if not fil.startswith('__init__.py'):
             # there are no subpackages
             return
         for sub_module in pkgutil.walk_packages([path, ]):
             _, sub_module_name, _ = sub_module
             sub_name = "{}.{}".format(module_name, sub_module_name)
             check_module(sub_name)
+
     for pack in packages:
         check_module(pack)
     logging.info('We now have {} registered TREs'.format(len(_TRE_Registry)))
