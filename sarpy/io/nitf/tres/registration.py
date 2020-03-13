@@ -9,9 +9,18 @@ import inspect
 import os
 import sys
 
+string_types = (str, )
+if sys.version_info[0] < 3:
+    # noinspection PyUnresolvedReferences
+    string_types = (str, unicode)
+
+
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas Mccullough"
 
+
+###############
+# module variables
 _TRE_Registry = {}
 _parsed_package = False
 _default_tre_packages = 'sarpy.io.nitf.tres'
@@ -35,17 +44,17 @@ def register_tre(tre_type, tre_id=None, replace=False):
     None
     """
 
-    from sarpy.io.nitf.headers import TRE, UnknownTRE
+    from sarpy.io.nitf.tres.tre_elements import TREExtension
 
-    if not issubclass(tre_type, TRE):
+    if not issubclass(tre_type, TREExtension):
         raise TypeError('tre_type must be a subclass of sarpy.io.nitf.header.TRE')
 
-    if tre_type in [TRE, UnknownTRE]:
+    if tre_type in [TREExtension, ]:
         return
 
     if tre_id is None:
         tre_id = tre_type.__name__
-    if not isinstance(tre_id, str):
+    if not isinstance(tre_id, string_types):
         raise TypeError('tre_id must be a string, got type {}'.format(type(tre_id)))
 
     if tre_id in _TRE_Registry:
@@ -77,7 +86,7 @@ def find_tre(tre_id):
 
     if isinstance(tre_id, bytes):
         tre_id = tre_id.decode('utf-8')
-    if not isinstance(tre_id, str):
+    if not isinstance(tre_id, string_types):
         raise TypeError('tre_id must be of type string. Got {}'.format(tre_id))
     return _TRE_Registry.get(tre_id.strip(), None)
 
@@ -91,7 +100,7 @@ def parse_package(packages=None):
     None
     """
 
-    from sarpy.io.nitf.headers import TRE
+    from sarpy.io.nitf.tres.tre_elements import TREExtension
 
     if packages is None:
         global _parsed_package
@@ -101,7 +110,7 @@ def parse_package(packages=None):
             _parsed_package = True
             packages = _default_tre_packages
 
-    if isinstance(packages, str):
+    if isinstance(packages, string_types):
         packages = [packages, ]
 
     logging.info('Finding and registering TREs contained in packages {}'.format(packages))
@@ -114,17 +123,18 @@ def parse_package(packages=None):
         module = sys.modules[module_name]
         # check all classes of the module itself
         for element_name, element_type in inspect.getmembers(module, inspect.isclass):
-            if issubclass(element_type, TRE) and element_type != TRE:
+            if issubclass(element_type, TREExtension) and element_type != TREExtension:
                 register_tre(element_type, tre_id=element_name, replace=False)
         # walk down any subpackages
         path, fil = os.path.split(module.__file__)
-        if fil != '__init__.py':
+        if not fil.startswith('__init__.py'):
             # there are no subpackages
             return
         for sub_module in pkgutil.walk_packages([path, ]):
             _, sub_module_name, _ = sub_module
             sub_name = "{}.{}".format(module_name, sub_module_name)
             check_module(sub_name)
+
     for pack in packages:
         check_module(pack)
     logging.info('We now have {} registered TREs'.format(len(_TRE_Registry)))

@@ -1,34 +1,28 @@
 # -*- coding: utf-8 -*-
 
-from ...headers import NITFElement, NITFLoop, TRE
-
+from ..tre_elements import TREExtension, TREElement
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 
-class PRJ(NITFElement):
-    __slots__ = ('PRJ',)
-    _formats = {'PRJ': '15d'}
+class PRJ(TREElement):
+    def __init__(self, value):
+        super(PRJ, self).__init__()
+        self.add_field('PRJ', 'd', 15, value)
 
 
-class PRJs(NITFLoop):
-    _child_class = PRJ
-    _count_size = 1
+class PRJPSBType(TREElement):
+    def __init__(self, value):
+        super(PRJPSBType, self).__init__()
+        self.add_field('PRN', 's', 80, value)
+        self.add_field('PCO', 's', 2, value)
+        self.add_field('NUM_PRJ', 'd', 1, value)
+        self.add_loop('PRJs', self.NUM_PRJ, PRJ, value)
+        self.add_field('XOR', 'd', 15, value)
+        self.add_field('YOR', 'd', 15, value)
 
 
-class PRJPSB(TRE):
-    __slots__ = ('TAG', 'PRN', 'PCO', '_PRJs', 'XOR', 'YOR')
-    _formats = {'TAG': '6s', 'PRN': '80s', 'PCO': '2s', 'XOR': '15d', 'YOR': '15d'}
-    _types = {'_PRJs': PRJs}
-    _defaults = {'_PRJs': {}, 'TAG': 'PRJPSB'}
-    _enums = {'TAG': {'PRJPSB', }}
-
-    @property
-    def PRJs(self):  # type: () -> PRJs
-        return self._PRJs
-
-    @PRJs.setter
-    def PRJs(self, value):
-        # noinspection PyAttributeOutsideInit
-        self._PRJs = value
+class PRJPSB(TREExtension):
+    _tag_value = 'PRJPSB'
+    _data_type = PRJPSBType

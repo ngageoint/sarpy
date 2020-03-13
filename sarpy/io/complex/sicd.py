@@ -15,24 +15,21 @@ import numpy
 from ..nitf.headers import NITFDetails, DataExtensionHeader, NITFHeader, \
     NITFSecurityTags, ImageSegmentHeader, ImageBands, ImageBand, \
     SICDDESSubheader, _SICD_SPECIFICATION_NAMESPACE
-from .base import BaseChipper, BaseReader, BaseWriter
+from .base import BaseChipper, BaseReader, BaseWriter, int_func, string_types
 from .bip import BIPChipper, BIPWriter
+from .utils import parse_xml_from_string
 from .sicd_elements.SICD import SICDType
 from .sicd_elements.blocks import LatLonType
 
-integer_types = (int, )
-int_func = int
-if sys.version_info[0] < 3:
-    # noinspection PyUnresolvedReferences
-    int_func = long  # to accommodate for 32-bit python 2
-    # noinspection PyUnresolvedReferences
-    integer_types = (int, long)
 
 if sys.version_info[0] < 3:
     # noinspection PyUnresolvedReferences
     from cStringIO import StringIO
+    NOT_FOUND_ERROR = IOError
 else:
     from io import StringIO
+    # noinspection PyUnresolvedReferences
+    NOT_FOUND_ERROR = FileNotFoundError
 
 __classification__ = "UNCLASSIFIED"
 __author__ = ("Thomas McCullough", "Wade Schwartzkopf")
@@ -100,7 +97,7 @@ class SICDDetails(NITFDetails):
             raise IOError('A SICD file requires at least one data extension, containing the '
                           'SICD xml structure.')
         # define the sicd metadata
-        self._parse_des()
+        self._find_sicd()
         # populate the image details
         self.img_segment_rows = numpy.zeros(self.img_segment_offsets.shape, dtype=numpy.int64)
         self.img_segment_columns = numpy.zeros(self.img_segment_offsets.shape, dtype=numpy.int64)
@@ -153,19 +150,12 @@ class SICDDetails(NITFDetails):
         return self._des_header
 
     def _parse_img_headers(self):
-        if self.img_segment_offsets is None:
+        if self.img_segment_offsets is None or self._img_headers is not None:
             return
 
-        img_headers = []
-        with open(self._file_name, mode='rb') as fi:
-            for offset, subhead_size in zip(
-                    self.img_subheader_offsets, self._nitf_header.ImageSegments.subhead_sizes):
-                fi.seek(int_func(offset))
-                header_string = fi.read(int_func(subhead_size))
-                img_headers.append(ImageSegmentHeader.from_bytes(header_string, 0))
-        self._img_headers = img_headers
+        self._img_headers = [self.parse_image_subheader(i) for i in range(self.img_subheader_offsets.size)]
 
-    def _parse_des(self):
+    def _find_sicd(self):
         self._is_sicd = False
         self._sicd_meta = None
         if self.des_subheader_offsets is None:
@@ -189,14 +179,7 @@ class SICDDetails(NITFDetails):
         if not self._is_sicd:
             return
 
-        root_node = ElementTree.fromstring(data_extension)
-        # define the namespace dictionary
-        xml_ns = dict([node for _, node in ElementTree.iterparse(StringIO(data_extension), events=('start-ns', ))])
-        if len(xml_ns.keys()) == 0:
-            xml_ns = None
-        elif '' in xml_ns:
-            xml_ns['default'] = xml_ns['']
-
+        root_node, xml_ns = parse_xml_from_string(data_extension)
         self._sicd_meta = SICDType.from_node(root_node, xml_ns)
         self._sicd_meta.derive()
         # TODO: account for the reference frequency offset situation
@@ -439,7 +422,7 @@ class SICDReader(BaseReader):
             filename or SICDDetails object
         """
 
-        if isinstance(nitf_details, str):
+        if isinstance(nitf_details, string_types):
             nitf_details = SICDDetails(nitf_details)
         if not isinstance(nitf_details, SICDDetails):
             raise TypeError('The input argument for SICDReader must be a filename or '
@@ -976,10 +959,13 @@ class SICDWriter(BaseWriter):
                 fi.write(self._final_header_info['des']['xml'])
             self._des_written = True
             logging.info('Data file {} fully written.'.format(self._file_name))
-        except FileNotFoundError:
-            logging.info('Data file {} not created.'.format(self._file_name))
-        except Exception:
-            logging.info('Data file {} improperly created, and is likely corrupt.'.format(self._file_name))
+        except NOT_FOUND_ERROR as e:
+            logging.error(
+                'Data file {} not created. Failed with exception {}'.format(self._file_name, e))
+        except Exception as e:
+            logging.error(
+                'Data file {} improperly created, and is likely corrupt. '
+                'Failed with exception {}'.format(self._file_name, e))
         # now, we close all the chippers
         if hasattr(self, '_writing_chippers'):
             if self._writing_chippers is not None:

@@ -1,35 +1,29 @@
 # -*- coding: utf-8 -*-
 
-from ...headers import NITFElement, NITFLoop, TRE
-
+from ..tre_elements import TREExtension, TREElement
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 
-class PTS(NITFElement):
-    __slots__ = ('PID', 'LON', 'LAT', 'ZVL', 'DIX', 'DIY')
-    _formats = {
-        'PID': '10s', 'LON': '15d', 'LAT': '15d', 'ZVL': '15d', 'DIX': '11d', 'DIY': '11d'}
+class PT(TREElement):
+    def __init__(self, value):
+        super(PT, self).__init__()
+        self.add_field('PID', 's', 10, value)
+        self.add_field('LON', 'd', 15, value)
+        self.add_field('LAT', 'd', 15, value)
+        self.add_field('ZVL', 'd', 15, value)
+        self.add_field('DIX', 'd', 11, value)
+        self.add_field('DIY', 'd', 11, value)
 
 
-class PTSs(NITFLoop):
-    _child_class = PTS
-    _count_size = 4
+class REGPTBType(TREElement):
+    def __init__(self, value):
+        super(REGPTBType, self).__init__()
+        self.add_field('NUMPTS', 'd', 4, value)
+        self.add_loop('PTs', self.NUMPTS, PT, value)
 
 
-class REGPTB(TRE):
-    __slots__ = ('TAG', '_PTSs')
-    _formats = {'TAG': '6s'}
-    _types = {'_PTSs': PTSs}
-    _defaults = {'_PTSs': {}, 'TAG': 'REGPTB'}
-    _enums = {'TAG': {'REGPTB', }}
-
-    @property
-    def PTSs(self):  # type: () -> PTSs
-        return self._PTSs
-
-    @PTSs.setter
-    def PTSs(self, value):
-        # noinspection PyAttributeOutsideInit
-        self._PTSs = value
+class REGPTB(TREExtension):
+    _tag_value = 'REGPTB'
+    _data_type = REGPTBType

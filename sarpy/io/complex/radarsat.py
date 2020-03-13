@@ -14,7 +14,7 @@ import numpy
 from numpy.polynomial import polynomial
 from scipy.constants import speed_of_light
 
-from .base import BaseReader
+from .base import BaseReader, string_types
 from .tiff import TiffDetails, TiffReader
 
 from .sicd_elements.blocks import Poly1DType, Poly2DType
@@ -967,7 +967,7 @@ class RadarSatReader(BaseReader):
             Should we attempt to use gdal to read the underlying tiff data files?
         """
 
-        if isinstance(radar_sat_details, str):
+        if isinstance(radar_sat_details, string_types):
             radar_sat_details = RadarSatDetails(radar_sat_details)
         if not isinstance(radar_sat_details, RadarSatDetails):
             raise TypeError('The input argument for RadarSatReader must be a '

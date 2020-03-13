@@ -1,6 +1,7 @@
 # This details the important differences introduced in 0.1
 # NB: bump the version number in __about__.py to reflect the below.
 
+* .43 - Refactored TRE handling and TRE registry
 * .42 - Added basic functionality for SICD DES header validity testing and repair
 * .41 - Added a number of TRE definitions and provided automatic usage and handling
 * .40 - Updated geometry and annotation object for better functionality

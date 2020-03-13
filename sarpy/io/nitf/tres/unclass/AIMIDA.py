@@ -1,71 +1,127 @@
 # -*- coding: utf-8 -*-
-"""
-Selected simple unclassified NITF file header TRE objects.
-"""
 
-from ...headers import TRE, UnknownTRE
-
+from ..tre_elements import TREExtension, TREElement
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 
-class AIMIDA(TRE):
-    def __init__(self, **kwargs):
+class AIMIDA_69Type(TREElement):
+    def __init__(self, value):
+        super(AIMIDA_69Type, self).__init__()
+        self.add_field('MISSION_DATE', 's', 7, value)
+        self.add_field('MISSION_NO', 's', 4, value)
+        self.add_field('FLIGHT_NO', 's', 2, value)
+        self.add_field('OP_NUM', 's', 3, value)
+        self.add_field('START_SEGMENT', 's', 2, value)
+        self.add_field('REPRO_NUM', 's', 2, value)
+        self.add_field('REPLAY', 's', 3, value)
+        self.add_field('RESVD001', 's', 1, value)
+        self.add_field('START_COLUMN', 's', 2, value)
+        self.add_field('START_ROW', 's', 5, value)
+        self.add_field('END_SEGMENT', 's', 2, value)
+        self.add_field('END_COLUMN', 's', 2, value)
+        self.add_field('END_ROW', 's', 5, value)
+        self.add_field('COUNTRY', 's', 2, value)
+        self.add_field('RESVD002', 's', 4, value)
+        self.add_field('LOCATION', 's', 11, value)
+        self.add_field('TIME', 's', 5, value)
+        self.add_field('CREATION_DATE', 's', 7, value)
+
+
+class AIMIDA_69(TREExtension):
+    _tag_value = 'AIMIDA'
+    _data_type = AIMIDA_69Type
+
+
+class AIMIDA_73Type(TREElement):
+    def __init__(self, value):
+        super(AIMIDA_73Type, self).__init__()
+        self.add_field('MISSION_DATE', 's', 8, value)
+        self.add_field('MISSION_NO', 's', 4, value)
+        self.add_field('FLIGHT_NO', 's', 2, value)
+        self.add_field('OP_NUM', 's', 3, value)
+        self.add_field('RESVD001', 's', 2, value)
+        self.add_field('REPRO_NUM', 's', 2, value)
+        self.add_field('REPLAY', 's', 3, value)
+        self.add_field('RESVD002', 's', 1, value)
+        self.add_field('START_COLUMN', 's', 3, value)
+        self.add_field('START_ROW', 's', 5, value)
+        self.add_field('RESVD003', 's', 2, value)
+        self.add_field('END_COLUMN', 's', 3, value)
+        self.add_field('END_ROW', 's', 5, value)
+        self.add_field('COUNTRY', 's', 2, value)
+        self.add_field('RESVD004', 's', 4, value)
+        self.add_field('LOCATION', 's', 11, value)
+        self.add_field('TIME', 's', 5, value)
+        self.add_field('CREATION_DATE', 's', 8, value)
+
+
+class AIMIDA_73(TREExtension):
+    _tag_value = 'AIMIDA'
+    _data_type = AIMIDA_73Type
+
+
+class AIMIDA_89Type(TREElement):
+    def __init__(self, value):
+        super(AIMIDA_89Type, self).__init__()
+        self.add_field('MISSION_DATE_TIME', 's', 14, value)
+        self.add_field('MISSION_NO', 's', 4, value)
+        self.add_field('MISSION_ID', 's', 10, value)
+        self.add_field('FLIGHT_NO', 's', 2, value)
+        self.add_field('OP_NUM', 'd', 3, value)
+        self.add_field('CURRENT_SEGMENT', 's', 2, value)
+        self.add_field('REPRO_NUM', 'd', 2, value)
+        self.add_field('REPLAY', 's', 3, value)
+        self.add_field('RESVD001', 's', 1, value)
+        self.add_field('START_COLUMN', 'd', 3, value)
+        self.add_field('START_ROW', 'd', 5, value)
+        self.add_field('END_SEGMENT', 's', 2, value)
+        self.add_field('END_COLUMN', 'd', 3, value)
+        self.add_field('END_ROW', 'd', 5, value)
+        self.add_field('COUNTRY', 's', 2, value)
+        self.add_field('RESVD002', 's', 4, value)
+        self.add_field('LOCATION', 's', 11, value)
+        self.add_field('RESVD003', 's', 13, value)
+
+
+class AIMIDA_89(TREExtension):
+    _tag_value = 'AIMIDA'
+    _data_type = AIMIDA_89Type
+
+
+class AIMIDA(TREExtension):
+    _tag_value = 'AIMIDA'
+
+    def __init__(self):
         raise ValueError(
-            'This is an abstract class, not meant to be implemented directly. Use one of'
-            'AIMIDA_69 (approved default), AIMIDA_73, or AIMIDA_89 for a direct implementation')
+            'Not to be implemented directly. '
+            'Use of one AIMIDA_69, AIMIDA_73, or AIMIDA_89')
 
     @classmethod
     def from_bytes(cls, value, start):
-        length = int(value[start+6:start+11])
-        if length == 69:
+        """
+
+        Parameters
+        ----------
+        value : bytes
+        start : int
+
+        Returns
+        -------
+        AIMIDA_69|AIMIDA_73|AIMIDA_89
+        """
+
+        tag_value = value[start:start+6].decode('utf-8').strip()
+        if tag_value != cls._tag_value:
+            raise ValueError('tag value must be {}. Got {}'.format(cls._tag_value, tag_value))
+
+        lng = int(value[start+6:start+11])
+        if lng == 69:
             return AIMIDA_69.from_bytes(value, start)
-        elif length == 73:
+        elif lng == 73:
             return AIMIDA_73.from_bytes(value, start)
-        elif length == 89:
+        elif lng == 89:
             return AIMIDA_89.from_bytes(value, start)
         else:
-            return UnknownTRE.from_bytes(value, start)
-
-
-class AIMIDA_69(TRE):
-    __slots__ = (
-        'TAG', 'MISSION_DATE', 'MISSION_NO', 'FLIGHT_NO', 'OP_NUM', 'START_SEGMENT', 'REPRO_NUM', 'REPLAY', 'RESVD001',
-        'START_COLUMN', 'START_ROW', 'END_SEGMENT', 'END_COLUMN', 'END_ROW', 'COUNTRY', 'RESVD002', 'LOCATION', 'TIME',
-        'CREATION_DATE')
-    _formats = {
-        'TAG': '6s', 'MISSION_DATE': '7s', 'MISSION_NO': '4s', 'FLIGHT_NO': '2s', 'OP_NUM': '3s', 'START_SEGMENT': '2s',
-        'REPRO_NUM': '2s', 'REPLAY': '3s', 'RESVD001': '1s', 'START_COLUMN': '2s', 'START_ROW': '5s',
-        'END_SEGMENT': '2s', 'END_COLUMN': '2s', 'END_ROW': '5s', 'COUNTRY': '2s', 'RESVD002': '4s', 'LOCATION': '11s',
-        'TIME': '5s', 'CREATION_DATE': '7s'}
-    _defaults = {'TAG': 'AIMIDA'}
-    _enums = {'TAG': {'AIMIDA', }}
-
-
-class AIMIDA_73(TRE):
-    __slots__ = (
-        'TAG', 'MISSION_DATE', 'MISSION_NO', 'FLIGHT_NO', 'OP_NUM', 'RESVD001', 'REPRO_NUM', 'REPLAY', 'RESVD002',
-        'START_COLUMN', 'START_ROW', 'RESVD003', 'END_COLUMN', 'END_ROW', 'COUNTRY', 'RESVD004', 'LOCATION', 'TIME',
-        'CREATION_DATE')
-    _formats = {
-        'TAG': '6s', 'MISSION_DATE': '8s', 'MISSION_NO': '4s', 'FLIGHT_NO': '2s', 'OP_NUM': '3s', 'RESVD001': '2s',
-        'REPRO_NUM': '2s', 'REPLAY': '3s', 'RESVD002': '1s', 'START_COLUMN': '3s', 'START_ROW': '5s', 'RESVD003': '2s',
-        'END_COLUMN': '3s', 'END_ROW': '5s', 'COUNTRY': '2s', 'RESVD004': '4s', 'LOCATION': '11s', 'TIME': '5s',
-        'CREATION_DATE': '8s'}
-    _defaults = {'TAG': 'AIMIDA'}
-    _enums = {'TAG': {'AIMIDA', }}
-
-
-class AIMIDA_89(TRE):
-    __slots__ = (
-        'TAG', 'MISSION_DATE_TIME', 'MISSION_NO', 'MISSION_ID', 'FLIGHT_NO', 'OP_NUM', 'CURRENT_SEGMENT', 'REPRO_NUM',
-        'REPLAY', 'RESVD001', 'START_COLUMN', 'START_ROW', 'END_SEGMENT', 'END_COLUMN', 'END_ROW', 'COUNTRY',
-        'RESVD002', 'LOCATION', 'RESVD003')
-    _formats = {
-        'TAG': '6s', 'MISSION_DATE_TIME': '14s', 'MISSION_NO': '4s', 'MISSION_ID': '10s', 'FLIGHT_NO': '2s',
-        'OP_NUM': '3d', 'CURRENT_SEGMENT': '2s', 'REPRO_NUM': '2d', 'REPLAY': '3s', 'RESVD001': '1s',
-        'START_COLUMN': '3d', 'START_ROW': '5d', 'END_SEGMENT': '2s', 'END_COLUMN': '3d', 'END_ROW': '5d',
-        'COUNTRY': '2s', 'RESVD002': '4s', 'LOCATION': '11s', 'RESVD003': '13s'}
-    _defaults = {'TAG': 'AIMIDA'}
-    _enums = {'TAG': {'AIMIDA', }}
+            raise ValueError('the data must be length 69, 73, or 89. Got {}'.format(lng))

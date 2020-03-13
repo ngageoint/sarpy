@@ -12,28 +12,21 @@ import numpy
 import logging
 from typing import Union, List, Tuple
 
-from .base import BaseReader
+from .base import BaseReader, int_func
 from .sicd import SICDWriter
 from .sio import SIOWriter
 from .sicd_elements.SICD import SICDType
 
 
-integer_types = (int, )
-int_func = int
-if sys.version_info[0] < 3:
-    # noinspection PyUnresolvedReferences
-    int_func = long  # to accommodate for 32-bit python 2
-    # noinspection PyUnresolvedReferences
-    integer_types = (int, long)
+__classification__ = "UNCLASSIFIED"
+__author__ = ("Wade Schwartzkopf", "Thomas McCullough")
 
 
+###########
+# Module variables
 _writer_types = {'SICD': SICDWriter, 'SIO': SIOWriter}
 _openers = []
 _parsed_openers = False
-
-
-__classification__ = "UNCLASSIFIED"
-__author__ = ("Wade Schwartzkopf", "Thomas McCullough")
 
 
 def register_opener(open_func):
@@ -83,7 +76,7 @@ def parse_openers():
 
         # walk down any subpackages
         path, fil = os.path.split(module.__file__)
-        if fil != '__init__.py':
+        if not fil.startswith('__init__.py'):
             # there are no subpackages
             return
         for sub_module in pkgutil.walk_packages([path, ]):
@@ -92,7 +85,6 @@ def parse_openers():
             check_module(sub_name)
 
     check_module('sarpy.io.complex')
-    print('\n\nParsed Openers = {}\n\n'.format(_openers))
 
 
 def open_complex(file_name):

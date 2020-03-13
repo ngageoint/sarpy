@@ -92,7 +92,7 @@ def _validate_value(frmt, value, name):
     if typ == 's':
         if isinstance(value, bytes):
             value = value.decode('utf-8')
-        if not isinstance(value, str):
+        if not isinstance(value, string_types):
             raise TypeError('Field {} requires a string, got type {}'.format(name, type(value)))
         if len(value) > length:
             logging.warning(
@@ -102,7 +102,7 @@ def _validate_value(frmt, value, name):
         fmt_out = '{0:' + frmt + '}'
         return fmt_out.format(value)
     elif typ == 'd':
-        if isinstance(value, (str, bytes)):
+        if isinstance(value, bytes) or isinstance(value, string_types):
             try:
                 value = int_func(value)
             except Exception as e:
@@ -114,7 +114,7 @@ def _validate_value(frmt, value, name):
                 'Got {}'.format(name, length, value))
         return value
     elif typ == 'b':
-        if isinstance(value, str):
+        if isinstance(value, string_types):
             value = value.encode()
         if not isinstance(value, bytes):
             raise ValueError('Field {} requires bytes. Got type {}'.format(name, type(value)))
@@ -147,7 +147,62 @@ def _get_bytes(frmt, value, name):
         raise ValueError('Unparseable format {} for field {}'.format(frmt, name))
 
 
-class NITFElement(object):
+class BaseNITFElement(object):
+
+    @classmethod
+    def minimum_length(cls):
+        """
+        The minimum size in bytes that takes to write this header element.
+
+        Returns
+        -------
+        int
+        """
+
+        raise NotImplementedError
+
+    def get_bytes_length(self):
+        """
+        Get the length of the serialized bytes array
+
+        Returns
+        -------
+        int
+        """
+
+        raise NotImplementedError
+
+    def to_bytes(self):
+        """
+        Write the object to a properly packed str.
+
+        Returns
+        -------
+        bytes
+        """
+
+        raise NotImplementedError
+
+    @classmethod
+    def from_bytes(cls, value, start):
+        """
+
+        Parameters
+        ----------
+        value: bytes|str
+            the header string to scrape
+        start : int
+            the beginning location in the string
+
+        Returns
+        -------
+
+        """
+
+        raise NotImplementedError
+
+
+class NITFElement(BaseNITFElement):
     """
     Describes the basic nitf header reading and writing functionality. This is
     an abstract element, and not meant to be used directly.
@@ -221,7 +276,7 @@ class NITFElement(object):
             if attribute not in self._enums or value is None:
                 return
             contained = value in self._enums[attribute]
-            if not contained and isinstance(value, str):
+            if not contained and isinstance(value, string_types):
                 contained = value.strip() in self._enums[attribute]
 
             if not contained:
@@ -256,7 +311,7 @@ class NITFElement(object):
                 value = self.get_default_value(attribute)  # NB: might still be None
             if isinstance(value, bytes):
                 value = typ.from_bytes(value, 0)
-            if not (value is None or isinstance(value, NITFElement)):
+            if not (value is None or isinstance(value, BaseNITFElement)):
                 raise ValueError('Attribute {} is expected to be of type {}, '
                                  'got {}'.format(attribute, typ, type(value)))
             check_conditions(value)
@@ -302,7 +357,7 @@ class NITFElement(object):
         if val is None:
             return b''
         if attribute in self._types:
-            if not isinstance(val, NITFElement):
+            if not isinstance(val, BaseNITFElement):
                 raise TypeError(
                     'Elements in _bytes must be an instance of NITFElement. '
                     'Got type {} for attribute {}'.format(type(val), attribute))
@@ -319,7 +374,7 @@ class NITFElement(object):
             val = getattr(self, attribute)
             if val is None:
                 return 0
-            if not isinstance(val, NITFElement):
+            if not isinstance(val, BaseNITFElement):
                 raise TypeError(
                     'Elements in _bytes must be an instance of NITFElement. '
                     'Got type {} for attribute {}'.format(type(val), attribute))
@@ -341,11 +396,12 @@ class NITFElement(object):
         -------
         int
         """
+
         min_length = 0
         for attribute in cls.__slots__:
             if attribute in cls._types:
                 typ = cls._types[attribute]
-                if issubclass(typ, NITFElement):
+                if issubclass(typ, BaseNITFElement):
                     min_length += typ.minimum_length()
             elif attribute in cls._formats:
                 min_length += int_func(cls._formats[attribute][:-1])
@@ -445,32 +501,11 @@ class NITFElement(object):
 
     @classmethod
     def from_bytes(cls, value, start):
-        """
-
-        Parameters
-        ----------
-        value: bytes|str
-            the header string to scrape
-        start : int
-            the beginning location in the string
-
-        Returns
-        -------
-        """
-
         fields, skips = cls._parse_attributes(value, start)
         fields['_skips'] = skips
         return cls(**fields)
 
     def to_bytes(self):
-        """
-        Write the object to a properly packed str.
-
-        Returns
-        -------
-        bytes
-        """
-
         items = [self._get_bytes_attribute(attribute) for attribute in self.__slots__]
         return b''.join(items)
 
@@ -752,31 +787,56 @@ class NITFSecurityTags(NITFElement):
 ######
 # TRE
 
-class TRE(NITFElement):
+class TRE(BaseNITFElement):
     """
     An abstract TRE class - this should not be instantiated directly.
     """
 
-    __slots__ = ('TAG', )
-    _formats = {'TAG': '6s'}
+    @property
+    def TAG(self):
+        """
+        The TRE tag.
 
-    def _get_bytes_attribute(self, attribute):
-        if attribute == 'TAG':
-            other_length = sum(self._get_length_attribute(attribute) for attribute in self.__slots__[1:])
-            return '{0:s}{1:05d}'.format(self.TAG, other_length).encode('utf-8')
-        return super(TRE, self)._get_bytes_attribute(attribute)
+        Returns
+        -------
+        str
+        """
 
-    def _get_length_attribute(self, attribute):
-        if attribute == 'TAG':
-            return 11
-        return super(TRE, self)._get_length_attribute(attribute)
+        raise NotImplementedError
+
+    @property
+    def DATA(self):
+        """
+        The TRE data.
+
+        Returns
+        -------
+
+        """
+
+        raise NotImplementedError
+
+    @property
+    def EL(self):
+        """
+        The TRE element length.
+
+        Returns
+        -------
+        int
+        """
+
+        raise NotImplementedError
+
+    def get_bytes_length(self):
+        raise NotImplementedError
+
+    def to_bytes(self):
+        raise NotImplementedError
 
     @classmethod
-    def _parse_attribute(cls, fields, skips, attribute, value, start):
-        if attribute == 'TAG':
-            pass
-        else:
-            super(TRE, cls)._parse_attribute(fields, skips, attribute, value, start)
+    def minimum_length(cls):
+        return 11
 
     @classmethod
     def from_bytes(cls, value, start):
@@ -793,37 +853,58 @@ class TRE(NITFElement):
 
 
 class UnknownTRE(TRE):
-    class TREData(Unstructured):
-        _size_len = 5
+    __slots__ = ('_TAG', '_data')
 
-    __slots__ = ('TAG', '_data')
-    _formats = {'TAG': '6s'}
-    _types = {'_data': TREData}
-    _defaults = {'_data': {}}
+    def __init__(self, TAG, data):
+        """
 
-    def __init__(self, **kwargs):
+        Parameters
+        ----------
+        TAG : str
+        data : bytes
+        """
+
         self._data = None
-        super(UnknownTRE, self).__init__(**kwargs)
-        if self.TAG.strip() == '':
-            raise ValueError('TAG must be defined for TRE.')
+        if isinstance(TAG, bytes):
+            TAG = TAG.decode('utf-8')
+
+        if not isinstance(TAG, string_types):
+            raise TypeError('TAG must be a string. Got {}'.format(type(TAG)))
+        if len(TAG) > 6:
+            raise ValueError('TAG must be 6 or fewer characters')
+
+        self._TAG = TAG
+        self.data = data
 
     @property
-    def data(self):
+    def TAG(self):
+        return self._TAG
+
+    @property
+    def DATA(self):  # type: () -> bytes
         return self._data
 
-    @data.setter
-    def data(self, value):
+    @DATA.setter
+    def DATA(self, value):
+        if not isinstance(value, bytes):
+            raise TypeError('data must be a bytes instance. Got {}'.format(type(value)))
         self._data = value
 
-    def _get_bytes_attribute(self, attribute):
-        return NITFElement._get_bytes_attribute(self, attribute)
+    @property
+    def EL(self):
+        return len(self._data)
 
-    def _get_length_attribute(self, attribute):
-        return NITFElement._get_length_attribute(self, attribute)
+    def get_bytes_length(self):
+        return 11 + self.EL
+
+    def to_bytes(self):
+        return '{0:6s}{1:05d}'.format(self.TAG, self.EL).encode('utf-8') + self._data
 
     @classmethod
-    def _parse_attribute(cls, fields, skips, attribute, value, start):
-        return NITFElement._parse_attribute(fields, skips, attribute, value, start)
+    def from_bytes(cls, value, start):
+        tag = value[start:start+6]
+        lng = int_func(value[start+6:start+11])
+        return cls(tag, value[start+11:start+11+lng])
 
 
 class TREList(NITFElement):
@@ -893,6 +974,13 @@ class TREList(NITFElement):
 
     def __getitem__(self, item):  # type: (Union[int, slice]) -> Union[TRE, List[TRE]]
         return self._tres[item]
+
+
+class TREHeader(Unstructured):
+    def _populate_data(self):
+        if isinstance(self._data, bytes):
+            data = TREList.from_bytes(self._data, 0)
+            self._data = data
 
 
 class UserHeaderType(Unstructured):
@@ -1209,35 +1297,6 @@ class ImageSegmentHeader(NITFElement):
         # noinspection PyAttributeOutsideInit
         self._ExtendedHeader = value
 
-    def _set_attribute(self, attribute, value):
-        NITFElement._set_attribute(self, attribute, value)
-        if attribute == '_UserHeader':
-            self._load_user_header_data()
-        elif attribute == '_ExtendedHeader':
-            self._load_ext_header_data()
-
-    def _load_user_header_data(self):
-        """
-        Load any user defined header specifics.
-
-        Returns
-        -------
-        None
-        """
-
-        pass
-
-    def _load_ext_header_data(self):
-        """
-        Load any extended header specifics.
-
-        Returns
-        -------
-        None
-        """
-
-        pass
-
     @classmethod
     def minimum_length(cls):
         # COMRAT may not be there
@@ -1245,11 +1304,58 @@ class ImageSegmentHeader(NITFElement):
 
 
 ######
+# Graphics segment header
+
+class GraphicsSegmentHeader(NITFElement):
+    """
+    Graphics Segment Subheader
+    """
+
+    __slots__ = (
+        'SY', 'SID', 'SNAME', '_Security', 'ENCRYP', 'SFMT',
+        'SSTRUCT', 'SDLVL', 'SALVL', 'SLOC', 'SBND1',
+        'SCOLOR', 'SBND2', 'SRES2', '_UserHeader')
+    _formats = {
+        'SY': '2s', 'SID': '10s', 'SNAME': '20s', 'ENCRYP': '1d',
+        'SFMT': '1s', 'SSTRUCT': '13d', 'SDLVL': '3d', 'SALVL': '3d',
+        'SLOC': '10d', 'SBND1': '10d', 'SCOLOR': '1s', 'SBND2': '10d',
+        'SRES2': '2d'}
+    _defaults = {
+        'SY': 'SY', 'SFMT': 'C', 'SDLVL': 1,
+        '_Security': {}, '_UserHeader': {}}
+    _types = {
+        '_Security': NITFSecurityTags,
+        '_UserHeader': UserHeaderType}
+    _enums = {'SCOLOR': {'C', 'M'}}
+
+    def __init__(self, **kwargs):
+        super(GraphicsSegmentHeader, self).__init__(**kwargs)
+
+    @property
+    def Security(self):  # type: () -> NITFSecurityTags
+        return self._Security
+
+    @Security.setter
+    def Security(self, value):
+        # noinspection PyAttributeOutsideInit
+        self._Security = value
+
+    @property
+    def UserHeader(self):  # type: () -> Union[NITFElement, UserHeaderType]
+        return self._UserHeader
+
+    @UserHeader.setter
+    def UserHeader(self, value):
+        # noinspection PyAttributeOutsideInit
+        self._UserHeader = value
+
+
+######
 # Text segment header
 
 class TextSegmentHeader(NITFElement):
     """
-    This requires an extension for essentially any non-trivial text segment
+    Text Segment Subheader
     """
 
     __slots__ = (
@@ -1263,8 +1369,7 @@ class TextSegmentHeader(NITFElement):
     _defaults = {'TE': 'TE', '_Security': {}, '_UserHeader': {}}
     _types = {
         '_Security': NITFSecurityTags,
-        '_UserHeader': UserHeaderType
-    }
+        '_UserHeader': UserHeaderType}
 
     def __init__(self, **kwargs):
         self._skips = set()
@@ -1288,22 +1393,6 @@ class TextSegmentHeader(NITFElement):
         # noinspection PyAttributeOutsideInit
         self._UserHeader = value
 
-    def _set_attribute(self, attribute, value):
-        NITFElement._set_attribute(self, attribute, value)
-        if attribute == '_UserHeader':
-            self._load_header_data()
-
-    def _load_header_data(self):
-        """
-        Load any user defined header specifics.
-
-        Returns
-        -------
-        None
-        """
-
-        pass
-
 
 ######
 # Data Extension header
@@ -1326,6 +1415,7 @@ class DataExtensionHeader(NITFElement):
     _types = {
         '_Security': NITFSecurityTags,
         '_UserHeader': DESUserHeader}
+    _enums = {'DESOFLOW': {'', 'XHD', 'IXSHD', 'SXSHD', 'TXSHD', 'UDHD', 'UDID'}}
     _if_skips = {
         'DESID': {'condition': '!= "TRE_OVERFLOW"', 'vars': ['DESOFLOW', 'DESITEM']}}
 
@@ -1367,8 +1457,8 @@ class DataExtensionHeader(NITFElement):
 
         if not isinstance(self._UserHeader, DataExtensionHeader.DESUserHeader):
             return
-        # try loading sicd
         if self.DESID.strip() == 'XML_DATA_CONTENT':
+            # try loading sicd
             if self._UserHeader.get_bytes_length() == 777:
                 # It could be a version 1.0 or greater SICD
                 data = self._UserHeader.to_bytes()
@@ -1379,9 +1469,72 @@ class DataExtensionHeader(NITFElement):
                     logging.error(
                         'DESID is "XML_DATA_CONTENT" and data is the right length for SICD, '
                         'but parsing failed with error {}'.format(e))
-        elif self.DESID.strip() == 'TRE_OVERFLOW':
-            # TODO: LOW Priority - DESID=TRE_OVERFLOW - I think maybe this is deprecated?
+        elif self.DESID.strip() == 'STREAMING_FILE_HEADER':
+            # TODO: LOW Priority - I think that this is deprecated?
             pass
+
+    @classmethod
+    def minimum_length(cls):
+        return 200
+
+
+######
+# Reserved Extension header
+
+class ReservedExtensionHeader(NITFElement):
+    """
+    This requires an extension for essentially any non-trivial RES.
+    """
+
+    class RESUserHeader(Unstructured):
+        _size_len = 4
+
+    __slots__ = ('RE', 'RESID', 'RESVER', '_Security', '_UserHeader')
+    _formats = {'RE': '2s', 'RESID': '25s', 'RESVER': '2d'}
+    _defaults = {'RE': 'RE', 'RESVER': 1, '_Security': {}, '_UserHeader': {}}
+    _types = {
+        '_Security': NITFSecurityTags,
+        '_UserHeader': RESUserHeader}
+
+    def __init__(self, **kwargs):
+        self._skips = set()
+        super(ReservedExtensionHeader, self).__init__(**kwargs)
+
+    @property
+    def Security(self):  # type: () -> NITFSecurityTags
+        return self._Security
+
+    @Security.setter
+    def Security(self, value):
+        # noinspection PyAttributeOutsideInit
+        self._Security = value
+
+    @property
+    def UserHeader(self):  # type: () -> RESUserHeader
+        return self._UserHeader
+
+    @UserHeader.setter
+    def UserHeader(self, value):
+        # noinspection PyAttributeOutsideInit
+        self._UserHeader = value
+
+    def _set_attribute(self, attribute, value):
+        NITFElement._set_attribute(self, attribute, value)
+        if attribute == '_UserHeader':
+            self._load_header_data()
+
+    def _load_header_data(self):
+        """
+        Load any user defined header specifics.
+
+        Returns
+        -------
+        None
+        """
+
+        if not isinstance(self._UserHeader, ReservedExtensionHeader.RESUserHeader):
+            return
+        pass
 
     @classmethod
     def minimum_length(cls):
@@ -1611,6 +1764,130 @@ class NITFDetails(object):
     def nitf_header(self):  # type: () -> NITFHeader
         """NITFHeader: the nitf header object"""
         return self._nitf_header
+
+    def parse_image_subheader(self, index):
+        """
+        Parse the image segment subheader at the given index.
+
+        Parameters
+        ----------
+        index : int
+
+        Returns
+        -------
+        ImageSegmentHeader
+        """
+
+        if index >= self.img_subheader_offsets:
+            raise IndexError(
+                'There are only {} image segments, invalid image segment position {}'.format(self.img_subheader_offsets, index))
+        offset = self.img_subheader_offsets[index]
+        subhead_size = self._nitf_header.ImageSegments.subhead_sizes[index]
+        with open(self._file_name, mode='rb') as fi:
+            fi.seek(int_func(offset))
+            header_string = fi.read(int_func(subhead_size))
+            out = ImageSegmentHeader.from_bytes(header_string, 0)
+        return out
+
+    def parse_text_subheader(self, index):
+        """
+        Parse the text segment subheader at the given index.
+
+        Parameters
+        ----------
+        index : int
+
+        Returns
+        -------
+        TextSegmentHeader
+        """
+
+        if index >= self.text_subheader_offsets.size:
+            raise IndexError(
+                'There are only {} image segments, invalid image segment position {}'.format(
+                    self.text_subheader_offsets.size, index))
+        offset = self.text_subheader_offsets[index]
+        subhead_size = self._nitf_header.TextSegments.subhead_sizes[index]
+        with open(self._file_name, mode='rb') as fi:
+            fi.seek(int_func(offset))
+            header_string = fi.read(int_func(subhead_size))
+            out = TextSegmentHeader.from_bytes(header_string, 0)
+        return out
+
+    def parse_graphics_subheader(self, index):
+        """
+        Parse the graphics segment subheader at the given index.
+
+        Parameters
+        ----------
+        index : int
+
+        Returns
+        -------
+        GraphicsSegmentHeader
+        """
+
+        if index >= self.graphics_subheader_offsets.size:
+            raise IndexError(
+                'There are only {} image segments, invalid image segment position {}'.format(
+                    self.graphics_subheader_offsets.size, index))
+        offset = self.graphics_subheader_offsets[index]
+        subhead_size = self._nitf_header.GraphicsSegments.subhead_sizes[index]
+        with open(self._file_name, mode='rb') as fi:
+            fi.seek(int_func(offset))
+            header_string = fi.read(int_func(subhead_size))
+            out = GraphicsSegmentHeader.from_bytes(header_string, 0)
+        return out
+
+    def parse_des_subheader(self, index):
+        """
+        Parse the data extension segment subheader at the given index.
+
+        Parameters
+        ----------
+        index : int
+
+        Returns
+        -------
+        DataExtensionHeader
+        """
+
+        if index >= self.des_subheader_offsets.size:
+            raise IndexError(
+                'There are only {} image segments, invalid image segment position {}'.format(
+                    self.des_subheader_offsets.size, index))
+        offset = self.des_subheader_offsets[index]
+        subhead_size = self._nitf_header.DataExtensions.subhead_sizes[index]
+        with open(self._file_name, mode='rb') as fi:
+            fi.seek(int_func(offset))
+            header_string = fi.read(int_func(subhead_size))
+            out = DataExtensionHeader.from_bytes(header_string, 0)
+        return out
+
+    def parse_res_subheader(self, index):
+        """
+        Parse the reserved extension subheader at the given index.
+
+        Parameters
+        ----------
+        index : int
+
+        Returns
+        -------
+        ReservedExtensionHeader
+        """
+
+        if index >= self.res_subheader_offsets.size:
+            raise IndexError(
+                'There are only {} image segments, invalid image segment position {}'.format(
+                    self.res_subheader_offsets.size, index))
+        offset = self.res_subheader_offsets[index]
+        subhead_size = self._nitf_header.ReservedExtensions.subhead_sizes[index]
+        with open(self._file_name, mode='rb') as fi:
+            fi.seek(int_func(offset))
+            header_string = fi.read(int_func(subhead_size))
+            out = ReservedExtensionHeader.from_bytes(header_string, 0)
+        return out
 
 
 ##############

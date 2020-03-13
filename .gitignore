@@ -9,9 +9,6 @@ __pycache__/
 # C extensions
 *.so
 
-# Pycharm stuff
-.idea
-
 # Distribution / packaging
 .Python
 build/
@@ -108,11 +105,13 @@ venv.bak/
 
 # mypy
 .mypy_cache/
-*.xml
-.idea/workspace.xml
 
+# misc
 history/
 logs/
 
-# mac
+# Pycharm stuff
+.idea
+
+# mac nonsense
 *.DS_Store
