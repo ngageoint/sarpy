@@ -1,0 +1,46 @@
+# This details the important differences introduced in 0.1
+# NB: bump the version number in __about__.py to reflect the below.
+
+* .43 - Refactored TRE handling and TRE registry
+* .42 - Added basic functionality for SICD DES header validity testing and repair
+* .41 - Added a number of TRE definitions and provided automatic usage and handling
+* .40 - Updated geometry and annotation object for better functionality
+* .39 - Bumped to SICD version 1.2.1 and included schemas
+* .38 - Established TRE framework and incorporated unparsed TRE objects.
+* .37 - Improved some nitf header element handling for generality, in preparation for SIDD
+* .36 - Enabled some handling of namespace in the serializable classes, prep for SIDD
+* .35 - Introduced some WGS-84 coordinate order options
+* .34 - Refactoring so that projection methods are also presented as SICD class methods
+* .33 - Adding decent support for exporting to kml
+* .32 - Fixed erroneous zero-based indexing in sicd elements to be one-based
+* .31 - Added GUI tools
+* .30 - Added catching for most SICD element parsing failures
+* .29 - Added more sicd validation checking
+* .28 - Included some polygon inclusion capability
+* .27 - Tested conversion capability 
+* .26 - Tested basic SICD file writing capability
+* .25 - Tested data reading for sentinel, radarsat, and cosmo-skymed formats
+* .24 - Tested for cosmo-skymed meta-data conversion
+* .23 - Tested for radarsat meta-data conversion for rs2 and rcm
+* .22 - Tested for sentinel meta-data conversion for both spotlight and swath
+* .21 - Unit testing for basic sicd opening and interpretation
+* .20 - Unit testing for nitf header behavior and application to sicd
+* .19 - Refactoring to split general nitf capability and sicd specific behavior more clearly
+* .18 - Unit testing for basic capability in geoid
+* .17 - Refactored generic complex data file opening and conversion capability.
+* .16 - Split (to some degree) general NITF headers from SICD specific usage.
+* .15 - Refactored geometry.point_projection to dem for more consistent behavior.
+* .14 - Refactored io.DEM.DEM for better performance and more consistent behavior.
+* .13 - Refactored io.DEM.geoid for better performance and more consistent behavior.
+* .12 - Refactored geometry.point_projection for more consistent behavior (dem remains).
+* .11 - Refactored geometry.geocoords for more consistent behavior.
+* .10 - switch for using gdal for tiff reading introduced (in principle, details remain).
+* .09 - bigtiff support introduced for tiff reading.
+* .08 - Reading/writing SIO files has been refactored for new sicd structure.
+* .07 - Reading csk files has been refactored for new sicd structure.
+* .06 - Reading sentinel files has been refactored for new sicd structure.
+* .05 - Reading tiff and radarsat files has been refactored for new sicd structure.
+* .04 - Reading/writing SICD files has been refactored for new sicd structure.
+* .03 - Created unit-test suite for new SICD framework.
+* .02 - Created object-oriented SICD framework for safer and more robust functionality.
+* .01 - Update docstrings to consistent numpy format in preparation for building documentation.

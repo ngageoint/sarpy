@@ -1,1061 +1,1061 @@
-"""Module for reading Sentinel-1 data into a SICD model."""
+# -*- coding: utf-8 -*-
+"""
+Functionality for reading Sentinel-1 data into a SICD model.
+"""
 
-# SarPy imports
-from .sicd import MetaNode
-from .utils import chipper
-from . import Reader as ReaderSuper  # Reader superclass
-from . import sicd
-from . import tiff
-from ...geometry import geocoords as gc
-from ...geometry import point_projection as point
-# Python standard library imports
-import copy
 import os
-import datetime
-import xml.etree.ElementTree as ET
-# External dependencies
-import numpy as np
-# We prefer numpy.polynomial.polynomial over numpy.polyval/polyfit since its coefficient
-# ordering is consistent with SICD, and because it supports 2D polynomials.
-from numpy.polynomial import polynomial as poly
+import logging
+from datetime import datetime
+from xml.etree import ElementTree
+from typing import List, Tuple, Union
+
+import numpy
+from numpy.polynomial import polynomial
+from scipy.constants import speed_of_light
 from scipy.interpolate import griddata
-# try to import comb from scipy.special.
-# If an old version of scipy is being used then import from scipy.misc
-from scipy import __version__ as scipy_version
-dot_locs = []
-for i, version_char in enumerate(scipy_version):
-    if version_char == '.':
-        dot_locs.append(i)
-major_version = int(scipy_version[0:dot_locs[0]])
-if major_version >= 1:
-    from scipy.special import comb
-else:
-    from scipy.misc import comb
 
-_classification__ = "UNCLASSIFIED"
-__author__ = "Daniel Haverporth"
-__email__ = "Daniel.L.Haverporth@nga.mil"
+from .base import SubsetReader, BaseReader, string_types
+from .tiff import TiffDetails, TiffReader
 
-DATE_FMT = '%Y-%m-%dT%H:%M:%S.%f'  # The datetime format Sentinel1 always uses
+from .sicd_elements.blocks import Poly1DType, Poly2DType
+from .sicd_elements.SICD import SICDType
+from .sicd_elements.CollectionInfo import CollectionInfoType, RadarModeType
+from .sicd_elements.ImageCreation import ImageCreationType
+from .sicd_elements.RadarCollection import RadarCollectionType, WaveformParametersType, \
+    TxFrequencyType, ChanParametersType
+from .sicd_elements.ImageData import ImageDataType
+from .sicd_elements.GeoData import GeoDataType, SCPType
+from .sicd_elements.Position import PositionType, XYZPolyType
+from .sicd_elements.Grid import GridType, DirParamType, WgtTypeType
+from .sicd_elements.Timeline import TimelineType, IPPSetType
+from .sicd_elements.ImageFormation import ImageFormationType, RcvChanProcType, TxFrequencyProcType
+from .sicd_elements.RMA import RMAType, INCAType
+from .sicd_elements.Radiometric import RadiometricType, NoiseLevelType_
+from ...geometry import point_projection
+from ...geometry.geocoords import geodetic_to_ecf
+from .utils import two_dim_poly_fit, get_seconds, get_im_physical_coords
+
+__classification__ = "UNCLASSIFIED"
+__author__ = ("Thomas McCullough", "Daniel Haverporth")
 
 
-def isa(filename):
-    # Test to see if file is a manifest.safe file
+########
+# base expected functionality for a module with an implemented Reader
+
+
+def is_a(file_name):
+    """
+    Tests whether a given file_name corresponds to a Sentinel file. Returns a reader instance, if so.
+
+    Parameters
+    ----------
+    file_name : str
+        the file_name to check
+
+    Returns
+    -------
+    SentinelReader|None
+        `SentinelReader` instance if Sentinel-1 file, `None` otherwise
+    """
+
     try:
-        ns = dict([node for _, node in ET.iterparse(filename, events=['start-ns'])])
-        # Parse everything else
-        root_node = ET.parse(filename).getroot()
-        if ((root_node.find('./metadataSection/metadataObject[@ID="platform"]/' +
-                            'metadataWrap/xmlData/safe:platform/safe:familyName', ns).text ==
-             'SENTINEL-1') and
-            (root_node.find('./metadataSection/metadataObject[@ID="generalProductInformation"]/' +
-                            'metadataWrap/xmlData/s1sarl1:standAloneProductInformation/' +
-                            's1sarl1:productType', ns).text ==
-             'SLC')):
-            return Reader
-    except Exception:
-        pass
+        sentinel_details = SentinelDetails(file_name)
+        print('Path {} is determined to be or contain a Sentinel-1 manifest.safe file.'.format(file_name))
+        return SentinelReader(sentinel_details)
+    except (IOError, AttributeError, ElementTree.ParseError):
+        # TODO: what all should we catch?
+        return None
 
 
-class Reader(ReaderSuper):
-    """Creates a file reader object for an Sentinel Data."""
-    def __init__(self, manifest_filename):
-        # print('Opening Sentinel reader object.')
-        # Read Sentinel Metadata from XML file first
-        filesets = manifest_files(manifest_filename)
-        meta_manifest = meta2sicd_manifest(manifest_filename)
+##########
+# helper functions
 
-        self.sicdmeta = []
-        self.read_chip = []
-        for current_fs in filesets:
-            # There will be a set of files (product, data/tiff, noise, and
-            # calibration) for each swath and polarization.  Within each of
-            # these file set, there may be multiple bursts, and thus SICDs.
-            basepathname = os.path.dirname(manifest_filename)
-            tiff_filename = os.path.join(basepathname, current_fs['data'])
-            meta_tiff = tiff.read_meta(tiff_filename)
-            if (('product' in current_fs) and
-               os.path.isfile(os.path.join(basepathname, current_fs['product']))):
-                product_filename = os.path.join(basepathname, current_fs['product'])
-                meta_product = meta2sicd_annot(product_filename)
-                # Extra calibration files
-                if (('calibration' in current_fs) and
-                   os.path.isfile(os.path.join(basepathname, current_fs['calibration']))):
-                    cal_filename = os.path.join(basepathname, current_fs['calibration'])
-                    meta2sicd_cal(cal_filename, meta_product, meta_manifest)
-                # Noise metadata computation
-                if (('noise' in current_fs) and
-                   os.path.isfile(os.path.join(basepathname, current_fs['noise']))):
-                    noise_filename = os.path.join(basepathname, current_fs['noise'])
-                    meta2sicd_noise(noise_filename, meta_product, meta_manifest)
-
-                # Image data
-                symmetry = (False, False, True)  # True for all Sentinel-1 data
-                if len(meta_product) == 1:  # Stripmap, single burst, open entire file
-                    self.read_chip.append(tiff.chipper(tiff_filename, symmetry, meta_tiff))
-                else:  # Multiple bursts within a single data file
-                    base_chipper = tiff.chipper(tiff_filename, symmetry, meta_tiff)
-                    num_lines_burst = int(ET.parse(product_filename).getroot().find(
-                        './swathTiming/linesPerBurst').text)
-                    for j in range(len(meta_product)):
-                        self.read_chip.append(chipper.subset(
-                            base_chipper, [0, meta_tiff['ImageWidth'][0]],
-                            num_lines_burst*j + np.array([0, num_lines_burst])))
-
-                for current_mp in meta_product:
-                    # Populate derived SICD fields now that all data has been read in
-                    sicd.derived_fields(current_mp)
-
-                    # Handle dual-polarization case.  Label channel number
-                    # appropriately for ordering in manifest file.
-                    # Should be the same for all burst in a TIFF
-                    current_mp.ImageFormation.RcvChanProc.ChanIndex = 1 + \
-                        [cp.TxRcvPolarization for cp in
-                         meta_manifest.RadarCollection.RcvChannels.ChanParameters].index(
-                         current_mp.ImageFormation.TxRcvPolarizationProc)
-                    current_mp.merge(meta_manifest)
-
-                    self.sicdmeta.append(current_mp)
-
-                    # meta should already be set to this from meta_product:
-                    # self.sicdmeta[-1].ImageData.NumRows = meta_tiff['ImageWidth'][0]
-                    self.sicdmeta[-1].native = MetaNode()
-                    self.sicdmeta[-1].native.tiff = meta_tiff
-
-            else:  # No annotation metadata could be found
-                self.sicdmeta.append(meta_manifest)
-                self.sicdmeta[-1].ImageData = MetaNode()
-                self.sicdmeta[-1].ImageData.NumCols = meta_tiff['ImageLength'][0]
-                self.sicdmeta[-1].ImageData.NumRows = meta_tiff['ImageWidth'][0]
-                self.sicdmeta[-1].native = MetaNode()
-                self.sicdmeta[-1].native.tiff = meta_tiff
-
-
-def manifest_files(filename):
-    """Extract relevant filenames and relative paths for measurement and metadata files
-    from a Sentinel manifest.safe file and group them together appropriately."""
-    def _get_file_location(root_node, schema_type, possible_ids):
-        """We want the data object that matches both the desired schema type and
-        the possible ids from the relevant measurment data unit."""
-        return [dataobject.find('./byteStream/fileLocation').attrib['href']  # File location
-                for dataobject in [
-                    root_node.find('dataObjectSection/' +
-                                   'dataObject[@repID="' + schema_type + '"]/' +
-                                   '[@ID="' + ids + '"]', ns)
-                    for ids in possible_ids]  # Attempt to find objects for all ids
-                if dataobject is not None][0]  # ids not found will be None and discarded
-
-    # Parse namespaces
-    ns = dict([node for _, node in ET.iterparse(filename, events=['start-ns'])])
-    # Parse everything else
-    root_node = ET.parse(filename).getroot()
-    files = []
-    # Iterate through all of the "Measurement Data Units".  This should provide each
-    # data object (measurements), together with its metadata and noise and
-    # calibration files.
-    for mdu in root_node.iterfind('./informationPackageMap/xfdu:contentUnit/' +
-                                  'xfdu:contentUnit/[@repID="s1Level1MeasurementSchema"]', ns):
-        # The dmdID references for each measurement data unit are indirect.
-        # They are equivalently pointers to pointers. Not clear why it was
-        # done this way, but here we get the real IDs for all  files associated
-        # with this data unit.
-        associated_ids = [root_node.find('./metadataSection/metadataObject[@ID="' +
-                                         dmd + '"]/dataObjectPointer').attrib['dataObjectID']
-                          for dmd in mdu.attrib['dmdID'].split()]
-        fnames = dict()
-        # Find data ("measurement") file itself
-        fnames['data'] = _get_file_location(
-            root_node, 's1Level1MeasurementSchema',
-            [mdu.find('./dataObjectPointer').attrib['dataObjectID']])
-        # Find all metadata files
-        fnames['product'] = _get_file_location(
-            root_node, 's1Level1ProductSchema', associated_ids)
-        fnames['noise'] = _get_file_location(
-            root_node, 's1Level1NoiseSchema', associated_ids)
-        fnames['calibration'] = _get_file_location(
-            root_node, 's1Level1CalibrationSchema', associated_ids)
-        files.append(fnames)
-    return files
-
-
-def meta2sicd_manifest(filename):
-    # Parse namespaces
-    ns = dict([node for _, node in ET.iterparse(filename, events=['start-ns'])])
-    # Parse everything else
-    root_node = ET.parse(filename).getroot()
-
-    manifest = MetaNode()
-    # CollectionInfo
-    platform = root_node.find('./metadataSection/' +
-                              'metadataObject[@ID="platform"]/' +
-                              'metadataWrap/' +
-                              'xmlData/' +
-                              'safe:platform', ns)
-    manifest.CollectionInfo = MetaNode()
-    manifest.CollectionInfo.CollectorName = (platform.find('./safe:familyName', ns).text +
-                                             platform.find('./safe:number', ns).text)
-    manifest.CollectionInfo.RadarMode = MetaNode()
-    manifest.CollectionInfo.RadarMode.ModeID = platform.find(
-        './safe:instrument/safe:extension/s1sarl1:instrumentMode/s1sarl1:mode', ns).text
-    if manifest.CollectionInfo.RadarMode.ModeID == 'SM':
-        manifest.CollectionInfo.RadarMode.ModeType = 'STRIPMAP'
+def _parse_xml(file_name, without_ns=False):
+    root_node = ElementTree.parse(file_name).getroot()
+    if without_ns:
+        return root_node
     else:
-        # Actually TOPSAR.  Not what we normally think of for DYNAMIC STRIPMAP,
-        # but it is definitely not SPOTLIGHT, and doesn't seem to be regular
-        # STRIPMAP either.
-        manifest.CollectionInfo.RadarMode.ModeType = 'DYNAMIC STRIPMAP'
-    # Image Creation
-    processing = root_node.find('./metadataSection/' +
-                                'metadataObject[@ID="processing"]/' +
-                                'metadataWrap/' +
-                                'xmlData/' +
-                                'safe:processing', ns)
-    facility = processing.find('safe:facility', ns)
-    software = facility.find('./safe:software', ns)
-    manifest.ImageCreation = MetaNode()
-    manifest.ImageCreation.Application = software.attrib['name'] + ' ' + software.attrib['version']
-    manifest.ImageCreation.DateTime = datetime.datetime.strptime(
-        processing.attrib['stop'], DATE_FMT)
-    manifest.ImageCreation.Site = (facility.attrib['name'] + ', ' +
-                                   facility.attrib['site'] + ', ' +
-                                   facility.attrib['country'])
-    manifest.ImageCreation.Profile = 'Prototype'
-    # RadarCollection
-    manifest.RadarCollection = MetaNode()
-    manifest.RadarCollection.RcvChannels = MetaNode()
-    manifest.RadarCollection.RcvChannels.ChanParameters = []
-    for current_pol in root_node.findall('./metadataSection/' +
-                                         'metadataObject[@ID="generalProductInformation"]/' +
-                                         'metadataWrap/' +
-                                         'xmlData/' +
-                                         's1sarl1:standAloneProductInformation/' +
-                                         's1sarl1:transmitterReceiverPolarisation', ns):
-        manifest.RadarCollection.RcvChannels.ChanParameters.append(MetaNode())
-        manifest.RadarCollection.RcvChannels.ChanParameters[-1].TxRcvPolarization = \
-            current_pol.text[0] + ':' + current_pol.text[1]
-    return(manifest)
+        ns = dict([node for _, node in ElementTree.iterparse(file_name, events=('start-ns', ))])
+        return ns, root_node
 
 
-def meta2sicd_annot(filename):
-    def _polyshift(a, shift):
-        b = np.zeros(a.size)
-        for j in range(1, len(a)+1):
-            for k in range(j, len(a)+1):
-                b[j-1] = b[j-1] + (a[k-1]*comb(k-1, j-1)*np.power(shift, (k-j)))
-        return b
+###########
+# parser and interpreter for sentinel-1 manifest.safe file
 
-    # Setup constants
-    C = 299792458.
-    # Parse annotation XML (no namespace to worry about)
-    root_node = ET.parse(filename).getroot()
+class SentinelDetails(object):
+    __slots__ = ('_file_name', '_root_node', '_ns', '_satellite', '_product_type', '_base_sicd')
 
-    common_meta = MetaNode()
-    # CollectionInfo
-    common_meta.CollectionInfo = MetaNode()
-    common_meta.CollectionInfo.CollectorName = root_node.find('./adsHeader/missionId').text
-    common_meta.CollectionInfo.CollectType = 'MONOSTATIC'
-    common_meta.CollectionInfo.RadarMode = MetaNode()
-    common_meta.CollectionInfo.RadarMode.ModeID = root_node.find('./adsHeader/mode').text
-    if common_meta.CollectionInfo.RadarMode.ModeID[0] == 'S':
-        common_meta.CollectionInfo.RadarMode.ModeType = 'STRIPMAP'
-    else:
-        # Actually TOPSAR.  Not what we normally think of for DYNAMIC STRIPMAP,
-        # but it is definitely not SPOTLIGHT (actually counter to the spotlight
-        # beam motion), and it isn't STRIPMAP with a constant angle between the
-        # beam and direction of travel either, so we use DYNAMIC STRIPMAP as a
-        # catchall.
-        common_meta.CollectionInfo.RadarMode.ModeType = 'DYNAMIC STRIPMAP'
-    common_meta.CollectionInfo.Classification = 'UNCLASSIFIED'
+    def __init__(self, file_name):
+        """
 
-    # ImageData
-    common_meta.ImageData = MetaNode()
-    # For SLC, the following test should always hold true:
-    if root_node.find('./imageAnnotation/imageInformation/pixelValue').text == 'Complex':
-        common_meta.ImageData.PixelType = 'RE16I_IM16I'
-    else:  # This code only handles SLC
-        raise(ValueError('SLC data should be 16-bit complex.'))
-    burst_list = root_node.findall('./swathTiming/burstList/burst')
-    if burst_list:
-        numbursts = len(burst_list)
-    else:
-        numbursts = 0
-    # These two definitions of NumRows should always be the same for
-    # non-STRIPMAP data (For STRIPMAP, samplesPerBurst is set to zero.)  Number
-    # of rows in burst should be the same as the full image.  Both of these
-    # numbers also should match the ImageWidth field of the measurement TIFF.
-    # The NumCols definition will be different for TOPSAR/STRIPMAP.  Since each
-    # burst is its own coherent data period, and thus SICD, we set the SICD
-    # metadata to describe each individual burst.
-    if numbursts > 0:  # TOPSAR
-        common_meta.ImageData.NumRows = int(root_node.find('./swathTiming/samplesPerBurst').text)
-        # Ths in the number of columns in a single burst.
-        common_meta.ImageData.NumCols = int(root_node.find('./swathTiming/linesPerBurst').text)
-    else:  # STRIPMAP
-        common_meta.ImageData.NumRows = int(root_node.find(
-            './imageAnnotation/imageInformation/numberOfSamples').text)
-        # This in the number of columns in the full TIFF measurement file, even
-        # if it contains multiple bursts.
-        common_meta.ImageData.NumCols = int(root_node.find(
-            './imageAnnotation/imageInformation/numberOfLines').text)
-    common_meta.ImageData.FirstRow = 0
-    common_meta.ImageData.FirstCol = 0
-    common_meta.ImageData.FullImage = MetaNode()
-    common_meta.ImageData.FullImage.NumRows = common_meta.ImageData.NumRows
-    common_meta.ImageData.FullImage.NumCols = common_meta.ImageData.NumCols
-    # SCP pixel within entire TIFF
-    # Note: numpy round behaves differently than python round and MATLAB round,
-    # so we avoid it here.
-    center_cols = np.ceil((0.5 + np.arange(max(numbursts, 1))) *
-                          float(common_meta.ImageData.NumCols))-1
-    center_rows = round(float(common_meta.ImageData.NumRows)/2.-1.) * \
-        np.ones_like(center_cols)
-    # SCP pixel within single burst image is the same for all burst, since east
-    # burst is the same size
-    common_meta.ImageData.SCPPixel = MetaNode()
-    common_meta.ImageData.SCPPixel.Col = int(center_cols[0])
-    common_meta.ImageData.SCPPixel.Row = int(center_rows[0])
+        Parameters
+        ----------
+        file_name : str
+        """
 
-    # GeoData
-    common_meta.GeoData = MetaNode()
-    common_meta.GeoData.EarthModel = 'WGS_84'
-    # Initially, we just seed the SCP coordinate with a rough value.  Later
-    # we will put in something more precise.
-    geo_grid_point_list = root_node.findall(
-        './geolocationGrid/geolocationGridPointList/geolocationGridPoint')
-    scp_col, scp_row, x, y, z = [], [], [], [], []
-    for grid_point in geo_grid_point_list:
-        scp_col.append(float(grid_point.find('./line').text))
-        scp_row.append(float(grid_point.find('./pixel').text))
-        lat = float(grid_point.find('./latitude').text)
-        lon = float(grid_point.find('./longitude').text)
-        hgt = float(grid_point.find('./height').text)
-        # Can't interpolate across international date line -180/180 longitude,
-        # so move to ECF space from griddata interpolation
-        ecf = gc.geodetic_to_ecf((lat, lon, hgt))
-        x.append(ecf[0, 0])
-        y.append(ecf[0, 1])
-        z.append(ecf[0, 2])
-    row_col = np.vstack((scp_col, scp_row)).transpose()
-    center_row_col = np.vstack((center_cols, center_rows)).transpose()
-    scp_x = griddata(row_col, x, center_row_col)
-    scp_y = griddata(row_col, y, center_row_col)
-    scp_z = griddata(row_col, z, center_row_col)
+        if os.path.isdir(file_name):  # its' the directory - point it at the manifest.safe file
+            t_file_name = os.path.join(file_name, 'manifest.safe')
+            if os.path.exists(t_file_name):
+                file_name = t_file_name
+        if not os.path.exists(file_name):
+            raise IOError('path {} does not exist'.format(file_name))
+        self._file_name = file_name
 
-    # Grid
-    common_meta.Grid = MetaNode()
-    if root_node.find('./generalAnnotation/productInformation/projection').text == 'Slant Range':
-        common_meta.Grid.ImagePlane = 'SLANT'
-    common_meta.Grid.Type = 'RGZERO'
-    delta_tau_s = 1./float(root_node.find(
-        './generalAnnotation/productInformation/rangeSamplingRate').text)
-    common_meta.Grid.Row = MetaNode()
-    common_meta.Grid.Col = MetaNode()
-    # Range Processing
-    range_proc = root_node.find('./imageAnnotation/processingInformation' +
-                                '/swathProcParamsList/swathProcParams/rangeProcessing')
-    common_meta.Grid.Row.SS = (C/2.) * delta_tau_s
-    common_meta.Grid.Row.Sgn = -1
-    # Justification for Sgn:
-    # 1) "Sentinel-1 Level 1 Detailed Algorithm Definition" shows last step in
-    # image formation as IFFT, which would mean a forward FFT (-1 Sgn) would be
-    # required to transform back.
-    # 2) The forward FFT of a sliding window shows the Doppler centroid
-    # increasing as you move right in the image, which must be the case for the
-    # TOPSAR collection mode which starts in a rear squint and transitions to a
-    # forward squint (and are always right looking).
-    fc = float(root_node.find('./generalAnnotation/productInformation/radarFrequency').text)
-    common_meta.Grid.Row.KCtr = 2.*fc / C
-    common_meta.Grid.Row.DeltaKCOAPoly = np.atleast_2d(0)
-    common_meta.Grid.Row.ImpRespBW = 2.*float(range_proc.find('./processingBandwidth').text)/C
-    common_meta.Grid.Row.WgtType = MetaNode()
-    common_meta.Grid.Row.WgtType.WindowName = range_proc.find('./windowType').text.upper()
-    if (common_meta.Grid.Row.WgtType.WindowName == 'NONE'):
-        common_meta.Grid.Row.WgtType.WindowName = 'UNIFORM'
-    elif (common_meta.Grid.Row.WgtType.WindowName == 'HAMMING'):
-        # The usual Sentinel weighting
-        common_meta.Grid.Row.WgtType.Parameter = MetaNode()
-        # Generalized Hamming window parameter
-        common_meta.Grid.Row.WgtType.Parameter.name = 'COEFFICIENT'
-        common_meta.Grid.Row.WgtType.Parameter.value = range_proc.find('./windowCoefficient').text
-    # Azimuth Processing
-    az_proc = root_node.find('./imageAnnotation/processingInformation' +
-                             '/swathProcParamsList/swathProcParams/azimuthProcessing')
-    common_meta.Grid.Col.SS = float(root_node.find(
-        './imageAnnotation/imageInformation/azimuthPixelSpacing').text)
-    common_meta.Grid.Col.Sgn = -1  # Must be the same as Row.Sgn
-    common_meta.Grid.Col.KCtr = 0
-    dop_bw = float(az_proc.find('./processingBandwidth').text)  # Doppler bandwidth
-    # Image column spacing in zero doppler time (seconds)
-    # Sentinel-1 is always right-looking, so should always be positive
-    ss_zd_s = float(root_node.find('./imageAnnotation/imageInformation/azimuthTimeInterval').text)
-    # Convert to azimuth spatial bandwidth (cycles per meter)
-    common_meta.Grid.Col.ImpRespBW = dop_bw*ss_zd_s/common_meta.Grid.Col.SS
-    common_meta.Grid.Col.WgtType = MetaNode()
-    common_meta.Grid.Col.WgtType.WindowName = az_proc.find('./windowType').text.upper()
-    if (common_meta.Grid.Col.WgtType.WindowName == 'NONE'):
-        common_meta.Grid.Col.WgtType.WindowName = 'UNIFORM'
-    elif (common_meta.Grid.Row.WgtType.WindowName == 'HAMMING'):
-        # The usual Sentinel weighting
-        common_meta.Grid.Col.WgtType.Parameter = MetaNode()
-        # Generalized Hamming window parameter
-        common_meta.Grid.Col.WgtType.Parameter.name = 'COEFFICIENT'
-        common_meta.Grid.Col.WgtType.Parameter.value = az_proc.find('./windowCoefficient').text
-    # We will compute Grid.Col.DeltaKCOAPoly separately per burst later.
-    # Grid.Row/Col.DeltaK1/2, WgtFunct, ImpRespWid will be computed later in sicd.derived_fields
+        self._ns, self._root_node = _parse_xml(file_name)
+        # note that the manifest.safe apparently does not have a default namespace,
+        # so we have to explicitly enter no prefix in the namespace dictionary
+        self._ns[''] = ''
+        self._satellite = self._find('./metadataSection'
+                                     '/metadataObject[@ID="platform"]'
+                                     '/metadataWrap'
+                                     '/xmlData'
+                                     '/safe:platform'
+                                     '/safe:familyName').text
+        if self._satellite != 'SENTINEL-1':
+            raise ValueError('The platform in the manifest.safe file is required '
+                             'to be SENTINEL-1, got {}'.format(self._satellite))
+        self._product_type = self._find('./metadataSection'
+                                        '/metadataObject[@ID="generalProductInformation"]'
+                                        '/metadataWrap'
+                                        '/xmlData'
+                                        '/s1sarl1:standAloneProductInformation'
+                                        '/s1sarl1:productType').text
+        if self._product_type != 'SLC':
+            raise ValueError('The product type in the manifest.safe file is required '
+                             'to be "SLC", got {}'.format(self._product_type))
+        self._base_sicd = self._get_base_sicd()
 
-    # Timeline
-    prf = float(root_node.find(
-        './generalAnnotation/downlinkInformationList/downlinkInformation/prf').text)
-    common_meta.Timeline = MetaNode()
-    common_meta.Timeline.IPP = MetaNode()
-    common_meta.Timeline.IPP.Set = MetaNode()
-    # Because of calibration pulses, it is unlikely this PRF was maintained
-    # through this entire period, but we don't currently include that detail.
-    common_meta.Timeline.IPP.Set.IPPPoly = np.array([0, prf])
-    # Always the left-most SICD column (of first bursts or entire STRIPMAP dataset),
-    # since Sentinel-1 is always right-looking.
-    azimuth_time_first_line = datetime.datetime.strptime(root_node.find(
-        './imageAnnotation/imageInformation/productFirstLineUtcTime').text, DATE_FMT)
-    # Offset in zero Doppler time from first column to SCP column
-    eta_mid = ss_zd_s * float(common_meta.ImageData.SCPPixel.Col)
+    @property
+    def file_name(self):
+        """
+        str: the file name
+        """
 
-    # Position
-    orbit_list = root_node.findall('./generalAnnotation/orbitList/orbit')
-    # For ARP vector calculation later on
-    state_vector_T, state_vector_X, state_vector_Y, state_vector_Z = [], [], [], []
-    for orbit in orbit_list:
-        state_vector_T.append(datetime.datetime.strptime(orbit.find('./time').text, DATE_FMT))
-        state_vector_X.append(float(orbit.find('./position/x').text))
-        state_vector_Y.append(float(orbit.find('./position/y').text))
-        state_vector_Z.append(float(orbit.find('./position/z').text))
-    # We could also have used external orbit file here, instead of orbit state fields
-    # in SLC annotation file.
+        return self._file_name
 
-    # RadarCollection
-    pol = root_node.find('./adsHeader/polarisation').text
-    common_meta.RadarCollection = MetaNode()
-    common_meta.RadarCollection.TxPolarization = pol[0]
-    common_meta.RadarCollection.TxFrequency = MetaNode()
-    common_meta.RadarCollection.Waveform = MetaNode()
-    common_meta.RadarCollection.TxFrequency.Min = fc + float(root_node.find(
-        './generalAnnotation/downlinkInformationList/downlinkInformation/' +
-        'downlinkValues/txPulseStartFrequency').text)
-    wfp_common = MetaNode()
-    wfp_common.TxFreqStart = common_meta.RadarCollection.TxFrequency.Min
-    wfp_common.TxPulseLength = float(root_node.find(
-        './generalAnnotation/downlinkInformationList/downlinkInformation/' +
-        'downlinkValues/txPulseLength').text)
-    wfp_common.TxFMRate = float(root_node.find(
-        './generalAnnotation/downlinkInformationList/downlinkInformation/' +
-        'downlinkValues/txPulseRampRate').text)
-    bw = wfp_common.TxPulseLength * wfp_common.TxFMRate
-    common_meta.RadarCollection.TxFrequency.Max = \
-        common_meta.RadarCollection.TxFrequency.Min + bw
-    wfp_common.TxRFBandwidth = bw
-    wfp_common.RcvDemodType = 'CHIRP'
-    # RcvFMRate = 0 for RcvDemodType='CHIRP'
-    wfp_common.RcvFMRate = 0
-    wfp_common.ADCSampleRate = float(root_node.find(
-        './generalAnnotation/productInformation/rangeSamplingRate').text)  # Raw not decimated
-    # After decimation would be:
-    # wfp_common.ADCSampleRate = \
-    #     product/generalAnnotation/downlinkInformationList/downlinkInformation/downlinkValues/rangeDecimation/samplingFrequencyAfterDecimation
-    # We could have multiple receive window lengths across the collect
-    swl_list = root_node.findall('./generalAnnotation/downlinkInformationList/' +
-                                 'downlinkInformation/downlinkValues/swlList/swl')
-    common_meta.RadarCollection.Waveform.WFParameters = []
-    for swl in swl_list:
-        common_meta.RadarCollection.Waveform.WFParameters.append(copy.deepcopy(wfp_common))
-        common_meta.RadarCollection.Waveform.WFParameters[-1].RcvWindowLength = \
-            float(swl.find('./value').text)
+    @property
+    def satellite(self):
+        """
+        str: the satellite
+        """
 
-    # ImageFormation
-    common_meta.ImageFormation = MetaNode()
-    common_meta.ImageFormation.RcvChanProc = MetaNode()
-    common_meta.ImageFormation.RcvChanProc.NumChanProc = 1
-    common_meta.ImageFormation.RcvChanProc.PRFScaleFactor = 1
-    # RcvChanProc.ChanIndex must be populated external to this since it depends
-    # on how the polarization were ordered in manifest file.
-    common_meta.ImageFormation.TxRcvPolarizationProc = pol[0] + ':' + pol[1]
-    # Assume image formation uses all data
-    common_meta.ImageFormation.TStartProc = 0
-    common_meta.ImageFormation.TxFrequencyProc = MetaNode()
-    common_meta.ImageFormation.TxFrequencyProc.MinProc = \
-        common_meta.RadarCollection.TxFrequency.Min
-    common_meta.ImageFormation.TxFrequencyProc.MaxProc = \
-        common_meta.RadarCollection.TxFrequency.Max
-    common_meta.ImageFormation.ImageFormAlgo = 'RMA'
-    # From the Sentinel-1 Level 1 Detailed Algorithm Definition document
-    if common_meta.CollectionInfo.RadarMode.ModeID[0] == 'S':  # stripmap mode
-        common_meta.ImageFormation.STBeamComp = 'NO'
-    else:
-        common_meta.ImageFormation.STBeamComp = 'SV'  # TOPSAR Mode
-    common_meta.ImageFormation.ImageBeamComp = 'NO'
-    common_meta.ImageFormation.AzAutofocus = 'NO'
-    common_meta.ImageFormation.RgAutofocus = 'NO'
+        return self._satellite
 
-    # RMA
-    # "Sentinel-1 Level 1 Detailed Algorithm Definition" document seems to most
-    # closely match the RangeDoppler algorithm (with accurate secondary range
-    # compression or "option 2" as described in the Cumming and Wong book).
-    common_meta.RMA = MetaNode()
-    common_meta.RMA.RMAlgoType = 'RG_DOP'
-    common_meta.RMA.ImageType = 'INCA'
-    # tau_0 is notation from ESA deramping paper
-    tau_0 = float(root_node.find('./imageAnnotation/imageInformation/slantRangeTime').text)
-    common_meta.RMA.INCA = MetaNode()
-    common_meta.RMA.INCA.R_CA_SCP = ((C/2.) *
-                                     (tau_0 +
-                                      (float(common_meta.ImageData.SCPPixel.Row) *
-                                       delta_tau_s)))
-    common_meta.RMA.INCA.FreqZero = fc
-    # If we use the Doppler Centroid as defined directly in the manifest.safe
-    # metadata, then the center of frequency support Col.DeltaKCOAPoly does not
-    # correspond to RMA.INCA.DopCentroidPoly.  However, we will compute
-    # TimeCOAPoly later to match a newly computed Doppler Centroid based off of
-    # DeltaKCOAPoly, assuming that the the COA is at the peak signal (fdop_COA
-    # = fdop_DC).
-    common_meta.RMA.INCA.DopCentroidCOA = True
-    # Doppler Centroid
-    # Get common (non-burst specific) parameters we will need for Doppler
-    # centroid and rate computations later
-    dc_estimate_list = root_node.findall('./dopplerCentroid/dcEstimateList/dcEstimate')
-    dc_az_time, dc_t0, data_dc_poly = [], [], []
-    for dc_estimate in dc_estimate_list:
-        dc_az_time.append(datetime.datetime.strptime(
-            dc_estimate.find('./azimuthTime').text, DATE_FMT))
-        dc_t0.append(float(dc_estimate.find('./t0').text))
-        data_dc_poly.append(np.fromstring(dc_estimate.find('./dataDcPolynomial').text, sep=' '))
-    azimuth_fm_rate_list = root_node.findall(
-        './generalAnnotation/azimuthFmRateList/azimuthFmRate')
-    az_t, az_t0, k_a_poly = [], [], []
-    for az_fm_rate in azimuth_fm_rate_list:
-        az_t.append(datetime.datetime.strptime(
-            az_fm_rate.find('./azimuthTime').text, DATE_FMT))
-        az_t0.append(float(az_fm_rate.find('./t0').text))
-        # Two different ways we have seen in XML for storing the FM Rate polynomial
-        try:
-            k_a_poly.append(np.fromstring(az_fm_rate.find(
-                './azimuthFmRatePolynomial').text, sep=' '))
-        except TypeError:  # old annotation xml file format
-            k_a_poly.append(np.array([float(az_fm_rate.find('./c0').text),
-                                      float(az_fm_rate.find('./c1').text),
-                                      float(az_fm_rate.find('./c2').text)]))
-    # Azimuth steering rate (constant, not dependent on burst or range)
-    k_psi = float(root_node.find(
-        './generalAnnotation/productInformation/azimuthSteeringRate').text)
-    k_psi = k_psi*np.pi/180.  # Convert from degrees/sec into radians/sec
+    @property
+    def product_type(self):
+        """
+        str: the product type
+        """
 
-    # Compute per/burst metadata
-    sicd_meta = []
-    for count in range(max(numbursts, 1)):
-        burst_meta = copy.deepcopy(common_meta)
-        # Collection Info
-        # Sensor specific portions of metadata
-        sliceNumber = root_node.find('./imageAnnotation/imageInformation/sliceNumber')
-        if sliceNumber is not None:
-            sliceNumber = sliceNumber.text
+        return self._product_type
+
+    def _find(self, tag):
+        """
+        Pass through to ElementTree.Element.find(tag, ns).
+
+        Parameters
+        ----------
+        tag : str
+
+        Returns
+        -------
+        ElementTree.Element
+        """
+
+        return self._root_node.find(tag, self._ns)
+
+    def _findall(self, tag):
+        """
+        Pass through to ElementTree.Element.findall(tag, ns).
+
+        Parameters
+        ----------
+        tag : str
+
+        Returns
+        -------
+        List[ElementTree.Element
+        """
+
+        return self._root_node.findall(tag, self._ns)
+
+    @staticmethod
+    def _parse_pol(str_in):
+        # type: (str) -> str
+        return '{}:{}'.format(str_in[0], str_in[1])
+
+    def _get_file_sets(self):
+        """
+        Extracts paths for measurement and metadata files from a Sentinel manifest.safe file.
+        These files will be grouped according to "measurement data unit" implicit in the
+        Sentinel structure.
+
+        Returns
+        -------
+        List[dict]
+        """
+
+        def get_file_location(schema_type, tids):
+            if isinstance(tids, string_types):
+                tids = [tids, ]
+            for tid in tids:
+                do = self._find('dataObjectSection/dataObject[@repID="{}"]/[@ID="{}"]'.format(schema_type, tid))
+                if do is None:
+                    continue
+                return os.path.join(base_path, do.find('./byteStream/fileLocation').attrib['href'])
+            return None
+
+        base_path = os.path.dirname(self._file_name)
+
+        files = []
+        for mdu in self._findall('./informationPackageMap'
+                                 '/xfdu:contentUnit'
+                                 '/xfdu:contentUnit/[@repID="s1Level1MeasurementSchema"]'):
+            # get the data file for this measurement
+            fnames = {'data': get_file_location('s1Level1MeasurementSchema',
+                                                mdu.find('dataObjectPointer').attrib['dataObjectID'])}
+            # get the ids for product, noise, and calibration associated with this measurement data unit
+            ids = mdu.attrib['dmdID'].split()
+            # translate these ids to data object ids=file ids for the data files
+            fids = [self._find('./metadataSection'
+                               '/metadataObject[@ID="{}"]'
+                               '/dataObjectPointer'.format(did)).attrib['dataObjectID'] for did in ids]
+            # NB: there is (at most) one of these per measurement data unit
+            fnames['product'] = get_file_location('s1Level1ProductSchema', fids)
+            fnames['noise'] = get_file_location('s1Level1NoiseSchema', fids)
+            fnames['calibration'] = get_file_location('s1Level1CalibrationSchema', fids)
+            files.append(fnames)
+        return files
+
+    def _get_base_sicd(self):
+        """
+        Gets the base SICD element.
+
+        Returns
+        -------
+        SICDType
+        """
+
+        # CollectionInfo
+        platform = self._find('./metadataSection'
+                              '/metadataObject[@ID="platform"]'
+                              '/metadataWrap'
+                              '/xmlData/safe:platform')
+        collector_name = platform.find('safe:familyName', self._ns).text + platform.find('safe:number', self._ns).text
+        mode_id = platform.find('./safe:instrument'
+                                '/safe:extension'
+                                '/s1sarl1:instrumentMode'
+                                '/s1sarl1:mode', self._ns).text
+        if mode_id == 'SM':
+            mode_type = 'STRIPMAP'
         else:
-            sliceNumber = 0
-        swath = root_node.find('./adsHeader/swath').text
-        burst_meta.CollectionInfo.Parameter = [MetaNode()]
-        burst_meta.CollectionInfo.Parameter[0].name = 'SLICE'
-        burst_meta.CollectionInfo.Parameter[0].value = sliceNumber
-        burst_meta.CollectionInfo.Parameter.append(MetaNode())
-        burst_meta.CollectionInfo.Parameter[1].name = 'SWATH'
-        burst_meta.CollectionInfo.Parameter[1].value = swath
-        burst_meta.CollectionInfo.Parameter.append(MetaNode())
-        burst_meta.CollectionInfo.Parameter[2].name = 'BURST'
-        burst_meta.CollectionInfo.Parameter[2].value = str(count+1)
-        burst_meta.CollectionInfo.Parameter.append(MetaNode())
-        burst_meta.CollectionInfo.Parameter[3].name = 'ORBIT_SOURCE'
-        burst_meta.CollectionInfo.Parameter[3].value = 'SLC_INTERNAL'  # No external orbit file
-        # Image Data.ValidData
-        # Get valid bounds of burst from metadata.  Assume a rectangular valid
-        # area-- not totally true, but all that seems to be defined by the
-        # product XML metadata.
-        if numbursts > 0:  # Valid data does not seem to be defined for STRIPMAP data
-            burst = root_node.find('./swathTiming/burstList/burst[' + str(count+1) + ']')
-            xml_first_cols = np.fromstring(burst.find('./firstValidSample').text, sep=' ')
-            xml_last_cols = np.fromstring(burst.find('./lastValidSample').text, sep=' ')
-            valid_cols = np.where((xml_first_cols >= 0) & (xml_last_cols >= 0))[0]
-            first_row = int(min(xml_first_cols[valid_cols]))
-            last_row = int(max(xml_last_cols[valid_cols]))
-            # From SICD spec: Vertices ordered clockwise with vertex 1
-            # determined by: (1) minimum row index, (2) minimum column index if
-            # 2 vertices exist with minimum row index.
-            burst_meta.ImageData.ValidData = MetaNode()
-            burst_meta.ImageData.ValidData.Vertex = [MetaNode()]
-            burst_meta.ImageData.ValidData.Vertex[0].Row = first_row
-            burst_meta.ImageData.ValidData.Vertex[0].Col = int(valid_cols[0])
-            burst_meta.ImageData.ValidData.Vertex.append(MetaNode())
-            burst_meta.ImageData.ValidData.Vertex[1].Row = first_row
-            burst_meta.ImageData.ValidData.Vertex[1].Col = int(valid_cols[-1])
-            burst_meta.ImageData.ValidData.Vertex.append(MetaNode())
-            burst_meta.ImageData.ValidData.Vertex[2].Row = last_row
-            burst_meta.ImageData.ValidData.Vertex[2].Col = int(valid_cols[-1])
-            burst_meta.ImageData.ValidData.Vertex.append(MetaNode())
-            burst_meta.ImageData.ValidData.Vertex[3].Row = last_row
-            burst_meta.ImageData.ValidData.Vertex[3].Col = int(valid_cols[0])
+            # TOPSAR - closest SICD analog is Dynamic Stripmap
+            mode_type = 'DYNAMIC STRIPMAP'
+        collection_info = CollectionInfoType(Classification='UNCLASSIFIED',
+                                             CollectorName=collector_name,
+                                             CollectType='MONOSTATIC',
+                                             RadarMode=RadarModeType(ModeID=mode_id, ModeType=mode_type))
+        # ImageCreation
+        processing = self._find('./metadataSection'
+                                '/metadataObject[@ID="processing"]'
+                                '/metadataWrap'
+                                '/xmlData'
+                                '/safe:processing')
+        facility = processing.find('safe:facility', self._ns)
+        software = facility.find('safe:software', self._ns)
+        image_creation = ImageCreationType(
+            Application='{name} {version}'.format(**software.attrib),
+            DateTime=processing.attrib['stop'],
+            Site='{name}, {site}, {country}'.format(**facility.attrib),
+            Profile='Prototype')
+        # RadarCollection
+        polarizations = self._findall('./metadataSection'
+                                      '/metadataObject[@ID="generalProductInformation"]'
+                                      '/metadataWrap'
+                                      '/xmlData'
+                                      '/s1sarl1:standAloneProductInformation'
+                                      '/s1sarl1:transmitterReceiverPolarisation')
+
+        radar_collection = RadarCollectionType(RcvChannels=[
+            ChanParametersType(TxRcvPolarization=self._parse_pol(pol.text), index=i)
+            for i, pol in enumerate(polarizations)])
+        return SICDType(CollectionInfo=collection_info, ImageCreation=image_creation, RadarCollection=radar_collection)
+
+    def _parse_product_sicd(self, product_file_name):
+        """
+
+        Parameters
+        ----------
+        product_file_name : str
+
+        Returns
+        -------
+        SICDType|List[SICDType]
+        """
+
+        DT_FMT = '%Y-%m-%dT%H:%M:%S.%f'
+        root_node = _parse_xml(product_file_name, without_ns=True)
+        burst_list = root_node.findall('./swathTiming/burstList/burst')
+        # parse the geolocation infoarmation - for SCP caluclation
+        geo_grid_point_list = root_node.findall('./geolocationGrid/geolocationGridPointList/geolocationGridPoint')
+        geo_pixels = numpy.zeros((len(geo_grid_point_list), 2), dtype=numpy.float64)
+        geo_coords = numpy.zeros((len(geo_grid_point_list), 3), dtype=numpy.float64)
+        for i, grid_point in enumerate(geo_grid_point_list):
+            geo_pixels[i, :] = (float(grid_point.find('./pixel').text),
+                                float(grid_point.find('./line').text))  # (row, col) order
+            geo_coords[i, :] = (float(grid_point.find('./latitude').text),
+                                float(grid_point.find('./longitude').text),
+                                float(grid_point.find('./height').text))
+        geo_coords = geodetic_to_ecf(geo_coords)
+
+        def get_center_frequency():  # type: () -> float
+            return float(root_node.find('./generalAnnotation/productInformation/radarFrequency').text)
+
+        def get_image_col_spacing_zdt():  # type: () -> float
+            # Image column spacing in zero doppler time (seconds)
+            # Sentinel-1 is always right-looking, so this should always be positive
+            return float(root_node.find('./imageAnnotation/imageInformation/azimuthTimeInterval').text)
+
+        def get_image_data():  # type: () -> ImageDataType
+            _pv = root_node.find('./imageAnnotation/imageInformation/pixelValue').text
+            if _pv == 'Complex':
+                pixel_type = 'RE16I_IM16I'
+            else:
+                # NB: we only handle SLC
+                raise ValueError('SLC data should be 16-bit complex, got pixelValue = {}.'.format(_pv))
+            if len(burst_list) > 0:
+                # should be TOPSAR
+                num_rows = int(root_node.find('./swathTiming/samplesPerBurst').text)
+                num_cols = int(root_node.find('./swathTiming/linesPerBurst').text)
+            else:
+                # STRIPMAP
+                # NB - these fields always contain the number of rows/cols in the entire tiff,
+                # even if there are multiple bursts
+                num_rows = int(root_node.find('./imageAnnotation/imageInformation/numberOfSamples').text)
+                num_cols = int(root_node.find('./imageAnnotation/imageInformation/numberOfLines').text)
+            # SCP pixel within single burst image is the same for all burst
+            return ImageDataType(PixelType=pixel_type,
+                                 NumRows=num_rows,
+                                 NumCols=num_cols,
+                                 FirstRow=0,
+                                 FirstCol=0,
+                                 FullImage=(num_rows, num_cols),
+                                 SCPPixel=(int((num_rows - 1)/2), int((num_cols - 1)/2)))
+
+        def get_common_grid():  # type: () -> GridType
+            center_frequency = get_center_frequency()
+            image_plane = 'SLANT' if root_node.find('./generalAnnotation/productInformation/projection').text == \
+                'Slant Range' else None
+            # get range processing node
+            range_proc = root_node.find('./imageAnnotation'
+                                        '/processingInformation'
+                                        '/swathProcParamsList'
+                                        '/swathProcParams'
+                                        '/rangeProcessing')
+            delta_tau_s = 1. / float(root_node.find('./generalAnnotation/productInformation/rangeSamplingRate').text)
+            row_window_name = range_proc.find('./windowType').text.upper()
+            row_params = None
+            if row_window_name == 'NONE':
+                row_window_name = 'UNIFORM'
+            elif row_window_name == 'HAMMING':
+                row_params = {'COEFFICIENT': range_proc.find('./windowCoefficient').text}
+            row = DirParamType(SS=(speed_of_light/2)*delta_tau_s,
+                               Sgn=-1,
+                               KCtr=2*center_frequency/speed_of_light,
+                               ImpRespBW=2. * float(range_proc.find('./processingBandwidth').text) / speed_of_light,
+                               DeltaKCOAPoly=Poly2DType(Coefs=[[0, ]]),
+                               WgtType=WgtTypeType(WindowName=row_window_name, Parameters=row_params))
+            # get azimuth processing node
+            az_proc = root_node.find('./imageAnnotation'
+                                     '/processingInformation'
+                                     '/swathProcParamsList'
+                                     '/swathProcParams'
+                                     '/azimuthProcessing')
+            col_ss = float(root_node.find('./imageAnnotation/imageInformation/azimuthPixelSpacing').text)
+            dop_bw = float(az_proc.find('./processingBandwidth').text)  # Doppler bandwidth
+            ss_zd_s = get_image_col_spacing_zdt()
+            col_window_name = az_proc.find('./windowType').text.upper()
+            col_params = None
+            if col_window_name == 'NONE':
+                col_window_name = 'UNIFORM'
+            elif col_window_name == 'HAMMING':
+                col_params = {'COEFFICIENT': az_proc.find('./windowCoefficient').text}
+            col = DirParamType(SS=col_ss,
+                               Sgn=-1,
+                               KCtr=0,
+                               ImpRespBW=dop_bw*ss_zd_s/col_ss,
+                               WgtType=WgtTypeType(WindowName=col_window_name, Parameters=col_params))
+            return GridType(ImagePlane=image_plane, Type='RGZERO', Row=row, Col=col)
+
+        def get_common_timeline():  # type: () -> TimelineType
+            prf = float(root_node.find('./generalAnnotation'
+                                       '/downlinkInformationList'
+                                       '/downlinkInformation'
+                                       '/prf').text)
+            # NB: TEnd and IPPEnd are nonsense values which will be corrected
+            return TimelineType(IPP=[IPPSetType(TStart=0, TEnd=0, IPPStart=0, IPPEnd=0, IPPPoly=(0, prf), index=0), ])
+
+        def get_common_radar_collection():  # type: () -> RadarCollectionType
+            radar_collection = out_sicd.RadarCollection.copy()
+            center_frequency = get_center_frequency()
+            min_frequency = center_frequency + \
+                float(root_node.find('./generalAnnotation/downlinkInformationList/downlinkInformation'
+                                     '/downlinkValues/txPulseStartFrequency').text)
+            tx_pulse_length = float(root_node.find('./generalAnnotation'
+                                                   '/downlinkInformationList'
+                                                   '/downlinkInformation'
+                                                   '/downlinkValues'
+                                                   '/txPulseLength').text)
+            tx_fm_rate = float(root_node.find('./generalAnnotation'
+                                              '/downlinkInformationList'
+                                              '/downlinkInformation'
+                                              '/downlinkValues'
+                                              '/txPulseRampRate').text)
+            band_width = tx_pulse_length*tx_fm_rate
+            pol = root_node.find('./adsHeader/polarisation').text
+            radar_collection.TxPolarization = pol[0]
+            radar_collection.TxFrequency = TxFrequencyType(Min=min_frequency, Max=min_frequency+band_width)
+            adc_sample_rate = float(root_node.find('./generalAnnotation'
+                                                   '/productInformation'
+                                                   '/rangeSamplingRate').text)  # Raw not decimated
+            swl_list = root_node.findall('./generalAnnotation/downlinkInformationList/' +
+                                         'downlinkInformation/downlinkValues/swlList/swl')
+            radar_collection.Waveform = [
+                WaveformParametersType(index=j,
+                                       TxFreqStart=min_frequency,
+                                       TxPulseLength=tx_pulse_length,
+                                       TxFMRate=tx_fm_rate,
+                                       TxRFBandwidth=band_width,
+                                       RcvFMRate=0,
+                                       ADCSampleRate=adc_sample_rate,
+                                       RcvWindowLength=float(swl.find('./value').text))
+                for j, swl in enumerate(swl_list)]
+            return radar_collection
+
+        def get_image_formation():  # type: () -> ImageFormationType
+            st_bean_comp = 'NO' if out_sicd.CollectionInfo.RadarMode.ModeID[0] == 'S' else 'SV'
+            pol = self._parse_pol(root_node.find('./adsHeader/polarisation').text)
+            # which channel does this pol correspond to?
+            chan_indices = None
+            for element in out_sicd.RadarCollection.RcvChannels:
+                if element.TxRcvPolarization == pol:
+                    chan_indices = [element.index, ]
+
+            return ImageFormationType(RcvChanProc=RcvChanProcType(NumChanProc=1,
+                                                                  PRFScaleFactor=1,
+                                                                  ChanIndices=chan_indices),
+                                      TxRcvPolarizationProc=pol,
+                                      TStartProc=0,
+                                      TxFrequencyProc=TxFrequencyProcType(
+                                          MinProc=out_sicd.RadarCollection.TxFrequency.Min,
+                                          MaxProc=out_sicd.RadarCollection.TxFrequency.Max),
+                                      ImageFormAlgo='RMA',
+                                      ImageBeamComp='NO',
+                                      AzAutofocus='NO',
+                                      RgAutofocus='NO',
+                                      STBeamComp=st_bean_comp)
+
+        def get_rma():  # type: () -> RMAType
+            center_frequency = get_center_frequency()
+            tau_0 = float(root_node.find('./imageAnnotation/imageInformation/slantRangeTime').text)
+            delta_tau_s = 1. / float(root_node.find('./generalAnnotation/productInformation/rangeSamplingRate').text)
+            return RMAType(
+                RMAlgoType='RG_DOP',
+                INCA=INCAType(
+                    FreqZero=center_frequency,
+                    DopCentroidCOA=True,
+                    R_CA_SCP=(0.5*speed_of_light)*(tau_0 + out_sicd.ImageData.SCPPixel.Row*delta_tau_s))
+                           )
+
+        def get_slice():  # type: () -> str
+            slice_number = root_node.find('./imageAnnotation/imageInformation/sliceNumber')
+            if slice_number is None:
+                return '0'
+            else:
+                return slice_number.text
+
+        def get_swath():  # type: () -> str
+            return root_node.find('./adsHeader/swath').text
+
+        def get_collection_info():  # type: () -> CollectionInfoType
+            collection_info = out_sicd.CollectionInfo.copy()
+            collection_info.CollectorName = root_node.find('./adsHeader/missionId').text
+            collection_info.RadarMode.ModeID = root_node.find('./adsHeader/mode').text
+            t_slice = get_slice()
+            swath = get_swath()
+            collection_info.Parameters = {
+                'SLICE': t_slice, 'BURST': '1', 'SWATH': swath, 'ORBIT_SOURCE': 'SLC_INTERNAL'}
+            return collection_info
+
+        def get_state_vectors(start):
+            # type: (numpy.datetime64) -> Tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray, numpy.ndarray]
+            orbit_list = root_node.findall('./generalAnnotation/orbitList/orbit')
+            shp = (len(orbit_list), )
+            Ts = numpy.empty(shp, dtype=numpy.float64)
+            Xs = numpy.empty(shp, dtype=numpy.float64)
+            Ys = numpy.empty(shp, dtype=numpy.float64)
+            Zs = numpy.empty(shp, dtype=numpy.float64)
+            for j, orbit in enumerate(orbit_list):
+                Ts[j] = get_seconds(numpy.datetime64(orbit.find('./time').text, 'us'), start, precision='us')
+                Xs[j] = float(orbit.find('./position/x').text)
+                Ys[j] = float(orbit.find('./position/y').text)
+                Zs[j] = float(orbit.find('./position/z').text)
+            return Ts, Xs, Ys, Zs
+
+        def get_doppler_estimates(start):
+            # type: (numpy.datetime64) -> Tuple[numpy.ndarray, numpy.ndarray, List[numpy.ndarray]]
+            dc_estimate_list = root_node.findall('./dopplerCentroid/dcEstimateList/dcEstimate')
+            shp = (len(dc_estimate_list), )
+            dc_az_time = numpy.empty(shp, dtype=numpy.float64)
+            dc_t0 = numpy.empty(shp, dtype=numpy.float64)
+            data_dc_poly = []
+            for j, dc_estimate in enumerate(dc_estimate_list):
+                dc_az_time[j] = get_seconds(numpy.datetime64(dc_estimate.find('./azimuthTime').text, 'us'),
+                                            start, precision='us')
+                dc_t0[j] = float(dc_estimate.find('./t0').text)
+                data_dc_poly.append(numpy.fromstring(dc_estimate.find('./dataDcPolynomial').text, sep=' '))
+            return dc_az_time, dc_t0, data_dc_poly
+
+        def get_azimuth_fm_estimates(start):
+            # type: (numpy.datetime64) -> Tuple[numpy.ndarray, numpy.ndarray, List[numpy.ndarray]]
+            azimuth_fm_rate_list = root_node.findall('./generalAnnotation/azimuthFmRateList/azimuthFmRate')
+            shp = (len(azimuth_fm_rate_list), )
+            az_t = numpy.empty(shp, dtype=numpy.float64)
+            az_t0 = numpy.empty(shp, dtype=numpy.float64)
+            k_a_poly = []
+            for j, az_fm_rate in enumerate(azimuth_fm_rate_list):
+                az_t[j] = get_seconds(numpy.datetime64(az_fm_rate.find('./azimuthTime').text, 'us'),
+                                      start, precision='us')
+                az_t0[j] = float(az_fm_rate.find('./t0').text)
+                if az_fm_rate.find('c0') is not None:
+                    # old style annotation xml file
+                    k_a_poly.append(numpy.array([float(az_fm_rate.find('./c0').text),
+                                                 float(az_fm_rate.find('./c1').text),
+                                                 float(az_fm_rate.find('./c2').text)], dtype=numpy.float64))
+                else:
+                    k_a_poly.append(numpy.fromstring(az_fm_rate.find('./azimuthFmRatePolynomial').text, sep=' '))
+            return az_t, az_t0, k_a_poly
+
+        def set_core_name(sicd, start_dt, burst_num):
+            # type: (SICDType, datetime, int) -> None
+            t_slice = int(get_slice())
+            swath = get_swath()
+            sicd.CollectionInfo.CoreName = '{0:s}{1:s}{2:s}_{3:02d}_{4:s}_{5:02d}'.format(
+                start_dt.strftime('%d%b%y'),
+                root_node.find('./adsHeader/missionId').text,
+                root_node.find('./adsHeader/missionDataTakeId').text,
+                t_slice,
+                swath,
+                burst_num+1)
+            sicd.CollectionInfo.Parameters['BURST'] = '{0:d}'.format(burst_num+1)
+
+        def set_timeline(sicd, start, duration):
+            # type: (SICDType, numpy.datetime64, float) -> None
+            prf = float(root_node.find('./generalAnnotation/downlinkInformationList/downlinkInformation/prf').text)
+            timeline = sicd.Timeline
+            timeline.CollectStart = start
+            timeline.CollectDuration = duration
+            timeline.IPP[0].TEnd = duration
+            timeline.IPP[0].IPPEnd = int(timeline.CollectDuration*prf)
+            sicd.ImageFormation.TEndProc = duration
+
+        def set_position(sicd, start):
+            # type: (SICDType, numpy.datetime64) -> None
+            Ts, Xs, Ys, Zs = get_state_vectors(start)
+            poly_order = min(5, Ts.size-1)
+            P_X = polynomial.polyfit(Ts, Xs, poly_order)
+            P_Y = polynomial.polyfit(Ts, Ys, poly_order)
+            P_Z = polynomial.polyfit(Ts, Zs, poly_order)
+            sicd.Position = PositionType(ARPPoly=XYZPolyType(X=P_X, Y=P_Y, Z=P_Z))
+
+        def update_rma_and_grid(sicd, first_line_relative_start, start, return_time_dets=False):
+            # type: (SICDType, Union[float, int], numpy.datetime64, bool) -> None|Tuple[float, float]
+            center_frequency = get_center_frequency()
+            # set TimeCAPoly
+            ss_zd_s = get_image_col_spacing_zdt()
+            eta_mid = ss_zd_s * float(out_sicd.ImageData.SCPPixel.Col)
+            sicd.RMA.INCA.TimeCAPoly = Poly1DType(
+                Coefs=[first_line_relative_start+eta_mid, ss_zd_s/out_sicd.Grid.Col.SS])
+            range_time_scp = sicd.RMA.INCA.R_CA_SCP*2/speed_of_light
+            # get velocity polynomial
+            vel_poly = sicd.Position.ARPPoly.derivative(1, return_poly=True)
+            # We pick a single velocity magnitude at closest approach to represent
+            # the entire burst.  This is valid, since the magnitude of the velocity
+            # changes very little.
+            vm_ca = numpy.linalg.norm(vel_poly(sicd.RMA.INCA.TimeCAPoly[0]))
+            az_rate_times, az_rate_t0, k_a_poly = get_azimuth_fm_estimates(start)
+            # find the closest fm rate polynomial
+            az_rate_poly_ind = int(numpy.argmin(numpy.abs(az_rate_times - sicd.RMA.INCA.TimeCAPoly[0])))
+            az_rate_poly = Poly1DType(Coefs=k_a_poly[az_rate_poly_ind])
+            dr_ca_poly = az_rate_poly.shift(t_0=az_rate_t0[az_rate_poly_ind] - range_time_scp,
+                                            alpha=2/speed_of_light,
+                                            return_poly=False)
+            r_ca = numpy.array([sicd.RMA.INCA.R_CA_SCP, 1], dtype=numpy.float64)
+            sicd.RMA.INCA.DRateSFPoly = numpy.reshape(
+                -numpy.convolve(dr_ca_poly, r_ca)*(speed_of_light/(2*center_frequency*vm_ca*vm_ca)),
+                (-1, 1))
+            # Doppler Centroid
+            dc_est_times, dc_t0, data_dc_poly = get_doppler_estimates(start)
+            # find the closest doppler centroid polynomial
+            dc_poly_ind = int(numpy.argmin(numpy.abs(dc_est_times - sicd.RMA.INCA.TimeCAPoly[0])))
+            # we are going to move the respective polynomial from reference point as dc_t0 to
+            # reference point at SCP time.
+            dc_poly = Poly1DType(Coefs=data_dc_poly[dc_poly_ind])
+
+            # Fit DeltaKCOAPoly, DopCentroidPoly, and TimeCOAPoly from data
+            tau_0 = float(root_node.find('./imageAnnotation/imageInformation/slantRangeTime').text)
+            delta_tau_s = 1./float(root_node.find('./generalAnnotation/productInformation/rangeSamplingRate').text)
+            image_data = sicd.ImageData
+            grid = sicd.Grid
+            inca = sicd.RMA.INCA
+            # common use for the fitting efforts
+            poly_order = 2
+            grid_samples = poly_order + 4
+            cols = numpy.linspace(0, image_data.NumCols - 1, grid_samples, dtype=numpy.int64)
+            rows = numpy.linspace(0, image_data.NumRows - 1, grid_samples, dtype=numpy.int64)
+            coords_az = get_im_physical_coords(cols, grid, image_data, 'col')
+            coords_rg = get_im_physical_coords(rows, grid, image_data, 'row')
+            coords_az_2d, coords_rg_2d = numpy.meshgrid(coords_az, coords_rg)
+
+            # fit DeltaKCOAPoly
+            tau = tau_0 + delta_tau_s*rows
+            # Azimuth steering rate (constant, not dependent on burst or range)
+            k_psi = numpy.deg2rad(float(
+                root_node.find('./generalAnnotation/productInformation/azimuthSteeringRate').text))
+            k_s = vm_ca*center_frequency*k_psi*2/speed_of_light
+            k_a = az_rate_poly(tau - az_rate_t0[az_rate_poly_ind])
+            k_t = (k_a*k_s)/(k_a-k_s)
+            f_eta_c = dc_poly(tau - dc_t0[dc_poly_ind])
+            eta = (cols - image_data.SCPPixel.Col)*ss_zd_s
+            eta_c = -f_eta_c/k_a  # Beam center crossing time (TimeCOA)
+            eta_ref = eta_c - eta_c[0]
+            eta_2d, eta_ref_2d = numpy.meshgrid(eta, eta_ref)
+            eta_arg = eta_2d - eta_ref_2d
+            deramp_phase = 0.5*k_t[:, numpy.newaxis]*eta_arg*eta_arg
+            demod_phase = eta_arg*f_eta_c[:, numpy.newaxis]
+            total_phase = deramp_phase + demod_phase
+            phase, residuals, rank, sing_values = two_dim_poly_fit(
+                coords_rg_2d, coords_az_2d, total_phase,
+                x_order=poly_order, y_order=poly_order, x_scale=1e-3, y_scale=1e-3, rcond=1e-35)
+            logging.info(
+                'The phase polynomial fit details:\nroot mean square residuals = {}\nrank = {}\n'
+                'singular values = {}'.format(residuals, rank, sing_values))
+
+            # DeltaKCOAPoly is derivative of phase in azimuth/Col direction
+            delta_kcoa_poly = polynomial.polyder(phase, axis=1)
+            grid.Col.DeltaKCOAPoly = Poly2DType(Coefs=delta_kcoa_poly)
+
+            # derive the DopCentroidPoly directly
+            dop_centroid_poly = delta_kcoa_poly*grid.Col.SS/ss_zd_s
+            inca.DopCentroidPoly = Poly2DType(Coefs=dop_centroid_poly)
+
+            # complete deriving the TimeCOAPoly, which depends on the DOPCentroidPoly
+            time_ca_sampled = inca.TimeCAPoly(coords_az_2d)
+            doppler_rate_sampled = polynomial.polyval(coords_rg_2d, dr_ca_poly)
+            dop_centroid_sampled = inca.DopCentroidPoly(coords_rg_2d, coords_az_2d)
+            time_coa_sampled = time_ca_sampled + dop_centroid_sampled / doppler_rate_sampled
+            time_coa_poly, residuals, rank, sing_values = two_dim_poly_fit(
+                coords_rg_2d, coords_az_2d, time_coa_sampled,
+                x_order=poly_order, y_order=poly_order, x_scale=1e-3, y_scale=1e-3, rcond=1e-40)
+            logging.info(
+                'The TimeCOAPoly fit details:\nroot mean square residuals = {}\nrank = {}\n'
+                'singular values = {}'.format(residuals, rank, sing_values))
+            grid.TimeCOAPoly = Poly2DType(Coefs=time_coa_poly)
+            if return_time_dets:
+                return time_coa_sampled.min(), time_coa_sampled.max()
+
+        def adjust_time(sicd, time_offset):
+            # type: (SICDType, float) -> None
+            # adjust TimeCOAPoly
+            sicd.Grid.TimeCOAPoly.Coefs[0, 0] -= time_offset
+            # adjust TimeCAPoly
+            sicd.RMA.INCA.TimeCAPoly.Coefs[0] -= time_offset
+            # shift ARPPoly
+            sicd.Position.ARPPoly = sicd.Position.ARPPoly.shift(-time_offset, return_poly=True)
+
+        def update_geodata(sicd):  # type: (SICDType) -> None
+            ecf = point_projection.image_to_ground([sicd.ImageData.SCPPixel.Row, sicd.ImageData.SCPPixel.Col], sicd)
+            sicd.GeoData.SCP = SCPType(ECF=ecf)  # LLH will be populated.
+
+        def get_scps(count):
+            # SCPPixel - points at which to interpolate geo_pixels & geo_coords data
+            scp_pixels = numpy.zeros((count, 2), dtype=numpy.float64)
+            scp_pixels[:, 0] = int((out_sicd.ImageData.NumRows - 1)/2.)
+            scp_pixels[:, 1] = int((out_sicd.ImageData.NumCols - 1)/2.) + out_sicd.ImageData.NumCols*(numpy.arange(count, dtype=numpy.float64))
+            scps = numpy.zeros((count, 3), dtype=numpy.float64)
+            for j in range(3):
+                scps[:, j] = griddata(geo_pixels, geo_coords[:, j], scp_pixels)
+            return scps
+
+        def finalize_stripmap():  # type: () -> SICDType
+            # out_sicd is the one that we return, just complete it
+            # set preliminary geodata (required for projection)
+            scp = get_scps(1)
+            out_sicd.GeoData = GeoDataType(SCP=SCPType(ECF=scp[0, :]))  # EarthModel & LLH are implicitly set
+            # NB: SCPPixel is already set to the correct thing
+            im_dat = out_sicd.ImageData
+            im_dat.ValidData = (
+                (0, 0), (0, im_dat.NumCols-1), (im_dat.NumRows-1, im_dat.NumCols-1), (im_dat.NumRows-1, 0))
+            start_dt = datetime.strptime(root_node.find('./generalAnnotation'
+                                                        '/downlinkInformationList'
+                                                        '/downlinkInformation'
+                                                        '/firstLineSensingTime').text, DT_FMT)
+            start = numpy.datetime64(start_dt, 'us')
+            stop = numpy.datetime64(root_node.find('./generalAnnotation'
+                                                   '/downlinkInformationList'
+                                                   '/downlinkInformation'
+                                                   '/lastLineSensingTime').text, 'us')
+            set_core_name(out_sicd, start_dt, 0)
+            set_timeline(out_sicd, start, get_seconds(stop, start, precision='us'))
+            set_position(out_sicd, start)
+
+            azimuth_time_first_line = numpy.datetime64(
+                root_node.find('./imageAnnotation/imageInformation/productFirstLineUtcTime').text, 'us')
+            first_line_relative_start = get_seconds(azimuth_time_first_line, start, precision='us')
+            update_rma_and_grid(out_sicd, first_line_relative_start, start)
+            update_geodata(out_sicd)
+            return out_sicd
+
+        def finalize_bursts():  # type: () -> List[SICDType]
+            # we will have one sicd per burst.
+            sicds = []
+            scps = get_scps(len(burst_list))
+
+            for j, burst in enumerate(burst_list):
+                t_sicd = out_sicd.copy()
+                # set preliminary geodata (required for projection)
+                t_sicd.GeoData = GeoDataType(SCP=SCPType(ECF=scps[j, :]))  # EarthModel & LLH are implicitly set
+
+                xml_first_cols = numpy.fromstring(burst.find('./firstValidSample').text, sep=' ', dtype=numpy.int64)
+                xml_last_cols = numpy.fromstring(burst.find('./lastValidSample').text, sep=' ', dtype=numpy.int64)
+                valid = (xml_first_cols >= 0) & (xml_last_cols >= 0)
+                valid_cols = numpy.arange(xml_first_cols.size, dtype=numpy.int64)[valid]
+                first_row = int(numpy.min(xml_first_cols[valid]))
+                last_row = int(numpy.max(xml_last_cols[valid]))
+                first_col = valid_cols[0]
+                last_col = valid_cols[-1]
+                t_sicd.ImageData.ValidData = (
+                    (first_row, first_col), (first_row, last_col), (last_row, last_col), (last_row, first_col))
+
+                # This is the first and last zero doppler times of the columns in the burst.
+                # Not really CollectStart and CollectDuration in SICD (first last pulse time)
+                start_dt = datetime.strptime(burst.find('./azimuthTime').text, DT_FMT)
+                start = numpy.datetime64(start_dt, 'us')
+                set_core_name(t_sicd, start_dt, j)
+                set_position(t_sicd, start)
+                early, late = update_rma_and_grid(t_sicd, 0, start, return_time_dets=True)
+                new_start = start + numpy.timedelta64(numpy.int64(early * 1e6), 'us')
+                duration = late - early
+                set_timeline(t_sicd, new_start, duration)
+                # adjust my time offset
+                adjust_time(t_sicd, early)
+                update_geodata(t_sicd)
+                t_sicd.derive()
+                sicds.append(t_sicd)
+            return sicds
+
+        ######
+        # create a common sicd with shared basic information here
+        out_sicd = self._base_sicd.copy()
+        out_sicd.ImageData = get_image_data()
+        out_sicd.Grid = get_common_grid()
+        out_sicd.Timeline = get_common_timeline()
+        out_sicd.RadarCollection = get_common_radar_collection()
+        out_sicd.ImageFormation = get_image_formation()
+        out_sicd.RMA = get_rma()
+        out_sicd.CollectionInfo = get_collection_info()
+        ######
+        # consider the burst situation, and split into the appropriate sicd collection
+        if len(burst_list) > 0:
+            return finalize_bursts()
         else:
-            burst_meta.ImageData.ValidData = MetaNode()
-            burst_meta.ImageData.ValidData.Vertex = [MetaNode()]
-            burst_meta.ImageData.ValidData.Vertex[0].Row = 0
-            burst_meta.ImageData.ValidData.Vertex[0].Col = 0
-            burst_meta.ImageData.ValidData.Vertex.append(MetaNode())
-            burst_meta.ImageData.ValidData.Vertex[1].Row = 0
-            burst_meta.ImageData.ValidData.Vertex[1].Col = int(common_meta.ImageData.NumCols)
-            burst_meta.ImageData.ValidData.Vertex.append(MetaNode())
-            burst_meta.ImageData.ValidData.Vertex[2].Row = int(common_meta.ImageData.NumRows)
-            burst_meta.ImageData.ValidData.Vertex[2].Col = int(common_meta.ImageData.NumCols)
-            burst_meta.ImageData.ValidData.Vertex.append(MetaNode())
-            burst_meta.ImageData.ValidData.Vertex[3].Row = int(common_meta.ImageData.NumRows)
-            burst_meta.ImageData.ValidData.Vertex[3].Col = 0
-        # Timeline
-        if numbursts > 0:
-            # This is the first and last zero doppler times of the columns in
-            # the burst.  This isn't really what we mean by CollectStart and
-            # CollectDuration in SICD (really we want first and last pulse
-            # times), but its all we have.
-            start = datetime.datetime.strptime(burst.find('./azimuthTime').text, DATE_FMT)
-            first_line_relative_start = 0  # CollectStart is zero Doppler time of first column
-        else:
-            start = datetime.datetime.strptime(root_node.find(
-                './generalAnnotation/downlinkInformationList/downlinkInformation/' +
-                'firstLineSensingTime').text, DATE_FMT)
-            stop = datetime.datetime.strptime(root_node.find(
-                './generalAnnotation/downlinkInformationList/downlinkInformation/' +
-                'lastLineSensingTime').text, DATE_FMT)
-            # Maybe CollectStart/CollectDuration should be set by
-            # product/imageAnnotation/imageInformation/productFirstLineUtcTime
-            # and productLastLineUtcTime.  This would make it consistent with
-            # non-stripmap which just defines first and last zero doppler
-            # times, but is not really consistent with what SICD generally
-            # means by CollectStart/CollectDuration.
-            burst_meta.Timeline.CollectStart = start
-            burst_meta.Timeline.CollectDuration = (stop-start).total_seconds()
-            first_line_relative_start = (azimuth_time_first_line-start).total_seconds()
-        # After we have start_s, we can generate CoreName
-        burst_meta.CollectionInfo.CoreName = (
-            # Prefix with the NGA CoreName standard format
-            start.strftime('%d%b%y') + common_meta.CollectionInfo.CollectorName +
-            # The following core name is unique within all Sentinel-1 coherent data periods:
-            root_node.find('./adsHeader/missionDataTakeId').text + '_' +
-            ('%02d' % int(sliceNumber)) + '_' + swath + '_' + ('%02d' % (count+1)))
-        # Position
-        # Polynomial is computed with respect to time from start of burst
-        state_vector_T_burst = np.array([(t-start).total_seconds() for t in state_vector_T])
-        # Some datasets don't include enough state vectors for 5th order fit
-        # One could find the order of polynomial that most accurately describes
-        # this position, but use velocity as cross-validation so that the data
-        # is not being overfit.  Orders over 5 often become badly conditioned
-        polyorder = 5
-        burst_meta.Position = MetaNode()
-        burst_meta.Position.ARPPoly = MetaNode()
-        burst_meta.Position.ARPPoly.X = poly.polyfit(state_vector_T_burst,
-                                                     state_vector_X, polyorder)
-        burst_meta.Position.ARPPoly.Y = poly.polyfit(state_vector_T_burst,
-                                                     state_vector_Y, polyorder)
-        burst_meta.Position.ARPPoly.Z = poly.polyfit(state_vector_T_burst,
-                                                     state_vector_Z, polyorder)
-        # RMA (still in for statement for each burst)
-        # Sentinel-1 is always right-looking, so TimeCAPoly should never have
-        # to be "flipped" for left-looking cases.
-        burst_meta.RMA.INCA.TimeCAPoly = np.array([first_line_relative_start + eta_mid,
-                                                   ss_zd_s/float(common_meta.Grid.Col.SS)])
-        # Doppler Centroid
-        # We choose the single Doppler centroid polynomial closest to the
-        # center of the current burst.
-        dc_est_times = np.array([(t - start).total_seconds() for t in dc_az_time])
-        dc_poly_ind = np.argmin(abs(dc_est_times - burst_meta.RMA.INCA.TimeCAPoly[0]))
-        # Shift polynomial from origin at dc_t0 (reference time for Sentinel
-        # polynomial) to SCP time (reference time for SICD polynomial)
-        range_time_scp = (common_meta.RMA.INCA.R_CA_SCP * 2)/C
-        # The Doppler centroid field in the Sentinel-1 metadata is not
-        # complete, so we cannot use it directly.  That description of Doppler
-        # centroid by itself does not vary by azimuth although the
-        # Col.DeltaKCOAPoly we see in the data definitely does. We will define
-        # DopCentroidPoly differently later down in the code.
-        # Doppler rate
-        # Total Doppler rate is a combination of the Doppler FM rate and the
-        # Doppler rate introduced by the scanning of the antenna.
-        # We pick a single velocity magnitude at closest approach to represent
-        # the entire burst.  This is valid, since the magnitude of the velocity
-        # changes very little.
-        vm_ca = np.linalg.norm([  # Magnitude of the velocity at SCP closest approach
-            poly.polyval(burst_meta.RMA.INCA.TimeCAPoly[0],  # Velocity in X
-                         poly.polyder(burst_meta.Position.ARPPoly.X)),
-            poly.polyval(burst_meta.RMA.INCA.TimeCAPoly[0],  # Velocity in Y
-                         poly.polyder(burst_meta.Position.ARPPoly.Y)),
-            poly.polyval(burst_meta.RMA.INCA.TimeCAPoly[0],  # Velocity in Z
-                         poly.polyder(burst_meta.Position.ARPPoly.Z))])
-        # Compute FM Doppler Rate, k_a
-        # We choose the single azimuth FM rate polynomial closest to the
-        # center of the current burst.
-        az_rate_times = np.array([(t - start).total_seconds() for t in az_t])
-        az_rate_poly_ind = np.argmin(abs(az_rate_times - burst_meta.RMA.INCA.TimeCAPoly[0]))
-        # SICD's Doppler rate seems to be FM Doppler rate, not total Doppler rate
-        # Shift polynomial from origin at az_t0 (reference time for Sentinel
-        # polynomial) to SCP time (reference time for SICD polynomial)
-        DR_CA = _polyshift(k_a_poly[az_rate_poly_ind],
-                           range_time_scp - az_t0[az_rate_poly_ind])
-        # Scale 1D polynomial to from Hz/s^n to Hz/m^n
-        DR_CA = DR_CA * ((2./C)**np.arange(len(DR_CA)))
-        r_ca = np.array([common_meta.RMA.INCA.R_CA_SCP, 1])
-        # RMA.INCA.DRateSFPoly is a function of Doppler rate.
-        burst_meta.RMA.INCA.DRateSFPoly = (- np.convolve(DR_CA, r_ca) *  # Assumes a SGN of -1
-                                           (C / (2 * fc * np.power(vm_ca, 2))))
-        burst_meta.RMA.INCA.DRateSFPoly = burst_meta.RMA.INCA.DRateSFPoly[:, np.newaxis]
-        # TimeCOAPoly
-        # TimeCOAPoly = TimeCA + (DopCentroid/dop_rate);  # True if DopCentroidCOA = true
-        # Since we don't know how to evaluate this equation analytically, we
-        # could evaluate samples of it across our image and fit a 2D polynomial
-        # to it later.
-        POLY_ORDER = 2
-        grid_samples = POLY_ORDER + 1
-        cols = np.around(np.linspace(0, common_meta.ImageData.NumCols-1,
-                                     num=grid_samples)).astype(int)
-        rows = np.around(np.linspace(0, common_meta.ImageData.NumRows-1,
-                                     num=grid_samples)).astype(int)
-        coords_az_m = (cols - common_meta.ImageData.SCPPixel.Col).astype(float) *\
-            common_meta.Grid.Col.SS
-        coords_rg_m = (rows - common_meta.ImageData.SCPPixel.Row).astype(float) *\
-            common_meta.Grid.Row.SS
-        timeca_sampled = poly.polyval(coords_az_m, burst_meta.RMA.INCA.TimeCAPoly)
-        doprate_sampled = poly.polyval(coords_rg_m, DR_CA)
-        # Grid.Col.DeltaKCOAPoly
-        # Reference: Definition of the TOPS SLC deramping function for products
-        # generated by the S-1 IPF, COPE-GSEG-EOPG-TN-14-0025
-        tau = tau_0 + delta_tau_s * np.arange(0, int(common_meta.ImageData.NumRows))
-        # The vm_ca used here is slightly different than the ESA deramp
-        # document, since the document interpolates the velocity values given
-        # rather than the position values, which is what we do here.
-        k_s = (2. * (vm_ca / C)) * fc * k_psi
-        k_a = poly.polyval(tau - az_t0[az_rate_poly_ind], k_a_poly[az_rate_poly_ind])
-        k_t = (k_a * k_s)/(k_a - k_s)
-        f_eta_c = poly.polyval(tau - dc_t0[dc_poly_ind], data_dc_poly[dc_poly_ind])
-        eta = ((-float(common_meta.ImageData.SCPPixel.Col) * ss_zd_s) +
-               (np.arange(float(common_meta.ImageData.NumCols))*ss_zd_s))
-        eta_c = -f_eta_c/k_a  # Beam center crossing time.  TimeCOA in SICD terminology
-        eta_ref = eta_c - eta_c[0]
-        eta_grid, eta_ref_grid = np.meshgrid(eta[cols], eta_ref[rows])
-        eta_arg = eta_grid - eta_ref_grid
-        deramp_phase = k_t[rows, np.newaxis] * np.power(eta_arg, 2) / 2
-        demod_phase = eta_arg * f_eta_c[rows, np.newaxis]
-        # Sampled phase correction for deramping and demodding
-        total_phase = deramp_phase + demod_phase
-        # Least squares fit for 2D polynomial
-        # A*x = b
-        [coords_az_m_2d, coords_rg_m_2d] = np.meshgrid(coords_az_m, coords_rg_m)
-        a = np.zeros(((POLY_ORDER+1)**2, (POLY_ORDER+1)**2))
-        for k in range(POLY_ORDER+1):
-            for j in range(POLY_ORDER+1):
-                a[:, k*(POLY_ORDER+1)+j] = np.multiply(
-                    np.power(coords_az_m_2d.flatten(), j),
-                    np.power(coords_rg_m_2d.flatten(), k))
-        A = np.zeros(((POLY_ORDER+1)**2, (POLY_ORDER+1)**2))
-        for k in range((POLY_ORDER+1)**2):
-            for j in range((POLY_ORDER+1)**2):
-                A[k, j] = np.multiply(a[:, k], a[:, j]).sum()
-        b_phase = [np.multiply(total_phase.flatten(), a[:, k]).sum()
-                   for k in range((POLY_ORDER+1)**2)]
-        x_phase = np.linalg.solve(A, b_phase)
-        phase = np.reshape(x_phase, (POLY_ORDER+1, POLY_ORDER+1))
-        # DeltaKCOAPoly is derivative of phase in Col direction
-        burst_meta.Grid.Col.DeltaKCOAPoly = poly.polyder(phase, axis=1)
-        # DopCentroidPoly/TimeCOAPoly
-        # Another way to derive the Doppler Centroid, which is back-calculated
-        # from the ESA-documented azimuth deramp phase function.
-        DopCentroidPoly = (burst_meta.Grid.Col.DeltaKCOAPoly *
-                           (float(common_meta.Grid.Col.SS) / ss_zd_s))
-        burst_meta.RMA.INCA.DopCentroidPoly = DopCentroidPoly
-        dopcentroid2_sampled = poly.polyval2d(coords_rg_m_2d, coords_az_m_2d, DopCentroidPoly)
-        timecoa_sampled = timeca_sampled + dopcentroid2_sampled/doprate_sampled[:, np.newaxis]
-        # Convert sampled TimeCOA to polynomial
-        b_coa = [np.multiply(timecoa_sampled.flatten(), a[:, k]).sum()
-                 for k in range((POLY_ORDER+1)**2)]
-        x_coa = np.linalg.solve(A, b_coa)
-        burst_meta.Grid.TimeCOAPoly = np.reshape(x_coa, (POLY_ORDER+1, POLY_ORDER+1))
-        # Timeline
-        # We don't know the precise start and stop time of each burst (as in
-        # the times of first and last pulses), so we use the min and max COA
-        # time, which is a closer approximation than the min and max zero
-        # Doppler times.  At least COA times will not overlap between bursts.
-        if numbursts > 0:
-            # STRIPMAP case uses another time origin different from first zero Doppler time
-            time_offset = timecoa_sampled.min()
-            burst_meta.Timeline.CollectStart = start + datetime.timedelta(seconds=time_offset)
-            burst_meta.Timeline.CollectDuration = (timecoa_sampled.max() -
-                                                   timecoa_sampled.min())
-            # Adjust all SICD fields that were dependent on start time
-            # Time is output of polynomial:
-            burst_meta.Grid.TimeCOAPoly[0, 0] = \
-                burst_meta.Grid.TimeCOAPoly[0, 0] - time_offset
-            burst_meta.RMA.INCA.TimeCAPoly[0] = \
-                burst_meta.RMA.INCA.TimeCAPoly[0] - time_offset
-            # Time is input of polynomial:
-            burst_meta.Position.ARPPoly.X = \
-                _polyshift(burst_meta.Position.ARPPoly.X, time_offset)
-            burst_meta.Position.ARPPoly.Y = \
-                _polyshift(burst_meta.Position.ARPPoly.Y, time_offset)
-            burst_meta.Position.ARPPoly.Z = \
-                _polyshift(burst_meta.Position.ARPPoly.Z, time_offset)
-        burst_meta.Timeline.IPP.Set.TStart = 0
-        burst_meta.Timeline.IPP.Set.TEnd = burst_meta.Timeline.CollectDuration
-        burst_meta.Timeline.IPP.Set.IPPStart = int(0)
-        burst_meta.Timeline.IPP.Set.IPPEnd = \
-            int(np.floor(burst_meta.Timeline.CollectDuration * prf))
-        burst_meta.ImageFormation.TEndProc = burst_meta.Timeline.CollectDuration
-        # GeoData
-        # Rough estimate of SCP (interpolated from metadata geolocation grid)
-        # to bootstrap (point_image_to_ground uses it only to find tangent to
-        # ellipsoid.)  Then we will immediately replace it with a more precise
-        # value from point_image_to_ground and the SICD sensor model.
-        burst_meta.GeoData.SCP = MetaNode()
-        burst_meta.GeoData.SCP.ECF = MetaNode()
-        burst_meta.GeoData.SCP.ECF.X = scp_x[count]
-        burst_meta.GeoData.SCP.ECF.Y = scp_y[count]
-        burst_meta.GeoData.SCP.ECF.Z = scp_z[count]
-        # Note that blindly using the heights in the geolocationGridPointList
-        # can result in some confusing results.  Since the scenes can be
-        # extremely large, you could easily be using a height in your
-        # geolocationGridPointList that is very high, but still have ocean
-        # shoreline in your scene. Blindly projecting the the plane tangent to
-        # the inflated ellipsoid at SCP could result in some badly placed
-        # geocoords in Google Earth.  Of course, one must always be careful
-        # with ground projection and height variability, but probably even more
-        # care is warranted in this data than even usual due to large scene
-        # sizes and frequently steep graze angles.
-        # Note also that some Sentinel-1 data we have see has different heights
-        # in the geolocation grid for polarimetric channels from the same
-        # swath/burst!?!
-        llh = gc.ecf_to_geodetic((burst_meta.GeoData.SCP.ECF.X,
-                                 burst_meta.GeoData.SCP.ECF.Y,
-                                 burst_meta.GeoData.SCP.ECF.Z))
-        burst_meta.GeoData.SCP.LLH = MetaNode()
-        burst_meta.GeoData.SCP.LLH.Lat = llh[0, 0]
-        burst_meta.GeoData.SCP.LLH.Lon = llh[0, 1]
-        burst_meta.GeoData.SCP.LLH.HAE = llh[0, 2]
-        # Now that SCP has been populated, populate GeoData.SCP more precisely.
-        ecf = point.image_to_ground([burst_meta.ImageData.SCPPixel.Row,
-                                     burst_meta.ImageData.SCPPixel.Col], burst_meta)[0]
-        burst_meta.GeoData.SCP.ECF.X = ecf[0]
-        burst_meta.GeoData.SCP.ECF.Y = ecf[1]
-        burst_meta.GeoData.SCP.ECF.Z = ecf[2]
-        llh = gc.ecf_to_geodetic(ecf)[0]
-        burst_meta.GeoData.SCP.LLH.Lat = llh[0]
-        burst_meta.GeoData.SCP.LLH.Lon = llh[1]
-        burst_meta.GeoData.SCP.LLH.HAE = llh[2]
+            return finalize_stripmap()
 
-        sicd_meta.append(burst_meta)
+    def _refine_using_calibration(self, cal_file_name, sicds):
+        """
 
-    return sicd_meta
+        Parameters
+        ----------
+        cal_file_name : str
+        sicds : SICDType|List[SICDType]
 
+        Returns
+        -------
+        None
+        """
 
-def meta2sicd_noise(filename, sicd_meta, manifest_meta):
-    """This function parses the Sentinel Noise file and populates the NoisePoly field."""
+        # do not use before Sentinel baseline processing calibration update on 25 Nov 2015.
+        if self._base_sicd.ImageCreation.DateTime < numpy.datetime64('2015-11-25'):
+            return
+        root_node = _parse_xml(cal_file_name, without_ns=True)
+        if isinstance(sicds, SICDType):
+            sicds = [sicds, ]
 
-    # Sentinel baseline processing calibration update on Nov 25 2015
-    if manifest_meta.ImageCreation.DateTime < datetime.datetime(2015, 11, 25):
-        return
+        def update_sicd(sicd, index):  # type: (SICDType, int) -> None
+            # NB: in the deprecated version, there is a check if beta is constant,
+            #   in which case constant values are used for beta/sigma/gamma.
+            #   This has been removed.
 
-    lines_per_burst = int(sicd_meta[0].ImageData.NumCols)
-    range_size_pixels = int(sicd_meta[0].ImageData.NumRows)
-
-    # Extract all relevant noise values from XML
-    root_node = ET.parse(filename).getroot()
-
-    def extract_noise(noise_string):
-        noise_vector_list = root_node.findall('./' + noise_string + 'VectorList/' +
-                                              noise_string + 'Vector')
-        line = [None]*len(noise_vector_list)
-        pixel = [None]*len(noise_vector_list)
-        noise = [None]*len(noise_vector_list)
-        nLUTind = 0
-        for noise_vector in noise_vector_list:
-            line[nLUTind] = np.fromstring(noise_vector.find('./line').text,
-                                          dtype='int32', sep=' ')
-            # Some datasets have noise vectors for negative lines.
-            # Might mean that the data is included from a burst before the actual slice?
-            # Ignore it for now, since line 0 always lines up with the first valid burst
-            if np.all(line[nLUTind] < 0):
-                continue
-            pixel[nLUTind] = noise_vector.find('./pixel')
-            if pixel[nLUTind] is not None:  # Doesn't exist for azimuth noise
-                pixel[nLUTind] = np.fromstring(pixel[nLUTind].text, dtype='int32', sep=' ')
-            noise[nLUTind] = np.fromstring(noise_vector.find('./'+noise_string+'Lut').text,
-                                           dtype='float', sep=' ')
-            # Some datasets do not have any noise data and are populated with 0s instead
-            # In this case just don't populate the SICD noise metadata at all
-            if not np.any(np.array(noise != 0.0) and np.array(noise) != np.NINF):
+            valid_lines = (line >= index*lines_per_burst) & (line < (index+1)*lines_per_burst)
+            valid_count = numpy.sum(valid_lines)
+            if valid_count == 0:
+                # this burst contained no useful calibration data
+                # TODO: can we not interpolate or something?
                 return
-            # Linear values given in XML. SICD uses dB.
-            noise[nLUTind] = 10 * np.log10(noise[nLUTind])
-            # Sanity checking
-            if (sicd_meta[0].CollectionInfo.RadarMode.ModeID == 'IW' and  # SLC IW product
-               np.any(line[nLUTind] % lines_per_burst != 0) and
-               noise_vector != noise_vector_list[-1]):
-                    # Last burst has different timing
-                    raise(ValueError('Expect noise file to have one LUT per burst. ' +
-                                     'More are present'))
-            if (pixel[nLUTind] is not None and
-               pixel[nLUTind][len(pixel[nLUTind])-1] > range_size_pixels):
-                raise(ValueError('Noise file has more pixels in LUT than range size.'))
-            nLUTind += 1
-        # Remove empty list entries from negative lines
-        line = [x for x in line if x is not None]
-        pixel = [x for x in pixel if x is not None]
-        noise = [x for x in noise if x is not None]
-        return (line, pixel, noise)
 
-    if root_node.find("./noiseVectorList") is not None:
-        range_line, range_pixel, range_noise = extract_noise("noise")
-        azi_noise = None
-    else:  # noiseRange and noiseAzimuth fields began in March 2018
-        range_line, range_pixel, range_noise = extract_noise("noiseRange")
-        # This would pull azimuth noise, but it seems to only be about 1 dB, and is a
-        # cycloid, which is hard to fit.
-        azi_line, azi_pixel, azi_noise = extract_noise("noiseAzimuth")
-    # Loop through each burst and fit a polynomial for SICD.
-    # If data is stripmap, sicd_meta will be of length 1.
-    for x in range(len(sicd_meta)):
-        # Stripmaps have more than one noise LUT for the whole image
-        if(sicd_meta[0].CollectionInfo.RadarMode.ModeID[0] == 'S'):
-            coords_rg_m = (range_pixel[0] + sicd_meta[x].ImageData.FirstRow -
-                           sicd_meta[x].ImageData.SCPPixel.Row) * sicd_meta[x].Grid.Row.SS
-            coords_az_m = (np.concatenate(range_line) + sicd_meta[x].ImageData.FirstCol -
-                           sicd_meta[x].ImageData.SCPPixel.Col) * sicd_meta[x].Grid.Col.SS
+            coords_rg = (pixel[valid_lines] + sicd.ImageData.FirstRow - sicd.ImageData.SCPPixel.Row)*sicd.Grid.Row.SS
+            coords_az = (line[valid_lines] + sicd.ImageData.FirstCol - sicd.ImageData.SCPPixel.Col)*sicd.Grid.Col.SS
+            # NB: coords_rg = (valid_count, M) and coords_az = (valid_count, )
+            coords_az = numpy.repeat(coords_az, pixel.shape[1])
+            if valid_count > 1:
+                coords_az = coords_az.reshape((valid_count, -1))
 
-            # Fitting the two axis seperately then combining gives error than most 2d solvers
-            # The noise is not monotonic across range
-            rg_fit = np.polynomial.polynomial.polyfit(coords_rg_m, np.mean(range_noise, 0), 7)
-            # Azimuth noise varies far less than range
-            az_fit = np.polynomial.polynomial.polyfit(coords_az_m, np.mean(range_noise, 1), 7)
-            noise_poly = np.outer(az_fit / np.max(az_fit), rg_fit)
-        else:  # TOPSAR modes (IW/EW) have a single LUT per burst. Num of bursts varies.
-            # Noise varies significantly in range, but also typically a little, ~1dB, in azimuth.
-            coords_rg_m = (range_pixel[x]+sicd_meta[x].ImageData.FirstRow -
-                           sicd_meta[x].ImageData.SCPPixel.Row) * sicd_meta[x].Grid.Row.SS
-            rg_fit = np.polynomial.polynomial.polyfit(coords_rg_m, range_noise[x], 7)
-            noise_poly = np.array(rg_fit).reshape(1, -1).T  # Make values along SICD range
+            def create_poly(arr, poly_order=2):
+                rg_poly = polynomial.polyfit(coords_rg.flatten(), arr.flatten(), poly_order)
+                az_poly = polynomial.polyfit(coords_az.flatten(), arr.flatten(), poly_order)
+                return Poly2DType(Coefs=numpy.outer(az_poly/numpy.max(az_poly), rg_poly))
 
-            if azi_noise is not None:
-                coords_az_m = ((azi_line[0] - (lines_per_burst*x) -
-                                sicd_meta[x].ImageData.SCPPixel.Col) * sicd_meta[x].Grid.Col.SS)
-                valid_lines = np.logical_and(np.array(azi_line[0]) >= lines_per_burst*x,
-                                             np.array(azi_line[0]) < lines_per_burst*(x+1))
-                az_fit = np.polynomial.polynomial.polyfit(coords_az_m[valid_lines],
-                                                          azi_noise[0][valid_lines], 2)
-                noise_poly = np.zeros((len(rg_fit), len(az_fit)))
-                noise_poly[:, 0] = rg_fit
-                noise_poly[0, :] = az_fit
-                noise_poly[0, 0] = rg_fit[0]+az_fit[0]
+            if sicd.Radiometric is None:
+                sicd.Radiometric = RadiometricType()
+            sicd.Radiometric.SigmaZeroSFPoly = create_poly(sigma[valid_lines, :], poly_order=2)
+            sicd.Radiometric.BetaZeroSFPoly = create_poly(beta[valid_lines, :], poly_order=2)
+            sicd.Radiometric.GammaZeroSFPoly = create_poly(gamma[valid_lines, :], poly_order=2)
+            return
 
-        # should have Radiometric field already in metadata if cal file is present
-        if not hasattr(sicd_meta[x], 'Radiometric'):
-            sicd_meta[x].Radiometric = MetaNode()
-        sicd_meta[x].Radiometric.NoiseLevel = MetaNode()
-        sicd_meta[x].Radiometric.NoiseLevel.NoiseLevelType = 'ABSOLUTE'
-        sicd_meta[x].Radiometric.NoiseLevel.NoisePoly = noise_poly
+        cal_vector_list = root_node.findall('./calibrationVectorList/calibrationVector')
+        line = numpy.empty((len(cal_vector_list), ), dtype=numpy.float64)
+        pixel, sigma, beta, gamma = [], [], [], []
+        for i, cal_vector in enumerate(cal_vector_list):
+            line[i] = float(cal_vector.find('./line').text)
+            pixel.append(numpy.fromstring(cal_vector.find('./pixel').text, sep=' ', dtype=numpy.float64))
+            sigma.append(numpy.fromstring(cal_vector.find('./sigmaNought').text, sep=' ', dtype=numpy.float64))
+            beta.append(numpy.fromstring(cal_vector.find('./betaNought').text, sep=' ', dtype=numpy.float64))
+            gamma.append(numpy.fromstring(cal_vector.find('./gamma').text, sep=' ', dtype=numpy.float64))
+        lines_per_burst = sicds[0].ImageData.NumCols
+        pixel = numpy.array(pixel)
+        sigma = numpy.array(sigma)
+        beta = numpy.array(beta)
+        gamma = numpy.array(gamma)
+        # adjust sentinel values for sicd convention (square and invert)
+        sigma = 1./(sigma*sigma)
+        beta = 1./(beta*beta)
+        gamma = 1./(gamma*gamma)
+
+        for ind, sic in enumerate(sicds):
+            update_sicd(sic, ind)
+
+    def _refine_using_noise(self, noise_file_name, sicds):
+        """
+
+        Parameters
+        ----------
+        noise_file_name : str
+        sicds : SICDType|List[SICDType]
+
+        Returns
+        -------
+        None
+        """
+
+        # do not use before Sentinel baseline processing calibration update on 25 Nov 2015.
+        if self._base_sicd.ImageCreation.DateTime < numpy.datetime64('2015-11-25'):
+            return
+        root_node = _parse_xml(noise_file_name, without_ns=True)
+        if isinstance(sicds, SICDType):
+            sicds = [sicds, ]
+
+        mode_id = sicds[0].CollectionInfo.RadarMode.ModeID
+        lines_per_burst = sicds[0].ImageData.NumCols
+        range_size_pixels = sicds[0].ImageData.NumRows
+
+        def extract_vector(stem):
+            # type: (str) -> Tuple[List[numpy.ndarray], List[Union[None, numpy.ndarray]], List[numpy.ndarray]]
+            lines = []
+            pixels = []
+            noises = []
+            noise_vector_list = root_node.findall('./{0:s}VectorList/{0:s}Vector'.format(stem))
+            for i, noise_vector in enumerate(noise_vector_list):
+                line = numpy.fromstring(noise_vector.find('./line').text, dtype=numpy.int64, sep=' ')
+                # some datasets have noise vectors for negative lines - ignore these
+                if numpy.all(line < 0):
+                    continue
+                pixel_node = noise_vector.find('./pixel')  # does not exist for azimuth noise
+                if pixel_node is not None:
+                    pixel = numpy.fromstring(pixel_node.text, dtype=numpy.int64, sep=' ')
+                else:
+                    pixel = None
+                noise = numpy.fromstring(noise_vector.find('./{}Lut'.format(stem)).text, dtype=numpy.float64, sep=' ')
+                # some datasets do not have any noise data (all 0's) - skip
+                if numpy.all(noise == 0):
+                    continue
+                # convert noise to dB - what about -inf values?
+                noise = 10*numpy.log10(noise)
+                assert isinstance(noise, numpy.ndarray)
+
+                # do some validity checks
+                if (mode_id == 'IW') and numpy.any((line % lines_per_burst) != 0) and (i != len(noise_vector_list)-1):
+                    # NB: the final burst has different timing
+                    logging.error('Noise file should have one lut per burst, but more are present. Skipping this noise vector.')
+                    continue
+                if (pixel is not None) and (pixel[-1] > range_size_pixels):
+                    logging.error('Noise file has more pixels in LUT than range size. Skipping this noise vector.')
+                    continue
+
+                lines.append(line)
+                pixels.append(pixel)
+                noises.append(noise)
+            return lines, pixels, noises
+
+        def populate_noise(sicd, index):  # type: (SICDType, int) -> None
+            # NB: the default order was 7 before refactoring...that seems excessive.
+            rg_poly_order = min(5, range_pixel[0].size-1)
+            if sicd.CollectionInfo.RadarMode.ModeID[0] == 'S':
+                # STRIPMAP - all LUTs apply
+                # Treat range and azimuth polynomial components as fully independent
+                az_poly_order = min(4, len(range_line) - 1)
+
+                # NB: the previous rammed together two one-dimensional polys, but
+                # we should do a 2-d fit.
+                coords_rg = (range_pixel[0] + sicd.ImageData.FirstRow -
+                             sicd.ImageData.SCPPixel.Row)*sicd.Grid.Row.SS
+                coords_az = (range_line + sicd.ImageData.FirstCol - sicd.ImageData.SCPPixel.Col)*sicd.Grid.Col.SS
+
+                coords_az_2d, coords_rg_2d = numpy.meshgrid(coords_az, coords_rg)
+                noise_poly, res, rank, sing_vals = two_dim_poly_fit(
+                    coords_rg_2d, coords_az_2d, numpy.array(range_noise),
+                    x_order=rg_poly_order, y_order=az_poly_order, x_scale=1e-3, y_scale=1e-3, rcond=1e-40)
+                logging.info(
+                    'NoisePoly fit details:\nroot mean square residuals = {}\nrank = {}\n'
+                    'singular values = {}'.format(res, rank, sing_vals))
+            else:
+                # TOPSAR has single LUT per burst
+                # Treat range and azimuth polynomial components as weakly independent
+                coords_rg = (range_pixel[index] + sicd.ImageData.FirstRow -
+                             sicd.ImageData.SCPPixel.Row)*sicd.Grid.Row.SS
+                rg_poly = numpy.array(
+                    polynomial.polyfit(coords_rg, range_noise[index], rg_poly_order))
+                az_poly = None
+                if azimuth_noise is not None:
+                    line0 = lines_per_burst*index
+                    coords_az = (azimuth_line[0] - line0 -
+                                 sicd.ImageData.SCPPixel.Col)*sicd.Grid.Col.SS
+                    valid_lines = (azimuth_line[0] >= line0) & (azimuth_line[0] < line0 + lines_per_burst)
+                    valid_count = numpy.sum(valid_lines)
+                    if valid_count > 1:
+                        az_poly_order = min(2, valid_lines.size-1)
+                        az_poly = numpy.array(
+                            polynomial.polyfit(coords_az[valid_lines], azimuth_noise[valid_lines], az_poly_order))
+                        # TODO: is there ever only one of these?
+                if az_poly is not None:
+                    noise_poly = numpy.zeros((rg_poly.size, az_poly.size), dtype=numpy.float64)
+                    noise_poly[:, 0] += rg_poly
+                    noise_poly[0, :] += az_poly
+                else:
+                    noise_poly = numpy.reshape(rg_poly, (-1, 1))
+            if sicd.Radiometric is None:
+                sicd.Radiometric = RadiometricType()
+            sicd.Radiometric.NoiseLevel = NoiseLevelType_(NoiseLevelType='ABSOLUTE',
+                                                          NoisePoly=Poly2DType(Coefs=noise_poly))
+
+        # extract our noise vectors (used in populate_noise through implicit reference)
+        if root_node.find('./noiseVectorList') is not None:
+            # probably prior to March 2018
+            range_line, range_pixel, range_noise = extract_vector('noise')
+            azimuth_line, azimuth_pixel, azimuth_noise = None, None, None
+        else:
+            # noiseRange and noiseAzimuth fields began in March 2018
+            range_line, range_pixel, range_noise = extract_vector('noiseRange')
+            azimuth_line, azimuth_pixel, azimuth_noise = extract_vector('noiseAzimuth')
+            azimuth_line = numpy.concatenate(azimuth_line, axis=0)  # TODO: same as below?
+
+        # NB: range_line is actually a list of 1 element arrays - probably should have been parsed better
+        range_line = numpy.concatenate(range_line, axis=0)
+
+        for ind, sic in enumerate(sicds):
+            populate_noise(sic, ind)
+
+    @staticmethod
+    def _derive(sicds):
+        # type: (Union[SICDType, List[SICDType]]) -> None
+        if isinstance(sicds, SICDType):
+            sicds.derive()
+        else:
+            for sicd in sicds:
+                sicd.derive()
+
+    def get_sicd_collection(self):
+        """
+        Get the data file location(s) and corresponding sicd collection for each file.
+
+        Returns
+        -------
+        List[Tuple[str, SICDType|List[SICDType]]]
+            list of the form `(file, sicds)`. Here `file` is the data filename (tiff).
+            `sicds` is either a single `SICDType` (STRIPMAP collect),
+            or a list of `SICDType` (TOPSAR with multiple bursts).
+        """
+
+        out = []
+        for entry in self._get_file_sets():
+            # get the sicd collection for each product
+            sicds = self._parse_product_sicd(entry['product'])
+            # refine our sicds(s) using the calibration data (if sensible)
+            self._refine_using_calibration(entry['calibration'], sicds)
+            # refine our sicd(s) using the noise data (if sensible)
+            self._refine_using_noise(entry['noise'], sicds)
+            # populate our derived fields for the sicds
+            self._derive(sicds)
+            out.append((entry['data'], sicds))
+        return out
 
 
-def meta2sicd_cal(filename, sicd_meta, manifest_meta):
-    """This function parses the Sentinel calibration file and extends SICD metadata
-    with the radiometric fields"""
+class SentinelReader(BaseReader):
+    """
+    Gets a reader type object for Sentinel-1 SAR files.
+    """
 
-    # Data before the Sentinel baseline processing calibration update on Nov 25 2015 is useless
-    if manifest_meta.ImageCreation.DateTime < datetime.datetime(2015, 11, 25):
-        return
+    __slots__ = ('_sentinel_details', '_readers')
 
-    # Extract all calibration values form XML
-    root_node = ET.parse(filename).getroot()
-    calib_vec_list = root_node.findall('./calibrationVectorList/calibrationVector')
+    def __init__(self, sentinel_details, use_gdal=False):
+        """
 
-    line = np.empty((0,))
-    pixel = [None]*len(calib_vec_list)
-    sigma = [None]*len(calib_vec_list)
-    beta = [None]*len(calib_vec_list)
-    gamma = [None]*len(calib_vec_list)
+        Parameters
+        ----------
+        sentinel_details : str|SentinelDetails
+        use_gdal : bool
+            Should we attempt to use gdal to read the underlying data files?
+        """
 
-    for i in range(0, len(calib_vec_list)):
-        pixels_for_this_line = np.fromstring(calib_vec_list[i].find('./pixel').text, sep=' ')
-        line = np.append(line, float(calib_vec_list[i].find('./line').text))
-        pixel[i] = pixels_for_this_line
-        sigma[i] = np.array(
-                          np.fromstring(calib_vec_list[i].find('./sigmaNought').text,
-                                        dtype='float', sep=' '))
-        beta[i] = np.array(
-                         np.fromstring(calib_vec_list[i].find('./betaNought').text,
-                                       dtype='float', sep=' '))
-        gamma[i] = np.array(
-                          np.fromstring(calib_vec_list[i].find('./gamma').text,
-                                        dtype='float', sep=' '))
+        if isinstance(sentinel_details, string_types):
+            sentinel_details = SentinelDetails(sentinel_details)
+        if not isinstance(sentinel_details, SentinelDetails):
+            raise TypeError('Input argument for SentinelReader must be a file name or SentinelReader object.')
 
-    lines_per_burst = int(sicd_meta[0].ImageData.NumCols)
+        self._sentinel_details = sentinel_details  # type: SentinelDetails
 
-    pixel = np.array(pixel)
-    beta = np.array(beta).flatten()
-    gamma = np.array(gamma).flatten()
-    sigma = np.array(sigma).flatten()
+        symmetry = (False, False, True)  # True for all Sentinel-1 data
+        readers = []
+        sicd_collection = self._sentinel_details.get_sicd_collection()
+        for data_file, sicds in sicd_collection:
+            tiff_details = TiffDetails(data_file)
+            if isinstance(sicds, SICDType):
+                readers.append(TiffReader(tiff_details, sicd_meta=sicds, symmetry=symmetry, use_gdal=use_gdal))
+            elif len(sicds) == 1:
+                readers.append(TiffReader(tiff_details, sicd_meta=sicds[0], symmetry=symmetry, use_gdal=use_gdal))
+            else:
+                # no need for SICD here - we're using subreaders
+                p_reader = TiffReader(tiff_details, sicd_meta=None, symmetry=symmetry, use_gdal=use_gdal)
+                begin_col = 0
+                for sicd in sicds:
+                    assert isinstance(sicd, SICDType)
+                    end_col = begin_col + sicd.ImageData.NumCols
+                    dim1bounds = (0, tiff_details.tags['ImageWidth'][0])
+                    dim2bounds = (begin_col, end_col)
+                    readers.append(SubsetReader(p_reader, sicd, dim1bounds, dim2bounds))
+                    begin_col = end_col
 
-    # Sentinel values must be squared before SICD uses them as a scalar
-    # Also Sentinel convention is to divide out scale factor. SICD convention is to multiply.
-    beta = beta**-2
-    gamma = gamma**-2
-    sigma = sigma**-2
+        self._readers = tuple(readers)  # type: Tuple[Union[TiffReader, SubsetReader]]
 
-    # Compute noise polynomial for each burst (or one time for stripmap)
-    for x in range(len(sicd_meta)):
-        if all(beta[0] == beta):  # This should be most of the time
-            if not hasattr(sicd_meta[x], 'Radiometric'):
-                sicd_meta[x].Radiometric = MetaNode()
-            sicd_meta[x].Radiometric.BetaZeroSFPoly = np.atleast_2d(beta[0])
-            # sicd.derived_fields will populate other radiometric fields later
-        else:  # In case we run into spatially variant radiometric data
-            # Sentinel generates radiometric calibration info every 1 second.
-            # For each burst's polynomials, use only the calibration vectors
-            # that occurred during each burst so that the fitted polynomials have less error
-            # We could also investigate results of possibly including
-            # vectors on the outside of each burst edge
-            valid_lines = ((line >= (x * lines_per_burst)) &
-                           (line < ((x+1) * lines_per_burst)))
-
-            valid_pixels = np.repeat(valid_lines, len(np.ones_like(pixel[x])))
-
-            # If Burst has no calibration data
-            if not np.any(valid_lines) or not np.any(valid_pixels):
-                continue
-
-            # Convert pixel coordinates from image indices to SICD image
-            # coordinates (xrow and ycol)
-            coords_rg_m = (pixel[valid_lines]+sicd_meta[x].ImageData.FirstRow -
-                           sicd_meta[x].ImageData.SCPPixel.Row) * sicd_meta[x].Grid.Row.SS
-            coords_az_m = np.repeat((line[valid_lines]+sicd_meta[x].ImageData.FirstCol -
-                                    sicd_meta[x].ImageData.SCPPixel.Col) *
-                                    sicd_meta[x].Grid.Col.SS,
-                                    len(np.ones_like(pixel[x])))
-
-            # Fitting the two axes seperately then combining gives lower error than most 2d solvers
-            rg_fit = np.polynomial.polynomial.polyfit(coords_rg_m.flatten(),
-                                                      sigma[valid_pixels], 2)
-            az_fit = np.polynomial.polynomial.polyfit(coords_az_m.flatten(),
-                                                      sigma[valid_pixels], 2)
-            sigma_poly = np.outer(az_fit / np.max(az_fit), rg_fit)
-
-            rg_fit = np.polynomial.polynomial.polyfit(coords_rg_m.flatten(),
-                                                      beta[valid_pixels], 2)
-            az_fit = np.polynomial.polynomial.polyfit(coords_az_m.flatten(),
-                                                      beta[valid_pixels], 2)
-            beta_poly = np.outer(az_fit / np.max(az_fit), rg_fit)
-
-            rg_fit = np.polynomial.polynomial.polyfit(coords_rg_m.flatten(),
-                                                      gamma[valid_pixels], 2)
-            az_fit = np.polynomial.polynomial.polyfit(coords_az_m.flatten(),
-                                                      gamma[valid_pixels], 2)
-            gamma_poly = np.outer(az_fit / np.max(az_fit), rg_fit)
-
-            if not hasattr(sicd_meta[x], 'Radiometric'):
-                sicd_meta[x].Radiometric = MetaNode()
-            sicd_meta[x].Radiometric.SigmaZeroSFPoly = sigma_poly
-            sicd_meta[x].Radiometric.BetaZeroSFPoly = beta_poly
-            sicd_meta[x].Radiometric.GammaZeroSFPoly = gamma_poly
+        sicd_tuple = tuple(reader.sicd_meta for reader in readers)
+        chipper_tuple = tuple(reader._chipper for reader in readers)
+        super(SentinelReader, self).__init__(sicd_tuple, chipper_tuple)
