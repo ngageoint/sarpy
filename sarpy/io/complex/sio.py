@@ -7,7 +7,6 @@ import os
 import struct
 import logging
 import re
-from xml.etree import ElementTree
 from typing import Union, Dict, Tuple
 
 import numpy
@@ -18,6 +17,8 @@ from .sicd_elements.ImageData import ImageDataType, FullImageType
 from .base import BaseReader
 from .bip import BIPChipper, BIPWriter
 from .sicd import complex_to_amp_phase, complex_to_int, amp_phase_to_complex
+from .utils import parse_xml_from_string
+# noinspection PyProtectedMember
 from ..nitf.headers import _SICD_SPECIFICATION_NAMESPACE
 
 __classification__ = "UNCLASSIFIED"
@@ -263,7 +264,8 @@ class SIODetails(object):
                 sicd_string = self._user_data.get(nam, None)
         # If so, assume that this SICD is valid and simply present it
         if sicd_string is not None:
-            self._sicd = SICDType.from_node(ElementTree.fromstring(sicd_string))
+            root_node, xml_ns = parse_xml_from_string(sicd_string)
+            self._sicd = SICDType.from_node(root_node, xml_ns)
             self._sicd.derive()
         else:
             # otherwise, we populate a really minimal sicd structure

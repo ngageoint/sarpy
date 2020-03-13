@@ -92,7 +92,7 @@ def _validate_value(frmt, value, name):
     if typ == 's':
         if isinstance(value, bytes):
             value = value.decode('utf-8')
-        if not isinstance(value, str):
+        if not isinstance(value, string_types):
             raise TypeError('Field {} requires a string, got type {}'.format(name, type(value)))
         if len(value) > length:
             logging.warning(
@@ -102,7 +102,7 @@ def _validate_value(frmt, value, name):
         fmt_out = '{0:' + frmt + '}'
         return fmt_out.format(value)
     elif typ == 'd':
-        if isinstance(value, (str, bytes)):
+        if isinstance(value, bytes) or isinstance(value, string_types):
             try:
                 value = int_func(value)
             except Exception as e:
@@ -114,7 +114,7 @@ def _validate_value(frmt, value, name):
                 'Got {}'.format(name, length, value))
         return value
     elif typ == 'b':
-        if isinstance(value, str):
+        if isinstance(value, string_types):
             value = value.encode()
         if not isinstance(value, bytes):
             raise ValueError('Field {} requires bytes. Got type {}'.format(name, type(value)))
@@ -276,7 +276,7 @@ class NITFElement(BaseNITFElement):
             if attribute not in self._enums or value is None:
                 return
             contained = value in self._enums[attribute]
-            if not contained and isinstance(value, str):
+            if not contained and isinstance(value, string_types):
                 contained = value.strip() in self._enums[attribute]
 
             if not contained:
@@ -868,7 +868,7 @@ class UnknownTRE(TRE):
         if isinstance(TAG, bytes):
             TAG = TAG.decode('utf-8')
 
-        if not isinstance(TAG, str):
+        if not isinstance(TAG, string_types):
             raise TypeError('TAG must be a string. Got {}'.format(type(TAG)))
         if len(TAG) > 6:
             raise ValueError('TAG must be 6 or fewer characters')

@@ -16,12 +16,15 @@ from .sicd_elements.ImageCreation import ImageCreationType
 from ...__about__ import __title__, __version__
 
 integer_types = (int, )
+string_types = (str, )
 int_func = int
 if sys.version_info[0] < 3:
     # noinspection PyUnresolvedReferences
     int_func = long  # to accommodate 32-bit python 2
     # noinspection PyUnresolvedReferences
     integer_types = (int, long)
+    # noinspection PyUnresolvedReferences
+    string_types = (str, unicode)
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
