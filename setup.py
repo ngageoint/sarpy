@@ -68,7 +68,7 @@ setup(name=parameters['__title__'],
       install_requires=install_requires,
       extras_require={
         'csk':  ['h5py', ],
-        'tkinter_gui_builder': ['pillow', 'matplotlib'],
+        'gui': ['pillow', 'matplotlib'],
       },
       zip_safe=False,  # Use of __file__ and __path__ in some code makes it unusable from zip
       test_suite="tests",

@@ -22,17 +22,25 @@ Origin
 SarPy was developed at the National Geospatial-Intelligence Agency (NGA). The software use,
 modification, and distribution rights are stipulated within the MIT license.
 
-Pull Requests
-~~~~~~~~~~~~~
+Dependencies
+~~~~~~~~~~~~
+The core library functionality depends only on `numpy >= 1.9.0` with some very minor
+dependency on `scipy`. Support for reading Cosmo-Skymed data (contained in hdf5 files)
+requires the `h5py` package.
 
-If you would like to contribute to this project, please make a pull request. We will
-review the pull request and discuss the changes. All pull request contributions to
-this project will be released under the MIT license.
+For the new GUI capabilities described below, you additionally need `pillow` and
+`matplotlib`, which can be installed using conda or pip.
 
-Software source code previously released under an open source license and then modified
-by NGA staff is considered a "joint work" (see 17 USC 101); it is partially copyrighted,
-partially public domain, and as a whole is protected by the copyrights of the non-government
-authors and must be released according to the terms of the original open source license.
+Python 2.7
+----------
+The development here has been geared towards Python 3.6 and above, but efforts have
+been made towards remaining compatible with Python 2.7. If you are using the library
+from Python 2.7, there is an additional dependency for the `typing` package, easily
+installed using conda or pip.
+
+For the new GUI capabilities described below, you additionally need `pillow` and
+`matplotlib`, as well as the `future` package (not to be confused with the more
+widely known `futures`), all of which can be installed using conda or pip.
 
 Significant Changes - March 2020
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -75,3 +83,23 @@ appropriate in the near future.
 Currently, basic documentation can be built after checking out this repository
 using sphinx via the command :code:`python setup.py build_sphinx`. This depends
 on python packages `sphinx` and `sphinxcontrib-napoleon`.
+
+Issues and Bugs
+~~~~~~~~~~~~~~~
+The core sarpy functionality has been tested for Python 2.7.17, 3.6, 3.7, and 3.8.
+Other versions should be considered unsupported. The new GUI capabilities have been
+less extensively tested, and should be considered experimental at this point.
+
+Information regarding any discovered bugs would be greatly appreciated, so please
+feel free to create a github issue.
+
+Pull Requests
+-------------
+Efforts at direct contribution to the project are certainly welcome, and please
+feel free to make a pull request. The only caveat is that all contributions to
+this project will be released under the MIT license.
+
+Software source code previously released under an open source license and then modified
+by NGA staff is considered a "joint work" (see 17 USC 101); it is partially copyrighted,
+partially public domain, and as a whole is protected by the copyrights of the non-government
+authors and must be released according to the terms of the original open source license.
