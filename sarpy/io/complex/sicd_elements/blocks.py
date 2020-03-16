@@ -1074,7 +1074,7 @@ class Poly2DType(Serializable, Arrayable):
     def shift(self, t1_shift=0, t1_scale=1, t2_shift=0, t2_scale=1, return_poly=False):
         r"""
         Transform a polynomial with respect to a affine shift in the coordinate system.
-        That is, :math:`P(t1, t2) = Q(t1_scale\cdot(t1 - t1_shift), t2_scale\cdot(t2 - t2_shift))`.
+        That is, :math:`P(x1, x2) = Q(t1_scale\cdot(t1 - t1_shift), t2_scale\cdot(t2 - t2_shift))`.
 
         Be careful to follow the convention that the transformation parameters express the
         *current coordinate system* as a shifted, **and then** scaled version of the
