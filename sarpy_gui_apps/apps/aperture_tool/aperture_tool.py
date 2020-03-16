@@ -9,7 +9,6 @@ from tkinter_gui_builder.panel_templates.widget_panel.widget_panel import Abstra
 from tkinter_gui_builder.utils.image_utils import frame_sequence_utils
 from tkinter import filedialog
 import numpy as np
-from sarpy.io.complex.base import BaseReader
 import os
 
 
@@ -92,13 +91,14 @@ class ApertureTool(AbstractWidgetPanel):
         ul_y, ul_x = self.zoomer_panel.image_canvas.variables.canvas_image_object.canvas_full_image_upper_left_yx
         ul_x = int(ul_x)
         ul_y = int(ul_y)
+        # TODO: change this to a tuple sequence to get rid of FutureWarning
         cdata = ro.read_chip((ul_y, ul_y+ny, 1), (ul_x, ul_x + nx, 1))
         if ro.sicd_meta.Grid.Col.Sgn > 0 and ro.sicd_meta.Grid.Row.Sgn > 0:
             # use fft2 to go from image to spatial freq
             ft_cdata = fft2(cdata)
         else:
             # flip using ifft2
-            ft_cdata = ifft2(cdata)
+            ft_cdata = ifft2(tuple(cdata))
 
         ft_cdata = fftshift(ft_cdata)
         return ft_cdata

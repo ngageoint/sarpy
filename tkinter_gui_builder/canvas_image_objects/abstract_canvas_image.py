@@ -1,13 +1,10 @@
 from numpy import ndarray
-from six import add_metaclass
-import abc
 from typing import Union
 import PIL.Image
 import numpy as np
 
 
-@add_metaclass(abc.ABCMeta)
-class AbstractCanvasImage:
+class AbstractCanvasImage(object):
     canvas_decimated_image = None  # type: ndarray
     display_image = None  # type: ndarray
     fname = None  # type: str
@@ -20,14 +17,12 @@ class AbstractCanvasImage:
     canvas_nx = None
     scale_to_fit_canvas = False
 
-    @abc.abstractmethod
     def get_decimated_image_data_in_full_image_rect(self,
                                                     full_image_rect,  # type: (int, int, int, int)
                                                     decimation,  # type: int
                                                     ):
-        pass
+            raise NotImplementedError
 
-    @abc.abstractmethod
     def init_from_fname_and_canvas_size(self,
                                         fname,  # type: str
                                         canvas_ny,      # type: int
@@ -43,7 +38,7 @@ class AbstractCanvasImage:
         :param scale_to_fit_canvas:
         :return:
         """
-        pass
+        raise NotImplementedError
 
     def get_scaled_display_data(self, decimated_image):
         scale_factor = self.compute_display_scale_factor(decimated_image)
@@ -199,4 +194,3 @@ class AbstractCanvasImage:
             canvas_xy_coords.append(canvas_x)
             canvas_xy_coords.append(canvas_y)
         return canvas_xy_coords
-
