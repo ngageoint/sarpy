@@ -7,17 +7,11 @@ import sys
 from collections import OrderedDict
 
 import numpy
-import scipy
 
 from .base import _get_node_value, _create_text_node, _create_new_node, Serializable, Arrayable, DEFAULT_STRICT, \
     _StringEnumDescriptor, _IntegerDescriptor, _FloatDescriptor, _FloatModularDescriptor, \
     _SerializableDescriptor
 
-if scipy.__version__ >= '1.0':
-    from scipy.special import comb
-else:
-    # noinspection PyUnresolvedReferences
-    from scipy.misc import comb
 
 integer_types = (int, )
 int_func = int
@@ -887,19 +881,17 @@ class Poly1DType(Serializable, Arrayable):
         -------
         Poly1DType|numpy.ndarray
         """
-
-        if t_0 == 0:
-            out = numpy.copy(self._coefs)
-        else:
-            out = numpy.zeros(self._coefs.shape, dtype=numpy.float64)
+        # prepare array workspace
+        out = numpy.copy(self._coefs)
+        if t_0 != 0 and out.size > 1:
             siz = out.size
+            # let's use horner's method, so iterate from top down
             for i in range(siz):
-                N = numpy.arange(i, siz)
-                K = N-i
-                out[i] = numpy.sum(comb(N, K)*self._coefs[i:]*numpy.power(-t_0, K))
-                # This is just the binomial expansion and gathering terms
+                index = siz-i-1
+                if i > 0:
+                    out[index:siz-1] -= t_0*out[index+1:siz]
 
-        if alpha != 1:
+        if alpha != 1 and out.size > 1:
             out *= numpy.power(alpha, numpy.arange(out.size))
 
         if return_poly:
@@ -1078,6 +1070,66 @@ class Poly2DType(Serializable, Arrayable):
 
     def __getitem__(self, item):
         return self._coefs[item]
+
+    def shift(self, t1_shift=0, t1_scale=1, t2_shift=0, t2_scale=1, return_poly=False):
+        r"""
+        Transform a polynomial with respect to a affine shift in the coordinate system.
+        That is, :math:`P(t1, t2) = Q(t1_scale\cdot(t1 - t1_shift), t2_scale\cdot(t2 - t2_shift))`.
+
+        Be careful to follow the convention that the transformation parameters express the
+        *current coordinate system* as a shifted, **and then** scaled version of the
+        *new coordinate system*.
+
+        Parameters
+        ----------
+        t1_shift : float
+            the **current center coordinate** in the **new coordinate system.**
+            That is, `x1=0` when `t1=t1_shift`.
+        t1_scale : float
+            the scale. That is, when `t1 = t1_shift + 1`, then `x1 = t1_scale`.
+            **NOTE:** it is assumed that the coordinate system is re-centered, and **then** scaled.
+        t2_shift : float
+            the **current center coordinate** in the **new coordinate system.**
+            That is, `x2=0` when `t2=t2_shift`.
+        t2_scale : float
+            the scale. That is, when `t2 = t2_shift + 1`, then `x2 = t2_scale`.
+            **NOTE:** it is assumed that the coordinate system is re-centered, and **then** scaled.
+        return_poly : bool
+            if `True`, a Poly2DType object be returned, otherwise the coefficients array is returned.
+
+        Returns
+        -------
+        Poly2DType|numpy.ndarray
+        """
+        # prepare our array workspace
+        out = numpy.copy(self._coefs)
+
+        # handle first axis - everything is commutative, so order doesn't matter
+        if t1_shift != 0 and self._coefs.shape[0] > 1:
+            siz = out.shape[0]
+            # let's use horner's method, so iterate from top down
+            for i in range(siz):
+                index = siz-i-1
+                if i > 0:
+                    out[index:siz-1, :] -= t1_shift*out[index+1:siz, :]
+        if t1_scale != 1 and out.shape[0] > 1:
+            out = numpy.power(t1_scale, numpy.arange(out.shape[0]))[:, numpy.newaxis]*out
+
+        # handle second axis
+        if t2_shift != 0 and out.shape[1] > 1:
+            siz = out.shape[1]
+            # let's use horner's method, so iterate from top down
+            for i in range(siz):
+                index = siz-i-1
+                if i > 0:
+                    out[:, index:siz-1] -= t1_shift*out[:, index+1:siz]
+        if t2_scale != 1 and out.shape[1] > 1:
+            out *= numpy.power(t2_scale, numpy.arange(out.shape[1]))
+
+        if return_poly:
+            return Poly2DType(Coefs=out)
+        else:
+            return out
 
     @classmethod
     def from_array(cls, array):
