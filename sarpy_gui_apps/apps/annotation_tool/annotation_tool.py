@@ -68,12 +68,11 @@ class AnnotationTool(AbstractWidgetPanel):
         self.context_panel.context_dashboard.file_selector.event_select_file(event)
         if self.context_panel.context_dashboard.file_selector.fname:
             self.variables.image_fname = self.context_panel.context_dashboard.file_selector.fname
-        self.context_panel.image_canvas.init_with_fname(self.variables.image_fname)
-        self.update_context_decimation_value()
-        self.annotate_panel.image_canvas.init_with_fname(self.variables.image_fname)
-        # self.annotate_panel.image_canvas.set_image_from_numpy_array(np.zeros((self.annotate_panel.image_canvas.canvas_height, self.annotate_panel.image_canvas.canvas_width)))
-        self.variables.annotate_canvas = self.annotate_panel.image_canvas
-        self.context_panel.context_dashboard.annotation_selector.activate_all_buttons()
+            self.context_panel.image_canvas.init_with_fname(self.variables.image_fname)
+            self.update_context_decimation_value()
+            self.annotate_panel.image_canvas.init_with_fname(self.variables.image_fname)
+            self.variables.annotate_canvas = self.annotate_panel.image_canvas
+            self.context_panel.context_dashboard.annotation_selector.activate_all_buttons()
 
     def callback_content_select_annotation_file(self, event):
         popup = tkinter.Toplevel(self.master)
@@ -109,6 +108,12 @@ class AnnotationTool(AbstractWidgetPanel):
                                                                                          image_file_name=self.variables.image_fname)
                     self.context_panel.context_dashboard.buttons.activate_all_buttons()
                     self.annotate_panel.annotate_dashboard.controls.activate_all_buttons()
+
+                    # disable the original file controls so the user can't go back and select a different annotation
+                    # file during the labeling process
+                    self.context_panel.context_dashboard.file_selector.disable_all_buttons
+                    self.context_panel.context_dashboard.annotation_selector.disable_all_buttons()
+
                 else:
                     print("provide a valid file annotation filename.")
             else:
@@ -123,19 +128,27 @@ class AnnotationTool(AbstractWidgetPanel):
                 self.variables.file_annotation_fname = annotation_fname
                 self.variables.file_annotation_collection = FileAnnotationCollection.from_file(annotation_fname)
                 self.variables.label_schema = self.variables.file_annotation_collection.label_schema
-                # TODO: check to make sure the annotation collection image filename and the file that was opened match.
-                self.context_panel.context_dashboard.buttons.activate_all_buttons()
-                self.annotate_panel.annotate_dashboard.controls.activate_all_buttons()
+                if self.variables.file_annotation_collection.image_file_name == os.path.basename(self.variables.image_fname):
+                    self.context_panel.context_dashboard.buttons.activate_all_buttons()
+                    self.annotate_panel.annotate_dashboard.controls.activate_all_buttons()
 
-                # create canvas shapes from existing annotations and create dictionary to keep track of canvas geometries
-                # that are mapped to the annotations
-                for feature in self.variables.file_annotation_collection.annotations.features:
-                    image_coords = feature.geometry.get_coordinate_list()[0]
-                    image_coords_1d = list(np.reshape(image_coords, np.asarray(image_coords).size))
-                    tmp_shape_id = self.annotate_panel.image_canvas.create_new_polygon((0, 0, 1, 1))
-                    self.annotate_panel.image_canvas.set_shape_pixel_coords(tmp_shape_id, image_coords_1d)
-                    self.variables.canvas_geom_ids_to_annotations_id_dict[str(tmp_shape_id)] = feature
-                self.annotate_panel.image_canvas.redraw_all_shapes()
+                    # disable the original file controls so the user can't go back and select a different annotation
+                    # file during the labeling process
+                    self.context_panel.context_dashboard.file_selector.disable_all_buttons()
+                    self.context_panel.context_dashboard.annotation_selector.disable_all_buttons()
+
+                    # create canvas shapes from existing annotations and create dictionary to keep track of canvas geometries
+                    # that are mapped to the annotations
+                    for feature in self.variables.file_annotation_collection.annotations.features:
+                        image_coords = feature.geometry.get_coordinate_list()[0]
+                        image_coords_1d = list(np.reshape(image_coords, np.asarray(image_coords).size))
+                        tmp_shape_id = self.annotate_panel.image_canvas.create_new_polygon((0, 0, 1, 1))
+                        self.annotate_panel.image_canvas.set_shape_pixel_coords(tmp_shape_id, image_coords_1d)
+                        self.variables.canvas_geom_ids_to_annotations_id_dict[str(tmp_shape_id)] = feature
+                    self.annotate_panel.image_canvas.redraw_all_shapes()
+                else:
+                    print("the image filename and the filename of the annotation do not match.  Select an annotation")
+                    print("that matches the input filename.")
 
             else:
                 print("select a valid label file annotation collection.")
