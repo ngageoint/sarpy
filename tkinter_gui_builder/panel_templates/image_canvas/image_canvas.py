@@ -1,18 +1,21 @@
+import sys
 import PIL.Image
 from PIL import ImageTk
-import tkinter as tk
 from tkinter_gui_builder.widgets import basic_widgets
 from tkinter_gui_builder.canvas_image_objects.abstract_canvas_image import AbstractCanvasImage
 from tkinter_gui_builder.canvas_image_objects.numpy_canvas_image import NumpyCanvasDisplayImage
 from tkinter_gui_builder.utils.color_utils.hex_color_palettes import SeabornHexPalettes
 import tkinter_gui_builder.utils.color_utils.color_utils as color_utils
-import tkinter.colorchooser as colorchooser
 import platform
 import numpy as np
 import time
+import tkinter
+import tkinter.colorchooser as colorchooser
+
 from .tool_constants import ShapePropertyConstants as SHAPE_PROPERTIES
 from .tool_constants import ShapeTypeConstants as SHAPE_TYPES
 from .tool_constants import ToolConstants as TOOLS
+
 
 if platform.system() == "Linux":
     import pyscreenshot as ImageGrab
@@ -37,7 +40,7 @@ class AppVariables:
         self.pan_anchor_point_xy = None
         self.shape_ids = []            # type: [int]
         self.shape_properties = {}
-        self._canvas_image_object = None         # type: AbstractCanvasImage
+        self.canvas_image_object = None         # type: AbstractCanvasImage
         self.zoom_rect_id = None                # type: int
         self.zoom_rect_color = "cyan"
         self.zoom_rect_border_width = 2
@@ -97,9 +100,9 @@ class AppVariables:
 #         self._canvas_image_object = value
 
 
-class ImageCanvas(tk.LabelFrame):
+class ImageCanvas(tkinter.LabelFrame):
     def __init__(self, master):
-        tk.LabelFrame.__init__(self, master)
+        tkinter.LabelFrame.__init__(self, master)
 
         self.SHAPE_PROPERTIES = SHAPE_PROPERTIES
         self.SHAPE_TYPES = SHAPE_TYPES
@@ -111,12 +114,12 @@ class ImageCanvas(tk.LabelFrame):
         self.canvas_height = 200            # default width
         self.canvas_width = 300             # default height
         self.canvas = basic_widgets.Canvas(self)
-        self.canvas.pack(fill=tk.BOTH, expand=tk.YES)
+        self.canvas.pack(fill=tkinter.BOTH, expand=tkinter.YES)
         self.canvas.pack()
 
-        self.canvas.grid(row=0, column=0, sticky=tk.N+tk.S+tk.E+tk.W)
-        self.sbarv = None         # type: tk.Scrollbar
-        self.sbarh = None         # type: tk.Scrollbar
+        self.canvas.grid(row=0, column=0, sticky=tkinter.N+tkinter.S+tkinter.E+tkinter.W)
+        self.sbarv = None         # type: tkinter.Scrollbar
+        self.sbarh = None         # type: tkinter.Scrollbar
 
         self.variables.zoom_rect_id = self.create_new_rect((0, 0, 1, 1), outline=self.variables.zoom_rect_color, width=self.variables.zoom_rect_border_width)
         self.variables.select_rect_id = self.create_new_rect((0, 0, 1, 1), outline=self.variables.select_rect_color, width=self.variables.select_rect_border_width)
@@ -281,6 +284,10 @@ class ImageCanvas(tk.LabelFrame):
         elif self.variables.current_tool == TOOLS.EDIT_SHAPE_COORDS_TOOL:
             closest_coord_index = self.find_closest_shape_coord(self.variables.current_shape_id, event.x, event.y)
             self.variables.tmp_closest_coord_index = closest_coord_index
+        elif self.variables.current_tool == TOOLS.SELECT_CLOSEST_SHAPE_TOOL:
+            closest_shape_id = self.find_closest_shape(event.x, event.y)
+            self.variables.current_shape_id = closest_shape_id
+            self.highlight_existing_shape(self.variables.current_shape_id)
         else:
             start_x = self.canvas.canvasx(event.x)
             start_y = self.canvas.canvasy(event.y)
@@ -560,9 +567,9 @@ class ImageCanvas(tk.LabelFrame):
             shape_id = self.canvas.create_line(coords[0], coords[1], coords[2], coords[3],
                                                fill=self.variables.foreground_color,
                                                width=self.variables.line_width,
-                                               arrow=tk.LAST)
+                                               arrow=tkinter.LAST)
         else:
-            shape_id = self.canvas.create_line(coords[0], coords[1], coords[2], coords[3], options, arrow=tk.LAST)
+            shape_id = self.canvas.create_line(coords[0], coords[1], coords[2], coords[3], options, arrow=tkinter.LAST)
         self.variables.shape_ids.append(shape_id)
         self._set_shape_property(shape_id, SHAPE_PROPERTIES.SHAPE_TYPE, SHAPE_TYPES.ARROW)
         self._set_shape_property(shape_id, SHAPE_PROPERTIES.COLOR, self.variables.foreground_color)
@@ -629,6 +636,12 @@ class ImageCanvas(tk.LabelFrame):
         else:
             image_coords = self.canvas_shape_coords_to_image_coords(shape_id)
             self._set_shape_property(shape_id, SHAPE_PROPERTIES.IMAGE_COORDS, image_coords)
+
+    def set_shape_pixel_coords(self,
+                               shape_id,            # type: int
+                               image_coords,        # type: list
+                               ):
+        self._set_shape_property(shape_id, SHAPE_PROPERTIES.IMAGE_COORDS, image_coords)
 
     def canvas_shape_coords_to_image_coords(self, shape_id):
         canvas_coords = self.get_shape_canvas_coords(shape_id)
@@ -750,6 +763,9 @@ class ImageCanvas(tk.LabelFrame):
             if pixel_coords:
                 new_canvas_coords = self.image_coords_to_canvas_coords(shape_id)
                 self.modify_existing_shape_using_canvas_coords(shape_id, new_canvas_coords, update_pixel_coords=False)
+                
+    def set_current_tool_to_select_closest_shape(self):
+        self.variables.current_tool = TOOLS.SELECT_CLOSEST_SHAPE_TOOL
 
     def set_current_tool_to_zoom_out(self):
         self.variables.current_shape_id = self.variables.zoom_rect_id
@@ -878,15 +894,15 @@ class ImageCanvas(tk.LabelFrame):
         self.hide_shape(self.variables.zoom_rect_id)
 
     def config_do_not_scale_image_to_fit(self):
-        self.sbarv=tk.Scrollbar(self, orient=tk.VERTICAL)
-        self.sbarh=tk.Scrollbar(self, orient=tk.HORIZONTAL)
+        self.sbarv=tkinter.Scrollbar(self, orient=tkinter.VERTICAL)
+        self.sbarh=tkinter.Scrollbar(self, orient=tkinter.HORIZONTAL)
         self.sbarv.config(command=self.canvas.yview)
         self.sbarh.config(command=self.canvas.xview)
 
         self.canvas.config(yscrollcommand=self.sbarv.set)
         self.canvas.config(xscrollcommand=self.sbarh.set)
-        self.sbarv.grid(row=0, column=1, stick=tk.N+tk.S)
-        self.sbarh.grid(row=1, column=0, sticky=tk.E+tk.W)
+        self.sbarv.grid(row=0, column=1, stick=tkinter.N+tkinter.S)
+        self.sbarh.grid(row=1, column=0, sticky=tkinter.E+tkinter.W)
 
     def save_as_png(self,
                     output_fname,           # type: str
@@ -910,7 +926,8 @@ class ImageCanvas(tk.LabelFrame):
         self.variables.foreground_color = color
         self.change_shape_color(self.variables.current_shape_id, color)
 
-    def find_closest_shape_coord(self, shape_id,    # type: int
+    def find_closest_shape_coord(self,
+                                 shape_id,          # type: int
                                  canvas_x,          # type: int
                                  canvas_y,          # type: int
                                  ):                 # type: (...) -> int
@@ -923,3 +940,33 @@ class ImageCanvas(tk.LabelFrame):
             squared_distances.append(d)
         closest_coord_index = np.where(squared_distances == np.min(squared_distances))[0][0]
         return closest_coord_index
+
+    # TODO: improve this.  Right now it finds closest shape just based on distance to corners.  Improvements should
+    # TODO: include finding a closest point if the x/y coordinate is inside a polygon, and also finding closest
+    # TODO: distance to each line of a polygon, not just the corners.
+    def find_closest_shape(self,
+                           canvas_x,
+                           canvas_y):
+        non_tool_shape_ids = self.get_non_tool_shape_ids()
+        closest_distances = []
+        for shape_id in non_tool_shape_ids:
+            coords = self.get_shape_canvas_coords(shape_id)
+            squared_distances = []
+            coord_indices = np.arange(0, len(coords), step=2)
+            for i in coord_indices:
+                coord_x, coord_y = coords[i], coords[i + 1]
+                d = (coord_x - canvas_x) ** 2 + (coord_y - canvas_y) ** 2
+                squared_distances.append(d)
+            closest_distances.append(np.min(squared_distances))
+        closest_shape_id = non_tool_shape_ids[np.where(closest_distances == np.min(closest_distances))[0][0]]
+        return closest_shape_id
+
+    def get_non_tool_shape_ids(self):
+        all_shape_ids = self.variables.shape_ids
+        tool_shape_ids = self.get_tool_shape_ids()
+        return list(np.setdiff1d(all_shape_ids, tool_shape_ids))
+
+    def get_tool_shape_ids(self):
+        tool_shape_ids = [self.variables.zoom_rect_id,
+                          self.variables.select_rect_id]
+        return tool_shape_ids

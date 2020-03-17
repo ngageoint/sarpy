@@ -10,6 +10,7 @@ class ToolConstants:
     DRAW_POLYGON_BY_CLICKING = "draw polygon by clicking"
     DRAW_POINT_BY_CLICKING = "draw point by clicking"
     SELECT_TOOL = "select tool"
+    SELECT_CLOSEST_SHAPE_TOOL = "select closest shape"
     PAN_TOOL = "pan tool"
     TRANSLATE_SHAPE_TOOL = "translate shape tool"
     EDIT_SHAPE_COORDS_TOOL = "edit shape coords tool"
