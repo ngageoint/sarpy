@@ -78,7 +78,7 @@ def find_tre(tre_id):
 
     Returns
     -------
-    sarpy.io.nitf.headers.TRE|None
+    sarpy.io.nitf.base.TRE|None
     """
 
     if not _parsed_package:
@@ -93,7 +93,7 @@ def find_tre(tre_id):
 
 def parse_package(packages=None):
     """
-    Walk the packages contained in `packages`, find all subclasses of TRE, and register them
+    Walk the packages contained in `packages`, find all subclasses of TRE, and register them.
 
     Returns
     -------

@@ -118,18 +118,14 @@ def _parse_int(val, length, default, name, instance):
 
     if val is None:
         return default
-    elif isinstance(val, integer_types):
-        if -int_func(10)**(length-1) < val < int_func(10)**length:
-            return val
-        raise ValueError(
-            'Integer {} cannot be rendered as a string of {} characters for '
-            'attribute {} of class {}'.format(val, length, name, instance.__class__.__name__))
-    elif isinstance(val, bytes):
-        return int_func(val)
     else:
-        raise TypeError(
-            'Expected type int or bytes for attribute {} of class {}, '
-            'and got {}'.format(name, instance.__class__.__name__, type(val)))
+        val = int_func(val)
+
+    if -int_func(10)**(length-1) < val < int_func(10)**length:
+        return val
+    raise ValueError(
+        'Integer {} cannot be rendered as a string of {} characters for '
+        'attribute {} of class {}'.format(val, length, name, instance.__class__.__name__))
 
 
 def _parse_str(val, length, default, name, instance):
@@ -151,20 +147,18 @@ def _parse_str(val, length, default, name, instance):
         return default
     if isinstance(val, bytes):
         val = val.decode('utf-8')
-    if isinstance(val, string_types):
-        val = val.strip()
-        if len(val) <= length:
-            return val
-        else:
-            logging.warning(
-                'Got string input value of length {} for attribute {} of class {}, '
-                'which is longer than the allowed length {}, so '
-                'truncating'.format(len(val), name, instance.__class__.__name__, length))
-            return val[:length]
+    elif not isinstance(val, string_types):
+        val = str(val)
+
+    val = val.strip()
+    if len(val) <= length:
+        return val
     else:
-        raise TypeError(
-            'Expected type str or bytes for attribute {} of class {}, '
-            'and got {}'.format(name, instance.__class__.__name__, type(val)))
+        logging.warning(
+            'Got string input value of length {} for attribute {} of class {}, '
+            'which is longer than the allowed length {}, so '
+            'truncating'.format(len(val), name, instance.__class__.__name__, length))
+        return val[:length]
 
 
 def _parse_bytes(val, length, default, name, instance):
@@ -273,6 +267,10 @@ class _BasicDescriptor(object):
             the return value
         """
 
+        if instance is None:
+            # this has been access on the class, so return the class
+            return self
+
         fetched = self.data.get(instance, None)
         if fetched is not None or not self.required:
             return fetched
@@ -317,7 +315,7 @@ class _StringDescriptor(_BasicDescriptor):
     """A descriptor for string type"""
     _typ_string = 'str:'
 
-    def __init__(self, name, required, length, default_value='\x20', docstring=None):
+    def __init__(self, name, required, length, default_value='', docstring=None):
         self._default_value = default_value
         super(_StringDescriptor, self).__init__(
             name, required, length, docstring=docstring)
@@ -326,7 +324,7 @@ class _StringDescriptor(_BasicDescriptor):
         return self._default_value
 
     def _docstring_suffix(self):
-        if self._default_value is not None:
+        if self._default_value is not None and len(self._default_value) > 0:
             return ' Default value is :code:`{}`.'.format(self._default_value)
 
     def __set__(self, instance, value):
@@ -354,7 +352,7 @@ class _StringEnumDescriptor(_BasicDescriptor):
 
     def _docstring_suffix(self):
         suff = ' Takes values in :code:`{}`.'.format(self.values)
-        if self._default_value is not None:
+        if self._default_value is not None and len(self._default_value) > 0:
             suff += ' Default value is :code:`{}`.'.format(self._default_value)
         return suff
 
@@ -666,9 +664,7 @@ class Unstructured(NITFElement):
             raise TypeError(
                 'class variable _size_len for {} must be a positive '
                 'integer'.format(self.__class__.__name__))
-
-        self.data = data
-        super(Unstructured, self).__init__(**kwargs)
+        super(Unstructured, self).__init__(data=data, **kwargs)
 
     @property
     def data(self):  # type: () -> Union[None, bytes, NITFElement]
@@ -710,7 +706,7 @@ class Unstructured(NITFElement):
         return cls._size_len
 
     def _get_attribute_bytes(self, attribute):
-        if attribute == '_data':
+        if attribute == 'data':
             siz_frm = '{0:0' + str(self._size_len) + '}'
             data = self.data
             if data is None:
@@ -769,8 +765,17 @@ class _ItemArrayHeaders(BaseNITFElement):
         if subhead_sizes.shape != item_sizes.shape or len(item_sizes.shape) != 1:
             raise ValueError(
                 'the subhead_offsets and item_offsets arrays must one-dimensional and the same length')
+
         self.subhead_sizes = subhead_sizes
+        """
+        numpy.ndarray: the subheader sizes
+        """
+
         self.item_sizes = item_sizes
+        """
+        numpy.ndarray: the item size
+        """
+
         super(_ItemArrayHeaders, self).__init__(**kwargs)
 
     def get_bytes_length(self):
@@ -834,11 +839,7 @@ class TRE(BaseNITFElement):
     @property
     def TAG(self):
         """
-        The TRE tag.
-
-        Returns
-        -------
-        str
+        str: The TRE tag.
         """
 
         raise NotImplementedError
@@ -847,10 +848,6 @@ class TRE(BaseNITFElement):
     def DATA(self):
         """
         The TRE data.
-
-        Returns
-        -------
-
         """
 
         raise NotImplementedError
@@ -858,11 +855,7 @@ class TRE(BaseNITFElement):
     @property
     def EL(self):
         """
-        The TRE element length.
-
-        Returns
-        -------
-        int
+        int: The TRE element length.
         """
 
         raise NotImplementedError

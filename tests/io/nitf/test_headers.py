@@ -2,7 +2,7 @@ import os
 import time
 import logging
 
-from sarpy.io.nitf.headers import NITFDetails
+from sarpy.io.nitf.nitf_head import NITFDetails
 
 from . import unittest
 

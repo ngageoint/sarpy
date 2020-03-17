@@ -1,4 +1,3 @@
-
 The sarpy.io.nitf elements
 ==========================
 
@@ -7,5 +6,11 @@ The sarpy.io.nitf elements
     :caption: Contents:
 
     headers
-    tre_elements
-    registration
+    security
+    image
+    graphics
+    text
+    des
+    res
+    base
+    tres/index

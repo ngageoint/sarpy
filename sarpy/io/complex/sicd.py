@@ -6,20 +6,22 @@ Module for reading SICD files - should support SICD version 0.3 and above.
 import re
 import sys
 import logging
-from xml.etree import ElementTree
 from typing import Union, Tuple
 
 import numpy
 
-# noinspection PyProtectedMember
-from ..nitf.headers import NITFDetails, DataExtensionHeader, NITFHeader, \
-    NITFSecurityTags, ImageSegmentHeader, ImageBands, ImageBand, \
-    SICDDESSubheader, _SICD_SPECIFICATION_NAMESPACE
 from .base import BaseChipper, BaseReader, BaseWriter, int_func, string_types
 from .bip import BIPChipper, BIPWriter
 from .utils import parse_xml_from_string
 from .sicd_elements.SICD import SICDType
 from .sicd_elements.blocks import LatLonType
+
+from ..nitf.nitf_head import NITFDetails, NITFHeader, ImageSegmentsType, DataExtensionsType
+# noinspection PyProtectedMember
+from ..nitf.des import DataExtensionHeader, SICDDESSubheader, \
+    _SICD_SPECIFICATION_NAMESPACE, _SICD_SPECIFICATION_IDENTIFIER
+from ..nitf.security import NITFSecurityTags
+from ..nitf.image import ImageSegmentHeader, ImageBands, ImageBand
 
 
 if sys.version_info[0] < 3:
@@ -202,7 +204,7 @@ class SICDDetails(NITFDetails):
         sicd_des = self._des_header.UserHeader
         if not isinstance(sicd_des, SICDDESSubheader):
             return None
-        return sicd_des.DESSHSI.strip() == SICDDESSubheader.get_default_value('DESSHSI').strip()
+        return sicd_des.DESSHSI.strip() == _SICD_SPECIFICATION_IDENTIFIER
 
     def repair_des_header(self):
         """
@@ -227,7 +229,7 @@ class SICDDetails(NITFDetails):
 
         sicd_des = self._des_header.UserHeader
         # noinspection PyProtectedMember
-        sicd_des.DESSHSI = SICDDESSubheader.get_default_value('DESSHSI')
+        sicd_des.DESSHSI = _SICD_SPECIFICATION_IDENTIFIER
         stat = self.rewrite_des_header()
         return 2 if stat else 3
 
@@ -765,7 +767,7 @@ class SICDWriter(BaseWriter):
                 IDLVL=i+1,
                 IALVL=i,
                 ILOC='{0:5d}{1:5d}'.format(entry[0], entry[2]),
-                ImageBands=ImageBands(values=bands),
+                Bands=ImageBands(values=bands),
                 Security=self._security_tags))
         return tuple(im_seg_heads)
 
@@ -805,12 +807,12 @@ class SICDWriter(BaseWriter):
             ftitle = 'SICD: Unknown'
         # get image segment details - the size of the headers will be redefined when locking down details
         im_sizes = numpy.copy(self._image_segment_limits[:, 4])
-        im_segs = NITFHeader.ImageSegmentsType(
+        im_segs = ImageSegmentsType(
             subhead_sizes=numpy.zeros(im_sizes.shape, dtype=numpy.int64),
             item_sizes=im_sizes)
         # get data extension details - the size of the headers and items
         #   will be redefined when locking down details
-        des = NITFHeader.DataExtensionsType(
+        des = DataExtensionsType(
             subhead_sizes=numpy.array([973, ], dtype=numpy.int64),
             item_sizes=numpy.array([0, ], dtype=numpy.int64))
         return NITFHeader(CLEVEL=clevel, OSTAID=ostaid, FDT=fdt, FTITLE=ftitle,

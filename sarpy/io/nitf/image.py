@@ -2,13 +2,12 @@
 
 import logging
 import struct
-from typing import Union
 
 import numpy
 
 from .base import NITFElement, NITFLoop, UserHeaderType, _IntegerDescriptor,\
     _StringDescriptor, _StringEnumDescriptor, _NITFElementDescriptor, \
-    int_func, string_types, _parse_str
+    int_func, _parse_str
 from .security import NITFSecurityTags
 
 
@@ -33,8 +32,7 @@ class ImageBand(NITFElement):
                   'of the overall image.')  # type: str
     IFC = _StringEnumDescriptor(
         'IFC', True, 1, {'N', }, default_value='N',
-        docstring=' Image Filter Condition. This field shall contain the value `"N"` (to represent none). '
-                  'Other values are reserved for future use.')  # type: str
+        docstring=' Image Filter Condition.')  # type: str
     IMFLT = _StringDescriptor(
         'IMFLT', True, 3, default_value='',
         docstring='Standard Image Filter Code. This field is reserved '
@@ -87,7 +85,7 @@ class ImageBand(NITFElement):
         """
         Number of LUTS for the Image Band. This field shall contain the number
         of LUTs associated with the nth band of the image. LUTs are allowed
-        only if the value of the `PVTYPE` field is `"INT"` or `"B"`.
+        only if the value of the `PVTYPE` field is :code:`INT` or :code:`B`.
 
         Returns
         -------
@@ -110,7 +108,7 @@ class ImageBand(NITFElement):
         return 0 if self._LUTD is None else self._LUTD.shape[1]
 
     def _get_attribute_bytes(self, attribute):
-        if attribute == '_LUTD':
+        if attribute == 'LUTD':
             if self.NLUTS == 0:
                 out = b'0'
             else:
@@ -121,7 +119,7 @@ class ImageBand(NITFElement):
             return super(ImageBand, self)._get_attribute_bytes(attribute)
 
     def _get_attribute_length(self, attribute):
-        if attribute == '_LUTD':
+        if attribute == 'LUTD':
             nluts = self.NLUTS
             if nluts == 0:
                 return 1
@@ -188,14 +186,16 @@ class ImageComments(NITFLoop):
 
 class ImageSegmentHeader(NITFElement):
     """
-    The Image Segment header - described in SICD standard 2014-09-30, Volume II, page 24
+    The image segment header - see standards document MIL-STD-2500C for more
+    information.
     """
+
     _ordering = (
         'IM', 'IID1', 'IDATIM', 'TGTID',
         'IID2', 'Security', 'ENCRYP', 'ISORCE',
         'NROWS', 'NCOLS', 'PVTYPE', 'IREP',
         'ICAT', 'ABPP', 'PJUST', 'ICORDS',
-        'IGEOLO', '_ImageComments', 'IC', 'COMRAT', 'ImageBands',
+        'IGEOLO', 'Comments', 'IC', 'COMRAT', 'Bands',
         'ISYNC', 'IMODE', 'NBPR', 'NBPC', 'NPPBH',
         'NPPBV', 'NBPP', 'IDLVL', 'IALVL',
         'ILOC', 'IMAG', 'UserHeader', 'ExtendedHeader')
@@ -220,11 +220,11 @@ class ImageSegmentHeader(NITFElement):
     IDATIM = _StringDescriptor(
         'IDATIM', True, 14, default_value='',
         docstring='Image Date and Time. This field shall contain the time (UTC) of the image '
-                  'acquisition in the format `CCYYMMDDhhmmss`.')  # type: str
+                  'acquisition in the format :code:`YYYYMMDDhhmmss`.')  # type: str
     TGTID = _StringDescriptor(
         'TGTID', True, 17, default_value='',
         docstring='Target Identifier. This field shall contain the identification of the primary target '
-                  'in the format, `BBBBBBBBBBOOOOOCC`, consisting of ten characters of Basic Encyclopedia '
+                  'in the format, :code:`BBBBBBBBBBOOOOOCC`, consisting of ten characters of Basic Encyclopedia '
                   '`(BE)` identifier, followed by five characters of facility OSUFFIX, followed by the two '
                   'character country code as specified in FIPS PUB 10-4.')  # type: str
     IID2 = _StringDescriptor(
@@ -236,7 +236,7 @@ class ImageSegmentHeader(NITFElement):
         docstring='The image security tags.')  # type: NITFSecurityTags
     ENCRYP = _StringEnumDescriptor(
         'ENCRYP', True, 1, {'0'}, default_value='0',
-        docstring='Encryption. This field shall contain the value `0`.')  # type: int
+        docstring='Encryption.')  # type: str
     ISORCE = _StringDescriptor(
         'ISORCE', True, 42, default_value='',
         docstring='Image Source. This field shall contain a description of the source of the image. '
@@ -248,7 +248,7 @@ class ImageSegmentHeader(NITFElement):
                   'of significant pixels in the image. When the product of the values of the `NPPBV` field '
                   'and the `NBPC` field is greater than the value of the `NROWS` field '
                   r'(:math:`NPPBV \cdot NBPC > NROWS`), the rows indexed with the value of the `NROWS` field '
-                  r'to (:math:`NPPBV\cdot NBPC`) minus 1 shall contain fill data. NOTE: Only the rows indexed '
+                  r'to (:math:`NPPBV\cdot NBPC - 1`) shall contain fill data. NOTE: Only the rows indexed '
                   '0 to the value of the `NROWS` field minus 1 of the image contain significant data. '
                   'The pixel fill values are determined by the application.')  # type: int
     NCOLS = _IntegerDescriptor(
@@ -257,7 +257,7 @@ class ImageSegmentHeader(NITFElement):
                   'columns of significant pixels in the image. When the product of the values of the `NPPBH` '
                   'field and the `NBPR` field is greater than the `NCOLS` field '
                   r'(:math:`NPPBH\cdot NBPR > NCOLS`), the columns indexed with the value of the `NCOLS` field '
-                  r'to (:math:`NPPBH\cdot NBPR`) minus 1 shall contain fill data. NOTE: Only the columns '
+                  r'to (:math:`NPPBH\cdot NBPR - 1`) shall contain fill data. NOTE: Only the columns '
                   'indexed 0 to the value of the `NCOLS` field minus 1 of the image contain significant data. '
                   'The pixel fill values are determined by the application.')  # type: int
     PVTYPE = _StringEnumDescriptor(
@@ -290,8 +290,8 @@ class ImageSegmentHeader(NITFElement):
     PJUST = _StringEnumDescriptor(
         'PJUST', True, 1, {'L', 'R'}, default_value='R',
         docstring='Pixel Justification. When `ABPP` is not equal to `NBPP`, this field indicates whether the '
-                  'significant bits are left justified (`"L"`) or right '
-                  'justified (`"R"`).')  # type: str
+                  'significant bits are left justified (:code:`L`) or right '
+                  'justified (:code:`R`).')  # type: str
     ICORDS = _StringEnumDescriptor(
         'ICORDS', True, 1, {'', 'U', 'G', 'N', 'S', 'D'}, default_value='G',
         docstring='Image Coordinate Representation. This field shall contain a valid code indicating the type '
@@ -335,16 +335,16 @@ class ImageSegmentHeader(NITFElement):
         docstring='Number of Pixels Per Block Horizontal. This field shall contain the number of pixels horizontally '
                   'in each block of the image. It shall be the case that the product of the values of the `NBPR` '
                   'field and the `NPPBH` field is greater than or equal to the value of the `NCOLS` field '
-                  r'(:math:`NBPR\cdot NPPBH \geq NCOLS`). When NBPR is "0001", setting the `NPPBH` value to "0000" '
-                  r'designates that the number of pixels horizontally is specified by the '
-                  r'value in NCOLS.')  # type: int
+                  r'(:math:`NBPR\cdot NPPBH \geq NCOLS`). When NBPR is :code:`1`, setting the `NPPBH` '
+                  'value to :code:`0` designates that the number of pixels horizontally is specified by the '
+                  'value in NCOLS.')  # type: int
     NPPBV = _IntegerDescriptor(
         'NPPBV', True, 4, default_value=0,
         docstring='Number of Pixels Per Block Vertical. This field shall contain the number of pixels vertically '
                   'in each block of the image. It shall be the case that the product of the values of the `NBPC` '
                   'field and the `NPPBV` field is greater than or equal to the value of the `NROWS` field '
-                  r'(:math:`NBPC\cdot NPPBV \geq NROWS`). When `NBPC` is "0001", setting the `NPPBV` value '
-                  r'to "0000" designates that the number of pixels vertically is specified by '
+                  r'(:math:`NBPC\cdot NPPBV \geq NROWS`). When `NBPC` is :code:`1`, setting the `NPPBV` value '
+                  r'to :code:`0` designates that the number of pixels vertically is specified by '
                   r'the value in `NROWS`.')  # type: int
     NBPP = _IntegerDescriptor(
         'NBPP', True, 2, default_value=0,
@@ -353,31 +353,30 @@ class ImageSegmentHeader(NITFElement):
         'IDLVL', True, 3, default_value=0,
         docstring='Image Display Level. This field shall contain a valid value that indicates the display level of '
                   'the image relative to other displayed file components in a composite display. The valid values '
-                  'are 001 to 999. The display level of each displayable segment (image or graphic) within a file '
+                  'are :code:`1-999`. The display level of each displayable segment (image or graphic) within a file '
                   'shall be unique.')  # type: int
     IALVL = _IntegerDescriptor(
         'IALVL', True, 3, default_value=0,
         docstring='Attachment Level. This field shall contain a valid value that indicates the attachment '
-                  'level of the image.') # type: int
+                  'level of the image.')  # type: int
     ILOC = _StringDescriptor(
         'ILOC', True, 10, default_value='',
         docstring='Image Location. The image location is the location of the first pixel of the first line of the '
                   'image. This field shall contain the image location offset from the `ILOC` or `SLOC` value '
                   'of the segment to which the image is attached or from the origin of the CCS when the image '
-                  'is unattached (`IALVL` contains `000`). A row or column value of `00000` indicates no offset. '
+                  'is unattached (`IALVL` contains :code:`0`). A row or column value of :code:`0` indicates no offset. '
                   'Positive row and column values indicate offsets down and to the right while negative row and '
                   'column values indicate offsets up and to the left.')  # type: str
     IMAG = _StringDescriptor(
         'IMAG', True, 4, default_value='1.0',
         docstring='Image Magnification. This field shall contain the magnification (or reduction) factor of the '
                   'image relative to the original source image. Decimal values are used to indicate magnification, '
-                  'and decimal fraction values indicate reduction. For example, "2.30" indicates the original '
-                  'image has been magnified by a factor of "2.30", while "0.5" indicates the original image '
-                  'has been reduced by a factor of 2. The default value is 1.0, '
-                  'indicating no magnification or reduction.')  # type: int
+                  'and decimal fraction values indicate reduction. For example, :code:`2.30` indicates the original '
+                  'image has been magnified by a factor of :code:`2.30`, while :code:`0.5` indicates '
+                  'the original image has been reduced by a factor of 2.')  # type: str
     UserHeader = _NITFElementDescriptor(
         'UserHeader', True, UserHeaderType, default_args={},
-        docstring='User defined header.') # type: UserHeaderType
+        docstring='User defined header.')  # type: UserHeaderType
     ExtendedHeader = _NITFElementDescriptor(
         'ExtendedHeader', True, UserHeaderType, default_args={},
         docstring='Extended subheader - TRE list.')  # type: UserHeaderType
@@ -390,42 +389,42 @@ class ImageSegmentHeader(NITFElement):
     @property
     def IC(self):
         """
-        Image Compression. This field shall contain a valid code indicating
-        the form of compression used in representing the image data. Valid
-        values for this field are, `"C1"` to represent bi-level, `"C3"`
-        to represent JPEG, `"C4"` to represent Vector Quantization, `"C5"`
-        to represent lossless JPEG, `"I1"` to represent down sampled JPEG,
-        and `"NC"` to represent the image is not compressed. Also valid are
-        `"M1"`, `"M3"`, `"M4"`, and `"M5"` for compressed images, and `"NM"`
+        str: Image Compression. This field shall contain a valid code indicating
+        the form of compression used in representing the image data.
+
+        Valid values for this field are, :code:`C1` to represent bi-level, :code:`C3`
+        to represent JPEG, :code:`C4` to represent Vector Quantization, :code:`C5`
+        to represent lossless JPEG, :code:`I1` to represent down sampled JPEG,
+        and :code:`NC` to represent the image is not compressed. Also valid are
+        :code:`M1, M3, M4`, and :code:`M5` for compressed images, and :code:`NM`
         for uncompressed images indicating an image that contains a block
-        mask and/or a pad pixel mask. `"C6"` and `"M6"` are reserved values
+        mask and/or a pad pixel mask. :code:`C6` and :code:`M6` are reserved values
         that will represent a future correlated multicomponent compression
-        algorithm. `"C7"` and `"M7"` are reserved values that will represent
-        a future complex SAR compression. `"C8"` and `"M8"` are the values
-        for ISO standard compression JPEG 2000. The format of a mask image
-        is identical to the format of its corresponding non-masked image
+        algorithm. :code:`C7` and :code:`M7` are reserved values that will represent
+        a future complex SAR compression. :code:`C8` and :code:`M8` are the values
+        for ISO standard compression JPEG 2000.
+
+        The format of a mask image is identical to the format of its corresponding non-masked image
         except for the presence of an Image Data Mask at the beginning of
         the image data area. The format of the Image Data Mask is described
         in paragraph 5.4.3.2 and is shown in table A-3(A). The definitions
-        of the compression schemes associated with codes C1/M1, C3/M3, C4/M4,
-        and C5/M5 are given, respectively, in ITU- T T.4, AMD2, MIL-STD-188-198A,
-        MIL-STD- 188-199, and NGA N0106-97. C1 is found in ITU- T T.4 AMD2,
-        C3 is found in MIL-STD-188-198A, C4 = is found in MIL-STD-188-199,
-        and C5 and I1 are found in NGA N0106-97. (NOTE: C2 (ARIDPCM) is not
+        of the compression schemes associated with codes :code:`C1/M1, C3/M3, C4/M4, C5/M5`
+        are given, respectively, in ITU- T T.4, AMD2, MIL-STD-188-198A,
+        MIL-STD- 188-199, and NGA N0106-97. :code:`C1` is found in ITU- T T.4 AMD2,
+        :code:`C3` is found in MIL-STD-188-198A, :code:`C4` is found in MIL-STD-188-199,
+        and :code:`C5` and :code:`I1` are found in NGA N0106-97. (NOTE: :code:`C2` (ARIDPCM) is not
         valid in NITF 2.1.) The definition of the compression scheme associated
-        with codes C8/M8 is found in ISO/IEC 15444- 1:2000 (with amendments 1 and 2).
-
-        Returns
-        -------
-        str
+        with codes :code:`C8/M8` is found in ISO/IEC 15444- 1:2000 (with amendments 1 and 2).
         """
+
         return self._IC
 
     @IC.setter
     def IC(self, value):
         value = _parse_str(value, 2, 'NC', 'IC', self)
-        if value not in {'NC', 'NM', 'C1', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'I1',
-                 'M1', 'M3', 'M4', 'M5', 'M6', 'M7', 'M8'}:
+        if value not in {
+                'NC', 'NM', 'C1', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'I1',
+                'M1', 'M3', 'M4', 'M5', 'M6', 'M7', 'M8'}:
             raise ValueError('IC got invalid value {}'.format(value))
         self._IC = value
         if value in ('NC', 'NM'):
@@ -436,15 +435,11 @@ class ImageSegmentHeader(NITFElement):
     @property
     def COMRAT(self):
         """
-        Compression Rate Code. If the IC field contains C1, C3, C4, C5, C8,
-        M1, M3, M4, M5, M8, or I1, this field shall be contain
+        None|str: Compression Rate Code. If the IC field contains one of
+        :code:`C1, C3, C4, C5, C8, M1, M3, M4, M5, M8, I1`, this field shall be contain
         a code indicating the compression rate for the image.
 
-        If `IC` is `"NC"` or `"NM"`, then this will be set to `None`.
-
-        Returns
-        -------
-        None|str
+        If `IC` is :code:`NC` or :code:`NM`, then this will be set to :code:`None`.
         """
 
         return self._COMRAT
@@ -472,7 +467,7 @@ class ImageSegmentHeader(NITFElement):
     @classmethod
     def _parse_attribute(cls, fields, attribute, value, start):
         if attribute == 'IC':
-            val = value[start:start+2].encode('utf-8')
+            val = value[start:start+2].decode('utf-8')
             fields['IC'] = val
             if val in ('NC', 'NM'):
                 fields['COMRAT'] = None
