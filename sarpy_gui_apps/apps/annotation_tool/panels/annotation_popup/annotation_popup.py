@@ -66,6 +66,7 @@ class AnnotationPopup(AbstractWidgetPanel):
             confidence = previous_annotation.properties.elements[0].confidence
 
             self.thing_type.set(object_type)
+            self.thing_type.configure(state="disabled")
             self.comment.set_text(comment)
             self.confidence.set(confidence)
         else:
@@ -101,7 +102,11 @@ class AnnotationPopup(AbstractWidgetPanel):
         self.setup_main_parent_selections()
 
     def callback_submit(self, event):
-        if 'disabled' in self.thing_type.state():
+        if not 'disabled' in self.thing_type.state():
+            print("please select a valid type.")
+        elif self.confidence.get() not in self.main_app_variables.label_schema.confidence_values:
+            print("select a confidence value")
+        else:
             comment_text = self.comment.get()
             thing_type = self.thing_type.get()
             confidence_val = self.confidence.get()
@@ -119,8 +124,7 @@ class AnnotationPopup(AbstractWidgetPanel):
                 self.main_app_variables.file_annotation_collection.add_annotation(val)
             self.main_app_variables.file_annotation_collection.to_file(self.main_app_variables.file_annotation_fname)
             self.parent.destroy()
-        else:
-            print("please select a valid type.")
+
 
     def setup_main_parent_selections(self):
         base_type_ids = []
@@ -136,4 +140,3 @@ class AnnotationPopup(AbstractWidgetPanel):
 
     def setup_confidence_selections(self):
         self.confidence.update_combobox_values(self.main_app_variables.label_schema.confidence_values)
-
