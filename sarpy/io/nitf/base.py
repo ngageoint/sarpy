@@ -10,6 +10,8 @@ from typing import Union, List, Tuple
 
 import numpy
 
+from .tres.registration import find_tre
+
 integer_types = (int, )
 string_types = (str, )
 int_func = int
@@ -819,3 +821,282 @@ class _ItemArrayHeaders(BaseNITFElement):
         for sh_off, it_off in zip(self.subhead_sizes, self.item_sizes):
             out += subh_frm.format(sh_off) + item_frm.format(it_off)
         return out.encode()
+
+
+######
+# TRE Elements
+
+class TRE(BaseNITFElement):
+    """
+    An abstract TRE class - this should not be instantiated directly.
+    """
+
+    @property
+    def TAG(self):
+        """
+        The TRE tag.
+
+        Returns
+        -------
+        str
+        """
+
+        raise NotImplementedError
+
+    @property
+    def DATA(self):
+        """
+        The TRE data.
+
+        Returns
+        -------
+
+        """
+
+        raise NotImplementedError
+
+    @property
+    def EL(self):
+        """
+        The TRE element length.
+
+        Returns
+        -------
+        int
+        """
+
+        raise NotImplementedError
+
+    def get_bytes_length(self):
+        raise NotImplementedError
+
+    def to_bytes(self):
+        raise NotImplementedError
+
+    @classmethod
+    def minimum_length(cls):
+        return 11
+
+    @classmethod
+    def from_bytes(cls, value, start):
+        tag = value[start:start+6]
+        known_tre = find_tre(tag)
+        if known_tre is not None:
+            try:
+                return known_tre.from_bytes(value, start)
+            except Exception as e:
+                logging.error(
+                    "Failed parsing tre as type {} with error {}. "
+                    "Returning unparsed.".format(known_tre.__name__, e))
+        return UnknownTRE.from_bytes(value, start)
+
+
+class UnknownTRE(TRE):
+    __slots__ = ('_TAG', '_data')
+
+    def __init__(self, TAG, data):
+        """
+
+        Parameters
+        ----------
+        TAG : str
+        data : bytes
+        """
+
+        self._data = None
+        if isinstance(TAG, bytes):
+            TAG = TAG.decode('utf-8')
+
+        if not isinstance(TAG, string_types):
+            raise TypeError('TAG must be a string. Got {}'.format(type(TAG)))
+        if len(TAG) > 6:
+            raise ValueError('TAG must be 6 or fewer characters')
+
+        self._TAG = TAG
+        self.data = data
+
+    @property
+    def TAG(self):
+        return self._TAG
+
+    @property
+    def DATA(self):  # type: () -> bytes
+        return self._data
+
+    @DATA.setter
+    def DATA(self, value):
+        if not isinstance(value, bytes):
+            raise TypeError('data must be a bytes instance. Got {}'.format(type(value)))
+        self._data = value
+
+    @property
+    def EL(self):
+        return len(self._data)
+
+    def get_bytes_length(self):
+        return 11 + self.EL
+
+    def to_bytes(self):
+        return '{0:6s}{1:05d}'.format(self.TAG, self.EL).encode('utf-8') + self._data
+
+    @classmethod
+    def from_bytes(cls, value, start):
+        tag = value[start:start+6]
+        lng = int_func(value[start+6:start+11])
+        return cls(tag, value[start+11:start+11+lng])
+
+
+class TREList(NITFElement):
+    """
+    A list of TREs. This is meant to be used indirectly through one of the header
+    type objects, which controls the parsing appropriately.
+    """
+
+    __slots__ = ('_tres', )
+    _ordering = ('tres', )
+
+    def __init__(self, tres=None, **kwargs):
+        self._tres = []
+        super(TREList, self).__init__(tres=tres, **kwargs)
+
+    @property
+    def tres(self):  # type: () -> List[TRE]
+        return self._tres
+
+    @tres.setter
+    def tres(self, value):
+        if value is None:
+            self._tres = []
+            return
+
+        if not isinstance(value, (list, tuple)):
+            raise TypeError('tres must be a list or tuple')
+
+        for i, entry in enumerate(value):
+            if not isinstance(entry, TRE):
+                raise TypeError(
+                    'Each entry of tres must be of type TRE. '
+                    'Entry {} is type {}'.format(i, type(entry)))
+        self._tres = value
+
+    def _get_attribute_bytes(self, attribute):
+        if attribute == 'tres':
+            if len(self._tres) == 0:
+                return b''
+            return b''.join(entry.to_bytes() for entry in self._tres)
+        return super(TREList, self)._get_attribute_bytes(attribute)
+
+    def _get_attribute_length(self, attribute):
+        if attribute == 'tres':
+            if len(self._tres) == 0:
+                return 0
+            return sum(entry.get_bytes_length() for entry in self._tres)
+        return super(TREList, self)._get_attribute_length(attribute)
+
+    @classmethod
+    def _parse_attribute(cls, fields, attribute, value, start):
+        if attribute == 'tres':
+            if len(value) == start:
+                fields['tres'] = []
+                return start
+            tres = []
+            loc = start
+            while loc < len(value):
+                tre = TRE.from_bytes(value, loc)
+                loc += tre.get_bytes_length()
+                tres.append(tre)
+            fields['tres'] = tres
+            return len(value)
+        return super(TREList, cls)._parse_attribute(fields, attribute, value, start)
+
+    def __len__(self):
+        return len(self._tres)
+
+    def __getitem__(self, item):  # type: (Union[int, slice]) -> Union[TRE, List[TRE]]
+        return self._tres[item]
+
+
+class TREHeader(Unstructured):
+    def _populate_data(self):
+        if isinstance(self._data, bytes):
+            data = TREList.from_bytes(self._data, 0)
+            self._data = data
+
+
+class UserHeaderType(Unstructured):
+    __slots__ = ('_data', '_ofl')
+    _ordering = ('data', )
+    _size_len = 5
+    _ofl_len = 3
+
+    def __init__(self, OFL=None, data=None, **kwargs):
+        self._ofl = None
+        self._data = None
+        self.OFL = OFL
+        super(UserHeaderType, self).__init__(data=data, **kwargs)
+
+    @property
+    def OFL(self):  # type: () -> int
+        return self._ofl
+
+    @OFL.setter
+    def OFL(self, value):
+        if value is None:
+            self._ofl = 0
+            return
+
+        value = int_func(value)
+        if not (0 <= value <= 999):
+            raise ValueError('ofl requires an integer value in the range 0-999.')
+        self._ofl = value
+
+    def _populate_data(self):
+        if isinstance(self._data, bytes):
+            data = TREList.from_bytes(self._data, 0)
+            self._data = data
+
+    @classmethod
+    def minimum_length(cls):
+        return cls._size_len
+
+    def _get_attribute_bytes(self, attribute):
+        if attribute == 'data':
+            siz_frm = '{0:0' + str(self._size_len) + '}'
+            ofl_frm = '{0:0' + str(self._ofl_len) + '}'
+            data = self.data
+            if data is None:
+                return b'0'*self._size_len
+            if isinstance(data, NITFElement):
+                data = data.to_bytes()
+            if isinstance(data, bytes):
+                return siz_frm.format(len(data) + self._ofl_len).encode('utf-8') + \
+                    ofl_frm.format(self._ofl).encode('utf-8') + data
+            else:
+                raise TypeError('Got unexpected data type {}'.format(type(data)))
+        return super(Unstructured, self)._get_attribute_bytes(attribute)
+
+    def _get_attribute_length(self, attribute):
+        if attribute == 'data':
+            data = self.data
+            if data is None:
+                return self._size_len
+            elif isinstance(data, NITFElement):
+                return self._size_len + self._ofl_len + data.get_bytes_length()
+            else:
+                return self._size_len + self._ofl_len + len(data)
+        return super(UserHeaderType, self)._get_attribute_length(attribute)
+
+    @classmethod
+    def _parse_attribute(cls, fields, attribute, value, start):
+        if attribute == 'data':
+            length = int_func(value[start:start + cls._size_len])
+            start += cls._size_len
+            if length > 0:
+                ofl = int_func(value[start:start+cls._ofl_len])
+                fields['OFL'] = ofl
+                fields['data'] = value[start+cls._ofl_len:start + length]
+            else:
+                fields['OFL'] = 0
+                fields['data'] = None
+            return start + length
+        return super(UserHeaderType, cls)._parse_attribute(fields, attribute, value, start)
