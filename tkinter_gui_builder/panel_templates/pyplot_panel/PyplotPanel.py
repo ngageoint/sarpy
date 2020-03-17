@@ -18,7 +18,6 @@ PYPLOT_UTILS = PlotStyleUtils()
 class PyplotCanvas(tkinter.LabelFrame):
     def __init__(self, master):
         tkinter.LabelFrame.__init__(self, master)
-
         fig = Figure()
         self.ax = fig.add_subplot(111)
 

@@ -16,7 +16,6 @@ from .tool_constants import ShapePropertyConstants as SHAPE_PROPERTIES
 from .tool_constants import ShapeTypeConstants as SHAPE_TYPES
 from .tool_constants import ToolConstants as TOOLS
 
-
 if platform.system() == "Linux":
     import pyscreenshot as ImageGrab
 else:
@@ -103,7 +102,6 @@ class AppVariables:
 class ImageCanvas(tkinter.LabelFrame):
     def __init__(self, master):
         tkinter.LabelFrame.__init__(self, master)
-
         self.SHAPE_PROPERTIES = SHAPE_PROPERTIES
         self.SHAPE_TYPES = SHAPE_TYPES
         self.TOOLS = TOOLS
@@ -763,7 +761,7 @@ class ImageCanvas(tkinter.LabelFrame):
             if pixel_coords:
                 new_canvas_coords = self.image_coords_to_canvas_coords(shape_id)
                 self.modify_existing_shape_using_canvas_coords(shape_id, new_canvas_coords, update_pixel_coords=False)
-                
+
     def set_current_tool_to_select_closest_shape(self):
         self.variables.current_tool = TOOLS.SELECT_CLOSEST_SHAPE_TOOL
 
@@ -940,6 +938,7 @@ class ImageCanvas(tkinter.LabelFrame):
             squared_distances.append(d)
         closest_coord_index = np.where(squared_distances == np.min(squared_distances))[0][0]
         return closest_coord_index
+
 
     # TODO: improve this.  Right now it finds closest shape just based on distance to corners.  Improvements should
     # TODO: include finding a closest point if the x/y coordinate is inside a polygon, and also finding closest

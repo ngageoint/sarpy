@@ -2,7 +2,6 @@ import platform
 import tkinter
 
 
-# TODO: I'm fairly confident that this is what you want
 class WidgetEvents(tkinter.Misc):
     def __init__(self):
         pass

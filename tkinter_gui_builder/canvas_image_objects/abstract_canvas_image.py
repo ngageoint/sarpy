@@ -21,7 +21,7 @@ class AbstractCanvasImage(object):
                                                     full_image_rect,  # type: (int, int, int, int)
                                                     decimation,  # type: int
                                                     ):
-        raise NotImplementedError
+            raise NotImplementedError
 
     def init_from_fname_and_canvas_size(self,
                                         fname,  # type: str
@@ -38,7 +38,6 @@ class AbstractCanvasImage(object):
         :param scale_to_fit_canvas:
         :return:
         """
-
         raise NotImplementedError
 
     def get_scaled_display_data(self, decimated_image):
