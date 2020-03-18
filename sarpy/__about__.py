@@ -1,6 +1,6 @@
 # MIT License
 #
-# Copyright (c) 2019 National Geospatial-Intelligence Agency
+# Copyright (c) 2020 National Geospatial-Intelligence Agency
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -27,7 +27,7 @@ __all__ = ['__version__',
            '__license__', '__copyright__']
 
 
-__version__ = "1.0.0"
+__version__ = "1.0.04"
 
 
 __classification__ = "UNCLASSIFIED"  # This should be set appropriately in any high-side version
@@ -41,4 +41,4 @@ __summary__ = "Reading, writing, and simple processing of complex SAR data in Py
 
 
 __license__ = "MIT License"
-__copyright__ = "2019 {}".format(__author__)
+__copyright__ = "2020 {}".format(__author__)

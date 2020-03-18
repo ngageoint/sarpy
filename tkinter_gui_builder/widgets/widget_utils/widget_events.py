@@ -1,7 +1,8 @@
 import platform
+import tkinter
 
 
-class WidgetEvents(object):
+class WidgetEvents(tkinter.Misc):
     def __init__(self):
         pass
 

@@ -6,7 +6,7 @@ Module contained elements for defining TREs - really intended as read only objec
 from collections import OrderedDict
 from typing import Union, List
 
-from ..headers import TRE, int_func, string_types
+from ..base import TRE, int_func, string_types
 
 
 __classification__ = "UNCLASSIFIED"

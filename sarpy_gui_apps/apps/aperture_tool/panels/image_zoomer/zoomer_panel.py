@@ -34,7 +34,6 @@ class ZoomerPanel(AbstractWidgetPanel):
         self.image_canvas.canvas.on_left_mouse_click(self.callback_handle_left_mouse_click)
         self.image_canvas.canvas.on_left_mouse_release(self.callback_handle_left_mouse_release)
 
-        self.side_panel.file_selector.set_fname_filters(["*.NITF", ".nitf"])
         self.side_panel.file_selector.select_file.on_left_mouse_click(self.callback_select_file)
 
         self.image_canvas.set_labelframe_text("Image View")

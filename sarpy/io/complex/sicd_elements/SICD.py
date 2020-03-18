@@ -180,6 +180,41 @@ class SICDType(Serializable):
                 return attribute
         return 'OTHER'
 
+    @property
+    def ROV(self):
+        """
+        The Ratio of Range to Velocity at Center of Aperture time.
+
+        Returns
+        -------
+        float
+        """
+
+        try:
+            GRP = self.GeoData.SCP.ECF.get_array()
+            ARP = self.SCPCOA.ARPPos.get_array()
+            ARV = self.SCPCOA.ARPVel.get_array()
+            return float(numpy.linalg.norm(GRP-ARP)/numpy.linalg.norm(ARV))
+        except AttributeError:
+            logging.warning('ROV cannot be calculated because necessary attributes are missing')
+            return None
+
+    @property
+    def ThetaDot(self):
+        """
+        Derivative of Theta as a function of time.
+
+        Returns
+        -------
+        float
+        """
+
+        try:
+            return float(numpy.sin(numpy.deg2rad(self.SCPCOA.DopplerConeAng))/self.ROV)
+        except AttributeError:
+            logging.warning('Theta_Dot cannot be calculated because necessary attributes are missing')
+            return None
+
     def _validate_image_segment_id(self):  # type: () -> bool
         if self.ImageFormation is None or self.RadarCollection is None:
             return False

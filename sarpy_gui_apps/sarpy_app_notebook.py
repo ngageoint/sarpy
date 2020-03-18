@@ -1,15 +1,15 @@
-import tkinter as tk
-from tkinter import ttk
 from sarpy_gui_apps.apps.taser_tool.taser import Taser
 from sarpy_gui_apps.apps.wake_tool.wake_tool import WakeTool
 from sarpy_gui_apps.apps.aperture_tool.aperture_tool import ApertureTool
 from sarpy_gui_apps.apps.make_ortho.quick_ortho_tool import Ortho
+import tkinter
+from tkinter import ttk
 
 
 # Root class to create the interface and define the controller function to switch frames
-class RootApp(tk.Tk):
+class RootApp(tkinter.Tk):
     def __init__(self):
-        tk.Tk.__init__(self)
+        tkinter.Tk.__init__(self)
         self._frame = None
         self.switch_frame(NoteBook)
 

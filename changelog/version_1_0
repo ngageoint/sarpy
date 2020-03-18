@@ -1,5 +1,8 @@
 # This details the important differences introduced in 1.0
 # NB: bump the version number in __about__.py to reflect the below.
 
-
+* .04 - Improvements for GUI behavior and annotation tool
+* .03 - Refactored NITF elements for clarity and better documentation
+* .02 - Made polynomial shift simpler and added for Poly2D
+* .01 - Added a very basic ccd calculation and two SICD properties
 * .00 - Start of version after major refactor

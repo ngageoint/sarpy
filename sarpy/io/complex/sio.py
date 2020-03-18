@@ -19,7 +19,7 @@ from .bip import BIPChipper, BIPWriter
 from .sicd import complex_to_amp_phase, complex_to_int, amp_phase_to_complex
 from .utils import parse_xml_from_string
 # noinspection PyProtectedMember
-from ..nitf.headers import _SICD_SPECIFICATION_NAMESPACE
+from ..nitf.des import _SICD_SPECIFICATION_NAMESPACE
 
 __classification__ = "UNCLASSIFIED"
 __author__ = ("Thomas McCullough", "Wade Schwartzkopf")
