@@ -262,7 +262,11 @@ class ImageFormationType(Serializable):
     _numeric_format = {'TStartProc': '0.16G', 'EndProc': '0.16G'}
     # class variables
     _DUAL_POLARIZATION_VALUES = (
-        'V:V', 'V:H', 'H:V', 'H:H', 'RHC:RHC', 'RHC:LHC', 'LHC:RHC', 'LHC:LHC', 'OTHER', 'UNKNOWN')
+        'V:V', 'V:H', 'V:RHC', 'V:LHC',
+        'H:V', 'H:H', 'H:RHC', 'H:LHC',
+        'RHC:RHC', 'RHC:LHC', 'RHC:RHC', 'RHC:LHC',
+        'LHC:RHC', 'LHC:LHC', 'LHC:RHC', 'LHC:LHC',
+        'OTHER', 'UNKNOWN')
     _IMG_FORM_ALGO_VALUES = ('PFA', 'RMA', 'RGAZCOMP', 'OTHER')
     _ST_BEAM_COMP_VALUES = ('NO', 'GLOBAL', 'SV')
     _IMG_BEAM_COMP_VALUES = ('NO', 'SV')
