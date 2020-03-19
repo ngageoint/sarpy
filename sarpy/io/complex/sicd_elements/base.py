@@ -1065,49 +1065,6 @@ class _ParametersDescriptor(_BasicDescriptor):
                 the_inst.set_collection(value)
 
 
-class _SerializableArrayDescriptor(_BasicDescriptor):
-    """A descriptor for properties of a list or array of specified extension of Serializable"""
-    _DEFAULT_MIN_LENGTH = 0
-    _DEFAULT_MAX_LENGTH = 2 ** 32
-
-    def __init__(self, name, child_type, tag_dict, required, strict=DEFAULT_STRICT,
-                 minimum_length=None, maximum_length=None, docstring=None):
-        self.child_type = child_type
-        tags = tag_dict[name]
-        self.array = tags.get('array', False)
-        if not self.array:
-            raise ValueError(
-                'Attribute {} is populated in the `_collection_tags` dictionary without `array`=True. '
-                'This is inconsistent with using _SerializableArrayDescriptor.'.format(name))
-
-        self.child_tag = tags['child_tag']
-        self._typ_string = 'numpy.ndarray[{}]:'.format(str(child_type).strip().split('.')[-1][:-2])
-
-        self.minimum_length = self._DEFAULT_MIN_LENGTH if minimum_length is None else int_func(minimum_length)
-        self.maximum_length = self._DEFAULT_MAX_LENGTH if maximum_length is None else int_func(maximum_length)
-        if self.minimum_length > self.maximum_length:
-            raise ValueError(
-                'Specified minimum length is {}, while specified maximum length is {}'.format(
-                    self.minimum_length, self.maximum_length))
-        super(_SerializableArrayDescriptor, self).__init__(name, required, strict=strict, docstring=docstring)
-
-    def __set__(self, instance, value):
-        if super(_SerializableArrayDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
-            return
-
-        if isinstance(value, SerializableArray):
-            self.data[instance] = value
-        else:
-            xml_ns = getattr(instance, '_xml_ns', None)
-            the_inst = self.data.get(instance, None)
-            if the_inst is None:
-                self.data[instance] = SerializableArray(
-                    coords=value, name=self.name, child_tag=self.child_tag, child_type=self.child_type,
-                    minimum_length=self.minimum_length, maximum_length=self.maximum_length, _xml_ns=xml_ns)
-            else:
-                the_inst.set_array(value)
-
-
 class _SerializableCPArrayDescriptor(_BasicDescriptor):
     """A descriptor for properties of a list or array of specified extension of Serializable"""
     minimum_length = 4
@@ -1871,9 +1828,12 @@ class SerializableArray(object):
     __slots__ = (
         '_child_tag', '_child_type', '_array', '_name', '_minimum_length',
         '_maximum_length', '_xml_ns')
-    # TODO: make an iterator? I think it gets inferred.
     _default_minimum_length = 0
     _default_maximum_length = 2**32
+    _set_size = True
+    _size_var_name = 'size'
+    _set_index = True
+    _index_var_name = 'index'
 
     def __init__(self, coords=None, name=None, child_tag=None, child_type=None,
                  minimum_length=None, maximum_length=None, _xml_ns=None):
@@ -2018,9 +1978,11 @@ class SerializableArray(object):
         self._check_indices()
 
     def _check_indices(self):
+        if not self._set_index:
+            return
         for i, entry in enumerate(self._array):
             try:
-                entry.index = i+1
+                setattr(entry, self._size_var_name, i+1)
             except (AttributeError, ValueError, TypeError):
                 continue
 
@@ -2029,7 +1991,8 @@ class SerializableArray(object):
             return None  # nothing to be done
 
         anode = _create_new_node(doc, tag, parent=parent)
-        anode.attrib['size'] = str(self.size)
+        if self._set_size:
+            anode.attrib[self._size_var_name] = str(self.size)
         for i, entry in enumerate(self._array):
             entry.to_node(doc, self._child_tag, parent=anode, check_validity=check_validity, strict=strict)
         return anode
@@ -2068,7 +2031,8 @@ class SerializableCPArray(SerializableArray):
             self._index_as_string = True
         else:
             self._index_as_string = False
-        super(SerializableCPArray, self).__init__(coords=coords, name=name, child_tag=child_tag, child_type=child_type, _xml_ns=_xml_ns)
+        super(SerializableCPArray, self).__init__(
+            coords=coords, name=name, child_tag=child_tag, child_type=child_type, _xml_ns=_xml_ns)
         self._minimum_length = 4
         self._maximum_length = 4
 
@@ -2175,3 +2139,53 @@ class ParametersCollection(object):
     # noinspection PyUnusedLocal
     def to_dict(self, check_validity=False, strict=False):
         return self._dict
+
+
+######
+# Extra descriptor
+
+class _SerializableArrayDescriptor(_BasicDescriptor):
+    """A descriptor for properties of a list or array of specified extension of Serializable"""
+    _DEFAULT_MIN_LENGTH = 0
+    _DEFAULT_MAX_LENGTH = 2 ** 32
+
+    def __init__(self, name, child_type, tag_dict, required, strict=DEFAULT_STRICT,
+                 minimum_length=None, maximum_length=None, docstring=None,
+                 array_extension=SerializableArray):
+        if not issubclass(array_extension, SerializableArray):
+            raise TypeError('array_extension must be a subclass of SerializableArray.')
+        self.child_type = child_type
+        tags = tag_dict[name]
+        self.array = tags.get('array', False)
+        if not self.array:
+            raise ValueError(
+                'Attribute {} is populated in the `_collection_tags` dictionary without `array`=True. '
+                'This is inconsistent with using _SerializableArrayDescriptor.'.format(name))
+
+        self.child_tag = tags['child_tag']
+        self._typ_string = 'numpy.ndarray[{}]:'.format(str(child_type).strip().split('.')[-1][:-2])
+        self.array_extension = array_extension
+
+        self.minimum_length = self._DEFAULT_MIN_LENGTH if minimum_length is None else int_func(minimum_length)
+        self.maximum_length = self._DEFAULT_MAX_LENGTH if maximum_length is None else int_func(maximum_length)
+        if self.minimum_length > self.maximum_length:
+            raise ValueError(
+                'Specified minimum length is {}, while specified maximum length is {}'.format(
+                    self.minimum_length, self.maximum_length))
+        super(_SerializableArrayDescriptor, self).__init__(name, required, strict=strict, docstring=docstring)
+
+    def __set__(self, instance, value):
+        if super(_SerializableArrayDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
+            return
+
+        if isinstance(value, self.array_extension):
+            self.data[instance] = value
+        else:
+            xml_ns = getattr(instance, '_xml_ns', None)
+            the_inst = self.data.get(instance, None)
+            if the_inst is None:
+                self.data[instance] = self.array_extension(
+                    coords=value, name=self.name, child_tag=self.child_tag, child_type=self.child_type,
+                    minimum_length=self.minimum_length, maximum_length=self.maximum_length, _xml_ns=xml_ns)
+            else:
+                the_inst.set_array(value)
