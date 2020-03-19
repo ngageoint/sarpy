@@ -3,48 +3,106 @@
 The ProductDisplayType definition.
 """
 
-from typing import List
+from typing import Union, List
 
 from .base import Serializable, _SerializableDescriptor, _SerializableListDescriptor, \
     _IntegerDescriptor, _IntegerListDescriptor, _StringDescriptor, _StringEnumDescriptor, \
-    _ParametersDescriptor, DEFAULT_STRICT, ParametersCollection
+    _ParametersDescriptor, DEFAULT_STRICT, ParametersCollection, SerializableArray, _SerializableArrayDescriptor
 from .blocks import FilterType, NewLookupTableType
 
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
-class PixelTypeType(Serializable):
-    """
-
-    """
-    _fields = ()
-    _required = ()
-    # Descriptor
-
-    # TODO:
-
-    def __init__(self, **kwargs):
-        if '_xml_ns' in kwargs:
-            self._xml_ns = kwargs['_xml_ns']
-        super(PixelTypeType, self).__init__(**kwargs)
 
 #########
 # NonInteractiveProcessing
+
+class BandLUTType(NewLookupTableType):
+    # TODO: put in the fields
+    _fields = ('...', 'k')
+    _required = ('...', 'k')
+    # Descriptor
+    k = _IntegerDescriptor(
+        'k', _required, strict=DEFAULT_STRICT, bounds=(1, 2**32), default_value=1,
+        docstring='The array index.')
+
+    def __init__(self, k=None, **kwargs):
+        # TODO: the args
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
+        k = k
+        super(BandLUTType, self).__init__(**kwargs)
+
+
+class BandLUTArray(SerializableArray):
+    _set_size = False
+    _set_index = True
+    _index_var_name = 'k'
+
+
+class BandEqualizationType(Serializable):
+    """
+
+    """
+    _fields = ('Algorithm', 'BandLUTs')
+    _required = ('Algorithm', 'BandLUTs')
+    _collections_tags = {'BandLUTs': {'array': False, 'child_tag': 'BandLUT'}}
+    # Descriptor
+    Algorithm = _StringEnumDescriptor(
+        'Algorithm', ('LUT 1D', ), _required, strict=DEFAULT_STRICT, default_value='LUT 1D',
+        docstring='')
+    BandLUTs = _SerializableArrayDescriptor(
+        'BandLUTs', BandLUTType, _collections_tags, _required, strict=DEFAULT_STRICT, array_extension=BandLUTArray,
+        docstring='')  # type: Union[BandLUTArray, List[BandLUTType]]
+
+    def __init__(self, Algorithm='LUT 1D', BandLUTs=None, **kwargs):
+        """
+
+        Parameters
+        ----------
+        Algorithm : str
+            `LUT 1D` is currently the only allowed value.
+        BandLUTs : BandLUTArray|List[BandLUTType]
+        kwargs
+        """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
+        self.Algorithm = Algorithm
+        self.BandLUTs = BandLUTs
+        super(BandEqualizationType, self).__init__(**kwargs)
+
 
 class ProductGenerationOptionsType(Serializable):
     """
 
     """
-    _fields = ()
-    _required = ()
+    _fields = ('BandEqualization', 'ModularTransferFunctionRestoration', 'DataRemapping', 'AsymmetricPixelCorrection')
+    _required = ('DataRemapping', )
     # Descriptor
+    BandEqualization = _SerializableDescriptor(
+        'BandEqualization', BandEqualizationType, _required, strict=DEFAULT_STRICT,
+        docstring='Band equalization ensures that real-world neutral colors have equal digital count values '
+                  '(i.e. are represented as neutral colors) across the dynamic range '
+                  'of the imaged scene.')  # type: BandEqualizationType
+    ModularTransferFunctionRestoration = _SerializableDescriptor(
+        'ModularTransferFunctionRestoration', FilterType, _required, strict=DEFAULT_STRICT,
+        docstring=r'If present, the filter must not exceed :math:`15 \times 15`.')  # type: FilterType
+    DataRemapping = _SerializableDescriptor(
+        'DataRemapping', NewLookupTableType, _required, strict=DEFAULT_STRICT,
+        docstring='Data remapping refers to the specific need to convert the data of incoming, expanded or '
+                  'uncompressed image band data to non-mapped image data.')  # type: NewLookupTableType
+    AsymmetricPixelCorrection = _SerializableDescriptor(
+        'AsymmetricPixelCorrection', FilterType, _required, strict=DEFAULT_STRICT,
+        docstring='The asymmetric pixel correction.')
 
-    # TODO:
-
-    def __init__(self, **kwargs):
+    def __init__(self, BandEqualization=None, ModularTransferFunctionRestoration=None, DataRemapping=None, **kwargs):
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        self.BandEqualization = BandEqualization
+        self.ModularTransferFunctionRestoration = ModularTransferFunctionRestoration
+        self.DataRemapping = DataRemapping
         super(ProductGenerationOptionsType, self).__init__(**kwargs)
 
 
@@ -250,9 +308,9 @@ class ProductDisplayType(Serializable):
         'DisplayExtensions': {'array': False, 'child_tag': 'DisplayExtension'}}
 
     # Descriptors
-    PixelType = _SerializableDescriptor(
-        'PixelType', PixelTypeType, _required, strict=DEFAULT_STRICT,
-        docstring='Defines the pixel type, based on enumeration and definition in '
+    PixelType = _StringEnumDescriptor(
+        'PixelType', ('MONO8I', 'MONO8LU', 'MONO16I', 'RGBL8U', 'RGB24I'), _required, strict=DEFAULT_STRICT,
+        docstring='Enumeration of the pixel type. Definition in '
                   'Design and Exploitation document.')  # type: PixelTypeType
     NumBands = _IntegerDescriptor(
         'NumBands', _required, strict=DEFAULT_STRICT,

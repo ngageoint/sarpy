@@ -16,20 +16,19 @@ __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 
-# class _(Serializable):
-#     """
-#
-#     """
-#     _fields = ()
-#     _required = ()
-#     # Descriptor
-#
-#     # TODO:
-#
-#     def __init__(self, **kwargs):
-#         if '_xml_ns' in kwargs:
-#             self._xml_ns = kwargs['_xml_ns']
-#         super(_, self).__init__(**kwargs)
+#################
+# Basic Lookup Tables
+
+class LookupTableType(Serializable, Arrayable):
+    # TODO: layout the basic lookup table functionality
+    # this is really just an integer array of shape (N, )
+    pass
+
+
+class Lookup3TableType(Serializable, Arrayable):
+    # TODO: layout the basic lookup3 table functionality
+    # this is just an integer array of shape (N, 3)
+    pass
 
 
 #################
@@ -351,7 +350,7 @@ class LUTInfoType(Serializable):
     """
 
     """
-    _fields = ( )
+    _fields = ()
     _required = ()
     # Descriptor
 
@@ -393,3 +392,21 @@ class NewLookupTableType(Serializable):
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
         super(NewLookupTableType, self).__init__(**kwargs)
+
+
+############
+
+# class _(Serializable):
+#     """
+#
+#     """
+#     _fields = ()
+#     _required = ()
+#     # Descriptor
+#
+#     # TODO:
+#
+#     def __init__(self, **kwargs):
+#         if '_xml_ns' in kwargs:
+#             self._xml_ns = kwargs['_xml_ns']
+#         super(_, self).__init__(**kwargs)
