@@ -5,8 +5,10 @@ The ProductCreationType definition.
 
 import numpy
 
-from .base import Serializable, _SerializableDescriptor, _StringDescriptor, \
-    _DateTimeDescriptor, _ParametersDescriptor, DEFAULT_STRICT, ParametersCollection
+from .base import DEFAULT_STRICT
+# noinspection PyProtectedMember
+from ..sicd_elements.base import Serializable, _SerializableDescriptor, _StringDescriptor, \
+    _DateTimeDescriptor, _ParametersDescriptor, ParametersCollection
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"

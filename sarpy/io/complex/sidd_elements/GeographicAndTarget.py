@@ -9,8 +9,10 @@ import copy
 
 from ..sicd_elements.blocks import LatLonCornerStringType, LatLonArrayElementType
 from ..sicd_elements.GeoData import GeoInfoType
-from .base import Serializable, SerializableArray, SerializableCPArray, \
-    _SerializableArrayDescriptor, _SerializableCPArrayDescriptor, _StringEnumDescriptor, DEFAULT_STRICT
+# noinspection PyProtectedMember
+from ..sicd_elements.base import Serializable, SerializableArray, SerializableCPArray, \
+    _SerializableArrayDescriptor, _SerializableCPArrayDescriptor, _StringEnumDescriptor
+from .base import DEFAULT_STRICT
 
 
 __classification__ = "UNCLASSIFIED"

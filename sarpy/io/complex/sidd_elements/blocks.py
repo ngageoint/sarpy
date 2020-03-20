@@ -4,16 +4,121 @@ Multipurpose SIDD elements
 """
 
 from collections import OrderedDict
+from typing import Union
 
 import numpy
 
-from .base import Serializable, SerializableArray, Arrayable, _SerializableDescriptor, _SerializableListDescriptor, \
-    _IntegerDescriptor, _IntegerListDescriptor, _StringDescriptor, _StringEnumDescriptor, \
-    _ParametersDescriptor, DEFAULT_STRICT, ParametersCollection, int_func, \
-    _get_node_value, _create_text_node, _create_new_node
+from .base import DEFAULT_STRICT
+# noinspection PyProtectedMember
+from ..sicd_elements.base import Serializable, Arrayable, _SerializableDescriptor, \
+    _IntegerDescriptor, _FloatDescriptor, _StringDescriptor, _StringEnumDescriptor, \
+    int_func, _get_node_value, _create_text_node, _create_new_node
+from ..sicd_elements.blocks import XYZType
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
+
+
+##############
+# Reference Point
+
+class RowColDoubleType(Serializable, Arrayable):
+    _fields = ('Row', 'Col')
+    _required = _fields
+    Row = _FloatDescriptor(
+        'Row', _required, strict=True, docstring='The Row attribute.')  # type: float
+    Col = _FloatDescriptor(
+        'Col', _required, strict=True, docstring='The Column attribute.')  # type: float
+
+    def __init__(self, Row=None, Col=None, **kwargs):
+        """
+        Parameters
+        ----------
+        Row : float
+        Col : float
+        kwargs : dict
+        """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
+        self.Row, self.Col = Row, Col
+        super(RowColDoubleType, self).__init__(**kwargs)
+
+    def get_array(self, dtype=numpy.float64):
+        """
+        Gets an array representation of the class instance.
+
+        Parameters
+        ----------
+        dtype : numpy.dtype
+            numpy data type of the return
+
+        Returns
+        -------
+        numpy.ndarray
+            array of the form [Row, Col]
+        """
+
+        return numpy.array([self.Row, self.Col], dtype=dtype)
+
+    @classmethod
+    def from_array(cls, array):
+        """
+        Create from an array type entry.
+
+        Parameters
+        ----------
+        array: numpy.ndarray|list|tuple
+            assumed [Row, Col]
+
+        Returns
+        -------
+        RowColType
+        """
+
+        if isinstance(array, (numpy.ndarray, list, tuple)):
+            if len(array) < 2:
+                raise ValueError('Expected array to be of length 2, and received {}'.format(array))
+            return cls(Row=array[0], Col=array[1])
+        raise ValueError('Expected array to be numpy.ndarray, list, or tuple, got {}'.format(type(array)))
+
+
+class ReferencePointType(Serializable):
+    """
+    A reference point.
+    """
+
+    _fields = ('ECEF', 'Point', 'name')
+    _required = ('ECEF', 'Point')
+    _set_as_attribute = ('name', )
+    # Descriptor
+    ECEF = _SerializableDescriptor(
+        'ECEF', XYZType, _required, strict=DEFAULT_STRICT,
+        docstring='The EXEF coordinates of the reference point.')  # type: XYZType
+    Point = _SerializableDescriptor(
+        'Point', RowColDoubleType, _required, strict=DEFAULT_STRICT,
+        docstring='The pixel coordinates of the reference point.')  # type: RowColDoubleType
+    name = _StringDescriptor(
+        'name', _required, strict=DEFAULT_STRICT,
+        docstring='Used for implementation specific signifier for the reference point.')  # type: Union[None, str]
+
+    def __init__(self, ECEF=None, Point=None, name=None, **kwargs):
+        """
+
+        Parameters
+        ----------
+        ECEF : XYZType|numpy.ndarray|list|tuple
+        Point : RowColDoubleType|numpy.ndarray|list|tuple
+        name : None|str
+        kwargs
+        """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
+        self.ECEF = ECEF
+        self.Point = Point
+        self.name = name
+        super(ReferencePointType, self).__init__(**kwargs)
 
 
 #################
@@ -548,7 +653,7 @@ class NewLookupTableType(Serializable):
 
 ############
 
-# class _(Serializable):
+# class dummy(Serializable):
 #     """
 #
 #     """
@@ -561,4 +666,4 @@ class NewLookupTableType(Serializable):
 #     def __init__(self, **kwargs):
 #         if '_xml_ns' in kwargs:
 #             self._xml_ns = kwargs['_xml_ns']
-#         super(_, self).__init__(**kwargs)
+#         super(dummy, self).__init__(**kwargs)

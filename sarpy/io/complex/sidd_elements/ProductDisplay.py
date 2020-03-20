@@ -5,10 +5,12 @@ The ProductDisplayType definition.
 
 from typing import Union, List
 
-from .base import Serializable, _SerializableDescriptor, _SerializableListDescriptor, \
-    _IntegerDescriptor, _FloatDescriptor, _StringDescriptor, _StringEnumDescriptor, \
-    _ParametersDescriptor, DEFAULT_STRICT, ParametersCollection, SerializableArray, _SerializableArrayDescriptor
+from .base import DEFAULT_STRICT
 from .blocks import FilterType, NewLookupTableType
+# noinspection PyProtectedMember
+from ..sicd_elements.base import Serializable, _SerializableDescriptor, _SerializableListDescriptor, \
+    _IntegerDescriptor, _FloatDescriptor, _StringDescriptor, _StringEnumDescriptor, \
+    _ParametersDescriptor, ParametersCollection, SerializableArray, _SerializableArrayDescriptor
 
 
 __classification__ = "UNCLASSIFIED"
