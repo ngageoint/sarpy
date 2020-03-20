@@ -6,7 +6,7 @@ The ProductDisplayType definition.
 from typing import Union, List
 
 from .base import Serializable, _SerializableDescriptor, _SerializableListDescriptor, \
-    _IntegerDescriptor, _IntegerListDescriptor, _StringDescriptor, _StringEnumDescriptor, \
+    _IntegerDescriptor, _FloatDescriptor, _StringDescriptor, _StringEnumDescriptor, \
     _ParametersDescriptor, DEFAULT_STRICT, ParametersCollection, SerializableArray, _SerializableArrayDescriptor
 from .blocks import FilterType, NewLookupTableType
 
@@ -19,20 +19,29 @@ __author__ = "Thomas McCullough"
 # NonInteractiveProcessing
 
 class BandLUTType(NewLookupTableType):
-    # TODO: put in the fields
-    _fields = ('...', 'k')
-    _required = ('...', 'k')
+    _fields = ('Predefined', 'Custom', 'k')
+    _required = ('k', )
+    _set_as_attribute = ('k', )
     # Descriptor
     k = _IntegerDescriptor(
         'k', _required, strict=DEFAULT_STRICT, bounds=(1, 2**32), default_value=1,
         docstring='The array index.')
 
-    def __init__(self, k=None, **kwargs):
-        # TODO: the args
+    def __init__(self, Predefined=None, Custom=None, k=None, **kwargs):
+        """
+
+        Parameters
+        ----------
+        Predefined : sarpy.io.complex.sidd_elements.blocks.PredefinedLookupType
+        Custom : sarpy.io.complex.sidd_elements.blocks.CustomLookupType
+        k : int
+        kwargs
+        """
+
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
-        k = k
-        super(BandLUTType, self).__init__(**kwargs)
+        self.k = k
+        super(BandLUTType, self).__init__(Predefined=Predefined, Custom=Custom, **kwargs)
 
 
 class BandLUTArray(SerializableArray):
@@ -51,7 +60,7 @@ class BandEqualizationType(Serializable):
     # Descriptor
     Algorithm = _StringEnumDescriptor(
         'Algorithm', ('LUT 1D', ), _required, strict=DEFAULT_STRICT, default_value='LUT 1D',
-        docstring='')
+        docstring='The algorithm type.')  # type: str
     BandLUTs = _SerializableArrayDescriptor(
         'BandLUTs', BandLUTType, _collections_tags, _required, strict=DEFAULT_STRICT, array_extension=BandLUTArray,
         docstring='')  # type: Union[BandLUTArray, List[BandLUTType]]
@@ -95,7 +104,7 @@ class ProductGenerationOptionsType(Serializable):
                   'uncompressed image band data to non-mapped image data.')  # type: NewLookupTableType
     AsymmetricPixelCorrection = _SerializableDescriptor(
         'AsymmetricPixelCorrection', FilterType, _required, strict=DEFAULT_STRICT,
-        docstring='The asymmetric pixel correction.')
+        docstring='The asymmetric pixel correction.')  # type: FilterType
 
     def __init__(self, BandEqualization=None, ModularTransferFunctionRestoration=None, DataRemapping=None, **kwargs):
         if '_xml_ns' in kwargs:
@@ -118,7 +127,7 @@ class RRDSType(Serializable):
         'DownsamplingMethod',
         ('DECIMATE', 'MAX PIXEL', 'AVERAGE', 'NEAREST NEIGHBOR', 'BILINEAR', 'LAGRANGE'),
         _required, strict=DEFAULT_STRICT,
-        docstring='Algorithm used to perform RRDS downsampling')
+        docstring='Algorithm used to perform RRDS downsampling')  # type: str
     AntiAlias = _SerializableDescriptor(
         'AntiAlias', FilterType, _required, strict=DEFAULT_STRICT,
         docstring='The anti-aliasing filter. Should only be included if '
@@ -167,7 +176,7 @@ class NonInteractiveProcessingType(Serializable):
                   'peeds and performance.')  # type: RRDSType
     band = _IntegerDescriptor(
         'band', _required, strict=DEFAULT_STRICT,
-        docstring='The immage band to which this applies.')
+        docstring='The immage band to which this applies.')  # type: int
 
     def __init__(self, ProductGenerationOptions=None, RRDS=None, band=1, **kwargs):
         if '_xml_ns' in kwargs:
@@ -181,67 +190,308 @@ class NonInteractiveProcessingType(Serializable):
 ##########
 # InteractiveProcessing
 
-class GeometricTransformType(Serializable):
+class ScalingType(Serializable):
     """
-
+    Scaling for geometric transformation
     """
-    _fields = ()
-    _required = ()
+    _fields = ('AntiAlias', 'Interpolation')
+    _required = _fields
     # Descriptor
+    AntiAlias = _SerializableDescriptor(
+        'AntiAlias', FilterType, _required, strict=DEFAULT_STRICT,
+        docstring='The Anti-Alias Filter used for scaling. Refer to program-specific '
+                  'documentation for population guidance.')  # type: FilterType
+    Interpolation = _SerializableDescriptor(
+        'Interpolation', FilterType, _required, strict=DEFAULT_STRICT,
+        docstring='The Interpolation Filter used for scaling. Refer to program-specific '
+                  'documentation for population guidance.')  # type: FilterType
 
-    # TODO:
+    def __init__(self, AntiAlias=None, Interpolation=None, **kwargs):
+        """
 
-    def __init__(self, **kwargs):
+        Parameters
+        ----------
+        AntiAlias : FilterType
+        Interpolation : FilterType
+        kwargs
+        """
+
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        self.AntiAlias = AntiAlias
+        self.Interpolation = Interpolation
+        super(ScalingType, self).__init__(**kwargs)
+
+
+class OrientationType(Serializable):
+    """
+    Parameters describing the default orientation of the product.
+    """
+
+    _fields = ('ShadowDirection', )
+    _required = _fields
+    # Descriptor
+    ShadowDirection = _StringEnumDescriptor(
+        'ShadowDirection', ('UP', 'DOWN', 'LEFT', 'RIGHT', 'ARBITRARY'), _required,
+        strict=DEFAULT_STRICT, default_value='DOWN',
+        docstring='Describes the shadow direction relative to the '
+                  'pixels in the file.')  # type: str
+
+    def __init__(self, ShadowDirection='DOWN', **kwargs):
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
+        self.ShadowDirection = ShadowDirection
+        super(OrientationType, self).__init__(**kwargs)
+
+
+class GeometricTransformType(Serializable):
+    """
+    The geometric transform element is used to perform various geometric distortions to each
+    band of image data. These distortions include image chipping, scaling, rotation, shearing, etc.
+    """
+
+    _fields = ('Scaling', 'Orientation')
+    _required = _fields
+    # Descriptor
+    Scaling = _SerializableArrayDescriptor(
+        'Scaling', ScalingType, _required, strict=DEFAULT_STRICT,
+        docstring='The scaling filters.')  # type: ScalingType
+    Orientation = _SerializableDescriptor(
+        'Orientation', OrientationType, _required, strict=DEFAULT_STRICT,
+        docstring='Parameters describing the default orientation of the product.')  # type: OrientationType
+
+    def __init__(self, Scaling=None, Orientation=None, **kwargs):
+        """
+
+        Parameters
+        ----------
+        Scaling : ScalingType
+        Orientation : OrientationType
+        kwargs
+        """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
+        self.Scaling = Scaling
+        self.Orientation = Orientation
         super(GeometricTransformType, self).__init__(**kwargs)
 
 
 class SharpnessEnhancementType(Serializable):
     """
-
+    Sharpness enhancement filter parameters.
     """
-    _fields = ()
-    _required = ()
+    _fields = ('ModularTransferFunctionCompensation', 'ModularTransferFunctionEnhancement')
+    _required = _fields
     # Descriptor
+    ModularTransferFunctionCompensation = _SerializableDescriptor(
+        'ModularTransferFunctionCompensation', FilterType, _required, strict=DEFAULT_STRICT,
+        docstring=r'If defining a custom Filter, it must be no larger than :math:`5\times 5`.')  # type: FilterType
+    ModularTransferFunctionEnhancement = _SerializableDescriptor(
+        'ModularTransferFunctionEnhancement', FilterType, _required, strict=DEFAULT_STRICT,
+        docstring=r'If defining a custom Filter, it must be no larger than :math:`5\times 5`.')  # type: FilterType
 
-    # TODO:
+    def __init__(self, ModularTransferFunctionCompensation=None, ModularTransferFunctionEnhancement=None, **kwargs):
+        """
 
-    def __init__(self, **kwargs):
+        Parameters
+        ----------
+        ModularTransferFunctionCompensation : FilterType
+        ModularTransferFunctionEnhancement : FilterType
+        kwargs
+        """
+
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        self.ModularTransferFunctionCompensation = ModularTransferFunctionCompensation
+        self.ModularTransferFunctionEnhancement = ModularTransferFunctionEnhancement
         super(SharpnessEnhancementType, self).__init__(**kwargs)
+
+
+class ColorManagementModuleType(Serializable):
+    """
+    Parameters describing the Color Management Module (CMM).
+    """
+
+    _fields = ('RenderingIntent', 'SourceProfile', 'DisplayProfile', 'ICCProfile')
+    _required = _fields
+    # Descriptor
+    RenderingIntent = _StringEnumDescriptor(
+        'RenderingIntent', (), _required, strict=DEFAULT_STRICT, default_value='PERCEPTUAL',
+        docstring='The rendering intent for this color management.')  # type: str
+    SourceProfile = _StringDescriptor(
+        'SourceProfile', _required, strict=DEFAULT_STRICT,
+        docstring='Name of sensor profile in ICC Profile database.')  # type: str
+    DisplayProfile = _StringDescriptor(
+        'DisplayProfile', _required, strict=DEFAULT_STRICT,
+        docstring='Name of display profile in ICC Profile database.')  # type: str
+    ICCProfile = _SerializableDescriptor(
+        'ICCProfile', _required, strict=DEFAULT_STRICT,
+        docstring='Valid ICC profile signature.')  # type: str
+
+    def __init__(self, RenderingIntent='PERCEPTUAL', SourceProfile=None,
+                 DisplayProfile=None, ICCProfile=None, **kwargs):
+        """
+
+        Parameters
+        ----------
+        RenderingIntent : str
+        SourceProfile : str
+        DisplayProfile : str
+        ICCProfile : str
+        kwargs
+        """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
+        self.RenderingIntent = RenderingIntent
+        self.SourceProfile = SourceProfile
+        self.DisplayProfile = DisplayProfile
+        self.ICCProfile = ICCProfile
+        super(ColorManagementModuleType, self).__init__(**kwargs)
 
 
 class ColorSpaceTransformType(Serializable):
     """
-
+    Parameters describing any color transformation.
     """
-    _fields = ()
-    _required = ()
+    _fields = ('ColorManagementModule', )
+    _required = _fields
     # Descriptor
+    ColorManagementModule = _SerializableDescriptor(
+        'ColorManagementModule', ColorManagementModuleType, _required, strict=DEFAULT_STRICT,
+        docstring='Parameters describing the Color Management Module (CMM).')  # type: ColorManagementModuleType
 
-    # TODO:
+    def __init__(self, ColorManagementModule=None, **kwargs):
+        """
 
-    def __init__(self, **kwargs):
+        Parameters
+        ----------
+        ColorManagementModule : ColorManagementModuleType
+        kwargs
+        """
+
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        self.ColorManagementModule = ColorManagementModule
         super(ColorSpaceTransformType, self).__init__(**kwargs)
+
+
+class DRAParametersType(Serializable):
+    """
+    The basic dynamic range adjustment parameters.
+    """
+    _fields = ('Pmin', 'Pmax', 'EminModifier', 'EmaxModifier')
+    _required = _fields
+    _numeric_format = {key: '0.16G' for key in _fields}
+    # Descriptor
+    Pmin = _FloatDescriptor(
+        'Pmin', _required, strict=DEFAULT_STRICT, bounds=(0, 1),
+        docstring='DRA clip low point. This is the cumulative histogram percentage value '
+                  'that defines the lower end-point of the dynamic range to be displayed.')  # type: float
+    Pmax = _FloatDescriptor(
+        'Pmax', _required, strict=DEFAULT_STRICT, bounds=(0, 1),
+        docstring='DRA clip high point. This is the cumulative histogram percentage value '
+                  'that defines the upper end-point of the dynamic range to be displayed.')  # type: float
+    EminModifier = _FloatDescriptor(
+        'EminModifier', _required, strict=DEFAULT_STRICT, bounds=(0, 1),
+        docstring='The pixel value corresponding to the Pmin percentage point in the '
+                  'image histogram.')  # type: float
+    EmaxModifier = _FloatDescriptor(
+        'EmaxModifier', _required, strict=DEFAULT_STRICT, bounds=(0, 1),
+        docstring='The pixel value corresponding to the Pmax percentage point in the '
+                  'image histogram.')  # type: float
+
+    def __init__(self, Pmin=None, Pmax=None, EminModifier=None, EmaxModifier=None, **kwargs):
+        """
+
+        Parameters
+        ----------
+        Pmin : float
+        Pmax : float
+        EminModifier : float
+        EmaxModifier : float
+        kwargs
+        """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
+        self.Pmin = Pmin
+        self.Pmax = Pmax
+        self.EminModifier = EminModifier
+        self.EmaxModifier = EmaxModifier
+        super(DRAParametersType, self).__init__(**kwargs)
+
+
+class DRAOverridesType(Serializable):
+    """
+    The dynamic range adjustment overrides.
+    """
+    _fields = ('Subtractor', 'Multiplier')
+    _required = _fields
+    _numeric_format = {key: '0.16G' for key in _fields}
+    # Descriptor
+    Subtractor = _FloatDescriptor(
+        'Subtractor', _required, strict=DEFAULT_STRICT, bounds=(0, 2047),
+        docstring='Subtractor value used to reduce haze in the image.')  # type: float
+    Multiplier = _FloatDescriptor(
+        'Multiplier', _required, strict=DEFAULT_STRICT, bounds=(0, 2047),
+        docstring='Multiplier value used to reduce haze in the image.')  # type: float
+
+    def __init__(self, Subtractor=None, Multiplier=None, **kwargs):
+        """
+
+        Parameters
+        ----------
+        Subtractor : float
+        Multiplier : float
+        kwargs
+        """
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
+        self.Subtractor = Subtractor
+        self.Multiplier = Multiplier
+        super(DRAOverridesType, self).__init__(**kwargs)
 
 
 class DynamicRangeAdjustmentType(Serializable):
     """
-
+    The dynamic range adjustment (DRA) parameters.
     """
-    _fields = ()
-    _required = ()
+    _fields = ('AlgorithmType', 'BandStatsSource', 'DRAParameters', 'DRAOverrides')
+    _required = ('AlgorithmType', 'BandStatsSource', )
     # Descriptor
+    AlgorithmType = _StringEnumDescriptor(
+        'AlgorithmType', ('AUTO', 'MANUAL', 'NONE'), _required, strict=DEFAULT_STRICT, default_value='NONE',
+        docstring='Algorithm used for dynamic range adjustment.')  # type: str
+    BandStatsSource = _IntegerDescriptor(
+        'BandStatsSource', _required, strict=DEFAULT_STRICT,
+        docstring='')  # type: int
+    DRAParameters = _SerializableDescriptor(
+        'DRAParameters', DRAParametersType, _required, strict=DEFAULT_STRICT,
+        docstring='The dynamic range adjustment parameters.')  # type: DRAParametersType
+    DRAOverrides = _SerializableDescriptor(
+        'DRAOverrides', DRAOverridesType, _required, strict=DEFAULT_STRICT,
+        docstring='The dynamic range adjustment overrides.')  # type: DRAOverridesType
 
-    # TODO:
+    def __init__(self, AlgorithmType='None', BandStatsSource=None, DRAParameters=None, DRAOverrides=None, **kwargs):
+        """
 
-    def __init__(self, **kwargs):
+        Parameters
+        ----------
+        AlgorithmType : str
+        BandStatsSource : int
+        DRAParameters : DRAParametersType
+        DRAOverrides : DRAOverridesType
+        kwargs
+        """
+
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        self.AlgorithmType = AlgorithmType
+        self.BandStatsSource = BandStatsSource
+        self.DRAParameters = DRAParameters
+        self.DRAOverrides = DRAOverrides
         super(DynamicRangeAdjustmentType, self).__init__(**kwargs)
 
 
@@ -292,6 +542,8 @@ class InteractiveProcessingType(Serializable):
         self.band = band
         super(InteractiveProcessingType, self).__init__(**kwargs)
 
+
+##########
 
 class ProductDisplayType(Serializable):
     """

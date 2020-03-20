@@ -7,28 +7,13 @@ from collections import OrderedDict
 
 import numpy
 
-from .base import Serializable, Arrayable, _SerializableDescriptor, _SerializableListDescriptor, \
+from .base import Serializable, SerializableArray, Arrayable, _SerializableDescriptor, _SerializableListDescriptor, \
     _IntegerDescriptor, _IntegerListDescriptor, _StringDescriptor, _StringEnumDescriptor, \
     _ParametersDescriptor, DEFAULT_STRICT, ParametersCollection, int_func, \
     _get_node_value, _create_text_node, _create_new_node
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
-
-
-#################
-# Basic Lookup Tables
-
-class LookupTableType(Serializable, Arrayable):
-    # TODO: layout the basic lookup table functionality
-    # this is really just an integer array of shape (N, )
-    pass
-
-
-class Lookup3TableType(Serializable, Arrayable):
-    # TODO: layout the basic lookup3 table functionality
-    # this is just an integer array of shape (N, 3)
-    pass
 
 
 #################
@@ -73,8 +58,9 @@ class PredefinedFilterType(Serializable):
 
 class FilterKernelType(Serializable):
     """
-
+    The filter kernel parameters.
     """
+
     _fields = ('Predefined', 'Custom')
     _required = ()
     _choice = ({'required': True, 'collection': ('Predefined', 'Custom')}, )
@@ -120,9 +106,9 @@ class BankCustomType(Serializable, Arrayable):
         kwargs : dict
         """
 
+        self._coefs = None
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
-        self._coefs = None
         self.Coefs = Coefs
         super(BankCustomType, self).__init__(**kwargs)
 
@@ -259,15 +245,14 @@ class FilterBankType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
-        self.Predefined = Predefined
-        self.Custom = Custom
-        super(FilterBankType, self).__init__(**kwargs)
+        super(FilterBankType, self).__init__(Predefined=Predefined, Custom=Custom, **kwargs)
 
 
 class FilterType(Serializable):
     """
-
+    Filter parameters for a variety of purposes.
     """
+
     _fields = ('FilterName', 'FilterKernel', 'FilterBank', 'Operation')
     _required = ('FilterName', 'Operation')
     _choice = ({'required': True, 'collection': ('FilterKernel', 'FilterBank')}, )
@@ -299,11 +284,8 @@ class FilterType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
-        self.FilterName = FilterName
-        self.FilterKernel = FilterKernel
-        self.FilterBank = FilterBank
-        self.Operation = Operation
-        super(FilterType, self).__init__(**kwargs)
+        super(FilterType, self).__init__(
+            FilterName=FilterName, FilterKernel=FilterKernel, FilterBank=FilterBank, Operation=Operation, **kwargs)
 
 
 ################
@@ -340,41 +322,196 @@ class PredefinedLookupType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
-        self.DatabaseName = DatabaseName
-        self.RemapFamily = RemapFamily
-        self.RemapMember = RemapMember
-        super(PredefinedLookupType, self).__init__(**kwargs)
+        super(PredefinedLookupType, self).__init__(
+            DatabaseName=DatabaseName, RemapFamily=RemapFamily, RemapMember=RemapMember, **kwargs)
 
 
-class LUTInfoType(Serializable):
+class LUTInfoType(Serializable, Arrayable):
     """
-
+    The lookup table - basically just a one or two dimensional unsigned integer array of bit depth 8 or 16.
     """
-    _fields = ()
-    _required = ()
-    # Descriptor
+    __slots__ = ('_lut_values', )
+    _fields = ('LUTValues', 'numLuts', 'size')
+    _required = ('LUTValues', )
 
-    # TODO:
+    def __init__(self, LUTValues=None, **kwargs):
+        """
 
-    def __init__(self, **kwargs):
+        Parameters
+        ----------
+        LUTValues : numpy.ndarray
+            The dtype must be `uint8` or `uint16`, and the dimension must be one or two.
+        kwargs
+        """
+
+        self._lut_values = None
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        self.LUTValues = LUTValues
         super(LUTInfoType, self).__init__(**kwargs)
+
+    @property
+    def LUTValues(self):
+        """
+        numpy.ndarray: the two dimensional look-up table, where the dtype must be `uint8` or `uint16`.
+        The first dimension should correspond to entries (i.e. size of the lookup table), and the
+        second dimension should correspond to bands (i.e. number of bands).
+        """
+
+        return self._lut_values
+
+    @LUTValues.setter
+    def LUTValues(self, value):
+        if value is None:
+            self._lut_values = None
+            return
+        if isinstance(value, (tuple, list)):
+            value = numpy.array(value, dtype=numpy.uint8)
+        if not isinstance(value, numpy.ndarray) or value.dtype.name not in ('uint8', 'uint16'):
+            raise ValueError(
+                'LUTValues for class LUTInfoType must be a numpy.ndarray of dtype uint8 or uint16.')
+        if value.ndim != 2:
+            raise ValueError('LUTValues for class LUTInfoType must be two-dimensional.')
+        self._lut_values = value
+
+    @property
+    def size(self):
+        """
+        int: the size of each lookup table
+        """
+        if self._lut_values is None:
+            return 0
+        else:
+            return self._lut_values.shape[0]
+
+    @property
+    def numLUTs(self):
+        """
+        int: The number of lookup tables
+        """
+        if self._lut_values is None:
+            return 0
+        else:
+            return self._lut_values.shape[1]
+
+    def __getitem__(self, item):
+        return self._lut_values[item]
+
+    @classmethod
+    def from_array(cls, array):
+        """
+        Create from the lookup table array.
+
+        Parameters
+        ----------
+        array: numpy.ndarray|list|tuple
+            Must be two-dimensional. If not a numpy.ndarray, this will be naively
+            interpreted as `uint8`.
+
+        Returns
+        -------
+        LUTInfoType
+        """
+
+        return cls(LUTValues=array)
+
+    def get_array(self, dtype=numpy.uint8):
+        """
+        Gets **a copy** of the coefficent array of specified data type.
+
+        Parameters
+        ----------
+        dtype : numpy.dtype
+            numpy data type of the return
+
+        Returns
+        -------
+        numpy.ndarray
+            the lookup table array
+        """
+
+        return numpy.array(self._lut_values, dtype=dtype)
+
+    @classmethod
+    def from_node(cls, node, xml_ns, kwargs=None):
+        """For XML deserialization.
+
+        Parameters
+        ----------
+        node : ElementTree.Element
+            dom element for serialized class instance
+        xml_ns : dict
+            The xml namespace dictionary.
+        kwargs : None|dict
+            `None` or dictionary of previously serialized attributes. For use in inheritance call, when certain
+            attributes require specific deserialization.
+
+        Returns
+        -------
+        LUTInfoType
+            corresponding class instance
+        """
+
+        dim1 = int_func(node.attrib['size'])
+        dim2 = int_func(node.attrib['numLuts'])
+        arr = numpy.zeros((dim1, dim2), dtype=numpy.uint16)
+        lut_nodes = node.findall('LUTValues') if xml_ns is None else node.findall('default:LUTValues', xml_ns)
+        for i, lut_node in enumerate(lut_nodes):
+            arr[:, i] = [str(el) for el in _get_node_value(lut_node)]
+        if numpy.max(arr) < 256:
+            arr = numpy.cast[numpy.uint8](arr)
+        return cls(LUTValues=arr)
+
+    def to_node(self, doc, tag, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
+        def make_entry(arr):
+            value = ' '.join(str(el) for el in arr)
+            entry = _create_text_node(doc, 'LUTValues', value, parent=node)
+            entry.attrib['lut'] = str(arr.size)
+
+        if self._lut_values is None or self._lut_values.ndim == 0:
+            return
+
+        if parent is None:
+            parent = doc.getroot()
+        node = _create_new_node(doc, tag, parent=parent)
+        node.attrib['numLuts'] = str(self.numLUTs)
+        node.attrib['size'] = str(self.size)
+        if self._lut_values.ndim == 1:
+            make_entry(self._lut_values)
+        else:
+            for j in range(self._lut_values.shape[1]):
+                make_entry(self._lut_values[:, j])
+
+    def to_dict(self,  check_validity=False, strict=DEFAULT_STRICT, exclude=()):
+        out = OrderedDict()
+        out['LUTValues'] = self.LUTValues.tolist()
+        return out
 
 
 class CustomLookupType(Serializable):
     """
-
+    A custom lookup table.
     """
-    _fields = ( )
-    _required = ()
+
+    _fields = ('LUTInfo', )
+    _required = ('LUTInfo', )
     # Descriptor
+    LUTInfo = _SerializableDescriptor(
+        'LUTInfo', LUTInfoType, _required, strict=DEFAULT_STRICT,
+        docstring='The lookup table.')  # type: LUTInfoType
 
-    # TODO:
+    def __init__(self, LUTInfo=None, **kwargs):
+        """
 
-    def __init__(self, **kwargs):
+        Parameters
+        ----------
+        LUTInfo: LUTInfoType|numpy.ndarray|list|tuple
+        kwargs
+        """
+
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        self.LUTInfo = LUTInfo
         super(CustomLookupType, self).__init__(**kwargs)
 
 
@@ -382,15 +519,30 @@ class NewLookupTableType(Serializable):
     """
 
     """
-    _fields = ()
+    _fields = ('Predefined', 'Custom')
     _required = ()
     # Descriptor
+    Predefined = _SerializableDescriptor(
+        'Predefined', PredefinedLookupType, _required, strict=DEFAULT_STRICT,
+        docstring='')  # type: PredefinedLookupType
+    Custom = _SerializableDescriptor(
+        'Custom', CustomLookupType, _required, strict=DEFAULT_STRICT,
+        docstring='')  # type: CustomLookupType
 
-    # TODO:
+    def __init__(self, Predefined=None, Custom=None, **kwargs):
+        """
 
-    def __init__(self, **kwargs):
+        Parameters
+        ----------
+        Predefined : PredefinedLookupType
+        Custom : CustomLookupType
+        kwargs
+        """
+
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        self.Predefined = Predefined
+        self.Custom = Custom
         super(NewLookupTableType, self).__init__(**kwargs)
 
 
