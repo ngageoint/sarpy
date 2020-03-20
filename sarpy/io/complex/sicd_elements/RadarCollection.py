@@ -15,7 +15,8 @@ from .base import Serializable, DEFAULT_STRICT, \
     _SerializableCPArrayDescriptor, SerializableCPArray, \
     _UnitVectorDescriptor, _parse_float, \
     _ParametersDescriptor, ParametersCollection
-from .blocks import XYZType, LatLonHAECornerRestrictionType
+from .blocks import XYZType, LatLonHAECornerRestrictionType, \
+    POLARIZATION1_VALUES, POLARIZATION2_VALUES, DUAL_POLARIZATION_VALUES
 
 import sarpy.geometry.geocoords as geocoords
 
@@ -220,14 +221,12 @@ class TxStepType(Serializable):
     _fields = ('WFIndex', 'TxPolarization', 'index')
     _required = ('index', )
     _set_as_attribute = ('index', )
-    # other class variables
-    _POLARIZATION2_VALUES = ('V', 'H', 'RHC', 'LHC', 'OTHER')
     # descriptors
     WFIndex = _IntegerDescriptor(
         'WFIndex', _required, strict=DEFAULT_STRICT,
         docstring='The waveform number for this step.')  # type: int
     TxPolarization = _StringEnumDescriptor(
-        'TxPolarization', _POLARIZATION2_VALUES, _required, strict=DEFAULT_STRICT,
+        'TxPolarization', POLARIZATION2_VALUES, _required, strict=DEFAULT_STRICT,
         docstring='Transmit signal polarization for this step.')  # type: str
     index = _IntegerDescriptor(
         'index', _required, strict=DEFAULT_STRICT,
@@ -257,16 +256,9 @@ class ChanParametersType(Serializable):
     _fields = ('TxRcvPolarization', 'RcvAPCIndex', 'index')
     _required = ('TxRcvPolarization', 'index', )
     _set_as_attribute = ('index', )
-    # other class variables
-    _DUAL_POLARIZATION_VALUES = (
-        'V:V', 'V:H', 'V:RHC', 'V:LHC',
-        'H:V', 'H:H', 'H:RHC', 'H:LHC',
-        'RHC:V', 'RHC:H', 'RHC:RHC', 'RHC:LHC',
-        'LHC:V', 'LHC:H', 'LHC:RHC', 'LHC:LHC',
-        'OTHER', 'UNKNOWN')
     # descriptors
     TxRcvPolarization = _StringEnumDescriptor(
-        'TxRcvPolarization', _DUAL_POLARIZATION_VALUES, _required, strict=DEFAULT_STRICT,
+        'TxRcvPolarization', DUAL_POLARIZATION_VALUES, _required, strict=DEFAULT_STRICT,
         docstring='Combined Transmit and Receive signal polarization for the channel.')  # type: str
     RcvAPCIndex = _IntegerDescriptor(
         'RcvAPCIndex', _required, strict=DEFAULT_STRICT,
@@ -612,8 +604,6 @@ class RadarCollectionType(Serializable):
         'TxSequence': {'array': True, 'child_tag': 'TxStep'},
         'RcvChannels': {'array': True, 'child_tag': 'ChanParameters'},
         'Parameters': {'array': False, 'child_tag': 'Parameters'}}
-    # other class variables
-    _POLARIZATION1_VALUES = ('V', 'H', 'RHC', 'LHC', 'OTHER', 'UNKNOWN', 'SEQUENCE')
     # descriptors
     TxFrequency = _SerializableDescriptor(
         'TxFrequency', TxFrequencyType, _required, strict=DEFAULT_STRICT,
@@ -629,7 +619,7 @@ class RadarCollectionType(Serializable):
         docstring='Transmit and receive demodulation waveform parameters.'
     )  # type: Union[SerializableArray, List[WaveformParametersType]]
     TxPolarization = _StringEnumDescriptor(
-        'TxPolarization', _POLARIZATION1_VALUES, _required, strict=DEFAULT_STRICT,
+        'TxPolarization', POLARIZATION1_VALUES, _required, strict=DEFAULT_STRICT,
         docstring='The transmit polarization.')  # type: str
     TxSequence = _SerializableArrayDescriptor(
         'TxSequence', TxStepType, _collections_tags, _required, strict=DEFAULT_STRICT, minimum_length=1,
