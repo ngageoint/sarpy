@@ -1602,7 +1602,8 @@ class Serializable(object):
         return cls(**input_dict)
 
     def to_dict(self, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
-        """For json serialization.
+        """
+        For json serialization.
 
         Parameters
         ----------
@@ -2138,7 +2139,7 @@ class ParametersCollection(object):
 
     # noinspection PyUnusedLocal
     def to_dict(self, check_validity=False, strict=False):
-        return self._dict
+        return copy.deepcopy(self._dict)
 
 
 ######
