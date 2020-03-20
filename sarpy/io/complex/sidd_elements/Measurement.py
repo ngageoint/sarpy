@@ -311,3 +311,20 @@ class MeasurementType(Serializable):
         self.ARPPoly = ARPPoly
         self.ValidData = ValidData
         super(MeasurementType, self).__init__(**kwargs)
+
+    @classmethod
+    def from_sicd(cls, sicd):
+        """
+        Construct a MeasurementType object from a SICD instance.
+
+        Parameters
+        ----------
+        sicd : sarpy.io.complex.sicd_elements.SICD.SICDType
+
+        Returns
+        -------
+        MeasurementType
+        """
+
+        # TODO: finish this...we probably need more than one?
+        pass
