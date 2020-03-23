@@ -19,6 +19,28 @@ __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 
+class RangeAzimuthType(Serializable):
+    """
+    Represents range and azimuth.
+    """
+    _fields = ('Range', 'Azimuth')
+    _required = ('Range', 'Azimuth')
+    # Descriptor
+    Range = _FloatDescriptor(
+        'Range', _required, strict=DEFAULT_STRICT,
+        docstring='The range in meters.')  # type: float
+    Azimuth = _FloatDescriptor(
+        'Azimuth', _required, strict=DEFAULT_STRICT,
+        docstring='The azimuth in degrees.')  # type: float
+
+    def __init__(self, Range=None, Azimuth=None, **kwargs):
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
+        self.Range = Range
+        self.Azimuth = Azimuth
+        super(RangeAzimuthType, self).__init__(**kwargs)
+
+
 ##############
 # Reference Point
 
