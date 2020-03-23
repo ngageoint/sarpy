@@ -168,7 +168,6 @@ class SICDDetails(NITFDetails):
             for i in range(self.des_subheader_offsets.size):
                 fi.seek(int_func(self.des_subheader_offsets[i]))
                 subhead_bytes = fi.read(self._nitf_header.DataExtensions.subhead_sizes[i])
-                print('subheader...{}'.format(subhead_bytes))
                 if subhead_bytes.startswith(b'DEXML_DATA_CONTENT'):
                     des_header = DataExtensionHeader.from_bytes(subhead_bytes, start=0)
                     fi.seek(int_func(self.des_segment_offsets[i]))
@@ -183,19 +182,18 @@ class SICDDetails(NITFDetails):
                     except Exception:
                         continue
                 elif subhead_bytes.startswith(b'DESICD_XML'):
-                    # TODO: parse this header type?
                     fi.seek(int_func(self.des_segment_offsets[i]))
                     data_extension = fi.read(int_func(self._nitf_header.DataExtensions.item_sizes[i])).decode('utf-8').strip()
-                    print('data extension...{}'.format(data_extension))
                     try:
                         root_node, xml_ns = parse_xml_from_string(data_extension)
                         if 'SICD' in root_node.tag:  # namespace makes this ugly
                             self._des_index = i
-                            self._des_header = des_header
+                            self._des_header = None
                             self._is_sicd = True
                             break
                     except Exception:
-                        continue
+                        raise
+                        # continue
 
         if not self._is_sicd or root_node is None:
             return
