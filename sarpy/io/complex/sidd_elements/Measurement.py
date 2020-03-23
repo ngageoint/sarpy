@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-The ProductDisplayType definition.
+The MeasurementType definition.
 """
 
 from typing import Union, List
