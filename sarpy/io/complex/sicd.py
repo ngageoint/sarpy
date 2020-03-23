@@ -192,8 +192,7 @@ class SICDDetails(NITFDetails):
                             self._is_sicd = True
                             break
                     except Exception:
-                        raise
-                        # continue
+                        continue
 
         if not self._is_sicd or root_node is None:
             return
