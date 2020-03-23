@@ -11,7 +11,7 @@ import numpy
 from .base import DEFAULT_STRICT
 # noinspection PyProtectedMember
 from ..sicd_elements.base import Serializable, Arrayable, _SerializableDescriptor, \
-    _IntegerDescriptor, _FloatDescriptor, _StringDescriptor, _StringEnumDescriptor, \
+    _IntegerDescriptor, _FloatDescriptor, _FloatModularDescriptor, _StringDescriptor, _StringEnumDescriptor, \
     int_func, _get_node_value, _create_text_node, _create_new_node
 from ..sicd_elements.blocks import XYZType
 
@@ -19,7 +19,7 @@ __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 
-class RangeAzimuthType(Serializable):
+class RangeAzimuthType(Serializable, Arrayable):
     """
     Represents range and azimuth.
     """
@@ -39,6 +39,114 @@ class RangeAzimuthType(Serializable):
         self.Range = Range
         self.Azimuth = Azimuth
         super(RangeAzimuthType, self).__init__(**kwargs)
+
+    def get_array(self, dtype=numpy.float64):
+        """
+        Gets an array representation of the class instance.
+
+        Parameters
+        ----------
+        dtype : numpy.dtype
+            numpy data type of the return
+
+        Returns
+        -------
+        numpy.ndarray
+            array of the form [Range, Azimuth]
+        """
+
+        return numpy.array([self.Range, self.Azimuth], dtype=dtype)
+
+    @classmethod
+    def from_array(cls, array):
+        """
+        Create from an array type entry.
+
+        Parameters
+        ----------
+        array: numpy.ndarray|list|tuple
+            assumed [Range, Azimuth]
+
+        Returns
+        -------
+        RangeAzimuthType
+        """
+
+        if isinstance(array, (numpy.ndarray, list, tuple)):
+            if len(array) < 2:
+                raise ValueError('Expected array to be of length 2, and received {}'.format(array))
+            return cls(Range=array[0], Azimuth=array[1])
+        raise ValueError('Expected array to be numpy.ndarray, list, or tuple, got {}'.format(type(array)))
+
+
+class AngleMagnitudeType(Serializable, Arrayable):
+    """
+    Represents a magnitude and angle.
+    """
+
+    _fields = ('Angle', 'Magnitude')
+    _required = ('Angle', 'Magnitude')
+    # Descriptor
+    Angle = _FloatModularDescriptor(
+        'Angle', 180.0, _required, strict=DEFAULT_STRICT,
+        docstring='The angle.')  # type: float
+    Magnitude = _FloatDescriptor(
+        'Magnitude', _required, strict=DEFAULT_STRICT, bounds=(0.0, None),
+        docstring='The magnitude.')  # type: float
+
+    def __init__(self, Angle=None, Magnitude=None, **kwargs):
+        """
+
+        Parameters
+        ----------
+        Angle : float
+        Magnitude : float
+        kwargs
+        """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
+        self.Angle = Angle
+        self.Magnitude = Magnitude
+        super(AngleMagnitudeType, self).__init__(**kwargs)
+
+    def get_array(self, dtype=numpy.float64):
+        """
+        Gets an array representation of the class instance.
+
+        Parameters
+        ----------
+        dtype : numpy.dtype
+            numpy data type of the return
+
+        Returns
+        -------
+        numpy.ndarray
+            array of the form [Angle, Magnitude]
+        """
+
+        return numpy.array([self.Angle, self.Magnitude], dtype=dtype)
+
+    @classmethod
+    def from_array(cls, array):
+        """
+        Create from an array type entry.
+
+        Parameters
+        ----------
+        array: numpy.ndarray|list|tuple
+            assumed [Angle, Magnitude]
+
+        Returns
+        -------
+        AngleMagnitudeType
+        """
+
+        if isinstance(array, (numpy.ndarray, list, tuple)):
+            if len(array) < 2:
+                raise ValueError('Expected array to be of length 2, and received {}'.format(array))
+            return cls(Angle=array[0], Magnitude=array[1])
+        raise ValueError('Expected array to be numpy.ndarray, list, or tuple, got {}'.format(type(array)))
 
 
 ##############
