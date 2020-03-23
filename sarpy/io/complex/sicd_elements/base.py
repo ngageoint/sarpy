@@ -1465,7 +1465,7 @@ class Serializable(object):
             The constructed dom element, already assigned to the parent element.
         """
 
-        def serialize_array(node, the_tag, ch_tag, val, format_function):
+        def serialize_array(node, the_tag, ch_tag, val, format_function, size_attrib):
             if not isinstance(val, numpy.ndarray):
                 # this should really never happen, unless someone broke the class badly by fiddling with
                 # _collections_tag or the descriptor at runtime
@@ -1485,7 +1485,7 @@ class Serializable(object):
 
             if val.dtype.name == 'float64':
                 anode = _create_new_node(doc, the_tag, parent=node)
-                anode.attrib['size'] = str(val.size)
+                anode.attrib[size_attrib] = str(val.size)
                 for i, val in enumerate(val):
                     vnode = _create_text_node(doc, ch_tag, format_function(val), parent=anode)
                     vnode.attrib['index'] = str(i) if ch_tag == 'Amplitude' else str(i+1)
@@ -1577,8 +1577,9 @@ class Serializable(object):
                             'The value associated with attribute {} in an instance of class {} is of type {}, '
                             'but `child_tag` is not populated in the _collection_tags dictionary.'.format(
                                 attribute, self.__class__.__name__, type(value)))
+                    size_attribute = array_tag.get('size_attribute', 'size')
                     if isinstance(value, numpy.ndarray):
-                        serialize_array(nod, attribute, child_tag, value, fmt_func)
+                        serialize_array(nod, attribute, child_tag, value, fmt_func, size_attribute)
                     else:
                         serialize_list(nod, child_tag, value, fmt_func)
                 else:
