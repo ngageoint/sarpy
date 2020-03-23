@@ -368,10 +368,18 @@ class _StringEnumDescriptor(_BasicDescriptor):
 
         if val in self.values:
             self.data[instance] = val
+        elif self._default_value is not None:
+            msg = 'Attribute {} of class {} received {}, but values ARE REQUIRED to be ' \
+                  'one of {}. It has been set to the default ' \
+                  'value.'.format(self.name, instance.__class__.__name__, value, self.values)
+            logging.error(msg)
+            self.data[instance] = self._default_value
         else:
             msg = 'Attribute {} of class {} received {}, but values ARE REQUIRED to be ' \
-                  'one of {}'.format(self.name, instance.__class__.__name__, value, self.values)
-            raise ValueError(msg)
+                  'one of {}. This should be resolved, or it may cause unexpected ' \
+                  'issues.'.format(self.name, instance.__class__.__name__, value, self.values)
+            logging.error(msg)
+            self.data[instance] = val
 
 
 class _IntegerDescriptor(_BasicDescriptor):
