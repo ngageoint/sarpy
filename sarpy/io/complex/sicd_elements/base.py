@@ -844,6 +844,59 @@ class _FloatDescriptor(_BasicDescriptor):
             self.data[instance] = iv
 
 
+class _FloatListDescriptor(_BasicDescriptor):
+    """A descriptor for float list type properties"""
+    _typ_string = 'list[float]:'
+    _DEFAULT_MIN_LENGTH = 0
+    _DEFAULT_MAX_LENGTH = 2 ** 32
+
+    def __init__(self, name, tag_dict, required, strict=DEFAULT_STRICT,
+                 minimum_length=None, maximum_length=None, docstring=None):
+        self.child_tag = tag_dict[name]['child_tag']
+        self.minimum_length = self._DEFAULT_MIN_LENGTH if minimum_length is None else int_func(minimum_length)
+        self.maximum_length = self._DEFAULT_MAX_LENGTH if maximum_length is None else int_func(maximum_length)
+        if self.minimum_length > self.maximum_length:
+            raise ValueError(
+                'Specified minimum length is {}, while specified maximum length is {}'.format(
+                    self.minimum_length, self.maximum_length))
+        super(_FloatListDescriptor, self).__init__(name, required, strict=strict, docstring=docstring)
+
+    def __set__(self, instance, value):
+        def set_value(new_value):
+            if len(new_value) < self.minimum_length:
+                msg = 'Attribute {} of class {} is an float list of size {}, and must have size at least ' \
+                      '{}.'.format(self.name, instance.__class__.__name__, value.size, self.minimum_length)
+                if self.strict:
+                    raise ValueError(msg)
+                else:
+                    logging.info(msg)
+            if len(new_value) > self.maximum_length:
+                msg = 'Attribute {} of class {} is a float list of size {}, and must have size no larger than ' \
+                      '{}.'.format(self.name, instance.__class__.__name__, value.size, self.maximum_length)
+                if self.strict:
+                    raise ValueError(msg)
+                else:
+                    logging.info(msg)
+            self.data[instance] = new_value
+
+        if super(_FloatListDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
+            return
+
+        if isinstance(value, float):
+            set_value([value, ])
+        elif isinstance(value, ElementTree.Element):
+            set_value([float(_get_node_value(value)), ])
+        elif isinstance(value, list):
+            if len(value) == 0 or isinstance(value[0], float):
+                set_value(value)
+            elif isinstance(value[0], ElementTree.Element):
+                set_value([float(_get_node_value(nod)) for nod in value])
+        else:
+            raise TypeError(
+                'Field {} of class {} got incompatible type {}.'.format(
+                    self.name, instance.__class__.__name__, type(value)))
+
+
 class _ComplexDescriptor(_BasicDescriptor):
     """A descriptor for complex valued properties"""
     _typ_string = 'complex:'

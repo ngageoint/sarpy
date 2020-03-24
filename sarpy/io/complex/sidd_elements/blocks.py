@@ -779,21 +779,3 @@ class NewLookupTableType(Serializable):
         self.Predefined = Predefined
         self.Custom = Custom
         super(NewLookupTableType, self).__init__(**kwargs)
-
-
-############
-
-# class dummy(Serializable):
-#     """
-#
-#     """
-#     _fields = ()
-#     _required = ()
-#     # Descriptor
-#
-#     # TODO:
-#
-#     def __init__(self, **kwargs):
-#         if '_xml_ns' in kwargs:
-#             self._xml_ns = kwargs['_xml_ns']
-#         super(dummy, self).__init__(**kwargs)
