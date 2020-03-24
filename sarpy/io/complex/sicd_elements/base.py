@@ -545,7 +545,7 @@ class _StringDescriptor(_BasicDescriptor):
 
 class _StringListDescriptor(_BasicDescriptor):
     """A descriptor for properties for an array type item for specified extension of string"""
-    _typ_string = 'list[str]'
+    _typ_string = 'List[str]:'
     _DEFAULT_MIN_LENGTH = 0
     _DEFAULT_MAX_LENGTH = 2 ** 32
 

@@ -370,6 +370,20 @@ class AnnotationObjectType(Serializable):
 
     def __init__(self, Point=None, Line=None, LinearRing=None, Polygon=None, MultiPoint=None,
                  MultiLineString=None, MultiPolygon=None, **kwargs):
+        """
+
+        Parameters
+        ----------
+        Point : sarpy.geometry.geometry_elements.Point|numpy.array|list|tuple
+        Line : sarpy.geometry.geometry_elements.LineString|numpy.array|list|tuple
+        LinearRing : sarpy.geometry.geometry_elements.LinearRing|numpy.array|list|tuple
+        Polygon : sarpy.geometry.geometry_elements.Polygon|list
+        MultiPoint : sarpy.geometry.geometry_elements.MultiPoint|list
+        MultiLineString : sarpy.geometry.geometry_elements.MultiLineString|list
+        MultiPolygon : sarpy.geometry.geometry_elements.MultiPolygon|list
+        kwargs
+        """
+
         self._Point = None
         self._Line = None
         self._LinearRing = None
@@ -744,6 +758,15 @@ class AnnotationType(Serializable):
         docstring='')  # type: List[AnnotationObjectType]
 
     def __init__(self, Identifier=None, SpatialReferenceSystem=None, Objects=None, **kwargs):
+        """
+
+        Parameters
+        ----------
+        Identifier : str
+        SpatialReferenceSystem : ReferenceSystemType
+        Objects : List[AnnotationObjectType]
+        kwargs
+        """
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
         self.Identifier = Identifier
