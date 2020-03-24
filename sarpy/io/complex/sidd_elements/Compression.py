@@ -81,7 +81,7 @@ class J2KType(Serializable):
 
 class CompressionType(Serializable):
     """
-    Contains information regarding any compression that has occured to the image data.
+    Contains information regarding any compression that has occurred to the image data.
     """
 
     _fields = ('J2K', )

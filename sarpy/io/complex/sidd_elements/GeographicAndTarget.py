@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-The ProductDisplayType definition.
+The GeographicAndTargetType definition.
 """
 from collections import OrderedDict
 from typing import Union, List
