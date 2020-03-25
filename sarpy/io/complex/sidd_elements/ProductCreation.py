@@ -89,7 +89,7 @@ class ProductCreationType(Serializable):
     Contains general information about product creation.
     """
 
-    _fields =(
+    _fields = (
         'ProcessorInformation', 'ProductClassification', 'ProductName', 'ProductClass',
         'ProductType', 'ProductCreationExtensions')
     _required = (
@@ -112,7 +112,8 @@ class ProductCreationType(Serializable):
     ProductType = _StringDescriptor(
         'ProductType', _required, strict=DEFAULT_STRICT,
         docstring='Type of sub-product. Examples - :code:`Frame #, Reference, Match`. '
-                  'This field is only needed if there is a suite of associated products.')  # type: str
+                  'This field is only needed if there is a suite of associated '
+                  'products.')  # type: Union[None, str]
     ProductCreationExtensions = _ParametersDescriptor(
         'ProductCreationExtensions', _collections_tags, required=_required, strict=DEFAULT_STRICT,
         docstring='Extensible parameters used to support profile-specific needs related to '

@@ -29,8 +29,9 @@ __author__ = "Thomas McCullough"
 
 class ParameterType(Serializable):
     """
-
+    The parameter type.
     """
+
     _fields = ('ParameterName', 'Value')
     _required = _fields
     _numeric_format = {'Value': '0.16G'}
@@ -40,7 +41,7 @@ class ParameterType(Serializable):
         docstring='')  # type: str
     Value = _FloatDescriptor(
         'Value', _required, strict=DEFAULT_STRICT,
-        docstring='')  # type: str
+        docstring='')  # type: float
 
     def __init__(self, ParameterName=None, Value=None, **kwargs):
         """
@@ -61,8 +62,9 @@ class ParameterType(Serializable):
 
 class ProjectionType(Serializable):
     """
-
+    The projection type.
     """
+
     _fields = ('ProjectionName', )
     _required = ('ProjectionName', )
     # Descriptor
@@ -87,11 +89,12 @@ class ProjectionType(Serializable):
 
 class PrimeMeridianType(Serializable):
     """
-
+    The prime meridian location.
     """
+
     _fields = ('Name', 'Longitude')
     _required = _fields
-    _numeric_format = {'Longtiude': '0.16G'}
+    _numeric_format = {'Longitude': '0.16G'}
     # Descriptor
     Name = _StringDescriptor(
         'Name', _required, strict=DEFAULT_STRICT,
@@ -117,16 +120,16 @@ class PrimeMeridianType(Serializable):
         super(PrimeMeridianType, self).__init__(**kwargs)
 
 
-class SpheriodType(Serializable):
+class SpheroidType(Serializable):
     """
 
     """
-    _fields = ('SpheriodName', 'SemiMajorAxis', 'InverseFlattening')
+    _fields = ('SpheroidName', 'SemiMajorAxis', 'InverseFlattening')
     _required = _fields
     _numeric_format = {'SemiMajorAxis': '0.16G', 'InverseFlattening': '0.16G'}
     # Descriptor
-    SpheriodName = _StringDescriptor(
-        'SpheriodName', _required, strict=DEFAULT_STRICT,
+    SpheroidName = _StringDescriptor(
+        'SpheroidName', _required, strict=DEFAULT_STRICT,
         docstring='')  # type: str
     SemiMajorAxis = _FloatDescriptor(
         'SemiMajorAxis', _required, strict=DEFAULT_STRICT,
@@ -135,12 +138,12 @@ class SpheriodType(Serializable):
         'InverseFlattening', _required, strict=DEFAULT_STRICT,
         docstring='')  # type: float
 
-    def __init__(self, SpheriodName=None, SemiMajorAxis=None, InverseFlattening=None, **kwargs):
+    def __init__(self, SpheroidName=None, SemiMajorAxis=None, InverseFlattening=None, **kwargs):
         """
 
         Parameters
         ----------
-        SpheriodName : str
+        SpheroidName : str
         SemiMajorAxis : float
         InverseFlattening : float
         kwargs
@@ -148,10 +151,10 @@ class SpheriodType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
-        self.SpheriodName = SpheriodName
+        self.SpheroidName = SpheroidName
         self.SemiMajorAxis = SemiMajorAxis
         self.InverseFlattening = InverseFlattening
-        super(SpheriodType, self).__init__(**kwargs)
+        super(SpheroidType, self).__init__(**kwargs)
 
 
 class DatumType(Serializable):
@@ -162,15 +165,15 @@ class DatumType(Serializable):
     _required = ('Spheroid', )
     # Descriptor
     Spheroid = _SerializableDescriptor(
-        'Spheroid', SpheriodType, _required, strict=DEFAULT_STRICT,
-        docstring='')  # type: SpheriodType
+        'Spheroid', SpheroidType, _required, strict=DEFAULT_STRICT,
+        docstring='')  # type: SpheroidType
 
     def __init__(self, Spheroid=None, **kwargs):
         """
 
         Parameters
         ----------
-        Spheroid : SpheriodType
+        Spheroid : SpheroidType
         kwargs
         """
 
@@ -363,10 +366,8 @@ class AnnotationObjectType(Serializable):
     It will not be enforced, but the order of preference will be `('Point', 'Line', 'LinearRing', 'Polygon',
     'MultiPoint', 'MultiLineString', 'MultiPolygon')`.
 
-    Note that PolyhedralSurface is not currently supported here.
+    Note that PolyhedralSurface is not currently supported.
     """
-
-    _fields = ('Point', 'Line', 'LinearRing', 'Polygon', 'MultiPoint', 'MultiLineString', 'MultiPolygon')
 
     def __init__(self, Point=None, Line=None, LinearRing=None, Polygon=None, MultiPoint=None,
                  MultiLineString=None, MultiPolygon=None, **kwargs):
@@ -417,6 +418,11 @@ class AnnotationObjectType(Serializable):
 
     @property
     def Type(self):
+        """
+        str: The type of geometric element which is set, from ('Point', 'Line', 'LinearRing', 'Polygon',
+        'MultiPoint', 'MultiLineString', 'MultiPolygon')
+        """
+
         for fld in self._fields:
             if getattr(self, fld) is not None:
                 return fld
@@ -424,7 +430,10 @@ class AnnotationObjectType(Serializable):
 
     @property
     def Point(self):
-        """None|sarpy.geometry.geometry_elements.Point: The point."""
+        """
+        None|sarpy.geometry.geometry_elements.Point: The point.
+        """
+
         return self._Point
 
     @Point.setter
@@ -442,7 +451,10 @@ class AnnotationObjectType(Serializable):
 
     @property
     def Line(self):
-        """None|sarpy.geometry.geometry_elements.LineString: The line."""
+        """
+        None|sarpy.geometry.geometry_elements.LineString: The line.
+        """
+
         return self._Line
 
     @Line.setter
@@ -460,7 +472,10 @@ class AnnotationObjectType(Serializable):
 
     @property
     def LinearRing(self):
-        """None|sarpy.geometry.geometry_elements.LinearRing: The linear ring."""
+        """
+        None|sarpy.geometry.geometry_elements.LinearRing: The linear ring.
+        """
+
         return self._LinearRing
 
     @LinearRing.setter
@@ -478,7 +493,10 @@ class AnnotationObjectType(Serializable):
 
     @property
     def Polygon(self):
-        """None|sarpy.geometry.geometry_elements.Polygon: The polygon."""
+        """
+        None|sarpy.geometry.geometry_elements.Polygon: The polygon.
+        """
+
         return self._Polygon
 
     @Polygon.setter
@@ -496,7 +514,10 @@ class AnnotationObjectType(Serializable):
 
     @property
     def MultiPoint(self):
-        """None|sarpy.geometry.geometry_elements.MultiPoint: The multipoint."""
+        """
+        None|sarpy.geometry.geometry_elements.MultiPoint: The multipoint.
+        """
+
         return self._MultiPoint
 
     @MultiPoint.setter
@@ -514,7 +535,10 @@ class AnnotationObjectType(Serializable):
 
     @property
     def MultiLineString(self):
-        """None|sarpy.geometry.geometry_elements.MultiLineString: The multi-linestring."""
+        """
+        None|sarpy.geometry.geometry_elements.MultiLineString: The multi-linestring.
+        """
+
         return self._MultiLineString
 
     @MultiLineString.setter
@@ -532,7 +556,10 @@ class AnnotationObjectType(Serializable):
 
     @property
     def MultiPolygon(self):
-        """None|sarpy.geometry.geometry_elements.MultiPolygon: The multi-polygon."""
+        """
+        None|sarpy.geometry.geometry_elements.MultiPolygon: The multi-polygon.
+        """
+
         return self._MultiPolygon
 
     @MultiPolygon.setter
@@ -578,7 +605,8 @@ class AnnotationObjectType(Serializable):
             logging.error('AnnotationObjectType got unsupported input dictionary {}. Returning None.'.format(input_dict))
             return None
 
-    def _serialize_point(self, coords, doc, tag, parent):
+    @staticmethod
+    def _serialize_point(coords, doc, tag, parent):
         if len(coords) < 2:
             raise ValueError('coords must have at least two elements')
         fmt_func = '{0:0.16G}'.format
@@ -741,8 +769,9 @@ class AnnotationObjectType(Serializable):
 
 class AnnotationType(Serializable):
     """
-
+    The annotation type.
     """
+
     _fields = ('Identifier', 'SpatialReferenceSystem', 'Objects')
     _required = ('Identifier', 'Objects')
     _collections_tags = {'Objects': {'array': False, 'child_tag': 'Object'}}
@@ -763,10 +792,11 @@ class AnnotationType(Serializable):
         Parameters
         ----------
         Identifier : str
-        SpatialReferenceSystem : ReferenceSystemType
+        SpatialReferenceSystem : None|ReferenceSystemType
         Objects : List[AnnotationObjectType]
         kwargs
         """
+
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
         self.Identifier = Identifier
@@ -801,6 +831,9 @@ class AnnotationsType(Serializable):
             self._xml_ns = kwargs['_xml_ns']
         self.Annotations = Annotations
         super(AnnotationsType, self).__init__(**kwargs)
+
+    def __len__(self):
+        return len(self.Annotations)
 
     def __getitem__(self, item):
         return self.Annotations[item]

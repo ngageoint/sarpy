@@ -23,16 +23,16 @@ class GeographicAndTargetType(Serializable):
     """
     Container specifying the image coverage area in geographic coordinates.
 
-    .. Note: The SICD.GeoData class is essentially an extension of this class. I left
-        the implementations separate to accommodate different functionality implementations.
+    .. Note: The SICD.GeoData class is essentially an extension of this class. Implementation remain
+        separate to allow the possibility of different functionality.
     """
 
     _fields = ('EarthModel', 'ImageCorners', 'ValidData')
     _required = ('EarthModel', 'ImageCorners')
     _collections_tags = {
         'ValidData': {'array': True, 'child_tag': 'Vertex'},
-        'ImageCorners': {'array': True, 'child_tag': 'ICP'},
-    }
+        'ImageCorners': {'array': True, 'child_tag': 'ICP'}}
+    _numeric_format = {'ImageCorners': '0.16G', 'ValidData': '0.16G'}
     # other class variables
     _EARTH_MODEL_VALUES = ('WGS_84', )
     # descriptors
@@ -131,20 +131,20 @@ class GeographicAndTargetType(Serializable):
             raise TypeError('Trying to set GeoInfo element with unexpected type {}'.format(type(value)))
 
     @classmethod
-    def fromGeoInfo(cls, geo_info):
+    def fromGeoData(cls, GeoData):
         """
-        Extract necessary information from a SICD.GeoInfo to create a corresponding SIDD.GeographicAndTarget.
+        Extract necessary information from a SICD.GeoData to create a corresponding SIDD.GeographicAndTarget.
 
         Parameters
         ----------
-        geo_info : sarpy.io.complex.sicd_elements.GeoData.GeoDataType
+        GeoData : sarpy.io.complex.sicd_elements.GeoData.GeoDataType
 
         Returns
         -------
         GeographicAndTargetType
         """
 
-        data = copy.deepcopy(geo_info.to_dict())
+        data = copy.deepcopy(GeoData.to_dict())
         return cls(EarthModel=data.get('EarthModel', None),
                    ImageCorners=data.get('ImageCorners', None),
                    ValidData=data.get('ValidData', None),

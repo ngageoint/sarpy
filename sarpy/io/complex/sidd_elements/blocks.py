@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Multipurpose SIDD elements
+Multipurpose basic SIDD elements
 """
 
 from collections import OrderedDict
@@ -25,6 +25,7 @@ class RangeAzimuthType(Serializable, Arrayable):
     """
     _fields = ('Range', 'Azimuth')
     _required = ('Range', 'Azimuth')
+    _numeric_format = {key: '0.16G' for key in _fields}
     # Descriptor
     Range = _FloatDescriptor(
         'Range', _required, strict=DEFAULT_STRICT,
@@ -34,6 +35,15 @@ class RangeAzimuthType(Serializable, Arrayable):
         docstring='The azimuth in degrees.')  # type: float
 
     def __init__(self, Range=None, Azimuth=None, **kwargs):
+        """
+
+        Parameters
+        ----------
+        Range : float
+        Azimuth : float
+        kwargs
+        """
+
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
         self.Range = Range
@@ -86,6 +96,7 @@ class AngleMagnitudeType(Serializable, Arrayable):
 
     _fields = ('Angle', 'Magnitude')
     _required = ('Angle', 'Magnitude')
+    _numeric_format = {key: '0.16G' for key in _fields}
     # Descriptor
     Angle = _FloatModularDescriptor(
         'Angle', 180.0, _required, strict=DEFAULT_STRICT,
@@ -155,6 +166,7 @@ class AngleMagnitudeType(Serializable, Arrayable):
 class RowColDoubleType(Serializable, Arrayable):
     _fields = ('Row', 'Col')
     _required = _fields
+    _numeric_format = {key: '0.16G' for key in _fields}
     Row = _FloatDescriptor(
         'Row', _required, strict=True, docstring='The Row attribute.')  # type: float
     Col = _FloatDescriptor(
@@ -203,7 +215,7 @@ class RowColDoubleType(Serializable, Arrayable):
 
         Returns
         -------
-        RowColType
+        RowColDoubleType
         """
 
         if isinstance(array, (numpy.ndarray, list, tuple)):
@@ -277,9 +289,9 @@ class PredefinedFilterType(Serializable):
 
         Parameters
         ----------
-        DatabaseName : str
-        FilterFamily : int
-        FilterMember : int
+        DatabaseName : None|str
+        FilterFamily : None|int
+        FilterMember : None|int
         kwargs
         """
 
@@ -293,7 +305,8 @@ class PredefinedFilterType(Serializable):
 
 class FilterKernelType(Serializable):
     """
-    The filter kernel parameters.
+    The filter kernel parameters. Provides the specifics for **either** a predefined or custom
+    filter kernel.
     """
 
     _fields = ('Predefined', 'Custom')
@@ -312,8 +325,8 @@ class FilterKernelType(Serializable):
 
         Parameters
         ----------
-        Predefined : PredefinedFilterType
-        Custom : str
+        Predefined : None|PredefinedFilterType
+        Custom : None|str
         kwargs
         """
 
@@ -335,6 +348,7 @@ class BankCustomType(Serializable, Arrayable):
 
     def __init__(self, Coefs=None, **kwargs):
         """
+
         Parameters
         ----------
         Coefs : numpy.ndarray|list|tuple
@@ -454,7 +468,7 @@ class BankCustomType(Serializable, Arrayable):
 
 class FilterBankType(Serializable):
     """
-    The filter bank type.
+    The filter bank type. Provides the specifics for **either** a predefined or custom filter bank.
     """
 
     _fields = ('Predefined', 'Custom')
@@ -473,19 +487,22 @@ class FilterBankType(Serializable):
 
         Parameters
         ----------
-        Predefined : PredefinedFilterType
-        Custom : BankCustomType
+        Predefined : None|PredefinedFilterType
+        Custom : None|BankCustomType
         kwargs
         """
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
-        super(FilterBankType, self).__init__(Predefined=Predefined, Custom=Custom, **kwargs)
+        self.Predefined = Predefined
+        self.Custom = Custom
+        super(FilterBankType, self).__init__(**kwargs)
 
 
 class FilterType(Serializable):
     """
-    Filter parameters for a variety of purposes.
+    Filter parameters for a variety of purposes. Provides **either** the filter bank or
+    filter kernel parameters.
     """
 
     _fields = ('FilterName', 'FilterKernel', 'FilterBank', 'Operation')
@@ -519,8 +536,11 @@ class FilterType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
-        super(FilterType, self).__init__(
-            FilterName=FilterName, FilterKernel=FilterKernel, FilterBank=FilterBank, Operation=Operation, **kwargs)
+        self.FilterName = FilterName
+        self.FilterKernel = FilterKernel
+        self.FilterBank = FilterBank
+        self.Operation = Operation
+        super(FilterType, self).__init__(**kwargs)
 
 
 ################
@@ -529,7 +549,7 @@ class FilterType(Serializable):
 
 class PredefinedLookupType(Serializable):
     """
-    The predefined lookup table type.
+    The predefined lookup table type. Allows for reference **either** by name, or family/member id number.
     """
     _fields = ('DatabaseName', 'RemapFamily', 'RemapMember')
     _required = ()
@@ -549,16 +569,18 @@ class PredefinedLookupType(Serializable):
 
         Parameters
         ----------
-        DatabaseName : str
-        RemapFamily : int
-        RemapMember : int
+        DatabaseName : None|str
+        RemapFamily : None|int
+        RemapMember : None|int
         kwargs
         """
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
-        super(PredefinedLookupType, self).__init__(
-            DatabaseName=DatabaseName, RemapFamily=RemapFamily, RemapMember=RemapMember, **kwargs)
+        self.DatabaseName = DatabaseName
+        self.RemapFamily = RemapFamily
+        self.RemapMember = RemapMember
+        super(PredefinedLookupType, self).__init__(**kwargs)
 
 
 class LUTInfoType(Serializable, Arrayable):
@@ -567,7 +589,7 @@ class LUTInfoType(Serializable, Arrayable):
     """
     __slots__ = ('_lut_values', )
     _fields = ('LUTValues', 'numLuts', 'size')
-    _required = ('LUTValues', )
+    _required = ('LUTValues', 'numLuts', 'size')
 
     def __init__(self, LUTValues=None, **kwargs):
         """
@@ -752,8 +774,10 @@ class CustomLookupType(Serializable):
 
 class NewLookupTableType(Serializable):
     """
-
+    The lookup table. Allows **either** a reference to a prefined lookup table, or
+    custom lookup table array.
     """
+
     _fields = ('Predefined', 'Custom')
     _required = ()
     # Descriptor

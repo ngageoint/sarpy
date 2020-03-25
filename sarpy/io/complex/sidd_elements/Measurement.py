@@ -158,6 +158,7 @@ class CylindricalProjectionType(MeasurableProjectionType):
 
     _fields = ('ReferencePoint', 'SampleSpacing', 'TimeCOAPoly', 'StripmapDirection', 'CurvatureRadius')
     _required = ('ReferencePoint', 'SampleSpacing', 'TimeCOAPoly', 'StripmapDirection')
+    _numeric_format = {'CurvatureRadius': '0.16G'}
     # Descriptor
     # TODO: should this be a unit vector?
     StripmapDirection = _SerializableDescriptor(
@@ -253,6 +254,7 @@ class MeasurementType(Serializable):
         'PixelFootprint', 'ARPFlag', 'ARPPoly', 'ValidData')
     _required = ('PixelFootprint', 'ARPPoly', 'ValidData')
     _collections_tags = {'ValidData': {'array': True, 'child_tag': 'Vertex'}}
+    _numeric_format = {'ValidData': '0.16G'}
     # Descriptor
     PolynomialProjection = _SerializableDescriptor(
         'PolynomialProjection', PolynomialProjectionType, _required, strict=DEFAULT_STRICT,
@@ -301,6 +303,7 @@ class MeasurementType(Serializable):
         ValidData : SerializableArray|List[RowColArrayElement]|numpy.ndarray|list|tuple
         kwargs
         """
+
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
         self.PolynomialProjection = PolynomialProjection
@@ -313,7 +316,7 @@ class MeasurementType(Serializable):
         super(MeasurementType, self).__init__(**kwargs)
 
     @classmethod
-    def from_sicd(cls, sicd):
+    def fromSicd(cls, sicd):
         """
         Construct a MeasurementType object from a SICD instance.
 

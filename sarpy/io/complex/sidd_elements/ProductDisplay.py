@@ -119,9 +119,9 @@ class ProductGenerationOptionsType(Serializable):
 
 class RRDSType(Serializable):
     """
-    RRDS type?
+    RRDS type.
     """
-    # TODO: improve this docstring
+
     _fields = ('DownsamplingMethod', 'AntiAlias', 'Interpolation')
     _required = ('DownsamplingMethod', )
     # Descriptor
