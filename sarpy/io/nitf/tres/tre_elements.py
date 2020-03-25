@@ -247,7 +247,7 @@ class TREExtension(TRE):
         if len(self._tag_value) > 6:
             raise ValueError('Tag value must have 6 or fewer characters.')
         self._data = None
-        self.data = value
+        self.DATA = value
 
     @property
     def TAG(self):
@@ -271,6 +271,8 @@ class TREExtension(TRE):
 
     @property
     def EL(self):
+        if self._data is None:
+            return 0
         return self._data.get_bytes_length()
 
     @classmethod

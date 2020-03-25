@@ -1,6 +1,7 @@
 # This details the important differences introduced in 1.0
 # NB: bump the version number in __about__.py to reflect the below.
 
+* .06 - Fixing a small but fatal bug for TRE parsing
 * .05 - Modified string enum parsing for NITF header to make data errors non-fatal
 * .04 - Improvements for GUI behavior and annotation tool
 * .03 - Refactored NITF elements for clarity and better documentation
