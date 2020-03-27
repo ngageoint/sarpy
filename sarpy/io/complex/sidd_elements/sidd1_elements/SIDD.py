@@ -1,26 +1,22 @@
 # -*- coding: utf-8 -*-
 """
-The SIDDType 2.0 definition.
+The SIDDType 1.0 definition.
 """
 
 from typing import Union
 
 # noinspection PyProtectedMember
-from ..sicd_elements.base import Serializable, _SerializableDescriptor, DEFAULT_STRICT
-from .ProductCreation import ProductCreationType
+from ...sicd_elements.base import Serializable, _SerializableDescriptor, DEFAULT_STRICT
+from ..ProductCreation import ProductCreationType
 from .ProductDisplay import ProductDisplayType
 from .GeographicAndTarget import GeographicAndTargetType
 from .Measurement import MeasurementType
 from .ExploitationFeatures import ExploitationFeaturesType
-from .DownstreamReprocessing import DownstreamReprocessingType
-from ..sicd_elements.ErrorStatistics import ErrorStatisticsType
-from ..sicd_elements.Radiometric import RadiometricType
-from ..sicd_elements.MatchInfo import MatchInfoType
-from .Compression import CompressionType
-from .DigitalElevationData import DigitalElevationDataType
-from .ProductProcessing import ProductProcessingType
-from .Annotations import AnnotationsType
-from .sidd1_elements.SIDD import SIDDType as SIDDType1
+from ..DownstreamReprocessing import DownstreamReprocessingType
+from ...sicd_elements.ErrorStatistics import ErrorStatisticsType
+from ...sicd_elements.Radiometric import RadiometricType
+from ..ProductProcessing import ProductProcessingType
+from ..Annotations import AnnotationsType
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
@@ -28,13 +24,12 @@ __author__ = "Thomas McCullough"
 
 class SIDDType(Serializable):
     """
-    The root element of the SIDD 2.0 document.
+    The root element of the SIDD 1.0 document.
     """
 
     _fields = (
         'ProductCreation', 'Display', 'GeographicAndTarget', 'Measurement', 'ExploitationFeatures',
-        'DownstreamReprocessing', 'ErrorStatistics', 'Radiometric', 'MatchInfo', 'Compression',
-        'DigitalElevationData', 'ProductProcessing', 'Annotations')
+        'DownstreamReprocessing', 'ErrorStatistics', 'Radiometric', 'ProductProcessing', 'Annotations')
     _required = (
         'ProductCreation', 'Display', 'GeographicAndTarget', 'Measurement', 'ExploitationFeatures')
     # Descriptor
@@ -66,19 +61,6 @@ class SIDDType(Serializable):
     Radiometric = _SerializableDescriptor(
         'Radiometric', RadiometricType, _required, strict=DEFAULT_STRICT,
         docstring='Radiometric information about the product.')  # type: Union[None, RadiometricType]
-    MatchInfo = _SerializableDescriptor(
-        'MatchInfo', MatchInfoType, _required, strict=DEFAULT_STRICT,
-        docstring='Information about other collections that are matched to the current '
-                  'collection. The current collection is the collection from which this '
-                  'SIDD product was generated.')  # type: MatchInfoType
-    Compression = _SerializableDescriptor(
-        'Compression', CompressionType, _required, strict=DEFAULT_STRICT,
-        docstring='Contains information regarding any compression that has occurred '
-                  'to the image data.')  # type: CompressionType
-    DigitalElevationData = _SerializableDescriptor(
-        'DigitalElevationData', DigitalElevationDataType, _required, strict=DEFAULT_STRICT,
-        docstring='This describes any Digital ElevatioNData included with '
-                  'the SIDD product.')  # type: DigitalElevationDataType
     ProductProcessing = _SerializableDescriptor(
         'ProductProcessing', ProductProcessingType, _required, strict=DEFAULT_STRICT,
         docstring='Contains metadata related to algorithms used during '
@@ -89,8 +71,7 @@ class SIDDType(Serializable):
 
     def __init__(self, ProductCreation=None, Display=None, GeographicAndTarget=None,
                  Measurement=None, ExploitationFeatures=None, DownstreamReprocessing=None,
-                 ErrorStatistics=None, Radiometric=None, MatchInfo=None, Compression=None,
-                 DigitalElevationData=None, ProductProcessing=None, Annotations=None, **kwargs):
+                 ErrorStatistics=None, Radiometric=None, ProductProcessing=None, Annotations=None, **kwargs):
         """
 
         Parameters
@@ -103,9 +84,6 @@ class SIDDType(Serializable):
         DownstreamReprocessing : None|DownstreamReprocessingType
         ErrorStatistics : None|ErrorStatisticsType
         Radiometric : None|RadiometricType
-        MatchInfo : None|MatchInfoType
-        Compression : None|CompressionType
-        DigitalElevationData : None|DigitalElevationDataType
         ProductProcessing : None|ProductProcessingType
         Annotations : None|AnnotationsType
         kwargs
@@ -121,15 +99,6 @@ class SIDDType(Serializable):
         self.DownstreamReprocessing = DownstreamReprocessing
         self.ErrorStatistics = ErrorStatistics
         self.Radiometric = Radiometric
-        self.MatchInfo = MatchInfo
-        self.Compression = Compression
-        self.DigitalElevationData = DigitalElevationData
         self.ProductProcessing = ProductProcessing
         self.Annotations = Annotations
         super(SIDDType, self).__init__(**kwargs)
-
-    @classmethod
-    def from_node(cls, node, xml_ns, kwargs=None):
-        if (xml_ns is not None) and (xml_ns[''].startswith('urn:SIDD:1')):
-            return SIDDType1.from_node(node, xml_ns, kwargs=kwargs)
-        return super(SIDDType, cls).from_node(node, xml_ns, kwargs=kwargs)

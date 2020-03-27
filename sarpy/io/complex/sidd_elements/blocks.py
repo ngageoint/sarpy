@@ -651,6 +651,11 @@ class LUTInfoType(Serializable, Arrayable):
         else:
             return self._lut_values.shape[1]
 
+    def __len__(self):
+        if self._lut_values is None:
+            return 0
+        return self._lut_values.shape[0]
+
     def __getitem__(self, item):
         return self._lut_values[item]
 
@@ -725,23 +730,23 @@ class LUTInfoType(Serializable, Arrayable):
             entry = _create_text_node(doc, 'LUTValues', value, parent=node)
             entry.attrib['lut'] = str(arr.size)
 
-        if self._lut_values is None or self._lut_values.ndim == 0:
-            return
-
         if parent is None:
             parent = doc.getroot()
         node = _create_new_node(doc, tag, parent=parent)
-        node.attrib['numLuts'] = str(self.numLUTs)
-        node.attrib['size'] = str(self.size)
-        if self._lut_values.ndim == 1:
-            make_entry(self._lut_values)
-        else:
-            for j in range(self._lut_values.shape[1]):
-                make_entry(self._lut_values[:, j])
+        if self._lut_values is not None:
+            node.attrib['numLuts'] = str(self.numLUTs)
+            node.attrib['size'] = str(self.size)
+            if self._lut_values.ndim == 1:
+                make_entry(self._lut_values)
+            else:
+                for j in range(self._lut_values.shape[1]):
+                    make_entry(self._lut_values[:, j])
+        return node
 
     def to_dict(self,  check_validity=False, strict=DEFAULT_STRICT, exclude=()):
         out = OrderedDict()
-        out['LUTValues'] = self.LUTValues.tolist()
+        if self.LUTValues is not None:
+            out['LUTValues'] = self.LUTValues.tolist()
         return out
 
 

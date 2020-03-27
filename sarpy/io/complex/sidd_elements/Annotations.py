@@ -602,7 +602,8 @@ class AnnotationObjectType(Serializable):
         elif typ == 'MultiPolygon':
             return cls(MultiPolygon=MultiPolygonType.from_dict(input_dict))
         else:
-            logging.error('AnnotationObjectType got unsupported input dictionary {}. Returning None.'.format(input_dict))
+            logging.error('AnnotationObjectType got unsupported input dictionary {}. '
+                          'Returning None.'.format(input_dict))
             return None
 
     @staticmethod

@@ -1429,7 +1429,7 @@ class Serializable(object):
         ----------
         node : ElementTree.Element
             dom element for serialized class instance
-        xml_ns : dict
+        xml_ns : None|dict
             The xml namespace dictionary.
         kwargs : None|dict
             `None` or dictionary of previously serialized attributes. For use in inheritance call, when certain

@@ -170,7 +170,7 @@ class NonInteractiveProcessingType(Serializable):
     ProductGenerationOptions = _SerializableDescriptor(
         'ProductGenerationOptions', ProductGenerationOptionsType, _required, strict=DEFAULT_STRICT,
         docstring='Performs several key actions on an image to prepare it for necessary additional processing to '
-                  'achieve the desired output product.') # type: ProductGenerationOptionsType
+                  'achieve the desired output product.')  # type: ProductGenerationOptionsType
     RRDS = _SerializableDescriptor(
         'RRDS', RRDSType, _required, strict=DEFAULT_STRICT,
         docstring='Creates a set of sub-sampled versions of an image to provide processing chains '
@@ -255,7 +255,7 @@ class GeometricTransformType(Serializable):
     _fields = ('Scaling', 'Orientation')
     _required = _fields
     # Descriptor
-    Scaling = _SerializableArrayDescriptor(
+    Scaling = _SerializableDescriptor(
         'Scaling', ScalingType, _required, strict=DEFAULT_STRICT,
         docstring='The scaling filters.')  # type: ScalingType
     Orientation = _SerializableDescriptor(
@@ -327,7 +327,7 @@ class ColorManagementModuleType(Serializable):
     DisplayProfile = _StringDescriptor(
         'DisplayProfile', _required, strict=DEFAULT_STRICT,
         docstring='Name of display profile in ICC Profile database.')  # type: str
-    ICCProfile = _SerializableDescriptor(
+    ICCProfile = _StringDescriptor(
         'ICCProfile', _required, strict=DEFAULT_STRICT,
         docstring='Valid ICC profile signature.')  # type: str
 
@@ -565,7 +565,7 @@ class ProductDisplayType(Serializable):
     PixelType = _StringEnumDescriptor(
         'PixelType', ('MONO8I', 'MONO8LU', 'MONO16I', 'RGBL8U', 'RGB24I'), _required, strict=DEFAULT_STRICT,
         docstring='Enumeration of the pixel type. Definition in '
-                  'Design and Exploitation document.')  # type: PixelTypeType
+                  'Design and Exploitation document.')  # type: str
     NumBands = _IntegerDescriptor(
         'NumBands', _required, strict=DEFAULT_STRICT,
         docstring='Number of bands contained in the image. Populate with the number of bands '
@@ -576,10 +576,10 @@ class ProductDisplayType(Serializable):
         docstring='Indicates which band to display by default. '
                   'Valid range = 1 to NumBands.')  # type: int
     NonInteractiveProcessing = _SerializableListDescriptor(
-        'NonInteractiveProcessing', NonInteractiveProcessingType, _required, strict=DEFAULT_STRICT,
+        'NonInteractiveProcessing', NonInteractiveProcessingType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Non-interactive processing details.')  # type: List[NonInteractiveProcessingType]
     InteractiveProcessing = _SerializableListDescriptor(
-        'InteractiveProcessing', InteractiveProcessingType, _required, strict=DEFAULT_STRICT,
+        'InteractiveProcessing', InteractiveProcessingType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Interactive processing details.')  # type: List[InteractiveProcessingType]
     DisplayExtensions = _ParametersDescriptor(
         'DisplayExtensions', _collections_tags, required=_required, strict=DEFAULT_STRICT,

@@ -24,7 +24,10 @@ __author__ = "Thomas McCullough"
 
 
 class GeoInfoType(Serializable):
-    """A geographic feature."""
+    """
+    A geographic feature.
+    """
+
     _fields = ('name', 'Descriptions', 'Point', 'Line', 'Polygon')
     _required = ('name', )
     _set_as_attribute = ('name', )
@@ -90,8 +93,8 @@ class GeoInfoType(Serializable):
     def FeatureType(self):  # type: () -> Union[None, str]
         """
         str: READ ONLY attribute. Identifies the feature type among. This is determined by
-        returning the (first) attribute among `Point`, `Line`, `Polygon` which is populated. None will be returned if
-        none of them are populated.
+        returning the (first) attribute among `Point`, `Line`, `Polygon` which is populated.
+        `None` will be returned if none of them are populated.
         """
 
         for attribute in self._choice[0]['collection']:
