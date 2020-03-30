@@ -396,7 +396,7 @@ def conversion_utility(
             output_files = [output_files, ]
         else:
             digits = int_func(numpy.ceil(numpy.log10(len(sicds))))
-            frm_str = '{0:s}-1{:0' + str(digits) + 'd}{2:s}'
+            frm_str = '{0:s}-{1:0' + str(digits) + 'd}{2:s}'
             fstem, fext = os.path.splitext(output_files)
             o_files = []
             for index in frames:
