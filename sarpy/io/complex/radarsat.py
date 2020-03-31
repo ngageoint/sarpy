@@ -645,9 +645,10 @@ class RadarSatDetails(object):
             # we explicitly want positive time order
             if zero_dop_first_line > zero_dop_last_line:
                 zero_dop_first_line, zero_dop_last_line = zero_dop_last_line, zero_dop_first_line
-        col_spacing_zd = get_seconds(zero_dop_last_line, zero_dop_first_line, precision='us') / (image_data.NumCols - 1)
+        col_spacing_zd = get_seconds(zero_dop_last_line, zero_dop_first_line, precision='us')/(image_data.NumCols - 1)
         # zero doppler time of SCP relative to collect start
-        time_scp_zd = get_seconds(zero_dop_first_line, start_time, precision='us') + image_data.SCPPixel.Col * col_spacing_zd
+        time_scp_zd = get_seconds(zero_dop_first_line, start_time, precision='us') + \
+            image_data.SCPPixel.Col*col_spacing_zd
         if self.generation == 'RS2':
             near_range = float(self._find('./imageGenerationParameters'
                                           '/sarProcessingInformation'
@@ -813,10 +814,13 @@ class RadarSatDetails(object):
                 # fit a 1-d polynomial in range
                 coords_rg = (numpy.arange(image_data.NumRows) - image_data.SCPPixel.Row) * grid.Row.SS
                 if self.generation == 'RCM':  # the rows are sub-sampled
-                    rng_indices = numpy.arange(
-                        int(comp_struct.find('./pixelFirstLutValue').text),
-                        # int(comp_struct.find('./pixelFirstAnglesValue').text),
-                        int(comp_struct.find('./numberOfValues').text) * int(comp_struct.find('./stepSize').text))
+                    start = int(comp_struct.find('./pixelFirstLutValue').text)
+                    num_vs = int(comp_struct.find('./numberOfValues').text)
+                    step = int(comp_struct.find('./stepSize').text)
+                    if step > 0:
+                        rng_indices = numpy.arange(start, num_vs, step)
+                    else:
+                        rng_indices = numpy.arange(start, -1, step)
                     coords_rg = coords_rg[rng_indices]
                 return numpy.atleast_2d(polynomial.polyfit(coords_rg, comp_values, 3))
 
@@ -845,7 +849,9 @@ class RadarSatDetails(object):
             raise ValueError('unhandled generation {}'.format(self.generation))
 
         if not os.path.isfile(beta_file):
-            logging.error(msg="Beta calibration information should be located in file {}, which doesn't exist.".format(beta_file))
+            logging.error(
+                msg="Beta calibration information should be located in file {}, "
+                    "which doesn't exist.".format(beta_file))
             return None
 
         # perform beta, sigma, gamma fit
