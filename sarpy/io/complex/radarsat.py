@@ -238,8 +238,12 @@ class RadarSatDetails(object):
         tx_polarizations = ['RHC' if entry[0] == 'C' else entry[0] for entry in polarizations]
         rcv_polarizations = ['RHC' if entry[1] == 'C' else entry[1] for entry in polarizations]
         tx_rcv_polarizations = tuple('{}:{}'.format(*entry) for entry in zip(tx_polarizations, rcv_polarizations))
-        tx_pols = tuple(set(tx_polarizations))
-        return tx_pols, tx_rcv_polarizations
+        # I'm not sure using a set object preserves ordering in all versions, so doing it manually
+        tx_pols = []
+        for el in tx_polarizations:
+            if el not in tx_pols:
+                tx_pols.append(el)
+        return tuple(tx_pols), tx_rcv_polarizations
 
     def _get_radar_mode(self):
         """
@@ -514,7 +518,7 @@ class RadarSatDetails(object):
             radar_collection.TxPolarization = tx_pols[0]
         else:
             radar_collection.TxPolarization = 'SEQUENCE'
-        radar_collection.TxSequence = [TxStepType(TxPolarization=entry, index=i) for i, entry in enumerate(tx_pols)]
+            radar_collection.TxSequence = [TxStepType(TxPolarization=entry, index=i) for i, entry in enumerate(tx_pols)]
         return radar_collection
 
     def _get_timeline(self):
