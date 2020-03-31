@@ -1,6 +1,7 @@
 # This details the important differences introduced in 1.0
 # NB: bump the version number in __about__.py to reflect the below.
 
+* .08 - Bug fix for polarization data and population of RNIIRS
 * .07 - Small bug fix in converter file naming scheme process
 * .06 - Fixing a small but fatal bug for TRE parsing
 * .05 - Modified string enum parsing for NITF header to make data errors non-fatal
