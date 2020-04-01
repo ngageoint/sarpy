@@ -62,6 +62,8 @@ class IPPSetType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.TStart, self.TEnd = TStart, TEnd
         self.IPPStart, self.IPPEnd = IPPStart, IPPEnd
         self.IPPPoly = IPPPoly
@@ -102,6 +104,8 @@ class TimelineType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.CollectStart = CollectStart
         self.CollectDuration = CollectDuration
         self.IPP = IPP

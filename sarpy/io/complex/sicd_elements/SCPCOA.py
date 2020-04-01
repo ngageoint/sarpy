@@ -108,6 +108,8 @@ class SCPCOAType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.SCPTime = SCPTime
         self.ARPPos, self.ARPVel, self.ARPAcc = ARPPos, ARPVel, ARPAcc
         self.SideOfTrack = SideOfTrack

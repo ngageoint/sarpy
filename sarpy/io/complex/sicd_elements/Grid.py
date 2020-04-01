@@ -13,7 +13,7 @@ from scipy.constants import speed_of_light
 from .base import Serializable, DEFAULT_STRICT, \
     _StringDescriptor, _StringEnumDescriptor, _FloatDescriptor, _FloatArrayDescriptor, \
     _IntegerEnumDescriptor, _SerializableDescriptor, _UnitVectorDescriptor, \
-    _ParametersDescriptor, ParametersCollection
+    _ParametersDescriptor, ParametersCollection, _find_first_child
 from .blocks import XYZType, Poly2DType
 from .utils import _get_center_frequency
 
@@ -131,6 +131,8 @@ class WgtTypeType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.WindowName = WindowName
         self.Parameters = Parameters
         super(WgtTypeType, self).__init__(**kwargs)
@@ -164,9 +166,8 @@ class WgtTypeType(Serializable):
         return the_dict.get(param_name, default)
 
     @classmethod
-    def from_node(cls, node, xml_ns, kwargs=None):
-        win_name = node.find('WindowName', xml_ns) if xml_ns is None else \
-            node.find('default:WindowName', xml_ns)
+    def from_node(cls, node, xml_ns, ns_key=None, kwargs=None):
+        win_name = _find_first_child(node, 'WindowName', xml_ns, ns_key)
         if win_name is None:
             # SICD 0.4 standard compliance, this could just be a space delimited string of the form
             #   "<WindowName> <name1>=<value1> <name2>=<value2> ..."
@@ -184,7 +185,7 @@ class WgtTypeType(Serializable):
             kwargs['Parameters'] = params
             return cls.from_dict(kwargs)
         else:
-            return super(WgtTypeType, cls).from_node(node, xml_ns, kwargs)
+            return super(WgtTypeType, cls).from_node(node, xml_ns, ns_key=ns_key, kwargs=kwargs)
 
 
 class DirParamType(Serializable):
@@ -200,10 +201,12 @@ class DirParamType(Serializable):
     # descriptors
     UVectECF = _UnitVectorDescriptor(
         'UVectECF', XYZType, required=_required, strict=DEFAULT_STRICT,
-        docstring='Unit vector in the increasing ``(row/col)`` direction *(ECF)* at the SCP pixel.')  # type: XYZType
+        docstring='Unit vector in the increasing ``(row/col)`` direction *(ECF)* at '
+                  'the SCP pixel.')  # type: XYZType
     SS = _FloatDescriptor(
         'SS', _required, strict=DEFAULT_STRICT,
-        docstring='Sample spacing in the increasing ``(row/col)`` direction. Precise spacing at the SCP.')  # type: float
+        docstring='Sample spacing in the increasing ``(row/col)`` direction. Precise spacing '
+                  'at the SCP.')  # type: float
     ImpRespWid = _FloatDescriptor(
         'ImpRespWid', _required, strict=DEFAULT_STRICT,
         docstring='Half power impulse response width in the increasing ``(row/col)`` direction. '
@@ -214,18 +217,22 @@ class DirParamType(Serializable):
                   'spatial frequency dimension.')  # type: int
     ImpRespBW = _FloatDescriptor(
         'ImpRespBW', _required, strict=DEFAULT_STRICT,
-        docstring='Spatial bandwidth in ``(row/col)`` used to form the impulse response in the ``(row/col)`` direction. '
-                  'Measured at the center of support for the SCP.')  # type: float
+        docstring='Spatial bandwidth in ``(row/col)`` used to form the impulse response in '
+                  'the ``(row/col)`` direction. Measured at the center of '
+                  'support for the SCP.')  # type: float
     KCtr = _FloatDescriptor(
         'KCtr', _required, strict=DEFAULT_STRICT,
         docstring='Center spatial frequency in the given dimension. '
-                  'Corresponds to the zero frequency of the DFT in the given ``(row/col)`` direction.')  # type: float
+                  'Corresponds to the zero frequency of the DFT in the given ``(row/col)`` '
+                  'direction.')  # type: float
     DeltaK1 = _FloatDescriptor(
         'DeltaK1', _required, strict=DEFAULT_STRICT,
-        docstring='Minimum ``(row/col)`` offset from KCtr of the spatial frequency support for the image.')  # type: float
+        docstring='Minimum ``(row/col)`` offset from KCtr of the spatial frequency support '
+                  'for the image.')  # type: float
     DeltaK2 = _FloatDescriptor(
         'DeltaK2', _required, strict=DEFAULT_STRICT,
-        docstring='Maximum ``(row/col)`` offset from KCtr of the spatial frequency support for the image.')  # type: float
+        docstring='Maximum ``(row/col)`` offset from KCtr of the spatial frequency '
+                  'support for the image.')  # type: float
     DeltaKCOAPoly = _SerializableDescriptor(
         'DeltaKCOAPoly', Poly2DType, _required, strict=DEFAULT_STRICT,
         docstring='Offset from KCtr of the center of support in the given ``(row/col)`` spatial frequency. '
@@ -263,6 +270,8 @@ class DirParamType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.UVectECF = UVectECF
         self.SS = SS
         self.ImpRespWid, self.ImpRespBW = ImpRespWid, ImpRespBW
@@ -289,7 +298,8 @@ class DirParamType(Serializable):
 
         if self.WgtType is None or self.WgtType.WindowName is None:
             return  # nothing to be done
-        # TODO: should we proceed is WgtFunct is already defined? Should we serialize WgtFunct if WgtType is given?
+        # TODO: should we proceed if WgtFunct is already defined?
+        #   Should we serialize WgtFunct if WgtType is given?
 
         window_name = self.WgtType.WindowName.upper()
         if window_name == 'HAMMING':
@@ -531,6 +541,8 @@ class GridType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.ImagePlane = ImagePlane
         self.Type = Type
         self.TimeCOAPoly = TimeCOAPoly

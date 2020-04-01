@@ -53,6 +53,8 @@ class TxFrequencyType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.Min, self.Max = Min, Max
         super(TxFrequencyType, self).__init__(**kwargs)
 
@@ -132,6 +134,8 @@ class WaveformParametersType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self._RcvFMRate = None
         self.TxPulseLength, self.TxRFBandwidth = TxPulseLength, TxRFBandwidth
         self.TxFreqStart, self.TxFMRate = TxFreqStart, TxFMRate
@@ -245,6 +249,8 @@ class TxStepType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.WFIndex = WFIndex
         self.TxPolarization = TxPolarization
         self.index = index
@@ -280,6 +286,8 @@ class ChanParametersType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.TxRcvPolarization = TxRcvPolarization
         self.RcvAPCIndex = RcvAPCIndex
         self.index = index
@@ -328,6 +336,8 @@ class ReferencePointType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.ECF = ECF
         self.Line = Line
         self.Sample = Sample
@@ -368,6 +378,8 @@ class XDirectionType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.UVectECF = UVectECF
         self.LineSpacing = LineSpacing
         self.NumLines = NumLines
@@ -408,6 +420,8 @@ class YDirectionType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.UVectECF = UVectECF
         self.SampleSpacing = SampleSpacing
         self.NumSamples = NumSamples
@@ -457,6 +471,8 @@ class SegmentArrayElement(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.StartLine, self.EndLine = StartLine, EndLine
         self.StartSample, self.EndSample = StartSample, EndSample
         self.Identifier = Identifier
@@ -503,6 +519,8 @@ class ReferencePlaneType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.RefPt = RefPt
         self.XDir, self.YDir = XDir, YDir
         self.SegmentList = SegmentList
@@ -564,6 +582,8 @@ class AreaType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.Corner = Corner
         self.Plane = Plane
         super(AreaType, self).__init__(**kwargs)
@@ -657,6 +677,8 @@ class RadarCollectionType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.TxFrequency = TxFrequency
         self.RefFreqIndex = RefFreqIndex
         self.Waveform = Waveform
