@@ -9,7 +9,7 @@ from ..base import DEFAULT_STRICT
 
 # noinspection PyProtectedMember
 from ...sicd_elements.base import Serializable, _SerializableDescriptor
-from ...sicd_elements.blocks import Poly2DType, RowColType, XYZPolyType
+from ..blocks import Poly2DType, RowColIntType, XYZPolyType
 from ..Measurement import PolynomialProjectionType, GeographicProjectionType, PlaneProjectionType, \
      CylindricalProjectionType
 
@@ -46,11 +46,12 @@ class MeasurementType(Serializable):
         docstring='Cylindrical mapping of the pixel grid referred to as CGD in the '
                   'Design and Exploitation document.')  # type: Union[None, CylindricalProjectionType]
     PixelFootprint = _SerializableDescriptor(
-        'PixelFootprint', RowColType, _required, strict=DEFAULT_STRICT,
+        'PixelFootprint', RowColIntType, _required, strict=DEFAULT_STRICT,
         docstring='Size of the image in pixels.')  # type: RowColType
     ARPPoly = _SerializableDescriptor(
         'ARPPoly', XYZPolyType, _required, strict=DEFAULT_STRICT,
-        docstring='')  # type: XYZPolyType
+        docstring='Center of aperture polynomial (units = m) based upon time into '
+                  'the collect.')  # type: XYZPolyType
 
     def __init__(self, PolynomialProjection=None, GeographicProjection=None, PlaneProjection=None,
                  CylindricalProjection=None, ARPPoly=None, **kwargs):
@@ -68,6 +69,8 @@ class MeasurementType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.PolynomialProjection = PolynomialProjection
         self.GeographicProjection = GeographicProjection
         self.PlaneProjection = PlaneProjection

@@ -50,6 +50,8 @@ class J2KSubtype(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.NumWaveletLevels = NumWaveletLevels
         self.NumBands = NumBands
         self.LayerInfo = LayerInfo
@@ -74,6 +76,8 @@ class J2KType(Serializable):
     def __init__(self, Original=None, Parsed=None, **kwargs):
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.Original = Original
         self.Parsed = Parsed
         super(J2KType, self).__init__(**kwargs)
@@ -102,5 +106,7 @@ class CompressionType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.J2K = J2K
         super(CompressionType, self).__init__(**kwargs)

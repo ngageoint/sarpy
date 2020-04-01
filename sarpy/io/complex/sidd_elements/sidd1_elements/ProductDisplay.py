@@ -13,7 +13,8 @@ from ..base import DEFAULT_STRICT
 from ...sicd_elements.base import Serializable, Arrayable, _SerializableDescriptor, \
     _IntegerDescriptor, _FloatDescriptor, _StringDescriptor, _StringEnumDescriptor, \
     _ParametersDescriptor, ParametersCollection, \
-    int_func, _create_new_node, _create_text_node, _get_node_value
+    int_func, _create_new_node, _create_text_node, _get_node_value, \
+    _find_first_child
 
 
 __classification__ = "UNCLASSIFIED"
@@ -39,6 +40,8 @@ class ColorDisplayRemapType(Serializable, Arrayable):
         self._remap_lut = None
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.RemapLUT = RemapLUT
         super(ColorDisplayRemapType, self).__init__(**kwargs)
 
@@ -120,26 +123,8 @@ class ColorDisplayRemapType(Serializable, Arrayable):
         return numpy.array(self._remap_lut, dtype=dtype)
 
     @classmethod
-    def from_node(cls, node, xml_ns, kwargs=None):
-        """For XML deserialization.
-
-        Parameters
-        ----------
-        node : ElementTree.Element
-            dom element for serialized class instance
-        xml_ns : dict
-            The xml namespace dictionary.
-        kwargs : None|dict
-            `None` or dictionary of previously serialized attributes. For use in inheritance call, when certain
-            attributes require specific deserialization.
-
-        Returns
-        -------
-        LUTInfoType
-            corresponding class instance
-        """
-
-        lut_node = node.find('RemapLUT') if xml_ns is None else node.find('default:RemapLUT', xml_ns)
+    def from_node(cls, node, xml_ns, ns_key=None, kwargs=None):
+        lut_node = _find_first_child(node, 'RemapLUT', xml_ns, ns_key)
         if lut_node is not None:
             dim1 = int_func(lut_node.attrib['size'])
             dim2 = 3
@@ -161,14 +146,19 @@ class ColorDisplayRemapType(Serializable, Arrayable):
             return cls(RemapLUT=arr)
         return cls()
 
-    def to_node(self, doc, tag, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
+    def to_node(self, doc, tag, ns_key=None, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
         if parent is None:
             parent = doc.getroot()
-        node = _create_new_node(doc, tag, parent=parent)
+        if ns_key is None:
+            node = _create_new_node(doc, tag, parent=parent)
+            rtag = 'RemapLUT'
+        else:
+            node = _create_new_node(doc, '{}:{}'.format(ns_key, tag), parent=parent)
+            rtag = '{}:RemapLUT'.format(ns_key)
 
         if self._remap_lut is not None:
             value = ' '.join('{0:d},{1:d},{2:d}'.format(*entry) for entry in self._remap_lut)
-            entry = _create_text_node(doc, 'RemapLUT', value, parent=node)
+            entry = _create_text_node(doc, rtag, value, parent=node)
             entry.attrib['size'] = str(self.size)
         return node
 
@@ -217,6 +207,8 @@ class MonochromeDisplayRemapType(Serializable):
         self._remap_lut = None
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.RemapType = RemapType
         self.RemapLUT = RemapLUT
         self.RemapParameters = RemapParameters
@@ -247,29 +239,11 @@ class MonochromeDisplayRemapType(Serializable):
         self._remap_lut = value
 
     @classmethod
-    def from_node(cls, node, xml_ns, kwargs=None):
-        """For XML deserialization.
-
-        Parameters
-        ----------
-        node : ElementTree.Element
-            dom element for serialized class instance
-        xml_ns : dict
-            The xml namespace dictionary.
-        kwargs : None|dict
-            `None` or dictionary of previously serialized attributes. For use in inheritance call, when certain
-            attributes require specific deserialization.
-
-        Returns
-        -------
-        MonochromeDisplayRemapType
-            corresponding class instance
-        """
-
+    def from_node(cls, node, xml_ns, ns_key=None, kwargs=None):
         if kwargs is None:
             kwargs = {}
 
-        lut_node = node.find('RemapLUT') if xml_ns is None else node.find('default:RemapLUT', xml_ns)
+        lut_node = _find_first_child(node, 'RemapLUT', xml_ns, ns_key)
         if lut_node is not None:
             dim1 = int_func(lut_node.attrib['size'])
             arr = numpy.zeros((dim1, ), dtype=numpy.uint8)
@@ -281,14 +255,17 @@ class MonochromeDisplayRemapType(Serializable):
                 arr[i] = int(entry)
                 i += 1
             kwargs['RemapLUT'] = arr
-        return super(MonochromeDisplayRemapType, cls).from_node(node, xml_ns, **kwargs)
+        return super(MonochromeDisplayRemapType, cls).from_node(node, xml_ns, ns_key=ns_key, **kwargs)
 
-    def to_node(self, doc, tag, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
+    def to_node(self, doc, tag, ns_key=None, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
         node = super(MonochromeDisplayRemapType, self).to_node(
-            doc, tag, parent=parent, check_validity=check_validity, strict=strict)
+            doc, tag, ns_key=ns_key, parent=parent, check_validity=check_validity, strict=strict)
         if self._remap_lut is not None:
             value = ' '.join('{0:d}'.format(entry) for entry in self._remap_lut)
-            entry = _create_text_node(doc, 'RemapLUT', value, parent=node)
+            if ns_key is None:
+                entry = _create_text_node(doc, 'RemapLUT', value, parent=node)
+            else:
+                entry = _create_text_node(doc, '{}:RemapLUT'.format(ns_key), value, parent=node)
             entry.attrib['size'] = str(self._remap_lut.size)
         return node
 
@@ -329,6 +306,8 @@ class RemapChoiceType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.ColorDisplayRemap = ColorDisplayRemap
         self.MonochromeDisplayRemap = MonochromeDisplayRemap
         super(RemapChoiceType, self).__init__(**kwargs)
@@ -361,6 +340,8 @@ class MonitorCompensationAppliedType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.Gamma = Gamma
         self.XMin = XMin
         super(MonitorCompensationAppliedType, self).__init__(**kwargs)
@@ -394,6 +375,8 @@ class DRAHistogramOverridesType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.ClipMin = ClipMin
         self.ClipMax = ClipMax
         super(DRAHistogramOverridesType, self).__init__(**kwargs)
@@ -457,6 +440,8 @@ class ProductDisplayType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.PixelType = PixelType
         self.RemapInformation = RemapInformation
         self.MagnificationMethod = MagnificationMethod

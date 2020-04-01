@@ -42,6 +42,8 @@ class BandLUTType(NewLookupTableType):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.k = k
         super(BandLUTType, self).__init__(Predefined=Predefined, Custom=Custom, **kwargs)
 
@@ -80,6 +82,8 @@ class BandEqualizationType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.Algorithm = Algorithm
         self.BandLUTs = BandLUTs
         super(BandEqualizationType, self).__init__(**kwargs)
@@ -111,6 +115,8 @@ class ProductGenerationOptionsType(Serializable):
     def __init__(self, BandEqualization=None, ModularTransferFunctionRestoration=None, DataRemapping=None, **kwargs):
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.BandEqualization = BandEqualization
         self.ModularTransferFunctionRestoration = ModularTransferFunctionRestoration
         self.DataRemapping = DataRemapping
@@ -152,6 +158,8 @@ class RRDSType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.DownsamplingMethod = DownsamplingMethod
         self.AntiAlias = AntiAlias
         self.Interpolation = Interpolation
@@ -183,6 +191,8 @@ class NonInteractiveProcessingType(Serializable):
     def __init__(self, ProductGenerationOptions=None, RRDS=None, band=1, **kwargs):
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.ProductGenerationOptions = ProductGenerationOptions
         self.RRDS = RRDS
         self.band = band
@@ -220,6 +230,8 @@ class ScalingType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.AntiAlias = AntiAlias
         self.Interpolation = Interpolation
         super(ScalingType, self).__init__(**kwargs)
@@ -242,6 +254,8 @@ class OrientationType(Serializable):
     def __init__(self, ShadowDirection='DOWN', **kwargs):
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.ShadowDirection = ShadowDirection
         super(OrientationType, self).__init__(**kwargs)
 
@@ -274,6 +288,8 @@ class GeometricTransformType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.Scaling = Scaling
         self.Orientation = Orientation
         super(GeometricTransformType, self).__init__(**kwargs)
@@ -305,6 +321,8 @@ class SharpnessEnhancementType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.ModularTransferFunctionCompensation = ModularTransferFunctionCompensation
         self.ModularTransferFunctionEnhancement = ModularTransferFunctionEnhancement
         super(SharpnessEnhancementType, self).__init__(**kwargs)
@@ -346,6 +364,8 @@ class ColorManagementModuleType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.RenderingIntent = RenderingIntent
         self.SourceProfile = SourceProfile
         self.DisplayProfile = DisplayProfile
@@ -375,6 +395,8 @@ class ColorSpaceTransformType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.ColorManagementModule = ColorManagementModule
         super(ColorSpaceTransformType, self).__init__(**kwargs)
 
@@ -418,6 +440,8 @@ class DRAParametersType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.Pmin = Pmin
         self.Pmax = Pmax
         self.EminModifier = EminModifier
@@ -451,6 +475,8 @@ class DRAOverridesType(Serializable):
         """
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.Subtractor = Subtractor
         self.Multiplier = Multiplier
         super(DRAOverridesType, self).__init__(**kwargs)
@@ -490,6 +516,8 @@ class DynamicRangeAdjustmentType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.AlgorithmType = AlgorithmType
         self.BandStatsSource = BandStatsSource
         self.DRAParameters = DRAParameters
@@ -537,6 +565,8 @@ class InteractiveProcessingType(Serializable):
                  ColorSpaceTransform=None, DynamicRangeAdjustment=None, band=1, **kwargs):
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.GeometricTransform = GeometricTransform
         self.SharpnessEnhancement = SharpnessEnhancement
         self.ColorSpaceTransform = ColorSpaceTransform
@@ -603,6 +633,8 @@ class ProductDisplayType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.PixelType = PixelType
         self.NumBands = NumBands
         self.DefaultBandDisplay = DefaultBandDisplay

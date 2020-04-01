@@ -12,7 +12,7 @@ from .base import DEFAULT_STRICT
 # noinspection PyProtectedMember
 from ..sicd_elements.base import Serializable, _SerializableDescriptor, _IntegerDescriptor, \
     _FloatDescriptor, _FloatListDescriptor, _StringEnumDescriptor
-from ..sicd_elements.blocks import LatLonType
+from .blocks import LatLonType
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
@@ -194,6 +194,8 @@ class PositionalAccuracyType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.NumRegions = NumRegions
         self.AbsoluteAccuracy = AbsoluteAccuracy
         self.PointToPointAccuracy = PointToPointAccuracy
@@ -239,6 +241,8 @@ class DigitalElevationDataType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.GeographicCoordinates = GeographicCoordinates
         self.Geopositioning = Geopositioning
         self.PositionalAccuracy = PositionalAccuracy

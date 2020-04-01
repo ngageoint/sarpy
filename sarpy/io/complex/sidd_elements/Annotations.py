@@ -13,7 +13,7 @@ from .base import DEFAULT_STRICT
 # noinspection PyProtectedMember
 from ..sicd_elements.base import Serializable, _SerializableDescriptor, \
     _FloatDescriptor, _StringDescriptor, _StringListDescriptor, _SerializableListDescriptor, \
-    _create_new_node, _create_text_node, _get_node_value
+    _create_new_node, _create_text_node, _get_node_value, _find_first_child, _find_children
 
 from sarpy.geometry.geometry_elements import Point as PointType, \
     LineString as LineStringType, \
@@ -55,6 +55,8 @@ class ParameterType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.ParameterName = ParameterName
         self.Value = Value
         super(ParameterType, self).__init__(**kwargs)
@@ -83,6 +85,8 @@ class ProjectionType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.ProjectionName = ProjectionName
         super(ProjectionType, self).__init__(**kwargs)
 
@@ -115,6 +119,8 @@ class PrimeMeridianType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.Name = Name
         self.Longitude = Longitude
         super(PrimeMeridianType, self).__init__(**kwargs)
@@ -151,6 +157,8 @@ class SpheroidType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.SpheroidName = SpheroidName
         self.SemiMajorAxis = SemiMajorAxis
         self.InverseFlattening = InverseFlattening
@@ -179,6 +187,8 @@ class DatumType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.Spheroid = Spheroid
         super(DatumType, self).__init__(**kwargs)
 
@@ -221,6 +231,8 @@ class GeographicCoordinateSystemType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.Csname = Csname
         self.Datum = Datum
         self.PrimeMeridian = PrimeMeridian
@@ -268,6 +280,8 @@ class ProjectedCoordinateSystemType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.Csname = Csname
         self.GeographicCoordinateSystem = GeographicCoordinateSystem
         self.Projection = Projection
@@ -310,6 +324,8 @@ class GeocentricCoordinateSystemType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.Name = Name
         self.Datum = Datum
         self.PrimeMeridian = PrimeMeridian
@@ -353,6 +369,8 @@ class ReferenceSystemType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.ProjectedCoordinateSystem = ProjectedCoordinateSystem
         self.GeographicCoordinateSystem = GeographicCoordinateSystem
         self.GeocentricCoordinateSystem = GeocentricCoordinateSystem
@@ -395,6 +413,8 @@ class AnnotationObjectType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
 
         if Point is not None:
             self.Point = Point
@@ -612,64 +632,66 @@ class AnnotationObjectType(Serializable):
             raise ValueError('coords must have at least two elements')
         fmt_func = '{0:0.16G}'.format
         node = _create_new_node(doc, tag, parent=parent)
-        _create_text_node(doc, 'X', fmt_func(coords[0]), parent=node)
-        _create_text_node(doc, 'Y', fmt_func(coords[1]), parent=node)
+        _create_text_node(doc, 'sfa:X', fmt_func(coords[0]), parent=node)
+        _create_text_node(doc, 'sfa:Y', fmt_func(coords[1]), parent=node)
         if len(coords) > 2:
-            _create_text_node(doc, 'Z', fmt_func(coords[2]), parent=node)
+            _create_text_node(doc, 'sfa:Z', fmt_func(coords[2]), parent=node)
         if len(coords) > 3:
-            _create_text_node(doc, 'M', fmt_func(coords[3]), parent=node)
+            _create_text_node(doc, 'sfa:M', fmt_func(coords[3]), parent=node)
 
     def _serialize_line(self, coords, doc, tag, parent):
         node = _create_new_node(doc, tag, parent=parent)
         for entry in coords:
-            self._serialize_point(entry, doc, 'Vertex', node)
+            self._serialize_point(entry, doc, 'sfa:Vertex', node)
 
     def _serialize_polygon(self, coords, doc, tag, parent):
         node = _create_new_node(doc, tag, parent=parent)
         for entry in coords:
-            self._serialize_line(entry, doc, 'Ring', node)
+            self._serialize_line(entry, doc, 'sfa:Ring', node)
 
     def _serialize_multilinestring(self, coords, doc, tag, parent):
         node = _create_new_node(doc, tag, parent=parent)
         for entry in coords:
-            self._serialize_line(entry, doc, 'Element', node)
+            self._serialize_line(entry, doc, 'sfa:Element', node)
 
     def _serialize_multipolygon(self, coords, doc, tag, parent):
         node = _create_new_node(doc, tag, parent=parent)
         for entry in coords:
-            self._serialize_polygon(entry, doc, 'Element', node)
+            self._serialize_polygon(entry, doc, 'sfa:Element', node)
 
-    def to_node(self, doc, tag, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
+    def to_node(self, doc, tag, ns_key=None, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
         if parent is None:
             parent = doc.getroot()
-
-        node = _create_new_node(doc, tag, parent=parent)
+        if ns_key is None:
+            node = _create_new_node(doc, tag, parent=parent)
+        else:
+            node = _create_new_node(doc, '{}:{}'.format(ns_key, tag), parent=parent)
         typ = self.Type
         if typ is None:
             return node
 
         coords = getattr(self, typ).get_coordinates_list()
         if typ == 'Point':
-            self._serialize_point(coords, doc, 'Point', node)
+            self._serialize_point(coords, doc, 'sfa:Point', node)
         elif typ == 'Line':
-            self._serialize_line(coords, doc, 'Line', node)
+            self._serialize_line(coords, doc, 'sfa:Line', node)
         elif typ == 'LinearRing':
-            self._serialize_line(coords, doc, 'LinearRing', node)
+            self._serialize_line(coords, doc, 'sfa:LinearRing', node)
         elif typ == 'Polygon':
-            self._serialize_polygon(coords, doc, 'Polygon', node)
+            self._serialize_polygon(coords, doc, 'sfa:Polygon', node)
         elif typ == 'MultiPoint':
-            self._serialize_line(coords, doc, 'MultiPoint', node)
+            self._serialize_line(coords, doc, 'sfa:MultiPoint', node)
         elif typ == 'MultiLineString':
-            self._serialize_multilinestring(coords, doc, 'MultiLineString', node)
+            self._serialize_multilinestring(coords, doc, 'sfa:MultiLineString', node)
         elif typ == 'MultiPolygon':
-            self._serialize_multipolygon(coords, doc, 'MultiPolygon', node)
+            self._serialize_multipolygon(coords, doc, 'sfa:MultiPolygon', node)
         else:
             raise ValueError('Unsupported serialization type {}'.format(typ))
         return node
 
     @staticmethod
-    def _get_value(node, tag, xml_ns):
-        t_node = node.find(tag) if xml_ns is None else node.find('default:'+tag, xml_ns)
+    def _get_value(node, tag, xml_ns, ns_key):
+        t_node = _find_first_child(node, tag, xml_ns, ns_key)
         if t_node is None:
             return None
         else:
@@ -677,12 +699,12 @@ class AnnotationObjectType(Serializable):
 
     @classmethod
     def _extract_point(cls, node, xml_ns):
-        out = [cls._get_value(node, 'X', xml_ns), cls._get_value(node, 'Y', xml_ns)]
-        z = cls._get_value(node, 'Z', xml_ns)
+        out = [cls._get_value(node, 'X', xml_ns, 'sfa'), cls._get_value(node, 'Y', xml_ns, 'sfa')]
+        z = cls._get_value(node, 'Z', xml_ns, 'sfa')
         if z in None:
             return out
         out.append(z)
-        m = cls._get_value(node, 'M', xml_ns)
+        m = cls._get_value(node, 'M', xml_ns, 'sfa')
         if m in None:
             return out
         out.append(m)
@@ -690,53 +712,56 @@ class AnnotationObjectType(Serializable):
 
     @classmethod
     def _extract_line(cls, node, xml_ns, tag='Vertex'):
-        v_nodes = node.findall(tag) if xml_ns is None else node.findall('default:'+tag, xml_ns)
+        v_nodes = _find_children(node, tag, xml_ns, 'sfa')
         return [cls._extract_point(v_node, xml_ns) for v_node in v_nodes]
 
     @classmethod
     def _extract_polygon(cls, node, xml_ns, tag='Ring'):
-        v_nodes = node.findall(tag) if xml_ns is None else node.findall('default:'+tag, xml_ns)
+        v_nodes = _find_children(node, tag, xml_ns, 'sfa')
         return [cls._extract_line(v_node, xml_ns, tag='Vertex') for v_node in v_nodes]
 
     @classmethod
     def _deserialize_point(cls, node, xml_ns, tag='Point'):
-        point_node = node.find(tag) if xml_ns is None else node.find('default:'+tag, xml_ns)
+        point_node = _find_first_child(node, tag, xml_ns, 'sfa')
         if point_node is None:
             return None
         return cls._extract_point(point_node, xml_ns)
 
     @classmethod
     def _deserialize_line(cls, node, xml_ns, tag='Line'):
-        line_node = node.find(tag) if xml_ns is None else node.find('default:'+tag, xml_ns)
+        line_node = _find_first_child(node, tag, xml_ns, 'sfa')
         if line_node is None:
             return None
         return cls._extract_line(line_node, xml_ns, tag='Vertex')
 
     @classmethod
     def _deserialize_polygon(cls, node, xml_ns, tag='Polygon'):
-        poly_node = node.find(tag) if xml_ns is None else node.findall('default:'+tag, xml_ns)
+        poly_node = _find_first_child(node, tag, xml_ns, 'sfa')
         if poly_node is None:
             return None
         return cls._extract_polygon(poly_node, xml_ns, tag='Ring')
 
     @classmethod
     def _deserialize_multilinestring(cls, node, xml_ns, tag='MultiLineString'):
-        mls_node = node.find(tag) if xml_ns is None else node.findall('default:'+tag, xml_ns)
+        mls_node = _find_first_child(node, tag, xml_ns, 'sfa')
         if mls_node is None:
             return None
-        ls_nodes = mls_node.findall('Element') if xml_ns is None else mls_node.findall('default:Element')
+        ls_nodes = _find_children(mls_node, 'Element', xml_ns, 'sfa')
         return [cls._extract_line(ls_node, xml_ns, tag='Vertex') for ls_node in ls_nodes]
 
     @classmethod
     def _deserialize_multipolygon(cls, node, xml_ns, tag='MultiPolygon'):
-        mp_node = node.find(tag) if xml_ns is None else node.findall('default:'+tag, xml_ns)
+        mp_node = _find_first_child(node, tag, xml_ns, 'sfa')
         if mp_node is None:
             return None
-        p_nodes = mp_node.findall('Element') if xml_ns is None else mp_node.findall('default:Element')
+        p_nodes = _find_children(mp_node, 'Element', xml_ns, 'sfa')
         return [cls._extract_polygon(p_node, xml_ns, tag='Ring') for p_node in p_nodes]
 
     @classmethod
-    def from_node(cls, node, xml_ns, kwargs=None):
+    def from_node(cls, node, xml_ns, ns_key=None, kwargs=None):
+        if xml_ns is None or 'sfa' not in xml_ns:
+            raise ValueError('xml_ns must contain an entry for key "sfa"')
+
         coords = cls._deserialize_point(node, xml_ns, 'Point')
         if coords is not None:
             return cls(Point=PointType(coordinates=coords))
@@ -800,6 +825,8 @@ class AnnotationType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.Identifier = Identifier
         self.SpatialReferenceSystem = SpatialReferenceSystem
         self.Objects = Objects
@@ -830,6 +857,8 @@ class AnnotationsType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.Annotations = Annotations
         super(AnnotationsType, self).__init__(**kwargs)
 

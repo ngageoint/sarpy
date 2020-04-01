@@ -6,12 +6,12 @@ The MeasurementType definition.
 from typing import Union, List
 
 from .base import DEFAULT_STRICT
-from .blocks import ReferencePointType, RowColDoubleType
+from .blocks import ReferencePointType, RowColDoubleType, Poly2DType, XYZType, RowColIntType, \
+    XYZPolyType, RowColArrayElement
 
 # noinspection PyProtectedMember
 from ..sicd_elements.base import Serializable, _SerializableDescriptor, _UnitVectorDescriptor, \
     _FloatDescriptor, _StringEnumDescriptor, SerializableArray, _SerializableArrayDescriptor
-from ..sicd_elements.blocks import Poly2DType, XYZType, RowColType, XYZPolyType, RowColArrayElement
 
 
 __classification__ = "UNCLASSIFIED"
@@ -41,6 +41,8 @@ class BaseProjectionType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.ReferencePoint = ReferencePoint
         super(BaseProjectionType, self).__init__(**kwargs)
 
@@ -74,6 +76,8 @@ class MeasurableProjectionType(BaseProjectionType):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         super(MeasurableProjectionType, self).__init__(ReferencePoint=ReferencePoint, **kwargs)
         self.SampleSpacing = SampleSpacing
         self.TimeCOAPoly = TimeCOAPoly
@@ -108,6 +112,8 @@ class ProductPlaneType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.RowUnitVector = RowUnitVector
         self.ColUnitVector = ColUnitVector
         super(ProductPlaneType, self).__init__(**kwargs)
@@ -138,6 +144,8 @@ class PlaneProjectionType(MeasurableProjectionType):
         """
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         super(PlaneProjectionType, self).__init__(
             ReferencePoint=ReferencePoint, SampleSpacing=SampleSpacing, TimeCOAPoly=TimeCOAPoly, **kwargs)
         self.ProductPlane = ProductPlane
@@ -186,6 +194,8 @@ class CylindricalProjectionType(MeasurableProjectionType):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         super(CylindricalProjectionType, self).__init__(
             ReferencePoint=ReferencePoint, SampleSpacing=SampleSpacing, TimeCOAPoly=TimeCOAPoly, **kwargs)
         self.StripmapDirection = StripmapDirection
@@ -236,6 +246,8 @@ class PolynomialProjectionType(BaseProjectionType):
         """
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         super(PolynomialProjectionType, self).__init__(ReferencePoint=ReferencePoint, **kwargs)
         self.RowColToLat = RowColToLat
         self.RowColToLon = RowColToLon
@@ -273,8 +285,8 @@ class MeasurementType(Serializable):
         docstring='Cylindrical mapping of the pixel grid referred to as CGD in the '
                   'Design and Exploitation document.')  # type: Union[None, CylindricalProjectionType]
     PixelFootprint = _SerializableDescriptor(
-        'PixelFootprint', RowColType, _required, strict=DEFAULT_STRICT,
-        docstring='Size of the image in pixels.')  # type: RowColType
+        'PixelFootprint', RowColIntType, _required, strict=DEFAULT_STRICT,
+        docstring='Size of the image in pixels.')  # type: RowColIntType
     ARPFlag = _StringEnumDescriptor(
         'ARPFlag', ('REALTIME', 'PREDICTED', 'POST PROCESSED'), _required, strict=DEFAULT_STRICT,
         docstring='Flag indicating whether ARP polynomial is based on the best available (`collect time` or '
@@ -289,7 +301,7 @@ class MeasurementType(Serializable):
                   'Vertices in clockwise order.')  # type: Union[SerializableArray, List[RowColArrayElement]]
 
     def __init__(self, PolynomialProjection=None, GeographicProjection=None, PlaneProjection=None,
-                 CylindricalProjection=None, ARPFlag=None, ARPPoly=None, ValidData=None, **kwargs):
+                 CylindricalProjection=None, PixelFootprint=None, ARPFlag=None, ARPPoly=None, ValidData=None, **kwargs):
         """
 
         Parameters
@@ -298,6 +310,7 @@ class MeasurementType(Serializable):
         GeographicProjection : GeographicProjectionType
         PlaneProjection : PlaneProjectionType
         CylindricalProjection : CylindricalProjectionType
+        PixelFootprint : RowColIntType|numpy.ndarray|list|tuple
         ARPFlag : str
         ARPPoly : Poly2DType|numpy.ndarray|list|tuple
         ValidData : SerializableArray|List[RowColArrayElement]|numpy.ndarray|list|tuple
@@ -306,10 +319,13 @@ class MeasurementType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.PolynomialProjection = PolynomialProjection
         self.GeographicProjection = GeographicProjection
         self.PlaneProjection = PlaneProjection
         self.CylindricalProjection = CylindricalProjection
+        self.PixelFootprint = PixelFootprint
         self.ARPFlag = ARPFlag
         self.ARPPoly = ARPPoly
         self.ValidData = ValidData

@@ -13,10 +13,9 @@ from .GeographicAndTarget import GeographicAndTargetType
 from .Measurement import MeasurementType
 from .ExploitationFeatures import ExploitationFeaturesType
 from ..DownstreamReprocessing import DownstreamReprocessingType
-from ...sicd_elements.ErrorStatistics import ErrorStatisticsType
-from ...sicd_elements.Radiometric import RadiometricType
 from ..ProductProcessing import ProductProcessingType
 from ..Annotations import AnnotationsType
+from ..blocks import ErrorStatisticsType, RadiometricType
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
@@ -91,6 +90,8 @@ class SIDDType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.ProductCreation = ProductCreation
         self.Display = Display
         self.GeographicAndTarget = GeographicAndTarget
@@ -102,3 +103,11 @@ class SIDDType(Serializable):
         self.ProductProcessing = ProductProcessing
         self.Annotations = Annotations
         super(SIDDType, self).__init__(**kwargs)
+
+    @classmethod
+    def from_node(cls, node, xml_ns, ns_key=None, kwargs=None):
+        if ns_key is None:
+            raise ValueError('ns_key must be defined.')
+        if xml_ns is None or 'ism' not in xml_ns or 'sfa' not in xml_ns or 'sicommon' not in xml_ns:
+            raise ValueError('xml_ns must contain entries for "ism", "sfa", "sicommon"')
+        return super(SIDDType, cls).from_node(node, xml_ns, ns_key=ns_key, kwargs=kwargs)

@@ -50,6 +50,8 @@ class ProcessorInformationType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.Application = Application
         self.ProcessingDateTime = ProcessingDateTime
         self.Site = Site
@@ -68,8 +70,7 @@ class ProductClassificationType(Serializable):
         'nonICmarkings', 'classifiedBy', 'compilationReason', 'derivativelyClassifiedBy',
         'classificationReason', 'nonUSControls', 'derivedFrom', 'declassDate',
         'declassEvent', 'declassException', 'typeOfExemptedSource', 'dateOfExemptedSource',
-
-        'SecurityExtensions', )
+        'SecurityExtensions')
     _required = ('DESVersion', 'createDate', 'classification', 'ownerProducer')
     _collections_tags = {'SecurityExtensions': {'array': False, 'child_tag': 'SecurityExtension'}}
     _set_as_attribute = (
@@ -79,6 +80,7 @@ class ProductClassificationType(Serializable):
         'nonICmarkings', 'classifiedBy', 'compilationReason', 'derivativelyClassifiedBy',
         'classificationReason', 'nonUSControls', 'derivedFrom', 'declassDate',
         'declassEvent', 'declassException', 'typeOfExemptedSource', 'dateOfExemptedSource')
+    _child_xml_ns_key = {key: 'ism' for key in _fields if key != 'SecurityExtensions'}
     # Descriptor
     DESVersion = _IntegerDescriptor(
         'DESVersion', _required, strict=DEFAULT_STRICT, default_value=4,
@@ -196,6 +198,8 @@ class ProductClassificationType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.DESVersion = DESVersion
         self.createDate = createDate
         self.compliesWith = compliesWith
@@ -279,6 +283,8 @@ class ProductCreationType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.ProcessorInformation = ProcessorInformation
         self.Classification = Classification
         self.ProductName = ProductName

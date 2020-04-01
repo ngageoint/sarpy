@@ -3,7 +3,6 @@
 The ProductDisplayType definition for SIDD 1.0.
 """
 
-import logging
 from typing import Union, List
 from xml.etree import ElementTree
 from collections import OrderedDict
@@ -11,11 +10,12 @@ from collections import OrderedDict
 import numpy
 
 from ..base import DEFAULT_STRICT
+from ..blocks import LatLonCornerType
 # noinspection PyProtectedMember
 from ...sicd_elements.base import Serializable, _SerializableDescriptor, \
     _SerializableCPArrayDescriptor, SerializableCPArray, _SerializableListDescriptor, \
-    _StringDescriptor, _ParametersDescriptor, ParametersCollection, _StringListDescriptor
-from ...sicd_elements.blocks import LatLonCornerType
+    _StringDescriptor, _ParametersDescriptor, ParametersCollection, _StringListDescriptor, \
+    _find_children
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
@@ -56,6 +56,8 @@ class GeographicInformationType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.CountryCodes = CountryCodes
         self.SecurityInfo = SecurityInfo
         self.GeographicInfoExtensions = GeographicInfoExtensions
@@ -99,6 +101,8 @@ class TargetInformationType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.Identifiers = Identifiers
         self.Footprint = Footprint
         self.TargetInformationExtensions = TargetInformationExtensions
@@ -143,6 +147,8 @@ class GeographicCoverageType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.GeoregionIdentifiers = GeoregionIdentifiers
         self.Footprint = Footprint
         self.GeographicInfo = GeographicInfo
@@ -181,7 +187,7 @@ class GeographicCoverageType(Serializable):
         """
 
         if isinstance(value, ElementTree.Element):
-            value = GeographicCoverageType.from_node(value, self._xml_ns)
+            value = GeographicCoverageType.from_node(value, self._xml_ns, ns_key=self._xml_ns_key)
         elif isinstance(value, dict):
             value = GeographicCoverageType.from_dict(value)
 
@@ -191,19 +197,18 @@ class GeographicCoverageType(Serializable):
             raise TypeError('Trying to set SubRegion element with unexpected type {}'.format(type(value)))
 
     @classmethod
-    def from_node(cls, node, xml_ns, kwargs=None):
+    def from_node(cls, node, xml_ns, ns_key=None, kwargs=None):
         if kwargs is None:
             kwargs = OrderedDict()
-        kwargs['SubRegions'] = node.findall('SubRegion') if xml_ns is None else \
-            node.findall('default:SubRegion', xml_ns)
-        return super(GeographicCoverageType, cls).from_node(node, xml_ns, kwargs=kwargs)
+        kwargs['SubRegions'] = _find_children(node, 'SubRegion', xml_ns, ns_key)
+        return super(GeographicCoverageType, cls).from_node(node, xml_ns, ns_key=ns_key, kwargs=kwargs)
 
-    def to_node(self, doc, tag, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
+    def to_node(self, doc, tag, ns_key=None, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
         node = super(GeographicCoverageType, self).to_node(
-            doc, tag, parent=parent, check_validity=check_validity, strict=strict, exclude=exclude)
+            doc, tag, ns_key=ns_key, parent=parent, check_validity=check_validity, strict=strict, exclude=exclude)
         # slap on the SubRegion children
         for entry in self._SubRegions:
-            entry.to_node(doc, tag, parent=node, strict=strict)
+            entry.to_node(doc, tag, ns_key=ns_key, parent=node, strict=strict)
         return node
 
     def to_dict(self, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
@@ -245,6 +250,8 @@ class GeographicAndTargetType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.GeographicCoverage = GeographicCoverage
         self.TargetInformations = TargetInformations
         super(GeographicAndTargetType, self).__init__(**kwargs)

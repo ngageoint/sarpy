@@ -8,12 +8,11 @@ from typing import Union, List
 import numpy
 
 from .base import DEFAULT_STRICT
-from .blocks import RowColDoubleType
+from .blocks import RowColDoubleType, RowColIntType
 # noinspection PyProtectedMember
 from ..sicd_elements.base import Serializable, _SerializableDescriptor, \
     _ParametersDescriptor, ParametersCollection, _StringDescriptor, \
     _DateTimeDescriptor, _SerializableListDescriptor
-from ..sicd_elements.blocks import RowColType
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
@@ -37,8 +36,8 @@ class GeometricChipType(Serializable):
     _required = _fields
     # Descriptor
     ChipSize = _SerializableDescriptor(
-        'ChipSize', RowColType, _required, strict=DEFAULT_STRICT,
-        docstring='Size of the chipped product in pixels.')  # type: RowColType
+        'ChipSize', RowColIntType, _required, strict=DEFAULT_STRICT,
+        docstring='Size of the chipped product in pixels.')  # type: RowColIntType
     OriginalUpperLeftCoordinate = _SerializableDescriptor(
         'OriginalUpperLeftCoordinate', RowColDoubleType, _required, strict=DEFAULT_STRICT,
         docstring='Upper-left corner with respect to the original product.')  # type: RowColDoubleType
@@ -58,7 +57,7 @@ class GeometricChipType(Serializable):
 
         Parameters
         ----------
-        ChipSize : RowColType|numpy.ndarray|list|tuple
+        ChipSize : RowColIntType|numpy.ndarray|list|tuple
         OriginalUpperLeftCoordinate : RowColDoubleType|numpy.ndarray|list|tuple
         OriginalUpperRightCoordinate : RowColDoubleType|numpy.ndarray|list|tuple
         OriginalLowerLeftCoordinate : RowColDoubleType|numpy.ndarray|list|tuple
@@ -68,6 +67,8 @@ class GeometricChipType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.ChipSize = ChipSize
         self.OriginalUpperLeftCoordinate = OriginalUpperLeftCoordinate
         self.OriginalUpperRightCoordinate = OriginalUpperRightCoordinate
@@ -113,6 +114,8 @@ class ProcessingEventType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.ApplicationName = ApplicationName
         self.AppliedDateTime = numpy.datetime64('now', 'us') if AppliedDateTime is None else AppliedDateTime
         self.InterpolationMethod = InterpolationMethod
@@ -148,6 +151,8 @@ class DownstreamReprocessingType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.GeometricChip = GeometricChip
         self.ProcessingEvents = ProcessingEvents
         super(DownstreamReprocessingType, self).__init__(**kwargs)

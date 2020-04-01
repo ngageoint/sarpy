@@ -7,13 +7,12 @@ from typing import Union, List
 from xml.etree import ElementTree
 import copy
 
-from ..sicd_elements.blocks import LatLonCornerStringType, LatLonArrayElementType
-from ..sicd_elements.GeoData import GeoInfoType
 # noinspection PyProtectedMember
 from ..sicd_elements.base import Serializable, SerializableArray, SerializableCPArray, \
-    _SerializableArrayDescriptor, _SerializableCPArrayDescriptor, _StringEnumDescriptor
+    _SerializableArrayDescriptor, _SerializableCPArrayDescriptor, _StringEnumDescriptor, \
+    _find_children
 from .base import DEFAULT_STRICT
-
+from .blocks import LatLonCornerType, LatLonArrayElementType, GeoInfoType
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
@@ -42,11 +41,11 @@ class GeographicAndTargetType(Serializable):
                   'All height values are *Height Above The Ellipsoid '
                   '(HAE)*.'.format(_EARTH_MODEL_VALUES))  # type: str
     ImageCorners = _SerializableCPArrayDescriptor(
-        'ImageCorners', LatLonCornerStringType, _collections_tags, _required, strict=DEFAULT_STRICT,
+        'ImageCorners', LatLonCornerType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='The geographic image corner points array. Image corners points projected to the '
                   'ground/surface level. Points may be projected to the same height as the SCP if ground/surface '
                   'height data is not available. The corner positions are approximate geographic locations and '
-                  'not intended for analytical use.')  # type: Union[SerializableCPArray, List[LatLonCornerStringType]]
+                  'not intended for analytical use.')  # type: Union[SerializableCPArray, List[LatLonCornerType]]
     ValidData = _SerializableArrayDescriptor(
         'ValidData', LatLonArrayElementType, _collections_tags, _required,
         strict=DEFAULT_STRICT, minimum_length=3,
@@ -68,6 +67,8 @@ class GeographicAndTargetType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.EarthModel = EarthModel
         self.ImageCorners = ImageCorners
         self.ValidData = ValidData
@@ -121,7 +122,7 @@ class GeographicAndTargetType(Serializable):
         """
 
         if isinstance(value, ElementTree.Element):
-            value = GeoInfoType.from_node(value, self._xml_ns)
+            value = GeoInfoType.from_node(value, self._xml_ns, ns_key=self._xml_ns_key)
         elif isinstance(value, dict):
             value = GeoInfoType.from_dict(value)
 
@@ -151,19 +152,18 @@ class GeographicAndTargetType(Serializable):
                    GeoInfos=data.get('GeoInfos', None))
 
     @classmethod
-    def from_node(cls, node, xml_ns, kwargs=None):
+    def from_node(cls, node, xml_ns, ns_key=None, kwargs=None):
         if kwargs is None:
             kwargs = OrderedDict()
-        kwargs['GeoInfos'] = node.findall('GeoInfo') if xml_ns is None else \
-            node.findall('default:GeoInfo', xml_ns)
-        return super(GeographicAndTargetType, cls).from_node(node, xml_ns, kwargs=kwargs)
+        kwargs['GeoInfos'] = _find_children(node, 'GeoInfo', xml_ns, ns_key)
+        return super(GeographicAndTargetType, cls).from_node(node, xml_ns, ns_key=ns_key, kwargs=kwargs)
 
-    def to_node(self, doc, tag, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
+    def to_node(self, doc, tag, ns_key=None, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
         node = super(GeographicAndTargetType, self).to_node(
-            doc, tag, parent=parent, check_validity=check_validity, strict=strict, exclude=exclude)
+            doc, tag, ns_key=ns_key, parent=parent, check_validity=check_validity, strict=strict, exclude=exclude)
         # slap on the GeoInfo children
         for entry in self._GeoInfos:
-            entry.to_node(doc, 'GeoInfo', parent=node, strict=strict)
+            entry.to_node(doc, 'GeoInfo', ns_key=ns_key, parent=node, strict=strict)
         return node
 
     def to_dict(self, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
