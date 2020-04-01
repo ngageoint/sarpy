@@ -124,7 +124,8 @@ class ColorDisplayRemapType(Serializable, Arrayable):
 
     @classmethod
     def from_node(cls, node, xml_ns, ns_key=None, kwargs=None):
-        lut_node = _find_first_child(node, 'RemapLUT', xml_ns, ns_key)
+        lut_key = cls._child_xml_ns_key.get('RemapLUT', ns_key)
+        lut_node = _find_first_child(node, 'RemapLUT', xml_ns, lut_key)
         if lut_node is not None:
             dim1 = int_func(lut_node.attrib['size'])
             dim2 = 3
@@ -151,10 +152,15 @@ class ColorDisplayRemapType(Serializable, Arrayable):
             parent = doc.getroot()
         if ns_key is None:
             node = _create_new_node(doc, tag, parent=parent)
-            rtag = 'RemapLUT'
         else:
             node = _create_new_node(doc, '{}:{}'.format(ns_key, tag), parent=parent)
+
+        if 'RemapLUT' in self._child_xml_ns_key:
+            rtag = '{}:RemapLUT'.format(self._child_xml_ns_key['RemapLUT'])
+        elif ns_key is not None:
             rtag = '{}:RemapLUT'.format(ns_key)
+        else:
+            rtag = 'RemapLUT'
 
         if self._remap_lut is not None:
             value = ' '.join('{0:d},{1:d},{2:d}'.format(*entry) for entry in self._remap_lut)
@@ -242,8 +248,8 @@ class MonochromeDisplayRemapType(Serializable):
     def from_node(cls, node, xml_ns, ns_key=None, kwargs=None):
         if kwargs is None:
             kwargs = {}
-
-        lut_node = _find_first_child(node, 'RemapLUT', xml_ns, ns_key)
+        lut_key = cls._child_xml_ns_key.get('RemapLUT', ns_key)
+        lut_node = _find_first_child(node, 'RemapLUT', xml_ns, lut_key)
         if lut_node is not None:
             dim1 = int_func(lut_node.attrib['size'])
             arr = numpy.zeros((dim1, ), dtype=numpy.uint8)
@@ -260,12 +266,16 @@ class MonochromeDisplayRemapType(Serializable):
     def to_node(self, doc, tag, ns_key=None, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
         node = super(MonochromeDisplayRemapType, self).to_node(
             doc, tag, ns_key=ns_key, parent=parent, check_validity=check_validity, strict=strict)
+        if 'RemapLUT' in self._child_xml_ns_key:
+            rtag = '{}:RemapLUT'.format(self._child_xml_ns_key['RemapLUT'])
+        elif ns_key is not None:
+            rtag = '{}:RemapLUT'.format(ns_key)
+        else:
+            rtag = 'RemapLUT'
+
         if self._remap_lut is not None:
             value = ' '.join('{0:d}'.format(entry) for entry in self._remap_lut)
-            if ns_key is None:
-                entry = _create_text_node(doc, 'RemapLUT', value, parent=node)
-            else:
-                entry = _create_text_node(doc, '{}:RemapLUT'.format(ns_key), value, parent=node)
+            entry = _create_text_node(doc, rtag, value, parent=node)
             entry.attrib['size'] = str(self._remap_lut.size)
         return node
 
@@ -389,8 +399,7 @@ class ProductDisplayType(Serializable):
     _fields = (
         'PixelType', 'RemapInformation', 'MagnificationMethod', 'DecimationMethod',
         'DRAHistogramOverrides', 'MonitorCompensationApplied', 'DisplayExtension')
-    _required = (
-        'PixelType', )
+    _required = ('PixelType', )
     _collections_tags = {
         'DisplayExtensions': {'array': False, 'child_tag': 'DisplayExtension'}}
     # Descriptors
@@ -450,3 +459,7 @@ class ProductDisplayType(Serializable):
         self.MonitorCompensationApplied = MonitorCompensationApplied
         self.DisplayExtensions = DisplayExtensions
         super(ProductDisplayType, self).__init__(**kwargs)
+
+    @classmethod
+    def from_node(cls, node, xml_ns, ns_key=None, kwargs=None):
+        return super(ProductDisplayType, cls).from_node(node, xml_ns, ns_key=ns_key, kwargs=kwargs)

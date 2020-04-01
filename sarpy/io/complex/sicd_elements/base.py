@@ -277,10 +277,9 @@ def _parse_serializable(value, name, instance, the_type):
         return the_type.from_dict(value)
     elif isinstance(value, ElementTree.Element):
         xml_ns = getattr(instance, '_xml_ns', None)
-        # noinspection PyProtectedMember
-        if name in instance._child_xml_ns_key:
+        if hasattr(instance, '_child_xml_ns_key'):
             # noinspection PyProtectedMember
-            xml_ns_key = instance._child_xml_ns_key[name]
+            xml_ns_key = instance._child_xml_ns_key.get(name, getattr(instance, '_xml_ns_key', None))
         else:
             xml_ns_key = getattr(instance, '_xml_ns_key', None)
         return the_type.from_node(value, xml_ns, ns_key=xml_ns_key)
@@ -324,13 +323,11 @@ def _parse_serializable_array(value, name, instance, child_type, child_tag):
         return value
     elif isinstance(value, ElementTree.Element):
         xml_ns = getattr(instance, '_xml_ns', None)
-        # noinspection PyProtectedMember
-        if hasattr(instance, '_child_xml_ns_key') and name in instance._child_xml_ns_key:
+        if hasattr(instance, '_child_xml_ns_key'):
             # noinspection PyProtectedMember
-            xml_ns_key = instance._child_xml_ns_key[name]
+            xml_ns_key = instance._child_xml_ns_key.get(name, getattr(instance, '_xml_ns_key', None))
         else:
             xml_ns_key = getattr(instance, '_xml_ns_key', None)
-
         # this is the parent node from XML deserialization
         size = int_func(value.attrib.get('size', -1))  # NB: Corner Point arrays don't have
         # extract child nodes at top level
@@ -383,13 +380,11 @@ def _parse_serializable_list(value, name, instance, child_type):
         return [value, ]
 
     xml_ns = getattr(instance, '_xml_ns', None)
-    # noinspection PyProtectedMember
-    if hasattr(instance, '_child_xml_ns_key') and name in instance._child_xml_ns_key:
+    if hasattr(instance, '_child_xml_ns_key'):
         # noinspection PyProtectedMember
-        xml_ns_key = instance._child_xml_ns_key[name]
+        xml_ns_key = instance._child_xml_ns_key.get(name, getattr(instance, '_xml_ns_key', None))
     else:
         xml_ns_key = getattr(instance, '_xml_ns_key', None)
-
     if isinstance(value, ElementTree.Element):
         # this is the child
         return [child_type.from_node(value, xml_ns, ns_key=xml_ns_key), ]
@@ -1507,10 +1502,15 @@ class Serializable(object):
             Corresponding class instance
         """
 
+        if len(node) == 0:
+            return None
+
         def handle_attribute(the_tag, the_xml_ns_key):
             if the_xml_ns_key is not None:  # handle namespace, if necessary
-                the_tag = '{}:{}'.format(xml_ns[the_xml_ns_key], the_tag)
-            kwargs[the_tag] = node.attrib.get(the_tag, None)
+                fetch_tag = '{' + xml_ns[the_xml_ns_key] + '}' + the_tag
+            else:
+                fetch_tag = the_tag
+            kwargs[the_tag] = node.attrib.get(fetch_tag, None)
 
         def handle_single(the_tag, the_xml_ns_key):
             kwargs[the_tag] = _find_first_child(node, the_tag, xml_ns, the_xml_ns_key)
@@ -1553,6 +1553,7 @@ class Serializable(object):
                                      'but xml_ns does not contain this key.'.format(attribute, cls, xml_ns_key))
 
             if attribute in cls._set_as_attribute:
+                xml_ns_key = cls._child_xml_ns_key.get(attribute, None)
                 handle_attribute(attribute, xml_ns_key)
             elif attribute in cls._collections_tags:
                 # it's a collection type parameter
@@ -2198,7 +2199,7 @@ class SerializableArray(object):
 class SerializableCPArray(SerializableArray):
     __slots__ = (
         '_child_tag', '_child_type', '_array', '_name', '_minimum_length',
-        '_maximum_length', '_index_as_string')
+        '_maximum_length', '_index_as_string', '_xml_ns', '_xml_ns_key')
 
     def __init__(self, coords=None, name=None, child_tag=None, child_type=None, _xml_ns=None, _xml_ns_key=None):
         if hasattr(child_type, '_CORNER_VALUES'):

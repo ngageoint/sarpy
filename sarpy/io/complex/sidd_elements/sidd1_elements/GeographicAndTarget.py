@@ -207,8 +207,9 @@ class GeographicCoverageType(Serializable):
         node = super(GeographicCoverageType, self).to_node(
             doc, tag, ns_key=ns_key, parent=parent, check_validity=check_validity, strict=strict, exclude=exclude)
         # slap on the SubRegion children
+        sub_key = self._child_xml_ns_key.get('SubRegions', ns_key)
         for entry in self._SubRegions:
-            entry.to_node(doc, tag, ns_key=ns_key, parent=node, strict=strict)
+            entry.to_node(doc, 'SubRegion', ns_key=sub_key, parent=node, strict=strict)
         return node
 
     def to_dict(self, check_validity=False, strict=DEFAULT_STRICT, exclude=()):

@@ -167,7 +167,8 @@ class WgtTypeType(Serializable):
 
     @classmethod
     def from_node(cls, node, xml_ns, ns_key=None, kwargs=None):
-        win_name = _find_first_child(node, 'WindowName', xml_ns, ns_key)
+        win_key = cls._child_xml_ns_key.get('WindowName', ns_key)
+        win_name = _find_first_child(node, 'WindowName', xml_ns, win_key)
         if win_name is None:
             # SICD 0.4 standard compliance, this could just be a space delimited string of the form
             #   "<WindowName> <name1>=<value1> <name2>=<value2> ..."

@@ -116,7 +116,8 @@ class RangeAzimuthType(Serializable, Arrayable):
         -------
         RangeAzimuthType
         """
-
+        if array is None:
+            return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
             if len(array) < 2:
                 raise ValueError('Expected array to be of length 2, and received {}'.format(array))
@@ -191,6 +192,8 @@ class AngleMagnitudeType(Serializable, Arrayable):
         AngleMagnitudeType
         """
 
+        if array is None:
+            return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
             if len(array) < 2:
                 raise ValueError('Expected array to be of length 2, and received {}'.format(array))
@@ -264,7 +267,8 @@ class RowColDoubleType(Serializable, Arrayable):
         -------
         RowColDoubleType
         """
-
+        if array is None:
+            return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
             if len(array) < 2:
                 raise ValueError('Expected array to be of length 2, and received {}'.format(array))
@@ -273,17 +277,15 @@ class RowColDoubleType(Serializable, Arrayable):
 
 
 class Poly1DType(Poly1DTypeBase):
-    _child_xml_ns_key = {'Coef': 'sicommon'}
-    # TODO: verify that this works
+    _child_xml_ns_key = {'Coefs': 'sicommon'}
 
 
 class Poly2DType(Poly2DTypeBase):
-    _child_xml_ns_key = {'Coef': 'sicommon'}
-    # TODO: verify that this works
+    _child_xml_ns_key = {'Coefs': 'sicommon'}
 
 
 class XYZPolyType(XYZPolyTypeBase):
-    _child_xml_ns_key = {'X': 'sixommon', 'Y': 'sicommon', 'Z': 'sicommon'}
+    _child_xml_ns_key = {'X': 'sicommon', 'Y': 'sicommon', 'Z': 'sicommon'}
 
 
 class ErrorStatisticsType(ErrorStatisticsTypeBase):
@@ -512,6 +514,8 @@ class BankCustomType(Serializable, Arrayable):
 
     @classmethod
     def from_array(cls, array):  # type: (numpy.ndarray) -> BankCustomType
+        if array is None:
+            return None
         return cls(Coefs=array)
 
     def get_array(self, dtype=numpy.float64):
@@ -536,8 +540,8 @@ class BankCustomType(Serializable, Arrayable):
         numPhasings = int_func(node.attrib['numPhasings'])
         numPoints = int_func(node.attrib['numPoints'])
         coefs = numpy.zeros((numPhasings+1, numPoints+1), dtype=numpy.float64)
-
-        coef_nodes = _find_children(node, 'Coef', xml_ns, ns_key)
+        ckey = cls._child_xml_ns_key.get('Coefs', ns_key)
+        coef_nodes = _find_children(node, 'Coef', xml_ns, ckey)
         for cnode in coef_nodes:
             ind1 = int_func(cnode.attrib['phasing'])
             ind2 = int_func(cnode.attrib['point'])
@@ -550,10 +554,16 @@ class BankCustomType(Serializable, Arrayable):
             parent = doc.getroot()
         if ns_key is None:
             node = _create_new_node(doc, tag, parent=parent)
-            ctag = 'Coef'
         else:
             node = _create_new_node(doc, '{}:{}'.format(ns_key, tag), parent=parent)
+
+        if 'Coefs' in self._child_xml_ns_key:
+            ctag = '{}:Coef'.format(self._child_xml_ns_key['Coefs'])
+        elif ns_key is not None:
             ctag = '{}:Coef'.format(ns_key)
+        else:
+            ctag = 'Coef'
+
         node.attrib['numPhasings'] = str(self.numPhasings)
         node.attrib['numPoints'] = str(self.numPoints)
         fmt_func = self._get_formatter('Coefs')
@@ -787,7 +797,8 @@ class LUTInfoType(Serializable, Arrayable):
         -------
         LUTInfoType
         """
-
+        if array is None:
+            return None
         return cls(LUTValues=array)
 
     def get_array(self, dtype=numpy.uint8):
@@ -812,7 +823,9 @@ class LUTInfoType(Serializable, Arrayable):
         dim1 = int_func(node.attrib['size'])
         dim2 = int_func(node.attrib['numLuts'])
         arr = numpy.zeros((dim1, dim2), dtype=numpy.uint16)
-        lut_nodes = _find_children(node, 'LUTValues', xml_ns, ns_key)
+
+        lut_key = cls._child_xml_ns_key.get('LUTValues', ns_key)
+        lut_nodes = _find_children(node, 'LUTValues', xml_ns, lut_key)
         for i, lut_node in enumerate(lut_nodes):
             arr[:, i] = [str(el) for el in _get_node_value(lut_node)]
         if numpy.max(arr) < 256:
@@ -827,12 +840,18 @@ class LUTInfoType(Serializable, Arrayable):
 
         if parent is None:
             parent = doc.getroot()
+
         if ns_key is None:
             node = _create_new_node(doc, tag, parent=parent)
-            ltag = 'LutValues'
         else:
             node = _create_new_node(doc, '{}:{}'.format(ns_key, tag), parent=parent)
-            ltag = '{}:LutValues'.format(ns_key)
+
+        if 'LUTValues' in self._child_xml_ns_key:
+            ltag = '{}:LUTValues'.format(self._child_xml_ns_key['LUTValues'])
+        elif ns_key is not None:
+            ltag = '{}:LUTValues'.format(ns_key)
+        else:
+            ltag = 'LUTValues'
 
         if self._lut_values is not None:
             node.attrib['numLuts'] = str(self.numLUTs)

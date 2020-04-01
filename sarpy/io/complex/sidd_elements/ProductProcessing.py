@@ -104,7 +104,8 @@ class ProcessingModuleType(Serializable):
         """
 
         if isinstance(value, ElementTree.Element):
-            value = ProcessingModuleType.from_node(value, self._xml_ns, ns_key=self._xml_ns_key)
+            pm_key = self._child_xml_ns_key.get('ProcessingModules', self._xml_ns_key)
+            value = ProcessingModuleType.from_node(value, self._xml_ns, ns_key=pm_key)
         elif isinstance(value, dict):
             value = ProcessingModuleType.from_dict(value)
 
@@ -117,15 +118,18 @@ class ProcessingModuleType(Serializable):
     def from_node(cls, node, xml_ns, ns_key=None, kwargs=None):
         if kwargs is None:
             kwargs = OrderedDict()
-        kwargs['ProcessingModules'] = _find_children(node, 'ProcessingModule', xml_ns, ns_key)
+
+        pm_key = cls._child_xml_ns_key.get('ProcessingModules', ns_key)
+        kwargs['ProcessingModules'] = _find_children(node, 'ProcessingModule', xml_ns, pm_key)
         return super(ProcessingModuleType, cls).from_node(node, xml_ns, ns_key=ns_key, kwargs=kwargs)
 
     def to_node(self, doc, tag, ns_key=None, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
         node = super(ProcessingModuleType, self).to_node(
             doc, tag, ns_key=ns_key, parent=parent, check_validity=check_validity, strict=strict, exclude=exclude)
         # slap on the ProcessingModule children
+        pm_key = self._child_xml_ns_key.get('ProcessingModules', ns_key)
         for entry in self._ProcessingModules:
-            entry.to_node(doc, tag, ns_key=ns_key, parent=node, strict=strict)
+            entry.to_node(doc, tag, ns_key=pm_key, parent=node, strict=strict)
         return node
 
     def to_dict(self, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
@@ -205,7 +209,8 @@ class ProductProcessingType(Serializable):
         """
 
         if isinstance(value, ElementTree.Element):
-            value = ProcessingModuleType.from_node(value, self._xml_ns, ns_key=self._xml_ns_key)
+            pm_key = self._child_xml_ns_key.get('ProcessingModules', self._xml_ns_key)
+            value = ProcessingModuleType.from_node(value, self._xml_ns, ns_key=pm_key)
         elif isinstance(value, dict):
             value = ProcessingModuleType.from_dict(value)
 
@@ -218,15 +223,18 @@ class ProductProcessingType(Serializable):
     def from_node(cls, node, xml_ns, ns_key=None, kwargs=None):
         if kwargs is None:
             kwargs = OrderedDict()
-        kwargs['ProcessingModules'] = _find_children(node, 'ProcessingModule', xml_ns, ns_key)
+
+        pm_key = cls._child_xml_ns_key.get('ProcessingModules', ns_key)
+        kwargs['ProcessingModules'] = _find_children(node, 'ProcessingModule', xml_ns, pm_key)
         return super(ProductProcessingType, cls).from_node(node, xml_ns, ns_key=ns_key, kwargs=kwargs)
 
     def to_node(self, doc, tag, ns_key=None, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
         node = super(ProductProcessingType, self).to_node(
             doc, tag, ns_key=ns_key, parent=parent, check_validity=check_validity, strict=strict, exclude=exclude)
         # slap on the ProcessingModule children
+        pm_key = self._child_xml_ns_key.get('ProcessingModules', ns_key)
         for entry in self._ProcessingModules:
-            entry.to_node(doc, tag, ns_key=ns_key, parent=node, strict=strict)
+            entry.to_node(doc, tag, ns_key=pm_key, parent=node, strict=strict)
         return node
 
     def to_dict(self, check_validity=False, strict=DEFAULT_STRICT, exclude=()):

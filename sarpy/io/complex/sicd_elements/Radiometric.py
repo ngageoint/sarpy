@@ -6,7 +6,7 @@ The RadiometricType definition.
 import numpy
 
 from .base import Serializable, DEFAULT_STRICT, _StringEnumDescriptor, \
-    _SerializableDescriptor, _find_first_child, _find_children
+    _SerializableDescriptor, _find_first_child
 from .blocks import Poly2DType
 
 
@@ -127,7 +127,8 @@ class RadiometricType(Serializable):
         if kwargs is not None:
             kwargs = {}
         # NoiseLevelType and NoisePoly used to be at this level prior to SICD 1.0.
-        nlevel = _find_first_child(node, 'NoiseLevelType', xml_ns, ns_key)
+        nkey = cls._child_xml_ns_key.get('NoiseLevelType', ns_key)
+        nlevel = _find_first_child(node, 'NoiseLevelType', xml_ns, nkey)
         if nlevel is not None:
             kwargs['NoiseLevel'] = NoiseLevelType_.from_node(nlevel, xml_ns, ns_key=ns_key, kwargs=kwargs)
         return super(RadiometricType, cls).from_node(node, xml_ns, ns_key=ns_key, kwargs=kwargs)

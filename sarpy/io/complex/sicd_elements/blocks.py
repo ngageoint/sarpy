@@ -82,6 +82,8 @@ class XYZType(Serializable, Arrayable):
         XYZType
         """
 
+        if array is None:
+            return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
             if len(array) < 3:
                 raise ValueError('Expected array to be of length 3, and received {}'.format(array))
@@ -172,6 +174,8 @@ class LatLonType(Serializable, Arrayable):
         LatLonType
         """
 
+        if array is None:
+            return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
             if len(array) < 2:
                 raise ValueError('Expected array to be of length 2, and received {}'.format(array))
@@ -248,7 +252,8 @@ class LatLonArrayElementType(LatLonType):
         -------
         LatLonArrayElementType
         """
-
+        if array is None:
+            return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
             if len(array) < 2:
                 raise ValueError('Expected array to be of length 2, and received {}'.format(array))
@@ -297,7 +302,8 @@ class LatLonRestrictionType(LatLonType):
         -------
         LatLonRestrictionType
         """
-
+        if array is None:
+            return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
             if len(array) < 2:
                 raise ValueError('Expected array to be of length 2, and received {}'.format(array))
@@ -369,7 +375,8 @@ class LatLonHAEType(LatLonType):
         -------
         LatLonHAEType
         """
-
+        if array is None:
+            return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
             if len(array) < 3:
                 raise ValueError('Expected array to be of length 3, and received {}'.format(array))
@@ -418,7 +425,8 @@ class LatLonHAERestrictionType(LatLonHAEType):
         -------
         LatLonHAERestrictionType
         """
-
+        if array is None:
+            return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
             if len(array) < 3:
                 raise ValueError('Expected array to be of length 3, and received {}'.format(array))
@@ -470,7 +478,8 @@ class LatLonCornerType(LatLonType):
         -------
         LatLonCornerType
         """
-
+        if array is None:
+            return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
             if len(array) < 2:
                 raise ValueError('Expected coords to be of length 2, and received {}'.format(array))
@@ -522,7 +531,8 @@ class LatLonCornerStringType(LatLonType):
         -------
         LatLonCornerStringType
         """
-
+        if array is None:
+            return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
             if len(array) < 2:
                 raise ValueError('Expected array to be of length 2, and received {}'.format(array))
@@ -576,7 +586,8 @@ class LatLonHAECornerRestrictionType(LatLonHAERestrictionType):
         -------
         LatLonHAECornerRestrictionType
         """
-
+        if array is None:
+            return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
             if len(array) < 3:
                 raise ValueError('Expected array to be of length 3, and received {}'.format(array))
@@ -627,7 +638,8 @@ class LatLonHAECornerStringType(LatLonHAEType):
         -------
         LatLonHAECornerStringType
         """
-
+        if array is None:
+            return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
             if len(array) < 3:
                 raise ValueError('Expected array to be of length 3, and received {}'.format(array))
@@ -695,7 +707,8 @@ class RowColType(Serializable, Arrayable):
         -------
         RowColType
         """
-
+        if array is None:
+            return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
             if len(array) < 2:
                 raise ValueError('Expected array to be of length 2, and received {}'.format(array))
@@ -747,7 +760,8 @@ class RowColArrayElement(RowColType):
         -------
         RowColArrayElement
         """
-
+        if array is None:
+            return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
             if len(array) < 2:
                 raise ValueError('Expected array to be of length 2, and received {}'.format(array))
@@ -943,7 +957,8 @@ class Poly1DType(Serializable, Arrayable):
         -------
         Poly1DType
         """
-
+        if array is None:
+            return None
         return cls(Coefs=array)
 
     def get_array(self, dtype=numpy.float64):
@@ -965,11 +980,11 @@ class Poly1DType(Serializable, Arrayable):
 
     @classmethod
     def from_node(cls, node, xml_ns, ns_key=None, kwargs=None):
-
         order1 = int_func(node.attrib['order1'])
         coefs = numpy.zeros((order1+1, ), dtype=numpy.float64)
 
-        coef_nodes = _find_children(node, 'Coef', xml_ns, ns_key)
+        coef_key = cls._child_xml_ns_key.get('Coefs', ns_key)
+        coef_nodes = _find_children(node, 'Coef', xml_ns, coef_key)
         for cnode in coef_nodes:
             ind = int_func(cnode.attrib['exponent1'])
             val = float(_get_node_value(cnode))
@@ -979,12 +994,19 @@ class Poly1DType(Serializable, Arrayable):
     def to_node(self, doc, tag, ns_key=None, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
         if parent is None:
             parent = doc.getroot()
+
         if ns_key is None:
             node = _create_new_node(doc, tag, parent=parent)
-            ctag = 'Coef'
         else:
             node = _create_new_node(doc, '{}:{}'.format(ns_key, tag), parent=parent)
+
+        if 'Coefs' in self._child_xml_ns_key:
+            ctag = '{}:Coef'.format(self._child_xml_ns_key['Coefs'])
+        elif ns_key is not None:
             ctag = '{}:Coef'.format(ns_key)
+        else:
+            ctag = 'Coef'
+
         node.attrib['order1'] = str(self.order1)
         fmt_func = self._get_formatter('Coef')
         for i, val in enumerate(self.Coefs):
@@ -1168,7 +1190,8 @@ class Poly2DType(Serializable, Arrayable):
         -------
         Poly2DType
         """
-
+        if array is None:
+            return None
         return cls(Coefs=array)
 
     def get_array(self, dtype=numpy.float64):
@@ -1194,7 +1217,8 @@ class Poly2DType(Serializable, Arrayable):
         order2 = int_func(node.attrib['order2'])
         coefs = numpy.zeros((order1+1, order2+1), dtype=numpy.float64)
 
-        coef_nodes = _find_children(node, 'Coef', xml_ns, ns_key)
+        coef_key = cls._child_xml_ns_key.get('Coefs', ns_key)
+        coef_nodes = _find_children(node, 'Coef', xml_ns, coef_key)
         for cnode in coef_nodes:
             ind1 = int_func(cnode.attrib['exponent1'])
             ind2 = int_func(cnode.attrib['exponent2'])
@@ -1205,12 +1229,18 @@ class Poly2DType(Serializable, Arrayable):
     def to_node(self, doc, tag, ns_key=None, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
         if parent is None:
             parent = doc.getroot()
+
         if ns_key is None:
             node = _create_new_node(doc, tag, parent=parent)
-            ctag = 'Coef'
         else:
             node = _create_new_node(doc, '{}:{}'.format(ns_key, tag), parent=parent)
+
+        if 'Coefs' in self._child_xml_ns_key:
+            ctag = '{}:Coef'.format(self._child_xml_ns_key['Coefs'])
+        elif ns_key is not None:
             ctag = '{}:Coef'.format(ns_key)
+        else:
+            ctag = 'Coef'
 
         node.attrib['order1'] = str(self.order1)
         node.attrib['order2'] = str(self.order2)
@@ -1333,7 +1363,8 @@ class XYZPolyType(Serializable, Arrayable):
         -------
         XYZPolyType
         """
-
+        if array is None:
+            return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
             if len(array) < 3:
                 raise ValueError('Expected array to be of length 3, and received {}'.format(array))
@@ -1463,7 +1494,8 @@ class XYZPolyAttributeType(XYZPolyType):
         -------
         XYZPolyAttributeType
         """
-
+        if array is None:
+            return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
             if len(array) < 3:
                 raise ValueError('Expected array to be of length 3, and received {}'.format(array))

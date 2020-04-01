@@ -122,7 +122,8 @@ class GeographicAndTargetType(Serializable):
         """
 
         if isinstance(value, ElementTree.Element):
-            value = GeoInfoType.from_node(value, self._xml_ns, ns_key=self._xml_ns_key)
+            gi_key = self._child_xml_ns_key.get('GeoInfos', self._xml_ns_key)
+            value = GeoInfoType.from_node(value, self._xml_ns, ns_key=gi_key)
         elif isinstance(value, dict):
             value = GeoInfoType.from_dict(value)
 
@@ -155,7 +156,8 @@ class GeographicAndTargetType(Serializable):
     def from_node(cls, node, xml_ns, ns_key=None, kwargs=None):
         if kwargs is None:
             kwargs = OrderedDict()
-        kwargs['GeoInfos'] = _find_children(node, 'GeoInfo', xml_ns, ns_key)
+        gkey = cls._child_xml_ns_key.get('GeoInfos', ns_key)
+        kwargs['GeoInfos'] = _find_children(node, 'GeoInfo', xml_ns, gkey)
         return super(GeographicAndTargetType, cls).from_node(node, xml_ns, ns_key=ns_key, kwargs=kwargs)
 
     def to_node(self, doc, tag, ns_key=None, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):

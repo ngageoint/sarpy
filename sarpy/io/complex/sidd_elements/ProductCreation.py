@@ -94,10 +94,10 @@ class ProductClassificationType(Serializable):
         'compliesWith', _required, strict=DEFAULT_STRICT,
         docstring='')  # type: Union[None, str]
     classification = _StringDescriptor(
-        'classification', _required, strict=DEFAULT_STRICT, default_value='U',
+        'classification', _required, strict=DEFAULT_STRICT,  # default_value='U',
         docstring='')  # type: str
     ownerProducer = _StringDescriptor(
-        'ownerProducer', _required, strict=DEFAULT_STRICT, default_value='USA',
+        'ownerProducer', _required, strict=DEFAULT_STRICT,  # default_value='USA',
         docstring='')  # type: str
     SCIcontrols = _StringDescriptor(
         'SCIcontrols', _required, strict=DEFAULT_STRICT,
@@ -266,8 +266,8 @@ class ProductCreationType(Serializable):
         docstring='Extensible parameters used to support profile-specific needs related to '
                   'product creation.')  # type: ParametersCollection
 
-    def __init__(self, ProcessorInformation, Classification, ProductName, ProductClass,
-                 ProductType, ProductCreationExtensions, **kwargs):
+    def __init__(self, ProcessorInformation=None, Classification=None, ProductName=None,
+                 ProductClass=None, ProductType=None, ProductCreationExtensions=None, **kwargs):
         """
 
         Parameters
