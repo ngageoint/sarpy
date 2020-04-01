@@ -60,7 +60,7 @@ class BandEqualizationType(Serializable):
     """
     _fields = ('Algorithm', 'BandLUTs')
     _required = ('Algorithm', 'BandLUTs')
-    _collections_tags = {'BandLUTs': {'array': False, 'child_tag': 'BandLUT'}}
+    _collections_tags = {'BandLUTs': {'array': True, 'child_tag': 'BandLUT'}}
     # Descriptor
     Algorithm = _StringEnumDescriptor(
         'Algorithm', ('LUT 1D', ), _required, strict=DEFAULT_STRICT, default_value='LUT 1D',

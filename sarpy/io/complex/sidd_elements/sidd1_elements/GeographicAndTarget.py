@@ -126,7 +126,7 @@ class GeographicCoverageType(Serializable):
         docstring='Target may have one or more identifiers.  Examples: names, BE numbers, etc. Use '
                   'the "name" attribute to describe what this is.')  # type: ParametersCollection
     Footprint = _SerializableCPArrayDescriptor(
-        'ImageCorners', LatLonCornerType, _collections_tags, _required, strict=DEFAULT_STRICT,
+        'Footprint', LatLonCornerType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Estimated ground footprint of the '
                   'product.')  # type: Union[None, SerializableCPArray, List[LatLonCornerType]]
     GeographicInfo = _SerializableDescriptor(
