@@ -10,10 +10,11 @@ from collections import OrderedDict
 import numpy
 
 from ..base import DEFAULT_STRICT
-from ..blocks import LatLonCornerType
+from ..blocks import LatLonArrayElementType
 # noinspection PyProtectedMember
 from ...sicd_elements.base import Serializable, _SerializableDescriptor, \
-    _SerializableCPArrayDescriptor, SerializableCPArray, _SerializableListDescriptor, \
+    _SerializableArrayDescriptor, SerializableArray, \
+    _SerializableListDescriptor, \
     _StringDescriptor, _ParametersDescriptor, ParametersCollection, _StringListDescriptor, \
     _find_children
 
@@ -79,10 +80,10 @@ class TargetInformationType(Serializable):
         'Identifiers', _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Target may have one or more identifiers.  Examples: names, BE numbers, etc. Use '
                   'the "name" attribute to describe what this is.')  # type: ParametersCollection
-    Footprint = _SerializableCPArrayDescriptor(
-        'Footprint', LatLonCornerType, _collections_tags, _required, strict=DEFAULT_STRICT,
+    Footprint = _SerializableArrayDescriptor(
+        'Footprint', LatLonArrayElementType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Target footprint as defined by polygonal '
-                  'shape.')  # type: Union[SerializableCPArray, List[LatLonCornerType]]
+                  'shape.')  # type: Union[SerializableArray, List[LatLonArrayElementType]]
     TargetInformationExtensions = _ParametersDescriptor(
         'TargetInformationExtensions', _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Generic extension. Could be used to indicate type of target, '
@@ -94,7 +95,7 @@ class TargetInformationType(Serializable):
         Parameters
         ----------
         Identifiers : None|ParametersCollection|dict
-        Footprint : None|List[LatLonCornerType]|numpy.ndarray|list|tuple
+        Footprint : None|List[LatLonArrayElementType]|numpy.ndarray|list|tuple
         TargetInformationExtensions : None|ParametersCollection|dict
         kwargs
         """
@@ -125,10 +126,10 @@ class GeographicCoverageType(Serializable):
         'GeoregionIdentifiers', _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Target may have one or more identifiers.  Examples: names, BE numbers, etc. Use '
                   'the "name" attribute to describe what this is.')  # type: ParametersCollection
-    Footprint = _SerializableCPArrayDescriptor(
-        'Footprint', LatLonCornerType, _collections_tags, _required, strict=DEFAULT_STRICT,
+    Footprint = _SerializableArrayDescriptor(
+        'Footprint', LatLonArrayElementType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Estimated ground footprint of the '
-                  'product.')  # type: Union[None, SerializableCPArray, List[LatLonCornerType]]
+                  'product.')  # type: Union[None, SerializableArray, List[LatLonArrayElementType]]
     GeographicInfo = _SerializableDescriptor(
         'GeographicInfo', GeographicInformationType, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: Union[None, GeographicInformationType]
@@ -139,7 +140,7 @@ class GeographicCoverageType(Serializable):
         Parameters
         ----------
         GeoregionIdentifiers : None|ParametersCollection|dict
-        Footprint : None|List[LatLonCornerType]|numpy.ndarray|list|tuple
+        Footprint : None|List[LatLonArrayElementType]|numpy.ndarray|list|tuple
         SubRegions : None|List[GeographicCoverageType]
         GeographicInfo : None|GeographicInformationType
         kwargs

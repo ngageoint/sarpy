@@ -340,7 +340,7 @@ def _parse_serializable_array(value, name, instance, child_type, child_tag):
                 'Attribute {} of array type functionality belonging to class {} got a ElementTree element '
                 'with size attribute {}, but has {} child nodes with tag {}.'.format(
                     name, instance.__class__.__name__, size, len(child_nodes), child_tag))
-        new_value = numpy.empty((size,), dtype=numpy.object)
+        new_value = numpy.empty((size, ), dtype=numpy.object)
         for i, entry in enumerate(child_nodes):
             new_value[i] = child_type.from_node(entry, xml_ns, ns_key=xml_ns_key)
         return new_value
@@ -707,7 +707,10 @@ class _IntegerDescriptor(_BasicDescriptor):
         return ''
 
     def _in_bounds(self, value):
-        return (self.bounds is None) or (self.bounds[0] <= value <= self.bounds[1])
+        if self.bounds is None:
+            return True
+        return (self.bounds[0] is None or self.bounds[0] <= value) and \
+            (self.bounds[1] is None or value <= self.bounds[1])
 
     def __set__(self, instance, value):
         if super(_IntegerDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
@@ -847,7 +850,11 @@ class _FloatDescriptor(_BasicDescriptor):
         return ''
 
     def _in_bounds(self, value):
-        return (self.bounds is None) or (self.bounds[0] <= value <= self.bounds[1])
+        if self.bounds is None:
+            return True
+
+        return (self.bounds[0] is None or self.bounds[0] <= value) and \
+            (self.bounds[1] is None or value <= self.bounds[1])
 
     def __set__(self, instance, value):
         if super(_FloatDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
@@ -1502,7 +1509,8 @@ class Serializable(object):
             Corresponding class instance
         """
 
-        if len(node) == 0:
+        if len(node) == 0 and len(node.attrib) == 0:
+            logging.warning('There are no children or attributes associated with node {} for class {}. Returning None.'.format(node, cls))
             return None
 
         def handle_attribute(the_tag, the_xml_ns_key):
@@ -1719,10 +1727,12 @@ class Serializable(object):
                 serialize_attribute(nod, attribute, value, fmt_func, xml_ns_key)
             else:
                 # should we be using some namespace?
-                if attribute is self._child_xml_ns_key:
+                if attribute in self._child_xml_ns_key:
                     xml_ns_key = self._child_xml_ns_key[attribute]
                 else:
                     xml_ns_key = getattr(self, '_xml_ns_key', None)
+                    if xml_ns_key == 'default':
+                        xml_ns_key = None
 
                 if isinstance(value, (numpy.ndarray, list)):
                     array_tag = self._collections_tags.get(attribute, None)
@@ -2154,7 +2164,7 @@ class SerializableArray(object):
             return
         for i, entry in enumerate(self._array):
             try:
-                setattr(entry, self._size_var_name, i+1)
+                setattr(entry, self._index_var_name, i+1)
             except (AttributeError, ValueError, TypeError):
                 continue
 
