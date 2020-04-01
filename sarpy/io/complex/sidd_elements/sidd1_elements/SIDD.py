@@ -45,10 +45,14 @@ def _validate_sidd_urn(xml_ns, ns_key):
 
 def _validate_ism_urn(xml_ns):
     if 'ism' not in xml_ns:
+        the_val = None
         for key in xml_ns:
             val = xml_ns[key]
             if val.lower().startswith('urn:us:gov:ic:ism'):
-                xml_ns['ism'] = val
+                the_val = val
+        if the_val is None:
+            raise ValueError('Cannot find the required ism namespace.')
+        xml_ns['ism'] = the_val
 
     ism_urn = xml_ns['ism']
     if ism_urn != _ism_urn:
@@ -59,10 +63,14 @@ def _validate_ism_urn(xml_ns):
 
 def _validate_sfa_urn(xml_ns):
     if 'sfa' not in xml_ns:
+        the_val = None
         for key in xml_ns:
             val = xml_ns[key]
             if val.lower().startswith('urn:sfa:'):
-                xml_ns['sfa'] = val
+                the_val = val
+        if the_val is None:
+            raise ValueError('Cannot find the required SFA namespace.')
+        xml_ns['sfa'] = the_val
 
     sfa_urn = xml_ns['sfa']
     if sfa_urn != _sfa_urn:
@@ -73,10 +81,14 @@ def _validate_sfa_urn(xml_ns):
 
 def _validate_sicommon_urn(xml_ns):
     if 'sicommon' not in xml_ns:
+        the_val = None
         for key in xml_ns:
             val = xml_ns[key]
             if val.lower().startswith('urn:sicommon:'):
-                xml_ns['sicommon'] = val
+                the_val = val
+        if the_val is None:
+            raise ValueError('Cannot find the required SICommon namespace.')
+        xml_ns['sicommon'] = the_val
 
     sicommon_urn = xml_ns['sicommon']
     if sicommon_urn != _sicommon_urn:
