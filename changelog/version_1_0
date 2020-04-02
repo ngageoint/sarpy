@@ -1,12 +1,13 @@
 # This details the important differences introduced in 1.0
 # NB: bump the version number in __about__.py to reflect the below.
 
-* .08 - Bug fix for polarization data and population of RNIIRS
-* .07 - Small bug fix in converter file naming scheme process
-* .06 - Fixing a small but fatal bug for TRE parsing
-* .05 - Modified string enum parsing for NITF header to make data errors non-fatal
-* .04 - Improvements for GUI behavior and annotation tool
-* .03 - Refactored NITF elements for clarity and better documentation
-* .02 - Made polynomial shift simpler and added for Poly2D
-* .01 - Added a very basic ccd calculation and two SICD properties
-* .00 - Start of version after major refactor
+
+* .8 - Bug fix for polarization data and population of RNIIRS
+* .7 - Small bug fix in converter file naming scheme process
+* .6 - Fixing a small but fatal bug for TRE parsing
+* .5 - Modified string enum parsing for NITF header to make data errors non-fatal
+* .4 - Improvements for GUI behavior and annotation tool
+* .3 - Refactored NITF elements for clarity and better documentation
+* .2 - Made polynomial shift simpler and added for Poly2D
+* .1 - Added a very basic ccd calculation and two SICD properties
+* .0 - Start of version after major refactor
