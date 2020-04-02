@@ -120,7 +120,8 @@ class SIDDType(Serializable):
     # Descriptor
     ProductCreation = _SerializableDescriptor(
         'ProductCreation', ProductCreationType, _required, strict=DEFAULT_STRICT,
-        docstring='Information related to processor, classification, and product type.')  # type: ProductCreationType
+        docstring='Information related to processor, classification, '
+                  'and product type.')  # type: ProductCreationType
     Display = _SerializableDescriptor(
         'Display', ProductDisplayType, _required, strict=DEFAULT_STRICT,
         docstring='Contains information on the parameters needed to display the product in '
@@ -131,7 +132,8 @@ class SIDDType(Serializable):
                   'information.')  # type: GeographicAndTargetType
     Measurement = _SerializableDescriptor(
         'Measurement', MeasurementType, _required, strict=DEFAULT_STRICT,
-        docstring='Contains the metadata necessary for performing measurements.')  # type: MeasurementType
+        docstring='Contains the metadata necessary for performing '
+                  'measurements.')  # type: MeasurementType
     ExploitationFeatures = _SerializableDescriptor(
         'ExploitationFeatures', ExploitationFeaturesType, _required, strict=DEFAULT_STRICT,
         docstring='Computed metadata regarding the input collections and '
@@ -142,7 +144,8 @@ class SIDDType(Serializable):
                   'product.')  # type: Union[None, DownstreamReprocessingType]
     ErrorStatistics = _SerializableDescriptor(
         'ErrorStatistics', ErrorStatisticsType, _required, strict=DEFAULT_STRICT,
-        docstring='Error statistics passed through from the SICD metadata.')  # type: Union[None, ErrorStatisticsType]
+        docstring='Error statistics passed through from the SICD '
+                  'metadata.')  # type: Union[None, ErrorStatisticsType]
     Radiometric = _SerializableDescriptor(
         'Radiometric', RadiometricType, _required, strict=DEFAULT_STRICT,
         docstring='Radiometric information about the product.')  # type: Union[None, RadiometricType]
@@ -156,7 +159,8 @@ class SIDDType(Serializable):
 
     def __init__(self, ProductCreation=None, Display=None, GeographicAndTarget=None,
                  Measurement=None, ExploitationFeatures=None, DownstreamReprocessing=None,
-                 ErrorStatistics=None, Radiometric=None, ProductProcessing=None, Annotations=None, **kwargs):
+                 ErrorStatistics=None, Radiometric=None, ProductProcessing=None,
+                 Annotations=None, **kwargs):
         """
 
         Parameters

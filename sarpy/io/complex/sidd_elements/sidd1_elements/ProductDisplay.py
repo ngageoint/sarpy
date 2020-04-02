@@ -404,7 +404,8 @@ class ProductDisplayType(Serializable):
         'DisplayExtensions': {'array': False, 'child_tag': 'DisplayExtension'}}
     # Descriptors
     PixelType = _StringEnumDescriptor(
-        'PixelType', ('MONO8I', 'MONO8LU', 'MONO16I', 'RGBL8U', 'RGB24I'), _required, strict=DEFAULT_STRICT,
+        'PixelType', ('MONO8I', 'MONO8LU', 'MONO16I', 'RGBL8U', 'RGB24I'),
+        _required, strict=DEFAULT_STRICT,
         docstring='Enumeration of the pixel type. Definition in '
                   'Design and Exploitation document.')  # type: str
     RemapInformation = _SerializableDescriptor(
@@ -412,7 +413,8 @@ class ProductDisplayType(Serializable):
         docstring='Information regarding the encoding of the pixel data. '
                   'Used for 8-bit pixel types.')  # type: Union[None, RemapChoiceType]
     MagnificationMethod = _StringEnumDescriptor(
-        'MagnificationMethod', ('NEAREST_NEIGHBOR', 'BILINEAR', 'LAGRANGE'), _required, strict=DEFAULT_STRICT,
+        'MagnificationMethod', ('NEAREST_NEIGHBOR', 'BILINEAR', 'LAGRANGE'),
+        _required, strict=DEFAULT_STRICT,
         docstring='Recommended ELT magnification method for this data.')  # type: Union[None, str]
     DecimationMethod = _StringEnumDescriptor(
         'DecimationMethod', ('NEAREST_NEIGHBOR', 'BILINEAR', 'BRIGHTEST_PIXEL', 'LAGRANGE'),
