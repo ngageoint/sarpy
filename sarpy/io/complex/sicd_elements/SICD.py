@@ -468,6 +468,9 @@ class SICDType(Serializable):
             # noinspection PyProtectedMember
             self.Radiometric._derive_parameters(self.Grid, self.SCPCOA)
 
+        # now, populate the RNIIRS, if we can
+        self.populate_rniirs(override=False)
+
     def apply_reference_frequency(self, reference_frequency):
         """
         If the reference frequency is used, adjust the necessary fields accordingly.
