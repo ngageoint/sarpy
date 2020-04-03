@@ -267,6 +267,8 @@ class MeasurementType(Serializable):
     _required = ('PixelFootprint', 'ARPPoly', 'ValidData')
     _collections_tags = {'ValidData': {'array': True, 'child_tag': 'Vertex'}}
     _numeric_format = {'ValidData': '0.16G'}
+    _choice = ({'required': False, 'collection': ('PolynomialProjection', 'GeographicProjection',
+                                                  'PlaneProjection', 'CylindricalProjection')}, )
     # Descriptor
     PolynomialProjection = _SerializableDescriptor(
         'PolynomialProjection', PolynomialProjectionType, _required, strict=DEFAULT_STRICT,
@@ -330,6 +332,14 @@ class MeasurementType(Serializable):
         self.ARPPoly = ARPPoly
         self.ValidData = ValidData
         super(MeasurementType, self).__init__(**kwargs)
+
+    @property
+    def ProjectionType(self):
+        """str: *READ ONLY* Identifies the specific image projection type supplied."""
+        for attribute in self._choice[0]['collection']:
+            if getattr(self, attribute) is not None:
+                return attribute
+        return None
 
     @classmethod
     def fromSicd(cls, sicd):

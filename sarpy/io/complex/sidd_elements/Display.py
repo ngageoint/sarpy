@@ -301,6 +301,8 @@ class SharpnessEnhancementType(Serializable):
     """
     _fields = ('ModularTransferFunctionCompensation', 'ModularTransferFunctionEnhancement')
     _required = _fields
+    _choice = ({'required': True, 'collection': ('ModularTransferFunctionCompensation',
+                                                 'ModularTransferFunctionEnhancement')}, )
     # Descriptor
     ModularTransferFunctionCompensation = _SerializableDescriptor(
         'ModularTransferFunctionCompensation', FilterType, _required, strict=DEFAULT_STRICT,

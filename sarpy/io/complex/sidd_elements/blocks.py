@@ -905,9 +905,13 @@ class NewLookupTableType(Serializable):
     custom lookup table array.
     """
 
-    _fields = ('Predefined', 'Custom')
-    _required = ()
+    _fields = ('LUTName', 'Predefined', 'Custom')
+    _required = ('LUTName', )
+    _choice = ({'required': True, 'collection': ('Predefined', 'Custom')}, )
     # Descriptor
+    LUTName = _StringDescriptor(
+        'LUTName', _required, strict=DEFAULT_STRICT,
+        docstring='The lookup table name')  # type: str
     Predefined = _SerializableDescriptor(
         'Predefined', PredefinedLookupType, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: PredefinedLookupType
@@ -915,13 +919,14 @@ class NewLookupTableType(Serializable):
         'Custom', CustomLookupType, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: CustomLookupType
 
-    def __init__(self, Predefined=None, Custom=None, **kwargs):
+    def __init__(self, LUTName=None, Predefined=None, Custom=None, **kwargs):
         """
 
         Parameters
         ----------
-        Predefined : PredefinedLookupType
-        Custom : CustomLookupType
+        LUTName : str
+        Predefined : None|PredefinedLookupType
+        Custom : None|CustomLookupType
         kwargs
         """
 
@@ -929,6 +934,7 @@ class NewLookupTableType(Serializable):
             self._xml_ns = kwargs['_xml_ns']
         if '_xml_ns_key' in kwargs:
             self._xml_ns_key = kwargs['_xml_ns_key']
+        self.LUTName = LUTName
         self.Predefined = Predefined
         self.Custom = Custom
         super(NewLookupTableType, self).__init__(**kwargs)

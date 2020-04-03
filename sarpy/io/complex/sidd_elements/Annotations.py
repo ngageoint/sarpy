@@ -386,6 +386,8 @@ class AnnotationObjectType(Serializable):
 
     Note that PolyhedralSurface is not currently supported.
     """
+    _fields = ('Point', 'Line', 'LinearRing', 'Polygon', 'MultiPoint', 'MultiLineString', 'MultiPolygon')
+    _choice = ({'required': True, 'collection': _fields}, )
 
     def __init__(self, Point=None, Line=None, LinearRing=None, Polygon=None, MultiPoint=None,
                  MultiLineString=None, MultiPolygon=None, **kwargs):
@@ -437,15 +439,16 @@ class AnnotationObjectType(Serializable):
         super(AnnotationObjectType, self).__init__(**kwargs)
 
     @property
-    def Type(self):
+    def GeometryType(self):
         """
-        str: The type of geometric element which is set, from ('Point', 'Line', 'LinearRing', 'Polygon',
-        'MultiPoint', 'MultiLineString', 'MultiPolygon')
+        str: **READ ONLY** The type of geometric element which is set, from
+        ('Point', 'Line', 'LinearRing', 'Polygon', 'MultiPoint',
+        'MultiLineString', 'MultiPolygon')
         """
 
-        for fld in self._fields:
-            if getattr(self, fld) is not None:
-                return fld
+        for attribute in self._choice[0]['collection']:
+            if getattr(self, attribute) is not None:
+                return attribute
         return None
 
     @property
