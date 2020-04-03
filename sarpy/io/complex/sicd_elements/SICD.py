@@ -25,6 +25,7 @@ from .MatchInfo import MatchInfoType
 from .RgAzComp import RgAzCompType
 from .PFA import PFAType
 from .RMA import RMAType
+from ..utils import snr_to_rniirs
 
 from sarpy.geometry import point_projection
 
@@ -805,3 +806,77 @@ class SICDType(Serializable):
         kwargs['use_sicd_coa'] = True
         return point_projection.image_to_ground_geo(
             im_points, self, ordering=ordering, projection_type=projection_type, **kwargs)
+
+    def populate_rniirs(self, signal=None, noise=None, override=False):
+        """
+        Given the signal and noise values (normalized to single pixel value),
+        calculate and populate an estimated RNIIRS value.
+
+        Parameters
+        ----------
+        signal : None|float
+        noise : None|float
+        override : bool
+            Override the value, if present.
+
+        Returns
+        -------
+        None
+        """
+
+        try:
+            val = self.CollectionInfo.Parameters['RNIIRS'] # TODO: verify correct
+            if val is not None:
+                if override:
+                    logging.warning('RNIIRS already populated, and this value will be overridden.')
+                else:
+                    logging.info('RNIIRS already populated. Nothing to be done.')
+                    return
+        except Exception:
+            pass
+
+        if noise is None:
+            try:
+                if self.Radiometric.NoiseLevel.NoiseLevelType != 'ABSOLUTE':
+                    logging.error(
+                        'Radiometric.NoiseLevel.NoiseLevelType must be "ABSOLUTE" to estimate noise. '
+                        'You must provide a noise estimate.')
+                    return
+                noise = self.Radiometric.NoiseLevel.NoisePoly(0, 0)  # this is in db
+                noise = 10**(noise/10.)  # this is absolute
+
+                # convert to SigmaZero value
+                noise *= self.Radiometric.SigmaZeroSFPoly(0, 0)  # TODO: is this no longer in db now?
+            except Exception as e:
+                logging.error('Encountered an error estimating noise. {}'.format(e))
+                return
+
+        if signal is None:
+            try:
+                # use 1.0 for copolar collection and 0.25 from cross-polar collection
+                pol = self.ImageFormation.TxRcvPolarizationProc
+                if pol is None or ':' not in pol:
+                    signal = 0.25
+                else:
+                    pols = pol.split(':')
+                    if pols[0] == pols[1]:
+                        signal = 1.0
+                    else:
+                        signal = 0.25
+            except Exception:
+                signal = 0.25
+
+        try:
+            bw_area = abs(self.Grid.Row.ImpRespBW*self.Grid.Col.ImpRespBW*numpy.cos(numpy.rad2deg(self.SCPCOA.SlopeAng)))
+        except Exception as e:
+            logging.error('Encountered an error estimating bandwidth area. {}'.format(e))
+            return
+
+        inf_density, rniirs = snr_to_rniirs(bw_area, signal, noise)
+        logging.info('Calculated INFORMATION_DENSITY = {0:0.5G}, RNIIRS = {1:0.5G}'.format(inf_density, rniirs))
+        self.CollectionInfo.Parameters['INFORMATION_DENSITY'] = '{0:0.2G}'.format(inf_density)
+        if rniirs < 9.9:
+            self.CollectionInfo.Parameters['RNIIRS'] = '{0:0.1f}'.format(rniirs)
+        else:
+            # this is probably meaningless for now
+            self.CollectionInfo.Parameters['RNIIRS'] = '9.9'
