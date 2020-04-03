@@ -885,21 +885,19 @@ class SentinelDetails(object):
                 else:
                     pixel = None
                 noise = numpy.fromstring(noise_vector.find('./{}Lut'.format(stem)).text, dtype=numpy.float64, sep=' ')
-                # some datasets do not have any noise data (all 0's) - skip
-                if numpy.all(noise == 0):
-                    continue
-                # convert noise to dB - what about -inf values?
-                noise = 10*numpy.log10(noise)
+                # some datasets do not have any noise data (all 0's) - skipping these will throw things into disarray
+                if not numpy.all(noise == 0):
+                    # convert noise to dB - what about -inf values?
+                    noise = 10*numpy.log10(noise)
                 assert isinstance(noise, numpy.ndarray)
 
                 # do some validity checks
                 if (mode_id == 'IW') and numpy.any((line % lines_per_burst) != 0) and (i != len(noise_vector_list)-1):
                     # NB: the final burst has different timing
-                    logging.error('Noise file should have one lut per burst, but more are present. Skipping this noise vector.')
-                    continue
+                    logging.error('Noise file should have one lut per burst, but more are present. '
+                                  'This may lead to confusion.')
                 if (pixel is not None) and (pixel[-1] > range_size_pixels):
-                    logging.error('Noise file has more pixels in LUT than range size. Skipping this noise vector.')
-                    continue
+                    logging.error('Noise file has more pixels in LUT than range size. This may lead to confusion.')
 
                 lines.append(line)
                 pixels.append(pixel)
@@ -930,32 +928,39 @@ class SentinelDetails(object):
             else:
                 # TOPSAR has single LUT per burst
                 # Treat range and azimuth polynomial components as weakly independent
-                coords_rg = (range_pixel[index] + sicd.ImageData.FirstRow -
-                             sicd.ImageData.SCPPixel.Row)*sicd.Grid.Row.SS
-                rg_poly = numpy.array(
-                    polynomial.polyfit(coords_rg, range_noise[index], rg_poly_order))
-                az_poly = None
-                if azimuth_noise is not None:
-                    line0 = lines_per_burst*index
-                    coords_az = (azimuth_line[0] - line0 -
-                                 sicd.ImageData.SCPPixel.Col)*sicd.Grid.Col.SS
-                    valid_lines = (azimuth_line[0] >= line0) & (azimuth_line[0] < line0 + lines_per_burst)
-                    valid_count = numpy.sum(valid_lines)
-                    if valid_count > 1:
-                        az_poly_order = min(2, valid_lines.size-1)
-                        az_poly = numpy.array(
-                            polynomial.polyfit(coords_az[valid_lines], azimuth_noise[valid_lines], az_poly_order))
-                        # TODO: is there ever only one of these?
-                if az_poly is not None:
-                    noise_poly = numpy.zeros((rg_poly.size, az_poly.size), dtype=numpy.float64)
-                    noise_poly[:, 0] += rg_poly
-                    noise_poly[0, :] += az_poly
+                if index < len(range_pixel):
+                    coords_rg = (range_pixel[index] + sicd.ImageData.FirstRow -
+                                 sicd.ImageData.SCPPixel.Row)*sicd.Grid.Row.SS
+                    rg_poly = numpy.array(
+                        polynomial.polyfit(coords_rg, range_noise[index], rg_poly_order))
+                    az_poly = None
+                    if azimuth_noise is not None:
+                        line0 = lines_per_burst*index
+                        coords_az = (azimuth_line[0] - line0 -
+                                     sicd.ImageData.SCPPixel.Col)*sicd.Grid.Col.SS
+                        valid_lines = (azimuth_line[0] >= line0) & (azimuth_line[0] < line0 + lines_per_burst)
+                        valid_count = numpy.sum(valid_lines)
+                        if valid_count > 1:
+                            az_poly_order = min(2, valid_lines.size-1)
+                            az_poly = numpy.array(
+                                polynomial.polyfit(coords_az[valid_lines], azimuth_noise[valid_lines], az_poly_order))
+                            # TODO: is there ever only one of these?
+                    if az_poly is not None:
+                        noise_poly = numpy.zeros((rg_poly.size, az_poly.size), dtype=numpy.float64)
+                        noise_poly[:, 0] += rg_poly
+                        noise_poly[0, :] += az_poly
+                    else:
+                        noise_poly = numpy.reshape(rg_poly, (-1, 1))
                 else:
-                    noise_poly = numpy.reshape(rg_poly, (-1, 1))
-            if sicd.Radiometric is None:
-                sicd.Radiometric = RadiometricType()
-            sicd.Radiometric.NoiseLevel = NoiseLevelType_(NoiseLevelType='ABSOLUTE',
-                                                          NoisePoly=Poly2DType(Coefs=noise_poly))
+                    logging.error('We have run out of noise information. Current index = {}, '
+                                  'length of noise array = {}. The corresponding sicd will not have any '
+                                  'NoisePoly.'.format(index, len(range_pixel)))
+                    noise_poly = None
+            if noise_poly is not None:
+                if sicd.Radiometric is None:
+                    sicd.Radiometric = RadiometricType()
+                sicd.Radiometric.NoiseLevel = NoiseLevelType_(NoiseLevelType='ABSOLUTE',
+                                                              NoisePoly=Poly2DType(Coefs=noise_poly))
 
         # extract our noise vectors (used in populate_noise through implicit reference)
         if root_node.find('./noiseVectorList') is not None:
@@ -970,7 +975,6 @@ class SentinelDetails(object):
 
         # NB: range_line is actually a list of 1 element arrays - probably should have been parsed better
         range_line = numpy.concatenate(range_line, axis=0)
-
         for ind, sic in enumerate(sicds):
             populate_noise(sic, ind)
 
@@ -979,9 +983,11 @@ class SentinelDetails(object):
         # type: (Union[SICDType, List[SICDType]]) -> None
         if isinstance(sicds, SICDType):
             sicds.derive()
+            sicds.populate_rniirs(override=False)
         else:
             for sicd in sicds:
                 sicd.derive()
+                sicd.populate_rniirs(override=False)
 
     def get_sicd_collection(self):
         """
