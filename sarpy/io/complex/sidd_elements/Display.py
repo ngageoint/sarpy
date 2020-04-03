@@ -339,7 +339,8 @@ class ColorManagementModuleType(Serializable):
     _required = _fields
     # Descriptor
     RenderingIntent = _StringEnumDescriptor(
-        'RenderingIntent', (), _required, strict=DEFAULT_STRICT, default_value='PERCEPTUAL',
+        'RenderingIntent', ('PERCEPTUAL', 'SATURATION', 'RELATIVE INTENT', 'ABSOLUTE INTENT'),
+        _required, strict=DEFAULT_STRICT, default_value='PERCEPTUAL',
         docstring='The rendering intent for this color management.')  # type: str
     SourceProfile = _StringDescriptor(
         'SourceProfile', _required, strict=DEFAULT_STRICT,
@@ -504,7 +505,7 @@ class DynamicRangeAdjustmentType(Serializable):
         'DRAOverrides', DRAOverridesType, _required, strict=DEFAULT_STRICT,
         docstring='The dynamic range adjustment overrides.')  # type: DRAOverridesType
 
-    def __init__(self, AlgorithmType='None', BandStatsSource=None, DRAParameters=None, DRAOverrides=None, **kwargs):
+    def __init__(self, AlgorithmType='NONE', BandStatsSource=None, DRAParameters=None, DRAOverrides=None, **kwargs):
         """
 
         Parameters

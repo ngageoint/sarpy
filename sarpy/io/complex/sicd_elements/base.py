@@ -658,7 +658,7 @@ class _StringEnumDescriptor(_BasicDescriptor):
                 super(_StringEnumDescriptor, self).__set__(instance, value)
             return
 
-        val = _parse_str(value, self.name, instance).upper()
+        val = _parse_str(value, self.name, instance)
 
         if val in self.values:
             self.data[instance] = val
