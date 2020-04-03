@@ -457,6 +457,7 @@ class CSKDetails(object):
             update_radiometric(t_sicd, bd_name)
             update_geodata(t_sicd)
             t_sicd.derive()
+            t_sicd.populate_rniirs(override=False)
             out[bd_name] = t_sicd
         return out
 
