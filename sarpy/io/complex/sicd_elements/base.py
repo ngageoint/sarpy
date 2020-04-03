@@ -511,6 +511,10 @@ class _BasicDescriptor(object):
             the return value
         """
 
+        if instance is None:
+            # this has been access on the class, so return the class
+            return self
+
         fetched = self.data.get(instance, self.default_value)
         if fetched is not None or not self.required:
             return fetched
@@ -1518,6 +1522,7 @@ class Serializable(object):
                 fetch_tag = '{' + xml_ns[the_xml_ns_key] + '}' + the_tag
             else:
                 fetch_tag = the_tag
+            poo = node.attrib.get(fetch_tag, None)
             kwargs[the_tag] = node.attrib.get(fetch_tag, None)
 
         def handle_single(the_tag, the_xml_ns_key):

@@ -116,7 +116,7 @@ class WgtTypeType(Serializable):
                   'the impulse response in the row direction. '
                   '*Example values - "UNIFORM", "TAYLOR", "UNKNOWN", "HAMMING"*')  # type: str
     Parameters = _ParametersDescriptor(
-        'Parameters', _collections_tags, required=_required, strict=DEFAULT_STRICT,
+        'Parameters', _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Free form parameters list.')  # type: ParametersCollection
 
     def __init__(self, WindowName=None, Parameters=None, **kwargs):
@@ -201,7 +201,7 @@ class DirParamType(Serializable):
     _collections_tags = {'WgtFunct': {'array': True, 'child_tag': 'Wgt'}}
     # descriptors
     UVectECF = _UnitVectorDescriptor(
-        'UVectECF', XYZType, required=_required, strict=DEFAULT_STRICT,
+        'UVectECF', XYZType, _required, strict=DEFAULT_STRICT,
         docstring='Unit vector in the increasing ``(row/col)`` direction *(ECF)* at '
                   'the SCP pixel.')  # type: XYZType
     SS = _FloatDescriptor(

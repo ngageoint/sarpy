@@ -35,10 +35,10 @@ class TxFrequencyType(Serializable):
     _numeric_format = {'Min': '0.16G', 'Max': '0.16G'}
     # descriptors
     Min = _FloatDescriptor(
-        'Min', required=_required, strict=DEFAULT_STRICT,
+        'Min', _required, strict=DEFAULT_STRICT,
         docstring='The transmit minimum frequency in Hz.')  # type: float
     Max = _FloatDescriptor(
-        'Max', required=_required, strict=DEFAULT_STRICT,
+        'Max', _required, strict=DEFAULT_STRICT,
         docstring='The transmit maximum frequency in Hz.')  # type: float
 
     def __init__(self, Min=None, Max=None, **kwargs):
