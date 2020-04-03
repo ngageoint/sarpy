@@ -185,7 +185,7 @@ class MonochromeDisplayRemapType(Serializable):
     modification of the clip points via DRA.
     """
 
-    _fields = ('RemapType', 'RemapParameters')
+    _fields = ('RemapType', 'RemapLUT', 'RemapParameters')
     _required = ('RemapType', )
     _collections_tags = {'RemapParameters': {'array': False, 'child_tag': 'RemapParameter'}}
     # Descriptor
@@ -193,11 +193,11 @@ class MonochromeDisplayRemapType(Serializable):
         'RemapType', _required, strict=DEFAULT_STRICT,
         docstring='')  # type: str
     RemapParameters = _ParametersDescriptor(
-        'RemapParameters', _collections_tags, required=_required, strict=DEFAULT_STRICT,
+        'RemapParameters', _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Textual remap parameter. Filled based upon remap type (for informational purposes only).  '
                   'For example, if the data is linlog encoded a RemapParameter could be used to describe any '
                   'amplitude scaling that was performed prior to linlog encoding '
-                  'the data.')  # type: ParametersCollection
+                  'the data.')  # type: Union[None, ParametersCollection]
 
     def __init__(self, RemapType=None, RemapLUT=None, RemapParameters=None, **kwargs):
         """
@@ -248,6 +248,7 @@ class MonochromeDisplayRemapType(Serializable):
     def from_node(cls, node, xml_ns, ns_key=None, kwargs=None):
         if kwargs is None:
             kwargs = {}
+
         lut_key = cls._child_xml_ns_key.get('RemapLUT', ns_key)
         lut_node = _find_first_child(node, 'RemapLUT', xml_ns, lut_key)
         if lut_node is not None:
@@ -398,7 +399,7 @@ class ProductDisplayType(Serializable):
     """
     _fields = (
         'PixelType', 'RemapInformation', 'MagnificationMethod', 'DecimationMethod',
-        'DRAHistogramOverrides', 'MonitorCompensationApplied', 'DisplayExtension')
+        'DRAHistogramOverrides', 'MonitorCompensationApplied', 'DisplayExtensions')
     _required = ('PixelType', )
     _collections_tags = {
         'DisplayExtensions': {'array': False, 'child_tag': 'DisplayExtension'}}
@@ -429,9 +430,9 @@ class ProductDisplayType(Serializable):
         docstring='Describes monitor compensation that may have been applied to the product '
                   'during processing.')  # type: Union[None, MonitorCompensationAppliedType]
     DisplayExtensions = _ParametersDescriptor(
-        'DisplayExtensions', _collections_tags, required=_required, strict=DEFAULT_STRICT,
+        'DisplayExtensions', _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Optional extensible parameters used to support profile-specific needs related to '
-                  'product display. Predefined filter types.')  # type: ParametersCollection
+                  'product display. Predefined filter types.')  # type: Union[None, ParametersCollection]
 
     def __init__(self, PixelType=None, RemapInformation=None, MagnificationMethod=None, DecimationMethod=None,
                  DRAHistogramOverrides=None, MonitorCompensationApplied=None, DisplayExtensions=None, **kwargs):
@@ -462,6 +463,6 @@ class ProductDisplayType(Serializable):
         self.DisplayExtensions = DisplayExtensions
         super(ProductDisplayType, self).__init__(**kwargs)
 
-    @classmethod
-    def from_node(cls, node, xml_ns, ns_key=None, kwargs=None):
-        return super(ProductDisplayType, cls).from_node(node, xml_ns, ns_key=ns_key, kwargs=kwargs)
+    # @classmethod
+    # def from_node(cls, node, xml_ns, ns_key=None, kwargs=None):
+    #     return super(ProductDisplayType, cls).from_node(node, xml_ns, ns_key=ns_key, kwargs=kwargs)

@@ -612,7 +612,7 @@ class ProductDisplayType(Serializable):
         'InteractiveProcessing', InteractiveProcessingType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Interactive processing details.')  # type: List[InteractiveProcessingType]
     DisplayExtensions = _ParametersDescriptor(
-        'DisplayExtensions', _collections_tags, required=_required, strict=DEFAULT_STRICT,
+        'DisplayExtensions', _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Optional extensible parameters used to support profile-specific needs related to '
                   'product display. Predefined filter types.')  # type: ParametersCollection
 

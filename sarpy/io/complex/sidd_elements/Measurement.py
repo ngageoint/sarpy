@@ -92,11 +92,11 @@ class ProductPlaneType(Serializable):
     _required = _fields
     # Descriptor
     RowUnitVector = _UnitVectorDescriptor(
-        'RowUnitVector', XYZType, required=_required, strict=DEFAULT_STRICT,
+        'RowUnitVector', XYZType, _required, strict=DEFAULT_STRICT,
         docstring='Unit vector of the plane defined to be aligned in the increasing row direction '
                   'of the product. (Defined as Rpgd in Design and Exploitation document)')  # type: XYZType
     ColUnitVector = _UnitVectorDescriptor(
-        'ColUnitVector', XYZType, required=_required, strict=DEFAULT_STRICT,
+        'ColUnitVector', XYZType, _required, strict=DEFAULT_STRICT,
         docstring='Unit vector of the plane defined to be aligned in the increasing column direction '
                   'of the product. (Defined as Cpgd in Design and Exploitation document)')  # type: XYZType
 

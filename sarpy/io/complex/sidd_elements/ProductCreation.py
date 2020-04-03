@@ -154,7 +154,7 @@ class ProductClassificationType(Serializable):
         'dateOfExemptedSource', _required, strict=DEFAULT_STRICT,
         docstring='')  # type: Union[None, str]
     SecurityExtensions = _ParametersDescriptor(
-        'SecurityExtensions', _collections_tags, required=_required, strict=DEFAULT_STRICT,
+        'SecurityExtensions', _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Extensible parameters used to support profile-specific needs related to '
                   'product security.')  # type: ParametersCollection
 
@@ -262,7 +262,7 @@ class ProductCreationType(Serializable):
                   'This field is only needed if there is a suite of associated '
                   'products.')  # type: Union[None, str]
     ProductCreationExtensions = _ParametersDescriptor(
-        'ProductCreationExtensions', _collections_tags, required=_required, strict=DEFAULT_STRICT,
+        'ProductCreationExtensions', _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Extensible parameters used to support profile-specific needs related to '
                   'product creation.')  # type: ParametersCollection
 
