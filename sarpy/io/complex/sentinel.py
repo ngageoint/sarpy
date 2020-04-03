@@ -928,39 +928,39 @@ class SentinelDetails(object):
             else:
                 # TOPSAR has single LUT per burst
                 # Treat range and azimuth polynomial components as weakly independent
-                if index < len(range_pixel):
-                    coords_rg = (range_pixel[index] + sicd.ImageData.FirstRow -
-                                 sicd.ImageData.SCPPixel.Row)*sicd.Grid.Row.SS
-                    rg_poly = numpy.array(
-                        polynomial.polyfit(coords_rg, range_noise[index], rg_poly_order))
-                    az_poly = None
-                    if azimuth_noise is not None:
-                        line0 = lines_per_burst*index
-                        coords_az = (azimuth_line[0] - line0 -
-                                     sicd.ImageData.SCPPixel.Col)*sicd.Grid.Col.SS
-                        valid_lines = (azimuth_line[0] >= line0) & (azimuth_line[0] < line0 + lines_per_burst)
-                        valid_count = numpy.sum(valid_lines)
-                        if valid_count > 1:
-                            az_poly_order = min(2, valid_lines.size-1)
-                            az_poly = numpy.array(
-                                polynomial.polyfit(coords_az[valid_lines], azimuth_noise[valid_lines], az_poly_order))
-                            # TODO: is there ever only one of these?
-                    if az_poly is not None:
-                        noise_poly = numpy.zeros((rg_poly.size, az_poly.size), dtype=numpy.float64)
-                        noise_poly[:, 0] += rg_poly
-                        noise_poly[0, :] += az_poly
-                    else:
-                        noise_poly = numpy.reshape(rg_poly, (-1, 1))
-                else:
+                if index >= len(range_pixel):
                     logging.error('We have run out of noise information. Current index = {}, '
-                                  'length of noise array = {}. The corresponding sicd will not have any '
+                                  'length of noise array = {}. The previous noise information '
+                                  'will be used to populate the '
                                   'NoisePoly.'.format(index, len(range_pixel)))
-                    noise_poly = None
-            if noise_poly is not None:
-                if sicd.Radiometric is None:
-                    sicd.Radiometric = RadiometricType()
-                sicd.Radiometric.NoiseLevel = NoiseLevelType_(NoiseLevelType='ABSOLUTE',
-                                                              NoisePoly=Poly2DType(Coefs=noise_poly))
+                rp_array = range_pixel[min(index, len(range_pixel)-1)]
+                rn_array = range_noise[min(index, len(range_pixel)-1)]
+                coords_rg = (rp_array + sicd.ImageData.FirstRow -
+                             sicd.ImageData.SCPPixel.Row)*sicd.Grid.Row.SS
+                rg_poly = numpy.array(
+                    polynomial.polyfit(coords_rg, rn_array, rg_poly_order))
+                az_poly = None
+                if azimuth_noise is not None:
+                    line0 = lines_per_burst*index
+                    coords_az = (azimuth_line[0] - line0 -
+                                 sicd.ImageData.SCPPixel.Col)*sicd.Grid.Col.SS
+                    valid_lines = (azimuth_line[0] >= line0) & (azimuth_line[0] < line0 + lines_per_burst)
+                    valid_count = numpy.sum(valid_lines)
+                    if valid_count > 1:
+                        az_poly_order = min(2, valid_lines.size-1)
+                        az_poly = numpy.array(
+                            polynomial.polyfit(coords_az[valid_lines], azimuth_noise[valid_lines], az_poly_order))
+                        # TODO: is there ever only one of these?
+                if az_poly is not None:
+                    noise_poly = numpy.zeros((rg_poly.size, az_poly.size), dtype=numpy.float64)
+                    noise_poly[:, 0] += rg_poly
+                    noise_poly[0, :] += az_poly
+                else:
+                    noise_poly = numpy.reshape(rg_poly, (-1, 1))
+            if sicd.Radiometric is None:
+                sicd.Radiometric = RadiometricType()
+            sicd.Radiometric.NoiseLevel = NoiseLevelType_(NoiseLevelType='ABSOLUTE',
+                                                          NoisePoly=Poly2DType(Coefs=noise_poly))
 
         # extract our noise vectors (used in populate_noise through implicit reference)
         if root_node.find('./noiseVectorList') is not None:
