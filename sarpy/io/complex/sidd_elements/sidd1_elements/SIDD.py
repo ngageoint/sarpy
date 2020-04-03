@@ -9,7 +9,7 @@ from typing import Union
 # noinspection PyProtectedMember
 from ...sicd_elements.base import Serializable, _SerializableDescriptor, DEFAULT_STRICT
 from ..ProductCreation import ProductCreationType
-from .ProductDisplay import ProductDisplayType
+from .Display import ProductDisplayType
 from .GeographicAndTarget import GeographicAndTargetType
 from .Measurement import MeasurementType
 from .ExploitationFeatures import ExploitationFeaturesType
