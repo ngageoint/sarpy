@@ -196,7 +196,8 @@ def parse_xml_from_string(xml_string):
 
 def snr_to_rniirs(bandwidth_area, signal, noise):
     """
-    Calculate the RNIIRS estimate from bandwidth area, and signal and noise.
+    Calculate the information_density and RNIIRS estimate from bandwidth area and
+    signal/noise estimates.
 
     It is assumed that geometric effects for signal and noise have been accounted for
     (i.e. use SigmaZeroSFPoly), and signal and noise have each been averaged to a
@@ -213,20 +214,21 @@ def snr_to_rniirs(bandwidth_area, signal, noise):
 
     Returns
     -------
-    float
+    (float, float)
+        The information_density and RNIIRS
     """
 
-    image_information_metric = bandwidth_area*numpy.log2(1 + signal/noise)
+    information_density = bandwidth_area*numpy.log2(1 + signal/noise)
 
     a = numpy.array([3.7555, .3960], dtype=numpy.float64)
     # we have empirically fit so that
-    #   rniirs = a_0 + a_1*log_2(image_information_metric)
+    #   rniirs = a_0 + a_1*log_2(information_density)
 
-    # note that if image_information_metric is sufficiently small, it will
+    # note that if information_density is sufficiently small, it will
     # result in negative values in the above functional form. This would be
     # invalid for RNIIRS by definition, so we must avoid this case.
 
-    # We transition to a linear function of image_information_metric
+    # We transition to a linear function of information_density
     # below a certain point. This point will be chosen to be the (unique) point
     # at which the line tangent to the curve intersects the origin, and the
     # linear approximation below that point will be defined by this tangent line.
@@ -236,7 +238,7 @@ def snr_to_rniirs(bandwidth_area, signal, noise):
     iim_transition = numpy.exp(1 - numpy.log(2)*a[0]/a[1])
     slope = a[1]/(iim_transition*numpy.log(2))
 
-    if image_information_metric > iim_transition:
-        return a[0] + a[1]*numpy.log2(image_information_metric)
+    if information_density > iim_transition:
+        return information_density, a[0] + a[1]*numpy.log2(information_density)
     else:
-        return slope*image_information_metric
+        return information_density, slope*information_density

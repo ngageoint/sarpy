@@ -828,8 +828,7 @@ class SICDType(Serializable):
         """
 
         try:
-            val = self.CollectionInfo.Parameters['RNIIRS']
-            # TODO: make sure that this is correct
+            val = self.CollectionInfo.Parameters['RNIIRS'] # TODO: verify correct
             if val is not None:
                 if override:
                     logging.warning('RNIIRS already populated, and this value will be overridden.')
@@ -876,7 +875,11 @@ class SICDType(Serializable):
             logging.error('Encountered an error estimating bandwidth area. {}'.format(e))
             return
 
-        rniirs = snr_to_rniirs(bw_area, signal, noise)
-        rniirs_str = '{0:0.16G}'.format(rniirs)
-        logging.info('Calculated RNIIRS = {}'.format(rniirs_str))
-        self.CollectionInfo.Parameters['RNIIRS'] = rniirs_str  # TODO: make sure that this is correct
+        inf_density, rniirs = snr_to_rniirs(bw_area, signal, noise)
+        logging.info('Calculated INFORMATION_DENSITY = {0:0.5G}, RNIIRS = {1:0.5G}'.format(inf_density, rniirs))
+        self.CollectionInfo.Parameters['INFORMATION_DENSITY'] = '{0:0.2G}'.format(inf_density)
+        if rniirs < 9.9:
+            self.CollectionInfo.Parameters['RNIIRS'] = '{0:0.1f}'.format(rniirs)
+        else:
+            # this is probably meaningless for now
+            self.CollectionInfo.Parameters['RNIIRS'] = '9.9'
