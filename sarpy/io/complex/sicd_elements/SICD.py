@@ -875,8 +875,4 @@ class SICDType(Serializable):
         inf_density, rniirs = snr_to_rniirs(bw_area, signal, noise)
         logging.info('Calculated INFORMATION_DENSITY = {0:0.5G}, RNIIRS = {1:0.5G}'.format(inf_density, rniirs))
         self.CollectionInfo.Parameters['INFORMATION_DENSITY'] = '{0:0.2G}'.format(inf_density)
-        if rniirs < 9.9:
-            self.CollectionInfo.Parameters['RNIIRS'] = '{0:0.1f}'.format(rniirs)
-        else:
-            # this is probably meaningless for now
-            self.CollectionInfo.Parameters['RNIIRS'] = '9.9'
+        self.CollectionInfo.Parameters['RNIIRS'] = '{0:0.1f}'.format(rniirs)
