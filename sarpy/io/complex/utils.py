@@ -192,3 +192,53 @@ def parse_xml_from_string(xml_string):
     elif '' in xml_ns:
         xml_ns['default'] = xml_ns['']
     return root_node, xml_ns
+
+
+def snr_to_rniirs(bandwidth_area, signal, noise):
+    """
+    Calculate the information_density and RNIIRS estimate from bandwidth area and
+    signal/noise estimates.
+
+    It is assumed that geometric effects for signal and noise have been accounted for
+    (i.e. use SigmaZeroSFPoly), and signal and noise have each been averaged to a
+    single pixel value.
+
+    This mapping has been empirically determined by fitting Shannon-Hartley channel
+    capacity to RNIIRS for some sample images.
+
+    Parameters
+    ----------
+    bandwidth_area : float
+    signal : float
+    noise : float
+
+    Returns
+    -------
+    (float, float)
+        The information_density and RNIIRS
+    """
+
+    information_density = bandwidth_area*numpy.log2(1 + signal/noise)
+
+    a = numpy.array([3.7555, .3960], dtype=numpy.float64)
+    # we have empirically fit so that
+    #   rniirs = a_0 + a_1*log_2(information_density)
+
+    # note that if information_density is sufficiently small, it will
+    # result in negative values in the above functional form. This would be
+    # invalid for RNIIRS by definition, so we must avoid this case.
+
+    # We transition to a linear function of information_density
+    # below a certain point. This point will be chosen to be the (unique) point
+    # at which the line tangent to the curve intersects the origin, and the
+    # linear approximation below that point will be defined by this tangent line.
+
+    # via calculus, we can determine analytically where that happens
+    # rniirs_transition = a[1]/numpy.log(2)
+    iim_transition = numpy.exp(1 - numpy.log(2)*a[0]/a[1])
+    slope = a[1]/(iim_transition*numpy.log(2))
+
+    if information_density > iim_transition:
+        return information_density, a[0] + a[1]*numpy.log2(information_density)
+    else:
+        return information_density, slope*information_density

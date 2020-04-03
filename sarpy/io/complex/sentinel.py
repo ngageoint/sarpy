@@ -885,21 +885,19 @@ class SentinelDetails(object):
                 else:
                     pixel = None
                 noise = numpy.fromstring(noise_vector.find('./{}Lut'.format(stem)).text, dtype=numpy.float64, sep=' ')
-                # some datasets do not have any noise data (all 0's) - skip
-                if numpy.all(noise == 0):
-                    continue
-                # convert noise to dB - what about -inf values?
-                noise = 10*numpy.log10(noise)
+                # some datasets do not have any noise data (all 0's) - skipping these will throw things into disarray
+                if not numpy.all(noise == 0):
+                    # convert noise to dB - what about -inf values?
+                    noise = 10*numpy.log10(noise)
                 assert isinstance(noise, numpy.ndarray)
 
                 # do some validity checks
                 if (mode_id == 'IW') and numpy.any((line % lines_per_burst) != 0) and (i != len(noise_vector_list)-1):
                     # NB: the final burst has different timing
-                    logging.error('Noise file should have one lut per burst, but more are present. Skipping this noise vector.')
-                    continue
+                    logging.error('Noise file should have one lut per burst, but more are present. '
+                                  'This may lead to confusion.')
                 if (pixel is not None) and (pixel[-1] > range_size_pixels):
-                    logging.error('Noise file has more pixels in LUT than range size. Skipping this noise vector.')
-                    continue
+                    logging.error('Noise file has more pixels in LUT than range size. This may lead to confusion.')
 
                 lines.append(line)
                 pixels.append(pixel)
@@ -930,10 +928,17 @@ class SentinelDetails(object):
             else:
                 # TOPSAR has single LUT per burst
                 # Treat range and azimuth polynomial components as weakly independent
-                coords_rg = (range_pixel[index] + sicd.ImageData.FirstRow -
+                if index >= len(range_pixel):
+                    logging.error('We have run out of noise information. Current index = {}, '
+                                  'length of noise array = {}. The previous noise information '
+                                  'will be used to populate the '
+                                  'NoisePoly.'.format(index, len(range_pixel)))
+                rp_array = range_pixel[min(index, len(range_pixel)-1)]
+                rn_array = range_noise[min(index, len(range_pixel)-1)]
+                coords_rg = (rp_array + sicd.ImageData.FirstRow -
                              sicd.ImageData.SCPPixel.Row)*sicd.Grid.Row.SS
                 rg_poly = numpy.array(
-                    polynomial.polyfit(coords_rg, range_noise[index], rg_poly_order))
+                    polynomial.polyfit(coords_rg, rn_array, rg_poly_order))
                 az_poly = None
                 if azimuth_noise is not None:
                     line0 = lines_per_burst*index
@@ -970,7 +975,6 @@ class SentinelDetails(object):
 
         # NB: range_line is actually a list of 1 element arrays - probably should have been parsed better
         range_line = numpy.concatenate(range_line, axis=0)
-
         for ind, sic in enumerate(sicds):
             populate_noise(sic, ind)
 
@@ -979,9 +983,11 @@ class SentinelDetails(object):
         # type: (Union[SICDType, List[SICDType]]) -> None
         if isinstance(sicds, SICDType):
             sicds.derive()
+            sicds.populate_rniirs(override=False)
         else:
             for sicd in sicds:
                 sicd.derive()
+                sicd.populate_rniirs(override=False)
 
     def get_sicd_collection(self):
         """
