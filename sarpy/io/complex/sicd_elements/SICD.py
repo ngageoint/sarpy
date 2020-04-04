@@ -867,7 +867,7 @@ class SICDType(Serializable):
                 signal = 0.25
 
         try:
-            bw_area = abs(self.Grid.Row.ImpRespBW*self.Grid.Col.ImpRespBW*numpy.cos(numpy.rad2deg(self.SCPCOA.SlopeAng)))
+            bw_area = abs(self.Grid.Row.ImpRespBW*self.Grid.Col.ImpRespBW*numpy.cos(numpy.deg2rad(self.SCPCOA.SlopeAng)))
         except Exception as e:
             logging.error('Encountered an error estimating bandwidth area. {}'.format(e))
             return
