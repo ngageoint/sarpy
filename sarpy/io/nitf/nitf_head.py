@@ -307,7 +307,7 @@ class NITFDetails(object):
         ImageSegmentHeader
         """
 
-        if index >= self.img_subheader_offsets:
+        if index >= self.img_subheader_offsets.size:
             raise IndexError(
                 'There are only {} image segments, invalid image '
                 'segment position {}'.format(self.img_subheader_offsets, index))
