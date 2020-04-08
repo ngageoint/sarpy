@@ -555,14 +555,14 @@ class InteractiveProcessingType(Serializable):
         docstring='Specifies the recommended ELT DRA overrides.')  # type: DynamicRangeAdjustmentType
     TonalTransferCurve = _SerializableDescriptor(
         'TonalTransferCurve', NewLookupTableType, _required, strict=DEFAULT_STRICT,
-        docstring="The 1-D LUT element uses one or more 1-D LUTs to stretch or compress tome data "
+        docstring="The 1-D LUT element uses one or more 1-D LUTs to stretch or compress tone data "
                   "in valorous regions within a digital image's dynamic range. 1-D LUT can be "
                   "implemented using a Tonal Transfer Curve (TTC). There are 12 families of TTCs "
                   "- Range = [0, 11]. There are 64 members for each "
                   "family - Range=[0, 63].")  # type: NewLookupTableType
     band = _IntegerDescriptor(
         'band', _required, strict=DEFAULT_STRICT,
-        docstring='The immage band to which this applies.')
+        docstring='The image band to which this applies.')
 
     def __init__(self, GeometricTransform=None, SharpnessEnhancement=None,
                  ColorSpaceTransform=None, DynamicRangeAdjustment=None, band=1, **kwargs):
@@ -602,8 +602,8 @@ class ProductDisplayType(Serializable):
     NumBands = _IntegerDescriptor(
         'NumBands', _required, strict=DEFAULT_STRICT,
         docstring='Number of bands contained in the image. Populate with the number of bands '
-                  'present after remapping. For example an 8-bit RGB image (RGBLU) this should '
-                  'be populated with 3.')  # type: int
+                  'present after remapping. For example an 8-bit RGB image (RGBLU), this will '
+                  'be 3.')  # type: int
     DefaultBandDisplay = _IntegerDescriptor(
         'DefaultBandDisplay', _required, strict=DEFAULT_STRICT,
         docstring='Indicates which band to display by default. '
