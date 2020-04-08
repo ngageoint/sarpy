@@ -825,12 +825,12 @@ class SICDType(Serializable):
         """
 
         try:
-            val = self.CollectionInfo.Parameters['RNIIRS'] # TODO: verify correct
+            val = self.CollectionInfo.Parameters['PREDICTED_RNIIRS']  # TODO: verify correct
             if val is not None:
                 if override:
-                    logging.warning('RNIIRS already populated, and this value will be overridden.')
+                    logging.warning('PREDICTED_RNIIRS already populated, and this value will be overridden.')
                 else:
-                    logging.info('RNIIRS already populated. Nothing to be done.')
+                    logging.info('PREDICTED_RNIIRS already populated. Nothing to be done.')
                     return
         except Exception:
             pass
@@ -873,6 +873,6 @@ class SICDType(Serializable):
             return
 
         inf_density, rniirs = snr_to_rniirs(bw_area, signal, noise)
-        logging.info('Calculated INFORMATION_DENSITY = {0:0.5G}, RNIIRS = {1:0.5G}'.format(inf_density, rniirs))
+        logging.info('Calculated INFORMATION_DENSITY = {0:0.5G}, PREDICTED_RNIIRS = {1:0.5G}'.format(inf_density, rniirs))
         self.CollectionInfo.Parameters['INFORMATION_DENSITY'] = '{0:0.2G}'.format(inf_density)
-        self.CollectionInfo.Parameters['RNIIRS'] = '{0:0.1f}'.format(rniirs)
+        self.CollectionInfo.Parameters['PREDICTED_RNIIRS'] = '{0:0.1f}'.format(rniirs)
