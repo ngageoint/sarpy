@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Multipurpose SIDD elements
+Multipurpose basic SIDD elements
 """
 
 from collections import OrderedDict
@@ -12,11 +12,43 @@ from .base import DEFAULT_STRICT
 # noinspection PyProtectedMember
 from ..sicd_elements.base import Serializable, Arrayable, _SerializableDescriptor, \
     _IntegerDescriptor, _FloatDescriptor, _FloatModularDescriptor, _StringDescriptor, _StringEnumDescriptor, \
-    int_func, _get_node_value, _create_text_node, _create_new_node
-from ..sicd_elements.blocks import XYZType
+    int_func, _get_node_value, _create_text_node, _create_new_node, _find_children
+from ..sicd_elements.blocks import XYZType as XYZTypeBase, XYZPolyType as XYZPolyTypeBase, \
+    LatLonType as LatLonTypeBase, LatLonCornerType as LatLonCornerTypeBase, \
+    RowColType as RowColIntTypeBase, RowColArrayElement as RowColArrayElementBase, \
+    Poly1DType as Poly1DTypeBase, Poly2DType as Poly2DTypeBase, \
+    LatLonCornerStringType as LatLonCornerStringTypeBase, LatLonArrayElementType as LatLonArrayElementTypeBase
+from ..sicd_elements.ErrorStatistics import ErrorStatisticsType as ErrorStatisticsTypeBase
+from ..sicd_elements.Radiometric import RadiometricType as RadiometricTypeBase
+from ..sicd_elements.MatchInfo import MatchInfoType as MatchInfoTypeBase
+from ..sicd_elements.GeoData import GeoInfoType as GeoInfoTypeBase
+from ..sicd_elements.CollectionInfo import RadarModeType as RadarModeTypeBase
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
+
+
+############
+# the SICommon namespace elements
+
+class XYZType(XYZTypeBase):
+    _child_xml_ns_key = {'X': 'sicommon', 'Y': 'sicommon', 'Z': 'sicommon'}
+
+
+class LatLonType(LatLonTypeBase):
+    _child_xml_ns_key = {'Lat': 'sicommon', 'Lon': 'sicommon'}
+
+
+class LatLonCornerType(LatLonCornerTypeBase):
+    _child_xml_ns_key = {'Lat': 'sicommon', 'Lon': 'sicommon'}
+
+
+class LatLonCornerStringType(LatLonCornerStringTypeBase):
+    _child_xml_ns_key = {'Lat': 'sicommon', 'Lon': 'sicommon'}
+
+
+class LatLonArrayElementType(LatLonArrayElementTypeBase):
+    _child_xml_ns_key = {'Lat': 'sicommon', 'Lon': 'sicommon'}
 
 
 class RangeAzimuthType(Serializable, Arrayable):
@@ -25,6 +57,8 @@ class RangeAzimuthType(Serializable, Arrayable):
     """
     _fields = ('Range', 'Azimuth')
     _required = ('Range', 'Azimuth')
+    _numeric_format = {key: '0.16G' for key in _fields}
+    _child_xml_ns_key = {'Range': 'sicommon', 'Azimuth': 'sicommon'}
     # Descriptor
     Range = _FloatDescriptor(
         'Range', _required, strict=DEFAULT_STRICT,
@@ -34,8 +68,19 @@ class RangeAzimuthType(Serializable, Arrayable):
         docstring='The azimuth in degrees.')  # type: float
 
     def __init__(self, Range=None, Azimuth=None, **kwargs):
+        """
+
+        Parameters
+        ----------
+        Range : float
+        Azimuth : float
+        kwargs
+        """
+
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.Range = Range
         self.Azimuth = Azimuth
         super(RangeAzimuthType, self).__init__(**kwargs)
@@ -71,7 +116,8 @@ class RangeAzimuthType(Serializable, Arrayable):
         -------
         RangeAzimuthType
         """
-
+        if array is None:
+            return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
             if len(array) < 2:
                 raise ValueError('Expected array to be of length 2, and received {}'.format(array))
@@ -86,6 +132,8 @@ class AngleMagnitudeType(Serializable, Arrayable):
 
     _fields = ('Angle', 'Magnitude')
     _required = ('Angle', 'Magnitude')
+    _numeric_format = {key: '0.16G' for key in _fields}
+    _child_xml_ns_key = {'Angle': 'sicommon', 'Magnitude': 'sicommon'}
     # Descriptor
     Angle = _FloatModularDescriptor(
         'Angle', 180.0, _required, strict=DEFAULT_STRICT,
@@ -106,6 +154,8 @@ class AngleMagnitudeType(Serializable, Arrayable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.Angle = Angle
         self.Magnitude = Magnitude
         super(AngleMagnitudeType, self).__init__(**kwargs)
@@ -142,6 +192,8 @@ class AngleMagnitudeType(Serializable, Arrayable):
         AngleMagnitudeType
         """
 
+        if array is None:
+            return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
             if len(array) < 2:
                 raise ValueError('Expected array to be of length 2, and received {}'.format(array))
@@ -149,12 +201,20 @@ class AngleMagnitudeType(Serializable, Arrayable):
         raise ValueError('Expected array to be numpy.ndarray, list, or tuple, got {}'.format(type(array)))
 
 
-##############
-# Reference Point
+class RowColIntType(RowColIntTypeBase):
+    _child_xml_ns_key = {'Row': 'sicommon', 'Col': 'sicommon'}
+
+
+class RowColArrayElement(RowColArrayElementBase):
+    _child_xml_ns_key = {'Row': 'sicommon', 'Col': 'sicommon'}
+
 
 class RowColDoubleType(Serializable, Arrayable):
     _fields = ('Row', 'Col')
     _required = _fields
+    _numeric_format = {key: '0.16G' for key in _fields}
+    _child_xml_ns_key = {'Row': 'sicommon', 'Col': 'sicommon'}
+    # Descriptors
     Row = _FloatDescriptor(
         'Row', _required, strict=True, docstring='The Row attribute.')  # type: float
     Col = _FloatDescriptor(
@@ -171,6 +231,8 @@ class RowColDoubleType(Serializable, Arrayable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.Row, self.Col = Row, Col
         super(RowColDoubleType, self).__init__(**kwargs)
 
@@ -203,14 +265,53 @@ class RowColDoubleType(Serializable, Arrayable):
 
         Returns
         -------
-        RowColType
+        RowColDoubleType
         """
-
+        if array is None:
+            return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
             if len(array) < 2:
                 raise ValueError('Expected array to be of length 2, and received {}'.format(array))
             return cls(Row=array[0], Col=array[1])
         raise ValueError('Expected array to be numpy.ndarray, list, or tuple, got {}'.format(type(array)))
+
+
+class Poly1DType(Poly1DTypeBase):
+    _child_xml_ns_key = {'Coefs': 'sicommon'}
+
+
+class Poly2DType(Poly2DTypeBase):
+    _child_xml_ns_key = {'Coefs': 'sicommon'}
+
+
+class XYZPolyType(XYZPolyTypeBase):
+    _child_xml_ns_key = {'X': 'sicommon', 'Y': 'sicommon', 'Z': 'sicommon'}
+
+
+class ErrorStatisticsType(ErrorStatisticsTypeBase):
+    _child_xml_ns_key = {'CompositeSCP': 'sicommon', 'Components': 'sicommon', 'AdditionalParms': 'sicommon'}
+
+
+class RadiometricType(RadiometricTypeBase):
+    _child_xml_ns_key = {
+        'NoiseLevel': 'sicommon', 'RCSSFPoly': 'sicommon', 'SigmaZeroSFPoly': 'sicommon',
+        'BetaZeroSFPoly': 'sicommon', 'GammaZeroSFPoly': 'sicommon'}
+
+
+class MatchInfoType(MatchInfoTypeBase):
+    _child_xml_ns_key = {'NumMatchTypes': 'sicommon', 'MatchTypes': 'sicommon'}
+    # TODO: verify that this works
+
+
+class GeoInfoType(GeoInfoTypeBase):
+    _child_xml_ns_key = {
+        'Descriptions': 'sicommon', 'Point': 'sicommon', 'Line': 'sicommon',
+        'Polygon': 'sicommon'}
+    # TODO: verify that this works
+
+
+class RadarModeType(RadarModeTypeBase):
+    _child_xml_ns_key = {'ModeType': 'sicommon', 'ModeID': 'sicommon'}
 
 
 class ReferencePointType(Serializable):
@@ -221,10 +322,11 @@ class ReferencePointType(Serializable):
     _fields = ('ECEF', 'Point', 'name')
     _required = ('ECEF', 'Point')
     _set_as_attribute = ('name', )
+    _child_xml_ns_key = {'ECEF': 'sicommon', 'Point': 'sicommon'}
     # Descriptor
     ECEF = _SerializableDescriptor(
         'ECEF', XYZType, _required, strict=DEFAULT_STRICT,
-        docstring='The EXEF coordinates of the reference point.')  # type: XYZType
+        docstring='The ECEF coordinates of the reference point.')  # type: XYZType
     Point = _SerializableDescriptor(
         'Point', RowColDoubleType, _required, strict=DEFAULT_STRICT,
         docstring='The pixel coordinates of the reference point.')  # type: RowColDoubleType
@@ -245,10 +347,15 @@ class ReferencePointType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.ECEF = ECEF
         self.Point = Point
         self.name = name
         super(ReferencePointType, self).__init__(**kwargs)
+
+# The end of the SICommon namespace
+#####################
 
 
 #################
@@ -277,14 +384,16 @@ class PredefinedFilterType(Serializable):
 
         Parameters
         ----------
-        DatabaseName : str
-        FilterFamily : int
-        FilterMember : int
+        DatabaseName : None|str
+        FilterFamily : None|int
+        FilterMember : None|int
         kwargs
         """
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.DatabaseName = DatabaseName
         self.FilterFamily = FilterFamily
         self.FilterMember = FilterMember
@@ -293,7 +402,8 @@ class PredefinedFilterType(Serializable):
 
 class FilterKernelType(Serializable):
     """
-    The filter kernel parameters.
+    The filter kernel parameters. Provides the specifics for **either** a predefined or custom
+    filter kernel.
     """
 
     _fields = ('Predefined', 'Custom')
@@ -312,13 +422,15 @@ class FilterKernelType(Serializable):
 
         Parameters
         ----------
-        Predefined : PredefinedFilterType
-        Custom : str
+        Predefined : None|PredefinedFilterType
+        Custom : None|str
         kwargs
         """
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.Predefined = Predefined
         self.Custom = Custom
         super(FilterKernelType, self).__init__(**kwargs)
@@ -335,6 +447,7 @@ class BankCustomType(Serializable, Arrayable):
 
     def __init__(self, Coefs=None, **kwargs):
         """
+
         Parameters
         ----------
         Coefs : numpy.ndarray|list|tuple
@@ -344,6 +457,8 @@ class BankCustomType(Serializable, Arrayable):
         self._coefs = None
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.Coefs = Coefs
         super(BankCustomType, self).__init__(**kwargs)
 
@@ -399,6 +514,8 @@ class BankCustomType(Serializable, Arrayable):
 
     @classmethod
     def from_array(cls, array):  # type: (numpy.ndarray) -> BankCustomType
+        if array is None:
+            return None
         return cls(Coefs=array)
 
     def get_array(self, dtype=numpy.float64):
@@ -419,11 +536,12 @@ class BankCustomType(Serializable, Arrayable):
         return numpy.array(self._coefs, dtype=dtype)
 
     @classmethod
-    def from_node(cls, node, xml_ns, kwargs=None):
+    def from_node(cls, node, xml_ns, ns_key=None, kwargs=None):
         numPhasings = int_func(node.attrib['numPhasings'])
         numPoints = int_func(node.attrib['numPoints'])
         coefs = numpy.zeros((numPhasings+1, numPoints+1), dtype=numpy.float64)
-        coef_nodes = node.findall('Coef') if xml_ns is None else node.findall('default:Coef', xml_ns)
+        ckey = cls._child_xml_ns_key.get('Coefs', ns_key)
+        coef_nodes = _find_children(node, 'Coef', xml_ns, ckey)
         for cnode in coef_nodes:
             ind1 = int_func(cnode.attrib['phasing'])
             ind2 = int_func(cnode.attrib['point'])
@@ -431,17 +549,28 @@ class BankCustomType(Serializable, Arrayable):
             coefs[ind1, ind2] = val
         return cls(Coefs=coefs)
 
-    def to_node(self, doc, tag, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
+    def to_node(self, doc, tag, ns_key=None, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
         if parent is None:
             parent = doc.getroot()
-        node = _create_new_node(doc, tag, parent=parent)
+        if ns_key is None:
+            node = _create_new_node(doc, tag, parent=parent)
+        else:
+            node = _create_new_node(doc, '{}:{}'.format(ns_key, tag), parent=parent)
+
+        if 'Coefs' in self._child_xml_ns_key:
+            ctag = '{}:Coef'.format(self._child_xml_ns_key['Coefs'])
+        elif ns_key is not None:
+            ctag = '{}:Coef'.format(ns_key)
+        else:
+            ctag = 'Coef'
+
         node.attrib['numPhasings'] = str(self.numPhasings)
         node.attrib['numPoints'] = str(self.numPoints)
         fmt_func = self._get_formatter('Coefs')
         for i, val1 in enumerate(self._coefs):
             for j, val in enumerate(val1):
                 # if val != 0.0:  # should we serialize it sparsely?
-                cnode = _create_text_node(doc, 'Coef', fmt_func(val), parent=node)
+                cnode = _create_text_node(doc, ctag, fmt_func(val), parent=node)
                 cnode.attrib['phasing'] = str(i)
                 cnode.attrib['point'] = str(j)
         return node
@@ -454,7 +583,7 @@ class BankCustomType(Serializable, Arrayable):
 
 class FilterBankType(Serializable):
     """
-    The filter bank type.
+    The filter bank type. Provides the specifics for **either** a predefined or custom filter bank.
     """
 
     _fields = ('Predefined', 'Custom')
@@ -473,19 +602,24 @@ class FilterBankType(Serializable):
 
         Parameters
         ----------
-        Predefined : PredefinedFilterType
-        Custom : BankCustomType
+        Predefined : None|PredefinedFilterType
+        Custom : None|BankCustomType
         kwargs
         """
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
-        super(FilterBankType, self).__init__(Predefined=Predefined, Custom=Custom, **kwargs)
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
+        self.Predefined = Predefined
+        self.Custom = Custom
+        super(FilterBankType, self).__init__(**kwargs)
 
 
 class FilterType(Serializable):
     """
-    Filter parameters for a variety of purposes.
+    Filter parameters for a variety of purposes. Provides **either** the filter bank or
+    filter kernel parameters.
     """
 
     _fields = ('FilterName', 'FilterKernel', 'FilterBank', 'Operation')
@@ -519,8 +653,13 @@ class FilterType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
-        super(FilterType, self).__init__(
-            FilterName=FilterName, FilterKernel=FilterKernel, FilterBank=FilterBank, Operation=Operation, **kwargs)
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
+        self.FilterName = FilterName
+        self.FilterKernel = FilterKernel
+        self.FilterBank = FilterBank
+        self.Operation = Operation
+        super(FilterType, self).__init__(**kwargs)
 
 
 ################
@@ -529,7 +668,7 @@ class FilterType(Serializable):
 
 class PredefinedLookupType(Serializable):
     """
-    The predefined lookup table type.
+    The predefined lookup table type. Allows for reference **either** by name, or family/member id number.
     """
     _fields = ('DatabaseName', 'RemapFamily', 'RemapMember')
     _required = ()
@@ -549,16 +688,20 @@ class PredefinedLookupType(Serializable):
 
         Parameters
         ----------
-        DatabaseName : str
-        RemapFamily : int
-        RemapMember : int
+        DatabaseName : None|str
+        RemapFamily : None|int
+        RemapMember : None|int
         kwargs
         """
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
-        super(PredefinedLookupType, self).__init__(
-            DatabaseName=DatabaseName, RemapFamily=RemapFamily, RemapMember=RemapMember, **kwargs)
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
+        self.DatabaseName = DatabaseName
+        self.RemapFamily = RemapFamily
+        self.RemapMember = RemapMember
+        super(PredefinedLookupType, self).__init__(**kwargs)
 
 
 class LUTInfoType(Serializable, Arrayable):
@@ -567,7 +710,7 @@ class LUTInfoType(Serializable, Arrayable):
     """
     __slots__ = ('_lut_values', )
     _fields = ('LUTValues', 'numLuts', 'size')
-    _required = ('LUTValues', )
+    _required = ('LUTValues', 'numLuts', 'size')
 
     def __init__(self, LUTValues=None, **kwargs):
         """
@@ -582,6 +725,8 @@ class LUTInfoType(Serializable, Arrayable):
         self._lut_values = None
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.LUTValues = LUTValues
         super(LUTInfoType, self).__init__(**kwargs)
 
@@ -629,6 +774,11 @@ class LUTInfoType(Serializable, Arrayable):
         else:
             return self._lut_values.shape[1]
 
+    def __len__(self):
+        if self._lut_values is None:
+            return 0
+        return self._lut_values.shape[0]
+
     def __getitem__(self, item):
         return self._lut_values[item]
 
@@ -647,7 +797,8 @@ class LUTInfoType(Serializable, Arrayable):
         -------
         LUTInfoType
         """
-
+        if array is None:
+            return None
         return cls(LUTValues=array)
 
     def get_array(self, dtype=numpy.uint8):
@@ -668,58 +819,54 @@ class LUTInfoType(Serializable, Arrayable):
         return numpy.array(self._lut_values, dtype=dtype)
 
     @classmethod
-    def from_node(cls, node, xml_ns, kwargs=None):
-        """For XML deserialization.
-
-        Parameters
-        ----------
-        node : ElementTree.Element
-            dom element for serialized class instance
-        xml_ns : dict
-            The xml namespace dictionary.
-        kwargs : None|dict
-            `None` or dictionary of previously serialized attributes. For use in inheritance call, when certain
-            attributes require specific deserialization.
-
-        Returns
-        -------
-        LUTInfoType
-            corresponding class instance
-        """
-
+    def from_node(cls, node, xml_ns, ns_key=None, kwargs=None):
         dim1 = int_func(node.attrib['size'])
         dim2 = int_func(node.attrib['numLuts'])
         arr = numpy.zeros((dim1, dim2), dtype=numpy.uint16)
-        lut_nodes = node.findall('LUTValues') if xml_ns is None else node.findall('default:LUTValues', xml_ns)
+
+        lut_key = cls._child_xml_ns_key.get('LUTValues', ns_key)
+        lut_nodes = _find_children(node, 'LUTValues', xml_ns, lut_key)
         for i, lut_node in enumerate(lut_nodes):
             arr[:, i] = [str(el) for el in _get_node_value(lut_node)]
         if numpy.max(arr) < 256:
             arr = numpy.cast[numpy.uint8](arr)
         return cls(LUTValues=arr)
 
-    def to_node(self, doc, tag, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
+    def to_node(self, doc, tag, ns_key=None, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
         def make_entry(arr):
             value = ' '.join(str(el) for el in arr)
-            entry = _create_text_node(doc, 'LUTValues', value, parent=node)
+            entry = _create_text_node(doc, ltag, value, parent=node)
             entry.attrib['lut'] = str(arr.size)
-
-        if self._lut_values is None or self._lut_values.ndim == 0:
-            return
 
         if parent is None:
             parent = doc.getroot()
-        node = _create_new_node(doc, tag, parent=parent)
-        node.attrib['numLuts'] = str(self.numLUTs)
-        node.attrib['size'] = str(self.size)
-        if self._lut_values.ndim == 1:
-            make_entry(self._lut_values)
+
+        if ns_key is None:
+            node = _create_new_node(doc, tag, parent=parent)
         else:
-            for j in range(self._lut_values.shape[1]):
-                make_entry(self._lut_values[:, j])
+            node = _create_new_node(doc, '{}:{}'.format(ns_key, tag), parent=parent)
+
+        if 'LUTValues' in self._child_xml_ns_key:
+            ltag = '{}:LUTValues'.format(self._child_xml_ns_key['LUTValues'])
+        elif ns_key is not None:
+            ltag = '{}:LUTValues'.format(ns_key)
+        else:
+            ltag = 'LUTValues'
+
+        if self._lut_values is not None:
+            node.attrib['numLuts'] = str(self.numLUTs)
+            node.attrib['size'] = str(self.size)
+            if self._lut_values.ndim == 1:
+                make_entry(self._lut_values)
+            else:
+                for j in range(self._lut_values.shape[1]):
+                    make_entry(self._lut_values[:, j])
+        return node
 
     def to_dict(self,  check_validity=False, strict=DEFAULT_STRICT, exclude=()):
         out = OrderedDict()
-        out['LUTValues'] = self.LUTValues.tolist()
+        if self.LUTValues is not None:
+            out['LUTValues'] = self.LUTValues.tolist()
         return out
 
 
@@ -746,17 +893,25 @@ class CustomLookupType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.LUTInfo = LUTInfo
         super(CustomLookupType, self).__init__(**kwargs)
 
 
 class NewLookupTableType(Serializable):
     """
-
+    The lookup table. Allows **either** a reference to a prefined lookup table, or
+    custom lookup table array.
     """
-    _fields = ('Predefined', 'Custom')
-    _required = ()
+
+    _fields = ('LUTName', 'Predefined', 'Custom')
+    _required = ('LUTName', )
+    _choice = ({'required': True, 'collection': ('Predefined', 'Custom')}, )
     # Descriptor
+    LUTName = _StringDescriptor(
+        'LUTName', _required, strict=DEFAULT_STRICT,
+        docstring='The lookup table name')  # type: str
     Predefined = _SerializableDescriptor(
         'Predefined', PredefinedLookupType, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: PredefinedLookupType
@@ -764,18 +919,22 @@ class NewLookupTableType(Serializable):
         'Custom', CustomLookupType, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: CustomLookupType
 
-    def __init__(self, Predefined=None, Custom=None, **kwargs):
+    def __init__(self, LUTName=None, Predefined=None, Custom=None, **kwargs):
         """
 
         Parameters
         ----------
-        Predefined : PredefinedLookupType
-        Custom : CustomLookupType
+        LUTName : str
+        Predefined : None|PredefinedLookupType
+        Custom : None|CustomLookupType
         kwargs
         """
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
+        self.LUTName = LUTName
         self.Predefined = Predefined
         self.Custom = Custom
         super(NewLookupTableType, self).__init__(**kwargs)

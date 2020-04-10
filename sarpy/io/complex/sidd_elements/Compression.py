@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-The ExploitationFeaturesType definition.
+The CompressionType definition.
 """
 
 from typing import Union
@@ -17,12 +17,12 @@ __author__ = "Thomas McCullough"
 
 class J2KSubtype(Serializable):
     """
-
+    The Jpeg 2000 subtype.
     """
     _fields = ('NumWaveletLevels', 'NumBands', 'LayerInfo')
     _required = ('NumWaveletLevels', 'NumBands')
     _collections_tags = {'LayerInfo': {'array': True, 'child_tag': 'Bitrate', 'size_attribute': 'numLayers'}}
-
+    _numeric_format = {'LayerInfo': '0.16G'}
     # Descriptor
     NumWaveletLevels = _IntegerDescriptor(
         'NumWaveletLevels', _required, strict=DEFAULT_STRICT,
@@ -34,7 +34,7 @@ class J2KSubtype(Serializable):
         'LayerInfo', _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Original Layer Information. This is an array of bit rate target associated with each '
                   'layer. It may happen that the bit rate was not achieved due to data characteristics. '
-                  'Note - for JPEG 2000 numerically lossless quality, the bit rate for the final layer is '
+                  '**Note -** for JPEG 2000 numerically loss-less quality, the bit rate for the final layer is '
                   'an expected value, based on performance.')  # type: Union[None, numpy.ndarray]
 
     def __init__(self, NumWaveletLevels=None, NumBands=None, LayerInfo=None, **kwargs):
@@ -50,6 +50,8 @@ class J2KSubtype(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.NumWaveletLevels = NumWaveletLevels
         self.NumBands = NumBands
         self.LayerInfo = LayerInfo
@@ -74,6 +76,8 @@ class J2KType(Serializable):
     def __init__(self, Original=None, Parsed=None, **kwargs):
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.Original = Original
         self.Parsed = Parsed
         super(J2KType, self).__init__(**kwargs)
@@ -102,5 +106,7 @@ class CompressionType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.J2K = J2K
         super(CompressionType, self).__init__(**kwargs)

@@ -12,7 +12,7 @@ from .base import DEFAULT_STRICT
 # noinspection PyProtectedMember
 from ..sicd_elements.base import Serializable, _SerializableDescriptor, _IntegerDescriptor, \
     _FloatDescriptor, _FloatListDescriptor, _StringEnumDescriptor
-from ..sicd_elements.blocks import LatLonType
+from .blocks import LatLonType
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
@@ -21,10 +21,12 @@ __author__ = "Thomas McCullough"
 class GeographicCoordinatesType(Serializable):
     """
     Describes the Local Geographic Coordinate system linking row/column to the absolute
-    geographic coordinate (lat/lon)
+    geographic coordinate (lat/lon).
     """
+
     _fields = ('LongitudeDensity', 'LatitudeDensity', 'ReferenceOrigin')
     _required = ('LongitudeDensity', 'LatitudeDensity', 'ReferenceOrigin')
+    _numeric_format = {'LongitudeDensity': '0.16G', 'LatitudeDensity': '0.16G'}
     # Descriptor
     LongitudeDensity = _FloatDescriptor(
         'LongitudeDensity', _required, strict=DEFAULT_STRICT,
@@ -99,6 +101,20 @@ class GeopositioningType(Serializable):
     def __init__(self, CoordinateSystemType=None, GeodeticDatum='World Geodetic System 1984',
                  ReferenceEllipsoid='World Geodetic System 1984', VerticalDatum='Mean Sea Level',
                  SoundingDatum='Mean Sea Level', FalseOrigin=None, UTMGridZoneNumber=None, **kwargs):
+        """
+
+        Parameters
+        ----------
+        CoordinateSystemType : str
+        GeodeticDatum : str
+        ReferenceEllipsoid : str
+        VerticalDatum : str
+        SoundingDatum : str
+        FalseOrigin : int
+        UTMGridZoneNumber : None|int
+        kwargs
+        """
+
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
         self.CoordinateSystemType = CoordinateSystemType
@@ -113,13 +129,15 @@ class GeopositioningType(Serializable):
 
 class AccuracyType(Serializable):
     """
-
+    The accuracy estimate.
     """
+
     _fields = ('Horizontals', 'Verticals')
     _required = ('Horizontals', 'Verticals')
     _collections_tags = {
         'Horizontals': {'array': False, 'child_tag': 'Horizontal'},
         'Verticals': {'array': False, 'child_tag': 'Vertical'}}
+    _numeric_format = {key: '0.16G' for key in _fields}
     # Descriptor
     Horizontals = _FloatListDescriptor(
         'Horizontals', _collections_tags, _required, strict=DEFAULT_STRICT,
@@ -149,6 +167,7 @@ class PositionalAccuracyType(Serializable):
     """
     Describes the horizontal and vertical point and regional information for the DED.
     """
+
     _fields = ('NumRegions', 'AbsoluteAccuracy', 'PointToPointAccuracy')
     _required = ('NumRegions', 'AbsoluteAccuracy', 'PointToPointAccuracy')
     # Descriptor
@@ -163,8 +182,20 @@ class PositionalAccuracyType(Serializable):
         docstring='')  # type: AccuracyType
 
     def __init__(self, NumRegions=None, AbsoluteAccuracy=None, PointToPointAccuracy=None, **kwargs):
+        """
+
+        Parameters
+        ----------
+        NumRegions : int
+        AbsoluteAccuracy : AccuracyType
+        PointToPointAccuracy : AccuracyType
+        kwargs
+        """
+
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.NumRegions = NumRegions
         self.AbsoluteAccuracy = AbsoluteAccuracy
         self.PointToPointAccuracy = PointToPointAccuracy
@@ -210,6 +241,8 @@ class DigitalElevationDataType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.GeographicCoordinates = GeographicCoordinates
         self.Geopositioning = Geopositioning
         self.PositionalAccuracy = PositionalAccuracy

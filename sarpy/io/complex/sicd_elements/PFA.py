@@ -45,6 +45,8 @@ class STDeskewType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.Applied = Applied
         # noinspection PytypeChecker
         self.STDSPhasePoly = STDSPhasePoly
@@ -125,6 +127,8 @@ class PFAType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.FPN = FPN
         self.IPN = IPN
         self.PolarAngRefTime = PolarAngRefTime

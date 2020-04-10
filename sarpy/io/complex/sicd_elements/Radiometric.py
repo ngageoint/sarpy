@@ -6,7 +6,7 @@ The RadiometricType definition.
 import numpy
 
 from .base import Serializable, DEFAULT_STRICT, _StringEnumDescriptor, \
-    _SerializableDescriptor
+    _SerializableDescriptor, _find_first_child
 from .blocks import Poly2DType
 
 
@@ -46,6 +46,8 @@ class NoiseLevelType_(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.NoiseLevelType = NoiseLevelType
         self.NoisePoly = NoisePoly
         super(NoiseLevelType_, self).__init__(**kwargs)
@@ -111,6 +113,8 @@ class RadiometricType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.NoiseLevel = NoiseLevel
         self.RCSSFPoly = RCSSFPoly
         self.SigmaZeroSFPoly = SigmaZeroSFPoly
@@ -119,14 +123,15 @@ class RadiometricType(Serializable):
         super(RadiometricType, self).__init__(**kwargs)
 
     @classmethod
-    def from_node(cls, node, xml_ns, kwargs=None):
+    def from_node(cls, node, xml_ns, ns_key=None, kwargs=None):
         if kwargs is not None:
             kwargs = {}
         # NoiseLevelType and NoisePoly used to be at this level prior to SICD 1.0.
-        nlevel = node.find('NoiseLevelType') if xml_ns is None else node.find('default:NoiseLevelType', xml_ns)
+        nkey = cls._child_xml_ns_key.get('NoiseLevelType', ns_key)
+        nlevel = _find_first_child(node, 'NoiseLevelType', xml_ns, nkey)
         if nlevel is not None:
-            kwargs['NoiseLevel'] = NoiseLevelType_.from_node(nlevel, xml_ns, kwargs=kwargs)
-        return super(RadiometricType, cls).from_node(node, xml_ns, kwargs=kwargs)
+            kwargs['NoiseLevel'] = NoiseLevelType_.from_node(nlevel, xml_ns, ns_key=ns_key, kwargs=kwargs)
+        return super(RadiometricType, cls).from_node(node, xml_ns, ns_key=ns_key, kwargs=kwargs)
 
     def _derive_parameters(self, Grid, SCPCOA):
         """
