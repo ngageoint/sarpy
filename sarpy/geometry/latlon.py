@@ -1,54 +1,61 @@
-"""Module for converting between various latitude/longitude representations."""
-
-import numpy as np
+"""
+Module for converting between various latitude/longitude representations.
+"""
+import sys
 import re
+
+import numpy
+
+string_types = str
+if sys.version_info[0] < 3:
+    string_types = basestring
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Wade Schwartzkopf"
-__email__ = "Wade.C.Schwartzkopf.ctr@nga.mil"
 
 
 def string(value, latlon, num_units=3, precision=None, delimiter='',
            include_symbols=True, signed=False, padded=True):
-    """Convert latitude/longitude numeric values to customizable string format
+    """
+    Convert latitude/longitude numeric values to customizable string format.
+
+    Supports ISO 6709:2008 formatted geographic coordinates:
+
+    * Annex D (human interface)
+        delimiter = ''; include_symbols = true; padded = true; signed = false
+    * Annex H (string representation)
+        delimiter = ''; include_symbols = false; padded = true; signed = true
 
     Parameters
     ----------
-    value : float or 3-element list/tuple/array
-       Value of latitude or longitude in decimal degrees or dms vector.
-    latlon : {'lat', 'lon'})
-       Required for formatting string.
-    num_units : {1, 2, 3}, optional
-       1, decimal degrees; 2, degrees/minutes; 3, degrees/minutes/seconds.  Default is 3.
-    delimiter : str or list of str or tuple of str, optional
-       Separators between degrees/minutes/seconds/hemisphere.  Default is '' (empty).
-    include_symbols : bool, optional
-       Whether to include degree, minute, second symbols.  Default is true.
-    signed : bool, optional
-       Whether to use +/- or N/S/E/W to represent hemisphere.
-       Default is false (N/S/E/W).
-    precision : int, optional
-       Number of decimal points shown in finest unit.  Default is 5 if
-       num_units==1, otherwise 0.
-    padded : boolean, optional
-       Whether to use zeros to pad out to consistent string length (3 digits for
-       longitude degrees, 2 digits for all other elements).  Default is true.
-
-    Notes
-    ----------
-    Supports ISO 6709:2008 formatted geographic coordinates
-        Annex D (human interface)
-            delimiter = ''; include_symbols = true; padded = true; signed = false
-        Annex H (string representation)
-            delimiter = ''; include_symbols = false; padded = true; signed = true
+    value : float|numpy.ndarray|list|tuple
+        Value of latitude or longitude in decimal degrees or dms vector.
+    latlon : str
+        One of {'lat', 'lon'}, required for formatting string.
+    num_units : int
+        1 - decimal degrees; 2 - degrees/minutes; 3 - degrees/minutes/seconds.
+        Default is 3.
+    delimiter : str|list|tuple
+        Separators between degrees/minutes/seconds/hemisphere.  Default is '' (empty).
+    include_symbols : bool
+        Whether to include degree, minute, second symbols.  Default is true.
+    signed : bool
+        Whether to use +/- or N/S/E/W to represent hemisphere.
+        Default is false (N/S/E/W).
+    precision : int
+        Number of decimal points shown in finest unit.  Default is 5 if
+        num_units==1, otherwise 0.
+    padded : bool
+        Whether to use zeros to pad out to consistent string length (3 digits for
+        longitude degrees, 2 digits for all other elements).  Default is true.
     """
 
-    try:
-        is_dms = len(value) > 1  # Vector of degree/minutes/seconds or string
-    except:  # len() won't work on scalar
-        is_dms = False
-    if is_dms:
-        value = num(value)  # Convert from dms or string to decimal degrees
+    if isinstance(value, (numpy.ndarray, list, tuple)):
+        value = num(value)
+    elif not isinstance(value, float):
+        value = float(value)
+    # value should now be in in decimal degrees
+
     # Precision.  Default is dependent on other input arguments.
     if precision is None:
         if num_units == 1:
@@ -57,7 +64,7 @@ def string(value, latlon, num_units=3, precision=None, delimiter='',
             precision = 0
     # Symbols
     if include_symbols:
-        latlon_symbols = (u'\N{DEGREE SIGN}', "'", '"')
+        latlon_symbols = ('\xB0', "'", '"')
     else:
         latlon_symbols = ('', '', '')
     # Delimiters
@@ -128,8 +135,16 @@ def string(value, latlon, num_units=3, precision=None, delimiter='',
 
 
 def dms(degrees):
-    """Return degrees, minutes, seconds given decimal degrees. Sign of
-    coordinate will be returned in degrees portion of coordinate.
+    """
+    Calculate degrees, minutes, seconds representation from decimal degrees.
+
+    Parameters
+    ----------
+    degrees : float
+
+    Returns
+    -------
+    (int, int, float)
     """
 
     degrees_int = int(abs(degrees))	 # integer degrees
@@ -141,40 +156,53 @@ def dms(degrees):
     # Handle sign.  Degrees portion will contain the sign of the coordinate.
     # Minutes and seconds will always be positive.
     # sign function returns -1, 0, +1 for x < 0, x == 0, x > 0, respectively
-    degrees_int = ((degrees)/abs(degrees))*degrees_int
+    if degrees < 0:
+        degrees_int *= -1
 
     return degrees_int, minutes_int, seconds
 
 
 def num(latlon_input):
-    """Convert a variety of lat/long formats into decimal degree value
+    """
+    Convert a variety of lat/long formats into decimal degree value.
 
-    Should handle any string compliant with the ISO 6709:2008 standard or any
-    of a number of variants for describing lat/long coordinates.  Also
-    handles degree/minutes/seconds passed in as a tuple/list/array.
+    This should handle any string compliant with the ISO 6709:2008 standard
+    or any of a number of variants for describing lat/long coordinates.
+    Also handles degree/minutes/seconds passed in as a tuple/list/array.
+
+    Parameters
+    ----------
+    latlon_input : numpy.ndarray|list|tuple|str
+
+    Returns
+    -------
+    float
     """
 
     # Vector format degrees/minutes/seconds
-    ll_np = np.array(latlon_input)
-    if np.issubsctype(ll_np, np.number) and len(ll_np) < 4:
-        return np.sign(ll_np[0]) * np.polynomial.polynomial.polyval(1/60., np.abs(ll_np))
+    if isinstance(latlon_input, (numpy.ndarray, list, tuple)):
+        if len(latlon_input) == 3:
+            return latlon_input[0] + latlon_input[1]/60. + latlon_input[2]/3600.
 
+    if not isinstance(latlon_input, string_types):
+        raise ValueError('Expected a (degree, minutes, seconds) tuple of string. '
+                         'Got type {}'.format(type(latlon_input)))
     # String input
     # Handles decimal degrees and degree/minutes/second with delimiters
     # Any non-numeric characters in string are considered delimiters
     tokens_str = filter(None, re.split('[^.\d]', latlon_input))
     tokens = [float(x) for x in tokens_str]
-    decimal_degrees = np.polynomial.polynomial.polyval(1/60., np.abs(tokens))
+    decimal_degrees = numpy.polynomial.polynomial.polyval(1/60., numpy.abs(tokens))
     if ('W' in latlon_input or 'S' in latlon_input) != ('-' in latlon_input):
         decimal_degrees = -decimal_degrees
     # Handles degree/minutes/second with no delimiters DDD,DDDMM,DDDMMSS
     if len(tokens) == 1:
         for i in range(min(3, int(len(tokens_str[0].split('.')[0])/2)-1)):
-            decimal_degrees = (np.fix(decimal_degrees/100) +
-                               np.fmod(decimal_degrees, 100)/60.)
+            decimal_degrees = (numpy.fix(decimal_degrees/100) +
+                               numpy.fmod(decimal_degrees, 100)/60.)
     # Error checking should occur here
     if (len(tokens) < 1 or len(tokens) > 3 or
        decimal_degrees < -180 or decimal_degrees > 360 or
        sum(c.isalpha() for c in latlon_input) > 1):
         decimal_degrees = float('nan')  # Unparseable inputs are returned as NaN
-    return decimal_degrees
+    return float(decimal_degrees)
