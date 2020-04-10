@@ -194,9 +194,10 @@ class SICDDetails(NITFDetails):
                     except Exception:
                         continue
 
-        if not self._is_sicd or root_node is None:
+        if not self._is_sicd:
             return
 
+        root_node, xml_ns = parse_xml_from_string(data_extension)
         self._sicd_meta = SICDType.from_node(root_node, xml_ns)
         self._sicd_meta.derive()
         # TODO: account for the reference frequency offset situation

@@ -26,6 +26,18 @@ __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 
+#########
+# Polarization constants
+POLARIZATION1_VALUES = ('V', 'H', 'RHC', 'LHC', 'OTHER', 'UNKNOWN', 'SEQUENCE')
+POLARIZATION2_VALUES = ('V', 'H', 'RHC', 'LHC', 'OTHER')
+DUAL_POLARIZATION_VALUES = (
+    'V:V', 'V:H', 'V:RHC', 'V:LHC',
+    'H:V', 'H:H', 'H:RHC', 'H:LHC',
+    'RHC:V', 'RHC:H', 'RHC:RHC', 'RHC:LHC',
+    'LHC:V', 'LHC:H', 'LHC:RHC', 'LHC:LHC',
+    'OTHER', 'UNKNOWN')
+
+
 ##########
 # Geographical coordinates
 
@@ -982,7 +994,10 @@ class Poly1DType(Serializable, Arrayable):
 
 
 class Poly2DType(Serializable, Arrayable):
-    """Represents a one-variable polynomial, defined by two-dimensional coefficient array."""
+    """
+    Represents a one-variable polynomial, defined by two-dimensional coefficient array.
+    """
+
     __slots__ = ('_coefs', )
     _fields = ('Coefs', 'order1', 'order2')
     _required = ('Coefs', )
@@ -1181,7 +1196,7 @@ class Poly2DType(Serializable, Arrayable):
 
         Returns
         -------
-        Serializable
+        Poly2DType
             corresponding class instance
         """
 
