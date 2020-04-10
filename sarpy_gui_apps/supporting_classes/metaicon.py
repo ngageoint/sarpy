@@ -1,17 +1,18 @@
 import logging
 
-from tkinter import ttk
 from tkinter import font
+import datetime
+import math
+
 import sarpy.io.complex as sarpy_complex
 from sarpy.io.complex.sicd import SICDReader
 from sarpy.io.complex.sicd import SICDType
-import datetime
 from sarpy.geometry import geocoords
 from scipy.constants import constants
 import numpy as np
-import math
 from tkinter_gui_builder.panel_templates.image_canvas.image_canvas import ImageCanvas
 import tkinter_gui_builder.utils.color_utils.color_converter as color_converter
+from sarpy.deprecated.geometry import latlon
 
 
 class MetaIcon(ImageCanvas):
@@ -20,7 +21,6 @@ class MetaIcon(ImageCanvas):
     def __init__(self, master):
         super().__init__(master)
         self.fname = None                              # type: str
-        self.reader_object = None          # type: SICDReader
         self.meta = None           # type: SICDType
         self.layover_color = color_converter.rgb_to_hex([1, 0.65, 0])
         self.shadow_color = color_converter.rgb_to_hex([0, 0.65, 1])
@@ -28,23 +28,22 @@ class MetaIcon(ImageCanvas):
         self.north_color = color_converter.rgb_to_hex([0.58, 0.82, 0.31])
         self.flight_direction_color = color_converter.rgb_to_hex([1, 1, 0])
 
-    def create_from_fname(self, fname):
-        self.fname = fname
-        self.reader_object = sarpy_complex.open(fname)
-        self.meta = self.reader_object.sicd_meta
-
+    def create_from_sicd(self,
+                         sicd_meta,     # type: SICDType
+                         ):
+        self.meta = sicd_meta
         iid_line = self.get_iid_line()
         geo_line = self.get_geo_line()
         res_line = self.get_res_line()
         cdp_line = self.get_cdp_line()
-        azimuth_line = self.get_azimuth_line()
-        graze_line = self.get_graze_line()
-        layover_line = self.get_layover_line()
-        shadow_line = self.get_shadow_line()
-        multipath_line = self.get_multipath_line()
+        azimuth_line = self.create_angle_line_text("azimuth", n_decimals=1)
+        graze_line = self.create_angle_line_text("graze", n_decimals=1)
+        layover_line = self.create_angle_line_text("layover", n_decimals=0)
+        shadow_line = self.create_angle_line_text("shadow", n_decimals=0)
+        multipath_line = self.create_angle_line_text("multipath", n_decimals=0)
 
         line_positions = self.get_line_positions()
-        text_height = int( (line_positions[1][1] - line_positions[0][1]) * 0.7)
+        text_height = int((line_positions[1][1] - line_positions[0][1]) * 0.7)
         canvas_font = font.Font(family='Times New Roman', size=-text_height)
 
         self.canvas.create_text(line_positions[0], text=iid_line, fill="white", anchor="nw", font=canvas_font)
@@ -53,9 +52,12 @@ class MetaIcon(ImageCanvas):
         self.canvas.create_text(line_positions[3], text=cdp_line, fill="white", anchor="nw", font=canvas_font)
         self.canvas.create_text(line_positions[4], text=azimuth_line, fill="white", anchor="nw", font=canvas_font)
         self.canvas.create_text(line_positions[5], text=graze_line, fill="white", anchor="nw", font=canvas_font)
-        self.canvas.create_text(line_positions[6], text=layover_line, fill=self.layover_color, anchor="nw", font=canvas_font)
-        self.canvas.create_text(line_positions[7], text=shadow_line, fill=self.shadow_color, anchor="nw", font=canvas_font)
-        self.canvas.create_text(line_positions[8], text=multipath_line, fill=self.multipath_color, anchor="nw", font=canvas_font)
+        self.canvas.create_text(line_positions[6], text=layover_line, fill=self.layover_color, anchor="nw",
+                                font=canvas_font)
+        self.canvas.create_text(line_positions[7], text=shadow_line, fill=self.shadow_color, anchor="nw",
+                                font=canvas_font)
+        self.canvas.create_text(line_positions[8], text=multipath_line, fill=self.multipath_color, anchor="nw",
+                                font=canvas_font)
 
         # now draw the arrows
         arrow_length = self.canvas_width * 0.15
@@ -68,30 +70,34 @@ class MetaIcon(ImageCanvas):
         self.create_new_arrow((arrows_origin[0],
                                arrows_origin[1],
                                arrows_origin[0] + arrow_length * np.cos(np.deg2rad(layover)),
-                               arrows_origin[1] + arrow_length * -np.sin(np.deg2rad(layover))), fill=self.layover_color, width=2)
+                               arrows_origin[1] + arrow_length * -np.sin(np.deg2rad(layover))), fill=self.layover_color,
+                              width=2)
 
         self.create_new_arrow((arrows_origin[0],
                                arrows_origin[1],
                                arrows_origin[0] + arrow_length * np.cos(np.deg2rad(shadow)),
-                               arrows_origin[1] + arrow_length * -np.sin(np.deg2rad(shadow))), fill=self.shadow_color, width=2)
+                               arrows_origin[1] + arrow_length * -np.sin(np.deg2rad(shadow))), fill=self.shadow_color,
+                              width=2)
 
         self.create_new_arrow((arrows_origin[0],
                                arrows_origin[1],
                                arrows_origin[0] + arrow_length * np.cos(np.deg2rad(multipath)),
-                               arrows_origin[1] + arrow_length * -np.sin(np.deg2rad(multipath))), fill=self.multipath_color, width=2)
+                               arrows_origin[1] + arrow_length * -np.sin(np.deg2rad(multipath))),
+                              fill=self.multipath_color, width=2)
 
         self.create_new_arrow((arrows_origin[0],
                                arrows_origin[1],
                                arrows_origin[0] + arrow_length * np.cos(np.deg2rad(north)),
-                               arrows_origin[1] + arrow_length * -np.sin(np.deg2rad(north))), fill=self.north_color, width=2)
-        self.canvas.create_text((arrows_origin[0] + arrow_length*1.3 * np.cos(np.deg2rad(north)),
-                                 arrows_origin[1] + arrow_length*1.3 * -np.sin(np.deg2rad(north))),
+                               arrows_origin[1] + arrow_length * -np.sin(np.deg2rad(north))), fill=self.north_color,
+                              width=2)
+        self.canvas.create_text((arrows_origin[0] + arrow_length * 1.3 * np.cos(np.deg2rad(north)),
+                                 arrows_origin[1] + arrow_length * 1.3 * -np.sin(np.deg2rad(north))),
                                 text="N",
                                 fill=self.north_color,
                                 font=canvas_font)
 
-        flight_direction_arrow_start = (self.canvas_width*0.65, self.canvas_height*0.9)
-        flight_direction_arrow_end = (self.canvas_width*0.95, flight_direction_arrow_start[1])
+        flight_direction_arrow_start = (self.canvas_width * 0.65, self.canvas_height * 0.9)
+        flight_direction_arrow_end = (self.canvas_width * 0.95, flight_direction_arrow_start[1])
         if self.meta.SCPCOA.SideOfTrack == "R":
             self.create_new_arrow((flight_direction_arrow_start[0],
                                    flight_direction_arrow_start[1],
@@ -104,9 +110,14 @@ class MetaIcon(ImageCanvas):
                                    flight_direction_arrow_start[1]), fill=self.flight_direction_color, width=3)
         self.canvas.create_text((flight_direction_arrow_start[0] - self.canvas_width * 0.04,
                                  flight_direction_arrow_start[1]),
-                                text = "R",
-                                fill = self.flight_direction_color,
+                                text="R",
+                                fill=self.flight_direction_color,
                                 font=canvas_font)
+
+    def create_from_fname(self, fname):
+        self.fname = fname
+        reader_object = sarpy_complex.open(fname)
+        self.create_from_sicd(reader_object.sicd_meta)
 
     def get_line_positions(self, margin_percent=5):
         n_lines = 9
@@ -125,10 +136,6 @@ class MetaIcon(ImageCanvas):
             xy_positions.append((x_positions, pos))
         return xy_positions
 
-    def get_multipath_line(self, n_decimals=1):
-        multipath = self._get_multipath()
-        return "Multipath: " + str(round(multipath, n_decimals)) + " deg"
-
     def _get_multipath(self):
         if hasattr(self.meta, "SCPCOA"):
             multipath_ground = self._get_multipath_ground()
@@ -141,35 +148,47 @@ class MetaIcon(ImageCanvas):
                                                        math.sin(np.deg2rad(self.meta.SCPCOA.GrazeAng))))
             return multipath_ground
 
-    def get_azimuth_line(self, n_decimals=1):
-        azimuth = self._get_azimuth()
-        return "Azimuth: " + str(round(self.meta.SCPCOA.AzimAng, n_decimals)) + " deg"
-
     def _get_azimuth(self):
         if hasattr(self.meta, "SCPCOA"):
             return self.meta.SCPCOA.AzimAng
 
-    def get_graze_line(self, n_decimals=1):
-        if hasattr(self.meta, "SCPCOA"):
-            return "Graze: " + str(round(self.meta.SCPCOA.GrazeAng, n_decimals)) + " deg"
-
-    def get_layover_line(self, n_decimals=1):
-        layover = self._get_layover()
-        return "Layover: " + str(round(layover, n_decimals)) + " deg"
+    def _get_graze(self):
+        try:
+            return self.meta.SCPCOA.GrazeAng
+        except AttributeError as e:
+            logging.error("Missing attribute {}".format(e))
 
     def _get_layover(self):
         if hasattr(self.meta, "SCPCOA"):
             return self.meta.SCPCOA.LayoverAng
-
-    def get_shadow_line(self, n_decimals=1):
-        shadow = self._get_shadow()
-        return "Shadow: " + str(round(shadow, n_decimals)) + " deg"
 
     def _get_shadow(self):
         if hasattr(self.meta, "SCPCOA"):
             azimuth = self.meta.SCPCOA.AzimAng
             shadow = np.mod(azimuth - 180, 360)
             return shadow
+
+    def create_angle_line_text(self,
+                               angle_type,  # type: str
+                               n_decimals,  # type: int
+                               ):
+        if angle_type.lower() == "layover":
+            angle = self._get_layover()
+        elif angle_type.lower() == "shadow":
+            angle = self._get_shadow()
+        elif angle_type.lower() == "multipath":
+            angle = self._get_multipath()
+        elif angle_type.lower() == "azimuth":
+            angle = self._get_azimuth()
+        elif angle_type.lower() == "graze":
+            angle = self._get_graze()
+
+        angle_description_text = angle_type.lower().capitalize()
+
+        if n_decimals > 0:
+            return angle_description_text + ": " + str(round(angle, n_decimals)) + "\xB0"
+        else:
+            return angle_description_text + ": " + str(int(round(angle))) + "\xB0"
 
     def get_cdp_line(self):
         collect_start, collect_duration = self.get_timings()
@@ -228,7 +247,9 @@ class MetaIcon(ImageCanvas):
 
     def get_geo_line(self):
         lat, lon = self.get_geo_lon_lat()
-        geo_line = "Geo: " + "{:.4f}".format(lat) + "/" + "{:.4f}".format(lon)
+        lat_str = latlon.string(lat, "lat", include_symbols=False)
+        lon_str = latlon.string(lon, "lon", include_symbols=False)
+        geo_line = "Geo: " + lat_str + "/" + lon_str
         return geo_line
 
     def get_timings(self):
