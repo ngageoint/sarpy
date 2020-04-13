@@ -49,6 +49,8 @@ class RcvChanProcType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.NumChanProc = NumChanProc
         self.PRFScaleFactor = PRFScaleFactor
         self.ChanIndices = ChanIndices
@@ -80,6 +82,8 @@ class TxFrequencyProcType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.MinProc, self.MaxProc = MinProc, MaxProc
         super(TxFrequencyProcType, self).__init__(**kwargs)
 
@@ -127,6 +131,8 @@ class ProcessingType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.Type = Type
         self.Applied = Applied
         self.Parameters = Parameters
@@ -210,6 +216,8 @@ class DistortionType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.CalibrationDate = CalibrationDate
         self.A = A
         self.F1, self.Q1, self.Q2 = F1, Q1, Q2
@@ -244,6 +252,8 @@ class PolarizationCalibrationType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.DistortCorrectApplied = DistortCorrectApplied
         self.Distortion = Distortion
         super(PolarizationCalibrationType, self).__init__(**kwargs)
@@ -364,6 +374,8 @@ class ImageFormationType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.RcvChanProc = RcvChanProc
         self.TxRcvPolarizationProc = TxRcvPolarizationProc
         self.TStartProc, self.TEndProc = TStartProc, TEndProc

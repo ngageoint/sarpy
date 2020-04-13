@@ -42,6 +42,8 @@ class BandLUTType(NewLookupTableType):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.k = k
         super(BandLUTType, self).__init__(Predefined=Predefined, Custom=Custom, **kwargs)
 
@@ -58,7 +60,7 @@ class BandEqualizationType(Serializable):
     """
     _fields = ('Algorithm', 'BandLUTs')
     _required = ('Algorithm', 'BandLUTs')
-    _collections_tags = {'BandLUTs': {'array': False, 'child_tag': 'BandLUT'}}
+    _collections_tags = {'BandLUTs': {'array': True, 'child_tag': 'BandLUT'}}
     # Descriptor
     Algorithm = _StringEnumDescriptor(
         'Algorithm', ('LUT 1D', ), _required, strict=DEFAULT_STRICT, default_value='LUT 1D',
@@ -80,6 +82,8 @@ class BandEqualizationType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.Algorithm = Algorithm
         self.BandLUTs = BandLUTs
         super(BandEqualizationType, self).__init__(**kwargs)
@@ -111,6 +115,8 @@ class ProductGenerationOptionsType(Serializable):
     def __init__(self, BandEqualization=None, ModularTransferFunctionRestoration=None, DataRemapping=None, **kwargs):
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.BandEqualization = BandEqualization
         self.ModularTransferFunctionRestoration = ModularTransferFunctionRestoration
         self.DataRemapping = DataRemapping
@@ -119,9 +125,9 @@ class ProductGenerationOptionsType(Serializable):
 
 class RRDSType(Serializable):
     """
-    RRDS type?
+    RRDS type.
     """
-    # TODO: improve this docstring
+
     _fields = ('DownsamplingMethod', 'AntiAlias', 'Interpolation')
     _required = ('DownsamplingMethod', )
     # Descriptor
@@ -152,6 +158,8 @@ class RRDSType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.DownsamplingMethod = DownsamplingMethod
         self.AntiAlias = AntiAlias
         self.Interpolation = Interpolation
@@ -170,7 +178,7 @@ class NonInteractiveProcessingType(Serializable):
     ProductGenerationOptions = _SerializableDescriptor(
         'ProductGenerationOptions', ProductGenerationOptionsType, _required, strict=DEFAULT_STRICT,
         docstring='Performs several key actions on an image to prepare it for necessary additional processing to '
-                  'achieve the desired output product.') # type: ProductGenerationOptionsType
+                  'achieve the desired output product.')  # type: ProductGenerationOptionsType
     RRDS = _SerializableDescriptor(
         'RRDS', RRDSType, _required, strict=DEFAULT_STRICT,
         docstring='Creates a set of sub-sampled versions of an image to provide processing chains '
@@ -183,6 +191,8 @@ class NonInteractiveProcessingType(Serializable):
     def __init__(self, ProductGenerationOptions=None, RRDS=None, band=1, **kwargs):
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.ProductGenerationOptions = ProductGenerationOptions
         self.RRDS = RRDS
         self.band = band
@@ -220,6 +230,8 @@ class ScalingType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.AntiAlias = AntiAlias
         self.Interpolation = Interpolation
         super(ScalingType, self).__init__(**kwargs)
@@ -242,6 +254,8 @@ class OrientationType(Serializable):
     def __init__(self, ShadowDirection='DOWN', **kwargs):
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.ShadowDirection = ShadowDirection
         super(OrientationType, self).__init__(**kwargs)
 
@@ -255,7 +269,7 @@ class GeometricTransformType(Serializable):
     _fields = ('Scaling', 'Orientation')
     _required = _fields
     # Descriptor
-    Scaling = _SerializableArrayDescriptor(
+    Scaling = _SerializableDescriptor(
         'Scaling', ScalingType, _required, strict=DEFAULT_STRICT,
         docstring='The scaling filters.')  # type: ScalingType
     Orientation = _SerializableDescriptor(
@@ -274,6 +288,8 @@ class GeometricTransformType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.Scaling = Scaling
         self.Orientation = Orientation
         super(GeometricTransformType, self).__init__(**kwargs)
@@ -285,6 +301,8 @@ class SharpnessEnhancementType(Serializable):
     """
     _fields = ('ModularTransferFunctionCompensation', 'ModularTransferFunctionEnhancement')
     _required = _fields
+    _choice = ({'required': True, 'collection': ('ModularTransferFunctionCompensation',
+                                                 'ModularTransferFunctionEnhancement')}, )
     # Descriptor
     ModularTransferFunctionCompensation = _SerializableDescriptor(
         'ModularTransferFunctionCompensation', FilterType, _required, strict=DEFAULT_STRICT,
@@ -305,6 +323,8 @@ class SharpnessEnhancementType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.ModularTransferFunctionCompensation = ModularTransferFunctionCompensation
         self.ModularTransferFunctionEnhancement = ModularTransferFunctionEnhancement
         super(SharpnessEnhancementType, self).__init__(**kwargs)
@@ -319,7 +339,8 @@ class ColorManagementModuleType(Serializable):
     _required = _fields
     # Descriptor
     RenderingIntent = _StringEnumDescriptor(
-        'RenderingIntent', (), _required, strict=DEFAULT_STRICT, default_value='PERCEPTUAL',
+        'RenderingIntent', ('PERCEPTUAL', 'SATURATION', 'RELATIVE INTENT', 'ABSOLUTE INTENT'),
+        _required, strict=DEFAULT_STRICT, default_value='PERCEPTUAL',
         docstring='The rendering intent for this color management.')  # type: str
     SourceProfile = _StringDescriptor(
         'SourceProfile', _required, strict=DEFAULT_STRICT,
@@ -327,7 +348,7 @@ class ColorManagementModuleType(Serializable):
     DisplayProfile = _StringDescriptor(
         'DisplayProfile', _required, strict=DEFAULT_STRICT,
         docstring='Name of display profile in ICC Profile database.')  # type: str
-    ICCProfile = _SerializableDescriptor(
+    ICCProfile = _StringDescriptor(
         'ICCProfile', _required, strict=DEFAULT_STRICT,
         docstring='Valid ICC profile signature.')  # type: str
 
@@ -346,6 +367,8 @@ class ColorManagementModuleType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.RenderingIntent = RenderingIntent
         self.SourceProfile = SourceProfile
         self.DisplayProfile = DisplayProfile
@@ -375,6 +398,8 @@ class ColorSpaceTransformType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.ColorManagementModule = ColorManagementModule
         super(ColorSpaceTransformType, self).__init__(**kwargs)
 
@@ -418,6 +443,8 @@ class DRAParametersType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.Pmin = Pmin
         self.Pmax = Pmax
         self.EminModifier = EminModifier
@@ -451,6 +478,8 @@ class DRAOverridesType(Serializable):
         """
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.Subtractor = Subtractor
         self.Multiplier = Multiplier
         super(DRAOverridesType, self).__init__(**kwargs)
@@ -476,7 +505,7 @@ class DynamicRangeAdjustmentType(Serializable):
         'DRAOverrides', DRAOverridesType, _required, strict=DEFAULT_STRICT,
         docstring='The dynamic range adjustment overrides.')  # type: DRAOverridesType
 
-    def __init__(self, AlgorithmType='None', BandStatsSource=None, DRAParameters=None, DRAOverrides=None, **kwargs):
+    def __init__(self, AlgorithmType='NONE', BandStatsSource=None, DRAParameters=None, DRAOverrides=None, **kwargs):
         """
 
         Parameters
@@ -490,6 +519,8 @@ class DynamicRangeAdjustmentType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.AlgorithmType = AlgorithmType
         self.BandStatsSource = BandStatsSource
         self.DRAParameters = DRAParameters
@@ -524,19 +555,21 @@ class InteractiveProcessingType(Serializable):
         docstring='Specifies the recommended ELT DRA overrides.')  # type: DynamicRangeAdjustmentType
     TonalTransferCurve = _SerializableDescriptor(
         'TonalTransferCurve', NewLookupTableType, _required, strict=DEFAULT_STRICT,
-        docstring="The 1-D LUT element uses one or more 1-D LUTs to stretch or compress tome data "
+        docstring="The 1-D LUT element uses one or more 1-D LUTs to stretch or compress tone data "
                   "in valorous regions within a digital image's dynamic range. 1-D LUT can be "
                   "implemented using a Tonal Transfer Curve (TTC). There are 12 families of TTCs "
                   "- Range = [0, 11]. There are 64 members for each "
                   "family - Range=[0, 63].")  # type: NewLookupTableType
     band = _IntegerDescriptor(
         'band', _required, strict=DEFAULT_STRICT,
-        docstring='The immage band to which this applies.')
+        docstring='The image band to which this applies.')
 
     def __init__(self, GeometricTransform=None, SharpnessEnhancement=None,
                  ColorSpaceTransform=None, DynamicRangeAdjustment=None, band=1, **kwargs):
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.GeometricTransform = GeometricTransform
         self.SharpnessEnhancement = SharpnessEnhancement
         self.ColorSpaceTransform = ColorSpaceTransform
@@ -565,24 +598,24 @@ class ProductDisplayType(Serializable):
     PixelType = _StringEnumDescriptor(
         'PixelType', ('MONO8I', 'MONO8LU', 'MONO16I', 'RGBL8U', 'RGB24I'), _required, strict=DEFAULT_STRICT,
         docstring='Enumeration of the pixel type. Definition in '
-                  'Design and Exploitation document.')  # type: PixelTypeType
+                  'Design and Exploitation document.')  # type: str
     NumBands = _IntegerDescriptor(
         'NumBands', _required, strict=DEFAULT_STRICT,
         docstring='Number of bands contained in the image. Populate with the number of bands '
-                  'present after remapping. For example an 8-bit RGB image (RGBLU) this should '
-                  'be populated with 3.')  # type: int
+                  'present after remapping. For example an 8-bit RGB image (RGBLU), this will '
+                  'be 3.')  # type: int
     DefaultBandDisplay = _IntegerDescriptor(
         'DefaultBandDisplay', _required, strict=DEFAULT_STRICT,
         docstring='Indicates which band to display by default. '
                   'Valid range = 1 to NumBands.')  # type: int
     NonInteractiveProcessing = _SerializableListDescriptor(
-        'NonInteractiveProcessing', NonInteractiveProcessingType, _required, strict=DEFAULT_STRICT,
+        'NonInteractiveProcessing', NonInteractiveProcessingType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Non-interactive processing details.')  # type: List[NonInteractiveProcessingType]
     InteractiveProcessing = _SerializableListDescriptor(
-        'InteractiveProcessing', InteractiveProcessingType, _required, strict=DEFAULT_STRICT,
+        'InteractiveProcessing', InteractiveProcessingType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Interactive processing details.')  # type: List[InteractiveProcessingType]
     DisplayExtensions = _ParametersDescriptor(
-        'DisplayExtensions', _collections_tags, required=_required, strict=DEFAULT_STRICT,
+        'DisplayExtensions', _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Optional extensible parameters used to support profile-specific needs related to '
                   'product display. Predefined filter types.')  # type: ParametersCollection
 
@@ -603,6 +636,8 @@ class ProductDisplayType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.PixelType = PixelType
         self.NumBands = NumBands
         self.DefaultBandDisplay = DefaultBandDisplay

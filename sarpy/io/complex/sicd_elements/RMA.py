@@ -51,6 +51,8 @@ class RMRefType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.PosRef = PosRef
         self.VelRef = VelRef
         self.DopConeAngRef = DopConeAngRef
@@ -113,6 +115,8 @@ class INCAType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.TimeCAPoly = TimeCAPoly
         self.R_CA_SCP = R_CA_SCP
         self.FreqZero = FreqZero
@@ -170,6 +174,8 @@ class RMAType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.RMAlgoType = RMAlgoType
         self.RMAT = RMAT
         self.RMCR = RMCR

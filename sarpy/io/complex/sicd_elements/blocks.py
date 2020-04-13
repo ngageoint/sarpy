@@ -8,18 +8,10 @@ from collections import OrderedDict
 
 import numpy
 
-from .base import _get_node_value, _create_text_node, _create_new_node, Serializable, Arrayable, DEFAULT_STRICT, \
+from .base import _get_node_value, _create_text_node, _create_new_node, _find_children, \
+    Serializable, Arrayable, DEFAULT_STRICT, \
     _StringEnumDescriptor, _IntegerDescriptor, _FloatDescriptor, _FloatModularDescriptor, \
-    _SerializableDescriptor
-
-
-integer_types = (int, )
-int_func = int
-if sys.version_info[0] < 3:
-    # noinspection PyUnresolvedReferences
-    int_func = long  # to accommodate for 32-bit python 2
-    # noinspection PyUnresolvedReferences
-    integer_types = (int, long)
+    _SerializableDescriptor, int_func
 
 
 __classification__ = "UNCLASSIFIED"
@@ -70,6 +62,8 @@ class XYZType(Serializable, Arrayable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.X, self.Y, self.Z = X, Y, Z
         super(XYZType, self).__init__(**kwargs)
 
@@ -88,6 +82,8 @@ class XYZType(Serializable, Arrayable):
         XYZType
         """
 
+        if array is None:
+            return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
             if len(array) < 3:
                 raise ValueError('Expected array to be of length 3, and received {}'.format(array))
@@ -136,6 +132,8 @@ class LatLonType(Serializable, Arrayable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.Lat, self.Lon = Lat, Lon
         super(LatLonType, self).__init__(**kwargs)
 
@@ -176,6 +174,8 @@ class LatLonType(Serializable, Arrayable):
         LatLonType
         """
 
+        if array is None:
+            return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
             if len(array) < 2:
                 raise ValueError('Expected array to be of length 2, and received {}'.format(array))
@@ -232,6 +232,8 @@ class LatLonArrayElementType(LatLonType):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.index = index
         super(LatLonArrayElementType, self).__init__(Lat=Lat, Lon=Lon, **kwargs)
 
@@ -250,7 +252,8 @@ class LatLonArrayElementType(LatLonType):
         -------
         LatLonArrayElementType
         """
-
+        if array is None:
+            return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
             if len(array) < 2:
                 raise ValueError('Expected array to be of length 2, and received {}'.format(array))
@@ -281,6 +284,8 @@ class LatLonRestrictionType(LatLonType):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         super(LatLonRestrictionType, self).__init__(Lat=Lat, Lon=Lon, **kwargs)
 
     @classmethod
@@ -297,7 +302,8 @@ class LatLonRestrictionType(LatLonType):
         -------
         LatLonRestrictionType
         """
-
+        if array is None:
+            return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
             if len(array) < 2:
                 raise ValueError('Expected array to be of length 2, and received {}'.format(array))
@@ -328,6 +334,8 @@ class LatLonHAEType(LatLonType):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.HAE = HAE
         super(LatLonHAEType, self).__init__(Lat=Lat, Lon=Lon, **kwargs)
 
@@ -367,7 +375,8 @@ class LatLonHAEType(LatLonType):
         -------
         LatLonHAEType
         """
-
+        if array is None:
+            return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
             if len(array) < 3:
                 raise ValueError('Expected array to be of length 3, and received {}'.format(array))
@@ -398,6 +407,8 @@ class LatLonHAERestrictionType(LatLonHAEType):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         super(LatLonHAERestrictionType, self).__init__(Lat=Lat, Lon=Lon, HAE=HAE, **kwargs)
 
     @classmethod
@@ -414,7 +425,8 @@ class LatLonHAERestrictionType(LatLonHAEType):
         -------
         LatLonHAERestrictionType
         """
-
+        if array is None:
+            return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
             if len(array) < 3:
                 raise ValueError('Expected array to be of length 3, and received {}'.format(array))
@@ -446,6 +458,8 @@ class LatLonCornerType(LatLonType):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.index = index
         super(LatLonCornerType, self).__init__(Lat=Lat, Lon=Lon, **kwargs)
 
@@ -464,7 +478,8 @@ class LatLonCornerType(LatLonType):
         -------
         LatLonCornerType
         """
-
+        if array is None:
+            return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
             if len(array) < 2:
                 raise ValueError('Expected coords to be of length 2, and received {}'.format(array))
@@ -496,6 +511,8 @@ class LatLonCornerStringType(LatLonType):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.index = index
         super(LatLonCornerStringType, self).__init__(Lat=Lat, Lon=Lon, **kwargs)
 
@@ -514,7 +531,8 @@ class LatLonCornerStringType(LatLonType):
         -------
         LatLonCornerStringType
         """
-
+        if array is None:
+            return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
             if len(array) < 2:
                 raise ValueError('Expected array to be of length 2, and received {}'.format(array))
@@ -548,6 +566,8 @@ class LatLonHAECornerRestrictionType(LatLonHAERestrictionType):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.index = index
         super(LatLonHAECornerRestrictionType, self).__init__(Lat=Lat, Lon=Lon, HAE=HAE, **kwargs)
 
@@ -566,7 +586,8 @@ class LatLonHAECornerRestrictionType(LatLonHAERestrictionType):
         -------
         LatLonHAECornerRestrictionType
         """
-
+        if array is None:
+            return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
             if len(array) < 3:
                 raise ValueError('Expected array to be of length 3, and received {}'.format(array))
@@ -597,6 +618,8 @@ class LatLonHAECornerStringType(LatLonHAEType):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.index = index
         super(LatLonHAECornerStringType, self).__init__(Lat=Lat, Lon=Lon, HAE=HAE, **kwargs)
 
@@ -615,7 +638,8 @@ class LatLonHAECornerStringType(LatLonHAEType):
         -------
         LatLonHAECornerStringType
         """
-
+        if array is None:
+            return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
             if len(array) < 3:
                 raise ValueError('Expected array to be of length 3, and received {}'.format(array))
@@ -647,6 +671,8 @@ class RowColType(Serializable, Arrayable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.Row, self.Col = Row, Col
         super(RowColType, self).__init__(**kwargs)
 
@@ -681,7 +707,8 @@ class RowColType(Serializable, Arrayable):
         -------
         RowColType
         """
-
+        if array is None:
+            return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
             if len(array) < 2:
                 raise ValueError('Expected array to be of length 2, and received {}'.format(array))
@@ -712,6 +739,8 @@ class RowColArrayElement(RowColType):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.index = index
         super(RowColArrayElement, self).__init__(Row=Row, Col=Col, **kwargs)
 
@@ -731,7 +760,8 @@ class RowColArrayElement(RowColType):
         -------
         RowColArrayElement
         """
-
+        if array is None:
+            return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
             if len(array) < 2:
                 raise ValueError('Expected array to be of length 2, and received {}'.format(array))
@@ -764,6 +794,8 @@ class Poly1DType(Serializable, Arrayable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self._coefs = None
         self.Coefs = Coefs
         super(Poly1DType, self).__init__(**kwargs)
@@ -925,7 +957,8 @@ class Poly1DType(Serializable, Arrayable):
         -------
         Poly1DType
         """
-
+        if array is None:
+            return None
         return cls(Coefs=array)
 
     def get_array(self, dtype=numpy.float64):
@@ -946,44 +979,39 @@ class Poly1DType(Serializable, Arrayable):
         return numpy.array(self._coefs, dtype=dtype)
 
     @classmethod
-    def from_node(cls, node, xml_ns, kwargs=None):
-        """For XML deserialization.
-
-        Parameters
-        ----------
-        node : ElementTree.Element
-            dom element for serialized class instance
-        xml_ns : dict
-            The xml namespace dictionary.
-        kwargs : None|dict
-            `None` or dictionary of previously serialized attributes. For use in inheritance call, when certain
-            attributes require specific deserialization.
-
-        Returns
-        -------
-        Serializable
-            corresponding class instance
-        """
-
+    def from_node(cls, node, xml_ns, ns_key=None, kwargs=None):
         order1 = int_func(node.attrib['order1'])
         coefs = numpy.zeros((order1+1, ), dtype=numpy.float64)
-        coef_nodes = node.findall('Coef') if xml_ns is None else node.findall('default:Coef', xml_ns)
+
+        coef_key = cls._child_xml_ns_key.get('Coefs', ns_key)
+        coef_nodes = _find_children(node, 'Coef', xml_ns, coef_key)
         for cnode in coef_nodes:
             ind = int_func(cnode.attrib['exponent1'])
             val = float(_get_node_value(cnode))
             coefs[ind] = val
         return cls(Coefs=coefs)
 
-    def to_node(self, doc, tag, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
+    def to_node(self, doc, tag, ns_key=None, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
         if parent is None:
             parent = doc.getroot()
 
-        node = _create_new_node(doc, tag, parent=parent)
+        if ns_key is None:
+            node = _create_new_node(doc, tag, parent=parent)
+        else:
+            node = _create_new_node(doc, '{}:{}'.format(ns_key, tag), parent=parent)
+
+        if 'Coefs' in self._child_xml_ns_key:
+            ctag = '{}:Coef'.format(self._child_xml_ns_key['Coefs'])
+        elif ns_key is not None:
+            ctag = '{}:Coef'.format(ns_key)
+        else:
+            ctag = 'Coef'
+
         node.attrib['order1'] = str(self.order1)
         fmt_func = self._get_formatter('Coef')
         for i, val in enumerate(self.Coefs):
             # if val != 0.0:  # should we serialize it sparsely?
-            cnode = _create_text_node(doc, 'Coef', fmt_func(val), parent=node)
+            cnode = _create_text_node(doc, ctag, fmt_func(val), parent=node)
             cnode.attrib['exponent1'] = str(i)
         return node
 
@@ -1013,6 +1041,8 @@ class Poly2DType(Serializable, Arrayable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self._coefs = None
         self.Coefs = Coefs
         super(Poly2DType, self).__init__(**kwargs)
@@ -1160,7 +1190,8 @@ class Poly2DType(Serializable, Arrayable):
         -------
         Poly2DType
         """
-
+        if array is None:
+            return None
         return cls(Coefs=array)
 
     def get_array(self, dtype=numpy.float64):
@@ -1181,29 +1212,13 @@ class Poly2DType(Serializable, Arrayable):
         return numpy.array(self._coefs, dtype=dtype)
 
     @classmethod
-    def from_node(cls, node, xml_ns, kwargs=None):
-        """For XML deserialization.
-
-        Parameters
-        ----------
-        node : ElementTree.Element
-            dom element for serialized class instance
-        xml_ns : dict
-            The xml namespace dictionary.
-        kwargs : None|dict
-            `None` or dictionary of previously serialized attributes. For use in inheritance call, when certain
-            attributes require specific deserialization.
-
-        Returns
-        -------
-        Poly2DType
-            corresponding class instance
-        """
-
+    def from_node(cls, node, xml_ns, ns_key=None, kwargs=None):
         order1 = int_func(node.attrib['order1'])
         order2 = int_func(node.attrib['order2'])
         coefs = numpy.zeros((order1+1, order2+1), dtype=numpy.float64)
-        coef_nodes = node.findall('Coef') if xml_ns is None else node.findall('default:Coef', xml_ns)
+
+        coef_key = cls._child_xml_ns_key.get('Coefs', ns_key)
+        coef_nodes = _find_children(node, 'Coef', xml_ns, coef_key)
         for cnode in coef_nodes:
             ind1 = int_func(cnode.attrib['exponent1'])
             ind2 = int_func(cnode.attrib['exponent2'])
@@ -1211,17 +1226,29 @@ class Poly2DType(Serializable, Arrayable):
             coefs[ind1, ind2] = val
         return cls(Coefs=coefs)
 
-    def to_node(self, doc, tag, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
+    def to_node(self, doc, tag, ns_key=None, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
         if parent is None:
             parent = doc.getroot()
-        node = _create_new_node(doc, tag, parent=parent)
+
+        if ns_key is None:
+            node = _create_new_node(doc, tag, parent=parent)
+        else:
+            node = _create_new_node(doc, '{}:{}'.format(ns_key, tag), parent=parent)
+
+        if 'Coefs' in self._child_xml_ns_key:
+            ctag = '{}:Coef'.format(self._child_xml_ns_key['Coefs'])
+        elif ns_key is not None:
+            ctag = '{}:Coef'.format(ns_key)
+        else:
+            ctag = 'Coef'
+
         node.attrib['order1'] = str(self.order1)
         node.attrib['order2'] = str(self.order2)
         fmt_func = self._get_formatter('Coefs')
         for i, val1 in enumerate(self._coefs):
             for j, val in enumerate(val1):
                 # if val != 0.0:  # should we serialize it sparsely?
-                cnode = _create_text_node(doc, 'Coef', fmt_func(val), parent=node)
+                cnode = _create_text_node(doc, ctag, fmt_func(val), parent=node)
                 cnode.attrib['exponent1'] = str(i)
                 cnode.attrib['exponent2'] = str(j)
         return node
@@ -1263,6 +1290,8 @@ class XYZPolyType(Serializable, Arrayable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.X, self.Y, self.Z = X, Y, Z
         super(XYZPolyType, self).__init__(**kwargs)
 
@@ -1334,7 +1363,8 @@ class XYZPolyType(Serializable, Arrayable):
         -------
         XYZPolyType
         """
-
+        if array is None:
+            return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
             if len(array) < 3:
                 raise ValueError('Expected array to be of length 3, and received {}'.format(array))
@@ -1443,6 +1473,8 @@ class XYZPolyAttributeType(XYZPolyType):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.index = index
         super(XYZPolyAttributeType, self).__init__(X=X, Y=Y, Z=Z, **kwargs)
 
@@ -1462,7 +1494,8 @@ class XYZPolyAttributeType(XYZPolyType):
         -------
         XYZPolyAttributeType
         """
-
+        if array is None:
+            return None
         if isinstance(array, (numpy.ndarray, list, tuple)):
             if len(array) < 3:
                 raise ValueError('Expected array to be of length 3, and received {}'.format(array))
@@ -1498,6 +1531,8 @@ class GainPhasePolyType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.GainPoly = GainPoly
         self.PhasePoly = PhasePoly
         super(GainPhasePolyType, self).__init__(**kwargs)
@@ -1561,6 +1596,8 @@ class ErrorDecorrFuncType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.CorrCoefZero = CorrCoefZero
         self.DecorrRate = DecorrRate
         super(ErrorDecorrFuncType, self).__init__(**kwargs)

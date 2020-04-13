@@ -43,6 +43,8 @@ class CompositeSCPErrorType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.Rg, self.Az, self.RgAz = Rg, Az, RgAz
         super(CompositeSCPErrorType, self).__init__(**kwargs)
 
@@ -115,6 +117,8 @@ class CorrCoefsType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.P1P2, self.P1P3, self.P1V1, self.P1V2, self.P1V3 = P1P2, P1P3, P1V1, P1V2, P1V3
         self.P2P3, self.P2V1, self.P2V2, self.P2V3 = P2P3, P2V1, P2V2, P2V3
         self.P3V1, self.P3V2, self.P3V3 = P3V1, P3V2, P3V3
@@ -178,6 +182,8 @@ class PosVelErrType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.Frame = Frame
         self.P1, self.P2, self.P3 = P1, P2, P3
         self.V1, self.V2, self.V3 = V1, V2, V3
@@ -220,6 +226,8 @@ class RadarSensorErrorType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.RangeBias, self.ClockFreqSF, self.TransmitFreqSF = RangeBias, ClockFreqSF, TransmitFreqSF
         self.RangeBiasDecorr = RangeBiasDecorr
         super(RadarSensorErrorType, self).__init__(**kwargs)
@@ -256,6 +264,8 @@ class TropoErrorType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.TropoRangeVertical, self.TropoRangeSlant = TropoRangeVertical, TropoRangeSlant
         self.TropoRangeDecorr = TropoRangeDecorr
         super(TropoErrorType, self).__init__(**kwargs)
@@ -297,6 +307,8 @@ class IonoErrorType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.IonoRangeVertical, self.IonoRangeSlant = IonoRangeVertical, IonoRangeSlant
         self.IonoRgRgRateCC = IonoRgRgRateCC
         self.IonoRangeDecorr = IonoRangeDecorr
@@ -335,6 +347,8 @@ class ErrorComponentsType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.PosVelErr, self.RadarSensor = PosVelErr, RadarSensor
         self.TropoError, self.IonoError = TropoError, IonoError
         super(ErrorComponentsType, self).__init__(**kwargs)
@@ -372,6 +386,8 @@ class ErrorStatisticsType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.CompositeSCP = CompositeSCP
         self.Components = Components
         self.AdditionalParms = AdditionalParms

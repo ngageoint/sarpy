@@ -11,7 +11,7 @@ from .base import DEFAULT_STRICT
 
 # noinspection PyProtectedMember
 from ..sicd_elements.base import Serializable, _ParametersDescriptor, ParametersCollection, \
-    _StringDescriptor
+    _StringDescriptor, _find_children, _find_first_child, _get_node_value, _create_text_node
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
@@ -26,7 +26,8 @@ class ProcessingModuleType(Serializable):
     _fields = ('ModuleName', 'name', 'ModuleParameters')
     _required = ('ModuleName', 'name', 'ModuleParameters')
     _set_as_attribute = ('name', )
-    _collections_tags = {'ModuleParameters': {'array': False, 'child_tag': 'ModuleParameter'}}
+    _collections_tags = {
+        'ModuleParameters': {'array': False, 'child_tag': 'ModuleParameter'}}
     # Descriptor
     ModuleName = _StringDescriptor(
         'ModuleName', _required, strict=DEFAULT_STRICT,
@@ -36,7 +37,7 @@ class ProcessingModuleType(Serializable):
         docstring='The module identifier.')  # type: str
     ModuleParameters = _ParametersDescriptor(
         'ModuleParameters', _collections_tags, _required, strict=DEFAULT_STRICT,
-        docstring='')  # type: ParametersCollection
+        docstring='Free form parameters.')  # type: ParametersCollection
 
     def __init__(self, ModuleName=None, name=None, ModuleParameters=None, ProcessingModules=None, **kwargs):
         """
@@ -52,6 +53,8 @@ class ProcessingModuleType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.ModuleName = ModuleName
         self.name = name
         self.ModuleParameters = ModuleParameters
@@ -102,7 +105,8 @@ class ProcessingModuleType(Serializable):
         """
 
         if isinstance(value, ElementTree.Element):
-            value = ProcessingModuleType.from_node(value, self._xml_ns)
+            pm_key = self._child_xml_ns_key.get('ProcessingModules', self._xml_ns_key)
+            value = ProcessingModuleType.from_node(value, self._xml_ns, ns_key=pm_key)
         elif isinstance(value, dict):
             value = ProcessingModuleType.from_dict(value)
 
@@ -112,19 +116,34 @@ class ProcessingModuleType(Serializable):
             raise TypeError('Trying to set ProcessingModule with unexpected type {}'.format(type(value)))
 
     @classmethod
-    def from_node(cls, node, xml_ns, kwargs=None):
+    def from_node(cls, node, xml_ns, ns_key=None, kwargs=None):
         if kwargs is None:
             kwargs = OrderedDict()
-        kwargs['ProcessingModules'] = node.findall('ProcessingModule') if xml_ns is None else \
-            node.findall('default:ProcessingModule', xml_ns)
-        return super(ProcessingModuleType, cls).from_node(node, xml_ns, kwargs=kwargs)
+        # parse the ModuleName
+        mn_key = cls._child_xml_ns_key.get('ModuleName', ns_key)
+        mn_node = _find_first_child(node, 'ModuleName', xml_ns, mn_key)
+        kwargs['ModuleName'] = _get_node_value(mn_node)
+        kwargs['name'] = mn_node.attrib.get('name', None)
+        # parse the ProcessingModule children
+        pm_key = cls._child_xml_ns_key.get('ProcessingModules', ns_key)
+        kwargs['ProcessingModules'] = _find_children(node, 'ProcessingModule', xml_ns, pm_key)
+        return super(ProcessingModuleType, cls).from_node(node, xml_ns, ns_key=ns_key, kwargs=kwargs)
 
-    def to_node(self, doc, tag, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
+    def to_node(self, doc, tag, ns_key=None, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
+        exclude = exclude + ('ModuleName', 'name', 'ProcessingModules')
         node = super(ProcessingModuleType, self).to_node(
-            doc, tag, parent=parent, check_validity=check_validity, strict=strict, exclude=exclude)
-        # slap on the ProcessingModule children
+            doc, tag, ns_key=ns_key, parent=parent, check_validity=check_validity, strict=strict, exclude=exclude)
+        # add the ModuleName and name children
+        if self.ModuleName is not None:
+            mn_key = self._child_xml_ns_key.get('ModuleName', ns_key)
+            mn_tag = '{}:ModuleName'.format(mn_key) if mn_key is not None and mn_key != 'default' else 'ModuleName'
+            mn_node = _create_text_node(doc, mn_tag, self.ModuleName, parent=node)
+            if self.name is not None:
+                mn_node.attrib['name'] = self.name
+        # add the ProcessingModule children
+        pm_key = self._child_xml_ns_key.get('ProcessingModules', ns_key)
         for entry in self._ProcessingModules:
-            entry.to_node(doc, tag, parent=node, strict=strict)
+            entry.to_node(doc, tag, ns_key=pm_key, parent=node, strict=strict)
         return node
 
     def to_dict(self, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
@@ -155,6 +174,8 @@ class ProductProcessingType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
 
         self._ProcessingModules = []
         if ProcessingModules is None:
@@ -202,7 +223,8 @@ class ProductProcessingType(Serializable):
         """
 
         if isinstance(value, ElementTree.Element):
-            value = ProcessingModuleType.from_node(value, self._xml_ns)
+            pm_key = self._child_xml_ns_key.get('ProcessingModules', self._xml_ns_key)
+            value = ProcessingModuleType.from_node(value, self._xml_ns, ns_key=pm_key)
         elif isinstance(value, dict):
             value = ProcessingModuleType.from_dict(value)
 
@@ -212,19 +234,21 @@ class ProductProcessingType(Serializable):
             raise TypeError('Trying to set ProcessingModule with unexpected type {}'.format(type(value)))
 
     @classmethod
-    def from_node(cls, node, xml_ns, kwargs=None):
+    def from_node(cls, node, xml_ns, ns_key=None, kwargs=None):
         if kwargs is None:
             kwargs = OrderedDict()
-        kwargs['ProcessingModules'] = node.findall('ProcessingModule') if xml_ns is None else \
-            node.findall('default:ProcessingModule', xml_ns)
-        return super(ProductProcessingType, cls).from_node(node, xml_ns, kwargs=kwargs)
 
-    def to_node(self, doc, tag, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
+        pm_key = cls._child_xml_ns_key.get('ProcessingModules', ns_key)
+        kwargs['ProcessingModules'] = _find_children(node, 'ProcessingModule', xml_ns, pm_key)
+        return super(ProductProcessingType, cls).from_node(node, xml_ns, ns_key=ns_key, kwargs=kwargs)
+
+    def to_node(self, doc, tag, ns_key=None, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
         node = super(ProductProcessingType, self).to_node(
-            doc, tag, parent=parent, check_validity=check_validity, strict=strict, exclude=exclude)
+            doc, tag, ns_key=ns_key, parent=parent, check_validity=check_validity, strict=strict, exclude=exclude)
         # slap on the ProcessingModule children
+        pm_key = self._child_xml_ns_key.get('ProcessingModules', ns_key)
         for entry in self._ProcessingModules:
-            entry.to_node(doc, tag, parent=node, strict=strict)
+            entry.to_node(doc, 'ProcessingModule', ns_key=pm_key, parent=node, strict=strict)
         return node
 
     def to_dict(self, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
