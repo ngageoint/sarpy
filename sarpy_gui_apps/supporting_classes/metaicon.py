@@ -3,7 +3,6 @@ import logging
 from tkinter import font
 import datetime
 import math
-
 import sarpy.io.complex as sarpy_complex
 from sarpy.io.complex.sicd import SICDType
 from sarpy.geometry import geocoords
