@@ -5,14 +5,13 @@ import datetime
 import math
 
 import sarpy.io.complex as sarpy_complex
-from sarpy.io.complex.sicd import SICDReader
 from sarpy.io.complex.sicd import SICDType
 from sarpy.geometry import geocoords
 from scipy.constants import constants
 import numpy as np
 from tkinter_gui_builder.panel_templates.image_canvas.image_canvas import ImageCanvas
 import tkinter_gui_builder.utils.color_utils.color_converter as color_converter
-from sarpy.deprecated.geometry import latlon
+from sarpy.geometry import latlon
 
 
 class MetaIcon(ImageCanvas):
