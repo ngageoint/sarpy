@@ -57,42 +57,11 @@ class MetaIcon(ImageCanvas):
         self.canvas.create_text(line_positions[8], text=multipath_line, fill=self.multipath_color, anchor="nw",
                                 font=canvas_font)
 
-        # now draw the arrows
-        arrow_length = self.canvas_width * 0.15
-        arrows_origin = (self.canvas_width * 0.75, self.canvas_height * 0.6)
-
-        # get arrow angles
-        layover, shadow, multipath, north = self.get_arrow_layover_shadow_multipath_north_angles()
-
         # draw layover arrow
-        self.create_new_arrow((arrows_origin[0],
-                               arrows_origin[1],
-                               arrows_origin[0] + arrow_length * np.cos(np.deg2rad(layover)),
-                               arrows_origin[1] + arrow_length * -np.sin(np.deg2rad(layover))), fill=self.layover_color,
-                              width=2)
-
-        self.create_new_arrow((arrows_origin[0],
-                               arrows_origin[1],
-                               arrows_origin[0] + arrow_length * np.cos(np.deg2rad(shadow)),
-                               arrows_origin[1] + arrow_length * -np.sin(np.deg2rad(shadow))), fill=self.shadow_color,
-                              width=2)
-
-        self.create_new_arrow((arrows_origin[0],
-                               arrows_origin[1],
-                               arrows_origin[0] + arrow_length * np.cos(np.deg2rad(multipath)),
-                               arrows_origin[1] + arrow_length * -np.sin(np.deg2rad(multipath))),
-                              fill=self.multipath_color, width=2)
-
-        self.create_new_arrow((arrows_origin[0],
-                               arrows_origin[1],
-                               arrows_origin[0] + arrow_length * np.cos(np.deg2rad(north)),
-                               arrows_origin[1] + arrow_length * -np.sin(np.deg2rad(north))), fill=self.north_color,
-                              width=2)
-        self.canvas.create_text((arrows_origin[0] + arrow_length * 1.3 * np.cos(np.deg2rad(north)),
-                                 arrows_origin[1] + arrow_length * 1.3 * -np.sin(np.deg2rad(north))),
-                                text="N",
-                                fill=self.north_color,
-                                font=canvas_font)
+        self.draw_arrow("layover")
+        self.draw_arrow("shadow")
+        self.draw_arrow("multipath")
+        self.draw_arrow("north")
 
         flight_direction_arrow_start = (self.canvas_width * 0.65, self.canvas_height * 0.9)
         flight_direction_arrow_end = (self.canvas_width * 0.95, flight_direction_arrow_start[1])
@@ -324,3 +293,55 @@ class MetaIcon(ImageCanvas):
         north = azimuth + 90
         multipath = north - multipath
         return layover, shadow, multipath, north
+
+    def draw_arrow(self,
+                   arrow_type,          # type: str
+                   width=2,             # type: int
+                   ):
+        layover, shadow, multipath, north = self.get_arrow_layover_shadow_multipath_north_angles()
+
+        if arrow_type.lower() == "layover":
+            arrow = layover
+            arrow_color = self.layover_color
+        elif arrow_type.lower() == "shadow":
+            arrow = shadow
+            arrow_color = self.shadow_color
+        elif arrow_type.lower() == "multipath":
+            arrow = multipath
+            arrow_color = self.multipath_color
+        elif arrow_type.lower() == "north":
+            arrow = north
+            arrow_color = self.north_color
+
+        # now draw the arrows
+        arrow_length = self.canvas_width * 0.15
+        arrows_origin = (self.canvas_width * 0.75, self.canvas_height * 0.6)
+
+        # adjust aspect ratio in the case we're dealing with circular polarization from RCM
+        pixel_aspect_ratio = 1.0
+        aspect_ratio = (1.0)
+        if hasattr(self.meta, "Grid") and \
+                hasattr(self.meta.Grid, "Col") and \
+                hasattr(self.meta.Grid, "Row") and \
+                hasattr(self.meta.Grid.Col, "SS") and \
+                hasattr(self.meta.Grid.Row, "SS"):
+            pixel_aspect_ratio = self.meta.Grid.Col.SS / self.meta.Grid.Row.SS
+            aspect_ratio = aspect_ratio * pixel_aspect_ratio
+            #TODO finish this
+
+        self.create_new_arrow((arrows_origin[0],
+                               arrows_origin[1],
+                               arrows_origin[0] + arrow_length * np.cos(np.deg2rad(arrow)),
+                               arrows_origin[1] + arrow_length * -np.sin(np.deg2rad(arrow))), fill=arrow_color,
+                              width=2)
+
+        if arrow_type.lower() == "north":
+            line_positions = self.get_line_positions()
+            text_height = int((line_positions[1][1] - line_positions[0][1]) * 0.7)
+            canvas_font = font.Font(family='Times New Roman', size=-text_height)
+
+            self.canvas.create_text((arrows_origin[0] + arrow_length * 1.3 * np.cos(np.deg2rad(north)),
+                                     arrows_origin[1] + arrow_length * 1.3 * -np.sin(np.deg2rad(north))),
+                                    text="N",
+                                    fill=self.north_color,
+                                    font=canvas_font)
