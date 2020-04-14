@@ -137,11 +137,7 @@ class SCPCOAType(Serializable):
     @property
     def ROV(self):
         """
-        The Ratio of Range to Velocity at Center of Aperture time.
-
-        Returns
-        -------
-        float
+        float: The Ratio of Range to Velocity at Center of Aperture time.
         """
 
         return self._ROV
@@ -149,14 +145,27 @@ class SCPCOAType(Serializable):
     @property
     def ThetaDot(self):
         """
-        Derivative of Theta as a function of time at Center of Aperture time.
-
-        Returns
-        -------
-        float
+        float: Derivative of Theta as a function of time at Center of Aperture time.
         """
 
         return float(numpy.sin(numpy.deg2rad(self.DopplerConeAng))/self.ROV)
+
+    @property
+    def MultipathGround(self):
+        """
+        float: The anticipated angle of multipath features on the ground in degrees.
+        """
+
+        return numpy.rad2deg(
+            -numpy.atan(numpy.tan(numpy.deg2rad(self.TwistAng))*numpy.sin(numpy.deg2rad(self.GrazeAng))))
+
+    @property
+    def Multipath(self):
+        """
+        float: The antcipated angle of multipath features in degrees.
+        """
+
+        return numpy.mod(self.AzimAng - 180 + self.MultipathGround, 360)
 
     def _derive_scp_time(self, Grid):
         """
