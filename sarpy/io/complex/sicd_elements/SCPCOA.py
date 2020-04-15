@@ -105,6 +105,7 @@ class SCPCOAType(Serializable):
         LayoverAng : float
         kwargs : dict
         """
+        self._ROV = None
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
@@ -134,6 +135,39 @@ class SCPCOAType(Serializable):
             return None
         else:
             return -1 if self.SideOfTrack == 'R' else 1
+
+    @property
+    def ROV(self):
+        """
+        float: The Ratio of Range to Velocity at Center of Aperture time.
+        """
+
+        return self._ROV
+
+    @property
+    def ThetaDot(self):
+        """
+        float: Derivative of Theta as a function of time at Center of Aperture time.
+        """
+
+        return float(numpy.sin(numpy.deg2rad(self.DopplerConeAng))/self.ROV)
+
+    @property
+    def MultipathGround(self):
+        """
+        float: The anticipated angle of multipath features on the ground in degrees.
+        """
+
+        return numpy.rad2deg(
+            -numpy.arctan(numpy.tan(numpy.deg2rad(self.TwistAng))*numpy.sin(numpy.deg2rad(self.GrazeAng))))
+
+    @property
+    def Multipath(self):
+        """
+        float: The antcipated angle of multipath features in degrees.
+        """
+
+        return numpy.mod(self.AzimAng - 180 + self.MultipathGround, 360)
 
     def _derive_scp_time(self, Grid):
         """
@@ -207,6 +241,7 @@ class SCPCOAType(Serializable):
         ARP = self.ARPPos.get_array()
         ARP_vel = self.ARPVel.get_array()
         LOS = (SCP - ARP)
+        self._ROV = float(numpy.linalg.norm(LOS)/numpy.linalg.norm(ARP_vel))
         # unit vector versions
         uSCP = SCP/norm(SCP)
         uARP = ARP/norm(ARP)

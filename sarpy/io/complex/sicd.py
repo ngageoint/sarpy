@@ -171,19 +171,37 @@ class SICDDetails(NITFDetails):
                 if subhead_bytes.startswith(b'DEXML_DATA_CONTENT'):
                     des_header = DataExtensionHeader.from_bytes(subhead_bytes, start=0)
                     fi.seek(int_func(self.des_segment_offsets[i]))
-                    data_extension = fi.read(int_func(self._nitf_header.DataExtensions.item_sizes[i])).decode('utf-8').strip()
+                    data_extension = fi.read(
+                        int_func(self._nitf_header.DataExtensions.item_sizes[i])).decode('utf-8').strip()
                     try:
                         root_node, xml_ns = parse_xml_from_string(data_extension)
-                        if 'SICD' in root_node.tag:  # namespace makes this ugly
+                        if 'SIDD' in root_node.tag:  # namespace makes this ugly
+                            # NOTE that SIDD files are supposed to have the corresponding
+                            # SICD xml as one of the DES AFTER the SIDD xml.
+                            # The same basic format is used for both headers.
+                            # So, abandon if we find a SIDD xml
+                            self._des_index = None
+                            self._des_header = None
+                            self._is_sicd = False
+                            break
+                        elif 'SICD' in root_node.tag:  # namespace makes this ugly
                             self._des_index = i
                             self._des_header = des_header
                             self._is_sicd = True
                             break
                     except Exception:
                         continue
+                elif subhead_bytes.startswith(b'DESIDD_XML'):
+                    # This is an old format SIDD and can't be a SICD
+                    self._des_index = None
+                    self._des_header = None
+                    self._is_sicd = False
+                    break
                 elif subhead_bytes.startswith(b'DESICD_XML'):
+                    # This is an old format SICD
                     fi.seek(int_func(self.des_segment_offsets[i]))
-                    data_extension = fi.read(int_func(self._nitf_header.DataExtensions.item_sizes[i])).decode('utf-8').strip()
+                    data_extension = fi.read(
+                        int_func(self._nitf_header.DataExtensions.item_sizes[i])).decode('utf-8').strip()
                     try:
                         root_node, xml_ns = parse_xml_from_string(data_extension)
                         if 'SICD' in root_node.tag:  # namespace makes this ugly
@@ -191,7 +209,9 @@ class SICDDetails(NITFDetails):
                             self._des_header = None
                             self._is_sicd = True
                             break
-                    except Exception:
+                    except Exception as e:
+                        logging.error('We found an apparent old-style SICD DES header, '
+                                      'but failed parsing with error {}'.format(e))
                         continue
 
         if not self._is_sicd:
