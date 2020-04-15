@@ -316,10 +316,7 @@ class MetaIcon(ImageCanvas):
         arrow_rad = np.deg2rad(arrow)
 
         arrow_length_old = self.canvas_width * 0.15
-        # arrow_length_old = 45
         arrows_origin = (self.canvas_width * 0.75, self.canvas_height * 0.6)
-
-        # TODO: remove this, for testing only
 
         # adjust aspect ratio in the case we're dealing with circular polarization from RCM
         pixel_aspect_ratio = 1.0
