@@ -313,13 +313,17 @@ class MetaIcon(ImageCanvas):
             arrow = north
             arrow_color = self.north_color
 
-        # now draw the arrows
-        arrow_length = self.canvas_width * 0.15
+        arrow_rad = np.deg2rad(arrow)
+
+        arrow_length_old = self.canvas_width * 0.15
+        # arrow_length_old = 45
         arrows_origin = (self.canvas_width * 0.75, self.canvas_height * 0.6)
+
+        # TODO: remove this, for testing only
 
         # adjust aspect ratio in the case we're dealing with circular polarization from RCM
         pixel_aspect_ratio = 1.0
-        aspect_ratio = (1.0)
+        aspect_ratio = 1.0
         if hasattr(self.meta, "Grid") and \
                 hasattr(self.meta.Grid, "Col") and \
                 hasattr(self.meta.Grid, "Row") and \
@@ -327,12 +331,27 @@ class MetaIcon(ImageCanvas):
                 hasattr(self.meta.Grid.Row, "SS"):
             pixel_aspect_ratio = self.meta.Grid.Col.SS / self.meta.Grid.Row.SS
             aspect_ratio = aspect_ratio * pixel_aspect_ratio
-            #TODO finish this
 
+        if aspect_ratio > 1:
+            new_length = np.sqrt(np.square(arrow_length_old * np.cos(arrow_rad) / aspect_ratio) +
+                                 np.square(arrow_length_old * np.sin(arrow_rad)))
+            arrow_length = arrow_length_old * arrow_length_old / new_length
+            x_end = arrows_origin[0] + arrow_length * np.cos(arrow_rad)/aspect_ratio
+            y_end = arrows_origin[1] - arrow_length * np.sin(arrow_rad)
+        else:
+            new_length = np.sqrt(np.square(arrow_length_old * np.cos(arrow_rad)) +
+                                 np.square(arrow_length_old * np.sin(arrow_rad) * aspect_ratio))
+            arrow_length = arrow_length_old * arrow_length_old / new_length
+            x_end = arrows_origin[0] + arrow_length * np.cos(arrow_rad)
+            y_end = (arrows_origin[1] -arrow_length * np.sin(arrow_rad) * aspect_ratio)
+
+
+        # now draw the arrows
         self.create_new_arrow((arrows_origin[0],
                                arrows_origin[1],
-                               arrows_origin[0] + arrow_length * np.cos(np.deg2rad(arrow)),
-                               arrows_origin[1] + arrow_length * -np.sin(np.deg2rad(arrow))), fill=arrow_color,
+                               x_end,
+                               y_end),
+                              fill=arrow_color,
                               width=2)
 
         if arrow_type.lower() == "north":
@@ -340,8 +359,8 @@ class MetaIcon(ImageCanvas):
             text_height = int((line_positions[1][1] - line_positions[0][1]) * 0.7)
             canvas_font = font.Font(family='Times New Roman', size=-text_height)
 
-            self.canvas.create_text((arrows_origin[0] + arrow_length * 1.3 * np.cos(np.deg2rad(north)),
-                                     arrows_origin[1] + arrow_length * 1.3 * -np.sin(np.deg2rad(north))),
+            self.canvas.create_text(x_end + (x_end - arrows_origin[0]) * 0.2,
+                                    y_end + (y_end - arrows_origin[1]) * 0.2,
                                     text="N",
                                     fill=self.north_color,
                                     font=canvas_font)
