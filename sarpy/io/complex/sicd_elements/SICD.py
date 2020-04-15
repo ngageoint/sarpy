@@ -789,16 +789,17 @@ class SICDType(Serializable):
         None
         """
 
-        try:
-            val = self.CollectionInfo.Parameters['PREDICTED_RNIIRS']  # TODO: verify correct
-            if val is not None:
-                if override:
-                    logging.warning('PREDICTED_RNIIRS already populated, and this value will be overridden.')
-                else:
-                    logging.info('PREDICTED_RNIIRS already populated. Nothing to be done.')
-                    return
-        except Exception:
-            pass
+        if self.CollectionInfo is None:
+            logging.error('CollectionInfo must not be None. Nothing to be done.')
+            return
+
+        if self.CollectionInfo.Parameters is not None and \
+                self.CollectionInfo.Parameters.get('PREDICTED_RNIIRS', None) is not None:
+            if override:
+                logging.warning('PREDICTED_RNIIRS already populated, and this value will be overridden.')
+            else:
+                logging.info('PREDICTED_RNIIRS already populated. Nothing to be done.')
+                return
 
         if noise is None:
             try:
@@ -832,12 +833,16 @@ class SICDType(Serializable):
                 signal = 0.25
 
         try:
-            bw_area = abs(self.Grid.Row.ImpRespBW*self.Grid.Col.ImpRespBW*numpy.cos(numpy.deg2rad(self.SCPCOA.SlopeAng)))
+            bw_area = abs(self.Grid.Row.ImpRespBW*self.Grid.Col.ImpRespBW*
+                          numpy.cos(numpy.deg2rad(self.SCPCOA.SlopeAng)))
         except Exception as e:
             logging.error('Encountered an error estimating bandwidth area. {}'.format(e))
             return
 
         inf_density, rniirs = snr_to_rniirs(bw_area, signal, noise)
-        logging.info('Calculated INFORMATION_DENSITY = {0:0.5G}, PREDICTED_RNIIRS = {1:0.5G}'.format(inf_density, rniirs))
+        logging.info('Calculated INFORMATION_DENSITY = {0:0.5G}, '
+                     'PREDICTED_RNIIRS = {1:0.5G}'.format(inf_density, rniirs))
+        if self.CollectionInfo.Parameters is None:
+            self.CollectionInfo.Parameters = []  # initialize
         self.CollectionInfo.Parameters['INFORMATION_DENSITY'] = '{0:0.2G}'.format(inf_density)
         self.CollectionInfo.Parameters['PREDICTED_RNIIRS'] = '{0:0.1f}'.format(rniirs)

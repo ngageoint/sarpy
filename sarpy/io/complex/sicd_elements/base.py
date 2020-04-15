@@ -2139,10 +2139,14 @@ class ParametersCollection(object):
 
         self.set_collection(collection)
 
-    def __getitem__(self, name, default=None):
+    def __delitem__(self, key):
         if self._dict is not None:
-            return self._dict.get(name, default)
-        return default
+            del self._dict[key]
+
+    def __getitem__(self, key):
+        if self._dict is not None:
+            return self._dict[key]
+        raise KeyError('Dictionary does not contain key {}'.format(key))
 
     def __setitem__(self, name, value):
         if not isinstance(name, string_types):
@@ -2153,6 +2157,11 @@ class ParametersCollection(object):
         if self._dict is None:
             self._dict = OrderedDict()
         self._dict[name] = value
+
+    def get(self, key, default=None):
+        if self._dict is not None:
+            return self._dict.get(key, default)
+        return default
 
     def set_collection(self, value):
         if value is None:
