@@ -157,7 +157,7 @@ class SCPCOAType(Serializable):
         """
 
         return numpy.rad2deg(
-            -numpy.atan(numpy.tan(numpy.deg2rad(self.TwistAng))*numpy.sin(numpy.deg2rad(self.GrazeAng))))
+            -numpy.arctan(numpy.tan(numpy.deg2rad(self.TwistAng))*numpy.sin(numpy.deg2rad(self.GrazeAng))))
 
     @property
     def Multipath(self):
