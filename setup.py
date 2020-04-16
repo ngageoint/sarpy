@@ -60,7 +60,7 @@ setup(name=parameters['__title__'],
       description=parameters['__summary__'],
       long_description=long_description,
       long_description_content_type='text/x-rst',
-      packages=['sarpy', 'sarpy_gui_apps', 'tkinter_gui_builder'],
+      packages=find_packages(exclude=('tests', '*.tests', '*.tests.*')),
       package_data={'sarpy': ['*.xsd']},  # Schema files for SICD standard(s)
       url=parameters['__url__'],
       author=parameters['__author__'],
