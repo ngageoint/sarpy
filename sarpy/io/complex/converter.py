@@ -206,7 +206,7 @@ class Converter(object):
         self._row_limits = row_limits  # type: Tuple[int, int]
         self._col_limits = col_limits  # type: Tuple[int, int]
         # redefine our sicd, as necessary
-        self._update_sicd(this_sicd, this_shape)
+        this_sicd = self._update_sicd(this_sicd, this_shape)
         # set up our writer
         self._file_name = output_path
         self._writer = writer_type(output_path, this_sicd)
