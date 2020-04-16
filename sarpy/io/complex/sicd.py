@@ -701,13 +701,10 @@ class SICDWriter(BaseWriter):
         sec = NITFSecurityTags()
         if self._sicd_meta.CollectionInfo is not None:
             sec.CLAS = get_clas(self._sicd_meta.CollectionInfo.Classification)
-            if hasattr(self._sicd_meta, '_ad_hoc') and isinstance(self._sicd_meta._ad_hoc, dict):
-                # noinspection PyBroadException
-                try:
-                    # noinspection PyProtectedMember
-                    sec.CLSY = self._sicd_meta._ad_hoc.get('CLSY', 'US')
-                except Exception:
-                    pass
+            # noinspection PyBroadException
+            if hasattr(self._sicd_meta, '_ad_hoc') and isinstance(self._sicd_meta._ad_hoc, dict) \
+                    and 'CLSY' in self._sicd_meta._ad_hoc:
+                sec.CLSY = self._sicd_meta._ad_hoc.get('CLSY', 'US')
             code = re.search('(?<=/)[^/].*', self._sicd_meta.CollectionInfo.Classification)
             if code is not None:
                 sec.CODE = code.group()
