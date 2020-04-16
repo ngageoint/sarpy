@@ -11,6 +11,7 @@ from importlib import import_module
 import numpy
 import logging
 from typing import Union, List, Tuple
+import copy
 
 from .base import BaseReader, int_func
 from .sicd import SICDWriter
@@ -212,7 +213,7 @@ class Converter(object):
 
     def _update_sicd(self, sicd, t_size):
         # type: (SICDType, Tuple[int, int]) -> SICDType
-        o_sicd = sicd.copy()
+        o_sicd = copy.deepcopy(sicd)  # maintain any ad-hoc fields, so don't rely on sicd.copy()
         if self._row_limits != (0, t_size[0]) or self._col_limits != (0, t_size[1]):
             o_sicd.ImageData.NumRows = self._row_limits[1] - self._row_limits[0]
             o_sicd.ImageData.NumCols = self._col_limits[1] - self._col_limits[0]
@@ -321,9 +322,6 @@ def conversion_utility(
     None
     """
 
-    from sarpy.io.complex.radarsat import RadarSatReader
-    from sarpy.io.complex.sicd import SICDWriter
-
     def validate_lims(lims, typ):
         # type: (Union[None, tuple, list, numpy.ndarray], str) -> Tuple[Tuple[int, int], ...]
         def validate_entry(st, ed, shap, i_fr):
@@ -421,7 +419,4 @@ def conversion_utility(
         with Converter(
                 reader, output_directory, output_file=o_file, frame=frame,
                 row_limits=row_lims, col_limits=col_lims, output_format=output_format) as converter:
-            # If radarsat/RCM and writing in SICD format, then set the CLSY in the tags to CA (Canada)
-            if isinstance(reader, RadarSatReader) and isinstance(converter.writer, SICDWriter):
-                converter.writer.security_tags.CLSY = 'CA'
             converter.write_data(max_block_size=max_block_size)

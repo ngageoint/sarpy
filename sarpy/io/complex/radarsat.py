@@ -961,6 +961,7 @@ class RadarSatDetails(object):
             this_sicd.ImageFormation.RcvChanProc.ChanIndices = [i+1, ]
             this_sicd.ImageFormation.TxRcvPolarizationProc = \
                 this_sicd.RadarCollection.RcvChannels[i].TxRcvPolarization
+            this_sicd.CollectionInfo._CLSY = 'CA'  # a hack
             this_sicd.populate_rniirs(override=False)
             sicd_list.append(this_sicd)
         return tuple(sicd_list)

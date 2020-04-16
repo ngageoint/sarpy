@@ -701,7 +701,9 @@ class SICDWriter(BaseWriter):
         sec = NITFSecurityTags()
         if self._sicd_meta.CollectionInfo is not None:
             sec.CLAS = get_clas(self._sicd_meta.CollectionInfo.Classification)
-            # NB: CLSY will default to 'US', and should be set manually otherwise
+            if hasattr(self._sicd_meta.CollectionInfo, '_CLSY'):
+                # noinspection PyProtectedMember
+                sec.CLSY = self._sicd_meta.CollectionInfo._CLSY
             code = re.search('(?<=/)[^/].*', self._sicd_meta.CollectionInfo.Classification)
             if code is not None:
                 sec.CODE = code.group()
