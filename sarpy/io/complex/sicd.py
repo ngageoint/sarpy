@@ -711,7 +711,6 @@ class SICDWriter(BaseWriter):
             code = re.search('(?<=/)[^/].*', self._sicd_meta.CollectionInfo.Classification)
             if code is not None:
                 sec.CODE = code.group()
-        print(sec.CLSY)
         return sec
 
     def _image_segment_details(self):

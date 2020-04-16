@@ -214,7 +214,6 @@ class Converter(object):
     def _update_sicd(self, sicd, t_size):
         # type: (SICDType, Tuple[int, int]) -> SICDType
         o_sicd = sicd.copy()
-        print(o_sicd._ad_hoc)
         if self._row_limits != (0, t_size[0]) or self._col_limits != (0, t_size[1]):
             o_sicd.ImageData.NumRows = self._row_limits[1] - self._row_limits[0]
             o_sicd.ImageData.NumCols = self._col_limits[1] - self._col_limits[0]
