@@ -684,9 +684,24 @@ class SICDWriter(BaseWriter):
         NITFSecurityTags
         """
 
+        def get_clas(in_str):
+            if 'UNCLASS' in in_str.upper():
+                return 'U'
+            elif 'CONFIDENTIAL' in in_str.upper():
+                return 'C'
+            elif 'TOP SECRET' in in_str.upper():
+                return 'T'
+            elif 'SECRET' in in_str.upper():
+                return 'S'
+            else:
+                logging.critical('Unclear how to extract CLAS for classification string {}. '
+                                 'Unpopulated for now, and should be set appropriately.'.format(in_str))
+                return ''
+
         sec = NITFSecurityTags()
         if self._sicd_meta.CollectionInfo is not None:
-            sec.CLAS = self._sicd_meta.CollectionInfo.Classification[0]
+            sec.CLAS = get_clas(self._sicd_meta.CollectionInfo.Classification)
+            # NB: CLSY will default to 'US', and should be set manually otherwise
             code = re.search('(?<=/)[^/].*', self._sicd_meta.CollectionInfo.Classification)
             if code is not None:
                 sec.CODE = code.group()

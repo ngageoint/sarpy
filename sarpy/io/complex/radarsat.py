@@ -286,7 +286,14 @@ class RadarSatDetails(object):
             core_name = '{}{}{}'.format(date_str, self.generation, self._find('./sourceAttributes/imageId').text)
         elif self.generation == 'RCM':
             class_str = self._find('./securityAttributes/securityClassification').text.upper()
-            classification = class_str if 'UNCLASS' not in class_str else 'UNCLASSIFIED'
+            if 'UNCLASS' in class_str:
+                classification = 'UNCLASSIFIED'
+            elif class_str == 'CAN SECRET':
+                classification = '//CAN SECRET'
+            else:
+                logging.critical('Unsure how to handle RCM classification string {}, so we are '
+                                 'passing it straight through.'.format(class_str))
+                classification = class_str
             core_name = '{}{}{}'.format(date_str, collector_name.replace('-', ''), start_time_dt.strftime('%H%M%S'))
         else:
             raise ValueError('unhandled generation {}'.format(self.generation))

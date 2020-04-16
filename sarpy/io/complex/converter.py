@@ -321,6 +321,9 @@ def conversion_utility(
     None
     """
 
+    from sarpy.io.complex.radarsat import RadarSatReader
+    from sarpy.io.complex.sicd import SICDWriter
+
     def validate_lims(lims, typ):
         # type: (Union[None, tuple, list, numpy.ndarray], str) -> Tuple[Tuple[int, int], ...]
         def validate_entry(st, ed, shap, i_fr):
@@ -418,4 +421,7 @@ def conversion_utility(
         with Converter(
                 reader, output_directory, output_file=o_file, frame=frame,
                 row_limits=row_lims, col_limits=col_lims, output_format=output_format) as converter:
+            # If radarsat/RCM and writing in SICD format, then set the CLSY in the tags to CA (Canada)
+            if isinstance(reader, RadarSatReader) and isinstance(converter.writer, SICDWriter):
+                converter.writer.security_tags.CLSY = 'CA'
             converter.write_data(max_block_size=max_block_size)
