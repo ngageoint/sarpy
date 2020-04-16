@@ -206,14 +206,15 @@ class Converter(object):
         self._row_limits = row_limits  # type: Tuple[int, int]
         self._col_limits = col_limits  # type: Tuple[int, int]
         # redefine our sicd, as necessary
-        this_sicd = self._update_sicd(this_sicd, this_shape)
+        self._update_sicd(this_sicd, this_shape)
         # set up our writer
         self._file_name = output_path
         self._writer = writer_type(output_path, this_sicd)
 
     def _update_sicd(self, sicd, t_size):
         # type: (SICDType, Tuple[int, int]) -> SICDType
-        o_sicd = copy.deepcopy(sicd)  # maintain any ad-hoc fields, so don't rely on sicd.copy()
+        o_sicd = sicd.copy()
+        print(o_sicd._ad_hoc)
         if self._row_limits != (0, t_size[0]) or self._col_limits != (0, t_size[1]):
             o_sicd.ImageData.NumRows = self._row_limits[1] - self._row_limits[0]
             o_sicd.ImageData.NumCols = self._col_limits[1] - self._col_limits[0]

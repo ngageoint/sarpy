@@ -701,12 +701,17 @@ class SICDWriter(BaseWriter):
         sec = NITFSecurityTags()
         if self._sicd_meta.CollectionInfo is not None:
             sec.CLAS = get_clas(self._sicd_meta.CollectionInfo.Classification)
-            if hasattr(self._sicd_meta.CollectionInfo, '_CLSY'):
-                # noinspection PyProtectedMember
-                sec.CLSY = self._sicd_meta.CollectionInfo._CLSY
+            if hasattr(self._sicd_meta, '_ad_hoc') and isinstance(self._sicd_meta._ad_hoc, dict):
+                # noinspection PyBroadException
+                try:
+                    # noinspection PyProtectedMember
+                    sec.CLSY = self._sicd_meta._ad_hoc.get('CLSY', 'US')
+                except Exception:
+                    pass
             code = re.search('(?<=/)[^/].*', self._sicd_meta.CollectionInfo.Classification)
             if code is not None:
                 sec.CODE = code.group()
+        print(sec.CLSY)
         return sec
 
     def _image_segment_details(self):
@@ -867,7 +872,7 @@ class SICDWriter(BaseWriter):
         des = DataExtensionsType(
             subhead_sizes=numpy.array([973, ], dtype=numpy.int64),
             item_sizes=numpy.array([0, ], dtype=numpy.int64))
-        return NITFHeader(CLEVEL=clevel, OSTAID=ostaid, FDT=fdt, FTITLE=ftitle,
+        return NITFHeader(Security=self.security_tags, CLEVEL=clevel, OSTAID=ostaid, FDT=fdt, FTITLE=ftitle,
                           FL=0, ImageSegments=im_segs, DataExtensions=des)
 
     def prepare_for_writing(self):

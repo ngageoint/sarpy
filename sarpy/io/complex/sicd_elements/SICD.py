@@ -4,6 +4,7 @@ The SICDType definition.
 """
 
 import logging
+import copy
 
 import numpy
 
@@ -846,3 +847,9 @@ class SICDType(Serializable):
             self.CollectionInfo.Parameters = []  # initialize
         self.CollectionInfo.Parameters['INFORMATION_DENSITY'] = '{0:0.2G}'.format(inf_density)
         self.CollectionInfo.Parameters['PREDICTED_RNIIRS'] = '{0:0.1f}'.format(rniirs)
+
+    def copy(self):
+        out = super(SICDType, self).copy()
+        if hasattr(self, '_ad_hoc'):
+            out._ad_hoc = copy.deepcopy(self._ad_hoc)
+        return out
