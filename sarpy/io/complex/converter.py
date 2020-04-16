@@ -11,7 +11,6 @@ from importlib import import_module
 import numpy
 import logging
 from typing import Union, List, Tuple
-import copy
 
 from .base import BaseReader, int_func
 from .sicd import SICDWriter
