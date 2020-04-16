@@ -27,7 +27,7 @@ class GeographicInformationType(Serializable):
     Geographic information.
     """
 
-    _fields = ('CountryCodes', 'SecurityInfo', 'GeographicInfoExtension')
+    _fields = ('CountryCodes', 'SecurityInfo', 'GeographicInfoExtensions')
     _required = ()
     _collections_tags = {
         'CountryCodes': {'array': False, 'child_tag': 'CountryCode'},
