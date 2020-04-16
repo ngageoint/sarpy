@@ -2,7 +2,6 @@ import logging
 
 from tkinter import font
 import datetime
-import math
 import sarpy.io.complex as sarpy_complex
 from sarpy.io.complex.sicd import SICDType
 from sarpy.geometry import geocoords
@@ -34,13 +33,13 @@ class MetaIcon(ImageCanvas):
         geo_line = self.get_geo_line()
         res_line = self.get_res_line()
         cdp_line = self.get_cdp_line()
-        azimuth_line = self.create_angle_line_text("azimuth", n_decimals=1)
-        graze_line = self.create_angle_line_text("graze", n_decimals=1)
-        layover_line = self.create_angle_line_text("layover", n_decimals=0)
-        shadow_line = self.create_angle_line_text("shadow", n_decimals=0)
-        multipath_line = self.create_angle_line_text("multipath", n_decimals=0)
+        azimuth_line = self._create_angle_line_text("azimuth", n_decimals=1)
+        graze_line = self._create_angle_line_text("graze", n_decimals=1)
+        layover_line = self._create_angle_line_text("layover", n_decimals=0)
+        shadow_line = self._create_angle_line_text("shadow", n_decimals=0)
+        multipath_line = self._create_angle_line_text("multipath", n_decimals=0)
 
-        line_positions = self.get_line_positions()
+        line_positions = self._get_line_positions()
         text_height = int((line_positions[1][1] - line_positions[0][1]) * 0.7)
         canvas_font = font.Font(family='Times New Roman', size=-text_height)
 
@@ -86,7 +85,7 @@ class MetaIcon(ImageCanvas):
         reader_object = sarpy_complex.open(fname)
         self.create_from_sicd(reader_object.sicd_meta)
 
-    def get_line_positions(self, margin_percent=5):
+    def _get_line_positions(self, margin_percent=5):
         n_lines = 9
         height = self.canvas_height
         width = self.canvas_width
@@ -103,52 +102,20 @@ class MetaIcon(ImageCanvas):
             xy_positions.append((x_positions, pos))
         return xy_positions
 
-    def _get_multipath(self):
-        if hasattr(self.meta, "SCPCOA"):
-            multipath_ground = self._get_multipath_ground()
-            multipath = np.mod(self.meta.SCPCOA.AzimAng - 180 + multipath_ground, 360)
-            return multipath
-
-    def _get_multipath_ground(self):
-        if hasattr(self.meta, "SCPCOA"):
-            multipath_ground = np.rad2deg(-1*math.atan(math.tan(np.deg2rad(self.meta.SCPCOA.TwistAng)) *
-                                                       math.sin(np.deg2rad(self.meta.SCPCOA.GrazeAng))))
-            return multipath_ground
-
-    def _get_azimuth(self):
-        if hasattr(self.meta, "SCPCOA"):
-            return self.meta.SCPCOA.AzimAng
-
-    def _get_graze(self):
-        try:
-            return self.meta.SCPCOA.GrazeAng
-        except AttributeError as e:
-            logging.error("Missing attribute {}".format(e))
-
-    def _get_layover(self):
-        if hasattr(self.meta, "SCPCOA"):
-            return self.meta.SCPCOA.LayoverAng
-
-    def _get_shadow(self):
-        if hasattr(self.meta, "SCPCOA"):
-            azimuth = self.meta.SCPCOA.AzimAng
-            shadow = np.mod(azimuth - 180, 360)
-            return shadow
-
-    def create_angle_line_text(self,
-                               angle_type,  # type: str
-                               n_decimals,  # type: int
-                               ):
+    def _create_angle_line_text(self,
+                                angle_type,  # type: str
+                                n_decimals,  # type: int
+                                ):
         if angle_type.lower() == "layover":
-            angle = self._get_layover()
+            angle = self.meta.SCPCOA.LayoverAng
         elif angle_type.lower() == "shadow":
-            angle = self._get_shadow()
+            angle = self.meta.SCPCOA.Shadow
         elif angle_type.lower() == "multipath":
-            angle = self._get_multipath()
+            angle = self.meta.SCPCOA.Multipath
         elif angle_type.lower() == "azimuth":
-            angle = self._get_azimuth()
+            angle = self.meta.SCPCOA.AzimAng
         elif angle_type.lower() == "graze":
-            angle = self._get_graze()
+            angle = self.meta.SCPCOA.GrazeAng
 
         angle_description_text = angle_type.lower().capitalize()
 
@@ -188,6 +155,7 @@ class MetaIcon(ImageCanvas):
         return res_line
 
     def get_iid_line(self):
+        iid_line = ""
         if hasattr(self.meta, "Timeline"):
             try:
                 date_str = self.meta.Timeline.CollectStart.astype(datetime.datetime).strftime("%d%b%y").upper()
@@ -206,7 +174,7 @@ class MetaIcon(ImageCanvas):
             except Exception as e:
                 logging.error("no field in meta.CollectionInfo.CoreName {}".format(e))
         else:
-            iid_line = ""
+            pass
         if hasattr(self.meta.Timeline, "CollectStart"):
             iid_datestr = self.meta.Timeline.CollectStart.astype(datetime.datetime).strftime("%H%MZ")
             iid_line = iid_line + " / " + iid_datestr
@@ -225,17 +193,16 @@ class MetaIcon(ImageCanvas):
                 collect_start = self.meta.Timeline.CollectStart
             if hasattr(self.meta.Timeline, "CollectDuration"):
                 collect_duration = self.meta.Timeline.CollectDuration
+            return collect_start, collect_duration
         elif hasattr(self.meta, "Global"):
             try:
                 collect_start = self.meta.Global.CollectStart
             except Exception as e:
                 logging.error("No field found in Global.CollectStart.  {}".format(e))
         # TODO: implement collect duration for the case where vbmeta.TxTime is used.
-        return collect_start, collect_duration
-
-    # TODO
-    def get_country_code(self):
-        pass
+            return collect_start, None
+        else:
+            return None, None
 
     def get_polarization(self):
         pol = None
@@ -243,12 +210,12 @@ class MetaIcon(ImageCanvas):
             try:
                 pol = self.meta.ImageFormation.TxRcvPolarizationProc
             except Exception as e:
-                logging.error("polarization not found in meta.ImageFormation.TxRcvPolarizationProc {}".format(e))
+                logging.error("Polarization not found {}".format(e))
         elif hasattr(self.meta, "RadarCollection"):
             try:
-                pol = self.meta.RadarCollection.RcvChannels.ChanParameters.TxRcvPolarization
+                pol = self.meta.RadarCollection.TxPolarization
             except Exception as e:
-                logging.error("No field found in meta.RadarCollection.RcvChannels.ChanParameters.TxRcvPolarization {}".format(e))
+                logging.error("Polarization not found {}".format(e))
         return pol
 
     def get_geo_lon_lat(self):
@@ -256,7 +223,8 @@ class MetaIcon(ImageCanvas):
             try:
                 scp = [self.meta.GeoData.SCP.ECF.X, self.meta.GeoData.SCP.ECF.Y, self.meta.GeoData.SCP.ECF.Z]
             except Exception as e:
-                logging.error("Unabel to get geolocation data in ECF form {}".format(e))
+                logging.error("Unable to get geolocation data in ECF form {}".format(e))
+        # TODO: might take this out if it's not part of the SICD standard
         elif hasattr(self.meta, "SRP"):
             if self.meta.SRP.SRPType == "FIXEDPT":
                 scp = self.meta.SRP.FIXEDPT.SRPPT
@@ -282,11 +250,14 @@ class MetaIcon(ImageCanvas):
 
     def get_arrow_layover_shadow_multipath_north_angles(self):
         # TODO: check additional parameter for GroundProject and ensure it's false
-        azimuth = self._get_azimuth()
+        shadow = self.meta.SCPCOA.Shadow
+        multipath = self.meta.SCPCOA.Multipath
+        azimuth = self.meta.SCPCOA.AzimAng
+        layover = self.meta.SCPCOA.LayoverAng
         if hasattr(self.meta, "Grid") or self.meta.Grid.ImagePlane == 'SLANT':
-            shadow = azimuth - 180 - self._get_multipath_ground()
+            shadow = azimuth - 180 - self.meta.SCPCOA.MultipathGround
             multipath = azimuth - 180
-            layover = self._get_layover() - self._get_multipath_ground()
+            layover = layover - self.meta.SCPCOA.MultipathGround
 
         layover = 90 - (layover - azimuth)
         shadow = 90 - (shadow - azimuth)
@@ -295,8 +266,8 @@ class MetaIcon(ImageCanvas):
         return layover, shadow, multipath, north
 
     def draw_arrow(self,
-                   arrow_type,          # type: str
-                   width=2,             # type: int
+                   arrow_type,  # type: str
+                   arrow_width=2,  # type: int
                    ):
         layover, shadow, multipath, north = self.get_arrow_layover_shadow_multipath_north_angles()
 
@@ -333,15 +304,14 @@ class MetaIcon(ImageCanvas):
             new_length = np.sqrt(np.square(arrow_length_old * np.cos(arrow_rad) / aspect_ratio) +
                                  np.square(arrow_length_old * np.sin(arrow_rad)))
             arrow_length = arrow_length_old * arrow_length_old / new_length
-            x_end = arrows_origin[0] + arrow_length * np.cos(arrow_rad)/aspect_ratio
+            x_end = arrows_origin[0] + arrow_length * np.cos(arrow_rad) / aspect_ratio
             y_end = arrows_origin[1] - arrow_length * np.sin(arrow_rad)
         else:
             new_length = np.sqrt(np.square(arrow_length_old * np.cos(arrow_rad)) +
                                  np.square(arrow_length_old * np.sin(arrow_rad) * aspect_ratio))
             arrow_length = arrow_length_old * arrow_length_old / new_length
             x_end = arrows_origin[0] + arrow_length * np.cos(arrow_rad)
-            y_end = (arrows_origin[1] -arrow_length * np.sin(arrow_rad) * aspect_ratio)
-
+            y_end = arrows_origin[1] - arrow_length * np.sin(arrow_rad) * aspect_ratio
 
         # now draw the arrows
         self.create_new_arrow((arrows_origin[0],
@@ -349,10 +319,11 @@ class MetaIcon(ImageCanvas):
                                x_end,
                                y_end),
                               fill=arrow_color,
-                              width=2)
+                              width=arrow_width)
 
+        # label the north arrow
         if arrow_type.lower() == "north":
-            line_positions = self.get_line_positions()
+            line_positions = self._get_line_positions()
             text_height = int((line_positions[1][1] - line_positions[0][1]) * 0.7)
             canvas_font = font.Font(family='Times New Roman', size=-text_height)
 

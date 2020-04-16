@@ -164,10 +164,18 @@ class SCPCOAType(Serializable):
     @property
     def Multipath(self):
         """
-        float: The antcipated angle of multipath features in degrees.
+        float: The anticipated angle of multipath features in degrees.
         """
 
         return numpy.mod(self.AzimAng - 180 + self.MultipathGround, 360)
+
+    @property
+    def Shadow(self):
+        """
+        float: The anticipated angle of shadow features in degrees.
+        """
+
+        return numpy.mod(self.AzimAng - 180, 360)
 
     def _derive_scp_time(self, Grid):
         """
