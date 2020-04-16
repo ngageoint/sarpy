@@ -704,7 +704,7 @@ class SICDWriter(BaseWriter):
             # noinspection PyBroadException
             if hasattr(self._sicd_meta, '_ad_hoc') and isinstance(self._sicd_meta._ad_hoc, dict) \
                     and 'CLSY' in self._sicd_meta._ad_hoc:
-                sec.CLSY = self._sicd_meta._ad_hoc.get('CLSY', 'US')
+                sec.CLSY = self._sicd_meta._ad_hoc['CLSY']
             code = re.search('(?<=/)[^/].*', self._sicd_meta.CollectionInfo.Classification)
             if code is not None:
                 sec.CODE = code.group()
