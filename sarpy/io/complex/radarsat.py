@@ -289,7 +289,7 @@ class RadarSatDetails(object):
             if 'UNCLASS' in class_str:
                 classification = 'UNCLASSIFIED'
             elif class_str == 'CAN SECRET':
-                classification = '//CAN SECRET'
+                classification = '//CAN SECRET//REL TO USA, CAN'
             else:
                 logging.critical('Unsure how to handle RCM classification string {}, so we are '
                                  'passing it straight through.'.format(class_str))
