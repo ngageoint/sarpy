@@ -684,30 +684,45 @@ class SICDWriter(BaseWriter):
         NITFSecurityTags
         """
 
+        def get_basic_args():
+            out = {}
+            if hasattr(self._sicd_meta, '_NITF') and isinstance(self._sicd_meta._NITF, dict):
+                sec_tags = self._sicd_meta._NITF.get('Security', {})
+                # noinspection PyProtectedMember
+                for fld in NITFSecurityTags._ordering:
+                    if fld in sec_tags:
+                        out[fld] = sec_tags[fld]
+            return out
+
         def get_clas(in_str):
+            if 'CLAS' in args:
+                return
+
             if 'UNCLASS' in in_str.upper():
-                return 'U'
+                args['CLAS'] = 'U'
             elif 'CONFIDENTIAL' in in_str.upper():
-                return 'C'
+                args['CLAS'] = 'C'
             elif 'TOP SECRET' in in_str.upper():
-                return 'T'
+                args['CLAS'] = 'T'
             elif 'SECRET' in in_str.upper():
-                return 'S'
+                args['CLAS'] = 'S'
             else:
                 logging.critical('Unclear how to extract CLAS for classification string {}. '
                                  'Unpopulated for now, and should be set appropriately.'.format(in_str))
-                return ''
 
-        sec = NITFSecurityTags()
-        if self._sicd_meta.CollectionInfo is not None:
-            sec.CLAS = get_clas(self._sicd_meta.CollectionInfo.Classification)
-            # noinspection PyBroadException
-            if hasattr(self._sicd_meta, '_ad_hoc') and isinstance(self._sicd_meta._ad_hoc, dict) \
-                    and 'CLSY' in self._sicd_meta._ad_hoc:
-                sec.CLSY = self._sicd_meta._ad_hoc['CLSY']
-            code = re.search('(?<=/)[^/].*', self._sicd_meta.CollectionInfo.Classification)
+        def get_code(in_str):
+            if 'CODE' in args:
+                return
+
+            code = re.search('(?<=/)[^/].*', in_str)
             if code is not None:
-                sec.CODE = code.group()
+                args['CODE'] = code.group()
+
+        args = get_basic_args()
+        if self._sicd_meta.CollectionInfo is not None:
+            get_clas(self._sicd_meta.CollectionInfo.Classification)
+            get_code(self._sicd_meta.CollectionInfo.Classification)
+        sec = NITFSecurityTags(**args)
         return sec
 
     def _image_segment_details(self):

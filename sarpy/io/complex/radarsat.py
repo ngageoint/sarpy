@@ -283,21 +283,25 @@ class RadarSatDetails(object):
 
         if self.generation == 'RS2':
             classification = 'UNCLASSIFIED'
+            nitf = {'Security': {'CLAS': 'U', 'CLSY': 'CA'}}
             core_name = '{}{}{}'.format(date_str, self.generation, self._find('./sourceAttributes/imageId').text)
         elif self.generation == 'RCM':
             class_str = self._find('./securityAttributes/securityClassification').text.upper()
             if 'UNCLASS' in class_str:
                 classification = 'UNCLASSIFIED'
+                nitf = {'Security': {'CLAS': 'U', 'CLSY': 'CA'}}
             elif class_str == 'CAN SECRET':
                 classification = '//CAN SECRET//REL TO USA, CAN'
+                nitf = {'Security': {'CLAS': 'S', 'CLSY': 'CA'}}
             else:
                 logging.critical('Unsure how to handle RCM classification string {}, so we are '
                                  'passing it straight through.'.format(class_str))
                 classification = class_str
+                nitf = {'Security': {'CLSY': 'CA'}}
             core_name = '{}{}{}'.format(date_str, collector_name.replace('-', ''), start_time_dt.strftime('%H%M%S'))
         else:
             raise ValueError('unhandled generation {}'.format(self.generation))
-        return CollectionInfoType(
+        return nitf, CollectionInfoType(
             Classification=classification, CollectorName=collector_name,
             CoreName=core_name, RadarMode=self._get_radar_mode(), CollectType='MONOSTATIC')
 
@@ -927,7 +931,7 @@ class RadarSatDetails(object):
         Tuple[SICDType]
         """
 
-        collection_info = self._get_collection_info()
+        nitf, collection_info = self._get_collection_info()
         image_creation = self._get_image_creation()
         image_data, geo_data = self._get_image_and_geo_data()
         position = self._get_position()
@@ -951,6 +955,7 @@ class RadarSatDetails(object):
             SCPCOA=scpcoa,
             RMA=rma,
             Radiometric=radiometric)
+        base_sicd._NITF = nitf
         self._update_geo_data(base_sicd)
         base_sicd.derive()  # derive all the fields
         # now, make one copy per polarimetric entry, as appropriate
@@ -962,7 +967,6 @@ class RadarSatDetails(object):
             this_sicd.ImageFormation.TxRcvPolarizationProc = \
                 this_sicd.RadarCollection.RcvChannels[i].TxRcvPolarization
             this_sicd.populate_rniirs(override=False)
-            this_sicd._ad_hoc = {'CLSY': 'CA'}
             sicd_list.append(this_sicd)
         return tuple(sicd_list)
 

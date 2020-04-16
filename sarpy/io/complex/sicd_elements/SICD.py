@@ -850,6 +850,6 @@ class SICDType(Serializable):
 
     def copy(self):
         out = super(SICDType, self).copy()
-        if hasattr(self, '_ad_hoc'):
-            out._ad_hoc = copy.deepcopy(self._ad_hoc)
+        if hasattr(self, '_NITF'):
+            out._NITF = copy.deepcopy(self._NITF)
         return out
