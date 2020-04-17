@@ -723,8 +723,7 @@ class SICDWriter(BaseWriter):
         if self._sicd_meta.CollectionInfo is not None:
             get_clas(self._sicd_meta.CollectionInfo.Classification)
             get_code(self._sicd_meta.CollectionInfo.Classification)
-        sec = NITFSecurityTags(**args)
-        return sec
+        return NITFSecurityTags(**args)
 
     def _image_segment_details(self):
         # type: () -> (int, numpy.dtype, Union[bool, callable], str, tuple, numpy.ndarray)
