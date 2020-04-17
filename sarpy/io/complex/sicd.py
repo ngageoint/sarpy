@@ -812,13 +812,15 @@ class SICDWriter(BaseWriter):
             rows = self._sicd_meta.ImageData.NumRows
             cols = self._sicd_meta.ImageData.NumCols
         abpp = 4*self._pixel_size
-        nppbh = 0 if rows > 8192 else rows
-        nppbv = 0 if cols > 8192 else cols
+        nppbh = 0 if cols > 8192 else cols
+        nppbv = 0 if rows > 8192 else rows
+        # nppbh = 0 if rows > 8192 else rows
+        # nppbv = 0 if cols > 8192 else cols
         im_seg_heads = []
         bands = [ImageBand(ISUBCAT=entry) for entry in isubcat]
         for i, entry in enumerate(self._image_segment_limits):
             im_seg_heads.append(ImageSegmentHeader(
-                IID1='SICD{0:3d}'.format(0 if len(self._image_segment_limits) == 1 else i+1),
+                IID1='SICD{0:03d}'.format(0 if len(self._image_segment_limits) == 1 else i+1),
                 IDATIM=idatim,
                 IID2=ftitle,
                 ISORCE=isource,
@@ -834,7 +836,7 @@ class SICDWriter(BaseWriter):
                 NBPP=abpp,
                 IDLVL=i+1,
                 IALVL=i,
-                ILOC='{0:5d}{1:5d}'.format(entry[0], entry[2]),
+                ILOC='{0:05d}{1:05d}'.format(entry[0], entry[2]),
                 Bands=ImageBands(values=bands),
                 Security=self._security_tags))
         return tuple(im_seg_heads)
@@ -850,7 +852,7 @@ class SICDWriter(BaseWriter):
             icp = self._sicd_meta.GeoData.ImageCorners.get_array(dtype=numpy.float64)
             temp = []
             for entry in icp:
-                temp.append('{0:+2.8f}{1:+3.8f}'.format(entry[0], entry[1]))
+                temp.append('{0:0=+12.8f}{1:0=+13.8f}'.format(entry[0], entry[1]))
             temp.append(temp[0])
             desshlpg = ''.join(temp)
         return DataExtensionHeader(
