@@ -1,0 +1,8 @@
+recursive-exclude tests.* *
+recursive-exclude *.tests *
+recursive-exclude *.tests.* *
+recursive-exclude *.tests.* *
+prune tests
+prune tests.*
+prune *.tests
+prune *.tests.*
