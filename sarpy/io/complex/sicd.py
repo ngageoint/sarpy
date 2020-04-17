@@ -814,8 +814,6 @@ class SICDWriter(BaseWriter):
         abpp = 4*self._pixel_size
         nppbh = 0 if cols > 8192 else cols
         nppbv = 0 if rows > 8192 else rows
-        # nppbh = 0 if rows > 8192 else rows
-        # nppbv = 0 if cols > 8192 else cols
         im_seg_heads = []
         bands = [ImageBand(ISUBCAT=entry) for entry in isubcat]
         for i, entry in enumerate(self._image_segment_limits):
