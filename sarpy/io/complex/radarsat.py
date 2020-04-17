@@ -952,7 +952,8 @@ class RadarSatDetails(object):
             SCPCOA=scpcoa,
             RMA=rma,
             Radiometric=radiometric)
-        base_sicd._NITF = nitf
+        if len(nitf) > 0:
+            base_sicd._NITF = nitf
         self._update_geo_data(base_sicd)
         base_sicd.derive()  # derive all the fields
         # now, make one copy per polarimetric entry, as appropriate
