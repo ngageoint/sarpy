@@ -685,13 +685,45 @@ class SICDWriter(BaseWriter):
         NITFSecurityTags
         """
 
-        sec = NITFSecurityTags()
-        if self._sicd_meta.CollectionInfo is not None:
-            sec.CLAS = self._sicd_meta.CollectionInfo.Classification[0]
-            code = re.search('(?<=/)[^/].*', self._sicd_meta.CollectionInfo.Classification)
+        def get_basic_args():
+            out = {}
+            if hasattr(self._sicd_meta, '_NITF') and isinstance(self._sicd_meta._NITF, dict):
+                sec_tags = self._sicd_meta._NITF.get('Security', {})
+                # noinspection PyProtectedMember
+                for fld in NITFSecurityTags._ordering:
+                    if fld in sec_tags:
+                        out[fld] = sec_tags[fld]
+            return out
+
+        def get_clas(in_str):
+            if 'CLAS' in args:
+                return
+
+            if 'UNCLASS' in in_str.upper():
+                args['CLAS'] = 'U'
+            elif 'CONFIDENTIAL' in in_str.upper():
+                args['CLAS'] = 'C'
+            elif 'TOP SECRET' in in_str.upper():
+                args['CLAS'] = 'T'
+            elif 'SECRET' in in_str.upper():
+                args['CLAS'] = 'S'
+            else:
+                logging.critical('Unclear how to extract CLAS for classification string {}. '
+                                 'Unpopulated for now, and should be set appropriately.'.format(in_str))
+
+        def get_code(in_str):
+            if 'CODE' in args:
+                return
+
+            code = re.search('(?<=/)[^/].*', in_str)
             if code is not None:
-                sec.CODE = code.group()
-        return sec
+                args['CODE'] = code.group()
+
+        args = get_basic_args()
+        if self._sicd_meta.CollectionInfo is not None:
+            get_clas(self._sicd_meta.CollectionInfo.Classification)
+            get_code(self._sicd_meta.CollectionInfo.Classification)
+        return NITFSecurityTags(**args)
 
     def _image_segment_details(self):
         # type: () -> (int, numpy.dtype, Union[bool, callable], str, tuple, numpy.ndarray)
@@ -851,7 +883,7 @@ class SICDWriter(BaseWriter):
         des = DataExtensionsType(
             subhead_sizes=numpy.array([973, ], dtype=numpy.int64),
             item_sizes=numpy.array([0, ], dtype=numpy.int64))
-        return NITFHeader(CLEVEL=clevel, OSTAID=ostaid, FDT=fdt, FTITLE=ftitle,
+        return NITFHeader(Security=self.security_tags, CLEVEL=clevel, OSTAID=ostaid, FDT=fdt, FTITLE=ftitle,
                           FL=0, ImageSegments=im_segs, DataExtensions=des)
 
     def prepare_for_writing(self):
