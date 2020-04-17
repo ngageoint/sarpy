@@ -12,7 +12,7 @@ from .base import Serializable, DEFAULT_STRICT, \
     _StringDescriptor, _StringEnumDescriptor, _FloatDescriptor, _IntegerDescriptor, \
     _BooleanDescriptor, _ComplexDescriptor, _DateTimeDescriptor, _IntegerListDescriptor, \
     _SerializableDescriptor, _SerializableListDescriptor, _ParametersDescriptor, ParametersCollection
-
+from .blocks import DUAL_POLARIZATION_VALUES
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
@@ -49,6 +49,8 @@ class RcvChanProcType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.NumChanProc = NumChanProc
         self.PRFScaleFactor = PRFScaleFactor
         self.ChanIndices = ChanIndices
@@ -80,6 +82,8 @@ class TxFrequencyProcType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.MinProc, self.MaxProc = MinProc, MaxProc
         super(TxFrequencyProcType, self).__init__(**kwargs)
 
@@ -127,6 +131,8 @@ class ProcessingType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.Type = Type
         self.Applied = Applied
         self.Parameters = Parameters
@@ -139,7 +145,7 @@ class DistortionType(Serializable):
         'CalibrationDate', 'A', 'F1', 'F2', 'Q1', 'Q2', 'Q3', 'Q4',
         'GainErrorA', 'GainErrorF1', 'GainErrorF2', 'PhaseErrorF1', 'PhaseErrorF2')
     _required = ('A', 'F1', 'Q1', 'Q2', 'F2', 'Q3', 'Q4')
-    _numeric_format = {key : '0.16G' for key in _fields[1:]}
+    _numeric_format = {key: '0.16G' for key in _fields[1:]}
     # descriptors
     CalibrationDate = _DateTimeDescriptor(
         'CalibrationDate', _required, strict=DEFAULT_STRICT,
@@ -210,6 +216,8 @@ class DistortionType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.CalibrationDate = CalibrationDate
         self.A = A
         self.F1, self.Q1, self.Q2 = F1, Q1, Q2
@@ -244,6 +252,8 @@ class PolarizationCalibrationType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.DistortCorrectApplied = DistortCorrectApplied
         self.Distortion = Distortion
         super(PolarizationCalibrationType, self).__init__(**kwargs)
@@ -261,12 +271,6 @@ class ImageFormationType(Serializable):
     _collections_tags = {'Processings': {'array': False, 'child_tag': 'Processing'}}
     _numeric_format = {'TStartProc': '0.16G', 'EndProc': '0.16G'}
     # class variables
-    _DUAL_POLARIZATION_VALUES = (
-        'V:V', 'V:H', 'V:RHC', 'V:LHC',
-        'H:V', 'H:H', 'H:RHC', 'H:LHC',
-        'RHC:V', 'RHC:H', 'RHC:RHC', 'RHC:LHC',
-        'LHC:V', 'LHC:H', 'LHC:RHC', 'LHC:LHC',
-        'OTHER', 'UNKNOWN')
     _IMG_FORM_ALGO_VALUES = ('PFA', 'RMA', 'RGAZCOMP', 'OTHER')
     _ST_BEAM_COMP_VALUES = ('NO', 'GLOBAL', 'SV')
     _IMG_BEAM_COMP_VALUES = ('NO', 'SV')
@@ -277,11 +281,12 @@ class ImageFormationType(Serializable):
         'RcvChanProc', RcvChanProcType, _required, strict=DEFAULT_STRICT,
         docstring='The received processed channels.')  # type: RcvChanProcType
     TxRcvPolarizationProc = _StringEnumDescriptor(
-        'TxRcvPolarizationProc', _DUAL_POLARIZATION_VALUES, _required, strict=DEFAULT_STRICT,
+        'TxRcvPolarizationProc', DUAL_POLARIZATION_VALUES, _required, strict=DEFAULT_STRICT,
         docstring='The combined transmit/receive polarization processed to form the image.')  # type: str
     TStartProc = _FloatDescriptor(
         'TStartProc', _required, strict=DEFAULT_STRICT,
-        docstring='Earliest slow time value for data processed to form the image from `CollectionStart`.')  # type: float
+        docstring='Earliest slow time value for data processed to form the image '
+                  'from `CollectionStart`.')  # type: float
     TEndProc = _FloatDescriptor(
         'TEndProc', _required, strict=DEFAULT_STRICT,
         docstring='Latest slow time value for data processed to form the image from `CollectionStart`.')  # type: float
@@ -369,6 +374,8 @@ class ImageFormationType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.RcvChanProc = RcvChanProc
         self.TxRcvPolarizationProc = TxRcvPolarizationProc
         self.TStartProc, self.TEndProc = TStartProc, TEndProc

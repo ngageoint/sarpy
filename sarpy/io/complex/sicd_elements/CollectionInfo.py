@@ -22,14 +22,14 @@ class RadarModeType(Serializable):
     _fields = ('ModeType', 'ModeID')
     _required = ('ModeType', )
     # other class variable
-    _MODE_TYPE_VALUES = ('SPOTLIGHT', 'STRIPMAP', 'DYNAMIC STRIPMAP')
+    _MODE_TYPE_VALUES = ('SPOTLIGHT', 'STRIPMAP', 'DYNAMIC STRIPMAP', 'SCANSAR')
     # descriptors
-    ModeID = _StringDescriptor(
-        'ModeID', _required, strict=DEFAULT_STRICT,
-        docstring='Radar imaging mode per Program Specific Implementation Document.')  # type: str
     ModeType = _StringEnumDescriptor(
         'ModeType', _MODE_TYPE_VALUES, _required, strict=True,
         docstring="The Radar imaging mode.")  # type: str
+    ModeID = _StringDescriptor(
+        'ModeID', _required, strict=DEFAULT_STRICT,
+        docstring='Radar imaging mode per Program Specific Implementation Document.')  # type: str
 
     def __init__(self, ModeID=None, ModeType=None, **kwargs):
         """
@@ -43,6 +43,8 @@ class RadarModeType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.ModeID, self.ModeType = ModeID, ModeType
         super(RadarModeType, self).__init__(**kwargs)
 
@@ -109,6 +111,8 @@ class CollectionInfoType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.CollectorName, self.IlluminatorName = CollectorName, IlluminatorName
         self.CoreName, self.CollectType = CoreName, CollectType
         self.RadarMode = RadarMode

@@ -1,6 +1,8 @@
 # This details the important differences introduced in 1.0
 # NB: bump the version number in __about__.py to reflect the below.
 
+* .13 - Introduction of metaicon gui element
+* .12 - Introduction of basic SIDD elements, still experimental.
 * .11 - Debugging RNIIRS population
 * .10 - Defining a few more relevant SICD.SCPCOA properties
 * .9 - Moving latlon functions back into main branch

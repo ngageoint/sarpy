@@ -24,7 +24,7 @@ class TestRadarMode(unittest.TestCase):
 
     def test_alternate(self):
         # just verify that it doesn't raise an exception
-        test = CollectionInfo.RadarModeType(ModeType='spotlight')
+        test = CollectionInfo.RadarModeType(ModeType='SPOTLIGHT')
         # verify that it does
         self.assertRaises(ValueError, CollectionInfo.RadarModeType, ModeType='junk')
 

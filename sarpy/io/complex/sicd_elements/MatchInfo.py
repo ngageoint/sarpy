@@ -8,7 +8,7 @@ from typing import List
 
 from .base import Serializable, _get_node_value, DEFAULT_STRICT, \
     _StringDescriptor, _IntegerDescriptor, _SerializableListDescriptor, _ParametersDescriptor, \
-    ParametersCollection
+    ParametersCollection, _find_first_child, _find_children
 
 
 __classification__ = "UNCLASSIFIED"
@@ -45,6 +45,8 @@ class MatchCollectionType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.CoreName = CoreName
         self.MatchIndex = MatchIndex
         self.Parameters = Parameters
@@ -82,6 +84,8 @@ class MatchType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.TypeId = TypeId
         self.CurrentIndex = CurrentIndex
         self.MatchCollections = MatchCollections
@@ -119,6 +123,8 @@ class MatchInfoType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.MatchTypes = MatchTypes
         super(MatchInfoType, self).__init__(**kwargs)
 
@@ -131,7 +137,7 @@ class MatchInfoType(Serializable):
             return len(self.MatchTypes)
 
     @classmethod
-    def _from_node_0_5(cls, node, xml_ns):
+    def _from_node_0_5(cls, node, xml_ns, ns_key):
         """
         Helper method, not really for public usage. For XML deserialization from SICD version prior to 1.0.
 
@@ -141,7 +147,8 @@ class MatchInfoType(Serializable):
             dom element for serialized class instance
         xml_ns : dict
             The xml namespace dictionary
-
+        ns_key : str
+            The namespace key in the dictionary
         Returns
         -------
         Serializable
@@ -161,17 +168,20 @@ class MatchInfoType(Serializable):
         # collection index number (likely larger than 1). This is at least confusing, but more likely
         # completely misleading.
         match_types = []
-        cnodes = node.findall('Collect') if xml_ns is None else \
-            node.findall('default:Collect', xml_ns)
+
+        coll_key = cls._child_xml_ns_key.get('Collect', ns_key)
+        cnodes = _find_children(node, 'Collect', xml_ns, coll_key)
         for cnode in cnodes:  # assumed non-empty
             # this describes one series of collects, possibly with more than one MatchType = TypeId
             # It is not clear how it would be possible to deconflict a repeat of MatchType between
             # Collect tags, so I will not.
-            core_name = _get_node_value(cnode.find('CoreName')) if xml_ns is None else \
-                _get_node_value(cnode.find('default:CoreName', xml_ns))
+            core_key = cls._child_xml_ns_key.get('CoreName', ns_key)
+            core_name = _get_node_value(_find_first_child(cnode, 'CoreName', xml_ns, core_key))
             current_index = None
             parameters = []
-            pnodes = cnode.findall('Parameter') if xml_ns is None else cnode.findall('default:Parameter', xml_ns)
+
+            pkey = cls._child_xml_ns_key.get('Parameters', ns_key)
+            pnodes = _find_children(cnode, 'Parameter', xml_ns, pkey)
             for pnode in pnodes:
                 name = pnode.attrib['name']
                 value = _get_node_value(pnode)
@@ -181,8 +191,8 @@ class MatchInfoType(Serializable):
                     parameters.append({'name': name, 'value': value})  # copy the parameter
             if current_index is None:
                 continue  # I don't know what we would do?
-            mtypes = cnode.findall('MatchType') if xml_ns is None else \
-                cnode.findall('default:MatchType', xml_ns)
+            mt_key = cls._child_xml_ns_key.get('MatchType', ns_key)
+            mtypes = _find_children(cnode, 'MatchType', xml_ns, mt_key)
             for tnode in mtypes:
                 type_id = _get_node_value(tnode)
                 match_types.append(get_element(type_id, current_index, core_name, parameters))
@@ -193,11 +203,11 @@ class MatchInfoType(Serializable):
             return None
 
     @classmethod
-    def from_node(cls, node, xml_ns, kwargs=None):
-        coll = node.find('Collect', xml_ns) if xml_ns is None else \
-            node.find('default:Collect', xml_ns)
+    def from_node(cls, node, xml_ns, ns_key=None, kwargs=None):
+        coll_key = cls._child_xml_ns_key.get('Collect', ns_key)
+        coll = _find_first_child(node, 'Collect', xml_ns, coll_key)
         if coll is not None:
             # This is from SICD version prior to 1.0, so handle manually.
-            return cls._from_node_0_5(node, xml_ns)
+            return cls._from_node_0_5(node, xml_ns, ns_key)
         else:
-            return super(MatchInfoType, cls).from_node(node, xml_ns, kwargs=kwargs)
+            return super(MatchInfoType, cls).from_node(node, xml_ns, ns_key=ns_key, kwargs=kwargs)

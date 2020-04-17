@@ -119,6 +119,24 @@ def _create_text_node(doc, tag, value, parent=None):
     return node
 
 
+def _find_first_child(node, tag, xml_ns, ns_key):
+    if xml_ns is None:
+        return node.find(tag)
+    elif ns_key is None:
+        return node.find('default:{}'.format(tag), xml_ns)
+    else:
+        return node.find('{}:{}'.format(ns_key, tag), xml_ns)
+
+
+def _find_children(node, tag, xml_ns, ns_key):
+    if xml_ns is None:
+        return node.findall(tag)
+    elif ns_key is None:
+        return node.findall('default:{}'.format(tag), xml_ns)
+    else:
+        return node.findall('{}:{}'.format(ns_key, tag), xml_ns)
+
+
 ###
 # parsing functions - for reusable functionality in below descriptors or other property definitions
 
@@ -190,13 +208,13 @@ def _parse_complex(value, name, instance):
         return value
     elif isinstance(value, ElementTree.Element):
         xml_ns = getattr(instance, '_xml_ns', None)
-        # from XML deserialization
-        if xml_ns is None:
-            rnode = value.findall('Real')
-            inode = value.findall('Imag')
+        if hasattr(instance, '_child_xml_ns_key') and name in instance._child_xml_ns_key:
+            xml_ns_key = instance._child_xml_ns_key[name]
         else:
-            rnode = value.findall('default:Real', xml_ns)
-            inode = value.findall('default:Imag', xml_ns)
+            xml_ns_key = getattr(instance, '_xml_ns_key', None)
+        # from XML deserialization
+        rnode = _find_children(value, 'Real', xml_ns, xml_ns_key)
+        inode = _find_children(value, 'Imag', xml_ns, xml_ns_key)
 
         if len(rnode) != 1:
             raise ValueError(
@@ -259,7 +277,12 @@ def _parse_serializable(value, name, instance, the_type):
         return the_type.from_dict(value)
     elif isinstance(value, ElementTree.Element):
         xml_ns = getattr(instance, '_xml_ns', None)
-        return the_type.from_node(value, xml_ns)
+        if hasattr(instance, '_child_xml_ns_key'):
+            # noinspection PyProtectedMember
+            xml_ns_key = instance._child_xml_ns_key.get(name, getattr(instance, '_xml_ns_key', None))
+        else:
+            xml_ns_key = getattr(instance, '_xml_ns_key', None)
+        return the_type.from_node(value, xml_ns, ns_key=xml_ns_key)
     elif isinstance(value, (numpy.ndarray, list, tuple)):
         if issubclass(the_type, Arrayable):
             return the_type.from_array(value)
@@ -300,12 +323,15 @@ def _parse_serializable_array(value, name, instance, child_type, child_tag):
         return value
     elif isinstance(value, ElementTree.Element):
         xml_ns = getattr(instance, '_xml_ns', None)
-
+        if hasattr(instance, '_child_xml_ns_key'):
+            # noinspection PyProtectedMember
+            xml_ns_key = instance._child_xml_ns_key.get(name, getattr(instance, '_xml_ns_key', None))
+        else:
+            xml_ns_key = getattr(instance, '_xml_ns_key', None)
         # this is the parent node from XML deserialization
         size = int_func(value.attrib.get('size', -1))  # NB: Corner Point arrays don't have
         # extract child nodes at top level
-        child_nodes = value.findall(child_tag, xml_ns) if xml_ns is None or ':' in child_tag \
-            else value.findall('default:{}'.format(child_tag), xml_ns)
+        child_nodes = _find_children(value, child_tag, xml_ns, xml_ns_key)
 
         if size == -1:  # fill in, if it's missing
             size = len(child_nodes)
@@ -314,9 +340,9 @@ def _parse_serializable_array(value, name, instance, child_type, child_tag):
                 'Attribute {} of array type functionality belonging to class {} got a ElementTree element '
                 'with size attribute {}, but has {} child nodes with tag {}.'.format(
                     name, instance.__class__.__name__, size, len(child_nodes), child_tag))
-        new_value = numpy.empty((size,), dtype=numpy.object)
+        new_value = numpy.empty((size, ), dtype=numpy.object)
         for i, entry in enumerate(child_nodes):
-            new_value[i] = child_type.from_node(entry, xml_ns)
+            new_value[i] = child_type.from_node(entry, xml_ns, ns_key=xml_ns_key)
         return new_value
     elif isinstance(value, (list, tuple)):
         # this would arrive from users or json deserialization
@@ -354,9 +380,14 @@ def _parse_serializable_list(value, name, instance, child_type):
         return [value, ]
 
     xml_ns = getattr(instance, '_xml_ns', None)
+    if hasattr(instance, '_child_xml_ns_key'):
+        # noinspection PyProtectedMember
+        xml_ns_key = instance._child_xml_ns_key.get(name, getattr(instance, '_xml_ns_key', None))
+    else:
+        xml_ns_key = getattr(instance, '_xml_ns_key', None)
     if isinstance(value, ElementTree.Element):
         # this is the child
-        return [child_type.from_node(value, xml_ns), ]
+        return [child_type.from_node(value, xml_ns, ns_key=xml_ns_key), ]
     elif isinstance(value, list) or isinstance(value[0], child_type):
         if len(value) == 0:
             return value
@@ -364,7 +395,7 @@ def _parse_serializable_list(value, name, instance, child_type):
             # NB: charming errors are possible if something stupid has been done.
             return [child_type.from_dict(node) for node in value]
         elif isinstance(value[0], ElementTree.Element):
-            return [child_type.from_node(node, xml_ns) for node in value]
+            return [child_type.from_node(node, xml_ns, ns_key=xml_ns_key) for node in value]
         else:
             raise TypeError(
                 'Field {} of list type functionality belonging to class {} got a '
@@ -480,6 +511,10 @@ class _BasicDescriptor(object):
             the return value
         """
 
+        if instance is None:
+            # this has been access on the class, so return the class
+            return self
+
         fetched = self.data.get(instance, self.default_value)
         if fetched is not None or not self.required:
             return fetched
@@ -517,7 +552,8 @@ class _BasicDescriptor(object):
             elif self.required:
                 if self.strict:
                     raise ValueError(
-                        'Attribute {} of class {} cannot be assigned None.'.format(self.name, instance.__class__.__name__))
+                        'Attribute {} of class {} cannot be assigned '
+                        'None.'.format(self.name, instance.__class__.__name__))
                 else:
                     logging.debug(  # NB: this is at debuglevel to not be too verbose
                         'Required attribute {} of class {} has been set to None.'.format(
@@ -545,7 +581,7 @@ class _StringDescriptor(_BasicDescriptor):
 
 class _StringListDescriptor(_BasicDescriptor):
     """A descriptor for properties for an array type item for specified extension of string"""
-    _typ_string = 'list[str]'
+    _typ_string = 'List[str]:'
     _DEFAULT_MIN_LENGTH = 0
     _DEFAULT_MAX_LENGTH = 2 ** 32
 
@@ -622,7 +658,7 @@ class _StringEnumDescriptor(_BasicDescriptor):
                 super(_StringEnumDescriptor, self).__set__(instance, value)
             return
 
-        val = _parse_str(value, self.name, instance).upper()
+        val = _parse_str(value, self.name, instance)
 
         if val in self.values:
             self.data[instance] = val
@@ -675,7 +711,10 @@ class _IntegerDescriptor(_BasicDescriptor):
         return ''
 
     def _in_bounds(self, value):
-        return (self.bounds is None) or (self.bounds[0] <= value <= self.bounds[1])
+        if self.bounds is None:
+            return True
+        return (self.bounds[0] is None or self.bounds[0] <= value) and \
+            (self.bounds[1] is None or value <= self.bounds[1])
 
     def __set__(self, instance, value):
         if super(_IntegerDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
@@ -815,7 +854,11 @@ class _FloatDescriptor(_BasicDescriptor):
         return ''
 
     def _in_bounds(self, value):
-        return (self.bounds is None) or (self.bounds[0] <= value <= self.bounds[1])
+        if self.bounds is None:
+            return True
+
+        return (self.bounds[0] is None or self.bounds[0] <= value) and \
+            (self.bounds[1] is None or value <= self.bounds[1])
 
     def __set__(self, instance, value):
         if super(_FloatDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
@@ -842,6 +885,59 @@ class _FloatDescriptor(_BasicDescriptor):
             else:
                 logging.info(msg)
             self.data[instance] = iv
+
+
+class _FloatListDescriptor(_BasicDescriptor):
+    """A descriptor for float list type properties"""
+    _typ_string = 'list[float]:'
+    _DEFAULT_MIN_LENGTH = 0
+    _DEFAULT_MAX_LENGTH = 2 ** 32
+
+    def __init__(self, name, tag_dict, required, strict=DEFAULT_STRICT,
+                 minimum_length=None, maximum_length=None, docstring=None):
+        self.child_tag = tag_dict[name]['child_tag']
+        self.minimum_length = self._DEFAULT_MIN_LENGTH if minimum_length is None else int_func(minimum_length)
+        self.maximum_length = self._DEFAULT_MAX_LENGTH if maximum_length is None else int_func(maximum_length)
+        if self.minimum_length > self.maximum_length:
+            raise ValueError(
+                'Specified minimum length is {}, while specified maximum length is {}'.format(
+                    self.minimum_length, self.maximum_length))
+        super(_FloatListDescriptor, self).__init__(name, required, strict=strict, docstring=docstring)
+
+    def __set__(self, instance, value):
+        def set_value(new_value):
+            if len(new_value) < self.minimum_length:
+                msg = 'Attribute {} of class {} is an float list of size {}, and must have size at least ' \
+                      '{}.'.format(self.name, instance.__class__.__name__, value.size, self.minimum_length)
+                if self.strict:
+                    raise ValueError(msg)
+                else:
+                    logging.info(msg)
+            if len(new_value) > self.maximum_length:
+                msg = 'Attribute {} of class {} is a float list of size {}, and must have size no larger than ' \
+                      '{}.'.format(self.name, instance.__class__.__name__, value.size, self.maximum_length)
+                if self.strict:
+                    raise ValueError(msg)
+                else:
+                    logging.info(msg)
+            self.data[instance] = new_value
+
+        if super(_FloatListDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
+            return
+
+        if isinstance(value, float):
+            set_value([value, ])
+        elif isinstance(value, ElementTree.Element):
+            set_value([float(_get_node_value(value)), ])
+        elif isinstance(value, list):
+            if len(value) == 0 or isinstance(value[0], float):
+                set_value(value)
+            elif isinstance(value[0], ElementTree.Element):
+                set_value([float(_get_node_value(nod)) for nod in value])
+        else:
+            raise TypeError(
+                'Field {} of class {} got incompatible type {}.'.format(
+                    self.name, instance.__class__.__name__, type(value)))
 
 
 class _ComplexDescriptor(_BasicDescriptor):
@@ -912,9 +1008,15 @@ class _FloatArrayDescriptor(_BasicDescriptor):
             set_value(value)
         elif isinstance(value, ElementTree.Element):
             xml_ns = getattr(instance, '_xml_ns', None)
+            # noinspection PyProtectedMember
+            if hasattr(instance, '_child_xml_ns_key') and self.name in instance._child_xml_ns_key:
+                # noinspection PyProtectedMember
+                xml_ns_key = instance._child_xml_ns_key[self.name]
+            else:
+                xml_ns_key = getattr(instance, '_xml_ns_key', None)
+
             size = int_func(value.attrib['size'])
-            child_nodes = value.findall(self.child_tag, xml_ns) if xml_ns is None or ":" in self.child_tag \
-                else value.findall('default:{}'.format(self.child_tag), xml_ns)
+            child_nodes = _find_children(value, self.child_tag, xml_ns, xml_ns_key)
             if len(child_nodes) != size:
                 raise ValueError(
                     'Field {} of double array type functionality belonging to class {} got a ElementTree element '
@@ -973,7 +1075,7 @@ class _FloatModularDescriptor(_BasicDescriptor):
             self.data[instance] = None
             return
 
-        # do modular arithmatic manipulations
+        # do modular arithmetic manipulations
         val = (val % (2 * self.limit))  # NB: % and * have same precedence, so it can be super dumb
         self.data[instance] = val if val <= self.limit else val - 2 * self.limit
 
@@ -1059,53 +1161,19 @@ class _ParametersDescriptor(_BasicDescriptor):
             self.data[instance] = value
         else:
             the_inst = self.data.get(instance, None)
+            xml_ns = getattr(instance, '_xml_ns', None)
+            # noinspection PyProtectedMember
+            if hasattr(instance, '_child_xml_ns_key') and self.name in instance._child_xml_ns_key:
+                # noinspection PyProtectedMember
+                xml_ns_key = instance._child_xml_ns_key[self.name]
+            else:
+                xml_ns_key = getattr(instance, '_xml_ns_key', None)
             if the_inst is None:
-                self.data[instance] = ParametersCollection(collection=value, name=self.name, child_tag=self.child_tag)
+                self.data[instance] = ParametersCollection(
+                    collection=value, name=self.name, child_tag=self.child_tag,
+                    _xml_ns=xml_ns, _xml_ns_key=xml_ns_key)
             else:
                 the_inst.set_collection(value)
-
-
-class _SerializableArrayDescriptor(_BasicDescriptor):
-    """A descriptor for properties of a list or array of specified extension of Serializable"""
-    _DEFAULT_MIN_LENGTH = 0
-    _DEFAULT_MAX_LENGTH = 2 ** 32
-
-    def __init__(self, name, child_type, tag_dict, required, strict=DEFAULT_STRICT,
-                 minimum_length=None, maximum_length=None, docstring=None):
-        self.child_type = child_type
-        tags = tag_dict[name]
-        self.array = tags.get('array', False)
-        if not self.array:
-            raise ValueError(
-                'Attribute {} is populated in the `_collection_tags` dictionary without `array`=True. '
-                'This is inconsistent with using _SerializableArrayDescriptor.'.format(name))
-
-        self.child_tag = tags['child_tag']
-        self._typ_string = 'numpy.ndarray[{}]:'.format(str(child_type).strip().split('.')[-1][:-2])
-
-        self.minimum_length = self._DEFAULT_MIN_LENGTH if minimum_length is None else int_func(minimum_length)
-        self.maximum_length = self._DEFAULT_MAX_LENGTH if maximum_length is None else int_func(maximum_length)
-        if self.minimum_length > self.maximum_length:
-            raise ValueError(
-                'Specified minimum length is {}, while specified maximum length is {}'.format(
-                    self.minimum_length, self.maximum_length))
-        super(_SerializableArrayDescriptor, self).__init__(name, required, strict=strict, docstring=docstring)
-
-    def __set__(self, instance, value):
-        if super(_SerializableArrayDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
-            return
-
-        if isinstance(value, SerializableArray):
-            self.data[instance] = value
-        else:
-            xml_ns = getattr(instance, '_xml_ns', None)
-            the_inst = self.data.get(instance, None)
-            if the_inst is None:
-                self.data[instance] = SerializableArray(
-                    coords=value, name=self.name, child_tag=self.child_tag, child_type=self.child_type,
-                    minimum_length=self.minimum_length, maximum_length=self.maximum_length, _xml_ns=xml_ns)
-            else:
-                the_inst.set_array(value)
 
 
 class _SerializableCPArrayDescriptor(_BasicDescriptor):
@@ -1135,11 +1203,18 @@ class _SerializableCPArrayDescriptor(_BasicDescriptor):
             self.data[instance] = value
         else:
             xml_ns = getattr(instance, '_xml_ns', None)
+            # noinspection PyProtectedMember
+            if hasattr(instance, '_child_xml_ns_key') and self.name in instance._child_xml_ns_key:
+                # noinspection PyProtectedMember
+                xml_ns_key = instance._child_xml_ns_key[self.name]
+            else:
+                xml_ns_key = getattr(instance, '_xml_ns_key', None)
+
             the_inst = self.data.get(instance, None)
             if the_inst is None:
                 self.data[instance] = SerializableCPArray(
                     coords=value, name=self.name, child_tag=self.child_tag,
-                    child_type=self.child_type, _xml_ns=xml_ns)
+                    child_type=self.child_type, _xml_ns=xml_ns, _xml_ns_key=xml_ns_key)
             else:
                 the_inst.set_array(value)
 
@@ -1228,6 +1303,11 @@ class Serializable(object):
 
     * `{'required': False, 'collection': <tuple of attribute names>}` - indicates that no more than one of the 
       attributes should be populated.
+    """
+    _child_xml_ns_key = {}
+    """
+    The expected namespace key for attributes. No entry indicates the default namespace. 
+    This is important for SIDD handling, but not required for SICD handling.
     """
 
     # NB: it may be good practice to use __slots__ to further control class functionality?
@@ -1412,15 +1492,19 @@ class Serializable(object):
         return valid_children
 
     @classmethod
-    def from_node(cls, node, xml_ns, kwargs=None):
+    def from_node(cls, node, xml_ns, ns_key=None, kwargs=None):
         """For XML deserialization.
 
         Parameters
         ----------
         node : ElementTree.Element
             dom element for serialized class instance
-        xml_ns : dict
+        xml_ns : None|dict
             The xml namespace dictionary.
+        ns_key : None|str
+            The xml namespace key. If `xml_ns` is None, then this is ignored. If `None` and `xml_ns` is not None,
+            then the string `default` will be used. This will be recursively passed down,
+            unless overridden by an entry of the cls._child_xml_ns_key dictionary.
         kwargs : None|dict
             `None` or dictionary of previously serialized attributes. For use in inheritance call, when certain
             attributes require specific deserialization.
@@ -1429,24 +1513,31 @@ class Serializable(object):
             Corresponding class instance
         """
 
-        def handle_attribute(the_tag):
-            # TODO: namespace for attributes?
-            kwargs[the_tag] = node.attrib.get(the_tag, None)
+        if len(node) == 0 and len(node.attrib) == 0:
+            logging.warning('There are no children or attributes associated with node {} for class {}. Returning None.'.format(node, cls))
+            return None
 
-        def handle_single(the_tag):
-            kwargs[the_tag] = node.find(the_tag, xml_ns) if xml_ns is None or ':' in the_tag else \
-                node.find('default:{}'.format(the_tag), xml_ns)
+        def handle_attribute(the_tag, the_xml_ns_key):
+            if the_xml_ns_key is not None:  # handle namespace, if necessary
+                fetch_tag = '{' + xml_ns[the_xml_ns_key] + '}' + the_tag
+            else:
+                fetch_tag = the_tag
+            poo = node.attrib.get(fetch_tag, None)
+            kwargs[the_tag] = node.attrib.get(fetch_tag, None)
 
-        def handle_list(attrib, ch_tag):
-            cnodes = node.findall(ch_tag, xml_ns) if xml_ns is None or ':' in ch_tag else \
-                node.findall('default:{}'.format(ch_tag), xml_ns)
+        def handle_single(the_tag, the_xml_ns_key):
+            kwargs[the_tag] = _find_first_child(node, the_tag, xml_ns, the_xml_ns_key)
 
+        def handle_list(attrib, ch_tag, the_xml_ns_key):
+            cnodes = _find_children(node, ch_tag, xml_ns, the_xml_ns_key)
             if len(cnodes) > 0:
                 kwargs[attrib] = cnodes
 
         if kwargs is None:
             kwargs = {}
         kwargs['_xml_ns'] = xml_ns
+        kwargs['_xml_ns_key'] = ns_key
+
         if not isinstance(kwargs, dict):
             raise ValueError(
                 "Named input argument kwargs for class {} must be dictionary instance".format(cls))
@@ -1460,17 +1551,32 @@ class Serializable(object):
             # Note that we want to try explicitly setting to None to trigger descriptor behavior
             # for required fields (warning or error)
 
+            # determine any expected xml namespace for the given entry
+            if attribute in cls._child_xml_ns_key:
+                xml_ns_key = cls._child_xml_ns_key[attribute]
+            else:
+                xml_ns_key = ns_key
+            # verify that the xml namespace will work
+            if xml_ns_key is not None:
+                if xml_ns is None:
+                    raise ValueError('Attribute {} in class {} expects an xml namespace entry of {}, '
+                                     'but xml_ns is None.'.format(attribute, cls, xml_ns_key))
+                elif xml_ns_key not in xml_ns:
+                    raise ValueError('Attribute {} in class {} expects an xml namespace entry of {}, '
+                                     'but xml_ns does not contain this key.'.format(attribute, cls, xml_ns_key))
+
             if attribute in cls._set_as_attribute:
-                handle_attribute(attribute)
+                xml_ns_key = cls._child_xml_ns_key.get(attribute, None)
+                handle_attribute(attribute, xml_ns_key)
             elif attribute in cls._collections_tags:
                 # it's a collection type parameter
                 array_tag = cls._collections_tags[attribute]
                 array = array_tag.get('array', False)
                 child_tag = array_tag.get('child_tag', None)
                 if array:
-                    handle_single(attribute)
+                    handle_single(attribute, xml_ns_key)
                 elif child_tag is not None:
-                    handle_list(attribute, child_tag)
+                    handle_list(attribute, child_tag, xml_ns_key)
                 else:
                     # the metadata is broken
                     raise ValueError(
@@ -1478,10 +1584,10 @@ class Serializable(object):
                         '`child_tag` value is either not populated or None.'.format(attribute, cls))
             else:
                 # it's a regular property
-                handle_single(attribute)
+                handle_single(attribute, xml_ns_key)
         return cls.from_dict(kwargs)
 
-    def to_node(self, doc, tag, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
+    def to_node(self, doc, tag, ns_key=None, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
         """For XML serialization, to a dom element.
 
         Parameters
@@ -1490,6 +1596,9 @@ class Serializable(object):
             The xml Document
         tag : None|str
             The tag name. Defaults to the value of `self._tag` and then the class name if unspecified.
+        ns_key : None|str
+            The namespace prefix. This will be recursively passed down, unless overridden by an entry in the
+            _child_xml_ns_key dictionary.
         parent : None|ElementTree.Element
             The parent element. Defaults to the document root element if unspecified.
         check_validity : bool
@@ -1508,7 +1617,13 @@ class Serializable(object):
             The constructed dom element, already assigned to the parent element.
         """
 
-        def serialize_array(node, the_tag, ch_tag, val, format_function):
+        def serialize_attribute(node, the_tag, val, format_function, the_xml_ns_key):
+            if the_xml_ns_key is None:
+                node.attrib[the_tag] = format_function(val)
+            else:
+                node.attrib['{}:{}'.format(the_xml_ns_key, the_tag)] = format_function(val)
+
+        def serialize_array(node, the_tag, ch_tag, val, format_function, size_attrib, the_xml_ns_key):
             if not isinstance(val, numpy.ndarray):
                 # this should really never happen, unless someone broke the class badly by fiddling with
                 # _collections_tag or the descriptor at runtime
@@ -1527,8 +1642,11 @@ class Serializable(object):
                 return  # serializing an empty array is dumb
 
             if val.dtype.name == 'float64':
-                anode = _create_new_node(doc, the_tag, parent=node)
-                anode.attrib['size'] = str(val.size)
+                if the_xml_ns_key is None:
+                    anode = _create_new_node(doc, the_tag, parent=node)
+                else:
+                    anode = _create_new_node(doc, '{}:{}'.format(the_xml_ns_key, the_tag), parent=node)
+                anode.attrib[size_attrib] = str(val.size)
                 for i, val in enumerate(val):
                     vnode = _create_text_node(doc, ch_tag, format_function(val), parent=anode)
                     vnode.attrib['index'] = str(i) if ch_tag == 'Amplitude' else str(i+1)
@@ -1540,7 +1658,7 @@ class Serializable(object):
                     'a numpy.ndarray of dtype float64 or object, but it has dtype {}'.format(
                         attribute, self.__class__.__name__, val.dtype))
 
-        def serialize_list(node, ch_tag, val, format_function):
+        def serialize_list(node, ch_tag, val, format_function, the_xml_ns_key):
             if not isinstance(val, list):
                 # this should really never happen, unless someone broke the class badly by fiddling with
                 # _collections_tags or the descriptor?
@@ -1552,34 +1670,40 @@ class Serializable(object):
                 return  # serializing an empty list is dumb
             else:
                 for entry in val:
-                    serialize_plain(node, ch_tag, entry, format_function)
+                    serialize_plain(node, ch_tag, entry, format_function, the_xml_ns_key)
 
-        def serialize_plain(node, field, val, format_function):
+        def serialize_plain(node, field, val, format_function, the_xml_ns_key):
             # may be called not at top level - if object array or list is present
+            prim_tag = '{}:{}'.format(the_xml_ns_key, field) if the_xml_ns_key is not None else field
             if isinstance(val, (Serializable, SerializableArray)):
-                val.to_node(doc, field, parent=node, check_validity=check_validity, strict=strict)
+                val.to_node(doc, field, ns_key=the_xml_ns_key, parent=node,
+                            check_validity=check_validity, strict=strict)
             elif isinstance(val, ParametersCollection):
-                val.to_node(doc, parent=node, check_validity=check_validity, strict=strict)
+                val.to_node(doc, ns_key=the_xml_ns_key, parent=node, check_validity=check_validity, strict=strict)
             elif isinstance(val, bool):  # this must come before int, where it would evaluate as true
-                _create_text_node(doc, field, 'true' if val else 'false', parent=node)
+                _create_text_node(doc, prim_tag, 'true' if val else 'false', parent=node)
             elif isinstance(val, string_types):
-                _create_text_node(doc, field, val, parent=node)
+                _create_text_node(doc, prim_tag, val, parent=node)
             elif isinstance(val, integer_types):
-                _create_text_node(doc, field, format_function(val), parent=node)
+                _create_text_node(doc, prim_tag, format_function(val), parent=node)
             elif isinstance(val, float):
-                _create_text_node(doc, field, format_function(val), parent=node)
+                _create_text_node(doc, prim_tag, format_function(val), parent=node)
             elif isinstance(val, numpy.datetime64):
                 out2 = str(val)
                 out2 = out2 + 'Z' if out2[-1] != 'Z' else out2
-                _create_text_node(doc, field, out2, parent=node)
+                _create_text_node(doc, prim_tag, out2, parent=node)
             elif isinstance(val, complex):
-                cnode = _create_new_node(doc, field, parent=node)
-                _create_text_node(doc, 'Real', format_function(val.real), parent=cnode)
-                _create_text_node(doc, 'Imag', format_function(val.imag), parent=cnode)
-            elif isinstance(val, date):  # should never exist
-                _create_text_node(doc, field, val.isoformat(), parent=node)
-            elif isinstance(val, datetime):  # should never exist
-                _create_text_node(doc, field, val.isoformat(sep='T'), parent=node)
+                cnode = _create_new_node(doc, prim_tag, parent=node)
+                if the_xml_ns_key is None:
+                    _create_text_node(doc, 'Real', format_function(val.real), parent=cnode)
+                    _create_text_node(doc, 'Imag', format_function(val.imag), parent=cnode)
+                else:
+                    _create_text_node(doc, '{}:Real'.format(the_xml_ns_key), format_function(val.real), parent=cnode)
+                    _create_text_node(doc, '{}:Imag'.format(the_xml_ns_key), format_function(val.imag), parent=cnode)
+            elif isinstance(val, date):  # should never exist at present
+                _create_text_node(doc, prim_tag, val.isoformat(), parent=node)
+            elif isinstance(val, datetime):  # should never exist at present
+                _create_text_node(doc, prim_tag, val.isoformat(sep='T'), parent=node)
             else:
                 raise ValueError(
                     'An entry for class {} using tag {} is of type {}, and serialization has not '
@@ -1602,11 +1726,19 @@ class Serializable(object):
             value = getattr(self, attribute)
             if value is None:
                 continue
-
             fmt_func = self._get_formatter(attribute)
             if attribute in self._set_as_attribute:
-                nod.attrib[attribute] = fmt_func(value)
+                xml_ns_key = self._child_xml_ns_key.get(attribute, None)
+                serialize_attribute(nod, attribute, value, fmt_func, xml_ns_key)
             else:
+                # should we be using some namespace?
+                if attribute in self._child_xml_ns_key:
+                    xml_ns_key = self._child_xml_ns_key[attribute]
+                else:
+                    xml_ns_key = getattr(self, '_xml_ns_key', None)
+                    if xml_ns_key == 'default':
+                        xml_ns_key = None
+
                 if isinstance(value, (numpy.ndarray, list)):
                     array_tag = self._collections_tags.get(attribute, None)
                     if array_tag is None:
@@ -1620,12 +1752,13 @@ class Serializable(object):
                             'The value associated with attribute {} in an instance of class {} is of type {}, '
                             'but `child_tag` is not populated in the _collection_tags dictionary.'.format(
                                 attribute, self.__class__.__name__, type(value)))
+                    size_attribute = array_tag.get('size_attribute', 'size')
                     if isinstance(value, numpy.ndarray):
-                        serialize_array(nod, attribute, child_tag, value, fmt_func)
+                        serialize_array(nod, attribute, child_tag, value, fmt_func, size_attribute, xml_ns_key)
                     else:
-                        serialize_list(nod, child_tag, value, fmt_func)
+                        serialize_list(nod, child_tag, value, fmt_func, xml_ns_key)
                 else:
-                    serialize_plain(nod, attribute, value, fmt_func)
+                    serialize_plain(nod, attribute, value, fmt_func, xml_ns_key)
         return nod
 
     @classmethod
@@ -1645,7 +1778,8 @@ class Serializable(object):
         return cls(**input_dict)
 
     def to_dict(self, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
-        """For json serialization.
+        """
+        For json serialization.
 
         Parameters
         ----------
@@ -1775,8 +1909,8 @@ class Serializable(object):
 
         Parameters
         ----------
-        urn : Union[None, str]
-            The xml namespace.
+        urn : Union[None, str, dict]
+            The xml namespace string or dictionary describing the xml namespace.
         tag : Union[None, str]
             The root node tag to use. If not given, then the class name will be used.
         check_validity : bool
@@ -1794,9 +1928,18 @@ class Serializable(object):
         if tag is None:
             tag = self.__class__.__name__
         etree = ElementTree.ElementTree()
-        node = self.to_node(etree, tag, check_validity=check_validity, strict=strict)
-        if urn is not None:
+        node = self.to_node(etree, tag, ns_key=getattr(self, '_xml_ns_key', None),
+                            check_validity=check_validity, strict=strict)
+
+        if urn is None:
+            pass
+        elif isinstance(urn, string_types):
             node.attrib['xmlns'] = urn
+        elif isinstance(urn, dict):
+            for key in urn:
+                node.attrib[key] = urn[key]
+        else:
+            raise TypeError('Expected string or dictionary of string for urn, got type {}'.format(type(urn)))
         return ElementTree.tostring(node, encoding='utf-8', method='xml')
 
     def to_xml_string(self, urn=None, tag=None, check_validity=False, strict=DEFAULT_STRICT):
@@ -1806,8 +1949,8 @@ class Serializable(object):
 
         Parameters
         ----------
-        urn : Union[None, str]
-            The xml namespace.
+        urn : Union[None, str, dict]
+            The xml namespace or dictionary describing the xml namespace.
         tag : Union[None, str]
             The root node tag to use. If not given, then the class name will be used.
         check_validity : bool
@@ -1870,14 +2013,18 @@ class Arrayable(object):
 class SerializableArray(object):
     __slots__ = (
         '_child_tag', '_child_type', '_array', '_name', '_minimum_length',
-        '_maximum_length', '_xml_ns')
-    # TODO: make an iterator? I think it gets inferred.
+        '_maximum_length', '_xml_ns', '_xml_ns_key')
     _default_minimum_length = 0
     _default_maximum_length = 2**32
+    _set_size = True
+    _size_var_name = 'size'
+    _set_index = True
+    _index_var_name = 'index'
 
     def __init__(self, coords=None, name=None, child_tag=None, child_type=None,
-                 minimum_length=None, maximum_length=None, _xml_ns=None):
+                 minimum_length=None, maximum_length=None, _xml_ns=None, _xml_ns_key=None):
         self._xml_ns = _xml_ns
+        self._xml_ns_key = _xml_ns_key
         self._array = None
         if name is None:
             raise ValueError('The name parameter is required.')
@@ -2018,20 +2165,26 @@ class SerializableArray(object):
         self._check_indices()
 
     def _check_indices(self):
+        if not self._set_index:
+            return
         for i, entry in enumerate(self._array):
             try:
-                entry.index = i+1
+                setattr(entry, self._index_var_name, i+1)
             except (AttributeError, ValueError, TypeError):
                 continue
 
-    def to_node(self, doc, tag, parent=None, check_validity=False, strict=DEFAULT_STRICT):
+    def to_node(self, doc, tag, ns_key=None, parent=None, check_validity=False, strict=DEFAULT_STRICT):
         if self.size == 0:
             return None  # nothing to be done
-
-        anode = _create_new_node(doc, tag, parent=parent)
-        anode.attrib['size'] = str(self.size)
+        if ns_key is None:
+            anode = _create_new_node(doc, tag, parent=parent)
+        else:
+            anode = _create_new_node(doc, '{}:{}'.format(ns_key, tag), parent=parent)
+        if self._set_size:
+            anode.attrib[self._size_var_name] = str(self.size)
         for i, entry in enumerate(self._array):
-            entry.to_node(doc, self._child_tag, parent=anode, check_validity=check_validity, strict=strict)
+            entry.to_node(doc, self._child_tag, ns_key=ns_key, parent=anode,
+                          check_validity=check_validity, strict=strict)
         return anode
 
     @classmethod
@@ -2061,14 +2214,15 @@ class SerializableArray(object):
 class SerializableCPArray(SerializableArray):
     __slots__ = (
         '_child_tag', '_child_type', '_array', '_name', '_minimum_length',
-        '_maximum_length', '_index_as_string')
+        '_maximum_length', '_index_as_string', '_xml_ns', '_xml_ns_key')
 
-    def __init__(self, coords=None, name=None, child_tag=None, child_type=None, _xml_ns=None):
+    def __init__(self, coords=None, name=None, child_tag=None, child_type=None, _xml_ns=None, _xml_ns_key=None):
         if hasattr(child_type, '_CORNER_VALUES'):
             self._index_as_string = True
         else:
             self._index_as_string = False
-        super(SerializableCPArray, self).__init__(coords=coords, name=name, child_tag=child_tag, child_type=child_type, _xml_ns=_xml_ns)
+        super(SerializableCPArray, self).__init__(
+            coords=coords, name=name, child_tag=child_tag, child_type=child_type, _xml_ns=_xml_ns, _xml_ns_key=_xml_ns_key)
         self._minimum_length = 4
         self._maximum_length = 4
 
@@ -2108,21 +2262,26 @@ class SerializableCPArray(SerializableArray):
             self._array[2].index = '3:LRLC'
             self._array[3].index = '4:LRFC'
 
-    def to_node(self, doc, tag, parent=None, check_validity=False, strict=DEFAULT_STRICT):
+    def to_node(self, doc, tag, ns_key=None, parent=None, check_validity=False, strict=DEFAULT_STRICT):
         if self.size == 0:
             return None  # nothing to be done
-
-        anode = _create_new_node(doc, tag, parent=parent)
+        if ns_key is None:
+            anode = _create_new_node(doc, tag, parent=parent)
+        else:
+            anode = _create_new_node(doc, '{}:{}'.format(ns_key, tag), parent=parent)
         for i, entry in enumerate(self._array):
-            entry.to_node(doc, self._child_tag, parent=anode, check_validity=check_validity, strict=strict)
+            entry.to_node(doc, self._child_tag, ns_key=ns_key, parent=anode,
+                          check_validity=check_validity, strict=strict)
         return anode
 
 
 class ParametersCollection(object):
-    __slots__ = ('_name', '_child_tag', '_dict')
+    __slots__ = ('_name', '_child_tag', '_dict', '_xml_ns', '_xml_ns_key')
 
-    def __init__(self, collection=None, name=None, child_tag='Parameters'):
+    def __init__(self, collection=None, name=None, child_tag='Parameters', _xml_ns=None, _xml_ns_key=None):
         self._dict = None
+        self._xml_ns = _xml_ns
+        self._xml_ns_key = _xml_ns_key
         if name is None:
             raise ValueError('The name parameter is required.')
         if not isinstance(name, string_types):
@@ -2173,14 +2332,69 @@ class ParametersCollection(object):
         return self._dict
 
     # noinspection PyUnusedLocal
-    def to_node(self, doc, parent=None, check_validity=False, strict=False):
+    def to_node(self, doc, ns_key=None, parent=None, check_validity=False, strict=False):
         if self._dict is None:
             return None  # nothing to be done
         for name in self._dict:
             value = self._dict[name]
-            node = _create_text_node(doc, self._child_tag, value, parent=parent)
+            if ns_key is None:
+                node = _create_text_node(doc, self._child_tag, value, parent=parent)
+            else:
+                node = _create_text_node(doc, '{}:{}'.format(ns_key, self._child_tag), value, parent=parent)
             node.attrib['name'] = name
 
     # noinspection PyUnusedLocal
     def to_dict(self, check_validity=False, strict=False):
-        return self._dict
+        return copy.deepcopy(self._dict)
+
+
+######
+# Extra descriptor
+
+class _SerializableArrayDescriptor(_BasicDescriptor):
+    """A descriptor for properties of a list or array of specified extension of Serializable"""
+    _DEFAULT_MIN_LENGTH = 0
+    _DEFAULT_MAX_LENGTH = 2 ** 32
+
+    def __init__(self, name, child_type, tag_dict, required, strict=DEFAULT_STRICT,
+                 minimum_length=None, maximum_length=None, docstring=None,
+                 array_extension=SerializableArray):
+        if not issubclass(array_extension, SerializableArray):
+            raise TypeError('array_extension must be a subclass of SerializableArray.')
+        self.child_type = child_type
+        tags = tag_dict[name]
+        self.array = tags.get('array', False)
+        if not self.array:
+            raise ValueError(
+                'Attribute {} is populated in the `_collection_tags` dictionary without `array`=True. '
+                'This is inconsistent with using _SerializableArrayDescriptor.'.format(name))
+
+        self.child_tag = tags['child_tag']
+        self._typ_string = 'numpy.ndarray[{}]:'.format(str(child_type).strip().split('.')[-1][:-2])
+        self.array_extension = array_extension
+
+        self.minimum_length = self._DEFAULT_MIN_LENGTH if minimum_length is None else int_func(minimum_length)
+        self.maximum_length = self._DEFAULT_MAX_LENGTH if maximum_length is None else int_func(maximum_length)
+        if self.minimum_length > self.maximum_length:
+            raise ValueError(
+                'Specified minimum length is {}, while specified maximum length is {}'.format(
+                    self.minimum_length, self.maximum_length))
+        super(_SerializableArrayDescriptor, self).__init__(name, required, strict=strict, docstring=docstring)
+
+    def __set__(self, instance, value):
+        if super(_SerializableArrayDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
+            return
+
+        if isinstance(value, self.array_extension):
+            self.data[instance] = value
+        else:
+            xml_ns = getattr(instance, '_xml_ns', None)
+            xml_ns_key = getattr(instance, '_xml_ns_key', None)
+            the_inst = self.data.get(instance, None)
+            if the_inst is None:
+                self.data[instance] = self.array_extension(
+                    coords=value, name=self.name, child_tag=self.child_tag, child_type=self.child_type,
+                    minimum_length=self.minimum_length, maximum_length=self.maximum_length, _xml_ns=xml_ns,
+                    _xml_ns_key=xml_ns_key)
+            else:
+                the_inst.set_array(value)
