@@ -277,6 +277,11 @@ class RadarSatDetails(object):
         CollectionInfoType
         """
 
+        try:
+            import sarpy.ngds as ngds
+        except ImportError:
+            ngds = None
+
         collector_name = self.satellite
         start_time_dt = self._get_start_time(get_datetime=True)
         date_str = start_time_dt.strftime('%d%B%y').upper()
@@ -286,15 +291,7 @@ class RadarSatDetails(object):
             core_name = '{}{}{}'.format(date_str, self.generation, self._find('./sourceAttributes/imageId').text)
         elif self.generation == 'RCM':
             class_str = self._find('./securityAttributes/securityClassification').text.upper()
-            if 'UNCLASS' in class_str:
-                classification = 'UNCLASSIFIED'
-            elif class_str == 'CAN SECRET':
-                classification = '//CAN SECRET//REL TO USA, CAN'
-                nitf['Security'] = {'CLAS': 'S', 'CLSY': 'CA'}
-            else:
-                logging.critical('Unsure how to handle RCM classification string {}, so we are '
-                                 'passing it straight through.'.format(class_str))
-                classification = class_str
+            classification = class_str if ngds is None else ngds.extract_radarsat_sec(nitf, class_str)
             core_name = '{}{}{}'.format(date_str, collector_name.replace('-', ''), start_time_dt.strftime('%H%M%S'))
         else:
             raise ValueError('unhandled generation {}'.format(self.generation))
