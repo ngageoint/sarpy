@@ -137,6 +137,8 @@ class SICDType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self._coa_projection = None
         self.CollectionInfo = CollectionInfo
         self.ImageCreation = ImageCreation

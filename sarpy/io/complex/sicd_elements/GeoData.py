@@ -13,7 +13,8 @@ import numpy
 from .base import Serializable, DEFAULT_STRICT, _StringDescriptor, _StringEnumDescriptor, \
     _SerializableDescriptor, _SerializableArrayDescriptor, \
     _ParametersDescriptor, ParametersCollection, SerializableArray, \
-    _SerializableCPArrayDescriptor, SerializableCPArray, _parse_serializable
+    _SerializableCPArrayDescriptor, SerializableCPArray, _parse_serializable, \
+    _find_children
 from .blocks import XYZType, LatLonRestrictionType, LatLonHAERestrictionType, \
     LatLonCornerStringType, LatLonArrayElementType
 
@@ -24,7 +25,10 @@ __author__ = "Thomas McCullough"
 
 
 class GeoInfoType(Serializable):
-    """A geographic feature."""
+    """
+    A geographic feature.
+    """
+
     _fields = ('name', 'Descriptions', 'Point', 'Line', 'Polygon')
     _required = ('name', )
     _set_as_attribute = ('name', )
@@ -68,6 +72,8 @@ class GeoInfoType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.name = name
         self.Descriptions = Descriptions
         self.Point = Point
@@ -90,8 +96,8 @@ class GeoInfoType(Serializable):
     def FeatureType(self):  # type: () -> Union[None, str]
         """
         str: READ ONLY attribute. Identifies the feature type among. This is determined by
-        returning the (first) attribute among `Point`, `Line`, `Polygon` which is populated. None will be returned if
-        none of them are populated.
+        returning the (first) attribute among `Point`, `Line`, `Polygon` which is populated.
+        `None` will be returned if none of them are populated.
         """
 
         for attribute in self._choice[0]['collection']:
@@ -136,7 +142,8 @@ class GeoInfoType(Serializable):
         """
 
         if isinstance(value, ElementTree.Element):
-            value = GeoInfoType.from_node(value, self._xml_ns)
+            gi_key = self._child_xml_ns_key.get('GeoInfos', self._xml_ns_key)
+            value = GeoInfoType.from_node(value, self._xml_ns, ns_key=gi_key)
         elif isinstance(value, dict):
             value = GeoInfoType.from_dict(value)
 
@@ -159,19 +166,19 @@ class GeoInfoType(Serializable):
         return condition & self._validate_features()
 
     @classmethod
-    def from_node(cls, node, xml_ns, kwargs=None):
+    def from_node(cls, node, xml_ns, ns_key=None, kwargs=None):
         if kwargs is None:
             kwargs = OrderedDict()
-        kwargs['GeoInfos'] = node.findall('GeoInfo') if xml_ns is None else \
-            node.findall('default:GeoInfo', xml_ns)
-        return super(GeoInfoType, cls).from_node(node, xml_ns, kwargs=kwargs)
+        gi_key = cls._child_xml_ns_key.get('GeoInfos', ns_key)
+        kwargs['GeoInfos'] = _find_children(node, 'GeoInfo', xml_ns, gi_key)
+        return super(GeoInfoType, cls).from_node(node, xml_ns, ns_key=ns_key, kwargs=kwargs)
 
-    def to_node(self, doc, tag, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
+    def to_node(self, doc, tag, ns_key=None, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
         node = super(GeoInfoType, self).to_node(
-            doc, tag, parent=parent, check_validity=check_validity, strict=strict, exclude=exclude)
+            doc, tag, ns_key=ns_key, parent=parent, check_validity=check_validity, strict=strict, exclude=exclude)
         # slap on the GeoInfo children
         for entry in self._GeoInfos:
-            entry.to_node(doc, tag, parent=node, strict=strict)
+            entry.to_node(doc, tag, ns_key=ns_key, parent=node, strict=strict)
         return node
 
     def to_dict(self, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
@@ -208,6 +215,8 @@ class SCPType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         if ECF is not None:
             self.ECF = ECF
         elif LLH is not None:
@@ -288,6 +297,8 @@ class GeoDataType(Serializable):
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
         self.EarthModel = EarthModel
         self.SCP = SCP
         self.ImageCorners = ImageCorners
@@ -354,7 +365,8 @@ class GeoDataType(Serializable):
         """
 
         if isinstance(value, ElementTree.Element):
-            value = GeoInfoType.from_node(value, self._xml_ns)
+            gi_key = self._child_xml_ns_key.get('GeoInfos', self._xml_ns_key)
+            value = GeoInfoType.from_node(value, self._xml_ns, ns_key=gi_key)
         elif isinstance(value, dict):
             value = GeoInfoType.from_dict(value)
 
@@ -364,19 +376,19 @@ class GeoDataType(Serializable):
             raise TypeError('Trying to set GeoInfo element with unexpected type {}'.format(type(value)))
 
     @classmethod
-    def from_node(cls, node, xml_ns, kwargs=None):
+    def from_node(cls, node, xml_ns, ns_key=None, kwargs=None):
         if kwargs is None:
             kwargs = OrderedDict()
-        kwargs['GeoInfos'] = node.findall('GeoInfo') if xml_ns is None else \
-            node.findall('default:GeoInfo', xml_ns)
-        return super(GeoDataType, cls).from_node(node, xml_ns, kwargs=kwargs)
+        gi_key = cls._child_xml_ns_key.get('GeoInfos', ns_key)
+        kwargs['GeoInfos'] = _find_children(node, 'GeoInfo', xml_ns, gi_key)
+        return super(GeoDataType, cls).from_node(node, xml_ns, ns_key=ns_key, kwargs=kwargs)
 
-    def to_node(self, doc, tag, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
+    def to_node(self, doc, tag, ns_key=None, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
         node = super(GeoDataType, self).to_node(
-            doc, tag, parent=parent, check_validity=check_validity, strict=strict, exclude=exclude)
+            doc, tag, ns_key=ns_key, parent=parent, check_validity=check_validity, strict=strict, exclude=exclude)
         # slap on the GeoInfo children
         for entry in self._GeoInfos:
-            entry.to_node(doc, 'GeoInfo', parent=node, strict=strict)
+            entry.to_node(doc, 'GeoInfo', ns_key=ns_key, parent=node, strict=strict)
         return node
 
     def to_dict(self, check_validity=False, strict=DEFAULT_STRICT, exclude=()):

@@ -271,6 +271,8 @@ class TREExtension(TRE):
 
     @property
     def EL(self):
+        if self._data is None:
+            return 0
         return self._data.get_bytes_length()
 
     @classmethod

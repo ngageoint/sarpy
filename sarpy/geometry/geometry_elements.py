@@ -828,21 +828,20 @@ class MultiLineString(GeometryObject):
                 geometry.add_to_kml(doc, multigeometry, coord_transform)
 
 
-class LinearRing(object):
+class LinearRing(LineString):
     """
     This is not directly a valid geojson member, but plays the role of a single
     polygonal element, and is only used as a Polygon constituent.
     """
-
     __slots__ = ('_coordinates', '_diffs', '_bounding_box', '_segmentation')
+    _type = 'LinearRing'
 
     def __init__(self, coordinates=None):
         self._coordinates = None
         self._diffs = None
         self._bounding_box = None
         self._segmentation = None
-        if coordinates is not None:
-            self.set_coordinates(coordinates)
+        super(LinearRing, self).__init__(coordinates)
 
     def get_coordinate_list(self):
         if self._coordinates is None:
@@ -879,8 +878,7 @@ class LinearRing(object):
         float
         """
 
-        return float(numpy.sum(
-            numpy.sqrt(self._diffs[:, 0]*self._diffs[:, 0] + self._diffs[:, 1]*self._diffs[:, 1])))
+        return self.get_length()
 
     def get_area(self):
         """
@@ -926,6 +924,10 @@ class LinearRing(object):
         """
 
         return self._coordinates
+
+    @coordinates.setter
+    def coordinates(self, coordinates):
+        self.set_coordinates(coordinates)
 
     def set_coordinates(self, coordinates):
         if coordinates is None:
