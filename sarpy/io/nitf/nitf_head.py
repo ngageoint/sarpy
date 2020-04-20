@@ -294,6 +294,37 @@ class NITFDetails(object):
         """NITFHeader: the nitf header object"""
         return self._nitf_header
 
+    def _fetch_item(self, name, index, offsets, sizes):
+        # type: (str, int, numpy.ndarray, numpy.ndarray) -> bytes
+        if index >= offsets.size:
+            raise IndexError(
+                'There are only {0:d} {1:s}, invalid {1:s} position {2:d}'.format(
+                    offsets.size, name, index))
+        the_offset = offsets[index]
+        the_size = sizes[index]
+        with open(self._file_name, mode='rb') as fi:
+            fi.seek(int_func(the_offset))
+            the_item = fi.read(int_func(the_size))
+        return the_item
+
+    def get_image_subheader_bytes(self, index):
+        """
+        Fetches the image segment subheader at the given index.
+
+        Parameters
+        ----------
+        index : int
+
+        Returns
+        -------
+        bytes
+        """
+
+        return self._fetch_item('image subheader',
+                                index,
+                                self.img_subheader_offsets,
+                                self._nitf_header.ImageSegments.subhead_sizes)
+
     def parse_image_subheader(self, index):
         """
         Parse the image segment subheader at the given index.
@@ -307,17 +338,44 @@ class NITFDetails(object):
         ImageSegmentHeader
         """
 
-        if index >= self.img_subheader_offsets.size:
-            raise IndexError(
-                'There are only {} image segments, invalid image '
-                'segment position {}'.format(self.img_subheader_offsets, index))
-        offset = self.img_subheader_offsets[index]
-        subhead_size = self._nitf_header.ImageSegments.subhead_sizes[index]
-        with open(self._file_name, mode='rb') as fi:
-            fi.seek(int_func(offset))
-            header_string = fi.read(int_func(subhead_size))
-            out = ImageSegmentHeader.from_bytes(header_string, 0)
-        return out
+        ih = self.get_image_subheader_bytes(index)
+        return ImageSegmentHeader.from_bytes(ih, 0)
+
+    def get_text_subheader_bytes(self, index):
+        """
+        Fetches the text segment subheader at the given index.
+
+        Parameters
+        ----------
+        index : int
+
+        Returns
+        -------
+        bytes
+        """
+
+        return self._fetch_item('text subheader',
+                                index,
+                                self.text_subheader_offsets,
+                                self._nitf_header.TextSegments.subhead_sizes)
+
+    def get_text_bytes(self, index):
+        """
+        Fetches the text extension segment bytes at the given index.
+
+        Parameters
+        ----------
+        index : int
+
+        Returns
+        -------
+        bytes
+        """
+
+        return self._fetch_item('text segment',
+                                index,
+                                self.text_segment_offsets,
+                                self._nitf_header.TextSegments.item_sizes)
 
     def parse_text_subheader(self, index):
         """
@@ -332,17 +390,44 @@ class NITFDetails(object):
         TextSegmentHeader
         """
 
-        if index >= self.text_subheader_offsets.size:
-            raise IndexError(
-                'There are only {} image segments, invalid image segment position {}'.format(
-                    self.text_subheader_offsets.size, index))
-        offset = self.text_subheader_offsets[index]
-        subhead_size = self._nitf_header.TextSegments.subhead_sizes[index]
-        with open(self._file_name, mode='rb') as fi:
-            fi.seek(int_func(offset))
-            header_string = fi.read(int_func(subhead_size))
-            out = TextSegmentHeader.from_bytes(header_string, 0)
-        return out
+        th = self.get_text_subheader_bytes(index)
+        return TextSegmentHeader.from_bytes(th, 0)
+
+    def get_graphics_subheader_bytes(self, index):
+        """
+        Fetches the graphics segment subheader at the given index.
+
+        Parameters
+        ----------
+        index : int
+
+        Returns
+        -------
+        bytes
+        """
+
+        return self._fetch_item('graphics subheader',
+                                index,
+                                self.graphics_subheader_offsets,
+                                self._nitf_header.GraphicsSegments.subhead_sizes)
+
+    def get_graphics_bytes(self, index):
+        """
+        Fetches the graphics extension segment bytes at the given index.
+
+        Parameters
+        ----------
+        index : int
+
+        Returns
+        -------
+        bytes
+        """
+
+        return self._fetch_item('graphics segment',
+                                index,
+                                self.graphics_segment_offsets,
+                                self._nitf_header.GraphicsSegments.item_sizes)
 
     def parse_graphics_subheader(self, index):
         """
@@ -357,17 +442,44 @@ class NITFDetails(object):
         GraphicsSegmentHeader
         """
 
-        if index >= self.graphics_subheader_offsets.size:
-            raise IndexError(
-                'There are only {} image segments, invalid image segment position {}'.format(
-                    self.graphics_subheader_offsets.size, index))
-        offset = self.graphics_subheader_offsets[index]
-        subhead_size = self._nitf_header.GraphicsSegments.subhead_sizes[index]
-        with open(self._file_name, mode='rb') as fi:
-            fi.seek(int_func(offset))
-            header_string = fi.read(int_func(subhead_size))
-            out = GraphicsSegmentHeader.from_bytes(header_string, 0)
-        return out
+        gh = self.get_graphics_subheader_bytes(index)
+        return GraphicsSegmentHeader.from_bytes(gh, 0)
+
+    def get_des_subheader_bytes(self, index):
+        """
+        Fetches the data extension segment subheader bytes at the given index.
+
+        Parameters
+        ----------
+        index : int
+
+        Returns
+        -------
+        bytes
+        """
+
+        return self._fetch_item('des subheader',
+                                index,
+                                self.des_subheader_offsets,
+                                self._nitf_header.DataExtensions.subhead_sizes)
+
+    def get_des_bytes(self, index):
+        """
+        Fetches the data extension segment bytes at the given index.
+
+        Parameters
+        ----------
+        index : int
+
+        Returns
+        -------
+        bytes
+        """
+
+        return self._fetch_item('des',
+                                index,
+                                self.des_segment_offsets,
+                                self._nitf_header.DataExtensions.item_sizes)
 
     def parse_des_subheader(self, index):
         """
@@ -382,17 +494,44 @@ class NITFDetails(object):
         DataExtensionHeader
         """
 
-        if index >= self.des_subheader_offsets.size:
-            raise IndexError(
-                'There are only {} image segments, invalid image segment position {}'.format(
-                    self.des_subheader_offsets.size, index))
-        offset = self.des_subheader_offsets[index]
-        subhead_size = self._nitf_header.DataExtensions.subhead_sizes[index]
-        with open(self._file_name, mode='rb') as fi:
-            fi.seek(int_func(offset))
-            header_string = fi.read(int_func(subhead_size))
-            out = DataExtensionHeader.from_bytes(header_string, 0)
-        return out
+        dh = self.get_des_subheader_bytes(index)
+        return DataExtensionHeader.from_bytes(dh, 0)
+
+    def get_res_subheader_bytes(self, index):
+        """
+        Fetches the reserved extension segment subheader bytes at the given index.
+
+        Parameters
+        ----------
+        index : int
+
+        Returns
+        -------
+        bytes
+        """
+
+        return self._fetch_item('res subheader',
+                                index,
+                                self.res_subheader_offsets,
+                                self._nitf_header.ReservedExtensions.subhead_sizes)
+
+    def get_res_bytes(self, index):
+        """
+        Fetches the reserved extension segment bytes at the given index.
+
+        Parameters
+        ----------
+        index : int
+
+        Returns
+        -------
+        bytes
+        """
+
+        return self._fetch_item('res',
+                                index,
+                                self.res_segment_offsets,
+                                self._nitf_header.ReservedExtensions.item_sizes)
 
     def parse_res_subheader(self, index):
         """
@@ -407,14 +546,5 @@ class NITFDetails(object):
         ReservedExtensionHeader
         """
 
-        if index >= self.res_subheader_offsets.size:
-            raise IndexError(
-                'There are only {} image segments, invalid image segment position {}'.format(
-                    self.res_subheader_offsets.size, index))
-        offset = self.res_subheader_offsets[index]
-        subhead_size = self._nitf_header.ReservedExtensions.subhead_sizes[index]
-        with open(self._file_name, mode='rb') as fi:
-            fi.seek(int_func(offset))
-            header_string = fi.read(int_func(subhead_size))
-            out = ReservedExtensionHeader.from_bytes(header_string, 0)
-        return out
+        rh = self.get_res_subheader_bytes(index)
+        return ReservedExtensionHeader.from_bytes(rh, 0)
