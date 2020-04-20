@@ -166,7 +166,6 @@ class SICDDetails(NITFDetails):
         if self.des_subheader_offsets is None:
             return
 
-        data_extension = None
         for i in range(self.des_subheader_offsets.size):
             subhead_bytes = self.get_des_subheader_bytes(i)
             if subhead_bytes.startswith(b'DEXML_DATA_CONTENT'):
