@@ -57,8 +57,11 @@ def is_a(file_name):
 
     try:
         nitf_details = SICDDetails(file_name)
-        print('File {} is determined to be a sicd (NITF format) file.'.format(file_name))
-        return SICDReader(nitf_details)
+        if nitf_details.is_sicd:
+            print('File {} is determined to be a sicd (NITF format) file.'.format(file_name))
+            return SICDReader(nitf_details)
+        else:
+            return None
     except IOError:
         # we don't want to catch parsing errors, for now
         return None
