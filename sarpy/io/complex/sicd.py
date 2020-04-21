@@ -334,9 +334,9 @@ def amp_phase_to_complex(lookup_table):
             raise ValueError('Requires a three-dimensional numpy.ndarray (with band '
                              'in the first dimension), got shape {}'.format(data.shape))
 
-        out = numpy.zeros((data.shape[0] / 2, data.shape[1], data.shape[2]), dtype=numpy.complex64)
-        amp = lookup_table[data[0::2, :, :]]
-        theta = data[1::2, :, :]*(2*numpy.pi/256)
+        out = numpy.zeros((data.shape[0], data.shape[1], data.shape[2]/2), dtype=numpy.complex64)
+        amp = lookup_table[data[:, :, 0::2]]
+        theta = data[:, :, 1::2]*(2*numpy.pi/256)
         out.real = amp*numpy.cos(theta)
         out.imag = amp*numpy.sin(theta)
         return out
