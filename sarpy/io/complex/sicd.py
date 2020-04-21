@@ -121,7 +121,7 @@ class SICDDetails(NITFDetails):
     @property
     def sicd_meta(self):
         """
-        SICDType: the sicd meta-data structure.
+        sarpy.io.complex.sicd_elements.SICD.SICDType: the sicd meta-data structure.
         """
 
         return self._sicd_meta
@@ -133,7 +133,7 @@ class SICDDetails(NITFDetails):
 
         Returns
         -------
-            None|List[ImageSegmentHeader]
+            None|List[sarpy.io.nitf.image.ImageSegmentHeader]
         """
 
         if self._img_headers is not None:
@@ -149,7 +149,7 @@ class SICDDetails(NITFDetails):
 
         Returns
         -------
-        None|DataExtensionHeader
+        None|sarpy.io.nitf.des.DataExtensionHeader
         """
 
         return self._des_header
@@ -451,7 +451,7 @@ class SICDReader(BaseReader):
 
         Parameters
         ----------
-        nitf_details : str|SICDDetails
+        nitf_details : str|sarpy.io.complex.sicd_elements.SICD.SICDDetails
             filename or SICDDetails object
         """
 
@@ -591,7 +591,7 @@ class SICDWriter(BaseWriter):
         Parameters
         ----------
         file_name : str
-        sicd_meta : SICDType
+        sicd_meta : sarpy.io.complex.sicd_elements.SICD.SICDType
         """
 
         super(SICDWriter, self).__init__(file_name, sicd_meta)
@@ -677,7 +677,7 @@ class SICDWriter(BaseWriter):
 
         Returns
         -------
-        NITFSecurityTags
+        sarpy.io.nitf.security.NITFSecurityTags
         """
 
         def get_basic_args():
