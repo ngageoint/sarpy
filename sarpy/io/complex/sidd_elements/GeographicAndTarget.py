@@ -12,7 +12,7 @@ from ..sicd_elements.base import Serializable, SerializableArray, SerializableCP
     _SerializableArrayDescriptor, _SerializableCPArrayDescriptor, _StringEnumDescriptor, \
     _find_children
 from .base import DEFAULT_STRICT
-from .blocks import LatLonCornerType, LatLonArrayElementType, GeoInfoType
+from .blocks import LatLonCornerStringType, LatLonCornerType, LatLonArrayElementType, GeoInfoType
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
@@ -41,11 +41,12 @@ class GeographicAndTargetType(Serializable):
                   'All height values are *Height Above The Ellipsoid '
                   '(HAE)*.'.format(_EARTH_MODEL_VALUES))  # type: str
     ImageCorners = _SerializableCPArrayDescriptor(
-        'ImageCorners', LatLonCornerType, _collections_tags, _required, strict=DEFAULT_STRICT,
+        'ImageCorners', LatLonCornerStringType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='The geographic image corner points array. Image corners points projected to the '
                   'ground/surface level. Points may be projected to the same height as the SCP if ground/surface '
                   'height data is not available. The corner positions are approximate geographic locations and '
-                  'not intended for analytical use.')  # type: Union[SerializableCPArray, List[LatLonCornerType]]
+                  'not intended for analytical '
+                  'use.')  # type: Union[SerializableCPArray, List[LatLonCornerStringType]]
     ValidData = _SerializableArrayDescriptor(
         'ValidData', LatLonArrayElementType, _collections_tags, _required,
         strict=DEFAULT_STRICT, minimum_length=3,
