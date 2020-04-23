@@ -25,6 +25,47 @@ __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 
+def get_band_name(freq):
+    """
+    Gets the band names associated with the given frequency (in Hz).
+
+    Parameters
+    ----------
+    freq : float
+
+    Returns
+    -------
+    str
+    """
+
+    if freq is None:
+        return 'UN'
+    elif 3e6 <= freq < 3e7:
+        return 'HF'
+    elif 3e7 <= freq < 3e8:
+        return 'VHF'
+    elif 3e8 <= freq < 1e9:
+        return 'UHF'
+    elif 1e9 <= freq < 2e9:
+        return 'L'
+    elif 2e9 <= freq < 4e9:
+        return 'S'
+    elif 4e9 <= freq < 8e9:
+        return 'C'
+    elif 8e9 <= freq < 1.2e10:
+        return 'X'
+    elif 1.2e10 <= freq < 1.8e10:
+        return 'KU'
+    elif 1.8e10 <= freq < 2.7e10:
+        return 'K'
+    elif 2.7e10 <= freq < 4e10:
+        return 'KA'
+    elif 4e10 <= freq < 3e20:
+        return 'MM'
+    else:
+        return 'UN'
+
+
 class TxFrequencyType(Serializable):
     """
     The transmit frequency range.
@@ -71,6 +112,24 @@ class TxFrequencyType(Serializable):
                 'Invalid frequency bounds Min ({}) > Max ({})'.format(self.Min, self.Max))
             condition = False
         return condition
+
+    def get_band_abbreviation(self):
+        """
+        Gets the band abbreviation for the suggested name.
+
+        Returns
+        -------
+        str
+        """
+
+        min_band = get_band_name(self.Min)
+        max_band = get_band_name(self.Max)
+        if min_band == max_band:
+            return min_band + '_'*(3-len(min_band))
+        elif min_band == 'UN' or max_band == 'UN':
+            return 'UN_'
+        else:
+            return 'MB_'
 
 
 class WaveformParametersType(Serializable):
@@ -788,3 +847,27 @@ class RadarCollectionType(Serializable):
                 # noinspection PyProtectedMember
                 entry._apply_reference_frequency(reference_frequency)
         self.RefFreqIndex = 0
+
+    def get_polarization_abbreviation(self):
+        """
+        Gets the polarization collection abbreviation for the suggested name.
+
+        Returns
+        -------
+        str
+        """
+
+        if self.RcvChannels is None:
+            pol_count = 0
+        else:
+            pol_count = len(self.RcvChannels)
+        if pol_count == 1:
+            return 'S'
+        elif pol_count == 2:
+            return 'D'
+        elif pol_count == 3:
+            return 'T'
+        elif pol_count > 3:
+            return 'Q'
+        else:
+            return 'U'

@@ -284,7 +284,7 @@ class RadarSatDetails(object):
 
         collector_name = self.satellite
         start_time_dt = self._get_start_time(get_datetime=True)
-        date_str = start_time_dt.strftime('%d%B%y').upper()
+        date_str = start_time_dt.strftime('%d%b%y').upper()
         nitf = {}
         if self.generation == 'RS2':
             classification = 'UNCLASSIFIED'

@@ -5,6 +5,8 @@ The SICDType definition.
 
 import logging
 import copy
+from datetime import datetime
+import re
 
 import numpy
 
@@ -855,3 +857,68 @@ class SICDType(Serializable):
         if hasattr(self, '_NITF'):
             out._NITF = copy.deepcopy(self._NITF)
         return out
+
+    def get_suggested_name(self, product_number=1):
+        """
+        Get the suggested name stem for the sicd and derived data.
+
+        Returns
+        -------
+        str
+        """
+
+        def get_commercial_id(prod):
+            _cdate_str = cdate.strftime('%d%b%y')
+            _collector = self.CollectionInfo.CollectorName.strip()
+            _mins = cdate.hour * 60 + cdate.minute + cdate.second / 60.
+            if _collector.startswith('CSK'):
+                _crad = 'CS'
+                _cvehicle = _collector[3:5]
+                _pass = int(round(_mins*14.8125/1440.))
+            elif _collector in ('RADARSAT-1', 'RADARSAT-2'):
+                _crad = 'RS'
+                _cvehicle = '0'+_collector[-1]
+                _pass = int(round(_mins*14.292/1440.))
+            elif _collector.startswith('RCM'):
+                _crad = 'RC'
+                _cvehicle = '{0:02d}'.format(int(re.sub('-', '', _collector[3:])))
+                _pass = int(round(_mins*14.292/1440.))  # not sure what to put here
+            elif _collector.startswith('SENTINEL'):
+                _crad = 'SE'
+                _cvehicle = self.CollectionInfo.CoreName[-2:]
+                _pass = '00'
+            elif _collector.lower().startswith('terra') or _collector.lower().startswith('tsx'):
+                _crad = 'TS'
+                _cvehicle = '01'
+                _pass = int(round(_mins*15.182/1440.))
+            elif _collector.lower().startswith('tan') or _collector.lower().startswith('tdx'):
+                _crad = 'TD'
+                _cvehicle = '01'
+                _pass = int(round(_mins*15.182/1440.))
+            else:
+                logging.error('Got unknown collector {}. Setting collector vehicle to 00.'.format(_collector))
+                _crad = 'UN'
+                _cvehicle = '00'
+                _pass = '00'
+
+            return '{0:s}{1:s}{2:s}{3:02d}{4:03d}'.format(_cdate_str, _crad, _cvehicle, _pass, prod)
+
+        def get_vendor_id():
+            _time_str = cdate.strftime('%H%M%S')
+            _mode = '{}{}{}'.format(self.CollectionInfo.RadarMode.get_mode_abbreviation(),
+                                    self.Grid.get_resolution_abbreviation(),
+                                    self.SCPCOA.SideOfTrack)
+            _coords = self.GeoData.SCP.get_image_center_abbreviation()
+            _freq_band = self.RadarCollection.TxFrequency.get_band_abbreviation()
+            _pol = '{}{}'.format(
+                self.RadarCollection.get_polarization_abbreviation(),
+                self.ImageFormation.get_polarization_abbreviation())
+            return '_{}_{}_{}_001{}_{}_0101_SPY'.format(_time_str, _mode, _coords, _freq_band, _pol)
+
+        cdate = self.Timeline.CollectStart.astype(datetime)
+
+        try:
+            return get_commercial_id(product_number) + get_vendor_id()
+        except AttributeError:
+            logging.error('Failed to construct suggested name.')
+            return None

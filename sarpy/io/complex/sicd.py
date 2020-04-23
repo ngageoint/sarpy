@@ -768,6 +768,17 @@ class SICDWriter(BaseWriter):
         #   following the python convention with starts inclusive, stops not inclusive
         return pixel_size, dtype, complex_type, pv_type, isubcat, numpy.array(im_segments, dtype=numpy.int64)
 
+    def _get_ftitle(self):
+        ftitle = None
+        if hasattr(self._sicd_meta, '_NITF') and isinstance(self._sicd_meta._NITF, dict):
+            ftitle = self._sicd_meta._NITF.get('SUGGESTED_NAME', None)
+        if ftitle is None:
+            if self._sicd_meta.CollectionInfo is not None and self._sicd_meta.CollectionInfo.CoreName is not None:
+                ftitle = 'SICD: {}'.format(self._sicd_meta.CollectionInfo.CoreName)
+            else:
+                ftitle = 'SICD: Unknown'
+        return ftitle
+
     def _create_image_segment_headers(self, pv_type, isubcat):
         # type: (str, tuple) -> Tuple[ImageSegmentHeader, ...]
 
@@ -787,11 +798,7 @@ class SICDWriter(BaseWriter):
                 out.append('{0:02d}{1:02d}{2:02d}{3:s}'.format(*dms[0]) + '{0:03d}{1:02d}{2:02d}{3:s}'.format(*dms[1]))
             return ''.join(out)
 
-        if self._sicd_meta.CollectionInfo is not None and self._sicd_meta.CollectionInfo.CoreName is not None:
-            ftitle = 'SICD: {}'.format(self._sicd_meta.CollectionInfo.CoreName)
-        else:
-            ftitle = 'SICD: Unknown'
-
+        ftitle = self._get_ftitle()
         idatim = ' '
         if self._sicd_meta.Timeline is not None and self._sicd_meta.Timeline.CollectStart is not None:
             idatim = re.sub(r'[^0-9]', '', str(self._sicd_meta.Timeline.CollectStart.astype('datetime64[s]')))
@@ -864,10 +871,8 @@ class SICDWriter(BaseWriter):
             clevel = 7
         ostaid = 'Unknown '
         fdt = re.sub(r'[^0-9]', '', str(self._sicd_meta.ImageCreation.DateTime.astype('datetime64[s]')))
-        if self._sicd_meta.CollectionInfo is not None and self._sicd_meta.CollectionInfo.CoreName is not None:
-            ftitle = 'SICD: {}'.format(self._sicd_meta.CollectionInfo.CoreName)
-        else:
-            ftitle = 'SICD: Unknown'
+
+        ftitle = self._get_ftitle()
         # get image segment details - the size of the headers will be redefined when locking down details
         im_sizes = numpy.copy(self._image_segment_limits[:, 4])
         im_segs = ImageSegmentsType(

@@ -444,3 +444,18 @@ class ImageFormationType(Serializable):
                 'TStartProc ({}) > TEndProc ({})'.format(self.TStartProc, self.TEndProc))
             condition = False
         return condition
+
+    def get_polarization_abbreviation(self):
+        """
+        Gets the transmit/receive polarization abbreviation for the suggested name.
+
+        Returns
+        -------
+        str
+        """
+
+        pol = self.TxRcvPolarizationProc
+        if pol is None or pol in ('OTHER', 'UNKNOWN'):
+            return 'UN'
+        fp, sp = pol.split(':')
+        return fp[0]+sp[0]

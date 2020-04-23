@@ -48,6 +48,29 @@ class RadarModeType(Serializable):
         self.ModeID, self.ModeType = ModeID, ModeType
         super(RadarModeType, self).__init__(**kwargs)
 
+    def get_mode_abbreviation(self):
+        """
+        Get the mode abbreviation for the suggested name.
+
+        Returns
+        -------
+        str
+        """
+
+        mode = self.ModeType
+        if mode is None:
+            return 'UN'
+        elif mode == 'SPOTLIGHT':
+            return 'SL'
+        elif mode == 'STRIPMAP':
+            return 'ST'
+        elif mode == 'DYNAMIC STRIPMAP':
+            return 'DS'
+        elif mode == 'SCANSAR':
+            return 'SS'
+        else:
+            return 'UN'
+
 
 class CollectionInfoType(Serializable):
     """General information about the collection."""

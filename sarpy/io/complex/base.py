@@ -4,7 +4,6 @@ The base elements for reading and writing complex data files.
 """
 
 import os
-import re
 import sys
 import logging
 from typing import Union, Tuple
@@ -619,38 +618,6 @@ class BaseReader(object):
             return self._chipper[index](dim1range, dim2range)
         else:
             return self._chipper(dim1range, dim2range)
-
-    def get_suggestive_name(self, frame=None):
-        """
-        Get a suggestive name for the frame in question.
-
-        Parameters
-        ----------
-        frame : None|int
-            Defaults to the first frame.
-
-        Returns
-        -------
-        str
-        """
-
-        if frame is None:
-            frame = 0
-        else:
-            frame = int_func(frame)
-        the_sicd = self._sicd_meta if isinstance(self._sicd_meta, SICDType) else self._sicd_meta[frame]
-        core_name = ''
-        try:
-            core_name += the_sicd.CollectionInfo.CoreName
-        except (AttributeError, ValueError, TypeError):
-            core_name = 'UnknownCoreName'
-
-        pols = ''
-        try:
-            pols += re.sub(':', '', the_sicd.ImageFormation.TxRcvPolarizationProc)
-        except (AttributeError, ValueError, TypeError):
-            pols = 'UnknownPolarization'
-        return '{}_{}_SICD.nitf'.format(core_name, pols)
 
 
 class SubsetReader(BaseReader):
