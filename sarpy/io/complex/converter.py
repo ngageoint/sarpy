@@ -388,9 +388,21 @@ def conversion_utility(
         o_frames.append(index)
     frames = tuple(o_frames)
 
+    # assign SUGGESTED_NAME to each sicd
+    for frame in frames:
+        sicd = sicds[frame]
+        suggested_name = sicd.get_suggested_name(frame)+'_SICD'
+        if suggested_name is None and sicd.CollectionInfo.CoreName is not None:
+            suggested_name = sicd.CollectionInfo.CoreName+'{}_SICD'.format(frame)
+        if suggested_name is None:
+            suggested_name = 'Unknown{}_SICD'.format(frame)
+        if hasattr(sicd, '_NITF') and isinstance(sicd._NITF, dict):
+            sicd._NITF['SUGGESTED_NAME'] = suggested_name
+        else:
+            sicd._NITF = {'SUGGESTED_NAME': suggested_name}
     # construct output_files list
     if output_files is None:
-        output_files = [reader.get_suggestive_name(frame) for frame in frames]
+        output_files = [sicds[frame]._NITF['SUGGESTED_NAME']+'.nitf' for frame in frames]
     elif isinstance(output_files, str):
         if len(sicds) == 1:
             output_files = [output_files, ]

@@ -10,7 +10,6 @@ import warnings
 import numpy
 from numpy.polynomial import polynomial
 from scipy.constants import speed_of_light
-from datetime import date
 
 try:
     import h5py
@@ -536,17 +535,3 @@ class CSKReader(BaseReader):
             sicds.append(sicd_data[band_name])
             chippers.append(CSKBandChipper(csk_details.file_name, band_name, shape_dict[band_name], symmetry))
         super(CSKReader, self).__init__(tuple(sicds), tuple(chippers))
-
-    def get_suggestive_name(self, frame=0):
-        frame = int(frame)
-        out = super(CSKReader, self).get_suggestive_name(frame=frame)
-        the_sicd = self._sicd_meta if isinstance(self._sicd_meta, SICDType) else self._sicd_meta[frame]
-        try:
-            sdatestr = date.fromisoformat(str(the_sicd.Timeline.CollectStart)[:10]).strftime('%d%b%y')
-            out = '{}_{}_{}_{}'.format(
-                sdatestr, the_sicd.CollectionInfo.CollectorName,
-                the_sicd.CollectionInfo.RadarMode.ModeID, out)
-        except (AttributeError, ValueError, TypeError):
-            pass
-
-        return out

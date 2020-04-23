@@ -251,6 +251,21 @@ class SCPType(Serializable):
             self._LLH = _parse_serializable(value, 'LLH', self, LatLonHAERestrictionType)
             self._ECF = XYZType.from_array(geodetic_to_ecf(self._LLH.get_array(order='LAT')))
 
+    def get_image_center_abbreviation(self):
+        """
+        Gets the center coordinate abbreviation for the suggested name.
+
+        Returns
+        -------
+        str
+        """
+
+        llh = self.LLH
+        lat = numpy.round(llh.Lat)
+        lon = numpy.round(llh.Lon)
+        return '{0:02d}'.format(abs(lat)) + ('N' if lat >= 0 else 'S') + \
+            '{0:03d}'.format(abs(lon)) + ('E' if lon >= 0 else 'W')
+
 
 class GeoDataType(Serializable):
     """Container specifying the image coverage area in geographic coordinates."""
