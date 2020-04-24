@@ -57,8 +57,11 @@ def is_a(file_name):
 
     try:
         nitf_details = SICDDetails(file_name)
-        print('File {} is determined to be a sicd (NITF format) file.'.format(file_name))
-        return SICDReader(nitf_details)
+        if nitf_details.is_sicd:
+            print('File {} is determined to be a sicd (NITF format) file.'.format(file_name))
+            return SICDReader(nitf_details)
+        else:
+            return None
     except IOError:
         # we don't want to catch parsing errors, for now
         return None
@@ -118,7 +121,7 @@ class SICDDetails(NITFDetails):
     @property
     def sicd_meta(self):
         """
-        SICDType: the sicd meta-data structure.
+        sarpy.io.complex.sicd_elements.SICD.SICDType: the sicd meta-data structure.
         """
 
         return self._sicd_meta
@@ -130,7 +133,7 @@ class SICDDetails(NITFDetails):
 
         Returns
         -------
-            None|List[ImageSegmentHeader]
+            None|List[sarpy.io.nitf.image.ImageSegmentHeader]
         """
 
         if self._img_headers is not None:
@@ -146,7 +149,7 @@ class SICDDetails(NITFDetails):
 
         Returns
         -------
-        None|DataExtensionHeader
+        None|sarpy.io.nitf.des.DataExtensionHeader
         """
 
         return self._des_header
@@ -163,62 +166,54 @@ class SICDDetails(NITFDetails):
         if self.des_subheader_offsets is None:
             return
 
-        data_extension = None
-        with open(self._file_name, 'rb') as fi:
-            for i in range(self.des_subheader_offsets.size):
-                fi.seek(int_func(self.des_subheader_offsets[i]))
-                subhead_bytes = fi.read(self._nitf_header.DataExtensions.subhead_sizes[i])
-                if subhead_bytes.startswith(b'DEXML_DATA_CONTENT'):
-                    des_header = DataExtensionHeader.from_bytes(subhead_bytes, start=0)
-                    fi.seek(int_func(self.des_segment_offsets[i]))
-                    data_extension = fi.read(
-                        int_func(self._nitf_header.DataExtensions.item_sizes[i])).decode('utf-8').strip()
-                    try:
-                        root_node, xml_ns = parse_xml_from_string(data_extension)
-                        if 'SIDD' in root_node.tag:  # namespace makes this ugly
-                            # NOTE that SIDD files are supposed to have the corresponding
-                            # SICD xml as one of the DES AFTER the SIDD xml.
-                            # The same basic format is used for both headers.
-                            # So, abandon if we find a SIDD xml
-                            self._des_index = None
-                            self._des_header = None
-                            self._is_sicd = False
-                            break
-                        elif 'SICD' in root_node.tag:  # namespace makes this ugly
-                            self._des_index = i
-                            self._des_header = des_header
-                            self._is_sicd = True
-                            break
-                    except Exception:
-                        continue
-                elif subhead_bytes.startswith(b'DESIDD_XML'):
-                    # This is an old format SIDD and can't be a SICD
-                    self._des_index = None
-                    self._des_header = None
-                    self._is_sicd = False
-                    break
-                elif subhead_bytes.startswith(b'DESICD_XML'):
-                    # This is an old format SICD
-                    fi.seek(int_func(self.des_segment_offsets[i]))
-                    data_extension = fi.read(
-                        int_func(self._nitf_header.DataExtensions.item_sizes[i])).decode('utf-8').strip()
-                    try:
-                        root_node, xml_ns = parse_xml_from_string(data_extension)
-                        if 'SICD' in root_node.tag:  # namespace makes this ugly
-                            self._des_index = i
-                            self._des_header = None
-                            self._is_sicd = True
-                            break
-                    except Exception as e:
-                        logging.error('We found an apparent old-style SICD DES header, '
-                                      'but failed parsing with error {}'.format(e))
-                        continue
+        for i in range(self.des_subheader_offsets.size):
+            subhead_bytes = self.get_des_subheader_bytes(i)
+            if subhead_bytes.startswith(b'DEXML_DATA_CONTENT'):
+                des_header = DataExtensionHeader.from_bytes(subhead_bytes, start=0)
+                des_bytes = self.get_des_bytes(i)
+                try:
+                    root_node, xml_ns = parse_xml_from_string(des_bytes.decode('utf-8').strip())
+                    if 'SIDD' in root_node.tag:  # namespace makes this ugly
+                        # NOTE that SIDD files are supposed to have the corresponding
+                        # SICD xml as one of the DES AFTER the SIDD xml.
+                        # The same basic format is used for both headers.
+                        # So, abandon if we find a SIDD xml
+                        self._des_index = None
+                        self._des_header = None
+                        self._is_sicd = False
+                        break
+                    elif 'SICD' in root_node.tag:  # namespace makes this ugly
+                        self._des_index = i
+                        self._des_header = des_header
+                        self._is_sicd = True
+                        self._sicd_meta = SICDType.from_node(root_node, xml_ns, ns_key='default')
+                        break
+                except Exception:
+                    continue
+            elif subhead_bytes.startswith(b'DESIDD_XML'):
+                # This is an old format SIDD and can't be a SICD
+                self._des_index = None
+                self._des_header = None
+                self._is_sicd = False
+                break
+            elif subhead_bytes.startswith(b'DESICD_XML'):
+                # This is an old format SICD
+                des_bytes = self.get_des_bytes(i)
+                try:
+                    root_node, xml_ns = parse_xml_from_string(des_bytes)
+                    if 'SICD' in root_node.tag:  # namespace makes this ugly
+                        self._des_index = i
+                        self._des_header = None
+                        self._is_sicd = True
+                        self._sicd_meta = SICDType.from_node(root_node, xml_ns, ns_key='default')
+                        break
+                except Exception as e:
+                    logging.error('We found an apparent old-style SICD DES header, '
+                                  'but failed parsing with error {}'.format(e))
+                    continue
 
         if not self._is_sicd:
             return
-
-        root_node, xml_ns = parse_xml_from_string(data_extension)
-        self._sicd_meta = SICDType.from_node(root_node, xml_ns)
         self._sicd_meta.derive()
         # TODO: account for the reference frequency offset situation
 
@@ -339,9 +334,9 @@ def amp_phase_to_complex(lookup_table):
             raise ValueError('Requires a three-dimensional numpy.ndarray (with band '
                              'in the first dimension), got shape {}'.format(data.shape))
 
-        out = numpy.zeros((data.shape[0] / 2, data.shape[1], data.shape[2]), dtype=numpy.complex64)
-        amp = lookup_table[data[0::2, :, :]]
-        theta = data[1::2, :, :]*(2*numpy.pi/256)
+        out = numpy.zeros((data.shape[0], data.shape[1], data.shape[2]/2), dtype=numpy.complex64)
+        amp = lookup_table[data[:, :, 0::2]]
+        theta = data[:, :, 1::2]*(2*numpy.pi/256)
         out.real = amp*numpy.cos(theta)
         out.imag = amp*numpy.sin(theta)
         return out
@@ -456,7 +451,7 @@ class SICDReader(BaseReader):
 
         Parameters
         ----------
-        nitf_details : str|SICDDetails
+        nitf_details : str|sarpy.io.complex.sicd_elements.SICD.SICDDetails
             filename or SICDDetails object
         """
 
@@ -596,7 +591,7 @@ class SICDWriter(BaseWriter):
         Parameters
         ----------
         file_name : str
-        sicd_meta : SICDType
+        sicd_meta : sarpy.io.complex.sicd_elements.SICD.SICDType
         """
 
         super(SICDWriter, self).__init__(file_name, sicd_meta)
@@ -682,7 +677,7 @@ class SICDWriter(BaseWriter):
 
         Returns
         -------
-        NITFSecurityTags
+        sarpy.io.nitf.security.NITFSecurityTags
         """
 
         def get_basic_args():
@@ -773,6 +768,19 @@ class SICDWriter(BaseWriter):
         #   following the python convention with starts inclusive, stops not inclusive
         return pixel_size, dtype, complex_type, pv_type, isubcat, numpy.array(im_segments, dtype=numpy.int64)
 
+    def _get_ftitle(self):
+        ftitle = None
+        if hasattr(self._sicd_meta, '_NITF') and isinstance(self._sicd_meta._NITF, dict):
+            ftitle = self._sicd_meta._NITF.get('SUGGESTED_NAME', None)
+        if ftitle is None:
+            ftitle = self._sicd_meta.get_suggested_name(1)
+        if ftitle is None and self._sicd_meta.CollectionInfo is not None and \
+                self._sicd_meta.CollectionInfo.CoreName is not None:
+            ftitle = 'SICD: {}'.format(self._sicd_meta.CollectionInfo.CoreName)
+        if ftitle is None:
+            ftitle = 'SICD: Unknown'
+        return ftitle
+
     def _create_image_segment_headers(self, pv_type, isubcat):
         # type: (str, tuple) -> Tuple[ImageSegmentHeader, ...]
 
@@ -792,11 +800,7 @@ class SICDWriter(BaseWriter):
                 out.append('{0:02d}{1:02d}{2:02d}{3:s}'.format(*dms[0]) + '{0:03d}{1:02d}{2:02d}{3:s}'.format(*dms[1]))
             return ''.join(out)
 
-        if self._sicd_meta.CollectionInfo is not None and self._sicd_meta.CollectionInfo.CoreName is not None:
-            ftitle = 'SICD: {}'.format(self._sicd_meta.CollectionInfo.CoreName)
-        else:
-            ftitle = 'SICD: Unknown'
-
+        ftitle = self._get_ftitle()
         idatim = ' '
         if self._sicd_meta.Timeline is not None and self._sicd_meta.Timeline.CollectStart is not None:
             idatim = re.sub(r'[^0-9]', '', str(self._sicd_meta.Timeline.CollectStart.astype('datetime64[s]')))
@@ -869,10 +873,8 @@ class SICDWriter(BaseWriter):
             clevel = 7
         ostaid = 'Unknown '
         fdt = re.sub(r'[^0-9]', '', str(self._sicd_meta.ImageCreation.DateTime.astype('datetime64[s]')))
-        if self._sicd_meta.CollectionInfo is not None and self._sicd_meta.CollectionInfo.CoreName is not None:
-            ftitle = 'SICD: {}'.format(self._sicd_meta.CollectionInfo.CoreName)
-        else:
-            ftitle = 'SICD: Unknown'
+
+        ftitle = self._get_ftitle()
         # get image segment details - the size of the headers will be redefined when locking down details
         im_sizes = numpy.copy(self._image_segment_limits[:, 4])
         im_segs = ImageSegmentsType(

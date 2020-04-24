@@ -137,7 +137,7 @@ class Converter(object):
         output_directory : str
             The output directory. **This must exist.**
         output_file : None|str
-            The output file name. If not provided, then `reader.get_suggested_name(frame)`
+            The output file name. If not provided, then `sicd.get_suggested_name(frame)`
             will be used.
         frame : None|int
             The frame (i.e. index into the reader's sicd collection) to convert.
@@ -304,7 +304,7 @@ def conversion_utility(
         The output directory. **This must exist.**
     output_files : None|str|List[str]
        The name of the output file(s), or list of output files matching `frames`.
-       If not provided, then `reader.get_suggested_name(frame)` will be used.
+       If not provided, then `sicd.get_suggested_name(frame)` will be used.
     frames : None|int|list
        Set of frames to convert. Default is all.
     output_format : str
@@ -388,9 +388,21 @@ def conversion_utility(
         o_frames.append(index)
     frames = tuple(o_frames)
 
+    # assign SUGGESTED_NAME to each sicd
+    for frame in frames:
+        sicd = sicds[frame]
+        suggested_name = sicd.get_suggested_name(frame+1)+'_SICD'
+        if suggested_name is None and sicd.CollectionInfo.CoreName is not None:
+            suggested_name = sicd.CollectionInfo.CoreName+'{}_SICD'.format(frame)
+        if suggested_name is None:
+            suggested_name = 'Unknown{}_SICD'.format(frame)
+        if hasattr(sicd, '_NITF') and isinstance(sicd._NITF, dict):
+            sicd._NITF['SUGGESTED_NAME'] = suggested_name
+        else:
+            sicd._NITF = {'SUGGESTED_NAME': suggested_name}
     # construct output_files list
     if output_files is None:
-        output_files = [reader.get_suggestive_name(frame) for frame in frames]
+        output_files = [sicds[frame]._NITF['SUGGESTED_NAME']+'.nitf' for frame in frames]
     elif isinstance(output_files, str):
         if len(sicds) == 1:
             output_files = [output_files, ]

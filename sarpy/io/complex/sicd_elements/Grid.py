@@ -928,3 +928,22 @@ class GridType(Serializable):
                 'Row.Sgn ({}) and Col.Sgn ({}) should almost certainly be the '
                 'same value'.format(self.Row.Sgn, self.Col.Sgn))
         return condition
+
+    def get_resolution_abbreviation(self):
+        """
+        Gets the resolution abbreviation for the suggested name.
+
+        Returns
+        -------
+        str
+        """
+
+        if self.Row is None or self.Row.ImpRespWid is None or \
+                self.Col is None or self.Col.ImpRespWid is None:
+            return '0000'
+        else:
+            value = int(100*(self.Row.ImpRespWid*self.Col.ImpRespWid)**0.5)
+            if value > 9999:
+                return '9999'
+            else:
+                return '{0:04d}'.format(value)
