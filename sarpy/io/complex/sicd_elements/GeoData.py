@@ -261,8 +261,8 @@ class SCPType(Serializable):
         """
 
         llh = self.LLH
-        lat = numpy.round(llh.Lat)
-        lon = numpy.round(llh.Lon)
+        lat = int(numpy.round(llh.Lat))
+        lon = int(numpy.round(llh.Lon))
         return '{0:02d}'.format(abs(lat)) + ('N' if lat >= 0 else 'S') + \
             '{0:03d}'.format(abs(lon)) + ('E' if lon >= 0 else 'W')
 

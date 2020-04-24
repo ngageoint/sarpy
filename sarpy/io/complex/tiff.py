@@ -6,6 +6,11 @@ Module providing api consistent with other file types for reading tiff files.
 import logging
 import numpy
 import warnings
+import sys
+
+int_func = int
+if sys.version_info[0] < 3:
+    int_func = long
 
 try:
     from osgeo import gdal
@@ -178,7 +183,7 @@ class TiffDetails(object):
         [1, 1, 2, 4, 8,
          1, 1, 2, 4, 8,
          4, 8, 4, 0, 0,
-         8, 8, 8], dtype=numpy.uint64)
+         8, 8, 8], dtype=numpy.int64)
     # no definition for entries for 14 & 15
 
     def __init__(self, file_name):
@@ -251,11 +256,13 @@ class TiffDetails(object):
 
         if self._magic_number == 42:
             type_dtype = numpy.dtype('{}u2'.format(self._endian))
+            count_dtype = numpy.dtype('{}u2'.format(self._endian))
             offset_dtype = numpy.dtype('{}u4'.format(self._endian))
             offset_size = 4
         elif self._magic_number == 43:
             type_dtype = numpy.dtype('{}u2'.format(self._endian))
-            offset_dtype = numpy.dtype('{}u8'.format(self._endian))
+            count_dtype = numpy.dtype('{}i8'.format(self._endian))
+            offset_dtype = numpy.dtype('{}i8'.format(self._endian))
             offset_size = 8
         else:
             raise ValueError('Unrecognized magic number {}'.format(self._magic_number))
@@ -265,7 +272,7 @@ class TiffDetails(object):
             fi.seek(offset_size)
             # extract the tags information
             tags = {}
-            self._parse_ifd(fi, tags, type_dtype, offset_dtype, offset_size)
+            self._parse_ifd(fi, tags, type_dtype, count_dtype, offset_dtype, offset_size)
         self._tags = tags
 
     def _read_tag(self, fi, tiff_type, num_tag, count):
@@ -308,12 +315,12 @@ class TiffDetails(object):
         if tiff_type == 2:  # ascii field
             val = str(numpy.fromfile(fi, '{}{}{}'.format(self._endian, dtype, count), count=1))
         elif tiff_type in [5, 10]:  # unsigned or signed rational
-            val = numpy.fromfile(fi, dtype='{}{}'.format(self._endian, dtype), count=2*count).reshape((-1, 2))
+            val = numpy.fromfile(fi, dtype='{}{}'.format(self._endian, dtype), count=numpy.int64(2*count)).reshape((-1, 2))
         else:
             val = numpy.fromfile(fi, dtype='{}{}'.format(self._endian, dtype), count=count)
         return {'Value': val, 'Name': name, 'Extension': ext}
 
-    def _parse_ifd(self, fi, tags, type_dtype, offset_dtype, offset_size):
+    def _parse_ifd(self, fi, tags, type_dtype, count_dtype, offset_dtype, offset_size):
         """
         Recursively parses the tag data and populates a provided dictionary
         Parameters
@@ -324,6 +331,8 @@ class TiffDetails(object):
             The tag data dictionary being populated
         type_dtype : numpy.dtype|str
             The data type for the data element - note that endian-ness is included
+        count_dtype : numpy.dtype|str
+            The data type for the number of directories - note that endian-ness is included
         offset_dtype : numpy.dtype|str
             The data type for the offset - note that endian-ness is included
         offset_size : int
@@ -338,7 +347,7 @@ class TiffDetails(object):
             return  # termination criterion
 
         fi.seek(nifd)
-        num_entries = numpy.fromfile(fi, dtype=type_dtype, count=1)[0]
+        num_entries = numpy.fromfile(fi, dtype=count_dtype, count=1)[0]
         for entry in range(int(num_entries)):
             num_tag, tiff_type = numpy.fromfile(fi, dtype=type_dtype, count=2)
             count = numpy.fromfile(fi, dtype=offset_dtype, count=1)[0]
@@ -354,7 +363,7 @@ class TiffDetails(object):
                 value = self._read_tag(fi, tiff_type, num_tag, count)  # read the tag value
                 fi.seek(save_ptr)  # return to our location
             tags[value['Name']] = value['Value']
-        self._parse_ifd(fi, tags, type_dtype, offset_dtype, offset_size)  # recurse
+        self._parse_ifd(fi, tags, type_dtype, count_dtype, offset_dtype, offset_size)  # recurse
 
 
 class NativeTiffChipper(BIPChipper):
@@ -395,11 +404,11 @@ class NativeTiffChipper(BIPChipper):
         if samp_form in [5, 6]:
             bits_per_sample /= 2
             complex_type = True
-        data_size = (tiff_meta.tags['ImageLength'][0], tiff_meta.tags['ImageWidth'][0])
+        data_size = (int_func(tiff_meta.tags['ImageLength'][0]), int_func(tiff_meta.tags['ImageWidth'][0]))
         data_type = numpy.dtype('{0:s}{1:s}{2:d}'.format(self._tiff_meta.endian,
                                                          self._SAMPLE_FORMATS[samp_form],
                                                          int(bits_per_sample/8)))
-        data_offset = tiff_meta.tags['StripOffsets'][0]
+        data_offset = int_func(tiff_meta.tags['StripOffsets'][0])
 
         super(NativeTiffChipper, self).__init__(
             tiff_meta.file_name, data_type, data_size, symmetry=symmetry, complex_type=complex_type,

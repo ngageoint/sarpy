@@ -773,10 +773,12 @@ class SICDWriter(BaseWriter):
         if hasattr(self._sicd_meta, '_NITF') and isinstance(self._sicd_meta._NITF, dict):
             ftitle = self._sicd_meta._NITF.get('SUGGESTED_NAME', None)
         if ftitle is None:
-            if self._sicd_meta.CollectionInfo is not None and self._sicd_meta.CollectionInfo.CoreName is not None:
-                ftitle = 'SICD: {}'.format(self._sicd_meta.CollectionInfo.CoreName)
-            else:
-                ftitle = 'SICD: Unknown'
+            ftitle = self._sicd_meta.get_suggested_name(1)
+        if ftitle is None and self._sicd_meta.CollectionInfo is not None and \
+                self._sicd_meta.CollectionInfo.CoreName is not None:
+            ftitle = 'SICD: {}'.format(self._sicd_meta.CollectionInfo.CoreName)
+        if ftitle is None:
+            ftitle = 'SICD: Unknown'
         return ftitle
 
     def _create_image_segment_headers(self, pv_type, isubcat):
