@@ -15,8 +15,6 @@ ttk.Style().configure('Treeview', rowheight=30)
 def add_node(k, v):
     for key, val in v.items():
         new_key = k + "_" + key
-        if "RcvChannels" in new_key:
-            stop = 1
         if isinstance(val, OrderedDict):
             tree.insert(k, 1, new_key, text=key)
             add_node(new_key, val)
@@ -27,23 +25,6 @@ def add_node(k, v):
 sicd_fname = askopenfilename(initialdir=os.path.expanduser("~"))
 reader_object = sarpy_complex.open(sicd_fname)
 sicd_meta_dict = reader_object.sicd_meta.to_dict()
-
-
-def insertv2(k, v):
-    print("k: " + k)
-    for key, val in v.items():
-        print("k: " + k)
-        print("key: " + key)
-
-        new_key = k + "_" + key
-        print("new key: " + new_key)
-
-        if isinstance(val, dict):
-            insertv2(new_key, val)
-
-
-for k, v in sicd_meta_dict.items():
-    insertv2(k, v)
 
 
 for k, v in sicd_meta_dict.items():
