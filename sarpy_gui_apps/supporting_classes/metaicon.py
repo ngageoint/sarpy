@@ -6,7 +6,7 @@ import sarpy.io.complex as sarpy_complex
 from sarpy.io.complex.sicd import SICDType
 from sarpy.geometry import geocoords
 from scipy.constants import constants
-import numpy as np
+import numpy
 from tkinter_gui_builder.panel_templates.image_canvas.image_canvas import ImageCanvas
 import tkinter_gui_builder.utils.color_utils.color_converter as color_converter
 from sarpy.geometry import latlon
@@ -82,6 +82,13 @@ class MetaIcon(ImageCanvas):
 
     def create_from_fname(self, fname):
         self.fname = fname
+
+        width = self.canvas_width
+        height = self.canvas_height
+
+        self.set_canvas_size(width, height)
+        self.init_with_numpy_image((numpy.zeros((height, width))))
+
         reader_object = sarpy_complex.open(fname)
         self.create_from_sicd(reader_object.sicd_meta)
 
@@ -92,7 +99,7 @@ class MetaIcon(ImageCanvas):
         margin = height * (margin_percent*0.01*2)
         top_margin = margin/2
         height_w_margin = height - margin
-        y_positions = np.linspace(0, height_w_margin, n_lines+1)
+        y_positions = numpy.linspace(0, height_w_margin, n_lines+1)
         y_positions = y_positions + top_margin
         y_positions = y_positions[0:-1]
         x_positions = width * margin_percent * 0.01
@@ -284,7 +291,7 @@ class MetaIcon(ImageCanvas):
             arrow = north
             arrow_color = self.north_color
 
-        arrow_rad = np.deg2rad(arrow)
+        arrow_rad = numpy.deg2rad(arrow)
 
         arrow_length_old = self.canvas_width * 0.15
         arrows_origin = (self.canvas_width * 0.75, self.canvas_height * 0.6)
@@ -301,17 +308,17 @@ class MetaIcon(ImageCanvas):
             aspect_ratio = aspect_ratio * pixel_aspect_ratio
 
         if aspect_ratio > 1:
-            new_length = np.sqrt(np.square(arrow_length_old * np.cos(arrow_rad) / aspect_ratio) +
-                                 np.square(arrow_length_old * np.sin(arrow_rad)))
+            new_length = numpy.sqrt(numpy.square(arrow_length_old * numpy.cos(arrow_rad) / aspect_ratio) +
+                                 numpy.square(arrow_length_old * numpy.sin(arrow_rad)))
             arrow_length = arrow_length_old * arrow_length_old / new_length
-            x_end = arrows_origin[0] + arrow_length * np.cos(arrow_rad) / aspect_ratio
-            y_end = arrows_origin[1] - arrow_length * np.sin(arrow_rad)
+            x_end = arrows_origin[0] + arrow_length * numpy.cos(arrow_rad) / aspect_ratio
+            y_end = arrows_origin[1] - arrow_length * numpy.sin(arrow_rad)
         else:
-            new_length = np.sqrt(np.square(arrow_length_old * np.cos(arrow_rad)) +
-                                 np.square(arrow_length_old * np.sin(arrow_rad) * aspect_ratio))
+            new_length = numpy.sqrt(numpy.square(arrow_length_old * numpy.cos(arrow_rad)) +
+                                 numpy.square(arrow_length_old * numpy.sin(arrow_rad) * aspect_ratio))
             arrow_length = arrow_length_old * arrow_length_old / new_length
-            x_end = arrows_origin[0] + arrow_length * np.cos(arrow_rad)
-            y_end = arrows_origin[1] - arrow_length * np.sin(arrow_rad) * aspect_ratio
+            x_end = arrows_origin[0] + arrow_length * numpy.cos(arrow_rad)
+            y_end = arrows_origin[1] - arrow_length * numpy.sin(arrow_rad) * aspect_ratio
 
         # now draw the arrows
         self.create_new_arrow((arrows_origin[0],

@@ -9,10 +9,12 @@ from tkinter_gui_builder.panel_templates.widget_panel.widget_panel import Abstra
 from tkinter_gui_builder.utils.image_utils import frame_sequence_utils
 from sarpy_gui_apps.apps.aperture_tool.panels.tabs_panel.load_image_tab.load_image_tab import LoadImage
 from sarpy_gui_apps.apps.aperture_tool.panels.tabs_panel.tabs_panel import TabsPanel
+from sarpy_gui_apps.apps.aperture_tool.panels.selected_region_popup.selected_region_popup import SelectedRegionPanel
 from tkinter import filedialog
-import numpy as np
 import os
 from sarpy_gui_apps.supporting_classes.metaicon import MetaIcon
+from sarpy_gui_apps.supporting_classes.sarpy_canvas_image import SarpyCanvasDisplayImage
+import numpy
 
 
 class AppVariables:
@@ -33,9 +35,11 @@ class ApertureTool(AbstractWidgetPanel):
         master_frame = tkinter.Frame(master)
         AbstractWidgetPanel.__init__(self, master_frame)
 
-        # widgets_list = ["zoomer_panel", "fft_panel", 'adjusted_view_panel']
         widgets_list = ["fft_panel", "adjusted_view_panel", "tabs_panel", "metaicon"]
         self.init_w_basic_widget_list(widgets_list, n_rows=2, n_widgets_per_row_list=[2, 2])
+
+        # Configuration of panels and widgets
+        # self.metaicon.set_canvas_size(600, 400)
 
         master_frame.pack()
         self.pack()
@@ -43,12 +47,23 @@ class ApertureTool(AbstractWidgetPanel):
         self.app_variables = AppVariables()
         self.fft_panel.image_canvas.set_current_tool_to_selection_tool()
 
-        self.tabs_panel.tabs.tab1.file_selector.select_file.on_left_mouse_click(self.callback_1)
+        self.tabs_panel.tabs.tab1.file_selector.select_file.on_left_mouse_click(self.callback_select_file)
 
-    def callback_1(self, event):
+    def callback_select_file(self, event):
         sicd_fname = self.tabs_panel.tabs.tab1.file_selector.event_select_file(event)
         self.app_variables.sicd_fname = sicd_fname
+
         self.metaicon.create_from_fname(sicd_fname)
+
+        popup = tkinter.Toplevel(self.master)
+        selected_region_popup = SelectedRegionPanel(popup, self.app_variables)
+        sarpy_canvas_display_image = SarpyCanvasDisplayImage()
+        selected_region_popup.image_canvas.variables.canvas_image_object = sarpy_canvas_display_image
+        selected_region_popup.image_canvas.init_with_fname(self.app_variables.sicd_fname)
+
+        self.adjusted_view_panel.image_canvas.variables.canvas_image_object = sarpy_canvas_display_image
+        self.adjusted_view_panel.image_canvas.init_with_fname(self.app_variables.sicd_fname)
+
         print("stuff happened")
 
     def callback_set_to_selection_tool(self, event):
@@ -85,7 +100,7 @@ class ApertureTool(AbstractWidgetPanel):
         x_lr = int(full_image_rect[3])
 
         ft_cdata = self.get_all_fft_complex_data()
-        filtered_cdata = np.zeros(ft_cdata.shape, ft_cdata.dtype)
+        filtered_cdata = numpy.zeros(ft_cdata.shape, ft_cdata.dtype)
         filtered_cdata[y_ul:y_lr, x_ul:x_lr] = ft_cdata[y_ul:y_lr, x_ul:x_lr]
         filtered_cdata = fftshift(filtered_cdata)
 
@@ -111,8 +126,8 @@ class ApertureTool(AbstractWidgetPanel):
 
     def get_all_fft_complex_data(self):
         ro = self.zoomer_panel.image_canvas.variables.canvas_image_object.reader_object
-        ny = np.shape(self.zoomer_panel.image_canvas.variables.canvas_image_object.canvas_decimated_image)[0]
-        nx = np.shape(self.zoomer_panel.image_canvas.variables.canvas_image_object.canvas_decimated_image)[1]
+        ny = numpy.shape(self.zoomer_panel.image_canvas.variables.canvas_image_object.canvas_decimated_image)[0]
+        nx = numpy.shape(self.zoomer_panel.image_canvas.variables.canvas_image_object.canvas_decimated_image)[1]
         ul_y, ul_x = self.zoomer_panel.image_canvas.variables.canvas_image_object.canvas_full_image_upper_left_yx
         ul_x = int(ul_x)
         ul_y = int(ul_y)
@@ -133,7 +148,7 @@ class ApertureTool(AbstractWidgetPanel):
         start_fft_select_box = self.fft_panel.image_canvas.get_shape_canvas_coords(select_box_id)
         n_steps = int(self.fft_panel.fft_button_panel.n_steps.get())
         n_pixel_translate = int(self.fft_panel.fft_button_panel.n_pixels_horizontal.get())
-        step_factor = np.linspace(0, n_pixel_translate, n_steps)
+        step_factor = numpy.linspace(0, n_pixel_translate, n_steps)
         for step in step_factor:
             x1 = start_fft_select_box[0] + step
             y1 = start_fft_select_box[1]
@@ -152,7 +167,7 @@ class ApertureTool(AbstractWidgetPanel):
         start_fft_select_box = self.fft_panel.image_canvas.get_shape_canvas_coords(select_box_id)
         n_steps = int(self.fft_panel.fft_button_panel.n_steps.get())
         n_pixel_translate = int(self.fft_panel.fft_button_panel.n_pixels_horizontal.get())
-        step_factor = np.linspace(0, n_pixel_translate, n_steps)
+        step_factor = nump.linspace(0, n_pixel_translate, n_steps)
         fps = float(self.fft_panel.fft_button_panel.animation_fps.get())
 
         frame_sequence = []
