@@ -7,7 +7,7 @@ from tkinter_gui_builder.widgets import basic_widgets
 
 class FileSelector(AbstractWidgetPanel):
     select_file = basic_widgets.Button  # type: basic_widgets.Button
-    fname_label = basic_widgets.Label  # type: basic_widgets.Label
+    fname_label = basic_widgets.Entry   # type: basic_widgets.Label
 
     def __init__(self, parent):
         AbstractWidgetPanel.__init__(self, parent)
@@ -22,6 +22,7 @@ class FileSelector(AbstractWidgetPanel):
         # in practice this would be overridden if the user wants more things to happen after selecting a file.
         self.select_file.on_left_mouse_click(self.event_select_file)
         self.initialdir = os.path.expanduser("~")
+        self.fname_label.config(state='disabled')
 
     def set_fname_filters(self,
                           filter_list,          # type: [str]
@@ -33,7 +34,8 @@ class FileSelector(AbstractWidgetPanel):
 
     def event_select_file(self, event):
         self.fname = askopenfilename(initialdir=self.initialdir, filetypes=self.fname_filters)
-        self.fname_label.config(text=self.fname)
+        self.fname_label.set_text(self.fname)
+        return self.fname
 
     def event_new_file(self, event):
         self.fname = asksaveasfilename(initialdir=self.initialdir, filetypes=self.fname_filters)

@@ -28,21 +28,18 @@ class NoteBook(ttk.Frame):
         ttk.Frame.__init__(self, master)
         # set up the tabs
         self.notebook = ttk.Notebook()
-        self.taser_tab = Tab(self.notebook)
+        taser_tab = Tab(self.notebook)
         self.wake_tool_tab = Tab(self.notebook)
-        self.aperture_tool_tab = Tab(self.notebook)
         self.quick_ortho_tab = Tab(self.notebook)
         self.plot_demo_tab = Tab(self.notebook)
 
-        self.notebook.add(self.taser_tab, text="Taser")
+        self.notebook.add(taser_tab, text="Taser")
         self.notebook.add(self.wake_tool_tab, text="wake tool")
-        self.notebook.add(self.aperture_tool_tab, text="aperture tool")
         self.notebook.add(self.quick_ortho_tab, text="quick ortho")
         self.notebook.add(self.plot_demo_tab, text="temporal plot")
 
-        self.taser = Taser(self.taser_tab)
+        self.taser = Taser(taser_tab)
         self.wake = WakeTool(self.wake_tool_tab)
-        self.aperture = ApertureTool(self.aperture_tool_tab)
         self.quick_ortho = Ortho(self.quick_ortho_tab)
         self.notebook.pack()
 

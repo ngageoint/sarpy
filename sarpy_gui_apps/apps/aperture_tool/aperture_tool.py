@@ -7,13 +7,17 @@ import sarpy.visualization.remap as remap
 from scipy.fftpack import fft2, ifft2, fftshift
 from tkinter_gui_builder.panel_templates.widget_panel.widget_panel import AbstractWidgetPanel
 from tkinter_gui_builder.utils.image_utils import frame_sequence_utils
+from sarpy_gui_apps.apps.aperture_tool.panels.tabs_panel.load_image_tab.load_image_tab import LoadImage
+from sarpy_gui_apps.apps.aperture_tool.panels.tabs_panel.tabs_panel import TabsPanel
 from tkinter import filedialog
 import numpy as np
 import os
+from sarpy_gui_apps.supporting_classes.metaicon import MetaIcon
 
 
 class AppVariables:
     def __init__(self):
+        self.sicd_fname = str
         self.fft_image_object = NumpyCanvasDisplayImage()        # type: NumpyCanvasDisplayImage
 
 
@@ -21,21 +25,42 @@ class ApertureTool(AbstractWidgetPanel):
     zoomer_panel = ZoomerPanel
     fft_panel = FFTPanel
     adjusted_view_panel = AdjustedViewPanel
+    load_image = LoadImage
+    tabs_panel = TabsPanel
+    metaicon = MetaIcon
 
     def __init__(self, master):
         master_frame = tkinter.Frame(master)
         AbstractWidgetPanel.__init__(self, master_frame)
 
-        widgets_list = ["zoomer_panel", "fft_panel", 'adjusted_view_panel']
-        self.init_w_horizontal_layout(widgets_list)
+        # widgets_list = ["zoomer_panel", "fft_panel", 'adjusted_view_panel']
+        widgets_list = ["fft_panel", "adjusted_view_panel", "tabs_panel", "metaicon"]
+        self.init_w_basic_widget_list(widgets_list, n_rows=2, n_widgets_per_row_list=[2, 2])
+
         master_frame.pack()
         self.pack()
 
         self.app_variables = AppVariables()
-        self.zoomer_panel.image_canvas.canvas.on_left_mouse_release(self.callback_handle_zoomer_left_mouse_release)
-        self.fft_panel.fft_button_panel.inv_fft.on_left_mouse_click(self.callback_get_adjusted_image)
-        self.fft_panel.fft_button_panel.animate.on_left_mouse_click(self.callback_animate_horizontal_fft_sweep)
-        self.fft_panel.fft_button_panel.save_animation_as_gif.on_left_mouse_click(self.callback_save_animation)
+        self.fft_panel.image_canvas.set_current_tool_to_selection_tool()
+
+        self.tabs_panel.tabs.tab1.file_selector.select_file.on_left_mouse_click(self.callback_1)
+
+    def callback_1(self, event):
+        sicd_fname = self.tabs_panel.tabs.tab1.file_selector.event_select_file(event)
+        self.app_variables.sicd_fname = sicd_fname
+        self.metaicon.create_from_fname(sicd_fname)
+        print("stuff happened")
+
+    def callback_set_to_selection_tool(self, event):
+        self.image_canvas.set_current_tool_to_selection_tool()
+
+    def callback_set_to_translate_shape(self, event):
+        self.image_canvas.set_current_tool_to_translate_shape()
+
+    def callback_save_fft_panel_as_png(self, event):
+        filename = filedialog.asksaveasfilename(initialdir=os.path.expanduser("~"), title="Select file",
+                                                filetypes=(("png file", "*.png"), ("all files", "*.*")))
+        self.image_canvas.save_as_png(filename)
 
     def callback_handle_zoomer_left_mouse_release(self, event):
         self.zoomer_panel.callback_handle_left_mouse_release(event)
