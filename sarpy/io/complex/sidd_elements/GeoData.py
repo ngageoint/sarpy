@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-The GeographicAndTargetType definition.
+The GeoDataType definition.
 """
 from collections import OrderedDict
 from typing import Union, List
@@ -18,11 +18,11 @@ __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 
-class GeographicAndTargetType(Serializable):
+class GeoDataType(Serializable):
     """
     Container specifying the image coverage area in geographic coordinates.
 
-    .. Note: The SICD.GeoData class is essentially an extension of this class. Implementation remain
+    .. Note: The SICD.GeoData class is an extension of this class. Implementation remain
         separate to allow the possibility of different functionality.
     """
 
@@ -84,7 +84,7 @@ class GeographicAndTargetType(Serializable):
                 self.setGeoInfo(el)
         else:
             raise ('GeoInfos got unexpected type {}'.format(type(GeoInfos)))
-        super(GeographicAndTargetType, self).__init__(**kwargs)
+        super(GeoDataType, self).__init__(**kwargs)
 
     @property
     def GeoInfos(self):
@@ -136,7 +136,7 @@ class GeographicAndTargetType(Serializable):
     @classmethod
     def fromGeoData(cls, GeoData):
         """
-        Extract necessary information from a SICD.GeoData to create a corresponding SIDD.GeographicAndTarget.
+        Extract necessary information from a SICD.GeoData to create a corresponding SIDD.GeoData.
 
         Parameters
         ----------
@@ -144,7 +144,7 @@ class GeographicAndTargetType(Serializable):
 
         Returns
         -------
-        GeographicAndTargetType
+        GeoDataType
         """
 
         data = copy.deepcopy(GeoData.to_dict())
@@ -159,10 +159,10 @@ class GeographicAndTargetType(Serializable):
             kwargs = OrderedDict()
         gkey = cls._child_xml_ns_key.get('GeoInfos', ns_key)
         kwargs['GeoInfos'] = _find_children(node, 'GeoInfo', xml_ns, gkey)
-        return super(GeographicAndTargetType, cls).from_node(node, xml_ns, ns_key=ns_key, kwargs=kwargs)
+        return super(GeoDataType, cls).from_node(node, xml_ns, ns_key=ns_key, kwargs=kwargs)
 
     def to_node(self, doc, tag, ns_key=None, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
-        node = super(GeographicAndTargetType, self).to_node(
+        node = super(GeoDataType, self).to_node(
             doc, tag, ns_key=ns_key, parent=parent, check_validity=check_validity, strict=strict, exclude=exclude)
         # slap on the GeoInfo children
         for entry in self._GeoInfos:
@@ -170,7 +170,7 @@ class GeographicAndTargetType(Serializable):
         return node
 
     def to_dict(self, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
-        out = super(GeographicAndTargetType, self).to_dict(
+        out = super(GeoDataType, self).to_dict(
             check_validity=check_validity, strict=strict, exclude=exclude)
         # slap on the GeoInfo children
         if len(self.GeoInfos) > 0:

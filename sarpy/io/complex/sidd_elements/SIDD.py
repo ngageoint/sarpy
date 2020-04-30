@@ -10,7 +10,7 @@ from typing import Union
 from ..sicd_elements.base import Serializable, _SerializableDescriptor, DEFAULT_STRICT
 from .ProductCreation import ProductCreationType
 from .Display import ProductDisplayType
-from .GeographicAndTarget import GeographicAndTargetType
+from .GeoData import GeoDataType
 from .Measurement import MeasurementType
 from .ExploitationFeatures import ExploitationFeaturesType
 from .DownstreamReprocessing import DownstreamReprocessingType
@@ -118,11 +118,11 @@ class SIDDType(Serializable):
     """
 
     _fields = (
-        'ProductCreation', 'Display', 'GeographicAndTarget', 'Measurement', 'ExploitationFeatures',
+        'ProductCreation', 'Display', 'GeoData', 'Measurement', 'ExploitationFeatures',
         'DownstreamReprocessing', 'ErrorStatistics', 'Radiometric', 'MatchInfo', 'Compression',
         'DigitalElevationData', 'ProductProcessing', 'Annotations')
     _required = (
-        'ProductCreation', 'Display', 'GeographicAndTarget', 'Measurement', 'ExploitationFeatures')
+        'ProductCreation', 'Display', 'GeoData', 'Measurement', 'ExploitationFeatures')
     # Descriptor
     ProductCreation = _SerializableDescriptor(
         'ProductCreation', ProductCreationType, _required, strict=DEFAULT_STRICT,
@@ -131,10 +131,10 @@ class SIDDType(Serializable):
         'Display', ProductDisplayType, _required, strict=DEFAULT_STRICT,
         docstring='Contains information on the parameters needed to display the product in '
                   'an exploitation tool.')  # type: ProductDisplayType
-    GeographicAndTarget = _SerializableDescriptor(
-        'GeographicAndTarget', GeographicAndTargetType, _required, strict=DEFAULT_STRICT,
+    GeoData = _SerializableDescriptor(
+        'GeoData', GeoDataType, _required, strict=DEFAULT_STRICT,
         docstring='Contains generic and extensible targeting and geographic region '
-                  'information.')  # type: GeographicAndTargetType
+                  'information.')  # type: GeoDataType
     Measurement = _SerializableDescriptor(
         'Measurement', MeasurementType, _required, strict=DEFAULT_STRICT,
         docstring='Contains the metadata necessary for performing measurements.')  # type: MeasurementType
@@ -173,7 +173,7 @@ class SIDDType(Serializable):
         'Annotations', AnnotationsType, _required, strict=DEFAULT_STRICT,
         docstring='List of annotations for the imagery.')  # type: AnnotationsType
 
-    def __init__(self, ProductCreation=None, Display=None, GeographicAndTarget=None,
+    def __init__(self, ProductCreation=None, Display=None, GeoData=None,
                  Measurement=None, ExploitationFeatures=None, DownstreamReprocessing=None,
                  ErrorStatistics=None, Radiometric=None, MatchInfo=None, Compression=None,
                  DigitalElevationData=None, ProductProcessing=None, Annotations=None, **kwargs):
@@ -183,7 +183,7 @@ class SIDDType(Serializable):
         ----------
         ProductCreation : ProductCreationType
         Display : ProductDisplayType
-        GeographicAndTarget : GeographicAndTargetType
+        GeoData : GeoDataType
         Measurement : MeasurementType
         ExploitationFeatures : ExploitationFeaturesType
         DownstreamReprocessing : None|DownstreamReprocessingType
@@ -203,7 +203,7 @@ class SIDDType(Serializable):
             self._xml_ns_key = kwargs['_xml_ns_key']
         self.ProductCreation = ProductCreation
         self.Display = Display
-        self.GeographicAndTarget = GeographicAndTarget
+        self.GeoData = GeoData
         self.Measurement = Measurement
         self.ExploitationFeatures = ExploitationFeatures
         self.DownstreamReprocessing = DownstreamReprocessing

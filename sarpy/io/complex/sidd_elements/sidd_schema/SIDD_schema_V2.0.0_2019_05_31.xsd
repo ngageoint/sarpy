@@ -920,7 +920,7 @@
             </xs:element>
         </xs:sequence>
     </xs:complexType>
-    <xs:complexType name="GeographicAndTargetType">
+    <xs:complexType name="GeoDataType">
         <xs:annotation>
             <xs:documentation>This block describes the geographic coordinates of the region covered by the image.</xs:documentation>
         </xs:annotation>
@@ -1673,7 +1673,7 @@
                         <xs:documentation>Contains information on the parameters needed to display the product in an exploitation tool.</xs:documentation>
                     </xs:annotation>
                 </xs:element>
-                <xs:element name="GeographicAndTarget" type="GeographicAndTargetType">
+                <xs:element name="GeoData" type="GeoDataType">
                     <xs:annotation>
                         <xs:documentation>Contains generic and extensible targeting and geographic region information.</xs:documentation>
                     </xs:annotation>
