@@ -12,7 +12,7 @@ from ..sicd_elements.base import Serializable, SerializableArray, SerializableCP
     _SerializableArrayDescriptor, _SerializableCPArrayDescriptor, _StringEnumDescriptor, \
     _find_children
 from .base import DEFAULT_STRICT
-from .blocks import LatLonCornerStringType, LatLonCornerType, LatLonArrayElementType, GeoInfoType
+from .blocks import LatLonCornerStringType, LatLonArrayElementType, GeoInfoType
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
