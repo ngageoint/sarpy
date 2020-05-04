@@ -29,6 +29,9 @@ __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 
+#################
+# Chipper definitions - this is base functionality for the most basic reading
+
 class BaseChipper(object):
     """
     Base class defining basic functionality for the literal extraction of data
@@ -395,6 +398,8 @@ class SubsetChipper(BaseChipper):
         arange1, arange2 = self._reformat_bounds(range1, range2)
         return self.parent_chipper.__call__(arange1, arange2)
 
+#################
+# Base Reader definition
 
 class BaseReader(object):
     """
@@ -419,6 +424,7 @@ class BaseReader(object):
         if isinstance(chipper, list):
             chipper = tuple(chipper)
 
+        # validate sicd_meta input
         if sicd_meta is None:
             pass
         elif isinstance(sicd_meta, tuple):
@@ -430,6 +436,7 @@ class BaseReader(object):
         elif not isinstance(sicd_meta, SICDType):
             raise TypeError('sicd_meta argument is required to be a SICDType, or collection of SICDType objects')
 
+        # validate chipper input
         if isinstance(chipper, tuple):
             for el in chipper:
                 if not isinstance(el, BaseChipper):
@@ -440,14 +447,10 @@ class BaseReader(object):
             raise TypeError(
                 'chipper argument is required to be a BaseChipper instance, or collection of BaseChipper objects')
 
-        data_size = None
-        if isinstance(sicd_meta, SICDType):
-            if not isinstance(chipper, BaseChipper):
-                raise ValueError('sicd_meta is a single SICDType, so chipper must be a single BaseChipper')
+        # determine data_size
+        if isinstance(chipper, BaseChipper):
             data_size = chipper.data_size
-        elif isinstance(sicd_meta, tuple):
-            if not (isinstance(chipper, tuple) and len(chipper) == len(sicd_meta)):
-                raise ValueError('sicd_meta is a collection, so chipper must be a collection of the same size.')
+        else:
             data_size = tuple(el.data_size for el in chipper)
         self._sicd_meta = sicd_meta
         self._chipper = chipper
@@ -456,7 +459,7 @@ class BaseReader(object):
     @property
     def sicd_meta(self):
         """
-        SICDType|Tuple[SICDType]: the sicd meta_data or meta_data collection.
+        None|SICDType|Tuple[SICDType]: the sicd meta_data or meta_data collection.
         """
 
         return self._sicd_meta
@@ -483,7 +486,6 @@ class BaseReader(object):
         elif isinstance(self._sicd_meta, tuple):
             return self._sicd_meta
         else:
-            # noinspection PyRedundantParentheses
             return (self._sicd_meta, )
 
     def get_data_size_as_tuple(self):
@@ -495,12 +497,9 @@ class BaseReader(object):
         Tuple[Tuple[int, int]]
         """
 
-        if self._sicd_meta is None:
-            return None
-        elif isinstance(self._sicd_meta, tuple):
+        if isinstance(self._chipper, tuple):
             return self._data_size
         else:
-            # noinspection PyRedundantParentheses
             return (self._data_size, )
 
     def _validate_index(self, index):
@@ -641,6 +640,9 @@ class SubsetReader(BaseReader):
         super(SubsetReader, self).__init__(sicd_meta, chipper)
 
 
+#################
+# Base Writer definition
+
 class AbstractWriter(object):
     """Abstract file writer class for SICD data"""
     __slots__ = ('_file_name', )
@@ -722,6 +724,47 @@ class AbstractWriter(object):
             # It's unclear how any exception could be caught.
 
 
+def validate_sicd_for_writing(sicd_meta):
+    """
+    Helper method which ensures the provided SICD structure provides enough
+    information to support file writing, as well as ensures a few basic items
+    are populated as appropriate.
+
+    Parameters
+    ----------
+    sicd_meta : SICDType
+
+    Returns
+    -------
+    SICDType
+        This returns a deep copy of the provided SICD structure, with any
+        necessary modifications.
+    """
+
+    if not isinstance(sicd_meta, SICDType):
+        raise ValueError('sicd_meta is required to be an instance of SICDType, got {}'.format(type(sicd_meta)))
+    if sicd_meta.ImageData is None:
+        raise ValueError('The sicd_meta has un-populated ImageData, and nothing useful can be inferred.')
+    if sicd_meta.ImageData.NumCols is None or sicd_meta.ImageData.NumRows is None:
+        raise ValueError('The sicd_meta has ImageData with unpopulated NumRows or NumCols, '
+                         'and nothing useful can be inferred.')
+    if sicd_meta.ImageData.PixelType is None:
+        logging.warning('The PixelType for sicd_meta is unset, so defaulting to RE32F_IM32F.')
+        sicd_meta.ImageData.PixelType = 'RE32F_IM32F'
+
+    sicd_meta = sicd_meta.copy()
+
+    profile = '{} {}'.format(__title__, __version__)
+    if sicd_meta.ImageCreation is None:
+        sicd_meta.ImageCreation = ImageCreationType(
+            Application=profile,
+            DateTime=numpy.datetime64('now', 'us'),
+            Profile=profile)
+    else:
+        sicd_meta.ImageCreation.Profile = profile
+    return sicd_meta
+
+
 class BaseWriter(AbstractWriter):
     """
     Abstract file writer class for SICD data
@@ -739,26 +782,7 @@ class BaseWriter(AbstractWriter):
         """
 
         super(BaseWriter, self).__init__(file_name)
-        if not isinstance(sicd_meta, SICDType):
-            raise ValueError('sicd_meta is required to be an instance of SICDType, got {}'.format(type(sicd_meta)))
-        if sicd_meta.ImageData is None:
-            raise ValueError('The sicd_meta has un-populated ImageData, and nothing useful can be inferred.')
-        if sicd_meta.ImageData.NumCols is None or sicd_meta.ImageData.NumRows is None:
-            raise ValueError('The sicd_meta has ImageData with unpopulated NumRows or NumCols, '
-                             'and nothing useful can be inferred.')
-        if sicd_meta.ImageData.PixelType is None:
-            logging.warning('The PixelType for sicd_meta is unset, so defaulting to RE32F_IM32F.')
-            sicd_meta.ImageData.PixelType = 'RE32F_IM32F'
-        self._sicd_meta = sicd_meta.copy()
-
-        profile = '{} {}'.format(__title__, __version__)
-        if self._sicd_meta.ImageCreation is None:
-            self._sicd_meta.ImageCreation = ImageCreationType(
-                Application=profile,
-                DateTime=numpy.datetime64('now', 'us'),
-                Profile=profile)
-        else:
-            self._sicd_meta.ImageCreation.Profile = profile
+        self._sicd_meta = validate_sicd_for_writing(sicd_meta)
 
     @property
     def sicd_meta(self):

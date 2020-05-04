@@ -177,7 +177,7 @@ def parse_xml_from_string(xml_string):
 
     Parameters
     ----------
-    xml_string : str
+    xml_string : str|bytes
 
     Returns
     -------

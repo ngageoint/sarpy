@@ -16,10 +16,10 @@ from .sicd_elements.SICD import SICDType
 from .sicd_elements.ImageData import ImageDataType, FullImageType
 from .base import BaseReader
 from .bip import BIPChipper, BIPWriter
-from .sicd import complex_to_amp_phase, complex_to_int, amp_phase_to_complex
-from .utils import parse_xml_from_string
 # noinspection PyProtectedMember
-from ..nitf.des import _SICD_SPECIFICATION_NAMESPACE
+from .sicd import complex_to_amp_phase, complex_to_int, amp_phase_to_complex, \
+    _SICD_SPECIFICATION_NAMESPACE
+from .utils import parse_xml_from_string
 
 __classification__ = "UNCLASSIFIED"
 __author__ = ("Thomas McCullough", "Wade Schwartzkopf")

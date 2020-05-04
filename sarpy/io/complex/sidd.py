@@ -8,7 +8,8 @@ import logging
 import numpy
 
 from .utils import parse_xml_from_string
-from .base import BaseChipper, BaseReader, BaseWriter, int_func, string_types
+from .base import int_func, string_types
+from .nitf import NITFReader, NITFWriter, ImageDetails, DESDetails
 from ..nitf.nitf_head import NITFDetails, NITFHeader, ImageSegmentsType, DataExtensionsType
 from ..nitf.des import DataExtensionHeader, SICDDESSubheader
 from ..nitf.security import NITFSecurityTags
@@ -235,12 +236,12 @@ def rgb_lut_conversion(lookup_table):
     return converter
 
 
-class SIDDReader(BaseReader):
+class SIDDReader(NITFReader):
     """
     A reader object for a SIDD file (NITF container with SICD contents)
     """
 
-    __slots__ = ('_nitf_details', '_sidd_meta')
+    __slots__ = ('_sidd_meta', )
 
     def __init__(self, nitf_details):
         """
@@ -257,16 +258,11 @@ class SIDDReader(BaseReader):
             raise TypeError('The input argument for SIDDReader must be a filename or '
                             'SIDDDetails object.')
 
-        self._nitf_details = nitf_details
-        if not self._nitf_details.is_sidd:
+        if not nitf_details.is_sidd:
             raise ValueError(
                 'The input file passed in appears to be a NITF 2.1 file that does not contain valid sidd metadata.')
         self._sidd_meta = self._nitf_details.sidd_meta
-
-        # determine image segmentation from image headers
-        segments = self._find_segments()
-        chippers = tuple(self._construct_chipper(segment) for segment in segments)
-        super(SIDDReader, self).__init__(self._nitf_details.sicd_meta, chippers)
+        super(SIDDReader, self).__init__(nitf_details)
 
     def _find_segments(self):
         # determine image segmentation from image headers
@@ -331,14 +327,30 @@ class SIDDReader(BaseReader):
 
         return rows, cols, dtype, bands, lut
 
-    def _construct_chipper(self, segment):
-        data_sizes = numpy.zeros((len(segment), 2), dtype=numpy.int64)
+    def _construct_chipper(self, segment, index):
+        bounds = numpy.zeros((len(segment), 4), dtype=numpy.uint64)
         offsets = numpy.zeros((len(segment), ), dtype=numpy.int64)
         this_dtype, this_bands, this_lut = None, None, None
+
+        p_row_start, p_row_end, p_col_start, p_col_end = None, None, None, None
         for i, index in enumerate(segment):
+            # populate bounds entry
             offsets[i] = self._nitf_details.img_segment_offsets[index]
             rows, cols, dtype, bands, lut = self._get_img_details(index)
-            data_sizes[i] = [rows, cols]
+            if i == 0:
+                cur_row_start, cur_row_end = 0, rows
+                cur_col_start, cur_col_end = 0, cols
+            elif cols == (p_col_end - p_col_start):
+                cur_row_start, cur_row_end = p_row_end, p_row_end + cols
+                cur_col_start, cur_col_end = p_col_start, p_col_end
+            else:
+                cur_row_start, cur_row_end = 0, rows
+                cur_col_start, cur_col_end = p_col_end, p_col_end + rows
+
+            bounds[i] = (cur_row_start, cur_row_end, cur_col_start, cur_col_end)
+            p_row_start, p_row_end, p_col_start, p_col_end = cur_row_start, cur_row_end, cur_col_start, cur_col_end
+
+            # define the other meta data
             if i == 0:
                 this_dtype = dtype
                 this_bands = bands
@@ -357,7 +369,8 @@ class SIDDReader(BaseReader):
                         (this_lut.shape != lut.shape or numpy.any(this_lut != lut)):
                     raise ValueError('Image segments {} form one sidd, but have differing '
                                      'look up table information'.format(segment))
+
         complex_type = False if this_lut is None else rgb_lut_conversion(this_lut)
         return MultiSegmentChipper(
-            self._nitf_details.file_name, data_sizes, offsets, this_dtype,
+            self._nitf_details.file_name, bounds, offsets, this_dtype,
             symmetry=(False, False, False), complex_type=complex_type, bands_ip=this_bands)
