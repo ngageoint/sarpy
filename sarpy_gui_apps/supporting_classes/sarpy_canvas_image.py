@@ -6,6 +6,7 @@ from tkinter_gui_builder.canvas_image_objects.abstract_canvas_image import Abstr
 import sarpy.geometry.geocoords as geocoords
 import scipy.interpolate as interp
 import numpy as np
+from sarpy.io.complex.base import BaseReader
 
 
 class SarpyCanvasDisplayImage(AbstractCanvasImage):
@@ -17,7 +18,7 @@ class SarpyCanvasDisplayImage(AbstractCanvasImage):
                                         fname,      # type: str
                                         canvas_ny,  # type: int
                                         canvas_nx,  # type: int
-                                        scale_to_fit_canvas=False,      # type: bool
+                                        scale_to_fit_canvas=True,      # type: bool
                                         ):
         self.fname = fname
         self.reader_object = sarpy_complex.open(fname)

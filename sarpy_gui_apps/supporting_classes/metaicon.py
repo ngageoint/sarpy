@@ -28,6 +28,9 @@ class MetaIcon(ImageCanvas):
     def create_from_sicd(self,
                          sicd_meta,     # type: SICDType
                          ):
+        self.set_canvas_size(self.canvas_width, self.canvas_height)
+        self.init_with_numpy_image((numpy.zeros((self.canvas_height, self.canvas_width))))
+
         self.meta = sicd_meta
         iid_line = self.get_iid_line()
         geo_line = self.get_geo_line()
@@ -82,13 +85,6 @@ class MetaIcon(ImageCanvas):
 
     def create_from_fname(self, fname):
         self.fname = fname
-
-        width = self.canvas_width
-        height = self.canvas_height
-
-        self.set_canvas_size(width, height)
-        self.init_with_numpy_image((numpy.zeros((height, width))))
-
         reader_object = sarpy_complex.open(fname)
         self.create_from_sicd(reader_object.sicd_meta)
 

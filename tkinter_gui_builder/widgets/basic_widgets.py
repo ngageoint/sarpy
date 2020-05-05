@@ -7,3 +7,4 @@ from tkinter_gui_builder.widgets.widget_wrappers.labelFrame import LabelFrame
 from tkinter_gui_builder.widgets.widget_wrappers.entry import Entry
 from tkinter_gui_builder.widgets.widget_wrappers.text import Text
 from tkinter_gui_builder.widgets.widget_wrappers.spinbox import Spinbox
+from tkinter_gui_builder.widgets.widget_wrappers.radiobutton import RadioButton

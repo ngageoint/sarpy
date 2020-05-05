@@ -1,4 +1,3 @@
-import sys
 import PIL.Image
 from PIL import ImageTk
 from tkinter_gui_builder.widgets import basic_widgets
@@ -11,6 +10,8 @@ import numpy as np
 import time
 import tkinter
 import tkinter.colorchooser as colorchooser
+from sarpy.io.complex.base import BaseReader
+
 
 from .tool_constants import ShapePropertyConstants as SHAPE_PROPERTIES
 from .tool_constants import ShapeTypeConstants as SHAPE_TYPES
@@ -461,6 +462,14 @@ class ImageCanvas(tkinter.LabelFrame):
         if update_pixel_coords:
             self.set_shape_pixel_coords_from_canvas_coords(shape_id)
 
+    def modify_existing_shape_using_image_coords(self,
+                                                  shape_id,  # type: int
+                                                  image_coords,  # type: tuple
+                                                  ):
+        self.set_shape_pixel_coords(shape_id, image_coords)
+        canvas_coords = self.image_coords_to_canvas_coords(shape_id)
+        self.modify_existing_shape_using_canvas_coords(shape_id, canvas_coords, update_pixel_coords=False)
+
     def event_drag_multipoint_line(self, event):
         if self.variables.current_shape_id:
             self.show_shape(self.variables.current_shape_id)
@@ -655,7 +664,7 @@ class ImageCanvas(tkinter.LabelFrame):
         image_coords = self.get_shape_image_coords(shape_id)
         return self.variables.canvas_image_object.full_image_yx_to_canvas_coords(image_coords)
 
-    def get_image_data_in_canvas_rect_by_id(self, rect_id):
+    def get_image_data_in_canvas_rect_by_id(self, rect_id, decimation=None):
         image_coords = self.get_shape_image_coords(rect_id)
         if image_coords[0] > image_coords[2]:
             tmp = image_coords[0]
@@ -665,8 +674,9 @@ class ImageCanvas(tkinter.LabelFrame):
             tmp = image_coords[1]
             image_coords[1] = image_coords[3]
             image_coords[3] = tmp
-        decimation_factor = self.variables.canvas_image_object.get_decimation_factor_from_full_image_rect(image_coords)
-        image_data_in_rect = self.variables.canvas_image_object.get_decimated_image_data_in_full_image_rect(image_coords, decimation_factor)
+        if decimation is None:
+            decimation = self.variables.canvas_image_object.get_decimation_factor_from_full_image_rect(image_coords)
+        image_data_in_rect = self.variables.canvas_image_object.get_decimated_image_data_in_full_image_rect(image_coords, decimation)
         return image_data_in_rect
 
     def zoom_to_selection(self, canvas_rect, animate=False):
@@ -820,7 +830,10 @@ class ImageCanvas(tkinter.LabelFrame):
     def set_current_tool_to_translate_shape(self):
         self.variables.current_tool = TOOLS.TRANSLATE_SHAPE_TOOL
 
-    def set_current_tool_to_edite_shape(self):
+    def set_current_tool_to_none(self):
+        self.variables.current_tool = None
+
+    def set_current_tool_to_edit_shape(self):
         self.variables.current_tool = TOOLS.EDIT_SHAPE_COORDS_TOOL
 
     def set_current_tool_to_pan(self):
@@ -938,7 +951,6 @@ class ImageCanvas(tkinter.LabelFrame):
             squared_distances.append(d)
         closest_coord_index = np.where(squared_distances == np.min(squared_distances))[0][0]
         return closest_coord_index
-
 
     # TODO: improve this.  Right now it finds closest shape just based on distance to corners.  Improvements should
     # TODO: include finding a closest point if the x/y coordinate is inside a polygon, and also finding closest

@@ -10,14 +10,14 @@ class Tabs(LabelFrame):
         LabelFrame.__init__(self, master)
         # set up the tabs
         notebook = ttk.Notebook(master)
-        tab1 = LabelFrame(notebook)
-        tab2 = LabelFrame(notebook)
+        load_image_tab = LabelFrame(notebook)
+        animation_tab = LabelFrame(notebook)
 
-        notebook.add(tab1, text="Load Image")
-        notebook.add(tab2, text="Animation")
+        notebook.add(load_image_tab, text="Load Image")
+        notebook.add(animation_tab, text="Animation")
 
-        self.tab1 = LoadImage(tab1)         # type: LoadImage
-        self.tab2 = Animation(tab2)         # type: Animation
+        self.load_image_tab = LoadImage(load_image_tab)         # type: LoadImage
+        self.animation_tab = Animation(animation_tab)         # type: Animation
 
         notebook.pack()
 

@@ -125,7 +125,7 @@ class CanvasDemo(AbstractWidgetPanel):
         self.canvas_demo_image_panel.highlight_existing_shape(self.canvas_demo_image_panel.variables.current_shape_id)
         
     def callback_edit_shape(self, event):
-        self.canvas_demo_image_panel.set_current_tool_to_edite_shape()
+        self.canvas_demo_image_panel.set_current_tool_to_edit_shape()
 
     def callback_activate_color_selector(self, event):
         self.canvas_demo_image_panel.activate_color_selector(event)
