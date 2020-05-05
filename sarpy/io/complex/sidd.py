@@ -4,19 +4,23 @@ Module for reading and writing SIDD files - should support SIDD version 1.0 and 
 """
 
 import logging
+from functools import reduce
+import re
 
 import numpy
 
 from .utils import parse_xml_from_string
 from .base import int_func, string_types
-from .nitf import NITFReader, NITFWriter, ImageDetails, DESDetails
-from ..nitf.nitf_head import NITFDetails, NITFHeader, ImageSegmentsType, DataExtensionsType
+from .nitf import NITFReader, NITFWriter, ImageDetails, DESDetails, image_segmentation, get_npp_block, \
+    interpolate_corner_points_string
+from ..nitf.nitf_head import NITFDetails
 from ..nitf.des import DataExtensionHeader, SICDDESSubheader
 from ..nitf.security import NITFSecurityTags
 from ..nitf.image import ImageSegmentHeader, ImageBands, ImageBand
 from .sidd_elements.SIDD import SIDDType
+from .sidd_elements.sidd1_elements.SIDD import SIDDType as SIDDType1
 from .sicd_elements.SICD import SICDType
-from .sicd import MultiSegmentChipper
+from .sicd import MultiSegmentChipper, extract_clas as extract_clas_sicd
 
 
 __classification__ = "UNCLASSIFIED"
@@ -24,11 +28,17 @@ __author__ = "Thomas McCullough"
 
 
 ########
+# module variables
+_class_priority = {'U': 0, 'R' : 1, 'C': 2, 'S': 3, 'T': 4}
+
+
+########
 # base expected functionality for a module with an implemented Reader
 
 def is_a(file_name):
     """
-    Tests whether a given file_name corresponds to a SIDD file. Returns a reader instance, if so.
+    Tests whether a given file_name corresponds to a SIDD file.
+    Returns a reader instance, if so.
 
     Parameters
     ----------
@@ -374,3 +384,449 @@ class SIDDReader(NITFReader):
         return MultiSegmentChipper(
             self._nitf_details.file_name, bounds, offsets, this_dtype,
             symmetry=(False, False, False), complex_type=complex_type, bands_ip=this_bands)
+
+
+def validate_sidd_for_writing(sidd_meta):
+    """
+    Helper method which ensures the provided SIDD structure is appropriate.
+
+    Parameters
+    ----------
+    sidd_meta : SIDDType|List[SIDDType]|SIDDType1|List[SIDDType1]
+
+    Returns
+    -------
+    Tuple[SIDDType, SIDDType1]
+    """
+
+    def inspect_sidd(the_sidd):
+        # we must have the image size
+        if the_sidd.Measurement is None:
+            raise ValueError('The sidd_meta has un-populated Measurement, '
+                             'and nothing useful can be inferred.')
+        if the_sidd.Measurement.PixelFootprint is None:
+            raise ValueError('The sidd_meta has un-populated Measurement.PixelFootprint, '
+                             'and this is not valid for writing.')
+
+        # we must have the pixel type
+        if the_sidd.Display is None:
+            raise ValueError('The sidd_meta has un-populated Display, '
+                             'and nothing useful can be inferred.')
+        if the_sidd.Display.PixelType is None:
+            raise ValueError('The sidd_meta has un-populated Display.PixelType, '
+                             'and nothing useful can be inferred.')
+        # No support for LUT until necessary
+        if the_sidd.Display.PixelType in ('MONO8LU', 'RGB8LU'):
+            raise ValueError('PixelType requiring lookup table currently unsupported.')
+
+        # we must have collection time
+        if the_sidd.ExploitationFeatures is None:
+            raise ValueError('The sidd_meta has un-populated ExploitationFeatures.')
+        if the_sidd.ExploitationFeatures.Collections is None or the_sidd.ExploitationFeatures.Collections.size == 0:
+            raise ValueError('The sidd_meta has un-populated ExploitationFeatures.Collections.')
+        if the_sidd.ExploitationFeatures.Collections[0].Information is None:
+            raise ValueError('The sidd_meta has un-populated ExploitationFeatures.Collections.Information.')
+        if the_sidd.ExploitationFeatures.Collections[0].Information.CollectionDateTime is None:
+            raise ValueError('The sidd_meta has un-populated ExploitationFeatures.Collections.'
+                             'Information.CollectionDateTime')
+
+    if isinstance(sidd_meta, (SIDDType, SIDDType1)):
+        inspect_sidd(sidd_meta)
+        return (sidd_meta, )
+    elif isinstance(sidd_meta, (tuple, list)):
+        out = []
+        for entry in sidd_meta:
+            if not isinstance(entry, (SIDDType, SIDDType1)):
+                raise TypeError('All entries are required to be an instance of SIDDType, '
+                                'got type {}'.format(type(entry)))
+            inspect_sidd(entry)
+            out.append(entry)
+        return tuple(out)
+    else:
+        raise TypeError('sidd_meta is required to be an instance of SIDDType or a list/tuple '
+                        'of such instances, got {}'.format(type(sidd_meta)))
+
+
+def validate_sicd_for_writing(sicd_meta):
+    """
+    Helper method which ensures the provided SICD structure is appropriate.
+
+    Parameters
+    ----------
+    sicd_meta : SICDType|List[SICDType]
+
+    Returns
+    -------
+    None|Tuple[SICDType]
+    """
+
+    if sicd_meta is None:
+        return None
+    if isinstance(sicd_meta, SICDType):
+        return (sicd_meta, )
+    elif isinstance(sicd_meta, (tuple, list)):
+        out = []
+        for entry in sicd_meta:
+            if not isinstance(entry, SICDType):
+                raise TypeError('All entries are required to be an instance of SICDType, '
+                                'got type {}'.format(type(entry)))
+            out.append(entry)
+        return tuple(out)
+    else:
+        raise TypeError('sicd_meta is required to be an instance of SICDType or a list/tuple '
+                        'of such instances, got {}'.format(type(sicd_meta)))
+
+
+def extract_clas(the_sidd):
+    """
+    Extract the classification string from a SIDD as appropriate for NITF Security
+    tags CLAS attribute.
+
+    Parameters
+    ----------
+    the_sidd : SIDDType|SIDDType1
+
+    Returns
+    -------
+    str
+    """
+
+    class_str = the_sidd.ProductCreation.Classification.classification
+
+    if class_str is None or class_str == '':
+        return 'U'
+    else:
+        return class_str[:1]
+
+
+def extract_clsy(the_sidd):
+    """
+    Extract the ownerProducer string from a SIDD as appropriate for NITF Security
+    tags CLSY attribute.
+
+    Parameters
+    ----------
+    the_sidd : SIDDType|SIDDType1
+
+    Returns
+    -------
+    str
+    """
+
+    owner = the_sidd.ProductCreation.Classification.ownerProducer.upper()
+    if owner is None:
+        return ''
+    elif owner in ('USA', 'CAN', 'AUS', 'NZL'):
+        return owner[:2]
+    elif owner == 'GBR':
+        return 'UK'
+    elif owner == 'NATO':
+        return 'XN'
+    else:
+        logging.warning('Got owner {}, and the CLSY will be truncated '
+                        'to two characters.'.format(owner))
+        return owner[:2]
+
+
+class SIDDWriter(NITFWriter):
+    """
+    Writer class for a SIDD file - a NITF file containing data derived from complex radar data and
+    SIDD and SICD data extension(s).
+    """
+
+    __slots__ = ('_sidd_meta', '_sicd_meta', )
+
+    def __init__(self, file_name, sidd_meta, sicd_meta):
+        """
+
+        Parameters
+        ----------
+        file_name : str
+        sidd_meta : SIDDType|List[SIDDType]|SIDDType1|List[SIDDType1]
+        sicd_meta : SICDType|List[SICDType]
+        """
+
+        self._sidd_meta = validate_sidd_for_writing(sidd_meta)
+        # self._shapes = ((self.sicd_meta.ImageData.NumRows, self.sicd_meta.ImageData.NumCols), )
+        self._sicd_meta = validate_sicd_for_writing(sicd_meta)
+        self._security_tags = None
+        self._nitf_header = None
+        self._img_groups = None
+        self._img_details = None
+        self._des_details = None
+        super(SIDDWriter, self).__init__(file_name)
+
+    @property
+    def sidd_meta(self):
+        """
+        Tuple[SIDDType]: The sidd metadata.
+        """
+
+        return self._sidd_meta
+
+    @property
+    def sicd_meta(self):
+        """
+        None|Tuple[SICDType]: The sicd metadata.
+        """
+
+        return self._sicd_meta
+
+    def _get_security_tags(self, index):
+        """
+        Gets the security tags for SIDD at `index`.
+
+        Parameters
+        ----------
+        index : int
+
+        Returns
+        -------
+        NITFSecurityTags
+        """
+
+        args = {}
+        sidd = self.sidd_meta[index]
+        if sidd.ProductCreation is not None and sidd.ProductCreation.Classification is not None:
+            args['CLAS'] = extract_clas(sidd)
+            args['CLSY'] = extract_clsy(sidd)
+            # TODO: this should be more robust
+        return NITFSecurityTags(**args)
+
+    def _create_security_tags(self):
+        def class_priority(cls1, cls2):
+            p1 = _class_priority[cls1]
+            p2 = _class_priority[cls2]
+            if p1 >= p2:
+                return cls1
+            return cls2
+
+        # determine the highest priority clas string from all the sidds & sicds
+        clas_collection = [extract_clas(sidd) for sidd in self.sidd_meta]
+        if self.sicd_meta is not None:
+            clas_collection.extend([extract_clas_sicd(sicd) for sicd in self.sicd_meta])
+        clas = reduce(class_priority, clas_collection)
+        # try to determine clsy from all sidds
+        clsy_collection = list(set(extract_clsy(sidd) for sidd in self.sidd_meta))
+        clsy = clsy_collection[0] if len(clsy_collection) else None
+        # populate the attribute
+        self._security_tags = NITFSecurityTags(CLAS=clas, CLSY=clsy)
+
+    def _get_iid2(self, index):
+        """
+        Get the IID2 for the sidd at `index`.
+
+        Parameters
+        ----------
+        index : int
+
+        Returns
+        -------
+        str
+        """
+
+        sidd = self.sidd_meta[index]
+
+        iid2 = None
+        if hasattr(sidd, '_NITF') and isinstance(sidd._NITF, dict):
+            iid2 = sidd._NITF.get('SUGGESTED_NAME', None)
+        if iid2 is None:
+            iid2 = 'SIDD: Unknown'
+        return iid2
+
+    def _get_ftitle(self):
+        return self._get_iid2(0)
+
+    def _get_fdt(self):
+        sidd = self.sidd_meta[0]
+        if sidd.ExploitationFeatures.Collections[0].Information.CollectionDateTime is not None:
+            the_time = sidd.ExploitationFeatures.Collections[0].Information.CollectionDateTime.astype('datetime64[s]')
+            return re.sub(r'[^0-9]', '', str(the_time))
+        else:
+            return super(SIDDWriter, self)._get_fdt()
+
+    def _get_ostaid(self):
+        ostaid = 'Unknown'
+        sidd = self.sidd_meta[0]
+        if hasattr(sidd, '_NITF') and isinstance(sidd._NITF, dict):
+            ostaid = sidd._NITF.get('OSTAID', 'Unknown')
+        return ostaid
+
+    def _image_parameters(self, index):
+        """
+        Get the image parameters for the sidd at `index`.
+
+        Parameters
+        ----------
+        index
+
+        Returns
+        -------
+        (int, int, str, numpy.dtype, Union[bool, callable], str, tuple, tuple)
+            pixel_size - the size of each pixel in bytes.
+            abpp - the actual bits per pixel.
+            irep - the image representation
+            dtype - the data type.
+            complex_type -
+            pv_type - the pixel type string.
+            irepband - the image representation.
+            im_segments - Segmentation of the form `((row start, row end, column start, column end))`
+        """
+
+        sidd = self.sidd_meta[index]
+        assert isinstance(sidd, (SIDDType, SIDDType1))
+        if sidd.Display.PixelType == 'MONO8I':
+            pixel_size = 1
+            abpp = 8
+            irep = 'MONO'
+            dtype = numpy.dtype('>u1')
+            complex_type = False
+            pv_type = 'INT'
+            irepband = ('M', )
+        elif sidd.Display.PixelType == 'MONO16I':
+            pixel_size = 2
+            abpp = 16
+            irep = 'MONO'
+            dtype = numpy.dtype('>u1')
+            complex_type = False
+            pv_type = 'INT'
+            irepband = ('M', )
+        elif sidd.Display.PixelType == 'RGB24I':
+            pixel_size = 3
+            abpp = 8
+            irep = 'RGB'
+            dtype = numpy.dtype('>u1')
+            complex_type = False
+            pv_type = 'INT'
+            irepband = ('R', 'G', 'B')
+        else:
+            raise ValueError('Unsupported PixelType {}'.format(sidd.Display.PixelType))
+
+        image_segment_limits = image_segmentation(
+            sidd.Measurement.PixelFootprint.Row, sidd.Measurement.PixelFootprint.Col, pixel_size)
+        return pixel_size, abpp, irep, dtype, complex_type, pv_type, irepband, image_segment_limits
+
+    @staticmethod
+    def _get_icp(sidd):
+        """
+        Get the Image corner point array, if possible.
+
+        Parameters
+        ----------
+        sidd : SIDDType|SIDDType1
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+
+        if isinstance(sidd, SIDDType) and sidd.GeoData is not None and sidd.GeoData.ImageCorners is not None:
+            return sidd.GeoData.ImageCorners.get_array(dtype=numpy.dtype('float64'))
+        elif isinstance(sidd, SIDDType1) and sidd.GeographicAndTarget is not None and \
+                sidd.GeographicAndTarget.GeographicCoverage is not None and \
+                sidd.GeographicAndTarget.GeographicCoverage.Footprint is not None:
+            return sidd.GeographicAndTarget.GeographicCoverage.Footprint.get_array(dtype=numpy.dtype('float64'))
+        return None
+
+    def _create_image_segment(self, index, img_groups, img_details):
+        cur_count = len(img_details)
+        pixel_size, abpp, irep, dtype, complex_type, pv_type, irepband, \
+            image_segment_limits = self._image_parameters(index)
+        new_count = len(image_segment_limits)
+        img_groups.append(tuple(range(cur_count, cur_count+new_count)))
+        security = self._get_security_tags(index)
+
+        iid2 = self._get_iid2(index)
+        sidd = self.sidd_meta[index]
+
+        idatim = self._get_fdt()
+
+        isorce = ''
+        if sidd.ExploitationFeatures.Collections[0].Information.SensorName is not None:
+            isorce = sidd.ExploitationFeatures.Collections[0].Information.SensorName
+
+        rows = sidd.Measurement.PixelFootprint.Row
+        cols = sidd.Measurement.PixelFootprint.Col
+
+        icp = self._get_icp(sidd)
+        bands = [ImageBand(ISUBCAT='', IREPBAND=entry) for entry in irepband]
+
+        for i, entry in enumerate(image_segment_limits):
+            this_rows = entry[1]-entry[0]
+            this_cols = entry[3]-entry[2]
+            subhead = ImageSegmentHeader(
+                IID1='SIDD{0:03d}{1:03d}'.format(len(img_groups), i+1),
+                IDATIM=idatim,
+                IID2=iid2,
+                ISORCE=isorce,
+                IREP=irep,
+                ICAT='SAR',
+                NROWS=this_rows,
+                NCOLS=this_cols,
+                PVTYPE=pv_type,
+                ABPP=abpp,
+                IGEOLO=interpolate_corner_points_string(numpy.array(entry, dtype=numpy.int64), rows, cols, icp),
+                IMODE='P' if irep == 'RGB' else 'B',
+                NPPBH=get_npp_block(this_cols),
+                NPPBV=get_npp_block(this_rows),
+                NBPP=abpp,
+                IDLVL=i+1+len(img_details),
+                IALVL=i+len(img_details),
+                ILOC='{0:05d}{1:05d}'.format(entry[0], entry[2]),
+                Bands=ImageBands(values=bands),
+                Security=security)
+            img_details.append(ImageDetails(1, dtype, complex_type, entry, subhead))
+
+    def _create_image_segment_details(self):
+        super(SIDDWriter, self)._create_image_segment_details()
+        img_groups = []
+        img_details = []
+        for index in range(len(self.sidd_meta)):
+            self._create_image_segment(index, img_groups, img_details)
+        self._img_groups = tuple(img_groups)
+        self._img_details = tuple(img_details)
+
+    def _create_des_segment(self, index):
+        """
+        Create the details for the data extension at `index`.
+
+        Parameters
+        ----------
+        index : int
+
+        Returns
+        -------
+        DESDetails
+        """
+
+        imgs = self._img_groups[index]
+        security = self.image_details[imgs[0]].subheader.Security
+        sidd = self.sidd_meta[index]
+        assert isinstance(sidd, (SIDDType, SIDDType1))
+        uh_args = sidd.get_des_details()
+
+        try:
+            desshdt = str(sidd.ProductCreation.ProcessorInformation.ProcessingDateTime)
+        except AttributeError:
+            desshdt = str(numpy.datetime64('now', 'us'))
+        if desshdt[-1] != 'Z':
+            desshdt += 'Z'
+        uh_args['DESSHDT'] = desshdt
+
+        desshlpg = ''
+        icp = self._get_icp(sidd)
+        if icp is not None:
+            temp = []
+            for entry in icp:
+                temp.append('{0:0=+12.8f}{1:0=+13.8f}'.format(entry[0], entry[1]))
+            temp.append(temp[0])
+            desshlpg = ''.join(temp)
+        uh_args['DESSHLPG'] = desshlpg
+        subhead = DataExtensionHeader(
+            Security=security,
+            UserHeader=SICDDESSubheader(**uh_args))
+        return DESDetails(subhead, sidd.to_xml_bytes(tag='SIDD'))
+
+    def _create_data_extension_details(self):
+        super(SIDDWriter, self)._create_data_extension_details()
+        self._des_details = tuple(self._create_des_segment(index) for index in range(len(self.sidd_meta)))

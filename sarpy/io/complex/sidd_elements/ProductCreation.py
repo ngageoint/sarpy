@@ -10,7 +10,8 @@ import numpy
 from .base import DEFAULT_STRICT
 # noinspection PyProtectedMember
 from ..sicd_elements.base import Serializable, _SerializableDescriptor, _StringDescriptor, \
-    _IntegerDescriptor, _DateTimeDescriptor, _ParametersDescriptor, ParametersCollection
+    _StringEnumDescriptor, _IntegerDescriptor, _DateTimeDescriptor, \
+    _ParametersDescriptor, ParametersCollection
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
@@ -92,8 +93,8 @@ class ProductClassificationType(Serializable):
     compliesWith = _StringDescriptor(
         'compliesWith', _required, strict=DEFAULT_STRICT,
         docstring='')  # type: Union[None, str]
-    classification = _StringDescriptor(
-        'classification', _required, strict=DEFAULT_STRICT,  # default_value='U',
+    classification = _StringEnumDescriptor(
+        'classification', ('U', 'C', 'R', 'S', 'TS'), _required, strict=DEFAULT_STRICT,
         docstring='')  # type: str
     ownerProducer = _StringDescriptor(
         'ownerProducer', _required, strict=DEFAULT_STRICT,  # default_value='USA',

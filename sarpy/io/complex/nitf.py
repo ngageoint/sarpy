@@ -6,15 +6,18 @@ to represent base functionality to be extended for SICD, CPHD, and SIDD capabili
 
 import logging
 from typing import List, Tuple
+import re
 
 import numpy
 
 from .base import BaseChipper, BaseReader, AbstractWriter, int_func
 from .bip import BIPChipper, BIPWriter
-from ..nitf.nitf_head import NITFDetails, NITFHeader
+from ..nitf.nitf_head import NITFDetails, NITFHeader, ImageSegmentsType, DataExtensionsType
 from ..nitf.security import NITFSecurityTags
 from ..nitf.image import ImageSegmentHeader
 from ..nitf.des import DataExtensionHeader
+from .sicd_elements.blocks import LatLonType
+from sarpy.geometry.geocoords import ecf_to_geodetic, geodetic_to_ecf
 
 
 class MultiSegmentChipper(BaseChipper):
@@ -550,6 +553,104 @@ class DESDetails(object):
             self._des_written = True
 
 
+def get_npp_block(value):
+    """
+    Determine the number of pixels per block value.
+
+    Parameters
+    ----------
+    value : int
+
+    Returns
+    -------
+    int
+    """
+
+    return 0 if value > 8192 else value
+
+
+def image_segmentation(rows, cols, pixel_size):
+    """
+    Determine the appropriate segmentation for the image.
+
+    Parameters
+    ----------
+    rows : int
+    cols : int
+    pixel_size : int
+
+    Returns
+    -------
+    tuple
+        Of the form `((row start, row end, column start, column end))`
+    """
+
+    im_seg_limit = 10**10 - 2  # as big as can be stored in 10 digits, given at least 2 bytes per pixel
+    dim_limit = 10**5 - 1  # as big as can be stored in 5 digits
+    im_segments = []
+
+    row_offset = 0
+    col_offset = 0
+    col_limit = min(dim_limit, cols)
+    while (row_offset < rows) and (col_offset < cols):
+        # determine row count, given row_offset, col_offset, and col_limit
+        # how many bytes per row for this column section
+        row_memory_size = (col_limit - col_offset) * pixel_size
+        # how many rows can we use
+        row_count = min(dim_limit, rows - row_offset, int_func(im_seg_limit / row_memory_size))
+        im_segments.append((row_offset, row_offset + row_count, col_offset, col_limit))
+        row_offset += row_count  # move the next row offset
+        if row_offset == rows:
+            # move over to the next column section
+            col_offset = col_limit
+            col_limit = min(col_offset + dim_limit, cols)
+            row_offset = 0
+    return tuple(im_segments)
+
+
+def interpolate_corner_points_string(entry, rows, cols, icp):
+    """
+    Interpolate the corner points for the given subsection from
+    the given corner points. This supplies entries for the NITF headers.
+
+    Parameters
+    ----------
+    entry : numpy.ndarray
+        The corner pints of the form `(row_start, row_stop, col_start, col_stop)`
+    rows : int
+        The number of rows in the parent image.
+    cols : int
+        The number of cols in the parent image.
+    icp : the parent image corner points in geodetic coordinates.
+
+    Returns
+    -------
+    str
+    """
+
+    if icp is None:
+        return ''
+
+    if icp.shape[1] == 2:
+        icp_new = numpy.zeros((icp.shape[0], 3), dtype=numpy.float64)
+        icp_new[:, :2] = icp
+        icp = icp_new
+    icp_ecf = geodetic_to_ecf(icp)
+
+    const = 1. / (rows * cols)
+    pattern = entry[numpy.array([(0, 2), (1, 2), (1, 3), (0, 3)], dtype=numpy.int64)]
+    out = []
+    for row, col in pattern:
+        pt_array = const * numpy.sum(icp_ecf *
+                                     (numpy.array([rows - row, row, row, rows - row]) *
+                                      numpy.array([cols - col, cols - col, col, col]))[:, numpy.newaxis], axis=0)
+
+        pt = LatLonType.from_array(ecf_to_geodetic(pt_array)[:2])
+        dms = pt.dms_format(frac_secs=False)
+        out.append('{0:02d}{1:02d}{2:02d}{3:s}'.format(*dms[0]) + '{0:03d}{1:02d}{2:02d}{3:s}'.format(*dms[1]))
+    return ''.join(out)
+
+
 class NITFWriter(AbstractWriter):
     __slots__ = (
         '_file_name', '_security_tags', '_nitf_header', '_nitf_header_written',
@@ -803,6 +904,39 @@ class NITFWriter(AbstractWriter):
             fi.write(details.des_bytes)
             details.des_written = True
 
+    def _get_ftitle(self):
+        """
+        Define the FTITLE for the NITF header.
+
+        Returns
+        -------
+        str
+        """
+
+        raise NotImplementedError
+
+    def _get_fdt(self):
+        """
+        Gets the NITF header FDT field value.
+
+        Returns
+        -------
+        str
+        """
+
+        return re.sub(r'[^0-9]', '', str(numpy.datetime64('now', 's')))
+
+    def _get_ostaid(self):
+        """
+        Gets the NITF header OSTAID field value.
+
+        Returns
+        -------
+        str
+        """
+
+        return 'Unknown'
+
     def _get_clevel(self, file_size):
         """
         Gets the NITF complexity level of the file. This is likely always
@@ -1010,6 +1144,44 @@ class NITFWriter(AbstractWriter):
 
         # self._des_details = <something>
 
+    def _get_nitf_image_segments(self):
+        """
+        Get the ImageSegments component for the NITF header.
+
+        Returns
+        -------
+        ImageSegmentsType
+        """
+
+        if self._img_details is None:
+            return ImageSegmentsType(subhead_sizes=None, item_sizes=None)
+        else:
+            im_sizes = numpy.zeros((len(self._img_details), ), dtype=numpy.int64)
+            subhead_sizes = numpy.zeros((len(self._img_details), ), dtype=numpy.int64)
+            for i, details in enumerate(self._img_details):
+                subhead_sizes[i] = details.subheader.get_bytes_length()
+                im_sizes[i] = details.image_size
+            return ImageSegmentsType(subhead_sizes=subhead_sizes, item_sizes=im_sizes)
+
+    def _get_nitf_data_extensions(self):
+        """
+        Get the DataEXtensions component for the NITF header.
+
+        Returns
+        -------
+        DataExtensionsType
+        """
+
+        if self._des_details is None:
+            return DataExtensionsType(subhead_sizes=None, item_sizes=None)
+        else:
+            des_sizes = numpy.zeros((len(self._des_details), ), dtype=numpy.int64)
+            subhead_sizes = numpy.zeros((len(self._des_details), ), dtype=numpy.int64)
+            for i, details in enumerate(self._des_details):
+                subhead_sizes[i] = details.subheader.get_bytes_length()
+                des_sizes[i] = len(details.des_bytes)
+            return DataExtensionsType(subhead_sizes=subhead_sizes, item_sizes=des_sizes)
+
     def _create_nitf_header(self):
         """
         Create the main NITF header.
@@ -1030,4 +1202,8 @@ class NITFWriter(AbstractWriter):
                 "_create_nitf_header method has been called BEFORE the "
                 "_create_data_extension_headers method.")
 
-        # self._nitf_header = <something>
+        self._nitf_header = NITFHeader(
+            Security=self.security_tags, CLEVEL=3, OSTAID=self._get_ostaid(),
+            FDT=self._get_fdt(), FTITLE=self._get_ftitle(), FL=0,
+            ImageSegments=self._get_nitf_image_segments(),
+            DataExtensions=self._get_nitf_data_extensions())

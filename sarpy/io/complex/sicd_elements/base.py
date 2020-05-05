@@ -1909,9 +1909,9 @@ class Serializable(object):
 
         Parameters
         ----------
-        urn : Union[None, str, dict]
+        urn : None|str|dict
             The xml namespace string or dictionary describing the xml namespace.
-        tag : Union[None, str]
+        tag : None|str
             The root node tag to use. If not given, then the class name will be used.
         check_validity : bool
             Check whether the element is valid before serializing, by calling :func:`is_valid`.
@@ -1949,9 +1949,9 @@ class Serializable(object):
 
         Parameters
         ----------
-        urn : Union[None, str, dict]
+        urn : None|str|dict
             The xml namespace or dictionary describing the xml namespace.
-        tag : Union[None, str]
+        tag : None|str
             The root node tag to use. If not given, then the class name will be used.
         check_validity : bool
             Check whether the element is valid before serializing, by calling :func:`is_valid`.

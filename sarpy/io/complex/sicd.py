@@ -6,18 +6,16 @@ Module for reading SICD files - should support SICD version 0.3 and above.
 import re
 import sys
 import logging
-from typing import Union
 
 import numpy
 
-from .base import validate_sicd_for_writing, int_func, string_types
-from .nitf import MultiSegmentChipper, NITFReader, NITFWriter, ImageDetails, DESDetails
+from .base import validate_sicd_for_writing, string_types
+from .nitf import MultiSegmentChipper, NITFReader, NITFWriter, ImageDetails, DESDetails, \
+    image_segmentation, get_npp_block, interpolate_corner_points_string
 from .utils import parse_xml_from_string
 from .sicd_elements.SICD import SICDType
-from .sicd_elements.blocks import LatLonType
 
-from ..nitf.nitf_head import NITFDetails, NITFHeader, ImageSegmentsType, DataExtensionsType
-# noinspection PyProtectedMember
+from ..nitf.nitf_head import NITFDetails
 from ..nitf.des import DataExtensionHeader, SICDDESSubheader
 from ..nitf.security import NITFSecurityTags
 from ..nitf.image import ImageSegmentHeader, ImageBands, ImageBand
@@ -504,6 +502,41 @@ def complex_to_int(data):
     # should we round? Without it, it will be the floor, I believe.
     return out
 
+
+def extract_clas(sicd):
+    """
+    Extract the classification string from a SICD as appropriate for NITF Security
+    tags CLAS attribute.
+
+    Parameters
+    ----------
+    sicd : SICDType
+
+    Returns
+    -------
+    str
+    """
+    if sicd.CollectionInfo is None or sicd.CollectionInfo.Classification is None:
+        return 'U'
+
+    c_str = sicd.CollectionInfo.Classification
+
+    if 'UNCLASS' in c_str.upper():
+        return 'U'
+    elif 'CONFIDENTIAL' in c_str.upper():
+        return 'C'
+    elif 'TOP SECRET' in c_str.upper():
+        return 'T'
+    elif 'SECRET' in c_str.upper():
+        return 'S'
+    elif 'FOUO' in c_str.upper() or 'RESTRICTED' in c_str.upper():
+        return 'R'
+    else:
+        logging.critical('Unclear how to extract CLAS for classification string {}. '
+                         'Should be set appropriately.'.format(c_str))
+        return 'U'
+
+
 class SICDWriter(NITFWriter):
     """
     Writer class for a SICD file - a NITF file containing complex radar data and 
@@ -564,21 +597,10 @@ class SICDWriter(NITFWriter):
                         out[fld] = sec_tags[fld]
             return out
 
-        def get_clas(in_str):
+        def get_clas():
             if 'CLAS' in args:
                 return
-
-            if 'UNCLASS' in in_str.upper():
-                args['CLAS'] = 'U'
-            elif 'CONFIDENTIAL' in in_str.upper():
-                args['CLAS'] = 'C'
-            elif 'TOP SECRET' in in_str.upper():
-                args['CLAS'] = 'T'
-            elif 'SECRET' in in_str.upper():
-                args['CLAS'] = 'S'
-            else:
-                logging.critical('Unclear how to extract CLAS for classification string {}. '
-                                 'Unpopulated for now, and should be set appropriately.'.format(in_str))
+            args['CLAS'] = extract_clas(self.sicd_meta)
 
         def get_code(in_str):
             if 'CODE' in args:
@@ -590,7 +612,7 @@ class SICDWriter(NITFWriter):
 
         args = get_basic_args()
         if self._sicd_meta.CollectionInfo is not None:
-            get_clas(self._sicd_meta.CollectionInfo.Classification)
+            get_clas()
             get_code(self._sicd_meta.CollectionInfo.Classification)
         return NITFSecurityTags(**args)
 
@@ -610,8 +632,30 @@ class SICDWriter(NITFWriter):
             ftitle = 'SICD: Unknown'
         return ftitle
 
-    def _image_segment_details(self):
-        # type: () -> (int, numpy.dtype, Union[bool, callable], str, tuple, tuple)
+    def _get_fdt(self):
+        return re.sub(r'[^0-9]', '', str(self.sicd_meta.ImageCreation.DateTime.astype('datetime64[s]')))
+
+    def _get_ostaid(self):
+        ostaid = 'Unknown'
+        if hasattr(self._sicd_meta, '_NITF') and isinstance(self._sicd_meta._NITF, dict):
+            ostaid = self._sicd_meta._NITF.get('OSTAID', 'Unknown')
+        return ostaid
+
+    def _image_parameters(self):
+        """
+        Get the image parameters.
+
+        Returns
+        -------
+        (int, numpy.dtype, Union[bool, callable], str, tuple, tuple)
+            pixel_size - the size of each pixel in bytes.
+            dtype - the data type.
+            complex_type -
+            pv_type - the pixel type string.
+            isubcat - the image subcategory.
+            im_segments - Segmentation of the form `((row start, row end, column start, column end))`
+        """
+
         pixel_type = self.sicd_meta.ImageData.PixelType  # required to be defined
         # NB: SICDs are required to be stored as big-endian, so the endian-ness
         #   of the memmap must be explicit
@@ -630,57 +674,15 @@ class SICDWriter(NITFWriter):
             pixel_size = 2
             dtype = numpy.dtype('>u1')
             complex_type = complex_to_amp_phase(self.sicd_meta.ImageData.AmpTable)
-
-        IM_SEG_LIMIT = 10**10 - 2  # as big as can be stored in 10 digits, given at least 2 bytes per pixel
-        DIM_LIMIT = 10**5 - 1  # as big as can be stored in 5 digits
-        IM_ROWS = self.sicd_meta.ImageData.NumRows  # required to be defined
-        IM_COLS = self.sicd_meta.ImageData.NumCols  # required to be defined
-        im_segments = []
-
-        row_offset = 0
-        col_offset = 0
-        col_limit = min(DIM_LIMIT, IM_COLS)
-        while (row_offset < IM_ROWS) and (col_offset < IM_COLS):
-            # determine row count, given row_offset, col_offset, and col_limit
-            # how many bytes per row for this column section
-            row_memory_size = (col_limit-col_offset)*pixel_size
-            # how many rows can we use
-            row_count = min(DIM_LIMIT, IM_ROWS-row_offset, int_func(IM_SEG_LIMIT/row_memory_size))
-            im_segments.append((row_offset, row_offset + row_count, col_offset, col_limit))
-            row_offset += row_count  # move the next row offset
-            if row_offset == IM_ROWS:
-                # move over to the next column section
-                col_offset = col_limit
-                col_limit = min(col_offset+DIM_LIMIT, IM_COLS)
-                row_offset = 0
-        # we now have [(row_start, row_stop, col_start, col_stop)]
-        #   following the python convention with starts inclusive, stops not inclusive
-        return pixel_size, dtype, complex_type, pv_type, isubcat, im_segments
+        image_segment_limits = image_segmentation(
+            self.sicd_meta.ImageData.NumRows, self.sicd_meta.ImageData.NumCols, pixel_size)
+        return pixel_size, dtype, complex_type, pv_type, isubcat, image_segment_limits
 
     def _create_image_segment_details(self):
         super(SICDWriter, self)._create_image_segment_details()
 
-        pixel_size, dtype, complex_type, pv_type, isubcat, image_segment_limits = self._image_segment_details()
-        self._img_groups = tuple(range(len(image_segment_limits)))
-
-        def get_npp_block(value):
-            return 0 if value > 8192 else value
-
-        def get_corner_points_string(ent):
-            # ent = (row_start, row_stop, col_start, col_stop)
-            if icp is None:
-                return ''
-            const = 1./(rows*cols)
-            pattern = ent[numpy.array([(0, 2), (1, 2), (1, 3), (0, 3)], dtype=numpy.int64)]
-            out = []
-            for row, col in pattern:
-                pt_array = const*numpy.sum(icp *
-                                           (numpy.array([rows-row, row, row, rows-row]) *
-                                            numpy.array([cols-col, cols-col, col, col]))[:, numpy.newaxis], axis=0)
-                pt = LatLonType.from_array(pt_array)
-                dms = pt.dms_format(frac_secs=False)
-                out.append('{0:02d}{1:02d}{2:02d}{3:s}'.format(*dms[0]) + '{0:03d}{1:02d}{2:02d}{3:s}'.format(*dms[1]))
-            return ''.join(out)
+        pixel_size, dtype, complex_type, pv_type, isubcat, image_segment_limits = self._image_parameters()
+        self._img_groups = tuple(tuple(range(len(image_segment_limits))))
 
         ftitle = self._get_ftitle()
         idatim = ' '
@@ -702,8 +704,6 @@ class SICDWriter(NITFWriter):
 
         img_details = []
 
-        im_seg_heads = []
-
         for i, entry in enumerate(image_segment_limits):
             this_rows = entry[1]-entry[0]
             this_cols = entry[3]-entry[2]
@@ -718,7 +718,7 @@ class SICDWriter(NITFWriter):
                 NCOLS=this_cols,
                 PVTYPE=pv_type,
                 ABPP=abpp,
-                IGEOLO=get_corner_points_string(entry),
+                IGEOLO=interpolate_corner_points_string(numpy.array(entry, dtype=numpy.int64), rows, cols, icp),
                 NPPBH=get_npp_block(this_cols),
                 NPPBV=get_npp_block(this_rows),
                 NBPP=abpp,
@@ -758,33 +758,3 @@ class SICDWriter(NITFWriter):
 
         self._des_details = (
             DESDetails(subhead, self.sicd_meta.to_xml_bytes(urn=_SICD_SPECIFICATION_NAMESPACE, tag='SICD')), )
-
-    def _create_nitf_header(self):
-        super(SICDWriter, self)._create_nitf_header()
-
-        ostaid = 'Unknown '
-        fdt = re.sub(r'[^0-9]', '', str(self._sicd_meta.ImageCreation.DateTime.astype('datetime64[s]')))
-
-        if self._img_details is None:
-            im_seg = ImageSegmentsType(subhead_sizes=None, item_sizes=None)
-        else:
-            im_sizes = numpy.zeros((len(self._img_details), ), dtype=numpy.int64)
-            subhead_sizes = numpy.zeros((len(self._img_details), ), dtype=numpy.int64)
-            for i, details in enumerate(self._img_details):
-                subhead_sizes[i] = details.subheader.get_bytes_length()
-                im_sizes[i] = details.image_size
-            im_seg = ImageSegmentsType(subhead_sizes=subhead_sizes, item_sizes=im_sizes)
-
-        if self._des_details is None:
-            des_seg = DataExtensionsType(subhead_sizes=None, item_sizes=None)
-        else:
-            des_sizes = numpy.zeros((len(self._des_details), ), dtype=numpy.int64)
-            subhead_sizes = numpy.zeros((len(self._des_details), ), dtype=numpy.int64)
-            for i, details in enumerate(self._des_details):
-                subhead_sizes[i] = details.subheader.get_bytes_length()
-                des_sizes[i] = len(details.des_bytes)
-            des_seg = DataExtensionsType(subhead_sizes=subhead_sizes, item_sizes=des_sizes)
-
-        self._nitf_header = NITFHeader(
-            Security=self.security_tags, CLEVEL=3, OSTAID=ostaid, FDT=fdt, FTITLE=self._get_ftitle(),
-            FL=0, ImageSegments=im_seg, DataExtensions=des_seg)

@@ -4,7 +4,8 @@ The SIDDType 2.0 definition.
 """
 
 import logging
-from typing import Union
+from typing import Union, Dict
+from collections import OrderedDict
 
 # noinspection PyProtectedMember
 from ..sicd_elements.base import Serializable, _SerializableDescriptor, DEFAULT_STRICT
@@ -216,6 +217,36 @@ class SIDDType(Serializable):
         self.Annotations = Annotations
         super(SIDDType, self).__init__(**kwargs)
 
+    @staticmethod
+    def get_xmlns_collection():
+        """
+        Gets the correct SIDD 2.0 dictionary of xml namespace details.
+
+        Returns
+        -------
+        dict
+        """
+
+        return OrderedDict([
+            ('xmlns', _sidd_urn), ('xmlns:sicommon', _sicommon_urn),
+            ('xmlns:sfa', _sfa_urn), ('xmlns:ism', _ism_urn)])
+
+    @staticmethod
+    def get_des_details():
+        """
+        Gets the correct SIDD 2.0 DES subheader details.
+
+        Returns
+        -------
+        dict
+        """
+
+        return OrderedDict([
+            ('DESSHSI', 'SIDD Volume 1 Design & Implementation Description Document'),
+            ('DESSHSV', '2.0'),
+            ('DESSHSD', '2019-05-31T00:00:00Z'),
+            ('DESSHTN', _sidd_urn)])
+
     @classmethod
     def from_node(cls, node, xml_ns, ns_key=None, kwargs=None):
         if ns_key is None:
@@ -225,3 +256,7 @@ class SIDDType(Serializable):
 
         _validate_xml_ns(xml_ns, ns_key)
         return super(SIDDType, cls).from_node(node, xml_ns, ns_key=ns_key, kwargs=kwargs)
+
+    def to_xml_bytes(self, urn=None, tag=None, check_validity=False, strict=DEFAULT_STRICT):
+        urn = self.get_xmlns_collection()
+        return super(SIDDType, self).to_xml_bytes(urn=urn, tag=tag, check_validity=check_validity, strict=strict)
