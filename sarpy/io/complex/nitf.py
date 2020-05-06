@@ -1202,6 +1202,7 @@ class NITFWriter(AbstractWriter):
                 "_create_nitf_header method has been called BEFORE the "
                 "_create_data_extension_headers method.")
 
+        # NB: CLEVEL and FL will be corrected in prepare_for_writing method
         self._nitf_header = NITFHeader(
             Security=self.security_tags, CLEVEL=3, OSTAID=self._get_ostaid(),
             FDT=self._get_fdt(), FTITLE=self._get_ftitle(), FL=0,
