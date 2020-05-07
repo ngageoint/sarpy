@@ -90,7 +90,7 @@ class ApertureTool(AbstractWidgetPanel):
         self.tabs_panel.tabs.load_image_tab.chip_size_panel.ny.set_text(numpy.shape(selected_region_complex_data)[0])
 
     def get_fft_image_bounds(self,
-                             ):             # type: (int, int, int, int)
+                             ):             # type: (...) -> (int, int, int, int)
         x_axis_mean = numpy.mean(self.app_variables.fft_display_data, axis=0)
         y_axis_mean = numpy.mean(self.app_variables.fft_display_data, axis=1)
 

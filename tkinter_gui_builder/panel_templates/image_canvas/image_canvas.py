@@ -407,30 +407,53 @@ class ImageCanvas(tkinter.LabelFrame):
         elif self.variables.active_tool == TOOLS.TRANSLATE_SHAPE_TOOL:
             x_dist = event.x - self.variables.tmp_anchor_point[0]
             y_dist = event.y - self.variables.tmp_anchor_point[1]
-            new_x1 = self.get_shape_canvas_coords(self.variables.current_shape_id)[0] + x_dist
-            new_y1 = self.get_shape_canvas_coords(self.variables.current_shape_id)[1] + y_dist
-            new_x2 = self.get_shape_canvas_coords(self.variables.current_shape_id)[2] + x_dist
-            new_y2 = self.get_shape_canvas_coords(self.variables.current_shape_id)[3] + y_dist
+            new_x1 = min(self.get_shape_canvas_coords(self.variables.current_shape_id)[0] + x_dist,
+                         self.get_shape_canvas_coords(self.variables.current_shape_id)[2] + x_dist)
+            new_x2 = max(self.get_shape_canvas_coords(self.variables.current_shape_id)[0] + x_dist,
+                         self.get_shape_canvas_coords(self.variables.current_shape_id)[2] + x_dist)
+            new_y1 = min(self.get_shape_canvas_coords(self.variables.current_shape_id)[1] + y_dist,
+                         self.get_shape_canvas_coords(self.variables.current_shape_id)[3] + y_dist)
+            new_y2 = max(self.get_shape_canvas_coords(self.variables.current_shape_id)[1] + y_dist,
+                         self.get_shape_canvas_coords(self.variables.current_shape_id)[3] + y_dist)
+            width = new_x2 - new_x1
+            height = new_y2 - new_y1
 
             if str(self.variables.current_shape_id) in self.variables.shape_drag_xy_limits.keys():
                 drag_x_lim_1, drag_y_lim_1, drag_x_lim_2, drag_y_lim_2 = self.variables.shape_drag_xy_limits[str(self.variables.current_shape_id)]
                 if self.get_shape_type(self.variables.current_shape_id) == SHAPE_TYPES.RECT:
-                    if drag_x_lim_1 < new_x1 < drag_x_lim_2 and drag_y_lim_1 < new_y1 < drag_y_lim_2 and drag_x_lim_1 < new_x2 < drag_x_lim_2 and drag_y_lim_1 < new_y2 < drag_y_lim_2:
-                        self.modify_existing_shape_using_canvas_coords(self.variables.current_shape_id,
-                                                                       (new_x1, new_y1, new_x2, new_y2),
-                                                                       update_pixel_coords=True)
-                        self.variables.tmp_anchor_point = event.x, event.y
-                    else:
-                        pass
-            else:
-                self.modify_existing_shape_using_canvas_coords(self.variables.current_shape_id, (new_x1, new_y1, new_x2, new_y2), update_pixel_coords=True)
-                self.variables.tmp_anchor_point = event.x, event.y
+                    # TODO: refine this so the rect will snap to limits if dragged outside.  Right now it will stay inside the limited area if the mouse events move too fast.
+                    if new_x1 < drag_x_lim_1:
+                        new_x1 = drag_x_lim_1
+                        new_x2 = new_x1 + width
+                    if new_x2 > drag_x_lim_2:
+                        new_x2 = drag_x_lim_2
+                        new_x1 = new_x2 - width
+                    if new_y1 < drag_y_lim_1:
+                        new_y1 = drag_y_lim_1
+                        new_y2 = new_y1 + height
+                    if new_y2 > drag_y_lim_2:
+                        new_y2 = drag_y_lim_2
+                        new_y1 = new_y2 - height
+            self.modify_existing_shape_using_canvas_coords(self.variables.current_shape_id, (new_x1, new_y1, new_x2, new_y2), update_pixel_coords=True)
+            self.variables.tmp_anchor_point = event.x, event.y
         elif self.variables.active_tool == TOOLS.EDIT_SHAPE_COORDS_TOOL:
             previous_coords = self.get_shape_canvas_coords(self.variables.current_shape_id)
             coord_x_index = self.variables.tmp_closest_coord_index*2
+            coord_y_index = coord_x_index + 1
             new_coords = list(previous_coords)
             new_coords[coord_x_index] = event.x
-            new_coords[coord_x_index + 1] = event.y
+            new_coords[coord_y_index] = event.y
+            if str(self.variables.current_shape_id) in self.variables.shape_drag_xy_limits.keys():
+                drag_x_lim_1, drag_y_lim_1, drag_x_lim_2, drag_y_lim_2 = self.variables.shape_drag_xy_limits[str(self.variables.current_shape_id)]
+                if new_coords[coord_x_index] < drag_x_lim_1:
+                    new_coords[coord_x_index] = drag_x_lim_1
+                if new_coords[coord_x_index] > drag_x_lim_2:
+                    new_coords[coord_x_index] = drag_x_lim_2
+                if new_coords[coord_y_index] < drag_y_lim_1:
+                    new_coords[coord_y_index] = drag_y_lim_1
+                if new_coords[coord_y_index] > drag_y_lim_2:
+                    new_coords[coord_y_index] = drag_y_lim_2
+
             self.modify_existing_shape_using_canvas_coords(self.variables.current_shape_id, tuple(new_coords))
         elif self.variables.active_tool == TOOLS.ZOOM_IN_TOOL:
             self.event_drag_line(event)
