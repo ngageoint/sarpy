@@ -46,60 +46,13 @@ class ApertureTool(AbstractWidgetPanel):
         self.tabs_panel.tabs.load_image_tab.file_selector.select_file.on_left_mouse_click(self.callback_select_file)
 
         self.frequency_vs_degree_panel.canvas.on_left_mouse_motion(self.callback_frequency_vs_degree_left_mouse_motion)
-        self.frequency_vs_degree_panel.canvas.on_mouse_motion(self.callback_frequency_vs_degree_mouse_motion)
-
-    def callback_frequency_vs_degree_mouse_motion(self, event):
-        select_x1, select_y1, select_x2, select_y2 = self.frequency_vs_degree_panel.get_shape_canvas_coords(
-            self.frequency_vs_degree_panel.variables.select_rect_id)
-        select_xul = min(select_x1, select_x2)
-        select_xlr = max(select_x1, select_x2)
-        select_yul = min(select_y1, select_y2)
-        select_ylr = max(select_y1, select_y2)
-
-        distance_to_ul = numpy.sqrt(numpy.square(event.x - select_xul) + numpy.square(event.y - select_yul))
-        distance_to_ur = numpy.sqrt(numpy.square(event.x - select_xlr) + numpy.square(event.y - select_yul))
-        distance_to_lr = numpy.sqrt(numpy.square(event.x - select_xlr) + numpy.square(event.y - select_ylr))
-        distance_to_ll = numpy.sqrt(numpy.square(event.x - select_xul) + numpy.square(event.y - select_ylr))
-
-        if distance_to_ul < self.app_variables.fft_corner_pixel_distance_threshold:
-            self.frequency_vs_degree_panel.canvas.config(cursor="top_left_corner")
-            self.frequency_vs_degree_panel.set_current_tool_to_edit_shape()
-        elif distance_to_ur < self.app_variables.fft_corner_pixel_distance_threshold:
-            self.frequency_vs_degree_panel.canvas.config(cursor="top_right_corner")
-            self.frequency_vs_degree_panel.set_current_tool_to_edit_shape()
-        elif distance_to_lr < self.app_variables.fft_corner_pixel_distance_threshold:
-            self.frequency_vs_degree_panel.canvas.config(cursor="bottom_right_corner")
-            self.frequency_vs_degree_panel.set_current_tool_to_edit_shape()
-        elif distance_to_ll < self.app_variables.fft_corner_pixel_distance_threshold:
-            self.frequency_vs_degree_panel.canvas.config(cursor="bottom_left_corner")
-            self.frequency_vs_degree_panel.set_current_tool_to_edit_shape()
-        elif select_xul < event.x < select_xlr and event.y > select_yul and event.y < select_ylr:
-            self.frequency_vs_degree_panel.canvas.config(cursor="fleur")
-            self.frequency_vs_degree_panel.set_current_tool_to_translate_shape()
-        else:
-            self.frequency_vs_degree_panel.canvas.config(cursor="arrow")
-            self.frequency_vs_degree_panel.set_current_tool_to_selection_tool()
+        # self.frequency_vs_degree_panel.canvas.on_mouse_motion(self.callback_frequency_vs_degree_mouse_motion)
 
     def callback_frequency_vs_degree_left_mouse_motion(self, event):
         self.frequency_vs_degree_panel.callback_handle_left_mouse_motion(event)
         # update the selection rect so that it stays within the FFT bounds
         # TODO: modify to not allow user to start drawing outside of bounds.
         # TODO: don't shrink the selection if the user is moving the selection box
-        select_x1, select_y1, select_x2, select_y2 = self.frequency_vs_degree_panel.get_shape_canvas_coords(self.frequency_vs_degree_panel.variables.select_rect_id)
-        select_xul = min(select_x1, select_x2)
-        select_xlr = max(select_x1, select_x2)
-        select_yul = min(select_y1, select_y2)
-        select_ylr = max(select_y1, select_y2)
-        lim_x1, lim_y1, lim_x2, lim_y2 = self.app_variables.fft_canvas_bounds
-        if select_xul < lim_x1:
-            select_xul = lim_x1
-        if select_xlr > lim_x2:
-            select_xlr = lim_x2
-        if select_yul < lim_y1:
-            select_yul = lim_y1
-        if select_ylr > lim_y2:
-            select_ylr = lim_y2
-        self.frequency_vs_degree_panel.modify_existing_shape_using_canvas_coords(self.frequency_vs_degree_panel.variables.select_rect_id, (select_xul, select_yul, select_xlr, select_ylr))
         self.update_filtered_image()
 
     def callback_select_file(self, event):
@@ -123,12 +76,15 @@ class ApertureTool(AbstractWidgetPanel):
         self.app_variables.fft_display_data = remap.density(fft_complex_data)
         self.frequency_vs_degree_panel.init_with_numpy_image(self.app_variables.fft_display_data)
 
-        self.frequency_vs_degree_panel.set_current_tool_to_selection_tool()
+        # self.frequency_vs_degree_panel.set_current_tool_to_selection_tool()
+        self.frequency_vs_degree_panel.set_current_tool_to_edit_shape()
+        self.frequency_vs_degree_panel.variables.current_shape_id = self.frequency_vs_degree_panel.variables.select_rect_id
         self.frequency_vs_degree_panel.modify_existing_shape_using_image_coords(self.frequency_vs_degree_panel.variables.select_rect_id, self.get_fft_image_bounds())
+        canvas_drawing_bounds = self.frequency_vs_degree_panel.image_coords_to_canvas_coords(self.frequency_vs_degree_panel.variables.select_rect_id)
+        self.frequency_vs_degree_panel.variables.shape_drag_xy_limits[str(self.frequency_vs_degree_panel.variables.select_rect_id)] = canvas_drawing_bounds
         self.app_variables.fft_canvas_bounds = self.frequency_vs_degree_panel.get_shape_canvas_coords(self.frequency_vs_degree_panel.variables.select_rect_id)
         self.frequency_vs_degree_panel.show_shape(self.frequency_vs_degree_panel.variables.select_rect_id)
-        self.filtered_data = self.get_filtered_image()
-        self.filtered_panel.init_with_numpy_image(self.filtered_data)
+        self.filtered_panel.init_with_numpy_image(self.get_filtered_image())
 
         self.tabs_panel.tabs.load_image_tab.chip_size_panel.nx.set_text(numpy.shape(selected_region_complex_data)[1])
         self.tabs_panel.tabs.load_image_tab.chip_size_panel.ny.set_text(numpy.shape(selected_region_complex_data)[0])
@@ -197,9 +153,6 @@ class ApertureTool(AbstractWidgetPanel):
             cdata_clip = ifft2(filtered_cdata)
 
         filtered_image = remap.density(cdata_clip)
-
-        filter_val = self.tabs_panel.tabs.load_image_tab.selection_filter.selected_value.get()
-
         return filtered_image
 
     @staticmethod

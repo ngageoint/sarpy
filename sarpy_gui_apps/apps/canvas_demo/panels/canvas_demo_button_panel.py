@@ -17,7 +17,8 @@ class CanvasDemoButtonPanel(AbstractWidgetPanel):
     draw_rect_w_click = basic_widgets.Button
     draw_polygon_w_click = basic_widgets.Button
     draw_point_w_click = basic_widgets.Button
-    modify_existing_shape = basic_widgets.Button
+    modify_existing_shape_coords = basic_widgets.Button
+    edit_existing_shape = basic_widgets.Button
     color_selector = basic_widgets.Button
     save_kml = basic_widgets.Button
     select_existing_shape = basic_widgets.Combobox  # type: basic_widgets.Combobox
@@ -39,7 +40,8 @@ class CanvasDemoButtonPanel(AbstractWidgetPanel):
                     "draw_polygon_w_click",
                     "draw_point_w_click",
                     "select_existing_shape",
-                    "modify_existing_shape",
+                    "modify_existing_shape_coords",
+                    "edit_existing_shape",
                     "save_kml",
                     "color_selector",
                     "rect_select",
