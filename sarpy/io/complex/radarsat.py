@@ -74,9 +74,9 @@ def _parse_xml(file_name, without_ns=False):
     # type: (str, bool) -> ElementTree.Element
     if without_ns:
         with open(file_name, 'rb') as fi:
-            xml_string = fi.read().decode('utf-8')
+            xml_string = fi.read()
         # Remove the (first) default namespace definition (xmlns="http://some/namespace") and parse
-        return ElementTree.fromstring(re.sub('\\sxmlns="[^"]+"', '', xml_string, count=1))
+        return ElementTree.fromstring(re.sub(b'\\sxmlns="[^"]+"', b'', xml_string, count=1))
     else:
         return ElementTree.parse(file_name).getroot()
 
