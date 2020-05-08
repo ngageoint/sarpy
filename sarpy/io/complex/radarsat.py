@@ -73,8 +73,8 @@ def is_a(file_name):
 def _parse_xml(file_name, without_ns=False):
     # type: (str, bool) -> ElementTree.Element
     if without_ns:
-        with open(file_name, 'r', encoding='utf-8') as fi:
-            xml_string = fi.read()
+        with open(file_name, 'rb') as fi:
+            xml_string = fi.read().decode('utf-8')
         # Remove the (first) default namespace definition (xmlns="http://some/namespace") and parse
         return ElementTree.fromstring(re.sub('\\sxmlns="[^"]+"', '', xml_string, count=1))
     else:
