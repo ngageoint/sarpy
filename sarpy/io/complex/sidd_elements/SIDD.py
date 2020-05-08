@@ -27,12 +27,14 @@ __author__ = "Thomas McCullough"
 
 
 ############
-# namespace validate and definiton of required entries in the namespace dictionary
-
-_sidd_urn = 'urn:SIDD:2.0.0'
-_ism_urn = 'urn:us:gov:ic:ism:13'
-_sfa_urn = 'urn:SFA:1.2.0'
-_sicommon_urn = 'urn:SICommon:1.0'
+# namespace validate and definitIon of required entries in the namespace dictionary
+_SIDD_SPECIFICATION_IDENTIFIER = 'SIDD Volume 1 Design & Implementation Description Document'
+_SIDD_SPECIFICATION_VERSION = '2.0'
+_SIDD_SPECIFICATION_DATE = '2019-05-31T00:00:00Z'
+_SIDD_URN = 'urn:SIDD:2.0.0'
+_ISM_URN = 'urn:us:gov:ic:ism:13'
+_SFA_URN = 'urn:SFA:1.2.0'
+_SICOMMON_URN = 'urn:SICommon:1.0'
 
 
 def _validate_sidd_urn(xml_ns, ns_key):
@@ -43,10 +45,10 @@ def _validate_sidd_urn(xml_ns, ns_key):
         raise ValueError('ns_key must be a key in xml_ns.')
 
     sidd_urn = xml_ns[ns_key]
-    if sidd_urn != _sidd_urn:
+    if sidd_urn != _SIDD_URN:
         logging.warning('SIDD version 2 urn is expected to be "{}", '
                         'but we got "{}". Differences in standard may lead to deserialization '
-                        'errors.'.format(_sidd_urn, sidd_urn))
+                        'errors.'.format(_SIDD_URN, sidd_urn))
 
 
 def _validate_ism_urn(xml_ns):
@@ -61,10 +63,10 @@ def _validate_ism_urn(xml_ns):
         xml_ns['ism'] = the_val
 
     ism_urn = xml_ns['ism']
-    if ism_urn != _ism_urn:
+    if ism_urn != _ISM_URN:
         logging.warning('SIDD version 2 "ism" namespace urn is expected to be "{}", '
                         'but we got "{}". Differences in standard may lead to deserialization '
-                        'errors.'.format(_ism_urn, ism_urn))
+                        'errors.'.format(_ISM_URN, ism_urn))
 
 
 def _validate_sfa_urn(xml_ns):
@@ -79,10 +81,10 @@ def _validate_sfa_urn(xml_ns):
         xml_ns['sfa'] = the_val
 
     sfa_urn = xml_ns['sfa']
-    if sfa_urn != _sfa_urn:
+    if sfa_urn != _SFA_URN:
         logging.warning('SIDD version 2 "SFA" namespace urn is expected to be "{}", '
                         'but we got "{}". Differences in standard may lead to deserialization '
-                        'errors.'.format(_sfa_urn, sfa_urn))
+                        'errors.'.format(_SFA_URN, sfa_urn))
 
 
 def _validate_sicommon_urn(xml_ns):
@@ -97,10 +99,10 @@ def _validate_sicommon_urn(xml_ns):
         xml_ns['sicommon'] = the_val
 
     sicommon_urn = xml_ns['sicommon']
-    if sicommon_urn != _sicommon_urn:
+    if sicommon_urn != _SICOMMON_URN:
         logging.warning('SIDD version 2 "SICommon" namespace urn is expected to be "{}", '
                         'but we got "{}". Differences in standard may lead to deserialization '
-                        'errors.'.format(_sicommon_urn, sicommon_urn))
+                        'errors.'.format(_SICOMMON_URN, sicommon_urn))
 
 
 def _validate_xml_ns(xml_ns, ns_key):
@@ -228,8 +230,8 @@ class SIDDType(Serializable):
         """
 
         return OrderedDict([
-            ('xmlns', _sidd_urn), ('xmlns:sicommon', _sicommon_urn),
-            ('xmlns:sfa', _sfa_urn), ('xmlns:ism', _ism_urn)])
+            ('xmlns', _SIDD_URN), ('xmlns:sicommon', _SICOMMON_URN),
+            ('xmlns:sfa', _SFA_URN), ('xmlns:ism', _ISM_URN)])
 
     @staticmethod
     def get_des_details():
@@ -242,10 +244,10 @@ class SIDDType(Serializable):
         """
 
         return OrderedDict([
-            ('DESSHSI', 'SIDD Volume 1 Design & Implementation Description Document'),
-            ('DESSHSV', '2.0'),
-            ('DESSHSD', '2019-05-31T00:00:00Z'),
-            ('DESSHTN', _sidd_urn)])
+            ('DESSHSI', _SIDD_SPECIFICATION_VERSION),
+            ('DESSHSV', _SIDD_SPECIFICATION_VERSION),
+            ('DESSHSD', _SIDD_SPECIFICATION_DATE),
+            ('DESSHTN', _SIDD_URN)])
 
     @classmethod
     def from_node(cls, node, xml_ns, ns_key=None, kwargs=None):

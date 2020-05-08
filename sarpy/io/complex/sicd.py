@@ -34,15 +34,6 @@ __classification__ = "UNCLASSIFIED"
 __author__ = ("Thomas McCullough", "Wade Schwartzkopf")
 
 
-#########
-# Module variables
-_SICD_SPECIFICATION_IDENTIFIER = 'SICD Volume 1 Design & Implementation Description Document'
-_SICD_SPECIFICATION_VERSION = '1.2'
-_SICD_SPECIFICATION_DATE = '2018-12-13T00:00:00Z'
-_SICD_SPECIFICATION_NAMESPACE = 'urn:SICD:1.2.1'  # must be of the form 'urn:SICD:<version>'
-
-
-
 ########
 # base expected functionality for a module with an implemented Reader
 
@@ -733,12 +724,14 @@ class SICDWriter(NITFWriter):
 
     def _create_data_extension_details(self):
         super(SICDWriter, self)._create_data_extension_details()
+        uh_args = self.sicd_meta.get_des_details()
 
         desshdt = str(self.sicd_meta.ImageCreation.DateTime.astype('datetime64[s]'))
         if desshdt[-1] != 'Z':
             desshdt += 'Z'
+        uh_args['DESSHDT'] = desshdt
 
-        desshlpg = ' '
+        desshlpg = ''
         if self.sicd_meta.GeoData is not None and self.sicd_meta.GeoData.ImageCorners is not None:
             # noinspection PyTypeChecker
             icp = self.sicd_meta.GeoData.ImageCorners.get_array(dtype=numpy.float64)
@@ -747,14 +740,11 @@ class SICDWriter(NITFWriter):
                 temp.append('{0:0=+12.8f}{1:0=+13.8f}'.format(entry[0], entry[1]))
             temp.append(temp[0])
             desshlpg = ''.join(temp)
+        uh_args['DESSHLPG'] = desshlpg
+
         subhead = DataExtensionHeader(
             Security=self._security_tags,
-            UserHeader=SICDDESSubheader(DESSHSI=_SICD_SPECIFICATION_IDENTIFIER,
-                                        DESSHSV=_SICD_SPECIFICATION_VERSION,
-                                        DESSHSD=_SICD_SPECIFICATION_DATE,
-                                        DESSHTN=_SICD_SPECIFICATION_NAMESPACE,
-                                        DESSHDT=desshdt,
-                                        DESSHLPG=desshlpg))
+            UserHeader=SICDDESSubheader(**uh_args))
 
         self._des_details = (
-            DESDetails(subhead, self.sicd_meta.to_xml_bytes(urn=_SICD_SPECIFICATION_NAMESPACE, tag='SICD')), )
+            DESDetails(subhead, self.sicd_meta.to_xml_bytes(tag='SICD')), )

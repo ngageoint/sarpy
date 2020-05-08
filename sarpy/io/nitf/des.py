@@ -11,8 +11,10 @@ from .security import NITFSecurityTags
 
 class SICDDESSubheader(NITFElement):
     """
-    The SICD Data Extension header - described in SICD standard 2014-09-30, Volume II, page 29
+    The SICD and SIDD Data Extension user header, described in SICD standard
+    2014-09-30, Volume II, page 29
     """
+
     _ordering = (
         'DESSHL', 'DESCRC', 'DESSHFT', 'DESSHDT',
         'DESSHRP', 'DESSHSI', 'DESSHSV', 'DESSHSD',

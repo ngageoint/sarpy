@@ -802,7 +802,6 @@ class SIDDWriter(NITFWriter):
         imgs = self._img_groups[index]
         security = self.image_details[imgs[0]].subheader.Security
         sidd = self.sidd_meta[index]
-        assert isinstance(sidd, (SIDDType, SIDDType1))
         uh_args = sidd.get_des_details()
 
         try:
