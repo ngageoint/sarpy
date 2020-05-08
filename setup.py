@@ -20,13 +20,13 @@ except AttributeError:
 # Get the long description from the README file
 here = os.path.abspath(os.path.dirname(__file__))
 # Get the long description from the README file
-with open(os.path.join(here, 'README.rst'), encoding='utf-8') as f:
+with open(os.path.join(here, 'README.rst'), 'r') as f:
     long_description = f.read()
 
 
 # Get the relevant setup parameters from the package
 parameters = {}
-with open(os.path.join(here, 'sarpy', '__about__.py'), encoding='utf-8') as f:
+with open(os.path.join(here, 'sarpy', '__about__.py'), 'r') as f:
     exec(f.read(), parameters)
 
 
