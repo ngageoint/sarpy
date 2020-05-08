@@ -435,6 +435,7 @@ class BaseReader(object):
                         'to be instances of SICDType.')
         elif not isinstance(sicd_meta, SICDType):
             raise TypeError('sicd_meta argument is required to be a SICDType, or collection of SICDType objects')
+        self._sicd_meta = sicd_meta
 
         # validate chipper input
         if isinstance(chipper, tuple):
@@ -446,14 +447,13 @@ class BaseReader(object):
         elif not isinstance(chipper, BaseChipper):
             raise TypeError(
                 'chipper argument is required to be a BaseChipper instance, or collection of BaseChipper objects')
+        self._chipper = chipper
 
         # determine data_size
         if isinstance(chipper, BaseChipper):
             data_size = chipper.data_size
         else:
             data_size = tuple(el.data_size for el in chipper)
-        self._sicd_meta = sicd_meta
-        self._chipper = chipper
         self._data_size = data_size
 
     @property

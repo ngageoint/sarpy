@@ -13,7 +13,8 @@ from .base import validate_sicd_for_writing, string_types
 from .nitf import MultiSegmentChipper, NITFReader, NITFWriter, ImageDetails, DESDetails, \
     image_segmentation, get_npp_block, interpolate_corner_points_string
 from .utils import parse_xml_from_string
-from .sicd_elements.SICD import SICDType
+# noinspection PyProtectedMember
+from .sicd_elements.SICD import SICDType, _SICD_SPECIFICATION_IDENTIFIER
 
 from ..nitf.nitf_head import NITFDetails
 from ..nitf.des import DataExtensionHeader, SICDDESSubheader
@@ -363,7 +364,6 @@ class SICDReader(NITFReader):
             raise ValueError(
                 'The input file passed in appears to be a NITF 2.1 file that does '
                 'not contain valid sicd metadata.')
-
         super(SICDReader, self).__init__(nitf_details)
 
         # to perform a preliminary check that the structure is valid:

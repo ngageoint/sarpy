@@ -3,6 +3,7 @@ from xml.etree import ElementTree
 import json
 
 from sarpy.io.complex.sicd_elements.base import Serializable
+from sarpy.io.complex.utils import parse_xml_from_string
 
 from .. import unittest
 
@@ -25,8 +26,8 @@ def generic_construction_test(instance, the_type, the_dict, tag='The_Type', prin
         if print_xml:
             print(xml)
         # let's deserialize from xml
-        node = ElementTree.fromstring(xml)
-        item2 = the_type.from_node(node, None)
+        node, xml_ns = parse_xml_from_string(xml)
+        item2 = the_type.from_node(node, xml_ns)
         instance.assertEqual(the_item.to_dict(), item2.to_dict())
 
     with instance.subTest(msg='Test validity'):

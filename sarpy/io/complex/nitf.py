@@ -104,30 +104,54 @@ class MultiSegmentChipper(BaseChipper):
         super(MultiSegmentChipper, self).__init__(data_size, symmetry=(False, False, False), complex_type=False)
 
     def _read_raw_fun(self, range1, range2):
+        def subset(rng, start_ind, stop_ind):
+            # find our rectangular overlap between the desired indices and chipper bounds
+            if rng[2] > 0:
+                if rng[1] < start_ind or rng[0] >= stop_ind:
+                    return None, None
+                # find smallest element rng[0] + mult*rng[2] which is >= start_ind
+                mult1 = 0 if start_ind <= rng[0] else int_func(numpy.ceil((start_ind - rng[0])/rng[2]))
+                ind1 = rng[0] + mult1*rng[2]
+                # find largest element rng[0] + mult*rng[2] which is <= min(stop_ind, rng[1])
+                max_ind = min(rng[1], stop_ind)
+                mult2 = int_func(numpy.floor((max_ind - rng[0])/rng[2]))
+                ind2 = rng[0] + mult2*rng[2]
+            else:
+                if rng[0] < start_ind or rng[1] >= stop_ind:
+                    return None, None
+                # find largest element rng[0] + mult*rng[2] which is <= stop_ind-1
+                mult1 = 0 if rng[0] < stop_ind else int_func(numpy.floor((stop_ind - 1 - rng[0])/rng[2]))
+                ind1 = rng[0] + mult1*rng[2]
+                # find smallest element rng[0] + mult*rng[2] which is >= max(start_ind, rng[1]+1)
+                mult2 = int_func(numpy.floor((start_ind - rng[0])/rng[2])) if rng[1] < start_ind \
+                    else int_func(numpy.floor((rng[1] -1 - rng[0])/rng[2]))
+                ind2 = rng[0] + mult2*rng[2]
+            return (ind1, ind2, rng[2]), (mult1, mult2)
+
         range1, range2 = self._reorder_arguments(range1, range2)
-        # this method just assembles the final data from the child chipper pieces
-        rows = numpy.arange(*range1, dtype=numpy.int64)
-        cols = numpy.arange(*range2, dtype=numpy.int64)
+        rows_size = int_func((range1[1]-range1[0])/range1[2])
+        cols_size = int_func((range2[1]-range2[0])/range2[2])
+
         if self._bands_ip == 1:
-            out = numpy.empty((rows.size, cols.size), dtype=numpy.complex64)
+            out = numpy.empty((rows_size, cols_size), dtype=numpy.complex64)
         else:
-            out = numpy.empty((rows.size, cols.size, self._bands_ip), dtype=numpy.complex64)
+            out = numpy.empty((rows_size, cols_size, self._bands_ip), dtype=numpy.complex64)
         for entry, child_chipper in zip(self._bounds, self._child_chippers):
             row_start, row_end, col_start, col_end = entry
-            row_bool = ((rows >= row_start) & (rows < row_end))
-            col_bool = ((cols >= col_start) & (cols < col_end))
-            if numpy.any(row_bool) and numpy.any(col_bool):
-                # check row bounds
-                crows = rows[row_bool]
-                crange1 = (crows[0]-row_start, crows[-1]+1-row_start, range1[2])
-                # check column bounds
-                ccols = cols[col_bool]
-                crange2 = (ccols[0]-col_start, ccols[-1]+1-col_start, range2[2])
-                # populate as necessary
-                if self._bands_ip == 1:
-                    out[row_bool, col_bool] = child_chipper(crange1, crange2)
-                else:
-                    out[row_bool, col_bool, :] = child_chipper(crange1, crange2)
+            # find row overlap for chipper - it's rectangular
+            crange1, cinds1 = subset(range1, row_start, row_end)
+            if crange1 is None:
+                continue  # there is no row overlap for this chipper
+
+            # find column overlap for chipper - it's rectangular
+            crange2, cinds2 = subset(range2, col_start, col_end)
+            if crange2 is None:
+                continue  # there is no column overlap for this chipper
+
+            if self._bands_ip == 1:
+                out[cinds1[0]:cinds1[1], cinds2[0]:cinds2[1]] = child_chipper(crange1, crange2)
+            else:
+                out[cinds1[0]:cinds1[1], cinds2[0]:cinds2[1], :] = child_chipper(crange1, crange2)
         return out
 
 
@@ -143,18 +167,20 @@ class NITFReader(BaseReader):
 
         Parameters
         ----------
-        nitf_details : sarpy.io.nitf.nitf_head.NITFDetails
-            NITFDetails object
+        nitf_details : NITFDetails
+            The NITFDetails object
         """
 
         if not isinstance(nitf_details, NITFDetails):
             raise TypeError('The input argument for NITFReader must be a NITFDetails object.')
+        self._nitf_details = nitf_details
 
         # get sicd structure
         if hasattr(nitf_details, 'sicd_meta'):
-            sicd_meta = self.sicd_meta
+            sicd_meta = nitf_details.sicd_meta
         else:
             sicd_meta = None
+        self._sicd_meta = sicd_meta
         # determine image segmentation from image headers
         segments = self._find_segments()
         # construct the chippers
