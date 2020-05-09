@@ -13,6 +13,7 @@ import sarpy.visualization.remap as remap
 from sarpy_gui_apps.apps.aperture_tool.panels.tabs_panel.tabs_panel import TabsPanel
 from sarpy_gui_apps.apps.aperture_tool.panels.selected_region_popup.selected_region_popup import SelectedRegionPanel
 from sarpy_gui_apps.supporting_classes.metaicon import MetaIcon
+from sarpy_gui_apps.apps.aperture_tool.panels.phase_history_selecion_panel.phase_history_selection_panel import PhaseHistoryPanel
 from sarpy_gui_apps.apps.aperture_tool.app_variables import AppVariables
 from sarpy.io.complex.base import BaseReader
 import matplotlib.pyplot as plt
@@ -24,6 +25,7 @@ class ApertureTool(AbstractWidgetPanel):
     filtered_panel = ImageCanvas                    # type: ImageCanvas
     tabs_panel = TabsPanel                          # type: TabsPanel
     metaicon = MetaIcon                             # type: MetaIcon
+    phase_history = PhaseHistoryPanel               # type: PhaseHistoryPanel
 
     def __init__(self, master):
         self.app_variables = AppVariables()
@@ -31,8 +33,8 @@ class ApertureTool(AbstractWidgetPanel):
         master_frame = tkinter.Frame(master)
         AbstractWidgetPanel.__init__(self, master_frame)
 
-        widgets_list = ["frequency_vs_degree_panel", "filtered_panel", "tabs_panel", "metaicon"]
-        self.init_w_basic_widget_list(widgets_list, n_rows=2, n_widgets_per_row_list=[2, 2])
+        widgets_list = ["frequency_vs_degree_panel", "filtered_panel", "tabs_panel", "phase_history", "metaicon"]
+        self.init_w_basic_widget_list(widgets_list, n_rows=2, n_widgets_per_row_list=[2, 3])
 
         self.frequency_vs_degree_panel.set_canvas_size(600, 400)
         self.filtered_panel.set_canvas_size(600, 400)
