@@ -47,9 +47,7 @@ class ApertureTool(AbstractWidgetPanel):
         self.pack()
 
         self.tabs_panel.tabs.load_image_tab.file_selector.select_file.on_left_mouse_click(self.callback_select_file)
-
         self.frequency_vs_degree_panel.canvas.on_left_mouse_motion(self.callback_frequency_vs_degree_left_mouse_motion)
-        # self.frequency_vs_degree_panel.canvas.on_mouse_motion(self.callback_frequency_vs_degree_mouse_motion)
 
     def callback_frequency_vs_degree_left_mouse_motion(self, event):
         self.frequency_vs_degree_panel.callback_handle_left_mouse_motion(event)
@@ -217,6 +215,9 @@ class ApertureTool(AbstractWidgetPanel):
         self.filtered_panel.image_canvas.modify_existing_shape_using_canvas_coords(select_box_id, start_fft_select_box, update_pixel_coords=True)
         self.filtered_panel.image_canvas.update()
 
+    def callback_update_phase_history(self, event):
+        self.update_phase_history_selection()
+
     def update_phase_history_selection(self):
         image_bounds = self.get_fft_image_bounds()
         current_bounds = self.frequency_vs_degree_panel.canvas_shape_coords_to_image_coords(self.frequency_vs_degree_panel.variables.select_rect_id)
@@ -272,8 +273,36 @@ class ApertureTool(AbstractWidgetPanel):
             if cross_resolution < 1:
                 tmp_cross_resolution = cross_resolution * 100
                 self.phase_history.resolution_cross_units.set_text("cm")
+
         self.phase_history.resolution_range.set_text("{:0.2f}".format(tmp_range_resolution))
         self.phase_history.resolution_cross.set_text("{:0.2f}".format(tmp_cross_resolution))
+
+        cross_sample_spacing = self.app_variables.sicd_reader_object.sicd_meta.Grid.Col.SS
+        range_sample_spacing = self.app_variables.sicd_reader_object.sicd_meta.Grid.Row.SS
+
+        if self.phase_history.english_units_checkbox.is_selected():
+            tmp_cross_ss = cross_sample_spacing / scipy_constants.foot
+            tmp_range_ss = range_sample_spacing / scipy_constants.foot
+            if tmp_cross_ss < 1:
+                tmp_cross_ss = cross_sample_spacing / scipy_constants.inch
+                self.phase_history.sample_spacing_cross.set_text("inches")
+            else:
+                self.phase_history.sample_spacing_cross_units.set_text("feet")
+            if tmp_range_ss < 1:
+                tmp_range_ss = range_sample_spacing / scipy_constants.inch
+                self.phase_history.sample_spacing_range_units.set_text("inches")
+            else:
+                self.phase_history.sample_spacing_range_units.set_text("feet")
+        else:
+            if cross_sample_spacing < 1:
+                tmp_cross_ss = cross_sample_spacing * 100
+                self.phase_history.sample_spacing_cross_units.set_text("cm")
+            if range_sample_spacing < 1:
+                tmp_range_ss = range_sample_spacing * 100
+                self.phase_history.sample_spacing_range_units.set_text("cm")
+
+        self.phase_history.sample_spacing_cross.set_text("{:0.2f}".format(tmp_cross_ss))
+        self.phase_history.sample_spacing_range.set_text("{:0.2f}".format(tmp_range_ss))
 
 
 if __name__ == '__main__':

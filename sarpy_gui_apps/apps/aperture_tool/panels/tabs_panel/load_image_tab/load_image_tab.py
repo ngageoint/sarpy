@@ -52,8 +52,6 @@ class SelectionFilter(AbstractWidgetPanel):
         self.selected_value.set(1)
 
 
-
-
 class LoadImage(AbstractWidgetPanel):
     file_selector = FileSelector            # type: FileSelector
     chip_size_panel = ChipSizePanel         # type: ChipSizePanel
@@ -62,7 +60,7 @@ class LoadImage(AbstractWidgetPanel):
     def __init__(self, parent):
         # set the master frame
         AbstractWidgetPanel.__init__(self, parent)
-        widgets_list = ["file_selector", "chip_size_panel", "selection_filter"]
+        widgets_list = ["file_selector", "chip_size_panel"]
 
         self.init_w_basic_widget_list(widgets_list, n_rows=2, n_widgets_per_row_list=[1, 2])
         #self.selection_filter.set_radio_buttons()
