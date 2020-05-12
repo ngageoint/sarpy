@@ -106,6 +106,9 @@ class AbstractWidgetPanel(tkinter.LabelFrame):
                 getattr(self, widget).config(text=widget.replace("_", " ")[0:-2])
             self._widget_list.append(widget)
 
+    def set_text_formatting(self, formatting_list):
+        pass
+
     def set_spacing_between_buttons(self, spacing_npix_x=0, spacing_npix_y=None):
         if spacing_npix_y is None:
             spacing_npix_y = spacing_npix_x

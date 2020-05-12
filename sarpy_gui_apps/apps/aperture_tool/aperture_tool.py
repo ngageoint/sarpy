@@ -16,6 +16,7 @@ from sarpy_gui_apps.supporting_classes.metaicon import MetaIcon
 from sarpy_gui_apps.apps.aperture_tool.panels.phase_history_selecion_panel.phase_history_selection_panel import PhaseHistoryPanel
 from sarpy_gui_apps.apps.aperture_tool.app_variables import AppVariables
 from sarpy.io.complex.base import BaseReader
+import scipy.constants.constants as scipy_constants
 import matplotlib.pyplot as plt
 from scipy import misc as scipy_misc
 
@@ -56,6 +57,7 @@ class ApertureTool(AbstractWidgetPanel):
         # TODO: modify to not allow user to start drawing outside of bounds.
         # TODO: don't shrink the selection if the user is moving the selection box
         self.update_filtered_image()
+        self.update_phase_history_selection()
 
     def callback_select_file(self, event):
         sicd_fname = self.tabs_panel.tabs.load_image_tab.file_selector.event_select_file(event)
@@ -90,6 +92,8 @@ class ApertureTool(AbstractWidgetPanel):
 
         self.tabs_panel.tabs.load_image_tab.chip_size_panel.nx.set_text(numpy.shape(selected_region_complex_data)[1])
         self.tabs_panel.tabs.load_image_tab.chip_size_panel.ny.set_text(numpy.shape(selected_region_complex_data)[0])
+
+        self.update_phase_history_selection()
 
     def get_fft_image_bounds(self,
                              ):             # type: (...) -> (int, int, int, int)
@@ -212,6 +216,64 @@ class ApertureTool(AbstractWidgetPanel):
         frame_sequence_utils.save_numpy_frame_sequence_to_animated_gif(frame_sequence, filename, fps)
         self.filtered_panel.image_canvas.modify_existing_shape_using_canvas_coords(select_box_id, start_fft_select_box, update_pixel_coords=True)
         self.filtered_panel.image_canvas.update()
+
+    def update_phase_history_selection(self):
+        image_bounds = self.get_fft_image_bounds()
+        current_bounds = self.frequency_vs_degree_panel.canvas_shape_coords_to_image_coords(self.frequency_vs_degree_panel.variables.select_rect_id)
+        x_min = min(current_bounds[1], current_bounds[3])
+        x_max = max(current_bounds[1], current_bounds[3])
+        y_min = min(current_bounds[0], current_bounds[2])
+        y_max = max(current_bounds[0], current_bounds[2])
+
+        x_full_image_range = image_bounds[3] - image_bounds[1]
+        y_full_image_range = image_bounds[2] - image_bounds[0]
+
+        start_cross = (x_min - image_bounds[1]) / x_full_image_range * 100
+        stop_cross = (x_max - image_bounds[1]) / x_full_image_range * 100
+        fraction_cross = (x_max - x_min) / x_full_image_range * 100
+
+        start_range = (y_min - image_bounds[0]) / y_full_image_range * 100
+        stop_range = (y_max - image_bounds[0]) / y_full_image_range * 100
+        fraction_range = (y_max - y_min) / y_full_image_range * 100
+
+        self.phase_history.start_percent_cross.set_text("{:0.4f}".format(start_cross))
+        self.phase_history.stop_percent_cross.set_text("{:0.4f}".format(stop_cross))
+        self.phase_history.fraction_cross.set_text("{:0.4f}".format(fraction_cross))
+        self.phase_history.start_percent_range.set_text("{:0.4f}".format(start_range))
+        self.phase_history.stop_percent_range.set_text("{:0.4f}".format(stop_range))
+        self.phase_history.fraction_range.set_text("{:0.4f}".format(fraction_range))
+
+        # handle units
+        self.phase_history.resolution_range_units.set_text("meters")
+        self.phase_history.resolution_cross_units.set_text("meters")
+        range_resolution = self.app_variables.sicd_reader_object.sicd_meta.Grid.Row.ImpRespWid / (fraction_range / 100.0)
+        cross_resolution = self.app_variables.sicd_reader_object.sicd_meta.Grid.Col.ImpRespWid / (fraction_cross / 100.0)
+
+        tmp_range_resolution = range_resolution
+        tmp_cross_resolution = cross_resolution
+
+        if self.phase_history.english_units_checkbox.is_selected():
+            tmp_range_resolution = range_resolution / scipy_constants.foot
+            tmp_cross_resolution = cross_resolution / scipy_constants.foot
+            if tmp_range_resolution < 1:
+                tmp_range_resolution = range_resolution / scipy_constants.inch
+                self.phase_history.resolution_range_units.set_text("inches")
+            else:
+                self.phase_history.resolution_range_units.set_text("feet")
+            if tmp_cross_resolution < 1:
+                tmp_cross_resolution = cross_resolution / scipy_constants.inch
+                self.phase_history.resolution_cross_units.set_text("inches")
+            else:
+                self.phase_history.resolution_cross_units.set_text("feet")
+        else:
+            if range_resolution < 1:
+                tmp_range_resolution = range_resolution * 100
+                self.phase_history.resolution_range_units.set_text("cm")
+            if cross_resolution < 1:
+                tmp_cross_resolution = cross_resolution * 100
+                self.phase_history.resolution_cross_units.set_text("cm")
+        self.phase_history.resolution_range.set_text("{:0.2f}".format(tmp_range_resolution))
+        self.phase_history.resolution_cross.set_text("{:0.2f}".format(tmp_cross_resolution))
 
 
 if __name__ == '__main__':
