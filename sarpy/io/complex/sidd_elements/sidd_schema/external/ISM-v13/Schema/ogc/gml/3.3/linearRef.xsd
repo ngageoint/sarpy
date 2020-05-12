@@ -1,0 +1,215 @@
+<schema xmlns:gmllr="http://www.opengis.net/gml/3.3/lr" xmlns:gml="http://www.opengis.net/gml/3.2" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns="http://www.w3.org/2001/XMLSchema" xmlns:xml="http://www.w3.org/XML/1998/namespace" targetNamespace="http://www.opengis.net/gml/3.3/lr" elementFormDefault="qualified" version="3.3.0">
+    <annotation>
+        <documentation>linearRef.xsd, part of GML 3.3. Copyright (c) [2011] Open Geospatial Consortium, Inc. To obtain additional rights of use, visit http://www.opengeospatial.org/legal/.</documentation>
+    </annotation>
+    <import namespace="http://www.opengis.net/gml/3.2" schemaLocation="../../../ogc/gml/3.2.1/gml.xsd"/>
+    <complexType name="PositionExpressionType">
+        <complexContent>
+            <extension base="gml:AbstractGMLType">
+                <sequence>
+                    <element name="linearElement" type="gmllr:LinearElementPropertyType"/>
+                    <element name="lrm" type="gmllr:LinearReferencingMethodPropertyType"/>
+                    <element name="distanceExpression" type="gmllr:DistanceExpressionPropertyType"/>
+                </sequence>
+            </extension>
+        </complexContent>
+    </complexType>
+    <element name="PositionExpression" type="gmllr:PositionExpressionType" substitutionGroup="gml:AbstractGML"/>
+    <complexType name="PositionExpressionPropertyType">
+        <sequence minOccurs="0">
+            <element ref="gmllr:PositionExpression"/>
+        </sequence>
+        <attributeGroup ref="gml:AssociationAttributeGroup"/>
+    </complexType>
+    <complexType name="LinearElementType">
+        <complexContent>
+            <extension base="gml:AbstractGMLType">
+                <sequence>
+                    <choice>
+                        <element name="feature" type="gml:FeaturePropertyType"/>
+                        <element name="curve" type="gml:CurvePropertyType"/>
+                        <element name="edge" type="gml:DirectedEdgePropertyType"/>
+                    </choice>
+                    <element name="defaultLRM" type="gmllr:LinearReferencingMethodPropertyType"/>
+                    <element name="measure" type="gml:MeasureType"/>
+                    <element name="startValue" type="gmllr:StartValueType" minOccurs="0" maxOccurs="unbounded"/>
+                </sequence>
+            </extension>
+        </complexContent>
+    </complexType>
+    <element name="LinearElement" type="gmllr:LinearElementType" substitutionGroup="gml:AbstractGML"/>
+    <complexType name="LinearElementPropertyType">
+        <sequence minOccurs="0">
+            <element ref="gmllr:LinearElement"/>
+        </sequence>
+        <attributeGroup ref="gml:AssociationAttributeGroup"/>
+    </complexType>
+    <complexType name="StartValueType">
+        <simpleContent>
+            <extension base="double">
+                <attribute name="uom" type="gml:UomIdentifier"/>
+                <attribute name="lrm" type="anyURI" use="required">
+                    <annotation>
+                        <appinfo>
+                            <gml:targetElement>gmllr:LinearReferencingMethod</gml:targetElement>
+                        </appinfo>
+                    </annotation>
+                </attribute>
+            </extension>
+        </simpleContent>
+    </complexType>
+    <complexType name="LinearReferencingMethodType">
+        <complexContent>
+            <extension base="gml:AbstractGMLType">
+                <sequence>
+                    <element name="name" type="gmllr:LRMNameType"/>
+                    <element name="type" type="gmllr:LRMTypeType"/>
+                    <element name="units" type="gml:UomIdentifier"/>
+                    <element name="constraint" type="string" minOccurs="0"/>
+                </sequence>
+            </extension>
+        </complexContent>
+    </complexType>
+    <element name="LinearReferencingMethod" type="gmllr:LinearReferencingMethodType" substitutionGroup="gml:AbstractGML"/>
+    <complexType name="LinearReferencingMethodPropertyType">
+        <sequence minOccurs="0">
+            <element ref="gmllr:LinearReferencingMethod"/>
+        </sequence>
+        <attributeGroup ref="gml:AssociationAttributeGroup"/>
+    </complexType>
+    <complexType name="DistanceExpressionType">
+        <complexContent>
+            <extension base="gml:AbstractGMLType">
+                <sequence>
+                    <element name="distanceAlong" type="gmllr:MeasureType"/>
+                    <element name="referent" type="gmllr:AlongReferentPropertyType" minOccurs="0"/>
+                </sequence>
+            </extension>
+        </complexContent>
+    </complexType>
+    <element name="DistanceExpression" type="gmllr:DistanceExpressionType" substitutionGroup="gml:AbstractGML"/>
+    <complexType name="DistanceExpressionPropertyType">
+        <sequence minOccurs="0">
+            <element ref="gmllr:DistanceExpression"/>
+        </sequence>
+        <attributeGroup ref="gml:AssociationAttributeGroup"/>
+    </complexType>
+    <complexType name="AlongReferentType">
+        <complexContent>
+            <extension base="gml:AbstractGMLType">
+                <sequence>
+                    <element name="fromReferent" type="gmllr:ReferentPropertyType"/>
+                </sequence>
+            </extension>
+        </complexContent>
+    </complexType>
+    <element name="AlongReferent" type="gmllr:AlongReferentType" substitutionGroup="gml:AbstractGML"/>
+    <complexType name="AlongReferentPropertyType">
+        <sequence minOccurs="0">
+            <element ref="gmllr:AlongReferent"/>
+        </sequence>
+        <attributeGroup ref="gml:AssociationAttributeGroup"/>
+    </complexType>
+    <complexType name="ReferentType">
+        <complexContent>
+            <extension base="gml:AbstractGMLType">
+                <sequence>
+                    <element name="name" type="gml:CodeType"/>
+                    <element name="type" type="gmllr:ReferentTypeType"/>
+                    <element name="position" type="gml:PointPropertyType" minOccurs="0"/>
+                    <element name="location" type="gmllr:PositionExpressionPropertyType" minOccurs="0"/>
+                    <element name="ownedBy" type="gml:FeaturePropertyType"/>
+                </sequence>
+            </extension>
+        </complexContent>
+    </complexType>
+    <element name="Referent" type="gmllr:ReferentType" substitutionGroup="gml:AbstractGML"/>
+    <complexType name="ReferentPropertyType">
+        <sequence minOccurs="0">
+            <element ref="gmllr:Referent"/>
+        </sequence>
+        <attributeGroup ref="gml:AssociationAttributeGroup"/>
+    </complexType>
+    <complexType name="MeasureType">
+        <simpleContent>
+            <extension base="double">
+                <attribute name="uom" type="gml:UomIdentifier"/>
+            </extension>
+        </simpleContent>
+    </complexType>
+    <complexType name="LRMNameType">
+        <annotation>
+            <documentation>Informative values from ISO 19148 Annex C</documentation>
+            <appinfo>
+                <restriction base="string">
+                    <enumeration value="milepoint"/>
+                    <enumeration value="trueMileage"/>
+                    <enumeration value="kilometre-point"/>
+                    <enumeration value="kilopoint"/>
+                    <enumeration value="chainage"/>
+                    <enumeration value="hectometre-point"/>
+                    <enumeration value="reverseMilepoint"/>
+                    <enumeration value="reverseKilometre-point"/>
+                    <enumeration value="milepointWithLateralOffsetsInFeet"/>
+                    <enumeration value="milepost"/>
+                    <enumeration value="kilopost"/>
+                    <enumeration value="kilometre-post"/>
+                    <enumeration value="referencePost"/>
+                    <enumeration value="countyMilepoint"/>
+                    <enumeration value="crossStreet"/>
+                    <enumeration value="controlSection"/>
+                    <enumeration value="percentage"/>
+                    <enumeration value="normalized"/>
+                    <enumeration value="stationing"/>
+                    <enumeration value="address"/>
+                    <enumeration value="mileMeasure"/>
+                    <enumeration value="kilometreMeasure"/>
+                </restriction>
+            </appinfo>
+        </annotation>
+        <simpleContent>
+            <extension base="gml:CodeType"/>
+        </simpleContent>
+    </complexType>
+    <complexType name="LRMTypeType">
+        <annotation>
+            <documentation>Normative values from ISO 19148</documentation>
+            <appinfo>
+                <restriction base="string">
+                    <enumeration value="absolute"/>
+                    <enumeration value="relative"/>
+                    <enumeration value="interpolative"/>
+                    <enumeration value="localInterpolative"/>
+                </restriction>
+            </appinfo>
+        </annotation>
+        <simpleContent>
+            <extension base="gml:CodeType"/>
+        </simpleContent>
+    </complexType>
+    <simpleType name="ReferentTypeType">
+        <restriction base="string">
+            <enumeration value="referenceMarker"/>
+            <enumeration value="intersection"/>
+            <enumeration value="boundary"/>
+            <enumeration value="landmark"/>
+        </restriction>
+    </simpleType>
+    <complexType name="LinearSRSType">
+        <complexContent>
+            <extension base="gml:IdentifiedObjectType">
+                <sequence>
+                    <element name="linearElement" type="gmllr:LinearElementPropertyType"/>
+                    <element name="lrm" type="gmllr:LinearReferencingMethodPropertyType"/>
+                </sequence>
+            </extension>
+        </complexContent>
+    </complexType>
+    <element name="LinearSRS" type="gmllr:LinearSRSType" substitutionGroup="gml:Definition"/>
+    <complexType name="LinearSRSPropertyType">
+        <sequence minOccurs="0">
+            <element ref="gmllr:LinearSRS"/>
+        </sequence>
+        <attributeGroup ref="gml:AssociationAttributeGroup"/>
+    </complexType>
+</schema>

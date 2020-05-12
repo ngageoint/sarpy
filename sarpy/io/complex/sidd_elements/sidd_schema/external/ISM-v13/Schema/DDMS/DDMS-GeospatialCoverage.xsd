@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="utf-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns="urn:us:mil:ces:metadata:ddms:5" xmlns:ddms="urn:us:mil:ces:metadata:ddms:5" xmlns:gml="http://www.opengis.net/gml/3.2" xmlns:tspi="http://metadata.ces.mil/mdr/ns/GSIP/tspi/2.0" targetNamespace="urn:us:mil:ces:metadata:ddms:5" elementFormDefault="qualified" attributeFormDefault="qualified" version="5">
+	<xs:annotation>
+		<xs:documentation>
+			This XML Schema implements elements and attribute groups of the Department of Defense Discovery Metadata Specification (DDMS Spec), with a version number the same as that in the above 'version' attribute of the 'xs:schema' element.  Unless otherwise stated, all references to the DDMS Spec refer to that version of the document.
+		</xs:documentation>
+		<xs:documentation>
+			Change Log:
+			
+				6/05/2007 (J. Pantella) -- Created pursuant to approved CR 2007-1.  See also http://metadata.dod.mil/irs/DDMS/cm/CR/2007/DDMS-CR-2007-1.
+				1/3/2007 (J. Pantella) -- Modified version attribute to reflect that this is version 1.4.2.
+				6/30/2008 (D. Barclay) -- Made attribute osuffix optional (for CR 2008-5).
+				7/1/2008 (D. Barclay) -- Corrected "minVerticalExent" to "minVerticalExtent"
+				7/15/2008 (J. Pantella) -- Modified namespace to reflect DDMS 2.0.	
+				1/4/2010 (P. Lunceford) -- Created DDMS 3.0.  Implemented CR 2009-12 to add Security markings to GeospatialCoverageType and CR 2009-14 to make the value and qualifier of CompoundCountryCodeIdentifierType to be required.
+				6/05/2011 (E. Hughes) -- Created DDMS 3.1.  Implemented CR 2011-1 to create DDMS-Includes.xsd wherein all IC-ISM references are consolidated.
+				12/12/2012 (E. Carswell) -- Created DDMS 5.0.  Implemented CR 2012-07 to replace the existing use of GML with TSPI version 2.
+		</xs:documentation>
+	</xs:annotation>
+	<xs:include schemaLocation="DDMS-Includes.xsd"/>
+	<!--The following section of code supports TSPI-->
+	<xs:import namespace="http://metadata.ces.mil/mdr/ns/GSIP/tspi/2.0" schemaLocation="../tspi/2.0.0/tspi.xsd"/>
+	<xs:element name="geospatialCoverage" type="PlaceType">
+		<xs:annotation>
+			<xs:appinfo>A geographic indication of one or more places or facilities that relate to the resource. See DDMS Spec Category: Geospatial Coverage.
+			</xs:appinfo>
+		</xs:annotation>
+	</xs:element>
+	<xs:complexType name="PlaceType">
+		<xs:choice maxOccurs="unbounded">
+			<xs:element ref="geographicIdentifier"/>
+			<xs:element ref="boundingGeometry"/>
+			<xs:element ref="postalAddress"/>
+		</xs:choice>
+		<xs:attribute name="precedence" type="simpleTokenType" use="optional">
+			<xs:annotation>
+				<xs:documentation>Priority claimed or received as a result of preeminence.  When used on the element CountryCode, this attribute is used to distinguish the primary focus when an intelligence product covers two or more countries. Permissible values are Primary, Secondary.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attribute name="order" type="xs:int" use="optional">
+			<xs:annotation>
+				<xs:documentation>Specifies a user-defined order of an element within the given document. All elements in the document which specify the order attribute should be interpreted as entries in a single, ordered list even though they may appear on different elements.Values must be sequential, starting at 1, and may not contain duplicates.</xs:documentation>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attributeGroup ref="SecurityAttributesOptionGroup"/>
+	</xs:complexType>
+	<!-- =====================================================================
+		Models a GML compliant geographic identifier.  See ISO 19115 EX_GeographicDescription.
+	===================================================================== -->
+	<xs:element name="geographicIdentifier">
+		<xs:annotation>
+			<xs:appinfo>Models a GML compliant geographic identifier.  See ISO 19115 EX_GeographicDescription.
+			</xs:appinfo>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:choice maxOccurs="unbounded">
+				<xs:element name="name" type="simpleTokenType"/>
+				<xs:element name="region" type="simpleTokenType"/>
+				<xs:element ref="ddms:countryCode"/>
+				<xs:element ref="ddms:subDivisionCode">
+					<xs:annotation>
+						<xs:documentation>A standards-based abbreviation of an administrative subdivision of a country. The code elements may consist of a controlled vocabulary value such as the ones defined in ISO 3166-2.</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:element ref="ddms:facilityIdentifier"/>
+			</xs:choice>
+		</xs:complexType>
+	</xs:element>
+	<xs:element name="countryCode" type="CompoundCountryCodeIdentifierType"/>
+	<xs:element name="subDivisionCode" type="CompoundCountryCodeIdentifierType"/>
+	<xs:complexType name="CompoundCountryCodeIdentifierType">
+		<xs:annotation>
+			<xs:documentation>The codespace attribute holds the codespace identifying the standard being used.  The code attribute holds the two-alpha, three-alpha, or numeric code identifying the country.
+			</xs:documentation>
+		</xs:annotation>
+		<xs:attribute name="codespace" type="simpleTokenType" use="required"/>
+		<xs:attribute name="code" type="simpleTokenType" use="required"/>
+	</xs:complexType>
+	<xs:element name="facilityIdentifier" type="FacilityIdentifierType"/>
+	<xs:complexType name="FacilityIdentifierType">
+		<xs:attribute name="beNumber" type="simpleTokenType" use="required">
+			<xs:annotation>
+				<xs:appinfo>
+				(GMI:BE_NUMBER, 1.0) Uniquely identifies the installation of the facility.  The BE_NUMBER is generated based on the value input for the COORD to determine the appropriate World Area Code (WAC), the system assigned record originator and a one-up-number.  Pos. 1-4, World Area Code (WAC).  Pos. 5,  A hyphen, '-', or an 'E', in the fifth position indicates that position-6 will contain values 0-9.  Alternately, the fifth position may contain the first of a two-character system assigned record originator code, position-6 will then contain the second character of the system assigned record originator code.  Pos. 6,  May contain the second character of the  system assigned record originator code, the one-up-number series will then begin in position seven, and range from  0001-9909.  If the one-up-number series begins in postion 6, this position will contain the first of a five-position one-up-number, i.e., 00001-99999.Pos. 7-10,  A one-up-number series.  Depending on the content of position 5, the series may have begun in position 6 and have a range of 00001-99999.  Or, have begun in position 7 and have a range from 0001-9999.
+				</xs:appinfo>
+			</xs:annotation>
+		</xs:attribute>
+		<xs:attribute name="osuffix" type="simpleTokenType" use="optional">
+			<xs:annotation>
+				<xs:appinfo>(GMI:OSUFFIX, 1.0) Uniquely identifies a facility or demographic area in conjunction with a BE_NUMBER.  Pos. 1-2.  SYSTEM ASSIGNED RECORD_ORIGINATOR.  The organization creating the facility or demographic area.  DIA installation records created prior to IDB generation of OSUFFIX contain DD.Pos. 3-5  A one-up number.
+				</xs:appinfo>
+			</xs:annotation>
+		</xs:attribute>
+	</xs:complexType>
+	<!-- =====================================================================
+		Models a TSPI compliant bounding geometry.  See ISO 19115 EX_BoundingPolygon.
+	===================================================================== -->
+	<xs:element name="boundingGeometry" type="BoundingGeometryType">
+		<xs:annotation>
+			<xs:appinfo>Models a TSPI compliant bounding geometry.  See TSPI 2.0 Polygon.
+Developer's Note: It is recommended that the srsName attribute be populated on a gml:Point or gml:Polygon element within the DDMS.  Recommended values for the attribute are:
+			<!-- These Coordinate Reference System references are registered in the GSIP Governance Namespace on the DoD Metadata Registry. -->
+			1) "http://metadata.dod.mil/mdr/ns/GSIP/crs/WGS84C_3D" -- representing World Geodetic System 1984 - Earth Centered, Earth Fixed (ECEF), where the X axis is mass center - equator/prime meridian, and the units are meters; the Y axis is mass center - equator/90° E, and the units are meters; and the Z axis is mass center - North Pole, and the units are meters.  
+			OR
+			2) "http://metadata.dod.mil/mdr/ns/GSIP/crs/WGS84E_2D" -- representing World Geodetic System 1984 - Geographic, 2-Dimensional, where latitude is north positive, measured in degrees; and latitude is east positive, measured in degrees.
+			OR
+			3) "http://metadata.dod.mil/mdr/ns/GSIP/crs/WGS84E_3D" -- representing World Geodetic System 1984 - Geographic, 3-Dimensional, where latitude is north positive, measured in degrees; and latitude is east positive, measured in degrees; and height is height above ellipsoid, measured in meters.
+			See also: http://earth-info.nga.mil/GandG/publications/tr8350.2/tr8350_2.html.
+			
+			For gml:pos elements populating the gml:Polygon/gml:exterior/gml:LinearRing/gml:pos element the following guidance should be followed:
+			1.	Latitude shall be in decimal degrees in the range -90° less than or equal to latitude greater than or equal to +90°.
+			2.	North latitudes shall be positive, south latitudes shall be negative.
+			3.	Longitude shall be in decimal degrees in the range -180° less than or equal to longitude greater than or equal to +180°; note that there are two equally acceptable values of longitude for the meridian opposite the prime meridian.
+			4.	East longitudes shall be positive, west longitudes shall be negative.
+			5.	Only the element gml:pos shall be used to encode a geographic point location as either:
+				a.	two decimal values in the order of latitude then longitude (no commas) when WGS84E_2D, or
+				b.	three decimal values in the order latitude, longitude and finally height above ellipsoid (no commas) when using the WGS84E_3D CRS. 
+
+Developer's Note:  The srsName attribute is required on the Polygon element.  The Polygon/@srsName is the identifier for the CRS which is controlling for the child gml:pos elements.  It is important to note that the srsName attribute may also appear on the gml:pos elements, however given the current allowable CRSs above there is no need to repeat the information on the gml:pos elements thus the srsName attribute is optional and not required.  If the srsName does appear on the gml:pos elements then it must be the same as the value of the srsName attribute on the Polygon element. 
+			</xs:appinfo>
+		</xs:annotation>
+	</xs:element>
+	<xs:complexType name="BoundingGeometryType">
+		<xs:annotation>
+			<xs:appinfo>Type that defines a GML compliant bounding geometry.  See ISO 19115 EX_BoundingPolygon.
+Developer's Note: It is required that the srsName attribute be populated on a gml:Point or gml:Polygon element within the DDMS.  Recommended values for the attribute are:
+			<!-- These Coordinate Reference System references are registered in the GSIP Governance Namespace on the DoD Metadata Registry. -->
+				<!--Updated links 10/2012-->
+			1) "http://metadata.ces.mil/dse/ns/GSIP/crs/WGS84C_3D" -- representing World Geodetic System 1984 - Earth Centered, Earth Fixed (ECEF), where the X axis is mass center - equator/prime meridian, and the units are meters; the Y axis is mass center - equator/90° E, and the units are meters; and the Z axis is mass center - North Pole, and the units are meters.  
+			OR
+			2) "http://metadata.ces.mil/mdr/ns/GSIP/crs/WGS84E_2D" -- representing World Geodetic System 1984 - Geographic, 2-Dimensional, where latitude is north positive, measured in degrees; and latitude is east positive, measured in degrees.
+			OR
+			3) "http://metadata.ces.mil/dse/ns/GSIP/crs/WGS84E_3D" -- representing World Geodetic System 1984 - Geographic, 3-Dimensional, where latitude is north positive, measured in degrees; and latitude is east positive, measured in degrees; and height is height above ellipsoid, measured in meters.
+			See also: http://earth-info.nga.mil/GandG/publications/tr8350.2/tr8350_2.html.
+			
+			For gml:pos elements populating the gml:Polygon/gml:exterior/gml:LinearRing/gml:pos element the following guidance should be followed:
+			1.	Latitude shall be in decimal degrees in the range -90° less than or equal to latitude greater than or equal to +90°.
+			2.	North latitudes shall be positive, south latitudes shall be negative.
+			3.	Longitude shall be in decimal degrees in the range -180° less than or equal to longitude greater than or equal to +180°; note that there are two equally acceptable values of longitude for the meridian opposite the prime meridian.
+			4.	East longitudes shall be positive, west longitudes shall be negative.
+			5.	Only the element gml:pos shall be used to encode a geographic point location as either:
+				a.	two decimal values in the order of latitude then longitude (no commas) when WGS84E_2D, or
+				b.	three decimal values in the order latitude, longitude and finally height above ellipsoid (no commas) when using the WGS84E_3D CRS. 
+
+			6.	The outside edge of a linearRing is defined by four or more coordinate tuples, in counter- clockwise order, with linear interpolation between them; the first and last coordinates must be identical.
+
+Developer's Note:  The srsName attribute is required on the Polygon element.  The Polygon/@srsName is the identifier for the CRS which is controlling for the child gml:pos elements.  It is important to note that the srsName attribute may also appear on the gml:pos elements, however given the current allowable CRSs above there is no need to repeat the information on the gml:pos elements thus the srsName attribute is optional and not required.  If the srsName does appear on the gml:pos elements then it must be the same as the value of the srsName attribute on the Polygon element. 
+			</xs:appinfo>
+		</xs:annotation>
+		<xs:choice maxOccurs="unbounded">
+			<xs:element ref="tspi:Polygon"/>
+			<xs:element ref="tspi:Point"/>
+			<xs:element ref="tspi:Envelope"/>
+			<xs:element ref="tspi:Circle"/>
+			<xs:element ref="tspi:Ellipse"/>
+		</xs:choice>
+	</xs:complexType>
+	<!-- =====================================================================
+		Models a standalone postal address. 
+	===================================================================== -->
+	<xs:element name="postalAddress">
+		<xs:annotation>
+			<xs:appinfo>Models a standalone postal address. 
+			</xs:appinfo>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:group ref="postalAddressGroup"/>
+		</xs:complexType>
+	</xs:element>
+	<xs:group name="postalAddressGroup">
+		<xs:annotation>
+			<xs:appinfo>Group of entities used in the ddms:postalAddress element.
+			</xs:appinfo>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element ref="tspi:AbstractPhysicalAddress"/>
+		</xs:sequence>
+	</xs:group>
+</xs:schema>

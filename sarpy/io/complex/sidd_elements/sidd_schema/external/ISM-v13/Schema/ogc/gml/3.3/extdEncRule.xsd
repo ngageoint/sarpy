@@ -1,0 +1,6 @@
+<schema targetNamespace="http://www.opengis.net/gml/3.3/exr" xmlns:gmlexr="http://www.opengis.net/gml/3.3/exr"  xmlns:gml="http://www.opengis.net/gml/3.2" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns="http://www.w3.org/2001/XMLSchema" xmlns:xml="http://www.w3.org/XML/1998/namespace" elementFormDefault="qualified" version="3.3.0">
+	<annotation>
+		<documentation>extdEncRule.xsd, part of GML 3.3. Copyright (c) [2011] Open Geospatial Consortium, Inc. To obtain additional rights of use, visit http://www.opengeospatial.org/legal/.</documentation>
+	</annotation>
+	<element name="extendedEncodingRule" type="anyURI"/>
+</schema>

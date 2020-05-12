@@ -1,0 +1,218 @@
+<schema xmlns:gmlce="http://www.opengis.net/gml/3.3/ce" xmlns:gml="http://www.opengis.net/gml/3.2" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns="http://www.w3.org/2001/XMLSchema" xmlns:xml="http://www.w3.org/XML/1998/namespace" targetNamespace="http://www.opengis.net/gml/3.3/ce" elementFormDefault="qualified" version="3.3.0">
+    <annotation>
+        <documentation>geometryCompact.xsd, part of GML 3.3. Copyright (c) [2011] Open Geospatial Consortium, Inc. To obtain additional rights of use, visit http://www.opengeospatial.org/legal/.</documentation>
+    </annotation>
+    <import namespace="http://www.opengis.net/gml/3.2" schemaLocation="../../../ogc/gml/3.2.1/gml.xsd"/>
+    <element name="SimplePolygon" type="gmlce:SimplePolygonType" substitutionGroup="gmlce:AbstractSimplePolygon">
+        <annotation>
+            <documentation>A SimplePolygon is a specialized polygon that has a simplified encoding of the logically equivalent GML 3.2 Surface with a single GML 3.2 PolygonPatch as its surface patch consisting of a single LinearRing as its exterior boundary and does not have any interior boundary. Thus the usage of the term 'simple' here refers to a specialized polygon with a _simplified_ encoding, which is _simply_ connected (no interior rings) and uses a _simple_ closed curve (no self-crossings) to represent its single boundary ring.</documentation>
+        </annotation>
+    </element>
+    <element name="AbstractSimplePolygon" type="gml:AbstractSurfaceType" substitutionGroup="gml:AbstractSurface">
+        <annotation>
+            <documentation>Abstract element representative of a substitution affiliation</documentation>
+        </annotation>
+    </element>
+    <complexType name="SimplePolygonType">
+        <complexContent>
+            <extension base="gml:AbstractSurfaceType">
+                <sequence>
+                    <choice>
+                        <choice minOccurs="3" maxOccurs="unbounded">
+                            <element ref="gml:pos"/>
+                            <element ref="gml:pointProperty"/>
+                        </choice>
+                        <element ref="gml:posList"/>
+                    </choice>
+                </sequence>
+            </extension>
+        </complexContent>
+    </complexType>
+    <element name="SimpleRectangle" type="gmlce:SimpleRectangleType" substitutionGroup="gmlce:AbstractSimplePolygon">
+        <annotation>
+            <documentation>A SimpleRectangle is the special case of a simple polygon, which has exactly 4 control points in its boundary encoding representing the 4 corners of the rectangle.</documentation>
+        </annotation>
+    </element>
+    <complexType name="SimpleRectangleType">
+        <complexContent>
+            <extension base="gml:AbstractSurfaceType">
+                <sequence>
+                    <choice>
+                        <choice minOccurs="4" maxOccurs="4">
+                            <element ref="gml:pos"/>
+                            <element ref="gml:pointProperty"/>
+                        </choice>
+                        <element ref="gml:posList"/>
+                    </choice>
+                </sequence>
+            </extension>
+        </complexContent>
+    </complexType>
+    <element name="SimpleTriangle" type="gmlce:SimpleTriangleType" substitutionGroup="gmlce:AbstractSimplePolygon">
+        <annotation>
+            <documentation>A SimpleTriangle is the special case of a simple polygon, which has exactly 3 control points in its boundary encoding representing the 3 corners of the triangle.</documentation>
+        </annotation>
+    </element>
+    <complexType name="SimpleTriangleType">
+        <complexContent>
+            <extension base="gml:AbstractSurfaceType">
+                <sequence>
+                    <choice>
+                        <choice minOccurs="3" maxOccurs="3">
+                            <element ref="gml:pos"/>
+                            <element ref="gml:pointProperty"/>
+                        </choice>
+                        <element ref="gml:posList"/>
+                    </choice>
+                </sequence>
+            </extension>
+        </complexContent>
+    </complexType>
+    <element name="SimpleArcString" type="gmlce:SimpleArcStringType" substitutionGroup="gmlce:AbstractSimpleArcString">
+        <annotation>
+            <documentation>A SimpleArcString is a specialized curve that has a simplified encoding of the logically equivalent GML 3.2 Curve with one or more GML 3.2 Arc segments</documentation>
+        </annotation>
+    </element>
+    <element name="AbstractSimpleArcString" type="gml:AbstractCurveType" substitutionGroup="gml:AbstractCurve">
+        <annotation>
+            <documentation>Abstract element representative of a substitution affiliation</documentation>
+        </annotation>
+    </element>
+    <complexType name="SimpleArcStringType">
+        <complexContent>
+            <extension base="gml:AbstractCurveType">
+                <sequence>
+                    <choice>
+                        <choice minOccurs="3" maxOccurs="unbounded">
+                            <element ref="gml:pos"/>
+                            <element ref="gml:pointProperty"/>
+                        </choice>
+                        <element ref="gml:posList"/>
+                    </choice>
+                </sequence>
+                <attribute name="interpolation" type="gml:CurveInterpolationType" fixed="circularArc3Points"/>
+                <attribute name="numArc" type="integer"/>
+            </extension>
+        </complexContent>
+    </complexType>
+    <element name="SimpleArc" type="gmlce:SimpleArcType" substitutionGroup="gmlce:AbstractSimpleArcString">
+        <annotation>
+            <documentation>A SimpleArc is a specialized curve that has a simplified encoding of the logically equivalent GML 3.2 Curve with a single GML 3.2 ArcString segment .</documentation>
+        </annotation>
+    </element>
+    <complexType name="SimpleArcType">
+        <complexContent>
+            <extension base="gml:AbstractCurveType">
+                <sequence>
+                    <choice>
+                        <choice minOccurs="3" maxOccurs="3">
+                            <element ref="gml:pos"/>
+                            <element ref="gml:pointProperty"/>
+                        </choice>
+                        <element ref="gml:posList"/>
+                    </choice>
+                </sequence>
+                <attribute name="interpolation" type="gml:CurveInterpolationType" fixed="circularArc3Points"/>
+                <attribute name="numArc" type="integer" fixed="1"/>
+            </extension>
+        </complexContent>
+    </complexType>
+    <element name="SimpleArcByCenterPoint" type="gmlce:SimpleArcByCenterPointType" substitutionGroup="gmlce:AbstractSimpleArcString">
+        <annotation>
+            <documentation>A SimpleArcByCenterPoint is a specialized curve that has a simplified encoding of the logically equivalent GML 3.2 Curve with a single GML 3.2 SimpleArcByCenterPoint segment.</documentation>
+        </annotation>
+    </element>
+    <complexType name="SimpleArcByCenterPointType">
+        <complexContent>
+            <extension base="gml:AbstractCurveType">
+                <sequence>
+                    <choice>
+                        <choice>
+                            <element ref="gml:pos"/>
+                            <element ref="gml:pointProperty"/>
+                        </choice>
+                        <element ref="gml:posList"/>
+                    </choice>
+                    <element name="radius" type="gml:LengthType"/>
+                    <!--note that start and end angle are mandatory in this encoding unlike gml 3.2 ArcByCentrePoint-->
+                    <element name="startAngle" type="gml:AngleType"/>
+                    <element name="endAngle" type="gml:AngleType"/>
+                </sequence>
+                <attribute name="interpolation" type="gml:CurveInterpolationType" fixed="circularArcCenterPointWithRadius"/>
+                <attribute name="numArc" type="integer" use="required" fixed="1"/>
+            </extension>
+        </complexContent>
+    </complexType>
+    <element name="SimpleArcStringByBulge" type="gmlce:SimpleArcStringByBulgeType" substitutionGroup="gmlce:AbstractSimpleArcString">
+        <annotation>
+            <documentation>A SimpleArcStringByBulge is a specialized curve that has a simplified encoding of the logically equivalent GML 3.2 Curve with one or more GML 3.2 ArcByBulge segments.</documentation>
+        </annotation>
+    </element>
+    <complexType name="SimpleArcStringByBulgeType">
+        <complexContent>
+            <extension base="gml:AbstractCurveType">
+                <sequence>
+                    <choice>
+                        <choice minOccurs="2" maxOccurs="unbounded">
+                            <element ref="gml:pos"/>
+                            <element ref="gml:pointProperty"/>
+                        </choice>
+                        <element ref="gml:posList"/>
+                    </choice>
+                    <element name="bulge" type="double" maxOccurs="unbounded"/>
+                    <element name="normal" type="gml:VectorType" maxOccurs="unbounded"/>
+                </sequence>
+                <attribute name="interpolation" type="gml:CurveInterpolationType" fixed="circularArc2PointWithBulge"/>
+                <attribute name="numArc" type="integer"/>
+            </extension>
+        </complexContent>
+    </complexType>
+    <element name="SimpleArcByBulge" type="gmlce:SimpleArcByBulgeType" substitutionGroup="gmlce:AbstractSimpleArcString">
+        <annotation>
+            <documentation>A SimpleArcStringByBulge is a specialized curve that has a simplified encoding of the logically equivalent GML 3.2 Curve with one GML 3.2 ArcByBulge segment.</documentation>
+        </annotation>
+    </element>
+    <complexType name="SimpleArcByBulgeType">
+        <complexContent>
+            <extension base="gml:AbstractCurveType">
+                <sequence>
+                    <choice>
+                        <choice minOccurs="2" maxOccurs="2">
+                            <element ref="gml:pos"/>
+                            <element ref="gml:pointProperty"/>
+                        </choice>
+                        <element ref="gml:posList"/>
+                    </choice>
+                    <element name="bulge" type="double" maxOccurs="unbounded"/>
+                    <element name="normal" type="gml:VectorType" maxOccurs="unbounded"/>
+                </sequence>
+                <attribute name="interpolation" type="gml:CurveInterpolationType" fixed="circularArc2PointWithBulge"/>
+                <attribute name="numArc" type="integer" fixed="1"/>
+            </extension>
+        </complexContent>
+    </complexType>
+    <element name="SimpleCircle" type="gmlce:SimpleArcType" substitutionGroup="gmlce:AbstractSimpleArcString">
+        <annotation>
+            <documentation>A SimpleCircle is a specialized curve that has a simplified encoding of the logically equivalent GML 3.2 Curve with a single GML 3.2 Circle segment.</documentation>
+        </annotation>
+    </element>
+    <element name="SimpleCircleByCenterPoint" type="gmlce:SimpleArcByCenterPointType" substitutionGroup="gmlce:AbstractSimpleArcString"/>
+    <complexType name="SimpleMultiPointType">
+        <complexContent>
+            <extension base="gml:AbstractGeometricAggregateType">
+                <sequence>
+                    <element ref="gml:posList"/>
+                </sequence>
+            </extension>
+        </complexContent>
+    </complexType>
+    <element name="SimpleMultiPoint" type="gmlce:SimpleMultiPointType" substitutionGroup="gml:AbstractGeometricAggregate"/>
+    <complexType name="MultiPointPropertyType">
+        <choice minOccurs="0">
+            <element ref="gml:MultiPoint"/>
+            <element ref="gmlce:SimpleMultiPoint"/>
+        </choice>
+        <attributeGroup ref="gml:AssociationAttributeGroup"/>
+        <attributeGroup ref="gml:OwnershipAttributeGroup"/>
+    </complexType>
+</schema>

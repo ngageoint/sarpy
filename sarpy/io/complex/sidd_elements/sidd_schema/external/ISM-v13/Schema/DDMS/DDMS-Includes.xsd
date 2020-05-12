@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+	xmlns:ism="urn:us:gov:ic:ism"
+	xmlns:ntk="urn:us:gov:ic:ntk"
+	xmlns:gml="http://www.opengis.net/gml/3.2"
+	xmlns:common="urn:us:gov:ic:common"
+	xmlns:virt="urn:us:gov:ic:virt"
+	xmlns="urn:us:mil:ces:metadata:ddms:5" xmlns:ddms="urn:us:mil:ces:metadata:ddms:5"
+	targetNamespace="urn:us:mil:ces:metadata:ddms:5"
+	elementFormDefault="qualified" attributeFormDefault="qualified" version="5">
+	<xs:annotation>
+		<xs:documentation>
+This schema file is intended to simplify importation of IC-ISM Schema files.  The supported version of ISM is version 7 public.
+		</xs:documentation>
+		<xs:documentation>
+			Change Log:
+			 6/05/2011 (E. Hughes) -- Created DDMS 3.1.  Implemented CR 2011-1 to create DDMS-Includes.xsd wherein all IC-ISM references are consolidated.
+			 8/05/2011 (E. Hughes) -- Implemented CR 2011-15 to update DDMS 4 to ISM 7.  Updated documentation.
+			11/11/2011 (E. Hughes) -- Implemented CR 2011-17 to use IC-ISM POCType.
+			 6/12/2012 (E. Hughes) -- Removed commented sections for support of ISM versions prior to 7 due to fundamental incompatibility issues.
+		</xs:documentation>
+	</xs:annotation>
+	<!--The following section of code supports IC-ISM 9 -->
+	<xs:import namespace="urn:us:gov:ic:ism" schemaLocation="../ISM/IC-ISM.xsd"/>
+	<xs:import namespace="urn:us:gov:ic:virt" schemaLocation="../VIRT/VIRT.xsd"/>
+	
+	<!-- Compatible with v7 - 9 of ISM -->
+	<xs:attributeGroup name="POCAttributesGroup">
+		<xs:attributeGroup ref="ism:POCAttributeGroup">
+			<xs:annotation>
+				<xs:documentation>Indicates that the element specifies a point-of-contact (POC) and the methods with which to contact them.</xs:documentation>
+			</xs:annotation>
+		</xs:attributeGroup>
+		<xs:attributeGroup ref="SecurityAttributesOptionGroup"/>
+	</xs:attributeGroup>
+	<!-- Currently (to v9) compatible with all versions of ISM: -->
+	<xs:attributeGroup name="SecurityAttributesOptionGroup">
+		<xs:attributeGroup ref="ism:SecurityAttributesOptionGroup"/>
+	</xs:attributeGroup>
+	<xs:attributeGroup name="SecurityAttributesGroup">
+		<xs:attributeGroup ref="ism:SecurityAttributesGroup"/>
+	</xs:attributeGroup>
+	<!--  IC-Common wrapping -->
+	<xs:attributeGroup name="SimpleLinkAttributesGroup">
+		<xs:attributeGroup ref="virt:SimpleLinkAttributesGroup"/>
+	</xs:attributeGroup>
+	<xs:attributeGroup name="OptionalResourceLinkAttributesGroup">
+		<xs:attributeGroup ref="virt:OptionalResourceLinkAttributesGroup"/>
+	</xs:attributeGroup>
+	
+	<!-- Virtual Coverage wrapping -->
+	<xs:element name="virtualCoverage" type="virt:VirtualCoverageType"/>
+	
+	<xs:simpleType name="simpleTokenType">
+		<xs:annotation>
+			<xs:documentation xml:lang="en">type created to ensure an element / attribute is comprised of more than whitespace, tab, newline, etc.</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:token">
+			<xs:minLength value="1"/>
+		</xs:restriction>
+	</xs:simpleType>
+</xs:schema>

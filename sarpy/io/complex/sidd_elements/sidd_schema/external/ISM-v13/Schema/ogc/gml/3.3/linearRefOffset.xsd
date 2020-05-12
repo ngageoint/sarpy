@@ -1,0 +1,96 @@
+<schema xmlns:gmllr="http://www.opengis.net/gml/3.3/lr" xmlns:gmllro="http://www.opengis.net/gml/3.3/lro" xmlns:gml="http://www.opengis.net/gml/3.2" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns="http://www.w3.org/2001/XMLSchema" xmlns:xml="http://www.w3.org/XML/1998/namespace" targetNamespace="http://www.opengis.net/gml/3.3/lro" elementFormDefault="qualified" version="3.3.0">
+    <annotation>
+        <documentation>linearRefOffset.xsd, part of GML 3.3. Copyright (c) [2011] Open Geospatial Consortium, Inc. To obtain additional rights of use, visit http://www.opengeospatial.org/legal/.</documentation>
+    </annotation>
+    <import namespace="http://www.opengis.net/gml/3.2" schemaLocation="../../../ogc/gml/3.2.1/gml.xsd"/>
+    <import namespace="http://www.opengis.net/gml/3.3/lr" schemaLocation="../../../ogc/gml/3.3/linearRef.xsd"/>
+    <complexType name="LRMWithOffsetType">
+        <complexContent>
+            <extension base="gmllr:LinearReferencingMethodType">
+                <sequence>
+                    <element name="offsetUnits" type="gml:UomIdentifier"/>
+                    <element name="positiveLateralOffsetDirection" type="gmllro:LateralOffsetDirectionType" default="right" minOccurs="0"/>
+                    <element name="positiveVerticalOffsetDirection" type="gmllro:VerticalOffsetDirectionType" default="up" minOccurs="0"/>
+                </sequence>
+            </extension>
+        </complexContent>
+    </complexType>
+    <element name="LRMWithOffset" type="gmllro:LRMWithOffsetType" substitutionGroup="gmllr:LinearReferencingMethod"/>
+    <complexType name="LRMWithOffsetPropertyType">
+        <sequence minOccurs="0">
+            <element ref="gmllro:LRMWithOffset"/>
+        </sequence>
+        <attributeGroup ref="gml:AssociationAttributeGroup"/>
+    </complexType>
+    <complexType name="LateralOffsetDistanceExpressionType">
+        <complexContent>
+            <extension base="gmllr:DistanceExpressionType">
+                <sequence>
+                    <element name="lateralOffsetExpression" type="gmllro:LateralOffsetExpressionType" minOccurs="0"/>
+                    <element name="verticalOffsetExpression" type="gmllro:VerticalOffsetExpressionType" minOccurs="0"/>
+                </sequence>
+            </extension>
+        </complexContent>
+    </complexType>
+    <element name="LateralOffsetDistanceExpression" type="gmllro:LateralOffsetDistanceExpressionType" substitutionGroup="gmllr:DistanceExpression"/>
+    <complexType name="LateralOffsetExpressionType">
+        <simpleContent>
+            <extension base="double">
+                <attribute name="uom" type="gml:UomIdentifier"/>
+                <attribute name="lateralOffsetReferent" type="string"/>
+                <attribute name="featureGeometry" type="anyURI">
+                    <annotation>
+                        <appinfo>
+                            <gml:targetElement>gmllr:AbstractGeometry</gml:targetElement>
+                        </appinfo>
+                    </annotation>
+                </attribute>
+            </extension>
+        </simpleContent>
+    </complexType>
+    <complexType name="VerticalOffsetExpressionType">
+        <simpleContent>
+            <extension base="double">
+                <attribute name="uom" type="gml:UomIdentifier"/>
+                <attribute name="verticalOffsetReferent" type="string"/>
+                <attribute name="featureGeometry" type="anyURI">
+                    <annotation>
+                        <documentation>The featureGeometry attribute value should reference a Geometry object</documentation>
+                        <appinfo>
+                            <gml:targetElement>gmllr:AbstractGeometry</gml:targetElement>
+                        </appinfo>
+                    </annotation>
+                </attribute>
+            </extension>
+        </simpleContent>
+    </complexType>
+    <simpleType name="LateralOffsetDirectionType">
+        <restriction base="string">
+            <enumeration value="left"/>
+            <enumeration value="right"/>
+        </restriction>
+    </simpleType>
+    <simpleType name="VerticalOffsetDirectionType">
+        <restriction base="string">
+            <enumeration value="up"/>
+            <enumeration value="down"/>
+        </restriction>
+    </simpleType>
+    <complexType name="LateralOffsetLinearSRSType">
+        <complexContent>
+            <extension base="gml:IdentifiedObjectType">
+                <sequence>
+                    <element name="linearElement" type="gmllr:LinearElementPropertyType"/>
+                    <element name="lrm" type="gmllro:LRMWithOffsetPropertyType"/>
+                </sequence>
+            </extension>
+        </complexContent>
+    </complexType>
+    <element name="LateralOffsetLinearSRS" type="gmllro:LateralOffsetLinearSRSType" substitutionGroup="gml:Definition"/>
+    <complexType name="LateralOffsetLinearSRSPropertyType">
+        <sequence minOccurs="0">
+            <element ref="gmllro:LateralOffsetLinearSRS"/>
+        </sequence>
+        <attributeGroup ref="gml:AssociationAttributeGroup"/>
+    </complexType>
+</schema>
