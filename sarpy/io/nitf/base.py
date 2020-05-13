@@ -86,17 +86,17 @@ class BaseNITFElement(object):
 def _get_bytes(val, length):
     if val is None:
         return b''
+    elif isinstance(val, integer_types):
+        frm_str = '{0:0' + str(length) + 'd}'
+        return frm_str.format(val).encode('utf-8')
+    elif isinstance(val, string_types):
+        frm_str = '{0:' + str(length) + 's}'
+        return frm_str.format(val).encode('utf-8')
     elif isinstance(val, bytes):
         if len(val) >= length:
             return val[:length]
         else:
-            return val + b'\x00'*(length - len(val))
-    elif isinstance(val, integer_types):
-        frm_str = '{0:0' + str(length) + '}'
-        return frm_str.format(val).encode('utf-8')
-    elif isinstance(val, string_types):
-        frm_str = '{0:' + str(length) + '}'
-        return frm_str.format(val).encode('utf-8')
+            return val + b'\x00' * (length - len(val))
     else:
         raise TypeError('Unhandled type {}'.format(type(val)))
 
@@ -1062,8 +1062,8 @@ class UserHeaderType(Unstructured):
 
     def _get_attribute_bytes(self, attribute):
         if attribute == 'data':
-            siz_frm = '{0:0' + str(self._size_len) + '}'
-            ofl_frm = '{0:0' + str(self._ofl_len) + '}'
+            siz_frm = '{0:0' + str(self._size_len) + 'd}'
+            ofl_frm = '{0:0' + str(self._ofl_len) + 'd}'
             data = self.data
             if data is None:
                 return b'0'*self._size_len
