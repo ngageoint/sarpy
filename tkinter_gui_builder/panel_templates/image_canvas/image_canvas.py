@@ -157,16 +157,17 @@ class ImageCanvas(tkinter.LabelFrame):
     def init_with_fname(self,
                         fname,  # type: str
                         ):
-        self.image_reader.
-        self.variables.canvas_image_object.init_from_fname_and_canvas_size(fname, self.canvas_height, self.canvas_width, scale_to_fit_canvas=self.rescale_image_to_fit_canvas)
+        self.image_reader = self.image_reader.init_w_fname(fname)
+        self.init_with_image_reader(self.image_reader)
+
+    def init_with_image_reader(self):
+        self.variables.canvas_image_object.init_from_fname_and_canvas_size(fname, self.canvas_height, self.canvas_width,
+                                                                           scale_to_fit_canvas=self.rescale_image_to_fit_canvas)
         self.variables.canvas_image_object.scale_to_fit_canvas = self.rescale_image_to_fit_canvas
         if self.rescale_image_to_fit_canvas:
             self.set_image_from_numpy_array(self.variables.canvas_image_object.display_image)
         else:
             self.set_image_from_numpy_array(self.variables.canvas_image_object.canvas_decimated_image)
-
-    def init_with_image_reader(self):
-
 
     def init_with_numpy_image(self, numpy_image):
         self.image_reader = NumpyImageReader(numpy_image)

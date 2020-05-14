@@ -26,13 +26,15 @@ class CanvasImage(object):
         self.canvas_nx = canvas_nx
         self.canvas_ny = canvas_ny
 
-    @classmethod
-    def create_from_fname(cls,
-                          fname,            # type: str
-                          canvas_nx,            # type: int
-                          canvas_ny,            # type: int
-                          ):
-        
+    def init_w_fname(self,
+                     fname,  # type: str
+                     canvas_nx,  # type: int
+                     canvas_ny,  # type: int
+                     ):
+        image_reader = self.image_reader.init_w_fname(fname)
+        self.canvas_nx = canvas_nx
+        self.canvas_ny = canvas_ny
+        self.image_reader = image_reader
 
     def get_decimated_image_data_in_full_image_rect(self,
                                                     full_image_rect,  # type: (int, int, int, int)
