@@ -33,7 +33,7 @@ class MetaIcon(ImageCanvas):
 
         metaicon_background = numpy.zeros((self.canvas_height, self.canvas_width))
         numpy_reader = NumpyImageReader(metaicon_background)
-        self.init_with_image_reader(numpy_reader)
+        self.set_image_reader(numpy_reader)
 
         self.meta = sicd_meta
         iid_line = self.get_iid_line()

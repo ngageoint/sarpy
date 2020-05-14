@@ -10,7 +10,6 @@ class CanvasImage(object):
     image_reader = None                 # type: AbstractImageReader
     canvas_decimated_image = None       # type: ndarray
     display_image = None                # type: ndarray
-    reader_object = None                # type: AbstractImageReader
     decimation_factor = 1               # type: int
     display_rescaling_factor = 1                # type: float
     canvas_full_image_upper_left_yx = (0, 0)    # type: (int, int)
@@ -180,10 +179,10 @@ class CanvasImage(object):
             image_x1 = 0
         if image_y1 < 0:
             image_y1 = 0
-        if image_x2 > self.full_image_nx:
-            image_x2 = self.full_image_nx
-        if image_y2 > self.full_image_ny:
-            image_y2 = self.full_image_ny
+        if image_x2 > self.image_reader.full_image_nx:
+            image_x2 = self.image_reader.full_image_nx
+        if image_y2 > self.image_reader.full_image_ny:
+            image_y2 = self.image_reader.full_image_ny
 
         return image_y1, image_x1, image_y2, image_x2
 

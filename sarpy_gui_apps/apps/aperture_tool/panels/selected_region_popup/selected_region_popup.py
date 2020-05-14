@@ -25,8 +25,9 @@ class SelectedRegionPanel(AbstractWidgetPanel):
         self.init_w_vertical_layout(widgets_list)
 
         sicd_reader = SicdImageReader(app_variables.sicd_fname)
-        self.image_canvas = ImageCanvas(parent)
+        # self.image_canvas = ImageCanvas()
         self.image_canvas.set_canvas_size(1000, 1000)
+        self.image_canvas.set_image_reader(sicd_reader)
 
         self.pack()
 
@@ -56,7 +57,7 @@ class SelectedRegionPanel(AbstractWidgetPanel):
             x1 = selection_image_coords[1]
             y2 = selection_image_coords[2]
             x2 = selection_image_coords[3]
-            complex_data = self.app_variables.sicd_reader_object.read_chip((y1, y2, 1), (x1, x2, 1))
+            complex_data = self.app_variables.sicd_reader_object.sicd.read_chip((y1, y2, 1), (x1, x2, 1))
             self.app_variables.selected_region_complex_data = complex_data
             self.parent.destroy()
         else:

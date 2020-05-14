@@ -10,7 +10,6 @@ import time
 import tkinter
 import tkinter.colorchooser as colorchooser
 from tkinter_gui_builder.canvas_image_objects.image_readers.image_reader import AbstractImageReader
-from tkinter_gui_builder.canvas_image_objects.image_readers.numpy_image_reader import NumpyImageReader
 
 
 from .tool_constants import ShapePropertyConstants as SHAPE_PROPERTIES
@@ -154,9 +153,9 @@ class ImageCanvas(tkinter.LabelFrame):
 
         self.rescale_image_to_fit_canvas = True
 
-    def init_with_image_reader(self,
-                               image_reader,        # type: AbstractImageReader
-                               ):
+    def set_image_reader(self,
+                         image_reader,  # type: AbstractImageReader
+                         ):
         self.variables.canvas_image_object = CanvasImage(image_reader, self.canvas_width, self.canvas_height)
         if self.rescale_image_to_fit_canvas:
             self.set_image_from_numpy_array(self.variables.canvas_image_object.display_image)
@@ -777,24 +776,24 @@ class ImageCanvas(tkinter.LabelFrame):
         # keep the rect within the image bounds
         image_y_ul = max(image_coords[0], 0)
         image_x_ul = max(image_coords[1], 0)
-        image_y_br = min(image_coords[2], self.variables.canvas_image_object.full_image_ny)
-        image_x_br = min(image_coords[3], self.variables.canvas_image_object.full_image_nx)
+        image_y_br = min(image_coords[2], self.variables.canvas_image_object.image_reader.full_image_ny)
+        image_x_br = min(image_coords[3], self.variables.canvas_image_object.image_reader.full_image_nx)
 
         # re-adjust if we ran off one of the edges
         if image_x_ul == 0:
             image_coords[3] = new_image_width
-        if image_x_br == self.variables.canvas_image_object.full_image_nx:
-            image_coords[1] = self.variables.canvas_image_object.full_image_nx - new_image_width
+        if image_x_br == self.variables.canvas_image_object.image_reader.full_image_nx:
+            image_coords[1] = self.variables.canvas_image_object.image_reader.full_image_nx - new_image_width
         if image_y_ul == 0:
             image_coords[2] = new_image_height
-        if image_y_br == self.variables.canvas_image_object.full_image_ny:
-            image_coords[0] = self.variables.canvas_image_object.full_image_ny - new_image_height
+        if image_y_br == self.variables.canvas_image_object.image_reader.full_image_ny:
+            image_coords[0] = self.variables.canvas_image_object.image_reader.full_image_ny - new_image_height
 
         # keep the rect within the image bounds
         image_y_ul = max(image_coords[0], 0)
         image_x_ul = max(image_coords[1], 0)
-        image_y_br = min(image_coords[2], self.variables.canvas_image_object.full_image_ny)
-        image_x_br = min(image_coords[3], self.variables.canvas_image_object.full_image_nx)
+        image_y_br = min(image_coords[2], self.variables.canvas_image_object.image_reader.full_image_ny)
+        image_x_br = min(image_coords[3], self.variables.canvas_image_object.image_reader.full_image_nx)
 
         new_canvas_rect = self.variables.canvas_image_object.full_image_yx_to_canvas_coords((image_y_ul, image_x_ul, image_y_br, image_x_br))
         new_canvas_rect = (int(new_canvas_rect[0]), int(new_canvas_rect[1]), int(new_canvas_rect[2]), int(new_canvas_rect[3]))
