@@ -1,9 +1,8 @@
-from sarpy_gui_apps.supporting_classes.sarpy_canvas_image import SarpyCanvasDisplayImage
+from sarpy_gui_apps.supporting_classes.sicd_image_reader import SicdImageReader
 from tkinter_gui_builder.panel_templates.image_canvas.image_canvas import ImageCanvas
 from tkinter_gui_builder.panel_templates.widget_panel.widget_panel import AbstractWidgetPanel
 from sarpy_gui_apps.apps.aperture_tool.app_variables import AppVariables
 from sarpy_gui_apps.apps.aperture_tool.panels.selected_region_popup.toolbar import Toolbar
-import sarpy.visualization.remap as remap
 
 import matplotlib.pyplot as plt
 
@@ -25,8 +24,8 @@ class SelectedRegionPanel(AbstractWidgetPanel):
 
         self.init_w_vertical_layout(widgets_list)
 
-        self.image_canvas.variables.canvas_image_object = SarpyCanvasDisplayImage()
-        self.image_canvas.init_with_fname(app_variables.sicd_fname)
+        sicd_reader = SicdImageReader(app_variables.sicd_fname)
+        self.image_canvas = ImageCanvas()
         self.image_canvas.set_canvas_size(1000, 1000)
 
         self.pack()

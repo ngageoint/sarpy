@@ -17,8 +17,6 @@ from sarpy_gui_apps.apps.aperture_tool.panels.phase_history_selecion_panel.phase
 from sarpy_gui_apps.apps.aperture_tool.app_variables import AppVariables
 from sarpy.io.complex.base import BaseReader
 import scipy.constants.constants as scipy_constants
-import matplotlib.pyplot as plt
-from scipy import misc as scipy_misc
 
 
 class ApertureTool(AbstractWidgetPanel):

@@ -1,8 +1,7 @@
 import PIL.Image
 from PIL import ImageTk
 from tkinter_gui_builder.widgets import basic_widgets
-from tkinter_gui_builder.canvas_image_objects.abstract_canvas_image import AbstractCanvasImage
-from tkinter_gui_builder.canvas_image_objects.numpy_canvas_image import NumpyCanvasDisplayImage
+from tkinter_gui_builder.canvas_image_objects.canvas_image import CanvasImage
 from tkinter_gui_builder.utils.color_utils.hex_color_palettes import SeabornHexPalettes
 import tkinter_gui_builder.utils.color_utils.color_utils as color_utils
 import platform
@@ -10,6 +9,8 @@ import numpy
 import time
 import tkinter
 import tkinter.colorchooser as colorchooser
+from tkinter_gui_builder.canvas_image_objects.image_readers.image_reader import AbstractImageReader
+from tkinter_gui_builder.canvas_image_objects.image_readers.numpy_image_reader import NumpyImageReader
 
 
 from .tool_constants import ShapePropertyConstants as SHAPE_PROPERTIES
@@ -39,7 +40,7 @@ class AppVariables:
         self.pan_anchor_point_xy = None
         self.shape_ids = []            # type: [int]
         self.shape_properties = {}
-        self.canvas_image_object = None         # type: AbstractCanvasImage
+        self.canvas_image_object = None         # type: CanvasImage
         self.zoom_rect_id = None                # type: int
         self.zoom_rect_color = "cyan"
         self.zoom_rect_border_width = 2
@@ -105,8 +106,13 @@ class AppVariables:
 
 
 class ImageCanvas(tkinter.LabelFrame):
-    def __init__(self, master):
+    def __init__(self,
+                 master,
+                 ):
         tkinter.LabelFrame.__init__(self, master)
+
+        self.image_reader = None            # type: AbstractImageReader
+
         self.SHAPE_PROPERTIES = SHAPE_PROPERTIES
         self.SHAPE_TYPES = SHAPE_TYPES
         self.TOOLS = TOOLS
@@ -151,6 +157,7 @@ class ImageCanvas(tkinter.LabelFrame):
     def init_with_fname(self,
                         fname,  # type: str
                         ):
+        self.image_reader.
         self.variables.canvas_image_object.init_from_fname_and_canvas_size(fname, self.canvas_height, self.canvas_width, scale_to_fit_canvas=self.rescale_image_to_fit_canvas)
         self.variables.canvas_image_object.scale_to_fit_canvas = self.rescale_image_to_fit_canvas
         if self.rescale_image_to_fit_canvas:
@@ -158,16 +165,11 @@ class ImageCanvas(tkinter.LabelFrame):
         else:
             self.set_image_from_numpy_array(self.variables.canvas_image_object.canvas_decimated_image)
 
-    def init_with_numpy_image(self,
-                              numpy_array,      # type: numpy.ndarray
-                              ):
-        self.variables.canvas_image_object = NumpyCanvasDisplayImage()
-        self.variables.canvas_image_object.scale_to_fit_canvas = self.rescale_image_to_fit_canvas
-        self.variables.canvas_image_object.init_from_numpy_array_and_canvas_size(numpy_array, self.canvas_height, self.canvas_width)
-        if self.rescale_image_to_fit_canvas:
-            self.set_image_from_numpy_array(self.variables.canvas_image_object.display_image)
-        else:
-            self.set_image_from_numpy_array(self.variables.canvas_image_object.canvas_decimated_image)
+    def init_with_image_reader(self):
+
+
+    def init_with_numpy_image(self, numpy_image):
+        self.image_reader = NumpyImageReader(numpy_image)
 
     def set_labelframe_text(self, label):
         self.config(text=label)
