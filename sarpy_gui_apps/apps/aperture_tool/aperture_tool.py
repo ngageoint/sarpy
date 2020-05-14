@@ -13,6 +13,7 @@ import sarpy.visualization.remap as remap
 from sarpy_gui_apps.apps.aperture_tool.panels.tabs_panel.tabs_panel import TabsPanel
 from sarpy_gui_apps.apps.aperture_tool.panels.selected_region_popup.selected_region_popup import SelectedRegionPanel
 from sarpy_gui_apps.supporting_classes.metaicon import MetaIcon
+from sarpy_gui_apps.supporting_classes.sicd_image_reader import SicdImageReader
 from sarpy_gui_apps.apps.aperture_tool.panels.phase_history_selecion_panel.phase_history_selection_panel import PhaseHistoryPanel
 from sarpy_gui_apps.apps.aperture_tool.app_variables import AppVariables
 from sarpy.io.complex.base import BaseReader
@@ -64,7 +65,8 @@ class ApertureTool(AbstractWidgetPanel):
 
         popup = tkinter.Toplevel(self.master)
         selected_region_popup = SelectedRegionPanel(popup, self.app_variables)
-        selected_region_popup.image_canvas.init_with_fname(self.app_variables.sicd_fname)
+        self.app_variables.sicd_reader_object = SicdImageReader(self.app_variables.sicd_fname)
+        selected_region_popup.image_canvas.init_with_image_reader(self.app_variables.sicd_reader_object)
 
         self.master.wait_window(popup)
 

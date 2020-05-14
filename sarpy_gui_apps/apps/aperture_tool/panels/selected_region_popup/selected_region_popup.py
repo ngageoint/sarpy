@@ -25,7 +25,7 @@ class SelectedRegionPanel(AbstractWidgetPanel):
         self.init_w_vertical_layout(widgets_list)
 
         sicd_reader = SicdImageReader(app_variables.sicd_fname)
-        self.image_canvas = ImageCanvas()
+        self.image_canvas = ImageCanvas(parent)
         self.image_canvas.set_canvas_size(1000, 1000)
 
         self.pack()

@@ -1,11 +1,11 @@
 import numpy
-from sarpy.io.complex.base import BaseReader
+from sarpy_gui_apps.supporting_classes.sicd_image_reader import SicdImageReader
 
 
 class AppVariables:
     def __init__(self):
         self.sicd_fname = str
-        self.sicd_reader_object = None          # type: BaseReader
+        self.sicd_reader_object = None          # type: SicdImageReader
         self.selected_region = None     # type: tuple
         self.fft_complex_data = None            # type: numpy.ndarray
         self.filtered_data = None           # type: numpy.ndarray
@@ -13,5 +13,3 @@ class AppVariables:
         self.fft_image_bounds = None          # type: (int, int, int, int)
         self.fft_canvas_bounds = None           # type: (int, int, int, int)
         self.selected_region_complex_data = None            # type: numpy.ndarray
-
-        self.fft_corner_pixel_distance_threshold = 10.0         # type: float

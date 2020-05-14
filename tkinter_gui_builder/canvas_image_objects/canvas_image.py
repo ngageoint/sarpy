@@ -3,6 +3,7 @@ from typing import Union
 import PIL.Image
 import numpy as np
 from tkinter_gui_builder.canvas_image_objects.image_readers.image_reader import AbstractImageReader
+import matplotlib.pyplot as plt
 
 
 class CanvasImage(object):
@@ -25,6 +26,7 @@ class CanvasImage(object):
         self.image_reader = image_reader
         self.canvas_nx = canvas_nx
         self.canvas_ny = canvas_ny
+        self.update_canvas_display_image_from_full_image()
 
     def init_w_fname(self,
                      fname,  # type: str
@@ -44,7 +46,8 @@ class CanvasImage(object):
         y_end = full_image_rect[2]
         x_start = full_image_rect[1]
         x_end = full_image_rect[3]
-        self.image_reader.get_image_chip(y_start, y_end, x_start, x_end, decimation=decimation)
+        decimated_data = self.image_reader.get_image_chip(y_start, y_end, x_start, x_end, decimation=decimation)
+        return decimated_data
 
     def get_scaled_display_data(self, decimated_image):
         scale_factor = self.compute_display_scale_factor(decimated_image)
@@ -107,7 +110,7 @@ class CanvasImage(object):
         return self.get_decimated_image_data_in_full_image_rect(full_image_rect, decimation)
 
     def update_canvas_display_image_from_full_image(self):
-        full_image_rect = (0, 0, self.full_image_ny, self.full_image_nx)
+        full_image_rect = (0, 0, self.image_reader.full_image_ny, self.image_reader.full_image_nx)
         self.update_canvas_display_image_from_full_image_rect(full_image_rect)
 
     def update_canvas_display_image_from_full_image_rect(self, full_image_rect):

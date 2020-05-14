@@ -5,13 +5,18 @@ import sarpy.visualization.remap as remap
 
 
 class SicdImageReader(AbstractImageReader):
-    sicd_reader_object = None           # type: BaseReader
+    sicd = None           # type: BaseReader
     remap_type = "density"
 
     def __init__(self, fname):
-        sicd_reader_object = sarpy_complex.open(fname)
-        self.full_image_nx = self.sicd_reader_object.sicd_meta.ImageData.FullImage.NumCols
-        self.full_image_ny = self.sicd_reader_object.sicd_meta.ImageData.FullImage.NumRows
+        self.sicd = sarpy_complex.open(fname)
+        self.full_image_nx = self.sicd.sicd_meta.ImageData.FullImage.NumCols
+        self.full_image_ny = self.sicd.sicd_meta.ImageData.FullImage.NumRows
+
+    def init_w_fname(self, fname):
+        self.sicd = sarpy_complex.open(fname)
+        self.full_image_nx = self.sicd.sicd_meta.ImageData.FullImage.NumCols
+        self.full_image_ny = self.sicd.sicd_meta.ImageData.FullImage.NumRows
 
     def get_image_chip(self,
                        y_start,  # type: int
@@ -20,7 +25,7 @@ class SicdImageReader(AbstractImageReader):
                        x_end,  # type: int
                        decimation=1,  # type: int
                        ):  # type: (...) -> numpy.ndarray
-        cdata = self.reader_object.read_chip( (y_start, y_end, decimation), (x_start, x_end, decimation))
+        cdata = self.sicd.read_chip( (y_start, y_end, decimation), (x_start, x_end, decimation))
         decimated_image_data = self.remap_complex_data(cdata)
         return decimated_image_data
 
