@@ -10,6 +10,7 @@ import numpy
 from tkinter_gui_builder.panel_templates.image_canvas.image_canvas import ImageCanvas
 import tkinter_gui_builder.utils.color_utils.color_converter as color_converter
 from sarpy.geometry import latlon
+from tkinter_gui_builder.canvas_image_objects.image_readers.numpy_image_reader import NumpyImageReader
 
 
 class MetaIcon(ImageCanvas):
@@ -29,7 +30,10 @@ class MetaIcon(ImageCanvas):
                          sicd_meta,     # type: SICDType
                          ):
         self.set_canvas_size(self.canvas_width, self.canvas_height)
-        self.init_with_numpy_image((numpy.zeros((self.canvas_height, self.canvas_width))))
+
+        metaicon_background = numpy.zeros((self.canvas_height, self.canvas_width))
+        numpy_reader = NumpyImageReader(metaicon_background)
+        self.set_image_reader(numpy_reader)
 
         self.meta = sicd_meta
         iid_line = self.get_iid_line()
@@ -43,7 +47,7 @@ class MetaIcon(ImageCanvas):
         multipath_line = self._create_angle_line_text("multipath", n_decimals=0)
 
         line_positions = self._get_line_positions()
-        text_height = int((line_positions[1][1] - line_positions[0][1]) * 0.7)
+        text_height = int((line_positions[1][1] - line_positions[0][1]) * 0.8)
         canvas_font = font.Font(family='Times New Roman', size=-text_height)
 
         self.canvas.create_text(line_positions[0], text=iid_line, fill="white", anchor="nw", font=canvas_font)

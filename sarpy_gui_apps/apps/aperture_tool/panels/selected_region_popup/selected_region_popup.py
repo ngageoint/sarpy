@@ -1,9 +1,8 @@
-from sarpy_gui_apps.supporting_classes.sarpy_canvas_image import SarpyCanvasDisplayImage
+from sarpy_gui_apps.supporting_classes.sicd_image_reader import SicdImageReader
 from tkinter_gui_builder.panel_templates.image_canvas.image_canvas import ImageCanvas
 from tkinter_gui_builder.panel_templates.widget_panel.widget_panel import AbstractWidgetPanel
 from sarpy_gui_apps.apps.aperture_tool.app_variables import AppVariables
 from sarpy_gui_apps.apps.aperture_tool.panels.selected_region_popup.toolbar import Toolbar
-import sarpy.visualization.remap as remap
 
 import matplotlib.pyplot as plt
 
@@ -25,9 +24,10 @@ class SelectedRegionPanel(AbstractWidgetPanel):
 
         self.init_w_vertical_layout(widgets_list)
 
-        self.image_canvas.variables.canvas_image_object = SarpyCanvasDisplayImage()
-        self.image_canvas.init_with_fname(app_variables.sicd_fname)
+        sicd_reader = SicdImageReader(app_variables.sicd_fname)
+        # self.image_canvas = ImageCanvas()
         self.image_canvas.set_canvas_size(1000, 1000)
+        self.image_canvas.set_image_reader(sicd_reader)
 
         self.pack()
 
@@ -57,7 +57,7 @@ class SelectedRegionPanel(AbstractWidgetPanel):
             x1 = selection_image_coords[1]
             y2 = selection_image_coords[2]
             x2 = selection_image_coords[3]
-            complex_data = self.app_variables.sicd_reader_object.read_chip((y1, y2, 1), (x1, x2, 1))
+            complex_data = self.app_variables.sicd_reader_object.sicd.read_chip((y1, y2, 1), (x1, x2, 1))
             self.app_variables.selected_region_complex_data = complex_data
             self.parent.destroy()
         else:

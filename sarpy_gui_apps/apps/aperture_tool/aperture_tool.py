@@ -13,12 +13,13 @@ import sarpy.visualization.remap as remap
 from sarpy_gui_apps.apps.aperture_tool.panels.tabs_panel.tabs_panel import TabsPanel
 from sarpy_gui_apps.apps.aperture_tool.panels.selected_region_popup.selected_region_popup import SelectedRegionPanel
 from sarpy_gui_apps.supporting_classes.metaicon import MetaIcon
+from sarpy_gui_apps.supporting_classes.sicd_image_reader import SicdImageReader
 from sarpy_gui_apps.apps.aperture_tool.panels.phase_history_selecion_panel.phase_history_selection_panel import PhaseHistoryPanel
 from sarpy_gui_apps.apps.aperture_tool.app_variables import AppVariables
 from sarpy.io.complex.base import BaseReader
 import scipy.constants.constants as scipy_constants
+from tkinter_gui_builder.canvas_image_objects.image_readers.numpy_image_reader import NumpyImageReader
 import matplotlib.pyplot as plt
-from scipy import misc as scipy_misc
 
 
 class ApertureTool(AbstractWidgetPanel):
@@ -39,9 +40,6 @@ class ApertureTool(AbstractWidgetPanel):
 
         self.frequency_vs_degree_panel.set_canvas_size(600, 400)
         self.filtered_panel.set_canvas_size(600, 400)
-
-        # Configuration of panels and widgets
-        # self.metaicon.set_canvas_size(600, 400)
 
         master_frame.pack()
         self.pack()
@@ -66,17 +64,19 @@ class ApertureTool(AbstractWidgetPanel):
 
         popup = tkinter.Toplevel(self.master)
         selected_region_popup = SelectedRegionPanel(popup, self.app_variables)
-        selected_region_popup.image_canvas.init_with_fname(self.app_variables.sicd_fname)
+        self.app_variables.sicd_reader_object = SicdImageReader(self.app_variables.sicd_fname)
+        selected_region_popup.image_canvas.set_image_reader(self.app_variables.sicd_reader_object)
 
         self.master.wait_window(popup)
 
         selected_region_complex_data = self.app_variables.selected_region_complex_data
 
-        fft_complex_data = self.get_fft_complex_data(self.app_variables.sicd_reader_object, selected_region_complex_data)
+        fft_complex_data = self.get_fft_complex_data(self.app_variables.sicd_reader_object.sicd, selected_region_complex_data)
         self.app_variables.fft_complex_data = fft_complex_data
 
         self.app_variables.fft_display_data = remap.density(fft_complex_data)
-        self.frequency_vs_degree_panel.init_with_numpy_image(self.app_variables.fft_display_data)
+        fft_reader = NumpyImageReader(self.app_variables.fft_display_data)
+        self.frequency_vs_degree_panel.set_image_reader(fft_reader)
 
         self.frequency_vs_degree_panel.set_current_tool_to_edit_shape()
         self.frequency_vs_degree_panel.variables.current_shape_id = self.frequency_vs_degree_panel.variables.select_rect_id
@@ -85,7 +85,9 @@ class ApertureTool(AbstractWidgetPanel):
         self.frequency_vs_degree_panel.variables.shape_drag_xy_limits[str(self.frequency_vs_degree_panel.variables.select_rect_id)] = canvas_drawing_bounds
         self.app_variables.fft_canvas_bounds = self.frequency_vs_degree_panel.get_shape_canvas_coords(self.frequency_vs_degree_panel.variables.select_rect_id)
         self.frequency_vs_degree_panel.show_shape(self.frequency_vs_degree_panel.variables.select_rect_id)
-        self.filtered_panel.init_with_numpy_image(self.get_filtered_image())
+
+        filtered_numpy_reader = NumpyImageReader(self.get_filtered_image())
+        self.filtered_panel.set_image_reader(filtered_numpy_reader)
 
         self.tabs_panel.tabs.load_image_tab.chip_size_panel.nx.set_text(numpy.shape(selected_region_complex_data)[1])
         self.tabs_panel.tabs.load_image_tab.chip_size_panel.ny.set_text(numpy.shape(selected_region_complex_data)[0])
@@ -105,12 +107,6 @@ class ApertureTool(AbstractWidgetPanel):
 
         return y_start, x_start, y_end, x_end
 
-    def callback_set_to_selection_tool(self, event):
-        self.image_canvas.set_current_tool_to_selection_tool()
-
-    def callback_set_to_translate_shape(self, event):
-        self.image_canvas.set_current_tool_to_translate_shape()
-
     def callback_save_fft_panel_as_png(self, event):
         filename = filedialog.asksaveasfilename(initialdir=os.path.expanduser("~"), title="Select file",
                                                 filetypes=(("png file", "*.png"), ("all files", "*.*")))
@@ -118,11 +114,11 @@ class ApertureTool(AbstractWidgetPanel):
 
     def callback_get_adjusted_image(self, event):
         filtered_image = self.get_filtered_image()
-        self.frequency_vs_degree_panel.image_canvas.init_with_numpy_image(filtered_image)
+        self.frequency_vs_degree_panel.set_image_reader(NumpyImageReader(filtered_image))
 
     def update_filtered_image(self):
         filtered_image = self.get_filtered_image()
-        self.filtered_panel.init_with_numpy_image(filtered_image)
+        self.filtered_panel.set_image_reader(NumpyImageReader(filtered_image))
 
     def get_filtered_image(self):
         select_rect_id = self.frequency_vs_degree_panel.variables.select_rect_id
@@ -144,7 +140,7 @@ class ApertureTool(AbstractWidgetPanel):
         filtered_cdata = fftshift(filtered_cdata)
 
         inverse_flag = False
-        ro = self.app_variables.sicd_reader_object
+        ro = self.app_variables.sicd_reader_object.sicd
         if ro.sicd_meta.Grid.Col.Sgn > 0 and ro.sicd_meta.Grid.Row.Sgn > 0:
             pass
         else:
@@ -246,8 +242,8 @@ class ApertureTool(AbstractWidgetPanel):
         # handle units
         self.phase_history.resolution_range_units.set_text("meters")
         self.phase_history.resolution_cross_units.set_text("meters")
-        range_resolution = self.app_variables.sicd_reader_object.sicd_meta.Grid.Row.ImpRespWid / (fraction_range / 100.0)
-        cross_resolution = self.app_variables.sicd_reader_object.sicd_meta.Grid.Col.ImpRespWid / (fraction_cross / 100.0)
+        range_resolution = self.app_variables.sicd_reader_object.sicd.sicd_meta.Grid.Row.ImpRespWid / (fraction_range / 100.0)
+        cross_resolution = self.app_variables.sicd_reader_object.sicd.sicd_meta.Grid.Col.ImpRespWid / (fraction_cross / 100.0)
 
         tmp_range_resolution = range_resolution
         tmp_cross_resolution = cross_resolution
@@ -276,8 +272,8 @@ class ApertureTool(AbstractWidgetPanel):
         self.phase_history.resolution_range.set_text("{:0.2f}".format(tmp_range_resolution))
         self.phase_history.resolution_cross.set_text("{:0.2f}".format(tmp_cross_resolution))
 
-        cross_sample_spacing = self.app_variables.sicd_reader_object.sicd_meta.Grid.Col.SS
-        range_sample_spacing = self.app_variables.sicd_reader_object.sicd_meta.Grid.Row.SS
+        cross_sample_spacing = self.app_variables.sicd_reader_object.sicd.sicd_meta.Grid.Col.SS
+        range_sample_spacing = self.app_variables.sicd_reader_object.sicd.sicd_meta.Grid.Row.SS
 
         if self.phase_history.english_units_checkbox.is_selected():
             tmp_cross_ss = cross_sample_spacing / scipy_constants.foot

@@ -2,46 +2,51 @@ from numpy import ndarray
 from typing import Union
 import PIL.Image
 import numpy as np
-from sarpy.io.complex.base import BaseReader
+from tkinter_gui_builder.canvas_image_objects.image_readers.image_reader import AbstractImageReader
+import matplotlib.pyplot as plt
 
 
-class AbstractCanvasImage(object):
-    canvas_decimated_image = None  # type: ndarray
-    display_image = None  # type: ndarray
-    fname = None  # type: str
-    reader_object = None    # type: BaseReader
-    decimation_factor = 1  # type: int
-    display_rescaling_factor = 1  # type: float
-    full_image_nx = None  # type: int
-    full_image_ny = None  # type: int
-    canvas_full_image_upper_left_yx = (0, 0)  # type: (int, int)
-    canvas_ny = None
-    canvas_nx = None
-    scale_to_fit_canvas = False
+class CanvasImage(object):
+    image_reader = None                 # type: AbstractImageReader
+    canvas_decimated_image = None       # type: ndarray
+    display_image = None                # type: ndarray
+    decimation_factor = 1               # type: int
+    display_rescaling_factor = 1                # type: float
+    canvas_full_image_upper_left_yx = (0, 0)    # type: (int, int)
+    canvas_ny = None                    # type: int
+    canvas_nx = None                    # type: int
+    scale_to_fit_canvas = True          # type: bool
+
+    def __init__(self,
+                 image_reader,          # type: AbstractImageReader
+                 canvas_nx,             # type: int
+                 canvas_ny,             # type: int
+                 ):
+        self.image_reader = image_reader
+        self.canvas_nx = canvas_nx
+        self.canvas_ny = canvas_ny
+        self.update_canvas_display_image_from_full_image()
+
+    def init_w_fname(self,
+                     fname,  # type: str
+                     canvas_nx,  # type: int
+                     canvas_ny,  # type: int
+                     ):
+        image_reader = self.image_reader.init_w_fname(fname)
+        self.canvas_nx = canvas_nx
+        self.canvas_ny = canvas_ny
+        self.image_reader = image_reader
 
     def get_decimated_image_data_in_full_image_rect(self,
                                                     full_image_rect,  # type: (int, int, int, int)
                                                     decimation,  # type: int
                                                     ):
-            raise NotImplementedError
-
-    def init_from_fname_and_canvas_size(self,
-                                        fname,  # type: str
-                                        canvas_ny,      # type: int
-                                        canvas_nx,      # type: int
-                                        scale_to_fit_canvas=True,        # type: bool
-                                        reader_object=None              # type: BaseReader
-                                        ):
-        """
-        All subclassed methods of this should set an image reader object, self.canvas_ny, and self.canvas_nx, then call this
-        using super()
-        :param fname:
-        :param canvas_ny:
-        :param canvas_nx:
-        :param scale_to_fit_canvas:
-        :return:
-        """
-        raise NotImplementedError
+        y_start = full_image_rect[0]
+        y_end = full_image_rect[2]
+        x_start = full_image_rect[1]
+        x_end = full_image_rect[3]
+        decimated_data = self.image_reader.get_image_chip(y_start, y_end, x_start, x_end, decimation=decimation)
+        return decimated_data
 
     def get_scaled_display_data(self, decimated_image):
         scale_factor = self.compute_display_scale_factor(decimated_image)
@@ -104,7 +109,7 @@ class AbstractCanvasImage(object):
         return self.get_decimated_image_data_in_full_image_rect(full_image_rect, decimation)
 
     def update_canvas_display_image_from_full_image(self):
-        full_image_rect = (0, 0, self.full_image_ny, self.full_image_nx)
+        full_image_rect = (0, 0, self.image_reader.full_image_ny, self.image_reader.full_image_nx)
         self.update_canvas_display_image_from_full_image_rect(full_image_rect)
 
     def update_canvas_display_image_from_full_image_rect(self, full_image_rect):
@@ -174,10 +179,10 @@ class AbstractCanvasImage(object):
             image_x1 = 0
         if image_y1 < 0:
             image_y1 = 0
-        if image_x2 > self.full_image_nx:
-            image_x2 = self.full_image_nx
-        if image_y2 > self.full_image_ny:
-            image_y2 = self.full_image_ny
+        if image_x2 > self.image_reader.full_image_nx:
+            image_x2 = self.image_reader.full_image_nx
+        if image_y2 > self.image_reader.full_image_ny:
+            image_y2 = self.image_reader.full_image_ny
 
         return image_y1, image_x1, image_y2, image_x2
 
