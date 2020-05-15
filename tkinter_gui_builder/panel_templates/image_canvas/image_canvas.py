@@ -67,7 +67,7 @@ class AppVariables:
         self.shape_drag_xy_limits = {}          # type: dict
 
         self.highlight_color_palette = SeabornHexPalettes.blues
-        self.highlight_n_colors_cycle = 30
+        self.highlight_n_colors_cycle = 10
 
         self.tmp_points = None              # type: [int]
 
@@ -475,12 +475,12 @@ class ImageCanvas(tkinter.LabelFrame):
         colors = color_utils.get_full_hex_palette(self.variables.highlight_color_palette, self.variables.highlight_n_colors_cycle)
         for color in colors:
             self.change_shape_color(shape_id, color)
-            time.sleep(0.01)
+            time.sleep(0.001)
             self.canvas.update()
         colors.reverse()
         for color in colors:
             self.change_shape_color(shape_id, color)
-            time.sleep(0.01)
+            time.sleep(0.001)
             self.canvas.update()
         self.change_shape_color(shape_id, original_color)
 

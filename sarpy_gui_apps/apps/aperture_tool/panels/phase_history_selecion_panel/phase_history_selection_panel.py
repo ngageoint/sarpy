@@ -53,4 +53,3 @@ class PhaseHistoryPanel(AbstractWidgetPanel):
 
         self.full_aperture_button.set_text("Full Aperture")
         self.english_units_checkbox.set_text("English Units")
-

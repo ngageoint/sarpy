@@ -78,7 +78,6 @@ class ApertureTool(AbstractWidgetPanel):
         self.app_variables.fft_display_data = remap.density(fft_complex_data)
         self.frequency_vs_degree_panel.init_with_numpy_image(self.app_variables.fft_display_data)
 
-        # self.frequency_vs_degree_panel.set_current_tool_to_selection_tool()
         self.frequency_vs_degree_panel.set_current_tool_to_edit_shape()
         self.frequency_vs_degree_panel.variables.current_shape_id = self.frequency_vs_degree_panel.variables.select_rect_id
         self.frequency_vs_degree_panel.modify_existing_shape_using_image_coords(self.frequency_vs_degree_panel.variables.select_rect_id, self.get_fft_image_bounds())
