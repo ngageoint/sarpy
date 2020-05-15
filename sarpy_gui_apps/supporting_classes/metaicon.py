@@ -10,7 +10,7 @@ import numpy
 from tkinter_gui_builder.panel_templates.image_canvas.image_canvas import ImageCanvas
 import tkinter_gui_builder.utils.color_utils.color_converter as color_converter
 from sarpy.geometry import latlon
-from tkinter_gui_builder.canvas_image_objects.image_readers.numpy_image_reader import NumpyImageReader
+from tkinter_gui_builder.image_readers.numpy_image_reader import NumpyImageReader
 
 
 class MetaIcon(ImageCanvas):

@@ -1,10 +1,8 @@
-from abc import ABC
-
-from tkinter_gui_builder.canvas_image_objects.image_readers.image_reader import AbstractImageReader
+from tkinter_gui_builder.image_readers.image_reader import ImageReader
 import numpy
 
 
-class NumpyImageReader(AbstractImageReader, ABC):
+class NumpyImageReader(ImageReader):
     fname = None
     full_image_nx = int
     full_image_ny = int

@@ -18,8 +18,7 @@ from sarpy_gui_apps.apps.aperture_tool.panels.phase_history_selecion_panel.phase
 from sarpy_gui_apps.apps.aperture_tool.app_variables import AppVariables
 from sarpy.io.complex.base import BaseReader
 import scipy.constants.constants as scipy_constants
-from tkinter_gui_builder.canvas_image_objects.image_readers.numpy_image_reader import NumpyImageReader
-import matplotlib.pyplot as plt
+from tkinter_gui_builder.image_readers.numpy_image_reader import NumpyImageReader
 
 
 class ApertureTool(AbstractWidgetPanel):

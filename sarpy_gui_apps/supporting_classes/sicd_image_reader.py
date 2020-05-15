@@ -1,10 +1,10 @@
-from tkinter_gui_builder.canvas_image_objects.image_readers.image_reader import AbstractImageReader
+from tkinter_gui_builder.image_readers.image_reader import ImageReader
 import sarpy.io.complex as sarpy_complex
 from sarpy.io.complex.base import BaseReader
 import sarpy.visualization.remap as remap
 
 
-class SicdImageReader(AbstractImageReader):
+class SicdImageReader(ImageReader):
     sicd = None           # type: BaseReader
     remap_type = "density"
 
@@ -13,7 +13,7 @@ class SicdImageReader(AbstractImageReader):
         self.full_image_nx = self.sicd.sicd_meta.ImageData.FullImage.NumCols
         self.full_image_ny = self.sicd.sicd_meta.ImageData.FullImage.NumRows
 
-    def init_w_fname(self, fname):
+    def set_reader_file(self, fname):
         self.sicd = sarpy_complex.open(fname)
         self.full_image_nx = self.sicd.sicd_meta.ImageData.FullImage.NumCols
         self.full_image_ny = self.sicd.sicd_meta.ImageData.FullImage.NumRows

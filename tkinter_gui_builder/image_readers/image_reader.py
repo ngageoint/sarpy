@@ -1,7 +1,7 @@
 import numpy
 
 
-class AbstractImageReader:
+class ImageReader:
     fname = str
     full_image_nx = int
     full_image_ny = int
