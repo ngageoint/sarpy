@@ -1,4 +1,3 @@
-import sys
 import PIL.Image
 from PIL import ImageTk
 from tkinter_gui_builder.widgets import basic_widgets
@@ -7,10 +6,11 @@ from tkinter_gui_builder.canvas_image_objects.numpy_canvas_image import NumpyCan
 from tkinter_gui_builder.utils.color_utils.hex_color_palettes import SeabornHexPalettes
 import tkinter_gui_builder.utils.color_utils.color_utils as color_utils
 import platform
-import numpy as np
+import numpy
 import time
 import tkinter
 import tkinter.colorchooser as colorchooser
+
 
 from .tool_constants import ShapePropertyConstants as SHAPE_PROPERTIES
 from .tool_constants import ShapeTypeConstants as SHAPE_TYPES
@@ -52,17 +52,22 @@ class AppVariables:
         self.select_rect_id = None
         self.select_rect_color = "red"
         self.select_rect_border_width = 2
+        self.active_tool = None
         self.current_tool = None
 
         self.pan_anchor_point_xy = (0, 0)
+
+        self.vertex_selector_pixel_threshold = 10.0         # type: float
 
         self.the_canvas_is_currently_zooming = False        # type: bool
         self.mouse_wheel_zoom_percent_per_event = 1.5
 
         self.actively_drawing_shape = False
 
+        self.shape_drag_xy_limits = {}          # type: dict
+
         self.highlight_color_palette = SeabornHexPalettes.blues
-        self.highlight_n_colors_cycle = 30
+        self.highlight_n_colors_cycle = 10
 
         self.tmp_points = None              # type: [int]
 
@@ -134,7 +139,7 @@ class ImageCanvas(tkinter.LabelFrame):
 
         self.canvas.on_mouse_wheel(self.callback_mouse_zoom)
 
-        self.variables.current_tool = None
+        self.variables.active_tool = None
         self.variables.current_shape_id = None
 
         self.zoom_on_wheel = True
@@ -154,7 +159,7 @@ class ImageCanvas(tkinter.LabelFrame):
             self.set_image_from_numpy_array(self.variables.canvas_image_object.canvas_decimated_image)
 
     def init_with_numpy_image(self,
-                              numpy_array,      # type: np.ndarray
+                              numpy_array,      # type: numpy.ndarray
                               ):
         self.variables.canvas_image_object = NumpyCanvasDisplayImage()
         self.variables.canvas_image_object.scale_to_fit_canvas = self.rescale_image_to_fit_canvas
@@ -173,7 +178,7 @@ class ImageCanvas(tkinter.LabelFrame):
         y1 = line_coords[1]
         x2 = line_coords[2]
         y2 = line_coords[3]
-        length = np.sqrt(np.square(x2-x1) + np.square(y2-y1))
+        length = numpy.sqrt(numpy.square(x2-x1) + numpy.square(y2-y1))
         return length
 
     def get_image_line_length(self, line_id):
@@ -239,7 +244,7 @@ class ImageCanvas(tkinter.LabelFrame):
             pass
 
     def animate_with_numpy_frame_sequence(self,
-                                          numpy_frame_sequence,  # type: [np.ndarray]
+                                          numpy_frame_sequence,  # type: [numpy.ndarray]
                                           frames_per_second=15,  # type: float
                                           ):
         sleep_time = 1/frames_per_second
@@ -273,16 +278,16 @@ class ImageCanvas(tkinter.LabelFrame):
                 pass
 
     def callback_handle_left_mouse_click(self, event):
-        if self.variables.current_tool == TOOLS.PAN_TOOL:
+        if self.variables.active_tool == TOOLS.PAN_TOOL:
             self.variables.pan_anchor_point_xy = event.x, event.y
             self.variables.tmp_anchor_point = event.x, event.y
-        elif self.variables.current_tool == TOOLS.TRANSLATE_SHAPE_TOOL:
+        elif self.variables.active_tool == TOOLS.TRANSLATE_SHAPE_TOOL:
             self.variables.translate_anchor_point_xy = event.x, event.y
             self.variables.tmp_anchor_point = event.x, event.y
-        elif self.variables.current_tool == TOOLS.EDIT_SHAPE_COORDS_TOOL:
+        elif self.variables.active_tool == TOOLS.EDIT_SHAPE_COORDS_TOOL:
             closest_coord_index = self.find_closest_shape_coord(self.variables.current_shape_id, event.x, event.y)
             self.variables.tmp_closest_coord_index = closest_coord_index
-        elif self.variables.current_tool == TOOLS.SELECT_CLOSEST_SHAPE_TOOL:
+        elif self.variables.active_tool == TOOLS.SELECT_CLOSEST_SHAPE_TOOL:
             closest_shape_id = self.find_closest_shape(event.x, event.y)
             self.variables.current_shape_id = closest_shape_id
             self.highlight_existing_shape(self.variables.current_shape_id)
@@ -294,24 +299,24 @@ class ImageCanvas(tkinter.LabelFrame):
 
             if self.variables.current_shape_id not in self.variables.shape_ids:
                 coords = (start_x, start_y, start_x + 1, start_y + 1)
-                if self.variables.current_tool == TOOLS.DRAW_LINE_BY_DRAGGING:
+                if self.variables.active_tool == TOOLS.DRAW_LINE_BY_DRAGGING:
                     self.create_new_line(coords)
-                elif self.variables.current_tool == TOOLS.DRAW_LINE_BY_CLICKING:
+                elif self.variables.active_tool == TOOLS.DRAW_LINE_BY_CLICKING:
                     self.create_new_line(coords)
                     self.variables.actively_drawing_shape = True
-                elif self.variables.current_tool == TOOLS.DRAW_ARROW_BY_DRAGGING:
+                elif self.variables.active_tool == TOOLS.DRAW_ARROW_BY_DRAGGING:
                     self.create_new_arrow(coords)
-                elif self.variables.current_tool == TOOLS.DRAW_ARROW_BY_CLICKING:
+                elif self.variables.active_tool == TOOLS.DRAW_ARROW_BY_CLICKING:
                     self.create_new_arrow(coords)
                     self.variables.actively_drawing_shape = True
-                elif self.variables.current_tool == TOOLS.DRAW_RECT_BY_DRAGGING:
+                elif self.variables.active_tool == TOOLS.DRAW_RECT_BY_DRAGGING:
                     self.create_new_rect(coords)
-                elif self.variables.current_tool == TOOLS.DRAW_RECT_BY_CLICKING:
+                elif self.variables.active_tool == TOOLS.DRAW_RECT_BY_CLICKING:
                     self.create_new_rect(coords)
                     self.variables.actively_drawing_shape = True
-                elif self.variables.current_tool == TOOLS.DRAW_POINT_BY_CLICKING:
+                elif self.variables.active_tool == TOOLS.DRAW_POINT_BY_CLICKING:
                     self.create_new_point((start_x, start_y))
-                elif self.variables.current_tool == TOOLS.DRAW_POLYGON_BY_CLICKING:
+                elif self.variables.active_tool == TOOLS.DRAW_POLYGON_BY_CLICKING:
                     self.create_new_polygon(coords)
                     self.variables.actively_drawing_shape = True
                 else:
@@ -321,26 +326,26 @@ class ImageCanvas(tkinter.LabelFrame):
                     if self.get_shape_type(self.variables.current_shape_id) == SHAPE_TYPES.POINT:
                         self.modify_existing_shape_using_canvas_coords(self.variables.current_shape_id,
                                                                        (start_x, start_y))
-                    elif self.variables.current_tool == TOOLS.DRAW_LINE_BY_CLICKING:
+                    elif self.variables.active_tool == TOOLS.DRAW_LINE_BY_CLICKING:
                         self.event_click_line(event)
-                    elif self.variables.current_tool == TOOLS.DRAW_ARROW_BY_CLICKING:
+                    elif self.variables.active_tool == TOOLS.DRAW_ARROW_BY_CLICKING:
                         self.event_click_line(event)
-                    elif self.variables.current_tool == TOOLS.DRAW_POLYGON_BY_CLICKING:
+                    elif self.variables.active_tool == TOOLS.DRAW_POLYGON_BY_CLICKING:
                         self.event_click_polygon(event)
-                    elif self.variables.current_tool == TOOLS.DRAW_RECT_BY_CLICKING:
+                    elif self.variables.active_tool == TOOLS.DRAW_RECT_BY_CLICKING:
                         if self.variables.actively_drawing_shape:
                             self.variables.actively_drawing_shape = False
                         else:
                             self.variables.actively_drawing_shape = True
 
     def callback_handle_left_mouse_release(self, event):
-        if self.variables.current_tool == TOOLS.PAN_TOOL:
+        if self.variables.active_tool == TOOLS.PAN_TOOL:
             self._pan(event)
-        if self.variables.current_tool == TOOLS.ZOOM_IN_TOOL:
+        if self.variables.active_tool == TOOLS.ZOOM_IN_TOOL:
             rect_coords = self.canvas.coords(self.variables.zoom_rect_id)
             self.zoom_to_selection(rect_coords, self.variables.animate_zoom)
             self.hide_shape(self.variables.zoom_rect_id)
-        if self.variables.current_tool == TOOLS.ZOOM_OUT_TOOL:
+        if self.variables.active_tool == TOOLS.ZOOM_OUT_TOOL:
             rect_coords = self.canvas.coords(self.variables.zoom_rect_id)
             x1 = -rect_coords[0]
             x2 = self.canvas_width + rect_coords[2]
@@ -350,41 +355,119 @@ class ImageCanvas(tkinter.LabelFrame):
             self.zoom_to_selection(zoom_rect, self.variables.animate_zoom)
             self.hide_shape(self.variables.zoom_rect_id)
 
+    def callback_handle_mouse_motion(self, event):
+        if self.variables.actively_drawing_shape:
+            if self.variables.active_tool == TOOLS.DRAW_LINE_BY_CLICKING:
+                self.event_drag_multipoint_line(event)
+            elif self.variables.active_tool == TOOLS.DRAW_ARROW_BY_CLICKING:
+                self.event_drag_multipoint_line(event)
+            elif self.variables.active_tool == TOOLS.DRAW_POLYGON_BY_CLICKING:
+                self.event_drag_multipoint_polygon(event)
+            elif self.variables.active_tool == TOOLS.DRAW_RECT_BY_CLICKING:
+                self.event_drag_line(event)
+        elif self.variables.current_tool == TOOLS.EDIT_SHAPE_TOOL:
+            if self.get_shape_type(self.variables.current_shape_id) == SHAPE_TYPES.RECT:
+                select_x1, select_y1, select_x2, select_y2 = self.get_shape_canvas_coords(
+                    self.variables.current_shape_id)
+                select_xul = min(select_x1, select_x2)
+                select_xlr = max(select_x1, select_x2)
+                select_yul = min(select_y1, select_y2)
+                select_ylr = max(select_y1, select_y2)
+
+                distance_to_ul = numpy.sqrt(numpy.square(event.x - select_xul) + numpy.square(event.y - select_yul))
+                distance_to_ur = numpy.sqrt(numpy.square(event.x - select_xlr) + numpy.square(event.y - select_yul))
+                distance_to_lr = numpy.sqrt(numpy.square(event.x - select_xlr) + numpy.square(event.y - select_ylr))
+                distance_to_ll = numpy.sqrt(numpy.square(event.x - select_xul) + numpy.square(event.y - select_ylr))
+
+                if distance_to_ul < self.variables.vertex_selector_pixel_threshold:
+                    self.canvas.config(cursor="top_left_corner")
+                    self.variables.active_tool = TOOLS.EDIT_SHAPE_COORDS_TOOL
+                elif distance_to_ur < self.variables.vertex_selector_pixel_threshold:
+                    self.canvas.config(cursor="top_right_corner")
+                    self.variables.active_tool = TOOLS.EDIT_SHAPE_COORDS_TOOL
+                elif distance_to_lr < self.variables.vertex_selector_pixel_threshold:
+                    self.canvas.config(cursor="bottom_right_corner")
+                    self.variables.active_tool = TOOLS.EDIT_SHAPE_COORDS_TOOL
+                elif distance_to_ll < self.variables.vertex_selector_pixel_threshold:
+                    self.canvas.config(cursor="bottom_left_corner")
+                    self.variables.active_tool = TOOLS.EDIT_SHAPE_COORDS_TOOL
+                elif select_xul < event.x < select_xlr and select_yul < event.y < select_ylr:
+                    self.canvas.config(cursor="fleur")
+                    self.variables.active_tool = TOOLS.TRANSLATE_SHAPE_TOOL
+                else:
+                    self.canvas.config(cursor="arrow")
+                    self.variables.active_tool = None
+
     def callback_handle_left_mouse_motion(self, event):
-        if self.variables.current_tool == TOOLS.PAN_TOOL:
+        if self.variables.active_tool == TOOLS.PAN_TOOL:
             x_dist = event.x - self.variables.tmp_anchor_point[0]
             y_dist = event.y - self.variables.tmp_anchor_point[1]
             self.canvas.move(self.variables.image_id, x_dist, y_dist)
             self.variables.tmp_anchor_point = event.x, event.y
-        elif self.variables.current_tool == TOOLS.TRANSLATE_SHAPE_TOOL:
+        elif self.variables.active_tool == TOOLS.TRANSLATE_SHAPE_TOOL:
             x_dist = event.x - self.variables.tmp_anchor_point[0]
             y_dist = event.y - self.variables.tmp_anchor_point[1]
-            new_x1 = self.get_shape_canvas_coords(self.variables.current_shape_id)[0] + x_dist
-            new_y1 = self.get_shape_canvas_coords(self.variables.current_shape_id)[1] + y_dist
-            new_x2 = self.get_shape_canvas_coords(self.variables.current_shape_id)[2] + x_dist
-            new_y2 = self.get_shape_canvas_coords(self.variables.current_shape_id)[3] + y_dist
+            new_x1 = min(self.get_shape_canvas_coords(self.variables.current_shape_id)[0] + x_dist,
+                         self.get_shape_canvas_coords(self.variables.current_shape_id)[2] + x_dist)
+            new_x2 = max(self.get_shape_canvas_coords(self.variables.current_shape_id)[0] + x_dist,
+                         self.get_shape_canvas_coords(self.variables.current_shape_id)[2] + x_dist)
+            new_y1 = min(self.get_shape_canvas_coords(self.variables.current_shape_id)[1] + y_dist,
+                         self.get_shape_canvas_coords(self.variables.current_shape_id)[3] + y_dist)
+            new_y2 = max(self.get_shape_canvas_coords(self.variables.current_shape_id)[1] + y_dist,
+                         self.get_shape_canvas_coords(self.variables.current_shape_id)[3] + y_dist)
+            width = new_x2 - new_x1
+            height = new_y2 - new_y1
+
+            if str(self.variables.current_shape_id) in self.variables.shape_drag_xy_limits.keys():
+                drag_x_lim_1, drag_y_lim_1, drag_x_lim_2, drag_y_lim_2 = self.variables.shape_drag_xy_limits[str(self.variables.current_shape_id)]
+                if self.get_shape_type(self.variables.current_shape_id) == SHAPE_TYPES.RECT:
+                    # TODO: refine this so the rect will snap to limits if dragged outside.  Right now it will stay inside the limited area if the mouse events move too fast.
+                    if new_x1 < drag_x_lim_1:
+                        new_x1 = drag_x_lim_1
+                        new_x2 = new_x1 + width
+                    if new_x2 > drag_x_lim_2:
+                        new_x2 = drag_x_lim_2
+                        new_x1 = new_x2 - width
+                    if new_y1 < drag_y_lim_1:
+                        new_y1 = drag_y_lim_1
+                        new_y2 = new_y1 + height
+                    if new_y2 > drag_y_lim_2:
+                        new_y2 = drag_y_lim_2
+                        new_y1 = new_y2 - height
             self.modify_existing_shape_using_canvas_coords(self.variables.current_shape_id, (new_x1, new_y1, new_x2, new_y2), update_pixel_coords=True)
             self.variables.tmp_anchor_point = event.x, event.y
-        elif self.variables.current_tool == TOOLS.EDIT_SHAPE_COORDS_TOOL:
+        elif self.variables.active_tool == TOOLS.EDIT_SHAPE_COORDS_TOOL:
             previous_coords = self.get_shape_canvas_coords(self.variables.current_shape_id)
             coord_x_index = self.variables.tmp_closest_coord_index*2
+            coord_y_index = coord_x_index + 1
             new_coords = list(previous_coords)
             new_coords[coord_x_index] = event.x
-            new_coords[coord_x_index + 1] = event.y
+            new_coords[coord_y_index] = event.y
+            if str(self.variables.current_shape_id) in self.variables.shape_drag_xy_limits.keys():
+                drag_x_lim_1, drag_y_lim_1, drag_x_lim_2, drag_y_lim_2 = self.variables.shape_drag_xy_limits[str(self.variables.current_shape_id)]
+                if new_coords[coord_x_index] < drag_x_lim_1:
+                    new_coords[coord_x_index] = drag_x_lim_1
+                if new_coords[coord_x_index] > drag_x_lim_2:
+                    new_coords[coord_x_index] = drag_x_lim_2
+                if new_coords[coord_y_index] < drag_y_lim_1:
+                    new_coords[coord_y_index] = drag_y_lim_1
+                if new_coords[coord_y_index] > drag_y_lim_2:
+                    new_coords[coord_y_index] = drag_y_lim_2
+
             self.modify_existing_shape_using_canvas_coords(self.variables.current_shape_id, tuple(new_coords))
-        elif self.variables.current_tool == TOOLS.ZOOM_IN_TOOL:
+        elif self.variables.active_tool == TOOLS.ZOOM_IN_TOOL:
             self.event_drag_line(event)
-        elif self.variables.current_tool == TOOLS.ZOOM_OUT_TOOL:
+        elif self.variables.active_tool == TOOLS.ZOOM_OUT_TOOL:
             self.event_drag_line(event)
-        elif self.variables.current_tool == TOOLS.SELECT_TOOL:
+        elif self.variables.active_tool == TOOLS.SELECT_TOOL:
             self.event_drag_line(event)
-        elif self.variables.current_tool == TOOLS.DRAW_RECT_BY_DRAGGING:
+        elif self.variables.active_tool == TOOLS.DRAW_RECT_BY_DRAGGING:
             self.event_drag_line(event)
-        elif self.variables.current_tool == TOOLS.DRAW_LINE_BY_DRAGGING:
+        elif self.variables.active_tool == TOOLS.DRAW_LINE_BY_DRAGGING:
             self.event_drag_line(event)
-        elif self.variables.current_tool == TOOLS.DRAW_ARROW_BY_DRAGGING:
+        elif self.variables.active_tool == TOOLS.DRAW_ARROW_BY_DRAGGING:
             self.event_drag_line(event)
-        elif self.variables.current_tool == TOOLS.DRAW_POINT_BY_CLICKING:
+        elif self.variables.active_tool == TOOLS.DRAW_POINT_BY_CLICKING:
             self.modify_existing_shape_using_canvas_coords(self.variables.current_shape_id, (event.x, event.y))
 
     def highlight_existing_shape(self, shape_id):
@@ -392,36 +475,25 @@ class ImageCanvas(tkinter.LabelFrame):
         colors = color_utils.get_full_hex_palette(self.variables.highlight_color_palette, self.variables.highlight_n_colors_cycle)
         for color in colors:
             self.change_shape_color(shape_id, color)
-            time.sleep(0.01)
+            time.sleep(0.001)
             self.canvas.update()
         colors.reverse()
         for color in colors:
             self.change_shape_color(shape_id, color)
-            time.sleep(0.01)
+            time.sleep(0.001)
             self.canvas.update()
         self.change_shape_color(shape_id, original_color)
 
     def callback_handle_right_mouse_click(self, event):
-        if self.variables.current_tool == TOOLS.DRAW_LINE_BY_CLICKING:
+        if self.variables.active_tool == TOOLS.DRAW_LINE_BY_CLICKING:
             self.variables.actively_drawing_shape = False
-        elif self.variables.current_tool == TOOLS.DRAW_ARROW_BY_CLICKING:
+        elif self.variables.active_tool == TOOLS.DRAW_ARROW_BY_CLICKING:
             self.variables.actively_drawing_shape = False
-        elif self.variables.current_tool == TOOLS.DRAW_POLYGON_BY_CLICKING:
+        elif self.variables.active_tool == TOOLS.DRAW_POLYGON_BY_CLICKING:
             self.variables.actively_drawing_shape = False
-
-    def callback_handle_mouse_motion(self, event):
-        if self.variables.actively_drawing_shape:
-            if self.variables.current_tool == TOOLS.DRAW_LINE_BY_CLICKING:
-                self.event_drag_multipoint_line(event)
-            elif self.variables.current_tool == TOOLS.DRAW_ARROW_BY_CLICKING:
-                self.event_drag_multipoint_line(event)
-            elif self.variables.current_tool == TOOLS.DRAW_POLYGON_BY_CLICKING:
-                self.event_drag_multipoint_polygon(event)
-            elif self.variables.current_tool == TOOLS.DRAW_RECT_BY_CLICKING:
-                self.event_drag_line(event)
 
     def set_image_from_numpy_array(self,
-                                   numpy_data,                      # type: np.ndarray
+                                   numpy_data,                      # type: numpy.ndarray
                                    ):
         """
         This is the default way to set and display image data.  All other methods to update images should
@@ -432,7 +504,7 @@ class ImageCanvas(tkinter.LabelFrame):
             numpy_data = numpy_data - numpy_data.min()
             numpy_data = numpy_data / dynamic_range
             numpy_data = numpy_data * 255
-            numpy_data = np.asanyarray(numpy_data, dtype=np.int8)
+            numpy_data = numpy.asanyarray(numpy_data, dtype=numpy.int8)
         pil_image = PIL.Image.fromarray(numpy_data)
         self._set_image_from_pil_image(pil_image)
 
@@ -461,6 +533,14 @@ class ImageCanvas(tkinter.LabelFrame):
         if update_pixel_coords:
             self.set_shape_pixel_coords_from_canvas_coords(shape_id)
 
+    def modify_existing_shape_using_image_coords(self,
+                                                  shape_id,  # type: int
+                                                  image_coords,  # type: tuple
+                                                  ):
+        self.set_shape_pixel_coords(shape_id, image_coords)
+        canvas_coords = self.image_coords_to_canvas_coords(shape_id)
+        self.modify_existing_shape_using_canvas_coords(shape_id, canvas_coords, update_pixel_coords=False)
+
     def event_drag_multipoint_line(self, event):
         if self.variables.current_shape_id:
             self.show_shape(self.variables.current_shape_id)
@@ -485,6 +565,13 @@ class ImageCanvas(tkinter.LabelFrame):
             pass
 
     def event_drag_line(self, event):
+        if self.variables.current_shape_id:
+            self.show_shape(self.variables.current_shape_id)
+            event_x_pos = self.canvas.canvasx(event.x)
+            event_y_pos = self.canvas.canvasy(event.y)
+            self.modify_existing_shape_using_canvas_coords(self.variables.current_shape_id, (self.variables.current_shape_canvas_anchor_point_xy[0], self.variables.current_shape_canvas_anchor_point_xy[1], event_x_pos, event_y_pos))
+
+    def event_drag_rect(self, event):
         if self.variables.current_shape_id:
             self.show_shape(self.variables.current_shape_id)
             event_x_pos = self.canvas.canvasx(event.x)
@@ -655,7 +742,7 @@ class ImageCanvas(tkinter.LabelFrame):
         image_coords = self.get_shape_image_coords(shape_id)
         return self.variables.canvas_image_object.full_image_yx_to_canvas_coords(image_coords)
 
-    def get_image_data_in_canvas_rect_by_id(self, rect_id):
+    def get_image_data_in_canvas_rect_by_id(self, rect_id, decimation=None):
         image_coords = self.get_shape_image_coords(rect_id)
         if image_coords[0] > image_coords[2]:
             tmp = image_coords[0]
@@ -665,8 +752,9 @@ class ImageCanvas(tkinter.LabelFrame):
             tmp = image_coords[1]
             image_coords[1] = image_coords[3]
             image_coords[3] = tmp
-        decimation_factor = self.variables.canvas_image_object.get_decimation_factor_from_full_image_rect(image_coords)
-        image_data_in_rect = self.variables.canvas_image_object.get_decimated_image_data_in_full_image_rect(image_coords, decimation_factor)
+        if decimation is None:
+            decimation = self.variables.canvas_image_object.get_decimation_factor_from_full_image_rect(image_coords)
+        image_data_in_rect = self.variables.canvas_image_object.get_decimated_image_data_in_full_image_rect(image_coords, decimation)
         return image_data_in_rect
 
     def zoom_to_selection(self, canvas_rect, animate=False):
@@ -763,67 +851,90 @@ class ImageCanvas(tkinter.LabelFrame):
                 self.modify_existing_shape_using_canvas_coords(shape_id, new_canvas_coords, update_pixel_coords=False)
 
     def set_current_tool_to_select_closest_shape(self):
+        self.variables.active_tool = TOOLS.SELECT_CLOSEST_SHAPE_TOOL
         self.variables.current_tool = TOOLS.SELECT_CLOSEST_SHAPE_TOOL
 
     def set_current_tool_to_zoom_out(self):
         self.variables.current_shape_id = self.variables.zoom_rect_id
+        self.variables.active_tool = TOOLS.ZOOM_OUT_TOOL
         self.variables.current_tool = TOOLS.ZOOM_OUT_TOOL
 
     def set_current_tool_to_zoom_in(self):
         self.variables.current_shape_id = self.variables.zoom_rect_id
+        self.variables.active_tool = TOOLS.ZOOM_IN_TOOL
         self.variables.current_tool = TOOLS.ZOOM_IN_TOOL
 
     def set_current_tool_to_draw_rect(self, rect_id=None):
         self.variables.current_shape_id = rect_id
-        self.variables.current_tool = TOOLS.DRAW_RECT_BY_DRAGGING
         self.show_shape(rect_id)
+        self.variables.active_tool = TOOLS.DRAW_RECT_BY_DRAGGING
+        self.variables.current_tool = TOOLS.DRAW_RECT_BY_DRAGGING
 
     def set_current_tool_to_draw_rect_by_clicking(self, rect_id=None):
         self.variables.current_shape_id = rect_id
-        self.variables.current_tool = TOOLS.DRAW_RECT_BY_CLICKING
         self.show_shape(rect_id)
+        self.variables.active_tool = TOOLS.DRAW_RECT_BY_CLICKING
+        self.variables.current_tool = TOOLS.DRAW_RECT_BY_CLICKING
 
     def set_current_tool_to_selection_tool(self):
         self.variables.current_shape_id = self.variables.select_rect_id
+        self.variables.active_tool = TOOLS.SELECT_TOOL
         self.variables.current_tool = TOOLS.SELECT_TOOL
 
     def set_current_tool_to_draw_line_by_dragging(self, line_id=None):
         self.variables.current_shape_id = line_id
-        self.variables.current_tool = TOOLS.DRAW_LINE_BY_DRAGGING
         self.show_shape(line_id)
+        self.variables.active_tool = TOOLS.DRAW_LINE_BY_DRAGGING
+        self.variables.current_tool = TOOLS.DRAW_LINE_BY_DRAGGING
 
     def set_current_tool_to_draw_line_by_clicking(self, line_id=None):
         self.variables.current_shape_id = line_id
-        self.variables.current_tool = TOOLS.DRAW_LINE_BY_CLICKING
         self.show_shape(line_id)
+        self.variables.active_tool = TOOLS.DRAW_LINE_BY_CLICKING
+        self.variables.current_tool = TOOLS.DRAW_LINE_BY_CLICKING
 
     def set_current_tool_to_draw_arrow_by_dragging(self, arrow_id=None):
         self.variables.current_shape_id = arrow_id
-        self.variables.current_tool = TOOLS.DRAW_ARROW_BY_DRAGGING
         self.show_shape(arrow_id)
+        self.variables.active_tool = TOOLS.DRAW_ARROW_BY_DRAGGING
+        self.variables.current_tool = TOOLS.DRAW_ARROW_BY_DRAGGING
 
     def set_current_tool_to_draw_arrow_by_clicking(self, line_id=None):
         self.variables.current_shape_id = line_id
-        self.variables.current_tool = TOOLS.DRAW_ARROW_BY_CLICKING
         self.show_shape(line_id)
+        self.variables.active_tool = TOOLS.DRAW_ARROW_BY_CLICKING
+        self.variables.current_tool = TOOLS.DRAW_ARROW_BY_CLICKING
 
     def set_current_tool_to_draw_polygon_by_clicking(self, polygon_id=None):
         self.variables.current_shape_id = polygon_id
-        self.variables.current_tool = TOOLS.DRAW_POLYGON_BY_CLICKING
         self.show_shape(polygon_id)
+        self.variables.active_tool = TOOLS.DRAW_POLYGON_BY_CLICKING
+        self.variables.current_tool = TOOLS.DRAW_POLYGON_BY_CLICKING
 
     def set_current_tool_to_draw_point(self, point_id=None):
         self.variables.current_shape_id = point_id
-        self.variables.current_tool = TOOLS.DRAW_POINT_BY_CLICKING
         self.show_shape(point_id)
+        self.variables.active_tool = TOOLS.DRAW_POINT_BY_CLICKING
+        self.variables.current_tool = TOOLS.DRAW_POINT_BY_CLICKING
 
     def set_current_tool_to_translate_shape(self):
+        self.variables.active_tool = TOOLS.TRANSLATE_SHAPE_TOOL
         self.variables.current_tool = TOOLS.TRANSLATE_SHAPE_TOOL
 
-    def set_current_tool_to_edite_shape(self):
+    def set_current_tool_to_none(self):
+        self.variables.active_tool = None
+        self.variables.current_tool = None
+
+    def set_current_tool_to_edit_shape(self):
+        self.variables.active_tool = TOOLS.EDIT_SHAPE_TOOL
+        self.variables.current_tool = TOOLS.EDIT_SHAPE_TOOL
+
+    def set_current_tool_to_edit_shape_coords(self):
+        self.variables.active_tool = TOOLS.EDIT_SHAPE_COORDS_TOOL
         self.variables.current_tool = TOOLS.EDIT_SHAPE_COORDS_TOOL
 
     def set_current_tool_to_pan(self):
+        self.variables.active_tool = TOOLS.PAN_TOOL
         self.variables.current_tool = TOOLS.PAN_TOOL
 
     def _set_image_from_pil_image(self, pil_image):
@@ -929,16 +1040,51 @@ class ImageCanvas(tkinter.LabelFrame):
                                  canvas_x,          # type: int
                                  canvas_y,          # type: int
                                  ):                 # type: (...) -> int
+        shape_type = self.get_shape_type(self.variables.current_shape_id)
         coords = self.get_shape_canvas_coords(shape_id)
+        if shape_type == SHAPE_TYPES.RECT:
+            select_x1, select_y1, select_x2, select_y2 = coords
+            select_xul = min(select_x1, select_x2)
+            select_xlr = max(select_x1, select_x2)
+            select_yul = min(select_y1, select_y2)
+            select_ylr = max(select_y1, select_y2)
+
+            ul = (select_xul, select_yul)
+            ur = (select_xlr, select_yul)
+            lr = (select_xlr, select_ylr)
+            ll = (select_xul, select_ylr)
+
+            rect_coords = [(select_x1, select_y1), (select_x2, select_y2)]
+
+            all_coords = [ul, ur, lr, ll]
+
+            squared_distances = []
+            for corner_coord in all_coords:
+                coord_x, coord_y = corner_coord
+                d = (coord_x - canvas_x)**2 + (coord_y - canvas_y)**2
+                squared_distances.append(d)
+            closest_coord_index = numpy.where(squared_distances == numpy.min(squared_distances))[0][0]
+            closest_coord = all_coords[closest_coord_index]
+            if closest_coord not in rect_coords:
+                if closest_coord == ul:
+                    self.modify_existing_shape_using_canvas_coords(self.variables.current_shape_id, (ul[0], ul[1], lr[0], lr[1]))
+                if closest_coord == ur:
+                    self.modify_existing_shape_using_canvas_coords(self.variables.current_shape_id, (ur[0], ur[1], ll[0], ll[1]))
+                if closest_coord == lr:
+                    self.modify_existing_shape_using_canvas_coords(self.variables.current_shape_id, (ul[0], ul[1], lr[0], lr[1]))
+                if closest_coord == ll:
+                    self.modify_existing_shape_using_canvas_coords(self.variables.current_shape_id, (ll[0], ll[1], ur[0], ur[1]))
+
+            coords = self.get_shape_canvas_coords(shape_id)
+
         squared_distances = []
-        coord_indices = np.arange(0, len(coords), step=2)
+        coord_indices = numpy.arange(0, len(coords), step=2)
         for i in coord_indices:
             coord_x, coord_y = coords[i], coords[i+1]
             d = (coord_x - canvas_x)**2 + (coord_y - canvas_y)**2
             squared_distances.append(d)
-        closest_coord_index = np.where(squared_distances == np.min(squared_distances))[0][0]
+        closest_coord_index = numpy.where(squared_distances == numpy.min(squared_distances))[0][0]
         return closest_coord_index
-
 
     # TODO: improve this.  Right now it finds closest shape just based on distance to corners.  Improvements should
     # TODO: include finding a closest point if the x/y coordinate is inside a polygon, and also finding closest
@@ -951,19 +1097,19 @@ class ImageCanvas(tkinter.LabelFrame):
         for shape_id in non_tool_shape_ids:
             coords = self.get_shape_canvas_coords(shape_id)
             squared_distances = []
-            coord_indices = np.arange(0, len(coords), step=2)
+            coord_indices = numpy.arange(0, len(coords), step=2)
             for i in coord_indices:
                 coord_x, coord_y = coords[i], coords[i + 1]
                 d = (coord_x - canvas_x) ** 2 + (coord_y - canvas_y) ** 2
                 squared_distances.append(d)
-            closest_distances.append(np.min(squared_distances))
-        closest_shape_id = non_tool_shape_ids[np.where(closest_distances == np.min(closest_distances))[0][0]]
+            closest_distances.append(numpy.min(squared_distances))
+        closest_shape_id = non_tool_shape_ids[numpy.where(closest_distances == numpy.min(closest_distances))[0][0]]
         return closest_shape_id
 
     def get_non_tool_shape_ids(self):
         all_shape_ids = self.variables.shape_ids
         tool_shape_ids = self.get_tool_shape_ids()
-        return list(np.setdiff1d(all_shape_ids, tool_shape_ids))
+        return list(numpy.setdiff1d(all_shape_ids, tool_shape_ids))
 
     def get_tool_shape_ids(self):
         tool_shape_ids = [self.variables.zoom_rect_id,

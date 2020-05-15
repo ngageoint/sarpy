@@ -48,7 +48,7 @@ class AbstractWidgetPanel(tkinter.LabelFrame):
                 n_widgets_per_row.append(n_widgets_left)
             n_widgets_left -= n_columns
         self.init_w_basic_widget_list(basic_widget_list, n_rows, n_widgets_per_row)
-        for i, widget in enumerate(basic_widget_list):
+        for i, widget in enumerate(self._widget_list):
             column_num = np.mod(i, n_columns)
             row_num = int(i/n_columns)
             if column_widths is not None and isinstance(column_widths, type(1)):
@@ -90,13 +90,24 @@ class AbstractWidgetPanel(tkinter.LabelFrame):
             print(widget)
             if i in transitions:
                 row_num += 1
-            setattr(self, widget, getattr(self, widget)(self.rows[row_num]))
+            old_widget = None
+            if not hasattr(self, widget):
+                old_widget = widget
+                widget = widget + "_" + str(i)
+                setattr(self, widget, tkinter.Label(self.rows[row_num]))
+            else:
+                setattr(self, widget, getattr(self, widget)(self.rows[row_num]))
             getattr(self, widget).pack(side="left", padx=5, pady=5)
             if getattr(self, widget).widgetName in NO_TEXT_UPDATE_WIDGETS:
                 pass
             else:
                 getattr(self, widget).config(text=widget.replace("_", " "))
+            if old_widget is not None:
+                getattr(self, widget).config(text=widget.replace("_", " ")[0:-2])
             self._widget_list.append(widget)
+
+    def set_text_formatting(self, formatting_list):
+        pass
 
     def set_spacing_between_buttons(self, spacing_npix_x=0, spacing_npix_y=None):
         if spacing_npix_y is None:

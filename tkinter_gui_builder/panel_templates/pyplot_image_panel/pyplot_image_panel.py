@@ -12,7 +12,7 @@ class PyplotImagePanel(tkinter.LabelFrame):
         self.config(borderwidth=5)
 
         # this is a dummy placeholder for now
-        self.image_data = np.zeros((200, 200))
+        self.image_data = np.zeros((canvas_height, canvas_width))
 
         # default dpi is 100, so npix will be 100 times the numbers passed to figsize
         fig = plt.figure(figsize=(canvas_width/100, canvas_height/100))

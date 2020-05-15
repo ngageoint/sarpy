@@ -14,6 +14,7 @@ class ToolConstants:
     PAN_TOOL = "pan tool"
     TRANSLATE_SHAPE_TOOL = "translate shape tool"
     EDIT_SHAPE_COORDS_TOOL = "edit shape coords tool"
+    EDIT_SHAPE_TOOL = "edit shape tool"
 
 
 class ShapePropertyConstants:

@@ -2,12 +2,14 @@ from numpy import ndarray
 from typing import Union
 import PIL.Image
 import numpy as np
+from sarpy.io.complex.base import BaseReader
 
 
 class AbstractCanvasImage(object):
     canvas_decimated_image = None  # type: ndarray
     display_image = None  # type: ndarray
     fname = None  # type: str
+    reader_object = None    # type: BaseReader
     decimation_factor = 1  # type: int
     display_rescaling_factor = 1  # type: float
     full_image_nx = None  # type: int
@@ -28,6 +30,7 @@ class AbstractCanvasImage(object):
                                         canvas_ny,      # type: int
                                         canvas_nx,      # type: int
                                         scale_to_fit_canvas=True,        # type: bool
+                                        reader_object=None              # type: BaseReader
                                         ):
         """
         All subclassed methods of this should set an image reader object, self.canvas_ny, and self.canvas_nx, then call this
