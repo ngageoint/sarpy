@@ -2,10 +2,10 @@ import tkinter
 from sarpy_gui_apps.apps.wake_tool.panels.side_panel import SidePanel
 from tkinter_gui_builder.panel_templates.image_canvas.image_canvas import ImageCanvas
 import tkinter.colorchooser as colorchooser
-from sarpy_gui_apps.supporting_classes.sarpy_canvas_image import SarpyCanvasDisplayImage
 from tkinter_gui_builder.panel_templates.widget_panel.widget_panel import AbstractWidgetPanel
 import sarpy.geometry.point_projection as point_projection
 import sarpy.geometry.geocoords as geocoords
+from sarpy_gui_apps.supporting_classes.sicd_image_reader import SicdImageReader
 import numpy as np
 import math
 
@@ -39,7 +39,6 @@ class WakeTool(AbstractWidgetPanel):
         self.variables = AppVariables()
 
         self.side_panel.set_spacing_between_buttons(0)
-        self.image_canvas.variables.canvas_image_object = SarpyCanvasDisplayImage()     # type: SarpyCanvasDisplayImage
         self.image_canvas.set_canvas_size(600, 400)
 
         # need to pack both master frame and self, since this is the main app window.
@@ -64,7 +63,8 @@ class WakeTool(AbstractWidgetPanel):
         self.side_panel.file_selector.event_select_file(event)
         if self.side_panel.file_selector.fname:
             self.variables.image_fname = self.side_panel.file_selector.fname
-        self.image_canvas.init_with_fname(self.variables.image_fname)
+        reader = SicdImageReader(self.variables.image_fname)
+        self.image_canvas.set_image_reader(reader)
 
     def callback_press_line_button(self, event):
         self.side_panel.buttons.set_active_button(self.side_panel.buttons.line_draw)

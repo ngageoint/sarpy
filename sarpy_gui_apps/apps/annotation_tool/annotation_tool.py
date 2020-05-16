@@ -16,6 +16,8 @@ from sarpy.annotation.annotate import FileAnnotationCollection
 from sarpy.annotation.annotate import Annotation
 from sarpy.annotation.annotate import LabelSchema
 
+from sarpy_gui_apps.supporting_classes.sicd_image_reader import SicdImageReader
+
 
 class AnnotationTool(AbstractWidgetPanel):
     context_panel = ContextImagePanel
@@ -68,9 +70,10 @@ class AnnotationTool(AbstractWidgetPanel):
         self.context_panel.context_dashboard.file_selector.event_select_file(event)
         if self.context_panel.context_dashboard.file_selector.fname:
             self.variables.image_fname = self.context_panel.context_dashboard.file_selector.fname
-            self.context_panel.image_canvas.init_with_fname(self.variables.image_fname)
+            image_reader = SicdImageReader(self.variables.image_fname)
+            self.context_panel.image_canvas.set_image_reader(image_reader)
             self.update_context_decimation_value()
-            self.annotate_panel.image_canvas.init_with_fname(self.variables.image_fname)
+            self.annotate_panel.image_canvas.set_image_reader(image_reader)
             self.variables.annotate_canvas = self.annotate_panel.image_canvas
             self.context_panel.context_dashboard.annotation_selector.activate_all_buttons()
 

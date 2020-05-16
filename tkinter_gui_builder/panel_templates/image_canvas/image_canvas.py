@@ -980,14 +980,14 @@ class ImageCanvas(tkinter.LabelFrame):
         if image_x_ul < 0:
             new_canvas_x_ul = 0
             new_canvas_x_br = self.canvas_width
-        if image_y_br > self.variables.canvas_image_object.full_image_ny:
-            image_y_br = self.variables.canvas_image_object.full_image_ny
+        if image_y_br > self.variables.canvas_image_object.image_reader.full_image_ny:
+            image_y_br = self.variables.canvas_image_object.image_reader.full_image_ny
             new_canvas_x_br, new_canvas_y_br = self.variables.canvas_image_object.full_image_yx_to_canvas_coords(
                 (image_y_br, image_x_br))
             new_canvas_x_ul, new_canvas_y_ul = int(new_canvas_x_br - self.canvas_width), int(
                 new_canvas_y_br - self.canvas_height)
-        if image_x_br > self.variables.canvas_image_object.full_image_nx:
-            image_x_br = self.variables.canvas_image_object.full_image_nx
+        if image_x_br > self.variables.canvas_image_object.image_reader.full_image_nx:
+            image_x_br = self.variables.canvas_image_object.image_reader.full_image_nx
             new_canvas_x_br, new_canvas_y_br = self.variables.canvas_image_object.full_image_yx_to_canvas_coords(
                 (image_y_br, image_x_br))
             new_canvas_x_ul, new_canvas_y_ul = int(new_canvas_x_br - self.canvas_width), int(

@@ -1,5 +1,4 @@
 from sarpy_gui_apps.apps.annotation_tool.panels.annotate_image_panel.annotate_dashboard.annotate_dashboard import AnnotateDash
-from sarpy_gui_apps.supporting_classes.sarpy_canvas_image import SarpyCanvasDisplayImage
 from tkinter_gui_builder.panel_templates.image_canvas.image_canvas import ImageCanvas
 from tkinter_gui_builder.panel_templates.widget_panel.widget_panel import AbstractWidgetPanel
 
@@ -23,5 +22,4 @@ class AnnotateImagePanel(AbstractWidgetPanel):
         self.init_w_vertical_layout(widgets_list)
 
         self.annotate_dashboard.set_spacing_between_buttons(0)
-        self.image_canvas.variables.canvas_image_object = SarpyCanvasDisplayImage()
         self.image_canvas.set_canvas_size(600, 400)
