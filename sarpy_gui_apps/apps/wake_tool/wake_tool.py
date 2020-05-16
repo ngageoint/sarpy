@@ -13,7 +13,7 @@ import math
 class AppVariables:
     def __init__(self):
         self.image_fname = "None"       # type: str
-        self.sicd_metadata = None
+        self.image_reader = None        # type: SicdImageReader
         self.current_tool_selection = None      # type: str
 
         self.arrow_id = None             # type: int
@@ -63,8 +63,8 @@ class WakeTool(AbstractWidgetPanel):
         self.side_panel.file_selector.event_select_file(event)
         if self.side_panel.file_selector.fname:
             self.variables.image_fname = self.side_panel.file_selector.fname
-        reader = SicdImageReader(self.variables.image_fname)
-        self.image_canvas.set_image_reader(reader)
+        self.variables.image_reader = SicdImageReader(self.variables.image_fname)
+        self.image_canvas.set_image_reader(self.variables.image_reader)
 
     def callback_press_line_button(self, event):
         self.side_panel.buttons.set_active_button(self.side_panel.buttons.line_draw)
@@ -132,7 +132,7 @@ class WakeTool(AbstractWidgetPanel):
 
     def calculate_wake_distance(self):
         horizontal_line_image_coords = self.image_canvas.canvas_shape_coords_to_image_coords(self.variables.horizontal_line_id)
-        sicd_meta = self.image_canvas.variables.canvas_image_object.reader_object.sicd_meta
+        sicd_meta = self.variables.image_reader.sicd.sicd_meta
         points = np.asarray(np.reshape(horizontal_line_image_coords, (2, 2)))
         ecf_ground_points = point_projection.image_to_ground(points, sicd_meta)
         geo_ground_point_1 = geocoords.ecf_to_geodetic((ecf_ground_points[0, 0], ecf_ground_points[0, 1], ecf_ground_points[0, 2]))
