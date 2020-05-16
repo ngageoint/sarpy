@@ -838,6 +838,12 @@ class ImageCanvas(tkinter.LabelFrame):
         self.redraw_all_shapes()
         self.variables.the_canvas_is_currently_zooming = False
 
+    def update_current_image(self):
+        rect = (0, 0, self.canvas_width, self.canvas_height)
+        self.variables.canvas_image_object.update_canvas_display_image_from_canvas_rect(rect)
+        self.set_image_from_numpy_array(self.variables.canvas_image_object.display_image)
+        self.canvas.update()
+
     def redraw_all_shapes(self):
         for shape_id in self.variables.shape_ids:
             pixel_coords = self._get_shape_property(shape_id, SHAPE_PROPERTIES.IMAGE_COORDS)

@@ -1,17 +1,20 @@
+import os
+
 import tkinter
 from tkinter.filedialog import askopenfilename
-from sarpy_gui_apps.apps.taser_tool.panels.taser_button_panel import TaserButtonPanel
 from tkinter_gui_builder.panel_templates.pyplot_image_panel.pyplot_image_panel import PyplotImagePanel
 from tkinter_gui_builder.panel_templates.image_canvas.image_canvas import ImageCanvas
-from sarpy_gui_apps.supporting_classes.sarpy_canvas_image import SarpyCanvasDisplayImage
 from tkinter_gui_builder.panel_templates.widget_panel.widget_panel import AbstractWidgetPanel
-import os
+
+from sarpy_gui_apps.apps.taser_tool.panels.taser_button_panel import TaserButtonPanel
+from sarpy_gui_apps.supporting_classes.sicd_image_reader import SicdImageReader
 
 
 class AppVariables:
     def __init__(self):
         self.fname = "None"       # type: str
         self.remap_type = "density"
+        self.image_reader = None     # type: SicdImageReader
 
 
 class Taser(AbstractWidgetPanel):
@@ -29,9 +32,8 @@ class Taser(AbstractWidgetPanel):
 
         # define panels widget_wrappers in master frame
         self.button_panel.set_spacing_between_buttons(0)
-        self.taser_image_panel.variables.canvas_image_object = SarpyCanvasDisplayImage()  # type: SarpyCanvasDisplayImage
+        self.taser_image_panel.variables.canvas_image_object = ImageCanvas  # type: ImageCanvas
         self.taser_image_panel.set_canvas_size(700, 400)
-        self.taser_image_panel.rescale_image_to_fit_canvas = True
 
         # need to pack both master frame and self, since this is the main app window.
         master_frame.pack()
@@ -78,9 +80,9 @@ class Taser(AbstractWidgetPanel):
                       "nrl": "nrl"}
         selection = self.button_panel.remap_dropdown.get()
         remap_type = remap_dict[selection]
-        self.taser_image_panel.variables.canvas_image_object.remap_type = remap_type
+        self.variables.image_reader.remap_type = remap_type
         self.display_canvas_rect_selection_in_pyplot_frame()
-        self.taser_image_panel.zoom_to_selection((0, 0, self.taser_image_panel.canvas_width, self.taser_image_panel.canvas_height), animate=False)
+        self.taser_image_panel.update_current_image()
 
     def callback_initialize_canvas_image(self, event):
         image_file_extensions = ['*.nitf', '*.NITF']
@@ -91,12 +93,12 @@ class Taser(AbstractWidgetPanel):
         new_fname = askopenfilename(initialdir=os.path.expanduser("~"), filetypes=ftypes)
         if new_fname:
             self.variables.fname = new_fname
-            self.taser_image_panel.init_with_fname(self.variables.fname)
+            self.variables.image_reader = SicdImageReader(self.variables.fname)
+            self.taser_image_panel.set_image_reader(self.variables.image_reader)
 
     def display_canvas_rect_selection_in_pyplot_frame(self):
-        complex_data = self.taser_image_panel.get_image_data_in_canvas_rect_by_id(self.taser_image_panel.variables.select_rect_id)
-        remapped_data = self.taser_image_panel.variables.canvas_image_object.remap_complex_data(complex_data)
-        self.pyplot_panel.update_image(remapped_data)
+        image_data = self.taser_image_panel.get_image_data_in_canvas_rect_by_id(self.taser_image_panel.variables.select_rect_id)
+        self.pyplot_panel.update_image(image_data)
 
 
 if __name__ == '__main__':
