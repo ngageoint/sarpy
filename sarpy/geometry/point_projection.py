@@ -79,9 +79,6 @@ def _ground_to_image(coords, coa_proj, uGPN,
     # (3 x 2)*(2 x 2) = (3 x 2)
 
     while cont:
-        # TODO: is there any point in progressively stopping iteration?
-        #  It doesn't really save much computation time.
-        #  I set it to iterate over everything or nothing.
         # project ground plane to image plane iteration
         iteration += 1
         dist_n = numpy.dot(SCP - g_n, uIPN)/sf  # (N, )
@@ -194,6 +191,7 @@ def ground_to_image(coords, sicd, delta_gp_max=None, max_iterations=10, block_si
             coords_view, coa_proj, uGPN,
             SCP, SCP_Pixel, uIPN, sf, row_ss, col_ss, uSPN,
             row_col_transform, ipp_transform, delta_gp_max, max_iterations)
+        iters = numpy.full((num_points, ), iters)
     else:
         image_points = numpy.zeros((num_points, 2), dtype=numpy.float64)
         delta_gpn = numpy.zeros((num_points, ), dtype=numpy.float64)

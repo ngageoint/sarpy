@@ -62,7 +62,7 @@ def is_a(file_name):
         radar_sat_details = RadarSatDetails(file_name)
         print('Path {} is determined to be or contain a RadarSat or RCM product.xml file.'.format(file_name))
         return RadarSatReader(radar_sat_details)
-    except (IOError, AttributeError, ElementTree.ParseError):
+    except (IOError, AttributeError, SyntaxError, ElementTree.ParseError):
         # TODO: what all should we catch?
         return None
 
