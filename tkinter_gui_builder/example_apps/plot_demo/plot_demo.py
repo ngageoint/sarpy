@@ -1,8 +1,7 @@
 import tkinter
 from tkinter_gui_builder.panel_templates.pyplot_panel.PyplotPanel import PyplotPanel
-from sarpy_gui_apps.apps.plot_demo.panels.plot_demo_button_panel import ButtonPanel
+from tkinter_gui_builder.example_apps.plot_demo.panels import ButtonPanel
 from tkinter_gui_builder.panel_templates.widget_panel.widget_panel import AbstractWidgetPanel
-from tkinter_gui_builder.panel_templates.pyplot_panel.pyplot_panel_utils.plot_style_utils import PlotStyleUtils
 import numpy as np
 
 

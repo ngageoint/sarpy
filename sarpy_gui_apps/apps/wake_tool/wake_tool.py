@@ -14,13 +14,11 @@ class AppVariables:
     def __init__(self):
         self.image_fname = "None"       # type: str
         self.image_reader = None        # type: SicdImageReader
-        self.current_tool_selection = None      # type: str
 
         self.arrow_id = None             # type: int
         self.point_id = None            # type: int
         self.horizontal_line_id = None      # type: int
 
-        self.line_color = "red"
         self.line_width = 3
         self.horizontal_line_width = 2
         self.horizontal_line_color = "green"
