@@ -359,7 +359,6 @@ class ImageCanvas(tkinter.LabelFrame):
                 self.event_drag_multipoint_polygon(event)
             elif self.variables.active_tool == TOOLS.DRAW_RECT_BY_CLICKING:
                 self.event_drag_line(event)
-            print("actively drawing")
         elif self.variables.current_tool == TOOLS.EDIT_SHAPE_TOOL:
             if self.get_shape_type(self.variables.current_shape_id) == SHAPE_TYPES.RECT:
                 select_x1, select_y1, select_x2, select_y2 = self.get_shape_canvas_coords(

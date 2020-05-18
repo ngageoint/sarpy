@@ -1,15 +1,17 @@
+import os
+
 import tkinter
 from tkinter.filedialog import askopenfilename
 from sarpy_gui_apps.apps.canvas_demo.panels.canvas_demo_button_panel import CanvasDemoButtonPanel
 from tkinter_gui_builder.panel_templates.pyplot_image_panel.pyplot_image_panel import PyplotImagePanel
-from tkinter_gui_builder.panel_templates.image_canvas.image_canvas import ImageCanvas
 from tkinter_gui_builder.utils.geometry_utils.kml_util import KmlUtil
-from sarpy_gui_apps.supporting_classes.sarpy_canvas_image import SarpyCanvasDisplayImage
+from tkinter_gui_builder.panel_templates.image_canvas.image_canvas import ImageCanvas
 from tkinter_gui_builder.panel_templates.widget_panel.widget_panel import AbstractWidgetPanel
 import sarpy.geometry.point_projection as point_projection
 import sarpy.geometry.geocoords as geocoords
-import os
-import numpy as np
+from sarpy_gui_apps.supporting_classes.sicd_image_reader import SicdImageReader
+
+import numpy
 
 
 class AppVariables:
@@ -35,7 +37,7 @@ class CanvasDemo(AbstractWidgetPanel):
 
         # define panels widget_wrappers in master frame
         self.button_panel.set_spacing_between_buttons(0)
-        self.canvas_demo_image_panel.variables.canvas_image_object = SarpyCanvasDisplayImage()
+        self.canvas_demo_image_panel.variables.canvas_image_object = ImageCanvas
         self.canvas_demo_image_panel.set_canvas_size(700, 400)
         self.canvas_demo_image_panel.rescale_image_to_fit_canvas = True
 
@@ -83,7 +85,7 @@ class CanvasDemo(AbstractWidgetPanel):
             shape_type = self.canvas_demo_image_panel.get_shape_type(shape_id)
             if image_coords:
                 sicd_meta = self.canvas_demo_image_panel.variables.canvas_image_object.reader_object.sicdmeta
-                image_points = np.zeros((int(len(image_coords)/2), 2))
+                image_points = numpy.zeros((int(len(image_coords)/2), 2))
                 image_points[:, 0] = image_coords[0::2]
                 image_points[:, 1] = image_coords[1::2]
 
@@ -195,11 +197,11 @@ class CanvasDemo(AbstractWidgetPanel):
         new_fname = askopenfilename(initialdir=os.path.expanduser("~"), filetypes=ftypes)
         if new_fname:
             self.variables.fname = new_fname
-            self.canvas_demo_image_panel.init_with_fname(self.variables.fname)
+            sicd_reader = SicdImageReader(new_fname)
+            self.canvas_demo_image_panel.set_image_reader(sicd_reader)
 
     def callback_display_canvas_rect_selection_in_pyplot_frame(self, event):
-        complex_data = self.canvas_demo_image_panel.get_image_data_in_canvas_rect_by_id(self.variables.selection_rect_id)
-        remapped_data = self.canvas_demo_image_panel.variables.canvas_image_object.remap_complex_data(complex_data)
+        remapped_data = self.canvas_demo_image_panel.get_image_data_in_canvas_rect_by_id(self.canvas_demo_image_panel.variables.select_rect_id)
         self.pyplot_panel.update_image(remapped_data)
 
 
