@@ -1,6 +1,6 @@
-# This details the important differences introduced in 1.0
-# NB: bump the version number in __about__.py to reflect the below.
+# This details the important differences introduced in sarpy 1.0
 
+* .18 - Bug fix for appropriate error catching during file reading effort
 * .17 - Bug fix for point projection method
 * .16 - Fixing BigTiff error
 * .15 - Introducing suggested name capability for the SICD
