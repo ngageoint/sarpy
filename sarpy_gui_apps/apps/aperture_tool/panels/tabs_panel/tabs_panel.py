@@ -27,7 +27,13 @@ class TabsPanel(AbstractWidgetPanel):
 
     def __init__(self, parent):
         AbstractWidgetPanel.__init__(self, parent)
+        self.parent = parent
         self.config(borderwidth=2)
 
         widget_list = ["tabs"]
         self.init_w_horizontal_layout(widget_list)
+
+        self.parent.protocol("WM_DELETE_WINDOW", self.close_window)
+
+    def close_window(self):
+        self.parent.withdraw()

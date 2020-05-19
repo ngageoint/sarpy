@@ -31,6 +31,7 @@ class PhaseHistoryPanel(AbstractWidgetPanel):
 
     def __init__(self, parent):
         AbstractWidgetPanel.__init__(self, parent)
+        self.parent = parent
         self.config(borderwidth=2)
 
         widget_list = ["", "Cross-Range", "", "Range", "",
@@ -53,3 +54,9 @@ class PhaseHistoryPanel(AbstractWidgetPanel):
 
         self.full_aperture_button.set_text("Full Aperture")
         self.english_units_checkbox.set_text("English Units")
+
+        self.parent.protocol("WM_DELETE_WINDOW", self.close_window)
+
+    def close_window(self):
+        self.parent.withdraw()
+

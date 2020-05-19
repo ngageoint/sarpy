@@ -4,6 +4,7 @@ from scipy.fftpack import fft2, ifft2, fftshift
 
 import tkinter
 from tkinter import filedialog
+from tkinter import Menu
 from tkinter_gui_builder.panel_templates.widget_panel.widget_panel import AbstractWidgetPanel
 from tkinter_gui_builder.utils.image_utils import frame_sequence_utils
 from tkinter_gui_builder.panel_templates.image_canvas.image_canvas import ImageCanvas
@@ -31,20 +32,69 @@ class ApertureTool(AbstractWidgetPanel):
     def __init__(self, master):
         self.app_variables = AppVariables()
 
+        self.master = master
+
         master_frame = tkinter.Frame(master)
         AbstractWidgetPanel.__init__(self, master_frame)
 
-        widgets_list = ["frequency_vs_degree_panel", "filtered_panel", "tabs_panel", "phase_history", "metaicon"]
-        self.init_w_basic_widget_list(widgets_list, n_rows=2, n_widgets_per_row_list=[2, 3])
+        widgets_list = ["frequency_vs_degree_panel", "filtered_panel"]
+        self.init_w_horizontal_layout(widgets_list)
 
         self.frequency_vs_degree_panel.set_canvas_size(600, 400)
         self.filtered_panel.set_canvas_size(600, 400)
 
+        self.frequency_vs_degree_panel.canvas.on_left_mouse_motion(self.callback_frequency_vs_degree_left_mouse_motion)
+
+        self.tabs_popup_panel = tkinter.Toplevel(self.master)
+        self.tabs_panel = TabsPanel(self.tabs_popup_panel)
+        self.tabs_panel.pack()
+        self.tabs_popup_panel.withdraw()
+
+        self.tabs_panel.tabs.load_image_tab.file_selector.select_file.on_left_mouse_click(self.callback_select_file)
+
+        self.ph_popup_panel = tkinter.Toplevel(self.master)
+        self.phase_history = PhaseHistoryPanel(self.ph_popup_panel)
+        self.phase_history.pack()
+        self.ph_popup_panel.withdraw()
+
+        self.metaicon_popup_panel = tkinter.Toplevel(self.master)
+        self.metaicon = MetaIcon(self.metaicon_popup_panel)
+        self.metaicon.set_canvas_size(800, 600)
+        self.metaicon.pack()
+        self.metaicon_popup_panel.withdraw()
+
+        menubar = Menu()
+
+        filemenu = Menu(menubar, tearoff=0)
+        filemenu.add_command(label="Open", command=self.select_file)
+        filemenu.add_separator()
+        filemenu.add_command(label="Exit", command=self.exit)
+
+        # create more pulldown menus
+        popups_menu = Menu(menubar, tearoff=0)
+        popups_menu.add_command(label="Main Controls", command=self.main_controls_popup)
+        popups_menu.add_command(label="Phase History", command=self.ph_popup)
+        popups_menu.add_command(label="Metaicon", command=self.metaicon_popup)
+
+        menubar.add_cascade(label="File", menu=filemenu)
+        menubar.add_cascade(label="Popups", menu=popups_menu)
+
+        master.config(menu=menubar)
+
         master_frame.pack()
         self.pack()
 
-        self.tabs_panel.tabs.load_image_tab.file_selector.select_file.on_left_mouse_click(self.callback_select_file)
-        self.frequency_vs_degree_panel.canvas.on_left_mouse_motion(self.callback_frequency_vs_degree_left_mouse_motion)
+    def exit(self):
+        self.quit()
+
+    def main_controls_popup(self):
+        self.tabs_popup_panel.deiconify()
+
+    def ph_popup(self):
+        self.ph_popup_panel.deiconify()
+
+    def metaicon_popup(self):
+        self.metaicon_popup_panel.deiconify()
 
     def callback_frequency_vs_degree_left_mouse_motion(self, event):
         self.frequency_vs_degree_panel.callback_handle_left_mouse_motion(event)
@@ -53,6 +103,9 @@ class ApertureTool(AbstractWidgetPanel):
         # TODO: don't shrink the selection if the user is moving the selection box
         self.update_filtered_image()
         self.update_phase_history_selection()
+
+    def select_file(self):
+        self.callback_select_file(None)
 
     def callback_select_file(self, event):
         sicd_fname = self.tabs_panel.tabs.load_image_tab.file_selector.event_select_file(event)
@@ -116,8 +169,7 @@ class ApertureTool(AbstractWidgetPanel):
         self.frequency_vs_degree_panel.set_image_reader(NumpyImageReader(filtered_image))
 
     def update_filtered_image(self):
-        filtered_image = self.get_filtered_image()
-        self.filtered_panel.set_image_reader(NumpyImageReader(filtered_image))
+        self.filtered_panel.set_image_reader(NumpyImageReader(self.get_filtered_image()))
 
     def get_filtered_image(self):
         select_rect_id = self.frequency_vs_degree_panel.variables.select_rect_id
@@ -208,9 +260,6 @@ class ApertureTool(AbstractWidgetPanel):
         frame_sequence_utils.save_numpy_frame_sequence_to_animated_gif(frame_sequence, filename, fps)
         self.filtered_panel.image_canvas.modify_existing_shape_using_canvas_coords(select_box_id, start_fft_select_box, update_pixel_coords=True)
         self.filtered_panel.image_canvas.update()
-
-    def callback_update_phase_history(self, event):
-        self.update_phase_history_selection()
 
     def update_phase_history_selection(self):
         image_bounds = self.get_fft_image_bounds()

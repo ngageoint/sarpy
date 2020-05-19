@@ -18,6 +18,7 @@ class MetaIcon(ImageCanvas):
 
     def __init__(self, master):
         super().__init__(master)
+        self.parent = master
         self.fname = None                              # type: str
         self.meta = None           # type: SICDType
         self.layover_color = color_converter.rgb_to_hex([1, 0.65, 0])
@@ -25,6 +26,11 @@ class MetaIcon(ImageCanvas):
         self.multipath_color = color_converter.rgb_to_hex([1, 0, 0])
         self.north_color = color_converter.rgb_to_hex([0.58, 0.82, 0.31])
         self.flight_direction_color = color_converter.rgb_to_hex([1, 1, 0])
+
+        self.parent.protocol("WM_DELETE_WINDOW", self.close_window)
+
+    def close_window(self):
+        self.parent.withdraw()
 
     def create_from_sicd(self,
                          sicd_meta,     # type: SICDType
