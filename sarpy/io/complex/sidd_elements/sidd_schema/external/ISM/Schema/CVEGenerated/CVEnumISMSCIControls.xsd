@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified"
+            xml:lang="en">
+   <xsd:annotation>
+      <xsd:documentation>
+                W3C XML Schema fragment encoding types for Controlled vocabulary encodings CVEnumISMSCIControls. This file is generated so edits should be made to the CVEnumISMSCIControls the CVE it is based on instead of here.
+            </xsd:documentation>
+   </xsd:annotation>
+   <!--*************************************************************-->
+<!--Generated TYPE DEFINITIONS ..................................-->
+<!--*************************************************************-->
+<xsd:simpleType name="CVEnumISMSCIControlsValues">
+      <xsd:annotation>
+         <xsd:documentation>(U) All currently valid SCI controls from the published register
+                    PERMISSIBLE VALUES
+                    
+                    The permissible values for this simple type are defined in the Controlled Value Enumeration:
+                    
+                    CVEnumISMSCIControls.xml
+                    
+                </xsd:documentation>
+      </xsd:annotation>
+      <xsd:union>
+         <xsd:simpleType>
+            <xsd:restriction base="xsd:token">
+               <xsd:pattern value="SI-G-[A-Z][A-Z][A-Z][A-Z]">
+                  <xsd:annotation>
+                     <xsd:documentation>G-AAAA, AAAA represents 4 alpha characters to indicate sub Gamma compartments</xsd:documentation>
+                  </xsd:annotation>
+               </xsd:pattern>
+               <xsd:pattern value="SI-ECI-[A-Z][A-Z][A-Z]">
+                  <xsd:annotation>
+                     <xsd:documentation>ECI-AAA, AAA represents 3 alpha characters to indicate ECI compartments</xsd:documentation>
+                  </xsd:annotation>
+               </xsd:pattern>
+            </xsd:restriction>
+         </xsd:simpleType>
+         <xsd:simpleType>
+            <xsd:restriction base="xsd:token">
+               <xsd:enumeration value="HCS">
+                  <xsd:annotation>
+                     <xsd:documentation>HCS</xsd:documentation>
+                  </xsd:annotation>
+               </xsd:enumeration>
+               <xsd:enumeration value="KDK">
+                  <xsd:annotation>
+                     <xsd:documentation>Klondike</xsd:documentation>
+                  </xsd:annotation>
+               </xsd:enumeration>
+               <xsd:enumeration value="SI">
+                  <xsd:annotation>
+                     <xsd:documentation>COMINT</xsd:documentation>
+                  </xsd:annotation>
+               </xsd:enumeration>
+               <xsd:enumeration value="SI-G">
+                  <xsd:annotation>
+                     <xsd:documentation>SI-GAMMA</xsd:documentation>
+                  </xsd:annotation>
+               </xsd:enumeration>
+               <xsd:enumeration value="TK">
+                  <xsd:annotation>
+                     <xsd:documentation>TALENT KEYHOLE</xsd:documentation>
+                  </xsd:annotation>
+               </xsd:enumeration>
+            </xsd:restriction>
+         </xsd:simpleType>
+      </xsd:union>
+   </xsd:simpleType>
+   <xsd:simpleType name="CVEnumISMSCIControls">
+      <xsd:restriction>
+         <xsd:simpleType>
+            <xsd:list itemType="CVEnumISMSCIControlsValues"/>
+         </xsd:simpleType>
+         <xsd:maxLength value="1000"/>
+      </xsd:restriction>
+   </xsd:simpleType>
+</xsd:schema>

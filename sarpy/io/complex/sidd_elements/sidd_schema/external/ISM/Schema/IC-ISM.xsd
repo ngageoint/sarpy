@@ -1,0 +1,891 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- ****************************************************************
+  INTELLIGENCE COMMUNITY TECHNICAL SPECIFICATION  
+  XML DATA ENCODING SPECIFICATION FOR INFORMATION SECURITY MARKING METADATA (ISM.XML)
+  ****************************************************************
+  Module:   Information Security Markup
+  Date:     2010-06-06
+  Creators: Office of the Director of National Intelligence
+  Intelligence Community Chief Information Officer
+  ******************************************************************* -->
+<!-- **************************************************************** -->
+<!--                            INTRODUCTION                          -->
+<!-- **************************************************************** -->
+<!-- This XML Schema file is one component of the XML Data Encoding 
+  Specification (DES). Please see the document titled 
+  "XML DATA ENCODING SPECIFICATION FOR INFORMATION SECURITY MARKING METADATA" 
+  for a complete description of the encoding as well as list
+  of all components.  
+  
+  It is envisioned that this schema or its components, as well as other
+  parts of the DES may be overridden for localized implementations. 
+  Therefore, permission to use, copy, modify and distribute this XML 
+  Schema and the other parts of the DES for any purpose is hereby 
+  granted in perpetuity.
+  
+  Please reference the preceding two paragraphs in all copies or
+  variations. The developers make no representation about the
+  suitability of the schema or DES for any purpose. It is provided 
+  "as is" without expressed or implied warranty.
+  
+  If you modify this XML Schema in any way label your schema
+  as a variant of ISM.XML. 
+  
+  Please direct all questions, bug reports,or suggestions for changes
+  to the points of contact identified in the document referenced above.
+-->
+<!-- **************************************************************** -->
+<!--
+     This file provides an XML-based schema for specification of metadata
+     for classification and controls markings.  The goal of the IC ISM XML
+     Schema is to provide a common set of XML attributes for implementing
+     security-based metadata throughout the IC. The IC ISM XML Schema
+     provides markup for the tokens that are used to format the CAPCO
+     markings.
+
+     The IC ISM XML Schema may be incorporated into organizational
+     XML-based schemas by (a) declaring the IC ISM namespace and
+     (b) inserting an "import" statement:
+
+        <xsd:schema
+            xmlns="...my namespace name..."
+            targetNamespace="...my namespace name..."
+            xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+            xmlns:ism="urn:us:gov:ic:ism">
+        ...
+        <xsd:import
+            namespace="urn:us:gov:ic:ism
+            schemaLocation="IC-ISM.xsd" />
+
+     IMPLEMENTATION NOTES:
+
+     1. Refer to the XML DATA ENCODING SPECIFICATION FOR INFORMATION SECURITY MARKING METADATA 
+        Data Encoding Specification (ISM.XML DES)
+        for an explanation of the relationships
+        of the IC ISM attributes and the associated controlled vocabularies.
+        The CAPCO Register and CAPCO Implementation Manual provide additional business
+        rules (that may be classified) not provided in this schema or
+        the associated documentation.
+
+     2. The IC ISM attributes are intended to support all CAPCO security
+        markings.  However, the attribute values are NOT intended to be
+        verbatim pieces of portionmarks and banners.  Instead, the values
+        should be interpreted by XSLT stylesheets or other formatting speci-
+        fications to produce the required portionmarks and banners.
+
+     3. The IC ISM schema is not a standalone construct; it should be
+        imported into a parent XML schema.
+
+     4. The controlled vocabularies containing the required values for popu-
+     lating the attributes are described in the ISM.XML DES.
+
+     5. Attribute group "SecurityAttributesGroup" should be referenced
+        in the attribute definition list of any element that REQUIRES
+        security metadata.
+
+     6. Attribute group "SecurityAttributesOptionGroup" may be referenced
+        in the attribute definition list of any element for which
+        security metadata may be appropriate but is not required (such
+        as, an individual cell of a table).
+-->
+<!-- **************************************************************** -->
+<!-- **************************************************************** -->
+<!--                       Formal Change List                         -->
+<!-- **************************************************************** -->
+<!-- The formal change list is at the end of this file.               -->
+<!-- **************************************************************** -->
+<xsd:schema 
+	xmlns:xsd="http://www.w3.org/2001/XMLSchema" 
+	xmlns="urn:us:gov:ic:ism" 
+	xmlns:iccve="urn:us:gov:ic:ism-cvenum"
+	targetNamespace="urn:us:gov:ic:ism" 
+	elementFormDefault="qualified" 
+	xml:lang="en">
+	<xsd:annotation>
+		<xsd:documentation>
+      W3C XML Schema for the Intelligence Community Metadata Standard for Information Security Marking (IC-ISM), which is part of the XML DATA ENCODING SPECIFICATION FOR INFORMATION SECURITY MARKING METADATA.
+          </xsd:documentation>
+	</xsd:annotation>
+	
+	<!-- **************************************************************** -->
+	<!--        IMPORT CVE-Generated schema types                         -->
+	<!-- **************************************************************** -->
+	<xsd:import namespace="urn:us:gov:ic:ism-cvenum" 
+	schemaLocation="./CVEGeneratedTypes.xsd"/>
+
+	<!-- ************************************************************* -->
+	<!-- ATTRIBUTE GROUP DEFINITIONS ................................. -->
+	<!-- ************************************************************* -->
+	<!-- ************************************************************* -->
+	<!-- SecurityAttributesGroup ..................................... -->
+	<!-- ************************************************************* -->
+	<xsd:attributeGroup name="SecurityAttributesGroup">
+		<xsd:annotation>
+			<xsd:documentation xml:lang="en">
+        The group of Information Security Marking attributes in which the use of attributes 'classification' and 'ownerProducer' is required.
+
+        This group is to be contrasted with group 'SecurityAttributesOptionGroup' in which use of those attributes is optional.
+      </xsd:documentation>
+		</xsd:annotation>
+		<xsd:attribute ref="classification" use="required"/>
+		<xsd:attribute ref="ownerProducer" use="required"/>
+		<xsd:attribute ref="SCIcontrols" use="optional"/>
+		<xsd:attribute ref="SARIdentifier" use="optional"/>
+		<xsd:attribute ref="disseminationControls" use="optional"/>
+		<xsd:attribute ref="FGIsourceOpen" use="optional"/>
+		<xsd:attribute ref="FGIsourceProtected" use="optional"/>
+		<xsd:attribute ref="releasableTo" use="optional"/>
+		<xsd:attribute ref="nonICmarkings" use="optional"/>
+		<xsd:attribute ref="classifiedBy" use="optional"/>
+		<xsd:attribute ref="compilationReason" use="optional"/>
+		<xsd:attribute ref="derivativelyClassifiedBy" use="optional"/>
+		<xsd:attribute ref="classificationReason" use="optional"/>
+		<xsd:attribute ref="nonUSControls" use="optional"/>
+		<xsd:attribute ref="derivedFrom" use="optional"/>
+		<xsd:attribute ref="declassDate" use="optional"/>
+		<xsd:attribute ref="declassEvent" use="optional"/>
+		<xsd:attribute ref="declassException" use="optional"/>
+		<xsd:attribute ref="typeOfExemptedSource" use="optional"/>
+		<xsd:attribute ref="dateOfExemptedSource" use="optional"/>
+	</xsd:attributeGroup>
+	<!-- ************************************************************* -->
+	<!-- SecurityAttributesOptionGroup ............................... -->
+	<!-- ************************************************************* -->
+	<xsd:attributeGroup name="SecurityAttributesOptionGroup">
+		<xsd:annotation>
+			<xsd:documentation xml:lang="en">
+        The group of Information Security Marking attributes in which the use of attributes 'classification' and 'ownerProducer' is optional.
+
+        This group is to be contrasted with group 'SecurityAttributesGroup' in which use of these attributes is required.
+      </xsd:documentation>
+		</xsd:annotation>
+		<xsd:attribute ref="classification" use="optional"/>
+		<xsd:attribute ref="ownerProducer" use="optional"/>
+		<xsd:attribute ref="SCIcontrols" use="optional"/>
+		<xsd:attribute ref="SARIdentifier" use="optional"/>
+		<xsd:attribute ref="disseminationControls" use="optional"/>
+		<xsd:attribute ref="FGIsourceOpen" use="optional"/>
+		<xsd:attribute ref="FGIsourceProtected" use="optional"/>
+		<xsd:attribute ref="releasableTo" use="optional"/>
+		<xsd:attribute ref="nonICmarkings" use="optional"/>
+		<xsd:attribute ref="classifiedBy" use="optional"/>
+		<xsd:attribute ref="compilationReason" use="optional"/>
+		<xsd:attribute ref="derivativelyClassifiedBy" use="optional"/>
+		<xsd:attribute ref="classificationReason" use="optional"/>
+		<xsd:attribute ref="nonUSControls" use="optional"/>
+		<xsd:attribute ref="derivedFrom" use="optional"/>
+		<xsd:attribute ref="declassDate" use="optional"/>
+		<xsd:attribute ref="declassEvent" use="optional"/>
+		<xsd:attribute ref="declassException" use="optional"/>
+		<xsd:attribute ref="typeOfExemptedSource" use="optional"/>
+		<xsd:attribute ref="dateOfExemptedSource" use="optional"/>
+	</xsd:attributeGroup>
+	
+	<!-- ************************************************************* -->
+	<!-- NoticeAttributesGroup ..................................... -->
+	<!-- ************************************************************* -->
+	<xsd:attributeGroup name="NoticeAttributesGroup">
+		<xsd:annotation>
+			<xsd:documentation xml:lang="en">
+				The group of Information Security Marking attributes for use on a notice element in which the use of attributes 'classification' and 'ownerProducer' is required.
+			</xsd:documentation>
+		</xsd:annotation>
+		<xsd:attribute ref="notice" use="optional"/>
+		<xsd:attribute ref="noticePOC" use="optional"/>
+		<xsd:attribute ref="noticeReason" use="optional"/>
+		<xsd:attribute ref="noticeDate" use="optional"/>
+		<xsd:attributeGroup ref="SecurityAttributesGroup"/>
+	</xsd:attributeGroup>
+	
+	<!-- ************************************************************* -->
+	<!-- NoticeAttributesOptionGroup ..................................... -->
+	<!-- ************************************************************* -->
+	<xsd:attributeGroup name="NoticeAttributesOptionGroup">
+		<xsd:annotation>
+			<xsd:documentation xml:lang="en">
+				The group of Information Security Marking attributes for use on a notice element in which the use of Security on the notice is optional.
+			</xsd:documentation>
+		</xsd:annotation>
+		<xsd:attribute ref="notice" use="optional"/>
+		<xsd:attribute ref="noticePOC" use="optional"/>
+		<xsd:attribute ref="noticeReason" use="optional"/>
+		<xsd:attribute ref="noticeDate" use="optional"/>
+		<xsd:attributeGroup ref="SecurityAttributesOptionGroup"/>
+	</xsd:attributeGroup>
+	
+	<!-- ************************************************************* -->
+	<!-- GLOBAL ATTRIBUTE DECLARATIONS ............................... -->
+	<!-- ************************************************************* -->
+	<xsd:attribute name="classification" type="iccve:CVEnumISMClassificationAll">
+		<xsd:annotation>
+			<xsd:documentation>
+        This attribute is used at both the resource and the portion levels.
+
+        A single indicator of the highest level of classification applicable to an information resource or portion within the domain of classified national security information.  The Classification element is always used in conjunction with the Owner Producer element. Taken together, the two elements specify the classification category and the type of classification (US, non-US, or Joint).
+
+        It is manifested in portion marks and security banners.
+
+        PERMISSIBLE VALUES
+
+        The permissible values for this simple type are defined in the Controlled Value Enumeration:
+
+        CVEnumISMClassificationAll.xml
+
+      </xsd:documentation>
+		</xsd:annotation>
+	</xsd:attribute>
+	
+	<!-- ************************************************************* -->
+	<!-- GLOBAL ATTRIBUTE DECLARATIONS ............................... -->
+	<!-- ************************************************************* -->
+	<xsd:attribute name="compliesWith" type="iccve:CVEnumISMCompliesWith">
+		<xsd:annotation>
+			<xsd:documentation>
+				This attribute is used at the resource level.
+				
+				An indicator of what optional ISM rule sets the documents complies with. This allows sytems to know that the document claims compliance with these rule sets and they should be enforced.
+				PERMISSIBLE VALUES
+				
+				The permissible values for this simple type are defined in the Controlled Value Enumeration:
+				
+				CVEnumISMcompliesWith.xml
+			</xsd:documentation>
+		</xsd:annotation>
+	</xsd:attribute>
+	
+	<!-- ************************************************************* -->
+	<!-- ownerProducer ............................................... -->
+	<!-- ************************************************************* -->
+	<xsd:attribute name="ownerProducer" type="iccve:CVEnumISMOwnerProducer">
+		<xsd:annotation>
+			<xsd:documentation xml:lang="en">
+        This attribute is used at both the resource and the portion levels.
+
+        One or more indicators identifying the national government or international organization that have purview over the classification marking of an information resource or portion therein.  This element is always used in conjunction with the Classification element.  Taken together, the two elements specify the classification category and the type of classification (US, non-US, or Joint).
+
+        Within protected internal organizational spaces this element may include one or more indicators identifying information which qualifies as foreign government information for which the source(s) of the information must be concealed.  Measures must be taken prior to dissemination of the information to conceal the source(s) of the foreign government information.
+
+        Specifically, under these specific circumstances, when data are moved to the shared spaces, the non-disclosable owner(s) and/or producer(s) listed in this data element's value should be removed and replaced with "FGI".
+
+        The attribute value may be manifested in portion marks or security banners.
+
+        PERMISSIBLE VALUES
+
+        1) The value "FGI" is permited under the circumstances described above.
+
+        2) The full set of values are defined in the Controlled Value Enumeration:
+
+		CVEnumISMOwnerProducer.xml
+      </xsd:documentation>
+		</xsd:annotation>
+	</xsd:attribute>
+	<!-- ************************************************************* -->
+	<!-- SCIcontrols ................................................. -->
+	<!-- ************************************************************* -->
+	<xsd:attribute name="SCIcontrols" type="iccve:CVEnumISMSCIControls">
+		<xsd:annotation>
+			<xsd:documentation xml:lang="en">
+        This attribute is used at both the resource and the portion levels.
+
+        One or more indicators identifying sensitive compartmented information control system(s).
+
+        It is manifested in portion marks and security banners.
+        PERMISSIBLE VALUES
+
+        The permissible values for this attribute are defined in the Controlled Value Enumeration:
+
+        CVEnumISMSCIControls.xml
+      </xsd:documentation>
+		</xsd:annotation>
+	</xsd:attribute>
+	<!-- ************************************************************* -->
+	<!-- SARIdentifier ............................................... -->
+	<!-- ************************************************************* -->
+	<xsd:attribute name="SARIdentifier" type="iccve:CVEnumISMSAR">
+		<xsd:annotation>
+			<xsd:documentation xml:lang="en">
+        This attribute is used at both the resource and the portion levels.
+
+        One or more indicators identifying the defense or intelligence programs for which special access is required.
+
+        It is manifested in portion marks and security banners.
+
+        PERMISSIBLE VALUES
+
+        The permissible values for this attribute are defined in the Controlled Value Enumeration:
+
+        CVEnumISMSAR.xml
+      </xsd:documentation>
+		</xsd:annotation>
+	</xsd:attribute>
+	<!-- ************************************************************* -->
+	<!-- disseminationControls ....................................... -->
+	<!-- ************************************************************* -->
+	<xsd:attribute name="disseminationControls" type="iccve:CVEnumISMDissem">
+		<xsd:annotation>
+			<xsd:documentation xml:lang="en">
+        This attribute is used at both the resource and the portion levels.
+
+        One or more indicators identifying the expansion or limitation on the distribution of information.
+
+        It is manifested in portion marks and security banners.
+
+        PERMISSIBLE VALUES
+
+        The permissible values for this attribute are defined in the Controlled Value Enumeration:
+
+        CVEnumISMDissem.xml
+        </xsd:documentation>
+		</xsd:annotation>
+	</xsd:attribute>
+	<!-- ************************************************************* -->
+	<!-- FGIsourceOpen ............................................... -->
+	<!-- ************************************************************* -->
+	<xsd:attribute name="FGIsourceOpen" type="iccve:CVEnumISMFGIOpen">
+		<xsd:annotation>
+			<xsd:documentation xml:lang="en">
+        This attribute is used at both the resource and the portion levels.
+
+        One or more indicators identifying information which qualifies as foreign government information for which the source(s) of the information is not concealed.
+
+        The attribute can indicate that the source of information of foreign origin is unknown.
+
+        It is manifested in portion marks and security banners.
+
+        PERMISSIBLE VALUES
+
+        1) The value "UNKNOWN" is permited under the circumstances described above.
+
+        2) The full set of values are defined in the Controlled Value Enumeration:
+
+        CVEnumISMFGIOpen.xml
+      </xsd:documentation>
+		</xsd:annotation>
+	</xsd:attribute>
+	<!-- ************************************************************* -->
+	<!-- FGIsourceProtected .......................................... -->
+	<!-- ************************************************************* -->
+	<xsd:attribute name="FGIsourceProtected" type="iccve:CVEnumISMFGIProtected" >
+		<xsd:annotation>
+			<xsd:documentation xml:lang="en">
+        This attribute is used at both the resource and the portion levels.
+
+        This attribute has unique specific rules concerning its usage.
+
+        A single indicator that information qualifies as foreign government information for which the source(s) of the information must be concealed.
+
+        Within protected internal organizational spaces this element may be used to maintain a record of the one or more indicators identifying information which qualifies as foreign government information for which the source(s) of the information must be concealed.  Measures must be taken prior to dissemination of the information to conceal the source(s) of the foreign government information.
+
+        An indication that information qualifies as foreign government information according to CAPCO guidelines for which the source(s) of the information must be concealed when the information is disseminated in shared spaces
+
+        This data element has a dual purpose. Within shared spaces, the data element serves only to indicate the presence of information which is categorized as foreign government information according to CAPCO guidelines for which the source(s) of the information is concealed, in which case, this data element's value will always be "FGI". The data element may also be employed in this manner within protected internal organizational spaces. However, within protected internal organizational spaces this data element may alternatively be used to maintain a formal record of the foreign country or countries and/or registered international organization(s) that are the non-disclosable owner(s) and/or producer(s) of information which is categorized as foreign government information according to CAPCO guidelines for which the source(s) of the information must be concealed when the resource is disseminated to shared spaces. If the data element is employed in this manner, then additional measures must be taken prior to dissemination of the resource to shared spaces so that any indications of the non-disclosable owner(s) and/or producer(s) of information within the resource are eliminated.
+
+        In all cases, the corresponding portion marking or banner marking should be compliant with CAPCO guidelines for FGI when the source must be concealed. In other words, even if the data element is being employed within protected internal organizational spaces to maintain a formal record of the non-disclosable owner(s) and/or producer(s) within an XML resource, if the resource is rendered for display within the protected internal organizational spaces in any format by a stylesheet or as a result of any other transformation process, then the non-disclosable owner(s) and/or producer(s) should not be included in the corresponding portion marking or banner marking.
+
+        PERMISSIBLE VALUES
+
+        1) The value "FGI" is permited under the circumstances described above.
+
+        2) The full set of values are defined in the Controlled Value Enumeration:
+
+        CVEnumISMFGIProtected.xml
+
+      </xsd:documentation>
+		</xsd:annotation>
+	</xsd:attribute>
+	<!-- ************************************************************* -->
+	<!-- releasableTo ................................................ -->
+	<!-- ************************************************************* -->
+	<xsd:attribute name="releasableTo" type="iccve:CVEnumISMRelTo">
+		<xsd:annotation>
+			<xsd:documentation xml:lang="en">
+        This attribute is used at both the resource and the portion levels.
+
+        One or more indicators identifying the country or countries and/or international organization(s) to which classified information may be released based on the determination of an originator in accordance with established foreign disclosure procedures.  This element is used in conjunction with the Dissemination Controls element.
+
+        It is manifested in portion marks and security banners.
+
+        PERMISSIBLE VALUES
+
+        The permissible values for this attribute are defined in the Controlled Value Enumeration:
+
+        CVEnumISMRelTo.xml
+      </xsd:documentation>
+		</xsd:annotation>
+	</xsd:attribute>
+	<!-- ************************************************************* -->
+	<!-- nonICmarkings ............................................... -->
+	<!-- ************************************************************* -->
+	<xsd:attribute name="nonICmarkings" type="iccve:CVEnumISMNonIC">
+		<xsd:annotation>
+			<xsd:documentation xml:lang="en">
+        This attribute is used at both the resource and the portion levels.
+
+        One or more indicators of the expansion or limitation on the distribution of an information resource or portion within the domain of information originating from non-intelligence components.
+
+        It is manifested in portion marks and security banners.
+
+        PERMISSIBLE VALUES
+
+		The permissible values for this attribute are defined in the Controlled Value Enumeration:
+
+        CVEnumISMNonIC.xml
+      </xsd:documentation>
+		</xsd:annotation>
+	</xsd:attribute>
+	
+	<!-- ************************************************************* -->
+	<!-- nonUSControls ............................................... -->
+	<!-- ************************************************************* -->
+	<xsd:attribute name="nonUSControls" type="iccve:CVEnumISMNonUSControls">
+		<xsd:annotation>
+			<xsd:documentation xml:lang="en">
+				This attribute is used at both the resource and the portion levels.
+				
+				One or more indicators of the expansion or limitation on the distribution of an information resource or portion within the domain of information originating from non-US components.
+				
+				It is manifested in portion marks and security banners.
+								
+				PERMISSIBLE VALUES
+				The permissible values for this attribute are defined in the Controlled Value Enumeration:
+				
+				CVEnumISMNonUSControls.xml
+			</xsd:documentation>
+		</xsd:annotation>
+	</xsd:attribute>
+	
+	<!-- ************************************************************* -->
+	<!-- classifiedBy ................................................ -->
+	<!-- ************************************************************* -->
+	<xsd:attribute name="classifiedBy">
+		<xsd:annotation>
+			<xsd:documentation xml:lang="en">
+        This attribute is used primarily at the resource level.
+
+        The identity, by name or personal identifier, and position title of the original classification authority for a resource.
+
+		It is manifested only in the 'Classified By' line of a resource's classification authority block.
+      </xsd:documentation>
+		</xsd:annotation>
+		<xsd:simpleType>
+			<xsd:restriction base="xsd:string">
+				<xsd:maxLength value="1024"/>
+			</xsd:restriction>
+		</xsd:simpleType>
+	</xsd:attribute>
+	<!-- ************************************************************* -->
+	<!-- derivativelyClassifiedBy .................................... -->
+	<!-- ************************************************************* -->
+	<xsd:attribute name="derivativelyClassifiedBy">
+		<xsd:annotation>
+			<xsd:documentation xml:lang="en">
+        This attribute is used primarily at the resource level.
+
+
+        The identity, by name or personal identifier, of the derivative classification authority.
+
+		It is manifested only in the 'Classified By' line of a resource's classification authority block.
+      </xsd:documentation>
+		</xsd:annotation>
+		<xsd:simpleType>
+			<xsd:restriction base="xsd:string">
+				<xsd:maxLength value="1024"/>
+			</xsd:restriction>
+		</xsd:simpleType>
+	</xsd:attribute>
+	<!-- ************************************************************* -->
+	<!-- classificationReason ........................................ -->
+	<!-- ************************************************************* -->
+	<xsd:attribute name="classificationReason">
+		<xsd:annotation>
+			<xsd:documentation xml:lang="en">
+        This attribute is used primarily at the resource level.
+
+        One or more reason indicators or explanatory text describing the basis for an original classification decision.
+
+		It is manifested only in the 'Reason' line of a resource's classification authority block.
+      </xsd:documentation>
+		</xsd:annotation>
+		<xsd:simpleType>
+			<xsd:restriction base="xsd:string">
+				<xsd:maxLength value="4096"/>
+			</xsd:restriction>
+		</xsd:simpleType>
+	</xsd:attribute>
+	<!-- ************************************************************* -->
+	<!-- derivedFrom ................................................. -->
+	<!-- ************************************************************* -->
+	<xsd:attribute name="derivedFrom">
+		<xsd:annotation>
+			<xsd:documentation xml:lang="en">
+        This attribute is used primarily at the resource level.
+
+        A citation of the authoritative source or reference to multiple sources of the classification markings used in a classified resource.
+
+		It is manifested only in the 'Derived From' line of a document's classification authority block.
+      </xsd:documentation>
+		</xsd:annotation>
+		<xsd:simpleType>
+			<xsd:restriction base="xsd:string">
+				<xsd:maxLength value="1024"/>
+			</xsd:restriction>
+		</xsd:simpleType>
+	</xsd:attribute>
+	<!-- ************************************************************* -->
+	<!-- declassDate ................................................. -->
+	<!-- ************************************************************* -->
+	<xsd:attribute name="declassDate">
+		<xsd:annotation>
+			<xsd:documentation xml:lang="en">
+         This attribute is used primarily at the resource level.
+
+         A specific year, month, and day upon which the information shall be automatically declassified if not properly exempted from automatic declassification.
+
+		It is manifested in the 'Declassify On' line of a resource's classification authority block.
+      </xsd:documentation>
+		</xsd:annotation>
+		<xsd:simpleType>
+			<xsd:restriction base="xsd:date"/>
+		</xsd:simpleType>
+	</xsd:attribute>
+	<!-- ************************************************************* -->
+	<!-- declassEvent ................................................ -->
+	<!-- ************************************************************* -->
+	<xsd:attribute name="declassEvent">
+		<xsd:annotation>
+			<xsd:documentation xml:lang="en">
+        This attribute is used primarily at the resource level.
+
+        A description of an event upon which the information shall be automatically declassified if not properly exempted from automatic declassification.
+
+		It is manifested only in the 'Declassify On' line of a resource's classification authority block.
+      </xsd:documentation>
+		</xsd:annotation>
+		<xsd:simpleType>
+			<xsd:restriction base="xsd:string">
+				<xsd:maxLength value="1024"/>
+			</xsd:restriction>
+		</xsd:simpleType>
+	</xsd:attribute>
+	<!-- ************************************************************* -->
+	<!-- declassException ............................................ -->
+	<!-- ************************************************************* -->
+	<xsd:attribute name="declassException" type="iccve:CVEnumISM25X">
+		<xsd:annotation>
+			<xsd:documentation xml:lang="en">
+        This attribute is used primarily at the resource level.
+
+        A single indicator describing an exemption to the nominal 25-year point for automatic declassification.  This element is used in conjunction with the Declassification Date or Declassification Event.
+
+		It is manifested in the 'Declassify On' line of a resource's classification authority block.
+
+        ISOO has stated it should be a SINGLE value giving the longest protection.
+
+        PERMISSIBLE VALUE
+
+        The permissible value for this attribute is defined in the Controlled Value Enumeration:
+
+        CVEnumISMN25X.xml
+
+      </xsd:documentation>
+		</xsd:annotation>
+	</xsd:attribute>
+	<!-- ************************************************************* -->
+	<!-- typeOfExemptedSource ........................................ -->
+	<!-- ************************************************************* -->
+	<xsd:attribute name="typeOfExemptedSource" type="iccve:CVEnumISMSourceMarked">
+		<xsd:annotation>
+			<xsd:documentation xml:lang="en">
+        This attribute is used primarily at the resource level.
+
+        A declassification marking of a source document that causes the current, derivative document to be exempted from automatic declassification.  This element is always used in conjunction with the Date Of Exempted Source element.
+
+		It is manifested only in the 'Declassify On' line of a document's classification authority block.
+
+        ISOO has stated it should be a SINGLE value giving the longest protection.
+
+        PERMISSIBLE VALUE
+
+        The permissible value for this attribute is defined in the Controlled Value Enumeration:
+
+        CVEnumISMSourceMarked.xml
+
+      </xsd:documentation>
+		</xsd:annotation>
+	</xsd:attribute>
+	<!-- ************************************************************* -->
+	<!-- dateOfExemptedSource ........................................ -->
+	<!-- ************************************************************* -->
+	<xsd:attribute name="dateOfExemptedSource">
+		<xsd:annotation>
+			<xsd:documentation xml:lang="en">
+        This attribute is used primarily at the resource level.
+
+        A specific year, month, and day of publication or release of a source document, or the most recent source document, that was itself marked with a declassification constraint.  This element is always used in conjunction with the Type Of Exempted Source element.
+
+		It is manifested only in the 'Declassify On' line of a resource's classification authority block.
+      </xsd:documentation>
+		</xsd:annotation>
+		<xsd:simpleType>
+			<xsd:restriction base="xsd:date"/>
+		</xsd:simpleType>
+	</xsd:attribute>
+	
+	<!-- ************************************************************* -->
+	<!-- resourceElement ............................................. -->
+	<!-- ************************************************************* -->
+	<xsd:attribute name="resourceElement">
+		<xsd:annotation>
+			<xsd:documentation xml:lang="en">
+        This attribute is used to designate which element has the ISM attributes representing the classification for the entire resource.
+		Every document must have at least one element with this indicator as true. It should be rare that a document has more than one. Mainly 
+		this would occur in some sort of aggregator schema. In that unusual case the first one encountered in XML document order is the one used for 
+		all constraint rules.
+      </xsd:documentation>
+		</xsd:annotation>
+		<xsd:simpleType>
+			<xsd:restriction base="xsd:boolean"/>
+		</xsd:simpleType>
+	</xsd:attribute>
+
+	<!-- ************************************************************* -->
+	<!-- excludeFromRollup   ......................................... -->
+	<!-- ************************************************************* -->
+	<xsd:attribute name="excludeFromRollup">
+		<xsd:annotation>
+			<xsd:documentation xml:lang="en">
+				This attribute is used to designate that an element's ISM attributes should not be used in a rollup. Generally
+				this is because the element is defining the security attributes of a remote object NOT indicating security constraints for
+				data in this document. This allows an Unclassified document to assert that some document not included has a Top Secret classification without
+				the TS attribute value causing rollup to make the document TS.
+			</xsd:documentation>
+		</xsd:annotation>
+		<xsd:simpleType>
+			<xsd:restriction base="xsd:boolean"/>
+		</xsd:simpleType>
+	</xsd:attribute>
+	
+	<!-- ************************************************************* -->
+	<!-- createDate .................................................. -->
+	<!-- ************************************************************* -->
+	<xsd:attribute name="createDate">
+		<xsd:annotation>
+			<xsd:documentation xml:lang="en">
+				This attribute is used to designate what date the document was produced on. This is the date that will be used by 
+				various constraint rules to determine if the document meets all the business rules. It must be on the element where
+				resourceElement is true.
+			</xsd:documentation>
+		</xsd:annotation>
+		<xsd:simpleType>
+			<xsd:restriction base="xsd:date"/>
+		</xsd:simpleType>
+	</xsd:attribute>
+	
+	<!-- ************************************************************* -->
+	<!-- compilationReason ........................................... -->
+	<!-- ************************************************************* -->
+	<xsd:attribute name="compilationReason">
+		<xsd:annotation>
+			<xsd:documentation xml:lang="en">
+        A description of the reasons that the classification of this element is more restrictive than a simple roll-up of the
+        sub elements would result in. This acts as an indicator to rule engines that there is not accidental over classification
+        going on and to users that special care beyond what the portion marks reveal must be taken when using this data. Use of this
+        mark does not replace the need for the compilation reason being defined in the prose in accordance with ISOO Directive 1.
+        For example this would document why 3 Unclassified bullet items form a Secret List. 
+        Without this reason being noted the above described document would be considered to be miss-marked and overclassified.
+      </xsd:documentation>
+		</xsd:annotation>
+		<xsd:simpleType>
+			<xsd:restriction base="xsd:string">
+				<xsd:maxLength value="1024"/>
+			</xsd:restriction>
+		</xsd:simpleType>
+	</xsd:attribute>
+	
+	<!-- ************************************************************* -->
+	<!-- Notice ..................................................... -->
+	<!-- ************************************************************* -->
+	<!-- 2010-01-26: Added notice   (CR 2010-26)           ********** -->
+	<xsd:attribute name="notice" type="iccve:CVEnumISMNotice">
+		<xsd:annotation>
+			<xsd:documentation xml:lang="en">
+				A categorization defining which of the required Notices, described in the CAPCO Register, is included in the element.
+				This attribute is an indicator that the element contains a Notice. The element could contain any structure the implementing 
+				schema defined and details of the rendering would be up to the schema in question. 
+				The permissible value for this attribute are defined in the Controlled Value Enumeration:
+				
+				CVEnumISMNotice.xml
+			</xsd:documentation>
+		</xsd:annotation>
+	</xsd:attribute>
+	
+	<!-- ************************************************************* -->
+	<!-- NoticeDate .................................................. -->
+	<!-- ************************************************************* -->
+	<!-- 2010-05-30: Added noticeDate                       ********** -->
+	<xsd:attribute name="noticeDate">
+		<xsd:annotation>
+			<xsd:documentation xml:lang="en">
+				A Date associated with a notice such as the DoD Distribution notice date.
+			</xsd:documentation>
+		</xsd:annotation>
+		<xsd:simpleType>
+			<xsd:restriction base="xsd:date"/>
+		</xsd:simpleType>
+	</xsd:attribute>
+	
+	<!-- ************************************************************* -->
+	<!-- NoticeReason................................................. -->
+	<!-- ************************************************************* -->
+	<!-- 2010-05-30: Added noticeReason                     ********** -->
+	<xsd:attribute name="noticeReason">
+		<xsd:annotation>
+			<xsd:documentation xml:lang="en">
+				A Reason (less than 2048 chars) associated with a notice such as the DoD Distribution reason.
+			</xsd:documentation>
+		</xsd:annotation>
+		<xsd:simpleType>
+			<xsd:restriction base="xsd:string">
+				<xsd:maxLength value="2048"/>
+			</xsd:restriction>
+		</xsd:simpleType>
+	</xsd:attribute>
+	
+	<!-- ************************************************************* -->
+	<!-- noticePOC.................................................... -->
+	<!-- ************************************************************* -->
+	<!-- 2010-05-30: Added noticePOC                        ********** -->
+	<xsd:attribute name="noticePOC">
+		<xsd:annotation>
+			<xsd:documentation xml:lang="en">
+				A Point of Contact POC (less than 2048 chars) associated with a notice such as the DoD Distribution POC.
+			</xsd:documentation>
+		</xsd:annotation>
+		<xsd:simpleType>
+			<xsd:restriction base="xsd:string">
+				<xsd:maxLength value="2048"/>
+			</xsd:restriction>
+		</xsd:simpleType>
+	</xsd:attribute>
+	
+	<!-- ************************************************************* -->
+	<!-- DESVersion          ......................................... -->
+	<!-- ************************************************************* -->
+	<xsd:attributeGroup name="ISMRootNodeAttributeGroup">
+		<xsd:annotation>
+			<xsd:documentation>An attribute group to be used on the root node of a schema implementing ISM.
+				ISM being entirely attributes based groups such as this are the only way to specify required use. </xsd:documentation>
+		</xsd:annotation>
+		<xsd:attribute name="DESVersion" use="required" type="xsd:int" fixed="4" form="qualified">
+			<xsd:annotation>
+				<xsd:documentation xml:lang="en">
+					The version number of the DES. Should there be multiple specified in an instance document 
+					the one at the root node is the one that will apply to the entire document.
+				</xsd:documentation>
+			</xsd:annotation>
+		</xsd:attribute>
+	</xsd:attributeGroup>
+	
+	<xsd:attributeGroup name="ResourceNodeAttributeGroup">
+		<xsd:annotation>
+			<xsd:documentation>
+				An attribute group to be used on the element that represents the resource 
+				node of an instance document. This node's ISM attributes would be used to 
+				generate banner marks and the E.O. 12958 classification authority block. 
+				Implementing Schemas might use this on the Root node or any other node.
+			</xsd:documentation>
+		</xsd:annotation>
+		<xsd:attribute ref="resourceElement" fixed="true" use="required"/>
+		<xsd:attribute ref="createDate" use="required"/>
+		<xsd:attribute ref="compliesWith" use="optional" />
+		<xsd:attributeGroup ref="SecurityAttributesGroup"/>
+	</xsd:attributeGroup>
+	
+	
+	<!-- **************************************************************
+                            CHANGE HISTORY
+     **************************************************************
+*
+* VERSION: 1.0
+* DATE:    2002-07-05
+* BY:      IC MWG
+* PURPOSE: Released as a registered, production XML entity set.
+*
+* VERSION: 2.0
+* DATE:    2004-04-30
+* BY:      IC MWG
+* PURPOSE: Updated to support changes to the CAPCO Register and
+           Implementation Manual.
+*
+*     - Added "ownerProducer" as a required attribute for entity
+*       "SecurityAttributes" and as an optional attribute for entity
+*       "SecurityAttributesOption."  Purpose is to provide a single method
+*       for specification of US, non-US, and joint classifications.
+*
+*     - Changed the enumerated list that is the declared value of attribute
+*       "classification" in order to accommodate non-US classifications.
+*
+*     - Added optional attribute "SARIdentifier" as a separate container for
+*       DoD/DoE special-access-required nicknames, codewords, or trigraph/
+*       digraph to support elevation of SAR to the same level as SCI controls.
+*
+*     - Added optional attributes "classifiedBy" and "classificationReason"
+*       to support generation of EO 12958 classification/declassification
+*       blocks.
+*
+*     - Changed the declared value of "derivedFrom" to CDATA to allow the titles
+*       and dates of source documents or classification guides to be specified.
+*
+*     - Replaced the single attribute "declassification" with distinct attri-
+*       butes for date-determined and event-determined declassification and
+*       for the 25X declassification exceptions.
+*
+*     - Added attributes "typeOfExemptedSource" and "dateOfExemptedSource" for
+*       use in specifying that one or more sources was marked OADR, X1 through
+*       X8, or X-Foreign Relations.
+*
+*     - Added attribute "declassManualReview" for use in forcing "MR" to
+*       appear in header and footer banners (regardless of whether any
+*       caveats in the portions would necessitate manual review).
+*
+*
+* VERSION: 2.1
+* DATE:    2008-08-19
+* BY:      ODNI OCIO ICIS
+* PURPOSE: Updated to support IC Standard for Information Security Marking Metadata (2007-500-2)
+*
+*     - Added "DerivativelyClassifiedBy" to allow capturing information about
+*       a derivative classifier separate from an original classifer
+*
+* DATE:    2009-12-01
+* BY:      ODNI OCIO ICIS
+*
+*     - (CR 2009-09) Added "compilationReason" to allow capturing information about
+*       the reason that the document or portion bears a more restrictive classification
+*       than the data would appear to support.
+*     - (CR 2009-07) Point to CVE files for enumeration values.
+*     - (CR 2009-22) Change declassException and typeOfExemptedSource to NMTOKEN.
+*     - (CR 2009-16) Add ability to specify DES Version.
+*     - (CR 2009-05) Add createDate, excludeFromRollup, resourceElement to allow ISM rules
+*       to be independant of implementing schema.
+*     - (CR 2009-05) Add ISMRootNodeAttributeGroup and ResourceNodeAttributeGroup.
+*
+* DATE:    2010-01-22
+* BY:      ODNI OCIO ICIS
+*
+*     - (CR 2010-02) Add notice attribute, NoticeAttributesGroup and NoticeAttributesOptionGroup
+* Final review before signature 2010-06-06
+*     - Remove comment about LES not being in the Register since it is now in the register.
+*     - Correct NoticeAttributesOptionGroup to have SecurityAttributesOptionGroup so that NoteInline in PUBS works correctly. 
+*
+* Date     2010-06-01
+* By:      ODNI OCIO ICIS
+*       - Add DoD Distro statements
+*       - Add NATO refactor
+*       - Add Use of Generated CVE schema types.
+*
+******************************** END CHANGE HISTORY ************************ -->
+	<!-- *********************************************************************** -->
+	<!--                                                                         -->
+	<!-- *********************************************************************** -->
+</xsd:schema>

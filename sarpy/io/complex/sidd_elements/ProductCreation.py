@@ -10,7 +10,8 @@ import numpy
 from .base import DEFAULT_STRICT
 # noinspection PyProtectedMember
 from ..sicd_elements.base import Serializable, _SerializableDescriptor, _StringDescriptor, \
-    _IntegerDescriptor, _DateTimeDescriptor, _ParametersDescriptor, ParametersCollection
+    _StringEnumDescriptor, _IntegerDescriptor, _DateTimeDescriptor, \
+    _ParametersDescriptor, ParametersCollection
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
@@ -83,18 +84,17 @@ class ProductClassificationType(Serializable):
     _child_xml_ns_key = {key: 'ism' for key in _fields if key != 'SecurityExtensions'}
     # Descriptor
     DESVersion = _IntegerDescriptor(
-        'DESVersion', _required, strict=DEFAULT_STRICT, default_value=4,
+        'DESVersion', _required, strict=DEFAULT_STRICT, default_value=13,
         docstring='The version number of the DES. Should there be multiple specified in an instance document '
                   'the one at the root node is the one that will apply to the entire document.')  # type: int
-    # TODO: what is the correct version number? How would I even know?
     createDate = _StringDescriptor(
         'createDate', _required, strict=DEFAULT_STRICT,
         docstring='This should be a date of format :code:`YYYY-MM-DD`, but this is not checked.')  # type: str
     compliesWith = _StringDescriptor(
         'compliesWith', _required, strict=DEFAULT_STRICT,
         docstring='')  # type: Union[None, str]
-    classification = _StringDescriptor(
-        'classification', _required, strict=DEFAULT_STRICT,  # default_value='U',
+    classification = _StringEnumDescriptor(
+        'classification', ('U', 'C', 'R', 'S', 'TS'), _required, strict=DEFAULT_STRICT,
         docstring='')  # type: str
     ownerProducer = _StringDescriptor(
         'ownerProducer', _required, strict=DEFAULT_STRICT,  # default_value='USA',
@@ -158,7 +158,7 @@ class ProductClassificationType(Serializable):
         docstring='Extensible parameters used to support profile-specific needs related to '
                   'product security.')  # type: ParametersCollection
 
-    def __init__(self, DESVersion=4, createDate=None, compliesWith=None,
+    def __init__(self, DESVersion=13, createDate=None, compliesWith=None,
                  classification='U', ownerProducer='USA', SCIcontrols=None, SARIdentifier=None,
                  disseminationControls=None, FGIsourceOpen=None, FGIsourceProtected=None, releasableTo=None,
                  nonICmarkings=None, classifiedBy=None, compilationReason=None, derivativelyClassifiedBy=None,

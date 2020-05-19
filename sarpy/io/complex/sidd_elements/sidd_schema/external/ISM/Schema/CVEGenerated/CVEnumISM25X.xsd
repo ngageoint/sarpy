@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified"
+            xml:lang="en">
+   <xsd:annotation>
+      <xsd:documentation>
+                W3C XML Schema fragment encoding types for Controlled vocabulary encodings CVEnumISM25X. This file is generated so edits should be made to the CVEnumISM25X the CVE it is based on instead of here.
+            </xsd:documentation>
+   </xsd:annotation>
+   <!--*************************************************************-->
+<!--Generated TYPE DEFINITIONS ..................................-->
+<!--*************************************************************-->
+<xsd:simpleType name="CVEnumISM25X">
+      <xsd:annotation>
+         <xsd:documentation>(U) All currently authorized 25X values.
+                    PERMISSIBLE VALUES
+                    
+                    The permissible values for this simple type are defined in the Controlled Value Enumeration:
+                    
+                    CVEnumISM25X.xml
+                    
+                </xsd:documentation>
+      </xsd:annotation>
+      <xsd:restriction base="xsd:token">
+         <xsd:enumeration value="25X1">
+            <xsd:annotation>
+               <xsd:documentation>Reveal information about the application of an intelligence source or method.</xsd:documentation>
+            </xsd:annotation>
+         </xsd:enumeration>
+         <xsd:enumeration value="25X1-human">
+            <xsd:annotation>
+               <xsd:documentation>Reveal the identity of a confidential human source or human intelligence source.</xsd:documentation>
+            </xsd:annotation>
+         </xsd:enumeration>
+         <xsd:enumeration value="25X2">
+            <xsd:annotation>
+               <xsd:documentation>Reveal information that would assist in the development or use of weapons of mass destruction.</xsd:documentation>
+            </xsd:annotation>
+         </xsd:enumeration>
+         <xsd:enumeration value="25X3">
+            <xsd:annotation>
+               <xsd:documentation>Reveal information that would impair U.S. cryptologic systems or activities.</xsd:documentation>
+            </xsd:annotation>
+         </xsd:enumeration>
+         <xsd:enumeration value="25X4">
+            <xsd:annotation>
+               <xsd:documentation>Reveal information that would impair the application of state-of-the-art technology within a U.S. weapon system.</xsd:documentation>
+            </xsd:annotation>
+         </xsd:enumeration>
+         <xsd:enumeration value="25X5">
+            <xsd:annotation>
+               <xsd:documentation>Reveal actual U.S. military war plans that remain in effect.</xsd:documentation>
+            </xsd:annotation>
+         </xsd:enumeration>
+         <xsd:enumeration value="25X6">
+            <xsd:annotation>
+               <xsd:documentation>Reveal information, including foreign government information, that would seriously and demonstrably impair relations between the United States and a foreign government or seriously and demonstrably undermine ongoing diplomatic activities of the United States.</xsd:documentation>
+            </xsd:annotation>
+         </xsd:enumeration>
+         <xsd:enumeration value="25X7">
+            <xsd:annotation>
+               <xsd:documentation>Reveal information that would clearly and demonstrably impair the current ability of United States Government officials to protect the President, Vice President, or other protectees for whom protection services, in the interest of national security, are authorized.</xsd:documentation>
+            </xsd:annotation>
+         </xsd:enumeration>
+         <xsd:enumeration value="25X8">
+            <xsd:annotation>
+               <xsd:documentation>Reveal information that would seriously and demonstrably impair current national security emergency preparedness plans or reveal current vulnerabilities of systems, installations, infrastructures, or projects relating to the national security.</xsd:documentation>
+            </xsd:annotation>
+         </xsd:enumeration>
+         <xsd:enumeration value="25X9">
+            <xsd:annotation>
+               <xsd:documentation>Violate a statue, treaty, or international agreement.</xsd:documentation>
+            </xsd:annotation>
+         </xsd:enumeration>
+      </xsd:restriction>
+   </xsd:simpleType>
+</xsd:schema>

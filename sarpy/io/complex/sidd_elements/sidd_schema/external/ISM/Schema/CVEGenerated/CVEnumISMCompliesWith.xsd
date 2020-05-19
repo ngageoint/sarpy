@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified"
+            xml:lang="en">
+   <xsd:annotation>
+      <xsd:documentation>
+                W3C XML Schema fragment encoding types for Controlled vocabulary encodings CVEnumISMCompliesWith. This file is generated so edits should be made to the CVEnumISMCompliesWith the CVE it is based on instead of here.
+            </xsd:documentation>
+   </xsd:annotation>
+   <!--*************************************************************-->
+<!--Generated TYPE DEFINITIONS ..................................-->
+<!--*************************************************************-->
+<xsd:simpleType name="CVEnumISMCompliesWithValues">
+      <xsd:annotation>
+         <xsd:documentation>(U) Current rule set names that documents may comply with
+                    PERMISSIBLE VALUES
+                    
+                    The permissible values for this simple type are defined in the Controlled Value Enumeration:
+                    
+                    CVEnumISMCompliesWith.xml
+                    
+                </xsd:documentation>
+      </xsd:annotation>
+      <xsd:restriction base="xsd:token">
+         <xsd:enumeration value="ICD-710">
+            <xsd:annotation>
+               <xsd:documentation>Document claims compliance with the rules in ICD-710 that have been encoded into ISM</xsd:documentation>
+            </xsd:annotation>
+         </xsd:enumeration>
+         <xsd:enumeration value="DoD5230.24">
+            <xsd:annotation>
+               <xsd:documentation>Document claims compliance with the rules in DoD5230.24 that have been encoded into ISM</xsd:documentation>
+            </xsd:annotation>
+         </xsd:enumeration>
+      </xsd:restriction>
+   </xsd:simpleType>
+   <xsd:simpleType name="CVEnumISMCompliesWith">
+      <xsd:restriction>
+         <xsd:simpleType>
+            <xsd:list itemType="CVEnumISMCompliesWithValues"/>
+         </xsd:simpleType>
+         <xsd:maxLength value="2"/>
+      </xsd:restriction>
+   </xsd:simpleType>
+</xsd:schema>

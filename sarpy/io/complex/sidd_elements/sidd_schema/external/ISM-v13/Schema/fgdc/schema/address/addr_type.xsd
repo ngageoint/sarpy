@@ -1,0 +1,2224 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:addr_type="http://www.fgdc.gov/schema/address/addr_type" xmlns:gml="http://www.opengis.net/gml/3.2" targetNamespace="http://www.fgdc.gov/schema/address/addr_type" elementFormDefault="qualified" version="1.0.0">
+    <!--
+	FGDC Document Number FGDC-STD-016-2011
+	United States Thoroughfare, Landmark, and Postal Address Data Standard
+		Sponsored by the Urban and Regional Information Systems Association (URISA)
+		and the National Emergency Number Association (NENA)
+	FGDC Subcommittee for Cultural and Demographic Data
+	February 2011
+	Appendix A (Normative): XSD Schemas
+    -->
+    <xsd:import namespace="http://www.opengis.net/gml/3.2" schemaLocation="../../../ogc/gml/3.2.1/gml.xsd">
+        <xsd:annotation>
+            <xsd:documentation>GML 3.2.1 from OpenGeospatial Consortium</xsd:documentation>
+        </xsd:annotation>
+    </xsd:import>
+    <xsd:simpleType name="version_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">The ID for this version of the Address Standard.</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:token">
+            <xsd:enumeration value="0.4.3"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="Separator_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+A word, phrase, or symbol used as a separator between components of a complex element or class. The Separator Element is required for
+Intersection Addresses and for Two Number Address Ranges, and it may be used in constructing a Complete Street Name.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string">
+            <xsd:pattern value=".*"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="CornerOf_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en"> A directional word describing a corner formed by the
+intersection of two thoroughfares.</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string"/>
+    </xsd:simpleType>
+    <xsd:simpleType name="ElementSequenceNumber_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en"> The order in which the elements of a Complete Subaddress,
+Complete Landmark Name, or Complete Place Name should be written.</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:integer"/>
+    </xsd:simpleType>
+    <xsd:simpleType name="GNISFeatureID_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+"A permanent, unique number assigned to a geographic feature for the
+sole purpose of uniquely identifying that feature as a record in any
+information system database, dataset, file, or document and for
+distinguishing it from all other feature records so identified. The
+number is assigned sequentially (highest existing number plus one)
+to new records as they are created in the Geographic Names Information System."
+Definition Source Geographic Names Project, USGS, 523 National Center,
+Reston, VA 20192-0523, as posted August 25, 2009 at:
+http://geonames.usgs.gov/domestic/metadata.htm "Feature Identifier"
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:integer"/>
+    </xsd:simpleType>
+    <xsd:complexType name="AddressNumberPrefix_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en"> The portion of the Complete
+Address Number which precedes the Address Number itself.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:simpleContent>
+            <xsd:extension base="xsd:string">
+                <xsd:attribute name="Separator" type="addr_type:Separator_type"/>
+            </xsd:extension>
+        </xsd:simpleContent>
+    </xsd:complexType>
+    <xsd:simpleType name="AddressNumber_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">The numeric identifier for a
+land parcel, house, building or other location along a thoroughfare or
+within a community.
+1. The Address Number is defined as an integer to support address
+sorting, parity (even/odd) definition, and in/out of address range
+tests.
+2. The Address Number must be converted to a characterString when it is
+combined with the prefix and suffix into a Complete Address Number.
+3. Some addresses may contain letters, fractions, hyphens, decimals and
+other non-integer content within the Complete Address Number. Those
+non-integer elements should be placed in the Address Number Prefix if
+they appear before the Address Number, or in the Address Number Suffix
+if they follow the Address Number. For example, if the New York City
+hyphenated address 194-03 ½ 50th Avenue, New York, NY 11365 were to be
+parsed rather than represented as a Complete Address Number:
+---the Address Number Prefix would be "194-" (including the hyphen),
+---the Address Number would be 3 (converted to "03" (text) in
+constructing the Complete Address Number),
+---and the Address Number Suffix would be "1/2".
+4. Special care should be taken with records where the Address Number
+is 0 (zero). Occasionally zero is issued as a valid address number
+(e.g. Zero Prince Street, Alexandria, VA 22314) or it can be imputed
+(1/2 Fifth Avenue, New York, NY 10003 (for which the Address Number
+would be 0 and the Address Number Suffix would be "1/2")). More often,
+though, zero is shown because the Address Number is either missing or
+non-existent, and null value has been converted to zero.
+5. Address Numbers vs. Address "Letters". In rare instances,
+thoroughfare addresses may be identified by letters instead of numbers
+(for example, "A" Main Street, "B" Main Street, "C" Main Street, "AA"
+Main Street, "AB" Main Street, etc.) A few thousand such cases have
+been verified in Puerto Rico, and others may be found elsewhere. In
+such cases, the letter(s) cannot be treated as an Address Number,
+because an Address Number must be an integer. The letter(s) also cannot
+be an Address Number Prefix or Address Number Suffix, because neither
+of those can be created except in conjunction with an Address Number.
+Instead, the letter(s) should be treated a Subaddress Identifier in an
+Unnumbered Thoroughfare Address. (For example: Complete Street Name =
+"Calle Sanchez", Complete Subaddress Identifier = "AB", Complete Place
+Name = "Mayaguez" State Name = "PR"). As an alternative, the address
+may be classified in the General Address Class and treated accordingly.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string">
+            <xsd:pattern value="[0-9]+"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:complexType name="AddressNumberSuffix_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">The portion of the Complete
+Address Number which follows the Address Number itself.
+1. This element is not found in most Complete Address Numbers. When
+found, it should be separated from the Address Number so that the
+Address Number can be maintained as an integer for sorting and quality
+control tests.
+2. Informally an Address Number and Address Number Suffix may be
+written with or without a space between them. Within this standard, the
+default assumption is that an empty space separates elements unless
+stated otherwise. The Attached Element can be used to indicate where
+the assumed space between the Address Number and Address Number Suffix
+has been omitted within an address file (see Attached Element for
+additional notes).
+3. If a hyphen appears between the Address Number and the Address
+Number Suffix, the hyphen is included in the Address Number Suffix.
+4. When milepost Complete Address Numbers include decimal fractions,
+the integer portion of the milepost number is treated as the Address
+Number, and the fraction (including the decimal point) is treated as an
+Address Number Suffix. (See Complete Address Number for additional
+notes on milepost address numbers.) </xsd:documentation>
+        </xsd:annotation>
+        <xsd:simpleContent>
+            <xsd:extension base="xsd:string">
+                <xsd:attribute name="Separator" type="addr_type:Separator_type"/>
+            </xsd:extension>
+        </xsd:simpleContent>
+    </xsd:complexType>
+    <!-- StreetName Content -->
+    <xsd:complexType name="StreetNamePreModifier_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">A word or phrase in a
+Complete Street Name that
+1. Precedes and modifies the Street Name, but is separated from it by a
+Street Name Pre Type or a Street Name Pre Directional or both, or
+2. Is placed outside the Street Name so that the Street Name can be
+used in creating a sorted (alphabetical or alphanumeric) list of street
+names. </xsd:documentation>
+        </xsd:annotation>
+        <xsd:simpleContent>
+            <xsd:extension base="xsd:string">
+                <xsd:attribute name="Separator" type="addr_type:Separator_type"/>
+            </xsd:extension>
+        </xsd:simpleContent>
+    </xsd:complexType>
+    <xsd:complexType name="StreetNamePreDirectional_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">A word preceding the Street
+Name that indicates the direction or position of the thoroughfare
+relative to an arbitrary starting point or line, or the sector where it
+is located. </xsd:documentation>
+        </xsd:annotation>
+        <xsd:simpleContent>
+            <xsd:extension base="xsd:string">
+                <xsd:attribute name="Separator" type="addr_type:Separator_type"/>
+            </xsd:extension>
+        </xsd:simpleContent>
+    </xsd:complexType>
+    <xsd:complexType name="StreetNamePreType_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">A word or phrase that
+precedes the Street Name and identifies a type of thoroughfare in a
+Complete Street Name. </xsd:documentation>
+        </xsd:annotation>
+        <xsd:simpleContent>
+            <xsd:extension base="xsd:string">
+                <xsd:attribute name="Separator" type="addr_type:Separator_type"/>
+            </xsd:extension>
+        </xsd:simpleContent>
+    </xsd:complexType>
+    <xsd:simpleType name="StreetName_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+Official name of a street as assigned by a local
+governing authority, or an alternate (alias) name that
+is used and recognized, excluding street types,
+directionals, and modifiers.
+1. Each jurisdiction should establish its own list of
+street names and use it as a domain of values to
+validate addresses. Alternate and Official names are
+distinguished by the address attribute "Alias Status
+Attribute"
+2. Local addressing authorities are urged to follow
+consistent internal street naming practices, and to
+resolve internal street name inconsistencies, especially
+for numbered streets ("Twentieth" or "20th" ?), internal
+capitalization ("McIntyre" or "Mcintyre" ?), hyphens,
+and apostrophes.
+3. If alternate or abbreviated versions of street names
+are needed for a specialized purpose such as mailing or
+emergency
+dispatch, they can be created in views or
+export routines.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string">
+            <xsd:pattern value=".*"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:complexType name="StreetNamePostModifier_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">A word or phrase in a
+Complete Street Name that follows and modifies the Street Name, but is
+separated from it by a Street Name Post Type or a Street Name Post
+Directional or both. </xsd:documentation>
+        </xsd:annotation>
+        <xsd:simpleContent>
+            <xsd:extension base="xsd:string">
+                <xsd:attribute name="Separator" type="addr_type:Separator_type"/>
+            </xsd:extension>
+        </xsd:simpleContent>
+    </xsd:complexType>
+    <xsd:complexType name="StreetNamePostDirectional_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">A word preceding the Street
+Name that indicates the direction or position of the thoroughfare
+relative to an arbitrary starting point or line, or the sector where it
+is located. </xsd:documentation>
+        </xsd:annotation>
+        <xsd:simpleContent>
+            <xsd:extension base="xsd:string">
+                <xsd:attribute name="Separator" type="addr_type:Separator_type"/>
+            </xsd:extension>
+        </xsd:simpleContent>
+    </xsd:complexType>
+    <xsd:complexType name="StreetNamePostType_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">A word or phrase that follows
+the Street Name and identifies a type of thoroughfare in a Complete
+Street Name. </xsd:documentation>
+        </xsd:annotation>
+        <xsd:simpleContent>
+            <xsd:extension base="xsd:string">
+                <xsd:attribute name="Separator" type="addr_type:Separator_type"/>
+                <xsd:attribute name="NewAttribute" type="xsd:string"/>
+            </xsd:extension>
+        </xsd:simpleContent>
+    </xsd:complexType>
+    <!-- Occupancy Types -->
+    <xsd:simpleType name="SubaddressComponentOrder_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+The order in which SubaddressType and
+SubaddressIdentifier appear within an
+SubaddressElement when expressed as text. "Apartment 7"
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:integer">
+            <xsd:enumeration value="1">
+                <xsd:annotation>
+                    <xsd:documentation>SubaddressType first, then SubaddressIdentifier
+(or: SubaddressElement does not include an SubaddressType).
+Example: "Floor 7"</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+            <xsd:enumeration value="2">
+                <xsd:annotation>
+                    <xsd:documentation>SubaddressIdentifier first, then SubaddressType.
+Example: "Empire Room"</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+            <xsd:enumeration value="3">
+                <xsd:annotation>
+                    <xsd:documentation>Order is not known or unstated.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="SubaddressType_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+This is a modifier to the SubaddressIdentifier element and this
+cannot exist without it. The type of structure (when
+several structures are found at the same address), e.g.,
+Apartment, Tower, Block. Used with Building Identifier
+to designate one of several structures at a given site.
+Fits within the general USPS definition of a "secondary
+address designator" and EPA definitions of "secondary
+address identifier"
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string"/>
+    </xsd:simpleType>
+    <xsd:simpleType name="SubaddressIdentifier_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+The letters, numbers, words or combination thereof used
+to distinguish one structure from another when several
+occur at the same address. Used with
+SubaddressType to designate one of several
+structures at a given site. Fits within the USPS
+definition of a "secondary address designator" and the
+general EPA definition of "secondary address
+identifier"
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string"/>
+    </xsd:simpleType>
+    <xsd:complexType name="SubaddressElement_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+A single combination of SubaddressType and
+SubaddressIdentifier (or, in some cases, a
+SubaddressIdentifier alone), which, alone or in
+combination with other SubaddressElements, distinguishes
+one subaddress within or between structures from another
+when several occur within the same feature. See
+CompleteSubaddress for a definition of "subaddress."
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:sequence>
+            <xsd:element name="SubaddressType" type="addr_type:SubaddressType_type" minOccurs="0" maxOccurs="1"/>
+            <xsd:element name="SubaddressIdentifier" type="addr_type:SubaddressIdentifier_type" minOccurs="1" maxOccurs="1"/>
+        </xsd:sequence>
+        <xsd:attribute name="ElementSequenceNumber" type="addr_type:ElementSequenceNumber_type"/>
+        <xsd:attribute name="SubaddressComponentOrder" type="addr_type:SubaddressComponentOrder_type"/>
+        <xsd:attribute name="Separator" type="addr_type:Separator_type"/>
+        <xsd:attribute name="GNISFeatureID" type="addr_type:GNISFeatureID_type"/>
+    </xsd:complexType>
+    <!-- Landmark Name Type -->
+    <xsd:complexType name="LandmarkName_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+The name by which a prominent feature is publicly known.
+Landmarks usually have a street address. A landmark name
+does not imply official historic landmark status, but
+simply a commonly used name that substitutes for an
+address number and street name in identifying the
+location of a specific building or feature. Generally
+the use of a landmark's street address is preferable
+because it is unambiguous. All landmark names should be
+cross-referenced to a street address or other coordinate
+location.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:simpleContent>
+            <xsd:extension base="xsd:string">
+                <xsd:attribute name="ElementSequenceNumber" type="addr_type:ElementSequenceNumber_type"/>
+                <xsd:attribute name="GNISFeatureID" type="addr_type:GNISFeatureID_type"/>
+            </xsd:extension>
+        </xsd:simpleContent>
+    </xsd:complexType>
+    <!-- Area and Zone Elements -->
+    <xsd:simpleType name="CommunityPlaceName_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+A named area, sector, or development that is not an
+incorporated municipality or other governmental unit,
+such as a neighborhood in a city, or a rural settlement
+in unincorporated area. Often called "urbanization" in
+Puerto Rican addressing usage.
+1. "Urbanizacion", commonly used in urban areas of
+Puerto Rico, is an important part of the address. Street
+names and address ranges are often repeated in a city,
+especially where a city has annexed older towns; they are
+distinguished by their urbanizacion or community name.
+2. Certain other words can be used in place of
+"urbanizacion": extenciones, mansiones, reparto, villa,
+parque, jardine, altura, alturas, colinas, estancias,
+extension, quintas, sector, terraza, villa, villas.
+3. For more information on Puerto Rican addressing
+conventions, see USPS Publication 28 Section 29, and
+USPS "Addressing Standards for Puerto Rico and the
+Virgin Islands".
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string">
+            <xsd:pattern value=".+"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="PlaceNameType_type">
+        <xsd:restriction base="xsd:string">
+            <xsd:pattern value=".+"/>
+            <xsd:enumeration value="USPSCommunity">
+                <xsd:annotation>
+                    <xsd:documentation xml:lang="en">
+The name given by the U.S. Postal Service to the
+post office from which mail is delivered to the
+address. In many places this will be different from the name
+of the municipality in which the address is physically located.
+The name given by the U.S. Postal Service to the
+post office from which mail is delivered to the
+address. In many places this will be different
+from the name of the incorporated municipality
+in which the address is physically located.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+            <xsd:enumeration value="MunicipalJurisdiction">
+                <xsd:annotation>
+                    <xsd:documentation xml:lang="en">
+The name of the municipality (city, township, or
+other non-county local government) in which the
+address is physically located. In many places
+this will be different than the city name used
+by the U.S. Postal Service.
+Required by most local governments for tax and services
+determinations. This will be null for addresses in unincorporated
+portions of counties.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+            <xsd:enumeration value="County">
+                <xsd:annotation>
+                    <xsd:documentation xml:lang="en">
+The primary administrative subdivision of a state in the United States.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="StateName_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+The primary legal subdivision of the United States,
+represented by its two letter USPS abbreviation.
+This is the only element stored in abbreviated form.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:token">
+            <xsd:pattern value=".*"/>
+            <!-- "US State and The District of Columbia" Abbreviations -->
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="ZipCode_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+A five-digit code that identifies a specific pseudo
+geographic delivery area. ZIP Codes can represent an
+area within a state, an area that crosses state
+boundaries (unusual condition) or a single building or
+company that has a very high mail volume. "ZIP" is an
+acronym for Zone Improvement Plan. Zero pad from the
+left to fill the range as in 01776.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string">
+            <xsd:pattern value="[0-9]{5}"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="ZipPlus4_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+A four-digit extension of the five-digit Zip Code that
+identifies a portion of a carrier route for USPS mail
+delivery. Zero pad from the left to fill the range as in
+0030.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string">
+            <xsd:pattern value="[0-9]{4}"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="CountryName_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+The name of the country in which the address is located.
+1.Although the scope of this standard is restricted to US addresses, this item is
+included for two reasons: to facilitate reconciliation with address standards of
+other nations, and to accommodate files which mix
+addresses from the US and other countries.
+2. ISO 3166-1 official short English names are
+specified because they are familiar and concise, and
+because ISO 3166-1 is specified in the UPU address standard.
+3. The names can be found at:
+http://www.iso.org/iso/en/prods-services/iso3166ma/02iso-3166-code-lists/list-en1.html
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string"/>
+    </xsd:simpleType>
+    <xsd:simpleType name="USPSBoxType_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+A box used for receipt of USPS mail. The box may be
+located in the post office lobby (e.g. PO Box), on the
+customer's premises or other USPS authorized place (e.g.
+rural route box).
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string">
+            <xsd:pattern value=".*"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="USPSBoxId_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+The numbers or letters distinguishing one box from
+another within a post office. May include slash, hyphen
+or period.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string">
+            <xsd:pattern value=".*"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:complexType name="USPSBox_type">
+        <xsd:annotation>
+            <xsd:documentation>A container for the receipt of USPS mail uniquely
+identified by the combination of a USPS Box Type and a USPS Box ID.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:sequence>
+            <xsd:element name="USPSBoxType" type="addr_type:USPSBoxType_type" minOccurs="1" maxOccurs="1"/>
+            <xsd:element name="USPSBoxId" type="addr_type:USPSBoxId_type" minOccurs="1" maxOccurs="1"/>
+        </xsd:sequence>
+    </xsd:complexType>
+    <xsd:simpleType name="USPSBoxGroupType_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+A collection of postal boxes served from a single distribution point.
+This group includes rural routes, highway contract routes, postal service centers,
+overseas military common mail rooms and military unit numbers.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string">
+            <xsd:pattern value=".*"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="USPSBoxGroupId_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+The numbers or letters distinguishing one group of boxes
+from another within a distribution point. May include
+hyphen, slash or period.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string">
+            <xsd:pattern value=".*"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:complexType name="USPSRoute_type">
+        <xsd:sequence>
+            <xsd:element name="USPSBoxGroupType" type="addr_type:USPSBoxGroupType_type" minOccurs="1" maxOccurs="1"/>
+            <xsd:element name="USPSBoxGroupId" type="addr_type:USPSBoxGroupId_type" minOccurs="1" maxOccurs="1"/>
+        </xsd:sequence>
+    </xsd:complexType>
+    <xsd:complexType name="USPSAddress_type">
+        <xsd:sequence>
+            <xsd:element name="USPSRoute" type="addr_type:USPSRoute_type" minOccurs="1" maxOccurs="1"/>
+            <xsd:element name="USPSBox" type="addr_type:USPSBox_type" minOccurs="1" maxOccurs="1"/>
+        </xsd:sequence>
+    </xsd:complexType>
+    <xsd:simpleType name="USPSGeneralDeliveryPoint_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+A central point where mail may be picked up by the
+addressee. Two values are permitted: "General Delivery"
+(for post offices), and ship's names (for overseas military addresses).
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string">
+            <xsd:pattern value=".*"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="AddressAuthorityIdentifiertype_old">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+A Concatenation of codes found in FIPS 5-2, 6-4, and
+55-3 data guides, with a locally defined code that MUST
+be defined in the metadata. The general format is
+(expressed as regular expressions)
+[0-9]{2}[0-9]{3}[0-9]{5}[0-9]{4}.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string">
+            <xsd:pattern value=".*"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <!-- Locational type -->
+    <xsd:simpleType name="AddressXCoordinate_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">The X coordinate of the
+address location.</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:double"/>
+    </xsd:simpleType>
+    <xsd:simpleType name="AddressYCoordinate_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">The Y coordinate of the
+address location.</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:double"/>
+    </xsd:simpleType>
+    <xsd:simpleType name="AddressLongitude_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+The longitude coordinate of the address location, noted in decimal degrees. For
+point and polygon features, coordinate pairs typically locate the point of
+assignment: a centroid point, a point locating the entry to a
+property, etc.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:double"/>
+    </xsd:simpleType>
+    <xsd:simpleType name="AddressLatitude_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+The latitude coordinate of the address location, noted
+in decimal degrees. For point and polygon features,
+coordinate pairs typically locate the point of
+assignment: a centroid point, a point locating the entry
+to a property, etc.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:double"/>
+    </xsd:simpleType>
+    <xsd:simpleType name="LocationUSNG_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+The USNG or US National Grid is an alphanumeric
+reference system that overlays the Universal Transverse
+Mercator (UTM) numerical coordinate system. A USNG
+coordinate consists of three parts, the:
+1. Grid Zone Designation (GZD) for worldwide unique
+geoaddresses (two digits plus one letter, developed from
+the UTM system).
+2. 100,000-meter Square Identification for regional
+areas (two letters).
+3. Grid Coordinates for local areas (always an even
+number of digits between 2 and 10 depending upon
+precision necessary to uniquely identify the location).
+Look to www.fgdc.gov/standards/status/usng.html for a
+normative definition.
+Adapted from US National Grid, FDGC-STD-011-2001, Section 3.3
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string">
+            <xsd:pattern value=".*"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="AddressElevation_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">Distance of the address
+in specified units above or below a vertical datum, as defined by a
+specified coordinate reference system. </xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:double"/>
+    </xsd:simpleType>
+    <xsd:simpleType name="AddressZLevel_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+Floor or level of the structure. The lowest level of a building is 1, and
+ascending numbers are assigned in order to each higher level.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string">
+            <xsd:pattern value=".*"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="AddressCoordinateReferenceSystemID_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">A name or number which,
+along with the Address Coordinate Reference System Authority,
+identifies the coordinate reference system to which Address X
+Coordinate and Address Y Coordinate. Address Latitude and Address
+Longitude, US National Grid Coordinate, or Address Elevation values
+are referenced. </xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:integer"/>
+    </xsd:simpleType>
+    <xsd:simpleType name="AddressCoordinateReferenceSystemAuthority_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">The Authority that
+assigns the unique Address Coordinate Reference System ID (number or
+name) to the Address Coordinate Reference System to which the
+Address X Coordinate and Address Y Coordinate, Address Latitude and
+Address Longitude, US National Grid Coordinate, or Address Elevation
+are referenced. </xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string"/>
+    </xsd:simpleType>
+    <xsd:complexType name="AddressCoordinateReferenceSystem_type">
+        <xsd:sequence>
+            <xsd:element name="AddressCoordinateReferenceSystemAuthority" type="addr_type:AddressCoordinateReferenceSystemAuthority_type"/>
+            <xsd:element name="AddressCoordinateReferenceSystemID" type="addr_type:AddressCoordinateReferenceSystemID_type"/>
+        </xsd:sequence>
+    </xsd:complexType>
+    <!-- Non Locational Elements -->
+    <xsd:simpleType name="AddressID_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">The unique
+identification number assigned to an address by the addressing
+authority. The ID number must be unique for each address assigned.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string">
+            <xsd:pattern value=".*"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="AddressReferenceSystemId_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">A unique identifier of
+the Address Reference System for a specified area (Address Reference
+System Extent). </xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:integer"/>
+    </xsd:simpleType>
+    <xsd:simpleType name="AddressReferenceSystemName_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">The name of the address
+system used in a specified area (Address Reference System Extent).
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string"/>
+    </xsd:simpleType>
+    <xsd:simpleType name="AddressReferenceSystemAuthority_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">The Authority that
+assigns the unique Address Coordinate Reference System ID (number or
+name) to the Address Coordinate Reference System to which the
+Address X Coordinate and Address Y
+Coordinate, Address Latitude and Address Longitude, US
+National Grid Coordinate, or Address Elevation are referenced.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string"/>
+    </xsd:simpleType>
+    <xsd:complexType name="AddressReferenceSystemExtent_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">Boundary of the area(s)
+within which an Address Reference System is used.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:complexContent>
+            <xsd:restriction base="gml:MultiSurfaceType"/>
+        </xsd:complexContent>
+    </xsd:complexType>
+    <xsd:simpleType name="AddressReferenceSystemType_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+The category of address reference system in use. The
+type of reference system determines and guides the
+assignment of numbers within the Address Reference
+System Extent.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string">
+            <xsd:enumeration value="Axial"/>
+            <xsd:enumeration value="Grid"/>
+            <xsd:enumeration value="Radial"/>
+            <xsd:enumeration value="Linear Non-Axial"/>
+            <xsd:enumeration value="Distance"/>
+            <xsd:enumeration value="Area Based"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:complexType name="AddressReferenceSystemRules_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+The rules by which address numbers, street names and
+other components of a thoroughfare address are determined.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:sequence>
+            <xsd:element name="AddressReferenceSystemBlockRules" type="addr_type:AddressReferenceSystemBlockRules_type" minOccurs="0" maxOccurs="unbounded"/>
+            <xsd:element name="AddressReferenceSystemNumberingRules" type="addr_type:AddressReferenceSystemNumberingRules_type" minOccurs="0" maxOccurs="unbounded"/>
+            <xsd:element name="AddressReferenceSystemStreetNamingRules" type="addr_type:AddressReferenceSystemStreetNamingRules_type" minOccurs="0" maxOccurs="unbounded"/>
+            <xsd:element name="AddressReferenceSystemStreetTypeDirectionalAndModfierRules" type="addr_type:AddressReferenceSystemStreetTypeDirectionalAndModifierRules_type" minOccurs="0" maxOccurs="unbounded"/>
+            <xsd:element name="AddressReferenceSystemPlaceNameStateCountyAndZipCodeRules" type="addr_type:AddressReferenceSystemPlaceNameStateCountryAndZipCodeRules_type" minOccurs="0" maxOccurs="unbounded"/>
+            <xsd:element name="AddressReferenceSystemSubaddressRules" type="addr_type:AddressReferenceSystemSubaddressRules_type" minOccurs="0" maxOccurs="unbounded"/>
+        </xsd:sequence>
+    </xsd:complexType>
+    <xsd:simpleType name="AddressReferenceSystemBlockRules_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">This element defines a
+block in an Address Reference System, and sets forth the rules for
+block ranges and block breaks. </xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string"/>
+    </xsd:simpleType>
+    <xsd:simpleType name="AddressReferenceSystemNumberingRules_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">The rules for numbering
+along a thoroughfare, including parity (odd/even side definition),
+and numbering increment distance and value.</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string"/>
+    </xsd:simpleType>
+    <xsd:simpleType name="AddressReferenceSystemStreetNamingRules_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">The rules for the
+selection and use of street names within an Address Reference System
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string"/>
+    </xsd:simpleType>
+    <xsd:simpleType name="AddressReferenceSystemStreetTypeDirectionalAndModifierRules_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">Rules pertaining to the
+use of street types (suffix and prefix), directionals (prefix and
+suffix), and modifiers (prefix and suffix) of street names.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string"/>
+    </xsd:simpleType>
+    <xsd:simpleType name="AddressReferenceSystemPlaceNameStateCountryAndZipCodeRules_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">This element contains
+rules for the use of place names, state names, country names, and
+ZIP Codes within the jurisdiction of an Address Authority.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string"/>
+    </xsd:simpleType>
+    <xsd:simpleType name="AddressReferenceSystemSubaddressRules_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">The rules that are
+applied to the addressing of areas within structures as subaddresses
+(units, suites, apartments, spaces, etc.) within a given Address
+Reference System</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string"/>
+    </xsd:simpleType>
+    <xsd:complexType name="AddressReferenceSystemAxis_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">The line that defines the
+points of origin for address numbering along thoroughfares that
+intersect it, or which are numbered in parallel to streets that
+intersect it. It may be a road, another geographic feature, or an
+imaginary line.</xsd:documentation>
+        </xsd:annotation>
+        <xsd:complexContent>
+            <xsd:restriction base="gml:MultiCurveType"/>
+        </xsd:complexContent>
+    </xsd:complexType>
+    <xsd:complexType name="AddressReferenceSystemAxisPointOfBeginning_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">Coordinate location of the
+beginning point of address numbering along an Address Reference System
+Axis. </xsd:documentation>
+        </xsd:annotation>
+        <xsd:complexContent>
+            <xsd:extension base="gml:PointType"/>
+        </xsd:complexContent>
+    </xsd:complexType>
+    <xsd:complexType name="AddressReferenceSystemGridAngle_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">The degree to which a
+specific, named address grid is tilted off a north/south or east/west
+orientation. </xsd:documentation>
+        </xsd:annotation>
+        <xsd:simpleContent>
+            <xsd:extension base="xsd:double"/>
+        </xsd:simpleContent>
+        <!--- PAB: revised from complexContent to simpleContent -->
+    </xsd:complexType>
+    <xsd:complexType name="AddressReferenceSystemReferencePolyline_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">A street, geometric
+line, or other line used to measure address number assignment
+intervals and ranges within an Address Reference System. The Address
+Reference System Reference Polyline may consist of a beginning
+point, one or more segments of a street centerline, geographically
+identified line, such as a line of latitude or longitude, a
+land-division based line, such as a township, range, or section
+line, or an imaginary line constructed for the purpose of allocating
+address ranges and address numbers.</xsd:documentation>
+        </xsd:annotation>
+        <xsd:complexContent>
+            <xsd:restriction base="gml:MultiCurveType"/>
+        </xsd:complexContent>
+    </xsd:complexType>
+    <xsd:complexType name="AddressReferenceSystemRangeBreakpoint_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">A point along a street
+or other thoroughfare within an Address Reference System where an
+address range beginning and/or endpoint is located.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:complexContent>
+            <xsd:extension base="gml:PointType"/>
+        </xsd:complexContent>
+    </xsd:complexType>
+    <xsd:complexType name="AddressReferenceSystemRangeBreakline_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">A line connecting the
+Address Reference System Range Breakpoints with the same value
+within an Address Reference System</xsd:documentation>
+        </xsd:annotation>
+        <xsd:complexContent>
+            <xsd:restriction base="gml:MultiCurveType"/>
+        </xsd:complexContent>
+    </xsd:complexType>
+    <xsd:complexType name="AddressReferenceSystemRangePolygon_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">A line connecting the
+Address Reference System Range Breakpoints with the same value
+within an Address Reference System</xsd:documentation>
+        </xsd:annotation>
+        <xsd:complexContent>
+            <xsd:restriction base="gml:MultiSurfaceType"/>
+        </xsd:complexContent>
+    </xsd:complexType>
+    <xsd:simpleType name="AddressReferenceSystemReferenceDocumentCitation_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">A bibliographic
+reference to an ordinance, map, manual, or other document in which
+the rules governing an Address Reference System are written.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string"/>
+    </xsd:simpleType>
+    <xsd:complexType name="AddressReferenceSystem_type">
+        <xsd:annotation>
+            <xsd:documentation>An Address Reference System is a set of rules and
+geometries that define how addresses are assigned along thoroughfares and/or within a given area
+(Address Reference System Extent). At minimum, an Address Reference System must specify where
+Complete Address Number sequences begin and how Complete Address Numbers are assigned along
+the length of thoroughfares governed by the Address Reference System within the Address Reference
+System Extent. Address Reference Systems typically provide rules governing left-right parity of
+Complete Address Numbers, assignment of Street Names and street types, use of directionals and quadrants, and
+other aspects of address assignment. An Address Reference System that is based on axis lines, an Address
+Reference System Axis defined for each axis used to define address assignment. Each Address Reference System
+Axis must have an identified Address Reference System Axis Point Of Beginning. An Address Reference System
+is known by it’s Address Reference System Name (required). Additional business rules for an Address
+Reference System are described in the Address Reference System Rules. </xsd:documentation>
+        </xsd:annotation>
+        <xsd:sequence>
+            <xsd:element name="AddressReferenceSystemId" type="addr_type:AddressReferenceSystemId_type" minOccurs="1" maxOccurs="1"/>
+            <xsd:element name="AddressReferenceSystemName" type="addr_type:AddressReferenceSystemName_type" minOccurs="1" maxOccurs="1"/>
+            <xsd:element name="AddressReferenceSystemAuthority" type="addr_type:AddressReferenceSystemAuthority_type" minOccurs="0" maxOccurs="1"/>
+            <xsd:element name="AddressReferenceSystemExtent" type="addr_type:AddressReferenceSystemExtent_type" minOccurs="0" maxOccurs="1"/>
+            <xsd:element name="AddressReferenceSystemType" type="addr_type:AddressReferenceSystemType_type" minOccurs="0" maxOccurs="1"/>
+            <xsd:element name="AddressReferenceSystemRules" type="addr_type:AddressReferenceSystemRules_type" minOccurs="0" maxOccurs="1"/>
+            <xsd:element name="AddressReferenceSystemAxis" type="addr_type:AddressReferenceSystemAxis_type" minOccurs="0" maxOccurs="1"/>
+            <xsd:element name="AddressReferenceSystemAxisPointOfBeginning" type="addr_type:AddressReferenceSystemAxisPointOfBeginning_type" minOccurs="0" maxOccurs="1"/>
+            <xsd:element name="AddressReferenceSystemReferencePolyline" type="addr_type:AddressReferenceSystemReferencePolyline_type" minOccurs="0" maxOccurs="unbounded"/>
+            <xsd:element name="AddressReferenceSystemRangeBreakpoint" type="addr_type:AddressReferenceSystemRangeBreakpoint_type" minOccurs="0" maxOccurs="1"/>
+            <xsd:element name="AddressReferenceSystemRangeBreakline" type="addr_type:AddressReferenceSystemRangeBreakline_type" minOccurs="0" maxOccurs="unbounded"/>
+            <xsd:element name="AddressReferenceSystemReferenceDocumentCitation" type="addr_type:AddressReferenceSystemReferenceDocumentCitation_type" minOccurs="0" maxOccurs="unbounded"/>
+        </xsd:sequence>
+    </xsd:complexType>
+    <xsd:complexType name="RelatedAddressID_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+The identifier of an address that is related to the identifier of another address.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:simpleContent>
+            <xsd:extension base="addr_type:AddressID_type">
+                <xsd:attribute name="AddressRelationType" type="addr_type:AddressRelationType_type"/>
+            </xsd:extension>
+        </xsd:simpleContent>
+    </xsd:complexType>
+    <xsd:simpleType name="AddressRelationType_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">The manner in which an
+address identified by a RelatedAddressID is related to an address
+identified by an AddressID.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string">
+            <xsd:pattern value=".*"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="RelatedTransportationFeatureId_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">The unique identifier
+assigned (within the reference transportation base model) to a
+transportation feature to which an address is related. see U.S.
+Federal Geographic Data Committee, "Framework Data Content
+Standard Part 7: Transportation base."
+"Framework Data Content Standard Part 7c: Roads."
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string">
+            <xsd:pattern value=".*"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="AddressTransportationFeatureId_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">The unique identifier
+assigned to the particular feature that represents an address within
+a transportation base model. see U.S. Federal Geographic Data
+Committee, "Framework Data Content Standard Part 7: Transportation
+base." "Framework Data Content Standard Part 7c: Roads."
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string">
+            <xsd:pattern value=".*"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="AddressTransportationFeatureType_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">The type of
+transportation feature (TranFeature) used to represent an address.
+For transportation features generally: U.S. Federal Geographic Data
+Committee, "Framework Data Content Standard Part 7: Transportation
+base." For roads features only: U.S. Federal Geographic Data
+Committee, "Framework Data Content Standard Part 7: Transportation
+base," as extended by "Framework Data Content Standard Part 7c: Roads."
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string">
+            <xsd:pattern value=".*"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="AddressTransportationSystemAuthority_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">The authority that
+maintains the transportation base model specified by the Address
+Transportation System Name, and assigns Address Transportation
+Feature I Ds to the features it represents.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string">
+            <xsd:pattern value=".*"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="AddressTransportationSystemName_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">The name of the
+transportation base model to which the address is related.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string">
+            <xsd:pattern value=".*"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="AddressParcelIdentifier_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">The primary permanent
+identifier, as defined by the Address Parcel Identifier Source, for
+a parcel that includes the land or feature identified by an address.
+A parcel is a single cadastral unit, which is the spatial
+extent of the past, present, and future rights and interests in real
+property. Definition source for parcel identifier: Adapted from FGDC,
+May 2008. Geographic Information Framework Data Content Standard
+Part 1: Cadastral. Section 4.2. Definition source for parcel: FGDC, May 2008. Cadastral
+Data Content Standard for the National Spatial Data Infrastructure.
+Version 1.4 – Fourth Revision. p. 45. (Part 3.2 Parcel)
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string">
+            <xsd:pattern value=".*"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="AddressParcelIdentifierSource_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">The permanent
+identifier for the agency, organization, or jurisdiction that
+assigns and maintains the Address Parcel Identifier.
+Definition source: FGDC, May 2008. Geographic Information
+Framework Data Content Standard Part 1: Cadastral. Section 4.7.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string">
+            <xsd:pattern value=".*"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="AddressUUId_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+The unique identification number assigned to an address
+by the addressing authority. The ID number must be
+unique for each address assigned by an addressing
+authority. This, combined with the FIPS number of the
+addressing authority, can provide a unique ID for every
+address in the US.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string">
+            <xsd:pattern value=".*"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="AssociatedAddressId_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+The unique identification number of and address related to this one.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string">
+            <xsd:pattern value=".*"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="MailableAddress_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+Identifies whether an addresses receives USPS mail
+delivery (that is, the address is occupiable, and the
+USPS provides on-premises USPS mail delivery to it).
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string">
+            <xsd:pattern value=".*"/>
+            <xsd:enumeration value="Yes">
+                <xsd:annotation>
+                    <xsd:documentation>The USPS delivers mail to this address.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+            <xsd:enumeration value="No">
+                <xsd:annotation>
+                    <xsd:documentation>The USPS does not deliver mail to this address.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+            <xsd:enumeration value="Unknown">
+                <xsd:annotation>
+                    <xsd:documentation>It is unknown whether the USPS delivers mail to
+this address.</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="AddressSideOfStreet_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+The side of the transportation segment (right , left,
+both, none, unknown) on which the address is located.
+U.S. Federal Geographic Data Committee, "Framework Data
+Content Standard Part 7: Transportation base," sections
+7.3.2 and B.3.6
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string">
+            <xsd:pattern value=".*"/>
+            <xsd:enumeration value="right">
+                <xsd:annotation>
+                    <xsd:documentation>The address is related to the right side of the street.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+            <xsd:enumeration value="left">
+                <xsd:annotation>
+                    <xsd:documentation>The address is related to the left side of the street.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+            <xsd:enumeration value="both">
+                <xsd:annotation>
+                    <xsd:documentation>The address pertains to both sides of the street.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+            <xsd:enumeration value="none">
+                <xsd:annotation>
+                    <xsd:documentation>The address is not on either or both sides of
+the street or the concept of side of street does not apply to the address.
+For instance an intersection address would have a AddressSideOfStreet of none.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+            <xsd:enumeration value="unknown"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="AddressRangeSide_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+The side of the transportation segment (right , left,
+both, none, unknown) on which the address range applies.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string">
+            <xsd:pattern value=".*"/>
+            <xsd:enumeration value="right">
+                <xsd:annotation>
+                    <xsd:documentation>The address is related to the right side of the street.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+            <xsd:enumeration value="left">
+                <xsd:annotation>
+                    <xsd:documentation>The address is related to the left side of the street.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+            <xsd:enumeration value="both">
+                <xsd:annotation>
+                    <xsd:documentation>The address pertains to both sides of the street.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+            <xsd:enumeration value="none">
+                <xsd:annotation>
+                    <xsd:documentation>The address is not on either or both sides of
+the street or the concept of side of street does not apply to the address.
+For instance an intersection address would have a AddressSideOfStreet of none.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+            <xsd:enumeration value="unknown"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="AddressRangeParity_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+The set of Address Number Parity values specified in the Address Reference
+System Numbering Rules for the Address Numbers in an address range.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string">
+            <xsd:pattern value=".*"/>
+            <xsd:enumeration value="even">
+                <xsd:annotation>
+                    <xsd:documentation>All Address Numbers in the range have an Address Number Parity of "even".
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+            <xsd:enumeration value="odd">
+                <xsd:annotation>
+                    <xsd:documentation>All Address Numbers in the range have an Address Number Parity of "odd".
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+            <xsd:enumeration value="both">
+                <xsd:annotation>
+                    <xsd:documentation>Both even and odd Address Numbers are found in the range.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+            <xsd:enumeration value="none">
+                <xsd:annotation>
+                    <xsd:documentation>No Address Number is found within the range.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+            <xsd:enumeration value="unknown">
+                <xsd:annotation>
+                    <xsd:documentation>The parity of the Address Numbers in the range
+in not known. </xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="OfficialStatus_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+Whether the address, street name, landmark name, or
+place name is as given by the official addressing
+authority (official), or an alternate or alias (official
+or unofficial), or a verified error.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string">
+            <xsd:pattern value=".*"/>
+            <xsd:enumeration value="Official">
+                <xsd:annotation>
+                    <xsd:documentation>
+The address or name as designated by the Address Authority.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+            <xsd:enumeration value="Alternate or Alias">
+                <xsd:annotation>
+                    <xsd:documentation>
+An alternate or alias to the official address or
+name that is also in official or popular use.
+The Related Address ID can be used to link an
+alternate or alias to the Address ID of the
+official address. There are two types of
+alternate or alias names, official and
+unofficial, each of which has subtypes.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+            <xsd:enumeration value="Official Alternate or Alias">
+                <xsd:annotation>
+                    <xsd:documentation>
+These are alternate names designated by an official Address Authority.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+            <xsd:enumeration value="Official Renaming Action of the Address Authority">
+                <xsd:annotation>
+                    <xsd:documentation>An Address Authority may replace one
+address or name with another, e.g. by renaming or renumbering.
+The prior, older address should be retained as an alias, to
+provide for conversion to the new address.</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+            <xsd:enumeration value="Alternates Established by an Address Authority">
+                <xsd:annotation>
+                    <xsd:documentation>An Address Authority may establish a name or
+number to be used in addition to the official address or name. For
+example, a state highway designation (State Highway 7) may be
+given to a locally-named road, or a memorial name may be applied
+to an existing street by posting an additional sign, while the
+local or original name and addresses continue to be recognized as
+official.</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+            <xsd:enumeration value="Unofficial Alternate or Alias">
+                <xsd:annotation>
+                    <xsd:documentation>
+These are addresses or names that are used by the public or by an individual, but are not
+recognized as official by the Address Authority.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+            <xsd:enumeration value="Alternate Names Established by Colloquial Use in a Community">
+                <xsd:annotation>
+                    <xsd:documentation>An address or name that is in popular use but is
+not the official name or an official alternate or alias.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+            <xsd:enumeration value="Unofficial Alternate Names Frequently Encountered">
+                <xsd:annotation>
+                    <xsd:documentation>In data processing, entry errors
+occur. Such errors if frequently encountered may be corrected by
+a direct match of the error and a substitution of a correct name.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+            <xsd:enumeration value="Unofficial Alternate Names In Use by an Agency or Entity">
+                <xsd:annotation>
+                    <xsd:documentation>For data processing efficiency,
+entities often create alternate names or abbreviations for internal
+use. These must be changed to the official form for public use and
+transmittal to external users.</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+            <xsd:enumeration value="Posted or Vanity Address">
+                <xsd:annotation>
+                    <xsd:documentation>An address that is posted, but is not
+recognized by the Address Authority (e.g. a vanity address on a building);
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+            <xsd:enumeration value="Verified Invalid">
+                <xsd:annotation>
+                    <xsd:documentation>
+An address that has been verified as being invalid, but which keeps appearing in address
+lists. Different from Unofficial Alternate Names in that these addresses are known not to
+exist.</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="AddressStartDate_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+The earliest date on which the address is known to exist.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:date"/>
+    </xsd:simpleType>
+    <xsd:simpleType name="AddressEndDate_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+The earliest date on which the address is known to no longer be valid.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:date"/>
+    </xsd:simpleType>
+    <xsd:simpleType name="DataSetID_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+The locally defined ID for the DataSet.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string"/>
+    </xsd:simpleType>
+    <xsd:simpleType name="AddressClassification_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+The type or classification of the address according to the classification standard.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string">
+            <xsd:enumeration value="NumberedThoroughfareAddress"/>
+            <xsd:enumeration value="IntersectionAddress"/>
+            <xsd:enumeration value="TwoNumberAddressRange"/>
+            <xsd:enumeration value="FourNumberAddressRange"/>
+            <xsd:enumeration value="UnnumberedThoroughfareAddress"/>
+            <xsd:enumeration value="LandmarkAddress"/>
+            <xsd:enumeration value="CommunityAddress"/>
+            <xsd:enumeration value="USPSPostalDeliveryBox"/>
+            <xsd:enumeration value="USPSPostal DeliveryRoute"/>
+            <xsd:enumeration value="USPSGeneral DeliveryOffice"/>
+            <xsd:enumeration value="GeneralAddressClass"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="AddressFeatureType_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+The type of feature identified by the address
+Initial list of feature types: Building Utility Cabinet,
+Telephone Pole, Building, Street block, street block
+face, intersection, parcel, building, entrance, unit.
+The list might be expanded indefinitely to include
+infrastructure and other features.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string">
+            <xsd:pattern value=".+"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="AddressLifecycle_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+The Lifecycle status of the address.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:token">
+            <xsd:enumeration value="PROPOSED"/>
+            <xsd:enumeration value="ACTIVE"/>
+            <xsd:enumeration value="RETIRED"/>
+            <xsd:enumeration value="TEMPORARY"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="AddressLifecycleStatus_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+The life cycle status of the address.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:token">
+            <xsd:enumeration value="Potential">
+                <xsd:annotation>
+                    <xsd:documentation>
+Address falls within a theoretical range, but has never been used.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+            <xsd:enumeration value="Proposed">
+                <xsd:annotation>
+                    <xsd:documentation>
+Application pending for use of this address
+(e.g., address tentatively issued for
+subdivision plat that is not yet fully approved).
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+            <xsd:enumeration value="Active">
+                <xsd:annotation>
+                    <xsd:documentation>
+Address has been issued and is in use.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+            <xsd:enumeration value="Retired">
+                <xsd:annotation>
+                    <xsd:documentation>
+Address was issued, but is now obsolete (e.g.
+street name has been changed), building was
+demolished, etc.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="AddressOfficialStatus_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+Whether the address is as given by the official
+addressing authority (official), or an unofficial
+variant or equivalent of it (alias).
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:token">
+            <xsd:pattern value=".+"/>
+            <xsd:enumeration value="Official">
+                <xsd:annotation>
+                    <xsd:documentation>
+The address or name as designated by the addressing authority.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+            <xsd:enumeration value="Alternate Name">
+                <xsd:annotation>
+                    <xsd:documentation>
+In any of the address classes described in 2.2, the collective name element may have another
+acceptable form. Some alternate names may be conditional, on attempt, i.e. if the alias
+resolves the address no further alternate names should be considered. Other alternate names are
+always applied, such as official renamings. All alternate names carry a limit of applicability
+and a timeframe of applicability. The limit of applicability may be a limit to a single zipcode,
+a naming authorities boundary, such as city or county limits, or a range of address numbers
+with such a boundary.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+            <xsd:enumeration value="Alternate Renamed">
+                <xsd:annotation>
+                    <xsd:documentation>
+Upon official renaming of an address, or renumbering of an address, or a series of
+addresses, the prior, older address will occur in address lists for a period of time and
+a conversion to current names or current addresses will need to be
+provided. Such an entity may match a single address or a range of addresses.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+            <xsd:enumeration value="Alternate Authority Name">
+                <xsd:annotation>
+                    <xsd:documentation>
+The alternate name is established by a separate, or the same, naming authority. Such names may
+apply to any address class, including landmarks. Such names would be established by naming
+authorities with a geographically larger area of responsibility, containing all or part of a
+naming authority with a smaller region, such as a state name overlaying a county name or a
+county name overlaying a city or town name. Examples would be a state highway designation
+(State Highway 7) overlaid upon locally named roads or a memorial highway overlaid on local
+road names or state highway names.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+            <xsd:enumeration value="Alternate Colloquial Name">
+                <xsd:annotation>
+                    <xsd:documentation>
+Local communities hold on to address names much longer than do regional agencies. A community
+may use a colloquial address name as much as 30 years after that name has either expired or is
+no longer salient. This entry provides a conversion to a current name.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+            <xsd:enumeration value="Unofficial Alternate Name">
+                <xsd:annotation>
+                    <xsd:documentation>
+In data processing, entry errors occur. Such errors if frequently encountered may be
+corrected by a direct match of the error and a substitution to a current name.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+            <xsd:enumeration value="Unofficial Agencys Name">
+                <xsd:annotation>
+                    <xsd:documentation>
+For data processing efficiency, entities often create alternate names for internal use. When
+such alternate names are exposed to other entities they need to be resolved to a current name.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+            <xsd:enumeration value="Posted Address">
+                <xsd:annotation>
+                    <xsd:documentation>
+Address is posted, but not recognized by addressing authority (e.g. vanity address on a building).
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+            <xsd:enumeration value="Verified Invalid">
+                <xsd:annotation>
+                    <xsd:documentation>
+Address is verified as being invalid, but keeps appearing in address lists. Different from Unofficial Altername
+Names in that these are known not to exist; Address has been issued and is in use.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="AddressAnomalyStatus_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+A status flag, or an explanatory note, for an address that is not correct according to the address schema in
+which it is located, but is nonetheless a valid address. This field may be used to identify the type of anomaly
+(e.g. wrong parity, out of sequence, out of range, etc.) rather than simply whether or not it is anomalous. Local
+jurisdictions may create specific categories for anomalies.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string"/>
+    </xsd:simpleType>
+    <xsd:simpleType name="AddressRangeSpan_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+Whether an address range covers part of a transportation segment, one segment, multiple
+segments, or the entire thoroughfare within the Address Reference System Extent.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string">
+            <xsd:pattern value=".+"/>
+            <xsd:enumeration value="Partial Segment"/>
+            <xsd:enumeration value="Single Segment"/>
+            <xsd:enumeration value="Multi Segment"/>
+            <xsd:enumeration value="Entire Street"/>
+            <xsd:enumeration value="Unknown"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="AddressRangeDirectionality_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+Whether the low Complete Address Number of an address range is closer to the
+from-node or the to-node of the transportation segment(s) that the range is related to.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string">
+            <xsd:enumeration value="With">
+                <xsd:annotation>
+                    <xsd:documentation>The low address is nearer the from node; numbers
+ascend toward the to node.</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+            <xsd:enumeration value="Against">
+                <xsd:annotation>
+                    <xsd:documentation>The low address is nearer the to node; numbers
+descend toward the to node.</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+            <xsd:enumeration value="With-Against">
+                <xsd:annotation>
+                    <xsd:documentation>The numbers run in opposite directions on either
+side of the street. The low number on the left side is nearer the
+from node. The low number on the right side is nearer the to node.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+            <xsd:enumeration value="Against-With">
+                <xsd:annotation>
+                    <xsd:documentation>The numbers run in opposite
+directions on either side of the street. The low number on the left side
+is nearer the to node. The low number on the right side is nearer the from node.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+            <xsd:enumeration value="Null">
+                <xsd:annotation>
+                    <xsd:documentation>The address range has null values for
+the high and low Complete Address Numbers.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+            <xsd:enumeration value="NA">
+                <xsd:annotation>
+                    <xsd:documentation>Does not apply (transportation
+segment directionality is inconsistent within the range).
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+            <xsd:enumeration value="Unknown">
+                <xsd:annotation>
+                    <xsd:documentation>The address range directionality is not known.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="AddressRangeType_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">This attribute states
+whether an address range (either a Two Number Address Range
+or a Four Number Address Range) is actual or potential.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string">
+            <xsd:enumeration value="Actual">
+                <xsd:annotation>
+                    <xsd:documentation>
+The low and high CompleteAddressNumbers are numbers that have been assigned and are in use
+along the addressed feature.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+            <xsd:enumeration value="Potential">
+                <xsd:annotation>
+                    <xsd:documentation>
+The low and high CompleteAddressNumbers are numbers that would be assigned if all possible
+numbers were in use along the addressed feature, and there were no gaps between the
+range and its preceding and following ranges.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+            <xsd:enumeration value="Unknown">
+                <xsd:annotation>
+                    <xsd:documentation>
+The relationship between the low and high CompleteAddressNumbers and the addressed feature
+is unknown.</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="LocationDescription_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+A text description providing more detail on how to identify or find the addressed feature.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string"/>
+    </xsd:simpleType>
+    <xsd:simpleType name="AddressNumberParity_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en"> The property of an
+Address Number with respect to being odd or even. "A relation between a pair of integers: if both integers
+are odd or both are even they have the same parity; if one is odd and the other is even they have different
+parity."
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:token">
+            <xsd:enumeration value="Even"/>
+            <xsd:enumeration value="Odd"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="AttachedElement_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+This attribute identifies when two or more Complete Address Number elements or two
+or more Complete Street Name elements have been combined without a space
+separating them.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string">
+            <xsd:enumeration value="Attached">
+                <xsd:annotation>
+                    <xsd:documentation>
+The elements inside the CompleteAddressNumber or
+CompleteStreetName are attached and need special parsing rules.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+            <xsd:enumeration value="Not Attached"/>
+            <xsd:enumeration value="Unknown"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="AddressNumberSide_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+"The Concept of Left and Right sides of a feature that a Number Range Applies to.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:token">
+            <xsd:enumeration value="Left"/>
+            <xsd:enumeration value="Right"/>
+            <xsd:enumeration value="Unknown"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="AddressNumberBounds_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+"The Concept of Low or High of numbers participating in a Number Range Applies to.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:token">
+            <xsd:enumeration value="Low"/>
+            <xsd:enumeration value="High"/>
+            <xsd:enumeration value="Unknown"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:complexType name="StreetNameGroup">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+A geographic area where the street names conform to a theme. For example, some neighborhoods
+feature streets named for birds, US presidents or trees. A subset of the
+complete street name domain applies to this area.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:complexContent>
+            <xsd:extension base="gml:MultiSurfaceType">
+                <xsd:attribute name="name" type="xsd:string"/>
+            </xsd:extension>
+        </xsd:complexContent>
+    </xsd:complexType>
+    <xsd:simpleType name="AddressSchemeName_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+Name of the address scheme that operates over a specified area, i.e.: mountain addresses,
+plains addresses.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string">
+            <xsd:pattern value=".*"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="AddressSchemeDescription_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+A description of an Address Scheme that includes business rules about parity, naming
+conventions, and other matters concerning the assignment and maintenance
+of an addressing scheme. This element may refer to an address ordinance, Standard
+Operating Procedures manual or other external document wherein the rules for addresses in a given scheme
+are written.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string">
+            <xsd:pattern value=".*"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <!-- add axes name as an attribute -->
+    <!-- change data type to GML::Point -->
+    <xsd:complexType name="AddressSchemeOrigin_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+Location where the address axes meet.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:complexContent>
+            <xsd:extension base="gml:PointType">
+                <xsd:attribute name="OriginValue" type="xsd:int"/>
+                <xsd:attribute name="AxisId" type="xsd:string"/>
+            </xsd:extension>
+        </xsd:complexContent>
+    </xsd:complexType>
+    <xsd:complexType name="AddressSchemeAxes_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+Address axes define the boundaries between adjoining zones in address schema. Those zones may
+be quadrants (northwest, northeast, southeast, southwest) or other
+geographic divisions. Lowest address numbers occur nearest an axis.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:complexContent>
+            <xsd:extension base="gml:MultiCurveType">
+                <xsd:attribute name="AxisId" type="xsd:string"/>
+            </xsd:extension>
+        </xsd:complexContent>
+    </xsd:complexType>
+    <xsd:complexType name="AddressSchemeExtent_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+Boundary of the area over which an address schema is used when assigning addresses.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:complexContent>
+            <xsd:extension base="gml:MultiSurfaceType"/>
+        </xsd:complexContent>
+    </xsd:complexType>
+    <xsd:simpleType name="AddressDirectSource_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+Source from whom the data provider obtained the address, or with whom the data provider
+validated the address. Important if the data provider did not obtain the
+address directly from the local authority.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string">
+            <xsd:pattern value=".*"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="AddressAuthority_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+The authority (e.g., municipality, county) that created or has jurisdiction over the
+creation of an address. The addressing authority may or may not be
+the same as the physical or postal jurisdiction noted for the address.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string">
+            <xsd:pattern value=".*"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="AddressAuthorityIdentifier_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+The FIPS or GNIs code for the authority (e.g., municipality, county) that created or has jurisdiction
+over the creation of an address. The addressing authority may or may not be the same as
+the physical or postal jurisdiction noted for the address.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string">
+            <xsd:pattern value=".*"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <!-- Complex Types -->
+    <xsd:simpleType name="Action_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+An action command for incremental datasets. Add indicates that the information is new.
+DELETE indicates that the information is to be removed.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:token">
+            <xsd:enumeration value="ADD"/>
+            <xsd:enumeration value="DELETE"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="DeliveryAddressType_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+Whether the Delivery Address includes or excludes the Complete Subaddress.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:token">
+            <xsd:enumeration value="SubAddress Included">
+                <xsd:annotation>
+                    <xsd:documentation>The Delivery Address includes the Complete
+Subaddress (if any) </xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+            <xsd:enumeration value="SubAddres Excluded">
+                <xsd:annotation>
+                    <xsd:documentation>The Delivery Address includes the Complete
+Subaddress (if any) </xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+            <xsd:enumeration value="Unstated">
+                <xsd:annotation>
+                    <xsd:documentation>Not stated/no information (default value)
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <!-- Complex Elements -->
+    <xsd:complexType name="DeliveryAddress_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+The entire address, unparsed, except for the Place Name, State Name,
+Zip Code, Zip Plus 4, Country Name, and, optionally, Complete Subaddress elements.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:simpleContent>
+            <xsd:extension base="xsd:string">
+                <xsd:attribute name="DeliveryAddressType" type="addr_type:DeliveryAddressType_type"/>
+            </xsd:extension>
+        </xsd:simpleContent>
+    </xsd:complexType>
+    <xsd:simpleType name="PlaceStateZip_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+The unparsed accumulation of Postal City, State, and ZIPCode elements.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string">
+            <xsd:pattern value=".*"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:complexType name="FeatureOccupancy_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+This element is defined solely for use with the General Address class, which is constructed
+to accommodate and mix addresses of all types (e.g., a general postal
+mailing list or contact list). Place Name, State Name, Zip Code, and
+Zip Plus 4, which appear in all address classes, are kept separate
+from the rest of the address. No longer a parsed datatype. Content
+still represents it as such.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:simpleContent>
+            <xsd:extension base="xsd:string"/>
+        </xsd:simpleContent>
+    </xsd:complexType>
+    <xsd:complexType name="GeneralAddress_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+This element is defined solely for use with the General Address class, which is constructed
+to accommodate and mix addresses of all types (e.g., a general postal
+mailing list or contact list). Place Name, State Name, Zip Code, and
+Zip Plus 4, which appear in all address classes, are kept separate
+from the rest of the address. No longer a parsed datatype. Content
+still represents it as such.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:simpleContent>
+            <xsd:extension base="xsd:string"/>
+        </xsd:simpleContent>
+    </xsd:complexType>
+    <!-- -->
+    <xsd:complexType name="LocationXY_type">
+        <xsd:sequence>
+            <xsd:element name="X" type="addr_type:AddressXCoordinate_type" minOccurs="1" maxOccurs="1"/>
+            <xsd:element name="Y" type="addr_type:AddressYCoordinate_type" minOccurs="1" maxOccurs="1"/>
+        </xsd:sequence>
+    </xsd:complexType>
+    <xsd:complexType name="LocationLongLat_type">
+        <xsd:sequence>
+            <xsd:element name="Longitude" type="addr_type:AddressLongitude_type" minOccurs="1" maxOccurs="1"/>
+            <xsd:element name="Latitude" type="addr_type:AddressLatitude_type" minOccurs="1" maxOccurs="1"/>
+        </xsd:sequence>
+    </xsd:complexType>
+    <xsd:complexType name="Location_type">
+        <xsd:sequence>
+            <xsd:element name="USNGCoordinate" type="addr_type:LocationUSNG_type" minOccurs="0" maxOccurs="1"/>
+            <xsd:element name="LongLat" type="addr_type:LocationLongLat_type" minOccurs="0" maxOccurs="1"/>
+            <xsd:element name="XYCoordinate" type="addr_type:LocationXY_type" minOccurs="0" maxOccurs="1"/>
+            <xsd:element name="AdressZLevel" type="addr_type:AddressZLevel_type" minOccurs="0" maxOccurs="1"/>
+        </xsd:sequence>
+    </xsd:complexType>
+    <xsd:complexType name="CompleteStreetName_type">
+        <xsd:sequence>
+            <xsd:element name="StreetNamePreModifier" type="addr_type:StreetNamePreModifier_type" minOccurs="0" maxOccurs="1"/>
+            <xsd:element name="StreetNamePreDirectional" type="addr_type:StreetNamePreDirectional_type" minOccurs="0" maxOccurs="1"/>
+            <xsd:element name="StreetNamePreType" type="addr_type:StreetNamePreType_type" minOccurs="0" maxOccurs="1"/>
+            <xsd:element name="StreetName" type="addr_type:StreetName_type" minOccurs="1" maxOccurs="1"/>
+            <xsd:element name="StreetNamePostType" type="addr_type:StreetNamePreType_type" minOccurs="0" maxOccurs="1"/>
+            <xsd:element name="StreetNamePostDirectional" type="addr_type:StreetNamePreDirectional_type" minOccurs="0" maxOccurs="1"/>
+            <xsd:element name="StreetNamePostModifier" type="addr_type:StreetNamePreModifier_type" minOccurs="0" maxOccurs="1"/>
+        </xsd:sequence>
+        <xsd:attribute name="AttachedElement" type="addr_type:AttachedElement_type"/>
+    </xsd:complexType>
+    <xsd:group name="CompleteStreetName_group">
+        <xsd:sequence>
+            <xsd:element name="StreetNamePreModifier" type="addr_type:StreetNamePreModifier_type" minOccurs="0" maxOccurs="1"/>
+            <xsd:element name="StreetNamePreDirectional" type="addr_type:StreetNamePreDirectional_type" minOccurs="0" maxOccurs="1"/>
+            <xsd:element name="StreetNamePreType" type="addr_type:StreetNamePreType_type" minOccurs="0" maxOccurs="1"/>
+            <xsd:element name="StreetName" type="addr_type:StreetName_type" minOccurs="1" maxOccurs="1"/>
+            <xsd:element name="StreetNamePostType" type="addr_type:StreetNamePreType_type" minOccurs="0" maxOccurs="1"/>
+            <xsd:element name="StreetNamePostDirectional" type="addr_type:StreetNamePreDirectional_type" minOccurs="0" maxOccurs="1"/>
+            <xsd:element name="StreetNamePostModifier" type="addr_type:StreetNamePreModifier_type" minOccurs="0" maxOccurs="1"/>
+        </xsd:sequence>
+    </xsd:group>
+    <xsd:group name="CompleteAddressNumber_group">
+        <xsd:annotation>
+            <xsd:documentation>The portion of the Complete Address
+Number which follows the Address Number itself.
+1. The Address Number element is required to compose a Complete Address
+Number. The other elements are optional.
+2. The Address Number must be converted from integer to characterString
+when constructing the Complete Address Number.
+3. The great majority of Complete Address Numbers are simple integers.
+Infrequently the integer is followed by an alphanumeric Address Number
+Suffix, typically a letter or a fraction. Even more rarely the integer
+is preceded by an alphanumeric Address Number Prefix. In addition to
+the typical numbering format, four special-case formats are found in
+the United States: Milepost addresses, grid-style address numbers,
+hyphenated address numbers, and other Address Number Prefix letters or
+symbols.
+4. Milepost Complete Address Numbers (Example: "Milepost 240"). Road
+mileposts are sometimes used to specify locations along highways and
+similar roads. Mileposts are often used to locate, for example, crash
+sites, emergency call boxes, bridge locations, inspection stations,
+roadside rest stops, railroad crossings, highway exits, park and
+campground entrances, RV parks, and truck stops. Milepost addresses
+should be parsed as follows:
+---"Milepost" (or equivalent word or phrase, such as "kilometer" or
+'Mile Marker") is an Address Number Prefix
+---The milepost number (integer part only) is an Address Number
+---Tenths, if given, are an Address Number Suffix, including the decimal point.
+---The road name or highway route number is a Complete Street Name, and
+parsed accordingly
+Note that, in Puerto Rico, road measurements are given in kilometers
+(km), which are sometimes divided into hectometers (hm).
+5. Grid-style Complete Address Numbers (Example: "N89W16758"). In
+certain communities in and around southern Wisconsin, Complete Address
+Numbers include a map grid cell reference preceding the Address Number.
+In the examples above, "N89W16758" should be read as "North 89, West
+167, Address Number 58". "W63N645" should be read as "West 63, North,
+Address Number 645." The north and west values specify a locallydefined
+map grid cell with which the address is located. Local
+knowledge is needed to know when the grid reference stops and the
+Address Number begins.
+6. Hyphenated Complete Address Numbers (Example: "5-5415"). In some
+areas (notably certain parts of New York City, southern California, and
+Hawaii), Complete Address Numbers often include hyphens. Hyphenated
+Complete Address Numbers should not be confused with Two Number Address
+Ranges. The former is a single Complete Address Number while the latter
+includes two Complete Address Numbers.
+7. Hyphenated Complete Address Numbers can be parsed so that the number
+indicating the site or structure is the Address Number, and the
+remainder (including the hyphen) is the Address Number Prefix or
+Address Number Suffix.
+8. In New York City, hyphenated Complete Address Numbers (the
+recommended format for storing complete address numbers in New York
+City) follow a more complex set of rules. The number to the left of the
+hyphen indicates the "block" (conceptually--the number does not always
+change at street intersections and sometimes it changes within a single
+block face). The number to the right of the hyphen indicates the site
+or house number within the "block". If the Address Number is less than
+ten, it is written with a leading zero, as in 194-03 1/2 above.
+Additional leading zeros may be added to either number to provide for
+correct sorting if the entire Complete Address Number is treated as a
+characterString with the hyphen included. Within the address standard,
+these numbers can be constructed and parsed as follows:
+a. The left-side number (194) and the hyphen form the Address Number
+Prefix element (text), with leading zeros shown if needed.
+Federal Geographic Data Committee FGDC Document Number FGDC-STD-016-2011
+United States Thoroughfare, Landmark, and Postal Address Data Standard 461
+b. The right-side number (3) is the Address Number (integer), converted
+to a characterString with the leading zero(s) added (03) upon
+conversion to Complete Address Number.
+c. The suffix, if any (such as the "1/2" in 194-03 1/2), is an Address Number Suffix.
+9. Other Address Number Prefix Letters or Symbols. In Puerto Rico,
+Address Numbers are commonly preceded by an Address Number Prefix
+letter (e.g. "A 19"). In Portland, OR, negative Address Numbers have
+been assigned in an area along the west bank of the Willamette River.
+The minus sign is represented as a leading zero ("0121" and "121" are
+two different Complete Address Numbers). In such cases the leading zero
+should be treated as an Address Number Prefix.
+10. Zero as a Complete Address Number. Special care should be taken
+with records where the Address Number is 0 (zero). Occasionally zero is
+issued as a valid address number (e.g. 0 Prince Street, Alexandria, VA
+22314) or it can be imputed (1/2 Fifth Avenue, New York, NY 10003, for
+which the Address Number would be 0 and the Address Number Suffix would
+be "1/2"). More often, though, the Address Number is either missing or
+non-existent, and null value has been converted to zero.
+11. Address Numbers vs. Address "Letters". In rare instances,
+thoroughfare addresses may be identified by letters instead of numbers
+(for example, "A" Main Street, "B" Main Street, "C" Main Street, "AA"
+Main Street, "AB" Main Street, etc.) A few thousand such cases have
+been verified in Puerto Rico, and others may be found elsewhere. In
+such cases, the letter(s) cannot be treated as an Address Number,
+because an Address Number must be an integer. The letter(s) also cannot
+be an Address Number Prefix or Address Number Suffix, because neither
+of those can be created except in conjunction with an Address Number.
+Instead, the letter(s) should be treated a Subaddress Identifier in an
+Unnumbered Thoroughfare Address. (For example: Complete Street Name =
+"Calle Sanchez", Complete Subaddress Identifier = "AB", Complete Place
+Name = "Mayaguez" State Name = "PR"). As an alternative, the address
+may be classified in the General Address Class and treated accordingly.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:sequence>
+            <xsd:element name="AddressNumberPrefix" type="addr_type:AddressNumberPrefix_type" minOccurs="0" maxOccurs="1"/>
+            <xsd:element name="AddressNumber" type="addr_type:AddressNumber_type" minOccurs="1" maxOccurs="1"/>
+            <xsd:element name="AddressNumberSuffix" type="addr_type:AddressNumberSuffix_type" minOccurs="0" maxOccurs="1"/>
+        </xsd:sequence>
+    </xsd:group>
+    <xsd:complexType name="CompleteAddressNumber_type">
+        <xsd:sequence>
+            <xsd:element name="AddressNumberPrefix" type="addr_type:AddressNumberPrefix_type" minOccurs="0" maxOccurs="1"/>
+            <xsd:element name="AddressNumber" type="addr_type:AddressNumber_type" minOccurs="1" maxOccurs="1"/>
+            <xsd:element name="AddressNumberSuffix" type="addr_type:AddressNumberSuffix_type" minOccurs="0" maxOccurs="1"/>
+        </xsd:sequence>
+        <xsd:attribute name="AddressNumberParity" type="addr_type:AddressNumberParity_type"/>
+        <xsd:attribute name="AttachedElement" type="addr_type:AttachedElement_type"/>
+    </xsd:complexType>
+    <xsd:complexType name="AddressNumberRange_type">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+{ Complete Address Number (low)*} + { Separator Element *} + { Complete Address Number
+(high)*} A set of two address numbers, separated by a "Separator",
+representing the low and high numbers of an address range. An address
+number range element should be accompanied by an Address Range Type
+Attribute that describes the type of range presented in this element.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:sequence>
+            <xsd:element name="CompleteAddressNumber" type="addr_type:CompleteAddressNumber_type" minOccurs="2" maxOccurs="2"/>
+        </xsd:sequence>
+        <xsd:attribute name="Separator" type="addr_type:Separator_type"/>
+        <xsd:attribute name="Parity" type="addr_type:AddressNumberParity_type"/>
+        <xsd:attribute name="Side" type="addr_type:AddressNumberSide_type"/>
+    </xsd:complexType>
+    <xsd:complexType name="PlaceName_type">
+        <xsd:simpleContent>
+            <xsd:extension base="xsd:string">
+                <xsd:attribute name="PlaceNameType" type="addr_type:PlaceNameType_type"/>
+                <xsd:attribute name="ElementSequenceNumber" type="addr_type:ElementSequenceNumber_type"/>
+                <xsd:attribute name="GNISFeatureID" type="addr_type:GNISFeatureID_type"/>
+            </xsd:extension>
+        </xsd:simpleContent>
+    </xsd:complexType>
+    <xsd:complexType name="CompleteSubaddress_type">
+        <xsd:sequence>
+            <xsd:element name="SubaddressElement" type="addr_type:SubaddressElement_type" minOccurs="1" maxOccurs="unbounded"/>
+        </xsd:sequence>
+    </xsd:complexType>
+    <xsd:complexType name="CompleteLandmarkName_type">
+        <xsd:sequence>
+            <xsd:element name="LandmarkName" type="addr_type:LandmarkName_type" minOccurs="1" maxOccurs="unbounded"/>
+        </xsd:sequence>
+        <xsd:attribute name="Separator" type="addr_type:Separator_type"/>
+    </xsd:complexType>
+    <xsd:complexType name="CompletePlaceName_type">
+        <xsd:sequence>
+            <xsd:element name="PlaceName" type="addr_type:PlaceName_type" minOccurs="1" maxOccurs="unbounded"/>
+        </xsd:sequence>
+        <xsd:attribute name="Separator" type="addr_type:Separator_type"/>
+    </xsd:complexType>
+    <!-- Supporting Information -->
+    <xsd:group name="AddressAttributes_group">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">Support information and record level metadata for each Address
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:sequence>
+            <xsd:element name="AddressId" type="addr_type:AddressID_type" minOccurs="0" maxOccurs="1"/>
+            <xsd:element name="AddressAuthority" type="addr_type:AddressAuthority_type" minOccurs="0" maxOccurs="1"/>
+            <xsd:element name="RelatedAddressId" type="addr_type:AssociatedAddressId_type" minOccurs="0" maxOccurs="unbounded"/>
+            <xsd:element name="AddressXCoordinate" type="addr_type:AddressXCoordinate_type" minOccurs="0" maxOccurs="1"/>
+            <xsd:element name="AddressYCoordinate" type="addr_type:AddressYCoordinate_type" minOccurs="0" maxOccurs="1"/>
+            <xsd:element name="AddressLongitude" type="addr_type:AddressLongitude_type" minOccurs="0" maxOccurs="1"/>
+            <xsd:element name="AddressLatitude" type="addr_type:AddressLatitude_type" minOccurs="0" maxOccurs="1"/>
+            <xsd:element name="USNationalGridCoordinate" type="addr_type:LocationUSNG_type" minOccurs="0" maxOccurs="1"/>
+            <xsd:element name="AddressElevation" type="addr_type:AddressElevation_type" minOccurs="0" maxOccurs="1"/>
+            <xsd:element name="AddressCoordinateReferenceSystem" type="addr_type:AddressCoordinateReferenceSystem_type" minOccurs="0" maxOccurs="1"/>
+            <xsd:element name="AddressParcelIdentifierSource" type="addr_type:AddressParcelIdentifierSource_type" minOccurs="0" maxOccurs="unbounded"/>
+            <xsd:element name="AddressParcelIdentifier" type="addr_type:AddressParcelIdentifier_type" minOccurs="0" maxOccurs="unbounded"/>
+            <xsd:element name="AddressTransportationSystemName" type="addr_type:AddressTransportationSystemName_type" minOccurs="0" maxOccurs="1"/>
+            <xsd:element name="AddressTransportationSystemAuthority" type="addr_type:AddressTransportationSystemAuthority_type" minOccurs="0" maxOccurs="1"/>
+            <xsd:element name="AddressTransportationFeatureType" type="addr_type:AddressTransportationFeatureType_type" minOccurs="0" maxOccurs="1"/>
+            <xsd:element name="AddressTransportationFeatureID" type="addr_type:AssociatedAddressId_type" minOccurs="0" maxOccurs="1"/>
+            <xsd:element name="RelatedTransportationFeatureID" type="addr_type:AssociatedAddressId_type" minOccurs="0" maxOccurs="unbounded"/>
+            <xsd:element name="AddressRangeType" type="addr_type:AddressRangeType_type" minOccurs="0" maxOccurs="2"/>
+            <xsd:element name="AddressRangeParity" type="addr_type:AddressRangeParity_type" minOccurs="0" maxOccurs="2"/>
+            <xsd:element name="AddressRangeDirectionality" type="addr_type:AddressRangeDirectionality_type" minOccurs="0" maxOccurs="2"/>
+            <xsd:element name="AddressRangeSpan" type="addr_type:AddressRangeSpan_type" minOccurs="0" maxOccurs="unbounded"/>
+            <xsd:element name="AddressClassification" type="addr_type:AddressClassification_type" minOccurs="0" maxOccurs="1"/>
+            <xsd:element name="AddressFeatureType" type="addr_type:AddressFeatureType_type" minOccurs="0" maxOccurs="unbounded"/>
+            <xsd:element name="AddressLifecycleStatus" type="addr_type:AddressLifecycleStatus_type" minOccurs="0" maxOccurs="1"/>
+            <xsd:element name="OfficialStatus" type="addr_type:OfficialStatus_type" minOccurs="0" maxOccurs="1"/>
+            <xsd:element name="AddressAnomalyStatus" type="addr_type:AddressAnomalyStatus_type" minOccurs="0" maxOccurs="1"/>
+            <xsd:element name="AddressSideOfStreet" type="addr_type:AddressSideOfStreet_type" minOccurs="0" maxOccurs="1"/>
+            <xsd:element name="AddressZLevel" type="addr_type:AddressZLevel_type" minOccurs="0" maxOccurs="1"/>
+            <xsd:element name="LocationDescription" type="addr_type:LocationDescription_type" minOccurs="0" maxOccurs="1"/>
+            <xsd:element name="MailableAddress" type="addr_type:MailableAddress_type" minOccurs="0" maxOccurs="1"/>
+            <xsd:element name="AddressStartDate" type="addr_type:AddressStartDate_type" minOccurs="0" maxOccurs="1"/>
+            <xsd:element name="AddressEndDate" type="addr_type:AddressEndDate_type" minOccurs="0" maxOccurs="1"/>
+            <xsd:element name="DataSetID" type="addr_type:DataSetID_type" minOccurs="0" maxOccurs="1"/>
+            <xsd:element name="AddressReferenceSystemId" type="addr_type:AddressReferenceSystemId_type" minOccurs="0" maxOccurs="1"/>
+            <xsd:element name="AddressReferenceSystemAuthority" type="addr_type:AddressReferenceSystemAuthority_type" minOccurs="0" maxOccurs="1"/>
+        </xsd:sequence>
+    </xsd:group>
+    <!-- End Content Types -->
+    <!-- Begin Utility Groups -->
+    <xsd:group name="ZipCode_group">
+        <xsd:sequence>
+            <xsd:element name="ZipCode" type="addr_type:ZipCode_type" minOccurs="1" maxOccurs="1"/>
+            <xsd:element name="ZipPlus4" type="addr_type:ZipPlus4_type" minOccurs="0" maxOccurs="1"/>
+        </xsd:sequence>
+    </xsd:group>
+    <xsd:group name="PlaceStateZip_group">
+        <xsd:choice>
+            <xsd:sequence>
+                <xsd:element name="CompletePlaceName" type="addr_type:CompletePlaceName_type" minOccurs="1" maxOccurs="1"/>
+                <xsd:element name="StateName" type="addr_type:StateName_type" minOccurs="1" maxOccurs="1"/>
+                <xsd:group ref="addr_type:ZipCode_group" minOccurs="0" maxOccurs="1"/>
+                <xsd:element name="CountryName" type="addr_type:CountryName_type" minOccurs="0" maxOccurs="1"/>
+            </xsd:sequence>
+            <xsd:element name="PlaceStateZip" type="addr_type:PlaceStateZip_type" minOccurs="1" maxOccurs="unbounded"/>
+        </xsd:choice>
+    </xsd:group>
+    <!-- End Utility Groups -->
+</xsd:schema>

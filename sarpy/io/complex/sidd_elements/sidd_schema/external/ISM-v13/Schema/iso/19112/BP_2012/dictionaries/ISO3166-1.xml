@@ -1,0 +1,1427 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- As originally specified in OGC Best Practices Document:
+            Gazetteer Service - Application Profile of the Web Feature Service Implementation Specification
+            Version 0.9.4, OGC 11-122r1, 2011-08-18
+      - Revised from GML 3.1.1 to GML 3.2.1
+  -->
+<gml:Dictionary
+   xmlns:gml="http://www.opengis.net/gml/3.2"
+   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+   xsi:schemaLocation="http://www.opengis.net/gml/3.2 ../../../../ogc/gml/3.2.1/gml.xsd"
+   gml:id="ISO3166-1">
+   <gml:description>
+      ISO 3166-1 is part of the ISO 3166 standard published by the International Organization for Standardization (ISO), and defines codes for the names of countries, dependent territories, and special areas of geographical interest. The official name of the standard is Codes for the representation of names of countries and their subdivisions - Part 1: Country codes.
+   </gml:description>
+   <gml:identifier codeSpace="">ISO3166-1</gml:identifier>
+   <gml:name>Codes for the Representation of Country Names</gml:name>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="AD">
+	 <gml:identifier codeSpace="">AD</gml:identifier>
+         <gml:name>ANDORRA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="AE">
+	 <gml:identifier codeSpace="">AE</gml:identifier>
+         <gml:name>UNITED</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="AF">
+	 <gml:identifier codeSpace="">AF</gml:identifier>
+         <gml:name>AFGHANISTAN</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="AG">
+	 <gml:identifier codeSpace="">AG</gml:identifier>
+         <gml:name>ANTIGUA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="AI">
+	 <gml:identifier codeSpace="">AI</gml:identifier>
+         <gml:name>ANGUILLA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="AL">
+	 <gml:identifier codeSpace="">AL</gml:identifier>
+         <gml:name>ALBANIA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="AM">
+	 <gml:identifier codeSpace="">AM</gml:identifier>
+         <gml:name>ARMENIA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="AN">
+	 <gml:identifier codeSpace="">AN</gml:identifier>
+         <gml:name>NETHERLANDS</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="AO">
+	 <gml:identifier codeSpace="">AO</gml:identifier>
+         <gml:name>ANGOLA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="AQ">
+	 <gml:identifier codeSpace="">AQ</gml:identifier>
+         <gml:name>ANTARCTICA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="AR">
+	 <gml:identifier codeSpace="">AR</gml:identifier>
+         <gml:name>ARGENTINA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="AS">
+	 <gml:identifier codeSpace="">AS</gml:identifier>
+         <gml:name>AMERICAN</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="AT">
+	 <gml:identifier codeSpace="">AT</gml:identifier>
+         <gml:name>AUSTRIA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="AU">
+	 <gml:identifier codeSpace="">AU</gml:identifier>
+         <gml:name>AUSTRALIA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="AW">
+	 <gml:identifier codeSpace="">AW</gml:identifier>
+         <gml:name>ARUBA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="AZ">
+	 <gml:identifier codeSpace="">AZ</gml:identifier>
+         <gml:name>AZERBAIJAN</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="BA">
+	 <gml:identifier codeSpace="">BA</gml:identifier>
+         <gml:name>BOSNIA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="BB">
+	 <gml:identifier codeSpace="">BB</gml:identifier>
+         <gml:name>BARBADOS</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="BD">
+	 <gml:identifier codeSpace="">BD</gml:identifier>
+         <gml:name>BANGLADESH</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="BE">
+	 <gml:identifier codeSpace="">BE</gml:identifier>
+         <gml:name>BELGIUM</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="BF">
+	 <gml:identifier codeSpace="">BF</gml:identifier>
+         <gml:name>BURKINA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="BG">
+	 <gml:identifier codeSpace="">BG</gml:identifier>
+         <gml:name>BULGARIA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="BH">
+	 <gml:identifier codeSpace="">BH</gml:identifier>
+         <gml:name>BAHRAIN</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="BI">
+	 <gml:identifier codeSpace="">BI</gml:identifier>
+         <gml:name>BURUNDI</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="BJ">
+	 <gml:identifier codeSpace="">BJ</gml:identifier>
+         <gml:name>BENIN</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="BM">
+	 <gml:identifier codeSpace="">BM</gml:identifier>
+         <gml:name>BERMUDA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="BN">
+	 <gml:identifier codeSpace="">BN</gml:identifier>
+         <gml:name>BRUNEI</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="BO">
+	 <gml:identifier codeSpace="">BO</gml:identifier>
+         <gml:name>BOLIVIA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="BR">
+	 <gml:identifier codeSpace="">BR</gml:identifier>
+         <gml:name>BRAZIL</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="BS">
+	 <gml:identifier codeSpace="">BS</gml:identifier>
+         <gml:name>BAHAMAS</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="BT">
+	 <gml:identifier codeSpace="">BT</gml:identifier>
+         <gml:name>BHUTAN</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="BV">
+	 <gml:identifier codeSpace="">BV</gml:identifier>
+         <gml:name>BOUVET</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="BW">
+	 <gml:identifier codeSpace="">BW</gml:identifier>
+         <gml:name>BOTSWANA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="BY">
+	 <gml:identifier codeSpace="">BY</gml:identifier>
+         <gml:name>BELARUS</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="BZ">
+	 <gml:identifier codeSpace="">BZ</gml:identifier>
+         <gml:name>BELIZE</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="CA">
+	 <gml:identifier codeSpace="">CA</gml:identifier>
+         <gml:name>CANADA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="CC">
+	 <gml:identifier codeSpace="">CC</gml:identifier>
+         <gml:name>COCOS</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="CD">
+	 <gml:identifier codeSpace="">CD</gml:identifier>
+         <gml:name>CONGO,</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="CF">
+	 <gml:identifier codeSpace="">CF</gml:identifier>
+         <gml:name>CENTRAL</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="CG">
+	 <gml:identifier codeSpace="">CG</gml:identifier>
+         <gml:name>CONGO</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="CH">
+	 <gml:identifier codeSpace="">CH</gml:identifier>
+         <gml:name>SWITZERLAND</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="CI">
+	 <gml:identifier codeSpace="">CI</gml:identifier>
+         <gml:name>C?TE</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="CK">
+	 <gml:identifier codeSpace="">CK</gml:identifier>
+         <gml:name>COOK</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="CL">
+	 <gml:identifier codeSpace="">CL</gml:identifier>
+         <gml:name>CHILE</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="CM">
+	 <gml:identifier codeSpace="">CM</gml:identifier>
+         <gml:name>CAMEROON</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="CN">
+	 <gml:identifier codeSpace="">CN</gml:identifier>
+         <gml:name>CHINA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="CO">
+	 <gml:identifier codeSpace="">CO</gml:identifier>
+         <gml:name>COLOMBIA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="CR">
+	 <gml:identifier codeSpace="">CR</gml:identifier>
+         <gml:name>COSTA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="CU">
+	 <gml:identifier codeSpace="">CU</gml:identifier>
+         <gml:name>CUBA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="CV">
+	 <gml:identifier codeSpace="">CV</gml:identifier>
+         <gml:name>CAPE</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="CX">
+	 <gml:identifier codeSpace="">CX</gml:identifier>
+         <gml:name>CHRISTMAS</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="CY">
+	 <gml:identifier codeSpace="">CY</gml:identifier>
+         <gml:name>CYPRUS</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="CZ">
+	 <gml:identifier codeSpace="">CZ</gml:identifier>
+         <gml:name>CZECH</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="DE">
+	 <gml:identifier codeSpace="">DE</gml:identifier>
+         <gml:name>GERMANY</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="DJ">
+	 <gml:identifier codeSpace="">DJ</gml:identifier>
+         <gml:name>DJIBOUTI</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="DK">
+	 <gml:identifier codeSpace="">DK</gml:identifier>
+         <gml:name>DENMARK</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="DM">
+	 <gml:identifier codeSpace="">DM</gml:identifier>
+         <gml:name>DOMINICA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="DO">
+	 <gml:identifier codeSpace="">DO</gml:identifier>
+         <gml:name>DOMINICAN</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="DZ">
+	 <gml:identifier codeSpace="">DZ</gml:identifier>
+         <gml:name>ALGERIA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="EC">
+	 <gml:identifier codeSpace="">EC</gml:identifier>
+         <gml:name>ECUADOR</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="EE">
+	 <gml:identifier codeSpace="">EE</gml:identifier>
+         <gml:name>ESTONIA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="EG">
+	 <gml:identifier codeSpace="">EG</gml:identifier>
+         <gml:name>EGYPT</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="EH">
+	 <gml:identifier codeSpace="">EH</gml:identifier>
+         <gml:name>WESTERN</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="ER">
+	 <gml:identifier codeSpace="">ER</gml:identifier>
+         <gml:name>ERITREA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="ES">
+	 <gml:identifier codeSpace="">ES</gml:identifier>
+         <gml:name>SPAIN</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="ET">
+	 <gml:identifier codeSpace="">ET</gml:identifier>
+         <gml:name>ETHIOPIA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="FI">
+	 <gml:identifier codeSpace="">FI</gml:identifier>
+         <gml:name>FINLAND</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="FJ">
+	 <gml:identifier codeSpace="">FJ</gml:identifier>
+         <gml:name>FIJI</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="FK">
+	 <gml:identifier codeSpace="">FK</gml:identifier>
+         <gml:name>FALKLAND</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="FM">
+	 <gml:identifier codeSpace="">FM</gml:identifier>
+         <gml:name>MICRONESIA,</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="FO">
+	 <gml:identifier codeSpace="">FO</gml:identifier>
+         <gml:name>FAROE</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="FR">
+	 <gml:identifier codeSpace="">FR</gml:identifier>
+         <gml:name>FRANCE</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="GA">
+	 <gml:identifier codeSpace="">GA</gml:identifier>
+         <gml:name>GABON</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="GB">
+	 <gml:identifier codeSpace="">GB</gml:identifier>
+         <gml:name>UNITED</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="GD">
+	 <gml:identifier codeSpace="">GD</gml:identifier>
+         <gml:name>GRENADA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="GE">
+	 <gml:identifier codeSpace="">GE</gml:identifier>
+         <gml:name>GEORGIA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="GF">
+	 <gml:identifier codeSpace="">GF</gml:identifier>
+         <gml:name>FRENCH</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="GH">
+	 <gml:identifier codeSpace="">GH</gml:identifier>
+         <gml:name>GHANA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="GI">
+	 <gml:identifier codeSpace="">GI</gml:identifier>
+         <gml:name>GIBRALTAR</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="GL">
+	 <gml:identifier codeSpace="">GL</gml:identifier>
+         <gml:name>GREENLAND</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="GM">
+	 <gml:identifier codeSpace="">GM</gml:identifier>
+         <gml:name>GAMBIA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="GN">
+	 <gml:identifier codeSpace="">GN</gml:identifier>
+         <gml:name>GUINEA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="GP">
+	 <gml:identifier codeSpace="">GP</gml:identifier>
+         <gml:name>GUADELOUPE</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="GQ">
+	 <gml:identifier codeSpace="">GQ</gml:identifier>
+         <gml:name>EQUATORIAL</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="GR">
+	 <gml:identifier codeSpace="">GR</gml:identifier>
+         <gml:name>GREECE</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="GS">
+	 <gml:identifier codeSpace="">GS</gml:identifier>
+         <gml:name>SOUTH</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="GT">
+	 <gml:identifier codeSpace="">GT</gml:identifier>
+         <gml:name>GUATEMALA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="GU">
+	 <gml:identifier codeSpace="">GU</gml:identifier>
+         <gml:name>GUAM</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="GW">
+	 <gml:identifier codeSpace="">GW</gml:identifier>
+         <gml:name>GUINEA-BISSAU</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="GY">
+	 <gml:identifier codeSpace="">GY</gml:identifier>
+         <gml:name>GUYANA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="HK">
+	 <gml:identifier codeSpace="">HK</gml:identifier>
+         <gml:name>HONG</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="HM">
+	 <gml:identifier codeSpace="">HM</gml:identifier>
+         <gml:name>HEARD</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="HN">
+	 <gml:identifier codeSpace="">HN</gml:identifier>
+         <gml:name>HONDURAS</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="HR">
+	 <gml:identifier codeSpace="">HR</gml:identifier>
+         <gml:name>CROATIA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="HT">
+	 <gml:identifier codeSpace="">HT</gml:identifier>
+         <gml:name>HAITI</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="HU">
+	 <gml:identifier codeSpace="">HU</gml:identifier>
+         <gml:name>HUNGARY</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="ID">
+	 <gml:identifier codeSpace="">ID</gml:identifier>
+         <gml:name>INDONESIA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="IE">
+	 <gml:identifier codeSpace="">IE</gml:identifier>
+         <gml:name>IRELAND</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="IL">
+	 <gml:identifier codeSpace="">IL</gml:identifier>
+         <gml:name>ISRAEL</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="IN">
+	 <gml:identifier codeSpace="">IN</gml:identifier>
+         <gml:name>INDIA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="IO">
+	 <gml:identifier codeSpace="">IO</gml:identifier>
+         <gml:name>BRITISH</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="IQ">
+	 <gml:identifier codeSpace="">IQ</gml:identifier>
+         <gml:name>IRAQ</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="IR">
+	 <gml:identifier codeSpace="">IR</gml:identifier>
+         <gml:name>IRAN,</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="IS">
+	 <gml:identifier codeSpace="">IS</gml:identifier>
+         <gml:name>ICELAND</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="IT">
+	 <gml:identifier codeSpace="">IT</gml:identifier>
+         <gml:name>ITALY</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="JM">
+	 <gml:identifier codeSpace="">JM</gml:identifier>
+         <gml:name>JAMAICA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="JO">
+	 <gml:identifier codeSpace="">JO</gml:identifier>
+         <gml:name>JORDAN</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="JP">
+	 <gml:identifier codeSpace="">JP</gml:identifier>
+         <gml:name>JAPAN</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="KE">
+	 <gml:identifier codeSpace="">KE</gml:identifier>
+         <gml:name>KENYA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="KG">
+	 <gml:identifier codeSpace="">KG</gml:identifier>
+         <gml:name>KYRGYZSTAN</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="KH">
+	 <gml:identifier codeSpace="">KH</gml:identifier>
+         <gml:name>CAMBODIA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="KI">
+	 <gml:identifier codeSpace="">KI</gml:identifier>
+         <gml:name>KIRIBATI</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="KM">
+	 <gml:identifier codeSpace="">KM</gml:identifier>
+         <gml:name>COMOROS</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="KN">
+	 <gml:identifier codeSpace="">KN</gml:identifier>
+         <gml:name>SAINT</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="KP">
+	 <gml:identifier codeSpace="">KP</gml:identifier>
+         <gml:name>KOREA,</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="KR">
+	 <gml:identifier codeSpace="">KR</gml:identifier>
+         <gml:name>KOREA,</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="KW">
+	 <gml:identifier codeSpace="">KW</gml:identifier>
+         <gml:name>KUWAIT</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="KY">
+	 <gml:identifier codeSpace="">KY</gml:identifier>
+         <gml:name>CAYMAN</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="KZ">
+	 <gml:identifier codeSpace="">KZ</gml:identifier>
+         <gml:name>KAZAKHSTAN</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="LA">
+	 <gml:identifier codeSpace="">LA</gml:identifier>
+         <gml:name>LAO</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="LB">
+	 <gml:identifier codeSpace="">LB</gml:identifier>
+         <gml:name>LEBANON</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="LC">
+	 <gml:identifier codeSpace="">LC</gml:identifier>
+         <gml:name>SAINT</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="LI">
+	 <gml:identifier codeSpace="">LI</gml:identifier>
+         <gml:name>LIECHTENSTEIN</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="LK">
+	 <gml:identifier codeSpace="">LK</gml:identifier>
+         <gml:name>SRI</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="LR">
+	 <gml:identifier codeSpace="">LR</gml:identifier>
+         <gml:name>LIBERIA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="LS">
+	 <gml:identifier codeSpace="">LS</gml:identifier>
+         <gml:name>LESOTHO</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="LT">
+	 <gml:identifier codeSpace="">LT</gml:identifier>
+         <gml:name>LITHUANIA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="LU">
+	 <gml:identifier codeSpace="">LU</gml:identifier>
+         <gml:name>LUXEMBOURG</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="LV">
+	 <gml:identifier codeSpace="">LV</gml:identifier>
+         <gml:name>LATVIA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="LY">
+	 <gml:identifier codeSpace="">LY</gml:identifier>
+         <gml:name>LIBYAN</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="MA">
+	 <gml:identifier codeSpace="">MA</gml:identifier>
+         <gml:name>MOROCCO</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="MC">
+	 <gml:identifier codeSpace="">MC</gml:identifier>
+         <gml:name>MONACO</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="MD">
+	 <gml:identifier codeSpace="">MD</gml:identifier>
+         <gml:name>MOLDOVA,</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="MG">
+	 <gml:identifier codeSpace="">MG</gml:identifier>
+         <gml:name>MADAGASCAR</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="MH">
+	 <gml:identifier codeSpace="">MH</gml:identifier>
+         <gml:name>MARSHALL</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="MK">
+	 <gml:identifier codeSpace="">MK</gml:identifier>
+         <gml:name>MACEDONIA,</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="ML">
+	 <gml:identifier codeSpace="">ML</gml:identifier>
+         <gml:name>MALI</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="MM">
+	 <gml:identifier codeSpace="">MM</gml:identifier>
+         <gml:name>MYANMAR</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="MN">
+	 <gml:identifier codeSpace="">MN</gml:identifier>
+         <gml:name>MONGOLIA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="MO">
+	 <gml:identifier codeSpace="">MO</gml:identifier>
+         <gml:name>MACAU</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="MP">
+	 <gml:identifier codeSpace="">MP</gml:identifier>
+         <gml:name>NORTHERN</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="MQ">
+	 <gml:identifier codeSpace="">MQ</gml:identifier>
+         <gml:name>MARTINIQUE</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="MR">
+	 <gml:identifier codeSpace="">MR</gml:identifier>
+         <gml:name>MAURITANIA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="MS">
+	 <gml:identifier codeSpace="">MS</gml:identifier>
+         <gml:name>MONTSERRAT</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="MT">
+	 <gml:identifier codeSpace="">MT</gml:identifier>
+         <gml:name>MALTA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="MU">
+	 <gml:identifier codeSpace="">MU</gml:identifier>
+         <gml:name>MAURITIUS</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="MV">
+	 <gml:identifier codeSpace="">MV</gml:identifier>
+         <gml:name>MALDIVES</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="MW">
+	 <gml:identifier codeSpace="">MW</gml:identifier>
+         <gml:name>MALAWI</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="MX">
+	 <gml:identifier codeSpace="">MX</gml:identifier>
+         <gml:name>MEXICO</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="MY">
+	 <gml:identifier codeSpace="">MY</gml:identifier>
+         <gml:name>MALAYSIA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="MZ">
+	 <gml:identifier codeSpace="">MZ</gml:identifier>
+         <gml:name>MOZAMBIQUE</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="NA">
+	 <gml:identifier codeSpace="">NA</gml:identifier>
+         <gml:name>NAMIBIA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="NC">
+	 <gml:identifier codeSpace="">NC</gml:identifier>
+         <gml:name>NEW</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="NE">
+	 <gml:identifier codeSpace="">NE</gml:identifier>
+         <gml:name>NIGER</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="NF">
+	 <gml:identifier codeSpace="">NF</gml:identifier>
+         <gml:name>NORFOLK</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="NG">
+	 <gml:identifier codeSpace="">NG</gml:identifier>
+         <gml:name>NIGERIA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="NI">
+	 <gml:identifier codeSpace="">NI</gml:identifier>
+         <gml:name>NICARAGUA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="NL">
+	 <gml:identifier codeSpace="">NL</gml:identifier>
+         <gml:name>NETHERLANDS</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="NO">
+	 <gml:identifier codeSpace="">NO</gml:identifier>
+         <gml:name>NORWAY</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="NP">
+	 <gml:identifier codeSpace="">NP</gml:identifier>
+         <gml:name>NEPAL</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="NU">
+	 <gml:identifier codeSpace="">NU</gml:identifier>
+         <gml:name>NIUE</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="NZ">
+	 <gml:identifier codeSpace="">NZ</gml:identifier>
+         <gml:name>NEW</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="OM">
+	 <gml:identifier codeSpace="">OM</gml:identifier>
+         <gml:name>OMAN</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="PA">
+	 <gml:identifier codeSpace="">PA</gml:identifier>
+         <gml:name>PANAMA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="PE">
+	 <gml:identifier codeSpace="">PE</gml:identifier>
+         <gml:name>PERU</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="PF">
+	 <gml:identifier codeSpace="">PF</gml:identifier>
+         <gml:name>FRENCH</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="PG">
+	 <gml:identifier codeSpace="">PG</gml:identifier>
+         <gml:name>PAPUA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="PH">
+	 <gml:identifier codeSpace="">PH</gml:identifier>
+         <gml:name>PHILIPPINES</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="PK">
+	 <gml:identifier codeSpace="">PK</gml:identifier>
+         <gml:name>PAKISTAN</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="PL">
+	 <gml:identifier codeSpace="">PL</gml:identifier>
+         <gml:name>POLAND</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="PM">
+	 <gml:identifier codeSpace="">PM</gml:identifier>
+         <gml:name>SAINT</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="PN">
+	 <gml:identifier codeSpace="">PN</gml:identifier>
+         <gml:name>PITCAIRN</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="PR">
+	 <gml:identifier codeSpace="">PR</gml:identifier>
+         <gml:name>PUERTO</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="PT">
+	 <gml:identifier codeSpace="">PT</gml:identifier>
+         <gml:name>PORTUGAL</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="PW">
+	 <gml:identifier codeSpace="">PW</gml:identifier>
+         <gml:name>PALAU</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="PY">
+	 <gml:identifier codeSpace="">PY</gml:identifier>
+         <gml:name>PARAGUAY</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="QA">
+	 <gml:identifier codeSpace="">QA</gml:identifier>
+         <gml:name>QATAR</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="RE">
+	 <gml:identifier codeSpace="">RE</gml:identifier>
+         <gml:name>R?UNION</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="RO">
+	 <gml:identifier codeSpace="">RO</gml:identifier>
+         <gml:name>ROMANIA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="RU">
+	 <gml:identifier codeSpace="">RU</gml:identifier>
+         <gml:name>RUSSIAN</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="RW">
+	 <gml:identifier codeSpace="">RW</gml:identifier>
+         <gml:name>RWANDA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="SA">
+	 <gml:identifier codeSpace="">SA</gml:identifier>
+         <gml:name>SAUDI</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="SB">
+	 <gml:identifier codeSpace="">SB</gml:identifier>
+         <gml:name>SOLOMON</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="SC">
+	 <gml:identifier codeSpace="">SC</gml:identifier>
+         <gml:name>SEYCHELLES</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="SD">
+	 <gml:identifier codeSpace="">SD</gml:identifier>
+         <gml:name>SUDAN</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="SE">
+	 <gml:identifier codeSpace="">SE</gml:identifier>
+         <gml:name>SWEDEN</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="SG">
+	 <gml:identifier codeSpace="">SG</gml:identifier>
+         <gml:name>SINGAPORE</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="SH">
+	 <gml:identifier codeSpace="">SH</gml:identifier>
+         <gml:name>SAINT</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="SI">
+	 <gml:identifier codeSpace="">SI</gml:identifier>
+         <gml:name>SLOVENIA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="SJ">
+	 <gml:identifier codeSpace="">SJ</gml:identifier>
+         <gml:name>SVALBARD</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="SK">
+	 <gml:identifier codeSpace="">SK</gml:identifier>
+         <gml:name>SLOVAKIA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="SL">
+	 <gml:identifier codeSpace="">SL</gml:identifier>
+         <gml:name>SIERRA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="SM">
+	 <gml:identifier codeSpace="">SM</gml:identifier>
+         <gml:name>SAN</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="SN">
+	 <gml:identifier codeSpace="">SN</gml:identifier>
+         <gml:name>SENEGAL</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="SO">
+	 <gml:identifier codeSpace="">SO</gml:identifier>
+         <gml:name>SOMALIA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="SR">
+	 <gml:identifier codeSpace="">SR</gml:identifier>
+         <gml:name>SURINAME</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="ST">
+	 <gml:identifier codeSpace="">ST</gml:identifier>
+         <gml:name>SAO</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="SV">
+	 <gml:identifier codeSpace="">SV</gml:identifier>
+         <gml:name>EL</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="SY">
+	 <gml:identifier codeSpace="">SY</gml:identifier>
+         <gml:name>SYRIAN</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="SZ">
+	 <gml:identifier codeSpace="">SZ</gml:identifier>
+         <gml:name>SWAZILAND</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="TC">
+	 <gml:identifier codeSpace="">TC</gml:identifier>
+         <gml:name>TURKS</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="TD">
+	 <gml:identifier codeSpace="">TD</gml:identifier>
+         <gml:name>CHAD</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="TF">
+	 <gml:identifier codeSpace="">TF</gml:identifier>
+         <gml:name>FRENCH</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="TG">
+	 <gml:identifier codeSpace="">TG</gml:identifier>
+         <gml:name>TOGO</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="TH">
+	 <gml:identifier codeSpace="">TH</gml:identifier>
+         <gml:name>THAILAND</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="TJ">
+	 <gml:identifier codeSpace="">TJ</gml:identifier>
+         <gml:name>TAJIKISTAN</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="TK">
+	 <gml:identifier codeSpace="">TK</gml:identifier>
+         <gml:name>TOKELAU</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="TM">
+	 <gml:identifier codeSpace="">TM</gml:identifier>
+         <gml:name>TURKMENISTAN</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="TN">
+	 <gml:identifier codeSpace="">TN</gml:identifier>
+         <gml:name>TUNISIA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="TO">
+	 <gml:identifier codeSpace="">TO</gml:identifier>
+         <gml:name>TONGA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="TP">
+	 <gml:identifier codeSpace="">TP</gml:identifier>
+         <gml:name>EAST</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="TR">
+	 <gml:identifier codeSpace="">TR</gml:identifier>
+         <gml:name>TURKEY</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="TT">
+	 <gml:identifier codeSpace="">TT</gml:identifier>
+         <gml:name>TRINIDAD</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="TV">
+	 <gml:identifier codeSpace="">TV</gml:identifier>
+         <gml:name>TUVALU</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="TW">
+	 <gml:identifier codeSpace="">TW</gml:identifier>
+         <gml:name>TAIWAN,</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="TZ">
+	 <gml:identifier codeSpace="">TZ</gml:identifier>
+         <gml:name>TANZANIA,</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="UA">
+	 <gml:identifier codeSpace="">UA</gml:identifier>
+         <gml:name>UKRAINE</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="UG">
+	 <gml:identifier codeSpace="">UG</gml:identifier>
+         <gml:name>UGANDA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="UM">
+	 <gml:identifier codeSpace="">UM</gml:identifier>
+         <gml:name>UNITED</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="US">
+	 <gml:identifier codeSpace="">US</gml:identifier>
+         <gml:name>UNITED</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="UY">
+	 <gml:identifier codeSpace="">UY</gml:identifier>
+         <gml:name>URUGUAY</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="UZ">
+	 <gml:identifier codeSpace="">UZ</gml:identifier>
+         <gml:name>UZBEKISTAN</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="VE">
+	 <gml:identifier codeSpace="">VE</gml:identifier>
+         <gml:name>VENEZUELA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="VG">
+	 <gml:identifier codeSpace="">VG</gml:identifier>
+         <gml:name>VIRGIN</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="VI">
+	 <gml:identifier codeSpace="">VI</gml:identifier>
+         <gml:name>VIRGIN</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="VN">
+	 <gml:identifier codeSpace="">VN</gml:identifier>
+         <gml:name>VIET</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="VU">
+	 <gml:identifier codeSpace="">VU</gml:identifier>
+         <gml:name>VANUATU</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="WF">
+	 <gml:identifier codeSpace="">WF</gml:identifier>
+         <gml:name>WALLIS</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="WS">
+	 <gml:identifier codeSpace="">WS</gml:identifier>
+         <gml:name>SAMOA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="YE">
+	 <gml:identifier codeSpace="">YE</gml:identifier>
+         <gml:name>YEMEN</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="YT">
+	 <gml:identifier codeSpace="">YT</gml:identifier>
+         <gml:name>MAYOTTE</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="YU">
+	 <gml:identifier codeSpace="">YU</gml:identifier>
+         <gml:name>YUGOSLAVIA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="ZA">
+	 <gml:identifier codeSpace="">ZA</gml:identifier>
+         <gml:name>SOUTH</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="ZM">
+	 <gml:identifier codeSpace="">ZM</gml:identifier>
+         <gml:name>ZAMBIA</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+   <gml:dictionaryEntry>
+      <gml:Definition gml:id="ZW">
+	 <gml:identifier codeSpace="">ZW</gml:identifier>
+         <gml:name>ZIMBABWE</gml:name>
+      </gml:Definition>
+   </gml:dictionaryEntry>
+</gml:Dictionary>

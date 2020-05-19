@@ -1,0 +1,1042 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- edited with XMLSpy v2008 rel. 2 (http://www.altova.com) by General Dynamics AIS (General Dynamics AIS) -->
+<!-- SIDD v1.0.0 -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:ism="urn:us:gov:ic:ism" xmlns:sicommon="urn:SICommon:0.1" xmlns:sfa="urn:SFA:1.2.0" xmlns="urn:SIDD:1.0.0" targetNamespace="urn:SIDD:1.0.0" elementFormDefault="qualified" attributeFormDefault="unqualified">
+	<xs:import namespace="urn:SICommon:0.1" schemaLocation="SICommonTypes.xsd"/>
+	<xs:import namespace="urn:SFA:1.2.0" schemaLocation="SFA.xsd"/>
+	<xs:import namespace="urn:us:gov:ic:ism" schemaLocation="external/ISM/Schema/IC-ISM.xsd"/>
+	<xs:simpleType name="LUTListType">
+		<xs:list itemType="xs:int"/>
+	</xs:simpleType>
+	<xs:simpleType name="TripleType">
+		<xs:annotation>
+			<xs:documentation>Any comma int triple.</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:string">
+			<xs:pattern value="([0-9]+),([0-9]+),([0-9]+)"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="LUT3ListType">
+		<xs:list itemType="TripleType"/>
+	</xs:simpleType>
+	<xs:complexType name="Lookup3TableType">
+		<xs:simpleContent>
+			<xs:extension base="LUT3ListType">
+				<xs:attribute name="size" type="xs:int" use="required">
+					<xs:annotation>
+						<xs:documentation>Size of LUT</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+			</xs:extension>
+		</xs:simpleContent>
+	</xs:complexType>
+	<xs:complexType name="LookupTableType">
+		<xs:simpleContent>
+			<xs:extension base="LUTListType">
+				<xs:attribute name="size" type="xs:int" use="required">
+					<xs:annotation>
+						<xs:documentation>Size of LUT.</xs:documentation>
+					</xs:annotation>
+				</xs:attribute>
+			</xs:extension>
+		</xs:simpleContent>
+	</xs:complexType>
+	<xs:complexType name="ColorDisplayRemapType">
+		<xs:annotation>
+			<xs:documentation>Object representing that the data requires color display.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="RemapLUT" type="Lookup3TableType">
+				<xs:annotation>
+					<xs:documentation>LUT-base remap indicating that the color display is done through index-based color.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="MonochromeDisplayRemapType">
+		<xs:annotation>
+			<xs:documentation>This remap works by taking the input space and using the LUT to map it to a log space (for 8-bit only).
+From the log space the C0 and Ch fields are applied to get to display-ready density space.
+The density should then be rendered by the TTC and monitor comp.
+This means that the default DRA should not apply anything besides the clip points.
+If a different contrast/brightness is applied it should be done through modification of the clip points via DRA.
+Examples:
+Remap                LUT                    Clips
+=============================
+PEDF            PEDF->D                0,255
+LLG            LLG->A->LogA        C0,Ch
+Log                N/A                         C0,Ch
+NRL                N/A                        0,255 (Supposed to be display ready)
+            </xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="RemapType" type="xs:string">
+				<xs:annotation>
+					<xs:documentation>Name of remap applied (for informational purposes only).</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="RemapLUT" type="LookupTableType" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Lookup table for remap to log amplitude for display.  Used during the "Product Generation Option" portion of the SIPS display chain. Required for 8-bit data. Not to be used for 16-bit data.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="RemapParameter" type="sicommon:ParameterType" minOccurs="0" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>Textual remap parameter. Filled based upon remap type (for informational purposes only).  For example, if the data is linlog encoded a RemapParameter could be used to describe any amplitude scaling that was performed prior to linlog encoding the data.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:simpleType name="MagnificationMethodType">
+		<xs:annotation>
+			<xs:documentation>Default ELT magnification method for this data.</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:string">
+			<xs:enumeration value="NEAREST_NEIGHBOR"/>
+			<xs:enumeration value="BILINEAR"/>
+			<xs:enumeration value="LAGRANGE"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:simpleType name="DecimationMethodType">
+		<xs:annotation>
+			<xs:documentation>Default ELT decimation method for this data. Also used as default for reduced resolution dataset generation (if applicable).</xs:documentation>
+		</xs:annotation>
+		<xs:restriction base="xs:string">
+			<xs:enumeration value="NEAREST_NEIGHBOR"/>
+			<xs:enumeration value="BILINEAR"/>
+			<xs:enumeration value="BRIGHTEST_PIXEL"/>
+			<xs:enumeration value="LAGRANGE"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:complexType name="MonitorCompensationAppliedType">
+		<xs:annotation>
+			<xs:documentation>Describes monitor compensation that may have been applied to the product during processing.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="Gamma" type="xs:double">
+				<xs:annotation>
+					<xs:documentation>Gamma value for monitor compensation pre-applied to the image.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="XMin" type="xs:double">
+				<xs:annotation>
+					<xs:documentation>Xmin value for monitor compensation pre-applied to the image.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="RemapChoiceType">
+		<xs:choice>
+			<xs:element name="ColorDisplayRemap" type="ColorDisplayRemapType">
+				<xs:annotation>
+					<xs:documentation>Information for proper color display of the data.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="MonochromeDisplayRemap" type="MonochromeDisplayRemapType">
+				<xs:annotation>
+					<xs:documentation>Information for proper monochrome display of the data.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:choice>
+	</xs:complexType>
+	<xs:complexType name="DRAHistogramOverridesType">
+		<xs:sequence>
+			<xs:element name="ClipMin" type="xs:int">
+				<xs:annotation>
+					<xs:documentation>Suggested override for the lower end-point of the display histogram in the ELT DRA application. Referred to as Pmin in SIPS documentation.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="ClipMax" type="xs:int">
+				<xs:annotation>
+					<xs:documentation>Suggested override for the upper end-point of the display histogram in the ELT DRA application. Referred to as Pmax in SIPS documentation.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="ProductDisplayType">
+		<xs:annotation>
+			<xs:documentation>Type for describing proper display of the derived product.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="PixelType" type="PixelType">
+				<xs:annotation>
+					<xs:documentation>Defines the pixel type, based on enumeration and definition in Design and Exploitation document.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="RemapInformation" type="RemapChoiceType" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Information regarding the encoding of the pixel data. Used for 8-bit pixel types.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="MagnificationMethod" type="MagnificationMethodType" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Recommended ELT magnification method for this data.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="DecimationMethod" type="DecimationMethodType" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Recommended ELT decimation method for this data. Also used as default for reduced resolution dataset generation (if applicable).</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="DRAHistogramOverrides" type="DRAHistogramOverridesType" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Recommended ELT DRA overrides.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="MonitorCompensationApplied" type="MonitorCompensationAppliedType" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Describes monitor compensation that may have been applied to the product during processing.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="DisplayExtension" type="sicommon:ParameterType" minOccurs="0" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>Extensible parameters used to support profile-specific needs related to product display.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="ProductPlaneType">
+		<xs:annotation>
+			<xs:documentation>Plane definition for the product.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="RowUnitVector" type="sicommon:XYZType">
+				<xs:annotation>
+					<xs:documentation>Unit vector of the plane defined to be aligned in the increasing row direction of the product. (Defined as Rpgd in Design and Exploitation document)</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="ColUnitVector" type="sicommon:XYZType">
+				<xs:annotation>
+					<xs:documentation>Unit vector of the plane defined to be aligned in the increasing column direction of the product. (Defined as Cpgd in Design and Exploitation document)</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="BaseProjectionType">
+		<xs:sequence>
+			<xs:element name="ReferencePoint" type="sicommon:ReferencePointType">
+				<xs:annotation>
+					<xs:documentation>Reference point for the geometrical system.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="MeasurableProjectionType">
+		<xs:complexContent>
+			<xs:extension base="BaseProjectionType">
+				<xs:sequence>
+					<xs:element name="SampleSpacing" type="sicommon:RowColDoubleType">
+						<xs:annotation>
+							<xs:documentation>Sample spacing in row and column.</xs:documentation>
+						</xs:annotation>
+					</xs:element>
+					<xs:element name="TimeCOAPoly" type="sicommon:Poly2DType">
+						<xs:annotation>
+							<xs:documentation>Time (units = seconds) at which center of aperture for a given pixel coordinate in the product occurs.</xs:documentation>
+						</xs:annotation>
+					</xs:element>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:complexType name="PlaneProjectionType">
+		<xs:annotation>
+			<xs:documentation>Planar representation of the pixel grid</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="MeasurableProjectionType">
+				<xs:sequence>
+					<xs:element name="ProductPlane" type="ProductPlaneType">
+						<xs:annotation>
+							<xs:documentation>Plane definition for the product.</xs:documentation>
+						</xs:annotation>
+					</xs:element>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:complexType name="PolynomialProjectionType">
+		<xs:annotation>
+			<xs:documentation>Polynomial pixel to ground.  Only used for sensor systems where the radar geometry parameters are not recorded.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="BaseProjectionType">
+				<xs:sequence>
+					<xs:element name="RowColToLat" type="sicommon:Poly2DType">
+						<xs:annotation>
+							<xs:documentation>Polynomial that converts Row/Col to Latitude (degrees).</xs:documentation>
+						</xs:annotation>
+					</xs:element>
+					<xs:element name="RowColToLon" type="sicommon:Poly2DType">
+						<xs:annotation>
+							<xs:documentation>Polynomial that converts Row/Col to Longitude (degrees).</xs:documentation>
+						</xs:annotation>
+					</xs:element>
+					<xs:element name="RowColToAlt" type="sicommon:Poly2DType" minOccurs="0">
+						<xs:annotation>
+							<xs:documentation>Polynomial that converts Row/Col to Altitude (meters above WGS-84 ellipsoid).</xs:documentation>
+						</xs:annotation>
+					</xs:element>
+					<xs:element name="LatLonToRow" type="sicommon:Poly2DType">
+						<xs:annotation>
+							<xs:documentation>Polynomial that converts Latitude (degrees) and Longitude (degrees) to pixel row location.</xs:documentation>
+						</xs:annotation>
+					</xs:element>
+					<xs:element name="LatLonToCol" type="sicommon:Poly2DType">
+						<xs:annotation>
+							<xs:documentation>Polynomial that converts Latitude (degrees) and Longitude (degrees) to pixel column location</xs:documentation>
+						</xs:annotation>
+					</xs:element>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:complexType name="GeographicProjectionType">
+		<xs:annotation>
+			<xs:documentation>Geographic mapping of the pixel grid.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="MeasurableProjectionType"/>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:complexType name="CylindricalProjectionType">
+		<xs:annotation>
+			<xs:documentation>Cylindrical mapping of the pixel grid.</xs:documentation>
+		</xs:annotation>
+		<xs:complexContent>
+			<xs:extension base="MeasurableProjectionType">
+				<xs:sequence>
+					<xs:element name="StripmapDirection" type="sicommon:XYZType">
+						<xs:annotation>
+							<xs:documentation>Along stripmap direction</xs:documentation>
+						</xs:annotation>
+					</xs:element>
+					<xs:element name="CurvatureRadius" type="xs:double" minOccurs="0">
+						<xs:annotation>
+							<xs:documentation>Radius of Curvature defined at scene center.  If not present, the radius of curvature will be derived based upon the equations provided in the Design and Exploitation Document</xs:documentation>
+						</xs:annotation>
+					</xs:element>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:complexType name="MeasurementType">
+		<xs:annotation>
+			<xs:documentation>Geometric SAR information required for measurement/geolocation.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:choice>
+				<xs:element name="PolynomialProjection" type="PolynomialProjectionType">
+					<xs:annotation>
+						<xs:documentation>Polynomial pixel to ground.  Only used for sensor systems where the radar geometry parameters are not recorded.</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:element name="GeographicProjection" type="GeographicProjectionType">
+					<xs:annotation>
+						<xs:documentation>Geographic mapping of the pixel grid referred to as GGD in the Design and Exploitation document.</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:element name="PlaneProjection" type="PlaneProjectionType">
+					<xs:annotation>
+						<xs:documentation>Planar representation of the pixel grid referred to as PGD in the Design and Exploitation document.</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:element name="CylindricalProjection" type="CylindricalProjectionType">
+					<xs:annotation>
+						<xs:documentation>Cylindrical mapping of the pixel grid referred to as CGD in the Design and Exploitation document.</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+			</xs:choice>
+			<xs:element name="PixelFootprint" type="sicommon:RowColIntType">
+				<xs:annotation>
+					<xs:documentation>Size of the image.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="ARPPoly" type="sicommon:XYZPolyType">
+				<xs:annotation>
+					<xs:documentation>Center of aperture polynomial (units = m) based upon time into the collect.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="AcheivedResolutionType">
+		<xs:annotation>
+			<xs:documentation>Finest achievable resolution parameters.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence/>
+	</xs:complexType>
+	<xs:simpleType name="PixelType">
+		<xs:restriction base="xs:string">
+			<xs:enumeration value="MONO8I"/>
+			<xs:enumeration value="MONO8LU"/>
+			<xs:enumeration value="MONO16I"/>
+			<xs:enumeration value="RGB8LU"/>
+			<xs:enumeration value="RGB24I"/>
+		</xs:restriction>
+	</xs:simpleType>
+	<xs:complexType name="ClassificationGuidanceType">
+		<xs:annotation>
+			<xs:documentation>Classification guidance authority (only if file is classified).</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="Authority" type="xs:string">
+				<xs:annotation>
+					<xs:documentation>Classifying authority.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="Date" type="xs:date">
+				<xs:annotation>
+					<xs:documentation>Date that the authority was provided. Specified in YYYY-MM-DD.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="ProductClassificationType">
+		<xs:annotation>
+			<xs:documentation>The overall classification of the product.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="SecurityExtension" type="sicommon:ParameterType" minOccurs="0" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>Extensible parameters used to support profile-specific needs related to product security.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+		<xs:attributeGroup ref="ism:ISMRootNodeAttributeGroup"/>
+		<xs:attributeGroup ref="ism:ResourceNodeAttributeGroup"/>
+		<!--
+			<xs:element name="Level" type="xs:string">
+				<xs:annotation>
+					<xs:documentation>The classification level (examples: Unclassified, Secret, Top Secret, etc.).</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="SecurityMarkings" type="xs:string" minOccurs="0" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>Specialized control markings (if required).</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="Guidance" type="ClassificationGuidanceType" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Classification guidance authority (only if file is classified).</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			-->
+	</xs:complexType>
+	<xs:complexType name="ProcessorInformationType">
+		<xs:sequence>
+			<xs:element name="Application" type="xs:string">
+				<xs:annotation>
+					<xs:documentation>Software application name and version number.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="ProcessingDateTime" type="xs:dateTime">
+				<xs:annotation>
+					<xs:documentation>Date and time defined in Coordinated Universal Time (UTC). The seconds should be followed by a Z to indicate UTC.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="Site" type="xs:string">
+				<xs:annotation>
+					<xs:documentation>Creation location of product.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="Profile" type="xs:string" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Product-specific profile applied during product processing.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="ProductCreationType">
+		<xs:annotation>
+			<xs:documentation>Contains general information about product creation.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="ProcessorInformation" type="ProcessorInformationType">
+				<xs:annotation>
+					<xs:documentation>Details regarding processor.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="Classification" type="ProductClassificationType">
+				<xs:annotation>
+					<xs:documentation>The overall classification of the product.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="ProductName" type="xs:string">
+				<xs:annotation>
+					<xs:documentation>The output product name defined by the processor.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="ProductClass" type="xs:string">
+				<xs:annotation>
+					<xs:documentation>Class of product. (examples: Dynamic Image, Amplitude Change Detection, Coherent Change Detection, etc.).</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="ProductType" type="xs:string" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Type of sub-product. (examples: Frame #, Reference, Match, etc.). This field is only needed if there is a suite of associated products.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="ProductCreationExtension" type="sicommon:ParameterType" minOccurs="0" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>Extensible parameters used to support profile-specific needs related to product creation.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="FootprintType">
+		<xs:sequence>
+			<xs:element name="Vertex" type="sicommon:LatLonVertexType" minOccurs="4" maxOccurs="4"/>
+		</xs:sequence>
+		<xs:attribute name="size" type="xs:int" use="required"/>
+	</xs:complexType>
+	<xs:complexType name="TargetInformationType">
+		<xs:sequence>
+			<xs:element name="Identifier" type="sicommon:ParameterType" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>Target may have one or more identifiers.  Examples: names, BE numbers, etc. Use the "name" attribute to describe what this is.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="Footprint" type="FootprintType" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Target footprint as defined by polygonal shape.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="TargetInformationExtension" type="sicommon:ParameterType" minOccurs="0" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>Generic extension.  Could be used to indicate type of target, terrain, etc.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="GeographicInformationType">
+		<xs:sequence>
+			<xs:element name="CountryCode" type="xs:string" minOccurs="0" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>Country identifier for this geographic region.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="SecurityInfo" type="xs:string" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Specifies classification level or special handling designators for this geographic region</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="GeographicInfoExtension" type="sicommon:ParameterType" minOccurs="0" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>Implementation specific geographic information.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="GeographicCoverageType">
+		<xs:sequence>
+			<xs:element name="GeoregionIdentifier" type="sicommon:ParameterType" minOccurs="0" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>Identifier for the georegion.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="Footprint" type="FootprintType">
+				<xs:annotation>
+					<xs:documentation>Estimated ground footprint of the product.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:choice>
+				<xs:element name="SubRegion" type="GeographicCoverageType" minOccurs="0" maxOccurs="unbounded">
+					<xs:annotation>
+						<xs:documentation>Used to represent hierarchical decomposition into sub-regions.</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:element name="GeographicInfo" type="GeographicInformationType">
+					<xs:annotation>
+						<xs:documentation>Specifics about the georegion.</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+			</xs:choice>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="GeographicAndTargetType">
+		<xs:sequence>
+			<xs:element name="GeographicCoverage" type="GeographicCoverageType">
+				<xs:annotation>
+					<xs:documentation>Provides geographic coverage information.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="TargetInformation" type="TargetInformationType" minOccurs="0" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>Provides target specific geographic information.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="GeometricChipType">
+		<xs:annotation>
+			<xs:documentation/>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="ChipSize" type="sicommon:RowColIntType">
+				<xs:annotation>
+					<xs:documentation>Size of the chipped product in pixels.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="OriginalUpperLeftCoordinate" type="sicommon:RowColDoubleType">
+				<xs:annotation>
+					<xs:documentation>Upper-left corner with respect to the original product.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="OriginalUpperRightCoordinate" type="sicommon:RowColDoubleType">
+				<xs:annotation>
+					<xs:documentation>Upper-right corner with respect to the original product.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="OriginalLowerLeftCoordinate" type="sicommon:RowColDoubleType">
+				<xs:annotation>
+					<xs:documentation>Lower-left corner with respect to the original product.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="OriginalLowerRightCoordinate" type="sicommon:RowColDoubleType">
+				<xs:annotation>
+					<xs:documentation>Lower-right corner with respect to the original product.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="ProcessingEventType">
+		<xs:annotation>
+			<xs:documentation/>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="ApplicationName" type="xs:string">
+				<xs:annotation>
+					<xs:documentation>Application which applied a modification.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="AppliedDateTime" type="xs:dateTime">
+				<xs:annotation>
+					<xs:documentation>Date and time defined in Coordinated Universal Time (UTC). The seconds should be followed by a Z to indicate UTC.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="InterpolationMethod" type="xs:string" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Type of interpolation applied to the data.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="Descriptor" type="sicommon:ParameterType" minOccurs="0" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>Descriptor for the processing event.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="DownstreamReprocessingType">
+		<xs:annotation>
+			<xs:documentation/>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="GeometricChip" type="GeometricChipType" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Contains information related to downstream chipping of the product.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="ProcessingEvent" type="ProcessingEventType" minOccurs="0" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>Contains information related to downstream processing of the product.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="ProductProcessingType">
+		<xs:annotation>
+			<xs:documentation/>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="ProcessingModule" type="ProcessingModuleType" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>Processing module to keep track of the name and any parameters associated with the algorithms used to produce the SIDD.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="ProcessingModuleType">
+		<xs:annotation>
+			<xs:documentation/>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="ModuleName" type="sicommon:ParameterType">
+				<xs:annotation>
+					<xs:documentation>The name of the algorithm used in processing the product.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:choice minOccurs="0">
+				<xs:element name="ModuleParameter" type="sicommon:ParameterType" maxOccurs="unbounded">
+					<xs:annotation>
+						<xs:documentation>Parameters associated with the algorithm used in processing the product.</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:element name="ProcessingModule" type="ProcessingModuleType" maxOccurs="unbounded">
+					<xs:annotation>
+						<xs:documentation>ProcessingModule is a repeatable structure within itself to create an algorithm as a subset of another algorithm.</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+			</xs:choice>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="ExploitationFeaturesProductType">
+		<xs:annotation>
+			<xs:documentation>Metadata regarding the product.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="Resolution" type="sicommon:RowColDoubleType">
+				<xs:annotation>
+					<xs:documentation>Uniformly-weighted resolution projected into the Earth Tangent Plane (ETP).</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="North" type="sicommon:Neg180To180Type" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Counter-clockwise angle from increasing row direction to north at the center of the image.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="Extension" type="sicommon:ParameterType" minOccurs="0" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>Exploitation feature extension for the end product</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="ExploitationFeaturesType">
+		<xs:annotation>
+			<xs:documentation>Computed metadata regarding the collect.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="Collection" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>Metadata regarding one of the input collections.</xs:documentation>
+				</xs:annotation>
+				<xs:complexType>
+					<xs:complexContent>
+						<xs:extension base="ExploitationFeaturesCollectionType">
+							<xs:attribute name="identifier" type="xs:string" use="required"/>
+						</xs:extension>
+					</xs:complexContent>
+				</xs:complexType>
+			</xs:element>
+			<xs:element name="Product" type="ExploitationFeaturesProductType">
+				<xs:annotation>
+					<xs:documentation>Metadata regarding the product.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="InputROIType">
+		<xs:annotation>
+			<xs:documentation>ROI representing portion of input data used to make this product.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="Size" type="sicommon:RowColIntType">
+				<xs:annotation>
+					<xs:documentation>Number of rows and columns extracted from the input.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="UpperLeft" type="sicommon:RowColIntType">
+				<xs:annotation>
+					<xs:documentation>The upper-left pixel extracted from the input.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="TxRcvPolarizationType">
+		<xs:sequence>
+			<xs:element name="TxPolarization" type="sicommon:PolarizationType">
+				<xs:annotation>
+					<xs:documentation>Polarization transmit type</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="RcvPolarization" type="sicommon:PolarizationType">
+				<xs:annotation>
+					<xs:documentation>Receive polarization type</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="RcvPolarizationOffset" type="sicommon:Neg180To180Type" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Optional angle offset for the receive polarization defined at aperture center.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="Processed" type="xs:boolean" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Optional flag to describe whether this input polarization was used in processing the product.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="ExploitationFeaturesCollectionInformationType">
+		<xs:annotation>
+			<xs:documentation>General collection information.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="SensorName" type="xs:string">
+				<xs:annotation>
+					<xs:documentation>The name of the sensor.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="RadarMode" type="sicommon:RadarModeType">
+				<xs:annotation>
+					<xs:documentation>Radar collection mode.  The ModeType refers to the collection type [SPOTLIGHT, STRIPMAP, DYNAMIC STRIPMAP].  The optional ModeID is used to represent system-specific mode identifiers.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="CollectionDateTime" type="xs:dateTime">
+				<xs:annotation>
+					<xs:documentation>Collection date and time defined in Coordinated Universal Time (UTC). The seconds should be followed by a Z to indicate UTC.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="LocalDateTime" type="xs:dateTime" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Date and time defined in local time.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="CollectionDuration" type="xs:double">
+				<xs:annotation>
+					<xs:documentation>The duration of the collection (units = seconds).</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="Resolution" type="sicommon:RangeAzimuthType" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Uniformly-weighted resolution (range and azimuth) processed in the slant plane.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="InputROI" type="InputROIType" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>ROI representing portion of input data used to make this product.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="Polarization" type="TxRcvPolarizationType" minOccurs="0" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>Transmit and receive polarization.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="ExploitationFeaturesCollectionGeometryType">
+		<xs:annotation>
+			<xs:documentation>Key geometry parameters independent of product processing.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="Azimuth" type="xs:double" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Angle clockwise from north indicating the ETP line of sight vector.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="Slope" type="sicommon:ZeroTo90Type" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Angle between the ETP at scene center and the range vector perpendicular to the direction of motion.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="Squint" type="sicommon:Neg180To180Type" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Angle from the ground track to platform velocity vector at nadir. Left-look is negative, right-look is positive.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="Graze" type="sicommon:ZeroTo90Type" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Angle between the ETP and the line of sight vector.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="Tilt" type="sicommon:Neg180To180Type" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Angle between the ETP and the cross range vector. Also known as the twist angle.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="Extension" type="sicommon:ParameterType" minOccurs="0" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>Exploitation feature extension related to geometry for a single input image</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="ExploitationFeaturesCollectionPhenomenologyType">
+		<xs:annotation>
+			<xs:documentation>Phenomenology related to both the geometry and the final product processing.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="Shadow" type="sicommon:AngleMagnitudeType" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>The phenomon where vertical objects occlude radar energy.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="Layover" type="sicommon:AngleMagnitudeType" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>The phenomenon where vertical objects appear as ground objects with the same range/range rate.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="MultiPath" type="sicommon:Neg180To180Type" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>This is a range dependent phenomenon which describes the energy from a single scatter returned to the radar via more than one path and results in a nominally constant direction in the ETP.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="GroundTrack" type="sicommon:Neg180To180Type" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Counter-clockwise angle from increasing row direction to ground track at the center of the image.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="Extension" type="sicommon:ParameterType" minOccurs="0" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>Exploitation feature extension related to phenomenology for a single input image</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="ExploitationFeaturesCollectionType">
+		<xs:sequence>
+			<xs:element name="Information" type="ExploitationFeaturesCollectionInformationType">
+				<xs:annotation>
+					<xs:documentation>General collection information.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="Geometry" type="ExploitationFeaturesCollectionGeometryType" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Key geometry parameters independent of product processing.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="Phenomenology" type="ExploitationFeaturesCollectionPhenomenologyType" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Phenomenology related to both the geometry and the final product processing.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="AnnotationsType">
+		<xs:sequence>
+			<xs:element name="Annotation" type="AnnotationType" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>Annotation Object.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+	</xs:complexType>
+	<!--
+	<xs:complexType name="PixelRepresentationType">
+		<xs:annotation>
+			<xs:documentation>Pixel representation of the footprint of the annotation.</xs:documentation>
+		</xs:annotation>
+		<xs:choice>
+			<xs:element name="SVGRepresentation" type="svg:svgType" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>SVG Representation of the object</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:choice>
+	</xs:complexType>
+	<xs:complexType name="GeographicalRepresentationType">
+		<xs:annotation>
+			<xs:documentation>Geographical representation of the footprint of the annotation.</xs:documentation>
+		</xs:annotation>
+		<xs:choice>
+			<xs:element name="KMLRepresentation" type="kml:KmlType" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>KML Representation of the object</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:choice>
+	</xs:complexType>
+-->
+	<xs:complexType name="AnnotationObjectType">
+		<xs:annotation>
+			<xs:documentation>Geometrical representation of the annotation.</xs:documentation>
+		</xs:annotation>
+		<xs:choice>
+			<xs:element name="Point" type="sfa:PointType"/>
+			<xs:element name="Line" type="sfa:LineType"/>
+			<xs:element name="LinearRing" type="sfa:LinearRingType"/>
+			<xs:element name="Polygon" type="sfa:PolygonType"/>
+			<!--xs:element name="Triangle" type="sfa:TriangleType"/-->
+			<xs:element name="PolyhedralSurface" type="sfa:PolyhedralSurfaceType"/>
+			<!--xs:element name="TriangulatedIrregularNetwork" type="sfa:TriangulatedIrregularNetworkType"/-->
+			<xs:element name="MultiPolygon" type="sfa:MultiPolygonType"/>
+			<xs:element name="MultiLineString" type="sfa:MultiLineStringType"/>
+			<xs:element name="MultiPoint" type="sfa:MultiPointType"/>
+		</xs:choice>
+	</xs:complexType>
+	<xs:complexType name="AnnotationType">
+		<xs:annotation>
+			<xs:documentation>Single annotation.</xs:documentation>
+		</xs:annotation>
+		<xs:sequence>
+			<xs:element name="Identifier" type="xs:string">
+				<xs:annotation>
+					<xs:documentation>Identifier for the annotation which idicates the type of object represented by this annotation.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<xs:element name="SpatialReferenceSystem" type="sfa:ReferenceSystemType" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Spatial reference system of the annotation.  Assumed to be WGS-84 geographic coordinate system if not specified with (lat, lon, h) units in (arc-sec, arc-sec, meters above ellipsoid). </xs:documentation>
+				</xs:annotation>
+			</xs:element>
+			<!--<xs:element name="MeasureReferenceSystem" type="sfa:ReferenceSystemType" minOccurs="0">
+				<xs:annotation>
+					<xs:documentation>Measure reference system</xs:documentation>
+				</xs:annotation>
+			</xs:element>-->
+			<xs:element name="Object" type="AnnotationObjectType" maxOccurs="unbounded">
+				<xs:annotation>
+					<xs:documentation>The geometrical representation of the annotation.</xs:documentation>
+				</xs:annotation>
+			</xs:element>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:element name="SIDD">
+		<xs:annotation>
+			<xs:documentation>Root element of the SIDD document.</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="ProductCreation" type="ProductCreationType">
+					<xs:annotation>
+						<xs:documentation>Information related to processor, classification, and product type.</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:element name="Display" type="ProductDisplayType">
+					<xs:annotation>
+						<xs:documentation>Contains information on the parameters needed to display the product in an exploitation tool.</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:element name="GeographicAndTarget" type="GeographicAndTargetType">
+					<xs:annotation>
+						<xs:documentation>Contains generic and extensible targeting and geographic region information.</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:element name="Measurement" type="MeasurementType">
+					<xs:annotation>
+						<xs:documentation>Contains the metadata necessary for performing measurements.</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:element name="ExploitationFeatures" type="ExploitationFeaturesType">
+					<xs:annotation>
+						<xs:documentation>Computed metadata regarding the input collections and final product.</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:element name="ProductProcessing" type="ProductProcessingType" minOccurs="0">
+					<xs:annotation>
+						<xs:documentation>Contains metadata related to algorithms used during product generation.</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:element name="DownstreamReprocessing" type="DownstreamReprocessingType" minOccurs="0">
+					<xs:annotation>
+						<xs:documentation>Contains metadata related to downstream processing of the product.</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:element name="ErrorStatistics" type="sicommon:ErrorStatisticsType" minOccurs="0">
+					<xs:annotation>
+						<xs:documentation>See SICD documentation for metadata definitions.</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:element name="Radiometric" type="sicommon:RadiometricType" minOccurs="0">
+					<xs:annotation>
+						<xs:documentation>Radiometric information about the product.</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+				<xs:element name="Annotations" type="AnnotationsType" minOccurs="0">
+					<xs:annotation>
+						<xs:documentation>List of annotations for the imagery.</xs:documentation>
+					</xs:annotation>
+				</xs:element>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+</xs:schema>

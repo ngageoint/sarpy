@@ -9,19 +9,12 @@ from .base import BaseNITFElement, NITFElement, Unstructured, _IntegerDescriptor
 from .security import NITFSecurityTags
 
 
-########
-# NITF header details specific to SICD files
-
-_SICD_SPECIFICATION_IDENTIFIER = 'SICD Volume 1 Design & Implementation Description Document'
-_SICD_SPECIFICATION_VERSION = '1.2'
-_SICD_SPECIFICATION_DATE = '2018-12-13T00:00:00Z'
-_SICD_SPECIFICATION_NAMESPACE = 'urn:SICD:1.2.1'  # must be of the form 'urn:SICD:<version>'
-
-
 class SICDDESSubheader(NITFElement):
     """
-    The SICD Data Extension header - described in SICD standard 2014-09-30, Volume II, page 29
+    The SICD and SIDD Data Extension user header, described in SICD standard
+    2014-09-30, Volume II, page 29
     """
+
     _ordering = (
         'DESSHL', 'DESCRC', 'DESSHFT', 'DESSHDT',
         'DESSHRP', 'DESSHSI', 'DESSHSV', 'DESSHSD',
@@ -46,18 +39,18 @@ class SICDDESSubheader(NITFElement):
         docstring='Responsible Party – Organization Identifier. Identification of the '
                   'organization responsible for the content of the DES.')  # type: str
     DESSHSI = _StringDescriptor(
-        'DESSHSI', True, 60, default_value=_SICD_SPECIFICATION_IDENTIFIER,
+        'DESSHSI', True, 60, default_value='',
         docstring='Specification Identifier. Name of the specification used for the '
                   'XML data content.')  # type: str
     DESSHSV = _StringDescriptor(
-        'DESSHSV', True, 10, default_value=_SICD_SPECIFICATION_VERSION,
+        'DESSHSV', True, 10, default_value='',
         docstring='Specification Version. Version or edition of the specification.')  # type: str
     DESSHSD = _StringDescriptor(
-        'DESSHSD', True, 20, default_value=_SICD_SPECIFICATION_DATE,
+        'DESSHSD', True, 20, default_value='',
         docstring='Specification Date. Version or edition date for the specification '
                   'in the format :code:`YYYY-MM-DDThh:mm:ssZ`.')  # type: str
     DESSHTN = _StringDescriptor(
-        'DESSHTN', True, 120, default_value=_SICD_SPECIFICATION_NAMESPACE,
+        'DESSHTN', True, 120, default_value='',
         docstring='Target Namespace. Identification of the target namespace, if any, '
                   'designated within the XML data content.')  # type: str
     DESSHLPG = _StringDescriptor(

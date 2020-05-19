@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified"
+            xml:lang="en">
+   <xsd:annotation>
+      <xsd:documentation>
+                W3C XML Schema fragment encoding types for Controlled vocabulary encodings CVEnumISMNotice. This file is generated so edits should be made to the CVEnumISMNotice the CVE it is based on instead of here.
+            </xsd:documentation>
+   </xsd:annotation>
+   <!--*************************************************************-->
+<!--Generated TYPE DEFINITIONS ..................................-->
+<!--*************************************************************-->
+<xsd:simpleType name="CVEnumISMNoticeValues">
+      <xsd:annotation>
+         <xsd:documentation>(U) All currently authorized Notice values
+                    PERMISSIBLE VALUES
+                    
+                    The permissible values for this simple type are defined in the Controlled Value Enumeration:
+                    
+                    CVEnumISMNotice.xml
+                    
+                </xsd:documentation>
+      </xsd:annotation>
+      <xsd:restriction base="xsd:token">
+         <xsd:enumeration value="FISA">
+            <xsd:annotation>
+               <xsd:documentation>FISA Warning statement</xsd:documentation>
+            </xsd:annotation>
+         </xsd:enumeration>
+         <xsd:enumeration value="IMC">
+            <xsd:annotation>
+               <xsd:documentation>IMCON Warning statement</xsd:documentation>
+            </xsd:annotation>
+         </xsd:enumeration>
+         <xsd:enumeration value="RD">
+            <xsd:annotation>
+               <xsd:documentation>RD Warning statement</xsd:documentation>
+            </xsd:annotation>
+         </xsd:enumeration>
+         <xsd:enumeration value="FRD">
+            <xsd:annotation>
+               <xsd:documentation>FRD Warning statement</xsd:documentation>
+            </xsd:annotation>
+         </xsd:enumeration>
+         <xsd:enumeration value="DS">
+            <xsd:annotation>
+               <xsd:documentation>LIMDIS caveat</xsd:documentation>
+            </xsd:annotation>
+         </xsd:enumeration>
+         <xsd:enumeration value="LES">
+            <xsd:annotation>
+               <xsd:documentation>LES Notice</xsd:documentation>
+            </xsd:annotation>
+         </xsd:enumeration>
+         <xsd:enumeration value="LES-NF">
+            <xsd:annotation>
+               <xsd:documentation>LES Notice</xsd:documentation>
+            </xsd:annotation>
+         </xsd:enumeration>
+         <xsd:enumeration value="DoD-Dist-A">
+            <xsd:annotation>
+               <xsd:documentation>DoD Distribution statment A from DoD Directive 5230.24</xsd:documentation>
+            </xsd:annotation>
+         </xsd:enumeration>
+         <xsd:enumeration value="DoD-Dist-B">
+            <xsd:annotation>
+               <xsd:documentation>DoD Distribution statment B from DoD Directive 5230.24</xsd:documentation>
+            </xsd:annotation>
+         </xsd:enumeration>
+         <xsd:enumeration value="DoD-Dist-C">
+            <xsd:annotation>
+               <xsd:documentation>DoD Distribution statment C from DoD Directive 5230.24</xsd:documentation>
+            </xsd:annotation>
+         </xsd:enumeration>
+         <xsd:enumeration value="DoD-Dist-D">
+            <xsd:annotation>
+               <xsd:documentation>DoD Distribution statment D from DoD Directive 5230.24</xsd:documentation>
+            </xsd:annotation>
+         </xsd:enumeration>
+         <xsd:enumeration value="DoD-Dist-E">
+            <xsd:annotation>
+               <xsd:documentation>DoD Distribution statment E from DoD Directive 5230.24</xsd:documentation>
+            </xsd:annotation>
+         </xsd:enumeration>
+         <xsd:enumeration value="DoD-Dist-F">
+            <xsd:annotation>
+               <xsd:documentation>DoD Distribution statment F from DoD Directive 5230.24</xsd:documentation>
+            </xsd:annotation>
+         </xsd:enumeration>
+         <xsd:enumeration value="DoD-Dist-X">
+            <xsd:annotation>
+               <xsd:documentation>DoD Distribution statment X from DoD Directive 5230.24</xsd:documentation>
+            </xsd:annotation>
+         </xsd:enumeration>
+      </xsd:restriction>
+   </xsd:simpleType>
+   <xsd:simpleType name="CVEnumISMNotice">
+      <xsd:restriction>
+         <xsd:simpleType>
+            <xsd:list itemType="CVEnumISMNoticeValues"/>
+         </xsd:simpleType>
+         <xsd:maxLength value="14"/>
+      </xsd:restriction>
+   </xsd:simpleType>
+</xsd:schema>

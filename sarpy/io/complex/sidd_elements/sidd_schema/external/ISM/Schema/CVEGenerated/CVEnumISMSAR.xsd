@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified"
+            xml:lang="en">
+   <xsd:annotation>
+      <xsd:documentation>
+                W3C XML Schema fragment encoding types for Controlled vocabulary encodings CVEnumISMSAR. This file is generated so edits should be made to the CVEnumISMSAR the CVE it is based on instead of here.
+            </xsd:documentation>
+   </xsd:annotation>
+   <!--*************************************************************-->
+<!--Generated TYPE DEFINITIONS ..................................-->
+<!--*************************************************************-->
+<xsd:simpleType name="CVEnumISMSARValues">
+      <xsd:annotation>
+         <xsd:documentation>(U) All currently valid SAR controls from the published register
+                    PERMISSIBLE VALUES
+                    
+                    The permissible values for this simple type are defined in the Controlled Value Enumeration:
+                    
+                    CVEnumISMSAR.xml
+                    
+                </xsd:documentation>
+      </xsd:annotation>
+      <xsd:union>
+         <xsd:simpleType>
+            <xsd:restriction base="xsd:token">
+               <xsd:pattern value="SAR-[A-Z][A-Z][A-Z]?">
+                  <xsd:annotation>
+                     <xsd:documentation>SPECIAL ACCESS REQUIRED-XXX, XXX represents the Digraph or Trigraph of the SAR</xsd:documentation>
+                  </xsd:annotation>
+               </xsd:pattern>
+            </xsd:restriction>
+         </xsd:simpleType>
+         <xsd:simpleType>
+            <xsd:restriction base="xsd:token"/>
+         </xsd:simpleType>
+      </xsd:union>
+   </xsd:simpleType>
+   <xsd:simpleType name="CVEnumISMSAR">
+      <xsd:restriction>
+         <xsd:simpleType>
+            <xsd:list itemType="CVEnumISMSARValues"/>
+         </xsd:simpleType>
+         <xsd:maxLength value="1000"/>
+      </xsd:restriction>
+   </xsd:simpleType>
+</xsd:schema>

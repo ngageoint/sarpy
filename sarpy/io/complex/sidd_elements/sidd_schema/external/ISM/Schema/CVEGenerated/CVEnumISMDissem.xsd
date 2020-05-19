@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified"
+            xml:lang="en">
+   <xsd:annotation>
+      <xsd:documentation>
+                W3C XML Schema fragment encoding types for Controlled vocabulary encodings CVEnumISMDissem. This file is generated so edits should be made to the CVEnumISMDissem the CVE it is based on instead of here.
+            </xsd:documentation>
+   </xsd:annotation>
+   <!--*************************************************************-->
+<!--Generated TYPE DEFINITIONS ..................................-->
+<!--*************************************************************-->
+<xsd:simpleType name="CVEnumISMDissemValues">
+      <xsd:annotation>
+         <xsd:documentation>(U) All currently valid Dissemination controls from the published register
+                    PERMISSIBLE VALUES
+                    
+                    The permissible values for this simple type are defined in the Controlled Value Enumeration:
+                    
+                    CVEnumISMDissem.xml
+                    
+                </xsd:documentation>
+      </xsd:annotation>
+      <xsd:union>
+         <xsd:simpleType>
+            <xsd:restriction base="xsd:token">
+               <xsd:pattern value="RD-SG-[1-9][0-9]?">
+                  <xsd:annotation>
+                     <xsd:documentation>RD-SIGMA-#, # represents the SIGMA number which may be between 1 and 99.</xsd:documentation>
+                  </xsd:annotation>
+               </xsd:pattern>
+               <xsd:pattern value="FRD-SG-[1-9][0-9]?">
+                  <xsd:annotation>
+                     <xsd:documentation>FRD-SIGMA-#, # represents the SIGMA number which may be between 1 and 99.</xsd:documentation>
+                  </xsd:annotation>
+               </xsd:pattern>
+            </xsd:restriction>
+         </xsd:simpleType>
+         <xsd:simpleType>
+            <xsd:restriction base="xsd:token">
+               <xsd:enumeration value="FOUO">
+                  <xsd:annotation>
+                     <xsd:documentation>FOR OFFICIAL USE ONLY</xsd:documentation>
+                  </xsd:annotation>
+               </xsd:enumeration>
+               <xsd:enumeration value="OC">
+                  <xsd:annotation>
+                     <xsd:documentation>ORIGINATOR CONTROLLED</xsd:documentation>
+                  </xsd:annotation>
+               </xsd:enumeration>
+               <xsd:enumeration value="IMC">
+                  <xsd:annotation>
+                     <xsd:documentation>CONTROLLED IMAGERY</xsd:documentation>
+                  </xsd:annotation>
+               </xsd:enumeration>
+               <xsd:enumeration value="SAMI">
+                  <xsd:annotation>
+                     <xsd:documentation>SOURCES AND METHODS INFORMATION</xsd:documentation>
+                  </xsd:annotation>
+               </xsd:enumeration>
+               <xsd:enumeration value="NF">
+                  <xsd:annotation>
+                     <xsd:documentation>NOT RELEASABLE TO FOREIGN NATIONALS</xsd:documentation>
+                  </xsd:annotation>
+               </xsd:enumeration>
+               <xsd:enumeration value="PR">
+                  <xsd:annotation>
+                     <xsd:documentation>CAUTION-PROPRIETARY INFORMATION INVOLVED</xsd:documentation>
+                  </xsd:annotation>
+               </xsd:enumeration>
+               <xsd:enumeration value="REL">
+                  <xsd:annotation>
+                     <xsd:documentation>AUTHORIZED FOR RELEASE TO</xsd:documentation>
+                  </xsd:annotation>
+               </xsd:enumeration>
+               <xsd:enumeration value="RELIDO">
+                  <xsd:annotation>
+                     <xsd:documentation>RELEASABLE BY INFORMATION DISCLOSURE OFFICIAL</xsd:documentation>
+                  </xsd:annotation>
+               </xsd:enumeration>
+               <xsd:enumeration value="RD">
+                  <xsd:annotation>
+                     <xsd:documentation>RESTRICTED DATA</xsd:documentation>
+                  </xsd:annotation>
+               </xsd:enumeration>
+               <xsd:enumeration value="RD-CNWDI">
+                  <xsd:annotation>
+                     <xsd:documentation>RD-CRITICAL NUCLEAR WEAPON DESIGN INFORMATION</xsd:documentation>
+                  </xsd:annotation>
+               </xsd:enumeration>
+               <xsd:enumeration value="FRD">
+                  <xsd:annotation>
+                     <xsd:documentation>FORMERLY RESTRICTED DATA</xsd:documentation>
+                  </xsd:annotation>
+               </xsd:enumeration>
+               <xsd:enumeration value="DCNI">
+                  <xsd:annotation>
+                     <xsd:documentation>DoD CONTROLLED NUCLEAR INFORMATION</xsd:documentation>
+                  </xsd:annotation>
+               </xsd:enumeration>
+               <xsd:enumeration value="UCNI">
+                  <xsd:annotation>
+                     <xsd:documentation>DoE CONTROLLED NUCLEAR INFORMATION</xsd:documentation>
+                  </xsd:annotation>
+               </xsd:enumeration>
+               <xsd:enumeration value="EYES">
+                  <xsd:annotation>
+                     <xsd:documentation>EYES ONLY</xsd:documentation>
+                  </xsd:annotation>
+               </xsd:enumeration>
+               <xsd:enumeration value="DSEN">
+                  <xsd:annotation>
+                     <xsd:documentation>DEA SENSITIVE</xsd:documentation>
+                  </xsd:annotation>
+               </xsd:enumeration>
+               <xsd:enumeration value="FISA">
+                  <xsd:annotation>
+                     <xsd:documentation>FOREIGN INTELLIGENCE SURVEILLANCE ACT</xsd:documentation>
+                  </xsd:annotation>
+               </xsd:enumeration>
+            </xsd:restriction>
+         </xsd:simpleType>
+      </xsd:union>
+   </xsd:simpleType>
+   <xsd:simpleType name="CVEnumISMDissem">
+      <xsd:restriction>
+         <xsd:simpleType>
+            <xsd:list itemType="CVEnumISMDissemValues"/>
+         </xsd:simpleType>
+         <xsd:maxLength value="1000"/>
+      </xsd:restriction>
+   </xsd:simpleType>
+</xsd:schema>
