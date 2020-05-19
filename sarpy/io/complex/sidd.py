@@ -54,7 +54,7 @@ def is_a(file_name):
     try:
         nitf_details = SIDDDetails(file_name)
         if nitf_details.is_sidd:
-            print('File {} is determined to be a sicd (NITF format) file.'.format(file_name))
+            print('File {} is determined to be a SIDD (NITF format) file.'.format(file_name))
             return SIDDReader(nitf_details)
         else:
             return None
