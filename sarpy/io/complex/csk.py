@@ -88,6 +88,10 @@ def _extract_attrs(h5_element, out=None):
 # parser and interpreter for hdf5 attributes
 
 class CSKDetails(object):
+    """
+    Parses and converts the Cosmo Skymed metadata
+    """
+
     __slots__ = ('_file_name', '_satellite', '_product_type')
 
     def __init__(self, file_name):
@@ -97,6 +101,7 @@ class CSKDetails(object):
         ----------
         file_name : str
         """
+
         if h5py is None:
             raise ImportError("Can't read Cosmo Skymed files, because the h5py dependency is missing.")
 
@@ -116,7 +121,10 @@ class CSKDetails(object):
 
     @property
     def file_name(self):
-        """str: the file name"""
+        """
+        str: the file name
+        """
+
         return self._file_name
 
     @property
@@ -526,7 +534,7 @@ class CSKReader(BaseReader):
         if isinstance(csk_details, string_types):
             csk_details = CSKDetails(csk_details)
         if not isinstance(csk_details, CSKDetails):
-            raise TypeError('The input argument for RadarSatCSKReader must be a '
+            raise TypeError('The input argument for a CSKReader must be a '
                             'filename or CSKDetails object')
         sicd_data, shape_dict, symmetry = csk_details.get_sicd_collection()
         chippers = []
