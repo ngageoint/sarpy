@@ -4,13 +4,14 @@ The SIDDType 2.0 definition.
 """
 
 import logging
-from typing import Union
+from typing import Union, Dict
+from collections import OrderedDict
 
 # noinspection PyProtectedMember
 from ..sicd_elements.base import Serializable, _SerializableDescriptor, DEFAULT_STRICT
 from .ProductCreation import ProductCreationType
 from .Display import ProductDisplayType
-from .GeographicAndTarget import GeographicAndTargetType
+from .GeoData import GeoDataType
 from .Measurement import MeasurementType
 from .ExploitationFeatures import ExploitationFeaturesType
 from .DownstreamReprocessing import DownstreamReprocessingType
@@ -26,12 +27,14 @@ __author__ = "Thomas McCullough"
 
 
 ############
-# namespace validate and definiton of required entries in the namespace dictionary
-
-_sidd_urn = 'urn:SIDD:2.0.0'
-_ism_urn = 'urn:us:gov:ic:ism:13'
-_sfa_urn = 'urn:SFA:1.2.0'
-_sicommon_urn = 'urn:SICommon:1.0'
+# namespace validate and definitIon of required entries in the namespace dictionary
+_SIDD_SPECIFICATION_IDENTIFIER = 'SIDD Volume 1 Design & Implementation Description Document'
+_SIDD_SPECIFICATION_VERSION = '2.0'
+_SIDD_SPECIFICATION_DATE = '2019-05-31T00:00:00Z'
+_SIDD_URN = 'urn:SIDD:2.0.0'
+_ISM_URN = 'urn:us:gov:ic:ism:13'
+_SFA_URN = 'urn:SFA:1.2.0'
+_SICOMMON_URN = 'urn:SICommon:1.0'
 
 
 def _validate_sidd_urn(xml_ns, ns_key):
@@ -42,10 +45,10 @@ def _validate_sidd_urn(xml_ns, ns_key):
         raise ValueError('ns_key must be a key in xml_ns.')
 
     sidd_urn = xml_ns[ns_key]
-    if sidd_urn != _sidd_urn:
+    if sidd_urn != _SIDD_URN:
         logging.warning('SIDD version 2 urn is expected to be "{}", '
                         'but we got "{}". Differences in standard may lead to deserialization '
-                        'errors.'.format(_sidd_urn, sidd_urn))
+                        'errors.'.format(_SIDD_URN, sidd_urn))
 
 
 def _validate_ism_urn(xml_ns):
@@ -60,10 +63,10 @@ def _validate_ism_urn(xml_ns):
         xml_ns['ism'] = the_val
 
     ism_urn = xml_ns['ism']
-    if ism_urn != _ism_urn:
+    if ism_urn != _ISM_URN:
         logging.warning('SIDD version 2 "ism" namespace urn is expected to be "{}", '
                         'but we got "{}". Differences in standard may lead to deserialization '
-                        'errors.'.format(_ism_urn, ism_urn))
+                        'errors.'.format(_ISM_URN, ism_urn))
 
 
 def _validate_sfa_urn(xml_ns):
@@ -78,10 +81,10 @@ def _validate_sfa_urn(xml_ns):
         xml_ns['sfa'] = the_val
 
     sfa_urn = xml_ns['sfa']
-    if sfa_urn != _sfa_urn:
+    if sfa_urn != _SFA_URN:
         logging.warning('SIDD version 2 "SFA" namespace urn is expected to be "{}", '
                         'but we got "{}". Differences in standard may lead to deserialization '
-                        'errors.'.format(_sfa_urn, sfa_urn))
+                        'errors.'.format(_SFA_URN, sfa_urn))
 
 
 def _validate_sicommon_urn(xml_ns):
@@ -96,10 +99,10 @@ def _validate_sicommon_urn(xml_ns):
         xml_ns['sicommon'] = the_val
 
     sicommon_urn = xml_ns['sicommon']
-    if sicommon_urn != _sicommon_urn:
+    if sicommon_urn != _SICOMMON_URN:
         logging.warning('SIDD version 2 "SICommon" namespace urn is expected to be "{}", '
                         'but we got "{}". Differences in standard may lead to deserialization '
-                        'errors.'.format(_sicommon_urn, sicommon_urn))
+                        'errors.'.format(_SICOMMON_URN, sicommon_urn))
 
 
 def _validate_xml_ns(xml_ns, ns_key):
@@ -118,11 +121,11 @@ class SIDDType(Serializable):
     """
 
     _fields = (
-        'ProductCreation', 'Display', 'GeographicAndTarget', 'Measurement', 'ExploitationFeatures',
+        'ProductCreation', 'Display', 'GeoData', 'Measurement', 'ExploitationFeatures',
         'DownstreamReprocessing', 'ErrorStatistics', 'Radiometric', 'MatchInfo', 'Compression',
         'DigitalElevationData', 'ProductProcessing', 'Annotations')
     _required = (
-        'ProductCreation', 'Display', 'GeographicAndTarget', 'Measurement', 'ExploitationFeatures')
+        'ProductCreation', 'Display', 'GeoData', 'Measurement', 'ExploitationFeatures')
     # Descriptor
     ProductCreation = _SerializableDescriptor(
         'ProductCreation', ProductCreationType, _required, strict=DEFAULT_STRICT,
@@ -131,10 +134,10 @@ class SIDDType(Serializable):
         'Display', ProductDisplayType, _required, strict=DEFAULT_STRICT,
         docstring='Contains information on the parameters needed to display the product in '
                   'an exploitation tool.')  # type: ProductDisplayType
-    GeographicAndTarget = _SerializableDescriptor(
-        'GeographicAndTarget', GeographicAndTargetType, _required, strict=DEFAULT_STRICT,
+    GeoData = _SerializableDescriptor(
+        'GeoData', GeoDataType, _required, strict=DEFAULT_STRICT,
         docstring='Contains generic and extensible targeting and geographic region '
-                  'information.')  # type: GeographicAndTargetType
+                  'information.')  # type: GeoDataType
     Measurement = _SerializableDescriptor(
         'Measurement', MeasurementType, _required, strict=DEFAULT_STRICT,
         docstring='Contains the metadata necessary for performing measurements.')  # type: MeasurementType
@@ -173,7 +176,7 @@ class SIDDType(Serializable):
         'Annotations', AnnotationsType, _required, strict=DEFAULT_STRICT,
         docstring='List of annotations for the imagery.')  # type: AnnotationsType
 
-    def __init__(self, ProductCreation=None, Display=None, GeographicAndTarget=None,
+    def __init__(self, ProductCreation=None, Display=None, GeoData=None,
                  Measurement=None, ExploitationFeatures=None, DownstreamReprocessing=None,
                  ErrorStatistics=None, Radiometric=None, MatchInfo=None, Compression=None,
                  DigitalElevationData=None, ProductProcessing=None, Annotations=None, **kwargs):
@@ -183,7 +186,7 @@ class SIDDType(Serializable):
         ----------
         ProductCreation : ProductCreationType
         Display : ProductDisplayType
-        GeographicAndTarget : GeographicAndTargetType
+        GeoData : GeoDataType
         Measurement : MeasurementType
         ExploitationFeatures : ExploitationFeaturesType
         DownstreamReprocessing : None|DownstreamReprocessingType
@@ -203,7 +206,7 @@ class SIDDType(Serializable):
             self._xml_ns_key = kwargs['_xml_ns_key']
         self.ProductCreation = ProductCreation
         self.Display = Display
-        self.GeographicAndTarget = GeographicAndTarget
+        self.GeoData = GeoData
         self.Measurement = Measurement
         self.ExploitationFeatures = ExploitationFeatures
         self.DownstreamReprocessing = DownstreamReprocessing
@@ -216,6 +219,36 @@ class SIDDType(Serializable):
         self.Annotations = Annotations
         super(SIDDType, self).__init__(**kwargs)
 
+    @staticmethod
+    def get_xmlns_collection():
+        """
+        Gets the correct SIDD 2.0 dictionary of xml namespace details.
+
+        Returns
+        -------
+        dict
+        """
+
+        return OrderedDict([
+            ('xmlns', _SIDD_URN), ('xmlns:sicommon', _SICOMMON_URN),
+            ('xmlns:sfa', _SFA_URN), ('xmlns:ism', _ISM_URN)])
+
+    @staticmethod
+    def get_des_details():
+        """
+        Gets the correct SIDD 2.0 DES subheader details.
+
+        Returns
+        -------
+        dict
+        """
+
+        return OrderedDict([
+            ('DESSHSI', _SIDD_SPECIFICATION_VERSION),
+            ('DESSHSV', _SIDD_SPECIFICATION_VERSION),
+            ('DESSHSD', _SIDD_SPECIFICATION_DATE),
+            ('DESSHTN', _SIDD_URN)])
+
     @classmethod
     def from_node(cls, node, xml_ns, ns_key=None, kwargs=None):
         if ns_key is None:
@@ -225,3 +258,7 @@ class SIDDType(Serializable):
 
         _validate_xml_ns(xml_ns, ns_key)
         return super(SIDDType, cls).from_node(node, xml_ns, ns_key=ns_key, kwargs=kwargs)
+
+    def to_xml_bytes(self, urn=None, tag=None, check_validity=False, strict=DEFAULT_STRICT):
+        urn = self.get_xmlns_collection()
+        return super(SIDDType, self).to_xml_bytes(urn=urn, tag=tag, check_validity=check_validity, strict=strict)

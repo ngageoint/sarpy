@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified"
+            xml:lang="en">
+   <xsd:annotation>
+      <xsd:documentation>
+                W3C XML Schema fragment encoding types for Controlled vocabulary encodings CVEnumISMSourceMarked. This file is generated so edits should be made to the CVEnumISMSourceMarked the CVE it is based on instead of here.
+            </xsd:documentation>
+   </xsd:annotation>
+   <!--*************************************************************-->
+<!--Generated TYPE DEFINITIONS ..................................-->
+<!--*************************************************************-->
+<xsd:simpleType name="CVEnumISMSourceMarked">
+      <xsd:annotation>
+         <xsd:documentation>(U) All currently authorized Source Marked values
+                    PERMISSIBLE VALUES
+                    
+                    The permissible values for this simple type are defined in the Controlled Value Enumeration:
+                    
+                    CVEnumISMSourceMarked.xml
+                    
+                </xsd:documentation>
+      </xsd:annotation>
+      <xsd:restriction base="xsd:token">
+         <xsd:enumeration value="OADR">
+            <xsd:annotation>
+               <xsd:documentation>Source Marked OADR (Originating Agency's Determination Required)</xsd:documentation>
+            </xsd:annotation>
+         </xsd:enumeration>
+         <xsd:enumeration value="X1">
+            <xsd:annotation>
+               <xsd:documentation>Source Marked X1</xsd:documentation>
+            </xsd:annotation>
+         </xsd:enumeration>
+         <xsd:enumeration value="X2">
+            <xsd:annotation>
+               <xsd:documentation>Source Marked X2</xsd:documentation>
+            </xsd:annotation>
+         </xsd:enumeration>
+         <xsd:enumeration value="X3">
+            <xsd:annotation>
+               <xsd:documentation>Source Marked X3</xsd:documentation>
+            </xsd:annotation>
+         </xsd:enumeration>
+         <xsd:enumeration value="X4">
+            <xsd:annotation>
+               <xsd:documentation>Source Marked X4</xsd:documentation>
+            </xsd:annotation>
+         </xsd:enumeration>
+         <xsd:enumeration value="X5">
+            <xsd:annotation>
+               <xsd:documentation>Source Marked X5</xsd:documentation>
+            </xsd:annotation>
+         </xsd:enumeration>
+         <xsd:enumeration value="X6">
+            <xsd:annotation>
+               <xsd:documentation>Source Marked X6</xsd:documentation>
+            </xsd:annotation>
+         </xsd:enumeration>
+         <xsd:enumeration value="X7">
+            <xsd:annotation>
+               <xsd:documentation>Source Marked X7</xsd:documentation>
+            </xsd:annotation>
+         </xsd:enumeration>
+         <xsd:enumeration value="X8">
+            <xsd:annotation>
+               <xsd:documentation>Source Marked X8</xsd:documentation>
+            </xsd:annotation>
+         </xsd:enumeration>
+      </xsd:restriction>
+   </xsd:simpleType>
+</xsd:schema>

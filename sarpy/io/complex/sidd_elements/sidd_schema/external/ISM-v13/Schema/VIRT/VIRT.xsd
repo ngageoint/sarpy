@@ -1,0 +1,256 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?oxygen SCHSchema="../../Schematron/ISM/ISM_XML.sch"?>
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xlink="http://www.w3.org/1999/xlink"
+    xmlns:ism="urn:us:gov:ic:ism" xmlns:ntk="urn:us:gov:ic:ntk" xmlns="urn:us:gov:ic:virt"
+    xmlns:virt="urn:us:gov:ic:virt" xmlns:xhtml="http://www.w3.org/1999/xhtml"
+    xmlns:virtnetwork="urn:us:gov:ic:cvenum:virt:network"
+    targetNamespace="urn:us:gov:ic:virt" elementFormDefault="qualified"
+    attributeFormDefault="qualified" xml:lang="en" ism:DESVersion="12" ism:resourceElement="true"
+    ism:createDate="2012-09-30" ism:classification="U" ism:ownerProducer="USA" version="1">
+    <xsd:annotation>
+        <xsd:documentation>
+            <xhtml:h1 ism:ownerProducer="USA" ism:classification="U">Intelligence Community Technical Specification  
+                XML Encoding Specification for Virtual Coverage</xhtml:h1>
+        </xsd:documentation>
+        <xsd:documentation>
+            <xhtml:h2 ism:ownerProducer="USA" ism:classification="U">Notices</xhtml:h2>
+            <xhtml:p ism:ownerProducer="USA" ism:classification="U">
+                distEditionBlockReplace				
+            </xhtml:p>
+        </xsd:documentation>
+        <xsd:documentation>
+            <xhtml:h2 ism:ownerProducer="USA" ism:classification="U">Description</xhtml:h2>
+            <xhtml:p ism:ownerProducer="USA" ism:classification="U">
+                W3C XML Schema for the XML Encoding Specification defining Virtual Coverage.				
+            </xhtml:p>
+        </xsd:documentation>
+        <xsd:documentation>
+            <xhtml:h2 ism:ownerProducer="USA" ism:classification="U">Introduction</xhtml:h2>
+            <xhtml:p ism:ownerProducer="USA" ism:classification="U">
+                This XML Schema file is one component of the XML
+                Encoding Specification. Please see the document titled
+                <xhtml:i>
+                    <xhtml:a href="../Documents/VIRT/DesVirtXml.pdf">XML Encoding Specification for Virtual Coverage</xhtml:a>
+            </xhtml:i>	 
+                for a complete description of the encoding as well as list
+                of all components.  
+            </xhtml:p>
+            <xhtml:p ism:ownerProducer="USA" ism:classification="U">
+                If you modify this XML Schema in any way label your schema
+                as a variant of VIRT.XML. 
+            </xhtml:p>
+            <xhtml:p ism:ownerProducer="USA" ism:classification="U">
+                Please direct all questions, bug reports,or suggestions for changes
+                to the points of contact identified in the document referenced above.
+            </xhtml:p>
+        </xsd:documentation>
+        <xsd:documentation>
+            <xhtml:h2 ism:ownerProducer="USA" ism:classification="U">Creators</xhtml:h2>
+            <xhtml:p ism:ownerProducer="USA" ism:classification="U">Office of the Director of National Intelligence
+                Intelligence Community Chief Information Officer</xhtml:p>
+        </xsd:documentation>
+    </xsd:annotation>
+    <!--***************************************************-->
+    <!--Start Import Statements-->
+    <!--***************************************************-->
+
+    <xsd:import namespace="urn:us:gov:ic:ism" schemaLocation="../ISM/IC-ISM.xsd">
+        <xsd:annotation>
+            <xsd:documentation>
+            <xhtml:p ism:ownerProducer="USA" ism:classification="U">Import IC Information Security Marking (ISM) attributes</xhtml:p>
+         </xsd:documentation>
+        </xsd:annotation>
+    </xsd:import>
+    <xsd:import namespace="urn:us:gov:ic:ntk" schemaLocation="../NTK/IC-NTK.xsd">
+        <xsd:annotation>
+            <xsd:documentation>
+            <xhtml:p ism:ownerProducer="USA" ism:classification="U">Import IC Need To Know (NTK)</xhtml:p>
+         </xsd:documentation>
+        </xsd:annotation>
+    </xsd:import>
+    <xsd:import namespace="urn:us:gov:ic:cvenum:virt:network"
+        schemaLocation="./CVEGenerated/CVEnumVIRTNetworkName.xsd"/>
+    <xsd:import namespace="http://www.w3.org/1999/xlink" schemaLocation="../w3/1999/xlink/xlink.xsd"/>
+    <!--***************************************************-->
+    <!--End Import Statements-->
+    <!--***************************************************-->
+    <!--***************************************************-->
+    <!--Start All case-insensitive alphabetically-->
+    <!--***************************************************-->
+
+
+    <xsd:element name="VirtualCoverage" type="VirtualCoverageType">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+                <xhtml:p ism:ownerProducer="USA" ism:classification="U">
+                The subject-matter coverage of a publication in terms of one or more virtual addresses.  May identify the protocol being used and the virtual address of the resource.  
+                </xhtml:p>
+            </xsd:documentation>
+        </xsd:annotation>
+    </xsd:element>
+
+    <xsd:attribute name="DESVersion" type="ism:ShortStringType" fixed="1">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+                <xhtml:p ism:ownerProducer="USA" ism:classification="U"> The version number of the DES </xhtml:p>
+            </xsd:documentation>
+        </xsd:annotation>
+    </xsd:attribute>
+
+    <xsd:complexType name="VirtualCoverageType">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+                <xhtml:p ism:ownerProducer="USA" ism:classification="U">
+                    Type used to model the virtualCoverage element.
+                </xhtml:p>
+            </xsd:documentation>
+        </xsd:annotation>
+        <xsd:attribute name="protocol" type="xsd:string" use="optional"/>
+        <xsd:attribute name="address" type="xsd:string" use="optional"/>
+        <xsd:attributeGroup ref="ism:SecurityAttributesOptionGroup"/>
+        <xsd:attributeGroup ref="ntk:NtkPortionAccessGroup"/>
+        <xsd:attributeGroup ref="NetworkAttributesGroup"/>
+    </xsd:complexType>
+
+
+
+    <xsd:attributeGroup name="NetworkAttributesGroup">
+        <xsd:attribute name="network" type="virtnetwork:CVEnumVIRTNetworkName" use="optional">
+            <xsd:annotation>
+                <xsd:documentation xml:lang="en">
+                    <xhtml:p ism:ownerProducer="USA" ism:classification="U">
+                        An Internet-Protocol-based computer network.  Use this attribute to make explicit the 
+                        network where the address resides.  
+                        Specify "other:name" if none of the primary choices applies.
+                    </xhtml:p>
+                </xsd:documentation>
+            </xsd:annotation>
+        </xsd:attribute>
+    </xsd:attributeGroup>
+
+    
+    <xsd:attributeGroup name="OptionalResourceLinkAttributesGroup">
+        <xsd:attribute ref="xlink:type" fixed="resource" use="optional"/>
+        <xsd:attribute ref="xlink:role" use="optional"/>
+        <xsd:attribute ref="xlink:title" use="optional"/>
+        <xsd:attribute ref="xlink:label" use="optional"/>
+        <xsd:attributeGroup ref="NetworkAttributesGroup"/>
+    </xsd:attributeGroup>
+    
+    <xsd:attributeGroup name="RequiredSimpleLinkAttributesGroup">
+        <xsd:annotation>
+            <xsd:documentation>
+                <xhtml:p ism:ownerProducer="USA" ism:classification="U">
+                    A Schematron rule enforces that for each of the groups below, 
+                    either @xlink:type or @xlink:href must be specified if any 
+                    xlink attributes are specified
+                </xhtml:p>
+            </xsd:documentation>
+        </xsd:annotation>
+        <xsd:attribute ref="xlink:type" fixed="simple" use="optional"/>
+        <xsd:attribute ref="xlink:href" use="required"/>
+        <xsd:attribute ref="xlink:role" use="optional"/>
+        <xsd:attribute ref="xlink:arcrole" use="optional"/>
+        <xsd:attribute ref="xlink:title" use="optional"/>
+        <xsd:attribute ref="xlink:show" use="optional"/>
+        <xsd:attribute ref="xlink:actuate" use="optional"/>
+        <xsd:attributeGroup ref="NetworkAttributesGroup"/>
+    </xsd:attributeGroup>
+    
+    <xsd:complexType name="RequiredSimpleLinkType">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+                <xhtml:p ism:ownerProducer="USA" ism:classification="U"> Basic Type for a required link</xhtml:p>
+            </xsd:documentation>
+        </xsd:annotation>
+        <xsd:simpleContent>
+            <xsd:extension base="ism:ShortStringType">
+                <xsd:attributeGroup ref="virt:RequiredSimpleLinkAttributesGroup"/>
+            </xsd:extension>
+        </xsd:simpleContent>
+    </xsd:complexType>
+    
+    <xsd:complexType name="RequiredSimpleLinkWithSecurityType">
+        <xsd:annotation>
+            <xsd:documentation xml:lang="en">
+                <xhtml:p ism:ownerProducer="USA" ism:classification="U"> Basic Type for a required link with ISM security on the link</xhtml:p>
+            </xsd:documentation>
+        </xsd:annotation>
+        <xsd:simpleContent>
+            <xsd:extension base="RequiredSimpleLinkType">
+                <xsd:attributeGroup ref="ism:SecurityAttributesGroup"/>
+            </xsd:extension>
+        </xsd:simpleContent>
+    </xsd:complexType>
+    
+    <xsd:attributeGroup name="SimpleLinkAttributesGroup">
+        <xsd:attributeGroup ref="xlink:simpleAttrs"/>
+        <xsd:attributeGroup ref="NetworkAttributesGroup"/>
+    </xsd:attributeGroup>
+    
+    <xsd:attributeGroup name="SimpleOrExtendedLinkAttributesGroup">
+        <xsd:annotation>
+            <xsd:documentation>
+                <xhtml:p ism:ownerProducer="USA" ism:classification="U">
+                    An additional restriction on xlink:type to be "simple" or "extended" should be enforced with Schematron rules
+                    in the specifications using this attribute group
+                </xhtml:p>
+            </xsd:documentation>
+        </xsd:annotation>
+        <xsd:attribute ref="xlink:type" use="optional"/>
+        <xsd:attribute ref="xlink:href" use="optional"/>
+        <xsd:attribute ref="xlink:role" use="optional"/>
+        <xsd:attribute ref="xlink:arcrole" use="optional"/>
+        <xsd:attribute ref="xlink:title" use="optional"/>
+        <xsd:attribute ref="xlink:show" use="optional"/>
+        <xsd:attribute ref="xlink:actuate" use="optional"/>
+        <xsd:attributeGroup ref="NetworkAttributesGroup"/>
+    </xsd:attributeGroup>
+    
+    <xsd:attributeGroup name="SimpleOrResourceLinkAttributesGroup">
+        <xsd:annotation>
+            <xsd:documentation>
+                <xhtml:p ism:ownerProducer="USA" ism:classification="U">
+                    An additional restriction on xlink:type to be "simple" or "extended" should be enforced with Schematron rules
+                    in the specifications using this attribute group
+                </xhtml:p>
+            </xsd:documentation>
+        </xsd:annotation>
+        <xsd:attribute ref="xlink:type" use="optional"/>
+        <xsd:attribute ref="xlink:href" use="optional"/>
+        <xsd:attribute ref="xlink:role" use="optional"/>
+        <xsd:attribute ref="xlink:arcrole" use="optional"/>
+        <xsd:attribute ref="xlink:title" use="optional"/>
+        <xsd:attribute ref="xlink:show" use="optional"/>
+        <xsd:attribute ref="xlink:actuate" use="optional"/>
+        <xsd:attribute ref="xlink:label" use="optional"/>
+        <xsd:attributeGroup ref="NetworkAttributesGroup"/>
+    </xsd:attributeGroup>
+    <!--***************************************************-->
+    <!--End All case-insensitive alphabetically-->
+    <!--***************************************************-->
+    <xsd:annotation>
+        <xsd:documentation>
+            <xhtml:h2 ism:ownerProducer="USA" ism:classification="U">Formal Change List</xhtml:h2>
+            <xhtml:table ism:ownerProducer="USA" ism:classification="U" id="ChangeHistory">
+                <xhtml:caption>Change History</xhtml:caption>
+                <xhtml:thead>
+                    <xhtml:tr>
+                        <th xmlns="">Version</th>
+                        <xhtml:td>Date</xhtml:td>
+                        <xhtml:td>By</xhtml:td>
+                        <xhtml:td>Description</xhtml:td>
+                    </xhtml:tr>
+                </xhtml:thead>
+                <xhtml:tbody>
+                    <xhtml:tr>
+                        <xhtml:td>1</xhtml:td>
+                        <xhtml:td>2012-09-30</xhtml:td>
+                        <xhtml:td>ODNI/OCIO/ICEA</xhtml:td>
+                        <xhtml:td>Initial release</xhtml:td>
+                    </xhtml:tr>
+                </xhtml:tbody>
+            </xhtml:table>
+        </xsd:documentation>
+    </xsd:annotation>
+</xsd:schema>

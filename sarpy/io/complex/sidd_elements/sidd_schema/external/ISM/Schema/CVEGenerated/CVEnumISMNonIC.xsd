@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified"
+            xml:lang="en">
+   <xsd:annotation>
+      <xsd:documentation>
+                W3C XML Schema fragment encoding types for Controlled vocabulary encodings CVEnumISMNonIC. This file is generated so edits should be made to the CVEnumISMNonIC the CVE it is based on instead of here.
+            </xsd:documentation>
+   </xsd:annotation>
+   <!--*************************************************************-->
+<!--Generated TYPE DEFINITIONS ..................................-->
+<!--*************************************************************-->
+<xsd:simpleType name="CVEnumISMNonICValues">
+      <xsd:annotation>
+         <xsd:documentation>(U) All currently valid Non-IC markings from the published register
+                    PERMISSIBLE VALUES
+                    
+                    The permissible values for this simple type are defined in the Controlled Value Enumeration:
+                    
+                    CVEnumISMNonIC.xml
+                    
+                </xsd:documentation>
+      </xsd:annotation>
+      <xsd:restriction base="xsd:token">
+         <xsd:enumeration value="SC">
+            <xsd:annotation>
+               <xsd:documentation>SPECIAL CATEGORY</xsd:documentation>
+            </xsd:annotation>
+         </xsd:enumeration>
+         <xsd:enumeration value="SINFO">
+            <xsd:annotation>
+               <xsd:documentation>SENSITIVE INFORMATION</xsd:documentation>
+            </xsd:annotation>
+         </xsd:enumeration>
+         <xsd:enumeration value="DS">
+            <xsd:annotation>
+               <xsd:documentation>LIMITED DISTRIBUTION</xsd:documentation>
+            </xsd:annotation>
+         </xsd:enumeration>
+         <xsd:enumeration value="XD">
+            <xsd:annotation>
+               <xsd:documentation>EXCLUSIVE DISTRIBUTION</xsd:documentation>
+            </xsd:annotation>
+         </xsd:enumeration>
+         <xsd:enumeration value="ND">
+            <xsd:annotation>
+               <xsd:documentation>NO DISTRIBUTION</xsd:documentation>
+            </xsd:annotation>
+         </xsd:enumeration>
+         <xsd:enumeration value="SBU">
+            <xsd:annotation>
+               <xsd:documentation>SENSITIVE BUT UNCLASSIFIED</xsd:documentation>
+            </xsd:annotation>
+         </xsd:enumeration>
+         <xsd:enumeration value="SBU-NF">
+            <xsd:annotation>
+               <xsd:documentation>SENSITIVE BUT UNCLASSIFIED NOFORN</xsd:documentation>
+            </xsd:annotation>
+         </xsd:enumeration>
+         <xsd:enumeration value="LES">
+            <xsd:annotation>
+               <xsd:documentation>LAW ENFORCEMENT SENSITIVE</xsd:documentation>
+            </xsd:annotation>
+         </xsd:enumeration>
+         <xsd:enumeration value="LES-NF">
+            <xsd:annotation>
+               <xsd:documentation>LAW ENFORCEMENT SENSITIVE NOFORN</xsd:documentation>
+            </xsd:annotation>
+         </xsd:enumeration>
+      </xsd:restriction>
+   </xsd:simpleType>
+   <xsd:simpleType name="CVEnumISMNonIC">
+      <xsd:restriction>
+         <xsd:simpleType>
+            <xsd:list itemType="CVEnumISMNonICValues"/>
+         </xsd:simpleType>
+         <xsd:maxLength value="9"/>
+      </xsd:restriction>
+   </xsd:simpleType>
+</xsd:schema>

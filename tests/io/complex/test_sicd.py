@@ -63,8 +63,8 @@ def generic_sicd_check(instance, test_file):
     with instance.subTest(msg="data fetch"):
         # how about fetching some data?
         start = time.time()
-        rows = min(500, reader.data_size[0])
-        cols = min(500, reader.data_size[1])
+        rows = min(500, reader.data_size[0][0])
+        cols = min(500, reader.data_size[0][1])
         data = reader[:rows, :cols]
         logging.info('data shape = {}, fetched in {}'.format(data.shape, time.time() - start))
 

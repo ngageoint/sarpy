@@ -1,0 +1,570 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- edited with XMLSpy v2008 rel. 2 (http://www.altova.com) by General Dynamics AIS (General Dynamics AIS) -->
+<!-- SIDD v0.1.1 -->
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="urn:SICommon:1.0" targetNamespace="urn:SICommon:1.0" elementFormDefault="qualified" attributeFormDefault="unqualified">
+    <!--=-->
+    <xsd:complexType name="XYZType">
+        <xsd:sequence>
+            <xsd:element name="X" type="xsd:double"/>
+            <xsd:element name="Y" type="xsd:double"/>
+            <xsd:element name="Z" type="xsd:double"/>
+        </xsd:sequence>
+    </xsd:complexType>
+    <xsd:complexType name="XYZAttributeType">
+        <xsd:complexContent>
+            <xsd:extension base="XYZType">
+                <xsd:attribute name="name" type="xsd:string" use="optional"/>
+            </xsd:extension>
+        </xsd:complexContent>
+    </xsd:complexType>
+    <xsd:complexType name="LLHType">
+        <xsd:sequence>
+            <xsd:element name="Lat" type="xsd:double"/>
+            <xsd:element name="Lon" type="xsd:double"/>
+            <xsd:element name="HAE" type="xsd:double"/>
+        </xsd:sequence>
+    </xsd:complexType>
+    <xsd:complexType name="LatLonType">
+        <xsd:sequence>
+            <xsd:element name="Lat" type="xsd:double"/>
+            <xsd:element name="Lon" type="xsd:double"/>
+        </xsd:sequence>
+    </xsd:complexType>
+    <xsd:simpleType name="CornerAttrType">
+        <xsd:restriction base="xsd:int">
+            <xsd:minInclusive value="1"/>
+            <xsd:maxInclusive value="4"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="CornerStringType">
+        <xsd:restriction base="xsd:string">
+            <xsd:enumeration value="1:FRFC"/>
+            <xsd:enumeration value="2:FRLC"/>
+            <xsd:enumeration value="3:LRLC"/>
+            <xsd:enumeration value="4:LRFC"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:complexType name="LatLonCornerType">
+        <xsd:sequence>
+            <xsd:element name="Lat" type="xsd:double"/>
+            <xsd:element name="Lon" type="xsd:double"/>
+        </xsd:sequence>
+        <xsd:attribute name="index" type="CornerAttrType" use="required"/>
+    </xsd:complexType>
+    <xsd:complexType name="LatLonCornerStringType">
+        <xsd:sequence>
+            <xsd:element name="Lat" type="xsd:double"/>
+            <xsd:element name="Lon" type="xsd:double"/>
+        </xsd:sequence>
+        <xsd:attribute name="index" type="CornerStringType" use="required"/>
+    </xsd:complexType>
+    <xsd:complexType name="LatLonHAECornerType">
+        <xsd:sequence>
+            <xsd:element name="Lat" type="xsd:double"/>
+            <xsd:element name="Lon" type="xsd:double"/>
+            <xsd:element name="HAE" type="xsd:double"/>
+        </xsd:sequence>
+        <xsd:attribute name="index" type="CornerAttrType" use="required"/>
+    </xsd:complexType>
+    <xsd:complexType name="LatLonVertexType">
+        <xsd:sequence>
+            <xsd:element name="Lat" type="xsd:double"/>
+            <xsd:element name="Lon" type="xsd:double"/>
+        </xsd:sequence>
+        <xsd:attribute name="index" type="xsd:int" use="required"/>
+    </xsd:complexType>
+    <xsd:complexType name="LLHCornerStringType">
+        <xsd:sequence>
+            <xsd:element name="Lat" type="xsd:double"/>
+            <xsd:element name="Lon" type="xsd:double"/>
+            <xsd:element name="HAE" type="xsd:double"/>
+        </xsd:sequence>
+        <xsd:attribute name="index" type="CornerStringType" use="required"/>
+    </xsd:complexType>
+    <xsd:complexType name="LatLonRestrictionType">
+        <xsd:sequence>
+            <xsd:element name="Lat" type="Neg90To90Type"/>
+            <xsd:element name="Lon" type="Neg180To180Type"/>
+        </xsd:sequence>
+    </xsd:complexType>
+    <xsd:complexType name="RowColIntType">
+        <xsd:sequence>
+            <xsd:element name="Row" type="xsd:int"/>
+            <xsd:element name="Col" type="xsd:int"/>
+        </xsd:sequence>
+    </xsd:complexType>
+    <xsd:complexType name="RowColDoubleType">
+        <xsd:sequence>
+            <xsd:element name="Row" type="xsd:double"/>
+            <xsd:element name="Col" type="xsd:double"/>
+        </xsd:sequence>
+    </xsd:complexType>
+    <!--
+    <xsd:complexType name="RowColLatLonType">
+        <xsd:sequence>
+            <xsd:element name="Row" type="LatLonType"/>
+            <xsd:element name="Col" type="LatLonType"/>
+        </xsd:sequence>
+    </xsd:complexType>
+    -->
+    <xsd:complexType name="ComplexType">
+        <xsd:sequence>
+            <xsd:element name="Real" type="xsd:double"/>
+            <xsd:element name="Imag" type="xsd:double"/>
+        </xsd:sequence>
+    </xsd:complexType>
+    <xsd:complexType name="RowColVertexType">
+        <xsd:sequence>
+            <xsd:element name="Row" type="xsd:int"/>
+            <xsd:element name="Col" type="xsd:int"/>
+        </xsd:sequence>
+        <xsd:attribute name="index" type="xsd:int" use="required"/>
+    </xsd:complexType>
+    <xsd:complexType name="PolyCoef1DType">
+        <xsd:simpleContent>
+            <xsd:extension base="xsd:double">
+                <xsd:attribute name="exponent1" type="xsd:int" use="required"/>
+            </xsd:extension>
+        </xsd:simpleContent>
+    </xsd:complexType>
+    <xsd:complexType name="PolyCoef2DType">
+        <xsd:simpleContent>
+            <xsd:extension base="xsd:double">
+                <xsd:attribute name="exponent1" type="xsd:int" use="required"/>
+                <xsd:attribute name="exponent2" type="xsd:int" use="required"/>
+            </xsd:extension>
+        </xsd:simpleContent>
+    </xsd:complexType>
+    <xsd:complexType name="Poly1DType">
+        <xsd:sequence>
+            <xsd:element name="Coef" type="PolyCoef1DType" maxOccurs="unbounded"/>
+        </xsd:sequence>
+        <xsd:attribute name="order1" type="xsd:int" use="required"/>
+    </xsd:complexType>
+    <xsd:complexType name="Poly2DType">
+        <xsd:sequence>
+            <xsd:element name="Coef" type="PolyCoef2DType" maxOccurs="unbounded"/>
+        </xsd:sequence>
+        <xsd:attribute name="order1" type="xsd:int" use="required"/>
+        <xsd:attribute name="order2" type="xsd:int" use="required"/>
+    </xsd:complexType>
+    <xsd:complexType name="XYZPolyType">
+        <xsd:sequence>
+            <xsd:element name="X" type="Poly1DType"/>
+            <xsd:element name="Y" type="Poly1DType"/>
+            <xsd:element name="Z" type="Poly1DType"/>
+        </xsd:sequence>
+    </xsd:complexType>
+    <xsd:complexType name="XYZPolyAttributeType">
+        <xsd:complexContent>
+            <xsd:extension base="XYZPolyType">
+                <xsd:attribute name="index" type="xsd:int" use="required"/>
+            </xsd:extension>
+        </xsd:complexContent>
+    </xsd:complexType>
+    <xsd:complexType name="LineType">
+        <xsd:sequence>
+            <xsd:element name="Endpoint" minOccurs="2" maxOccurs="unbounded">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="Lat" type="xsd:double"/>
+                        <xsd:element name="Lon" type="xsd:double"/>
+                    </xsd:sequence>
+                    <xsd:attribute name="index" type="xsd:int" use="required"/>
+                </xsd:complexType>
+            </xsd:element>
+        </xsd:sequence>
+        <xsd:attribute name="size" type="xsd:int" use="required"/>
+    </xsd:complexType>
+    <xsd:complexType name="PolygonType">
+        <xsd:sequence>
+            <xsd:element name="Vertex" minOccurs="3" maxOccurs="unbounded">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="Lat" type="xsd:double"/>
+                        <xsd:element name="Lon" type="xsd:double"/>
+                    </xsd:sequence>
+                    <xsd:attribute name="index" type="xsd:int" use="required"/>
+                </xsd:complexType>
+            </xsd:element>
+        </xsd:sequence>
+        <xsd:attribute name="size" type="xsd:int" use="required"/>
+    </xsd:complexType>
+    <xsd:complexType name="ArrayDoubleType">
+        <xsd:simpleContent>
+            <xsd:extension base="xsd:double">
+                <xsd:attribute name="index" type="xsd:int" use="required"/>
+            </xsd:extension>
+        </xsd:simpleContent>
+    </xsd:complexType>
+    <xsd:complexType name="ParameterType">
+        <xsd:simpleContent>
+            <xsd:extension base="xsd:string">
+                <xsd:attribute name="name" type="xsd:string" use="required"/>
+            </xsd:extension>
+        </xsd:simpleContent>
+    </xsd:complexType>
+    <xsd:simpleType name="Polarization1Type">
+        <xsd:restriction base="xsd:string">
+            <xsd:enumeration value="V"/>
+            <xsd:enumeration value="H"/>
+            <xsd:enumeration value="RHC"/>
+            <xsd:enumeration value="LHC"/>
+            <xsd:enumeration value="OTHER"/>
+            <xsd:enumeration value="UNKNOWN"/>
+            <xsd:enumeration value="SEQUENCE"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="Polarization2Type">
+        <xsd:restriction base="xsd:string">
+            <xsd:enumeration value="V"/>
+            <xsd:enumeration value="H"/>
+            <xsd:enumeration value="RHC"/>
+            <xsd:enumeration value="LHC"/>
+            <xsd:enumeration value="OTHER"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="ModeIdentifierType">
+        <xsd:restriction base="xsd:string">
+            <xsd:enumeration value="SPOTLIGHT"/>
+            <xsd:enumeration value="STRIPMAP"/>
+            <xsd:enumeration value="DYNAMIC STRIPMAP"/>
+            <xsd:enumeration value="SCANSAR"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:complexType name="RadarModeType">
+        <xsd:sequence>
+            <xsd:element name="ModeType" type="ModeIdentifierType"/>
+            <xsd:element name="ModeID" type="xsd:string" minOccurs="0"/>
+        </xsd:sequence>
+    </xsd:complexType>
+    <xsd:simpleType name="DualPolarizationType">
+        <xsd:restriction base="xsd:string">
+            <xsd:enumeration value="V:V"/>
+            <xsd:enumeration value="V:H"/>
+            <xsd:enumeration value="H:V"/>
+            <xsd:enumeration value="H:H"/>
+            <xsd:enumeration value="RHC:RHC"/>
+            <xsd:enumeration value="RHC:LHC"/>
+            <xsd:enumeration value="LHC:RHC"/>
+            <xsd:enumeration value="LHC:LHC"/>
+            <xsd:enumeration value="OTHER"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="ZeroTo90Type">
+        <xsd:restriction base="xsd:double">
+            <xsd:minInclusive value="0"/>
+            <xsd:maxInclusive value="90"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="ZeroToExclusive180Type">
+        <xsd:restriction base="xsd:double">
+            <xsd:minInclusive value="0"/>
+            <xsd:maxExclusive value="180"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="Neg90To90Type">
+        <xsd:restriction base="xsd:double">
+            <xsd:minInclusive value="-90"/>
+            <xsd:maxInclusive value="90"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="Neg180To180Type">
+        <xsd:restriction base="xsd:double">
+            <xsd:minInclusive value="-180"/>
+            <xsd:maxInclusive value="180"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="CollectIdentifierType">
+        <xsd:restriction base="xsd:string">
+            <xsd:enumeration value="MONOSTATIC"/>
+            <xsd:enumeration value="BISTATIC"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:complexType name="CollectionInfoType">
+        <xsd:sequence>
+            <xsd:element name="CollectorName" type="xsd:string"/>
+            <xsd:element name="IlluminatorName" type="xsd:string" minOccurs="0"/>
+            <xsd:element name="CoreName" type="xsd:string"/>
+            <xsd:element name="CollectType" type="CollectIdentifierType" minOccurs="0"/>
+            <xsd:element name="RadarMode" type="RadarModeType"/>
+            <xsd:element name="Classification" type="xsd:string"/>
+            <xsd:element name="CountryCode" type="xsd:string" minOccurs="0" maxOccurs="unbounded"/>
+            <xsd:element name="Parameter" type="ParameterType" minOccurs="0" maxOccurs="unbounded"/>
+        </xsd:sequence>
+    </xsd:complexType>
+    <xsd:complexType name="ImageCreationType">
+        <xsd:sequence>
+            <xsd:element name="Application" type="xsd:string" minOccurs="0"/>
+            <xsd:element name="DateTime" type="xsd:dateTime" minOccurs="0"/>
+            <xsd:element name="Site" type="xsd:string" minOccurs="0"/>
+            <xsd:element name="Profile" type="xsd:string" minOccurs="0"/>
+        </xsd:sequence>
+    </xsd:complexType>
+    <xsd:simpleType name="ErrorFrameType">
+        <xsd:restriction base="xsd:string">
+            <xsd:enumeration value="ECF"/>
+            <xsd:enumeration value="RIC_ECF"/>
+            <xsd:enumeration value="RIC_ECI"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:complexType name="ErrorStatisticsType">
+        <xsd:sequence>
+         <xsd:element name="CompositeSCP" minOccurs="0">
+            <xsd:complexType>
+               <xsd:sequence>
+                  <xsd:element name="Rg" type="xsd:double"/>
+                  <xsd:element name="Az" type="xsd:double"/>
+                  <xsd:element name="RgAz" type="xsd:double"/>
+               </xsd:sequence>
+            </xsd:complexType>
+         </xsd:element>
+            <xsd:element name="Components" minOccurs="0">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="PosVelErr" minOccurs="0">
+                            <xsd:complexType>
+                                <xsd:sequence>
+                                    <xsd:element name="Frame" type="ErrorFrameType"/>
+                                    <xsd:element name="P1" type="xsd:double"/>
+                                    <xsd:element name="P2" type="xsd:double"/>
+                                    <xsd:element name="P3" type="xsd:double"/>
+                                    <xsd:element name="V1" type="xsd:double"/>
+                                    <xsd:element name="V2" type="xsd:double"/>
+                                    <xsd:element name="V3" type="xsd:double"/>
+                                    <xsd:element name="CorrCoefs" minOccurs="0">
+                                        <xsd:complexType>
+                                            <xsd:sequence>
+                                                <xsd:element name="P1P2" type="xsd:double"/>
+                                                <xsd:element name="P1P3" type="xsd:double"/>
+                                                <xsd:element name="P1V1" type="xsd:double"/>
+                                                <xsd:element name="P1V2" type="xsd:double"/>
+                                                <xsd:element name="P1V3" type="xsd:double"/>
+                                                <xsd:element name="P2P3" type="xsd:double"/>
+                                                <xsd:element name="P2V1" type="xsd:double"/>
+                                                <xsd:element name="P2V2" type="xsd:double"/>
+                                                <xsd:element name="P2V3" type="xsd:double"/>
+                                                <xsd:element name="P3V1" type="xsd:double"/>
+                                                <xsd:element name="P3V2" type="xsd:double"/>
+                                                <xsd:element name="P3V3" type="xsd:double"/>
+                                                <xsd:element name="V1V2" type="xsd:double"/>
+                                                <xsd:element name="V1V3" type="xsd:double"/>
+                                                <xsd:element name="V2V3" type="xsd:double"/>
+                                            </xsd:sequence>
+                                        </xsd:complexType>
+                                    </xsd:element>
+                                    <xsd:element name="PositionDecorr" minOccurs="0">
+                                        <xsd:complexType>
+                                            <xsd:sequence>
+                                                <xsd:element name="CorrCoefZero" type="xsd:double"/>
+                                                <xsd:element name="DecorrRate" type="xsd:double"/>
+                                            </xsd:sequence>
+                                        </xsd:complexType>
+                                    </xsd:element>
+                                </xsd:sequence>
+                            </xsd:complexType>
+                        </xsd:element>
+                        <xsd:element name="RadarSensor" minOccurs="0">
+                            <xsd:complexType>
+                                <xsd:sequence>
+                                    <xsd:element name="RangeBias" type="xsd:double"/>
+                                    <xsd:element name="ClockFreqSF" type="xsd:double" minOccurs="0"/>
+                                    <xsd:element name="TransmitFreqSF" type="xsd:double" minOccurs="0"/>
+                                    <xsd:element name="RangeBiasDecorr" minOccurs="0">
+                                        <xsd:complexType>
+                                            <xsd:sequence>
+                                                <xsd:element name="CorrCoefZero" type="xsd:double"/>
+                                                <xsd:element name="DecorrRate" type="xsd:double"/>
+                                            </xsd:sequence>
+                                        </xsd:complexType>
+                                    </xsd:element>
+                                </xsd:sequence>
+                            </xsd:complexType>
+                        </xsd:element>
+                        <xsd:element name="TropoError" minOccurs="0">
+                            <xsd:complexType>
+                                <xsd:sequence>
+                                    <xsd:element name="TropoRangeVertical" type="xsd:double" minOccurs="0"/>
+                                    <xsd:element name="TropoRangeSlant" type="xsd:double" minOccurs="0"/>
+                                    <xsd:element name="TropoRangeDecorr" minOccurs="0">
+                                        <xsd:complexType>
+                                            <xsd:sequence>
+                                                <xsd:element name="CorrCoefZero" type="xsd:double"/>
+                                                <xsd:element name="DecorrRate" type="xsd:double"/>
+                                            </xsd:sequence>
+                                        </xsd:complexType>
+                                    </xsd:element>
+                                </xsd:sequence>
+                            </xsd:complexType>
+                        </xsd:element>
+                        <xsd:element name="IonoError" minOccurs="0">
+                            <xsd:complexType>
+                                <xsd:sequence>
+                                    <xsd:element name="IonoRangeVertical" type="xsd:double" minOccurs="0"/>
+                                    <xsd:element name="IonoRangeRateVertical" type="xsd:double" minOccurs="0"/>
+                                    <xsd:element name="IonoRgRgRateCC" type="xsd:double"/>
+                                    <xsd:element name="IonoRangeVertDecorr" minOccurs="0">
+                                        <xsd:complexType>
+                                            <xsd:sequence>
+                                                <xsd:element name="CorrCoefZero" type="xsd:double"/>
+                                                <xsd:element name="DecorrRate" type="xsd:double"/>
+                                            </xsd:sequence>
+                                        </xsd:complexType>
+                                    </xsd:element>
+                                </xsd:sequence>
+                            </xsd:complexType>
+                        </xsd:element>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+            <xsd:element name="AdditionalParms" minOccurs="0">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="Parameter" type="ParameterType" maxOccurs="unbounded"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+        </xsd:sequence>
+    </xsd:complexType>
+    <!-- Built based upon SICD info -->
+    <xsd:complexType name="ValidDataType">
+        <xsd:sequence>
+            <xsd:element name="Vertex" type="RowColVertexType" minOccurs="3" maxOccurs="unbounded"/>
+        </xsd:sequence>
+        <xsd:attribute name="size" type="xsd:int" use="required"/>
+    </xsd:complexType>
+    <xsd:simpleType name="SigmaZeroSFIncidenceMapType">
+        <xsd:restriction base="xsd:string">
+            <xsd:enumeration value="APPLIED"/>
+            <xsd:enumeration value="NOT_APPLIED"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="GammaZeroSFIncidenceMapType">
+        <xsd:restriction base="xsd:string">
+            <xsd:enumeration value="APPLIED"/>
+            <xsd:enumeration value="NOT_APPLIED"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:complexType name="RadiometricType">
+        <xsd:sequence>
+            <xsd:element name="NoiseLevel" minOccurs="0">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="NoiseLevelType">
+                            <xsd:simpleType>
+                                <xsd:restriction base="xsd:string">
+                                    <xsd:enumeration value="ABSOLUTE"/>
+                                    <xsd:enumeration value="RELATIVE"/>
+                                </xsd:restriction>
+                            </xsd:simpleType>
+                        </xsd:element>
+                        <xsd:element name="NoisePoly" type="Poly2DType"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+            <xsd:element name="NoisePoly" type="Poly2DType" minOccurs="0"/>
+            <xsd:element name="RCSSFPoly" type="Poly2DType" minOccurs="0"/>
+            <xsd:element name="SigmaZeroSFPoly" type="Poly2DType" minOccurs="0"/>
+            <xsd:element name="BetaZeroSFPoly" type="Poly2DType" minOccurs="0"/>
+            <xsd:element name="SigmaZeroSFIncidenceMap" minOccurs="0">
+                <xsd:simpleType>
+                    <xsd:restriction base="xsd:string">
+                        <xsd:enumeration value="APPLIED"/>
+                        <xsd:enumeration value="NOT_APPLIED"/>
+                    </xsd:restriction>
+                </xsd:simpleType>
+            </xsd:element>
+            <xsd:element name="GammaZeroSFPoly" type="Poly2DType" minOccurs="0"/>
+        </xsd:sequence>
+    </xsd:complexType>
+    <!-- SIDD added types -->
+    <xsd:complexType name="AngleMagnitudeType">
+        <xsd:annotation>
+            <xsd:documentation/>
+        </xsd:annotation>
+        <xsd:sequence>
+            <xsd:element name="Angle" type="Neg180To180Type"/>
+            <xsd:element name="Magnitude" type="xsd:double"/>
+        </xsd:sequence>
+    </xsd:complexType>
+    <xsd:complexType name="RangeAzimuthType">
+        <xsd:annotation>
+            <xsd:documentation>Represents range and azimuth</xsd:documentation>
+        </xsd:annotation>
+        <xsd:sequence>
+            <xsd:element name="Range" type="xsd:double">
+                <xsd:annotation>
+                    <xsd:documentation>Range dimension.</xsd:documentation>
+                </xsd:annotation>
+            </xsd:element>
+            <xsd:element name="Azimuth" type="xsd:double">
+                <xsd:annotation>
+                    <xsd:documentation>Azimuth dimension.</xsd:documentation>
+                </xsd:annotation>
+            </xsd:element>
+        </xsd:sequence>
+    </xsd:complexType>
+    <xsd:complexType name="ReferencePointType">
+        <xsd:annotation>
+            <xsd:documentation>The reference point</xsd:documentation>
+        </xsd:annotation>
+        <xsd:sequence>
+            <xsd:element name="ECEF" type="XYZType">
+                <xsd:annotation>
+                    <xsd:documentation>The XYZ ECEF (units = m) reference point.</xsd:documentation>
+                </xsd:annotation>
+            </xsd:element>
+            <xsd:element name="Point" type="RowColDoubleType">
+                <xsd:annotation>
+                    <xsd:documentation>The row and column (units = pixels) which maps to the ECEF point.</xsd:documentation>
+                </xsd:annotation>
+            </xsd:element>
+        </xsd:sequence>
+        <xsd:attribute name="name" type="xsd:string" use="optional">
+            <xsd:annotation>
+                <xsd:documentation>Used for implementation specific signifier for the reference point.</xsd:documentation>
+            </xsd:annotation>
+        </xsd:attribute>
+    </xsd:complexType>
+    
+    <xsd:complexType name="MatchInfoType">
+        <xsd:sequence>
+            <xsd:element name="NumMatchTypes" type="xsd:int"/>
+            <xsd:element name="MatchType" maxOccurs="unbounded">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <xsd:element name="TypeID" type="xsd:string"/>
+                        <xsd:element name="CurrentIndex" type="xsd:int" minOccurs="0"/>
+                        <xsd:element name="NumMatchCollections" type="xsd:int"/>
+                        <xsd:element name="MatchCollection" minOccurs="0" maxOccurs="unbounded">
+                            <xsd:complexType>
+                                <xsd:sequence>
+                                    <xsd:element name="CoreName" type="xsd:string"/>
+                                    <xsd:element name="MatchIndex" type="xsd:int" minOccurs="0"/>
+                                    <xsd:element name="Parameter" type="ParameterType" minOccurs="0" maxOccurs="unbounded"/>
+                                </xsd:sequence>
+                                <xsd:attribute name="index" type="xsd:int" use="required"/>
+                            </xsd:complexType>
+                        </xsd:element>
+                    </xsd:sequence>
+                    <xsd:attribute name="index" type="xsd:int" use="required"/>
+                </xsd:complexType>
+            </xsd:element>
+        </xsd:sequence>
+    </xsd:complexType>
+
+    <xsd:complexType name="GeoInfoType">
+        <xsd:sequence>
+            <xsd:element name="Desc" type="ParameterType" minOccurs="0" maxOccurs="unbounded"/>
+            <xsd:choice minOccurs="0">
+                <xsd:element name="Point" type="LatLonRestrictionType"/>
+                <xsd:element name="Line" type="LineType"/>
+                <xsd:element name="Polygon" type="PolygonType"/>
+            </xsd:choice>
+            <xsd:element name="GeoInfo" type="GeoInfoType" minOccurs="0" maxOccurs="unbounded"/>
+        </xsd:sequence>
+        <xsd:attribute name="name" type="xsd:string" use="required"/>
+    </xsd:complexType>
+
+    <xsd:element name="GeoInfo" type="GeoInfoType"/>
+</xsd:schema>

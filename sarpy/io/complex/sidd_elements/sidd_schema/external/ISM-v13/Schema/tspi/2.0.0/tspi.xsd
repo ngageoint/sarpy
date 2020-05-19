@@ -1,0 +1,502 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?oxygen SCHSchema="./tspi.sch"?>
+<schema xmlns:tspi="http://metadata.ces.mil/mdr/ns/GSIP/tspi/2.0" xmlns:tspi-core="http://metadata.ces.mil/mdr/ns/GSIP/tspi/2.0/core" xmlns:tspi-ext="http://metadata.ces.mil/mdr/ns/GSIP/tspi/2.0/ext" xmlns:si="http://www.isotc211.org/19112" xmlns:gml="http://www.opengis.net/gml/3.2" xmlns:gmlce="http://www.opengis.net/gml/3.3/ce" xmlns:addr="http://www.fgdc.gov/schema/address/addr" xmlns="http://www.w3.org/2001/XMLSchema" targetNamespace="http://metadata.ces.mil/mdr/ns/GSIP/tspi/2.0" elementFormDefault="qualified" version="2.0.0">
+    <!-- - - - - - -   MDR-based Resources  - - - - - - - - - - 
+    <import namespace="http://www.opengis.net/gml/3.2" 
+        schemaLocation="http://metadata.ces.mil/dse/ns/GPAS/schemas/ogc/gml/3.2.1/gml.xsd"/>
+    <import namespace="http://www.opengis.net/gml/3.3/ce" 
+        schemaLocation="http://metadata.ces.mil/dse/ns/GPAS/schemas/ogc/gml/3.3/geometryCompact.xsd"/>
+    <import namespace="http://www.fgdc.gov/schema/address/addr" 
+        schemaLocation="http://metadata.ces.mil/dse/ns/GPAS/schemas/fgdc/schema/address/addr.xsd"/>
+    <import namespace="http://www.isotc211.org/19112" 
+	    schemaLocation="http://metadata.ces.mil/dse/ns/GPAS/schemas/iso/19112/BP_2012/si.xsd"/>
+    <import namespace="http://metadata.ces.mil/mdr/ns/GSIP/tspi/2.0/core" schemaLocation="./tspi-core.xsd"/>
+    <import namespace="http://metadata.ces.mil/mdr/ns/GSIP/tspi/2.0/ext" schemaLocation="./tspi-ext.xsd"/>  -->
+    <!-- - - - - - -   Local Resources  - - - - - - - - - - -->
+    <import namespace="http://www.opengis.net/gml/3.2" schemaLocation="../../ogc/gml/3.2.1/gml.xsd"/>
+    <import namespace="http://www.opengis.net/gml/3.3/ce" schemaLocation="../../ogc/gml/3.3/geometryCompact.xsd"/>
+    <import namespace="http://www.fgdc.gov/schema/address/addr" schemaLocation="../../fgdc/schema/address/addr.xsd"/>
+    <import namespace="http://www.isotc211.org/19112" schemaLocation="../../iso/19112/BP_2012/si.xsd"/>
+    <import namespace="http://metadata.ces.mil/mdr/ns/GSIP/tspi/2.0/core" schemaLocation="./tspi-core.xsd"/>
+    <import namespace="http://metadata.ces.mil/mdr/ns/GSIP/tspi/2.0/ext" schemaLocation="./tspi-ext.xsd"/>
+    <!-- == 
+
+    Accompanying Specification at: http://metadata.ces.mil/mdr/ns/GSIP/tspi/2.0.0/doc
+
+    ==-->
+    <annotation>
+        <documentation>XML elements and non-core types with less strict reuse rules than ‘tspi-core’; it imports the schemas of the ‘tspi-core’and ‘tspi-ext’ namespaces.</documentation>
+    </annotation>
+    <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
+    <!-- For reference from GML 3.2.1:
+    <element name="AbstractGeometry" type="gml:AbstractGeometryType" abstract="true" substitutionGroup="gml:AbstractGML"/>
+        <annotation>
+            <documentation>The gml:AbstractGeometry element is the abstract head of the substitution group for all geometry elements of GML. This includes predefined and user-defined geometry elements. Any geometry element shall be a direct or indirect extension/restriction of gml:AbstractGeometryType and shall be directly or indirectly in the substitution group of gml:AbstractGeometry.</documentation>
+        </annotation>
+    </element>
+    -->
+    <element name="AbstractGeographicLocation" type="si:SI_LocationInstanceType" abstract="true">
+        <annotation>
+            <documentation>A place ("an identifiable part of any space") that is identified using geographic identifiers (e.g., a name). A spatial reference system using geographic identifiers is established that relates locations to positions. Gazetteers are then used to establish directories of (geographically) identified locations along with their corresponding positions.</documentation>
+        </annotation>
+    </element>
+    <element name="AbstractPhysicalAddress" abstract="true">
+        <annotation>
+            <documentation>A place ("an identifiable part of any space") that is identified using (physical) addresses (e.g., postal address). A systematic mapping may be established based on the structure of the addressing scheme that allows for geocoding, the process of converting addresses (e.g., "1600 Amphitheatre Parkway, Mountain View, CA") into positions (e.g., {37.423021, -122.083739}, a geodetic latitude/longitude coordinate-pair). "Virtual" addresses (e.g., in cyberspace), or virtual world identifiers, might be specified using Uniform Resource Identifiers (URI), however they are outside of the scope of this TSPI schema.</documentation>
+        </annotation>
+    </element>
+    <!-- =========================================== -->
+    <!-- ========== TSPI Position/Geometry Elements  ============= -->
+    <!-- =========================================== -->
+    <!--=============== TSPI Point =================-->
+    <element name="Point" type="tspi-core:PointType" substitutionGroup="gml:AbstractGeometricPrimitive">
+        <annotation>
+            <documentation>Point: A point as profiled from ISO 19136:2007 (GML) for use in the TSPI Schema but extended to include both assessments of the accuracy and/or resolution of the coordinate tuple as well as optional specification of one or more character-oriented presentations of the coordinate tuple based on the sexagesimal, grid-metre, zone-metre, quadrangle and/or numeric-bit location forms.</documentation>
+        </annotation>
+        <!-- Affiliated with substitutionGroup for gml:Point, which is a gml:AbstractGeometricPrimitive
+                (from gml:AbstractGeometry) -->
+    </element>
+    <!--=============== TSPI LineString ====================-->
+    <element name="LineString" type="tspi-core:LineStringType" substitutionGroup="gml:AbstractCurve">
+        <annotation>
+            <documentation>Line String: A line string as profiled from ISO 19136:2007 (GML) for use in the TSPI Schema but extended to include both assessments of the accuracy and/or resolution of the coordinate tuples as well as optional specification of one or more character-oriented presentations of the coordinate tuples based on the sexagesimal, grid-metre, zone-metre, quadrangle and/or numeric-bit location forms. A line string is a special curve that consists of a single segment with linear interpolation. It is defined by two or more coordinate tuples, with linear interpolation between them.</documentation>
+        </annotation>
+        <!-- Affiliated with substitutionGroup for gml:LineString, which is a gml:AbstractCurve
+                (from gml:AbstractGeometricPrimitive from gml:AbstractGeometry) -->
+    </element>
+    <!--=============== TSPI Circle ====================-->
+    <element name="Circle" type="tspi-core:CircleType" substitutionGroup="gml:AbstractCurve">
+        <annotation>
+            <documentation>Circle: A circle as profiled from GML 3.3 (OGC 10-129r1) SimpleCircleByCenterPoint for use in the TSPI Schema but extended to include both assessments of the accuracy and/or resolution of the center point coordinate tuple as well as optional specification of one or more character-oriented presentations of the center point coordinate tuple based on the sexagesimal, grid-metre, zone-metre, quadrangle and/or numeric-bit location forms. A circle is an arc by center point with identical start and end angles to form a full circle. This representation can be used only in 2D.</documentation>
+        </annotation>
+        <!-- Affiliated with substitutionGroup for gml:ArcByCenterPoint, which is a gml:AbstractCurve
+                (from gml:AbstractGeometricPrimitive from gml:AbstractGeometry) -->
+    </element>
+    <!--=============== TSPI Ellipse ====================-->
+    <element name="Ellipse" type="tspi-core:EllipseType" substitutionGroup="gml:AbstractCurve">
+        <annotation>
+            <documentation>Elliptical Surface: A surface that is bounded by an ellipse, as developed based on ISO 19136:2007 (GML) Polygon for use in the TSPI Schema but defined in terms of the content model of an ellipse and extended to include both assessments of the accuracy and/or resolution of the coordinate tuples as well as optional specification of one or more character-oriented presentations of the coordinate tuples based on the sexagesimal, grid-metre, zone-metre, quadrangle and/or numeric-bit location forms. An ellipse is an arc that is specified by a center point, and oriented semi-major/semi-minor axes of specified length. This representation can be used only in 2D.</documentation>
+        </annotation>
+        <!--Affiliated with substitutionGroup for gml:Polygon, which is a gml:AbstractSurface
+                (from gml:AbstractGeometricPrimitive from gml:AbstractGeometry) -->
+    </element>
+    <!--=============== TSPI Polygon ====================-->
+    <element name="Polygon" type="tspi-core:PolygonType" substitutionGroup="gml:AbstractSurface">
+        <annotation>
+            <documentation>Polygon: A polygon as profiled from ISO 19136:2007 (GML) for use in the TSPI Schema but extended to include both assessments of the accuracy and/or resolution of the coordinate tuples as well as optional specification of one or more character-oriented presentations of the coordinate tuples based on the sexagesimal, grid-metre, zone-metre, quadrangle and/or numeric-bit location forms.</documentation>
+        </annotation>
+        <!--Affiliated with substitutionGroup for gml:Polygon, which is a gml:AbstractSurface
+                (from gml:AbstractGeometricPrimitive from gml:AbstractGeometry) -->
+    </element>
+    <!--=============== TSPI SimplePolygon ====================-->
+    <element name="SimplePolygon" type="tspi-core:SimplePolygonType" substitutionGroup="gml:AbstractSurface">
+        <annotation>
+            <documentation>Simple Polygon: A simple polygon as profiled from GML 3.3 (OGC 10-129r1) for use in the TSPI Schema but extended to include both assessments of the accuracy and/or resolution of the coordinate tuples as well as optional specification of one or more character-oriented presentations of the coordinate tuples based on the sexagesimal, grid-metre, zone-metre, quadrangle and/or numeric-bit location forms. A simple polygon is a specialized polygon that has a simplified encoding of the logically equivalent GML 3.2 Surface with a single GML 3.2 PolygonPatch as its surface patch consisting of a single LinearRing as its exterior boundary and does not have any interior boundary. Thus the usage of the term 'simple' here refers to a specialized polygon with a _simplified_ encoding, which is _simply_ connected (no interior rings) and uses a _simple_ closed curve (no self-crossings) to represent its single boundary ring. The last coordinate does _not_ have to repeat the first coordinate in this simplified encoding, so only three control points are required to specify a simple polygon.</documentation>
+        </annotation>
+        <!-- Affiliated with substitutionGroup for gmlce:AbstractSimplePolygon, which is a gml:AbstractSurface
+                (from gml:AbstractGeometricPrimitive from gml:AbstractGeometry) -->
+    </element>
+    <!--=============== TSPI SimpleRectangle ====================-->
+    <element name="SimpleRectangle" type="tspi-core:SimpleRectangleType" substitutionGroup="gml:AbstractSurface">
+        <annotation>
+            <documentation>Simple Rectangle: A simple rectangle as profiled from GML 3.3 (OGC 10-129r1) for use in the TSPI Schema but extended to include both assessments of the accuracy and/or resolution of the coordinate tuples as well as optional specification of one or more character-oriented presentations of the coordinate tuples based on the sexagesimal, grid-metre, zone-metre, quadrangle and/or numeric-bit location forms. A simple rectangle is the special case of a simple polygon, which has exactly 4 control points in its boundary encoding representing the 4 corners of the rectangle.</documentation>
+        </annotation>
+        <!-- Affiliated with substitutionGroup for gmlce:AbstractSimplePolygon, which is a gml:AbstractSurface
+                (from gml:AbstractGeometricPrimitive from gml:AbstractGeometry) -->
+    </element>
+    <!--=============== TSPI Envelope =================-->
+    <element name="Envelope" type="tspi-core:EnvelopeType" substitutionGroup="gml:AbstractSurface">
+        <annotation>
+            <documentation>Envelope: An envelope as developed based on ISO 19136:2007 (GML) Polygon for use in the TSPI Schema but defined in terms of the content model of a GML Envelope and extended to include both assessments of the accuracy and/or resolution of the pair of coordinate tuples as well as optional specification of one or more character-oriented presentations of the pair of coordinate tuples based on the sexagesimal, grid-metre, zone-metre, quadrangle and/or numeric-bit location forms. An envelope defines an extent using a pair of positions defining opposite corners in arbitrary dimensions. The first direct position is the "lower corner" (a coordinate position consisting of all the minimal ordinates for each dimension for all points within the envelope), the second one the "upper corner" (a coordinate position consisting of all the maximal ordinates for each dimension for all points within the envelope).</documentation>
+        </annotation>
+        <!--Affiliated with substitutionGroup for gml:Polygon, which is a gml:AbstractSurface
+                (from gml:AbstractGeometricPrimitive from gml:AbstractGeometry) -->
+    </element>
+    <!--=============== TSPI CircularSurface =================-->
+    <element name="CircularSurface" type="tspi-core:CircularSurfaceType" substitutionGroup="gml:AbstractSurface">
+        <annotation>
+            <documentation>Circular Surface: A surface that is bounded by a circle, as developed based on ISO 19136:2007 (GML) Polygon for use in the TSPI Schema but defined in terms of the content model of a circle and extended to include both assessments of the accuracy and/or resolution of the coordinate tuples as well as optional specification of one or more character-oriented presentations of the coordinate tuples based on the sexagesimal, grid-metre, zone-metre, quadrangle and/or numeric-bit location forms. A circle is an arc that is specified by a center point, a radius, and which has identical start and end angles. This representation can be used only in 2D.</documentation>
+        </annotation>
+        <!--Affiliated with substitutionGroup for gml:Polygon, which is a gml:AbstractSurface
+                (from gml:AbstractGeometricPrimitive from gml:AbstractGeometry) -->
+    </element>
+    <!--=============== TSPI EllipticalSurface =================-->
+    <element name="EllipticalSurface" type="tspi-core:EllipticalSurfaceType" substitutionGroup="gml:AbstractSurface">
+        <annotation>
+            <documentation>Elliptical Surface: A surface that is bounded by an ellipse, as developed based on ISO 19136:2007 (GML) Polygon for use in the TSPI Schema but defined in terms of the content model of an ellipse and extended to include both assessments of the accuracy and/or resolution of the coordinate tuples as well as optional specification of one or more character-oriented presentations of the coordinate tuples based on the sexagesimal, grid-metre, zone-metre, quadrangle and/or numeric-bit location forms. An ellipse is an arc that is specified by a center point, and oriented semi-major/semi-minor axes of specified length. This representation can be used only in 2D.</documentation>
+        </annotation>
+        <!--Affiliated with substitutionGroup for gml:Polygon, which is a gml:AbstractSurface
+                (from gml:AbstractGeometricPrimitive from gml:AbstractGeometry) -->
+    </element>
+    <!-- ========================================================= -->
+    <!-- =============== TSPI Physical Address Elements ================= -->
+    <!-- ========================================================= -->
+    <element name="NumberedThoroughfareAddress" type="addr:NumberedThoroughfareAddress_type" substitutionGroup="tspi:AbstractPhysicalAddress">
+        <annotation>
+            <documentation>A physical address that: (1) includes a Complete Address Number and a Complete Street Name; (2) includes a Place Name and a State Name; and (3) a Zip Code and/or Country Name are recommended but not mandatory.</documentation>
+        </annotation>
+    </element>
+    <element name="UnnumberedThoroughfareAddress" type="addr:UnnumberedThoroughfareAddress_type" substitutionGroup="tspi:AbstractPhysicalAddress">
+        <annotation>
+            <documentation>A physical address that: (1) contains a Complete Street Name _without_ a Complete Address Number preceding it; (2) includes a Place Name and a State Name; and (3) a Zip Code and/or Country Name are recommended but not mandatory.</documentation>
+        </annotation>
+    </element>
+    <element name="IntersectionAddress" type="addr:IntersectionAddress_type" substitutionGroup="tspi:AbstractPhysicalAddress">
+        <annotation>
+            <documentation>A physical address that: (1) contains two or more Complete Street Names, each separated by a Separator Element; (2) includes a Place Name and a State Name; and (3) a Zip Code and/or Country Name are recommended but not mandatory.</documentation>
+        </annotation>
+    </element>
+    <element name="TwoNumberAddressRange" type="addr:TwoNumberAddressRange_type" substitutionGroup="tspi:AbstractPhysicalAddress">
+        <annotation>
+            <documentation>A physical address that: (1) contains two Complete Address Numbers separated by a hyphen, where the first Complete Address Number must be less than or equal to the second and the pair are followed by a Complete Street Name; (2) includes a Place Name and a State Name; and (3) a Zip Code and/or Country Name are recommended but not mandatory.</documentation>
+        </annotation>
+    </element>
+    <!-- TSPI does not support the FGDC Four Number Address Range format, which is unique to U.S. Census Bureau TIGER/Line file street data. -->
+    <element name="LandmarkAddress" type="addr:LandmarkAddress_type" substitutionGroup="tspi:AbstractPhysicalAddress">
+        <annotation>
+            <documentation>A physical address that: (1) includes a Complete Landmark Name _without_ a Complete Address Number preceding it and _without_ a Complete Street Name following it; (2) includes a Place Name and a State Name; and (3) a Zip Code and/or Country Name are recommended but not mandatory.</documentation>
+        </annotation>
+    </element>
+    <element name="USPSPostalDeliveryBox" type="addr:USPSPostalDeliveryBox_type" substitutionGroup="tspi:AbstractPhysicalAddress">
+        <annotation>
+            <documentation>A physical address that: (1) includes a USPS Box in the required format _without_ a USPS Route; (2) includes a Place Name and a State Name; and (3) a Zip Code and/or Country Name are recommended but not mandatory.</documentation>
+        </annotation>
+    </element>
+    <element name="USPSPostalDeliveryRoute" type="addr:USPSPostalDeliveryRoute_type" substitutionGroup="tspi:AbstractPhysicalAddress">
+        <annotation>
+            <documentation>A physical address that: (1) includes a USPS Address in the specified rural route (RR) or highway contract (HC) or overseas military delivery format; (2) includes a Place Name and a State Name; and (3) a Zip Code and/or Country Name are recommended but not mandatory.</documentation>
+        </annotation>
+    </element>
+    <element name="USPSGeneralDeliveryOffice" type="addr:USPSGeneralDeliveryOffice_type" substitutionGroup="tspi:AbstractPhysicalAddress">
+        <annotation>
+            <documentation>A physical address that: (1) includes a USPS General Delivery Point in the specified format; (2) includes a Place Name and a State Name; and (3) a Zip Code and/or Country Name are recommended but not mandatory.</documentation>
+        </annotation>
+    </element>
+    <element name="GeneralAddressClass" type="addr:GeneralAddressClass_type" substitutionGroup="tspi:AbstractPhysicalAddress">
+        <annotation>
+            <documentation>A physical address that: (1) includes a Delivery Address that is unparsed; (2) includes a Place Name and a State Name; and (3) a Zip Code is recommended but not mandatory. This class may include addresses that do not conform to any of the thoroughfare, landmark, or postal class formats, including non-U.S. addresses that do not fit into one those class formats.</documentation>
+        </annotation>
+    </element>
+    <!-- TSPI does not support the FGDC Address Reference System format, which is a set of rules and
+            geometries that define how addresses are assigned along thoroughfares and/or within a given area
+            (Address Reference System Extent). At minimum, an Address Reference System specifies where
+            Complete Address Number sequences begin and how Complete Address Numbers are assigned along
+            the length of thoroughfares governed by the Address Reference System within the Address Reference
+            System Extent. Address Reference Systems typically provide rules governing left-right parity of
+            Complete Address Numbers, assignment of Street Names and street types, use of directionals
+            and quadrants, and other aspects of address assignment.
+    -->
+    <!-- ========================================================= -->
+    <!-- =========== TSPI Physical Measure Elements ============== -->
+    <!-- In general it will be the case that schemas will use the
+          corresponding tspi-core type to construct an element
+          whose semantics are specific to their domain, e.g.
+          "height", "floorArea", "storageCapacity", "declination",
+          and "maximumSpeed", and then replicate the associated
+          Schematron assertion, possibly refining it to limit
+          uom values to a subset of those allowed by the applicable
+          physical quantity.                                       -->
+    <!-- ========================================================= -->
+    <element name="acceleration" type="tspi-core:AccelerationType">
+        <annotation>
+            <documentation>Acceleration: A physical measure that is restricted to the "acceleration" category of mutually comparable physical quantities.</documentation>
+        </annotation>
+        <!-- Associated Schematron assertion = "starts-with(@uom, 'http://metadata.ces.mil/mdr/ns/GSIP/uom/acceleration/'" -->
+    </element>
+    <element name="amountOfSubstance" type="tspi-core:AmountOfSubstanceType">
+        <annotation>
+            <documentation>Amount of Substance: A physical measure that is restricted to the "amount of substance" category of mutually comparable physical quantities.</documentation>
+        </annotation>
+        <!-- Associated Schematron assertion = "starts-with(@uom, 'http://metadata.ces.mil/mdr/ns/GSIP/uom/amountOfSubstance/'" -->
+    </element>
+    <element name="area" type="tspi-core:AreaType">
+        <annotation>
+            <documentation>Area: A physical measure that is restricted to the "area" category of mutually comparable physical quantities.</documentation>
+        </annotation>
+        <!-- Associated Schematron assertion = "starts-with(@uom, 'http://metadata.ces.mil/mdr/ns/GSIP/uom/area/'" -->
+    </element>
+    <element name="capacitance" type="tspi-core:CapacitanceType">
+        <annotation>
+            <documentation>Capacitance: A physical measure that is restricted to the "capacitance" category of mutually comparable physical quantities.</documentation>
+        </annotation>
+        <!-- Associated Schematron assertion = "starts-with(@uom, 'http://metadata.ces.mil/mdr/ns/GSIP/uom/capacitance/'" -->
+    </element>
+    <element name="electricCharge" type="tspi-core:ElectricChargeType">
+        <annotation>
+            <documentation>Electric Charge: A physical measure that is restricted to the "electric charge" category of mutually comparable physical quantities.</documentation>
+        </annotation>
+        <!-- Associated Schematron assertion = "starts-with(@uom, 'http://metadata.ces.mil/mdr/ns/GSIP/uom/electricCharge/'" -->
+    </element>
+    <element name="electricConductance" type="tspi-core:ElectricConductanceType">
+        <annotation>
+            <documentation>Electric Conductance: A physical measure that is restricted to the "electric conductance" category of mutually comparable physical quantities.</documentation>
+        </annotation>
+        <!-- Associated Schematron assertion = "starts-with(@uom, 'http://metadata.ces.mil/mdr/ns/GSIP/uom/electricConductance/'" -->
+    </element>
+    <element name="electricCurrent" type="tspi-core:ElectricCurrentType">
+        <annotation>
+            <documentation>Electric Current: A physical measure that is restricted to the "electric current" category of mutually comparable physical quantities.</documentation>
+        </annotation>
+        <!-- Associated Schematron assertion = "starts-with(@uom, 'http://metadata.ces.mil/mdr/ns/GSIP/uom/electricCurrent/'" -->
+    </element>
+    <element name="electricResistance" type="tspi-core:ElectricResistanceType">
+        <annotation>
+            <documentation>Electric Resistance: A physical measure that is restricted to the "electric resistance" category of mutually comparable physical quantities.</documentation>
+        </annotation>
+        <!-- Associated Schematron assertion = "starts-with(@uom, 'http://metadata.ces.mil/mdr/ns/GSIP/uom/electricResistance/'" -->
+    </element>
+    <element name="electromotiveForce" type="tspi-core:ElectromotiveForceType">
+        <annotation>
+            <documentation>Electromotive Force: A physical measure that is restricted to the "electromotive force" category of mutually comparable physical quantities.</documentation>
+        </annotation>
+        <!-- Associated Schematron assertion = "starts-with(@uom, 'http://metadata.ces.mil/mdr/ns/GSIP/uom/electromotiveForce/'" -->
+    </element>
+    <element name="energy" type="tspi-core:EnergyType">
+        <annotation>
+            <documentation>Energy: A physical measure that is restricted to the "energy" category of mutually comparable physical quantities.</documentation>
+        </annotation>
+        <!-- Associated Schematron assertion = "starts-with(@uom, 'http://metadata.ces.mil/mdr/ns/GSIP/uom/energy/'" -->
+    </element>
+    <element name="force" type="tspi-core:ForceType">
+        <annotation>
+            <documentation>Force: A physical measure that is restricted to the "force" category of mutually comparable physical quantities.</documentation>
+        </annotation>
+        <!-- Associated Schematron assertion = "starts-with(@uom, 'http://metadata.ces.mil/mdr/ns/GSIP/uom/force/'" -->
+    </element>
+    <element name="frequency" type="tspi-core:FrequencyType">
+        <annotation>
+            <documentation>Frequency: A physical measure that is restricted to the "frequency" category of mutually comparable physical quantities.</documentation>
+        </annotation>
+        <!-- Associated Schematron assertion = "starts-with(@uom, 'http://metadata.ces.mil/mdr/ns/GSIP/uom/frequency/'" -->
+    </element>
+    <element name="geopotentialEnergyLength" type="tspi-core:GeopotentialEnergyLengthType">
+        <annotation>
+            <documentation>Geopotential Energy Length: A physical measure that is restricted to the "geopotential energy length" category of mutually comparable physical quantities.</documentation>
+        </annotation>
+        <!-- Associated Schematron assertion = "starts-with(@uom, 'http://metadata.ces.mil/mdr/ns/GSIP/uom/geopotentialEnergyLength/'" -->
+    </element>
+    <element name="illuminance" type="tspi-core:IlluminanceType">
+        <annotation>
+            <documentation>Illuminance: A physical measure that is restricted to the "illuminance" category of mutually comparable physical quantities.</documentation>
+        </annotation>
+        <!-- Associated Schematron assertion = "starts-with(@uom, 'http://metadata.ces.mil/mdr/ns/GSIP/uom/illuminance/'" -->
+    </element>
+    <element name="inductance" type="tspi-core:InductanceType">
+        <annotation>
+            <documentation>Inductance: A physical measure that is restricted to the "inductance" category of mutually comparable physical quantities.</documentation>
+        </annotation>
+        <!-- Associated Schematron assertion = "starts-with(@uom, 'http://metadata.ces.mil/mdr/ns/GSIP/uom/inductance/'" -->
+    </element>
+    <element name="irradiance" type="tspi-core:IrradianceType">
+        <annotation>
+            <documentation>Irradiance: A physical measure that is restricted to the "irradiance" category of mutually comparable physical quantities.</documentation>
+        </annotation>
+        <!-- Associated Schematron assertion = "starts-with(@uom, 'http://metadata.ces.mil/mdr/ns/GSIP/uom/irradiance/'" -->
+    </element>
+    <element name="length" type="tspi-core:LengthType">
+        <annotation>
+            <documentation>Length: A physical measure that is restricted to the "length" category of mutually comparable physical quantities.</documentation>
+        </annotation>
+        <!-- Associated Schematron assertion = "starts-with(@uom, 'http://metadata.ces.mil/mdr/ns/GSIP/uom/length/'" -->
+    </element>
+    <element name="linearDensity" type="tspi-core:LinearDensityType">
+        <annotation>
+            <documentation>Linear Density: A physical measure that is restricted to the "linear density" category of mutually comparable physical quantities.</documentation>
+        </annotation>
+        <!-- Associated Schematron assertion = "starts-with(@uom, 'http://metadata.ces.mil/mdr/ns/GSIP/uom/linearDensity/'" -->
+    </element>
+    <element name="linearEnergyTransfer" type="tspi-core:LinearEnergyTransferType">
+        <annotation>
+            <documentation>Linear Energy Transfer: A physical measure that is restricted to the "linear energy transfer" category of mutually comparable physical quantities.</documentation>
+        </annotation>
+        <!-- Associated Schematron assertion = "starts-with(@uom, 'http://metadata.ces.mil/mdr/ns/GSIP/uom/linearEnergyTransfer/'" -->
+    </element>
+    <element name="luminousFlux" type="tspi-core:LuminousFluxType">
+        <annotation>
+            <documentation>Luminous Flux: A physical measure that is restricted to the "luminous flux" category of mutually comparable physical quantities.</documentation>
+        </annotation>
+        <!-- Associated Schematron assertion = "starts-with(@uom, 'http://metadata.ces.mil/mdr/ns/GSIP/uom/luminousFlux/'" -->
+    </element>
+    <element name="luminousIntensity" type="tspi-core:LuminousIntensityType">
+        <annotation>
+            <documentation>Luminous Intensity: A physical measure that is restricted to the "luminous intensity" category of mutually comparable physical quantities.</documentation>
+        </annotation>
+        <!-- Associated Schematron assertion = "starts-with(@uom, 'http://metadata.ces.mil/mdr/ns/GSIP/uom/luminousIntensity/'" -->
+    </element>
+    <element name="magneticFlux" type="tspi-core:MagneticFluxType">
+        <annotation>
+            <documentation>Magnetic Flux: A physical measure that is restricted to the "magnetic flux" category of mutually comparable physical quantities.</documentation>
+        </annotation>
+        <!-- Associated Schematron assertion = "starts-with(@uom, 'http://metadata.ces.mil/mdr/ns/GSIP/uom/magneticFlux/'" -->
+    </element>
+    <element name="magneticFluxDensity" type="tspi-core:MagneticFluxDensityType">
+        <annotation>
+            <documentation>Magnetic Flux Density: A physical measure that is restricted to the "magnetic flux density" category of mutually comparable physical quantities.</documentation>
+        </annotation>
+        <!-- Associated Schematron assertion = "starts-with(@uom, 'http://metadata.ces.mil/mdr/ns/GSIP/uom/magneticFluxDensity/'" -->
+    </element>
+    <element name="magneticFluxDensityGradient" type="tspi-core:MagneticFluxDensityGradientType">
+        <annotation>
+            <documentation>Magnetic Flux Density Gradient: A physical measure that is restricted to the "magnetic flux density gradient" category of mutually comparable physical quantities.</documentation>
+        </annotation>
+        <!-- Associated Schematron assertion = "starts-with(@uom, 'http://metadata.ces.mil/mdr/ns/GSIP/uom/magneticFluxDensityGradient/'" -->
+    </element>
+    <element name="mass" type="tspi-core:MassType">
+        <annotation>
+            <documentation>Mass: A physical measure that is restricted to the "mass" category of mutually comparable physical quantities.</documentation>
+        </annotation>
+        <!-- Associated Schematron assertion = "starts-with(@uom, 'http://metadata.ces.mil/mdr/ns/GSIP/uom/mass/'" -->
+    </element>
+    <element name="massDensity" type="tspi-core:MassDensityType">
+        <annotation>
+            <documentation>Mass Density: A physical measure that is restricted to the "mass density" category of mutually comparable physical quantities.</documentation>
+        </annotation>
+        <!-- Associated Schematron assertion = "starts-with(@uom, 'http://metadata.ces.mil/mdr/ns/GSIP/uom/massDensity/'" -->
+    </element>
+    <element name="massFraction" type="tspi-core:MassFractionType">
+        <annotation>
+            <documentation>Mass Fraction: A physical measure that is restricted to the "mass fraction" category of mutually comparable physical quantities.</documentation>
+        </annotation>
+        <!-- Associated Schematron assertion = "starts-with(@uom, 'http://metadata.ces.mil/mdr/ns/GSIP/uom/massFraction/'" -->
+    </element>
+    <element name="massRate" type="tspi-core:MassRateType">
+        <annotation>
+            <documentation>Mass Rate: A physical measure that is restricted to the "mass rate" category of mutually comparable physical quantities.</documentation>
+        </annotation>
+        <!-- Associated Schematron assertion = "starts-with(@uom, 'http://metadata.ces.mil/mdr/ns/GSIP/uom/massRate/'" -->
+    </element>
+    <element name="noncomparableUnit" type="tspi-core:NoncomparableUnitType">
+        <annotation>
+            <documentation>Noncomparable Unit: A physical measure that is restricted to the "noncomparable" category of physical quantities.</documentation>
+        </annotation>
+        <!-- Associated Schematron assertion = "starts-with(@uom, 'http://metadata.ces.mil/mdr/ns/GSIP/uom/noncomparable/'" -->
+    </element>
+    <element name="planeAngle" type="tspi-core:PlaneAngleType">
+        <annotation>
+            <documentation>Plane Angle: A physical measure that is restricted to the "plane angle" category of mutually comparable physical quantities.</documentation>
+        </annotation>
+        <!-- Associated Schematron assertion = "starts-with(@uom, 'http://metadata.ces.mil/mdr/ns/GSIP/uom/planeAngle/'" -->
+    </element>
+    <element name="power" type="tspi-core:PowerType">
+        <annotation>
+            <documentation>Power: A physical measure that is restricted to the "power" category of mutually comparable physical quantities.</documentation>
+        </annotation>
+        <!-- Associated Schematron assertion = "starts-with(@uom, 'http://metadata.ces.mil/mdr/ns/GSIP/uom/power/'" -->
+    </element>
+    <element name="powerLevelDifference" type="tspi-core:PowerLevelDifferenceType">
+        <annotation>
+            <documentation>Power Level Difference: A physical measure that is restricted to the "power level difference" category of mutually comparable physical quantities.</documentation>
+        </annotation>
+        <!-- Associated Schematron assertion = "starts-with(@uom, 'http://metadata.ces.mil/mdr/ns/GSIP/uom/powerLevelDifference/'" -->
+    </element>
+    <element name="powerLevelDiffLenGradient" type="tspi-core:PowerLevelDiffLenGradientType">
+        <annotation>
+            <documentation>Power Level Difference Length Gradient: A physical measure that is restricted to the "power level difference length" category of mutually comparable physical quantities.</documentation>
+        </annotation>
+        <!-- Associated Schematron assertion = "starts-with(@uom, 'http://metadata.ces.mil/mdr/ns/GSIP/uom/powerLevelDiffLenGradient/'" -->
+    </element>
+    <element name="pressure" type="tspi-core:PressureType">
+        <annotation>
+            <documentation>Pressure: A physical measure that is restricted to the "pressure" category of mutually comparable physical quantities.</documentation>
+        </annotation>
+        <!-- Associated Schematron assertion = "starts-with(@uom, 'http://metadata.ces.mil/mdr/ns/GSIP/uom/pressure/'" -->
+    </element>
+    <element name="pureNumber" type="tspi-core:PureNumberType">
+        <annotation>
+            <documentation>Pure Number: A physical measure that is restricted to the "pure number" category of mutually comparable physical quantities.</documentation>
+        </annotation>
+        <!-- Associated Schematron assertion = "starts-with(@uom, 'http://metadata.ces.mil/mdr/ns/GSIP/uom/pureNumber/'" -->
+    </element>
+    <element name="radiationAbsorbedDose" type="tspi-core:RadiationAbsorbedDoseType">
+        <annotation>
+            <documentation>Radiation Absorbed Dose: A physical measure that is restricted to the "radiation absorbed dose" category of mutually comparable physical quantities.</documentation>
+        </annotation>
+        <!-- Associated Schematron assertion = "starts-with(@uom, 'http://metadata.ces.mil/mdr/ns/GSIP/uom/radiationAbsorbedDose/'" -->
+    </element>
+    <element name="radiationDoseEquivalent" type="tspi-core:RadiationDoseEquivalentType">
+        <annotation>
+            <documentation>Radiation Dose Equivalent: A physical measure that is restricted to the "radiation dose equivalent" category of mutually comparable physical quantities.</documentation>
+        </annotation>
+        <!-- Associated Schematron assertion = "starts-with(@uom, 'http://metadata.ces.mil/mdr/ns/GSIP/uom/radiationDoseEquivalent/'" -->
+    </element>
+    <element name="radionuclideActivity" type="tspi-core:RadionuclideActivityType">
+        <annotation>
+            <documentation>Radionuclide Activity: A physical measure that is restricted to the "radionuclide activity" category of mutually comparable physical quantities.</documentation>
+        </annotation>
+        <!-- Associated Schematron assertion = "starts-with(@uom, 'http://metadata.ces.mil/mdr/ns/GSIP/uom/radionuclideActivity/'" -->
+    </element>
+    <element name="rate" type="tspi-core:RateType">
+        <annotation>
+            <documentation>Rate: A physical measure that is restricted to the "rate" category of mutually comparable physical quantities.</documentation>
+        </annotation>
+        <!-- Associated Schematron assertion = "starts-with(@uom, 'http://metadata.ces.mil/mdr/ns/GSIP/uom/rate/'" -->
+    </element>
+    <element name="reciprocalArea" type="tspi-core:ReciprocalAreaType">
+        <annotation>
+            <documentation>Reciprocal Area: A physical measure that is restricted to the "reciprocal area" category of mutually comparable physical quantities.</documentation>
+        </annotation>
+        <!-- Associated Schematron assertion = "starts-with(@uom, 'http://metadata.ces.mil/mdr/ns/GSIP/uom/reciprocalArea/'" -->
+    </element>
+    <element name="reciprocalTime" type="tspi-core:ReciprocalTimeType">
+        <annotation>
+            <documentation>Reciprocal Time: A physical measure that is restricted to the "reciprocal time" category of mutually comparable physical quantities.</documentation>
+        </annotation>
+        <!-- Associated Schematron assertion = "starts-with(@uom, 'http://metadata.ces.mil/mdr/ns/GSIP/uom/reciprocalTime/'" -->
+    </element>
+    <element name="solidAngle" type="tspi-core:SolidAngleType">
+        <annotation>
+            <documentation>Solid Angle: A physical measure that is restricted to the "solid angle" category of mutually comparable physical quantities.</documentation>
+        </annotation>
+        <!-- Associated Schematron assertion = "starts-with(@uom, 'http://metadata.ces.mil/mdr/ns/GSIP/uom/solidAngle/'" -->
+    </element>
+    <element name="soundSpeedRatio" type="tspi-core:SoundSpeedRatioType">
+        <annotation>
+            <documentation>Sound Speed Ratio: A physical measure that is restricted to the "sound speed ratio" category of mutually comparable physical quantities.</documentation>
+        </annotation>
+        <!-- Associated Schematron assertion = "starts-with(@uom, 'http://metadata.ces.mil/mdr/ns/GSIP/uom/soundSpeedRatio/'" -->
+    </element>
+    <element name="speed" type="tspi-core:SpeedType">
+        <annotation>
+            <documentation>Speed: A physical measure that is restricted to the "speed" category of mutually comparable physical quantities.</documentation>
+        </annotation>
+        <!-- Associated Schematron assertion = "starts-with(@uom, 'http://metadata.ces.mil/mdr/ns/GSIP/uom/volume/')
+                                                        or (@uom = 'http://metadata.dod.mil/mdr/ns/GSIP/uom/pureNumber/machNumber')
+                                                        or (@uom = 'http://metadata.dod.mil/mdr/ns/GSIP/uom/pureNumber/deciMachNumber')" -->
+    </element>
+    <element name="surfaceMassDensityRate" type="tspi-core:SurfaceMassDensityRateType">
+        <annotation>
+            <documentation>Surface Mass Density Rate: A physical measure that is restricted to the "surface mass density" category of mutually comparable physical quantities.</documentation>
+        </annotation>
+        <!-- Associated Schematron assertion = "starts-with(@uom, 'http://metadata.ces.mil/mdr/ns/GSIP/uom/surfaceMassDensityRate/'" -->
+    </element>
+    <element name="thermodynamicTemperature" type="tspi-core:ThermodynamicTemperatureType">
+        <annotation>
+            <documentation>Thermodynamic Temperature: A physical measure that is restricted to the "thermodynamic temperature" category of mutually comparable physical quantities.</documentation>
+        </annotation>
+        <!-- Associated Schematron assertion = "starts-with(@uom, 'http://metadata.ces.mil/mdr/ns/GSIP/uom/thermodynamicTemperature/'" -->
+    </element>
+    <element name="time" type="tspi-core:TimeType">
+        <annotation>
+            <documentation>Time: A physical measure that is restricted to the "time" category of mutually comparable physical quantities.</documentation>
+        </annotation>
+        <!-- Associated Schematron assertion = "starts-with(@uom, 'http://metadata.ces.mil/mdr/ns/GSIP/uom/time/'" -->
+    </element>
+    <element name="volume" type="tspi-core:VolumeType">
+        <annotation>
+            <documentation>Volume: A physical measure that is restricted to the "volume" category of mutually comparable physical quantities.</documentation>
+        </annotation>
+        <!-- Associated Schematron assertion = "starts-with(@uom, 'http://metadata.ces.mil/mdr/ns/GSIP/uom/volume/'" -->
+    </element>
+    <element name="volumeFlowRate" type="tspi-core:VolumeFlowRateType">
+        <annotation>
+            <documentation>Volume Flow Rate: A physical measure that is restricted to the "volume flow rate" category of mutually comparable physical quantities.</documentation>
+        </annotation>
+        <!-- Associated Schematron assertion = "starts-with(@uom, 'http://metadata.ces.mil/mdr/ns/GSIP/uom/volumeFlowRate/'" -->
+    </element>
+    <element name="volumeFraction" type="tspi-core:VolumeFractionType">
+        <annotation>
+            <documentation>Volume Fraction: A physical measure that is restricted to the "volume fraction" category of mutually comparable physical quantities.</documentation>
+        </annotation>
+        <!-- Associated Schematron assertion = "starts-with(@uom, 'http://metadata.ces.mil/mdr/ns/GSIP/uom/volumeFraction/'" -->
+    </element>
+</schema>

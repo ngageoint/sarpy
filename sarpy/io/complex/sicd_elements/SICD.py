@@ -7,10 +7,11 @@ import logging
 import copy
 from datetime import datetime
 import re
+from collections import OrderedDict
 
 import numpy
 
-from .base import Serializable, _SerializableDescriptor
+from .base import Serializable, _SerializableDescriptor, DEFAULT_STRICT
 from .CollectionInfo import CollectionInfoType
 from .ImageCreation import ImageCreationType
 from .ImageData import ImageDataType
@@ -34,6 +35,13 @@ from sarpy.geometry import point_projection
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
+
+#########
+# Module variables
+_SICD_SPECIFICATION_IDENTIFIER = 'SICD Volume 1 Design & Implementation Description Document'
+_SICD_SPECIFICATION_VERSION = '1.2'
+_SICD_SPECIFICATION_DATE = '2018-12-13T00:00:00Z'
+_SICD_SPECIFICATION_NAMESPACE = 'urn:SICD:1.2.1'
 
 
 class SICDType(Serializable):
@@ -922,3 +930,23 @@ class SICDType(Serializable):
         except AttributeError:
             logging.error('Failed to construct suggested name.')
             return None
+
+    @staticmethod
+    def get_des_details():
+        """
+        Gets the correct SIDD 2.0 DES subheader details.
+
+        Returns
+        -------
+        dict
+        """
+
+        return OrderedDict([
+            ('DESSHSI', _SICD_SPECIFICATION_IDENTIFIER),
+            ('DESSHSV', _SICD_SPECIFICATION_VERSION),
+            ('DESSHSD', _SICD_SPECIFICATION_DATE),
+            ('DESSHTN', _SICD_SPECIFICATION_NAMESPACE)])
+
+    def to_xml_bytes(self, urn=None, tag=None, check_validity=False, strict=DEFAULT_STRICT):
+        return super(SICDType, self).to_xml_bytes(
+            urn=_SICD_SPECIFICATION_NAMESPACE, tag=tag, check_validity=check_validity, strict=strict)
