@@ -4,6 +4,8 @@ from sarpy.io.complex.base import BaseReader
 import sarpy.visualization.remap as remap
 
 
+# TODO change name to complex image reader or something
+# TODO use properties for remap, and SICD
 class SicdImageReader(ImageReader):
     sicd = None           # type: BaseReader
     remap_type = "density"
@@ -29,6 +31,7 @@ class SicdImageReader(ImageReader):
         decimated_image_data = self.remap_complex_data(cdata)
         return decimated_image_data
 
+    # TODO get rid of strings, make these methods
     def remap_complex_data(self,
                            complex_data,    # type: np.ndarray
                            ):
