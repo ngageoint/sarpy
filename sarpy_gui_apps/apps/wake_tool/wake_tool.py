@@ -5,7 +5,7 @@ import tkinter.colorchooser as colorchooser
 from tkinter_gui_builder.panel_templates.widget_panel.widget_panel import AbstractWidgetPanel
 import sarpy.geometry.point_projection as point_projection
 import sarpy.geometry.geocoords as geocoords
-from sarpy_gui_apps.supporting_classes.sicd_image_reader import SicdImageReader
+from sarpy_gui_apps.supporting_classes.complex_image_reader import ComplexImageReader
 import numpy as np
 import math
 
@@ -13,7 +13,7 @@ import math
 class AppVariables:
     def __init__(self):
         self.image_fname = "None"       # type: str
-        self.image_reader = None        # type: SicdImageReader
+        self.image_reader = None        # type: ComplexImageReader
 
         self.arrow_id = None             # type: int
         self.point_id = None            # type: int
@@ -61,7 +61,7 @@ class WakeTool(AbstractWidgetPanel):
         self.side_panel.file_selector.event_select_file(event)
         if self.side_panel.file_selector.fname:
             self.variables.image_fname = self.side_panel.file_selector.fname
-        self.variables.image_reader = SicdImageReader(self.variables.image_fname)
+        self.variables.image_reader = ComplexImageReader(self.variables.image_fname)
         self.image_canvas.set_image_reader(self.variables.image_reader)
 
     def callback_press_line_button(self, event):
@@ -130,7 +130,7 @@ class WakeTool(AbstractWidgetPanel):
 
     def calculate_wake_distance(self):
         horizontal_line_image_coords = self.image_canvas.canvas_shape_coords_to_image_coords(self.variables.horizontal_line_id)
-        sicd_meta = self.variables.image_reader.sicd.sicd_meta
+        sicd_meta = self.variables.image_reader.base_reader.sicd_meta
         points = np.asarray(np.reshape(horizontal_line_image_coords, (2, 2)))
         ecf_ground_points = point_projection.image_to_ground(points, sicd_meta)
         geo_ground_point_1 = geocoords.ecf_to_geodetic((ecf_ground_points[0, 0], ecf_ground_points[0, 1], ecf_ground_points[0, 2]))

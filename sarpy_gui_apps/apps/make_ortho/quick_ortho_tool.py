@@ -4,7 +4,7 @@ import tkinter
 from tkinter.filedialog import askopenfilename
 from sarpy_gui_apps.apps.make_ortho.panels.ortho_button_panel import OrthoButtonPanel
 from tkinter_gui_builder.panel_templates.image_canvas.image_canvas import ImageCanvas
-from sarpy_gui_apps.supporting_classes.sicd_image_reader import SicdImageReader
+from sarpy_gui_apps.supporting_classes.complex_image_reader import ComplexImageReader
 from tkinter_gui_builder.panel_templates.widget_panel.widget_panel import AbstractWidgetPanel
 from sarpy_gui_apps.supporting_classes.quick_ortho import QuickOrtho
 
@@ -16,7 +16,7 @@ class Ortho(AbstractWidgetPanel):
 
     fname = "None"  # type: str
     remap_type = "density"  # type: str
-    image_reader = None  # type: SicdImageReader
+    image_reader = None  # type: ComplexImageReader
 
     def __init__(self, master):
         master_frame = tkinter.Frame(master)
@@ -54,7 +54,7 @@ class Ortho(AbstractWidgetPanel):
         new_fname = askopenfilename(initialdir=os.path.expanduser("~"), filetypes=ftypes)
         if new_fname:
             self.fname = new_fname
-            self.image_reader = SicdImageReader(new_fname)
+            self.image_reader = ComplexImageReader(new_fname)
             self.raw_frame_image_panel.set_image_reader(self.image_reader)
 
     def callback_display_ortho_image(self, event):

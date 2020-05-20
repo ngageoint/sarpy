@@ -12,10 +12,6 @@ class AbstractWidgetPanel(tkinter.LabelFrame):
         self._widget_list = None     # type: list
         self.rows = None           # type: tkinter.Frame
 
-    def init_w_xy_positions_dict(self, positions_dict):
-        # TODO: just find the right order then call init_w_basic_widget_list
-        pass
-
     def init_w_horizontal_layout(self,
                                  basic_widget_list,         # type: list
                                  ):
@@ -29,6 +25,15 @@ class AbstractWidgetPanel(tkinter.LabelFrame):
         self.init_w_basic_widget_list(basic_widget_list,
                                       n_rows=len(basic_widget_list),
                                       n_widgets_per_row_list=list(np.ones(len(basic_widget_list))))
+
+    def init_w_rows(self, basic_widgets_nested_list):
+        flattened_list = []
+        widgets_per_row = []
+        for widget_list in basic_widgets_nested_list:
+            widgets_per_row.append(len(widget_list))
+            for widget in widget_list:
+                flattened_list.append(widget)
+        self.init_w_basic_widget_list(flattened_list, len(basic_widgets_nested_list), widgets_per_row)
 
     def init_w_box_layout(self,
                           basic_widget_list,  # type: list
@@ -87,7 +92,6 @@ class AbstractWidgetPanel(tkinter.LabelFrame):
         self._widget_list = []
         row_num = 0
         for i, widget in enumerate(basic_widget_list):
-            print(widget)
             if i in transitions:
                 row_num += 1
             old_widget = None

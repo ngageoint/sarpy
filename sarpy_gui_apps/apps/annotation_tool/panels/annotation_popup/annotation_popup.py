@@ -35,8 +35,15 @@ class AnnotationPopup(AbstractWidgetPanel):
         self.parent = parent
         self.master_frame = tkinter.Frame(parent)
         AbstractWidgetPanel.__init__(self, self.master_frame)
-        widget_list = ["parent_types", "thing_type_label", "thing_type", "comment_label", "comment", "confidence_label", "confidence", "reset", "submit"]
-        self.init_w_basic_widget_list(widget_list, 5, [1, 2, 2, 2, 2])
+
+        widget_rows_list = [["parent_types"],
+                            ["thing_type_label", "thing_type"],
+                            ["comment_label", "comment"],
+                            ["confidence_label", "confidence"],
+                            ["reset", "submit"]
+                            ]
+        self.init_w_rows(widget_rows_list)
+
         self.set_label_text("annotate")
 
         # set up base types for initial dropdown menu

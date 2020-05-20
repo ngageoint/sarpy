@@ -3,13 +3,13 @@ from sarpy.geometry import point_projection
 from sarpy.geometry import geocoords
 from scipy.interpolate import griddata
 from tkinter_gui_builder.panel_templates.image_canvas.image_canvas import ImageCanvas
-from sarpy_gui_apps.supporting_classes.sicd_image_reader import SicdImageReader
+from sarpy_gui_apps.supporting_classes.complex_image_reader import ComplexImageReader
 
 
 class QuickOrtho:
     def __init__(self,
                  image_canvas,      # type: ImageCanvas
-                 sicd_reader,       # type: SicdImageReader
+                 sicd_reader,       # type: ComplexImageReader
                  ):
         self.image_canvas = image_canvas
         self.sicd_reader = sicd_reader
@@ -38,7 +38,7 @@ class QuickOrtho:
         image_points[:, 0] = full_image_coords[0::2]
         image_points[:, 1] = full_image_coords[1::2]
 
-        sicd_meta = self.sicd_reader.sicd.sicd_meta
+        sicd_meta = self.sicd_reader.base_reader.sicd_meta
         ground_points_ecf = point_projection.image_to_ground(image_points, sicd_meta)
         ground_points_latlon = geocoords.ecf_to_geodetic(ground_points_ecf)
 

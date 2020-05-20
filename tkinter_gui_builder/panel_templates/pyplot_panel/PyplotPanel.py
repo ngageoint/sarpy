@@ -223,7 +223,6 @@ class PyplotPanel(AbstractWidgetPanel):
     def callback_update_n_colors(self, event):
         n_colors = int(self.control_panel.n_colors.get())
         self.pyplot_utils.set_n_colors(n_colors)
-        print(self.pyplot_utils.rgb_array_full_palette)
         self.update_plot()
 
     def callback_spinbox_update_n_colors(self, event):

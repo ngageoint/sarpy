@@ -29,12 +29,10 @@ class PlotDemo(AbstractWidgetPanel):
         self.pyplot_panel.variables.set_y_margins_per_frame = True
 
     def callback_single_plot(self, event):
-        print("single sine")
         plot_data = self.mockup_animation_data_1()
         self.pyplot_panel.set_data(plot_data)
 
     def callback_muli_plot(self, event):
-        print("multi sine")
         plot_data = self.mockup_animation_data_2()
         data_shape = np.shape(plot_data)
         x_axis_points = data_shape[0]
@@ -45,7 +43,6 @@ class PlotDemo(AbstractWidgetPanel):
         self.pyplot_panel.set_data(plot_data)
 
     def callback_animated_plot(self, event):
-        print("animated sine")
         plot_data = self.mockup_animation_data_3()
         data_shape = np.shape(plot_data)
         x_axis_points = data_shape[0]

@@ -415,7 +415,6 @@ class ImageCanvas(tkinter.LabelFrame):
             if str(self.variables.current_shape_id) in self.variables.shape_drag_xy_limits.keys():
                 drag_x_lim_1, drag_y_lim_1, drag_x_lim_2, drag_y_lim_2 = self.variables.shape_drag_xy_limits[str(self.variables.current_shape_id)]
                 if self.get_shape_type(self.variables.current_shape_id) == SHAPE_TYPES.RECT:
-                    # TODO: refine this so the rect will snap to limits if dragged outside.  Right now it will stay inside the limited area if the mouse events move too fast.
                     if new_x1 < drag_x_lim_1:
                         new_x1 = drag_x_lim_1
                         new_x2 = new_x1 + width
@@ -809,6 +808,7 @@ class ImageCanvas(tkinter.LabelFrame):
             #create frame sequence
             n_animations = self.variables.n_zoom_animations
             background_image = background_image / 2
+            background_image = np.asarray(background_image, dtype=np.uint8)
             canvas_x1, canvas_y1, canvas_x2, canvas_y2 = new_canvas_rect
             display_x_ul = min(canvas_x1, canvas_x2)
             display_x_br = max(canvas_x1, canvas_x2)
@@ -1146,7 +1146,8 @@ class CanvasImage(object):
         y_end = full_image_rect[2]
         x_start = full_image_rect[1]
         x_end = full_image_rect[3]
-        decimated_data = self.image_reader.get_image_chip(y_start, y_end, x_start, x_end, decimation=decimation)
+
+        decimated_data = self.image_reader[y_start:y_end:decimation, x_start:x_end:decimation]
         return decimated_data
 
     def get_scaled_display_data(self, decimated_image):
@@ -1204,7 +1205,6 @@ class CanvasImage(object):
                                                 decimation=None,  # type: int
                                                 ):
         full_image_rect = self.canvas_rect_to_full_image_rect(canvas_rect)
-        print(canvas_rect)
         if decimation is None:
             decimation = self.get_decimation_from_canvas_rect(canvas_rect)
         return self.get_decimated_image_data_in_full_image_rect(full_image_rect, decimation)
@@ -1221,6 +1221,10 @@ class CanvasImage(object):
 
     def update_canvas_display_image_from_canvas_rect(self, canvas_rect):
         full_image_rect = self.canvas_rect_to_full_image_rect(canvas_rect)
+        full_image_rect = (int(round(full_image_rect[0])),
+                           int(round(full_image_rect[1])),
+                           int(round(full_image_rect[2])),
+                           int(round(full_image_rect[3])))
         self.update_canvas_display_image_from_full_image_rect(full_image_rect)
 
     def update_canvas_display_from_numpy_array(self,

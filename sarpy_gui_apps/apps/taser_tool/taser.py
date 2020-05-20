@@ -7,14 +7,14 @@ from tkinter_gui_builder.panel_templates.image_canvas.image_canvas import ImageC
 from tkinter_gui_builder.panel_templates.widget_panel.widget_panel import AbstractWidgetPanel
 
 from sarpy_gui_apps.apps.taser_tool.panels.taser_button_panel import TaserButtonPanel
-from sarpy_gui_apps.supporting_classes.sicd_image_reader import SicdImageReader
+from sarpy_gui_apps.supporting_classes.complex_image_reader import ComplexImageReader
 
 
 class AppVariables:
     def __init__(self):
         self.fname = "None"       # type: str
         self.remap_type = "density"
-        self.image_reader = None     # type: SicdImageReader
+        self.image_reader = None     # type: ComplexImageReader
 
 
 class Taser(AbstractWidgetPanel):
@@ -93,7 +93,7 @@ class Taser(AbstractWidgetPanel):
         new_fname = askopenfilename(initialdir=os.path.expanduser("~"), filetypes=ftypes)
         if new_fname:
             self.variables.fname = new_fname
-            self.variables.image_reader = SicdImageReader(self.variables.fname)
+            self.variables.image_reader = ComplexImageReader(self.variables.fname)
             self.taser_image_panel.set_image_reader(self.variables.image_reader)
 
     def display_canvas_rect_selection_in_pyplot_frame(self):

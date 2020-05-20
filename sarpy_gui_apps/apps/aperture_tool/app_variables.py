@@ -1,11 +1,11 @@
 import numpy
-from sarpy_gui_apps.supporting_classes.sicd_image_reader import SicdImageReader
+from sarpy_gui_apps.supporting_classes.complex_image_reader import ComplexImageReader
 
 
 class AppVariables:
     def __init__(self):
         self.sicd_fname = str
-        self.sicd_reader_object = None          # type: SicdImageReader
+        self.sicd_reader_object = None          # type: ComplexImageReader
         self.selected_region = None     # type: tuple
         self.fft_complex_data = None            # type: numpy.ndarray
         self.filtered_data = None           # type: numpy.ndarray

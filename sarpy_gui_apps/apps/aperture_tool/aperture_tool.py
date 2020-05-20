@@ -14,7 +14,7 @@ import sarpy.visualization.remap as remap
 from sarpy_gui_apps.apps.aperture_tool.panels.tabs_panel.tabs_panel import TabsPanel
 from sarpy_gui_apps.apps.aperture_tool.panels.selected_region_popup.selected_region_popup import SelectedRegionPanel
 from sarpy_gui_apps.supporting_classes.metaicon import MetaIcon
-from sarpy_gui_apps.supporting_classes.sicd_image_reader import SicdImageReader
+from sarpy_gui_apps.supporting_classes.complex_image_reader import ComplexImageReader
 from sarpy_gui_apps.apps.aperture_tool.panels.phase_history_selecion_panel.phase_history_selection_panel import PhaseHistoryPanel
 from sarpy_gui_apps.apps.aperture_tool.app_variables import AppVariables
 from sarpy.io.complex.base import BaseReader
@@ -116,14 +116,14 @@ class ApertureTool(AbstractWidgetPanel):
 
         popup = tkinter.Toplevel(self.master)
         selected_region_popup = SelectedRegionPanel(popup, self.app_variables)
-        self.app_variables.sicd_reader_object = SicdImageReader(self.app_variables.sicd_fname)
+        self.app_variables.sicd_reader_object = ComplexImageReader(self.app_variables.sicd_fname)
         selected_region_popup.image_canvas.set_image_reader(self.app_variables.sicd_reader_object)
 
         self.master.wait_window(popup)
 
         selected_region_complex_data = self.app_variables.selected_region_complex_data
 
-        fft_complex_data = self.get_fft_complex_data(self.app_variables.sicd_reader_object.sicd, selected_region_complex_data)
+        fft_complex_data = self.get_fft_complex_data(self.app_variables.sicd_reader_object.base_reader, selected_region_complex_data)
         self.app_variables.fft_complex_data = fft_complex_data
 
         self.app_variables.fft_display_data = remap.density(fft_complex_data)
@@ -191,7 +191,7 @@ class ApertureTool(AbstractWidgetPanel):
         filtered_cdata = fftshift(filtered_cdata)
 
         inverse_flag = False
-        ro = self.app_variables.sicd_reader_object.sicd
+        ro = self.app_variables.sicd_reader_object.base_reader
         if ro.sicd_meta.Grid.Col.Sgn > 0 and ro.sicd_meta.Grid.Row.Sgn > 0:
             pass
         else:
@@ -290,8 +290,8 @@ class ApertureTool(AbstractWidgetPanel):
         # handle units
         self.phase_history.resolution_range_units.set_text("meters")
         self.phase_history.resolution_cross_units.set_text("meters")
-        range_resolution = self.app_variables.sicd_reader_object.sicd.sicd_meta.Grid.Row.ImpRespWid / (fraction_range / 100.0)
-        cross_resolution = self.app_variables.sicd_reader_object.sicd.sicd_meta.Grid.Col.ImpRespWid / (fraction_cross / 100.0)
+        range_resolution = self.app_variables.sicd_reader_object.base_reader.sicd_meta.Grid.Row.ImpRespWid / (fraction_range / 100.0)
+        cross_resolution = self.app_variables.sicd_reader_object.base_reader.sicd_meta.Grid.Col.ImpRespWid / (fraction_cross / 100.0)
 
         tmp_range_resolution = range_resolution
         tmp_cross_resolution = cross_resolution
@@ -320,8 +320,8 @@ class ApertureTool(AbstractWidgetPanel):
         self.phase_history.resolution_range.set_text("{:0.2f}".format(tmp_range_resolution))
         self.phase_history.resolution_cross.set_text("{:0.2f}".format(tmp_cross_resolution))
 
-        cross_sample_spacing = self.app_variables.sicd_reader_object.sicd.sicd_meta.Grid.Col.SS
-        range_sample_spacing = self.app_variables.sicd_reader_object.sicd.sicd_meta.Grid.Row.SS
+        cross_sample_spacing = self.app_variables.sicd_reader_object.base_reader.sicd_meta.Grid.Col.SS
+        range_sample_spacing = self.app_variables.sicd_reader_object.base_reader.sicd_meta.Grid.Row.SS
 
         if self.phase_history.english_units_checkbox.is_selected():
             tmp_cross_ss = cross_sample_spacing / scipy_constants.foot

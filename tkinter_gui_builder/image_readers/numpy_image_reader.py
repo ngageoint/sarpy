@@ -14,14 +14,6 @@ class NumpyImageReader(ImageReader):
         self.numpy_image_data = numpy_image_data
         self.full_image_ny, self.full_image_nx = numpy_image_data.shape
 
-    def get_image_chip(self,
-                       y_start,     # type: int
-                       y_end,       # type: int
-                       x_start,     # type: int
-                       x_end,       # type: int
-                       decimation,  # type: int
-                       ):           # type: (...) -> numpy.ndarray
-        if decimation < 1:
-            decimation = 1
-        rect_data = self.numpy_image_data[y_start:y_end:decimation, x_start:x_end:decimation]
-        return rect_data
+    def __getitem__(self, key):
+        print(key)
+        return self.numpy_image_data[key]

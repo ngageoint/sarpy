@@ -9,7 +9,7 @@ from tkinter_gui_builder.panel_templates.image_canvas.image_canvas import ImageC
 from tkinter_gui_builder.panel_templates.widget_panel.widget_panel import AbstractWidgetPanel
 import sarpy.geometry.point_projection as point_projection
 import sarpy.geometry.geocoords as geocoords
-from sarpy_gui_apps.supporting_classes.sicd_image_reader import SicdImageReader
+from sarpy_gui_apps.supporting_classes.complex_image_reader import ComplexImageReader
 
 import numpy
 
@@ -197,7 +197,7 @@ class CanvasDemo(AbstractWidgetPanel):
         new_fname = askopenfilename(initialdir=os.path.expanduser("~"), filetypes=ftypes)
         if new_fname:
             self.variables.fname = new_fname
-            sicd_reader = SicdImageReader(new_fname)
+            sicd_reader = ComplexImageReader(new_fname)
             self.canvas_demo_image_panel.set_image_reader(sicd_reader)
 
     def callback_display_canvas_rect_selection_in_pyplot_frame(self, event):
