@@ -861,6 +861,14 @@ class SICDType(Serializable):
         self.CollectionInfo.Parameters['PREDICTED_RNIIRS'] = '{0:0.1f}'.format(rniirs)
 
     def copy(self):
+        """
+        Provides a deep copy.
+
+        Returns
+        -------
+        SICDType
+        """
+
         out = super(SICDType, self).copy()
         if hasattr(self, '_NITF'):
             out._NITF = copy.deepcopy(self._NITF)
