@@ -1142,6 +1142,8 @@ class CanvasImage(object):
                                                     full_image_rect,  # type: (int, int, int, int)
                                                     decimation,  # type: int
                                                     ):
+        print("decimation")
+        print(decimation)
         y_start = full_image_rect[0]
         y_end = full_image_rect[2]
         x_start = full_image_rect[1]
