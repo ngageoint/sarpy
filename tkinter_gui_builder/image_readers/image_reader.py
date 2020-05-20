@@ -1,7 +1,6 @@
 import numpy
 
 
-# TODO add functionality for multiple bands
 class ImageReader:
     fname = str
     full_image_nx = int
