@@ -34,11 +34,13 @@ def get_seconds(dt1, dt2, precision='us'):
     dt2 : numpy.datetime64
     precision : str
         one of 's', 'ms', 'us', or 'ns'
+
     Returns
     -------
     float
         the number of seconds between dt2 and dt1 (i.e. dt1 - dt2).
     """
+
     if precision == 's':
         scale = 1
     elif precision == 'ms':
