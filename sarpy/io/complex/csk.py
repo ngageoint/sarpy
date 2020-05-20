@@ -35,7 +35,7 @@ from .sicd_elements.RMA import RMAType, INCAType
 from .sicd_elements.Radiometric import RadiometricType
 from ...geometry import point_projection
 from .base import BaseChipper, BaseReader, string_types
-from .utils import get_seconds, fit_time_coa_polynomial
+from .utils import get_seconds, fit_time_coa_polynomial, fit_position_xvalidation
 
 __classification__ = "UNCLASSIFIED"
 __author__ = ("Thomas McCullough", "Jarred Barber", "Wade Schwartzkopf")
@@ -212,28 +212,8 @@ class CSKDetails(object):
             T = h5_dict['State Vectors Times']  # in seconds relative to ref time
             T += ref_time_offset
             Pos = h5_dict['ECEF Satellite Position']
-            Vel = h5_dict['ECEF Satellite Velocity']  # for cross validation
-            # Let's perform polynomial fitting for the position with cross validation for overfitting checks
-            deg = 1
-            prev_vel_error = numpy.inf
-            P_x, P_y, P_z = None, None, None
-            while deg < min(6, Pos.shape[0]):
-                # fit position
-                P_x = polynomial.polyfit(T, Pos[:, 0], deg=deg)
-                P_y = polynomial.polyfit(T, Pos[:, 1], deg=deg)
-                P_z = polynomial.polyfit(T, Pos[:, 2], deg=deg)
-                # extract estimated velocities
-                Vel_est = numpy.stack(
-                    (polynomial.polyval(T, polynomial.polyder(P_x)),
-                     polynomial.polyval(T, polynomial.polyder(P_y)),
-                     polynomial.polyval(T, polynomial.polyder(P_z))), axis=-1)
-                # check our velocity error
-                vel_err = Vel_est - Vel
-                cur_vel_error = numpy.sum((vel_err*vel_err))
-                deg += 1
-                # stop if the error is not smaller than at the previous step
-                if cur_vel_error >= prev_vel_error:
-                    break
+            Vel = h5_dict['ECEF Satellite Velocity']
+            P_x, P_y, P_z = fit_position_xvalidation(T, Pos, Vel, max_degree=6)
             return PositionType(ARPPoly=XYZPolyType(X=P_x, Y=P_y, Z=P_z))
 
         def get_radar_collection():  # type: () -> RadarCollectionType

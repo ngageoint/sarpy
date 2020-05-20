@@ -242,3 +242,70 @@ def snr_to_rniirs(bandwidth_area, signal, noise):
         return information_density, a[0] + a[1]*numpy.log2(information_density)
     else:
         return information_density, slope*information_density
+
+
+def fit_position_xvalidation(time_array, position_array, velocity_array, max_degree=5):
+    """
+    Empirically fit the polynomials for the X, Y, Z ECF position array, using cross
+    validation with the velocity array to determine the best fit degree up to a
+    given maximum degree.
+
+    Parameters
+    ----------
+    time_array : numpy.ndarray
+    position_array : numpy.ndarray
+    velocity_array : numpy.ndarray
+    max_degree : int
+
+    Returns
+    -------
+    (numpy.ndarray, numpy.ndarray, numpy.ndarray,)
+        The X, Y, Z polynomial coefficients.
+    """
+
+    if not isinstance(time_array, numpy.ndarray) or \
+            not isinstance(position_array, numpy.ndarray) or \
+            not isinstance(velocity_array, numpy.ndarray):
+        raise TypeError('time_array, position_array, and velocity_array must be numpy.ndarray instances.')
+
+    if time_array.ndim != 1 and time_array.size > 1:
+        raise ValueError('time_array must be one-dimensional with at least 2 elements.')
+
+    if position_array.shape != velocity_array.shape:
+        raise ValueError('position_array and velocity_array must have the same shape.')
+
+    if position_array.shape[0] != time_array.size:
+        raise ValueError('The first dimension of position_array must be the same size as time_array.')
+
+    if position_array.shape[1] != 3:
+        raise ValueError('The second dimension of position array must have size 3, '
+                         'representing X, Y, Z ECF coordinates.')
+
+    max_degree = int(max_degree)
+    if max_degree < 1:
+        raise ValueError('max_degree must be at least 1.')
+    if max_degree > 6:
+        logging.warning('max_degree greater than 6 for polynomial fitting is very likely to lead '
+                        'to poorly conditioned (i.e. badly behaved) fit.')
+
+    deg = 1
+    prev_vel_error = numpy.inf
+    P_x, P_y, P_z = None, None, None
+    while deg < min(max_degree, position_array.shape[0]):
+        # fit position
+        P_x = polynomial.polyfit(time_array, position_array[:, 0], deg=deg)
+        P_y = polynomial.polyfit(time_array, position_array[:, 1], deg=deg)
+        P_z = polynomial.polyfit(time_array, position_array[:, 2], deg=deg)
+        # extract estimated velocities
+        vel_est = numpy.stack(
+            (polynomial.polyval(time_array, polynomial.polyder(P_x)),
+             polynomial.polyval(time_array, polynomial.polyder(P_y)),
+             polynomial.polyval(time_array, polynomial.polyder(P_z))), axis=-1)
+        # check our velocity error
+        vel_err = vel_est - velocity_array
+        cur_vel_error = numpy.sum((vel_err * vel_err))
+        deg += 1
+        # stop if the error is not smaller than at the previous step
+        if cur_vel_error >= prev_vel_error:
+            break
+    return P_x, P_y, P_z
