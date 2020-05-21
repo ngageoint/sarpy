@@ -361,10 +361,10 @@ class Writer(WriterSuper):
         self.fid.write(b'R')
         self.fid.write(b'G')
         # TODO: The corner lat/lons used here aren't really right for the case of
-        # multiple image segments, since GeoData.ImageCorners describes the
-        # entire image, not each segment.  However, these fields in the image
-        # subheader aren't really used by any tool we know anyway, since all SICD
-        #  metadata should be extracted from the DES XML.
+        #   multiple image segments, since GeoData.ImageCorners describes the
+        #   entire image, not each segment.  However, these fields in the image
+        #   subheader aren't really used by any tool we know anyway, since all SICD
+        #   metadata should be extracted from the DES XML.
         try:  # Use TRY here since Lat/lon strings may be invalid
             frfc_lat = ll.string(self.sicdmeta.GeoData.ImageCorners.FRFC.Lat, 'lat',
                                  num_units=3, include_symbols=False)

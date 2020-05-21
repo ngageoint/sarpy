@@ -135,7 +135,6 @@ class DTEDList(object):
         root_directory : str
         """
 
-        # TODO: handle root-directory is None
         self._root_dir = root_directory
 
     @property
@@ -470,7 +469,6 @@ class DTEDInterpolator(DEMInterpolator):
         DTEDInterpolator
         """
 
-        # TODO: handle dted_list is None
         if isinstance(dted_list, str):
             dted_list = DTEDList(dted_list)
         if not isinstance(dted_list, DTEDList):

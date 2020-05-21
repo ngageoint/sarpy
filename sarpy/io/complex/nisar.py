@@ -70,7 +70,6 @@ def is_a(file_name):
         print('File {} is determined to be a NISAR file.'.format(file_name))
         return NISARReader(nisar_details)
     except (IOError, KeyError, ValueError, SyntaxError):
-        # TODO: what all should we catch?
         return None
 
 
@@ -107,9 +106,10 @@ def _get_ref_time(str_in):
 
     if isinstance(str_in, bytes):
         str_in = str_in.decode('utf-8')
-
-    raise NotImplementedError('Extract from string - {}'.format(str_in))
-
+    prefix = 'seconds since '
+    if not str_in.startswith(prefix):
+        raise ValueError('Got unexpected reference time string - {}'.format(str_in))
+    return numpy.datetime64(str_in[len(prefix):], 'ns')
 
 class NISARDetails(object):
     """
@@ -135,8 +135,7 @@ class NISARDetails(object):
             except:
                 raise ValueError('The hdf5 file does not have required path /science/LSAR/SLC')
 
-        # TODO: finish
-        raise NotImplementedError
+        self._file_name = file_name
 
     @property
     def file_name(self):
@@ -230,10 +229,10 @@ class NISARDetails(object):
         def get_collection_info():
             # type: () -> CollectionInfoType
             gp = hf['/science/LSAR/identification']
-            # TODO: adjust corename formatting
+
             return CollectionInfoType(
                 CollectorName=_stringify(hf.attrs['mission_name']),
-                CoreName='{}{}'.format(gp['absoluteOrbitNumber'][:], gp['trackNumber']),
+                CoreName='{0:7d}_{1:s}'.format(gp['absoluteOrbitNumber'][:], gp['trackNumber']),
                 CollectType='MONOSTATIC',
                 Classification='UNCLASSIFIED',
                 RadarMode=RadarModeType(ModeType='STRIPMAP'))  # TODO: ModeID?
@@ -269,9 +268,10 @@ class NISARDetails(object):
         def get_grid():
             # type: () -> GridType
 
-            # TODO: JPL states that uniform weighting in data simulated from UAVSAR is a
-            #  placeholder, not an accurate description of the data.  At this point, it
-            #  is not clear what the final weighting description for NISAR will be.
+            # TODO: Future Change Required - JPL states that uniform weighting in data simulated
+            #  from UAVSAR is a placeholder, not an accurate description of the data.
+            #  At this point, it is not clear what the final weighting description for NISAR
+            #  will be.
 
             gp = hf['/science/LSAR/SLC/metadata/processingInformation/parameters']
             row_wgt = gp['rangeChirpWeighting'][:]
@@ -387,7 +387,6 @@ class NISARDetails(object):
 
         Parameters
         ----------
-        hf : h5py.File
         gp : h5py.Group
         base_sicd : SICDType
 
@@ -411,16 +410,16 @@ class NISARDetails(object):
             t_sicd.Timeline.IPP[0].IPPPoly = [0, prf]
 
         def define_radar_collection():
-            tx_rcv_pol = []
+            tx_rcv_pol_t = []
             tx_pol = []
             for entry in pols:
-                tx_rcv_pol.append('{}:{}'.format(entry[0], entry[1]))
+                tx_rcv_pol_t.append('{}:{}'.format(entry[0], entry[1]))
                 if entry[0] not in tx_pol:
                     tx_pol.append(entry[0])
-            fc = gp['acquiredCenterFrequency'][:]
+            fc_t = gp['acquiredCenterFrequency'][:]
             bw = gp['acquiredRangeBandwidth'][:]
-            tx_freq = TxFrequencyType(Min=fc - 0.5*bw, Max=fc + 0.5*bw)
-            rcv_chans = [ChanParametersType(TxRcvPolarization=pol) for pol in tx_rcv_pol]
+            tx_freq = TxFrequencyType(Min=fc_t - 0.5*bw, Max=fc_t + 0.5*bw)
+            rcv_chans = [ChanParametersType(TxRcvPolarization=pol) for pol in tx_rcv_pol_t]
             if len(tx_pol) == 1:
                 tx_sequence = None
                 tx_pol = tx_pol[0]
@@ -433,15 +432,15 @@ class NISARDetails(object):
                 RcvChannels=rcv_chans,
                 TxPolarization=tx_pol,
                 TxSequence=tx_sequence)
-            return tx_rcv_pol
+            return tx_rcv_pol_t
 
         def update_image_formation():
-            fc = gp['processedCenterFrequency'][:]
+            fc_t = gp['processedCenterFrequency'][:]
             bw = gp['processedRangeBandwidth'][:]
             t_sicd.ImageFormation.TxFrequencyProc = TxFrequencyProcType(
-                MinProc=fc - 0.5*bw,
-                MaxProc=fc + 0.5*bw)
-            return fc
+                MinProc=fc_t - 0.5*bw,
+                MaxProc=fc_t + 0.5*bw)
+            return fc_t
 
         pols = gp['listOfPolarizations'][:]
         t_sicd = base_sicd.copy()
@@ -517,9 +516,9 @@ class NISARDetails(object):
             # closest Doppler rate polynomial to SCP
             min_ind = numpy.argmin(numpy.absolute(grid_zd_time - scp_ca_time))
             # define range coordinate grid
-            coords_rg_m = grid_r - t_sicd.RMA.INCA.R_CA_SCP
+            coords_rg_m_t = grid_r - t_sicd.RMA.INCA.R_CA_SCP
             # determine dop_rate_poly coordinates
-            dop_rate_poly = polynomial.polyfit(coords_rg_m, -doprate_sampled[min_ind, :], 4)  # why fourth order?
+            dop_rate_poly = polynomial.polyfit(coords_rg_m_t, -doprate_sampled[min_ind, :], 4)  # why fourth order?
             # TODO: Wade reverses this...why?
             t_sicd.RMA.INCA.DRateSFPoly = -numpy.convolve(dop_rate_poly, r_ca_poly)*speed_of_light/(2*fc*vm_ca_sq)
 
@@ -532,7 +531,7 @@ class NISARDetails(object):
             coords_az_m = (grid_zd_time - scp_ca_time)*t_sicd.Grid.Col.SS/ss_az_s
 
             coefs, residuals, rank, sing_values = two_dim_poly_fit(
-                coords_rg_m, coords_az_m, dopcentroid_sampled,
+                coords_rg_m_t, coords_az_m, dopcentroid_sampled,
                 x_order=3, y_order=3, x_scale=1e-3, y_scale=1e-3, rcond=1e-40)
             logging.info(
                 'The dop_centroid_poly fit details:\nroot mean square residuals = {}\nrank = {}\nsingular values = {}'.format(
@@ -544,14 +543,14 @@ class NISARDetails(object):
             # TODO: It's possible that I need to switch this order?
             time_coa_sampled = timeca_sampled + (dopcentroid_sampled/doprate_sampled)
             coefs, residuals, rank, sing_values = two_dim_poly_fit(
-                coords_rg_m, coords_az_m, time_coa_sampled,
+                coords_rg_m_t, coords_az_m, time_coa_sampled,
                 x_order=3, y_order=3, x_scale=1e-3, y_scale=1e-3, rcond=1e-40)
             logging.info(
                 'The time_coa_poly fit details:\nroot mean square residuals = {}\nrank = {}\nsingular values = {}'.format(
                     residuals, rank, sing_values))
             t_sicd.Grid.TimeCOAPoly = Poly2DType(Coefs=coefs)
 
-            return coords_rg_m, coords_az_m
+            return coords_rg_m_t, coords_az_m
 
         def update_radiometric():
             nesz = hf['/science/LSAR/SLC/metadata/calibrationInformation/frequency{}/{}'.format(freq_name, pol_name)][:]
@@ -616,8 +615,8 @@ class NISARDetails(object):
                 freq_sicd, pols, tx_rcv_pol, fc = self._get_freq_specific_sicd(gp, base_sicd)
 
                 # formulate the frequency dependent doppler grid
-                # TODO: processedAzimuthBandwidth acknowledged by JPL to be wrong
-                #   in simulated datasets.
+                # TODO: Future Change Required - processedAzimuthBandwidth acknowledged
+                #  by JPL to be wrong in simulated datasets.
                 dop_bw = gp['processedAzimuthBandwidth'][:]
                 dopcentroid_sampled = gp['dopplerCentroid'][:]
                 doprate_sampled = gp['azimuthFMRate'][:]

@@ -181,5 +181,3 @@ class PFAType(Serializable):
 
             if self.FPN is None:
                 self.FPN = XYZType.from_array(ETP)
-
-        # TODO: PolarAngPoly, SpatialFreqSFPoly - carried over from sicd.py line 1742

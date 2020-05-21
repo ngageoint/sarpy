@@ -73,7 +73,7 @@ class RgAzCompType(Serializable):
         az_sf = -look*numpy.sin(numpy.deg2rad(SCPCOA.DopplerConeAng))/SCPCOA.SlantRange
         if self.AzSF is None:
             self.AzSF = az_sf
-        elif abs(self.AzSF - az_sf) > 1e-3:  # TODO: what is a sensible tolerance here?
+        elif abs(self.AzSF - az_sf) > 1e-3:
             logging.warning(
                 'The derived value for RgAzComp.AzSF is {}, while the current '
                 'setting is {}.'.format(az_sf, self.AzSF))

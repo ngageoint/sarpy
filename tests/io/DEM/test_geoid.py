@@ -76,7 +76,6 @@ class TestGeoidHeight(unittest.TestCase):
 
     @classmethod
     def setUp(cls):
-        # todo: fix this up
         cls.test_root = os.path.expanduser(os.path.join('~', 'Desktop', 'sarpy_testing', 'geoid'))
 
     def test_geoid_height(self):

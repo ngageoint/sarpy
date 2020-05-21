@@ -263,8 +263,6 @@ class WaveformParametersType(Serializable):
         None
         """
 
-        # TODO: TxPulseLength, TxFMRate, and TxRFBandwidth are ALWAYS related?
-        #   If so, two should be set, and the third should be derived.
         if self.TxPulseLength is not None and self.TxFMRate is not None and self.TxRFBandwidth is None:
             self.TxRFBandwidth = self.TxPulseLength*self.TxFMRate
         if self.TxPulseLength is not None and self.TxRFBandwidth is not None and self.TxFMRate is None:
@@ -586,9 +584,6 @@ class ReferencePlaneType(Serializable):
         self.Orientation = Orientation
         super(ReferencePlaneType, self).__init__(**kwargs)
 
-    # TODO: some kind of error checking to ensure that XDir and YDir make sense
-    #  with respect to one another?
-
     def get_ecf_corner_array(self):
         """
         Use the XDir and YDir definitions to return the corner points in ECF coordinates as a `4x3` array.
@@ -647,8 +642,6 @@ class AreaType(Serializable):
         self.Plane = Plane
         super(AreaType, self).__init__(**kwargs)
         self.derive()
-
-    # TODO: corner and plane should not be ridiculously out of whack?
 
     def _derive_corner_from_plane(self):
         # try to define the corner points - for SICD 0.5.
@@ -788,8 +781,6 @@ class RadarCollectionType(Serializable):
 
             steps = []
             for i, chanparam in enumerate(self.RcvChannels):
-                # TODO: VERIFY - there's some effort to avoid repetition in sicd.py at line 1112. Is this necessary?
-                #   What about WFIndex? Is it possible to derive that?
                 steps.append(TxStepType(index=i, TxPolarization=chanparam.get_transmit_polarization()))
             self.TxSequence = steps
             self.TxPolarization = 'SEQUENCE'

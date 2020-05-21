@@ -34,7 +34,6 @@ def _validate_coords(coords, sicd):
             'The coords array must represent an array of points in ECF coordinates, '
             'so the final dimension of coords must have length 3. Have coords.shape = {}'.format(coords.shape))
 
-    # TODO: possibly check for coordinates too far from the sicd box?
     return coords, orig_shape
 
 
@@ -400,7 +399,7 @@ class COAProjection(object):
 
         row_meters, col_meters, t_coa, arp_coa, varp_coa = self._init_proj(im_points)
         r_tgt_coa, r_dot_tgt_coa = self._method_proj(row_meters, col_meters, t_coa, arp_coa, varp_coa)
-        # adjust parameters (TODO: after all the calculations?)
+        # adjust parameters
         arp_coa += self.delta_arp
         varp_coa += self.delta_varp
         r_tgt_coa += self.range_bias
@@ -1139,7 +1138,6 @@ def image_to_ground_dem(im_points, sicd, block_size=50000,
     else:
         coa_proj = COAProjection(sicd, **coa_args)
 
-    # TODO: handle dted_list is None
     if isinstance(dted_list, str):
         dted_list = DTEDList(dted_list)
 

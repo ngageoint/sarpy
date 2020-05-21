@@ -168,7 +168,6 @@ class CylindricalProjectionType(MeasurableProjectionType):
     _required = ('ReferencePoint', 'SampleSpacing', 'TimeCOAPoly', 'StripmapDirection')
     _numeric_format = {'CurvatureRadius': '0.16G'}
     # Descriptor
-    # TODO: should this be a unit vector?
     StripmapDirection = _SerializableDescriptor(
         'StripmapDirection', XYZType, _required, strict=DEFAULT_STRICT,
         docstring='Along stripmap direction.')  # type: XYZType

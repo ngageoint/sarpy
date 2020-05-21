@@ -1306,7 +1306,6 @@ class Polygon(GeometryObject):
                 "The outer ring of a Polygon is required to have counter-clockwise orientation. "
                 "This outer ring has clockwise orientation, so the orientation will be reversed.")
             outer_ring.reverse_orientation()
-        # TODO: add an inner ring inclusion check
         self._outer_ring = outer_ring
 
     def add_inner_ring(self, coordinates):
@@ -1326,8 +1325,6 @@ class Polygon(GeometryObject):
                 "An inner ring of a Polygon is required to have clockwise orientation. "
                 "This inner ring has counter-clockwise orientation, so the orientation will be reversed.")
             inner_ring.reverse_orientation()
-        # TODO: add an outer ring inclusion check
-        #   add an overlap check for other inner rings
         self._inner_rings.append(inner_ring)
 
     def get_perimeter(self):

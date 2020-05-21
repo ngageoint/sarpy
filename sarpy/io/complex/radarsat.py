@@ -63,7 +63,6 @@ def is_a(file_name):
         print('Path {} is determined to be or contain a RadarSat or RCM product.xml file.'.format(file_name))
         return RadarSatReader(radar_sat_details)
     except (IOError, AttributeError, SyntaxError, ElementTree.ParseError):
-        # TODO: what all should we catch?
         return None
 
 
@@ -262,7 +261,6 @@ class RadarSatDetails(object):
                 or 'SL' in mode_id:
             mode_type = 'SPOTLIGHT'
         elif mode_id.startswith('SC'):
-            # TODO: what about this? is every other option really stripmap?
             raise ValueError('ScanSAR mode data is not currently handled.')
         else:
             mode_type = 'STRIPMAP'

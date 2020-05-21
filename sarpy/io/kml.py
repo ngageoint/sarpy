@@ -18,8 +18,6 @@ else:
     from io import StringIO
 
 try:
-    # TODO: should we properly require PIL?
-    #   The usage here is really not critical, but the GUI stuff requires PIL anyways.
     # noinspection PyPackageRequirements
     import PIL.Image
 except ImportError:

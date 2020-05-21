@@ -51,7 +51,6 @@ def generic_nitf_header_test(instance, test_file):
 class TestNITFHeader(unittest.TestCase):
     @classmethod
     def setUp(cls):
-        # todo: fix this up
         cls.test_root = os.path.expanduser(os.path.join('~', 'Desktop', 'sarpy_testing', 'sicd'))
 
     def test_nitf_header(self):

@@ -68,7 +68,6 @@ def is_a(file_name):
         print('File {} is determined to be a Cosmo Skymed file.'.format(file_name))
         return CSKReader(csk_details)
     except (IOError, KeyError, ValueError, SyntaxError):
-        # TODO: what all should we catch?
         return None
 
 

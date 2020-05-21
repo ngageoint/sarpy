@@ -253,7 +253,6 @@ class SICDType(Serializable):
             return False
         elif len(alg_types) == 0:
             if self.ImageFormation.ImageFormAlgo is None:
-                # TODO: is this correct?
                 logging.warning(
                     'ImageFormation.ImageFormAlgo is not set, and there is no corresponding RgAzComp, PFA, or RMA '
                     'SICD parameters set. Setting ImageFormAlgo to "OTHER".'.format(self.ImageFormation.ImageFormAlgo))
@@ -275,7 +274,6 @@ class SICDType(Serializable):
                 self.ImageFormation.ImageFormAlgo = alg_types[0].upper()
                 return True
             else:  # they are different values
-                # TODO: is resetting it the correct decision?
                 logging.warning(
                     'Only the image formation algorithm {} is populated, but ImageFormation.ImageFormAlgo '
                     'was set as {}. ImageFormation.ImageFormAlgo has been '
@@ -459,9 +457,7 @@ class SICDType(Serializable):
         -------
         None
         """
-        # TODO: this should be hidden and automatically applied, if necessary.
 
-        # TODO: should we raise an exception here? My best guess.
         if self.RadarCollection is None:
             raise ValueError('RadarCollection is not defined. The reference frequency cannot be applied.')
         elif not self.RadarCollection.RefFreqIndex:  # it's None or 0
@@ -825,7 +821,7 @@ class SICDType(Serializable):
                 noise = 10**(noise/10.)  # this is absolute
 
                 # convert to SigmaZero value
-                noise *= self.Radiometric.SigmaZeroSFPoly(0, 0)  # TODO: is this no longer in db now?
+                noise *= self.Radiometric.SigmaZeroSFPoly(0, 0)
             except Exception as e:
                 logging.error('Encountered an error estimating noise. {}'.format(e))
                 return
@@ -911,6 +907,10 @@ class SICDType(Serializable):
                 _crad = 'TD'
                 _cvehicle = '01'
                 _pass = '{0:02d}'.format(int(round(_mins*15.182/1440.)))
+            elif _collector.lower().startswith('nisar'):
+                _crad = 'NI'
+                _cvehicle = '01'
+                _pass = '{0:02d}'.format(int(round(_mins*0/1440.)))  # TODO: update with orbital count/day
             else:
                 logging.error('Got unknown collector {}. Setting collector vehicle to 00.'.format(_collector))
                 _crad = 'UN'

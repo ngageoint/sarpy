@@ -1554,7 +1554,6 @@ class GainPhasePolyType(Serializable):
         numpy.ndarray
         """
 
-        # TODO: is it remotely sensible that only one of these is defined?
         if self.GainPoly is None or self.PhasePoly is None:
             return None
         return numpy.array([self.GainPoly(x, y), self.PhasePoly(x, y)], dtype=numpy.float64)
