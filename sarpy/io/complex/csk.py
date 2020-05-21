@@ -479,18 +479,18 @@ class CSKDetails(object):
 ################
 # The CSK chipper and reader
 
-class CSKBandChipper(BaseChipper):
+class H5Chipper(BaseChipper):
     __slots__ = ('_file_name', '_band_name')
 
-    def __init__(self, file_name, band_name, data_size, symmetry):
+    def __init__(self, file_name, band_name, data_size, symmetry, complex_type=True):
         self._file_name = file_name
         self._band_name = band_name
-        super(CSKBandChipper, self).__init__(data_size, symmetry=symmetry, complex_type=True)
+        super(H5Chipper, self).__init__(data_size, symmetry=symmetry, complex_type=complex_type)
 
     def _read_raw_fun(self, range1, range2):
         r1, r2 = self._reorder_arguments(range1, range2)
         with h5py.File(self._file_name, 'r') as hf:
-            gp = hf['{}/SBI'.format(self._band_name)]
+            gp = hf[self._band_name]
             data = gp[r1[0]:r1[1]:r1[2], r2[0]:r2[1]:r2[2], :]
         return data
 
@@ -521,5 +521,5 @@ class CSKReader(BaseReader):
         sicds = []
         for band_name in sicd_data:
             sicds.append(sicd_data[band_name])
-            chippers.append(CSKBandChipper(csk_details.file_name, band_name, shape_dict[band_name], symmetry))
+            chippers.append(H5Chipper(csk_details.file_name, '{}/SBI'.format(band_name), shape_dict[band_name], symmetry))
         super(CSKReader, self).__init__(tuple(sicds), tuple(chippers))

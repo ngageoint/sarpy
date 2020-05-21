@@ -3,6 +3,7 @@
 Functionality for reading NISAR data into a SICD model.
 """
 
+import logging
 from collections import OrderedDict
 from typing import Tuple, Dict
 import warnings
@@ -18,11 +19,11 @@ except ImportError:
     warnings.warn('The h5py module is not successfully imported, '
                   'which precludes NISAR reading capability!')
 
-from .sicd_elements.blocks import Poly1DType, Poly2DType, RowColType
+from .sicd_elements.blocks import Poly2DType
 from .sicd_elements.SICD import SICDType
 from .sicd_elements.CollectionInfo import CollectionInfoType, RadarModeType
 from .sicd_elements.ImageCreation import ImageCreationType
-from .sicd_elements.RadarCollection import RadarCollectionType, WaveformParametersType, \
+from .sicd_elements.RadarCollection import RadarCollectionType, \
     TxFrequencyType, ChanParametersType, TxStepType
 from .sicd_elements.ImageData import ImageDataType
 from .sicd_elements.GeoData import GeoDataType, SCPType
@@ -34,8 +35,9 @@ from .sicd_elements.ImageFormation import ImageFormationType, TxFrequencyProcTyp
 from .sicd_elements.RMA import RMAType, INCAType
 from .sicd_elements.Radiometric import RadiometricType
 from ...geometry import point_projection
-from .base import BaseChipper, BaseReader, string_types
-from .utils import get_seconds, fit_time_coa_polynomial, fit_position_xvalidation
+from .base import BaseReader, string_types
+from .csk import H5Chipper
+from .utils import get_seconds, fit_position_xvalidation, two_dim_poly_fit
 
 __classification__ = "UNCLASSIFIED"
 __author__ = ("Thomas McCullough", "Jarred Barber", "Wade Schwartzkopf")
@@ -391,8 +393,9 @@ class NISARDetails(object):
 
         Returns
         -------
-        (SICDType, numpy.ndarray)
-            frequency dependent sicd and list of polarizations
+        (SICDType, numpy.ndarray, list, fc)
+            frequency dependent sicd, array of polarization names, list of formatted polarizations for sicd,
+            the processed center frequency
         """
 
         def update_grid():
@@ -430,6 +433,7 @@ class NISARDetails(object):
                 RcvChannels=rcv_chans,
                 TxPolarization=tx_pol,
                 TxSequence=tx_sequence)
+            return tx_rcv_pol
 
         def update_image_formation():
             fc = gp['processedCenterFrequency'][:]
@@ -437,30 +441,144 @@ class NISARDetails(object):
             t_sicd.ImageFormation.TxFrequencyProc = TxFrequencyProcType(
                 MinProc=fc - 0.5*bw,
                 MaxProc=fc + 0.5*bw)
+            return fc
 
         pols = gp['listOfPolarizations'][:]
         t_sicd = base_sicd.copy()
         update_grid()
         update_timeline()
-        define_radar_collection()
-        update_image_formation()
+        tx_rcv_pol = define_radar_collection()
+        fc = update_image_formation()
 
-        return t_sicd, pols
+        return t_sicd, pols, tx_rcv_pol, fc
 
-    def _get_pol_specific_sicd(selfgp, base_sicd):
+    @staticmethod
+    def _get_pol_specific_sicd(hf, ds, base_sicd, pol_name, freq_name, j, pol, r_ca_sampled, zd_time,
+                               grid_zd_time, grid_r, doprate_sampled, dopcentroid_sampled, fc, ss_az_s, dop_bw):
         """
         Gets the frequency/polarization specific sicd.
 
         Parameters
         ----------
+        hf : h5py.File
+        ds : h5py.Dataset
         base_sicd : SICDType
+        pol_name : str
+        freq_name : str
+        j : int
+        pol : str
+        r_ca_sampled : numpy.ndarray
+        zd_time : numpy.ndarray
+        grid_zd_time : numpy.ndarray
+        grid_r : numpy.ndarray
+        doprate_sampled : numpy.ndarray
+        dopcentroid_sampled : numpy.ndarray
+        fc : float
+        ss_az_s : float
+        dop_bw : float
 
         Returns
         -------
         SICDType
         """
 
-        raise NotImplementedError
+        def define_image_data():
+            dtype = ds.dtype.name
+            if dtype == 'float32':
+                pixel_type = 'RE32F_IM32F'
+            elif dtype == 'int16':
+                pixel_type = 'RE16I_IM16I'
+            else:
+                raise ValueError('Got unhandled dtype {}'.format(dtype))
+            t_sicd.ImageData = ImageDataType(
+                PixelType=pixel_type,
+                NumRows=shape[0],
+                NumCols=shape[1],
+                FirstRow=0,
+                FirstCol=0,
+                SCPPixel=[0.5*shape[0], 0.5*shape[1]],
+                FullImage=[shape[0], shape[1]])
+
+        def update_image_formation():
+            t_sicd.ImageFormation.RcvChanProc.ChanIndices = [j, ]
+            t_sicd.ImageFormation.TxFrequencyProc = pol
+
+        def update_inca_and_grid():
+            t_sicd.RMA.INCA.R_CA_SCP = r_ca_sampled[t_sicd.ImageData.SCPPixel.Row]
+            scp_ca_time = zd_time[t_sicd.ImageData.SCPPixel.Col]
+
+            # compute DRateSFPoly
+            # velocity at scp ca time
+            vel_ca = t_sicd.Position.ARPPoly.derivative_eval(scp_ca_time, der_order=1)
+            # squared magnitude
+            vm_ca_sq = numpy.sum(vel_ca*vel_ca)
+            # polynomial coefficient for function representing range as a function of range distance from SCP
+            r_ca_poly = numpy.array([t_sicd.RMA.INCA.R_CA_SCP, 1], dtype=numpy.float64)
+            # closest Doppler rate polynomial to SCP
+            min_ind = numpy.argmin(numpy.absolute(grid_zd_time - scp_ca_time))
+            # define range coordinate grid
+            coords_rg_m = grid_r - t_sicd.RMA.INCA.R_CA_SCP
+            # determine dop_rate_poly coordinates
+            dop_rate_poly = polynomial.polyfit(coords_rg_m, -doprate_sampled[min_ind, :], 4)  # why fourth order?
+            # TODO: Wade reverses this...why?
+            t_sicd.RMA.INCA.DRateSFPoly = -numpy.convolve(dop_rate_poly, r_ca_poly)*speed_of_light/(2*fc*vm_ca_sq)
+
+            # update Grid.Col parameters
+            t_sicd.Grid.Col.SS = numpy.sqrt(vm_ca_sq)*abs(ss_az_s)*t_sicd.RMA.INCA.DRateSFPoly.Coefs[0, 0]
+            t_sicd.Grid.Col.ImpRespBW = min(abs(dop_bw*ss_az_s), 1)/t_sicd.Grid.Col.SS
+            t_sicd.RMA.INCA.TimeCAPoly = [scp_ca_time, ss_az_s/t_sicd.Grid.Col.SS]
+
+            #TimeCOAPoly/DopCentroidPoly/DeltaKCOAPoly
+            coords_az_m = (grid_zd_time - scp_ca_time)*t_sicd.Grid.Col.SS/ss_az_s
+
+            coefs, residuals, rank, sing_values = two_dim_poly_fit(
+                coords_rg_m, coords_az_m, dopcentroid_sampled,
+                x_order=3, y_order=3, x_scale=1e-3, y_scale=1e-3, rcond=1e-40)
+            logging.info(
+                'The dop_centroid_poly fit details:\nroot mean square residuals = {}\nrank = {}\nsingular values = {}'.format(
+                    residuals, rank, sing_values))
+            t_sicd.RMA.INCA.DopCentroidPoly = Poly2DType(Coefs=coefs)
+            t_sicd.Grid.Col.DeltaKCOAPoly = Poly2DType(Coefs=coefs*ss_az_s/t_sicd.Grid.Col.SS)
+
+            timeca_sampled = numpy.outer(grid_zd_time, numpy.ones((grid_r.size, )))
+            # TODO: It's possible that I need to switch this order?
+            time_coa_sampled = timeca_sampled + (dopcentroid_sampled/doprate_sampled)
+            coefs, residuals, rank, sing_values = two_dim_poly_fit(
+                coords_rg_m, coords_az_m, time_coa_sampled,
+                x_order=3, y_order=3, x_scale=1e-3, y_scale=1e-3, rcond=1e-40)
+            logging.info(
+                'The time_coa_poly fit details:\nroot mean square residuals = {}\nrank = {}\nsingular values = {}'.format(
+                    residuals, rank, sing_values))
+            t_sicd.Grid.TimeCOAPoly = Poly2DType(Coefs=coefs)
+
+            return coords_rg_m, coords_az_m
+
+        def update_radiometric():
+            nesz = hf['/science/LSAR/SLC/metadata/calibrationInformation/frequency{}/{}'.format(freq_name, pol_name)][:]
+            noise_samples = nesz - (10 * numpy.log10(t_sicd.Radiometric.SigmaZeroSFPoly.Coefs[0, 0]))
+
+            coefs, residuals, rank, sing_values = two_dim_poly_fit(
+                coords_rg_m, coords_az_m, noise_samples,
+                x_order=3, y_order=3, x_scale=1e-3, y_scale=1e-3, rcond=1e-40)
+            logging.info(
+                'The noise_poly fit details:\nroot mean square residuals = {}\nrank = {}\nsingular values = {}'.format(
+                    residuals, rank, sing_values))
+            t_sicd.Radiometric.NoiseLevel.NoisePoly = Poly2DType(Coefs=coefs)
+
+        def update_geodata():
+            ecf = point_projection.image_to_ground([t_sicd.ImageData.SCPPixel.Row, t_sicd.ImageData.SCPPixel.Col], t_sicd)
+            t_sicd.GeoData.SCP = SCPType(ECF=ecf)  # LLH will be populated
+
+        t_sicd = base_sicd.copy()
+        shape = ds.shape
+        define_image_data()
+        update_image_formation()
+        coords_rg_m, coords_az_m = update_inca_and_grid()
+        update_radiometric()
+        update_geodata()
+        t_sicd.derive()
+        t_sicd.populate_rniirs(override=False)
+        return t_sicd
 
     def get_sicd_collection(self):
         """
@@ -495,7 +613,7 @@ class NISARDetails(object):
                 gp_name = '/science/LSAR/SLC/swaths/frequency{}'.format(freq)
                 gp = hf[gp_name]
                 print('freq {} at hdf5 group'.format(freq, gp_name))  # TODO: this is temp for debugging
-                freq_sicd, pols = self._get_freq_specific_sicd(gp, base_sicd)
+                freq_sicd, pols, tx_rcv_pol, fc = self._get_freq_specific_sicd(gp, base_sicd)
 
                 # formulate the frequency dependent doppler grid
                 # TODO: processedAzimuthBandwidth acknowledged by JPL to be wrong
@@ -503,11 +621,18 @@ class NISARDetails(object):
                 dop_bw = gp['processedAzimuthBandwidth'][:]
                 dopcentroid_sampled = gp['dopplerCentroid'][:]
                 doprate_sampled = gp['azimuthFMRate'][:]
+                r_ca_sampled = gp['slatRange'][:]
                 # formulate the frequency/polarization specific sicd information
                 for j, pol in enumerate(pols):
-                    gp_name2 = '{}/{}'.format(gp_name, pol)
-                    gp2 = gp[pol]
-                    # TODO: line 326
+                    ds_name = '{}/{}'.format(gp_name, pol)
+                    ds = gp[pol]
+                    pol_sicd = self._get_pol_specific_sicd(
+                        ds, freq_sicd, pol, freq, j, tx_rcv_pol[j], r_ca_sampled, zd_time,
+                        grid_zd_time, grid_r, doprate_sampled, dopcentroid_sampled,
+                        ss_az_s, dop_bw)
+                    out_sicds[ds_name] = pol_sicd
+                    shapes[ds_name] = ds.shape
+        return out_sicds, shapes, symmetry
 
 
 ################
@@ -535,4 +660,10 @@ class NISARReader(BaseReader):
             raise TypeError('The input argument for NISARReader must be a '
                             'filename or NISARDetails object')
 
-        raise NotImplementedError
+        sicd_data, shape_dict, symmetry = nisar_details.get_sicd_collection()
+        chippers = []
+        sicds = []
+        for band_name in sicd_data:
+            sicds.append(sicd_data[band_name])
+            chippers.append(H5Chipper(nisar_details.file_name, band_name, shape_dict[band_name], symmetry))
+        super(NISARReader, self).__init__(tuple(sicds), tuple(chippers))
