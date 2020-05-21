@@ -640,7 +640,7 @@ class NISARDetails(object):
 
 class NISARReader(BaseReader):
     """
-    Gets a reader type object for Cosmo Skymed files
+    Gets a reader type object for NISAR files
     """
 
     __slots__ = ('_nisar_details', )
