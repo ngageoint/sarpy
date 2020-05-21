@@ -941,6 +941,10 @@ class ImageCanvas(tkinter.LabelFrame):
         nx_pix, ny_pix = pil_image.size
         self.canvas.config(scrollregion=(0, 0, nx_pix, ny_pix))
         self._tk_im = ImageTk.PhotoImage(pil_image)
+        # TODO: to center the image in the canvas the following line should be:
+        # self.variables.image_id = self.canvas.create_image(int(self.canvas_width/2), int(self.canvas_height/2), anchor="center", image=self._tk_im)
+        # TODO: changing to center on the canvas will create downstream book-keeping issues when drawing shapes and converting
+        # TODO: between image and canvas coordinates, which will need to be cleaned up.
         self.variables.image_id = self.canvas.create_image(0, 0, anchor="nw", image=self._tk_im)
         self.canvas.tag_lower(self.variables.image_id)
 

@@ -21,7 +21,7 @@ class GeotiffViewer(AbstractWidgetPanel):
         widgets_list = ["geotiff_image_panel"]
         self.init_w_horizontal_layout(widgets_list)
 
-        self.geotiff_image_panel.set_canvas_size(1000, 800)
+        self.geotiff_image_panel.set_canvas_size(800, 600)
         self.geotiff_image_panel.set_current_tool_to_pan()
 
         menubar = Menu()
@@ -34,8 +34,6 @@ class GeotiffViewer(AbstractWidgetPanel):
         # create more pulldown menus
         popups_menu = Menu(menubar, tearoff=0)
         popups_menu.add_command(label="Main Controls", command=self.exit)
-        popups_menu.add_command(label="Phase History", command=self.exit)
-        popups_menu.add_command(label="Metaicon", command=self.exit)
 
         menubar.add_cascade(label="File", menu=filemenu)
         menubar.add_cascade(label="Popups", menu=popups_menu)
@@ -55,8 +53,6 @@ class GeotiffViewer(AbstractWidgetPanel):
                                                       ("all files", "*.*"))
                                            )
         self.image_reader = GeotiffImageReader(fname)
-        self.image_reader.rgba_bands = [0, 1, 2]
-        self.image_reader.read_all_pan_from_disk()
         self.geotiff_image_panel.set_image_reader(self.image_reader)
 
 
