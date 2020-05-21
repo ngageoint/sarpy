@@ -21,7 +21,7 @@ class GeotiffViewer(AbstractWidgetPanel):
         widgets_list = ["geotiff_image_panel"]
         self.init_w_horizontal_layout(widgets_list)
 
-        self.geotiff_image_panel.set_canvas_size(3000, 1500)
+        self.geotiff_image_panel.set_canvas_size(1000, 800)
         self.geotiff_image_panel.set_current_tool_to_pan()
 
         menubar = Menu()
@@ -55,8 +55,8 @@ class GeotiffViewer(AbstractWidgetPanel):
                                                       ("all files", "*.*"))
                                            )
         self.image_reader = GeotiffImageReader(fname)
-        self.image_reader.rgb_bands = [0, 1, 2]
-        self.image_reader.read_all_image_data_from_disk()
+        self.image_reader.rgba_bands = [0, 1, 2]
+        self.image_reader.read_all_pan_from_disk()
         self.geotiff_image_panel.set_image_reader(self.image_reader)
 
 
