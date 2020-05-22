@@ -202,7 +202,7 @@ class NISARDetails(object):
         gp = hf['/science/LSAR/SLC/swaths']
         ds = gp['zeroDopplerTime']
         ref_time = _get_ref_time(ds.attrs['units'])
-        zd_time = ds[:] + get_seconds(base_sicd.Timeline.CollectStart, ref_time)
+        zd_time = ds[:] + get_seconds(ref_time, base_sicd.Timeline.CollectStart, precision='ns')
         ss_az_s = gp['zeroDopplerTimeSpacing'][()]
 
         if base_sicd.SCPCOA.SideOfTrack == 'L':
@@ -213,7 +213,7 @@ class NISARDetails(object):
         grid_r = gp['slantRange'][:]
         ds = gp['zeroDopplerTime']
         ref_time = _get_ref_time(ds.attrs['units'])
-        grid_zd_time = ds[:] + get_seconds(base_sicd.Timeline.CollectStart, ref_time)
+        grid_zd_time = ds[:] + get_seconds(ref_time, base_sicd.Timeline.CollectStart, precision='ns')
 
         return zd_time, ss_az_s, grid_r, grid_zd_time
 
@@ -316,7 +316,7 @@ class NISARDetails(object):
 
             gp = hf['/science/LSAR/SLC/metadata/orbit']
             ref_time = _get_ref_time(gp['time'].attrs['units'])
-            T = gp['time'][:] + get_seconds(ref_time, collect_start)
+            T = gp['time'][:] + get_seconds(ref_time, collect_start, precision='ns')
             Pos = gp['position'][:]
             Vel = gp['velocity'][:]
             P_x, P_y, P_z = fit_position_xvalidation(T, Pos, Vel, max_degree=6)
@@ -531,7 +531,7 @@ class NISARDetails(object):
             dop_rate_poly = polynomial.polyfit(coords_rg_m, -doprate_sampled[min_ind, :], 4)  # why fourth order?
             # TODO: Wade reverses this...why?
             t_sicd.RMA.INCA.DRateSFPoly = numpy.reshape(
-                -numpy.convolve(dop_rate_poly, r_ca_poly)*speed_of_light/(2*fc*vm_ca_sq), (-1, 1))
+                -numpy.convolve(dop_rate_poly, r_ca_poly)*speed_of_light/(2*fc*vm_ca_sq), (1, -1))
 
             # update Grid.Col parameters
             t_sicd.Grid.Col.SS = numpy.sqrt(vm_ca_sq)*abs(ss_az_s)*t_sicd.RMA.INCA.DRateSFPoly.Coefs[0, 0]
@@ -542,7 +542,7 @@ class NISARDetails(object):
             coords_az_m = (grid_zd_time - scp_ca_time)*t_sicd.Grid.Col.SS/ss_az_s
 
             # cerate the 2d grids
-            coords_az_2d_t, coords_rg_2d_t = numpy.meshgrid(coords_az_m, coords_rg_m)
+            coords_rg_2d_t, coords_az_2d_t = numpy.meshgrid(coords_rg_m, coords_az_m, indexing='xy')
 
             coefs, residuals, rank, sing_values = two_dim_poly_fit(
                 coords_rg_2d_t, coords_az_2d_t, dopcentroid_sampled,
@@ -569,7 +569,7 @@ class NISARDetails(object):
         def update_radiometric():
             ds_test = hf['/science/LSAR/SLC/metadata/calibrationInformation/frequency{}/{}'.format(freq_name, pol_name)]
             nesz = hf['/science/LSAR/SLC/metadata/calibrationInformation/frequency{}/{}/nes0'.format(freq_name, pol_name)][:]
-            noise_samples = nesz - (10 * numpy.log10(t_sicd.Radiometric.SigmaZeroSFPoly.Coefs[0, 0]))
+            noise_samples = nesz - (10*numpy.log10(t_sicd.Radiometric.SigmaZeroSFPoly.Coefs[0, 0]))
 
             coefs, residuals, rank, sing_values = two_dim_poly_fit(
                 coords_rg_2d, coords_az_2d, noise_samples,
