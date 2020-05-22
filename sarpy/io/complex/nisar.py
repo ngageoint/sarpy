@@ -33,7 +33,7 @@ from .sicd_elements.Grid import GridType, DirParamType, WgtTypeType
 from .sicd_elements.Timeline import TimelineType, IPPSetType
 from .sicd_elements.ImageFormation import ImageFormationType, TxFrequencyProcType, RcvChanProcType
 from .sicd_elements.RMA import RMAType, INCAType
-from .sicd_elements.Radiometric import RadiometricType
+from .sicd_elements.Radiometric import RadiometricType, NoiseLevelType_
 from ...geometry import point_projection
 from .base import BaseReader, string_types
 from .csk import H5Chipper
@@ -177,8 +177,8 @@ class NISARDetails(object):
             Start and end times and duration
         """
 
-        start = numpy.datetime64(_stringify(hf['/science/LSAR/identification/zeroDopplerStartTime'][:]))
-        end = numpy.datetime64(_stringify(hf['/science/LSAR/identification/zeroDopplerEndTime'][:]))
+        start = numpy.datetime64(_stringify(hf['/science/LSAR/identification/zeroDopplerStartTime'][()]))
+        end = numpy.datetime64(_stringify(hf['/science/LSAR/identification/zeroDopplerEndTime'][()]))
         duration = get_seconds(end, start, precision='ns')
         return start, end, duration
 
@@ -203,7 +203,7 @@ class NISARDetails(object):
         ds = gp['zeroDopplerTime']
         ref_time = _get_ref_time(ds.attrs['units'])
         zd_time = ds[:] + get_seconds(base_sicd.Timeline.CollectStart, ref_time)
-        ss_az_s = gp['zeroDopplerTimeSpacing'][:]
+        ss_az_s = gp['zeroDopplerTimeSpacing'][()]
 
         if base_sicd.SCPCOA.SideOfTrack == 'L':
             zd_time = zd_time[::-1]
@@ -232,7 +232,7 @@ class NISARDetails(object):
 
             return CollectionInfoType(
                 CollectorName=_stringify(hf.attrs['mission_name']),
-                CoreName='{0:7d}_{1:s}'.format(gp['absoluteOrbitNumber'][:], gp['trackNumber']),
+                CoreName='{0:7d}_{1:s}'.format(gp['absoluteOrbitNumber'][()], gp['trackNumber'][()]),
                 CollectType='MONOSTATIC',
                 Classification='UNCLASSIFIED',
                 RadarMode=RadarModeType(ModeType='STRIPMAP'))  # TODO: ModeID?
@@ -243,7 +243,7 @@ class NISARDetails(object):
             try:
                 application = '{} {}'.format(
                     application,
-                    _stringify(hf['/science/LSAR/SLC/metadata/processingInformation/algorithms/ISCEVersion'][:]))
+                    _stringify(hf['/science/LSAR/SLC/metadata/processingInformation/algorithms/ISCEVersion'][()]))
             except:
                 pass
 
@@ -256,12 +256,22 @@ class NISARDetails(object):
         def get_geo_data():
             # type: () -> GeoDataType
             # seeds a rough SCP for projection usage
-            poly_str = _stringify(hf['/science/LSAR/identification/boundingPolygon'][:])
-            raise NotImplementedError('poly_str = {}'.format(poly_str))
-            # TODO: what is the format of this string? parse this...
+            poly_str = _stringify(hf['/science/LSAR/identification/boundingPolygon'][()])
+            beg_str = 'POLYGON (('
+            if not poly_str.startswith(beg_str):
+                raise ValueError('Unexpected polygon string {}'.format(poly_str))
+            parts = poly_str[len(beg_str):-2].strip().split(',')
+            if len(parts) != 5:
+                raise ValueError('Unexpected polygon string parts {}'.format(parts))
+            lats_lons = numpy.zeros((4, 2), dtype=numpy.float64)
+            for i, part in enumerate(parts[:-1]):
+                spart = part.strip().split()
+                if len(spart) != 2:
+                    raise ValueError('Unexpected polygon string parts {}'.format(parts))
+                lats_lons[i, :] = float(spart[1]), float(spart[0])
 
             llh = numpy.zeros((3, ), dtype=numpy.float64)
-            # llh[0:2] = <junk from above>
+            llh[0:2] = numpy.mean(lats_lons, axis=0)
             llh[2] = numpy.mean(hf['/science/LSAR/SLC/metadata/processingInformation/parameters/referenceTerrainHeight'][:])
             return GeoDataType(SCP=SCPType(LLH=llh))
 
@@ -279,7 +289,7 @@ class NISARDetails(object):
             row = DirParamType(
                 Sgn=-1,
                 DeltaKCOAPoly=[[0,]],
-                WgtFunct=row_wgt,
+                WgtFunct=numpy.cast[numpy.float64](row_wgt),
                 WgtType=WgtTypeType(WindowName=win_name))
 
             col_wgt = gp['azimuthChirpWeighting'][:]
@@ -287,7 +297,7 @@ class NISARDetails(object):
             col = DirParamType(
                 Sgn=-1,
                 KCtr=0,
-                WgtFunct=col_wgt,
+                WgtFunct=numpy.cast[numpy.float64](col_wgt),
                 WgtType=WgtTypeType(WindowName=win_name))
 
             return GridType(ImagePlane='SLANT', Type='RGZERO', Row=row, Col=col)
@@ -315,7 +325,7 @@ class NISARDetails(object):
         def get_scpcoa():
             # type: () -> SCPCOAType
             # remaining fields set later
-            sot = _stringify(hf['/science/LSAR/identification/lookDirection'])[0].upper()
+            sot = _stringify(hf['/science/LSAR/identification/lookDirection'][()])[0].upper()
             return SCPCOAType(SideOfTrack=sot)
 
         def get_image_formation():
@@ -398,14 +408,14 @@ class NISARDetails(object):
         """
 
         def update_grid():
-            row_imp_resp_bw = 2*gp['processedRangeBandwidth'][:]/speed_of_light
-            t_sicd.Grid.Row.SS = gp['slantRangeSpacing'][:]
+            row_imp_resp_bw = 2*gp['processedRangeBandwidth'][()]/speed_of_light
+            t_sicd.Grid.Row.SS = gp['slantRangeSpacing'][()]
             t_sicd.Grid.Row.ImpRespBW = row_imp_resp_bw
-            t_sicd.Grid.Row.DeltaK1 -= 0.5*row_imp_resp_bw
-            t_sicd.Grid.Row.DeltaK2 -= t_sicd.Grid.Row.DeltaK1
+            t_sicd.Grid.Row.DeltaK1 = -0.5*row_imp_resp_bw
+            t_sicd.Grid.Row.DeltaK2 = -t_sicd.Grid.Row.DeltaK1
 
         def update_timeline():
-            prf = gp['nominalAcquisitionPRF'][:]
+            prf = gp['nominalAcquisitionPRF'][()]
             t_sicd.Timeline.IPP[0].IPPEnd = prf*t_sicd.Timeline.CollectDuration
             t_sicd.Timeline.IPP[0].IPPPoly = [0, prf]
 
@@ -416,8 +426,8 @@ class NISARDetails(object):
                 tx_rcv_pol_t.append('{}:{}'.format(entry[0], entry[1]))
                 if entry[0] not in tx_pol:
                     tx_pol.append(entry[0])
-            fc_t = gp['acquiredCenterFrequency'][:]
-            bw = gp['acquiredRangeBandwidth'][:]
+            fc_t = gp['acquiredCenterFrequency'][()]
+            bw = gp['acquiredRangeBandwidth'][()]
             tx_freq = TxFrequencyType(Min=fc_t - 0.5*bw, Max=fc_t + 0.5*bw)
             rcv_chans = [ChanParametersType(TxRcvPolarization=pol) for pol in tx_rcv_pol_t]
             if len(tx_pol) == 1:
@@ -435,11 +445,11 @@ class NISARDetails(object):
             return tx_rcv_pol_t
 
         def update_image_formation():
-            fc_t = gp['processedCenterFrequency'][:]
-            bw = gp['processedRangeBandwidth'][:]
+            fc_t = gp['processedCenterFrequency'][()]
+            bw = gp['processedRangeBandwidth'][()]
             t_sicd.ImageFormation.TxFrequencyProc = TxFrequencyProcType(
                 MinProc=fc_t - 0.5*bw,
-                MaxProc=fc_t + 0.5*bw)
+                MaxProc=fc_t + 0.5*bw, )
             return fc_t
 
         pols = gp['listOfPolarizations'][:]
@@ -483,7 +493,7 @@ class NISARDetails(object):
 
         def define_image_data():
             dtype = ds.dtype.name
-            if dtype == 'float32':
+            if dtype in ('float32', 'complex64'):
                 pixel_type = 'RE32F_IM32F'
             elif dtype == 'int16':
                 pixel_type = 'RE16I_IM16I'
@@ -500,7 +510,7 @@ class NISARDetails(object):
 
         def update_image_formation():
             t_sicd.ImageFormation.RcvChanProc.ChanIndices = [j, ]
-            t_sicd.ImageFormation.TxFrequencyProc = pol
+            t_sicd.ImageFormation.TxRcvPolarizationProc = pol
 
         def update_inca_and_grid():
             t_sicd.RMA.INCA.R_CA_SCP = r_ca_sampled[t_sicd.ImageData.SCPPixel.Row]
@@ -516,11 +526,12 @@ class NISARDetails(object):
             # closest Doppler rate polynomial to SCP
             min_ind = numpy.argmin(numpy.absolute(grid_zd_time - scp_ca_time))
             # define range coordinate grid
-            coords_rg_m_t = grid_r - t_sicd.RMA.INCA.R_CA_SCP
+            coords_rg_m = grid_r - t_sicd.RMA.INCA.R_CA_SCP
             # determine dop_rate_poly coordinates
-            dop_rate_poly = polynomial.polyfit(coords_rg_m_t, -doprate_sampled[min_ind, :], 4)  # why fourth order?
+            dop_rate_poly = polynomial.polyfit(coords_rg_m, -doprate_sampled[min_ind, :], 4)  # why fourth order?
             # TODO: Wade reverses this...why?
-            t_sicd.RMA.INCA.DRateSFPoly = -numpy.convolve(dop_rate_poly, r_ca_poly)*speed_of_light/(2*fc*vm_ca_sq)
+            t_sicd.RMA.INCA.DRateSFPoly = numpy.reshape(
+                -numpy.convolve(dop_rate_poly, r_ca_poly)*speed_of_light/(2*fc*vm_ca_sq), (-1, 1))
 
             # update Grid.Col parameters
             t_sicd.Grid.Col.SS = numpy.sqrt(vm_ca_sq)*abs(ss_az_s)*t_sicd.RMA.INCA.DRateSFPoly.Coefs[0, 0]
@@ -530,8 +541,11 @@ class NISARDetails(object):
             #TimeCOAPoly/DopCentroidPoly/DeltaKCOAPoly
             coords_az_m = (grid_zd_time - scp_ca_time)*t_sicd.Grid.Col.SS/ss_az_s
 
+            # cerate the 2d grids
+            coords_az_2d_t, coords_rg_2d_t = numpy.meshgrid(coords_az_m, coords_rg_m)
+
             coefs, residuals, rank, sing_values = two_dim_poly_fit(
-                coords_rg_m_t, coords_az_m, dopcentroid_sampled,
+                coords_rg_2d_t, coords_az_2d_t, dopcentroid_sampled,
                 x_order=3, y_order=3, x_scale=1e-3, y_scale=1e-3, rcond=1e-40)
             logging.info(
                 'The dop_centroid_poly fit details:\nroot mean square residuals = {}\nrank = {}\nsingular values = {}'.format(
@@ -543,36 +557,38 @@ class NISARDetails(object):
             # TODO: It's possible that I need to switch this order?
             time_coa_sampled = timeca_sampled + (dopcentroid_sampled/doprate_sampled)
             coefs, residuals, rank, sing_values = two_dim_poly_fit(
-                coords_rg_m_t, coords_az_m, time_coa_sampled,
+                coords_rg_2d_t, coords_az_2d_t, time_coa_sampled,
                 x_order=3, y_order=3, x_scale=1e-3, y_scale=1e-3, rcond=1e-40)
             logging.info(
                 'The time_coa_poly fit details:\nroot mean square residuals = {}\nrank = {}\nsingular values = {}'.format(
                     residuals, rank, sing_values))
             t_sicd.Grid.TimeCOAPoly = Poly2DType(Coefs=coefs)
 
-            return coords_rg_m_t, coords_az_m
+            return coords_rg_2d_t, coords_az_2d_t
 
         def update_radiometric():
-            nesz = hf['/science/LSAR/SLC/metadata/calibrationInformation/frequency{}/{}'.format(freq_name, pol_name)][:]
+            ds_test = hf['/science/LSAR/SLC/metadata/calibrationInformation/frequency{}/{}'.format(freq_name, pol_name)]
+            nesz = hf['/science/LSAR/SLC/metadata/calibrationInformation/frequency{}/{}/nes0'.format(freq_name, pol_name)][:]
             noise_samples = nesz - (10 * numpy.log10(t_sicd.Radiometric.SigmaZeroSFPoly.Coefs[0, 0]))
 
             coefs, residuals, rank, sing_values = two_dim_poly_fit(
-                coords_rg_m, coords_az_m, noise_samples,
+                coords_rg_2d, coords_az_2d, noise_samples,
                 x_order=3, y_order=3, x_scale=1e-3, y_scale=1e-3, rcond=1e-40)
             logging.info(
                 'The noise_poly fit details:\nroot mean square residuals = {}\nrank = {}\nsingular values = {}'.format(
                     residuals, rank, sing_values))
-            t_sicd.Radiometric.NoiseLevel.NoisePoly = Poly2DType(Coefs=coefs)
+            t_sicd.Radiometric.NoiseLevel = NoiseLevelType_(
+                NoiseLevelType='ABSOLUTE', NoisePoly=Poly2DType(Coefs=coefs))
 
         def update_geodata():
             ecf = point_projection.image_to_ground([t_sicd.ImageData.SCPPixel.Row, t_sicd.ImageData.SCPPixel.Col], t_sicd)
             t_sicd.GeoData.SCP = SCPType(ECF=ecf)  # LLH will be populated
 
         t_sicd = base_sicd.copy()
-        shape = ds.shape
+        shape = (ds.shape[1], ds.shape[0])
         define_image_data()
         update_image_formation()
-        coords_rg_m, coords_az_m = update_inca_and_grid()
+        coords_rg_2d, coords_az_2d = update_inca_and_grid()
         update_radiometric()
         update_geodata()
         t_sicd.derive()
@@ -617,20 +633,22 @@ class NISARDetails(object):
                 # formulate the frequency dependent doppler grid
                 # TODO: Future Change Required - processedAzimuthBandwidth acknowledged
                 #  by JPL to be wrong in simulated datasets.
-                dop_bw = gp['processedAzimuthBandwidth'][:]
-                dopcentroid_sampled = gp['dopplerCentroid'][:]
-                doprate_sampled = gp['azimuthFMRate'][:]
-                r_ca_sampled = gp['slatRange'][:]
+                dop_bw = gp['processedAzimuthBandwidth'][()]
+                gp2 = hf['/science/LSAR/SLC/metadata/processingInformation/parameters/frequency{}'.format(freq)]
+                dopcentroid_sampled = gp2['dopplerCentroid'][:]
+                doprate_sampled = gp2['azimuthFMRate'][:]
+                r_ca_sampled = gp['slantRange'][:]
                 # formulate the frequency/polarization specific sicd information
                 for j, pol in enumerate(pols):
                     ds_name = '{}/{}'.format(gp_name, pol)
                     ds = gp[pol]
                     pol_sicd = self._get_pol_specific_sicd(
-                        ds, freq_sicd, pol, freq, j, tx_rcv_pol[j], r_ca_sampled, zd_time,
-                        grid_zd_time, grid_r, doprate_sampled, dopcentroid_sampled,
+                        hf, ds, freq_sicd, pol, freq, j, tx_rcv_pol[j],
+                        r_ca_sampled, zd_time, grid_zd_time, grid_r,
+                        doprate_sampled, dopcentroid_sampled, fc,
                         ss_az_s, dop_bw)
                     out_sicds[ds_name] = pol_sicd
-                    shapes[ds_name] = ds.shape
+                    shapes[ds_name] = (ds.shape[1], ds.shape[0])
         return out_sicds, shapes, symmetry
 
 
