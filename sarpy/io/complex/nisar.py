@@ -344,28 +344,6 @@ class NISARDetails(object):
             # type: () -> RMAType
             return RMAType(RMAlgoType='OMEGA_K', INCA=INCAType(DopCentroidCOA=True))
 
-        def get_radiometric():
-            # type: () -> RadiometricType
-
-            def get_poly(ds):
-                array = ds[:]
-                fill = ds.attrs['_FillValue']
-                boolc = (array != fill)
-                if numpy.any(boolc):
-                    return [[numpy.mean(array[boolc]), ], ]
-                else:
-                    return None
-
-            # TODO: this is forcing everything to be constant...why do that?
-            gp = hf['/science/LSAR/SLC/metadata/calibrationInformation/geometry']
-            beta = get_poly(gp['beta0'])
-            gamma = get_poly(gp['gamma0'])
-            sigma = get_poly(gp['sigma0'])
-            return RadiometricType(
-                BetaZeroSFPoly=beta,
-                GammaZeroSFPoly=gamma,
-                SigmaZeroSFPoly=sigma)
-
         collect_start, collect_end, duration = self._get_collection_times(hf)
         collection_info = get_collection_info()
         image_creation = get_image_creation()
@@ -376,7 +354,6 @@ class NISARDetails(object):
         scpcoa = get_scpcoa()
         image_formation = get_image_formation()
         rma = get_rma()
-        radiometric = get_radiometric()
 
         return SICDType(
             CollectionInfo=collection_info,
@@ -387,8 +364,7 @@ class NISARDetails(object):
             Position=position,
             SCPCOA=scpcoa,
             ImageFormation=image_formation,
-            RMA=rma,
-            Radiometric=radiometric)
+            RMA=rma)
 
     @staticmethod
     def _get_freq_specific_sicd(gp, base_sicd):
@@ -463,7 +439,8 @@ class NISARDetails(object):
 
     @staticmethod
     def _get_pol_specific_sicd(hf, ds, base_sicd, pol_name, freq_name, j, pol, r_ca_sampled, zd_time,
-                               grid_zd_time, grid_r, doprate_sampled, dopcentroid_sampled, fc, ss_az_s, dop_bw):
+                               grid_zd_time, grid_r, doprate_sampled, dopcentroid_sampled, fc, ss_az_s, dop_bw,
+                               beta0, gamma0, sigma0):
         """
         Gets the frequency/polarization specific sicd.
 
@@ -566,10 +543,30 @@ class NISARDetails(object):
 
             return coords_rg_2d_t, coords_az_2d_t
 
-        def update_radiometric():
-            ds_test = hf['/science/LSAR/SLC/metadata/calibrationInformation/frequency{}/{}'.format(freq_name, pol_name)]
-            nesz = hf['/science/LSAR/SLC/metadata/calibrationInformation/frequency{}/{}/nes0'.format(freq_name, pol_name)][:]
-            noise_samples = nesz - (10*numpy.log10(t_sicd.Radiometric.SigmaZeroSFPoly.Coefs[0, 0]))
+        def define_radiometric():
+            def get_poly(ds, name):
+                array = ds[:]
+                fill = ds.attrs['_FillValue']
+                boolc = (array != fill)
+
+                if numpy.any(boolc):
+                    coefs, residuals, rank, sing_values = two_dim_poly_fit(
+                        coords_rg_2d[boolc], coords_az_2d[boolc], array[boolc],
+                        x_order=3, y_order=3, x_scale=1e-3, y_scale=1e-3, rcond=1e-40)
+                    logging.info(
+                        'The {} fit details:\nroot mean square residuals = {}\nrank = {}\nsingular values = {}'.format(
+                            name, residuals, rank, sing_values))
+                    return Poly2DType(Coefs=coefs)
+                else:
+                    return None
+
+            beta0_poly = get_poly(beta0, 'beta0')
+            gamma0_poly = get_poly(gamma0, 'gamma0')
+            sigma0_poly = get_poly(sigma0, 'sigma0')
+
+            nesz = hf['/science/LSAR/SLC/metadata/calibrationInformation/frequency{}/{}/nes0'.format(freq_name,
+                                                                                                     pol_name)][:]
+            noise_samples = nesz - (10 * numpy.log10(sigma0_poly.Coefs[0, 0]))
 
             coefs, residuals, rank, sing_values = two_dim_poly_fit(
                 coords_rg_2d, coords_az_2d, noise_samples,
@@ -577,8 +574,12 @@ class NISARDetails(object):
             logging.info(
                 'The noise_poly fit details:\nroot mean square residuals = {}\nrank = {}\nsingular values = {}'.format(
                     residuals, rank, sing_values))
-            t_sicd.Radiometric.NoiseLevel = NoiseLevelType_(
-                NoiseLevelType='ABSOLUTE', NoisePoly=Poly2DType(Coefs=coefs))
+            t_sicd.Radiometric = RadiometricType(
+                BetaZeroSFPoly=beta0_poly,
+                GammaZeroSFPoly=gamma0_poly,
+                SigmaZeroSFPoly=sigma0_poly,
+                NoiseLevel=NoiseLevelType_(
+                    NoiseLevelType='ABSOLUTE', NoisePoly=Poly2DType(Coefs=coefs)))
 
         def update_geodata():
             ecf = point_projection.image_to_ground([t_sicd.ImageData.SCPPixel.Row, t_sicd.ImageData.SCPPixel.Col], t_sicd)
@@ -589,7 +590,7 @@ class NISARDetails(object):
         define_image_data()
         update_image_formation()
         coords_rg_2d, coords_az_2d = update_inca_and_grid()
-        update_radiometric()
+        define_radiometric()
         update_geodata()
         t_sicd.derive()
         t_sicd.populate_rniirs(override=False)
@@ -622,6 +623,11 @@ class NISARDetails(object):
             collect_start, collect_end, duration = self._get_collection_times(hf)
             zd_time, ss_az_s, grid_r, grid_zd_time = self._get_zero_doppler_data(hf, base_sicd)
 
+            gp = hf['/science/LSAR/SLC/metadata/calibrationInformation/geometry']
+            beta0 = gp['beta0']
+            gamma0 = gp['gamma0']
+            sigma0 = gp['sigma0']
+
             # formulate the frequency specific sicd information
             freqs = self._get_frequency_list(hf)
             for i, freq in enumerate(freqs):
@@ -646,7 +652,7 @@ class NISARDetails(object):
                         hf, ds, freq_sicd, pol, freq, j, tx_rcv_pol[j],
                         r_ca_sampled, zd_time, grid_zd_time, grid_r,
                         doprate_sampled, dopcentroid_sampled, fc,
-                        ss_az_s, dop_bw)
+                        ss_az_s, dop_bw, beta0, gamma0, sigma0)
                     out_sicds[ds_name] = pol_sicd
                     shapes[ds_name] = (ds.shape[1], ds.shape[0])
         return out_sicds, shapes, symmetry
