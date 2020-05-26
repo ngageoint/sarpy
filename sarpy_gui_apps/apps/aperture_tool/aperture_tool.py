@@ -347,6 +347,37 @@ class ApertureTool(AbstractWidgetPanel):
         self.phase_history.sample_spacing_cross.set_text("{:0.2f}".format(tmp_cross_ss))
         self.phase_history.sample_spacing_range.set_text("{:0.2f}".format(tmp_range_ss))
 
+        # only update if we have twist angle and graze angles
+        if self.app_variables.sicd_reader_object.base_reader.sicd_meta.SCPCOA.TwistAng and \
+                self.app_variables.sicd_reader_object.base_reader.sicd_meta.SCPCOA.GrazeAng:
+
+            cross_ground_resolution = cross_resolution / numpy.cos(numpy.deg2rad(self.app_variables.sicd_reader_object.base_reader.sicd_meta.SCPCOA.TwistAng))
+            range_ground_resolution = range_resolution / numpy.cos(numpy.deg2rad(self.app_variables.sicd_reader_object.base_reader.sicd_meta.SCPCOA.GrazeAng))
+
+            if self.phase_history.english_units_checkbox.is_selected():
+                tmp_cross_ground_res = cross_ground_resolution / scipy_constants.foot
+                tmp_range_ground_res = range_ground_resolution / scipy_constants.foot
+                if tmp_cross_ground_res < 1:
+                    tmp_cross_ground_res = cross_ground_resolution / scipy_constants.inch
+                    self.phase_history.ground_resolution_cross_units.set_text("inches")
+                else:
+                    self.phase_history.ground_resolution_cross_units.set_text("feet")
+                if tmp_range_ground_res < 1:
+                    tmp_range_ground_res = range_ground_resolution / scipy_constants.inch
+                    self.phase_history.ground_resolution_range_units.set_text("inches")
+                else:
+                    self.phase_history.ground_resolution_range_units.set_text("feet")
+            else:
+                if cross_ground_resolution < 1:
+                    tmp_cross_ground_res = cross_ground_resolution * 100
+                    self.phase_history.ground_resolution_cross_units.set_text("cm")
+                if range_ground_resolution < 1:
+                    tmp_range_ground_res = range_ground_resolution * 100
+                    self.phase_history.ground_resolution_range_units.set_text("cm")
+
+            self.phase_history.ground_resolution_cross.set_text("{:0.2f}".format(tmp_cross_ground_res))
+            self.phase_history.ground_resolution_range.set_text("{:0.2f}".format(tmp_range_ground_res))
+
 
 if __name__ == '__main__':
     root = tkinter.Tk()
