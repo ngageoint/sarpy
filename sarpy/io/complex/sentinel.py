@@ -96,8 +96,10 @@ class SentinelDetails(object):
             t_file_name = os.path.join(file_name, 'manifest.safe')
             if os.path.exists(t_file_name):
                 file_name = t_file_name
-        if not os.path.exists(file_name):
-            raise IOError('path {} does not exist'.format(file_name))
+        if not os.path.exists(file_name) or not os.path.isfile(file_name):
+            raise IOError('path {} does not exist or is not a file'.format(file_name))
+        if os.path.split(file_name)[1] != 'manifest.safe':
+            raise IOError('The sentinel file is expected to be named manifest.safe, got path {}'.format(file_name))
         self._file_name = file_name
 
         self._ns, self._root_node = _parse_xml(file_name)
