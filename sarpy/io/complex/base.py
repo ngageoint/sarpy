@@ -252,9 +252,9 @@ class BaseChipper(object):
             return (siz - 1) - start, (siz - 1) - stop, -step
 
         if isinstance(range1, (numpy.ndarray, list)):
-            range1 = tuple(range1)
+            range1 = tuple(int_func(el) for el in range1)
         if isinstance(range2, (numpy.ndarray, list)):
-            range2 = tuple(range2)
+            range2 = tuple(int_func(el) for el in range2)
 
         if not (range1 is None or isinstance(range1, integer_types) or isinstance(range1, tuple)):
             raise TypeError('range1 is of type {}, but must be an instance of None, '
@@ -268,19 +268,24 @@ class BaseChipper(object):
         if isinstance(range2, tuple) and len(range2) > 3:
             raise TypeError('range2 must have no more than 3 entries, received {}.'.format(range2))
 
+        # switch the axes symmetry dictates
+        if self._symmetry[2]:
+            range1, range2 = range2, range1
+            lim1, lim2 = self._data_size[1], self._data_size[0]
+        else:
+            lim1, lim2 = self._data_size[0], self._data_size[1]
+
         # validate the first range
         if self._symmetry[0]:
-            real_arg1 = reverse_arg(range1, self._data_size[0])
+            real_arg1 = reverse_arg(range1, lim1)
         else:
-            real_arg1 = extract(range1, self._data_size[0])
+            real_arg1 = extract(range1, lim1)
         # validate the second range
         if self._symmetry[1]:
-            real_arg2 = reverse_arg(range2, self._data_size[1])
+            real_arg2 = reverse_arg(range2, lim2)
         else:
-            real_arg2 = extract(range2, self._data_size[1])
+            real_arg2 = extract(range2, lim2)
 
-        # switch the axes symmetry dictates
-        real_arg1, real_arg2 = (real_arg2, real_arg1) if self._symmetry[2] else (real_arg1, real_arg2)
         return real_arg1, real_arg2
 
     def _data_to_complex(self, data):

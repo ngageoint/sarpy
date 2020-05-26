@@ -346,7 +346,7 @@ class ImageDetails(object):
         int: The size of the image in bytes.
         """
 
-        return self.total_pixels*self.subheader.ABPP
+        return int_func(self.total_pixels*self.subheader.ABPP*len(self.subheader.Bands)/8)
 
     @property
     def pixels_written(self):
@@ -471,7 +471,7 @@ class DESDetails(object):
     Helper class for managing the details about a given NITF Data Extension Segment.
     """
 
-    __slots__= (
+    __slots__ = (
         '_subheader', '_subheader_offset', '_item_offset', '_des_bytes',
         '_subheader_written', '_des_written')
 
@@ -493,7 +493,6 @@ class DESDetails(object):
                 'subheader must be an instance of DataExtensionHeader, got '
                 'type {}'.format(type(subheader)))
         self._subheader = subheader
-
 
         if not isinstance(des_bytes, bytes):
             raise TypeError('des_bytes must be an instance of bytes, got '
@@ -1078,7 +1077,7 @@ class NITFWriter(AbstractWriter):
             self._write_image_header(img_index)  # no effect if already called
             # what are the relevant indices into data?
             data_indices = (overall_inds[0] - start_indices[0], overall_inds[1] - start_indices[0],
-                            overall_inds[2] - start_indices[1], overall_inds[3] - start_indices[3])
+                            overall_inds[2] - start_indices[1], overall_inds[3] - start_indices[1])
             # write the data
             self._writing_chippers[img_index](data[data_indices[0]:data_indices[1], data_indices[2]: data_indices[3]],
                                               (this_inds[0], this_inds[2]))
