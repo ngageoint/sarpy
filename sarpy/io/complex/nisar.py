@@ -232,7 +232,7 @@ class NISARDetails(object):
 
             return CollectionInfoType(
                 CollectorName=_stringify(hf.attrs['mission_name']),
-                CoreName='{0:7d}_{1:s}'.format(gp['absoluteOrbitNumber'][()], gp['trackNumber'][()]),
+                CoreName='{0:07d}_{1:s}'.format(gp['absoluteOrbitNumber'][()], gp['trackNumber'][()]),
                 CollectType='MONOSTATIC',
                 Classification='UNCLASSIFIED',
                 RadarMode=RadarModeType(ModeType='STRIPMAP'))  # TODO: ModeID?
@@ -410,7 +410,7 @@ class NISARDetails(object):
                 tx_sequence = None
                 tx_pol = tx_pol[0]
             else:
-                tx_sequence = [TxStepType(WFIndex=j, TxPolarization=pol) for j, pol in enumerate(tx_pol)]
+                tx_sequence = [TxStepType(WFIndex=j+1, TxPolarization=pol) for j, pol in enumerate(tx_pol)]
                 tx_pol = 'SEQUENCE'
 
             t_sicd.RadarCollection = RadarCollectionType(
@@ -506,6 +506,7 @@ class NISARDetails(object):
             coords_rg_m = grid_r - t_sicd.RMA.INCA.R_CA_SCP
             # determine dop_rate_poly coordinates
             dop_rate_poly = polynomial.polyfit(coords_rg_m, -doprate_sampled[min_ind, :], 4)  # why fourth order?
+            t_sicd.RMA.INCA.FreqZero = fc
             # TODO: Wade reverses this...why?
             t_sicd.RMA.INCA.DRateSFPoly = numpy.reshape(
                 -numpy.convolve(dop_rate_poly, r_ca_poly)*speed_of_light/(2*fc*vm_ca_sq), (1, -1))
