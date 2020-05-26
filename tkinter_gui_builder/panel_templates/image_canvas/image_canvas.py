@@ -1131,6 +1131,7 @@ class CanvasImage(object):
     canvas_ny = None                    # type: int
     canvas_nx = None                    # type: int
     scale_to_fit_canvas = True          # type: bool
+    drop_bands = []                     # type: []
 
     def __init__(self,
                  image_reader,          # type: ImageReader
@@ -1164,6 +1165,10 @@ class CanvasImage(object):
             new_nx = self.canvas_nx
         if new_ny > self.canvas_ny:
             new_ny = self.canvas_ny
+        if self.drop_bands != []:
+            zeros_image = numpy.zeros_like(decimated_image[:, :, 0])
+            for drop_band in self.drop_bands:
+                decimated_image[:, :, drop_band] = zeros_image
         pil_image = PIL.Image.fromarray(decimated_image)
         display_image = pil_image.resize((new_nx, new_ny))
         return np.array(display_image)
@@ -1236,6 +1241,10 @@ class CanvasImage(object):
     def update_canvas_display_from_numpy_array(self,
                                                image_data,  # type: ndarray
                                                ):
+        if self.drop_bands != []:
+            zeros_image = numpy.zeros_like(image_data[:, :, 0])
+            for drop_band in self.drop_bands:
+                image_data[:, :, drop_band] = zeros_image
         self.canvas_decimated_image = image_data
         if self.scale_to_fit_canvas:
             scale_factor = self.compute_display_scale_factor(image_data)
