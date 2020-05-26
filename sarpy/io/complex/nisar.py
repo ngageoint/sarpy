@@ -550,14 +550,21 @@ class NISARDetails(object):
                 boolc = (array != fill)
 
                 if numpy.any(boolc):
-                    coefs, residuals, rank, sing_values = two_dim_poly_fit(
-                        coords_rg_2d[boolc], coords_az_2d[boolc], array[boolc],
-                        x_order=3, y_order=3, x_scale=1e-3, y_scale=1e-3, rcond=1e-40)
-                    logging.info(
-                        'The {} fit details:\nroot mean square residuals = {}\nrank = {}\nsingular values = {}'.format(
-                            name, residuals, rank, sing_values))
+                    array = array[boolc]
+                    if numpy.any(array != array[0]):
+                        coefs, residuals, rank, sing_values = two_dim_poly_fit(
+                            coords_rg_2d[boolc], coords_az_2d[boolc], array,
+                            x_order=3, y_order=3, x_scale=1e-3, y_scale=1e-3, rcond=1e-40)
+                        logging.info(
+                            'The {} fit details:\nroot mean square residuals = {}\nrank = {}\nsingular values = {}'.format(
+                                name, residuals, rank, sing_values))
+                    else:
+                        # it's constant, so just use a constant polynomial
+                        coefs = [[array[0], ], ]
+                        logging.info('The {} values are constant'.format(name))
                     return Poly2DType(Coefs=coefs)
                 else:
+                    logging.warning('No non-trivial values for {} provided.'.format(name))
                     return None
 
             beta0_poly = get_poly(beta0, 'beta0')
