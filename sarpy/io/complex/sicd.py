@@ -673,7 +673,8 @@ class SICDWriter(NITFWriter):
         super(SICDWriter, self)._create_image_segment_details()
 
         pixel_size, dtype, complex_type, pv_type, isubcat, image_segment_limits = self._image_parameters()
-        self._img_groups = tuple(tuple(range(len(image_segment_limits))))
+        img_groups = tuple(range(len(image_segment_limits)))
+        self._img_groups = (img_groups, )
 
         ftitle = self._get_ftitle()
         idatim = ' '

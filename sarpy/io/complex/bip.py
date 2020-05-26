@@ -99,17 +99,19 @@ class BIPChipper(BaseChipper):
             self._fid.close()
 
     def _read_raw_fun(self, range1, range2):
-        range1, range2 = self._reorder_arguments(range1, range2)
+        t_range1, t_range2 = self._reorder_arguments(range1, range2)
         if self._memory_map is not None:
-            return self._read_memory_map(range1, range2)
+            return self._read_memory_map(t_range1, t_range2)
         elif self._fid is not None:
-            return self._read_file(range1, range2)
+            return self._read_file(t_range1, t_range2)
 
     def _read_memory_map(self, range1, range2):
         if (range1[1] == -1 and range1[2] < 0) and (range2[1] == -1 and range2[2] < 0):
-            out = numpy.array(self._memory_map[range1[0]::range1[2], range2[0]::range2[2]], dtype=self._data_type)
+            out = numpy.array(self._memory_map[range1[0]::range1[2], range2[0]::range2[2]],
+                              dtype=self._data_type)
         elif range1[1] == -1 and range1[2] < 0:
-            out = numpy.array(self._memory_map[range1[0]::range1[2], range2[0]:range2[1]:range2[2]], dtype=self._data_type)
+            out = numpy.array(self._memory_map[range1[0]::range1[2], range2[0]:range2[1]:range2[2]],
+                              dtype=self._data_type)
         elif range2[1] == -1 and range2[2] < 0:
             out = numpy.array(self._memory_map[range1[0]:range1[1]:range1[2], range2[0]::range2[2]],
                               dtype=self._data_type)
