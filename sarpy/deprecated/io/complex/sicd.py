@@ -5,9 +5,7 @@ from . import Reader as ReaderSuper  # Reader superclass
 from . import Writer as WriterSuper  # Writer superclass
 from .utils import bip
 from .utils import chipper
-from ...geometry import geocoords as gc
-from ...geometry import latlon as ll
-from ...geometry import point_projection as point
+from sarpy.geometry import geocoords as gc, latlon as ll, point_projection as point
 # Python standard library imports
 import copy
 from datetime import datetime
@@ -1560,7 +1558,7 @@ def derived_fields(meta, set_default_values=True):
         # surface of constant height above the WGS 84 ellipsoid (HAE) that
         # contains the SCP. The ETP is an approximation to the ground plane at
         # the SCP.
-        ETP = gc.wgs_84_norm(SCP)[0]
+        ETP = gc.wgs_84_norm(SCP)
         if not hasattr(meta.SCPCOA, 'GrazeAng'):
             # Angle between ground plane and line-of-site vector
             meta.SCPCOA.GrazeAng = np.rad2deg(np.arcsin(np.dot(ETP, -uLOS)))
