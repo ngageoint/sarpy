@@ -7,10 +7,14 @@ NO_TEXT_UPDATE_WIDGETS = ['ttk::scale']
 
 class AbstractWidgetPanel(tkinter.LabelFrame):
     def __init__(self, parent):
+        self.parent = parent
         tkinter.LabelFrame.__init__(self, parent)
         self.config(borderwidth=2)
         self._widget_list = None     # type: list
         self.rows = None           # type: tkinter.Frame
+
+    def close_window(self):
+        self.parent.withdraw()
 
     def init_w_horizontal_layout(self,
                                  basic_widget_list,         # type: list

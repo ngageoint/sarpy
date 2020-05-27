@@ -78,12 +78,12 @@ class AnnotationTool(AbstractWidgetPanel):
             self.context_panel.context_dashboard.annotation_selector.activate_all_buttons()
 
     def callback_content_select_annotation_file(self, event):
-        popup = tkinter.Toplevel(self.master)
+        popup = tkinter.Toplevel(self.parent)
         AnnotationFnamePopup(popup, self.variables)
-        master_ul_x = self.master.winfo_rootx()
-        master_ul_y = self.master.winfo_rooty()
-        master_height = self.master.winfo_height()
-        master_width = self.master.winfo_width()
+        master_ul_x = self.parent.winfo_rootx()
+        master_ul_y = self.parent.winfo_rooty()
+        master_height = self.parent.winfo_height()
+        master_width = self.parent.winfo_width()
         popup_height = popup.winfo_height()
         popup_width = popup.winfo_width()
 
@@ -93,7 +93,7 @@ class AnnotationTool(AbstractWidgetPanel):
 
         popup.geometry("+" + str(popup_x_ul) + "+" + str(popup_y_ul))
 
-        self.master.wait_window(popup)
+        self.parent.wait_window(popup)
 
         self.context_panel.context_dashboard.annotation_selector.set_fname_filters([('json files', '*.json')])
         if self.variables.new_annotation:
@@ -253,7 +253,7 @@ class AnnotationTool(AbstractWidgetPanel):
     def callback_annotation_popup(self, event):
         current_canvas_shape_id = self.annotate_panel.image_canvas.variables.current_shape_id
         if current_canvas_shape_id:
-            popup = tkinter.Toplevel(self.master)
+            popup = tkinter.Toplevel(self.parent)
             self.variables.current_canvas_geom_id = current_canvas_shape_id
             AnnotationPopup(popup, self.variables)
         else:

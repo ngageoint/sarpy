@@ -20,6 +20,7 @@ from sarpy_gui_apps.apps.aperture_tool.app_variables import AppVariables
 from sarpy.io.complex.base import BaseReader
 import scipy.constants.constants as scipy_constants
 from tkinter_gui_builder.image_readers.numpy_image_reader import NumpyImageReader
+from sarpy_gui_apps.supporting_classes.metaviewer import Metaviewer
 
 
 class ApertureTool(AbstractWidgetPanel):
@@ -28,6 +29,7 @@ class ApertureTool(AbstractWidgetPanel):
     tabs_panel = TabsPanel                          # type: TabsPanel
     metaicon = MetaIcon                             # type: MetaIcon
     phase_history = PhaseHistoryPanel               # type: PhaseHistoryPanel
+    metaviewer = Metaviewer                         # type: Metaviewer
 
     def __init__(self, master):
         self.app_variables = AppVariables()
@@ -63,6 +65,11 @@ class ApertureTool(AbstractWidgetPanel):
         self.metaicon.pack()
         self.metaicon_popup_panel.withdraw()
 
+        self.metaviewer_popup_panel = tkinter.Toplevel(self.master)
+        self.metaviewer = Metaviewer(self.metaviewer_popup_panel)
+        self.metaviewer.pack()
+        self.metaviewer_popup_panel.withdraw()
+
         menubar = Menu()
 
         filemenu = Menu(menubar, tearoff=0)
@@ -75,6 +82,7 @@ class ApertureTool(AbstractWidgetPanel):
         popups_menu.add_command(label="Main Controls", command=self.main_controls_popup)
         popups_menu.add_command(label="Phase History", command=self.ph_popup)
         popups_menu.add_command(label="Metaicon", command=self.metaicon_popup)
+        popups_menu.add_command(label="Metaviewer", command=self.metaviewer_popup)
 
         menubar.add_cascade(label="File", menu=filemenu)
         menubar.add_cascade(label="Popups", menu=popups_menu)
@@ -86,6 +94,9 @@ class ApertureTool(AbstractWidgetPanel):
 
     def exit(self):
         self.quit()
+
+    def metaviewer_popup(self):
+        self.metaviewer_popup_panel.deiconify()
 
     def main_controls_popup(self):
         self.tabs_popup_panel.deiconify()
@@ -145,6 +156,8 @@ class ApertureTool(AbstractWidgetPanel):
         self.tabs_panel.tabs.load_image_tab.chip_size_panel.ny.set_text(numpy.shape(selected_region_complex_data)[0])
 
         self.update_phase_history_selection()
+
+        self.metaviewer.create_w_sicd(self.app_variables.sicd_reader_object.base_reader.sicd_meta)
 
     def get_fft_image_bounds(self,
                              ):             # type: (...) -> (int, int, int, int)
