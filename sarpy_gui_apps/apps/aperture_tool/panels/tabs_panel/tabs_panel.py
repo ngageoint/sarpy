@@ -1,7 +1,7 @@
 from tkinter_gui_builder.widgets.basic_widgets import LabelFrame
 from tkinter_gui_builder.panel_templates.widget_panel.widget_panel import AbstractWidgetPanel
 from sarpy_gui_apps.apps.aperture_tool.panels.tabs_panel.load_image_tab.load_image_tab import LoadImage
-from sarpy_gui_apps.apps.aperture_tool.panels.tabs_panel.animation_tab.animation_tab import Animation
+from sarpy_gui_apps.apps.aperture_tool.panels.animation_popup.animation_panel import Animation
 from tkinter import ttk
 
 

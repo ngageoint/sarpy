@@ -21,6 +21,7 @@ from sarpy.io.complex.base import BaseReader
 import scipy.constants.constants as scipy_constants
 from tkinter_gui_builder.image_readers.numpy_image_reader import NumpyImageReader
 from sarpy_gui_apps.supporting_classes.metaviewer import Metaviewer
+from sarpy_gui_apps.apps.aperture_tool.panels.animation_popup.animation_panel import Animation
 
 
 class ApertureTool(AbstractWidgetPanel):
@@ -70,6 +71,11 @@ class ApertureTool(AbstractWidgetPanel):
         self.metaviewer.pack()
         self.metaviewer_popup_panel.withdraw()
 
+        self.animation_popup_panel = tkinter.Toplevel(self.master)
+        self.animation_panel = Animation(self.animation_popup_panel)
+        self.animation_panel.pack()
+        self.animation_popup_panel.withdraw()
+
         menubar = Menu()
 
         filemenu = Menu(menubar, tearoff=0)
@@ -83,6 +89,7 @@ class ApertureTool(AbstractWidgetPanel):
         popups_menu.add_command(label="Phase History", command=self.ph_popup)
         popups_menu.add_command(label="Metaicon", command=self.metaicon_popup)
         popups_menu.add_command(label="Metaviewer", command=self.metaviewer_popup)
+        popups_menu.add_command(label="Animation", command=self.animation_popup)
 
         menubar.add_cascade(label="File", menu=filemenu)
         menubar.add_cascade(label="Popups", menu=popups_menu)
@@ -94,6 +101,9 @@ class ApertureTool(AbstractWidgetPanel):
 
     def exit(self):
         self.quit()
+
+    def animation_popup(self):
+        self.animation_popup_panel.deiconify()
 
     def metaviewer_popup(self):
         self.metaviewer_popup_panel.deiconify()
@@ -341,7 +351,7 @@ class ApertureTool(AbstractWidgetPanel):
             tmp_range_ss = range_sample_spacing / scipy_constants.foot
             if tmp_cross_ss < 1:
                 tmp_cross_ss = cross_sample_spacing / scipy_constants.inch
-                self.phase_history.sample_spacing_cross.set_text("inches")
+                self.phase_history.sample_spacing_cross_units.set_text("inches")
             else:
                 self.phase_history.sample_spacing_cross_units.set_text("feet")
             if tmp_range_ss < 1:

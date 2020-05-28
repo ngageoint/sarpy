@@ -1,16 +1,26 @@
+import tkinter
 from tkinter_gui_builder.panel_templates.widget_panel.widget_panel import AbstractWidgetPanel
 from tkinter_gui_builder.widgets import basic_widgets
-from tkinter_gui_builder.panel_templates.file_selector.file_selector import FileSelector
 
 
 class DirectionPanel(AbstractWidgetPanel):
-    slow_time = basic_widgets.Label          # type: basic_widgets.Label
-    fast_time = basic_widgets.Label          # type: basic_widgets.Label
+    slow_time = basic_widgets.RadioButton          # type: basic_widgets.RadioButton
+    fast_time = basic_widgets.RadioButton          # type: basic_widgets.RadioButton
 
     def __init__(self, parent):
         AbstractWidgetPanel.__init__(self, parent)
         self.init_w_horizontal_layout(["slow_time", "fast_time"])
+        self.selected_value = tkinter.IntVar()
+        self.selected_value.set(1)
+
+        self.slow_time.config(variable=self.selected_value, value=1)
+        self.fast_time.config(variable=self.selected_value, value=2)
         self.pack()
+
+
+class AnimationSettingsPanel(AbstractWidgetPanel):
+    def __init__(self, parent):
+        AbstractWidgetPanel.__init__(self, parent)
 
 
 class Animation(AbstractWidgetPanel):
