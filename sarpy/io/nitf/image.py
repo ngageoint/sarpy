@@ -459,6 +459,15 @@ class ImageSegmentHeader(NITFElement):
                 'This is invalid, and COMRAT is being set to None.')
         self._COMRAT = value
 
+    def _get_attribute_length(self, fld):
+        if fld == 'COMRAT':
+            if self._COMRAT is None:
+                return 0
+            else:
+                return self._lengths['COMRAT']
+        else:
+            return super(ImageSegmentHeader, self)._get_attribute_length(fld)
+
     @classmethod
     def minimum_length(cls):
         # COMRAT may not be there

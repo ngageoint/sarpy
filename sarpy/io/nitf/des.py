@@ -275,6 +275,20 @@ class DataExtensionHeader(NITFElement):
             # LOW Priority - I think that this is deprecated?
             pass
 
+    def _get_attribute_length(self, fld):
+        if fld == 'DESOFLW':
+            if self._DESOFLW is None:
+                return 0
+            else:
+                return self._lengths['DESOFLOW']
+        elif fld == 'DESITEM':
+            if self._DESITEM is None:
+                return 0
+            else:
+                return self._lengths['DESITEM']
+        else:
+            return super(DataExtensionHeader, self)._get_attribute_length(fld)
+
     @classmethod
     def _parse_attribute(cls, fields, attribute, value, start):
         if attribute == 'UserHeader':
