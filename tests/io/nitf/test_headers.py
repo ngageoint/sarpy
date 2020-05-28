@@ -53,7 +53,7 @@ def generic_nitf_header_test(instance, test_file):
     for i in range(details.img_segment_offsets.size):
         with instance.subTest('image subheader {} match'.format(i)):
             img_bytes = details.get_image_subheader_bytes(i)
-            img_sub = ImageSegmentHeader.from_bytes(img_bytes, 0)
+            img_sub = ImageSegmentHeader.from_bytes(img_bytes, start=0)
             instance.assertEqual(
                 len(img_bytes), img_sub.get_bytes_length(), msg='image subheader as long as expected')
             instance.assertEqual(
@@ -63,7 +63,7 @@ def generic_nitf_header_test(instance, test_file):
     for i in range(details.des_segment_offsets.size):
         with instance.subTest('des subheader {} match'.format(i)):
             des_bytes = details.get_des_subheader_bytes(i)
-            des_sub = DataExtensionHeader.from_bytes(img_bytes, 0)
+            des_sub = DataExtensionHeader.from_bytes(des_bytes, start=0)
             instance.assertEqual(
                 len(des_bytes), des_sub.get_bytes_length(), msg='des subheader as long as expected')
             instance.assertEqual(
