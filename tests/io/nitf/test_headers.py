@@ -3,6 +3,8 @@ import time
 import logging
 
 from sarpy.io.nitf.nitf_head import NITFDetails
+from sarpy.io.nitf.image import ImageSegmentHeader
+from sarpy.io.nitf.des import DataExtensionHeader
 
 from . import unittest
 
@@ -47,11 +49,30 @@ def generic_nitf_header_test(instance, test_file):
                 start_chunk = end_chunk
         instance.assertTrue(equality)
 
+    # is each image subheader working?
+    for i in range(details.img_segment_offsets.size):
+        with instance.subTest('image subheader {} match'.format(i)):
+            img_bytes = details.get_image_subheader_bytes(i)
+            img_sub = ImageSegmentHeader.from_bytes(img_bytes, start=0)
+            instance.assertEqual(
+                len(img_bytes), img_sub.get_bytes_length(), msg='image subheader as long as expected')
+            instance.assertEqual(
+                img_bytes, img_sub.to_bytes(), msg='image subheader serializes and deserializes as expected')
+
+    # is each data extenson subheader working?
+    for i in range(details.des_segment_offsets.size):
+        with instance.subTest('des subheader {} match'.format(i)):
+            des_bytes = details.get_des_subheader_bytes(i)
+            des_sub = DataExtensionHeader.from_bytes(des_bytes, start=0)
+            instance.assertEqual(
+                len(des_bytes), des_sub.get_bytes_length(), msg='des subheader as long as expected')
+            instance.assertEqual(
+                des_bytes, des_sub.to_bytes(), msg='des subheader serializes and deserializes as expected')
+
 
 class TestNITFHeader(unittest.TestCase):
     @classmethod
     def setUp(cls):
-        # todo: fix this up
         cls.test_root = os.path.expanduser(os.path.join('~', 'Desktop', 'sarpy_testing', 'sicd'))
 
     def test_nitf_header(self):
