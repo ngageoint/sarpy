@@ -4,6 +4,7 @@ The DownstreamReprocessingType definition.
 """
 
 from typing import Union, List
+from datetime import datetime
 
 import numpy
 
@@ -117,7 +118,7 @@ class ProcessingEventType(Serializable):
         if '_xml_ns_key' in kwargs:
             self._xml_ns_key = kwargs['_xml_ns_key']
         self.ApplicationName = ApplicationName
-        self.AppliedDateTime = numpy.datetime64('now', 'us') if AppliedDateTime is None else AppliedDateTime
+        self.AppliedDateTime = numpy.datetime64(datetime.now()) if AppliedDateTime is None else AppliedDateTime
         self.InterpolationMethod = InterpolationMethod
         self.Descriptors = Descriptors
         super(ProcessingEventType, self).__init__(**kwargs)

@@ -5,6 +5,7 @@ Module for reading and writing SIDD files - should support SIDD version 1.0 and 
 
 import logging
 from functools import reduce
+from datetime import datetime
 import re
 
 import numpy
@@ -807,7 +808,7 @@ class SIDDWriter(NITFWriter):
         try:
             desshdt = str(sidd.ProductCreation.ProcessorInformation.ProcessingDateTime)
         except AttributeError:
-            desshdt = str(numpy.datetime64('now', 'us'))
+            desshdt = str(numpy.datetime64(datetime.now()))
         if desshdt[-1] != 'Z':
             desshdt += 'Z'
         uh_args['DESSHDT'] = desshdt
