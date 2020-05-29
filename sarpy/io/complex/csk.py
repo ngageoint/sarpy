@@ -487,11 +487,36 @@ class H5Chipper(BaseChipper):
         super(H5Chipper, self).__init__(data_size, symmetry=symmetry, complex_type=complex_type)
 
     def _read_raw_fun(self, range1, range2):
+        def reorder(tr):
+            if tr[2] > 0:
+                return tr, False
+            else:
+                return (tr[1], tr[0], -tr[2]), True
+
         r1, r2 = self._reorder_arguments(range1, range2)
+        r1, rev1 = reorder(r1)
+        r2, rev2 = reorder(r2)
         with h5py.File(self._file_name, 'r') as hf:
             gp = hf[self._band_name]
-            data = gp[r1[0]:r1[1]:r1[2], r2[0]:r2[1]:r2[2], :]
-        return data
+            if not isinstance(gp, h5py.Dataset):
+                raise ValueError(
+                    'hdf5 group {} is expected to be a dataset, got type {}'.format(self._band_name, type(gp)))
+            if len(gp.shape) not in (2, 3):
+                raise ValueError('Dataset {} has unexpected shape {}'.format(self._band_name, gp.shape))
+
+            if len(gp.shape) == 3:
+                data = gp[r1[0]:r1[1]:r1[2], r2[0]:r2[1]:r2[2], :]
+            else:
+                data = gp[r1[0]:r1[1]:r1[2], r2[0]:r2[1]:r2[2]]
+
+        if rev1 and rev2:
+            return data[::-1, ::-1]
+        elif rev1:
+            return data[::-1, :]
+        elif rev2:
+            return data[:, ::-1]
+        else:
+            return data
 
 
 class CSKReader(BaseReader):

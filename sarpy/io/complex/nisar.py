@@ -19,7 +19,7 @@ except ImportError:
     warnings.warn('The h5py module is not successfully imported, '
                   'which precludes NISAR reading capability!')
 
-from .sicd_elements.blocks import Poly2DType
+from .sicd_elements.blocks import Poly2DType, int_func
 from .sicd_elements.SICD import SICDType
 from .sicd_elements.CollectionInfo import CollectionInfoType, RadarModeType
 from .sicd_elements.ImageCreation import ImageCreationType
@@ -89,7 +89,8 @@ def _stringify(val):
     str
     """
 
-    return val.decode('utf-8').strip() if isinstance(val, bytes) else val.strip()
+    return _get_string_version(val).strip()
+
 
 def _get_ref_time(str_in):
     """
@@ -110,6 +111,20 @@ def _get_ref_time(str_in):
     if not str_in.startswith(prefix):
         raise ValueError('Got unexpected reference time string - {}'.format(str_in))
     return numpy.datetime64(str_in[len(prefix):], 'ns')
+
+
+def _get_string_version(value):
+    if isinstance(value, string_types):
+        return value
+    elif isinstance(value, bytes):
+        return value.decode('utf-8')
+    else:
+        raise TypeError('Got unexpected type {}'.format(type(value)))
+
+
+def _get_string_list(array):
+    return [_get_string_version(el) for el in array]
+
 
 class NISARDetails(object):
     """
@@ -159,7 +174,7 @@ class NISARDetails(object):
         numpy.ndarray
         """
 
-        return hf['/science/LSAR/identification/listOfFrequencies'][:]
+        return _get_string_list(hf['/science/LSAR/identification/listOfFrequencies'][:])
 
     @staticmethod
     def _get_collection_times(hf):
@@ -232,7 +247,7 @@ class NISARDetails(object):
 
             return CollectionInfoType(
                 CollectorName=_stringify(hf.attrs['mission_name']),
-                CoreName='{0:07d}_{1:s}'.format(gp['absoluteOrbitNumber'][()], gp['trackNumber'][()]),
+                CoreName='{0:07d}_{1:s}'.format(gp['absoluteOrbitNumber'][()], _stringify(gp['trackNumber'][()])),
                 CollectType='MONOSTATIC',
                 Classification='UNCLASSIFIED',
                 RadarMode=RadarModeType(ModeType='STRIPMAP'))  # TODO: ModeID?
@@ -428,7 +443,7 @@ class NISARDetails(object):
                 MaxProc=fc_t + 0.5*bw, )
             return fc_t
 
-        pols = gp['listOfPolarizations'][:]
+        pols = _get_string_list(gp['listOfPolarizations'][:])
         t_sicd = base_sicd.copy()
         update_grid()
         update_timeline()
@@ -465,7 +480,7 @@ class NISARDetails(object):
 
         Returns
         -------
-        SICDType
+        (SICDType, Tuple[int])
         """
 
         def define_image_data():
@@ -594,7 +609,7 @@ class NISARDetails(object):
             t_sicd.GeoData.SCP = SCPType(ECF=ecf)  # LLH will be populated
 
         t_sicd = base_sicd.copy()
-        shape = (ds.shape[1], ds.shape[0])
+        shape = (int_func(ds.shape[1]), int_func(ds.shape[0]))
         define_image_data()
         update_image_formation()
         coords_rg_2d, coords_az_2d = update_inca_and_grid()
@@ -602,7 +617,7 @@ class NISARDetails(object):
         update_geodata()
         t_sicd.derive()
         t_sicd.populate_rniirs(override=False)
-        return t_sicd
+        return t_sicd, shape
 
     def get_sicd_collection(self):
         """
@@ -641,7 +656,6 @@ class NISARDetails(object):
             for i, freq in enumerate(freqs):
                 gp_name = '/science/LSAR/SLC/swaths/frequency{}'.format(freq)
                 gp = hf[gp_name]
-                print('freq {} at hdf5 group'.format(freq, gp_name))  # TODO: this is temp for debugging
                 freq_sicd, pols, tx_rcv_pol, fc = self._get_freq_specific_sicd(gp, base_sicd)
 
                 # formulate the frequency dependent doppler grid
@@ -656,13 +670,13 @@ class NISARDetails(object):
                 for j, pol in enumerate(pols):
                     ds_name = '{}/{}'.format(gp_name, pol)
                     ds = gp[pol]
-                    pol_sicd = self._get_pol_specific_sicd(
+                    pol_sicd, shape = self._get_pol_specific_sicd(
                         hf, ds, freq_sicd, pol, freq, j, tx_rcv_pol[j],
                         r_ca_sampled, zd_time, grid_zd_time, grid_r,
                         doprate_sampled, dopcentroid_sampled, fc,
                         ss_az_s, dop_bw, beta0, gamma0, sigma0)
                     out_sicds[ds_name] = pol_sicd
-                    shapes[ds_name] = (ds.shape[1], ds.shape[0])
+                    shapes[ds_name] = ds.shape[:2]
         return out_sicds, shapes, symmetry
 
 
