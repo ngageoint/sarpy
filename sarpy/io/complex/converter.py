@@ -153,7 +153,7 @@ class Converter(object):
         if not (os.path.exists(output_directory) and os.path.isdir(output_directory)):
             raise IOError('output directory {} must exist.'.format(output_directory))
         if output_file is None:
-            output_file = reader.get_suggestive_name(frame=frame)
+            output_file = reader.get_sicds_as_tuple()[frame].get_suggested_name(frame+1)+'_SICD'
         output_path = os.path.join(output_directory, output_file)
         if os.path.exists(output_path):
             raise IOError('The file {} already exists.'.format(output_path))

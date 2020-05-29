@@ -7,6 +7,7 @@ import os
 import sys
 import logging
 from typing import Union, Tuple
+from datetime import datetime
 
 import numpy
 
@@ -293,6 +294,8 @@ class BaseChipper(object):
         if callable(self._complex_type):
             return self._complex_type(data)  # is this actually necessary?
         elif self._complex_type:
+            if data.dtype.name in ('complex64', 'complex128'):
+                return data
             out = numpy.zeros((data.shape[0], data.shape[1], int_func(data.shape[2]/2)), dtype=numpy.complex64)
             out.real = data[:, :, 0::2]
             out.imag = data[:, :, 1::2]
@@ -402,6 +405,7 @@ class SubsetChipper(BaseChipper):
     def _read_raw_fun(self, range1, range2):
         arange1, arange2 = self._reformat_bounds(range1, range2)
         return self.parent_chipper.__call__(arange1, arange2)
+
 
 #################
 # Base Reader definition
@@ -763,10 +767,12 @@ def validate_sicd_for_writing(sicd_meta):
     if sicd_meta.ImageCreation is None:
         sicd_meta.ImageCreation = ImageCreationType(
             Application=profile,
-            DateTime=numpy.datetime64('now', 'us'),
+            DateTime=numpy.datetime64(datetime.now()),
             Profile=profile)
     else:
         sicd_meta.ImageCreation.Profile = profile
+        if sicd_meta.ImageCreation.DateTime is None:
+            sicd_meta.ImageCreation.DateTime = numpy.datetime64(datetime.now())
     return sicd_meta
 
 
