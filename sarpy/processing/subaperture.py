@@ -15,8 +15,6 @@ _DEFAULT_SELECTEDFRAMES = None
 __author__ = ('Clayton Williams', 'Wade Schwartzkopf', 'Tom Braun')
 __classification__ = "UNCLASSIFIED"
 
-# TODO: it seems likely that this should be stream-lined.
-
 
 def mem(ci,
         frames=_DEFAULT_FRAMES,

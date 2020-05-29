@@ -101,8 +101,9 @@ class MatchType(Serializable):
 
 
 class MatchInfoType(Serializable):
-    """The match information container. This contains data for multiple collection taskings."""
-    # TODO: Provide a robust example, so this element isn't worthless.
+    """
+    The match information container. This contains data for multiple collection taskings.
+    """
 
     _fields = ('NumMatchTypes', 'MatchTypes')
     _required = ('MatchTypes', )

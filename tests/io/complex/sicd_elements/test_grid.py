@@ -45,16 +45,10 @@ class TestDirParam(unittest.TestCase):
         the_dict = dir_param_dict
         item1 = generic_construction_test(self, the_type, the_dict)
 
-    # TODO: test define_weight_function() in a sensible way
-    #       test define_response_widths()
-    #       test estimate_deltak()
-
 
 class TestGrid(unittest.TestCase):
     def test_construction(self):
         the_type = Grid.GridType
         the_dict = grid_dict
         item1 = generic_construction_test(self, the_type, the_dict)
-
-    # TODO: all the derived things. This will be painful.
 

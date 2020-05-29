@@ -35,7 +35,7 @@ from .sicd_elements.RMA import RMAType, INCAType
 from .sicd_elements.Radiometric import RadiometricType
 from ...geometry import point_projection
 from .base import BaseChipper, BaseReader, string_types
-from .utils import get_seconds, fit_time_coa_polynomial
+from .utils import get_seconds, fit_time_coa_polynomial, fit_position_xvalidation
 
 __classification__ = "UNCLASSIFIED"
 __author__ = ("Thomas McCullough", "Jarred Barber", "Wade Schwartzkopf")
@@ -68,7 +68,6 @@ def is_a(file_name):
         print('File {} is determined to be a Cosmo Skymed file.'.format(file_name))
         return CSKReader(csk_details)
     except (IOError, KeyError, ValueError, SyntaxError):
-        # TODO: what all should we catch?
         return None
 
 
@@ -88,6 +87,10 @@ def _extract_attrs(h5_element, out=None):
 # parser and interpreter for hdf5 attributes
 
 class CSKDetails(object):
+    """
+    Parses and converts the Cosmo Skymed metadata
+    """
+
     __slots__ = ('_file_name', '_satellite', '_product_type')
 
     def __init__(self, file_name):
@@ -97,6 +100,7 @@ class CSKDetails(object):
         ----------
         file_name : str
         """
+
         if h5py is None:
             raise ImportError("Can't read Cosmo Skymed files, because the h5py dependency is missing.")
 
@@ -116,7 +120,10 @@ class CSKDetails(object):
 
     @property
     def file_name(self):
-        """str: the file name"""
+        """
+        str: the file name
+        """
+
         return self._file_name
 
     @property
@@ -204,28 +211,8 @@ class CSKDetails(object):
             T = h5_dict['State Vectors Times']  # in seconds relative to ref time
             T += ref_time_offset
             Pos = h5_dict['ECEF Satellite Position']
-            Vel = h5_dict['ECEF Satellite Velocity']  # for cross validation
-            # Let's perform polynomial fitting for the position with cross validation for overfitting checks
-            deg = 1
-            prev_vel_error = numpy.inf
-            P_x, P_y, P_z = None, None, None
-            while deg < min(6, Pos.shape[0]):
-                # fit position
-                P_x = polynomial.polyfit(T, Pos[:, 0], deg=deg)
-                P_y = polynomial.polyfit(T, Pos[:, 1], deg=deg)
-                P_z = polynomial.polyfit(T, Pos[:, 2], deg=deg)
-                # extract estimated velocities
-                Vel_est = numpy.stack(
-                    (polynomial.polyval(T, polynomial.polyder(P_x)),
-                     polynomial.polyval(T, polynomial.polyder(P_y)),
-                     polynomial.polyval(T, polynomial.polyder(P_z))), axis=-1)
-                # check our velocity error
-                vel_err = Vel_est - Vel
-                cur_vel_error = numpy.sum((vel_err*vel_err))
-                deg += 1
-                # stop if the error is not smaller than at the previous step
-                if cur_vel_error >= prev_vel_error:
-                    break
+            Vel = h5_dict['ECEF Satellite Velocity']
+            P_x, P_y, P_z = fit_position_xvalidation(T, Pos, Vel, max_degree=6)
             return PositionType(ARPPoly=XYZPolyType(X=P_x, Y=P_y, Z=P_z))
 
         def get_radar_collection():  # type: () -> RadarCollectionType
@@ -491,20 +478,45 @@ class CSKDetails(object):
 ################
 # The CSK chipper and reader
 
-class CSKBandChipper(BaseChipper):
+class H5Chipper(BaseChipper):
     __slots__ = ('_file_name', '_band_name')
 
-    def __init__(self, file_name, band_name, data_size, symmetry):
+    def __init__(self, file_name, band_name, data_size, symmetry, complex_type=True):
         self._file_name = file_name
         self._band_name = band_name
-        super(CSKBandChipper, self).__init__(data_size, symmetry=symmetry, complex_type=True)
+        super(H5Chipper, self).__init__(data_size, symmetry=symmetry, complex_type=complex_type)
 
     def _read_raw_fun(self, range1, range2):
+        def reorder(tr):
+            if tr[2] > 0:
+                return tr, False
+            else:
+                return (tr[1], tr[0], -tr[2]), True
+
         r1, r2 = self._reorder_arguments(range1, range2)
+        r1, rev1 = reorder(r1)
+        r2, rev2 = reorder(r2)
         with h5py.File(self._file_name, 'r') as hf:
-            gp = hf['{}/SBI'.format(self._band_name)]
-            data = gp[r1[0]:r1[1]:r1[2], r2[0]:r2[1]:r2[2], :]
-        return data
+            gp = hf[self._band_name]
+            if not isinstance(gp, h5py.Dataset):
+                raise ValueError(
+                    'hdf5 group {} is expected to be a dataset, got type {}'.format(self._band_name, type(gp)))
+            if len(gp.shape) not in (2, 3):
+                raise ValueError('Dataset {} has unexpected shape {}'.format(self._band_name, gp.shape))
+
+            if len(gp.shape) == 3:
+                data = gp[r1[0]:r1[1]:r1[2], r2[0]:r2[1]:r2[2], :]
+            else:
+                data = gp[r1[0]:r1[1]:r1[2], r2[0]:r2[1]:r2[2]]
+
+        if rev1 and rev2:
+            return data[::-1, ::-1]
+        elif rev1:
+            return data[::-1, :]
+        elif rev2:
+            return data[:, ::-1]
+        else:
+            return data
 
 
 class CSKReader(BaseReader):
@@ -526,12 +538,12 @@ class CSKReader(BaseReader):
         if isinstance(csk_details, string_types):
             csk_details = CSKDetails(csk_details)
         if not isinstance(csk_details, CSKDetails):
-            raise TypeError('The input argument for RadarSatCSKReader must be a '
+            raise TypeError('The input argument for a CSKReader must be a '
                             'filename or CSKDetails object')
         sicd_data, shape_dict, symmetry = csk_details.get_sicd_collection()
         chippers = []
         sicds = []
         for band_name in sicd_data:
             sicds.append(sicd_data[band_name])
-            chippers.append(CSKBandChipper(csk_details.file_name, band_name, shape_dict[band_name], symmetry))
+            chippers.append(H5Chipper(csk_details.file_name, '{}/SBI'.format(band_name), shape_dict[band_name], symmetry))
         super(CSKReader, self).__init__(tuple(sicds), tuple(chippers))

@@ -164,7 +164,6 @@ class AnnotationMetadataList(_Jsonable):
             self._elements = [element, ]
         else:
             if element.timestamp < self._elements[0].timestamp:
-                # TODO; is there a good alternative to this?
                 raise ValueError(
                     'Element with timestamp {} cannot be inserted in front of element '
                     'with timestamp {}.'.format(element.timestamp, self._elements[0].timestamp))

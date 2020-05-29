@@ -336,7 +336,7 @@ class SCPCOAType(Serializable):
                           'value is {}'.format(azim_ang, self.AzimAng))
 
         # perpendicular component of ground plane wrt slant plane
-        layover_ground = ETP - numpy.dot(ETP, uSPZ)*uSPZ  # TODO: reciprocal in sicd.py line 1605?
+        layover_ground = ETP - numpy.dot(ETP, uSPZ)*uSPZ
         layover_ang = numpy.rad2deg(numpy.arctan2(numpy.dot(layover_ground, uEAST), numpy.dot(layover_ground, uNORTH)))
         layover_ang = layover_ang if layover_ang > 0 else layover_ang + 360
         if self.LayoverAng is None:

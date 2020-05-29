@@ -33,7 +33,7 @@ from .sicd_elements.RMA import RMAType, INCAType
 from .sicd_elements.SCPCOA import SCPCOAType
 from .sicd_elements.Radiometric import RadiometricType, NoiseLevelType_
 from ...geometry import point_projection
-from .utils import get_seconds, fit_time_coa_polynomial
+from .utils import get_seconds, fit_time_coa_polynomial, fit_position_xvalidation
 
 __classification__ = "UNCLASSIFIED"
 __author__ = ("Thomas McCullough", "Khanh Ho", "Wade Schwartzkopf")
@@ -264,7 +264,6 @@ class RadarSatDetails(object):
                 or 'SL' in mode_id:
             mode_type = 'SPOTLIGHT'
         elif mode_id.startswith('SC'):
-            # TODO: what about this? is every other option really stripmap?
             raise ValueError('ScanSAR mode data is not currently handled.')
         else:
             mode_type = 'STRIPMAP'
@@ -386,38 +385,18 @@ class RadarSatDetails(object):
         T = numpy.array([get_seconds(numpy.datetime64(state_vec.find('timeStamp').text, 'us'),
                                      start_time, precision='us')
                          for state_vec in state_vectors], dtype=numpy.float64)
-        X_pos = numpy.array([float(state_vec.find('xPosition').text)
-                             for state_vec in state_vectors], dtype=numpy.float64)
-        Y_pos = numpy.array([float(state_vec.find('yPosition').text)
-                             for state_vec in state_vectors], dtype=numpy.float64)
-        Z_pos = numpy.array([float(state_vec.find('zPosition').text)
-                             for state_vec in state_vectors], dtype=numpy.float64)
-        X_vel = numpy.array([float(state_vec.find('xVelocity').text)
-                             for state_vec in state_vectors], dtype=numpy.float64)
-        Y_vel = numpy.array([float(state_vec.find('yVelocity').text)
-                             for state_vec in state_vectors], dtype=numpy.float64)
-        Z_vel = numpy.array([float(state_vec.find('zVelocity').text)
-                             for state_vec in state_vectors], dtype=numpy.float64)
-        # Let's perform polynomial fitting for the position with cross validation for overfitting checks
-        deg = 1
-        prev_vel_error = numpy.inf
-        P_x, P_y, P_z = None, None, None
-        while deg < min(6, X_pos.size):
-            # fit position
-            P_x = polynomial.polyfit(T, X_pos, deg=deg)
-            P_y = polynomial.polyfit(T, Y_pos, deg=deg)
-            P_z = polynomial.polyfit(T, Z_pos, deg=deg)
-            # extract estimated velocities
-            X_vel_guess = polynomial.polyval(T, polynomial.polyder(P_x))
-            Y_vel_guess = polynomial.polyval(T, polynomial.polyder(P_y))
-            Z_vel_guess = polynomial.polyval(T, polynomial.polyder(P_z))
-            # check our velocity error
-            cur_vel_error = numpy.sum(numpy.array([X_vel-X_vel_guess, Y_vel-Y_vel_guess, Z_vel-Z_vel_guess])**2)
-            deg += 1
-            # stop if the error is not smaller
-            # TODO: find objectively bad fit?
-            if cur_vel_error >= prev_vel_error:
-                break
+        Pos = numpy.stack((
+            numpy.array([float(state_vec.find('xPosition').text) for state_vec in state_vectors], dtype=numpy.float64),
+            numpy.array([float(state_vec.find('yPosition').text) for state_vec in state_vectors], dtype=numpy.float64),
+            numpy.array([float(state_vec.find('zPosition').text) for state_vec in state_vectors], dtype=numpy.float64)),
+            axis=-1)
+        Vel = numpy.stack((
+            numpy.array([float(state_vec.find('xVelocity').text) for state_vec in state_vectors], dtype=numpy.float64),
+            numpy.array([float(state_vec.find('yVelocity').text) for state_vec in state_vectors], dtype=numpy.float64),
+            numpy.array([float(state_vec.find('zVelocity').text) for state_vec in state_vectors], dtype=numpy.float64)),
+            axis=-1)
+        P_x, P_y, P_z = fit_position_xvalidation(T, Pos, Vel, max_degree=6)
+
         return PositionType(ARPPoly=XYZPolyType(X=P_x, Y=P_y, Z=P_z))
 
     def _get_grid_row(self):

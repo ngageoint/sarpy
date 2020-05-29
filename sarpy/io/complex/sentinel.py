@@ -801,7 +801,6 @@ class SentinelDetails(object):
             valid_count = numpy.sum(valid_lines)
             if valid_count == 0:
                 # this burst contained no useful calibration data
-                # TODO: can we not interpolate or something?
                 return
 
             coords_rg = (pixel[valid_lines] + sicd.ImageData.FirstRow - sicd.ImageData.SCPPixel.Row)*sicd.Grid.Row.SS
@@ -951,7 +950,6 @@ class SentinelDetails(object):
                         az_poly_order = min(2, valid_lines.size-1)
                         az_poly = numpy.array(
                             polynomial.polyfit(coords_az[valid_lines], azimuth_noise[valid_lines], az_poly_order))
-                        # TODO: is there ever only one of these?
                 if az_poly is not None:
                     noise_poly = numpy.zeros((rg_poly.size, az_poly.size), dtype=numpy.float64)
                     noise_poly[:, 0] += rg_poly
@@ -972,7 +970,7 @@ class SentinelDetails(object):
             # noiseRange and noiseAzimuth fields began in March 2018
             range_line, range_pixel, range_noise = extract_vector('noiseRange')
             azimuth_line, azimuth_pixel, azimuth_noise = extract_vector('noiseAzimuth')
-            azimuth_line = numpy.concatenate(azimuth_line, axis=0)  # TODO: same as below?
+            azimuth_line = numpy.concatenate(azimuth_line, axis=0)
 
         # NB: range_line is actually a list of 1 element arrays - probably should have been parsed better
         range_line = numpy.concatenate(range_line, axis=0)

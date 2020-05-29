@@ -272,7 +272,7 @@ class DataExtensionHeader(NITFElement):
                         'DESID is "XML_DATA_CONTENT" and data is the right length for SICD, '
                         'but parsing failed with error {}'.format(e))
         elif self.DESID.strip() == 'STREAMING_FILE_HEADER':
-            # TODO: LOW Priority - I think that this is deprecated?
+            # LOW Priority - I think that this is deprecated?
             pass
 
     def _get_attribute_length(self, fld):

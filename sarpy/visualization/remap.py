@@ -29,7 +29,6 @@ def get_remap_list():
     all_funs = getmembers(sys.modules[__name__], isfunction)
     # all_funs is list of (function name, function object) tuples.  fun[0] is name.
     just_remap_funs = [fun for fun in all_funs if fun[0] not in names_nonremap_funs]
-    # TODO: LOW - although this is intended to be helpful, its not particularly robust
     return just_remap_funs
 
 

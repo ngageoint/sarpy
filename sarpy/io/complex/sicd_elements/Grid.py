@@ -29,25 +29,25 @@ int: the default size when generating WgtFunct from a named WgtType.
 """
 
 
-def _hamming_ipr(x, a):  # TODO: what is a? This name stinks.
+def _hamming_ipr(x, a):
     """Helper method"""
     return a*numpy.sinc(x) + 0.5*(1-a)*(numpy.sinc(x-1) + numpy.sinc(x+1)) - a/numpy.sqrt(2)
 
 
-def _raised_cos(n, coef):  # TODO: This name also stinks
+def _raised_cos(n, coef):
     """Helper method"""
     weights = numpy.zeros((n,), dtype=numpy.float64)
     if (n % 2) == 0:
         k = int(n/2)
     else:
         k = int((n+1)/2)
-    theta = 2*numpy.pi*numpy.arange(k)/(n-1)   # TODO: why n-1?
+    theta = 2*numpy.pi*numpy.arange(k)/(n-1)
     weights[:k] = (coef - (1-coef)*numpy.cos(theta))
     weights[k:] = weights[k-1::-1]
     return weights
 
 
-def _taylor_win(n, sidelobes=4, max_sidelobe_level=-30, normalize=True):  # TODO: This name stinks
+def _taylor_win(n, sidelobes=4, max_sidelobe_level=-30, normalize=True):
     """
     Generates a Taylor Window as an array of a given size.
 
@@ -91,7 +91,7 @@ def _taylor_win(n, sidelobes=4, max_sidelobe_level=-30, normalize=True):  # TODO
     sgn = 1
     for m in coefs:
         coefs1 = (coefs - 0.5)
-        coefs2 = coefs[coefs != m]  # TODO: why does this have a term removed?
+        coefs2 = coefs[coefs != m]
         numerator = numpy.prod(1 - (m*m)/(sp2*(a*a + coefs1*coefs1)))
         denominator = numpy.prod(1 - (m*m)/(coefs2*coefs2))
         out += sgn*(numerator/denominator)*numpy.cos(m*xi)
@@ -299,8 +299,6 @@ class DirParamType(Serializable):
 
         if self.WgtType is None or self.WgtType.WindowName is None:
             return  # nothing to be done
-        # TODO: should we proceed if WgtFunct is already defined?
-        #   Should we serialize WgtFunct if WgtType is given?
 
         window_name = self.WgtType.WindowName.upper()
         if window_name == 'HAMMING':

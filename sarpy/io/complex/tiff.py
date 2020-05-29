@@ -196,7 +196,11 @@ class TiffDetails(object):
 
         with open(file_name, 'rb') as fi:
             # Try to read the basic tiff header
-            fi_endian = fi.read(2).decode('utf-8')
+            try:
+                fi_endian = fi.read(2).decode('utf-8')
+            except:
+                raise IOError('Not a TIFF file.')
+
             if fi_endian == 'II':
                 self._endian = '<'
             elif fi_endian == 'MM':

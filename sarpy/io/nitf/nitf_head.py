@@ -242,7 +242,11 @@ class NITFDetails(object):
 
         with open(file_name, mode='rb') as fi:
             # Read the first 9 bytes to verify NITF
-            version_info = fi.read(9).decode('utf-8')
+            try:
+                version_info = fi.read(9).decode('utf-8')
+            except:
+                raise IOError('Not a NITF 2.1 file.')
+
             if version_info != 'NITF02.10':
                 raise IOError('Not a NITF 2.1 file.')
             # get the header length

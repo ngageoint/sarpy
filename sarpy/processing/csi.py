@@ -161,7 +161,7 @@ def file(reader, dim=1, row_range=None, col_range=None, index=0):
     try:
         fill = 1/(sicd.Grid.Col.SS*sicd.Grid.Col.ImpRespBW)
     except (ValueError, AttributeError, TypeError):
-        fill = 1  # TODO: log a warning or something?
+        fill = 1
 
     image = reader.read_chip(row_range, col_range, index=index)
     return mem(image, dim=dim, pdir=pdir, fill=fill)

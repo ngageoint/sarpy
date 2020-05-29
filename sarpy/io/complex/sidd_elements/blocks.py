@@ -300,14 +300,12 @@ class RadiometricType(RadiometricTypeBase):
 
 class MatchInfoType(MatchInfoTypeBase):
     _child_xml_ns_key = {'NumMatchTypes': 'sicommon', 'MatchTypes': 'sicommon'}
-    # TODO: verify that this works
 
 
 class GeoInfoType(GeoInfoTypeBase):
     _child_xml_ns_key = {
         'Descriptions': 'sicommon', 'Point': 'sicommon', 'Line': 'sicommon',
         'Polygon': 'sicommon'}
-    # TODO: verify that this works
 
 
 class RadarModeType(RadarModeTypeBase):

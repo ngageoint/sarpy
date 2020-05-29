@@ -1,5 +1,6 @@
 # This details the important differences introduced in sarpy 1.0
 
+* .20 - Introduced NISAR reading capability
 * .19 - Base SIDD reading and writing capability
 * .18 - Bug fix for appropriate error catching during file reading effort
 * .17 - Bug fix for point projection method
