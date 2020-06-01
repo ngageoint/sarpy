@@ -8,7 +8,7 @@ from tkinter import filedialog
 from tkinter import Menu
 from tkinter_gui_builder.panel_templates.widget_panel.widget_panel import AbstractWidgetPanel
 from tkinter_gui_builder.utils.image_utils import frame_sequence_utils
-from tkinter_gui_builder.panel_templates.image_canvas.image_canvas import ImageCanvas
+from tkinter_gui_builder.panel_templates.image_canvas_refactor.image_canvas_panel import ImageCanvasPanel
 
 import sarpy.io.complex as sarpy_complex
 import sarpy.visualization.remap as remap
@@ -24,11 +24,12 @@ from tkinter_gui_builder.image_readers.numpy_image_reader import NumpyImageReade
 from sarpy_gui_apps.supporting_classes.metaviewer import Metaviewer
 from sarpy_gui_apps.apps.aperture_tool.panels.animation_popup.animation_panel import AnimationPanel
 from tkinter.filedialog import asksaveasfilename
+from sarpy_gui_apps.apps.aperture_tool.panels.frequency_vs_degree_panel.frequency_vs_degree_panel import FrequencyVsDegreePanel
 
 
 class ApertureTool(AbstractWidgetPanel):
-    frequency_vs_degree_panel = ImageCanvas         # type: ImageCanvas
-    filtered_panel = ImageCanvas                    # type: ImageCanvas
+    frequency_vs_degree_panel = FrequencyVsDegreePanel         # type: ImageCanvasPanel
+    filtered_panel = ImageCanvasPanel                    # type: ImageCanvasPanel
     image_info_panel = ImageInfoPanel                          # type: ImageInfoPanel
     metaicon = MetaIcon                             # type: MetaIcon
     phase_history = PhaseHistoryPanel               # type: PhaseHistoryPanel
@@ -45,9 +46,11 @@ class ApertureTool(AbstractWidgetPanel):
 
         widgets_list = ["frequency_vs_degree_panel", "filtered_panel"]
         self.init_w_horizontal_layout(widgets_list)
+        self.frequency_vs_degree_panel.pack()
+        self.filtered_panel.pack()
 
-        self.frequency_vs_degree_panel.set_canvas_size(600, 400)
-        self.filtered_panel.set_canvas_size(600, 400)
+        self.frequency_vs_degree_panel.canvas.set_canvas_size(600, 400)
+        self.filtered_panel.canvas.set_canvas_size(600, 400)
 
         self.frequency_vs_degree_panel.canvas.on_left_mouse_motion(self.callback_frequency_vs_degree_left_mouse_motion)
 
@@ -177,13 +180,14 @@ class ApertureTool(AbstractWidgetPanel):
                         self.app_variables.fft_canvas_bounds[2],
                         y_start + aperture_distance)
 
-        self.frequency_vs_degree_panel.modify_existing_shape_using_canvas_coords(
-            self.frequency_vs_degree_panel.variables.select_rect_id, new_rect)
+        self.frequency_vs_degree_panel.canvas.modify_existing_shape_using_canvas_coords(
+            self.frequency_vs_degree_panel.canvas.variables.select_rect_id, new_rect)
         self.update_filtered_image()
         self.update_phase_history_selection()
 
     def callback_stop_animation(self, event):
         self.app_variables.animation_stop_pressed = True
+        self.animation_panel.animation_settings.unpress_all_buttons()
 
     def callback_play_animation(self, event):
         self.update_animation_params()
@@ -239,7 +243,7 @@ class ApertureTool(AbstractWidgetPanel):
         self.metaicon_popup_panel.deiconify()
 
     def callback_frequency_vs_degree_left_mouse_motion(self, event):
-        self.frequency_vs_degree_panel.callback_handle_left_mouse_motion(event)
+        self.frequency_vs_degree_panel.canvas.callback_handle_left_mouse_motion(event)
         self.update_filtered_image()
         self.update_phase_history_selection()
 
@@ -267,18 +271,18 @@ class ApertureTool(AbstractWidgetPanel):
 
         self.app_variables.fft_display_data = remap.density(fft_complex_data)
         fft_reader = NumpyImageReader(self.app_variables.fft_display_data)
-        self.frequency_vs_degree_panel.set_image_reader(fft_reader)
+        self.frequency_vs_degree_panel.canvas.set_image_reader(fft_reader)
 
-        self.frequency_vs_degree_panel.set_current_tool_to_edit_shape()
-        self.frequency_vs_degree_panel.variables.current_shape_id = self.frequency_vs_degree_panel.variables.select_rect_id
-        self.frequency_vs_degree_panel.modify_existing_shape_using_image_coords(self.frequency_vs_degree_panel.variables.select_rect_id, self.get_fft_image_bounds())
-        canvas_drawing_bounds = self.frequency_vs_degree_panel.image_coords_to_canvas_coords(self.frequency_vs_degree_panel.variables.select_rect_id)
-        self.frequency_vs_degree_panel.variables.shape_drag_xy_limits[str(self.frequency_vs_degree_panel.variables.select_rect_id)] = canvas_drawing_bounds
-        self.app_variables.fft_canvas_bounds = self.frequency_vs_degree_panel.get_shape_canvas_coords(self.frequency_vs_degree_panel.variables.select_rect_id)
-        self.frequency_vs_degree_panel.show_shape(self.frequency_vs_degree_panel.variables.select_rect_id)
+        self.frequency_vs_degree_panel.canvas.set_current_tool_to_edit_shape()
+        self.frequency_vs_degree_panel.canvas.variables.current_shape_id = self.frequency_vs_degree_panel.canvas.variables.select_rect_id
+        self.frequency_vs_degree_panel.canvas.modify_existing_shape_using_image_coords(self.frequency_vs_degree_panel.canvas.variables.select_rect_id, self.get_fft_image_bounds())
+        canvas_drawing_bounds = self.frequency_vs_degree_panel.canvas.image_coords_to_canvas_coords(self.frequency_vs_degree_panel.canvas.variables.select_rect_id)
+        self.frequency_vs_degree_panel.canvas.variables.shape_drag_xy_limits[str(self.frequency_vs_degree_panel.canvas.variables.select_rect_id)] = canvas_drawing_bounds
+        self.app_variables.fft_canvas_bounds = self.frequency_vs_degree_panel.canvas.get_shape_canvas_coords(self.frequency_vs_degree_panel.canvas.variables.select_rect_id)
+        self.frequency_vs_degree_panel.canvas.show_shape(self.frequency_vs_degree_panel.canvas.variables.select_rect_id)
 
         filtered_numpy_reader = NumpyImageReader(self.get_filtered_image())
-        self.filtered_panel.set_image_reader(filtered_numpy_reader)
+        self.filtered_panel.canvas.set_image_reader(filtered_numpy_reader)
 
         self.image_info_panel.chip_size_panel.nx.set_text(numpy.shape(selected_region_complex_data)[1])
         self.image_info_panel.chip_size_panel.ny.set_text(numpy.shape(selected_region_complex_data)[0])
@@ -303,18 +307,18 @@ class ApertureTool(AbstractWidgetPanel):
     def callback_save_fft_panel_as_png(self, event):
         filename = filedialog.asksaveasfilename(initialdir=os.path.expanduser("~"), title="Select file",
                                                 filetypes=(("png file", "*.png"), ("all files", "*.*")))
-        self.image_canvas.save_full_canvas_as_png(filename)
+        self.image_canvas.figure_canvas.save_full_canvas_as_png(filename)
 
     def callback_get_adjusted_image(self, event):
         filtered_image = self.get_filtered_image()
-        self.frequency_vs_degree_panel.set_image_reader(NumpyImageReader(filtered_image))
+        self.frequency_vs_degree_panel.canvas.set_image_reader(NumpyImageReader(filtered_image))
 
     def update_filtered_image(self):
-        self.filtered_panel.set_image_reader(NumpyImageReader(self.get_filtered_image()))
+        self.filtered_panel.canvas.set_image_reader(NumpyImageReader(self.get_filtered_image()))
 
     def get_filtered_image(self):
-        select_rect_id = self.frequency_vs_degree_panel.variables.select_rect_id
-        full_image_rect = self.frequency_vs_degree_panel.get_shape_image_coords(select_rect_id)
+        select_rect_id = self.frequency_vs_degree_panel.canvas.variables.select_rect_id
+        full_image_rect = self.frequency_vs_degree_panel.canvas.get_shape_image_coords(select_rect_id)
 
         y1 = int(full_image_rect[0])
         x1 = int(full_image_rect[1])
@@ -364,9 +368,9 @@ class ApertureTool(AbstractWidgetPanel):
     def callback_save_animation(self, event):
         filename = filedialog.asksaveasfilename(initialdir=os.path.expanduser("~"), title="Select file",
                                                 filetypes=(("animated gif", "*.gif"), ("all files", "*.*")))
-        select_box_id = self.filtered_panel.image_canvas.variables.current_shape_id
-        start_fft_select_box = self.filtered_panel.image_canvas.get_shape_canvas_coords(select_box_id)
-        n_steps = int(self.filtered_panel.fft_button_panel.n_steps.get())
+        select_box_id = self.filtered_panel.canvas.variables.current_shape_id
+        start_fft_select_box = self.filtered_panel.canvas.get_shape_canvas_coords(select_box_id)
+        n_steps = int(self.filtered_panel.n_steps.get())
         n_pixel_translate = int(self.filtered_panel.fft_button_panel.n_pixels_horizontal.get())
         step_factor = numpy.linspace(0, n_pixel_translate, n_steps)
         fps = float(self.filtered_panel.fft_button_panel.animation_fps.get())
@@ -387,7 +391,7 @@ class ApertureTool(AbstractWidgetPanel):
 
     def update_phase_history_selection(self):
         image_bounds = self.get_fft_image_bounds()
-        current_bounds = self.frequency_vs_degree_panel.canvas_shape_coords_to_image_coords(self.frequency_vs_degree_panel.variables.select_rect_id)
+        current_bounds = self.frequency_vs_degree_panel.canvas.canvas_shape_coords_to_image_coords(self.frequency_vs_degree_panel.canvas.variables.select_rect_id)
         x_min = min(current_bounds[1], current_bounds[3])
         x_max = max(current_bounds[1], current_bounds[3])
         y_min = min(current_bounds[0], current_bounds[2])

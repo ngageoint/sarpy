@@ -15,9 +15,9 @@ import PIL.Image
 import numpy as np
 from tkinter_gui_builder.image_readers.image_reader import ImageReader
 
-from .tool_constants import ShapePropertyConstants as SHAPE_PROPERTIES
-from .tool_constants import ShapeTypeConstants as SHAPE_TYPES
-from .tool_constants import ToolConstants as TOOLS
+from tkinter_gui_builder.panel_templates.image_canvas_refactor.tool_constants import ShapePropertyConstants as SHAPE_PROPERTIES
+from tkinter_gui_builder.panel_templates.image_canvas_refactor.tool_constants import ShapeTypeConstants as SHAPE_TYPES
+from tkinter_gui_builder.panel_templates.image_canvas_refactor.tool_constants import ToolConstants as TOOLS
 
 if platform.system() == "Linux":
     import pyscreenshot as ImageGrab
@@ -107,11 +107,11 @@ class AppVariables:
 #         self._canvas_image_object = value
 
 
-class ImageCanvas(tkinter.LabelFrame):
+class ImageCanvas(basic_widgets.Canvas):
     def __init__(self,
                  master,
                  ):
-        tkinter.LabelFrame.__init__(self, master)
+        basic_widgets.Canvas.__init__(self, master)
 
         self.SHAPE_PROPERTIES = SHAPE_PROPERTIES
         self.SHAPE_TYPES = SHAPE_TYPES
@@ -122,13 +122,6 @@ class ImageCanvas(tkinter.LabelFrame):
         self.scale_dynamic_range = False
         self.canvas_height = 200            # default width
         self.canvas_width = 300             # default height
-        self.canvas = basic_widgets.Canvas(self)
-        self.canvas.pack(fill=tkinter.BOTH, expand=tkinter.YES)
-        self.canvas.pack()
-
-        self.canvas.grid(row=0, column=0, sticky=tkinter.N+tkinter.S+tkinter.E+tkinter.W)
-        self.sbarv = None         # type: tkinter.Scrollbar
-        self.sbarh = None         # type: tkinter.Scrollbar
 
         self.variables.zoom_rect_id = self.create_new_rect((0, 0, 1, 1), outline=self.variables.zoom_rect_color, width=self.variables.zoom_rect_border_width)
         self.variables.select_rect_id = self.create_new_rect((0, 0, 1, 1), outline=self.variables.select_rect_color, width=self.variables.select_rect_border_width)
@@ -137,13 +130,13 @@ class ImageCanvas(tkinter.LabelFrame):
         self.hide_shape(self.variables.select_rect_id)
         self.hide_shape(self.variables.zoom_rect_id)
 
-        self.canvas.on_left_mouse_click(self.callback_handle_left_mouse_click)
-        self.canvas.on_left_mouse_motion(self.callback_handle_left_mouse_motion)
-        self.canvas.on_left_mouse_release(self.callback_handle_left_mouse_release)
-        self.canvas.on_right_mouse_click(self.callback_handle_right_mouse_click)
-        self.canvas.on_mouse_motion(self.callback_handle_mouse_motion)
+        self.on_left_mouse_click(self.callback_handle_left_mouse_click)
+        self.on_left_mouse_motion(self.callback_handle_left_mouse_motion)
+        self.on_left_mouse_release(self.callback_handle_left_mouse_release)
+        self.on_right_mouse_click(self.callback_handle_right_mouse_click)
+        self.on_mouse_motion(self.callback_handle_mouse_motion)
 
-        self.canvas.on_mouse_wheel(self.callback_mouse_zoom)
+        self.on_mouse_wheel(self.callback_mouse_zoom)
 
         self.variables.active_tool = None
         self.variables.current_shape_id = None
@@ -163,11 +156,8 @@ class ImageCanvas(tkinter.LabelFrame):
         else:
             self.set_image_from_numpy_array(self.variables.canvas_image_object.canvas_decimated_image)
 
-    def set_labelframe_text(self, label):
-        self.config(text=label)
-
     def get_canvas_line_length(self, line_id):
-        line_coords = self.canvas.coords(line_id)
+        line_coords = self.coords(line_id)
         x1 = line_coords[0]
         y1 = line_coords[1]
         x2 = line_coords[2]
@@ -186,11 +176,11 @@ class ImageCanvas(tkinter.LabelFrame):
 
     def hide_shape(self, shape_id):
         if shape_id:
-            self.canvas.itemconfigure(shape_id, state="hidden")
+            self.itemconfigure(shape_id, state="hidden")
 
     def show_shape(self, shape_id):
         if shape_id:
-            self.canvas.itemconfigure(shape_id, state="normal")
+            self.itemconfigure(shape_id, state="normal")
 
     def callback_mouse_zoom(self, event):
         if self.zoom_on_wheel:
@@ -245,7 +235,7 @@ class ImageCanvas(tkinter.LabelFrame):
         for animation_frame in numpy_frame_sequence:
             tic = time.time()
             self.set_image_from_numpy_array(animation_frame)
-            self.canvas.update()
+            self.update()
             toc = time.time()
             frame_generation_time = toc-tic
             if frame_generation_time < sleep_time:
@@ -262,7 +252,7 @@ class ImageCanvas(tkinter.LabelFrame):
         for animation_frame in pil_frame_sequence:
             tic = time.time()
             self._set_image_from_pil_image(animation_frame)
-            self.canvas.update()
+            self.update()
             toc = time.time()
             frame_generation_time = toc-tic
             if frame_generation_time < sleep_time:
@@ -286,8 +276,8 @@ class ImageCanvas(tkinter.LabelFrame):
             self.variables.current_shape_id = closest_shape_id
             self.highlight_existing_shape(self.variables.current_shape_id)
         else:
-            start_x = self.canvas.canvasx(event.x)
-            start_y = self.canvas.canvasy(event.y)
+            start_x = self.canvasx(event.x)
+            start_y = self.canvasy(event.y)
 
             self.variables.current_shape_canvas_anchor_point_xy = (start_x, start_y)
 
@@ -336,11 +326,11 @@ class ImageCanvas(tkinter.LabelFrame):
         if self.variables.active_tool == TOOLS.PAN_TOOL:
             self._pan(event)
         if self.variables.active_tool == TOOLS.ZOOM_IN_TOOL:
-            rect_coords = self.canvas.coords(self.variables.zoom_rect_id)
+            rect_coords = self.coords(self.variables.zoom_rect_id)
             self.zoom_to_selection(rect_coords, self.variables.animate_zoom)
             self.hide_shape(self.variables.zoom_rect_id)
         if self.variables.active_tool == TOOLS.ZOOM_OUT_TOOL:
-            rect_coords = self.canvas.coords(self.variables.zoom_rect_id)
+            rect_coords = self.coords(self.variables.zoom_rect_id)
             x1 = -rect_coords[0]
             x2 = self.canvas_width + rect_coords[2]
             y1 = -rect_coords[1]
@@ -374,29 +364,29 @@ class ImageCanvas(tkinter.LabelFrame):
                 distance_to_ll = numpy.sqrt(numpy.square(event.x - select_xul) + numpy.square(event.y - select_ylr))
 
                 if distance_to_ul < self.variables.vertex_selector_pixel_threshold:
-                    self.canvas.config(cursor="top_left_corner")
+                    self.config(cursor="top_left_corner")
                     self.variables.active_tool = TOOLS.EDIT_SHAPE_COORDS_TOOL
                 elif distance_to_ur < self.variables.vertex_selector_pixel_threshold:
-                    self.canvas.config(cursor="top_right_corner")
+                    self.config(cursor="top_right_corner")
                     self.variables.active_tool = TOOLS.EDIT_SHAPE_COORDS_TOOL
                 elif distance_to_lr < self.variables.vertex_selector_pixel_threshold:
-                    self.canvas.config(cursor="bottom_right_corner")
+                    self.config(cursor="bottom_right_corner")
                     self.variables.active_tool = TOOLS.EDIT_SHAPE_COORDS_TOOL
                 elif distance_to_ll < self.variables.vertex_selector_pixel_threshold:
-                    self.canvas.config(cursor="bottom_left_corner")
+                    self.config(cursor="bottom_left_corner")
                     self.variables.active_tool = TOOLS.EDIT_SHAPE_COORDS_TOOL
                 elif select_xul < event.x < select_xlr and select_yul < event.y < select_ylr:
-                    self.canvas.config(cursor="fleur")
+                    self.config(cursor="fleur")
                     self.variables.active_tool = TOOLS.TRANSLATE_SHAPE_TOOL
                 else:
-                    self.canvas.config(cursor="arrow")
+                    self.config(cursor="arrow")
                     self.variables.active_tool = None
 
     def callback_handle_left_mouse_motion(self, event):
         if self.variables.active_tool == TOOLS.PAN_TOOL:
             x_dist = event.x - self.variables.tmp_anchor_point[0]
             y_dist = event.y - self.variables.tmp_anchor_point[1]
-            self.canvas.move(self.variables.image_id, x_dist, y_dist)
+            self.move(self.variables.image_id, x_dist, y_dist)
             self.variables.tmp_anchor_point = event.x, event.y
         elif self.variables.active_tool == TOOLS.TRANSLATE_SHAPE_TOOL:
             x_dist = event.x - self.variables.tmp_anchor_point[0]
@@ -469,12 +459,12 @@ class ImageCanvas(tkinter.LabelFrame):
         for color in colors:
             self.change_shape_color(shape_id, color)
             time.sleep(0.001)
-            self.canvas.update()
+            self.update()
         colors.reverse()
         for color in colors:
             self.change_shape_color(shape_id, color)
             time.sleep(0.001)
-            self.canvas.update()
+            self.update()
         self.change_shape_color(shape_id, original_color)
 
     def callback_handle_right_mouse_click(self, event):
@@ -507,7 +497,7 @@ class ImageCanvas(tkinter.LabelFrame):
                         ):
         self.canvas_width = width_npix
         self.canvas_height = height_npix
-        self.canvas.config(width=width_npix, height=height_npix)
+        self.config(width=width_npix, height=height_npix)
 
     def modify_existing_shape_using_canvas_coords(self,
                                                   shape_id,  # type: int
@@ -521,7 +511,7 @@ class ImageCanvas(tkinter.LabelFrame):
             canvas_drawing_coords = (x1, y1, x2, y2)
         else:
             canvas_drawing_coords = tuple(new_coords)
-        self.canvas.coords(shape_id, canvas_drawing_coords)
+        self.coords(shape_id, canvas_drawing_coords)
         self.set_shape_canvas_coords(shape_id, new_coords)
         if update_pixel_coords:
             self.set_shape_pixel_coords_from_canvas_coords(shape_id)
@@ -537,9 +527,9 @@ class ImageCanvas(tkinter.LabelFrame):
     def event_drag_multipoint_line(self, event):
         if self.variables.current_shape_id:
             self.show_shape(self.variables.current_shape_id)
-            event_x_pos = self.canvas.canvasx(event.x)
-            event_y_pos = self.canvas.canvasy(event.y)
-            coords = self.canvas.coords(self.variables.current_shape_id)
+            event_x_pos = self.canvasx(event.x)
+            event_y_pos = self.canvasy(event.y)
+            coords = self.coords(self.variables.current_shape_id)
             new_coords = list(coords[0:-2]) + [event_x_pos, event_y_pos]
             if self.get_shape_type(self.variables.current_shape_id) == SHAPE_TYPES.ARROW or self.get_shape_type(self.variables.current_shape_id) == SHAPE_TYPES.LINE:
                 self.modify_existing_shape_using_canvas_coords(self.variables.current_shape_id, new_coords)
@@ -549,9 +539,9 @@ class ImageCanvas(tkinter.LabelFrame):
     def event_drag_multipoint_polygon(self, event):
         if self.variables.current_shape_id:
             self.show_shape(self.variables.current_shape_id)
-            event_x_pos = self.canvas.canvasx(event.x)
-            event_y_pos = self.canvas.canvasy(event.y)
-            coords = self.canvas.coords(self.variables.current_shape_id)
+            event_x_pos = self.canvasx(event.x)
+            event_y_pos = self.canvasy(event.y)
+            coords = self.coords(self.variables.current_shape_id)
             new_coords = list(coords[0:-2]) + [event_x_pos, event_y_pos]
             self.modify_existing_shape_using_canvas_coords(self.variables.current_shape_id, new_coords)
         else:
@@ -560,15 +550,15 @@ class ImageCanvas(tkinter.LabelFrame):
     def event_drag_line(self, event):
         if self.variables.current_shape_id:
             self.show_shape(self.variables.current_shape_id)
-            event_x_pos = self.canvas.canvasx(event.x)
-            event_y_pos = self.canvas.canvasy(event.y)
+            event_x_pos = self.canvasx(event.x)
+            event_y_pos = self.canvasy(event.y)
             self.modify_existing_shape_using_canvas_coords(self.variables.current_shape_id, (self.variables.current_shape_canvas_anchor_point_xy[0], self.variables.current_shape_canvas_anchor_point_xy[1], event_x_pos, event_y_pos))
 
     def event_drag_rect(self, event):
         if self.variables.current_shape_id:
             self.show_shape(self.variables.current_shape_id)
-            event_x_pos = self.canvas.canvasx(event.x)
-            event_y_pos = self.canvas.canvasy(event.y)
+            event_x_pos = self.canvasx(event.x)
+            event_y_pos = self.canvasy(event.y)
             self.modify_existing_shape_using_canvas_coords(self.variables.current_shape_id, (self.variables.current_shape_canvas_anchor_point_xy[0], self.variables.current_shape_canvas_anchor_point_xy[1], event_x_pos, event_y_pos))
 
     def event_click_line(self, event):
@@ -583,7 +573,7 @@ class ImageCanvas(tkinter.LabelFrame):
 
     def delete_shape(self, shape_id):
         self.variables.shape_ids.remove(shape_id)
-        self.canvas.delete(shape_id)
+        self.delete(shape_id)
         if shape_id == self.variables.current_shape_id:
             self.variables.current_shape_id = None
 
@@ -603,11 +593,11 @@ class ImageCanvas(tkinter.LabelFrame):
                         **options
                         ):
         if options == {}:
-            shape_id = self.canvas.create_rectangle(coords[0], coords[1], coords[2], coords[3],
+            shape_id = self.create_rectangle(coords[0], coords[1], coords[2], coords[3],
                                                     outline=self.variables.foreground_color,
                                                     width=self.variables.rect_border_width)
         else:
-            shape_id = self.canvas.create_rectangle(coords[0], coords[1], coords[2], coords[3], options)
+            shape_id = self.create_rectangle(coords[0], coords[1], coords[2], coords[3], options)
 
         self.variables.shape_ids.append(shape_id)
         self._set_shape_property(shape_id, SHAPE_PROPERTIES.SHAPE_TYPE, SHAPE_TYPES.RECT)
@@ -622,12 +612,12 @@ class ImageCanvas(tkinter.LabelFrame):
                            **options
                            ):
         if options == {}:
-            shape_id = self.canvas.create_polygon(coords[0], coords[1], coords[2], coords[3],
+            shape_id = self.create_polygon(coords[0], coords[1], coords[2], coords[3],
                                                   outline=self.variables.foreground_color,
                                                   width=self.variables.poly_border_width,
                                                   fill='')
         else:
-            shape_id = self.canvas.create_polygon(coords[0], coords[1], coords[2], coords[3], options)
+            shape_id = self.create_polygon(coords[0], coords[1], coords[2], coords[3], options)
 
         self.variables.shape_ids.append(shape_id)
         self._set_shape_property(shape_id, SHAPE_PROPERTIES.SHAPE_TYPE, SHAPE_TYPES.POLYGON)
@@ -642,12 +632,12 @@ class ImageCanvas(tkinter.LabelFrame):
                          **options
                          ):
         if options == {}:
-            shape_id = self.canvas.create_line(coords[0], coords[1], coords[2], coords[3],
+            shape_id = self.create_line(coords[0], coords[1], coords[2], coords[3],
                                                fill=self.variables.foreground_color,
                                                width=self.variables.line_width,
                                                arrow=tkinter.LAST)
         else:
-            shape_id = self.canvas.create_line(coords[0], coords[1], coords[2], coords[3], options, arrow=tkinter.LAST)
+            shape_id = self.create_line(coords[0], coords[1], coords[2], coords[3], options, arrow=tkinter.LAST)
         self.variables.shape_ids.append(shape_id)
         self._set_shape_property(shape_id, SHAPE_PROPERTIES.SHAPE_TYPE, SHAPE_TYPES.ARROW)
         self._set_shape_property(shape_id, SHAPE_PROPERTIES.COLOR, self.variables.foreground_color)
@@ -658,11 +648,11 @@ class ImageCanvas(tkinter.LabelFrame):
 
     def create_new_line(self, coords, **options):
         if options == {}:
-            shape_id = self.canvas.create_line(coords,
+            shape_id = self.create_line(coords,
                                                fill=self.variables.foreground_color,
                                                width=self.variables.line_width)
         else:
-            shape_id = self.canvas.create_line(coords[0], coords[1], coords[2], coords[3], options)
+            shape_id = self.create_line(coords[0], coords[1], coords[2], coords[3], options)
         self.variables.shape_ids.append(shape_id)
         self._set_shape_property(shape_id, SHAPE_PROPERTIES.SHAPE_TYPE, SHAPE_TYPES.LINE)
         self._set_shape_property(shape_id, SHAPE_PROPERTIES.COLOR, self.variables.foreground_color)
@@ -677,9 +667,9 @@ class ImageCanvas(tkinter.LabelFrame):
         x1, y1 = (coords[0] - self.variables.point_size), (coords[1] - self.variables.point_size)
         x2, y2 = (coords[0] + self.variables.point_size), (coords[1] + self.variables.point_size)
         if options == {}:
-            shape_id = self.canvas.create_oval(x1, y1, x2, y2, fill=self.variables.foreground_color)
+            shape_id = self.create_oval(x1, y1, x2, y2, fill=self.variables.foreground_color)
         else:
-            shape_id = self.canvas.create_oval(x1, y1, x2, y2, options)
+            shape_id = self.create_oval(x1, y1, x2, y2, options)
         self._set_shape_property(shape_id, SHAPE_PROPERTIES.POINT_SIZE, self.variables.point_size)
 
         self.variables.shape_ids.append(shape_id)
@@ -696,11 +686,11 @@ class ImageCanvas(tkinter.LabelFrame):
                            ):
         shape_type = self.get_shape_type(shape_id)
         if shape_type == SHAPE_TYPES.RECT:
-            self.canvas.itemconfig(shape_id, outline=color)
+            self.itemconfig(shape_id, outline=color)
         elif shape_type == SHAPE_TYPES.POLYGON:
-            self.canvas.itemconfig(shape_id, outline=color)
+            self.itemconfig(shape_id, outline=color)
         else:
-            self.canvas.itemconfig(shape_id, fill=color)
+            self.itemconfig(shape_id, fill=color)
         self._set_shape_property(shape_id, SHAPE_PROPERTIES.COLOR, color)
 
     def set_shape_canvas_coords(self,
@@ -833,7 +823,7 @@ class ImageCanvas(tkinter.LabelFrame):
             self.set_image_from_numpy_array(self.variables.canvas_image_object.display_image)
         else:
             self.set_image_from_numpy_array(self.variables.canvas_image_object.canvas_decimated_image)
-        self.canvas.update()
+        self.update()
         self.redraw_all_shapes()
         self.variables.the_canvas_is_currently_zooming = False
 
@@ -841,7 +831,7 @@ class ImageCanvas(tkinter.LabelFrame):
         rect = (0, 0, self.canvas_width, self.canvas_height)
         self.variables.canvas_image_object.update_canvas_display_image_from_canvas_rect(rect)
         self.set_image_from_numpy_array(self.variables.canvas_image_object.display_image)
-        self.canvas.update()
+        self.update()
 
     def redraw_all_shapes(self):
         for shape_id in self.variables.shape_ids:
@@ -939,14 +929,14 @@ class ImageCanvas(tkinter.LabelFrame):
 
     def _set_image_from_pil_image(self, pil_image):
         nx_pix, ny_pix = pil_image.size
-        self.canvas.config(scrollregion=(0, 0, nx_pix, ny_pix))
+        self.config(scrollregion=(0, 0, nx_pix, ny_pix))
         self._tk_im = ImageTk.PhotoImage(pil_image)
         # TODO: to center the image in the canvas the following line should be:
-        # self.variables.image_id = self.canvas.create_image(int(self.canvas_width/2), int(self.canvas_height/2), anchor="center", image=self._tk_im)
+        # self.variables.image_id = self.create_image(int(self.canvas_width/2), int(self.canvas_height/2), anchor="center", image=self._tk_im)
         # TODO: changing to center on the canvas will create downstream book-keeping issues when drawing shapes and converting
         # TODO: between image and canvas coordinates, which will need to be cleaned up.
-        self.variables.image_id = self.canvas.create_image(0, 0, anchor="nw", image=self._tk_im)
-        self.canvas.tag_lower(self.variables.image_id)
+        self.variables.image_id = self.create_image(0, 0, anchor="nw", image=self._tk_im)
+        self.tag_lower(self.variables.image_id)
 
     def _get_shape_property(self,
                             shape_id,  # type: int
@@ -1009,11 +999,11 @@ class ImageCanvas(tkinter.LabelFrame):
     def config_do_not_scale_image_to_fit(self):
         self.sbarv=tkinter.Scrollbar(self, orient=tkinter.VERTICAL)
         self.sbarh=tkinter.Scrollbar(self, orient=tkinter.HORIZONTAL)
-        self.sbarv.config(command=self.canvas.yview)
-        self.sbarh.config(command=self.canvas.xview)
+        self.sbarv.config(command=self.yview)
+        self.sbarh.config(command=self.xview)
 
-        self.canvas.config(yscrollcommand=self.sbarv.set)
-        self.canvas.config(xscrollcommand=self.sbarh.set)
+        self.config(yscrollcommand=self.sbarv.set)
+        self.config(xscrollcommand=self.sbarh.set)
         self.sbarv.grid(row=0, column=1, stick=tkinter.N+tkinter.S)
         self.sbarh.grid(row=1, column=0, sticky=tkinter.E+tkinter.W)
 
@@ -1026,8 +1016,8 @@ class ImageCanvas(tkinter.LabelFrame):
         im.save(output_fname)
 
     def save_currently_displayed_canvas_to_numpy_array(self):
-        x_ul = self.canvas.winfo_rootx() + 1
-        y_ul = self.canvas.winfo_rooty() + 1
+        x_ul = self.winfo_rootx() + 1
+        y_ul = self.winfo_rooty() + 1
         x_lr = x_ul + self.canvas_width
         y_lr = y_ul + self.canvas_height
         im = ImageGrab.grab()
