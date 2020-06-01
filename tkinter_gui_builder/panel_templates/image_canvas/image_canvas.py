@@ -1017,9 +1017,9 @@ class ImageCanvas(tkinter.LabelFrame):
         self.sbarv.grid(row=0, column=1, stick=tkinter.N+tkinter.S)
         self.sbarh.grid(row=1, column=0, sticky=tkinter.E+tkinter.W)
 
-    def save_as_png(self,
-                    output_fname,           # type: str
-                    ):
+    def save_full_canvas_as_png(self,
+                                output_fname,  # type: str
+                                ):
         # put a sleep in here in case there is a dialog covering the screen before this method is called.
         time.sleep(0.2)
         im = self.save_currently_displayed_canvas_to_numpy_array()
@@ -1031,7 +1031,7 @@ class ImageCanvas(tkinter.LabelFrame):
         x_lr = x_ul + self.canvas_width
         y_lr = y_ul + self.canvas_height
         im = ImageGrab.grab()
-        im = im.crop((x_ul, y_ul, x_lr, y_lr))
+        #im = im.crop((x_ul, y_ul, x_lr, y_lr))
         return im
 
     def activate_color_selector(self, event):

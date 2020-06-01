@@ -23,6 +23,7 @@ import scipy.constants.constants as scipy_constants
 from tkinter_gui_builder.image_readers.numpy_image_reader import NumpyImageReader
 from sarpy_gui_apps.supporting_classes.metaviewer import Metaviewer
 from sarpy_gui_apps.apps.aperture_tool.panels.animation_popup.animation_panel import AnimationPanel
+from tkinter.filedialog import asksaveasfilename
 
 
 class ApertureTool(AbstractWidgetPanel):
@@ -99,15 +100,22 @@ class ApertureTool(AbstractWidgetPanel):
         popups_menu.add_command(label="Metaviewer", command=self.metaviewer_popup)
         popups_menu.add_command(label="Animation", command=self.animation_popup)
 
+        save_menu = Menu(menubar, tearoff=0)
+        save_menu.add_command(label="Save Meticon", command=self.save_metaicon)
+
         menubar.add_cascade(label="File", menu=filemenu)
         menubar.add_cascade(label="Popups", menu=popups_menu)
+        menubar.add_cascade(label="Save", menu=save_menu)
 
         master.config(menu=menubar)
 
         master_frame.pack()
         self.pack()
-
         self.animation_popup()
+
+    def save_metaicon(self):
+        save_fname = asksaveasfilename(initialdir=os.path.expanduser("~"), filetypes=[("*.png", ".PNG")])
+        self.metaicon.save_full_canvas_as_png(save_fname)
 
     def exit(self):
         self.quit()
@@ -295,7 +303,7 @@ class ApertureTool(AbstractWidgetPanel):
     def callback_save_fft_panel_as_png(self, event):
         filename = filedialog.asksaveasfilename(initialdir=os.path.expanduser("~"), title="Select file",
                                                 filetypes=(("png file", "*.png"), ("all files", "*.*")))
-        self.image_canvas.save_as_png(filename)
+        self.image_canvas.save_full_canvas_as_png(filename)
 
     def callback_get_adjusted_image(self, event):
         filtered_image = self.get_filtered_image()
@@ -352,23 +360,6 @@ class ApertureTool(AbstractWidgetPanel):
 
         ft_cdata = fftshift(ft_cdata)
         return ft_cdata
-
-    def callback_animate_horizontal_fft_sweep(self, event):
-        select_box_id = self.filtered_panel.image_canvas.variables.current_shape_id
-        start_fft_select_box = self.filtered_panel.image_canvas.get_shape_canvas_coords(select_box_id)
-        n_steps = int(self.filtered_panel.fft_button_panel.n_steps.get())
-        n_pixel_translate = int(self.filtered_panel.fft_button_panel.n_pixels_horizontal.get())
-        step_factor = numpy.linspace(0, n_pixel_translate, n_steps)
-        for step in step_factor:
-            x1 = start_fft_select_box[0] + step
-            y1 = start_fft_select_box[1]
-            x2 = start_fft_select_box[2] + step
-            y2 = start_fft_select_box[3]
-            self.filtered_panel.image_canvas.modify_existing_shape_using_canvas_coords(select_box_id, (x1, y1, x2, y2), update_pixel_coords=True)
-            self.filtered_panel.image_canvas.update()
-            self.callback_get_adjusted_image(event)
-        self.filtered_panel.image_canvas.modify_existing_shape_using_canvas_coords(select_box_id, start_fft_select_box, update_pixel_coords=True)
-        self.filtered_panel.image_canvas.update()
 
     def callback_save_animation(self, event):
         filename = filedialog.asksaveasfilename(initialdir=os.path.expanduser("~"), title="Select file",
