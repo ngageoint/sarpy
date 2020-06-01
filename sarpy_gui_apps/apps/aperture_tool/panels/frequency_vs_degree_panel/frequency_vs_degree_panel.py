@@ -5,6 +5,7 @@ import numpy
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 
+
 class FrequencyVsDegreePanel(tkinter.LabelFrame):
     def __init__(self, parent, canvas_width=600, canvas_height=400):
         tkinter.LabelFrame.__init__(self, parent)
@@ -17,14 +18,15 @@ class FrequencyVsDegreePanel(tkinter.LabelFrame):
 
         # default dpi is 100, so npix will be 100 times the numbers passed to figsize
         fig = plt.figure(figsize=(canvas_width/100, canvas_height/100))
-        plt.imshow(self.image_data)
+        im = fig.add_subplot()
         self.figure_canvas = FigureCanvasTkAgg(fig, master=self)
-        self.figure_canvas.get_tk_widget().pack()
 
         self.update_image(self.image_data)
         self.canvas = ImageCanvas(self)
         self.figure_canvas._tkcanvas = self.canvas
-        # self.canvas.pack()
+        self.figure_canvas.get_tk_widget().pack()
+        self.canvas.pack()
+        ax = plt.gca()
 
     def update_image(self, image_data):
         self.image_data = image_data

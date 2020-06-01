@@ -28,7 +28,7 @@ from sarpy_gui_apps.apps.aperture_tool.panels.frequency_vs_degree_panel.frequenc
 
 
 class ApertureTool(AbstractWidgetPanel):
-    frequency_vs_degree_panel = FrequencyVsDegreePanel         # type: ImageCanvasPanel
+    frequency_vs_degree_panel = FrequencyVsDegreePanel         # type: FrequencyVsDegreePanel
     filtered_panel = ImageCanvasPanel                    # type: ImageCanvasPanel
     image_info_panel = ImageInfoPanel                          # type: ImageInfoPanel
     metaicon = MetaIcon                             # type: MetaIcon
@@ -290,6 +290,9 @@ class ApertureTool(AbstractWidgetPanel):
         self.update_phase_history_selection()
 
         self.metaviewer.create_w_sicd(self.app_variables.sicd_reader_object.base_reader.sicd_meta)
+
+        self.frequency_vs_degree_panel.update()
+        self.frequency_vs_degree_panel.update_image()
 
     def get_fft_image_bounds(self,
                              ):             # type: (...) -> (int, int, int, int)
