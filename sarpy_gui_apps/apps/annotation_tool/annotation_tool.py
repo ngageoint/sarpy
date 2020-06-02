@@ -10,7 +10,7 @@ from sarpy_gui_apps.apps.annotation_tool.main_app_variables import AppVariables
 
 import tkinter
 from tkinter_gui_builder.panel_templates.widget_panel.widget_panel import AbstractWidgetPanel
-from tkinter_gui_builder.panel_templates.image_canvas_panel.tool_constants import ToolConstants
+from tkinter_gui_builder.widgets.image_canvas.tool_constants import ToolConstants
 from sarpy.geometry.geometry_elements import Polygon
 from sarpy.annotation.annotate import FileAnnotationCollection
 from sarpy.annotation.annotate import Annotation
@@ -47,14 +47,14 @@ class AnnotationTool(AbstractWidgetPanel):
         self.context_panel.context_dashboard.file_selector.select_file.on_left_mouse_click(self.callback_context_select_file)
         self.context_panel.context_dashboard.annotation_selector.select_file.on_left_mouse_click(self.callback_content_select_annotation_file)
 
-        self.context_panel.image_canvas.canvas.on_left_mouse_release(self.callback_context_handle_left_mouse_release)
-        self.context_panel.image_canvas.canvas.on_mouse_wheel(self.callback_context_handle_mouse_wheel)
+        self.context_panel.image_canvas_panel.canvas.on_left_mouse_release(self.callback_context_handle_left_mouse_release)
+        self.context_panel.image_canvas_panel.canvas.on_mouse_wheel(self.callback_context_handle_mouse_wheel)
 
         # set up annotate panel event listeners
-        self.annotate_panel.image_canvas.canvas.on_mouse_wheel(self.callback_handle_annotate_mouse_wheel)
-        self.annotate_panel.image_canvas.canvas.on_left_mouse_click(self.callback_annotate_handle_canvas_left_mouse_click)
-        self.annotate_panel.image_canvas.canvas.on_left_mouse_release(self.callback_annotate_handle_left_mouse_release)
-        self.annotate_panel.image_canvas.canvas.on_right_mouse_click(self.callback_annotate_handle_right_mouse_click)
+        self.annotate_panel.image_canvas_panel.canvas.on_mouse_wheel(self.callback_handle_annotate_mouse_wheel)
+        self.annotate_panel.image_canvas_panel.canvas.on_left_mouse_click(self.callback_annotate_handle_canvas_left_mouse_click)
+        self.annotate_panel.image_canvas_panel.canvas.on_left_mouse_release(self.callback_annotate_handle_left_mouse_release)
+        self.annotate_panel.image_canvas_panel.canvas.on_right_mouse_click(self.callback_annotate_handle_right_mouse_click)
 
         self.annotate_panel.annotate_dashboard.controls.draw_polygon.on_left_mouse_click(self.callback_set_to_draw_polygon)
         self.annotate_panel.annotate_dashboard.controls.popup.on_left_mouse_click(self.callback_annotation_popup)
@@ -62,7 +62,8 @@ class AnnotationTool(AbstractWidgetPanel):
         self.annotate_panel.annotate_dashboard.controls.select_closest_shape.on_left_mouse_click(self.callback_set_to_select_closest_shape)
         self.annotate_panel.annotate_dashboard.controls.delete_shape.on_left_mouse_click(self.callback_delete_shape)
 
-        self.annotate_panel.image_canvas.set_labelframe_text("Image View")
+        # TODO: fix this
+        # self.annotate_panel.image_canvas_panel.set_labelframe_text("Image View")
 
     # context callbacks
     def callback_context_select_file(self, event):
@@ -71,9 +72,9 @@ class AnnotationTool(AbstractWidgetPanel):
         if self.context_panel.context_dashboard.file_selector.fname:
             self.variables.image_fname = self.context_panel.context_dashboard.file_selector.fname
             image_reader = ComplexImageReader(self.variables.image_fname)
-            self.context_panel.image_canvas.set_image_reader(image_reader)
+            self.context_panel.image_canvas_panel.set_image_reader(image_reader)
             self.update_context_decimation_value()
-            self.annotate_panel.image_canvas.set_image_reader(image_reader)
+            self.annotate_panel.image_canvas_panel.set_image_reader(image_reader)
             self.variables.annotate_canvas = self.annotate_panel.image_canvas
             self.context_panel.context_dashboard.annotation_selector.activate_all_buttons()
 
@@ -145,10 +146,10 @@ class AnnotationTool(AbstractWidgetPanel):
                     for feature in self.variables.file_annotation_collection.annotations.features:
                         image_coords = feature.geometry.get_coordinate_list()[0]
                         image_coords_1d = list(np.reshape(image_coords, np.asarray(image_coords).size))
-                        tmp_shape_id = self.annotate_panel.image_canvas.create_new_polygon((0, 0, 1, 1))
-                        self.annotate_panel.image_canvas.set_shape_pixel_coords(tmp_shape_id, image_coords_1d)
+                        tmp_shape_id = self.annotate_panel.image_canvas_panel.create_new_polygon((0, 0, 1, 1))
+                        self.annotate_panel.image_canvas_panel.set_shape_pixel_coords(tmp_shape_id, image_coords_1d)
                         self.variables.canvas_geom_ids_to_annotations_id_dict[str(tmp_shape_id)] = feature
-                    self.annotate_panel.image_canvas.redraw_all_shapes()
+                    self.annotate_panel.image_canvas_panel.redraw_all_shapes()
                 else:
                     print("the image filename and the filename of the annotation do not match.  Select an annotation")
                     print("that matches the input filename.")
@@ -158,37 +159,37 @@ class AnnotationTool(AbstractWidgetPanel):
 
     def callback_context_set_to_select(self, event):
         self.context_panel.context_dashboard.buttons.set_active_button(self.context_panel.context_dashboard.buttons.select)
-        self.context_panel.image_canvas.set_current_tool_to_selection_tool()
+        self.context_panel.image_canvas_panel.set_current_tool_to_selection_tool()
 
     def callback_context_set_to_pan(self, event):
         self.context_panel.context_dashboard.buttons.set_active_button(self.context_panel.context_dashboard.buttons.pan)
-        self.context_panel.image_canvas.set_current_tool_to_pan()
+        self.context_panel.image_canvas_panel.set_current_tool_to_pan()
 
     def callback_context_set_to_zoom_in(self, event):
         self.context_panel.context_dashboard.buttons.set_active_button(self.context_panel.context_dashboard.buttons.zoom_in)
-        self.context_panel.image_canvas.set_current_tool_to_zoom_in()
+        self.context_panel.image_canvas_panel.set_current_tool_to_zoom_in()
 
     def callback_context_set_to_zoom_out(self, event):
         self.context_panel.context_dashboard.buttons.set_active_button(self.context_panel.context_dashboard.buttons.zoom_out)
-        self.context_panel.image_canvas.set_current_tool_to_zoom_out()
+        self.context_panel.image_canvas_panel.set_current_tool_to_zoom_out()
 
     def callback_context_set_to_move_rect(self, event):
         self.context_panel.context_dashboard.buttons.set_active_button(self.context_panel.context_dashboard.buttons.move_rect)
-        self.context_panel.image_canvas.set_current_tool_to_translate_shape()
+        self.context_panel.image_canvas_panel.set_current_tool_to_translate_shape()
 
     def callback_context_handle_mouse_wheel(self, event):
-        self.context_panel.image_canvas.callback_mouse_zoom(event)
+        self.context_panel.image_canvas_panel.callback_mouse_zoom(event)
         self.update_context_decimation_value()
 
     def callback_context_handle_left_mouse_release(self, event):
-        self.context_panel.image_canvas.callback_handle_left_mouse_release(event)
-        if self.context_panel.image_canvas.variables.current_tool == ToolConstants.SELECT_TOOL or \
-           self.context_panel.image_canvas.variables.current_tool == ToolConstants.TRANSLATE_SHAPE_TOOL:
-            rect_id = self.context_panel.image_canvas.variables.select_rect_id
-            image_rect = self.context_panel.image_canvas.canvas_shape_coords_to_image_coords(rect_id)
-            annotate_zoom_rect = self.annotate_panel.image_canvas.variables.canvas_image_object.full_image_yx_to_canvas_coords(
+        self.context_panel.image_canvas_panel.callback_handle_left_mouse_release(event)
+        if self.context_panel.image_canvas_panel.variables.current_tool == ToolConstants.SELECT_TOOL or \
+           self.context_panel.image_canvas_panel.variables.current_tool == ToolConstants.TRANSLATE_SHAPE_TOOL:
+            rect_id = self.context_panel.image_canvas_panel.variables.select_rect_id
+            image_rect = self.context_panel.image_canvas_panel.canvas_shape_coords_to_image_coords(rect_id)
+            annotate_zoom_rect = self.annotate_panel.image_canvas_panel.variables.canvas_image_object.full_image_yx_to_canvas_coords(
                 image_rect)
-            self.annotate_panel.image_canvas.zoom_to_selection(annotate_zoom_rect, animate=True)
+            self.annotate_panel.image_canvas_panel.zoom_to_selection(annotate_zoom_rect, animate=True)
         self.draw_context_rect()
         self.update_annotate_decimation_value()
         self.update_context_decimation_value()
@@ -196,29 +197,29 @@ class AnnotationTool(AbstractWidgetPanel):
     # annotate callbacks
     def callback_set_to_select_closest_shape(self, event):
         self.annotate_panel.annotate_dashboard.controls.set_active_button(self.annotate_panel.annotate_dashboard.controls.select_closest_shape)
-        self.annotate_panel.image_canvas.set_current_tool_to_select_closest_shape()
+        self.annotate_panel.image_canvas_panel.set_current_tool_to_select_closest_shape()
 
     def callback_annotate_set_to_pan(self, event):
         self.annotate_panel.annotate_dashboard.controls.set_active_button(self.annotate_panel.annotate_dashboard.controls.pan)
-        self.annotate_panel.image_canvas.set_current_tool_to_pan()
+        self.annotate_panel.image_canvas_panel.set_current_tool_to_pan()
 
     def callback_annotate_handle_left_mouse_release(self, event):
-        self.annotate_panel.image_canvas.callback_handle_left_mouse_release(event)
+        self.annotate_panel.image_canvas_panel.callback_handle_left_mouse_release(event)
         self.update_annotate_decimation_value()
         self.draw_context_rect()
         self.update_context_decimation_value()
         self.update_annotate_decimation_value()
 
     def callback_annotate_handle_canvas_left_mouse_click(self, event):
-        current_shape = self.annotate_panel.image_canvas.variables.current_shape_id
-        self.annotate_panel.image_canvas.variables.current_shape_id = current_shape
-        self.annotate_panel.image_canvas.callback_handle_left_mouse_click(event)
+        current_shape = self.annotate_panel.image_canvas_panel.variables.current_shape_id
+        self.annotate_panel.image_canvas_panel.variables.current_shape_id = current_shape
+        self.annotate_panel.image_canvas_panel.callback_handle_left_mouse_click(event)
 
     def callback_annotate_handle_right_mouse_click(self, event):
-        self.annotate_panel.image_canvas.callback_handle_right_mouse_click(event)
-        if self.annotate_panel.image_canvas.variables.current_tool == ToolConstants.DRAW_POLYGON_BY_CLICKING:
-            current_canvas_shape_id = self.annotate_panel.image_canvas.variables.current_shape_id
-            image_coords = self.annotate_panel.image_canvas.get_shape_image_coords(current_canvas_shape_id)
+        self.annotate_panel.image_canvas_panel.callback_handle_right_mouse_click(event)
+        if self.annotate_panel.image_canvas_panel.variables.current_tool == ToolConstants.DRAW_POLYGON_BY_CLICKING:
+            current_canvas_shape_id = self.annotate_panel.image_canvas_panel.variables.current_shape_id
+            image_coords = self.annotate_panel.image_canvas_panel.get_shape_image_coords(current_canvas_shape_id)
             geometry_coords = np.asarray([x for x in zip(image_coords[0::2], image_coords[1::2])])
             polygon = Polygon(coordinates=[geometry_coords])
 
@@ -229,29 +230,29 @@ class AnnotationTool(AbstractWidgetPanel):
 
     def callback_set_to_draw_polygon(self, event):
         self.annotate_panel.annotate_dashboard.controls.set_active_button(self.annotate_panel.annotate_dashboard.controls.draw_polygon)
-        self.annotate_panel.image_canvas.set_current_tool_to_draw_polygon_by_clicking()
+        self.annotate_panel.image_canvas_panel.set_current_tool_to_draw_polygon_by_clicking()
 
     def callback_handle_annotate_mouse_wheel(self, event):
-        self.annotate_panel.image_canvas.callback_mouse_zoom(event)
+        self.annotate_panel.image_canvas_panel.callback_mouse_zoom(event)
         self.draw_context_rect()
         self.update_annotate_decimation_value()
 
     def callback_delete_shape(self, event):
         self.annotate_panel.annotate_dashboard.controls.set_active_button(self.annotate_panel.annotate_dashboard.controls.delete_shape)
-        tool_shape_ids = self.annotate_panel.image_canvas.get_tool_shape_ids()
-        current_geom_id = self.annotate_panel.image_canvas.variables.current_shape_id
+        tool_shape_ids = self.annotate_panel.image_canvas_panel.get_tool_shape_ids()
+        current_geom_id = self.annotate_panel.image_canvas_panel.variables.current_shape_id
         if current_geom_id:
             if current_geom_id in tool_shape_ids:
                 print("a tool is currently selected.  First select a shape.")
                 pass
             else:
-                self.annotate_panel.image_canvas.delete_shape(current_geom_id)
+                self.annotate_panel.image_canvas_panel.delete_shape(current_geom_id)
                 del self.variables.canvas_geom_ids_to_annotations_id_dict[str(current_geom_id)]
         else:
             print("no shape selected")
 
     def callback_annotation_popup(self, event):
-        current_canvas_shape_id = self.annotate_panel.image_canvas.variables.current_shape_id
+        current_canvas_shape_id = self.annotate_panel.image_canvas_panel.variables.current_shape_id
         if current_canvas_shape_id:
             popup = tkinter.Toplevel(self.parent)
             self.variables.current_canvas_geom_id = current_canvas_shape_id
@@ -261,23 +262,23 @@ class AnnotationTool(AbstractWidgetPanel):
 
     # non callback defs
     def update_context_decimation_value(self):
-        decimation_value = self.context_panel.image_canvas.variables.canvas_image_object.decimation_factor
+        decimation_value = self.context_panel.image_canvas_panel.variables.canvas_image_object.decimation_factor
         self.context_panel.context_dashboard.info_panel.decimation_val.set_text(str(decimation_value))
 
     def update_annotate_decimation_value(self):
-        decimation_value = self.annotate_panel.image_canvas.variables.canvas_image_object.decimation_factor
+        decimation_value = self.annotate_panel.image_canvas_panel.variables.canvas_image_object.decimation_factor
         self.annotate_panel.annotate_dashboard.info_panel.annotate_decimation_val.set_text(str(decimation_value))
 
     def draw_context_rect(self):
-        annotate_canvas_nx = self.annotate_panel.image_canvas.variables.canvas_image_object.canvas_nx
-        annotate_canvas_ny = self.annotate_panel.image_canvas.variables.canvas_image_object.canvas_ny
+        annotate_canvas_nx = self.annotate_panel.image_canvas_panel.variables.canvas_image_object.canvas_nx
+        annotate_canvas_ny = self.annotate_panel.image_canvas_panel.variables.canvas_image_object.canvas_ny
         annotate_canvas_extents = [0, 0, annotate_canvas_nx, annotate_canvas_ny]
-        image_rect = self.annotate_panel.image_canvas.variables.canvas_image_object.canvas_coords_to_full_image_yx(
+        image_rect = self.annotate_panel.image_canvas_panel.variables.canvas_image_object.canvas_coords_to_full_image_yx(
             annotate_canvas_extents)
-        context_rect = self.context_panel.image_canvas.variables.canvas_image_object.full_image_yx_to_canvas_coords(
+        context_rect = self.context_panel.image_canvas_panel.variables.canvas_image_object.full_image_yx_to_canvas_coords(
             image_rect)
-        self.context_panel.image_canvas.modify_existing_shape_using_canvas_coords(
-            self.context_panel.image_canvas.variables.select_rect_id, context_rect)
+        self.context_panel.image_canvas_panel.modify_existing_shape_using_canvas_coords(
+            self.context_panel.image_canvas_panel.variables.select_rect_id, context_rect)
 
 
 def main():

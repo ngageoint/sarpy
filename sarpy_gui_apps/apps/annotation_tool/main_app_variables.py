@@ -1,7 +1,7 @@
 from sarpy.annotation.annotate import FileAnnotationCollection
 from sarpy.annotation.schema_processing import LabelSchema
 from sarpy.annotation.annotate import Annotation
-from tkinter_gui_builder.panel_templates.image_canvas_panel.image_canvas import ImageCanvas
+from tkinter_gui_builder.panel_templates.image_canvas_panel.image_canvas_panel import ImageCanvasPanel
 import os
 
 
@@ -14,6 +14,6 @@ class AppVariables:
         self.file_annotation_collection = FileAnnotationCollection
         self.file_annotation_fname = None                   # type: str
         self.canvas_geom_ids_to_annotations_id_dict = {}
-        self.annotate_canvas = ImageCanvas                  # type: ImageCanvas
-        self.context_canvas = ImageCanvas                   # type: ImageCanvas
+        self.annotate_canvas = ImageCanvasPanel                  # type: ImageCanvasPanel
+        self.context_canvas = ImageCanvasPanel                   # type: ImageCanvasPanel
         self.new_annotation = False                         # type: bool

@@ -1,5 +1,5 @@
 import tkinter
-from tkinter_gui_builder.widgets.image_canvas import ImageCanvas
+from tkinter_gui_builder.widgets.image_canvas.image_canvas import ImageCanvas
 
 
 class ImageCanvasPanel(tkinter.LabelFrame):

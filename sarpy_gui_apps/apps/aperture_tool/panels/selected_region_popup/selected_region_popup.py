@@ -15,7 +15,7 @@ class SelectedRegionPanel(AbstractWidgetPanel):
                  ):
         # set the master frame
         AbstractWidgetPanel.__init__(self, parent)
-        widgets_list = ["toolbar", "image_canvas_panel"]
+        widgets_list = ["toolbar", "image_canvas"]
 
         self.parent = parent
         self.app_variables = app_variables
