@@ -3,7 +3,7 @@ import os
 import tkinter
 from tkinter.filedialog import askopenfilename
 from sarpy_gui_apps.apps.make_ortho.panels.ortho_button_panel import OrthoButtonPanel
-from tkinter_gui_builder.panel_templates.image_canvas_panel.image_canvas import ImageCanvas
+from tkinter_gui_builder.panel_templates.image_canvas_panel.image_canvas_panel import ImageCanvasPanel
 from sarpy_gui_apps.supporting_classes.complex_image_reader import ComplexImageReader
 from tkinter_gui_builder.panel_templates.widget_panel.widget_panel import AbstractWidgetPanel
 from sarpy_gui_apps.supporting_classes.quick_ortho import QuickOrtho
@@ -11,8 +11,8 @@ from sarpy_gui_apps.supporting_classes.quick_ortho import QuickOrtho
 
 class Ortho(AbstractWidgetPanel):
     button_panel = OrthoButtonPanel         # type: OrthoButtonPanel
-    raw_frame_image_panel = ImageCanvas     # type: ImageCanvas
-    ortho_image_panel = ImageCanvas         # type: ImageCanvas
+    raw_frame_image_panel = ImageCanvasPanel     # type: ImageCanvasPanel
+    ortho_image_panel = ImageCanvasPanel         # type: ImageCanvasPanel
 
     fname = "None"  # type: str
     remap_type = "density"  # type: str
@@ -28,9 +28,9 @@ class Ortho(AbstractWidgetPanel):
         # define panels widget_wrappers in master frame
         self.button_panel.set_spacing_between_buttons(0)
         self.raw_frame_image_panel.set_canvas_size(600, 400)
-        self.raw_frame_image_panel.rescale_image_to_fit_canvas = True
+        self.raw_frame_image_panel.canvas.rescale_image_to_fit_canvas = True
         self.ortho_image_panel.set_canvas_size(600, 400)
-        self.ortho_image_panel.rescale_image_to_fit_canvas = True
+        self.ortho_image_panel.canvas.rescale_image_to_fit_canvas = True
 
         # need to pack both master frame and self, since this is the main app window.
         master_frame.pack()
@@ -42,8 +42,8 @@ class Ortho(AbstractWidgetPanel):
         self.button_panel.display_ortho.on_left_mouse_click(self.callback_display_ortho_image)
 
     def callback_set_to_pan(self, event):
-        self.raw_frame_image_panel.set_current_tool_to_pan()
-        self.raw_frame_image_panel.hide_shape(self.raw_frame_image_panel.variables.zoom_rect_id)
+        self.raw_frame_image_panel.canvas.set_current_tool_to_pan()
+        self.raw_frame_image_panel.canvas.hide_shape(self.raw_frame_image_panel.canvas.variables.zoom_rect_id)
 
     def callback_set_filename(self, event):
         image_file_extensions = ['*.nitf', '*.NITF']
@@ -55,12 +55,12 @@ class Ortho(AbstractWidgetPanel):
         if new_fname:
             self.fname = new_fname
             self.image_reader = ComplexImageReader(new_fname)
-            self.raw_frame_image_panel.set_image_reader(self.image_reader)
+            self.raw_frame_image_panel.canvas.set_image_reader(self.image_reader)
 
     def callback_display_ortho_image(self, event):
         ortho_object = QuickOrtho(self.raw_frame_image_panel, self.image_reader)
-        orthod_image = ortho_object.create_ortho(self.ortho_image_panel.canvas_height, self.ortho_image_panel.canvas_width)
-        self.ortho_image_panel.set_image_from_numpy_array(orthod_image)
+        orthod_image = ortho_object.create_ortho(self.ortho_image_panel.canvas.canvas_height, self.ortho_image_panel.canvas.canvas_width)
+        self.ortho_image_panel.canvas.set_image_from_numpy_array(orthod_image)
 
 
 if __name__ == '__main__':

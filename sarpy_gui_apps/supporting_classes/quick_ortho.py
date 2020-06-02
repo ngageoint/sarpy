@@ -2,13 +2,13 @@ import numpy as np
 from sarpy.geometry import point_projection
 from sarpy.geometry import geocoords
 from scipy.interpolate import griddata
-from tkinter_gui_builder.panel_templates.image_canvas_panel.image_canvas import ImageCanvas
+from tkinter_gui_builder.panel_templates.image_canvas_panel.image_canvas_panel import ImageCanvasPanel
 from sarpy_gui_apps.supporting_classes.complex_image_reader import ComplexImageReader
 
 
 class QuickOrtho:
     def __init__(self,
-                 image_canvas,      # type: ImageCanvas
+                 image_canvas,      # type: ImageCanvasPanel
                  sicd_reader,       # type: ComplexImageReader
                  ):
         self.image_canvas = image_canvas
@@ -18,7 +18,7 @@ class QuickOrtho:
                      output_ny,
                      output_nx,
                      ):
-        input_image_data = self.image_canvas.variables.canvas_image_object.display_image
+        input_image_data = self.image_canvas.canvas.variables.canvas_image_object.display_image
         display_image_nx = input_image_data.shape[1]
         display_image_ny = input_image_data.shape[0]
 
@@ -33,7 +33,7 @@ class QuickOrtho:
             canvas_coords_1d[start_index:end_index:2] = tmp_x_vals
             canvas_coords_1d[display_image_ny * x * 2::2][0:display_image_ny] = tmp_y_vals + x
 
-        full_image_coords = self.image_canvas.variables.canvas_image_object.canvas_coords_to_full_image_yx(canvas_coords_1d)
+        full_image_coords = self.image_canvas.canvas.variables.canvas_image_object.canvas_coords_to_full_image_yx(canvas_coords_1d)
 
         image_points[:, 0] = full_image_coords[0::2]
         image_points[:, 1] = full_image_coords[1::2]
