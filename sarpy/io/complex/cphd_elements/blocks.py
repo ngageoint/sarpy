@@ -290,13 +290,15 @@ class AreaType(Serializable):
     # descriptors
     X1Y1 = _SerializableDescriptor(
         'X1Y1', XYType, _required, strict=DEFAULT_STRICT,
-        docstring='')  # type: XYType
+        docstring='*"Minimum"* corner of the rectangle in Image '
+                  'coordinates.')  # type: XYType
     X2Y2 = _SerializableDescriptor(
         'X2Y2', XYType, _required, strict=DEFAULT_STRICT,
-        docstring='')  # type: XYType
+        docstring='*"Maximum"* corner of the rectangle in Image '
+                  'coordinates.')  # type: XYType
     Polygon = _SerializableArrayDescriptor(
         'Polygon', XYVertexType, _collections_tags, _required, strict=DEFAULT_STRICT, minimum_length=3,
-        docstring='A geographic polygon (array) with two-dimensional '
+        docstring='Polygon further reducing the bounding box, in Image '
                   'coordinates.')  # type: Union[SerializableArray, List[XYVertexType]]
 
     def __init__(self, X1Y1=None, X2Y2=None, Polygon=None, **kwargs):

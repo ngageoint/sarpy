@@ -19,25 +19,30 @@ __author__ = "Thomas McCullough"
 
 class TimelineType(Serializable):
     """
-    The timeline element.
+    Parameters that describe the collection times for the data contained in the product.
     """
+
     _fields = ('CollectionStart', 'RcvCollectionStart', 'TxTime1', 'TxTime2')
     _required = ('CollectionStart', 'TxTime1', 'TxTime2')
     # descriptors
     CollectionStart = _DateTimeDescriptor(
         'CollectionStart', _required, strict=DEFAULT_STRICT, numpy_datetime_units='us',
-        docstring='The collection start time. The default precision will be '
-                  'microseconds.')  # type: numpy.datetime64
+        docstring='Collection Start date and time (UTC). Time reference used for times '
+                  'measured from collection start (i.e. slow time t = 0). For bistatic '
+                  'collections, the time is the transmit platform collection '
+                  'start time. The default display precision is microseconds, but this '
+                  'does not that accuracy in value.')  # type: numpy.datetime64
     RcvCollectionStart = _DateTimeDescriptor(
         'RcvCollectionStart', _required, strict=DEFAULT_STRICT, numpy_datetime_units='us',
-        docstring='The collection start time. The default precision will be '
-                  'microseconds.')  # type: numpy.datetime64
+        docstring='Receive only platform collection date and start time.')  # type: numpy.datetime64
     TxTime1 = _FloatDescriptor(
         'TxTime1', _required, strict=DEFAULT_STRICT, bounds=(0, None),
-        docstring='The tx time 1?')  # type: float
+        docstring='Earliest TxTime value for any signal vector in the product. '
+                  'Time relative to Collection Start in seconds.')  # type: float
     TxTime2 = _FloatDescriptor(
         'TxTime2', _required, strict=DEFAULT_STRICT, bounds=(0, None),
-        docstring='The tx time 2?')  # type: float
+        docstring='Latest TxTime value for any signal vector in the product. '
+                  'Time relative to Collection Start in seconds.')  # type: float
 
     def __init__(self, CollectionStart=None, RcvCollectionStart=None, TxTime1=None, TxTime2=None, **kwargs):
         """
@@ -64,17 +69,21 @@ class TimelineType(Serializable):
 
 class FxBandType(Serializable, Arrayable):
     """
-    The FxBand information
+    Parameters that describe the FX frequency limits for the signal array(s)
+    contained in the product.
     """
+
     _fields = ('FxMin', 'FxMax')
     _required = _fields
     # descriptors
     FxMin = _FloatDescriptor(
         'FxMin', _required, strict=DEFAULT_STRICT, bounds=(0, None),
-        docstring='The Fx minimum.')  # type: float
+        docstring='Minimum fx value for any signal vector in the product in '
+                  'Hz.')  # type: float
     FxMax = _FloatDescriptor(
         'FxMax', _required, strict=DEFAULT_STRICT, bounds=(0, None),
-        docstring='The Fx maximum.')  # type: float
+        docstring='Maximum fx value for any signal vector in the product in '
+                  'Hz.')  # type: float
 
     def __init__(self, FxMin=None, FxMax=None, **kwargs):
         """
@@ -111,17 +120,21 @@ class FxBandType(Serializable, Arrayable):
 
 class TOASwathType(Serializable, Arrayable):
     """
-    The TOASwath information
+    Parameters that describe the time-of-arrival (TOA) swath limits for the signal
+    array(s) contained in the product.
     """
+
     _fields = ('TOAMin', 'TOAMax')
     _required = _fields
     # descriptors
     TOAMin = _FloatDescriptor(
         'TOAMin', _required, strict=DEFAULT_STRICT, bounds=(0, None),
-        docstring='The TOA minimum.')  # type: float
+        docstring=r'Minimum :math:`\Delta TOA` value for any signal vector in '
+                  'the product, in seconds.')  # type: float
     TOAMax = _FloatDescriptor(
         'TOAMax', _required, strict=DEFAULT_STRICT, bounds=(0, None),
-        docstring='The TOA maximum.')  # type: float
+        docstring=r'Maximum :math:`\Delta TOA` value for any signal vector in '
+                  'the product, in seconds.')  # type: float
 
     def __init__(self, TOAMin=None, TOAMax=None, **kwargs):
         """
@@ -158,7 +171,7 @@ class TOASwathType(Serializable, Arrayable):
 
 class TropoParametersType(Serializable):
     """
-    The Troposphere parameters.
+    Parameters used to compute the propagation delay due to the troposphere.
     """
 
     _fields = ('N0', 'RefHeight')
@@ -166,10 +179,12 @@ class TropoParametersType(Serializable):
     # descriptors
     N0 = _FloatDescriptor(
         'N0', _required, strict=DEFAULT_STRICT, bounds=(0, None),
-        docstring='The N0 parameter.')  # type: float
+        docstring='Refractivity value of the troposphere for the imaged scene used '
+                  'to form the product (dimensionless). Value at the IARP '
+                  'location.')  # type: float
     RefHeight = _StringEnumDescriptor(
         'RefHeight', ('IARP', 'ZERO'), _required, strict=DEFAULT_STRICT,
-        docstring='The reference for the height.')  # type: str
+        docstring='Reference Height for the `N0` value.')  # type: str
 
     def __init__(self, N0=None, RefHeight=None, **kwargs):
         """
@@ -192,7 +207,7 @@ class TropoParametersType(Serializable):
 
 class IonoParametersType(Serializable):
     """
-    The Ionosphere parameters.
+    Parameters used to compute propagation effects due to the ionosphere.
     """
 
     _fields = ('TECV', 'F2Height')
@@ -200,10 +215,12 @@ class IonoParametersType(Serializable):
     # descriptor
     TECV = _FloatDescriptor(
         'TECV', _required, strict=DEFAULT_STRICT, bounds=(0, None),
-        docstring='The TECV parameter.')  # type: float
+        docstring='Total Electron Content (TEC) integrated along TECU the Vertical (V), '
+                  r'in units where :math:`1 TECU = 10^{16} e^{-}/m^{2}`')  # type: float
     F2Height = _FloatDescriptor(
         'F2Height', _required, strict=DEFAULT_STRICT, bounds=(0, None),
-        docstring='The F2 height.')  # type: Union[None, float]
+        docstring='The F2 height of the ionosphere, in '
+                  'meters.')  # type: Union[None, float]
 
     def __init__(self, TECV=None, F2Height=None, **kwargs):
         """
@@ -235,25 +252,37 @@ class GlobalType(Serializable):
     # descriptors
     DomainType = _StringEnumDescriptor(
         'DomainType', ('FX', 'TOA'), _required, strict=DEFAULT_STRICT,
-        docstring='')  # type: str
+        docstring='Indicates the domain represented by the sample dimension of the '
+                  'CPHD signal array(s), where "FX" denotes Transmit Frequency, and '
+                  '"TOA" denotes Difference in Time of Arrival')  # type: str
     SGN = _IntegerEnumDescriptor(
         'SGN', (-1, 1), _required, strict=DEFAULT_STRICT,
-        docstring='The sign.')  # type: int
+        docstring='Phase SGN applied to compute target signal phase as a function of '
+                  r'target :math:`\Delta TOA^{TGT}`. Target phase in cycles. '
+                  r'For simple phase model :math:`Phase(fx) = SGN \times fx \times \Delta TOA^{TGT}` '
+                  r'In TOA domain, phase of the mainlobe peak '
+                  r':math:`Phase(\Delta TOA^{TGT}) = SGN \times fx_C \times \Delta TOA^{TGT}`'
+                  '.')  # type: int
     Timeline = _SerializableDescriptor(
         'Timeline', TimelineType, _required, strict=DEFAULT_STRICT,
-        docstring='The timeline parameters.')  # type: TimelineType
+        docstring='Parameters that describe the collection times for the data contained '
+                  'in the product')  # type: TimelineType
     FxBand = _SerializableDescriptor(
         'FxBand', FxBandType, _required, strict=DEFAULT_STRICT,
-        docstring='The FX band parameters.')  # type: FxBandType
+        docstring='Parameters that describe the FX frequency limits for the signal array(s) '
+                  'contained in the product.')  # type: FxBandType
     TOASwath = _SerializableDescriptor(
         'TOASwath', TOASwathType, _required, strict=DEFAULT_STRICT,
-        docstring='The TOA swath.')  # type: TOASwathType
+        docstring='Parameters that describe the time-of-arrival (TOA) swath limits for the '
+                  'signal array(s) contained in the product.')  # type: TOASwathType
     TropoParameters = _SerializableDescriptor(
         'TropoParameters', TropoParametersType, _required, strict=DEFAULT_STRICT,
-        docstring='The troposphere parameters.')  # type: Union[None, TropoParametersType]
+        docstring='Parameters used to compute the propagation delay due to the '
+                  'troposphere.')  # type: Union[None, TropoParametersType]
     IonoParameters = _SerializableDescriptor(
         'IonoParameters', IonoParametersType, _required, strict=DEFAULT_STRICT,
-        docstring='The ionosphere parameters.')  # type: Union[None, IonoParametersType]
+        docstring='Parameters used to compute propagation effects due to the '
+                  'ionosphere.')  # type: Union[None, IonoParametersType]
 
     def __init__(self, DomainType=None, SGN=None, Timeline=None, FxBand=None, TOASwath=None,
                  TropoParameters=None, IonoParameters=None, **kwargs):

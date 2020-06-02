@@ -23,11 +23,12 @@ class CollectionIDType(CollectionInfoType):
     _required = ('CollectorName', 'CoreName', 'RadarMode', 'Classification', 'ReleaseInfo')
     # descriptors
     ReleaseInfo = _StringDescriptor(
-        'ReleaseInfo', _required, strict=DEFAULT_STRICT,
-        docstring='')  # type: str
+        'ReleaseInfo', _required, strict=DEFAULT_STRICT, default_value='UNRESTRICTED',
+        docstring='The product release information.')  # type: str
 
     def __init__(self, CollectorName=None, IlluminatorName=None, CoreName=None, CollectType=None,
-                 RadarMode=None, Classification="UNCLASSIFIED", ReleaseInfo=None, CountryCodes=None, Parameters=None, **kwargs):
+                 RadarMode=None, Classification="UNCLASSIFIED", ReleaseInfo='UNRESTRICTED',
+                 CountryCodes=None, Parameters=None, **kwargs):
         """
 
         Parameters
