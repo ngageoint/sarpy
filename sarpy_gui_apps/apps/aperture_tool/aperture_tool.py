@@ -46,10 +46,9 @@ class ApertureTool(AbstractWidgetPanel):
 
         widgets_list = ["frequency_vs_degree_panel", "filtered_panel"]
         self.init_w_horizontal_layout(widgets_list)
-        self.frequency_vs_degree_panel.pack()
+        self.frequency_vs_degree_panel.pack(expand=tkinter.Y, fill=tkinter.BOTH)
         self.filtered_panel.pack()
 
-        self.frequency_vs_degree_panel.canvas.set_canvas_size(600, 400)
         self.filtered_panel.canvas.set_canvas_size(600, 400)
 
         self.frequency_vs_degree_panel.canvas.on_left_mouse_motion(self.callback_frequency_vs_degree_left_mouse_motion)
@@ -292,7 +291,8 @@ class ApertureTool(AbstractWidgetPanel):
         self.metaviewer.create_w_sicd(self.app_variables.sicd_reader_object.base_reader.sicd_meta)
 
         self.frequency_vs_degree_panel.update()
-        self.frequency_vs_degree_panel.update_image()
+        self.frequency_vs_degree_panel.update_x_axis(start_val=-10, stop_val=10, label="Polar Angle (degrees)")
+        self.frequency_vs_degree_panel.update_y_axis(start_val=7.409, stop_val=11.39, label="Frequency (GHz)")
 
     def get_fft_image_bounds(self,
                              ):             # type: (...) -> (int, int, int, int)
