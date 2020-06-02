@@ -5,7 +5,7 @@ from tkinter.filedialog import askopenfilename
 from sarpy_gui_apps.apps.canvas_demo.panels.canvas_demo_button_panel import CanvasDemoButtonPanel
 from tkinter_gui_builder.panel_templates.pyplot_image_panel.pyplot_image_panel import PyplotImagePanel
 from tkinter_gui_builder.utils.geometry_utils.kml_util import KmlUtil
-from tkinter_gui_builder.panel_templates.image_canvas_panel.image_canvas import ImageCanvas
+from tkinter_gui_builder.panel_templates.image_canvas_panel.image_canvas_panel import ImageCanvasPanel
 from tkinter_gui_builder.panel_templates.widget_panel.widget_panel import AbstractWidgetPanel
 import sarpy.geometry.point_projection as point_projection
 import sarpy.geometry.geocoords as geocoords
@@ -25,7 +25,7 @@ class AppVariables:
 class CanvasDemo(AbstractWidgetPanel):
     button_panel = CanvasDemoButtonPanel         # type: CanvasDemoButtonPanel
     pyplot_panel = PyplotImagePanel         # type: PyplotImagePanel
-    canvas_demo_image_panel = ImageCanvas         # type: ImageCanvas
+    canvas_demo_image_panel = ImageCanvasPanel         # type: ImageCanvasPanel
 
     def __init__(self, master):
         master_frame = tkinter.Frame(master)
@@ -37,9 +37,9 @@ class CanvasDemo(AbstractWidgetPanel):
 
         # define panels widget_wrappers in master frame
         self.button_panel.set_spacing_between_buttons(0)
-        self.canvas_demo_image_panel.variables.canvas_image_object = ImageCanvas
+        self.canvas_demo_image_panel.canvas.variables.canvas_image_object = ImageCanvasPanel
         self.canvas_demo_image_panel.set_canvas_size(700, 400)
-        self.canvas_demo_image_panel.rescale_image_to_fit_canvas = True
+        self.canvas_demo_image_panel.canvas.rescale_image_to_fit_canvas = True
 
         # need to pack both master frame and self, since this is the main app window.
         master_frame.pack()
@@ -79,12 +79,12 @@ class CanvasDemo(AbstractWidgetPanel):
 
         kml_util = KmlUtil()
 
-        canvas_shapes = self.canvas_demo_image_panel.variables.shape_ids
+        canvas_shapes = self.canvas_demo_image_panel.canvas.variables.shape_ids
         for shape_id in canvas_shapes:
-            image_coords = self.canvas_demo_image_panel.get_shape_image_coords(shape_id)
-            shape_type = self.canvas_demo_image_panel.get_shape_type(shape_id)
+            image_coords = self.canvas_demo_image_panel.canvas.get_shape_image_coords(shape_id)
+            shape_type = self.canvas_demo_image_panel.canvas.get_shape_type(shape_id)
             if image_coords:
-                sicd_meta = self.canvas_demo_image_panel.variables.canvas_image_object.reader_object.sicdmeta
+                sicd_meta = self.canvas_demo_image_panel.canvas.variables.canvas_image_object.reader_object.sicdmeta
                 image_points = numpy.zeros((int(len(image_coords)/2), 2))
                 image_points[:, 0] = image_coords[0::2]
                 image_points[:, 1] = image_coords[1::2]
@@ -97,23 +97,23 @@ class CanvasDemo(AbstractWidgetPanel):
 
                 xy_point_list = [(x, y) for x, y in zip(world_x_coordinates, world_y_coordinates)]
 
-                if shape_id == self.canvas_demo_image_panel.variables.zoom_rect_id:
+                if shape_id == self.canvas_demo_image_panel.canvas.variables.zoom_rect_id:
                     pass
-                elif shape_type == self.canvas_demo_image_panel.variables.select_rect_id:
+                elif shape_type == self.canvas_demo_image_panel.canvas.variables.select_rect_id:
                     pass
-                elif shape_type == self.canvas_demo_image_panel.SHAPE_TYPES.POINT:
+                elif shape_type == self.canvas_demo_image_panel.canvas.SHAPE_TYPES.POINT:
                     kml_util.add_point(str(shape_id), xy_point_list[0])
-                elif canvas_shapes == self.canvas_demo_image_panel.SHAPE_TYPES.LINE:
+                elif canvas_shapes == self.canvas_demo_image_panel.canvas.SHAPE_TYPES.LINE:
                     kml_util.add_linestring(str(shape_id), xy_point_list)
-                elif shape_type == self.canvas_demo_image_panel.SHAPE_TYPES.POLYGON:
+                elif shape_type == self.canvas_demo_image_panel.canvas.SHAPE_TYPES.POLYGON:
                     kml_util.add_polygon(str(shape_id), xy_point_list)
-                elif shape_type == self.canvas_demo_image_panel.SHAPE_TYPES.RECT:
+                elif shape_type == self.canvas_demo_image_panel.canvas.SHAPE_TYPES.RECT:
                     kml_util.add_polygon(str(shape_id), xy_point_list)
         kml_util.write_to_file(kml_save_fname)
 
     def callback_handle_canvas_left_mouse_click(self, event):
-        self.canvas_demo_image_panel.callback_handle_left_mouse_click(event)
-        current_shape = self.canvas_demo_image_panel.variables.current_shape_id
+        self.canvas_demo_image_panel.canvas.callback_handle_left_mouse_click(event)
+        current_shape = self.canvas_demo_image_panel.canvas.variables.current_shape_id
         if current_shape:
             self.variables.shapes_in_selector.append(current_shape)
             self.variables.shapes_in_selector = sorted(list(set(self.variables.shapes_in_selector)))
@@ -121,58 +121,58 @@ class CanvasDemo(AbstractWidgetPanel):
 
     def callback_handle_shape_selector(self, event):
         current_shape_id = int(self.button_panel.select_existing_shape.get())
-        self.canvas_demo_image_panel.variables.current_shape_id = current_shape_id
-        self.canvas_demo_image_panel.highlight_existing_shape(current_shape_id)
+        self.canvas_demo_image_panel.canvas.variables.current_shape_id = current_shape_id
+        self.canvas_demo_image_panel.canvas.highlight_existing_shape(current_shape_id)
 
     def callback_highlight_shape(self, event):
-        self.canvas_demo_image_panel.highlight_existing_shape(self.canvas_demo_image_panel.variables.current_shape_id)
+        self.canvas_demo_image_panel.canvas.highlight_existing_shape(self.canvas_demo_image_panel.canvas.variables.current_shape_id)
         
     def callback_edit_shape_coords(self, event):
-        self.canvas_demo_image_panel.set_current_tool_to_edit_shape_coords()
+        self.canvas_demo_image_panel.canvas.set_current_tool_to_edit_shape_coords()
 
     def callback_edit_shape(self, event):
-        self.canvas_demo_image_panel.set_current_tool_to_edit_shape()
+        self.canvas_demo_image_panel.canvas.set_current_tool_to_edit_shape()
 
     def callback_activate_color_selector(self, event):
-        self.canvas_demo_image_panel.activate_color_selector(event)
+        self.canvas_demo_image_panel.canvas.activate_color_selector(event)
 
     def callback_draw_line_w_drag(self, event):
-        self.canvas_demo_image_panel.set_current_tool_to_draw_line_by_dragging()
+        self.canvas_demo_image_panel.canvas.set_current_tool_to_draw_line_by_dragging()
 
     def callback_draw_line_w_click(self, event):
-        self.canvas_demo_image_panel.set_current_tool_to_draw_line_by_clicking()
+        self.canvas_demo_image_panel.canvas.set_current_tool_to_draw_line_by_clicking()
 
     def callback_draw_arrow_w_drag(self, event):
-        self.canvas_demo_image_panel.set_current_tool_to_draw_arrow_by_dragging()
+        self.canvas_demo_image_panel.canvas.set_current_tool_to_draw_arrow_by_dragging()
 
     def callback_draw_arrow_w_click(self, event):
-        self.canvas_demo_image_panel.set_current_tool_to_draw_arrow_by_clicking()
+        self.canvas_demo_image_panel.canvas.set_current_tool_to_draw_arrow_by_clicking()
 
     def callback_draw_rect_w_drag(self, event):
-        self.canvas_demo_image_panel.set_current_tool_to_draw_rect()
+        self.canvas_demo_image_panel.canvas.set_current_tool_to_draw_rect()
 
     def callback_draw_rect_w_click(self, event):
-        self.canvas_demo_image_panel.set_current_tool_to_draw_rect_by_clicking()
+        self.canvas_demo_image_panel.canvas.set_current_tool_to_draw_rect_by_clicking()
 
     def callback_draw_polygon_w_click(self, event):
-        self.canvas_demo_image_panel.set_current_tool_to_draw_polygon_by_clicking()
+        self.canvas_demo_image_panel.canvas.set_current_tool_to_draw_polygon_by_clicking()
 
     def callback_draw_point_w_click(self, event):
-        self.canvas_demo_image_panel.set_current_tool_to_draw_point()
+        self.canvas_demo_image_panel.canvas.set_current_tool_to_draw_point()
 
     def callback_set_to_zoom_in(self, event):
-        self.canvas_demo_image_panel.set_current_tool_to_zoom_in()
+        self.canvas_demo_image_panel.canvas.set_current_tool_to_zoom_in()
 
     def callback_set_to_zoom_out(self, event):
-        self.canvas_demo_image_panel.set_current_tool_to_zoom_out()
+        self.canvas_demo_image_panel.canvas.set_current_tool_to_zoom_out()
 
     def callback_set_to_pan(self, event):
-        self.canvas_demo_image_panel.set_current_tool_to_pan()
-        self.canvas_demo_image_panel.hide_shape(self.canvas_demo_image_panel.variables.zoom_rect_id)
+        self.canvas_demo_image_panel.canvas.set_current_tool_to_pan()
+        self.canvas_demo_image_panel.canvas.hide_shape(self.canvas_demo_image_panel.canvas.variables.zoom_rect_id)
 
     def callback_set_to_select(self, event):
-        self.canvas_demo_image_panel.set_current_tool_to_draw_rect(self.canvas_demo_image_panel.variables.select_rect_id)
-        self.variables.selection_rect_id = self.canvas_demo_image_panel.variables.current_shape_id
+        self.canvas_demo_image_panel.canvas.set_current_tool_to_draw_rect(self.canvas_demo_image_panel.canvas.variables.select_rect_id)
+        self.variables.selection_rect_id = self.canvas_demo_image_panel.canvas.variables.current_shape_id
 
     # define custom callbacks here
     def callback_remap(self, event):
@@ -186,7 +186,7 @@ class CanvasDemo(AbstractWidgetPanel):
                       "nrl": "nrl"}
         selection = self.button_panel.remap_dropdown.get()
         remap_type = remap_dict[selection]
-        self.canvas_demo_image_panel.variables.canvas_image_object.remap_type = remap_type
+        self.canvas_demo_image_panel.canvas.variables.canvas_image_object.remap_type = remap_type
 
     def callback_initialize_canvas_image(self, event):
         image_file_extensions = ['*.nitf', '*.NITF']
@@ -198,10 +198,10 @@ class CanvasDemo(AbstractWidgetPanel):
         if new_fname:
             self.variables.fname = new_fname
             sicd_reader = ComplexImageReader(new_fname)
-            self.canvas_demo_image_panel.set_image_reader(sicd_reader)
+            self.canvas_demo_image_panel.canvas.set_image_reader(sicd_reader)
 
     def callback_display_canvas_rect_selection_in_pyplot_frame(self, event):
-        remapped_data = self.canvas_demo_image_panel.get_image_data_in_canvas_rect_by_id(self.canvas_demo_image_panel.variables.select_rect_id)
+        remapped_data = self.canvas_demo_image_panel.canvas.get_image_data_in_canvas_rect_by_id(self.canvas_demo_image_panel.canvas.variables.select_rect_id)
         self.pyplot_panel.update_image(remapped_data)
 
 
