@@ -3,7 +3,7 @@ import os
 import tkinter
 from tkinter.filedialog import askopenfilename
 from tkinter_gui_builder.panel_templates.pyplot_image_panel.pyplot_image_panel import PyplotImagePanel
-from tkinter_gui_builder.panel_templates.image_canvas_panel.image_canvas import ImageCanvas
+from tkinter_gui_builder.panel_templates.image_canvas_panel.image_canvas_panel import ImageCanvasPanel
 from tkinter_gui_builder.panel_templates.widget_panel.widget_panel import AbstractWidgetPanel
 
 from sarpy_gui_apps.apps.taser_tool.panels.taser_button_panel import TaserButtonPanel
@@ -20,7 +20,7 @@ class AppVariables:
 class Taser(AbstractWidgetPanel):
     button_panel = TaserButtonPanel         # type: TaserButtonPanel
     pyplot_panel = PyplotImagePanel         # type: PyplotImagePanel
-    taser_image_panel = ImageCanvas         # type: ImageCanvas
+    taser_image_panel = ImageCanvasPanel         # type: ImageCanvasPanel
 
     def __init__(self, master):
         master_frame = tkinter.Frame(master)
@@ -32,8 +32,8 @@ class Taser(AbstractWidgetPanel):
 
         # define panels widget_wrappers in master frame
         self.button_panel.set_spacing_between_buttons(0)
-        self.taser_image_panel.variables.canvas_image_object = ImageCanvas  # type: ImageCanvas
-        self.taser_image_panel.set_canvas_size(700, 400)
+        self.taser_image_panel.canvas.variables.canvas_image_object = ImageCanvasPanel  # type: ImageCanvasPanel
+        self.taser_image_panel.canvas.set_canvas_size(700, 400)
 
         # need to pack both master frame and self, since this is the main app window.
         master_frame.pack()
@@ -50,23 +50,23 @@ class Taser(AbstractWidgetPanel):
         self.taser_image_panel.canvas.on_left_mouse_release(self.callback_left_mouse_release)
 
     def callback_left_mouse_release(self, event):
-        self.taser_image_panel.callback_handle_left_mouse_release(event)
-        if self.taser_image_panel.variables.current_tool == self.taser_image_panel.TOOLS.SELECT_TOOL:
-            self.taser_image_panel.zoom_to_selection((0, 0, self.taser_image_panel.canvas_width, self.taser_image_panel.canvas_height), animate=False)
+        self.taser_image_panel.canvas.callback_handle_left_mouse_release(event)
+        if self.taser_image_panel.canvas.variables.current_tool == self.taser_image_panel.canvas.TOOLS.SELECT_TOOL:
+            self.taser_image_panel.canvas.zoom_to_selection((0, 0, self.taser_image_panel.canvas.canvas_width, self.taser_image_panel.canvas.canvas_height), animate=False)
             self.display_canvas_rect_selection_in_pyplot_frame()
 
     def callback_set_to_zoom_in(self, event):
-        self.taser_image_panel.set_current_tool_to_zoom_in()
+        self.taser_image_panel.canvas.set_current_tool_to_zoom_in()
 
     def callback_set_to_zoom_out(self, event):
-        self.taser_image_panel.set_current_tool_to_zoom_out()
+        self.taser_image_panel.canvas.set_current_tool_to_zoom_out()
 
     def callback_set_to_pan(self, event):
-        self.taser_image_panel.set_current_tool_to_pan()
-        self.taser_image_panel.hide_shape(self.taser_image_panel.variables.zoom_rect_id)
+        self.taser_image_panel.canvas.set_current_tool_to_pan()
+        self.taser_image_panel.canvas.hide_shape(self.taser_image_panel.canvas.variables.zoom_rect_id)
 
     def callback_set_to_select(self, event):
-        self.taser_image_panel.set_current_tool_to_selection_tool()
+        self.taser_image_panel.canvas.set_current_tool_to_selection_tool()
 
     # define custom callbacks here
     def callback_remap(self, event):
@@ -82,7 +82,7 @@ class Taser(AbstractWidgetPanel):
         remap_type = remap_dict[selection]
         self.variables.image_reader.remap_type = remap_type
         self.display_canvas_rect_selection_in_pyplot_frame()
-        self.taser_image_panel.update_current_image()
+        self.taser_image_panel.canvas.update_current_image()
 
     def callback_initialize_canvas_image(self, event):
         image_file_extensions = ['*.nitf', '*.NITF']
@@ -94,10 +94,10 @@ class Taser(AbstractWidgetPanel):
         if new_fname:
             self.variables.fname = new_fname
             self.variables.image_reader = ComplexImageReader(self.variables.fname)
-            self.taser_image_panel.set_image_reader(self.variables.image_reader)
+            self.taser_image_panel.canvas.set_image_reader(self.variables.image_reader)
 
     def display_canvas_rect_selection_in_pyplot_frame(self):
-        image_data = self.taser_image_panel.get_image_data_in_canvas_rect_by_id(self.taser_image_panel.variables.select_rect_id)
+        image_data = self.taser_image_panel.canvas.get_image_data_in_canvas_rect_by_id(self.taser_image_panel.canvas.variables.select_rect_id)
         self.pyplot_panel.update_image(image_data)
 
 
