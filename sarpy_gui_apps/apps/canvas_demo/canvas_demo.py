@@ -5,7 +5,7 @@ from tkinter.filedialog import askopenfilename
 from sarpy_gui_apps.apps.canvas_demo.panels.canvas_demo_button_panel import CanvasDemoButtonPanel
 from tkinter_gui_builder.panel_templates.pyplot_image_panel.pyplot_image_panel import PyplotImagePanel
 from tkinter_gui_builder.utils.geometry_utils.kml_util import KmlUtil
-from tkinter_gui_builder.panel_templates.image_canvas.image_canvas import ImageCanvas
+from tkinter_gui_builder.panel_templates.image_canvas_panel.image_canvas import ImageCanvas
 from tkinter_gui_builder.panel_templates.widget_panel.widget_panel import AbstractWidgetPanel
 import sarpy.geometry.point_projection as point_projection
 import sarpy.geometry.geocoords as geocoords

@@ -10,7 +10,7 @@ from sarpy_gui_apps.apps.annotation_tool.main_app_variables import AppVariables
 
 import tkinter
 from tkinter_gui_builder.panel_templates.widget_panel.widget_panel import AbstractWidgetPanel
-from tkinter_gui_builder.panel_templates.image_canvas.tool_constants import ToolConstants
+from tkinter_gui_builder.panel_templates.image_canvas_panel.tool_constants import ToolConstants
 from sarpy.geometry.geometry_elements import Polygon
 from sarpy.annotation.annotate import FileAnnotationCollection
 from sarpy.annotation.annotate import Annotation

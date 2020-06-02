@@ -1,6 +1,6 @@
 import tkinter
 from tkinter_gui_builder.panel_templates.pyplot_panel.PyplotPanel import PyplotPanel
-from tkinter_gui_builder.example_apps.plot_demo.panels import ButtonPanel
+from tkinter_gui_builder.example_apps.plot_demo.panels.plot_demo_button_panel import ButtonPanel
 from tkinter_gui_builder.panel_templates.widget_panel.widget_panel import AbstractWidgetPanel
 import numpy as np
 

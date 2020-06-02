@@ -1,5 +1,5 @@
 from sarpy_gui_apps.apps.annotation_tool.panels.annotate_image_panel.annotate_dashboard.annotate_dashboard import AnnotateDash
-from tkinter_gui_builder.panel_templates.image_canvas.image_canvas import ImageCanvas
+from tkinter_gui_builder.panel_templates.image_canvas_panel.image_canvas import ImageCanvas
 from tkinter_gui_builder.panel_templates.widget_panel.widget_panel import AbstractWidgetPanel
 
 
@@ -17,7 +17,7 @@ class AnnotateImagePanel(AbstractWidgetPanel):
         # set the master frame
         AbstractWidgetPanel.__init__(self, parent)
         self.app_variables = AppVariables()
-        widgets_list = ["image_canvas", "annotate_dashboard"]
+        widgets_list = ["image_canvas_panel", "annotate_dashboard"]
 
         self.init_w_vertical_layout(widgets_list)
 

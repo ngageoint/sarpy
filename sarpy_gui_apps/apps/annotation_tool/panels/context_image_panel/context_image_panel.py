@@ -1,5 +1,5 @@
 from sarpy_gui_apps.apps.annotation_tool.panels.context_image_panel.master_dashboard.context_dashboard import ContextMasterDash
-from tkinter_gui_builder.panel_templates.image_canvas.image_canvas import ImageCanvas
+from tkinter_gui_builder.panel_templates.image_canvas_panel.image_canvas import ImageCanvas
 from tkinter_gui_builder.panel_templates.widget_panel.widget_panel import AbstractWidgetPanel
 
 
@@ -17,7 +17,7 @@ class ContextImagePanel(AbstractWidgetPanel):
         # set the master frame
         AbstractWidgetPanel.__init__(self, parent)
         self.app_variables = AppVariables()
-        widgets_list = ["image_canvas", "context_dashboard"]
+        widgets_list = ["image_canvas_panel", "context_dashboard"]
 
         self.init_w_vertical_layout(widgets_list)
 

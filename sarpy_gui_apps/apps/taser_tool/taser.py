@@ -3,7 +3,7 @@ import os
 import tkinter
 from tkinter.filedialog import askopenfilename
 from tkinter_gui_builder.panel_templates.pyplot_image_panel.pyplot_image_panel import PyplotImagePanel
-from tkinter_gui_builder.panel_templates.image_canvas.image_canvas import ImageCanvas
+from tkinter_gui_builder.panel_templates.image_canvas_panel.image_canvas import ImageCanvas
 from tkinter_gui_builder.panel_templates.widget_panel.widget_panel import AbstractWidgetPanel
 
 from sarpy_gui_apps.apps.taser_tool.panels.taser_button_panel import TaserButtonPanel

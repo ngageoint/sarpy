@@ -7,13 +7,13 @@ from sarpy.io.complex.sicd import SICDType
 from sarpy.geometry import geocoords
 from scipy.constants import constants
 import numpy
-from tkinter_gui_builder.panel_templates.image_canvas.image_canvas import ImageCanvas
+from tkinter_gui_builder.panel_templates.image_canvas_panel.image_canvas_panel import ImageCanvasPanel
 import tkinter_gui_builder.utils.color_utils.color_converter as color_converter
 from sarpy.geometry import latlon
 from tkinter_gui_builder.image_readers.numpy_image_reader import NumpyImageReader
 
 
-class MetaIcon(ImageCanvas):
+class MetaIcon(ImageCanvasPanel):
     __slots__ = ('fname', 'reader_object', "meta")
 
     def __init__(self, master):
@@ -35,11 +35,9 @@ class MetaIcon(ImageCanvas):
     def create_from_sicd(self,
                          sicd_meta,     # type: SICDType
                          ):
-        self.set_canvas_size(self.canvas_width, self.canvas_height)
-
-        metaicon_background = numpy.zeros((self.canvas_height, self.canvas_width))
+        metaicon_background = numpy.zeros((self.canvas.canvas_height, self.canvas.canvas_width))
         numpy_reader = NumpyImageReader(metaicon_background)
-        self.set_image_reader(numpy_reader)
+        self.canvas.set_image_reader(numpy_reader)
 
         self.meta = sicd_meta
         iid_line = self.get_iid_line()
@@ -75,19 +73,19 @@ class MetaIcon(ImageCanvas):
         self.draw_arrow("multipath")
         self.draw_arrow("north")
 
-        flight_direction_arrow_start = (self.canvas_width * 0.65, self.canvas_height * 0.9)
-        flight_direction_arrow_end = (self.canvas_width * 0.95, flight_direction_arrow_start[1])
+        flight_direction_arrow_start = (self.canvas.canvas_width * 0.65, self.canvas.canvas_height * 0.9)
+        flight_direction_arrow_end = (self.canvas.canvas_width * 0.95, flight_direction_arrow_start[1])
         if self.meta.SCPCOA.SideOfTrack == "R":
-            self.create_new_arrow((flight_direction_arrow_start[0],
+            self.canvas.create_new_arrow((flight_direction_arrow_start[0],
                                    flight_direction_arrow_start[1],
                                    flight_direction_arrow_end[0],
                                    flight_direction_arrow_end[1]), fill=self.flight_direction_color, width=3)
         else:
-            self.create_new_arrow((flight_direction_arrow_end[0],
+            self.canvas.create_new_arrow((flight_direction_arrow_end[0],
                                    flight_direction_arrow_end[1],
                                    flight_direction_arrow_start[0],
                                    flight_direction_arrow_start[1]), fill=self.flight_direction_color, width=3)
-        self.canvas.create_text((flight_direction_arrow_start[0] - self.canvas_width * 0.04,
+        self.canvas.create_text((flight_direction_arrow_start[0] - self.canvas.canvas_width * 0.04,
                                  flight_direction_arrow_start[1]),
                                 text="R",
                                 fill=self.flight_direction_color,
@@ -100,8 +98,8 @@ class MetaIcon(ImageCanvas):
 
     def _get_line_positions(self, margin_percent=5):
         n_lines = 9
-        height = self.canvas_height
-        width = self.canvas_width
+        height = self.canvas.canvas_height
+        width = self.canvas.canvas_width
         margin = height * (margin_percent*0.01*2)
         top_margin = margin/2
         height_w_margin = height - margin
@@ -299,8 +297,8 @@ class MetaIcon(ImageCanvas):
 
         arrow_rad = numpy.deg2rad(arrow)
 
-        arrow_length_old = self.canvas_width * 0.15
-        arrows_origin = (self.canvas_width * 0.75, self.canvas_height * 0.6)
+        arrow_length_old = self.canvas.canvas_width * 0.15
+        arrows_origin = (self.canvas.canvas_width * 0.75, self.canvas.canvas_height * 0.6)
 
         # adjust aspect ratio in the case we're dealing with circular polarization from RCM
         pixel_aspect_ratio = 1.0
@@ -327,7 +325,7 @@ class MetaIcon(ImageCanvas):
             y_end = arrows_origin[1] - arrow_length * numpy.sin(arrow_rad) * aspect_ratio
 
         # now draw the arrows
-        self.create_new_arrow((arrows_origin[0],
+        self.canvas.create_new_arrow((arrows_origin[0],
                                arrows_origin[1],
                                x_end,
                                y_end),

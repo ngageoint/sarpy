@@ -8,7 +8,7 @@ from tkinter import filedialog
 from tkinter import Menu
 from tkinter_gui_builder.panel_templates.widget_panel.widget_panel import AbstractWidgetPanel
 from tkinter_gui_builder.utils.image_utils import frame_sequence_utils
-from tkinter_gui_builder.panel_templates.image_canvas_refactor.image_canvas_panel import ImageCanvasPanel
+from tkinter_gui_builder.panel_templates.image_canvas_panel.image_canvas_panel import ImageCanvasPanel
 
 import sarpy.io.complex as sarpy_complex
 import sarpy.visualization.remap as remap
@@ -259,7 +259,7 @@ class ApertureTool(AbstractWidgetPanel):
         popup = tkinter.Toplevel(self.master)
         selected_region_popup = SelectedRegionPanel(popup, self.app_variables)
         self.app_variables.sicd_reader_object = ComplexImageReader(self.app_variables.sicd_fname)
-        selected_region_popup.image_canvas.set_image_reader(self.app_variables.sicd_reader_object)
+        selected_region_popup.image_canvas.canvas.set_image_reader(self.app_variables.sicd_reader_object)
 
         self.master.wait_window(popup)
 

@@ -63,7 +63,6 @@ class GeotiffImageReader(ImageReader):
         return image_data
 
     def __getitem__(self, key):
-        print(key)
         if self.n_overviews == 0:
             if self.all_image_data is None:
                 self.all_image_data = self.read_full_display_image_data_from_disk(self.display_bands)
@@ -80,8 +79,6 @@ class GeotiffImageReader(ImageReader):
             full_image_stop_x = key[1].stop
 
             overview_level = int(numpy.log2(min_step)) - 1
-            print("overview level")
-            print(overview_level)
             overview_decimation_factor = numpy.power(2, overview_level + 1)
 
             overview_start_y = int(full_image_start_y / overview_decimation_factor)

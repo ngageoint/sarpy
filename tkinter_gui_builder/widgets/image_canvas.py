@@ -15,9 +15,9 @@ import PIL.Image
 import numpy as np
 from tkinter_gui_builder.image_readers.image_reader import ImageReader
 
-from tkinter_gui_builder.panel_templates.image_canvas_refactor.tool_constants import ShapePropertyConstants as SHAPE_PROPERTIES
-from tkinter_gui_builder.panel_templates.image_canvas_refactor.tool_constants import ShapeTypeConstants as SHAPE_TYPES
-from tkinter_gui_builder.panel_templates.image_canvas_refactor.tool_constants import ToolConstants as TOOLS
+from tkinter_gui_builder.panel_templates.image_canvas_panel.tool_constants import ShapePropertyConstants as SHAPE_PROPERTIES
+from tkinter_gui_builder.panel_templates.image_canvas_panel.tool_constants import ShapeTypeConstants as SHAPE_TYPES
+from tkinter_gui_builder.panel_templates.image_canvas_panel.tool_constants import ToolConstants as TOOLS
 
 if platform.system() == "Linux":
     import pyscreenshot as ImageGrab

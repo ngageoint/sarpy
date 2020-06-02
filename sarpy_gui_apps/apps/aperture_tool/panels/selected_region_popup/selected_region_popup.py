@@ -1,14 +1,12 @@
 from sarpy_gui_apps.supporting_classes.complex_image_reader import ComplexImageReader
-from tkinter_gui_builder.panel_templates.image_canvas.image_canvas import ImageCanvas
+from tkinter_gui_builder.panel_templates.image_canvas_panel.image_canvas_panel import ImageCanvasPanel
 from tkinter_gui_builder.panel_templates.widget_panel.widget_panel import AbstractWidgetPanel
 from sarpy_gui_apps.apps.aperture_tool.app_variables import AppVariables
 from sarpy_gui_apps.apps.aperture_tool.panels.selected_region_popup.toolbar import Toolbar
 
-import matplotlib.pyplot as plt
-
 
 class SelectedRegionPanel(AbstractWidgetPanel):
-    image_canvas = ImageCanvas      # type: ImageCanvas
+    image_canvas = ImageCanvasPanel      # type: ImageCanvasPanel
     toolbar = Toolbar                   # type: Toolbar
 
     def __init__(self,
@@ -17,7 +15,7 @@ class SelectedRegionPanel(AbstractWidgetPanel):
                  ):
         # set the master frame
         AbstractWidgetPanel.__init__(self, parent)
-        widgets_list = ["toolbar", "image_canvas"]
+        widgets_list = ["toolbar", "image_canvas_panel"]
 
         self.parent = parent
         self.app_variables = app_variables
@@ -25,9 +23,9 @@ class SelectedRegionPanel(AbstractWidgetPanel):
         self.init_w_vertical_layout(widgets_list)
 
         sicd_reader = ComplexImageReader(app_variables.sicd_fname)
-        # self.image_canvas = ImageCanvas()
+        # self.image_canvas_panel = ImageCanvas()
         self.image_canvas.set_canvas_size(1000, 1000)
-        self.image_canvas.set_image_reader(sicd_reader)
+        self.image_canvas.canvas.set_image_reader(sicd_reader)
 
         self.pack()
 
@@ -38,19 +36,19 @@ class SelectedRegionPanel(AbstractWidgetPanel):
         self.toolbar.submit_aoi.on_left_mouse_click(self.submit_aoi)
 
     def set_current_tool_to_zoom_in(self, event):
-        self.image_canvas.set_current_tool_to_zoom_in()
+        self.image_canvas.canvas.set_current_tool_to_zoom_in()
 
     def set_current_tool_to_zoom_out(self, event):
-        self.image_canvas.set_current_tool_to_zoom_out()
+        self.image_canvas.canvas.set_current_tool_to_zoom_out()
 
     def set_current_tool_to_pan(self, event):
-        self.image_canvas.set_current_tool_to_pan()
+        self.image_canvas.canvas.set_current_tool_to_pan()
 
     def set_current_tool_to_selection_tool(self, event):
-        self.image_canvas.set_current_tool_to_selection_tool()
+        self.image_canvas.canvas.set_current_tool_to_selection_tool()
 
     def submit_aoi(self, event):
-        selection_image_coords = self.image_canvas.get_shape_image_coords(self.image_canvas.variables.select_rect_id)
+        selection_image_coords = self.image_canvas.canvas.get_shape_image_coords(self.image_canvas.canvas.variables.select_rect_id)
         if selection_image_coords:
             self.app_variables.selected_region = selection_image_coords
             y1 = selection_image_coords[0]

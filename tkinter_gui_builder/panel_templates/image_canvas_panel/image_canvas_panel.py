@@ -10,3 +10,6 @@ class ImageCanvasPanel(tkinter.LabelFrame):
 
         self.canvas = ImageCanvas(self)
         self.canvas.pack()
+
+    def set_canvas_size(self, width_npix, height_npix):
+        self.canvas.set_canvas_size(width_npix, height_npix)

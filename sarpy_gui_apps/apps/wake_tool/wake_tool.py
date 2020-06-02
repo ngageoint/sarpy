@@ -1,6 +1,6 @@
 import tkinter
 from sarpy_gui_apps.apps.wake_tool.panels.side_panel import SidePanel
-from tkinter_gui_builder.panel_templates.image_canvas.image_canvas import ImageCanvas
+from tkinter_gui_builder.panel_templates.image_canvas_panel.image_canvas import ImageCanvas
 import tkinter.colorchooser as colorchooser
 from tkinter_gui_builder.panel_templates.widget_panel.widget_panel import AbstractWidgetPanel
 import sarpy.geometry.point_projection as point_projection
@@ -32,7 +32,7 @@ class WakeTool(AbstractWidgetPanel):
         # set the master frame
         master_frame = tkinter.Frame(master)
         AbstractWidgetPanel.__init__(self, master_frame)
-        widget_list = ["image_canvas", "side_panel"]
+        widget_list = ["image_canvas_panel", "side_panel"]
         self.init_w_vertical_layout(widget_list)
         self.variables = AppVariables()
 
