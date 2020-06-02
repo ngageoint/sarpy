@@ -79,5 +79,5 @@ class FrequencyVsDegreePanel(tkinter.LabelFrame):
             self.labels_canvas.create_text(xy, text=tick_val, fill="black", anchor="w")
 
         if label:
-            self.labels_canvas.create_text((label_x_index, y_axis_positions[int(n_ticks/2)]), text=label, fill="black", anchor="sw", angle=90)
+            self.labels_canvas.create_text((label_x_index, y_axis_positions[int(n_ticks/2)]), text=label, fill="black", anchor="s", angle=90, justify="right")
 
