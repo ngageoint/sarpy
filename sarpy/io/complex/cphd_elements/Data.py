@@ -140,7 +140,7 @@ class DataType(Serializable):
         'SignalCompressionID', 'Channels', 'NumSupportArrays', 'SupportArrays')
     _required = ('SignalArrayFormat', 'NumBytesPVP', 'NumCPHDChannels', 'Channels')
     _collections_tags = {
-        'Channel': {'array': False, 'child_tag': 'Channel'},
+        'Channels': {'array': False, 'child_tag': 'Channel'},
         'SupportArrays': {'array': False, 'child_tag': 'SupportArray'}}
     # descriptors
     SignalArrayFormat = _StringEnumDescriptor(

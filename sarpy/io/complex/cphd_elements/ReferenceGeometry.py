@@ -138,18 +138,18 @@ class MonostaticType(ReferenceGeometryCore):
         'ARPPos', XYZType, _required, strict=DEFAULT_STRICT,
         docstring='ARP position in ECF coordinates.')  # type: XYZType
     ARPVel = _SerializableDescriptor(
-        'ARPVel', _required, strict=DEFAULT_STRICT,
+        'ARPVel', XYZType, _required, strict=DEFAULT_STRICT,
         docstring='ARP velocity in ECF coordinates.')  # type: XYZType
     TwistAngle = _FloatDescriptor(
         'TwistAngle', _required, strict=DEFAULT_STRICT, bounds=(-90, 90),
         docstring='Twist angle between cross range in the ETP and cross range in '
                   'the slant plane at the SRP.')  # type: float
     SlopeAngle = _FloatDescriptor(
-        'SlopeAngle', _required, strict=DEFAULT_STRICT, bounds=(),
+        'SlopeAngle', _required, strict=DEFAULT_STRICT, bounds=(0, 90),
         docstring='Angle between the ETP normal (uUP) and the slant plane normal '
                   '(uSPN) at the SRP.')  # type: float
     LayoverAngle = _FloatDescriptor(
-        'LayoverAngle', _required, strict=DEFAULT_STRICT, bounds=(),
+        'LayoverAngle', _required, strict=DEFAULT_STRICT, bounds=(0, 360),
         docstring='Angle from north to the layover direction in the ETP. Measured '
                   'clockwise from +North toward +East.')  # type: float
 
@@ -239,7 +239,7 @@ class BistaticTxRcvType(ReferenceGeometryCore):
         'Pos', XYZType, _required, strict=DEFAULT_STRICT,
         docstring='APC position in ECF coordinates.')  # type: XYZType
     Vel = _SerializableDescriptor(
-        'Vel', _required, strict=DEFAULT_STRICT,
+        'Vel', XYZType, _required, strict=DEFAULT_STRICT,
         docstring='APC velocity in ECF coordinates.')  # type: XYZType
 
     def __init__(self, Time=None, Pos=None, Vel=None,
@@ -315,11 +315,11 @@ class BistaticType(Serializable):
                   'Note - For monostatic imaging, the plane of maximum resolution is '
                   'the instantaneous slant plane.')  # type: float
     SlopeAngle = _FloatDescriptor(
-        'SlopeAngle', _required, strict=DEFAULT_STRICT, bounds=(),
+        'SlopeAngle', _required, strict=DEFAULT_STRICT, bounds=(0, 90),
         docstring='Angle between the ETP normal and the normal to the instantaneous '
                   'plane of maximum bistatic resolution.')  # type: float
     LayoverAngle = _FloatDescriptor(
-        'LayoverAngle', _required, strict=DEFAULT_STRICT, bounds=(),
+        'LayoverAngle', _required, strict=DEFAULT_STRICT, bounds=(0, 360),
         docstring='Angle from north to the bistatic layover direction in the ETP. '
                   'Measured clockwise from +North toward +East.')  # type: float
     TxPlatform = _SerializableDescriptor(

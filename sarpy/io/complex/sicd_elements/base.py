@@ -707,7 +707,7 @@ class _IntegerDescriptor(_BasicDescriptor):
 
     def _docstring_suffix(self):
         if self.bounds is not None:
-            return 'Must be in the range [{0:d}, {1:d}]'.format(self.bounds[0], self.bounds[1])
+            return 'Must be in the range [{}, {}]'.format(*self.bounds)
         return ''
 
     def _in_bounds(self, value):
@@ -850,7 +850,7 @@ class _FloatDescriptor(_BasicDescriptor):
 
     def _docstring_suffix(self):
         if self.bounds is not None:
-            return 'Must be in the range [{}, {}]'.format(str(self.bounds[0]), str(self.bounds[1]))
+            return 'Must be in the range [{}, {}]'.format(*self.bounds)
         return ''
 
     def _in_bounds(self, value):
