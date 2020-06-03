@@ -1,0 +1,227 @@
+# -*- coding: utf-8 -*-
+"""
+The Compensated Phase History Data definition.
+"""
+
+from xml.etree import ElementTree
+from collections import OrderedDict
+from typing import Union
+
+from .base import DEFAULT_STRICT
+# noinspection PyProtectedMember
+from ..sicd_elements.base import Serializable, _SerializableDescriptor
+
+from .CollectionID import CollectionIDType
+from .Global import GlobalType
+from .SceneCoordinates import SceneCoordinatesType
+from .Data import DataType
+from .Channel import ChannelType
+from .PVP import PVPType
+from .SupportArray import SupportArrayType
+from .Dwell import DwellType
+from .ReferenceGeometry import ReferenceGeometryType
+from .Antenna import AntennaType
+from .TxRcv import TxRcvType
+from .ErrorParameters import ErrorParametersType
+from .ProductInfo import ProductInfoType
+from .GeoInfo import GeoInfoType, _find_children
+from ..sicd_elements.MatchInfo import MatchInfoType
+
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
+
+#########
+# Module variables
+_CPHD_SPECIFICATION_VERSION = '1.0'
+_CPHD_SPECIFICATION_DATE = '2018-05-21T00:00:00Z'
+_CPHD_SPECIFICATION_NAMESPACE = 'urn:CPHD:1.0.1'
+
+
+class CPHDType(Serializable):
+    """
+    The Compensated Phase History Data definition.
+    """
+
+    _fields = (
+        'CollectionID', 'Global', 'SceneCoordinates', 'Data', 'Channel', 'PVP',
+        'SupportArray', 'Dwell', 'ReferenceGeometry', 'Antenna', 'TxRcv',
+        'ErrorParameters', 'ProductInfo', 'GeoInfo', 'MatchInfo')
+    _required = (
+        'CollectionID', 'Global', 'SceneCoordinates', 'Data', 'Channel', 'PVP',
+        'Dwell', 'ReferenceGeometry')
+    # descriptors
+    CollectionID = _SerializableDescriptor(
+        'CollectionID', CollectionIDType, _required, strict=DEFAULT_STRICT,
+        docstring='')  # type: CollectionIDType
+    Global = _SerializableDescriptor(
+        'Global', GlobalType, _required, strict=DEFAULT_STRICT,
+        docstring='')  # type: GlobalType
+    SceneCoordinates = _SerializableDescriptor(
+        'SceneCoordinates', SceneCoordinatesType, _required, strict=DEFAULT_STRICT,
+        docstring='')  # type: SceneCoordinatesType
+    Data = _SerializableDescriptor(
+        'Data', DataType, _required, strict=DEFAULT_STRICT,
+        docstring='')  # type: DataType
+    Channel = _SerializableDescriptor(
+        'Channel', ChannelType, _required, strict=DEFAULT_STRICT,
+        docstring='')  # type: ChannelType
+    PVP = _SerializableDescriptor(
+        'PVP', PVPType, _required, strict=DEFAULT_STRICT,
+        docstring='')  # type: PVPType
+    SupportArray = _SerializableDescriptor(
+        'SupportArray', SupportArrayType, _required, strict=DEFAULT_STRICT,
+        docstring='')  # type: Union[None, SupportArrayType]
+    Dwell = _SerializableDescriptor(
+        'Dwell', DwellType, _required, strict=DEFAULT_STRICT,
+        docstring='')  # type: DwellType
+    ReferenceGeometry = _SerializableDescriptor(
+        'ReferenceGeometry', ReferenceGeometryType, _required, strict=DEFAULT_STRICT,
+        docstring='')  # type: ReferenceGeometryType
+    Antenna = _SerializableDescriptor(
+        'Antenna', AntennaType, _required, strict=DEFAULT_STRICT,
+        docstring='')  # type: Union[None, AntennaType]
+    TxRcv = _SerializableDescriptor(
+        'TxRcv', TxRcvType, _required, strict=DEFAULT_STRICT,
+        docstring='')  # type: Union[None, TxRcvType]
+    ErrorParameters = _SerializableDescriptor(
+        'ErrorParameters', ErrorParametersType, _required, strict=DEFAULT_STRICT,
+        docstring='')  # type: Union[None, ErrorParametersType]
+    ProductInfo = _SerializableDescriptor(
+        'ProductInfo', ProductInfoType, _required, strict=DEFAULT_STRICT,
+        docstring='')  # type: Union[None, ProductInfoType]
+    MatchInfo = _SerializableDescriptor(
+        'MatchInfo', MatchInfoType, _required, strict=DEFAULT_STRICT,
+        docstring='')  # type: Union[None, MatchInfoType]
+
+    def __init__(self, CollectionID=None, Global=None, SceneCoordinates=None, Data=None,
+                 Channel=None, PVP=None, SupportArray=None, Dwell=None, ReferenceGeometry=None,
+                 Antenna=None, TxRcv=None, ErrorParameters=None, ProductInfo=None,
+                 GeoInfo=None, MatchInfo=None, **kwargs):
+        """
+
+        Parameters
+        ----------
+        CollectionID : CollectionIDType
+        Global : GlobalType
+        SceneCoordinates : SceneCoordinatesType
+        Data : DataType
+        Channel : ChannelType
+        PVP : PVPType
+        SupportArray : None|SupportArrayType
+        Dwell : DwellType
+        ReferenceGeometry : ReferenceGeometryType
+        Antenna : None|AntennaType
+        TxRcv : None|TxRcvType
+        ErrorParameters : None|ErrorParametersType
+        ProductInfo : None|ProductInfoType
+        GeoInfo : None|List[GeoInfoType]|GeoInfoType
+        MatchInfo : None|MatchInfoType
+        kwargs
+        """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
+        self.CollectionID = CollectionID
+        self.Global = Global
+        self.SceneCoordinates = SceneCoordinates
+        self.Data = Data
+        self.Channel = Channel
+        self.PVP = PVP
+        self.SupportArray = SupportArray
+        self.Dwell = Dwell
+        self.ReferenceGeometry = ReferenceGeometry
+        self.Antenna = Antenna
+        self.TxRcv = TxRcv
+        self.ErrorParameters = ErrorParameters
+        self.ProductInfo = ProductInfo
+        self.MatchInfo = MatchInfo
+
+        self._GeoInfo = []
+        if GeoInfo is None:
+            pass
+        elif isinstance(GeoInfo, GeoInfoType):
+            self.addGeoInfo(GeoInfo)
+        elif isinstance(GeoInfo, (list, tuple)):
+            for el in GeoInfo:
+                self.addGeoInfo(el)
+        else:
+            raise ('GeoInfo got unexpected type {}'.format(type(GeoInfo)))
+
+        super(CPHDType, self).__init__(**kwargs)
+
+    @property
+    def GeoInfo(self):
+        """
+        List[GeoInfoType]: list of GeoInfo objects.
+        """
+
+        return self._GeoInfo
+
+    def getGeoInfo(self, key):
+        """
+        Get GeoInfo(s) with name attribute == `key`.
+
+        Parameters
+        ----------
+        key : str
+
+        Returns
+        -------
+        List[GeoInfoType]
+        """
+
+        return [entry for entry in self._GeoInfo if entry.name == key]
+
+    def addGeoInfo(self, value):
+        """
+        Add the given GeoInfo to the GeoInfo list.
+
+        Parameters
+        ----------
+        value : GeoInfoType
+
+        Returns
+        -------
+        None
+        """
+
+        if isinstance(value, ElementTree.Element):
+            gi_key = self._child_xml_ns_key.get('GeoInfo', self._xml_ns_key)
+            value = GeoInfoType.from_node(value, self._xml_ns, ns_key=gi_key)
+        elif isinstance(value, dict):
+            value = GeoInfoType.from_dict(value)
+
+        if isinstance(value, GeoInfoType):
+            self._GeoInfo.append(value)
+        else:
+            raise TypeError('Trying to set GeoInfo element with unexpected type {}'.format(type(value)))
+
+    @classmethod
+    def from_node(cls, node, xml_ns, ns_key=None, kwargs=None):
+        if kwargs is None:
+            kwargs = OrderedDict()
+        gi_key = cls._child_xml_ns_key.get('GeoInfo', ns_key)
+        kwargs['GeoInfo'] = _find_children(node, 'GeoInfo', xml_ns, gi_key)
+        return super(CPHDType, cls).from_node(node, xml_ns, ns_key=ns_key, kwargs=kwargs)
+
+    def to_node(self, doc, tag, ns_key=None, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
+        node = super(CPHDType, self).to_node(
+            doc, tag, ns_key=ns_key, parent=parent, check_validity=check_validity, strict=strict, exclude=exclude)
+        # slap on the GeoInfo children
+        for entry in self._GeoInfo:
+            entry.to_node(doc, tag, ns_key=ns_key, parent=node, strict=strict)
+        return node
+
+    def to_dict(self, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
+        out = super(CPHDType, self).to_dict(check_validity=check_validity, strict=strict, exclude=exclude)
+        # slap on the GeoInfo children
+        if len(self.GeoInfo) > 0:
+            out['GeoInfo'] = [entry.to_dict(check_validity=check_validity, strict=strict) for entry in self._GeoInfo]
+        return out
+
+    def to_xml_bytes(self, urn=None, tag=None, check_validity=False, strict=DEFAULT_STRICT):
+        return super(CPHDType, self).to_xml_bytes(
+            urn=_CPHD_SPECIFICATION_NAMESPACE, tag=tag, check_validity=check_validity, strict=strict)

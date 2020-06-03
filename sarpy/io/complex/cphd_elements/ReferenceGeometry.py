@@ -358,7 +358,8 @@ class ReferenceGeometryType(Serializable):
 
     _fields = ('SRP', 'ReferenceTime', 'SRPCODTime', 'Monostatic', 'Bistatic')
     _required = ('SRP', 'ReferenceTime', 'SRPCODTime')
-    _choice = ('Monostatic', 'Bistatic')
+    _choice = ({'required': True, 'collection': ('Monostatic', 'Bistatic')}, )
+
     # descriptors
     SRP = _SerializableDescriptor(
         'SRP', SRPType, _required, strict=DEFAULT_STRICT,

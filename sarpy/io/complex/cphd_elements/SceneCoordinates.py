@@ -110,7 +110,7 @@ class ReferenceSurfaceType(Serializable):
     """
     _fields = ('Planar', 'HAE')
     _required = ()
-    _choice = ('Planar', 'HAE')
+    _choice = ({'required': True, 'collection': _fields}, )
     # descriptors
     Planar = _SerializableDescriptor(
         'Planar', ECFPlanarType, _required, strict=DEFAULT_STRICT,
