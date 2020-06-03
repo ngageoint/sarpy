@@ -1578,10 +1578,10 @@ class ErrorDecorrFuncType(Serializable):
     _numeric_format = {'CorrCoefZero': '0.16G', 'DecorrRate': '0.16G'}
     # descriptors
     CorrCoefZero = _FloatDescriptor(
-        'CorrCoefZero', _required, strict=True,
+        'CorrCoefZero', _required, strict=True, bounds=(-1, 1),
         docstring='Error correlation coefficient for zero time difference (CC0).')  # type: float
     DecorrRate = _FloatDescriptor(
-        'DecorrRate', _required, strict=True,
+        'DecorrRate', _required, strict=True, bounds=(0, None),
         docstring='Error decorrelation rate. Simple linear decorrelation rate (DCR).')  # type: float
 
     def __init__(self, CorrCoefZero=None, DecorrRate=None, **kwargs):
