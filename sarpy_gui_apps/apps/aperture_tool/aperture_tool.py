@@ -113,7 +113,7 @@ class ApertureTool(AbstractWidgetPanel):
 
         master_frame.pack()
         self.pack()
-        self.animation_popup()
+        # self.animation_popup()
 
     def save_metaicon(self):
         save_fname = asksaveasfilename(initialdir=os.path.expanduser("~"), filetypes=[("*.png", ".PNG")])
