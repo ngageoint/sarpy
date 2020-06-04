@@ -371,7 +371,7 @@ class ChanParametersType(Serializable):
 class ReferencePointType(Serializable):
     """The reference point definition"""
     _fields = ('ECF', 'Line', 'Sample', 'name')
-    _required = _fields
+    _required = ('ECF', 'Line', 'Sample')
     _set_as_attribute = ('name', )
     _numeric_format = {'Line': '0.16G', 'Sample': '0.16G'}
     # descriptors
