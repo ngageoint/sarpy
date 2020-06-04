@@ -7,7 +7,8 @@ from typing import Union
 
 from ..base import DEFAULT_STRICT
 # noinspection PyProtectedMember
-from ...sicd_elements.base import Serializable, _SerializableDescriptor
+from ...sicd_elements.base import Serializable, _SerializableDescriptor, \
+    _IntegerDescriptor, _StringDescriptor
 
 from ...sicd_elements.CollectionInfo import CollectionInfoType
 from .Data import DataType
@@ -25,6 +26,91 @@ __author__ = "Thomas McCullough"
 _CPHD_SPECIFICATION_VERSION = '0.3'
 _CPHD_SPECIFICATION_DATE = '2011-04-15T00:00:00Z'
 _CPHD_SPECIFICATION_NAMESPACE = 'urn:CPHD:0.3'
+
+
+#########
+# CPHD header object
+
+class CPHDHeader(object):
+    _fields = (
+        'XML_DATA_SIZE', 'XML_BYTE_OFFSET', 'VB_DATA_SIZE', 'VB_BYTE_OFFSET',
+        'CPHD_DATA_SIZE', 'CPHD_BYTE_OFFSET', 'CLASSIFICATION', 'RELEASE_INFO')
+    _required = (
+        'XML_DATA_SIZE', 'XML_BYTE_OFFSET', 'VB_DATA_SIZE', 'VB_BYTE_OFFSET',
+        'CPHD_DATA_SIZE', 'CPHD_BYTE_OFFSET')
+    # descriptor
+    XML_DATA_SIZE = _IntegerDescriptor(
+        'XML_DATA_SIZE', _required, strict=True,
+        docstring='Size of the XML Metadata in bytes. Does not include the 2 bytes '
+                  'of the section terminator.')  # type: int
+    XML_BYTE_OFFSET = _IntegerDescriptor(
+        'XML_BYTE_OFFSET', _required, strict=True,
+        docstring='Offset to the first byte of the XML Metadata in bytes.')  # type: int
+    VB_DATA_SIZE = _IntegerDescriptor(
+        'VB_DATA_SIZE', _required, strict=True,
+        docstring='Size of the Vector Based Metadata in bytes.')  # type: int
+    VB_BYTE_OFFSET = _IntegerDescriptor(
+        'VB_BYTE_OFFSET', _required, strict=True,
+        docstring='Offset to the first byte of the Vector Based Metadata in bytes.')  # type: int
+    CPHD_DATA_SIZE = _IntegerDescriptor(
+        'CPHD_DATA_SIZE', _required, strict=True,
+        docstring='Size of the Compensated PHD arrays in bytes.')  # type: int
+    CPHD_BYTE_OFFSET = _IntegerDescriptor(
+        'CPHD_BYTE_OFFSET', _required, strict=True,
+        docstring='Offset to the first byte of the CPHD data in bytes.')  # type: int
+    CLASSIFICATION = _StringDescriptor(
+        'CLASSIFICATION', _required, strict=True, default_value='UNCLASSIFIED',
+        docstring='Product classification information that is the human-readable banner.')  # type: str
+    RELEASE_INFO = _StringDescriptor(
+        'RELEASE_INFO', _required, strict=True, default_value='UNRESTRICTED',
+        docstring='Product release information.')  # type: str
+
+    def __init__(self, XML_DATA_SIZE=None, XML_BYTE_OFFSET=None,
+                 VB_DATA_SIZE=None, VB_BYTE_OFFSET=None,
+                 CPHD_DATA_SIZE=None, CPHD_BYTE_OFFSET=None,
+                 CLASSIFICATION='UNCLASSIFIED', RELEASE_INFO='UNRESTRICTED'):
+        self.XML_DATA_SIZE = XML_DATA_SIZE
+        self.XML_BYTE_OFFSET = XML_BYTE_OFFSET
+        self.VB_DATA_SIZE = VB_DATA_SIZE
+        self.VB_BYTE_OFFSET = VB_BYTE_OFFSET
+        self.CPHD_DATA_SIZE = CPHD_DATA_SIZE
+        self.CPHD_BYTE_OFFSET = CPHD_BYTE_OFFSET
+        self.CLASSIFICATION = CLASSIFICATION
+        self.RELEASE_INFO = RELEASE_INFO
+
+    @classmethod
+    def from_file_object(cls, fi):
+        """
+        Extract the CPHD header object from a file opened in byte mode.
+        This file object is assumed to be at the correct location for the
+        CPHD header.
+
+        Parameters
+        ----------
+        fi
+            The open file object, which will be progressively read.
+
+        Returns
+        -------
+        CPHDHeader
+        """
+
+        the_dict = {}
+        while True:
+            line = fi.readline().strip()
+            if line.startswith(b'\f\n'):
+                # we've reached the end of the header section
+                break
+            parts = line.split(':=')
+            if len(parts) != 2:
+                raise ValueError('Cannot extract CPHD header value from line {}'.format(line))
+            fld = parts[0].strip().encode('utf-8')
+            val = parts[1].strip().encode('utf-8')
+            if fld not in cls._fields:
+                raise ValueError('Cannot extract CPHD header value from line {}'.format(line))
+            the_dict[fld] = val
+        return cls(**the_dict)
+
 
 
 class CPHDType(Serializable):

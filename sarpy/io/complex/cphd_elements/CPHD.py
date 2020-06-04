@@ -9,7 +9,8 @@ from typing import Union
 
 from .base import DEFAULT_STRICT
 # noinspection PyProtectedMember
-from ..sicd_elements.base import Serializable, _SerializableDescriptor
+from ..sicd_elements.base import Serializable, _SerializableDescriptor, \
+    _IntegerDescriptor, _StringDescriptor
 
 from .CollectionID import CollectionIDType
 from .Global import GlobalType
@@ -36,6 +37,102 @@ __author__ = "Thomas McCullough"
 _CPHD_SPECIFICATION_VERSION = '1.0'
 _CPHD_SPECIFICATION_DATE = '2018-05-21T00:00:00Z'
 _CPHD_SPECIFICATION_NAMESPACE = 'urn:CPHD:1.0.1'
+
+
+#########
+# CPHD header object
+
+class CPHDHeader(object):
+    _fields = (
+        'XML_BLOCK_SIZE', 'XML_BLOCK_BYTE_OFFSET', 'SUPPORT_BLOCK_SIZE', 'SUPPORT_BLOCK_BYTE_OFFSET',
+        'PVP_BLOCK_SIZE', 'PVP_BLOCK_BYTE_OFFSET', 'SIGNAL_BLOCK_SIZE', 'SIGNAL_BLOCK_BYTE_OFFSET',
+        'CLASSIFICATION', 'RELEASE_INFO')
+    _required = (
+        'XML_BLOCK_SIZE', 'XML_BLOCK_BYTE_OFFSET', 'PVP_BLOCK_SIZE', 'PVP_BLOCK_BYTE_OFFSET',
+        'SIGNAL_BLOCK_SIZE', 'SIGNAL_BLOCK_BYTE_OFFSET', 'CLASSIFICATION', 'RELEASE_INFO')
+    # descriptor
+    XML_BLOCK_SIZE = _IntegerDescriptor(
+        'XML_BLOCK_SIZE', _required, strict=True,
+        docstring='ize of the XML instance that describes the product in bytes. '
+                  'Size does NOT include the 2 bytes of the section terminator.')  # type: int
+    XML_BLOCK_BYTE_OFFSET = _IntegerDescriptor(
+        'XML_BLOCK_BYTE_OFFSET', _required, strict=True,
+        docstring='Offset to the first byte of the XML block in bytes.')  # type: int
+    SUPPORT_BLOCK_SIZE = _IntegerDescriptor(
+        'SUPPORT_BLOCK_SIZE', _required, strict=True,
+        docstring='Size of the Support block in bytes. Note - If the Support block is omitted, this '
+                  'is not included.')  # type: int
+    SUPPORT_BLOCK_BYTE_OFFSET = _IntegerDescriptor(
+        'SUPPORT_BLOCK_BYTE_OFFSET', _required, strict=True,
+        docstring='Offset to the first byte of the Support block in bytes. Note - If the Support '
+                  'block is omitted, this is not included.')  # type: int
+    PVP_BLOCK_SIZE = _IntegerDescriptor(
+        'PVP_BLOCK_SIZE', _required, strict=True,
+        docstring='Size of the PVP block in bytes.')  # type: int
+    PVP_BLOCK_BYTE_OFFSET = _IntegerDescriptor(
+        'PVP_BLOCK_BYTE_OFFSET', _required, strict=True,
+        docstring='Offset to the first byte of the PVP block in bytes.')  # type: int
+    SIGNAL_BLOCK_SIZE = _IntegerDescriptor(
+        'SIGNAL_BLOCK_SIZE', _required, strict=True,
+        docstring='Size of the Signal block in bytes.')  # type: int
+    SIGNAL_BLOCK_BYTE_OFFSET = _IntegerDescriptor(
+        'SIGNAL_BLOCK_BYTE_OFFSET', _required, strict=True,
+        docstring='Offset to the first byte of the Signal block in bytes.')  # type: int
+    CLASSIFICATION = _StringDescriptor(
+        'CLASSIFICATION', _required, strict=True, default_value='UNCLASSIFIED',
+        docstring='Product classification information that is human-readable.')  # type: str
+    RELEASE_INFO = _StringDescriptor(
+        'RELEASE_INFO', _required, strict=True, default_value='UNRESTRICTED',
+        docstring='Product release information that is human-readable.')  # type: str
+
+    def __init__(self, XML_BLOCK_SIZE=None, XML_BLOCK_BYTE_OFFSET=None,
+                 SUPPORT_BLOCK_SIZE= None, SUPPORT_BLOCK_BYTE_OFFSET=None,
+                 PVP_BLOCK_SIZE=None, PVP_BLOCK_BYTE_OFFSET=None,
+                 SIGNAL_BLOCK_SIZE=None, SIGNAL_BLOCK_BYTE_OFFSET=None,
+                 CLASSIFICATION='UNCLASSIFIED', RELEASE_INFO='UNRESTRICTED'):
+        self.XML_BLOCK_SIZE = XML_BLOCK_SIZE
+        self.XML_BLOCK_BYTE_OFFSET = XML_BLOCK_BYTE_OFFSET
+        self.SUPPORT_BLOCK_SIZE = SUPPORT_BLOCK_SIZE
+        self.SUPPORT_BLOCK_BYTE_OFFSET = SUPPORT_BLOCK_BYTE_OFFSET
+        self.PVP_BLOCK_SIZE = PVP_BLOCK_SIZE
+        self.PVP_BLOCK_BYTE_OFFSET = PVP_BLOCK_BYTE_OFFSET
+        self.SIGNAL_BLOCK_SIZE = SIGNAL_BLOCK_SIZE
+        self.SIGNAL_BLOCK_BYTE_OFFSET = SIGNAL_BLOCK_BYTE_OFFSET
+        self.CLASSIFICATION = CLASSIFICATION
+        self.RELEASE_INFO = RELEASE_INFO
+
+    @classmethod
+    def from_file_object(cls, fi):
+        """
+        Extract the CPHD header object from a file opened in byte mode.
+        This file object is assumed to be at the correct location for the
+        CPHD header.
+
+        Parameters
+        ----------
+        fi
+            The open file object, which will be progressively read.
+
+        Returns
+        -------
+        CPHDHeader
+        """
+
+        the_dict = {}
+        while True:
+            line = fi.readline().strip()
+            if line.startswith(b'\f\n'):
+                # we've reached the end of the header section
+                break
+            parts = line.split(':=')
+            if len(parts) != 2:
+                raise ValueError('Cannot extract CPHD header value from line {}'.format(line))
+            fld = parts[0].strip().encode('utf-8')
+            val = parts[1].strip().encode('utf-8')
+            if fld not in cls._fields:
+                raise ValueError('Cannot extract CPHD header value from line {}'.format(line))
+            the_dict[fld] = val
+        return cls(**the_dict)
 
 
 class CPHDType(Serializable):
