@@ -3,15 +3,14 @@
 The reference geometry parameters definition.
 """
 
-from typing import Union, List
+from typing import Union
 
 import numpy
 
 from .base import DEFAULT_STRICT
 # noinspection PyProtectedMember
 from ..sicd_elements.base import Serializable, _FloatDescriptor, \
-    _StringDescriptor, _StringEnumDescriptor, _SerializableDescriptor, \
-    _ParametersDescriptor, ParametersCollection, _SerializableListDescriptor
+    _StringEnumDescriptor, _SerializableDescriptor
 from ..sicd_elements.blocks import XYZType
 
 __classification__ = "UNCLASSIFIED"
@@ -61,6 +60,9 @@ class ReferenceGeometryCore(Serializable):
         'SideOfTrack', 'SlantRange', 'GroundRange', 'DopplerConeAngle',
         'GrazeAngle', 'IncidenceAngle', 'AzimuthAngle')
     _required = _fields
+    _numeric_format = {
+        'SlantRange': '0.16G', 'GroundRange': '0.16G', 'DopplerConeAngle': '0.16G',
+        'GrazeAngle': '0.16G', 'IncidenceAngle': '0.16G', 'AzimuthAngle': '0.16G'}
     # descriptors
     SideOfTrack = _StringEnumDescriptor(
         'SideOfTrack', ('L', 'R'), _required, strict=DEFAULT_STRICT,
@@ -133,6 +135,10 @@ class MonostaticType(ReferenceGeometryCore):
         'GrazeAngle', 'IncidenceAngle', 'AzimuthAngle'
         'TwistAngle', 'SlopeAngle', 'LayoverAngle')
     _required = _fields
+    _numeric_format = {
+        'SlantRange': '0.16G', 'GroundRange': '0.16G', 'DopplerConeAngle': '0.16G',
+        'GrazeAngle': '0.16G', 'IncidenceAngle': '0.16G', 'AzimuthAngle': '0.16G',
+        'TwistAngle': '0.16G', 'SlopeAngle': '0.16G', 'LayoverAngle': '0.16G'}
     # descriptors
     ARPPos = _SerializableDescriptor(
         'ARPPos', XYZType, _required, strict=DEFAULT_STRICT,
@@ -231,6 +237,9 @@ class BistaticTxRcvType(ReferenceGeometryCore):
         'SideOfTrack', 'SlantRange', 'GroundRange', 'DopplerConeAngle',
         'GrazeAngle', 'IncidenceAngle', 'AzimuthAngle')
     _required = _fields
+    _numeric_format = {
+        'Time': '0.16G', 'SlantRange': '0.16G', 'GroundRange': '0.16G', 'DopplerConeAngle': '0.16G',
+        'GrazeAngle': '0.16G', 'IncidenceAngle': '0.16G', 'AzimuthAngle': '0.16G'}
     # descriptors
     Time = _FloatDescriptor(
         'Time', _required, strict=DEFAULT_STRICT,
@@ -285,6 +294,11 @@ class BistaticType(Serializable):
         'GrazeAngle', 'TwistAngle', 'SlopeAngle', 'LayoverAngle',
         'TxPlatform', 'RcvPlatform')
     _required = _fields
+    _numeric_format = {
+        'AzimuthAngle': '0.16G', 'AzimuthAngleRate': '0.16G', 'BistaticAngle': '0.16G',
+        'BistaticAngleRate': '0.16G', 'GrazeAngle': '0.16G', 'TwistAngle': '0.16G',
+        'SlopeAngle': '0.16G', 'LayoverAngle': '0.16G'}
+
     # descriptors
     AzimuthAngle = _FloatDescriptor(
         'AzimuthAngle', _required, strict=DEFAULT_STRICT, bounds=(0, 360),
@@ -359,7 +373,7 @@ class ReferenceGeometryType(Serializable):
     _fields = ('SRP', 'ReferenceTime', 'SRPCODTime', 'Monostatic', 'Bistatic')
     _required = ('SRP', 'ReferenceTime', 'SRPCODTime')
     _choice = ({'required': True, 'collection': ('Monostatic', 'Bistatic')}, )
-
+    _numeric_format = {'ReferenceTime': '0.16G', 'SRPCODTime': '0.16G'}
     # descriptors
     SRP = _SerializableDescriptor(
         'SRP', SRPType, _required, strict=DEFAULT_STRICT,

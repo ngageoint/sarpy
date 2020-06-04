@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-The Compensated Phase History Data definition.
+The Compensated Phase History Data 1.0.1 definition.
 """
 
 from xml.etree import ElementTree
@@ -53,46 +53,60 @@ class CPHDType(Serializable):
     # descriptors
     CollectionID = _SerializableDescriptor(
         'CollectionID', CollectionIDType, _required, strict=DEFAULT_STRICT,
-        docstring='')  # type: CollectionIDType
+        docstring='General information about the collection.')  # type: CollectionIDType
     Global = _SerializableDescriptor(
         'Global', GlobalType, _required, strict=DEFAULT_STRICT,
-        docstring='')  # type: GlobalType
+        docstring='Global parameters that apply to metadata components and CPHD '
+                  'signal arrays.')  # type: GlobalType
     SceneCoordinates = _SerializableDescriptor(
         'SceneCoordinates', SceneCoordinatesType, _required, strict=DEFAULT_STRICT,
-        docstring='')  # type: SceneCoordinatesType
+        docstring='Parameters that define geographic coordinates for in the imaged '
+                  'scene.')  # type: SceneCoordinatesType
     Data = _SerializableDescriptor(
         'Data', DataType, _required, strict=DEFAULT_STRICT,
-        docstring='')  # type: DataType
+        docstring='Parameters that describe binary data components contained in '
+                  'the product.')  # type: DataType
     Channel = _SerializableDescriptor(
         'Channel', ChannelType, _required, strict=DEFAULT_STRICT,
-        docstring='')  # type: ChannelType
+        docstring='Parameters that describe the data channels contained in the '
+                  'product.')  # type: ChannelType
     PVP = _SerializableDescriptor(
         'PVP', PVPType, _required, strict=DEFAULT_STRICT,
-        docstring='')  # type: PVPType
+        docstring='Structure used to specify the Per Vector parameters provided for '
+                  'each channel of a given product.')  # type: PVPType
     SupportArray = _SerializableDescriptor(
         'SupportArray', SupportArrayType, _required, strict=DEFAULT_STRICT,
-        docstring='')  # type: Union[None, SupportArrayType]
+        docstring='Parameters that describe the binary support array(s) content and '
+                  'grid coordinates.')  # type: Union[None, SupportArrayType]
     Dwell = _SerializableDescriptor(
         'Dwell', DwellType, _required, strict=DEFAULT_STRICT,
-        docstring='')  # type: DwellType
+        docstring='Parameters that specify the dwell time supported by the signal '
+                  'arrays contained in the CPHD product.')  # type: DwellType
     ReferenceGeometry = _SerializableDescriptor(
         'ReferenceGeometry', ReferenceGeometryType, _required, strict=DEFAULT_STRICT,
-        docstring='')  # type: ReferenceGeometryType
+        docstring='Parameters that describe the collection geometry for the reference '
+                  'vector of the reference channel.')  # type: ReferenceGeometryType
     Antenna = _SerializableDescriptor(
         'Antenna', AntennaType, _required, strict=DEFAULT_STRICT,
-        docstring='')  # type: Union[None, AntennaType]
+        docstring='Parameters that describe the transmit and receive antennas used '
+                  'to collect the signal array(s).')  # type: Union[None, AntennaType]
     TxRcv = _SerializableDescriptor(
         'TxRcv', TxRcvType, _required, strict=DEFAULT_STRICT,
-        docstring='')  # type: Union[None, TxRcvType]
+        docstring='Parameters that describe the transmitted waveform(s) and receiver configurations '
+                  'used in the collection.')  # type: Union[None, TxRcvType]
     ErrorParameters = _SerializableDescriptor(
         'ErrorParameters', ErrorParametersType, _required, strict=DEFAULT_STRICT,
-        docstring='')  # type: Union[None, ErrorParametersType]
+        docstring='Parameters that describe the statistics of errors in measured or estimated parameters '
+                  'that describe the collection.')  # type: Union[None, ErrorParametersType]
     ProductInfo = _SerializableDescriptor(
         'ProductInfo', ProductInfoType, _required, strict=DEFAULT_STRICT,
-        docstring='')  # type: Union[None, ProductInfoType]
+        docstring='Parameters that provide general information about the CPHD product '
+                  'and/or the derived products that may be created '
+                  'from it.')  # type: Union[None, ProductInfoType]
     MatchInfo = _SerializableDescriptor(
         'MatchInfo', MatchInfoType, _required, strict=DEFAULT_STRICT,
-        docstring='')  # type: Union[None, MatchInfoType]
+        docstring='Information about other collections that are matched to the collection from which '
+                  'this CPHD product was generated.')  # type: Union[None, MatchInfoType]
 
     def __init__(self, CollectionID=None, Global=None, SceneCoordinates=None, Data=None,
                  Channel=None, PVP=None, SupportArray=None, Dwell=None, ReferenceGeometry=None,
@@ -155,7 +169,7 @@ class CPHDType(Serializable):
     @property
     def GeoInfo(self):
         """
-        List[GeoInfoType]: list of GeoInfo objects.
+        List[GeoInfoType]: Parameters that describe a geographic feature.
         """
 
         return self._GeoInfo

@@ -119,6 +119,7 @@ class BistaticRadarSensorType(Serializable):
 
     _fields = ('ClockFreqSF', 'CollectionStartTime')
     _required = ('CollectionStartTime', )
+    _numeric_format = {'ClockFreqSF': '0.16G', 'CollectionStartTime': '0.16G'}
     # descriptors
     ClockFreqSF = _FloatDescriptor(
         'ClockFreqSF', _required, strict=DEFAULT_STRICT, bounds=(0, None),

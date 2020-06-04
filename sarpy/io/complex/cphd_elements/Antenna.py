@@ -156,6 +156,7 @@ class AntPatternType(Serializable):
         'Identifier', 'FreqZero', 'EB', 'Array', 'Element')
     _collections_tags = {
         'GainPhaseArray': {'array': False, 'child_tag': 'GainPhaseArray'}}
+    _numeric_format = {'FreqZero': '0.16G', 'GainZero': '0.16G'}
     # descriptors
     Identifier = _StringDescriptor(
         'Identifier', _required, strict=DEFAULT_STRICT,

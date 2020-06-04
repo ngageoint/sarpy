@@ -49,6 +49,7 @@ class LFMEclipseType(Serializable):
 
     _fields = ('FxEarlyLow', 'FxEarlyHigh', 'FxLateLow', 'FxLateHigh')
     _required = _fields
+    _numeric_format = {fld: '0.16G' for fld in _fields}
     # descriptors
     FxEarlyLow = _FloatDescriptor(
         'FxEarlyLow', _required, strict=DEFAULT_STRICT, bounds=(0, None),
@@ -98,6 +99,7 @@ class TOAExtendedType(Serializable):
 
     _fields = ('TOAExtSaved', 'LFMEclipse')
     _required = ('TOAExtSaved', )
+    _numeric_format = {'TOAExtSaved': '0.16G'}
     # descriptors
     TOAExtSaved = _FloatDescriptor(
         'TOAExtSaved', _required, strict=DEFAULT_STRICT, bounds=(0, None),
@@ -260,6 +262,7 @@ class TgtRefLevelType(Serializable):
 
     _fields = ('PTRef', )
     _required = _fields
+    _numeric_format = {'PTRef': '0.16G'}
     # descriptors
     PTRef = _FloatDescriptor(
         'PTRef', _required, strict=DEFAULT_STRICT, bounds=(0, None),
@@ -292,6 +295,7 @@ class FxPNPointType(Serializable):
 
     _fields = ('Fx', 'PN')
     _required = _fields
+    _numeric_format = {'FX': '0.16G', 'PN': '0.16G'}
     # descriptors
     Fx = _FloatDescriptor(
         'Fx', _required, strict=DEFAULT_STRICT,
@@ -333,6 +337,7 @@ class NoiseLevelType(Serializable):
     _required = ('PNRef', 'BNRef')
     _collections_tags = {
         'FxNoiseProfile': {'array': True, 'child_tag': 'Point'}}
+    _numeric_format = {'PNRef': '0.16G', 'BNRef': '0.16G'}
     # descriptors
     PNRef = _FloatDescriptor(
         'PNRef', _required, strict=DEFAULT_STRICT, bounds=(0, None),
@@ -377,6 +382,8 @@ class ChannelParametersType(Serializable):
     _required = (
         'Identifier', 'RefVectorIndex', 'FXFixed', 'TOAFixed', 'SRPFixed',
         'Polarization', 'FxC', 'FxBW', 'TOASaved', 'DwellTimes')
+    _numeric_format = {
+        'FxC': '0.16G', 'FxBW': '0.16G', 'FxBWNoise': '0.16G', 'TOASaved': '0.16G'}
     # descriptors
     Identifier = _StringDescriptor(
         'Identifier', _required, strict=DEFAULT_STRICT,

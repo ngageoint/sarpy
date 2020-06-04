@@ -147,6 +147,7 @@ class IAXExtentType(Serializable):
     """
     _fields = ('LineSpacing', 'FirstLine', 'NumSamples')
     _required = _fields
+    _numeric_format = {'LineSpacing': '0.16G'}
     # descriptors
     LineSpacing = _FloatDescriptor(
         'LineSpacing', _required, strict=DEFAULT_STRICT, bounds=(0, None),
@@ -186,6 +187,7 @@ class IAYExtentType(Serializable):
 
     _fields = ('SampleSpacing', 'FirstSample', 'NumSamples')
     _required = _fields
+    _numeric_format = {'SampleSpacing': '0.16G'}
     # descriptors
     SampleSpacing = _FloatDescriptor(
         'SampleSpacing', _required, strict=DEFAULT_STRICT, bounds=(0, None),

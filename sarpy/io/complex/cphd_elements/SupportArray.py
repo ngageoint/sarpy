@@ -24,6 +24,7 @@ class SupportArrayCore(Serializable):
 
     _fields = ('X0', 'Y0', 'XSS', 'YSS', 'NODATA')
     _required = ('X0', 'Y0', 'XSS', 'YSS')
+    _numeric_format = {'X0': '0.16G', 'Y0': '0.16G', 'XSS': '0.16G', 'YSS': '0.16G'}
     # descriptors
     X0 = _FloatDescriptor(
         'X0', _required, strict=DEFAULT_STRICT,

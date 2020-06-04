@@ -25,6 +25,9 @@ class TxWFParametersType(Serializable):
         'Polarization', 'Power')
     _required = (
         'Identifier', 'PulseLength', 'RFBandwidth', 'FreqCenter', 'Polarization')
+    _numeric_format = {
+        'PulseLength': '0.16G', 'RFBandwidth': '0.16G', 'FreqCenter': '0.16G',
+        'LFMRate': '0.16G', 'Power': '0.16G'}
     # descriptors
     Identifier = _StringDescriptor(
         'Identifier', _required, strict=DEFAULT_STRICT,
@@ -45,14 +48,14 @@ class TxWFParametersType(Serializable):
     LFMRate = _FloatDescriptor(
         'LFMRate', _required, strict=DEFAULT_STRICT,
         docstring='Chirp rate of transmitted pulse if LFM, '
-                  'in Hz/s.')  # type: float
+                  'in Hz/s.')  # type: Union[None, float]
     Polarization = _StringEnumDescriptor(
         'Polarization', POLARIZATION_TYPE, _required, strict=DEFAULT_STRICT,
         docstring='The transmit polarization mode.')  # type: str
     Power = _FloatDescriptor(
         'Power', _required, strict=DEFAULT_STRICT,
         docstring='Peak transmitted power at the interface to the antenna '
-                  'in dBW.')  # type: float
+                  'in dBW.')  # type: Union[None, float]
 
     def __init__(self, Identifier=None, PulseLength=None, RFBandwidth=None,
                  FreqCenter=None, LFMRate=None, Polarization=None, Power=None, **kwargs):
@@ -64,9 +67,9 @@ class TxWFParametersType(Serializable):
         PulseLength : float
         RFBandwidth : float
         FreqCenter : float
-        LFMRate : float
+        LFMRate : None|float
         Polarization : str
-        Power : float
+        Power : None|float
         kwargs
         """
 
@@ -90,10 +93,14 @@ class RcvParametersType(Serializable):
     """
 
     _fields = (
-        'Identifier', 'WindowLength', 'SampleRate', 'IFFilterBW', 'LFMRate',
-        'Polarization', 'PathGain')
+        'Identifier', 'WindowLength', 'SampleRate', 'IFFilterBW', 'FreqCenter',
+        'LFMRate', 'Polarization', 'PathGain')
     _required = (
-        'Identifier', 'WindowLength', 'SampleRate', 'IFFilterBW', 'Polarization')
+        'Identifier', 'WindowLength', 'SampleRate', 'IFFilterBW', 'FreqCenter',
+        'Polarization')
+    _numeric_format = {
+        'WindowLength': '0.16G', 'SampleRate': '0.16G', 'IFFilterBW': '0.16G',
+        'FreqCenter': '0.16G', 'LFMRate': '0.16G', 'PathGain': '0.16G'}
     # descriptors
     Identifier = _StringDescriptor(
         'Identifier', _required, strict=DEFAULT_STRICT,
@@ -117,14 +124,14 @@ class RcvParametersType(Serializable):
     LFMRate = _FloatDescriptor(
         'LFMRate', _required, strict=DEFAULT_STRICT,
         docstring='Chirp rate of the demodulation signal if LFM, '
-                  'in Hz/s.')  # type: float
+                  'in Hz/s.')  # type: Union[None, float]
     Polarization = _StringEnumDescriptor(
         'Polarization', POLARIZATION_TYPE, _required, strict=DEFAULT_STRICT,
         docstring='The receive polarization mode.')  # type: str
     PathGain = _FloatDescriptor(
         'PathGain', _required, strict=DEFAULT_STRICT,
         docstring='Receiver gain from the antenna interface to the ADC, '
-                  'in dB.')  # type: float
+                  'in dB.')  # type: Union[None, float]
 
     def __init__(self, Identifier=None, WindowLength=None, SampleRate=None, IFFilterBW=None,
                  FreqCenter=None, LFMRate=None, Polarization=None, PathGain=None, **kwargs):
@@ -137,9 +144,9 @@ class RcvParametersType(Serializable):
         SampleRate : float
         IFFilterBW : float
         FreqCenter : float
-        LFMRate : float
+        LFMRate : None|float
         Polarization : str
-        PathGain : float
+        PathGain : None|float
         kwargs
         """
 
