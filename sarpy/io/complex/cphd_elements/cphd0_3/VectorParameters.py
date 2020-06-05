@@ -58,9 +58,9 @@ class FxParametersType(Serializable):
 
         return 32
 
-    def get_position_offset(self, field):
+    def get_position_offset_and_size(self, field):
         """
-        Get the offset of the given field from the beginning of the vector.
+        Get the offset and size of the given field from the beginning of the vector.
 
         Parameters
         ----------
@@ -73,12 +73,15 @@ class FxParametersType(Serializable):
 
         if field not in self._fields:
             return None
+
         out = 0
         for fld in self._fields:
+            val = getattr(self, fld)
             if fld == field:
-                break
-            out += getattr(self, fld)
-        return out
+                return out, val
+            else:
+                out += val
+        return None
 
 
 class TOAParametersType(Serializable):
@@ -116,9 +119,9 @@ class TOAParametersType(Serializable):
 
         return 16
 
-    def get_position_offset(self, field):
+    def get_position_offset_and_size(self, field):
         """
-        Get the offset of the given field from the beginning of the vector.
+        Get the offset and size of the given field from the beginning of the vector.
 
         Parameters
         ----------
@@ -126,17 +129,20 @@ class TOAParametersType(Serializable):
 
         Returns
         -------
-        None|int
+        None|(int, int)
         """
 
         if field not in self._fields:
             return None
+
         out = 0
         for fld in self._fields:
+            val = getattr(self, fld)
             if fld == field:
-                break
-            out += getattr(self, fld)
-        return out
+                return out, val
+            else:
+                out += val
+        return None
 
 
 class VectorParametersType(Serializable):
@@ -240,9 +246,9 @@ class VectorParametersType(Serializable):
                 raise TypeError('Got unhandled type {}'.format(type(val)))
         return out
 
-    def get_position_offset(self, field):
+    def get_position_offset_and_size(self, field):
         """
-        Get the offset of the given field from the beginning of the vector.
+        Get the offset and size of the given field from the beginning of the vector.
 
         Parameters
         ----------
@@ -250,24 +256,26 @@ class VectorParametersType(Serializable):
 
         Returns
         -------
-        None|int
+        None|(int, int)
         """
 
         out = 0
         for fld in self._fields:
-            if fld == field:
-                return out
-
             val = getattr(self, fld)
-            if val in None:
+            if fld == field:
+                if val is not None:
+                    return out, val
+                else:
+                    return None
+
+            if val is None:
                 pass
             elif isinstance(val, integer_types):
                 out += val
             elif isinstance(val, (FxParametersType, TOAParametersType)):
-                this_off = val.get_position_offset(field)
-                if this_off is not None:
-                    out += val.get_position_offset(field)
-                    return out
+                res = val.get_position_offset_and_size(field)
+                if res is not None:
+                    return out+res[0], res[1]
                 else:
                     out += val.get_size()
             else:

@@ -96,7 +96,7 @@ class SupportArraySizeType(Serializable):
         docstring='Number of columns per row in the array.')  # type: int
     BytesPerElement = _IntegerDescriptor(
         'BytesPerElement', _required, strict=DEFAULT_STRICT, bounds=(1, None),
-        docstring='ndicates the size in bytes of each data element in the support '
+        docstring='Indicates the size in bytes of each data element in the support '
                   'array. Each element contains 1 or more binary-formatted '
                   'components.')  # type: int
     ArrayByteOffset = _IntegerDescriptor(
@@ -138,7 +138,7 @@ class DataType(Serializable):
     _fields = (
         'SignalArrayFormat', 'NumBytesPVP', 'NumCPHDChannels',
         'SignalCompressionID', 'Channels', 'NumSupportArrays', 'SupportArrays')
-    _required = ('SignalArrayFormat', 'NumBytesPVP', 'NumCPHDChannels', 'Channels')
+    _required = ('SignalArrayFormat', 'NumBytesPVP', 'Channels')
     _collections_tags = {
         'Channels': {'array': False, 'child_tag': 'Channel'},
         'SupportArrays': {'array': False, 'child_tag': 'SupportArray'}}
@@ -155,10 +155,6 @@ class DataType(Serializable):
         'NumBytesPVP', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='Number of bytes per set of Per Vector Parameters, where there is '
                   'one set of PVPs for each CPHD signal vector')  # type: int
-    NumCPHDChannels = _IntegerDescriptor(
-        'NumCPHDChannels', _required, strict=DEFAULT_STRICT, bounds=(1, None),
-        docstring='Number of CPHD channels (Num_CH) contained in the product. Channels are '
-                  'referenced by their unique Channel Identifier.')  # type: int
     SignalCompressionID = _StringDescriptor(
         'SignalCompressionID', _required, strict=DEFAULT_STRICT,
         docstring='Parameter that indicates the signal arrays are in compressed format. Value '
@@ -174,7 +170,7 @@ class DataType(Serializable):
                   'Support Array referenced by its unique Support Array '
                   'identifier.')  # type: List[SupportArraySizeType]
 
-    def __init__(self, SignalArrayFormat=None, NumBytesPVP=None, NumCPHDChannels=None,
+    def __init__(self, SignalArrayFormat=None, NumBytesPVP=None,
                  SignalCompressionID=None, Channels=None, SupportArrays=None, **kwargs):
         """
 
@@ -182,7 +178,6 @@ class DataType(Serializable):
         ----------
         SignalArrayFormat : str
         NumBytesPVP : int
-        NumCPHDChannels : int
         SignalCompressionID : None|str
         Channels : List[ChannelSizeType]
         SupportArrays : None|List[SupportArraySizeType]
@@ -195,7 +190,6 @@ class DataType(Serializable):
             self._xml_ns_key = kwargs['_xml_ns_key']
         self.SignalArrayFormat = SignalArrayFormat
         self.NumBytesPVP = NumBytesPVP
-        self.NumCPHDChannels = NumCPHDChannels
         self.SignalCompressionID = SignalCompressionID
         self.Channels = Channels
         self.SupportArrays = SupportArrays
@@ -203,7 +197,22 @@ class DataType(Serializable):
 
     @property
     def NumSupportArrays(self):
+        """
+        int: The number of support arrays.
+        """
+
         if self.SupportArrays is None:
             return 0
         else:
             return len(self.SupportArrays)
+
+    @property
+    def NumCPHDChannels(self):
+        """
+        int: The number of CPHD channels.
+        """
+
+        if self.Channels is None:
+            return 0
+        else:
+            return len(self.Channels)

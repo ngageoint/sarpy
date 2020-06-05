@@ -9,6 +9,7 @@ from .base import DEFAULT_STRICT
 # noinspection PyProtectedMember
 from ..sicd_elements.base import Serializable, _StringDescriptor, \
     _IntegerDescriptor, _SerializableListDescriptor, _SerializableDescriptor
+from .utils import parse_format
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
@@ -338,3 +339,50 @@ class PVPType(Serializable):
         self.SIGNAL = SIGNAL
         self.AddedPVP = AddedPVP
         super(PVPType, self).__init__(**kwargs)
+
+    def get_size(self):
+        """
+        Gets the size in bytes of each vector.
+
+        Returns
+        -------
+        int
+        """
+
+        out = 0
+        for fld in self._fields[:-1]:
+            val = getattr(self, fld)
+            if val is not None:
+                out += val.Size*8
+        if self.AddedPVP is not None:
+            for entry in self.AddedPVP:
+                out += entry.Size*8
+        return out
+
+    def get_offset_size_format(self, field):
+        """
+        Get the Offset, Size (in bytes) for the given field,
+        as well as the corresponding striuct format string.
+
+        Parameters
+        ----------
+        field : str
+            The desired field name.
+
+        Returns
+        -------
+        None|(int, int, str)
+        """
+
+        if field in self._fields[:-1]:
+            val = getattr(self, field)
+            if val is None:
+                return None
+            return val.Offset, val.Size*8, parse_format(val.Format)
+        else:
+            if self.AddedPVP is None:
+                return None
+            for val in self.AddedPVP:
+                if field == val.Name:
+                    return val.Offset, val.Size*8, parse_format(val.Format)
+            return None

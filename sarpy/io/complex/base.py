@@ -422,8 +422,8 @@ class BaseReader(object):
 
         Parameters
         ----------
-        sicd_meta : SICDType|Tuple[SICDType]
-            the SICD metadata object, or tuple of objects
+        sicd_meta : None|SICDType|Tuple[SICDType]
+            `None`, the SICD metadata object, or tuple of objects
         chipper : BaseChipper|Tuple[BaseChipper]
             a chipper object, or tuple of chipper objects
         """
@@ -515,6 +515,8 @@ class BaseReader(object):
         if isinstance(self._chipper, BaseChipper) or index is None:
             return 0
 
+        if not isinstance(index, integer_types):
+            raise ValueError('Cannot slice in multiple indices on the third dimension.')
         index = int(index)
         siz = len(self._chipper)
         if not (-siz < index < siz):
@@ -528,10 +530,7 @@ class BaseReader(object):
                     'Reader received slice argument {}. We cannot slice on more than '
                     'three dimensions.'.format(item))
             if len(item) == 3:
-                index = item[2]
-                if not isinstance(index, integer_types):
-                    raise ValueError('Cannot slice in multiple indices on the third dimension.')
-                index = self._validate_index(index)
+                index = self._validate_index(item[2])
                 return item[:2], index
         return item, 0
 
