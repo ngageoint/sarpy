@@ -16,6 +16,7 @@ from .Global import GlobalType
 from .Channel import ChannelType
 from .SRP import SRPTyp
 from .Antenna import AntennaType
+from .VectorParameters import VectorParametersType
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
@@ -118,9 +119,10 @@ class CPHDType(Serializable):
     """
 
     _fields = (
-        'CollectionInfo', 'Data', 'Global', 'Channel', 'SRP', 'Antenna')
+        'CollectionInfo', 'Data', 'Global', 'Channel', 'SRP', 'Antenna',
+        'VectorParameters')
     _required = (
-        'CollectionInfo', 'Data', 'Global', 'Channel', 'SRP')
+        'CollectionInfo', 'Data', 'Global', 'Channel', 'SRP', 'VectorParameters')
     # descriptors
     CollectionInfo = _SerializableDescriptor(
         'CollectionInfo', CollectionInfoType, _required, strict=DEFAULT_STRICT,
@@ -144,9 +146,13 @@ class CPHDType(Serializable):
         docstring='Antenna parameters that describe antenna orientation, mainlobe '
                   'steering and gain patterns vs. '
                   'time.')  # type: Union[None, AntennaType]
+    VectorParameters = _SerializableDescriptor(
+        'VectorParameters', VectorParametersType, _required, strict=DEFAULT_STRICT,
+        docstring='Structure specifying the Vector parameters provided for '
+                  'each channel of a given product.')  # type: VectorParametersType
 
     def __init__(self, CollectionInfo=None, Data=None, Global=None, Channel=None,
-                 SRP=None, Antenna=None, **kwargs):
+                 SRP=None, Antenna=None, VectorParameters=None, **kwargs):
         """
 
         Parameters
@@ -157,6 +163,7 @@ class CPHDType(Serializable):
         Channel : ChannelType
         SRP : SRPTyp
         Antenna : NOne|AntennaType
+        VectorParameters : VectorParametersType
         kwargs
         """
 
@@ -170,6 +177,7 @@ class CPHDType(Serializable):
         self.Channel = Channel
         self.SRP = SRP
         self.Antenna = Antenna
+        self.VectorParameters = VectorParameters
         super(CPHDType, self).__init__(**kwargs)
 
     def to_xml_bytes(self, urn=None, tag=None, check_validity=False, strict=DEFAULT_STRICT):

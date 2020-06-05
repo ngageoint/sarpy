@@ -169,7 +169,7 @@ class CPHDType(Serializable):
                   'product.')  # type: ChannelType
     PVP = _SerializableDescriptor(
         'PVP', PVPType, _required, strict=DEFAULT_STRICT,
-        docstring='Structure used to specify the Per Vector parameters provided for '
+        docstring='Structure specifying the Per Vector parameters provided for '
                   'each channel of a given product.')  # type: PVPType
     SupportArray = _SerializableDescriptor(
         'SupportArray', SupportArrayType, _required, strict=DEFAULT_STRICT,
