@@ -296,16 +296,21 @@ class ApertureTool(AbstractWidgetPanel):
 
     def get_fft_image_bounds(self,
                              ):             # type: (...) -> (int, int, int, int)
-        x_axis_mean = numpy.mean(self.app_variables.fft_display_data, axis=0)
-        y_axis_mean = numpy.mean(self.app_variables.fft_display_data, axis=1)
+        meta = self.app_variables.sicd_reader_object.base_reader.sicd_meta
 
-        x_start = numpy.min(numpy.where(x_axis_mean != 0))
-        x_end = numpy.max(numpy.where(x_axis_mean != 0))
+        row_ratio = meta.Grid.Row.ImpRespBW * meta.Grid.Row.SS
+        col_ratio = meta.Grid.Col.ImpRespBW * meta.Grid.Col.SS
 
-        y_start = numpy.min(numpy.where(y_axis_mean != 0))
-        y_end = numpy.max(numpy.where(y_axis_mean != 0))
+        full_n_rows = self.frequency_vs_degree_panel.canvas.variables.canvas_image_object.image_reader.full_image_ny
+        full_n_cols = self.frequency_vs_degree_panel.canvas.variables.canvas_image_object.image_reader.full_image_nx
 
-        return y_start, x_start, y_end, x_end
+        full_im_y_start = int(full_n_rows*(1 - row_ratio)/2)
+        full_im_y_end = full_n_rows - full_im_y_start
+
+        full_im_x_start = int(full_n_cols*(1 - col_ratio)/2)
+        full_im_x_end = full_n_cols - full_im_x_start
+
+        return full_im_y_start, full_im_x_start, full_im_y_end, full_im_x_end
 
     def callback_save_fft_panel_as_png(self, event):
         filename = filedialog.asksaveasfilename(initialdir=os.path.expanduser("~"), title="Select file",
