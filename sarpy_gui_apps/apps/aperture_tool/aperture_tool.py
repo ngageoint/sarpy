@@ -22,9 +22,9 @@ from sarpy.io.complex.base import BaseReader
 import scipy.constants.constants as scipy_constants
 from tkinter_gui_builder.image_readers.numpy_image_reader import NumpyImageReader
 from sarpy_gui_apps.supporting_classes.metaviewer import Metaviewer
-from sarpy_gui_apps.apps.aperture_tool.panels.animation_popup.animation_panel import AnimationPanel
 from tkinter.filedialog import asksaveasfilename
 from sarpy_gui_apps.apps.aperture_tool.panels.frequency_vs_degree_panel.frequency_vs_degree_panel import FrequencyVsDegreePanel
+from sarpy_gui_apps.apps.aperture_tool.panels.animation_popup.animation_panel import AnimationPanel
 
 
 class ApertureTool(AbstractWidgetPanel):
@@ -82,10 +82,12 @@ class ApertureTool(AbstractWidgetPanel):
         self.animation_popup_panel.withdraw()
 
         # callbacks for animation
-        self.animation_panel.animation_settings.play.on_left_mouse_click(self.callback_play_animation)
+        self.animation_panel.animation_settings.play.on_left_mouse_click(self.callback_play_animation_fast_slow)
         self.animation_panel.animation_settings.step_forward.on_left_mouse_click(self.callback_step_forward)
-        self.animation_panel.animation_settings.step_back.on_left_mouse_click(self.callback_step_back)
+        self.animation_panel.animation_settings.step_back.on_left_mouse_click(self.callback_step_back_fast_slow)
         self.animation_panel.animation_settings.stop.on_left_mouse_click(self.callback_stop_animation)
+
+        self.animation_panel.direction.resolution_mode.on_left_mouse_click(self.callback_select_resolution_mode)
 
         menubar = Menu()
 
@@ -100,7 +102,7 @@ class ApertureTool(AbstractWidgetPanel):
         popups_menu.add_command(label="Phase History", command=self.ph_popup)
         popups_menu.add_command(label="Metaicon", command=self.metaicon_popup)
         popups_menu.add_command(label="Metaviewer", command=self.metaviewer_popup)
-        popups_menu.add_command(label="Animation", command=self.animation_popup)
+        popups_menu.add_command(label="Animation Fast/Slow", command=self.animation_fast_slow_popup)
 
         save_menu = Menu(menubar, tearoff=0)
         save_menu.add_command(label="Save Meticon", command=self.save_metaicon)
@@ -113,7 +115,9 @@ class ApertureTool(AbstractWidgetPanel):
 
         master_frame.pack()
         self.pack()
-        # self.animation_popup()
+
+    def callback_select_resolution_mode(self, event):
+        print("hhellllooo!!!!")
 
     def save_metaicon(self):
         save_fname = asksaveasfilename(initialdir=os.path.expanduser("~"), filetypes=[("*.png", ".PNG")])
@@ -124,26 +128,34 @@ class ApertureTool(AbstractWidgetPanel):
 
     def update_animation_params(self):
         self.app_variables.animation_n_frames = int(self.animation_panel.animation_settings.number_of_frames.get())
-        self.app_variables.animation_aperture_faction = float(self.animation_panel.animation_settings.aperture_fraction.get())
+        self.app_variables.animation_aperture_faction = float(self.animation_panel.fast_slow_settings.aperture_fraction.get())
         self.app_variables.animation_frame_rate = float(self.animation_panel.animation_settings.frame_rate.get())
         self.app_variables.animation_cycle_continuously = self.animation_panel.animation_settings.cycle_continuously.is_selected()
+        self.app_variables.animation_min_aperture_percent = float(self.animation_panel.resolution_settings.min_res.get()) * 0.01
+        self.app_variables.animation_max_aperture_percent = float(self.animation_panel.resolution_settings.max_res.get()) * 0.01
 
     def callback_step_forward(self, event):
-        fast_or_slow = "fast"
-        if self.animation_panel.direction.is_slow_time():
-            fast_or_slow = "slow"
-        self.step_animation("forward", fast_or_slow)
+        if self.animation_panel.direction.is_fast_time() or self.animation_panel.direction.is_slow_time():
+            fast_or_slow = "fast"
+            if self.animation_panel.direction.is_slow_time():
+                fast_or_slow = "slow"
+            self.step_animation_fast_slow("forward", fast_or_slow)
+        elif self.animation_panel.direction.is_resolution_mode():
+            self.step_animation_resolution_mode("forward")
 
-    def callback_step_back(self, event):
-        fast_or_slow = "fast"
-        if self.animation_panel.direction.is_slow_time():
-            fast_or_slow = "slow"
-        self.step_animation("back", fast_or_slow)
+    def callback_step_back_fast_slow(self, event):
+        if self.animation_panel.direction.is_fast_time() or self.animation_panel.direction.is_slow_time():
+            fast_or_slow = "fast"
+            if self.animation_panel.direction.is_slow_time():
+                fast_or_slow = "slow"
+            self.step_animation_fast_slow("back", fast_or_slow)
+        elif self.animation_panel.direction.is_resolution_mode():
+            self.step_animation_resolution_mode("back")
 
-    def step_animation(self,
-                       direction_forward_or_back,       # type: str
-                       time_fast_or_slow,               # type: str
-                       ):
+    def step_animation_fast_slow(self,
+                                 direction_forward_or_back,  # type: str
+                                 time_fast_or_slow,  # type: str
+                                 ):
         self.update_animation_params()
         full_canvas_x_aperture = self.app_variables.fft_canvas_bounds[2] - self.app_variables.fft_canvas_bounds[0]
         full_canvas_y_aperture = self.app_variables.fft_canvas_bounds[3] - self.app_variables.fft_canvas_bounds[1]
@@ -184,11 +196,48 @@ class ApertureTool(AbstractWidgetPanel):
         self.update_filtered_image()
         self.update_phase_history_selection()
 
+    def step_animation_resolution_mode(self,
+                                 direction_forward_or_back,  # type: str
+                                 ):
+        self.update_animation_params()
+        full_canvas_x_aperture = self.app_variables.fft_canvas_bounds[2] - self.app_variables.fft_canvas_bounds[0]
+        full_canvas_y_aperture = self.app_variables.fft_canvas_bounds[3] - self.app_variables.fft_canvas_bounds[1]
+
+        if direction_forward_or_back == "forward":
+            if self.app_variables.animation_current_position < self.app_variables.animation_n_frames - 1:
+                self.app_variables.animation_current_position += 1
+        elif direction_forward_or_back == "back":
+            if self.app_variables.animation_current_position > 0:
+                self.app_variables.animation_current_position -= 1
+        canvas_xul_start = self.app_variables.fft_canvas_bounds[0]
+        canvas_xlr_start = self.app_variables.fft_canvas_bounds[2]
+        canvas_yul_start = self.app_variables.fft_canvas_bounds[1]
+        canvas_ylr_start = self.app_variables.fft_canvas_bounds[3]
+
+        canvas_xul_stop = (canvas_xul_start + canvas_xlr_start)/2 - full_canvas_x_aperture * self.app_variables.animation_min_aperture_percent / 2
+        canvas_xlr_stop = (canvas_xul_start + canvas_xlr_start)/2 + full_canvas_x_aperture * self.app_variables.animation_min_aperture_percent / 2
+        canvas_yul_stop = (canvas_yul_start + canvas_ylr_start)/2 - full_canvas_y_aperture * self.app_variables.animation_min_aperture_percent / 2
+        canvas_ylr_stop = (canvas_yul_start + canvas_ylr_start)/2 + full_canvas_y_aperture * self.app_variables.animation_min_aperture_percent / 2
+
+        x_uls = numpy.linspace(canvas_xul_start, canvas_xul_stop, self.app_variables.animation_n_frames)
+        x_lrs = numpy.linspace(canvas_xlr_start, canvas_xlr_stop, self.app_variables.animation_n_frames)
+        y_uls = numpy.linspace(canvas_yul_start, canvas_yul_stop, self.app_variables.animation_n_frames)
+        y_lrs = numpy.linspace(canvas_ylr_start, canvas_ylr_stop, self.app_variables.animation_n_frames)
+
+        frame_num = self.app_variables.animation_current_position
+
+        new_rect = (x_uls[frame_num], y_uls[frame_num], x_lrs[frame_num], y_lrs[frame_num])
+
+        self.frequency_vs_degree_panel.canvas.modify_existing_shape_using_canvas_coords(
+            self.frequency_vs_degree_panel.canvas.variables.select_rect_id, new_rect)
+        self.update_filtered_image()
+        self.update_phase_history_selection()
+
     def callback_stop_animation(self, event):
         self.app_variables.animation_stop_pressed = True
         self.animation_panel.animation_settings.unpress_all_buttons()
 
-    def callback_play_animation(self, event):
+    def callback_play_animation_fast_slow(self, event):
         self.update_animation_params()
         fast_or_slow = "fast"
         if self.animation_panel.direction.is_slow_time():
@@ -211,7 +260,7 @@ class ApertureTool(AbstractWidgetPanel):
                 if self.app_variables.animation_stop_pressed:
                     break
                 tic = time.time()
-                self.step_animation(direction_forward_or_back, fast_or_slow)
+                self.step_animation_fast_slow(direction_forward_or_back, fast_or_slow)
                 self.frequency_vs_degree_panel.update()
                 toc = time.time()
                 if (toc - tic) < time_between_frames:
@@ -226,7 +275,7 @@ class ApertureTool(AbstractWidgetPanel):
         self.app_variables.animation_stop_pressed = False
         self.animation_panel.animation_settings.activate_all_buttons()
 
-    def animation_popup(self):
+    def animation_fast_slow_popup(self):
         self.animation_popup_panel.deiconify()
 
     def metaviewer_popup(self):

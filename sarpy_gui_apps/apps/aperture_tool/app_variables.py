@@ -17,8 +17,9 @@ class AppVariables:
         self.animation_n_frames = None      # type: int
         self.animation_aperture_faction = None      # type: int
         self.animation_frame_rate = None            # type: int
-        self.animation_current_frame = 0         # type: int
         self.animation_cycle_continuously = False       # type: bool
         self.animation_current_position = 0             # type: int
         self.animation_is_running = False           # type: bool
         self.animation_stop_pressed = False         # type: bool
+        self.animation_min_aperture_percent = None      # type: float
+        self.animation_max_aperture_percent = None      # type: float
