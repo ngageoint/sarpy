@@ -5,7 +5,7 @@ Module for reading CPHD files - should support CPHD version 0.3 and 1.0.
 
 import struct
 import os
-from typing import Union
+from typing import Union, Tuple
 
 import numpy
 
@@ -59,7 +59,7 @@ def _format_mapping(frm):
 
     Returns
     -------
-    (dtype, int)
+    Tuple[numpy.dtype, int]
     """
 
     if frm == 'd':
@@ -353,7 +353,7 @@ class CPHDReader(BaseReader):
             The size of the field, in bytes - probably 8 or 24.
         row_count : int
             The number of rows present for this CPHD channel.
-        dim_range : None|int|Tuple(int, int)|Tuple(int, int, int)
+        dim_range : None|int|Tuple[int, int]|Tuple[int, int, int]
             The indices for the vector parameter.
 
         Returns
@@ -380,7 +380,7 @@ class CPHDReader(BaseReader):
                 current_offset += the_range[2]*vector_size
         return out
 
-    def read_pvp_vector(self, variable, index, dim_range=None):
+    def read_pvp_vector(self, variable, index, the_range=None):
         """
         Read the vector parameter for the given `variable` and CPHD channel.
 
@@ -389,7 +389,7 @@ class CPHDReader(BaseReader):
         variable
         index : int|str
             The CPHD channel index or identifier.
-        dim_range : None|int|Tuple(int, int)|Tuple(int, int, int)
+        the_range : None|int|Tuple[int, int]|Tuple[int, int, int]
             The indices for the vector parameter.
 
         Returns
@@ -421,7 +421,7 @@ class CPHDReader(BaseReader):
         data = chipper(range1, range2)
 
         # fetch the scale data, if there is any
-        scale = self.read_pvp_vector('AmpSF', index, dim_range=range1)
+        scale = self.read_pvp_vector('AmpSF', index, the_range=range1)
         if scale is None:
             return data
 
@@ -534,7 +534,7 @@ class CPHDReader1_0(CPHDReader):
                 raise ValueError('index must be in the range [0, {})'.format(cphd_meta.Data.NumCPHDChannels))
             return int_index
 
-    def read_pvp_vector(self, variable, index, dim_range=None):
+    def read_pvp_vector(self, variable, index, the_range=None):
         # fetch the header object
         header = self.cphd_header
         # fetch the appropriate details from the cphd structure
@@ -553,9 +553,9 @@ class CPHDReader1_0(CPHDReader):
             return None
         field_offset, fld_siz, frm = res
         return self._read_pvp_vector(
-            pvp_block_offset, pvp_offset, vector_size, field_offset, frm, fld_siz, row_count, dim_range)
+            pvp_block_offset, pvp_offset, vector_size, field_offset, frm, fld_siz, row_count, the_range)
 
-    def read_support_array(self, index, dim_range1, dim_range2):
+    def read_support_array(self, index, dim1_range, dim2_range):
         """
         Read the support array.
 
@@ -563,8 +563,12 @@ class CPHDReader1_0(CPHDReader):
         ----------
         index : int|str
             The support array integer index (of cphd.Data.SupportArrays list) or identifier.
-        dim_range1 : None|int|Tuple(int, int)|Tuple(int, int, int)
-        dim_range2 : None|int|Tuple(int, int)|Tuple(int, int, int)
+        dim1_range : None|int|Tuple[int, int]|Tuple[int, int, int]
+            The row data selection of the form `[start, [stop, [stride]]]`, and
+            `None` defaults to all rows (i.e. `(0, NumRows, 1)`)
+        dim2_range : None|int|Tuple[int, int]|Tuple[int, int, int]
+            The column data selection of the form `[start, [stop, [stride]]]`, and
+            `None` defaults to all rows (i.e. `(0, NumCols, 1)`)
 
         Returns
         -------
@@ -588,8 +592,8 @@ class CPHDReader1_0(CPHDReader):
             raise TypeError('Got unexpected type {} for identifier'.format(type(index)))
 
         # validate the range definition
-        range1 = validate_range(dim_range1, the_entry.NumRows)
-        range2 = validate_range(dim_range2, the_entry.NumCols)
+        range1 = validate_range(dim1_range, the_entry.NumRows)
+        range2 = validate_range(dim2_range, the_entry.NumCols)
         # extract the support array metadata details
         details = self.cphd_meta.SupportArray.find_support_array(identifier)
         # determine array byte offset
@@ -678,7 +682,7 @@ class CPHDReader0_3(CPHDReader):
             data_offset += img_siz[0]*img_siz[1]*bpp
         return tuple(chippers)
 
-    def read_pvp_vector(self, variable, index, dim_range=None):
+    def read_pvp_vector(self, variable, index, the_range=None):
         frm = 'd'  # all fields in CPHD 0.3 are of double type
         # fetch the header object
         header = self.cphd_header
@@ -701,4 +705,4 @@ class CPHDReader0_3(CPHDReader):
             return None
         field_offset, fld_siz = result
         return self._read_pvp_vector(
-            pvp_block_offset, pvp_offset, vector_size, field_offset, frm, fld_siz, row_count, dim_range)
+            pvp_block_offset, pvp_offset, vector_size, field_offset, frm, fld_siz, row_count, the_range)

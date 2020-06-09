@@ -5,6 +5,7 @@ Common functionality for converting metadata
 import sys
 import logging
 from xml.etree import ElementTree
+from typing import Union, Tuple
 
 import numpy
 from numpy.polynomial import polynomial
@@ -32,22 +33,25 @@ __author__ = "Thomas McCullough"
 
 
 def validate_range(arg, siz):
+    # type: (Union[None, int, Tuple[int, int], Tuple[int, int, int]], int) -> Tuple[int, int, int]
     """
     Validate the range definition.
 
     Parameters
     ----------
-    arg : None|int|(int, int)|(int, int, int)
+    arg : None|int|Tuple[int, int]|Tuple[int, int, int]
     siz : int
 
     Returns
     -------
-    tuple
+    Tuple[int, int, int]
         Of the form `(start, stop, step)`.
     """
 
     start, stop, step = None, None, None
-    if isinstance(arg, integer_types):
+    if arg is None:
+        pass
+    elif isinstance(arg, integer_types):
         step = arg
     else:
         # NB: following this pattern to avoid confused pycharm inspection
@@ -87,17 +91,18 @@ def validate_range(arg, siz):
 
 
 def reverse_range(arg, siz):
+    # type: (Union[None, int, Tuple[int, int], Tuple[int, int, int]], int) -> Tuple[int, int, int]
     """
     Reverse the range definition.
 
     Parameters
     ----------
-    arg : None|int|Tuple[int, int]|Tuple[int, int, int]
-    siz
+    arg : None|int|Tuple[int,int]|Tuple[int,int,int]
+    siz : int
 
     Returns
     -------
-    tuple
+    Tuple[int,int,int]
         Of the form `(start, stop, step)`.
     """
 

@@ -362,7 +362,7 @@ class PVPType(Serializable):
     def get_offset_size_format(self, field):
         """
         Get the Offset, Size (in bytes) for the given field,
-        as well as the corresponding striuct format string.
+        as well as the corresponding struct format string.
 
         Parameters
         ----------
