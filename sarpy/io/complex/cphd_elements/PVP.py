@@ -9,7 +9,7 @@ from .base import DEFAULT_STRICT
 # noinspection PyProtectedMember
 from ..sicd_elements.base import Serializable, _StringDescriptor, \
     _IntegerDescriptor, _SerializableListDescriptor, _SerializableDescriptor
-from .utils import parse_format
+from .utils import homogeneous_format
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
@@ -378,11 +378,11 @@ class PVPType(Serializable):
             val = getattr(self, field)
             if val is None:
                 return None
-            return val.Offset, val.Size*8, parse_format(val.Format)
+            return val.Offset, val.Size*8, homogeneous_format(val.Format)
         else:
             if self.AddedPVP is None:
                 return None
             for val in self.AddedPVP:
                 if field == val.Name:
-                    return val.Offset, val.Size*8, parse_format(val.Format)
+                    return val.Offset, val.Size*8, homogeneous_format(val.Format)
             return None

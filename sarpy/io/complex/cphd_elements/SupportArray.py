@@ -12,7 +12,7 @@ from .base import DEFAULT_STRICT
 from ..sicd_elements.base import Serializable, _FloatDescriptor, \
     _StringDescriptor, _StringEnumDescriptor, string_types, _get_node_value, \
     _ParametersDescriptor, ParametersCollection, _SerializableListDescriptor
-from .utils import parse_format
+from .utils import homogeneous_dtype
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
@@ -132,16 +132,16 @@ class SupportArrayCore(Serializable):
 
         raise NotImplementedError
 
-    def get_struct_format(self):
+    def get_numpy_format(self):
         """
-        Convert the element format to a (single character) struct style format.
+        Convert the element format to a numpy dtype (including endianness) and depth.
 
         Returns
         -------
-        str
+        numpy.dtype, int
         """
 
-        return parse_format(self.ElementFormat)
+        return homogeneous_dtype(self.ElementFormat, return_length=True)
 
 
 class IAZArrayType(SupportArrayCore):
@@ -189,7 +189,7 @@ class AntGainPhaseType(SupportArrayCore):
     _required = ('Identifier', 'ElementFormat', 'X0', 'Y0', 'XSS', 'YSS')
     # descriptors
     ElementFormat = _StringEnumDescriptor(
-        'ElementFormat', ('Gain=F4;Phase=F4;', ), _required, strict=DEFAULT_STRICT, default_value='IAZ=F4;',
+        'ElementFormat', ('Gain=F4;Phase=F4;', ), _required, strict=DEFAULT_STRICT, default_value='Gain=F4;Phase=F4;',
         docstring='The data element format.')  # type: str
 
     def __init__(self, Identifier=None, ElementFormat='Gain=F4;Phase=F4;', X0=None,
@@ -321,3 +321,33 @@ class SupportArrayType(Serializable):
         self.AntGainPhase = AntGainPhase
         self.AddedSupportArray = AddedSupportArray
         super(SupportArrayType, self).__init__(**kwargs)
+
+    def find_support_array(self, identifier):
+        """
+        Find and return the details for support array associated with the given identifier.
+
+        Parameters
+        ----------
+        identifier : str
+
+        Returns
+        -------
+        IAZArrayType|AntGainPhaseType|AddedSupportArrayType
+        """
+
+        if self.IAZArray is not None:
+            for entry in self.IAZArray:
+                if entry.Identifier == identifier:
+                    return entry
+
+        if self.AntGainPhase is not None:
+            for entry in self.AntGainPhase:
+                if entry.Identifier == identifier:
+                    return entry
+
+        if self.AddedSupportArray is not None:
+            for entry in self.AddedSupportArray:
+                if entry.Identifier == identifier:
+                    return entry
+
+        raise KeyError('Identifier {} not associated with a support array.'.format(identifier))

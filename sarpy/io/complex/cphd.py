@@ -12,9 +12,15 @@ import numpy
 # noinspection PyProtectedMember
 from .cphd_elements.CPHD import CPHDType, CPHDHeader
 from .cphd_elements.cphd0_3.CPHD import CPHDType as CPHDType0_3, CPHDHeader as CPHDHeader0_3
-from .utils import parse_xml_from_string
+from .utils import parse_xml_from_string, validate_range
 from .base import BaseReader, string_types, int_func, integer_types
 from .bip import BIPChipper
+
+# TODO: Outstanding issues and questions
+#   0.) What about the Per Vector situation? Does what I implemented make sense?
+#   1.) Support arrays - should we just parse the whole shebang? How would someone use this?
+#   2.) SICD - should we do the partial conversion deal? I think this is a hack, but Wade?
+#   3.) Any other functionality?
 
 
 __classification__ = "UNCLASSIFIED"
@@ -39,7 +45,7 @@ def is_a(file_name):
     try:
         return CPHDReader(file_name)
     except IOError:
-        # we don't want to catch parsing errors, for now
+        # we don't want to catch parsing errors, for now?
         return None
 
 
@@ -326,7 +332,7 @@ class CPHDReader(BaseReader):
 
         return self.cphd_details.cphd_header
 
-    def _read_pvp_vector(self, pvp_block_offset, pvp_offset, vector_size, field_offset, frm, fld_siz, row_count):
+    def _read_pvp_vector(self, pvp_block_offset, pvp_offset, vector_size, field_offset, frm, fld_siz, row_count, dim_range):
         """
         Read the given Per Vector parameter from the disc.
 
@@ -347,28 +353,34 @@ class CPHDReader(BaseReader):
             The size of the field, in bytes - probably 8 or 24.
         row_count : int
             The number of rows present for this CPHD channel.
+        dim_range : None|int|Tuple(int, int)|Tuple(int, int, int)
+            The indices for the vector parameter.
 
         Returns
         -------
         numpy.ndarray
         """
 
+        # reformat the range definition
+        the_range = validate_range(dim_range, row_count)
+
         dtype, elem_size = _format_mapping(frm)
         siz = int(fld_siz/elem_size)
 
-        shp = (row_count, ) if siz == 1 else (row_count, siz)
+        out_count = int_func((the_range[1] - the_range[0])/the_range[2])
+        shp = (out_count, ) if siz == 1 else (out_count, siz)
         out = numpy.zeros(shp, dtype=dtype)
 
+        current_offset = pvp_block_offset + pvp_offset + the_range[0]*vector_size + field_offset
         with open(self.cphd_details.file_name, 'rb') as fi:
-            current_offset = pvp_block_offset + pvp_offset + field_offset
-            for i in range(row_count):
+            for i in range(out_count):
                 fi.seek(current_offset)
                 element = struct.unpack('>{}{}'.format(siz, frm), fi.read(fld_siz))
                 out[i] = element[0] if siz == 1 else element
-                current_offset += vector_size
+                current_offset += the_range[2]*vector_size
         return out
 
-    def read_pvp_vector(self, variable, index):
+    def read_pvp_vector(self, variable, index, dim_range=None):
         """
         Read the vector parameter for the given `variable` and CPHD channel.
 
@@ -377,6 +389,8 @@ class CPHDReader(BaseReader):
         variable
         index : int|str
             The CPHD channel index or identifier.
+        dim_range : None|int|Tuple(int, int)|Tuple(int, int, int)
+            The indices for the vector parameter.
 
         Returns
         -------
@@ -384,37 +398,6 @@ class CPHDReader(BaseReader):
         """
 
         raise NotImplementedError
-
-    @staticmethod
-    def _rescale(scale, data, range1):
-        """
-        Rescale the data, if necessary.
-
-        Parameters
-        ----------
-        scale : NOne|numpy.ndarray
-        data : numpy.ndarray
-        range1 : tuple
-
-        Returns
-        -------
-        numpy.ndarray
-        """
-
-        if scale is None:
-            return data
-
-        if range1[1] == -1 and range1[2] < 0:
-            scale = numpy.recast['float32'](scale)[range1[0]::range1[2]]
-        else:
-            scale = numpy.recast['float32'](scale)[range1[0]:range1[1]:range1[2]]
-
-        if scale.ndim == 0:
-            return scale*data
-        elif data.ndim == 1:
-            return scale*data
-        else:
-            return scale[:, numpy.newaxis]*data
 
     def _fetch(self, range1, range2, index):
         """
@@ -430,15 +413,26 @@ class CPHDReader(BaseReader):
         numpy.ndarray
         """
 
-        # fetch the scsale data, if there is any
-        scale = self.read_pvp_vector('AmpSF', index)
 
         chipper = self._chipper[index]
         # NB: it is critical that there is no reorientation operation in CPHD.
         # noinspection PyProtectedMember
         range1, range2 = chipper._reorder_arguments(range1, range2)
         data = chipper(range1, range2)
-        return self._rescale(scale, data, range1)
+
+        # fetch the scale data, if there is any
+        scale = self.read_pvp_vector('AmpSF', index, dim_range=range1)
+        if scale is None:
+            return data
+
+        scale = numpy.recast['float32'](scale)
+        # recast from double, so our data will remain float32
+        if scale.size == 1:
+            return scale[0]*data
+        elif data.ndim == 1:
+            return scale*data
+        else:
+            return scale[:, numpy.newaxis]*data
 
     def __call__(self, range1, range2, index=0):
         index = self._validate_index(index)
@@ -540,7 +534,7 @@ class CPHDReader1_0(CPHDReader):
                 raise ValueError('index must be in the range [0, {})'.format(cphd_meta.Data.NumCPHDChannels))
             return int_index
 
-    def read_pvp_vector(self, variable, index):
+    def read_pvp_vector(self, variable, index, dim_range=None):
         # fetch the header object
         header = self.cphd_header
         # fetch the appropriate details from the cphd structure
@@ -558,8 +552,69 @@ class CPHDReader1_0(CPHDReader):
         if res is None:
             return None
         field_offset, fld_siz, frm = res
-        return self._read_pvp_vector(pvp_block_offset, pvp_offset, vector_size, field_offset, frm, fld_siz, row_count)
+        return self._read_pvp_vector(
+            pvp_block_offset, pvp_offset, vector_size, field_offset, frm, fld_siz, row_count, dim_range)
 
+    def read_support_array(self, index, dim_range1, dim_range2):
+        """
+        Read the support array.
+
+        Parameters
+        ----------
+        index : int|str
+            The support array integer index (of cphd.Data.SupportArrays list) or identifier.
+        dim_range1 : None|int|Tuple(int, int)|Tuple(int, int, int)
+        dim_range2 : None|int|Tuple(int, int)|Tuple(int, int, int)
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+
+        # find the support array basic details
+        the_entry = None
+        if isinstance(index, integer_types):
+            the_entry = self.cphd_meta.Data.SupportArrays[index]
+            identifier = the_entry.Identifier
+        elif isinstance(index, string_types):
+            identifier = index
+            for entry in self.cphd_meta.Data.SupportArrays:
+                if entry.Identifier == index:
+                    the_entry = entry
+                    break
+            if the_entry is None:
+                raise KeyError('Identifier {} not associated with a support array.'.format(identifier))
+        else:
+            raise TypeError('Got unexpected type {} for identifier'.format(type(index)))
+
+        # validate the range definition
+        range1 = validate_range(dim_range1, the_entry.NumRows)
+        range2 = validate_range(dim_range2, the_entry.NumCols)
+        # extract the support array metadata details
+        details = self.cphd_meta.SupportArray.find_support_array(identifier)
+        # determine array byte offset
+        offset = self.cphd_header.SUPPORT_BLOCK_BYTE_OFFSET + the_entry.ArrayByteOffset
+        # determine numpy dtype and depth of array
+        dtype, depth = details.get_numpy_format()
+        # set up the numpy memory map
+        shape = (the_entry.NumRows, the_entry.NumCols) if depth == 1 else \
+            (the_entry.NumRows, the_entry.NumCols, depth)
+        mem_map = numpy.memmap(self.cphd_details.file_name,
+                               dtype=dtype,
+                               mode='r',
+                               offset=offset,
+                               shape=shape)
+        if range1[0] == -1 and range1[2] < 0 and range2[0] == -1 and range2[2] < 0:
+            data = mem_map[range1[0]::range1[2], range2[0]::range2[2]]
+        elif range1[0] == -1 and range1[2] < 0:
+            data = mem_map[range1[0]::range1[2], range2[0]:range2[1]:range2[2]]
+        elif range2[0] == -1 and range2[2] < 0:
+            data = mem_map[range1[0]:range1[1]:range1[2], range2[0]::range2[2]]
+        else:
+            data = mem_map[range1[0]:range1[1]:range1[2], range2[0]:range2[1]:range2[2]]
+        # clean up the memmap object, probably unnecessary, and there SHOULD be a close method
+        del mem_map
+        return data
 
 class CPHDReader0_3(CPHDReader):
     """
@@ -623,7 +678,7 @@ class CPHDReader0_3(CPHDReader):
             data_offset += img_siz[0]*img_siz[1]*bpp
         return tuple(chippers)
 
-    def read_pvp_vector(self, variable, index):
+    def read_pvp_vector(self, variable, index, dim_range=None):
         frm = 'd'  # all fields in CPHD 0.3 are of double type
         # fetch the header object
         header = self.cphd_header
@@ -645,4 +700,5 @@ class CPHDReader0_3(CPHDReader):
         if result is None:
             return None
         field_offset, fld_siz = result
-        return self._read_pvp_vector(pvp_block_offset, pvp_offset, vector_size, field_offset, frm, fld_siz, row_count)
+        return self._read_pvp_vector(
+            pvp_block_offset, pvp_offset, vector_size, field_offset, frm, fld_siz, row_count, dim_range)

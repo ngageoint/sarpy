@@ -11,17 +11,99 @@ from numpy.polynomial import polynomial
 
 from .sicd_elements.blocks import Poly2DType
 
-
+integer_types = (int, )
+string_types = (str, )
+int_func = int
 if sys.version_info[0] < 3:
     # noinspection PyUnresolvedReferences
     from cStringIO import StringIO
+    # noinspection PyUnresolvedReferences
+    int_func = long
+    # noinspection PyUnresolvedReferences
+    integer_types = (int, long)
+    # noinspection PyUnresolvedReferences
+    string_types = (str, unicode)
 else:
     # noinspection PyUnresolvedReferences
     from io import StringIO
 
-
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
+
+
+def validate_range(arg, siz):
+    """
+    Validate the range definition.
+
+    Parameters
+    ----------
+    arg : None|int|(int, int)|(int, int, int)
+    siz : int
+
+    Returns
+    -------
+    tuple
+        Of the form `(start, stop, step)`.
+    """
+
+    start, stop, step = None, None, None
+    if isinstance(arg, integer_types):
+        step = arg
+    else:
+        # NB: following this pattern to avoid confused pycharm inspection
+        if len(arg) == 1:
+            step = arg[0]
+        elif len(arg) == 2:
+            stop, step = arg
+        elif len(arg) == 3:
+            start, stop, step = arg
+    start = 0 if start is None else int_func(start)
+    stop = siz if stop is None else int_func(stop)
+    step = 1 if step is None else int_func(step)
+    # basic validity check
+    if not (-siz < start < siz):
+        raise ValueError(
+            'Range argument {} has extracted start {}, which is required '
+            'to be in the range [0, {})'.format(arg, start, siz))
+    if not (-siz < stop <= siz):
+        raise ValueError(
+            'Range argument {} has extracted "stop" {}, which is required '
+            'to be in the range [0, {}]'.format(arg, stop, siz))
+    if not ((0 < step < siz) or (-siz < step < 0)):
+        raise ValueError(
+            'Range argument {} has extracted step {}, for an axis of length '
+            '{}'.format(arg, start, siz))
+    if ((step < 0) and (stop > start)) or ((step > 0) and (start > stop)):
+        raise ValueError(
+            'Range argument {} has extracted start {}, stop {}, step {}, '
+            'which is not valid.'.format(arg, start, stop, step))
+
+    # reform negative values for start/stop appropriately
+    if start < 0:
+        start += siz
+    if stop < 0:
+        stop += siz
+    return start, stop, step
+
+
+def reverse_range(arg, siz):
+    """
+    Reverse the range definition.
+
+    Parameters
+    ----------
+    arg : None|int|Tuple[int, int]|Tuple[int, int, int]
+    siz
+
+    Returns
+    -------
+    tuple
+        Of the form `(start, stop, step)`.
+    """
+
+    start, stop, step = validate_range(arg, siz)
+    # read backwards
+    return (siz - 1) - start, (siz - 1) - stop, -step
 
 
 def get_seconds(dt1, dt2, precision='us'):

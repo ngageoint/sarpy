@@ -3,6 +3,8 @@
 Common utils for CPHD functionality.
 """
 
+import numpy
+
 _format_mapping = {
     'F8': 'd', 'F4': 'f', 'I8': 'q', 'I4': 'i', 'I2': 'h', 'I1': 'b'}
 
@@ -27,11 +29,53 @@ def parse_format(frm):
 
     Returns
     -------
+    Tuple[str, ...]
+    """
+
+    return tuple(_map_part(el) for el in frm.strip().split(';'))
+
+def homogeneous_format(frm, return_length=False):
+    """
+    Determine a struct format from a CPHD format string, requiring that any multiple
+    parts are all identical.
+
+    Parameters
+    ----------
+    frm : str
+    return_length : bool
+        Return the number of elements?
+
+    Returns
+    -------
     str
     """
 
-    entries = list(set(_map_part(el) for el in frm.strip().split(';')))
-    if len(entries) == 1:
-        return entries[0]
+    entries = parse_format(frm)
+    entry_set = set(entries)
+    if len(entry_set) == 1:
+        return entry_set.pop(), len(entries) if return_length else entry_set.pop()
     else:
-        raise ValueError('The format {} requires multiple struct parts'.format(frm))
+        raise ValueError('Non-homogeneous format required {}'.format(entries))
+
+def homogeneous_dtype(frm, return_length=False):
+    """
+    Determine a numpy.dtype (including endianness) from a CPHD format string, requiring
+    that any multiple parts are all identical.
+
+    Parameters
+    ----------
+    frm : str
+    return_length : bool
+        Return the number of elements?
+
+    Returns
+    -------
+    numpy.dtype
+    """
+
+    entries = ['>'+el.lower() for el in frm.strip().split(';')]
+    entry_set = set(entries)
+    if len(entry_set) == 1:
+        return numpy.dtype(entry_set.pop()), len(entries) if return_length else numpy.dtype(entry_set.pop())
+    else:
+        raise ValueError('Non-homogeneous format required {}'.format(entries))
