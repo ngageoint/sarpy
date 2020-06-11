@@ -11,6 +11,7 @@ from ...sicd_elements.base import Serializable, _SerializableDescriptor, \
     _IntegerDescriptor, _StringDescriptor
 
 from ...sicd_elements.CollectionInfo import CollectionInfoType
+from ...sicd_elements.RadarCollection import RadarCollectionType
 from ..CPHD import CPHDHeaderBase
 from .Data import DataType
 from .Global import GlobalType
@@ -87,7 +88,7 @@ class CPHDType(Serializable):
     """
 
     _fields = (
-        'CollectionInfo', 'Data', 'Global', 'Channel', 'SRP', 'Antenna',
+        'CollectionInfo', 'Data', 'Global', 'Channel', 'SRP', 'RadarCollection', 'Antenna',
         'VectorParameters')
     _required = (
         'CollectionInfo', 'Data', 'Global', 'Channel', 'SRP', 'VectorParameters')
@@ -109,6 +110,9 @@ class CPHDType(Serializable):
     SRP = _SerializableDescriptor(
         'SRP', SRPTyp, _required, strict=DEFAULT_STRICT,
         docstring='The Stabilization Refence Point (SRP) parameters.')  # type: SRPTyp
+    RadarCollection = _SerializableDescriptor(
+        'RadarCollection', RadarCollectionType, _required, strict=DEFAULT_STRICT,
+        docstring='')  # type: Union[None, RadarCollectionType]
     Antenna = _SerializableDescriptor(
         'Antenna', AntennaType, _required, strict=DEFAULT_STRICT,
         docstring='Antenna parameters that describe antenna orientation, mainlobe '
@@ -120,7 +124,7 @@ class CPHDType(Serializable):
                   'each channel of a given product.')  # type: VectorParametersType
 
     def __init__(self, CollectionInfo=None, Data=None, Global=None, Channel=None,
-                 SRP=None, Antenna=None, VectorParameters=None, **kwargs):
+                 SRP=None, RadarCollection=None, Antenna=None, VectorParameters=None, **kwargs):
         """
 
         Parameters
@@ -130,7 +134,8 @@ class CPHDType(Serializable):
         Global : GlobalType
         Channel : ChannelType
         SRP : SRPTyp
-        Antenna : NOne|AntennaType
+        RadarCollection : None|RadarCollectionType
+        Antenna : None|AntennaType
         VectorParameters : VectorParametersType
         kwargs
         """
@@ -144,6 +149,7 @@ class CPHDType(Serializable):
         self.Global = Global
         self.Channel = Channel
         self.SRP = SRP
+        self.RadarCollection = RadarCollection
         self.Antenna = Antenna
         self.VectorParameters = VectorParameters
         super(CPHDType, self).__init__(**kwargs)
