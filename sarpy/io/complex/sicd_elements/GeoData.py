@@ -39,7 +39,7 @@ class GeoInfoType(Serializable):
         'Polygon': {'array': True, 'child_tag': 'Vertex'}, }
     # descriptors
     name = _StringDescriptor(
-        'name', _required, strict=True,
+        'name', _required, strict=DEFAULT_STRICT,
         docstring='The name.')  # type: str
     Descriptions = _ParametersDescriptor(
         'Descriptions', _collections_tags, _required, strict=DEFAULT_STRICT,

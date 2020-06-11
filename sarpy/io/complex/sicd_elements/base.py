@@ -184,7 +184,18 @@ def _parse_int(value, name, instance):
         return value
     elif isinstance(value, ElementTree.Element):
         # from XML deserialization
-        return int_func(_get_node_value(value))
+        return _parse_int(_get_node_value(value), name, instance)
+    elif isinstance(value, string_types):
+        try:
+            return int_func(value)
+        except ValueError as e:
+            logging.warning(
+                'Got non-integer value {} for integer valued field {} of '
+                'class {}'.format(value, name, instance.__class__.__name__))
+            try:
+                return int_func(float(value))
+            except:
+                raise e
     else:
         # user or json deserialization
         return int_func(value)
@@ -707,7 +718,7 @@ class _IntegerDescriptor(_BasicDescriptor):
 
     def _docstring_suffix(self):
         if self.bounds is not None:
-            return 'Must be in the range [{0:d}, {1:d}]'.format(self.bounds[0], self.bounds[1])
+            return 'Must be in the range [{}, {}]'.format(*self.bounds)
         return ''
 
     def _in_bounds(self, value):
@@ -850,7 +861,7 @@ class _FloatDescriptor(_BasicDescriptor):
 
     def _docstring_suffix(self):
         if self.bounds is not None:
-            return 'Must be in the range [{}, {}]'.format(str(self.bounds[0]), str(self.bounds[1]))
+            return 'Must be in the range [{}, {}]'.format(*self.bounds)
         return ''
 
     def _in_bounds(self, value):

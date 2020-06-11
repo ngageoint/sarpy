@@ -72,6 +72,10 @@ class SIODetails(object):
         self._caspr_data = None
         self._symmetry = (False, False, False)
         self._sicd = None
+
+        if not os.path.isfile(file_name):
+            raise IOError('Path {} is not a file'.format(file_name))
+
         with open(file_name, 'rb') as fi:
             self._magic_number = struct.unpack('I', fi.read(4))[0]
             endian = self.ENDIAN.get(self._magic_number, None)

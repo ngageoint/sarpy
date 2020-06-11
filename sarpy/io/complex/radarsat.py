@@ -62,7 +62,7 @@ def is_a(file_name):
         radar_sat_details = RadarSatDetails(file_name)
         print('Path {} is determined to be or contain a RadarSat or RCM product.xml file.'.format(file_name))
         return RadarSatReader(radar_sat_details)
-    except (IOError, AttributeError, SyntaxError, ElementTree.ParseError):
+    except IOError:
         return None
 
 
@@ -101,7 +101,7 @@ class RadarSatDetails(object):
                 if os.path.exists(t_file_name):
                     file_name = t_file_name
                     break
-        if not os.path.exists(file_name) or not os.path.isfile(file_name):
+        if not os.path.isfile(file_name):
             raise IOError('path {} does not exist or is not a file'.format(file_name))
         if os.path.split(file_name)[1] != 'product.xml':
             raise IOError('The radarsat or rcm file is expected to be named product.xml, got path {}'.format(file_name))

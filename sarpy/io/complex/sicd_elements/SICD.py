@@ -910,7 +910,7 @@ class SICDType(Serializable):
             elif _collector.lower().startswith('nisar'):
                 _crad = 'NI'
                 _cvehicle = '01'
-                _pass = '{0:02d}'.format(int(round(_mins*0/1440.)))  # TODO: update with orbital count/day
+                _pass = '{0:02d}'.format(int(round(_mins*14.4167/1440.)))
             else:
                 logging.error('Got unknown collector {}. Setting collector vehicle to 00.'.format(_collector))
                 _crad = 'UN'

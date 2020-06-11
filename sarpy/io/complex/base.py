@@ -4,7 +4,6 @@ The base elements for reading and writing complex data files.
 """
 
 import os
-import sys
 import logging
 from typing import Union, Tuple
 from datetime import datetime
@@ -14,17 +13,8 @@ import numpy
 from .sicd_elements.SICD import SICDType
 from .sicd_elements.ImageCreation import ImageCreationType
 from ...__about__ import __title__, __version__
+from .utils import validate_range, reverse_range, int_func, integer_types, string_types
 
-integer_types = (int, )
-string_types = (str, )
-int_func = int
-if sys.version_info[0] < 3:
-    # noinspection PyUnresolvedReferences
-    int_func = long  # to accommodate 32-bit python 2
-    # noinspection PyUnresolvedReferences
-    integer_types = (int, long)
-    # noinspection PyUnresolvedReferences
-    string_types = (str, unicode)
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
@@ -207,51 +197,6 @@ class BaseChipper(object):
             actual range 2 - in light of `range1`, `range2` and symmetry
         """
 
-        def extract(arg, siz):
-            start, stop, step = None, None, None
-            if isinstance(arg, integer_types):
-                step = arg
-            else:
-                # NB: following this pattern to avoid confused pycharm inspection
-                if len(arg) == 1:
-                    step = arg[0]
-                elif len(arg) == 2:
-                    stop, step = arg
-                elif len(arg) == 3:
-                    start, stop, step = arg
-            start = 0 if start is None else int_func(start)
-            stop = siz if stop is None else int_func(stop)
-            step = 1 if step is None else int_func(step)
-            # basic validity check
-            if not (-siz < start < siz):
-                raise ValueError(
-                    'Range argument {} has extracted start {}, which is required '
-                    'to be in the range [0, {})'.format(arg, start, siz))
-            if not (-siz < stop <= siz):
-                raise ValueError(
-                    'Range argument {} has extracted "stop" {}, which is required '
-                    'to be in the range [0, {}]'.format(arg, stop, siz))
-            if not ((0 < step < siz) or (-siz < step < 0)):
-                raise ValueError(
-                    'Range argument {} has extracted step {}, for an axis of length '
-                    '{}'.format(arg, start, siz))
-            if ((step < 0) and (stop > start)) or ((step > 0) and (start > stop)):
-                raise ValueError(
-                    'Range argument {} has extracted start {}, stop {}, step {}, '
-                    'which is not valid.'.format(arg, start, stop, step))
-
-            # reform negative values for start/stop appropriately
-            if start < 0:
-                start += siz
-            if stop < 0:
-                stop += siz
-            return start, stop, step
-
-        def reverse_arg(arg, siz):
-            start, stop, step = extract(arg, siz)
-            # read backwards
-            return (siz - 1) - start, (siz - 1) - stop, -step
-
         if isinstance(range1, (numpy.ndarray, list)):
             range1 = tuple(int_func(el) for el in range1)
         if isinstance(range2, (numpy.ndarray, list)):
@@ -278,14 +223,14 @@ class BaseChipper(object):
 
         # validate the first range
         if self._symmetry[0]:
-            real_arg1 = reverse_arg(range1, lim1)
+            real_arg1 = reverse_range(range1, lim1)
         else:
-            real_arg1 = extract(range1, lim1)
+            real_arg1 = validate_range(range1, lim1)
         # validate the second range
         if self._symmetry[1]:
-            real_arg2 = reverse_arg(range2, lim2)
+            real_arg2 = reverse_range(range2, lim2)
         else:
-            real_arg2 = extract(range2, lim2)
+            real_arg2 = validate_range(range2, lim2)
 
         return real_arg1, real_arg2
 
@@ -422,8 +367,8 @@ class BaseReader(object):
 
         Parameters
         ----------
-        sicd_meta : SICDType|Tuple[SICDType]
-            the SICD metadata object, or tuple of objects
+        sicd_meta : None|SICDType|Tuple[SICDType]
+            `None`, the SICD metadata object, or tuple of objects
         chipper : BaseChipper|Tuple[BaseChipper]
             a chipper object, or tuple of chipper objects
         """
@@ -515,6 +460,8 @@ class BaseReader(object):
         if isinstance(self._chipper, BaseChipper) or index is None:
             return 0
 
+        if not isinstance(index, integer_types):
+            raise ValueError('Cannot slice in multiple indices on the third dimension.')
         index = int(index)
         siz = len(self._chipper)
         if not (-siz < index < siz):
@@ -528,10 +475,7 @@ class BaseReader(object):
                     'Reader received slice argument {}. We cannot slice on more than '
                     'three dimensions.'.format(item))
             if len(item) == 3:
-                index = item[2]
-                if not isinstance(index, integer_types):
-                    raise ValueError('Cannot slice in multiple indices on the third dimension.')
-                index = self._validate_index(index)
+                index = self._validate_index(item[2])
                 return item[:2], index
         return item, 0
 

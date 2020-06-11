@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from typing import Union, Tuple
+import os
 
 import numpy
 
@@ -239,6 +240,9 @@ class NITFDetails(object):
         """
 
         self._file_name = file_name
+
+        if not os.path.isfile(file_name):
+            raise IOError('Path {} is not a file'.format(file_name))
 
         with open(file_name, mode='rb') as fi:
             # Read the first 9 bytes to verify NITF

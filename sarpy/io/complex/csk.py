@@ -4,6 +4,7 @@ Functionality for reading Cosmo Skymed data into a SICD model.
 """
 
 from collections import OrderedDict
+import os
 from typing import Tuple, Dict
 import warnings
 
@@ -67,7 +68,7 @@ def is_a(file_name):
         csk_details = CSKDetails(file_name)
         print('File {} is determined to be a Cosmo Skymed file.'.format(file_name))
         return CSKReader(csk_details)
-    except (IOError, KeyError, ValueError, SyntaxError):
+    except (ImportError, IOError):
         return None
 
 
@@ -104,9 +105,18 @@ class CSKDetails(object):
         if h5py is None:
             raise ImportError("Can't read Cosmo Skymed files, because the h5py dependency is missing.")
 
+        if not os.path.isfile(file_name):
+            raise IOError('Path {} is not a file'.format(file_name))
+
         with h5py.File(file_name, 'r') as hf:
-            self._satellite = hf.attrs['Satellite ID'].decode('utf-8')
-            self._product_type = hf.attrs['Product Type'].decode('utf-8')
+            try:
+                self._satellite = hf.attrs['Satellite ID'].decode('utf-8')
+            except KeyError:
+                raise IOError('The hdf file does not have the top level attribute "Satellite ID"')
+            try:
+                self._product_type = hf.attrs['Product Type'].decode('utf-8')
+            except KeyError:
+                raise IOError('The hdf file does not have the top level attribute "Product Type"')
 
         if 'CSK' not in self._satellite:
             raise ValueError('Expected hdf5 to be a CSK (attribute `Satellite ID` which contains "CSK"). '
