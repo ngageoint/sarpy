@@ -133,7 +133,10 @@ class TxFrequencyType(Serializable):
 
 
 class WaveformParametersType(Serializable):
-    """Transmit and receive demodulation waveform parameters."""
+    """
+    Transmit and receive demodulation waveform parameters.
+    """
+
     _fields = (
         'TxPulseLength', 'TxRFBandwidth', 'TxFreqStart', 'TxFMRate', 'RcvDemodType', 'RcvWindowLength',
         'ADCSampleRate', 'RcvIFBandwidth', 'RcvFreqStart', 'RcvFMRate', 'index')
@@ -278,7 +281,10 @@ class WaveformParametersType(Serializable):
 
 
 class TxStepType(Serializable):
-    """Transmit sequence step details"""
+    """
+    Transmit sequence step details.
+    """
+
     _fields = ('WFIndex', 'TxPolarization', 'index')
     _required = ('index', )
     _set_as_attribute = ('index', )
@@ -315,7 +321,10 @@ class TxStepType(Serializable):
 
 
 class ChanParametersType(Serializable):
-    """Transmit receive sequence step details"""
+    """
+    Transmit receive sequence step details.
+    """
+
     _fields = ('TxRcvPolarization', 'RcvAPCIndex', 'index')
     _required = ('TxRcvPolarization', 'index', )
     _set_as_attribute = ('index', )
@@ -362,7 +371,7 @@ class ChanParametersType(Serializable):
 class ReferencePointType(Serializable):
     """The reference point definition"""
     _fields = ('ECF', 'Line', 'Sample', 'name')
-    _required = _fields
+    _required = ('ECF', 'Line', 'Sample')
     _set_as_attribute = ('name', )
     _numeric_format = {'Line': '0.16G', 'Sample': '0.16G'}
     # descriptors
@@ -538,7 +547,10 @@ class SegmentArrayElement(Serializable):
 
 
 class ReferencePlaneType(Serializable):
-    """The reference plane"""
+    """
+    The reference plane.
+    """
+
     _fields = ('RefPt', 'XDir', 'YDir', 'SegmentList', 'Orientation')
     _required = ('RefPt', 'XDir', 'YDir')
     _collections_tags = {'SegmentList': {'array': True, 'child_tag': 'SegmentList'}}
@@ -610,7 +622,10 @@ class ReferencePlaneType(Serializable):
 
 
 class AreaType(Serializable):
-    """The collection area"""
+    """
+    The collection area.
+    """
+
     _fields = ('Corner', 'Plane')
     _required = ('Corner', )
     _collections_tags = {

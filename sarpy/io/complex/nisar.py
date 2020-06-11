@@ -4,6 +4,7 @@ Functionality for reading NISAR data into a SICD model.
 """
 
 import logging
+import os
 from collections import OrderedDict
 from typing import Tuple, Dict
 import warnings
@@ -69,7 +70,7 @@ def is_a(file_name):
         nisar_details = NISARDetails(file_name)
         print('File {} is determined to be a NISAR file.'.format(file_name))
         return NISARReader(nisar_details)
-    except (IOError, KeyError, ValueError, SyntaxError):
+    except (ImportError, IOError):
         return None
 
 
@@ -144,11 +145,14 @@ class NISARDetails(object):
         if h5py is None:
             raise ImportError("Can't read NISAR files, because the h5py dependency is missing.")
 
+        if not os.path.isfile(file_name):
+            raise IOError('Path {} is not a file'.format(file_name))
+
         with h5py.File(file_name, 'r') as hf:
             try:
                 gp = hf['/science/LSAR/SLC']
             except:
-                raise ValueError('The hdf5 file does not have required path /science/LSAR/SLC')
+                raise IOError('The hdf5 file does not have required path /science/LSAR/SLC')
 
         self._file_name = file_name
 

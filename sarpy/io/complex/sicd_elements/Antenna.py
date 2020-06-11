@@ -70,7 +70,10 @@ class EBType(Serializable):
 
 
 class AntParamType(Serializable):
-    """The antenna parameters container."""
+    """
+    The antenna parameters container.
+    """
+
     _fields = (
         'XAxisPoly', 'YAxisPoly', 'FreqZero', 'EB', 'Array', 'Elem', 'GainBSPoly', 'EBFreqShift', 'MLFreqDilation')
     _required = ('XAxisPoly', 'YAxisPoly', 'FreqZero', 'Array')
