@@ -85,10 +85,12 @@ class GeoInfoType(Serializable):
         'Descriptions': {'array': False, 'child_tag': 'Desc'},
         'Point': {'array': True, 'child_tag': 'Point'},
         'Line': {'array': True, 'child_tag': 'Line'},
-        'Polygon': {'array': True, 'child_tag': 'Polygon'}, }
+        'Polygon': {'array': True, 'child_tag': 'Polygon'},
+        'GeoInfo': {'array': False, 'child_tag': 'GeoInfo'}
+    }
     # descriptors
     name = _StringDescriptor(
-        'name', _required, strict=True,
+        'name', _required, strict=DEFAULT_STRICT,
         docstring='The name.')  # type: str
     Descriptions = _ParametersDescriptor(
         'Descriptions', _collections_tags, _required, strict=DEFAULT_STRICT,
@@ -200,15 +202,16 @@ class GeoInfoType(Serializable):
 
     def to_node(self, doc, tag, ns_key=None, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
         node = super(GeoInfoType, self).to_node(
-            doc, tag, ns_key=ns_key, parent=parent, check_validity=check_validity, strict=strict, exclude=exclude)
+            doc, tag, ns_key=ns_key, parent=parent, check_validity=check_validity, strict=strict, exclude=exclude+('GeoInfo', ))
         # slap on the GeoInfo children
-        for entry in self._GeoInfo:
-            entry.to_node(doc, tag, ns_key=ns_key, parent=node, strict=strict)
+        if self._GeoInfo is not None and len(self._GeoInfo) > 0:
+            for entry in self._GeoInfo:
+                entry.to_node(doc, tag, ns_key=ns_key, parent=node, strict=strict)
         return node
 
     def to_dict(self, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
-        out = super(GeoInfoType, self).to_dict(check_validity=check_validity, strict=strict, exclude=exclude)
+        out = super(GeoInfoType, self).to_dict(check_validity=check_validity, strict=strict, exclude=exclude+('GeoInfo', ))
         # slap on the GeoInfo children
-        if len(self.GeoInfo) > 0:
+        if self.GeoInfo is not None and len(self.GeoInfo) > 0:
             out['GeoInfo'] = [entry.to_dict(check_validity=check_validity, strict=strict) for entry in self._GeoInfo]
         return out

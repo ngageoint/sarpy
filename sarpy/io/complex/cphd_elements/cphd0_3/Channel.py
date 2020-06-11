@@ -8,8 +8,7 @@ from typing import Union, List
 from ..base import DEFAULT_STRICT
 # noinspection PyProtectedMember
 from ...sicd_elements.base import Serializable, _IntegerDescriptor, \
-    _SerializableListDescriptor, _FloatDescriptor, _SerializableDescriptor
-from ...sicd_elements.blocks import XYZType
+    _SerializableListDescriptor, _FloatDescriptor
 
 
 __classification__ = "UNCLASSIFIED"
@@ -30,10 +29,10 @@ class ParametersType(Serializable):
         'NomTOARateSF': '0.16G', 'FxCtrNom': '0.16G', 'BWSavedNom': '0.16G',
         'TOASavedNom': '0.16G'}
     # descriptors
-    SRP_Index = _SerializableDescriptor(
-        'SRP_Index', XYZType, _required, strict=DEFAULT_STRICT,
+    SRP_Index = _IntegerDescriptor(
+        'SRP_Index', _required, strict=DEFAULT_STRICT,
         docstring='Index to identify the SRP position function used for the '
-                  'channel.')  # type: XYZType
+                  'channel.')  # type: int
     NomTOARateSF = _FloatDescriptor(
         'NomTOARateSF', _required, strict=DEFAULT_STRICT,
         docstring='Scale factor to indicate the fraction of the Doppler spectrum '
@@ -73,7 +72,7 @@ class ParametersType(Serializable):
 
         Parameters
         ----------
-        SRP_Index : XYZType|numpy.ndarray|list|tuple
+        SRP_Index : int
         NomTOARateSF : float
         FxCtrNom : float
         BWSavedNom : float

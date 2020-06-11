@@ -273,6 +273,9 @@ def parse_xml_from_string(xml_string):
     (ElementTree.Element, dict)
     """
 
+    if not isinstance(xml_string, string_types) and isinstance(xml_string, bytes):
+        xml_string = xml_string.decode('utf-8')
+
     root_node = ElementTree.fromstring(xml_string)
     # define the namespace dictionary
     xml_ns = dict([node for _, node in ElementTree.iterparse(StringIO(xml_string), events=('start-ns',))])

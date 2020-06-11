@@ -151,10 +151,11 @@ class VectorParametersType(Serializable):
     """
 
     _fields = (
-        'FxParameters', 'TOAParameters', 'RcvTime', 'RcvPos', 'SRPTime',
-        'SRPPos', 'AmpSF', 'TropoSRP')
+        'TxTime', 'TxPos', 'RcvTime', 'RcvPos', 'SRPTime', 'SRPPos', 'AmpSF', 'TropoSRP',
+        'FxParameters', 'TOAParameters')
     _required = (
-        'FxParameters', 'TOAParameters', 'RcvTime', 'RcvPos', 'SRPPos')
+        'TxTime', 'TxPos', 'RcvTime', 'RcvPos', 'SRPPos')
+    _choice = [{'required': False, 'collection': ('FxParameters', 'TOAParameters')}]
     # descriptors
     TxTime = _IntegerEnumDescriptor(
         'TxTime', (8, ), _required, strict=DEFAULT_STRICT, default_value=8,
@@ -169,16 +170,16 @@ class VectorParametersType(Serializable):
         'RcvPos', (24, ), _required, strict=DEFAULT_STRICT, default_value=8,
         docstring='The size of the RcvPos field')  # type: int
     SRPTime = _IntegerEnumDescriptor(
-        'SRPTime', (8, ), _required, strict=DEFAULT_STRICT, default_value=8,
+        'SRPTime', (8, ), _required, strict=DEFAULT_STRICT, default_value=None,
         docstring='The size of the SRPTime field')  # type: int
     SRPPos = _IntegerEnumDescriptor(
         'SRPPos', (24, ), _required, strict=DEFAULT_STRICT, default_value=8,
         docstring='The size of the SRPPos field')  # type: int
     AmpSF = _IntegerEnumDescriptor(
-        'AmpSF', (8, ), _required, strict=DEFAULT_STRICT, default_value=8,
+        'AmpSF', (8, ), _required, strict=DEFAULT_STRICT, default_value=None,
         docstring='The size of the AmpSF field')  # type: int
     TropoSRP = _IntegerEnumDescriptor(
-        'TropoSRP', (8, ), _required, strict=DEFAULT_STRICT, default_value=8,
+        'TropoSRP', (8, ), _required, strict=DEFAULT_STRICT, default_value=None,
         docstring='The size of the TropoSRP field')  # type: int
     FxParameters = _SerializableDescriptor(
         'FxParameters', FxParametersType, _required, strict=DEFAULT_STRICT,

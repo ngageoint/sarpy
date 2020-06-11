@@ -20,7 +20,7 @@ class PerVectorParameterI8(Serializable):
     _required = ('Offset', )
     # descriptors
     Offset = _IntegerDescriptor(
-        'Offset', _required, strict=DEFAULT_STRICT, bounds=(1, None),
+        'Offset', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='The offset value.')  # type: int
 
     def __init__(self, Offset=None, **kwargs):
@@ -61,7 +61,7 @@ class PerVectorParameterF8(Serializable):
     _required = ('Offset', )
     # descriptors
     Offset = _IntegerDescriptor(
-        'Offset', _required, strict=DEFAULT_STRICT, bounds=(1, None),
+        'Offset', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='The offset value.')  # type: int
 
     def __init__(self, Offset=None, **kwargs):
@@ -102,7 +102,7 @@ class PerVectorParameterXYZ(Serializable):
     _required = ('Offset', )
     # descriptors
     Offset = _IntegerDescriptor(
-        'Offset', _required, strict=DEFAULT_STRICT, bounds=(1, None),
+        'Offset', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='The offset value.')  # type: int
 
     def __init__(self, Offset=None, **kwargs):

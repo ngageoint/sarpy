@@ -227,13 +227,13 @@ class CPHDDetails(object):
             assert isinstance(header, CPHDHeader0_3)
             # extract the xml data
             fi.seek(header.XML_BYTE_OFFSET)
-            xml = fi.read(fi.read(header.XML_DATA_SIZE))
+            xml = fi.read(header.XML_DATA_SIZE)
             the_type = CPHDType0_3
         elif self.cphd_version.startswith('1.0'):
             assert isinstance(header, CPHDHeader)
             # extract the xml data
             fi.seek(header.XML_BLOCK_BYTE_OFFSET)
-            xml = fi.read(fi.read(header.XML_BLOCK_SIZE))
+            xml = fi.read(header.XML_BLOCK_SIZE)
             the_type = CPHDType
         else:
             raise ValueError('Got unhandled version number {}'.format(self.cphd_version))

@@ -3,22 +3,23 @@
 The SRP definition for CPHD 0.3.
 """
 
+import logging
 from typing import Union, List
 
 from ..base import DEFAULT_STRICT
 # noinspection PyProtectedMember
-from ...sicd_elements.base import Serializable, _IntegerDescriptor, \
-    _SerializableListDescriptor, _StringEnumDescriptor
+from ...sicd_elements.base import Serializable, _parse_str, _parse_int, \
+    _SerializableArrayDescriptor, SerializableArray
 from ...sicd_elements.blocks import XYZType, XYZPolyType
 
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
-# TODO:
-#  1.) What happens with STEPPED?
-#  2.) Can SRPType be inferred?
-#  3.) Can NumSRPs be inferred? Related to 1.) and 2.)
+
+class PlainArrayType(SerializableArray):
+    _set_index = False
+    _set_size = False
 
 
 class SRPTyp(Serializable):
@@ -28,26 +29,20 @@ class SRPTyp(Serializable):
     _fields = ('SRPType', 'NumSRPs', 'FIXEDPT', 'PVTPOLY', 'PVVPOLY')
     _required = ('SRPType', 'NumSRPs')
     _collections_tags = {
-        'FIXEDPT': {'array': False, 'child_tag': 'FIXEDPT'},
-        'PVTPOLY': {'array': False, 'child_tag': 'PVTPOLY'},
-        'PVVPOLY': {'array': False, 'child_tag': 'PVVPOLY'}}
+        'FIXEDPT': {'array': True, 'child_tag': 'SRPPT'},
+        'PVTPOLY': {'array': True, 'child_tag': 'SRPPVTPoly'},
+        'PVVPOLY': {'array': True, 'child_tag': 'SRPPVVPoly'}}
     _choice = ({'required': False, 'collection': ('FIXEDPT', 'PVTPOLY', 'PVVPOLY')}, )
     # descriptors
-    SRPType = _StringEnumDescriptor(
-        'SRPType', ('FIXEDPT', 'PVTPOLY', 'PVVPOLY', 'STEPPED'), _required, strict=DEFAULT_STRICT,
-        docstring='')  # type: str
-    NumSRPs = _IntegerDescriptor(
-        'NumSRPs', _required, strict=DEFAULT_STRICT, bounds=(0, None),
-        docstring='')  # type: int
-    FIXEDPT = _SerializableListDescriptor(
-        'FIXEDPT', XYZType, _collections_tags, _required, strict=DEFAULT_STRICT,
-        docstring='')  # type: Union[None, List[XYZType]]
-    PVTPOLY = _SerializableListDescriptor(
-        'PVTPOLY', XYZPolyType, _collections_tags, _required, strict=DEFAULT_STRICT,
-        docstring='')  # type: Union[None, List[XYZPolyType]]
-    PVVPOLY = _SerializableListDescriptor(
-        'PVVPOLY', XYZPolyType, _collections_tags, _required, strict=DEFAULT_STRICT,
-        docstring='')  # type: Union[None, List[XYZPolyType]]
+    FIXEDPT = _SerializableArrayDescriptor(
+        'FIXEDPT', XYZType, _collections_tags, _required, strict=DEFAULT_STRICT, array_extension=PlainArrayType,
+        docstring='')  # type: Union[None, PlainArrayType, List[XYZType]]
+    PVTPOLY = _SerializableArrayDescriptor(
+        'PVTPOLY', XYZPolyType, _collections_tags, _required, strict=DEFAULT_STRICT, array_extension=PlainArrayType,
+        docstring='')  # type: Union[None, PlainArrayType, List[XYZPolyType]]
+    PVVPOLY = _SerializableArrayDescriptor(
+        'PVVPOLY', XYZPolyType, _collections_tags, _required, strict=DEFAULT_STRICT, array_extension=PlainArrayType,
+        docstring='')  # type: Union[None, PlainArrayType, List[XYZPolyType]]
 
     def __init__(self, SRPType=None, NumSRPs=None, FIXEDPT=None, PVTPOLY=None, PVVPOLY=None,
                  **kwargs):
@@ -57,19 +52,72 @@ class SRPTyp(Serializable):
         ----------
         SRPType : str
         NumSRPs : int
-        FIXEDPT : None|List[XYZType]
-        PVTPOLY : None|List[XYZPolyType]
-        PVVPOLY : None|List[XYZPolyType]
+        FIXEDPT : None|PlainArrayType|List[XYZType]
+        PVTPOLY : None|PlainArrayType|List[XYZPolyType]
+        PVVPOLY : None|PlainArrayType|List[XYZPolyType]
         kwargs
         """
 
+        self._SRPType = None
+        self._NumSRPs = None
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
         if '_xml_ns_key' in kwargs:
             self._xml_ns_key = kwargs['_xml_ns_key']
-        self.SRPType = SRPType
-        self.NumSRPs = NumSRPs
         self.FIXEDPT = FIXEDPT
         self.PVTPOLY = PVTPOLY
         self.PVVPOLY = PVVPOLY
+        self.SRPType = SRPType
+        self.NumSRPs = NumSRPs
         super(SRPTyp, self).__init__(**kwargs)
+
+    @property
+    def SRPType(self):
+        """
+        str: The type of SRP.
+        """
+        if self.FIXEDPT is not None:
+            return 'FIXEDPT'
+        elif self.PVTPOLY is not None:
+            return 'PVTPOLY'
+        elif self.PVVPOLY is not None:
+            return 'PVVPOLY'
+        else:
+            return self._SRPType
+
+    @SRPType.setter
+    def SRPType(self, value):
+        if self.FIXEDPT is not None or self.PVTPOLY is not None or self.PVVPOLY is not None:
+            self._SRPType = None
+        else:
+            value = _parse_str(value, 'SRPType', self).upper()
+            if value in ('FIXEDPT', 'PVTPOLY', 'PVVPOLY', 'STEPPED'):
+                self._SRPType = value
+            else:
+                logging.warning(
+                    'Got {} for the SRPType field of class SRPTyp. It is required to be one of {}. '
+                    'Setting to None, which is required to be '
+                    'fixed.'.format(value, ('FIXEDPT', 'PVTPOLY', 'PVVPOLY', 'STEPPED')))
+                self._SRPType = None
+
+    @property
+    def NumSRPs(self):
+        """
+        None|int: The number of SRPs.
+        """
+
+        if self.FIXEDPT is not None:
+            return self.FIXEDPT.size
+        elif self.PVTPOLY is not None:
+            return self.PVTPOLY.size
+        elif self.PVVPOLY is not None:
+            return self.PVVPOLY.size
+        else:
+            return self._NumSRPs
+
+    @NumSRPs.setter
+    def NumSRPs(self, value):
+        if self.FIXEDPT is not None or self.PVTPOLY is not None or self.PVVPOLY is not None:
+            self._NumSRPs = None
+        else:
+            self._NumSRPs = _parse_int(value, 'NumSRPs', self)

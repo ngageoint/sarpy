@@ -132,7 +132,7 @@ class MonostaticType(ReferenceGeometryCore):
     _fields = (
         'ARPPos', 'ARPVel',
         'SideOfTrack', 'SlantRange', 'GroundRange', 'DopplerConeAngle',
-        'GrazeAngle', 'IncidenceAngle', 'AzimuthAngle'
+        'GrazeAngle', 'IncidenceAngle', 'AzimuthAngle',
         'TwistAngle', 'SlopeAngle', 'LayoverAngle')
     _required = _fields
     _numeric_format = {
@@ -370,8 +370,8 @@ class ReferenceGeometryType(Serializable):
     of the reference channel.
     """
 
-    _fields = ('SRP', 'ReferenceTime', 'SRPCODTime', 'Monostatic', 'Bistatic')
-    _required = ('SRP', 'ReferenceTime', 'SRPCODTime')
+    _fields = ('SRP', 'ReferenceTime', 'SRPCODTime', 'SRPDwellTime', 'Monostatic', 'Bistatic')
+    _required = ('SRP', 'ReferenceTime', 'SRPCODTime', 'SRPDwellTime')
     _choice = ({'required': True, 'collection': ('Monostatic', 'Bistatic')}, )
     _numeric_format = {'ReferenceTime': '0.16G', 'SRPCODTime': '0.16G'}
     # descriptors
@@ -387,6 +387,9 @@ class ReferenceGeometryType(Serializable):
         'SRPCODTime', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='The COD Time for point on the reference surface, in '
                   'seconds.')  # type: float
+    SRPDwellTime = _FloatDescriptor(
+        'SRPDwellTime', _required, strict=DEFAULT_STRICT, bounds=(0, None),
+        docstring='')  # type: float
     Monostatic = _SerializableDescriptor(
         'Monostatic', MonostaticType, _required, strict=DEFAULT_STRICT,
         docstring='Parameters for monstatic collection.')  # type: Union[None, MonostaticType]
@@ -394,7 +397,7 @@ class ReferenceGeometryType(Serializable):
         'Bistatic', BistaticType, _required, strict=DEFAULT_STRICT,
         docstring='Parameters for bistatic collection.')  # type: Union[None, BistaticType]
 
-    def __init__(self, SRP=None, ReferenceTime=None, SRPCODTime=None,
+    def __init__(self, SRP=None, ReferenceTime=None, SRPCODTime=None, SRPDwellTime=None,
                  Monostatic=None, Bistatic=None, **kwargs):
         """
 
@@ -403,6 +406,7 @@ class ReferenceGeometryType(Serializable):
         SRP : SRPType
         ReferenceTime : float
         SRPCODTime : float
+        SRPDwellTime : float
         Monostatic : None|MonostaticType
         Bistatic : None|BistaticType
         kwargs
@@ -415,6 +419,7 @@ class ReferenceGeometryType(Serializable):
         self.SRP = SRP
         self.ReferenceTime = ReferenceTime
         self.SRPCODTime = SRPCODTime
+        self.SRPDwellTime = SRPDwellTime
         self.Monostatic = Monostatic
         self.Bistatic = Bistatic
         super(ReferenceGeometryType, self).__init__(**kwargs)

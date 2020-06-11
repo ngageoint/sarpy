@@ -11,6 +11,7 @@ from ...sicd_elements.base import Serializable, _SerializableDescriptor, \
     _IntegerDescriptor, _StringDescriptor
 
 from ...sicd_elements.CollectionInfo import CollectionInfoType
+from ..CPHD import CPHDHeaderBase
 from .Data import DataType
 from .Global import GlobalType
 from .Channel import ChannelType
@@ -32,7 +33,7 @@ _CPHD_SPECIFICATION_NAMESPACE = 'urn:CPHD:0.3'
 #########
 # CPHD header object
 
-class CPHDHeader(object):
+class CPHDHeader(CPHDHeaderBase):
     _fields = (
         'XML_DATA_SIZE', 'XML_BYTE_OFFSET', 'VB_DATA_SIZE', 'VB_BYTE_OFFSET',
         'CPHD_DATA_SIZE', 'CPHD_BYTE_OFFSET', 'CLASSIFICATION', 'RELEASE_INFO')
@@ -78,40 +79,7 @@ class CPHDHeader(object):
         self.CPHD_BYTE_OFFSET = CPHD_BYTE_OFFSET
         self.CLASSIFICATION = CLASSIFICATION
         self.RELEASE_INFO = RELEASE_INFO
-
-    @classmethod
-    def from_file_object(cls, fi):
-        """
-        Extract the CPHD header object from a file opened in byte mode.
-        This file object is assumed to be at the correct location for the
-        CPHD header.
-
-        Parameters
-        ----------
-        fi
-            The open file object, which will be progressively read.
-
-        Returns
-        -------
-        CPHDHeader
-        """
-
-        the_dict = {}
-        while True:
-            line = fi.readline().strip()
-            if line.startswith(b'\f\n'):
-                # we've reached the end of the header section
-                break
-            parts = line.split(':=')
-            if len(parts) != 2:
-                raise ValueError('Cannot extract CPHD header value from line {}'.format(line))
-            fld = parts[0].strip().encode('utf-8')
-            val = parts[1].strip().encode('utf-8')
-            if fld not in cls._fields:
-                raise ValueError('Cannot extract CPHD header value from line {}'.format(line))
-            the_dict[fld] = val
-        return cls(**the_dict)
-
+        super(CPHDHeader, self).__init__()
 
 
 class CPHDType(Serializable):

@@ -521,7 +521,7 @@ class ChannelType(Serializable):
         'RefChId', 'FXFixedCPHD', 'TOAFixedCPHD', 'SRPFixedCPHD', 'Parameters')
     _collections_tags = {
         'Parameters': {'array': False, 'child_tag': 'Parameters'},
-        'AddedParameters': {'array': False, 'child_tag': 'Parameters'}}
+        'AddedParameters': {'array': False, 'child_tag': 'AddedParameters'}}
     # descriptors
     RefChId = _StringDescriptor(
         'RefChId', _required, strict=DEFAULT_STRICT,

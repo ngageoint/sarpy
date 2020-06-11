@@ -42,7 +42,68 @@ _CPHD_SPECIFICATION_NAMESPACE = 'urn:CPHD:1.0.1'
 #########
 # CPHD header object
 
-class CPHDHeader(object):
+def _parse_cphd_header_field(line):
+    """
+    Parse the CPHD header field, or return `None` as a termination signal.
+
+    Parameters
+    ----------
+    line : bytes
+
+    Returns
+    -------
+    None|(str, str)
+    """
+
+    if line.startswith(b'\f\n'):
+        return None
+    parts = line.strip().split(b':=')
+    if len(parts) != 2:
+        raise ValueError('Cannot extract CPHD header value from line {}'.format(line))
+    fld = parts[0].strip().decode('utf-8')
+    val = parts[1].strip().decode('utf-8')
+    return fld, val
+
+
+class CPHDHeaderBase(object):
+    _fields = ()
+    _required = ()
+
+    def __init__(self, **kwargs):
+        pass
+
+    @classmethod
+    def from_file_object(cls, fi):
+        """
+        Extract the CPHD header object from a file opened in byte mode.
+        This file object is assumed to be at the correct location for the
+        CPHD header.
+
+        Parameters
+        ----------
+        fi
+            The open file object, which will be progressively read.
+
+        Returns
+        -------
+        CPHDHeaderBase
+        """
+
+        the_dict = {}
+        while True:
+            line = fi.readline()
+            res = _parse_cphd_header_field(line)
+            if res is None:
+                break
+            else:
+                fld, val = res
+            if fld not in cls._fields:
+                raise ValueError('Cannot extract CPHD header value from line {}'.format(line))
+            the_dict[fld] = val
+        return cls(**the_dict)
+
+
+class CPHDHeader(CPHDHeaderBase):
     _fields = (
         'XML_BLOCK_SIZE', 'XML_BLOCK_BYTE_OFFSET', 'SUPPORT_BLOCK_SIZE', 'SUPPORT_BLOCK_BYTE_OFFSET',
         'PVP_BLOCK_SIZE', 'PVP_BLOCK_BYTE_OFFSET', 'SIGNAL_BLOCK_SIZE', 'SIGNAL_BLOCK_BYTE_OFFSET',
@@ -100,39 +161,7 @@ class CPHDHeader(object):
         self.SIGNAL_BLOCK_BYTE_OFFSET = SIGNAL_BLOCK_BYTE_OFFSET
         self.CLASSIFICATION = CLASSIFICATION
         self.RELEASE_INFO = RELEASE_INFO
-
-    @classmethod
-    def from_file_object(cls, fi):
-        """
-        Extract the CPHD header object from a file opened in byte mode.
-        This file object is assumed to be at the correct location for the
-        CPHD header.
-
-        Parameters
-        ----------
-        fi
-            The open file object, which will be progressively read.
-
-        Returns
-        -------
-        CPHDHeader
-        """
-
-        the_dict = {}
-        while True:
-            line = fi.readline().strip()
-            if line.startswith(b'\f\n'):
-                # we've reached the end of the header section
-                break
-            parts = line.split(':=')
-            if len(parts) != 2:
-                raise ValueError('Cannot extract CPHD header value from line {}'.format(line))
-            fld = parts[0].strip().encode('utf-8')
-            val = parts[1].strip().encode('utf-8')
-            if fld not in cls._fields:
-                raise ValueError('Cannot extract CPHD header value from line {}'.format(line))
-            the_dict[fld] = val
-        return cls(**the_dict)
+        super(CPHDHeader, self).__init__()
 
 
 class CPHDType(Serializable):
@@ -147,6 +176,7 @@ class CPHDType(Serializable):
     _required = (
         'CollectionID', 'Global', 'SceneCoordinates', 'Data', 'Channel', 'PVP',
         'Dwell', 'ReferenceGeometry')
+    _collections_tags = {'GeoInfo': {'array': 'False', 'child_tag': 'GeoInfo'}}
     # descriptors
     CollectionID = _SerializableDescriptor(
         'CollectionID', CollectionIDType, _required, strict=DEFAULT_STRICT,
@@ -320,14 +350,15 @@ class CPHDType(Serializable):
 
     def to_node(self, doc, tag, ns_key=None, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
         node = super(CPHDType, self).to_node(
-            doc, tag, ns_key=ns_key, parent=parent, check_validity=check_validity, strict=strict, exclude=exclude)
+            doc, tag, ns_key=ns_key, parent=parent, check_validity=check_validity, strict=strict, exclude=exclude+('GeoInfo', ))
         # slap on the GeoInfo children
-        for entry in self._GeoInfo:
-            entry.to_node(doc, tag, ns_key=ns_key, parent=node, strict=strict)
+        if self._GeoInfo is not None and len(self._GeoInfo) > 0:
+            for entry in self._GeoInfo:
+                entry.to_node(doc, 'GeoInfo', ns_key=ns_key, parent=node, strict=strict)
         return node
 
     def to_dict(self, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
-        out = super(CPHDType, self).to_dict(check_validity=check_validity, strict=strict, exclude=exclude)
+        out = super(CPHDType, self).to_dict(check_validity=check_validity, strict=strict, exclude=exclude+('GeoInfo', ))
         # slap on the GeoInfo children
         if len(self.GeoInfo) > 0:
             out['GeoInfo'] = [entry.to_dict(check_validity=check_validity, strict=strict) for entry in self._GeoInfo]
