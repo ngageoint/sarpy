@@ -270,7 +270,7 @@ def _validate_cphd_details(cphd_details, version=None):
         if not cphd_details.cphd_version.startswith(version):
             raise ValueError('This CPHD file is required to be version {}, '
                              'got {}'.format(version, cphd_details.cphd_version))
-        return cphd_details
+    return cphd_details
 
 
 class CPHDReader(BaseReader):
@@ -425,7 +425,7 @@ class CPHDReader(BaseReader):
         if scale is None:
             return data
 
-        scale = numpy.recast['float32'](scale)
+        scale = numpy.cast['float32'](scale)
         # recast from double, so our data will remain float32
         if scale.size == 1:
             return scale[0]*data
@@ -453,6 +453,11 @@ class CPHDReader1_0(CPHDReader):
     """
     The CPHD version 1.0 reader.
     """
+
+    def __new__(cls, *args, **kwargs):
+        # we must override here, to avoid recursion with
+        # the CPHDReader parent
+        return object.__new__(cls)
 
     def __init__(self, cphd_details):
         """
@@ -624,6 +629,11 @@ class CPHDReader0_3(CPHDReader):
     """
     The CPHD version 0.3 reader.
     """
+
+    def __new__(cls, *args, **kwargs):
+        # we must override here, to avoid recursion with
+        # the CPHDReader parent
+        return object.__new__(cls)
 
     def __init__(self, cphd_details):
         """

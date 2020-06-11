@@ -11,9 +11,13 @@ _format_mapping = {
 
 def _map_part(part):
     parts = part.split('=')
-    if len(parts) != 2:
+    if len(parts) == 1:
+        res = _format_mapping.get(parts[0].strip(), None)
+    elif len(parts) == 2:
+        res = _format_mapping.get(parts[1].strip(), None)
+    else:
         raise ValueError('Cannot parse format part {}'.format(part))
-    res = _format_mapping.get(parts[1].strip(), None)
+
     if res is None:
         raise ValueError('Cannot parse format part {}'.format(part))
     return res
@@ -32,7 +36,7 @@ def parse_format(frm):
     Tuple[str, ...]
     """
 
-    return tuple(_map_part(el) for el in frm.strip().split(';'))
+    return tuple(_map_part(el) for el in frm.strip().split(';') if len(el.strip()) > 0)
 
 def homogeneous_format(frm, return_length=False):
     """
@@ -53,7 +57,10 @@ def homogeneous_format(frm, return_length=False):
     entries = parse_format(frm)
     entry_set = set(entries)
     if len(entry_set) == 1:
-        return entry_set.pop(), len(entries) if return_length else entry_set.pop()
+        val = entry_set.pop()
+        if return_length:
+            return val, len(entries)
+        return val
     else:
         raise ValueError('Non-homogeneous format required {}'.format(entries))
 
@@ -73,7 +80,7 @@ def homogeneous_dtype(frm, return_length=False):
     numpy.dtype
     """
 
-    entries = ['>'+el.lower() for el in frm.strip().split(';')]
+    entries = ['>'+el.lower() for el in frm.strip().split(';') if len(el.strip()) > 0]
     entry_set = set(entries)
     if len(entry_set) == 1:
         return numpy.dtype(entry_set.pop()), len(entries) if return_length else numpy.dtype(entry_set.pop())
