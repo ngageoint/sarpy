@@ -101,6 +101,8 @@ class SICDDetails(NITFDetails):
                           'SICD xml structure.')
         # define the sicd metadata
         self._find_sicd()
+        if not self.is_sicd:
+            raise IOError('Could not find the SICD XML des.')
         # populate the image details
         self.img_segment_rows = numpy.zeros(self.img_segment_offsets.shape, dtype=numpy.int64)
         self.img_segment_columns = numpy.zeros(self.img_segment_offsets.shape, dtype=numpy.int64)

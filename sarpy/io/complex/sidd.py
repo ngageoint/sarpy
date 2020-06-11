@@ -100,6 +100,8 @@ class SIDDDetails(NITFDetails):
                           'SIDD xml structure.')
         # define the sidd and sicd metadata
         self._find_sidd()
+        if not self.is_sidd:
+            raise IOError('Could not find SIDD xml data extensions.')
         # populate the image details
         self.img_segment_rows = numpy.zeros(self.img_segment_offsets.shape, dtype=numpy.int64)
         self.img_segment_columns = numpy.zeros(self.img_segment_offsets.shape, dtype=numpy.int64)
