@@ -6,6 +6,7 @@ Some ortho-rectification methods.
 import numpy
 
 from sarpy.io.complex.sicd_elements.SICD import SICDType
+from sarpy.geometry.geocoords import geodetic_to_ecf
 
 
 class sicd_pgd_method(object):
@@ -23,7 +24,8 @@ class sicd_pgd_method(object):
         sicd : SICDType
             The sicd object
         reference_point : None|numpy.ndarray
-            The reference point (origin) of the planar grid. If None, the SCP will be used.
+            The reference point (origin) of the planar grid. If None, the sicd.GeoData.SCP
+            will be used.
         row_vector : None|numpy.ndarray
             The vector defining increasing column direction. If None, then the
             sicd.Grid.Row.UVectECF will be used.
@@ -33,51 +35,19 @@ class sicd_pgd_method(object):
             perpendicular component of sicd.Grid.Col.UVectECF will be used.
         """
 
+        self._row_vector = None
+        self._col_vector = None
+        self._reference_point = None
+
         if not isinstance(sicd, SICDType):
             raise TypeError('sicd must be a SICDType instance. Got type {}'.format(type(sicd)))
         if not sicd.can_project_coordinates():
-            raise ValueError('Orthorectification requires the SICD ability to project coordinates.')
+            raise ValueError('Ortho-rectification requires the SICD ability to project coordinates.')
         sicd.define_coa_projection(overide=False)
         self._sicd = sicd
 
-        if reference_point is None:
-            reference_point = sicd.GeoData.SCP.ECF.get_array()
-
-        if not (isinstance(reference_point, numpy.ndarray) and reference_point.ndim == 1
-                and reference_point.size == 3):
-            raise ValueError('reference_point must be a vector of size 3.')
-        self._reference_point = reference_point
-
-        if row_vector is None:
-            row_vector = sicd.Grid.Row.UVectECF.get_array()
-
-        if not (isinstance(row_vector, numpy.ndarray) and row_vector.ndim == 1 and row_vector.size == 3):
-            raise ValueError('row_vector must be a vector of size 3.')
-        row_norm = numpy.linalg.norm(row_vector)
-        if row_norm == 0:
-            raise ValueError('row_vector cannot be the zero vector.')
-        row_vector = row_vector/row_norm  # avoid modifying row_vector def exterior to this class
-
-        if col_vector is None:
-            col_vector = sicd.Grid.Col.UVectECF.get_array()
-            # take perpendicular component to row_vector, since they may not be perpendicular
-            #   normalization handled below
-            col_vector = col_vector - row_vector*(row_vector.dot(col_vector))
-
-        if not (isinstance(col_vector, numpy.ndarray) and col_vector.ndim == 1 and col_vector.size == 3):
-            raise ValueError('col_vector must be a vector of size 3.')
-        col_norm = numpy.linalg.norm(col_vector)
-        if col_norm == 0:
-            raise ValueError('col_vector cannot be the zero vector.')
-        col_vector = col_vector/col_norm  # avoid modifying col_vector exterior to this class
-
-        overlap = col_vector.dot(row_vector)
-        if overlap != 0.0:
-            raise ValueError('row_vector and col_vector must be orthogonal. '
-                             'Got dot product {}'.format(overlap))
-
-        self._row_vector = row_vector
-        self._col_vector = col_vector
+        self.set_reference_point(reference_point)
+        self.set_row_and_col_vector(row_vector, col_vector)
 
     @property
     def sicd(self):
@@ -95,6 +65,29 @@ class sicd_pgd_method(object):
 
         return self._reference_point
 
+    def set_reference_point(self, reference_point):
+        """
+        Sets the reference point.
+
+        Parameters
+        ----------
+        reference_point : None|numpy.ndarray
+            The reference point (origin) of the planar grid. If None, the sicd.GeoData.SCP
+            will be used.
+
+        Returns
+        -------
+        None
+        """
+
+        if reference_point is None:
+            reference_point = self.sicd.GeoData.SCP.ECF.get_array()
+
+        if not (isinstance(reference_point, numpy.ndarray) and reference_point.ndim == 1
+                and reference_point.size == 3):
+            raise ValueError('reference_point must be a vector of size 3.')
+        self._reference_point = reference_point
+
     @property
     def row_vector(self):
         """
@@ -110,6 +103,119 @@ class sicd_pgd_method(object):
         """
 
         return self._col_vector
+
+    def set_row_and_col_vector(self, row_vector, col_vector):
+        """
+        Set the row and column vectors, in ECF coordinates. Note that the perpendicular
+        component of col_vector with respect to the row_vector will be used.
+
+        Parameters
+        ----------
+        row_vector : None|numpy.ndarray
+            The vector defining increasing column direction. If None, then the
+            sicd.Grid.Row.UVectECF will be used.
+        col_vector : None|numpy.ndarray
+            The vector defining increasing column direction. It is required
+            that `row_vector` and `col_vector` are orthogonal. If None, then the
+            perpendicular component of sicd.Grid.Col.UVectECF will be used.
+
+        Returns
+        -------
+        None
+        """
+
+        def normalize(vec, name, perp=None):
+            if not isinstance(vec, numpy.ndarray):
+                vec = numpy.array(vec, dtype=numpy.float64)
+            if not (isinstance(vec, numpy.ndarray) and vec.ndim == 1 and vec.size == 3):
+                raise ValueError('{} vector must be a numpy.ndarray of dimension 1 and size 3.'.format(name))
+            vec = numpy.copy(vec)
+            if perp is not None:
+                vec = vec - perp*(perp.dot(vec))
+
+            norm = numpy.linalg.norm(vec)
+            if norm == 0:
+                raise ValueError('{} vector cannot be the zero vector.'.format(name))
+            elif norm != 1:
+                vec = vec/norm  # avoid modifying row_vector def exterior to this class
+            return vec
+
+        if row_vector is None:
+            row_vector = self.sicd.Grid.Row.UVectECF.get_array()
+        if col_vector is None:
+            col_vector = self.sicd.Grid.Col.UVectECF.get_array()
+
+        self._row_vector = normalize(row_vector, 'row')
+        self._col_vector = normalize(col_vector, 'column', self._row_vector)
+
+    def get_offset(self, coords):
+        """
+        Gets the offsets for the given coordinates, assumed to be in ECF coordinates.
+        This will return the offsets (row, col) of the coordinate vector(s) from the
+        reference_point projected into the plane determined by row_vector and col_vector.
+
+        Parameters
+        ----------
+        coords : numpy.ndarray|list|tuple
+
+        Returns
+        -------
+        offsets
+            numpy.ndarray
+        """
+
+        if not isinstance(coords, numpy.ndarray):
+            coords = numpy.array(coords, dtype=numpy.float64)
+
+        if not ((coords.ndim == 1 and coords.shape[0] == 3) or (coords.ndim == 2 and coords[1] == 3)):
+            raise ValueError(
+                'coords must be of shape (3, ) or (N, 3), and got {}.'.format(coords.shape))
+
+        diff = coords - self.reference_point
+        if coords.ndim == 1:
+            out = numpy.zeros((2, ), dtype=numpy.float64)
+            out[0] = diff.dot(self.row_vector)
+            out[1] = diff.dot(self.col_vector)
+        else:
+            out = numpy.zeros((coords.shape[0], 2), dtype=numpy.float64)
+            out[:, 0] = diff.dot(self.row_vector)
+            out[:, 1] = diff.dot(self.col_vector)
+        return out
+
+    def get_llh_offsets(self, llh_coords):
+        """
+        Gets the offsets for the given coordinates, assumed to be in Lat/Lon or Lat/Lon/HAE
+        coordinates. This will return the offsets (row, col) of the coordinate vector(s) from
+        the reference_point projected into the plane determined by row_vector and col_vector.
+
+        Parameters
+        ----------
+        llh_coords : numpy.ndarray|list|tuple
+
+        Returns
+        -------
+        offsets
+            numpy.ndarray
+        """
+
+        if not isinstance(llh_coords, numpy.ndarray):
+            llh_coords = numpy.array(llh_coords, dtype=numpy.float64)
+
+        if llh_coords.ndim == 1:
+            if llh_coords.shape[0] == 2:
+                return self.get_offset(geodetic_to_ecf([llh_coords[0], llh_coords[1], 0]))
+            elif llh_coords.shape[0] == 3:
+                return self.get_offset(geodetic_to_ecf(llh_coords))
+        elif llh_coords.ndim == 2:
+            if llh_coords.shape[1] == 2:
+                out = numpy.zeros((llh_coords.shape[0], 3), dtype=numpy.float64)
+                out[:, :2] = llh_coords
+                return self.get_offset(geodetic_to_ecf(out))
+            elif llh_coords.shape[1] == 3:
+                return self.get_offset(geodetic_to_ecf(llh_coords))
+        raise ValueError(
+            'llh_coords must be a one or two-dimensional array of the form '
+            '[Lat, Lon] or [Lat, Lon, HAE].')
 
     def get_indices(self, xs, ys):
         r"""
