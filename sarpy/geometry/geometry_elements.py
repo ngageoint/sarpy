@@ -551,6 +551,17 @@ class GeometryObject(Geometry):
 
         raise NotImplementedError
 
+    def get_bbox(self):
+        """
+        Get the bounding box list.
+
+        Returns
+        -------
+        list
+        """
+
+        raise NotImplementedError
+
     @classmethod
     def from_dict(cls, geometry):  # type: (dict) -> GeometryObject
         typ = geometry.get('type', None)
@@ -617,6 +628,14 @@ class Point(GeometryObject):
         else:
             self._coordinates = coordinates
 
+    def get_bbox(self):
+        if self._coordinates is None:
+            return None
+        else:
+            out = self._coordinates.tolist()
+            out.extend(self._coordinates.tolist())
+            return out
+
     def get_coordinate_list(self):
         if self._coordinates is None:
             return None
@@ -665,6 +684,23 @@ class MultiPoint(GeometryObject):
                 'A MultiPoint requires at least two point components. '
                 'Got {}.'.format(len(points)))
         self._points = [Point(coordinates=entry) for entry in points]
+
+    def get_bbox(self):
+        if self._points is None:
+            return None
+        else:
+            # create our output space
+            siz = max(point.coordinates.size for point in self.points)
+            mins = [None, ]*siz
+            maxs = [None, ]*siz
+
+            for element in self.get_coordinate_list():
+                for i, entry in enumerate(element):
+                    if mins[i] is None or (entry < mins[i]):
+                        mins[i] = entry
+                    if maxs[i] is None or (entry > maxs[i]):
+                        maxs[i] = entry
+            return mins.extend(maxs)
 
     def get_coordinate_list(self):
         if self._points is None:
@@ -731,6 +767,14 @@ class LineString(GeometryObject):
                 'consecutive repeated points. Got shape {}'.format(coordinates.shape))
         self._coordinates = coordinates
 
+    def get_bbox(self):
+        if self._coordinates is None:
+            return None
+        else:
+            mins = numpy.min(self.coordinates, axis=0)
+            maxs = numpy.min(self.coordinates, axis=0)
+            return mins.tolist().extend(maxs.tolist())
+
     def get_coordinate_list(self):
         if self._coordinates is None:
             return None
@@ -795,6 +839,22 @@ class MultiLineString(GeometryObject):
                 'Got {}.'.format(len(lines)))
         self._lines = [LineString(coordinates=entry) for entry in lines]
 
+    def get_bbox(self):
+        if self._lines is None:
+            return None
+        else:
+            siz = max(line.coordinates.shape[1] for line in self.lines)
+            mins = [None, ]*siz
+            maxs = [None, ]*siz
+            for line in self.lines:
+                t_bbox = line.get_bbox()
+                for i, entry in enumerate(t_bbox):
+                    if mins[i] is None or entry < mins[i]:
+                        mins[i] = entry
+                    if maxs[i] is None or entry > maxs[i]:
+                        maxs[i] = entry
+            return mins.extend(maxs)
+
     def get_coordinate_list(self):
         if self._lines is None:
             return None
@@ -842,6 +902,14 @@ class LinearRing(LineString):
         self._bounding_box = None
         self._segmentation = None
         super(LinearRing, self).__init__(coordinates)
+
+    def get_bbox(self):
+        if self._coordinates is None:
+            return None
+        else:
+            mins = numpy.min(self.coordinates, axis=0)
+            maxs = numpy.min(self.coordinates, axis=0)
+            return mins.tolist().extend(maxs.tolist())
 
     def get_coordinate_list(self):
         if self._coordinates is None:
@@ -1270,6 +1338,12 @@ class Polygon(GeometryObject):
             raise ValueError('Poorly formed json {}'.format(geometry))
         cls(coordinates=geometry['coordinates'])
 
+    def get_bbox(self):
+        if self._outer_ring is None:
+            return None
+        else:
+            return self._outer_ring.get_bbox()
+
     def get_coordinate_list(self):
         if self._outer_ring is None:
             return None
@@ -1489,6 +1563,25 @@ class MultiPolygon(GeometryObject):
                 'A MultiPolygon requires at least two polygon components. '
                 'Got {}.'.format(len(polygons)))
         self._polygons = [Polygon(coordinates=entry) for entry in polygons]
+
+    def get_bbox(self):
+        if self._polygons is None:
+            return None
+        else:
+            mins = []
+            maxs = []
+            for polygon in self.polygons:
+                t_bbox = polygon.get_bbox()
+                for i, entry in enumerate(t_bbox):
+                    if len(mins) < i:
+                        mins.append(entry)
+                    elif entry < mins[i]:
+                        mins[i] = entry
+                    if len(maxs) < i:
+                        maxs.append(entry)
+                    elif entry > maxs[i]:
+                        maxs[i] = entry
+            return mins.extend(maxs)
 
     @classmethod
     def from_dict(cls, geometry):  # type: (dict) -> MultiPolygon
