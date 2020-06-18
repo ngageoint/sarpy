@@ -366,14 +366,23 @@ class SICDReader(NITFReader):
             raise ValueError(
                 'The input file passed in appears to be a NITF 2.1 file that does '
                 'not contain valid sicd metadata.')
-        super(SICDReader, self).__init__(nitf_details)
+        super(SICDReader, self).__init__(nitf_details, is_sicd_type=True)
 
         # to perform a preliminary check that the structure is valid:
         #   note that this results in potentially noisy logging for troubled sicd files
         self._sicd_meta.is_valid(recursive=True)
 
+    @property
+    def nitf_details(self):
+        # type: () -> SICDDetails
+        """
+        SICDDetails: The SICD NITF details object.
+        """
+
+        return self._nitf_details
+
     def _find_segments(self):
-        return list(range(self._nitf_details.img_segment_offsets.size))
+        return list(range(self.nitf_details.img_segment_offsets.size))
 
     def _construct_chipper(self, segment, index):
         meta = self._sicd_meta
@@ -393,10 +402,10 @@ class SICDReader(NITFReader):
 
         rows_total = meta.ImageData.NumRows
         cols_total = meta.ImageData.NumCols
-        bounds = numpy.zeros((self._nitf_details.img_segment_offsets.size, 4), dtype=numpy.uint64)
+        bounds = numpy.zeros((self.nitf_details.img_segment_offsets.size, 4), dtype=numpy.uint64)
         p_row_start, p_row_end, p_col_start, p_col_end = None, None, None, None
-        for i, (rows, cols) in enumerate(zip(self._nitf_details.img_segment_rows,
-                                             self._nitf_details.img_segment_columns)):
+        for i, (rows, cols) in enumerate(zip(self.nitf_details.img_segment_rows,
+                                             self.nitf_details.img_segment_columns)):
             if i == 0:
                 cur_row_start, cur_row_end = 0, rows
                 cur_col_start, cur_col_end = 0, cols
@@ -416,9 +425,9 @@ class SICDReader(NITFReader):
             raise ValueError('Bounds final entry {} does not match sicd size '
                              '({}, {})'.format(bounds[-1], rows_total, cols_total))
 
-        offsets = self._nitf_details.img_segment_offsets.copy()
+        offsets = self.nitf_details.img_segment_offsets.copy()
         return MultiSegmentChipper(
-            self._nitf_details.file_name, bounds, offsets, dtype,
+            self.nitf_details.file_name, bounds, offsets, dtype,
             symmetry=(False, False, False), complex_type=complex_type,
             bands_ip=1)
 

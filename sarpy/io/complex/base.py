@@ -360,9 +360,9 @@ class BaseReader(object):
     Abstract file reader class
     """
 
-    __slots__ = ('_sicd_meta', '_chipper', '_data_size')
+    __slots__ = ('_sicd_meta', '_chipper', '_data_size', '_is_sicd_type')
 
-    def __init__(self, sicd_meta, chipper):
+    def __init__(self, sicd_meta, chipper, is_sicd_type=False):
         """
 
         Parameters
@@ -371,8 +371,14 @@ class BaseReader(object):
             `None`, the SICD metadata object, or tuple of objects
         chipper : BaseChipper|Tuple[BaseChipper]
             a chipper object, or tuple of chipper objects
+        is_sicd_type : bool
+            Is this a sicd type reader, or otherwise?
         """
-
+        # set the is_sicd_type state
+        if not isinstance(is_sicd_type, bool):
+            is_sicd_type = bool(is_sicd_type)
+        self._is_sicd_type = is_sicd_type
+        # adjust sicd_meta and chipper inputs
         if isinstance(sicd_meta, list):
             sicd_meta = tuple(sicd_meta)
         if isinstance(chipper, list):
@@ -409,6 +415,13 @@ class BaseReader(object):
         else:
             data_size = tuple(el.data_size for el in chipper)
         self._data_size = data_size
+
+    @property
+    def is_sicd_type(self):
+        """
+        bool: Is this reader object a sicd-type reader, or otherwise (like SIDD or CPHD)?
+        """
+        return self._is_sicd_type
 
     @property
     def sicd_meta(self):

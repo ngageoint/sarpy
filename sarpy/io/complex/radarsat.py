@@ -987,4 +987,4 @@ class RadarSatReader(BaseReader):
         self._readers = tuple(readers)  # type: Tuple[TiffReader]
         sicd_tuple = tuple(reader.sicd_meta for reader in readers)
         chipper_tuple = tuple(reader._chipper for reader in readers)
-        super(RadarSatReader, self).__init__(sicd_tuple, chipper_tuple)
+        super(RadarSatReader, self).__init__(sicd_tuple, chipper_tuple, is_sicd_type=True)
