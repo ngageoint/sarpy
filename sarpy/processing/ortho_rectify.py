@@ -1,22 +1,306 @@
 # -*- coding: utf-8 -*-
 """
-Some ortho-rectification methods.
+SICD ortho-rectification methodology.
 """
 
 import numpy
 
 from sarpy.io.complex.sicd_elements.SICD import SICDType
-from sarpy.geometry.geocoords import geodetic_to_ecf
+from sarpy.io.complex.base import BaseReader
+from sarpy.geometry.geocoords import geodetic_to_ecf, ecf_to_geodetic
 
 
-class sicd_pgd_method(object):
+class ProjectionHelper(object):
     """
-    Class which helps perform the Planar Grid (i.e. Ground Plane) orthorectification from a sicd.
+    Abstract helper class which defines the projection interface for
+    ortho-rectification usage for a sicd type object.
     """
 
-    __slots__ = ('_sicd', '_reference_point', '_row_vector', '_col_vector')
+    __slots__ = ('_sicd', '_row_spacing', '_col_spacing')
 
-    def __init__(self, sicd, reference_point=None, row_vector=None, col_vector=None):
+    def __init__(self, sicd, row_spacing=None, col_spacing=None):
+        """
+
+        Parameters
+        ----------
+        sicd : SICDType
+            The sicd object
+        row_spacing : None|float
+            The row pixel spacing.
+        col_spacing : None|float
+            The column pixel spacing.
+        """
+
+        self._row_spacing = None
+        self._col_spacing = None
+        if not isinstance(sicd, SICDType):
+            raise TypeError('sicd must be a SICDType instance. Got type {}'.format(type(sicd)))
+        if not sicd.can_project_coordinates():
+            raise ValueError('Ortho-rectification requires the SICD ability to project coordinates.')
+        sicd.define_coa_projection(overide=False)
+        self._sicd = sicd
+        self.row_spacing = row_spacing
+        self.col_spacing = col_spacing
+
+    @property
+    def sicd(self):
+        """
+        SICDType: The sicd structure.
+        """
+
+        return self._sicd
+
+    @property
+    def row_spacing(self):
+        """
+        float: The row pixel spacing
+        """
+
+        return self._row_spacing
+
+    @row_spacing.setter
+    def row_spacing(self, value):
+        """
+        Set the row pixel spacing value. Will default to sicd.Grid.Row.SS.
+
+        Parameters
+        ----------
+        value : None|float
+
+        Returns
+        -------
+        None
+        """
+
+        if value is None:
+            self._row_spacing = self.sicd.Grid.Row.SS
+        else:
+            value = float(value)
+            if value <= 0:
+                raise ValueError('row pixel spacing must be positive.')
+            self._row_spacing = float(value)
+
+    @property
+    def col_spacing(self):
+        """
+        float: The column pixel spacing
+        """
+
+        return self._col_spacing
+
+    @col_spacing.setter
+    def col_spacing(self, value):
+        """
+        Set the col pixel spacing value. Will default to sicd.Grid.Col.SS.
+
+        Parameters
+        ----------
+        value : None|float
+
+        Returns
+        -------
+        None
+        """
+
+        if value is None:
+            self._col_spacing = self.sicd.Grid.Col.SS
+        else:
+            value = float(value)
+            if value <= 0:
+                raise ValueError('column pixel spacing must be positive.')
+            self._col_spacing = float(value)
+
+    @staticmethod
+    def _reshape(array, final_dimension):
+        """
+        Reshape the input so that the output is two-dimensional with final
+        dimension given by `final_dimension`.
+
+        Parameters
+        ----------
+        array : numpy.ndarray|list|tuple
+        final_dimension : int
+
+        Returns
+        -------
+        (numpy.ndarray, tuple)
+            The reshaped data array and original shape.
+        """
+
+        if not isinstance(array, numpy.ndarray):
+            array = numpy.array(array, dtype=numpy.float64)
+        if array.ndim < 1 or array.shape[-1] != final_dimension:
+            raise ValueError(
+                'ortho_coords must be at least one dimensional with final dimension '
+                'of size {}.'.format(final_dimension))
+
+        o_shape = array.shape
+
+        if array.ndim != final_dimension:
+            array = numpy.reshape(array, (-1, final_dimension))
+        return array, o_shape
+
+    def ecf_to_ortho(self, coords):
+        """
+        Gets the `(ortho_row, ortho_column)` coordinates in the ortho-rectified
+        system for the provided physical coordinates in ECF `(X, Y, Z)` coordinates.
+
+        Parameters
+        ----------
+        coords : numpy.ndarray|list|tuple
+
+        Returns
+        -------
+        offsets
+            numpy.ndarray
+        """
+
+        raise NotImplementedError
+
+    def ll_to_ortho(self, ll_coords):
+        """
+        Gets the `(ortho_row, ortho_column)` coordinates in the ortho-rectified
+        system for the provided physical coordinates in `(Lat, Lon)` coordinates.
+
+        Note that the handling of ambiguity when handling the missing elevation
+        is likely methodology dependent.
+
+        Parameters
+        ----------
+        ll_coords : numpy.ndarray|list|tuple
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+
+        raise NotImplementedError
+
+    def llh_to_ortho(self, llh_coords):
+        """
+        Gets the `(ortho_row, ortho_column)` coordinates in the ortho-rectified
+        system for the providednphysical coordinates in `(Lat, Lon)` or `(Lat, Lon, HAE)`
+        coordinates.
+
+        Note that the handling of ambiguity when provided coordinates are in `(Lat, Lon)`
+        form is likely methodology dependent.
+
+        Parameters
+        ----------
+        llh_coords : numpy.ndarray|list|tuple
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+
+        raise NotImplementedError
+
+    def pixel_to_ortho(self, pixel_coords):
+        """
+        Gets the ortho-rectified indices for the point(s) in pixel coordinates.
+
+        Parameters
+        ----------
+        pixel_coords : numpy.ndarray|list|tuple
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+
+        raise NotImplementedError
+
+    def ortho_to_ecf(self, ortho_coords):
+        """
+        Get the ecf coordinates for the point(s) in ortho-rectified coordinates.
+
+        Parameters
+        ----------
+        ortho_coords : numpy.ndarray
+            Point(s) in the ortho-recitified coordinate system, of the form
+            `(ortho_row, ortho_column)`.
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+
+        raise NotImplementedError
+
+    def ortho_to_llh(self, ortho_coords):
+        """
+        Get the lat/lon/hae coordinates for the point(s) in ortho-rectified coordinates.
+
+        Parameters
+        ----------
+        ortho_coords : numpy.ndarray
+            Point(s) in the ortho-recitified coordinate system, of the form
+            `(ortho_row, ortho_column)`.
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+
+        ecf = self.ortho_to_ecf(ortho_coords)
+        return ecf_to_geodetic(ecf)
+
+    def ortho_to_pixel(self, ortho_coords):
+        """
+        Get the pixel indices for the point(s) in ortho-rectified coordinates.
+
+        Parameters
+        ----------
+        ortho_coords : numpy.ndarray
+            Point(s) in the ortho-recitified coordinate system, of the form
+            `(ortho_row, ortho_column)`.
+
+        Returns
+        -------
+        numpy.ndarray
+            The array of indices, of the same shape as `new_coords`, which indicate
+            `(row, column)` pixel (fractional) indices.
+        """
+
+        raise NotImplementedError
+
+    def get_pixel_array_bounds(self, coords):
+        """
+        Extract bounds of the input array, expected to have final dimension
+        of size 2.
+
+        Parameters
+        ----------
+        coords : numpy.ndarray
+
+        Returns
+        -------
+        numpy.ndarray
+            Of the form `(min_row, max_row, min_column, max_column)`.
+        """
+
+        coords, o_shape = self._reshape(coords, 2)
+        return numpy.array(
+            (numpy.min(coords[:, 0], axis=0),
+             numpy.max(coords[:, 0], axis=0),
+             numpy.min(coords[:, 1], axis=0),
+             numpy.max(coords[:, 1], axis=0)), dtype=numpy.float64)
+
+
+class PGProjection(ProjectionHelper):
+    """
+    Class which helps perform the Planar Grid (i.e. Ground Plane) ortho-rectification
+    for a sicd-type object. **In this implementation, we have that the reference point
+    will have ortho-rectification coordinates (0, 0).** All ortho-rectification coordinate
+    interpretation should be relative to the fact.
+    """
+
+    __slots__ = (
+        '_reference_point', '_row_vector', '_col_vector')
+
+    def __init__(self, sicd, reference_point=None, row_vector=None, col_vector=None,
+                 row_spacing=None, col_spacing=None):
         """
 
         Parameters
@@ -33,29 +317,18 @@ class sicd_pgd_method(object):
             The vector defining increasing column direction. It is required
             that `row_vector` and `col_vector` are orthogonal. If None, then the
             perpendicular component of sicd.Grid.Col.UVectECF will be used.
+        row_spacing : None|float
+            The row pixel spacing.
+        col_spacing : None|float
+            The column pixel spacing.
         """
 
+        self._reference_point = None
         self._row_vector = None
         self._col_vector = None
-        self._reference_point = None
-
-        if not isinstance(sicd, SICDType):
-            raise TypeError('sicd must be a SICDType instance. Got type {}'.format(type(sicd)))
-        if not sicd.can_project_coordinates():
-            raise ValueError('Ortho-rectification requires the SICD ability to project coordinates.')
-        sicd.define_coa_projection(overide=False)
-        self._sicd = sicd
-
+        super(PGProjection, self).__init__(sicd, row_spacing=row_spacing, col_spacing=col_spacing)
         self.set_reference_point(reference_point)
         self.set_row_and_col_vector(row_vector, col_vector)
-
-    @property
-    def sicd(self):
-        """
-        SICDType: The sicd structure.
-        """
-
-        return self._sicd
 
     @property
     def reference_point(self):
@@ -148,113 +421,117 @@ class sicd_pgd_method(object):
         self._row_vector = normalize(row_vector, 'row')
         self._col_vector = normalize(col_vector, 'column', self._row_vector)
 
-    def get_offset(self, coords):
-        """
-        Gets the offsets for the given coordinates, assumed to be in ECF coordinates.
-        This will return the offsets (row, col) of the coordinate vector(s) from the
-        reference_point projected into the plane determined by row_vector and col_vector.
-
-        Parameters
-        ----------
-        coords : numpy.ndarray|list|tuple
-
-        Returns
-        -------
-        offsets
-            numpy.ndarray
-        """
-
-        if not isinstance(coords, numpy.ndarray):
-            coords = numpy.array(coords, dtype=numpy.float64)
-
-        if not ((coords.ndim == 1 and coords.shape[0] == 3) or (coords.ndim == 2 and coords[1] == 3)):
-            raise ValueError(
-                'coords must be of shape (3, ) or (N, 3), and got {}.'.format(coords.shape))
+    def ecf_to_ortho(self, coords):
+        coords, o_shape = self._reshape(coords, 3)
 
         diff = coords - self.reference_point
-        if coords.ndim == 1:
+        if len(o_shape) == 1:
             out = numpy.zeros((2, ), dtype=numpy.float64)
-            out[0] = diff.dot(self.row_vector)
-            out[1] = diff.dot(self.col_vector)
+            out[0] = diff.dot(self.row_vector)/self.row_spacing
+            out[1] = diff.dot(self.col_vector)/self.col_spacing
         else:
             out = numpy.zeros((coords.shape[0], 2), dtype=numpy.float64)
-            out[:, 0] = diff.dot(self.row_vector)
-            out[:, 1] = diff.dot(self.col_vector)
+            out[:, 0] = diff.dot(self.row_vector)/self.row_spacing
+            out[:, 1] = diff.dot(self.col_vector)/self.col_spacing
+            out = numpy.reshape(out, o_shape[:-1] + (2, ))
         return out
 
-    def get_llh_offsets(self, llh_coords):
-        """
-        Gets the offsets for the given coordinates, assumed to be in Lat/Lon or Lat/Lon/HAE
-        coordinates. This will return the offsets (row, col) of the coordinate vector(s) from
-        the reference_point projected into the plane determined by row_vector and col_vector.
+    def ll_to_ortho(self, ll_coords):
+        ll_coords, o_shape = self._reshape(ll_coords, 2)
+        llh_temp = numpy.zeros((ll_coords.shape[0], 3), dtype=numpy.float64)
+        llh_temp[:, :2] = ll_coords
+        llh_temp = numpy.reshape(llh_temp, o_shape[:-1]+ (3, ))
+        return self.llh_to_ortho(llh_temp)
 
-        Parameters
-        ----------
-        llh_coords : numpy.ndarray|list|tuple
+    def llh_to_ortho(self, llh_coords):
+        llh_coords, o_shape = self._reshape(llh_coords, 3)
+        ground = geodetic_to_ecf(llh_coords)
+        ground = numpy.reshape(ground, o_shape)
+        return self.ecf_to_ortho(ground)
 
-        Returns
-        -------
-        offsets
-            numpy.ndarray
-        """
-
-        if not isinstance(llh_coords, numpy.ndarray):
-            llh_coords = numpy.array(llh_coords, dtype=numpy.float64)
-
-        if llh_coords.ndim == 1:
-            if llh_coords.shape[0] == 2:
-                return self.get_offset(geodetic_to_ecf([llh_coords[0], llh_coords[1], 0]))
-            elif llh_coords.shape[0] == 3:
-                return self.get_offset(geodetic_to_ecf(llh_coords))
-        elif llh_coords.ndim == 2:
-            if llh_coords.shape[1] == 2:
-                out = numpy.zeros((llh_coords.shape[0], 3), dtype=numpy.float64)
-                out[:, :2] = llh_coords
-                return self.get_offset(geodetic_to_ecf(out))
-            elif llh_coords.shape[1] == 3:
-                return self.get_offset(geodetic_to_ecf(llh_coords))
-        raise ValueError(
-            'llh_coords must be a one or two-dimensional array of the form '
-            '[Lat, Lon] or [Lat, Lon, HAE].')
-
-    def get_indices(self, xs, ys):
-        r"""
-        Get the indices for the point(s) :math:`ref_point + xs\cdot row_vector + ys\cdot col_vector`.
-        This relies on :func:`SICDType.ground_to_image`. This requires that `xs` and `ys` are arrays
-        of the same shape.
-
-        Parameters
-        ----------
-        xs : numpy.ndarray
-            The x offsets - in meters.
-        ys : numpy.ndarray
-            The y offsets - in meters.
-        Returns
-        -------
-        numpy.ndarray
-            The array of indices, where the shape is `xs.shape + (2, )`, and the final dimension
-            indicate (row, column) indices.
-        """
-
-        if not isinstance(xs, numpy.ndarray):
-            xs = numpy.array(xs, dtype=numpy.float64)
-        if not isinstance(ys, numpy.ndarray):
-            ys = numpy.array(ys, dtype=numpy.float64)
-        if xs.shape != ys.shape:
-            raise ValueError('xs and ys must have the same shape.')
-
-        o_shape = xs.shape
-
-        if xs.ndim != 1:
-            xs = numpy.ravel(xs)
-            ys = numpy.ravel(ys)
-
-        coords = self._sicd.project_ground_to_image(self._reference_point +
-                                                    xs[:, numpy.newaxis]*self._row_vector +
-                                                    ys[:, numpy.newaxis]*self._col_vector)
-        if len(o_shape) == 0:
-            return numpy.reshape(coords, (2, ))
-        elif len(o_shape) == 1:
-            return coords
+    def ortho_to_ecf(self, ortho_coords):
+        ortho_coords, o_shape = self._reshape(ortho_coords, 2)
+        xs = ortho_coords[:, 0]*self.row_spacing
+        ys = ortho_coords[:, 1]*self.col_spacing
+        if xs.ndim == 0:
+            coords = self._reference_point + xs*self.row_vector + ys*self.col_vector
         else:
-            return numpy.reshape(coords, o_shape + (2, ))
+            coords = self._reference_point + xs[:, numpy.newaxis]*self._row_vector + \
+                     ys[:, numpy.newaxis]*self._col_vector
+        return numpy.reshape(coords, o_shape)
+
+    def ortho_to_pixel(self, ortho_coords):
+        ortho_coords, o_shape = self._reshape(ortho_coords, 2)
+        xs = ortho_coords[:, 0]*self.row_spacing
+        ys = ortho_coords[:, 1]*self.col_spacing
+        if xs.ndim == 0:
+            coords = self.sicd.project_ground_to_image(
+                self._reference_point + xs*self._row_vector + ys*self._col_vector)
+        else:
+            coords = self.sicd.project_ground_to_image(
+                self._reference_point + xs[:, numpy.newaxis]*self._row_vector +
+                ys[:, numpy.newaxis]*self._col_vector)
+        return numpy.reshape(coords, o_shape)
+
+    def pixel_to_ortho(self, pixel_coords):
+        return self.ecf_to_ortho(self.sicd.project_image_to_ground(pixel_coords, projection_type='HAE'))
+
+
+class OrthorectificationHelper(object):
+    """
+    Abstract helper class which defines ortho-rectification process for a sicd-type
+    reader object.
+    """
+
+    __slots__ = ('_reader', '_index', '_proj_helper')
+
+    def __init__(self, reader, index=0, proj_helper=None):
+        """
+
+        Parameters
+        ----------
+        reader : BaseReader
+        index : int
+        proj_helper : None|ProjectionHelper
+        """
+
+        if not isinstance(reader, BaseReader):
+            raise TypeError('Got unexpected type {} for reader'.format(type(reader)))
+        if not reader.is_sicd_type:
+            raise ValueError('Reader is required to have is_sicd_type property value equals True')
+        self._reader = reader
+        self._index = index
+        if proj_helper is None:
+            proj_helper = PGProjection(reader.get_sicds_as_tuple()[index])
+        if not isinstance(proj_helper, ProjectionHelper):
+            raise TypeError('Got unexpected type {} for proj_helper'.format(proj_helper))
+        self._proj_helper = proj_helper
+
+    @property
+    def reader(self):
+        """
+        BaseReader: The reader instance.
+        """
+
+        return self._reader
+
+    @property
+    def index(self):
+        """
+        int: The index for the desired sicd element.
+        """
+        return self._index
+
+
+    @property
+    def proj_helper(self):
+        """
+        ProjectionHelper: The projection helper instance.
+        """
+
+        return self._proj_helper
+
+
+# TODO: what is our use case?
+#   1.) For pixel space polygon (or other geometry element?), get ortho-rectification bounds
+#   2.) For orthorectified range, get ortho-rectified data
