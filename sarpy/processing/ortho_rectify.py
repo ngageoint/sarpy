@@ -8,6 +8,7 @@ import numpy
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.complex.base import BaseReader
 from sarpy.geometry.geocoords import geodetic_to_ecf, ecf_to_geodetic
+from sarpy.geometry.geometry_elements import GeometryObject
 
 
 class ProjectionHelper(object):
@@ -493,6 +494,8 @@ class OrthorectificationHelper(object):
         reader : BaseReader
         index : int
         proj_helper : None|ProjectionHelper
+            If `None`, this will default to `PGProjection(<sicd>)`, where `<sicd>`
+            will be the sicd from `reader` at `index`.
         """
 
         if not isinstance(reader, BaseReader):
@@ -501,6 +504,7 @@ class OrthorectificationHelper(object):
             raise ValueError('Reader is required to have is_sicd_type property value equals True')
         self._reader = reader
         self._index = index
+
         if proj_helper is None:
             proj_helper = PGProjection(reader.get_sicds_as_tuple()[index])
         if not isinstance(proj_helper, ProjectionHelper):
@@ -531,7 +535,32 @@ class OrthorectificationHelper(object):
 
         return self._proj_helper
 
+    def get_orthorectification_bounds(self, object):
+        """
+        Determine the ortho-rectified (coordinate-system aligned) rectangular bounding
+        region which contains the provided object.
 
-# TODO: what is our use case?
-#   1.) For pixel space polygon (or other geometry element?), get ortho-rectification bounds
-#   2.) For orthorectified range, get ortho-rectified data
+        .. Note: This assumes that the coordinate transforms are convex transformations,
+            which should be safe for basic SAR associated transforms.
+
+        Parameters
+        ----------
+        object : GeometryObject|numpy.ndarray|list|tuple
+            The coordinate system of the input will be assumed to be pixel space.
+
+        Returns
+        -------
+        numpy.ndarray
+            Of the form `(row_min, row_max, col_min, col_max)`.
+        """
+
+        if isinstance(object, GeometryObject):
+            pixel_bounds = object.get_bbox()
+            siz = int(len(pixel_bounds)/2)
+            object = numpy.array(
+                [[pixel_bounds[0], pixel_bounds[1]],
+                 [pixel_bounds[siz], pixel_bounds[1]],
+                 [pixel_bounds[siz], pixel_bounds[siz+1]],
+                 [pixel_bounds[0], pixel_bounds[siz+1]]], dtype=numpy.float64)
+        ortho = self.proj_helper.pixel_to_ortho(object)
+        return self.proj_helper.get_pixel_array_bounds(ortho)
