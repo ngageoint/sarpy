@@ -59,7 +59,6 @@ setup(name=parameters['__title__'],
       version=parameters['__version__'],
       description=parameters['__summary__'],
       long_description=long_description,
-      long_description_content_type='text/x-rst',
       packages=find_packages(exclude=('tests', '*.tests', '*.tests.*')),
       package_data={'sarpy': ['*.xsd']},  # Schema files for SICD standard(s)
       url=parameters['__url__'],
@@ -68,7 +67,6 @@ setup(name=parameters['__title__'],
       install_requires=install_requires,
       extras_require={
         'csk':  ['h5py', ],
-        'gui': ['pillow', 'matplotlib'],
       },
       zip_safe=False,  # Use of __file__ and __path__ in some code makes it unusable from zip
       test_suite="tests",
