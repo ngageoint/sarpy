@@ -1,5 +1,6 @@
 # This details the important differences introduced in sarpy 1.0
 
+* .23 - Moved the general tk_builder, and specific sarpy_apps into their own repos
 * .22 - Cleaned up error production and catching for file opening effort
 * .21 - Introduced basic CPHD (0.3 and 1.0) reading capability
 * .20 - Introduced NISAR reading capability
