@@ -286,6 +286,14 @@ class SIDDReader(NITFReader):
 
         return self._nitf_details
 
+    @property
+    def sidd_meta(self):
+        """
+        None|List[sarpy.io.complex.sidd_elements.SIDD.SIDDType]: the sidd meta-data structure(s).
+        """
+
+        return self.nitf_details.sidd_meta
+
     def _find_segments(self):
         # determine image segmentation from image headers
         segments = [[] for sidd in self._sidd_meta]
