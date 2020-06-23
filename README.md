@@ -1,29 +1,27 @@
 SarPy
 =====
-
 SarPy is a basic Python library to read, write, display, and do simple processing
-of complex SAR data using the NGA `SICD <http://www.gwg.nga.mil/ntb/baseline/docs/SICD/>`_
+of complex SAR data using the NGA [SICD](http://www.gwg.nga.mil/ntb/baseline/docs/SICD/)
 format. It has been released by NGA to encourage the use of SAR data standards
 throughout the international SAR community. SarPy complements the
-`SIX <https://github.com/ngageoint/six-library>`_ library (C++) and the
-`MATLAB SAR Toolbox <https://github.com/ngageoint/MATLAB_SAR>`_, which are
+[SIX](https://github.com/ngageoint/six-library) library (C++) and the
+[MATLAB SAR Toolbox](https://github.com/ngageoint/MATLAB_SAR), which are
 implemented in other languages but have similar goals.
 
-Some sample SICD files can be found `here <https://github.com/ngageoint/six-library/wiki/Sample-SICDs>`_.
+Some sample SICD files can be found [here](https://github.com/ngageoint/six-library/wiki/Sample-SICDs).
 
 In addition to SICD, SarPy can also read COSMO-SkyMed, RADARSAT-2, Radar Constellation Mission (RCM),
 and Sentinel-1 SLC formats and convert them to SICD.
 
 Some examples of how to read complex SAR data using SarPy are provided in `docs/sarpy_example.py`.
 
-Origin
-~~~~~~
-
+Origins
+-------
 SarPy was developed at the National Geospatial-Intelligence Agency (NGA). The software use,
 modification, and distribution rights are stipulated within the MIT license.
 
 Dependencies
-~~~~~~~~~~~~
+------------
 The core library functionality depends only on `numpy >= 1.9.0` with some very minor
 dependency on `scipy`. Support for reading Cosmo-Skymed data (contained in hdf5 files)
 requires the `h5py` package.
@@ -43,7 +41,7 @@ For the new GUI capabilities described below, you additionally need `pillow` and
 widely known `futures`), all of which can be installed using conda or pip.
 
 Significant Changes - March 2020
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+================================
 Breaking Changes
 ----------------
 In March 2020, the sarpy library has undergone a complete refactor, and the
@@ -66,7 +64,7 @@ fast and simple prototyping to enable research. Most notably, some of the most c
 used TASER capabilities from the MATLAB SAR Toolbox have been recreated using these GUI
 components.
 
-The decision was made to use `tkinter <https://docs.python.org/3/library/tkinter.html>`_
+The decision was made to use [tkinter](https://docs.python.org/3/library/tkinter.html)
 for this capability. The particulars of this choice are entirely pragmatic. Most
 importantly, `tkinter` is well supported for essentially every architecture that
 Python is supported, and there are no complicating factors in licensing, configuration,
@@ -81,11 +79,11 @@ new GUI efforts. It is the desire for the documentation to be hosted someplace
 appropriate in the near future.
 
 Currently, basic documentation can be built after checking out this repository
-using sphinx via the command :code:`python setup.py build_sphinx`. This depends
+using sphinx via the command `python setup.py build_sphinx`. This depends
 on python packages `sphinx` and `sphinxcontrib-napoleon`.
 
 Issues and Bugs
-~~~~~~~~~~~~~~~
+---------------
 The core sarpy functionality has been tested for Python 2.7.17, 3.6, 3.7, and 3.8.
 Other versions should be considered unsupported. The new GUI capabilities have been
 less extensively tested, and should be considered experimental at this point.
