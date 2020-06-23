@@ -143,10 +143,10 @@ class GlobalType(Serializable):
 
     _fields = (
         'DomainType', 'PhaseSGN', 'RefFreqIndex', 'CollectStart',
-        'CollectDuration', 'TxTime1', 'TxTime2')
+        'CollectDuration', 'TxTime1', 'TxTime2', 'ImageArea')
     _required = (
         'DomainType', 'PhaseSGN', 'CollectStart', 'CollectDuration',
-        'TxTime1', 'TxTime2')
+        'TxTime1', 'TxTime2', 'ImageArea')
     _numeric_format = {
         'CollectDuration': '0.16G', 'TxTime1': '0.16G', 'TxTime2': '0.16G'}
     # descriptors
@@ -185,9 +185,13 @@ class GlobalType(Serializable):
         'TxTime2', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='Latest TxTime value for any signal vector in the product. '
                   'Time relative to Collection Start in seconds.')  # type: float
+    ImageArea = _SerializableDescriptor(
+        'ImageArea', ImageAreaType, _required, strict=DEFAULT_STRICT,
+        docstring='Parameters describing the ground area covered by this '
+                  'product.')  # type: ImageAreaType
 
     def __init__(self, DomainType=None, PhaseSGN=None, RefFreqIndex=None, CollectStart=None,
-                 CollectDuration=None, TxTime1=None, TxTime2=None, **kwargs):
+                 CollectDuration=None, TxTime1=None, TxTime2=None, ImageArea=None, **kwargs):
         """
 
         Parameters
@@ -199,6 +203,7 @@ class GlobalType(Serializable):
         CollectDuration : float
         TxTime1 : float
         TxTime2 : float
+        ImageArea : ImageAreaType
         kwargs
         """
 
@@ -213,4 +218,5 @@ class GlobalType(Serializable):
         self.CollectDuration = CollectDuration
         self.TxTime1 = TxTime1
         self.TxTime2 = TxTime2
+        self.ImageArea = ImageArea
         super(GlobalType, self).__init__(**kwargs)

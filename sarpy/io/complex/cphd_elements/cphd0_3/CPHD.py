@@ -109,7 +109,7 @@ class CPHDType(Serializable):
         docstring='Channel specific parameters for CPHD channels.')  # type: ChannelType
     SRP = _SerializableDescriptor(
         'SRP', SRPTyp, _required, strict=DEFAULT_STRICT,
-        docstring='The Stabilization Refence Point (SRP) parameters.')  # type: SRPTyp
+        docstring='The Stabilization Reference Point (SRP) parameters.')  # type: SRPTyp
     RadarCollection = _SerializableDescriptor(
         'RadarCollection', RadarCollectionType, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: Union[None, RadarCollectionType]
