@@ -5,14 +5,19 @@ This module provides basic geometry elements generally geared towards (geo)json 
 
 from collections import OrderedDict
 from uuid import uuid4
-from typing import Union, List
+from typing import Union, List, Tuple, Dict, Callable, Any
 import json
 import logging
+import sys
 
 import numpy
 
 from sarpy.io.kml import Document as KML_Document
 
+string_types = str
+if sys.version_info[0] < 3:
+    # noinspection PyUnresolvedReferences
+    string_types = basestring
 
 def _compress_identical(coords):
     """
@@ -70,7 +75,7 @@ def _validate_grid_contain_arguments(grid_x, grid_y):
 
 
 def _get_kml_coordinate_string(coordinates, transform):
-    # type: (numpy.ndarray, Union[None, callable]) -> str
+    # type: (numpy.ndarray, Union[None, Callable]) -> str
     def identity(x):
         return x
 
@@ -166,7 +171,7 @@ class Feature(_Jsonable):
 
         if uid is None:
             self._uid = str(uuid4())
-        elif not isinstance(uid, str):
+        elif not isinstance(uid, string_types):
             raise TypeError('uid must be a string.')
         else:
             self._uid = uid
@@ -297,8 +302,9 @@ class FeatureList(_Jsonable):
             return 0
         return len(self._features)
 
-    def __getitem__(self, item):  # type: () -> Feature|List[Feature]
-        if isinstance(item, str):
+    def __getitem__(self, item):
+        # type: (Any) -> Union[Feature, List[Feature]]
+        if isinstance(item, string_types):
             return self._feature_dict[item]
         return self._features[item]
 
@@ -498,7 +504,8 @@ class GeometryCollection(Geometry):
                     'geometries must be a list of Geometry objects. Got an element of type {}'.format(type(entry)))
 
     @classmethod
-    def from_dict(cls, geometry):  # type: (Union[None, dict]) -> GeometryCollection
+    def from_dict(cls, geometry):
+        # type: (Union[None, Dict]) -> GeometryCollection
         typ = geometry.get('type', None)
         if typ != cls._type:
             raise ValueError('GeometryCollection cannot be constructed from {}'.format(geometry))
@@ -546,7 +553,7 @@ class GeometryObject(Geometry):
 
         Returns
         -------
-        list
+        List
         """
 
         raise NotImplementedError
@@ -557,13 +564,14 @@ class GeometryObject(Geometry):
 
         Returns
         -------
-        list
+        List
         """
 
         raise NotImplementedError
 
     @classmethod
-    def from_dict(cls, geometry):  # type: (dict) -> GeometryObject
+    def from_dict(cls, geometry):
+        # type: (Dict) -> GeometryObject
         typ = geometry.get('type', None)
         if typ is None:
             raise ValueError('Poorly formed json for GeometryObject {}'.format(geometry))
@@ -611,7 +619,8 @@ class Point(GeometryObject):
         return self._coordinates
 
     @coordinates.setter
-    def coordinates(self, coordinates):  # type: (Union[None, list, tuple, numpy.ndarray]) -> None
+    def coordinates(self, coordinates):
+        # type: (Union[None, List, Tuple, numpy.ndarray]) -> None
         if coordinates is None:
             self._coordinates = None
             return
@@ -643,7 +652,8 @@ class Point(GeometryObject):
             return self._coordinates.tolist()
 
     @classmethod
-    def from_dict(cls, geometry):  # type: (dict) -> Point
+    def from_dict(cls, geometry):
+        # type: (Dict) -> Point
         if not geometry.get('type', None) == cls._type:
             raise ValueError('Poorly formed json {}'.format(geometry))
         cls(coordinates=geometry['coordinates'])
@@ -708,7 +718,8 @@ class MultiPoint(GeometryObject):
         return [point.get_coordinate_list() for point in self._points]
 
     @classmethod
-    def from_dict(cls, geometry):  # type: (dict) -> MultiPoint
+    def from_dict(cls, geometry):
+        # type: (Dict) -> MultiPoint
         if not geometry.get('type', None) == cls._type:
             raise ValueError('Poorly formed json {}'.format(geometry))
         cls(coordinates=geometry['coordinates'])
@@ -740,7 +751,8 @@ class LineString(GeometryObject):
         return self._coordinates
 
     @coordinates.setter
-    def coordinates(self, coordinates):  # type: (Union[None, list, tuple, numpy.ndarray]) -> None
+    def coordinates(self, coordinates):
+        # type: (Union[None, List, Tuple, numpy.ndarray]) -> None
         if coordinates is None:
             self._coordinates = None
             return
@@ -861,7 +873,8 @@ class MultiLineString(GeometryObject):
         return [line.get_coordinate_list() for line in self._lines]
 
     @classmethod
-    def from_dict(cls, geometry):  # type: (dict) -> MultiLineString
+    def from_dict(cls, geometry):
+        # type: (Dict) -> MultiLineString
         if not geometry.get('type', None) == cls._type:
             raise ValueError('Poorly formed json {}'.format(geometry))
         cls(coordinates=geometry['coordinates'])
@@ -1333,7 +1346,8 @@ class Polygon(GeometryObject):
             self.add_inner_ring(entry)
 
     @classmethod
-    def from_dict(cls, geometry):  # type: (dict) -> Polygon
+    def from_dict(cls, geometry):
+        # type: (Dict) -> Polygon
         if not geometry.get('type', None) == cls._type:
             raise ValueError('Poorly formed json {}'.format(geometry))
         cls(coordinates=geometry['coordinates'])
@@ -1584,7 +1598,8 @@ class MultiPolygon(GeometryObject):
             return mins.extend(maxs)
 
     @classmethod
-    def from_dict(cls, geometry):  # type: (dict) -> MultiPolygon
+    def from_dict(cls, geometry):
+        # type: (Dict) -> MultiPolygon
         if not geometry.get('type', None) == cls._type:
             raise ValueError('Poorly formed json {}'.format(geometry))
         cls(coordinates=geometry['coordinates'])

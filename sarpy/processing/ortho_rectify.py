@@ -4,6 +4,7 @@ SICD ortho-rectification methodology.
 """
 
 import numpy
+from scipy.interpolate import LinearNDInterpolator
 
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.complex.base import BaseReader
@@ -484,9 +485,9 @@ class OrthorectificationHelper(object):
     reader object.
     """
 
-    __slots__ = ('_reader', '_index', '_proj_helper')
+    __slots__ = ('_reader', '_index', '_proj_helper', '_out_dtype', '_complex_valued', '_pad_value')
 
-    def __init__(self, reader, index=0, proj_helper=None):
+    def __init__(self, reader, index=0, proj_helper=None, complex_valued=False, pad_value=None):
         """
 
         Parameters
@@ -495,24 +496,33 @@ class OrthorectificationHelper(object):
         index : int
         proj_helper : None|ProjectionHelper
             If `None`, this will default to `PGProjection(<sicd>)`, where `<sicd>`
-            will be the sicd from `reader` at `index`.
+            will be the sicd from `reader` at `index`. Otherwise, it is the user's
+            responsibility to ensure that `reader`, `index` and `proj_helper` are
+            in sync.
+        complex_valued : bool
+            Do we want complex values returned? If `False`, the magnitude values
+            will be used.
+        pad_value : None|Any
+            The value to use for any portions of the array which extend beyond the
+            range of where the reader has data. `None` will default to 0.
         """
 
+        self._pad_value = pad_value
+        self._out_dtype = numpy.dtype('float32')
+        if complex_valued:
+            self._out_dtype = numpy.dtype('complex64')
+        self._index = None
+        self._proj_helper = None
         if not isinstance(reader, BaseReader):
             raise TypeError('Got unexpected type {} for reader'.format(type(reader)))
         if not reader.is_sicd_type:
             raise ValueError('Reader is required to have is_sicd_type property value equals True')
         self._reader = reader
-        self._index = index
-
-        if proj_helper is None:
-            proj_helper = PGProjection(reader.get_sicds_as_tuple()[index])
-        if not isinstance(proj_helper, ProjectionHelper):
-            raise TypeError('Got unexpected type {} for proj_helper'.format(proj_helper))
-        self._proj_helper = proj_helper
+        self.set_index_and_proj_helper(index, proj_helper=proj_helper)
 
     @property
     def reader(self):
+        # type: () -> BaseReader
         """
         BaseReader: The reader instance.
         """
@@ -521,31 +531,63 @@ class OrthorectificationHelper(object):
 
     @property
     def index(self):
+        # type: () -> int
         """
         int: The index for the desired sicd element.
         """
         return self._index
 
-
     @property
     def proj_helper(self):
+        # type: () -> ProjectionHelper
         """
         ProjectionHelper: The projection helper instance.
         """
 
         return self._proj_helper
 
-    def get_orthorectification_bounds(self, object):
+    @property
+    def out_dtype(self):
+        # type: () -> numpy.dtype
+        """
+        numpy.dtype: The output data type.
+        """
+
+        return self._out_dtype
+
+    def set_index_and_proj_helper(self, index, proj_helper=None):
+        """
+        Sets the index and proj_helper objects.
+
+        Parameters
+        ----------
+        index : int
+        proj_helper : ProjectionHelper
+
+        Returns
+        -------
+        None
+        """
+
+        self._index = index
+
+        if proj_helper is None:
+            proj_helper = PGProjection(self.reader.get_sicds_as_tuple()[index])
+        if not isinstance(proj_helper, ProjectionHelper):
+            raise TypeError('Got unexpected type {} for proj_helper'.format(proj_helper))
+        self._proj_helper = proj_helper
+
+    def get_orthorectification_bounds(self, coordinates):
         """
         Determine the ortho-rectified (coordinate-system aligned) rectangular bounding
-        region which contains the provided object.
+        region which contains the provided coordinates.
 
         .. Note: This assumes that the coordinate transforms are convex transformations,
             which should be safe for basic SAR associated transforms.
 
         Parameters
         ----------
-        object : GeometryObject|numpy.ndarray|list|tuple
+        coordinates : GeometryObject|numpy.ndarray|list|tuple
             The coordinate system of the input will be assumed to be pixel space.
 
         Returns
@@ -554,13 +596,206 @@ class OrthorectificationHelper(object):
             Of the form `(row_min, row_max, col_min, col_max)`.
         """
 
-        if isinstance(object, GeometryObject):
-            pixel_bounds = object.get_bbox()
+        if isinstance(coordinates, GeometryObject):
+            pixel_bounds = coordinates.get_bbox()
             siz = int(len(pixel_bounds)/2)
-            object = numpy.array(
+            coordinates = numpy.array(
                 [[pixel_bounds[0], pixel_bounds[1]],
                  [pixel_bounds[siz], pixel_bounds[1]],
                  [pixel_bounds[siz], pixel_bounds[siz+1]],
                  [pixel_bounds[0], pixel_bounds[siz+1]]], dtype=numpy.float64)
-        ortho = self.proj_helper.pixel_to_ortho(object)
+        ortho = self.proj_helper.pixel_to_ortho(coordinates)
         return self.proj_helper.get_pixel_array_bounds(ortho)
+
+    def _validate_bounds(self, bounds):
+        """
+        Validate a pixel type bounds array.
+
+        Parameters
+        ----------
+        bounds : numpy.ndarray|list|tuple
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+
+        if not isinstance(bounds, numpy.ndarray):
+            bounds = numpy.asarray(bounds)
+
+        if bounds.ndim != 1 or bounds.size != 4:
+            raise ValueError('bounds is required to be one-dimensional and size 4.')
+        if bounds[0] >= bounds[1] or bounds[2] >= bounds[3]:
+            raise ValueError(
+                'bounds is required to be of the form (min row, max row, min col, max col), '
+                'got {}'.format(bounds))
+
+        if issubclass(bounds.dtype.type, numpy.integer):
+            return bounds
+        else:
+            out = numpy.zeros((4,), dtype=numpy.int32)
+            out[0:3:2] = (numpy.floor(bounds[0]), numpy.floor(bounds[2]))
+            out[1:4:2] = (numpy.ceil(bounds[1]), numpy.ceil(bounds[3]))
+            return out
+
+    def _extract_bounds(self, bounds):
+        """
+        Validate the bounds array of orthorectified pixel coordinates, and determine
+        the required bounds in reader pixel coordinates.
+
+        Parameters
+        ----------
+        bounds : numpy.ndarray|list|tuple
+
+        Returns
+        -------
+        (numpy.ndarray, numpy.ndarray)
+            The integer valued orthorectified and reader pixel coordinate bounds.
+        """
+
+        bounds = self._validate_bounds(bounds)
+        coords = numpy.zeros((4, 2), dtype=numpy.int32)
+        coords[0, :] = (bounds[0], bounds[2])
+        coords[1, :] = (bounds[1], bounds[2])
+        coords[2, :] = (bounds[1], bounds[3])
+        coords[3, :] = (bounds[0], bounds[3])
+        pixel_coords = self.proj_helper.ortho_to_pixel(coords)
+        pixel_bounds = self.proj_helper.get_pixel_array_bounds(pixel_coords)
+        return bounds, self._validate_bounds(pixel_bounds)
+
+    def _initialize_workspace(self, ortho_bounds):
+        """
+        Initialize the orthorectification array workspace.
+
+        Parameters
+        ----------
+        ortho_bounds : numpy.ndarray
+            Of the form `(min row, max row, min col, max col)`.
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+
+        out_shape = (int(ortho_bounds[1]-ortho_bounds[0]), int(ortho_bounds[3]-ortho_bounds[2]))
+        return numpy.zeros(out_shape, dtype=self.out_dtype) if self._pad_value is None else \
+            numpy.full(out_shape, self._pad_value, dtype=self.out_dtype)
+
+    def get_orthorectified(self, bounds):
+        """
+        Determine the array corresponding to the given array bounds (in ortho-rectified
+        pixel coordinates).
+
+        Parameters
+        ----------
+        bounds : numpy.ndarray|list|tuple
+            Of the form `(row_min, row_max, col_min, col_max)`. Note that non-integer
+            values will be expanded outwards (floor of minimum and ceil at maximum).
+            Following Python convention, this will be inclusive at the minimum and
+            exclusive at the maximum.
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+
+        raise NotImplementedError
+
+
+class NearestNeighborMethod(OrthorectificationHelper):
+    """
+    Nearest neighbor ortho-rectification method.
+    """
+
+    def __init__(self, reader, index=0, proj_helper=None, complex_valued=False):
+        """
+
+        Parameters
+        ----------
+        reader : BaseReader
+        index : int
+        proj_helper : None|ProjectionHelper
+            If `None`, this will default to `PGProjection(<sicd>)`, where `<sicd>`
+            will be the sicd from `reader` at `index`. Otherwise, it is the user's
+            responsibility to ensure that `reader`, `index` and `proj_helper` are
+            in sync.
+        complex_valued : bool
+            Do we want complex values returned? If `False`, the magnitude values
+            will be used.
+        """
+
+        super(NearestNeighborMethod, self).__init__(
+            reader, index=index, proj_helper=proj_helper, complex_valued=complex_valued)
+
+    def get_orthorectified(self, bounds):
+        ortho_bounds, pixel_bounds = self._extract_bounds(bounds)
+        ortho_array = self._initialize_workspace(ortho_bounds)
+
+        pixel_array = self.reader[pixel_bounds[0]:pixel_bounds[1], pixel_bounds[2]:pixel_bounds[3], self.index]
+
+        # determine the pixel coordinates for the ortho coordinates meshgrid
+        ortho_shape = (int(ortho_bounds[1]-ortho_bounds[0]), int(ortho_bounds[3]-ortho_bounds[2]), 2)
+        ortho_mesh = numpy.zeros(ortho_shape, dtype=numpy.int32)
+        ortho_mesh[:, :, 0], ortho_mesh[:, :, 1] = numpy.meshgrid(numpy.range(ortho_bounds[2], ortho_bounds[3]),
+                                                                  numpy.range(ortho_bounds[0], ortho_bounds[1]))
+        # determine the nearest neighbor pixel coordinates
+        pixel_mesh = numpy.cast[numpy.int32](numpy.round(self.proj_helper.ortho_to_pixel(ortho_mesh)))
+        pixel_rows = pixel_mesh[:, :, 0]
+        pixel_cols = pixel_mesh[:, :, 1]
+        # determine the in bounds points
+        pixel_limits = self.reader.get_data_size_as_tuple()[self.index]
+        mask = ((pixel_rows >= 0) & (pixel_rows < pixel_limits[0]) &
+                (pixel_cols >= 0) & (pixel_cols < pixel_limits[1]))
+        ortho_array[mask] = pixel_array[pixel_rows[mask], pixel_cols[mask]]
+        return ortho_array
+
+
+class BilinearMethod(OrthorectificationHelper):
+    """
+    Bilinear spline interpolation ortho-rectification method.
+    """
+
+    def __init__(self, reader, index=0, proj_helper=None, complex_valued=False):
+        """
+
+        Parameters
+        ----------
+        reader : BaseReader
+        index : int
+        proj_helper : None|ProjectionHelper
+            If `None`, this will default to `PGProjection(<sicd>)`, where `<sicd>`
+            will be the sicd from `reader` at `index`. Otherwise, it is the user's
+            responsibility to ensure that `reader`, `index` and `proj_helper` are
+            in sync.
+        complex_valued : bool
+            Do we want complex values returned? If `False`, the magnitude values
+            will be used.
+        """
+
+        if complex_valued:
+            raise ValueError('BilinearMethod only supports real valued results for now.')
+
+        super(BilinearMethod, self).__init__(
+            reader, index=index, proj_helper=proj_helper, complex_valued=complex_valued)
+
+    def get_orthorectified(self, bounds):
+        ortho_bounds, pixel_bounds = self._extract_bounds(bounds)
+        # determine the orthorectified coordinates for the pixel meshgrid
+        pixel_shape = (int(pixel_bounds[1]-pixel_bounds[0]), int(pixel_bounds[3]-pixel_bounds[2]), 2)
+        pixel_mesh = numpy.zeros(pixel_shape, dtype=numpy.int32)
+        pixel_mesh[:, :, 1], pixel_mesh[:, :, 0] = numpy.meshgrid(numpy.range(pixel_bounds[2], pixel_bounds[3]),
+                                                                  numpy.range(pixel_bounds[0], pixel_bounds[1]))
+        # extract the values
+        pixel_array = self.reader[pixel_bounds[0]:pixel_bounds[1], pixel_bounds[2]:pixel_bounds[3], self.index]
+        # determine the ortho coordinates for the pixel meshgrid
+        ortho_pixel_mesh = self.proj_helper.pixel_to_ortho(pixel_mesh)
+        pad = 0 if self._pad_value is None else self._pad_value
+        sp = LinearNDInterpolator(ortho_pixel_mesh, pixel_array, fill_value=pad)
+        # calculate at our desired points.
+
+        # determine the pixel coordinates for the ortho coordinates meshgrid
+        ortho_shape = (int(ortho_bounds[1]-ortho_bounds[0]), int(ortho_bounds[3]-ortho_bounds[2]))
+        ortho_cols, ortho_rows = numpy.meshgrid(numpy.range(ortho_bounds[2], ortho_bounds[3]),
+                                                numpy.range(ortho_bounds[0], ortho_bounds[1]))
+        out = sp((ortho_rows.flatten(), ortho_cols.flatten()))
+        return numpy.reshape(out, ortho_shape)
