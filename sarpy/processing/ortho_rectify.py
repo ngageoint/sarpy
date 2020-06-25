@@ -719,8 +719,27 @@ class OrthorectificationHelper(object):
                                                                   numpy.range(ortho_bounds[0], ortho_bounds[1]))
         return ortho_mesh
 
+    def _get_real_pixel_limits_and_bounds(self, pixel_bounds):
+        """
+        Fetch the real pixel limit from the nominal pixel limits - this just
+        factors in the image reader extent.
 
-    def get_orthorectified(self, bounds):
+        Parameters
+        ----------
+        pixel_bounds : numpy.ndarray
+
+        Returns
+        -------
+        (tuple, numpy.ndarray)
+        """
+
+        pixel_limits = self.reader.get_data_size_as_tuple()[self.index]
+        real_pix_bounds = numpy.array([
+            max(0, pixel_bounds[0]), min(pixel_limits[0], pixel_bounds[1]),
+            max(0, pixel_bounds[2]), min(pixel_limits[1], pixel_bounds[3])], dtype=numpy.int32)
+        return pixel_limits, real_pix_bounds
+
+    def get_orthorectified_for_bounds(self, bounds):
         """
         Determine the array corresponding to the given array bounds (in ortho-rectified
         pixel coordinates).
@@ -739,6 +758,27 @@ class OrthorectificationHelper(object):
         """
 
         raise NotImplementedError
+
+    def get_orthorectified_for_object(self, coordinates):
+        """
+        Determine the ortho-rectified rectangular array values, which will bound
+        the given object - with coordinates assumed expressed in pixel space.
+
+        .. Note: This assumes that the coordinate transforms are convex transformations,
+            which should be safe for basic SAR associated transforms.
+
+        Parameters
+        ----------
+        coordinates : GeometryObject|numpy.ndarray|list|tuple
+            The coordinate system of the input will be assumed to be pixel space.
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+
+        bounds = self.get_orthorectification_bounds(coordinates)
+        return self.get_orthorectified_for_bounds(bounds)
 
 
 class NearestNeighborMethod(OrthorectificationHelper):
@@ -766,16 +806,13 @@ class NearestNeighborMethod(OrthorectificationHelper):
         super(NearestNeighborMethod, self).__init__(
             reader, index=index, proj_helper=proj_helper, complex_valued=complex_valued)
 
-    def get_orthorectified(self, bounds):
-        ortho_bounds, pixel_bounds = self._extract_bounds(bounds)
+    def get_orthorectified_for_bounds(self, bounds):
+        ortho_bounds, nominal_pixel_bounds = self._extract_bounds(bounds)
         ortho_array = self._initialize_workspace(ortho_bounds)
         # extract the values - ensure that things are within proper image bounds
-        pixel_limits = self.reader.get_data_size_as_tuple()[self.index]
-        real_pix_bounds = [
-            max(0, pixel_bounds[0]), min(pixel_limits[0], pixel_bounds[1]),
-            max(0, pixel_bounds[2]), min(pixel_limits[1], pixel_bounds[3])]
+        pixel_limits, pixel_bounds = self._get_real_pixel_limits_and_bounds(nominal_pixel_bounds)
         pixel_array = self.reader[
-            real_pix_bounds[0]:real_pix_bounds[1], real_pix_bounds[2]:real_pix_bounds[3], self.index]
+            pixel_bounds[0]:pixel_bounds[1], pixel_bounds[2]:pixel_bounds[3], self.index]
 
         # determine the pixel coordinates for the ortho coordinates meshgrid
         ortho_mesh = self._get_ortho_mesh(ortho_bounds)
@@ -784,10 +821,9 @@ class NearestNeighborMethod(OrthorectificationHelper):
         pixel_rows = pixel_mesh[:, :, 0]
         pixel_cols = pixel_mesh[:, :, 1]
         # determine the in bounds points
-        pixel_limits = self.reader.get_data_size_as_tuple()[self.index]
         mask = ((pixel_rows >= 0) & (pixel_rows < pixel_limits[0]) &
                 (pixel_cols >= 0) & (pixel_cols < pixel_limits[1]))
-        ortho_array[mask] = pixel_array[pixel_rows[mask]-real_pix_bounds[0], pixel_cols[mask]-real_pix_bounds[2]]
+        ortho_array[mask] = pixel_array[pixel_rows[mask]-pixel_bounds[0], pixel_cols[mask]-pixel_bounds[2]]
         return ortho_array
 
 
@@ -796,9 +832,9 @@ class BivariateSplineMethod(OrthorectificationHelper):
     Bivariate spline interpolation ortho-rectification method.
     """
 
-    __slots__ = ('_kx', '_ky')
+    __slots__ = ('_row_order', '_col_order')
 
-    def __init__(self, reader, index=0, proj_helper=None, complex_valued=False, kx=1, ky=1):
+    def __init__(self, reader, index=0, proj_helper=None, complex_valued=False, row_order=1, col_order=1):
         """
 
         Parameters
@@ -813,34 +849,62 @@ class BivariateSplineMethod(OrthorectificationHelper):
         complex_valued : bool
             Do we want complex values returned? If `False`, the magnitude values
             will be used.
-        kx : int
+        row_order : int
             The x or row degree for the spline.
-        ky : int
+        col_order : int
             The y or column degree for the spline.
         """
-
+        self._row_order = None
+        self._col_order = None
         if complex_valued:
             raise ValueError('BivariateSpline only supports real valued results for now.')
-        self._kx = kx
-        self._ky = ky
         super(BivariateSplineMethod, self).__init__(
             reader, index=index, proj_helper=proj_helper, complex_valued=complex_valued)
+        self.row_order = row_order
+        self.col_order = col_order
 
-    def get_orthorectified(self, bounds):
-        ortho_bounds, pixel_bounds = self._extract_bounds(bounds)
+    @property
+    def row_order(self):
+        """
+        int : The spline order for the x/row coordinate, where `1 <= row_order <= 5`.
+        """
+        return self._row_order
+
+    @row_order.setter
+    def row_order(self, value):
+        value = int(value)
+        if not (1 <= value <= 5):
+            raise ValueError('row_order must take value between 1 and 5.')
+        self._row_order = value
+
+    @property
+    def col_order(self):
+        """
+        int : The spline order for the y/col coordinate, where `1 <= col_order <= 5`.
+        """
+
+        return self._col_order
+
+    @col_order.setter
+    def col_order(self, value):
+        value = int(value)
+        if not (1 <= value <= 5):
+            raise ValueError('col_order must take value between 1 and 5.')
+        self._col_order = value
+
+    def get_orthorectified_for_bounds(self, bounds):
+        ortho_bounds, nominal_pixel_bounds = self._extract_bounds(bounds)
         ortho_array = self._initialize_workspace(ortho_bounds)
         # extract the values - ensure that things are within proper image bounds
-        pixel_limits = self.reader.get_data_size_as_tuple()[self.index]
-        real_pix_bounds = [
-            max(0, pixel_bounds[0]), min(pixel_limits[0], pixel_bounds[1]),
-            max(0, pixel_bounds[2]), min(pixel_limits[1], pixel_bounds[3])]
+        pixel_limits, pixel_bounds = self._get_real_pixel_limits_and_bounds(nominal_pixel_bounds)
         pixel_array = self.reader[
-            real_pix_bounds[0]:real_pix_bounds[1], real_pix_bounds[2]:real_pix_bounds[3], self.index]
+            pixel_bounds[0]:pixel_bounds[1], pixel_bounds[2]:pixel_bounds[3], self.index]
         # setup the spline
         sp = RectBivariateSpline(
-            numpy.range(real_pix_bounds[0], real_pix_bounds[1]),
-            numpy.range(real_pix_bounds[2], real_pix_bounds[3]), pixel_array,
-            kx=self._kx, ky=self._ky, s=0)
+            numpy.range(pixel_bounds[0], pixel_bounds[1]),
+            numpy.range(pixel_bounds[2], pixel_bounds[3]),
+            pixel_array,
+            kx=self.row_order, ky=self.col_order, s=0)
         # determine the pixel coordinates for the ortho coordinates meshgrid
         ortho_mesh = self._get_ortho_mesh(ortho_bounds)
         # determine the nearest neighbor pixel coordinates
@@ -848,7 +912,6 @@ class BivariateSplineMethod(OrthorectificationHelper):
         pixel_rows = pixel_mesh[:, :, 0]
         pixel_cols = pixel_mesh[:, :, 1]
         # determine the in bounds points
-        pixel_limits = self.reader.get_data_size_as_tuple()[self.index]
         mask = ((pixel_rows >= 0) & (pixel_rows < pixel_limits[0]) &
                 (pixel_cols >= 0) & (pixel_cols < pixel_limits[1]))
         ortho_array[mask] = sp(pixel_rows[mask], pixel_cols[mask])
