@@ -11,6 +11,11 @@ from sarpy.io.complex.base import BaseReader
 from sarpy.geometry.geocoords import geodetic_to_ecf, ecf_to_geodetic
 from sarpy.geometry.geometry_elements import GeometryObject
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
+#################
+# The projection methodology
 
 class ProjectionHelper(object):
     """
@@ -478,6 +483,8 @@ class PGProjection(ProjectionHelper):
     def pixel_to_ortho(self, pixel_coords):
         return self.ecf_to_ortho(self.sicd.project_image_to_ground(pixel_coords, projection_type='HAE'))
 
+################
+# The orthorectification methodology
 
 class OrthorectificationHelper(object):
     """
@@ -503,8 +510,6 @@ class OrthorectificationHelper(object):
             Do we want complex values returned? If `False`, the magnitude values
             will be used.
         pad_value : None|Any
-            The value to use for any portions of the array which extend beyond the
-            range of where the reader has data. `None` will default to 0.
         """
 
         self._pad_value = pad_value
@@ -554,6 +559,19 @@ class OrthorectificationHelper(object):
         """
 
         return self._out_dtype
+
+    @property
+    def pad_value(self):
+        """
+        The value to use for any portions of the array which extend beyond the range
+        of where the reader has data.
+        """
+
+        return self._pad_value
+
+    @pad_value.setter
+    def pad_value(self, value):
+        self._pad_value = value
 
     def set_index_and_proj_helper(self, index, proj_helper=None):
         """
@@ -751,8 +769,14 @@ class NearestNeighborMethod(OrthorectificationHelper):
     def get_orthorectified(self, bounds):
         ortho_bounds, pixel_bounds = self._extract_bounds(bounds)
         ortho_array = self._initialize_workspace(ortho_bounds)
-        # fetch the data
-        pixel_array = self.reader[pixel_bounds[0]:pixel_bounds[1], pixel_bounds[2]:pixel_bounds[3], self.index]
+        # extract the values - ensure that things are within proper image bounds
+        pixel_limits = self.reader.get_data_size_as_tuple()[self.index]
+        real_pix_bounds = [
+            max(0, pixel_bounds[0]), min(pixel_limits[0], pixel_bounds[1]),
+            max(0, pixel_bounds[2]), min(pixel_limits[1], pixel_bounds[3])]
+        pixel_array = self.reader[
+            real_pix_bounds[0]:real_pix_bounds[1], real_pix_bounds[2]:real_pix_bounds[3], self.index]
+
         # determine the pixel coordinates for the ortho coordinates meshgrid
         ortho_mesh = self._get_ortho_mesh(ortho_bounds)
         # determine the nearest neighbor pixel coordinates
@@ -763,7 +787,7 @@ class NearestNeighborMethod(OrthorectificationHelper):
         pixel_limits = self.reader.get_data_size_as_tuple()[self.index]
         mask = ((pixel_rows >= 0) & (pixel_rows < pixel_limits[0]) &
                 (pixel_cols >= 0) & (pixel_cols < pixel_limits[1]))
-        ortho_array[mask] = pixel_array[pixel_rows[mask], pixel_cols[mask]]
+        ortho_array[mask] = pixel_array[pixel_rows[mask]-real_pix_bounds[0], pixel_cols[mask]-real_pix_bounds[2]]
         return ortho_array
 
 
@@ -805,11 +829,17 @@ class BivariateSplineMethod(OrthorectificationHelper):
     def get_orthorectified(self, bounds):
         ortho_bounds, pixel_bounds = self._extract_bounds(bounds)
         ortho_array = self._initialize_workspace(ortho_bounds)
-        # extract the values
-        pixel_array = self.reader[pixel_bounds[0]:pixel_bounds[1], pixel_bounds[2]:pixel_bounds[3], self.index]
+        # extract the values - ensure that things are within proper image bounds
+        pixel_limits = self.reader.get_data_size_as_tuple()[self.index]
+        real_pix_bounds = [
+            max(0, pixel_bounds[0]), min(pixel_limits[0], pixel_bounds[1]),
+            max(0, pixel_bounds[2]), min(pixel_limits[1], pixel_bounds[3])]
+        pixel_array = self.reader[
+            real_pix_bounds[0]:real_pix_bounds[1], real_pix_bounds[2]:real_pix_bounds[3], self.index]
         # setup the spline
-        sp = RectBivariateSpline(numpy.range(
-            pixel_bounds[0], pixel_bounds[1]), numpy.range(pixel_bounds[2], pixel_bounds[3]), pixel_array,
+        sp = RectBivariateSpline(
+            numpy.range(real_pix_bounds[0], real_pix_bounds[1]),
+            numpy.range(real_pix_bounds[2], real_pix_bounds[3]), pixel_array,
             kx=self._kx, ky=self._ky, s=0)
         # determine the pixel coordinates for the ortho coordinates meshgrid
         ortho_mesh = self._get_ortho_mesh(ortho_bounds)
