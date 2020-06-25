@@ -169,8 +169,8 @@ class ProjectionHelper(object):
         Gets the `(ortho_row, ortho_column)` coordinates in the ortho-rectified
         system for the provided physical coordinates in `(Lat, Lon)` coordinates.
 
-        Note that the handling of ambiguity when handling the missing elevation
-        is likely methodology dependent.
+        Note that there is inherent ambiguity when handling the missing elevation,
+        and the effect is likely methodology dependent.
 
         Parameters
         ----------
@@ -186,11 +186,8 @@ class ProjectionHelper(object):
     def llh_to_ortho(self, llh_coords):
         """
         Gets the `(ortho_row, ortho_column)` coordinates in the ortho-rectified
-        system for the providednphysical coordinates in `(Lat, Lon)` or `(Lat, Lon, HAE)`
+        system for the providednphysical coordinates in `(Lat, Lon, HAE)`
         coordinates.
-
-        Note that the handling of ambiguity when provided coordinates are in `(Lat, Lon)`
-        form is likely methodology dependent.
 
         Parameters
         ----------
@@ -304,7 +301,7 @@ class PGProjection(ProjectionHelper):
     """
 
     __slots__ = (
-        '_reference_point', '_row_vector', '_col_vector')
+        '_reference_point', '_row_vector', '_col_vector', '_reference_hae')
 
     def __init__(self, sicd, reference_point=None, row_vector=None, col_vector=None,
                  row_spacing=None, col_spacing=None):
@@ -331,6 +328,7 @@ class PGProjection(ProjectionHelper):
         """
 
         self._reference_point = None
+        self._reference_hae = None
         self._row_vector = None
         self._col_vector = None
         super(PGProjection, self).__init__(sicd, row_spacing=row_spacing, col_spacing=col_spacing)
@@ -344,6 +342,14 @@ class PGProjection(ProjectionHelper):
         """
 
         return self._reference_point
+
+    @property
+    def reference_hae(self):
+        """
+        float: The reference point HAE.
+        """
+
+        return self._reference_hae
 
     def set_reference_point(self, reference_point):
         """
@@ -367,6 +373,8 @@ class PGProjection(ProjectionHelper):
                 and reference_point.size == 3):
             raise ValueError('reference_point must be a vector of size 3.')
         self._reference_point = reference_point
+        llh = ecf_to_geodetic(reference_point)
+        self._reference_hae = float(llh[2])
 
     @property
     def row_vector(self):
@@ -443,10 +451,29 @@ class PGProjection(ProjectionHelper):
             out = numpy.reshape(out, o_shape[:-1] + (2, ))
         return out
 
-    def ll_to_ortho(self, ll_coords):
+    def ll_to_ortho(self, ll_coords, hae=None):
+        """
+        Gets the `(ortho_row, ortho_column)` coordinates in the ortho-rectified
+        system for the provided physical coordinates in `(Lat, Lon)` coordinates,
+        where it is assumed that the altitude is constant amongst the points and
+        is either user provided or defaults to `reference_hae`.
+
+        Parameters
+        ----------
+        ll_coords : numpy.ndarray|list|tuple
+        hae : None|float
+            The constant HAE to use for these points, the default will be provided
+            by the `reference_hae` property.
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+
         ll_coords, o_shape = self._reshape(ll_coords, 2)
         llh_temp = numpy.zeros((ll_coords.shape[0], 3), dtype=numpy.float64)
         llh_temp[:, :2] = ll_coords
+        llh_temp[:, 2] = self.reference_hae if hae is None else hae
         llh_temp = numpy.reshape(llh_temp, o_shape[:-1]+ (3, ))
         return self.llh_to_ortho(llh_temp)
 
@@ -595,10 +622,10 @@ class OrthorectificationHelper(object):
             raise TypeError('Got unexpected type {} for proj_helper'.format(proj_helper))
         self._proj_helper = proj_helper
 
-    def get_orthorectification_bounds(self, coordinates):
+    def get_orthorectification_bounds_from_pixel_object(self, coordinates):
         """
         Determine the ortho-rectified (coordinate-system aligned) rectangular bounding
-        region which contains the provided coordinates.
+        region which contains the provided coordinates in pixel space.
 
         .. Note: This assumes that the coordinate transforms are convex transformations,
             which **should** be safe for SAR associated transforms.
@@ -623,6 +650,56 @@ class OrthorectificationHelper(object):
                  [pixel_bounds[siz], pixel_bounds[siz+1]],
                  [pixel_bounds[0], pixel_bounds[siz+1]]], dtype=numpy.float64)
         ortho = self.proj_helper.pixel_to_ortho(coordinates)
+        return self.proj_helper.get_pixel_array_bounds(ortho)
+
+    def get_orthorectification_bounds_from_latlon_object(self, coordinates):
+        """
+        Determine the ortho-rectified (coordinate-system aligned) rectangular bounding
+        region which contains the provided coordinates in lat/lon space.
+
+        .. Note: This neglects the non-convexity of lat/lon coordinate space.
+
+        Parameters
+        ----------
+        coordinates : GeometryObject|numpy.ndarray|list|tuple
+            The coordinate system of the input will be assumed to be lat/lon space.
+            **Note** a GeometryObject is expected to follow lon/lat ordering paradigm,
+            by convention.
+
+        Returns
+        -------
+        numpy.ndarray
+            Of the form `(row_min, row_max, col_min, col_max)`.
+        """
+
+        if isinstance(coordinates, GeometryObject):
+            # Note we assume a geometry object is using lon/lat ordering of coordinates.
+            bounds = coordinates.get_bbox()
+            if len(bounds) == 4:
+                coordinates = numpy.array(
+                    [[bounds[1], bounds[0]],
+                     [bounds[1], bounds[2]],
+                     [bounds[3], bounds[2]],
+                     [bounds[3], bounds[0]]], dtype=numpy.float64)
+            elif len(bounds) >= 6:
+                siz = int(len(bounds)/2)
+                coordinates = numpy.array(
+                    [[bounds[1], bounds[0], bounds[3]],
+                     [bounds[1], bounds[siz], bounds[3]],
+                     [bounds[3], bounds[2], bounds[3]],
+                     [bounds[3], bounds[0], bounds[3]]], dtype=numpy.float64)
+            else:
+                raise ValueError(
+                    'It is expected that the geometry object "coordinates" uses two '
+                    'or three dimensional coordinates. Got {} for a bounding box.'.format(bounds))
+        if not isinstance(coordinates, numpy.ndarray):
+            coordinates = numpy.array(coordinates, dtype=numpy.float64)
+        if coordinates.shape[-1] == 2:
+            ortho = self.proj_helper.ll_to_ortho(coordinates)
+        elif coordinates.shape[-1] == 3:
+            ortho = self.proj_helper.llh_to_ortho(coordinates)
+        else:
+            raise ValueError('Got unexpected shape for coordinates {}'.format(coordinates.shape))
         return self.proj_helper.get_pixel_array_bounds(ortho)
 
     def _validate_bounds(self, bounds):
@@ -812,7 +889,30 @@ class OrthorectificationHelper(object):
         numpy.ndarray
         """
 
-        bounds = self.get_orthorectification_bounds(coordinates)
+        bounds = self.get_orthorectification_bounds_from_pixel_object(coordinates)
+        return self.get_orthorectified_for_ortho_bounds(bounds)
+
+    def get_orthorectified_for_latlon_object(self, ll_coordinates):
+        """
+        Determine the ortho-rectified rectangular array values, which will bound
+        the given object - with coordinates expressed in lat/lon space.
+
+        .. Note: This assumes that the coordinate transforms are convex transformations,
+            which should be safe for basic SAR associated transforms.
+
+        Parameters
+        ----------
+        ll_coordinates : GeometryObject|numpy.ndarray|list|tuple
+            The coordinate system of the input will be assumed to be pixel space.
+            **Note** a GeometryObject is expected to follow lon/lat ordering paradigm,
+            by convention.
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+
+        bounds = self.get_orthorectification_bounds_from_latlon_object(ll_coordinates)
         return self.get_orthorectified_for_ortho_bounds(bounds)
 
 
