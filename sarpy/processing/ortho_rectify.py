@@ -601,7 +601,7 @@ class OrthorectificationHelper(object):
         region which contains the provided coordinates.
 
         .. Note: This assumes that the coordinate transforms are convex transformations,
-            which should be safe for basic SAR associated transforms.
+            which **should** be safe for SAR associated transforms.
 
         Parameters
         ----------
@@ -656,6 +656,28 @@ class OrthorectificationHelper(object):
             out[1:4:2] = (numpy.ceil(bounds[1]), numpy.ceil(bounds[3]))
             return out
 
+    def _bounds_to_rectangle(self, bounds):
+        """
+        From a bounds style array, construct the four corner coordinate array.
+
+        Parameters
+        ----------
+        bounds : numpy.ndarray|list|tuple
+
+        Returns
+        -------
+        (numpy.ndarray, numpy.ndarray)
+            The (integer valued) bounds and rectangular coordinates.
+        """
+
+        bounds = self._validate_bounds(bounds)
+        coords = numpy.zeros((4, 2), dtype=numpy.int32)
+        coords[0, :] = (bounds[0], bounds[2])
+        coords[1, :] = (bounds[1], bounds[2])
+        coords[2, :] = (bounds[1], bounds[3])
+        coords[3, :] = (bounds[0], bounds[3])
+        return bounds, coords
+
     def _extract_bounds(self, bounds):
         """
         Validate the bounds array of orthorectified pixel coordinates, and determine
@@ -671,12 +693,7 @@ class OrthorectificationHelper(object):
             The integer valued orthorectified and reader pixel coordinate bounds.
         """
 
-        bounds = self._validate_bounds(bounds)
-        coords = numpy.zeros((4, 2), dtype=numpy.int32)
-        coords[0, :] = (bounds[0], bounds[2])
-        coords[1, :] = (bounds[1], bounds[2])
-        coords[2, :] = (bounds[1], bounds[3])
-        coords[3, :] = (bounds[0], bounds[3])
+        bounds, coords = self._bounds_to_rectangle(bounds)
         pixel_coords = self.proj_helper.ortho_to_pixel(coords)
         pixel_bounds = self.proj_helper.get_pixel_array_bounds(pixel_coords)
         return bounds, self._validate_bounds(pixel_bounds)
@@ -739,10 +756,10 @@ class OrthorectificationHelper(object):
             max(0, pixel_bounds[2]), min(pixel_limits[1], pixel_bounds[3])], dtype=numpy.int32)
         return pixel_limits, real_pix_bounds
 
-    def get_orthorectified_for_bounds(self, bounds):
+    def get_orthorectified_for_ortho_bounds(self, bounds):
         """
-        Determine the array corresponding to the given array bounds (in ortho-rectified
-        pixel coordinates).
+        Determine the array corresponding to the array of bounds given in
+        ortho-rectified pixel coordinates.
 
         Parameters
         ----------
@@ -759,10 +776,28 @@ class OrthorectificationHelper(object):
 
         raise NotImplementedError
 
-    def get_orthorectified_for_object(self, coordinates):
+    def get_orthorectified_for_pixel_bounds(self, pixel_bounds):
+        """
+        Determine the array corresponding to the given array bounds given in reader
+        pixel coordinates.
+
+        Parameters
+        ----------
+        pixel_bounds : numpy.ndarray|list|tuple
+            Of the form `(row_min, row_max, col_min, col_max)`.
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+
+        pixel_bounds, pixel_rect = self._validate_bounds(pixel_bounds)
+        return self.get_orthorectified_for_pixel_object(pixel_rect)
+
+    def get_orthorectified_for_pixel_object(self, coordinates):
         """
         Determine the ortho-rectified rectangular array values, which will bound
-        the given object - with coordinates assumed expressed in pixel space.
+        the given object - with coordinates expressed in pixel space.
 
         .. Note: This assumes that the coordinate transforms are convex transformations,
             which should be safe for basic SAR associated transforms.
@@ -778,7 +813,7 @@ class OrthorectificationHelper(object):
         """
 
         bounds = self.get_orthorectification_bounds(coordinates)
-        return self.get_orthorectified_for_bounds(bounds)
+        return self.get_orthorectified_for_ortho_bounds(bounds)
 
 
 class NearestNeighborMethod(OrthorectificationHelper):
@@ -806,7 +841,7 @@ class NearestNeighborMethod(OrthorectificationHelper):
         super(NearestNeighborMethod, self).__init__(
             reader, index=index, proj_helper=proj_helper, complex_valued=complex_valued)
 
-    def get_orthorectified_for_bounds(self, bounds):
+    def get_orthorectified_for_ortho_bounds(self, bounds):
         ortho_bounds, nominal_pixel_bounds = self._extract_bounds(bounds)
         ortho_array = self._initialize_workspace(ortho_bounds)
         # extract the values - ensure that things are within proper image bounds
@@ -892,7 +927,7 @@ class BivariateSplineMethod(OrthorectificationHelper):
             raise ValueError('col_order must take value between 1 and 5.')
         self._col_order = value
 
-    def get_orthorectified_for_bounds(self, bounds):
+    def get_orthorectified_for_ortho_bounds(self, bounds):
         ortho_bounds, nominal_pixel_bounds = self._extract_bounds(bounds)
         ortho_array = self._initialize_workspace(ortho_bounds)
         # extract the values - ensure that things are within proper image bounds
