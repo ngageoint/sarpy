@@ -848,6 +848,8 @@ class NearestNeighborMethod(OrthorectificationHelper):
         pixel_limits, pixel_bounds = self._get_real_pixel_limits_and_bounds(nominal_pixel_bounds)
         pixel_array = self.reader[
             pixel_bounds[0]:pixel_bounds[1], pixel_bounds[2]:pixel_bounds[3], self.index]
+        if not self._complex_valued:
+            pixel_array = numpy.abs(pixel_array)
 
         # determine the pixel coordinates for the ortho coordinates meshgrid
         ortho_mesh = self._get_ortho_mesh(ortho_bounds)
@@ -885,9 +887,9 @@ class BivariateSplineMethod(OrthorectificationHelper):
             Do we want complex values returned? If `False`, the magnitude values
             will be used.
         row_order : int
-            The x or row degree for the spline.
+            The row degree for the spline.
         col_order : int
-            The y or column degree for the spline.
+            The column degree for the spline.
         """
         self._row_order = None
         self._col_order = None
@@ -934,6 +936,9 @@ class BivariateSplineMethod(OrthorectificationHelper):
         pixel_limits, pixel_bounds = self._get_real_pixel_limits_and_bounds(nominal_pixel_bounds)
         pixel_array = self.reader[
             pixel_bounds[0]:pixel_bounds[1], pixel_bounds[2]:pixel_bounds[3], self.index]
+        if not self._complex_valued:
+            pixel_array = numpy.abs(pixel_array)
+
         # setup the spline
         sp = RectBivariateSpline(
             numpy.range(pixel_bounds[0], pixel_bounds[1]),
