@@ -48,7 +48,7 @@ except ImportError:
     sphinx_args = {}
 
 
-install_requires = ['numpy>=1.9.0', 'scipy']
+install_requires = ['numpy>=1.10.0', 'scipy']
 tests_require = []
 if sys.version_info[0] < 3:
     tests_require.append('unittest2')
