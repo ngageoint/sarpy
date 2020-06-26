@@ -36,7 +36,7 @@ from .sicd_elements.RMA import RMAType, INCAType
 from .sicd_elements.Radiometric import RadiometricType
 from ...geometry import point_projection
 from .base import BaseChipper, BaseReader, string_types
-from .utils import get_seconds, fit_time_coa_polynomial, fit_position_xvalidation
+from .utils import get_seconds, fit_time_coa_polynomial, fit_position_xvalidation, parse_timestring
 
 __classification__ = "UNCLASSIFIED"
 __author__ = ("Thomas McCullough", "Jarred Barber", "Wade Schwartzkopf")
@@ -184,7 +184,7 @@ class CSKDetails(object):
                                                               ModeType=mode_type))
 
         def get_image_creation():  # type: () -> ImageCreationType
-            return ImageCreationType(DateTime=numpy.datetime64(h5_dict['Product Generation UTC'], 'ns'))
+            return ImageCreationType(DateTime=parse_timestring(h5_dict['Product Generation UTC'], precision='ns'))
 
         def get_grid():  # type: () -> GridType
             if h5_dict['Projection ID'] == 'SLANT RANGE/AZIMUTH':
@@ -262,10 +262,10 @@ class CSKDetails(object):
         # some common use parameters
         center_frequency = h5_dict['Radar Frequency']
         # relative times in csk are wrt some reference time - for sicd they should be relative to start time
-        collect_start = numpy.datetime64(h5_dict['Scene Sensing Start UTC'], 'ns')
-        collect_end = numpy.datetime64(h5_dict['Scene Sensing Stop UTC'], 'ns')
+        collect_start = parse_timestring(h5_dict['Scene Sensing Start UTC'], precision='ns')
+        collect_end = parse_timestring(h5_dict['Scene Sensing Stop UTC'], precision='ns')
         duration = get_seconds(collect_end, collect_start, precision='ns')
-        ref_time = numpy.datetime64(h5_dict['Reference UTC'], 'ns')
+        ref_time = parse_timestring(h5_dict['Reference UTC'], precision='ns')
         ref_time_offset = get_seconds(ref_time, collect_start, precision='ns')
 
         # assemble our pieces
@@ -315,8 +315,8 @@ class CSKDetails(object):
         az_ref_time, rg_ref_time, dop_poly_az, dop_poly_rg, dop_rate_poly_rg = self._get_dop_poly_details(h5_dict)
         center_frequency = h5_dict['Radar Frequency']
         # relative times in csk are wrt some reference time - for sicd they should be relative to start time
-        collect_start = numpy.datetime64(h5_dict['Scene Sensing Start UTC'], 'ns')
-        ref_time = numpy.datetime64(h5_dict['Reference UTC'], 'ns')
+        collect_start = parse_timestring(h5_dict['Scene Sensing Start UTC'], precision='ns')
+        ref_time = parse_timestring(h5_dict['Reference UTC'], precision='ns')
         ref_time_offset = get_seconds(ref_time, collect_start, precision='ns')
 
         def update_scp_prelim(sicd, band_name):

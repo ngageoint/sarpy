@@ -1315,9 +1315,14 @@ class XYZPolyType(Serializable, Arrayable):
         Y = self.Y(t)
         Z = self.Z(t)
         if numpy.ndim(X) == 0:
-            return numpy.array([X, Y, Z])
+            return numpy.array([X, Y, Z], dtype=X.dtype)
         else:
-            return numpy.stack((X, Y, Z), axis=-1)
+            o_shape = X.shape
+            X = numpy.reshape(X, (-1, 1))
+            Y = numpy.reshape(Y, (-1, 1))
+            Z = numpy.reshape(Z, (-1, 1))
+            out = numpy.hstack((X, Y, Z))
+            return numpy.reshape(out, o_shape + (3, ))
 
     def get_array(self, dtype=numpy.object):
         """Gets an array representation of the class instance.
