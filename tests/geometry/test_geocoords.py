@@ -4,7 +4,6 @@ import numpy
 from sarpy.geometry import geocoords
 
 from . import unittest
-import unittest
 
 
 llh = numpy.array([[0, 0, 0], [0, 180, 0]], dtype=numpy.float64)

@@ -20,7 +20,7 @@ except AttributeError:
 # Get the long description from the README file
 here = os.path.abspath(os.path.dirname(__file__))
 # Get the long description from the README file
-with open(os.path.join(here, 'README.rst'), 'r') as f:
+with open(os.path.join(here, 'README.md'), 'r') as f:
     long_description = f.read()
 
 
