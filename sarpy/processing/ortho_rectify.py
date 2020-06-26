@@ -7,12 +7,14 @@ import numpy
 from scipy.interpolate import RectBivariateSpline
 
 from sarpy.io.complex.sicd_elements.SICD import SICDType
-from sarpy.io.complex.base import BaseReader
+from sarpy.io.complex.base import BaseReader, string_types
+from sarpy.io.complex.sicd_elements.blocks import Poly2DType
 from sarpy.geometry.geocoords import geodetic_to_ecf, ecf_to_geodetic
 from sarpy.geometry.geometry_elements import GeometryObject
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
+
 
 #################
 # The projection methodology
@@ -510,6 +512,7 @@ class PGProjection(ProjectionHelper):
     def pixel_to_ortho(self, pixel_coords):
         return self.ecf_to_ortho(self.sicd.project_image_to_ground(pixel_coords, projection_type='HAE'))
 
+
 ################
 # The orthorectification methodology
 
@@ -519,9 +522,13 @@ class OrthorectificationHelper(object):
     reader object.
     """
 
-    __slots__ = ('_reader', '_index', '_proj_helper', '_out_dtype', '_complex_valued', '_pad_value')
+    __slots__ = (
+        '_reader', '_index', '_sicd', '_proj_helper', '_out_dtype', '_complex_valued',
+        '_pad_value', '_apply_radiometric', '_subtract_radiometric_noise',
+        '_rad_poly', '_noise_poly')
 
-    def __init__(self, reader, index=0, proj_helper=None, complex_valued=False, pad_value=None):
+    def __init__(self, reader, index=0, proj_helper=None, complex_valued=False,
+                 pad_value=None, apply_radiometric=None, subtract_radiometric_noise=False):
         """
 
         Parameters
@@ -537,20 +544,39 @@ class OrthorectificationHelper(object):
             Do we want complex values returned? If `False`, the magnitude values
             will be used.
         pad_value : None|Any
+            Value to use for any out-of-range pixels. Defaults to `0` if not provided.
+        apply_radiometric : None|str
+            **Only valid if `complex_valued=False`**. If provided, must be one of
+            `['RCS', 'Sigma0', 'Gamma0', 'Beta0']` (not case-sensitive). This will
+            apply the given radiometric scale factor to the array values.
+        subtract_radiometric_noise : bool
+            **Only has any effect if `apply_radiometric` is provided.** This indicates that
+            the radiometric noise should be subtracted prior to applying the given
+            radiometric scale factor.
         """
 
-        self._pad_value = pad_value
-        self._out_dtype = numpy.dtype('float32')
-        if complex_valued:
-            self._out_dtype = numpy.dtype('complex64')
         self._index = None
+        self._sicd = None
         self._proj_helper = None
+        self._apply_radiometric = None
+        self._subtract_radiometric_noise = None
+        self._rad_poly = None  # type: [None, Poly2DType]
+        self._noise_poly = None  # type: [None, Poly2DType]
+
+        self._pad_value = pad_value
+        self._complex_valued = complex_valued
+        if self._complex_valued:
+            self._out_dtype = numpy.dtype('complex64')
+        else:
+            self._out_dtype = numpy.dtype('float32')
         if not isinstance(reader, BaseReader):
             raise TypeError('Got unexpected type {} for reader'.format(type(reader)))
         if not reader.is_sicd_type:
             raise ValueError('Reader is required to have is_sicd_type property value equals True')
         self._reader = reader
         self.set_index_and_proj_helper(index, proj_helper=proj_helper)
+        self.apply_radiometric = apply_radiometric
+        self.subtract_radiometric_noise = subtract_radiometric_noise
 
     @property
     def reader(self):
@@ -568,6 +594,15 @@ class OrthorectificationHelper(object):
         int: The index for the desired sicd element.
         """
         return self._index
+
+    @property
+    def sicd(self):
+        # type: () -> SICDType
+        """
+        SICDType: The sicd structure.
+        """
+
+        return self._sicd
 
     @property
     def proj_helper(self):
@@ -615,12 +650,111 @@ class OrthorectificationHelper(object):
         """
 
         self._index = index
+        self._sicd = self.reader.get_sicds_as_tuple()[index]
+        self._is_radiometric_valid()
 
         if proj_helper is None:
-            proj_helper = PGProjection(self.reader.get_sicds_as_tuple()[index])
+            proj_helper = PGProjection(self._sicd)
         if not isinstance(proj_helper, ProjectionHelper):
             raise TypeError('Got unexpected type {} for proj_helper'.format(proj_helper))
         self._proj_helper = proj_helper
+
+    @property
+    def apply_radiometric(self):
+        # type: () -> Union[None, str]
+        """
+        None|str: The radiometric scale factor to apply in the result.
+        """
+
+        return self._apply_radiometric
+
+    @apply_radiometric.setter
+    def apply_radiometric(self, value):
+        if value is None:
+            self._apply_radiometric = None
+        elif isinstance(value, string_types):
+            val = value.upper()
+            allowed = ('RCS', 'SIGMA0', 'GAMMA0', 'BETA0')
+            if val not in allowed:
+                raise ValueError('Require that value is one of {}, got {}'.format(allowed, val))
+            self._apply_radiometric = val
+            self._is_radiometric_valid()
+        else:
+            raise TypeError('Got unexpected type {} for apply_radiometric'.format(type(value)))
+
+    @property
+    def subtract_radiometric_noise(self):
+        """
+        bool: Subtract the radiometric noise before scaling. This is only meaningful
+        if apply_radiometric is not `None`.
+        """
+
+        return self._subtract_radiometric_noise
+
+    @subtract_radiometric_noise.setter
+    def subtract_radiometric_noise(self, value):
+        if value:
+            self._subtract_radiometric_noise = True
+        else:
+            self._subtract_radiometric_noise = False
+        self._is_radiometric_valid()
+
+    def _is_radiometric_valid(self):
+        """
+        Checks whether the apply radiometric settings are valid.
+
+        Returns
+        -------
+        None
+        """
+
+        if self.apply_radiometric is None:
+            return  # nothing to be done
+        if self._complex_valued:
+            raise ValueError('apply_radiometric is not None, which requires real valued output.')
+        if self.sicd is None:
+            return  # nothing to be done, no sicd set (yet)
+
+        if self.sicd.Radiometric is None:
+            raise ValueError(
+                'apply_radiometric is {}, but sicd.Radiometric is unpopulated.'.format(self.apply_radiometric))
+
+        if self.apply_radiometric == 'RCS':
+            if self.sicd.Radiometric.RCSSFPoly is None:
+                raise ValueError('apply_radiometric is "RCS", but the sicd.Radiometric.RCSSFPoly is not populated.')
+            else:
+                self._rad_poly = self.sicd.Radiometric.RCSSFPoly
+        elif self.apply_radiometric == 'SIGMA0':
+            if self.sicd.Radiometric.SigmaZeroSFPoly is None:
+                raise ValueError('apply_radiometric is "SIGMA0", but the sicd.Radiometric.SigmaZeroSFPoly is not populated.')
+            else:
+                self._rad_poly = self.sicd.Radiometric.SigmaZeroSFPoly
+        elif self.apply_radiometric == 'GAMMA0':
+            if self.sicd.Radiometric.GammaZeroSFPoly is None:
+                raise ValueError('apply_radiometric is "GAMMA0", but the sicd.Radiometric.GammaZeroSFPoly is not populated.')
+            else:
+                self._rad_poly = self.sicd.Radiometric.GammaZeroSFPoly
+        elif self.apply_radiometric == 'BETA0':
+            if self.sicd.Radiometric.BetaZeroSFPoly is None:
+                raise ValueError('apply_radiometric is "BETA0", but the sicd.Radiometric.BetaZeroSFPoly is not populated.')
+            else:
+                self._rad_poly = self.sicd.Radiometric.BetaZeroSFPoly
+        else:
+            raise ValueError('Got unhandled value {} for apply_radiometric'.format(self.apply_radiometric))
+
+        if self.subtract_radiometric_noise:
+            if self.sicd.Radiometric.NoiseLevel is None:
+                raise ValueError(
+                    'subtract_radiometric_noise is set to True, but sicd.Radiometric.NoiseLevel is not populated.')
+            if self.sicd.Radiometric.NoiseLevel.NoisePoly is None:
+                raise ValueError(
+                    'subtract_radiometric_noise is set to True, but sicd.Radiometric.NoiseLevel.NoisePoly is not populated.')
+            if self.sicd.Radiometric.NoiseLevel.NoiseLevelType == 'RELATIVE':
+                raise ValueError(
+                    'subtract_radiometric_noise is set to True, but sicd.Radiometric.NoiseLevel.NoiseLevelType is "RELATIVE"')
+            self._noise_poly = self.sicd.Radiometric.NoiseLevel.NoisePoly
+        else:
+            self._noise_poly = None
 
     def get_orthorectification_bounds_from_pixel_object(self, coordinates):
         """
@@ -833,6 +967,34 @@ class OrthorectificationHelper(object):
             max(0, pixel_bounds[2]), min(pixel_limits[1], pixel_bounds[3])], dtype=numpy.int32)
         return pixel_limits, real_pix_bounds
 
+    def _apply_radiometric_params(self, pixel_rows, pixel_cols, value_array):
+        """
+        Apply the radiometric parameters to the solution array.
+
+        Parameters
+        ----------
+        pixel_rows : numpy.ndarray
+        pixel_cols : numpy.ndarray
+        value_array : numpy.ndarray
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+
+        if self._rad_poly is None:
+            return value_array
+
+        rows_meters = (pixel_rows - self.sicd.ImageData.SCPPixel.Row)*self.sicd.Grid.Row.SS
+        cols_meters = (pixel_cols - self.sicd.ImageData.SCPPixel.Col)*self.sicd.Grid.Col.SS
+
+        # do we need to extract the noise?
+        if self._noise_poly is not None:
+            noise = numpy.exp(10*self._noise_poly(rows_meters, cols_meters))  # convert from db.
+            return (value_array-noise)*self._rad_poly(rows_meters, cols_meters)
+        else:
+            return value_array*self._rad_poly(rows_meters, cols_meters)
+
     def get_orthorectified_for_ortho_bounds(self, bounds):
         """
         Determine the array corresponding to the array of bounds given in
@@ -957,6 +1119,8 @@ class NearestNeighborMethod(OrthorectificationHelper):
         pixel_mesh = numpy.cast[numpy.int32](numpy.round(self.proj_helper.ortho_to_pixel(ortho_mesh)))
         pixel_rows = pixel_mesh[:, :, 0]
         pixel_cols = pixel_mesh[:, :, 1]
+        # apply the radiometric parameters.
+        pixel_array = self._apply_radiometric_params(pixel_rows, pixel_cols, pixel_array)
         # determine the in bounds points
         mask = ((pixel_rows >= 0) & (pixel_rows < pixel_limits[0]) &
                 (pixel_cols >= 0) & (pixel_cols < pixel_limits[1]))
@@ -1054,5 +1218,10 @@ class BivariateSplineMethod(OrthorectificationHelper):
         # determine the in bounds points
         mask = ((pixel_rows >= 0) & (pixel_rows < pixel_limits[0]) &
                 (pixel_cols >= 0) & (pixel_cols < pixel_limits[1]))
-        ortho_array[mask] = sp(pixel_rows[mask], pixel_cols[mask])
+        result = sp(pixel_rows[mask], pixel_cols[mask])
+        if not self._complex_valued:
+            # avoid nonsensical values, which can happen with precision issues.
+            result[result < 0] = 0
+        # apply the radiometric parameters
+        ortho_array[mask] = self._apply_radiometric_params(pixel_rows[mask], pixel_cols[mask], result)
         return ortho_array
