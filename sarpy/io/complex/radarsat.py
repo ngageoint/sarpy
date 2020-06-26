@@ -33,7 +33,7 @@ from .sicd_elements.RMA import RMAType, INCAType
 from .sicd_elements.SCPCOA import SCPCOAType
 from .sicd_elements.Radiometric import RadiometricType, NoiseLevelType_
 from ...geometry import point_projection
-from .utils import get_seconds, fit_time_coa_polynomial, fit_position_xvalidation
+from .utils import get_seconds, fit_time_coa_polynomial, fit_position_xvalidation, parse_timestring
 
 __classification__ = "UNCLASSIFIED"
 __author__ = ("Thomas McCullough", "Khanh Ho", "Wade Schwartzkopf")
@@ -211,12 +211,13 @@ class RadarSatDetails(object):
         -------
         numpy.datetime64|datetime
         """
+
         if get_datetime:
             return datetime.strptime(
                 self._find('./sourceAttributes/rawDataStartTime').text,
                 '%Y-%m-%dT%H:%M:%S.%fZ')  # still a naive datetime?
         else:
-            return numpy.datetime64(self._find('./sourceAttributes/rawDataStartTime').text, 'us')
+            return parse_timestring(self._find('./sourceAttributes/rawDataStartTime').text)
 
     def _get_radar_params(self):
         # type: () -> ElementTree.Element
@@ -382,19 +383,23 @@ class RadarSatDetails(object):
                                       '/orbitInformation'
                                       '/stateVector')
         # convert to relevant numpy arrays for polynomial fitting
-        T = numpy.array([get_seconds(numpy.datetime64(state_vec.find('timeStamp').text, 'us'),
+        T = numpy.array([get_seconds(parse_timestring(state_vec.find('timeStamp').text),
                                      start_time, precision='us')
                          for state_vec in state_vectors], dtype=numpy.float64)
-        Pos = numpy.stack((
-            numpy.array([float(state_vec.find('xPosition').text) for state_vec in state_vectors], dtype=numpy.float64),
-            numpy.array([float(state_vec.find('yPosition').text) for state_vec in state_vectors], dtype=numpy.float64),
-            numpy.array([float(state_vec.find('zPosition').text) for state_vec in state_vectors], dtype=numpy.float64)),
-            axis=-1)
-        Vel = numpy.stack((
-            numpy.array([float(state_vec.find('xVelocity').text) for state_vec in state_vectors], dtype=numpy.float64),
-            numpy.array([float(state_vec.find('yVelocity').text) for state_vec in state_vectors], dtype=numpy.float64),
-            numpy.array([float(state_vec.find('zVelocity').text) for state_vec in state_vectors], dtype=numpy.float64)),
-            axis=-1)
+        Pos = numpy.hstack((
+            numpy.array([float(state_vec.find('xPosition').text) for state_vec in state_vectors],
+                        dtype=numpy.float64)[:, numpy.newaxis],
+            numpy.array([float(state_vec.find('yPosition').text) for state_vec in state_vectors],
+                        dtype=numpy.float64)[:, numpy.newaxis],
+            numpy.array([float(state_vec.find('zPosition').text) for state_vec in state_vectors],
+                        dtype=numpy.float64)[:, numpy.newaxis]))
+        Vel = numpy.hstack((
+            numpy.array([float(state_vec.find('xVelocity').text) for state_vec in state_vectors],
+                        dtype=numpy.float64)[:, numpy.newaxis],
+            numpy.array([float(state_vec.find('yVelocity').text) for state_vec in state_vectors],
+                        dtype=numpy.float64)[:, numpy.newaxis],
+            numpy.array([float(state_vec.find('zVelocity').text) for state_vec in state_vectors],
+                        dtype=numpy.float64)[:, numpy.newaxis]))
         P_x, P_y, P_z = fit_position_xvalidation(T, Pos, Vel, max_degree=6)
 
         return PositionType(ARPPoly=XYZPolyType(X=P_x, Y=P_y, Z=P_z))
@@ -617,12 +622,12 @@ class RadarSatDetails(object):
         doppler_bandwidth = float(self._find('./imageGenerationParameters'
                                              '/sarProcessingInformation'
                                              '/totalProcessedAzimuthBandwidth').text)
-        zero_dop_last_line = numpy.datetime64(self._find('./imageGenerationParameters'
+        zero_dop_last_line = parse_timestring(self._find('./imageGenerationParameters'
                                                          '/sarProcessingInformation'
-                                                         '/zeroDopplerTimeLastLine').text, 'us')
-        zero_dop_first_line = numpy.datetime64(self._find('./imageGenerationParameters'
+                                                         '/zeroDopplerTimeLastLine').text)
+        zero_dop_first_line = parse_timestring(self._find('./imageGenerationParameters'
                                                           '/sarProcessingInformation'
-                                                          '/zeroDopplerTimeFirstLine').text, 'us')
+                                                          '/zeroDopplerTimeFirstLine').text)
         if look > 1:  # SideOfTrack == 'L'
             # we explicitly want negative time order
             if zero_dop_first_line < zero_dop_last_line:
@@ -704,9 +709,9 @@ class RadarSatDetails(object):
             doppler_cent_ref_time = float(self._find('./imageGenerationParameters'
                                                      '/dopplerCentroid'
                                                      '/dopplerCentroidReferenceTime').text)
-            doppler_cent_time_est = numpy.datetime64(self._find('./imageGenerationParameters'
+            doppler_cent_time_est = parse_timestring(self._find('./imageGenerationParameters'
                                                                 '/dopplerCentroid'
-                                                                '/timeOfDopplerCentroidEstimate').text, 'us')
+                                                                '/timeOfDopplerCentroidEstimate').text)
         elif self.generation == 'RCM':
             doppler_cent_coeffs = numpy.array(
                 [float(entry) for entry in self._find('./dopplerCentroid'
@@ -716,9 +721,9 @@ class RadarSatDetails(object):
             doppler_cent_ref_time = float(self._find('./dopplerCentroid'
                                                      '/dopplerCentroidEstimate'
                                                      '/dopplerCentroidReferenceTime').text)
-            doppler_cent_time_est = numpy.datetime64(self._find('./dopplerCentroid'
+            doppler_cent_time_est = parse_timestring(self._find('./dopplerCentroid'
                                                                 '/dopplerCentroidEstimate'
-                                                                '/timeOfDopplerCentroidEstimate').text, 'us')
+                                                                '/timeOfDopplerCentroidEstimate').text)
         else:
             raise ValueError('unhandled generation {}'.format(self.generation))
 
