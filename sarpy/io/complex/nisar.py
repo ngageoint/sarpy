@@ -38,7 +38,7 @@ from .sicd_elements.Radiometric import RadiometricType, NoiseLevelType_
 from ...geometry import point_projection
 from .base import BaseReader, string_types
 from .csk import H5Chipper
-from .utils import get_seconds, fit_position_xvalidation, two_dim_poly_fit
+from .utils import get_seconds, fit_position_xvalidation, two_dim_poly_fit, parse_timestring
 
 __classification__ = "UNCLASSIFIED"
 __author__ = ("Thomas McCullough", "Jarred Barber", "Wade Schwartzkopf")
@@ -111,7 +111,7 @@ def _get_ref_time(str_in):
     prefix = 'seconds since '
     if not str_in.startswith(prefix):
         raise ValueError('Got unexpected reference time string - {}'.format(str_in))
-    return numpy.datetime64(str_in[len(prefix):], 'ns')
+    return parse_timestring(str_in[len(prefix):], precision='ns')
 
 
 def _get_string_version(value):
@@ -196,8 +196,8 @@ class NISARDetails(object):
             Start and end times and duration
         """
 
-        start = numpy.datetime64(_stringify(hf['/science/LSAR/identification/zeroDopplerStartTime'][()]))
-        end = numpy.datetime64(_stringify(hf['/science/LSAR/identification/zeroDopplerEndTime'][()]))
+        start = parse_timestring(_stringify(hf['/science/LSAR/identification/zeroDopplerStartTime'][()]), precision='ns')
+        end = parse_timestring(_stringify(hf['/science/LSAR/identification/zeroDopplerEndTime'][()]), precision='ns')
         duration = get_seconds(end, start, precision='ns')
         return start, end, duration
 
