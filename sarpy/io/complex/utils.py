@@ -111,6 +111,12 @@ def reverse_range(arg, siz):
     return (siz - 1) - start, (siz - 1) - stop, -step
 
 
+def parse_timestring(str_in, precision='us'):
+    if str_in.strip()[-1] == 'Z':
+        return numpy.datetime64(str_in[:-1], precision)
+    return numpy.datetime64(str_in, precision)
+
+
 def get_seconds(dt1, dt2, precision='us'):
     """
     The number of seconds between two numpy.datetime64 elements.
@@ -389,10 +395,10 @@ def fit_position_xvalidation(time_array, position_array, velocity_array, max_deg
         P_y = polynomial.polyfit(time_array, position_array[:, 1], deg=deg)
         P_z = polynomial.polyfit(time_array, position_array[:, 2], deg=deg)
         # extract estimated velocities
-        vel_est = numpy.stack(
-            (polynomial.polyval(time_array, polynomial.polyder(P_x)),
-             polynomial.polyval(time_array, polynomial.polyder(P_y)),
-             polynomial.polyval(time_array, polynomial.polyder(P_z))), axis=-1)
+        vel_est = numpy.hstack(
+            (polynomial.polyval(time_array, polynomial.polyder(P_x))[:, numpy.newaxis],
+             polynomial.polyval(time_array, polynomial.polyder(P_y))[:, numpy.newaxis],
+             polynomial.polyval(time_array, polynomial.polyder(P_z))[:, numpy.newaxis]))
         # check our velocity error
         vel_err = vel_est - velocity_array
         cur_vel_error = numpy.sum((vel_err * vel_err))

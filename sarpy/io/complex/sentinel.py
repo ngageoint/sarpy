@@ -33,7 +33,7 @@ from .sicd_elements.RMA import RMAType, INCAType
 from .sicd_elements.Radiometric import RadiometricType, NoiseLevelType_
 from ...geometry import point_projection
 from ...geometry.geocoords import geodetic_to_ecf
-from .utils import two_dim_poly_fit, get_seconds, get_im_physical_coords
+from .utils import two_dim_poly_fit, get_seconds, get_im_physical_coords, parse_timestring
 
 __classification__ = "UNCLASSIFIED"
 __author__ = ("Thomas McCullough", "Daniel Haverporth")
@@ -497,7 +497,7 @@ class SentinelDetails(object):
             Ys = numpy.empty(shp, dtype=numpy.float64)
             Zs = numpy.empty(shp, dtype=numpy.float64)
             for j, orbit in enumerate(orbit_list):
-                Ts[j] = get_seconds(numpy.datetime64(orbit.find('./time').text, 'us'), start, precision='us')
+                Ts[j] = get_seconds(parse_timestring(orbit.find('./time').text), start, precision='us')
                 Xs[j] = float(orbit.find('./position/x').text)
                 Ys[j] = float(orbit.find('./position/y').text)
                 Zs[j] = float(orbit.find('./position/z').text)
@@ -511,7 +511,7 @@ class SentinelDetails(object):
             dc_t0 = numpy.empty(shp, dtype=numpy.float64)
             data_dc_poly = []
             for j, dc_estimate in enumerate(dc_estimate_list):
-                dc_az_time[j] = get_seconds(numpy.datetime64(dc_estimate.find('./azimuthTime').text, 'us'),
+                dc_az_time[j] = get_seconds(parse_timestring(dc_estimate.find('./azimuthTime').text),
                                             start, precision='us')
                 dc_t0[j] = float(dc_estimate.find('./t0').text)
                 data_dc_poly.append(numpy.fromstring(dc_estimate.find('./dataDcPolynomial').text, sep=' '))
@@ -525,7 +525,7 @@ class SentinelDetails(object):
             az_t0 = numpy.empty(shp, dtype=numpy.float64)
             k_a_poly = []
             for j, az_fm_rate in enumerate(azimuth_fm_rate_list):
-                az_t[j] = get_seconds(numpy.datetime64(az_fm_rate.find('./azimuthTime').text, 'us'),
+                az_t[j] = get_seconds(parse_timestring(az_fm_rate.find('./azimuthTime').text),
                                       start, precision='us')
                 az_t0[j] = float(az_fm_rate.find('./t0').text)
                 if az_fm_rate.find('c0') is not None:
@@ -702,16 +702,16 @@ class SentinelDetails(object):
                                                         '/downlinkInformation'
                                                         '/firstLineSensingTime').text, DT_FMT)
             start = numpy.datetime64(start_dt, 'us')
-            stop = numpy.datetime64(root_node.find('./generalAnnotation'
+            stop = parse_timestring(root_node.find('./generalAnnotation'
                                                    '/downlinkInformationList'
                                                    '/downlinkInformation'
-                                                   '/lastLineSensingTime').text, 'us')
+                                                   '/lastLineSensingTime').text)
             set_core_name(out_sicd, start_dt, 0)
             set_timeline(out_sicd, start, get_seconds(stop, start, precision='us'))
             set_position(out_sicd, start)
 
-            azimuth_time_first_line = numpy.datetime64(
-                root_node.find('./imageAnnotation/imageInformation/productFirstLineUtcTime').text, 'us')
+            azimuth_time_first_line = parse_timestring(
+                root_node.find('./imageAnnotation/imageInformation/productFirstLineUtcTime').text)
             first_line_relative_start = get_seconds(azimuth_time_first_line, start, precision='us')
             update_rma_and_grid(out_sicd, first_line_relative_start, start)
             update_geodata(out_sicd)
