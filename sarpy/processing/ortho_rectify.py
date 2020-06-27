@@ -3,13 +3,15 @@
 SICD ortho-rectification methodology.
 """
 
+from typing import Union
+
 import numpy
 from scipy.interpolate import RectBivariateSpline
 
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.complex.base import BaseReader, string_types
 from sarpy.io.complex.sicd_elements.blocks import Poly2DType
-from sarpy.geometry.geocoords import geodetic_to_ecf, ecf_to_geodetic
+from sarpy.geometry.geocoords import geodetic_to_ecf, ecf_to_geodetic, wgs_84_norm
 from sarpy.geometry.geometry_elements import GeometryObject
 
 __classification__ = "UNCLASSIFIED"
@@ -35,7 +37,8 @@ class ProjectionHelper(object):
         sicd : SICDType
             The sicd object
         row_spacing : None|float
-            The row pixel spacing.
+            The row pixel spacing. If not provided, this will default to
+            `min(sicd.Grid.Row.SS, sicd.Grid.Col.SS).`
         col_spacing : None|float
             The column pixel spacing.
         """
@@ -82,7 +85,7 @@ class ProjectionHelper(object):
         """
 
         if value is None:
-            self._row_spacing = self.sicd.Grid.Row.SS
+            self._row_spacing = min(self.sicd.Grid.Row.SS, self.sicd.Grid.Col.SS)
         else:
             value = float(value)
             if value <= 0:
@@ -112,7 +115,7 @@ class ProjectionHelper(object):
         """
 
         if value is None:
-            self._col_spacing = self.sicd.Grid.Col.SS
+            self._col_spacing = min(self.sicd.Grid.Row.SS, self.sicd.Grid.Col.SS)
         else:
             value = float(value)
             if value <= 0:
@@ -160,8 +163,23 @@ class ProjectionHelper(object):
 
         Returns
         -------
-        offsets
-            numpy.ndarray
+        numpy.ndarray
+        """
+
+        raise NotImplementedError
+
+    def ecf_to_pixel(self, coords):
+        """
+        Gets the `(pixel_row, pixel_column)` coordinates for the provided physical
+        coordinates in ECF `(X, Y, Z)` coordinates.
+
+        Parameters
+        ----------
+        coords : numpy.ndarray|list|tuple
+
+        Returns
+        -------
+        numpy.ndarray
         """
 
         raise NotImplementedError
@@ -205,6 +223,21 @@ class ProjectionHelper(object):
     def pixel_to_ortho(self, pixel_coords):
         """
         Gets the ortho-rectified indices for the point(s) in pixel coordinates.
+
+        Parameters
+        ----------
+        pixel_coords : numpy.ndarray|list|tuple
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+
+        raise NotImplementedError
+
+    def pixel_to_ecf(self, pixel_coords):
+        """
+        Gets the ECF coordinates for the point(s) in pixel coordinates.
 
         Parameters
         ----------
@@ -420,8 +453,13 @@ class PGProjection(ProjectionHelper):
             if not (isinstance(vec, numpy.ndarray) and vec.ndim == 1 and vec.size == 3):
                 raise ValueError('{} vector must be a numpy.ndarray of dimension 1 and size 3.'.format(name))
             vec = numpy.copy(vec)
-            if perp is not None:
+            if perp is None:
+                pass
+            elif isinstance(perp, numpy.ndarray):
                 vec = vec - perp*(perp.dot(vec))
+            else:
+                for entry in perp:
+                    vec = vec - entry*(entry.dot(vec))
 
             norm = numpy.linalg.norm(vec)
             if norm == 0:
@@ -430,28 +468,37 @@ class PGProjection(ProjectionHelper):
                 vec = vec/norm  # avoid modifying row_vector def exterior to this class
             return vec
 
+        # get the vertical vector
+        vertical_norm = wgs_84_norm(self.reference_point)
+
         if row_vector is None:
             row_vector = self.sicd.Grid.Row.UVectECF.get_array()
         if col_vector is None:
             col_vector = self.sicd.Grid.Col.UVectECF.get_array()
 
-        self._row_vector = normalize(row_vector, 'row')
-        self._col_vector = normalize(col_vector, 'column', self._row_vector)
+        # make perpendicular to vertical norm
+        self._row_vector = normalize(row_vector, 'row', perp=vertical_norm)
+        # make perpendicular to vertical norm and row_vector
+        self._col_vector = normalize(col_vector, 'column', perp=(vertical_norm, self._row_vector))
 
     def ecf_to_ortho(self, coords):
         coords, o_shape = self._reshape(coords, 3)
-
         diff = coords - self.reference_point
         if len(o_shape) == 1:
             out = numpy.zeros((2, ), dtype=numpy.float64)
-            out[0] = diff.dot(self.row_vector)/self.row_spacing
-            out[1] = diff.dot(self.col_vector)/self.col_spacing
+            out[0] = numpy.sum(diff*self.row_vector)/self.row_spacing
+            out[1] = numpy.sum(diff*self.col_vector)/self.col_spacing
         else:
             out = numpy.zeros((coords.shape[0], 2), dtype=numpy.float64)
-            out[:, 0] = diff.dot(self.row_vector)/self.row_spacing
-            out[:, 1] = diff.dot(self.col_vector)/self.col_spacing
+            out[:, 0] = numpy.sum(diff*self.row_vector, axis=1)/self.row_spacing
+            out[:, 1] = numpy.sum(diff*self.col_vector, axis=1)/self.col_spacing
             out = numpy.reshape(out, o_shape[:-1] + (2, ))
         return out
+
+    def ecf_to_pixel(self, coords):
+        # ground to image
+        pixel, _, _ = self.sicd.project_ground_to_image(coords)
+        return pixel
 
     def ll_to_ortho(self, ll_coords, hae=None):
         """
@@ -482,35 +529,30 @@ class PGProjection(ProjectionHelper):
     def llh_to_ortho(self, llh_coords):
         llh_coords, o_shape = self._reshape(llh_coords, 3)
         ground = geodetic_to_ecf(llh_coords)
-        ground = numpy.reshape(ground, o_shape)
-        return self.ecf_to_ortho(ground)
+        return self.ecf_to_ortho(numpy.reshape(ground, o_shape))
 
     def ortho_to_ecf(self, ortho_coords):
         ortho_coords, o_shape = self._reshape(ortho_coords, 2)
         xs = ortho_coords[:, 0]*self.row_spacing
         ys = ortho_coords[:, 1]*self.col_spacing
         if xs.ndim == 0:
-            coords = self._reference_point + xs*self.row_vector + ys*self.col_vector
+            coords = self.reference_point + xs*self.row_vector + ys*self.col_vector
         else:
-            coords = self._reference_point + xs[:, numpy.newaxis]*self._row_vector + \
-                     ys[:, numpy.newaxis]*self._col_vector
-        return numpy.reshape(coords, o_shape)
+            coords = self.reference_point + numpy.outer(xs, self.row_vector) + \
+                     numpy.outer(ys, self.col_vector)
+        return numpy.reshape(coords, o_shape[:-1] + (3, ))
 
     def ortho_to_pixel(self, ortho_coords):
         ortho_coords, o_shape = self._reshape(ortho_coords, 2)
-        xs = ortho_coords[:, 0]*self.row_spacing
-        ys = ortho_coords[:, 1]*self.col_spacing
-        if xs.ndim == 0:
-            coords = self.sicd.project_ground_to_image(
-                self._reference_point + xs*self._row_vector + ys*self._col_vector)
-        else:
-            coords = self.sicd.project_ground_to_image(
-                self._reference_point + xs[:, numpy.newaxis]*self._row_vector +
-                ys[:, numpy.newaxis]*self._col_vector)
-        return numpy.reshape(coords, o_shape)
+        pixel, _, _ = self.sicd.project_ground_to_image(self.ortho_to_ecf(ortho_coords))
+        return numpy.reshape(pixel, o_shape)
 
     def pixel_to_ortho(self, pixel_coords):
-        return self.ecf_to_ortho(self.sicd.project_image_to_ground(pixel_coords, projection_type='HAE'))
+        return self.ecf_to_ortho(self.pixel_to_ecf(pixel_coords))
+
+    def pixel_to_ecf(self, pixel_coords):
+
+        return self.sicd.project_image_to_ground(pixel_coords, projection_type='PLANE')
 
 
 ################
@@ -663,7 +705,13 @@ class OrthorectificationHelper(object):
     def apply_radiometric(self):
         # type: () -> Union[None, str]
         """
-        None|str: The radiometric scale factor to apply in the result.
+        None|str: This indicates which, if any, of the radiometric scale factors
+        to apply in the result. If not `None`, this must be one of ('RCS', 'SIGMA0', 'GAMMA0', 'BETA0').
+
+        Setting to a value other than `None` will result in an error if 1.) `complex_valued` is `True`, or
+        2.) the appropriate corresponding element `sicd.Radiometric.RCSSFPoly`,
+        `sicd.Radiometric.SigmaZeroSFPoly`, `sicd.Radiometric.GammaZeroSFPoly`, or
+        `sicd.Radiometric.BetaZeroSFPoly` is not populated with a valid polynomial.
         """
 
         return self._apply_radiometric
@@ -685,8 +733,12 @@ class OrthorectificationHelper(object):
     @property
     def subtract_radiometric_noise(self):
         """
-        bool: Subtract the radiometric noise before scaling. This is only meaningful
-        if apply_radiometric is not `None`.
+        bool: This indicates the state for whether the radiometric noise should be subtracted
+        before scaling. This is only meaningful if apply_radiometric is not `None`.
+
+        Setting this to `True` will result in an error if the given sicd structure does not
+        have `sicd.Radiometric.NoiseLevel.NoisePoly` populated with a viable polynomial and
+        `sicd.Radiometric.NoiseLevel.NoiseLevelType != 'ABSOLUTE'`.
         """
 
         return self._subtract_radiometric_noise
@@ -755,6 +807,38 @@ class OrthorectificationHelper(object):
             self._noise_poly = self.sicd.Radiometric.NoiseLevel.NoisePoly
         else:
             self._noise_poly = None
+
+    def get_full_ortho_bounds(self):
+        """
+        Gets the bounds for the ortho-rectified coordinates for the full sicd image.
+
+        Returns
+        -------
+        numpy.ndarray
+            Of the form `[min row, max row, min column, max column]`.
+        """
+        full_coords = self.sicd.ImageData.get_full_vertex_data()
+        return self.get_orthorectification_bounds_from_pixel_object(full_coords)
+
+    def get_valid_ortho_bounds(self):
+        """
+        Gets the bounds for the ortho-rectified coordinates for the valid portion
+        of the sicd image. This is the outer bounds of the valid portion, so may contain
+        some portion which is not itself valid.
+
+        If sicd.ImageData.ValidData is not defined, then the full image bounds will
+        be returned.
+
+        Returns
+        -------
+        numpy.ndarray
+            Of the form `[min row, max row, min column, max column]`.
+        """
+
+        valid_coords = self.sicd.ImageData.get_valid_vertex_data()
+        if valid_coords is None:
+            valid_coords = self.sicd.ImageData.get_full_vertex_data()
+        return self.get_orthorectification_bounds_from_pixel_object(valid_coords)
 
     def get_orthorectification_bounds_from_pixel_object(self, coordinates):
         """
@@ -836,7 +920,8 @@ class OrthorectificationHelper(object):
             raise ValueError('Got unexpected shape for coordinates {}'.format(coordinates.shape))
         return self.proj_helper.get_pixel_array_bounds(ortho)
 
-    def _validate_bounds(self, bounds):
+    @staticmethod
+    def _validate_bounds(bounds):
         """
         Validate a pixel type bounds array.
 
@@ -927,7 +1012,8 @@ class OrthorectificationHelper(object):
         return numpy.zeros(out_shape, dtype=self.out_dtype) if self._pad_value is None else \
             numpy.full(out_shape, self._pad_value, dtype=self.out_dtype)
 
-    def _get_ortho_mesh(self, ortho_bounds):
+    @staticmethod
+    def _get_ortho_mesh(ortho_bounds):
         """
         Fetch a the grid of rows/columns coordinates for the desired rectangle.
 
@@ -943,8 +1029,8 @@ class OrthorectificationHelper(object):
 
         ortho_shape = (int(ortho_bounds[1]-ortho_bounds[0]), int(ortho_bounds[3]-ortho_bounds[2]), 2)
         ortho_mesh = numpy.zeros(ortho_shape, dtype=numpy.int32)
-        ortho_mesh[:, :, 1], ortho_mesh[:, :, 0] = numpy.meshgrid(numpy.range(ortho_bounds[2], ortho_bounds[3]),
-                                                                  numpy.range(ortho_bounds[0], ortho_bounds[1]))
+        ortho_mesh[:, :, 1], ortho_mesh[:, :, 0] = numpy.meshgrid(numpy.arange(ortho_bounds[2], ortho_bounds[3]),
+                                                                  numpy.arange(ortho_bounds[0], ortho_bounds[1]))
         return ortho_mesh
 
     def _get_real_pixel_limits_and_bounds(self, pixel_bounds):
@@ -1083,7 +1169,8 @@ class NearestNeighborMethod(OrthorectificationHelper):
     Nearest neighbor ortho-rectification method.
     """
 
-    def __init__(self, reader, index=0, proj_helper=None, complex_valued=False):
+    def __init__(self, reader, index=0, proj_helper=None, complex_valued=False,
+                 pad_value=None, apply_radiometric=None, subtract_radiometric_noise=False):
         """
 
         Parameters
@@ -1098,10 +1185,22 @@ class NearestNeighborMethod(OrthorectificationHelper):
         complex_valued : bool
             Do we want complex values returned? If `False`, the magnitude values
             will be used.
+        pad_value : None|Any
+            Value to use for any out-of-range pixels. Defaults to `0` if not provided.
+        apply_radiometric : None|str
+            **Only valid if `complex_valued=False`**. If provided, must be one of
+            `['RCS', 'Sigma0', 'Gamma0', 'Beta0']` (not case-sensitive). This will
+            apply the given radiometric scale factor to the array values.
+        subtract_radiometric_noise : bool
+            **Only has any effect if `apply_radiometric` is provided.** This indicates that
+            the radiometric noise should be subtracted prior to applying the given
+            radiometric scale factor.
         """
 
         super(NearestNeighborMethod, self).__init__(
-            reader, index=index, proj_helper=proj_helper, complex_valued=complex_valued)
+            reader, index=index, proj_helper=proj_helper, complex_valued=complex_valued,
+            pad_value=pad_value, apply_radiometric=apply_radiometric,
+            subtract_radiometric_noise=subtract_radiometric_noise)
 
     def get_orthorectified_for_ortho_bounds(self, bounds):
         ortho_bounds, nominal_pixel_bounds = self._extract_bounds(bounds)
@@ -1135,7 +1234,9 @@ class BivariateSplineMethod(OrthorectificationHelper):
 
     __slots__ = ('_row_order', '_col_order')
 
-    def __init__(self, reader, index=0, proj_helper=None, complex_valued=False, row_order=1, col_order=1):
+    def __init__(self, reader, index=0, proj_helper=None, complex_valued=False,
+                 pad_value=None, apply_radiometric=None, subtract_radiometric_noise=False,
+                 row_order=1, col_order=1):
         """
 
         Parameters
@@ -1150,17 +1251,30 @@ class BivariateSplineMethod(OrthorectificationHelper):
         complex_valued : bool
             Do we want complex values returned? If `False`, the magnitude values
             will be used.
+        pad_value : None|Any
+            Value to use for any out-of-range pixels. Defaults to `0` if not provided.
+        apply_radiometric : None|str
+            **Only valid if `complex_valued=False`**. If provided, must be one of
+            `['RCS', 'Sigma0', 'Gamma0', 'Beta0']` (not case-sensitive). This will
+            apply the given radiometric scale factor to the array values.
+        subtract_radiometric_noise : bool
+            **Only has any effect if `apply_radiometric` is provided.** This indicates that
+            the radiometric noise should be subtracted prior to applying the given
+            radiometric scale factor.
         row_order : int
             The row degree for the spline.
         col_order : int
             The column degree for the spline.
         """
+
         self._row_order = None
         self._col_order = None
         if complex_valued:
             raise ValueError('BivariateSpline only supports real valued results for now.')
         super(BivariateSplineMethod, self).__init__(
-            reader, index=index, proj_helper=proj_helper, complex_valued=complex_valued)
+            reader, index=index, proj_helper=proj_helper, complex_valued=complex_valued,
+            pad_value=pad_value, apply_radiometric=apply_radiometric,
+            subtract_radiometric_noise=subtract_radiometric_noise)
         self.row_order = row_order
         self.col_order = col_order
 
@@ -1204,10 +1318,10 @@ class BivariateSplineMethod(OrthorectificationHelper):
             pixel_array = numpy.abs(pixel_array)
 
         # setup the spline
+        row_arr = numpy.arange(pixel_bounds[0], pixel_bounds[1])
+        col_arr = numpy.arange(pixel_bounds[2], pixel_bounds[3])
         sp = RectBivariateSpline(
-            numpy.range(pixel_bounds[0], pixel_bounds[1]),
-            numpy.range(pixel_bounds[2], pixel_bounds[3]),
-            pixel_array,
+            row_arr, col_arr, pixel_array,
             kx=self.row_order, ky=self.col_order, s=0)
         # determine the pixel coordinates for the ortho coordinates meshgrid
         ortho_mesh = self._get_ortho_mesh(ortho_bounds)
@@ -1216,9 +1330,9 @@ class BivariateSplineMethod(OrthorectificationHelper):
         pixel_rows = pixel_mesh[:, :, 0]
         pixel_cols = pixel_mesh[:, :, 1]
         # determine the in bounds points
-        mask = ((pixel_rows >= 0) & (pixel_rows < pixel_limits[0]) &
-                (pixel_cols >= 0) & (pixel_cols < pixel_limits[1]))
-        result = sp(pixel_rows[mask], pixel_cols[mask])
+        mask = ((pixel_rows >= pixel_bounds[0]) & (pixel_rows < pixel_bounds[1]) &
+                (pixel_cols >= pixel_bounds[2]) & (pixel_cols < pixel_bounds[3]))
+        result = sp.ev(pixel_rows[mask], pixel_cols[mask])
         if not self._complex_valued:
             # avoid nonsensical values, which can happen with precision issues.
             result[result < 0] = 0
