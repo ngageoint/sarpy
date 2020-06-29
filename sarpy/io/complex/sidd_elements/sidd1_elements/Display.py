@@ -111,7 +111,7 @@ class ColorDisplayRemapType(Serializable, Arrayable):
 
         Parameters
         ----------
-        dtype : numpy.dtype
+        dtype : str|numpy.dtype|numpy.number
             numpy data type of the return
 
         Returns

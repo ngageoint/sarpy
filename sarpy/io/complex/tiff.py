@@ -333,11 +333,11 @@ class TiffDetails(object):
             The file type object
         tags : dict
             The tag data dictionary being populated
-        type_dtype : numpy.dtype|str
+        type_dtype : str|numpy.dtype
             The data type for the data element - note that endian-ness is included
-        count_dtype : numpy.dtype|str
+        count_dtype : str|numpy.dtype
             The data type for the number of directories - note that endian-ness is included
-        offset_dtype : numpy.dtype|str
+        offset_dtype : str|numpy.dtype
             The data type for the offset - note that endian-ness is included
         offset_size : int
             The size of the offset

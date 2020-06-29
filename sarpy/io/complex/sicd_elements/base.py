@@ -2008,7 +2008,7 @@ class Arrayable(object):
 
         Parameters
         ----------
-        dtype : numpy.dtype
+        dtype : str|numpy.dtype|numpy.number
             numpy data type of the return
 
         Returns
@@ -2125,7 +2125,7 @@ class SerializableArray(object):
 
         Parameters
         ----------
-        dtype : numpy.dtype
+        dtype : str|numpy.dtype|numpy.number|numpy.object
             numpy data type of the return.
         kwargs : keyword arguments for calls of the form child.get_array(**kwargs)
 
@@ -2139,7 +2139,7 @@ class SerializableArray(object):
             * If there is any error, then `None` is returned.
         """
 
-        if dtype in [numpy.object, 'object']:
+        if dtype in [numpy.object, 'object', numpy.dtype('object')]:
             return self._array
         else:
             # noinspection PyBroadException

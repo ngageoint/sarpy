@@ -61,7 +61,7 @@ def _format_mapping(frm):
 
     Returns
     -------
-    Tuple[numpy.dtype, int]
+    Tuple[numpy.number, int]
     """
 
     if frm == 'd':

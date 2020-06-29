@@ -190,7 +190,7 @@ def pedf(x):
 
     Parameters
     ----------
-    x : numnpy.ndarray
+    x : numpy.ndarray
 
     Returns
     -------

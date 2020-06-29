@@ -336,7 +336,7 @@ class PGProjection(ProjectionHelper):
     """
 
     __slots__ = (
-        '_reference_point', '_row_vector', '_col_vector', '_reference_hae')
+        '_reference_point', '_row_vector', '_col_vector', '_normal_vector', '_reference_hae')
 
     def __init__(self, sicd, reference_point=None, row_vector=None, col_vector=None,
                  row_spacing=None, col_spacing=None):
@@ -366,12 +366,14 @@ class PGProjection(ProjectionHelper):
         self._reference_hae = None
         self._row_vector = None
         self._col_vector = None
+        self._normal_vector = None
         super(PGProjection, self).__init__(sicd, row_spacing=row_spacing, col_spacing=col_spacing)
         self.set_reference_point(reference_point)
         self.set_row_and_col_vector(row_vector, col_vector)
 
     @property
     def reference_point(self):
+        # type: () -> numpy.ndarray
         """
         numpy.ndarray: The grid reference point.
         """
@@ -379,7 +381,17 @@ class PGProjection(ProjectionHelper):
         return self._reference_point
 
     @property
+    def normal_vector(self):
+        # type: () -> numpy.ndarray
+        """
+        numpy.ndarray: The normal vector.
+        """
+
+        return self._normal_vector
+
+    @property
     def reference_hae(self):
+        # type: () -> float
         """
         float: The reference point HAE.
         """
@@ -388,13 +400,13 @@ class PGProjection(ProjectionHelper):
 
     def set_reference_point(self, reference_point):
         """
-        Sets the reference point.
+        Sets the reference point, which must be provided in ECF coordinates.
 
         Parameters
         ----------
         reference_point : None|numpy.ndarray
-            The reference point (origin) of the planar grid. If None, the sicd.GeoData.SCP
-            will be used.
+            The reference point (origin) of the planar grid. If None, then the
+            `sicd.GeoData.SCP.ECF` will be used.
 
         Returns
         -------
@@ -408,6 +420,7 @@ class PGProjection(ProjectionHelper):
                 and reference_point.size == 3):
             raise ValueError('reference_point must be a vector of size 3.')
         self._reference_point = reference_point
+        self._normal_vector = wgs_84_norm(reference_point)
         llh = ecf_to_geodetic(reference_point)
         self._reference_hae = float(llh[2])
 
@@ -468,18 +481,15 @@ class PGProjection(ProjectionHelper):
                 vec = vec/norm  # avoid modifying row_vector def exterior to this class
             return vec
 
-        # get the vertical vector
-        vertical_norm = wgs_84_norm(self.reference_point)
-
         if row_vector is None:
             row_vector = self.sicd.Grid.Row.UVectECF.get_array()
         if col_vector is None:
             col_vector = self.sicd.Grid.Col.UVectECF.get_array()
 
-        # make perpendicular to vertical norm
-        self._row_vector = normalize(row_vector, 'row', perp=vertical_norm)
-        # make perpendicular to vertical norm and row_vector
-        self._col_vector = normalize(col_vector, 'column', perp=(vertical_norm, self._row_vector))
+        # make perpendicular to the plane normal vector
+        self._row_vector = normalize(row_vector, 'row', perp=self.normal_vector)
+        # make perpendicular to the plane normal vector and row_vector
+        self._col_vector = normalize(col_vector, 'column', perp=(self.normal_vector, self._row_vector))
 
     def ecf_to_ortho(self, coords):
         coords, o_shape = self._reshape(coords, 3)

@@ -41,7 +41,7 @@ class MultiSegmentChipper(BaseChipper):
             Two-dimensional array of [row start, row end, column start, column end]
         data_offsets : numpy.ndarray
             Offset for each image segment from the start of the file
-        data_type : numpy.dtype
+        data_type : str|numpy.dtype|numpy.number
             The data type of the underlying file
         symmetry : tuple
             See `BaseChipper` for description of 3 element tuple of booleans.
@@ -247,7 +247,7 @@ class ImageDetails(object):
         ----------
         bands : int
             The number of bands.
-        dtype : str|numpy.dtype
+        dtype : str|numpy.dtype|numpy.number
             The dtype for the associated chipper.
         complex_type : bool|callable
             The complex_type for the associated chipper.
