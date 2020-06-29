@@ -1,0 +1,107 @@
+WORKING WITH DI2E RESPOSITORY BASED ON A GITHUB REPOSITORY
+**********************************************************
+
+It is the intent that the DI2E repository is based on the GitHub repository (remaining up-to-date), 
+and contains extra features. Every effort should be made to put these new features into completely 
+separate files which exist only in the DI2E repo and not in the GitHub repo.
+
+
+
+
+1.) START WITH GitHub.com repository:
+-------------------------------------
+
+If you already have cloned the sarpy repository from GitHub.com - not DI2E - then just cd into 
+the repo and skip this step. If you have cloned the DI2E repository, delete it and clone from 
+GitHub, or my description of branch names will be inconsistent.
+
+>> git clone git@github.com:ngageoint/sarpy.git
+
+
+
+2.) Add the DI2E sarpy to the remotes for you repo
+--------------------------------------------------
+
+The pattern for adding a remote:
+>> git remote add <your remote name> <the remote url>
+
+In this case, I'll choose to call our remote di2e (for brevity):
+>> git remote add di2e ssh://git@bitbucket.di2e.net:7999/sarpy/sarpy.git
+
+
+
+3.) Verify that adding the remote worked
+----------------------------------------
+
+>> git remote
+  
+   di2e
+   origin
+
+
+4.) Make a branch which will correspond to you di2e master
+----------------------------------------------------------
+It is important to do the work for the di2e repository on a separate branch than work intended for 
+the GitHub repository.
+
+ONLY EVER PUSH A GIVEN BRANCH TO IT'S APPROPRIATE REPOSITORY!!!! Don't mix together the di2e commits 
+and github commits. When appropriate, merge a GitHub branch INTO a di2e repo - NEVER THE OTHER 
+DIRECTION.
+
+
+With the GitHub master branch checked out, create our di2e master branch location:
+
+>> git branch -b di2e_master
+
+
+Ensure that creation worked and you are in that branch:
+
+>> git status
+
+   On branch di2e_master
+
+
+
+5.) Pull the remote di2e master branch and merge into your current branch
+-------------------------------------------------------------------------
+NEVER PULL A DI2E bBRANCH INTO A GITHUB BRANCH!!!
+
+The appropriate pattern here is:
+
+>> git pull <remote> <remote branch>
+
+
+After ensuring that you have the appropriate di2e_master branch checked out:
+
+>> git pull di2e master
+
+
+
+6.) Push from this branch into the remote di2e master branch
+------------------------------------------------------------
+
+The appropriate pattern here is:
+
+>> git push <remote> <local branch>:<remote branch>
+
+
+The correct command in the situation outlined here based on the above:
+
+>> git push di2e di2e_master:master
+
+
+*******************
+Things To Remember:
+*******************
+
+Never merge a DI2E branch into a GitHub branch. The only merge direction should be 
+GitHub -> DI2E.
+
+
+Don't mix branches and remotes. Only push/pull a given local branch corresponding to 
+a single pre-determined remote. Name your DI2E branches according to a consistent and clearly 
+defined pattern (i.e. di2e prefix of suffix to the branch name) to avoid confusing yourself.
+
+
+Double check yourself before performing any merge or push so that you don't make a hasty 
+mistake. It is incredibly easy to do here.
