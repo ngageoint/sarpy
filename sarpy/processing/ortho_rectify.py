@@ -510,19 +510,16 @@ class PGProjection(ProjectionHelper):
         pixel, _, _ = self.sicd.project_ground_to_image(coords)
         return pixel
 
-    def ll_to_ortho(self, ll_coords, hae=None):
+    def ll_to_ortho(self, ll_coords):
         """
         Gets the `(ortho_row, ortho_column)` coordinates in the ortho-rectified
-        system for the provided physical coordinates in `(Lat, Lon)` coordinates,
-        where it is assumed that the altitude is constant amongst the points and
-        is either user provided or defaults to `reference_hae`.
+        system for the provided physical coordinates in `(Lat, Lon)` coordinates.
+        In this case, the missing altitude will be set to `reference_hae`, which
+        is imperfect.
 
         Parameters
         ----------
         ll_coords : numpy.ndarray|list|tuple
-        hae : None|float
-            The constant HAE to use for these points, the default will be provided
-            by the `reference_hae` property.
 
         Returns
         -------
@@ -532,7 +529,7 @@ class PGProjection(ProjectionHelper):
         ll_coords, o_shape = self._reshape(ll_coords, 2)
         llh_temp = numpy.zeros((ll_coords.shape[0], 3), dtype=numpy.float64)
         llh_temp[:, :2] = ll_coords
-        llh_temp[:, 2] = self.reference_hae if hae is None else hae
+        llh_temp[:, 2] = self.reference_hae
         llh_temp = numpy.reshape(llh_temp, o_shape[:-1]+ (3, ))
         return self.llh_to_ortho(llh_temp)
 
@@ -561,7 +558,6 @@ class PGProjection(ProjectionHelper):
         return self.ecf_to_ortho(self.pixel_to_ecf(pixel_coords))
 
     def pixel_to_ecf(self, pixel_coords):
-
         return self.sicd.project_image_to_ground(pixel_coords, projection_type='PLANE')
 
 
