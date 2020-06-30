@@ -10,8 +10,8 @@ implemented in other languages but have similar goals.
 
 Some sample SICD files can be found [here](https://github.com/ngageoint/six-library/wiki/Sample-SICDs).
 
-In addition to SICD, SarPy can also read COSMO-SkyMed, RADARSAT-2, Radar Constellation Mission (RCM),
-and Sentinel-1 SLC formats and convert them to SICD.
+In addition to SICD, SarPy can also read COSMO-SkyMed, RADARSAT-2, Radar Constellation 
+Mission (RCM), and Sentinel-1 SLC formats and convert them to SICD.
 
 Some examples of how to read complex SAR data using SarPy are provided in `docs/sarpy_example.py`.
 
@@ -26,9 +26,6 @@ The core library functionality depends only on `numpy >= 1.9.0` with some very m
 dependency on `scipy`. Support for reading Cosmo-Skymed data (contained in hdf5 files)
 requires the `h5py` package.
 
-For the new GUI capabilities described below, you additionally need `pillow` and
-`matplotlib`, which can be installed using conda or pip.
-
 Python 2.7
 ----------
 The development here has been geared towards Python 3.6 and above, but efforts have
@@ -40,10 +37,8 @@ For the new GUI capabilities described below, you additionally need `pillow` and
 `matplotlib`, as well as the `future` package (not to be confused with the more
 widely known `futures`), all of which can be installed using conda or pip.
 
-Significant Changes - March 2020
-================================
-Breaking Changes
-----------------
+Breaking Changes - March 2020
+-----------------------------
 In March 2020, the sarpy library has undergone a complete refactor, and the
 most profound changes have occurred around the particulars of the SICD meta-data
 structure (a completely object-oriented approach has been adopted), and some of the
@@ -56,21 +51,13 @@ uses.
 
 **Please do not hesitate to contact thomas.mccullough.ctr@nga.mil for assistance**
 
-GUI Capabilities
-----------------
+Associated GUI Capabilities moved to individual repositories - June 2020
+------------------------------------------------------------------------
 In addition to a complete refactor of the core capabilities, graphical user interface
-functionality has been introduced. The goal for this capability is to encourage
-fast and simple prototyping to enable research. Most notably, some of the most commonly
-used TASER capabilities from the MATLAB SAR Toolbox have been recreated using these GUI
-components.
-
-The decision was made to use [tkinter](https://docs.python.org/3/library/tkinter.html)
-for this capability. The particulars of this choice are entirely pragmatic. Most
-importantly, `tkinter` is well supported for essentially every architecture that
-Python is supported, and there are no complicating factors in licensing, configuration,
-or installation. For better or for worse, `tkinter` will work on essentially any
-government system with a viable Python environment right out of the box. The same
-cannot generally be said for the other popular GUI frameworks like QT, WX, or GTK.
+functionality were first introduced in March 2020. In June 2020, these 
+capabilities were split out of the sarpy repository into their own repositories 
+in the NGA project. See the [sarpy_apps](https://github.com/ngageoint/sarpy_apps), 
+which depends on [tk_builder](https://github.com/ngageoint/tk_builder). 
 
 Documentation
 -------------
