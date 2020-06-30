@@ -59,7 +59,7 @@ setup(name=parameters['__title__'],
       version=parameters['__version__'],
       description=parameters['__summary__'],
       long_description=long_description,
-      packages=find_packages(exclude=('tests', '*.tests', '*.tests.*')),
+      packages=find_packages(exclude=('*tests*', )),
       package_data={'sarpy': ['*.xsd']},  # Schema files for SICD standard(s)
       url=parameters['__url__'],
       author=parameters['__author__'],
