@@ -948,7 +948,9 @@ class OrthorectificationHelper(object):
             bounds = numpy.asarray(bounds)
 
         if bounds.ndim != 1 or bounds.size != 4:
-            raise ValueError('bounds is required to be one-dimensional and size 4.')
+            raise ValueError(
+                'bounds is required to be one-dimensional and size 4. '
+                'Got input shape {}'.format(bounds.shape))
         if bounds[0] >= bounds[1] or bounds[2] >= bounds[3]:
             raise ValueError(
                 'bounds is required to be of the form (min row, max row, min col, max col), '
@@ -1126,7 +1128,7 @@ class OrthorectificationHelper(object):
         numpy.ndarray
         """
 
-        pixel_bounds, pixel_rect = self._validate_bounds(pixel_bounds)
+        pixel_bounds, pixel_rect = self._bounds_to_rectangle(pixel_bounds)
         return self.get_orthorectified_for_pixel_object(pixel_rect)
 
     def get_orthorectified_for_pixel_object(self, coordinates):
