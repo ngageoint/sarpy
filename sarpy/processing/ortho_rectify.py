@@ -960,6 +960,53 @@ class OrthorectificationHelper(object):
             out[1:4:2] = (numpy.ceil(bounds[1]), numpy.ceil(bounds[3]))
             return out
 
+    @staticmethod
+    def _get_ortho_mesh(ortho_bounds):
+        """
+        Fetch a the grid of rows/columns coordinates for the desired rectangle.
+
+        Parameters
+        ----------
+        ortho_bounds : numpy.ndarray
+            Of the form `(min row, max row, min col, max col)`.
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+
+        ortho_shape = (int(ortho_bounds[1]-ortho_bounds[0]), int(ortho_bounds[3]-ortho_bounds[2]), 2)
+        ortho_mesh = numpy.zeros(ortho_shape, dtype=numpy.int32)
+        ortho_mesh[:, :, 1], ortho_mesh[:, :, 0] = numpy.meshgrid(numpy.arange(ortho_bounds[2], ortho_bounds[3]),
+                                                                  numpy.arange(ortho_bounds[0], ortho_bounds[1]))
+        return ortho_mesh
+
+    @staticmethod
+    def _get_mask(pixel_rows, pixel_cols, row_array, col_array):
+        """
+        Construct the valid mask. This is a helper function, and no error checking
+        will be performed for any issues.
+
+        Parameters
+        ----------
+        pixel_rows : numpy.ndarray
+            The array of pixel rows. Must be the same shape as `pixel_cols`.
+        pixel_cols : numpy.ndarray
+            The array of pixel columns. Must be the same shape as `pixel_rows'.
+        row_array : numpy.ndarray
+            The rows array used for bounds, must be one dimensional and monotonic.
+        col_array : numpy.ndarray
+            The columns array used for bounds, must be one dimensional and monotonic.
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+
+        mask = ((pixel_rows >= row_array[0]) & (pixel_rows < row_array[-1]) &
+                (pixel_cols >= col_array[0]) & (pixel_cols < col_array[-1]))
+        return mask
+
     def _bounds_to_rectangle(self, bounds):
         """
         From a bounds style array, construct the four corner coordinate array.
@@ -1030,27 +1077,6 @@ class OrthorectificationHelper(object):
         return numpy.zeros(out_shape, dtype=self.out_dtype) if self._pad_value is None else \
             numpy.full(out_shape, self._pad_value, dtype=self.out_dtype)
 
-    @staticmethod
-    def _get_ortho_mesh(ortho_bounds):
-        """
-        Fetch a the grid of rows/columns coordinates for the desired rectangle.
-
-        Parameters
-        ----------
-        ortho_bounds : numpy.ndarray
-            Of the form `(min row, max row, min col, max col)`.
-
-        Returns
-        -------
-        numpy.ndarray
-        """
-
-        ortho_shape = (int(ortho_bounds[1]-ortho_bounds[0]), int(ortho_bounds[3]-ortho_bounds[2]), 2)
-        ortho_mesh = numpy.zeros(ortho_shape, dtype=numpy.int32)
-        ortho_mesh[:, :, 1], ortho_mesh[:, :, 0] = numpy.meshgrid(numpy.arange(ortho_bounds[2], ortho_bounds[3]),
-                                                                  numpy.arange(ortho_bounds[0], ortho_bounds[1]))
-        return ortho_mesh
-
     def _get_real_pixel_limits_and_bounds(self, pixel_bounds):
         """
         Fetch the real pixel limit from the nominal pixel limits - this just
@@ -1099,69 +1125,63 @@ class OrthorectificationHelper(object):
         else:
             return value_array*self._rad_poly(rows_meters, cols_meters)
 
-    def _validate_row_col_values(self, row_array, col_array, value_array):
+    def _validate_row_col_values(self, row_array, col_array, value_array, value_is_flat=False):
         """
         Helper method for validating the types and shapes.
 
         Parameters
         ----------
         row_array : numpy.ndarray
-            The rows of the pixel array. Must be one-dimensional and have `row_array.size = value_array.shape[0]`.
-        col_array
-            The columns of the pixel array. Must be one-dimensional and have `col_array.size = value_array.shape[1]`.
-        value_array
-            The values array. If this has complex dtype and `complex_valued=False`, then the :func:`numpy.abs`
+            The rows of the pixel array. Must be one-dimensional, monotonically
+            increasing, and have `row_array.size = value_array.shape[0]`.
+        col_array : numpy.ndarray
+            The columns of the pixel array. Must be one-dimensional, monotonically
+            increasing, and have and have `col_array.size = value_array.shape[1]`.
+        value_array : numpy.ndarray
+            The values array, whihc must be two or three dimensional. If this has
+            complex dtype and `complex_valued=False`, then the :func:`numpy.abs`
             will be applied.
-
-        Returns
-        -------
-        None
-        """
-
-        if not isinstance(value_array, numpy.ndarray):
-            raise TypeError('value_array must be numpy.ndarray, got type {}'.format(type(value_array)))
-
-        if not isinstance(row_array, numpy.ndarray):
-            raise TypeError('row_array must be numpy.ndarray, got type {}'.format(type(row_array)))
-        if row_array.ndim != 1 or row_array.size != value_array.shape[0]:
-            raise ValueError(
-                'We must have row_array is one dimensional and row_array.size = value.array.shape[0]. '
-                'Got row_array.shape = {}, and value_array = {}'.format(row_array.shape, value_array.shape))
-
-        if not isinstance(col_array, numpy.ndarray):
-            raise TypeError('col_array must be numpy.ndarray, got type {}'.format(type(col_array)))
-        if col_array.ndim != 1 or col_array.size != value_array.shape[1]:
-            raise ValueError(
-                'We must have col_array is one dimensional and col_array.size = value.array.shape[1]. '
-                'Got col_array.shape = {}, and value_array = {}'.format(col_array.shape, value_array.shape))
-
-    def _get_orthrectified_from_array_single(self, ortho_bounds, row_array, col_array, value_array):
-        """
-        Construct the orthorecitified array covering the orthorectified region given by
-        `ortho_bounds` based on the `values_array`, which spans the pixel region defined by
-        `row_array` and `col_array`.
-
-        Parameters
-        ----------
-        ortho_bounds : numpy.ndarray
-            Determines the orthorectified bounds reguon, of the form `(min row, max row, min column, max column)`.
-        row_array : numpy.ndarray
-            The rows of the pixel array. Must be one-dimensional and have `row_array.size = value_array.shape[0]`.
-        col_array
-            The columns of the pixel array. Must be one-dimensional and have `col_array.size = value_array.shape[1]`.
-        value_array
-            The values array. If this has complex dtype and `complex_valued=False`, then the :func:`numpy.abs`
-            will be applied.
+        value_is_flat : bool
+            If `True`, then `value_array` must be exactly two-dimensional.
 
         Returns
         -------
         numpy.ndarray
         """
 
-        ortho_array = self._initialize_workspace(ortho_bounds)
+        # verify numpy arrays
+        if not isinstance(value_array, numpy.ndarray):
+            raise TypeError('value_array must be numpy.ndarray, got type {}'.format(type(value_array)))
+        if not isinstance(row_array, numpy.ndarray):
+            raise TypeError('row_array must be numpy.ndarray, got type {}'.format(type(row_array)))
+        if not isinstance(col_array, numpy.ndarray):
+            raise TypeError('col_array must be numpy.ndarray, got type {}'.format(type(col_array)))
 
-        raise NotImplementedError
+        # verify array shapes make sense
+        if value_array.ndim not in (2, 3):
+            raise ValueError('value_array must be two or three dimensional')
+        if row_array.ndim != 1 or row_array.size != value_array.shape[0]:
+            raise ValueError(
+                'We must have row_array is one dimensional and row_array.size = value.array.shape[0]. '
+                'Got row_array.shape = {}, and value_array = {}'.format(row_array.shape, value_array.shape))
+        if col_array.ndim != 1 or col_array.size != value_array.shape[1]:
+            raise ValueError(
+                'We must have col_array is one dimensional and col_array.size = value.array.shape[1]. '
+                'Got col_array.shape = {}, and value_array = {}'.format(col_array.shape, value_array.shape))
+        if value_is_flat and len(value_array.shape) != 2:
+            raise ValueError('value_array must be two-dimensional. Got shape {}'.format(value_array.shape))
 
+        # verify row_array/col_array are monotonically increasing
+        if numpy.any(numpy.diff(row_array.astype('float64')) <= 0):
+            raise ValueError('row_array must be monotonically increasing.')
+        if numpy.any(numpy.diff(col_array.astype('float64')) <= 0):
+            raise ValueError('col_array must be monotonically increasing.')
+
+        # address the dtype of value_array
+        if (not self._complex_valued) and numpy.iscomplexobj(value_array):
+            return numpy.abs(value_array)
+
+        return value_array
 
     def get_orthorectified_from_array(self, ortho_bounds, row_array, col_array, value_array):
         """
@@ -1175,14 +1195,17 @@ class OrthorectificationHelper(object):
         Parameters
         ----------
         ortho_bounds : numpy.ndarray
-            Determines the orthorectified bounds reguon, of the form `(min row, max row, min column, max column)`.
+            Determines the orthorectified bounds region, of the form
+            `(min row, max row, min column, max column)`.
         row_array : numpy.ndarray
-            The rows of the pixel array. Must be one-dimensional and have `row_array.size = value_array.shape[0]`.
+            The rows of the pixel array. Must be one-dimensional, monotonically increasing,
+            and have `row_array.size = value_array.shape[0]`.
         col_array
-            The columns of the pixel array. Must be one-dimensional and have `col_array.size = value_array.shape[1]`.
+            The columns of the pixel array. Must be one-dimensional, monotonically increasing,
+            and have `col_array.size = value_array.shape[1]`.
         value_array
-            The values array. If this has complex dtype and `complex_valued=False`, then the :func:`numpy.abs`
-            will be applied.
+            The values array. If this has complex dtype and `complex_valued=False`, then
+            the :func:`numpy.abs` will be applied.
 
         Returns
         -------
@@ -1190,17 +1213,15 @@ class OrthorectificationHelper(object):
         """
 
         # validate our inputs
-        self._validate_row_col_values(row_array, col_array, value_array)
-        if (not self._complex_valued) and numpy.iscomplexobj(value_array):
-            value_array = numpy.abs(value_array)
-        if len(value_array.shape) > 2:
+        value_array = self._validate_row_col_values(row_array, col_array, value_array, value_is_flat=False)
+        if value_array.ndim == 2:
+            return self._get_orthrectified_from_array_flat(ortho_bounds, row_array, col_array, value_array)
+        else:  # it must be three dimensional, as checked by _validate_row_col_values()
             ortho_array = self._initialize_workspace(ortho_bounds, final_dimension=value_array.shape[2])
             for i in range(value_array.shape[2]):
-                ortho_array[:, :, i] = self._get_orthrectified_from_array_single(
+                ortho_array[:, :, i] = self._get_orthrectified_from_array_flat(
                     ortho_bounds, row_array, col_array, value_array[:, :, i])
             return ortho_array
-        else:
-            return self._get_orthrectified_from_array_single(ortho_bounds, row_array, col_array, value_array)
 
     def get_orthorectified_for_ortho_bounds(self, bounds):
         """
@@ -1228,7 +1249,6 @@ class OrthorectificationHelper(object):
         row_arr = numpy.arange(pixel_bounds[0], pixel_bounds[1])
         col_arr = numpy.arange(pixel_bounds[2], pixel_bounds[3])
         return self.get_orthorectified_from_array(ortho_bounds, row_arr, col_arr, pixel_array)
-
 
     def get_orthorectified_for_pixel_bounds(self, pixel_bounds):
         """
@@ -1292,6 +1312,69 @@ class OrthorectificationHelper(object):
         bounds = self.get_orthorectification_bounds_from_latlon_object(ll_coordinates)
         return self.get_orthorectified_for_ortho_bounds(bounds)
 
+    def _setup_flat_workspace(self, ortho_bounds, row_array, col_array, value_array):
+        """
+        Helper method for setting up the flat workspace.
+
+        Parameters
+        ----------
+        ortho_bounds : numpy.ndarray
+            Determines the orthorectified bounds reguon, of the form
+            `(min row, max row, min column, max column)`.
+        row_array : numpy.ndarray
+            The rows of the pixel array. Must be one-dimensional, monotonically
+            increasing, and have `row_array.size = value_array.shape[0]`.
+        col_array : numpy.ndarray
+            The columns of the pixel array. Must be one-dimensional, monotonically
+            increasing, and have `col_array.size = value_array.shape[1]`.
+        value_array : numpy.ndarray
+            The values array. If this has complex dtype and `complex_valued=False`,
+            then the :func:`numpy.abs` will be applied.
+
+        Returns
+        -------
+        (numpy.ndarray, numpy.ndarray, numpy.ndarray, numpy.ndarray)
+        """
+
+        value_array = self._validate_row_col_values(row_array, col_array, value_array, value_is_flat=True)
+        # set up the results workspace
+        ortho_array = self._initialize_workspace(ortho_bounds)
+        # determine the pixel coordinates for the ortho coordinates meshgrid
+        ortho_mesh = self._get_ortho_mesh(ortho_bounds)
+        # determine the nearest neighbor pixel coordinates
+        pixel_mesh = self.proj_helper.ortho_to_pixel(ortho_mesh)
+        pixel_rows = pixel_mesh[:, :, 0]
+        pixel_cols = pixel_mesh[:, :, 1]
+        return value_array, pixel_rows, pixel_cols, ortho_array
+
+    def _get_orthrectified_from_array_flat(self, ortho_bounds, row_array, col_array, value_array):
+        """
+        Construct the orthorecitified array covering the orthorectified region given by
+        `ortho_bounds` based on the `values_array`, which spans the pixel region defined by
+        `row_array` and `col_array`.
+
+        Parameters
+        ----------
+        ortho_bounds : numpy.ndarray
+            Determines the orthorectified bounds reguon, of the form
+            `(min row, max row, min column, max column)`.
+        row_array : numpy.ndarray
+            The rows of the pixel array. Must be one-dimensional, monotonically
+            increasing, and have `row_array.size = value_array.shape[0]`.
+        col_array
+            The columns of the pixel array. Must be one-dimensional, monotonically
+            increasing, and have `col_array.size = value_array.shape[1]`.
+        value_array
+            The values array. If this has complex dtype and `complex_valued=False`,
+            then the :func:`numpy.abs` will be applied.
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+
+        raise NotImplementedError
+
 
 class NearestNeighborMethod(OrthorectificationHelper):
     """
@@ -1331,25 +1414,18 @@ class NearestNeighborMethod(OrthorectificationHelper):
             pad_value=pad_value, apply_radiometric=apply_radiometric,
             subtract_radiometric_noise=subtract_radiometric_noise)
 
-    def _get_orthrectified_from_array_single(self, ortho_bounds, row_array, col_array, value_array):
-        self._validate_row_col_values(row_array, col_array, value_array)
-        if len(value_array.shape) != 2:
-            raise ValueError('value_array must be two-dimensional. Got shape {}'.format(value_array.shape))
-
-        ortho_array = self._initialize_workspace(ortho_bounds)
-
-        # determine the pixel coordinates for the ortho coordinates meshgrid
-        ortho_mesh = self._get_ortho_mesh(ortho_bounds)
-        # determine the nearest neighbor pixel coordinates
-        pixel_mesh = numpy.cast[numpy.int32](numpy.round(self.proj_helper.ortho_to_pixel(ortho_mesh)))
-        pixel_rows = pixel_mesh[:, :, 0]
-        pixel_cols = pixel_mesh[:, :, 1]
-        # apply the radiometric parameters.
+    def _get_orthrectified_from_array_flat(self, ortho_bounds, row_array, col_array, value_array):
+        # setup the result workspace
+        value_array, pixel_rows, pixel_cols, ortho_array = self._setup_flat_workspace(
+            ortho_bounds, row_array, col_array, value_array)
+        # potentially apply the radiometric parameters to the value array
         pixel_array = self._apply_radiometric_params(pixel_rows, pixel_cols, value_array)
         # determine the in bounds points
-        mask = ((pixel_rows >= row_array[0]) & (pixel_rows < row_array[-1]) &
-                (pixel_cols >= col_array[0]) & (pixel_cols < col_array[-1]))
-        ortho_array[mask] = pixel_array[pixel_rows[mask]-row_array[0], pixel_cols[mask]-col_array[0]]
+        mask = self._get_mask(pixel_rows, pixel_cols, row_array, col_array)
+        # determine the nearest neighbors for our row/column indices
+        row_inds = numpy.digitize(pixel_rows[mask], row_array)
+        col_inds = numpy.digitize(pixel_cols[mask], col_array)
+        ortho_array[mask] = pixel_array[row_inds, col_inds]
         return ortho_array
 
 
@@ -1433,31 +1509,15 @@ class BivariateSplineMethod(OrthorectificationHelper):
             raise ValueError('col_order must take value between 1 and 5.')
         self._col_order = value
 
-    def _get_orthrectified_from_array_single(self, ortho_bounds, row_array, col_array, value_array):
-        self._validate_row_col_values(row_array, col_array, value_array)
-        if len(value_array.shape) != 2:
-            raise ValueError('value_array must be two-dimensional. Got shape {}'.format(value_array.shape))
-
-        ortho_array = self._initialize_workspace(ortho_bounds)
-
-        # determine the pixel coordinates for the ortho coordinates meshgrid
-        ortho_mesh = self._get_ortho_mesh(ortho_bounds)
-        # determine the nearest neighbor pixel coordinates
-        pixel_mesh = self.proj_helper.ortho_to_pixel(ortho_mesh)
-        pixel_rows = pixel_mesh[:, :, 0]
-        pixel_cols = pixel_mesh[:, :, 1]
-
-        sp = RectBivariateSpline(
-            row_array, col_array, value_array,
-            kx=self.row_order, ky=self.col_order, s=0)
-
+    def _get_orthrectified_from_array_flat(self, ortho_bounds, row_array, col_array, value_array):
+        # setup the result workspace
+        value_array, pixel_rows, pixel_cols, ortho_array = self._setup_flat_workspace(
+            ortho_bounds, row_array, col_array, value_array)
+        # set up our spline
+        sp = RectBivariateSpline(row_array, col_array, value_array, kx=self.row_order, ky=self.col_order, s=0)
         # determine the in bounds points
-        mask = ((pixel_rows >= row_array[0]) & (pixel_rows < row_array[-1]) &
-                (pixel_cols >= col_array[0]) & (pixel_cols < col_array[-1]))
+        mask = self._get_mask(pixel_rows, pixel_cols, row_array, col_array)
         result = sp.ev(pixel_rows[mask], pixel_cols[mask])
-        if not self._complex_valued:
-            # avoid nonsensical values, which can happen with precision issues.
-            result[result < 0] = 0
-        # apply the radiometric parameters
+        # potentially apply the radiometric parameters
         ortho_array[mask] = self._apply_radiometric_params(pixel_rows[mask], pixel_cols[mask], result)
         return ortho_array
