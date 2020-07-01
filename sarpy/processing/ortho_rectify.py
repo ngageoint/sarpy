@@ -1115,9 +1115,21 @@ class OrthorectificationHelper(object):
         if self._rad_poly is None:
             return value_array
 
-        rows_meters = (pixel_rows - self.sicd.ImageData.SCPPixel.Row)*self.sicd.Grid.Row.SS
-        cols_meters = (pixel_cols - self.sicd.ImageData.SCPPixel.Col)*self.sicd.Grid.Col.SS
-
+        if pixel_rows.shape == value_array.shape and pixel_cols.shape == value_array.shape:
+            rows_meters = (pixel_rows - self.sicd.ImageData.SCPPixel.Row)*self.sicd.Grid.Row.SS
+            cols_meters = (pixel_cols - self.sicd.ImageData.SCPPixel.Col)*self.sicd.Grid.Col.SS
+        elif value_array.ndim == 2 and \
+            (pixel_rows.ndim == 1 and pixel_rows.size == value_array.shape[0]) and \
+                (pixel_cols.ndim == 1 and pixel_cols.size == value_array.shape[1]):
+            cols_meters, rows_meters = numpy.meshgrid(
+                (pixel_cols - self.sicd.ImageData.SCPPixel.Col)*self.sicd.Grid.Col.SS,
+                (pixel_rows - self.sicd.ImageData.SCPPixel.Row) * self.sicd.Grid.Row.SS)
+        else:
+            raise ValueError(
+                'Either pixel_rows, pixel_cols, and value_array must all have the same shape, '
+                'or pixel_rows/pixel_cols are one dimensional and '
+                'value_array.shape = (pixel_rows.size, pixel_cols.size). Got shapes {}, {}, and '
+                '{}'.format(pixel_rows.shape, pixel_cols.shape, value_array.shape))
         # do we need to extract the noise?
         if self._noise_poly is not None:
             noise = numpy.exp(10*self._noise_poly(rows_meters, cols_meters))  # convert from db.
@@ -1419,13 +1431,13 @@ class NearestNeighborMethod(OrthorectificationHelper):
         value_array, pixel_rows, pixel_cols, ortho_array = self._setup_flat_workspace(
             ortho_bounds, row_array, col_array, value_array)
         # potentially apply the radiometric parameters to the value array
-        pixel_array = self._apply_radiometric_params(pixel_rows, pixel_cols, value_array)
+        value_array = self._apply_radiometric_params(row_array, col_array, value_array)
         # determine the in bounds points
         mask = self._get_mask(pixel_rows, pixel_cols, row_array, col_array)
         # determine the nearest neighbors for our row/column indices
         row_inds = numpy.digitize(pixel_rows[mask], row_array)
         col_inds = numpy.digitize(pixel_cols[mask], col_array)
-        ortho_array[mask] = pixel_array[row_inds, col_inds]
+        ortho_array[mask] = value_array[row_inds, col_inds]
         return ortho_array
 
 
@@ -1513,11 +1525,13 @@ class BivariateSplineMethod(OrthorectificationHelper):
         # setup the result workspace
         value_array, pixel_rows, pixel_cols, ortho_array = self._setup_flat_workspace(
             ortho_bounds, row_array, col_array, value_array)
+        value_array = self._apply_radiometric_params(row_array, col_array, value_array)
+
         # set up our spline
         sp = RectBivariateSpline(row_array, col_array, value_array, kx=self.row_order, ky=self.col_order, s=0)
         # determine the in bounds points
         mask = self._get_mask(pixel_rows, pixel_cols, row_array, col_array)
         result = sp.ev(pixel_rows[mask], pixel_cols[mask])
         # potentially apply the radiometric parameters
-        ortho_array[mask] = self._apply_radiometric_params(pixel_rows[mask], pixel_cols[mask], result)
+        ortho_array[mask] = result
         return ortho_array
