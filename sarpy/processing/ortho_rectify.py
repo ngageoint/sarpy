@@ -594,13 +594,13 @@ class OrthorectificationHelper(object):
         pad_value : None|Any
             Value to use for any out-of-range pixels. Defaults to `0` if not provided.
         apply_radiometric : None|str
-            **Only valid if `complex_valued=False`**. If provided, must be one of
-            `['RCS', 'Sigma0', 'Gamma0', 'Beta0']` (not case-sensitive). This will
-            apply the given radiometric scale factor to the array values.
+            If provided, must be one of `['RCS', 'Sigma0', 'Gamma0', 'Beta0']`
+            (not case-sensitive). This will apply the given radiometric scale factor
+            to calculated pixel power, with noise subtracted if `subtract_radiometric_noise = True`.
+            **Only valid if `complex_valued=False`**.
         subtract_radiometric_noise : bool
-            **Only has any effect if `apply_radiometric` is provided.** This indicates that
-            the radiometric noise should be subtracted prior to applying the given
-            radiometric scale factor.
+            This indicates whether the radiometric noise should be subtracted from
+            the pixel amplitude. **Only valid if `complex_valued=False`**.
         """
 
         self._index = None
@@ -622,9 +622,9 @@ class OrthorectificationHelper(object):
         if not reader.is_sicd_type:
             raise ValueError('Reader is required to have is_sicd_type property value equals True')
         self._reader = reader
-        self.set_index_and_proj_helper(index, proj_helper=proj_helper)
         self.apply_radiometric = apply_radiometric
         self.subtract_radiometric_noise = subtract_radiometric_noise
+        self.set_index_and_proj_helper(index, proj_helper=proj_helper)
 
     @property
     def reader(self):
@@ -700,6 +700,7 @@ class OrthorectificationHelper(object):
         self._index = index
         self._sicd = self.reader.get_sicds_as_tuple()[index]
         self._is_radiometric_valid()
+        self._is_radiometric_noise_valid()
 
         if proj_helper is None:
             proj_helper = PGProjection(self._sicd)
@@ -739,12 +740,13 @@ class OrthorectificationHelper(object):
     @property
     def subtract_radiometric_noise(self):
         """
-        bool: This indicates the state for whether the radiometric noise should be subtracted
-        before scaling. This is only meaningful if apply_radiometric is not `None`.
+        bool: This indicates whether the radiometric noise should be subtracted from
+        the pixel amplitude. If `apply_radiometric` is not `None`, then this subtraction
+        will happen applying the corresponding scaling.
 
-        Setting this to `True` will result in an error if the given sicd structure does not
-        have `sicd.Radiometric.NoiseLevel.NoisePoly` populated with a viable polynomial and
-        `sicd.Radiometric.NoiseLevel.NoiseLevelType != 'ABSOLUTE'`.
+        Setting this to `True` will **result in an error** unless the given sicd structure has
+        `sicd.Radiometric.NoiseLevel.NoisePoly` populated with a viable polynomial and
+        `sicd.Radiometric.NoiseLevel.NoiseLevelType == 'ABSOLUTE'`.
         """
 
         return self._subtract_radiometric_noise
@@ -755,7 +757,7 @@ class OrthorectificationHelper(object):
             self._subtract_radiometric_noise = True
         else:
             self._subtract_radiometric_noise = False
-        self._is_radiometric_valid()
+        self._is_radiometric_noise_valid()
 
     def _is_radiometric_valid(self):
         """
@@ -767,6 +769,7 @@ class OrthorectificationHelper(object):
         """
 
         if self.apply_radiometric is None:
+            self._rad_poly = None
             return  # nothing to be done
         if self._complex_valued:
             raise ValueError('apply_radiometric is not None, which requires real valued output.')
@@ -800,19 +803,37 @@ class OrthorectificationHelper(object):
         else:
             raise ValueError('Got unhandled value {} for apply_radiometric'.format(self.apply_radiometric))
 
-        if self.subtract_radiometric_noise:
-            if self.sicd.Radiometric.NoiseLevel is None:
-                raise ValueError(
-                    'subtract_radiometric_noise is set to True, but sicd.Radiometric.NoiseLevel is not populated.')
-            if self.sicd.Radiometric.NoiseLevel.NoisePoly is None:
-                raise ValueError(
-                    'subtract_radiometric_noise is set to True, but sicd.Radiometric.NoiseLevel.NoisePoly is not populated.')
-            if self.sicd.Radiometric.NoiseLevel.NoiseLevelType == 'RELATIVE':
-                raise ValueError(
-                    'subtract_radiometric_noise is set to True, but sicd.Radiometric.NoiseLevel.NoiseLevelType is "RELATIVE"')
-            self._noise_poly = self.sicd.Radiometric.NoiseLevel.NoisePoly
-        else:
+    def _is_radiometric_noise_valid(self):
+        """
+        Checks whether the subtract_radiometric_noise setting is valid.
+
+        Returns
+        -------
+        None
+        """
+
+        if not self.subtract_radiometric_noise:
             self._noise_poly = None
+            return  # nothing to be done
+        if self._complex_valued:
+            raise ValueError('subtract_radiometric_noise is True, which requires real valued output.')
+        if self.sicd is None:
+            return  # nothing to be done, no sicd set (yet)
+
+        # set the noise polynomial value
+        if self.sicd.Radiometric is None:
+            raise ValueError('subtract_radiometric_noise is True, but sicd.Radiometric is unpopulated.')
+
+        if self.sicd.Radiometric.NoiseLevel is None:
+            raise ValueError(
+                'subtract_radiometric_noise is set to True, but sicd.Radiometric.NoiseLevel is not populated.')
+        if self.sicd.Radiometric.NoiseLevel.NoisePoly is None:
+            raise ValueError(
+                'subtract_radiometric_noise is set to True, but sicd.Radiometric.NoiseLevel.NoisePoly is not populated.')
+        if self.sicd.Radiometric.NoiseLevel.NoiseLevelType == 'RELATIVE':
+            raise ValueError(
+                'subtract_radiometric_noise is set to True, but sicd.Radiometric.NoiseLevel.NoiseLevelType is "RELATIVE"')
+        self._noise_poly = self.sicd.Radiometric.NoiseLevel.NoisePoly
 
     def get_full_ortho_bounds(self):
         """
@@ -1112,7 +1133,8 @@ class OrthorectificationHelper(object):
         numpy.ndarray
         """
 
-        if self._rad_poly is None:
+        if self._rad_poly is None and self._noise_poly is None:
+            # nothing to be done.
             return value_array
 
         if pixel_rows.shape == value_array.shape and pixel_cols.shape == value_array.shape:
@@ -1130,12 +1152,19 @@ class OrthorectificationHelper(object):
                 'or pixel_rows/pixel_cols are one dimensional and '
                 'value_array.shape = (pixel_rows.size, pixel_cols.size). Got shapes {}, {}, and '
                 '{}'.format(pixel_rows.shape, pixel_cols.shape, value_array.shape))
-        # do we need to extract the noise?
+
+        # calculate pixel power, with noise subtracted if necessary
         if self._noise_poly is not None:
-            noise = numpy.exp(10*self._noise_poly(rows_meters, cols_meters))  # convert from db to power
-            return (value_array*value_array-noise)*self._rad_poly(rows_meters, cols_meters)
+            noise = numpy.exp(10 * self._noise_poly(rows_meters, cols_meters))  # convert from db to power
+            pixel_power = value_array*value_array - noise
+            del noise
         else:
-            return value_array*value_array*self._rad_poly(rows_meters, cols_meters)
+            pixel_power = value_array*value_array
+
+        if self._rad_poly is None:
+            return numpy.sqrt(pixel_power)
+        else:
+            return pixel_power*self._rad_poly(rows_meters, cols_meters)
 
     def _validate_row_col_values(self, row_array, col_array, value_array, value_is_flat=False):
         """
