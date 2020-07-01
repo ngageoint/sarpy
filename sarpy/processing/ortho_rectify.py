@@ -1132,10 +1132,10 @@ class OrthorectificationHelper(object):
                 '{}'.format(pixel_rows.shape, pixel_cols.shape, value_array.shape))
         # do we need to extract the noise?
         if self._noise_poly is not None:
-            noise = numpy.exp(10*self._noise_poly(rows_meters, cols_meters))  # convert from db.
-            return (value_array-noise)*self._rad_poly(rows_meters, cols_meters)
+            noise = numpy.exp(10*self._noise_poly(rows_meters, cols_meters))  # convert from db to power
+            return (value_array*value_array-noise)*self._rad_poly(rows_meters, cols_meters)
         else:
-            return value_array*self._rad_poly(rows_meters, cols_meters)
+            return value_array*value_array*self._rad_poly(rows_meters, cols_meters)
 
     def _validate_row_col_values(self, row_array, col_array, value_array, value_is_flat=False):
         """
