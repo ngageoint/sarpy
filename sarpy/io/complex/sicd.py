@@ -27,8 +27,8 @@ if sys.version_info[0] < 3:
     from cStringIO import StringIO
     NOT_FOUND_ERROR = IOError
 else:
-    from io import StringIO
     # noinspection PyUnresolvedReferences
+    from io import StringIO
     NOT_FOUND_ERROR = FileNotFoundError
 
 __classification__ = "UNCLASSIFIED"
@@ -171,6 +171,7 @@ class SICDDetails(NITFDetails):
             if subhead_bytes.startswith(b'DEXML_DATA_CONTENT'):
                 des_header = DataExtensionHeader.from_bytes(subhead_bytes, start=0)
                 des_bytes = self.get_des_bytes(i)
+                # noinspection PyBroadException
                 try:
                     root_node, xml_ns = parse_xml_from_string(des_bytes.decode('utf-8').strip())
                     if 'SIDD' in root_node.tag:  # namespace makes this ugly
@@ -353,7 +354,7 @@ class SICDReader(NITFReader):
 
         Parameters
         ----------
-        nitf_details : str|sarpy.io.complex.sicd_elements.SICD.SICDDetails
+        nitf_details : str|SICDDetails
             filename or SICDDetails object
         """
 
@@ -372,8 +373,14 @@ class SICDReader(NITFReader):
         #   note that this results in potentially noisy logging for troubled sicd files
         self._sicd_meta.is_valid(recursive=True)
 
+    @property
+    def nitf_details(self):
+        # type: () -> SICDDetails
+        # noinspection PyTypeChecker
+        return self._nitf_details
+
     def _find_segments(self):
-        return list(range(self._nitf_details.img_segment_offsets.size))
+        return list(range(self.nitf_details.img_segment_offsets.size))
 
     def _construct_chipper(self, segment, index):
         meta = self._sicd_meta
@@ -393,10 +400,10 @@ class SICDReader(NITFReader):
 
         rows_total = meta.ImageData.NumRows
         cols_total = meta.ImageData.NumCols
-        bounds = numpy.zeros((self._nitf_details.img_segment_offsets.size, 4), dtype=numpy.uint64)
+        bounds = numpy.zeros((self.nitf_details.img_segment_offsets.size, 4), dtype=numpy.uint64)
         p_row_start, p_row_end, p_col_start, p_col_end = None, None, None, None
-        for i, (rows, cols) in enumerate(zip(self._nitf_details.img_segment_rows,
-                                             self._nitf_details.img_segment_columns)):
+        for i, (rows, cols) in enumerate(zip(self.nitf_details.img_segment_rows,
+                                             self.nitf_details.img_segment_columns)):
             if i == 0:
                 cur_row_start, cur_row_end = 0, rows
                 cur_col_start, cur_col_end = 0, cols
@@ -416,9 +423,9 @@ class SICDReader(NITFReader):
             raise ValueError('Bounds final entry {} does not match sicd size '
                              '({}, {})'.format(bounds[-1], rows_total, cols_total))
 
-        offsets = self._nitf_details.img_segment_offsets.copy()
+        offsets = self.nitf_details.img_segment_offsets.copy()
         return MultiSegmentChipper(
-            self._nitf_details.file_name, bounds, offsets, dtype,
+            self.nitf_details.file_name, bounds, offsets, dtype,
             symmetry=(False, False, False), complex_type=complex_type,
             bands_ip=1)
 

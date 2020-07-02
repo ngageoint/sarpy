@@ -570,7 +570,7 @@ class SentinelDetails(object):
             sicd.Position = PositionType(ARPPoly=XYZPolyType(X=P_X, Y=P_Y, Z=P_Z))
 
         def update_rma_and_grid(sicd, first_line_relative_start, start, return_time_dets=False):
-            # type: (SICDType, Union[float, int], numpy.datetime64, bool) -> None|Tuple[float, float]
+            # type: (SICDType, Union[float, int], numpy.datetime64, bool) -> Union[None, Tuple[float, float]]
             center_frequency = get_center_frequency()
             # set TimeCAPoly
             ss_zd_s = get_image_col_spacing_zdt()
@@ -1064,3 +1064,16 @@ class SentinelReader(BaseReader):
         sicd_tuple = tuple(reader.sicd_meta for reader in readers)
         chipper_tuple = tuple(reader._chipper for reader in readers)
         super(SentinelReader, self).__init__(sicd_tuple, chipper_tuple)
+
+    @property
+    def sentinel_details(self):
+        # type: () -> SentinelDetails
+        """
+        SentinelDetails: The sentinel details object.
+        """
+
+        return self._sentinel_details
+
+    @property
+    def file_name(self):
+        return self.sentinel_details.file_name

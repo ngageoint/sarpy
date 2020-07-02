@@ -188,6 +188,10 @@ class NITFReader(BaseReader):
         # construct regularly
         super(NITFReader, self).__init__(sicd_meta, chippers)
 
+    @property
+    def file_name(self):
+        return self._nitf_details.file_name
+
     def _find_segments(self):
         """
         Determine the image segment collections.
