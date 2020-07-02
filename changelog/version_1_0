@@ -1,5 +1,6 @@
 # This details the important differences introduced in sarpy 1.0
 
+* .26 - Introduce file_name property for reader objects
 * .25 - Resolving usage of numpy.stack to properly allow numpy 1.9.
 * .24 - Bug fix for the CPHD version 0.3 GlobalType definition.
 * .23 - Moved the general tk_builder, and specific sarpy_apps into their own repos
