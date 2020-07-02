@@ -557,3 +557,16 @@ class CSKReader(BaseReader):
             sicds.append(sicd_data[band_name])
             chippers.append(H5Chipper(csk_details.file_name, '{}/SBI'.format(band_name), shape_dict[band_name], symmetry))
         super(CSKReader, self).__init__(tuple(sicds), tuple(chippers))
+
+    @property
+    def csk_details(self):
+        # type: () -> CSKDetails
+        """
+        CSKDetails: The details object.
+        """
+
+        return self._csk_details
+
+    @property
+    def file_name(self):
+        return self.csk_details.file_name

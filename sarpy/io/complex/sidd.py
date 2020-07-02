@@ -274,13 +274,19 @@ class SIDDReader(NITFReader):
         if not nitf_details.is_sidd:
             raise ValueError(
                 'The input file passed in appears to be a NITF 2.1 file that does not contain valid sidd metadata.')
-        self._sidd_meta = self._nitf_details.sidd_meta
+        self._sidd_meta = self.nitf_details.sidd_meta
         super(SIDDReader, self).__init__(nitf_details)
+
+    @property
+    def nitf_details(self):
+        # type: () -> SIDDDetails
+        # noinspection PyTypeChecker
+        return self._nitf_details
 
     def _find_segments(self):
         # determine image segmentation from image headers
         segments = [[] for sidd in self._sidd_meta]
-        for i, img_header in enumerate(self._nitf_details.img_headers):
+        for i, img_header in enumerate(self.nitf_details.img_headers):
             # skip anything but SAR for now (i.e. legend)
             if img_header.ICAT != 'SAR':
                 continue
@@ -300,7 +306,7 @@ class SIDDReader(NITFReader):
         return segments
 
     def _get_img_details(self, index):
-        img_header = self._nitf_details.img_headers[index]
+        img_header = self.nitf_details.img_headers[index]
         if img_header.IC != 'NC':
             raise ValueError('Image header at index {} has IC {}. No compression '
                              'is supported at this time.'.format(index, img_header.IC))
@@ -348,7 +354,7 @@ class SIDDReader(NITFReader):
         p_row_start, p_row_end, p_col_start, p_col_end = None, None, None, None
         for i, index in enumerate(segment):
             # populate bounds entry
-            offsets[i] = self._nitf_details.img_segment_offsets[index]
+            offsets[i] = self.nitf_details.img_segment_offsets[index]
             rows, cols, dtype, bands, lut = self._get_img_details(index)
             if i == 0:
                 cur_row_start, cur_row_end = 0, rows
@@ -385,7 +391,7 @@ class SIDDReader(NITFReader):
 
         complex_type = False if this_lut is None else rgb_lut_conversion(this_lut)
         return MultiSegmentChipper(
-            self._nitf_details.file_name, bounds, offsets, this_dtype,
+            self.file_name, bounds, offsets, this_dtype,
             symmetry=(False, False, False), complex_type=complex_type, bands_ip=this_bands)
 
 

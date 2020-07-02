@@ -807,11 +807,11 @@ class RadarSatDetails(object):
                 if self.generation == 'RCM':  # the rows are sub-sampled
                     start = int(comp_struct.find('./pixelFirstLutValue').text)
                     num_vs = int(comp_struct.find('./numberOfValues').text)
-                    step = int(comp_struct.find('./stepSize').text)
-                    if step > 0:
-                        rng_indices = numpy.arange(start, num_vs, step)
+                    t_step = int(comp_struct.find('./stepSize').text)
+                    if t_step > 0:
+                        rng_indices = numpy.arange(start, num_vs, t_step)
                     else:
-                        rng_indices = numpy.arange(start, -1, step)
+                        rng_indices = numpy.arange(start, -1, t_step)
                     coords_rg = coords_rg[rng_indices]
                 return numpy.atleast_2d(polynomial.polyfit(coords_rg, comp_values, 3))
 
@@ -993,3 +993,16 @@ class RadarSatReader(BaseReader):
         sicd_tuple = tuple(reader.sicd_meta for reader in readers)
         chipper_tuple = tuple(reader._chipper for reader in readers)
         super(RadarSatReader, self).__init__(sicd_tuple, chipper_tuple)
+
+    @property
+    def radarsat_details(self):
+        # type: () -> RadarSatDetails
+        """
+        RadarSarDetails: The radarsat/RCM details object.
+        """
+
+        return self._radar_sat_details
+
+    @property
+    def file_name(self):
+        return self.radarsat_details.file_name
