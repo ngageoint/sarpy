@@ -1063,10 +1063,7 @@ class SentinelReader(BaseReader):
 
         sicd_tuple = tuple(reader.sicd_meta for reader in readers)
         chipper_tuple = tuple(reader._chipper for reader in readers)
-<<<<<<< HEAD
         super(SentinelReader, self).__init__(sicd_tuple, chipper_tuple, is_sicd_type=True)
-=======
-        super(SentinelReader, self).__init__(sicd_tuple, chipper_tuple)
 
     @property
     def sentinel_details(self):
@@ -1080,4 +1077,3 @@ class SentinelReader(BaseReader):
     @property
     def file_name(self):
         return self.sentinel_details.file_name
->>>>>>> master

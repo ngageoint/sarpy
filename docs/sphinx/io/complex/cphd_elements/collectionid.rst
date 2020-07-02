@@ -1,7 +1,7 @@
-The sarpy.processing.csi objects
+The CPHD 1.0 CollectionID object
 ================================
 
-.. automodule:: sarpy.processing.csi
+.. automodule:: sarpy.io.complex.cphd_elements.CollectionID
     :members:
     :show-inheritance:
     :inherited-members:

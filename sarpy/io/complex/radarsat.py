@@ -992,10 +992,7 @@ class RadarSatReader(BaseReader):
         self._readers = tuple(readers)  # type: Tuple[TiffReader]
         sicd_tuple = tuple(reader.sicd_meta for reader in readers)
         chipper_tuple = tuple(reader._chipper for reader in readers)
-<<<<<<< HEAD
         super(RadarSatReader, self).__init__(sicd_tuple, chipper_tuple, is_sicd_type=True)
-=======
-        super(RadarSatReader, self).__init__(sicd_tuple, chipper_tuple)
 
     @property
     def radarsat_details(self):
@@ -1009,4 +1006,3 @@ class RadarSatReader(BaseReader):
     @property
     def file_name(self):
         return self.radarsat_details.file_name
->>>>>>> master

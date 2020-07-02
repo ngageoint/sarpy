@@ -1,4 +1,3 @@
-
 The Basic SICD building blocks
 ==============================================
 

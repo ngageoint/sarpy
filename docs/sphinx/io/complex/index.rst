@@ -1,5 +1,5 @@
 sarpy.io.complex elements
-=================================
+=========================
 
 .. toctree::
     :maxdepth: 2
@@ -9,7 +9,12 @@ sarpy.io.complex elements
     sicd
     sio
     csk
+    nisar
     radarsat
     sentinel
+    sidd
+    cphd
     sicd_elements/index
+    sidd_elements/index
+    cphd_elements/index
     base

@@ -376,14 +376,11 @@ class SICDReader(NITFReader):
     @property
     def nitf_details(self):
         # type: () -> SICDDetails
-<<<<<<< HEAD
         """
         SICDDetails: The SICD NITF details object.
         """
 
-=======
         # noinspection PyTypeChecker
->>>>>>> master
         return self._nitf_details
 
     def _find_segments(self):

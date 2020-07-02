@@ -1,7 +1,7 @@
-The sarpy.processing.normalize_sicd objects
+The sarpy.processing.ortho_rectify objects
 ===========================================
 
-.. automodule:: sarpy.processing.normalize_sicd
+.. automodule:: sarpy.processing.ortho_rectify
     :members:
     :show-inheritance:
     :inherited-members:

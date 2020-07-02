@@ -1,4 +1,3 @@
-
 The sicd reading/writing objects
 ==============================================
 
