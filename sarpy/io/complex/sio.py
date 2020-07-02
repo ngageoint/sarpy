@@ -314,7 +314,7 @@ class SIOReader(BaseReader):
         chipper = BIPChipper(sio_details.file_name, sio_details.data_type, sio_details.data_size,
                              symmetry=sio_details.symmetry, complex_type=complex_type,
                              data_offset=sio_details.data_offset)
-        super(SIOReader, self).__init__(sicd_meta, chipper)
+        super(SIOReader, self).__init__(sicd_meta, chipper, is_sicd_type=True)
 
     @property
     def sio_details(self):

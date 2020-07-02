@@ -91,7 +91,7 @@ class RangeAzimuthType(Serializable, Arrayable):
 
         Parameters
         ----------
-        dtype : numpy.dtype
+        dtype : str|numpy.dtype|numpy.number
             numpy data type of the return
 
         Returns
@@ -166,7 +166,7 @@ class AngleMagnitudeType(Serializable, Arrayable):
 
         Parameters
         ----------
-        dtype : numpy.dtype
+        dtype : str|numpy.dtype|numpy.number
             numpy data type of the return
 
         Returns
@@ -242,7 +242,7 @@ class RowColDoubleType(Serializable, Arrayable):
 
         Parameters
         ----------
-        dtype : numpy.dtype
+        dtype : str|numpy.dtype|numpy.number
             numpy data type of the return
 
         Returns
@@ -522,7 +522,7 @@ class BankCustomType(Serializable, Arrayable):
 
         Parameters
         ----------
-        dtype : numpy.dtype
+        dtype : str|numpy.dtype|numpy.number
             numpy data type of the return
 
         Returns
@@ -805,7 +805,7 @@ class LUTInfoType(Serializable, Arrayable):
 
         Parameters
         ----------
-        dtype : numpy.dtype
+        dtype : str|numpy.dtype|numpy.number
             numpy data type of the return
 
         Returns
