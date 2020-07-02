@@ -149,7 +149,9 @@ class NISARDetails(object):
             raise IOError('Path {} is not a file'.format(file_name))
 
         with h5py.File(file_name, 'r') as hf:
+            # noinspection PyBroadException
             try:
+                # noinspection PyUnusedLocal
                 gp = hf['/science/LSAR/SLC']
             except:
                 raise IOError('The hdf5 file does not have required path /science/LSAR/SLC')
@@ -716,3 +718,16 @@ class NISARReader(BaseReader):
             sicds.append(sicd_data[band_name])
             chippers.append(H5Chipper(nisar_details.file_name, band_name, shape_dict[band_name], symmetry))
         super(NISARReader, self).__init__(tuple(sicds), tuple(chippers))
+
+    @property
+    def nisar_details(self):
+        # type: () -> NISARDetails
+        """
+        NISARDetails: The nisar details object.
+        """
+
+        return self._nisar_details
+
+    @property
+    def file_name(self):
+        return self.nisar_details.file_name

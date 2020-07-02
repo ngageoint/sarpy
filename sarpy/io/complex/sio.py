@@ -316,6 +316,19 @@ class SIOReader(BaseReader):
                              data_offset=sio_details.data_offset)
         super(SIOReader, self).__init__(sicd_meta, chipper)
 
+    @property
+    def sio_details(self):
+        # type: () -> SIODetails
+        """
+        SIODetails: The sio details object.
+        """
+
+        return self._sio_details
+
+    @property
+    def file_name(self):
+        return self.sio_details.file_name
+
 
 #######
 #  The actual writing implementation
