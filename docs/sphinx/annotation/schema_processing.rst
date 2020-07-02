@@ -1,7 +1,7 @@
-The sarpy.annotate.schema_processing elements
+The sarpy.annotation.schema_processing elements
 =============================================
 
-.. automodule:: sarpy.annotate.schema_processing
+.. automodule:: sarpy.annotation.schema_processing
     :members:
     :show-inheritance:
     :inherited-members:

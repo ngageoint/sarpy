@@ -1,7 +1,7 @@
-The sarpy.annotate.annotate elements
+The sarpy.annotation.annotate elements
 ====================================
 
-.. automodule:: sarpy.annotate.annotate
+.. automodule:: sarpy.annotation.annotate
     :members:
     :show-inheritance:
     :inherited-members:
