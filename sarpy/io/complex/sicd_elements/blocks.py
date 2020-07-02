@@ -96,7 +96,7 @@ class XYZType(Serializable, Arrayable):
 
         Parameters
         ----------
-        dtype : numpy.dtype
+        dtype : str|numpy.dtype|numpy.number
             numpy data type of the return
 
         Returns
@@ -145,7 +145,7 @@ class LatLonType(Serializable, Arrayable):
         ----------
         order : str
             Determines array order. 'LAT' yields [Lat, Lon], and anything else yields [Lon, Lat].
-        dtype : numpy.dtype
+        dtype : str|numpy.dtype|numpy.number
             data type of the return
 
         Returns
@@ -347,7 +347,7 @@ class LatLonHAEType(LatLonType):
         ----------
         order : str
             Determines array order. 'LAT' yields [Lat, Lon, HAE], and anything else yields  [Lon, Lat, HAE].
-        dtype : numpy.dtype
+        dtype : str|numpy.dtype|numpy.number
             data type of the return
 
         Returns
@@ -682,7 +682,7 @@ class RowColType(Serializable, Arrayable):
 
         Parameters
         ----------
-        dtype : numpy.dtype
+        dtype : str|numpy.dtype|numpy.number
             numpy data type of the return
 
         Returns
@@ -967,7 +967,7 @@ class Poly1DType(Serializable, Arrayable):
 
         Parameters
         ----------
-        dtype : numpy.dtype
+        dtype : str|numpy.dtype|numpy.number
             numpy data type of the return
 
         Returns
@@ -1200,7 +1200,7 @@ class Poly2DType(Serializable, Arrayable):
 
         Parameters
         ----------
-        dtype : numpy.dtype
+        dtype : str|numpy.dtype|numpy.number
             numpy data type of the return
 
         Returns
@@ -1329,7 +1329,7 @@ class XYZPolyType(Serializable, Arrayable):
 
         Parameters
         ----------
-        dtype : numpy.dtype
+        dtype : str|numpy.dtype|numpy.number|numpy.object
             numpy data type of the return.
             If `object`, an array of Poly1DType objects is returned.
             Otherwise, an ndarray of shape (3, N) of coefficient vectors is returned.
@@ -1340,7 +1340,7 @@ class XYZPolyType(Serializable, Arrayable):
             array of the form `[X,Y,Z]`.
         """
 
-        if dtype in ['object', numpy.object]:
+        if dtype in ['object', numpy.object, numpy.dtype('object')]:
             return numpy.array([self.X, self.Y, self.Z], dtype=numpy.object)
         else:
             # return a 3 x N array of coefficients

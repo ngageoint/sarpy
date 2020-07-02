@@ -626,7 +626,7 @@ def _validate_im_points(im_points, sicd):
             (im_points[:, 0] < row_bounds[0]) | (im_points[:, 0] > row_bounds[1]) |
             (im_points[:, 1] < col_bounds[0]) | (im_points[:, 1] > col_bounds[1])):
         raise ValueError(
-            'The sicd is has {} rows and {} cols. image_to_ground projection effort '
+            'The sicd has {} rows and {} cols. image_to_ground projection effort '
             'requires row coordinates in the range {} and column coordinates '
             'in the range {}'.format(rows, cols, row_bounds, col_bounds))
     return im_points, orig_shape

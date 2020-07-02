@@ -41,7 +41,7 @@ class MultiSegmentChipper(BaseChipper):
             Two-dimensional array of [row start, row end, column start, column end]
         data_offsets : numpy.ndarray
             Offset for each image segment from the start of the file
-        data_type : numpy.dtype
+        data_type : str|numpy.dtype|numpy.number
             The data type of the underlying file
         symmetry : tuple
             See `BaseChipper` for description of 3 element tuple of booleans.
@@ -162,13 +162,15 @@ class NITFReader(BaseReader):
 
     __slots__ = ('_nitf_details', )
 
-    def __init__(self, nitf_details):
+    def __init__(self, nitf_details, is_sicd_type=False):
         """
 
         Parameters
         ----------
         nitf_details : NITFDetails
             The NITFDetails object
+        is_sicd_type : bool
+            Is this a sicd type reader, or otherwise?
         """
 
         if not isinstance(nitf_details, NITFDetails):
@@ -180,13 +182,24 @@ class NITFReader(BaseReader):
             sicd_meta = nitf_details.sicd_meta
         else:
             sicd_meta = None
+
+        # this will redundantly set the _sicd_meta value with the super call,
+        # but that is potentially appropriate here for the _find_segments() call.
         self._sicd_meta = sicd_meta
         # determine image segmentation from image headers
         segments = self._find_segments()
         # construct the chippers
         chippers = tuple(self._construct_chipper(segment, i) for i, segment in enumerate(segments))
         # construct regularly
-        super(NITFReader, self).__init__(sicd_meta, chippers)
+        super(NITFReader, self).__init__(sicd_meta, chippers, is_sicd_type=is_sicd_type)
+
+    @property
+    def nitf_details(self):
+        """
+        NITFDetails: The NITF details object.
+        """
+
+        return self._nitf_details
 
     @property
     def file_name(self):
@@ -238,7 +251,7 @@ class ImageDetails(object):
         ----------
         bands : int
             The number of bands.
-        dtype : str|numpy.dtype
+        dtype : str|numpy.dtype|numpy.number
             The dtype for the associated chipper.
         complex_type : bool|callable
             The complex_type for the associated chipper.

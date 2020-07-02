@@ -1,6 +1,5 @@
-
 The Basic SICD building blocks
-==============================================
+==============================
 
 .. automodule:: sarpy.io.complex.sicd_elements.base
     :members:

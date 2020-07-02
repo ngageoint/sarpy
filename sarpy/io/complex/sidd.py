@@ -274,8 +274,25 @@ class SIDDReader(NITFReader):
         if not nitf_details.is_sidd:
             raise ValueError(
                 'The input file passed in appears to be a NITF 2.1 file that does not contain valid sidd metadata.')
+        super(SIDDReader, self).__init__(nitf_details, is_sicd_type=False)
         self._sidd_meta = self.nitf_details.sidd_meta
-        super(SIDDReader, self).__init__(nitf_details)
+
+    @property
+    def nitf_details(self):
+        # type: () -> SIDDDetails
+        """
+        SIDDDetails: The SIDD NITF details object.
+        """
+
+        return self._nitf_details
+
+    @property
+    def sidd_meta(self):
+        """
+        None|List[sarpy.io.complex.sidd_elements.SIDD.SIDDType]: the sidd meta-data structure(s).
+        """
+
+        return self.nitf_details.sidd_meta
 
     @property
     def nitf_details(self):

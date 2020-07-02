@@ -61,7 +61,7 @@ def _format_mapping(frm):
 
     Returns
     -------
-    Tuple[numpy.dtype, int]
+    Tuple[numpy.number, int]
     """
 
     if frm == 'd':
@@ -475,7 +475,7 @@ class CPHDReader1_0(CPHDReader):
 
         self._cphd_details = _validate_cphd_details(cphd_details, version='1.0')
         chipper = self._create_chippers()
-        BaseReader.__init__(self, None, chipper)
+        BaseReader.__init__(self, None, chipper, is_sicd_type=False)
 
     @property
     def cphd_meta(self):
@@ -631,6 +631,7 @@ class CPHDReader1_0(CPHDReader):
         del mem_map
         return data
 
+
 class CPHDReader0_3(CPHDReader):
     """
     The CPHD version 0.3 reader.
@@ -651,7 +652,7 @@ class CPHDReader0_3(CPHDReader):
 
         self._cphd_details = _validate_cphd_details(cphd_details, version='0.3')
         chipper = self._create_chippers()
-        BaseReader.__init__(self, None, chipper)
+        BaseReader.__init__(self, None, chipper, is_sicd_type=False)
 
     @property
     def cphd_meta(self):

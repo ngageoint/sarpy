@@ -367,7 +367,7 @@ class SICDReader(NITFReader):
             raise ValueError(
                 'The input file passed in appears to be a NITF 2.1 file that does '
                 'not contain valid sicd metadata.')
-        super(SICDReader, self).__init__(nitf_details)
+        super(SICDReader, self).__init__(nitf_details, is_sicd_type=True)
 
         # to perform a preliminary check that the structure is valid:
         #   note that this results in potentially noisy logging for troubled sicd files
@@ -376,6 +376,10 @@ class SICDReader(NITFReader):
     @property
     def nitf_details(self):
         # type: () -> SICDDetails
+        """
+        SICDDetails: The SICD NITF details object.
+        """
+
         # noinspection PyTypeChecker
         return self._nitf_details
 

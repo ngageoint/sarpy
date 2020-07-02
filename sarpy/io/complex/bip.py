@@ -40,7 +40,7 @@ class BIPChipper(BaseChipper):
         ----------
         file_name : str
             The name of the file from which to read
-        data_type : numpy.dtype|str
+        data_type : str|numpy.dtype|numpy.number
             The data type of the underlying file. **Note: specify endianness where necessary.**
         data_size : tuple
             The full size of the data *after* any required transformation. See
@@ -172,7 +172,7 @@ class BIPWriter(AbstractWriter):
             the file_name
         data_size : tuple
             the shape of the form (rows, cols)
-        data_type : numpy.dtype|str
+        data_type : str|numpy.dtype|numpy.number
             the underlying data type of the output data. Specify endianess here if necessary.
         complex_type : callable|bool
             For complex type handling.
