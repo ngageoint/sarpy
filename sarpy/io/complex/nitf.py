@@ -201,6 +201,10 @@ class NITFReader(BaseReader):
 
         return self._nitf_details
 
+    @property
+    def file_name(self):
+        return self._nitf_details.file_name
+
     def _find_segments(self):
         """
         Determine the image segment collections.

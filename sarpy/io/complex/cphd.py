@@ -334,6 +334,10 @@ class CPHDReader(BaseReader):
 
         return self.cphd_details.cphd_header
 
+    @property
+    def file_name(self):
+        return self.cphd_details.file_name
+
     def _read_pvp_vector(self, pvp_block_offset, pvp_offset, vector_size, field_offset, frm, fld_siz, row_count, dim_range):
         """
         Read the given Per Vector parameter from the disc.

@@ -439,6 +439,14 @@ class BaseReader(object):
 
         return self._data_size
 
+    @property
+    def file_name(self):
+        """
+        str: The file/path name for the reader object.
+        """
+
+        raise NotImplementedError
+
     def get_sicds_as_tuple(self):
         """
         Get the sicd or sicd collection as a tuple - for simplicity and consistency of use.

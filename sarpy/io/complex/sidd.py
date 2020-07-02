@@ -274,6 +274,7 @@ class SIDDReader(NITFReader):
         if not nitf_details.is_sidd:
             raise ValueError(
                 'The input file passed in appears to be a NITF 2.1 file that does not contain valid sidd metadata.')
+<<<<<<< HEAD
         super(SIDDReader, self).__init__(nitf_details, is_sicd_type=False)
         self._sidd_meta = self.nitf_details.sidd_meta
 
@@ -293,6 +294,16 @@ class SIDDReader(NITFReader):
         """
 
         return self.nitf_details.sidd_meta
+=======
+        self._sidd_meta = self.nitf_details.sidd_meta
+        super(SIDDReader, self).__init__(nitf_details)
+>>>>>>> master
+
+    @property
+    def nitf_details(self):
+        # type: () -> SIDDDetails
+        # noinspection PyTypeChecker
+        return self._nitf_details
 
     def _find_segments(self):
         # determine image segmentation from image headers
@@ -402,7 +413,11 @@ class SIDDReader(NITFReader):
 
         complex_type = False if this_lut is None else rgb_lut_conversion(this_lut)
         return MultiSegmentChipper(
+<<<<<<< HEAD
             self.nitf_details.file_name, bounds, offsets, this_dtype,
+=======
+            self.file_name, bounds, offsets, this_dtype,
+>>>>>>> master
             symmetry=(False, False, False), complex_type=complex_type, bands_ip=this_bands)
 
 

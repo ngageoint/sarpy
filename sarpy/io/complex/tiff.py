@@ -6,11 +6,9 @@ Module providing api consistent with other file types for reading tiff files.
 import logging
 import numpy
 import warnings
-import sys
 
-int_func = int
-if sys.version_info[0] < 3:
-    int_func = long
+from .base import BaseChipper, BaseReader, int_func
+from .bip import BIPChipper
 
 try:
     from osgeo import gdal
@@ -19,9 +17,6 @@ except ImportError:
     warnings.warn("gdal is not successfully imported, which precludes reading tiffs via gdal")
     gdal = None
     _HAS_GDAL = False
-
-from .base import BaseChipper, BaseReader
-from .bip import BIPChipper
 
 
 __classification__ = "UNCLASSIFIED"
@@ -375,47 +370,47 @@ class NativeTiffChipper(BIPChipper):
     Direct reading of data from tiff file, failing if compression is present
     """
 
-    __slots__ = ('_tiff_meta', )
+    __slots__ = ('_tiff_details', )
     _SAMPLE_FORMATS = {
         1: 'u', 2: 'i', 3: 'f', 5: 'i', 6: 'f'}  # 5 and 6 are complex int/float
 
-    def __init__(self, tiff_meta, symmetry=(False, False, True)):
+    def __init__(self, tiff_details, symmetry=(False, False, True)):
         """
 
         Parameters
         ----------
-        tiff_meta : TiffMetadata
+        tiff_details : TiffDetails
         symmetry : Tuple[bool]
         """
 
-        if isinstance(tiff_meta, str):
-            tiff_meta = TiffDetails(tiff_meta)
-        if not isinstance(tiff_meta, TiffDetails):
+        if isinstance(tiff_details, str):
+            tiff_details = TiffDetails(tiff_details)
+        if not isinstance(tiff_details, TiffDetails):
             raise TypeError('NativeTiffChipper input argument must be a filename '
                             'or TiffDetails object.')
 
-        compression_tag = int(tiff_meta.tags['Compression'][0])
+        compression_tag = int(tiff_details.tags['Compression'][0])
         if compression_tag != 1:
             raise ValueError('Tiff has compression tag {}, but only 1 (no compression) '
                              'is supported.'.format(compression_tag))
 
-        self._tiff_meta = tiff_meta
-        samp_form = tiff_meta.tags['SampleFormat'][0]
+        self._tiff_details = tiff_details
+        samp_form = tiff_details.tags['SampleFormat'][0]
         if samp_form not in self._SAMPLE_FORMATS:
             raise ValueError('Invalid sample format {}'.format(samp_form))
-        bits_per_sample = tiff_meta.tags['BitsPerSample'][0]
-        complex_type = (int(tiff_meta.tags['SamplesPerPixel'][0]) == 2)  # NB: this is obviously not general
+        bits_per_sample = tiff_details.tags['BitsPerSample'][0]
+        complex_type = (int(tiff_details.tags['SamplesPerPixel'][0]) == 2)  # NB: this is obviously not general
         if samp_form in [5, 6]:
             bits_per_sample /= 2
             complex_type = True
-        data_size = (int_func(tiff_meta.tags['ImageLength'][0]), int_func(tiff_meta.tags['ImageWidth'][0]))
-        data_type = numpy.dtype('{0:s}{1:s}{2:d}'.format(self._tiff_meta.endian,
+        data_size = (int_func(tiff_details.tags['ImageLength'][0]), int_func(tiff_details.tags['ImageWidth'][0]))
+        data_type = numpy.dtype('{0:s}{1:s}{2:d}'.format(self._tiff_details.endian,
                                                          self._SAMPLE_FORMATS[samp_form],
                                                          int(bits_per_sample/8)))
-        data_offset = int_func(tiff_meta.tags['StripOffsets'][0])
+        data_offset = int_func(tiff_details.tags['StripOffsets'][0])
 
         super(NativeTiffChipper, self).__init__(
-            tiff_meta.file_name, data_type, data_size, symmetry=symmetry, complex_type=complex_type,
+            tiff_details.file_name, data_type, data_size, symmetry=symmetry, complex_type=complex_type,
             data_offset=data_offset, bands_ip=1)
 
 
@@ -424,28 +419,28 @@ class GdalTiffChipper(BaseChipper):
     Utilizing gdal for reading of data from tiff file, should be much more robust
     """
     # TODO: this is a work in progress and not quite functional
-    __slots__ = ('_tiff_meta', '_data_set', '_bands', '_virt_array')
+    __slots__ = ('_tiff_details', '_data_set', '_bands', '_virt_array')
 
-    def __init__(self, tiff_meta, symmetry=(False, False, True)):
+    def __init__(self, tiff_details, symmetry=(False, False, True)):
         """
 
         Parameters
         ----------
-        tiff_meta : TiffMetadata
+        tiff_details : TiffDetails
         symmetry : Tuple[bool]
         """
-        if isinstance(tiff_meta, str):
-            tiff_meta = TiffDetails(tiff_meta)
-        if not isinstance(tiff_meta, TiffDetails):
+        if isinstance(tiff_details, str):
+            tiff_details = TiffDetails(tiff_details)
+        if not isinstance(tiff_details, TiffDetails):
             raise TypeError('GdalTiffChipper input argument must be a filename '
                             'or TiffDetails object.')
 
-        self._tiff_meta = tiff_meta
+        self._tiff_details = tiff_details
         # initialize our dataset - NB: this should close gracefully on garbage collection
-        self._data_set = gdal.Open(tiff_meta.file_name, gdal.GA_ReadOnly)
+        self._data_set = gdal.Open(tiff_details.file_name, gdal.GA_ReadOnly)
         if self._data_set is None:
             raise ValueError(
-                'GDAL failed with unspecified error in opening file {}'.format(tiff_meta.file_name))
+                'GDAL failed with unspecified error in opening file {}'.format(tiff_details.file_name))
         # get data_size information
         data_size = (self._data_set.RasterYSize, self._data_set.RasterXSize)
         self._bands = self._data_set.RasterCount
@@ -477,28 +472,28 @@ class GdalTiffChipper(BaseChipper):
 
 
 class TiffReader(BaseReader):
-    __slots__ = ('_tiff_meta', '_sicd_meta', '_chipper')
+    __slots__ = ('_tiff_details', '_sicd_meta', '_chipper')
     _DEFAULT_SYMMETRY = (False, False, False)
 
-    def __init__(self, tiff_meta, sicd_meta=None, symmetry=None, use_gdal=False):
+    def __init__(self, tiff_details, sicd_meta=None, symmetry=None, use_gdal=False):
         """
 
         Parameters
         ----------
-        tiff_meta : TiffDetails
+        tiff_details : TiffDetails
         sicd_meta : None|sarpy.io.complex.sicd_elements.SICD.SICDType
         symmetry : Tuple[bool]
         use_gdal : bool
             Should we use gdal to read the tiff (required if compressed)
         """
 
-        if isinstance(tiff_meta, str):
-            tiff_meta = TiffDetails(tiff_meta)
-        if not isinstance(tiff_meta, TiffDetails):
+        if isinstance(tiff_details, str):
+            tiff_details = TiffDetails(tiff_details)
+        if not isinstance(tiff_details, TiffDetails):
             raise TypeError('TiffReader input argument must be a filename '
                             'or TiffDetails object.')
 
-        self._tiff_meta = tiff_meta
+        self._tiff_details = tiff_details
         if symmetry is None:
             symmetry = self._DEFAULT_SYMMETRY
 
@@ -515,7 +510,20 @@ class TiffReader(BaseReader):
                     "a functional gdal installed. Falling back to the sarpy base version.")
             use_gdal = False
         if use_gdal:
-            chipper = GdalTiffChipper(tiff_meta, symmetry=symmetry)
+            chipper = GdalTiffChipper(tiff_details, symmetry=symmetry)
         else:
-            chipper = NativeTiffChipper(tiff_meta, symmetry=symmetry)
+            chipper = NativeTiffChipper(tiff_details, symmetry=symmetry)
         super(TiffReader, self).__init__(sicd_meta, chipper)
+
+    @property
+    def tiff_details(self):
+        # type: () -> TiffDetails
+        """
+        TiffDetails: The tiff details object.
+        """
+
+        return self._tiff_details
+
+    @property
+    def file_name(self):
+        return self.tiff_details.file_name

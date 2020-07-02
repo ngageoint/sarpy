@@ -27,8 +27,8 @@ if sys.version_info[0] < 3:
     from cStringIO import StringIO
     NOT_FOUND_ERROR = IOError
 else:
-    from io import StringIO
     # noinspection PyUnresolvedReferences
+    from io import StringIO
     NOT_FOUND_ERROR = FileNotFoundError
 
 __classification__ = "UNCLASSIFIED"
@@ -171,6 +171,7 @@ class SICDDetails(NITFDetails):
             if subhead_bytes.startswith(b'DEXML_DATA_CONTENT'):
                 des_header = DataExtensionHeader.from_bytes(subhead_bytes, start=0)
                 des_bytes = self.get_des_bytes(i)
+                # noinspection PyBroadException
                 try:
                     root_node, xml_ns = parse_xml_from_string(des_bytes.decode('utf-8').strip())
                     if 'SIDD' in root_node.tag:  # namespace makes this ugly
@@ -353,7 +354,7 @@ class SICDReader(NITFReader):
 
         Parameters
         ----------
-        nitf_details : str|sarpy.io.complex.sicd_elements.SICD.SICDDetails
+        nitf_details : str|SICDDetails
             filename or SICDDetails object
         """
 
@@ -375,10 +376,14 @@ class SICDReader(NITFReader):
     @property
     def nitf_details(self):
         # type: () -> SICDDetails
+<<<<<<< HEAD
         """
         SICDDetails: The SICD NITF details object.
         """
 
+=======
+        # noinspection PyTypeChecker
+>>>>>>> master
         return self._nitf_details
 
     def _find_segments(self):
