@@ -1,5 +1,6 @@
 # This details the important differences introduced in sarpy 1.0
 
+* .28 - Reorganization of sarpy.io structure into proper categories
 * .27 - General purpose ortho-rectification capabilities introduced.
 * .26 - Introduce file_name property for reader objects
 * .25 - Resolving usage of numpy.stack to properly allow numpy 1.9.
