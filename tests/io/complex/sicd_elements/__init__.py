@@ -3,7 +3,7 @@ from xml.etree import ElementTree
 import json
 
 from sarpy.io.complex.sicd_elements.base import Serializable
-from sarpy.io.complex.utils import parse_xml_from_string
+from sarpy.io.general.utils import parse_xml_from_string
 
 from .. import unittest
 
