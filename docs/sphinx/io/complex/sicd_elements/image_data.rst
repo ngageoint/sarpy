@@ -1,6 +1,5 @@
-
-The ImageData object and related elements
-================================================
+ImageData object and related elements
+=====================================
 
 .. automodule:: sarpy.io.complex.sicd_elements.ImageData
     :members:

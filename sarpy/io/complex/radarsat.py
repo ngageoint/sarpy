@@ -14,8 +14,9 @@ import numpy
 from numpy.polynomial import polynomial
 from scipy.constants import speed_of_light
 
-from .base import BaseReader, string_types
-from .tiff import TiffDetails, TiffReader
+from ..general.base import BaseReader
+from ..general.tiff import TiffDetails, TiffReader
+from ..general.utils import string_types, get_seconds, parse_timestring
 
 from .sicd_elements.blocks import Poly1DType, Poly2DType
 from .sicd_elements.SICD import SICDType
@@ -33,7 +34,7 @@ from .sicd_elements.RMA import RMAType, INCAType
 from .sicd_elements.SCPCOA import SCPCOAType
 from .sicd_elements.Radiometric import RadiometricType, NoiseLevelType_
 from ...geometry import point_projection
-from .utils import get_seconds, fit_time_coa_polynomial, fit_position_xvalidation, parse_timestring
+from .utils import fit_time_coa_polynomial, fit_position_xvalidation
 
 __classification__ = "UNCLASSIFIED"
 __author__ = ("Thomas McCullough", "Khanh Ho", "Wade Schwartzkopf")

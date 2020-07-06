@@ -1,5 +1,5 @@
-sarpy.processing elements
-=================================
+Processing elements (sarpy.processing)
+======================================
 
 .. toctree::
     :maxdepth: 1

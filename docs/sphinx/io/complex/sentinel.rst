@@ -1,5 +1,5 @@
-The sentinel reading objects
-==============================================
+Sentinel reading objects (sarpy.io.complex.sentinel)
+====================================================
 
 .. automodule:: sarpy.io.complex.sentinel
     :members:

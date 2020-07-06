@@ -1,5 +1,5 @@
-sarpy.geometry elements
-=================================
+Geometry elements (sarpy.geometry)
+==================================
 
 .. toctree::
     :maxdepth: 1

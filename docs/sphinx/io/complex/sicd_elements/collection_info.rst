@@ -1,6 +1,5 @@
-
-The CollectionInfo object and related elements
-===================================================
+CollectionInfo object and related elements
+==========================================
 
 .. automodule:: sarpy.io.complex.sicd_elements.CollectionInfo
     :members:

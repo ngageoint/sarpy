@@ -1,5 +1,5 @@
-The sarpy.annotation.annotate elements
-====================================
+Annotation element definition (sarpy.annotation.annotate)
+=========================================================
 
 .. automodule:: sarpy.annotation.annotate
     :members:

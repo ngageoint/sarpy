@@ -40,7 +40,8 @@ import numpy
 from scipy.interpolate import RectBivariateSpline
 
 from sarpy.io.complex.sicd_elements.SICD import SICDType
-from sarpy.io.complex.base import BaseReader, string_types
+from sarpy.io.general.base import BaseReader
+from sarpy.io.general.utils import string_types
 from sarpy.io.complex.sicd_elements.blocks import Poly2DType
 from sarpy.geometry.geocoords import geodetic_to_ecf, ecf_to_geodetic, wgs_84_norm
 from sarpy.geometry.geometry_elements import GeometryObject

@@ -1,5 +1,5 @@
-The sarpy.geometry.point_projection elements
-=============================================
+Point projection methodology (sarpy.geometry.point_projection)
+==============================================================
 
 .. automodule:: sarpy.geometry.point_projection
     :members:

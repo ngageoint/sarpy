@@ -1,6 +1,5 @@
-
-The RMA object and related elements
-======================================================
+RMA object and related elements
+===============================
 
 .. automodule:: sarpy.io.complex.sicd_elements.RMA
     :members:

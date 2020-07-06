@@ -1,5 +1,5 @@
-The sarpy.processing.normalize_sicd objects
-===========================================
+Methods for "normalizing" a SICD (sarpy.processing.normalize_sicd)
+==================================================================
 
 .. automodule:: sarpy.processing.normalize_sicd
     :members:

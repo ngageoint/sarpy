@@ -1,5 +1,5 @@
-The cosmo-skymed reading objects
-================================
+Cosmo-Skymed (CSK) reading objects (sarpy.io.complex.csk)
+=========================================================
 
 .. automodule:: sarpy.io.complex.csk
     :members:

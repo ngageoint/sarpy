@@ -1,0 +1,56 @@
+# -*- coding: utf-8 -*-
+"""
+The CollectionIDType definition.
+"""
+
+from .base import DEFAULT_STRICT
+# noinspection PyProtectedMember
+from ...complex.sicd_elements.base import _StringDescriptor
+from ...complex.sicd_elements.CollectionInfo import CollectionInfoType
+
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
+
+class CollectionIDType(CollectionInfoType):
+    """
+    The CollectionID type definition.
+    """
+
+    _fields = (
+        'CollectorName', 'IlluminatorName', 'CoreName', 'CollectType',
+        'RadarMode', 'Classification', 'ReleaseInfo', 'Parameters', 'CountryCodes')
+    _required = ('CollectorName', 'CoreName', 'RadarMode', 'Classification', 'ReleaseInfo')
+    # descriptors
+    ReleaseInfo = _StringDescriptor(
+        'ReleaseInfo', _required, strict=DEFAULT_STRICT, default_value='UNRESTRICTED',
+        docstring='The product release information.')  # type: str
+
+    def __init__(self, CollectorName=None, IlluminatorName=None, CoreName=None, CollectType=None,
+                 RadarMode=None, Classification="UNCLASSIFIED", ReleaseInfo='UNRESTRICTED',
+                 CountryCodes=None, Parameters=None, **kwargs):
+        """
+
+        Parameters
+        ----------
+        CollectorName : str
+        IlluminatorName : str
+        CoreName : str
+        CollectType : str
+        RadarMode : RadarModeType
+        Classification : str
+        ReleaseInfo : str
+        CountryCodes : list|str
+        Parameters : ParametersCollection|dict
+        kwargs : dict
+        """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
+        self.ReleaseInfo = ReleaseInfo
+        super(CollectionIDType, self).__init__(
+            CollectorName=CollectorName, IlluminatorName=IlluminatorName, CoreName=CoreName,
+            CollectType=CollectType, RadarMode=RadarMode, Classification=Classification,
+            CountryCodes=CountryCodes, Parameters=Parameters, **kwargs)

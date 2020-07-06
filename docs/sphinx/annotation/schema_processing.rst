@@ -1,5 +1,5 @@
-The sarpy.annotation.schema_processing elements
-=============================================
+Schema definition for annotation (sarpy.annotation.schema_processing)
+=====================================================================
 
 .. automodule:: sarpy.annotation.schema_processing
     :members:
