@@ -10,10 +10,10 @@ from datetime import datetime
 
 import numpy
 
-from .sicd_elements.SICD import SICDType
-from .sicd_elements.ImageCreation import ImageCreationType
+from ..complex.sicd_elements.SICD import SICDType
+from ..complex.sicd_elements.ImageCreation import ImageCreationType
 from ...__about__ import __title__, __version__
-from .utils import validate_range, reverse_range, int_func, integer_types, string_types
+from .utils import validate_range, reverse_range, int_func, integer_types
 
 
 __classification__ = "UNCLASSIFIED"

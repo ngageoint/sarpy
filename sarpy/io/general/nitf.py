@@ -16,7 +16,7 @@ from ..nitf.nitf_head import NITFDetails, NITFHeader, ImageSegmentsType, DataExt
 from ..nitf.security import NITFSecurityTags
 from ..nitf.image import ImageSegmentHeader
 from ..nitf.des import DataExtensionHeader
-from .sicd_elements.blocks import LatLonType
+from ..complex.sicd_elements.blocks import LatLonType
 from sarpy.geometry.geocoords import ecf_to_geodetic, geodetic_to_ecf
 
 

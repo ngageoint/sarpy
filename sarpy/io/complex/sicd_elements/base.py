@@ -1727,9 +1727,13 @@ class Serializable(object):
                 if strict:
                     raise ValueError(msg)
                 logging.warning(msg)
+        # create the main node
+        if (ns_key is not None and ns_key != 'default') and not tag.startswith(ns_key+':'):
+            nod = _create_new_node(doc, '{}:{}'.format(ns_key, tag), parent=parent)
+        else:
+            nod = _create_new_node(doc, tag, parent=parent)
 
-        nod = _create_new_node(doc, tag, parent=parent)
-
+        # serialize the attributes
         for attribute in self._fields:
             if attribute in exclude:
                 continue
