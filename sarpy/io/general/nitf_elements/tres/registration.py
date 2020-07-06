@@ -23,7 +23,7 @@ __author__ = "Thomas Mccullough"
 # module variables
 _TRE_Registry = {}
 _parsed_package = False
-_default_tre_packages = 'sarpy.io.nitf.tres'
+_default_tre_packages = 'sarpy.io.general.nitf_elements.tres'
 
 
 def register_tre(tre_type, tre_id=None, replace=False):
@@ -44,7 +44,7 @@ def register_tre(tre_type, tre_id=None, replace=False):
     None
     """
 
-    from sarpy.io.nitf.tres.tre_elements import TREExtension
+    from sarpy.io.general.nitf_elements.tres.tre_elements import TREExtension
 
     if not issubclass(tre_type, TREExtension):
         raise TypeError('tre_type must be a subclass of sarpy.io.nitf.header.TRE')
@@ -100,7 +100,7 @@ def parse_package(packages=None):
     None
     """
 
-    from sarpy.io.nitf.tres.tre_elements import TREExtension
+    from sarpy.io.general.nitf_elements.tres.tre_elements import TREExtension
 
     if packages is None:
         global _parsed_package
