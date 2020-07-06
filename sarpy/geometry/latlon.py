@@ -8,6 +8,7 @@ import numpy
 
 string_types = str
 if sys.version_info[0] < 3:
+    # noinspection PyUnresolvedReferences
     string_types = basestring
 
 __classification__ = "UNCLASSIFIED"

@@ -12,7 +12,7 @@ import numpy
 import logging
 from typing import Union, List, Tuple
 
-from .base import BaseReader, int_func
+from ..general.base import BaseReader, int_func
 from .sicd import SICDWriter
 from .sio import SIOWriter
 from .sicd_elements.SICD import SICDType

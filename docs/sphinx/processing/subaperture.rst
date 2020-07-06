@@ -1,5 +1,5 @@
-The sarpy.processing.subaperture objects
-========================================
+Subaperture methods (sarpy.processing.subaperture)
+==================================================
 
 .. automodule:: sarpy.processing.subaperture
     :members:

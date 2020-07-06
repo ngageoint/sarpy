@@ -1,5 +1,5 @@
-The sarpy.visualization.remap objects
-=====================================
+Remap methods (sarpy.visualization.remap)
+=========================================
 
 .. automodule:: sarpy.visualization.remap
     :members:

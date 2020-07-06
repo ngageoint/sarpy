@@ -1,5 +1,5 @@
-The sarpy.processing.csi objects
-================================
+The CSI methods (sarpy.processing.csi)
+======================================
 
 .. automodule:: sarpy.processing.csi
     :members:

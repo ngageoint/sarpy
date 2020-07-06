@@ -1,5 +1,5 @@
-The sicd reading/writing objects
-==============================================
+SICD reading/writing objects (sarpy.io.complex.sicd)
+====================================================
 
 .. automodule:: sarpy.io.complex.sicd
     :members:

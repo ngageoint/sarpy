@@ -1,6 +1,5 @@
-
-The Timeline object and related elements
-=================================================
+Timeline object and related elements
+====================================
 
 .. automodule:: sarpy.io.complex.sicd_elements.Timeline
     :members:

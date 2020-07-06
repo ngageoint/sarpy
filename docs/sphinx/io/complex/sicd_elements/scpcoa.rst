@@ -1,6 +1,5 @@
-
-The SCPCOA object and related elements
-==================================================
+SCPCOA object and related elements
+==================================
 
 .. automodule:: sarpy.io.complex.sicd_elements.SCPCOA
     :members:

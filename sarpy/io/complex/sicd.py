@@ -9,17 +9,17 @@ import logging
 
 import numpy
 
-from .base import validate_sicd_for_writing, string_types
-from .nitf import MultiSegmentChipper, NITFReader, NITFWriter, ImageDetails, DESDetails, \
+from ..general.base import validate_sicd_for_writing
+from ..general.nitf import MultiSegmentChipper, NITFReader, NITFWriter, ImageDetails, DESDetails, \
     image_segmentation, get_npp_block, interpolate_corner_points_string
-from .utils import parse_xml_from_string
+from ..general.utils import string_types, parse_xml_from_string
 # noinspection PyProtectedMember
 from .sicd_elements.SICD import SICDType, _SICD_SPECIFICATION_IDENTIFIER
 
-from ..nitf.nitf_head import NITFDetails
-from ..nitf.des import DataExtensionHeader, SICDDESSubheader
-from ..nitf.security import NITFSecurityTags
-from ..nitf.image import ImageSegmentHeader, ImageBands, ImageBand
+from ..general.nitf_elements.nitf_head import NITFDetails
+from ..general.nitf_elements.des import DataExtensionHeader, SICDDESSubheader
+from ..general.nitf_elements.security import NITFSecurityTags
+from ..general.nitf_elements.image import ImageSegmentHeader, ImageBands, ImageBand
 
 
 if sys.version_info[0] < 3:
@@ -133,7 +133,7 @@ class SICDDetails(NITFDetails):
 
         Returns
         -------
-            None|List[sarpy.io.nitf.image.ImageSegmentHeader]
+            None|List[sarpy.io.general.nitf_elements.image.ImageSegmentHeader]
         """
 
         if self._img_headers is not None:
@@ -149,7 +149,7 @@ class SICDDetails(NITFDetails):
 
         Returns
         -------
-        None|sarpy.io.nitf.des.DataExtensionHeader
+        None|sarpy.io.general.nitf_elements.des.DataExtensionHeader
         """
 
         return self._des_header
@@ -588,7 +588,7 @@ class SICDWriter(NITFWriter):
 
         Returns
         -------
-        sarpy.io.nitf.security.NITFSecurityTags
+        sarpy.io.general.nitf_elements.security.NITFSecurityTags
         """
 
         def get_basic_args():

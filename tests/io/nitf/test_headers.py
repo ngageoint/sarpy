@@ -2,9 +2,9 @@ import os
 import time
 import logging
 
-from sarpy.io.nitf.nitf_head import NITFDetails
-from sarpy.io.nitf.image import ImageSegmentHeader
-from sarpy.io.nitf.des import DataExtensionHeader
+from sarpy.io.general.nitf_elements.nitf_head import NITFDetails
+from sarpy.io.general.nitf_elements.image import ImageSegmentHeader
+from sarpy.io.general.nitf_elements.des import DataExtensionHeader
 
 from . import unittest
 

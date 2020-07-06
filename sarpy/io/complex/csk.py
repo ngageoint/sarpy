@@ -35,8 +35,9 @@ from .sicd_elements.ImageFormation import ImageFormationType, TxFrequencyProcTyp
 from .sicd_elements.RMA import RMAType, INCAType
 from .sicd_elements.Radiometric import RadiometricType
 from ...geometry import point_projection
-from .base import BaseChipper, BaseReader, string_types
-from .utils import get_seconds, fit_time_coa_polynomial, fit_position_xvalidation, parse_timestring
+from ..general.base import BaseChipper, BaseReader
+from ..general.utils import string_types, get_seconds, parse_timestring
+from .utils import fit_time_coa_polynomial, fit_position_xvalidation
 
 __classification__ = "UNCLASSIFIED"
 __author__ = ("Thomas McCullough", "Jarred Barber", "Wade Schwartzkopf")

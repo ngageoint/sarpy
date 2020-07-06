@@ -1,5 +1,5 @@
-sarpy.visualization elements
-============================
+Visualization elements (sarpy.visualization)
+============================================
 
 .. toctree::
     :maxdepth: 1

@@ -1,6 +1,5 @@
-
-The MatchInfo object and related elements
-=====================================================
+MatchInfo object and related elements
+=====================================
 
 .. automodule:: sarpy.io.complex.sicd_elements.MatchInfo
     :members:
