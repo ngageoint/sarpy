@@ -13,7 +13,7 @@ from ..general.base import BaseReader
 
 
 __classification__ = "UNCLASSIFIED"
-__author__ = ("Wade Schwartzkopf", "Thomas McCullough")
+__author__ = "Thomas McCullough"
 
 
 ###########
@@ -108,4 +108,4 @@ def open_phase_history(file_name):
             return reader
 
     # If for loop completes, no matching file format was found.
-    raise IOError('Unable to determine complex image format.')
+    raise IOError('Unable to determine phase history image format.')

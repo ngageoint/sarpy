@@ -12,8 +12,6 @@ import sys
 
 import numpy
 
-from sarpy.io.kml import Document as KML_Document
-
 string_types = str
 if sys.version_info[0] < 3:
     # noinspection PyUnresolvedReferences
@@ -397,6 +395,8 @@ class FeatureList(_Jsonable):
         -------
         None
         """
+
+        from sarpy.io.kml import Document as KML_Document
 
         with KML_Document(file_name=file_name, **params) as doc:
             if self.features is not None:
@@ -916,14 +916,6 @@ class LinearRing(LineString):
         self._segmentation = None
         super(LinearRing, self).__init__(coordinates)
 
-    def get_bbox(self):
-        if self._coordinates is None:
-            return None
-        else:
-            mins = numpy.min(self.coordinates, axis=0)
-            maxs = numpy.min(self.coordinates, axis=0)
-            return mins.tolist().extend(maxs.tolist())
-
     def get_coordinate_list(self):
         if self._coordinates is None:
             return None
@@ -1225,11 +1217,11 @@ class LinearRing(LineString):
         Determines inclusion of the given points in the interior of the polygon.
         The methodology here is based on the Jordan curve theorem approach.
 
-        ** Warning: This method may provide erroneous results for a lat/lon polygon
+        ** Warning - This method may provide erroneous results for a lat/lon polygon
         crossing the bound of discontinuity and/or surrounding a pole.**
 
-        * Note: If the points constitute an x/y grid, then the grid contained method will
-        be much more performant.*
+        Note - If the points constitute an x/y grid, then the grid contained method will
+        be much more performant.
 
         Parameters
         ----------
@@ -1471,11 +1463,11 @@ class Polygon(GeometryObject):
         Determines inclusion of the given points in the interior of the polygon.
         The methodology here is based on the Jordan curve theorem approach.
 
-        ** Warning: This method may provide erroneous results for a lat/lon polygon
+        ** Warning - This method may provide erroneous results for a lat/lon polygon
         crossing the bound of discontinuity and/or surrounding a pole.**
 
-        * Note: If the points constitute an x/y grid, then the grid contained method will
-        be much more performant.*
+        Note - If the points constitute an x/y grid, then the grid contained method will
+        be much more performant.
 
         Parameters
         ----------
@@ -1640,11 +1632,11 @@ class MultiPolygon(GeometryObject):
         Determines inclusion of the given points in the interior of the polygon.
         The methodology here is based on the Jordan curve theorem approach.
 
-        ** Warning: This method may provide erroneous results for a lat/lon polygon
+        ** Warning - This method may provide erroneous results for a lat/lon polygon
         crossing the bound of discontinuity and/or surrounding a pole.**
 
-        * Note: If the points constitute an x/y grid, then the grid contained method will
-        be much more performant.*
+        Note - If the points constitute an x/y grid, then the grid contained method will
+        be much more performant.
 
         Parameters
         ----------

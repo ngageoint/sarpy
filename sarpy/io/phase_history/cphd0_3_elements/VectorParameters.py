@@ -5,9 +5,9 @@ The SRP definition for CPHD 0.3.
 
 from typing import Union
 
-from ..base import DEFAULT_STRICT
+from ..cphd1_elements.base import DEFAULT_STRICT
 # noinspection PyProtectedMember
-from ...sicd_elements.base import Serializable, _SerializableDescriptor, \
+from ...complex.sicd_elements.base import Serializable, _SerializableDescriptor, \
     _IntegerEnumDescriptor, integer_types
 
 
@@ -47,7 +47,8 @@ class FxParametersType(Serializable):
         self.Fx_SS = Fx_SS
         super(FxParametersType, self).__init__(**kwargs)
 
-    def get_size(self):
+    @staticmethod
+    def get_size():
         """
         The size in bytes of this component of the vector.
 
@@ -108,7 +109,8 @@ class TOAParametersType(Serializable):
         self.TOA_SS = TOA_SS
         super(TOAParametersType, self).__init__(**kwargs)
 
-    def get_size(self):
+    @staticmethod
+    def get_size():
         """
         The size in bytes of this component of the vector.
 

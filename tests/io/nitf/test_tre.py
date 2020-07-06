@@ -1,8 +1,8 @@
 
 from . import unittest
 
-from sarpy.io.nitf.tres.registration import find_tre
-from sarpy.io.nitf.tres.unclass.ACFTA import ACFTA
+from sarpy.io.general.nitf_elements.tres.registration import find_tre
+from sarpy.io.general.nitf_elements.tres.unclass.ACFTA import ACFTA
 
 
 class TestTreRegistry(unittest.TestCase):

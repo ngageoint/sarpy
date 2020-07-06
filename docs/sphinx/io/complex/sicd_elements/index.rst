@@ -1,5 +1,5 @@
-The SICD elements
-=================
+The SICD structure elements (sarpy.io.complex.sicd_elements)
+============================================================
 
 .. toctree::
     :maxdepth: 1

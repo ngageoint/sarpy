@@ -133,7 +133,7 @@ class SICDDetails(NITFDetails):
 
         Returns
         -------
-            None|List[sarpy.io.nitf.image.ImageSegmentHeader]
+            None|List[sarpy.io.general.nitf_elements.image.ImageSegmentHeader]
         """
 
         if self._img_headers is not None:
@@ -149,7 +149,7 @@ class SICDDetails(NITFDetails):
 
         Returns
         -------
-        None|sarpy.io.nitf.des.DataExtensionHeader
+        None|sarpy.io.general.nitf_elements.des.DataExtensionHeader
         """
 
         return self._des_header
@@ -588,7 +588,7 @@ class SICDWriter(NITFWriter):
 
         Returns
         -------
-        sarpy.io.nitf.security.NITFSecurityTags
+        sarpy.io.general.nitf_elements.security.NITFSecurityTags
         """
 
         def get_basic_args():

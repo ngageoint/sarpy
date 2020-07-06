@@ -1,5 +1,5 @@
-sarpy.io.DEM elements
-=================================
+DEM reading elements (sarpy.io.DEM)
+===================================
 
 .. toctree::
     :maxdepth: 1

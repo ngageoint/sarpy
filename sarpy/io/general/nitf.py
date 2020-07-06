@@ -12,10 +12,10 @@ import numpy
 
 from .base import BaseChipper, BaseReader, AbstractWriter, int_func
 from .bip import BIPChipper, BIPWriter
-from ..nitf.nitf_head import NITFDetails, NITFHeader, ImageSegmentsType, DataExtensionsType
-from ..nitf.security import NITFSecurityTags
-from ..nitf.image import ImageSegmentHeader
-from ..nitf.des import DataExtensionHeader
+from .nitf_elements.nitf_head import NITFDetails, NITFHeader, ImageSegmentsType, DataExtensionsType
+from .nitf_elements.security import NITFSecurityTags
+from .nitf_elements.image import ImageSegmentHeader
+from .nitf_elements.des import DataExtensionHeader
 from ..complex.sicd_elements.blocks import LatLonType
 from sarpy.geometry.geocoords import ecf_to_geodetic, geodetic_to_ecf
 

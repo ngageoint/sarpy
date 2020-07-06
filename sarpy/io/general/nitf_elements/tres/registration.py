@@ -47,7 +47,7 @@ def register_tre(tre_type, tre_id=None, replace=False):
     from sarpy.io.general.nitf_elements.tres.tre_elements import TREExtension
 
     if not issubclass(tre_type, TREExtension):
-        raise TypeError('tre_type must be a subclass of sarpy.io.nitf.header.TRE')
+        raise TypeError('tre_type must be a subclass of sarpy.io.general.nitf_elements.header.TRE')
 
     if tre_type in [TREExtension, ]:
         return
@@ -78,7 +78,7 @@ def find_tre(tre_id):
 
     Returns
     -------
-    sarpy.io.nitf.base.TRE|None
+    sarpy.io.general.nitf_elements.base.TRE|None
     """
 
     if not _parsed_package:

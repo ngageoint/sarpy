@@ -5,14 +5,14 @@ The Compensated Phase History Data 0.3 definition.
 
 from typing import Union
 
-from ..base import DEFAULT_STRICT
+from ..cphd1_elements.base import DEFAULT_STRICT
 # noinspection PyProtectedMember
-from ...sicd_elements.base import Serializable, _SerializableDescriptor, \
+from ...complex.sicd_elements.base import Serializable, _SerializableDescriptor, \
     _IntegerDescriptor, _StringDescriptor
 
-from ...sicd_elements.CollectionInfo import CollectionInfoType
-from ...sicd_elements.RadarCollection import RadarCollectionType
-from ..CPHD import CPHDHeaderBase
+from ...complex.sicd_elements.CollectionInfo import CollectionInfoType
+from ...complex.sicd_elements.RadarCollection import RadarCollectionType
+from ..cphd1_elements.CPHD import CPHDHeaderBase
 from .Data import DataType
 from .Global import GlobalType
 from .Channel import ChannelType

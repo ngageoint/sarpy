@@ -1,5 +1,5 @@
-sarpy.annotation elements
-=================================
+Annotation elements (sarpy.annotation)
+======================================
 
 .. toctree::
     :maxdepth: 1

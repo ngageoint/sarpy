@@ -1,5 +1,5 @@
-The sarpy.geometry.geometry_elements elements
-====================================
+Geometry object definitions (sarpy.geometry.geometry_elements)
+==============================================================
 
 .. automodule:: sarpy.geometry.geometry_elements
     :members:

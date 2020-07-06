@@ -613,6 +613,10 @@ class SubsetReader(BaseReader):
         chipper = SubsetChipper(parent_reader._chipper, dim1bounds, dim2bounds)
         super(SubsetReader, self).__init__(sicd_meta, chipper)
 
+    @property
+    def file_name(self):
+        return self._parent_reader.file_name
+
 
 #################
 # Base Writer definition

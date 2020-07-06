@@ -3,18 +3,18 @@
 The Global type definition for CPHD 0.3.
 """
 
-from typing import Union
+from typing import Union, List
 
 import numpy
 
-from ..base import DEFAULT_STRICT
+from ..cphd1_elements.base import DEFAULT_STRICT
 # noinspection PyProtectedMember
-from ...sicd_elements.base import Serializable, _FloatDescriptor, \
+from ...complex.sicd_elements.base import Serializable, _FloatDescriptor, \
     _DateTimeDescriptor, _StringEnumDescriptor, _IntegerEnumDescriptor, \
     _SerializableDescriptor, _IntegerDescriptor, \
     _SerializableCPArrayDescriptor, SerializableCPArray
-from ...sicd_elements.blocks import LatLonHAECornerRestrictionType, Poly2DType
-from ...sicd_elements.RadarCollection import ReferencePointType, XDirectionType, \
+from ...complex.sicd_elements.blocks import LatLonHAECornerRestrictionType, Poly2DType
+from ...complex.sicd_elements.RadarCollection import ReferencePointType, XDirectionType, \
     YDirectionType
 
 __classification__ = "UNCLASSIFIED"

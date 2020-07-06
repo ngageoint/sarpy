@@ -6,11 +6,11 @@ The SRP definition for CPHD 0.3.
 import logging
 from typing import Union, List
 
-from ..base import DEFAULT_STRICT
+from ..cphd1_elements.base import DEFAULT_STRICT
 # noinspection PyProtectedMember
-from ...sicd_elements.base import Serializable, _parse_str, _parse_int, \
+from ...complex.sicd_elements.base import Serializable, _parse_str, _parse_int, \
     _SerializableArrayDescriptor, SerializableArray
-from ...sicd_elements.blocks import XYZType, XYZPolyType
+from ...complex.sicd_elements.blocks import XYZType, XYZPolyType
 
 
 __classification__ = "UNCLASSIFIED"

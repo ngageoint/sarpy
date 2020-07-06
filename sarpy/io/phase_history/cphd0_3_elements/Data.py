@@ -5,9 +5,9 @@ The DataType definition for CPHD 0.3.
 
 from typing import List
 
-from ..base import DEFAULT_STRICT
+from ..cphd1_elements.base import DEFAULT_STRICT
 # noinspection PyProtectedMember
-from ...sicd_elements.base import Serializable, _StringEnumDescriptor, \
+from ...complex.sicd_elements.base import Serializable, _StringEnumDescriptor, \
     _IntegerDescriptor, _SerializableListDescriptor
 
 __classification__ = "UNCLASSIFIED"

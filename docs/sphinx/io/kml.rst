@@ -1,5 +1,5 @@
-The sarpy.io.kml objects
-==============================================
+The KML reading objects (sarpy.io.kml)
+======================================
 
 .. automodule:: sarpy.io.kml
     :members:

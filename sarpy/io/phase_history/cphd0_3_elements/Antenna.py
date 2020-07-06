@@ -5,12 +5,12 @@ The Antenna definition for CPHD 0.3.
 
 from typing import Union, List
 
-from ..base import DEFAULT_STRICT
+from ..cphd1_elements.base import DEFAULT_STRICT
 # noinspection PyProtectedMember
-from ...sicd_elements.base import Serializable, _SerializableListDescriptor, \
+from ...complex.sicd_elements.base import Serializable, _SerializableListDescriptor, \
     _FloatDescriptor, _SerializableDescriptor
-from ...sicd_elements.blocks import XYZPolyType
-from ...sicd_elements.Antenna import AntParamType as AntParamTypeBase
+from ...complex.sicd_elements.blocks import XYZPolyType
+from ...complex.sicd_elements.Antenna import AntParamType as AntParamTypeBase
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
