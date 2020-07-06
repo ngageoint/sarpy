@@ -8,7 +8,7 @@ from typing import Union, List
 from .base import DEFAULT_STRICT
 from .blocks import POLARIZATION_TYPE
 # noinspection PyProtectedMember
-from ..sicd_elements.base import Serializable, _FloatDescriptor, _StringDescriptor, \
+from ...complex.sicd_elements.base import Serializable, _FloatDescriptor, _StringDescriptor, \
     _SerializableListDescriptor, _StringEnumDescriptor
 
 __classification__ = "UNCLASSIFIED"

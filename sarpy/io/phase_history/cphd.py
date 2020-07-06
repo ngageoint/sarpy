@@ -9,12 +9,11 @@ from typing import Union, Tuple
 
 import numpy
 
-# noinspection PyProtectedMember
-from .cphd_elements.CPHD import CPHDType, CPHDHeader
-from .cphd_elements.cphd0_3.CPHD import CPHDType as CPHDType0_3, CPHDHeader as CPHDHeader0_3
-from .utils import parse_xml_from_string, validate_range
-from .base import BaseReader, string_types, int_func, integer_types
-from .bip import BIPChipper
+from .cphd1_elements.CPHD import CPHDType, CPHDHeader
+from .cphd0_3_elements.CPHD import CPHDType as CPHDType0_3, CPHDHeader as CPHDHeader0_3
+from ..general.utils import parse_xml_from_string, validate_range, string_types, int_func, integer_types
+from ..general.base import BaseReader
+from ..general.bip import BIPChipper
 
 # TODO: Outstanding issues and questions
 #   0.) What about the Per Vector situation? Does what I implemented make sense?

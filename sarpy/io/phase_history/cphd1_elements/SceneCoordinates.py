@@ -7,12 +7,12 @@ from typing import Union, List
 
 from .base import DEFAULT_STRICT
 # noinspection PyProtectedMember
-from ..sicd_elements.base import Serializable, _FloatDescriptor, _IntegerDescriptor, \
+from ...complex.sicd_elements.base import Serializable, _FloatDescriptor, _IntegerDescriptor, \
     _StringDescriptor, _StringEnumDescriptor, _SerializableDescriptor, \
     SerializableArray, _SerializableArrayDescriptor, SerializableCPArray, \
     _SerializableCPArrayDescriptor, _create_text_node, _UnitVectorDescriptor
-from ..sicd_elements.blocks import XYZType, LatLonType, LatLonCornerType
-from ..sicd_elements.GeoData import SCPType
+from ...complex.sicd_elements.blocks import XYZType, LatLonType, LatLonCornerType
+from ...complex.sicd_elements.GeoData import SCPType
 from .blocks import AreaType, LSType, LSVertexType
 
 __classification__ = "UNCLASSIFIED"

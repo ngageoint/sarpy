@@ -7,7 +7,7 @@ from typing import List
 
 from .base import DEFAULT_STRICT
 # noinspection PyProtectedMember
-from ..sicd_elements.base import Serializable, _StringDescriptor, _StringEnumDescriptor, \
+from ...complex.sicd_elements.base import Serializable, _StringDescriptor, _StringEnumDescriptor, \
     _IntegerDescriptor, _SerializableListDescriptor
 
 __classification__ = "UNCLASSIFIED"

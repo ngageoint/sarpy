@@ -9,8 +9,8 @@ from typing import Union
 
 from .base import DEFAULT_STRICT
 # noinspection PyProtectedMember
-from ..sicd_elements.base import Serializable, _SerializableDescriptor, \
-    _IntegerDescriptor, _StringDescriptor
+from ...complex.sicd_elements.base import Serializable, _SerializableDescriptor, \
+    _IntegerDescriptor, _StringDescriptor, _find_children
 
 from .CollectionID import CollectionIDType
 from .Global import GlobalType
@@ -25,8 +25,8 @@ from .Antenna import AntennaType
 from .TxRcv import TxRcvType
 from .ErrorParameters import ErrorParametersType
 from .ProductInfo import ProductInfoType
-from .GeoInfo import GeoInfoType, _find_children
-from ..sicd_elements.MatchInfo import MatchInfoType
+from .GeoInfo import GeoInfoType
+from ...complex.sicd_elements.MatchInfo import MatchInfoType
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"

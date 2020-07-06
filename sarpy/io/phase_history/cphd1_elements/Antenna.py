@@ -9,10 +9,10 @@ import numpy
 
 from .base import DEFAULT_STRICT
 # noinspection PyProtectedMember
-from ..sicd_elements.base import Serializable, _FloatDescriptor, _StringDescriptor, \
+from ...complex.sicd_elements.base import Serializable, _FloatDescriptor, _StringDescriptor, \
     _SerializableDescriptor, _BooleanDescriptor, _SerializableListDescriptor
-from ..sicd_elements.blocks import Poly1DType, XYZType, XYZPolyType, GainPhasePolyType
-from ..sicd_elements.Antenna import EBType
+from ...complex.sicd_elements.blocks import Poly1DType, XYZType, XYZPolyType, GainPhasePolyType
+from ...complex.sicd_elements.Antenna import EBType
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"

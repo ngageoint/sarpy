@@ -7,9 +7,9 @@ from typing import List
 
 from .base import DEFAULT_STRICT
 # noinspection PyProtectedMember
-from ..sicd_elements.base import Serializable, _StringDescriptor, \
+from ...complex.sicd_elements.base import Serializable, _StringDescriptor, \
     _SerializableDescriptor, _SerializableListDescriptor
-from ..sicd_elements.blocks import Poly2DType
+from ...complex.sicd_elements.blocks import Poly2DType
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"

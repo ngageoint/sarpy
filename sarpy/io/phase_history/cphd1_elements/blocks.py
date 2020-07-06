@@ -3,14 +3,13 @@
 Basic building blocks for CPHD standard - mostly overlap with SICD elements
 """
 
-from collections import OrderedDict
 from typing import Union, List
 
 import numpy
 
 from .base import DEFAULT_STRICT
 # noinspection PyProtectedMember
-from ..sicd_elements.base import Serializable, Arrayable, SerializableArray, \
+from ...complex.sicd_elements.base import Serializable, Arrayable, SerializableArray, \
     _SerializableDescriptor, _SerializableArrayDescriptor, \
     _IntegerDescriptor, _FloatDescriptor
 

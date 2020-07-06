@@ -9,9 +9,9 @@ import numpy
 
 from .base import DEFAULT_STRICT
 # noinspection PyProtectedMember
-from ..sicd_elements.base import Serializable, _FloatDescriptor, \
+from ...complex.sicd_elements.base import Serializable, _FloatDescriptor, \
     _StringEnumDescriptor, _SerializableDescriptor
-from ..sicd_elements.blocks import XYZType
+from ...complex.sicd_elements.blocks import XYZType
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
