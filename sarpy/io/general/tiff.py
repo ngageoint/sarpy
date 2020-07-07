@@ -6,6 +6,7 @@ Module providing api consistent with other file types for reading tiff files.
 import logging
 import numpy
 import warnings
+import re
 
 from .base import BaseChipper, BaseReader, int_func
 from .bip import BIPChipper
@@ -14,7 +15,8 @@ try:
     from osgeo import gdal
     _HAS_GDAL = True
 except ImportError:
-    warnings.warn("gdal is not successfully imported, which precludes reading tiffs via gdal")
+    # TODO: maybe we should remove this, since using gdal is not possible right now
+    # warnings.warn("gdal is not successfully imported, which precludes reading tiffs via gdal")
     gdal = None
     _HAS_GDAL = False
 
@@ -311,12 +313,18 @@ class TiffDetails(object):
         if dtype is None:
             logging.warning('Failed to extract tiff data type {}, for {} - {}'.format(tiff_type, ext, name))
             return {'Value': None, 'Name': name, 'Extension': ext}
-        if tiff_type == 2:  # ascii field
-            val = str(numpy.fromfile(fi, '{}{}{}'.format(self._endian, dtype, count), count=1))
+        if tiff_type == 2:  # ascii field - read directly and decode?
+            val = fi.read(count)  # this will be a string for python 2, and we decode for python 3
+            if not isinstance(val, str):
+                val = val.decode('utf-8')
+            # eliminate the null characters
+            val = re.sub('\x00', '', val)
         elif tiff_type in [5, 10]:  # unsigned or signed rational
             val = numpy.fromfile(fi, dtype='{}{}'.format(self._endian, dtype), count=numpy.int64(2*count)).reshape((-1, 2))
         else:
             val = numpy.fromfile(fi, dtype='{}{}'.format(self._endian, dtype), count=count)
+            if count == 1:
+                val = val[0]
         return {'Value': val, 'Name': name, 'Extension': ext}
 
     def _parse_ifd(self, fi, tags, type_dtype, count_dtype, offset_dtype, offset_size):
@@ -363,6 +371,38 @@ class TiffDetails(object):
                 fi.seek(save_ptr)  # return to our location
             tags[value['Name']] = value['Value']
         self._parse_ifd(fi, tags, type_dtype, count_dtype, offset_dtype, offset_size)  # recurse
+
+    def check_compression(self):
+        """
+        Check the Compression tag, and verify uncompressed.
+
+        Returns
+        -------
+        None
+        """
+
+        if self.tags['Compression'] != 1:
+            raise ValueError(
+                'The file {} indicates some kind of tiff compression, and the sarpy API requirements '
+                'do not presently support reading of compressed tiff files. Consider using gdal to '
+                'translate this tiff to an uncompressed file via the commmand\n\t'
+                '"gdal_translate -co TILED=no <input_file> <output_file>"')
+
+    def check_tiled(self):
+        """
+        Check if the tiff file is tiled.
+
+        Returns
+        -------
+        None
+        """
+
+        if 'TileLength' in self.tags or 'TileWidth' in self.tags:
+            raise ValueError(
+                'The file {} indicates that this is a tiled file, and the sarpy API requirements '
+                'do not presently support reading of tiled tiff files. Consider using gdal to '
+                'translate this tiff to a flat file via the commmand\n\t'
+                '"gdal_translate -co TILED=no <input_file> <output_file>"')
 
 
 class NativeTiffChipper(BIPChipper):

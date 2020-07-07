@@ -311,12 +311,13 @@ class RadarSatDetails(object):
         ImageCreationType
         """
 
+        from sarpy.__about__ import __version__
         processing_info = self._find('./imageGenerationParameters/generalProcessingInformation')
         return ImageCreationType(
             Application=processing_info.find('softwareVersion').text,
             DateTime=processing_info.find('processingTime').text,
             Site=processing_info.find('processingFacility').text,
-            Profile='Prototype')
+            Profile='sarpy {}'.format(__version__))
 
     def _get_image_and_geo_data(self):
         """

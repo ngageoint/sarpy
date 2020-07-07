@@ -799,7 +799,7 @@ class SICDType(Serializable):
         """
 
         if self.CollectionInfo is None:
-            logging.error('CollectionInfo must not be None. Nothing to be done.')
+            logging.error('CollectionInfo must not be None. Nothing to be done for calculating RNIIRS.')
             return
 
         if self.CollectionInfo.Parameters is not None and \
@@ -810,7 +810,7 @@ class SICDType(Serializable):
                 logging.info('PREDICTED_RNIIRS already populated. Nothing to be done.')
                 return
 
-        if noise is None:
+        if noise is None and self.Radiometric is not None:
             try:
                 if self.Radiometric.NoiseLevel.NoiseLevelType != 'ABSOLUTE':
                     logging.error(
@@ -823,7 +823,7 @@ class SICDType(Serializable):
                 # convert to SigmaZero value
                 noise *= self.Radiometric.SigmaZeroSFPoly(0, 0)
             except Exception as e:
-                logging.error('Encountered an error estimating noise. {}'.format(e))
+                logging.error('Encountered an error estimating noise for RNIIRS. {}'.format(e))
                 return
 
         if signal is None:
@@ -845,7 +845,7 @@ class SICDType(Serializable):
             bw_area = abs(self.Grid.Row.ImpRespBW*self.Grid.Col.ImpRespBW*
                           numpy.cos(numpy.deg2rad(self.SCPCOA.SlopeAng)))
         except Exception as e:
-            logging.error('Encountered an error estimating bandwidth area. {}'.format(e))
+            logging.error('Encountered an error estimating bandwidth area for RNIIRS. {}'.format(e))
             return
 
         inf_density, rniirs = snr_to_rniirs(bw_area, signal, noise)

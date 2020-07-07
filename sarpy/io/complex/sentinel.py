@@ -238,6 +238,8 @@ class SentinelDetails(object):
         SICDType
         """
 
+        from sarpy.__about__ import __version__
+
         # CollectionInfo
         platform = self._find('./metadataSection'
                               '/metadataObject[@ID="platform"]'
@@ -269,7 +271,7 @@ class SentinelDetails(object):
             Application='{name} {version}'.format(**software.attrib),
             DateTime=processing.attrib['stop'],
             Site='{name}, {site}, {country}'.format(**facility.attrib),
-            Profile='Prototype')
+            Profile='sarpy {}'.format(__version__))
         # RadarCollection
         polarizations = self._findall('./metadataSection'
                                       '/metadataObject[@ID="generalProductInformation"]'
