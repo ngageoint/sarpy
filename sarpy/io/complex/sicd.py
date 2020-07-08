@@ -16,7 +16,7 @@ from ..general.utils import string_types, parse_xml_from_string
 # noinspection PyProtectedMember
 from .sicd_elements.SICD import SICDType, _SICD_SPECIFICATION_IDENTIFIER
 
-from ..general.nitf_elements.nitf_head import NITFDetails
+from ..general.nitf import NITFDetails
 from ..general.nitf_elements.des import DataExtensionHeader, SICDDESSubheader
 from ..general.nitf_elements.security import NITFSecurityTags
 from ..general.nitf_elements.image import ImageSegmentHeader, ImageBands, ImageBand

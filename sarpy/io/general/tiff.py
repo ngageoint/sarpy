@@ -3,20 +3,18 @@
 Module providing api consistent with other file types for reading tiff files.
 """
 
+# It was the original intent to use gdal for the bulk of tiff reading
+# Unfortunately, the necessary sarpy functionality can only be obtained by
+# gdal_dataset.GetVirtualMemArray(). As of July 2020, this is supported only
+# on Linux platforms - unclear what more constraints. So, using gdal to provide
+# the reading capability is not feasible at present.
+
 import logging
 import numpy
-import warnings
+import re
 
-from .base import BaseChipper, BaseReader, int_func
+from .base import BaseReader, int_func
 from .bip import BIPChipper
-
-try:
-    from osgeo import gdal
-    _HAS_GDAL = True
-except ImportError:
-    warnings.warn("gdal is not successfully imported, which precludes reading tiffs via gdal")
-    gdal = None
-    _HAS_GDAL = False
 
 
 __classification__ = "UNCLASSIFIED"
@@ -311,12 +309,18 @@ class TiffDetails(object):
         if dtype is None:
             logging.warning('Failed to extract tiff data type {}, for {} - {}'.format(tiff_type, ext, name))
             return {'Value': None, 'Name': name, 'Extension': ext}
-        if tiff_type == 2:  # ascii field
-            val = str(numpy.fromfile(fi, '{}{}{}'.format(self._endian, dtype, count), count=1))
+        if tiff_type == 2:  # ascii field - read directly and decode?
+            val = fi.read(count)  # this will be a string for python 2, and we decode for python 3
+            if not isinstance(val, str):
+                val = val.decode('utf-8')
+            # eliminate the null characters
+            val = re.sub('\x00', '', val)
         elif tiff_type in [5, 10]:  # unsigned or signed rational
             val = numpy.fromfile(fi, dtype='{}{}'.format(self._endian, dtype), count=numpy.int64(2*count)).reshape((-1, 2))
         else:
             val = numpy.fromfile(fi, dtype='{}{}'.format(self._endian, dtype), count=count)
+            if count == 1:
+                val = val[0]
         return {'Value': val, 'Name': name, 'Extension': ext}
 
     def _parse_ifd(self, fi, tags, type_dtype, count_dtype, offset_dtype, offset_size):
@@ -363,6 +367,38 @@ class TiffDetails(object):
                 fi.seek(save_ptr)  # return to our location
             tags[value['Name']] = value['Value']
         self._parse_ifd(fi, tags, type_dtype, count_dtype, offset_dtype, offset_size)  # recurse
+
+    def check_compression(self):
+        """
+        Check the Compression tag, and verify uncompressed.
+
+        Returns
+        -------
+        None
+        """
+
+        if self.tags['Compression'] != 1:
+            raise ValueError(
+                'The file {} indicates some kind of tiff compression, and the sarpy API requirements '
+                'do not presently support reading of compressed tiff files. Consider using gdal to '
+                'translate this tiff to an uncompressed file via the commmand\n\t'
+                '"gdal_translate -co TILED=no <input_file> <output_file>"')
+
+    def check_tiled(self):
+        """
+        Check if the tiff file is tiled.
+
+        Returns
+        -------
+        None
+        """
+
+        if 'TileLength' in self.tags or 'TileWidth' in self.tags:
+            raise ValueError(
+                'The file {} indicates that this is a tiled file, and the sarpy API requirements '
+                'do not presently support reading of tiled tiff files. Consider using gdal to '
+                'translate this tiff to a flat file via the commmand\n\t'
+                '"gdal_translate -co TILED=no <input_file> <output_file>"')
 
 
 class NativeTiffChipper(BIPChipper):
@@ -414,68 +450,11 @@ class NativeTiffChipper(BIPChipper):
             data_offset=data_offset, bands_ip=1)
 
 
-class GdalTiffChipper(BaseChipper):
-    """
-    Utilizing gdal for reading of data from tiff file, should be much more robust
-    """
-    # TODO: this is a work in progress and not quite functional
-    __slots__ = ('_tiff_details', '_data_set', '_bands', '_virt_array')
-
-    def __init__(self, tiff_details, symmetry=(False, False, True)):
-        """
-
-        Parameters
-        ----------
-        tiff_details : TiffDetails
-        symmetry : Tuple[bool]
-        """
-        if isinstance(tiff_details, str):
-            tiff_details = TiffDetails(tiff_details)
-        if not isinstance(tiff_details, TiffDetails):
-            raise TypeError('GdalTiffChipper input argument must be a filename '
-                            'or TiffDetails object.')
-
-        self._tiff_details = tiff_details
-        # initialize our dataset - NB: this should close gracefully on garbage collection
-        self._data_set = gdal.Open(tiff_details.file_name, gdal.GA_ReadOnly)
-        if self._data_set is None:
-            raise ValueError(
-                'GDAL failed with unspecified error in opening file {}'.format(tiff_details.file_name))
-        # get data_size information
-        data_size = (self._data_set.RasterYSize, self._data_set.RasterXSize)
-        self._bands = self._data_set.RasterCount
-        # TODO: get data_type information - specifically how does complex really work?
-        complex_type = ''
-        super(GdalTiffChipper, self).__init__(data_size, symmetry=symmetry, complex_type=complex_type)
-        # 5.) set up our virtual array using GetVirtualMemArray
-        try:
-            self._virt_array = self._data_set.GetVirtualMemArray()
-        except Exception:
-            logging.error(
-                msg="There has been some error using the gdal method GetVirtualMemArray(). "
-                    "Consider falling back to the base sarpy tiff reader implementation (use_gdal=False)")
-            raise
-        # TODO: this does not generally work should we clunkily fall back to dataset.band.ReadAsArray()?
-        #   This doesn't support slicing...
-
-    def _read_raw_fun(self, range1, range2):
-        arange1, arange2 = self._reorder_arguments(range1, range2)
-        if self._bands == 1:
-            out = self._virt_array[arange1[0]:arange1[1]:arange1[2], arange2[0]:arange2[1]:arange2[2]]
-        elif self._data_set.band_sequential:
-            # push the bands to the end
-            out = (self._virt_array[:, arange1[0]:arange1[1]:arange1[2], arange2[0]:arange2[1]:arange2[2]]).transpose((2, 0, 1))
-        else:
-            # push the bands to the end
-            out = self._virt_array[arange1[0]:arange1[1]:arange1[2], arange2[0]:arange2[1]:arange2[2], :]
-        return out
-
-
 class TiffReader(BaseReader):
     __slots__ = ('_tiff_details', '_sicd_meta', '_chipper')
     _DEFAULT_SYMMETRY = (False, False, False)
 
-    def __init__(self, tiff_details, sicd_meta=None, symmetry=None, use_gdal=False):
+    def __init__(self, tiff_details, sicd_meta=None, symmetry=None):
         """
 
         Parameters
@@ -483,8 +462,6 @@ class TiffReader(BaseReader):
         tiff_details : TiffDetails
         sicd_meta : None|sarpy.io.complex.sicd_elements.SICD.SICDType
         symmetry : Tuple[bool]
-        use_gdal : bool
-            Should we use gdal to read the tiff (required if compressed)
         """
 
         if isinstance(tiff_details, str):
@@ -497,22 +474,7 @@ class TiffReader(BaseReader):
         if symmetry is None:
             symmetry = self._DEFAULT_SYMMETRY
 
-        if use_gdal:
-            # TODO: finish this capability
-            logging.warning(
-                msg="The option use_gdal=True, but this functionality is a work in progress. "
-                    "Falling back to the sarpy base version.")
-            use_gdal = False
-
-        if use_gdal and not _HAS_GDAL:
-            logging.warning(
-                msg="The option use_gdal=True, but there does not appear to be "
-                    "a functional gdal installed. Falling back to the sarpy base version.")
-            use_gdal = False
-        if use_gdal:
-            chipper = GdalTiffChipper(tiff_details, symmetry=symmetry)
-        else:
-            chipper = NativeTiffChipper(tiff_details, symmetry=symmetry)
+        chipper = NativeTiffChipper(tiff_details, symmetry=symmetry)
         super(TiffReader, self).__init__(sicd_meta, chipper)
 
     @property

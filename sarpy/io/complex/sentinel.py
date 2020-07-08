@@ -238,6 +238,8 @@ class SentinelDetails(object):
         SICDType
         """
 
+        from sarpy.__about__ import __version__
+
         # CollectionInfo
         platform = self._find('./metadataSection'
                               '/metadataObject[@ID="platform"]'
@@ -269,7 +271,7 @@ class SentinelDetails(object):
             Application='{name} {version}'.format(**software.attrib),
             DateTime=processing.attrib['stop'],
             Site='{name}, {site}, {country}'.format(**facility.attrib),
-            Profile='Prototype')
+            Profile='sarpy {}'.format(__version__))
         # RadarCollection
         polarizations = self._findall('./metadataSection'
                                       '/metadataObject[@ID="generalProductInformation"]'
@@ -1022,14 +1024,12 @@ class SentinelReader(BaseReader):
 
     __slots__ = ('_sentinel_details', '_readers')
 
-    def __init__(self, sentinel_details, use_gdal=False):
+    def __init__(self, sentinel_details):
         """
 
         Parameters
         ----------
         sentinel_details : str|SentinelDetails
-        use_gdal : bool
-            Should we attempt to use gdal to read the underlying data files?
         """
 
         if isinstance(sentinel_details, string_types):
@@ -1045,12 +1045,12 @@ class SentinelReader(BaseReader):
         for data_file, sicds in sicd_collection:
             tiff_details = TiffDetails(data_file)
             if isinstance(sicds, SICDType):
-                readers.append(TiffReader(tiff_details, sicd_meta=sicds, symmetry=symmetry, use_gdal=use_gdal))
+                readers.append(TiffReader(tiff_details, sicd_meta=sicds, symmetry=symmetry))
             elif len(sicds) == 1:
-                readers.append(TiffReader(tiff_details, sicd_meta=sicds[0], symmetry=symmetry, use_gdal=use_gdal))
+                readers.append(TiffReader(tiff_details, sicd_meta=sicds[0], symmetry=symmetry))
             else:
                 # no need for SICD here - we're using subreaders
-                p_reader = TiffReader(tiff_details, sicd_meta=None, symmetry=symmetry, use_gdal=use_gdal)
+                p_reader = TiffReader(tiff_details, sicd_meta=None, symmetry=symmetry)
                 begin_col = 0
                 for sicd in sicds:
                     assert isinstance(sicd, SICDType)
