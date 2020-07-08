@@ -1055,7 +1055,7 @@ class SentinelReader(BaseReader):
                 for sicd in sicds:
                     assert isinstance(sicd, SICDType)
                     end_col = begin_col + sicd.ImageData.NumCols
-                    dim1bounds = (0, tiff_details.tags['ImageWidth'][0])
+                    dim1bounds = (0, tiff_details.tags['ImageWidth'])
                     dim2bounds = (begin_col, end_col)
                     readers.append(SubsetReader(p_reader, sicd, dim1bounds, dim2bounds))
                     begin_col = end_col
