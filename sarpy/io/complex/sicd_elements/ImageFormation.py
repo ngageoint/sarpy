@@ -126,7 +126,7 @@ class ProcessingType(Serializable):
         Type : str
         Applied : bool
         Parameters : ParametersCollection|dict
-        kwargs : dict
+        kwargs
         """
 
         if '_xml_ns' in kwargs:
@@ -342,7 +342,7 @@ class ImageFormationType(Serializable):
     Processings = _SerializableListDescriptor(
         'Processings', ProcessingType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Parameters to describe types of specific processing that may have been applied '
-                  'such as additional compensations.')  # type: List[ProcessingType]
+                  'such as additional compensations.')  # type: Union[None, List[ProcessingType]]
     PolarizationCalibration = _SerializableDescriptor(
         'PolarizationCalibration', PolarizationCalibrationType, _required, strict=DEFAULT_STRICT,
         docstring='The polarization calibration details.')  # type: PolarizationCalibrationType
@@ -367,7 +367,7 @@ class ImageFormationType(Serializable):
         ImageBeamComp :str
         AzAutofocus : str
         RgAutofocus : str
-        Processings : List[ProcessingType]
+        Processings : None|List[ProcessingType]
         PolarizationCalibration : PolarizationCalibrationType
         kwargs : dict
         """

@@ -402,6 +402,8 @@ def _parse_serializable_list(value, name, instance, child_type):
     elif isinstance(value, list) or isinstance(value[0], child_type):
         if len(value) == 0:
             return value
+        elif isinstance(value[0], child_type):
+            return [entry for entry in value]
         elif isinstance(value[0], dict):
             # NB: charming errors are possible if something stupid has been done.
             return [child_type.from_dict(node) for node in value]
@@ -2352,6 +2354,8 @@ class ParametersCollection(object):
             return None  # nothing to be done
         for name in self._dict:
             value = self._dict[name]
+            if not isinstance(value, string_types):
+                value = str(value)
             if ns_key is None:
                 node = _create_text_node(doc, self._child_tag, value, parent=parent)
             else:

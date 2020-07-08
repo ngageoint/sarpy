@@ -185,7 +185,10 @@ class CSKDetails(object):
                                                               ModeType=mode_type))
 
         def get_image_creation():  # type: () -> ImageCreationType
-            return ImageCreationType(DateTime=parse_timestring(h5_dict['Product Generation UTC'], precision='ns'))
+            from sarpy.__about__ import __version__
+            return ImageCreationType(
+                DateTime=parse_timestring(h5_dict['Product Generation UTC'], precision='ns'),
+                Profile='sarpy {}'.format(__version__))
 
         def get_grid():  # type: () -> GridType
             if h5_dict['Projection ID'] == 'SLANT RANGE/AZIMUTH':
