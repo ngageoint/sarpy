@@ -5,7 +5,7 @@ Functionality for reading Capella SAR data into a SICD model.
 
 import logging
 import json
-from typing import Union, Dict, Any
+from typing import Dict, Any
 from datetime import datetime
 from scipy.constants import speed_of_light
 
@@ -118,7 +118,11 @@ class CapellaDetails(object):
 
     def get_symmetry(self):
         """
-        tuple: Gets the symmetry definition
+        Gets the symmetry definition.
+
+        Returns
+        -------
+        Tuple[bool, bool, bool]
         """
 
         return False, False, False
@@ -189,7 +193,7 @@ class CapellaDetails(object):
                 FirstRow=0, FirstCol=0,
                 PixelType=pixel_type,
                 FullImage=(rows, cols),
-                SCPPixel=(0.5*rows, 0.5*cols))  # TODO: verify SCPPixel definition
+                SCPPixel=(0.5*rows, 0.5*cols))  # TODO: From Wade - verify SCPPixel definition
 
         def get_geo_data():
             # type: () -> GeoDataType
@@ -303,7 +307,7 @@ class CapellaDetails(object):
                 RgAutofocus='NO',
                 Processings=processings)
 
-        # TODO: From Wade - Radiometric
+        # TODO: From Wade - Radiometric is not suitable?
 
         # extract general use information
         collect = self._img_desc_tags['collect']
@@ -336,7 +340,9 @@ class CapellaDetails(object):
             Timeline=timeline,
             ImageFormation=image_formation)
         sicd.derive()
-        sicd.populate_rniirs(override=False)
+
+        # NB: this does not currently have enough information to successfully execute
+        # sicd.populate_rniirs(override=False)
         return sicd
 
 
