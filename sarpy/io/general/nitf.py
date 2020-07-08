@@ -1,23 +1,372 @@
 # -*- coding: utf-8 -*-
 """
-Module laying out basic functionality for reading and writing NITF files. This is **intended**
-to represent base functionality to be extended for SICD, CPHD, and SIDD capability.
+Module laying out basic functionality for reading and writing NITF files.
+This is **intended** to represent base functionality to be extended for
+SICD and SIDD capability.
 """
 
 import logging
-from typing import List, Tuple
+import os
+from typing import Union, List, Tuple
 import re
 
 import numpy
 
 from .base import BaseChipper, BaseReader, AbstractWriter, int_func
 from .bip import BIPChipper, BIPWriter
-from .nitf_elements.nitf_head import NITFDetails, NITFHeader, ImageSegmentsType, DataExtensionsType
+# noinspection PyProtectedMember
+from .nitf_elements.nitf_head import NITFHeader, ImageSegmentsType, \
+    DataExtensionsType, _ItemArrayHeaders, TextSegmentHeader, \
+    GraphicsSegmentHeader, ReservedExtensionHeader
 from .nitf_elements.security import NITFSecurityTags
 from .nitf_elements.image import ImageSegmentHeader
 from .nitf_elements.des import DataExtensionHeader
 from ..complex.sicd_elements.blocks import LatLonType
 from sarpy.geometry.geocoords import ecf_to_geodetic, geodetic_to_ecf
+
+
+#####
+# A general nitf header interpreter - intended for extension
+
+class NITFDetails(object):
+    """
+    This class allows for somewhat general parsing of the header information in a NITF 2.1 file.
+    """
+
+    __slots__ = (
+        '_file_name', '_nitf_header',
+        'img_subheader_offsets', 'img_segment_offsets',
+        'graphics_subheader_offsets', 'graphics_segment_offsets',
+        'text_subheader_offsets', 'text_segment_offsets',
+        'des_subheader_offsets', 'des_segment_offsets',
+        'res_subheader_offsets', 'res_segment_offsets')
+
+    def __init__(self, file_name):
+        """
+
+        Parameters
+        ----------
+        file_name : str
+            file name for a NITF 2.1 file
+        """
+
+        self._file_name = file_name
+
+        if not os.path.isfile(file_name):
+            raise IOError('Path {} is not a file'.format(file_name))
+
+        with open(file_name, mode='rb') as fi:
+            # Read the first 9 bytes to verify NITF
+            try:
+                version_info = fi.read(9).decode('utf-8')
+            except:
+                raise IOError('Not a NITF 2.1 file.')
+
+            if version_info != 'NITF02.10':
+                raise IOError('Not a NITF 2.1 file.')
+            # get the header length
+            fi.seek(354)  # offset to first field of interest
+            header_length = int_func(fi.read(6))
+            # go back to the beginning of the file, and parse the whole header
+            fi.seek(0)
+            header_string = fi.read(header_length)
+            self._nitf_header = NITFHeader.from_bytes(header_string, 0)
+
+        curLoc = self._nitf_header.HL
+        # populate image segment offset information
+        curLoc, self.img_subheader_offsets, self.img_segment_offsets = self._element_offsets(
+            curLoc, self._nitf_header.ImageSegments)
+        # populate graphics segment offset information
+        curLoc, self.graphics_subheader_offsets, self.graphics_segment_offsets = self._element_offsets(
+            curLoc, self._nitf_header.GraphicsSegments)
+        # populate text segment offset information
+        curLoc, self.text_subheader_offsets, self.text_segment_offsets = self._element_offsets(
+            curLoc, self._nitf_header.TextSegments)
+        # populate data extension offset information
+        curLoc, self.des_subheader_offsets, self.des_segment_offsets = self._element_offsets(
+            curLoc, self._nitf_header.DataExtensions)
+        # populate data extension offset information
+        curLoc, self.res_subheader_offsets, self.res_segment_offsets = self._element_offsets(
+            curLoc, self._nitf_header.ReservedExtensions)
+
+    @staticmethod
+    def _element_offsets(curLoc, item_array_details):
+        # type: (int, _ItemArrayHeaders) -> Tuple[int, Union[None, numpy.ndarray], Union[None, numpy.ndarray]]
+        subhead_sizes = item_array_details.subhead_sizes
+        item_sizes = item_array_details.item_sizes
+        if subhead_sizes.size == 0:
+            return curLoc, None, None
+
+        subhead_offsets = numpy.full(subhead_sizes.shape, curLoc, dtype=numpy.int64)
+        subhead_offsets[1:] += numpy.cumsum(subhead_sizes[:-1]) + numpy.cumsum(item_sizes[:-1])
+        item_offsets = subhead_offsets + subhead_sizes
+        curLoc = item_offsets[-1] + item_sizes[-1]
+        return curLoc, subhead_offsets, item_offsets
+
+    @property
+    def file_name(self):
+        """str: the file name."""
+        return self._file_name
+
+    @property
+    def nitf_header(self):  # type: () -> NITFHeader
+        """NITFHeader: the nitf header object"""
+        return self._nitf_header
+
+    def _fetch_item(self, name, index, offsets, sizes):
+        # type: (str, int, numpy.ndarray, numpy.ndarray) -> bytes
+        if index >= offsets.size:
+            raise IndexError(
+                'There are only {0:d} {1:s}, invalid {1:s} position {2:d}'.format(
+                    offsets.size, name, index))
+        the_offset = offsets[index]
+        the_size = sizes[index]
+        with open(self._file_name, mode='rb') as fi:
+            fi.seek(int_func(the_offset))
+            the_item = fi.read(int_func(the_size))
+        return the_item
+
+    def get_image_subheader_bytes(self, index):
+        """
+        Fetches the image segment subheader at the given index.
+
+        Parameters
+        ----------
+        index : int
+
+        Returns
+        -------
+        bytes
+        """
+
+        return self._fetch_item('image subheader',
+                                index,
+                                self.img_subheader_offsets,
+                                self._nitf_header.ImageSegments.subhead_sizes)
+
+    def parse_image_subheader(self, index):
+        """
+        Parse the image segment subheader at the given index.
+
+        Parameters
+        ----------
+        index : int
+
+        Returns
+        -------
+        ImageSegmentHeader
+        """
+
+        ih = self.get_image_subheader_bytes(index)
+        return ImageSegmentHeader.from_bytes(ih, 0)
+
+    def get_text_subheader_bytes(self, index):
+        """
+        Fetches the text segment subheader at the given index.
+
+        Parameters
+        ----------
+        index : int
+
+        Returns
+        -------
+        bytes
+        """
+
+        return self._fetch_item('text subheader',
+                                index,
+                                self.text_subheader_offsets,
+                                self._nitf_header.TextSegments.subhead_sizes)
+
+    def get_text_bytes(self, index):
+        """
+        Fetches the text extension segment bytes at the given index.
+
+        Parameters
+        ----------
+        index : int
+
+        Returns
+        -------
+        bytes
+        """
+
+        return self._fetch_item('text segment',
+                                index,
+                                self.text_segment_offsets,
+                                self._nitf_header.TextSegments.item_sizes)
+
+    def parse_text_subheader(self, index):
+        """
+        Parse the text segment subheader at the given index.
+
+        Parameters
+        ----------
+        index : int
+
+        Returns
+        -------
+        TextSegmentHeader
+        """
+
+        th = self.get_text_subheader_bytes(index)
+        return TextSegmentHeader.from_bytes(th, 0)
+
+    def get_graphics_subheader_bytes(self, index):
+        """
+        Fetches the graphics segment subheader at the given index.
+
+        Parameters
+        ----------
+        index : int
+
+        Returns
+        -------
+        bytes
+        """
+
+        return self._fetch_item('graphics subheader',
+                                index,
+                                self.graphics_subheader_offsets,
+                                self._nitf_header.GraphicsSegments.subhead_sizes)
+
+    def get_graphics_bytes(self, index):
+        """
+        Fetches the graphics extension segment bytes at the given index.
+
+        Parameters
+        ----------
+        index : int
+
+        Returns
+        -------
+        bytes
+        """
+
+        return self._fetch_item('graphics segment',
+                                index,
+                                self.graphics_segment_offsets,
+                                self._nitf_header.GraphicsSegments.item_sizes)
+
+    def parse_graphics_subheader(self, index):
+        """
+        Parse the graphics segment subheader at the given index.
+
+        Parameters
+        ----------
+        index : int
+
+        Returns
+        -------
+        GraphicsSegmentHeader
+        """
+
+        gh = self.get_graphics_subheader_bytes(index)
+        return GraphicsSegmentHeader.from_bytes(gh, 0)
+
+    def get_des_subheader_bytes(self, index):
+        """
+        Fetches the data extension segment subheader bytes at the given index.
+
+        Parameters
+        ----------
+        index : int
+
+        Returns
+        -------
+        bytes
+        """
+
+        return self._fetch_item('des subheader',
+                                index,
+                                self.des_subheader_offsets,
+                                self._nitf_header.DataExtensions.subhead_sizes)
+
+    def get_des_bytes(self, index):
+        """
+        Fetches the data extension segment bytes at the given index.
+
+        Parameters
+        ----------
+        index : int
+
+        Returns
+        -------
+        bytes
+        """
+
+        return self._fetch_item('des',
+                                index,
+                                self.des_segment_offsets,
+                                self._nitf_header.DataExtensions.item_sizes)
+
+    def parse_des_subheader(self, index):
+        """
+        Parse the data extension segment subheader at the given index.
+
+        Parameters
+        ----------
+        index : int
+
+        Returns
+        -------
+        DataExtensionHeader
+        """
+
+        dh = self.get_des_subheader_bytes(index)
+        return DataExtensionHeader.from_bytes(dh, 0)
+
+    def get_res_subheader_bytes(self, index):
+        """
+        Fetches the reserved extension segment subheader bytes at the given index.
+
+        Parameters
+        ----------
+        index : int
+
+        Returns
+        -------
+        bytes
+        """
+
+        return self._fetch_item('res subheader',
+                                index,
+                                self.res_subheader_offsets,
+                                self._nitf_header.ReservedExtensions.subhead_sizes)
+
+    def get_res_bytes(self, index):
+        """
+        Fetches the reserved extension segment bytes at the given index.
+
+        Parameters
+        ----------
+        index : int
+
+        Returns
+        -------
+        bytes
+        """
+
+        return self._fetch_item('res',
+                                index,
+                                self.res_segment_offsets,
+                                self._nitf_header.ReservedExtensions.item_sizes)
+
+    def parse_res_subheader(self, index):
+        """
+        Parse the reserved extension subheader at the given index.
+
+        Parameters
+        ----------
+        index : int
+
+        Returns
+        -------
+        ReservedExtensionHeader
+        """
+
+        rh = self.get_res_subheader_bytes(index)
+        return ReservedExtensionHeader.from_bytes(rh, 0)
 
 
 class MultiSegmentChipper(BaseChipper):

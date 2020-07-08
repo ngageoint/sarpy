@@ -13,7 +13,7 @@ import numpy
 from ..general.utils import parse_xml_from_string, int_func, string_types
 from ..general.nitf import NITFReader, NITFWriter, ImageDetails, DESDetails, image_segmentation, get_npp_block, \
     interpolate_corner_points_string
-from ..general.nitf_elements.nitf_head import NITFDetails
+from ..general.nitf import NITFDetails
 from ..general.nitf_elements.des import DataExtensionHeader, SICDDESSubheader
 from ..general.nitf_elements.security import NITFSecurityTags
 from ..general.nitf_elements.image import ImageSegmentHeader, ImageBands, ImageBand
