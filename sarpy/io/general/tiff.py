@@ -425,21 +425,25 @@ class NativeTiffChipper(BIPChipper):
             raise TypeError('NativeTiffChipper input argument must be a filename '
                             'or TiffDetails object.')
 
-        compression_tag = int(tiff_details.tags['Compression'][0])
-        if compression_tag != 1:
-            raise ValueError('Tiff has compression tag {}, but only 1 (no compression) '
-                             'is supported.'.format(compression_tag))
+        tiff_details.check_compression()
+        tiff_details.check_tiled()
 
         self._tiff_details = tiff_details
-        samp_form = tiff_details.tags['SampleFormat'][0]
+        if isinstance(tiff_details.tags['SampleFormat'], numpy.ndarray):
+            samp_form = tiff_details.tags['SampleFormat'][0]
+        else:
+            samp_form = tiff_details.tags['SampleFormat']
         if samp_form not in self._SAMPLE_FORMATS:
             raise ValueError('Invalid sample format {}'.format(samp_form))
-        bits_per_sample = tiff_details.tags['BitsPerSample'][0]
-        complex_type = (int(tiff_details.tags['SamplesPerPixel'][0]) == 2)  # NB: this is obviously not general
+        if isinstance(tiff_details.tags['BitsPerSample'], numpy.ndarray):
+            bits_per_sample = tiff_details.tags['BitsPerSample'][0]
+        else:
+            bits_per_sample = tiff_details.tags['BitsPerSample']
+        complex_type = (int(tiff_details.tags['SamplesPerPixel']) == 2)  # NB: this is obviously not general
         if samp_form in [5, 6]:
             bits_per_sample /= 2
             complex_type = True
-        data_size = (int_func(tiff_details.tags['ImageLength'][0]), int_func(tiff_details.tags['ImageWidth'][0]))
+        data_size = (int_func(tiff_details.tags['ImageLength']), int_func(tiff_details.tags['ImageWidth']))
         data_type = numpy.dtype('{0:s}{1:s}{2:d}'.format(self._tiff_details.endian,
                                                          self._SAMPLE_FORMATS[samp_form],
                                                          int(bits_per_sample/8)))
