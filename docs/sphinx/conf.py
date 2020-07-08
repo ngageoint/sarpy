@@ -30,7 +30,7 @@ version = parameters.__version__
 extensions = ['sphinx.ext.autodoc', 'sphinx.ext.coverage', 'sphinxcontrib.napoleon']
 
 # Add any paths that contain templates here, relative to this directory.
-templates_path = ['_templates']
+templates_path = []
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
@@ -48,7 +48,7 @@ html_theme = 'sphinxdoc'
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
+html_static_path = []
 
 # control the order of elements shown by autodoc
 autodoc_member_order = 'bysource'
