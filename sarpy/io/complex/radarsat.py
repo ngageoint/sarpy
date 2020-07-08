@@ -962,15 +962,13 @@ class RadarSatReader(BaseReader):
     """
     __slots__ = ('_radar_sat_details', '_readers')
 
-    def __init__(self, radar_sat_details, use_gdal=False):
+    def __init__(self, radar_sat_details):
         """
 
         Parameters
         ----------
         radar_sat_details : str|RadarSatDetails
             file name or RadarSatDeatils object
-        use_gdal : bool
-            Should we attempt to use gdal to read the underlying tiff data files?
         """
 
         if isinstance(radar_sat_details, string_types):
@@ -990,7 +988,7 @@ class RadarSatReader(BaseReader):
             # create one reader per file/sicd
             # NB: the files are implicitly listed in the same order as polarizations
             tiff_details = TiffDetails(file_name)
-            readers.append(TiffReader(tiff_details, sicd_meta=sicd, symmetry=symmetry, use_gdal=use_gdal))
+            readers.append(TiffReader(tiff_details, sicd_meta=sicd, symmetry=symmetry))
         self._readers = tuple(readers)  # type: Tuple[TiffReader]
         sicd_tuple = tuple(reader.sicd_meta for reader in readers)
         chipper_tuple = tuple(reader._chipper for reader in readers)
