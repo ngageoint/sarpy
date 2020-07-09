@@ -12,6 +12,7 @@ import numpy
 
 from ..complex.sicd_elements.SICD import SICDType
 from ..complex.sicd_elements.ImageCreation import ImageCreationType
+from ..complex.sicd_elements.utils import is_general_match
 from ...__about__ import __title__, __version__
 from .utils import validate_range, reverse_range, int_func, integer_types
 
@@ -493,6 +494,47 @@ class BaseReader(object):
         else:
             return (self._chipper, )
 
+    def get_sicd_partitions(self, match_function=is_general_match):
+        """
+        Partition the sicd collection into sub-collections according to `match_function`,
+        which is assumed to establish an equivalence relation (reflexive, symmetric, and transitive).
+
+        Parameters
+        ----------
+        match_function : callable
+            This match function must have call signature `(SICDType, SICDType) -> bool`, and
+            defaults to :func:`sarpy.io.complex.sicd_elements.utils.is_general_match`.
+            This function is assumed reflexive, symmetric, and transitive.
+
+        Returns
+        -------
+        Tuple[Tuple[int]]
+        """
+
+        if not self.is_sicd_type:
+            logging.warning('It is only valid to get sicd partitions for a sicd type reader.')
+            return None
+
+        sicds = self.get_sicds_as_tuple()
+        # set up or state workspace
+        count = len(sicds)
+        matched = numpy.zeros((count,), dtype='bool')
+        matches = []
+
+        # assemble or match collections
+        for i in range(count):
+            if matched[i]:
+                # it's already matched somewhere
+                continue
+
+            matched[i] = True  # shouldn't access backwards, but just to be thorough
+            this_match = [i, ]
+            for j in range(i + 1, count):
+                if not matched[j] and match_function(sicds[i], sicds[j]):
+                    matched[j] = True
+                    this_match.append(j)
+            matches.append(tuple(this_match))
+        return tuple(matches)
 
     def _validate_index(self, index):
         if isinstance(self._chipper, BaseChipper) or index is None:
