@@ -15,12 +15,12 @@ Example Usage
 >>> orth_method = NearestNeighborMethod(reader, index=0, proj_helper=None,
 >>>     complex_valued=False, apply_radiometric=None, subtract_radiometric_noise=False)
 
->>> # Perform orthorecitifcation of the entire image
+>>> # Perform ortho-rectification of the entire image
 >>> # This will take a long time and be very RAM intensive, unless the image is small
 >>> ortho_bounds = orth_method.get_full_ortho_bounds()
 >>> ortho_data = orth_method.get_orthorectified_for_ortho_bounds(ortho_bounds)
 
->>> # or, perform orthorectification on a given rectangular region in pixel space
+>>> # or, perform ortho-rectification on a given rectangular region in pixel space
 >>> pixel_bounds = [100, 200, 200, 300]  # [first_row, last_row, first_column, last_column]
 >>> ortho_data = orth_method.get_orthorectified_for_pixel_bounds(pixel_bounds)
 
