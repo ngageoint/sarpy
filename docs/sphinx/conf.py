@@ -15,11 +15,9 @@ from sarpy import __about__ as parameters  # fetch our relevant project details
 # -- Project information -----------------------------------------------------
 
 project = 'sarpy'
+version = parameters.__version__  # The full version, including alpha/beta/rc tags
 copyright = parameters.__copyright__
 author = parameters.__author__
-
-# The full version, including alpha/beta/rc tags
-version = parameters.__version__
 
 
 # -- General configuration ---------------------------------------------------
