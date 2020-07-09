@@ -1,6 +1,7 @@
 # This details the important differences introduced in sarpy 1.0
 
-* .30 - Added support for Capella format data
+* .31 - Added support for Capella format data
+* .30 - Provide aggregate complex type reader, and sicd partitioning methods
 * .29 - Various fixes for tiff reading and reorganization
 * .28 - Reorganization of sarpy.io structure into proper categories
 * .27 - General purpose ortho-rectification capabilities introduced.
