@@ -16,9 +16,10 @@ from sarpy import __about__ as parameters  # fetch our relevant project details
 
 project = 'sarpy'
 version = parameters.__version__  # The full version, including alpha/beta/rc tags
+release = parameters.__version__
 copyright = parameters.__copyright__
 author = parameters.__author__
-
+html_logo = 'nga_logo.jpeg'
 
 # -- General configuration ---------------------------------------------------
 
