@@ -15,21 +15,22 @@ Example Usage
 >>> orth_method = NearestNeighborMethod(reader, index=0, proj_helper=None,
 >>>     complex_valued=False, apply_radiometric=None, subtract_radiometric_noise=False)
 
-# Perform orthorecitifcation of the entire image
-# This will take a long time and be very RAM intensive, unless the image is small
+>>> # Perform orthorecitifcation of the entire image
+>>> # This will take a long time and be very RAM intensive, unless the image is small
 >>> ortho_bounds = orth_method.get_full_ortho_bounds()
 >>> ortho_data = orth_method.get_orthorectified_for_ortho_bounds(ortho_bounds)
-# or, perform orthorectification on a given rectangular region in pixel space
+
+>>> # or, perform orthorectification on a given rectangular region in pixel space
 >>> pixel_bounds = [100, 200, 200, 300]  # [first_row, last_row, first_column, last_column]
 >>> ortho_data = orth_method.get_orthorectified_for_pixel_bounds(pixel_bounds)
 
-# view the data using matplotlib
+>>> # view the data using matplotlib
 >>> fig, axs = pyplot.subplots(nrows=1, ncols=1)
 >>> h1 = axs.imshow(ortho_data, cmap='inferno', aspect='equal')
 >>> fig.colorbar(h1, ax=axs)
 >>> pyplot.show()
 
-# write out the data to some image file format
+>>> # write out the data to some image file format
 >>> discrete_image = linear_discretization(ortho_data, min_value=None, max_value=None, bit_depth=8)
 >>> Image.fromarray(discrete_image).save('filename.jpg')
 """
