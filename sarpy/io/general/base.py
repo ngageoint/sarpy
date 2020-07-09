@@ -433,6 +433,7 @@ class BaseReader(object):
 
     @property
     def data_size(self):
+        # type: () -> Union[Tuple[int, int], Tuple[Tuple[int, int]]]
         """
         Tuple[int, int]|Tuple[Tuple[int, int], ...]: the data size(s) of the form (rows, cols).
         """
@@ -441,6 +442,7 @@ class BaseReader(object):
 
     @property
     def file_name(self):
+        # type: () -> str
         """
         str: The file/path name for the reader object.
         """
@@ -476,6 +478,21 @@ class BaseReader(object):
             return self._data_size
         else:
             return (self._data_size, )
+
+    def _get_chippers_as_tuple(self):
+        """
+        Get the chipper collection as a tuple.
+
+        Returns
+        -------
+        Tuple[BaseChipper]
+        """
+
+        if isinstance(self._chipper, tuple):
+            return self._chipper
+        else:
+            return (self._chipper, )
+
 
     def _validate_index(self, index):
         if isinstance(self._chipper, BaseChipper) or index is None:
