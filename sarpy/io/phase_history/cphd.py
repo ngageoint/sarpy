@@ -244,6 +244,7 @@ class CPHDDetails(object):
             self._cphd_meta = the_type.from_node(root_node, xml_ns, ns_key='default')
         else:
             self._cphd_meta = the_type.from_node(root_node, xml_ns)
+        return xml
 
 
 def _validate_cphd_details(cphd_details, version=None):
