@@ -59,6 +59,9 @@ def _get_node_value(nod):
         the string value of the node.
     """
 
+    if nod.text is None:
+        return None
+
     val = nod.text.strip()
     if len(val) == 0:
         return None
@@ -142,7 +145,8 @@ def _find_children(node, tag, xml_ns, ns_key):
 
 
 def _parse_str(value, name, instance):
-    # it is assumed that None is handled before this
+    if value is None:
+        return None
     if isinstance(value, string_types):
         return value
     elif isinstance(value, ElementTree.Element):
@@ -163,7 +167,8 @@ def _parse_bool(value, name, instance):
                 'Boolean field {} of class {} cannot assign from string value {}. '
                 'It must be one of ["0", "false", "1", "true"]'.format(name, instance.__class__.__name__, val))
 
-    # it is assumed that None is handled before this
+    if value is None:
+        return None
     if isinstance(value, bool):
         return value
     elif isinstance(value, integer_types):
@@ -179,7 +184,8 @@ def _parse_bool(value, name, instance):
 
 
 def _parse_int(value, name, instance):
-    # it is assumed that None is handled before this
+    if value is None:
+        return None
     if isinstance(value, integer_types):
         return value
     elif isinstance(value, ElementTree.Element):
@@ -202,7 +208,8 @@ def _parse_int(value, name, instance):
 
 
 def _parse_float(value, name, instance):
-    # it is assumed that None is handled before this
+    if value is None:
+        return None
     if isinstance(value, float):
         return value
     elif isinstance(value, ElementTree.Element):
@@ -214,7 +221,8 @@ def _parse_float(value, name, instance):
 
 
 def _parse_complex(value, name, instance):
-    # it is assumed that None is handled before this
+    if value is None:
+        return None
     if isinstance(value, complex):
         return value
     elif isinstance(value, ElementTree.Element):
@@ -257,7 +265,8 @@ def _parse_complex(value, name, instance):
 
 
 def _parse_datetime(value, name, instance, units='us'):
-    # it is assumed that None is handled before this
+    if value is None:
+        return None
     if isinstance(value, numpy.datetime64):
         return value
     elif isinstance(value, string_types):
@@ -281,7 +290,8 @@ def _parse_datetime(value, name, instance, units='us'):
 
 
 def _parse_serializable(value, name, instance, the_type):
-    # it is assumed that None is handled before this
+    if value is None:
+        return None
     if isinstance(value, the_type):
         return value
     elif isinstance(value, dict):
@@ -308,7 +318,8 @@ def _parse_serializable(value, name, instance, the_type):
 
 
 def _parse_serializable_array(value, name, instance, child_type, child_tag):
-    # it is assumed that None is handled before this
+    if value is None:
+        return None
     if isinstance(value, child_type):
         # this is the child element
         return numpy.array([value, ], dtype=numpy.object)
@@ -385,7 +396,8 @@ def _parse_serializable_array(value, name, instance, child_type, child_tag):
 
 
 def _parse_serializable_list(value, name, instance, child_type):
-    # it is assumed that None is handled before this
+    if value is None:
+        return None
     if isinstance(value, child_type):
         # this is the child element
         return [value, ]
@@ -421,6 +433,8 @@ def _parse_serializable_list(value, name, instance, child_type):
 
 
 def _parse_parameters_collection(value, name, instance):
+    if value is None:
+        return None
     if isinstance(value, dict):
         return value
     elif isinstance(value, list):
@@ -589,6 +603,7 @@ class _StringDescriptor(_BasicDescriptor):
 
         if super(_StringDescriptor, self).__set__(instance, value):  # the None handler...kinda hacky
             return
+
         self.data[instance] = _parse_str(value, self.name, instance)
 
 
