@@ -131,11 +131,11 @@ class TOASwathType(Serializable, Arrayable):
     _numeric_format = {fld: '0.16G' for fld in _fields}
     # descriptors
     TOAMin = _FloatDescriptor(
-        'TOAMin', _required, strict=DEFAULT_STRICT, bounds=(0, None),
+        'TOAMin', _required, strict=DEFAULT_STRICT,
         docstring=r'Minimum :math:`\Delta TOA` value for any signal vector in '
                   'the product, in seconds.')  # type: float
     TOAMax = _FloatDescriptor(
-        'TOAMax', _required, strict=DEFAULT_STRICT, bounds=(0, None),
+        'TOAMax', _required, strict=DEFAULT_STRICT,
         docstring=r'Maximum :math:`\Delta TOA` value for any signal vector in '
                   'the product, in seconds.')  # type: float
 

@@ -145,7 +145,7 @@ class IAXExtentType(Serializable):
     """
     Increasing line index is in the +IAX direction.
     """
-    _fields = ('LineSpacing', 'FirstLine', 'NumSamples')
+    _fields = ('LineSpacing', 'FirstLine', 'NumLines')
     _required = _fields
     _numeric_format = {'LineSpacing': '0.16G'}
     # descriptors
