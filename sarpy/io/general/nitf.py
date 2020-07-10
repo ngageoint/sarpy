@@ -12,8 +12,8 @@ import re
 
 import numpy
 
-from .base import BaseChipper, BaseReader, AbstractWriter, int_func
-from .bip import BIPChipper, BIPWriter
+from .base import BaseReader, AbstractWriter, int_func
+from .bip import BIPWriter
 # noinspection PyProtectedMember
 from .nitf_elements.nitf_head import NITFHeader, ImageSegmentsType, \
     DataExtensionsType, _ItemArrayHeaders, TextSegmentHeader, \
@@ -369,141 +369,6 @@ class NITFDetails(object):
         return ReservedExtensionHeader.from_bytes(rh, 0)
 
 
-class MultiSegmentChipper(BaseChipper):
-    """
-    Required chipping object to allow for the fact that a single image in a
-    NITF file will often be broken up into a collection of image segments.
-    """
-
-    __slots__ = ('_file_name', '_data_size', '_dtype', '_complex_out',
-                 '_symmetry', '_bounds', '_bands_ip', '_child_chippers')
-
-    def __init__(self, file_name, bounds, data_offsets, data_type,
-                 symmetry=None, complex_type=False, bands_ip=1):
-        """
-
-        Parameters
-        ----------
-        file_name : str
-            The name of the file from which to read
-        bounds : numpy.ndarray
-            Two-dimensional array of [row start, row end, column start, column end]
-        data_offsets : numpy.ndarray
-            Offset for each image segment from the start of the file
-        data_type : str|numpy.dtype|numpy.number
-            The data type of the underlying file
-        symmetry : tuple
-            See `BaseChipper` for description of 3 element tuple of booleans.
-        complex_type : callable|bool
-            See `BaseChipper` for description of `complex_type`
-        bands_ip : int
-            number of bands - this will always be one for sicd.
-        """
-
-        if not isinstance(bounds, numpy.ndarray):
-            raise ValueError('bounds must be an numpy.ndarray, not {}'.format(type(bounds)))
-        if not (bounds.ndim == 2 and bounds.shape[1] == 4):
-            raise ValueError('bounds must be an Nx4 numpy.ndarray, not shape {}'.format(bounds.shape))
-        data_sizes = numpy.zeros((bounds.shape[0], 2), dtype=numpy.int64)
-        p_row_start, p_row_end, p_col_start, p_col_end = None, None, None, None
-        for i, entry in enumerate(bounds):
-            # Are the order of the entries in bounds sensible?
-            if not (0 <= entry[0] < entry[1] and 0 <= entry[2] < entry[3]):
-                raise ValueError('entry {} of bounds is {}, and cannot be of the form '
-                                 '[row start, row end, column start, column end]'.format(i, entry))
-
-            # Are the elements of bounds sensible in relative terms?
-            #   we must traverse by a specific block of columns until we reach the row limit,
-            #   and then moving on the next segment of columns - note that this will almost
-            #   always be a single block of columns only broken down in row order
-            if i > 0:
-                if not ((p_row_end == entry[0] and p_col_start == entry[2] and p_col_end == entry[3]) or
-                        (p_col_end == entry[2] and entry[0] == 0)):
-                    raise ValueError('The relative order for the chipper elements cannot be determined.')
-            p_row_start, p_row_end, p_col_start, p_col_end = entry
-            # define the data_sizes entry
-            data_sizes[i, :] = (entry[1] - entry[0], entry[3] - entry[2])
-
-        if not isinstance(data_offsets, numpy.ndarray):
-            raise ValueError('data_offsets must be an numpy.ndarray, not {}'.format(type(data_offsets)))
-        if not (len(data_offsets.shape) == 1):
-            raise ValueError(
-                'data_sizes must be an one-dimensional numpy.ndarray, '
-                'not shape {}'.format(data_offsets.shape))
-
-        if data_sizes.shape[0] != data_offsets.size:
-            raise ValueError(
-                'data_sizes and data_offsets arguments must have compatible '
-                'shape {} - {}'.format(data_sizes.shape, data_sizes.size))
-
-        self._file_name = file_name
-        # all of the actual reading and reorienting work will be done by these
-        # child chippers, which will read from their respective image segments
-        self._child_chippers = tuple(
-            BIPChipper(file_name, data_type, img_siz, symmetry=symmetry,
-                       complex_type=complex_type, data_offset=img_off,
-                       bands_ip=bands_ip)
-            for img_siz, img_off in zip(data_sizes, data_offsets))
-        self._bounds = bounds
-        self._bands_ip = int_func(bands_ip)
-
-        data_size = (self._bounds[-1, 1], self._bounds[-1, 3])
-        # all of the actual reading and reorienting done by child chippers,
-        # so do not reorient or change type at this level
-        super(MultiSegmentChipper, self).__init__(data_size, symmetry=(False, False, False), complex_type=False)
-
-    def _read_raw_fun(self, range1, range2):
-        def subset(rng, start_ind, stop_ind):
-            # find our rectangular overlap between the desired indices and chipper bounds
-            if rng[2] > 0:
-                if rng[1] < start_ind or rng[0] >= stop_ind:
-                    return None, None
-                # find smallest element rng[0] + mult*rng[2] which is >= start_ind
-                mult1 = 0 if start_ind <= rng[0] else int_func(numpy.ceil((start_ind - rng[0])/rng[2]))
-                ind1 = rng[0] + mult1*rng[2]
-                # find largest element rng[0] + mult*rng[2] which is <= min(stop_ind, rng[1])
-                max_ind = min(rng[1], stop_ind)
-                mult2 = int_func(numpy.floor((max_ind - rng[0])/rng[2]))
-                ind2 = rng[0] + mult2*rng[2]
-            else:
-                if rng[0] < start_ind or rng[1] >= stop_ind:
-                    return None, None
-                # find largest element rng[0] + mult*rng[2] which is <= stop_ind-1
-                mult1 = 0 if rng[0] < stop_ind else int_func(numpy.floor((stop_ind - 1 - rng[0])/rng[2]))
-                ind1 = rng[0] + mult1*rng[2]
-                # find smallest element rng[0] + mult*rng[2] which is >= max(start_ind, rng[1]+1)
-                mult2 = int_func(numpy.floor((start_ind - rng[0])/rng[2])) if rng[1] < start_ind \
-                    else int_func(numpy.floor((rng[1] -1 - rng[0])/rng[2]))
-                ind2 = rng[0] + mult2*rng[2]
-            return (ind1, ind2, rng[2]), (mult1, mult2)
-
-        range1, range2 = self._reorder_arguments(range1, range2)
-        rows_size = int_func((range1[1]-range1[0])/range1[2])
-        cols_size = int_func((range2[1]-range2[0])/range2[2])
-
-        if self._bands_ip == 1:
-            out = numpy.empty((rows_size, cols_size), dtype=numpy.complex64)
-        else:
-            out = numpy.empty((rows_size, cols_size, self._bands_ip), dtype=numpy.complex64)
-        for entry, child_chipper in zip(self._bounds, self._child_chippers):
-            row_start, row_end, col_start, col_end = entry
-            # find row overlap for chipper - it's rectangular
-            crange1, cinds1 = subset(range1, row_start, row_end)
-            if crange1 is None:
-                continue  # there is no row overlap for this chipper
-
-            # find column overlap for chipper - it's rectangular
-            crange2, cinds2 = subset(range2, col_start, col_end)
-            if crange2 is None:
-                continue  # there is no column overlap for this chipper
-
-            if self._bands_ip == 1:
-                out[cinds1[0]:cinds1[1], cinds2[0]:cinds2[1]] = child_chipper(crange1, crange2)
-            else:
-                out[cinds1[0]:cinds1[1], cinds2[0]:cinds2[1], :] = child_chipper(crange1, crange2)
-        return out
-
-
 class NITFReader(BaseReader):
     """
     A reader object for **something** in a NITF 2.10 container
@@ -577,7 +442,7 @@ class NITFReader(BaseReader):
 
         Returns
         -------
-        MultiSegmentChipper
+        sarpy.io.general.bip.MultiSegmentChipper
         """
 
         raise NotImplementedError

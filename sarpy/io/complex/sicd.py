@@ -10,7 +10,8 @@ import logging
 import numpy
 
 from ..general.base import validate_sicd_for_writing
-from ..general.nitf import MultiSegmentChipper, NITFReader, NITFWriter, ImageDetails, DESDetails, \
+from ..general.bip import MultiSegmentChipper
+from ..general.nitf import NITFReader, NITFWriter, ImageDetails, DESDetails, \
     image_segmentation, get_npp_block, interpolate_corner_points_string
 from ..general.utils import string_types, parse_xml_from_string
 # noinspection PyProtectedMember
