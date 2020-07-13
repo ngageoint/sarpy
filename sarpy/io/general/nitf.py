@@ -469,32 +469,35 @@ class NITFReader(BaseReader):
         bounds = []
         offsets = []
 
-        # verify that (at least) nbpp and band count are constant
-        nbpp, band_count, bytes_per_pixel = None, None, None
+        # verify that (at least) abpp and band count are constant
+        abpp, band_count, bytes_per_pixel = None, None, None
         p_row_start, p_row_end, p_col_start, p_col_end = None, None, None, None
         for i, index in enumerate(segment):
             # get this image subheader
             img_header = self.nitf_details.img_headers[index]
+
             # check for compression
             if img_header.IC != 'NC':
                 raise ValueError('Image header at index {} has IC {}. No compression '
                                  'is supported at this time.'.format(index, img_header.IC))
+
             # check bits per pixel and number of bands
-            if nbpp is None:
-                nbpp = img_header.NBPP
-                if nbpp not in (8, 16, 32):
+            if abpp is None:
+                abpp = img_header.ABPP
+                if abpp not in (8, 16, 32):
                     raise ValueError(
-                        'Image segment {} has bits per pixel per band {}, only 8, 16, and 32 are supported.'.format(index, nbpp))
+                        'Image segment {} has bits per pixel per band {}, only 8, 16, and 32 are supported.'.format(index, abpp))
                 band_count = len(img_header.Bands)
-                bytes_per_pixel = int_func(nbpp*band_count/8)
-            elif img_header.NBPP != nbpp:
+                bytes_per_pixel = int_func(abpp*band_count/8)
+            elif img_header.ABPP != abpp:
                 raise ValueError(
-                    'NITF image segment at index {} has NBPP {}, but this is different than the value {}'
-                    'previously determined for this composite image'.format(index, img_header.NBPP, nbpp))
+                    'NITF image segment at index {} has ABPP {}, but this is different than the value {}'
+                    'previously determined for this composite image'.format(index, img_header.ABPP, abpp))
             elif len(img_header.Bands) != band_count:
                 raise ValueError(
                     'NITF image segment at index {} has band count {}, but this is different than the value {}'
                     'previously determined for this composite image'.format(index, len(img_header.Bands), band_count))
+
             # get the bytes offset for this nitf image segment
             this_rows, this_cols = img_header.NROWS, img_header.NCOLS
             if this_rows > rows or this_cols > cols:

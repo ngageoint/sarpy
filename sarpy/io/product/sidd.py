@@ -294,7 +294,7 @@ class SIDDReader(NITFReader):
                 raise ValueError('Did not find any image segments for SIDD {}'.format(i))
         return segments
 
-    def _get_img_details(self, segment):
+    def _check_img_details(self, segment):
         this_dtype, this_bands, this_lut = None, None, None
         for i, this_index in enumerate(segment):
             img_header = self.nitf_details.img_headers[this_index]
@@ -349,7 +349,7 @@ class SIDDReader(NITFReader):
         cols = sidd.Measurement.PixelFootprint.Col
 
         bounds, offsets = self._get_chipper_partitioning(segment, rows, cols)
-        dtype, bands, lut = self._get_img_details(segment, index)
+        dtype, bands, lut = self._check_img_details(segment, index)
         complex_type = False if lut is None else rgb_lut_conversion(lut)
         return MultiSegmentChipper(
             self.file_name, bounds, offsets, dtype,
