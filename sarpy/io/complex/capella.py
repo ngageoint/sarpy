@@ -376,7 +376,7 @@ class CapellaDetails(object):
         sicd.derive()
 
         # NB: this does not currently have enough information to successfully execute
-        # sicd.populate_rniirs(override=False)
+        sicd.populate_rniirs(override=False, noise=0.1)
         return sicd
 
 
