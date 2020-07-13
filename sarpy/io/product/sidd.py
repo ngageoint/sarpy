@@ -73,7 +73,7 @@ class SIDDDetails(NITFDetails):
     """
 
     __slots__ = (
-        '_img_headers', '_is_sidd', '_sidd_meta', '_sicd_meta',
+        '_is_sidd', '_sidd_meta', '_sicd_meta',
         'img_segment_rows', 'img_segment_columns')
 
     def __init__(self, file_name):
@@ -131,28 +131,6 @@ class SIDDDetails(NITFDetails):
         """
 
         return self._sicd_meta
-
-    @property
-    def img_headers(self):
-        """
-        The image segment headers.
-
-        Returns
-        -------
-            None|List[sarpy.io.general.nitf_elements.image.ImageSegmentHeader]
-        """
-
-        if self._img_headers is not None:
-            return self._img_headers
-
-        self._parse_img_headers()
-        return self._img_headers
-
-    def _parse_img_headers(self):
-        if self.img_segment_offsets is None or self._img_headers is not None:
-            return
-
-        self._img_headers = [self.parse_image_subheader(i) for i in range(self.img_subheader_offsets.size)]
 
     def _find_sidd(self):
         self._is_sidd = False
@@ -272,7 +250,8 @@ class SIDDReader(NITFReader):
 
         if not nitf_details.is_sidd:
             raise ValueError(
-                'The input file passed in appears to be a NITF 2.1 file that does not contain valid sidd metadata.')
+                'The input file passed in appears to be a NITF 2.1 file that does not contain '
+                'valid sidd metadata.')
         super(SIDDReader, self).__init__(nitf_details, is_sicd_type=False)
         self._sidd_meta = self.nitf_details.sidd_meta
 
@@ -315,71 +294,34 @@ class SIDDReader(NITFReader):
                 raise ValueError('Did not find any image segments for SIDD {}'.format(i))
         return segments
 
-    def _get_img_details(self, index):
-        img_header = self.nitf_details.img_headers[index]
-        if img_header.IC != 'NC':
-            raise ValueError('Image header at index {} has IC {}. No compression '
-                             'is supported at this time.'.format(index, img_header.IC))
-        abpp = img_header.ABPP
-        if abpp not in [8, 16]:
-            raise ValueError('Image header at index {} has ABPP {}. Unsupported.'.format(index, abpp))
-        rows = img_header.NROWS
-        cols = img_header.NCOLS
-        # check for a strangely segmented image
-        if img_header.NPPBV not in [rows, 0]:
-            raise ValueError('Image header at index {} has NROWS {} and NPPBV {}, '
-                             'which is unsupported'.format(index, rows, img_header.NPPBV))
-        if img_header.NPPBH not in [cols, 0]:
-            raise ValueError('Image header at index {} has NCOLS {} and NPPBH {}, '
-                             'which is unsupported'.format(index, cols, img_header.NPPBH))
-        # check image type
-        irep = img_header.IREP
-
-        if irep not in ['MONO', 'RGB/LUT', 'RGB']:
-            raise ValueError('Image header at index {} has IREP {}, which is '
-                             'unsupported'.format(index, irep))
-        bands = len(img_header.Bands)
-        if (irep == 'RGB' and bands != 3) or (irep != 'RGB' and bands != 1):
-                raise ValueError('Image header at index {} has IREP {} and {} Bands. '
-                                     'This is unsupported.'.format(index, irep, bands))
-        # Fetch lookup table
-        lut = img_header.Bands[0].LUTD if irep == 'RGB/LUT' else None
-
-        # determine dtype
-        if lut is None:
-            if abpp == 8:
-                dtype = numpy.dtype('>uint8')
-            else:
-                dtype = numpy.dtype('>uint16')
-        else:
-            dtype = numpy.dtype('>uint8')
-
-        return rows, cols, dtype, bands, lut
-
-    def _construct_chipper(self, segment, index):
-        bounds = numpy.zeros((len(segment), 4), dtype=numpy.uint64)
-        offsets = numpy.zeros((len(segment), ), dtype=numpy.int64)
+    def _get_img_details(self, segment):
         this_dtype, this_bands, this_lut = None, None, None
+        for i, this_index in enumerate(segment):
+            img_header = self.nitf_details.img_headers[this_index]
+            abpp = img_header.ABPP
+            if abpp not in [8, 16]:
+                raise ValueError('Image header at index {} has ABPP {}. Unsupported.'.format(this_index, abpp))
+            # check image type
+            irep = img_header.IREP
+            if irep not in ['MONO', 'RGB/LUT', 'RGB']:
+                raise ValueError('Image header at index {} has IREP {}, which is '
+                                 'unsupported'.format(this_index, irep))
+            bands = len(img_header.Bands)
+            if (irep == 'RGB' and bands != 3) or (irep != 'RGB' and bands != 1):
+                    raise ValueError('Image header at index {} has IREP {} and {} Bands. '
+                                         'This is unsupported.'.format(this_index, irep, bands))
+            # Fetch lookup table
+            lut = img_header.Bands[0].LUTD if irep == 'RGB/LUT' else None
 
-        p_row_start, p_row_end, p_col_start, p_col_end = None, None, None, None
-        for i, index in enumerate(segment):
-            # populate bounds entry
-            offsets[i] = self.nitf_details.img_segment_offsets[index]
-            rows, cols, dtype, bands, lut = self._get_img_details(index)
-            if i == 0:
-                cur_row_start, cur_row_end = 0, rows
-                cur_col_start, cur_col_end = 0, cols
-            elif cols == (p_col_end - p_col_start):
-                cur_row_start, cur_row_end = p_row_end, p_row_end + cols
-                cur_col_start, cur_col_end = p_col_start, p_col_end
+            # determine dtype
+            if lut is None:
+                if abpp == 8:
+                    dtype = numpy.dtype('>uint8')
+                else:
+                    dtype = numpy.dtype('>uint16')
             else:
-                cur_row_start, cur_row_end = 0, rows
-                cur_col_start, cur_col_end = p_col_end, p_col_end + rows
+                dtype = numpy.dtype('>uint8')
 
-            bounds[i] = (cur_row_start, cur_row_end, cur_col_start, cur_col_end)
-            p_row_start, p_row_end, p_col_start, p_col_end = cur_row_start, cur_row_end, cur_col_start, cur_col_end
-
-            # define the other meta data
             if i == 0:
                 this_dtype = dtype
                 this_bands = bands
@@ -398,11 +340,20 @@ class SIDDReader(NITFReader):
                         (this_lut.shape != lut.shape or numpy.any(this_lut != lut)):
                     raise ValueError('Image segments {} form one sidd, but have differing '
                                      'look up table information'.format(segment))
+        return this_dtype, this_bands, this_lut
 
-        complex_type = False if this_lut is None else rgb_lut_conversion(this_lut)
+    def _construct_chipper(self, segment, index):
+        # get the image size
+        sidd = self.sidd_meta[index]
+        rows = sidd.Measurement.PixelFootprint.Row
+        cols = sidd.Measurement.PixelFootprint.Col
+
+        bounds, offsets = self._get_chipper_partitioning(segment, rows, cols)
+        dtype, bands, lut = self._get_img_details(segment, index)
+        complex_type = False if lut is None else rgb_lut_conversion(lut)
         return MultiSegmentChipper(
-            self.file_name, bounds, offsets, this_dtype,
-            symmetry=(False, False, False), complex_type=complex_type, bands_ip=this_bands)
+            self.file_name, bounds, offsets, dtype,
+            symmetry=(False, False, False), complex_type=complex_type, bands_ip=bands)
 
 
 def validate_sidd_for_writing(sidd_meta):

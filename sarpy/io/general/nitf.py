@@ -34,7 +34,7 @@ class NITFDetails(object):
     """
 
     __slots__ = (
-        '_file_name', '_nitf_header',
+        '_file_name', '_nitf_header', '_img_headers',
         'img_subheader_offsets', 'img_segment_offsets',
         'graphics_subheader_offsets', 'graphics_segment_offsets',
         'text_subheader_offsets', 'text_segment_offsets',
@@ -109,9 +109,35 @@ class NITFDetails(object):
         return self._file_name
 
     @property
-    def nitf_header(self):  # type: () -> NITFHeader
-        """NITFHeader: the nitf header object"""
+    def nitf_header(self):
+        # type: () -> NITFHeader
+        """
+        NITFHeader: the nitf header object
+        """
+
         return self._nitf_header
+
+    @property
+    def img_headers(self):
+        """
+        The image segment headers.
+
+        Returns
+        -------
+            None|List[sarpy.io.general.nitf_elements.image.ImageSegmentHeader]
+        """
+
+        if self._img_headers is not None:
+            return self._img_headers
+
+        self._parse_img_headers()
+        return self._img_headers
+
+    def _parse_img_headers(self):
+        if self.img_segment_offsets is None or self._img_headers is not None:
+            return
+
+        self._img_headers = [self.parse_image_subheader(i) for i in range(self.img_subheader_offsets.size)]
 
     def _fetch_item(self, name, index, offsets, sizes):
         # type: (str, int, numpy.ndarray, numpy.ndarray) -> bytes
@@ -419,6 +445,121 @@ class NITFReader(BaseReader):
     def file_name(self):
         return self._nitf_details.file_name
 
+    def _get_chipper_partitioning(self, segment, rows, cols):
+        """
+        Construct the chipper partitioning for the given composite image.
+
+        Parameters
+        ----------
+        segment : List[int]
+            The list of NITF image segments indices which are pieced together
+            into a single image.
+        rows : int
+            The number of rows in composite image.
+        cols : int
+            The number of cols in the composite image.
+
+        Returns
+        -------
+        (numpy.ndarray, numpy.ndarray)
+            The arrays indicating the chipper partitioning for bounds (of the form
+            `[row start, row end, column start, column end]`) and byte offsets.
+        """
+
+        bounds = []
+        offsets = []
+
+        # verify that (at least) nbpp and band count are constant
+        nbpp, band_count, bytes_per_pixel = None, None, None
+        p_row_start, p_row_end, p_col_start, p_col_end = None, None, None, None
+        for i, index in enumerate(segment):
+            # get this image subheader
+            img_header = self.nitf_details.img_headers[index]
+            # check for compression
+            if img_header.IC != 'NC':
+                raise ValueError('Image header at index {} has IC {}. No compression '
+                                 'is supported at this time.'.format(index, img_header.IC))
+            # check bits per pixel and number of bands
+            if nbpp is None:
+                nbpp = img_header.NBPP
+                if nbpp not in (8, 16, 32):
+                    raise ValueError(
+                        'Image segment {} has bits per pixel per band {}, only 8, 16, and 32 are supported.'.format(index, nbpp))
+                band_count = len(img_header.Bands)
+                bytes_per_pixel = int_func(nbpp*band_count/8)
+            elif img_header.NBPP != nbpp:
+                raise ValueError(
+                    'NITF image segment at index {} has NBPP {}, but this is different than the value {}'
+                    'previously determined for this composite image'.format(index, img_header.NBPP, nbpp))
+            elif len(img_header.Bands) != band_count:
+                raise ValueError(
+                    'NITF image segment at index {} has band count {}, but this is different than the value {}'
+                    'previously determined for this composite image'.format(index, len(img_header.Bands), band_count))
+            # get the bytes offset for this nitf image segment
+            this_rows, this_cols = img_header.NROWS, img_header.NCOLS
+            if this_rows > rows or this_cols > cols:
+                raise ValueError(
+                    'NITF image segment at index {} has size ({}, {}), and cannot be part of an image of size '
+                    '({}, {})'.format(index, this_rows, this_cols, rows, cols))
+
+            # horizontal block details
+            horizontal_block_size = this_cols
+            if img_header.NBPR != 1:
+                if (this_cols % img_header.NBPR) != 0:
+                    raise ValueError(
+                        'The number of blocks per row is listed as {}, but this is '
+                        'not equally divisible into the number of columns {}'.format(img_header.NBPR, this_cols))
+                horizontal_block_size = int_func(this_cols/img_header.NBPR)
+
+            # vertical block details
+            vertical_block_size = this_rows
+            if img_header.NBPC != 1:
+                if (this_rows % img_header.NBPC) != 0:
+                    raise ValueError(
+                        'The number of blocks per column is listed as {}, but this is '
+                        'not equally divisible into the number of rows {}'.format(img_header.NBPC, this_rows))
+                vertical_block_size = int_func(this_rows/img_header.NBPC)
+
+            # determine where this image segment fits in the overall image
+            if i == 0:
+                # establish the beginning
+                cur_row_start, cur_row_end = 0, this_rows
+                cur_col_start, cur_col_end = 0, this_cols
+            elif p_col_end < cols:
+                if this_rows != (p_row_end - p_row_start):
+                    raise ValueError(
+                        'Cannot stack a NITF image of size ({}, {}) next to a NITF image of size '
+                        '({}, {})'.format(this_rows, this_cols, p_row_end-p_col_end, p_col_end-p_col_start))
+                cur_row_start, cur_row_end = p_row_start, p_row_end
+                cur_col_start, cur_col_end = p_col_end, p_col_end + this_cols
+                if cur_col_end > cols:
+                    raise ValueError('Failed at horizontal NITF image segment assembly.')
+            elif p_col_end == cols:
+                # start a new vertical section
+                cur_row_start, cur_row_end = p_row_end, p_row_end + this_rows
+                cur_col_start, cur_col_end = 0, this_cols
+                if cur_row_end > rows:
+                    raise ValueError('Failed at vertical NITF image segment assembly.')
+            else:
+                raise ValueError('Got unexpected situation in NITF image assembly.')
+
+            # iterate over our blocks and populate the bounds and offsets
+            block_col_end = cur_col_start
+            current_offset = self.nitf_details.img_segment_offsets[index]
+            for vblock in range(img_header.NBPC):
+                block_col_start = block_col_end
+                block_col_end += vertical_block_size
+                block_row_end = cur_row_start
+                for hblock in range(img_header.NBPR):
+                    block_row_start = block_row_end
+                    block_row_end += horizontal_block_size
+                    bounds.append((block_row_start, block_row_end, block_col_start, block_col_end))
+                    offsets.append(current_offset)
+                    current_offset += horizontal_block_size * vertical_block_size * bytes_per_pixel
+            p_row_start, p_row_end, p_col_start, p_col_end = cur_row_start, cur_row_end, cur_col_start, cur_col_end
+        print('bounds! {}, offsets! {}'.format(bounds, offsets))
+        return numpy.array(bounds, dtype=numpy.int64), numpy.array(offsets, dtype=numpy.int64)
+
     def _find_segments(self):
         """
         Determine the image segment collections.
@@ -438,7 +579,12 @@ class NITFReader(BaseReader):
         Parameters
         ----------
         segment : List[int]
+            The list of NITF image segments indices which are pieced together
+            into a single image.
         index : int
+            The index of the composite image, in the composite image collection.
+            For a SICD, there will only be one composite image, but there may be
+            more for other NITF uses.
 
         Returns
         -------

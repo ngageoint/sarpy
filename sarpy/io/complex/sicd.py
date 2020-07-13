@@ -75,8 +75,8 @@ class SICDDetails(NITFDetails):
     SICD are stored in NITF 2.1 files.
     """
     __slots__ = (
-        '_des_index', '_des_header', '_img_headers',
-        '_is_sicd', '_sicd_meta', 'img_segment_rows', 'img_segment_columns')
+        '_des_index', '_des_header', '_is_sicd', '_sicd_meta',
+        'img_segment_rows', 'img_segment_columns')
 
     def __init__(self, file_name):
         """
@@ -128,22 +128,6 @@ class SICDDetails(NITFDetails):
         return self._sicd_meta
 
     @property
-    def img_headers(self):
-        """
-        The image segment headers.
-
-        Returns
-        -------
-            None|List[sarpy.io.general.nitf_elements.image.ImageSegmentHeader]
-        """
-
-        if self._img_headers is not None:
-            return self._img_headers
-
-        self._parse_img_headers()
-        return self._img_headers
-
-    @property
     def des_header(self):
         """
         The DES subheader object associated with the SICD.
@@ -154,12 +138,6 @@ class SICDDetails(NITFDetails):
         """
 
         return self._des_header
-
-    def _parse_img_headers(self):
-        if self.img_segment_offsets is None or self._img_headers is not None:
-            return
-
-        self._img_headers = [self.parse_image_subheader(i) for i in range(self.img_subheader_offsets.size)]
 
     def _find_sicd(self):
         self._is_sicd = False
@@ -385,10 +363,10 @@ class SICDReader(NITFReader):
         return self._nitf_details
 
     def _find_segments(self):
-        return list(range(self.nitf_details.img_segment_offsets.size))
+        return [list(range(self.nitf_details.img_segment_offsets.size)), ]
 
     def _construct_chipper(self, segment, index):
-        meta = self._sicd_meta
+        meta = self.sicd_meta
         pixel_type = meta.ImageData.PixelType
         # NB: SICDs are required to be stored as big-endian
         if pixel_type == 'RE32F_IM32F':
@@ -403,32 +381,7 @@ class SICDReader(NITFReader):
         else:
             raise ValueError('Pixel Type {} not recognized.'.format(pixel_type))
 
-        rows_total = meta.ImageData.NumRows
-        cols_total = meta.ImageData.NumCols
-        bounds = numpy.zeros((self.nitf_details.img_segment_offsets.size, 4), dtype=numpy.uint64)
-        p_row_start, p_row_end, p_col_start, p_col_end = None, None, None, None
-        for i, (rows, cols) in enumerate(zip(self.nitf_details.img_segment_rows,
-                                             self.nitf_details.img_segment_columns)):
-            if i == 0:
-                cur_row_start, cur_row_end = 0, rows
-                cur_col_start, cur_col_end = 0, cols
-            elif p_row_end == rows_total:
-                cur_row_start, cur_row_end = 0, rows
-                cur_col_start, cur_col_end = p_col_end, p_col_end + rows
-            else:
-                cur_row_start, cur_row_end = p_row_end, p_row_end + cols
-                cur_col_start, cur_col_end = p_col_start, p_col_end
-
-            if not (rows == cur_row_end - cur_row_start and cols == cur_col_end - cur_col_start):
-                raise ValueError('Failed at calculating bounds entry {}.'.format(i))
-            bounds[i] = (cur_row_start, cur_row_end, cur_col_start, cur_col_end)
-            p_row_start, p_row_end, p_col_start, p_col_end = cur_row_start, cur_row_end, cur_col_start, cur_col_end
-
-        if not (bounds[-1, 1] == rows_total and bounds[-1, 3] == cols_total):
-            raise ValueError('Bounds final entry {} does not match sicd size '
-                             '({}, {})'.format(bounds[-1], rows_total, cols_total))
-
-        offsets = self.nitf_details.img_segment_offsets.copy()
+        bounds, offsets = self._get_chipper_partitioning(segment, meta.ImageData.NumRows, meta.ImageData.NumCols)
         return MultiSegmentChipper(
             self.nitf_details.file_name, bounds, offsets, dtype,
             symmetry=(False, False, False), complex_type=complex_type,
