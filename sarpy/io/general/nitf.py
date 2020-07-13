@@ -12,8 +12,8 @@ import re
 
 import numpy
 
-from .base import BaseChipper, BaseReader, AbstractWriter, int_func
-from .bip import BIPChipper, BIPWriter
+from .base import BaseReader, AbstractWriter, int_func
+from .bip import BIPWriter
 # noinspection PyProtectedMember
 from .nitf_elements.nitf_head import NITFHeader, ImageSegmentsType, \
     DataExtensionsType, _ItemArrayHeaders, TextSegmentHeader, \
@@ -34,7 +34,7 @@ class NITFDetails(object):
     """
 
     __slots__ = (
-        '_file_name', '_nitf_header',
+        '_file_name', '_nitf_header', '_img_headers',
         'img_subheader_offsets', 'img_segment_offsets',
         'graphics_subheader_offsets', 'graphics_segment_offsets',
         'text_subheader_offsets', 'text_segment_offsets',
@@ -109,9 +109,35 @@ class NITFDetails(object):
         return self._file_name
 
     @property
-    def nitf_header(self):  # type: () -> NITFHeader
-        """NITFHeader: the nitf header object"""
+    def nitf_header(self):
+        # type: () -> NITFHeader
+        """
+        NITFHeader: the nitf header object
+        """
+
         return self._nitf_header
+
+    @property
+    def img_headers(self):
+        """
+        The image segment headers.
+
+        Returns
+        -------
+            None|List[sarpy.io.general.nitf_elements.image.ImageSegmentHeader]
+        """
+
+        if self._img_headers is not None:
+            return self._img_headers
+
+        self._parse_img_headers()
+        return self._img_headers
+
+    def _parse_img_headers(self):
+        if self.img_segment_offsets is None or self._img_headers is not None:
+            return
+
+        self._img_headers = [self.parse_image_subheader(i) for i in range(self.img_subheader_offsets.size)]
 
     def _fetch_item(self, name, index, offsets, sizes):
         # type: (str, int, numpy.ndarray, numpy.ndarray) -> bytes
@@ -369,141 +395,6 @@ class NITFDetails(object):
         return ReservedExtensionHeader.from_bytes(rh, 0)
 
 
-class MultiSegmentChipper(BaseChipper):
-    """
-    Required chipping object to allow for the fact that a single image in a
-    NITF file will often be broken up into a collection of image segments.
-    """
-
-    __slots__ = ('_file_name', '_data_size', '_dtype', '_complex_out',
-                 '_symmetry', '_bounds', '_bands_ip', '_child_chippers')
-
-    def __init__(self, file_name, bounds, data_offsets, data_type,
-                 symmetry=None, complex_type=False, bands_ip=1):
-        """
-
-        Parameters
-        ----------
-        file_name : str
-            The name of the file from which to read
-        bounds : numpy.ndarray
-            Two-dimensional array of [row start, row end, column start, column end]
-        data_offsets : numpy.ndarray
-            Offset for each image segment from the start of the file
-        data_type : str|numpy.dtype|numpy.number
-            The data type of the underlying file
-        symmetry : tuple
-            See `BaseChipper` for description of 3 element tuple of booleans.
-        complex_type : callable|bool
-            See `BaseChipper` for description of `complex_type`
-        bands_ip : int
-            number of bands - this will always be one for sicd.
-        """
-
-        if not isinstance(bounds, numpy.ndarray):
-            raise ValueError('bounds must be an numpy.ndarray, not {}'.format(type(bounds)))
-        if not (bounds.ndim == 2 and bounds.shape[1] == 4):
-            raise ValueError('bounds must be an Nx4 numpy.ndarray, not shape {}'.format(bounds.shape))
-        data_sizes = numpy.zeros((bounds.shape[0], 2), dtype=numpy.int64)
-        p_row_start, p_row_end, p_col_start, p_col_end = None, None, None, None
-        for i, entry in enumerate(bounds):
-            # Are the order of the entries in bounds sensible?
-            if not (0 <= entry[0] < entry[1] and 0 <= entry[2] < entry[3]):
-                raise ValueError('entry {} of bounds is {}, and cannot be of the form '
-                                 '[row start, row end, column start, column end]'.format(i, entry))
-
-            # Are the elements of bounds sensible in relative terms?
-            #   we must traverse by a specific block of columns until we reach the row limit,
-            #   and then moving on the next segment of columns - note that this will almost
-            #   always be a single block of columns only broken down in row order
-            if i > 0:
-                if not ((p_row_end == entry[0] and p_col_start == entry[2] and p_col_end == entry[3]) or
-                        (p_col_end == entry[2] and entry[0] == 0)):
-                    raise ValueError('The relative order for the chipper elements cannot be determined.')
-            p_row_start, p_row_end, p_col_start, p_col_end = entry
-            # define the data_sizes entry
-            data_sizes[i, :] = (entry[1] - entry[0], entry[3] - entry[2])
-
-        if not isinstance(data_offsets, numpy.ndarray):
-            raise ValueError('data_offsets must be an numpy.ndarray, not {}'.format(type(data_offsets)))
-        if not (len(data_offsets.shape) == 1):
-            raise ValueError(
-                'data_sizes must be an one-dimensional numpy.ndarray, '
-                'not shape {}'.format(data_offsets.shape))
-
-        if data_sizes.shape[0] != data_offsets.size:
-            raise ValueError(
-                'data_sizes and data_offsets arguments must have compatible '
-                'shape {} - {}'.format(data_sizes.shape, data_sizes.size))
-
-        self._file_name = file_name
-        # all of the actual reading and reorienting work will be done by these
-        # child chippers, which will read from their respective image segments
-        self._child_chippers = tuple(
-            BIPChipper(file_name, data_type, img_siz, symmetry=symmetry,
-                       complex_type=complex_type, data_offset=img_off,
-                       bands_ip=bands_ip)
-            for img_siz, img_off in zip(data_sizes, data_offsets))
-        self._bounds = bounds
-        self._bands_ip = int_func(bands_ip)
-
-        data_size = (self._bounds[-1, 1], self._bounds[-1, 3])
-        # all of the actual reading and reorienting done by child chippers,
-        # so do not reorient or change type at this level
-        super(MultiSegmentChipper, self).__init__(data_size, symmetry=(False, False, False), complex_type=False)
-
-    def _read_raw_fun(self, range1, range2):
-        def subset(rng, start_ind, stop_ind):
-            # find our rectangular overlap between the desired indices and chipper bounds
-            if rng[2] > 0:
-                if rng[1] < start_ind or rng[0] >= stop_ind:
-                    return None, None
-                # find smallest element rng[0] + mult*rng[2] which is >= start_ind
-                mult1 = 0 if start_ind <= rng[0] else int_func(numpy.ceil((start_ind - rng[0])/rng[2]))
-                ind1 = rng[0] + mult1*rng[2]
-                # find largest element rng[0] + mult*rng[2] which is <= min(stop_ind, rng[1])
-                max_ind = min(rng[1], stop_ind)
-                mult2 = int_func(numpy.floor((max_ind - rng[0])/rng[2]))
-                ind2 = rng[0] + mult2*rng[2]
-            else:
-                if rng[0] < start_ind or rng[1] >= stop_ind:
-                    return None, None
-                # find largest element rng[0] + mult*rng[2] which is <= stop_ind-1
-                mult1 = 0 if rng[0] < stop_ind else int_func(numpy.floor((stop_ind - 1 - rng[0])/rng[2]))
-                ind1 = rng[0] + mult1*rng[2]
-                # find smallest element rng[0] + mult*rng[2] which is >= max(start_ind, rng[1]+1)
-                mult2 = int_func(numpy.floor((start_ind - rng[0])/rng[2])) if rng[1] < start_ind \
-                    else int_func(numpy.floor((rng[1] -1 - rng[0])/rng[2]))
-                ind2 = rng[0] + mult2*rng[2]
-            return (ind1, ind2, rng[2]), (mult1, mult2)
-
-        range1, range2 = self._reorder_arguments(range1, range2)
-        rows_size = int_func((range1[1]-range1[0])/range1[2])
-        cols_size = int_func((range2[1]-range2[0])/range2[2])
-
-        if self._bands_ip == 1:
-            out = numpy.empty((rows_size, cols_size), dtype=numpy.complex64)
-        else:
-            out = numpy.empty((rows_size, cols_size, self._bands_ip), dtype=numpy.complex64)
-        for entry, child_chipper in zip(self._bounds, self._child_chippers):
-            row_start, row_end, col_start, col_end = entry
-            # find row overlap for chipper - it's rectangular
-            crange1, cinds1 = subset(range1, row_start, row_end)
-            if crange1 is None:
-                continue  # there is no row overlap for this chipper
-
-            # find column overlap for chipper - it's rectangular
-            crange2, cinds2 = subset(range2, col_start, col_end)
-            if crange2 is None:
-                continue  # there is no column overlap for this chipper
-
-            if self._bands_ip == 1:
-                out[cinds1[0]:cinds1[1], cinds2[0]:cinds2[1]] = child_chipper(crange1, crange2)
-            else:
-                out[cinds1[0]:cinds1[1], cinds2[0]:cinds2[1], :] = child_chipper(crange1, crange2)
-        return out
-
-
 class NITFReader(BaseReader):
     """
     A reader object for **something** in a NITF 2.10 container
@@ -554,6 +445,124 @@ class NITFReader(BaseReader):
     def file_name(self):
         return self._nitf_details.file_name
 
+    def _get_chipper_partitioning(self, segment, rows, cols):
+        """
+        Construct the chipper partitioning for the given composite image.
+
+        Parameters
+        ----------
+        segment : List[int]
+            The list of NITF image segments indices which are pieced together
+            into a single image.
+        rows : int
+            The number of rows in composite image.
+        cols : int
+            The number of cols in the composite image.
+
+        Returns
+        -------
+        (numpy.ndarray, numpy.ndarray)
+            The arrays indicating the chipper partitioning for bounds (of the form
+            `[row start, row end, column start, column end]`) and byte offsets.
+        """
+
+        bounds = []
+        offsets = []
+
+        # verify that (at least) abpp and band count are constant
+        abpp, band_count, bytes_per_pixel = None, None, None
+        p_row_start, p_row_end, p_col_start, p_col_end = None, None, None, None
+        for i, index in enumerate(segment):
+            # get this image subheader
+            img_header = self.nitf_details.img_headers[index]
+
+            # check for compression
+            if img_header.IC != 'NC':
+                raise ValueError('Image header at index {} has IC {}. No compression '
+                                 'is supported at this time.'.format(index, img_header.IC))
+
+            # check bits per pixel and number of bands
+            if abpp is None:
+                abpp = img_header.ABPP
+                if abpp not in (8, 16, 32):
+                    raise ValueError(
+                        'Image segment {} has bits per pixel per band {}, only 8, 16, and 32 are supported.'.format(index, abpp))
+                band_count = len(img_header.Bands)
+                bytes_per_pixel = int_func(abpp*band_count/8)
+            elif img_header.ABPP != abpp:
+                raise ValueError(
+                    'NITF image segment at index {} has ABPP {}, but this is different than the value {}'
+                    'previously determined for this composite image'.format(index, img_header.ABPP, abpp))
+            elif len(img_header.Bands) != band_count:
+                raise ValueError(
+                    'NITF image segment at index {} has band count {}, but this is different than the value {}'
+                    'previously determined for this composite image'.format(index, len(img_header.Bands), band_count))
+
+            # get the bytes offset for this nitf image segment
+            this_rows, this_cols = img_header.NROWS, img_header.NCOLS
+            if this_rows > rows or this_cols > cols:
+                raise ValueError(
+                    'NITF image segment at index {} has size ({}, {}), and cannot be part of an image of size '
+                    '({}, {})'.format(index, this_rows, this_cols, rows, cols))
+
+            # horizontal block details
+            horizontal_block_size = this_cols
+            if img_header.NBPR != 1:
+                if (this_cols % img_header.NBPR) != 0:
+                    raise ValueError(
+                        'The number of blocks per row is listed as {}, but this is '
+                        'not equally divisible into the number of columns {}'.format(img_header.NBPR, this_cols))
+                horizontal_block_size = int_func(this_cols/img_header.NBPR)
+
+            # vertical block details
+            vertical_block_size = this_rows
+            if img_header.NBPC != 1:
+                if (this_rows % img_header.NBPC) != 0:
+                    raise ValueError(
+                        'The number of blocks per column is listed as {}, but this is '
+                        'not equally divisible into the number of rows {}'.format(img_header.NBPC, this_rows))
+                vertical_block_size = int_func(this_rows/img_header.NBPC)
+
+            # determine where this image segment fits in the overall image
+            if i == 0:
+                # establish the beginning
+                cur_row_start, cur_row_end = 0, this_rows
+                cur_col_start, cur_col_end = 0, this_cols
+            elif p_col_end < cols:
+                if this_rows != (p_row_end - p_row_start):
+                    raise ValueError(
+                        'Cannot stack a NITF image of size ({}, {}) next to a NITF image of size '
+                        '({}, {})'.format(this_rows, this_cols, p_row_end-p_col_end, p_col_end-p_col_start))
+                cur_row_start, cur_row_end = p_row_start, p_row_end
+                cur_col_start, cur_col_end = p_col_end, p_col_end + this_cols
+                if cur_col_end > cols:
+                    raise ValueError('Failed at horizontal NITF image segment assembly.')
+            elif p_col_end == cols:
+                # start a new vertical section
+                cur_row_start, cur_row_end = p_row_end, p_row_end + this_rows
+                cur_col_start, cur_col_end = 0, this_cols
+                if cur_row_end > rows:
+                    raise ValueError('Failed at vertical NITF image segment assembly.')
+            else:
+                raise ValueError('Got unexpected situation in NITF image assembly.')
+
+            # iterate over our blocks and populate the bounds and offsets
+            block_col_end = cur_col_start
+            current_offset = self.nitf_details.img_segment_offsets[index]
+            for vblock in range(img_header.NBPC):
+                block_col_start = block_col_end
+                block_col_end += vertical_block_size
+                block_row_end = cur_row_start
+                for hblock in range(img_header.NBPR):
+                    block_row_start = block_row_end
+                    block_row_end += horizontal_block_size
+                    bounds.append((block_row_start, block_row_end, block_col_start, block_col_end))
+                    offsets.append(current_offset)
+                    current_offset += horizontal_block_size * vertical_block_size * bytes_per_pixel
+            p_row_start, p_row_end, p_col_start, p_col_end = cur_row_start, cur_row_end, cur_col_start, cur_col_end
+        print('bounds! {}, offsets! {}'.format(bounds, offsets))
+        return numpy.array(bounds, dtype=numpy.int64), numpy.array(offsets, dtype=numpy.int64)
+
     def _find_segments(self):
         """
         Determine the image segment collections.
@@ -573,11 +582,16 @@ class NITFReader(BaseReader):
         Parameters
         ----------
         segment : List[int]
+            The list of NITF image segments indices which are pieced together
+            into a single image.
         index : int
+            The index of the composite image, in the composite image collection.
+            For a SICD, there will only be one composite image, but there may be
+            more for other NITF uses.
 
         Returns
         -------
-        MultiSegmentChipper
+        sarpy.io.general.bip.MultiSegmentChipper
         """
 
         raise NotImplementedError
