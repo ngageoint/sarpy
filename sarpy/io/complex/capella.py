@@ -7,8 +7,9 @@ import logging
 import json
 from typing import Dict, Any
 from datetime import datetime
-from scipy.constants import speed_of_light
+from collections import OrderedDict
 
+from scipy.constants import speed_of_light
 import numpy
 
 from ..general.base import BaseReader
@@ -125,7 +126,13 @@ class CapellaDetails(object):
         Tuple[bool, bool, bool]
         """
 
-        return False, False, False
+        pointing = self._img_desc_tags['collect']['radar']['pointing'].lower()
+        if pointing == 'left':
+            return False, False, False
+        elif pointing == 'right':
+            return False, True, False
+        else:
+            raise ValueError('Got unhandled pointing value {}'.format(pointing))
 
     def get_sicd(self):
         """
@@ -135,6 +142,20 @@ class CapellaDetails(object):
         -------
         SICDType
         """
+
+        def convert_string_dict(dict_in):
+            # type: (dict) -> dict
+            dict_out = OrderedDict()
+            for key, val in dict_in.items():
+                if isinstance(val, string_types):
+                    dict_out[key] = val
+                elif isinstance(val, int):
+                    dict_out[key] = str(val)
+                elif isinstance(val, float):
+                    dict_out[key] = '{0:0.16G}'.format(val)
+                else:
+                    raise TypeError('Got unhandled type {}'.format(type(val)))
+            return dict_out
 
         def extract_state_vector():
             # type: () -> (numpy.ndarray, numpy.ndarray, numpy.ndarray)
@@ -181,19 +202,23 @@ class CapellaDetails(object):
         def get_image_data():
             # type: () -> ImageDataType
             img = collect['image']
-            rows = img['columns']  # capella uses flipped row/column definition?
-            cols = img['rows']
+            rows = int(img['columns'])  # capella uses flipped row/column definition?
+            cols = int(img['rows'])
             if img['data_type'] == 'CInt16':
                 pixel_type = 'RE16I_IM16I'
             else:
                 raise ValueError('Got unhandled data_type {}'.format(img['data_type']))
+
+            scp_pixel = (int(0.5 * rows), int(0.5 * cols))
+            if collect['radar']['pointing'] == 'left':
+                scp_pixel = (rows - scp_pixel[0] - 1, cols - scp_pixel[1] - 1)
 
             return ImageDataType(
                 NumRows=rows, NumCols=cols,
                 FirstRow=0, FirstCol=0,
                 PixelType=pixel_type,
                 FullImage=(rows, cols),
-                SCPPixel=(0.5*rows, 0.5*cols))  # TODO: From Wade - verify SCPPixel definition
+                SCPPixel=scp_pixel)
 
         def get_geo_data():
             # type: () -> GeoDataType
@@ -227,24 +252,33 @@ class CapellaDetails(object):
                 DeltaKCOAPoly=[[0.0, ], ],
                 WgtType=WgtTypeType(
                     WindowName=img['range_window']['name'],
-                    Parameters=img['range_window']['parameters']))
+                    Parameters=convert_string_dict(img['range_window']['parameters'])))
+
+            # get timecoa value
+            timecoa_value = get_seconds(coa_time, start_time)  # TODO: constant?
+            # find an approximation for zero doppler spacing - necessarily rough for backprojected images
+            # find velocity at coatime
+            arp_velocity = position.ARPPoly.derivative_eval(timecoa_value, der_order=1)
+            arp_speed = numpy.linalg.norm(arp_velocity)
+            col_ss = img['pixel_spacing_row']
+            dop_bw =  img['processed_azimuth_bandwidth']
+            # ss_zd_s = col_ss/arp_speed
 
             col = DirParamType(
-                SS=img['pixel_spacing_row'],
+                SS=col_ss,
                 ImpRespWid=img['azimuth_resolution'],
+                ImpRespBW=dop_bw/arp_speed,
                 KCtr=0,
                 WgtType=WgtTypeType(
                     WindowName=img['azimuth_window']['name'],
-                    Parameters=img['azimuth_window']['parameters']))
-            # TODO: from Wade -
-            #   1.) no way to find zero doppler spacing
-            #   2.) no way to find Col.ImpRespBW
-            #   3.) account for numeric WgtFunct
+                    Parameters=convert_string_dict(img['azimuth_window']['parameters'])))
+
+            # TODO: from Wade - account for numeric WgtFunct
 
             return GridType(
                 ImagePlane=image_plane,
                 Type=grid_type,
-                TimeCOAPoly=[[get_seconds(coa_time, start_time)], ],  # TODO: constant?
+                TimeCOAPoly=[[timecoa_value, ], ],
                 Row=row,
                 Col=col)
 
