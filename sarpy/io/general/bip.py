@@ -6,17 +6,11 @@ data stored in *Band Interleaved By Pixel (BIP)* format.
 
 import logging
 import os
-import sys
 
 import numpy
 
+from sarpy.compliance import int_func
 from .base import BaseChipper, AbstractWriter
-
-size_func = int
-int_func = int
-if sys.version_info[0] < 3:
-    # noinspection PyUnresolvedReferences
-    int_func = long  # to accommodate 32-bit python 2
 
 
 __classification__ = "UNCLASSIFIED"

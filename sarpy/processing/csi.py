@@ -4,8 +4,9 @@ The module contains methods for computing a color subaperture image
 """
 
 import numpy
-from sarpy.io.complex import open as file_open
-from ..io.general.base import BaseReader
+
+from sarpy.io.complex.converter import open_complex as file_open
+from sarpy.io.general.base import BaseReader
 
 
 __classification__ = "UNCLASSIFIED"

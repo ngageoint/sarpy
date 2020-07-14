@@ -10,11 +10,12 @@ import re
 
 import numpy
 
-from ..general.utils import parse_xml_from_string, int_func, string_types
-from ..general.nitf import NITFReader, NITFWriter, ImageDetails, DESDetails, image_segmentation, get_npp_block, \
-    interpolate_corner_points_string
+from sarpy.compliance import int_func, string_types
+from ..general.utils import parse_xml_from_string
+from ..general.nitf import NITFReader, NITFWriter, ImageDetails, DESDetails, \
+    image_segmentation, get_npp_block, interpolate_corner_points_string
 from ..general.nitf import NITFDetails
-from ..general.nitf_elements.des import DataExtensionHeader, SICDDESSubheader
+from ..general.nitf_elements.des import DataExtensionHeader, XMLDESSubheader
 from ..general.nitf_elements.security import NITFSecurityTags
 from ..general.nitf_elements.image import ImageSegmentHeader, ImageBands, ImageBand
 from .sidd2_elements.SIDD import SIDDType
@@ -349,7 +350,7 @@ class SIDDReader(NITFReader):
         cols = sidd.Measurement.PixelFootprint.Col
 
         bounds, offsets = self._get_chipper_partitioning(segment, rows, cols)
-        dtype, bands, lut = self._check_img_details(segment, index)
+        dtype, bands, lut = self._check_img_details(segment)
         complex_type = False if lut is None else rgb_lut_conversion(lut)
         return MultiSegmentChipper(
             self.file_name, bounds, offsets, dtype,
@@ -793,7 +794,7 @@ class SIDDWriter(NITFWriter):
         uh_args['DESSHLPG'] = desshlpg
         subhead = DataExtensionHeader(
             Security=security,
-            UserHeader=SICDDESSubheader(**uh_args))
+            UserHeader=XMLDESSubheader(**uh_args))
         return DESDetails(subhead, sidd.to_xml_bytes(tag='SIDD'))
 
     def _create_data_extension_details(self):

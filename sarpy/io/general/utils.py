@@ -3,27 +3,12 @@
 Common functionality for converting metadata
 """
 
-import sys
 from xml.etree import ElementTree
 from typing import Union, Tuple
 
 import numpy
 
-integer_types = (int, )
-string_types = (str, )
-int_func = int
-if sys.version_info[0] < 3:
-    # noinspection PyUnresolvedReferences
-    from cStringIO import StringIO
-    # noinspection PyUnresolvedReferences
-    int_func = long
-    # noinspection PyUnresolvedReferences
-    integer_types = (int, long)
-    # noinspection PyUnresolvedReferences
-    string_types = (str, unicode)
-else:
-    # noinspection PyUnresolvedReferences
-    from io import StringIO
+from sarpy.compliance import integer_types, int_func, string_types, StringIO, bytes_to_string
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
@@ -161,8 +146,7 @@ def parse_xml_from_string(xml_string):
     (ElementTree.Element, dict)
     """
 
-    if not isinstance(xml_string, string_types) and isinstance(xml_string, bytes):
-        xml_string = xml_string.decode('utf-8')
+    xml_string = bytes_to_string(xml_string, encoding='utf-8')
 
     root_node = ElementTree.fromstring(xml_string)
     # define the namespace dictionary

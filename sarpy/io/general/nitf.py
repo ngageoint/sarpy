@@ -12,12 +12,15 @@ import re
 
 import numpy
 
-from .base import BaseReader, AbstractWriter, int_func
+from sarpy.compliance import int_func
+from .base import BaseReader, AbstractWriter
 from .bip import BIPWriter
 # noinspection PyProtectedMember
 from .nitf_elements.nitf_head import NITFHeader, ImageSegmentsType, \
-    DataExtensionsType, _ItemArrayHeaders, TextSegmentHeader, \
-    GraphicsSegmentHeader, ReservedExtensionHeader
+    DataExtensionsType, _ItemArrayHeaders
+from .nitf_elements.text import TextSegmentHeader
+from .nitf_elements.graphics import GraphicsSegmentHeader
+from .nitf_elements.res import ReservedExtensionHeader
 from .nitf_elements.security import NITFSecurityTags
 from .nitf_elements.image import ImageSegmentHeader
 from .nitf_elements.des import DataExtensionHeader
@@ -560,7 +563,6 @@ class NITFReader(BaseReader):
                     offsets.append(current_offset)
                     current_offset += horizontal_block_size * vertical_block_size * bytes_per_pixel
             p_row_start, p_row_end, p_col_start, p_col_end = cur_row_start, cur_row_end, cur_col_start, cur_col_end
-        print('bounds! {}, offsets! {}'.format(bounds, offsets))
         return numpy.array(bounds, dtype=numpy.int64), numpy.array(offsets, dtype=numpy.int64)
 
     def _find_segments(self):

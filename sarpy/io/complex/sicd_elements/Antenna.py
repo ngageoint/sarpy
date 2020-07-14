@@ -4,6 +4,7 @@ The AntennaType definition.
 """
 
 import numpy
+
 from .base import Serializable, DEFAULT_STRICT, _BooleanDescriptor, _FloatDescriptor, \
     _SerializableDescriptor
 from .blocks import Poly1DType, XYZPolyType, GainPhasePolyType
