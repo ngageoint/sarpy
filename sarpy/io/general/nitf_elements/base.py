@@ -9,7 +9,7 @@ from typing import Union, List, Tuple
 
 import numpy
 
-from sarpy.compliance import int_func, integer_types, string_types
+from sarpy.compliance import int_func, integer_types, string_types, bytes_to_string
 from .tres.registration import find_tre
 
 
@@ -134,8 +134,9 @@ def _parse_str(val, length, default, name, instance):
 
     if val is None:
         return default
+
     if isinstance(val, bytes):
-        val = val.decode('utf-8')
+        val = bytes_to_string(val)
     elif not isinstance(val, string_types):
         val = str(val)
 

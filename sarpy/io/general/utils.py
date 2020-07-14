@@ -8,7 +8,7 @@ from typing import Union, Tuple
 
 import numpy
 
-from sarpy.compliance import integer_types, int_func, string_types, StringIO
+from sarpy.compliance import integer_types, int_func, string_types, StringIO, bytes_to_string
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
@@ -146,8 +146,7 @@ def parse_xml_from_string(xml_string):
     (ElementTree.Element, dict)
     """
 
-    if not isinstance(xml_string, string_types) and isinstance(xml_string, bytes):
-        xml_string = xml_string.decode('utf-8')
+    xml_string = bytes_to_string(xml_string, encoding='utf-8')
 
     root_node = ElementTree.fromstring(xml_string)
     # define the namespace dictionary
