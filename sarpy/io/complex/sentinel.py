@@ -14,9 +14,10 @@ from numpy.polynomial import polynomial
 from scipy.constants import speed_of_light
 from scipy.interpolate import griddata
 
+from sarpy.compliance import string_types
 from ..general.base import SubsetReader, BaseReader
 from ..general.tiff import TiffDetails, TiffReader
-from ..general.utils import string_types, get_seconds, parse_timestring
+from ..general.utils import get_seconds, parse_timestring
 
 from .sicd_elements.blocks import Poly1DType, Poly2DType
 from .sicd_elements.SICD import SICDType

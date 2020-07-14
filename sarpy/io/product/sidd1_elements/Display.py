@@ -9,12 +9,13 @@ from collections import OrderedDict
 
 import numpy
 
+from sarpy.compliance import int_func
 from ..sidd2_elements.base import DEFAULT_STRICT
 # noinspection PyProtectedMember
 from ...complex.sicd_elements.base import Serializable, Arrayable, _SerializableDescriptor, \
     _IntegerDescriptor, _FloatDescriptor, _StringDescriptor, _StringEnumDescriptor, \
     _ParametersDescriptor, ParametersCollection, \
-    int_func, _create_new_node, _create_text_node, _get_node_value, \
+    _create_new_node, _create_text_node, _get_node_value, \
     _find_first_child
 
 

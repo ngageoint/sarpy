@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+"""
+The text extension subheader definitions.
+"""
 
 from .base import NITFElement, UserHeaderType, _IntegerDescriptor,\
     _StringDescriptor, _StringEnumDescriptor, _NITFElementDescriptor
