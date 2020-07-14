@@ -13,10 +13,9 @@ from ..sidd2_elements.base import DEFAULT_STRICT
 from ..sidd2_elements.blocks import LatLonArrayElementType
 # noinspection PyProtectedMember
 from ...complex.sicd_elements.base import Serializable, _SerializableDescriptor, \
-    _SerializableArrayDescriptor, SerializableArray, \
-    _SerializableListDescriptor, \
-    _StringDescriptor, _ParametersDescriptor, ParametersCollection, _StringListDescriptor, \
-    _find_children
+    _SerializableArrayDescriptor, SerializableArray, _SerializableListDescriptor, \
+    _StringDescriptor, _ParametersDescriptor, ParametersCollection, \
+    _StringListDescriptor, _find_children
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"

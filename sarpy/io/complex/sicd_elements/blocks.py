@@ -3,15 +3,15 @@
 Basic building blocks for SICD standard.
 """
 
-import sys
 from collections import OrderedDict
 
 import numpy
 
+from sarpy.compliance import int_func
 from .base import _get_node_value, _create_text_node, _create_new_node, _find_children, \
     Serializable, Arrayable, DEFAULT_STRICT, \
     _StringEnumDescriptor, _IntegerDescriptor, _FloatDescriptor, _FloatModularDescriptor, \
-    _SerializableDescriptor, int_func
+    _SerializableDescriptor
 
 
 __classification__ = "UNCLASSIFIED"

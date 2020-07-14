@@ -1,6 +1,7 @@
 # This details the important differences introduced in sarpy 1.0
 
-* .33 - Added support for Capella format data
+* .34 - Added support for Capella format data
+* .33 - Some general NITF compatibility updates
 * .32 - Added support for blocked NITF files and improved NITF header handling
 * .31 - Correct minor issues for CPHD and xml interpretation
 * .30 - Provide aggregate complex type reader, and sicd partitioning methods

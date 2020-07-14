@@ -3,7 +3,6 @@
 This module contains the base objects for use in the SICD elements, and the base serializable functionality.
 """
 
-import sys
 import copy
 import json
 
@@ -17,16 +16,8 @@ import numpy
 import numpy.polynomial.polynomial
 from numpy.linalg import norm
 
-integer_types = (int, )
-int_func = int
-string_types = str
-if sys.version_info[0] < 3:
-    # noinspection PyUnresolvedReferences
-    int_func = long  # to account for 32-bit python 2
-    # noinspection PyUnresolvedReferences
-    integer_types = (int, long)
-    # noinspection PyUnresolvedReferences
-    string_types = (str, unicode)
+from sarpy.compliance import int_func, integer_types, string_types
+
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"

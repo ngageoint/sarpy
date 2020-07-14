@@ -1,27 +1,16 @@
 # -*- coding: utf-8 -*-
 """
-Base NITF Header functionality
+Base NITF Header functionality definition.
 """
 
-import sys
 import logging
 from weakref import WeakKeyDictionary
 from typing import Union, List, Tuple
 
 import numpy
 
+from sarpy.compliance import int_func, integer_types, string_types, bytes_to_string
 from .tres.registration import find_tre
-
-integer_types = (int, )
-string_types = (str, )
-int_func = int
-if sys.version_info[0] < 3:
-    # noinspection PyUnresolvedReferences
-    int_func = long  # to accommodate for 32-bit python 2
-    # noinspection PyUnresolvedReferences
-    integer_types = (int, long)
-    # noinspection PyUnresolvedReferences
-    string_types = (str, unicode)
 
 
 # Base NITF type
@@ -145,8 +134,9 @@ def _parse_str(val, length, default, name, instance):
 
     if val is None:
         return default
+
     if isinstance(val, bytes):
-        val = val.decode('utf-8')
+        val = bytes_to_string(val)
     elif not isinstance(val, string_types):
         val = str(val)
 

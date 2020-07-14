@@ -9,10 +9,7 @@ import inspect
 import os
 import sys
 
-string_types = (str, )
-if sys.version_info[0] < 3:
-    # noinspection PyUnresolvedReferences
-    string_types = (str, unicode)
+from sarpy.compliance import string_types, bytes_to_string
 
 
 __classification__ = "UNCLASSIFIED"
@@ -85,7 +82,7 @@ def find_tre(tre_id):
         parse_package()
 
     if isinstance(tre_id, bytes):
-        tre_id = tre_id.decode('utf-8')
+        tre_id = bytes_to_string(tre_id)
     if not isinstance(tre_id, string_types):
         raise TypeError('tre_id must be of type string. Got {}'.format(tre_id))
     return _TRE_Registry.get(tre_id.strip(), None)

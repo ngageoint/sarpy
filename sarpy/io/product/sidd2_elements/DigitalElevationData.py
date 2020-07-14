@@ -10,8 +10,8 @@ import numpy
 from .base import DEFAULT_STRICT
 
 # noinspection PyProtectedMember
-from ...complex.sicd_elements.base import Serializable, _SerializableDescriptor, _IntegerDescriptor, \
-    _FloatDescriptor, _FloatListDescriptor, _StringEnumDescriptor
+from ...complex.sicd_elements.base import Serializable, _SerializableDescriptor, \
+    _IntegerDescriptor, _FloatDescriptor, _FloatListDescriptor, _StringEnumDescriptor
 from .blocks import LatLonType
 
 __classification__ = "UNCLASSIFIED"
