@@ -1,13 +1,16 @@
 # -*- coding: utf-8 -*-
+"""
+The image subheader definitions.
+"""
 
 import logging
 import struct
 
 import numpy
 
+from sarpy.compliance import int_func
 from .base import NITFElement, NITFLoop, UserHeaderType, _IntegerDescriptor,\
-    _StringDescriptor, _StringEnumDescriptor, _NITFElementDescriptor, \
-    int_func, _parse_str
+    _StringDescriptor, _StringEnumDescriptor, _NITFElementDescriptor, _parse_str
 from .security import NITFSecurityTags
 
 

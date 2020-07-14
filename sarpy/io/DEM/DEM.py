@@ -1,22 +1,14 @@
 # -*- coding: utf-8 -*-
 
 import os
-import sys
 import logging
 import numpy
 import struct
 from typing import List
 
+from sarpy.compliance import int_func, integer_types
 from . import _argument_validation
 from .geoid import GeoidHeight, find_geoid_file_from_dir
-
-integer_types = (int, )
-int_func = int
-if sys.version_info[0] < 3:
-    # noinspection PyUnresolvedReferences
-    int_func = long  # to accommodate for 32-bit python 2
-    # noinspection PyUnresolvedReferences
-    integer_types = (int, long)
 
 
 __classification__ = "UNCLASSIFIED"

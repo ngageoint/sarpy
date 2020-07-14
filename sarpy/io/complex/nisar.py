@@ -20,7 +20,8 @@ except ImportError:
     warnings.warn('The h5py module is not successfully imported, '
                   'which precludes NISAR reading capability!')
 
-from .sicd_elements.blocks import Poly2DType, int_func
+from sarpy.compliance import string_types, int_func, bytes_to_string
+from .sicd_elements.blocks import Poly2DType
 from .sicd_elements.SICD import SICDType
 from .sicd_elements.CollectionInfo import CollectionInfoType, RadarModeType
 from .sicd_elements.ImageCreation import ImageCreationType
@@ -37,7 +38,7 @@ from .sicd_elements.RMA import RMAType, INCAType
 from .sicd_elements.Radiometric import RadiometricType, NoiseLevelType_
 from ...geometry import point_projection
 from ..general.base import BaseReader
-from ..general.utils import string_types, get_seconds, parse_timestring
+from ..general.utils import get_seconds, parse_timestring
 from .csk import H5Chipper
 from .utils import fit_position_xvalidation, two_dim_poly_fit
 
@@ -91,7 +92,7 @@ def _stringify(val):
     str
     """
 
-    return _get_string_version(val).strip()
+    return bytes_to_string(val).strip()
 
 
 def _get_ref_time(str_in):
@@ -107,25 +108,15 @@ def _get_ref_time(str_in):
     numpy.datetime64
     """
 
-    if isinstance(str_in, bytes):
-        str_in = str_in.decode('utf-8')
+    str_in = bytes_to_string(str_in)
     prefix = 'seconds since '
     if not str_in.startswith(prefix):
         raise ValueError('Got unexpected reference time string - {}'.format(str_in))
     return parse_timestring(str_in[len(prefix):], precision='ns')
 
 
-def _get_string_version(value):
-    if isinstance(value, string_types):
-        return value
-    elif isinstance(value, bytes):
-        return value.decode('utf-8')
-    else:
-        raise TypeError('Got unexpected type {}'.format(type(value)))
-
-
 def _get_string_list(array):
-    return [_get_string_version(el) for el in array]
+    return [bytes_to_string(el) for el in array]
 
 
 class NISARDetails(object):

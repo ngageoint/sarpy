@@ -6,7 +6,8 @@ Module contained elements for defining TREs - really intended as read only objec
 from collections import OrderedDict
 from typing import Union, List
 
-from ..base import TRE, int_func, string_types
+from sarpy.compliance import int_func, string_types
+from ..base import TRE
 
 
 __classification__ = "UNCLASSIFIED"

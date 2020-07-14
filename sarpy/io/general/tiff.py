@@ -13,7 +13,8 @@ import logging
 import numpy
 import re
 
-from .base import BaseReader, int_func
+from sarpy.compliance import int_func
+from .base import BaseReader
 from .bip import BIPChipper
 
 
