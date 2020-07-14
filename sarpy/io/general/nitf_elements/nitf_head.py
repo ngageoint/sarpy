@@ -3,20 +3,10 @@
 The main NITF header defintions.
 """
 
-from typing import Union, Tuple
-import os
-
-import numpy
-
 from .base import NITFElement, UserHeaderType, _IntegerDescriptor,\
     _StringDescriptor, _StringEnumDescriptor, _NITFElementDescriptor, _RawDescriptor, \
-    _ItemArrayHeaders, int_func
+    _ItemArrayHeaders
 from .security import NITFSecurityTags
-from .image import ImageSegmentHeader
-from .graphics import GraphicsSegmentHeader
-from .text import TextSegmentHeader
-from .des import DataExtensionHeader
-from .res import ReservedExtensionHeader
 
 
 #############

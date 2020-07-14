@@ -10,8 +10,8 @@ from ..sidd2_elements.base import DEFAULT_STRICT
 # noinspection PyProtectedMember
 from ...complex.sicd_elements.base import Serializable, _SerializableDescriptor
 from ..sidd2_elements.blocks import Poly2DType, RowColIntType, XYZPolyType
-from ..sidd2_elements.Measurement import PolynomialProjectionType, GeographicProjectionType, PlaneProjectionType, \
-     CylindricalProjectionType
+from ..sidd2_elements.Measurement import PolynomialProjectionType, GeographicProjectionType, \
+    PlaneProjectionType, CylindricalProjectionType
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"

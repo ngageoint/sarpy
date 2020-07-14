@@ -10,9 +10,10 @@ import re
 
 import numpy
 
-from ..general.utils import parse_xml_from_string, int_func, string_types
-from ..general.nitf import NITFReader, NITFWriter, ImageDetails, DESDetails, image_segmentation, get_npp_block, \
-    interpolate_corner_points_string
+from sarpy.compliance import int_func, string_types
+from ..general.utils import parse_xml_from_string
+from ..general.nitf import NITFReader, NITFWriter, ImageDetails, DESDetails, \
+    image_segmentation, get_npp_block, interpolate_corner_points_string
 from ..general.nitf import NITFDetails
 from ..general.nitf_elements.des import DataExtensionHeader, XMLDESSubheader
 from ..general.nitf_elements.security import NITFSecurityTags

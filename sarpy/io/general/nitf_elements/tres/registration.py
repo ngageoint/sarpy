@@ -9,10 +9,7 @@ import inspect
 import os
 import sys
 
-string_types = (str, )
-if sys.version_info[0] < 3:
-    # noinspection PyUnresolvedReferences
-    string_types = (str, unicode)
+from sarpy.compliance import string_types
 
 
 __classification__ = "UNCLASSIFIED"

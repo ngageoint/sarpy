@@ -4,12 +4,11 @@ Functionality for an aggregate reader, for opening multiple files as a single
 reader object.
 """
 
-import logging
-from typing import Union, List, Tuple
+from typing import List, Tuple
 
+from sarpy.compliance import string_types
 from .converter import open_complex
 from ..general.base import BaseReader
-from ..general.utils import string_types
 
 
 class AggregateReader(BaseReader):

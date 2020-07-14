@@ -9,11 +9,12 @@ import logging
 
 import numpy
 
+from sarpy.compliance import string_types
 from ..general.base import validate_sicd_for_writing
 from ..general.bip import MultiSegmentChipper
 from ..general.nitf import NITFReader, NITFWriter, ImageDetails, DESDetails, \
     image_segmentation, get_npp_block, interpolate_corner_points_string
-from ..general.utils import string_types, parse_xml_from_string
+from ..general.utils import parse_xml_from_string
 # noinspection PyProtectedMember
 from .sicd_elements.SICD import SICDType, _SICD_SPECIFICATION_IDENTIFIER
 

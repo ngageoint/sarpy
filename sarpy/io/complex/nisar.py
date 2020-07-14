@@ -20,7 +20,8 @@ except ImportError:
     warnings.warn('The h5py module is not successfully imported, '
                   'which precludes NISAR reading capability!')
 
-from .sicd_elements.blocks import Poly2DType, int_func
+from sarpy.compliance import string_types, int_func
+from .sicd_elements.blocks import Poly2DType
 from .sicd_elements.SICD import SICDType
 from .sicd_elements.CollectionInfo import CollectionInfoType, RadarModeType
 from .sicd_elements.ImageCreation import ImageCreationType
@@ -37,7 +38,7 @@ from .sicd_elements.RMA import RMAType, INCAType
 from .sicd_elements.Radiometric import RadiometricType, NoiseLevelType_
 from ...geometry import point_projection
 from ..general.base import BaseReader
-from ..general.utils import string_types, get_seconds, parse_timestring
+from ..general.utils import get_seconds, parse_timestring
 from .csk import H5Chipper
 from .utils import fit_position_xvalidation, two_dim_poly_fit
 

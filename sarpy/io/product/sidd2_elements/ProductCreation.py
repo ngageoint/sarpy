@@ -9,8 +9,8 @@ import numpy
 
 from .base import DEFAULT_STRICT
 # noinspection PyProtectedMember
-from ...complex.sicd_elements.base import Serializable, _SerializableDescriptor, _StringDescriptor, \
-    _StringEnumDescriptor, _IntegerDescriptor, _DateTimeDescriptor, \
+from ...complex.sicd_elements.base import Serializable, _SerializableDescriptor, \
+    _StringDescriptor, _StringEnumDescriptor, _IntegerDescriptor, _DateTimeDescriptor, \
     _ParametersDescriptor, ParametersCollection
 
 __classification__ = "UNCLASSIFIED"

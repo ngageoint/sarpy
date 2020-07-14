@@ -3,25 +3,14 @@
 Base NITF Header functionality definition.
 """
 
-import sys
 import logging
 from weakref import WeakKeyDictionary
 from typing import Union, List, Tuple
 
 import numpy
 
+from sarpy.compliance import int_func, integer_types, string_types
 from .tres.registration import find_tre
-
-integer_types = (int, )
-string_types = (str, )
-int_func = int
-if sys.version_info[0] < 3:
-    # noinspection PyUnresolvedReferences
-    int_func = long  # to accommodate for 32-bit python 2
-    # noinspection PyUnresolvedReferences
-    integer_types = (int, long)
-    # noinspection PyUnresolvedReferences
-    string_types = (str, unicode)
 
 
 # Base NITF type
