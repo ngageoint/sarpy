@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+"""
+The security tags definitions, which are used in each NITF subheader element.
+"""
 
 from .base import NITFElement, _StringDescriptor, _StringEnumDescriptor
 

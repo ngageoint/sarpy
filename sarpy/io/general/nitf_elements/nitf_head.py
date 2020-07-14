@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+"""
+The main NITF header defintions.
+"""
 
 from typing import Union, Tuple
 import os

@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+"""
+The image subheader definitions.
+"""
 
 import logging
 import struct

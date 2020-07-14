@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+"""
+The reserved extension subheader definitions.
+"""
 
 from .base import BaseNITFElement, NITFElement, Unstructured, _IntegerDescriptor,\
     _StringDescriptor, _StringEnumDescriptor, _NITFElementDescriptor, \

@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+"""
+The data extension header element definition.
+"""
 
 import logging
 from typing import Union
@@ -9,10 +12,10 @@ from .base import BaseNITFElement, NITFElement, Unstructured, _IntegerDescriptor
 from .security import NITFSecurityTags
 
 
-class SICDDESSubheader(NITFElement):
+class XMLDESSubheader(NITFElement):
     """
-    The SICD and SIDD Data Extension user header, described in SICD standard
-    2014-09-30, Volume II, page 29
+    The standard XML Data Extension user header used in SICD and SIDD, described
+    in SICD standard 2014-09-30, Volume II, page 29
     """
 
     _ordering = (
@@ -84,7 +87,7 @@ class SICDDESSubheader(NITFElement):
     def __init__(self, **kwargs):
         self._DESSHL = 773
         self._DESCRC = 99999
-        super(SICDDESSubheader, self).__init__(**kwargs)
+        super(XMLDESSubheader, self).__init__(**kwargs)
 
     @property
     def DESSHL(self):
@@ -233,7 +236,7 @@ class DataExtensionHeader(NITFElement):
             self._DESITEM = None
 
     @property
-    def UserHeader(self):  # type: () -> Union[DESUserHeader, SICDDESSubheader]
+    def UserHeader(self):  # type: () -> Union[DESUserHeader, XMLDESSubheader]
         """
         DESUserHeader: The DES user header.
         """
@@ -265,7 +268,7 @@ class DataExtensionHeader(NITFElement):
                 # It could be a version 1.0 or greater SICD
                 data = self._UserHeader.to_bytes()
                 try:
-                    data = SICDDESSubheader.from_bytes(data, 0)
+                    data = XMLDESSubheader.from_bytes(data, 0)
                     self._UserHeader = data
                 except Exception as e:
                     logging.error(

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Base NITF Header functionality
+Base NITF Header functionality definition.
 """
 
 import sys

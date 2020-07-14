@@ -18,7 +18,7 @@ from ..general.utils import string_types, parse_xml_from_string
 from .sicd_elements.SICD import SICDType, _SICD_SPECIFICATION_IDENTIFIER
 
 from ..general.nitf import NITFDetails
-from ..general.nitf_elements.des import DataExtensionHeader, SICDDESSubheader
+from ..general.nitf_elements.des import DataExtensionHeader, XMLDESSubheader
 from ..general.nitf_elements.security import NITFSecurityTags
 from ..general.nitf_elements.image import ImageSegmentHeader, ImageBands, ImageBand
 
@@ -213,7 +213,7 @@ class SICDDetails(NITFDetails):
             return None
 
         sicd_des = self._des_header.UserHeader
-        if not isinstance(sicd_des, SICDDESSubheader):
+        if not isinstance(sicd_des, XMLDESSubheader):
             return None
         return sicd_des.DESSHSI.strip() == _SICD_SPECIFICATION_IDENTIFIER
 
@@ -741,7 +741,7 @@ class SICDWriter(NITFWriter):
 
         subhead = DataExtensionHeader(
             Security=self._security_tags,
-            UserHeader=SICDDESSubheader(**uh_args))
+            UserHeader=XMLDESSubheader(**uh_args))
 
         self._des_details = (
             DESDetails(subhead, self.sicd_meta.to_xml_bytes(tag='SICD')), )
