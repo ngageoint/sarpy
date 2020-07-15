@@ -2,8 +2,7 @@
 """
 SICD ortho-rectification methodology.
 
-Example Usage
-
+**Example Usage**
 >>> import os
 >>> from matplotlib import pyplot
 >>> from sarpy.io.complex.converter import open_complex
