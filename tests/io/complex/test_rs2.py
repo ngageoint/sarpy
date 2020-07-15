@@ -15,6 +15,15 @@ def generic_rs2_test(instance, test_root, test_file):
     with instance.subTest(msg='establish rs2 reader for file {}'.format(test_root)):
         reader = RadarSatReader(test_root)
 
+    with instance.subTest(msg='Verify is_sicd_type for file {}'.format(test_root)):
+        instance.assertTrue(reader.is_sicd_type, msg='Verifying is_sicd_type is True')
+
+    with instance.subTest(msg='Verify image size between reader and sicd for file {}'.format(test_root)):
+        data_sizes = reader.get_data_size_as_tuple()
+        sicds = reader.get_sicds_as_tuple()
+        instance.assertEqual(data_sizes[0][0], sicds[0].ImageData.NumRows, msg='data_size[0] and NumRows do not agree')
+        instance.assertEqual(data_sizes[0][1], sicds[0].ImageData.NumCols, msg='data_size[1] and NumCols do not agree')
+
     with instance.subTest(msg='establish deprecated rs2 reader for file {}'.format(test_root)):
         dep_reader = DepReader(test_file)
 

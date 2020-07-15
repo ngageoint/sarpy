@@ -52,6 +52,12 @@ def generic_sicd_check(instance, test_file):
         # how long does it take to unpack details and load file?
         logging.info('Used open_complex to unpack sicd details from file name and loaded sicd file in {}'.format(time.time() - start))
 
+    with instance.subTest(msg='Verify image size between reader and sicd for file {}'.format(test_file)):
+        data_sizes = reader.get_data_size_as_tuple()
+        sicds = reader.get_sicds_as_tuple()
+        instance.assertEqual(data_sizes[0][0], sicds[0].ImageData.NumRows, msg='data_size[0] and NumRows do not agree')
+        instance.assertEqual(data_sizes[0][1], sicds[0].ImageData.NumCols, msg='data_size[1] and NumCols do not agree')
+
     with instance.subTest(msg="data_size access"):
         # how about the sizes?
         logging.debug('data_size = {}'.format(reader.data_size))
