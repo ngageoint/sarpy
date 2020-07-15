@@ -509,7 +509,7 @@ class NITFReader(BaseReader):
                     '({}, {})'.format(index, this_rows, this_cols, rows, cols))
 
             # horizontal block details
-            horizontal_block_size = this_cols
+            horizontal_block_size = this_rows
             if img_header.NBPR != 1:
                 if (this_cols % img_header.NBPR) != 0:
                     raise ValueError(
@@ -518,7 +518,7 @@ class NITFReader(BaseReader):
                 horizontal_block_size = int_func(this_cols/img_header.NBPR)
 
             # vertical block details
-            vertical_block_size = this_rows
+            vertical_block_size = this_cols
             if img_header.NBPC != 1:
                 if (this_rows % img_header.NBPC) != 0:
                     raise ValueError(
