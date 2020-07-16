@@ -4,7 +4,7 @@ The methods for computing a color sub-aperture image for SICD type images.
 
 As noted in the PerformCSI class, the full resolution data along the split dimension
 is required, so sub-sampling along the split dimension does not decrease the amount of
-data which must be fetched and/or processing whihc must be performed.
+data which must be fetched and/or processing which must be performed.
 
 **Example Usage**
 >>> from matplotlib import pyplot
@@ -30,13 +30,10 @@ data which must be fetched and/or processing whihc must be performed.
 
 >>> # calculate the csi for an image segment
 >>> csi_data = csi_calculator[300:500, 200:600]
->>> # recall that even though we are subsampling along both dimensions, the processing
->>> # requires that we fetch the entire segment along the split dimension
 
 >>> # let's view this csi image using matplotlib
 >>> fig, axs = pyplot.subplots(nrows=1, ncols=1)
->>> h1 = axs.imshow(density(csi_data), cmap='inferno', aspect='equal')
->>> fig.colorbar(h1, ax=axs)
+>>> axs.imshow(density(csi_data), aspect='equal')
 >>> pyplot.show()
 """
 
@@ -68,18 +65,22 @@ def filter_map_construction(siz):
         the `siz x 3` colormap array
     """
 
-    siz = int_func(siz)
-    red_siz = max(1, int_func(siz/4))
+    if siz < 1:
+        raise ValueError('Cannot create the filter map with fewer than 4 elements.')
+
+    siz = int_func(round(siz))
+    basic_size = int_func(numpy.ceil(0.25*siz))
+
     # create trapezoidal stack
     trapezoid = numpy.hstack(
-        (numpy.arange(1, red_siz+1, dtype=numpy.float32)/red_siz,
-         numpy.ones((red_siz, ), dtype=numpy.float32),
-         numpy.arange(red_siz, 0, -1, dtype=numpy.float64)/red_siz))
-    out = numpy.zeros((siz, 3), dtype=numpy.float32)
+        (numpy.arange(1, basic_size+1, dtype=numpy.int32),
+         numpy.full((basic_size-1, ), basic_size, dtype=numpy.int32),
+         numpy.arange(basic_size, 0, -1, dtype=numpy.int32)))/float(basic_size)
+    out = numpy.zeros((siz, 3), dtype=numpy.float64)
     # create red, green, blue indices
-    green_inds = int_func(0.5*(siz - trapezoid.size)) + numpy.arange(trapezoid.size)
-    red_inds = ((green_inds + red_siz) % siz)
-    blue_inds = ((green_inds - red_siz) % siz)
+    green_inds = int_func(round(0.5*(siz - trapezoid.size))) + numpy.arange(trapezoid.size)
+    red_inds = ((green_inds + basic_size) % siz)
+    blue_inds = ((green_inds - basic_size) % siz)
     # populate our array
     out[red_inds, 0] = trapezoid
     out[green_inds, 1] = trapezoid
@@ -113,11 +114,11 @@ def csi_array(array, dimension=0, platform_direction='R', fill=1, filter_map=Non
     if not (isinstance(array, numpy.ndarray) and len(array.shape) == 2 and numpy.iscomplexobj(array)):
         raise ValueError('array must be a two-dimensional numpy array of complex dtype')
 
-    dim = int_func(dimension)
-    if dim not in [0, 1]:
-        raise ValueError('dimension must be 0 or 1, got {}'.format(dim))
-    if dim == 0:
-        array = array.T  # this is a view
+    dimension = int_func(dimension)
+    if dimension not in [0, 1]:
+        raise ValueError('dimension must be 0 or 1, got {}'.format(dimension))
+    if dimension == 0:
+        array = array.T
 
     pdir_func = platform_direction.upper()[0]
     if pdir_func not in ['R', 'L']:
@@ -126,39 +127,43 @@ def csi_array(array, dimension=0, platform_direction='R', fill=1, filter_map=Non
     # get our filter construction data
     if filter_map is None:
         filter_map = filter_map_construction(array.shape[1]/float(fill))
-    if not (isinstance(filter_map, numpy.ndarray) and filter_map.dtype.name == 'float32' and
+    if not (isinstance(filter_map, numpy.ndarray) and
+            filter_map.dtype.name in ['float32', 'float64'] and
             filter_map.ndim == 2 and filter_map.shape[1] == 3):
-        raise ValueError('filter_map must be a N x 3 numpy array of dtype float32.')
-    # move to phase history domain
-    ph_indices = int_func(numpy.floor(0.5*(array.shape[1] - filter_map.shape[0]))) + \
-                 numpy.arange(filter_map.shape[0], dtype=numpy.int32)
-    ph0 = numpy.fft.fftshift(numpy.fft.ifft(array, axis=1), axes=1)[:, ph_indices]
+        raise ValueError('filter_map must be a N x 3 numpy array of float dtype.')
 
+    # move to phase history domain
+    ph_indices = int(numpy.floor(0.5*(array.shape[1] - filter_map.shape[0]))) + \
+                 numpy.arange(filter_map.shape[0], dtype=numpy.int32)
+    ph0 = numpy.fft.fftshift(numpy.fft.ifft(numpy.cast[numpy.complex128](array), axis=1), axes=1)[:, ph_indices]
     # construct the filtered workspace
-    ph0_RGB = numpy.zeros((array.shape[0], filter_map.shape[0], 3), dtype=numpy.complex64)
+    # NB: processing is more efficient with color band in the first dimension
+    ph0_RGB = numpy.zeros((3, array.shape[0], filter_map.shape[0]), dtype=numpy.complex128)
     for i in range(3):
-        ph0_RGB[:, :, i] = ph0*filter_map[:, i]
+        ph0_RGB[i, :, :] = ph0*filter_map[:, i]
     del ph0
 
-    # Shift phase history to avoid having zeropad in middle of filter.
-    # This fixes the purple sidelobe artifact.
-    filter_shift = int(filter_map.shape[0]/4)
-    ph0_RGB[:, :, 0] = numpy.roll(ph0_RGB[:, :, 0], -filter_shift)
-    ph0_RGB[:, :, 2] = numpy.roll(ph0_RGB[:, :, 2], filter_shift)
+    # Shift phase history to avoid having zeropad in middle of filter, to alleviate
+    # the purple sidelobe artifact.
+    filter_shift = int(numpy.ceil(0.25*filter_map.shape[0]))
+    ph0_RGB[0, :] = numpy.roll(ph0_RGB[0, :], -filter_shift)
+    ph0_RGB[2, :] = numpy.roll(ph0_RGB[2, :], filter_shift)
     # NB: the green band is already centered
 
     # FFT back to the image domain
-    im0_RGB = numpy.fft.fft(numpy.fft.fftshift(ph0_RGB, axes=1), n=array.shape[1], axis=1)
+    im0_RGB = numpy.fft.fft(numpy.fft.fftshift(ph0_RGB, axes=2), n=array.shape[1], axis=2)
     del ph0_RGB
 
     # Replace the intensity with the original image intensity to main full resolution
     # (in intensity, but not in color).
-    scale_factor = numpy.abs(array)/numpy.abs(im0_RGB).max(axis=2)
-    im0_RGB = numpy.abs(im0_RGB)*scale_factor[:, :, numpy.newaxis]
+    scale_factor = numpy.abs(array)/numpy.abs(im0_RGB).max(axis=0)
+    im0_RGB = numpy.abs(im0_RGB)*scale_factor
 
-    # reorient images
-    if dim == 0:
-        im0_RGB = im0_RGB.transpose([1, 0, 2])
+    # reorient image so that the color segment is in the final dimension
+    if dimension == 0:
+        im0_RGB = im0_RGB.transpose([2, 1, 0])
+    else:
+        im0_RGB = im0_RGB.transpose([1, 2, 0])
     if pdir_func == 'R':
         # reverse the color band order
         im0_RGB = im0_RGB[:, :, ::-1]
@@ -169,14 +174,14 @@ class PerformCSI(object):
     """
     Class for creating color subaperture images from a reader instance.
 
-    It is important to note that sub-sampling along the split dimension does
-    not decrease the amount of data which must be fetched, because the processing
-    methodology requires the entire row/column in the split dimension.
+    It is important to note that full resolution is required for processing along
+    the split dimension, so sub-sampling along the split dimension does not decrease
+    the amount of data which must be fetched.
     """
 
     __slots__ = (
-        '_reader', '_index', '_sicd', '_platform_direction', '_dimension', '_data_size', '_fill', '_filter_map',
-        '_block_size')
+        '_reader', '_index', '_sicd', '_platform_direction', '_dimension', '_data_size',
+        '_fill', '_block_size')
 
     def __init__(self, reader, dimension=0, index=0, block_size=50):
         """
@@ -199,8 +204,7 @@ class PerformCSI(object):
         self._platform_direction = None  # set with the index setter
         self._dimension = None # set explicitly
         self._data_size = None  # set with index setter
-        self._fill = None # set implicitly with _set_fill_and_filtermap()
-        self._filter_map = None  # set implicitly with _set_fill_and_filtermap()
+        self._fill = None # set implicitly with _set_fill()
         self._block_size = None # set explicitly
 
         # validate the reader
@@ -241,7 +245,7 @@ class PerformCSI(object):
         if value not in [0, 1]:
             raise ValueError('dimension must be 0 or 1, got {}'.format(value))
         self._dimension = value
-        self._set_fill_and_filtermap()
+        self._set_fill()
 
     @property
     def data_size(self):
@@ -282,7 +286,7 @@ class PerformCSI(object):
             self._platform_direction = self._sicd.SCPCOA.SideOfTrack
 
         self._data_size = self.reader.get_data_size_as_tuple()[value]
-        self._set_fill_and_filtermap()
+        self._set_fill()
 
     @property
     def fill(self):
@@ -293,7 +297,7 @@ class PerformCSI(object):
 
         return self._fill
 
-    def _set_fill_and_filtermap(self):
+    def _set_fill(self):
         self._fill = None
         if self._dimension is None:
             return
@@ -313,20 +317,20 @@ class PerformCSI(object):
             except (ValueError, AttributeError, TypeError):
                 fill = 1
         self._fill = float(fill)
-        # set filter_map
-        self._filter_map = filter_map_construction(self.data_size[self.dimension]/self._fill)
 
     @property
     def block_size(self):
         # type: () -> int
         """
-        int: The approximate processing block size in MB.
+        None|int: The approximate processing block size in MB.
         """
 
         return self._block_size
 
     @block_size.setter
     def block_size(self, value):
+        if value is None:
+            self._block_size = None
         value = int(value)
         if value < 1:
             value = 1
@@ -389,6 +393,120 @@ class PerformCSI(object):
         else:
             raise TypeError('PerformCSI does not support slicing using type {}'.format(type(item)))
 
+    @staticmethod
+    def _extract_blocks(the_range, block_size):
+        """
+        Extract the block definition.
+
+        Parameters
+        ----------
+        the_range
+        block_size : None|int|float
+
+        Returns
+        -------
+        List[Tuple[int, int, int]], List[Tuple[int, int]]
+        """
+
+
+        entries = numpy.arange(the_range[0], the_range[1], the_range[2], dtype=numpy.int64)
+        if block_size is None:
+            return [the_range, ], [(0, entries.size), ]
+
+        # how many blocks?
+        block_count = int(numpy.ceil(entries.size/block_size))
+        if block_size == 1:
+            return [the_range, ], [(0, entries.size), ]
+
+        # workspace for what the blocks are
+        out1 = []
+        out2 = []
+        start_ind = 0
+        for i in range(block_count):
+            end_ind = start_ind+block_size
+            if end_ind < entries.size:
+                block1 = (int_func(entries[start_ind]), int_func(entries[end_ind]), the_range[2])
+                block2 = (start_ind, end_ind)
+            else:
+                block1 = (int_func(entries[start_ind]), the_range[1], the_range[2])
+                block2 = (start_ind, entries.size)
+            out1.append(block1)
+            out2.append(block2)
+            start_ind = end_ind
+        return out1, out2
+
+    def _full_row_resolution(self, row_range, col_range, filter_map):
+        """
+        Perform the full row resolution calculation.
+
+        Parameters
+        ----------
+        row_range
+        col_range
+        filter_map : numpy.ndarray
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+
+        # fetch the data and perform the csi calculation
+        if row_range[2] not in [1, -1]:
+            raise ValueError('The step for row_range must be +/- 1, for full row resolution data.')
+        if row_range[1] == -1:
+            data = self.reader[
+                   row_range[0]::row_range[2],
+                   col_range[0]:col_range[1]:col_range[2],
+                   self.index]
+        else:
+            data = self.reader[
+                   row_range[0]:row_range[1]:row_range[2],
+                   col_range[0]:col_range[1]:col_range[2],
+                   self.index]
+
+        if data.ndim < 2:
+            data = numpy.reshape(data, (-1, 1))
+
+        return csi_array(
+            data, dimension=0, platform_direction=self._platform_direction,
+            filter_map=filter_map)
+
+    def _full_column_resolution(self, row_range, col_range, filter_map):
+        """
+        Perform the full column resolution calculation.
+
+        Parameters
+        ----------
+        row_range
+        col_range
+        filter_map : numpy.ndarray
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+
+        # fetch the data and perform the csi calculation
+        if col_range[2] not in [1, -1]:
+            raise ValueError('The step for col_range must be +/- 1, for full col resolution data.')
+        if col_range[1] == -1:
+            data = self.reader[
+                   row_range[0]:row_range[1]:row_range[2],
+                   col_range[0]::col_range[2],
+                   self.index]
+        else:
+            data = self.reader[
+                   row_range[0]:row_range[1]:row_range[2],
+                   col_range[0]:col_range[1]:col_range[2],
+                   self.index]
+
+        if data.ndim < 2:
+            data = numpy.reshape(data, (1, -1))
+
+        return csi_array(
+            data, dimension=1, platform_direction=self._platform_direction,
+            filter_map=filter_map)
+
     def __getitem__(self, item):
         """
         Fetches the csi data based on the input slice.
@@ -402,69 +520,56 @@ class PerformCSI(object):
         numpy.ndarray
         """
 
-        if self._filter_map is None:
+        if self._fill is None:
             raise ValueError('Unable to proceed unless the index and dimension are set.')
 
-        # parse the slicing
-        row_range, col_range = self._parse_slicing(item)
-        print('row_range = {}, col_range = {}'.format(row_range, col_range))
-        row_count = int_func((row_range[1] - row_range[0])/float(row_range[2]))
-        col_count = int_func((col_range[1] - col_range[0])/float(col_range[2]))
-        out_size = (row_count, col_count, 3)
-        out = numpy.zeros(out_size, dtype=numpy.complex64)
+        def prepare_output():
+            row_count = int_func((row_range[1] - row_range[0]) / float(row_range[2]))
+            col_count = int_func((col_range[1] - col_range[0]) / float(col_range[2]))
+            out_size = (row_count, col_count, 3)
+            return numpy.zeros(out_size, dtype=numpy.float64)
 
+        # parse the slicing to ensure consistent structure
+        row_range, col_range = self._parse_slicing(item)
         if self.dimension == 0:
-            # how many columns to fetch at a single time, because we have to fetch the entire row
-            fetch_max_cols = max(1, int(numpy.ceil(self.block_size * 2 ** 17 / float(self.data_size[0]))))
-            cols_array = numpy.arange(col_range[0], col_range[1], col_range[2])
-            snip = -1 if col_range[2] < 0 else 1
-            # proceed with our block processing
-            start_entry = 0
-            while start_entry < cols_array.size:
-                col_start = cols_array[start_entry]
-                actual_end = min(start_entry + fetch_max_cols, cols_array.size-1)
-                apparent_end_entry = cols_array[actual_end] + snip
-                # fetch the full column data
-                if apparent_end_entry == -1:  # step will be negative here
-                    full_data = self.reader[:, col_start::col_range[2], self.index]
-                else:
-                    full_data = self.reader[:, col_start:apparent_end_entry:col_range[2], self.index]
-                if full_data.ndim == 1:
-                    full_data = numpy.reshape(full_data, (full_data.size, 1))
-                # perform the csi of this section
-                csi = csi_array(
-                    full_data, dimension=self.dimension, platform_direction=self._platform_direction,
-                    filter_map=self._filter_map)
-                if row_range[1] == -1:
-                    out[:, start_entry:actual_end + 1] = csi[row_range[0]::row_range[2], :]
-                else:
-                    out[:, start_entry:actual_end + 1] = csi[row_range[0]:row_range[1]:row_range[2], :]
-                start_entry = actual_end + 1
+            # we will proceed fetching full row resolution
+            full_row_count = abs(int_func(row_range[1] - row_range[0]))
+            row_snip = -1 if row_range[2] < 0 else 1
+            filter_map = filter_map_construction(full_row_count/self._fill)
+            block_size = None if self.block_size is None else \
+                max(1, int(numpy.ceil(self.block_size*2**17/float(full_row_count))))
+            this_row_range = (row_range[0], row_range[1], row_snip)
+            # get our block definitions
+            column_blocks, result_blocks = self._extract_blocks(col_range, block_size)
+            if len(column_blocks) == 1:
+                # it's just a single block
+                csi = self._full_row_resolution(this_row_range, col_range, filter_map)
+                return csi[::abs(row_range[2]), :, :]
+            else:
+                # prepare the output space
+                out = prepare_output()
+                for this_column_range, result_range in zip(column_blocks, result_blocks):
+                    csi = self._full_row_resolution(this_row_range, this_column_range, filter_map)
+                    out[:, result_range[0]:result_range[1], :] = csi[::abs(row_range[2]), :, :]
+                return out
         else:
-            # how many rows to fetch a single time for processing, because we have to fetch the entire column
-            fetch_max_rows = max(1, int(numpy.ceil(self.block_size*2**17/float(self.data_size[1]))))
-            rows_array = numpy.arange(row_range[0], row_range[1], row_range[2])
-            snip = -1 if row_range[2] < 0 else 1
-            # proceed with our block processing
-            start_entry = 0
-            while start_entry < rows_array.size:
-                row_start = rows_array[start_entry]
-                actual_end = min(start_entry+fetch_max_rows, rows_array.size-1)
-                apparent_end_entry = rows_array[actual_end] + snip
-                # fetch the full column data
-                if apparent_end_entry == -1:  # step will be negative here
-                    full_data = self.reader[row_start::row_range[2], :, self.index]
-                else:
-                    full_data = self.reader[row_start:apparent_end_entry:row_range[2], :, self.index]
-                if full_data.ndim == 1:
-                    full_data = numpy.reshape(full_data, (1, full_data.size))
-                # perform the csi of this section
-                csi = csi_array(
-                    full_data, dimension=self.dimension, platform_direction=self._platform_direction,
-                    filter_map=self._filter_map)
-                if col_range[1] == -1:
-                    out[start_entry:actual_end+1, :] = csi[:, col_range[0]::col_range[2]]
-                else:
-                    out[start_entry:actual_end+1, :] = csi[:, col_range[0]:col_range[1]:col_range[2]]
-                start_entry = actual_end + 1
-        return out
+            # we will proceed fetching full column resolution
+            full_col_count = abs(int_func(col_range[1] - col_range[0]))
+            col_snip = -1 if col_range[2] < 0 else 1
+            filter_map = filter_map_construction(full_col_count/self._fill)
+            block_size = None if self.block_size is None else \
+                max(1, int(numpy.ceil(self.block_size*2**17/float(full_col_count))))
+            this_col_range = (col_range[0], col_range[1], col_snip)
+            # get our block definitions
+            row_blocks, result_blocks = self._extract_blocks(row_range, block_size)
+            if len(row_blocks) == 1:
+                # it's just a single block
+                csi = self._full_column_resolution(row_range, this_col_range, filter_map)
+                return csi[:, ::abs(col_range[2]), :]
+            else:
+                # prepare the output space
+                out = prepare_output()
+                for this_row_range, result_range in zip(row_blocks, result_blocks):
+                    csi = self._full_column_resolution(this_row_range, this_col_range, filter_map)
+                    out[result_range[0]:result_range[1], :, :] = csi[:, ::abs(col_range[2]), :]
+                return out
