@@ -70,9 +70,12 @@ class ProjectionHelper(object):
             The sicd object
         row_spacing : None|float
             The row pixel spacing. If not provided, this will default to
-            `min(sicd.Grid.Row.SS, sicd.Grid.Col.SS).`
+            the smaller of the range or azimuth resolutions projected into
+            the ground plane.
         col_spacing : None|float
-            The column pixel spacing.
+            The row pixel spacing. If not provided, this will default to
+            the smaller of the range or azimuth resolutions projected into
+            the ground plane.
         """
 
         self._row_spacing = None
@@ -105,7 +108,8 @@ class ProjectionHelper(object):
     @row_spacing.setter
     def row_spacing(self, value):
         """
-        Set the row pixel spacing value. Will default to sicd.Grid.Row.SS.
+        Set the row pixel spacing value. This will default to the smaller of the
+        range or azimuth resolutions projected into the ground plane.
 
         Parameters
         ----------
@@ -117,7 +121,7 @@ class ProjectionHelper(object):
         """
 
         if value is None:
-            self._row_spacing = min(self.sicd.Grid.Row.SS, self.sicd.Grid.Col.SS)
+            self._row_spacing = min(self.sicd.get_ground_resolution())
         else:
             value = float(value)
             if value <= 0:
@@ -135,7 +139,8 @@ class ProjectionHelper(object):
     @col_spacing.setter
     def col_spacing(self, value):
         """
-        Set the col pixel spacing value. Will default to sicd.Grid.Col.SS.
+        Set the col pixel spacing value. This will default to the smaller of the
+        range or azimuth resolutions projected into the ground plane.
 
         Parameters
         ----------
@@ -147,7 +152,7 @@ class ProjectionHelper(object):
         """
 
         if value is None:
-            self._col_spacing = min(self.sicd.Grid.Row.SS, self.sicd.Grid.Col.SS)
+            self._row_spacing = min(self.sicd.get_ground_resolution())
         else:
             value = float(value)
             if value <= 0:
@@ -980,7 +985,7 @@ class OrthorectificationHelper(object):
         return self.proj_helper.get_pixel_array_bounds(ortho)
 
     @staticmethod
-    def _validate_bounds(bounds):
+    def validate_bounds(bounds):
         """
         Validate a pixel type bounds array.
 
@@ -1060,7 +1065,7 @@ class OrthorectificationHelper(object):
                 (pixel_cols >= col_array[0]) & (pixel_cols < col_array[-1]))
         return mask
 
-    def _bounds_to_rectangle(self, bounds):
+    def bounds_to_rectangle(self, bounds):
         """
         From a bounds style array, construct the four corner coordinate array.
 
@@ -1074,7 +1079,7 @@ class OrthorectificationHelper(object):
             The (integer valued) bounds and rectangular coordinates.
         """
 
-        bounds = self._validate_bounds(bounds)
+        bounds = self.validate_bounds(bounds)
         coords = numpy.zeros((4, 2), dtype=numpy.int32)
         coords[0, :] = (bounds[0], bounds[2])
         coords[1, :] = (bounds[1], bounds[2])
@@ -1097,10 +1102,10 @@ class OrthorectificationHelper(object):
             The integer valued orthorectified and reader pixel coordinate bounds.
         """
 
-        bounds, coords = self._bounds_to_rectangle(bounds)
+        bounds, coords = self.bounds_to_rectangle(bounds)
         pixel_coords = self.proj_helper.ortho_to_pixel(coords)
         pixel_bounds = self.proj_helper.get_pixel_array_bounds(pixel_coords)
-        return bounds, self._validate_bounds(pixel_bounds)
+        return bounds, self.validate_bounds(pixel_bounds)
 
     def _initialize_workspace(self, ortho_bounds, final_dimension=0):
         """
@@ -1338,7 +1343,7 @@ class OrthorectificationHelper(object):
         numpy.ndarray
         """
 
-        pixel_bounds, pixel_rect = self._bounds_to_rectangle(pixel_bounds)
+        pixel_bounds, pixel_rect = self.bounds_to_rectangle(pixel_bounds)
         return self.get_orthorectified_for_pixel_object(pixel_rect)
 
     def get_orthorectified_for_pixel_object(self, coordinates):
