@@ -182,11 +182,11 @@ class NonInteractiveProcessingType(Serializable):
     RRDS = _SerializableDescriptor(
         'RRDS', RRDSType, _required, strict=DEFAULT_STRICT,
         docstring='Creates a set of sub-sampled versions of an image to provide processing chains '
-                  'with quick access to lower mangification values for faster computation s'
-                  'peeds and performance.')  # type: RRDSType
+                  'with quick access to lower magnification values for faster computation '
+                  'speeds and performance.')  # type: RRDSType
     band = _IntegerDescriptor(
         'band', _required, strict=DEFAULT_STRICT,
-        docstring='The immage band to which this applies.')  # type: int
+        docstring='The image band to which this applies.')  # type: int
 
     def __init__(self, ProductGenerationOptions=None, RRDS=None, band=1, **kwargs):
         if '_xml_ns' in kwargs:

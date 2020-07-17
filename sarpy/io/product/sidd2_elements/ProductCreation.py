@@ -248,6 +248,9 @@ class ProductClassificationType(Serializable):
         ProductClassificationType
         """
 
+        if not isinstance(sicd, SICDType):
+            raise TypeError('Requires SICDType instance, got type {}'.format(type(sicd)))
+
         c_str = sicd.CollectionInfo.Classification
 
         if 'UNCLASS' in c_str.upper():
@@ -269,6 +272,7 @@ class ProductClassificationType(Serializable):
             create_date = datetime.now().strftime('%Y-%m-%d')
 
         return cls(classification=clas, createDate=create_date)
+
 
 class ProductCreationType(Serializable):
     """
@@ -346,6 +350,9 @@ class ProductCreationType(Serializable):
         -------
         ProductCreationType
         """
+
+        if not isinstance(sicd, SICDType):
+            raise TypeError('Requires SICDType instance, got type {}'.format(type(sicd)))
 
         from sarpy.__about__ import __title__, __version__
 

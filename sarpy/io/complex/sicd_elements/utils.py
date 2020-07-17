@@ -2,6 +2,7 @@
 """
 Common use sicd_elements methods.
 """
+
 from typing import Tuple
 
 import numpy
