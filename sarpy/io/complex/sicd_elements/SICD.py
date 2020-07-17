@@ -32,6 +32,7 @@ from .RMA import RMAType
 from ..utils import snr_to_rniirs
 
 from sarpy.geometry import point_projection
+from sarpy.geometry.geocoords import wgs_84_norm
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
@@ -476,6 +477,35 @@ class SICDType(Serializable):
             # noinspection PyProtectedMember
             self.RMA._apply_reference_frequency(reference_frequency)
 
+    def get_ground_resolution(self):
+        """
+        Gets the ground resolution for the sicd.
+
+        Returns
+        -------
+        (float, float)
+        """
+
+        graze = numpy.deg2rad(self.SCPCOA.GrazeAng)
+        twist = numpy.deg2rad(self.SCPCOA.TwistAng)
+        normal_vector = wgs_84_norm(self.GeoData.SCP.ECF.get_array())
+        theta_r = numpy.arctan2(
+            self.Grid.Col.UVectECF.get_array().dot(normal_vector),
+            self.Grid.Row.UVectECF.get_array().dot(normal_vector))
+        row_ss = self.Grid.Row.SS
+        col_ss = self.Grid.Col.SS
+
+        k_r1 = (numpy.cos(theta_r)/numpy.cos(graze))**2 + \
+               ((numpy.sin(theta_r)**2)*numpy.tan(graze)*numpy.tan(twist) +
+                numpy.sin(2*theta_r)/numpy.cos(graze))*numpy.tan(graze)*numpy.tan(twist)
+        k_c1 = ((numpy.sin(theta_r)**2)/numpy.cos(graze) - numpy.sin(2*theta_r)*numpy.tan(graze)/numpy.tan(twist))/numpy.cos(twist) + \
+               (numpy.cos(theta_r)*numpy.tan(graze)*numpy.tan(twist))**2
+
+        row_ground = float(numpy.sqrt(k_r1*(row_ss**2) + (numpy.sin(theta_r)*col_ss/numpy.cos(twist))**2))
+        col_ground = float(numpy.sqrt(k_c1*(row_ss**2) + (numpy.cos(theta_r)*col_ss/numpy.cos(twist))**2))
+
+        return row_ground, col_ground
+
     def can_project_coordinates(self):
         """
         Determines whether the necessary elements are populated to permit projection
@@ -856,20 +886,6 @@ class SICDType(Serializable):
         self.CollectionInfo.Parameters['INFORMATION_DENSITY'] = '{0:0.2G}'.format(inf_density)
         self.CollectionInfo.Parameters['PREDICTED_RNIIRS'] = '{0:0.1f}'.format(rniirs)
 
-    def copy(self):
-        """
-        Provides a deep copy.
-
-        Returns
-        -------
-        SICDType
-        """
-
-        out = super(SICDType, self).copy()
-        if hasattr(self, '_NITF'):
-            out._NITF = copy.deepcopy(self._NITF)
-        return out
-
     def get_suggested_name(self, product_number=1):
         """
         Get the suggested name stem for the sicd and derived data.
@@ -954,6 +970,20 @@ class SICDType(Serializable):
             ('DESSHSV', _SICD_SPECIFICATION_VERSION),
             ('DESSHSD', _SICD_SPECIFICATION_DATE),
             ('DESSHTN', _SICD_SPECIFICATION_NAMESPACE)])
+
+    def copy(self):
+        """
+        Provides a deep copy.
+
+        Returns
+        -------
+        SICDType
+        """
+
+        out = super(SICDType, self).copy()
+        if hasattr(self, '_NITF'):
+            out._NITF = copy.deepcopy(self._NITF)
+        return out
 
     def to_xml_bytes(self, urn=None, tag=None, check_validity=False, strict=DEFAULT_STRICT):
         return super(SICDType, self).to_xml_bytes(
