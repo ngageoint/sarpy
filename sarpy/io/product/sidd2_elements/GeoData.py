@@ -135,26 +135,6 @@ class GeoDataType(Serializable):
             raise TypeError('Trying to set GeoInfo element with unexpected type {}'.format(type(value)))
 
     @classmethod
-    def fromGeoData(cls, GeoData):
-        """
-        Extract necessary information from a SICD.GeoData to create a corresponding SIDD.GeoData.
-
-        Parameters
-        ----------
-        GeoData : sarpy.io.complex.sicd_elements.GeoData.GeoDataType
-
-        Returns
-        -------
-        GeoDataType
-        """
-
-        data = copy.deepcopy(GeoData.to_dict())
-        return cls(EarthModel=data.get('EarthModel', None),
-                   ImageCorners=data.get('ImageCorners', None),
-                   ValidData=data.get('ValidData', None),
-                   GeoInfos=data.get('GeoInfos', None))
-
-    @classmethod
     def from_node(cls, node, xml_ns, ns_key=None, kwargs=None):
         if kwargs is None:
             kwargs = OrderedDict()

@@ -3,7 +3,9 @@
 The ProductCreationType definition.
 """
 
+import logging
 from typing import Union
+from datetime import datetime
 
 import numpy
 
@@ -12,6 +14,8 @@ from .base import DEFAULT_STRICT
 from ...complex.sicd_elements.base import Serializable, _SerializableDescriptor, \
     _StringDescriptor, _StringEnumDescriptor, _IntegerDescriptor, _DateTimeDescriptor, \
     _ParametersDescriptor, ParametersCollection
+from ...complex.sicd_elements.SICD import SICDType
+
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
@@ -230,6 +234,41 @@ class ProductClassificationType(Serializable):
     def resourceElement(self):
         return 'true'
 
+    @classmethod
+    def from_sicd(cls, sicd, create_date=None):
+        """
+        Extract best guess from SICD.
+
+        Parameters
+        ----------
+        sicd : SICDType
+
+        Returns
+        -------
+        ProductClassificationType
+        """
+
+        c_str = sicd.CollectionInfo.Classification
+
+        if 'UNCLASS' in c_str.upper():
+            clas = 'U'
+        elif 'CONFIDENTIAL' in c_str.upper():
+            clas = 'C'
+        elif 'TOP SECRET' in c_str.upper():
+            clas = 'TS'
+        elif 'SECRET' in c_str.upper():
+            clas = 'S'
+        elif 'FOUO' in c_str.upper() or 'RESTRICTED' in c_str.upper():
+            clas = 'R'
+        else:
+            logging.critical('Unclear how to extract classification code for classification string {}. '
+                             'Should be set appropriately.'.format(c_str))
+            clas = None
+
+        if create_date is None:
+            create_date = datetime.now().strftime('%Y-%m-%d')
+
+        return cls(classification=clas, createDate=create_date)
 
 class ProductCreationType(Serializable):
     """
@@ -292,3 +331,29 @@ class ProductCreationType(Serializable):
         self.ProductType = ProductType
         self.ProductCreationExtensions = ProductCreationExtensions
         super(ProductCreationType, self).__init__(**kwargs)
+
+    @classmethod
+    def from_sicd(cls, sicd, product_class):
+        """
+        Generate from a SICD for the given product class.
+
+        Parameters
+        ----------
+        sicd : SICDType
+        product_class : str
+
+        Returns
+        -------
+        ProductCreationType
+        """
+
+        from sarpy.__about__ import __title__, __version__
+
+        proc_info = ProcessorInformationType(
+            Application='{} {}'.format(__title__, __version__),
+            ProcessingDateTime=numpy.datetime64(datetime.now()))
+        classification = ProductClassificationType.from_sicd(sicd)
+        return cls(ProcessorInformation=proc_info,
+                   Classification=classification,
+                   ProductName=product_class,
+                   ProductClass=product_class)

@@ -339,20 +339,3 @@ class MeasurementType(Serializable):
             if getattr(self, attribute) is not None:
                 return attribute
         return None
-
-    @classmethod
-    def fromSicd(cls, sicd):
-        """
-        Construct a MeasurementType object from a SICD instance.
-
-        Parameters
-        ----------
-        sicd : sarpy.io.complex.sicd_elements.SICD.SICDType
-
-        Returns
-        -------
-        MeasurementType
-        """
-
-        # TODO: finish this...we probably need more than one?
-        pass
