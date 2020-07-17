@@ -2,24 +2,24 @@
 """
 The methods for computing a color sub-aperture image for SICD type images.
 
-As noted in the PerformCSI class, the full resolution data along the split dimension
+As noted in the CSICalculator class, the full resolution data along the split dimension
 is required, so sub-sampling along the split dimension does not decrease the amount of
 data which must be fetched and/or processing which must be performed.
 
 **Example Usage**
 >>> from matplotlib import pyplot
 >>> from sarpy.io.complex.converter import open_complex
->>> from sarpy.processing.csi import PerformCSI
+>>> from sarpy.processing.csi import CSICalculator
 >>> from sarpy.visualization.remap import density
 
 >>> # open a sicd type file
->>> reader = open_complex(<file name>)
+>>> reader = open_complex("<file name>")
 >>> # see the sizes of all image segments
 >>> reader.get_data_size_as_tuple()
 
 >>> # construct the csi performer instance
 >>> # make sure to set the index and dimension as appropriate
->>> csi_calculator = PerformCSI(reader, dimension=0, index=0)
+>>> csi_calculator = CSICalculator(reader, dimension=0, index=0)
 >>> # see the size for this particular image element
 >>> # this is identical to the data size from the reader at index
 >>> csi_calculator.data_size
@@ -88,7 +88,7 @@ def filter_map_construction(siz):
     return out
 
 
-def csi_array(array, dimension=0, platform_direction='R', fill=1, filter_map=None):
+def csi_from_array(array, dimension=0, platform_direction='R', fill=1, filter_map=None):
     """
     Creates a color subaperture array from a complex array.
 
@@ -170,9 +170,9 @@ def csi_array(array, dimension=0, platform_direction='R', fill=1, filter_map=Non
     return im0_RGB
 
 
-class PerformCSI(object):
+class CSICalculator(object):
     """
-    Class for creating color subaperture images from a reader instance.
+    Class for creating color sub-aperture image from a reader instance.
 
     It is important to note that full resolution is required for processing along
     the split dimension, so sub-sampling along the split dimension does not decrease
@@ -371,19 +371,19 @@ class PerformCSI(object):
                 if t_start == t_stop:
                     raise ValueError(
                         'Got identical start and stop slice bounds. Empty slicing not '
-                        'supported for PerformCSI.')
+                        'supported for CSICalculator.')
                 if (t_step < 0 and t_start <= t_stop) or (t_step > 0 and t_start >= t_stop):
                     raise ValueError(
                         'The slice values start={}, stop={}, step={} are not viable'.format(t_start, t_stop, t_step))
                 return t_start, t_stop, t_step
             else:
-                raise TypeError('PerformCSI does not support slicing using type {}'.format(type(entry)))
+                raise TypeError('CSICalculator does not support slicing using type {}'.format(type(entry)))
 
         # this input is assumed to come from slice parsing
         if isinstance(item, tuple):
             if len(item) > 2:
                 raise ValueError(
-                    'PerformCSI received slice argument {}. We cannot slice on more than two dimensions.'.format(item))
+                    'CSICalculator received slice argument {}. We cannot slice on more than two dimensions.'.format(item))
 
             return parse(item[0], 0), parse(item[1], 1)
         elif isinstance(item, slice):
@@ -391,7 +391,7 @@ class PerformCSI(object):
         elif isinstance(item, integer_types):
             return parse(item, 0), parse(None, 1)
         else:
-            raise TypeError('PerformCSI does not support slicing using type {}'.format(type(item)))
+            raise TypeError('CSICalculator does not support slicing using type {}'.format(type(item)))
 
     @staticmethod
     def _extract_blocks(the_range, block_size):
@@ -467,7 +467,7 @@ class PerformCSI(object):
         if data.ndim < 2:
             data = numpy.reshape(data, (-1, 1))
 
-        return csi_array(
+        return csi_from_array(
             data, dimension=0, platform_direction=self._platform_direction,
             filter_map=filter_map)
 
@@ -503,7 +503,7 @@ class PerformCSI(object):
         if data.ndim < 2:
             data = numpy.reshape(data, (1, -1))
 
-        return csi_array(
+        return csi_from_array(
             data, dimension=1, platform_direction=self._platform_direction,
             filter_map=filter_map)
 
