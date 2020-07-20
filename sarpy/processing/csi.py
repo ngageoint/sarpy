@@ -45,6 +45,12 @@ import numpy
 from sarpy.compliance import string_types, integer_types, int_func
 from sarpy.io.complex.converter import open_complex
 from sarpy.io.general.base import BaseReader
+from sarpy.io.complex.sicd_elements.SICD import SICDType
+from sarpy.io.product.sidd_creation_utils import create_sidd
+from sarpy.io.product.sidd import SIDDWriter
+from sarpy.processing.ortho_rectify import OrthorectificationHelper, NearestNeighborMethod, BivariateSplineMethod
+# noinspection PyProtectedMember
+from sarpy.visualization.remap import amplitude_to_density, _clip_cast
 
 __classification__ = "UNCLASSIFIED"
 __author__ = ('Thomas McCullough',  'Melanie Baker')
@@ -336,6 +342,15 @@ class CSICalculator(object):
             value = 1
         self._block_size = value
 
+    @property
+    def sicd(self):
+        # type: () -> SICDType
+        """
+        SICDType: The sicd structure.
+        """
+
+        return self._sicd
+
     def _parse_slicing(self, item):
         # type: (Union[None, int, slice, tuple]) -> Tuple[Tuple[int, int, int], Tuple[int, int, int]]
 
@@ -393,8 +408,31 @@ class CSICalculator(object):
         else:
             raise TypeError('CSICalculator does not support slicing using type {}'.format(type(item)))
 
+    def get_fetch_block_size(self, start_element, stop_element):
+        """
+        Gets the fetch block size for the given full resolution section.
+        This assumes that the fetched data will be 14 bytes per pixel, in
+        accordance with 3-band complex64 data.
+
+        Parameters
+        ----------
+        start_element : int
+        stop_element : int
+
+        Returns
+        -------
+        int
+        """
+
+        if stop_element == start_element:
+            return None
+
+        full_size = float(abs(stop_element - start_element))
+        return None if self.block_size is None else \
+            max(1, int(numpy.ceil(self.block_size*2**17 /full_size)))
+
     @staticmethod
-    def _extract_blocks(the_range, block_size):
+    def extract_blocks(the_range, block_size):
         """
         Extract the block definition.
 
@@ -536,11 +574,10 @@ class CSICalculator(object):
             full_row_count = abs(int_func(row_range[1] - row_range[0]))
             row_snip = -1 if row_range[2] < 0 else 1
             filter_map = filter_map_construction(full_row_count/self._fill)
-            block_size = None if self.block_size is None else \
-                max(1, int(numpy.ceil(self.block_size*2**17/float(full_row_count))))
+            block_size = self.get_fetch_block_size(row_range[0], row_range[1])
             this_row_range = (row_range[0], row_range[1], row_snip)
             # get our block definitions
-            column_blocks, result_blocks = self._extract_blocks(col_range, block_size)
+            column_blocks, result_blocks = self.extract_blocks(col_range, block_size)
             if len(column_blocks) == 1:
                 # it's just a single block
                 csi = self._full_row_resolution(this_row_range, col_range, filter_map)
@@ -557,11 +594,10 @@ class CSICalculator(object):
             full_col_count = abs(int_func(col_range[1] - col_range[0]))
             col_snip = -1 if col_range[2] < 0 else 1
             filter_map = filter_map_construction(full_col_count/self._fill)
-            block_size = None if self.block_size is None else \
-                max(1, int(numpy.ceil(self.block_size*2**17/float(full_col_count))))
+            block_size = self.get_fetch_block_size(col_range[0], col_range[1])
             this_col_range = (col_range[0], col_range[1], col_snip)
             # get our block definitions
-            row_blocks, result_blocks = self._extract_blocks(row_range, block_size)
+            row_blocks, result_blocks = self.extract_blocks(row_range, block_size)
             if len(row_blocks) == 1:
                 # it's just a single block
                 csi = self._full_column_resolution(row_range, this_col_range, filter_map)
@@ -573,3 +609,122 @@ class CSICalculator(object):
                     csi = self._full_column_resolution(this_row_range, this_col_range, filter_map)
                     out[result_range[0]:result_range[1], :, :] = csi[:, ::abs(col_range[2]), :]
                 return out
+
+
+def export_to_sidd(reader, output_file, index=0, dimension=0, block_size=50, bounds=None, version=2):
+    """
+    Export a Color Sub-Aperture Image in SIDD format.
+
+    Parameters
+    ----------
+    reader : str|BaseReader
+        Input file path or reader object, which must be of sicd type.
+    output_file : str
+        The output file path.
+    index : int
+        The sicd index to use.
+    dimension : int
+        The dimension over which to split the sub-aperture.
+    block_size : int
+        The approximate processing block size to fetch, given in MB. The
+        minimum value for use here will be 1.
+    bounds : None|numpy.ndarray|list|tuple
+        The sicd pixel bounds of the form `(min row, max row, min col, max col)`.
+        This will default to the full image.
+
+    Returns
+    -------
+    None
+    """
+
+    def get_orthorectified_version(temp_pixel_bounds):
+        csi_data = csi_calculator[temp_pixel_bounds[0]:temp_pixel_bounds[1], temp_pixel_bounds[2]:temp_pixel_bounds[3]]
+        # orthorectify this data, and write straight into the sidd file
+        rows_temp = temp_pixel_bounds[1] - temp_pixel_bounds[0]
+        if csi_data.shape[0] == rows_temp:
+            row_array = numpy.arange(temp_pixel_bounds[0], temp_pixel_bounds[1])
+        elif csi_data.shape[0] == (rows_temp + 1):
+            row_array = numpy.arange(temp_pixel_bounds[0], temp_pixel_bounds[1] + 1)
+        else:
+            raise ValueError('Unhandled data size mismatch {} and {}'.format(csi_data.shape, rows_temp))
+        cols_temp = temp_pixel_bounds[3] - temp_pixel_bounds[2]
+        if csi_data.shape[1] == cols_temp:
+            col_array = numpy.arange(temp_pixel_bounds[2], temp_pixel_bounds[2])
+        elif csi_data.shape[1] == (cols_temp + 1):
+            col_array = numpy.arange(temp_pixel_bounds[2], temp_pixel_bounds[2] + 1)
+        else:
+            raise ValueError('Unhandled data size mismatch {} and {}'.format(csi_data.shape, cols_temp))
+        return row_array, col_array, csi_data
+
+    # construct the CSI calculator class
+    csi_calculator = CSICalculator(reader, dimension=dimension, index=index, block_size=block_size)
+    # construct the orthorectification helper
+    ortho_helper = BivariateSplineMethod(csi_calculator.reader, index=csi_calculator.index)
+
+    # validate the bounds
+    if bounds is None:
+        bounds = (0, csi_calculator.data_size[0], 0, csi_calculator.data_size[1])
+    bounds, pixel_rectangle = ortho_helper.bounds_to_rectangle(bounds)
+    # get the corresponding prtho bounds
+    ortho_bounds = ortho_helper.get_orthorectification_bounds_from_pixel_object(pixel_rectangle)
+
+    # Extract the mean of the data magnitude - for global remap usage
+    mean_block_size = 3*csi_calculator.get_fetch_block_size(bounds[0], bounds[1])  # this is single band, so make bigger as necessary
+    mean_column_blocks, _ = csi_calculator.extract_blocks((ortho_bounds[2], ortho_bounds[3], 1), block_size=mean_block_size)
+    mean_total = 0.0
+    mean_count = 0
+    for this_column_range in mean_column_blocks:
+        data = numpy.abs(csi_calculator.reader[bounds[0]:bounds[1], this_column_range[0]:this_column_range[1], csi_calculator.index])
+        mean_total += numpy.sum(data)
+        mean_count += data.size
+    the_mean = mean_total/mean_count
+
+    # create the sidd structure
+    sidd_structure = create_sidd(
+        ortho_helper, ortho_bounds,
+        product_class='Color Sub-Aperture Image', pixel_type='RGB24I', version=version)
+    # create the sidd writer
+    writer = SIDDWriter(output_file, sidd_structure, csi_calculator.sicd)
+
+    if csi_calculator.dimension == 0:
+        # we are using the full resolution row data
+        # determine the orthorectified blocks to use
+        block_size = csi_calculator.get_fetch_block_size(ortho_bounds[0], ortho_bounds[1])
+        ortho_column_blocks, ortho_result_blocks = csi_calculator.extract_blocks(
+            (ortho_bounds[2], ortho_bounds[3], 1), block_size=block_size)
+
+        for this_column_range, result_range in zip(ortho_column_blocks, ortho_result_blocks):
+            # determine the corresponding pixel ranges to encompass these values
+            this_ortho_bounds, this_pixel_bounds = ortho_helper.extract_pixel_bounds(
+                (ortho_bounds[0], ortho_bounds[1], this_column_range[0], this_column_range[1]))
+            # extract the csi data
+            row_array, col_array, csi_data = get_orthorectified_version(this_pixel_bounds)
+            ortho_csi_data = _clip_cast(
+                amplitude_to_density(
+                    ortho_helper.get_orthorectified_from_array(ortho_bounds, row_array, col_array, csi_data),
+                    data_mean=the_mean),
+                dtype='uint8')
+            start_indices = (this_ortho_bounds[0] - ortho_bounds[0],
+                             result_range[0] + this_ortho_bounds[2] - ortho_bounds[2])
+            writer(ortho_csi_data, start_indices=start_indices)
+    else:
+        # we are using the full resolution column data
+        # determine the orthorectified blocks to use
+        block_size = csi_calculator.get_fetch_block_size(ortho_bounds[2], ortho_bounds[3])
+        ortho_row_blocks, ortho_result_blocks = csi_calculator.extract_blocks(
+            (ortho_bounds[0], ortho_bounds[1], 1), block_size=block_size)
+
+        for this_row_range, result_range in zip(ortho_row_blocks, ortho_result_blocks):
+            # determine the corresponding pixel ranges to encompass these values
+            this_ortho_bounds, this_pixel_bounds = ortho_helper.extract_pixel_bounds(
+                (this_row_range[0], this_row_range[1], ortho_bounds[2], ortho_bounds[3]))
+            # extract the csi data
+            row_array, col_array, csi_data = get_orthorectified_version(this_pixel_bounds)
+            ortho_csi_data = _clip_cast(
+                amplitude_to_density(
+                    ortho_helper.get_orthorectified_from_array(ortho_bounds, row_array, col_array, csi_data),
+                    data_mean=the_mean),
+                dtype='uint8')
+            start_indices = (result_range[0] + this_ortho_bounds[0] - ortho_bounds[0],
+                             this_ortho_bounds[2] - ortho_bounds[2])
+            writer(ortho_csi_data, start_indices=start_indices)

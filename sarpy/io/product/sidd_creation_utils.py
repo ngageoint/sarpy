@@ -154,7 +154,7 @@ def _create_measurement_v2(ortho_helper, bounds):
 
 def create_sidd_v2(ortho_helper, bounds, product_class, pixel_type):
     """
-    Create a SIDD version 2.0 basic shell based on the orthorectification helper
+    Create a SIDD version 2.0 structure based on the orthorectification helper
     and pixel bounds.
 
     Parameters
@@ -248,7 +248,7 @@ def _create_measurement_v1(ortho_helper, bounds):
 
 def create_sidd_v1(ortho_helper, bounds, product_class, pixel_type):
     """
-    Create a SIDD version 1.0 basic shell based on the orthorectification helper
+    Create a SIDD version 1.0 structure based on the orthorectification helper
     and pixel bounds.
 
     Parameters
@@ -287,3 +287,38 @@ def create_sidd_v1(ortho_helper, bounds, product_class, pixel_type):
                      GeographicAndTarget=geographic,
                      Measurement=measurement,
                      ExploitationFeatures=exploit_feats)
+
+
+##########################
+# Switchable version SIDD structure
+
+def create_sidd(ortho_helper, bounds, product_class, pixel_type, version=2):
+    """
+    Create a SIDD structure, with version specified, based on the orthorectification
+    helper and pixel bounds.
+
+    Parameters
+    ----------
+    ortho_helper : OrthorectificationHelper
+    bounds : numpy.ndarray|list|tuple
+        The orthorectification pixel bounds of the form `(min row, max row, min col, max col)`.
+    product_class : str
+        A descriptive name for the product class. Examples -
+        :code:`Dynamic Image, Amplitude Change Detection, Coherent Change Detection`
+    pixel_type : str
+        Must be one of `MONO8I, MONO16I` or `RGB24I`.
+    version : int
+        The SIDD version, must be either 1 or 2.
+
+    Returns
+    -------
+    SIDDType1|SIDDType2
+    """
+
+    if version not in [1, 2]:
+        raise ValueError('version must be 1 or 2. Got {}'.format(version))
+
+    if version == 1:
+        return create_sidd_v1(ortho_helper, bounds, product_class, pixel_type)
+    else:
+        return create_sidd_v2(ortho_helper, bounds, product_class, pixel_type)

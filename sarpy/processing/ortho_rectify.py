@@ -1087,7 +1087,7 @@ class OrthorectificationHelper(object):
         coords[3, :] = (bounds[0], bounds[3])
         return bounds, coords
 
-    def _extract_bounds(self, bounds):
+    def extract_pixel_bounds(self, bounds):
         """
         Validate the bounds array of orthorectified pixel coordinates, and determine
         the required bounds in reader pixel coordinates.
@@ -1319,7 +1319,7 @@ class OrthorectificationHelper(object):
         numpy.ndarray
         """
 
-        ortho_bounds, nominal_pixel_bounds = self._extract_bounds(bounds)
+        ortho_bounds, nominal_pixel_bounds = self.extract_pixel_bounds(bounds)
         # extract the values - ensure that things are within proper image bounds
         pixel_limits, pixel_bounds = self._get_real_pixel_limits_and_bounds(nominal_pixel_bounds)
         pixel_array = self.reader[
@@ -1397,7 +1397,7 @@ class OrthorectificationHelper(object):
         Parameters
         ----------
         ortho_bounds : numpy.ndarray
-            Determines the orthorectified bounds reguon, of the form
+            Determines the orthorectified bounds region, of the form
             `(min row, max row, min column, max column)`.
         row_array : numpy.ndarray
             The rows of the pixel array. Must be one-dimensional, monotonically
