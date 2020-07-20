@@ -47,7 +47,7 @@ class MeasurementType(Serializable):
                   'Design and Exploitation document.')  # type: Union[None, CylindricalProjectionType]
     PixelFootprint = _SerializableDescriptor(
         'PixelFootprint', RowColIntType, _required, strict=DEFAULT_STRICT,
-        docstring='Size of the image in pixels.')  # type: RowColType
+        docstring='Size of the image in pixels.')  # type: RowColIntType
     ARPPoly = _SerializableDescriptor(
         'ARPPoly', XYZPolyType, _required, strict=DEFAULT_STRICT,
         docstring='Center of aperture polynomial (units = m) based upon time into '
