@@ -105,7 +105,9 @@ class SCPCOAType(Serializable):
         LayoverAng : float
         kwargs : dict
         """
+
         self._ROV = None
+        self._squint = None
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
@@ -176,6 +178,14 @@ class SCPCOAType(Serializable):
         """
 
         return numpy.mod(self.AzimAng - 180, 360)
+
+    @property
+    def Squint(self):
+        """
+        float: The squint angle, in degrees.
+        """
+
+        return self._squint
 
     def _derive_scp_time(self, Grid):
         """
@@ -306,7 +316,7 @@ class SCPCOAType(Serializable):
         uSPZ = look*numpy.cross(ARP_vel, uLOS)
         uSPZ /= norm(uSPZ)
         # perpendicular component of range vector wrt the ground plane
-        uGPX = -uLOS + numpy.dot(ETP, uLOS)*ETP
+        uGPX = -uLOS + numpy.dot(ETP, uLOS)*ETP # the ground range vector
         uGPX /= norm(uGPX)
         uGPY = numpy.cross(ETP, uGPX)  # already unit vector
         twist_ang = -numpy.rad2deg(numpy.arcsin(numpy.dot(uGPY, uSPZ)))
@@ -315,6 +325,8 @@ class SCPCOAType(Serializable):
         elif abs(self.TwistAng - twist_ang) > 1e-5:  # sensible tolerance?
             logging.error('In SCPCOAType, the derived value for TwistAng is {} and the set '
                           'value is {}'.format(twist_ang, self.TwistAng))
+        # define the squint angle
+        self._squint = numpy.rad2deg(numpy.arccos(numpy.dot(uGPX, uARP_vel)))
 
         slope_ang = numpy.rad2deg(numpy.arccos(numpy.dot(ETP, uSPZ)))
         if self.SlopeAng is None:
