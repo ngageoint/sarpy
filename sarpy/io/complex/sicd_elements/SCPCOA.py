@@ -108,6 +108,9 @@ class SCPCOAType(Serializable):
 
         self._ROV = None
         self._squint = None
+        self._shadow = None
+        self._shadow_magnitude = None
+        self._layover_magnitude = None
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
@@ -177,7 +180,15 @@ class SCPCOAType(Serializable):
         float: The anticipated angle of shadow features in degrees.
         """
 
-        return numpy.mod(self.AzimAng - 180, 360)
+        return self._shadow
+
+    @property
+    def ShadowMagnitude(self):
+        """
+        float: The anticipated relative magnitude of shadow features.
+        """
+
+        return self._shadow_magnitude
 
     @property
     def Squint(self):
@@ -186,6 +197,14 @@ class SCPCOAType(Serializable):
         """
 
         return self._squint
+
+    @property
+    def LayoverMagnitude(self):
+        """
+        float: The anticipated relative magnitude of layover features.
+        """
+
+        return self._layover_magnitude
 
     def _derive_scp_time(self, Grid):
         """
@@ -311,7 +330,8 @@ class SCPCOAType(Serializable):
                               'value is {}'.format(twist_ang, self.TwistAng))
 
         def get_squint_angle():
-            self._squint = numpy.rad2deg(numpy.arctan2(numpy.dot(uARP_vel, uGPX), numpy.dot(uARP_vel, uGPY)))
+            self._squint = float(numpy.rad2deg(numpy.arctan2(numpy.dot(uARP_vel, uGPX),
+                                                             numpy.dot(uARP_vel, uGPY))))
 
         def get_slope_angle():
             slope_ang = numpy.rad2deg(numpy.arccos(numpy.dot(ETP, uSPZ)))
@@ -330,7 +350,7 @@ class SCPCOAType(Serializable):
                 logging.error('In SCPCOAType, the derived value for AzimAng is {} and the set '
                               'value is {}'.format(azim_ang, self.AzimAng))
 
-        def get_layover_angle():
+        def get_layover():
             # perpendicular component of ground plane wrt slant plane
             layover_ground = ETP - numpy.dot(ETP, uSPZ) * uSPZ
             layover_ang = numpy.rad2deg(
@@ -341,6 +361,14 @@ class SCPCOAType(Serializable):
             elif abs(self.LayoverAng - layover_ang) > 1e-5:  # sensible tolerance?
                 logging.error('In SCPCOAType, the derived value for LayoverAng is {} and the set '
                               'value is {}'.format(layover_ang, self.LayoverAng))
+            self._layover_magnitude = float(numpy.linalg.norm(layover_ground))
+
+        def get_shadow():
+            S = ETP - uLOS/numpy.dot(uLOS, ETP)  # perp component of ETP wrt LOS
+            Sprime = S - uSPZ*numpy.dot(S, ETP)/numpy.dot(uSPZ, ETP)
+            shadow_angle = numpy.rad2deg(numpy.arctan2(numpy.dot(Sprime, uGPX), numpy.dot(Sprime, uGPY)))
+            self._shadow = float(shadow_angle)
+            self._shadow_magnitude = float(numpy.linalg.norm(Sprime))
 
         # common use parameters
         SCP = GeoData.SCP.ECF.get_array()
@@ -381,4 +409,5 @@ class SCPCOAType(Serializable):
         get_squint_angle()
         get_slope_angle()
         get_azimuth_angle()
-        get_layover_angle()
+        get_layover()
+        get_shadow()
