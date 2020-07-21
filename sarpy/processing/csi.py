@@ -38,6 +38,7 @@ data which must be fetched and/or processing which must be performed.
 """
 
 import logging
+import os
 from typing import Union, Tuple
 
 import numpy
@@ -611,7 +612,7 @@ class CSICalculator(object):
                 return out
 
 
-def export_to_sidd(reader, output_file, index=0, dimension=0, block_size=50, bounds=None, version=2):
+def export_to_sidd(reader, output_directory, index=0, dimension=0, block_size=50, bounds=None, version=2, output_file=None):
     """
     Export a Color Sub-Aperture Image in SIDD format.
 
@@ -619,8 +620,8 @@ def export_to_sidd(reader, output_file, index=0, dimension=0, block_size=50, bou
     ----------
     reader : str|BaseReader
         Input file path or reader object, which must be of sicd type.
-    output_file : str
-        The output file path.
+    output_directory : str
+        The output directory for the given file.
     index : int
         The sicd index to use.
     dimension : int
@@ -631,11 +632,16 @@ def export_to_sidd(reader, output_file, index=0, dimension=0, block_size=50, bou
     bounds : None|numpy.ndarray|list|tuple
         The sicd pixel bounds of the form `(min row, max row, min col, max col)`.
         This will default to the full image.
+    output_file : None|str
+        The file name, this will default to a sensible value.
 
     Returns
     -------
     None
     """
+
+    if not os.path.isdir(output_directory):
+        raise IOError('output_directory {} does not exist or is not a directory'.format(output_directory))
 
     def get_orthorectified_version(temp_pixel_bounds):
         csi_data = csi_calculator[temp_pixel_bounds[0]:temp_pixel_bounds[1], temp_pixel_bounds[2]:temp_pixel_bounds[3]]
@@ -683,8 +689,17 @@ def export_to_sidd(reader, output_file, index=0, dimension=0, block_size=50, bou
     sidd_structure = create_sidd(
         ortho_helper, ortho_bounds,
         product_class='Color Sub-Aperture Image', pixel_type='RGB24I', version=version)
+    # set suggested name
+    sidd_structure._NITF = {
+        'SUGGESTED_NAME': csi_calculator.sicd.get_suggested_name(csi_calculator.index)+'__CSI', }
     # create the sidd writer
-    writer = SIDDWriter(output_file, sidd_structure, csi_calculator.sicd)
+    if output_file is None:
+        full_filename = os.path.join(output_directory, sidd_structure._NITF['SUGGESTED_NAME']+'.nitf')
+    else:
+        full_filename = os.path.join(output_directory, output_file)
+    if os.path.expanduser(full_filename):
+        raise IOError('File {} already exists.'.format(full_filename))
+    writer = SIDDWriter(full_filename, sidd_structure, csi_calculator.sicd)
 
     if csi_calculator.dimension == 0:
         # we are using the full resolution row data
