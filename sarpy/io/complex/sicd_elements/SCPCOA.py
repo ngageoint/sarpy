@@ -311,7 +311,7 @@ class SCPCOAType(Serializable):
                               'value is {}'.format(twist_ang, self.TwistAng))
 
         def get_squint_angle():
-            self._squint = numpy.rad2deg(numpy.arccos(numpy.dot(uGPX, uARP_vel)))
+            self._squint = numpy.rad2deg(numpy.arctan2(numpy.dot(uARP_vel, uGPX), numpy.dot(uARP_vel, uGPY)))
 
         def get_slope_angle():
             slope_ang = numpy.rad2deg(numpy.arccos(numpy.dot(ETP, uSPZ)))
