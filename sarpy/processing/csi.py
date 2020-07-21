@@ -49,9 +49,8 @@ from sarpy.io.general.base import BaseReader
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.product.sidd_creation_utils import create_sidd
 from sarpy.io.product.sidd import SIDDWriter
-from sarpy.processing.ortho_rectify import OrthorectificationHelper, NearestNeighborMethod, BivariateSplineMethod
-# noinspection PyProtectedMember
-from sarpy.visualization.remap import amplitude_to_density, _clip_cast
+from sarpy.processing.ortho_rectify import OrthorectificationHelper
+from sarpy.visualization.remap import amplitude_to_density, clip_cast
 
 __classification__ = "UNCLASSIFIED"
 __author__ = ('Thomas McCullough',  'Melanie Baker')
@@ -612,18 +611,18 @@ class CSICalculator(object):
                 return out
 
 
-def export_to_sidd(reader, output_directory, index=0, dimension=0, block_size=50, bounds=None, version=2, output_file=None):
+def create_csi_sidd(ortho_helper, output_directory, output_file=None, dimension=0, block_size=50, bounds=None, version=2):
     """
-    Export a Color Sub-Aperture Image in SIDD format.
+    Create a SIDD version of a Color Sub-Aperture Image from a SICD type reader.
 
     Parameters
     ----------
-    reader : str|BaseReader
-        Input file path or reader object, which must be of sicd type.
+    ortho_helper : OrthorectificationHelper
+        The ortho-rectification helper object.
     output_directory : str
         The output directory for the given file.
-    index : int
-        The sicd index to use.
+    output_file : None|str
+        The file name, this will default to a sensible value.
     dimension : int
         The dimension over which to split the sub-aperture.
     block_size : int
@@ -632,8 +631,8 @@ def export_to_sidd(reader, output_directory, index=0, dimension=0, block_size=50
     bounds : None|numpy.ndarray|list|tuple
         The sicd pixel bounds of the form `(min row, max row, min col, max col)`.
         This will default to the full image.
-    output_file : None|str
-        The file name, this will default to a sensible value.
+    version : int
+        The SIDD version to use, must be one of 1 or 2.
 
     Returns
     -------
@@ -642,6 +641,11 @@ def export_to_sidd(reader, output_directory, index=0, dimension=0, block_size=50
 
     if not os.path.isdir(output_directory):
         raise IOError('output_directory {} does not exist or is not a directory'.format(output_directory))
+
+    if not isinstance(ortho_helper, OrthorectificationHelper):
+        raise TypeError(
+            'ortho_helper is required to be an instance of OrthorectificationHelper, '
+            'got type {}'.format(type(ortho_helper)))
 
     def get_orthorectified_version(temp_pixel_bounds):
         csi_data = csi_calculator[temp_pixel_bounds[0]:temp_pixel_bounds[1], temp_pixel_bounds[2]:temp_pixel_bounds[3]]
@@ -662,10 +666,11 @@ def export_to_sidd(reader, output_directory, index=0, dimension=0, block_size=50
             raise ValueError('Unhandled data size mismatch {} and {}'.format(csi_data.shape, cols_temp))
         return row_array, col_array, csi_data
 
+    reader = ortho_helper.reader
+    index = ortho_helper.index
+
     # construct the CSI calculator class
     csi_calculator = CSICalculator(reader, dimension=dimension, index=index, block_size=block_size)
-    # construct the orthorectification helper
-    ortho_helper = BivariateSplineMethod(csi_calculator.reader, index=csi_calculator.index)
 
     # validate the bounds
     if bounds is None:
@@ -714,7 +719,7 @@ def export_to_sidd(reader, output_directory, index=0, dimension=0, block_size=50
                 (ortho_bounds[0], ortho_bounds[1], this_column_range[0], this_column_range[1]))
             # extract the csi data
             row_array, col_array, csi_data = get_orthorectified_version(this_pixel_bounds)
-            ortho_csi_data = _clip_cast(
+            ortho_csi_data = clip_cast(
                 amplitude_to_density(
                     ortho_helper.get_orthorectified_from_array(ortho_bounds, row_array, col_array, csi_data),
                     data_mean=the_mean),
@@ -735,7 +740,7 @@ def export_to_sidd(reader, output_directory, index=0, dimension=0, block_size=50
                 (this_row_range[0], this_row_range[1], ortho_bounds[2], ortho_bounds[3]))
             # extract the csi data
             row_array, col_array, csi_data = get_orthorectified_version(this_pixel_bounds)
-            ortho_csi_data = _clip_cast(
+            ortho_csi_data = clip_cast(
                 amplitude_to_density(
                     ortho_helper.get_orthorectified_from_array(ortho_bounds, row_array, col_array, csi_data),
                     data_mean=the_mean),
