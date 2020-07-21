@@ -840,20 +840,26 @@ class SICDType(Serializable):
                 logging.info('PREDICTED_RNIIRS already populated. Nothing to be done.')
                 return
 
-        if noise is None and self.Radiometric is not None:
-            try:
-                if self.Radiometric.NoiseLevel.NoiseLevelType != 'ABSOLUTE':
-                    logging.error(
-                        'Radiometric.NoiseLevel.NoiseLevelType must be "ABSOLUTE" to estimate noise. '
-                        'You must provide a noise estimate.')
-                    return
-                noise = self.Radiometric.NoiseLevel.NoisePoly(0, 0)  # this is in db
-                noise = 10**(noise/10.)  # this is absolute
+        if noise is None:
+            if self.Radiometric is not None:
+                try:
+                    if self.Radiometric.NoiseLevel.NoiseLevelType != 'ABSOLUTE':
+                        logging.error(
+                            'Radiometric.NoiseLevel.NoiseLevelType must be "ABSOLUTE" to estimate noise. '
+                            'You must provide a noise estimate.')
+                        return
+                    noise = self.Radiometric.NoiseLevel.NoisePoly(0, 0)  # this is in db
+                    noise = 10**(noise/10.)  # this is absolute
 
-                # convert to SigmaZero value
-                noise *= self.Radiometric.SigmaZeroSFPoly(0, 0)
-            except Exception as e:
-                logging.error('Encountered an error estimating noise for RNIIRS. {}'.format(e))
+                    # convert to SigmaZero value
+                    noise *= self.Radiometric.SigmaZeroSFPoly(0, 0)
+                except Exception as e:
+                    logging.error('Encountered an error estimating noise for RNIIRS. {}'.format(e))
+                    return
+            else:
+                logging.error(
+                    'noise is not provided, and Radiometric is not populated. '
+                    'RNIIRS can not be estimated.')
                 return
 
         if signal is None:
