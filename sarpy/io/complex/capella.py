@@ -375,8 +375,8 @@ class CapellaDetails(object):
             ImageFormation=image_formation)
         sicd.derive()
 
-        # NB: this does not currently have enough information to successfully execute
-        sicd.populate_rniirs(override=False, noise=0.1)
+        # NB: this is a rough estimate
+        sicd.populate_rniirs(override=False, signal=1.0, noise=0.1)
         return sicd
 
 
