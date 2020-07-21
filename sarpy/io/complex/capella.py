@@ -375,8 +375,8 @@ class CapellaDetails(object):
             ImageFormation=image_formation)
         sicd.derive()
 
-        # NB: this is a rough estimate
-        sicd.populate_rniirs(override=False, signal=1.0, noise=0.1)
+        # this would be a rough estimate - waiting for radiometric data
+        # sicd.populate_rniirs(override=False)
         return sicd
 
 
