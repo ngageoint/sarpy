@@ -37,16 +37,12 @@ data which must be fetched and/or processing which must be performed.
 >>> pyplot.show()
 """
 
-import logging
 import os
-from typing import Union, Tuple
-
 import numpy
 
-from sarpy.compliance import string_types, integer_types, int_func
-from sarpy.io.complex.converter import open_complex
+from sarpy.compliance import int_func
+from sarpy.processing.fft_base import FFTCalculator
 from sarpy.io.general.base import BaseReader
-from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.product.sidd_creation_utils import create_sidd
 from sarpy.io.product.sidd import SIDDWriter
 from sarpy.processing.ortho_rectify import OrthorectificationHelper
@@ -94,7 +90,7 @@ def filter_map_construction(siz):
     return out
 
 
-def csi_from_array(array, dimension=0, platform_direction='R', fill=1, filter_map=None):
+def csi_array(array, dimension=0, platform_direction='R', fill=1, filter_map=None):
     """
     Creates a color subaperture array from a complex array.
 
@@ -132,7 +128,8 @@ def csi_from_array(array, dimension=0, platform_direction='R', fill=1, filter_ma
 
     # get our filter construction data
     if filter_map is None:
-        filter_map = filter_map_construction(array.shape[1]/float(fill))
+        fill = max(1.0, float(fill))
+        filter_map = filter_map_construction(array.shape[1]/fill)
     if not (isinstance(filter_map, numpy.ndarray) and
             filter_map.dtype.name in ['float32', 'float64'] and
             filter_map.ndim == 2 and filter_map.shape[1] == 3):
@@ -176,7 +173,7 @@ def csi_from_array(array, dimension=0, platform_direction='R', fill=1, filter_ma
     return im0_RGB
 
 
-class CSICalculator(object):
+class CSICalculator(FFTCalculator):
     """
     Class for creating color sub-aperture image from a reader instance.
 
@@ -185,9 +182,6 @@ class CSICalculator(object):
     the amount of data which must be fetched.
     """
 
-    __slots__ = (
-        '_reader', '_index', '_sicd', '_platform_direction', '_dimension', '_data_size',
-        '_fill', '_block_size')
 
     def __init__(self, reader, dimension=0, index=0, block_size=50):
         """
@@ -205,213 +199,13 @@ class CSICalculator(object):
             minimum value for use here will be 1.
         """
 
-        self._index = None # set explicitly
-        self._sicd = None  # set with index setter
-        self._platform_direction = None  # set with the index setter
-        self._dimension = None # set explicitly
-        self._data_size = None  # set with index setter
-        self._fill = None # set implicitly with _set_fill()
-        self._block_size = None # set explicitly
-
-        # validate the reader
-        if isinstance(reader, string_types):
-            reader = open_complex(reader)
-        if not isinstance(reader, BaseReader):
-            raise TypeError('reader is required to be a path name for a sicd-type image, '
-                            'or an instance of a reader object.')
-        if not reader.is_sicd_type:
-            raise TypeError('reader is required to be of sicd_type.')
-        self._reader = reader
-        # set the other properties
-        self.dimension = dimension
-        self.index = index
-        self.block_size = block_size
-
-    @property
-    def reader(self):
-        # type: () -> BaseReader
-        """
-        BaseReader: The reader instance.
-        """
-
-        return self._reader
-
-    @property
-    def dimension(self):
-        # type: () -> int
-        """
-        int: The dimension along which to perform the color subaperture split.
-        """
-
-        return self._dimension
-
-    @dimension.setter
-    def dimension(self, value):
-        value = int(value)
-        if value not in [0, 1]:
-            raise ValueError('dimension must be 0 or 1, got {}'.format(value))
-        self._dimension = value
-        self._set_fill()
-
-    @property
-    def data_size(self):
-        # type: () -> Tuple[int, int]
-        """
-        Tuple[int, int]: The data size for the reader at the given index.
-        """
-
-        return self._data_size
-
-    @property
-    def index(self):
-        # type: () -> int
-        """
-        int: The index of the reader.
-        """
-
-        return self._index
-
-    @index.setter
-    def index(self, value):
-        value = int(value)
-        if value < 0:
-            raise ValueError('The index must be a non-negative integer, got {}'.format(value))
-
-        sicds = self.reader.get_sicds_as_tuple()
-        if value >= len(sicds):
-            raise ValueError('The index must be less than the sicd count.')
-        self._index = value
-        self._sicd = sicds[value]
-
-        if self._sicd.SCPCOA is None or self._sicd.SCPCOA.SideOfTrack is None:
-            logging.warning(
-                'The sicd object at index {} has unpopulated SCPCOA.SideOfTrack. '
-                'Defaulting to "R", which may be incorrect.')
-            self._platform_direction = 'R'
-        else:
-            self._platform_direction = self._sicd.SCPCOA.SideOfTrack
-
-        self._data_size = self.reader.get_data_size_as_tuple()[value]
-        self._set_fill()
-
-    @property
-    def fill(self):
-        # type: () -> float
-        """
-        float: The fill factor for the subaperture splitting.
-        """
-
-        return self._fill
-
-    def _set_fill(self):
-        self._fill = None
-        if self._dimension is None:
-            return
-        if self._index is None:
-            return
-
-        sicd = self._sicd
-
-        if self.dimension == 0:
-            try:
-                fill = 1/(sicd.Grid.Row.SS*sicd.Grid.Row.ImpRespBW)
-            except (ValueError, AttributeError, TypeError):
-                fill = 1
-        else:
-            try:
-                fill = 1/(sicd.Grid.Col.SS*sicd.Grid.Col.ImpRespBW)
-            except (ValueError, AttributeError, TypeError):
-                fill = 1
-        self._fill = float(fill)
-
-    @property
-    def block_size(self):
-        # type: () -> int
-        """
-        None|int: The approximate processing block size in MB.
-        """
-
-        return self._block_size
-
-    @block_size.setter
-    def block_size(self, value):
-        if value is None:
-            self._block_size = None
-        value = int(value)
-        if value < 1:
-            value = 1
-        self._block_size = value
-
-    @property
-    def sicd(self):
-        # type: () -> SICDType
-        """
-        SICDType: The sicd structure.
-        """
-
-        return self._sicd
-
-    def _parse_slicing(self, item):
-        # type: (Union[None, int, slice, tuple]) -> Tuple[Tuple[int, int, int], Tuple[int, int, int]]
-
-        def validate_int(entry, bound):
-            if entry <= -bound or entry >= bound:
-                raise ValueError('Slice argument {} does not fit with bound {}'.format(entry, bound))
-            if entry < 0:
-                return entry + bound
-            return entry
-
-        def parse(entry, dimension):
-            bound = self.data_size[dimension]
-            if entry is None:
-                return 0, bound, 1
-            elif isinstance(entry, integer_types):
-                entry = validate_int(entry, bound)
-                return entry, entry+1, 1
-            elif isinstance(entry, slice):
-                t_start = entry.start
-                t_stop = entry.stop
-                t_step = 1 if entry.step is None else entry.step
-                if t_start is None and t_stop is None:
-                    t_start, t_stop = 0, bound
-                elif t_start is None:
-                    t_stop = validate_int(t_stop, bound)
-                    t_start = 0 if t_stop >= 0 else bound-1
-                elif t_stop is None:
-                    t_start = validate_int(t_start, bound)
-                    t_stop = -1 if t_step < 0 else bound
-                else:
-                    t_start = validate_int(t_start, bound)
-                    t_stop = validate_int(t_stop, bound)
-                if t_start == t_stop:
-                    raise ValueError(
-                        'Got identical start and stop slice bounds. Empty slicing not '
-                        'supported for CSICalculator.')
-                if (t_step < 0 and t_start <= t_stop) or (t_step > 0 and t_start >= t_stop):
-                    raise ValueError(
-                        'The slice values start={}, stop={}, step={} are not viable'.format(t_start, t_stop, t_step))
-                return t_start, t_stop, t_step
-            else:
-                raise TypeError('CSICalculator does not support slicing using type {}'.format(type(entry)))
-
-        # this input is assumed to come from slice parsing
-        if isinstance(item, tuple):
-            if len(item) > 2:
-                raise ValueError(
-                    'CSICalculator received slice argument {}. We cannot slice on more than two dimensions.'.format(item))
-
-            return parse(item[0], 0), parse(item[1], 1)
-        elif isinstance(item, slice):
-            return parse(item, 0), parse(None, 1)
-        elif isinstance(item, integer_types):
-            return parse(item, 0), parse(None, 1)
-        else:
-            raise TypeError('CSICalculator does not support slicing using type {}'.format(type(item)))
+        super(CSICalculator, self).__init__(
+            reader, dimension=dimension, index=index, block_size=block_size)
 
     def get_fetch_block_size(self, start_element, stop_element):
         """
         Gets the fetch block size for the given full resolution section.
-        This assumes that the fetched data will be 14 bytes per pixel, in
+        This assumes that the fetched data will be 24 bytes per pixel, in
         accordance with 3-band complex64 data.
 
         Parameters
@@ -428,50 +222,7 @@ class CSICalculator(object):
             return None
 
         full_size = float(abs(stop_element - start_element))
-        return None if self.block_size is None else \
-            max(1, int(numpy.ceil(self.block_size*2**17 /full_size)))
-
-    @staticmethod
-    def extract_blocks(the_range, block_size):
-        """
-        Extract the block definition.
-
-        Parameters
-        ----------
-        the_range
-        block_size : None|int|float
-
-        Returns
-        -------
-        List[Tuple[int, int, int]], List[Tuple[int, int]]
-        """
-
-
-        entries = numpy.arange(the_range[0], the_range[1], the_range[2], dtype=numpy.int64)
-        if block_size is None:
-            return [the_range, ], [(0, entries.size), ]
-
-        # how many blocks?
-        block_count = int(numpy.ceil(entries.size/block_size))
-        if block_size == 1:
-            return [the_range, ], [(0, entries.size), ]
-
-        # workspace for what the blocks are
-        out1 = []
-        out2 = []
-        start_ind = 0
-        for i in range(block_count):
-            end_ind = start_ind+block_size
-            if end_ind < entries.size:
-                block1 = (int_func(entries[start_ind]), int_func(entries[end_ind]), the_range[2])
-                block2 = (start_ind, end_ind)
-            else:
-                block1 = (int_func(entries[start_ind]), the_range[1], the_range[2])
-                block2 = (start_ind, entries.size)
-            out1.append(block1)
-            out2.append(block2)
-            start_ind = end_ind
-        return out1, out2
+        return max(1, int(numpy.ceil(self.block_size_in_bytes/(24*full_size))))
 
     def _full_row_resolution(self, row_range, col_range, filter_map):
         """
@@ -505,7 +256,7 @@ class CSICalculator(object):
         if data.ndim < 2:
             data = numpy.reshape(data, (-1, 1))
 
-        return csi_from_array(
+        return csi_array(
             data, dimension=0, platform_direction=self._platform_direction,
             filter_map=filter_map)
 
@@ -541,7 +292,7 @@ class CSICalculator(object):
         if data.ndim < 2:
             data = numpy.reshape(data, (1, -1))
 
-        return csi_from_array(
+        return csi_array(
             data, dimension=1, platform_direction=self._platform_direction,
             filter_map=filter_map)
 
@@ -561,6 +312,14 @@ class CSICalculator(object):
         if self._fill is None:
             raise ValueError('Unable to proceed unless the index and dimension are set.')
 
+        def get_dimension_details(the_range):
+            full_count = abs(int_func(the_range[1] - the_range[0]))
+            the_snip = -1 if the_range[2] < 0 else 1
+            t_filter_map = filter_map_construction(full_count/self._fill)
+            t_block_size = self.get_fetch_block_size(the_range[0], the_range[1])
+            t_full_range = (the_range[0], the_range[1], the_snip)
+            return t_filter_map, t_block_size, t_full_range
+
         def prepare_output():
             row_count = int_func((row_range[1] - row_range[0]) / float(row_range[2]))
             col_count = int_func((col_range[1] - col_range[0]) / float(col_range[2]))
@@ -568,14 +327,10 @@ class CSICalculator(object):
             return numpy.zeros(out_size, dtype=numpy.float64)
 
         # parse the slicing to ensure consistent structure
-        row_range, col_range = self._parse_slicing(item)
+        row_range, col_range, _ = self._parse_slicing(item)
         if self.dimension == 0:
             # we will proceed fetching full row resolution
-            full_row_count = abs(int_func(row_range[1] - row_range[0]))
-            row_snip = -1 if row_range[2] < 0 else 1
-            filter_map = filter_map_construction(full_row_count/self._fill)
-            block_size = self.get_fetch_block_size(row_range[0], row_range[1])
-            this_row_range = (row_range[0], row_range[1], row_snip)
+            filter_map, block_size, this_row_range = get_dimension_details(row_range)
             # get our block definitions
             column_blocks, result_blocks = self.extract_blocks(col_range, block_size)
             if len(column_blocks) == 1:
@@ -591,11 +346,7 @@ class CSICalculator(object):
                 return out
         else:
             # we will proceed fetching full column resolution
-            full_col_count = abs(int_func(col_range[1] - col_range[0]))
-            col_snip = -1 if col_range[2] < 0 else 1
-            filter_map = filter_map_construction(full_col_count/self._fill)
-            block_size = self.get_fetch_block_size(col_range[0], col_range[1])
-            this_col_range = (col_range[0], col_range[1], col_snip)
+            filter_map, block_size, this_col_range = get_dimension_details(col_range)
             # get our block definitions
             row_blocks, result_blocks = self.extract_blocks(row_range, block_size)
             if len(row_blocks) == 1:
@@ -611,7 +362,9 @@ class CSICalculator(object):
                 return out
 
 
-def create_csi_sidd(ortho_helper, output_directory, output_file=None, dimension=0, block_size=50, bounds=None, version=2):
+def create_csi_sidd(
+        ortho_helper, output_directory, output_file=None, dimension=0,
+        block_size=50, bounds=None, version=2):
     """
     Create a SIDD version of a Color Sub-Aperture Image from a SICD type reader.
 
@@ -647,24 +400,30 @@ def create_csi_sidd(ortho_helper, output_directory, output_file=None, dimension=
             'ortho_helper is required to be an instance of OrthorectificationHelper, '
             'got type {}'.format(type(ortho_helper)))
 
-    def get_orthorectified_version(temp_pixel_bounds):
-        csi_data = csi_calculator[temp_pixel_bounds[0]:temp_pixel_bounds[1], temp_pixel_bounds[2]:temp_pixel_bounds[3]]
-        # orthorectify this data, and write straight into the sidd file
+    def get_ortho_helper(temp_pixel_bounds, this_csi_data):
         rows_temp = temp_pixel_bounds[1] - temp_pixel_bounds[0]
-        if csi_data.shape[0] == rows_temp:
+        if this_csi_data.shape[0] == rows_temp:
             row_array = numpy.arange(temp_pixel_bounds[0], temp_pixel_bounds[1])
-        elif csi_data.shape[0] == (rows_temp + 1):
+        elif this_csi_data.shape[0] == (rows_temp + 1):
             row_array = numpy.arange(temp_pixel_bounds[0], temp_pixel_bounds[1] + 1)
         else:
-            raise ValueError('Unhandled data size mismatch {} and {}'.format(csi_data.shape, rows_temp))
+            raise ValueError('Unhandled data size mismatch {} and {}'.format(this_csi_data.shape, rows_temp))
         cols_temp = temp_pixel_bounds[3] - temp_pixel_bounds[2]
-        if csi_data.shape[1] == cols_temp:
+        if this_csi_data.shape[1] == cols_temp:
             col_array = numpy.arange(temp_pixel_bounds[2], temp_pixel_bounds[2])
-        elif csi_data.shape[1] == (cols_temp + 1):
+        elif this_csi_data.shape[1] == (cols_temp + 1):
             col_array = numpy.arange(temp_pixel_bounds[2], temp_pixel_bounds[2] + 1)
         else:
-            raise ValueError('Unhandled data size mismatch {} and {}'.format(csi_data.shape, cols_temp))
-        return row_array, col_array, csi_data
+            raise ValueError('Unhandled data size mismatch {} and {}'.format(this_csi_data.shape, cols_temp))
+        return row_array, col_array
+
+    def get_orthorectified_version(these_ortho_bounds, temp_pixel_bounds, this_csi_data):
+        row_array, col_array = get_ortho_helper(temp_pixel_bounds, this_csi_data)
+        return clip_cast(
+            amplitude_to_density(
+                ortho_helper.get_orthorectified_from_array(these_ortho_bounds, row_array, col_array, this_csi_data),
+                data_mean=the_mean),
+            dtype='uint8')
 
     reader = ortho_helper.reader
     index = ortho_helper.index
@@ -678,27 +437,19 @@ def create_csi_sidd(ortho_helper, output_directory, output_file=None, dimension=
     bounds, pixel_rectangle = ortho_helper.bounds_to_rectangle(bounds)
     # get the corresponding prtho bounds
     ortho_bounds = ortho_helper.get_orthorectification_bounds_from_pixel_object(pixel_rectangle)
-
     # Extract the mean of the data magnitude - for global remap usage
-    mean_block_size = 3*csi_calculator.get_fetch_block_size(bounds[0], bounds[1])  # this is single band, so make bigger as necessary
-    mean_column_blocks, _ = csi_calculator.extract_blocks((ortho_bounds[2], ortho_bounds[3], 1), block_size=mean_block_size)
-    mean_total = 0.0
-    mean_count = 0
-    for this_column_range in mean_column_blocks:
-        data = numpy.abs(csi_calculator.reader[bounds[0]:bounds[1], this_column_range[0]:this_column_range[1], csi_calculator.index])
-        mean_total += numpy.sum(data)
-        mean_count += data.size
-    the_mean = mean_total/mean_count
+    the_mean = csi_calculator.get_data_mean_magnitude(bounds)
 
     # create the sidd structure
     sidd_structure = create_sidd(
         ortho_helper, ortho_bounds,
-        product_class='Color Sub-Aperture Image', pixel_type='RGB24I', version=version)
+        product_class='Color Subaperture Image', pixel_type='RGB24I', version=version)
     # set suggested name
     sidd_structure._NITF = {
         'SUGGESTED_NAME': csi_calculator.sicd.get_suggested_name(csi_calculator.index)+'__CSI', }
     # create the sidd writer
     if output_file is None:
+        # noinspection PyProtectedMember
         full_filename = os.path.join(output_directory, sidd_structure._NITF['SUGGESTED_NAME']+'.nitf')
     else:
         full_filename = os.path.join(output_directory, output_file)
@@ -717,16 +468,14 @@ def create_csi_sidd(ortho_helper, output_directory, output_file=None, dimension=
             # determine the corresponding pixel ranges to encompass these values
             this_ortho_bounds, this_pixel_bounds = ortho_helper.extract_pixel_bounds(
                 (ortho_bounds[0], ortho_bounds[1], this_column_range[0], this_column_range[1]))
-            # extract the csi data
-            row_array, col_array, csi_data = get_orthorectified_version(this_pixel_bounds)
-            ortho_csi_data = clip_cast(
-                amplitude_to_density(
-                    ortho_helper.get_orthorectified_from_array(ortho_bounds, row_array, col_array, csi_data),
-                    data_mean=the_mean),
-                dtype='uint8')
+            # extract the csi data and ortho-rectify
+            ortho_csi_data = get_orthorectified_version(
+                this_ortho_bounds, this_pixel_bounds,
+                csi_calculator[this_pixel_bounds[0]:this_pixel_bounds[1], this_pixel_bounds[2]:this_pixel_bounds[3]])
+            # write out to the file
             start_indices = (this_ortho_bounds[0] - ortho_bounds[0],
                              result_range[0] + this_ortho_bounds[2] - ortho_bounds[2])
-            writer(ortho_csi_data, start_indices=start_indices)
+            writer(ortho_csi_data, start_indices=start_indices, index=0)
     else:
         # we are using the full resolution column data
         # determine the orthorectified blocks to use
@@ -738,13 +487,11 @@ def create_csi_sidd(ortho_helper, output_directory, output_file=None, dimension=
             # determine the corresponding pixel ranges to encompass these values
             this_ortho_bounds, this_pixel_bounds = ortho_helper.extract_pixel_bounds(
                 (this_row_range[0], this_row_range[1], ortho_bounds[2], ortho_bounds[3]))
-            # extract the csi data
-            row_array, col_array, csi_data = get_orthorectified_version(this_pixel_bounds)
-            ortho_csi_data = clip_cast(
-                amplitude_to_density(
-                    ortho_helper.get_orthorectified_from_array(ortho_bounds, row_array, col_array, csi_data),
-                    data_mean=the_mean),
-                dtype='uint8')
+            # extract the csi data and ortho-rectify
+            ortho_csi_data = get_orthorectified_version(
+                this_ortho_bounds, this_pixel_bounds,
+                csi_calculator[this_pixel_bounds[0]:this_pixel_bounds[1], this_pixel_bounds[2]:this_pixel_bounds[3]])
+            # write out to the file
             start_indices = (result_range[0] + this_ortho_bounds[0] - ortho_bounds[0],
                              this_ortho_bounds[2] - ortho_bounds[2])
-            writer(ortho_csi_data, start_indices=start_indices)
+            writer(ortho_csi_data, start_indices=start_indices, index=0)
