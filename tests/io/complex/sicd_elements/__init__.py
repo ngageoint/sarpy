@@ -5,7 +5,12 @@ import json
 from sarpy.io.complex.sicd_elements.base import Serializable
 from sarpy.io.general.utils import parse_xml_from_string
 
-from .. import unittest
+import sys
+if sys.version_info[0] < 3:
+    # so we can use subtests, which is pretty handy
+    import unittest2 as unittest
+else:
+    import unittest
 
 
 def generic_construction_test(instance, the_type, the_dict, tag='The_Type', print_xml=False, print_json=False):

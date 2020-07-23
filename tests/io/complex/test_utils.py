@@ -4,7 +4,12 @@ import numpy
 from numpy.polynomial import polynomial
 from sarpy.io.complex.utils import two_dim_poly_fit
 
-from . import unittest
+import sys
+if sys.version_info[0] < 3:
+    # so we can use subtests, which is pretty handy
+    import unittest2 as unittest
+else:
+    import unittest
 
 
 class TestRadarSatUtils(unittest.TestCase):

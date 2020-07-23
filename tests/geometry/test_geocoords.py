@@ -3,7 +3,12 @@
 import numpy
 from sarpy.geometry import geocoords
 
-from . import unittest
+import sys
+if sys.version_info[0] < 3:
+    # so we can use subtests, which is pretty handy
+    import unittest2 as unittest
+else:
+    import unittest
 
 
 llh = numpy.array([[0, 0, 0], [0, 180, 0]], dtype=numpy.float64)
