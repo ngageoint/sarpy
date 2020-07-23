@@ -267,7 +267,7 @@ class DTEDReader(object):
             elif isinstance(it, slice):
                 start = new_col_int(it.start, True)
                 stop = new_col_int(it.stop, False)
-                it1 = slice(start, stop, step=it.step)
+                it1 = slice(start, stop, it.step)
             elif isinstance(item[1], numpy.ndarray):
                 it1 = numpy.copy(item[1])
                 it1[it1 >= 0] += 4

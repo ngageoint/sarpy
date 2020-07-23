@@ -41,7 +41,7 @@ import os
 import numpy
 
 from sarpy.compliance import int_func
-from sarpy.processing.fft_base import FFTCalculator
+from sarpy.processing.fft_base import FFTCalculator, fft, ifft, fftshift
 from sarpy.io.general.base import BaseReader
 from sarpy.io.product.sidd_creation_utils import create_sidd
 from sarpy.io.product.sidd import SIDDWriter
@@ -94,6 +94,10 @@ def csi_array(array, dimension=0, platform_direction='R', fill=1, filter_map=Non
     """
     Creates a color subaperture array from a complex array.
 
+    .. Note: this ignores any potential sign issues for the fft and ifft, because
+        the results would be identical - fft followed by ifft versus ifft followed
+        by fft.
+
     Parameters
     ----------
     array : numpy.ndarray
@@ -138,7 +142,7 @@ def csi_array(array, dimension=0, platform_direction='R', fill=1, filter_map=Non
     # move to phase history domain
     ph_indices = int(numpy.floor(0.5*(array.shape[1] - filter_map.shape[0]))) + \
                  numpy.arange(filter_map.shape[0], dtype=numpy.int32)
-    ph0 = numpy.fft.fftshift(numpy.fft.ifft(numpy.cast[numpy.complex128](array), axis=1), axes=1)[:, ph_indices]
+    ph0 = fftshift(ifft(numpy.cast[numpy.complex128](array), axis=1), axes=1)[:, ph_indices]
     # construct the filtered workspace
     # NB: processing is more efficient with color band in the first dimension
     ph0_RGB = numpy.zeros((3, array.shape[0], filter_map.shape[0]), dtype=numpy.complex128)
@@ -154,7 +158,7 @@ def csi_array(array, dimension=0, platform_direction='R', fill=1, filter_map=Non
     # NB: the green band is already centered
 
     # FFT back to the image domain
-    im0_RGB = numpy.fft.fft(numpy.fft.fftshift(ph0_RGB, axes=2), n=array.shape[1], axis=2)
+    im0_RGB = fft(fftshift(ph0_RGB, axes=2), n=array.shape[1], axis=2)
     del ph0_RGB
 
     # Replace the intensity with the original image intensity to main full resolution
@@ -315,7 +319,7 @@ class CSICalculator(FFTCalculator):
         def get_dimension_details(the_range):
             full_count = abs(int_func(the_range[1] - the_range[0]))
             the_snip = -1 if the_range[2] < 0 else 1
-            t_filter_map = filter_map_construction(full_count/self._fill)
+            t_filter_map = filter_map_construction(full_count/self.fill)
             t_block_size = self.get_fetch_block_size(the_range[0], the_range[1])
             t_full_range = (the_range[0], the_range[1], the_snip)
             return t_filter_map, t_block_size, t_full_range

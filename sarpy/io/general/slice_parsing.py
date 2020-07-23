@@ -74,5 +74,4 @@ def validate_slice(the_slice, bound):
     if (t_step < 0 and t_start <= t_stop) or (t_step > 0 and t_start >= t_stop):
         raise ValueError(
             'The slice values start={}, stop={}, step={} are not viable'.format(t_start, t_stop, t_step))
-    return slice(start=t_start, stop=t_stop, step=t_step)
-
+    return slice(t_start, t_stop, t_step)

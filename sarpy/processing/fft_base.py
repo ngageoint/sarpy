@@ -9,18 +9,24 @@ __author__ = 'Thomas McCullough'
 import logging
 from typing import Union, Tuple, List, Any
 
-import numpy
-
 from sarpy.compliance import string_types, integer_types, int_func
 from sarpy.io.complex.converter import open_complex
 from sarpy.io.general.base import BaseReader
 from sarpy.io.general.slice_parsing import validate_slice_int, validate_slice
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 
+# NB: the below are intended as common imports from other locations - leave them here
+import numpy
+import scipy
+if scipy.__version__ < '1.4':
+    from scipy.fftpack import fft, ifft, fftshift
+else:
+    from scipy.fft import fft, ifft, fftshift
+
 
 class FFTCalculator(object):
     """
-    Base class for Fourier calculator class.
+    Base class for Fourier processing calculator class.
 
     This is intended for processing schemes where full resolution is required along
     the processing dimension, so sub-sampling along the processing dimension does
@@ -155,14 +161,14 @@ class FFTCalculator(object):
 
         if self.dimension == 0:
             try:
-                fill = 1/(self.sicd.Grid.Row.SS*self.sicd.Grid.Row.ImpRespBW)
+                fill = 1.0/(self.sicd.Grid.Row.SS*self.sicd.Grid.Row.ImpRespBW)
             except (ValueError, AttributeError, TypeError):
-                fill = 1
+                fill = 1.0
         else:
             try:
-                fill = 1/(self.sicd.Grid.Col.SS*self.sicd.Grid.Col.ImpRespBW)
+                fill = 1.0/(self.sicd.Grid.Col.SS*self.sicd.Grid.Col.ImpRespBW)
             except (ValueError, AttributeError, TypeError):
-                fill = 1
+                fill = 1.0
         self._fill = max(1.0, float(fill))
 
     @property
@@ -258,7 +264,7 @@ class FFTCalculator(object):
             return None
 
         full_size = float(abs(stop_element - start_element))
-        return max(1, int_func(numpy.ceil(self.block_size_in_bytes/(8*full_size))))
+        return max(1, int_func(numpy.ceil(self.block_size_in_bytes/float(8*full_size))))
 
     @staticmethod
     def extract_blocks(the_range, block_size):
@@ -287,7 +293,7 @@ class FFTCalculator(object):
             return [the_range, ], [(0, entries.size), ]
 
         # how many blocks?
-        block_count = int(numpy.ceil(entries.size/block_size))
+        block_count = int_func(numpy.ceil(entries.size/float(block_size)))
         if block_size == 1:
             return [the_range, ], [(0, entries.size), ]
 
@@ -351,3 +357,140 @@ class FFTCalculator(object):
         """
 
         raise NotImplementedError
+
+
+def _validate_fft_input(array):
+    """
+    Validate the fft input.
+
+    Parameters
+    ----------
+    array : numpy.ndarray
+
+    Returns
+    -------
+    None
+    """
+
+    if not isinstance(array, numpy.ndarray):
+        raise TypeError('array must be a numpy array')
+    if not numpy.iscomplexobj(array):
+        raise ValueError('array must have a complex data type')
+    if array.ndim != 2:
+        raise ValueError('array must be a two-dimensional array. Got shape {}'.format(array.shape))
+
+
+def _determine_direction(sicd, dimension):
+    """
+    Determine the default sign for the fft.
+
+    Parameters
+    ----------
+    sicd : SICDType
+    dimension : int
+
+    Returns
+    -------
+    int
+    """
+
+    sgn = None
+    if dimension == 0:
+        try:
+            sgn = sicd.Grid.Row.Sgn
+        except AttributeError:
+            pass
+    elif dimension == 1:
+        try:
+            sgn = sicd.Grid.Col.Sgn
+        except AttributeError:
+            pass
+    else:
+        raise ValueError('dimension must be one of 0 or 1.')
+    return 1 if sgn is None else sgn
+
+
+def fft_sicd(array, dimension, sicd):
+    """
+    Apply the forward one-dimensional forward fft to data associated with the given sicd
+    along the given dimension/axis.
+
+    Parameters
+    ----------
+    array : numpy.ndarray
+        The data array, which must be two-dimensional and complex.
+    dimension : int
+        Must be one of 0, 1.
+    sicd : SICDType
+        The associated SICD structure.
+
+    Returns
+    -------
+    numpy.ndarray
+    """
+
+    sgn = _determine_direction(sicd, dimension)
+    return fft(array, axis=dimension) if sgn > 0 else ifft(array, axis=dimension)
+
+
+def ifft_sicd(array, dimension, sicd):
+    """
+    Apply the inverse one-dimensional fft to data associated with the given sicd
+    along the given dimension/axis.
+
+    Parameters
+    ----------
+    array : numpy.ndarray
+        The data array, which must be two-dimensional and complex.
+    dimension : int
+        Must be one of 0, 1.
+    sicd : SICDType
+        The associated SICD structure.
+
+    Returns
+    -------
+    numpy.ndarray
+    """
+
+    sgn = _determine_direction(sicd, dimension)
+    return ifft(array, axis=dimension) if sgn > 0 else fft(array, axis=dimension)
+
+
+def fft2_sicd(array, sicd):
+    """
+    Apply the forward two-dimensional fft (i.e. both axes) to data associated with
+    the given sicd.
+
+    Parameters
+    ----------
+    array : numpy.ndarray
+        The data array, which must be two-dimensional and complex.
+    sicd : SICDType
+        The associated SICD structure.
+
+    Returns
+    -------
+    numpy.ndarray
+    """
+
+    return fft_sicd(fft_sicd(array, 0, sicd), 1, sicd)
+
+
+def ifft2_sicd(array, sicd):
+    """
+    Apply the inverse two-dimensional fft (i.e. both axes) to data associated with
+    the given sicd.
+
+    Parameters
+    ----------
+    array : numpy.ndarray
+        The data array, which must be two-dimensional and complex.
+    sicd : SICDType
+        The associated SICD structure.
+
+    Returns
+    -------
+    numpy.ndarray
+    """
+
+    return ifft_sicd(ifft_sicd(array, 0, sicd), 1, sicd)

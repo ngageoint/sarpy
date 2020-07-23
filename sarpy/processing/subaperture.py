@@ -9,7 +9,7 @@ from typing import Generator
 import numpy
 
 from sarpy.compliance import int_func, integer_types
-from sarpy.processing.fft_base import FFTCalculator
+from sarpy.processing.fft_base import FFTCalculator, fft, ifft, fftshift
 from sarpy.io.general.slice_parsing import validate_slice, validate_slice_int
 from sarpy.io.product.sidd_creation_utils import create_sidd
 from sarpy.io.product.sidd import SIDDWriter
@@ -58,7 +58,7 @@ def frame_definition(array_size, frame_count=9, aperture_fraction=0.2, fill=1, m
         raise ValueError('fill must be at least 1.0, got {}'.format(fill))
 
     # determine our functional array and processing sizes
-    functional_array_size = array_size*1./fill
+    functional_array_size = array_size/fill
     left_edge = int_func(numpy.round(0.5*(array_size - functional_array_size)))
     processing_size = array_size - 2*left_edge
     # determine the (static) size of each sub-aperture
@@ -68,7 +68,7 @@ def frame_definition(array_size, frame_count=9, aperture_fraction=0.2, fill=1, m
         int_func(numpy.floor((processing_size - subaperture_size)/float(frame_count-1)))
 
     if method == 'MINIMAL':
-        output_resolution = numpy.ceil(processing_size / frame_count)
+        output_resolution = int_func(numpy.ceil(processing_size/float(frame_count)))
     elif method == 'FULLPIXEL':
         output_resolution = array_size
     elif method == 'NORMAL':
@@ -132,7 +132,7 @@ def subaperture_processing_array(array, aperture_indices, output_resolution, dim
     dimension = _validate_dimension(dimension)
 
     return subaperture_processing_phase_history(
-        numpy.fft.fftshift(numpy.fft.fft(array, axis=dimension), axes=dimension),
+        fftshift(fft(array, axis=dimension), axes=dimension),
         aperture_indices, output_resolution, dimension=dimension)
 
 
@@ -161,9 +161,9 @@ def subaperture_processing_phase_history(phase_array, aperture_indices, output_r
     dimension = _validate_dimension(dimension)
 
     if dimension == 0:
-        return numpy.fft.ifft(phase_array[aperture_indices[0]:aperture_indices[1], :], axis=0, n=output_resolution)
+        return ifft(phase_array[aperture_indices[0]:aperture_indices[1], :], axis=0, n=output_resolution)
     else:
-        return numpy.fft.ifft(phase_array[:, aperture_indices[0]:aperture_indices[1]], axis=1, n=output_resolution)
+        return ifft(phase_array[:, aperture_indices[0]:aperture_indices[1]], axis=1, n=output_resolution)
 
 
 class SubapertureCalculator(FFTCalculator):
@@ -345,7 +345,7 @@ class SubapertureCalculator(FFTCalculator):
             data = self.reader[
                    row_range[0]:row_range[1]:row_range[2], this_col_range[0]:this_col_range[1]:this_col_range[2], self.index]
         # transform the data to phase space
-        data = numpy.fft.fftshift(numpy.fft.fft(data, axis=self.dimension), axes=self.dimension)
+        data = fftshift(fft(data, axis=self.dimension), axes=self.dimension)
         # define our frame collection
         frame_collection, output_resolution = frame_definition(
             full_size, frame_count=self.frame_count, aperture_fraction=self.aperture_fraction,
