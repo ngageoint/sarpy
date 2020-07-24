@@ -24,7 +24,7 @@ class MeasurementType(Serializable):
 
     _fields = (
         'PolynomialProjection', 'GeographicProjection', 'PlaneProjection', 'CylindricalProjection',
-        'PixelFootprint', 'ARPFlag', 'ARPPoly')
+        'PixelFootprint', 'ARPPoly')
     _required = ('PixelFootprint', 'ARPPoly')
     _collections_tags = {'ValidData': {'array': True, 'child_tag': 'Vertex'}}
     _numeric_format = {'ValidData': '0.16G'}

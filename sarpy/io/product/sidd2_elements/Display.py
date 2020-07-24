@@ -586,7 +586,7 @@ class ProductDisplayType(Serializable):
     """
     _fields = (
         'PixelType', 'NumBands', 'DefaultBandDisplay', 'NonInteractiveProcessing',
-        'InteractiveProcessing', 'DisplayExtension')
+        'InteractiveProcessing', 'DisplayExtensions')
     _required = (
         'PixelType', 'NumBands', 'NonInteractiveProcessing', 'InteractiveProcessing')
     _collections_tags = {

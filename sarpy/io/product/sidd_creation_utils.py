@@ -16,7 +16,7 @@ from .sidd2_elements.Display import ProductDisplayType as ProductDisplayType2
 from .sidd2_elements.GeoData import GeoDataType as GeoDataType2
 from .sidd2_elements.Measurement import MeasurementType as MeasurementType2
 from .sidd2_elements.ExploitationFeatures import ExploitationFeaturesType as ExploitationFeaturesType2
-from .sidd2_elements.blocks import ReferencePointType, Poly2DType
+from .sidd2_elements.blocks import ReferencePointType, Poly2DType, XYZPolyType
 # version 1 elements
 from .sidd1_elements.SIDD import SIDDType as SIDDType1
 from .sidd1_elements.Display import ProductDisplayType as ProductDisplayType1
@@ -66,9 +66,11 @@ def _fit_timecoa_poly(proj_helper, bounds):
     # evaluate the sicd timecoapoly
     timecoa_values = proj_helper.sicd.Grid.TimeCOAPoly(pixel_rows_m, pixel_cols_m)
     # fit this at the ortho_grid coordinates
-    sidd_timecoa_coeffs = two_dim_poly_fit(
+    sidd_timecoa_coeffs, residuals, rank, sing_values = two_dim_poly_fit(
         ortho_grid[:, :, 0] - bounds[0], ortho_grid[:, :, 1] - bounds[2], timecoa_values,
         x_order=use_order, y_order=use_order, x_scale=1e-3, y_scale=1e-3, rcond=1e-40)
+    import logging
+    logging.warning('The time_coa_fit details:\nroot mean square residuals = {}\nrank = {}\nsingular values = {}'.format(residuals, rank, sing_values))
     return Poly2DType(Coefs=sidd_timecoa_coeffs)
 
 
@@ -145,9 +147,12 @@ def _create_measurement_v2(ortho_helper, bounds):
     if isinstance(proj_helper, PGProjection):
         # fit the time coa polynomial in ortho-pixel coordinates
         plane_projection = _create_plane_projection(proj_helper, bounds)
-        return MeasurementType2(PixelFootprint=(bounds[1] - bounds[0] + 1, bounds[3] - bounds[2] + 1),
+        return MeasurementType2(PixelFootprint=(bounds[1] - bounds[0], bounds[3] - bounds[2]),
                                 PlaneProjection=plane_projection,
-                                ARPPoly=Poly2DType(Coefs=proj_helper.sicd.Position.ARPPoly.get_array()))
+                                ARPPoly=XYZPolyType(
+                                    X=proj_helper.sicd.Position.ARPPoly.X.get_array(),
+                                    Y=proj_helper.sicd.Position.ARPPoly.Y.get_array(),
+                                    Z=proj_helper.sicd.Position.ARPPoly.Z.get_array()))
     else:
         return None
 
@@ -174,14 +179,14 @@ def create_sidd_v2(ortho_helper, bounds, product_class, pixel_type):
     """
 
     # validate bounds and get pixel coordinates rectangle
-    bounds, pixel_corners = ortho_helper.bounds_to_rectangle(bounds)
+    bounds, ortho_pixel_corners = ortho_helper.bounds_to_rectangle(bounds)
 
     # construct appropriate SIDD elements
     prod_create = ProductCreationType.from_sicd(ortho_helper.proj_helper.sicd, product_class)
     # Display requires more product specifics
     display = _create_display_v2(pixel_type)
     # GeoData
-    llh_corners = ortho_helper.proj_helper.ortho_to_llh(pixel_corners)
+    llh_corners = ortho_helper.proj_helper.ortho_to_llh(ortho_pixel_corners)
     geo_data = GeoDataType2(ImageCorners=llh_corners[:, :2])
     # Measurement
     measurement = _create_measurement_v2(ortho_helper, bounds)
@@ -239,9 +244,12 @@ def _create_measurement_v1(ortho_helper, bounds):
     if isinstance(proj_helper, PGProjection):
         # fit the time coa polynomial in ortho-pixel coordinates
         plane_projection = _create_plane_projection(proj_helper, bounds)
-        return MeasurementType1(PixelFootprint=(bounds[1] - bounds[0] + 1, bounds[3] - bounds[2] + 1),
+        return MeasurementType1(PixelFootprint=(bounds[1] - bounds[0], bounds[3] - bounds[2]),
                                 PlaneProjection=plane_projection,
-                                ARPPoly=Poly2DType(Coefs=proj_helper.sicd.Position.ARPPoly.get_array()))
+                                ARPPoly=XYZPolyType(
+                                    X=proj_helper.sicd.Position.ARPPoly.X.get_array(),
+                                    Y=proj_helper.sicd.Position.ARPPoly.Y.get_array(),
+                                    Z=proj_helper.sicd.Position.ARPPoly.Z.get_array()))
     else:
         return None
 
@@ -268,14 +276,14 @@ def create_sidd_v1(ortho_helper, bounds, product_class, pixel_type):
     """
 
     # validate bounds and get pixel coordinates rectangle
-    bounds, pixel_corners = ortho_helper.bounds_to_rectangle(bounds)
+    bounds, ortho_pixel_corners = ortho_helper.bounds_to_rectangle(bounds)
 
     # construct appropriate SIDD elements
     prod_create = ProductCreationType.from_sicd(ortho_helper.proj_helper.sicd, product_class)
     # Display requires more product specifics
     display = _create_display_v1(pixel_type)
     # GeographicAndTarget
-    llh_corners = ortho_helper.proj_helper.ortho_to_llh(pixel_corners)
+    llh_corners = ortho_helper.proj_helper.ortho_to_llh(ortho_pixel_corners)
     geographic = GeographicAndTargetType1(GeographicCoverage=GeographicCoverageType1(Footprint=llh_corners[:, :2]))
     # Measurement
     measurement = _create_measurement_v1(ortho_helper, bounds)
