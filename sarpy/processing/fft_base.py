@@ -267,7 +267,7 @@ class FFTCalculator(object):
         return max(1, int_func(numpy.ceil(self.block_size_in_bytes/float(8*full_size))))
 
     @staticmethod
-    def extract_blocks(the_range, block_size):
+    def extract_blocks(the_range, index_block_size):
         # type: (Tuple[int, int, int], int) -> (List[Tuple[int, int, int]], List[Tuple[int, int]])
         """
         Convert the single range definition into a series of range defintions in
@@ -277,7 +277,7 @@ class FFTCalculator(object):
         ----------
         the_range : Tuple[int, int, int]
             The input (off processing axis) range.
-        block_size : None|int|float
+        index_block_size : None|int|float
             The size of blocks (number of indices).
 
         Returns
@@ -289,12 +289,12 @@ class FFTCalculator(object):
         """
 
         entries = numpy.arange(the_range[0], the_range[1], the_range[2], dtype=numpy.int64)
-        if block_size is None:
+        if index_block_size is None:
             return [the_range, ], [(0, entries.size), ]
 
         # how many blocks?
-        block_count = int_func(numpy.ceil(entries.size/float(block_size)))
-        if block_size == 1:
+        block_count = int_func(numpy.ceil(entries.size/float(index_block_size)))
+        if index_block_size == 1:
             return [the_range, ], [(0, entries.size), ]
 
         # workspace for what the blocks are
@@ -302,7 +302,7 @@ class FFTCalculator(object):
         out2 = []
         start_ind = 0
         for i in range(block_count):
-            end_ind = start_ind+block_size
+            end_ind = start_ind+index_block_size
             if end_ind < entries.size:
                 block1 = (int_func(entries[start_ind]), int_func(entries[end_ind]), the_range[2])
                 block2 = (start_ind, end_ind)
@@ -331,7 +331,7 @@ class FFTCalculator(object):
         # Extract the mean of the data magnitude - for global remap usage
         mean_block_size = self.get_fetch_block_size(bounds[0], bounds[1])
         mean_column_blocks, _ = self.extract_blocks(
-            (bounds[2], bounds[3], 1), block_size=mean_block_size)
+            (bounds[2], bounds[3], 1), mean_block_size)
         mean_total = 0.0
         mean_count = 0
         for this_column_range in mean_column_blocks:

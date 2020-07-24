@@ -393,9 +393,9 @@ class SubapertureCalculator(FFTCalculator):
             frames = [frames, ]
 
         if self.dimension == 0:
-            block_size = self.get_fetch_block_size(row_range[0], row_range[1])
+            column_block_size = self.get_fetch_block_size(row_range[0], row_range[1])
             # get our block definitions
-            column_blocks, result_blocks = self.extract_blocks(col_range, block_size)
+            column_blocks, result_blocks = self.extract_blocks(col_range, column_block_size)
             if column_blocks == 1 and len(frames) == 1:
                 # no need to prepare output, which will take twice the memory, so just return
                 out = self.subaperture_generator(row_range, col_range, frames).__next__()
@@ -409,9 +409,9 @@ class SubapertureCalculator(FFTCalculator):
                         for i, data in generator:
                             out[:, result_range[0]:result_range[1], i] = data
         else:
-            block_size = self.get_fetch_block_size(col_range[0], col_range[1])
+            row_block_size = self.get_fetch_block_size(col_range[0], col_range[1])
             # get our block definitions
-            row_blocks, result_blocks = self.extract_blocks(row_range, block_size)
+            row_blocks, result_blocks = self.extract_blocks(row_range, row_block_size)
             if row_blocks == 1 and len(frames) == 1:
                 out = self.subaperture_generator(row_range, col_range, frames).__next__()
             else:
@@ -528,9 +528,9 @@ def create_dynamic_image_sidd(
     if subap_calculator.dimension == 0:
         # we are using the full resolution row data
         # determine the orthorectified blocks to use
-        block_size = subap_calculator.get_fetch_block_size(ortho_bounds[0], ortho_bounds[1])
+        column_block_size = subap_calculator.get_fetch_block_size(ortho_bounds[0], ortho_bounds[1])
         ortho_column_blocks, ortho_result_blocks = subap_calculator.extract_blocks(
-            (ortho_bounds[2], ortho_bounds[3], 1), block_size=block_size)
+            (ortho_bounds[2], ortho_bounds[3], 1), column_block_size)
 
         for this_column_range, result_range in zip(ortho_column_blocks, ortho_result_blocks):
             # determine the corresponding pixel ranges to encompass these values
@@ -539,14 +539,14 @@ def create_dynamic_image_sidd(
             # create the subaperture generator
             pixel_row_range, pixel_col_range, row_array, col_array = get_pixel_data(this_pixel_bounds)
             start_indices = (this_ortho_bounds[0] - ortho_bounds[0],
-                             result_range[0] + this_ortho_bounds[2] - ortho_bounds[2])
+                             this_ortho_bounds[2] - ortho_bounds[2])
             for i, subap_data in enumerate(subap_calculator.subaperture_generator(pixel_row_range, pixel_col_range)):
                 ortho_subap_data = get_orthorectified_version(this_ortho_bounds, row_array, col_array, subap_data)
                 writer(ortho_subap_data, start_indices=start_indices, index=i)
     else:
-        block_size = subap_calculator.get_fetch_block_size(ortho_bounds[2], ortho_bounds[3])
+        row_block_size = subap_calculator.get_fetch_block_size(ortho_bounds[2], ortho_bounds[3])
         ortho_row_blocks, ortho_result_blocks = subap_calculator.extract_blocks(
-            (ortho_bounds[0], ortho_bounds[1], 1), block_size=block_size)
+            (ortho_bounds[0], ortho_bounds[1], 1), row_block_size)
 
         for this_row_range, result_range in zip(ortho_row_blocks, ortho_result_blocks):
             # determine the corresponding pixel ranges to encompass these values
@@ -554,7 +554,7 @@ def create_dynamic_image_sidd(
                 (this_row_range[0], this_row_range[1], ortho_bounds[2], ortho_bounds[3]))
             # create the subaperture generator
             pixel_row_range, pixel_col_range, row_array, col_array = get_pixel_data(this_pixel_bounds)
-            start_indices = (result_range[0] + this_ortho_bounds[0] - ortho_bounds[0],
+            start_indices = (this_ortho_bounds[0] - ortho_bounds[0],
                              this_ortho_bounds[2] - ortho_bounds[2])
             for i, subap_data in enumerate(subap_calculator.subaperture_generator(pixel_row_range, pixel_col_range)):
                 ortho_subap_data = get_orthorectified_version(this_ortho_bounds, row_array, col_array, subap_data)

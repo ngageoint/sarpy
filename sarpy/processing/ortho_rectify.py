@@ -152,7 +152,7 @@ class ProjectionHelper(object):
         """
 
         if value is None:
-            self._row_spacing = min(self.sicd.get_ground_resolution())
+            self._col_spacing = min(self.sicd.get_ground_resolution())
         else:
             value = float(value)
             if value <= 0:
@@ -343,7 +343,7 @@ class ProjectionHelper(object):
 
     def get_pixel_array_bounds(self, coords):
         """
-        Extract bounds of the input array, expected to have final dimension
+        Extract integer bounds of the input array, expected to have final dimension
         of size 2.
 
         Parameters
@@ -358,10 +358,10 @@ class ProjectionHelper(object):
 
         coords, o_shape = self._reshape(coords, 2)
         return numpy.array(
-            (numpy.min(coords[:, 0], axis=0),
-             numpy.max(coords[:, 0], axis=0),
-             numpy.min(coords[:, 1], axis=0),
-             numpy.max(coords[:, 1], axis=0)), dtype=numpy.float64)
+            (numpy.floor(numpy.min(coords[:, 0], axis=0)),
+             numpy.ceil(numpy.max(coords[:, 0], axis=0)),
+             numpy.floor(numpy.min(coords[:, 1], axis=0)),
+             numpy.ceil(numpy.max(coords[:, 1], axis=0))), dtype=numpy.int64)
 
 
 class PGProjection(ProjectionHelper):

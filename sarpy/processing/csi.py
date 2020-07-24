@@ -334,9 +334,9 @@ class CSICalculator(FFTCalculator):
         row_range, col_range, _ = self._parse_slicing(item)
         if self.dimension == 0:
             # we will proceed fetching full row resolution
-            filter_map, block_size, this_row_range = get_dimension_details(row_range)
+            filter_map, row_block_size, this_row_range = get_dimension_details(row_range)
             # get our block definitions
-            column_blocks, result_blocks = self.extract_blocks(col_range, block_size)
+            column_blocks, result_blocks = self.extract_blocks(col_range, row_block_size)
             if len(column_blocks) == 1:
                 # it's just a single block
                 csi = self._full_row_resolution(this_row_range, col_range, filter_map)
@@ -350,9 +350,9 @@ class CSICalculator(FFTCalculator):
                 return out
         else:
             # we will proceed fetching full column resolution
-            filter_map, block_size, this_col_range = get_dimension_details(col_range)
+            filter_map, column_block_size, this_col_range = get_dimension_details(col_range)
             # get our block definitions
-            row_blocks, result_blocks = self.extract_blocks(row_range, block_size)
+            row_blocks, result_blocks = self.extract_blocks(row_range, column_block_size)
             if len(row_blocks) == 1:
                 # it's just a single block
                 csi = self._full_column_resolution(row_range, this_col_range, filter_map)
@@ -414,9 +414,9 @@ def create_csi_sidd(
             raise ValueError('Unhandled data size mismatch {} and {}'.format(this_csi_data.shape, rows_temp))
         cols_temp = temp_pixel_bounds[3] - temp_pixel_bounds[2]
         if this_csi_data.shape[1] == cols_temp:
-            col_array = numpy.arange(temp_pixel_bounds[2], temp_pixel_bounds[2])
+            col_array = numpy.arange(temp_pixel_bounds[2], temp_pixel_bounds[3])
         elif this_csi_data.shape[1] == (cols_temp + 1):
-            col_array = numpy.arange(temp_pixel_bounds[2], temp_pixel_bounds[2] + 1)
+            col_array = numpy.arange(temp_pixel_bounds[2], temp_pixel_bounds[3] + 1)
         else:
             raise ValueError('Unhandled data size mismatch {} and {}'.format(this_csi_data.shape, cols_temp))
         return row_array, col_array
@@ -443,6 +443,7 @@ def create_csi_sidd(
     ortho_bounds = ortho_helper.get_orthorectification_bounds_from_pixel_object(pixel_rectangle)
     # Extract the mean of the data magnitude - for global remap usage
     the_mean = csi_calculator.get_data_mean_magnitude(bounds)
+    print('ortho bounds = {}'.format(ortho_bounds))
 
     # create the sidd structure
     sidd_structure = create_sidd(
@@ -457,16 +458,16 @@ def create_csi_sidd(
         full_filename = os.path.join(output_directory, sidd_structure._NITF['SUGGESTED_NAME']+'.nitf')
     else:
         full_filename = os.path.join(output_directory, output_file)
-    if os.path.expanduser(full_filename):
+    if os.path.exists(os.path.expanduser(full_filename)):
         raise IOError('File {} already exists.'.format(full_filename))
     writer = SIDDWriter(full_filename, sidd_structure, csi_calculator.sicd)
 
     if csi_calculator.dimension == 0:
         # we are using the full resolution row data
         # determine the orthorectified blocks to use
-        block_size = csi_calculator.get_fetch_block_size(ortho_bounds[0], ortho_bounds[1])
+        column_block_size = csi_calculator.get_fetch_block_size(ortho_bounds[0], ortho_bounds[1])
         ortho_column_blocks, ortho_result_blocks = csi_calculator.extract_blocks(
-            (ortho_bounds[2], ortho_bounds[3], 1), block_size=block_size)
+            (ortho_bounds[2], ortho_bounds[3], 1), column_block_size)
 
         for this_column_range, result_range in zip(ortho_column_blocks, ortho_result_blocks):
             # determine the corresponding pixel ranges to encompass these values
@@ -478,14 +479,15 @@ def create_csi_sidd(
                 csi_calculator[this_pixel_bounds[0]:this_pixel_bounds[1], this_pixel_bounds[2]:this_pixel_bounds[3]])
             # write out to the file
             start_indices = (this_ortho_bounds[0] - ortho_bounds[0],
-                             result_range[0] + this_ortho_bounds[2] - ortho_bounds[2])
+                             this_ortho_bounds[2] - ortho_bounds[2])
+            # TODO: verify that we don't run off the end
             writer(ortho_csi_data, start_indices=start_indices, index=0)
     else:
         # we are using the full resolution column data
         # determine the orthorectified blocks to use
-        block_size = csi_calculator.get_fetch_block_size(ortho_bounds[2], ortho_bounds[3])
+        row_block_size = csi_calculator.get_fetch_block_size(ortho_bounds[2], ortho_bounds[3])
         ortho_row_blocks, ortho_result_blocks = csi_calculator.extract_blocks(
-            (ortho_bounds[0], ortho_bounds[1], 1), block_size=block_size)
+            (ortho_bounds[0], ortho_bounds[1], 1), row_block_size)
 
         for this_row_range, result_range in zip(ortho_row_blocks, ortho_result_blocks):
             # determine the corresponding pixel ranges to encompass these values
@@ -496,6 +498,7 @@ def create_csi_sidd(
                 this_ortho_bounds, this_pixel_bounds,
                 csi_calculator[this_pixel_bounds[0]:this_pixel_bounds[1], this_pixel_bounds[2]:this_pixel_bounds[3]])
             # write out to the file
-            start_indices = (result_range[0] + this_ortho_bounds[0] - ortho_bounds[0],
+            start_indices = (this_ortho_bounds[0] - ortho_bounds[0],
                              this_ortho_bounds[2] - ortho_bounds[2])
+            # TODO: verify that we don't run off the end
             writer(ortho_csi_data, start_indices=start_indices, index=0)
