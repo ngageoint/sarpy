@@ -149,11 +149,11 @@ class MultiSegmentChipper(BaseChipper):
     broken up into a collection of image segments.
     """
 
-    __slots__ = ('_file_name', '_data_size', '_dtype', '_complex_out',
+    __slots__ = ('_file_name', '_data_size', '_dtype',
                  '_symmetry', '_bounds', '_bands_ip', '_child_chippers')
 
     def __init__(self, file_name, bounds, data_offsets, data_type,
-                 symmetry=None, complex_type=False, bands_ip=1):
+                 symmetry=None, complex_type=False, bands_ip=1, datatype_out=None):
         """
 
         Parameters
@@ -172,6 +172,8 @@ class MultiSegmentChipper(BaseChipper):
             See `BaseChipper` for description of `complex_type`
         bands_ip : int
             number of bands - this will always be one for sicd.
+        datatype_out : None|str|numpy.dtype|numpy.number
+            The data type of the return.
         """
 
         if not isinstance(bounds, numpy.ndarray):
@@ -213,6 +215,13 @@ class MultiSegmentChipper(BaseChipper):
         self._file_name = file_name
         # all of the actual reading and reorienting work will be done by these
         # child chippers, which will read from their respective image segments
+        if datatype_out is None:
+            if complex_type is False:
+                self._dtype = data_type
+            else:
+                self._dtype = 'complex64'
+        else:
+            self._dtype = datatype_out
         self._child_chippers = tuple(
             BIPChipper(file_name, data_type, img_siz, symmetry=symmetry,
                        complex_type=complex_type, data_offset=img_off,
@@ -256,9 +265,9 @@ class MultiSegmentChipper(BaseChipper):
         cols_size = int_func((range2[1]-range2[0])/range2[2])
 
         if self._bands_ip == 1:
-            out = numpy.empty((rows_size, cols_size), dtype=numpy.complex64)
+            out = numpy.empty((rows_size, cols_size), dtype=self._dtype)
         else:
-            out = numpy.empty((rows_size, cols_size, self._bands_ip), dtype=numpy.complex64)
+            out = numpy.empty((rows_size, cols_size, self._bands_ip), dtype=self._dtype)
         for entry, child_chipper in zip(self._bounds, self._child_chippers):
             row_start, row_end, col_start, col_end = entry
             # find row overlap for chipper - it's rectangular
@@ -325,18 +334,20 @@ class BIPWriter(AbstractWriter):
         super(BIPWriter, self).__init__(file_name)
         if not isinstance(data_size, tuple):
             data_size = tuple(data_size)
-        if len(data_size) != 2:
-            raise ValueError(
-                'The data_size parameter must have length 2, and got {}.'.format(data_size))
-        data_size = (int_func(data_size[0]), int_func(data_size[1]))
-        if data_size[0] < 0 or data_size[1] < 0:
-            raise ValueError('All entries of data_size {} must be non-negative.'.format(data_size))
-        self._data_size = data_size
-
-        self._data_type = numpy.dtype(data_type)
         if not (isinstance(complex_type, bool) or callable(complex_type)):
             raise ValueError('complex-type must be a boolean or a callable')
         self._complex_type = complex_type
+
+        if len(data_size) != 2 and self._complex_type is not False:
+            raise ValueError(
+                'The complex_type is not False, so data_size parameter must have length 2, and got {}.'.format(data_size))
+        data_size = tuple(int_func(entry) for entry in data_size)
+        for i, entry in enumerate(data_size):
+            if entry <= 0:
+                raise ValueError('Entries {} of data_size is {}, but must be strictly positive.'.format(i, entry))
+        self._data_size = data_size
+
+        self._data_type = numpy.dtype(data_type)
 
         if self._complex_type is True and self._data_type.name != 'float32':
             raise ValueError(
@@ -425,7 +436,12 @@ class BIPWriter(AbstractWriter):
 
     def _call(self, start1, stop1, start2, stop2, data):
         if self._memory_map is not None:
-            self._memory_map[start1:stop1, start2:stop2, :] = data
+            if len(self._data_size) == 2:
+                self._memory_map[start1:stop1, start2:stop2] = data
+            elif len(self._data_size) == 3:
+                self._memory_map[start1:stop1, start2:stop2, :] = data
+            else:
+                raise ValueError('Got unexpected data size {}'.format(self._data_size))
             return
 
         # we have to fall-back to manually write
