@@ -413,7 +413,7 @@ class SICDReader(NITFReader):
         return MultiSegmentChipper(
             self.nitf_details.file_name, bounds, offsets, dtype,
             symmetry=(False, False, False), complex_type=complex_type,
-            bands_ip=1)
+            bands_ip=1, datatype_out='complex64')
 
 
 #######

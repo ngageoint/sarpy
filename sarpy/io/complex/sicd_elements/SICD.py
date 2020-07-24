@@ -488,17 +488,15 @@ class SICDType(Serializable):
 
         graze = numpy.deg2rad(self.SCPCOA.GrazeAng)
         twist = numpy.deg2rad(self.SCPCOA.TwistAng)
-        normal_vector = wgs_84_norm(self.GeoData.SCP.ECF.get_array())
-        theta_r = numpy.arctan2(
-            self.Grid.Col.UVectECF.get_array().dot(normal_vector),
-            self.Grid.Row.UVectECF.get_array().dot(normal_vector))
+        theta_r = 0
         row_ss = self.Grid.Row.SS
         col_ss = self.Grid.Col.SS
 
         k_r1 = (numpy.cos(theta_r)/numpy.cos(graze))**2 + \
-               ((numpy.sin(theta_r)**2)*numpy.tan(graze)*numpy.tan(twist) +
+               ((numpy.sin(theta_r)**2)*numpy.tan(graze)*numpy.tan(twist) -
                 numpy.sin(2*theta_r)/numpy.cos(graze))*numpy.tan(graze)*numpy.tan(twist)
-        k_c1 = ((numpy.sin(theta_r)**2)/numpy.cos(graze) - numpy.sin(2*theta_r)*numpy.tan(graze)/numpy.tan(twist))/numpy.cos(twist) + \
+        k_c1 = ((numpy.sin(theta_r)**2)/numpy.cos(graze) -
+                numpy.sin(2*theta_r)*numpy.tan(graze)*numpy.tan(twist))/numpy.cos(twist) + \
                (numpy.cos(theta_r)*numpy.tan(graze)*numpy.tan(twist))**2
 
         row_ground = float(numpy.sqrt(k_r1*(row_ss**2) + (numpy.sin(theta_r)*col_ss/numpy.cos(twist))**2))

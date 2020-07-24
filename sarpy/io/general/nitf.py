@@ -843,8 +843,9 @@ class ImageDetails(object):
         if self._item_offset is None:
             raise ValueError('The image segment subheader_offset must be defined '
                              'before a writer can be defined.')
+        shape = (self.rows, self.cols) if self._bands == 1 else (self.rows, self.cols, self._bands)
         return BIPWriter(
-            file_name, (self.rows, self.cols), self._dtype,
+            file_name, shape, self._dtype,
             self._complex_type, data_offset=self.item_offset)
 
 
@@ -1486,7 +1487,7 @@ class NITFWriter(AbstractWriter):
                 if not img_details.image_written:
                     logging.critical("This NITF file in not completely written and will be corrupt. "
                                      "Image segment {} has only written {} "
-                                     "or {}".format(i, img_details.pixels_written, img_details.total_pixels))
+                                     "of {}".format(i, img_details.pixels_written, img_details.total_pixels))
         # ensure that all data extensions are fully written
         if self.des_details is not None:
             for i, des_detail in enumerate(self.des_details):

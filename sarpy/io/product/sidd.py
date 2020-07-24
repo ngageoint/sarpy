@@ -253,8 +253,9 @@ class SIDDReader(NITFReader):
             raise ValueError(
                 'The input file passed in appears to be a NITF 2.1 file that does not contain '
                 'valid sidd metadata.')
-        super(SIDDReader, self).__init__(nitf_details, is_sicd_type=False)
+        self._nitf_details = nitf_details
         self._sidd_meta = self.nitf_details.sidd_meta
+        super(SIDDReader, self).__init__(nitf_details, is_sicd_type=False)
 
     @property
     def nitf_details(self):
@@ -317,11 +318,11 @@ class SIDDReader(NITFReader):
             # determine dtype
             if lut is None:
                 if abpp == 8:
-                    dtype = numpy.dtype('>uint8')
+                    dtype = numpy.dtype('>u1')
                 else:
-                    dtype = numpy.dtype('>uint16')
+                    dtype = numpy.dtype('>u2')
             else:
-                dtype = numpy.dtype('>uint8')
+                dtype = numpy.dtype('>u1')
 
             if i == 0:
                 this_dtype = dtype
@@ -354,7 +355,7 @@ class SIDDReader(NITFReader):
         complex_type = False if lut is None else rgb_lut_conversion(lut)
         return MultiSegmentChipper(
             self.file_name, bounds, offsets, dtype,
-            symmetry=(False, False, False), complex_type=complex_type, bands_ip=bands)
+            symmetry=(False, False, False), complex_type=complex_type, bands_ip=bands, datatype_out=dtype)
 
 
 def validate_sidd_for_writing(sidd_meta):
@@ -367,7 +368,7 @@ def validate_sidd_for_writing(sidd_meta):
 
     Returns
     -------
-    Tuple[SIDDType, SIDDType1]
+    Tuple[Union[SIDDType, SIDDType1]]
     """
 
     def inspect_sidd(the_sidd):
@@ -393,7 +394,7 @@ def validate_sidd_for_writing(sidd_meta):
         # we must have collection time
         if the_sidd.ExploitationFeatures is None:
             raise ValueError('The sidd_meta has un-populated ExploitationFeatures.')
-        if the_sidd.ExploitationFeatures.Collections is None or the_sidd.ExploitationFeatures.Collections.size == 0:
+        if the_sidd.ExploitationFeatures.Collections is None or len(the_sidd.ExploitationFeatures.Collections) == 0:
             raise ValueError('The sidd_meta has un-populated ExploitationFeatures.Collections.')
         if the_sidd.ExploitationFeatures.Collections[0].Information is None:
             raise ValueError('The sidd_meta has un-populated ExploitationFeatures.Collections.Information.')
@@ -517,8 +518,9 @@ class SIDDWriter(NITFWriter):
         sicd_meta : SICDType|List[SICDType]
         """
 
+        self._shapes = None
         self._sidd_meta = validate_sidd_for_writing(sidd_meta)
-        # self._shapes = ((self.sicd_meta.ImageData.NumRows, self.sicd_meta.ImageData.NumCols), )
+        self._set_shapes()
         self._sicd_meta = validate_sicd_for_writing(sicd_meta)
         self._security_tags = None
         self._nitf_header = None
@@ -542,6 +544,12 @@ class SIDDWriter(NITFWriter):
         """
 
         return self._sicd_meta
+
+    def _set_shapes(self):
+        if isinstance(self._sidd_meta, tuple):
+            self._shapes = tuple((entry.Measurement.PixelFootprint.Row, entry.Measurement.PixelFootprint.Col) for entry in self._sidd_meta)
+        else:
+            self._shapes = ((self._sidd_meta.Measurement.PixelFootprint.Row, self._sidd_meta.Measurement.PixelFootprint.Col), )
 
     def _get_security_tags(self, index):
         """
@@ -640,6 +648,7 @@ class SIDDWriter(NITFWriter):
             dtype - the data type.
             complex_type -
             pv_type - the pixel type string.
+            band_count - the number of bands
             irepband - the image representation.
             im_segments - Segmentation of the form `((row start, row end, column start, column end))`
         """
@@ -653,6 +662,7 @@ class SIDDWriter(NITFWriter):
             dtype = numpy.dtype('>u1')
             complex_type = False
             pv_type = 'INT'
+            band_count = 1
             irepband = ('M', )
         elif sidd.Display.PixelType == 'MONO16I':
             pixel_size = 2
@@ -661,6 +671,7 @@ class SIDDWriter(NITFWriter):
             dtype = numpy.dtype('>u1')
             complex_type = False
             pv_type = 'INT'
+            band_count = 1
             irepband = ('M', )
         elif sidd.Display.PixelType == 'RGB24I':
             pixel_size = 3
@@ -669,13 +680,14 @@ class SIDDWriter(NITFWriter):
             dtype = numpy.dtype('>u1')
             complex_type = False
             pv_type = 'INT'
+            band_count = 3
             irepband = ('R', 'G', 'B')
         else:
             raise ValueError('Unsupported PixelType {}'.format(sidd.Display.PixelType))
 
         image_segment_limits = image_segmentation(
             sidd.Measurement.PixelFootprint.Row, sidd.Measurement.PixelFootprint.Col, pixel_size)
-        return pixel_size, abpp, irep, dtype, complex_type, pv_type, irepband, image_segment_limits
+        return pixel_size, abpp, irep, dtype, complex_type, pv_type, band_count, irepband, image_segment_limits
 
     @staticmethod
     def _get_icp(sidd):
@@ -701,7 +713,7 @@ class SIDDWriter(NITFWriter):
 
     def _create_image_segment(self, index, img_groups, img_details):
         cur_count = len(img_details)
-        pixel_size, abpp, irep, dtype, complex_type, pv_type, irepband, \
+        pixel_size, abpp, irep, dtype, complex_type, pv_type, band_count, irepband, \
             image_segment_limits = self._image_parameters(index)
         new_count = len(image_segment_limits)
         img_groups.append(tuple(range(cur_count, cur_count+new_count)))
@@ -746,7 +758,7 @@ class SIDDWriter(NITFWriter):
                 ILOC='{0:05d}{1:05d}'.format(entry[0], entry[2]),
                 Bands=ImageBands(values=bands),
                 Security=security)
-            img_details.append(ImageDetails(1, dtype, complex_type, entry, subhead))
+            img_details.append(ImageDetails(band_count, dtype, complex_type, entry, subhead))
 
     def _create_image_segment_details(self):
         super(SIDDWriter, self)._create_image_segment_details()
