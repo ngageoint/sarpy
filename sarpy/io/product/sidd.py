@@ -4,6 +4,7 @@ Module for reading and writing SIDD files - should support SIDD version 1.0 and 
 """
 
 import logging
+import sys
 from functools import reduce
 from datetime import datetime
 import re
@@ -227,6 +228,16 @@ def rgb_lut_conversion(lookup_table):
     return converter
 
 
+def _check_iid_format(iid1, i):
+    if sys.version_info[0] > 2:
+        if not (iid1[:4] == 'SIDD' and iid1[4:].isnumeric()):
+            raise ValueError('Got poorly formatted image segment id {} at position {}'.format(iid1, i))
+    else:
+        # noinspection PyUnresolvedReferences
+        if not (iid1[:4] == 'SIDD' and unicode(iid1[4:]).isnumeric()):
+            raise ValueError('Got poorly formatted image segment id {} at position {}'.format(iid1, i))
+
+
 class SIDDReader(NITFReader):
     """
     A reader object for a SIDD file (NITF container with SICD contents)
@@ -283,8 +294,7 @@ class SIDDReader(NITFReader):
                 continue
 
             iid1 = img_header.IID1  # required to be of the form SIDD######
-            if not (iid1[:4] == 'SIDD' and iid1[4:].isnumeric()):
-                raise ValueError('Got poorly formatted image segment id {} at position {}'.format(iid1, i))
+            _check_iid_format(iid1, i)
             element = int_func(iid1[4:7])
             if element > len(self._sidd_meta):
                 raise ValueError('Got image segment id {}, but there are only {} '
