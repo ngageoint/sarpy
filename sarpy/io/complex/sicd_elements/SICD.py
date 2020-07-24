@@ -987,6 +987,7 @@ class SICDType(Serializable):
         out = super(SICDType, self).copy()
         if hasattr(self, '_NITF'):
             out._NITF = copy.deepcopy(self._NITF)
+        out.derive()
         return out
 
     def to_xml_bytes(self, urn=None, tag=None, check_validity=False, strict=DEFAULT_STRICT):
