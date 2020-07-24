@@ -67,12 +67,12 @@ def frame_definition(array_size, frame_count=9, aperture_fraction=0.2, fill=1, m
     step = 0 if frame_count == 1 else \
         int_func(numpy.floor((processing_size - subaperture_size)/float(frame_count-1)))
 
-    if method == 'MINIMAL':
-        output_resolution = int_func(numpy.ceil(processing_size/float(frame_count)))
-    elif method == 'FULLPIXEL':
-        output_resolution = array_size
-    elif method == 'NORMAL':
+    if method == 'NORMAL':
         output_resolution = int_func(numpy.ceil(aperture_fraction*array_size))
+    elif method == 'FULL':
+        output_resolution = array_size
+    elif method == 'MINIMAL':
+        output_resolution = int_func(numpy.ceil(processing_size/float(frame_count)))
     else:
         raise ValueError('Got unhandled method {}'.format(method))
 
