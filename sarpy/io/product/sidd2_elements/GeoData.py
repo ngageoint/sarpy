@@ -9,7 +9,7 @@ from xml.etree import ElementTree
 import copy
 
 # noinspection PyProtectedMember
-from ...complex.sicd_elements.base import Serializable, SerializableArray, SerializableCPArray, \
+from sarpy.io.complex.sicd_elements.base import Serializable, SerializableArray, SerializableCPArray, \
     _SerializableArrayDescriptor, _SerializableCPArrayDescriptor, _StringEnumDescriptor, \
     _find_children
 from .base import DEFAULT_STRICT
@@ -133,26 +133,6 @@ class GeoDataType(Serializable):
             self._GeoInfos.append(value)
         else:
             raise TypeError('Trying to set GeoInfo element with unexpected type {}'.format(type(value)))
-
-    @classmethod
-    def fromGeoData(cls, GeoData):
-        """
-        Extract necessary information from a SICD.GeoData to create a corresponding SIDD.GeoData.
-
-        Parameters
-        ----------
-        GeoData : sarpy.io.complex.sicd_elements.GeoData.GeoDataType
-
-        Returns
-        -------
-        GeoDataType
-        """
-
-        data = copy.deepcopy(GeoData.to_dict())
-        return cls(EarthModel=data.get('EarthModel', None),
-                   ImageCorners=data.get('ImageCorners', None),
-                   ValidData=data.get('ValidData', None),
-                   GeoInfos=data.get('GeoInfos', None))
 
     @classmethod
     def from_node(cls, node, xml_ns, ns_key=None, kwargs=None):

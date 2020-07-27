@@ -6,9 +6,9 @@ The SRP definition for CPHD 0.3.
 from typing import Union
 
 from sarpy.compliance import integer_types
-from ..cphd1_elements.base import DEFAULT_STRICT
+from sarpy.io.phase_history.cphd1_elements.base import DEFAULT_STRICT
 # noinspection PyProtectedMember
-from ...complex.sicd_elements.base import Serializable, _SerializableDescriptor, \
+from sarpy.io.complex.sicd_elements.base import Serializable, _SerializableDescriptor, \
     _IntegerEnumDescriptor
 
 

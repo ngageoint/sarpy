@@ -13,10 +13,10 @@ import logging
 from typing import Union, List, Tuple
 
 from sarpy.compliance import int_func
-from ..general.base import BaseReader
-from .sicd import SICDWriter
-from .sio import SIOWriter
-from .sicd_elements.SICD import SICDType
+from sarpy.io.general.base import BaseReader
+from sarpy.io.complex.sicd import SICDWriter
+from sarpy.io.complex.sio import SIOWriter
+from sarpy.io.complex.sicd_elements.SICD import SICDType
 
 
 __classification__ = "UNCLASSIFIED"

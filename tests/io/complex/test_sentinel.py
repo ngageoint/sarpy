@@ -3,7 +3,12 @@ import time
 import logging
 import numpy
 
-from . import unittest
+import sys
+if sys.version_info[0] < 3:
+    # so we can use subtests, which is pretty handy
+    import unittest2 as unittest
+else:
+    import unittest
 
 from sarpy.io.complex.sentinel import SentinelReader
 from sarpy.deprecated.io.complex.sentinel import Reader as DepReader

@@ -8,7 +8,7 @@ from typing import Union
 import numpy
 
 # noinspection PyProtectedMember
-from ...complex.sicd_elements.base import Serializable, DEFAULT_STRICT, _StringDescriptor, \
+from sarpy.io.complex.sicd_elements.base import Serializable, DEFAULT_STRICT, _StringDescriptor, \
     _DateTimeDescriptor, _ParametersDescriptor, ParametersCollection, \
     _SerializableListDescriptor
 

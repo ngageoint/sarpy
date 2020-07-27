@@ -15,27 +15,27 @@ from numpy.polynomial import polynomial
 from scipy.constants import speed_of_light
 
 from sarpy.compliance import string_types
-from ..general.base import BaseReader
-from ..general.tiff import TiffDetails, TiffReader
-from ..general.utils import get_seconds, parse_timestring
+from sarpy.io.general.base import BaseReader
+from sarpy.io.general.tiff import TiffDetails, TiffReader
+from sarpy.io.general.utils import get_seconds, parse_timestring
 
-from .sicd_elements.blocks import Poly1DType, Poly2DType
-from .sicd_elements.SICD import SICDType
-from .sicd_elements.CollectionInfo import CollectionInfoType, RadarModeType
-from .sicd_elements.ImageCreation import ImageCreationType
-from .sicd_elements.ImageData import ImageDataType
-from .sicd_elements.GeoData import GeoDataType, SCPType
-from .sicd_elements.Position import PositionType, XYZPolyType
-from .sicd_elements.Grid import GridType, DirParamType, WgtTypeType
-from .sicd_elements.RadarCollection import RadarCollectionType, WaveformParametersType, \
+from sarpy.io.complex.sicd_elements.blocks import Poly1DType, Poly2DType
+from sarpy.io.complex.sicd_elements.SICD import SICDType
+from sarpy.io.complex.sicd_elements.CollectionInfo import CollectionInfoType, RadarModeType
+from sarpy.io.complex.sicd_elements.ImageCreation import ImageCreationType
+from sarpy.io.complex.sicd_elements.ImageData import ImageDataType
+from sarpy.io.complex.sicd_elements.GeoData import GeoDataType, SCPType
+from sarpy.io.complex.sicd_elements.Position import PositionType, XYZPolyType
+from sarpy.io.complex.sicd_elements.Grid import GridType, DirParamType, WgtTypeType
+from sarpy.io.complex.sicd_elements.RadarCollection import RadarCollectionType, WaveformParametersType, \
     TxFrequencyType, ChanParametersType, TxStepType
-from .sicd_elements.Timeline import TimelineType, IPPSetType
-from .sicd_elements.ImageFormation import ImageFormationType, RcvChanProcType, TxFrequencyProcType
-from .sicd_elements.RMA import RMAType, INCAType
-from .sicd_elements.SCPCOA import SCPCOAType
-from .sicd_elements.Radiometric import RadiometricType, NoiseLevelType_
-from ...geometry import point_projection
-from .utils import fit_time_coa_polynomial, fit_position_xvalidation
+from sarpy.io.complex.sicd_elements.Timeline import TimelineType, IPPSetType
+from sarpy.io.complex.sicd_elements.ImageFormation import ImageFormationType, RcvChanProcType, TxFrequencyProcType
+from sarpy.io.complex.sicd_elements.RMA import RMAType, INCAType
+from sarpy.io.complex.sicd_elements.SCPCOA import SCPCOAType
+from sarpy.io.complex.sicd_elements.Radiometric import RadiometricType, NoiseLevelType_
+from sarpy.geometry import point_projection
+from sarpy.io.complex.utils import fit_time_coa_polynomial, fit_position_xvalidation
 
 __classification__ = "UNCLASSIFIED"
 __author__ = ("Thomas McCullough", "Khanh Ho", "Wade Schwartzkopf")
@@ -109,21 +109,17 @@ class RadarSatDetails(object):
             raise IOError('The radarsat or rcm file is expected to be named product.xml, got path {}'.format(file_name))
 
         self._file_name = file_name
+        self._root_node = _parse_xml(file_name, without_ns=True)
 
-        ns = dict([node for event, node in ElementTree.iterparse(file_name, events=('start-ns', ))])
-        ns['default'] = ns.get('')
-        root_node = ElementTree.parse(file_name).getroot()
-        self._satellite = root_node.find('./default:sourceAttributes/default:satellite', ns).text.upper()
-        self._product_type = root_node.find(
-            './default:imageGenerationParameters'
-            '/default:generalProcessingInformation'
-            '/default:productType', ns).text.upper()
+        sat_node = self._root_node.find('./sourceAttributes/satellite')
+        self._satellite = 'None' if sat_node is None else sat_node.text.upper()
+        product_node = self._root_node.find(
+            './imageGenerationParameters/generalProcessingInformation/productType')
+        self._product_type = 'None' if product_node is None else product_node.text.upper()
         if not ((self._satellite == 'RADARSAT-2' or self._satellite.startswith('RCM'))
                 and self._product_type == 'SLC'):
             raise IOError('File {} does not appear to be an SLC product for a RADARSAT-2 '
                           'or RCM mission.'.format(self._file_name))
-        # this is a radarsat file. Let's junk the default namespace.
-        self._root_node = _parse_xml(file_name, without_ns=True)
 
     @property
     def file_name(self):

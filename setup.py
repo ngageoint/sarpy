@@ -37,6 +37,15 @@ if sys.version_info[0] < 3:
     # unittest2 only for Python2.7, we rely on subTest usage
     install_requires.append('typing')
 
+def my_test_suite():
+    if sys.version_info[0] < 3:
+        import unittest2 as unittest
+    else:
+        import unittest
+    test_loader = unittest.TestLoader()
+    test_suite = test_loader.discover('tests', top_level_dir='.')
+    return test_suite
+
 setup(name=parameters['__title__'],
       version=parameters['__version__'],
       description=parameters['__summary__'],
@@ -52,7 +61,7 @@ setup(name=parameters['__title__'],
         'csk':  ['h5py', ],
       },
       zip_safe=False,  # Use of __file__ and __path__ in some code makes it unusable from zip
-      test_suite="tests",
+      test_suite="setup.my_test_suite",
       tests_require=tests_require,
       classifiers=[
           'Development Status :: 4 - Beta',

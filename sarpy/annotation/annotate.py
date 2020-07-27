@@ -12,8 +12,8 @@ import json
 from typing import Union, List
 
 # noinspection PyProtectedMember
-from ..geometry.geometry_elements import _Jsonable, FeatureList, Feature
-from .schema_processing import LabelSchema
+from sarpy.geometry.geometry_elements import _Jsonable, FeatureList, Feature
+from sarpy.annotation.schema_processing import LabelSchema
 
 
 class AnnotationMetadata(_Jsonable):

@@ -13,18 +13,18 @@ import re
 import numpy
 
 from sarpy.compliance import int_func
-from .base import BaseReader, AbstractWriter
-from .bip import BIPWriter
+from sarpy.io.general.base import BaseReader, AbstractWriter
+from sarpy.io.general.bip import BIPWriter
 # noinspection PyProtectedMember
-from .nitf_elements.nitf_head import NITFHeader, ImageSegmentsType, \
+from sarpy.io.general.nitf_elements.nitf_head import NITFHeader, ImageSegmentsType, \
     DataExtensionsType, _ItemArrayHeaders
-from .nitf_elements.text import TextSegmentHeader
-from .nitf_elements.graphics import GraphicsSegmentHeader
-from .nitf_elements.res import ReservedExtensionHeader
-from .nitf_elements.security import NITFSecurityTags
-from .nitf_elements.image import ImageSegmentHeader
-from .nitf_elements.des import DataExtensionHeader
-from ..complex.sicd_elements.blocks import LatLonType
+from sarpy.io.general.nitf_elements.text import TextSegmentHeader
+from sarpy.io.general.nitf_elements.graphics import GraphicsSegmentHeader
+from sarpy.io.general.nitf_elements.res import ReservedExtensionHeader
+from sarpy.io.general.nitf_elements.security import NITFSecurityTags
+from sarpy.io.general.nitf_elements.image import ImageSegmentHeader
+from sarpy.io.general.nitf_elements.des import DataExtensionHeader
+from sarpy.io.complex.sicd_elements.blocks import LatLonType
 from sarpy.geometry.geocoords import ecf_to_geodetic, geodetic_to_ecf
 
 
@@ -843,8 +843,9 @@ class ImageDetails(object):
         if self._item_offset is None:
             raise ValueError('The image segment subheader_offset must be defined '
                              'before a writer can be defined.')
+        shape = (self.rows, self.cols) if self._bands == 1 else (self.rows, self.cols, self._bands)
         return BIPWriter(
-            file_name, (self.rows, self.cols), self._dtype,
+            file_name, shape, self._dtype,
             self._complex_type, data_offset=self.item_offset)
 
 
@@ -1486,7 +1487,7 @@ class NITFWriter(AbstractWriter):
                 if not img_details.image_written:
                     logging.critical("This NITF file in not completely written and will be corrupt. "
                                      "Image segment {} has only written {} "
-                                     "or {}".format(i, img_details.pixels_written, img_details.total_pixels))
+                                     "of {}".format(i, img_details.pixels_written, img_details.total_pixels))
         # ensure that all data extensions are fully written
         if self.des_details is not None:
             for i, des_detail in enumerate(self.des_details):

@@ -12,22 +12,22 @@ from collections import OrderedDict
 from scipy.constants import speed_of_light
 import numpy
 
-from ..general.base import BaseReader
-from ..general.tiff import TiffDetails, NativeTiffChipper
-from ..general.utils import parse_timestring, get_seconds, string_types
-from .utils import fit_position_xvalidation
-from .sicd_elements.blocks import XYZPolyType
-from .sicd_elements.SICD import SICDType
-from .sicd_elements.CollectionInfo import CollectionInfoType, RadarModeType
-from .sicd_elements.ImageCreation import ImageCreationType
-from .sicd_elements.ImageData import ImageDataType
-from .sicd_elements.GeoData import GeoDataType, SCPType
-from .sicd_elements.Position import PositionType
-from .sicd_elements.Grid import GridType, DirParamType, WgtTypeType
-from .sicd_elements.RadarCollection import RadarCollectionType, \
+from sarpy.io.general.base import BaseReader
+from sarpy.io.general.tiff import TiffDetails, NativeTiffChipper
+from sarpy.io.general.utils import parse_timestring, get_seconds, string_types
+from sarpy.io.complex.utils import fit_position_xvalidation
+from sarpy.io.complex.sicd_elements.blocks import XYZPolyType
+from sarpy.io.complex.sicd_elements.SICD import SICDType
+from sarpy.io.complex.sicd_elements.CollectionInfo import CollectionInfoType, RadarModeType
+from sarpy.io.complex.sicd_elements.ImageCreation import ImageCreationType
+from sarpy.io.complex.sicd_elements.ImageData import ImageDataType
+from sarpy.io.complex.sicd_elements.GeoData import GeoDataType, SCPType
+from sarpy.io.complex.sicd_elements.Position import PositionType
+from sarpy.io.complex.sicd_elements.Grid import GridType, DirParamType, WgtTypeType
+from sarpy.io.complex.sicd_elements.RadarCollection import RadarCollectionType, \
     WaveformParametersType, TxFrequencyType, ChanParametersType
-from .sicd_elements.Timeline import TimelineType, IPPSetType
-from .sicd_elements.ImageFormation import ImageFormationType, RcvChanProcType, \
+from sarpy.io.complex.sicd_elements.Timeline import TimelineType, IPPSetType
+from sarpy.io.complex.sicd_elements.ImageFormation import ImageFormationType, RcvChanProcType, \
     TxFrequencyProcType, ProcessingType
 
 

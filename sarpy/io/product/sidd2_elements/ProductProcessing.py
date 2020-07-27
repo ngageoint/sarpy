@@ -10,7 +10,7 @@ from typing import List
 from .base import DEFAULT_STRICT
 
 # noinspection PyProtectedMember
-from ...complex.sicd_elements.base import Serializable, _ParametersDescriptor, ParametersCollection, \
+from sarpy.io.complex.sicd_elements.base import Serializable, _ParametersDescriptor, ParametersCollection, \
     _StringDescriptor, _find_children, _find_first_child, _get_node_value, _create_text_node
 
 __classification__ = "UNCLASSIFIED"

@@ -2,7 +2,12 @@ import os
 import time
 import logging
 
-from . import unittest
+import sys
+if sys.version_info[0] < 3:
+    # so we can use subtests, which is pretty handy
+    import unittest2 as unittest
+else:
+    import unittest
 
 from sarpy.io.complex.sicd import SICDDetails, SICDReader
 from sarpy.io.complex.converter import open_complex

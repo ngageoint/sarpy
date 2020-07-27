@@ -25,7 +25,7 @@ def get_remap_list():
     # will have to manually add them to this list as well.  However, we don't
     # have to do anything if we are just adding more remap functions.
     names_nonremap_funs = [
-        'get_remap_list', 'amplitude_to_density', '_clip_cast', 'linear_discretization']
+        'get_remap_list', 'amplitude_to_density', 'clip_cast', 'linear_discretization']
     # Get all functions from this module
     all_funs = getmembers(sys.modules[__name__], isfunction)
     # all_funs is list of (function name, function object) tuples.  fun[0] is name.
@@ -65,8 +65,7 @@ def amplitude_to_density(a, dmin=30, mmult=40, data_mean=None):
         return (m * numpy.log10(numpy.maximum(a, EPS))) + b
 
 
-# Does Python not have a builtin way to do this fundamental operation???
-def _clip_cast(x, dtype='uint8'):
+def clip_cast(x, dtype='uint8'):
     """
     Cast by clipping values outside of valid range, rather than wrapping.
 
@@ -81,7 +80,7 @@ def _clip_cast(x, dtype='uint8'):
     """
 
     np_type = numpy.dtype(dtype)
-    return numpy.clip(x, numpy.iinfo(np_type).min, numpy.iinfo(np_type).max).astype(dtype)
+    return numpy.clip(x, numpy.iinfo(np_type).min, numpy.iinfo(np_type).max).astype(np_type)
 
 
 def density(x):
@@ -97,7 +96,7 @@ def density(x):
     numpy.ndarray
     """
 
-    return _clip_cast(amplitude_to_density(x))
+    return clip_cast(amplitude_to_density(x))
 
 
 def brighter(x):
@@ -113,7 +112,7 @@ def brighter(x):
     numpy.ndarray
     """
 
-    return _clip_cast(amplitude_to_density(x, 60, 40))
+    return clip_cast(amplitude_to_density(x, 60, 40))
 
 
 def darker(x):
@@ -129,7 +128,7 @@ def darker(x):
     numpy.ndarray
     """
 
-    return _clip_cast(amplitude_to_density(x, 0, 40))
+    return clip_cast(amplitude_to_density(x, 0, 40))
 
 
 def highcontrast(x):
@@ -145,7 +144,7 @@ def highcontrast(x):
     numpy.ndarray
     """
 
-    return _clip_cast(amplitude_to_density(x, 30, 4))
+    return clip_cast(amplitude_to_density(x, 30, 4))
 
 
 def linear(x):
@@ -200,7 +199,7 @@ def pedf(x):
 
     out = amplitude_to_density(x)
     out[out > 128] = 0.5 * (out[out > 128] + 128)
-    return _clip_cast(out)
+    return clip_cast(out)
 
 
 def nrl(x, a=1, c=220):
