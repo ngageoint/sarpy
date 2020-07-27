@@ -109,21 +109,17 @@ class RadarSatDetails(object):
             raise IOError('The radarsat or rcm file is expected to be named product.xml, got path {}'.format(file_name))
 
         self._file_name = file_name
+        self._root_node = _parse_xml(file_name, without_ns=True)
 
-        ns = dict([node for event, node in ElementTree.iterparse(file_name, events=('start-ns', ))])
-        ns['default'] = ns.get('')
-        root_node = ElementTree.parse(file_name).getroot()
-        self._satellite = root_node.find('./default:sourceAttributes/default:satellite', ns).text.upper()
-        self._product_type = root_node.find(
-            './default:imageGenerationParameters'
-            '/default:generalProcessingInformation'
-            '/default:productType', ns).text.upper()
+        sat_node = self._root_node.find('./sourceAttributes/satellite')
+        self._satellite = 'None' if sat_node is None else sat_node.text.upper()
+        product_node = self._root_node.find(
+            './imageGenerationParameters/generalProcessingInformation/productType')
+        self._product_type = 'None' if product_node is None else product_node.text.upper()
         if not ((self._satellite == 'RADARSAT-2' or self._satellite.startswith('RCM'))
                 and self._product_type == 'SLC'):
             raise IOError('File {} does not appear to be an SLC product for a RADARSAT-2 '
                           'or RCM mission.'.format(self._file_name))
-        # this is a radarsat file. Let's junk the default namespace.
-        self._root_node = _parse_xml(file_name, without_ns=True)
 
     @property
     def file_name(self):
