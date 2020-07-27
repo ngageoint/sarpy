@@ -798,9 +798,9 @@ class SIDDWriter(NITFWriter):
         uh_args = sidd.get_des_details()
 
         try:
-            desshdt = str(sidd.ProductCreation.ProcessorInformation.ProcessingDateTime)
+            desshdt = str(sidd.ProductCreation.ProcessorInformation.ProcessingDateTime.astype('datetime64[s]'))
         except AttributeError:
-            desshdt = str(numpy.datetime64(datetime.now()))
+            desshdt = str(numpy.datetime64('now'))
         if desshdt[-1] != 'Z':
             desshdt += 'Z'
         uh_args['DESSHDT'] = desshdt
