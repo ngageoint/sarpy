@@ -230,7 +230,7 @@ class FFTCalculator(object):
                     'CSICalculator received slice argument {}. We cannot slice '
                     'on more than two dimensions.'.format(item))
             elif len(item) == 3:
-                return parse(item[0], 0), parse(item[1], 1), item[3]
+                return parse(item[0], 0), parse(item[1], 1), item[2]
             elif len(item) == 2:
                 return parse(item[0], 0), parse(item[1], 1), None
             elif len(item) == 1:

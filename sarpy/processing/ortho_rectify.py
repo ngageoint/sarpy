@@ -1090,7 +1090,7 @@ class OrthorectificationHelper(object):
     def extract_pixel_bounds(self, bounds):
         """
         Validate the bounds array of orthorectified pixel coordinates, and determine
-        the required bounds in reader pixel coordinates.
+        the required bounds in reader pixel coordinates. If the
 
         Parameters
         ----------
@@ -1135,7 +1135,7 @@ class OrthorectificationHelper(object):
         return numpy.zeros(out_shape, dtype=self.out_dtype) if self._pad_value is None else \
             numpy.full(out_shape, self._pad_value, dtype=self.out_dtype)
 
-    def _get_real_pixel_limits_and_bounds(self, pixel_bounds):
+    def get_real_pixel_bounds(self, pixel_bounds):
         """
         Fetch the real pixel limit from the nominal pixel limits - this just
         factors in the image reader extent.
@@ -1146,14 +1146,14 @@ class OrthorectificationHelper(object):
 
         Returns
         -------
-        (tuple, numpy.ndarray)
+        numpy.ndarray
         """
 
         pixel_limits = self.reader.get_data_size_as_tuple()[self.index]
         real_pix_bounds = numpy.array([
             max(0, pixel_bounds[0]), min(pixel_limits[0], pixel_bounds[1]),
             max(0, pixel_bounds[2]), min(pixel_limits[1], pixel_bounds[3])], dtype=numpy.int32)
-        return pixel_limits, real_pix_bounds
+        return real_pix_bounds
 
     def _apply_radiometric_params(self, pixel_rows, pixel_cols, value_array):
         """
@@ -1321,7 +1321,7 @@ class OrthorectificationHelper(object):
 
         ortho_bounds, nominal_pixel_bounds = self.extract_pixel_bounds(bounds)
         # extract the values - ensure that things are within proper image bounds
-        pixel_limits, pixel_bounds = self._get_real_pixel_limits_and_bounds(nominal_pixel_bounds)
+        pixel_bounds = self.get_real_pixel_bounds(nominal_pixel_bounds)
         pixel_array = self.reader[
             pixel_bounds[0]:pixel_bounds[1], pixel_bounds[2]:pixel_bounds[3], self.index]
         row_arr = numpy.arange(pixel_bounds[0], pixel_bounds[1])
@@ -1434,7 +1434,7 @@ class OrthorectificationHelper(object):
         Parameters
         ----------
         ortho_bounds : numpy.ndarray
-            Determines the orthorectified bounds reguon, of the form
+            Determines the orthorectified bounds region, of the form
             `(min row, max row, min column, max column)`.
         row_array : numpy.ndarray
             The rows of the pixel array. Must be one-dimensional, monotonically

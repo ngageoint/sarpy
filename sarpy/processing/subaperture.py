@@ -3,6 +3,7 @@
 Sub-aperture processing methods.
 """
 
+import logging
 import os
 from typing import Generator
 
@@ -277,7 +278,7 @@ class SubapertureCalculator(FFTCalculator):
                     'The last slice dimension was a numpy array which was not one-dimensional, '
                     'which is of unsupported.')
             out = the_frame.copy()
-            for i, entry in out:
+            for i, entry in enumerate(out):
                 if (entry <= -self.frame_count) or (entry >= self.frame_count):
                     raise ValueError(
                         'The last slice dimension was a numpy array, and entry {} has '
@@ -406,7 +407,7 @@ class SubapertureCalculator(FFTCalculator):
                     if len(frames) == 1:
                         out[:, result_range[0]:result_range[1]] = generator.__next__()
                     else:
-                        for i, data in generator:
+                        for i, data in enumerate(generator):
                             out[:, result_range[0]:result_range[1], i] = data
         else:
             row_block_size = self.get_fetch_block_size(col_range[0], col_range[1])
@@ -421,7 +422,7 @@ class SubapertureCalculator(FFTCalculator):
                     if len(frames) == 1:
                         out[result_range[0]:result_range[1], :] = generator.__next__()
                     else:
-                        for i, data in generator:
+                        for i, data in enumerate(generator):
                             out[result_range[0]:result_range[1], :, i] = data
         return out
 
@@ -463,8 +464,6 @@ def create_dynamic_image_sidd(
     None
     """
 
-
-
     if not os.path.isdir(output_directory):
         raise IOError('output_directory {} does not exist or is not a directory'.format(output_directory))
 
@@ -486,6 +485,13 @@ def create_dynamic_image_sidd(
                 ortho_helper.get_orthorectified_from_array(these_ortho_bounds, this_row_array, this_col_array, this_subap_data),
                 data_mean=the_mean),
             dtype='uint8')
+
+    def log_progress(t_ortho_bounds, t_index):
+        logging.info('Writing pixels ({}:{}, {}:{}) of ({}, {}) for index '
+                     '{} of {}'.format(t_ortho_bounds[0]-ortho_bounds[0], t_ortho_bounds[1]-ortho_bounds[0],
+                                       t_ortho_bounds[2] - ortho_bounds[2], t_ortho_bounds[3] - ortho_bounds[2],
+                                       ortho_bounds[1] - ortho_bounds[0], ortho_bounds[3] - ortho_bounds[2],
+                                       t_index+1, subap_calculator.frame_count))
 
     reader = ortho_helper.reader
     index = ortho_helper.index
@@ -521,7 +527,7 @@ def create_dynamic_image_sidd(
         full_filename = os.path.join(output_directory, sidd_structure._NITF['SUGGESTED_NAME']+'.nitf')
     else:
         full_filename = os.path.join(output_directory, output_file)
-    if os.path.expanduser(full_filename):
+    if os.path.exists(os.path.expanduser(full_filename)):
         raise IOError('File {} already exists.'.format(full_filename))
     writer = SIDDWriter(full_filename, the_sidds, subap_calculator.sicd)
 
@@ -536,11 +542,14 @@ def create_dynamic_image_sidd(
             # determine the corresponding pixel ranges to encompass these values
             this_ortho_bounds, this_pixel_bounds = ortho_helper.extract_pixel_bounds(
                 (ortho_bounds[0], ortho_bounds[1], this_column_range[0], this_column_range[1]))
+            # accommodate for real pixel limits
+            this_pixel_bounds = ortho_helper.get_real_pixel_bounds(this_pixel_bounds)
             # create the subaperture generator
             pixel_row_range, pixel_col_range, row_array, col_array = get_pixel_data(this_pixel_bounds)
             start_indices = (this_ortho_bounds[0] - ortho_bounds[0],
                              this_ortho_bounds[2] - ortho_bounds[2])
             for i, subap_data in enumerate(subap_calculator.subaperture_generator(pixel_row_range, pixel_col_range)):
+                log_progress(this_ortho_bounds, i)
                 ortho_subap_data = get_orthorectified_version(this_ortho_bounds, row_array, col_array, subap_data)
                 writer(ortho_subap_data, start_indices=start_indices, index=i)
     else:
@@ -552,10 +561,13 @@ def create_dynamic_image_sidd(
             # determine the corresponding pixel ranges to encompass these values
             this_ortho_bounds, this_pixel_bounds = ortho_helper.extract_pixel_bounds(
                 (this_row_range[0], this_row_range[1], ortho_bounds[2], ortho_bounds[3]))
+            # accommodate for real pixel limits
+            this_pixel_bounds = ortho_helper.get_real_pixel_bounds(this_pixel_bounds)
             # create the subaperture generator
             pixel_row_range, pixel_col_range, row_array, col_array = get_pixel_data(this_pixel_bounds)
             start_indices = (this_ortho_bounds[0] - ortho_bounds[0],
                              this_ortho_bounds[2] - ortho_bounds[2])
             for i, subap_data in enumerate(subap_calculator.subaperture_generator(pixel_row_range, pixel_col_range)):
+                log_progress(this_ortho_bounds, i)
                 ortho_subap_data = get_orthorectified_version(this_ortho_bounds, row_array, col_array, subap_data)
                 writer(ortho_subap_data, start_indices=start_indices, index=i)

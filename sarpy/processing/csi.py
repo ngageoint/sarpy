@@ -37,6 +37,7 @@ data which must be fetched and/or processing which must be performed.
 >>> pyplot.show()
 """
 
+import logging
 import os
 import numpy
 
@@ -429,6 +430,12 @@ def create_csi_sidd(
                 data_mean=the_mean),
             dtype='uint8')
 
+    def log_progress(t_ortho_bounds):
+        logging.info('Writing pixels ({}:{}, {}:{}) of ({}, {})'.format(
+            t_ortho_bounds[0]-ortho_bounds[0], t_ortho_bounds[1]-ortho_bounds[0],
+            t_ortho_bounds[2] - ortho_bounds[2], t_ortho_bounds[3] - ortho_bounds[2],
+            ortho_bounds[1] - ortho_bounds[0], ortho_bounds[3] - ortho_bounds[2]))
+
     reader = ortho_helper.reader
     index = ortho_helper.index
 
@@ -443,7 +450,6 @@ def create_csi_sidd(
     ortho_bounds = ortho_helper.get_orthorectification_bounds_from_pixel_object(pixel_rectangle)
     # Extract the mean of the data magnitude - for global remap usage
     the_mean = csi_calculator.get_data_mean_magnitude(bounds)
-    print('ortho bounds = {}'.format(ortho_bounds))
 
     # create the sidd structure
     sidd_structure = create_sidd(
@@ -473,6 +479,8 @@ def create_csi_sidd(
             # determine the corresponding pixel ranges to encompass these values
             this_ortho_bounds, this_pixel_bounds = ortho_helper.extract_pixel_bounds(
                 (ortho_bounds[0], ortho_bounds[1], this_column_range[0], this_column_range[1]))
+            # accommodate for real pixel limits
+            this_pixel_bounds = ortho_helper.get_real_pixel_bounds(this_pixel_bounds)
             # extract the csi data and ortho-rectify
             ortho_csi_data = get_orthorectified_version(
                 this_ortho_bounds, this_pixel_bounds,
@@ -480,7 +488,7 @@ def create_csi_sidd(
             # write out to the file
             start_indices = (this_ortho_bounds[0] - ortho_bounds[0],
                              this_ortho_bounds[2] - ortho_bounds[2])
-            # TODO: verify that we don't run off the end
+            log_progress(this_ortho_bounds)
             writer(ortho_csi_data, start_indices=start_indices, index=0)
     else:
         # we are using the full resolution column data
@@ -493,6 +501,8 @@ def create_csi_sidd(
             # determine the corresponding pixel ranges to encompass these values
             this_ortho_bounds, this_pixel_bounds = ortho_helper.extract_pixel_bounds(
                 (this_row_range[0], this_row_range[1], ortho_bounds[2], ortho_bounds[3]))
+            # accommodate for real pixel limits
+            this_pixel_bounds = ortho_helper.get_real_pixel_bounds(this_pixel_bounds)
             # extract the csi data and ortho-rectify
             ortho_csi_data = get_orthorectified_version(
                 this_ortho_bounds, this_pixel_bounds,
@@ -500,5 +510,5 @@ def create_csi_sidd(
             # write out to the file
             start_indices = (this_ortho_bounds[0] - ortho_bounds[0],
                              this_ortho_bounds[2] - ortho_bounds[2])
-            # TODO: verify that we don't run off the end
+            log_progress(this_ortho_bounds)
             writer(ortho_csi_data, start_indices=start_indices, index=0)
