@@ -9,7 +9,7 @@ import numpy
 
 from .base import DEFAULT_STRICT
 # noinspection PyProtectedMember
-from ...complex.sicd_elements.base import Serializable, Arrayable, _FloatDescriptor, \
+from sarpy.io.complex.sicd_elements.base import Serializable, Arrayable, _FloatDescriptor, \
     _DateTimeDescriptor, _StringEnumDescriptor, _IntegerEnumDescriptor, \
     _SerializableDescriptor
 

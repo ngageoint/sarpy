@@ -8,7 +8,7 @@ from typing import List
 
 from sarpy.compliance import int_func, integer_types
 from . import _argument_validation
-from .geoid import GeoidHeight, find_geoid_file_from_dir
+from sarpy.io.DEM.geoid import GeoidHeight, find_geoid_file_from_dir
 
 
 __classification__ = "UNCLASSIFIED"

@@ -10,7 +10,7 @@ from .blocks import ReferencePointType, RowColDoubleType, Poly2DType, XYZType, R
     XYZPolyType, RowColArrayElement
 
 # noinspection PyProtectedMember
-from ...complex.sicd_elements.base import Serializable, _SerializableDescriptor, _UnitVectorDescriptor, \
+from sarpy.io.complex.sicd_elements.base import Serializable, _SerializableDescriptor, _UnitVectorDescriptor, \
     _FloatDescriptor, _StringEnumDescriptor, SerializableArray, _SerializableArrayDescriptor
 
 

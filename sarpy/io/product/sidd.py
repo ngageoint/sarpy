@@ -12,17 +12,17 @@ import re
 import numpy
 
 from sarpy.compliance import int_func, string_types
-from ..general.utils import parse_xml_from_string
-from ..general.nitf import NITFReader, NITFWriter, ImageDetails, DESDetails, \
+from sarpy.io.general.utils import parse_xml_from_string
+from sarpy.io.general.nitf import NITFReader, NITFWriter, ImageDetails, DESDetails, \
     image_segmentation, get_npp_block, interpolate_corner_points_string
-from ..general.nitf import NITFDetails
-from ..general.nitf_elements.des import DataExtensionHeader, XMLDESSubheader
-from ..general.nitf_elements.security import NITFSecurityTags
-from ..general.nitf_elements.image import ImageSegmentHeader, ImageBands, ImageBand
-from .sidd2_elements.SIDD import SIDDType
-from .sidd1_elements.SIDD import SIDDType as SIDDType1
-from ..complex.sicd_elements.SICD import SICDType
-from ..complex.sicd import MultiSegmentChipper, extract_clas as extract_clas_sicd
+from sarpy.io.general.nitf import NITFDetails
+from sarpy.io.general.nitf_elements.des import DataExtensionHeader, XMLDESSubheader
+from sarpy.io.general.nitf_elements.security import NITFSecurityTags
+from sarpy.io.general.nitf_elements.image import ImageSegmentHeader, ImageBands, ImageBand
+from sarpy.io.product.sidd2_elements.SIDD import SIDDType
+from sarpy.io.product.sidd1_elements.SIDD import SIDDType as SIDDType1
+from sarpy.io.complex.sicd_elements.SICD import SICDType
+from sarpy.io.complex.sicd import MultiSegmentChipper, extract_clas as extract_clas_sicd
 
 
 __classification__ = "UNCLASSIFIED"

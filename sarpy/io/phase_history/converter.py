@@ -9,7 +9,7 @@ import sys
 import pkgutil
 from importlib import import_module
 
-from ..general.base import BaseReader
+from sarpy.io.general.base import BaseReader
 
 
 __classification__ = "UNCLASSIFIED"

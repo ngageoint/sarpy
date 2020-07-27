@@ -8,22 +8,22 @@ import numpy
 from sarpy.io.complex.utils import two_dim_poly_fit, get_im_physical_coords
 from sarpy.processing.ortho_rectify import OrthorectificationHelper, ProjectionHelper, PGProjection
 # agnostic to version
-from .sidd2_elements.ProductCreation import ProductCreationType
-from .sidd2_elements.Measurement import PlaneProjectionType, ProductPlaneType
+from sarpy.io.product.sidd2_elements.ProductCreation import ProductCreationType
+from sarpy.io.product.sidd2_elements.Measurement import PlaneProjectionType, ProductPlaneType
 # version 2 elements
-from .sidd2_elements.SIDD import SIDDType as SIDDType2
-from .sidd2_elements.Display import ProductDisplayType as ProductDisplayType2
-from .sidd2_elements.GeoData import GeoDataType as GeoDataType2
-from .sidd2_elements.Measurement import MeasurementType as MeasurementType2
-from .sidd2_elements.ExploitationFeatures import ExploitationFeaturesType as ExploitationFeaturesType2
-from .sidd2_elements.blocks import ReferencePointType, Poly2DType, XYZPolyType
+from sarpy.io.product.sidd2_elements.SIDD import SIDDType as SIDDType2
+from sarpy.io.product.sidd2_elements.Display import ProductDisplayType as ProductDisplayType2
+from sarpy.io.product.sidd2_elements.GeoData import GeoDataType as GeoDataType2
+from sarpy.io.product.sidd2_elements.Measurement import MeasurementType as MeasurementType2
+from sarpy.io.product.sidd2_elements.ExploitationFeatures import ExploitationFeaturesType as ExploitationFeaturesType2
+from sarpy.io.product.sidd2_elements.blocks import ReferencePointType, Poly2DType, XYZPolyType
 # version 1 elements
-from .sidd1_elements.SIDD import SIDDType as SIDDType1
-from .sidd1_elements.Display import ProductDisplayType as ProductDisplayType1
-from .sidd1_elements.GeographicAndTarget import GeographicAndTargetType as GeographicAndTargetType1, \
+from sarpy.io.product.sidd1_elements.SIDD import SIDDType as SIDDType1
+from sarpy.io.product.sidd1_elements.Display import ProductDisplayType as ProductDisplayType1
+from sarpy.io.product.sidd1_elements.GeographicAndTarget import GeographicAndTargetType as GeographicAndTargetType1, \
     GeographicCoverageType as GeographicCoverageType1
-from .sidd1_elements.Measurement import MeasurementType as MeasurementType1
-from .sidd1_elements.ExploitationFeatures import ExploitationFeaturesType as ExploitationFeaturesType1
+from sarpy.io.product.sidd1_elements.Measurement import MeasurementType as MeasurementType1
+from sarpy.io.product.sidd1_elements.ExploitationFeatures import ExploitationFeaturesType as ExploitationFeaturesType1
 
 
 __classification__ = "UNCLASSIFIED"

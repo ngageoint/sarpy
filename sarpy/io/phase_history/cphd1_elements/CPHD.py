@@ -9,7 +9,7 @@ from typing import Union
 
 from .base import DEFAULT_STRICT
 # noinspection PyProtectedMember
-from ...complex.sicd_elements.base import Serializable, _SerializableDescriptor, \
+from sarpy.io.complex.sicd_elements.base import Serializable, _SerializableDescriptor, \
     _IntegerDescriptor, _StringDescriptor, _find_children
 
 from .CollectionID import CollectionIDType
@@ -26,7 +26,7 @@ from .TxRcv import TxRcvType
 from .ErrorParameters import ErrorParametersType
 from .ProductInfo import ProductInfoType
 from .GeoInfo import GeoInfoType
-from ...complex.sicd_elements.MatchInfo import MatchInfoType
+from sarpy.io.complex.sicd_elements.MatchInfo import MatchInfoType
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"

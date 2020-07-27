@@ -9,10 +9,10 @@ from collections import OrderedDict
 
 import numpy
 
-from ..sidd2_elements.base import DEFAULT_STRICT
-from ..sidd2_elements.blocks import LatLonArrayElementType
+from sarpy.io.product.sidd2_elements.base import DEFAULT_STRICT
+from sarpy.io.product.sidd2_elements.blocks import LatLonArrayElementType
 # noinspection PyProtectedMember
-from ...complex.sicd_elements.base import Serializable, _SerializableDescriptor, \
+from sarpy.io.complex.sicd_elements.base import Serializable, _SerializableDescriptor, \
     _SerializableArrayDescriptor, SerializableArray, _SerializableListDescriptor, \
     _StringDescriptor, _ParametersDescriptor, ParametersCollection, \
     _StringListDescriptor, _find_children

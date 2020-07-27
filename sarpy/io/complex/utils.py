@@ -8,7 +8,7 @@ import logging
 import numpy
 from numpy.polynomial import polynomial
 
-from .sicd_elements.blocks import Poly2DType
+from sarpy.io.complex.sicd_elements.blocks import Poly2DType
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"

@@ -11,14 +11,14 @@ from typing import Union, Dict, Tuple
 
 import numpy
 
-from .sicd_elements.blocks import RowColType
-from .sicd_elements.SICD import SICDType
-from .sicd_elements.ImageData import ImageDataType, FullImageType
-from ..general.base import BaseReader
-from ..general.bip import BIPChipper, BIPWriter
+from sarpy.io.complex.sicd_elements.blocks import RowColType
+from sarpy.io.complex.sicd_elements.SICD import SICDType
+from sarpy.io.complex.sicd_elements.ImageData import ImageDataType, FullImageType
+from sarpy.io.general.base import BaseReader
+from sarpy.io.general.bip import BIPChipper, BIPWriter
 # noinspection PyProtectedMember
-from .sicd import complex_to_amp_phase, complex_to_int, amp_phase_to_complex
-from ..general.utils import parse_xml_from_string
+from sarpy.io.complex.sicd import complex_to_amp_phase, complex_to_int, amp_phase_to_complex
+from sarpy.io.general.utils import parse_xml_from_string
 
 __classification__ = "UNCLASSIFIED"
 __author__ = ("Thomas McCullough", "Wade Schwartzkopf")

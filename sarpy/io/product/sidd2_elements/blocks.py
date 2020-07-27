@@ -11,19 +11,19 @@ import numpy
 from sarpy.compliance import int_func
 from .base import DEFAULT_STRICT
 # noinspection PyProtectedMember
-from ...complex.sicd_elements.base import Serializable, Arrayable, _SerializableDescriptor, \
+from sarpy.io.complex.sicd_elements.base import Serializable, Arrayable, _SerializableDescriptor, \
     _IntegerDescriptor, _FloatDescriptor, _FloatModularDescriptor, _StringDescriptor, _StringEnumDescriptor, \
     _get_node_value, _create_text_node, _create_new_node, _find_children
-from ...complex.sicd_elements.blocks import XYZType as XYZTypeBase, XYZPolyType as XYZPolyTypeBase, \
+from sarpy.io.complex.sicd_elements.blocks import XYZType as XYZTypeBase, XYZPolyType as XYZPolyTypeBase, \
     LatLonType as LatLonTypeBase, LatLonCornerType as LatLonCornerTypeBase, \
     RowColType as RowColIntTypeBase, RowColArrayElement as RowColArrayElementBase, \
     Poly1DType as Poly1DTypeBase, Poly2DType as Poly2DTypeBase, \
     LatLonCornerStringType as LatLonCornerStringTypeBase, LatLonArrayElementType as LatLonArrayElementTypeBase
-from ...complex.sicd_elements.ErrorStatistics import ErrorStatisticsType as ErrorStatisticsTypeBase
-from ...complex.sicd_elements.Radiometric import RadiometricType as RadiometricTypeBase
-from ...complex.sicd_elements.MatchInfo import MatchInfoType as MatchInfoTypeBase
-from ...complex.sicd_elements.GeoData import GeoInfoType as GeoInfoTypeBase
-from ...complex.sicd_elements.CollectionInfo import RadarModeType as RadarModeTypeBase
+from sarpy.io.complex.sicd_elements.ErrorStatistics import ErrorStatisticsType as ErrorStatisticsTypeBase
+from sarpy.io.complex.sicd_elements.Radiometric import RadiometricType as RadiometricTypeBase
+from sarpy.io.complex.sicd_elements.MatchInfo import MatchInfoType as MatchInfoTypeBase
+from sarpy.io.complex.sicd_elements.GeoData import GeoInfoType as GeoInfoTypeBase
+from sarpy.io.complex.sicd_elements.CollectionInfo import RadarModeType as RadarModeTypeBase
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"

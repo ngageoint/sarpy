@@ -10,7 +10,7 @@ import os
 import numpy
 
 from sarpy.compliance import int_func
-from .base import BaseChipper, AbstractWriter
+from sarpy.io.general.base import BaseChipper, AbstractWriter
 
 
 __classification__ = "UNCLASSIFIED"

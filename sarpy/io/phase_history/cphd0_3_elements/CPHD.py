@@ -5,20 +5,20 @@ The Compensated Phase History Data 0.3 definition.
 
 from typing import Union
 
-from ..cphd1_elements.base import DEFAULT_STRICT
+from sarpy.io.phase_history.cphd1_elements.base import DEFAULT_STRICT
 # noinspection PyProtectedMember
-from ...complex.sicd_elements.base import Serializable, _SerializableDescriptor, \
+from sarpy.io.complex.sicd_elements.base import Serializable, _SerializableDescriptor, \
     _IntegerDescriptor, _StringDescriptor
 
-from ...complex.sicd_elements.CollectionInfo import CollectionInfoType
-from ...complex.sicd_elements.RadarCollection import RadarCollectionType
-from ..cphd1_elements.CPHD import CPHDHeaderBase
-from .Data import DataType
-from .Global import GlobalType
-from .Channel import ChannelType
-from .SRP import SRPTyp
-from .Antenna import AntennaType
-from .VectorParameters import VectorParametersType
+from sarpy.io.complex.sicd_elements.CollectionInfo import CollectionInfoType
+from sarpy.io.complex.sicd_elements.RadarCollection import RadarCollectionType
+from sarpy.io.phase_history.cphd1_elements.CPHD import CPHDHeaderBase
+from sarpy.io.phase_history.cphd0_3_elements.Data import DataType
+from sarpy.io.phase_history.cphd0_3_elements.Global import GlobalType
+from sarpy.io.phase_history.cphd0_3_elements.Channel import ChannelType
+from sarpy.io.phase_history.cphd0_3_elements.SRP import SRPTyp
+from sarpy.io.phase_history.cphd0_3_elements.Antenna import AntennaType
+from sarpy.io.phase_history.cphd0_3_elements.VectorParameters import VectorParametersType
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"

@@ -8,16 +8,16 @@ from typing import Union
 from collections import OrderedDict
 
 # noinspection PyProtectedMember
-from ...complex.sicd_elements.base import Serializable, _SerializableDescriptor, DEFAULT_STRICT
-from ..sidd2_elements.ProductCreation import ProductCreationType
+from sarpy.io.complex.sicd_elements.base import Serializable, _SerializableDescriptor, DEFAULT_STRICT
+from sarpy.io.product.sidd2_elements.ProductCreation import ProductCreationType
 from .Display import ProductDisplayType
 from .GeographicAndTarget import GeographicAndTargetType
 from .Measurement import MeasurementType
 from .ExploitationFeatures import ExploitationFeaturesType
-from ..sidd2_elements.DownstreamReprocessing import DownstreamReprocessingType
-from ..sidd2_elements.ProductProcessing import ProductProcessingType
-from ..sidd2_elements.Annotations import AnnotationsType
-from ..sidd2_elements.blocks import ErrorStatisticsType, RadiometricType
+from sarpy.io.product.sidd2_elements.DownstreamReprocessing import DownstreamReprocessingType
+from sarpy.io.product.sidd2_elements.ProductProcessing import ProductProcessingType
+from sarpy.io.product.sidd2_elements.Annotations import AnnotationsType
+from sarpy.io.product.sidd2_elements.blocks import ErrorStatisticsType, RadiometricType
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"

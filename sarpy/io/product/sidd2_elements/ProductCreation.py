@@ -11,10 +11,10 @@ import numpy
 
 from .base import DEFAULT_STRICT
 # noinspection PyProtectedMember
-from ...complex.sicd_elements.base import Serializable, _SerializableDescriptor, \
+from sarpy.io.complex.sicd_elements.base import Serializable, _SerializableDescriptor, \
     _StringDescriptor, _StringEnumDescriptor, _IntegerDescriptor, _DateTimeDescriptor, \
     _ParametersDescriptor, ParametersCollection
-from ...complex.sicd_elements.SICD import SICDType
+from sarpy.io.complex.sicd_elements.SICD import SICDType
 
 
 __classification__ = "UNCLASSIFIED"

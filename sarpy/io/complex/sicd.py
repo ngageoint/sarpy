@@ -10,18 +10,18 @@ import logging
 import numpy
 
 from sarpy.compliance import string_types
-from ..general.base import validate_sicd_for_writing
-from ..general.bip import MultiSegmentChipper
-from ..general.nitf import NITFReader, NITFWriter, ImageDetails, DESDetails, \
+from sarpy.io.general.base import validate_sicd_for_writing
+from sarpy.io.general.bip import MultiSegmentChipper
+from sarpy.io.general.nitf import NITFReader, NITFWriter, ImageDetails, DESDetails, \
     image_segmentation, get_npp_block, interpolate_corner_points_string
-from ..general.utils import parse_xml_from_string
+from sarpy.io.general.utils import parse_xml_from_string
 # noinspection PyProtectedMember
-from .sicd_elements.SICD import SICDType, _SICD_SPECIFICATION_IDENTIFIER
+from sarpy.io.complex.sicd_elements.SICD import SICDType, _SICD_SPECIFICATION_IDENTIFIER
 
-from ..general.nitf import NITFDetails
-from ..general.nitf_elements.des import DataExtensionHeader, XMLDESSubheader
-from ..general.nitf_elements.security import NITFSecurityTags
-from ..general.nitf_elements.image import ImageSegmentHeader, ImageBands, ImageBand
+from sarpy.io.general.nitf import NITFDetails
+from sarpy.io.general.nitf_elements.des import DataExtensionHeader, XMLDESSubheader
+from sarpy.io.general.nitf_elements.security import NITFSecurityTags
+from sarpy.io.general.nitf_elements.image import ImageSegmentHeader, ImageBands, ImageBand
 
 
 if sys.version_info[0] < 3:

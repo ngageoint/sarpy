@@ -9,7 +9,7 @@ from xml.etree import ElementTree
 import copy
 
 # noinspection PyProtectedMember
-from ...complex.sicd_elements.base import Serializable, SerializableArray, SerializableCPArray, \
+from sarpy.io.complex.sicd_elements.base import Serializable, SerializableArray, SerializableCPArray, \
     _SerializableArrayDescriptor, _SerializableCPArrayDescriptor, _StringEnumDescriptor, \
     _find_children
 from .base import DEFAULT_STRICT

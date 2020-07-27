@@ -9,8 +9,8 @@ from types import MethodType  # for binding a method dynamically to a class
 import numpy
 
 from . import geocoords
-from ..io.complex.sicd_elements.blocks import Poly2DType, XYZPolyType
-from ..io.DEM.DEM import DTEDList, GeoidHeight, DTEDInterpolator
+from sarpy.io.complex.sicd_elements.blocks import Poly2DType, XYZPolyType
+from sarpy.io.DEM.DEM import DTEDList, GeoidHeight, DTEDInterpolator
 
 
 __classification__ = "UNCLASSIFIED"

@@ -13,18 +13,18 @@ import re
 import numpy
 
 from sarpy.compliance import int_func
-from .base import BaseReader, AbstractWriter
-from .bip import BIPWriter
+from sarpy.io.general.base import BaseReader, AbstractWriter
+from sarpy.io.general.bip import BIPWriter
 # noinspection PyProtectedMember
-from .nitf_elements.nitf_head import NITFHeader, ImageSegmentsType, \
+from sarpy.io.general.nitf_elements.nitf_head import NITFHeader, ImageSegmentsType, \
     DataExtensionsType, _ItemArrayHeaders
-from .nitf_elements.text import TextSegmentHeader
-from .nitf_elements.graphics import GraphicsSegmentHeader
-from .nitf_elements.res import ReservedExtensionHeader
-from .nitf_elements.security import NITFSecurityTags
-from .nitf_elements.image import ImageSegmentHeader
-from .nitf_elements.des import DataExtensionHeader
-from ..complex.sicd_elements.blocks import LatLonType
+from sarpy.io.general.nitf_elements.text import TextSegmentHeader
+from sarpy.io.general.nitf_elements.graphics import GraphicsSegmentHeader
+from sarpy.io.general.nitf_elements.res import ReservedExtensionHeader
+from sarpy.io.general.nitf_elements.security import NITFSecurityTags
+from sarpy.io.general.nitf_elements.image import ImageSegmentHeader
+from sarpy.io.general.nitf_elements.des import DataExtensionHeader
+from sarpy.io.complex.sicd_elements.blocks import LatLonType
 from sarpy.geometry.geocoords import ecf_to_geodetic, geodetic_to_ecf
 
 

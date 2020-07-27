@@ -5,9 +5,9 @@ The Channel definition for CPHD 0.3.
 
 from typing import Union, List
 
-from ..cphd1_elements.base import DEFAULT_STRICT
+from sarpy.io.phase_history.cphd1_elements.base import DEFAULT_STRICT
 # noinspection PyProtectedMember
-from ...complex.sicd_elements.base import Serializable, _IntegerDescriptor, \
+from sarpy.io.complex.sicd_elements.base import Serializable, _IntegerDescriptor, \
     _SerializableListDescriptor, _FloatDescriptor
 
 

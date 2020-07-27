@@ -6,11 +6,11 @@ The SRP definition for CPHD 0.3.
 import logging
 from typing import Union, List
 
-from ..cphd1_elements.base import DEFAULT_STRICT
+from sarpy.io.phase_history.cphd1_elements.base import DEFAULT_STRICT
 # noinspection PyProtectedMember
-from ...complex.sicd_elements.base import Serializable, _parse_str, _parse_int, \
+from sarpy.io.complex.sicd_elements.base import Serializable, _parse_str, _parse_int, \
     _SerializableArrayDescriptor, SerializableArray
-from ...complex.sicd_elements.blocks import XYZType, XYZPolyType
+from sarpy.io.complex.sicd_elements.blocks import XYZType, XYZPolyType
 
 
 __classification__ = "UNCLASSIFIED"

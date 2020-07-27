@@ -12,9 +12,9 @@ import numpy
 from sarpy.compliance import int_func, integer_types, string_types
 from .cphd1_elements.CPHD import CPHDType, CPHDHeader
 from .cphd0_3_elements.CPHD import CPHDType as CPHDType0_3, CPHDHeader as CPHDHeader0_3
-from ..general.utils import parse_xml_from_string, validate_range
-from ..general.base import BaseReader
-from ..general.bip import BIPChipper
+from sarpy.io.general.utils import parse_xml_from_string, validate_range
+from sarpy.io.general.base import BaseReader
+from sarpy.io.general.bip import BIPChipper
 
 # TODO: Outstanding issues and questions
 #   0.) What about the Per Vector situation? Does what I implemented make sense?
