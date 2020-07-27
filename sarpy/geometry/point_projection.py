@@ -146,7 +146,7 @@ def ground_to_image(coords, sicd, delta_gp_max=None, max_iterations=10, block_si
     col_ss = sicd.Grid.Col.SS
     pixel_size = numpy.sqrt(row_ss*row_ss + col_ss*col_ss)
     if delta_gp_max is None:
-        delta_gp_max = 0.05*pixel_size
+        delta_gp_max = 0.1*pixel_size
     if delta_gp_max < 0.01*pixel_size:
         delta_gp_max = 0.01*pixel_size
         logging.warning('delta_gp_max was less than 0.01*pixel_size, '
