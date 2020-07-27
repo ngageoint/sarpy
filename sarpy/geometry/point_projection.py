@@ -90,9 +90,9 @@ def _ground_to_image(coords, coa_proj, uGPN,
         p_n = _image_to_ground_plane(im_points, coa_proj, g_n, uGPN)
         # compute displacement between scene point and this new projected point
         diff_n = coords - p_n
-        disp_pn = numpy.linalg.norm(diff_n, axis=1)
+        delta_gpn[:] = numpy.linalg.norm(diff_n, axis=1)
         # should we continue iterating?
-        cont = numpy.any(disp_pn > delta_gp_max) or (iteration <= max_iterations)
+        cont = numpy.any(delta_gpn > delta_gp_max) and (iteration < max_iterations)
         if cont:
             g_n += diff_n
 
@@ -146,8 +146,7 @@ def ground_to_image(coords, sicd, delta_gp_max=None, max_iterations=10, block_si
     col_ss = sicd.Grid.Col.SS
     pixel_size = numpy.sqrt(row_ss*row_ss + col_ss*col_ss)
     if delta_gp_max is None:
-        delta_gp_max = 0.1*pixel_size
-    delta_gp_max = float(delta_gp_max)
+        delta_gp_max = 0.05*pixel_size
     if delta_gp_max < 0.01*pixel_size:
         delta_gp_max = 0.01*pixel_size
         logging.warning('delta_gp_max was less than 0.01*pixel_size, '
