@@ -24,6 +24,98 @@ else:
     from scipy.fft import fft, ifft, fftshift
 
 
+def _get_fetch_block_size(start_element, stop_element, block_size_in_bytes, bands=1):
+    if stop_element == start_element:
+        return None
+
+    full_size = float(abs(stop_element - start_element))
+    return max(1, int_func(numpy.ceil(block_size_in_bytes / float(bands*8*full_size))))
+
+
+def _extract_blocks(the_range, index_block_size):
+    # type: (Tuple[int, int, int], int) -> (List[Tuple[int, int, int]], List[Tuple[int, int]])
+    """
+    Convert the single range definition into a series of range definitions in
+    keeping with fetching of the appropriate block sizes.
+
+    Parameters
+    ----------
+    the_range : Tuple[int, int, int]
+        The input (off processing axis) range.
+    index_block_size : None|int|float
+        The size of blocks (number of indices).
+
+    Returns
+    -------
+    List[Tuple[int, int, int]], List[Tuple[int, int]]
+        The sequence of range definitions `(start index, stop index, step)`
+        relative to the overall image, and the sequence of start/stop indices
+        for positioning of the given range relative to the original range.
+    """
+
+    entries = numpy.arange(the_range[0], the_range[1], the_range[2], dtype=numpy.int64)
+    if index_block_size is None:
+        return [the_range, ], [(0, entries.size), ]
+
+    # how many blocks?
+    block_count = int_func(numpy.ceil(entries.size/float(index_block_size)))
+    if index_block_size == 1:
+        return [the_range, ], [(0, entries.size), ]
+
+    # workspace for what the blocks are
+    out1 = []
+    out2 = []
+    start_ind = 0
+    for i in range(block_count):
+        end_ind = start_ind+index_block_size
+        if end_ind < entries.size:
+            block1 = (int_func(entries[start_ind]), int_func(entries[end_ind]), the_range[2])
+            block2 = (start_ind, end_ind)
+        else:
+            block1 = (int_func(entries[start_ind]), the_range[1], the_range[2])
+            block2 = (start_ind, entries.size)
+        out1.append(block1)
+        out2.append(block2)
+        start_ind = end_ind
+    return out1, out2
+
+
+def _get_data_mean_magnitude(bounds, reader, index, block_size_in_bytes):
+    """
+    Gets the mean magnitude in the region defined by bounds.
+
+    Parameters
+    ----------
+    bounds : numpy.ndarray
+        Of the form `(row_start, row_end, col_start, col_end)`.
+    reader : BaseReader
+        The data reader.
+    index : int
+        The reader index to use.
+    block_size_in_bytes : int|float
+        The block size in bytes.
+
+    Returns
+    -------
+    float
+    """
+
+    # Extract the mean of the data magnitude - for global remap usage
+    logging.info('Calculating mean over the block ({}:{}, {}:{}), this may be time consuming'.format(*bounds))
+    mean_block_size = _get_fetch_block_size(bounds[0], bounds[1], block_size_in_bytes)
+    mean_column_blocks, _ = _extract_blocks((bounds[2], bounds[3], 1), mean_block_size)
+    mean_total = 0.0
+    mean_count = 0
+    for this_column_range in mean_column_blocks:
+        data = numpy.abs(reader[
+                         bounds[0]:bounds[1],
+                         this_column_range[0]:this_column_range[1],
+                         index])
+        mean_total += numpy.sum(data)
+        mean_count += data.size
+    return float(mean_total / mean_count)
+
+
 class FFTCalculator(object):
     """
     Base class for Fourier processing calculator class.
@@ -260,59 +352,11 @@ class FFTCalculator(object):
         int
         """
 
-        if stop_element == start_element:
-            return None
-
-        full_size = float(abs(stop_element - start_element))
-        return max(1, int_func(numpy.ceil(self.block_size_in_bytes/float(8*full_size))))
+        return _get_fetch_block_size(start_element, stop_element, self.block_size_in_bytes, bands=1)
 
     @staticmethod
     def extract_blocks(the_range, index_block_size):
-        # type: (Tuple[int, int, int], int) -> (List[Tuple[int, int, int]], List[Tuple[int, int]])
-        """
-        Convert the single range definition into a series of range defintions in
-        keeping with fetching of the appropriate block sizes.
-
-        Parameters
-        ----------
-        the_range : Tuple[int, int, int]
-            The input (off processing axis) range.
-        index_block_size : None|int|float
-            The size of blocks (number of indices).
-
-        Returns
-        -------
-        List[Tuple[int, int, int]], List[Tuple[int, int]]
-            The sequence of range definitions `(start index, stop index, step)`
-            relative to the overall image, and the sequence of start/stop indices
-            for positioning of the given range relative to the original range.
-        """
-
-        entries = numpy.arange(the_range[0], the_range[1], the_range[2], dtype=numpy.int64)
-        if index_block_size is None:
-            return [the_range, ], [(0, entries.size), ]
-
-        # how many blocks?
-        block_count = int_func(numpy.ceil(entries.size/float(index_block_size)))
-        if index_block_size == 1:
-            return [the_range, ], [(0, entries.size), ]
-
-        # workspace for what the blocks are
-        out1 = []
-        out2 = []
-        start_ind = 0
-        for i in range(block_count):
-            end_ind = start_ind+index_block_size
-            if end_ind < entries.size:
-                block1 = (int_func(entries[start_ind]), int_func(entries[end_ind]), the_range[2])
-                block2 = (start_ind, end_ind)
-            else:
-                block1 = (int_func(entries[start_ind]), the_range[1], the_range[2])
-                block2 = (start_ind, entries.size)
-            out1.append(block1)
-            out2.append(block2)
-            start_ind = end_ind
-        return out1, out2
+        return _extract_blocks(the_range, index_block_size)
 
     def get_data_mean_magnitude(self, bounds):
         """
@@ -328,20 +372,7 @@ class FFTCalculator(object):
         float
         """
 
-        # Extract the mean of the data magnitude - for global remap usage
-        mean_block_size = self.get_fetch_block_size(bounds[0], bounds[1])
-        mean_column_blocks, _ = self.extract_blocks(
-            (bounds[2], bounds[3], 1), mean_block_size)
-        mean_total = 0.0
-        mean_count = 0
-        for this_column_range in mean_column_blocks:
-            data = numpy.abs(self.reader[
-                             bounds[0]:bounds[1],
-                             this_column_range[0]:this_column_range[1],
-                             self.index])
-            mean_total += numpy.sum(data)
-            mean_count += data.size
-        return float(mean_total / mean_count)
+        return _get_data_mean_magnitude(bounds, self.reader, self.index, self.block_size_in_bytes)
 
     def __getitem__(self, item):
         """

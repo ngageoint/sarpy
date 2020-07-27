@@ -42,7 +42,8 @@ import os
 import numpy
 
 from sarpy.compliance import int_func
-from sarpy.processing.fft_base import FFTCalculator, fft, ifft, fftshift
+# noinspection PyProtectedMember
+from sarpy.processing.fft_base import FFTCalculator, _get_fetch_block_size, fft, ifft, fftshift
 from sarpy.io.general.base import BaseReader
 from sarpy.io.product.sidd_creation_utils import create_sidd
 from sarpy.io.product.sidd import SIDDWriter
@@ -223,11 +224,8 @@ class CSICalculator(FFTCalculator):
         int
         """
 
-        if stop_element == start_element:
-            return None
+        return _get_fetch_block_size(start_element, stop_element, self.block_size_in_bytes, bands=3)
 
-        full_size = float(abs(stop_element - start_element))
-        return max(1, int(numpy.ceil(self.block_size_in_bytes/(24*full_size))))
 
     def _full_row_resolution(self, row_range, col_range, filter_map):
         """
