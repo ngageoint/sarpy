@@ -651,7 +651,7 @@ class SICDType(Serializable):
             logging.error('Unhandled Grid.Type {}, unclear how to formulate a projection.'.format(self.Grid.Type))
             return False
 
-        logging.info('Consider calling sicd.define_coa_projection if the sicd structure is defined.')
+        # logging.info('Consider calling sicd.define_coa_projection if the sicd structure is defined.')
         return True
 
     def define_coa_projection(self, delta_arp=None, delta_varp=None, range_bias=None,
