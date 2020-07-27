@@ -5,7 +5,7 @@ This module provides utilities for validating and preparing an annotation schema
 
 from collections import OrderedDict
 import json
-from typing import Dict, List, Set
+from typing import Dict, List
 
 
 __classification__ = "UNCLASSIFIED"

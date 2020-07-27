@@ -10,10 +10,10 @@ from typing import List, Union, Dict
 import numpy
 from .base import DEFAULT_STRICT
 # noinspection PyProtectedMember
-from ...complex.sicd_elements.base import Serializable, _StringDescriptor, \
+from sarpy.io.complex.sicd_elements.base import Serializable, _StringDescriptor, \
     _SerializableArrayDescriptor, SerializableArray, \
     _ParametersDescriptor, ParametersCollection, _find_children
-from ...complex.sicd_elements.blocks import LatLonRestrictionType, LatLonArrayElementType
+from sarpy.io.complex.sicd_elements.blocks import LatLonRestrictionType, LatLonArrayElementType
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"

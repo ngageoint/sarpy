@@ -7,10 +7,10 @@ from typing import Union
 
 from .base import DEFAULT_STRICT
 # noinspection PyProtectedMember
-from ...complex.sicd_elements.base import Serializable, _FloatDescriptor, \
+from sarpy.io.complex.sicd_elements.base import Serializable, _FloatDescriptor, \
     _SerializableDescriptor, _ParametersDescriptor, ParametersCollection
-from ...complex.sicd_elements.blocks import ErrorDecorrFuncType
-from ...complex.sicd_elements.ErrorStatistics import PosVelErrType, TropoErrorType
+from sarpy.io.complex.sicd_elements.blocks import ErrorDecorrFuncType
+from sarpy.io.complex.sicd_elements.ErrorStatistics import PosVelErrType, TropoErrorType
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"

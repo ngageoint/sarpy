@@ -8,7 +8,7 @@ from typing import Union, List
 from .base import DEFAULT_STRICT
 from .blocks import POLARIZATION_TYPE, AreaType
 # noinspection PyProtectedMember
-from ...complex.sicd_elements.base import Serializable, _StringDescriptor, _StringEnumDescriptor, \
+from sarpy.io.complex.sicd_elements.base import Serializable, _StringDescriptor, _StringEnumDescriptor, \
     _IntegerDescriptor, _SerializableListDescriptor, _ParametersDescriptor, ParametersCollection, \
     _BooleanDescriptor, _FloatDescriptor, _SerializableDescriptor, _StringListDescriptor, \
     SerializableArray, _SerializableArrayDescriptor

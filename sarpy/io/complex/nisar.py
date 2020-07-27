@@ -21,26 +21,26 @@ except ImportError:
                   'which precludes NISAR reading capability!')
 
 from sarpy.compliance import string_types, int_func, bytes_to_string
-from .sicd_elements.blocks import Poly2DType
-from .sicd_elements.SICD import SICDType
-from .sicd_elements.CollectionInfo import CollectionInfoType, RadarModeType
-from .sicd_elements.ImageCreation import ImageCreationType
-from .sicd_elements.RadarCollection import RadarCollectionType, \
+from sarpy.io.complex.sicd_elements.blocks import Poly2DType
+from sarpy.io.complex.sicd_elements.SICD import SICDType
+from sarpy.io.complex.sicd_elements.CollectionInfo import CollectionInfoType, RadarModeType
+from sarpy.io.complex.sicd_elements.ImageCreation import ImageCreationType
+from sarpy.io.complex.sicd_elements.RadarCollection import RadarCollectionType, \
     TxFrequencyType, ChanParametersType, TxStepType
-from .sicd_elements.ImageData import ImageDataType
-from .sicd_elements.GeoData import GeoDataType, SCPType
-from .sicd_elements.SCPCOA import SCPCOAType
-from .sicd_elements.Position import PositionType, XYZPolyType
-from .sicd_elements.Grid import GridType, DirParamType, WgtTypeType
-from .sicd_elements.Timeline import TimelineType, IPPSetType
-from .sicd_elements.ImageFormation import ImageFormationType, TxFrequencyProcType, RcvChanProcType
-from .sicd_elements.RMA import RMAType, INCAType
-from .sicd_elements.Radiometric import RadiometricType, NoiseLevelType_
-from ...geometry import point_projection
-from ..general.base import BaseReader
-from ..general.utils import get_seconds, parse_timestring
-from .csk import H5Chipper
-from .utils import fit_position_xvalidation, two_dim_poly_fit
+from sarpy.io.complex.sicd_elements.ImageData import ImageDataType
+from sarpy.io.complex.sicd_elements.GeoData import GeoDataType, SCPType
+from sarpy.io.complex.sicd_elements.SCPCOA import SCPCOAType
+from sarpy.io.complex.sicd_elements.Position import PositionType, XYZPolyType
+from sarpy.io.complex.sicd_elements.Grid import GridType, DirParamType, WgtTypeType
+from sarpy.io.complex.sicd_elements.Timeline import TimelineType, IPPSetType
+from sarpy.io.complex.sicd_elements.ImageFormation import ImageFormationType, TxFrequencyProcType, RcvChanProcType
+from sarpy.io.complex.sicd_elements.RMA import RMAType, INCAType
+from sarpy.io.complex.sicd_elements.Radiometric import RadiometricType, NoiseLevelType_
+from sarpy.geometry import point_projection
+from sarpy.io.general.base import BaseReader
+from sarpy.io.general.utils import get_seconds, parse_timestring
+from sarpy.io.complex.csk import H5Chipper
+from sarpy.io.complex.utils import fit_position_xvalidation, two_dim_poly_fit
 
 __classification__ = "UNCLASSIFIED"
 __author__ = ("Thomas McCullough", "Jarred Barber", "Wade Schwartzkopf")

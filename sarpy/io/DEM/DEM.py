@@ -8,7 +8,7 @@ from typing import List
 
 from sarpy.compliance import int_func, integer_types
 from . import _argument_validation
-from .geoid import GeoidHeight, find_geoid_file_from_dir
+from sarpy.io.DEM.geoid import GeoidHeight, find_geoid_file_from_dir
 
 
 __classification__ = "UNCLASSIFIED"
@@ -267,7 +267,7 @@ class DTEDReader(object):
             elif isinstance(it, slice):
                 start = new_col_int(it.start, True)
                 stop = new_col_int(it.stop, False)
-                it1 = slice(start, stop, step=it.step)
+                it1 = slice(start, stop, it.step)
             elif isinstance(item[1], numpy.ndarray):
                 it1 = numpy.copy(item[1])
                 it1[it1 >= 0] += 4

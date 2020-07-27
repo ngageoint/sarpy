@@ -8,7 +8,7 @@ from typing import Union
 from collections import OrderedDict
 
 # noinspection PyProtectedMember
-from ...complex.sicd_elements.base import Serializable, _SerializableDescriptor, DEFAULT_STRICT
+from sarpy.io.complex.sicd_elements.base import Serializable, _SerializableDescriptor, DEFAULT_STRICT
 from .ProductCreation import ProductCreationType
 from .Display import ProductDisplayType
 from .GeoData import GeoDataType

@@ -7,14 +7,14 @@ from typing import Union, List
 
 import numpy
 
-from ..cphd1_elements.base import DEFAULT_STRICT
+from sarpy.io.phase_history.cphd1_elements.base import DEFAULT_STRICT
 # noinspection PyProtectedMember
-from ...complex.sicd_elements.base import Serializable, _FloatDescriptor, \
+from sarpy.io.complex.sicd_elements.base import Serializable, _FloatDescriptor, \
     _DateTimeDescriptor, _StringEnumDescriptor, _IntegerEnumDescriptor, \
     _SerializableDescriptor, _IntegerDescriptor, \
     _SerializableCPArrayDescriptor, SerializableCPArray
-from ...complex.sicd_elements.blocks import LatLonHAECornerRestrictionType, Poly2DType
-from ...complex.sicd_elements.RadarCollection import ReferencePointType, XDirectionType, \
+from sarpy.io.complex.sicd_elements.blocks import LatLonHAECornerRestrictionType, Poly2DType
+from sarpy.io.complex.sicd_elements.RadarCollection import ReferencePointType, XDirectionType, \
     YDirectionType
 
 __classification__ = "UNCLASSIFIED"

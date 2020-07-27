@@ -7,7 +7,7 @@ from typing import Union, List
 
 from .base import DEFAULT_STRICT
 # noinspection PyProtectedMember
-from ...complex.sicd_elements.base import Serializable, _StringDescriptor, \
+from sarpy.io.complex.sicd_elements.base import Serializable, _StringDescriptor, \
     _IntegerDescriptor, _SerializableListDescriptor, _SerializableDescriptor
 from .utils import homogeneous_format
 

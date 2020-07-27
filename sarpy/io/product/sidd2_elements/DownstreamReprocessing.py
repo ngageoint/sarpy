@@ -11,7 +11,7 @@ import numpy
 from .base import DEFAULT_STRICT
 from .blocks import RowColDoubleType, RowColIntType
 # noinspection PyProtectedMember
-from ...complex.sicd_elements.base import Serializable, _SerializableDescriptor, \
+from sarpy.io.complex.sicd_elements.base import Serializable, _SerializableDescriptor, \
     _ParametersDescriptor, ParametersCollection, _StringDescriptor, \
     _DateTimeDescriptor, _SerializableListDescriptor
 

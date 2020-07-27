@@ -9,7 +9,7 @@ from typing import Union, List
 
 from .base import DEFAULT_STRICT
 # noinspection PyProtectedMember
-from ...complex.sicd_elements.base import Serializable, _FloatDescriptor, \
+from sarpy.io.complex.sicd_elements.base import Serializable, _FloatDescriptor, \
     _StringDescriptor, _StringEnumDescriptor, string_types, _get_node_value, \
     _ParametersDescriptor, ParametersCollection, _SerializableListDescriptor
 from .utils import homogeneous_dtype

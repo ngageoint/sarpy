@@ -5,8 +5,8 @@ The CollectionIDType definition.
 
 from .base import DEFAULT_STRICT
 # noinspection PyProtectedMember
-from ...complex.sicd_elements.base import _StringDescriptor
-from ...complex.sicd_elements.CollectionInfo import CollectionInfoType
+from sarpy.io.complex.sicd_elements.base import _StringDescriptor
+from sarpy.io.complex.sicd_elements.CollectionInfo import CollectionInfoType
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"

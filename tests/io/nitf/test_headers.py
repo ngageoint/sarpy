@@ -6,7 +6,12 @@ from sarpy.io.general.nitf import NITFDetails
 from sarpy.io.general.nitf_elements.image import ImageSegmentHeader
 from sarpy.io.general.nitf_elements.des import DataExtensionHeader
 
-from . import unittest
+import sys
+if sys.version_info[0] < 3:
+    # so we can use subtests, which is pretty handy
+    import unittest2 as unittest
+else:
+    import unittest
 
 
 def generic_nitf_header_test(instance, test_file):

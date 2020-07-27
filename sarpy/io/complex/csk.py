@@ -20,25 +20,25 @@ except ImportError:
                   'which precludes Cosmo Skymed reading capability!')
 
 from sarpy.compliance import string_types, bytes_to_string
-from .sicd_elements.blocks import Poly1DType, Poly2DType, RowColType
-from .sicd_elements.SICD import SICDType
-from .sicd_elements.CollectionInfo import CollectionInfoType, RadarModeType
-from .sicd_elements.ImageCreation import ImageCreationType
-from .sicd_elements.RadarCollection import RadarCollectionType, WaveformParametersType, \
+from sarpy.io.complex.sicd_elements.blocks import Poly1DType, Poly2DType, RowColType
+from sarpy.io.complex.sicd_elements.SICD import SICDType
+from sarpy.io.complex.sicd_elements.CollectionInfo import CollectionInfoType, RadarModeType
+from sarpy.io.complex.sicd_elements.ImageCreation import ImageCreationType
+from sarpy.io.complex.sicd_elements.RadarCollection import RadarCollectionType, WaveformParametersType, \
     TxFrequencyType, ChanParametersType, TxStepType
-from .sicd_elements.ImageData import ImageDataType
-from .sicd_elements.GeoData import GeoDataType, SCPType
-from .sicd_elements.SCPCOA import SCPCOAType
-from .sicd_elements.Position import PositionType, XYZPolyType
-from .sicd_elements.Grid import GridType, DirParamType, WgtTypeType
-from .sicd_elements.Timeline import TimelineType, IPPSetType
-from .sicd_elements.ImageFormation import ImageFormationType, TxFrequencyProcType, RcvChanProcType
-from .sicd_elements.RMA import RMAType, INCAType
-from .sicd_elements.Radiometric import RadiometricType
-from ...geometry import point_projection
-from ..general.base import BaseChipper, BaseReader
-from ..general.utils import get_seconds, parse_timestring
-from .utils import fit_time_coa_polynomial, fit_position_xvalidation
+from sarpy.io.complex.sicd_elements.ImageData import ImageDataType
+from sarpy.io.complex.sicd_elements.GeoData import GeoDataType, SCPType
+from sarpy.io.complex.sicd_elements.SCPCOA import SCPCOAType
+from sarpy.io.complex.sicd_elements.Position import PositionType, XYZPolyType
+from sarpy.io.complex.sicd_elements.Grid import GridType, DirParamType, WgtTypeType
+from sarpy.io.complex.sicd_elements.Timeline import TimelineType, IPPSetType
+from sarpy.io.complex.sicd_elements.ImageFormation import ImageFormationType, TxFrequencyProcType, RcvChanProcType
+from sarpy.io.complex.sicd_elements.RMA import RMAType, INCAType
+from sarpy.io.complex.sicd_elements.Radiometric import RadiometricType
+from sarpy.geometry import point_projection
+from sarpy.io.general.base import BaseChipper, BaseReader
+from sarpy.io.general.utils import get_seconds, parse_timestring
+from sarpy.io.complex.utils import fit_time_coa_polynomial, fit_position_xvalidation
 
 __classification__ = "UNCLASSIFIED"
 __author__ = ("Thomas McCullough", "Jarred Barber", "Wade Schwartzkopf")

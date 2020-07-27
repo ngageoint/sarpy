@@ -9,10 +9,10 @@ import numpy
 
 from .base import DEFAULT_STRICT
 # noinspection PyProtectedMember
-from ...complex.sicd_elements.base import Serializable, _FloatDescriptor, _StringDescriptor, \
+from sarpy.io.complex.sicd_elements.base import Serializable, _FloatDescriptor, _StringDescriptor, \
     _SerializableDescriptor, _BooleanDescriptor, _SerializableListDescriptor
-from ...complex.sicd_elements.blocks import Poly1DType, XYZType, XYZPolyType, GainPhasePolyType
-from ...complex.sicd_elements.Antenna import EBType
+from sarpy.io.complex.sicd_elements.blocks import Poly1DType, XYZType, XYZPolyType, GainPhasePolyType
+from sarpy.io.complex.sicd_elements.Antenna import EBType
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"

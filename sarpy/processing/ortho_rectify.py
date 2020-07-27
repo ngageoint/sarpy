@@ -2,8 +2,7 @@
 """
 SICD ortho-rectification methodology.
 
-Example Usage
-
+**Example Usage**
 >>> import os
 >>> from matplotlib import pyplot
 >>> from sarpy.io.complex.converter import open_complex
@@ -71,9 +70,12 @@ class ProjectionHelper(object):
             The sicd object
         row_spacing : None|float
             The row pixel spacing. If not provided, this will default to
-            `min(sicd.Grid.Row.SS, sicd.Grid.Col.SS).`
+            the smaller of the range or azimuth resolutions projected into
+            the ground plane.
         col_spacing : None|float
-            The column pixel spacing.
+            The row pixel spacing. If not provided, this will default to
+            the smaller of the range or azimuth resolutions projected into
+            the ground plane.
         """
 
         self._row_spacing = None
@@ -106,7 +108,8 @@ class ProjectionHelper(object):
     @row_spacing.setter
     def row_spacing(self, value):
         """
-        Set the row pixel spacing value. Will default to sicd.Grid.Row.SS.
+        Set the row pixel spacing value. This will default to the smaller of the
+        range or azimuth resolutions projected into the ground plane.
 
         Parameters
         ----------
@@ -118,7 +121,7 @@ class ProjectionHelper(object):
         """
 
         if value is None:
-            self._row_spacing = min(self.sicd.Grid.Row.SS, self.sicd.Grid.Col.SS)
+            self._row_spacing = min(self.sicd.get_ground_resolution())
         else:
             value = float(value)
             if value <= 0:
@@ -136,7 +139,8 @@ class ProjectionHelper(object):
     @col_spacing.setter
     def col_spacing(self, value):
         """
-        Set the col pixel spacing value. Will default to sicd.Grid.Col.SS.
+        Set the col pixel spacing value. This will default to the smaller of the
+        range or azimuth resolutions projected into the ground plane.
 
         Parameters
         ----------
@@ -148,7 +152,7 @@ class ProjectionHelper(object):
         """
 
         if value is None:
-            self._col_spacing = min(self.sicd.Grid.Row.SS, self.sicd.Grid.Col.SS)
+            self._col_spacing = min(self.sicd.get_ground_resolution())
         else:
             value = float(value)
             if value <= 0:
@@ -339,7 +343,7 @@ class ProjectionHelper(object):
 
     def get_pixel_array_bounds(self, coords):
         """
-        Extract bounds of the input array, expected to have final dimension
+        Extract integer bounds of the input array, expected to have final dimension
         of size 2.
 
         Parameters
@@ -354,10 +358,10 @@ class ProjectionHelper(object):
 
         coords, o_shape = self._reshape(coords, 2)
         return numpy.array(
-            (numpy.min(coords[:, 0], axis=0),
-             numpy.max(coords[:, 0], axis=0),
-             numpy.min(coords[:, 1], axis=0),
-             numpy.max(coords[:, 1], axis=0)), dtype=numpy.float64)
+            (numpy.floor(numpy.min(coords[:, 0], axis=0)),
+             numpy.ceil(numpy.max(coords[:, 0], axis=0)),
+             numpy.floor(numpy.min(coords[:, 1], axis=0)),
+             numpy.ceil(numpy.max(coords[:, 1], axis=0))), dtype=numpy.int64)
 
 
 class PGProjection(ProjectionHelper):
@@ -981,7 +985,7 @@ class OrthorectificationHelper(object):
         return self.proj_helper.get_pixel_array_bounds(ortho)
 
     @staticmethod
-    def _validate_bounds(bounds):
+    def validate_bounds(bounds):
         """
         Validate a pixel type bounds array.
 
@@ -1061,7 +1065,7 @@ class OrthorectificationHelper(object):
                 (pixel_cols >= col_array[0]) & (pixel_cols < col_array[-1]))
         return mask
 
-    def _bounds_to_rectangle(self, bounds):
+    def bounds_to_rectangle(self, bounds):
         """
         From a bounds style array, construct the four corner coordinate array.
 
@@ -1075,7 +1079,7 @@ class OrthorectificationHelper(object):
             The (integer valued) bounds and rectangular coordinates.
         """
 
-        bounds = self._validate_bounds(bounds)
+        bounds = self.validate_bounds(bounds)
         coords = numpy.zeros((4, 2), dtype=numpy.int32)
         coords[0, :] = (bounds[0], bounds[2])
         coords[1, :] = (bounds[1], bounds[2])
@@ -1083,10 +1087,10 @@ class OrthorectificationHelper(object):
         coords[3, :] = (bounds[0], bounds[3])
         return bounds, coords
 
-    def _extract_bounds(self, bounds):
+    def extract_pixel_bounds(self, bounds):
         """
         Validate the bounds array of orthorectified pixel coordinates, and determine
-        the required bounds in reader pixel coordinates.
+        the required bounds in reader pixel coordinates. If the
 
         Parameters
         ----------
@@ -1098,10 +1102,10 @@ class OrthorectificationHelper(object):
             The integer valued orthorectified and reader pixel coordinate bounds.
         """
 
-        bounds, coords = self._bounds_to_rectangle(bounds)
+        bounds, coords = self.bounds_to_rectangle(bounds)
         pixel_coords = self.proj_helper.ortho_to_pixel(coords)
         pixel_bounds = self.proj_helper.get_pixel_array_bounds(pixel_coords)
-        return bounds, self._validate_bounds(pixel_bounds)
+        return bounds, self.validate_bounds(pixel_bounds)
 
     def _initialize_workspace(self, ortho_bounds, final_dimension=0):
         """
@@ -1131,7 +1135,7 @@ class OrthorectificationHelper(object):
         return numpy.zeros(out_shape, dtype=self.out_dtype) if self._pad_value is None else \
             numpy.full(out_shape, self._pad_value, dtype=self.out_dtype)
 
-    def _get_real_pixel_limits_and_bounds(self, pixel_bounds):
+    def get_real_pixel_bounds(self, pixel_bounds):
         """
         Fetch the real pixel limit from the nominal pixel limits - this just
         factors in the image reader extent.
@@ -1142,14 +1146,14 @@ class OrthorectificationHelper(object):
 
         Returns
         -------
-        (tuple, numpy.ndarray)
+        numpy.ndarray
         """
 
         pixel_limits = self.reader.get_data_size_as_tuple()[self.index]
         real_pix_bounds = numpy.array([
             max(0, pixel_bounds[0]), min(pixel_limits[0], pixel_bounds[1]),
             max(0, pixel_bounds[2]), min(pixel_limits[1], pixel_bounds[3])], dtype=numpy.int32)
-        return pixel_limits, real_pix_bounds
+        return real_pix_bounds
 
     def _apply_radiometric_params(self, pixel_rows, pixel_cols, value_array):
         """
@@ -1315,9 +1319,9 @@ class OrthorectificationHelper(object):
         numpy.ndarray
         """
 
-        ortho_bounds, nominal_pixel_bounds = self._extract_bounds(bounds)
+        ortho_bounds, nominal_pixel_bounds = self.extract_pixel_bounds(bounds)
         # extract the values - ensure that things are within proper image bounds
-        pixel_limits, pixel_bounds = self._get_real_pixel_limits_and_bounds(nominal_pixel_bounds)
+        pixel_bounds = self.get_real_pixel_bounds(nominal_pixel_bounds)
         pixel_array = self.reader[
             pixel_bounds[0]:pixel_bounds[1], pixel_bounds[2]:pixel_bounds[3], self.index]
         row_arr = numpy.arange(pixel_bounds[0], pixel_bounds[1])
@@ -1339,7 +1343,7 @@ class OrthorectificationHelper(object):
         numpy.ndarray
         """
 
-        pixel_bounds, pixel_rect = self._bounds_to_rectangle(pixel_bounds)
+        pixel_bounds, pixel_rect = self.bounds_to_rectangle(pixel_bounds)
         return self.get_orthorectified_for_pixel_object(pixel_rect)
 
     def get_orthorectified_for_pixel_object(self, coordinates):
@@ -1393,7 +1397,7 @@ class OrthorectificationHelper(object):
         Parameters
         ----------
         ortho_bounds : numpy.ndarray
-            Determines the orthorectified bounds reguon, of the form
+            Determines the orthorectified bounds region, of the form
             `(min row, max row, min column, max column)`.
         row_array : numpy.ndarray
             The rows of the pixel array. Must be one-dimensional, monotonically
@@ -1430,7 +1434,7 @@ class OrthorectificationHelper(object):
         Parameters
         ----------
         ortho_bounds : numpy.ndarray
-            Determines the orthorectified bounds reguon, of the form
+            Determines the orthorectified bounds region, of the form
             `(min row, max row, min column, max column)`.
         row_array : numpy.ndarray
             The rows of the pixel array. Must be one-dimensional, monotonically

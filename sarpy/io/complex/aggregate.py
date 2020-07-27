@@ -7,8 +7,8 @@ reader object.
 from typing import List, Tuple
 
 from sarpy.compliance import string_types
-from .converter import open_complex
-from ..general.base import BaseReader
+from sarpy.io.complex.converter import open_complex
+from sarpy.io.general.base import BaseReader
 
 
 class AggregateReader(BaseReader):

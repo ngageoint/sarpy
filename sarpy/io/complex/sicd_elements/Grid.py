@@ -364,8 +364,7 @@ class DirParamType(Serializable):
 
         # solve for the half-power point in an oversampled impulse response
         OVERSAMPLE = 1024
-        impulse_response = numpy.abs(
-            numpy.fft.fft(self.WgtFunct, self.WgtFunct.size*OVERSAMPLE))/numpy.sum(self.WgtFunct)
+        impulse_response = numpy.abs(numpy.fft.fft(self.WgtFunct, self.WgtFunct.size*OVERSAMPLE))/numpy.sum(self.WgtFunct)
         ind = numpy.flatnonzero(impulse_response < 1/numpy.sqrt(2))[0]  # find first index with less than half power.
         # linearly interpolate between impulse_response[ind-1] and impulse_response[ind] to find 1/sqrt(2)
         v0 = impulse_response[ind-1]
