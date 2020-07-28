@@ -345,6 +345,8 @@ class SubapertureCalculator(FFTCalculator):
             # fetch the necessary data block, and transform to phase space
             data = self.reader[
                    row_range[0]:row_range[1]:row_range[2], this_col_range[0]:this_col_range[1]:this_col_range[2], self.index]
+        # handle any nonsense data as 0
+        data[~numpy.isfinite(data)] = 0
         # transform the data to phase space
         data = fftshift(fft(data, axis=self.dimension), axes=self.dimension)
         # define our frame collection

@@ -562,18 +562,48 @@ class BaseReader(object):
 
     def __call__(self, range1, range2, index=0):
         """
-        Reads and fetches data. Note that :code:`reader(range1, range2, index)` is an alias
-        for :code:`reader.read_chip(range1, range2, index)`.
+        Reads and fetches data.
 
         Parameters
         ----------
         range1 : None|int|tuple
+            The row data selection of the form `[start, [stop, [stride]]]`, and
+            `None` defaults to all rows (i.e. `(0, NumRows, 1)`)
         range2 : None|int|tuple
+            The column data selection of the form `[start, [stop, [stride]]]`, and
+            `None` defaults to all rows (i.e. `(0, NumCols, 1)`)
         index : None|int
 
         Returns
         -------
         numpy.ndarray
+            If complex, the data type will be `complex64`, so be sure to upcast to
+            `complex128` if so desired.
+
+        Examples
+        --------
+        Basic fetching
+        :code:`data = reader((start1, stop1, stride1), (start2, stop2, stride2), index=0)`
+
+        Also, basic fetching can be accomplished via Python style basic slice syntax
+        :code:`data = reader[start1:stop1:stride1, start:stop:stride]` or
+        :code:`data = reader[start:stop:stride, start:stop:stride, index]`
+
+        Here the slice on index (dimension 3) is limited to a single integer, and
+        no slice on index :code:`reader[:, :]` will default to `index=0`,
+        :code:`reader[:, :, 0]` (where appropriate).
+
+        The convention for precendence in the `range1` and `range2` arguments is
+        a little unusual. To clarify, the following are equivalent
+        :code:`reader(stride1, stride2)` yields the same as
+        :code:`reader((stride1, ), (stride2, ))` yields the same as
+        :code:`reader[::stride1, ::stride2]`.
+
+        :code:`reader((stop1, stride1), (stop2, stride2))` yields the same as
+        :code:`reader[:stop1:stride1, :stop2:stride2]`.
+
+        :code:`reader((start1, stop1, stride1), (start2, stop2, stride2))`
+        yields the same as :code:`reader[start1:stop1:stride1, start2:stop2:stride2]`.
         """
 
         if isinstance(self._chipper, tuple):
@@ -585,7 +615,8 @@ class BaseReader(object):
     def __getitem__(self, item):
         """
         Reads and returns data using more traditional to python slice functionality.
-        After slice interpretation, this is analogous to :func:`__call__` or :func:`read_chip`.
+        After slice interpretation, this is analogous to :func:`__call__` or
+        :func:`read_chip`.
 
         Parameters
         ----------
@@ -594,6 +625,18 @@ class BaseReader(object):
         Returns
         -------
         numpy.ndarray
+            If complex, the data type will be `complex64`, so be sure to upcast to
+            `complex128` if so desired.
+
+        Examples
+        --------
+        This is the familiar Python style basic slice syntax
+        :code:`data = reader[start1:stop1:stride1, start:stop:stride]` or
+        :code:`data = reader[start:stop:stride, start:stop:stride, index]`
+
+        Here the slice on index (dimension 3) is limited to a single integer, and
+        no slice on index :code:`reader[:, :]` will default to `index=0`,
+        :code:`reader[:, :, 0]` (where appropriate).
         """
 
         item, index = self._validate_slice(item)
@@ -604,7 +647,9 @@ class BaseReader(object):
 
     def read_chip(self, dim1range, dim2range, index=None):
         """
-        Read the given section of data as an array.
+        Read the given section of data as an array. Note that
+        :code:`reader.read_chip(range1, range2, index)` is an alias for
+        :code:`reader(range1, range2, index)`.
 
         Parameters
         ----------
@@ -621,40 +666,44 @@ class BaseReader(object):
         Returns
         -------
         numpy.ndarray
-            The complex data, explicitly of dtype=complex.64. Be sure to upcast to
-            complex128 if so desired.
+            If complex, the data type will be `complex64`, so be sure to upcast to
+            `complex128` if so desired.
 
         Examples
-        ------------
+        --------
+        Basic fetching using the `read_chip` method
         :code:`data = reader.read_chip((start1, stop1, stride1), (start2, stop2, stride2))`
 
         Also available is basic call syntax
-
-        .. code-block::
-
-            data = reader(dim1range, dim2range, index).
-
-        Another alternative is slice syntax
-
-        .. code-block:: python
-
-            data = reader[start1:stop1:stride1, start:stop:stride]  # or
-            data = reader[start:stop:stride, start:stop:stride, index]
-
+        :code:`data = reader(dim1range, dim2range, index)`
+        Most familiar is Python style basic slice syntax
+        :code:`data = reader[start1:stop1:stride1, start:stop:stride]`  or
+        :code:`data = reader[start:stop:stride, start:stop:stride, index]`
         Here the slice on index (dimension 3) is limited to a single integer, and
         no slice on index :code:`reader[:, :]` will default to `index=0`,
         :code:`reader[:, :, 0]` (where appropriate).
+
+        The convention for precendence in the `dim1range` and `dim2range` arguments
+        for `read_chip` is a little unusual. To clarify, the following are equivalent
+        :code:`reader.read_chip(stride1, stride2)` yields the same as
+        :code:`reader.read_chip((stride1, ), (stride2, ))` yields the same as
+        :code:`reader[::stride1, ::stride2]`
+
+        :code:`reader.read_chip((stop1, stride1), (stop2, stride2))` yields the same as
+        :code:`reader[:stop1:stride1, :stop2:stride2]`
+
+        :code:`reader.read_chip((start1, stop1, stride1), (start2, stop2, stride2))`
+        yields the same as :code:`reader[start1:stop1:stride1, start2:stop2:stride2]`
         """
 
-        if isinstance(self._chipper, tuple):
-            index = self._validate_index(index)
-            return self._chipper[index](dim1range, dim2range)
-        else:
-            return self._chipper(dim1range, dim2range)
+        return self.__call__(dim1range, dim2range, index=index)
 
 
 class SubsetReader(BaseReader):
-    """Permits extraction from a particular subset of the possible data range"""
+    """
+    Permits extraction from a particular subset of the possible data range.
+    """
+
     __slots__ = ('_parent_reader', )
 
     def __init__(self, parent_reader, sicd_meta, dim1bounds, dim2bounds):
@@ -682,7 +731,10 @@ class SubsetReader(BaseReader):
 # Base Writer definition
 
 class AbstractWriter(object):
-    """Abstract file writer class for SICD data"""
+    """
+    Abstract file writer class for SICD data.
+    """
+
     __slots__ = ('_file_name', )
 
     def __init__(self, file_name):
