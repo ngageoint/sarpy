@@ -5,6 +5,7 @@ Functions to map between the coordinates in image pixel space and geographical c
 import logging
 from typing import Tuple
 from types import MethodType  # for binding a method dynamically to a class
+import time  # temp
 
 import numpy
 
@@ -114,7 +115,8 @@ def ground_to_image(coords, sicd, delta_gp_max=None, max_iterations=10, block_si
     sicd : sarpy.io.complex.sicd_elements.SICD.SICDType
         SICD meta data structure.
     delta_gp_max : float|None
-        Ground plane displacement tol (m). Defaults to 0.1*pixel.
+        Ground plane displacement tol (m). Defaults to 0.01*pixel. A minimum of
+        1e-6 will be enforced.
     max_iterations : int
         maximum number of iterations to perform
     block_size : int|None
@@ -146,10 +148,10 @@ def ground_to_image(coords, sicd, delta_gp_max=None, max_iterations=10, block_si
     col_ss = sicd.Grid.Col.SS
     pixel_size = numpy.sqrt(row_ss*row_ss + col_ss*col_ss)
     if delta_gp_max is None:
-        delta_gp_max = 0.1*pixel_size
-    if delta_gp_max < 0.01*pixel_size:
         delta_gp_max = 0.01*pixel_size
-        logging.warning('delta_gp_max was less than 0.01*pixel_size, '
+    if delta_gp_max < 1e-6:
+        delta_gp_max = 1e-6
+        logging.warning('delta_gp_max was less than 1e-6 meters, '
                         'and has been reset to {}'.format(delta_gp_max))
 
     if use_sicd_coa and sicd.coa_projection is not None:
@@ -743,7 +745,7 @@ def _image_to_ground_plane_perform(r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa, 
     vZ = numpy.dot(varp_coa, uZ)
     vX = numpy.sqrt(vMag*vMag - vZ*vZ)  # Note: For Vx = 0, no Solution
     # Orient X such that Vx > 0 and compute unit vectors uX and uY
-    uX = ((varp_coa - numpy.outer(vZ, uZ)).T/vX).T
+    uX = (varp_coa - numpy.outer(vZ, uZ))/vX[:, numpy.newaxis]
     uY = numpy.cross(uZ, uX)
     # Compute cosine of azimuth angle to ground plane point
     cosAz = (-r_dot_tgt_coa+vZ*sinGraz) / (vX * cosGraz)
@@ -754,7 +756,7 @@ def _image_to_ground_plane_perform(r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa, 
     sinAz = look * numpy.sqrt(1-cosAz*cosAz)
 
     # Compute Ground Plane Point in ground plane and along the R/Rdot contour
-    return aGPN + (uX.T*gd*cosAz + uY.T*gd*sinAz).T
+    return aGPN + uX*(gd*cosAz)[:, numpy.newaxis] + uY*(gd*sinAz)[:, numpy.newaxis]
 
 
 def _image_to_ground_plane(im_points, coa_projection, gref, uZ):
@@ -773,8 +775,8 @@ def _image_to_ground_plane(im_points, coa_projection, gref, uZ):
     """
 
     r_tgt_coa, r_dot_tgt_coa, t_coa, arp_coa, varp_coa = coa_projection.projection(im_points)
-    return _image_to_ground_plane_perform(r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa, gref, uZ)
-
+    values = _image_to_ground_plane_perform(r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa, gref, uZ)
+    return values
 
 def image_to_ground_plane(im_points, sicd, block_size=50000, gref=None, ugpn=None, use_sicd_coa=True, **coa_args):
     """
@@ -893,13 +895,13 @@ def _image_to_ground_hae_perform(
             delta_hae_min = delta_hae[numpy.argmin(abs_delta_hae)]
             gref -= delta_hae_min*ugpn
     # Compute the unit slant plane normal vector, uspn, that is tangent to the R/Rdot contour at point gpp
-    uspn = (numpy.cross(varp_coa, (gpp - arp_coa)).T*look).T
-    uspn = (uspn.T/numpy.linalg.norm(uspn, axis=-1)).T
+    uspn = numpy.cross(varp_coa, (gpp - arp_coa))*look[:, numpy.newaxis]
+    uspn /= numpy.linalg.norm(uspn, axis=-1)[:, numpy.newaxis]
     # For the final straight line projection, project from point gpp along
     # the slant plane normal (as opposed to the ground plane normal that was
     # used in the iteration) to point slp.
     sf = numpy.sum(ugpn*uspn, axis=-1)
-    slp = gpp - (uspn.T*delta_hae/sf).T
+    slp = gpp - uspn*(delta_hae/sf)[:, numpy.newaxis]
     # Assign surface point SPP position by adjusting the HAE to be on the
     # HAE0 surface.
     spp_llh = geocoords.ecf_to_geodetic(slp)
@@ -1094,7 +1096,7 @@ def _image_to_ground_dem(
     d1 = lat_lon_elevation[:, indices]
     d0 = lat_lon_elevation[:, prev_indices]
     frac_indices = indices + (d1/(d0 - d1))
-    return coords_high + ((frac_indices/(num_pts - 1))*ecf_diffs.T).T
+    return coords_high + (frac_indices/(num_pts - 1))[:, numpy.newaxis]*ecf_diffs
 
 
 def image_to_ground_dem(im_points, sicd, block_size=50000,
