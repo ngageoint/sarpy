@@ -50,6 +50,8 @@ __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 
+_PIXEL_METHODOLOGY = ('MAX', 'MIN', 'MEAN', 'GEOM_MEAN')
+
 #################
 # The projection methodology
 
@@ -59,27 +61,38 @@ class ProjectionHelper(object):
     ortho-rectification usage for a sicd type object.
     """
 
-    __slots__ = ('_sicd', '_row_spacing', '_col_spacing')
+    __slots__ = ('_sicd', '_row_spacing', '_col_spacing', '_default_pixel_method')
 
-    def __init__(self, sicd, row_spacing=None, col_spacing=None):
-        """
+    def __init__(self, sicd, row_spacing=None, col_spacing=None, default_pixel_method='GEOM_MEAN'):
+        r"""
 
         Parameters
         ----------
         sicd : SICDType
             The sicd object
         row_spacing : None|float
-            The row pixel spacing. If not provided, this will default to
-            the smaller of the range or azimuth resolutions projected into
-            the ground plane.
+            The row pixel spacing. If not provided, this will default according
+            to `default_pixel_method`.
         col_spacing : None|float
-            The row pixel spacing. If not provided, this will default to
-            the smaller of the range or azimuth resolutions projected into
-            the ground plane.
+            The row pixel spacing. If not provided, this will default according
+            to `default_pixel_method`.
+        default_pixel_method : str
+            Must be one of ('MAX', 'MIN', 'MEAN', 'GEOM_MEAN'). This determines
+            the default behavior for row_spacing/col_spacing. The default value for
+            row/column spacing will be the implied function applied to the range
+            and azimuth ground resolution. Note that geometric mean is defined as
+            :math:`\sqrt(x*x + y*y)`
         """
 
         self._row_spacing = None
         self._col_spacing = None
+        default_pixel_method = default_pixel_method.upper()
+        if default_pixel_method not in _PIXEL_METHODOLOGY:
+            raise ValueError(
+                'default_pixel_method got invalid value {}. Must be one '
+                'of {}'.format(default_pixel_method, _PIXEL_METHODOLOGY))
+        self._default_pixel_method = default_pixel_method
+
         if not isinstance(sicd, SICDType):
             raise TypeError('sicd must be a SICDType instance. Got type {}'.format(type(sicd)))
         if not sicd.can_project_coordinates():
@@ -121,7 +134,7 @@ class ProjectionHelper(object):
         """
 
         if value is None:
-            self._row_spacing = min(self.sicd.get_ground_resolution())
+            self._row_spacing = self._get_sicd_ground_pixel()
         else:
             value = float(value)
             if value <= 0:
@@ -152,12 +165,33 @@ class ProjectionHelper(object):
         """
 
         if value is None:
-            self._col_spacing = min(self.sicd.get_ground_resolution())
+            self._col_spacing = self._get_sicd_ground_pixel()
         else:
             value = float(value)
             if value <= 0:
                 raise ValueError('column pixel spacing must be positive.')
             self._col_spacing = float(value)
+
+    def _get_sicd_ground_pixel(self):
+        """
+        Gets the SICD ground pixel size.
+
+        Returns
+        -------
+        float
+        """
+
+        ground_row_ss, ground_col_ss = self.sicd.get_ground_resolution()
+        if self._default_pixel_method == 'MIN':
+            return min(ground_row_ss, ground_col_ss)
+        elif self._default_pixel_method == 'MAX':
+            return max(ground_row_ss, ground_col_ss)
+        elif self._default_pixel_method == 'MEAN':
+            return 0.5*(ground_row_ss + ground_col_ss)
+        elif self._default_pixel_method == 'GEOM_MEAN':
+            return float(numpy.sqrt(ground_row_ss*ground_row_ss + ground_col_ss*ground_col_ss))
+        else:
+            raise ValueError('Got unhandled default_pixel_method {}'.format(self._default_pixel_method))
 
     @staticmethod
     def _reshape(array, final_dimension):
@@ -376,8 +410,8 @@ class PGProjection(ProjectionHelper):
         '_reference_point', '_row_vector', '_col_vector', '_normal_vector', '_reference_hae')
 
     def __init__(self, sicd, reference_point=None, row_vector=None, col_vector=None,
-                 row_spacing=None, col_spacing=None):
-        """
+                 row_spacing=None, col_spacing=None, default_pixel_method='GEOM_MEAN'):
+        r"""
 
         Parameters
         ----------
@@ -397,6 +431,12 @@ class PGProjection(ProjectionHelper):
             The row pixel spacing.
         col_spacing : None|float
             The column pixel spacing.
+        default_pixel_method : str
+            Must be one of ('MAX', 'MIN', 'MEAN', 'GEOM_MEAN'). This determines
+            the default behavior for row_spacing/col_spacing. The default value for
+            row/column spacing will be the implied function applied to the range
+            and azimuth ground resolution. Note that geometric mean is defined as
+            :math:`\sqrt(x*x + y*y)`
         """
 
         self._reference_point = None
@@ -404,7 +444,8 @@ class PGProjection(ProjectionHelper):
         self._row_vector = None
         self._col_vector = None
         self._normal_vector = None
-        super(PGProjection, self).__init__(sicd, row_spacing=row_spacing, col_spacing=col_spacing)
+        super(PGProjection, self).__init__(
+            sicd, row_spacing=row_spacing, col_spacing=col_spacing, default_pixel_method=default_pixel_method)
         self.set_reference_point(reference_point)
         self.set_row_and_col_vector(row_vector, col_vector)
 

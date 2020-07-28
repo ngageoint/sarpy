@@ -178,7 +178,7 @@ class SubapertureCalculator(FFTCalculator):
 
     __slots__ = ('_frame_count', '_aperture_fraction', '_method', '_frame_definition')
 
-    def __init__(self, reader, dimension=0, index=0, block_size=50,
+    def __init__(self, reader, dimension=0, index=0, block_size=10,
                  frame_count=9, aperture_fraction=0.2, method='FULL'):
         """
 
@@ -428,7 +428,7 @@ class SubapertureCalculator(FFTCalculator):
 
 
 def create_dynamic_image_sidd(
-        ortho_helper, output_directory, output_file=None, dimension=0, block_size=50,
+        ortho_helper, output_directory, output_file=None, dimension=0, block_size=10,
         bounds=None, frame_count=9, aperture_fraction=0.2, method='FULL', version=2):
     """
     Create a SIDD version of a Dynamic Image (Sub-Aperture Stack) from a SICD type reader.
