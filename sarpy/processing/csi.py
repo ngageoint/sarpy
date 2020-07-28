@@ -258,6 +258,8 @@ class CSICalculator(FFTCalculator):
 
         if data.ndim < 2:
             data = numpy.reshape(data, (-1, 1))
+        # handle nonsense data with zeros
+        data[~numpy.isfinite(data)] = 0
 
         return csi_array(
             data, dimension=0, platform_direction=self._platform_direction,
@@ -294,6 +296,8 @@ class CSICalculator(FFTCalculator):
 
         if data.ndim < 2:
             data = numpy.reshape(data, (1, -1))
+        # handle nonsense data with zeros
+        data[~numpy.isfinite(data)] = 0
 
         return csi_array(
             data, dimension=1, platform_direction=self._platform_direction,

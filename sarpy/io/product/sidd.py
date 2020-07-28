@@ -779,9 +779,9 @@ class SIDDWriter(NITFWriter):
         self._img_groups = tuple(img_groups)
         self._img_details = tuple(img_details)
 
-    def _create_des_segment(self, index):
+    def _create_sidd_des_segment(self, index):
         """
-        Create the details for the data extension at `index`.
+        Create the details for the sidd data extension at `index`.
 
         Parameters
         ----------
@@ -819,6 +819,49 @@ class SIDDWriter(NITFWriter):
             UserHeader=XMLDESSubheader(**uh_args))
         return DESDetails(subhead, sidd.to_xml_bytes(tag='SIDD'))
 
+    def _create_sicd_des_segment(self, index):
+        """
+        Create the details for the sicd data extension at `index`.
+
+        Parameters
+        ----------
+        index : int
+
+        Returns
+        -------
+        DESDetails
+        """
+
+        security_tags = self.security_tags
+        sicd = self.sicd_meta[index]
+        uh_args = sicd.get_des_details()
+        desshdt = str(sicd.ImageCreation.DateTime.astype('datetime64[s]'))
+        if desshdt[-1] != 'Z':
+            desshdt += 'Z'
+        uh_args['DESSHDT'] = desshdt
+
+        desshlpg = ''
+        if sicd.GeoData is not None and sicd.GeoData.ImageCorners is not None:
+            # noinspection PyTypeChecker
+            icp = sicd.GeoData.ImageCorners.get_array(dtype=numpy.float64)
+            temp = []
+            for entry in icp:
+                temp.append('{0:0=+12.8f}{1:0=+13.8f}'.format(entry[0], entry[1]))
+            temp.append(temp[0])
+            desshlpg = ''.join(temp)
+        uh_args['DESSHLPG'] = desshlpg
+
+        subhead = DataExtensionHeader(
+            Security=security_tags,
+            UserHeader=XMLDESSubheader(**uh_args))
+        return DESDetails(subhead, sicd.to_xml_bytes(tag='SICD'))
+
     def _create_data_extension_details(self):
         super(SIDDWriter, self)._create_data_extension_details()
-        self._des_details = tuple(self._create_des_segment(index) for index in range(len(self.sidd_meta)))
+        des_details = []
+        for index in range(len(self.sidd_meta)):
+            des_details.append(self._create_sidd_des_segment(index))
+        if self.sicd_meta is not None:
+            for index in range(len(self.sicd_meta)):
+                des_details.append(self._create_sicd_des_segment(index))
+        self._des_details = tuple(des_details)

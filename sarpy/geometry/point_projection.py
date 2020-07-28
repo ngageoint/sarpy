@@ -752,7 +752,7 @@ def _image_to_ground_plane_perform(r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa, 
 
     # Compute sine of azimuth angle. Use LOOK to establish sign.
     look = numpy.sign(numpy.dot(numpy.cross(arp_coa-gref, varp_coa), uZ))
-    sinAz = look * numpy.sqrt(1-cosAz*cosAz)
+    sinAz = look*numpy.sqrt(1-cosAz*cosAz)
 
     # Compute Ground Plane Point in ground plane and along the R/Rdot contour
     return aGPN + uX*(gd*cosAz)[:, numpy.newaxis] + uY*(gd*sinAz)[:, numpy.newaxis]

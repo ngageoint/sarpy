@@ -219,7 +219,7 @@ class ProjectionHelper(object):
 
         o_shape = array.shape
 
-        if array.ndim != final_dimension:
+        if array.ndim != 2:
             array = numpy.reshape(array, (-1, final_dimension))
         return array, o_shape
 
@@ -633,7 +633,10 @@ class PGProjection(ProjectionHelper):
         return numpy.reshape(pixel, o_shape)
 
     def pixel_to_ortho(self, pixel_coords):
-        return self.ecf_to_ortho(self.pixel_to_ecf(pixel_coords))
+        # return self.ecf_to_ortho(self.pixel_to_ecf(pixel_coords))
+        ecf = self.pixel_to_ecf(pixel_coords)  # temp
+        ortho = self.ecf_to_ortho(ecf)
+        return ortho
 
     def pixel_to_ecf(self, pixel_coords):
         return self.sicd.project_image_to_ground(pixel_coords, projection_type='PLANE')
@@ -970,8 +973,8 @@ class OrthorectificationHelper(object):
             coordinates = numpy.array(
                 [[pixel_bounds[0], pixel_bounds[1]],
                  [pixel_bounds[siz], pixel_bounds[1]],
-                 [pixel_bounds[siz], pixel_bounds[siz+1]],
-                 [pixel_bounds[0], pixel_bounds[siz+1]]], dtype=numpy.float64)
+                 [pixel_bounds[siz], pixel_bounds[siz]],
+                 [pixel_bounds[0], pixel_bounds[siz]]], dtype=numpy.float64)
         ortho = self.proj_helper.pixel_to_ortho(coordinates)
         return self.proj_helper.get_pixel_array_bounds(ortho)
 

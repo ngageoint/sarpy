@@ -451,9 +451,11 @@ def create_detected_image_sidd(
         # accommodate for real pixel limits
         this_pixel_bounds = ortho_helper.get_real_pixel_bounds(this_pixel_bounds)
         # extract the csi data and ortho-rectify
+        data = reader[this_pixel_bounds[0]:this_pixel_bounds[1], this_pixel_bounds[2]:this_pixel_bounds[3], index]
+        data[~numpy.isfinite(data)] = 0
         ortho_csi_data = get_orthorectified_version(
             this_ortho_bounds, this_pixel_bounds,
-            reader[this_pixel_bounds[0]:this_pixel_bounds[1], this_pixel_bounds[2]:this_pixel_bounds[3], index])
+            data)
         # write out to the file
         start_indices = (this_ortho_bounds[0] - ortho_bounds[0],
                          this_ortho_bounds[2] - ortho_bounds[2])
