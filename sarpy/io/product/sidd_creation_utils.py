@@ -344,7 +344,7 @@ def create_sidd(ortho_helper, bounds, product_class, pixel_type, version=2):
 # Create a basic detected image
 
 def create_detected_image_sidd(
-        ortho_helper, output_directory, output_file=None, block_size=50, bounds=None, version=2):
+        ortho_helper, output_directory, output_file=None, block_size=10, bounds=None, version=2):
     """
     Create a SIDD version of a basic detected image from a SICD type reader.
 
