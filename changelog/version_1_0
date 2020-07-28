@@ -1,5 +1,6 @@
 # This details the important differences introduced in sarpy 1.0
 
+* .37 - Optimized some ortho-rectification parameters
 * .36 - Refactored CSI and subaperture processing and introduced practical SIDD creation
 * .35 - Added support for Capella format data
 * .34 - Fixed NITF bug for image size

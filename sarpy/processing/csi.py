@@ -367,7 +367,7 @@ class CSICalculator(FFTCalculator):
 
 def create_csi_sidd(
         ortho_helper, output_directory, output_file=None, dimension=0,
-        block_size=50, bounds=None, version=2):
+        block_size=30, bounds=None, version=2):
     """
     Create a SIDD version of a Color Sub-Aperture Image from a SICD type reader.
 
