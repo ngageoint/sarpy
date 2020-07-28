@@ -5,7 +5,6 @@ Functions to map between the coordinates in image pixel space and geographical c
 import logging
 from typing import Tuple
 from types import MethodType  # for binding a method dynamically to a class
-import time  # temp
 
 import numpy
 
