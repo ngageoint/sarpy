@@ -63,7 +63,7 @@ class MeasurementType(Serializable):
         GeographicProjection : GeographicProjectionType
         PlaneProjection : PlaneProjectionType
         CylindricalProjection : CylindricalProjectionType
-        ARPPoly : Poly2DType|numpy.ndarray|list|tuple
+        ARPPoly : XYZPolyType|numpy.ndarray|list|tuple
         kwargs
         """
 
