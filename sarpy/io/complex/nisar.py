@@ -347,7 +347,7 @@ class NISARDetails(object):
                 ImageFormAlgo='RMA',
                 TStartProc=0,
                 TEndProc=duration,
-                STBeamComp='NO',
+                STBeamComp='GLOBAL',
                 ImageBeamComp='SV',
                 AzAutofocus='NO',
                 RgAutofocus='NO',

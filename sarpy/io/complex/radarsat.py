@@ -582,8 +582,8 @@ class RadarSatDetails(object):
             TEndProc=timeline.CollectDuration,
             TxFrequencyProc=TxFrequencyProcType(MinProc=radar_collection.TxFrequency.Min,
                                                 MaxProc=radar_collection.TxFrequency.Max),
-            STBeamComp='NO',
-            ImageBeamComp='NO',
+            STBeamComp='GLOBAL',
+            ImageBeamComp='SV',
             AzAutofocus='NO',
             RgAutofocus='NO')
 

@@ -250,7 +250,7 @@ class CSKDetails(object):
                                       TStartProc=0,
                                       TEndProc=duration,
                                       STBeamComp='SV',
-                                      ImageBeamComp='NO',
+                                      ImageBeamComp='SV',
                                       AzAutofocus='NO',
                                       RgAutofocus='NO',
                                       RcvChanProc=RcvChanProcType(NumChanProc=1,
