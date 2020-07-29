@@ -50,7 +50,57 @@ __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 
+##################
+# module variables and helper methods
 _PIXEL_METHODOLOGY = ('MAX', 'MIN', 'MEAN', 'GEOM_MEAN')
+
+
+def _linear_fill(pixel_array, fill_interval=1):
+    """
+    This is to final in linear features in pixel space at the given interval.
+
+    Parameters
+    ----------
+    pixel_array : numpy.ndarray
+    fill_interval : int|float
+
+    Returns
+    -------
+    numpy.ndarray
+    """
+
+    if not isinstance(pixel_array, numpy.ndarray):
+        raise TypeError('pixel_array must be a numpy array. Got type {}'.format(type(pixel_array)))
+    if pixel_array.ndim < 2:
+        # nothing to be done
+        return pixel_array
+
+    if pixel_array.ndim > 2:
+        raise ValueError('pixel_array must be no more than two-dimensional. Got shape {}'.format(pixel_array.shape))
+    if pixel_array.shape[1] != 2:
+        raise ValueError(
+            'pixel_array is two dimensional, and the final dimension must have length 2. '
+            'Got shape {}'.format(pixel_array.shape))
+    if pixel_array.shape[0] < 2:
+        # nothing to be done
+        return pixel_array
+
+    def make_segment(start_point, end_point):
+        segment_length = numpy.linalg.norm(end_point - start_point)
+        segment_count = max(2, int(numpy.ceil(segment_length/float(fill_interval) + 1)))
+        segment = numpy.zeros((segment_count, 2), dtype=numpy.float64)
+        # NB: it's ok if start == end in linspace
+        segment[:, 0] = numpy.linspace(start_point[0], end_point[0], segment_count)
+        segment[:, 1] = numpy.linspace(start_point[1], end_point[1], segment_count)
+        return segment
+
+    segments = []
+    for i in range(pixel_array.shape[0]-1):
+        start_segment = pixel_array[i, :]
+        end_segment = pixel_array[i+1, :]
+        segments.append(make_segment(start_segment, end_segment))
+    return numpy.vstack(segments)
+
 
 #################
 # The projection methodology
@@ -392,10 +442,10 @@ class ProjectionHelper(object):
 
         coords, o_shape = self._reshape(coords, 2)
         return numpy.array(
-            (numpy.floor(numpy.min(coords[:, 0], axis=0)),
-             numpy.ceil(numpy.max(coords[:, 0], axis=0)),
-             numpy.floor(numpy.min(coords[:, 1], axis=0)),
-             numpy.ceil(numpy.max(coords[:, 1], axis=0))), dtype=numpy.int64)
+            (numpy.floor(numpy.nanmin(coords[:, 0], axis=0)),
+             numpy.ceil(numpy.nanmax(coords[:, 0], axis=0)),
+             numpy.floor(numpy.nanmin(coords[:, 1], axis=0)),
+             numpy.ceil(numpy.nanmax(coords[:, 1], axis=0))), dtype=numpy.int64)
 
 
 class PGProjection(ProjectionHelper):
@@ -925,8 +975,10 @@ class OrthorectificationHelper(object):
         numpy.ndarray
             Of the form `[min row, max row, min column, max column]`.
         """
+
         full_coords = self.sicd.ImageData.get_full_vertex_data()
-        return self.get_orthorectification_bounds_from_pixel_object(full_coords)
+        full_line = _linear_fill(full_coords, fill_interval=1)
+        return self.get_orthorectification_bounds_from_pixel_object(full_line)
 
     def get_valid_ortho_bounds(self):
         """
@@ -946,15 +998,13 @@ class OrthorectificationHelper(object):
         valid_coords = self.sicd.ImageData.get_valid_vertex_data()
         if valid_coords is None:
             valid_coords = self.sicd.ImageData.get_full_vertex_data()
-        return self.get_orthorectification_bounds_from_pixel_object(valid_coords)
+        valid_line = _linear_fill(valid_coords, fill_interval=1)
+        return self.get_orthorectification_bounds_from_pixel_object(valid_line)
 
     def get_orthorectification_bounds_from_pixel_object(self, coordinates):
         """
         Determine the ortho-rectified (coordinate-system aligned) rectangular bounding
         region which contains the provided coordinates in pixel space.
-
-        .. Note: This assumes that the coordinate transforms are convex transformations,
-            which **should** be safe for SAR associated transforms.
 
         Parameters
         ----------
@@ -975,15 +1025,14 @@ class OrthorectificationHelper(object):
                  [pixel_bounds[siz], pixel_bounds[1]],
                  [pixel_bounds[siz], pixel_bounds[siz]],
                  [pixel_bounds[0], pixel_bounds[siz]]], dtype=numpy.float64)
-        ortho = self.proj_helper.pixel_to_ortho(coordinates)
+        filled_coordinates = _linear_fill(coordinates, fill_interval=1)
+        ortho = self.proj_helper.pixel_to_ortho(filled_coordinates)
         return self.proj_helper.get_pixel_array_bounds(ortho)
 
     def get_orthorectification_bounds_from_latlon_object(self, coordinates):
         """
         Determine the ortho-rectified (coordinate-system aligned) rectangular bounding
         region which contains the provided coordinates in lat/lon space.
-
-        .. Note: This neglects the non-convexity of lat/lon coordinate space.
 
         Parameters
         ----------
@@ -1105,7 +1154,9 @@ class OrthorectificationHelper(object):
         numpy.ndarray
         """
 
-        mask = ((pixel_rows >= row_array[0]) & (pixel_rows < row_array[-1]) &
+        mask = (numpy.isfinite(pixel_rows) &
+                numpy.isfinite(pixel_cols) &
+                (pixel_rows >= row_array[0]) & (pixel_rows < row_array[-1]) &
                 (pixel_cols >= col_array[0]) & (pixel_cols < col_array[-1]))
         return mask
 
@@ -1147,7 +1198,8 @@ class OrthorectificationHelper(object):
         """
 
         bounds, coords = self.bounds_to_rectangle(bounds)
-        pixel_coords = self.proj_helper.ortho_to_pixel(coords)
+        filled_coords = _linear_fill(coords, fill_interval=1)
+        pixel_coords = self.proj_helper.ortho_to_pixel(filled_coords)
         pixel_bounds = self.proj_helper.get_pixel_array_bounds(pixel_coords)
         return bounds, self.validate_bounds(pixel_bounds)
 
@@ -1395,9 +1447,6 @@ class OrthorectificationHelper(object):
         Determine the ortho-rectified rectangular array values, which will bound
         the given object - with coordinates expressed in pixel space.
 
-        .. Note: This assumes that the coordinate transforms are convex transformations,
-            which should be safe for basic SAR associated transforms.
-
         Parameters
         ----------
         coordinates : GeometryObject|numpy.ndarray|list|tuple
@@ -1415,9 +1464,6 @@ class OrthorectificationHelper(object):
         """
         Determine the ortho-rectified rectangular array values, which will bound
         the given object - with coordinates expressed in lat/lon space.
-
-        .. Note: This assumes that the coordinate transforms are convex transformations,
-            which should be safe for basic SAR associated transforms.
 
         Parameters
         ----------
