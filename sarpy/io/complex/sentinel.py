@@ -438,7 +438,7 @@ class SentinelDetails(object):
             return radar_collection
 
         def get_image_formation():  # type: () -> ImageFormationType
-            st_bean_comp = 'NO' if out_sicd.CollectionInfo.RadarMode.ModeID[0] == 'S' else 'SV'
+            st_beam_comp = 'GLOBAL' if out_sicd.CollectionInfo.RadarMode.ModeID[0] == 'S' else 'SV'
             pol = self._parse_pol(root_node.find('./adsHeader/polarisation').text)
             # which channel does this pol correspond to?
             chan_indices = None
@@ -455,10 +455,10 @@ class SentinelDetails(object):
                                           MinProc=out_sicd.RadarCollection.TxFrequency.Min,
                                           MaxProc=out_sicd.RadarCollection.TxFrequency.Max),
                                       ImageFormAlgo='RMA',
-                                      ImageBeamComp='NO',
+                                      ImageBeamComp='SV',
                                       AzAutofocus='NO',
                                       RgAutofocus='NO',
-                                      STBeamComp=st_bean_comp)
+                                      STBeamComp=st_beam_comp)
 
         def get_rma():  # type: () -> RMAType
             center_frequency = get_center_frequency()
