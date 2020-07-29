@@ -1,5 +1,6 @@
 # This details the important differences introduced in sarpy 1.0
 
+* .40 - Adjust ImageBeamComp for derived formats
 * .39 - Account for non-convexity of projection for ortho-rectification
 * .38 - Clarified some projection parameters and documentation
 * .37 - Optimized some ortho-rectification parameters
