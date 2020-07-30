@@ -358,7 +358,7 @@ def create_csi_sidd(
         product_class='Color Subaperture Image', pixel_type='RGB24I', version=version)
     # set suggested name
     sidd_structure._NITF = {
-        'SUGGESTED_NAME': csi_calculator.sicd.get_suggested_name(csi_calculator.index)+'__CSI', }
+        'SUGGESTED_NAME': csi_calculator.sicd.get_suggested_name(csi_calculator.index)+'_CSI', }
 
     # create the sidd writer
     if output_file is None:

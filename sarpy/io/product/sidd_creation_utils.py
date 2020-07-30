@@ -388,7 +388,7 @@ def create_detected_image_sidd(
         product_class='Detected Image', pixel_type='MONO8I', version=version)
     # set suggested name
     sidd_structure._NITF = {
-        'SUGGESTED_NAME': ortho_helper.sicd.get_suggested_name(ortho_helper.index)+'__IMG', }
+        'SUGGESTED_NAME': ortho_helper.sicd.get_suggested_name(ortho_helper.index)+'_IMG', }
 
     # create the sidd writer
     if output_file is None:
