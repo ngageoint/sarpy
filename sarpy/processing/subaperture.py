@@ -14,8 +14,7 @@ from sarpy.processing.fft_base import FFTCalculator, fft, ifft, fftshift
 from sarpy.io.general.slice_parsing import validate_slice, validate_slice_int
 from sarpy.io.product.sidd_creation_utils import create_sidd
 from sarpy.io.product.sidd import SIDDWriter
-from sarpy.processing.ortho_rectify import OrthorectificationHelper
-from sarpy.visualization.remap import amplitude_to_density, clip_cast
+from sarpy.processing.ortho_rectify import OrthorectificationHelper, OrthorectificationIterator
 
 
 ####################
@@ -432,6 +431,145 @@ class SubapertureCalculator(FFTCalculator):
         return out
 
 
+class SubapertureOrthoIterator(OrthorectificationIterator):
+    """
+    An iterator class for the ortho-rectified subaperture processing.
+
+    Iterating depth first requires the least fetching from the reader once for
+    all frames. Otherwise, iterating requires redundantly fetching data once
+    for each frame.
+
+    It should be noted that fetching data is not time intensive if working using
+    a local file (i.e. on your computer), but it may be if working using some
+    kind of network file system.
+    """
+
+    __slots__ = ('_depth_first', '_this_frame', '_generator')
+
+    def __init__(self, ortho_helper, calculator, bounds=None, depth_first=True):
+        """
+
+        Parameters
+        ----------
+        ortho_helper : OrthorectificationHelper
+        calculator : SubapertureCalculator
+        bounds : None|numpy.ndarray|list|tuple
+            The pixel bounds of the form `(min row, max row, min col, max col)`.
+            This will default to the full image.
+        depth_first : bool
+            If `True`, by image segment part then frame - this requires the least
+            fetching from the reader, once across all frames. Otherwise, iteration
+            will proceed by frames and then image segment - this requires more
+            fetching from the reader, once per frame.
+        """
+
+        self._generator = None
+        self._this_frame = None
+        self._depth_first = bool(depth_first)
+
+        if not isinstance(calculator, SubapertureCalculator):
+            raise TypeError(
+                'calculator must be an instance of SubapertureCalculator. Got type {}'.format(type(calculator)))
+        super(SubapertureOrthoIterator, self).__init__(ortho_helper, calculator=calculator, bounds=bounds)
+
+    @property
+    def calculator(self):
+        # type: () -> SubapertureCalculator
+        # noinspection PyTypeChecker
+        return self._calculator
+
+    def _depth_first_iteration(self):
+        if not self._depth_first:
+            raise ValueError('Requires depth_first = True')
+
+        # determine our current state
+        if self._this_index is None or self._this_frame is None:
+            self._this_index = 0
+            self._this_frame = 0
+        else:
+            self._this_frame += 1
+            if self._this_frame >= self.calculator.frame_count:
+                self._this_index += 1
+                self._this_frame = 0
+        # at this point, _this_index & _this_frame indicates which entry to return
+        if self._this_index >= len(self._iteration_blocks):
+            raise StopIteration()
+
+        this_ortho_bounds, this_pixel_bounds = self._get_state_parameters()
+        if self._this_frame == 0:
+            # set up the iterator from the calculator
+            self._generator = self.calculator.subaperture_generator(
+                (this_pixel_bounds[0], this_pixel_bounds[1], 1),
+                (this_pixel_bounds[2], this_pixel_bounds[3], 1))
+
+        data = self._generator.__next__()
+        ortho_data = self._get_orthorectified_version(this_ortho_bounds, this_pixel_bounds,data)
+        start_indices = (this_ortho_bounds[0] - self.ortho_bounds[0],
+                         this_ortho_bounds[2] - self.ortho_bounds[2])
+        return ortho_data, start_indices, self._this_frame
+
+    def _frame_first_iteration(self):
+        if self._depth_first:
+            raise ValueError('Requires depth_first = False')
+
+        # determine our current state
+        if self._this_index is None or self._this_frame is None:
+            self._this_index = 0
+            self._this_frame = 0
+        else:
+            self._this_index += 1
+            if self._this_index >= len(self._iteration_blocks):
+                self._this_frame += 1
+                self._this_index = 0
+
+        # at this point, _this_index & _this_frame indicates which entry to return
+        if self._this_frame >= self.calculator.frame_count:
+            raise StopIteration()
+
+        # calculate our result
+        this_ortho_bounds, this_pixel_bounds = self._get_state_parameters()
+        data = self.calculator[
+               this_pixel_bounds[0]:this_pixel_bounds[1],
+               this_pixel_bounds[2]:this_pixel_bounds[3],
+               self._this_frame]
+        ortho_data = self._get_orthorectified_version(this_ortho_bounds, this_pixel_bounds,data)
+        start_indices = (this_ortho_bounds[0] - self.ortho_bounds[0],
+                         this_ortho_bounds[2] - self.ortho_bounds[2])
+        return ortho_data, start_indices, self._this_frame
+
+    def __next__(self):
+        """
+        Get the next iteration of ortho-rectified data.
+
+        Returns
+        -------
+        numpy.ndarray, Tuple[int, int], int
+            The data and the (normalized) indices (start_row, start_col) for this section of data, relative
+            to overall output shape, and then the frame index.
+        """
+
+        # NB: this is the Python 3 pattern for iteration
+
+        if self._depth_first:
+            return self._depth_first_iteration()
+        else:
+            return self._frame_first_iteration()
+
+    def next(self):
+        """
+        Get the next iteration of ortho-rectified data.
+
+        Returns
+        -------
+        numpy.ndarray, Tuple[int, int], int
+            The data and the (normalized) indices (start_row, start_col) for this section of data, relative
+            to overall output shape, and then the frame index.
+        """
+
+        # NB: this is the Python 2 pattern for iteration
+        return self.__next__()
+
+
 def create_dynamic_image_sidd(
         ortho_helper, output_directory, output_file=None, dimension=0, block_size=10,
         bounds=None, frame_count=9, aperture_fraction=0.2, method='FULL', version=2):
@@ -477,44 +615,16 @@ def create_dynamic_image_sidd(
             'ortho_helper is required to be an instance of OrthorectificationHelper, '
             'got type {}'.format(type(ortho_helper)))
 
-    def get_pixel_data(temp_pixel_bounds):
-        this_pixel_row_range = (temp_pixel_bounds[0], temp_pixel_bounds[1], 1)
-        this_pixel_col_range = (this_pixel_bounds[2], temp_pixel_bounds[3], 1)
-        this_row_array = numpy.arange(this_pixel_row_range[0], this_pixel_row_range[1], 1)
-        this_col_array = numpy.arange(this_pixel_col_range[0], this_pixel_col_range[1], 1)
-        return this_pixel_row_range, this_pixel_col_range, this_row_array, this_col_array
-
-    def get_orthorectified_version(these_ortho_bounds, this_row_array, this_col_array, this_subap_data):
-        return clip_cast(
-            amplitude_to_density(
-                ortho_helper.get_orthorectified_from_array(these_ortho_bounds, this_row_array, this_col_array, this_subap_data),
-                data_mean=the_mean),
-            dtype='uint8')
-
-    def log_progress(t_ortho_bounds, t_index):
-        logging.info('Writing pixels ({}:{}, {}:{}) of ({}, {}) for index '
-                     '{} of {}'.format(t_ortho_bounds[0]-ortho_bounds[0], t_ortho_bounds[1]-ortho_bounds[0],
-                                       t_ortho_bounds[2] - ortho_bounds[2], t_ortho_bounds[3] - ortho_bounds[2],
-                                       ortho_bounds[1] - ortho_bounds[0], ortho_bounds[3] - ortho_bounds[2],
-                                       t_index+1, subap_calculator.frame_count))
-
-    reader = ortho_helper.reader
-    index = ortho_helper.index
-
     # construct the subaperture calculator class
     subap_calculator = SubapertureCalculator(
-        reader, dimension=dimension, index=index, block_size=block_size,
+        ortho_helper.reader, dimension=dimension, index=ortho_helper.index, block_size=block_size,
         frame_count=frame_count, aperture_fraction=aperture_fraction, method=method)
-    # validate the bounds
-    if bounds is None:
-        bounds = (0, subap_calculator.data_size[0], 0, subap_calculator.data_size[1])
-    bounds, pixel_rectangle = ortho_helper.bounds_to_rectangle(bounds)
-    # get the corresponding prtho bounds
-    ortho_bounds = ortho_helper.get_orthorectification_bounds_from_pixel_object(pixel_rectangle)
-    # Extract the mean of the data magnitude - for global remap usage
-    the_mean = subap_calculator.get_data_mean_magnitude(bounds)
+
+    # construct the ortho-rectification iterator
+    ortho_iterator = SubapertureOrthoIterator(ortho_helper, calculator=subap_calculator, bounds=bounds, depth_first=True)
 
     # create the sidd structure
+    ortho_bounds = ortho_iterator.ortho_bounds
     sidd_structure = create_sidd(
         ortho_helper, ortho_bounds,
         product_class='Dynamic Image', pixel_type='MONO8I', version=version)
@@ -537,43 +647,11 @@ def create_dynamic_image_sidd(
         raise IOError('File {} already exists.'.format(full_filename))
     writer = SIDDWriter(full_filename, the_sidds, subap_calculator.sicd)
 
-    if subap_calculator.dimension == 0:
-        # we are using the full resolution row data
-        # determine the orthorectified blocks to use
-        column_block_size = subap_calculator.get_fetch_block_size(ortho_bounds[0], ortho_bounds[1])
-        ortho_column_blocks, ortho_result_blocks = subap_calculator.extract_blocks(
-            (ortho_bounds[2], ortho_bounds[3], 1), column_block_size)
-
-        for this_column_range, result_range in zip(ortho_column_blocks, ortho_result_blocks):
-            # determine the corresponding pixel ranges to encompass these values
-            this_ortho_bounds, this_pixel_bounds = ortho_helper.extract_pixel_bounds(
-                (ortho_bounds[0], ortho_bounds[1], this_column_range[0], this_column_range[1]))
-            # accommodate for real pixel limits
-            this_pixel_bounds = ortho_helper.get_real_pixel_bounds(this_pixel_bounds)
-            # create the subaperture generator
-            pixel_row_range, pixel_col_range, row_array, col_array = get_pixel_data(this_pixel_bounds)
-            start_indices = (this_ortho_bounds[0] - ortho_bounds[0],
-                             this_ortho_bounds[2] - ortho_bounds[2])
-            for i, subap_data in enumerate(subap_calculator.subaperture_generator(pixel_row_range, pixel_col_range)):
-                log_progress(this_ortho_bounds, i)
-                ortho_subap_data = get_orthorectified_version(this_ortho_bounds, row_array, col_array, subap_data)
-                writer(ortho_subap_data, start_indices=start_indices, index=i)
-    else:
-        row_block_size = subap_calculator.get_fetch_block_size(ortho_bounds[2], ortho_bounds[3])
-        ortho_row_blocks, ortho_result_blocks = subap_calculator.extract_blocks(
-            (ortho_bounds[0], ortho_bounds[1], 1), row_block_size)
-
-        for this_row_range, result_range in zip(ortho_row_blocks, ortho_result_blocks):
-            # determine the corresponding pixel ranges to encompass these values
-            this_ortho_bounds, this_pixel_bounds = ortho_helper.extract_pixel_bounds(
-                (this_row_range[0], this_row_range[1], ortho_bounds[2], ortho_bounds[3]))
-            # accommodate for real pixel limits
-            this_pixel_bounds = ortho_helper.get_real_pixel_bounds(this_pixel_bounds)
-            # create the subaperture generator
-            pixel_row_range, pixel_col_range, row_array, col_array = get_pixel_data(this_pixel_bounds)
-            start_indices = (this_ortho_bounds[0] - ortho_bounds[0],
-                             this_ortho_bounds[2] - ortho_bounds[2])
-            for i, subap_data in enumerate(subap_calculator.subaperture_generator(pixel_row_range, pixel_col_range)):
-                log_progress(this_ortho_bounds, i)
-                ortho_subap_data = get_orthorectified_version(this_ortho_bounds, row_array, col_array, subap_data)
-                writer(ortho_subap_data, start_indices=start_indices, index=i)
+    # iterate and write
+    ortho_shape = ortho_iterator.ortho_data_size
+    for data, start_indices, the_frame in ortho_iterator:
+        logging.info('Writing pixels ({}:{}, {}:{}) of ({}, {}) for frame {}'.format(
+            start_indices[0], start_indices[0] + data.shape[0],
+            start_indices[1], start_indices[1] + data.shape[1],
+            ortho_shape[0], ortho_shape[1], the_frame))
+        writer(data, start_indices=start_indices, index=the_frame)

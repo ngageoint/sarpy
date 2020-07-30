@@ -2148,7 +2148,7 @@ class OrthorectificationIterator(object):
 
     __slots__ = (
         '_calculator', '_ortho_helper', '_pixel_bounds', '_ortho_bounds',
-        '_this_index', '_iteration_blocks', '_result_blocks', '_the_mean')
+        '_this_index', '_iteration_blocks', '_the_mean')
 
     def __init__(self, ortho_helper, calculator=None, bounds=None):
         """
@@ -2168,7 +2168,6 @@ class OrthorectificationIterator(object):
 
         self._this_index = None
         self._iteration_blocks = None
-        self._result_blocks = None
         self._the_mean = None
 
         # validate ortho_helper
@@ -2243,19 +2242,28 @@ class OrthorectificationIterator(object):
 
         return self._the_mean
 
+    @property
+    def calculator(self):
+        # type: () -> FullResolutionFetcher
+        """
+        FullResolutionFetcher : The calculator instance.
+        """
+
+        return self._calculator
+
     def __iter__(self):
         return self
 
     def _prepare_state(self):
-        if self._calculator.dimension == 0:
-            column_block_size = self._calculator.get_fetch_block_size(self.ortho_bounds[0], self.ortho_bounds[1])
-            self._iteration_blocks, self._result_blocks = self._calculator.extract_blocks(
+        if self.calculator.dimension == 0:
+            column_block_size = self.calculator.get_fetch_block_size(self.ortho_bounds[0], self.ortho_bounds[1])
+            self._iteration_blocks, _ = self.calculator.extract_blocks(
                 (self.ortho_bounds[2], self.ortho_bounds[3], 1), column_block_size)
         else:
-            row_block_size = self._calculator.get_fetch_block_size(self.ortho_bounds[2], self.ortho_bounds[3])
-            self._iteration_blocks, self._result_blocks = self._calculator.extract_blocks(
+            row_block_size = self.calculator.get_fetch_block_size(self.ortho_bounds[2], self.ortho_bounds[3])
+            self._iteration_blocks, _ = self.calculator.extract_blocks(
                 (self.ortho_bounds[0], self.ortho_bounds[1], 1), row_block_size)
-        self._the_mean = self._calculator.get_data_mean_magnitude(self._pixel_bounds)
+        self._the_mean = self.calculator.get_data_mean_magnitude(self._pixel_bounds)
 
     def _get_ortho_helper(self, pixel_bounds, this_data):
         rows_temp = pixel_bounds[1] - pixel_bounds[0]
@@ -2285,6 +2293,18 @@ class OrthorectificationIterator(object):
                 data_mean=self._the_mean),
             dtype='uint8')
 
+    def _get_state_parameters(self):
+        if self._calculator.dimension == 0:
+            this_column_range = self._iteration_blocks[self._this_index]
+            # determine the corresponding pixel ranges to encompass these values
+            this_ortho_bounds, this_pixel_bounds = self._ortho_helper.extract_pixel_bounds(
+                (self.ortho_bounds[0], self.ortho_bounds[1], this_column_range[0], this_column_range[1]))
+        else:
+            this_row_range = self._iteration_blocks[self._this_index]
+            this_ortho_bounds, this_pixel_bounds = self._ortho_helper.extract_pixel_bounds(
+                (this_row_range[0], this_row_range[1], self.ortho_bounds[2], self.ortho_bounds[3]))
+        return this_ortho_bounds, this_pixel_bounds
+
     def __next__(self):
         """
         Get the next iteration of orthorectified data.
@@ -2305,16 +2325,7 @@ class OrthorectificationIterator(object):
         if self._this_index >= len(self._iteration_blocks):
             raise StopIteration()
 
-        if self._calculator.dimension == 0:
-            this_column_range = self._iteration_blocks[self._this_index]
-            # determine the corresponding pixel ranges to encompass these values
-            this_ortho_bounds, this_pixel_bounds = self._ortho_helper.extract_pixel_bounds(
-                (self.ortho_bounds[0], self.ortho_bounds[1], this_column_range[0], this_column_range[1]))
-        else:
-            this_row_range = self._iteration_blocks[self._this_index]
-            this_ortho_bounds, this_pixel_bounds = self._ortho_helper.extract_pixel_bounds(
-                (this_row_range[0], this_row_range[1], self.ortho_bounds[2], self.ortho_bounds[3]))
-
+        this_ortho_bounds, this_pixel_bounds = self._get_state_parameters()
         # accommodate for real pixel limits
         this_pixel_bounds = self._ortho_helper.get_real_pixel_bounds(this_pixel_bounds)
         # extract the csi data and ortho-rectify
