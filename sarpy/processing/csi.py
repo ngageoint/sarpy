@@ -42,12 +42,13 @@ import os
 import numpy
 
 from sarpy.compliance import int_func
-# noinspection PyProtectedMember
-from sarpy.processing.fft_base import FFTCalculator, _get_fetch_block_size, fft, ifft, fftshift
+from sarpy.processing.fft_base import FFTCalculator, fft, ifft, fftshift
 from sarpy.io.general.base import BaseReader
 from sarpy.io.product.sidd_creation_utils import create_sidd
 from sarpy.io.product.sidd import SIDDWriter
-from sarpy.processing.ortho_rectify import OrthorectificationHelper
+# noinspection PyProtectedMember
+from sarpy.processing.ortho_rectify import OrthorectificationHelper, \
+    OrthorectificationIterator, _get_fetch_block_size
 from sarpy.visualization.remap import amplitude_to_density, clip_cast
 
 __classification__ = "UNCLASSIFIED"
@@ -60,7 +61,7 @@ def filter_map_construction(siz):
 
     Parameters
     ----------
-    siz : int
+    siz : int|float
         the size of the colormap
 
     Returns
@@ -226,82 +227,23 @@ class CSICalculator(FFTCalculator):
 
         return _get_fetch_block_size(start_element, stop_element, self.block_size_in_bytes, bands=3)
 
-
-    def _full_row_resolution(self, row_range, col_range, filter_map):
-        """
-        Perform the full row resolution calculation.
-
-        Parameters
-        ----------
-        row_range
-        col_range
-        filter_map : numpy.ndarray
-
-        Returns
-        -------
-        numpy.ndarray
-        """
-
-        # fetch the data and perform the csi calculation
-        if row_range[2] not in [1, -1]:
-            raise ValueError('The step for row_range must be +/- 1, for full row resolution data.')
-        if row_range[1] == -1:
-            data = self.reader[
-                   row_range[0]::row_range[2],
-                   col_range[0]:col_range[1]:col_range[2],
-                   self.index]
-        else:
-            data = self.reader[
-                   row_range[0]:row_range[1]:row_range[2],
-                   col_range[0]:col_range[1]:col_range[2],
-                   self.index]
-
-        if data.ndim < 2:
-            data = numpy.reshape(data, (-1, 1))
-        # handle nonsense data with zeros
-        data[~numpy.isfinite(data)] = 0
-
+    def _full_row_resolution(self, row_range, col_range, filter_map=None):
+        data = super(CSICalculator, self)._full_row_resolution(row_range, col_range)
         return csi_array(
             data, dimension=0, platform_direction=self._platform_direction,
             filter_map=filter_map)
 
-    def _full_column_resolution(self, row_range, col_range, filter_map):
-        """
-        Perform the full column resolution calculation.
-
-        Parameters
-        ----------
-        row_range
-        col_range
-        filter_map : numpy.ndarray
-
-        Returns
-        -------
-        numpy.ndarray
-        """
-
-        # fetch the data and perform the csi calculation
-        if col_range[2] not in [1, -1]:
-            raise ValueError('The step for col_range must be +/- 1, for full col resolution data.')
-        if col_range[1] == -1:
-            data = self.reader[
-                   row_range[0]:row_range[1]:row_range[2],
-                   col_range[0]::col_range[2],
-                   self.index]
-        else:
-            data = self.reader[
-                   row_range[0]:row_range[1]:row_range[2],
-                   col_range[0]:col_range[1]:col_range[2],
-                   self.index]
-
-        if data.ndim < 2:
-            data = numpy.reshape(data, (1, -1))
-        # handle nonsense data with zeros
-        data[~numpy.isfinite(data)] = 0
-
+    def _full_column_resolution(self, row_range, col_range, filter_map=None):
+        data = super(CSICalculator, self)._full_column_resolution(row_range, col_range)
         return csi_array(
             data, dimension=1, platform_direction=self._platform_direction,
             filter_map=filter_map)
+
+    def _prepare_output(self, row_range, col_range):
+        row_count = int_func((row_range[1] - row_range[0]) / float(row_range[2]))
+        col_count = int_func((col_range[1] - col_range[0]) / float(col_range[2]))
+        out_size = (row_count, col_count, 3)
+        return numpy.zeros(out_size, dtype=numpy.float64)
 
     def __getitem__(self, item):
         """
@@ -327,12 +269,6 @@ class CSICalculator(FFTCalculator):
             t_full_range = (the_range[0], the_range[1], the_snip)
             return t_filter_map, t_block_size, t_full_range
 
-        def prepare_output():
-            row_count = int_func((row_range[1] - row_range[0]) / float(row_range[2]))
-            col_count = int_func((col_range[1] - col_range[0]) / float(col_range[2]))
-            out_size = (row_count, col_count, 3)
-            return numpy.zeros(out_size, dtype=numpy.float64)
-
         # parse the slicing to ensure consistent structure
         row_range, col_range, _ = self._parse_slicing(item)
         if self.dimension == 0:
@@ -346,7 +282,7 @@ class CSICalculator(FFTCalculator):
                 return csi[::abs(row_range[2]), :, :]
             else:
                 # prepare the output space
-                out = prepare_output()
+                out = self._prepare_output(row_range, col_range)
                 for this_column_range, result_range in zip(column_blocks, result_blocks):
                     csi = self._full_row_resolution(this_row_range, this_column_range, filter_map)
                     out[:, result_range[0]:result_range[1], :] = csi[::abs(row_range[2]), :, :]
@@ -362,7 +298,7 @@ class CSICalculator(FFTCalculator):
                 return csi[:, ::abs(col_range[2]), :]
             else:
                 # prepare the output space
-                out = prepare_output()
+                out = self._prepare_output(row_range, col_range)
                 for this_row_range, result_range in zip(row_blocks, result_blocks):
                     csi = self._full_column_resolution(this_row_range, this_col_range, filter_map)
                     out[result_range[0]:result_range[1], :, :] = csi[:, ::abs(col_range[2]), :]
@@ -407,59 +343,23 @@ def create_csi_sidd(
             'ortho_helper is required to be an instance of OrthorectificationHelper, '
             'got type {}'.format(type(ortho_helper)))
 
-    def get_ortho_helper(temp_pixel_bounds, this_csi_data):
-        rows_temp = temp_pixel_bounds[1] - temp_pixel_bounds[0]
-        if this_csi_data.shape[0] == rows_temp:
-            row_array = numpy.arange(temp_pixel_bounds[0], temp_pixel_bounds[1])
-        elif this_csi_data.shape[0] == (rows_temp + 1):
-            row_array = numpy.arange(temp_pixel_bounds[0], temp_pixel_bounds[1] + 1)
-        else:
-            raise ValueError('Unhandled data size mismatch {} and {}'.format(this_csi_data.shape, rows_temp))
-        cols_temp = temp_pixel_bounds[3] - temp_pixel_bounds[2]
-        if this_csi_data.shape[1] == cols_temp:
-            col_array = numpy.arange(temp_pixel_bounds[2], temp_pixel_bounds[3])
-        elif this_csi_data.shape[1] == (cols_temp + 1):
-            col_array = numpy.arange(temp_pixel_bounds[2], temp_pixel_bounds[3] + 1)
-        else:
-            raise ValueError('Unhandled data size mismatch {} and {}'.format(this_csi_data.shape, cols_temp))
-        return row_array, col_array
-
-    def get_orthorectified_version(these_ortho_bounds, temp_pixel_bounds, this_csi_data):
-        row_array, col_array = get_ortho_helper(temp_pixel_bounds, this_csi_data)
-        return clip_cast(
-            amplitude_to_density(
-                ortho_helper.get_orthorectified_from_array(these_ortho_bounds, row_array, col_array, this_csi_data),
-                data_mean=the_mean),
-            dtype='uint8')
-
-    def log_progress(t_ortho_bounds):
-        logging.info('Writing pixels ({}:{}, {}:{}) of ({}, {})'.format(
-            t_ortho_bounds[0]-ortho_bounds[0], t_ortho_bounds[1]-ortho_bounds[0],
-            t_ortho_bounds[2] - ortho_bounds[2], t_ortho_bounds[3] - ortho_bounds[2],
-            ortho_bounds[1] - ortho_bounds[0], ortho_bounds[3] - ortho_bounds[2]))
-
-    reader = ortho_helper.reader
-    index = ortho_helper.index
-
     # construct the CSI calculator class
-    csi_calculator = CSICalculator(reader, dimension=dimension, index=index, block_size=block_size)
+    csi_calculator = CSICalculator(
+        ortho_helper.reader, dimension=dimension, index=ortho_helper.index, block_size=block_size)
 
-    # validate the bounds
-    if bounds is None:
-        bounds = (0, csi_calculator.data_size[0], 0, csi_calculator.data_size[1])
-    bounds, pixel_rectangle = ortho_helper.bounds_to_rectangle(bounds)
-    # get the corresponding prtho bounds
-    ortho_bounds = ortho_helper.get_orthorectification_bounds_from_pixel_object(pixel_rectangle)
-    # Extract the mean of the data magnitude - for global remap usage
-    the_mean = csi_calculator.get_data_mean_magnitude(bounds)
+    # construct the ortho-rectification iterator
+    ortho_iterator = OrthorectificationIterator(ortho_helper, calculator=csi_calculator, bounds=bounds)
 
     # create the sidd structure
+    ortho_bounds = ortho_iterator.ortho_bounds
+    ortho_shape = ortho_iterator.ortho_data_size
     sidd_structure = create_sidd(
         ortho_helper, ortho_bounds,
         product_class='Color Subaperture Image', pixel_type='RGB24I', version=version)
     # set suggested name
     sidd_structure._NITF = {
         'SUGGESTED_NAME': csi_calculator.sicd.get_suggested_name(csi_calculator.index)+'__CSI', }
+
     # create the sidd writer
     if output_file is None:
         # noinspection PyProtectedMember
@@ -470,47 +370,10 @@ def create_csi_sidd(
         raise IOError('File {} already exists.'.format(full_filename))
     writer = SIDDWriter(full_filename, sidd_structure, csi_calculator.sicd)
 
-    if csi_calculator.dimension == 0:
-        # we are using the full resolution row data
-        # determine the orthorectified blocks to use
-        column_block_size = csi_calculator.get_fetch_block_size(ortho_bounds[0], ortho_bounds[1])
-        ortho_column_blocks, ortho_result_blocks = csi_calculator.extract_blocks(
-            (ortho_bounds[2], ortho_bounds[3], 1), column_block_size)
-
-        for this_column_range, result_range in zip(ortho_column_blocks, ortho_result_blocks):
-            # determine the corresponding pixel ranges to encompass these values
-            this_ortho_bounds, this_pixel_bounds = ortho_helper.extract_pixel_bounds(
-                (ortho_bounds[0], ortho_bounds[1], this_column_range[0], this_column_range[1]))
-            # accommodate for real pixel limits
-            this_pixel_bounds = ortho_helper.get_real_pixel_bounds(this_pixel_bounds)
-            # extract the csi data and ortho-rectify
-            ortho_csi_data = get_orthorectified_version(
-                this_ortho_bounds, this_pixel_bounds,
-                csi_calculator[this_pixel_bounds[0]:this_pixel_bounds[1], this_pixel_bounds[2]:this_pixel_bounds[3]])
-            # write out to the file
-            start_indices = (this_ortho_bounds[0] - ortho_bounds[0],
-                             this_ortho_bounds[2] - ortho_bounds[2])
-            log_progress(this_ortho_bounds)
-            writer(ortho_csi_data, start_indices=start_indices, index=0)
-    else:
-        # we are using the full resolution column data
-        # determine the orthorectified blocks to use
-        row_block_size = csi_calculator.get_fetch_block_size(ortho_bounds[2], ortho_bounds[3])
-        ortho_row_blocks, ortho_result_blocks = csi_calculator.extract_blocks(
-            (ortho_bounds[0], ortho_bounds[1], 1), row_block_size)
-
-        for this_row_range, result_range in zip(ortho_row_blocks, ortho_result_blocks):
-            # determine the corresponding pixel ranges to encompass these values
-            this_ortho_bounds, this_pixel_bounds = ortho_helper.extract_pixel_bounds(
-                (this_row_range[0], this_row_range[1], ortho_bounds[2], ortho_bounds[3]))
-            # accommodate for real pixel limits
-            this_pixel_bounds = ortho_helper.get_real_pixel_bounds(this_pixel_bounds)
-            # extract the csi data and ortho-rectify
-            ortho_csi_data = get_orthorectified_version(
-                this_ortho_bounds, this_pixel_bounds,
-                csi_calculator[this_pixel_bounds[0]:this_pixel_bounds[1], this_pixel_bounds[2]:this_pixel_bounds[3]])
-            # write out to the file
-            start_indices = (this_ortho_bounds[0] - ortho_bounds[0],
-                             this_ortho_bounds[2] - ortho_bounds[2])
-            log_progress(this_ortho_bounds)
-            writer(ortho_csi_data, start_indices=start_indices, index=0)
+    # iterate and write
+    for data, start_indices in ortho_iterator:
+        logging.info('Writing pixels ({}:{}, {}:{}) of ({}, {})'.format(
+            start_indices[0], start_indices[0] + data.shape[0],
+            start_indices[1], start_indices[1] + data.shape[1],
+            ortho_shape[0], ortho_shape[1]))
+        writer(data, start_indices=start_indices, index=0)

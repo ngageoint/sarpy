@@ -9,7 +9,8 @@ import os
 import numpy
 
 from sarpy.io.complex.utils import two_dim_poly_fit, get_im_physical_coords
-from sarpy.processing.ortho_rectify import OrthorectificationHelper, ProjectionHelper, PGProjection
+from sarpy.processing.ortho_rectify import OrthorectificationHelper, ProjectionHelper, \
+    PGProjection, OrthorectificationIterator, FullResolutionFetcher
 # agnostic to version
 from sarpy.io.product.sidd2_elements.ProductCreation import ProductCreationType
 from sarpy.io.product.sidd2_elements.Measurement import PlaneProjectionType, ProductPlaneType
@@ -27,10 +28,6 @@ from sarpy.io.product.sidd1_elements.GeographicAndTarget import GeographicAndTar
     GeographicCoverageType as GeographicCoverageType1
 from sarpy.io.product.sidd1_elements.Measurement import MeasurementType as MeasurementType1
 from sarpy.io.product.sidd1_elements.ExploitationFeatures import ExploitationFeaturesType as ExploitationFeaturesType1
-# for creating the detected image
-from sarpy.visualization.remap import clip_cast, amplitude_to_density
-# noinspection PyProtectedMember
-from sarpy.processing.fft_base import _get_data_mean_magnitude, _get_fetch_block_size, _extract_blocks
 from sarpy.io.product.sidd import SIDDWriter
 
 
@@ -378,58 +375,21 @@ def create_detected_image_sidd(
             'ortho_helper is required to be an instance of OrthorectificationHelper, '
             'got type {}'.format(type(ortho_helper)))
 
-    def get_ortho_helper(temp_pixel_bounds, this_complex_data):
-        rows_temp = temp_pixel_bounds[1] - temp_pixel_bounds[0]
-        if this_complex_data.shape[0] == rows_temp:
-            row_array = numpy.arange(temp_pixel_bounds[0], temp_pixel_bounds[1])
-        elif this_complex_data.shape[0] == (rows_temp + 1):
-            row_array = numpy.arange(temp_pixel_bounds[0], temp_pixel_bounds[1] + 1)
-        else:
-            raise ValueError('Unhandled data size mismatch {} and {}'.format(this_complex_data.shape, rows_temp))
-        cols_temp = temp_pixel_bounds[3] - temp_pixel_bounds[2]
-        if this_complex_data.shape[1] == cols_temp:
-            col_array = numpy.arange(temp_pixel_bounds[2], temp_pixel_bounds[3])
-        elif this_complex_data.shape[1] == (cols_temp + 1):
-            col_array = numpy.arange(temp_pixel_bounds[2], temp_pixel_bounds[3] + 1)
-        else:
-            raise ValueError('Unhandled data size mismatch {} and {}'.format(this_complex_data.shape, cols_temp))
-        return row_array, col_array
-
-    def get_orthorectified_version(these_ortho_bounds, temp_pixel_bounds, this_complex_data):
-        row_array, col_array = get_ortho_helper(temp_pixel_bounds, this_complex_data)
-        return clip_cast(
-            amplitude_to_density(
-                ortho_helper.get_orthorectified_from_array(these_ortho_bounds, row_array, col_array, this_complex_data),
-                data_mean=the_mean),
-            dtype='uint8')
-
-    def log_progress(t_ortho_bounds):
-        logging.info('Writing pixels ({}:{}, {}:{}) of ({}, {})'.format(
-            t_ortho_bounds[0]-ortho_bounds[0], t_ortho_bounds[1]-ortho_bounds[0],
-            t_ortho_bounds[2] - ortho_bounds[2], t_ortho_bounds[3] - ortho_bounds[2],
-            ortho_bounds[1] - ortho_bounds[0], ortho_bounds[3] - ortho_bounds[2]))
-
-    reader = ortho_helper.reader
-    index = ortho_helper.index
-    sicd = reader.get_sicds_as_tuple()[index]
-    # validate the bounds
-    data_size = reader.get_data_size_as_tuple()[index]
-    if bounds is None:
-        bounds = (0, data_size[0], 0, data_size[1])
-    bounds, pixel_rectangle = ortho_helper.bounds_to_rectangle(bounds)
-    # get the corresponding prtho bounds
-    ortho_bounds = ortho_helper.get_orthorectification_bounds_from_pixel_object(pixel_rectangle)
-    # Extract the mean of the data magnitude - for global remap usage
-    block_size_in_bytes = block_size*(2**20)
-    the_mean = _get_data_mean_magnitude(bounds, reader, index, block_size_in_bytes)
+    # construct the ortho-rectification iterator - for a basic data fetcher
+    calculator = FullResolutionFetcher(
+        ortho_helper.reader, dimension=0, index=ortho_helper.index, block_size=block_size)
+    ortho_iterator = OrthorectificationIterator(ortho_helper, calculator=calculator, bounds=bounds)
 
     # create the sidd structure
+    ortho_bounds = ortho_iterator.ortho_bounds
+    ortho_shape = ortho_iterator.ortho_data_size
     sidd_structure = create_sidd(
         ortho_helper, ortho_bounds,
         product_class='Detected Image', pixel_type='MONO8I', version=version)
     # set suggested name
     sidd_structure._NITF = {
-        'SUGGESTED_NAME': sicd.get_suggested_name(index)+'_IMG', }
+        'SUGGESTED_NAME': ortho_helper.sicd.get_suggested_name(ortho_helper.index)+'__IMG', }
+
     # create the sidd writer
     if output_file is None:
         # noinspection PyProtectedMember
@@ -438,26 +398,12 @@ def create_detected_image_sidd(
         full_filename = os.path.join(output_directory, output_file)
     if os.path.exists(os.path.expanduser(full_filename)):
         raise IOError('File {} already exists.'.format(full_filename))
-    writer = SIDDWriter(full_filename, sidd_structure, sicd)
+    writer = SIDDWriter(full_filename, sidd_structure, ortho_helper.sicd)
 
-    # determine the orthorectified blocks to use
-    column_block_size = _get_fetch_block_size(ortho_bounds[0], ortho_bounds[1], block_size_in_bytes)
-    ortho_column_blocks, ortho_result_blocks = _extract_blocks((ortho_bounds[2], ortho_bounds[3], 1), column_block_size)
-
-    for this_column_range, result_range in zip(ortho_column_blocks, ortho_result_blocks):
-        # determine the corresponding pixel ranges to encompass these values
-        this_ortho_bounds, this_pixel_bounds = ortho_helper.extract_pixel_bounds(
-            (ortho_bounds[0], ortho_bounds[1], this_column_range[0], this_column_range[1]))
-        # accommodate for real pixel limits
-        this_pixel_bounds = ortho_helper.get_real_pixel_bounds(this_pixel_bounds)
-        # extract the csi data and ortho-rectify
-        data = reader[this_pixel_bounds[0]:this_pixel_bounds[1], this_pixel_bounds[2]:this_pixel_bounds[3], index]
-        data[~numpy.isfinite(data)] = 0
-        ortho_csi_data = get_orthorectified_version(
-            this_ortho_bounds, this_pixel_bounds,
-            data)
-        # write out to the file
-        start_indices = (this_ortho_bounds[0] - ortho_bounds[0],
-                         this_ortho_bounds[2] - ortho_bounds[2])
-        log_progress(this_ortho_bounds)
-        writer(ortho_csi_data, start_indices=start_indices, index=0)
+    # iterate and write
+    for data, start_indices in ortho_iterator:
+        logging.info('Writing pixels ({}:{}, {}:{}) of ({}, {})'.format(
+            start_indices[0], start_indices[0] + data.shape[0],
+            start_indices[1], start_indices[1] + data.shape[1],
+            ortho_shape[0], ortho_shape[1]))
+        writer(data, start_indices=start_indices, index=0)

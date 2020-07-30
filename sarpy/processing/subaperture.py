@@ -5,7 +5,7 @@ Sub-aperture processing methods.
 
 import logging
 import os
-from typing import Generator
+from typing import Union, Generator
 
 import numpy
 
@@ -365,6 +365,15 @@ class SubapertureCalculator(FFTCalculator):
             else:
                 yield this_subap_data[:, ::step]
 
+    def _prepare_output(self, row_range, col_range, frames=None):
+        row_count = int_func((row_range[1] - row_range[0]) / float(row_range[2]))
+        col_count = int_func((col_range[1] - col_range[0]) / float(col_range[2]))
+        if frames is None or len(frames) == 1:
+            out_size = (row_count, col_count)
+        else:
+            out_size = (row_count, col_count, len(frames))
+        return numpy.zeros(out_size, dtype=numpy.complex64)
+
     def __getitem__(self, item):
         """
         Fetches the csi data based on the input slice. Slicing in the final
@@ -384,12 +393,6 @@ class SubapertureCalculator(FFTCalculator):
         if self._fill is None:
             raise ValueError('Unable to proceed unless the index and dimension are set.')
 
-        def prepare_output():
-            row_count = int_func((row_range[1] - row_range[0]) / float(row_range[2]))
-            col_count = int_func((col_range[1] - col_range[0]) / float(col_range[2]))
-            out_size = (row_count, col_count) if len(frames) == 1 else (row_count, col_count, len(frames))
-            return numpy.zeros(out_size, dtype=numpy.complex64)
-
         # parse the slicing to ensure consistent structure
         row_range, col_range, frames = self._parse_slicing(item)
         if isinstance(frames, integer_types):
@@ -403,7 +406,7 @@ class SubapertureCalculator(FFTCalculator):
                 # no need to prepare output, which will take twice the memory, so just return
                 out = self.subaperture_generator(row_range, col_range, frames).__next__()
             else:
-                out = prepare_output()
+                out = self._prepare_output(row_range, col_range, frames=frames)
                 for this_column_range, result_range in zip(column_blocks, result_blocks):
                     generator = self.subaperture_generator(row_range, this_column_range, frames)
                     if len(frames) == 1:
@@ -418,7 +421,7 @@ class SubapertureCalculator(FFTCalculator):
             if row_blocks == 1 and len(frames) == 1:
                 out = self.subaperture_generator(row_range, col_range, frames).__next__()
             else:
-                out = prepare_output()
+                out = self._prepare_output(row_range, col_range, frames=frames)
                 for this_row_range, result_range in zip(row_blocks, result_blocks):
                     generator = self.subaperture_generator(this_row_range, col_range, frames)
                     if len(frames) == 1:
@@ -523,6 +526,7 @@ def create_dynamic_image_sidd(
         this_sidd = sidd_structure.copy()
         this_sidd.ProductCreation.ProductType = 'Frame {}'.format(i+1)
         the_sidds.append(this_sidd)
+
     # create the sidd writer
     if output_file is None:
         # noinspection PyProtectedMember
