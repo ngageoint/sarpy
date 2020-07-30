@@ -5,20 +5,16 @@ Functionality for exporting certain data elements to a kml document
 
 import zipfile
 import logging
-import sys
 import os
+import numpy
 from xml.dom import minidom
-from typing import Union
+from typing import Union, Tuple, List
 
-
-if sys.version_info[0] < 3:
-    # noinspection PyUnresolvedReferences
-    from cStringIO import StringIO
-else:
-    from io import StringIO
+from sarpy.compliance import StringIO, string_types, int_func
 
 try:
     # noinspection PyPackageRequirements
+    import PIL
     import PIL.Image
 except ImportError:
     PIL = None
@@ -46,7 +42,8 @@ class Document(object):
         ----------
         file_name : str|zipfile.ZipFile|file like
             The output location or buffer to which to write the kml/other objects
-        params : the parameters dictionary
+        params
+            The parameters dictionary for file creation.
         """
 
         self._file = None
@@ -109,20 +106,62 @@ class Document(object):
                 'may be only partially generated and/or corrupt.')
             # The exception will be reraised - it's unclear how any exception could be caught.
 
-    def write_file_to_archive(self, arcpath, filepath):
+    def write_file_to_archive(self, archive_path, file_path):
+        """
+        Copy the given file into the kmz archive at the given archive location.
+
+        Parameters
+        ----------
+        archive_path : str
+            The location in the archive.
+        file_path : str
+            The file location on the file system.
+
+        Returns
+        -------
+        None
+        """
+
         if self._archive is None:
             raise ValueError('No archive defined.')
-        self._archive.write(filepath, arcpath, zipfile.ZIP_DEFLATED)
+        self._archive.write(file_path, archive_path, zipfile.ZIP_DEFLATED)
 
-    def write_string_to_archive(self, arcpath, val):
+    def write_string_to_archive(self, archive_path, val):
+        """
+        Write the given string/bytes into the kmz archive at the given location.
+
+        Parameters
+        ----------
+        archive_path : str
+        val : bytes|str
+
+        Returns
+        -------
+        None
+        """
+
         if self._archive is None:
             raise ValueError('No archive defined.')
-        self._archive.writestr(zipfile.ZipInfo(arcpath), val, zipfile.ZIP_DEFLATED)
+        self._archive.writestr(zipfile.ZipInfo(archive_path), val, zipfile.ZIP_DEFLATED)
 
-    def write_image_to_archive(self, arcpath, val, frmt='PNG'):
+    def write_image_to_archive(self, archive_path, val, img_format='PNG'):
+        """
+        Write the given PIL image into the kmz archive at the given location.
+
+        Parameters
+        ----------
+        archive_path : str
+        val : PIL.Image.Image
+        img_format : str
+
+        Returns
+        -------
+        None
+        """
+
         imbuf = StringIO()
-        val.save(imbuf, frmt)
-        self.write_string_to_archive(arcpath, imbuf.getvalue())
+        val.save(imbuf, img_format)
+        self.write_string_to_archive(archive_path, imbuf.getvalue())
         imbuf.close()
 
     # xml node creation elements
@@ -137,41 +176,48 @@ class Document(object):
 
     def _add_text_node(self, par, tag, value):
         # type: (Union[None, minidom.Element], str, str) -> minidom.Element
+        if value is None:
+            return
+
         nod = self._doc.createElement(tag)
-        nod.appendChild(self._doc.createTextNode(value))
+        if isinstance(value, string_types):
+            nod.appendChild(self._doc.createTextNode(value))
+        else:
+            nod.appendChild(self._doc.createTextNode(str(value)))
         par.appendChild(nod)
         return nod
 
     def _add_cdata_node(self, par, tag, value):
         # type: (Union[None, minidom.Element], str, str) -> minidom.Element
+        if value is None:
+            return
+
         nod = self._doc.createElement(tag)
-        nod.appendChild(self._doc.createCDATASection(value))
+        if isinstance(value, string_types):
+            nod.appendChild(self._doc.createCDATASection(value))
+        else:
+            nod.appendChild(self._doc.createCDATASection(str(value)))
         par.appendChild(nod)
         return nod
 
     def _add_conditional_text_node(self, par, tag, params, default=None):
         # type: (Union[None, minidom.Element], str, dict, Union[None, str]) -> minidom.Element
-        if tag in params:
-            return self._add_text_node(par, tag, str(params[tag]))
-        elif default is not None:
-            return self._add_text_node(par, tag, str(default))
+
+        return self._add_text_node(par, tag, params.get(tag, default))
 
     def _add_conditional_cdata_node(self, par, tag, params, default=None):
         # type: (Union[None, minidom.Element], str, dict, Union[None, str]) -> minidom.Element
-        if tag in params:
-            return self._add_cdata_node(par, tag, str(params[tag]))
-        elif default is not None:
-            return self._add_cdata_node(par, tag, str(default))
+        return self._add_cdata_node(par, tag, params.get(tag, default))
 
     # basic kml container creation
-    def add_container(self, par=None, typ='Placemark', **params):
+    def add_container(self, par=None, the_type='Placemark', **params):
         """
         For creation of Document, Folder, or Placemark container.
 
         Parameters
         ----------
         par : None|minidom.Element
-        typ : str
+        the_type : str
             One of "Placemark", "Folder". The type "Document" can only be used once,
             for the top level construct.
         params : dict
@@ -182,10 +228,10 @@ class Document(object):
         minidom.Element
         """
 
-        if typ not in ("Placemark", "Folder", "Document"):
-            raise ValueError('typ must be one of ("Placemark", "Folder", "Document")')
+        if the_type not in ("Placemark", "Folder", "Document"):
+            raise ValueError('the_type must be one of ("Placemark", "Folder", "Document")')
 
-        container = self._create_new_node(par, typ)
+        container = self._create_new_node(par, the_type)
         if 'id' in params:
             container.setAttribute('id', params['id'])
 
@@ -198,23 +244,21 @@ class Document(object):
             self._add_extended_data(container, **params)
         if ('beginTime' in params) or ('endTime' in params):
             ts = self._create_new_node(container, 'TimeSpan')
-            if 'beginTime' in params:
-                self._add_text_node(ts, 'begin', params['beginTime'])
-            if 'endTime' in params:
-                self._add_text_node(ts, 'end', params['endTime'])
+            self._add_text_node(ts, 'begin', params.get('beginTime', None))
+            self._add_text_node(ts, 'end', params.get('endTime', None))
         elif 'when' in params:
             ts = self._create_new_node(container, 'TimeStamp')
             self._add_text_node(ts, 'when', params['when'])
         return container
 
     # Styles
-    def add_style_map(self, sid, high_id, low_id):
+    def add_style_map(self, style_id, high_id, low_id):
         """
         Creates a styleMap from two given style ids.
 
         Parameters
         ----------
-        sid : str
+        style_id : str
         high_id : str
         low_id : str
 
@@ -224,7 +268,7 @@ class Document(object):
         """
 
         sm = self._create_new_node(None, 'StyleMap')
-        sm.setAttribute('id', sid)
+        sm.setAttribute('id', style_id)
 
         pair1 = self._create_new_node(sm, 'Pair')
         self._add_text_node(pair1, 'key', 'normal')
@@ -234,13 +278,13 @@ class Document(object):
         self._add_text_node(pair2, 'key', 'highlight')
         self._add_text_node(pair2, 'styleUrl', '#'+high_id)
 
-    def add_style(self, pid, **params):
+    def add_style(self, style_id, **params):
         """
         Creates a style for use in the document tree.
 
         Parameters
         ----------
-        pid : str
+        style_id : str
             the style id string.
         params : dict
             the dictionary of the parameters
@@ -251,7 +295,7 @@ class Document(object):
         """
 
         sty = self._create_new_node(None, 'Style')
-        sty.setAttribute('id', pid)
+        sty.setAttribute('id', style_id)
         if 'line_style' in params:
             self.add_line_style(None, sty, **params['line_style'])
         if 'label_style' in params:
@@ -263,13 +307,13 @@ class Document(object):
         if 'poly_style' in params:
             self.add_poly_style(None, sty, **params['poly_style'])
 
-    def add_line_style(self, pid=None, par=None, **params):
+    def add_line_style(self, style_id=None, par=None, **params):
         """
         Add line style.
 
         Parameters
         ----------
-        pid : None|str
+        style_id : None|str
             The id, which should not be set if this is a child of a style element.
         par : None|minidom.Element
             The parent node.
@@ -282,18 +326,18 @@ class Document(object):
         """
 
         sty = self._create_new_node(par, 'LineStyle')
-        if pid is not None:
-            sty.setAttribute('id', pid)
+        if style_id is not None:
+            sty.setAttribute('id', style_id)
         self._add_conditional_text_node(sty, 'color', params, default='b0ff0000')
         self._add_conditional_text_node(sty, 'width', params, default='1.0')
 
-    def add_list_style(self, pid=None, par=None, **params):
+    def add_list_style(self, style_id=None, par=None, **params):
         """
         Add list style
 
         Parameters
         ----------
-        pid : None|str
+        style_id : None|str
             The id, which should not be set if this is a child of a style element.
         par : None|minidom.Element
             The parent node.
@@ -306,22 +350,19 @@ class Document(object):
         """
 
         sty = self._create_new_node(par, 'ListStyle')
-        if pid is not None:
-            sty.setAttribute('id', pid)
+        if style_id is not None:
+            sty.setAttribute('id', style_id)
 
         item_icon = self._create_new_node(sty, 'ItemIcon')
-        if 'icnr' in params:
-            self._add_text_node(item_icon, 'href', params['icnr'])
-        else:
-            self._add_text_node(item_icon, 'href', _DEFAULT_ICON)
+        self._add_text_node(item_icon, 'href', params.get('icon_ref', _DEFAULT_ICON))
 
-    def add_label_style(self, pid=None, par=None, **params):
+    def add_label_style(self, style_id=None, par=None, **params):
         """
         Add label style
 
         Parameters
         ----------
-        pid : None|str
+        style_id : None|str
             The id, which should not be set if this is a child of a style element.
         par : None|minidom.Element
             The parent node.
@@ -334,18 +375,18 @@ class Document(object):
         """
 
         sty = self._create_new_node(par, 'LabelStyle')
-        if pid is not None:
-            sty.setAttribute('id', pid)
+        if style_id is not None:
+            sty.setAttribute('id', style_id)
         self._add_conditional_text_node(sty, 'color', params, default='b0ff0000')
         self._add_conditional_text_node(sty, 'scale', params, default='1.0')
 
-    def add_icon_style(self, pid=None, par=None, **params):
+    def add_icon_style(self, style_id=None, par=None, **params):
         """
         Add icon style.
 
         Parameters
         ----------
-        pid : None|str
+        style_id : None|str
             The id, which should not be set if this is a child of a style element.
         par : None|minidom.Element
             The parent node.
@@ -358,23 +399,20 @@ class Document(object):
         """
 
         sty = self._create_new_node(par, 'IconStyle')
-        if pid is not None:
-            sty.setAttribute('id', pid)
+        if style_id is not None:
+            sty.setAttribute('id', style_id)
         self._add_conditional_text_node(sty, 'color', params)
         self._add_conditional_text_node(sty, 'scale', params)
         icon = self._create_new_node(sty, 'Icon')
-        if 'icnr' in params:
-            self._add_text_node(icon, 'href', params['icnr'])
-        else:
-            self._add_text_node(icon, 'href', _DEFAULT_ICON)
+        self._add_text_node(icon, 'href', params.get('icon_ref', _DEFAULT_ICON))
 
-    def add_poly_style(self, pid=None, par=None, **params):
+    def add_poly_style(self, style_id=None, par=None, **params):
         """
         Add poly style.
 
         Parameters
         ----------
-        pid : None|str
+        style_id : None|str
             The id, which should not be set if this is a child of a style element.
         par : None|minidom.Element
             The parent node.
@@ -387,8 +425,8 @@ class Document(object):
         """
 
         sty = self._create_new_node(par, 'PolyStyle')
-        if pid is not None:
-            sty.setAttribute('id', pid)
+        if style_id is not None:
+            sty.setAttribute('id', style_id)
         self._add_conditional_text_node(sty, 'color', params, default='80ff0000')
         self._add_conditional_text_node(sty, 'fill', params)
         self._add_conditional_text_node(sty, 'outline', params)
@@ -417,19 +455,19 @@ class Document(object):
             **{'line_style': line, 'label_style': label, 'icon_style': icon, 'poly_style': poly})
         self.add_style_map('defaultStyle', 'default_high', 'default_low')
 
-    def add_color_ramp(self, cols, high_size=1.0, low_size=0.5, icnr=None, name_stem='sty'):
+    def add_color_ramp(self, colors, high_size=1.0, low_size=0.5, icon_ref=None, name_stem='sty'):
         """
         Adds collection of enumerated styles corresponding to provided array of colors.
 
         Parameters
         ----------
-        cols : numpy.ndarray
+        colors : numpy.ndarray
             numpy array of shape (N, 4) of 8-bit colors assumed to be RGBA
         high_size : float
             The highlighted size.
         low_size : float
             The regular (low lighted?) size.
-        icnr : str
+        icon_ref : str
             The icon reference.
         name_stem : str
             The string representing the naming convention for the associated styles.
@@ -439,17 +477,17 @@ class Document(object):
         None
         """
 
-        hline = {'width': str(2.0*high_size)}
-        hlabel = {'scale': str(high_size)}
-        hicon = {'scale': str(high_size)}
-        lline = {'width': str(2.0*low_size)}
-        llabel = {'scale': str(low_size)}
-        licon = {'scale': str(low_size)}
-        if icnr is not None:
-            hicon['icnr'] = icnr
-            licon['icnr'] = icnr
-        for i in range(cols.shape[0]):
-            col = '{3:02x}{2:02x}{1:02x}{0:02x}'.format(*cols[i, :])
+        hline = {'width': 2*high_size}
+        hlabel = {'scale': high_size}
+        hicon = {'scale': high_size}
+        lline = {'width': 2*low_size}
+        llabel = {'scale': low_size}
+        licon = {'scale': low_size}
+        if icon_ref is not None:
+            hicon['icon_ref'] = icon_ref
+            licon['icon_ref'] = icon_ref
+        for i in range(colors.shape[0]):
+            col = '{3:02x}{2:02x}{1:02x}{0:02x}'.format(*colors[i, :])
             for di in [hline, hlabel, hicon, lline, llabel, licon]:
                 di['color'] = col
             self.add_style('{0!s}{1:d}_high'.format(name_stem, i),
@@ -461,7 +499,7 @@ class Document(object):
                              '{0!s}{1:d}_low'.format(name_stem, i))
 
     # extended data handling
-    def add_schema(self, sid, fieldDict, sname=None):
+    def add_schema(self, schema_id, field_dict, short_name=None):
         """
         For defining/using the extended data schema capability. **Note that this
         is specifically part of the google earth extension of kml, and may not be generally
@@ -469,9 +507,9 @@ class Document(object):
 
         Parameters
         ----------
-        sid : str
+        schema_id : str
             the schema id - must be unique to the id collection document
-        fieldDict : dict
+        field_dict : dict
             dictionary where the key is field name. The corresponding value is a tuple of the form
             `(type, displayName)`, where `displayName` can be `None`. The value of `type` is one of
             the data types permitted:
@@ -483,7 +521,7 @@ class Document(object):
                 * 'float'
                 * 'double'
                 * 'bool'
-        sname : None|str
+        short_name : None|str
             optional short name for display in the schema
 
         Returns
@@ -493,21 +531,20 @@ class Document(object):
 
         types = ['string', 'int', 'uint', 'short', 'ushort', 'float', 'double', 'bool']
         sch = self._create_new_node(None, 'Schema')
-        sch.setAttribute('id', sid)
-        if sname is not None:
-            sch.setAttribute('name', sname)
-        for name in fieldDict.keys():
+        sch.setAttribute('id', schema_id)
+        if short_name is not None:
+            sch.setAttribute('name', short_name)
+        for name in field_dict:
             sf = self._doc.createElement('SimpleField')
-            typ, dname = fieldDict[name]
+            typ, dname = field_dict[name]
             sf.setAttribute('name', name)
             if typ in types:
                 sf.setAttribute('type', typ)
                 sch.appendChild(sf)
             else:
                 logging.warning("Schema '{0!s}' has field '{1!s}' of unrecognized "
-                                "type '{2!s}', which is being excluded.".format(sid, name, typ))
-            if dname is not None:
-                self._add_text_node(sf, 'displayName', dname)
+                                "type '{2!s}', which is being excluded.".format(schema_id, name, typ))
+            self._add_text_node(sf, 'displayName', dname)
 
     def _add_extended_data(self, par, **params):
         """
@@ -530,30 +567,28 @@ class Document(object):
         schema_data = self._create_new_node(extended_data, 'SchemaData')
         schema_data.setAttribute('schemaUrl', params['schemaUrl'])
         dat = params['ExtendedData']
-        if 'fieldOrder' in params:
-            keys = params['fieldOrder']
-        else:
-            keys = sorted(dat.keys())
+        keys = params.get('fieldOrder', sorted(dat.keys()))
+
         for key in keys:
             # check if data is iterable
             if hasattr(dat[key], '__iter__'):
                 array_node = self._create_new_node(schema_data, 'gx:SimpleArrayData')
                 array_node.setAttribute('name', key)
                 for el in dat[key]:
-                    self._add_text_node(array_node, 'gx:value', str(el))
+                    self._add_text_node(array_node, 'gx:value', el)
             else:
-                sid = self._add_text_node(schema_data, 'SimpleData', str(dat[key]))
+                sid = self._add_text_node(schema_data, 'SimpleData', dat[key])
                 sid.setAttribute('name', key)
 
-    # screen overlay
-    def add_screen_overlay(self, im_name, par=None, **params):
+    def add_screen_overlay(self, image_ref, par=None, **params):
         """
         Adds ScreenOverlay object.
 
         Parameters
         ----------
-        im_name : str
-            Reference to appropriate image object.
+        image_ref : str
+            Reference to appropriate image object, whether in the kmz archive or
+            an appropriate url.
         par : None|minidom.Element
             The parent node. Appended at root level if not provided.
         params : dict
@@ -594,7 +629,7 @@ class Document(object):
                 overlay.appendChild(olp)
         # icon
         ic = self._create_new_node(overlay, 'Icon')
-        self._add_text_node(ic, 'href', im_name)
+        self._add_text_node(ic, 'href', image_ref)
         return overlay
 
     # direct kml geometries
@@ -621,13 +656,13 @@ class Document(object):
         multigeometry_node = self._create_new_node(par, 'MultiGeometry')
         return multigeometry_node
 
-    def add_polygon(self, outCoords, inCoords=None, par=None, **params):
+    def add_polygon(self, outer_coords, inner_coords=None, par=None, **params):
         """
         Adds a Polygon element - a polygonal outer region, possibly with polygonal holes removed
 
         Parameters
         ----------
-        outCoords : str
+        outer_coords : str
             comma/space delimited string of coordinates for the outerRing. Format of the string
             :code:`'lon1,lat1,alt1 lon2,lat2,alt2 ...'` with the altitude values optional. If given, the altitude value
             is in meters. The precise interpretation of altitude (relative to the ground, relative to sea level, etc.)
@@ -636,7 +671,7 @@ class Document(object):
                 * 'extrude'
                 * 'tessellate'
                 * 'altitudeMode'
-        inCoords : None|List[str]
+        inner_coords : None|List[str]
             If provided, the coordinates for inner rings.
         par : None|minidom.Element
             The parent node. If not given, then a Placemark is created.
@@ -652,8 +687,8 @@ class Document(object):
             par = self.add_container(**params)
         polygon_node = self._create_new_node(par, 'Polygon')
         outer_ring_node = self._create_new_node(polygon_node, 'outerBoundaryIs')
-        self.add_linear_ring(outCoords, outer_ring_node, **params)
-        for coords in inCoords:
+        self.add_linear_ring(outer_coords, outer_ring_node, **params)
+        for coords in inner_coords:
             inner_ring = self._create_new_node(polygon_node, 'innerBoundaryIs')
             self.add_linear_ring(coords, inner_ring, **params)
 
@@ -828,30 +863,39 @@ class Document(object):
             self._add_text_node(gx_track, 'gx:coord', coords)
         if angles is not None:
             for an in angles:
-                self._add_text_node(gx_track, 'gx:angles', '{0:0.8f} 0 0'.format(an))
+                self._add_text_node(gx_track, 'gx:angles', '{} 0 0'.format(an))
         if ('ExtendedData' in params) and ('schemaUrl' in params):
             self._add_extended_data(gx_track, **params)
         return gx_track
 
-    def add_ground_overlay(self, b_box, im_name, par=None, **params):
+    def add_ground_overlay(self, image_ref, bounding_box=None, lat_lon_quad=None, par=None, **params):
         """
-        Adds GroundOverlay object.
+        Adds GroundOverlay object, defined either from a bounding_box or a lat/lon
+        quadrilateral.
 
         Parameters
         ----------
-        b_box : List[str]
-            list of the form: [latitude max, latitude min, longitude max, longitude min]
-        im_name : str
-            Reference to appropriate image object.
+        image_ref : str
+            Reference to appropriate image object, either in the kmz archive or
+            an appropriate url.
+        bounding_box : None|numpy.ndarray|tuple|list
+            list of the form `[latitude max, latitude min, longitude max, longitude min]`
+        lat_lon_quad : None|numpy.ndarray|list|tuple
+            list of the form [[latitude, longitude]], must have 4 entries.
         par : None|minidom.Element
             The parent node. if not provided, then a Placemark object is created implicitly.
-        params : dict
+        params
             The parameters dictionary.
 
         Returns
         -------
         minidom.Element
         """
+
+        if bounding_box is None and lat_lon_quad is None:
+            raise ValueError('Either bounding_box or lat_lon_quad must be defined.')
+        if bounding_box is not None and lat_lon_quad is not None:
+            raise ValueError('Both bounding_box or lat_lon_quad are provided, which is not sensible.')
 
         if par is None:
             par = self.add_container(params=params)
@@ -869,26 +913,39 @@ class Document(object):
         # time parameters
         if ('beginTime' in params) or ('endTime' in params):
             ts = self._create_new_node(overlay, 'TimeSpan')
-            if 'beginTime' in params:
-                self._add_text_node(ts, 'begin', params['beginTime'])
-            if 'endTime' in params:
-                self._add_text_node(ts, 'end', params['endTime'])
+            self._add_text_node(ts, 'begin', params.get('beginTime', None))
+            self._add_text_node(ts, 'end', params.get('endTime', None))
         elif 'when' in params:
             ts = self._create_new_node(overlay, 'TimeStamp')
             self._add_conditional_text_node(ts, 'when', params)
 
-        # latitude/longitude box parameters
-        ll = self._create_new_node(overlay, 'LatLonBox')
-        for cdir, num in zip(['north', 'south', 'east', 'west'], b_box):
-            self._add_text_node(ll, cdir, str(num))
-        self._add_conditional_text_node(ll, 'rotation', params)
+        if bounding_box is not None:
+            # latitude/longitude box parameters
+            ll = self._create_new_node(overlay, 'LatLonBox')
+            for cdir, num in zip(['north', 'south', 'east', 'west'], bounding_box):
+                self._add_text_node(ll, cdir, num)
+            self._add_conditional_text_node(ll, 'rotation', params)
+        elif lat_lon_quad is not None:
+            if len(lat_lon_quad) != 4:
+                raise ValueError('lat_lon_quad must have length 4.')
+            # latitude/longitude quad parameters
+            llq = self._create_new_node(overlay, 'gx:LatLonQuad')
+            coords = ''
+            for entry in lat_lon_quad:
+                if isinstance(entry, string_types):
+                    coords += entry.strip() + ' '
+                elif len(entry) >= 2:
+                    coords += '{0:0.8f},{1:0.8f} '.format(entry[1], entry[0])
+                else:
+                    raise TypeError('Got unexpected entry type {}'.format(type(entry)))
+            self._add_text_node(llq, 'coordinates', coords.strip())
 
         # icon
         ic = self._create_new_node(overlay, 'Icon')
-        self._add_text_node(ic, 'href', im_name)
+        self._add_text_node(ic, 'href', image_ref)
         return overlay
 
-    # regionation - likely rarely used
+    # regionation tools for ground overlays
     def _add_lod(self, par, **params):
         """
         Adds a Level of Detail (LOD) element, which is explicitly a child of Region.
@@ -947,22 +1004,260 @@ class Document(object):
         self._add_lat_lon_alt_box(reg, **params)
         return reg
 
-    def add_regionated_ground_overlay(self, b_box, img, par, frmt='PNG', **params):
+    @staticmethod
+    def _get_pil_style_box(image_box):
+        # type: (Tuple[int, int, int, int]) -> Tuple[int, int, int, int]
+        """
+        Transform our bounding box pattern to a PIL bounding box pattern.
+
+        Parameters
+        ----------
+        image_box : Tuple[int, int, int, int]
+            The image bounds of the form `(row min, row max, col min, col max)`.
+
+        Returns
+        -------
+        Tuple[int, int, int, int]
+            The PIL style bounding box is `(col min, row min, col max, row max)`.
+        """
+
+        return int_func(image_box[2]), int_func(image_box[0]), int_func(image_box[3]), int_func(image_box[1])
+
+    def _add_ground_overlay_region_bbox(
+            self, image_name, fld, img, image_bounds, bounding_box,
+            nominal_image_size, img_format, depth_count=0, **params):
+        """
+        Helper function for creating an ground overlay region part.
+
+        Parameters
+        ----------
+        image_name : str
+            The image name.
+        fld : minidom.Element
+        img : PIL.Image.Image
+        image_bounds : numpy.ndarray|list|tuple
+            The image bounds of the form `(row min, row max, col min, col max)`.
+        bounding_box : numpy.ndarray|tuple|list
+            Bounding box of the form `[latitude max, latitude min, longitude max, longitude min]`
+        nominal_image_size : int
+        img_format : str
+        depth_count : int
+            What is the depth for our recursion.
+        params
+            The parameters dictionary.
+
+        Returns
+        -------
+        None
+        """
+
+        # determine how to resample this image
+        row_length = int_func(image_bounds[1] - image_bounds[0])
+        col_length = int_func(image_bounds[3] - image_bounds[2])
+        cont_recursion = True
+        if max(row_length, col_length) < 1.5*nominal_image_size:
+            cont_recursion = False
+            sample_rows = row_length
+            sample_cols = col_length
+        elif row_length >= col_length:
+            sample_rows = nominal_image_size
+            sample_cols = int_func(col_length*nominal_image_size/float(row_length))
+        else:
+            sample_cols = nominal_image_size
+            sample_rows = int_func(row_length*nominal_image_size/float(col_length))
+
+        archive_name = 'images/{}.{}'.format(image_name, img_format)
+        # resample our image
+        pil_box = self._get_pil_style_box(image_bounds)
+        this_img = img.crop(pil_box).resize((sample_cols, sample_rows), PIL.Image.ANTIALIAS)
+        self.write_image_to_archive(archive_name, this_img, img_format=img_format)
+        # create the ground overlay parameters
+        pars = {'name': image_name}
+        for key in ['beginTime', 'endTime', 'when']:
+            if key in params:
+                pars[key] = params[key]
+        # create the ground overlay
+        gnd_overlay = self.add_ground_overlay(archive_name, bounding_box=bounding_box, par=fld, **pars)
+        # add the region
+        pars = {}
+        if depth_count == 0:
+            # root level, no minimum size
+            pars['minLodPixels'] = 0
+        else:
+            pars['minLodPixels'] = 0.3*nominal_image_size
+            pars['minFadeExtent'] = 0.3*nominal_image_size
+        if cont_recursion:
+            pars['maxLodPixels'] = 1.75*nominal_image_size
+            pars['maxFadeExtent'] = 0.3*nominal_image_size
+        else:
+            # leaf, no maximum size
+            pars['maxLodPixels'] = -1
+        pars['north'] = bounding_box[0]
+        pars['south'] = bounding_box[1]
+        pars['east'] = bounding_box[2]
+        pars['west'] = bounding_box[3]
+        self.add_region(gnd_overlay, **pars)
+
+        if cont_recursion:
+            # create a list of [(start row, end row)]
+            if row_length > 1.5*nominal_image_size:
+                split_row = image_bounds[0] + int_func(0.5*row_length)
+                split_lat = bounding_box[0] + (split_row/float(row_length))*(bounding_box[1] - bounding_box[0])
+                row_sizes = [(image_bounds[0], split_row), (split_row, image_bounds[1])]
+                lats = [(bounding_box[0], split_lat), (split_lat, bounding_box[1])]
+            else:
+                row_sizes = [(image_bounds[0], image_bounds[1]), ]
+                lats = [(bounding_box[0], bounding_box[1]), ]
+
+            if col_length > 1.5*nominal_image_size:
+                split_col = image_bounds[2] + int_func(0.5*col_length)
+                split_lon = bounding_box[2] + (split_col/float(row_length))*(bounding_box[3] - bounding_box[2])
+                col_sizes = [(image_bounds[2], split_col), (split_col, image_bounds[3])]
+                lons = [(bounding_box[2], split_lon), (split_lon, bounding_box[3])]
+            else:
+                col_sizes = [(image_bounds[2], image_bounds[3]), ]
+                lons = [(bounding_box[2], bounding_box[3]), ]
+
+            count = 0
+            for row_bit, lat_bit in zip(row_sizes, lats):
+                for col_bit, lon_bit in zip(col_sizes, lons):
+                    this_im_name = '{}_{}'.format(image_name, count)
+                    this_im_bounds = row_bit + col_bit
+                    this_bounding_box = lat_bit + lon_bit
+                    self._add_ground_overlay_region_bbox(
+                        this_im_name, fld, img, this_im_bounds, this_bounding_box,
+                        nominal_image_size, img_format, depth_count=depth_count+1, **params)
+                    count += 1
+
+    def _add_ground_overlay_region_quad(
+            self, image_name, fld, img, image_bounds, lat_lon_quad,
+            nominal_image_size, img_format, depth_count=0, **params):
+        """
+        Helper function for creating an ground overlay region part.
+
+        Parameters
+        ----------
+        image_name : str
+            The image name.
+        fld : minidom.Element
+        img : PIL.Image.Image
+        image_bounds : numpy.ndarray|list|tuple
+            The image bounds of the form `(row min, row max, col min, col max)`.
+        lat_lon_quad : numpy.ndarray
+            list of the form [[latitude, longitude]], must have 4 entries.
+        nominal_image_size : int
+        img_format : str
+        depth_count : int
+            What is the depth of the recursion?
+        params
+
+        Returns
+        -------
+        None
+        """
+
+        bounding_box = [
+            float(numpy.max(lat_lon_quad[:, 0])), float(numpy.min(lat_lon_quad[:, 0])),
+            float(numpy.max(lat_lon_quad[:, 1])), float(numpy.min(lat_lon_quad[:, 1]))]
+
+        # determine how to resample this image
+        row_length = int_func(image_bounds[1] - image_bounds[0])
+        col_length = int_func(image_bounds[3] - image_bounds[2])
+        cont_recursion = True
+        if max(row_length, col_length) < 1.5*nominal_image_size:
+            cont_recursion = False
+            sample_rows = row_length
+            sample_cols = col_length
+        elif row_length >= col_length:
+            sample_rows = nominal_image_size
+            sample_cols = int_func(col_length*nominal_image_size/float(row_length))
+        else:
+            sample_cols = nominal_image_size
+            sample_rows = int_func(row_length*nominal_image_size/float(col_length))
+
+        archive_name = 'images/{}.{}'.format(image_name, img_format)
+        # resample our image
+        pil_box = self._get_pil_style_box(image_bounds)
+        this_img = img.crop(pil_box).resize((sample_cols, sample_rows), PIL.Image.ANTIALIAS)
+        self.write_image_to_archive(archive_name, this_img, img_format=img_format)
+        # create the ground overlay parameters
+        pars = {'name': image_name}
+        for key in ['beginTime', 'endTime', 'when']:
+            if key in params:
+                pars[key] = params[key]
+        # create the ground overlay
+        gnd_overlay = self.add_ground_overlay(archive_name, lat_lon_quad=lat_lon_quad, par=fld, **pars)
+        # add the region
+        pars = {}
+        if depth_count == 0:
+            # root level, no minimum size
+            pars['minLodPixels'] = 0
+        else:
+            pars['minLodPixels'] = 0.3*nominal_image_size
+            pars['minFadeExtent'] = 0.3*nominal_image_size
+        if cont_recursion:
+            pars['maxLodPixels'] = 1.75*nominal_image_size
+            pars['maxFadeExtent'] = 0.3*nominal_image_size
+        else:
+            # leaf, no maximum size
+            pars['maxLodPixels'] = -1
+        pars['north'] = bounding_box[0]
+        pars['south'] = bounding_box[1]
+        pars['east'] = bounding_box[2]
+        pars['west'] = bounding_box[3]
+        self.add_region(gnd_overlay, **pars)
+
+        if cont_recursion:
+            if row_length > 1.5*nominal_image_size:
+                split_row = image_bounds[0] + int_func(0.5*row_length)
+                row_sizes = [(image_bounds[0], split_row), (split_row, image_bounds[1])]
+            else:
+                row_sizes = [(image_bounds[0], image_bounds[1]), ]
+
+            if col_length > 1.5*nominal_image_size:
+                split_col = image_bounds[2] + int_func(0.5*col_length)
+                col_sizes = [(image_bounds[2], split_col), (split_col, image_bounds[3])]
+            else:
+                col_sizes = [(image_bounds[2], image_bounds[3]), ]
+
+            count = 0
+            for row_bit in row_sizes:
+                for col_bit in col_sizes:
+                    this_im_name = '{}_{}'.format(image_name, count)
+                    this_im_bounds = row_bit + col_bit
+                    this_ll_quad = numpy.zeros((4, 2), dtype='float64')
+                    alpha = (this_im_bounds[0] - image_bounds[0])/float(row_length)
+                    beta = (this_im_bounds[2] - image_bounds[2])/float(col_length)
+                    this_ll_quad[0, :] = (1 - alpha)*lat_lon_quad[0, :] + alpha*lat_lon_quad[1, :]
+                    this_ll_quad[1, :] = (1 - beta)*lat_lon_quad[1, :] + beta*lat_lon_quad[3, :]
+                    this_ll_quad[2, :] = (1 - beta)*lat_lon_quad[2, :] + beta*lat_lon_quad[1, :]
+                    this_ll_quad[3, :] = (1 - alpha)*lat_lon_quad[3, :] + alpha*lat_lon_quad[2, :]
+
+                    self._add_ground_overlay_region_quad(
+                        this_im_name, fld, img, this_im_bounds, this_ll_quad,
+                        nominal_image_size, img_format, depth_count=depth_count+1,
+                        **params)
+                    count += 1
+
+    def add_regionated_ground_overlay(
+            self, img, par, bounding_box=None, lat_lon_quad=None, img_format='PNG',
+            nominal_image_size=1024, **params):
         """
         Adds regionated GroundOverlay objects. This downsamples the image to a pyramid type
         collection of smaller images, and defines the regions. **Requires viable archive.**
 
         Parameters
         ----------
-        b_box : List[str]
-            list of the form: :code:`[<latitude max>, <latitude min>, <longitude max>, <longitude min>]`,
-            follows the [north, south, east, west] requirement for GroundOverlay objects
         img : PIL.Image.Image
             the image instance.
         par : minidom.Element
             the parent node, a folder object will be created and appended to par.
             The overlays will be added below this folder.
-        frmt : str
+        bounding_box : None|numpy.ndarray
+            Follows the format for the argument in :func:`add_ground_overlay`.
+        lat_lon_quad : None|nunpy.ndarray
+            Follows the format for the argument in :func:`add_ground_overlay`.
+        img_format : str
             string representing a viable Image format. The viable options that will be allowed:
                 * 'PNG' - (default) transparency; lossless; good compression
                 * 'TIFF' - supports transparency; lossless; poor compression
@@ -970,121 +1265,48 @@ class Document(object):
                 * 'GIF' - transparency; lossless; medium compression
             The PIL library actually supports a much larger collection of image formats, but the
             remaining formats are not good candidates for this application.
-        params : dict
+        nominal_image_size : int
+            The nominal image size for splitting. A minimum of 512 will be enforced.
+        params
             The parameters dictionary.
         Returns
         -------
         minidom.Element
         """
 
-        max_image_size = 2048
-        min_image_size = 1024
-
-        def split(ibox, cbox):
-            """
-            Recursive splitting.
-
-            Parameters
-            ----------
-            ibox : List[int]
-                left,upper,right,lower index bounding box
-            cbox : List[float]
-                north,south,east,west coordinate bounding box
-
-            Returns
-            -------
-            None
-            """
-
-            wdth = (ibox[2] - ibox[0])
-            hgt = (ibox[3] - ibox[1])
-            if max(wdth, hgt) < (max_image_size * 3) / 2:
-                # stopping criteria
-                cont_recursion = False
-                swdth = wdth
-                shgt = hgt
-            else:
-                # resample and continue
-                cont_recursion = True
-                if wdth > hgt:
-                    swdth = max_image_size
-                    shgt = (hgt * max_image_size) / wdth
-                else:
-                    shgt = max_image_size
-                    swdth = (wdth * max_image_size) / hgt
-            # prepare to write image
-            newimg = img.crop(ibox).resize((swdth, shgt), PIL.Image.ANTIALIAS)
-            olName = params['name']
-            global im_count
-            fname = 'images/{}_{}.{}'.format(olName, im_count, frmt)
-            pars = {'name': olName + '_' + str(im_count)}
-            for key in ['beginTime', 'endTime']:
-                if key in params:
-                    pars[key] = params[key]
-            p = self.add_ground_overlay(cbox, fname, par=fld, params=pars)
-            pars = {}
-            if im_count == 0:
-                # root level, no minimum size
-                pars['minLodPixels'] = 0
-            else:
-                pars['minLodPixels'] = min_image_size / 2
-                pars['minFadeExtent'] = min_image_size / 2
-            if cont_recursion:
-                pars['maxLodPixels'] = max_image_size + min_image_size / 2
-                pars['maxFadeExtent'] = min_image_size / 2
-            else:
-                # leaf, no maximum size
-                pars['maxLodPixels'] = -1
-            pars['north'] = cbox[0]
-            pars['south'] = cbox[1]
-            pars['east'] = cbox[2]
-            pars['west'] = cbox[3]
-            self.add_region(p, **pars)
-            self.write_image_to_archive(fname, newimg, frmt=frmt)
-            im_count += 1
-            if cont_recursion:
-                # determine correct subdivisions
-                if wdth > (max_image_size * 3) / 2:
-                    mid = wdth / 2
-                    winds = [ibox[0], ibox[0] + wdth / 2, ibox[2]]
-                    los = [cbox[3], cbox[3] + (cbox[2] - cbox[3]) * float(mid) / wdth, cbox[2]]
-                else:
-                    winds = [ibox[0], ibox[2]]
-                    los = [cbox[3], cbox[2]]
-
-                if hgt > (max_image_size * 3) / 2:
-                    mid = hgt / 2
-                    hinds = [ibox[1], ibox[1] + hgt / 2, ibox[3]]
-                    las = [cbox[0], cbox[0] - (cbox[0] - cbox[1]) * float(mid) / hgt, cbox[1]]
-                else:
-                    hinds = [ibox[1], ibox[3]]
-                    las = [cbox[0], cbox[1]]
-                # call recursion
-                for j in range(len(winds) - 1):
-                    for k in range(len(hinds) - 1):
-                        split((winds[j], hinds[k], winds[j + 1], hinds[k + 1]),
-                              (las[k], las[k + 1], los[j + 1], los[j]))
-            return
+        nominal_image_size = int_func(nominal_image_size)
+        if nominal_image_size < 512:
+            nominal_image_size = 512
 
         if self._archive is None:
             raise ValueError('We must have a viable archive.')
         if PIL is None:
-            raise ImportError('We cannot import the PIL library, so this functionality cannot be used.')
+            raise ImportError(
+                'Optional dependency Pillow is required to use this functionality.')
         if not isinstance(img, PIL.Image.Image):
-            raise TypeError('We must have that img is a PIL instance.')
+            raise TypeError('We must have that img is a PIL instance, got type {}.'.format(type(img)))
+
+        # validate ground overlay area arguments
+        if bounding_box is None and lat_lon_quad is None:
+            raise ValueError('Either bounding_box or lat_lon_quad must be defined.')
+        if bounding_box is not None and lat_lon_quad is not None:
+            raise ValueError('Both bounding_box or lat_lon_quad are provided, which is not sensible.')
+        if lat_lon_quad is not None:
+            if not isinstance(lat_lon_quad, numpy.ndarray) or lat_lon_quad.ndim != 2 or \
+                    lat_lon_quad.shape[0] != 4 or lat_lon_quad.shape[1] != 2:
+                raise TypeError('lat_lon_quad, if supplied, must be a numpy array of shape (4, 2).')
 
         # create our folder object
-        fld = self.add_container(par, typ='Folder', params=params)
-        # check the image size
-        verticalPixels = img.size[1]
-        horizontalPixels = img.size[0]
+        fld = self.add_container(par, the_type='Folder', params=params)
+        # get base name
+        base_img_name = params.get('image_name', 'image')
+        base_img_box = (0, 0, img.size[0], img.size[1])
 
-        if frmt not in ['PNG', 'TIFF', 'JPEG', 'GIF']:
-            logging.warning("Invalid image format {} replaced with PNG".format(frmt))
-            frmt = 'PNG'
-
-        global im_count
-        im_count = 0
-
-        # call the recursion
-        split((0, 0, horizontalPixels, verticalPixels), b_box)
+        if bounding_box is not None:
+            self._add_ground_overlay_region_bbox(
+                base_img_name, fld, img, base_img_box, bounding_box,
+                nominal_image_size, img_format, **params)
+        elif lat_lon_quad is not None:
+            self._add_ground_overlay_region_quad(
+                base_img_name, fld, img, base_img_box, lat_lon_quad,
+                nominal_image_size, img_format, **params)
