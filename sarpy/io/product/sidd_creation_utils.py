@@ -162,6 +162,27 @@ def _create_measurement_v2(ortho_helper, bounds):
         return None
 
 
+def _create_exploitation_v2(ortho_helper):
+    """
+    Construct the ExploitationFeatures version 2.0 structure.
+
+    Parameters
+    ----------
+    ortho_helper : OrthorectificationHelper
+
+    Returns
+    -------
+    ExploitationFeaturesType2
+    """
+
+    proj_helper = ortho_helper.proj_helper
+    if isinstance(proj_helper, PGProjection):
+        return ExploitationFeaturesType2.from_sicd(
+            proj_helper.sicd, proj_helper.row_vector, proj_helper.col_vector)
+    else:
+        raise ValueError('Unhandled projection helper type {}'.format(type(proj_helper)))
+
+
 def create_sidd_v2(ortho_helper, bounds, product_class, pixel_type):
     """
     Create a SIDD version 2.0 structure based on the orthorectification helper
@@ -185,7 +206,6 @@ def create_sidd_v2(ortho_helper, bounds, product_class, pixel_type):
 
     # validate bounds and get pixel coordinates rectangle
     bounds, ortho_pixel_corners = ortho_helper.bounds_to_rectangle(bounds)
-
     # construct appropriate SIDD elements
     prod_create = ProductCreationType.from_sicd(ortho_helper.proj_helper.sicd, product_class)
     # Display requires more product specifics
@@ -196,7 +216,7 @@ def create_sidd_v2(ortho_helper, bounds, product_class, pixel_type):
     # Measurement
     measurement = _create_measurement_v2(ortho_helper, bounds)
     # ExploitationFeatures
-    exploit_feats = ExploitationFeaturesType2.from_sicd(ortho_helper.proj_helper.sicd)
+    exploit_feats = _create_exploitation_v2(ortho_helper)
     return SIDDType2(ProductCreation=prod_create,
                     GeoData=geo_data,
                     Display=display,
@@ -245,7 +265,6 @@ def _create_measurement_v1(ortho_helper, bounds):
     """
 
     proj_helper = ortho_helper.proj_helper
-
     if isinstance(proj_helper, PGProjection):
         # fit the time coa polynomial in ortho-pixel coordinates
         plane_projection = _create_plane_projection(proj_helper, bounds)
@@ -256,7 +275,28 @@ def _create_measurement_v1(ortho_helper, bounds):
                                     Y=proj_helper.sicd.Position.ARPPoly.Y.get_array(),
                                     Z=proj_helper.sicd.Position.ARPPoly.Z.get_array()))
     else:
-        return None
+        raise ValueError('Unhandled projection helper type {}'.format(type(proj_helper)))
+
+
+def _create_exploitation_v1(ortho_helper):
+    """
+    Construct the ExploitationFeatures version 1.0 structure.
+
+    Parameters
+    ----------
+    ortho_helper : OrthorectificationHelper
+
+    Returns
+    -------
+    ExploitationFeaturesType1
+    """
+
+    proj_helper = ortho_helper.proj_helper
+    if isinstance(proj_helper, PGProjection):
+        return ExploitationFeaturesType1.from_sicd(
+            proj_helper.sicd, proj_helper.row_vector, proj_helper.col_vector)
+    else:
+        raise ValueError('Unhandled projection helper type {}'.format(type(proj_helper)))
 
 
 def create_sidd_v1(ortho_helper, bounds, product_class, pixel_type):
@@ -282,7 +322,6 @@ def create_sidd_v1(ortho_helper, bounds, product_class, pixel_type):
 
     # validate bounds and get pixel coordinates rectangle
     bounds, ortho_pixel_corners = ortho_helper.bounds_to_rectangle(bounds)
-
     # construct appropriate SIDD elements
     prod_create = ProductCreationType.from_sicd(ortho_helper.proj_helper.sicd, product_class)
     # Display requires more product specifics
@@ -293,7 +332,7 @@ def create_sidd_v1(ortho_helper, bounds, product_class, pixel_type):
     # Measurement
     measurement = _create_measurement_v1(ortho_helper, bounds)
     # ExploitationFeatures
-    exploit_feats = ExploitationFeaturesType1.from_sicd(ortho_helper.proj_helper.sicd)
+    exploit_feats = _create_exploitation_v1(ortho_helper)
 
     return SIDDType1(ProductCreation=prod_create,
                      Display=display,
