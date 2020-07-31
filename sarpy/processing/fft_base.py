@@ -82,15 +82,7 @@ class FFTCalculator(FullResolutionFetcher):
 
     @index.setter
     def index(self, value):
-        value = int_func(value)
-        if value < 0:
-            raise ValueError('The index must be a non-negative integer, got {}'.format(value))
-
-        sicds = self.reader.get_sicds_as_tuple()
-        if value >= len(sicds):
-            raise ValueError('The index must be less than the sicd count.')
-        self._index = value
-        self._sicd = sicds[value]
+        super(FFTCalculator, self)._set_index(value)
 
         if self._sicd.SCPCOA is None or self._sicd.SCPCOA.SideOfTrack is None:
             logging.warning(
@@ -99,8 +91,6 @@ class FFTCalculator(FullResolutionFetcher):
             self._platform_direction = 'R'
         else:
             self._platform_direction = self._sicd.SCPCOA.SideOfTrack
-
-        self._data_size = self.reader.get_data_size_as_tuple()[value]
         self._set_fill()
 
     @property
