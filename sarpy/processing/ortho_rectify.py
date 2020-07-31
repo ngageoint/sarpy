@@ -49,11 +49,14 @@ from sarpy.io.general.slice_parsing import validate_slice_int, validate_slice
 from sarpy.io.complex.sicd_elements.blocks import Poly2DType
 from sarpy.geometry.geocoords import geodetic_to_ecf, ecf_to_geodetic, wgs_84_norm
 from sarpy.geometry.geometry_elements import GeometryObject
+from sarpy.geometry.point_projection import image_to_ground_plane, ground_to_image
 from sarpy.visualization.remap import amplitude_to_density, clip_cast
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
+# TODO: handle the default grid definition from the sicd, if it exists.
+#  Do it in OrthorectificationHelper.set_index_and_proj_helper()
 
 ##################
 # module variables and helper methods
@@ -176,8 +179,8 @@ class ProjectionHelper(object):
     @row_spacing.setter
     def row_spacing(self, value):
         """
-        Set the row pixel spacing value. This will default to the smaller of the
-        range or azimuth resolutions projected into the ground plane.
+        Set the row pixel spacing value. Setting to None will result in a
+        default value derived from the SICD structure being used.
 
         Parameters
         ----------
@@ -207,8 +210,8 @@ class ProjectionHelper(object):
     @col_spacing.setter
     def col_spacing(self, value):
         """
-        Set the col pixel spacing value. This will default to the smaller of the
-        range or azimuth resolutions projected into the ground plane.
+        Set the col pixel spacing value. Setting to NOne will result in a
+        default value derived from the SICD structure being used.
 
         Parameters
         ----------
@@ -464,8 +467,9 @@ class PGProjection(ProjectionHelper):
     __slots__ = (
         '_reference_point', '_row_vector', '_col_vector', '_normal_vector', '_reference_hae')
 
-    def __init__(self, sicd, reference_point=None, row_vector=None, col_vector=None,
-                 row_spacing=None, col_spacing=None, default_pixel_method='GEOM_MEAN'):
+    def __init__(self, sicd, reference_point=None, normal_vector=None, row_vector=None,
+                 col_vector=None, row_spacing=None, col_spacing=None,
+                 default_pixel_method='GEOM_MEAN'):
         r"""
 
         Parameters
@@ -473,15 +477,16 @@ class PGProjection(ProjectionHelper):
         sicd : SICDType
             The sicd object
         reference_point : None|numpy.ndarray
-            The reference point (origin) of the planar grid. If None, the sicd.GeoData.SCP
-            will be used.
+            The reference point (origin) of the planar grid. If None, a default
+            derived from the SICD will be used..
+        normal_vector : None|numpy.ndarray
+            The unit normal vector of the plane.
         row_vector : None|numpy.ndarray
-            The vector defining increasing column direction. If None, then the
-            sicd.Grid.Row.UVectECF will be used.
+            The vector defining increasing column direction. If None, a default
+            derived from the SICD will be used.
         col_vector : None|numpy.ndarray
-            The vector defining increasing column direction. It is required
-            that `row_vector` and `col_vector` are orthogonal. If None, then the
-            perpendicular component of sicd.Grid.Col.UVectECF will be used.
+            The vector defining increasing column direction. If None, a default
+            derived from the SICD will be used.
         row_spacing : None|float
             The row pixel spacing.
         col_spacing : None|float
@@ -496,13 +501,14 @@ class PGProjection(ProjectionHelper):
 
         self._reference_point = None
         self._reference_hae = None
+        self._normal_vector = None
         self._row_vector = None
         self._col_vector = None
-        self._normal_vector = None
         super(PGProjection, self).__init__(
             sicd, row_spacing=row_spacing, col_spacing=col_spacing, default_pixel_method=default_pixel_method)
-        self.set_reference_point(reference_point)
-        self.set_row_and_col_vector(row_vector, col_vector)
+        self.set_reference_point(reference_point=reference_point)
+        self.set_plane_frame(
+            normal_vector=normal_vector, row_vector=row_vector, col_vector=col_vector)
 
     @property
     def reference_point(self):
@@ -522,16 +528,7 @@ class PGProjection(ProjectionHelper):
 
         return self._normal_vector
 
-    @property
-    def reference_hae(self):
-        # type: () -> float
-        """
-        float: The reference point HAE.
-        """
-
-        return self._reference_hae
-
-    def set_reference_point(self, reference_point):
+    def set_reference_point(self, reference_point=None):
         """
         Sets the reference point, which must be provided in ECF coordinates.
 
@@ -553,9 +550,6 @@ class PGProjection(ProjectionHelper):
                 and reference_point.size == 3):
             raise ValueError('reference_point must be a vector of size 3.')
         self._reference_point = reference_point
-        self._normal_vector = wgs_84_norm(reference_point)
-        llh = ecf_to_geodetic(reference_point)
-        self._reference_hae = float(llh[2])
 
     @property
     def row_vector(self):
@@ -573,20 +567,35 @@ class PGProjection(ProjectionHelper):
 
         return self._col_vector
 
-    def set_row_and_col_vector(self, row_vector, col_vector):
+    def set_plane_frame(self, normal_vector=None, row_vector=None, col_vector=None):
         """
-        Set the row and column vectors, in ECF coordinates. Note that the perpendicular
-        component of col_vector with respect to the row_vector will be used.
+        Set the plane unit normal, and the row and column vectors, in ECF coordinates.
+        Note that the perpendicular component of col_vector with respect to the
+        row_vector will be used.
+
+        If `normal_vector`, `row_vector`, and `col_vector` are all `None`, then
+        the normal to the Earth tangent plane at the reference point is used for
+        `normal_vector`. The `row_vector` will be defined as the perpendicular
+        component of `sicd.Grid.Row.UVectECF` to `normal_vector`. The `colummn_vector`
+        will be defined as the component of `sicd.Grid.Col.UVectECF` perpendicular
+        to both `normal_vector` and `row_vector`.
+
+        If only `normal_vector` is supplied, then the `row_vector` and `column_vector`
+        will be defined similarly as the perpendicular components of
+        `sicd.Grid.Row.UVectECF` and `sicd.Grid.Col.UVectECF`.
+
+        Otherwise, all vectors supplied will be normalized, but are required to be
+        mutually perpendicular. If only two vectors are supplied, then the third
+        will be determined.
 
         Parameters
         ----------
+        normal_vector : None|numpy.ndarray
+            The vector defining the outward unit normal in ECF coordinates.
         row_vector : None|numpy.ndarray
-            The vector defining increasing column direction. If None, then the
-            sicd.Grid.Row.UVectECF will be used.
+            The vector defining increasing column direction.
         col_vector : None|numpy.ndarray
-            The vector defining increasing column direction. It is required
-            that `row_vector` and `col_vector` are orthogonal. If None, then the
-            perpendicular component of sicd.Grid.Col.UVectECF will be used.
+            The vector defining increasing column direction.
 
         Returns
         -------
@@ -614,15 +623,65 @@ class PGProjection(ProjectionHelper):
                 vec = vec/norm  # avoid modifying row_vector def exterior to this class
             return vec
 
-        if row_vector is None:
-            row_vector = self.sicd.Grid.Row.UVectECF.get_array()
-        if col_vector is None:
-            col_vector = self.sicd.Grid.Col.UVectECF.get_array()
+        def check_perp(vec1, vec2, name1, name2, tolerance=1e-6):
+            if abs(vec1.dot(vec2)) > tolerance:
+                raise ValueError('{} vector and {} vector are not perpendicular'.format(name1, name2))
 
-        # make perpendicular to the plane normal vector
-        self._row_vector = normalize(row_vector, 'row', perp=self.normal_vector)
-        # make perpendicular to the plane normal vector and row_vector
-        self._col_vector = normalize(col_vector, 'column', perp=(self.normal_vector, self._row_vector))
+        if self._reference_point is None:
+            raise ValueError('This requires that reference point is previously set.')
+
+        if normal_vector is None and row_vector is None and col_vector is None:
+            self._normal_vector = wgs_84_norm(self.reference_point)
+            self._row_vector = normalize(
+                self.sicd.Grid.Row.UVectECF.get_array(), 'row', perp=self.normal_vector)
+            self._col_vector = normalize(
+                self.sicd.Grid.Col.UVectECF.get_array(), 'column', perp=(self.normal_vector, self.row_vector))
+        elif normal_vector is not None and row_vector is None and col_vector is None:
+            self._normal_vector = normalize(normal_vector, 'normal')
+            self._row_vector = normalize(
+                self.sicd.Grid.Row.UVectECF.get_array(), 'row', perp=self.normal_vector)
+            self._col_vector = normalize(
+                self.sicd.Grid.Col.UVectECF.get_array(), 'column', perp=(self.normal_vector, self.row_vector))
+        elif normal_vector is None:
+            if row_vector is None or col_vector is None:
+                raise ValueError('normal_vector is not defined, so both row_vector and col_vector must be.')
+            row_vector = normalize(row_vector, 'row')
+            col_vector = normalize(col_vector, 'col')
+            check_perp(row_vector, col_vector, 'row', 'col')
+            self._row_vector = row_vector
+            self._col_vector = col_vector
+            self._normal_vector = numpy.cross(row_vector, col_vector)
+        elif col_vector is None:
+            if row_vector is None:
+                raise ValueError('col_vector is not defined, so both normal_vector and row_vector must be.')
+            normal_vector = normalize(normal_vector, 'normal')
+            row_vector =  normalize(row_vector, 'row')
+            check_perp(normal_vector, row_vector, 'normal', 'row')
+            self._normal_vector = normal_vector
+            self._row_vector = row_vector
+            self._col_vector = numpy.cross(self.normal_vector, self.row_vector)
+        elif row_vector is None:
+            normal_vector = normalize(normal_vector, 'normal')
+            col_vector =  normalize(col_vector, 'col')
+            check_perp(normal_vector, col_vector, 'normal', 'col')
+            self._normal_vector = normal_vector
+            self._col_vector = col_vector
+            self._row_vector = numpy.cross(self.col_vector, self.normal_vector)
+        else:
+            normal_vector = normalize(normal_vector, 'normal')
+            row_vector = normalize(row_vector, 'row')
+            col_vector =  normalize(col_vector, 'col')
+            check_perp(normal_vector, row_vector, 'normal', 'row')
+            check_perp(normal_vector, col_vector, 'normal', 'col')
+            check_perp(row_vector, col_vector, 'row', 'col')
+            self._normal_vector = normal_vector
+            self._row_vector = row_vector
+            self._col_vector = col_vector
+        # check for outward unit norm
+        if numpy.dot(self.normal_vector, self.reference_point) < 0:
+            logging.warning(
+                'The normal vector appears to be outward pointing, so reversing.')
+            self._normal_vector *= -1
 
     def ecf_to_ortho(self, coords):
         coords, o_shape = self._reshape(coords, 3)
@@ -640,7 +699,7 @@ class PGProjection(ProjectionHelper):
 
     def ecf_to_pixel(self, coords):
         # ground to image
-        pixel, _, _ = self.sicd.project_ground_to_image(coords)
+        pixel, _, _ = ground_to_image(coords, self.sicd)
         return pixel
 
     def ll_to_ortho(self, ll_coords):
@@ -684,7 +743,7 @@ class PGProjection(ProjectionHelper):
 
     def ortho_to_pixel(self, ortho_coords):
         ortho_coords, o_shape = self._reshape(ortho_coords, 2)
-        pixel, _, _ = self.sicd.project_ground_to_image(self.ortho_to_ecf(ortho_coords))
+        pixel, _, _ = ground_to_image(self.ortho_to_ecf(ortho_coords), self.sicd)
         return numpy.reshape(pixel, o_shape)
 
     def pixel_to_ortho(self, pixel_coords):
@@ -694,7 +753,7 @@ class PGProjection(ProjectionHelper):
         return ortho
 
     def pixel_to_ecf(self, pixel_coords):
-        return self.sicd.project_image_to_ground(pixel_coords, projection_type='PLANE')
+        return image_to_ground_plane(pixel_coords, self.sicd, gref=self.reference_point, ugpn=self.normal_vector)
 
 
 ################
@@ -709,7 +768,7 @@ class OrthorectificationHelper(object):
     __slots__ = (
         '_reader', '_index', '_sicd', '_proj_helper', '_out_dtype', '_complex_valued',
         '_pad_value', '_apply_radiometric', '_subtract_radiometric_noise',
-        '_rad_poly', '_noise_poly')
+        '_rad_poly', '_noise_poly', '_default_ortho_bounds')
 
     def __init__(self, reader, index=0, proj_helper=None, complex_valued=False,
                  pad_value=None, apply_radiometric=None, subtract_radiometric_noise=False):
@@ -746,6 +805,7 @@ class OrthorectificationHelper(object):
         self._subtract_radiometric_noise = None
         self._rad_poly = None  # type: [None, Poly2DType]
         self._noise_poly = None  # type: [None, Poly2DType]
+        self._default_ortho_bounds = None
 
         self._pad_value = pad_value
         self._complex_valued = complex_valued
@@ -839,7 +899,23 @@ class OrthorectificationHelper(object):
         self._is_radiometric_noise_valid()
 
         if proj_helper is None:
-            proj_helper = PGProjection(self._sicd)
+            if self.sicd.RadarCollection.Area.Plane is not None:
+                plane = self.sicd.RadarCollection.Area.Plane
+                ref_pt = plane.RefPt.ECF.get_array()
+                row_vector = plane.XDir.UVectECF.get_array()
+                col_vector = plane.YDir.UVectECF.get_array()
+                norm_vector = numpy.cross(row_vector, col_vector)
+                row_spacing = plane.XDir.LineSpacing
+                col_spacing = plane.YDir.SampleSpacing
+                proj_helper = PGProjection(
+                    self.sicd, reference_point=ref_pt,
+                    normal_vector=norm_vector, row_vector=row_vector, col_vector=col_vector,
+                    row_spacing=row_spacing, col_spacing=col_spacing)
+                self._default_ortho_bounds = numpy.array([
+                    plane.XDir.FirstLine, plane.XDir.FirstLine+plane.XDir.NumLines,
+                    plane.YDir.FirstSample, plane.YDir.NumSamples+plane.YDir.NumSamples], dtype=numpy.uint32)
+            else:
+                proj_helper = PGProjection(self.sicd)
         if not isinstance(proj_helper, ProjectionHelper):
             raise TypeError('Got unexpected type {} for proj_helper'.format(proj_helper))
         self._proj_helper = proj_helper
@@ -981,6 +1057,9 @@ class OrthorectificationHelper(object):
             Of the form `[min row, max row, min column, max column]`.
         """
 
+        if self._default_ortho_bounds is not None:
+            return self._default_ortho_bounds
+
         full_coords = self.sicd.ImageData.get_full_vertex_data()
         full_line = _linear_fill(full_coords, fill_interval=1)
         return self.get_orthorectification_bounds_from_pixel_object(full_line)
@@ -999,6 +1078,9 @@ class OrthorectificationHelper(object):
         numpy.ndarray
             Of the form `[min row, max row, min column, max column]`.
         """
+
+        if self._default_ortho_bounds is not None:
+            return self._default_ortho_bounds
 
         valid_coords = self.sicd.ImageData.get_valid_vertex_data()
         if valid_coords is None:
@@ -1886,6 +1968,9 @@ class FullResolutionFetcher(object):
 
     @index.setter
     def index(self, value):
+        self._set_index(value)
+
+    def _set_index(self, value):
         value = int_func(value)
         if value < 0:
             raise ValueError('The index must be a non-negative integer, got {}'.format(value))
@@ -2107,7 +2192,6 @@ class FullResolutionFetcher(object):
         ----------
         row_range
         col_range
-        args
 
         Returns
         -------
