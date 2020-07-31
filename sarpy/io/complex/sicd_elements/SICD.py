@@ -32,7 +32,6 @@ from .RMA import RMAType
 from ..utils import snr_to_rniirs
 
 from sarpy.geometry import point_projection
-from sarpy.geometry.geocoords import wgs_84_norm
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
@@ -43,6 +42,18 @@ _SICD_SPECIFICATION_IDENTIFIER = 'SICD Volume 1 Design & Implementation Descript
 _SICD_SPECIFICATION_VERSION = '1.2'
 _SICD_SPECIFICATION_DATE = '2018-12-13T00:00:00Z'
 _SICD_SPECIFICATION_NAMESPACE = 'urn:SICD:1.2.1'
+
+
+def get_specification_identifier():
+    """
+    Get the current specification identifier.
+
+    Returns
+    -------
+    str
+    """
+
+    return _SICD_SPECIFICATION_IDENTIFIER
 
 
 class SICDType(Serializable):
@@ -283,8 +294,8 @@ class SICDType(Serializable):
                 return True
 
     def _validate_spotlight_mode(self):
-        if self.CollectionInfo is not None or self.CollectionInfo.RadarMode is not None \
-                or self.CollectionInfo.RadarMode.ModeType is not None:
+        if self.CollectionInfo is None or self.CollectionInfo.RadarMode is None \
+                or self.CollectionInfo.RadarMode.ModeType is None:
             return True
 
         if self.Grid is None or self.Grid.TimeCOAPoly is None:
@@ -488,20 +499,12 @@ class SICDType(Serializable):
 
         graze = numpy.deg2rad(self.SCPCOA.GrazeAng)
         twist = numpy.deg2rad(self.SCPCOA.TwistAng)
-        theta_r = 0
         row_ss = self.Grid.Row.SS
         col_ss = self.Grid.Col.SS
 
-        k_r1 = (numpy.cos(theta_r)/numpy.cos(graze))**2 + \
-               ((numpy.sin(theta_r)**2)*numpy.tan(graze)*numpy.tan(twist) -
-                numpy.sin(2*theta_r)/numpy.cos(graze))*numpy.tan(graze)*numpy.tan(twist)
-        k_c1 = ((numpy.sin(theta_r)**2)/numpy.cos(graze) -
-                numpy.sin(2*theta_r)*numpy.tan(graze)*numpy.tan(twist))/numpy.cos(twist) + \
-               (numpy.cos(theta_r)*numpy.tan(graze)*numpy.tan(twist))**2
-
-        row_ground = float(numpy.sqrt(k_r1*(row_ss**2) + (numpy.sin(theta_r)*col_ss/numpy.cos(twist))**2))
-        col_ground = float(numpy.sqrt(k_c1*(row_ss**2) + (numpy.cos(theta_r)*col_ss/numpy.cos(twist))**2))
-
+        row_ground = abs(float(row_ss/numpy.cos(graze)))
+        col_ground = float(numpy.sqrt((numpy.tan(graze)*numpy.tan(twist)*row_ss)**2
+                                      + (col_ss/numpy.cos(twist))**2))
         return row_ground, col_ground
 
     def can_project_coordinates(self):
@@ -861,6 +864,7 @@ class SICDType(Serializable):
                 return
 
         if signal is None:
+            # noinspection PyBroadException
             try:
                 # use 1.0 for copolar collection and 0.25 from cross-polar collection
                 pol = self.ImageFormation.TxRcvPolarizationProc
