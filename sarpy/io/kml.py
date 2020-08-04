@@ -1195,7 +1195,7 @@ class Document(object):
             llh_temp[:, :2] = ll_quad
             ecf_coords = geodetic_to_ecf(llh_temp)
             split_ecf = split.dot(ecf_coords)
-            return ecf_to_geodetic(split_ecf)
+            return ecf_to_geodetic(split_ecf)[:, :2]
 
         bounding_box = [
             float(numpy.max(lat_lon_quad[:, 0])), float(numpy.min(lat_lon_quad[:, 0])),

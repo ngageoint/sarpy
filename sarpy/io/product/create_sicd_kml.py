@@ -403,11 +403,10 @@ def add_sicd_to_kmz(kmz_document, reader, index=0):
     if not reader.is_sicd_type:
         raise ValueError('reader must be of sicd type.')
 
-    data = reader[:, :]
     # create our projection helper
     index = int(index)
     sicd = reader.get_sicds_as_tuple()[index]
-    proj_helper = PGProjection(sicd, row_spacing=5, col_spacing=5)
+    proj_helper = PGProjection(sicd)  # , row_spacing=5, col_spacing=5)
     # TODO: we should set appropriate row and column spacing for the projection helper
     #   to have some moderately sized sicd (at most 2048 or 4096 pixels on the given side?)
     # create our orthorectification helper
