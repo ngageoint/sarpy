@@ -3,8 +3,10 @@
 This module provides tools for creating kmz visualizations of a SICD.
 """
 
+import logging
 from typing import Union
 import json
+import os
 
 import numpy
 
@@ -143,11 +145,12 @@ def _get_orthoiterator_description(ortho_iterator):
     str
     """
 
-    return 'ortho-rectified image<br>' \
+    return 'ortho-rectified image for {2:s}<br>' \
            'row resolution - {0:0.2f} meters<br>' \
            'column resolution - {1:0.2f} meters'.format(
         ortho_iterator.ortho_helper.proj_helper.row_spacing,
-        ortho_iterator.ortho_helper.proj_helper.col_spacing)
+        ortho_iterator.ortho_helper.proj_helper.col_spacing,
+        _get_sicd_name(ortho_iterator.sicd))
 
 
 def _get_sicd_time_args(sicd, subdivisions=12):
@@ -180,6 +183,84 @@ def _get_sicd_time_args(sicd, subdivisions=12):
     return {'beginTime': str(beg_time)+'Z', 'endTime': str(end_time)+'Z'}, time_array
 
 
+def _write_image_corners(kmz_document, sicd, time_args, folder):
+    """
+    Write the image corner polygon.
+
+    Parameters
+    ----------
+    kmz_document : Document
+    sicd : SICDType
+    time_args : dict
+    folder : minidom.Element
+
+    Returns
+    -------
+    None
+    """
+
+    if sicd.GeoData is None or sicd.GeoData.ImageCorners is None:
+        return
+
+    frm = '{1:0.8f},{0:0.8f},0'
+    corners = sicd.GeoData.ImageCorners.get_array(dtype='float64')
+    coords = ' '.join(frm.format(*el) for el in corners)
+    coords += ' ' + frm.format(*corners[0, :])
+    placemark = kmz_document.add_container(par=folder, description='image corners for {}'.format(_get_sicd_name(sicd)), styleUrl='#bounding')
+    kmz_document.add_polygon(coords, par=placemark, altitudeMode='clampToGround', **time_args)
+
+
+def _write_valid_area(kmz_document, sicd, time_args, folder):
+    """
+    Write the valid area polygon.
+
+    Parameters
+    ----------
+    kmz_document : Document
+    sicd : SICDType
+    time_args : dict
+    folder : minidom.Element
+
+    Returns
+    -------
+    None
+    """
+
+    if sicd.GeoData is None or sicd.GeoData.ValidData is None:
+        return
+
+    frm = '{1:0.8f},{0:0.8f},0'
+    valid_array = sicd.GeoData.ValidData.get_array(dtype='float64')
+    coords = ' '.join(frm.format(*el) for el in valid_array)
+    coords += ' ' + frm.format(*valid_array[0, :])
+    placemark = kmz_document.add_container(par=folder, description='valid data for {}'.format(_get_sicd_name(sicd)), styleUrl='#valid')
+    kmz_document.add_polygon(coords, par=placemark, altitudeMode='clampToGround', **time_args)
+
+
+def _write_scp(kmz_document, sicd, time_args, folder):
+    """
+    Write the csp location.
+
+    Parameters
+    ----------
+    kmz_document : Document
+    sicd : SICDType
+    time_args : dict
+    folder : minidom.Element
+
+    Returns
+    -------
+    None
+    """
+    if sicd.GeoData is None or sicd.GeoData.SCP is None:
+        return
+
+    frm = '{1:0.8f},{0:0.8f},0'
+    coords = frm.format(*sicd.GeoData.SCP.LLH.get_array())
+    placemark = kmz_document.add_container(par=folder, description='SCP for {}'.format(_get_sicd_name(sicd)), styleUrl='#scp')
+    kmz_document.add_point(coords, par=placemark, altitudeMode='clampToGround', **time_args)
+
+
 def _write_arp_location(kmz_document, sicd, time_args, time_array, folder):
     """
 
@@ -209,7 +290,7 @@ def _write_arp_location(kmz_document, sicd, time_args, time_array, folder):
     arp_llh = ecf_to_geodetic(arp_pos)
     coords = ['{1:0.8f},{0:0.8f},{2:0.2f}'.format(*el) for el in arp_llh]
     whens = [str(sicd.Timeline.CollectStart.astype('datetime64[us]') + int_func(el*1e6)) + 'Z' for el in time_array]
-    placemark = kmz_document.add_container(par=folder, description='aperture pos', styleUrl='#arp', **time_args)
+    placemark = kmz_document.add_container(par=folder, description='aperture position for {}'.format(_get_sicd_name(sicd)), styleUrl='#arp', **time_args)
     kmz_document.add_gx_track(coords, whens, par=placemark, extrude=True, tesselate=True, altitudeMode='absolute')
     return arp_llh
 
@@ -250,53 +331,8 @@ def _write_collection_wedge(kmz_document, sicd, time_args, arp_llh, time_array, 
         coord_array.append(frm.format(*grp_llh[0, :]))
     coord_array.append(frm.format(*arp_llh[0, :]))
     coords = ' '.join(coord_array)
-    placemark = kmz_document.add_container(par=folder, description='collection wedge', styleUrl='#collection', **time_args)
+    placemark = kmz_document.add_container(par=folder, description='collection wedge for {}'.format(_get_sicd_name(sicd)), styleUrl='#collection', **time_args)
     kmz_document.add_polygon(coords, par=placemark, extrude=False, tesselate=False, altitudeMode='absolute')
-
-
-def _write_sicd_geometry_elements(sicd, kmz_document, folder):
-    """
-    Write the geometry elements of a SICD.
-
-    Parameters
-    ----------
-    sicd : SICDType
-    kmz_document : Document
-    folder : minidom.Element
-
-    Returns
-    -------
-    None
-    """
-
-    # let's define the time data for the SICD
-    time_args, time_array = _get_sicd_time_args(sicd)
-
-    if sicd.GeoData is not None:
-        # add the image corners/bounding box
-        frm = '{1:0.8f},{0:0.8f},0'
-        if sicd.GeoData.ImageCorners is not None:
-            corners = sicd.GeoData.ImageCorners.get_array(dtype='float64')
-            coords = ' '.join(frm.format(*el) for el in corners)
-            coords += ' ' + frm.format(*corners[0, :])
-            placemark = kmz_document.add_container(par=folder, description='image corners', styleUrl='#bounding')
-            kmz_document.add_polygon(coords, par=placemark, altitudeMode='clampToGround', **time_args)
-        # add the valid data
-        if sicd.GeoData.ValidData is not None:
-            valid_array = sicd.GeoData.ValidData.get_array(dtype='float64')
-            coords = ' '.join(frm.format(*el) for el in valid_array)
-            coords += ' ' + frm.format(*valid_array[0, :])
-            placemark = kmz_document.add_container(par=folder, description='valid data', styleUrl='#valid')
-            kmz_document.add_polygon(coords, par=placemark, altitudeMode='clampToGround', **time_args)
-        # write scp data
-        if sicd.GeoData.SCP is not None:
-            coords = frm.format(*sicd.GeoData.SCP.LLH.get_array())
-            placemark = kmz_document.add_container(par=folder, description='SCP', styleUrl='#scp')
-            kmz_document.add_point(coords, par=placemark, altitudeMode='clampToGround', **time_args)
-    # write arp position
-    arp_llh = _write_arp_location(kmz_document, sicd, time_args, time_array, folder)
-    # write collection wedge
-    _write_collection_wedge(kmz_document, sicd, time_args, arp_llh, time_array, folder)
 
 
 def _write_sicd_overlay(ortho_iterator, kmz_document, folder):
@@ -333,11 +369,12 @@ def _write_sicd_overlay(ortho_iterator, kmz_document, folder):
         start_indices[1]:start_indices[1]+data.shape[1]] = data
     # create regionated overlay
     # convert image array to PIL image.
-    img = PIL.Image.fromarray(image_data.T)
+    img = PIL.Image.fromarray(image_data)  # this is to counteract the PIL treatment
     lat_lon_quad = reorder_corners(ortho_iterator.get_llh_image_corners())
     kmz_document.add_regionated_ground_overlay(
         img, folder, lat_lon_quad=lat_lon_quad[:, :2], img_format='JPEG',
-        name='image overlay', description=_get_orthoiterator_description(ortho_iterator))
+        name='image overlay for {}'.format(_get_sicd_name(ortho_iterator.sicd)),
+        description=_get_orthoiterator_description(ortho_iterator))
 
 
 def prepare_kmz_file(file_name, **args):
@@ -360,7 +397,52 @@ def prepare_kmz_file(file_name, **args):
     return document
 
 
-def add_sicd_from_ortho_helper(kmz_document, ortho_helper):
+def add_sicd_geometry_elements(sicd, kmz_document, folder,
+        inc_image_corners=True, inc_valid_data=False,
+        inc_scp=False, inc_collection_wedge=True):
+    """
+    Write the geometry elements of a SICD.
+
+    Parameters
+    ----------
+    sicd : SICDType
+    kmz_document : Document
+    folder : minidom.Element
+    inc_image_corners : bool
+        Include the image corners, if possible?
+    inc_valid_data : bool
+        Include the valid image area, if possible?
+    inc_scp : bool
+        Include the scp?
+    inc_collection_wedge : bool
+        Include the aperture location and collection wedge?
+
+    Returns
+    -------
+    None
+    """
+
+    # let's define the time data for the SICD
+    time_args, time_array = _get_sicd_time_args(sicd)
+
+    # add the image corners/bounding box
+    if inc_image_corners:
+        _write_image_corners(kmz_document, sicd, time_args, folder)
+    # add the valid data
+    if inc_valid_data:
+        _write_valid_area(kmz_document, sicd, time_args, folder)
+    # write scp data
+    if inc_scp:
+        _write_scp(kmz_document, sicd, time_args, folder)
+    # write arp position and collection wedge
+    if inc_collection_wedge:
+        arp_llh = _write_arp_location(kmz_document, sicd, time_args, time_array, folder)
+        _write_collection_wedge(kmz_document, sicd, time_args, arp_llh, time_array, folder)
+
+
+def add_sicd_from_ortho_helper(kmz_document, ortho_helper,
+        inc_image_corners=False, inc_valid_data=False,
+        inc_scp=False, inc_collection_wedge=False):
     """
     Adds for a SICD to the provided open kmz from an ortho-rectification helper.
 
@@ -368,6 +450,14 @@ def add_sicd_from_ortho_helper(kmz_document, ortho_helper):
     ----------
     kmz_document : Document
     ortho_helper : OrthorectificationHelper
+    inc_image_corners : bool
+        Include the image corners, if possible?
+    inc_valid_data : bool
+        Include the valid image area, if possible?
+    inc_scp : bool
+        Include the scp?
+    inc_collection_wedge : bool
+        Include the aperture location and collection wedge?
 
     Returns
     -------
@@ -388,13 +478,16 @@ def add_sicd_from_ortho_helper(kmz_document, ortho_helper):
     folder = kmz_document.add_container(
         the_type='Folder', name=_get_sicd_name(sicd), description=_get_sicd_description(sicd))
     # write the sicd details aside from the overlay
-    _write_sicd_geometry_elements(sicd, kmz_document, folder)
+    add_sicd_geometry_elements(sicd, kmz_document, folder,
+        inc_image_corners=inc_image_corners, inc_valid_data=inc_valid_data,
+        inc_scp=inc_scp, inc_collection_wedge=inc_collection_wedge)
     # write the image overlay
-    ortho_iterator = OrthorectificationIterator(ortho_helper)
+    ortho_iterator = OrthorectificationIterator(ortho_helper, dmin=60, mmult=40)  # use the brighter remap params
     _write_sicd_overlay(ortho_iterator, kmz_document, folder)
 
 
-def add_sicd_to_kmz(kmz_document, reader, index=0, pixel_limit=2048):
+def add_sicd_to_kmz(kmz_document, reader, index=0, pixel_limit=2048,
+        inc_image_corners=False, inc_valid_data=False, inc_scp=False, inc_collection_wedge=False):
     """
     Adds elements for this SICD to the provided open kmz.
 
@@ -408,6 +501,14 @@ def add_sicd_to_kmz(kmz_document, reader, index=0, pixel_limit=2048):
         The index to use.
     pixel_limit : int
         The limit in pixel size to use for the constructed ground overlay.
+    inc_image_corners : bool
+        Include the image corners, if possible?
+    inc_valid_data : bool
+        Include the valid image area, if possible?
+    inc_scp : bool
+        Include the scp?
+    inc_collection_wedge : bool
+        Include the aperture location and collection wedge?
 
     Returns
     -------
@@ -419,6 +520,10 @@ def add_sicd_to_kmz(kmz_document, reader, index=0, pixel_limit=2048):
     if not reader.is_sicd_type:
         raise ValueError('reader must be of sicd type.')
 
+    pixel_limit = int_func(pixel_limit)
+    if pixel_limit < 512:
+        pixel_limit = 512
+
     # create our projection helper
     index = int(index)
     sicd = reader.get_sicds_as_tuple()[index]
@@ -429,26 +534,62 @@ def add_sicd_to_kmz(kmz_document, reader, index=0, pixel_limit=2048):
     ortho_size = ortho_helper.get_full_ortho_bounds()
     row_count = ortho_size[1] - ortho_size[0]
     col_count = ortho_size[3] - ortho_size[2]
+    # reset the row/column spacing, if necessary
     if row_count > pixel_limit:
         proj_helper.row_spacing *= row_count/float(pixel_limit)
     if col_count > pixel_limit:
         proj_helper.col_spacing *= col_count/float(pixel_limit)
     # add the sicd details
-    add_sicd_from_ortho_helper(kmz_document, ortho_helper)
+    add_sicd_from_ortho_helper(kmz_document, ortho_helper,
+        inc_image_corners=inc_image_corners, inc_valid_data=inc_valid_data, inc_scp=inc_scp,
+        inc_collection_wedge=inc_collection_wedge)
 
 
-if __name__ == '__main__':
-    import logging
-    logging.basicConfig(level='INFO')
-    import os
-    from sarpy.io.complex.converter import open_complex
-    test_root = os.path.expanduser('~/Desktop/sarpy_testing/sicd')
-    # open our sicd file
-    reader = open_complex(os.path.join(test_root, 'sicd_example_RMA_RGZERO_RE16I_IM16I.nitf'))
-    # ortho_helper = NearestNeighborMethod(reader, index=0)
+def create_kmz_view(reader, output_directory, file_stem='view', pixel_limit=2048,
+        inc_image_corners=False, inc_valid_data=False, inc_scp=False,
+        inc_collection_wedge=False):
+    """
+    Create a kmz view for the reader contents. This will create one file per
+    band/polarization possibility.
 
-    # prepare our kmz document
-    out_file = os.path.join(test_root, 'test1.kmz')
-    kmz_doc = prepare_kmz_file(out_file, name='test')
-    with kmz_doc:
-        add_sicd_to_kmz(kmz_doc, reader)
+    Parameters
+    ----------
+    reader : BaseReader
+    output_directory : str
+    file_stem : str
+    pixel_limit : int
+    inc_image_corners : bool
+        Include the image corners, if possible?
+    inc_valid_data : bool
+        Include the valid image area, if possible?
+    inc_scp : bool
+        Include the scp?
+    inc_collection_wedge : bool
+        Include the aperture location and collection wedge?
+
+    Returns
+    -------
+    None
+    """
+
+    def does_match(sicd, this_band, this_pol):
+        sband = sicd.ImageFormation.get_transmit_band_name() if sicd.ImageFormation is not None else 'UN'
+        spol = sicd.ImageFormation.get_polarization_abbreviation() if sicd.ImageFormation is not None else 'UN'
+        return sband == this_band and spol == this_pol
+
+    the_sicds = reader.get_sicds_as_tuple()
+    bands = reader.get_sicd_bands()
+    pols = reader.get_sicd_polarizations()
+    partitions = reader.get_sicd_partitions()
+
+    for the_band in set(bands):
+        for the_pol in set(pols):
+            kmz_file = os.path.join(output_directory, '{}_{}_{}.kmz'.format(file_stem, the_band, the_pol))
+            logging.info('Writing kmz file for polarization {} and band {}'.format(the_pol, the_band))
+            with prepare_kmz_file(kmz_file, name=reader.file_name) as kmz_doc:
+                for entry in partitions:
+                    for the_index in entry:
+                        if does_match(the_sicds[the_index], the_band, the_pol):
+                            add_sicd_to_kmz(kmz_doc, reader, index=the_index, pixel_limit=pixel_limit,
+                                inc_image_corners=inc_image_corners, inc_valid_data=inc_valid_data, inc_scp=inc_scp,
+                                inc_collection_wedge=inc_collection_wedge)

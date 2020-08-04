@@ -1253,10 +1253,12 @@ class OrthorectificationHelper(object):
     def bounds_to_rectangle(self, bounds):
         """
         From a bounds style array, construct the four corner coordinate array.
+        This follows the SICD convention of going CLOCKWISE around the corners.
 
         Parameters
         ----------
         bounds : numpy.ndarray|list|tuple
+            Of the form `(row min, row max, col min, col max)`.
 
         Returns
         -------
@@ -1266,10 +1268,10 @@ class OrthorectificationHelper(object):
 
         bounds = self.validate_bounds(bounds)
         coords = numpy.zeros((4, 2), dtype=numpy.int32)
-        coords[0, :] = (bounds[0], bounds[2])
-        coords[1, :] = (bounds[1], bounds[2])
-        coords[2, :] = (bounds[1], bounds[3])
-        coords[3, :] = (bounds[0], bounds[3])
+        coords[0, :] = (bounds[0], bounds[2])  # row min, col min
+        coords[1, :] = (bounds[0], bounds[3])  # row min, col max
+        coords[2, :] = (bounds[1], bounds[3])  # row max, col max
+        coords[3, :] = (bounds[1], bounds[2])  # row max, col min
         return bounds, coords
 
     def extract_pixel_bounds(self, bounds):

@@ -3,13 +3,13 @@
 Functionality for exporting certain data elements to a kml document
 """
 
-import logging
 import zipfile
 import logging
 import os
 import numpy
 from xml.dom import minidom
 from typing import Union, Tuple, List
+from uuid import uuid4
 
 from sarpy.compliance import BytesIO, string_types, int_func
 from sarpy.geometry.geocoords import geodetic_to_ecf, ecf_to_geodetic
@@ -893,7 +893,8 @@ class Document(object):
         bounding_box : None|numpy.ndarray|tuple|list
             list of the form `[latitude max, latitude min, longitude max, longitude min]`
         lat_lon_quad : None|numpy.ndarray|list|tuple
-            list of the form [[latitude, longitude]], must have 4 entries.
+            list of the form [[latitude, longitude]], must have 4 entries. The orientation
+            is counter-clockwise from the lower-left image corner.
         par : None|minidom.Element
             The parent node. if not provided, then a Placemark object is created implicitly.
         params
@@ -1016,25 +1017,6 @@ class Document(object):
         self._add_lat_lon_alt_box(reg, **params)
         return reg
 
-    @staticmethod
-    def _get_pil_style_box(image_box):
-        # type: (Tuple[int, int, int, int]) -> Tuple[int, int, int, int]
-        """
-        Transform our bounding box pattern to a PIL bounding box pattern.
-
-        Parameters
-        ----------
-        image_box : Tuple[int, int, int, int]
-            The image bounds of the form `(row min, row max, col min, col max)`.
-
-        Returns
-        -------
-        Tuple[int, int, int, int]
-            The PIL style bounding box is `(col min, row min, col max, row max)`.
-        """
-
-        return int_func(image_box[2]), int_func(image_box[0]), int_func(image_box[3]), int_func(image_box[1])
-
     def _add_ground_overlay_region_bbox(
             self, image_name, fld, img, image_bounds, bounding_box,
             nominal_image_size, img_format, depth_count=0, **params):
@@ -1048,7 +1030,7 @@ class Document(object):
         fld : minidom.Element
         img : PIL.Image.Image
         image_bounds : numpy.ndarray|list|tuple
-            The image bounds of the form `(row min, row max, col min, col max)`.
+            Using PIL conventions, of the form `(col min, row min, col max, row max)`.
         bounding_box : numpy.ndarray|tuple|list
             Bounding box of the form `[latitude max, latitude min, longitude max, longitude min]`
         nominal_image_size : int
@@ -1063,9 +1045,11 @@ class Document(object):
         None
         """
 
+        col_min, row_min, col_max, row_max = image_bounds
+
         # determine how to resample this image
-        row_length = int_func(image_bounds[1] - image_bounds[0])
-        col_length = int_func(image_bounds[3] - image_bounds[2])
+        row_length = int_func(row_max - row_min)
+        col_length = int_func(col_max - col_min)
         cont_recursion = True
         if max(row_length, col_length) < 1.5*nominal_image_size:
             cont_recursion = False
@@ -1080,7 +1064,7 @@ class Document(object):
 
         archive_name = 'images/{}.{}'.format(image_name, img_format)
         # resample our image
-        pil_box = self._get_pil_style_box(image_bounds)
+        pil_box = tuple(int_func(el) for el in image_bounds)
         this_img = img.crop(pil_box).resize((sample_cols, sample_rows), PIL.Image.ANTIALIAS)
         self.write_image_to_archive(archive_name, this_img, img_format=img_format)
         # create the ground overlay parameters
@@ -1113,21 +1097,21 @@ class Document(object):
         if cont_recursion:
             # create a list of [(start row, end row)]
             if row_length > 1.5*nominal_image_size:
-                split_row = image_bounds[0] + int_func(0.5*row_length)
+                split_row = row_min + int_func(0.5*row_length)
                 split_lat = bounding_box[0] + (split_row/float(row_length))*(bounding_box[1] - bounding_box[0])
-                row_sizes = [(image_bounds[0], split_row), (split_row, image_bounds[1])]
+                row_sizes = [(row_min, split_row), (split_row, row_max)]
                 lats = [(bounding_box[0], split_lat), (split_lat, bounding_box[1])]
             else:
-                row_sizes = [(image_bounds[0], image_bounds[1]), ]
+                row_sizes = [(row_min, row_max), ]
                 lats = [(bounding_box[0], bounding_box[1]), ]
 
             if col_length > 1.5*nominal_image_size:
-                split_col = image_bounds[2] + int_func(0.5*col_length)
+                split_col = col_min + int_func(0.5*col_length)
                 split_lon = bounding_box[2] + (split_col/float(row_length))*(bounding_box[3] - bounding_box[2])
-                col_sizes = [(image_bounds[2], split_col), (split_col, image_bounds[3])]
+                col_sizes = [(col_min, split_col), (split_col, col_max)]
                 lons = [(bounding_box[2], split_lon), (split_lon, bounding_box[3])]
             else:
-                col_sizes = [(image_bounds[2], image_bounds[3]), ]
+                col_sizes = [(col_min, col_max), ]
                 lons = [(bounding_box[2], bounding_box[3]), ]
 
             count = 0
@@ -1140,6 +1124,58 @@ class Document(object):
                         this_im_name, fld, img, this_im_bounds, this_bounding_box,
                         nominal_image_size, img_format, depth_count=depth_count+1, **params)
                     count += 1
+
+    @staticmethod
+    def _split_lat_lon_quad(ll_quad, split_fractions):
+        """
+        Helper method for recursively splitting the lat/lon quad box.
+
+        Parameters
+        ----------
+        ll_quad : numpy.ndarray
+        split_fractions : list|tuple
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+
+        r1, r2, c1, c2 = split_fractions
+        # [0] corresponds to (max_row, 0)
+        # [1] corresponds to (max row, max_col)
+        # [2] corresponds to (0, max_col)
+        # [3] corresponds to (0, 0)
+
+        # do row split
+        # [0] = r2*[0] + (1-r2)*[3]
+        # [1] = r2*[1] + (1-r2)*[2]
+        # [2] = r1*[1] + (1-r1)*[2]
+        # [3] = r1*[0] + (1-r1)*[3]
+        row_split = numpy.array([
+            [r2, 0, 0, 1-r2],
+            [0, r2, 1-r2, 0],
+            [0, r1, 1-r1, 0],
+            [r1, 0, 0, 1-r1],
+        ], dtype='float64')
+
+        # do column split
+        # [0] = (1-c1)*[0] + c1*[1]
+        # [1] = (1-c2)*[0] + c2*[1]
+        # [2] = c2*[2] + (1-c2)*[3]
+        # [3] = c1*[2] + (1-c1)*[3]
+        col_split = numpy.array([
+            [1-c1, c1, 0, 0],
+            [1-c2, c2, 0, 0],
+            [0, 0, c2, 1-c2],
+            [0, 0, c1, 1-c1],], dtype='float64')
+
+        split = col_split.dot(row_split)
+
+        llh_temp = numpy.zeros((4, 3))
+        llh_temp[:, :2] = ll_quad
+        ecf_coords = geodetic_to_ecf(llh_temp)
+        split_ecf = split.dot(ecf_coords)
+        return ecf_to_geodetic(split_ecf)[:, :2]
 
     def _add_ground_overlay_region_quad(
             self, image_name, fld, img, image_bounds, lat_lon_quad,
@@ -1154,7 +1190,7 @@ class Document(object):
         fld : minidom.Element
         img : PIL.Image.Image
         image_bounds : numpy.ndarray|list|tuple
-            The image bounds of the form `(row min, row max, col min, col max)`.
+            Using PIL conventions, of the form `(col min, row min, col max, row max)`.
         lat_lon_quad : numpy.ndarray
             list of the form [[latitude, longitude]], must have 4 entries.
         nominal_image_size : int
@@ -1168,44 +1204,17 @@ class Document(object):
         None
         """
 
-        def split_lat_lon_quad(ll_quad, row_frac1, row_frac2, col_frac1, col_frac2):
-            # row_frac1 = r1, row_frac2 = r2, col_frac1=c1, col_frac2=c2
-            # do row split
-            # [0] = (1-r2)*[3] + r2*[0]
-            # [1] = (1-r2)*[2] + r2*[1]
-            # [2] = (1-r1)*[2] + r1*[1]
-            # [3] = (1-r1)*[3] + r1*[0]
-            row_split = numpy.array([
-                [row_frac2, 0, 0, 1-row_frac2],
-                [0, row_frac2, 1-row_frac2, 0],
-                [0, row_frac1, 1-row_frac1, 0],
-                [row_frac1, 0, 0, 1-row_frac1]], dtype='float64')
-            #  do column split
-            # [0] = (1-c1)*[0] + c1*[1]
-            # [1] = (1-c2)*[0] + c2*[1]
-            # [2] = (1-c2)*[3] + c2*[2]
-            # [3] = (1-c1)*[3] + c1*[2]
-            col_split = numpy.array([
-                [1-col_frac1, col_frac1, 0, 0],
-                [1-col_frac2, col_frac2, 0, 0],
-                [0, 0, col_frac2, 1-col_frac2],
-                [0, 0, col_frac1, 1-col_frac1]], dtype='float64')
-            split = col_split.dot(row_split)
-            llh_temp = numpy.zeros((4, 3))
-            llh_temp[:, :2] = ll_quad
-            ecf_coords = geodetic_to_ecf(llh_temp)
-            split_ecf = split.dot(ecf_coords)
-            return ecf_to_geodetic(split_ecf)[:, :2]
-
         bounding_box = [
             float(numpy.max(lat_lon_quad[:, 0])), float(numpy.min(lat_lon_quad[:, 0])),
             float(numpy.max(lat_lon_quad[:, 1])), float(numpy.min(lat_lon_quad[:, 1]))]
 
+        col_min, row_min, col_max, row_max = image_bounds
+
         # determine how to resample this image
-        row_length = int_func(image_bounds[1] - image_bounds[0])
-        col_length = int_func(image_bounds[3] - image_bounds[2])
+        row_length = int_func(row_max - row_min)
+        col_length = int_func(col_max - col_min)
         cont_recursion = True
-        if max(row_length, col_length) < 1.5*nominal_image_size:
+        if max(row_length, col_length) <= 1.5*nominal_image_size:
             cont_recursion = False
             sample_rows = row_length
             sample_cols = col_length
@@ -1217,11 +1226,11 @@ class Document(object):
             sample_rows = int_func(row_length*nominal_image_size/float(col_length))
 
         logging.info('Processing ({}:{}, {}:{}) into a downsampled image of size ({},{})'.format(
-            image_bounds[0], image_bounds[1], image_bounds[2], image_bounds[3], sample_rows, sample_cols))
+            row_min, row_max, col_min, col_max, sample_rows, sample_cols))
 
         archive_name = 'images/{}.{}'.format(image_name, img_format)
+        pil_box = tuple(int_func(el) for el in image_bounds)
         # resample our image
-        pil_box = self._get_pil_style_box(image_bounds)
         this_img = img.crop(pil_box).resize((sample_cols, sample_rows), PIL.Image.ANTIALIAS)
         self.write_image_to_archive(archive_name, this_img, img_format=img_format)
         # create the ground overlay parameters
@@ -1239,12 +1248,14 @@ class Document(object):
         else:
             pars['minLodPixels'] = 0.3*nominal_image_size
             pars['minFadeExtent'] = 0.3*nominal_image_size
+
         if cont_recursion:
             pars['maxLodPixels'] = 1.75*nominal_image_size
             pars['maxFadeExtent'] = 0.3*nominal_image_size
         else:
             # leaf, no maximum size
             pars['maxLodPixels'] = -1
+
         pars['north'] = bounding_box[0]
         pars['south'] = bounding_box[1]
         pars['east'] = bounding_box[2]
@@ -1252,28 +1263,31 @@ class Document(object):
         self.add_region(gnd_overlay, **pars)
 
         if cont_recursion:
-            if row_length > 1.5*nominal_image_size:
-                split_row = image_bounds[0] + int_func(0.5*row_length)
-                row_sizes = [(image_bounds[0], split_row), (split_row, image_bounds[1])]
+            if row_length >= 1.5*nominal_image_size:
+                split_row = row_min + int_func(0.5*row_length)
+                row_sizes = [(row_min, split_row), (split_row, row_max)]
             else:
-                row_sizes = [(image_bounds[0], image_bounds[1]), ]
+                row_sizes = [(row_min, row_max), ]
 
-            if col_length > 1.5*nominal_image_size:
-                split_col = image_bounds[2] + int_func(0.5*col_length)
-                col_sizes = [(image_bounds[2], split_col), (split_col, image_bounds[3])]
+            if col_length >= 1.5*nominal_image_size:
+                split_col = col_min + int_func(0.5*col_length)
+                col_sizes = [(col_min, split_col), (split_col, col_max)]
             else:
-                col_sizes = [(image_bounds[2], image_bounds[3]), ]
+                col_sizes = [(col_min, col_max), ]
 
             count = 0
             for row_bit in enumerate(row_sizes):
                 for col_bit in enumerate(col_sizes):
                     this_im_name = '{}_{}'.format(image_name, count)
-                    this_im_bounds = row_bit[1] + col_bit[1]
-                    row_split_start = (row_bit[1][0] - image_bounds[0])/float(row_length)
-                    row_split_end = (row_bit[1][1] - image_bounds[0])/float(row_length)
-                    col_split_start = (col_bit[1][0] - image_bounds[2])/float(col_length)
-                    col_split_end = (col_bit[1][1] - image_bounds[2])/float(col_length)
-                    this_ll_quad = split_lat_lon_quad(lat_lon_quad, row_split_start, row_split_end, col_split_start, col_split_end)
+                    this_im_bounds = (col_bit[1][0], row_bit[1][0], col_bit[1][1], row_bit[1][1])
+                    split_fractions = [
+                        (row_bit[1][0] - row_min)/float(row_length),
+                        (row_bit[1][1] - row_min)/float(row_length),
+                        (col_bit[1][0] - col_min)/float(col_length),
+                        (col_bit[1][1] - col_min)/float(col_length)
+                    ]
+
+                    this_ll_quad = self._split_lat_lon_quad(lat_lon_quad, split_fractions)
 
                     self._add_ground_overlay_region_quad(
                         this_im_name, fld, img, this_im_bounds, this_ll_quad,
@@ -1341,8 +1355,8 @@ class Document(object):
         # create our folder object
         fld = self.add_container(par, the_type='Folder', **params)
         # get base name
-        base_img_name = params.get('image_name', 'image')
-        base_img_box = (0, img.size[0], 0, img.size[1])
+        base_img_name = '{}-image'.format(uuid4())
+        base_img_box = (0, 0, img.size[0], img.size[1])
 
         if bounding_box is not None:
             self._add_ground_overlay_region_bbox(
