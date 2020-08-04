@@ -2292,6 +2292,32 @@ class OrthorectificationIterator(object):
         self._prepare_state()
 
     @property
+    def ortho_helper(self):
+        # type: () -> OrthorectificationHelper
+        """
+        OrthorectificationHelper: The ortho-rectification helper.
+        """
+
+        return self._ortho_helper
+
+    @property
+    def calculator(self):
+        # type: () -> FullResolutionFetcher
+        """
+        FullResolutionFetcher : The calculator instance.
+        """
+
+        return self._calculator
+
+    @property
+    def sicd(self):
+        """
+        SICDType: The sicd structure.
+        """
+
+        return self.calculator.sicd
+
+    @property
     def pixel_bounds(self):
         """
         numpy.ndarray : Of the form `(row min, row max, col min, col max)`.
@@ -2326,14 +2352,36 @@ class OrthorectificationIterator(object):
 
         return self._the_mean
 
-    @property
-    def calculator(self):
-        # type: () -> FullResolutionFetcher
+    def get_ecf_image_corners(self):
         """
-        FullResolutionFetcher : The calculator instance.
+        The corner points of the overall ortho-rectified output in ECF
+        coordinates. The ordering of these points follows the SICD convention.
+
+        Returns
+        -------
+        numpy.ndarray
         """
 
-        return self._calculator
+        if self.ortho_bounds is None:
+            return None
+        _, ortho_pixel_corners = self._ortho_helper.bounds_to_rectangle(self.ortho_bounds)
+        return self._ortho_helper.proj_helper.ortho_to_ecf(ortho_pixel_corners)
+
+    def get_llh_image_corners(self):
+        """
+        The corner points of the overall ortho-rectified output in Lat/Lon/HAE
+        coordinates. The ordering of these points follows the SICD convention.
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+
+        ecf_corners = self.get_ecf_image_corners()
+        if ecf_corners is None:
+            return None
+        else:
+            return ecf_to_geodetic(ecf_corners)
 
     def __iter__(self):
         return self
@@ -2407,6 +2455,7 @@ class OrthorectificationIterator(object):
             self._this_index += 1
         # at this point, _this_index indicates which entry to return
         if self._this_index >= len(self._iteration_blocks):
+            self._this_index = None  # reset the iteration scheme
             raise StopIteration()
 
         this_ortho_bounds, this_pixel_bounds = self._get_state_parameters()

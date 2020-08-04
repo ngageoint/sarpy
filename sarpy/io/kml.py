@@ -3,6 +3,7 @@
 Functionality for exporting certain data elements to a kml document
 """
 
+import logging
 import zipfile
 import logging
 import os
@@ -10,7 +11,8 @@ import numpy
 from xml.dom import minidom
 from typing import Union, Tuple, List
 
-from sarpy.compliance import StringIO, string_types, int_func
+from sarpy.compliance import BytesIO, string_types, int_func
+from sarpy.geometry.geocoords import geodetic_to_ecf, ecf_to_geodetic
 
 try:
     # noinspection PyPackageRequirements
@@ -61,11 +63,15 @@ class Document(object):
         self._document = self.add_container(kml, 'Document', **params)
 
     def __str__(self):
-        return self._doc.toprettyxml(encoding='utf-8')
+        xml = self._doc.toprettyxml(encoding='utf-8')
+        if not isinstance(xml, string_types):
+            return xml.decode('utf-8')
+        else:
+            return xml
 
     def _set_file(self, file_name):
         if isinstance(file_name, str):
-            fext = os.path.splitext(file_name)
+            fext = os.path.splitext(file_name)[1]
             if fext not in ['.kml', '.kmz']:
                 logging.warning('file extension should be one of .kml or .kmz, got {}. This will be treated as a kml file.'.format(fext))
             if fext == '.kmz':
@@ -159,7 +165,7 @@ class Document(object):
         None
         """
 
-        imbuf = StringIO()
+        imbuf = BytesIO()
         val.save(imbuf, img_format)
         self.write_string_to_archive(archive_path, imbuf.getvalue())
         imbuf.close()
@@ -220,7 +226,7 @@ class Document(object):
         the_type : str
             One of "Placemark", "Folder". The type "Document" can only be used once,
             for the top level construct.
-        params : dict
+        params
             The dictionary of parameters
 
         Returns
@@ -286,7 +292,7 @@ class Document(object):
         ----------
         style_id : str
             the style id string.
-        params : dict
+        params
             the dictionary of the parameters
 
         Returns
@@ -317,7 +323,7 @@ class Document(object):
             The id, which should not be set if this is a child of a style element.
         par : None|minidom.Element
             The parent node.
-        params : dict
+        params
             The parameters dictionary.
 
         Returns
@@ -341,7 +347,7 @@ class Document(object):
             The id, which should not be set if this is a child of a style element.
         par : None|minidom.Element
             The parent node.
-        params : dict
+        params
             The parameters dictionary.
 
         Returns
@@ -366,7 +372,7 @@ class Document(object):
             The id, which should not be set if this is a child of a style element.
         par : None|minidom.Element
             The parent node.
-        params : dict
+        params
             The parameters dictionary.
 
         Returns
@@ -390,7 +396,7 @@ class Document(object):
             The id, which should not be set if this is a child of a style element.
         par : None|minidom.Element
             The parent node.
-        params : dict
+        params
             The parameters dictionary.
 
         Returns
@@ -416,7 +422,7 @@ class Document(object):
             The id, which should not be set if this is a child of a style element.
         par : None|minidom.Element
             The parent node.
-        params : dict
+        params
             The parameters dictionary.
 
         Returns
@@ -442,17 +448,16 @@ class Document(object):
         label = {'color': 'ffc0c0c0', 'scale': '1.0'}
         icon = {'color': 'ffff5050', 'scale': '1.0'}
         poly = {'color': '80ff5050'}
-
         self.add_style(
             'default_high',
-            **{'line_style': line, 'label_style': label, 'icon_style': icon, 'poly_style': poly})
+            line_style=line, label_style=label, icon_style=icon, poly_style=poly)
 
         line['width'] = '0.75'
         label['scale'] = '0.75'
         icon['scale'] = '0.75'
         self.add_style(
             'default_low',
-            **{'line_style': line, 'label_style': label, 'icon_style': icon, 'poly_style': poly})
+            line_style=line, label_style=label, icon_style=icon, poly_style=poly)
         self.add_style_map('defaultStyle', 'default_high', 'default_low')
 
     def add_color_ramp(self, colors, high_size=1.0, low_size=0.5, icon_ref=None, name_stem='sty'):
@@ -490,13 +495,16 @@ class Document(object):
             col = '{3:02x}{2:02x}{1:02x}{0:02x}'.format(*colors[i, :])
             for di in [hline, hlabel, hicon, lline, llabel, licon]:
                 di['color'] = col
-            self.add_style('{0!s}{1:d}_high'.format(name_stem, i),
-                          **{'line_style': hline, 'label_style': hlabel, 'icon_style': hicon})
-            self.add_style('{0!s}{1:d}_low'.format(name_stem, i),
-                          **{'line_style': lline, 'label_style': llabel, 'icon_style': licon})
-            self.add_style_map('{0!s}{1:d}'.format(name_stem, i),
-                             '{0!s}{1:d}_high'.format(name_stem, i),
-                             '{0!s}{1:d}_low'.format(name_stem, i))
+            self.add_style(
+                '{0!s}{1:d}_high'.format(name_stem, i),
+                line_style=hline, label_style=hlabel, icon_style=hicon)
+            self.add_style(
+                '{0!s}{1:d}_low'.format(name_stem, i),
+                line_style=lline, label_style=llabel, icon_style=licon)
+            self.add_style_map(
+                '{0!s}{1:d}'.format(name_stem, i),
+                '{0!s}{1:d}_high'.format(name_stem, i),
+                '{0!s}{1:d}_low'.format(name_stem, i))
 
     # extended data handling
     def add_schema(self, schema_id, field_dict, short_name=None):
@@ -555,7 +563,7 @@ class Document(object):
         Parameters
         ----------
         par : minidom.Element
-        params : dict
+        params
             the parameters dictionary
 
         Returns
@@ -591,7 +599,7 @@ class Document(object):
             an appropriate url.
         par : None|minidom.Element
             The parent node. Appended at root level if not provided.
-        params : dict
+        params
             The parameters dictionary.
 
         Returns
@@ -643,7 +651,7 @@ class Document(object):
         ----------
         par : None|minidom.Element
             The parent node. If not given, then a Placemark is created.
-        params : dict
+        params
             The parameters dictionary
 
         Returns
@@ -675,7 +683,7 @@ class Document(object):
             If provided, the coordinates for inner rings.
         par : None|minidom.Element
             The parent node. If not given, then a Placemark is created.
-        params : dict
+        params
             The parameters dictionary.
 
         Returns
@@ -686,11 +694,15 @@ class Document(object):
         if par is None:
             par = self.add_container(**params)
         polygon_node = self._create_new_node(par, 'Polygon')
+        for opt in ['extrude', 'tessellate', 'altitudeMode']:
+            self._add_conditional_text_node(polygon_node, opt, params)
+
         outer_ring_node = self._create_new_node(polygon_node, 'outerBoundaryIs')
-        self.add_linear_ring(outer_coords, outer_ring_node, **params)
-        for coords in inner_coords:
-            inner_ring = self._create_new_node(polygon_node, 'innerBoundaryIs')
-            self.add_linear_ring(coords, inner_ring, **params)
+        self.add_linear_ring(outer_coords, outer_ring_node)
+        if inner_coords is not None:
+            for coords in inner_coords:
+                inner_ring = self._create_new_node(polygon_node, 'innerBoundaryIs')
+                self.add_linear_ring(coords, inner_ring)
 
     def add_linear_ring(self, coords, par=None, **params):
         """
@@ -709,7 +721,7 @@ class Document(object):
                 * 'altitudeMode'
         par : None|minidom.Element
             The parent node. If not given, then a Placemark is created.
-        params : dict
+        params
             The parameters dictionary.
 
         Returns
@@ -718,7 +730,7 @@ class Document(object):
         """
 
         if par is None:
-            par = self.add_container(params=params)
+            par = self.add_container(**params)
         linear_ring = self._create_new_node(par, 'LinearRing')
 
         for opt in ['extrude', 'tessellate', 'altitudeMode']:
@@ -743,7 +755,7 @@ class Document(object):
                 * 'altitudeMode'
         par : None|minidom.Element
             The parent node. If not given, then a Placemark is created.
-        params : dict
+        params
             The parameters dictionary.
 
         Returns
@@ -752,7 +764,7 @@ class Document(object):
         """
 
         if par is None:
-            par = self.add_container(params=params)
+            par = self.add_container(**params)
         line_string = self._create_new_node(par, 'LineString')
 
         for opt in ['extrude', 'tessellate', 'altitudeMode']:
@@ -777,7 +789,7 @@ class Document(object):
                 * 'altitudeMode'
         par : None|minidom.Element
             The parent node. If not given, then a Placemark is created.
-        params : dict
+        params
             The parameters dictionary.
 
         Returns
@@ -786,7 +798,7 @@ class Document(object):
         """
 
         if par is None:
-            par = self.add_container(params=params)
+            par = self.add_container(**params)
         point = self._create_new_node(par, 'Point')
 
         for opt in ['extrude', 'tessellate', 'altitudeMode']:
@@ -804,7 +816,7 @@ class Document(object):
         ----------
         par : None|minidom.Element
             The parent node. If not given, then a Placemark is created.
-        params : dict
+        params
             The parameters dictionary.
 
         Returns
@@ -813,7 +825,7 @@ class Document(object):
         """
 
         if par is None:
-            par = self.add_container(params=params)
+            par = self.add_container(**params)
         gx_multitrack = self._create_new_node(par, 'gx:MultiTrack')
 
         for opt in ['gx:interpolate', 'extrude', 'tessellate', 'altitudeMode']:
@@ -844,7 +856,7 @@ class Document(object):
             infers from the path.
         par : None|minidom.Element
             The parent node. If not given, then a Placemark is created.
-        params : dict
+        params
             The parameters dictionary.
 
         Returns
@@ -853,7 +865,7 @@ class Document(object):
         """
 
         if par is None:
-            par = self.add_container(params=params)
+            par = self.add_container(**params)
         gx_track = self._create_new_node(par, 'gx:Track')
         for opt in ['extrude', 'tessellate', 'altitudeMode']:
             self._add_conditional_text_node(gx_track, opt, params)
@@ -898,7 +910,7 @@ class Document(object):
             raise ValueError('Both bounding_box or lat_lon_quad are provided, which is not sensible.')
 
         if par is None:
-            par = self.add_container(params=params)
+            par = self.add_container(**params)
         overlay = self._create_new_node(par, 'GroundOverlay')
         if 'id' in params:
             overlay.setAttribute('id', params['id'])
@@ -953,7 +965,7 @@ class Document(object):
         Parameters
         ----------
         par : minidom.Element
-        params : dict
+        params
 
         Returns
         -------
@@ -973,7 +985,7 @@ class Document(object):
         Parameters
         ----------
         par : minidom.Element
-        params : dict
+        params
 
         Returns
         -------
@@ -992,7 +1004,7 @@ class Document(object):
         Parameters
         ----------
         par : None|minidom.Element
-        params : dict
+        params
 
         Returns
         -------
@@ -1156,6 +1168,35 @@ class Document(object):
         None
         """
 
+        def split_lat_lon_quad(ll_quad, row_frac1, row_frac2, col_frac1, col_frac2):
+            # row_frac1 = r1, row_frac2 = r2, col_frac1=c1, col_frac2=c2
+            # do row split
+            # [0] = (1-r2)*[3] + r2*[0]
+            # [1] = (1-r2)*[2] + r2*[1]
+            # [2] = (1-r1)*[2] + r1*[1]
+            # [3] = (1-r1)*[3] + r1*[0]
+            row_split = numpy.array([
+                [row_frac2, 0, 0, 1-row_frac2],
+                [0, row_frac2, 1-row_frac2, 0],
+                [0, row_frac1, 1-row_frac1, 0],
+                [row_frac1, 0, 0, 1-row_frac1]], dtype='float64')
+            #  do column split
+            # [0] = (1-c1)*[0] + c1*[1]
+            # [1] = (1-c2)*[0] + c2*[1]
+            # [2] = (1-c2)*[3] + c2*[2]
+            # [3] = (1-c1)*[3] + c1*[2]
+            col_split = numpy.array([
+                [1-col_frac1, col_frac1, 0, 0],
+                [1-col_frac2, col_frac2, 0, 0],
+                [0, 0, col_frac2, 1-col_frac2],
+                [0, 0, col_frac1, 1-col_frac1]], dtype='float64')
+            split = col_split.dot(row_split)
+            llh_temp = numpy.zeros((4, 3))
+            llh_temp[:, :2] = ll_quad
+            ecf_coords = geodetic_to_ecf(llh_temp)
+            split_ecf = split.dot(ecf_coords)
+            return ecf_to_geodetic(split_ecf)
+
         bounding_box = [
             float(numpy.max(lat_lon_quad[:, 0])), float(numpy.min(lat_lon_quad[:, 0])),
             float(numpy.max(lat_lon_quad[:, 1])), float(numpy.min(lat_lon_quad[:, 1]))]
@@ -1174,6 +1215,9 @@ class Document(object):
         else:
             sample_cols = nominal_image_size
             sample_rows = int_func(row_length*nominal_image_size/float(col_length))
+
+        logging.info('Processing ({}:{}, {}:{}) into a downsampled image of size ({},{})'.format(
+            image_bounds[0], image_bounds[1], image_bounds[2], image_bounds[3], sample_rows, sample_cols))
 
         archive_name = 'images/{}.{}'.format(image_name, img_format)
         # resample our image
@@ -1221,17 +1265,15 @@ class Document(object):
                 col_sizes = [(image_bounds[2], image_bounds[3]), ]
 
             count = 0
-            for row_bit in row_sizes:
-                for col_bit in col_sizes:
+            for row_bit in enumerate(row_sizes):
+                for col_bit in enumerate(col_sizes):
                     this_im_name = '{}_{}'.format(image_name, count)
-                    this_im_bounds = row_bit + col_bit
-                    this_ll_quad = numpy.zeros((4, 2), dtype='float64')
-                    alpha = (this_im_bounds[0] - image_bounds[0])/float(row_length)
-                    beta = (this_im_bounds[2] - image_bounds[2])/float(col_length)
-                    this_ll_quad[0, :] = (1 - alpha)*lat_lon_quad[0, :] + alpha*lat_lon_quad[1, :]
-                    this_ll_quad[1, :] = (1 - beta)*lat_lon_quad[1, :] + beta*lat_lon_quad[3, :]
-                    this_ll_quad[2, :] = (1 - beta)*lat_lon_quad[2, :] + beta*lat_lon_quad[1, :]
-                    this_ll_quad[3, :] = (1 - alpha)*lat_lon_quad[3, :] + alpha*lat_lon_quad[2, :]
+                    this_im_bounds = row_bit[1] + col_bit[1]
+                    row_split_start = (row_bit[1][0] - image_bounds[0])/float(row_length)
+                    row_split_end = (row_bit[1][1] - image_bounds[0])/float(row_length)
+                    col_split_start = (col_bit[1][0] - image_bounds[2])/float(col_length)
+                    col_split_end = (col_bit[1][1] - image_bounds[2])/float(col_length)
+                    this_ll_quad = split_lat_lon_quad(lat_lon_quad, row_split_start, row_split_end, col_split_start, col_split_end)
 
                     self._add_ground_overlay_region_quad(
                         this_im_name, fld, img, this_im_bounds, this_ll_quad,
@@ -1297,10 +1339,10 @@ class Document(object):
                 raise TypeError('lat_lon_quad, if supplied, must be a numpy array of shape (4, 2).')
 
         # create our folder object
-        fld = self.add_container(par, the_type='Folder', params=params)
+        fld = self.add_container(par, the_type='Folder', **params)
         # get base name
         base_img_name = params.get('image_name', 'image')
-        base_img_box = (0, 0, img.size[0], img.size[1])
+        base_img_box = (0, img.size[0], 0, img.size[1])
 
         if bounding_box is not None:
             self._add_ground_overlay_region_bbox(

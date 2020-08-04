@@ -493,6 +493,8 @@ class SubapertureOrthoIterator(OrthorectificationIterator):
                 self._this_frame = 0
         # at this point, _this_index & _this_frame indicates which entry to return
         if self._this_index >= len(self._iteration_blocks):
+            self._this_index = None  # reset the iteration scheme
+            self._this_frame = None
             raise StopIteration()
 
         this_ortho_bounds, this_pixel_bounds = self._get_state_parameters()

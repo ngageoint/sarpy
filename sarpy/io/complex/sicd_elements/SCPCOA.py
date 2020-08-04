@@ -365,7 +365,7 @@ class SCPCOAType(Serializable):
 
         # construct our calculator
         calculator = GeometryCalculator(
-            GeoData.SCP.ECF.get_array(), self.ARPPos, self.ARPVel)
+            GeoData.SCP.ECF.get_array(), self.ARPPos.get_array(), self.ARPVel.get_array())
         # set all the values
         self._ROV = calculator.ROV
         self.SideOfTrack = calculator.SideOfTrack
