@@ -482,7 +482,7 @@ def add_sicd_from_ortho_helper(kmz_document, ortho_helper,
         inc_image_corners=inc_image_corners, inc_valid_data=inc_valid_data,
         inc_scp=inc_scp, inc_collection_wedge=inc_collection_wedge)
     # write the image overlay
-    ortho_iterator = OrthorectificationIterator(ortho_helper, dmin=60, mmult=40)  # use the brighter remap params
+    ortho_iterator = OrthorectificationIterator(ortho_helper, dmin=60, mmult=4)  # use the high contrast remap params
     _write_sicd_overlay(ortho_iterator, kmz_document, folder)
 
 
