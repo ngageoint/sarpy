@@ -7,10 +7,8 @@ SICD ortho-rectification methodology.
 >>> from matplotlib import pyplot
 >>> from sarpy.io.complex.converter import open_complex
 >>> from sarpy.processing.ortho_rectify import NearestNeighborMethod
->>> from sarpy.visualization.remap import linear_discretization
->>> from PIL import Image
 
->>> reader = open_complex(<file name>)
+>>> reader = open_complex('<file name>')
 >>> orth_method = NearestNeighborMethod(reader, index=0, proj_helper=None,
 >>>     complex_valued=False, apply_radiometric=None, subtract_radiometric_noise=False)
 
@@ -28,10 +26,6 @@ SICD ortho-rectification methodology.
 >>> h1 = axs.imshow(ortho_data, cmap='inferno', aspect='equal')
 >>> fig.colorbar(h1, ax=axs)
 >>> pyplot.show()
-
->>> # write out the data to some image file format
->>> discrete_image = linear_discretization(ortho_data, min_value=None, max_value=None, bit_depth=8)
->>> Image.fromarray(discrete_image).save('filename.jpg')
 """
 
 import logging
@@ -55,8 +49,6 @@ from sarpy.visualization.remap import amplitude_to_density, clip_cast
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
-# TODO: handle the default grid definition from the sicd, if it exists.
-#  Do it in OrthorectificationHelper.set_index_and_proj_helper()
 
 ##################
 # module variables and helper methods
@@ -550,6 +542,9 @@ class PGProjection(ProjectionHelper):
                 and reference_point.size == 3):
             raise ValueError('reference_point must be a vector of size 3.')
         self._reference_point = reference_point
+        # set the reference hae
+        ref_llh = ecf_to_geodetic(reference_point)
+        self._reference_hae = ref_llh[2]
 
     @property
     def row_vector(self):
@@ -566,6 +561,14 @@ class PGProjection(ProjectionHelper):
         """
 
         return self._col_vector
+
+    @property
+    def reference_hae(self):
+        """
+        float: The height above the ellipsoid of the reference point.
+        """
+
+        return self._reference_hae
 
     def set_plane_frame(self, normal_vector=None, row_vector=None, col_vector=None):
         """
@@ -2232,9 +2235,12 @@ class OrthorectificationIterator(object):
 
     __slots__ = (
         '_calculator', '_ortho_helper', '_pixel_bounds', '_ortho_bounds',
-        '_this_index', '_iteration_blocks', '_the_mean')
+        '_this_index', '_iteration_blocks', '_the_mean', '_apply_remap',
+        '_dmin', '_mmult')
 
-    def __init__(self, ortho_helper, calculator=None, bounds=None):
+    def __init__(
+            self, ortho_helper, calculator=None, bounds=None, apply_remap=True,
+            dmin=30, mmult=40):
         """
 
         Parameters
@@ -2248,11 +2254,21 @@ class OrthorectificationIterator(object):
         bounds : None|numpy.ndarray|list|tuple
             The pixel bounds of the form `(min row, max row, min col, max col)`.
             This will default to the full image.
+        apply_remap : bool
+            Should a remap be applied, or raw values fetched?
+        dmin : int|float
+            Parameter for `amplitude_to_density` remap function.
+            See `sarpy.visualization.remap.amplitude_to_density`.
+        mmult : int|float
+            Parameter for `amplitude_to_density` remap function.
+            See `sarpy.visualization.remap.amplitude_to_density`.
         """
 
         self._this_index = None
         self._iteration_blocks = None
         self._the_mean = None
+        self._dmin = dmin
+        self._mmult = mmult
 
         # validate ortho_helper
         if not isinstance(ortho_helper, OrthorectificationHelper):
@@ -2289,6 +2305,7 @@ class OrthorectificationIterator(object):
         ortho_bounds = ortho_helper.get_orthorectification_bounds_from_pixel_object(pixel_rectangle)
         self._pixel_bounds = pixel_bounds
         self._ortho_bounds = ortho_bounds
+        self._apply_remap = not (apply_remap is False)
         self._prepare_state()
 
     @property
@@ -2383,10 +2400,15 @@ class OrthorectificationIterator(object):
         else:
             return ecf_to_geodetic(ecf_corners)
 
-    def __iter__(self):
-        return self
-
     def _prepare_state(self):
+        """
+        Prepare the iteration state.
+
+        Returns
+        -------
+        None
+        """
+
         if self.calculator.dimension == 0:
             column_block_size = self.calculator.get_fetch_block_size(self.ortho_bounds[0], self.ortho_bounds[1])
             self._iteration_blocks, _ = self.calculator.extract_blocks(
@@ -2395,9 +2417,24 @@ class OrthorectificationIterator(object):
             row_block_size = self.calculator.get_fetch_block_size(self.ortho_bounds[2], self.ortho_bounds[3])
             self._iteration_blocks, _ = self.calculator.extract_blocks(
                 (self.ortho_bounds[0], self.ortho_bounds[1], 1), row_block_size)
-        self._the_mean = self.calculator.get_data_mean_magnitude(self._pixel_bounds)
+        if self._apply_remap:
+            # we only need this in order to apply a remap
+            self._the_mean = self.calculator.get_data_mean_magnitude(self._pixel_bounds)
 
     def _get_ortho_helper(self, pixel_bounds, this_data):
+        """
+        Get helper data for ortho-rectification.
+
+        Parameters
+        ----------
+        pixel_bounds
+        this_data
+
+        Returns
+        -------
+        (numpy.ndarray, numpy.ndarray)
+        """
+
         rows_temp = pixel_bounds[1] - pixel_bounds[0]
         if this_data.shape[0] == rows_temp:
             row_array = numpy.arange(pixel_bounds[0], pixel_bounds[1])
@@ -2416,16 +2453,41 @@ class OrthorectificationIterator(object):
         return row_array, col_array
 
     def _get_orthorectified_version(self, this_ortho_bounds, pixel_bounds, this_data):
+        """
+        Get the orthorectified version from the raw values and pixel information.
+
+        Parameters
+        ----------
+        this_ortho_bounds
+        pixel_bounds
+        this_data
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+
         row_array, col_array = self._get_ortho_helper(pixel_bounds, this_data)
-        return clip_cast(
-            amplitude_to_density(
-                self._ortho_helper.get_orthorectified_from_array(this_ortho_bounds, row_array, col_array, this_data),
-                dmin=30,   # TODO: provide support for using other dmin/mmult parameters
-                mmult=40,
-                data_mean=self._the_mean),
-            dtype='uint8')
+        if self._apply_remap:
+            return clip_cast(
+                amplitude_to_density(
+                    self._ortho_helper.get_orthorectified_from_array(this_ortho_bounds, row_array, col_array, this_data),
+                    dmin=self._dmin,
+                    mmult=self._mmult,
+                    data_mean=self._the_mean),
+                dtype='uint8')
+        else:
+            return self._ortho_helper.get_orthorectified_from_array(this_ortho_bounds, row_array, col_array, this_data)
 
     def _get_state_parameters(self):
+        """
+        Gets the pixel information associated with the current state.
+
+        Returns
+        -------
+        (numpy.ndarray, numpy.ndarray)
+        """
+
         if self._calculator.dimension == 0:
             this_column_range = self._iteration_blocks[self._this_index]
             # determine the corresponding pixel ranges to encompass these values
@@ -2437,13 +2499,16 @@ class OrthorectificationIterator(object):
                 (this_row_range[0], this_row_range[1], self.ortho_bounds[2], self.ortho_bounds[3]))
         return this_ortho_bounds, this_pixel_bounds
 
+    def __iter__(self):
+        return self
+
     def __next__(self):
         """
         Get the next iteration of orthorectified data.
 
         Returns
         -------
-        numpy.ndarray, Tuple[int, int]
+        (numpy.ndarray, Tuple[int, int])
             The data and the (normalized) indices (start_row, start_col) for this section of data, relative
             to overall output shape.
         """
@@ -2462,6 +2527,11 @@ class OrthorectificationIterator(object):
         # accommodate for real pixel limits
         this_pixel_bounds = self._ortho_helper.get_real_pixel_bounds(this_pixel_bounds)
         # extract the csi data and ortho-rectify
+        logging.info(
+            'Fetching orthorectified coordinate block ({}:{}, {}:{}) of ({}:{})'.format(
+                this_ortho_bounds[0] - self.ortho_bounds[0], this_ortho_bounds[1] - self.ortho_bounds[0],
+                this_ortho_bounds[2] - self.ortho_bounds[2], this_ortho_bounds[3] - self.ortho_bounds[0],
+                self.ortho_bounds[1] - self.ortho_bounds[0], self.ortho_bounds[3] - self.ortho_bounds[2]))
         ortho_data = self._get_orthorectified_version(
             this_ortho_bounds, this_pixel_bounds,
             self._calculator[this_pixel_bounds[0]:this_pixel_bounds[1], this_pixel_bounds[2]:this_pixel_bounds[3]])
@@ -2472,7 +2542,7 @@ class OrthorectificationIterator(object):
 
     def next(self):
         """
-        Get the next iteration of orthorectified data.
+        Get the next iteration of ortho-rectified data.
 
         Returns
         -------

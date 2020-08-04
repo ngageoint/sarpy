@@ -530,6 +530,14 @@ class SubapertureOrthoIterator(OrthorectificationIterator):
 
         # calculate our result
         this_ortho_bounds, this_pixel_bounds = self._get_state_parameters()
+        logging.info(
+            'Fetching orthorectified coordinate block ({}:{}, {}:{}) of ({}:{}) for frame {}'.format(
+                this_ortho_bounds[0] - self.ortho_bounds[0], this_ortho_bounds[1] - self.ortho_bounds[0],
+                this_ortho_bounds[2] - self.ortho_bounds[2], this_ortho_bounds[3] - self.ortho_bounds[0],
+                self.ortho_bounds[1] - self.ortho_bounds[0], self.ortho_bounds[3] - self.ortho_bounds[2],
+                self._this_frame))
+
+
         data = self.calculator[
                this_pixel_bounds[0]:this_pixel_bounds[1],
                this_pixel_bounds[2]:this_pixel_bounds[3],
@@ -650,10 +658,5 @@ def create_dynamic_image_sidd(
     writer = SIDDWriter(full_filename, the_sidds, subap_calculator.sicd)
 
     # iterate and write
-    ortho_shape = ortho_iterator.ortho_data_size
     for data, start_indices, the_frame in ortho_iterator:
-        logging.info('Writing pixels ({}:{}, {}:{}) of ({}, {}) for frame {}'.format(
-            start_indices[0], start_indices[0] + data.shape[0],
-            start_indices[1], start_indices[1] + data.shape[1],
-            ortho_shape[0], ortho_shape[1], the_frame))
         writer(data, start_indices=start_indices, index=the_frame)

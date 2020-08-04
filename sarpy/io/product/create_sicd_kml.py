@@ -4,7 +4,6 @@ This module provides tools for creating kmz visualizations of a SICD.
 """
 
 from typing import Union
-from xml.dom import minidom
 import json
 
 import numpy
@@ -301,8 +300,27 @@ def _write_sicd_geometry_elements(sicd, kmz_document, folder):
 
 
 def _write_sicd_overlay(ortho_iterator, kmz_document, folder):
+    """
+    Write the orthorectified SICD ground overlay.
+
+    Parameters
+    ----------
+    ortho_iterator : OrthorectificationIterator
+    kmz_document : Document
+    folder : minidom.Element
+
+    Returns
+    -------
+    None
+    """
+
     def reorder_corners(llh_in):
         return llh_in[::-1, :]
+
+    if PIL is None:
+        logging.error(
+            'This functionality for writing kmz ground overlays requires the optional Pillow dependency.')
+        return
 
     time_args, _ = _get_sicd_time_args(ortho_iterator.sicd, subdivisions=None)
 
@@ -356,10 +374,6 @@ def add_sicd_from_ortho_helper(kmz_document, ortho_helper):
     None
     """
 
-    if PIL is None:
-        raise ImportError(
-            'This functionality cannot be used with the optional Pillow dependency.')
-
     if not isinstance(ortho_helper, OrthorectificationHelper):
         raise TypeError(
             'ortho_helper must be an OrthorectificationHelper instance, got '
@@ -380,7 +394,7 @@ def add_sicd_from_ortho_helper(kmz_document, ortho_helper):
     _write_sicd_overlay(ortho_iterator, kmz_document, folder)
 
 
-def add_sicd_to_kmz(kmz_document, reader, index=0):
+def add_sicd_to_kmz(kmz_document, reader, index=0, pixel_limit=2048):
     """
     Adds elements for this SICD to the provided open kmz.
 
@@ -392,6 +406,8 @@ def add_sicd_to_kmz(kmz_document, reader, index=0):
         The reader instance, must be of sicd type:
     index : int
         The index to use.
+    pixel_limit : int
+        The limit in pixel size to use for the constructed ground overlay.
 
     Returns
     -------
@@ -406,11 +422,17 @@ def add_sicd_to_kmz(kmz_document, reader, index=0):
     # create our projection helper
     index = int(index)
     sicd = reader.get_sicds_as_tuple()[index]
-    proj_helper = PGProjection(sicd)  # , row_spacing=5, col_spacing=5)
-    # TODO: we should set appropriate row and column spacing for the projection helper
-    #   to have some moderately sized sicd (at most 2048 or 4096 pixels on the given side?)
+    proj_helper = PGProjection(sicd)
     # create our orthorectification helper
     ortho_helper = NearestNeighborMethod(reader, index=index, proj_helper=proj_helper)
+    # let's see what the ortho-rectified size will be
+    ortho_size = ortho_helper.get_full_ortho_bounds()
+    row_count = ortho_size[1] - ortho_size[0]
+    col_count = ortho_size[3] - ortho_size[2]
+    if row_count > pixel_limit:
+        proj_helper.row_spacing *= row_count/float(pixel_limit)
+    if col_count > pixel_limit:
+        proj_helper.col_spacing *= col_count/float(pixel_limit)
     # add the sicd details
     add_sicd_from_ortho_helper(kmz_document, ortho_helper)
 

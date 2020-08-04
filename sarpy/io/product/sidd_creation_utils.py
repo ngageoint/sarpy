@@ -421,7 +421,6 @@ def create_detected_image_sidd(
 
     # create the sidd structure
     ortho_bounds = ortho_iterator.ortho_bounds
-    ortho_shape = ortho_iterator.ortho_data_size
     sidd_structure = create_sidd(
         ortho_helper, ortho_bounds,
         product_class='Detected Image', pixel_type='MONO8I', version=version)
@@ -441,8 +440,4 @@ def create_detected_image_sidd(
 
     # iterate and write
     for data, start_indices in ortho_iterator:
-        logging.info('Writing pixels ({}:{}, {}:{}) of ({}, {})'.format(
-            start_indices[0], start_indices[0] + data.shape[0],
-            start_indices[1], start_indices[1] + data.shape[1],
-            ortho_shape[0], ortho_shape[1]))
         writer(data, start_indices=start_indices, index=0)
