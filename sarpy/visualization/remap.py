@@ -112,7 +112,7 @@ def brighter(x):
     numpy.ndarray
     """
 
-    return clip_cast(amplitude_to_density(x, 60, 40))
+    return clip_cast(amplitude_to_density(x, dmin=60, mmult=40))
 
 
 def darker(x):
@@ -128,7 +128,7 @@ def darker(x):
     numpy.ndarray
     """
 
-    return clip_cast(amplitude_to_density(x, 0, 40))
+    return clip_cast(amplitude_to_density(x, dmin=0, mmult=40))
 
 
 def highcontrast(x):
@@ -144,7 +144,7 @@ def highcontrast(x):
     numpy.ndarray
     """
 
-    return clip_cast(amplitude_to_density(x, 30, 4))
+    return clip_cast(amplitude_to_density(x, dmin=30, mmult=4))
 
 
 def linear(x):
