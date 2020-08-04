@@ -537,6 +537,46 @@ class BaseReader(object):
             matches.append(tuple(this_match))
         return tuple(matches)
 
+    def get_sicd_bands(self):
+        """
+        Gets the list of bands for each sicd.
+
+        Returns
+        -------
+        Tuple[str]
+        """
+
+        if not self.is_sicd_type:
+            logging.warning('It is only valid to get sicd bands for a sicd type reader.')
+            return None
+
+        out = []
+        for sicd in self.get_sicds_as_tuple():
+            assert isinstance(sicd, SICDType)
+            band = sicd.ImageFormation.get_transmit_band_name() if sicd.ImageFormation is not None else 'UN'
+            out.append(band)
+        return tuple(out)
+
+    def get_sicd_polarizations(self):
+        """
+        Gets the list of polarizations for each sicd.
+
+        Returns
+        -------
+        Tuple[str]
+        """
+
+        if not self.is_sicd_type:
+            logging.warning('It is only valid to get sicd polarizations for a sicd type reader.')
+            return None
+
+        out = []
+        for sicd in self.get_sicds_as_tuple():
+            assert isinstance(sicd, SICDType)
+            pol = sicd.ImageFormation.get_polarization_abbreviation() if sicd.ImageFormation is not None else 'UN'
+            out.append(pol)
+        return tuple(out)
+
     def _validate_index(self, index):
         if isinstance(self._chipper, BaseChipper) or index is None:
             return 0

@@ -13,6 +13,8 @@ from .base import Serializable, DEFAULT_STRICT, \
     _BooleanDescriptor, _ComplexDescriptor, _DateTimeDescriptor, _IntegerListDescriptor, \
     _SerializableDescriptor, _SerializableListDescriptor, _ParametersDescriptor, ParametersCollection
 from .blocks import DUAL_POLARIZATION_VALUES
+from .RadarCollection import get_band_name
+
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
@@ -100,6 +102,22 @@ class TxFrequencyProcType(Serializable):
                 'Invalid frequency bounds MinProc ({}) > MaxProc ({})'.format(self.MinProc, self.MaxProc))
             condition = False
         return condition
+
+    def get_band_name(self):
+        """
+        Gets the band name.
+
+        Returns
+        -------
+        str
+        """
+
+        min_band = get_band_name(self.MinProc)
+        max_band = get_band_name(self.MaxProc)
+        if min_band == max_band:
+            return min_band
+        else:
+            return '{}_{}'.format(min_band, max_band)
 
 
 class ProcessingType(Serializable):
@@ -459,3 +477,17 @@ class ImageFormationType(Serializable):
             return 'UN'
         fp, sp = pol.split(':')
         return fp[0]+sp[0]
+
+    def get_transmit_band_name(self):
+        """
+        Gets the transmit band name.
+
+        Returns
+        -------
+        str
+        """
+
+        if self.TxFrequencyProc is not None:
+            return self.TxFrequencyProc.get_band_name()
+        else:
+            return 'UN'
