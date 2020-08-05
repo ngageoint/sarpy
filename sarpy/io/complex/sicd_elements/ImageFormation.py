@@ -463,6 +463,17 @@ class ImageFormationType(Serializable):
             condition = False
         return condition
 
+    def get_polarization(self):
+        """
+        Gets the transmit/receive polarization.
+
+        Returns
+        -------
+        str
+        """
+
+        return self.TxRcvPolarizationProc if self.TxRcvPolarizationProc is not None else 'UNKNOWN'
+
     def get_polarization_abbreviation(self):
         """
         Gets the transmit/receive polarization abbreviation for the suggested name.

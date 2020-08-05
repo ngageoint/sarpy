@@ -456,6 +456,46 @@ class SICDType(Serializable):
             # noinspection PyProtectedMember
             self.Radiometric._derive_parameters(self.Grid, self.SCPCOA)
 
+    def get_transmit_band_name(self):
+        """
+        Gets the processed transmit band name.
+
+        Returns
+        -------
+        str
+        """
+
+        if self.ImageFormation is None:
+            return 'UN'
+        return self.ImageFormation.get_transmit_band_name()
+
+    def get_processed_polarization_abbreviation(self):
+        """
+        Gets the processed polarization abbreviation (two letters).
+
+        Returns
+        -------
+        str
+        """
+
+        if self.ImageFormation is None:
+            return 'UN'
+        return self.ImageFormation.get_polarization_abbreviation()
+
+    def get_processed_polarization(self):
+        """
+        Gets the processed polarization.
+
+        Returns
+        -------
+        str
+        """
+
+        if self.ImageFormation is None:
+            return 'UN'
+        return self.ImageFormation.get_polarization()
+
+
     def apply_reference_frequency(self, reference_frequency):
         """
         If the reference frequency is used, adjust the necessary fields accordingly.
