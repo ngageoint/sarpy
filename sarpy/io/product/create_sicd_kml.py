@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 """
 This module provides tools for creating kmz visualizations of a SICD.
+
+.. Note: Creation of ground overlays (i.e. image overlay) requires the optional
+    Pillow dependency for image manipulation.
 """
 
 import logging
@@ -11,7 +14,7 @@ import os
 import numpy
 
 from sarpy.compliance import int_func, integer_types
-from sarpy.io.general.base import BaseReader
+from sarpy.io.general.base import BaseReader, sicd_reader_iterator
 from sarpy.processing.ortho_rectify import OrthorectificationHelper, \
     NearestNeighborMethod, PGProjection, OrthorectificationIterator
 from sarpy.io.kml import Document
@@ -487,7 +490,8 @@ def add_sicd_from_ortho_helper(kmz_document, ortho_helper,
 
 
 def add_sicd_to_kmz(kmz_document, reader, index=0, pixel_limit=2048,
-        inc_image_corners=False, inc_valid_data=False, inc_scp=False, inc_collection_wedge=False):
+        inc_image_corners=False, inc_valid_data=False,
+        inc_scp=False, inc_collection_wedge=False):
     """
     Adds elements for this SICD to the provided open kmz.
 
@@ -548,8 +552,8 @@ def add_sicd_to_kmz(kmz_document, reader, index=0, pixel_limit=2048,
 
 
 def create_kmz_view(reader, output_directory, file_stem='view', pixel_limit=2048,
-        inc_image_corners=False, inc_valid_data=False, inc_scp=True,
-        inc_collection_wedge=False):
+        inc_image_corners=False, inc_valid_data=False,
+        inc_scp=True, inc_collection_wedge=False):
     """
     Create a kmz view for the reader contents. This will create one file per
     band/polarization possibility.
@@ -574,24 +578,30 @@ def create_kmz_view(reader, output_directory, file_stem='view', pixel_limit=2048
     None
     """
 
-    def does_match(sicd, this_band, this_pol):
-        sband = sicd.ImageFormation.get_transmit_band_name() if sicd.ImageFormation is not None else 'UN'
-        spol = sicd.ImageFormation.get_polarization_abbreviation() if sicd.ImageFormation is not None else 'UN'
-        return sband == this_band and spol == this_pol
+    def get_pol_abbreviation(pol_in):
+        if pol_in in ('OTHER', 'UNKNOWN'):
+            return 'UN'
+        else:
+            fp, sp = pol_in.split(':')
+            return fp[0] + sp[0]
 
-    the_sicds = reader.get_sicds_as_tuple()
-    bands = reader.get_sicd_bands()
-    pols = reader.get_sicd_polarizations()
+    def do_iteration():
+        kmz_file = os.path.join(output_directory, '{}_{}_{}.kmz'.format(file_stem,
+                                                                        the_band,
+                                                                        get_pol_abbreviation(the_pol)))
+        logging.info('Writing kmz file for polarization {} and band {}'.format(the_pol, the_band))
+        with prepare_kmz_file(kmz_file, name=reader.file_name) as kmz_doc:
+            for the_partition, the_index, the_sicd in sicd_reader_iterator(
+                    reader, partitions=partitions, polarization=the_pol, band=the_band):
+                add_sicd_to_kmz(kmz_doc, reader,
+                    index=the_index, pixel_limit=pixel_limit,
+                    inc_image_corners=inc_image_corners, inc_valid_data=inc_valid_data,
+                    inc_scp=inc_scp, inc_collection_wedge=inc_collection_wedge)
+
+    bands = set(reader.get_sicd_bands())
+    pols = set(reader.get_sicd_polarizations())
     partitions = reader.get_sicd_partitions()
 
-    for the_band in set(bands):
-        for the_pol in set(pols):
-            kmz_file = os.path.join(output_directory, '{}_{}_{}.kmz'.format(file_stem, the_band, the_pol))
-            logging.info('Writing kmz file for polarization {} and band {}'.format(the_pol, the_band))
-            with prepare_kmz_file(kmz_file, name=reader.file_name) as kmz_doc:
-                for entry in partitions:
-                    for the_index in entry:
-                        if does_match(the_sicds[the_index], the_band, the_pol):
-                            add_sicd_to_kmz(kmz_doc, reader, index=the_index, pixel_limit=pixel_limit,
-                                inc_image_corners=inc_image_corners, inc_valid_data=inc_valid_data, inc_scp=inc_scp,
-                                inc_collection_wedge=inc_collection_wedge)
+    for the_band in bands:
+        for the_pol in pols:
+            do_iteration()
