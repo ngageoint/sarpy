@@ -902,7 +902,8 @@ class OrthorectificationHelper(object):
         self._is_radiometric_noise_valid()
 
         if proj_helper is None:
-            if self.sicd.RadarCollection.Area.Plane is not None:
+            if self.sicd.RadarCollection is not None and self.sicd.RadarCollection.Area is not None \
+                    and self.sicd.RadarCollection.Area.Plane is not None:
                 plane = self.sicd.RadarCollection.Area.Plane
                 ref_pt = plane.RefPt.ECF.get_array()
                 row_vector = plane.XDir.UVectECF.get_array()
@@ -2532,7 +2533,7 @@ class OrthorectificationIterator(object):
         logging.info(
             'Fetching orthorectified coordinate block ({}:{}, {}:{}) of ({}:{})'.format(
                 this_ortho_bounds[0] - self.ortho_bounds[0], this_ortho_bounds[1] - self.ortho_bounds[0],
-                this_ortho_bounds[2] - self.ortho_bounds[2], this_ortho_bounds[3] - self.ortho_bounds[0],
+                this_ortho_bounds[2] - self.ortho_bounds[2], this_ortho_bounds[3] - self.ortho_bounds[2],
                 self.ortho_bounds[1] - self.ortho_bounds[0], self.ortho_bounds[3] - self.ortho_bounds[2]))
         ortho_data = self._get_orthorectified_version(
             this_ortho_bounds, this_pixel_bounds,
