@@ -7,10 +7,12 @@ SAR complex data reading elements (sarpy.io.complex)
 
     sicd
     sio
+    cappela
     csk
     nisar
     radarsat
     sentinel
+    aggregate
     sicd_elements/index
     converter
     utils

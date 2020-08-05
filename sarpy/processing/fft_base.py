@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-A base calculator class for Fourier processing schemes.
+Helper classes and methods for Fourier processing schemes.
 """
 
 __classification__ = "UNCLASSIFIED"
@@ -13,22 +13,25 @@ from sarpy.io.general.base import BaseReader
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.processing.ortho_rectify import FullResolutionFetcher
 
-# NB: the below are intended as common imports from other locations - leave them here
+# NB: the below are intended as common imports from other locations
+#   leave them here, even if unused
 import numpy
 import scipy
 if scipy.__version__ < '1.4':
+    # noinspection PyUnresolvedReferences
     from scipy.fftpack import fft, ifft, fftshift
 else:
+    # noinspection PyUnresolvedReferences
     from scipy.fft import fft, ifft, fftshift
 
 
 class FFTCalculator(FullResolutionFetcher):
     """
-    Base class for Fourier processing calculator class.
+    Base Fourier processing calculator class.
 
-    This is intended for processing schemes where full resolution is required along
-    the processing dimension, so sub-sampling along the processing dimension does
-    not decrease the amount of data which must be fetched.
+    This is intended for processing schemes where full resolution is required
+    along the processing dimension, so sub-sampling along the processing
+    dimension does not decrease the amount of data which must be fetched.
     """
 
     __slots__ = (
