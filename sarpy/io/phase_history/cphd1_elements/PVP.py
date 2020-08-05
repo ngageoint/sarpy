@@ -361,7 +361,7 @@ class PVPType(Serializable):
 
     def get_offset_size_format(self, field):
         """
-        Get the Offset, Size (in bytes) for the given field,
+        Get the Offset (in bytes), Size (in bytes) for the given field,
         as well as the corresponding struct format string.
 
         Parameters
@@ -378,11 +378,11 @@ class PVPType(Serializable):
             val = getattr(self, field)
             if val is None:
                 return None
-            return val.Offset, val.Size*8, homogeneous_format(val.Format)
+            return val.Offset*8, val.Size*8, homogeneous_format(val.Format)
         else:
             if self.AddedPVP is None:
                 return None
             for val in self.AddedPVP:
                 if field == val.Name:
-                    return val.Offset, val.Size*8, homogeneous_format(val.Format)
+                    return val.Offset*8, val.Size*8, homogeneous_format(val.Format)
             return None
