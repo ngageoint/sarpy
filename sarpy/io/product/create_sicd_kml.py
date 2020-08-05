@@ -2,8 +2,26 @@
 """
 This module provides tools for creating kmz visualizations of a SICD.
 
-.. Note: Creation of ground overlays (i.e. image overlay) requires the optional
+.. Note::
+    Creation of ground overlays (i.e. image overlay) requires the optional
     Pillow dependency for image manipulation.
+
+Example
+-------
+.. code-block:: python
+    import logging
+    logging.basicConfig(level='INFO')
+
+    import os
+    from sarpy.io.complex.converter import open_complex
+    from sarpy.io.product.create_sicd_kml import create_kmz_view
+
+    test_root = '<root directory>'
+    reader = open_complex(os.path.join(test_root, '<file name>>'))
+    create_kmz_view(reader, test_root,
+                    file_stem='View-<something descriptive>',
+                    pixel_limit=2048,
+                    inc_collection_wedge=True)
 """
 
 import logging
@@ -14,11 +32,12 @@ import os
 import numpy
 
 from sarpy.compliance import int_func, integer_types
-from sarpy.io.general.base import BaseReader, sicd_reader_iterator
+from sarpy.io.general.base import BaseReader
 from sarpy.processing.ortho_rectify import OrthorectificationHelper, \
     NearestNeighborMethod, PGProjection, OrthorectificationIterator
 from sarpy.io.kml import Document
 from sarpy.io.complex.sicd_elements.SICD import SICDType
+from sarpy.io.complex.utils import sicd_reader_iterator
 from sarpy.geometry.geocoords import ecf_to_geodetic
 
 try:
@@ -579,11 +598,10 @@ def create_kmz_view(reader, output_directory, file_stem='view', pixel_limit=2048
     """
 
     def get_pol_abbreviation(pol_in):
-        if pol_in in ('OTHER', 'UNKNOWN'):
-            return 'UN'
-        else:
-            fp, sp = pol_in.split(':')
-            return fp[0] + sp[0]
+        spol = pol_in.split(':')
+        if len(spol) == 2:
+            return spol[0][0] + spol[1][0]
+        return pol_in
 
     def do_iteration():
         kmz_file = os.path.join(output_directory, '{}_{}_{}.kmz'.format(file_stem,

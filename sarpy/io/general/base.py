@@ -5,7 +5,7 @@ The base elements for reading and writing complex data files.
 
 import os
 import logging
-from typing import Union, Tuple, Iterator
+from typing import Union, Tuple
 from datetime import datetime
 
 import numpy
@@ -919,47 +919,5 @@ class BaseWriter(AbstractWriter):
 
 
 #####################
-# Reader Iterator methods
+# Reader Partition Iterator methods
 
-def sicd_reader_iterator(reader, partitions=None, polarization=None, band=None):
-    """
-    Provides an iterator over the sicd-type reader object.
-
-    Parameters
-    ----------
-    reader : BaseReader
-    partitions : None|tuple
-        The partitions collection. If None, then `reader.get_sicd_partitions()`
-        will be used.
-    polarization : None|str
-        The polarization string to match.
-    band : None|str
-        The band to match.
-
-    Returns
-    -------
-    Iterator[tuple]
-        Yields the partition index, the sicd reader index, and the sicd structure.
-    """
-
-    def sicd_match():
-        match = True
-        if band is not None:
-            match &= (this_sicd.get_transmit_band_name() == band)
-        if polarization is not None:
-            match &= (this_sicd.get_processed_polarization() == polarization)
-        return match
-
-    if not isinstance(reader, BaseReader):
-        raise TypeError('reader must be an instance of BaseReader. Got type {}'.format(type(reader)))
-    if not reader.is_sicd_type:
-        raise ValueError('The provided reader must be of SICD type.')
-
-    if partitions is None:
-        partitions = reader.get_sicd_partitions()
-    the_sicds = reader.get_sicds_as_tuple()
-    for this_partition, entry in enumerate(partitions):
-        for this_index in entry:
-            this_sicd = the_sicds[this_index]
-            if sicd_match():
-                yield this_partition, this_index, this_sicd
