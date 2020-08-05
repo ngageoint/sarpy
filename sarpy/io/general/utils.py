@@ -15,7 +15,7 @@ __author__ = "Thomas McCullough"
 
 
 def validate_range(arg, siz):
-    # type: (Union[None, int, Tuple[int, int], Tuple[int, int, int]], int) -> Tuple[int, int, int]
+    # type: (Union[None, int, Tuple[int, int], Tuple[int, int, int]], int) -> tuple
     """
     Validate the range definition.
 
@@ -26,7 +26,7 @@ def validate_range(arg, siz):
 
     Returns
     -------
-    Tuple[int, int, int]
+    tuple
         Of the form `(start, stop, step)`.
     """
 
