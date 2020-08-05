@@ -498,12 +498,20 @@ class SubapertureOrthoIterator(OrthorectificationIterator):
             raise StopIteration()
 
         this_ortho_bounds, this_pixel_bounds = self._get_state_parameters()
+        # accommodate for real pixel limits
+        this_pixel_bounds = self._ortho_helper.get_real_pixel_bounds(this_pixel_bounds)
         if self._this_frame == 0:
             # set up the iterator from the calculator
             self._generator = self.calculator.subaperture_generator(
                 (this_pixel_bounds[0], this_pixel_bounds[1], 1),
                 (this_pixel_bounds[2], this_pixel_bounds[3], 1))
 
+        logging.info(
+            'Fetching orthorectified coordinate block ({}:{}, {}:{}) of ({}:{}) for frame {}'.format(
+                this_ortho_bounds[0] - self.ortho_bounds[0], this_ortho_bounds[1] - self.ortho_bounds[0],
+                this_ortho_bounds[2] - self.ortho_bounds[2], this_ortho_bounds[3] - self.ortho_bounds[2],
+                self.ortho_bounds[1] - self.ortho_bounds[0], self.ortho_bounds[3] - self.ortho_bounds[2],
+                self._this_frame))
         data = self._generator.__next__()
         ortho_data = self._get_orthorectified_version(this_ortho_bounds, this_pixel_bounds,data)
         start_indices = (this_ortho_bounds[0] - self.ortho_bounds[0],
@@ -530,10 +538,12 @@ class SubapertureOrthoIterator(OrthorectificationIterator):
 
         # calculate our result
         this_ortho_bounds, this_pixel_bounds = self._get_state_parameters()
+        # accommodate for real pixel limits
+        this_pixel_bounds = self._ortho_helper.get_real_pixel_bounds(this_pixel_bounds)
         logging.info(
             'Fetching orthorectified coordinate block ({}:{}, {}:{}) of ({}:{}) for frame {}'.format(
                 this_ortho_bounds[0] - self.ortho_bounds[0], this_ortho_bounds[1] - self.ortho_bounds[0],
-                this_ortho_bounds[2] - self.ortho_bounds[2], this_ortho_bounds[3] - self.ortho_bounds[0],
+                this_ortho_bounds[2] - self.ortho_bounds[2], this_ortho_bounds[3] - self.ortho_bounds[2],
                 self.ortho_bounds[1] - self.ortho_bounds[0], self.ortho_bounds[3] - self.ortho_bounds[2],
                 self._this_frame))
 
