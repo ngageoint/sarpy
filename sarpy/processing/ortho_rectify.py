@@ -2,30 +2,65 @@
 """
 SICD ortho-rectification methodology.
 
-**Example Usage**
->>> import os
->>> from matplotlib import pyplot
->>> from sarpy.io.complex.converter import open_complex
->>> from sarpy.processing.ortho_rectify import NearestNeighborMethod
+Example
+-------
+An basic example.
+.. code-block:: python
+    import os
+    from matplotlib import pyplot
+    from sarpy.io.complex.converter import open_complex
+    from sarpy.processing.ortho_rectify import NearestNeighborMethod
 
->>> reader = open_complex('<file name>')
->>> orth_method = NearestNeighborMethod(reader, index=0, proj_helper=None,
->>>     complex_valued=False, apply_radiometric=None, subtract_radiometric_noise=False)
+    reader = open_complex('<file name>')
+    orth_method = NearestNeighborMethod(reader, index=0, proj_helper=None,
+        complex_valued=False, apply_radiometric=None, subtract_radiometric_noise=False)
 
->>> # Perform ortho-rectification of the entire image
->>> # This will take a long time and be very RAM intensive, unless the image is small
->>> ortho_bounds = orth_method.get_full_ortho_bounds()
->>> ortho_data = orth_method.get_orthorectified_for_ortho_bounds(ortho_bounds)
+    # Perform ortho-rectification of the entire image
+    # This will take a long time and be very RAM intensive, unless the image is small
+    ortho_bounds = orth_method.get_full_ortho_bounds()
+    ortho_data = orth_method.get_orthorectified_for_ortho_bounds(ortho_bounds)
 
->>> # or, perform ortho-rectification on a given rectangular region in pixel space
->>> pixel_bounds = [100, 200, 200, 300]  # [first_row, last_row, first_column, last_column]
->>> ortho_data = orth_method.get_orthorectified_for_pixel_bounds(pixel_bounds)
+    # or, perform ortho-rectification on a given rectangular region in pixel space
+    pixel_bounds = [100, 200, 200, 300]  # [first_row, last_row, first_column, last_column]
+    ortho_data = orth_method.get_orthorectified_for_pixel_bounds(pixel_bounds)
 
->>> # view the data using matplotlib
->>> fig, axs = pyplot.subplots(nrows=1, ncols=1)
->>> h1 = axs.imshow(ortho_data, cmap='inferno', aspect='equal')
->>> fig.colorbar(h1, ax=axs)
->>> pyplot.show()
+    # view the data using matplotlib
+    fig, axs = pyplot.subplots(nrows=1, ncols=1)
+    h1 = axs.imshow(ortho_data, cmap='inferno', aspect='equal')
+    fig.colorbar(h1, ax=axs)
+    pyplot.show()
+
+A viable example performing orthorectification on the entire image and then saving
+to a JPEG.
+.. code-block:: python
+    import os
+    from sarpy.io.complex.converter import open_complex
+    from sarpy.processing.ortho_rectify import NearestNeighborMethod, \
+        OrthorectificationIterator, FullResolutionFetcher
+    import PIL.Image  # note that this is not a required sarpy dependency
+
+    # again, open a sicd type file
+    reader = open_complex('<file name>')
+    # construct an ortho-rectification helper
+    orth_method = NearestNeighborMethod(reader, index=0, proj_helper=None,
+        complex_valued=False, apply_radiometric=None, subtract_radiometric_noise=False)
+
+    # now, construct an orthorectification iterator - for block processing of orthorectification
+    calculator = FullResolutionFetcher(
+        ortho_helper.reader, index=ortho_helper.index, block_size=10)
+    ortho_iterator = OrthorectificationIterator(ortho_helper, calculator=calculator, bounds=bounds)
+
+    # now, iterate and populate - the whole orthorectified image result workspace
+    # will be kept in RAM, but the processing is iterative and much faster.
+    image_data = numpy.zeros(ortho_iterator.ortho_data_size, dtype='uint8')
+    for data, start_indices in ortho_iterator:
+        image_data[
+        start_indices[0]:start_indices[0]+data.shape[0],
+        start_indices[1]:start_indices[1]+data.shape[1]] = data
+    # convert image array to PIL image.
+    img = PIL.Image.fromarray(image_data)
+    # save the file
+    img.save('<image file name.jpeg>')
 """
 
 import logging
