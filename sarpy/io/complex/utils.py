@@ -10,7 +10,6 @@ import numpy
 from numpy.polynomial import polynomial
 
 from sarpy.io.complex.sicd_elements.blocks import Poly2DType
-from sarpy.io.general.base import BaseReader
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
@@ -277,6 +276,8 @@ def sicd_reader_iterator(reader, partitions=None, polarization=None, band=None):
         if polarization is not None:
             match &= (this_sicd.get_processed_polarization() == polarization)
         return match
+
+    from sarpy.io.general.base import BaseReader  # avoid circular import issue
 
     if not isinstance(reader, BaseReader):
         raise TypeError('reader must be an instance of BaseReader. Got type {}'.format(type(reader)))
