@@ -16,12 +16,6 @@ from sarpy.io.general.utils import parse_xml_from_string, validate_range
 from sarpy.io.general.base import BaseReader
 from sarpy.io.general.bip import BIPChipper
 
-# TODO: Outstanding issues and questions
-#   0.) What about the Per Vector situation? Does what I implemented make sense?
-#   1.) Support arrays - should we just parse the whole shebang? How would someone use this?
-#   2.) SICD - should we do the partial conversion deal? I think this is a hack, but Wade?
-#   3.) Any other functionality?
-
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"

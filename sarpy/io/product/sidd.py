@@ -579,7 +579,6 @@ class SIDDWriter(NITFWriter):
         if sidd.ProductCreation is not None and sidd.ProductCreation.Classification is not None:
             args['CLAS'] = extract_clas(sidd)
             args['CLSY'] = extract_clsy(sidd)
-            # TODO: this should be more robust
         return NITFSecurityTags(**args)
 
     def _create_security_tags(self):

@@ -16,7 +16,7 @@ from sarpy.io.general.nitf import NITFReader, NITFWriter, ImageDetails, DESDetai
     image_segmentation, get_npp_block, interpolate_corner_points_string
 from sarpy.io.general.utils import parse_xml_from_string
 # noinspection PyProtectedMember
-from sarpy.io.complex.sicd_elements.SICD import SICDType, _SICD_SPECIFICATION_IDENTIFIER
+from sarpy.io.complex.sicd_elements.SICD import SICDType, get_specification_identifier
 
 from sarpy.io.general.nitf import NITFDetails
 from sarpy.io.general.nitf_elements.des import DataExtensionHeader, XMLDESSubheader
@@ -216,7 +216,7 @@ class SICDDetails(NITFDetails):
         sicd_des = self._des_header.UserHeader
         if not isinstance(sicd_des, XMLDESSubheader):
             return None
-        return sicd_des.DESSHSI.strip() == _SICD_SPECIFICATION_IDENTIFIER
+        return sicd_des.DESSHSI.strip() == get_specification_identifier()
 
     def repair_des_header(self):
         """
@@ -240,8 +240,7 @@ class SICDDetails(NITFDetails):
             return 1
 
         sicd_des = self._des_header.UserHeader
-        # noinspection PyProtectedMember
-        sicd_des.DESSHSI = _SICD_SPECIFICATION_IDENTIFIER
+        sicd_des.DESSHSI = get_specification_identifier()
         stat = self.rewrite_des_header()
         return 2 if stat else 3
 
@@ -575,7 +574,9 @@ class SICDWriter(NITFWriter):
 
         def get_basic_args():
             out = {}
+            # noinspection PyProtectedMember
             if hasattr(self._sicd_meta, '_NITF') and isinstance(self._sicd_meta._NITF, dict):
+                # noinspection PyProtectedMember
                 sec_tags = self._sicd_meta._NITF.get('Security', {})
                 # noinspection PyProtectedMember
                 for fld in NITFSecurityTags._ordering:
@@ -607,7 +608,9 @@ class SICDWriter(NITFWriter):
 
     def _get_ftitle(self):  # type: () -> str
         ftitle = None
+        # noinspection PyProtectedMember
         if hasattr(self._sicd_meta, '_NITF') and isinstance(self._sicd_meta._NITF, dict):
+            # noinspection PyProtectedMember
             ftitle = self._sicd_meta._NITF.get('SUGGESTED_NAME', None)
         if ftitle is None:
             ftitle = self._sicd_meta.get_suggested_name(1)
@@ -623,7 +626,9 @@ class SICDWriter(NITFWriter):
 
     def _get_ostaid(self):
         ostaid = 'Unknown'
+        # noinspection PyProtectedMember
         if hasattr(self._sicd_meta, '_NITF') and isinstance(self._sicd_meta._NITF, dict):
+            # noinspection PyProtectedMember
             ostaid = self._sicd_meta._NITF.get('OSTAID', 'Unknown')
         return ostaid
 

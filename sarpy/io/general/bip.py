@@ -235,31 +235,46 @@ class MultiSegmentChipper(BaseChipper):
         # so do not reorient or change type at this level
         super(MultiSegmentChipper, self).__init__(data_size, symmetry=(False, False, False), complex_type=False)
 
-    def _read_raw_fun(self, range1, range2):
-        def subset(rng, start_ind, stop_ind):
-            # find our rectangular overlap between the desired indices and chipper bounds
-            if rng[2] > 0:
-                if rng[1] < start_ind or rng[0] >= stop_ind:
-                    return None, None
-                # find smallest element rng[0] + mult*rng[2] which is >= start_ind
-                mult1 = 0 if start_ind <= rng[0] else int_func(numpy.ceil((start_ind - rng[0])/rng[2]))
-                ind1 = rng[0] + mult1*rng[2]
-                # find largest element rng[0] + mult*rng[2] which is <= min(stop_ind, rng[1])
-                max_ind = min(rng[1], stop_ind)
-                mult2 = int_func(numpy.floor((max_ind - rng[0])/rng[2]))
-                ind2 = rng[0] + mult2*rng[2]
-            else:
-                if rng[0] < start_ind or rng[1] >= stop_ind:
-                    return None, None
-                # find largest element rng[0] + mult*rng[2] which is <= stop_ind-1
-                mult1 = 0 if rng[0] < stop_ind else int_func(numpy.floor((stop_ind - 1 - rng[0])/rng[2]))
-                ind1 = rng[0] + mult1*rng[2]
-                # find smallest element rng[0] + mult*rng[2] which is >= max(start_ind, rng[1]+1)
-                mult2 = int_func(numpy.floor((start_ind - rng[0])/rng[2])) if rng[1] < start_ind \
-                    else int_func(numpy.floor((rng[1] -1 - rng[0])/rng[2]))
-                ind2 = rng[0] + mult2*rng[2]
-            return (ind1, ind2, rng[2]), (mult1, mult2)
+    def _subset(self, rng, start_ind, stop_ind):
+        """
+        Finds the rectangular overlap between the desired indices and given chipper bounds.
 
+        Parameters
+        ----------
+        rng
+        start_ind
+        stop_ind
+
+        Returns
+        -------
+        tuple, tuple
+        """
+
+        if rng[2] > 0:
+            if rng[1] < start_ind or rng[0] >= stop_ind:
+                # there is no overlap
+                return None, None
+            # find smallest element rng[0] + mult*rng[2] which is >= start_ind
+            mult1 = 0 if start_ind <= rng[0] else int_func(numpy.ceil((start_ind - rng[0]) / rng[2]))
+            ind1 = rng[0] + mult1 * rng[2]
+            # find largest element rng[0] + mult*rng[2] which is <= min(stop_ind, rng[1])
+            max_ind = min(rng[1], stop_ind)
+            mult2 = int_func(numpy.floor((max_ind - rng[0]) / rng[2]))
+            ind2 = rng[0] + mult2 * rng[2]
+        else:
+            if rng[0] < start_ind or rng[1] >= stop_ind:
+                return None, None
+            # find largest element rng[0] + mult*rng[2] which is <= stop_ind-1
+            mult1 = 0 if rng[0] < stop_ind else int_func(numpy.floor((stop_ind - 1 - rng[0])/rng[2]))
+            ind1 = rng[0] + mult1*rng[2]
+            # find smallest element rng[0] + mult*rng[2] which is >= max(start_ind, rng[1]+1)
+            mult2 = int_func(numpy.floor((start_ind - rng[0])/rng[2])) if rng[1] < start_ind \
+                else int_func(numpy.floor((rng[1] -1 - rng[0])/rng[2]))
+            ind2 = rng[0] + mult2*rng[2]
+        return (ind1-start_ind, ind2-start_ind, rng[2]), (mult1, mult2)
+
+
+    def _read_raw_fun(self, range1, range2):
         range1, range2 = self._reorder_arguments(range1, range2)
         rows_size = int_func((range1[1]-range1[0])/range1[2])
         cols_size = int_func((range2[1]-range2[0])/range2[2])
@@ -271,19 +286,21 @@ class MultiSegmentChipper(BaseChipper):
         for entry, child_chipper in zip(self._bounds, self._child_chippers):
             row_start, row_end, col_start, col_end = entry
             # find row overlap for chipper - it's rectangular
-            crange1, cinds1 = subset(range1, row_start, row_end)
+            crange1, cinds1 = self._subset(range1, row_start, row_end)
             if crange1 is None:
                 continue  # there is no row overlap for this chipper
 
             # find column overlap for chipper - it's rectangular
-            crange2, cinds2 = subset(range2, col_start, col_end)
+            crange2, cinds2 = self._subset(range2, col_start, col_end)
             if crange2 is None:
                 continue  # there is no column overlap for this chipper
 
             if self._bands_ip == 1:
-                out[cinds1[0]:cinds1[1], cinds2[0]:cinds2[1]] = child_chipper(crange1, crange2)
+                out[cinds1[0]:cinds1[1], cinds2[0]:cinds2[1]] = \
+                    child_chipper[crange1[0]:crange1[1]:crange1[2], crange2[0]:crange2[1]:crange2[2]]
             else:
-                out[cinds1[0]:cinds1[1], cinds2[0]:cinds2[1], :] = child_chipper(crange1, crange2)
+                out[cinds1[0]:cinds1[1], cinds2[0]:cinds2[1], :] = \
+                    child_chipper[crange1[0]:crange1[1]:crange1[2], crange2[0]:crange2[1]:crange2[2]]
         return out
 
 
