@@ -499,7 +499,7 @@ def add_sicd_to_kmz(kmz_document, reader, index=0, pixel_limit=2048,
         The reader instance, must be of sicd type:
     index : int
         The index to use.
-    pixel_limit : int
+    pixel_limit : None|int
         The limit in pixel size to use for the constructed ground overlay.
     inc_image_corners : bool
         Include the image corners, if possible?
@@ -520,9 +520,10 @@ def add_sicd_to_kmz(kmz_document, reader, index=0, pixel_limit=2048,
     if not reader.is_sicd_type:
         raise ValueError('reader must be of sicd type.')
 
-    pixel_limit = int_func(pixel_limit)
-    if pixel_limit < 512:
-        pixel_limit = 512
+    if pixel_limit is not None:
+        pixel_limit = int_func(pixel_limit)
+        if pixel_limit < 512:
+            pixel_limit = 512
 
     # create our projection helper
     index = int(index)
@@ -530,15 +531,16 @@ def add_sicd_to_kmz(kmz_document, reader, index=0, pixel_limit=2048,
     proj_helper = PGProjection(sicd)
     # create our orthorectification helper
     ortho_helper = NearestNeighborMethod(reader, index=index, proj_helper=proj_helper)
-    # let's see what the ortho-rectified size will be
-    ortho_size = ortho_helper.get_full_ortho_bounds()
-    row_count = ortho_size[1] - ortho_size[0]
-    col_count = ortho_size[3] - ortho_size[2]
-    # reset the row/column spacing, if necessary
-    if row_count > pixel_limit:
-        proj_helper.row_spacing *= row_count/float(pixel_limit)
-    if col_count > pixel_limit:
-        proj_helper.col_spacing *= col_count/float(pixel_limit)
+    if pixel_limit is not None:
+        # let's see what the ortho-rectified size will be
+        ortho_size = ortho_helper.get_full_ortho_bounds()
+        row_count = ortho_size[1] - ortho_size[0]
+        col_count = ortho_size[3] - ortho_size[2]
+        # reset the row/column spacing, if necessary
+        if row_count > pixel_limit:
+            proj_helper.row_spacing *= row_count/float(pixel_limit)
+        if col_count > pixel_limit:
+            proj_helper.col_spacing *= col_count/float(pixel_limit)
     # add the sicd details
     add_sicd_from_ortho_helper(kmz_document, ortho_helper,
         inc_image_corners=inc_image_corners, inc_valid_data=inc_valid_data, inc_scp=inc_scp,
@@ -546,7 +548,7 @@ def add_sicd_to_kmz(kmz_document, reader, index=0, pixel_limit=2048,
 
 
 def create_kmz_view(reader, output_directory, file_stem='view', pixel_limit=2048,
-        inc_image_corners=False, inc_valid_data=False, inc_scp=False,
+        inc_image_corners=False, inc_valid_data=False, inc_scp=True,
         inc_collection_wedge=False):
     """
     Create a kmz view for the reader contents. This will create one file per
@@ -557,7 +559,7 @@ def create_kmz_view(reader, output_directory, file_stem='view', pixel_limit=2048
     reader : BaseReader
     output_directory : str
     file_stem : str
-    pixel_limit : int
+    pixel_limit : None|int
     inc_image_corners : bool
         Include the image corners, if possible?
     inc_valid_data : bool
