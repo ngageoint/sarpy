@@ -9,3 +9,4 @@ Processing elements (sarpy.processing)
     normalize_sicd
     subaperture
     ortho_rectify
+    fft_base

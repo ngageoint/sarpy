@@ -537,6 +537,36 @@ class BaseReader(object):
             matches.append(tuple(this_match))
         return tuple(matches)
 
+    def get_sicd_bands(self):
+        """
+        Gets the list of bands for each sicd.
+
+        Returns
+        -------
+        Tuple[str]
+        """
+
+        if not self.is_sicd_type:
+            logging.warning('It is only valid to get sicd bands for a sicd type reader.')
+            return None
+
+        return tuple(sicd.get_transmit_band_name() for sicd in self.get_sicds_as_tuple())
+
+    def get_sicd_polarizations(self):
+        """
+        Gets the list of polarizations for each sicd.
+
+        Returns
+        -------
+        Tuple[str]
+        """
+
+        if not self.is_sicd_type:
+            logging.warning('It is only valid to get sicd polarizations for a sicd type reader.')
+            return None
+
+        return tuple(sicd.get_processed_polarization() for sicd in self.get_sicds_as_tuple())
+
     def _validate_index(self, index):
         if isinstance(self._chipper, BaseChipper) or index is None:
             return 0
@@ -886,3 +916,8 @@ class BaseWriter(AbstractWriter):
 
     def __call__(self, data, start_indices=(0, 0)):
         raise NotImplementedError
+
+
+#####################
+# Reader Partition Iterator methods
+

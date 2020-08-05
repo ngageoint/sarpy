@@ -313,7 +313,7 @@ class MeasurementType(Serializable):
         CylindricalProjection : CylindricalProjectionType
         PixelFootprint : RowColIntType|numpy.ndarray|list|tuple
         ARPFlag : str
-        ARPPoly : Poly2DType|numpy.ndarray|list|tuple
+        ARPPoly : XYZPolyType|numpy.ndarray|list|tuple
         ValidData : SerializableArray|List[RowColArrayElement]|numpy.ndarray|list|tuple
         kwargs
         """

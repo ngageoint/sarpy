@@ -4,6 +4,7 @@ Common functionality for converting metadata
 """
 
 import logging
+from typing import Iterator
 
 import numpy
 from numpy.polynomial import polynomial
@@ -244,3 +245,50 @@ def fit_position_xvalidation(time_array, position_array, velocity_array, max_deg
         if cur_vel_error >= prev_vel_error:
             break
     return P_x, P_y, P_z
+
+
+def sicd_reader_iterator(reader, partitions=None, polarization=None, band=None):
+    """
+    Provides an iterator over a collection of partitions (tuple of tuple of integer
+    indices for the reader) for a sicd type reader object.
+
+    Parameters
+    ----------
+    reader : BaseReader
+    partitions : None|tuple
+        The partitions collection. If None, then partitioning from
+        `reader.get_sicd_partitions()` will be used.
+    polarization : None|str
+        The polarization string to match.
+    band : None|str
+        The band to match.
+
+    Returns
+    -------
+    Iterator[tuple]
+        Yields the partition index, the sicd reader index, and the sicd structure.
+    """
+
+    def sicd_match():
+        match = True
+        if band is not None:
+            match &= (this_sicd.get_transmit_band_name() == band)
+        if polarization is not None:
+            match &= (this_sicd.get_processed_polarization() == polarization)
+        return match
+
+    from sarpy.io.general.base import BaseReader  # avoid circular import issue
+
+    if not isinstance(reader, BaseReader):
+        raise TypeError('reader must be an instance of BaseReader. Got type {}'.format(type(reader)))
+    if not reader.is_sicd_type:
+        raise ValueError('The provided reader must be of SICD type.')
+
+    if partitions is None:
+        partitions = reader.get_sicd_partitions()
+    the_sicds = reader.get_sicds_as_tuple()
+    for this_partition, entry in enumerate(partitions):
+        for this_index in entry:
+            this_sicd = the_sicds[this_index]
+            if sicd_match():
+                yield this_partition, this_index, this_sicd
