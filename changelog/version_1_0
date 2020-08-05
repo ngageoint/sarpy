@@ -1,5 +1,6 @@
 # This details the important differences introduced in sarpy 1.0
 
+* .41 - Resolved CPHD Version 1.0 bug for PVP parsing
 * .40 - Adjust ImageBeamComp for derived formats
 * .39 - Account for non-convexity of projection for ortho-rectification
 * .38 - Clarified some projection parameters and documentation
