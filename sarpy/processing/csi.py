@@ -6,48 +6,46 @@ As noted in the CSICalculator class, the full resolution data along the split di
 is required, so sub-sampling along the split dimension does not decrease the amount of
 data which must be fetched and/or processing which must be performed.
 
-**Example Usage**
->>> from matplotlib import pyplot
->>> from sarpy.io.complex.converter import open_complex
->>> from sarpy.processing.csi import CSICalculator
->>> from sarpy.visualization.remap import density
+Examples
+--------
+.. code-block:: python
+    from matplotlib import pyplot
+    from sarpy.io.complex.converter import open_complex
+    from sarpy.processing.csi import CSICalculator
+    from sarpy.visualization.remap import density
 
->>> # open a sicd type file
->>> reader = open_complex("<file name>")
->>> # see the sizes of all image segments
->>> reader.get_data_size_as_tuple()
+    # open a sicd type file
+    reader = open_complex("<file name>")
+    # see the sizes of all image segments
+    print(reader.get_data_size_as_tuple())
 
->>> # construct the csi performer instance
->>> # make sure to set the index and dimension as appropriate
->>> csi_calculator = CSICalculator(reader, dimension=0, index=0)
->>> # see the size for this particular image element
->>> # this is identical to the data size from the reader at index
->>> csi_calculator.data_size
+    # construct the csi performer instance
+    # make sure to set the index and dimension as appropriate
+    csi_calculator = CSICalculator(reader, dimension=0, index=0)
+    # see the size for this particular image element
+    # this is identical to the data size from the reader at index
+    print(csi_calculator.data_size)
 
->>> # set a different index or change the dimension
->>> csi_calculator.index = 2
->>> csi_calculator.dimension = 1
+    # set a different index or change the dimension
+    # csi_calculator.index = 2
+    # csi_calculator.dimension = 1
 
->>> # calculate the csi for an image segment
->>> csi_data = csi_calculator[300:500, 200:600]
+    # calculate the csi for an image segment
+    csi_data = csi_calculator[300:500, 200:600]
 
->>> # let's view this csi image using matplotlib
->>> fig, axs = pyplot.subplots(nrows=1, ncols=1)
->>> axs.imshow(density(csi_data), aspect='equal')
->>> pyplot.show()
+    # let's view this csi image using matplotlib
+    fig, axs = pyplot.subplots(nrows=1, ncols=1)
+    axs.imshow(density(csi_data), aspect='equal')
+    pyplot.show()
 """
 
-import os
 import numpy
 
 from sarpy.compliance import int_func
 from sarpy.processing.fft_base import FFTCalculator, fft, ifft, fftshift
 from sarpy.io.general.base import BaseReader
-from sarpy.io.product.sidd_structure_creation import create_sidd_structure
-from sarpy.io.product.sidd import SIDDWriter
 # noinspection PyProtectedMember
-from sarpy.processing.ortho_rectify import OrthorectificationHelper, \
-    OrthorectificationIterator, _get_fetch_block_size
+from sarpy.processing.ortho_rectify import _get_fetch_block_size
 
 __classification__ = "UNCLASSIFIED"
 __author__ = ('Thomas McCullough',  'Melanie Baker')
@@ -301,72 +299,3 @@ class CSICalculator(FFTCalculator):
                     csi = self._full_column_resolution(this_row_range, this_col_range, filter_map)
                     out[result_range[0]:result_range[1], :, :] = csi[:, ::abs(col_range[2]), :]
                 return out
-
-
-def create_csi_sidd(
-        ortho_helper, output_directory, output_file=None, dimension=0,
-        block_size=30, bounds=None, version=2):
-    """
-    Create a SIDD version of a Color Sub-Aperture Image from a SICD type reader.
-
-    Parameters
-    ----------
-    ortho_helper : OrthorectificationHelper
-        The ortho-rectification helper object.
-    output_directory : str
-        The output directory for the given file.
-    output_file : None|str
-        The file name, this will default to a sensible value.
-    dimension : int
-        The dimension over which to split the sub-aperture.
-    block_size : int
-        The approximate processing block size to fetch, given in MB. The
-        minimum value for use here will be 1.
-    bounds : None|numpy.ndarray|list|tuple
-        The sicd pixel bounds of the form `(min row, max row, min col, max col)`.
-        This will default to the full image.
-    version : int
-        The SIDD version to use, must be one of 1 or 2.
-
-    Returns
-    -------
-    None
-    """
-
-    if not os.path.isdir(output_directory):
-        raise IOError('output_directory {} does not exist or is not a directory'.format(output_directory))
-
-    if not isinstance(ortho_helper, OrthorectificationHelper):
-        raise TypeError(
-            'ortho_helper is required to be an instance of OrthorectificationHelper, '
-            'got type {}'.format(type(ortho_helper)))
-
-    # construct the CSI calculator class
-    csi_calculator = CSICalculator(
-        ortho_helper.reader, dimension=dimension, index=ortho_helper.index, block_size=block_size)
-
-    # construct the ortho-rectification iterator
-    ortho_iterator = OrthorectificationIterator(ortho_helper, calculator=csi_calculator, bounds=bounds)
-
-    # create the sidd structure
-    ortho_bounds = ortho_iterator.ortho_bounds
-    sidd_structure = create_sidd_structure(
-        ortho_helper, ortho_bounds,
-        product_class='Color Subaperture Image', pixel_type='RGB24I', version=version)
-    # set suggested name
-    sidd_structure._NITF = {
-        'SUGGESTED_NAME': csi_calculator.sicd.get_suggested_name(csi_calculator.index)+'_CSI', }
-
-    # create the sidd writer
-    if output_file is None:
-        # noinspection PyProtectedMember
-        full_filename = os.path.join(output_directory, sidd_structure._NITF['SUGGESTED_NAME']+'.nitf')
-    else:
-        full_filename = os.path.join(output_directory, output_file)
-    if os.path.exists(os.path.expanduser(full_filename)):
-        raise IOError('File {} already exists.'.format(full_filename))
-    writer = SIDDWriter(full_filename, sidd_structure, csi_calculator.sicd)
-
-    # iterate and write
-    for data, start_indices in ortho_iterator:
-        writer(data, start_indices=start_indices, index=0)

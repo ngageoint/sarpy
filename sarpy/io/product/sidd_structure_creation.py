@@ -3,14 +3,11 @@
 Common functionality for creating the SIDD structure.
 """
 
-import logging
-import os
-
 import numpy
 
 from sarpy.io.complex.utils import two_dim_poly_fit, get_im_physical_coords
 from sarpy.processing.ortho_rectify import OrthorectificationHelper, ProjectionHelper, \
-    PGProjection, OrthorectificationIterator, FullResolutionFetcher
+    PGProjection
 # agnostic to version
 from sarpy.io.product.sidd2_elements.ProductCreation import ProductCreationType
 from sarpy.io.product.sidd2_elements.Measurement import PlaneProjectionType, ProductPlaneType
@@ -28,7 +25,6 @@ from sarpy.io.product.sidd1_elements.GeographicAndTarget import GeographicAndTar
     GeographicCoverageType as GeographicCoverageType1
 from sarpy.io.product.sidd1_elements.Measurement import MeasurementType as MeasurementType1
 from sarpy.io.product.sidd1_elements.ExploitationFeatures import ExploitationFeaturesType as ExploitationFeaturesType1
-from sarpy.io.product.sidd import SIDDWriter
 
 
 __classification__ = "UNCLASSIFIED"
@@ -374,70 +370,3 @@ def create_sidd_structure(ortho_helper, bounds, product_class, pixel_type, versi
         return create_sidd_structure_v1(ortho_helper, bounds, product_class, pixel_type)
     else:
         return create_sidd_structure_v2(ortho_helper, bounds, product_class, pixel_type)
-
-
-#########################
-# Create a basic detected image
-
-def create_detected_image_sidd(
-        ortho_helper, output_directory, output_file=None, block_size=10, bounds=None, version=2):
-    """
-    Create a SIDD version of a basic detected image from a SICD type reader.
-
-    Parameters
-    ----------
-    ortho_helper : OrthorectificationHelper
-        The ortho-rectification helper object.
-    output_directory : str
-        The output directory for the given file.
-    output_file : None|str
-        The file name, this will default to a sensible value.
-    block_size : int
-        The approximate processing block size to fetch, given in MB. The
-        minimum value for use here will be 1.
-    bounds : None|numpy.ndarray|list|tuple
-        The sicd pixel bounds of the form `(min row, max row, min col, max col)`.
-        This will default to the full image.
-    version : int
-        The SIDD version to use, must be one of 1 or 2.
-
-    Returns
-    -------
-    None
-    """
-
-    if not os.path.isdir(output_directory):
-        raise IOError('output_directory {} does not exist or is not a directory'.format(output_directory))
-
-    if not isinstance(ortho_helper, OrthorectificationHelper):
-        raise TypeError(
-            'ortho_helper is required to be an instance of OrthorectificationHelper, '
-            'got type {}'.format(type(ortho_helper)))
-
-    # construct the ortho-rectification iterator - for a basic data fetcher
-    calculator = FullResolutionFetcher(
-        ortho_helper.reader, dimension=0, index=ortho_helper.index, block_size=block_size)
-    ortho_iterator = OrthorectificationIterator(ortho_helper, calculator=calculator, bounds=bounds)
-
-    # create the sidd structure
-    ortho_bounds = ortho_iterator.ortho_bounds
-    sidd_structure = create_sidd_structure(
-        ortho_helper, ortho_bounds,
-        product_class='Detected Image', pixel_type='MONO8I', version=version)
-    # set suggested name
-    sidd_structure._NITF = {
-        'SUGGESTED_NAME': ortho_helper.sicd.get_suggested_name(ortho_helper.index)+'_IMG', }
-
-    # create the sidd writer
-    if output_file is None:
-        # noinspection PyProtectedMember
-        full_filename = os.path.join(output_directory, sidd_structure._NITF['SUGGESTED_NAME']+'.nitf')
-    else:
-        full_filename = os.path.join(output_directory, output_file)
-    if os.path.exists(os.path.expanduser(full_filename)):
-        raise IOError('File {} already exists.'.format(full_filename))
-    writer = SIDDWriter(full_filename, sidd_structure, ortho_helper.sicd)
-
-    # iterate and write
-    for data, start_indices in ortho_iterator:
-        writer(data, start_indices=start_indices, index=0)
