@@ -43,7 +43,7 @@ import numpy
 from sarpy.compliance import int_func
 from sarpy.processing.fft_base import FFTCalculator, fft, ifft, fftshift
 from sarpy.io.general.base import BaseReader
-from sarpy.io.product.sidd_creation_utils import create_sidd
+from sarpy.io.product.sidd_structure_creation import create_sidd_structure
 from sarpy.io.product.sidd import SIDDWriter
 # noinspection PyProtectedMember
 from sarpy.processing.ortho_rectify import OrthorectificationHelper, \
@@ -350,7 +350,7 @@ def create_csi_sidd(
 
     # create the sidd structure
     ortho_bounds = ortho_iterator.ortho_bounds
-    sidd_structure = create_sidd(
+    sidd_structure = create_sidd_structure(
         ortho_helper, ortho_bounds,
         product_class='Color Subaperture Image', pixel_type='RGB24I', version=version)
     # set suggested name

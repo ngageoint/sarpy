@@ -12,7 +12,7 @@ import numpy
 from sarpy.compliance import int_func, integer_types
 from sarpy.processing.fft_base import FFTCalculator, fft, ifft, fftshift
 from sarpy.io.general.slice_parsing import validate_slice, validate_slice_int
-from sarpy.io.product.sidd_creation_utils import create_sidd
+from sarpy.io.product.sidd_structure_creation import create_sidd_structure
 from sarpy.io.product.sidd import SIDDWriter
 from sarpy.processing.ortho_rectify import OrthorectificationHelper, OrthorectificationIterator
 
@@ -645,7 +645,7 @@ def create_dynamic_image_sidd(
 
     # create the sidd structure
     ortho_bounds = ortho_iterator.ortho_bounds
-    sidd_structure = create_sidd(
+    sidd_structure = create_sidd_structure(
         ortho_helper, ortho_bounds,
         product_class='Dynamic Image', pixel_type='MONO8I', version=version)
     # set suggested name

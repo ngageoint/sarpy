@@ -183,7 +183,7 @@ def _create_exploitation_v2(ortho_helper):
         raise ValueError('Unhandled projection helper type {}'.format(type(proj_helper)))
 
 
-def create_sidd_v2(ortho_helper, bounds, product_class, pixel_type):
+def create_sidd_structure_v2(ortho_helper, bounds, product_class, pixel_type):
     """
     Create a SIDD version 2.0 structure based on the orthorectification helper
     and pixel bounds.
@@ -299,7 +299,7 @@ def _create_exploitation_v1(ortho_helper):
         raise ValueError('Unhandled projection helper type {}'.format(type(proj_helper)))
 
 
-def create_sidd_v1(ortho_helper, bounds, product_class, pixel_type):
+def create_sidd_structure_v1(ortho_helper, bounds, product_class, pixel_type):
     """
     Create a SIDD version 1.0 structure based on the orthorectification helper
     and pixel bounds.
@@ -344,7 +344,7 @@ def create_sidd_v1(ortho_helper, bounds, product_class, pixel_type):
 ##########################
 # Switchable version SIDD structure
 
-def create_sidd(ortho_helper, bounds, product_class, pixel_type, version=2):
+def create_sidd_structure(ortho_helper, bounds, product_class, pixel_type, version=2):
     """
     Create a SIDD structure, with version specified, based on the orthorectification
     helper and pixel bounds.
@@ -371,9 +371,9 @@ def create_sidd(ortho_helper, bounds, product_class, pixel_type, version=2):
         raise ValueError('version must be 1 or 2. Got {}'.format(version))
 
     if version == 1:
-        return create_sidd_v1(ortho_helper, bounds, product_class, pixel_type)
+        return create_sidd_structure_v1(ortho_helper, bounds, product_class, pixel_type)
     else:
-        return create_sidd_v2(ortho_helper, bounds, product_class, pixel_type)
+        return create_sidd_structure_v2(ortho_helper, bounds, product_class, pixel_type)
 
 
 #########################
@@ -421,7 +421,7 @@ def create_detected_image_sidd(
 
     # create the sidd structure
     ortho_bounds = ortho_iterator.ortho_bounds
-    sidd_structure = create_sidd(
+    sidd_structure = create_sidd_structure(
         ortho_helper, ortho_bounds,
         product_class='Detected Image', pixel_type='MONO8I', version=version)
     # set suggested name
