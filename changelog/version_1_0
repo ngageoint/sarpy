@@ -1,5 +1,6 @@
 # This details the important differences introduced in sarpy 1.0
 
+* .43 - Fixed bug in SICD.RadarCollection.Area and SICD.MatchInfo parsing
 * .42 - Introduced coherent KMZ and SIDD product creation
 * .41 - Resolved CPHD Version 1.0 bug for PVP parsing
 * .40 - Adjust ImageBeamComp for derived formats
