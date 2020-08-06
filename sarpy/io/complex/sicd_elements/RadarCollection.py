@@ -553,7 +553,7 @@ class ReferencePlaneType(Serializable):
 
     _fields = ('RefPt', 'XDir', 'YDir', 'SegmentList', 'Orientation')
     _required = ('RefPt', 'XDir', 'YDir')
-    _collections_tags = {'SegmentList': {'array': True, 'child_tag': 'SegmentList'}}
+    _collections_tags = {'SegmentList': {'array': True, 'child_tag': 'Segment'}}
     # other class variable
     _ORIENTATION_VALUES = ('UP', 'DOWN', 'LEFT', 'RIGHT', 'ARBITRARY')
     # descriptors
