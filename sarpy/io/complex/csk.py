@@ -6,7 +6,6 @@ Functionality for reading Cosmo Skymed data into a SICD model.
 from collections import OrderedDict
 import os
 from typing import Tuple, Dict
-import warnings
 
 import numpy
 from numpy.polynomial import polynomial
@@ -16,8 +15,6 @@ try:
     import h5py
 except ImportError:
     h5py = None
-    warnings.warn('The h5py module is not successfully imported, '
-                  'which precludes Cosmo Skymed reading capability!')
 
 from sarpy.compliance import string_types, bytes_to_string
 from sarpy.io.complex.sicd_elements.blocks import Poly1DType, Poly2DType, RowColType
@@ -555,6 +552,7 @@ class CSKReader(BaseReader):
         if not isinstance(csk_details, CSKDetails):
             raise TypeError('The input argument for a CSKReader must be a '
                             'filename or CSKDetails object')
+        self._csk_details = csk_details
         sicd_data, shape_dict, symmetry = csk_details.get_sicd_collection()
         chippers = []
         sicds = []

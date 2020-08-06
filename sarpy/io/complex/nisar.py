@@ -17,8 +17,6 @@ try:
     import h5py
 except ImportError:
     h5py = None
-    warnings.warn('The h5py module is not successfully imported, '
-                  'which precludes NISAR reading capability!')
 
 from sarpy.compliance import string_types, int_func, bytes_to_string
 from sarpy.io.complex.sicd_elements.blocks import Poly2DType
@@ -43,7 +41,7 @@ from sarpy.io.complex.csk import H5Chipper
 from sarpy.io.complex.utils import fit_position_xvalidation, two_dim_poly_fit
 
 __classification__ = "UNCLASSIFIED"
-__author__ = ("Thomas McCullough", "Jarred Barber", "Wade Schwartzkopf")
+__author__ = "Thomas McCullough"
 
 
 ########
@@ -253,6 +251,7 @@ class NISARDetails(object):
         def get_image_creation():
             # type: () -> ImageCreationType
             application = 'ISCE'
+            # noinspection PyBroadException
             try:
                 application = '{} {}'.format(
                     application,
@@ -702,7 +701,7 @@ class NISARReader(BaseReader):
         if not isinstance(nisar_details, NISARDetails):
             raise TypeError('The input argument for NISARReader must be a '
                             'filename or NISARDetails object')
-
+        self._nisar_details = nisar_details
         sicd_data, shape_dict, symmetry = nisar_details.get_sicd_collection()
         chippers = []
         sicds = []
