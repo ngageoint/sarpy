@@ -456,7 +456,8 @@ class ICEYEDetails(object):
         sicd.derive()
         # TODO: RNIIRS?
         data_size = (image_data.NumCols, image_data.NumRows)
-        symmetry = (False, True, True) if look_side == 'left' else (False, False, True)
+        # TODO: check with Wade here
+        symmetry = (True, False, True) if look_side == 'left' else (True, True, True)
         return sicd, data_size, symmetry
 
 
@@ -481,7 +482,10 @@ class ICEYEChipper(BaseChipper):
             if tr[2] > 0:
                 return tr, False
             else:
-                return (tr[1], tr[0], -tr[2]), True
+                if tr[1] == -1 and tr[2] < 0:
+                    return (0, tr[0], -tr[2]), True
+                else:
+                    return (tr[1], tr[0], -tr[2]), True
 
         r1, r2 = self._reorder_arguments(range1, range2)
         r1, rev1 = reorder(r1)

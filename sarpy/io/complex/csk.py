@@ -514,7 +514,10 @@ class H5Chipper(BaseChipper):
             if tr[2] > 0:
                 return tr, False
             else:
-                return (tr[1], tr[0], -tr[2]), True
+                if tr[1] == -1 and tr[2] < 0:
+                    return (0, tr[0], -tr[2]), True
+                else:
+                    return (tr[1], tr[0], -tr[2]), True
 
         r1, r2 = self._reorder_arguments(range1, range2)
         r1, rev1 = reorder(r1)
