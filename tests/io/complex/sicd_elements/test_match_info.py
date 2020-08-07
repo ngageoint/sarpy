@@ -6,7 +6,7 @@ from . import generic_construction_test, unittest
 
 match_collection_dict = {'CoreName': 'Name', 'MatchIndex': 2, 'Parameters': {'PName': 'PValue'}}
 match_dict = {
-    'TypeId': 'COHERENT', 'CurrentIndex': 2, 'MatchCollections': [match_collection_dict, ], 'NumMatchCollections': 1}
+    'TypeID': 'COHERENT', 'CurrentIndex': 2, 'MatchCollections': [match_collection_dict, ], 'NumMatchCollections': 1}
 match_info_dict = {'NumMatchTypes': 1, 'MatchTypes': [match_dict, ]}
 
 

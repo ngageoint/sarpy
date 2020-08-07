@@ -742,7 +742,7 @@ class SICDType(Serializable):
         ----------
         coords : numpy.ndarray|tuple|list
             ECF coordinate to map to scene coordinates, of size `N x 3`.
-        kwargs : dict
+        kwargs
             The keyword arguments for the :func:`sarpy.geometry.point_projection.ground_to_image` method.
 
         Returns
@@ -775,7 +775,7 @@ class SICDType(Serializable):
             If 'longlat', then the input is `[longitude, latitude, hae]`.
             Otherwise, the input is `[latitude, longitude, hae]`. Passed through
             to :func:`sarpy.geometry.geocoords.geodetic_to_ecf`.
-        kwargs : dict
+        kwargs
             The keyword arguments for the :func:`sarpy.geometry.point_projection.ground_to_image_geo` method.
 
         Returns
@@ -805,7 +805,7 @@ class SICDType(Serializable):
             the image coordinate array
         projection_type : str
             One of `['PLANE', 'HAE', 'DEM']`. Type `DEM` is a work in progress.
-        kwargs : dict
+        kwargs
             The keyword arguments for the :func:`sarpy.geometry.point_projection.image_to_ground` method.
 
         Returns
@@ -836,7 +836,7 @@ class SICDType(Serializable):
         ordering : str
             Determines whether return is ordered as `[lat, long, hae]` or `[long, lat, hae]`.
             Passed through to :func:`sarpy.geometry.geocoords.ecf_to_geodetic`.
-        kwargs : dict
+        kwargs
             The keyword arguments for the :func:`sarpy.geometry.point_projection.image_to_ground_geo` method.
 
         Returns
