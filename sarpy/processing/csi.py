@@ -197,9 +197,8 @@ class CSICalculator(FFTCalculator):
             The dimension over which to split the sub-aperture.
         index : int
             The sicd index to use.
-        block_size : int
-            The approximate processing block size to fetch, given in MB. The
-            minimum value for use here will be 1.
+        block_size : None|int|float
+            The approximate processing block size to fetch, given in MB.
         """
 
         super(CSICalculator, self).__init__(

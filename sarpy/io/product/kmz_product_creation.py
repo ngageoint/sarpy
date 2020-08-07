@@ -36,7 +36,8 @@ import numpy
 from sarpy.compliance import int_func, integer_types
 from sarpy.io.general.base import BaseReader
 from sarpy.processing.ortho_rectify import OrthorectificationHelper, \
-    NearestNeighborMethod, PGProjection, OrthorectificationIterator
+    NearestNeighborMethod, PGProjection, FullResolutionFetcher, \
+    OrthorectificationIterator
 from sarpy.io.kml import Document
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.complex.utils import sicd_reader_iterator
@@ -405,9 +406,8 @@ def _write_sicd_overlay(ortho_iterator, kmz_document, folder):
     image_data = numpy.zeros(ortho_iterator.ortho_data_size, dtype='uint8')
     # populate by iterating
     for data, start_indices in ortho_iterator:
-        image_data[
-        start_indices[0]:start_indices[0]+data.shape[0],
-        start_indices[1]:start_indices[1]+data.shape[1]] = data
+        image_data[start_indices[0]:start_indices[0]+data.shape[0],
+                   start_indices[1]:start_indices[1]+data.shape[1]] = data
     # create regionated overlay
     # convert image array to PIL image.
     img = PIL.Image.fromarray(image_data)  # this is to counteract the PIL treatment
@@ -483,7 +483,8 @@ def add_sicd_geometry_elements(sicd, kmz_document, folder,
 
 def add_sicd_from_ortho_helper(kmz_document, ortho_helper,
         inc_image_corners=False, inc_valid_data=False,
-        inc_scp=False, inc_collection_wedge=False):
+        inc_scp=False, inc_collection_wedge=False,
+        block_size=10, dmin=30, mmult=4):
     """
     Adds for a SICD to the provided open kmz from an ortho-rectification helper.
 
@@ -499,6 +500,12 @@ def add_sicd_from_ortho_helper(kmz_document, ortho_helper,
         Include the scp?
     inc_collection_wedge : bool
         Include the aperture location and collection wedge?
+    block_size : None|int|float
+        The block size for the iterator
+    dmin : int|float
+        The remap parameters - the default is the high contrast remap value.
+    mmult : int|float
+        The remap parameters - the default is the high contrast remap value.
 
     Returns
     -------
@@ -522,14 +529,19 @@ def add_sicd_from_ortho_helper(kmz_document, ortho_helper,
     add_sicd_geometry_elements(sicd, kmz_document, folder,
         inc_image_corners=inc_image_corners, inc_valid_data=inc_valid_data,
         inc_scp=inc_scp, inc_collection_wedge=inc_collection_wedge)
+    # create the ortho-rectification iterator
+    calculator = FullResolutionFetcher(
+        ortho_helper.reader, index=ortho_helper.index, dimension=1, block_size=block_size)
+    ortho_iterator = OrthorectificationIterator(
+        ortho_helper, calculator=calculator, dmin=dmin, mmult=mmult) # use the high contrast remap params
     # write the image overlay
-    ortho_iterator = OrthorectificationIterator(ortho_helper, dmin=60, mmult=4)  # use the high contrast remap params
     _write_sicd_overlay(ortho_iterator, kmz_document, folder)
 
 
 def add_sicd_to_kmz(kmz_document, reader, index=0, pixel_limit=2048,
         inc_image_corners=False, inc_valid_data=False,
-        inc_scp=False, inc_collection_wedge=False):
+        inc_scp=False, inc_collection_wedge=False,
+        block_size=10, dmin=30, mmult=4):
     """
     Adds elements for this SICD to the provided open kmz.
 
@@ -551,6 +563,12 @@ def add_sicd_to_kmz(kmz_document, reader, index=0, pixel_limit=2048,
         Include the scp?
     inc_collection_wedge : bool
         Include the aperture location and collection wedge?
+    block_size : None|int|float
+        The block size for the iterator
+    dmin : int|float
+        The remap parameters - the default is the high contrast remap value.
+    mmult : int|float
+        The remap parameters - the default is the high contrast remap value.
 
     Returns
     -------
@@ -586,12 +604,12 @@ def add_sicd_to_kmz(kmz_document, reader, index=0, pixel_limit=2048,
     # add the sicd details
     add_sicd_from_ortho_helper(kmz_document, ortho_helper,
         inc_image_corners=inc_image_corners, inc_valid_data=inc_valid_data, inc_scp=inc_scp,
-        inc_collection_wedge=inc_collection_wedge)
+        inc_collection_wedge=inc_collection_wedge, block_size=block_size, dmin=dmin, mmult=mmult)
 
 
 def create_kmz_view(reader, output_directory, file_stem='view', pixel_limit=2048,
         inc_image_corners=False, inc_valid_data=False,
-        inc_scp=True, inc_collection_wedge=False):
+        inc_scp=True, inc_collection_wedge=False, block_size=10, dmin=30, mmult=4):
     """
     Create a kmz view for the reader contents. **This will create one file per
     band/polarization present in the reader.**
@@ -610,6 +628,12 @@ def create_kmz_view(reader, output_directory, file_stem='view', pixel_limit=2048
         Include the scp?
     inc_collection_wedge : bool
         Include the aperture location and collection wedge?
+    block_size : None|int|float
+        The block size for the iterator
+    dmin : int|float
+        The remap parameters - the default is the high contrast remap value.
+    mmult : int|float
+        The remap parameters - the default is the high contrast remap value.
 
     Returns
     -------
@@ -651,7 +675,8 @@ def create_kmz_view(reader, output_directory, file_stem='view', pixel_limit=2048
                 add_sicd_to_kmz(kmz_doc, reader,
                     index=the_index, pixel_limit=pixel_limit,
                     inc_image_corners=inc_image_corners, inc_valid_data=inc_valid_data,
-                    inc_scp=inc_scp, inc_collection_wedge=inc_collection_wedge)
+                    inc_scp=inc_scp, inc_collection_wedge=inc_collection_wedge,
+                    block_size=block_size, dmin=dmin, mmult=mmult)
 
     bands = set(reader.get_sicd_bands())
     pols = set(reader.get_sicd_polarizations())
