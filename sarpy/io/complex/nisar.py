@@ -330,7 +330,7 @@ class NISARDetails(object):
             T = gp['time'][:] + get_seconds(ref_time, collect_start, precision='ns')
             Pos = gp['position'][:]
             Vel = gp['velocity'][:]
-            P_x, P_y, P_z = fit_position_xvalidation(T, Pos, Vel, max_degree=6)
+            P_x, P_y, P_z = fit_position_xvalidation(T, Pos, Vel, max_degree=8)
             return PositionType(ARPPoly=XYZPolyType(X=P_x, Y=P_y, Z=P_z))
 
         def get_scpcoa():
