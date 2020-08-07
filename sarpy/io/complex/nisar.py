@@ -240,13 +240,13 @@ class NISARDetails(object):
         def get_collection_info():
             # type: () -> CollectionInfoType
             gp = hf['/science/LSAR/identification']
-
             return CollectionInfoType(
                 CollectorName=_stringify(hf.attrs['mission_name']),
-                CoreName='{0:07d}_{1:s}'.format(gp['absoluteOrbitNumber'][()], _stringify(gp['trackNumber'][()])),
+                CoreName='{0:07d}_{1:s}'.format(gp['absoluteOrbitNumber'][()],
+                                                _stringify(gp['trackNumber'][()])),
                 CollectType='MONOSTATIC',
                 Classification='UNCLASSIFIED',
-                RadarMode=RadarModeType(ModeType='STRIPMAP'))  # TODO: ModeID?
+                RadarMode=RadarModeType(ModeType='STRIPMAP'))
 
         def get_image_creation():
             # type: () -> ImageCreationType
@@ -260,9 +260,10 @@ class NISARDetails(object):
                 pass
 
             from sarpy.__about__ import __version__
-            # TODO: Site and DateTime?
+            # TODO: DateTime?
             return ImageCreationType(
                 Application=application,
+                Site='Unknown',
                 Profile='sarpy {}'.format(__version__))
 
         def get_geo_data():
@@ -316,7 +317,6 @@ class NISARDetails(object):
 
         def get_timeline():
             # type: () -> TimelineType
-
             # NB: IPPEnd must be set, but will be replaced
             return TimelineType(
                 CollectStart=collect_start,
@@ -325,7 +325,6 @@ class NISARDetails(object):
 
         def get_position():
             # type: () -> PositionType
-
             gp = hf['/science/LSAR/SLC/metadata/orbit']
             ref_time = _get_ref_time(gp['time'].attrs['units'])
             T = gp['time'][:] + get_seconds(ref_time, collect_start, precision='ns')
@@ -442,17 +441,17 @@ class NISARDetails(object):
 
         pols = _get_string_list(gp['listOfPolarizations'][:])
         t_sicd = base_sicd.copy()
+
         update_grid()
         update_timeline()
         tx_rcv_pol = define_radar_collection()
         fc = update_image_formation()
-
         return t_sicd, pols, tx_rcv_pol, fc
 
     @staticmethod
-    def _get_pol_specific_sicd(hf, ds, base_sicd, pol_name, freq_name, j, pol, r_ca_sampled, zd_time,
-                               grid_zd_time, grid_r, doprate_sampled, dopcentroid_sampled, fc, ss_az_s, dop_bw,
-                               beta0, gamma0, sigma0):
+    def _get_pol_specific_sicd(hf, ds, base_sicd, pol_name, freq_name, j, pol,
+                               r_ca_sampled, zd_time, grid_zd_time, grid_r, doprate_sampled,
+                               dopcentroid_sampled, fc, ss_az_s, dop_bw, beta0, gamma0, sigma0):
         """
         Gets the frequency/polarization specific sicd.
 
@@ -519,9 +518,8 @@ class NISARDetails(object):
             # determine dop_rate_poly coordinates
             dop_rate_poly = polynomial.polyfit(coords_rg_m, -doprate_sampled[min_ind, :], 4)  # why fourth order?
             t_sicd.RMA.INCA.FreqZero = fc
-            # TODO: Wade reverses this...why?
-            t_sicd.RMA.INCA.DRateSFPoly = numpy.reshape(
-                -numpy.convolve(dop_rate_poly, r_ca_poly)*speed_of_light/(2*fc*vm_ca_sq), (1, -1))
+            t_sicd.RMA.INCA.DRateSFPoly = Poly2DType(Coefs=numpy.reshape(
+                -numpy.convolve(dop_rate_poly, r_ca_poly)*speed_of_light/(2*fc*vm_ca_sq), (1, -1)))
 
             # update Grid.Col parameters
             t_sicd.Grid.Col.SS = numpy.sqrt(vm_ca_sq)*abs(ss_az_s)*t_sicd.RMA.INCA.DRateSFPoly.Coefs[0, 0]
@@ -544,7 +542,6 @@ class NISARDetails(object):
             t_sicd.Grid.Col.DeltaKCOAPoly = Poly2DType(Coefs=coefs*ss_az_s/t_sicd.Grid.Col.SS)
 
             timeca_sampled = numpy.outer(grid_zd_time, numpy.ones((grid_r.size, )))
-            # TODO: It's possible that I need to switch this order?
             time_coa_sampled = timeca_sampled + (dopcentroid_sampled/doprate_sampled)
             coefs, residuals, rank, sing_values = two_dim_poly_fit(
                 coords_rg_2d_t, coords_az_2d_t, time_coa_sampled,
@@ -602,11 +599,13 @@ class NISARDetails(object):
                     NoiseLevelType='ABSOLUTE', NoisePoly=Poly2DType(Coefs=coefs)))
 
         def update_geodata():
-            ecf = point_projection.image_to_ground([t_sicd.ImageData.SCPPixel.Row, t_sicd.ImageData.SCPPixel.Col], t_sicd)
+            ecf = point_projection.image_to_ground(
+                [t_sicd.ImageData.SCPPixel.Row, t_sicd.ImageData.SCPPixel.Col], t_sicd)
             t_sicd.GeoData.SCP = SCPType(ECF=ecf)  # LLH will be populated
 
         t_sicd = base_sicd.copy()
         shape = (int_func(ds.shape[1]), int_func(ds.shape[0]))
+
         define_image_data()
         update_image_formation()
         coords_rg_2d, coords_az_2d = update_inca_and_grid()
