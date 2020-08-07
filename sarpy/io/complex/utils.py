@@ -220,14 +220,14 @@ def fit_position_xvalidation(time_array, position_array, velocity_array, max_deg
     max_degree = int(max_degree)
     if max_degree < 1:
         raise ValueError('max_degree must be at least 1.')
-    if max_degree > 6:
-        logging.warning('max_degree greater than 6 for polynomial fitting is very likely to lead '
+    if max_degree > 10:
+        logging.warning('max_degree greater than 10 for polynomial fitting may lead '
                         'to poorly conditioned (i.e. badly behaved) fit.')
 
     deg = 1
     prev_vel_error = numpy.inf
     P_x, P_y, P_z = None, None, None
-    while deg < min(max_degree, position_array.shape[0]):
+    while deg <= min(max_degree, position_array.shape[0]-1):
         # fit position
         P_x = polynomial.polyfit(time_array, position_array[:, 0], deg=deg)
         P_y = polynomial.polyfit(time_array, position_array[:, 1], deg=deg)

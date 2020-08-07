@@ -68,12 +68,16 @@ def _create_sicd_styles(kmz_document):
     None
     """
 
-    # bounding box style - basic polygon, probably clamped to ground
+    # bounding box style - maybe polygon, maybe corner points, clamped to ground
+    label = {'color': 'ffc0c0c0', 'scale': '1.0'}
+    icon = {'scale': '1.5', 'icon_ref': 'http://maps.google.com/mapfiles/kml/pushpin/blue-pushpin.png'}
     line = {'color': 'ccff5050', 'width': '2.0'}
     poly = {'color': '30ff5050'}
-    kmz_document.add_style('bounding_high', line_style=line, poly_style=poly)
+    kmz_document.add_style('bounding_high', label_style=label, icon_style=icon, line_style=line, poly_style=poly)
+    label['scale'] = '0.75'
+    icon['scale'] = '1.0'
     line['width'] = '1.0'
-    kmz_document.add_style('bounding_low', line_style=line, poly_style=poly)
+    kmz_document.add_style('bounding_low', label_style=label, icon_style=icon, line_style=line, poly_style=poly)
     kmz_document.add_style_map('bounding', 'bounding_high', 'bounding_low')
 
     # valid data style - basic polygon, probably clamped to ground
@@ -86,11 +90,11 @@ def _create_sicd_styles(kmz_document):
 
     # scp - intended for basic point clamped to ground
     label = {'color': 'ff50c0c0', 'scale': '1.0'}
-    icon = {'color': 'ff5050c0', 'scale': '1.0',
+    icon = {'color': 'ff5050c0', 'scale': '1.5',
             'icon_ref': 'http://maps.google.com/mapfiles/kml/shapes/shaded_dot.png'}
     kmz_document.add_style('scp_high', label_style=label, icon_style=icon)
     label['scale'] = '0.75'
-    icon['scale'] = '0.5'
+    icon['scale'] = '1.0'
     kmz_document.add_style('scp_low', label_style=label, icon_style=icon)
     kmz_document.add_style_map('scp', 'scp_high', 'scp_low')
 
@@ -208,9 +212,9 @@ def _get_sicd_time_args(sicd, subdivisions=12):
     return {'beginTime': str(beg_time)+'Z', 'endTime': str(end_time)+'Z'}, time_array
 
 
-def _write_image_corners(kmz_document, sicd, time_args, folder):
+def _write_image_corners(kmz_document, sicd, time_args, folder, write_points=True):
     """
-    Write the image corner polygon.
+    Write the image corner.
 
     Parameters
     ----------
@@ -218,6 +222,8 @@ def _write_image_corners(kmz_document, sicd, time_args, folder):
     sicd : SICDType
     time_args : dict
     folder : minidom.Element
+    write_points : bool
+        Write points, or a polygon?
 
     Returns
     -------
@@ -233,10 +239,20 @@ def _write_image_corners(kmz_document, sicd, time_args, folder):
     if numpy.any(~numpy.isfinite(corners)):
         logging.error('There are nonsense entries (nan or +/- infinity) in the corner locations array.')
 
-    coords = ' '.join(frm.format(*el) for el in corners)
-    coords += ' ' + frm.format(*corners[0, :])
-    placemark = kmz_document.add_container(par=folder, description='image corners for {}'.format(_get_sicd_name(sicd)), styleUrl='#bounding')
-    kmz_document.add_polygon(coords, par=placemark, altitudeMode='clampToGround', **time_args)
+    if write_points:
+        names = ['FRFC', 'FRLC', 'LRLC', 'LRFC']
+        for nam, corner in zip(names, corners):
+            if numpy.any(~numpy.isfinite(corner)):
+                continue
+            coords = frm.format(*corner)
+            placemark = kmz_document.add_container(par=folder, description='{} for {}'.format(nam, _get_sicd_name(sicd)),
+                                                   styleUrl='#bounding')
+            kmz_document.add_point(coords, par=placemark, altitudeMode='clampToGround', **time_args)
+    else:
+        # write the polygon
+        coords = ' '.join(frm.format(*el) for el in corners if not numpy.any(~numpy.isfinite(el)))
+        placemark = kmz_document.add_container(par=folder, description='image corners for {}'.format(_get_sicd_name(sicd)), styleUrl='#bounding')
+        kmz_document.add_polygon(coords, par=placemark, altitudeMode='clampToGround', **time_args)
 
 
 def _write_valid_area(kmz_document, sicd, time_args, folder):

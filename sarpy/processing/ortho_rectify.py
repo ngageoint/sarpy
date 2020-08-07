@@ -2495,16 +2495,16 @@ class OrthorectificationIterator(object):
         rows_temp = pixel_bounds[1] - pixel_bounds[0]
         if this_data.shape[0] == rows_temp:
             row_array = numpy.arange(pixel_bounds[0], pixel_bounds[1])
-        elif this_data.shape[0] == (rows_temp + 1):
-            row_array = numpy.arange(pixel_bounds[0], pixel_bounds[1] + 1)
+        elif this_data.shape[0] == (rows_temp - 1):
+            row_array = numpy.arange(pixel_bounds[0], pixel_bounds[1] - 1)
         else:
             raise ValueError('Unhandled data size mismatch {} and {}'.format(this_data.shape, rows_temp))
 
         cols_temp = pixel_bounds[3] - pixel_bounds[2]
         if this_data.shape[1] == cols_temp:
             col_array = numpy.arange(pixel_bounds[2], pixel_bounds[3])
-        elif this_data.shape[1] == (cols_temp + 1):
-            col_array = numpy.arange(pixel_bounds[2], pixel_bounds[3] + 1)
+        elif this_data.shape[1] == (cols_temp - 1):
+            col_array = numpy.arange(pixel_bounds[2], pixel_bounds[3] - 1)
         else:
             raise ValueError('Unhandled data size mismatch {} and {}'.format(this_data.shape, cols_temp))
         return row_array, col_array

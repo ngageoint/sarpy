@@ -6,7 +6,6 @@ Functionality for reading Cosmo Skymed data into a SICD model.
 from collections import OrderedDict
 import os
 from typing import Tuple, Dict
-import warnings
 
 import numpy
 from numpy.polynomial import polynomial
@@ -16,8 +15,6 @@ try:
     import h5py
 except ImportError:
     h5py = None
-    warnings.warn('The h5py module is not successfully imported, '
-                  'which precludes Cosmo Skymed reading capability!')
 
 from sarpy.compliance import string_types, bytes_to_string
 from sarpy.io.complex.sicd_elements.blocks import Poly1DType, Poly2DType, RowColType
@@ -230,7 +227,8 @@ class CSKDetails(object):
             P_x, P_y, P_z = fit_position_xvalidation(T, Pos, Vel, max_degree=6)
             return PositionType(ARPPoly=XYZPolyType(X=P_x, Y=P_y, Z=P_z))
 
-        def get_radar_collection():  # type: () -> RadarCollectionType
+        def get_radar_collection():
+            # type: () -> RadarCollectionType
             tx_pols = []
             chan_params = []
             for i, bdname in enumerate(band_dict):
@@ -245,7 +243,8 @@ class CSKDetails(object):
                                            TxSequence=[TxStepType(TxPolarization=pol,
                                                                   index=i+1) for i, pol in enumerate(tx_pols)])
 
-        def get_image_formation():  # type: () -> ImageFormationType
+        def get_image_formation():
+            # type: () -> ImageFormationType
             return ImageFormationType(ImageFormAlgo='RMA',
                                       TStartProc=0,
                                       TEndProc=duration,
@@ -256,12 +255,14 @@ class CSKDetails(object):
                                       RcvChanProc=RcvChanProcType(NumChanProc=1,
                                                                   PRFScaleFactor=1))
 
-        def get_rma():  # type: () -> RMAType
+        def get_rma():
+            # type: () -> RMAType
             inca = INCAType(FreqZero=center_frequency)
             return RMAType(RMAlgoType='OMEGA_K',
                            INCA=inca)
 
-        def get_scpcoa():  # type: () -> SCPCOAType
+        def get_scpcoa():
+            # type: () -> SCPCOAType
             return SCPCOAType(SideOfTrack=h5_dict['Look Side'][0:1].upper())
 
         # some common use parameters
@@ -350,11 +351,12 @@ class CSKDetails(object):
                                            FirstRow=0,
                                            FirstCol=0,
                                            PixelType='RE16I_IM16I',
-                                           SCPPixel=RowColType(Row=int(rows/2), Col=int(cols/2)))
-
+                                           SCPPixel=RowColType(Row=int(rows/2),
+                                                               Col=int(cols/2)))
             return t_rg_first_time, t_ss_rg_s, t_az_first_time, t_ss_az_s
 
-        def update_timeline(sicd, band_name):  # type: (SICDType, str) -> None
+        def update_timeline(sicd, band_name):
+            # type: (SICDType, str) -> None
             prf = band_dict[band_name]['PRF']
             duration = sicd.Timeline.CollectDuration
             ipp_el = sicd.Timeline.IPP[0]
@@ -362,7 +364,8 @@ class CSKDetails(object):
             ipp_el.TEnd = duration
             ipp_el.IPPPoly = Poly1DType(Coefs=(0, prf))
 
-        def update_radar_collection(sicd, band_name, ind):  # type: (SICDType, str, int) -> None
+        def update_radar_collection(sicd, band_name, ind):
+            # type: (SICDType, str, int) -> None
             chirp_length = band_dict[band_name]['Range Chirp Length']
             chirp_rate = abs(band_dict[band_name]['Range Chirp Rate'])
             sample_rate = band_dict[band_name]['Sampling Rate']
@@ -374,19 +377,22 @@ class CSKDetails(object):
             fr_max = center_frequency + 0.5*band_width
             sicd.RadarCollection.TxFrequency = TxFrequencyType(Min=fr_min,
                                                                Max=fr_max)
-            sicd.RadarCollection.Waveform = [WaveformParametersType(index=0,
-                                                                    TxPulseLength=chirp_length,
-                                                                    TxRFBandwidth=band_width,
-                                                                    TxFreqStart=fr_min,
-                                                                    TxFMRate=chirp_rate,
-                                                                    ADCSampleRate=sample_rate,
-                                                                    RcvFMRate=rcv_fm_rate,
-                                                                    RcvWindowLength=win_length/sample_rate), ]
+            sicd.RadarCollection.Waveform = [
+                WaveformParametersType(index=0,
+                                       TxPulseLength=chirp_length,
+                                       TxRFBandwidth=band_width,
+                                       TxFreqStart=fr_min,
+                                       TxFMRate=chirp_rate,
+                                       ADCSampleRate=sample_rate,
+                                       RcvFMRate=rcv_fm_rate,
+                                       RcvWindowLength=win_length/sample_rate), ]
             sicd.ImageFormation.RcvChanProc.ChanIndices = [ind+1, ]
-            sicd.ImageFormation.TxFrequencyProc = TxFrequencyProcType(MinProc=fr_min, MaxProc=fr_max)
+            sicd.ImageFormation.TxFrequencyProc = TxFrequencyProcType(MinProc=fr_min,
+                                                                      MaxProc=fr_max)
             sicd.ImageFormation.TxRcvPolarizationProc = sicd.RadarCollection.RcvChannels[ind].TxRcvPolarization
 
-        def update_rma_and_grid(sicd, band_name):  # type: (SICDType, str) -> None
+        def update_rma_and_grid(sicd, band_name):
+            # type: (SICDType, str) -> None
             rg_scp_time = rg_first_time + (ss_rg_s*sicd.ImageData.SCPPixel.Row)
             az_scp_time = az_first_time + (ss_az_s*sicd.ImageData.SCPPixel.Col)
             r_ca_scp = rg_scp_time*speed_of_light/2
@@ -402,11 +408,12 @@ class CSKDetails(object):
                 rg_ref_time-rg_scp_time, alpha=ss_rg_s/row_ss, return_poly=False)
             drate_sf_poly = -(polynomial.polymul(dop_rate_poly_rg_shifted, r_ca) *
                               speed_of_light/(2*center_frequency*vel_ca_sq))
-            # update grid
+            # update grid.row
             sicd.Grid.Row.SS = row_ss
             sicd.Grid.Row.ImpRespBW = row_bw
             sicd.Grid.Row.DeltaK1 = -0.5 * row_bw
             sicd.Grid.Row.DeltaK2 = 0.5 * row_bw
+            # update grid.col
             col_ss = vel_ca*ss_az_s*drate_sf_poly[0]
             sicd.Grid.Col.SS = col_ss
             col_bw = min(band_dict[band_name]['Azimuth Focusing Bandwidth'] * abs(ss_az_s), 1) / col_ss
@@ -430,7 +437,8 @@ class CSKDetails(object):
             sicd.Grid.TimeCOAPoly = fit_time_coa_polynomial(
                 sicd.RMA.INCA, sicd.ImageData, sicd.Grid, dop_rate_poly_rg_shifted, poly_order=2)
 
-        def update_radiometric(sicd, band_name):  # type: (SICDType, str) -> None
+        def update_radiometric(sicd, band_name):
+            # type: (SICDType, str) -> None
             if h5_dict['Range Spreading Loss Compensation Geometry'] != 'NONE':
                 slant_range = h5_dict['Reference Slant Range']
                 exp = h5_dict['Reference Slant Range Exponent']
@@ -506,7 +514,10 @@ class H5Chipper(BaseChipper):
             if tr[2] > 0:
                 return tr, False
             else:
-                return (tr[1], tr[0], -tr[2]), True
+                if tr[1] == -1 and tr[2] < 0:
+                    return (0, tr[0], -tr[2]), True
+                else:
+                    return (tr[1], tr[0], -tr[2]), True
 
         r1, r2 = self._reorder_arguments(range1, range2)
         r1, rev1 = reorder(r1)
@@ -555,6 +566,7 @@ class CSKReader(BaseReader):
         if not isinstance(csk_details, CSKDetails):
             raise TypeError('The input argument for a CSKReader must be a '
                             'filename or CSKDetails object')
+        self._csk_details = csk_details
         sicd_data, shape_dict, symmetry = csk_details.get_sicd_collection()
         chippers = []
         sicds = []

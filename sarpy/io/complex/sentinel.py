@@ -575,6 +575,7 @@ class SentinelDetails(object):
 
         def update_rma_and_grid(sicd, first_line_relative_start, start, return_time_dets=False):
             # type: (SICDType, Union[float, int], numpy.datetime64, bool) -> Union[None, Tuple[float, float]]
+
             center_frequency = get_center_frequency()
             # set TimeCAPoly
             ss_zd_s = get_image_col_spacing_zdt()
