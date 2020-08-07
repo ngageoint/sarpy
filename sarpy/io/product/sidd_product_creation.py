@@ -68,7 +68,7 @@ def _validate_filename(output_directory, output_file, sidd_structure):
 
 
 def create_detected_image_sidd(
-        ortho_helper, output_directory, output_file=None, block_size=10, bounds=None, version=2):
+        ortho_helper, output_directory, output_file=None, block_size=10, dimension=0, bounds=None, version=2):
     """
     Create a SIDD version of a basic detected image from a SICD type reader.
 
@@ -83,6 +83,8 @@ def create_detected_image_sidd(
     block_size : int
         The approximate processing block size to fetch, given in MB. The
         minimum value for use here will be 1.
+    dimension : int
+        Which dimension to split over in block processing? Must be either 0 or 1.
     bounds : None|numpy.ndarray|list|tuple
         The sicd pixel bounds of the form `(min row, max row, min col, max col)`.
         This will default to the full image.
@@ -121,7 +123,7 @@ def create_detected_image_sidd(
 
     # construct the ortho-rectification iterator - for a basic data fetcher
     calculator = FullResolutionFetcher(
-        ortho_helper.reader, dimension=0, index=ortho_helper.index, block_size=block_size)
+        ortho_helper.reader, dimension=dimension, index=ortho_helper.index, block_size=block_size)
     ortho_iterator = OrthorectificationIterator(ortho_helper, calculator=calculator, bounds=bounds)
 
     # create the sidd structure

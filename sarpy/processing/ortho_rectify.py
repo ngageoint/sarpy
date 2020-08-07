@@ -78,7 +78,6 @@ from sarpy.io.general.slice_parsing import validate_slice_int, validate_slice
 from sarpy.io.complex.sicd_elements.blocks import Poly2DType
 from sarpy.geometry.geocoords import geodetic_to_ecf, ecf_to_geodetic, wgs_84_norm
 from sarpy.geometry.geometry_elements import GeometryObject
-from sarpy.geometry.point_projection import image_to_ground_plane, ground_to_image
 from sarpy.visualization.remap import amplitude_to_density, clip_cast
 
 __classification__ = "UNCLASSIFIED"
@@ -736,8 +735,7 @@ class PGProjection(ProjectionHelper):
         return out
 
     def ecf_to_pixel(self, coords):
-        # ground to image
-        pixel, _, _ = ground_to_image(coords, self.sicd)
+        pixel, _, _ = self.sicd.project_ground_to_image(coords)
         return pixel
 
     def ll_to_ortho(self, ll_coords):
@@ -781,17 +779,18 @@ class PGProjection(ProjectionHelper):
 
     def ortho_to_pixel(self, ortho_coords):
         ortho_coords, o_shape = self._reshape(ortho_coords, 2)
-        pixel, _, _ = ground_to_image(self.ortho_to_ecf(ortho_coords), self.sicd)
+        pixel, _, _ = self.sicd.project_ground_to_image(self.ortho_to_ecf(ortho_coords))
         return numpy.reshape(pixel, o_shape)
 
     def pixel_to_ortho(self, pixel_coords):
-        # return self.ecf_to_ortho(self.pixel_to_ecf(pixel_coords))
-        ecf = self.pixel_to_ecf(pixel_coords)  # temp
-        ortho = self.ecf_to_ortho(ecf)
-        return ortho
+        return self.ecf_to_ortho(self.pixel_to_ecf(pixel_coords))
 
     def pixel_to_ecf(self, pixel_coords):
-        return image_to_ground_plane(pixel_coords, self.sicd, gref=self.reference_point, ugpn=self.normal_vector)
+        # return image_to_ground_plane(pixel_coords, self.sicd,
+        #                              gref=self.reference_point, ugpn=self.normal_vector)
+        return self.sicd.project_image_to_ground(
+            pixel_coords, projection_type='PLANE',
+            gref=self.reference_point, ugpn=self.normal_vector)
 
 
 ################
@@ -1373,7 +1372,15 @@ class OrthorectificationHelper(object):
         numpy.ndarray
         """
 
+        if pixel_bounds[0] > pixel_bounds[1] or pixel_bounds[2] > pixel_bounds[3]:
+            raise ValueError('Got unexpected and invalid pixel_bounds array {}'.format(pixel_bounds))
+
         pixel_limits = self.reader.get_data_size_as_tuple()[self.index]
+        if (pixel_bounds[0] >= pixel_limits[0]) or (pixel_bounds[1] < 0) or \
+                (pixel_bounds[2] >= pixel_limits[1]) or (pixel_bounds[3] < 0):
+            # this entirely misses the whole region
+            return numpy.array([0, 0, 0, 0], dtype=numpy.int32)
+
         real_pix_bounds = numpy.array([
             max(0, pixel_bounds[0]), min(pixel_limits[0], pixel_bounds[1]),
             max(0, pixel_bounds[2]), min(pixel_limits[1], pixel_bounds[3])], dtype=numpy.int32)
@@ -1516,6 +1523,11 @@ class OrthorectificationHelper(object):
 
         # validate our inputs
         value_array = self._validate_row_col_values(row_array, col_array, value_array, value_is_flat=False)
+        if value_array.size == 0:
+            if value_array.ndim == 3:
+                return self._initialize_workspace(ortho_bounds, final_dimension=value_array.shape[2])
+            else:
+                return self._initialize_workspace(ortho_bounds)
         if value_array.ndim == 2:
             return self._get_orthrectified_from_array_flat(ortho_bounds, row_array, col_array, value_array)
         else:  # it must be three dimensional, as checked by _validate_row_col_values()
@@ -1716,12 +1728,13 @@ class NearestNeighborMethod(OrthorectificationHelper):
             ortho_bounds, row_array, col_array, value_array)
         # potentially apply the radiometric parameters to the value array
         value_array = self._apply_radiometric_params(row_array, col_array, value_array)
-        # determine the in bounds points
-        mask = self._get_mask(pixel_rows, pixel_cols, row_array, col_array)
-        # determine the nearest neighbors for our row/column indices
-        row_inds = numpy.digitize(pixel_rows[mask], row_array)
-        col_inds = numpy.digitize(pixel_cols[mask], col_array)
-        ortho_array[mask] = value_array[row_inds, col_inds]
+        if value_array.size > 0:
+            # determine the in bounds points
+            mask = self._get_mask(pixel_rows, pixel_cols, row_array, col_array)
+            # determine the nearest neighbors for our row/column indices
+            row_inds = numpy.digitize(pixel_rows[mask], row_array)
+            col_inds = numpy.digitize(pixel_cols[mask], col_array)
+            ortho_array[mask] = value_array[row_inds, col_inds]
         return ortho_array
 
 
@@ -1811,13 +1824,14 @@ class BivariateSplineMethod(OrthorectificationHelper):
             ortho_bounds, row_array, col_array, value_array)
         value_array = self._apply_radiometric_params(row_array, col_array, value_array)
 
-        # set up our spline
-        sp = RectBivariateSpline(row_array, col_array, value_array, kx=self.row_order, ky=self.col_order, s=0)
-        # determine the in bounds points
-        mask = self._get_mask(pixel_rows, pixel_cols, row_array, col_array)
-        result = sp.ev(pixel_rows[mask], pixel_cols[mask])
-        # potentially apply the radiometric parameters
-        ortho_array[mask] = result
+        if value_array.size > 0:
+            # set up our spline
+            sp = RectBivariateSpline(row_array, col_array, value_array, kx=self.row_order, ky=self.col_order, s=0)
+            # determine the in bounds points
+            mask = self._get_mask(pixel_rows, pixel_cols, row_array, col_array)
+            result = sp.ev(pixel_rows[mask], pixel_cols[mask])
+            # potentially apply the radiometric parameters
+            ortho_array[mask] = result
         return ortho_array
 
 
@@ -1826,6 +1840,8 @@ class BivariateSplineMethod(OrthorectificationHelper):
 
 def _get_fetch_block_size(start_element, stop_element, block_size_in_bytes, bands=1):
     if stop_element == start_element:
+        return None
+    if block_size_in_bytes is None:
         return None
 
     full_size = float(abs(stop_element - start_element))
@@ -1939,9 +1955,10 @@ class FullResolutionFetcher(object):
             The dimension over which to split the sub-aperture.
         index : int
             The sicd index to use.
-        block_size : int
+        block_size : None|int|float
             The approximate processing block size to fetch, given in MB. The
-            minimum value for use here will be 1.
+            minimum value for use here will be 0.25. `None` represents processing
+            as a single block.
         """
 
         self._index = None # set explicitly
@@ -2025,9 +2042,10 @@ class FullResolutionFetcher(object):
 
     @property
     def block_size(self):
-        # type: () -> int
+        # type: () -> float
         """
-        int: The approximate processing block size in MB.
+        None|float: The approximate processing block size in MB, where `None`
+        represents processing in a single block.
         """
 
         return self._block_size
@@ -2035,20 +2053,21 @@ class FullResolutionFetcher(object):
     @block_size.setter
     def block_size(self, value):
         if value is None:
-            value = 50
-        value = int_func(value)
-        if value < 1:
-            value = 1
-        self._block_size = value
+            self._block_size = None
+        else:
+            value = float(value)
+            if value < 0.25:
+                value = 0.25
+            self._block_size = value
 
     @property
     def block_size_in_bytes(self):
-        # type: () -> int
+        # type: () -> Union[None, int]
         """
-        int: The approximate processing block size in bytes.
+        None|int: The approximate processing block size in bytes.
         """
 
-        return self._block_size*(2**20)
+        return None if self._block_size is None else int_func(self._block_size*(2**20))
 
     @property
     def sicd(self):
@@ -2566,7 +2585,7 @@ class OrthorectificationIterator(object):
         this_pixel_bounds = self._ortho_helper.get_real_pixel_bounds(this_pixel_bounds)
         # extract the csi data and ortho-rectify
         logging.info(
-            'Fetching orthorectified coordinate block ({}:{}, {}:{}) of ({}:{})'.format(
+            'Fetching orthorectified coordinate block ({}:{}, {}:{}) of ({}, {})'.format(
                 this_ortho_bounds[0] - self.ortho_bounds[0], this_ortho_bounds[1] - self.ortho_bounds[0],
                 this_ortho_bounds[2] - self.ortho_bounds[2], this_ortho_bounds[3] - self.ortho_bounds[2],
                 self.ortho_bounds[1] - self.ortho_bounds[0], self.ortho_bounds[3] - self.ortho_bounds[2]))

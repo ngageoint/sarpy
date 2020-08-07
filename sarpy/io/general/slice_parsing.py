@@ -71,11 +71,7 @@ def validate_slice(the_slice, bound):
     else:
         t_start = validate_slice_int(t_start, bound)
         t_stop = validate_slice_int(t_stop, bound, include=False)
-    if t_start == t_stop:
-        raise ValueError(
-            'Got identical start and stop slice bounds. Empty slicing not '
-            'supported.')
-    if (t_step < 0 and t_start <= t_stop) or (t_step > 0 and t_start >= t_stop):
+    if (t_step < 0 and t_start < t_stop) or (t_step > 0 and t_start > t_stop):
         raise ValueError(
             'The slice values start={}, stop={}, step={} are not viable'.format(t_start, t_stop, t_step))
     return slice(t_start, t_stop, t_step)
