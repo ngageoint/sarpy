@@ -228,6 +228,10 @@ def _write_image_corners(kmz_document, sicd, time_args, folder):
 
     frm = '{1:0.8f},{0:0.8f},0'
     corners = sicd.GeoData.ImageCorners.get_array(dtype='float64')
+
+    if numpy.any(~numpy.isfinite(corners)):
+        logging.error('There are nonsense entries (nan or +/- infinity) in the corner locations array.')
+
     coords = ' '.join(frm.format(*el) for el in corners)
     coords += ' ' + frm.format(*corners[0, :])
     placemark = kmz_document.add_container(par=folder, description='image corners for {}'.format(_get_sicd_name(sicd)), styleUrl='#bounding')
@@ -255,6 +259,9 @@ def _write_valid_area(kmz_document, sicd, time_args, folder):
 
     frm = '{1:0.8f},{0:0.8f},0'
     valid_array = sicd.GeoData.ValidData.get_array(dtype='float64')
+    if numpy.any(~numpy.isfinite(valid_array)):
+        logging.error('There are nonsense entries (nan or +/- infinity) in the valid array location.')
+
     coords = ' '.join(frm.format(*el) for el in valid_array)
     coords += ' ' + frm.format(*valid_array[0, :])
     placemark = kmz_document.add_container(par=folder, description='valid data for {}'.format(_get_sicd_name(sicd)), styleUrl='#valid')
@@ -279,8 +286,12 @@ def _write_scp(kmz_document, sicd, time_args, folder):
     if sicd.GeoData is None or sicd.GeoData.SCP is None:
         return
 
+    scp_llh = sicd.GeoData.SCP.LLH.get_array()
+    if numpy.any(~numpy.isfinite(scp_llh)):
+        logging.error('There are nonsense entries (nan or +/- infinity) in the scp location.')
+
     frm = '{1:0.8f},{0:0.8f},0'
-    coords = frm.format(*sicd.GeoData.SCP.LLH.get_array())
+    coords = frm.format(*scp_llh)
     placemark = kmz_document.add_container(par=folder, description='SCP for {}'.format(_get_sicd_name(sicd)), styleUrl='#scp')
     kmz_document.add_point(coords, par=placemark, altitudeMode='clampToGround', **time_args)
 
@@ -312,6 +323,8 @@ def _write_arp_location(kmz_document, sicd, time_args, time_array, folder):
         return None
 
     arp_llh = ecf_to_geodetic(arp_pos)
+    if numpy.any(~numpy.isfinite(arp_llh)):
+        logging.error('There are nonsense entries (nan or +/- infinity) in the aperture location.')
     coords = ['{1:0.8f},{0:0.8f},{2:0.2f}'.format(*el) for el in arp_llh]
     whens = [str(sicd.Timeline.CollectStart.astype('datetime64[us]') + int_func(el*1e6)) + 'Z' for el in time_array]
     placemark = kmz_document.add_container(par=folder, description='aperture position for {}'.format(_get_sicd_name(sicd)), styleUrl='#arp', **time_args)
@@ -348,6 +361,10 @@ def _write_collection_wedge(kmz_document, sicd, time_args, arp_llh, time_array, 
         return
     frm = '{1:0.8f},{0:0.8f},{2:0.2f}'
     grp_llh = ecf_to_geodetic(grp)
+
+    if numpy.any(~numpy.isfinite(grp_llh)):
+        logging.error('There are nonsense entries (nan or +/- infinity) in the scp/ground range locations.')
+
     coord_array = [frm.format(*el) for el in arp_llh]
     if len(grp_llh) > 1:
         coord_array.extend(frm.format(*el) for el in grp_llh[::-1, :])
