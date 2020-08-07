@@ -78,7 +78,6 @@ from sarpy.io.general.slice_parsing import validate_slice_int, validate_slice
 from sarpy.io.complex.sicd_elements.blocks import Poly2DType
 from sarpy.geometry.geocoords import geodetic_to_ecf, ecf_to_geodetic, wgs_84_norm
 from sarpy.geometry.geometry_elements import GeometryObject
-from sarpy.geometry.point_projection import image_to_ground_plane, ground_to_image
 from sarpy.visualization.remap import amplitude_to_density, clip_cast
 
 __classification__ = "UNCLASSIFIED"
@@ -736,8 +735,7 @@ class PGProjection(ProjectionHelper):
         return out
 
     def ecf_to_pixel(self, coords):
-        # ground to image
-        pixel, _, _ = ground_to_image(coords, self.sicd)
+        pixel, _, _ = self.sicd.project_ground_to_image(coords)
         return pixel
 
     def ll_to_ortho(self, ll_coords):
@@ -781,17 +779,18 @@ class PGProjection(ProjectionHelper):
 
     def ortho_to_pixel(self, ortho_coords):
         ortho_coords, o_shape = self._reshape(ortho_coords, 2)
-        pixel, _, _ = ground_to_image(self.ortho_to_ecf(ortho_coords), self.sicd)
+        pixel, _, _ = self.sicd.project_ground_to_image(self.ortho_to_ecf(ortho_coords))
         return numpy.reshape(pixel, o_shape)
 
     def pixel_to_ortho(self, pixel_coords):
-        # return self.ecf_to_ortho(self.pixel_to_ecf(pixel_coords))
-        ecf = self.pixel_to_ecf(pixel_coords)  # temp
-        ortho = self.ecf_to_ortho(ecf)
-        return ortho
+        return self.ecf_to_ortho(self.pixel_to_ecf(pixel_coords))
 
     def pixel_to_ecf(self, pixel_coords):
-        return image_to_ground_plane(pixel_coords, self.sicd, gref=self.reference_point, ugpn=self.normal_vector)
+        # return image_to_ground_plane(pixel_coords, self.sicd,
+        #                              gref=self.reference_point, ugpn=self.normal_vector)
+        return self.sicd.project_image_to_ground(
+            pixel_coords, projection_type='PLANE',
+            gref=self.reference_point, ugpn=self.normal_vector)
 
 
 ################
