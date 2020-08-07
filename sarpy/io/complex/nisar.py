@@ -7,7 +7,6 @@ import logging
 import os
 from collections import OrderedDict
 from typing import Tuple, Dict
-import warnings
 
 import numpy
 from numpy.polynomial import polynomial
@@ -389,7 +388,7 @@ class NISARDetails(object):
 
         Returns
         -------
-        (SICDType, numpy.ndarray, list, fc)
+        (SICDType, numpy.ndarray, list, center_freq)
             frequency dependent sicd, array of polarization names, list of formatted polarizations for sicd,
             the processed center frequency
         """
@@ -413,9 +412,9 @@ class NISARDetails(object):
                 tx_rcv_pol_t.append('{}:{}'.format(entry[0], entry[1]))
                 if entry[0] not in tx_pol:
                     tx_pol.append(entry[0])
-            fc_t = gp['acquiredCenterFrequency'][()]
+            center_freq_t = gp['acquiredCenterFrequency'][()]
             bw = gp['acquiredRangeBandwidth'][()]
-            tx_freq = TxFrequencyType(Min=fc_t - 0.5*bw, Max=fc_t + 0.5*bw)
+            tx_freq = TxFrequencyType(Min=center_freq_t - 0.5*bw, Max=center_freq_t + 0.5*bw)
             rcv_chans = [ChanParametersType(TxRcvPolarization=pol) for pol in tx_rcv_pol_t]
             if len(tx_pol) == 1:
                 tx_sequence = None
@@ -432,12 +431,12 @@ class NISARDetails(object):
             return tx_rcv_pol_t
 
         def update_image_formation():
-            fc_t = gp['processedCenterFrequency'][()]
+            center_freq_t = gp['processedCenterFrequency'][()]
             bw = gp['processedRangeBandwidth'][()]
             t_sicd.ImageFormation.TxFrequencyProc = TxFrequencyProcType(
-                MinProc=fc_t - 0.5*bw,
-                MaxProc=fc_t + 0.5*bw, )
-            return fc_t
+                MinProc=center_freq_t - 0.5*bw,
+                MaxProc=center_freq_t + 0.5*bw, )
+            return center_freq_t
 
         pols = _get_string_list(gp['listOfPolarizations'][:])
         t_sicd = base_sicd.copy()
@@ -445,13 +444,13 @@ class NISARDetails(object):
         update_grid()
         update_timeline()
         tx_rcv_pol = define_radar_collection()
-        fc = update_image_formation()
-        return t_sicd, pols, tx_rcv_pol, fc
+        center_freq = update_image_formation()
+        return t_sicd, pols, tx_rcv_pol, center_freq
 
     @staticmethod
     def _get_pol_specific_sicd(hf, ds, base_sicd, pol_name, freq_name, j, pol,
                                r_ca_sampled, zd_time, grid_zd_time, grid_r, doprate_sampled,
-                               dopcentroid_sampled, fc, ss_az_s, dop_bw, beta0, gamma0, sigma0):
+                               dopcentroid_sampled, center_freq, ss_az_s, dop_bw, beta0, gamma0, sigma0):
         """
         Gets the frequency/polarization specific sicd.
 
@@ -470,7 +469,7 @@ class NISARDetails(object):
         grid_r : numpy.ndarray
         doprate_sampled : numpy.ndarray
         dopcentroid_sampled : numpy.ndarray
-        fc : float
+        center_freq : float
         ss_az_s : float
         dop_bw : float
 
@@ -517,9 +516,9 @@ class NISARDetails(object):
             coords_rg_m = grid_r - t_sicd.RMA.INCA.R_CA_SCP
             # determine dop_rate_poly coordinates
             dop_rate_poly = polynomial.polyfit(coords_rg_m, -doprate_sampled[min_ind, :], 4)  # why fourth order?
-            t_sicd.RMA.INCA.FreqZero = fc
+            t_sicd.RMA.INCA.FreqZero = center_freq
             t_sicd.RMA.INCA.DRateSFPoly = Poly2DType(Coefs=numpy.reshape(
-                -numpy.convolve(dop_rate_poly, r_ca_poly)*speed_of_light/(2*fc*vm_ca_sq), (1, -1)))
+                -numpy.convolve(dop_rate_poly, r_ca_poly)*speed_of_light/(2*center_freq*vm_ca_sq), (1, -1)))
 
             # update Grid.Col parameters
             t_sicd.Grid.Col.SS = numpy.sqrt(vm_ca_sq)*abs(ss_az_s)*t_sicd.RMA.INCA.DRateSFPoly.Coefs[0, 0]
@@ -652,7 +651,7 @@ class NISARDetails(object):
             for i, freq in enumerate(freqs):
                 gp_name = '/science/LSAR/SLC/swaths/frequency{}'.format(freq)
                 gp = hf[gp_name]
-                freq_sicd, pols, tx_rcv_pol, fc = self._get_freq_specific_sicd(gp, base_sicd)
+                freq_sicd, pols, tx_rcv_pol, center_freq = self._get_freq_specific_sicd(gp, base_sicd)
 
                 # formulate the frequency dependent doppler grid
                 # TODO: Future Change Required - processedAzimuthBandwidth acknowledged
@@ -669,7 +668,7 @@ class NISARDetails(object):
                     pol_sicd, shape = self._get_pol_specific_sicd(
                         hf, ds, freq_sicd, pol, freq, j, tx_rcv_pol[j],
                         r_ca_sampled, zd_time, grid_zd_time, grid_r,
-                        doprate_sampled, dopcentroid_sampled, fc,
+                        doprate_sampled, dopcentroid_sampled, center_freq,
                         ss_az_s, dop_bw, beta0, gamma0, sigma0)
                     out_sicds[ds_name] = pol_sicd
                     shapes[ds_name] = ds.shape[:2]
