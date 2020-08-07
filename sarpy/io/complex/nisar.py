@@ -635,7 +635,8 @@ class NISARDetails(object):
             # prepare our output workspace
             out_sicds = OrderedDict()
             shapes = OrderedDict()
-            symmetry = (False, base_sicd.SCPCOA.SideOfTrack == 'L', True)
+            # symmetry = (False, base_sicd.SCPCOA.SideOfTrack == 'L', True)
+            symmetry = (True, base_sicd.SCPCOA.SideOfTrack != 'L', True)
 
             # fetch the common use data for frequency issues
             collect_start, collect_end, duration = self._get_collection_times(hf)
