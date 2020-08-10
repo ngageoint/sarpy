@@ -456,8 +456,7 @@ class ICEYEDetails(object):
         sicd.derive()
         # TODO: RNIIRS?
         data_size = (image_data.NumCols, image_data.NumRows)
-        # TODO: check with Wade here
-        symmetry = (True, False, True) if look_side == 'left' else (True, True, True)
+        symmetry = (True, False, True) if look_side == 'left' else (False, False, True)
         return sicd, data_size, symmetry
 
 
