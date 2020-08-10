@@ -294,7 +294,7 @@ class ICEYEDetails(object):
             # fit the doppler centroid sample array
             # NB: matlab fits order 2, but the comments indicate order 3?
             t_dop_centroid_poly, residuals, rank, sing_values = two_dim_poly_fit(
-                range_scp_m, azimuth_scp_m, dc_sample_array, x_order=3, y_order=3,
+                range_scp_m, azimuth_scp_m, dc_sample_array, x_order=2, y_order=2,
                 x_scale=1e-3, y_scale=1e-3, rcond=1e-40)
             logging.info(
                 'The dop_centroid_poly fit details:\nroot mean square '
@@ -306,7 +306,7 @@ class ICEYEDetails(object):
             time_coa = dc_zd_times + dc_sample_array/doppler_rate_sampled
 
             t_time_coa_poly, residuals, rank, sing_values = two_dim_poly_fit(
-                range_scp_m, azimuth_scp_m, time_coa, x_order=3, y_order=3,
+                range_scp_m, azimuth_scp_m, time_coa, x_order=2, y_order=2,
                 x_scale=1e-3, y_scale=1e-3, rcond=1e-40)
             logging.info(
                 'The time_coa_poly fit details:\nroot mean square '
