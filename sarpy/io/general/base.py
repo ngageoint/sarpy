@@ -97,9 +97,9 @@ class BaseChipper(object):
         This describes necessary symmetry transformation to be performed to convert
         from raw (file storage) order into the order expected (analysis order).
 
-        * `flip1=True` - we reverse order in the first axis, wrt raw order.
+        * `flip1=True` - we reverse order in the first axis, with respect to the raw order.
 
-        * `flip2=True` - we reverse order in the second axis, wrt raw order).
+        * `flip2=True` - we reverse order in the second axis, with respect to the raw order.
 
         * `swap_axes=True` - we switch the two axes, after any required flipping.
         """

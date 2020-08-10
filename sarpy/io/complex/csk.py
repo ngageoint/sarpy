@@ -474,10 +474,9 @@ class CSKDetails(object):
     def _get_symmetry(base_sicd, h5_dict):
         line_order = h5_dict['Lines Order']
         column_order = h5_dict['Columns Order']
-        symmetry = (
-            (line_order == 'EARLY-LATE') != (base_sicd.SCPCOA.SideOfTrack == 'R'),
-            column_order != 'NEAR-FAR',
-            True)
+        symmetry = (column_order != 'NEAR-FAR',
+                    (line_order == 'EARLY-LATE') != (base_sicd.SCPCOA.SideOfTrack == 'R'),
+                    True)
         return symmetry
 
     def get_sicd_collection(self):
