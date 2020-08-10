@@ -57,7 +57,6 @@ class Reader(ReaderSuper):
                     self.sicdmeta = meta2sicd(ihdr[[0, 2, 1, 3, 4]], user_data)
                 elif not native_metadata['Image Parameters']['image illumination direction [top, left, bottom, right]'] == 'top':
                     ValueError('Unhandled illumination direction.')
-            # TODO: Convert CASPR metadata to SICD format and merge with other SICD metadata
             # self.sicdmeta.merge(meta2sicd_caspr(native_metadata))
             if not hasattr(self.sicdmeta, 'native'):
                 self.sicdmeta.native = sicd.MetaNode()

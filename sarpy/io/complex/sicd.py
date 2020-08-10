@@ -471,7 +471,6 @@ def complex_to_int(data):
     numpy.ndarray
     """
 
-    # TODO: this is naive. Scaling down to 16-bit limits requires thought.
     new_shape = _validate_input(data)
 
     if data.dtype.name == 'complex128':

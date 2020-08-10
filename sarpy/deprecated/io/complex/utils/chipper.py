@@ -15,7 +15,6 @@
 
 """
 
-# TODO: Should check_args go in __call__ rather than each derived class?
 
 import numpy as np
 
@@ -84,7 +83,6 @@ class Base():
 
     """
 
-    # TODO: Add decimation types
     def __call__(self, dim1range=None, dim2range=None):
         dim1range, dim2range = reorient_chipper_args(
             self.symmetry, self.datasize, dim1range, dim2range)

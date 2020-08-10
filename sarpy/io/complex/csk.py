@@ -224,7 +224,7 @@ class CSKDetails(object):
             T += ref_time_offset
             Pos = h5_dict['ECEF Satellite Position']
             Vel = h5_dict['ECEF Satellite Velocity']
-            P_x, P_y, P_z = fit_position_xvalidation(T, Pos, Vel, max_degree=6)
+            P_x, P_y, P_z = fit_position_xvalidation(T, Pos, Vel, max_degree=8)
             return PositionType(ARPPoly=XYZPolyType(X=P_x, Y=P_y, Z=P_z))
 
         def get_radar_collection():
