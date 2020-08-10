@@ -182,7 +182,7 @@ def _get_orthoiterator_description(ortho_iterator):
         _get_sicd_name(ortho_iterator.sicd))
 
 
-def _get_sicd_time_args(sicd, subdivisions=12):
+def _get_sicd_time_args(sicd, subdivisions=24):
     # type: (SICDType, Union[int, None]) -> (dict, Union[None, numpy.ndarray])
     """
     Fetch the SICD time arguments and array.
