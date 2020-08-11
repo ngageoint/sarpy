@@ -358,7 +358,7 @@ class Writer(WriterSuper):
         self.fid.write(('%02d' % abpp).encode())
         self.fid.write(b'R')
         self.fid.write(b'G')
-        # TODO: The corner lat/lons used here aren't really right for the case of
+        # NB: The corner lat/lons used here aren't really right for the case of
         #   multiple image segments, since GeoData.ImageCorners describes the
         #   entire image, not each segment.  However, these fields in the image
         #   subheader aren't really used by any tool we know anyway, since all SICD
@@ -1732,7 +1732,6 @@ def derived_fields(meta, set_default_values=True):
                     pol_ref_pos = ARP
                     if hasattr(meta, 'SCPCOA') and hasattr(meta.SCPCOA, 'SCPTime'):
                         meta.PFA.PolarAngRefTime = meta.SCPCOA.SCPTime
-                # TODO: PolarAngPoly, SpatialFreqSFPoly
                 if (hasattr(meta.PFA, 'IPN') and hasattr(meta.PFA, 'FPN') and
                    not hasattr(meta.Grid.Row, 'UVectECF') and
                    not hasattr(meta.Grid.Col, 'UVectECF')):

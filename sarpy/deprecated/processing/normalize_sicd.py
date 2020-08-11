@@ -112,7 +112,6 @@ def deweightmem(input_data, weight_fun=None, oversample_rate=1, dim=1):
     This implementation assumes that the data has already been "deskewed" and
     that the frequency support is centered.
     """
-    # TODO: Test this function
 
     # Weighting only valid across ImpRespBW
     weight_size = round(input_data.shape[dim]/oversample_rate)

@@ -399,7 +399,7 @@ class RadarSatDetails(object):
                         dtype=numpy.float64)[:, numpy.newaxis],
             numpy.array([float(state_vec.find('zVelocity').text) for state_vec in state_vectors],
                         dtype=numpy.float64)[:, numpy.newaxis]))
-        P_x, P_y, P_z = fit_position_xvalidation(T, Pos, Vel, max_degree=6)
+        P_x, P_y, P_z = fit_position_xvalidation(T, Pos, Vel, max_degree=8)
 
         return PositionType(ARPPoly=XYZPolyType(X=P_x, Y=P_y, Z=P_z))
 
