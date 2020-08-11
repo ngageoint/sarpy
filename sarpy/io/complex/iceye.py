@@ -218,7 +218,7 @@ class ICEYEDetails(object):
             positions[:, 0], positions[:, 1], positions[:, 2] = hf['posX'][:], hf['posY'][:], hf['posZ'][:]
             velocities[:, 0], velocities[:, 1], velocities[:, 2] = hf['velX'][:], hf['velY'][:], hf['velZ'][:]
             # fir the the position polynomial using cross validation
-            P_x, P_y, P_z = fit_position_xvalidation(times, positions, velocities, max_degree=10)
+            P_x, P_y, P_z = fit_position_xvalidation(times, positions, velocities, max_degree=8)
             return PositionType(ARPPoly=XYZPolyType(X=P_x, Y=P_y, Z=P_z))
 
         def get_radar_collection():
@@ -267,8 +267,7 @@ class ICEYEDetails(object):
             t_drate_ca_poly = dop_rate_poly.shift(
                 t_0=zd_ref_time - rg_time_scp,
                 alpha=2/speed_of_light, return_poly=False)
-            return t_drate_ca_poly, -numpy.convolve(
-                t_drate_ca_poly, r_ca_coeffs)*speed_of_light/(2*center_freq*vm_ca_sq)
+            return t_drate_ca_poly, -polynomial.polymul(t_drate_ca_poly, r_ca_coeffs)*speed_of_light/(2*center_freq*vm_ca_sq)
 
         def calculate_doppler_polys():
             # extract doppler centroid coefficients
@@ -292,9 +291,11 @@ class ICEYEDetails(object):
                 (diff_time_rg + zd_ref_time - rg_time_scp)*speed_of_light/2)
 
             # fit the doppler centroid sample array
-            # NB: matlab fits order 2, but the comments indicate order 3?
+            x_order = min(3, range_scp_m.shape[0]-1)
+            y_order = min(3, range_scp_m.shape[1]-1)
+
             t_dop_centroid_poly, residuals, rank, sing_values = two_dim_poly_fit(
-                range_scp_m, azimuth_scp_m, dc_sample_array, x_order=2, y_order=2,
+                range_scp_m, azimuth_scp_m, dc_sample_array, x_order=x_order, y_order=y_order,
                 x_scale=1e-3, y_scale=1e-3, rcond=1e-40)
             logging.info(
                 'The dop_centroid_poly fit details:\nroot mean square '
@@ -302,12 +303,10 @@ class ICEYEDetails(object):
                     residuals, rank, sing_values))
 
             # define and fit the time coa array
-            # time_coa = dc_zd_times + dc_sample_array/drate_sf_poly_coefs[0]  # TODO: from Wade...
-            doppler_rate_sampled = polynomial.polyval(azimuth_scp_m, drate_ca_poly)  # TODO: added instead?
+            doppler_rate_sampled = polynomial.polyval(azimuth_scp_m, drate_ca_poly)
             time_coa = dc_zd_times + dc_sample_array/doppler_rate_sampled
-
             t_time_coa_poly, residuals, rank, sing_values = two_dim_poly_fit(
-                range_scp_m, azimuth_scp_m, time_coa, x_order=2, y_order=2,
+                range_scp_m, azimuth_scp_m, time_coa, x_order=x_order, y_order=y_order,
                 x_scale=1e-3, y_scale=1e-3, rcond=1e-40)
             logging.info(
                 'The time_coa_poly fit details:\nroot mean square '

@@ -72,7 +72,6 @@ class FrameGenerator(object):
     def ortho_image(self, output_path):
 
         ro = self.sarpy_reader
-        # TODO Update to use x and y
         dec = self.decimation_x
         pix = self.numpy_data[0]
         chain_name = 'save_ortho'
