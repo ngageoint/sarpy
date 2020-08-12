@@ -131,7 +131,7 @@ class DeskewCalculator(FullResolutionFetcher):
         '_row_fft_sgn', '_col_fft_sgn',
         '_row_shift', '_row_mult', '_col_shift', '_col_mult',
         '_row_weight', '_row_pad', '_col_weight', '_col_pad',
-        '_is_not_skewed_row', '_is_not_skewed_col',
+        '_is_normalized', '_is_not_skewed_row', '_is_not_skewed_col',
         '_is_uniform_weight_row', '_is_uniform_weight_col', )
 
     def __init__(self, reader, dimension=1, index=0):
@@ -147,6 +147,7 @@ class DeskewCalculator(FullResolutionFetcher):
         self._row_pad = None
         self._col_weight = None
         self._col_pad = None
+        self._is_normalized = None
         self._is_not_skewed_row = None
         self._is_not_skewed_col = None
         self._is_uniform_weight_row = None
@@ -185,6 +186,7 @@ class DeskewCalculator(FullResolutionFetcher):
         self._row_weight = the_sicd.Grid.Row.WgtFunct.copy() if the_sicd.Grid.Row.WgtFunct is not None else None
         self._col_pad = max(1, 1/(the_sicd.Grid.Col.SS*the_sicd.Grid.Col.ImpRespBW))
         self._col_weight = the_sicd.Grid.Col.WgtFunct.copy() if the_sicd.Grid.Col.WgtFunct is not None else None
+        self._is_normalized = is_normalized(the_sicd, self.dimension)
         self._is_not_skewed_row = _is_not_skewed(the_sicd, 0)
         self._is_not_skewed_col = _is_not_skewed(the_sicd, 1)
         self._is_uniform_weight_row = _is_uniform_weight(the_sicd, 0)
@@ -222,6 +224,10 @@ class DeskewCalculator(FullResolutionFetcher):
         -------
         numpy.ndarray
         """
+
+        if self._is_normalized:
+            # just fetch the data and return
+            return self.reader.__getitem__(item)
 
         # parse the slicing to ensure consistent structure
         row_range, col_range, _ = self._parse_slicing(item)
@@ -314,8 +320,9 @@ def _deskew_array(input_data, delta_kcoa_poly_int, row_array, col_array, fft_sgn
     numpy.ndarray
     """
 
+    col_2d, row_2d = numpy.meshgrid(col_array, row_array)
     return input_data*numpy.exp(1j*fft_sgn*2*numpy.pi*polynomial.polyval2d(
-        row_array, col_array, delta_kcoa_poly_int))
+        row_2d, col_2d, delta_kcoa_poly_int))
 
 
 def _deweight_array(input_data, weight_array, oversample_rate, dimension):
