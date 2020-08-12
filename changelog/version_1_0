@@ -1,5 +1,6 @@
 # This details the important differences introduced in sarpy 1.0
 
+* .48 - Making SICD normalization methods more robust
 * .47 - Tidy up ICEYE parameter values
 * .46 - Tidy up chipper argument values
 * .45 - Introduced ICEYE reading capability
