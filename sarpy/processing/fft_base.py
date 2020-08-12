@@ -19,10 +19,10 @@ import numpy
 import scipy
 if scipy.__version__ < '1.4':
     # noinspection PyUnresolvedReferences
-    from scipy.fftpack import fft, ifft, fftshift
+    from scipy.fftpack import fft, ifft, fftshift, ifftshift
 else:
     # noinspection PyUnresolvedReferences
-    from scipy.fft import fft, ifft, fftshift
+    from scipy.fft import fft, ifft, fftshift, ifftshift
 
 
 class FFTCalculator(FullResolutionFetcher):
