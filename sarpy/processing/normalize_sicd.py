@@ -240,15 +240,15 @@ class DeskewCalculator(FullResolutionFetcher):
                self.index]
         # de-weight in each applicable direction
         if self._is_not_skewed_row and not self._is_uniform_weight_row:
-            full_data = _deweight_array(full_data, self._row_weight, self._row_weight, 0)
+            full_data = _deweight_array(full_data, self._row_weight, self._row_pad, 0)
         if self._is_not_skewed_col and not self._is_uniform_weight_col:
-            full_data = _deweight_array(full_data, self._col_weight, self._col_weight, 1)
+            full_data = _deweight_array(full_data, self._col_weight, self._col_pad, 1)
         # deskew in our given dimension
         if self.dimension == 0 and not self._is_not_skewed_row:
             row_array, col_array = self._get_index_arrays(row_range, row_step, col_range, col_step)
             full_data = _deskew_array(full_data, self._delta_kcoa_poly_int, row_array, col_array, self._row_fft_sgn)
             # the weighting in dimension 1 may have shifted, so re-weight
-            full_data = _deweight_array(full_data, self._col_weight, self._col_weight, 1)
+            full_data = _deweight_array(full_data, self._col_weight, self._col_pad, 1)
             if numpy.any(self._delta_kcoa_poly_new != 0):
                 full_data = _deskew_array(
                     full_data, polynomial.polyint(self._delta_kcoa_poly_new, axis=1), row_array, col_array, self._col_fft_sgn)
@@ -256,7 +256,7 @@ class DeskewCalculator(FullResolutionFetcher):
             row_array, col_array = self._get_index_arrays(row_range, row_step, col_range, col_step)
             full_data = _deskew_array(full_data, self._delta_kcoa_poly_int, row_array, col_array, self._col_fft_sgn)
             # the weighting in dimension 0 may have shifted, so re-weight
-            full_data = _deweight_array(full_data, self._row_weight, self._row_weight, 0)
+            full_data = _deweight_array(full_data, self._row_weight, self._row_pad, 0)
             if numpy.any(self._delta_kcoa_poly_new != 0):
                 full_data = _deskew_array(
                     full_data, polynomial.polyint(self._delta_kcoa_poly_new, axis=0), row_array, col_array, self._row_fft_sgn)
