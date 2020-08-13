@@ -784,7 +784,7 @@ def _validate_coords(coords):
 
 def _ground_to_image(coords, coa_proj, uGPN,
                      ref_point, ref_pixel, uIPN, sf, row_ss, col_ss, uProj,
-                     row_col_transform, ipp_transform, delta_gp_max, max_iterations):
+                     row_col_transform, ipp_transform, tolerance, max_iterations):
     """
     Basic level helper function.
 
@@ -802,7 +802,7 @@ def _ground_to_image(coords, coa_proj, uGPN,
     uProj : numpy.ndarray
     row_col_transform : numpy.ndarray
     ipp_transform : numpy.ndarray
-    delta_gp_max : float
+    tolerance : float
     max_iterations : int
 
     Returns
@@ -837,14 +837,14 @@ def _ground_to_image(coords, coa_proj, uGPN,
         diff_n = coords - p_n
         delta_gpn[:] = numpy.linalg.norm(diff_n, axis=1)
         # should we continue iterating?
-        cont = numpy.any(delta_gpn > delta_gp_max) and (iteration < max_iterations)
+        cont = numpy.any(delta_gpn > tolerance) and (iteration < max_iterations)
         if cont:
             g_n += diff_n
 
     return im_points, delta_gpn, iteration
 
 
-def ground_to_image(coords, structure, delta_gp_max=None, max_iterations=10, block_size=50000,
+def ground_to_image(coords, structure, tolerance=1e-2, max_iterations=10, block_size=50000,
                     use_structure_coa=True, **coa_args):
     """
     Transforms a 3D ECF point to pixel (row/column) coordinates. This is
@@ -857,9 +857,8 @@ def ground_to_image(coords, structure, delta_gp_max=None, max_iterations=10, blo
         ECF coordinate to map to scene coordinates, of size `N x 3`.
     structure : sarpy.io.complex.sicd_elements.SICD.SICDType|sarpy.io.product.sidd2_elements.SIDD.SIDDType|sarpy.io.product.sidd1_elements.SIDD.SIDDType
         The SICD or SIDD data structure.
-    delta_gp_max : float|None
-        Ground plane displacement tol (m). Defaults to 0.01*pixel. A minimum of
-        1e-6 will be enforced.
+    tolerance : float|int
+        Ground plane displacement tol (m).
     max_iterations : int
         maximum number of iterations to perform
     block_size : int|None
@@ -896,13 +895,11 @@ def ground_to_image(coords, structure, delta_gp_max=None, max_iterations=10, blo
     row_col_transform[:, 1] = uCol
     sf = float(numpy.dot(uSPN, uIPN))  # scale factor
 
-    if delta_gp_max is None:
-        pixel_size = float(numpy.sqrt(row_ss*row_ss + col_ss*col_ss))
-        delta_gp_max = 0.01*pixel_size
-    if delta_gp_max < 1e-6:
-        delta_gp_max = 1e-6
-        logging.warning('delta_gp_max was less than 1e-6 meters, '
-                        'and has been reset to {}'.format(delta_gp_max))
+    tolerance = float(tolerance)
+    if tolerance < 1e-12:
+        logging.warning(
+            'minimum allowed tolerance is 1e-12 meters, resetting from {}'.format(tolerance))
+        tolerance = 1e-12
 
     # prepare the work space
     coords_view = numpy.reshape(coords, (-1, 3))  # possibly or make 2-d flatten
@@ -911,7 +908,7 @@ def ground_to_image(coords, structure, delta_gp_max=None, max_iterations=10, blo
         image_points, delta_gpn, iters = _ground_to_image(
             coords_view, coa_proj, uGPN,
             ref_point, ref_pixel, uIPN, sf, row_ss, col_ss, uSPN,
-            row_col_transform, ipp_transform, delta_gp_max, max_iterations)
+            row_col_transform, ipp_transform, tolerance, max_iterations)
         iters = numpy.full((num_points, ), iters)
     else:
         image_points = numpy.zeros((num_points, 2), dtype='float64')
@@ -926,7 +923,7 @@ def ground_to_image(coords, structure, delta_gp_max=None, max_iterations=10, blo
                 iters[start_block:end_block] = _ground_to_image(
                     coords_view[start_block:end_block, :], coa_proj, uGPN,
                     ref_point, ref_pixel, uIPN, sf, row_ss, col_ss, uSPN,
-                    row_col_transform, ipp_transform, delta_gp_max, max_iterations)
+                    row_col_transform, ipp_transform, tolerance, max_iterations)
             start_block = end_block
 
     if len(orig_shape) == 1:
@@ -1237,7 +1234,7 @@ def image_to_ground_plane(
 
 def _image_to_ground_hae_perform(
         r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa, ref_point, ugpn,
-        hae0, delta_hae_max, hae_iters, ref_hae):
+        hae0, tolerance, max_iterations, ref_hae):
     """
     Intermediate helper method.
 
@@ -1250,8 +1247,8 @@ def _image_to_ground_hae_perform(
     ref_point : numpy.ndarray
     ugpn : numpy.ndarray
     hae0 : float
-    delta_hae_max : float
-    hae_iters : int
+    tolerance : float
+    max_iterations : int
     ref_hae : float
 
     Returns
@@ -1276,7 +1273,7 @@ def _image_to_ground_hae_perform(
         delta_hae = gpp_llh[:, 2] - hae0
         max_abs_delta_hae = numpy.max(numpy.abs(delta_hae))
         # should we stop our iteration?
-        cont = (max_abs_delta_hae > delta_hae_max) and (iters <= hae_iters)
+        cont = (max_abs_delta_hae > tolerance) and (iters <= max_iterations)
         if cont:
             gref = gpp - (delta_hae[:, numpy.newaxis] * ugpn)
     # Compute the unit slant plane normal vector, uspn, that is tangent to the R/Rdot contour at point gpp
@@ -1296,7 +1293,7 @@ def _image_to_ground_hae_perform(
 
 
 def _image_to_ground_hae(
-        im_points, coa_projection, hae0, delta_hae_max, hae_iters, ref_hae, ref_point):
+        im_points, coa_projection, hae0, tolerance, max_iterations, ref_hae, ref_point):
     """
     Intermediate helper function for projection.
 
@@ -1306,8 +1303,8 @@ def _image_to_ground_hae(
         the image coordinate array
     coa_projection : COAProjection
     hae0 : float
-    delta_hae_max : float
-    hae_iters : int
+    tolerance : float
+    max_iterations : int
     ref_hae : float
     ref_point : numpy.ndarray
 
@@ -1321,11 +1318,11 @@ def _image_to_ground_hae(
     ugpn = wgs_84_norm(ref_point)
     return _image_to_ground_hae_perform(
         r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa, ref_point, ugpn,
-        hae0, delta_hae_max, hae_iters, ref_hae)
+        hae0, tolerance, max_iterations, ref_hae)
 
 
 def image_to_ground_hae(im_points, structure, block_size=50000,
-                        hae0=None, delta_hae_max=0.1, hae_iters=10, use_structure_coa=True, **coa_args):
+                        hae0=None, tolerance=1e-3, max_iterations=10, use_structure_coa=True, **coa_args):
     """
     Transforms image coordinates to ground plane ECF coordinate via the algorithm(s)
     described in SICD Image Projections document.
@@ -1342,10 +1339,9 @@ def image_to_ground_hae(im_points, structure, block_size=50000,
     hae0 : None|float|int
         Surface height (m) above the WGS-84 reference ellipsoid for projection point.
         Defaults to HAE at the SCP or Reference Point.
-    delta_hae_max : None|float|int
+    tolerance : float|int
         Height threshold for convergence of iterative constant HAE computation (m).
-        Defaults to 0.1.
-    hae_iters : int
+    max_iterations : int
         Maximum number of iterations allowed for constant hae computation.
     use_structure_coa : bool
         If structure.coa_projection is populated, use that one **ignoring the COAProjection parameters.**
@@ -1363,19 +1359,19 @@ def image_to_ground_hae(im_points, structure, block_size=50000,
     im_points, orig_shape = _validate_im_points(im_points)
     coa_proj = _get_coa_projection(structure, use_structure_coa, **coa_args)
 
-    if delta_hae_max is None:
-        delta_hae_max = 0.1
-    delta_hae_max = float(delta_hae_max)
-    if delta_hae_max < 1e-6:
-        delta_hae_max = 1e-6
+    tolerance = float(tolerance)
+    if tolerance < 1e-12:
+        tolerance = 1e-12
         logging.warning(
-            'delta_hae_max must be at least 1e-6 (1 micrometer). Got {0:8f}'.format(delta_hae_max))
+            'minimum allowed tolerance is 1e-12, resetting from {0:8f}'.format(tolerance))
 
-    if hae_iters is None:
-        hae_iters = 10
-    hae_iters = int(hae_iters)
-    if hae_iters <= 0:
-        raise ValueError('hae_iters must be a positive integer. Got {}'.format(hae_iters))
+    max_iterations = int(max_iterations)
+    if max_iterations < 1:
+        logging.error('max_iterations must be a positive integer, resetting to 1 from {}'.format(max_iterations))
+        max_iterations = 1
+    if max_iterations > 100:
+        logging.error('maximum allowed max_iterations is 100, resetting from {}'.format(max_iterations))
+        max_iterations = 100
 
     # method parameter validation
     ref_point = _get_reference_point(structure)
@@ -1388,7 +1384,7 @@ def image_to_ground_hae(im_points, structure, block_size=50000,
     im_points_view = numpy.reshape(im_points, (-1, 2))  # possibly or make 2-d flatten
     num_points = im_points_view.shape[0]
     if block_size is None or num_points <= block_size:
-        coords = _image_to_ground_hae(im_points_view, coa_proj, hae0, delta_hae_max, hae_iters, ref_hae, ref_point)
+        coords = _image_to_ground_hae(im_points_view, coa_proj, hae0, tolerance, max_iterations, ref_hae, ref_point)
     else:
         coords = numpy.zeros((num_points, 3), dtype='float64')
         # proceed with block processing
@@ -1396,7 +1392,7 @@ def image_to_ground_hae(im_points, structure, block_size=50000,
         while start_block < num_points:
             end_block = min(start_block + block_size, num_points)
             coords[start_block:end_block, :] = _image_to_ground_hae(
-                im_points_view[start_block:end_block], coa_proj, hae0, delta_hae_max, hae_iters, ref_hae, ref_point)
+                im_points_view[start_block:end_block], coa_proj, hae0, tolerance, max_iterations, ref_hae, ref_point)
             start_block = end_block
 
     if len(orig_shape) == 1:
@@ -1433,21 +1429,21 @@ def _image_to_ground_dem(
     # get (image formation specific) projection parameters
     r_tgt_coa, r_dot_tgt_coa, time_coa, arp_coa, varp_coa = coa_projection.projection(im_points)
     ugpn = wgs_84_norm(ref_point)  # TODO: this should be a parameter?
-    delta_hae_max = 1
-    hae_iters = 5
+    tolerance = 1e-3
+    max_iterations = 10
 
     # if max_dem - min_dem is sufficiently small, then just do the simplest thing
     if max_dem - min_dem < 1:
         return _image_to_ground_hae_perform(
             r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa, ref_point, ugpn, max_dem,
-            delta_hae_max, hae_iters, ref_hae)
+            tolerance, max_iterations, ref_hae)
     # get projection to hae at high/low points
     coords_high = _image_to_ground_hae_perform(
         r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa, ref_point, ugpn, max_dem,
-        delta_hae_max, hae_iters, ref_hae)
+        tolerance, max_iterations, ref_hae)
     coords_low = _image_to_ground_hae_perform(
         r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa, ref_point, ugpn, min_dem,
-        delta_hae_max, hae_iters, ref_hae)
+        tolerance, max_iterations, ref_hae)
     ecf_diffs = coords_low - coords_high
     dists = numpy.linalg.norm(ecf_diffs, axis=1)
     # NB: the proper projection point will be the HIGHEST point
