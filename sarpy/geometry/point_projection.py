@@ -836,10 +836,10 @@ def _ground_to_image(coords, coa_proj, uGPN,
         # compute displacement between scene point and this new projected point
         diff_n = coords - p_n
         delta_gpn[:] = numpy.linalg.norm(diff_n, axis=1)
+        g_n += diff_n
+
         # should we continue iterating?
         cont = numpy.any(delta_gpn > tolerance) and (iteration < max_iterations)
-        if cont:
-            g_n += diff_n
 
     return im_points, delta_gpn, iteration
 
@@ -1272,10 +1272,10 @@ def _image_to_ground_hae_perform(
         gpp_llh = ecf_to_geodetic(gpp)
         delta_hae = gpp_llh[:, 2] - hae0
         max_abs_delta_hae = numpy.max(numpy.abs(delta_hae))
+        gref = gpp - (delta_hae[:, numpy.newaxis] * ugpn)
         # should we stop our iteration?
-        cont = (max_abs_delta_hae > tolerance) and (iters <= max_iterations)
-        if cont:
-            gref = gpp - (delta_hae[:, numpy.newaxis] * ugpn)
+        cont = (max_abs_delta_hae > tolerance) and (iters < max_iterations)
+
     # Compute the unit slant plane normal vector, uspn, that is tangent to the R/Rdot contour at point gpp
     uspn = numpy.cross(varp_coa, (gpp - arp_coa))*look[:, numpy.newaxis]
     uspn /= numpy.linalg.norm(uspn, axis=-1)[:, numpy.newaxis]
