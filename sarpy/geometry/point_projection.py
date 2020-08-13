@@ -1361,9 +1361,9 @@ def image_to_ground_hae(im_points, structure, block_size=50000,
 
     tolerance = float(tolerance)
     if tolerance < 1e-12:
-        tolerance = 1e-12
         logging.warning(
             'minimum allowed tolerance is 1e-12, resetting from {0:8f}'.format(tolerance))
+        tolerance = 1e-12
 
     max_iterations = int(max_iterations)
     if max_iterations < 1:
