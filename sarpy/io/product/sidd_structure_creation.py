@@ -214,10 +214,10 @@ def create_sidd_structure_v2(ortho_helper, bounds, product_class, pixel_type):
     # ExploitationFeatures
     exploit_feats = _create_exploitation_v2(ortho_helper)
     return SIDDType2(ProductCreation=prod_create,
-                    GeoData=geo_data,
-                    Display=display,
-                    Measurement=measurement,
-                    ExploitationFeatures=exploit_feats)
+                     GeoData=geo_data,
+                     Display=display,
+                     Measurement=measurement,
+                     ExploitationFeatures=exploit_feats)
 
 
 ##########################
