@@ -198,7 +198,8 @@ def _get_sicd_type_specific_projection(sicd):
             R_CA_TGT = r_ca_scp + row_transform  # Range at closest approach
             t_CA_TGT = time_ca_poly(col_transform)  # Time of closest approach
             # Compute ARP velocity magnitude (actually squared, since that's how it's used) at t_CA_TGT
-            VEL2_CA_TGT = numpy.sum(instance.varp_poly(t_CA_TGT)**2, axis=-1)
+            # noinspection PyProtectedMember
+            VEL2_CA_TGT = numpy.sum(instance._varp_poly(t_CA_TGT)**2, axis=-1)
             # Compute the Doppler Rate Scale Factor for image Grid location
             DRSF_TGT = drate_sf_poly(row_transform, col_transform)
             # Difference between COA time and CA time

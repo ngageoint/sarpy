@@ -4,8 +4,9 @@ The SIDDType 2.0 definition.
 """
 
 import logging
-from typing import Union
+from typing import Union, Tuple
 from collections import OrderedDict
+import numpy
 
 # noinspection PyProtectedMember
 from sarpy.io.complex.sicd_elements.base import Serializable, _SerializableDescriptor, DEFAULT_STRICT
@@ -252,6 +253,7 @@ class SIDDType(Serializable):
                 'Formulating a projection is only supported for PlaneProjection, '
                 'got {}.'.format(self.Measurement.ProjectionType))
             return False
+        return True
 
     def define_coa_projection(self, delta_arp=None, delta_varp=None, range_bias=None,
                               adj_params_frame='ECF', overide=True):

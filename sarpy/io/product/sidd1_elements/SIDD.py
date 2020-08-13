@@ -231,6 +231,7 @@ class SIDDType(Serializable):
                 'Formulating a projection is only supported for PlaneProjection, '
                 'got {}.'.format(self.Measurement.ProjectionType))
             return False
+        return True
 
     def define_coa_projection(self, delta_arp=None, delta_varp=None, range_bias=None,
                               adj_params_frame='ECF', overide=True):
