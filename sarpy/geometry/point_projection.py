@@ -1274,12 +1274,11 @@ def _image_to_ground_hae_perform(
         # check our hae value versus hae0
         gpp_llh = ecf_to_geodetic(gpp)
         delta_hae = gpp_llh[:, 2] - hae0
-        abs_delta_hae = numpy.abs(delta_hae)
+        max_abs_delta_hae = numpy.max(numpy.abs(delta_hae))
         # should we stop our iteration?
-        cont = numpy.all(abs_delta_hae > delta_hae_max) and (iters <= hae_iters)
+        cont = (max_abs_delta_hae > delta_hae_max) and (iters <= hae_iters)
         if cont:
-            delta_hae_min = delta_hae[numpy.argmin(abs_delta_hae)]
-            gref -= delta_hae_min*ugpn
+            gref = gpp - (delta_hae[:, numpy.newaxis] * ugpn)
     # Compute the unit slant plane normal vector, uspn, that is tangent to the R/Rdot contour at point gpp
     uspn = numpy.cross(varp_coa, (gpp - arp_coa))*look[:, numpy.newaxis]
     uspn /= numpy.linalg.norm(uspn, axis=-1)[:, numpy.newaxis]
