@@ -495,7 +495,6 @@ class SICDType(Serializable):
             return 'UN'
         return self.ImageFormation.get_polarization()
 
-
     def apply_reference_frequency(self, reference_frequency):
         """
         If the reference frequency is used, adjust the necessary fields accordingly.
@@ -728,7 +727,7 @@ class SICDType(Serializable):
         if self._coa_projection is not None and not overide:
             return
 
-        self._coa_projection = point_projection.COAProjection(
+        self._coa_projection = point_projection.COAProjection.from_sicd(
             self, delta_arp=delta_arp, delta_varp=delta_varp, range_bias=range_bias,
             adj_params_frame=adj_params_frame)
 
@@ -758,7 +757,8 @@ class SICDType(Serializable):
         sarpy.geometry.point_projection.ground_to_image
         """
 
-        kwargs['use_sicd_coa'] = True
+        if 'use_structure_coa' not in kwargs:
+            kwargs['use_structure_coa'] = True
         return point_projection.ground_to_image(coords, self, **kwargs)
 
     def project_ground_to_image_geo(self, coords, ordering='latlong', **kwargs):
@@ -791,7 +791,8 @@ class SICDType(Serializable):
         sarpy.geometry.point_projection.ground_to_image_geo
         """
 
-        kwargs['use_sicd_coa'] = True
+        if 'use_structure_coa' not in kwargs:
+            kwargs['use_structure_coa'] = True
         return point_projection.ground_to_image_geo(coords, self, ordering=ordering, **kwargs)
 
     def project_image_to_ground(self, im_points, projection_type='HAE', **kwargs):
@@ -818,7 +819,8 @@ class SICDType(Serializable):
         sarpy.geometry.point_projection.image_to_ground
         """
 
-        kwargs['use_sicd_coa'] = True
+        if 'use_structure_coa' not in kwargs:
+            kwargs['use_structure_coa'] = True
         return point_projection.image_to_ground(
             im_points, self, projection_type=projection_type, **kwargs)
 
@@ -848,7 +850,8 @@ class SICDType(Serializable):
         sarpy.geometry.point_projection.image_to_ground_geo
         """
 
-        kwargs['use_sicd_coa'] = True
+        if 'use_structure_coa' not in kwargs:
+            kwargs['use_structure_coa'] = True
         return point_projection.image_to_ground_geo(
             im_points, self, ordering=ordering, projection_type=projection_type, **kwargs)
 
