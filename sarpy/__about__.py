@@ -27,7 +27,7 @@ __all__ = ['__version__',
            '__license__', '__copyright__']
 
 
-__version__ = "1.0.49"
+__version__ = "1.0.50"
 
 
 __classification__ = "UNCLASSIFIED"  # This should be set appropriately in any high-side version
@@ -37,8 +37,8 @@ __email__ = "Wade.C.Schwartzkopf@nga.mil"
 
 
 __title__ = "sarpy"
-__summary__ = "Python tools for reading, writing, and simple processing of complex SAR data and other " \
-              "associated data."
+__summary__ = "Python tools for reading, writing, and simple processing of complex " \
+              "SAR data and other associated data."
 
 
 __license__ = "MIT License"
