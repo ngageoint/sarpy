@@ -126,7 +126,7 @@ class DeskewCalculator(FullResolutionFetcher):
     """
 
     __slots__ = (
-        '_apply_deweighting', '_delta_kcoa_poly_int', '_delta_kcoa_poly_new',
+        '_apply_deweighting', '_delta_kcoa_poly_axis', '_delta_kcoa_poly_off_axis',
         '_row_fft_sgn', '_col_fft_sgn',
         '_row_shift', '_row_mult', '_col_shift', '_col_mult',
         '_row_weight', '_row_pad', '_col_weight', '_col_pad',
@@ -135,8 +135,8 @@ class DeskewCalculator(FullResolutionFetcher):
 
     def __init__(self, reader, dimension=1, index=0, apply_deweighting=False):
         self._apply_deweighting = apply_deweighting
-        self._delta_kcoa_poly_int = None
-        self._delta_kcoa_poly_new = None
+        self._delta_kcoa_poly_axis = None
+        self._delta_kcoa_poly_off_axis = None
         self._row_fft_sgn = None
         self._row_shift = None
         self._row_mult = None
@@ -172,12 +172,18 @@ class DeskewCalculator(FullResolutionFetcher):
         self._sicd = the_sicd
         row_delta_kcoa_poly, self._row_fft_sgn = _get_deskew_params(the_sicd, 0)
         col_delta_kcoa_poly, self._col_fft_sgn = _get_deskew_params(the_sicd, 1)
+
+        # TODO: what if the off axis delta_kcoa_poly is not [[0, ], ] to start with? We just add them?
         if self.dimension == 0:
-            self._delta_kcoa_poly_int = polynomial.polyint(row_delta_kcoa_poly, axis=0)
-            self._delta_kcoa_poly_new = -polynomial.polyder(self._delta_kcoa_poly_int, axis=1)
+            self._delta_kcoa_poly_axis = row_delta_kcoa_poly
+            # TODO: what if
+            delta_kcoa_poly_int = polynomial.polyint(row_delta_kcoa_poly, axis=0)
+            self._delta_kcoa_poly_off_axis = -polynomial.polyder(delta_kcoa_poly_int, axis=1)
         else:
-            self._delta_kcoa_poly_int = polynomial.polyint(col_delta_kcoa_poly, axis=1)
-            self._delta_kcoa_poly_new = -polynomial.polyder(self._delta_kcoa_poly_int, axis=0)
+            self._delta_kcoa_poly_axis = col_delta_kcoa_poly
+            delta_kcoa_poly_int = polynomial.polyint(col_delta_kcoa_poly, axis=1)
+            self._delta_kcoa_poly_off_axis = -polynomial.polyder(delta_kcoa_poly_int, axis=0)
+
         self._row_shift = the_sicd.ImageData.SCPPixel.Row - the_sicd.ImageData.FirstRow
         self._row_mult = the_sicd.Grid.Row.SS
         self._col_shift = the_sicd.ImageData.SCPPixel.Col - the_sicd.ImageData.FirstCol
@@ -225,20 +231,23 @@ class DeskewCalculator(FullResolutionFetcher):
         numpy.ndarray
         """
 
+        def on_axis_deskew(t_full_data, fft_sgn):
+            return _deskew_array(
+                t_full_data, self._delta_kcoa_poly_axis, row_array, col_array, fft_sgn, self.dimension)
+
         def other_axis_deskew(t_full_data, fft_sgn):
             # We cannot generally deskew in both directions at once, but we
             # can recenter the nonskewed dimension with a uniform shift
-            if numpy.any(self._delta_kcoa_poly_new != 0):
+            if numpy.any(self._delta_kcoa_poly_off_axis != 0):
                 # get deltakcoa at midpoint, and treat as a constant polynomial
                 row_mid = row_array[int_func(round(0.5 * row_array.size)) - 1]
                 col_mid = col_array[int_func(round(0.5 * col_array.size)) - 1]
                 delta_kcoa_new_const = numpy.zeros((1, 1), dtype='float64')
                 delta_kcoa_new_const[0, 0] = polynomial.polyval2d(
-                    row_mid, col_mid, self._delta_kcoa_poly_new)
+                    row_mid, col_mid, self._delta_kcoa_poly_off_axis)
                 # apply this uniform shift
                 t_full_data = _deskew_array(
-                    t_full_data, polynomial.polyint(delta_kcoa_new_const, axis=1 - self.dimension),
-                    row_array, col_array, fft_sgn)
+                    t_full_data, delta_kcoa_new_const, row_array, col_array, fft_sgn, 1-self.dimension)
             return t_full_data
 
         if self._is_normalized:
@@ -260,23 +269,16 @@ class DeskewCalculator(FullResolutionFetcher):
         if self._apply_deweighting and self._is_not_skewed_col and not self._is_uniform_weight_col:
             full_data = _deweight_array(full_data, self._col_weight, self._col_pad, 1)
         # deskew in our given dimension
+        row_array, col_array = self._get_index_arrays(row_range, row_step, col_range, col_step)
         if self.dimension == 0 and not self._is_not_skewed_row:
-            row_array, col_array = self._get_index_arrays(row_range, row_step, col_range, col_step)
-            # the weighting in dimension 1 may have shifted, so re-weight
-            if self._apply_deweighting:
-                full_data = _deweight_array(full_data, self._col_weight, self._col_pad, 1)
-            full_data = _deskew_array(
-                full_data, self._delta_kcoa_poly_int, row_array, col_array, self._row_fft_sgn)
-            # try to deskew in the other dimension, as possible
+            # deskew on axis
+            full_data = on_axis_deskew(full_data, self._row_fft_sgn)
+            # deskew off axis, as possible
             full_data = other_axis_deskew(full_data, self._col_fft_sgn)
         elif self.dimension == 1 and not self._is_not_skewed_col:
-            row_array, col_array = self._get_index_arrays(row_range, row_step, col_range, col_step)
-            # the weighting in dimension 0 may have shifted, so re-weight
-            if self._apply_deweighting:
-                full_data = _deweight_array(full_data, self._row_weight, self._row_pad, 0)
-            full_data = _deskew_array(
-                full_data, self._delta_kcoa_poly_int, row_array, col_array, self._col_fft_sgn)
-            # try to deskew in the other dimension, as possible
+            # deskew on axis
+            full_data = on_axis_deskew(full_data, self._col_fft_sgn)
+            # deskew off axis, as possible
             full_data = other_axis_deskew(full_data, self._row_fft_sgn)
         return full_data[::abs(row_range[2]), ::abs(col_range[2])]
 
@@ -319,26 +321,27 @@ def _get_deskew_params(the_sicd, dimension):
     return delta_kcoa_poly, fft_sign
 
 
-def _deskew_array(input_data, delta_kcoa_poly_int, row_array, col_array, fft_sgn):
+def _deskew_array(input_data, delta_kcoa_poly, row_array, col_array, fft_sgn, dimension):
     """
     Performs deskew (centering of the spectrum on zero frequency) on a complex array.
 
     Parameters
     ----------
     input_data : numpy.ndarray
-    delta_kcoa_poly_int : numpy.ndarray
+    delta_kcoa_poly : numpy.ndarray
     row_array : numpy.ndarray
     col_array : numpy.ndarray
     fft_sgn : int
+    dimension : int
 
     Returns
     -------
     numpy.ndarray
     """
 
-    col_2d, row_2d = numpy.meshgrid(col_array, row_array)
-    return input_data*numpy.exp(1j*fft_sgn*2*numpy.pi*polynomial.polyval2d(
-        row_2d, col_2d, delta_kcoa_poly_int))
+    delta_kcoa_poly_int = polynomial.polyint(delta_kcoa_poly, axis=dimension)
+    return input_data*numpy.exp(1j*fft_sgn*2*numpy.pi*polynomial.polygrid2d(
+        row_array, col_array, delta_kcoa_poly_int))
 
 
 def _deweight_array(input_data, weight_array, oversample_rate, dimension):
