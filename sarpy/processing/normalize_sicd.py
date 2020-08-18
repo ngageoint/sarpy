@@ -16,6 +16,30 @@ __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 
+def _add_poly(poly1, poly2):
+    """
+    Add two-dimensional polynomials together.
+
+    Parameters
+    ----------
+    poly1 : numpy.ndarray
+    poly2 : numpy.ndarray
+
+    Returns
+    -------
+    numpy.ndarray
+    """
+
+    if not isinstance(poly1, numpy.ndarray) and poly1.ndim == 2:
+        raise TypeError('poly1 must be a two-dimensional numpy array.')
+    if not isinstance(poly2, numpy.ndarray) and poly2.ndim == 2:
+        raise TypeError('poly2 must be a two-dimensional numpy array.')
+    out = numpy.zeros((max(poly1.shape[0], poly2.shape[0]), max(poly1.shape[1], poly2.shape[1])), dtype='float64')
+    out[:poly1.shape[0], : poly1.shape[1]] += poly1
+    out[:poly2.shape[0], : poly2.shape[1]] += poly2
+    return out
+
+
 def _is_not_skewed(sicd, dimension):
     """
     Check if the sicd structure is not skewed along the provided dimension.
@@ -176,13 +200,14 @@ class DeskewCalculator(FullResolutionFetcher):
         # TODO: what if the off axis delta_kcoa_poly is not [[0, ], ] to start with? We just add them?
         if self.dimension == 0:
             self._delta_kcoa_poly_axis = row_delta_kcoa_poly
-            # TODO: what if
             delta_kcoa_poly_int = polynomial.polyint(row_delta_kcoa_poly, axis=0)
-            self._delta_kcoa_poly_off_axis = -polynomial.polyder(delta_kcoa_poly_int, axis=1)
+            self._delta_kcoa_poly_off_axis = _add_poly(-polynomial.polyder(delta_kcoa_poly_int, axis=1),
+                                                       col_delta_kcoa_poly)
         else:
             self._delta_kcoa_poly_axis = col_delta_kcoa_poly
             delta_kcoa_poly_int = polynomial.polyint(col_delta_kcoa_poly, axis=1)
-            self._delta_kcoa_poly_off_axis = -polynomial.polyder(delta_kcoa_poly_int, axis=0)
+            self._delta_kcoa_poly_off_axis = _add_poly(-polynomial.polyder(delta_kcoa_poly_int, axis=0),
+                                                       row_delta_kcoa_poly)
 
         self._row_shift = the_sicd.ImageData.SCPPixel.Row - the_sicd.ImageData.FirstRow
         self._row_mult = the_sicd.Grid.Row.SS
@@ -270,14 +295,20 @@ class DeskewCalculator(FullResolutionFetcher):
             full_data = _deweight_array(full_data, self._col_weight, self._col_pad, 1)
         # deskew in our given dimension
         row_array, col_array = self._get_index_arrays(row_range, row_step, col_range, col_step)
-        if self.dimension == 0 and not self._is_not_skewed_row:
-            # deskew on axis
-            full_data = on_axis_deskew(full_data, self._row_fft_sgn)
+        if self.dimension == 0:
+            # deskew on axis, if necessary
+            if not self._is_not_skewed_row:
+                full_data = on_axis_deskew(full_data, self._row_fft_sgn)
+                if self._apply_deweighting:
+                    full_data = _deweight_array(full_data, self._row_weight, self._row_pad, 0)
             # deskew off axis, as possible
             full_data = other_axis_deskew(full_data, self._col_fft_sgn)
-        elif self.dimension == 1 and not self._is_not_skewed_col:
-            # deskew on axis
-            full_data = on_axis_deskew(full_data, self._col_fft_sgn)
+        elif self.dimension == 1:
+            # deskew on axis, if necessary
+            if not self._is_not_skewed_col:
+                full_data = on_axis_deskew(full_data, self._col_fft_sgn)
+                if self._apply_deweighting:
+                    full_data = _deweight_array(full_data, self._col_weight, self._col_pad, 1)
             # deskew off axis, as possible
             full_data = other_axis_deskew(full_data, self._row_fft_sgn)
         return full_data[::abs(row_range[2]), ::abs(col_range[2])]
