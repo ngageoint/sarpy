@@ -9,6 +9,7 @@ import logging
 import os
 from typing import Union, List, Tuple
 import re
+import mmap
 
 import numpy
 
@@ -53,6 +54,7 @@ class NITFDetails(object):
             file name for a NITF 2.1 file
         """
 
+        self._img_headers = None
         self._file_name = file_name
 
         if not os.path.isfile(file_name):
@@ -398,6 +400,9 @@ class NITFDetails(object):
         return ReservedExtensionHeader.from_bytes(rh, 0)
 
 
+#####
+# A general nitf reader - intended for extension
+
 class NITFReader(BaseReader):
     """
     A reader object for **something** in a NITF 2.10 container
@@ -598,6 +603,9 @@ class NITFReader(BaseReader):
 
         raise NotImplementedError
 
+
+#####
+# A general nitf writer and associated elements - intended for extension
 
 class ImageDetails(object):
     """
@@ -1616,3 +1624,64 @@ class NITFWriter(AbstractWriter):
             FDT=self._get_fdt(), FTITLE=self._get_ftitle(), FL=0,
             ImageSegments=self._get_nitf_image_segments(),
             DataExtensions=self._get_nitf_data_extensions())
+
+
+#######
+# Flexible memmap object for opening compressed NITF image segment
+
+class MemMap(object):
+    """
+    Spoofing necessary memory map functionality to permit READ ONLY opening of a
+    compressed NITF image segment using the PIL interface. This is just a thin
+    wrapper around the built-in memmap class which accommodates arbitrary offset.
+
+    Note that the bare minimum of functionality is implemented to permit the
+    intended use.
+    """
+
+    __slots__ = ('_mem_map', '_file_obj', '_offset_shift')
+
+    def __init__(self, file_name, length, offset):
+        """
+
+        Parameters
+        ----------
+        file_name : str
+        length : int
+        offset : int
+        """
+
+        # length and offset validation
+        length = int_func(length)
+        offset = int_func(offset)
+        if length < 0 or offset < 0:
+            raise ValueError(
+                'length ({}) and offset ({}) must be non-negative integers'.format(length, offset))
+        # determine offset and length accommodating allocation block size limitation
+        self._offset_shift = (offset % mmap.ALLOCATIONGRANULARITY)
+        offset = offset - self._offset_shift
+        length = length + self._offset_shift
+        # establish the mem map
+        self._file_obj = open(file_name, 'rb')
+        self._mem_map = mmap.mmap(self._file_obj.fileno(), length, access=mmap.ACCESS_READ, offset=offset)
+
+    def read(self, n):
+        return self._mem_map.read(n)
+
+    def tell(self):
+        return self._mem_map.tell() - self._offset_shift
+
+    def seek(self, pos, whence=0):
+        whence = int_func(whence)
+        pos = int_func(pos)
+        if whence == 0:
+            self._mem_map.seek(pos+self._offset_shift, 0)
+        else:
+            self._mem_map.seek(pos, whence)
+
+    @property
+    def closed(self):
+        return self._file_obj.closed
+
+    def close(self):
+        self._file_obj.close()
