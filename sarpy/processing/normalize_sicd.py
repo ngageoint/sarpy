@@ -1,7 +1,6 @@
 """
 Functions to transform SICD data to a common state.
 """
-import numbers
 
 import numpy
 from numpy.polynomial import polynomial
@@ -11,7 +10,6 @@ from sarpy.compliance import int_func
 from sarpy.processing.ortho_rectify import FullResolutionFetcher
 from sarpy.processing.fft_base import fft, ifft, fftshift, ifftshift
 from sarpy.io.complex.sicd_elements.SICD import SICDType
-import matplotlib.pyplot as plt
 
 
 __classification__ = "UNCLASSIFIED"
@@ -128,14 +126,15 @@ class DeskewCalculator(FullResolutionFetcher):
     """
 
     __slots__ = (
-        '_delta_kcoa_poly_int', '_delta_kcoa_poly_new',
+        '_apply_deweighting', '_delta_kcoa_poly_int', '_delta_kcoa_poly_new',
         '_row_fft_sgn', '_col_fft_sgn',
         '_row_shift', '_row_mult', '_col_shift', '_col_mult',
         '_row_weight', '_row_pad', '_col_weight', '_col_pad',
         '_is_normalized', '_is_not_skewed_row', '_is_not_skewed_col',
         '_is_uniform_weight_row', '_is_uniform_weight_col', )
 
-    def __init__(self, reader, dimension=1, index=0):
+    def __init__(self, reader, dimension=1, index=0, apply_deweighting=False):
+        self._apply_deweighting = apply_deweighting
         self._delta_kcoa_poly_int = None
         self._delta_kcoa_poly_new = None
         self._row_fft_sgn = None
@@ -226,6 +225,22 @@ class DeskewCalculator(FullResolutionFetcher):
         numpy.ndarray
         """
 
+        def other_axis_deskew(t_full_data, fft_sgn):
+            # We cannot generally deskew in both directions at once, but we
+            # can recenter the nonskewed dimension with a uniform shift
+            if numpy.any(self._delta_kcoa_poly_new != 0):
+                # get deltakcoa at midpoint, and treat as a constant polynomial
+                row_mid = row_array[int_func(round(0.5 * row_array.size)) - 1]
+                col_mid = col_array[int_func(round(0.5 * col_array.size)) - 1]
+                delta_kcoa_new_const = numpy.zeros((1, 1), dtype='float64')
+                delta_kcoa_new_const[0, 0] = polynomial.polyval2d(
+                    row_mid, col_mid, self._delta_kcoa_poly_new)
+                # apply this uniform shift
+                t_full_data = _deskew_array(
+                    t_full_data, polynomial.polyint(delta_kcoa_new_const, axis=1 - self.dimension),
+                    row_array, col_array, fft_sgn)
+            return t_full_data
+
         if self._is_normalized:
             # just fetch the data and return
             return self.reader.__getitem__(item)
@@ -239,44 +254,31 @@ class DeskewCalculator(FullResolutionFetcher):
                row_range[0]:row_range[1]:row_step,
                col_range[0]:col_range[1]:col_step,
                self.index]
-        # # de-weight in each applicable direction
-        # if self._is_not_skewed_row and not self._is_uniform_weight_row:
-        #     full_data = _deweight_array(full_data, self._row_weight, self._row_pad, 0)
-        # if self._is_not_skewed_col and not self._is_uniform_weight_col:
-        #     full_data = _deweight_array(full_data, self._col_weight, self._col_pad, 1)
+        # de-weight in each applicable direction
+        if self._apply_deweighting and self._is_not_skewed_row and not self._is_uniform_weight_row:
+            full_data = _deweight_array(full_data, self._row_weight, self._row_pad, 0)
+        if self._apply_deweighting and self._is_not_skewed_col and not self._is_uniform_weight_col:
+            full_data = _deweight_array(full_data, self._col_weight, self._col_pad, 1)
         # deskew in our given dimension
         if self.dimension == 0 and not self._is_not_skewed_row:
             row_array, col_array = self._get_index_arrays(row_range, row_step, col_range, col_step)
             # the weighting in dimension 1 may have shifted, so re-weight
-            full_data = _deweight_array(full_data, self._col_weight, self._col_pad, 1)
-            full_data = _deskew_array(full_data, self._delta_kcoa_poly_int, row_array, col_array, self._row_fft_sgn)
-            if numpy.any(self._delta_kcoa_poly_new != 0):
-                full_data = _deskew_array(
-                    full_data, polynomial.polyint(self._delta_kcoa_poly_new, axis=1), row_array, col_array, self._col_fft_sgn)
+            if self._apply_deweighting:
+                full_data = _deweight_array(full_data, self._col_weight, self._col_pad, 1)
+            full_data = _deskew_array(
+                full_data, self._delta_kcoa_poly_int, row_array, col_array, self._row_fft_sgn)
+            # try to deskew in the other dimension, as possible
+            full_data = other_axis_deskew(full_data, self._col_fft_sgn)
         elif self.dimension == 1 and not self._is_not_skewed_col:
             row_array, col_array = self._get_index_arrays(row_range, row_step, col_range, col_step)
             # the weighting in dimension 0 may have shifted, so re-weight
-            # full_data = _deweight_array(full_data, self._row_weight, self._row_pad, 0)
-            full_data = _deskew_array(full_data, self._delta_kcoa_poly_int, row_array, col_array, self._col_fft_sgn)
-            if numpy.any(self._delta_kcoa_poly_new != 0):
-                col_delta_kcoa_poly, self._col_fft_sgn = _get_deskew_params(self.sicd, 1)
-                delta_kcoa_poly = _compute_delta_kcoa_poly(col_delta_kcoa_poly, row_array, col_array)
-                # full_data = _deskew_array(full_data, polynomial.polyint(self._delta_kcoa_poly_new, axis=0), row_array, col_array, self._row_fft_sgn)
-                # full_data = _deskew_array(full_data, delta_kcoa_poly, row_array, col_array, self._row_fft_sgn)
-                # down select as necessary
+            if self._apply_deweighting:
+                full_data = _deweight_array(full_data, self._row_weight, self._row_pad, 0)
+            full_data = _deskew_array(
+                full_data, self._delta_kcoa_poly_int, row_array, col_array, self._col_fft_sgn)
+            # try to deskew in the other dimension, as possible
+            full_data = other_axis_deskew(full_data, self._row_fft_sgn)
         return full_data[::abs(row_range[2]), ::abs(col_range[2])]
-
-
-def _compute_delta_kcoa_poly(poly_coeffs, az_coords, rg_coords):
-    dim1_ind = az_coords[round(len(az_coords)/2)-1]
-    dim2_ind = rg_coords[round(len(rg_coords)/2)-1]
-    output = 0
-    poly_x, poly_y = poly_coeffs.shape
-    for i in range(poly_x):
-        for j in range(poly_y):
-            comp = poly_coeffs[j, i] * numpy.power(dim2_ind, i) * numpy.power(dim1_ind, j)
-            output = output + comp
-    return output
 
 
 def _get_deskew_params(the_sicd, dimension):
@@ -305,7 +307,6 @@ def _get_deskew_params(the_sicd, dimension):
             fft_sign = the_sicd.Grid.Row.Sgn
         except (ValueError, AttributeError):
             pass
-
     else:
         try:
             delta_kcoa_poly = the_sicd.Grid.Col.DeltaKCOAPoly.get_array(dtype='float64')
@@ -425,8 +426,7 @@ def deskewmem(input_data, DeltaKCOAPoly, dim0_coords_m, dim1_coords_m, dim, fft_
         * `output_data` - Deskewed data
         * `new_DeltaKCOAPoly` - Frequency support shift in the non-deskew dimension caused by the deskew.
     """
-    if isinstance(DeltaKCOAPoly, numbers.Number):
-        DeltaKCOAPoly = numpy.array([0, DeltaKCOAPoly])
+
     # Integrate DeltaKCOA polynomial (in meters) to form new polynomial DeltaKCOAPoly_int
     DeltaKCOAPoly_int = polynomial.polyint(DeltaKCOAPoly, axis=dim)
     # New DeltaKCOAPoly in other dimension will be negative of the derivative of
