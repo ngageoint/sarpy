@@ -6,7 +6,6 @@ Module for reading and writing SIDD files - should support SIDD version 1.0 and 
 import logging
 import sys
 from functools import reduce
-from datetime import datetime
 import re
 
 import numpy
@@ -287,7 +286,7 @@ class SIDDReader(NITFReader):
 
     def _find_segments(self):
         # determine image segmentation from image headers
-        segments = [[] for sidd in self._sidd_meta]
+        segments = [[] for _ in self._sidd_meta]
         for i, img_header in enumerate(self.nitf_details.img_headers):
             # skip anything but SAR for now (i.e. legend)
             if img_header.ICAT != 'SAR':
@@ -616,7 +615,9 @@ class SIDDWriter(NITFWriter):
         sidd = self.sidd_meta[index]
 
         iid2 = None
+        # noinspection PyProtectedMember
         if hasattr(sidd, '_NITF') and isinstance(sidd._NITF, dict):
+            # noinspection PyProtectedMember
             iid2 = sidd._NITF.get('SUGGESTED_NAME', None)
         if iid2 is None:
             iid2 = 'SIDD: Unknown'
@@ -636,7 +637,9 @@ class SIDDWriter(NITFWriter):
     def _get_ostaid(self):
         ostaid = 'Unknown'
         sidd = self.sidd_meta[0]
+        # noinspection PyProtectedMember
         if hasattr(sidd, '_NITF') and isinstance(sidd._NITF, dict):
+            # noinspection PyProtectedMember
             ostaid = sidd._NITF.get('OSTAID', 'Unknown')
         return ostaid
 
