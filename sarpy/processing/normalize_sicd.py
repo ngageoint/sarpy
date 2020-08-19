@@ -1,5 +1,6 @@
+# -*- coding: utf-8 -*-
 """
-Functions to transform SICD data to a common state.
+Methods to transform SICD data to a common state.
 """
 
 import numpy
@@ -35,8 +36,8 @@ def _add_poly(poly1, poly2):
     if not isinstance(poly2, numpy.ndarray) and poly2.ndim == 2:
         raise TypeError('poly2 must be a two-dimensional numpy array.')
     out = numpy.zeros((max(poly1.shape[0], poly2.shape[0]), max(poly1.shape[1], poly2.shape[1])), dtype='float64')
-    out[:poly1.shape[0], : poly1.shape[1]] += poly1
-    out[:poly2.shape[0], : poly2.shape[1]] += poly2
+    out[:poly1.shape[0], :poly1.shape[1]] += poly1
+    out[:poly2.shape[0], :poly2.shape[1]] += poly2
     return out
 
 
