@@ -1685,3 +1685,39 @@ class MemMap(object):
 
     def close(self):
         self._file_obj.close()
+
+
+# TODO: what if a given image segment is compressed? I need to extract it
+#  temp file for random access. This seems to require reading fully into
+#  RAM for now. I expect this should probably be method of the reader, this is just to
+#  get down the flow for now
+def _extract_compressed_segment(details, index):
+    """
+    Extract a compressed image segment and dump it directly into a flat file.
+
+    Parameters
+    ----------
+    details : NITFDetails
+    index : int
+
+    Returns
+    -------
+    str
+        The absolute path name of the constructed data file.
+    """
+
+    from PIL import Image
+    from tempfile import mkstemp
+
+    image_offset = details.img_segment_offsets[index]
+    image_size = details.nitf_header.ImageSegments.item_sizes[index]
+    our_memmap = MemMap(details.file_name, image_size, image_offset)
+    img = Image.open(our_memmap)  # this is a lazy operation
+    data = numpy.asarray(img)  # create our numpy array from the PIL Image
+    # dump this out to a temp file
+    fi, path_name = mkstemp(suffix='sarpy_cache', text=False)
+    mem_map = numpy.memmap(path_name, dtype=data.dtype, mode='w', offset=0, shape=data.shape)
+    mem_map[:] = data
+    mem_map.close()
+    os.close(fi)
+    return path_name
