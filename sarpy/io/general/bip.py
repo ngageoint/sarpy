@@ -10,7 +10,7 @@ import os
 import numpy
 
 from sarpy.compliance import int_func
-from sarpy.io.general.base import BaseChipper, AbstractWriter
+from sarpy.io.general.base import BaseChipper, AggregateChipper, AbstractWriter
 
 
 __classification__ = "UNCLASSIFIED"
@@ -143,17 +143,16 @@ class BIPChipper(BaseChipper):
         return out
 
 
-class MultiSegmentChipper(BaseChipper):
+class MultiSegmentChipper(AggregateChipper):
     """
-    Required chipping object to allow for the fact that a single image may be
-    broken up into a collection of image segments.
+    A BIP chipper assembled from multiple image segments in a given file.
+    This is mainly intended for SICD and SIDD files, but has other potential uses.
     """
 
-    __slots__ = ('_file_name', '_data_size', '_dtype',
-                 '_symmetry', '_bounds', '_bands_ip', '_child_chippers')
+    __slots__ = ('_file_name', )
 
     def __init__(self, file_name, bounds, data_offsets, data_type,
-                 symmetry=None, complex_type=False, bands_ip=1, datatype_out=None):
+                 symmetry=None, complex_type=False, bands_ip=1, data_type_out=None, bands_out=1):
         """
 
         Parameters
@@ -172,14 +171,13 @@ class MultiSegmentChipper(BaseChipper):
             See `BaseChipper` for description of `complex_type`
         bands_ip : int
             number of bands - this will always be one for sicd.
-        datatype_out : None|str|numpy.dtype|numpy.number
+        data_type_out : None|str|numpy.dtype|numpy.number
             The data type of the return.
         """
 
-        if not isinstance(bounds, numpy.ndarray):
-            raise ValueError('bounds must be an numpy.ndarray, not {}'.format(type(bounds)))
-        if not (bounds.ndim == 2 and bounds.shape[1] == 4):
-            raise ValueError('bounds must be an Nx4 numpy.ndarray, not shape {}'.format(bounds.shape))
+        self._file_name = file_name
+        self._validate_bounds(bounds)
+        # determine data sizes and sensibility
         data_sizes = numpy.zeros((bounds.shape[0], 2), dtype=numpy.int64)
         p_row_start, p_row_end, p_col_start, p_col_end = None, None, None, None
         for i, entry in enumerate(bounds):
@@ -200,108 +198,30 @@ class MultiSegmentChipper(BaseChipper):
             # define the data_sizes entry
             data_sizes[i, :] = (entry[1] - entry[0], entry[3] - entry[2])
 
+        # validate data offsets
         if not isinstance(data_offsets, numpy.ndarray):
             raise ValueError('data_offsets must be an numpy.ndarray, not {}'.format(type(data_offsets)))
+        if not issubclass(data_offsets.dtype.type, numpy.integer):
+            raise ValueError('data_offsets must be an integer dtype numpy.ndarray, got dtype {}'.format(data_offsets.dtype))
         if not (len(data_offsets.shape) == 1):
             raise ValueError(
                 'data_sizes must be an one-dimensional numpy.ndarray, '
                 'not shape {}'.format(data_offsets.shape))
-
         if data_sizes.shape[0] != data_offsets.size:
             raise ValueError(
                 'data_sizes and data_offsets arguments must have compatible '
                 'shape {} - {}'.format(data_sizes.shape, data_sizes.size))
-
-        self._file_name = file_name
-        # all of the actual reading and reorienting work will be done by these
-        # child chippers, which will read from their respective image segments
-        if datatype_out is None:
+        if data_type_out is None:
             if complex_type is False:
-                self._dtype = data_type
+                data_type_out = data_type
             else:
-                self._dtype = 'complex64'
-        else:
-            self._dtype = datatype_out
-        self._child_chippers = tuple(
+                data_type_out = 'complex64'
+        child_chippers = tuple(
             BIPChipper(file_name, data_type, img_siz, symmetry=symmetry,
                        complex_type=complex_type, data_offset=img_off,
                        bands_ip=bands_ip)
             for img_siz, img_off in zip(data_sizes, data_offsets))
-        self._bounds = bounds
-        self._bands_ip = int_func(bands_ip)
-
-        data_size = (self._bounds[-1, 1], self._bounds[-1, 3])
-        # all of the actual reading and reorienting done by child chippers,
-        # so do not reorient or change type at this level
-        super(MultiSegmentChipper, self).__init__(data_size, symmetry=(False, False, False), complex_type=False)
-
-    def _subset(self, rng, start_ind, stop_ind):
-        """
-        Finds the rectangular overlap between the desired indices and given chipper bounds.
-
-        Parameters
-        ----------
-        rng
-        start_ind
-        stop_ind
-
-        Returns
-        -------
-        tuple, tuple
-        """
-
-        if rng[2] > 0:
-            if rng[1] < start_ind or rng[0] >= stop_ind:
-                # there is no overlap
-                return None, None
-            # find smallest element rng[0] + mult*rng[2] which is >= start_ind
-            mult1 = 0 if start_ind <= rng[0] else int_func(numpy.ceil((start_ind - rng[0]) / rng[2]))
-            ind1 = rng[0] + mult1 * rng[2]
-            # find largest element rng[0] + mult*rng[2] which is <= min(stop_ind, rng[1])
-            max_ind = min(rng[1], stop_ind)
-            mult2 = int_func(numpy.floor((max_ind - rng[0]) / rng[2]))
-            ind2 = rng[0] + mult2 * rng[2]
-        else:
-            if rng[0] < start_ind or rng[1] >= stop_ind:
-                return None, None
-            # find largest element rng[0] + mult*rng[2] which is <= stop_ind-1
-            mult1 = 0 if rng[0] < stop_ind else int_func(numpy.floor((stop_ind - 1 - rng[0])/rng[2]))
-            ind1 = rng[0] + mult1*rng[2]
-            # find smallest element rng[0] + mult*rng[2] which is >= max(start_ind, rng[1]+1)
-            mult2 = int_func(numpy.floor((start_ind - rng[0])/rng[2])) if rng[1] < start_ind \
-                else int_func(numpy.floor((rng[1] -1 - rng[0])/rng[2]))
-            ind2 = rng[0] + mult2*rng[2]
-        return (ind1-start_ind, ind2-start_ind, rng[2]), (mult1, mult2)
-
-
-    def _read_raw_fun(self, range1, range2):
-        range1, range2 = self._reorder_arguments(range1, range2)
-        rows_size = int_func((range1[1]-range1[0])/range1[2])
-        cols_size = int_func((range2[1]-range2[0])/range2[2])
-
-        if self._bands_ip == 1:
-            out = numpy.empty((rows_size, cols_size), dtype=self._dtype)
-        else:
-            out = numpy.empty((rows_size, cols_size, self._bands_ip), dtype=self._dtype)
-        for entry, child_chipper in zip(self._bounds, self._child_chippers):
-            row_start, row_end, col_start, col_end = entry
-            # find row overlap for chipper - it's rectangular
-            crange1, cinds1 = self._subset(range1, row_start, row_end)
-            if crange1 is None:
-                continue  # there is no row overlap for this chipper
-
-            # find column overlap for chipper - it's rectangular
-            crange2, cinds2 = self._subset(range2, col_start, col_end)
-            if crange2 is None:
-                continue  # there is no column overlap for this chipper
-
-            if self._bands_ip == 1:
-                out[cinds1[0]:cinds1[1], cinds2[0]:cinds2[1]] = \
-                    child_chipper[crange1[0]:crange1[1]:crange1[2], crange2[0]:crange2[1]:crange2[2]]
-            else:
-                out[cinds1[0]:cinds1[1], cinds2[0]:cinds2[1], :] = \
-                    child_chipper[crange1[0]:crange1[1]:crange1[2], crange2[0]:crange2[1]:crange2[2]]
-        return out
+        super(MultiSegmentChipper, self).__init__(bounds, data_type_out, child_chippers, bands_out=bands_out)
 
 
 class BIPWriter(AbstractWriter):

@@ -1,19 +1,19 @@
 # -*- coding: utf-8 -*-
 """
-Functionality for an aggregate reader, for opening multiple files as a single
-reader object.
+Functionality for an aggregate sicd type reader, for opening multiple sicd type
+files as a single reader object.
 """
 
 from typing import List, Tuple
 
 from sarpy.compliance import string_types
 from sarpy.io.complex.converter import open_complex
-from sarpy.io.general.base import BaseReader
+from sarpy.io.general.base import BaseReader, AggregateReader
 
 
-class AggregateReader(BaseReader):
+class AggregateComplexReader(AggregateReader):
     """
-    Aggregate multiple files and/or readers into a single reader instance.
+    Aggregate multiple sicd type files and/or readers into a single reader instance.
     """
 
     __slots__ = ('_readers', '_index_mapping')
@@ -26,10 +26,11 @@ class AggregateReader(BaseReader):
         readers : List[BaseReader|str]
         """
 
-        self._index_mapping = None
-        self._readers = self._validate_readers(readers)
-        the_sicds, the_chippers = self._define_index_mapping()
-        super(AggregateReader, self).__init__(sicd_meta=the_sicds, chipper=the_chippers, is_sicd_type=True)
+        readers = self._validate_readers(readers)
+        super(AggregateComplexReader, self).__init__(readers)
+        # define the SICD associated structures
+        self._is_sicd_type = True
+        self._define_sicds()
 
     @staticmethod
     def _validate_readers(readers):
@@ -73,43 +74,10 @@ class AggregateReader(BaseReader):
             the_readers.append(reader)
         return tuple(the_readers)
 
-    def _define_index_mapping(self):
-        """
-        Define the index mapping.
-
-        Returns
-        -------
-        Tuple[SICDType], Tuple[BaseChipper]
-        """
-
-        # prepare the index mapping workspace
-        index_mapping = []
-        # assemble the sicd_meta and chipper arguments
-        the_sicds = []
-        the_chippers = []
-        for i, reader in enumerate(self._readers):
-            for j, (sicd, chipper) in enumerate(zip(reader.get_sicds_as_tuple(), reader._get_chippers_as_tuple())):
-                the_sicds.append(sicd)
-                the_chippers.append(chipper)
-                index_mapping.append((i, j))
-
-        self._index_mapping = tuple(index_mapping)
-        return tuple(the_sicds), tuple(the_chippers)
-
-    @property
-    def index_mapping(self):
-        # type: () -> Tuple[Tuple[int, int]]
-        """
-        Tuple[Tuple[int, int]]: The index mapping of the form (reader index, sicd index).
-        """
-
-        return self._index_mapping
-
-    @property
-    def file_name(self):
-        # type: () -> Tuple[str]
-        """
-        Tuple[str]: The filename collection.
-        """
-
-        return tuple(entry.file_name for entry in self._readers)
+    def _define_sicds(self):
+        sicds = []
+        for reader_index, sicd_index in self.index_mapping:
+            reader = self._readers[reader_index]
+            sicd = reader.get_sicds_as_tuple()[sicd_index]
+            sicds.append(sicd)
+        self._sicd_meta = tuple(sicds)
