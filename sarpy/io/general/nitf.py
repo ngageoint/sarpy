@@ -10,12 +10,19 @@ import os
 from typing import Union, List, Tuple
 import re
 import mmap
+from tempfile import mkstemp
 
 import numpy
 
+try:
+    import PIL
+    import PIL.Image
+except ImportError:
+    PIL = None
+
 from sarpy.compliance import int_func
 from sarpy.io.general.base import BaseReader, AbstractWriter
-from sarpy.io.general.bip import BIPWriter
+from sarpy.io.general.bip import BIPChipper, MultiSegmentChipper, BIPWriter
 # noinspection PyProtectedMember
 from sarpy.io.general.nitf_elements.nitf_head import NITFHeader, ImageSegmentsType, \
     DataExtensionsType, _ItemArrayHeaders
@@ -403,12 +410,50 @@ class NITFDetails(object):
 #####
 # A general nitf reader - intended for extension
 
-class NITFReader(BaseReader):
+def _validate_lookup(lookup_table):
+    # type: (numpy.ndarray) -> None
+    if not isinstance(lookup_table, numpy.ndarray):
+        raise ValueError('requires a numpy.ndarray, got {}'.format(type(lookup_table)))
+    if lookup_table.dtype.name != 'uint8':
+        raise ValueError('requires a numpy.ndarray of uint8 dtype, got {}'.format(lookup_table.dtype))
+
+
+def single_lut_conversion(lookup_table):
     """
-    A reader object for **something** in a NITF 2.10 container
+    This constructs the function to convert data using a single lookup table.
+
+    Parameters
+    ----------
+    lookup_table : numpy.ndarray
+
+    Returns
+    -------
+    callable
     """
 
-    __slots__ = ('_nitf_details', )
+    _validate_lookup(lookup_table)
+
+    def converter(data):
+        if not isinstance(data, numpy.ndarray):
+            raise ValueError('requires a numpy.ndarray, got {}'.format(type(data)))
+
+        if data.dtype.name not in ['uint8', 'uint16']:
+            raise ValueError('requires a numpy.ndarray of uint8 or uint16 dtype, '
+                             'got {}'.format(data.dtype.name))
+
+        if len(data.shape) == 3 and data.shape[2] != 1:
+            raise ValueError('Requires a three-dimensional numpy.ndarray, '
+                             'with single band in the last dimension. Got shape {}'.format(data.shape))
+        return lookup_table[data[:, :, 0]]
+    return converter
+
+
+class NITFReader(BaseReader):
+    """
+    A reader object for NITF 2.10 container files
+    """
+
+    __slots__ = ('_nitf_details', '_cached_files')
 
     def __init__(self, nitf_details, is_sicd_type=False):
         """
@@ -421,6 +466,7 @@ class NITFReader(BaseReader):
             Is this a sicd type reader, or otherwise?
         """
 
+        self._cached_files = []
         if not isinstance(nitf_details, NITFDetails):
             raise TypeError('The input argument for NITFReader must be a NITFDetails object.')
         self._nitf_details = nitf_details
@@ -453,66 +499,140 @@ class NITFReader(BaseReader):
     def file_name(self):
         return self._nitf_details.file_name
 
-    def _get_chipper_partitioning(self, segment, rows, cols):
+    def _compliance_check(self, index):
         """
-        Construct the chipper partitioning for the given composite image.
+        Check that the image segment at `index` can be supported.
 
         Parameters
         ----------
-        segment : List[int]
-            The list of NITF image segments indices which are pieced together
-            into a single image.
-        rows : int
-            The number of rows in composite image.
-        cols : int
-            The number of cols in the composite image.
+        index : int
 
         Returns
         -------
-        (numpy.ndarray, numpy.ndarray)
-            The arrays indicating the chipper partitioning for bounds (of the form
-            `[row start, row end, column start, column end]`) and byte offsets.
+        bool
         """
 
-        bounds = []
-        offsets = []
+        img_header = self.nitf_details.img_headers[index]
+        # check if the segment has an image mask
+        if img_header.IC in ['NM', 'M1', 'M3', 'M4', 'M5', 'M6', 'M7', 'M8']:
+            logging.error(
+                'Image segment at index {} has IC value {}. Masked images are '
+                'not currently supported.'.format(index, img_header.IC))
+            return False
+        if img_header.IC in ['C1', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'I1'] and PIL is None:
+            logging.error(
+                'Image segment at index {} has IC value {}, and PIL cannot '
+                'be imported. Compressed image segments cannot be supported '
+                'without PIL.'.format(index, img_header.IC))
+            return False
+        # check the abpp value is viable
+        if img_header.ABPP not in (8, 16, 32, 64):
+            logging.error(
+                'Image segment at index {} has bits per pixel per band {}, only '
+                '8, 16, and 32 are supported.'.format(index, img_header.ABPP))
+            return False
+        if img_header.IMODE not in ['P', 'B']:
+            logging.error(
+                'Image segment at index {} has IMODE {}, but only band interleaved '
+                'by pixel (P) or block (B) is supported.'.format(index, img_header.IMODE))
+            return False
+        return True
 
-        # verify that (at least) abpp and band count are constant
-        abpp, band_count, bytes_per_pixel = None, None, None
-        p_row_start, p_row_end, p_col_start, p_col_end = None, None, None, None
-        for i, index in enumerate(segment):
-            # get this image subheader
-            img_header = self.nitf_details.img_headers[index]
+    def _extract_chipper_params(self, index):
+        """
+        Gets the basic chipper parameters for the given image segment.
 
-            # check for compression
-            if img_header.IC != 'NC':
-                raise ValueError('Image header at index {} has IC {}. No compression '
-                                 'is supported at this time.'.format(index, img_header.IC))
+        Parameters
+        ----------
+        index : int
 
-            # check bits per pixel and number of bands
-            if abpp is None:
-                abpp = img_header.ABPP
-                if abpp not in (8, 16, 32):
-                    raise ValueError(
-                        'Image segment {} has bits per pixel per band {}, only 8, 16, and 32 are supported.'.format(index, abpp))
-                band_count = len(img_header.Bands)
-                bytes_per_pixel = int_func(abpp*band_count/8)
-            elif img_header.ABPP != abpp:
+        Returns
+        -------
+        tuple
+            out the form (native_dtype, output_dtype, native_bands, output_bands, complex_type)
+        """
+
+        img_header = self.nitf_details.img_headers[index]
+        abpp = img_header.ABPP  # previously verified to be one of 8, 16, 32, 64
+        bpp = int_func(abpp/8)  # bytes per pixel per band
+        pvtype = img_header.PVTYPE
+        if img_header.ICAT.strip() in ['SAR', 'SARIQ'] and len(img_header.Bands) == 2:
+            if img_header.Bands[0].ISUBCAT.strip() == 'I' and \
+                    img_header.Bands[1].ISUBCAT.strip() == 'Q':
+                if pvtype == 'SI':
+                    return numpy.dtype('>i{}'.format(bpp)), numpy.complex64, 1, 1, True
+                elif pvtype == 'R':
+                    return numpy.dtype('>f{}'.format(bpp)), numpy.complex64, 1, 1, True
+        if img_header.IREP.strip() == 'MONO' and img_header.Bands[0].LUTD is not None:
+            if not (pvtype == 'INT' and bpp not in [1, 2]):
                 raise ValueError(
-                    'NITF image segment at index {} has ABPP {}, but this is different than the value {}'
-                    'previously determined for this composite image'.format(index, img_header.ABPP, abpp))
-            elif len(img_header.Bands) != band_count:
-                raise ValueError(
-                    'NITF image segment at index {} has band count {}, but this is different than the value {}'
-                    'previously determined for this composite image'.format(index, len(img_header.Bands), band_count))
+                    'Got IREP = {} with a LUT, but PVTYPE = {} and '
+                    'ABPP = {}'.format(img_header.IREP, pvtype, abpp))
+            lut = img_header.Bands[0].LUTD
+            if lut.ndim == 1:
+                return numpy.dtype('>u{}'.format(bpp)), numpy.dtype('>u1'), 1, 1, single_lut_conversion(lut)
+            else:
+                return numpy.dtype('>u{}'.format(bpp)), numpy.dtype('>u1'), 1, lut.shape[1], single_lut_conversion(lut)
+        if img_header.IREP.strip() == 'RGB/LUT':
+            lut = img_header.Bands[0].LUTD
+            return numpy.dtype('>u1'), numpy.dtype('>u1'), 1, 3, single_lut_conversion(lut)
 
-            # get the bytes offset for this nitf image segment
-            this_rows, this_cols = img_header.NROWS, img_header.NCOLS
-            if this_rows > rows or this_cols > cols:
+        if pvtype == 'INT':
+            return numpy.dtype('>u{}'.format(bpp)), numpy.dtype('>u{}'.format(bpp)), \
+                   len(img_header.Bands), len(img_header.Bands), False
+        elif pvtype == 'SI':
+            return numpy.dtype('>i{}'.format(bpp)), numpy.dtype('>i{}'.format(bpp)), \
+                   len(img_header.Bands), len(img_header.Bands), False
+        elif pvtype == 'R':
+            return numpy.dtype('>f{}'.format(bpp)), numpy.dtype('>f{}'.format(bpp)), \
+                   len(img_header.Bands), len(img_header.Bands), False
+        elif pvtype == 'C':
+            if bpp != 8:
                 raise ValueError(
-                    'NITF image segment at index {} has size ({}, {}), and cannot be part of an image of size '
-                    '({}, {})'.format(index, this_rows, this_cols, rows, cols))
+                    'Got PVTYPE = C and ABPP = {} (not 64), which is unsupported.'.format(abpp))
+            return numpy.dtype('>f4'), numpy.complex64, 2*len(img_header.Bands), len(img_header.Bands), True
 
+    def _define_chipper(self, index, dtype=None, bands_in=None, complex_type=None, bands_out=None, dtype_out=None):
+        """
+        Gets the chipper for the given image segment.
+
+        Parameters
+        ----------
+        index
+
+        Returns
+        -------
+        BIPChipper|MultiSegmentChipper
+        """
+
+        def handle_compressed():
+            if PIL is None:
+                raise ValueError('handling image segments with compression require PIL.')
+
+            # extract the image and dump out to a flat file
+            image_offset = self.nitf_details.img_segment_offsets[index]
+            image_size = self.nitf_details.nitf_header.ImageSegments.item_sizes[index]
+            our_memmap = MemMap(self.file_name, image_size, image_offset)
+            img = PIL.Image.open(our_memmap)  # this is a lazy operation
+            # dump the extracted image data out to a temp file
+            fi, path_name = mkstemp(suffix='sarpy_cache', text=False)
+            logging.warning(
+                'Compressed image segment at index {} being extracted to flat file {}, '
+                'this will be safely deleted except possibly in the event of fatal '
+                'execution error'.format(index, path_name))
+            data = numpy.asarray(img)  # create our numpy array from the PIL Image
+            mem_map = numpy.memmap(path_name, dtype=data.dtype, mode='w', offset=0, shape=data.shape)
+            mem_map[:] = data
+            mem_map.close()
+            os.close(fi)
+            self._cached_files.append(path_name)
+
+            return BIPChipper(
+                path_name, dtype, (this_rows, this_cols),
+                symmetry=(False, False, False), complex_type=complex_type, data_offset=0,
+                bands_ip=bands_in)
+
+        def handle_blocked():
             # horizontal block details
             horizontal_block_size = this_rows
             if img_header.NBPR != 1:
@@ -530,6 +650,117 @@ class NITFReader(BaseReader):
                         'The number of blocks per column is listed as {}, but this is '
                         'not equally divisible into the number of rows {}'.format(img_header.NBPC, this_rows))
                 vertical_block_size = int_func(this_rows/img_header.NBPC)
+
+            # iterate over our blocks and populate the bounds and offsets
+            bounds = []
+            offsets = []
+
+            current_offset = int_func(data_offset)
+            cur_row_start = 0
+            block_col_end = 0
+            for vblock in range(img_header.NBPC):
+                block_col_start = block_col_end
+                block_col_end += vertical_block_size
+                block_row_end = cur_row_start
+                for hblock in range(img_header.NBPR):
+                    block_row_start = block_row_end
+                    block_row_end += horizontal_block_size
+                    bounds.append((block_row_start, block_row_end, block_col_start, block_col_end))
+                    offsets.append(current_offset)
+                    current_offset += horizontal_block_size * vertical_block_size * bytes_per_pixel
+            bounds = numpy.array(bounds, dtype=numpy.int64)
+            offsets = numpy.array(offsets, dtype=numpy.int64)
+            return MultiSegmentChipper(
+                self.file_name, bounds, offsets, dtype,
+                symmetry=(False, False, False), complex_type=complex_type, bands_ip=bands_in,
+                data_type_out=dtype_out, bands_out=bands_out)
+
+        def handle_flat():
+            return BIPChipper(
+                self.file_name, dtype, (this_rows, this_cols),
+                symmetry=(False, False, False), complex_type=complex_type,
+                data_offset=data_offset, bands_ip=bands_in)
+
+        if not self._compliance_check(index):
+            raise ValueError(
+                'Image segment at index {} is not currently supported.'.format(index))
+
+        # verify that this image segment is viable
+        if not self._compliance_check(index):
+            raise ValueError(
+                'It is not viable to construct a chipper for the image segment at '
+                'index {}'.format(index))
+
+        # define fundamental chipper parameters
+        img_header = self.nitf_details.img_headers[index]
+        this_dtype, this_dtype_out, this_bands_in, this_bands_out, this_complex_type = self._extract_chipper_params(index)
+        data_offset = self.nitf_details.img_segment_offsets[index]
+        # determine basic facts
+        this_rows = img_header.NROWS
+        this_cols = img_header.NCOLS
+        # NB: ABPP previously verified to be one of 8, 16, 32, 64
+        bytes_per_pixel = int_func(img_header.ABPP*this_bands_in/8)
+
+        if dtype is None:
+            dtype = this_dtype
+        if dtype_out is None:
+            dtype_out = this_dtype_out
+        if bands_in is None:
+            bands_in = this_bands_in
+        if bands_out is None:
+            bands_out = this_bands_out
+        if complex_type is None:
+            complex_type = this_complex_type
+        # define the chipper
+        if img_header.IC in ['NM', 'M1', 'M3', 'M4', 'M5', 'M6', 'M7', 'M8']:
+            raise ValueError('Masked image segments not currently supported.')
+        elif img_header.IC in ['C1', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'I1']:
+            return handle_compressed()
+        elif img_header.IC == 'NC':
+            if img_header.NBPR != 1 or img_header.NBPC != 1:
+                return handle_blocked()
+            else:
+                return handle_flat()
+        else:
+            raise ValueError('Got unhandled IC code {}'.format(img_header.IC))
+
+    def _get_chipper_partitioning(self, segment, rows, cols):
+        """
+        Construct the chipper partitioning for the given composite image.
+
+        Parameters
+        ----------
+        segment : List[int]
+            The list of NITF image segments indices which are pieced together
+            into a single image.
+        rows : int
+            The number of rows in composite image.
+        cols : int
+            The number of cols in the composite image.
+
+        Returns
+        -------
+        numpy.ndarray
+            The chipper partitioning for bounds, of the form
+            `[row start, row end, column start, column end]`.
+        """
+
+        if len(segment) == 1:
+            # nothing to really be done
+            return numpy.array([0, rows, 0, cols], dtype=numpy.int64)
+
+        bounds = []
+        p_row_start, p_row_end, p_col_start, p_col_end = None, None, None, None
+        for i, index in enumerate(segment):
+            # get this image subheader
+            img_header = self.nitf_details.img_headers[index]
+
+            # get the bytes offset for this nitf image segment
+            this_rows, this_cols = img_header.NROWS, img_header.NCOLS
+            if this_rows > rows or this_cols > cols:
+                raise ValueError(
+                    'NITF image segment at index {} has size ({}, {}), and cannot be part of an image of size '
+                    '({}, {})'.format(index, this_rows, this_cols, rows, cols))
 
             # determine where this image segment fits in the overall image
             if i == 0:
@@ -553,22 +784,9 @@ class NITFReader(BaseReader):
                     raise ValueError('Failed at vertical NITF image segment assembly.')
             else:
                 raise ValueError('Got unexpected situation in NITF image assembly.')
-
-            # iterate over our blocks and populate the bounds and offsets
-            block_col_end = cur_col_start
-            current_offset = self.nitf_details.img_segment_offsets[index]
-            for vblock in range(img_header.NBPC):
-                block_col_start = block_col_end
-                block_col_end += vertical_block_size
-                block_row_end = cur_row_start
-                for hblock in range(img_header.NBPR):
-                    block_row_start = block_row_end
-                    block_row_end += horizontal_block_size
-                    bounds.append((block_row_start, block_row_end, block_col_start, block_col_end))
-                    offsets.append(current_offset)
-                    current_offset += horizontal_block_size * vertical_block_size * bytes_per_pixel
+            bounds.append((cur_row_start, cur_row_end, cur_col_start, cur_col_end))
             p_row_start, p_row_end, p_col_start, p_col_end = cur_row_start, cur_row_end, cur_col_start, cur_col_end
-        return numpy.array(bounds, dtype=numpy.int64), numpy.array(offsets, dtype=numpy.int64)
+        return numpy.array(bounds, dtype=numpy.int64)
 
     def _find_segments(self):
         """
@@ -579,11 +797,16 @@ class NITFReader(BaseReader):
         List[List[int]]
         """
 
-        raise NotImplementedError
+        # the default implementation is just to allow every viable segment
+        segments = []
+        for i, img_segment in enumerate(self.nitf_details.img_headers):
+            if self._compliance_check(i):
+                segments.append([i, ])
+        return segments
 
     def _construct_chipper(self, segment, index):
         """
-        Construct the appropriate multi-segment chipper given the list of image
+        Construct the appropriate chipper given the list of image
         segment indices.
 
         Parameters
@@ -598,10 +821,26 @@ class NITFReader(BaseReader):
 
         Returns
         -------
-        sarpy.io.general.bip.MultiSegmentChipper
+        sarpy.io.general.base.BaseChipper
         """
 
-        raise NotImplementedError
+        # this default behavior should be overridden for SICD/SIDD
+        return self._define_chipper(segment[0])
+
+    def __del__(self):
+        """
+        Clean up any cached files.
+
+        Returns
+        -------
+        None
+        """
+
+        for fil in self._cached_files:
+            # NB: this should be an absolute path
+            if os.path.exists(fil):
+                os.remove(fil)
+                logging.info('Deleted cached file {}'.format(fil))
 
 
 #####
@@ -1685,39 +1924,3 @@ class MemMap(object):
 
     def close(self):
         self._file_obj.close()
-
-
-# TODO: what if a given image segment is compressed? I need to extract it
-#  temp file for random access. This seems to require reading fully into
-#  RAM for now. I expect this should probably be method of the reader, this is just to
-#  get down the flow for now
-def _extract_compressed_segment(details, index):
-    """
-    Extract a compressed image segment and dump it directly into a flat file.
-
-    Parameters
-    ----------
-    details : NITFDetails
-    index : int
-
-    Returns
-    -------
-    str
-        The absolute path name of the constructed data file.
-    """
-
-    from PIL import Image
-    from tempfile import mkstemp
-
-    image_offset = details.img_segment_offsets[index]
-    image_size = details.nitf_header.ImageSegments.item_sizes[index]
-    our_memmap = MemMap(details.file_name, image_size, image_offset)
-    img = Image.open(our_memmap)  # this is a lazy operation
-    data = numpy.asarray(img)  # create our numpy array from the PIL Image
-    # dump this out to a temp file
-    fi, path_name = mkstemp(suffix='sarpy_cache', text=False)
-    mem_map = numpy.memmap(path_name, dtype=data.dtype, mode='w', offset=0, shape=data.shape)
-    mem_map[:] = data
-    mem_map.close()
-    os.close(fi)
-    return path_name

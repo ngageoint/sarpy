@@ -354,6 +354,172 @@ class SubsetChipper(BaseChipper):
         return self.parent_chipper.__call__(arange1, arange2)
 
 
+class AggregateChipper(BaseChipper):
+    """
+    Class which allows assembly of a collection of chippers into a single
+    chipper object.
+    """
+
+    __slots__ = ('_child_chippers', '_bounds', '_dtype', '_bands_out')
+
+    def __init__(self, bounds, data_type, child_chippers, bands_out=1):
+        """
+
+        Parameters
+        ----------
+        bounds : numpy.ndarray
+            Two-dimensional array of `[row start, row end, column start, column end]`.
+            The order of entries should traverse a specific blocks of columns until
+            reaching the row limit, and then traversing to the next block of columns.
+        data_type : str|numpy.dtype|numpy.number
+            The data type of the output data
+        child_chippers : tuple|list
+            The list or tuple of child chipper objects.
+        bands_out : int
+            The number of bands (after intermediate chipper adjustments).
+        """
+
+        # validate bounds
+        data_sizes = self._validate_bounds(bounds)
+        # validate child chippers
+        child_chippers = tuple(child_chippers)
+        if bounds.shape[0] != len(child_chippers):
+            raise ValueError('bounds and child_chippers must have compatible lengths')
+        for i, entry in enumerate(child_chippers):
+            if not isinstance(entry, BaseChipper):
+                raise TypeError(
+                    'Each entry of child_chippers must be an instance of BaseChipper, '
+                    'got type {} at entry {}'.format(type(entry), i))
+            expected_shape = (int_func(data_sizes[i, 0]), int_func(data_sizes[i, 1]))
+            if entry.data_size != expected_shape:
+                raise ValueError(
+                    'chipper at index {} has expected shape {}, but '
+                    'actual shape {}'.format(i, expected_shape, entry.data_size))
+        self._child_chippers = child_chippers
+        self._bounds = bounds
+        self._dtype = data_type
+        self._bands_out = int_func(bands_out)
+        data_size = (self._bounds[-1, 1], self._bounds[-1, 3])
+        # all of the actual reading and reorienting done by child chippers,
+        # so do not reorient or change type at this level
+        super(AggregateChipper, self).__init__(data_size, symmetry=(False, False, False), complex_type=False)
+
+    @staticmethod
+    def _validate_bounds(bounds):
+        """
+        Validate the bounds array.
+
+        Parameters
+        ----------
+        bounds : numpy.ndarray
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+
+        if not isinstance(bounds, numpy.ndarray):
+            raise ValueError('bounds must be an numpy.ndarray, not {}'.format(type(bounds)))
+        if not issubclass(bounds.dtype.type, numpy.integer):
+            raise ValueError('bounds must be an integer dtype numpy.ndarray, got dtype {}'.format(bounds.dtype))
+        if not (bounds.ndim == 2 and bounds.shape[1] == 4):
+            raise ValueError('bounds must be an Nx4 numpy.ndarray, not shape {}'.format(bounds.shape))
+
+        # determine data sizes and sensibility
+        data_sizes = numpy.zeros((bounds.shape[0], 2), dtype=numpy.int64)
+        p_row_start, p_row_end, p_col_start, p_col_end = None, None, None, None
+
+        for i, entry in enumerate(bounds):
+            # Are the order of the entries in bounds sensible?
+            if not (0 <= entry[0] < entry[1] and 0 <= entry[2] < entry[3]):
+                raise ValueError('entry {} of bounds is {}, and cannot be of the form '
+                                 '[row start, row end, column start, column end]'.format(i, entry))
+            # Are the elements of bounds sensible in relative terms?
+            #   Expected to traverse by a specific block of columns until we reach the row limit,
+            #   and then moving on the next segment of columns
+            if i == 0:
+                if entry[0] != 0 or entry[2] != 2:
+                    raise ValueError(
+                        'The bounds must begin at row 0 and column 0. '
+                        'Got initial bounds {}'.format(entry))
+            else:
+                # this section start where the previous one ended, or start a new block of columns
+                if not ((p_row_end == entry[0] and p_col_start == entry[2] and p_col_end == entry[3]) or
+                        (p_col_end == entry[2] and entry[0] == 0)):
+                    raise ValueError('The relative order for the chipper elements cannot be determined.')
+            p_row_start, p_row_end, p_col_start, p_col_end = entry
+            # define the data_sizes entry
+            data_sizes[i, :] = (entry[1] - entry[0], entry[3] - entry[2])
+        return data_sizes
+
+    def _subset(self, rng, start_ind, stop_ind):
+        """
+        Finds the rectangular overlap between the desired indices and given chipper bounds.
+
+        Parameters
+        ----------
+        rng
+        start_ind
+        stop_ind
+
+        Returns
+        -------
+        tuple, tuple
+        """
+
+        if rng[2] > 0:
+            if rng[1] < start_ind or rng[0] >= stop_ind:
+                # there is no overlap
+                return None, None
+            # find smallest element rng[0] + mult*rng[2] which is >= start_ind
+            mult1 = 0 if start_ind <= rng[0] else int_func(numpy.ceil((start_ind - rng[0]) / rng[2]))
+            ind1 = rng[0] + mult1 * rng[2]
+            # find largest element rng[0] + mult*rng[2] which is <= min(stop_ind, rng[1])
+            max_ind = min(rng[1], stop_ind)
+            mult2 = int_func(numpy.floor((max_ind - rng[0]) / rng[2]))
+            ind2 = rng[0] + mult2 * rng[2]
+        else:
+            if rng[0] < start_ind or rng[1] >= stop_ind:
+                return None, None
+            # find largest element rng[0] + mult*rng[2] which is <= stop_ind-1
+            mult1 = 0 if rng[0] < stop_ind else int_func(numpy.floor((stop_ind - 1 - rng[0])/rng[2]))
+            ind1 = rng[0] + mult1*rng[2]
+            # find smallest element rng[0] + mult*rng[2] which is >= max(start_ind, rng[1]+1)
+            mult2 = int_func(numpy.floor((start_ind - rng[0])/rng[2])) if rng[1] < start_ind \
+                else int_func(numpy.floor((rng[1] -1 - rng[0])/rng[2]))
+            ind2 = rng[0] + mult2*rng[2]
+        return (ind1-start_ind, ind2-start_ind, rng[2]), (mult1, mult2)
+
+    def _read_raw_fun(self, range1, range2):
+        range1, range2 = self._reorder_arguments(range1, range2)
+        rows_size = int_func((range1[1]-range1[0])/range1[2])
+        cols_size = int_func((range2[1]-range2[0])/range2[2])
+
+        if self._bands_out == 1:
+            out = numpy.empty((rows_size, cols_size), dtype=self._dtype)
+        else:
+            out = numpy.empty((rows_size, cols_size, self._bands_out), dtype=self._dtype)
+        for entry, child_chipper in zip(self._bounds, self._child_chippers):
+            row_start, row_end, col_start, col_end = entry
+            # find row overlap for chipper - it's rectangular
+            crange1, cinds1 = self._subset(range1, row_start, row_end)
+            if crange1 is None:
+                continue  # there is no row overlap for this chipper
+
+            # find column overlap for chipper - it's rectangular
+            crange2, cinds2 = self._subset(range2, col_start, col_end)
+            if crange2 is None:
+                continue  # there is no column overlap for this chipper
+
+            if self._bands_out == 1:
+                out[cinds1[0]:cinds1[1], cinds2[0]:cinds2[1]] = \
+                    child_chipper[crange1[0]:crange1[1]:crange1[2], crange2[0]:crange2[1]:crange2[2]]
+            else:
+                out[cinds1[0]:cinds1[1], cinds2[0]:cinds2[1], :] = \
+                    child_chipper[crange1[0]:crange1[1]:crange1[2], crange2[0]:crange2[1]:crange2[2]]
+        return out
+
+
 #################
 # Base Reader definition
 
@@ -916,8 +1082,3 @@ class BaseWriter(AbstractWriter):
 
     def __call__(self, data, start_indices=(0, 0)):
         raise NotImplementedError
-
-
-#####################
-# Reader Partition Iterator methods
-
