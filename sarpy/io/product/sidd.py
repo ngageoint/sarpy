@@ -312,6 +312,9 @@ class SIDDReader(NITFReader):
             return AggregateChipper(bounds, dtype_out, chippers, bands_out=bands_out)
 
 
+#########
+# The writer implementation
+
 def validate_sidd_for_writing(sidd_meta):
     """
     Helper method which ensures the provided SIDD structure is appropriate.

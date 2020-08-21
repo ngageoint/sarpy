@@ -923,6 +923,94 @@ class SubsetReader(BaseReader):
         return self._parent_reader.file_name
 
 
+class AggregateReader(BaseReader):
+    """
+    Aggregate multiple files and/or readers into a single reader instance. This default
+    aggregate implementation will not preserve any SICD or SIDD structures.
+    """
+
+    __slots__ = ('_readers', '_index_mapping')
+
+    def __init__(self, readers):
+        """
+
+        Parameters
+        ----------
+        readers : List[BaseReader]
+        """
+
+        self._index_mapping = None
+        self._readers = self._validate_readers(readers)
+        the_chippers = self._define_index_mapping()
+        super(AggregateReader, self).__init__(sicd_meta=None, chipper=the_chippers, is_sicd_type=False)
+
+    @staticmethod
+    def _validate_readers(readers):
+        """
+        Validate the input reader/file collection.
+
+        Parameters
+        ----------
+        readers : list|tuple
+
+        Returns
+        -------
+        Tuple[BaseReader]
+        """
+
+        if not isinstance(readers, (list, tuple)):
+            raise TypeError('input argument must be a list or tuple of readers/files. Got type {}'.format(type(readers)))
+
+        # validate each entry
+        the_readers = []
+        for i, entry in enumerate(readers):
+            if not isinstance(entry, BaseReader):
+                raise TypeError(
+                    'All elements of the input argument must be file names or BaseReader instances. '
+                    'Entry {} is of type {}'.format(i, type(entry)))
+            the_readers.append(entry)
+        return tuple(the_readers)
+
+    def _define_index_mapping(self):
+        """
+        Define the index mapping.
+
+        Returns
+        -------
+        Tuple[BaseChipper]
+        """
+
+        # prepare the index mapping workspace
+        index_mapping = []
+        # assemble the sicd_meta and chipper arguments
+        the_chippers = []
+        for i, reader in enumerate(self._readers):
+            for j, chipper in enumerate(reader._get_chippers_as_tuple()):
+                the_chippers.append(chipper)
+                index_mapping.append((i, j))
+
+        self._index_mapping = tuple(index_mapping)
+        return tuple(the_chippers)
+
+    @property
+    def index_mapping(self):
+        # type: () -> Tuple[Tuple[int, int]]
+        """
+        Tuple[Tuple[int, int]]: The index mapping of the form (reader index, sicd index).
+        """
+
+        return self._index_mapping
+
+    @property
+    def file_name(self):
+        # type: () -> Tuple[str]
+        """
+        Tuple[str]: The filename collection.
+        """
+
+        return tuple(entry.file_name for entry in self._readers)
+
+
 #################
 # Base Writer definition
 

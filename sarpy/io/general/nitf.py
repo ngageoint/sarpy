@@ -20,7 +20,7 @@ try:
 except ImportError:
     PIL = None
 
-from sarpy.compliance import int_func
+from sarpy.compliance import int_func, string_types
 from sarpy.io.general.base import BaseReader, AbstractWriter
 from sarpy.io.general.bip import BIPChipper, MultiSegmentChipper, BIPWriter
 # noinspection PyProtectedMember
@@ -460,13 +460,15 @@ class NITFReader(BaseReader):
 
         Parameters
         ----------
-        nitf_details : NITFDetails
-            The NITFDetails object
+        nitf_details : NITFDetails|str
+            The NITFDetails object or path to a nitf file.
         is_sicd_type : bool
             Is this a sicd type reader, or otherwise?
         """
 
         self._cached_files = []
+        if isinstance(nitf_details, string_types):
+            nitf_details = NITFDetails(nitf_details)
         if not isinstance(nitf_details, NITFDetails):
             raise TypeError('The input argument for NITFReader must be a NITFDetails object.')
         self._nitf_details = nitf_details
@@ -615,15 +617,16 @@ class NITFReader(BaseReader):
             our_memmap = MemMap(self.file_name, image_size, image_offset)
             img = PIL.Image.open(our_memmap)  # this is a lazy operation
             # dump the extracted image data out to a temp file
-            fi, path_name = mkstemp(suffix='sarpy_cache', text=False)
+            fi, path_name = mkstemp(suffix='.sarpy_cache', text=False)
             logging.warning(
-                'Compressed image segment at index {} being extracted to flat file {}, '
+                'Compressed image segment of {}\n at index {} being extracted to flat file {},\n '
                 'this will be safely deleted except possibly in the event of fatal '
-                'execution error'.format(index, path_name))
+                'execution error'.format(self.file_name, index, path_name))
             data = numpy.asarray(img)  # create our numpy array from the PIL Image
-            mem_map = numpy.memmap(path_name, dtype=data.dtype, mode='w', offset=0, shape=data.shape)
+            mem_map = numpy.memmap(path_name, dtype=data.dtype, mode='w+', offset=0, shape=data.shape)
             mem_map[:] = data
-            mem_map.close()
+            # clean up this memmap and file overhead
+            del mem_map
             os.close(fi)
             self._cached_files.append(path_name)
 

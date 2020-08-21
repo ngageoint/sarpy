@@ -1,5 +1,7 @@
 # This details the important differences introduced in sarpy 1.0
 
+* .54 - More general NITF reading support, including supporting compressed image segments
+        Introduced capability for reading a standard change detection package
 * .53 - SICD normalization method bug fixes
 * .52 - Fine-tuning parameter defaults and naming in projection methods
 * .51 - Fixed subtle bug in projection to constant HAE method
