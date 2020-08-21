@@ -9,10 +9,10 @@ from collections import OrderedDict
 import os
 import logging
 import json
-from typing import Union, List
+from typing import Union, List, Any
 
 # noinspection PyProtectedMember
-from sarpy.geometry.geometry_elements import _Jsonable, FeatureList, Feature
+from sarpy.geometry.geometry_elements import _Jsonable, FeatureCollection, Feature
 from sarpy.annotation.schema_processing import LabelSchema
 
 
@@ -98,7 +98,8 @@ class AnnotationMetadataList(_Jsonable):
             return 0
         return len(self._elements)
 
-    def __getitem__(self, item):  # type: () -> AnnotationMetadata
+    def __getitem__(self, item):
+        # type: (Any) -> AnnotationMetadata
         return self._elements[item]
 
     @property
@@ -231,9 +232,9 @@ class Annotation(Feature):
         self._properties.insert_new_element(value)
 
 
-class AnnotationList(FeatureList):
+class AnnotationList(FeatureCollection):
     """
-    A specific extension of the FeatureList class which has the features are
+    A specific extension of the FeatureCollection class which has the features are
     Annotation instances.
     """
 
@@ -269,7 +270,8 @@ class AnnotationList(FeatureList):
                     'Entries of features are required to be instances of Annotation or '
                     'dictionary to be deserialized. Got {}'.format(type(entry)))
 
-    def __getitem__(self, item):  # type: () -> Annotation|List[Annotation]
+    def __getitem__(self, item):
+        # type: (Any) -> Union[Annotation, List[Annotation]]
         if isinstance(item, str):
             return self._feature_dict[item]
         return self._features[item]

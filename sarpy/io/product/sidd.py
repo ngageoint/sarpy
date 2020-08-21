@@ -6,23 +6,22 @@ Module for reading and writing SIDD files - should support SIDD version 1.0 and 
 import logging
 import sys
 from functools import reduce
-from datetime import datetime
 import re
 
 import numpy
 
 from sarpy.compliance import int_func, string_types
 from sarpy.io.general.utils import parse_xml_from_string
-from sarpy.io.general.nitf import NITFReader, NITFWriter, ImageDetails, DESDetails, \
+from sarpy.io.general.base import AggregateChipper
+from sarpy.io.general.nitf import NITFDetails, NITFReader, NITFWriter, ImageDetails, DESDetails, \
     image_segmentation, get_npp_block, interpolate_corner_points_string
-from sarpy.io.general.nitf import NITFDetails
 from sarpy.io.general.nitf_elements.des import DataExtensionHeader, XMLDESSubheader
 from sarpy.io.general.nitf_elements.security import NITFSecurityTags
 from sarpy.io.general.nitf_elements.image import ImageSegmentHeader, ImageBands, ImageBand
 from sarpy.io.product.sidd2_elements.SIDD import SIDDType
 from sarpy.io.product.sidd1_elements.SIDD import SIDDType as SIDDType1
 from sarpy.io.complex.sicd_elements.SICD import SICDType
-from sarpy.io.complex.sicd import MultiSegmentChipper, extract_clas as extract_clas_sicd
+from sarpy.io.complex.sicd import extract_clas as extract_clas_sicd
 
 
 __classification__ = "UNCLASSIFIED"
@@ -190,44 +189,6 @@ class SIDDDetails(NITFDetails):
 #######
 #  The actual reading implementation
 
-def _validate_lookup(lookup_table):
-    # type: (numpy.ndarray) -> None
-    if not isinstance(lookup_table, numpy.ndarray):
-        raise ValueError('requires a numpy.ndarray, got {}'.format(type(lookup_table)))
-    if lookup_table.dtype.name != 'uint8':
-        raise ValueError('requires a numpy.ndarray of uint8 dtype, got {}'.format(lookup_table.dtype))
-
-
-def rgb_lut_conversion(lookup_table):
-    """
-    This constructs the function to convert from RGB/LUT format data to RGB data.
-
-    Parameters
-    ----------
-    lookup_table : numpy.ndarray
-
-    Returns
-    -------
-    callable
-    """
-
-    _validate_lookup(lookup_table)
-
-    def converter(data):
-        if not isinstance(data, numpy.ndarray):
-            raise ValueError('requires a numpy.ndarray, got {}'.format(type(data)))
-
-        if data.dtype.name not in ['uint8', 'uint16']:
-            raise ValueError('requires a numpy.ndarray of uint8 or uint16 dtype, '
-                             'got {}'.format(data.dtype.name))
-
-        if len(data.shape) == 3 and data.shape[2] != 1:
-            raise ValueError('Requires a three-dimensional numpy.ndarray (with band '
-                             'in the last dimension), got shape {}'.format(data.shape))
-        return lookup_table[data[:, :, 0]]
-    return converter
-
-
 def _check_iid_format(iid1, i):
     if sys.version_info[0] > 2:
         if not (iid1[:4] == 'SIDD' and iid1[4:].isnumeric()):
@@ -287,7 +248,7 @@ class SIDDReader(NITFReader):
 
     def _find_segments(self):
         # determine image segmentation from image headers
-        segments = [[] for sidd in self._sidd_meta]
+        segments = [[] for _ in self._sidd_meta]
         for i, img_header in enumerate(self.nitf_details.img_headers):
             # skip anything but SAR for now (i.e. legend)
             if img_header.ICAT != 'SAR':
@@ -307,52 +268,26 @@ class SIDDReader(NITFReader):
         return segments
 
     def _check_img_details(self, segment):
-        this_dtype, this_bands, this_lut = None, None, None
-        for i, this_index in enumerate(segment):
-            img_header = self.nitf_details.img_headers[this_index]
-            abpp = img_header.ABPP
-            if abpp not in [8, 16]:
-                raise ValueError('Image header at index {} has ABPP {}. Unsupported.'.format(this_index, abpp))
-            # check image type
-            irep = img_header.IREP
-            if irep not in ['MONO', 'RGB/LUT', 'RGB']:
-                raise ValueError('Image header at index {} has IREP {}, which is '
-                                 'unsupported'.format(this_index, irep))
-            bands = len(img_header.Bands)
-            if (irep == 'RGB' and bands != 3) or (irep != 'RGB' and bands != 1):
-                    raise ValueError('Image header at index {} has IREP {} and {} Bands. '
-                                         'This is unsupported.'.format(this_index, irep, bands))
-            # Fetch lookup table
-            lut = img_header.Bands[0].LUTD if irep == 'RGB/LUT' else None
-
-            # determine dtype
-            if lut is None:
-                if abpp == 8:
-                    dtype = numpy.dtype('>u1')
-                else:
-                    dtype = numpy.dtype('>u2')
-            else:
-                dtype = numpy.dtype('>u1')
-
-            if i == 0:
-                this_dtype = dtype
-                this_bands = bands
-                this_lut = lut
-            else:
-                if dtype != this_dtype:
-                    raise ValueError('Image segments {} form one sidd, but have differing type '
-                                     'parameters'.format(segment))
-                if bands != this_bands:
-                    raise ValueError('Image segments {} form one sidd, but have differing '
-                                     'band counts'.format(segment))
-                if (this_lut is None and lut is not None) or (this_lut is not None and lut is None):
-                    raise ValueError('Image segments {} form one sidd, but have differing '
-                                     'look up table information'.format(segment))
-                if (this_lut is not None and lut is not None) and \
-                        (this_lut.shape != lut.shape or numpy.any(this_lut != lut)):
-                    raise ValueError('Image segments {} form one sidd, but have differing '
-                                     'look up table information'.format(segment))
-        return this_dtype, this_bands, this_lut
+        dtype, dtype_out, bands_in, bands_out, complex_type = self._extract_chipper_params(segment[0])
+        for this_index in segment[1:]:
+            this_dtype, this_dtype_out, this_bands_in, this_bands_out, _ = self._extract_chipper_params(this_index)
+            if this_dtype.name != dtype.name:
+                raise ValueError(
+                    'Segments at index {} and {} have incompatible data types '
+                    '{} and {}'.format(segment[0], this_index, dtype, this_dtype))
+            if this_dtype_out.name != dtype_out.name:
+                raise ValueError(
+                    'Segments at index {} and {} have incompatible output data types '
+                    '{} and {}'.format(segment[0], this_index, dtype_out, this_dtype_out))
+            if this_bands_in != bands_in:
+                raise ValueError(
+                    'Segments at index {} and {} have incompatible input bands '
+                    '{} and {}'.format(segment[0], this_index, bands_in, this_bands_in))
+            if this_bands_out != bands_out:
+                raise ValueError(
+                    'Segments at index {} and {} have incompatible output bands '
+                    '{} and {}'.format(segment[0], this_index, bands_out, this_bands_out))
+        return dtype, dtype_out, bands_in, bands_out, complex_type
 
     def _construct_chipper(self, segment, index):
         # get the image size
@@ -360,13 +295,25 @@ class SIDDReader(NITFReader):
         rows = sidd.Measurement.PixelFootprint.Row
         cols = sidd.Measurement.PixelFootprint.Col
 
-        bounds, offsets = self._get_chipper_partitioning(segment, rows, cols)
-        dtype, bands, lut = self._check_img_details(segment)
-        complex_type = False if lut is None else rgb_lut_conversion(lut)
-        return MultiSegmentChipper(
-            self.file_name, bounds, offsets, dtype,
-            symmetry=(False, False, False), complex_type=complex_type, bands_ip=bands, datatype_out=dtype)
+        # extract the basic elements for the chippers
+        dtype, dtype_out, bands_in, bands_out, complex_type = self._check_img_details(segment)
+        if len(segment) == 1:
+            return self._define_chipper(
+                segment[0], dtype=dtype, bands_in=bands_in, complex_type=complex_type,
+                dtype_out=dtype_out, bands_out=bands_out)
+        else:
+            # get the bounds definition
+            bounds = self._get_chipper_partitioning(segment, rows, cols)
+            # define the chippers
+            chippers = [
+                self._define_chipper(img_index, dtype=dtype, bands_in=bands_in, complex_type=complex_type,
+                                     dtype_out=dtype_out, bands_out=bands_out) for img_index in segment]
+            # define the aggregate chipper
+            return AggregateChipper(bounds, dtype_out, chippers, bands_out=bands_out)
 
+
+#########
+# The writer implementation
 
 def validate_sidd_for_writing(sidd_meta):
     """
@@ -616,7 +563,9 @@ class SIDDWriter(NITFWriter):
         sidd = self.sidd_meta[index]
 
         iid2 = None
+        # noinspection PyProtectedMember
         if hasattr(sidd, '_NITF') and isinstance(sidd._NITF, dict):
+            # noinspection PyProtectedMember
             iid2 = sidd._NITF.get('SUGGESTED_NAME', None)
         if iid2 is None:
             iid2 = 'SIDD: Unknown'
@@ -636,7 +585,9 @@ class SIDDWriter(NITFWriter):
     def _get_ostaid(self):
         ostaid = 'Unknown'
         sidd = self.sidd_meta[0]
+        # noinspection PyProtectedMember
         if hasattr(sidd, '_NITF') and isinstance(sidd._NITF, dict):
+            # noinspection PyProtectedMember
             ostaid = sidd._NITF.get('OSTAID', 'Unknown')
         return ostaid
 
