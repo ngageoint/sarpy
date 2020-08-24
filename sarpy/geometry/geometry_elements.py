@@ -598,6 +598,21 @@ class GeometryObject(Geometry):
     def add_to_kml(self, doc, parent, coord_transform):
         raise NotImplementedError
 
+    def apply_projection(self, proj_method):
+        """
+        Gets a new version after applying a transform method.
+
+        Parameters
+        ----------
+        proj_method : callable
+
+        Returns
+        -------
+        GeometryObject
+        """
+
+        raise NotImplementedError
+
 
 class Point(GeometryObject):
     """
@@ -614,6 +629,10 @@ class Point(GeometryObject):
 
     @property
     def coordinates(self):
+        """
+        numpy.ndarray: The coordinate array.
+        """
+
         return self._coordinates
 
     @coordinates.setter
@@ -661,6 +680,10 @@ class Point(GeometryObject):
             return
         doc.add_point(_get_kml_coordinate_string(self.coordinates, coord_transform), par=parent)
 
+    def apply_projection(self, proj_method):
+        # type: (callable) -> Point
+        return Point(coordinates=proj_method(self._coordinates))
+
 
 class MultiPoint(GeometryObject):
     """
@@ -677,6 +700,11 @@ class MultiPoint(GeometryObject):
 
     @property
     def points(self):
+        # type: () -> List[Point]
+        """
+        List[Point]: The point collection.
+        """
+
         return self._points
 
     @points.setter
@@ -726,6 +754,10 @@ class MultiPoint(GeometryObject):
             if geometry is not None:
                 geometry.add_to_kml(doc, multigeometry, coord_transform)
 
+    def apply_projection(self, proj_method):
+        # type: (callable) -> MultiPoint
+        return MultiPoint(coordinates=[pt.apply_projection(proj_method) for pt in self.points])
+
 
 class LineString(GeometryObject):
     """
@@ -742,6 +774,11 @@ class LineString(GeometryObject):
 
     @property
     def coordinates(self):
+        # type: () -> numpy.ndarray
+        """
+        numpy.ndarray: The coordinate array.
+        """
+
         return self._coordinates
 
     @coordinates.setter
@@ -813,6 +850,10 @@ class LineString(GeometryObject):
             return
         doc.add_line_string(_get_kml_coordinate_string(self.coordinates, coord_transform), par=parent)
 
+    def apply_projection(self, proj_method):
+        # type: (callable) -> LineString
+        return LineString(coordinates=proj_method(self.coordinates))
+
 
 class MultiLineString(GeometryObject):
     """
@@ -829,6 +870,11 @@ class MultiLineString(GeometryObject):
 
     @property
     def lines(self):
+        # type: () -> List[LineString]
+        """
+        List[LineString]: The line collection.
+        """
+
         return self._lines
 
     @lines.setter
@@ -890,6 +936,10 @@ class MultiLineString(GeometryObject):
         for geometry in self._lines:
             if geometry is not None:
                 geometry.add_to_kml(doc, multigeometry, coord_transform)
+
+    def apply_projection(self, proj_method):
+        # type: (callable) -> MultiLineString
+        return MultiLineString(coordinates=[line.apply_projection(proj_method) for line in self.lines])
 
 
 class LinearRing(LineString):
@@ -1305,6 +1355,10 @@ class LinearRing(LineString):
                 out[start_x:end_x, start_y:end_y] = self._contained_do_segment(x_temp, y_temp, seg, direction)
         return out
 
+    def apply_projection(self, proj_method):
+        # type: (callable) -> LinearRing
+        return LinearRing(coordinates=proj_method(self.coordinates))
+
 
 class Polygon(GeometryObject):
     """
@@ -1527,6 +1581,13 @@ class Polygon(GeometryObject):
             inCoords = [_get_kml_coordinate_string(ir.coordinates, coord_transform) for ir in self._inner_rings]
         doc.add_polygon(outCoords, inCoords=inCoords, par=parent)
 
+    def apply_projection(self, proj_method):
+        # type: (callable) -> Polygon
+        coords = [self._outer_ring.apply_projection(proj_method), ]
+        if self._inner_rings is not None:
+            coords.extend([lr.apply_projection(proj_method) for lr in self._inner_rings])
+        return Polygon(coordinates=coords)
+
 
 class MultiPolygon(GeometryObject):
     """
@@ -1543,6 +1604,11 @@ class MultiPolygon(GeometryObject):
 
     @property
     def polygons(self):
+        # type: () -> List[Polygon]
+        """
+        List[Polygon]: The polygon collection.
+        """
+
         return self._polygons
 
     @polygons.setter
@@ -1683,3 +1749,7 @@ class MultiPolygon(GeometryObject):
         for geometry in self._polygons:
             if geometry is not None:
                 geometry.add_to_kml(doc, multigeometry, coord_transform)
+
+    def apply_projection(self, proj_method):
+        # type: (callable) -> MultiPolygon
+        return MultiPolygon(coordinates=[poly.apply_projection(proj_method) for poly in self.polygons])
