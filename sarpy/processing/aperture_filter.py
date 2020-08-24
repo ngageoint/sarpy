@@ -34,6 +34,15 @@ class ApertureFilter:
         return ft_cdata
 
     @property
+    def flip_x_axis(self):
+        if self._reader.sicd_meta.SCPCOA:
+            if self._reader.sicd_meta.SCPCOA.SideOfTrack:
+                if self._reader.sicd_meta.SCPCOA.SideOfTrack == "L":
+                    return True
+                else:
+                    return False
+
+    @property
     def sub_image_bounds(self):
         return self._sub_image_bounds
 
@@ -45,6 +54,18 @@ class ApertureFilter:
         self._sub_image_bounds = (row_bounds, col_bounds)
         deskewed_data = self._deskew_calculator[row_bounds[0]:row_bounds[1], col_bounds[0]:col_bounds[1]]
         self._normalized_phase_history = self._get_fft_complex_data(deskewed_data)
+
+    def get_polar_angle_bounds(self):
+        angle_width = (1 / self._reader.sicd_meta.Grid.Col.SS) / self._reader.sicd_meta.Grid.Row.KCtr
+        if self._reader.sicd_meta.Grid.Col.KCtr:
+            angle_ctr = self._reader.sicd_meta.Grid.Col.KCtr
+        else:
+            angle_ctr = 0
+        angle_limits = angle_ctr + numpy.array([-1, 1]) * angle_width / 2
+        if self.flip_x_axis:
+            angle_limits = angle_limits[1], angle_limits[0]
+        stop = 1
+        # handles.phdXaxis = atand(linspace(angle_limits(1), angle_limits(2), size(phdmag, 2)));
 
     def __getitem__(self, item):
         filtered_cdata = numpy.zeros(self._normalized_phase_history.shape, dtype=numpy.complex)
