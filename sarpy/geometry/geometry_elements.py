@@ -280,14 +280,14 @@ class Feature(_Jsonable):
             self.geometry.add_to_kml(doc, placemark, coord_transform)
 
 
-class FeatureList(_Jsonable):
+class FeatureCollection(_Jsonable):
     """
-    Generic FeatureList class - basic geojson functionality. Should generally be
+    Generic FeatureCollection class - basic geojson functionality. Should generally be
     extended to coherently handle specific Feature extension.
     """
 
     __slots__ = ('_features', '_feature_dict')
-    _type = 'FeatureList'
+    _type = 'FeatureCollection'
 
     def __init__(self, features=None):
         self._features = None
@@ -342,7 +342,7 @@ class FeatureList(_Jsonable):
     def from_dict(cls, the_json):
         typ = the_json['type']
         if typ != cls._type:
-            raise ValueError('FeatureList cannot be constructed from {}'.format(the_json))
+            raise ValueError('FeatureCollection cannot be constructed from {}'.format(the_json))
         return cls(features=the_json['features'])
 
     def to_dict(self, parent_dict=None):
@@ -404,6 +404,7 @@ class FeatureList(_Jsonable):
                     feat.add_to_kml(doc, coord_transform)
 
 
+
 class Geometry(_Jsonable):
     """
     Abstract Geometry base class.
@@ -427,11 +428,9 @@ class Geometry(_Jsonable):
         typ = geometry['type']
         if typ == 'GeometryCollection':
             obj = GeometryCollection.from_dict(geometry)
-            print('returning {}'.format(obj.__class__.__name__))
             return obj
         else:
             obj = GeometryObject.from_dict(geometry)
-            print('returning {}'.format(obj.__class__.__name__))
             return obj
 
     def to_dict(self, parent_dict=None):
@@ -689,10 +688,6 @@ class MultiPoint(GeometryObject):
             raise TypeError(
                 'Multipoint requires that points is None or a list of points. '
                 'Got type {}'.format(type(points)))
-        if len(points) < 2:
-            raise ValueError(
-                'A MultiPoint requires at least two point components. '
-                'Got {}.'.format(len(points)))
         self._points = [Point(coordinates=entry) for entry in points]
 
     def get_bbox(self):
@@ -794,7 +789,8 @@ class LineString(GeometryObject):
             return self._coordinates.tolist()
 
     @classmethod
-    def from_dict(cls, geometry):  # type: (dict) -> LineString
+    def from_dict(cls, geometry):
+        # type: (dict) -> LineString
         if not geometry.get('type', None) == cls._type:
             raise ValueError('Poorly formed json {}'.format(geometry))
         cls(coordinates=geometry['coordinates'])
@@ -845,10 +841,6 @@ class MultiLineString(GeometryObject):
             raise TypeError(
                 'MultiLineString requires that lines is None or a list of LineStrings. '
                 'Got type {}'.format(type(lines)))
-        if len(lines) < 2:
-            raise ValueError(
-                'A MultiLineString requires at least two LineString components. '
-                'Got {}.'.format(len(lines)))
         self._lines = [LineString(coordinates=entry) for entry in lines]
 
     def get_bbox(self):
@@ -1564,10 +1556,6 @@ class MultiPolygon(GeometryObject):
             raise TypeError(
                 'MultiPolygon requires the polygons is None or a list of Polygons. '
                 'Got type {}'.format(type(polygons)))
-        if len(polygons) < 2:
-            raise ValueError(
-                'A MultiPolygon requires at least two polygon components. '
-                'Got {}.'.format(len(polygons)))
         self._polygons = [Polygon(coordinates=entry) for entry in polygons]
 
     def get_bbox(self):
