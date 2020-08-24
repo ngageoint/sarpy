@@ -27,6 +27,36 @@ except ImportError:
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
+def _validate_coords(coords):
+    """
+    Validate any coordinate arrays.
+
+    Parameters
+    ----------
+    coords : numpy.ndarray|list|tuple
+
+    Returns
+    -------
+    (numpy.ndarray, tuple)
+    """
+
+    if not isinstance(coords, numpy.ndarray):
+        coords = numpy.array(coords, dtype='float64')
+
+    orig_shape = coords.shape
+
+    if coords.shape[-1] < 2:
+        raise ValueError(
+            'The coords array must must have final dimension length at least 2. '
+            'We have shape = {}'.format(coords.shape))
+
+    if len(coords.shape) == 1:
+        coords = numpy.reshape(coords, (1, -1))
+    if coords.shape[-1] > 2:
+        return coords[:, :2], orig_shape[:-1] + (2, )
+    else:
+        return coords, orig_shape
+
 
 def _get_projection(corner_string, hemisphere, rows, cols):
     """
@@ -43,6 +73,9 @@ def _get_projection(corner_string, hemisphere, rows, cols):
     -------
     callable
     """
+
+    if pyproj is None:
+        raise ValueError('This requires dependency pyproj.')
 
     # make sure that hemisphere is sensible
     if hemisphere not in ['S', 'N']:
@@ -61,14 +94,28 @@ def _get_projection(corner_string, hemisphere, rows, cols):
     utms = numpy.array(utms, dtype='float64')
     col_vector = (utms[1, :] - utms[0, :])/(cols - 1)
     row_vector = (utms[3, :] - utms[0, :])/(rows - 1)
+    if numpy.abs(row_vector.dot(col_vector)) > 1e-6:
+        raise ValueError('This does not appear to be an ortho-rectified image.')
     test_corner = utms[0, :] + (rows -1)*row_vector + (cols-1)*col_vector
     if numpy.any(numpy.abs(test_corner - utms[2, :]) > 1):
         raise ValueError('This does not appear to be an ortho-rectified image.')
-    # define our projection method
+    # define our projection - this is for projecting lon,lat to our UTM coords (and vice versa)
+    the_proj = pyproj.Proj(proj='utm',zone=utm_zone, south=(hemisphere == 'S'), ellps='WGS84')
+    # account for row/column spacing for pixel conversion
+    row_vector /= numpy.sum(row_vector*row_vector)
+    col_vector /= numpy.sum(col_vector*col_vector)
 
-
-
-    pass
+    def projection_method(lon_lat):
+        lon_lat, o_shape = _validate_coords(lon_lat)
+        lon_lat = numpy.reshape(lon_lat, (-1, 2))
+        xy = numpy.zeros(lon_lat.shape, dtype='float64')
+        xy[:, 0], xy[:, 1] = the_proj(lon_lat[:, 0], lon_lat[:, 1], inverse=True)
+        xy -= utms[0, :]  # recenter based on the first corner
+        pixel_xy = numpy.zeros(lon_lat.shape, dtype='float64')
+        pixel_xy[:, 0] = xy.dot(row_vector)
+        pixel_xy[:, 1] = xy.dot(col_vector)
+        return pixel_xy
+    return projection_method
 
 
 class ChangeDetectionDetails(object):
@@ -146,12 +193,6 @@ class ChangeDetectionDetails(object):
                 del self._file_names['V']  # drop this non-functional file to avoid repeating
         return self._features
 
-    # TODO:
-    #  1.) some kind of features filtering/manipulation tool
-    #  2.) need a lon/lat -> pixel coordinates mapper
-    #  2.) for a given geometry object, we should be able to get a corresponding geometry object using pixel coordinates
-
-
 
 class ChangeDetectionReader(AggregateReader):
     """
@@ -190,3 +231,5 @@ class ChangeDetectionReader(AggregateReader):
         """
 
         return self._change_details.features
+
+    # TODO: some kind of features filtering/manipulation tool?
