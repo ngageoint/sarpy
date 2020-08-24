@@ -6,7 +6,6 @@ The GeoDataType definition.
 from collections import OrderedDict
 from typing import Union, List
 from xml.etree import ElementTree
-import copy
 
 # noinspection PyProtectedMember
 from sarpy.io.complex.sicd_elements.base import Serializable, SerializableArray, SerializableCPArray, \

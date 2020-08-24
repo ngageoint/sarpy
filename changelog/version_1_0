@@ -1,5 +1,10 @@
 # This details the important differences introduced in sarpy 1.0
 
+* .53 - SICD normalization method bug fixes
+* .52 - Fine-tuning parameter defaults and naming in projection methods
+* .51 - Fixed subtle bug in projection to constant HAE method
+* .50 - Introduced projection methods for SIDD structures
+* .49 - Bug fix for SICD normalization methods
 * .48 - Making SICD normalization methods more robust
 * .47 - Tidy up ICEYE parameter values
 * .46 - Tidy up chipper argument values

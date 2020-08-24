@@ -188,13 +188,14 @@ def _determine_direction(sicd, dimension):
             pass
     else:
         raise ValueError('dimension must be one of 0 or 1.')
-    return 1 if sgn is None else sgn
+    return -1 if sgn is None else sgn
 
 
 def fft_sicd(array, dimension, sicd):
     """
-    Apply the forward one-dimensional forward fft to data associated with the given sicd
-    along the given dimension/axis.
+    Apply the forward one-dimensional forward fft to data associated with the
+    given sicd along the given dimension/axis, in accordance with the sign
+    populated in the SICD structure (default is -1).
 
     Parameters
     ----------

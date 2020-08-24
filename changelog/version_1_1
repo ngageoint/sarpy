@@ -1,0 +1,6 @@
+# This details the important differences introduced in sarpy 1.1
+
+* .1 - Added helper methods for aperture tool processing
+* .0 - Initialized with more general NITF reading support, including supporting
+       compressed image segments, and introduced preliminary capability for
+       reading a standard change detection package

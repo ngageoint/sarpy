@@ -242,6 +242,7 @@ class ProductClassificationType(Serializable):
         Parameters
         ----------
         sicd : SICDType
+        create_date : str
 
         Returns
         -------

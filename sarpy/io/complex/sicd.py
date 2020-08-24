@@ -10,8 +10,7 @@ import logging
 import numpy
 
 from sarpy.compliance import string_types
-from sarpy.io.general.base import validate_sicd_for_writing
-from sarpy.io.general.bip import MultiSegmentChipper
+from sarpy.io.general.base import validate_sicd_for_writing, AggregateChipper
 from sarpy.io.general.nitf import NITFReader, NITFWriter, ImageDetails, DESDetails, \
     image_segmentation, get_npp_block, interpolate_corner_points_string
 from sarpy.io.general.utils import parse_xml_from_string
@@ -365,29 +364,6 @@ class SICDReader(NITFReader):
     def _find_segments(self):
         return [list(range(self.nitf_details.img_segment_offsets.size)), ]
 
-    def _check_img_header(self, segment, expected_abpp, pixel_type):
-        """
-        Check the observed values in the image subheaders for validity.
-
-        Parameters
-        ----------
-        segment : List[int]
-        expected_abpp : int
-        pixel_type : str
-
-        Returns
-        -------
-        None
-        """
-
-        for i, this_index in enumerate(segment):
-            img_header = self.nitf_details.img_headers[this_index]
-            # verify abpp is as expected
-            if img_header.ABPP != expected_abpp:
-                raise ValueError(
-                    'NITF image segment {} should have ABPP {} as indicated by pixel_type {}, but got {}'.format(
-                        this_index, expected_abpp, pixel_type, img_header.ABPP))
-
     def _construct_chipper(self, segment, index):
         meta = self.sicd_meta
         pixel_type = meta.ImageData.PixelType
@@ -395,24 +371,35 @@ class SICDReader(NITFReader):
         if pixel_type == 'RE32F_IM32F':
             dtype = numpy.dtype('>f4')
             complex_type = True
-            abpp = 32
         elif pixel_type == 'RE16I_IM16I':
             dtype = numpy.dtype('>i2')
             complex_type = True
-            abpp = 16
         elif pixel_type == 'AMP8I_PHS8I':
             dtype = numpy.dtype('>u1')
             complex_type = amp_phase_to_complex(meta.ImageData.AmpTable)
-            abpp = 8
         else:
             raise ValueError('Pixel Type {} not recognized.'.format(pixel_type))
 
-        self._check_img_header(segment, abpp, pixel_type)
-        bounds, offsets = self._get_chipper_partitioning(segment, meta.ImageData.NumRows, meta.ImageData.NumCols)
-        return MultiSegmentChipper(
-            self.nitf_details.file_name, bounds, offsets, dtype,
-            symmetry=(False, False, False), complex_type=complex_type,
-            bands_ip=1, datatype_out='complex64')
+        # verify that the collective output of _extract_chipper_params makes sense
+        for img_index in segment:
+            inp_dtype, _, _, _, _ = self._extract_chipper_params(img_index)
+            if inp_dtype.name != dtype.name:
+                raise ValueError(
+                    'Image segment at index {} apparently has dtype {}, expected {} from the SICD definition'.format(img_index, inp_dtype, dtype))
+
+        if len(segment) == 1:
+            return self._define_chipper(
+                segment[0], dtype=dtype, bands_in=1, complex_type=complex_type,
+                dtype_out='complex64', bands_out=1)
+        else:
+            # get the bounds definition
+            bounds = self._get_chipper_partitioning(segment, meta.ImageData.NumRows, meta.ImageData.NumCols)
+            # define the chippers collection
+            chippers = [
+                self._define_chipper(img_index, dtype=dtype, bands_in=1, complex_type=complex_type,
+                                     dtype_out='complex64', bands_out=1) for img_index in segment]
+            # define the aggregate chipper
+            return AggregateChipper(bounds, 'complex64', chippers, bands_out=1)
 
 
 #######

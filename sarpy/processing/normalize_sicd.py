@@ -1,5 +1,6 @@
+# -*- coding: utf-8 -*-
 """
-Functions to transform SICD data to a common state.
+Methods for transforming SICD data to a common state.
 """
 
 import numpy
@@ -35,8 +36,8 @@ def _add_poly(poly1, poly2):
     if not isinstance(poly2, numpy.ndarray) and poly2.ndim == 2:
         raise TypeError('poly2 must be a two-dimensional numpy array.')
     out = numpy.zeros((max(poly1.shape[0], poly2.shape[0]), max(poly1.shape[1], poly2.shape[1])), dtype='float64')
-    out[:poly1.shape[0], : poly1.shape[1]] += poly1
-    out[:poly2.shape[0], : poly2.shape[1]] += poly2
+    out[:poly1.shape[0], :poly1.shape[1]] += poly1
+    out[:poly2.shape[0], :poly2.shape[1]] += poly2
     return out
 
 
@@ -143,6 +144,7 @@ def is_normalized(sicd, dimension=1):
            _is_fft_sgn_negative(sicd, dimension)
 
 
+
 class DeskewCalculator(FullResolutionFetcher):
     """
     This is a calculator for deskewing/deweighting which requires full resolution
@@ -196,8 +198,6 @@ class DeskewCalculator(FullResolutionFetcher):
         self._sicd = the_sicd
         row_delta_kcoa_poly, self._row_fft_sgn = _get_deskew_params(the_sicd, 0)
         col_delta_kcoa_poly, self._col_fft_sgn = _get_deskew_params(the_sicd, 1)
-
-        # TODO: what if the off axis delta_kcoa_poly is not [[0, ], ] to start with? We just add them?
         if self.dimension == 0:
             self._delta_kcoa_poly_axis = row_delta_kcoa_poly
             delta_kcoa_poly_int = polynomial.polyint(row_delta_kcoa_poly, axis=0)
@@ -340,6 +340,7 @@ def _get_deskew_params(the_sicd, dimension):
             fft_sign = the_sicd.Grid.Row.Sgn
         except (ValueError, AttributeError):
             pass
+
     else:
         try:
             delta_kcoa_poly = the_sicd.Grid.Col.DeltaKCOAPoly.get_array(dtype='float64')
@@ -363,7 +364,6 @@ def _deskew_array(input_data, delta_kcoa_poly, row_array, col_array, fft_sgn, di
     row_array : numpy.ndarray
     col_array : numpy.ndarray
     fft_sgn : int
-    dimension : int
 
     Returns
     -------

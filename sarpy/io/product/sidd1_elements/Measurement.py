@@ -9,9 +9,9 @@ from sarpy.io.product.sidd2_elements.base import DEFAULT_STRICT
 
 # noinspection PyProtectedMember
 from sarpy.io.complex.sicd_elements.base import Serializable, _SerializableDescriptor
-from sarpy.io.product.sidd2_elements.blocks import Poly2DType, RowColIntType, XYZPolyType
-from sarpy.io.product.sidd2_elements.Measurement import PolynomialProjectionType, GeographicProjectionType, \
-    PlaneProjectionType, CylindricalProjectionType
+from sarpy.io.product.sidd2_elements.blocks import RowColIntType, XYZPolyType
+from sarpy.io.product.sidd2_elements.Measurement import PolynomialProjectionType, \
+    GeographicProjectionType, PlaneProjectionType, CylindricalProjectionType
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
@@ -28,6 +28,8 @@ class MeasurementType(Serializable):
     _required = ('PixelFootprint', 'ARPPoly')
     _collections_tags = {'ValidData': {'array': True, 'child_tag': 'Vertex'}}
     _numeric_format = {'ValidData': '0.16G'}
+    _choice = ({'required': False, 'collection': ('PolynomialProjection', 'GeographicProjection',
+                                                  'PlaneProjection', 'CylindricalProjection')}, )
     # Descriptor
     PolynomialProjection = _SerializableDescriptor(
         'PolynomialProjection', PolynomialProjectionType, _required, strict=DEFAULT_STRICT,
@@ -77,3 +79,11 @@ class MeasurementType(Serializable):
         self.CylindricalProjection = CylindricalProjection
         self.ARPPoly = ARPPoly
         super(MeasurementType, self).__init__(**kwargs)
+
+    @property
+    def ProjectionType(self):
+        """str: *READ ONLY* Identifies the specific image projection type supplied."""
+        for attribute in self._choice[0]['collection']:
+            if getattr(self, attribute) is not None:
+                return attribute
+        return None
