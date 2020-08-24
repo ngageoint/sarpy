@@ -8,6 +8,10 @@ from sarpy.processing.normalize_sicd import DeskewCalculator
 import numpy
 
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Jason Casey"
+
+
 class ApertureFilter(object):
     """
     This is a calculator for filtering SAR imagery using a subregion of complex
