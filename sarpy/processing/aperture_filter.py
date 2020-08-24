@@ -110,6 +110,7 @@ class ApertureFilter(object):
         angle_limits = angle_ctr + numpy.array([-1, 1]) * angle_width / 2
         if self.flip_x_axis:
             angle_limits = angle_limits[1], angle_limits[0]
+        # TODO: finish this implementation
         stop = 1
         # handles.phdXaxis = atand(linspace(angle_limits(1), angle_limits(2), size(phdmag, 2)));
 
