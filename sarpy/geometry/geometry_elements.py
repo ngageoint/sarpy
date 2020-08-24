@@ -404,7 +404,6 @@ class FeatureCollection(_Jsonable):
                     feat.add_to_kml(doc, coord_transform)
 
 
-
 class Geometry(_Jsonable):
     """
     Abstract Geometry base class.

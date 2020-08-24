@@ -10,16 +10,65 @@ from typing import Union, Dict
 
 import numpy
 
-from sarpy.compliance import int_func, string_types
+from sarpy.compliance import string_types
 from sarpy.io.general.base import AggregateReader
-from sarpy.io.general.nitf import NITFReader, NITFWriter, ImageDetails, DESDetails, \
-    image_segmentation, get_npp_block, interpolate_corner_points_string
-from sarpy.io.general.nitf import NITFDetails
+from sarpy.io.general.nitf import NITFReader
 from sarpy.geometry.geometry_elements import FeatureCollection
+
+try:
+    import pyproj
+except ImportError:
+    logging.error(
+        'Optional dependency pyproj is required for interpretation '
+        'of standard change detection products.')
+    pyproj = None
 
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
+
+
+def _get_projection(corner_string, hemisphere, rows, cols):
+    """
+    Gets the projection method for [lon, lat] -> [row, col].
+
+    Parameters
+    ----------
+    corner_string : str
+    hemisphere : str
+    rows : int
+    cols : int
+
+    Returns
+    -------
+    callable
+    """
+
+    # make sure that hemisphere is sensible
+    if hemisphere not in ['S', 'N']:
+        raise ValueError('hemisphere must be one of "N" or "S", got {}'.format(hemisphere))
+
+    # split into the respective corner parts
+    corners_strings = [corner_string[start:stop] for start, stop in zip(range(0, 59, 15), range(15, 74, 15))]
+    # parse the utm zone
+    utm_zone = corners_strings[0][:2]
+    for entry in corners_strings:
+        if entry[:2] != utm_zone:
+            raise ValueError('Got incompatible corner UTM zones {} and {}'.format(utm_zone, entry[:2]))
+    utm_zone = int(utm_zone)
+    # parse the corner strings into utm coordinates
+    utms = [(float(frag[2:8].strip()), float(frag[8:].strip())) for frag in corners_strings]
+    utms = numpy.array(utms, dtype='float64')
+    col_vector = (utms[1, :] - utms[0, :])/(cols - 1)
+    row_vector = (utms[3, :] - utms[0, :])/(rows - 1)
+    test_corner = utms[0, :] + (rows -1)*row_vector + (cols-1)*col_vector
+    if numpy.any(numpy.abs(test_corner - utms[2, :]) > 1):
+        raise ValueError('This does not appear to be an ortho-rectified image.')
+    # define our projection method
+
+
+
+    pass
 
 
 class ChangeDetectionDetails(object):
@@ -97,6 +146,12 @@ class ChangeDetectionDetails(object):
                 del self._file_names['V']  # drop this non-functional file to avoid repeating
         return self._features
 
+    # TODO:
+    #  1.) some kind of features filtering/manipulation tool
+    #  2.) need a lon/lat -> pixel coordinates mapper
+    #  2.) for a given geometry object, we should be able to get a corresponding geometry object using pixel coordinates
+
+
 
 class ChangeDetectionReader(AggregateReader):
     """
@@ -135,19 +190,3 @@ class ChangeDetectionReader(AggregateReader):
         """
 
         return self._change_details.features
-
-
-if __name__ == '__main__':
-    logging.basicConfig(level='INFO')
-
-    root_dir = os.path.expanduser('~/Downloads/AnamolousChangeDetection')
-    this_file = os.path.join(root_dir, '16JUL24160156-P100_16JUL15160916-P100_20200618T140248_OBS_EOCD_C.ntf')
-
-    details = ChangeDetectionDetails(this_file)
-    reader = ChangeDetectionReader(details)
-
-    from PIL import Image
-
-    Image.fromarray(reader[:, :, 0]).save(os.path.join(root_dir, this_file[:-6] + '_C.jpeg'))
-    Image.fromarray(reader[:, :, 1]).save(os.path.join(root_dir, this_file[:-6] + '_M.jpeg'))
-    Image.fromarray(reader[:, :, 2]).save(os.path.join(root_dir, this_file[:-6] + '_R.jpeg'))
