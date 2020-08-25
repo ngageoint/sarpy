@@ -6,17 +6,20 @@ Module for reading and interpreting the standard change detection result files.
 import logging
 import os
 import json
-from typing import Union, Dict
+from typing import Union, Dict, Tuple
 
 import numpy
 
 from sarpy.compliance import string_types
 from sarpy.io.general.base import AggregateReader
 from sarpy.io.general.nitf import NITFReader
-from sarpy.geometry.geometry_elements import FeatureCollection
+from sarpy.geometry.geometry_elements import FeatureCollection, Feature, Geometry
 
 try:
+    # noinspection PyPackageRequirements
     import pyproj
+    # NB: this very likely requires PIL (compressed images),
+    # which is handled in sarpy.io.general.nitf
 except ImportError:
     logging.error(
         'Optional dependency pyproj is required for interpretation '
@@ -26,6 +29,7 @@ except ImportError:
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
+
 
 def _validate_coords(coords):
     """
@@ -58,7 +62,7 @@ def _validate_coords(coords):
         return coords, orig_shape
 
 
-def _get_projection(corner_string, hemisphere, rows, cols):
+def _get_projection(corner_string, hemisphere, data_size):
     """
     Gets the projection method for [lon, lat] -> [row, col].
 
@@ -66,8 +70,7 @@ def _get_projection(corner_string, hemisphere, rows, cols):
     ----------
     corner_string : str
     hemisphere : str
-    rows : int
-    cols : int
+    data_size : tuple
 
     Returns
     -------
@@ -92,6 +95,8 @@ def _get_projection(corner_string, hemisphere, rows, cols):
     # parse the corner strings into utm coordinates
     utms = [(float(frag[2:8].strip()), float(frag[8:].strip())) for frag in corners_strings]
     utms = numpy.array(utms, dtype='float64')
+
+    rows, cols = data_size
     col_vector = (utms[1, :] - utms[0, :])/(cols - 1)
     row_vector = (utms[3, :] - utms[0, :])/(rows - 1)
     if numpy.abs(row_vector.dot(col_vector)) > 1e-6:
@@ -106,11 +111,14 @@ def _get_projection(corner_string, hemisphere, rows, cols):
     col_vector /= numpy.sum(col_vector*col_vector)
 
     def projection_method(lon_lat):
+        # project lon/lat to utm
         lon_lat, o_shape = _validate_coords(lon_lat)
         lon_lat = numpy.reshape(lon_lat, (-1, 2))
         xy = numpy.zeros(lon_lat.shape, dtype='float64')
-        xy[:, 0], xy[:, 1] = the_proj(lon_lat[:, 0], lon_lat[:, 1], inverse=True)
-        xy -= utms[0, :]  # recenter based on the first corner
+        xy[:, 0], xy[:, 1] = the_proj(lon_lat[:, 0], lon_lat[:, 1])
+        # recenter based on the first corner
+        xy -= utms[0, :]
+        # convert to pixel
         pixel_xy = numpy.zeros(lon_lat.shape, dtype='float64')
         pixel_xy[:, 0] = xy.dot(row_vector)
         pixel_xy[:, 1] = xy.dot(col_vector)
@@ -124,7 +132,7 @@ class ChangeDetectionDetails(object):
     """
 
     __slots__ = (
-        '_file_names', '_features')
+        '_file_names', '_features', '_head_feature')
 
     def __init__(self, file_name):
         """
@@ -136,6 +144,7 @@ class ChangeDetectionDetails(object):
 
         self._file_names = {}
         self._features = None
+        self._head_feature = None
 
         if not isinstance(file_name, string_types):
             raise IOError('file_name is required to be a string path name.')
@@ -163,6 +172,7 @@ class ChangeDetectionDetails(object):
             self._file_names['V'] = fil
         else:
             logging.warning('Change detection file part V (i.e. json metadata) not found.')
+        self._set_features()
 
     @property
     def file_names(self):
@@ -173,14 +183,11 @@ class ChangeDetectionDetails(object):
 
         return self._file_names
 
-    @property
-    def features(self):
-        # type: () -> Union[FeatureCollection, None]
-        """
-        None|FeatureCollection: The feature list, if it is defined.
-        """
+    def _set_features(self):
+        if self._features is not None:
+            return
 
-        if 'V' in self._file_names and self._features is None:
+        if 'V' in self._file_names:
             the_file = self._file_names['V']
             try:
                 with open(the_file, 'r') as fi:
@@ -191,7 +198,25 @@ class ChangeDetectionDetails(object):
                     'Failed decoding change detection json file {}\n with error {}. '
                     'Skipping json definition.'.format(the_file, e))
                 del self._file_names['V']  # drop this non-functional file to avoid repeating
+        if self._features is not None:
+            self._head_feature = self._features[0]
+
+    @property
+    def features(self):
+        # type: () -> Union[FeatureCollection, None]
+        """
+        None|FeatureCollection: The feature list, if it is defined.
+        """
         return self._features
+
+    @property
+    def head_feature(self):
+        # type: () -> Union[Feature, None]
+        """
+        None|Feature: The main metadata Feature, which is at the head of the feature list.
+        """
+
+        return self._head_feature
 
 
 class ChangeDetectionReader(AggregateReader):
@@ -200,7 +225,7 @@ class ChangeDetectionReader(AggregateReader):
     The order of the aggregation is given by `C` (index 0), `M` (index 1), `R` (index 2).
     """
 
-    __slots__ = ('_change_details', )
+    __slots__ = ('_change_details', '_pixel_geometries')
 
     def __init__(self, change_details):
         """
@@ -209,6 +234,8 @@ class ChangeDetectionReader(AggregateReader):
         ----------
         change_details : str|ChangeDetectionDetails
         """
+
+        self._pixel_geometries = {}  # type: Dict[str, Geometry]
 
         if isinstance(change_details, string_types):
             change_details = ChangeDetectionDetails(change_details)
@@ -222,6 +249,12 @@ class ChangeDetectionReader(AggregateReader):
                    NITFReader(change_details.file_names['M']),
                    NITFReader(change_details.file_names['R']),)
         super(ChangeDetectionReader, self).__init__(readers)
+        self._set_pixel_geometries()
+
+    @property
+    def readers(self):
+        # type: () -> Tuple[NITFReader]
+        return self._readers
 
     @property
     def features(self):
@@ -232,4 +265,67 @@ class ChangeDetectionReader(AggregateReader):
 
         return self._change_details.features
 
-    # TODO: some kind of features filtering/manipulation tool?
+    @property
+    def head_feature(self):
+        # type: () -> Union[Feature, None]
+        """
+        None|Feature: The main metadata Feature, which is at the head of the feature list.
+        """
+
+        return self._change_details.head_feature
+
+    def _extract_geolocation_details(self):
+        """
+        Extract the projection method `[lon, lat, hae] -> [pixel row, pixel col]`
+        for the reader(s).
+
+        Returns
+        -------
+        callable
+        """
+
+        corner_string = None
+        hemisphere = None
+        data_size = None
+        for reader in self.readers:
+            if len(reader.nitf_details.img_headers) != 1:
+                raise ValueError(
+                    'Each reader is expected to have a single image segment, while reader for file\n'
+                    '{}\n has {} segments.'.format(reader.file_name, len(reader.nitf_details.img_headers)))
+            img_head = reader.nitf_details.img_headers[0]
+            if corner_string is None:
+                corner_string = img_head.IGEOLO
+                hemisphere = img_head.ICORDS
+                data_size = reader.get_data_size_as_tuple()[0]
+            else:
+                if corner_string != img_head.IGEOLO:
+                    raise ValueError(
+                        'Got two different IGEOLO entries {} and {}'.format(corner_string, img_head.IGEOLO))
+                if hemisphere != img_head.ICORDS:
+                    raise ValueError(
+                        'Got two different ICORDS entires {} and {}'.format(hemisphere, img_head.ICORDS))
+                if data_size != reader.get_data_size_as_tuple()[0]:
+                    raise ValueError(
+                        'Got two different data sizes {} and {}'.format(data_size, reader.get_data_size_as_tuple()[0]))
+        if hemisphere not in ['N', 'S']:
+            raise ValueError('Got unexpected ICORDS {}'.format(hemisphere))
+        return _get_projection(corner_string, hemisphere, data_size)
+
+    def _set_pixel_geometries(self):
+        """
+        Sets the pixel geometries.
+
+        Returns
+        -------
+        None
+        """
+
+        feats = self.features
+        if feats is None:
+            return
+
+        proj_method = self._extract_geolocation_details()
+        for feat in feats.features:
+            if feat.geometry is None or feat.uid in self._pixel_geometries:
+                continue
+            self._pixel_geometries[feat.uid] = feat.geometry.apply_projection(proj_method)

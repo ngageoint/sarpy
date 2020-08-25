@@ -15,7 +15,9 @@ from tempfile import mkstemp
 import numpy
 
 try:
+    # noinspection PyPackageRequirements
     import PIL
+    # noinspection PyPackageRequirements
     import PIL.Image
 except ImportError:
     PIL = None
