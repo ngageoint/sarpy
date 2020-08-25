@@ -187,12 +187,11 @@ class MultiSegmentChipper(AggregateChipper):
                                  '[row start, row end, column start, column end]'.format(i, entry))
 
             # Are the elements of bounds sensible in relative terms?
-            #   we must traverse by a specific block of columns until we reach the row limit,
-            #   and then moving on the next segment of columns - note that this will almost
-            #   always be a single block of columns only broken down in row order
+            #   we must traverse by a specific block of rows until we reach the column limit,
+            #   and then moving on the next segment of rows
             if i > 0:
-                if not ((p_row_end == entry[0] and p_col_start == entry[2] and p_col_end == entry[3]) or
-                        (p_col_end == entry[2] and entry[0] == 0)):
+                if not ((p_col_end == entry[2] and p_row_start == entry[0] and p_row_end == entry[1]) or
+                        (p_row_end == entry[0] and entry[2] == 0)):
                     raise ValueError('The relative order for the chipper elements cannot be determined.')
             p_row_start, p_row_end, p_col_start, p_col_end = entry
             # define the data_sizes entry

@@ -438,14 +438,14 @@ class AggregateChipper(BaseChipper):
             #   Expected to traverse by a specific block of columns until we reach the row limit,
             #   and then moving on the next segment of columns
             if i == 0:
-                if entry[0] != 0 or entry[2] != 2:
+                if entry[0] != 0 or entry[2] != 0:
                     raise ValueError(
                         'The bounds must begin at row 0 and column 0. '
                         'Got initial bounds {}'.format(entry))
             else:
-                # this section start where the previous one ended, or start a new block of columns
-                if not ((p_row_end == entry[0] and p_col_start == entry[2] and p_col_end == entry[3]) or
-                        (p_col_end == entry[2] and entry[0] == 0)):
+                # this block of rows has new column start where previous one ended, or start a new block of rows
+                if not ((p_col_end == entry[2] and p_row_start == entry[0] and p_row_end == entry[1]) or
+                        (p_row_end == entry[0] and entry[2] == 0)):
                     raise ValueError('The relative order for the chipper elements cannot be determined.')
             p_row_start, p_row_end, p_col_start, p_col_end = entry
             # define the data_sizes entry
