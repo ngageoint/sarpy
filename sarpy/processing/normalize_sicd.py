@@ -364,6 +364,7 @@ def _deskew_array(input_data, delta_kcoa_poly, row_array, col_array, fft_sgn, di
     row_array : numpy.ndarray
     col_array : numpy.ndarray
     fft_sgn : int
+    dimension : int
 
     Returns
     -------
