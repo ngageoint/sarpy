@@ -144,7 +144,6 @@ def is_normalized(sicd, dimension=1):
            _is_fft_sgn_negative(sicd, dimension)
 
 
-
 class DeskewCalculator(FullResolutionFetcher):
     """
     This is a calculator for deskewing/deweighting which requires full resolution
@@ -222,6 +221,14 @@ class DeskewCalculator(FullResolutionFetcher):
         self._is_not_skewed_col = _is_not_skewed(the_sicd, 1)
         self._is_uniform_weight_row = _is_uniform_weight(the_sicd, 0)
         self._is_uniform_weight_col = _is_uniform_weight(the_sicd, 1)
+
+    @property
+    def apply_deweighting(self):
+        return self._apply_deweighting
+
+    @apply_deweighting.setter
+    def apply_deweighting(self, val):
+        self._apply_deweighting = val
 
     def _get_index_arrays(self, row_range, row_step, col_range, col_step):
         """
