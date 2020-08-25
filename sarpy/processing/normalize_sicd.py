@@ -1,5 +1,6 @@
+# -*- coding: utf-8 -*-
 """
-Methods to transform SICD data to a common state.
+Methods for transforming SICD data to a common state.
 """
 
 import numpy
