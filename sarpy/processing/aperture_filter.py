@@ -69,8 +69,7 @@ class ApertureFilter(object):
         numpy.ndarray
         """
 
-        # TODO: I don't see that they first perform an fftshift in the matlab?
-        return fft2_sicd(fftshift(ph_data), self.sicd)
+        return fft2_sicd(ph_data, self.sicd)
 
     @property
     def sicd(self):
