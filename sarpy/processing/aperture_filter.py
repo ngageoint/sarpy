@@ -6,6 +6,8 @@ Helper methods for aperture tool processing.
 from sarpy.processing.fft_base import fft2_sicd, ifft2_sicd, fftshift
 from sarpy.processing.normalize_sicd import DeskewCalculator
 import numpy
+from scipy.constants.constants import speed_of_light
+from sarpy.io.general.base import BaseReader
 
 
 __classification__ = "UNCLASSIFIED"
@@ -16,12 +18,24 @@ class ApertureFilter(object):
     """
     This is a calculator for filtering SAR imagery using a subregion of complex
     fft data over a full resolution subregion of the original SAR data.
+
+    To use this class first it should be initialized with a reader object
+
     """
 
     __slots__ = (
         '_deskew_calculator', '_sub_image_bounds', '_normalized_phase_history', )
 
     def __init__(self, reader, dimension=1, index=0, apply_deweighting=False):
+        """
+
+        Parameters
+        ----------
+        reader : BaseReader
+        dimension : int
+        index : int
+        apply_deweighting : bool
+        """
         self._deskew_calculator = DeskewCalculator(
             reader, dimension=dimension, index=index, apply_deweighting=apply_deweighting)
         self._sub_image_bounds = None
@@ -76,12 +90,12 @@ class ApertureFilter(object):
 
     @property
     def flip_x_axis(self):
-        if self._reader.sicd_meta.SCPCOA:
-            if self._reader.sicd_meta.SCPCOA.SideOfTrack:
-                if self._reader.sicd_meta.SCPCOA.SideOfTrack == "L":
-                    return True
-                else:
+        if self.sicd.SCPCOA:
+            if self.sicd.SCPCOA.SideOfTrack:
+                if self.sicd.SCPCOA.SideOfTrack == "L":
                     return False
+                else:
+                    return True
 
     @property
     def sub_image_bounds(self):
@@ -101,18 +115,36 @@ class ApertureFilter(object):
         deskewed_data = self._deskew_calculator[row_bounds[0]:row_bounds[1], col_bounds[0]:col_bounds[1]]
         self._normalized_phase_history = self._get_fft_complex_data(deskewed_data)
 
-    def get_polar_angle_bounds(self):
-        angle_width = (1 / self._reader.sicd_meta.Grid.Col.SS) / self._reader.sicd_meta.Grid.Row.KCtr
-        if self._reader.sicd_meta.Grid.Col.KCtr:
-            angle_ctr = self._reader.sicd_meta.Grid.Col.KCtr
+    @property
+    def polar_angles(self):
+        angle_width = (1 / self.sicd.Grid.Col.SS) / self.sicd.Grid.Row.KCtr
+        if self.sicd.Grid.Col.KCtr:
+            angle_ctr = self.sicd.Grid.Col.KCtr
         else:
             angle_ctr = 0
         angle_limits = angle_ctr + numpy.array([-1, 1]) * angle_width / 2
         if self.flip_x_axis:
             angle_limits = angle_limits[1], angle_limits[0]
-        # TODO: finish this implementation
-        stop = 1
-        # handles.phdXaxis = atand(linspace(angle_limits(1), angle_limits(2), size(phdmag, 2)));
+        angles = numpy.linspace(angle_limits[0], angle_limits[1], self.normalized_phase_history.shape[1])
+        return numpy.rad2deg(numpy.arctan(angles))
+
+    @property
+    def frequencies(self):
+        """
+        This returns the subaperture frequencies in units of GHz
+
+        Returns
+        -------
+        numpy.array
+        """
+        freq_width = (1 / self.sicd.Grid.Row.SS) * (speed_of_light / 2)
+        freq_ctr = self.sicd.Grid.Row.KCtr * (speed_of_light / 2)
+        freq_limits = freq_ctr + (numpy.array([-1, 1]) * freq_width / 2)
+        if self.sicd.PFA:
+            freq_limits = freq_limits / self.sicd.PFA.SpatialFreqSFPoly[0]
+        freq_limits = freq_limits/1e9
+        frequencies = numpy.linspace(freq_limits[1], freq_limits[0], self.normalized_phase_history.shape[0])
+        return frequencies
 
     def __getitem__(self, item):
         if self._normalized_phase_history is None:
