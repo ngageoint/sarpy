@@ -149,7 +149,6 @@ class ApertureFilter(object):
         if self._normalized_phase_history is None:
             return None
         filtered_cdata = numpy.zeros(self._normalized_phase_history.shape, dtype='complex64')
-        # TODO: do you really mean to pad all around with 0's and then perform?
         filtered_cdata[item] = self._normalized_phase_history[item]
         # do the inverse transform of this sampled portion
         return self._get_fft_phase_data(filtered_cdata)
