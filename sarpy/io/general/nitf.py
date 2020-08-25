@@ -560,13 +560,16 @@ class NITFReader(BaseReader):
         abpp = img_header.ABPP  # previously verified to be one of 8, 16, 32, 64
         bpp = int_func(abpp/8)  # bytes per pixel per band
         pvtype = img_header.PVTYPE
-        if img_header.ICAT.strip() in ['SAR', 'SARIQ'] and len(img_header.Bands) == 2:
-            if img_header.Bands[0].ISUBCAT.strip() == 'I' and \
-                    img_header.Bands[1].ISUBCAT.strip() == 'Q':
+        if img_header.ICAT.strip() in ['SAR', 'SARIQ'] and ((len(img_header.Bands) % 2) == 0):
+            cont = True
+            for i in range(0, len(img_header.Bands), 2):
+                cont &= (img_header.Bands[i] == 'I' and img_header.Bands[i+1] == 'Q')
+            if cont:
+                bands = int(len(img_header.Bands)/2)
                 if pvtype == 'SI':
-                    return numpy.dtype('>i{}'.format(bpp)), numpy.complex64, 1, 1, True
+                    return numpy.dtype('>i{}'.format(bpp)), numpy.complex64, bands, bands, True
                 elif pvtype == 'R':
-                    return numpy.dtype('>f{}'.format(bpp)), numpy.complex64, 1, 1, True
+                    return numpy.dtype('>f{}'.format(bpp)), numpy.complex64, bands, bands, True
         if img_header.IREP.strip() == 'MONO' and img_header.Bands[0].LUTD is not None:
             if not (pvtype == 'INT' and bpp not in [1, 2]):
                 raise ValueError(
@@ -638,41 +641,40 @@ class NITFReader(BaseReader):
                 bands_ip=bands_in)
 
         def handle_blocked():
-            # horizontal block details
-            horizontal_block_size = this_rows
+            # column (horizontal) block details
+            column_block_size = this_cols
             if img_header.NBPR != 1:
-                if (this_cols % img_header.NBPR) != 0:
-                    raise ValueError(
-                        'The number of blocks per row is listed as {}, but this is '
-                        'not equally divisible into the number of columns {}'.format(img_header.NBPR, this_cols))
-                horizontal_block_size = int_func(this_cols/img_header.NBPR)
+                column_block_size = int_func(numpy.ceil(this_cols / img_header.NBPR))
 
-            # vertical block details
-            vertical_block_size = this_cols
+            # row (vertical) block details
+            row_block_size = this_rows
             if img_header.NBPC != 1:
-                if (this_rows % img_header.NBPC) != 0:
-                    raise ValueError(
-                        'The number of blocks per column is listed as {}, but this is '
-                        'not equally divisible into the number of rows {}'.format(img_header.NBPC, this_rows))
-                vertical_block_size = int_func(this_rows/img_header.NBPC)
+                row_block_size = int_func(numpy.ceil(this_rows/img_header.NBPC))
 
             # iterate over our blocks and populate the bounds and offsets
             bounds = []
             offsets = []
 
+            # outer loop over rows inner loop over columns
             current_offset = int_func(data_offset)
-            cur_row_start = 0
-            block_col_end = 0
+            block_row_end = 0
             for vblock in range(img_header.NBPC):
-                block_col_start = block_col_end
-                block_col_end += vertical_block_size
-                block_row_end = cur_row_start
+                # define the current row block start/end
+                block_row_start = block_row_end
+                block_row_end += row_block_size
+                block_row_end = min(this_rows, block_row_end)
+                block_col_end = 0
                 for hblock in range(img_header.NBPR):
-                    block_row_start = block_row_end
-                    block_row_end += horizontal_block_size
+                    # define the current column block
+                    block_col_start = block_col_end
+                    block_col_end += column_block_size
+                    block_col_end = min(this_cols, block_col_end)
+                    # store our bounds and offset
                     bounds.append((block_row_start, block_row_end, block_col_start, block_col_end))
                     offsets.append(current_offset)
-                    current_offset += horizontal_block_size * vertical_block_size * bytes_per_pixel
+                    # update the offset
+                    current_offset += (block_row_end - block_row_start)*(block_col_end - block_col_start)*bytes_per_pixel
+
             bounds = numpy.array(bounds, dtype=numpy.int64)
             offsets = numpy.array(offsets, dtype=numpy.int64)
             return MultiSegmentChipper(
