@@ -54,7 +54,7 @@ class ApertureFilter(object):
         numpy.ndarray
         """
 
-        return fftshift(ifft2_sicd(cdata, self.sicd))
+        return fftshift(fft2_sicd(cdata, self.sicd))
 
     def _get_fft_phase_data(self, ph_data):
         """
@@ -69,7 +69,7 @@ class ApertureFilter(object):
         numpy.ndarray
         """
 
-        return fft2_sicd(ph_data, self.sicd)
+        return ifft2_sicd(ph_data, self.sicd)
 
     @property
     def sicd(self):
