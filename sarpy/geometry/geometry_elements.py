@@ -167,15 +167,18 @@ class Feature(_Jsonable):
         self._geometry = None
         self._properties = None
 
+        self.geometry = geometry
+        self.properties = properties
+
+        if uid is None:
+            uid = properties.get('identifier', None)
+
         if uid is None:
             self._uid = str(uuid4())
         elif not isinstance(uid, string_types):
             raise TypeError('uid must be a string.')
         else:
             self._uid = uid
-
-        self.geometry = geometry
-        self.properties = properties
 
     @property
     def uid(self):
@@ -404,7 +407,6 @@ class FeatureCollection(_Jsonable):
                     feat.add_to_kml(doc, coord_transform)
 
 
-
 class Geometry(_Jsonable):
     """
     Abstract Geometry base class.
@@ -454,6 +456,21 @@ class Geometry(_Jsonable):
 
         raise NotImplementedError
 
+    def apply_projection(self, proj_method):
+        """
+        Gets a new version after applying a transform method.
+
+        Parameters
+        ----------
+        proj_method : callable
+
+        Returns
+        -------
+        Geometry
+        """
+
+        raise NotImplementedError
+
 
 class GeometryCollection(Geometry):
     """
@@ -463,7 +480,7 @@ class GeometryCollection(Geometry):
     __slots__ = ('_geometries', )
     _type = 'GeometryCollection'
 
-    def __init__(self, geometries):
+    def __init__(self, geometries=None):
         """
 
         Parameters
@@ -477,12 +494,9 @@ class GeometryCollection(Geometry):
 
     @property
     def geometries(self):
+        # type: () -> Union[List[Geometry], None]
         """
-        The geometry collection.
-
-        Returns
-        -------
-        None|List[Geometry]
+        None|List[Geometry]: The geometry collection.
         """
 
         return self._geometries
@@ -496,7 +510,7 @@ class GeometryCollection(Geometry):
             raise TypeError(
                 'geometries must be None or a list of Geometry objects. Got type {}'.format(type(geometries)))
         elif len(geometries) < 2:
-            raise ValueError('geometries must have length greater than 1.')
+            logging.warning('GeometryCollection should contain a list of geometries with length greater than 1.')
         for entry in geometries:
             if not isinstance(entry, Geometry):
                 raise TypeError(
@@ -537,6 +551,23 @@ class GeometryCollection(Geometry):
         for geometry in self.geometries:
             if geometry is not None:
                 geometry.add_to_kml(doc, multigeometry, coord_transform)
+
+    def apply_projection(self, proj_method):
+        """
+        Gets a new version after applying a transform method.
+
+        Parameters
+        ----------
+        proj_method : callable
+
+        Returns
+        -------
+        GeometryObject
+        """
+
+        if self.geometries is None:
+            return GeometryCollection()
+        return GeometryCollection(geometries=[geom.apply_projection(proj_method) for geom in self.geometries])
 
 
 class GeometryObject(Geometry):
@@ -599,6 +630,21 @@ class GeometryObject(Geometry):
     def add_to_kml(self, doc, parent, coord_transform):
         raise NotImplementedError
 
+    def apply_projection(self, proj_method):
+        """
+        Gets a new version after applying a transform method.
+
+        Parameters
+        ----------
+        proj_method : callable
+
+        Returns
+        -------
+        GeometryObject
+        """
+
+        raise NotImplementedError
+
 
 class Point(GeometryObject):
     """
@@ -609,12 +655,23 @@ class Point(GeometryObject):
     _type = 'Point'
 
     def __init__(self, coordinates=None):
+        """
+
+        Parameters
+        ----------
+        coordinates : None|numpy.ndarray|List[float]|Point
+        """
+
         self._coordinates = None
         if coordinates is not None:
             self.coordinates = coordinates
 
     @property
     def coordinates(self):
+        """
+        numpy.ndarray: The coordinate array.
+        """
+
         return self._coordinates
 
     @coordinates.setter
@@ -662,6 +719,10 @@ class Point(GeometryObject):
             return
         doc.add_point(_get_kml_coordinate_string(self.coordinates, coord_transform), par=parent)
 
+    def apply_projection(self, proj_method):
+        # type: (callable) -> Point
+        return Point(coordinates=proj_method(self._coordinates))
+
 
 class MultiPoint(GeometryObject):
     """
@@ -672,23 +733,45 @@ class MultiPoint(GeometryObject):
     __slots__ = ('_points', )
 
     def __init__(self, coordinates=None):
+        """
+
+        Parameters
+        ----------
+        coordinates : None|numpy.ndarray|List[float]|List[Point]|MultiPoint
+        """
+
         self._points = None
+        if isinstance(coordinates, MultiPoint):
+            coordinates = coordinates.get_coordinate_list()
         if coordinates is not None:
             self.points = coordinates
 
     @property
     def points(self):
+        # type: () -> List[Point]
+        """
+        List[Point]: The point collection.
+        """
+
         return self._points
 
     @points.setter
     def points(self, points):
         if points is None:
             self._points = None
+        if isinstance(points, numpy.ndarray):
+            points = points.tolist()
         if not isinstance(points, list):
             raise TypeError(
                 'Multipoint requires that points is None or a list of points. '
                 'Got type {}'.format(type(points)))
-        self._points = [Point(coordinates=entry) for entry in points]
+        pts = []
+        for entry in points:
+            if isinstance(entry, Point):
+                pts.append(entry)
+            else:
+                pts.append(Point(coordinates=entry))
+        self._points = pts
 
     def get_bbox(self):
         if self._points is None:
@@ -727,6 +810,10 @@ class MultiPoint(GeometryObject):
             if geometry is not None:
                 geometry.add_to_kml(doc, multigeometry, coord_transform)
 
+    def apply_projection(self, proj_method):
+        # type: (callable) -> MultiPoint
+        return MultiPoint(coordinates=[pt.apply_projection(proj_method) for pt in self.points])
+
 
 class LineString(GeometryObject):
     """
@@ -737,12 +824,26 @@ class LineString(GeometryObject):
     _type = 'LineString'
 
     def __init__(self, coordinates=None):
+        """
+
+        Parameters
+        ----------
+        coordinates : None|numpy.ndarray|List[float]|LineString|LinearRing
+        """
+
         self._coordinates = None
+        if isinstance(coordinates, (LineString, LinearRing)):
+            coordinates = coordinates.get_coordinate_list()
         if coordinates is not None:
             self.coordinates = coordinates
 
     @property
     def coordinates(self):
+        # type: () -> numpy.ndarray
+        """
+        numpy.ndarray: The coordinate array.
+        """
+
         return self._coordinates
 
     @coordinates.setter
@@ -764,13 +865,13 @@ class LineString(GeometryObject):
                 'The second dimension of coordinates must have between 2 and 4 entries. '
                 'Got shape {}'.format(coordinates.shape))
         if coordinates.shape[0] < 2:
-            raise ValueError(
-                'coordinates must consist of at least 2 points. '
+            logging.error(
+                'LineString coordinates should consist of at least 2 points. '
                 'Got shape {}'.format(coordinates.shape))
         coordinates = _compress_identical(coordinates)
         if coordinates.shape[0] < 2:
-            raise ValueError(
-                'coordinates must consist of at least 2 points after suppressing '
+            logging.error(
+                'coordinates should consist of at least 2 points after suppressing '
                 'consecutive repeated points. Got shape {}'.format(coordinates.shape))
         self._coordinates = coordinates
 
@@ -814,6 +915,10 @@ class LineString(GeometryObject):
             return
         doc.add_line_string(_get_kml_coordinate_string(self.coordinates, coord_transform), par=parent)
 
+    def apply_projection(self, proj_method):
+        # type: (callable) -> LineString
+        return LineString(coordinates=proj_method(self.coordinates))
+
 
 class MultiLineString(GeometryObject):
     """
@@ -824,12 +929,26 @@ class MultiLineString(GeometryObject):
     _type = 'MultiLineString'
 
     def __init__(self, coordinates=None):
+        """
+
+        Parameters
+        ----------
+        coordinates : None|List[numpy.ndarray]|List[List[int]]|List[LineString]|MultiLineString
+        """
+
         self._lines = None
+        if isinstance(coordinates, MultiLineString):
+            coordinates = coordinates.get_coordinate_list()
         if coordinates is not None:
             self.lines = coordinates
 
     @property
     def lines(self):
+        # type: () -> List[LineString]
+        """
+        List[LineString]: The line collection.
+        """
+
         return self._lines
 
     @lines.setter
@@ -841,7 +960,13 @@ class MultiLineString(GeometryObject):
             raise TypeError(
                 'MultiLineString requires that lines is None or a list of LineStrings. '
                 'Got type {}'.format(type(lines)))
-        self._lines = [LineString(coordinates=entry) for entry in lines]
+        lins = []
+        for entry in lines:
+            if isinstance(entry, LineString):
+                lins.append(entry)
+            else:
+                lins.append(LineString(coordinates=entry))
+        self._lines = lins
 
     def get_bbox(self):
         if self._lines is None:
@@ -892,6 +1017,10 @@ class MultiLineString(GeometryObject):
             if geometry is not None:
                 geometry.add_to_kml(doc, multigeometry, coord_transform)
 
+    def apply_projection(self, proj_method):
+        # type: (callable) -> MultiLineString
+        return MultiLineString(coordinates=[line.apply_projection(proj_method) for line in self.lines])
+
 
 class LinearRing(LineString):
     """
@@ -902,10 +1031,19 @@ class LinearRing(LineString):
     _type = 'LinearRing'
 
     def __init__(self, coordinates=None):
+        """
+
+        Parameters
+        ----------
+        coordinates : None|numpy.ndarray|List[float]|LinearRing|LineString
+        """
+
         self._coordinates = None
         self._diffs = None
         self._bounding_box = None
         self._segmentation = None
+        if isinstance(coordinates, (LineString, LinearRing)):
+            coordinates = coordinates.get_coordinate_list()
         super(LinearRing, self).__init__(coordinates)
 
     def get_coordinate_list(self):
@@ -1011,14 +1149,14 @@ class LinearRing(LineString):
             raise ValueError('The second dimension of coordinates must have between 2 and 4 entries. '
                              'Got shape {}'.format(coordinates.shape))
         if coordinates.shape[0] < 3:
-            raise ValueError('coordinates must consist of at least 3 points. '
-                             'Got shape {}'.format(coordinates.shape))
+            logging.error('coordinates must consist of at least 3 points. '
+                          'Got shape {}'.format(coordinates.shape))
         coordinates = _compress_identical(coordinates)
         if (coordinates[0, 0] != coordinates[-1, 0]) or \
                 (coordinates[0, 1] != coordinates[-1, 1]):
             coordinates = numpy.vstack((coordinates, coordinates[0, :]))
         if coordinates.shape[0] < 4:
-            raise ValueError(
+            logging.error(
                 'After compressing repeated (in sequence) points and ensuring first and '
                 'last point are the same, coordinates must contain at least 4 points. '
                 'Got shape {}'.format(coordinates.shape))
@@ -1306,6 +1444,10 @@ class LinearRing(LineString):
                 out[start_x:end_x, start_y:end_y] = self._contained_do_segment(x_temp, y_temp, seg, direction)
         return out
 
+    def apply_projection(self, proj_method):
+        # type: (callable) -> LinearRing
+        return LinearRing(coordinates=proj_method(self.coordinates))
+
 
 class Polygon(GeometryObject):
     """
@@ -1317,8 +1459,18 @@ class Polygon(GeometryObject):
     _type = 'Polygon'
 
     def __init__(self, coordinates=None):
+        """
+
+        Parameters
+        ----------
+        coordinates : None|List[numpy.ndarray]|List[List[float]]|List[LinearRing]|List[LineString]|Polygon
+            The first element is the outer ring, any remaining will be inner rings.
+        """
+
         self._outer_ring = None  # type: Union[None, LinearRing]
         self._inner_rings = None  # type: Union[None, List[LinearRing]]
+        if isinstance(coordinates, Polygon):
+            coordinates = coordinates.get_coordinate_list()
         if coordinates is None:
             return
         if not isinstance(coordinates, list):
@@ -1369,7 +1521,10 @@ class Polygon(GeometryObject):
             self._outer_ring = None
             self._inner_rings = None
             return
-        outer_ring = LinearRing(coordinates=coordinates)
+        if isinstance(coordinates, (LinearRing, LineString)):
+            outer_ring = LinearRing(coordinates=coordinates.coordinates)
+        else:
+            outer_ring = LinearRing(coordinates=coordinates)
         area = outer_ring.get_area()
         if area == 0:
             logging.warning("The outer ring for this Polygon has zero area. This is likely an error.")
@@ -1388,7 +1543,10 @@ class Polygon(GeometryObject):
 
         if self._inner_rings is None:
             self._inner_rings = []
-        inner_ring = LinearRing(coordinates=coordinates)
+        if isinstance(coordinates, (LinearRing, LineString)):
+            inner_ring = LinearRing(coordinates=coordinates.coordinates)
+        else:
+            inner_ring = LinearRing(coordinates=coordinates)
         area = inner_ring.get_area()
         if area == 0:
             logging.warning("The defined inner ring for this Polygon has zero area. This is likely an error.")
@@ -1528,6 +1686,13 @@ class Polygon(GeometryObject):
             inCoords = [_get_kml_coordinate_string(ir.coordinates, coord_transform) for ir in self._inner_rings]
         doc.add_polygon(outCoords, inCoords=inCoords, par=parent)
 
+    def apply_projection(self, proj_method):
+        # type: (callable) -> Polygon
+        coords = [self._outer_ring.apply_projection(proj_method), ]
+        if self._inner_rings is not None:
+            coords.extend([lr.apply_projection(proj_method) for lr in self._inner_rings])
+        return Polygon(coordinates=coords)
+
 
 class MultiPolygon(GeometryObject):
     """
@@ -1538,12 +1703,26 @@ class MultiPolygon(GeometryObject):
     _type = 'MultiPolygon'
 
     def __init__(self, coordinates=None):
+        """
+
+        Parameters
+        ----------
+        coordinates : None|List[List[List[float]]]|List[Polygon]|MultiPolygon
+        """
+
         self._polygons = None
+        if isinstance(coordinates, MultiPolygon):
+            coordinates = coordinates.get_coordinate_list()
         if coordinates is not None:
             self.polygons = coordinates
 
     @property
     def polygons(self):
+        # type: () -> List[Polygon]
+        """
+        List[Polygon]: The polygon collection.
+        """
+
         return self._polygons
 
     @polygons.setter
@@ -1556,7 +1735,13 @@ class MultiPolygon(GeometryObject):
             raise TypeError(
                 'MultiPolygon requires the polygons is None or a list of Polygons. '
                 'Got type {}'.format(type(polygons)))
-        self._polygons = [Polygon(coordinates=entry) for entry in polygons]
+        polys = []
+        for entry in polygons:
+            if isinstance(entry, Polygon):
+                polys.append(entry)
+            else:
+                polys.append(Polygon(coordinates=entry))
+        self._polygons = polys
 
     def get_bbox(self):
         if self._polygons is None:
@@ -1684,3 +1869,7 @@ class MultiPolygon(GeometryObject):
         for geometry in self._polygons:
             if geometry is not None:
                 geometry.add_to_kml(doc, multigeometry, coord_transform)
+
+    def apply_projection(self, proj_method):
+        # type: (callable) -> MultiPolygon
+        return MultiPolygon(coordinates=[poly.apply_projection(proj_method) for poly in self.polygons])
