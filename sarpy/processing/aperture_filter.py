@@ -94,6 +94,19 @@ class ApertureFilter(object):
 
         return self._deskew_calculator.dimension
 
+    @dimension.setter
+    def dimension(self, val):
+        """
+        Parameters
+        ----------
+        val : int
+
+        Returns
+        -------
+        None
+        """
+        self._deskew_calculator.dimension = val
+
     @property
     def flip_x_axis(self):
         if self.sicd.SCPCOA:
