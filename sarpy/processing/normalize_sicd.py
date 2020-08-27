@@ -196,7 +196,8 @@ class DeskewCalculator(FullResolutionFetcher):
         if value not in [0, 1]:
             raise ValueError('dimension must be 0 or 1, got {}'.format(value))
         self._dimension = value
-        self._set_sicd(self.sicd)
+        if self._sicd is not None:
+            self._set_sicd(self._sicd)
 
     def _set_index(self, value):
         value = int_func(value)

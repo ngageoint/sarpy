@@ -241,7 +241,8 @@ if __name__ == '__main__':
     # let's check the two phase histories
     test_phd2 = fftshift(fft2_sicd(test_deskew_data2, reader.sicd_meta))
     # let's check the aperture filter implementation
-    ap_filter = ApertureFilter(reader, dimension=1, index=0, apply_deskew=True, apply_deweighting=True)
+    ap_filter = ApertureFilter(reader, dimension=0, index=0, apply_deskew=True, apply_deweighting=True)
+    ap_filter.dimension = 1
     ap_filter.set_sub_image_bounds((300, 800), (500, 1000))
     test_phd2_1 = ap_filter.normalized_phase_history
 
