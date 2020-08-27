@@ -1,21 +1,13 @@
 # -*- coding: utf-8 -*-
+"""
+Establish base expected functionality for digital elevation model handling.
+"""
 
-import os
-import logging
 import numpy
 from typing import List
 
-from sarpy.compliance import int_func, integer_types
-from sarpy.io.DEM.geoid import GeoidHeight, find_geoid_file_from_dir
-
-
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
-
-
-# TODO: split the DTED specific functionality out of this - into a DTED file.
-#   Base functionality - DEMList & DEMInterpolator.
-
 
 
 class DEMInterpolator(object):

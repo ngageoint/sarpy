@@ -9,10 +9,9 @@ import struct
 
 import numpy
 
-from . import _argument_validation
-
 from sarpy.compliance import integer_types
 from sarpy.io.DEM.DEM import DEMList, DEMInterpolator
+from sarpy.io.DEM.utils import argument_validation
 from sarpy.io.DEM.geoid import GeoidHeight, find_geoid_file_from_dir
 
 
@@ -38,13 +37,13 @@ class DTEDList(DEMList):
 
         * For SRTM<1,2,2F>: `<root_dir>/srtm/<1, 2, 2f>/<lon_string>/<lat_string>.dt<1,2,2>`
 
-    Here `<lon_string>` corresponds to a string of the form `X###`, where
-    `X` is one of 'N' or 'S', and `###` is the zero-padded formatted string for
-    the integer value `floor(lon)`.
-
-    Similarly, `<lat_string>` corresponds to a string of the form `Y##`, where
-    `Y` is one of 'E' or 'W', and `##` is the zero-padded formatted string for
+    Here `<lat_string>` corresponds to a string of the form `X##`, where
+    `X` is one of 'N' or 'S', and `##` is the zero-padded formatted string for
     the integer value `floor(lat)`.
+
+    Similarly, `<lon_string>` corresponds to a string of the form `Y##`, where
+    `Y` is one of 'E' or 'W', and `###` is the zero-padded formatted string for
+    the integer value `floor(lon)`.
 
     <lon_string>, <lat_string> corresponds to the origin in the lower left corner
     of the DEM tile.
@@ -70,6 +69,15 @@ class DTEDList(DEMList):
 
         return self._root_dir
 
+    def _get_directory_stem(self, dem_type):
+        if dem_type.startswith('DTED'):
+            return os.path.join(self._root_dir, dem_type[:4].lower(), dem_type[-1])
+        elif dem_type.startswith('SRTM'):
+            return os.path.join(self._root_dir, dem_type[:4].lower(), dem_type[4:].lower())
+        else:
+            raise ValueError('Unhandled dem_type {}'.format(dem_type))
+
+
     def get_file_list(self, lat_lon_box, dem_type='DTED1'):
         """
         Get the file list required for the given coordinates.
@@ -87,10 +95,6 @@ class DTEDList(DEMList):
         """
 
         def get_box(la, lo):
-            la = int(numpy.floor(la))
-            lo = int(numpy.floor(lo))
-            if lo > 180:
-                lo -= 360
             x = 'n' if la >= 0 else 's'
             y = 'e' if lo >= 0 else 'w'
             return '{0:s}{1:03d}{2:s}{3:02d}'.format(y, lo, x, la)
@@ -99,62 +103,60 @@ class DTEDList(DEMList):
         dem_type = dem_type.upper()
         if dem_type not in _SUPPORTED_DTED_FILE_TYPES:
             raise ValueError(
-                'dem_type must be one of the supported types {}'.format(list(_SUPPORTED_DTED_FILE_TYPES.keys())))
-        if dem_type.startswith('DTED'):
-            dstem = os.path.join(self._root_dir, dem_type[:4].lower(), dem_type[-1])
-        elif dem_type.startswith('SRTM'):
-            dstem = os.path.join(self._root_dir, dem_type[:4].lower(), dem_type[4:].lower())
-        else:
-            raise ValueError('Unhandled dem_type {}'.format(dem_type))
-
+                'Got dem_type = {}, but it must be one of the supported '
+                'types {}'.format(dem_type, list(_SUPPORTED_DTED_FILE_TYPES.keys())))
+        # get the directory search stem
+        dstem = self._get_directory_stem(dem_type)
         if not os.path.isdir(dstem):
             raise IOError('DEM type {} directory search path {} does not exist.'.format(dem_type, dem_type))
 
         # get file extension
         fext = _SUPPORTED_DTED_FILE_TYPES[dem_type]['fext']
 
-        # let's construct the list of lats that we must match.
+        # let's construct the list of lats that we must match
         lat_start = int(numpy.floor(lat_lon_box[0]))
         lat_end = int(numpy.ceil(lat_lon_box[1]))
-        if (lat_start < -180) or (lat_end < -180) or (lat_start > 180) or (lat_end > 180):
+        if (lat_start > lat_end) or (lat_start < -90) or (lat_start > 90):
             raise ValueError('Got malformed latitude in bounding box {}'.format(lat_lon_box))
-        if lat_start > lat_end:
-            if not (lat_end < 0 < lat_start):
-                # this is assumed to NOT be a 180/-180 boundary crossing
-                raise ValueError(
-                    'We have minimum latitude greater than maximum latitude {}'.format(lat_lon_box))
-            else:
-                # we have a 180/-180 boundary crossing
-                lat_list = list(range(lat_start, 180, 1)) + list(range(-180, lat_end, 1))
+        if lat_start == lat_end:
+            lat_list = [lat_start, ]
         else:
             lat_list = list(range(lat_start, lat_end, 1))
-        # let's construct the list of lons that we must match
-        
 
-
-
-
-        # move data to numpy arrays
-        if not isinstance(lat, numpy.ndarray):
-            lat = numpy.array(lat)
-        if not isinstance(lon, numpy.ndarray):
-            lon = numpy.array(lon)
+        # let's construct the list of lons that we must match.
+        lon_start = int(numpy.floor(lat_lon_box[2]))
+        lon_end = int(numpy.ceil(lat_lon_box[3]))
+        if (lon_start < -180) or (lon_end < -180) or (lon_start > 180) or (lon_end > 180):
+            raise ValueError('Got malformed longitude in bounding box {}'.format(lat_lon_box))
+        if lon_start > lon_end:
+            if not (lon_end < 0 < lon_start):
+                # this is assumed to NOT be a 180/-180 boundary crossing
+                raise ValueError(
+                    'We have minimum longitude greater than maximum longitude {}'.format(lat_lon_box))
+            else:
+                # we have a 180/-180 boundary crossing
+                lon_list = list(range(lon_start, 180, 1)) + list(range(-180, lon_end, 1))
+        else:
+            if lon_start == lon_end:
+                lon_list = [lon_start, ]
+            else:
+                lon_list = list(range(lon_start, lon_end, 1))
 
         files = []
         missing_boxes = []
-        for box in set(get_box(*pair) for pair in zip(numpy.reshape(lat, (-1, )), numpy.reshape(lon, (-1, )))):
-            fil = os.path.join(dstem, box[:4], box[4:] + fext)
-            if os.path.isfile(fil):
-                files.append(fil)
-            else:
-                missing_boxes.append(fil)
+        for corner_lat in lat_list:
+            for corner_lon in lon_list:
+                box = get_box(corner_lat, corner_lon)
+                fil = os.path.join(dstem, box[:3], box[3:] + fext)
+                if os.path.isfile(fil):
+                    files.append(fil)
+                else:
+                    missing_boxes.append(fil)
         if len(missing_boxes) > 0:
             logging.warning(
-                'Missing required dem files {}. This will result in getting missing values '
-                'for some points during any interpolation'.format(missing_boxes))
+                'Missing expected DEM files {}. This Should result in the assumption'
+                'that the altitude in that section is given by Mean Sea Level.'.format(missing_boxes))
         return files
-
-
 
 
 class DTEDReader(object):
@@ -336,7 +338,7 @@ class DTEDReader(object):
             Elevation values of the same shape as lat/lon.
         """
 
-        o_shape, lat, lon = _argument_validation(lat, lon)
+        o_shape, lat, lon = argument_validation(lat, lon)
 
         out = numpy.full(lat.shape, numpy.nan, dtype=numpy.float64)
         if block_size is None:
@@ -390,6 +392,32 @@ class DTEDInterpolator(DEMInterpolator):
                 'Got {}'.format(type(geoid_file)))
         self._geoid = geoid_file
 
+    @staticmethod
+    def get_lat_lon_box(lats, lons):
+        """
+        Gets the lat/lon bounding box, as appropriate.
+
+        Parameters
+        ----------
+        lats : numpy.ndarray|list|tuple|float|int
+        lons : numpy.ndarray|list|tuple|float|int
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+
+        def get_min_max(inp):
+            if isinstance(inp, (int, float, numpy.number)):
+                return inp, inp
+            else:
+                return numpy.min(inp), numpy.max(inp)
+
+        out = numpy.zeros((4, ), dtype='float64')
+        out[:2] = get_min_max(lats)
+        out[2:] = get_min_max(lons)
+        return out
+
     @classmethod
     def from_coords_and_list(cls, lats, lons, dted_list, dem_type, geoid_file=None):
         """
@@ -426,7 +454,7 @@ class DTEDInterpolator(DEMInterpolator):
         if geoid_file is None:
             geoid_file = dted_list.root_dir
 
-        return cls(dted_list.get_file_list(lats, lons, dem_type), geoid_file)
+        return cls(dted_list.get_file_list(cls.get_lat_lon_box(lats, lons), dem_type=dem_type), geoid_file)
 
     @property
     def geoid(self):  # type: () -> GeoidHeight
@@ -466,13 +494,12 @@ class DTEDInterpolator(DEMInterpolator):
         block_size : None|int
             If `None`, then the entire calculation will proceed as a single block.
             Otherwise, block processing using blocks of the given size will be used.
-            The minimum value used for this is 50,000, and any smaller value will be
-            replaced with 50,000. Default is 50,000.
+            A minimum value of 50000 will be enforced here.
 
         Returns
         -------
         numpy.ndarray
-            the elevation relative to the WGS-84 ellipsoid.
+            The elevation relative to the WGS-84 ellipsoid.
         """
 
         return self.get_elevation_geoid(lat, lon, block_size=block_size) + \
@@ -501,7 +528,7 @@ class DTEDInterpolator(DEMInterpolator):
             the elevation relative to the geoid
         """
 
-        o_shape, lat, lon = _argument_validation(lat, lon)
+        o_shape, lat, lon = argument_validation(lat, lon)
 
         if block_size is None:
             out = self._get_elevation_geoid(lat, lon)
@@ -511,8 +538,10 @@ class DTEDInterpolator(DEMInterpolator):
             start_block = 0
             while start_block < lat.size:
                 end_block = min(lat.size, start_block+block_size)
-                out[start_block:end_block] = self._get_elevation_geoid(lat[start_block:end_block], lon[start_block:end_block])
+                out[start_block:end_block] = self._get_elevation_geoid(
+                    lat[start_block:end_block], lon[start_block:end_block])
                 start_block = end_block
+        out[numpy.isnan(out)] = 0.0
 
         if o_shape == ():
             return float(out[0])

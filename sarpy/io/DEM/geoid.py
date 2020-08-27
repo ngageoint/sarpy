@@ -48,7 +48,8 @@ https://sourceforge.net/projects/geographiclib/files/geoids-distrib/egm2008-5.zi
 
 import os
 import numpy
-from . import _argument_validation
+
+from sarpy.io.DEM.utils import argument_validation
 
 
 __classification__ = "UNCLASSIFIED"
@@ -140,7 +141,9 @@ class GeoidHeight(object):
     ('egm2008-1.pgm', 'egm2008-2_5.pgm', 'egm2008-5.pgm', 'egm96-5.pgm', 'egm96-15.pgm')
     """
 
-    __slots__ = ('_offset', '_scale', '_width', '_height', '_header_length', '_memory_map', '_lon_res', '_lat_res')
+    __slots__ = (
+        '_offset', '_scale', '_width', '_height', '_header_length', '_memory_map',
+        '_lon_res', '_lat_res')
 
     def __init__(self, file_name):
         """
@@ -299,7 +302,7 @@ class GeoidHeight(object):
         numpy.ndarray
         """
 
-        o_shape, lat, lon = _argument_validation(lat, lon)
+        o_shape, lat, lon = argument_validation(lat, lon)
 
         if block_size is None:
             out = self._do_block(lat, lon, cubic)
@@ -309,7 +312,8 @@ class GeoidHeight(object):
             start_block = 0
             while start_block < lat.size:
                 end_block = min(start_block+block_size, lat.size)
-                out[start_block:end_block] = self._do_block(lat[start_block:end_block], lon[start_block:end_block], cubic)
+                out[start_block:end_block] = self._do_block(
+                    lat[start_block:end_block], lon[start_block:end_block], cubic)
                 start_block = end_block
 
         if o_shape == ():
