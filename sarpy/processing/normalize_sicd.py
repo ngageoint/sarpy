@@ -213,6 +213,13 @@ class DeskewCalculator(FullResolutionFetcher):
 
     def _set_sicd(self, the_sicd):
         # type : (SICDType) -> None
+        if the_sicd is None:
+            self._sicd = None
+            return
+
+        if not isinstance(the_sicd, SICDType):
+            raise TypeError('the_sicd must be an insatnce of SICDType, got type {}'.format(type(the_sicd)))
+
         self._sicd = the_sicd
         row_delta_kcoa_poly, self._row_fft_sgn = _get_deskew_params(the_sicd, 0)
         col_delta_kcoa_poly, self._col_fft_sgn = _get_deskew_params(the_sicd, 1)
