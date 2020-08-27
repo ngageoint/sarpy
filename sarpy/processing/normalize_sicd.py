@@ -181,6 +181,23 @@ class DeskewCalculator(FullResolutionFetcher):
         super(DeskewCalculator, self).__init__(
             reader, dimension=dimension, index=index, block_size=None)
 
+    @property
+    def dimension(self):
+        # type: () -> int
+        """
+        int: The dimension along which to perform the color subaperture split.
+        """
+
+        return self._dimension
+
+    @dimension.setter
+    def dimension(self, value):
+        value = int_func(value)
+        if value not in [0, 1]:
+            raise ValueError('dimension must be 0 or 1, got {}'.format(value))
+        self._dimension = value
+        self._set_sicd(self.sicd)
+
     def _set_index(self, value):
         value = int_func(value)
         if value < 0:
