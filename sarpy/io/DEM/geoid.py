@@ -102,7 +102,7 @@ _C3S = numpy.array((
     (-18, 36, -64, 0, 66, 51, 0, 0, -102, 31),
     (18, -36, 2, 0, -66, -51, 0, 0, 102, 31)), dtype=numpy.float64)
 
-_SEARCH_FILES = ('egm2008-1.pgm', 'egm2008-2_5.pgm', 'egm2008-5.pgm', 'egm96-5.pgm', 'egm96-15.pgm')
+_SEARCH_FILES = ('egm2008-5.pgm', 'egm2008-2_5.pgm', 'egm2008-1.pgm', 'egm96-5.pgm', 'egm96-15.pgm')
 
 
 def find_geoid_file_from_dir(dir_name, search_files=None):
@@ -113,8 +113,6 @@ def find_geoid_file_from_dir(dir_name, search_files=None):
             'files in directory "geoid"')
     if search_files is None:
         search_files = _SEARCH_FILES
-    else:
-        search_files = tuple(search_files) + _SEARCH_FILES
 
     file_name = None
     for fil in search_files:

@@ -4,6 +4,7 @@ import numpy
 
 __classification__ = "UNCLASSIFIED"
 
+
 def _argument_validation(lat, lon):
     if not isinstance(lat, numpy.ndarray):
         lat = numpy.array(lat)
