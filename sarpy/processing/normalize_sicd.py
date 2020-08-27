@@ -151,14 +151,15 @@ class DeskewCalculator(FullResolutionFetcher):
     """
 
     __slots__ = (
-        '_apply_deweighting', '_delta_kcoa_poly_axis', '_delta_kcoa_poly_off_axis',
+        '_apply_deskew', '_apply_deweighting', '_delta_kcoa_poly_axis', '_delta_kcoa_poly_off_axis',
         '_row_fft_sgn', '_col_fft_sgn',
         '_row_shift', '_row_mult', '_col_shift', '_col_mult',
         '_row_weight', '_row_pad', '_col_weight', '_col_pad',
         '_is_normalized', '_is_not_skewed_row', '_is_not_skewed_col',
         '_is_uniform_weight_row', '_is_uniform_weight_col', )
 
-    def __init__(self, reader, dimension=1, index=0, apply_deweighting=False):
+    def __init__(self, reader, dimension=1, index=0, apply_deskew=True, apply_deweighting=False):
+        self._apply_deskew = apply_deskew
         self._apply_deweighting = apply_deweighting
         self._delta_kcoa_poly_axis = None
         self._delta_kcoa_poly_off_axis = None
@@ -223,12 +224,28 @@ class DeskewCalculator(FullResolutionFetcher):
         self._is_uniform_weight_col = _is_uniform_weight(the_sicd, 1)
 
     @property
+    def apply_deskew(self):
+        """
+        bool: Apply deskew to calculated value. This is for API completeness.
+        """
+
+        return self._apply_deskew
+
+    @apply_deskew.setter
+    def apply_deskew(self, value):
+        self._apply_deskew = (value is True)
+
+    @property
     def apply_deweighting(self):
+        """
+        bool: Apply deweighting to calculated values.
+        """
+
         return self._apply_deweighting
 
     @apply_deweighting.setter
-    def apply_deweighting(self, val):
-        self._apply_deweighting = val
+    def apply_deweighting(self, value):
+        self._apply_deweighting = (value is True)
 
     def _get_index_arrays(self, row_range, row_step, col_range, col_step):
         """
@@ -282,7 +299,7 @@ class DeskewCalculator(FullResolutionFetcher):
                     t_full_data, delta_kcoa_new_const, row_array, col_array, fft_sgn, 1-self.dimension)
             return t_full_data
 
-        if self._is_normalized:
+        if self._is_normalized or not self.apply_deskew:
             # just fetch the data and return
             return self.reader.__getitem__(item)
 
