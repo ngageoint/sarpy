@@ -9,9 +9,11 @@ from types import MethodType  # for binding a method dynamically to a class
 
 import numpy
 
+from sarpy.compliance import string_types
 from sarpy.geometry.geocoords import ecf_to_geodetic, geodetic_to_ecf, wgs_84_norm
 from sarpy.io.complex.sicd_elements.blocks import Poly2DType, XYZPolyType
-from sarpy.io.DEM.DEM import DTEDList, GeoidHeight, DTEDInterpolator
+from sarpy.io.DEM.DEM import DEMInterpolator
+from sarpy.io.DEM.DTED import DTEDList, DTEDInterpolator
 
 __classification__ = "UNCLASSIFIED"
 __author__ = ("Thomas McCullough", "Wade Schwartzkopf")
@@ -1414,7 +1416,7 @@ def _image_to_ground_dem(
     ----------
     im_points : numpy.ndarray
     coa_projection : COAProjection
-    dem_interpolator : DTEDInterpolator
+    dem_interpolator : DEMInterpolator
     min_dem : float
     max_dem : float
     horizontal_step_size : float|int
@@ -1485,7 +1487,7 @@ def _image_to_ground_dem(
 
 
 def image_to_ground_dem(
-        im_points, structure, block_size=50000, dted_list=None, dem_type='SRTM2F', geoid_file=None,
+        im_points, structure, block_size=50000, dem_interpolator=None,
         horizontal_step_size=10, use_structure_coa=True, **coa_args):
     """
     Transforms image coordinates to ground plane ECF coordinate via the algorithm(s)
@@ -1498,13 +1500,14 @@ def image_to_ground_dem(
     structure : sarpy.io.complex.sicd_elements.SICD.SICDType|sarpy.io.product.sidd2_elements.SIDD.SIDDType|sarpy.io.product.sidd1_elements.SIDD.SIDDType
         The SICD or SIDD structure.
     block_size : None|int
-        Size of blocks of coordinates to transform at a time. The entire array will be transformed as a single block if `None`.
-    dted_list : None|str|DTEDList|DTEDInterpolator
-    dem_type : str
-        One of ['DTED1', 'DTED2', 'SRTM1', 'SRTM2', 'SRTM2F'], specifying the DEM type.
-    geoid_file : None|str|GeoidHeight
-    horizontal_step_size : None|float|int
-        Maximum distance between adjacent points along the R/Rdot contour.
+        Size of blocks of coordinates to transform at a time. The entire array
+        will be transformed as a single block if `None`.
+    dem_interpolator : str|DEMInterpolator
+        The DEMInterpolator. If this is a string, then a DTEDInterpolator will be
+        constructed assuming that this is the DTED root search directory.
+    horizontal_step_size : float|int
+        Maximum distance between adjacent points along the R/Rdot contour. Bounds
+        of `[1, 100]` will be enforced by replacement.
     use_structure_coa : bool
         If structure.coa_projection is populated, use that one **ignoring the COAProjection parameters.**
     coa_args
@@ -1520,39 +1523,30 @@ def image_to_ground_dem(
     # coa projection creation
     im_points, orig_shape = _validate_im_points(im_points)
     coa_proj = _get_coa_projection(structure, use_structure_coa, **coa_args)
-
-    if isinstance(dted_list, str):
-        dted_list = DTEDList(dted_list)
+    horizontal_step_size = float(horizontal_step_size)
+    if horizontal_step_size < 1:
+        horizontal_step_size = 1
+    if horizontal_step_size > 100:
+        horizontal_step_size = 100
 
     ref_ecf = _get_reference_point(structure)
     ref_llh = ecf_to_geodetic(ref_ecf)
     ref_hae = ref_llh[2]
 
-    if isinstance(dted_list, DTEDList):
-        # find sensible bounds for the DEMs that we need to load up
-        t_lats = numpy.array([ref_llh[0]-0.1, ref_llh[0], ref_llh[0] + 0.1], dtype='float64')
-        lon_diff = min(10., abs(10.0/(112*numpy.sin(numpy.rad2deg(ref_llh[0])))))
-        t_lons = numpy.arange(ref_llh[1]-lon_diff, ref_llh[1]+lon_diff+1, lon_diff, dtype='float64')
-        t_lats[t_lats > 90] = 90.0
-        t_lats[t_lats < -90] = -90.0
-        t_lons[t_lons > 180] -= 360
-        t_lons[t_lons < -180] += 360
-        lats, lons = numpy.meshgrid(t_lats, t_lons)
-        dem_interpolator = DTEDInterpolator.from_coords_and_list(
-            lats, lons, dted_list, dem_type, geoid_file=geoid_file)
-    elif isinstance(dted_list, DTEDInterpolator):
-        dem_interpolator = dted_list
-    else:
-        raise ValueError(
-            'dted_list is expected to be a string suitable for constructing a DTEDList, '
-            'an instance of a DTEDList suitable for constructing a DTEDInterpolator, '
-            'or DTEDInterpolator instance. Got {}'.format(type(dted_list)))
-    # determine max/min hae in the DEM
-    # not the ellipsoid
-    scp_geoid = dem_interpolator.geoid.get(ref_llh[0], ref_llh[1])
-    # remember that min/max in a DTED is relative to the geoid, not hae
-    min_dem = dem_interpolator.get_min_dem() + scp_geoid + 10
-    max_dem = dem_interpolator.get_max_dem() + scp_geoid - 10
+    if dem_interpolator is None:
+        raise ValueError('dem_interpolator is None, this is unhandled.')
+
+    if isinstance(dem_interpolator, string_types):
+        dted_list = DTEDList(dem_interpolator)
+        dem_interpolator = DTEDInterpolator.from_reference_point(ref_llh, dted_list)
+
+    if not isinstance(dem_interpolator, DEMInterpolator):
+        raise TypeError('dem_interpolator is of unsupported type {}'.format(type(dem_interpolator)))
+
+    # determine max/min hae in the DEM region, and pad a bit because the DEM may
+    # be relative to geoid (i.e. DTED)
+    min_dem = dem_interpolator.get_min_dem() - 100
+    max_dem = dem_interpolator.get_max_dem() + 100
 
     # prepare workspace
     im_points_view = numpy.reshape(im_points, (-1, 2))  # possibly or make 2-d flatten

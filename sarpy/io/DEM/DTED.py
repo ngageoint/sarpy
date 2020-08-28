@@ -9,11 +9,10 @@ import struct
 
 import numpy
 
-from sarpy.compliance import integer_types
+from sarpy.compliance import integer_types, string_types
 from sarpy.io.DEM.DEM import DEMList, DEMInterpolator
 from sarpy.io.DEM.utils import argument_validation
-from sarpy.io.DEM.geoid import GeoidHeight, find_geoid_file_from_dir
-
+from sarpy.io.DEM.geoid import GeoidHeight
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
@@ -27,6 +26,54 @@ _SUPPORTED_DTED_FILE_TYPES = {
     'SRTM1': {'fext': '.dt1'},
     'SRTM2': {'fext': '.dt2'},
     'SRTM2F': {'fext': '.dt2'}}
+
+
+def get_default_prioritization():
+    """
+    Gets the default prioritization of the DTED types.
+
+    Returns
+    -------
+    List[str]
+    """
+
+    # TODO: what should this actually be?
+    return 'DTED2', 'DTED1', 'SRTM2F', 'SRTM2', 'SRTM1'
+
+
+def get_lat_lon_box(lats, lons):
+    """
+    Gets the lat/lon bounding box, as appropriate.
+
+    Parameters
+    ----------
+    lats : numpy.ndarray|list|tuple|float|int
+    lons : numpy.ndarray|list|tuple|float|int
+
+    Returns
+    -------
+    numpy.ndarray
+    """
+
+    def get_min_max(inp, lon=False):
+        if isinstance(inp, (int, float, numpy.number)):
+            return inp, inp
+        else:
+            min_val, max_val = numpy.min(inp), numpy.max(inp)
+            if not lon:
+                return numpy.min(inp), numpy.max(inp)
+            # check for 180/-180 crossing
+            if not (min_val < -90 and max_val > 90):
+                return min_val, max_val
+            inp = numpy.array(inp).flatten()
+            min_val = numpy.min(inp[inp >= 0])
+            max_val = numpy.max(inp[inp <= 0])
+            return min_val, max_val
+
+    out = numpy.zeros((4, ), dtype='float64')
+    out[:2] = get_min_max(lats)
+    out[2:] = get_min_max(lons, lon=True)
+    return out
 
 
 class DTEDList(DEMList):
@@ -78,16 +125,14 @@ class DTEDList(DEMList):
             raise ValueError('Unhandled dem_type {}'.format(dem_type))
 
 
-    def get_file_list(self, lat_lon_box, dem_type='DTED1'):
+    def _get_file_list(self, lat_lon_list, dem_type):
         """
-        Get the file list required for the given coordinates.
+        Helper method for getting the file list for a specified type.
 
         Parameters
         ----------
-        lat_lon_box : numpy.ndarray|list|tuple
-            The bounding box of the form `[lat min, lat max, lon min, lon max]`.
+        lat_lon_list : list
         dem_type : str
-            the DTED type - one of ("DTED1", "DTED2", "SRTM1", "SRTM2", "SRTM2F")
 
         Returns
         -------
@@ -97,21 +142,42 @@ class DTEDList(DEMList):
         def get_box(la, lo):
             x = 'n' if la >= 0 else 's'
             y = 'e' if lo >= 0 else 'w'
-            return '{0:s}{1:03d}{2:s}{3:02d}'.format(y, lo, x, la)
+            return '{0:s}{1:03d}'.format(y, abs(lo)), '{0:s}{1:02d}'.format(x, abs(la))
 
-        # validate dem_type options
-        dem_type = dem_type.upper()
-        if dem_type not in _SUPPORTED_DTED_FILE_TYPES:
-            raise ValueError(
-                'Got dem_type = {}, but it must be one of the supported '
-                'types {}'.format(dem_type, list(_SUPPORTED_DTED_FILE_TYPES.keys())))
         # get the directory search stem
         dstem = self._get_directory_stem(dem_type)
         if not os.path.isdir(dstem):
-            raise IOError('DEM type {} directory search path {} does not exist.'.format(dem_type, dem_type))
+            return  # nothing to be done
 
         # get file extension
         fext = _SUPPORTED_DTED_FILE_TYPES[dem_type]['fext']
+
+        for entry in lat_lon_list:
+            if entry[2] is not None:
+                # we already found the file
+                continue
+            lonstr, latstr = get_box(entry[0], entry[1])
+            fil = os.path.join(dstem, lonstr, latstr + fext)
+            if os.path.isfile(fil):
+                entry[2] = fil
+
+    def get_file_list(self, lat_lon_box, dem_type=None):
+        """
+        Get the file list required for the given coordinates.
+
+        Parameters
+        ----------
+        lat_lon_box : numpy.ndarray|list|tuple
+            The bounding box of the form `[lat min, lat max, lon min, lon max]`.
+        dem_type : None|str|List[str]
+            The prioritized list of dem types to check. If `None`, then
+            :func:`get_default_prioritization` is used. Each entry must be one
+            of ("DTED1", "DTED2", "SRTM1", "SRTM2", "SRTM2F")
+
+        Returns
+        -------
+        List[str]
+        """
 
         # let's construct the list of lats that we must match
         lat_start = int(numpy.floor(lat_lon_box[0]))
@@ -142,20 +208,44 @@ class DTEDList(DEMList):
             else:
                 lon_list = list(range(lon_start, lon_end, 1))
 
-        files = []
-        missing_boxes = []
+        # construct our workspace
+        lat_lon_list = []
         for corner_lat in lat_list:
             for corner_lon in lon_list:
-                box = get_box(corner_lat, corner_lon)
-                fil = os.path.join(dstem, box[:3], box[3:] + fext)
-                if os.path.isfile(fil):
-                    files.append(fil)
-                else:
-                    missing_boxes.append(fil)
+                lat_lon_list.append([corner_lat, corner_lon, None])
+
+        # validate the dem types list
+        if dem_type is None:
+            dem_type = get_default_prioritization()
+        elif isinstance(dem_type, string_types):
+            dem_type = [dem_type, ]
+        # loop over the prioritized list of types and check
+        for entry in dem_type:
+            if not isinstance(entry, string_types):
+                raise TypeError(
+                    'Got entry {} of dem_type, this is required to be of string type'.format(entry))
+            # validate dem_type options
+            this_entry = entry.upper()
+            if this_entry not in _SUPPORTED_DTED_FILE_TYPES:
+                raise ValueError(
+                    'Got dem_type {}, but it must be one of the supported '
+                    'types {}'.format(entry, list(_SUPPORTED_DTED_FILE_TYPES.keys())))
+            self._get_file_list(lat_lon_list, this_entry)  # NB: this modifies lat_lon_list in place
+
+        # extract files and warn about missing entries
+        files = []
+        missing_boxes = []
+        for entry in lat_lon_list:
+            if entry[2] is not None:
+                files.append(entry[2])
+            else:
+                missing_boxes.append('({}, {})'.format(entry[0], entry[1]))
+
         if len(missing_boxes) > 0:
             logging.warning(
-                'Missing expected DEM files {}. This Should result in the assumption'
-                'that the altitude in that section is given by Mean Sea Level.'.format(missing_boxes))
+                'Missing expected DEM files for squares with lower left lat/lon corner {}. '
+                'This Should result in the assumption that the altitude in that section is '
+                'given by Mean Sea Level.'.format(missing_boxes))
         return files
 
 
@@ -381,8 +471,7 @@ class DTEDInterpolator(DEMInterpolator):
         #   in reality, it makes very little difference, though
         if isinstance(geoid_file, str):
             if os.path.isdir(geoid_file):
-                geoid_file = GeoidHeight(
-                    find_geoid_file_from_dir(geoid_file, search_files=('egm96-5.pgm', 'egm96-15.pgm')))
+                geoid_file = GeoidHeight.from_directory(geoid_file, search_files=('egm96-5.pgm', 'egm96-15.pgm'))
             else:
                 geoid_file = GeoidHeight(geoid_file)
         if not isinstance(geoid_file, GeoidHeight):
@@ -392,48 +481,22 @@ class DTEDInterpolator(DEMInterpolator):
                 'Got {}'.format(type(geoid_file)))
         self._geoid = geoid_file
 
-    @staticmethod
-    def get_lat_lon_box(lats, lons):
-        """
-        Gets the lat/lon bounding box, as appropriate.
-
-        Parameters
-        ----------
-        lats : numpy.ndarray|list|tuple|float|int
-        lons : numpy.ndarray|list|tuple|float|int
-
-        Returns
-        -------
-        numpy.ndarray
-        """
-
-        def get_min_max(inp):
-            if isinstance(inp, (int, float, numpy.number)):
-                return inp, inp
-            else:
-                return numpy.min(inp), numpy.max(inp)
-
-        out = numpy.zeros((4, ), dtype='float64')
-        out[:2] = get_min_max(lats)
-        out[2:] = get_min_max(lons)
-        return out
-
     @classmethod
-    def from_coords_and_list(cls, lats, lons, dted_list, dem_type, geoid_file=None):
+    def from_coords_and_list(cls, lat_lon_box, dted_list, dem_type=None, geoid_file=None):
         """
         Construct a `DTEDInterpolator` from a coordinate collection and `DTEDList` object.
 
-        .. Note:: This depends on using `DTEDList.get_file_list(lats, lons, dted_type)`
+        .. Note:: This depends on using :func:`DTEDList.get_file_list`
             to get the relevant file list.
 
         Parameters
         ----------
-        lats : numpy.ndarray|list|tuple|int|float
-        lons : numpy.ndarray|list|tuple|int|float
-        dted_list : None|DTEDList|str
+        lat_lon_box : numpy.ndarray|list|tuple
+            Of the form `[lat min, lat max, lon min, lon max]`.
+        dted_list : DTEDList|str
             The dted list object or root directory
-        dem_type : str
-            The DEM type.
+        dem_type : None|str|List[str]
+            The DEM type or list of DEM types in order of priority.
         geoid_file : None|str|GeoidHeight
             The `GeoidHeight` object, an egm file name, or root directory containing
             one of the egm files in the sub-directory "geoid". If `None`, then default
@@ -444,7 +507,7 @@ class DTEDInterpolator(DEMInterpolator):
         DTEDInterpolator
         """
 
-        if isinstance(dted_list, str):
+        if isinstance(dted_list, string_types):
             dted_list = DTEDList(dted_list)
         if not isinstance(dted_list, DTEDList):
             raise ValueError(
@@ -454,7 +517,50 @@ class DTEDInterpolator(DEMInterpolator):
         if geoid_file is None:
             geoid_file = dted_list.root_dir
 
-        return cls(dted_list.get_file_list(cls.get_lat_lon_box(lats, lons), dem_type=dem_type), geoid_file)
+        return cls(dted_list.get_file_list(lat_lon_box, dem_type=dem_type), geoid_file)
+
+    @classmethod
+    def from_reference_point(cls, ref_point, dted_list, dem_type=None, geoid_file=None):
+        """
+        Construct a DTEDInterpolator object by padding around the reference point by
+        approximately 50 km (~30 miles).
+
+        .. Note:: The degeneracy at the poles is not handled, because DTED are not
+            defined there anyways.
+
+        Parameters
+        ----------
+        ref_point : numpy.ndarray|list|tuple
+            This is assumed to be of the form `[lat, lon, ...]`, and entries
+            beyond the first two are ignored.
+        dted_list : DTEDList|str
+            The dted list object or root directory
+        dem_type : None|str|List[str]
+            The DEM type or list of DEM types in order of priority.
+        geoid_file : None|str|GeoidHeight
+            The `GeoidHeight` object, an egm file name, or root directory containing
+            one of the egm files in the sub-directory "geoid". If `None`, then default
+            to the root directory of `dted_list`.
+
+        Returns
+        -------
+        DTEDInterpolator
+        """
+
+        lat_diff = 0.5
+        lat_max = min(ref_point[0] + lat_diff, 90)
+        lat_min = max(ref_point[0] - lat_diff, -90)
+
+        lon_diff = min(15, lat_diff/(numpy.sin(numpy.deg2rad(ref_point[0]))))
+        lon_max = ref_point[0] + lon_diff
+        if lon_max > 180:
+            lon_max -= 360
+        lon_min = ref_point[0] - lon_diff
+        if lon_min < -180:
+            lon_min += 360
+
+        return cls.from_coords_and_list(
+            [lat_min, lat_max, lon_min, lon_max], dted_list, dem_type=dem_type, geoid_file=geoid_file)
 
     @property
     def geoid(self):  # type: () -> GeoidHeight
@@ -464,19 +570,26 @@ class DTEDInterpolator(DEMInterpolator):
 
         return self._geoid
 
+    def _get_elevation_geoid_from_reader(self, reader, lat, lon):
+        mask = reader.in_bounds(lat, lon)
+        values = numpy.full(lat.shape, numpy.nan, dtype=numpy.float64)
+        if numpy.any(mask):
+            # noinspection PyProtectedMember
+            values[mask] = reader._get_elevation(lat[mask], lon[mask])
+        return mask, values
+
     def _get_elevation_geoid(self, lat, lon):
         out = numpy.full(lat.shape, numpy.nan, dtype=numpy.float64)
         remaining = numpy.ones(lat.shape, dtype=numpy.bool)
         for reader in self._readers:
             if not numpy.any(remaining):
                 break
-            t_lat = lat[remaining]
-            t_lon = lon[remaining]
-            this = reader.in_bounds(t_lat, t_lon)
-            if numpy.any(this):
-                # noinspection PyProtectedMember
-                out[remaining[this]] = reader._get_elevation(t_lat[this], t_lon[this])
-                remaining[remaining[this]] = False
+            mask, values = self._get_elevation_geoid_from_reader(reader, lat[remaining], lon[remaining])
+            if numpy.any(mask):
+                work_mask = numpy.copy(remaining)
+                work_mask[remaining] = mask  # mask as a subset of remaining
+                out[work_mask] = values[mask]
+                remaining[work_mask] = False
         return out
 
     def get_elevation_hae(self, lat, lon, block_size=50000):
@@ -519,8 +632,8 @@ class DTEDInterpolator(DEMInterpolator):
         block_size : None|int
             If `None`, then the entire calculation will proceed as a single block.
             Otherwise, block processing using blocks of the given size will be used.
-            The minimum value used for this is 50,000, and any smaller value will be
-            replaced with 50,000. Default is 50,000.
+            The minimum value used for this is 50000, and any smaller value will be
+            replaced with 50000. Default is 50000.
 
         Returns
         -------
@@ -541,7 +654,7 @@ class DTEDInterpolator(DEMInterpolator):
                 out[start_block:end_block] = self._get_elevation_geoid(
                     lat[start_block:end_block], lon[start_block:end_block])
                 start_block = end_block
-        out[numpy.isnan(out)] = 0.0
+        out[numpy.isnan(out)] = 0.0  # set missing values to geoid=0 (MSL)
 
         if o_shape == ():
             return float(out[0])

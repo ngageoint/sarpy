@@ -345,3 +345,21 @@ class GeoidHeight(object):
 
     def __call__(self, lat, lon):
         return self.get(lat, lon)
+
+    @classmethod
+    def from_directory(cls, dir_name, search_files=None):
+        """
+        Create the GeoidHeight object from a search directory.
+
+        Parameters
+        ----------
+        dir_name : str
+        search_files : str|List[str]
+
+        Returns
+        -------
+        GeoidHeight
+        """
+
+        our_file = find_geoid_file_from_dir(dir_name, search_files=search_files)
+        return cls(our_file)
