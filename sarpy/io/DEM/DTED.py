@@ -520,10 +520,10 @@ class DTEDInterpolator(DEMInterpolator):
         return cls(dted_list.get_file_list(lat_lon_box, dem_type=dem_type), geoid_file)
 
     @classmethod
-    def from_reference_point(cls, ref_point, dted_list, dem_type=None, geoid_file=None):
+    def from_reference_point(cls, ref_point, dted_list, dem_type=None, geoid_file=None, pad_value=0.2):
         """
         Construct a DTEDInterpolator object by padding around the reference point by
-        approximately 50 km (~30 miles).
+        `pad_value` latitude degrees (1 degree ~ 111 km or 69 miles).
 
         .. Note:: The degeneracy at the poles is not handled, because DTED are not
             defined there anyways.
@@ -541,21 +541,28 @@ class DTEDInterpolator(DEMInterpolator):
             The `GeoidHeight` object, an egm file name, or root directory containing
             one of the egm files in the sub-directory "geoid". If `None`, then default
             to the root directory of `dted_list`.
+        pad_value : float
+            The degree value to pad by.
 
         Returns
         -------
         DTEDInterpolator
         """
 
-        lat_diff = 0.5
+        pad_value = float(pad_value)
+        if pad_value > 0.5:
+            pad_value = 0.5
+        if pad_value < 0.05:
+            pad_value = 0.05
+        lat_diff = pad_value
         lat_max = min(ref_point[0] + lat_diff, 90)
         lat_min = max(ref_point[0] - lat_diff, -90)
 
         lon_diff = min(15, lat_diff/(numpy.sin(numpy.deg2rad(ref_point[0]))))
-        lon_max = ref_point[0] + lon_diff
+        lon_max = ref_point[1] + lon_diff
         if lon_max > 180:
             lon_max -= 360
-        lon_min = ref_point[0] - lon_diff
+        lon_min = ref_point[1] - lon_diff
         if lon_min < -180:
             lon_min += 360
 
@@ -670,6 +677,9 @@ class DTEDInterpolator(DEMInterpolator):
         float
         """
 
+        if len(self._readers) < 1:
+            return 0.0
+
         return float(max(numpy.max(reader[:, :]) for reader in self._readers))
 
     def get_min_dem(self):
@@ -680,5 +690,8 @@ class DTEDInterpolator(DEMInterpolator):
         -------
         float
         """
+
+        if len(self._readers) < 1:
+            return 0.0
 
         return float(min(numpy.min(reader[:, :]) for reader in self._readers))

@@ -9,7 +9,7 @@ from types import MethodType  # for binding a method dynamically to a class
 
 import numpy
 
-from sarpy.compliance import string_types
+from sarpy.compliance import string_types, int_func
 from sarpy.geometry.geocoords import ecf_to_geodetic, geodetic_to_ecf, wgs_84_norm
 from sarpy.io.complex.sicd_elements.blocks import Poly2DType, XYZPolyType
 from sarpy.io.DEM.DEM import DEMInterpolator
@@ -1452,7 +1452,7 @@ def _image_to_ground_dem(
     #   on the DEM along the straight line between the high and low point
     sin_ang = (max_dem - min_dem)/numpy.min(dists)
     cos_ang = numpy.sqrt(1 - sin_ang*sin_ang)
-    num_pts = numpy.max(dists)/(cos_ang*horizontal_step_size)
+    num_pts = int_func(numpy.ceil(numpy.max(dists)/(cos_ang*horizontal_step_size)))
     step = numpy.linspace(0., 1., num_pts, dtype='float64')
     # construct our lat lon space of lines
     llh_high = ecf_to_geodetic(coords_high)
@@ -1461,21 +1461,22 @@ def _image_to_ground_dem(
     diffs = llh_low - llh_high
     elevations = numpy.linspace(max_dem, min_dem, num_pts, dtype='float64')
     # construct the space of points connecting high to low of shape (N, 2, num_pts)
-    lat_lon_space = llh_low[:, :2] + numpy.multiply.outer(diffs[:, :2], step)  # NB: this is a numpy.ufunc trick
-    # determine the ground hae elevation at these points according to the dem interpolator
+    # NB: this is a numpy.ufunc trick
+    lat_lon_space = numpy.reshape(llh_high[:, :2], (-1, 2, 1)) + numpy.multiply.outer(diffs[:, :2], step)
+    # determine neagtive of the ground hae elevation at these points according to the dem interpolator
     # NB: lat_lon_elevations is shape (N, num_pts)
-    lat_lon_elevation = dem_interpolator.get_elevation_hae(lat_lon_space[:, 0, :], lat_lon_space[:, 1, :], block_size=50000)
+    lat_lon_elevation = -dem_interpolator.get_elevation_hae(lat_lon_space[:, 0, :], lat_lon_space[:, 1, :], block_size=50000)
     del lat_lon_space  # we can free this up, since it's potentially large
     bad_values = numpy.isnan(lat_lon_elevation)
     if numpy.any(bad_values):
-        lat_lon_elevation[bad_values] = ref_hae
+        lat_lon_elevation[bad_values] = -ref_hae
     # adjust by the hae, to find the diff between our line in elevation
-    lat_lon_elevation -= elevations
+    lat_lon_elevation += elevations
     # these elevations should be guaranteed to start positive because we used to
     #   total bounds for the DEM values
     # we find the "first" (in high to low order) element where the elevation is close enough to negative
     # NB: this is shape (N, )
-    indices = numpy.argmax(lat_lon_elevation < 0.5, axis=1)
+    indices = numpy.argmax(lat_lon_elevation < 0, axis=1)
     # linearly interpolate to find the best guess for 0 crossing.
     prev_indices = indices - 1
     if numpy.any(prev_indices < 0):
