@@ -49,6 +49,7 @@ https://sourceforge.net/projects/geographiclib/files/geoids-distrib/egm2008-5.zi
 import os
 import numpy
 
+from sarpy.compliance import string_types
 from sarpy.io.DEM.utils import argument_validation
 
 
@@ -107,27 +108,48 @@ _SEARCH_FILES = ('egm2008-5.pgm', 'egm2008-2_5.pgm', 'egm2008-1.pgm', 'egm96-5.p
 
 
 def find_geoid_file_from_dir(dir_name, search_files=None):
+    """
+    Find the geoid file.
+
+    Parameters
+    ----------
+    dir_name : str
+    search_files : str|List[str]
+
+    Returns
+    -------
+    str
+    """
+
     geoid_dir = os.path.join(dir_name, 'geoid')
     if not os.path.exists(geoid_dir):
         raise IOError(
             'Input is a directory, and beneath it we expect to find '
             'files in directory "geoid"')
     if search_files is None:
-        search_files = _SEARCH_FILES
+        search_files = []
+    elif isinstance(search_files, string_types):
+        search_files = [search_files, ]
+    else:
+        search_files = list(search_files)
 
-    file_name = None
+    for entry in _SEARCH_FILES:
+        if entry not in search_files:
+            search_files.append(entry)
+
+    our_file = None
     for fil in search_files:
         file_name = os.path.join(geoid_dir, fil)
         if os.path.exists(file_name):
+            our_file = file_name
             break
-        file_name = None
 
-    if file_name is None:
+    if our_file is None:
         raise IOError(
             'input is a directory and we expect to find one of the files {} '
             'in the directory "geoid" beneath it'.format(search_files))
 
-    return file_name
+    return our_file
 
 
 class GeoidHeight(object):
