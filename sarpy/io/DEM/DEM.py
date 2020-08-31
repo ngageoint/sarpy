@@ -59,9 +59,11 @@ class DEMInterpolator(object):
 
         raise NotImplementedError
 
-    def get_max_dem(self):
+    def get_max_hae(self):
         """
-        Get the maximum dem entry.
+        Get the maximum dem value with respect to HAE, which should be assumed
+        **approximately** correct. This may possibly be with respect to some
+        Area of Interest.
 
         Returns
         -------
@@ -70,9 +72,37 @@ class DEMInterpolator(object):
 
         raise NotImplementedError
 
-    def get_min_dem(self):
+    def get_min_hae(self):
         """
-        Get the minimum dem entry.
+        Get the minimum dem value with respct to HAE, which should be assumed
+        **approximately** correct. This may possibly be with respect to some
+        Area of Interest.
+
+        Returns
+        -------
+        float
+        """
+
+        raise NotImplementedError
+
+    def get_max_geoid(self):
+        """
+        Get the maximum dem value with respect to the geoid, which should be assumed
+        **approximately** correct. This may possibly be with respect to some
+        Area of Interest.
+
+        Returns
+        -------
+        float
+        """
+
+        raise NotImplementedError
+
+    def get_min_geoid(self):
+        """
+        Get the minimum dem value with respect to geoid, whihc should be assumed
+        **approximately** correct. This may possibly be with respect to some
+        Area of Interest.
 
         Returns
         -------

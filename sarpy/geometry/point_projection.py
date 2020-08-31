@@ -1492,6 +1492,7 @@ def _image_to_ground_dem(
 
 def image_to_ground_dem(
         im_points, structure, block_size=50000, dem_interpolator=None,
+        dem_type=None, geoid_file=None, pad_value=0.2,
         horizontal_step_size=10, use_structure_coa=True, **coa_args):
     """
     Transforms image coordinates to ground plane ECF coordinate via the algorithm(s)
@@ -1509,6 +1510,17 @@ def image_to_ground_dem(
     dem_interpolator : str|DEMInterpolator
         The DEMInterpolator. If this is a string, then a DTEDInterpolator will be
         constructed assuming that this is the DTED root search directory.
+    dem_type : None|str|List[str]
+        The DEM type or list of DEM types in order of priority. Only used if
+        `dem_interpolator` is the search path.
+    geoid_file : None|str|GeoidHeight
+        The `GeoidHeight` object, an egm file name, or root directory containing
+        one of the egm files in the sub-directory "geoid". If `None`, then default
+        to the root directory of `dted_list`. Only used if `dem_interpolator` is
+        the search path.
+    pad_value : float
+        The degree value to pad by for the dem interpolator. Only used if
+        `dem_interpolator` is the search path.
     horizontal_step_size : float|int
         Maximum distance between adjacent points along the R/Rdot contour. Bounds
         of `[1, 100]` will be enforced by replacement.
@@ -1542,15 +1554,16 @@ def image_to_ground_dem(
 
     if isinstance(dem_interpolator, string_types):
         dted_list = DTEDList(dem_interpolator)
-        dem_interpolator = DTEDInterpolator.from_reference_point(ref_llh, dted_list)
+        dem_interpolator = DTEDInterpolator.from_reference_point(
+            ref_llh, dted_list, dem_type=dem_type, geoid_file=geoid_file, pad_value=pad_value)
 
     if not isinstance(dem_interpolator, DEMInterpolator):
         raise TypeError('dem_interpolator is of unsupported type {}'.format(type(dem_interpolator)))
 
     # determine max/min hae in the DEM region, and pad a bit because the DEM may
     # be relative to geoid (i.e. DTED)
-    min_dem = dem_interpolator.get_min_dem() - 100
-    max_dem = dem_interpolator.get_max_dem() + 100
+    min_dem = dem_interpolator.get_min_hae() - 10
+    max_dem = dem_interpolator.get_max_hae() + 10
 
     # prepare workspace
     im_points_view = numpy.reshape(im_points, (-1, 2))  # possibly or make 2-d flatten

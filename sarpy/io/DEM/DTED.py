@@ -294,6 +294,13 @@ class DTEDReader(object):
                                      mode='r',
                                      offset=3428,
                                      shape=shp)
+    @property
+    def origin(self):
+        """
+        numpy.ndarray: The origin of this DTED.
+        """
+
+        return numpy.copy(self._origin)
 
     def __getitem__(self, item):
         def new_col_int(val, begin):
@@ -453,15 +460,87 @@ class DTEDReader(object):
         else:
             return numpy.reshape(out, o_shape)
 
+    def _find_overlap(self, lat_lon_box):
+        """
+        Gets the overlap slice argument for the lat/lon bounding box.
+
+        Parameters
+        ----------
+        lat_lon_box : None|numpy.ndarray
+
+        Returns
+        -------
+        (slice, slice)
+        """
+
+        if lat_lon_box is None:
+            first_row = 0
+            last_row = self._shape[0]
+            first_col = 0
+            last_col = self._shape[1]
+        else:
+            first_row = (lat_lon_box[2] - self._origin[0])/self._spacing[0]
+            last_row = (lat_lon_box[3] - self._origin[0])/self._spacing[0]
+            first_col = (lat_lon_box[0] - self._origin[1])/self._spacing[1]
+            last_col = (lat_lon_box[1] - self._origin[1])/self._spacing[1]
+            if first_row > self._shape[0] or last_row < 0 or first_col > self._shape[1] or last_col < 0:
+                return None
+            first_row = int(max(0, first_row))
+            last_row = int(min(self._shape[0], last_row))
+            first_col = int(max(0, first_col))
+            last_col = int(min(self._shape[1], last_col))
+        return slice(first_row, last_row, 1), slice(first_col, last_col, 1)
+
+
+    def get_max(self, lat_lon_box=None):
+        """
+        Gets the maximum observed DEM value, possibly contained in the given
+        rectangular area of interest.
+
+        Parameters
+        ----------
+        lat_lon_box : None|numpy.ndarray
+            None or of the form `[lat min, lat max, lon min, lon max]`.
+
+        Returns
+        -------
+        float|None
+        """
+
+        arg = self._find_overlap(lat_lon_box)
+        if arg is None:
+            return None
+        return numpy.max(self.__getitem__(arg))
+
+    def get_min(self, lat_lon_box=None):
+        """
+        Gets the minimum observed DEM value, possibly contained in the given
+        rectangular area of interest.
+
+        Parameters
+        ----------
+        lat_lon_box : None|numpy.ndarray
+            None or of the form `[lat min, lat max, lon min, lon max]`.
+
+        Returns
+        -------
+        float|None
+        """
+
+        arg = self._find_overlap(lat_lon_box)
+        if arg is None:
+            return None
+        return numpy.min(self.__getitem__(arg))
+
 
 class DTEDInterpolator(DEMInterpolator):
     """
     DEM Interpolator using DTED/SRTM files for the DEM information.
     """
 
-    __slots__ = ('_readers', '_geoid')
+    __slots__ = ('_readers', '_geoid', '_ref_geoid', '_max_geoid', '_min_geoid')
 
-    def __init__(self, files, geoid_file):
+    def __init__(self, files, geoid_file, lat_lon_box = None):
         if isinstance(files, str):
             files = [files, ]
         # get a reader object for each file
@@ -480,6 +559,17 @@ class DTEDInterpolator(DEMInterpolator):
                 'egm .pgm files can be found, or an instance of GeoidHeight reader. '
                 'Got {}'.format(type(geoid_file)))
         self._geoid = geoid_file
+
+        self._lat_lon_box = lat_lon_box
+
+        if len(self._readers) == 0:
+            self._ref_geoid = 0
+        else:
+            # use the origin of the first reader
+            ref_point = self._readers[0].origin
+            self._ref_geoid = float(self._geoid.get(ref_point[1], ref_point[0]))
+        self._max_geoid = None
+        self._min_geoid = None
 
     @classmethod
     def from_coords_and_list(cls, lat_lon_box, dted_list, dem_type=None, geoid_file=None):
@@ -517,7 +607,7 @@ class DTEDInterpolator(DEMInterpolator):
         if geoid_file is None:
             geoid_file = dted_list.root_dir
 
-        return cls(dted_list.get_file_list(lat_lon_box, dem_type=dem_type), geoid_file)
+        return cls(dted_list.get_file_list(lat_lon_box, dem_type=dem_type), geoid_file, lat_lon_box=lat_lon_box)
 
     @classmethod
     def from_reference_point(cls, ref_point, dted_list, dem_type=None, geoid_file=None, pad_value=0.2):
@@ -668,30 +758,33 @@ class DTEDInterpolator(DEMInterpolator):
         else:
             return numpy.reshape(out, o_shape)
 
-    def get_max_dem(self):
-        """
-        Get the maximum DTED entry - note that this is relative to the geoid.
+    def get_max_hae(self):
+        return self.get_max_geoid() - self._ref_geoid
 
-        Returns
-        -------
-        float
-        """
+    def get_min_hae(self):
+        return self.get_min_geoid() - self._ref_geoid
 
-        if len(self._readers) < 1:
-            return 0.0
-
-        return float(max(numpy.max(reader[:, :]) for reader in self._readers))
-
-    def get_min_dem(self):
-        """
-        Get the minimum DTED entry - note that this is relative to the geoid.
-
-        Returns
-        -------
-        float
-        """
+    def get_max_geoid(self):
+        if self._max_geoid is not None:
+            return self._max_geoid
 
         if len(self._readers) < 1:
-            return 0.0
+            return self._ref_geoid
 
-        return float(min(numpy.min(reader[:, :]) for reader in self._readers))
+        obs_maxes = [reader.get_max(self._lat_lon_box) for reader in self._readers]
+        max_value = float(max(value for value in obs_maxes if value is not None))
+        self._max_geoid = max_value
+        return max_value
+
+    def get_min_geoid(self):
+        if self._min_geoid is not None:
+            return self._min_geoid
+
+        if len(self._readers) < 1:
+            return self._ref_geoid
+
+        obs_mins = [reader.get_min(self._lat_lon_box) for reader in self._readers]
+        min_value = float(min(value for value in obs_mins if value is not None))
+        self._min_geoid = min_value
+        return min_value
+
