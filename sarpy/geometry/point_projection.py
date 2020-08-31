@@ -1430,7 +1430,7 @@ def _image_to_ground_dem(
 
     # get (image formation specific) projection parameters
     r_tgt_coa, r_dot_tgt_coa, time_coa, arp_coa, varp_coa = coa_projection.projection(im_points)
-    ugpn = wgs_84_norm(ref_point)  # TODO: this should be a parameter?
+    ugpn = wgs_84_norm(ref_point)
     tolerance = 1e-3
     max_iterations = 10
 
@@ -1457,32 +1457,35 @@ def _image_to_ground_dem(
     # construct our lat lon space of lines
     llh_high = ecf_to_geodetic(coords_high)
     llh_low = ecf_to_geodetic(coords_low)
-    # I'm drawing these lines in lat/lon space, because this should be incredibly local
+    # I'm drawing these lines in lat/lon space, because this should be sufficiently local
     diffs = llh_low - llh_high
     elevations = numpy.linspace(max_dem, min_dem, num_pts, dtype='float64')
     # construct the space of points connecting high to low of shape (N, 2, num_pts)
     # NB: this is a numpy.ufunc trick
     lat_lon_space = numpy.reshape(llh_high[:, :2], (-1, 2, 1)) + numpy.multiply.outer(diffs[:, :2], step)
-    # determine neagtive of the ground hae elevation at these points according to the dem interpolator
+    # determine negative of the ground hae elevation at these points according to the dem interpolator
     # NB: lat_lon_elevations is shape (N, num_pts)
     lat_lon_elevation = -dem_interpolator.get_elevation_hae(lat_lon_space[:, 0, :], lat_lon_space[:, 1, :], block_size=50000)
-    del lat_lon_space  # we can free this up, since it's potentially large
-    bad_values = numpy.isnan(lat_lon_elevation)
-    if numpy.any(bad_values):
-        lat_lon_elevation[bad_values] = -ref_hae
+    del lat_lon_space  # we can free this up, since it's potentially large and we're done with it
+    # Don't let missing values derail the calculation here
+    lat_lon_elevation[numpy.isnan(lat_lon_elevation)] = -ref_hae
     # adjust by the hae, to find the diff between our line in elevation
     lat_lon_elevation += elevations
-    # these elevations should be guaranteed to start positive because we used to
-    #   total bounds for the DEM values
-    # we find the "first" (in high to low order) element where the elevation is close enough to negative
-    # NB: this is shape (N, )
+    # lat_lon_elevation is now the HAE minus the DEM value (in HAE) along our line
+
+    # we are looking for the soonest zero crossing, i.e. highest point where our line intersects the DEM surface
+    # find earliest point which has negative difference
+    # NB: these elevations are guaranteed to start positive and end negative
+    #  because we start/end at the highest/lowest possible (with padding)
     indices = numpy.argmax(lat_lon_elevation < 0, axis=1)
-    # linearly interpolate to find the best guess for 0 crossing.
+    stub_indices = numpy.arange(indices.size)
+
+    # linearly interpolate between first negative and previous to find the best guess for zero crossing.
     prev_indices = indices - 1
     if numpy.any(prev_indices < 0):
         raise ValueError("The first negative entry should have occurred at a strictly positive index")
-    d1 = lat_lon_elevation[:, indices]
-    d0 = lat_lon_elevation[:, prev_indices]
+    d1 = lat_lon_elevation[stub_indices, indices]
+    d0 = lat_lon_elevation[stub_indices, prev_indices]
     frac_indices = indices + (d1/(d0 - d1))
     return coords_high + (frac_indices/(num_pts - 1))[:, numpy.newaxis]*ecf_diffs
 
