@@ -9,9 +9,11 @@ from types import MethodType  # for binding a method dynamically to a class
 
 import numpy
 
+from sarpy.compliance import string_types, int_func
 from sarpy.geometry.geocoords import ecf_to_geodetic, geodetic_to_ecf, wgs_84_norm
 from sarpy.io.complex.sicd_elements.blocks import Poly2DType, XYZPolyType
-from sarpy.io.DEM.DEM import DTEDList, GeoidHeight, DTEDInterpolator
+from sarpy.io.DEM.DEM import DEMInterpolator
+from sarpy.io.DEM.DTED import DTEDList, DTEDInterpolator
 
 __classification__ = "UNCLASSIFIED"
 __author__ = ("Thomas McCullough", "Wade Schwartzkopf")
@@ -1405,19 +1407,28 @@ def image_to_ground_hae(im_points, structure, block_size=50000,
 #####
 # Image-to-DEM
 
+def _do_dem_iteration(previous_ecf, previous_diff, this_ecf, this_diff):
+    mask = (this_diff < 0)
+    if numpy.any(mask):
+        d0 = (previous_diff[mask])
+        d1 = numpy.abs(this_diff[mask])
+        return mask, (d1[:, numpy.newaxis]*previous_ecf[mask] + d0[:, numpy.newaxis]*this_ecf[mask])/((d0+d1)[:, numpy.newaxis])
+    else:
+        return None
+
 def _image_to_ground_dem(
         im_points, coa_projection, dem_interpolator, min_dem, max_dem,
-        horizontal_step_size, ref_hae, ref_point):
+        vertical_step_size, ref_hae, ref_point):
     """
 
     Parameters
     ----------
     im_points : numpy.ndarray
     coa_projection : COAProjection
-    dem_interpolator : DTEDInterpolator
+    dem_interpolator : DEMInterpolator
     min_dem : float
     max_dem : float
-    horizontal_step_size : float|int
+    vertical_step_size : float|int
     ref_hae: float
     ref_point : numpy.ndarray
 
@@ -1428,65 +1439,108 @@ def _image_to_ground_dem(
 
     # get (image formation specific) projection parameters
     r_tgt_coa, r_dot_tgt_coa, time_coa, arp_coa, varp_coa = coa_projection.projection(im_points)
-    ugpn = wgs_84_norm(ref_point)  # TODO: this should be a parameter?
+    ugpn = wgs_84_norm(ref_point)
     tolerance = 1e-3
     max_iterations = 10
 
-    # if max_dem - min_dem is sufficiently small, then just do the simplest thing
-    if max_dem - min_dem < 1:
+    # if max_dem - min_dem is sufficiently small, then pretend it's flat
+    if max_dem - min_dem < vertical_step_size:
         return _image_to_ground_hae_perform(
             r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa, ref_point, ugpn, max_dem,
             tolerance, max_iterations, ref_hae)
-    # get projection to hae at high/low points
-    coords_high = _image_to_ground_hae_perform(
+    # set up workspace
+    out = numpy.zeros((im_points.shape[0], 3), dtype='float64')
+    cont_mask = numpy.ones((im_points.shape[0], ), dtype='bool')
+    cont = True
+    this_hae = max_dem
+    previous_coords = _image_to_ground_hae_perform(
         r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa, ref_point, ugpn, max_dem,
         tolerance, max_iterations, ref_hae)
-    coords_low = _image_to_ground_hae_perform(
-        r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa, ref_point, ugpn, min_dem,
-        tolerance, max_iterations, ref_hae)
-    ecf_diffs = coords_low - coords_high
-    dists = numpy.linalg.norm(ecf_diffs, axis=1)
-    # NB: the proper projection point will be the HIGHEST point
-    #   on the DEM along the straight line between the high and low point
-    sin_ang = (max_dem - min_dem)/numpy.min(dists)
-    cos_ang = numpy.sqrt(1 - sin_ang*sin_ang)
-    num_pts = numpy.max(dists)/(cos_ang*horizontal_step_size)
-    step = numpy.linspace(0., 1., num_pts, dtype='float64')
-    # construct our lat lon space of lines
-    llh_high = ecf_to_geodetic(coords_high)
-    llh_low = ecf_to_geodetic(coords_low)
-    # I'm drawing these lines in lat/lon space, because this should be incredibly local
-    diffs = llh_low - llh_high
-    elevations = numpy.linspace(max_dem, min_dem, num_pts, dtype='float64')
-    # construct the space of points connecting high to low of shape (N, 2, num_pts)
-    lat_lon_space = llh_low[:, :2] + numpy.multiply.outer(diffs[:, :2], step)  # NB: this is a numpy.ufunc trick
-    # determine the ground hae elevation at these points according to the dem interpolator
-    # NB: lat_lon_elevations is shape (N, num_pts)
-    lat_lon_elevation = dem_interpolator.get_elevation_hae(lat_lon_space[:, 0, :], lat_lon_space[:, 1, :], block_size=50000)
-    del lat_lon_space  # we can free this up, since it's potentially large
-    bad_values = numpy.isnan(lat_lon_elevation)
-    if numpy.any(bad_values):
-        lat_lon_elevation[bad_values] = ref_hae
-    # adjust by the hae, to find the diff between our line in elevation
-    lat_lon_elevation -= elevations
-    # these elevations should be guaranteed to start positive because we used to
-    #   total bounds for the DEM values
-    # we find the "first" (in high to low order) element where the elevation is close enough to negative
-    # NB: this is shape (N, )
-    indices = numpy.argmax(lat_lon_elevation < 0.5, axis=1)
-    # linearly interpolate to find the best guess for 0 crossing.
-    prev_indices = indices - 1
-    if numpy.any(prev_indices < 0):
-        raise ValueError("The first negative entry should have occurred at a strictly positive index")
-    d1 = lat_lon_elevation[:, indices]
-    d0 = lat_lon_elevation[:, prev_indices]
-    frac_indices = indices + (d1/(d0 - d1))
-    return coords_high + (frac_indices/(num_pts - 1))[:, numpy.newaxis]*ecf_diffs
+    previous_llh = ecf_to_geodetic(previous_coords)
+    previous_diff = previous_llh[:, 2] - dem_interpolator.get_elevation_hae(
+        previous_llh[:, 0], previous_llh[:, 1])
+
+    while cont:
+        this_hae -= vertical_step_size
+        this_coords = _image_to_ground_hae_perform(
+            r_tgt_coa[cont_mask], r_dot_tgt_coa[cont_mask], arp_coa[cont_mask], varp_coa[cont_mask],
+            ref_point, ugpn, this_hae, tolerance, max_iterations, ref_hae)
+        this_llh = ecf_to_geodetic(this_coords)
+        this_diff = this_llh[:, 2] - dem_interpolator.get_elevation_hae(this_llh[:, 0], this_llh[:, 1])
+        result = _do_dem_iteration(previous_coords, previous_diff, this_coords, this_diff)
+        if result is not None:
+            this_mask, this_result = result
+            temp_mask = numpy.zeros((im_points.shape[0], ), dtype='bool')
+            temp_mask[cont_mask] = this_mask
+            out[temp_mask, :] = this_result
+            cont_mask[temp_mask] = False
+            cont = numpy.any(cont_mask)
+            if cont:
+                previous_coords = this_coords[~this_mask, :]
+                previous_diff = this_diff[~this_mask]
+        else:
+            previous_coords = this_coords
+            previous_diff = this_diff
+    return out
+
+
+def _image_to_ground_dem_block(
+        im_points, coa_projection, dem_interpolator, horizontal_step, lat_lon_box, block_size,
+        lat_pad, lon_pad):
+    """
+
+    Parameters
+    ----------
+    im_points : numpy.ndarray
+    coa_projection : COAProjection
+    dem_interpolator : DEMInterpolator
+    horizontal_step : float
+    lat_lon_box : numpy.ndarray
+    block_size : int|None
+    lat_pad : float
+    lon_pad : float
+
+    Returns
+    -------
+    numpy.ndarray
+    """
+
+    # determine reference point
+    ref_lat = 0.5*(lat_lon_box[0] + lat_lon_box[1])
+    ref_lon = 0.5*(lat_lon_box[2] + lat_lon_box[3])
+    ref_hae = float(dem_interpolator.get_elevation_hae(ref_lat, ref_lon))
+    ref_ecf = geodetic_to_ecf([ref_lat, ref_lon, ref_hae])
+
+    # determine max/min hae in the DEM region
+    padded_box = numpy.array([
+        max(-90, lat_lon_box[0] - 0.5*lat_pad), min(lat_lon_box[1] + 0.5*lat_pad, 90),
+        max(-180, lat_lon_box[2] - 0.5*lon_pad), min(lat_lon_box[3] + 0.5*lon_pad, 180)], dtype='float64')
+    min_dem = dem_interpolator.get_min_hae(padded_box) - 10
+    max_dem = dem_interpolator.get_max_hae(padded_box) + 10
+
+    # prepare workspace
+    num_points = im_points.shape[0]
+    if block_size is None or num_points <= block_size:
+        coords = _image_to_ground_dem(
+            im_points, coa_projection, dem_interpolator, min_dem, max_dem,
+            horizontal_step, ref_hae, ref_ecf)
+    else:
+        coords = numpy.zeros((num_points, 3), dtype='float64')
+        # proceed with block processing
+        start_block = 0
+        while start_block < num_points:
+            end_block = min(start_block + block_size, num_points)
+            coords[start_block:end_block, :] = _image_to_ground_dem(
+                im_points[start_block:end_block, :], coa_projection, dem_interpolator,
+                min_dem, max_dem, horizontal_step, ref_hae, ref_ecf)
+            start_block = end_block
+    return coords
 
 
 def image_to_ground_dem(
-        im_points, structure, block_size=50000, dted_list=None, dem_type='SRTM2F', geoid_file=None,
-        horizontal_step_size=10, use_structure_coa=True, **coa_args):
+        im_points, structure, block_size=50000, dem_interpolator=None,
+        dem_type=None, geoid_file=None, pad_value=0.2,
+        vertical_step_size=10, use_structure_coa=True, **coa_args):
     """
     Transforms image coordinates to ground plane ECF coordinate via the algorithm(s)
     described in SICD Image Projections document.
@@ -1498,13 +1552,25 @@ def image_to_ground_dem(
     structure : sarpy.io.complex.sicd_elements.SICD.SICDType|sarpy.io.product.sidd2_elements.SIDD.SIDDType|sarpy.io.product.sidd1_elements.SIDD.SIDDType
         The SICD or SIDD structure.
     block_size : None|int
-        Size of blocks of coordinates to transform at a time. The entire array will be transformed as a single block if `None`.
-    dted_list : None|str|DTEDList|DTEDInterpolator
-    dem_type : str
-        One of ['DTED1', 'DTED2', 'SRTM1', 'SRTM2', 'SRTM2F'], specifying the DEM type.
+        Size of blocks of coordinates to transform at a time. The entire array
+        will be transformed as a single block if `None`.
+    dem_interpolator : str|DEMInterpolator
+        The DEMInterpolator. If this is a string, then a DTEDInterpolator will be
+        constructed assuming that this is the DTED root search directory.
+    dem_type : None|str|List[str]
+        The DEM type or list of DEM types in order of priority. Only used if
+        `dem_interpolator` is the search path.
     geoid_file : None|str|GeoidHeight
-    horizontal_step_size : None|float|int
-        Maximum distance between adjacent points along the R/Rdot contour.
+        The `GeoidHeight` object, an egm file name, or root directory containing
+        one of the egm files in the sub-directory "geoid". If `None`, then default
+        to the root directory of `dted_list`. Only used if `dem_interpolator` is
+        the search path.
+    pad_value : float
+        The degree value to pad by for the dem interpolator. Only used if
+        `dem_interpolator` is the search path.
+    vertical_step_size : float|int
+        Sampling along HAE altitude at the given resolution in meters. Bounds of
+        `[0.1, 100]` will be enforced by replacement.
     use_structure_coa : bool
         If structure.coa_projection is populated, use that one **ignoring the COAProjection parameters.**
     coa_args
@@ -1517,61 +1583,81 @@ def image_to_ground_dem(
         coordinates, assuming detected features actually correspond to the DEM.
     """
 
+    def append_grid_elements(this_lon_min, this_lon_max, the_list):
+        lat_start = lat_min
+        while lat_start < lat_max:
+            lon_start = this_lon_min
+            lat_end = min(lat_start + lat_grid_size, lat_max)
+            while lon_start < this_lon_max:
+                lon_end = min(lon_start + lon_grid_size, this_lon_max)
+                the_list.append((lat_start, lat_end, lon_start, lon_end))
+                lon_start = lon_end
+            lat_start = lat_end
+
     # coa projection creation
     im_points, orig_shape = _validate_im_points(im_points)
     coa_proj = _get_coa_projection(structure, use_structure_coa, **coa_args)
+    vertical_step_size = float(vertical_step_size)
+    if vertical_step_size < 0.1:
+        vertical_step_size = 0.1
+    if vertical_step_size > 100:
+        vertical_step_size = 100
 
-    if isinstance(dted_list, str):
-        dted_list = DTEDList(dted_list)
-
+    # reference point extraction
     ref_ecf = _get_reference_point(structure)
     ref_llh = ecf_to_geodetic(ref_ecf)
     ref_hae = ref_llh[2]
+    # subgrid size definition
+    lat_grid_size = 0.03
+    lon_grid_size = min(10, lat_grid_size/numpy.sin(numpy.deg2rad(ref_llh[0])))
 
-    if isinstance(dted_list, DTEDList):
-        # find sensible bounds for the DEMs that we need to load up
-        t_lats = numpy.array([ref_llh[0]-0.1, ref_llh[0], ref_llh[0] + 0.1], dtype='float64')
-        lon_diff = min(10., abs(10.0/(112*numpy.sin(numpy.rad2deg(ref_llh[0])))))
-        t_lons = numpy.arange(ref_llh[1]-lon_diff, ref_llh[1]+lon_diff+1, lon_diff, dtype='float64')
-        t_lats[t_lats > 90] = 90.0
-        t_lats[t_lats < -90] = -90.0
-        t_lons[t_lons > 180] -= 360
-        t_lons[t_lons < -180] += 360
-        lats, lons = numpy.meshgrid(t_lats, t_lons)
-        dem_interpolator = DTEDInterpolator.from_coords_and_list(
-            lats, lons, dted_list, dem_type, geoid_file=geoid_file)
-    elif isinstance(dted_list, DTEDInterpolator):
-        dem_interpolator = dted_list
-    else:
-        raise ValueError(
-            'dted_list is expected to be a string suitable for constructing a DTEDList, '
-            'an instance of a DTEDList suitable for constructing a DTEDInterpolator, '
-            'or DTEDInterpolator instance. Got {}'.format(type(dted_list)))
-    # determine max/min hae in the DEM
-    # not the ellipsoid
-    scp_geoid = dem_interpolator.geoid.get(ref_llh[0], ref_llh[1])
-    # remember that min/max in a DTED is relative to the geoid, not hae
-    min_dem = dem_interpolator.get_min_dem() + scp_geoid + 10
-    max_dem = dem_interpolator.get_max_dem() + scp_geoid - 10
+    # validate the dem_interpolator
+    if dem_interpolator is None:
+        raise ValueError('dem_interpolator is None, this is unhandled.')
+    if isinstance(dem_interpolator, string_types):
+        dted_list = DTEDList(dem_interpolator)
+        dem_interpolator = DTEDInterpolator.from_reference_point(
+            ref_llh, dted_list, dem_type=dem_type, geoid_file=geoid_file, pad_value=pad_value)
+    if not isinstance(dem_interpolator, DEMInterpolator):
+        raise TypeError('dem_interpolator is of unsupported type {}'.format(type(dem_interpolator)))
 
-    # prepare workspace
+    # perform a projection to reference point hae for approximate lat/lon values
     im_points_view = numpy.reshape(im_points, (-1, 2))  # possibly or make 2-d flatten
-    num_points = im_points_view.shape[0]
-    if block_size is None or num_points <= block_size:
-        coords = _image_to_ground_dem(
-            im_points_view, coa_proj, dem_interpolator, min_dem, max_dem,
-            horizontal_step_size, ref_hae, ref_ecf)
-    else:
-        coords = numpy.zeros((num_points, 3), dtype='float64')
-        # proceed with block processing
-        start_block = 0
-        while start_block < num_points:
-            end_block = min(start_block + block_size, num_points)
-            coords[start_block:end_block, :] = _image_to_ground_dem(
-                im_points_view[start_block:end_block], coa_proj, dem_interpolator,
-                min_dem, max_dem, horizontal_step_size, ref_hae, ref_ecf)
-            start_block = end_block
+    r_tgt_coa, r_dot_tgt_coa, time_coa, arp_coa, varp_coa = coa_proj.projection(im_points_view)
+    ugpn = wgs_84_norm(ref_ecf)
+    tolerance = 1e-3
+    max_iterations = 10
+    llh_rough = ecf_to_geodetic(_image_to_ground_hae_perform(
+            r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa, ref_ecf, ugpn, ref_hae,
+            tolerance, max_iterations, ref_hae))
 
+    # segment into lat/lon grid of small size for more efficient dem lookup
+    lat_min = numpy.min(llh_rough[:, 0])
+    lat_max = numpy.max(llh_rough[:, 0])
+    lon_min = numpy.min(llh_rough[:, 1])
+    lon_max = numpy.max(llh_rough[:, 1])
+    lat_lon_grids = []
+    if (lon_min < -90) and (lon_max > 90):
+        # there is a -180/180 crossing
+        append_grid_elements(numpy.min(llh_rough[(llh_rough[:, 1] > 0), 1]), 180, lat_lon_grids)
+        append_grid_elements(-180, numpy.max(llh_rough[(llh_rough[:, 1] < 0), 1]), lat_lon_grids)
+    else:
+        append_grid_elements(lon_min, lon_max, lat_lon_grids)
+
+    if len(lat_lon_grids) == 1:
+        return _image_to_ground_dem_block(
+            im_points, coa_proj, dem_interpolator, vertical_step_size,
+            lat_lon_grids[0], block_size, lat_grid_size, lon_grid_size)
+    else:
+        num_points = im_points_view.shape[0]
+        coords = numpy.zeros((num_points, 3), dtype='float64')
+        for entry in lat_lon_grids:
+            mask = ((llh_rough[:, 0] >= entry[0]) & (llh_rough[:, 0] <= entry[1]) &
+                    (llh_rough[:, 1] >= entry[2]) & (llh_rough[:, 1] <= entry[3]))
+            if numpy.any(mask):
+                coords[mask, :] = _image_to_ground_dem_block(
+                    im_points[mask, :], coa_proj, dem_interpolator, vertical_step_size,
+                    entry, block_size, lat_grid_size, lon_grid_size)
     if len(orig_shape) == 1:
         coords = numpy.reshape(coords, (-1,))
     elif len(orig_shape) > 1:
