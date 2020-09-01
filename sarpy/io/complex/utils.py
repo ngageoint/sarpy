@@ -88,9 +88,9 @@ def get_im_physical_coords(array, grid, image_data, direction):
     """
 
     if direction.upper() == 'ROW':
-        return (array - image_data.SCPPixel.Row)*grid.Row.SS
+        return (array - image_data.SCPPixel.Row + image_data.FirstRow)*grid.Row.SS
     elif direction.upper() == 'COL':
-        return (array - image_data.SCPPixel.Col)*grid.Col.SS
+        return (array - image_data.SCPPixel.Col + image_data.FirstCol)*grid.Col.SS
     else:
         raise ValueError('Unrecognized direction {}'.format(direction))
 

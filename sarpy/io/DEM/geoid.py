@@ -48,7 +48,9 @@ https://sourceforge.net/projects/geographiclib/files/geoids-distrib/egm2008-5.zi
 
 import os
 import numpy
-from . import _argument_validation
+
+from sarpy.compliance import string_types
+from sarpy.io.DEM.utils import argument_validation
 
 
 __classification__ = "UNCLASSIFIED"
@@ -102,33 +104,52 @@ _C3S = numpy.array((
     (-18, 36, -64, 0, 66, 51, 0, 0, -102, 31),
     (18, -36, 2, 0, -66, -51, 0, 0, 102, 31)), dtype=numpy.float64)
 
-_SEARCH_FILES = ('egm2008-1.pgm', 'egm2008-2_5.pgm', 'egm2008-5.pgm', 'egm96-5.pgm', 'egm96-15.pgm')
+_SEARCH_FILES = ('egm2008-5.pgm', 'egm2008-2_5.pgm', 'egm2008-1.pgm', 'egm96-5.pgm', 'egm96-15.pgm')
 
 
 def find_geoid_file_from_dir(dir_name, search_files=None):
+    """
+    Find the geoid file.
+
+    Parameters
+    ----------
+    dir_name : str
+    search_files : str|List[str]
+
+    Returns
+    -------
+    str
+    """
+
     geoid_dir = os.path.join(dir_name, 'geoid')
     if not os.path.exists(geoid_dir):
         raise IOError(
             'Input is a directory, and beneath it we expect to find '
             'files in directory "geoid"')
     if search_files is None:
-        search_files = _SEARCH_FILES
+        search_files = []
+    elif isinstance(search_files, string_types):
+        search_files = [search_files, ]
     else:
-        search_files = tuple(search_files) + _SEARCH_FILES
+        search_files = list(search_files)
 
-    file_name = None
+    for entry in _SEARCH_FILES:
+        if entry not in search_files:
+            search_files.append(entry)
+
+    our_file = None
     for fil in search_files:
         file_name = os.path.join(geoid_dir, fil)
         if os.path.exists(file_name):
+            our_file = file_name
             break
-        file_name = None
 
-    if file_name is None:
+    if our_file is None:
         raise IOError(
             'input is a directory and we expect to find one of the files {} '
             'in the directory "geoid" beneath it'.format(search_files))
 
-    return file_name
+    return our_file
 
 
 class GeoidHeight(object):
@@ -142,7 +163,9 @@ class GeoidHeight(object):
     ('egm2008-1.pgm', 'egm2008-2_5.pgm', 'egm2008-5.pgm', 'egm96-5.pgm', 'egm96-15.pgm')
     """
 
-    __slots__ = ('_offset', '_scale', '_width', '_height', '_header_length', '_memory_map', '_lon_res', '_lat_res')
+    __slots__ = (
+        '_offset', '_scale', '_width', '_height', '_header_length', '_memory_map',
+        '_lon_res', '_lat_res')
 
     def __init__(self, file_name):
         """
@@ -301,7 +324,7 @@ class GeoidHeight(object):
         numpy.ndarray
         """
 
-        o_shape, lat, lon = _argument_validation(lat, lon)
+        o_shape, lat, lon = argument_validation(lat, lon)
 
         if block_size is None:
             out = self._do_block(lat, lon, cubic)
@@ -311,7 +334,8 @@ class GeoidHeight(object):
             start_block = 0
             while start_block < lat.size:
                 end_block = min(start_block+block_size, lat.size)
-                out[start_block:end_block] = self._do_block(lat[start_block:end_block], lon[start_block:end_block], cubic)
+                out[start_block:end_block] = self._do_block(
+                    lat[start_block:end_block], lon[start_block:end_block], cubic)
                 start_block = end_block
 
         if o_shape == ():
@@ -321,3 +345,21 @@ class GeoidHeight(object):
 
     def __call__(self, lat, lon):
         return self.get(lat, lon)
+
+    @classmethod
+    def from_directory(cls, dir_name, search_files=None):
+        """
+        Create the GeoidHeight object from a search directory.
+
+        Parameters
+        ----------
+        dir_name : str
+        search_files : str|List[str]
+
+        Returns
+        -------
+        GeoidHeight
+        """
+
+        our_file = find_geoid_file_from_dir(dir_name, search_files=search_files)
+        return cls(our_file)

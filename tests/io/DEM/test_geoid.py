@@ -81,7 +81,7 @@ class TestGeoidHeight(unittest.TestCase):
 
     @classmethod
     def setUp(cls):
-        cls.test_root = os.path.expanduser(os.path.join('~', 'Desktop', 'sarpy_testing', 'geoid'))
+        cls.test_root = os.path.expanduser(os.path.join('~', 'Desktop', 'sarpy_testing', 'dem', 'geoid'))
 
     def test_geoid_height(self):
         # establish file location
