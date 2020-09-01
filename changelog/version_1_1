@@ -1,5 +1,6 @@
 # This details the important differences introduced in sarpy 1.1
 
+* .4 - Changed some functionality in aperture filter
 * .3 - Added helper methods for aperture tool processing
 * .2 - Fixed bug for NITF block ordering
 * .1 - Improvements to change detection support

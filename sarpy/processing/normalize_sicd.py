@@ -144,7 +144,6 @@ def is_normalized(sicd, dimension=1):
            _is_fft_sgn_negative(sicd, dimension)
 
 
-
 class DeskewCalculator(FullResolutionFetcher):
     """
     This is a calculator for deskewing/deweighting which requires full resolution
@@ -152,14 +151,15 @@ class DeskewCalculator(FullResolutionFetcher):
     """
 
     __slots__ = (
-        '_apply_deweighting', '_delta_kcoa_poly_axis', '_delta_kcoa_poly_off_axis',
+        '_apply_deskew', '_apply_deweighting', '_delta_kcoa_poly_axis', '_delta_kcoa_poly_off_axis',
         '_row_fft_sgn', '_col_fft_sgn',
         '_row_shift', '_row_mult', '_col_shift', '_col_mult',
         '_row_weight', '_row_pad', '_col_weight', '_col_pad',
         '_is_normalized', '_is_not_skewed_row', '_is_not_skewed_col',
         '_is_uniform_weight_row', '_is_uniform_weight_col', )
 
-    def __init__(self, reader, dimension=1, index=0, apply_deweighting=False):
+    def __init__(self, reader, dimension=1, index=0, apply_deskew=True, apply_deweighting=False):
+        self._apply_deskew = apply_deskew
         self._apply_deweighting = apply_deweighting
         self._delta_kcoa_poly_axis = None
         self._delta_kcoa_poly_off_axis = None
@@ -181,6 +181,24 @@ class DeskewCalculator(FullResolutionFetcher):
         super(DeskewCalculator, self).__init__(
             reader, dimension=dimension, index=index, block_size=None)
 
+    @property
+    def dimension(self):
+        # type: () -> int
+        """
+        int: The dimension along which to perform the color subaperture split.
+        """
+
+        return self._dimension
+
+    @dimension.setter
+    def dimension(self, value):
+        value = int_func(value)
+        if value not in [0, 1]:
+            raise ValueError('dimension must be 0 or 1, got {}'.format(value))
+        self._dimension = value
+        if self._sicd is not None:
+            self._set_sicd(self._sicd)
+
     def _set_index(self, value):
         value = int_func(value)
         if value < 0:
@@ -195,6 +213,13 @@ class DeskewCalculator(FullResolutionFetcher):
 
     def _set_sicd(self, the_sicd):
         # type : (SICDType) -> None
+        if the_sicd is None:
+            self._sicd = None
+            return
+
+        if not isinstance(the_sicd, SICDType):
+            raise TypeError('the_sicd must be an insatnce of SICDType, got type {}'.format(type(the_sicd)))
+
         self._sicd = the_sicd
         row_delta_kcoa_poly, self._row_fft_sgn = _get_deskew_params(the_sicd, 0)
         col_delta_kcoa_poly, self._col_fft_sgn = _get_deskew_params(the_sicd, 1)
@@ -222,6 +247,30 @@ class DeskewCalculator(FullResolutionFetcher):
         self._is_not_skewed_col = _is_not_skewed(the_sicd, 1)
         self._is_uniform_weight_row = _is_uniform_weight(the_sicd, 0)
         self._is_uniform_weight_col = _is_uniform_weight(the_sicd, 1)
+
+    @property
+    def apply_deskew(self):
+        """
+        bool: Apply deskew to calculated value. This is for API completeness.
+        """
+
+        return self._apply_deskew
+
+    @apply_deskew.setter
+    def apply_deskew(self, value):
+        self._apply_deskew = (value is True)
+
+    @property
+    def apply_deweighting(self):
+        """
+        bool: Apply deweighting to calculated values.
+        """
+
+        return self._apply_deweighting
+
+    @apply_deweighting.setter
+    def apply_deweighting(self, value):
+        self._apply_deweighting = (value is True)
 
     def _get_index_arrays(self, row_range, row_step, col_range, col_step):
         """
@@ -275,7 +324,7 @@ class DeskewCalculator(FullResolutionFetcher):
                     t_full_data, delta_kcoa_new_const, row_array, col_array, fft_sgn, 1-self.dimension)
             return t_full_data
 
-        if self._is_normalized:
+        if self._is_normalized or not self.apply_deskew:
             # just fetch the data and return
             return self.reader.__getitem__(item)
 
@@ -364,7 +413,6 @@ def _deskew_array(input_data, delta_kcoa_poly, row_array, col_array, fft_sgn, di
     row_array : numpy.ndarray
     col_array : numpy.ndarray
     fft_sgn : int
-    dimension : int
 
     Returns
     -------
