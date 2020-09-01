@@ -59,12 +59,17 @@ class DEMInterpolator(object):
 
         raise NotImplementedError
 
-    def get_max_hae(self):
+    def get_max_hae(self, lat_lon_box=None):
         """
         Get the maximum dem value with respect to HAE, which should be assumed
         **approximately** correct. This may possibly be with respect to some
         Area of Interest.
 
+        Parameters
+        ----------
+        lat_lon_box : None|numpy.ndarray
+            None or any area of interest of the form `[lat min lat max, lon min, lon max]`.
+
         Returns
         -------
         float
@@ -72,12 +77,17 @@ class DEMInterpolator(object):
 
         raise NotImplementedError
 
-    def get_min_hae(self):
+    def get_min_hae(self, lat_lon_box=None):
         """
         Get the minimum dem value with respct to HAE, which should be assumed
         **approximately** correct. This may possibly be with respect to some
         Area of Interest.
 
+        Parameters
+        ----------
+        lat_lon_box : None|numpy.ndarray
+            None or any area of interest of the form `[lat min lat max, lon min, lon max]`.
+
         Returns
         -------
         float
@@ -85,12 +95,17 @@ class DEMInterpolator(object):
 
         raise NotImplementedError
 
-    def get_max_geoid(self):
+    def get_max_geoid(self, lat_lon_box=None):
         """
         Get the maximum dem value with respect to the geoid, which should be assumed
         **approximately** correct. This may possibly be with respect to some
         Area of Interest.
 
+        Parameters
+        ----------
+        lat_lon_box : None|numpy.ndarray
+            None or any area of interest of the form `[lat min lat max, lon min, lon max]`.
+
         Returns
         -------
         float
@@ -98,11 +113,16 @@ class DEMInterpolator(object):
 
         raise NotImplementedError
 
-    def get_min_geoid(self):
+    def get_min_geoid(self, lat_lon_box=None):
         """
         Get the minimum dem value with respect to geoid, whihc should be assumed
         **approximately** correct. This may possibly be with respect to some
         Area of Interest.
+
+        Parameters
+        ----------
+        lat_lon_box : None|numpy.ndarray
+            None or any area of interest of the form `[lat min lat max, lon min, lon max]`.
 
         Returns
         -------

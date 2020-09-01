@@ -297,7 +297,7 @@ class DTEDReader(object):
     @property
     def origin(self):
         """
-        numpy.ndarray: The origin of this DTED.
+        numpy.ndarray: The origin of this DTED, of the form `[longitude, latitude]`.
         """
 
         return numpy.copy(self._origin)
@@ -331,7 +331,6 @@ class DTEDReader(object):
             data = self._mem_map.__getitem__((item[0], it1))
         else:
             data = self._mem_map[item, 4:-2]
-
         return self._repair_values(data)
 
     @staticmethod
@@ -395,8 +394,8 @@ class DTEDReader(object):
             boolean array of the same shape as lat/lon
         """
 
-        return (lat >= self._bounding_box[1][0]) & (lat <= self._bounding_box[1][1]) & \
-               (lon >= self._bounding_box[0][0]) & (lon <= self._bounding_box[0][1])
+        return (lat >= self._bounding_box[0][1]) & (lat <= self._bounding_box[1][1]) & \
+               (lon >= self._bounding_box[0][0]) & (lon <= self._bounding_box[1][0])
 
     def _get_elevation(self, lat, lon):
         # type: (numpy.ndarray, numpy.ndarray) -> numpy.ndarray
@@ -407,12 +406,10 @@ class DTEDReader(object):
         fx = (lon - self._origin[0])/self._spacing[0]
         fy = (lat - self._origin[1])/self._spacing[1]
 
+        # get integer indices via floor
         ix = numpy.cast[numpy.int32](numpy.floor(fx))
         iy = numpy.cast[numpy.int32](numpy.floor(fy))
-
-        dx = fx - ix
-        dy = fy - iy
-        return self._linear(ix, dx, iy, dy)
+        return self._linear(ix, fx-ix, iy, fy-iy)
 
     def get_elevation(self, lat, lon, block_size=50000):
         """
@@ -467,6 +464,7 @@ class DTEDReader(object):
         Parameters
         ----------
         lat_lon_box : None|numpy.ndarray
+            Of the form `[
 
         Returns
         -------
@@ -485,12 +483,11 @@ class DTEDReader(object):
             last_col = (lat_lon_box[1] - self._origin[1])/self._spacing[1]
             if first_row > self._shape[0] or last_row < 0 or first_col > self._shape[1] or last_col < 0:
                 return None
-            first_row = int(max(0, first_row))
-            last_row = int(min(self._shape[0], last_row))
-            first_col = int(max(0, first_col))
-            last_col = int(min(self._shape[1], last_col))
+            first_row = int(max(0, numpy.floor(first_row)))
+            last_row = int(min(self._shape[0], numpy.ceil(last_row)))
+            first_col = int(max(0, numpy.floor(first_col)))
+            last_col = int(min(self._shape[1], numpy.ceil(last_col)))
         return slice(first_row, last_row, 1), slice(first_col, last_col, 1)
-
 
     def get_max(self, lat_lon_box=None):
         """
@@ -538,9 +535,9 @@ class DTEDInterpolator(DEMInterpolator):
     DEM Interpolator using DTED/SRTM files for the DEM information.
     """
 
-    __slots__ = ('_readers', '_geoid', '_ref_geoid', '_max_geoid', '_min_geoid')
+    __slots__ = ('_readers', '_geoid', '_ref_geoid')
 
-    def __init__(self, files, geoid_file, lat_lon_box = None):
+    def __init__(self, files, geoid_file, lat_lon_box=None):
         if isinstance(files, str):
             files = [files, ]
         # get a reader object for each file
@@ -610,7 +607,7 @@ class DTEDInterpolator(DEMInterpolator):
         return cls(dted_list.get_file_list(lat_lon_box, dem_type=dem_type), geoid_file, lat_lon_box=lat_lon_box)
 
     @classmethod
-    def from_reference_point(cls, ref_point, dted_list, dem_type=None, geoid_file=None, pad_value=0.2):
+    def from_reference_point(cls, ref_point, dted_list, dem_type=None, geoid_file=None, pad_value=0.1):
         """
         Construct a DTEDInterpolator object by padding around the reference point by
         `pad_value` latitude degrees (1 degree ~ 111 km or 69 miles).
@@ -758,33 +755,31 @@ class DTEDInterpolator(DEMInterpolator):
         else:
             return numpy.reshape(out, o_shape)
 
-    def get_max_hae(self):
-        return self.get_max_geoid() - self._ref_geoid
+    def _get_ref_geoid(self, lat_lon_box):
+        if lat_lon_box is None:
+            # use the origin of the first reader
+            ref_point = self._readers[0].origin
+            return float(self._geoid.get(ref_point[1], ref_point[0]))
+        else:
+            return float(self._geoid.get(lat_lon_box[0], lat_lon_box[2]))
 
-    def get_min_hae(self):
-        return self.get_min_geoid() - self._ref_geoid
+    def get_max_hae(self, lat_lon_box=None):
+        return self.get_max_geoid(lat_lon_box=lat_lon_box) + self._get_ref_geoid(lat_lon_box)
 
-    def get_max_geoid(self):
-        if self._max_geoid is not None:
-            return self._max_geoid
+    def get_min_hae(self, lat_lon_box=None):
+        return self.get_min_geoid(lat_lon_box=lat_lon_box) + self._get_ref_geoid(lat_lon_box)
 
+    def get_max_geoid(self, lat_lon_box=None):
         if len(self._readers) < 1:
-            return self._ref_geoid
+            return self._get_ref_geoid(lat_lon_box)
 
-        obs_maxes = [reader.get_max(self._lat_lon_box) for reader in self._readers]
-        max_value = float(max(value for value in obs_maxes if value is not None))
-        self._max_geoid = max_value
-        return max_value
+        obs_maxes = [reader.get_max(lat_lon_box=lat_lon_box) for reader in self._readers]
+        return float(max(value for value in obs_maxes if value is not None))
 
-    def get_min_geoid(self):
-        if self._min_geoid is not None:
-            return self._min_geoid
-
+    def get_min_geoid(self, lat_lon_box=None):
         if len(self._readers) < 1:
-            return self._ref_geoid
+            return self._get_ref_geoid(lat_lon_box)
 
-        obs_mins = [reader.get_min(self._lat_lon_box) for reader in self._readers]
-        min_value = float(min(value for value in obs_mins if value is not None))
-        self._min_geoid = min_value
-        return min_value
+        obs_mins = [reader.get_min(lat_lon_box=lat_lon_box) for reader in self._readers]
+        return float(min(value for value in obs_mins if value is not None))
 
