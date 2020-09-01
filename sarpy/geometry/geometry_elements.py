@@ -1405,7 +1405,7 @@ class LinearRing(LineString):
 
         Parameters
         ----------
-        grid_x : nuumpy.ndarray
+        grid_x : numpy.ndarray
         grid_y : numpy.ndarray
 
         Returns
@@ -1656,7 +1656,7 @@ class Polygon(GeometryObject):
 
         Parameters
         ----------
-        grid_x : nuumpy.ndarray
+        grid_x : numpy.ndarray
         grid_y : numpy.ndarray
 
         Returns
@@ -1842,7 +1842,7 @@ class MultiPolygon(GeometryObject):
 
         Parameters
         ----------
-        grid_x : nuumpy.ndarray
+        grid_x : numpy.ndarray
         grid_y : numpy.ndarray
 
         Returns

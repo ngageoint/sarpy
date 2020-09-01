@@ -24,9 +24,9 @@ class ApertureFilter(object):
     """
 
     __slots__ = (
-        '_deskew_calculator', '_sub_image_bounds', '_normalized_phase_history', )
+        '_deskew_calculator', '_sub_image_bounds', '_normalized_phase_history')
 
-    def __init__(self, reader, dimension=1, index=0, apply_deweighting=False):
+    def __init__(self, reader, dimension=1, index=0, apply_deskew=True, apply_deweighting=False):
         """
 
         Parameters
@@ -34,12 +34,40 @@ class ApertureFilter(object):
         reader : BaseReader
         dimension : int
         index : int
+        apply_deskew : bool
         apply_deweighting : bool
         """
-        self._deskew_calculator = DeskewCalculator(
-            reader, dimension=dimension, index=index, apply_deweighting=apply_deweighting)
-        self._sub_image_bounds = None
+
         self._normalized_phase_history = None
+        self._deskew_calculator = DeskewCalculator(
+            reader, dimension=dimension, index=index, apply_deskew=apply_deskew, apply_deweighting=apply_deweighting)
+        self._sub_image_bounds = None
+
+    @property
+    def apply_deskew(self):
+        """
+        bool: Apply deskew to calculated value.
+        """
+
+        return self._deskew_calculator.apply_deskew
+
+    @apply_deskew.setter
+    def apply_deskew(self, value):
+        self._deskew_calculator.apply_deskew = value
+        self._set_normalized_phase_history()
+
+    @property
+    def apply_deweighting(self):
+        """
+        bool: Apply deweighting to calculated values.
+        """
+
+        return self._deskew_calculator.apply_deweighting
+
+    @apply_deweighting.setter
+    def apply_deweighting(self, val):
+        self._deskew_calculator.apply_deweighting = val
+        self._set_normalized_phase_history()
 
     def _get_fft_complex_data(self, cdata):
         """
@@ -87,14 +115,27 @@ class ApertureFilter(object):
 
         return self._deskew_calculator.dimension
 
+    @dimension.setter
+    def dimension(self, val):
+        """
+        Parameters
+        ----------
+        val : int
+
+        Returns
+        -------
+        None
+        """
+
+        self._deskew_calculator.dimension = val
+        self._set_normalized_phase_history()
+
     @property
     def flip_x_axis(self):
-        if self.sicd.SCPCOA:
-            if self.sicd.SCPCOA.SideOfTrack:
-                if self.sicd.SCPCOA.SideOfTrack == "L":
-                    return False
-                else:
-                    return True
+        try:
+            return self.sicd.SCPCOA.SideOfTrack == "R"
+        except AttributeError:
+            return False
 
     @property
     def sub_image_bounds(self):
@@ -104,13 +145,23 @@ class ApertureFilter(object):
 
         return self._sub_image_bounds
 
-    @property
-    def normalized_phase_history(self):
-        """None|numpy.ndarray: The normalized phase history"""
-        return self._normalized_phase_history
-
     def set_sub_image_bounds(self, row_bounds, col_bounds):
         self._sub_image_bounds = (row_bounds, col_bounds)
+        self._set_normalized_phase_history()
+
+    @property
+    def normalized_phase_history(self):
+        """
+        None|numpy.ndarray: The normalized phase history
+        """
+
+        return self._normalized_phase_history
+
+    def _set_normalized_phase_history(self):
+        if self._sub_image_bounds is None:
+            return None
+
+        row_bounds, col_bounds = self._sub_image_bounds
         deskewed_data = self._deskew_calculator[row_bounds[0]:row_bounds[1], col_bounds[0]:col_bounds[1]]
         self._normalized_phase_history = self._get_fft_complex_data(deskewed_data)
 
@@ -146,9 +197,9 @@ class ApertureFilter(object):
         return frequencies
 
     def __getitem__(self, item):
-        if self._normalized_phase_history is None:
+        if self.normalized_phase_history is None:
             return None
-        filtered_cdata = numpy.zeros(self._normalized_phase_history.shape, dtype='complex64')
-        filtered_cdata[item] = self._normalized_phase_history[item]
+        filtered_cdata = numpy.zeros(self.normalized_phase_history.shape, dtype='complex64')
+        filtered_cdata[item] = self.normalized_phase_history[item]
         # do the inverse transform of this sampled portion
         return self._get_fft_phase_data(filtered_cdata)
