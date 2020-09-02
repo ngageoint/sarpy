@@ -1,5 +1,6 @@
 # This details the important differences introduced in sarpy 1.1
 
+* .6 - Bug fixes for ICEYE data ordering, RCM classification string, and DTED bounding box definition
 * .5 - Improvements and debugging for DTED and projection to DEM
 * .4 - Changed some functionality in aperture filter
 * .3 - Added helper methods for aperture tool processing

@@ -462,7 +462,7 @@ class ICEYEDetails(object):
 class ICEYEChipper(BaseChipper):
     __slots__ = ('_file_name', '_real_group', '_imaginary_group')
 
-    def __init__(self, file_name, data_size, symmetry, complex_type=True, real_group='s_q', imaginary_group='s_i'):
+    def __init__(self, file_name, data_size, symmetry, complex_type=True, real_group='s_i', imaginary_group='s_q'):
         self._file_name = file_name
         self._real_group = real_group
         self._imaginary_group = imaginary_group
