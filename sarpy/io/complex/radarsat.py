@@ -82,6 +82,13 @@ def _parse_xml(file_name, without_ns=False):
         return ElementTree.parse(file_name).getroot()
 
 
+def _format_class_str(class_str):
+    if 'UNCLASS' in class_str:
+        return 'UNCLASSIFIED'
+    else:
+        return class_str
+
+
 ###########
 # parser and interpreter for radarsat product.xml
 
@@ -291,7 +298,7 @@ class RadarSatDetails(object):
             core_name = '{}{}{}'.format(date_str, self.generation, self._find('./sourceAttributes/imageId').text)
         elif self.generation == 'RCM':
             class_str = self._find('./securityAttributes/securityClassification').text.upper()
-            classification = class_str if radarsat_addin is None else radarsat_addin.extract_radarsat_sec(nitf, class_str)
+            classification = _format_class_str(class_str) if radarsat_addin is None else radarsat_addin.extract_radarsat_sec(nitf, class_str)
             core_name = '{}{}{}'.format(date_str, collector_name.replace('-', ''), start_time_dt.strftime('%H%M%S'))
         else:
             raise ValueError('unhandled generation {}'.format(self.generation))

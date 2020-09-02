@@ -280,9 +280,9 @@ class DTEDReader(object):
         self._origin = numpy.array([lon, lat], dtype=numpy.float64)
         self._spacing = numpy.array([float(header[20:24]), float(header[24:28])], dtype=numpy.float64)/36000.
         self._shape = numpy.array([int(header[47:51]), int(header[51:55])], dtype=numpy.int64)
-        self._bounding_box = numpy.zeros((2, 2), dtype=numpy.float64)
-        self._bounding_box[0, :] = self._origin
-        self._bounding_box[1, :] = self._origin + self._spacing*self._shape
+        self._bounding_box = numpy.zeros((4, ), dtype=numpy.float64)
+        self._bounding_box[0::2] = self._origin
+        self._bounding_box[1::2] = self._origin + self._spacing*(self._shape - 1)
 
         # starting at 3428, the rest of the file is data records, but not quite a raster
         #   each "row" is a data record with 8 extra bytes at the beginning,
@@ -301,6 +301,15 @@ class DTEDReader(object):
         """
 
         return numpy.copy(self._origin)
+
+    @property
+    def bounding_box(self):
+        """
+        numpy.ndarray: The bounding box of the form
+        `[longitude min, longitude max, latitude min, latitude max]`.
+        """
+
+        return numpy.copy(self._bounding_box)
 
     def __getitem__(self, item):
         def new_col_int(val, begin):
@@ -381,7 +390,7 @@ class DTEDReader(object):
 
     def in_bounds(self, lat, lon):
         """
-        Determine which of the given points are inside the extent of the DTED
+        Determine which of the given points are inside the extent of this DTED.
 
         Parameters
         ----------
@@ -394,8 +403,8 @@ class DTEDReader(object):
             boolean array of the same shape as lat/lon
         """
 
-        return (lat >= self._bounding_box[0][1]) & (lat <= self._bounding_box[1][1]) & \
-               (lon >= self._bounding_box[0][0]) & (lon <= self._bounding_box[1][0])
+        return (lon >= self._bounding_box[0]) & (lon <= self._bounding_box[1]) & \
+               (lat >= self._bounding_box[2]) & (lat <= self._bounding_box[3])
 
     def _get_elevation(self, lat, lon):
         # type: (numpy.ndarray, numpy.ndarray) -> numpy.ndarray
