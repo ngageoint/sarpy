@@ -30,7 +30,7 @@ with open(os.path.join(here, 'sarpy', '__about__.py'), 'r') as f:
     exec(f.read(), parameters)
 
 
-install_requires = ['numpy>=1.9.0', 'scipy']
+install_requires = ['numpy>=1.11.0', 'scipy']
 tests_require = []
 if sys.version_info[0] < 3:
     tests_require.append('unittest2')
