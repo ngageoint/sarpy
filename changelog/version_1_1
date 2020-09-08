@@ -1,5 +1,6 @@
 # This details the important differences introduced in sarpy 1.1
 
+* .8 - Fixing polygon inclusion bug for orientation
 * .7 - Bumping the required numpy version so datetimes are handled correctly
 * .6 - Bug fixes for ICEYE data ordering, RCM classification string, and DTED bounding box definition
 * .5 - Improvements and debugging for DTED and projection to DEM

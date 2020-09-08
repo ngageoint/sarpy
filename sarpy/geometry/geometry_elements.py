@@ -1055,8 +1055,7 @@ class LinearRing(LineString):
     def reverse_orientation(self):
         if self._coordinates is None:
             return
-        self._coordinates = self._coordinates[::-1, :]
-        self._diffs *= -1
+        self.coordinates = self._coordinates[::-1, :]
 
     @property
     def bounding_box(self):
@@ -1261,7 +1260,7 @@ class LinearRing(LineString):
         if y_first_ind is None:
             return None, None, 'y'
 
-        if (y_last_ind - y_first_ind) < (x_last_ind - x_first_ind):
+        if (y_last_ind - y_first_ind) <= (x_last_ind - x_first_ind):
             return y_first_ind, y_last_ind, 'y'
         return x_first_ind, x_last_ind, 'x'
 
@@ -1315,6 +1314,7 @@ class LinearRing(LineString):
     def _contained(self, x, y):
         """
         Helper method for polygon inclusion.
+
         Parameters
         ----------
         x : numpy.ndarray
@@ -1501,7 +1501,8 @@ class Polygon(GeometryObject):
         out = [self._outer_ring.get_coordinate_list(), ]
         if self._inner_rings is not None:
             for ir in self._inner_rings:
-                out.append(ir.get_coordinate_list())
+                ir_reversed = LinearRing(ir.coordinates[::-1, :])
+                out.append(ir_reversed.get_coordinate_list())
         return out
 
     def set_outer_ring(self, coordinates):
@@ -1550,10 +1551,7 @@ class Polygon(GeometryObject):
         area = inner_ring.get_area()
         if area == 0:
             logging.warning("The defined inner ring for this Polygon has zero area. This is likely an error.")
-        elif area > 0:
-            logging.info(
-                "An inner ring of a Polygon is required to have clockwise orientation. "
-                "This inner ring has counter-clockwise orientation, so the orientation will be reversed.")
+        elif area < 0:
             inner_ring.reverse_orientation()
         self._inner_rings.append(inner_ring)
 
@@ -1590,7 +1588,7 @@ class Polygon(GeometryObject):
         area = self._outer_ring.get_area()  # positive
         if self._inner_rings is not None:
             for entry in self._inner_rings:
-                area += entry.get_area()  # negative
+                area -= entry.get_area()  # negative
         return area
 
     def get_centroid(self):
@@ -1645,7 +1643,7 @@ class Polygon(GeometryObject):
                 in_poly &= ~ir.contain_coordinates(pts_x, pts_y, block_size=block_size)
 
         if len(o_shape) == 0:
-            return in_poly[0]
+            return in_poly
         else:
             return numpy.reshape(in_poly, o_shape)
 
