@@ -16,11 +16,15 @@ import numpy
 
 try:
     # noinspection PyPackageRequirements
+    import pyproj
+    # noinspection PyPackageRequirements
     import PIL
     # noinspection PyPackageRequirements
     import PIL.Image
 except ImportError:
+    pyproj = None
     PIL = None
+
 
 from sarpy.compliance import int_func, string_types
 from sarpy.io.general.base import BaseReader, AbstractWriter
@@ -36,10 +40,45 @@ from sarpy.io.general.nitf_elements.image import ImageSegmentHeader
 from sarpy.io.general.nitf_elements.des import DataExtensionHeader
 from sarpy.io.complex.sicd_elements.blocks import LatLonType
 from sarpy.geometry.geocoords import ecf_to_geodetic, geodetic_to_ecf
+from sarpy.geometry.latlon import num as lat_lon_parser
 
 
 #####
 # A general nitf header interpreter - intended for extension
+
+def extract_image_corners(img_header):
+    """
+    Extract the image corner point array for the image segment header.
+
+    Parameters
+    ----------
+    img_header : ImageSegmentHeader
+
+    Returns
+    -------
+    numpy.ndarray
+    """
+
+    corner_string = img_header.IGEOLO
+    corner_strings = [corner_string[start:stop] for start, stop in zip(range(0, 59, 15), range(15, 74, 15))]
+    icps = []
+    if img_header.ICORDS in ['N', 'S']:
+        if pyproj is None:
+            logging.error('ICORDS is {}, which requires pyproj, which was not successfully imported.')
+            return None
+        for entry in corner_strings:
+            the_proj = pyproj.Proj(proj='utm', zone=int(entry[:2]), south=(img_header.ICORDS == 'S'), ellps='WGS84')
+            lon, lat = the_proj(float(entry[2:8]), float(entry[8:]), inverse=True)
+            icps.append([lon, lat])
+    elif img_header.ICORDS == 'D':
+        icps = [[float(corner[:7]), float(corner[7:])] for corner in corner_strings]
+    elif img_header.ICORDS == 'G':
+        icps = [[lat_lon_parser(corner[:7]), lat_lon_parser(corner[7:])] for corner in corner_strings]
+    else:
+        logging.error('Got unhandled ICORDS {}'.format(img_header.ICORDS))
+        return None
+    return numpy.array(icps, dtype='float64')
+
 
 class NITFDetails(object):
     """
