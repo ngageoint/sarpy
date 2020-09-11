@@ -10,7 +10,7 @@ from datetime import datetime
 
 import numpy
 
-from sarpy.compliance import int_func, integer_types
+from sarpy.compliance import int_func, integer_types, string_types
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.complex.sicd_elements.ImageCreation import ImageCreationType
 from sarpy.io.complex.sicd_elements.utils import is_general_match
@@ -21,9 +21,34 @@ from sarpy.io.general.utils import validate_range, reverse_range
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
+##################
+# module variables
+_SUPPORTED_TRANSFORM_VALUES = ('COMPLEX', )
+
 
 #################
 # Chipper definitions - this is base functionality for the most basic reading
+
+def validate_transform_data(transform_data):
+    """
+    Validate the transform_data value.
+
+    Parameters
+    ----------
+    transform_data
+
+    Returns
+    -------
+
+    """
+
+    if not (transform_data is None or isinstance(transform_data, string_types) or callable(transform_data)):
+        raise ValueError('transform_data must be None, a string, or callable')
+    if isinstance(transform_data, string_types):
+        transform_data = transform_data.upper()
+        if transform_data not in _SUPPORTED_TRANSFORM_VALUES:
+            raise ValueError('transform_data is string {}, which is not supported'.format(transform_data))
+    return transform_data
 
 class BaseChipper(object):
     """
@@ -44,11 +69,12 @@ class BaseChipper(object):
 
     **Extension Consideration:** It is possible that the basic functionality for
     conversion of raw data to complex data requires something more nuanced than
-    the default provided in the `_data_to_complex` method.
+    the default provided in the `_transform_data_method` method.
     """
-    __slots__ = ('_data_size', '_complex_type', '_symmetry')
 
-    def __init__(self, data_size, symmetry=(False, False, False), complex_type=False):
+    __slots__ = ('_data_size', '_transform_data', '_symmetry')
+
+    def __init__(self, data_size, symmetry=(False, False, False), transform_data=False):
         """
 
         Parameters
@@ -58,17 +84,16 @@ class BaseChipper(object):
             `data_size` property.
         symmetry : tuple
             Describes any required data transformation. See the `symmetry` property.
-        complex_type : callable|bool
-            For complex type handling.
-            If callable, then this is expected to transform the raw data to the complex data.
-            If this evaluates to `True`, then the assumption is that real/imaginary
+        transform_data : Callable|str|None
+            For data transformation after reading.
+            If `None`, then no transformation will be applied. If `callable`, then
+            this is expected to be the transformation method for the raw data. If
+            string valued and `'complex'`, then the assumption is that real/imaginary
             components are stored in adjacent bands, which will be combined into a
-            single band upon extraction.
+            single band upon extraction. Other situations will yield and value error.
         """
 
-        if not (isinstance(complex_type, bool) or callable(complex_type)):
-            raise ValueError('complex-type must be a boolean or a callable')
-        self._complex_type = complex_type
+        self._transform_data = validate_transform_data(transform_data)
 
         if not isinstance(symmetry, tuple):
             symmetry = tuple(symmetry)
@@ -132,7 +157,7 @@ class BaseChipper(object):
         """
 
         data = self._read_raw_fun(range1, range2)
-        data = self._data_to_complex(data)
+        data = self._transform_data_method(data)
 
         # make a one band image flat
         if data.ndim == 3 and data.shape[2] == 1:
@@ -236,20 +261,22 @@ class BaseChipper(object):
 
         return real_arg1, real_arg2
 
-    def _data_to_complex(self, data):
+    def _transform_data_method(self, data):
         # type: (numpy.ndarray) -> numpy.ndarray
-        if callable(self._complex_type):
-            return self._complex_type(data)  # is this actually necessary?
-        elif self._complex_type:
-            if data.dtype.name in ('complex64', 'complex128'):
-                return data
-            out = numpy.zeros((data.shape[0], data.shape[1], int_func(data.shape[2]/2)), dtype=numpy.complex64)
-            out.real = data[:, :, 0::2]
-            out.imag = data[:, :, 1::2]
-            return out
-        else:
+        if self._transform_data is None:
             # nothing to be done
             return data
+        elif callable(self._transform_data):
+            return self._transform_data(data)
+        elif isinstance(self._transform_data, string_types):
+            if self._transform_data == 'COMPLEX':
+                if numpy.iscomplexobj(data):
+                    return data
+                out = numpy.zeros((data.shape[0], data.shape[1], int_func(data.shape[2]/2)), dtype=numpy.complex64)
+                out.real = data[:, :, 0::2]
+                out.imag = data[:, :, 1::2]
+                return out
+        raise ValueError('Unsupported transform_data value {}'.format(self._transform_data))
 
     def _reorder_data(self, data):
         # type: (numpy.ndarray) -> numpy.ndarray
@@ -293,7 +320,7 @@ class SubsetChipper(BaseChipper):
     Permits transparent extraction from a particular subset of the possible data range
     """
 
-    __slots__ = ('_data_size', '_complex_type', '_symmetry', 'shift1', 'shift2', 'parent_chipper')
+    __slots__ = ('_data_size', '_transform_data', '_symmetry', 'shift1', 'shift2', 'parent_chipper')
 
     def __init__(self, parent_chipper, dim1bounds, dim2bounds):
         """
@@ -313,7 +340,7 @@ class SubsetChipper(BaseChipper):
         self.shift1 = dim1bounds[0]
         self.shift2 = dim2bounds[0]
         self.parent_chipper = parent_chipper
-        super(SubsetChipper, self).__init__(data_size, symmetry=(False, False, False), complex_type=False)
+        super(SubsetChipper, self).__init__(data_size, symmetry=(False, False, False), transform_data=None)
 
     def _reformat_bounds(self, range1, range2):
         def _get_start(entry, shift, bound):
@@ -360,9 +387,9 @@ class AggregateChipper(BaseChipper):
     chipper object.
     """
 
-    __slots__ = ('_child_chippers', '_bounds', '_dtype', '_bands_out')
+    __slots__ = ('_child_chippers', '_bounds', '_dtype', '_output_bands')
 
-    def __init__(self, bounds, data_type, child_chippers, bands_out=1):
+    def __init__(self, bounds, output_dtype, child_chippers, output_bands=1):
         """
 
         Parameters
@@ -371,11 +398,11 @@ class AggregateChipper(BaseChipper):
             Two-dimensional array of `[row start, row end, column start, column end]`.
             The order of entries should traverse a specific blocks of columns until
             reaching the row limit, and then traversing to the next block of columns.
-        data_type : str|numpy.dtype|numpy.number
+        output_dtype : str|numpy.dtype|numpy.number
             The data type of the output data
         child_chippers : tuple|list
             The list or tuple of child chipper objects.
-        bands_out : int
+        output_bands : int
             The number of bands (after intermediate chipper adjustments).
         """
 
@@ -397,12 +424,12 @@ class AggregateChipper(BaseChipper):
                     'actual shape {}'.format(i, expected_shape, entry.data_size))
         self._child_chippers = child_chippers
         self._bounds = bounds
-        self._dtype = data_type
-        self._bands_out = int_func(bands_out)
+        self._dtype = output_dtype
+        self._output_bands = int_func(output_bands)
         data_size = (self._bounds[-1, 1], self._bounds[-1, 3])
         # all of the actual reading and reorienting done by child chippers,
         # so do not reorient or change type at this level
-        super(AggregateChipper, self).__init__(data_size, symmetry=(False, False, False), complex_type=False)
+        super(AggregateChipper, self).__init__(data_size, symmetry=(False, False, False), transform_data=None)
 
     @staticmethod
     def _validate_bounds(bounds):
@@ -495,10 +522,10 @@ class AggregateChipper(BaseChipper):
         rows_size = int_func((range1[1]-range1[0])/range1[2])
         cols_size = int_func((range2[1]-range2[0])/range2[2])
 
-        if self._bands_out == 1:
+        if self._output_bands == 1:
             out = numpy.empty((rows_size, cols_size), dtype=self._dtype)
         else:
-            out = numpy.empty((rows_size, cols_size, self._bands_out), dtype=self._dtype)
+            out = numpy.empty((rows_size, cols_size, self._output_bands), dtype=self._dtype)
         for entry, child_chipper in zip(self._bounds, self._child_chippers):
             row_start, row_end, col_start, col_end = entry
             # find row overlap for chipper - it's rectangular
@@ -511,7 +538,7 @@ class AggregateChipper(BaseChipper):
             if crange2 is None:
                 continue  # there is no column overlap for this chipper
 
-            if self._bands_out == 1:
+            if self._output_bands == 1:
                 out[cinds1[0]:cinds1[1], cinds2[0]:cinds2[1]] = \
                     child_chipper[crange1[0]:crange1[1]:crange1[2], crange2[0]:crange2[1]:crange2[2]]
             else:

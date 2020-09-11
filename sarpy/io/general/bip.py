@@ -9,60 +9,85 @@ import os
 
 import numpy
 
-from sarpy.compliance import int_func
-from sarpy.io.general.base import BaseChipper, AggregateChipper, AbstractWriter
+from sarpy.compliance import int_func, integer_types
+from sarpy.io.general.base import BaseChipper, AggregateChipper, AbstractWriter, \
+    validate_transform_data
 
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 
+# TODO: modify the BIPChipper?
+#   I think that data_size should be the NATIVE (i.e. file system) data shape, BEFORE symmetry transforms
+
+
 class BIPChipper(BaseChipper):
     """
-    Band interleaved format file chipper
+    Band interleaved format file chipper.
     """
 
     __slots__ = (
-        '_file_name', '_data_type', '_data_offset', '_shape', '_bands', '_memory_map', '_fid')
+        '_file_name', '_raw_dtype', '_data_offset', '_shape', '_raw_bands',
+        '_output_bands', '_output_dtype', '_limit_to_raw_bands', '_memory_map', '_fid')
 
-    def __init__(self, file_name, data_type, data_size,
-                 symmetry=(False, False, False), complex_type=False,
-                 data_offset=0, bands_ip=1):
+    def __init__(self, file_name, raw_dtype, data_size, raw_bands, output_bands, output_dtype,
+                 symmetry=(False, False, False), transform_data=None,
+                 data_offset=0, limit_to_raw_bands=None):
         """
 
         Parameters
         ----------
         file_name : str
             The name of the file from which to read
-        data_type : str|numpy.dtype|numpy.number
+        raw_dtype : str|numpy.dtype|numpy.number
             The data type of the underlying file. **Note: specify endianness where necessary.**
         data_size : tuple
-            The full size of the data *after* any required transformation. See
-            `data_size` property.
+            The `(rows, columns)` of the raw data. See `data_size` property.
+        raw_bands : int
+            The number of bands in the file.
+        output_bands : int
+            The number of bands in the output data.
+        output_dtype : str|numpy.dtype|numpy.number
+            The data type of the return data. This should be in keeping with `transform_data`.
         symmetry : tuple
             Describes any required data transformation. See the `symmetry` property.
-        complex_type : callable|bool
-            For complex type handling.
-            If callable, then this is expected to transform the raw data to the complex data.
-            If this evaluates to `True`, then the assumption is that real/imaginary
+        transform_data : None|str|Callable
+            For data transformation after reading.
+            If `None`, then no transformation will be applied. If `callable`, then
+            this is expected to be the transformation method for the raw data. If
+            string valued and `'complex'`, then the assumption is that real/imaginary
             components are stored in adjacent bands, which will be combined into a
-            single band upon extraction.
+            single band upon extraction. Other situations will yield and value error.
         data_offset : int
             byte offset from the start of the file at which the data actually starts
-        bands_ip : int
-            number of bands - really intended for complex data
+        limit_to_raw_bands : None|int|numpy.ndarray|list|tuple
+            The collection of raw bands to which to read. `None` is all bands.
         """
 
-        super(BIPChipper, self).__init__(data_size, symmetry=symmetry, complex_type=complex_type)
+        self._limit_to_raw_bands = None
+        super(BIPChipper, self).__init__(data_size, symmetry=symmetry, transform_data=transform_data)
 
-        bands = int_func(bands_ip)
-        if self._complex_type is not False:
-            bands *= 2
+        raw_bands = int_func(raw_bands)
+        if raw_bands < 1:
+            raise ValueError('raw_bands must be a positive integer')
+        self._raw_bands = raw_bands
+        self._validate_limit_to_raw_bands(limit_to_raw_bands)
 
+        output_bands = int_func(output_bands)
+        if output_bands < 1:
+            raise ValueError('output_bands must be a positive integer.')
+        self._output_bands = output_bands
+
+        self._raw_dtype = raw_dtype
+        self._output_dtype = output_dtype
+
+        data_offset = int_func(data_offset)
+        if data_offset < 0:
+            raise ValueError('data_offset must be a non-negative integer. Got {}'.format(data_offset))
         self._data_offset = int_func(data_offset)
-        self._data_type = data_type
-        self._bands = bands
-        self._shape = (int_func(data_size[0]), int_func(data_size[1]), self._bands)
+
+        self._shape = (int_func(data_size[0]), int_func(data_size[1]), self._raw_bands)
 
         if not os.path.isfile(file_name):
             raise IOError('Path {} either does not exists, or is not a file.'.format(file_name))
@@ -74,11 +99,16 @@ class BIPChipper(BaseChipper):
         self._fid = None
         try:
             self._memory_map = numpy.memmap(self._file_name,
-                                            dtype=data_type,
+                                            dtype=raw_dtype,
                                             mode='r',
                                             offset=data_offset,
                                             shape=self._shape)  # type: numpy.memmap
         except (OverflowError, OSError):
+            if self._limit_to_raw_bands is not None:
+                raise ValueError(
+                    'Unsupported effort with limit_to_raw_bands is not None, and falling '
+                    'back to a manual file reading. This is presumably because this is '
+                    '32-bit python and you are reading a large (> 2GB) file.')
             # if 32-bit python, then we'll fail for any file larger than 2GB
             # we fall-back to a slower version of reading manually
             self._fid = open(self._file_name, mode='rb')
@@ -86,6 +116,21 @@ class BIPChipper(BaseChipper):
                 'Falling back to reading file {} manually (instead of using mem-map). This has almost '
                 'certainly occurred because you are 32-bit python to try to read (portions of) a file '
                 'which is larger than 2GB.'.format(self._file_name))
+
+    def _validate_limit_to_raw_bands(self, limit_to_raw_bands):
+        if limit_to_raw_bands is None:
+            self._limit_to_raw_bands = None
+        if isinstance(limit_to_raw_bands, integer_types):
+            limit_to_raw_bands = numpy.array([limit_to_raw_bands, ], dtype='int32')
+        if isinstance(limit_to_raw_bands, (list, tuple)):
+            limit_to_raw_bands = numpy.array(limit_to_raw_bands, dtype='int32')
+        if not isinstance(limit_to_raw_bands, numpy.ndarray):
+            raise TypeError('limit_to_raw_bands got unsupported input of type {}'.format(type(limit_to_raw_bands)))
+        # ensure that limit_to_raw_bands make sense...
+        if numpy.any(limit_to_raw_bands < 0 | limit_to_raw_bands >= self._raw_bands):
+            raise ValueError(
+                'all entries of limit_to_raw_bands ({}) must be in the range 0 <= value < {}'.format(limit_to_raw_bands, self._raw_bands))
+        self._limit_to_raw_bands = limit_to_raw_bands
 
     def __del__(self):
         if hasattr(self, '_fid') and self._fid is not None and \
@@ -101,17 +146,41 @@ class BIPChipper(BaseChipper):
 
     def _read_memory_map(self, range1, range2):
         if (range1[1] == -1 and range1[2] < 0) and (range2[1] == -1 and range2[2] < 0):
-            out = numpy.array(self._memory_map[range1[0]::range1[2], range2[0]::range2[2]],
-                              dtype=self._data_type)
+            if self._limit_to_raw_bands is None:
+                out = numpy.array(
+                    self._memory_map[range1[0]::range1[2], range2[0]::range2[2]],
+                    dtype=self._raw_dtype)
+            else:
+                out = numpy.array(
+                    self._memory_map[range1[0]::range1[2], range2[0]::range2[2], self._limit_to_raw_bands],
+                    dtype=self._raw_dtype)
         elif range1[1] == -1 and range1[2] < 0:
-            out = numpy.array(self._memory_map[range1[0]::range1[2], range2[0]:range2[1]:range2[2]],
-                              dtype=self._data_type)
+            if self._limit_to_raw_bands is None:
+                out = numpy.array(
+                    self._memory_map[range1[0]::range1[2], range2[0]:range2[1]:range2[2]],
+                    dtype=self._raw_dtype)
+            else:
+                out = numpy.array(
+                    self._memory_map[range1[0]::range1[2], range2[0]:range2[1]:range2[2], self._limit_to_raw_bands],
+                    dtype=self._raw_dtype)
         elif range2[1] == -1 and range2[2] < 0:
-            out = numpy.array(self._memory_map[range1[0]:range1[1]:range1[2], range2[0]::range2[2]],
-                              dtype=self._data_type)
+            if self._limit_to_raw_bands is None:
+                out = numpy.array(
+                    self._memory_map[range1[0]:range1[1]:range1[2], range2[0]::range2[2]],
+                    dtype=self._raw_dtype)
+            else:
+                out = numpy.array(
+                    self._memory_map[range1[0]:range1[1]:range1[2], range2[0]::range2[2], self._limit_to_raw_bands],
+                    dtype=self._raw_dtype)
         else:
-            out = numpy.array(self._memory_map[range1[0]:range1[1]:range1[2], range2[0]:range2[1]:range2[2]],
-                              dtype=self._data_type)
+            if self._limit_to_raw_bands is None:
+                out = numpy.array(
+                    self._memory_map[range1[0]:range1[1]:range1[2], range2[0]:range2[1]:range2[2]],
+                    dtype=self._raw_dtype)
+            else:
+                out = numpy.array(
+                    self._memory_map[range1[0]:range1[1]:range1[2], range2[0]:range2[1]:range2[2], self._limit_to_raw_bands],
+                    dtype=self._raw_dtype)
         return out
 
     def _read_file(self, range1, range2):
@@ -121,14 +190,14 @@ class BIPChipper(BaseChipper):
                    cc*element_size
 
         # we have to manually map out the stride and all that for the array ourselves
-        element_size = int_func(numpy.dtype(self._data_type).itemsize*self._bands)
+        element_size = int_func(numpy.dtype(self._raw_dtype).itemsize*self._raw_bands)
         stride = element_size*int_func(self._shape[0])  # how much to skip a whole (real) row?
         entries_per_row = abs(range1[1] - range1[0])  # not including the stride, if not +/-1
         # let's determine the specific row/column arrays that we are going to read
         dim1array = numpy.arange(range1)
         dim2array = numpy.arange(range2)
         # allocate our output array
-        out = numpy.empty((len(dim1array), len(dim2array), self._bands), dtype=self._data_type)
+        out = numpy.empty((len(dim1array), len(dim2array), self._raw_bands), dtype=self._raw_dtype)
         # determine the first column reading location (may be reading cols backwards)
         col_begin = dim2array[0] if range2[2] > 0 else dim2array[-1]
 
@@ -136,7 +205,7 @@ class BIPChipper(BaseChipper):
             # go to the appropriate point in the file for (row/col)
             self._fid.seek(get_row_location(row, col_begin))
             # interpret this of line as numpy.ndarray - inherently flat array
-            line = numpy.fromfile(self._fid, self._data_type, entries_per_row*self._bands)
+            line = numpy.fromfile(self._fid, self._raw_dtype, entries_per_row*self._raw_bands)
             # note that we purposely read without considering skipping elements, which
             #   is factored in (along with any potential order reversal) below
             out[i, :, :] = line[::range2[2]]
@@ -151,8 +220,8 @@ class MultiSegmentChipper(AggregateChipper):
 
     __slots__ = ('_file_name', )
 
-    def __init__(self, file_name, bounds, data_offsets, data_type,
-                 symmetry=None, complex_type=False, bands_ip=1, data_type_out=None, bands_out=1):
+    def __init__(self, file_name, bounds, data_offsets, raw_dtype, raw_bands, output_bands, output_dtype,
+                 symmetry=None, transform_data=None, limit_to_raw_bands=None):
         """
 
         Parameters
@@ -163,16 +232,22 @@ class MultiSegmentChipper(AggregateChipper):
             Two-dimensional array of [row start, row end, column start, column end]
         data_offsets : numpy.ndarray
             Offset for each image segment from the start of the file
-        data_type : str|numpy.dtype|numpy.number
+        raw_dtype : str|numpy.dtype|numpy.number
             The data type of the underlying file
+        raw_bands: int
+            The bands in the underlying raw data.
+        output_bands : None|int
+            The number of bands in the output data.
+        output_dtype : None|str|numpy.dtype|numpy.number
+            The data type of the return data.
         symmetry : tuple
             See `BaseChipper` for description of 3 element tuple of booleans.
-        complex_type : callable|bool
-            See `BaseChipper` for description of `complex_type`
-        bands_ip : int
+        transform_data : Callable|str|None
+            See `BaseChipper` for description of `transform_data`
+        raw_bands : int
             number of bands - this will always be one for sicd.
-        data_type_out : None|str|numpy.dtype|numpy.number
-            The data type of the return.
+        limit_to_raw_bands : None|int|numpy.ndarray|list|tuple
+            The collection of raw bands to which to read. `None` is all bands.
         """
 
         self._file_name = file_name
@@ -210,17 +285,12 @@ class MultiSegmentChipper(AggregateChipper):
             raise ValueError(
                 'data_sizes and data_offsets arguments must have compatible '
                 'shape {} - {}'.format(data_sizes.shape, data_sizes.size))
-        if data_type_out is None:
-            if complex_type is False:
-                data_type_out = data_type
-            else:
-                data_type_out = 'complex64'
         child_chippers = tuple(
-            BIPChipper(file_name, data_type, img_siz, symmetry=symmetry,
-                       complex_type=complex_type, data_offset=img_off,
-                       bands_ip=bands_ip)
+            BIPChipper(file_name, raw_dtype, img_siz, raw_bands, output_bands, output_dtype,
+                       symmetry=symmetry, transform_data=transform_data, data_offset=img_off,
+                       limit_to_raw_bands=limit_to_raw_bands)
             for img_siz, img_off in zip(data_sizes, data_offsets))
-        super(MultiSegmentChipper, self).__init__(bounds, data_type_out, child_chippers, bands_out=bands_out)
+        super(MultiSegmentChipper, self).__init__(bounds, output_dtype, child_chippers, output_bands=output_bands)
 
 
 class BIPWriter(AbstractWriter):
@@ -231,10 +301,10 @@ class BIPWriter(AbstractWriter):
     """
 
     __slots__ = (
-        '_data_size', '_data_type', '_complex_type', '_data_offset',
+        '_raw_dtype', '_transform_data', '_data_offset',
         '_shape', '_memory_map', '_fid')
 
-    def __init__(self, file_name, data_size, data_type, complex_type, data_offset=0):
+    def __init__(self, file_name, data_size, raw_dtype, output_bands, transform_data, data_offset=0):
         """
         For writing the SICD data into the NITF container. This is abstracted generally
         because an array of these writers is used for multi-image segment NITF files.
@@ -246,23 +316,25 @@ class BIPWriter(AbstractWriter):
             the file_name
         data_size : tuple
             the shape of the form (rows, cols)
-        data_type : str|numpy.dtype|numpy.number
+        raw_dtype : str|numpy.dtype|numpy.number
             the underlying data type of the output data. Specify endianess here if necessary.
-        complex_type : callable|bool
+        output_bands : int
+            The number of output bands written to the file.
+        transform_data : callable|str
             For complex type handling.
 
             * If callable, then this is expected to transform the complex data
               to the raw data. A ValueError will be raised if the data type of
-              the output doesn't match `data_type`. By the sicd standard,
-              `data_type` should be int16 or uint8.
+              the output doesn't match `raw_dtype`. By the sicd standard,
+              `raw_dtype` should be int16 or uint8.
 
-            * If `True`, then the data is dtype complex64 or complex128, and will
+            * If `COMPLEX`, then the data is dtype complex64 or complex128, and will
               be written out to raw after appropriate manipulation. This requires
-              that `data_type` is float32 - for the sicd standard.
+              that `raw_dtype` is float32 - for the sicd standard.
 
-            * If `False`, the then data will be written directly to raw. A ValueError
+            * Otherwise, the then data will be written directly to raw. A ValueError
               will be raised if the data type of the data to be written doesn't
-              match `data_type`.
+              match `raw_dtype`.
         data_offset : int
             byte offset from the start of the file at which the data actually starts
         """
@@ -270,43 +342,41 @@ class BIPWriter(AbstractWriter):
         super(BIPWriter, self).__init__(file_name)
         if not isinstance(data_size, tuple):
             data_size = tuple(data_size)
-        if not (isinstance(complex_type, bool) or callable(complex_type)):
-            raise ValueError('complex-type must be a boolean or a callable')
-        self._complex_type = complex_type
 
-        if len(data_size) != 2 and self._complex_type is not False:
+        self._transform_data = validate_transform_data(transform_data)
+
+        if len(data_size) != 2:
             raise ValueError(
-                'The complex_type is not False, so data_size parameter must have length 2, and got {}.'.format(data_size))
-        data_size = tuple(int_func(entry) for entry in data_size)
+                'The data_size parameter must have length 2, and got {}.'.format(data_size))
+        data_size = (int_func(data_size[0]), int_func(data_size[1]))
         for i, entry in enumerate(data_size):
             if entry <= 0:
                 raise ValueError('Entries {} of data_size is {}, but must be strictly positive.'.format(i, entry))
-        self._data_size = data_size
+        output_bands = int_func(output_bands)
+        if output_bands < 1:
+            raise ValueError('output_bands must be a positive integer.')
+        self._shape = (data_size[0], data_size[1], output_bands)
 
-        self._data_type = numpy.dtype(data_type)
+        self._raw_dtype = numpy.dtype(raw_dtype)
 
-        if self._complex_type is True and self._data_type.name != 'float32':
+        if self._transform_data == 'COMPLEX' and self._raw_dtype.name != 'float32':
             raise ValueError(
-                'complex_type = `True`, which requires that data for writing has '
-                'dtype complex64/128, and output is written as float32 (data_type). '
-                'data_type is given as {}.'.format(data_type))
-        if callable(self._complex_type) and self._data_type.name not in ('uint8', 'int16'):
+                'transform_data = `True`, which requires that data for writing has '
+                'dtype complex64/128, and output is written as float32 (raw_dtype). '
+                'raw_dtype is given as {}.'.format(raw_dtype))
+        if callable(self._transform_data) and self._raw_dtype.name not in ('uint8', 'int16'):
             raise ValueError(
-                'complex_type is callable, which requires that dtype complex64/128, '
+                'transform_data is callable, which requires that dtype complex64/128, '
                 'and output is written as uint8 or uint16. '
-                'data_type is given as {}.'.format(self._data_type.name))
+                'raw_dtype is given as {}.'.format(self._raw_dtype.name))
 
         self._data_offset = int_func(data_offset)
-        if self._complex_type is False:
-            self._shape = self._data_size
-        else:
-            self._shape = (self._data_size[0], self._data_size[1], 2)
 
         self._memory_map = None
         self._fid = None
         try:
             self._memory_map = numpy.memmap(self._file_name,
-                                            dtype=self._data_type,
+                                            dtype=self._raw_dtype,
                                             mode='r+',
                                             offset=self._data_offset,
                                             shape=self._shape)
@@ -347,23 +417,23 @@ class BIPWriter(AbstractWriter):
         if not data.flags.c_contiguous:
             data = numpy.ascontiguousarray(data)
 
-        if self._complex_type is False:
-            if data.dtype.name != self._data_type.name:
+        if self._transform_data is False:
+            if data.dtype.name != self._raw_dtype.name:
                 raise ValueError(
-                    'Writer expects data type {}, and got data of type {}.'.format(self._data_type, data.dtype))
+                    'Writer expects data type {}, and got data of type {}.'.format(self._raw_dtype, data.dtype))
             self._call(start1, stop1, start2, stop2, data)
-        elif callable(self._complex_type):
-            new_data = self._complex_type(data)
-            if new_data.dtype.name != self._data_type.name:
+        elif callable(self._transform_data):
+            new_data = self._transform_data(data)
+            if new_data.dtype.name != self._raw_dtype.name:
                 raise ValueError(
                     'Writer expects data type {}, and got data of type {} from the '
-                    'callable method complex_type.'.format(self._data_type, new_data.dtype))
+                    'callable method transform_data.'.format(self._raw_dtype, new_data.dtype))
             self._call(start1, stop1, start2, stop2, new_data)
-        else:  # complex_type is True
+        else:  # transform_data is True
             if data.dtype.name not in ('complex64', 'complex128'):
                 raise ValueError(
                     'Writer expects data type {}, and got data of type {} from the '
-                    'callable method complex_type.'.format(self._data_type, data.dtype))
+                    'callable method transform_data.'.format(self._raw_dtype, data.dtype))
             if data.dtype.name != 'complex64':
                 data = data.astype(numpy.complex64)
 
@@ -372,30 +442,25 @@ class BIPWriter(AbstractWriter):
 
     def _call(self, start1, stop1, start2, stop2, data):
         if self._memory_map is not None:
-            if len(self._data_size) == 2:
-                self._memory_map[start1:stop1, start2:stop2] = data
-            elif len(self._data_size) == 3:
-                self._memory_map[start1:stop1, start2:stop2, :] = data
-            else:
-                raise ValueError('Got unexpected data size {}'.format(self._data_size))
+            self._memory_map[start1:stop1, start2:stop2] = data
             return
 
         # we have to fall-back to manually write
-        element_size = int_func(self._data_type.itemsize)
+        element_size = int_func(self._raw_dtype.itemsize)
         if len(self._shape) == 3:
             element_size *= int_func(self._shape[2])
-        stride = element_size*int_func(self._data_size[0])
+        stride = element_size*int_func(self._shape[0])
         # go to the appropriate spot in the file for first entry
         self._fid.seek(self._data_offset + stride*start1 + element_size*start2)
-        if start1 == 0 and stop1 == self._data_size[0]:
+        if start1 == 0 and stop1 == self._shape[0]:
             # we can write the block all at once
-            data.astype(self._data_type).tofile(self._fid)
+            data.astype(self._raw_dtype).tofile(self._fid)
         else:
             # have to write one row at a time
-            bytes_to_skip_per_row = element_size*(self._data_size[0]-(stop1-start1))
+            bytes_to_skip_per_row = element_size*(self._shape[0]-(stop1-start1))
             for i, row in enumerate(data):
                 # we the row, and then skip to where the next row starts
-                row.astype(self._data_type).tofile(self._fid)
+                row.astype(self._raw_dtype).tofile(self._fid)
                 if i < len(data) - 1:
                     # don't seek on last entry (avoid segfault, or whatever)
                     self._fid.seek(bytes_to_skip_per_row, os.SEEK_CUR)

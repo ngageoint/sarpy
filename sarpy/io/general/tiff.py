@@ -440,19 +440,36 @@ class NativeTiffChipper(BIPChipper):
             bits_per_sample = tiff_details.tags['BitsPerSample'][0]
         else:
             bits_per_sample = tiff_details.tags['BitsPerSample']
-        complex_type = (int(tiff_details.tags['SamplesPerPixel']) == 2)  # NB: this is obviously not general
+
+        raw_bands = int(tiff_details.tags['SamplesPerPixel'])
+
         if samp_form in [5, 6]:
+            transform_data = 'COMPLEX'
+            output_bands = int(raw_bands)
+            raw_bands *= 2
             bits_per_sample /= 2
-            complex_type = True
-        data_size = (int_func(tiff_details.tags['ImageLength']), int_func(tiff_details.tags['ImageWidth']))
-        data_type = numpy.dtype('{0:s}{1:s}{2:d}'.format(self._tiff_details.endian,
-                                                         self._SAMPLE_FORMATS[samp_form],
-                                                         int(bits_per_sample/8)))
+            output_dtype = 'complex64'
+        elif raw_bands == 2:
+            # NB: this is heavily skewed towards SAR and obviously not general
+            transform_data = 'COMPLEX'
+            output_dtype = 'complex64'
+            output_bands = 1
+        else:
+            transform_data = None
+            output_bands = raw_bands
+            output_dtype = None
+
+        data_size = (int_func(tiff_details.tags['ImageWidth']), int_func(tiff_details.tags['ImageLength']))
+        raw_dtype = numpy.dtype('{0:s}{1:s}{2:d}'.format(
+            self._tiff_details.endian, self._SAMPLE_FORMATS[samp_form], int(bits_per_sample/8)))
+
+        if output_dtype is None:
+            output_dtype = raw_dtype
         data_offset = int_func(tiff_details.tags['StripOffsets'][0])
 
         super(NativeTiffChipper, self).__init__(
-            tiff_details.file_name, data_type, data_size, symmetry=symmetry, complex_type=complex_type,
-            data_offset=data_offset, bands_ip=1)
+            tiff_details.file_name, raw_dtype, data_size, raw_bands, output_bands, output_dtype,
+            symmetry=symmetry, transform_data=transform_data, data_offset=data_offset)
 
 
 class TiffReader(BaseReader):

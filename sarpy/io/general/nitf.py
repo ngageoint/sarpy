@@ -14,15 +14,19 @@ from tempfile import mkstemp
 
 import numpy
 
+# import some optional dependencies
 try:
     # noinspection PyPackageRequirements
     import pyproj
+except ImportError:
+    pyproj = None
+
+try:
     # noinspection PyPackageRequirements
     import PIL
     # noinspection PyPackageRequirements
     import PIL.Image
 except ImportError:
-    pyproj = None
     PIL = None
 
 
@@ -592,7 +596,7 @@ class NITFReader(BaseReader):
         Returns
         -------
         tuple
-            out the form (native_dtype, output_dtype, native_bands, output_bands, complex_type)
+            out the form (native_dtype, output_dtype, native_bands, output_bands, transform_data)
         """
 
         img_header = self.nitf_details.img_headers[index]
@@ -606,9 +610,9 @@ class NITFReader(BaseReader):
             if cont:
                 bands = int(len(img_header.Bands)/2)
                 if pvtype == 'SI':
-                    return numpy.dtype('>i{}'.format(bpp)), numpy.complex64, bands, bands, True
+                    return numpy.dtype('>i{}'.format(bpp)), numpy.complex64, bands, bands, 'COMPLEX'
                 elif pvtype == 'R':
-                    return numpy.dtype('>f{}'.format(bpp)), numpy.complex64, bands, bands, True
+                    return numpy.dtype('>f{}'.format(bpp)), numpy.complex64, bands, bands, 'COMPLEX'
         if img_header.IREP.strip() == 'MONO' and img_header.Bands[0].LUTD is not None:
             if not (pvtype == 'INT' and bpp not in [1, 2]):
                 raise ValueError(
@@ -625,26 +629,33 @@ class NITFReader(BaseReader):
 
         if pvtype == 'INT':
             return numpy.dtype('>u{}'.format(bpp)), numpy.dtype('>u{}'.format(bpp)), \
-                   len(img_header.Bands), len(img_header.Bands), False
+                   len(img_header.Bands), len(img_header.Bands), None
         elif pvtype == 'SI':
             return numpy.dtype('>i{}'.format(bpp)), numpy.dtype('>i{}'.format(bpp)), \
-                   len(img_header.Bands), len(img_header.Bands), False
+                   len(img_header.Bands), len(img_header.Bands), None
         elif pvtype == 'R':
             return numpy.dtype('>f{}'.format(bpp)), numpy.dtype('>f{}'.format(bpp)), \
-                   len(img_header.Bands), len(img_header.Bands), False
+                   len(img_header.Bands), len(img_header.Bands), None
         elif pvtype == 'C':
             if bpp != 8:
                 raise ValueError(
                     'Got PVTYPE = C and ABPP = {} (not 64), which is unsupported.'.format(abpp))
-            return numpy.dtype('>f4'), numpy.complex64, 2*len(img_header.Bands), len(img_header.Bands), True
+            return numpy.dtype('>f4'), numpy.complex64, 2*len(img_header.Bands), len(img_header.Bands), 'COMPLEX'
 
-    def _define_chipper(self, index, dtype=None, bands_in=None, complex_type=None, bands_out=None, dtype_out=None):
+    def _define_chipper(self, index, raw_dtype=None, raw_bands=None, transform_data=None,
+                        output_bands=None, output_dtype=None, limit_to_raw_bands=None):
         """
         Gets the chipper for the given image segment.
 
         Parameters
         ----------
         index
+        raw_dtype : None|str|numpy.dtype|numpy.number
+        raw_bands : None|int
+        transform_data : None|int|callable
+        output_bands : None|int
+        output_dtype : None|str|numpy.dtype|numpy.number
+        limit_to_raw_bands : None|int|list|tuple|numpy.ndarray
 
         Returns
         -------
@@ -675,9 +686,9 @@ class NITFReader(BaseReader):
             self._cached_files.append(path_name)
 
             return BIPChipper(
-                path_name, dtype, (this_rows, this_cols),
-                symmetry=(False, False, False), complex_type=complex_type, data_offset=0,
-                bands_ip=bands_in)
+                path_name, raw_dtype, (this_rows, this_cols), raw_bands, output_bands, output_dtype,
+                symmetry=(False, False, False), transform_data=transform_data, data_offset=0,
+                limit_to_raw_bands=limit_to_raw_bands)
 
         def handle_blocked():
             # column (horizontal) block details
@@ -717,15 +728,16 @@ class NITFReader(BaseReader):
             bounds = numpy.array(bounds, dtype=numpy.int64)
             offsets = numpy.array(offsets, dtype=numpy.int64)
             return MultiSegmentChipper(
-                self.file_name, bounds, offsets, dtype,
-                symmetry=(False, False, False), complex_type=complex_type, bands_ip=bands_in,
-                data_type_out=dtype_out, bands_out=bands_out)
+                self.file_name, bounds, offsets, raw_dtype, raw_bands,
+                output_bands=output_bands, output_dtype=output_dtype,
+                symmetry=(False, False, False), transform_data=transform_data,
+                limit_to_raw_bands=limit_to_raw_bands)
 
         def handle_flat():
             return BIPChipper(
-                self.file_name, dtype, (this_rows, this_cols),
-                symmetry=(False, False, False), complex_type=complex_type,
-                data_offset=data_offset, bands_ip=bands_in)
+                self.file_name, raw_dtype, (this_rows, this_cols), raw_bands, output_bands, output_dtype,
+                symmetry=(False, False, False), transform_data=transform_data,
+                data_offset=data_offset, limit_to_raw_bands=limit_to_raw_bands)
 
         if not self._compliance_check(index):
             raise ValueError(
@@ -739,24 +751,26 @@ class NITFReader(BaseReader):
 
         # define fundamental chipper parameters
         img_header = self.nitf_details.img_headers[index]
-        this_dtype, this_dtype_out, this_bands_in, this_bands_out, this_complex_type = self._extract_chipper_params(index)
+        this_raw_dtype, this_output_dtype, this_raw_bands, this_output_bands, \
+        this_transform_data = self._extract_chipper_params(index)
+
         data_offset = self.nitf_details.img_segment_offsets[index]
         # determine basic facts
         this_rows = img_header.NROWS
         this_cols = img_header.NCOLS
         # NB: ABPP previously verified to be one of 8, 16, 32, 64
-        bytes_per_pixel = int_func(img_header.ABPP*this_bands_in/8)
+        bytes_per_pixel = int_func(img_header.ABPP*this_raw_bands/8)
 
-        if dtype is None:
-            dtype = this_dtype
-        if dtype_out is None:
-            dtype_out = this_dtype_out
-        if bands_in is None:
-            bands_in = this_bands_in
-        if bands_out is None:
-            bands_out = this_bands_out
-        if complex_type is None:
-            complex_type = this_complex_type
+        if raw_dtype is None:
+            raw_dtype = this_raw_dtype
+        if output_dtype is None:
+            output_dtype = this_output_dtype
+        if raw_bands is None:
+            raw_bands = this_raw_bands
+        if output_bands is None:
+            output_bands = this_output_bands
+        if transform_data is None:
+            transform_data = this_transform_data
         # define the chipper
         if img_header.IC in ['NM', 'M1', 'M3', 'M4', 'M5', 'M6', 'M7', 'M8']:
             raise ValueError('Masked image segments not currently supported.')
@@ -898,11 +912,11 @@ class ImageDetails(object):
     """
 
     __slots__ = (
-        '_bands', '_dtype', '_complex_type', '_parent_index_range',
+        '_bands', '_dtype', '_transform_data', '_parent_index_range',
         '_subheader', '_subheader_offset', '_item_offset',
         '_subheader_written', '_pixels_written')
 
-    def __init__(self, bands, dtype, complex_type, parent_index_range, subheader):
+    def __init__(self, bands, dtype, transform_data, parent_index_range, subheader):
         """
 
         Parameters
@@ -911,8 +925,8 @@ class ImageDetails(object):
             The number of bands.
         dtype : str|numpy.dtype|numpy.number
             The dtype for the associated chipper.
-        complex_type : bool|callable
-            The complex_type for the associated chipper.
+        transform_data : bool|callable
+            The transform_data for the associated chipper.
         parent_index_range : Tuple[int]
             Indicates `(start row, end row, start column, end column)` relative to
             the parent image.
@@ -929,7 +943,7 @@ class ImageDetails(object):
         if self._bands <= 0:
             raise ValueError('bands must be positive.')
         self._dtype = dtype
-        self._complex_type = complex_type
+        self._transform_data = transform_data
 
         if len(parent_index_range) != 4:
             raise ValueError('parent_index_range must have length 4.')
@@ -1136,10 +1150,9 @@ class ImageDetails(object):
         if self._item_offset is None:
             raise ValueError('The image segment subheader_offset must be defined '
                              'before a writer can be defined.')
-        shape = (self.rows, self.cols) if self._bands == 1 else (self.rows, self.cols, self._bands)
         return BIPWriter(
-            file_name, shape, self._dtype,
-            self._complex_type, data_offset=self.item_offset)
+            file_name, (self.rows, self.cols), self._dtype, self._bands,
+            self._transform_data, data_offset=self.item_offset)
 
 
 class DESDetails(object):

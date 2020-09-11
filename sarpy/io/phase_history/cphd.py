@@ -495,12 +495,15 @@ class CPHDReader1_0(CPHDReader):
 
         data = self.cphd_meta.Data
         sample_type = data.SignalArrayFormat
+        raw_bands = 2
+        output_bands = 1
+        output_dtype = 'complex64'
         if sample_type == "CF8":
-            data_type = numpy.dtype('>f4')
+            raw_dtype = numpy.dtype('>f4')
         elif sample_type == "CI4":
-            data_type = numpy.dtype('>i2')
+            raw_dtype = numpy.dtype('>i2')
         elif sample_type == "CI2":
-            data_type = numpy.dtype('>i1')
+            raw_dtype = numpy.dtype('>i1')
         else:
             raise ValueError('Got unhandled signal array format {}'.format(sample_type))
         symmetry = (False, False, False)
@@ -510,8 +513,8 @@ class CPHDReader1_0(CPHDReader):
             img_siz = (entry.NumVectors, entry.NumSamples)
             data_offset = entry.SignalArrayByteOffset
             chippers.append(BIPChipper(
-                self.cphd_details.file_name, data_type, img_siz,  symmetry=symmetry,
-                complex_type=True, data_offset=block_offset+data_offset, bands_ip=1))
+                self.cphd_details.file_name, raw_dtype, img_siz, raw_bands, output_bands, output_dtype,
+                symmetry=symmetry, transform_data='COMPLEX', data_offset=block_offset+data_offset))
         return tuple(chippers)
 
     def _validate_index(self, index):
@@ -672,14 +675,17 @@ class CPHDReader0_3(CPHDReader):
 
         data = self.cphd_meta.Data
         sample_type = data.SampleType
+        raw_bands = 2
+        output_bands = 1
+        output_dtype = 'complex64'
         if sample_type == "RE32F_IM32F":
-            data_type = numpy.dtype('>f4')
+            raw_dtype = numpy.dtype('>f4')
             bpp = 8
         elif sample_type == "RE16I_IM16I":
-            data_type = numpy.dtype('>i2')
+            raw_dtype = numpy.dtype('>i2')
             bpp = 4
         elif sample_type == "RE08I_IM08I":
-            data_type = numpy.dtype('>i1')
+            raw_dtype = numpy.dtype('>i1')
             bpp = 2
         else:
             raise ValueError('Got unhandled sample type {}'.format(sample_type))
@@ -689,8 +695,8 @@ class CPHDReader0_3(CPHDReader):
         for entry in data.ArraySize:
             img_siz = (entry.NumVectors, entry.NumSamples)
             chippers.append(BIPChipper(
-                self.cphd_details.file_name, data_type, img_siz,  symmetry=symmetry,
-                complex_type=True, data_offset=data_offset, bands_ip=1))
+                self.cphd_details.file_name, raw_dtype, img_siz, raw_bands, output_bands, output_dtype,
+                symmetry=symmetry, transform_data='COMPLEX', data_offset=data_offset))
             data_offset += img_siz[0]*img_siz[1]*bpp
         return tuple(chippers)
 
