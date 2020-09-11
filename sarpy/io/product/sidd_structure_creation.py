@@ -144,11 +144,13 @@ def _create_measurement_v2(ortho_helper, bounds):
     """
 
     proj_helper = ortho_helper.proj_helper
-
+    rows = bounds[1] - bounds[0]
+    cols = bounds[3] - bounds[2]
     if isinstance(proj_helper, PGProjection):
         # fit the time coa polynomial in ortho-pixel coordinates
         plane_projection = _create_plane_projection(proj_helper, bounds)
-        return MeasurementType2(PixelFootprint=(bounds[1] - bounds[0], bounds[3] - bounds[2]),
+        return MeasurementType2(PixelFootprint=(rows, cols),
+                                ValidData=((0, 0), (0, cols), (rows, cols), (rows, 0)),
                                 PlaneProjection=plane_projection,
                                 ARPPoly=XYZPolyType(
                                     X=proj_helper.sicd.Position.ARPPoly.X.get_array(),
@@ -208,7 +210,7 @@ def create_sidd_structure_v2(ortho_helper, bounds, product_class, pixel_type):
     display = _create_display_v2(pixel_type)
     # GeoData
     llh_corners = ortho_helper.proj_helper.ortho_to_llh(ortho_pixel_corners)
-    geo_data = GeoDataType2(ImageCorners=llh_corners[:, :2])
+    geo_data = GeoDataType2(ImageCorners=llh_corners[:, :2], ValidData=llh_corners[:, :2])
     # Measurement
     measurement = _create_measurement_v2(ortho_helper, bounds)
     # ExploitationFeatures
