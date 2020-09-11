@@ -80,8 +80,7 @@ class BaseChipper(object):
         Parameters
         ----------
         data_size : tuple
-            The full size of the data *after* any required transformation. See
-            `data_size` property.
+            The shape of the raw data (i.e. in the file).
         symmetry : tuple
             Describes any required data transformation. See the `symmetry` property.
         transform_data : Callable|str|None

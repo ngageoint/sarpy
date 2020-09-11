@@ -18,10 +18,6 @@ __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 
-# TODO: modify the BIPChipper?
-#   I think that data_size should be the NATIVE (i.e. file system) data shape, BEFORE symmetry transforms
-
-
 class BIPChipper(BaseChipper):
     """
     Band interleaved format file chipper.
@@ -120,6 +116,8 @@ class BIPChipper(BaseChipper):
     def _validate_limit_to_raw_bands(self, limit_to_raw_bands):
         if limit_to_raw_bands is None:
             self._limit_to_raw_bands = None
+            return
+
         if isinstance(limit_to_raw_bands, integer_types):
             limit_to_raw_bands = numpy.array([limit_to_raw_bands, ], dtype='int32')
         if isinstance(limit_to_raw_bands, (list, tuple)):

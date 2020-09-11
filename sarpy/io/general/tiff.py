@@ -459,7 +459,7 @@ class NativeTiffChipper(BIPChipper):
             output_bands = raw_bands
             output_dtype = None
 
-        data_size = (int_func(tiff_details.tags['ImageWidth']), int_func(tiff_details.tags['ImageLength']))
+        data_size = (int_func(tiff_details.tags['ImageLength']), int_func(tiff_details.tags['ImageWidth']))
         raw_dtype = numpy.dtype('{0:s}{1:s}{2:d}'.format(
             self._tiff_details.endian, self._SAMPLE_FORMATS[samp_form], int(bits_per_sample/8)))
 
