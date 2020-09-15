@@ -415,7 +415,7 @@ class BIPWriter(AbstractWriter):
         if not data.flags.c_contiguous:
             data = numpy.ascontiguousarray(data)
 
-        if self._transform_data is False:
+        if self._transform_data is None:
             if data.dtype.name != self._raw_dtype.name:
                 raise ValueError(
                     'Writer expects data type {}, and got data of type {}.'.format(self._raw_dtype, data.dtype))
@@ -440,7 +440,10 @@ class BIPWriter(AbstractWriter):
 
     def _call(self, start1, stop1, start2, stop2, data):
         if self._memory_map is not None:
-            self._memory_map[start1:stop1, start2:stop2] = data
+            if data.ndim == 2:
+                self._memory_map[start1:stop1, start2:stop2] = data[:, :, numpy.newaxis]
+            else:
+                self._memory_map[start1:stop1, start2:stop2] = data
             return
 
         # we have to fall-back to manually write
