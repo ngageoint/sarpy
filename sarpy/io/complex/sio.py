@@ -16,7 +16,6 @@ from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.complex.sicd_elements.ImageData import ImageDataType, FullImageType
 from sarpy.io.general.base import BaseReader
 from sarpy.io.general.bip import BIPChipper, BIPWriter
-# noinspection PyProtectedMember
 from sarpy.io.complex.sicd import complex_to_amp_phase, complex_to_int, amp_phase_to_complex
 from sarpy.io.general.utils import parse_xml_from_string
 
@@ -308,11 +307,15 @@ class SIOReader(BaseReader):
         self._sio_details = sio_details
         sicd_meta = sio_details.get_sicd()
         if sicd_meta.ImageData.PixelType == 'AMP8I_PHS8I':
-            complex_type = amp_phase_to_complex(sicd_meta.ImageData.AmpTable)
+            transform_data = amp_phase_to_complex(sicd_meta.ImageData.AmpTable)
         else:
-            complex_type = True
+            transform_data = 'COMPLEX'
+        raw_bands = 2
+        output_bands = 1
+        output_dtype = 'complex64'
         chipper = BIPChipper(sio_details.file_name, sio_details.data_type, sio_details.data_size,
-                             symmetry=sio_details.symmetry, complex_type=complex_type,
+                             raw_bands, output_bands, output_dtype,
+                             symmetry=sio_details.symmetry, transform_data=transform_data,
                              data_offset=sio_details.data_offset)
         super(SIOReader, self).__init__(sicd_meta, chipper, is_sicd_type=True)
 
@@ -355,17 +358,17 @@ class SIOWriter(BIPWriter):
             data_type = numpy.dtype('{}f4'.format(endian))
             element_type = 13
             element_size = 8
-            complex_type = True
+            transform_data = True
         elif pixel_type == 'RE16I_IM16I':
             data_type = numpy.dtype('{}i2'.format(endian))
             element_type = 12
             element_size = 4
-            complex_type = complex_to_int
+            transform_data = complex_to_int
         else:
             data_type = numpy.dtype('{}u1'.format(endian))
             element_type = 11
             element_size = 2
-            complex_type = complex_to_amp_phase(sicd_meta.ImageData.AmpTable)
+            transform_data = complex_to_amp_phase(sicd_meta.ImageData.AmpTable)
         # construct the sio header
         header = numpy.array(
             [magic_number, image_size[0], image_size[1], element_type, element_size],
@@ -387,5 +390,6 @@ class SIOWriter(BIPWriter):
                 fi.write(struct.pack('{}{}s'.format(endian, len(val_bytes), val_bytes)))
                 data_offset += 4 + len(name_bytes) + 4 + len(val_bytes)
         # initialize the bip writer - we're ready to go
-        super(SIOWriter, self).__init__(file_name, image_size, data_type,
-                                        complex_type=complex_type, data_offset=data_offset)
+        output_bands = 2
+        super(SIOWriter, self).__init__(file_name, image_size, data_type, output_bands,
+                                        transform_data=transform_data, data_offset=data_offset)

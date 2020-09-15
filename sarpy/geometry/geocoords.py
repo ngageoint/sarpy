@@ -25,12 +25,12 @@ _EB2 = (_A2 - _B2)/_B2
 
 def _validate(arr):
     if not isinstance(arr, numpy.ndarray):
-        arr = numpy.array(arr, dtype=numpy.float64)
+        arr = numpy.array(arr, dtype='float64')
 
     if arr.shape[-1] != 3:
         raise ValueError(
-            'The input argument should represent geographical coordinates, so the final dimension should have size 3. '
-            'Got shape {}.'.format(arr.shape))
+            'The input argument should represent geographical coordinates, so the '
+            'final dimension should have size 3. Got shape {}.'.format(arr.shape))
     orig_shape = arr.shape
     arr = numpy.reshape(arr, (-1, 3))  # this is just a view
     return arr, orig_shape
@@ -150,3 +150,93 @@ def wgs_84_norm(ecf):
     out = numpy.copy(ecf)/numpy.array([_A2, _A2, _B2], dtype=numpy.float64)
     out = out/(numpy.linalg.norm(out, axis=1)[:, numpy.newaxis])
     return numpy.reshape(out, orig_shape)
+
+
+def _ecf_to_ned_matrix(orp_coord):
+    """
+    Get the rotation matrix for converting ECF to NED coordinate system conversion.
+
+    Parameters
+    ----------
+    orp_coord : numpy.ndarray
+        The origin reference point. This is assumed given in ECF coordinates.
+
+    Returns
+    -------
+    numpy.ndarray
+    """
+
+    if not isinstance(orp_coord, numpy.ndarray) or orp_coord.ndim != 1 or orp_coord.size != 3:
+        raise ValueError('orp_coord must be a one-dimensional array of length 3.')
+    llh = ecf_to_geodetic(orp_coord)
+
+    angle2 = numpy.deg2rad(-90 - llh[0])
+    angle1 = numpy.deg2rad(llh[1])
+
+    matrix2 = numpy.array([[numpy.cos(angle2), 0, -numpy.sin(angle2)],
+                           [0, 1, 0],
+                           [numpy.sin(angle2), 0, numpy.cos(angle2)]], dtype='float64')
+    matrix1 = numpy.array([[numpy.cos(angle1), numpy.sin(angle1), 0],
+                           [-numpy.sin(angle1), numpy.cos(angle1), 0],
+                           [0, 0, 1]], dtype='float64')
+    return matrix2.dot(matrix1)
+
+
+def ecf_to_ned(ecf_coords, orp_coord, absolute_coords=True):
+    """
+    Convert from ECF to NED coordinates.
+
+    Parameters
+    ----------
+    ecf_coords : numpy.ndarray
+    orp_coord : numpy.ndarray
+    absolute_coords : bool
+        Are these absolute (i.e. position) coordinates? The alternative is relative
+        coordinates like velocity, acceleration, or unit vector values.
+
+    Returns
+    -------
+    numpy.ndarray
+    """
+
+    if not isinstance(orp_coord, numpy.ndarray):
+        orp_coord = numpy.array(orp_coord, dtype='float64')
+    transform = _ecf_to_ned_matrix(orp_coord).transpose()
+    # NB: orp_coord is guaranteed to be shape (3, )
+    ecf_coords, o_shape = _validate(ecf_coords)
+    if absolute_coords:
+        out = (ecf_coords - orp_coord).dot(transform)
+    else:
+        out = ecf_coords.dot(transform)
+    return numpy.reshape(out, o_shape)
+
+
+def ned_to_ecf(ned_coords, orp_coord, absolute_coords=True):
+    """
+    Convert from NED (North, East, Down) to ECF coordinates.
+
+    Parameters
+    ----------
+    ned_coords : numpy.ndarray
+        The NED coordinates.
+    orp_coord : numpy.ndarray
+        The Origin Reference Point in ECF coordinates.
+    absolute_coords : bool
+        Are these absolute (i.e. position) coordinates? The alternative is relative
+        coordinates like velocity, acceleration, or unit vector values.
+
+    Returns
+    -------
+    numpy.ndarray
+    """
+
+    if not isinstance(orp_coord, numpy.ndarray):
+        orp_coord = numpy.array(orp_coord, dtype='float64')
+    transform = _ecf_to_ned_matrix(orp_coord)
+    # NB: orp_coord is guaranteed to be shape (3, )
+    ned_coords, o_shape = _validate(ned_coords)
+
+    out = ned_coords.dot(transform)
+    if absolute_coords:
+        out += orp_coord
+    return numpy.reshape(out, o_shape)

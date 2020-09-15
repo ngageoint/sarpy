@@ -27,7 +27,7 @@ class GeoDataType(Serializable):
     """
 
     _fields = ('EarthModel', 'ImageCorners', 'ValidData')
-    _required = ('EarthModel', 'ImageCorners')
+    _required = ('EarthModel', 'ImageCorners', 'ValidData')
     _collections_tags = {
         'ValidData': {'array': True, 'child_tag': 'Vertex'},
         'ImageCorners': {'array': True, 'child_tag': 'ICP'}}
