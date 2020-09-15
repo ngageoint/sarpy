@@ -14,8 +14,8 @@ from sarpy.io.general.base import validate_sicd_for_writing, AggregateChipper
 from sarpy.io.general.nitf import NITFReader, NITFWriter, ImageDetails, DESDetails, \
     image_segmentation, get_npp_block, interpolate_corner_points_string
 from sarpy.io.general.utils import parse_xml_from_string
-# noinspection PyProtectedMember
 from sarpy.io.complex.sicd_elements.SICD import SICDType, get_specification_identifier
+from sarpy.io.complex.other_nitf import ComplexNITFDetails, ComplexNITFReader
 
 from sarpy.io.general.nitf import NITFDetails
 from sarpy.io.general.nitf_elements.des import DataExtensionHeader, XMLDESSubheader
@@ -41,7 +41,8 @@ __author__ = ("Thomas McCullough", "Wade Schwartzkopf")
 
 def is_a(file_name):
     """
-    Tests whether a given file_name corresponds to a SICD file. Returns a reader instance, if so.
+    Tests whether a given file_name corresponds to a SICD file or other complex NITF type file.
+    Returns a reader instance, if so.
 
     Parameters
     ----------
@@ -50,10 +51,10 @@ def is_a(file_name):
 
     Returns
     -------
-    SICDReader|None
-        `SICDReader` instance if SICD file, `None` otherwise
+    SICDReader|ComplexNITFReader|None
     """
 
+    # check that it's a SICD file
     try:
         nitf_details = SICDDetails(file_name)
         if nitf_details.is_sicd:
@@ -63,6 +64,13 @@ def is_a(file_name):
             return None
     except IOError:
         # we don't want to catch parsing errors, for now
+        pass
+
+    # check if it is some other kind of complex NITF file
+    try:
+        nitf_details = ComplexNITFDetails(file_name)
+        return ComplexNITFReader(nitf_details)
+    except IOError:
         return None
 
 
@@ -277,7 +285,8 @@ class SICDDetails(NITFDetails):
 #######
 #  The actual reading implementation
 
-def _validate_lookup(lookup_table):  # type: (numpy.ndarray) -> None
+def _validate_lookup(lookup_table):
+    # type: (numpy.ndarray) -> None
     if not isinstance(lookup_table, numpy.ndarray):
         raise ValueError('requires a numpy.ndarray, got {}'.format(type(lookup_table)))
     if lookup_table.dtype.name != 'float64':
@@ -341,10 +350,6 @@ class SICDReader(NITFReader):
         if not isinstance(nitf_details, SICDDetails):
             raise TypeError('The input argument for SICDReader must be a filename or '
                             'SICDDetails object.')
-        if not nitf_details.is_sicd:
-            raise ValueError(
-                'The input file passed in appears to be a NITF 2.1 file that does '
-                'not contain valid sicd metadata.')
         super(SICDReader, self).__init__(nitf_details, is_sicd_type=True)
 
         # to perform a preliminary check that the structure is valid:

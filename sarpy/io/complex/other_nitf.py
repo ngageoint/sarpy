@@ -15,7 +15,7 @@ from sarpy.compliance import string_types
 from sarpy.geometry.geocoords import geodetic_to_ecf, ned_to_ecf
 from sarpy.geometry.latlon import num as lat_lon_parser
 
-from sarpy.io.general.nitf import NITFDetails, extract_image_corners
+from sarpy.io.general.nitf import NITFDetails, extract_image_corners, NITFReader
 from sarpy.io.general.nitf_elements.image import ImageSegmentHeader
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.complex.sicd_elements.CollectionInfo import CollectionInfoType
@@ -29,11 +29,10 @@ from sarpy.io.complex.sicd_elements.SCPCOA import SCPCOAType
 from sarpy.io.complex.sicd_elements.ImageFormation import ImageFormationType, TxFrequencyProcType
 from sarpy.io.complex.sicd_elements.ImageCreation import ImageCreationType
 from sarpy.io.complex.sicd_elements.PFA import PFAType
-
 from sarpy.io.general.nitf_elements.base import TREList
 
 
-# TODO: remember to fix NBPP versus ABPP for general NITF.
+# NB: The checking for open_complex() is included in the sicd.is_a().
 
 def _extract_sicd(img_header):
     """
@@ -92,7 +91,7 @@ def _extract_sicd(img_header):
                     'but there may be overflow issues if converting this file.')
             pixel_type = 'RE32F_IM32F'
         elif pvtype == 'SI':
-            pixel_type = 'RE16F_IM16F'
+            pixel_type = 'RE16I_IM16I'
         else:
             raise ValueError('Got unhandled PVTYPE {}'.format(pvtype))
 
@@ -513,7 +512,7 @@ def _extract_sicd(img_header):
 
     # noinspection PyUnresolvedReferences
     tres = None if img_header.ExtendedHeader.data is None \
-        else img_header.ExtendedHeader.data.tres  # type: Union[None, TREList]
+        else img_header.ExtendedHeader.data  # type: Union[None, TREList]
 
     collection_info = get_collection_info()
     image_data = get_image_data()
@@ -535,10 +534,12 @@ def _extract_sicd(img_header):
     return the_sicd
 
 
-class ComplexNitfDetails(NITFDetails):
+class ComplexNITFDetails(NITFDetails):
     """
     Details object for NITF file containing complex data.
     """
+
+    __slots__ = ('_complex_segments', '_sicd_meta')
 
     def __init__(self, file_name):
         """
@@ -549,12 +550,96 @@ class ComplexNitfDetails(NITFDetails):
             file name for a NITF 2.1 file containing a SICD
         """
 
-        super(ComplexNitfDetails, self).__init__(file_name)
+        self._sicd_meta = None
+        self._complex_segments = None
+        super(ComplexNITFDetails, self).__init__(file_name)
         if self._nitf_header.ImageSegments.subhead_sizes.size == 0:
             raise IOError('There are no image segments defined.')
+        self._find_complex_image_segments()
+        if self._complex_segments is None:
+            raise IOError('No complex valued (I/Q) image segments found in file {}'.format(file_name))
 
-        # TODO: find the image segments which are associated with SAR or SARIQ?
-        #   Looking for complex data is slightly more flexible and reliable?
-        # We should craft one SICD per image segment with complex data
-        # Extract the pseudo-sicd from the various TREs - look into the matlab for details
+    @property
+    def complex_segments(self):
+        """
+        List[List[int]]: The image details for each relevant image segment.
+        """
 
+        return self._complex_segments
+
+    @property
+    def sicd_meta(self):
+        """
+        Tuple[SICDType]: The best inferred sicd structures.
+        """
+
+        return self._sicd_meta
+
+    def _find_complex_image_segments(self):
+        """
+        Find complex image segments.
+
+        Returns
+        -------
+        None
+        """
+
+        def extract_band_details(image_header):
+            # type: (ImageSegmentHeader) -> bool
+            bands = len(image_header.Bands)
+            if image_header.ICAT.strip() in ['SAR', 'SARIQ'] and ((bands % 2) == 0):
+                cont = True
+                for j in range(0, bands, 2):
+                    band1 = image_header.Bands[j]
+                    band2 = image_header.Bands[j+1]
+                    cont &= (image_header.Bands[j].ISUBCAT == 'I'
+                             and image_header.Bands[j+1].ISUBCAT == 'Q')
+                return cont
+            return False
+
+        sicd_meta = []
+        complex_segments = []
+        for i, img_header in enumerate(self.img_headers):
+            result = extract_band_details(img_header)
+            if result:
+                complex_segments.append([i, ])
+                sicd_meta.append(_extract_sicd(img_header))
+
+        if len(sicd_meta) > 0:
+            self._complex_segments = complex_segments
+            self._sicd_meta = tuple(sicd_meta)
+
+
+class ComplexNITFReader(NITFReader):
+    """
+    A reader for complex valued NITF elements, this should be explicitly tried AFTER
+    the SICDReader.
+    """
+
+    def __init__(self, nitf_details):
+        """
+
+        Parameters
+        ----------
+        nitf_details : str|ComplexNITFDetails
+        """
+
+        if isinstance(nitf_details, string_types):
+            nitf_details = ComplexNITFDetails(nitf_details)
+        if not isinstance(nitf_details, ComplexNITFDetails):
+            raise TypeError('The input argument for ComplexNITFReader must be a filename or '
+                            'ComplexNITFDetails object.')
+        super(ComplexNITFReader, self).__init__(nitf_details, is_sicd_type=True)
+
+    @property
+    def nitf_details(self):
+        # type: () -> ComplexNITFDetails
+        """
+        ComplexNITFDetails: The NITF details object.
+        """
+
+        # noinspection PyTypeChecker
+        return self._nitf_details
+
+    def _find_segments(self):
+        return self.nitf_details.complex_segments

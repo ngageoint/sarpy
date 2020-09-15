@@ -572,11 +572,11 @@ class NITFReader(BaseReader):
                 'be imported. Compressed image segments cannot be supported '
                 'without PIL.'.format(index, img_header.IC))
             return False
-        # check the abpp value is viable
-        if img_header.ABPP not in (8, 16, 32, 64):
+        # check the nbpp value is viable
+        if img_header.NBPP not in (8, 16, 32, 64):
             logging.error(
                 'Image segment at index {} has bits per pixel per band {}, only '
-                '8, 16, and 32 are supported.'.format(index, img_header.ABPP))
+                '8, 16, and 32 are supported.'.format(index, img_header.NBPP))
             return False
         if img_header.IMODE not in ['P', 'B']:
             logging.error(
@@ -600,24 +600,27 @@ class NITFReader(BaseReader):
         """
 
         img_header = self.nitf_details.img_headers[index]
-        abpp = img_header.ABPP  # previously verified to be one of 8, 16, 32, 64
-        bpp = int_func(abpp/8)  # bytes per pixel per band
+        nbpp = img_header.NBPP  # previously verified to be one of 8, 16, 32, 64
+        bpp = int_func(nbpp/8)  # bytes per pixel per band
         pvtype = img_header.PVTYPE
         if img_header.ICAT.strip() in ['SAR', 'SARIQ'] and ((len(img_header.Bands) % 2) == 0):
             cont = True
             for i in range(0, len(img_header.Bands), 2):
-                cont &= (img_header.Bands[i] == 'I' and img_header.Bands[i+1] == 'Q')
+                cont &= (img_header.Bands[i].ISUBCAT == 'I' and
+                         img_header.Bands[i+1].ISUBCAT == 'Q')
             if cont:
-                bands = int(len(img_header.Bands)/2)
+                native_bands = len(img_header.Bands)
+                output_bands = int(native_bands/2)
                 if pvtype == 'SI':
-                    return numpy.dtype('>i{}'.format(bpp)), numpy.complex64, bands, bands, 'COMPLEX'
+                    return numpy.dtype('>i{}'.format(bpp)), numpy.complex64, native_bands, output_bands, 'COMPLEX'
                 elif pvtype == 'R':
-                    return numpy.dtype('>f{}'.format(bpp)), numpy.complex64, bands, bands, 'COMPLEX'
+                    return numpy.dtype('>f{}'.format(bpp)), numpy.complex64, native_bands, output_bands, 'COMPLEX'
+            del cont
         if img_header.IREP.strip() == 'MONO' and img_header.Bands[0].LUTD is not None:
             if not (pvtype == 'INT' and bpp not in [1, 2]):
                 raise ValueError(
                     'Got IREP = {} with a LUT, but PVTYPE = {} and '
-                    'ABPP = {}'.format(img_header.IREP, pvtype, abpp))
+                    'NBPP = {}'.format(img_header.IREP, pvtype, nbpp))
             lut = img_header.Bands[0].LUTD
             if lut.ndim == 1:
                 return numpy.dtype('>u{}'.format(bpp)), numpy.dtype('>u1'), 1, 1, single_lut_conversion(lut)
@@ -639,7 +642,7 @@ class NITFReader(BaseReader):
         elif pvtype == 'C':
             if bpp != 8:
                 raise ValueError(
-                    'Got PVTYPE = C and ABPP = {} (not 64), which is unsupported.'.format(abpp))
+                    'Got PVTYPE = C and NBPP = {} (not 64), which is unsupported.'.format(nbpp))
             return numpy.dtype('>f4'), numpy.complex64, 2*len(img_header.Bands), len(img_header.Bands), 'COMPLEX'
 
     def _define_chipper(self, index, raw_dtype=None, raw_bands=None, transform_data=None,
@@ -649,13 +652,20 @@ class NITFReader(BaseReader):
 
         Parameters
         ----------
-        index
+        index : int
+            The index of the image segment.
         raw_dtype : None|str|numpy.dtype|numpy.number
+            The underlying data type of the image segment.
         raw_bands : None|int
-        transform_data : None|int|callable
+            The number of bands of the image segment.
+        transform_data : None|str|callable
+            The transform_data parameter for the image segment chipper.
         output_bands : None|int
+            The number of output bands from the chipper, after transform_data application.
         output_dtype : None|str|numpy.dtype|numpy.number
+            The output data type from the chipper.
         limit_to_raw_bands : None|int|list|tuple|numpy.ndarray
+            The parameter for limiting bands for the chipper.
 
         Returns
         -------
@@ -758,8 +768,8 @@ class NITFReader(BaseReader):
         # determine basic facts
         this_rows = img_header.NROWS
         this_cols = img_header.NCOLS
-        # NB: ABPP previously verified to be one of 8, 16, 32, 64
-        bytes_per_pixel = int_func(img_header.ABPP*this_raw_bands/8)
+        # NB: NBPP previously verified to be one of 8, 16, 32, 64
+        bytes_per_pixel = int_func(img_header.NBPP*this_raw_bands/8)
 
         if raw_dtype is None:
             raw_dtype = this_raw_dtype
@@ -1035,7 +1045,7 @@ class ImageDetails(object):
         int: The size of the image in bytes.
         """
 
-        return int_func(self.total_pixels*self.subheader.ABPP*len(self.subheader.Bands)/8)
+        return int_func(self.total_pixels*self.subheader.NBPP*len(self.subheader.Bands)/8)
 
     @property
     def pixels_written(self):
