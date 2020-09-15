@@ -14,8 +14,8 @@ from sarpy.io.general.base import validate_sicd_for_writing, AggregateChipper
 from sarpy.io.general.nitf import NITFReader, NITFWriter, ImageDetails, DESDetails, \
     image_segmentation, get_npp_block, interpolate_corner_points_string
 from sarpy.io.general.utils import parse_xml_from_string
-# noinspection PyProtectedMember
 from sarpy.io.complex.sicd_elements.SICD import SICDType, get_specification_identifier
+from sarpy.io.complex.other_nitf import ComplexNITFDetails, ComplexNITFReader
 
 from sarpy.io.general.nitf import NITFDetails
 from sarpy.io.general.nitf_elements.des import DataExtensionHeader, XMLDESSubheader
@@ -41,7 +41,8 @@ __author__ = ("Thomas McCullough", "Wade Schwartzkopf")
 
 def is_a(file_name):
     """
-    Tests whether a given file_name corresponds to a SICD file. Returns a reader instance, if so.
+    Tests whether a given file_name corresponds to a SICD file or other complex NITF type file.
+    Returns a reader instance, if so.
 
     Parameters
     ----------
@@ -50,10 +51,10 @@ def is_a(file_name):
 
     Returns
     -------
-    SICDReader|None
-        `SICDReader` instance if SICD file, `None` otherwise
+    SICDReader|ComplexNITFReader|None
     """
 
+    # check that it's a SICD file
     try:
         nitf_details = SICDDetails(file_name)
         if nitf_details.is_sicd:
@@ -63,6 +64,13 @@ def is_a(file_name):
             return None
     except IOError:
         # we don't want to catch parsing errors, for now
+        pass
+
+    # check if it is some other kind of complex NITF file
+    try:
+        nitf_details = ComplexNITFDetails(file_name)
+        return ComplexNITFReader(nitf_details)
+    except IOError:
         return None
 
 
@@ -277,7 +285,8 @@ class SICDDetails(NITFDetails):
 #######
 #  The actual reading implementation
 
-def _validate_lookup(lookup_table):  # type: (numpy.ndarray) -> None
+def _validate_lookup(lookup_table):
+    # type: (numpy.ndarray) -> None
     if not isinstance(lookup_table, numpy.ndarray):
         raise ValueError('requires a numpy.ndarray, got {}'.format(type(lookup_table)))
     if lookup_table.dtype.name != 'float64':
@@ -341,10 +350,6 @@ class SICDReader(NITFReader):
         if not isinstance(nitf_details, SICDDetails):
             raise TypeError('The input argument for SICDReader must be a filename or '
                             'SICDDetails object.')
-        if not nitf_details.is_sicd:
-            raise ValueError(
-                'The input file passed in appears to be a NITF 2.1 file that does '
-                'not contain valid sicd metadata.')
         super(SICDReader, self).__init__(nitf_details, is_sicd_type=True)
 
         # to perform a preliminary check that the structure is valid:
@@ -369,37 +374,38 @@ class SICDReader(NITFReader):
         pixel_type = meta.ImageData.PixelType
         # NB: SICDs are required to be stored as big-endian
         if pixel_type == 'RE32F_IM32F':
-            dtype = numpy.dtype('>f4')
-            complex_type = True
+            raw_dtype = numpy.dtype('>f4')
+            transform_data = 'COMPLEX'
         elif pixel_type == 'RE16I_IM16I':
-            dtype = numpy.dtype('>i2')
-            complex_type = True
+            raw_dtype = numpy.dtype('>i2')
+            transform_data = 'COMPLEX'
         elif pixel_type == 'AMP8I_PHS8I':
-            dtype = numpy.dtype('>u1')
-            complex_type = amp_phase_to_complex(meta.ImageData.AmpTable)
+            raw_dtype = numpy.dtype('>u1')
+            transform_data = amp_phase_to_complex(meta.ImageData.AmpTable)
         else:
             raise ValueError('Pixel Type {} not recognized.'.format(pixel_type))
 
         # verify that the collective output of _extract_chipper_params makes sense
         for img_index in segment:
             inp_dtype, _, _, _, _ = self._extract_chipper_params(img_index)
-            if inp_dtype.name != dtype.name:
+            if inp_dtype.name != raw_dtype.name:
                 raise ValueError(
-                    'Image segment at index {} apparently has dtype {}, expected {} from the SICD definition'.format(img_index, inp_dtype, dtype))
+                    'Image segment at index {} apparently has dtype {}, expected {} '
+                    'from the SICD definition'.format(img_index, inp_dtype, raw_dtype))
 
         if len(segment) == 1:
             return self._define_chipper(
-                segment[0], dtype=dtype, bands_in=1, complex_type=complex_type,
-                dtype_out='complex64', bands_out=1)
+                segment[0], raw_dtype=raw_dtype, raw_bands=2, transform_data=transform_data,
+                output_dtype='complex64', output_bands=1)
         else:
             # get the bounds definition
             bounds = self._get_chipper_partitioning(segment, meta.ImageData.NumRows, meta.ImageData.NumCols)
             # define the chippers collection
             chippers = [
-                self._define_chipper(img_index, dtype=dtype, bands_in=1, complex_type=complex_type,
-                                     dtype_out='complex64', bands_out=1) for img_index in segment]
+                self._define_chipper(img_index, raw_dtype=raw_dtype, raw_bands=2, transform_data=transform_data,
+                                     output_dtype='complex64', output_bands=1) for img_index in segment]
             # define the aggregate chipper
-            return AggregateChipper(bounds, 'complex64', chippers, bands_out=1)
+            return AggregateChipper(bounds, 'complex64', chippers, output_bands=1)
 
 
 #######
@@ -627,7 +633,7 @@ class SICDWriter(NITFWriter):
         (int, numpy.dtype, Union[bool, callable], str, tuple, tuple)
             pixel_size - the size of each pixel in bytes.
             dtype - the data type.
-            complex_type -
+            transform_data - the transform_data parameters
             pv_type - the pixel type string.
             isubcat - the image subcategory.
             im_segments - Segmentation of the form `((row start, row end, column start, column end))`
@@ -640,25 +646,25 @@ class SICDWriter(NITFWriter):
             pv_type, isubcat = 'R', ('I', 'Q')
             pixel_size = 8
             dtype = numpy.dtype('>f4')
-            complex_type = True
+            transform_data = 'COMPLEX'
         elif pixel_type == 'RE16I_IM16I':
             pv_type, isubcat = 'SI', ('I', 'Q')
             pixel_size = 4
             dtype = numpy.dtype('>i2')
-            complex_type = complex_to_int
+            transform_data = 'COMPLEX'
         else:  # pixel_type == 'AMP8I_PHS8I':
             pv_type, isubcat = 'INT', ('M', 'P')
             pixel_size = 2
             dtype = numpy.dtype('>u1')
-            complex_type = complex_to_amp_phase(self.sicd_meta.ImageData.AmpTable)
+            transform_data = complex_to_amp_phase(self.sicd_meta.ImageData.AmpTable)
         image_segment_limits = image_segmentation(
             self.sicd_meta.ImageData.NumRows, self.sicd_meta.ImageData.NumCols, pixel_size)
-        return pixel_size, dtype, complex_type, pv_type, isubcat, image_segment_limits
+        return pixel_size, dtype, transform_data, pv_type, isubcat, image_segment_limits
 
     def _create_image_segment_details(self):
         super(SICDWriter, self)._create_image_segment_details()
 
-        pixel_size, dtype, complex_type, pv_type, isubcat, image_segment_limits = self._image_parameters()
+        pixel_size, dtype, transform_data, pv_type, isubcat, image_segment_limits = self._image_parameters()
         img_groups = tuple(range(len(image_segment_limits)))
         self._img_groups = (img_groups, )
 
@@ -707,7 +713,7 @@ class SICDWriter(NITFWriter):
                 ILOC='{0:05d}{1:05d}'.format(entry[0], entry[2]),
                 Bands=ImageBands(values=bands),
                 Security=self._security_tags)
-            img_details.append(ImageDetails(1, dtype, complex_type, entry, subhead))
+            img_details.append(ImageDetails(2, dtype, transform_data, entry, subhead))
 
         self._img_details = tuple(img_details)
 

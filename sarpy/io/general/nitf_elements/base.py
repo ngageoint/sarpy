@@ -951,7 +951,8 @@ class TREList(NITFElement):
         super(TREList, self).__init__(tres=tres, **kwargs)
 
     @property
-    def tres(self):  # type: () -> List[TRE]
+    def tres(self):
+        # type: () -> List[TRE]
         return self._tres
 
     @tres.setter
@@ -1003,9 +1004,17 @@ class TREList(NITFElement):
     def __len__(self):
         return len(self._tres)
 
-    def __getitem__(self, item):  # type: (Union[int, slice]) -> Union[TRE, List[TRE]]
-        return self._tres[item]
-
+    def __getitem__(self, item):
+        # type: (Union[int, slice, str]) -> Union[None, TRE, List[TRE]]
+        if isinstance(item, (int, slice)):
+            return self._tres[item]
+        elif isinstance(item, string_types):
+            for entry in self.tres:
+                if entry.TAG == item:
+                    return entry
+            return None
+        else:
+            raise TypeError('Got unhandled type {}'.format(type(item)))
 
 class TREHeader(Unstructured):
     def _populate_data(self):

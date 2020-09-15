@@ -268,26 +268,26 @@ class SIDDReader(NITFReader):
         return segments
 
     def _check_img_details(self, segment):
-        dtype, dtype_out, bands_in, bands_out, complex_type = self._extract_chipper_params(segment[0])
+        raw_dtype, output_dtype, raw_bands, output_bands, transform_data = self._extract_chipper_params(segment[0])
         for this_index in segment[1:]:
-            this_dtype, this_dtype_out, this_bands_in, this_bands_out, _ = self._extract_chipper_params(this_index)
-            if this_dtype.name != dtype.name:
+            this_raw_dtype, this_output_dtype, this_raw_bands, this_output_bands, _ = self._extract_chipper_params(this_index)
+            if this_raw_dtype.name != raw_dtype.name:
                 raise ValueError(
                     'Segments at index {} and {} have incompatible data types '
-                    '{} and {}'.format(segment[0], this_index, dtype, this_dtype))
-            if this_dtype_out.name != dtype_out.name:
+                    '{} and {}'.format(segment[0], this_index, raw_dtype, this_raw_dtype))
+            if this_output_dtype.name != output_dtype.name:
                 raise ValueError(
                     'Segments at index {} and {} have incompatible output data types '
-                    '{} and {}'.format(segment[0], this_index, dtype_out, this_dtype_out))
-            if this_bands_in != bands_in:
+                    '{} and {}'.format(segment[0], this_index, output_dtype, this_output_dtype))
+            if this_raw_bands != raw_bands:
                 raise ValueError(
                     'Segments at index {} and {} have incompatible input bands '
-                    '{} and {}'.format(segment[0], this_index, bands_in, this_bands_in))
-            if this_bands_out != bands_out:
+                    '{} and {}'.format(segment[0], this_index, raw_bands, this_raw_bands))
+            if this_output_bands != output_bands:
                 raise ValueError(
                     'Segments at index {} and {} have incompatible output bands '
-                    '{} and {}'.format(segment[0], this_index, bands_out, this_bands_out))
-        return dtype, dtype_out, bands_in, bands_out, complex_type
+                    '{} and {}'.format(segment[0], this_index, output_bands, this_output_bands))
+        return raw_dtype, output_dtype, raw_bands, output_bands, transform_data
 
     def _construct_chipper(self, segment, index):
         # get the image size
@@ -296,20 +296,20 @@ class SIDDReader(NITFReader):
         cols = sidd.Measurement.PixelFootprint.Col
 
         # extract the basic elements for the chippers
-        dtype, dtype_out, bands_in, bands_out, complex_type = self._check_img_details(segment)
+        raw_dtype, output_dtype, raw_bands, output_bands, transform_data = self._check_img_details(segment)
         if len(segment) == 1:
             return self._define_chipper(
-                segment[0], dtype=dtype, bands_in=bands_in, complex_type=complex_type,
-                dtype_out=dtype_out, bands_out=bands_out)
+                segment[0], raw_dtype=raw_dtype, raw_bands=raw_bands, transform_data=transform_data,
+                output_dtype=output_dtype, output_bands=output_bands)
         else:
             # get the bounds definition
             bounds = self._get_chipper_partitioning(segment, rows, cols)
             # define the chippers
             chippers = [
-                self._define_chipper(img_index, dtype=dtype, bands_in=bands_in, complex_type=complex_type,
-                                     dtype_out=dtype_out, bands_out=bands_out) for img_index in segment]
+                self._define_chipper(img_index, raw_dtype=raw_dtype, raw_bands=raw_bands, transform_data=transform_data,
+                                     output_dtype=output_dtype, output_bands=output_bands) for img_index in segment]
             # define the aggregate chipper
-            return AggregateChipper(bounds, dtype_out, chippers, bands_out=bands_out)
+            return AggregateChipper(bounds, output_dtype, chippers, output_bands=output_bands)
 
 
 #########
@@ -605,8 +605,8 @@ class SIDDWriter(NITFWriter):
             pixel_size - the size of each pixel in bytes.
             abpp - the actual bits per pixel.
             irep - the image representation
-            dtype - the data type.
-            complex_type -
+            raw_dtype - the data type.
+            transform_data -
             pv_type - the pixel type string.
             band_count - the number of bands
             irepband - the image representation.
@@ -619,8 +619,8 @@ class SIDDWriter(NITFWriter):
             pixel_size = 1
             abpp = 8
             irep = 'MONO'
-            dtype = numpy.dtype('>u1')
-            complex_type = False
+            raw_dtype = numpy.dtype('>u1')
+            transform_data = None
             pv_type = 'INT'
             band_count = 1
             irepband = ('M', )
@@ -628,8 +628,8 @@ class SIDDWriter(NITFWriter):
             pixel_size = 2
             abpp = 16
             irep = 'MONO'
-            dtype = numpy.dtype('>u1')
-            complex_type = False
+            raw_dtype = numpy.dtype('>u1')
+            transform_data = None
             pv_type = 'INT'
             band_count = 1
             irepband = ('M', )
@@ -637,8 +637,8 @@ class SIDDWriter(NITFWriter):
             pixel_size = 3
             abpp = 8
             irep = 'RGB'
-            dtype = numpy.dtype('>u1')
-            complex_type = False
+            raw_dtype = numpy.dtype('>u1')
+            transform_data = None
             pv_type = 'INT'
             band_count = 3
             irepband = ('R', 'G', 'B')
@@ -647,7 +647,7 @@ class SIDDWriter(NITFWriter):
 
         image_segment_limits = image_segmentation(
             sidd.Measurement.PixelFootprint.Row, sidd.Measurement.PixelFootprint.Col, pixel_size)
-        return pixel_size, abpp, irep, dtype, complex_type, pv_type, band_count, irepband, image_segment_limits
+        return pixel_size, abpp, irep, raw_dtype, transform_data, pv_type, band_count, irepband, image_segment_limits
 
     @staticmethod
     def _get_icp(sidd):
@@ -673,7 +673,7 @@ class SIDDWriter(NITFWriter):
 
     def _create_image_segment(self, index, img_groups, img_details):
         cur_count = len(img_details)
-        pixel_size, abpp, irep, dtype, complex_type, pv_type, band_count, irepband, \
+        pixel_size, abpp, irep, raw_dtype, transform_data, pv_type, band_count, irepband, \
             image_segment_limits = self._image_parameters(index)
         new_count = len(image_segment_limits)
         img_groups.append(tuple(range(cur_count, cur_count+new_count)))
@@ -718,7 +718,7 @@ class SIDDWriter(NITFWriter):
                 ILOC='{0:05d}{1:05d}'.format(entry[0], entry[2]),
                 Bands=ImageBands(values=bands),
                 Security=security)
-            img_details.append(ImageDetails(band_count, dtype, complex_type, entry, subhead))
+            img_details.append(ImageDetails(band_count, raw_dtype, transform_data, entry, subhead))
 
     def _create_image_segment_details(self):
         super(SIDDWriter, self)._create_image_segment_details()

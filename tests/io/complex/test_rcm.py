@@ -32,9 +32,11 @@ def generic_rcm_test(instance, test_root, test_file):
     with instance.subTest(msg='establish deprecated rcm reader for file {}'.format(test_root)):
         dep_reader = DepReader(test_file)
 
-    for i in range(len(reader.sicd_meta)):
-        data_new = reader[:5, :5, i]
-        data_dep = dep_reader.read_chip[i](numpy.array((0, 5, 1), dtype=numpy.int64), numpy.array((0, 5, 1), dtype=numpy.int64))
+    for i, sicd in enumerate(reader.get_sicds_as_tuple()):
+        row_test = min(500, sicd.ImageData.NumRows)
+        col_test = min(500, sicd.ImageData.NumCols)
+        data_new = reader[:row_test, :col_test, i]
+        data_dep = dep_reader.read_chip[i](numpy.array((0, row_test, 1), dtype=numpy.int64), numpy.array((0, col_test, 1), dtype=numpy.int64))
         comp = numpy.abs(data_new - data_dep)
         same = numpy.all(comp < 1e-10)
         with instance.subTest(msg='rcm fetch test for file {}'.format(test_root)):

@@ -391,15 +391,17 @@ class DirParamType(Serializable):
             if broadening_factor is not None:
                 self.ImpRespBW = broadening_factor/self.ImpRespWid
 
-    def estimate_deltak(self, valid_vertices):
+    def estimate_deltak(self, x_coords, y_coords):
         """
         The `DeltaK1` and `DeltaK2` parameters can be estimated from `DeltaKCOAPoly`, if necessary. This should likely
         be called by the `GridType` parent.
 
         Parameters
         ----------
-        valid_vertices : None|numpy.ndarray
-            The array of corner points.
+        x_coords : None|numpy.ndarray
+            The physical vertex coordinates to evaluate DeltaKCOAPoly
+        y_coords : None|numpy.ndarray
+            The physical vertex coordinates to evaluate DeltaKCOAPoly
 
         Returns
         -------
@@ -412,8 +414,8 @@ class DirParamType(Serializable):
         if self.ImpRespBW is None or self.SS is None:
             return  # nothing can be done
 
-        if self.DeltaKCOAPoly is not None and valid_vertices is not None:
-            deltaKs = self.DeltaKCOAPoly(valid_vertices[:, 0], valid_vertices[:, 1])
+        if self.DeltaKCOAPoly is not None and x_coords is not None:
+            deltaKs = self.DeltaKCOAPoly(x_coords, y_coords)
             min_deltak = numpy.amin(deltaKs) - 0.5*self.ImpRespBW
             max_deltak = numpy.amax(deltaKs) + 0.5*self.ImpRespBW
         else:
@@ -566,13 +568,20 @@ class GridType(Serializable):
             valid_vertices = ImageData.get_valid_vertex_data()
             if valid_vertices is None:
                 valid_vertices = ImageData.get_full_vertex_data()
+        x_coords, y_coords = None, None
+        if valid_vertices is not None:
+            try:
+                x_coords = self.Row.SS*(valid_vertices[:, 0] - (ImageData.SCPPixel.Row -  ImageData.FirstRow))
+                y_coords = self.Col.SS*(valid_vertices[:, 1] - (ImageData.SCPPixel.Col -  ImageData.FirstCol))
+            except (AttributeError, ValueError):
+                pass
 
         for attribute in ['Row', 'Col']:
             value = getattr(self, attribute, None)
             if value is not None:
                 value.define_weight_function()
                 value.define_response_widths()
-                value.estimate_deltak(valid_vertices)
+                value.estimate_deltak(x_coords, y_coords)
 
     def _derive_time_coa_poly(self, CollectionInfo, SCPCOA):
         """
