@@ -277,7 +277,8 @@ class ImageSegmentHeader(NITFElement):
         'ICAT', True, 8,
         {'VIS', 'SL', 'TI', 'FL', 'RD', 'EO', 'OP', 'HR', 'HS', 'CP', 'BP',
          'SAR', 'SARIQ', 'IR', 'MAP', 'MS', 'FP', 'MRI', 'XRAY', 'CAT', 'VD',
-         'PAT', 'LEG', 'DTEM', 'MATR', 'LOCG', 'BARO', 'CURRENT', 'DEPTH', 'WIND'},
+         'PAT', 'LEG', 'DTEM', 'MATR', 'LOCG', 'BARO', 'CURRENT', 'DEPTH', 'WIND',
+         'CLOUD'},
         default_value='SAR',
         docstring='Image Category. This field shall contain a valid indicator of the specific category of image, '
                   'raster or grid data. The specific category of an IS reveals its intended use or the nature '
@@ -300,16 +301,6 @@ class ImageSegmentHeader(NITFElement):
         docstring='Image Coordinate Representation. This field shall contain a valid code indicating the type '
                   'of coordinate representation used for providing an approximate location of the image in the '
                   'Image Geographic Location field (`IGEOLO`).')  # type: str
-    IGEOLO = _StringDescriptor(
-        'IGEOLO', True, 60, default_value='',
-        docstring='Image Geographic Location. This field, when present, shall contain an approximate geographic '
-                  'location which is not intended for analytical purposes (e.g., targeting, mensuration, distance '
-                  'calculation); it is intended to support general user appreciation for the image location (e.g., '
-                  'cataloguing). The representation of the image corner locations is specified in the `ICORDS` field. '
-                  'The locations of the four corners of the (significant) image data shall be given in image '
-                  'coordinate order: (0,0), (0, MaxCol), (MaxRow, MaxCol), (MaxRow, 0). MaxCol and MaxRow shall be '
-                  'determined from the values contained, respectively, in the `NCOLS` field '
-                  'and the `NROWS` field.')  # type: str
     Comments = _NITFElementDescriptor(
         'Comments', True, ImageComments, default_args={},
         docstring='The image comments.')  # type: ImageComments
@@ -387,6 +378,7 @@ class ImageSegmentHeader(NITFElement):
     def __init__(self, **kwargs):
         self._IC = None
         self._COMRAT = None
+        self._IGEOLO = None
         super(ImageSegmentHeader, self).__init__(**kwargs)
 
     @property
@@ -462,19 +454,44 @@ class ImageSegmentHeader(NITFElement):
                 'This is invalid, and COMRAT is being set to None.')
         self._COMRAT = value
 
+    @property
+    def IGEOLO(self):
+        """
+        None|str: Image Geographic Location. This field, when present, shall contain
+        an approximate geographic location which is not intended for analytical purposes
+        (e.g., targeting, mensuration, distance calculation); it is intended to support
+        general user appreciation for the image location (e.g., cataloguing). The
+        representation of the image corner locations is specified in the `ICORDS` field.
+        The locations of the four corners of the (significant) image data shall be given
+        in image coordinate order: (0,0), (0, MaxCol), (MaxRow, MaxCol), (MaxRow, 0).
+        MaxCol and MaxRow shall be determined from the values contained, respectively,
+        in the `NCOLS` field and the `NROWS` field.
+        """
+
+        return self._IGEOLO
+
+    @IGEOLO.setter
+    def IGEOLO(self, value):
+        value = _parse_str(value, 60, None, 'IGEOLO', self)
+        if value is None and self.ICORDS.strip() != '':
+            value = '\x20'*60
+        if value is not None and self.ICORDS.strip() == '':
+            value = None
+        self._IGEOLO = value
+
     def _get_attribute_length(self, fld):
-        if fld == 'COMRAT':
-            if self._COMRAT is None:
+        if fld in ['COMRAT', 'IGEOLO']:
+            if getattr(self, '_'+fld) is None:
                 return 0
             else:
-                return self._lengths['COMRAT']
+                return self._lengths[fld]
         else:
             return super(ImageSegmentHeader, self)._get_attribute_length(fld)
 
     @classmethod
     def minimum_length(cls):
-        # COMRAT may not be there
-        return super(ImageSegmentHeader, cls).minimum_length() - 4
+        # COMRAT and IGEOLO may not be there
+        return super(ImageSegmentHeader, cls).minimum_length() - 64
 
     @classmethod
     def _parse_attribute(cls, fields, attribute, value, start):
@@ -484,5 +501,10 @@ class ImageSegmentHeader(NITFElement):
             if val in ('NC', 'NM'):
                 fields['COMRAT'] = None
             return start+2
+        elif attribute == 'ICORDS':
+            fields['ICORDS'] = value[start:start+1]
+            if fields['ICORDS'] == b' ':
+                fields['IGEOLO'] = None
+            return start+1
         else:
             return super(ImageSegmentHeader, cls)._parse_attribute(fields, attribute, value, start)

@@ -904,7 +904,7 @@ class UnknownTRE(TRE):
             raise ValueError('TAG must be 6 or fewer characters')
 
         self._TAG = TAG
-        self.data = data
+        self._data = data
 
     @property
     def TAG(self):

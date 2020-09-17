@@ -212,7 +212,7 @@ class TRELoop(TREElement):
         self._data = []
         loc = start
         for i in range(length):
-            entry = child_type(value, *args, **kwargs)
+            entry = child_type(value[loc:], *args, **kwargs)
             leng = entry.get_bytes_length()
             self._bytes_length += leng
             loc += leng

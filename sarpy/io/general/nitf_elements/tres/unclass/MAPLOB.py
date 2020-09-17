@@ -12,8 +12,8 @@ class MAPLOBType(TREElement):
         self.add_field('UNILOA', 's', 3, value)
         self.add_field('LOD', 'd', 5, value)
         self.add_field('LAD', 'd', 5, value)
-        self.add_field('LSO', 'd', 15, value)
-        self.add_field('PSO', 'd', 15, value)
+        self.add_field('LSO', 's', 15, value)
+        self.add_field('PSO', 's', 15, value)
 
 
 class MAPLOB(TREExtension):
