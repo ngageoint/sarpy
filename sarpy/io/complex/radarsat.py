@@ -71,7 +71,7 @@ def is_a(file_name):
 ##########
 # helper functions
 
-def _parse_xml(file_name, without_ns=False):
+def parse_xml(file_name, without_ns=False):
     # type: (str, bool) -> ElementTree.Element
     if without_ns:
         with open(file_name, 'rb') as fi:
@@ -81,52 +81,20 @@ def _parse_xml(file_name, without_ns=False):
     else:
         return ElementTree.parse(file_name).getroot()
 
-
 def _format_class_str(class_str):
     if 'UNCLASS' in class_str:
         return 'UNCLASSIFIED'
     else:
         return class_str
 
+class RSDetails(object):
+    def _find(self, tag):
+        # type: (str) -> ElementTree.Element
+        return self._root_node.find(tag)
 
-###########
-# parser and interpreter for radarsat product.xml
-
-class RadarSatDetails(object):
-    __slots__ = ('_file_name', '_root_node', '_satellite', '_product_type')
-
-    def __init__(self, file_name):
-        """
-
-        Parameters
-        ----------
-        file_name : str
-        """
-
-        if os.path.isdir(file_name):  # it is the directory - point it at the product.xml file
-            for t_file_name in [
-                    os.path.join(file_name, 'product.xml'),
-                    os.path.join(file_name, 'metadata', 'product.xml')]:
-                if os.path.exists(t_file_name):
-                    file_name = t_file_name
-                    break
-        if not os.path.isfile(file_name):
-            raise IOError('path {} does not exist or is not a file'.format(file_name))
-        if os.path.split(file_name)[1] != 'product.xml':
-            raise IOError('The radarsat or rcm file is expected to be named product.xml, got path {}'.format(file_name))
-
-        self._file_name = file_name
-        self._root_node = _parse_xml(file_name, without_ns=True)
-
-        sat_node = self._root_node.find('./sourceAttributes/satellite')
-        self._satellite = 'None' if sat_node is None else sat_node.text.upper()
-        product_node = self._root_node.find(
-            './imageGenerationParameters/generalProcessingInformation/productType')
-        self._product_type = 'None' if product_node is None else product_node.text.upper()
-        if not ((self._satellite == 'RADARSAT-2' or self._satellite.startswith('RCM'))
-                and self._product_type == 'SLC'):
-            raise IOError('File {} does not appear to be an SLC product for a RADARSAT-2 '
-                          'or RCM mission.'.format(self._file_name))
+    def _findall(self, tag):
+        # type: (str) -> List[ElementTree.Element, ...]
+        return self._root_node.findall(tag)
 
     @property
     def file_name(self):
@@ -152,25 +120,6 @@ class RadarSatDetails(object):
 
         return self._product_type
 
-    @property
-    def generation(self):
-        """
-        str: RS2 or RCM
-        """
-
-        if self._satellite == 'RADARSAT-2':
-            return 'RS2'
-        else:
-            return 'RCM'
-
-    def _find(self, tag):
-        # type: (str) -> ElementTree.Element
-        return self._root_node.find(tag)
-
-    def _findall(self, tag):
-        # type: (str) -> List[ElementTree.Element, ...]
-        return self._root_node.findall(tag)
-
     def get_symmetry(self):
         """
         Get the symmetry tuple.
@@ -192,21 +141,15 @@ class RadarSatDetails(object):
                 sample_order == 'DECREASING',
                 True)
 
-    def get_data_file_names(self):
-        """
-        Gets the list of data file names.
 
-        Returns
-        -------
-        Tuple[str]
-        """
+class RSCdp(object):
+    def _find(self, tag):
+        # type: (str) -> ElementTree.Element
+        return self._root_node.find(tag)
 
-        if self.generation == 'RS2':
-            data_file_tag = './imageAttributes/fullResolutionImageData'
-        else:
-            data_file_tag = './sceneAttributes/imageAttributes/ipdf'
-        base_path = os.path.dirname(self.file_name)
-        return (os.path.join(base_path, entry.text) for entry in self._findall(data_file_tag))
+    def _findall(self, tag):
+        # type: (str) -> List[ElementTree.Element, ...]
+        return self._root_node.findall(tag)
 
     def _get_start_time(self, get_datetime=False):
         """
@@ -238,21 +181,6 @@ class RadarSatDetails(object):
         """
         return float(self._find('./sourceAttributes/radarParameters/radarCenterFrequency').text)
 
-    def _get_polarizations(self, radar_params=None):
-        # type: (Union[None, ElementTree.Element]) -> (Tuple[str, ...], Tuple[str, ...])
-        if radar_params is None:
-            radar_params = self._get_radar_params()
-        polarizations = radar_params.find('polarizations').text.split()
-        tx_polarizations = ['RHC' if entry[0] == 'C' else entry[0] for entry in polarizations]
-        rcv_polarizations = ['RHC' if entry[1] == 'C' else entry[1] for entry in polarizations]
-        tx_rcv_polarizations = tuple('{}:{}'.format(*entry) for entry in zip(tx_polarizations, rcv_polarizations))
-        # I'm not sure using a set object preserves ordering in all versions, so doing it manually
-        tx_pols = []
-        for el in tx_polarizations:
-            if el not in tx_pols:
-                tx_pols.append(el)
-        return tuple(tx_pols), tx_rcv_polarizations
-
     def _get_radar_mode(self):
         """
         Gets the RadarMode.
@@ -269,8 +197,8 @@ class RadarSatDetails(object):
                 or (acq_type is not None and acq_type.text.upper().startswith("SPOTLIGHT")) \
                 or 'SL' in mode_id:
             mode_type = 'SPOTLIGHT'
-        elif mode_id.startswith('SC'):
-            raise ValueError('ScanSAR mode data is not currently handled.')
+        elif mode_id.startswith('SC'):  # ScanSAR modes
+            mode_type = 'DYNAMIC STRIPMAP'
         else:
             mode_type = 'STRIPMAP'
         return RadarModeType(ModeID=mode_id, ModeType=mode_type)
@@ -306,6 +234,21 @@ class RadarSatDetails(object):
             Classification=classification, CollectorName=collector_name,
             CoreName=core_name, RadarMode=self._get_radar_mode(), CollectType='MONOSTATIC')
 
+    def _get_polarizations(self, radar_params=None):
+        # type: (Union[None, ElementTree.Element]) -> (Tuple[str, ...], Tuple[str, ...])
+        if radar_params is None:
+            radar_params = self._get_radar_params()
+        polarizations = radar_params.find('polarizations').text.split()
+        tx_polarizations = ['RHC' if entry[0] == 'C' else entry[0] for entry in polarizations]
+        rcv_polarizations = ['RHC' if entry[1] == 'C' else entry[1] for entry in polarizations]
+        tx_rcv_polarizations = tuple('{}:{}'.format(*entry) for entry in zip(tx_polarizations, rcv_polarizations))
+        # I'm not sure using a set object preserves ordering in all versions, so doing it manually
+        tx_pols = []
+        for el in tx_polarizations:
+            if el not in tx_pols:
+                tx_pols.append(el)
+        return tuple(tx_pols), tx_rcv_polarizations
+
     def _get_image_creation(self):
         """
         Gets the ImageCreation metadata.
@@ -322,56 +265,6 @@ class RadarSatDetails(object):
             DateTime=processing_info.find('processingTime').text,
             Site=processing_info.find('processingFacility').text,
             Profile='sarpy {}'.format(__version__))
-
-    def _get_image_and_geo_data(self):
-        """
-        Gets the ImageData and GeoData metadata.
-
-        Returns
-        -------
-        Tuple[ImageDataType, GeoDataType]
-        """
-
-        pixel_type = 'RE16I_IM16I'
-        if self.generation == 'RS2':
-            cols = int(self._find('./imageAttributes/rasterAttributes/numberOfLines').text)
-            rows = int(self._find('./imageAttributes/rasterAttributes/numberOfSamplesPerLine').text)
-            tie_points = self._findall('./imageAttributes'
-                                       '/geographicInformation'
-                                       '/geolocationGrid'
-                                       '/imageTiePoint')
-        elif self.generation == 'RCM':
-            cols = int(self._find('./sceneAttributes/imageAttributes/numLines').text)
-            rows = int(self._find('./sceneAttributes/imageAttributes/samplesPerLine').text)
-            tie_points = self._findall('./imageReferenceAttributes'
-                                       '/geographicInformation'
-                                       '/geolocationGrid'
-                                       '/imageTiePoint')
-            if self._find('./imageReferenceAttributes/rasterAttributes/bitsPerSample').text == '32':
-                pixel_type = 'RE32F_IM32F'
-        else:
-            raise ValueError('unhandled generation {}'.format(self.generation))
-        # let's use the tie point closest to the center as the SCP
-        center_pixel = 0.5*numpy.array([rows-1, cols-1], dtype=numpy.float64)
-        tp_pixels = numpy.zeros((len(tie_points), 2), dtype=numpy.float64)
-        tp_llh = numpy.zeros((len(tie_points), 3), dtype=numpy.float64)
-        for j, tp in enumerate(tie_points):
-            tp_pixels[j, :] = (float(tp.find('imageCoordinate/pixel').text),
-                               float(tp.find('imageCoordinate/line').text))
-            tp_llh[j, :] = (float(tp.find('geodeticCoordinate/latitude').text),
-                            float(tp.find('geodeticCoordinate/longitude').text),
-                            float(tp.find('geodeticCoordinate/height').text))
-        scp_index = numpy.argmin(numpy.sum((tp_pixels - center_pixel)**2, axis=1))
-        im_data = ImageDataType(NumRows=rows,
-                                NumCols=cols,
-                                FirstRow=0,
-                                FirstCol=0,
-                                PixelType=pixel_type,
-                                FullImage=(rows, cols),
-                                ValidData=((0, 0), (0, cols-1), (rows-1, cols-1), (rows-1, 0)),
-                                SCPPixel=numpy.round(tp_pixels[scp_index, :]))
-        geo_data = GeoDataType(SCP=SCPType(LLH=tp_llh[scp_index, :]))
-        return im_data, geo_data
 
     def _get_position(self):
         """
@@ -424,16 +317,19 @@ class RadarSatDetails(object):
             row_ss = float(self._find('./imageAttributes'
                                       '/rasterAttributes'
                                       '/sampledPixelSpacing').text)
+            row_irbw = 2*float(self._find('./imageGenerationParameters'
+                                          '/sarProcessingInformation'
+                                          '/totalProcessedRangeBandwidth').text)/speed_of_light
         elif self.generation == 'RCM':
             row_ss = float(self._find('./imageReferenceAttributes'
                                       '/rasterAttributes'
                                       '/sampledPixelSpacing').text)
+            row_irbw = 2*float(self._find('./sourceAttributes'
+                                          '/radarParameters'
+                                          '/pulseBandwidth').text)/speed_of_light
         else:
             raise ValueError('unhandled generation {}'.format(self.generation))
 
-        row_irbw = 2*float(self._find('./imageGenerationParameters'
-                                      '/sarProcessingInformation'
-                                      '/totalProcessedRangeBandwidth').text)/speed_of_light
         row_wgt_type = WgtTypeType(WindowName=self._find('./imageGenerationParameters'
                                                          '/sarProcessingInformation'
                                                          '/rangeWindow/windowName').text.upper())
@@ -518,6 +414,185 @@ class RadarSatDetails(object):
             radar_collection.TxSequence = [TxStepType(TxPolarization=entry, index=i) for i, entry in enumerate(tx_pols)]
         return radar_collection
 
+    def _get_scpcoa(self):
+        """
+        Gets (minimal) SCPCOA.
+
+        Returns
+        -------
+        SCPCOAType
+        """
+        side_of_track = self._find('./sourceAttributes/radarParameters/antennaPointing').text[0].upper()
+        return SCPCOAType(SideOfTrack=side_of_track)
+
+    def _get_image_formation(self, timeline, radar_collection):
+        """
+        Gets the ImageFormation.
+
+        Parameters
+        ----------
+        timeline : TimelineType
+        radar_collection : RadarCollectionType
+
+        Returns
+        -------
+        ImageFormationType
+        """
+        pulse_parts = len(self._findall('./sourceAttributes/radarParameters/pulseBandwidth'))
+        tx_pols, tx_rcv_polarizations = self._get_polarizations()
+
+        return ImageFormationType(
+            # PRFScaleFactor for either polarimetric or multi-step, but not both.
+            RcvChanProc=RcvChanProcType(NumChanProc=1,
+                                        PRFScaleFactor=1./max(pulse_parts, len(tx_pols))),
+            ImageFormAlgo='RMA',
+            TStartProc=timeline.IPP[0].TStart,
+            TEndProc=timeline.IPP[0].TEnd,
+            TxFrequencyProc=TxFrequencyProcType(MinProc=radar_collection.TxFrequency.Min,
+                                                MaxProc=radar_collection.TxFrequency.Max),
+            STBeamComp='GLOBAL',
+            ImageBeamComp='SV',
+            AzAutofocus='NO',
+            RgAutofocus='NO')
+
+    @staticmethod
+    def _update_geo_data(sicd):
+        """
+        Populates the GeoData.
+
+        Parameters
+        ----------
+        sicd : SICDType
+
+        Returns
+        -------
+        None
+        """
+
+        ecf = point_projection.image_to_ground(
+            [sicd.ImageData.SCPPixel.Row, sicd.ImageData.SCPPixel.Col], sicd)
+        sicd.GeoData.SCP = SCPType(ECF=ecf)  # LLH implicitly populated
+
+
+###########
+# parser and interpreter for radarsat product.xml
+
+class RadarSatDetails(RSDetails, RSCdp):
+    __slots__ = ('_file_name', '_root_node', '_satellite', '_product_type')
+
+    def __init__(self, file_name):
+        """
+
+        Parameters
+        ----------
+        file_name : str
+        """
+
+        if os.path.isdir(file_name):  # it is the directory - point it at the product.xml file
+            for t_file_name in [
+                    os.path.join(file_name, 'product.xml'),
+                    os.path.join(file_name, 'metadata', 'product.xml')]:
+                if os.path.exists(t_file_name):
+                    file_name = t_file_name
+                    break
+        if not os.path.isfile(file_name):
+            raise IOError('path {} does not exist or is not a file'.format(file_name))
+        if os.path.split(file_name)[1] != 'product.xml':
+            raise IOError('The radarsat or rcm file is expected to be named product.xml, got path {}'.format(file_name))
+
+        self._file_name = file_name
+        self._root_node = parse_xml(file_name, without_ns=True)
+
+        sat_node = self._root_node.find('./sourceAttributes/satellite')
+        self._satellite = 'None' if sat_node is None else sat_node.text.upper()
+        product_node = self._root_node.find(
+            './imageGenerationParameters/generalProcessingInformation/productType')
+        self._product_type = 'None' if product_node is None else product_node.text.upper()
+        if not ((self._satellite == 'RADARSAT-2' or self._satellite.startswith('RCM'))
+                and self._product_type == 'SLC'):
+            raise IOError('File {} does not appear to be an SLC product for a RADARSAT-2 '
+                          'or RCM mission.'.format(self._file_name))
+        mnemonic = self._root_node.find('./sourceAttributes/beamModeMnemonic').text
+        if mnemonic.startswith('SC'):
+            raise IOError('File {} with beam mode {} is not supported'.format(self._file_name, mnemonic))
+
+    @property
+    def generation(self):
+        """
+        str: RS2 or RCM
+        """
+
+        if self._satellite == 'RADARSAT-2':
+            return 'RS2'
+        else:
+            return 'RCM'
+
+    def get_data_file_names(self):
+        """
+        Gets the list of data file names.
+
+        Returns
+        -------
+        Tuple[str]
+        """
+
+        if self.generation == 'RS2':
+            data_file_tag = './imageAttributes/fullResolutionImageData'
+        else:
+            data_file_tag = './sceneAttributes/imageAttributes/ipdf'
+        base_path = os.path.dirname(self.file_name)
+        return (os.path.join(base_path, entry.text) for entry in self._findall(data_file_tag))
+
+    def _get_image_and_geo_data(self):
+        """
+        Gets the ImageData and GeoData metadata.
+
+        Returns
+        -------
+        Tuple[ImageDataType, GeoDataType]
+        """
+
+        pixel_type = 'RE16I_IM16I'
+        if self.generation == 'RS2':
+            cols = int(self._find('./imageAttributes/rasterAttributes/numberOfLines').text)
+            rows = int(self._find('./imageAttributes/rasterAttributes/numberOfSamplesPerLine').text)
+            tie_points = self._findall('./imageAttributes'
+                                       '/geographicInformation'
+                                       '/geolocationGrid'
+                                       '/imageTiePoint')
+        elif self.generation == 'RCM':
+            cols = int(self._find('./sceneAttributes/imageAttributes/numLines').text)
+            rows = int(self._find('./sceneAttributes/imageAttributes/samplesPerLine').text)
+            tie_points = self._findall('./imageReferenceAttributes'
+                                       '/geographicInformation'
+                                       '/geolocationGrid'
+                                       '/imageTiePoint')
+            if self._find('./imageReferenceAttributes/rasterAttributes/bitsPerSample').text == '32':
+                pixel_type = 'RE32F_IM32F'
+        else:
+            raise ValueError('unhandled generation {}'.format(self.generation))
+        # let's use the tie point closest to the center as the SCP
+        center_pixel = 0.5*numpy.array([rows-1, cols-1], dtype=numpy.float64)
+        tp_pixels = numpy.zeros((len(tie_points), 2), dtype=numpy.float64)
+        tp_llh = numpy.zeros((len(tie_points), 3), dtype=numpy.float64)
+        for j, tp in enumerate(tie_points):
+            tp_pixels[j, :] = (float(tp.find('imageCoordinate/pixel').text),
+                               float(tp.find('imageCoordinate/line').text))
+            tp_llh[j, :] = (float(tp.find('geodeticCoordinate/latitude').text),
+                            float(tp.find('geodeticCoordinate/longitude').text),
+                            float(tp.find('geodeticCoordinate/height').text))
+        scp_index = numpy.argmin(numpy.sum((tp_pixels - center_pixel)**2, axis=1))
+        im_data = ImageDataType(NumRows=rows,
+                                NumCols=cols,
+                                FirstRow=0,
+                                FirstCol=0,
+                                PixelType=pixel_type,
+                                FullImage=(rows, cols),
+                                ValidData=((0, 0), (0, cols-1), (rows-1, cols-1), (rows-1, 0)),
+                                SCPPixel=numpy.round(tp_pixels[scp_index, :]))
+        geo_data = GeoDataType(SCP=SCPType(LLH=tp_llh[scp_index, :]))
+        return im_data, geo_data
+
     def _get_timeline(self):
         """
         Gets the Timeline metadata.
@@ -563,47 +638,6 @@ class RadarSatDetails(object):
                 IPPEnd=int(num_lines_processed),
                 IPPPoly=Poly1DType(Coefs=(0, pulse_rep_freq))), ]
         return timeline
-
-    def _get_image_formation(self, timeline, radar_collection):
-        """
-        Gets the ImageFormation.
-
-        Parameters
-        ----------
-        timeline : TimelineType
-        radar_collection : RadarCollectionType
-
-        Returns
-        -------
-        ImageFormationType
-        """
-        pulse_parts = len(self._findall('./sourceAttributes/radarParameters/pulseBandwidth'))
-        tx_pols, tx_rcv_polarizations = self._get_polarizations()
-
-        return ImageFormationType(
-            # PRFScaleFactor for either polarimetric or multi-step, but not both.
-            RcvChanProc=RcvChanProcType(NumChanProc=1,
-                                        PRFScaleFactor=1./max(pulse_parts, len(tx_pols))),
-            ImageFormAlgo='RMA',
-            TStartProc=0,
-            TEndProc=timeline.CollectDuration,
-            TxFrequencyProc=TxFrequencyProcType(MinProc=radar_collection.TxFrequency.Min,
-                                                MaxProc=radar_collection.TxFrequency.Max),
-            STBeamComp='GLOBAL',
-            ImageBeamComp='SV',
-            AzAutofocus='NO',
-            RgAutofocus='NO')
-
-    def _get_scpcoa(self):
-        """
-        Gets (minimal) SCPCOA.
-
-        Returns
-        -------
-        SCPCOAType
-        """
-        side_of_track = self._find('./sourceAttributes/radarParameters/antennaPointing').text[0].upper()
-        return SCPCOAType(SideOfTrack=side_of_track)
 
     def _get_rma_adjust_grid(self, scpcoa, grid, image_data, position, collection_info):
         """
@@ -801,7 +835,7 @@ class RadarSatDetails(object):
         """
 
         def perform_radiometric_fit(component_file):
-            comp_struct = _parse_xml(component_file, without_ns=(self.generation != 'RS2'))
+            comp_struct = parse_xml(component_file, without_ns=(self.generation != 'RS2'))
             comp_values = numpy.array(
                 [float(entry) for entry in comp_struct.find('./gains').text.split()], dtype=numpy.float64)
             comp_values = 1. / (comp_values * comp_values)  # adjust for sicd convention
@@ -866,7 +900,7 @@ class RadarSatDetails(object):
             noise_file = os.path.join(
                 base_path, 'calibration',
                 self._find('./imageReferenceAttributes/noiseLevelFileName').text)
-            noise_root = _parse_xml(noise_file, without_ns=True)
+            noise_root = parse_xml(noise_file, without_ns=True)
             noise_levels = noise_root.findall('./referenceNoiseLevel')
             beta0s = [entry for entry in noise_levels if entry.find('sarCalibrationType').text.startswith('Beta')]
             beta0_element = beta0s[0] if len(beta0s) > 0 else None
@@ -889,24 +923,6 @@ class RadarSatDetails(object):
                                SigmaZeroSFPoly=sigma_zero_sf_poly,
                                GammaZeroSFPoly=gamma_zero_sf_poly,
                                NoiseLevel=noise_level)
-
-    @staticmethod
-    def _update_geo_data(sicd):
-        """
-        Populates the GeoData.
-
-        Parameters
-        ----------
-        sicd : SICDType
-
-        Returns
-        -------
-        None
-        """
-
-        ecf = point_projection.image_to_ground(
-            [sicd.ImageData.SCPPixel.Row, sicd.ImageData.SCPPixel.Col], sicd)
-        sicd.GeoData.SCP = SCPType(ECF=ecf)  # LLH implicitly populated
 
     def get_sicd_collection(self):
         """
