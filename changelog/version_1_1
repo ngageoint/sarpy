@@ -1,5 +1,6 @@
 # This details the important differences introduced in sarpy 1.1
 
+* .10 - Very basic example refinement.
 * .9 - Introducing more general complex valued NITF support and more general BIP support
 * .8 - Fixing polygon inclusion bug for orientation
 * .7 - Bumping the required numpy version so datetimes are handled correctly
