@@ -1,5 +1,6 @@
 # This details the important differences introduced in sarpy 1.1
 
+* .12 - Added ScanSAR support for RCM reader
 * .11 - Bug fixes for some NITF header element parsing
 * .10 - Very basic example refinement
 * .9 - Introducing more general complex valued NITF support and more general BIP support
