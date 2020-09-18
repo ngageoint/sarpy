@@ -148,6 +148,8 @@ class TREElement(object):
             return val
         elif isinstance(val, int) or isinstance(val, string_types):
             return self._field_format[attribute].format(val).encode('utf-8')
+        else:
+            raise TypeError('Got unhandled type {}'.format(type(val)))
 
     def to_dict(self):
         """
