@@ -7,6 +7,9 @@ from .base import NITFElement, UserHeaderType, _IntegerDescriptor,\
     _StringDescriptor, _StringEnumDescriptor, _NITFElementDescriptor
 from .security import NITFSecurityTags
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
 
 class GraphicsSegmentHeader(NITFElement):
     """
@@ -18,8 +21,8 @@ class GraphicsSegmentHeader(NITFElement):
         'SSTRUCT', 'SDLVL', 'SALVL', 'SLOC', 'SBND1',
         'SCOLOR', 'SBND2', 'SRES2', 'UserHeader')
     _lengths = {
-        'SY': '2s', 'SID': '10s', 'SNAME': '20s', 'ENCRYP': '1d',
-        'SFMT': '1s', 'SSTRUCT': '13d', 'SDLVL': '3d', 'SALVL': '3d',
+        'SY': 2, 'SID': 10, 'SNAME': 20, 'ENCRYP': 1,
+        'SFMT': 1, 'SSTRUCT': 13, 'SDLVL': 3, 'SALVL': 3,
         'SLOC': 10, 'SBND1': 10, 'SCOLOR': 1, 'SBND2': 10,
         'SRES2': 2}
     SY = _StringEnumDescriptor(
@@ -83,8 +86,8 @@ class GraphicsSegmentHeader(NITFElement):
         docstring='Second Graphic Bound Location. This field shall contain an ordered pair of '
                   'integers defining a location in Cartesian coordinates for use with CGM graphics. '
                   'It is the lower right corner of the bounding box for the CGM graphic.')  # type: int
-    SRES = _IntegerDescriptor(
-        'SRES', True, 2, default_value=0,
+    SRES2 = _IntegerDescriptor(
+        'SRES2', True, 2, default_value=0,
         docstring='Reserved for Future Use.')  # type: int
     UserHeader = _NITFElementDescriptor(
         'UserHeader', True, UserHeaderType, default_args={},

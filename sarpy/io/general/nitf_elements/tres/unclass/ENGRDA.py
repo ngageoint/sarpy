@@ -18,7 +18,7 @@ class RECORD(TREElement):
         self.add_field('ENGDTS', 'd', 1, value)
         self.add_field('ENGDTU', 's', 2, value)
         self.add_field('ENGDATC', 'd', 8, value)
-        self.add_field('ENGDATA', 'b', self.ENGDATC, value)
+        self.add_field('ENGDATA', 'b', self.ENGDATC*self.ENGDTS, value)
 
 
 class ENGRDAType(TREElement):

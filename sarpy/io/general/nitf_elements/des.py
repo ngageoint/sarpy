@@ -11,6 +11,9 @@ from .base import BaseNITFElement, NITFElement, Unstructured, _IntegerDescriptor
     _parse_str, _parse_int, _parse_nitf_element
 from .security import NITFSecurityTags
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
 
 class XMLDESSubheader(NITFElement):
     """
@@ -301,7 +304,7 @@ class DataExtensionHeader(NITFElement):
         elif attribute == 'DESID':
             val = value[start:start+cls._lengths['DESID']].decode('utf-8')
             fields['DESID'] = val
-            if val != 'TRE_OVERFLOW':
+            if val.strip() != 'TRE_OVERFLOW':
                 fields['DESOFLW'] = None
                 fields['DESITEM'] = None
             return start+cls._lengths['DESID']

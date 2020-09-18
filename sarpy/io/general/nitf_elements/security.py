@@ -5,6 +5,9 @@ The security tags definitions, which are used in each NITF subheader element.
 
 from .base import NITFElement, _StringDescriptor, _StringEnumDescriptor
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
 
 class NITFSecurityTags(NITFElement):
     """
@@ -65,7 +68,8 @@ class NITFSecurityTags(NITFElement):
     DCXM = _StringEnumDescriptor(
         'DCXM', True, 4,
         {'', 'X1', 'X2', 'X3', 'X4', 'X5', 'X6', 'X7', 'X8',
-         'X251', 'X252', 'X253', 'X254', 'X255', 'X256', 'X257', 'X258'}, default_value='',
+         '25X1', '25X2', '25X3', '25X4', '25X5', '25X6', '25X7', '25X8', '25X9',
+         'DN10'}, default_value='',
         docstring='Declassification Exemption. This field shall indicate the reason this element is '
                   'exempt from automatic declassification if the value in Declassification '
                   'Type is :code:`X`.')  # type: str

@@ -22,12 +22,12 @@ class PIAIMCType(TREElement):
         self.add_field('GENERATION', 'd', 1, value)
         self.add_field('ESD', 's', 1, value)
         self.add_field('OTHERCOND', 's', 2, value)
-        self.add_field('MEANGSD', 'd', 7, value)
+        self.add_field('MEANGSD', 's', 7, value)
         self.add_field('IDATUM', 's', 3, value)
         self.add_field('IELLIP', 's', 3, value)
         self.add_field('PREPROC', 's', 2, value)
         self.add_field('IPROJ', 's', 2, value)
-        self.add_field('SATTRACK', 'd', 8, value)
+        self.add_field('SATTRACK', 's', 8, value)
 
 
 class PIAIMC(TREExtension):

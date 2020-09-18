@@ -9,7 +9,7 @@ __author__ = "Thomas McCullough"
 class PRJ(TREElement):
     def __init__(self, value):
         super(PRJ, self).__init__()
-        self.add_field('PRJ', 'd', 15, value)
+        self.add_field('PRJ', 's', 15, value)
 
 
 class PRJPSBType(TREElement):

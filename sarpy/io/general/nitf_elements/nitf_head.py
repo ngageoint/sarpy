@@ -9,6 +9,10 @@ from .base import NITFElement, UserHeaderType, _IntegerDescriptor,\
 from .security import NITFSecurityTags
 
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
+
 #############
 # various subheader and item information
 
