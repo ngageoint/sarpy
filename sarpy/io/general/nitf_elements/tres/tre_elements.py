@@ -85,8 +85,12 @@ class TREElement(object):
         None
         """
 
-        val = _parse_type(typ_string, leng, value, self._bytes_length)
-        setattr(self, attribute, val)
+        try:
+            val = _parse_type(typ_string, leng, value, self._bytes_length)
+            setattr(self, attribute, val)
+        except Exception as e:
+            raise ValueError(
+                'Failed creating field {} with exception \n\t{}'.format(attribute, e))
         self._bytes_length += leng
         self._field_ordering.append(attribute)
         self._field_format[attribute] = _create_format(typ_string, leng)
@@ -113,8 +117,12 @@ class TREElement(object):
         None
         """
 
-        obj = TRELoop(length, child_type, value, self._bytes_length, *args)
-        setattr(self, attribute, obj)
+        try:
+            obj = TRELoop(length, child_type, value, self._bytes_length, *args)
+            setattr(self, attribute, obj)
+        except Exception as e:
+            raise ValueError(
+                'Failed creating loop {} of type {} with exception\n\t{}'.format(attribute, child_type, e))
         self._bytes_length += obj.get_bytes_length()
         self._field_ordering.append(attribute)
 
@@ -139,7 +147,9 @@ class TREElement(object):
         elif isinstance(val, bytes):
             return val
         elif isinstance(val, int) or isinstance(val, string_types):
-            return self._field_format[attribute].format(val)
+            return self._field_format[attribute].format(val).encode('utf-8')
+        else:
+            raise TypeError('Got unhandled type {}'.format(type(val)))
 
     def to_dict(self):
         """
@@ -212,7 +222,7 @@ class TRELoop(TREElement):
         self._data = []
         loc = start
         for i in range(length):
-            entry = child_type(value, *args, **kwargs)
+            entry = child_type(value[loc:], *args, **kwargs)
             leng = entry.get_bytes_length()
             self._bytes_length += leng
             loc += leng
@@ -284,7 +294,7 @@ class TREExtension(TRE):
         return 11 + self.EL
 
     def to_bytes(self):
-        return '{0:6s}{1:05d}'.format(self.TAG, self.EL).encode('utf-8') + self._data.to_bytes()
+        return ('{0:6s}{1:05d}'.format(self.TAG, self.EL)).encode('utf-8') + self._data.to_bytes()
 
     @classmethod
     def from_bytes(cls, value, start):

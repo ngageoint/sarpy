@@ -8,6 +8,9 @@ from .base import BaseNITFElement, NITFElement, Unstructured, _IntegerDescriptor
     _parse_nitf_element
 from .security import NITFSecurityTags
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
 
 class RESUserHeader(Unstructured):
     _size_len = 4

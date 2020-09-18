@@ -5,6 +5,9 @@ Script for converting to SICD format
 import argparse
 from sarpy.io.complex.converter import conversion_utility
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
 
 def convert(input_file, output_dir):
     conversion_utility(input_file, output_dir)

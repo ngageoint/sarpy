@@ -9,7 +9,9 @@ __author__ = "Thomas McCullough"
 class ST(TREElement):
     def __init__(self, value):
         super(ST, self).__init__()
-        self.add_field('SECTITLE', 's', 48, value)
+        self.add_field('SECTITLE', 's', 40, value)
+        self.add_field('PPNUM', 's', 5, value)
+        self.add_field('TPP', 's', 3, value)
 
 
 class RO(TREElement):

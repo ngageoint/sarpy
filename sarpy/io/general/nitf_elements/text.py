@@ -7,6 +7,9 @@ from .base import NITFElement, UserHeaderType, _IntegerDescriptor,\
     _StringDescriptor, _StringEnumDescriptor, _NITFElementDescriptor
 from .security import NITFSecurityTags
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
 
 class TextSegmentHeader(NITFElement):
     """
@@ -15,7 +18,9 @@ class TextSegmentHeader(NITFElement):
     _ordering = (
         'TE', 'TEXTID', 'TXTALVL', 'TXTDT', 'TXTITL', 'Security',
         'ENCRYP', 'TXTFMT', 'UserHeader')
-    _lengths = {}
+    _lengths = {
+        'TE': 2, 'TEXTID': 7, 'TXTALVL': 3, 'TXTDT': 14, 'TXTITL': 80,
+        'ENCRYP': 1, 'TXTFMT': 3}
     TE = _StringEnumDescriptor(
         'TE', True, 2, {'TE', }, default_value='TE',
         docstring='File part type.')  # type: str
