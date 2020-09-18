@@ -4,11 +4,8 @@ Functionality for reading Radarsat Constellation Mission ScanSAR data into a SIC
 """
 
 import copy
-import re
 import os
-from datetime import datetime
-from xml.etree import ElementTree
-from typing import Tuple, List, Union
+from typing import Tuple
 import logging
 
 import numpy
@@ -58,60 +55,35 @@ def is_a(file_name):
         rcm_scan_sar_details = RcmScanSarDetails(file_name)
         print('Path {} is determined to be or contain an RCM ScanSAR product.xml file.'.format(file_name))
         return RcmScanSarReader(rcm_scan_sar_details)
-    except (IOError) as exc:
+    except IOError:
         return None
 
 
 ###########
-# parser and interpreter for radarsat constellation mission product.xml
-class RcmScanSarDetails(RSDetails):
-    __slots__ = ('_file_name', '_root_node', '_satellite', '_product_type', '_num_lines')
+# parser and interpreter for ScanSAR
 
-    def __init__(self, file_name):
+class RcmScanSarDetails(RSDetails):
+    __slots__ = ('_num_lines', )
+
+    def __init__(self, file_name, root_node=None):
         """
 
         Parameters
         ----------
         file_name : str
+        root_node : None|
         """
 
-        if os.path.isdir(file_name):  # it is the directory - point it at the product.xml file
-            for t_file_name in [
-                    os.path.join(file_name, 'product.xml'),
-                    os.path.join(file_name, 'metadata', 'product.xml')]:
-                if os.path.exists(t_file_name):
-                    file_name = t_file_name
-                    break
-        if not os.path.exists(file_name):
-            raise IOError('path {} does not exist'.format(file_name))
-        self._file_name = file_name
-
-        root_node = parse_xml(file_name, without_ns=True)
-        self._satellite = root_node.find('./sourceAttributes/satellite').text.upper()
-        self._product_type = root_node.find(
-            './imageGenerationParameters'
-            '/generalProcessingInformation'
-            '/productType').text.upper()
-        if not (self._satellite.startswith('RCM') and self._product_type == 'SLC'):
-            raise IOError('File {} does not appear to be an SLC product for an '
-                          'RCM mission.'.format(self._file_name))
-        if not root_node.find('./sourceAttributes/beamModeMnemonic').text.startswith('SC'):
-            raise IOError("Only ScanSAR Supported")
+        super(RcmScanSarDetails, self).__init__(file_name)
+        if self.generation != 'RCM' or not \
+                self._root_node.find('./sourceAttributes/beamModeMnemonic').text.startswith('SC'):
+            raise IOError("Only ScanSAR is supported here.")
 
         max_line = 0
-        for ia_node in root_node.findall('./sceneAttributes/imageAttributes'):
+        for ia_node in self._root_node.findall('./sceneAttributes/imageAttributes'):
             burst_end_line = int(ia_node.findtext('./lineOffset')) + int(ia_node.findtext('./numLines'))
             max_line = max(max_line, burst_end_line)
         self._num_lines = max_line
-
-        self._root_node = root_node
-
-    @property
-    def generation(self):
-        """
-        str: RCM
-        """
-        return 'RCM'
 
     def get_cdps(self):
         base_path = os.path.dirname(self.file_name)
@@ -140,7 +112,7 @@ class RcmScanSarDetails(RSDetails):
         Tuple[str]
         """
 
-        return [cdp['filename'] for cdp in self.get_cdps()]
+        return tuple(cdp['filename'] for cdp in self.get_cdps())
 
     def get_sicd_collection(self):
         """
@@ -150,27 +122,43 @@ class RcmScanSarDetails(RSDetails):
         -------
         Tuple[SICDType]
         """
-        sicds = tuple([RcmScanSarCdp(self, cdp['pole'], cdp['burst'], cdp['beam']).get_sicd() for cdp in self.get_cdps()])
-        return sicds
+
+        return tuple([
+            RcmScanSarCdp(self, cdp['pole'], cdp['burst'], cdp['beam']).get_sicd()
+            for cdp in self.get_cdps()])
 
 
 class RcmScanSarCdp(RSCdp):
-    """Compute SICD metadata for a single ScanSAR Coherent Data Period / burst"""
+    """
+    Compute SICD metadata for a single ScanSAR Coherent Data Period / burst
+    """
+
+    __slots__ = ('_details', '_pole', '_burst', '_beam')
+
     def __init__(self, details, pole, burst, beam):
-        self.details = details
-        self.pole = pole
-        self.burst = burst
-        self.beam = beam
-        self.satellite = details.satellite
-        self.generation = details.generation
+        """
+
+        Parameters
+        ----------
+        details : RcmScanSarDetails
+        pole : str
+        burst : str
+        beam : str
+        """
+
+        self._details = details
+        self._pole = pole
+        self._burst = burst
+        self._beam = beam
+        self._satellite = details.satellite
 
         root = copy.deepcopy(details._root_node)
 
         def _strip(parent_node, child_name):
             for node in parent_node.findall(child_name):
-                if (node.attrib.get('beam', self.beam) != self.beam or
-                    node.attrib.get('pole', self.pole) != self.pole or
-                    node.attrib.get('burst', self.burst) != self.burst):
+                if (node.attrib.get('beam', self._beam) != self._beam or
+                    node.attrib.get('pole', self._pole) != self._pole or
+                    node.attrib.get('burst', self._burst) != self._burst):
                     parent_node.remove(node)
 
         parent = root.find('./sourceAttributes/radarParameters')
@@ -225,8 +213,8 @@ class RcmScanSarCdp(RSCdp):
         parent = root.find('./sourceAttributes/radarParameters')
         for node in parent.findall('./prfInformation'):
             node_burst = int(node.attrib.get('burst'))
-            if (node.attrib.get('beam') != self.beam or
-                node_burst > int(self.burst) or
+            if (node.attrib.get('beam') != self._beam or
+                node_burst > int(self._burst) or
                 node_burst < keep_burst):
                 parent.remove(node)
             else:
@@ -235,7 +223,7 @@ class RcmScanSarCdp(RSCdp):
                 keep_node = node
                 keep_burst = node_burst
 
-        self._root_node = root
+        super(RcmScanSarCdp, self).__init__(root)
 
     def _get_image_and_geo_data(self):
         """
@@ -327,7 +315,6 @@ class RcmScanSarCdp(RSCdp):
             IPPPoly=Poly1DType(Coefs=(-t_proc_start * pulse_rep_freq, pulse_rep_freq))), ]
 
         return timeline
-
 
     def _sicd_rc_to_copg_ls(self, row, col):
         """Convert SICD pixel location to Common Output Pixel Grid pixel"""
@@ -423,7 +410,7 @@ class RcmScanSarCdp(RSCdp):
                                                           '/zeroDopplerTimeFirstLine').text, 'us')
 
         line_spacing_zd = (get_seconds(zero_dop_last_line, zero_dop_first_line, precision='us')
-                          / self.details._num_lines) # Will be negative for Ascending
+                          / self._details._num_lines) # Will be negative for Ascending
         # zero doppler time of SCP relative to collect start
         scp_copg_line, _ = self._sicd_rc_to_copg_ls(image_data.SCPPixel.Row, image_data.SCPPixel.Col)
         time_scp_zd = get_seconds(zero_dop_first_line, start_time, precision='us') + \
@@ -565,7 +552,7 @@ class RcmScanSarCdp(RSCdp):
                 range_coords *= self._copg_samp_and_sicd_row_align()
                 return numpy.atleast_2d(polynomial.polyfit(range_coords, comp_values, 3))
 
-        base_path = os.path.dirname(self.details.file_name)
+        base_path = os.path.dirname(self._details.file_name)
         beta_file = os.path.join(base_path, 'calibration', self._find('./imageReferenceAttributes'
                                                                       '/lookupTableFileName'
                                                                       '[@sarCalibrationType="Beta Nought"]').text)
@@ -590,7 +577,7 @@ class RcmScanSarCdp(RSCdp):
         noise_level = None
         noise_stem = None
         for node in self._findall('./imageReferenceAttributes/noiseLevelFileName'):
-            if node.attrib.get('pole') == self.pole:
+            if node.attrib.get('pole') == self._pole:
                 noise_stem = node.text
 
         noise_file = os.path.join(base_path, 'calibration', noise_stem)
@@ -598,7 +585,7 @@ class RcmScanSarCdp(RSCdp):
 
         noise_levels = noise_root.findall('./perBeamReferenceNoiseLevel')
         beta0s = [entry for entry in noise_levels if (entry.find('sarCalibrationType').text.startswith('Beta')
-                                                      and entry.find('beam').text == self.beam)]
+                                                      and entry.find('beam').text == self._beam)]
         beta0_element = beta0s[0] if len(beta0s) > 0 else None
 
         if beta0_element is not None:
@@ -651,7 +638,7 @@ class RcmScanSarCdp(RSCdp):
         base_sicd.derive()  # derive all the fields
 
         chan_index = 0
-        tx_rcv_pole = self.pole[0] + ':' + self.pole[1]
+        tx_rcv_pole = self._pole[0] + ':' + self._pole[1]
         for rcv_chan in radar_collection.RcvChannels:
             if rcv_chan.TxRcvPolarization == tx_rcv_pole:
                 chan_index = rcv_chan.index
@@ -703,3 +690,7 @@ class RcmScanSarReader(BaseReader):
         sicd_tuple = tuple(reader.sicd_meta for reader in readers)
         chipper_tuple = tuple(reader._chipper for reader in readers)
         super(RcmScanSarReader, self).__init__(sicd_tuple, chipper_tuple)
+
+    @property
+    def file_name(self):
+        return self._rcm_scan_sar_details.file_name
