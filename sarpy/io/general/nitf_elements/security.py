@@ -5,6 +5,9 @@ The security tags definitions, which are used in each NITF subheader element.
 
 from .base import NITFElement, _StringDescriptor, _StringEnumDescriptor
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
 
 class NITFSecurityTags(NITFElement):
     """

@@ -6,6 +6,9 @@ environment with sarpy installed
 import argparse
 from sarpy.io.complex.sicd import SICDDetails
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
 
 def repair(in_file):
     try:

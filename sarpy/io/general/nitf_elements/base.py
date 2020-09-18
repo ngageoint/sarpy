@@ -13,6 +13,10 @@ from sarpy.compliance import int_func, integer_types, string_types, bytes_to_str
 from .tres.registration import find_tre
 
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
+
 # Base NITF type
 
 class BaseNITFElement(object):
@@ -877,8 +881,8 @@ class TRE(BaseNITFElement):
                 return known_tre.from_bytes(value, start)
             except Exception as e:
                 logging.error(
-                    "Failed parsing tre as type {} with error {}. "
-                    "Returning unparsed.".format(known_tre.__name__, e))
+                    "Returning unparsed tre, because we failed parsing tre as "
+                    "type {} with exception\n\t{}".format(known_tre.__name__, e))
         return UnknownTRE.from_bytes(value, start)
 
 
@@ -1015,6 +1019,7 @@ class TREList(NITFElement):
             return None
         else:
             raise TypeError('Got unhandled type {}'.format(type(item)))
+
 
 class TREHeader(Unstructured):
     def _populate_data(self):

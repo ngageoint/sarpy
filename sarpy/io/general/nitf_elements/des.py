@@ -11,6 +11,9 @@ from .base import BaseNITFElement, NITFElement, Unstructured, _IntegerDescriptor
     _parse_str, _parse_int, _parse_nitf_element
 from .security import NITFSecurityTags
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
 
 class XMLDESSubheader(NITFElement):
     """

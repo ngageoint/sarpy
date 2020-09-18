@@ -14,6 +14,10 @@ from .base import NITFElement, NITFLoop, UserHeaderType, _IntegerDescriptor,\
 from .security import NITFSecurityTags
 
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
+
 class ImageBand(NITFElement):
     """
     Single image band, part of the image bands collection
