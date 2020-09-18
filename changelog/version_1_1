@@ -1,6 +1,6 @@
 # This details the important differences introduced in sarpy 1.1
 
-* .11 - Debugging of some NITF header element parsing
+* .11 - Bug fixes for some NITF header element parsing
 * .10 - Very basic example refinement
 * .9 - Introducing more general complex valued NITF support and more general BIP support
 * .8 - Fixing polygon inclusion bug for orientation

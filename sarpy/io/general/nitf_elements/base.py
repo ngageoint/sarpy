@@ -144,7 +144,7 @@ def _parse_str(val, length, default, name, instance):
     elif not isinstance(val, string_types):
         val = str(val)
 
-    val = val.strip()
+    val = val.rstrip()
     if len(val) <= length:
         return val
     else:

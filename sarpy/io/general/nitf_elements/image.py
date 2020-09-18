@@ -120,7 +120,7 @@ class ImageBand(NITFElement):
                 out = b'0'
             else:
                 out = '{0:d}{1:05d}'.format(self.NLUTS, self.NELUTS).encode() + \
-                      struct.pack('{}B'.format(self.NLUTS * self.NELUTS, *self.LUTD.flatten()))
+                      struct.pack('{}B'.format(self.NLUTS * self.NELUTS), *self.LUTD.flatten())
             return out
         else:
             return super(ImageBand, self)._get_attribute_bytes(attribute)

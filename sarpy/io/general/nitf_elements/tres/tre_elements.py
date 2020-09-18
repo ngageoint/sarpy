@@ -147,7 +147,7 @@ class TREElement(object):
         elif isinstance(val, bytes):
             return val
         elif isinstance(val, int) or isinstance(val, string_types):
-            return self._field_format[attribute].format(val)
+            return self._field_format[attribute].format(val).encode('utf-8')
 
     def to_dict(self):
         """
@@ -292,7 +292,7 @@ class TREExtension(TRE):
         return 11 + self.EL
 
     def to_bytes(self):
-        return '{0:6s}{1:05d}'.format(self.TAG, self.EL).encode('utf-8') + self._data.to_bytes()
+        return ('{0:6s}{1:05d}'.format(self.TAG, self.EL)).encode('utf-8') + self._data.to_bytes()
 
     @classmethod
     def from_bytes(cls, value, start):
