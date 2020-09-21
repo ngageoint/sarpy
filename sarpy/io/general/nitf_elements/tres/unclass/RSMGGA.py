@@ -9,8 +9,8 @@ __author__ = "Thomas McCullough"
 class PTOFF(TREElement):
     def __init__(self, value):
         super(PTOFF, self).__init__()
-        self.add_field('IXO', 'd', 4, value)
-        self.add_field('IYO', 'd', 4, value)
+        self.add_field('IXO', 's', 4, value)
+        self.add_field('IYO', 's', 4, value)
 
 
 class GDPT(TREElement):
@@ -25,6 +25,11 @@ class GRID(TREElement):
         super(GRID, self).__init__()
         self.add_field('NXPTS', 'd', 3, value)
         self.add_field('NYPTS', 'd', 3, value)
+        if len(value) < self.NXPTS*self.NYPTS*(TNUMRD+TNUMCD):
+            raise ValueError(
+                'The input string is length {}, but there are supposed '
+                'to be {}={}x{} elements each of length {}'.format(
+                    len(value), self.NXPTS*self.NYPTS, self.NXPTS, self.NYPTS, TNUMRD+TNUMCD))
         self.add_loop('GDPTs', self.NXPTS*self.NYPTS, GDPT, value, TNUMRD, TNUMCD)
 
 
@@ -45,13 +50,13 @@ class RSMGGAType(TREElement):
         self.add_field('ZPLN1', 's', 21, value)
         self.add_field('XIPLN1', 's', 21, value)
         self.add_field('YIPLN1', 's', 21, value)
-        self.add_field('REFROW', 'd', 9, value)
-        self.add_field('REFCOL', 'd', 9, value)
+        self.add_field('REFROW', 's', 9, value)
+        self.add_field('REFCOL', 's', 9, value)
         self.add_field('TNUMRD', 'd', 2, value)
         self.add_field('TNUMCD', 'd', 2, value)
         self.add_field('FNUMRD', 'd', 1, value)
         self.add_field('FNUMCD', 'd', 1, value)
-        self.add_loop('PTOFFs', self.NPLN, PTOFF, value)
+        self.add_loop('PTOFFs', self.NPLN-1, PTOFF, value)
         self.add_loop('GRIDs', self.NPLN, GRID, value, self.TNUMRD, self.TNUMCD)
 
 
