@@ -1,5 +1,6 @@
 # This details the important differences introduced in sarpy 1.1
 
+* .14 - Improved docstrings on RCM ScanSAR methods
 * .13 - Bug fix for RSMGGA tre element
 * .12 - Added ScanSAR support for RCM reader
 * .11 - Bug fixes for some NITF header element parsing
