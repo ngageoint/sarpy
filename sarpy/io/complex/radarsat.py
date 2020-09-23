@@ -1506,7 +1506,6 @@ class RcmScanSarCdp(RSCdp):
                                                           '/sarProcessingInformation'
                                                           '/zeroDopplerTimeFirstLine').text, 'us')
 
-        # TODO: why not _num_lines - 1? will this even matter?
         # noinspection PyProtectedMember
         line_spacing_zd = (get_seconds(zero_dop_last_line, zero_dop_first_line, precision='us')
                           / self._details._num_lines) # Will be negative for Ascending
@@ -1514,8 +1513,6 @@ class RcmScanSarCdp(RSCdp):
         scp_copg_line, _ = self._sicd_rc_to_copg_ls(image_data.SCPPixel.Row, image_data.SCPPixel.Col)
         time_scp_zd = get_seconds(zero_dop_first_line, start_time, precision='us') + \
             scp_copg_line*line_spacing_zd
-        # time_scp_zd = get_seconds(zero_dop_first_line, start_time, precision='us') + \
-        #     image_data.SCPPixel.Col*col_spacing_zd
 
         col_spacing_zd = numpy.abs(line_spacing_zd)
 
