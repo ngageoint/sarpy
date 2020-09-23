@@ -1175,7 +1175,7 @@ class RcmScanSarDetails(RSDetails):
 
     def get_sicd_collection(self):
         """
-        Gets the list of sicd objects, one per polarimetric entry.
+        Gets the list of sicd objects.
 
         Returns
         -------
@@ -1376,7 +1376,18 @@ class RcmScanSarCdp(RSCdp):
         return timeline
 
     def _sicd_rc_to_copg_ls(self, row, col):
-        """Convert SICD pixel location to Common Output Pixel Grid pixel"""
+        """
+        Convert SICD pixel location to Common Output Pixel Grid pixel
+
+        Parameters
+        ----------
+        row : int
+        col : int
+
+        Returns
+        -------
+        (int, int)
+        """
 
         line_offset = int(self._find('./sceneAttributes/imageAttributes/lineOffset').text)
         pixel_offset = int(self._find('./sceneAttributes/imageAttributes/pixelOffset').text)
@@ -1389,17 +1400,30 @@ class RcmScanSarCdp(RSCdp):
             samples = int(self._find('./sceneAttributes/imageAttributes/samplesPerLine').text)
             line_copg = line_offset + col
             samp_copg = pixel_offset + samples - 1 - row
-        else:
+        elif pass_dir == 'Ascending':
             # increasing COPG line ==> decreasing SICD column
             # increasing COPG sample ==> increasing SICD row
             lines = int(self._find('./sceneAttributes/imageAttributes/numLines').text)
             line_copg = line_offset + lines - 1 - col
             samp_copg = pixel_offset + row
+        else:
+            raise ValueError('Got unexpected passDirection value {}'.format(pass_dir))
 
         return line_copg, samp_copg
 
     def _copg_ls_to_sicd_rc(self, line_copg, samp_copg):
-        """Convert Common Output Pixel Grid pixel location to SICD pixel"""
+        """
+        Convert Common Output Pixel Grid pixel location to SICD pixel
+
+        Parameters
+        ----------
+        line_copg : int
+        samp_copg : int
+
+        Returns
+        -------
+        (int, int)
+        """
 
         line_offset = int(self._find('./sceneAttributes/imageAttributes/lineOffset').text)
         pixel_offset = int(self._find('./sceneAttributes/imageAttributes/pixelOffset').text)
@@ -1412,30 +1436,44 @@ class RcmScanSarCdp(RSCdp):
             samples = int(self._find('./sceneAttributes/imageAttributes/samplesPerLine').text)
             col = line_copg - line_offset
             row = pixel_offset + samples - 1 - samp_copg
-        else:
+        elif pass_dir == 'Ascending':
             # increasing COPG line ==> decreasing SICD column
             # increasing COPG sample ==> increasing SICD row
             lines = int(self._find('./sceneAttributes/imageAttributes/numLines').text)
             col = line_offset + lines - 1 - line_copg
             row = samp_copg - pixel_offset
+        else:
+            raise ValueError('Got unexpected passDirection value {}'.format(pass_dir))
 
         return row, col
 
     def _copg_samp_and_sicd_row_align(self):
-        """Returns +1 if increasing COPG samples align with increasing SICD row, -1 otherwise"""
+        """
+        Returns +1 if increasing COPG samples align with increasing SICD row, -1 otherwise
+
+        Returns
+        -------
+        int
+        """
+
         pass_dir = self._find('sourceAttributes/orbitAndAttitude/orbitInformation/passDirection').text
         if pass_dir == 'Descending':
             return -1
-        else:
+        elif pass_dir == 'Ascending':
             return 1
+        else:
+            raise ValueError('Got unexpected passDirection value {}'.format(pass_dir))
 
     def _copg_line_and_sicd_col_align(self):
-        """Returns +1 if increasing COPG lines align with increasing SICD columns, -1 otherwise"""
-        pass_dir = self._find('sourceAttributes/orbitAndAttitude/orbitInformation/passDirection').text
-        if pass_dir == 'Descending':
-            return 1
-        else:
-            return -1
+        """
+        Returns +1 if increasing COPG lines align with increasing SICD columns, -1 otherwise
+
+        Returns
+        -------
+        int
+        """
+
+        return -1*self._copg_samp_and_sicd_row_align()
 
     def _get_rma_adjust_grid(self, scpcoa, grid, image_data, geo_data, position, collection_info):
         """
@@ -1468,12 +1506,16 @@ class RcmScanSarCdp(RSCdp):
                                                           '/sarProcessingInformation'
                                                           '/zeroDopplerTimeFirstLine').text, 'us')
 
+        # TODO: why not _num_lines - 1? will this even matter?
+        # noinspection PyProtectedMember
         line_spacing_zd = (get_seconds(zero_dop_last_line, zero_dop_first_line, precision='us')
                           / self._details._num_lines) # Will be negative for Ascending
         # zero doppler time of SCP relative to collect start
         scp_copg_line, _ = self._sicd_rc_to_copg_ls(image_data.SCPPixel.Row, image_data.SCPPixel.Col)
         time_scp_zd = get_seconds(zero_dop_first_line, start_time, precision='us') + \
             scp_copg_line*line_spacing_zd
+        # time_scp_zd = get_seconds(zero_dop_first_line, start_time, precision='us') + \
+        #     image_data.SCPPixel.Col*col_spacing_zd
 
         col_spacing_zd = numpy.abs(line_spacing_zd)
 
