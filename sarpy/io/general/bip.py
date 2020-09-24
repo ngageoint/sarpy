@@ -359,7 +359,7 @@ class BIPWriter(AbstractWriter):
 
         if self._transform_data == 'COMPLEX' and self._raw_dtype.name != 'float32':
             raise ValueError(
-                'transform_data = `True`, which requires that data for writing has '
+                'transform_data = `COMPLEX`, which requires that data for writing has '
                 'dtype complex64/128, and output is written as float32 (raw_dtype). '
                 'raw_dtype is given as {}.'.format(raw_dtype))
         if callable(self._transform_data) and self._raw_dtype.name not in ('uint8', 'int16'):
