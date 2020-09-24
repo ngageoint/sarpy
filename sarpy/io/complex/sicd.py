@@ -651,12 +651,14 @@ class SICDWriter(NITFWriter):
             pv_type, isubcat = 'SI', ('I', 'Q')
             pixel_size = 4
             dtype = numpy.dtype('>i2')
-            transform_data = 'COMPLEX'
-        else:  # pixel_type == 'AMP8I_PHS8I':
+            transform_data = complex_to_int
+        elif pixel_type == 'AMP8I_PHS8I':
             pv_type, isubcat = 'INT', ('M', 'P')
             pixel_size = 2
             dtype = numpy.dtype('>u1')
             transform_data = complex_to_amp_phase(self.sicd_meta.ImageData.AmpTable)
+        else:
+            raise ValueError('Got unhandled pixel_type {}'.format(pixel_type))
         image_segment_limits = image_segmentation(
             self.sicd_meta.ImageData.NumRows, self.sicd_meta.ImageData.NumCols, pixel_size)
         return pixel_size, dtype, transform_data, pv_type, isubcat, image_segment_limits
