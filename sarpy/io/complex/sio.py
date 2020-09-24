@@ -358,7 +358,7 @@ class SIOWriter(BIPWriter):
             data_type = numpy.dtype('{}f4'.format(endian))
             element_type = 13
             element_size = 8
-            transform_data = True
+            transform_data = 'COMPLEX'
         elif pixel_type == 'RE16I_IM16I':
             data_type = numpy.dtype('{}i2'.format(endian))
             element_type = 12
