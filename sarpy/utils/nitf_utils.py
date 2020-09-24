@@ -4,6 +4,7 @@ A utility for dumping a NITF header to the console.
 Contributed by Austin Lan of L3/Harris.
 """
 
+from __future__ import print_function
 import functools
 import os
 import sys
@@ -20,7 +21,7 @@ __author__ = "Austin Lan"
 
 
 # Custom print function
-print_func = print
+print_func = print_function
 
 
 def _decode_effort(value):
