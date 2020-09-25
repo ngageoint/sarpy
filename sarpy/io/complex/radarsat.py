@@ -323,7 +323,7 @@ class RSCdp(object):
                 or 'SL' in mode_id:
             mode_type = 'SPOTLIGHT'
         elif mode_id.startswith('SC'):  # ScanSAR modes
-            mode_type = 'DYNAMIC STRIPMAP'
+            mode_type = 'SPOTLIGHT'
         else:
             mode_type = 'STRIPMAP'
         return RadarModeType(ModeID=mode_id, ModeType=mode_type)
@@ -1573,16 +1573,17 @@ class RcmScanSarCdp(RSCdp):
         inca.DopCentroidPoly = Poly2DType(Coefs=numpy.reshape(scaled_coeffs, (scaled_coeffs.size, 1)))
         # adjust doppler centroid for spotlight, we need to add a second
         # dimension to DopCentroidPoly
-        if collection_info.RadarMode.ModeType == 'SPOTLIGHT':
-            doppler_cent_est = get_seconds(doppler_cent_time_est, start_time, precision='us')
-            doppler_cent_col = (doppler_cent_est - time_scp_zd)/col_spacing_zd
-            dop_poly = numpy.zeros((scaled_coeffs.shape[0], 2), dtype=numpy.float64)
-            dop_poly[:, 0] = scaled_coeffs
-            dop_poly[0, 1] = -look*center_freq*alpha*numpy.sqrt(vel_ca_squared)/inca.R_CA_SCP
-            # dopplerCentroid in native metadata was defined at specific column,
-            # which might not be our SCP column.  Adjust so that SCP column is correct.
-            dop_poly[0, 0] = dop_poly[0, 0] - (dop_poly[0, 1]*doppler_cent_col*grid.Col.SS)
-            inca.DopCentroidPoly = Poly2DType(Coefs=dop_poly)
+        doppler_cent_est = get_seconds(doppler_cent_time_est, start_time, precision='us')
+        dop_poly = numpy.zeros((scaled_coeffs.shape[0], 2), dtype=numpy.float64)
+        dop_poly[0, 1] = -look*center_freq*alpha*numpy.sqrt(vel_ca_squared)/inca.R_CA_SCP
+        dop_poly[1, 1] = look*center_freq*alpha*numpy.sqrt(vel_ca_squared)/(inca.R_CA_SCP**2)
+        one_way_time = inca.R_CA_SCP/speed_of_light
+        pos = position.ARPPoly(doppler_cent_est + one_way_time)
+        vel = position.ARPPoly.derivative_eval(doppler_cent_est + one_way_time)
+        los = geo_data.SCP.ECF.get_array() - pos
+        vel_hat = vel / numpy.linalg.norm(vel)
+        dop_poly[:, 0] = dop_poly[:, 0] - look*(dop_poly[:, 1]*numpy.dot(los, vel_hat))
+        inca.DopCentroidPoly = Poly2DType(Coefs=dop_poly)
 
         grid.Col.DeltaKCOAPoly = Poly2DType(Coefs=inca.DopCentroidPoly.get_array()*col_spacing_zd/grid.Col.SS)
         # compute grid.Col.DeltaK1/K2 from DeltaKCOAPoly
