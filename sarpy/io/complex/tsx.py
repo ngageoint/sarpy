@@ -5,19 +5,18 @@ Functionality for reading TerraSAR-X data into a SICD model.
 
 import os
 import logging
-from datetime import datetime
 from xml.etree import ElementTree
-from typing import List, Tuple, Union
+from typing import Union, List
 from functools import reduce
 
 import numpy
 from numpy.polynomial import polynomial
 from scipy.constants import speed_of_light
-from scipy.interpolate import griddata
 
 from sarpy.compliance import string_types, int_func
-from sarpy.io.general.base import SubsetReader, BaseReader
-from sarpy.io.general.tiff import TiffDetails, TiffReader
+from sarpy.io.general.base import BaseReader, SubsetChipper
+from sarpy.io.general.bip import BIPChipper
+from sarpy.io.general.tiff import TiffDetails, NativeTiffChipper
 from sarpy.io.general.utils import get_seconds, parse_timestring
 
 from sarpy.io.complex.sicd_elements.blocks import Poly1DType, Poly2DType
@@ -34,9 +33,7 @@ from sarpy.io.complex.sicd_elements.Timeline import TimelineType, IPPSetType
 from sarpy.io.complex.sicd_elements.ImageFormation import ImageFormationType, RcvChanProcType, TxFrequencyProcType
 from sarpy.io.complex.sicd_elements.RMA import RMAType, INCAType
 from sarpy.io.complex.sicd_elements.Radiometric import RadiometricType, NoiseLevelType_
-from sarpy.geometry import point_projection
-from sarpy.geometry.geocoords import geodetic_to_ecf
-from sarpy.io.complex.utils import two_dim_poly_fit, get_im_physical_coords, fit_position_xvalidation
+from sarpy.io.complex.utils import two_dim_poly_fit, fit_position_xvalidation
 
 
 __classification__ = "UNCLASSIFIED"
@@ -64,10 +61,11 @@ def is_a(file_name):
 
     try:
         tsx_details = TSXDetails(file_name)
-        print('Path {} is determined to be a TerraSAR-X file package.'.format(file_name))
+        print('Path {} is determined to be a TerraSAR-X file package.'.format(tsx_details.file_name))
         return TSXReader(tsx_details)
     except (IOError, AttributeError, SyntaxError, ElementTree.ParseError):
         return None
+
 
 ##########
 # helper functions and basic interpreter
@@ -87,13 +85,17 @@ def _is_level1_product(prospective_file):
     return check.startswith('<level1Product')
 
 
+############
+# metadata helper class
+
 class TSXDetails(object):
     """
     Parser and interpreter for the TerraSAR-X file package meta-data.
     """
 
     __slots__ = (
-        '_main_file', '_georef_file', '_main_root', '_georef_root')
+        '_parent_directory', '_main_file', '_georef_file', '_main_root', '_georef_root',
+        '_im_format')
 
     def __init__(self, file_name):
         """
@@ -104,11 +106,18 @@ class TSXDetails(object):
             The top-level directory, or the basic package xml file.
         """
 
+        self._parent_directory = None
         self._main_file = None
         self._georef_file = None
         self._main_root = None
         self._georef_root = None
+        self._im_format = None
         self._validate_file(file_name)
+        self._im_format = self._find_main('./productInfo/imageDataInfo/imageDataFormat').text
+        if self._im_format not in ['COSAR', 'GEOTIFF']:
+            raise ValueError(
+                'The file is determined to be of type TerraSAR-X, but we got '
+                'unexpected image format value {}'.format(self.image_format))
 
     def _validate_file(self, file_name):
         """
@@ -131,7 +140,7 @@ class TSXDetails(object):
         found_file = None
         if os.path.isdir(file_name):
             for entry in os.listdir(file_name):
-                prop_file = os.path.join(entry)
+                prop_file = os.path.join(file_name, entry)
                 if os.path.isfile(prop_file) and os.path.splitext(prop_file)[1] == '.xml' \
                         and _is_level1_product(prop_file):
                     found_file = prop_file
@@ -151,10 +160,17 @@ class TSXDetails(object):
 
         if file_name is None:
             raise ValueError('Unspecified error where main_file is not defined.')
+
+        parent_directory = os.path.split(found_file)[0]
+        if not os.path.isdir(os.path.join(parent_directory, 'IMAGEDATA')):
+            raise ValueError(
+                'The input file was determined to be or contain a TerraSAR-X level 1 product file, '
+                'but the IMAGEDATA directory is not in the expected relative location.')
+        self._parent_directory = parent_directory
         self._main_file = found_file
         self._main_root = _parse_xml(self._main_file, without_ns=True)
 
-        georef_file = os.path.join(os.path.split(found_file)[0], 'ANNOTATION', 'GEOREF.xml')
+        georef_file = os.path.join(parent_directory, 'ANNOTATION', 'GEOREF.xml')
         if not os.path.isfile(georef_file):
             logging.warning(
                 'The input file was determined to be or contain a TerraSAR-X level 1 product file, '
@@ -166,10 +182,18 @@ class TSXDetails(object):
     @property
     def file_name(self):
         """
-        str: the main file name
+        str: the package directory location
         """
 
-        return self._main_file
+        return self._parent_directory
+
+    @property
+    def image_format(self):
+        """
+        str: The image file format enum value.
+        """
+
+        return self._im_format
 
     def _find_main(self, tag):
         """
@@ -246,10 +270,12 @@ class TSXDetails(object):
         vel = numpy.zeros((len(state_vecs), 3), dtype='float64')
         for i, entry in enumerate(state_vecs):
             tims[i] = parse_timestring(entry.find('./timeUTC').text, precision='us')
-            pos[i, :] = [float(entry.find('./posX').text), float(entry.find('./posY').text),
-                         float(entry.find('./posZ').text)]
-            vel[i, :] = [float(entry.find('./velX').text), float(entry.find('./velY').text),
-                         float(entry.find('./velZ').text)]
+            pos[i, :] = [
+                float(entry.find('./posX').text), float(entry.find('./posY').text),
+                float(entry.find('./posZ').text)]
+            vel[i, :] = [
+                float(entry.find('./velX').text), float(entry.find('./velY').text),
+                float(entry.find('./velZ').text)]
         return tims, pos, vel
 
     @staticmethod
@@ -301,9 +327,14 @@ class TSXDetails(object):
         rg_grid_pts = int_func(self._find_georef('./geolocationGrid/numberOfGridPoints/range').text)
         mid_az = int_func(round(az_grid_pts/2.0)) + 1
         mid_rg = int_func(round(rg_grid_pts/2.0)) + 1
-        return self._find_georef('./geolocationGrid/gridPoint[@iaz="{}" @irg="{}"]'.format(mid_az, mid_rg))
+        test_nodes = self._findall_georef('./geolocationGrid/gridPoint[@iaz="{}"]'.format(mid_az))
+        for entry in test_nodes:
+            if entry.attrib['irg'] == '{}'.format(mid_rg):
+                return entry
+        return test_nodes[int(len(test_nodes)/2)]
 
-    def _calculate_dop_polys(self, polarization, azimuth_time_scp, range_time_scp, collect_start):
+    def _calculate_dop_polys(self, layer_index, azimuth_time_scp, range_time_scp, collect_start,
+                             doppler_rate_reference_node):
         """
         Calculate the doppler centroid polynomials. This is apparently extracted
         from the paper "TerraSAR-X Deskew Description" by Michael Stewart dated
@@ -311,27 +342,28 @@ class TSXDetails(object):
 
         Parameters
         ----------
-        polarization : str
-            The polarization string, required for extracting correct metadata.
+        layer_index : str
+            The layer index string, required for extracting correct metadata.
         azimuth_time_scp : float
             This is in seconds relative to the collection start.
         range_time_scp : float
             This is in seconds.
         collect_start : numpy.datetime64
             The collection start time.
+        doppler_rate_reference_node : ElementTree.Element
 
         Returns
         -------
-        (numpy.ndarray, numpy.ndarray)
+        (numpy.ndarray, numpy.ndarray, ElementTree.Element)
         """
 
         # parse the doppler centroid estimates
         doppler_estimate_nodes = self._findall_main(
-            './processing/doppler/dopplerCentroid[@polLayer="{}"]/dopplerEstimate'.format(polarization))
+            './processing/doppler/dopplerCentroid[@layerIndex="{}"]/dopplerEstimate'.format(layer_index))
         doppler_count = len(doppler_estimate_nodes)
-        center_node = doppler_estimate_nodes[int(doppler_count/2)]
-        ref_time = parse_timestring(center_node.find('./timeUTC').text, precision='us')
-        rg_ref_time = float(center_node.find('./combinedDoppler/referencePoint').text)
+        doppler_estimate_center_node = doppler_estimate_nodes[int(doppler_count/2)]
+        ref_time = parse_timestring(doppler_estimate_center_node.find('./timeUTC').text, precision='us')
+        rg_ref_time = float(doppler_estimate_center_node.find('./combinedDoppler/referencePoint').text)
         diff_times_raw = numpy.zeros((doppler_count, ), dtype='float64') # offsets from reference time, in seconds
         doppler_range_min = numpy.zeros((doppler_count, ), dtype='float64') # offsets in seconds
         doppler_range_max = numpy.zeros((doppler_count, ), dtype='float64') # offsets in seconds
@@ -349,9 +381,7 @@ class TSXDetails(object):
                 float(combined_node.find('./coefficient[@exponent="0"]').text),
                 float(combined_node.find('./coefficient[@exponent="1"]').text)]
         # parse the doppler rate estimates
-        doppler_rate_nodes = self._findall_main('./processing/geometry/dopplerRate')
-        center_node = doppler_rate_nodes[int(len(doppler_rate_nodes)/2)]
-        fm_dop = float(center_node.find('./dopplerRatePolynomial/coefficient[@exponent="0"]').text)
+        fm_dop = float(doppler_rate_reference_node.find('./dopplerRatePolynomial/coefficient[@exponent="0"]').text)
         ss_zd_s = float(self._find_main('./productInfo/imageDataInfo/imageRaster/columnSpacing').text)
         side_of_track = self._find_main('./productInfo/acquisitionInfo/lookDirection').text[0].upper()
         ss_zd_m = float(self._find_main('./productSpecific/complexImageInfo/projectedSpacingAzimuth').text)
@@ -387,10 +417,6 @@ class TSXDetails(object):
             'singular values = {}'.format(residuals, rank, sing_values))
 
         return dop_centroid_poly, time_coa_poly
-
-    def _calculate_drate_sf_poly(self):
-        # TODO: continue at calculate DRateSFPoly at line 417...
-        pass
 
     def _get_basic_sicd_shell(self, center_freq, dop_bw, ss_zd_s):
         """
@@ -444,7 +470,7 @@ class TSXDetails(object):
             from sarpy.__about__ import __version__
 
             create_time = self._find_main('./generalHeader/generationTime').text
-            site = self._find_main('./productInfo/level1ProcessingFacility').text
+            site = self._find_main('./productInfo/generationInfo/level1ProcessingFacility').text
             app_node = self._find_main('./generalHeader/generationSystem')
             application = 'Unknown' if app_node is None else \
                 '{} {}'.format(app_node.text, app_node.attrib.get('version', 'version_unknown'))
@@ -606,7 +632,7 @@ class TSXDetails(object):
             RcvChannels=[ChanParametersType(TxRcvPolarization=tx_rcv_pol) for tx_rcv_pol in tx_rcv_pols])
 
     def _complete_sicd(self, sicd, orig_pol, layer_index, pol_index, ss_zd_s, center_freq,
-                       arp_times, arp_pos, arp_vel, middle_grid):
+                       arp_times, arp_pos, arp_vel, middle_grid, doppler_rate_reference_node):
         """
         Complete the remainder of the sicd information and populate as collection,
         if appropriate. **This assumes that this is not ScanSAR mode.**
@@ -630,17 +656,22 @@ class TSXDetails(object):
         arp_vel : numpy.ndarray
         middle_grid : None|ElementTree.Element
             The central geolocationGrid point, if it exists.
+        doppler_rate_reference_node : ElementTree.Element
 
         Returns
         -------
         SICDType
         """
 
+        def get_settings_node():
+            # type: () -> Union[None, ElementTree.Element]
+            for entry in self._findall_main('./instrument/settings'):
+                if entry.find('./polLayer').text == orig_pol:
+                    return entry
+            return None
+
         def set_timeline():
-            prf = float(self._find_main('./instrument'
-                                  '/settings[@polLayer="{}"]'.format(orig_pol)+
-                                  '/settingRecord'
-                                  '/PRF').text)
+            prf = float(settings_node.find('./settingRecord/PRF').text)
             ipp_poly = Poly1DType(Coefs=[0, prf])
             out_sicd.Timeline = TimelineType(
                 CollectStart=collect_start,
@@ -669,15 +700,8 @@ class TSXDetails(object):
             # communication with Juergen Janoth, Head of Application Development, Infoterra
             # The times of this communication is not indicated
 
-            sample_rate = float(
-                self._find_main('./instrument'
-                                '/settings[@polLayer="{}"]'.format(orig_pol) +
-                                '/RSF').text)
-            rcv_window_length = float(
-                self._find_main('./instrument'
-                                '/settings[@polLayer="{}"]'.format(orig_pol) +
-                                '/settingRecord'
-                                '/echowindowLength').text)/sample_rate
+            sample_rate = float(settings_node.find('./RSF').text)
+            rcv_window_length = float(settings_node.find('./settingRecord/echowindowLength').text)/sample_rate
 
             out_sicd.RadarCollection.TxFrequency = TxFrequencyType(Min=tx_freq_start, Max=tx_freq_end)
             out_sicd.RadarCollection.Waveform = [
@@ -694,7 +718,7 @@ class TSXDetails(object):
             out_sicd.ImageFormation.TEndProc = collect_duration
             out_sicd.ImageFormation.TxFrequencyProc = TxFrequencyProcType(MinProc=tx_freq_start,
                                                                           MaxProc=tx_freq_end)
-            out_sicd.ImageFormation.TxRcvPolarizationProc = self._parse_pol_string(orig_pol)
+            out_sicd.ImageFormation.TxRcvPolarizationProc = self._get_sicd_tx_rcv_pol(orig_pol)
 
         def complete_rma():
             if self._georef_root is not None:
@@ -712,7 +736,7 @@ class TSXDetails(object):
                 azimuths_shifts = [
                     float(entry.find('./coefficient').text) for entry in
                     self._findall_georef('./signalPropagationEffects/azimuthShift')]
-                azimuth_shift = reduce(sum, azimuths_shifts)
+                azimuth_shift = reduce(lambda x, y: x+y, azimuths_shifts)
                 out_sicd.RMA.INCA.TimeCAPoly = Poly1DType(Coefs=[time_ca_scp + az_offset - azimuth_shift, ])
                 azimuth_time_scp = get_seconds(ref_time, collect_start, precision='us') + time_ca_scp
 
@@ -723,7 +747,7 @@ class TSXDetails(object):
                 range_delays = [
                     float(entry.find('./coefficient').text) for entry in
                     self._findall_georef('./signalPropagationEffects/rangeDelay')]
-                range_delay = reduce(sum, range_delays)
+                range_delay = reduce(lambda x, y: x+y, range_delays)
                 out_sicd.RMA.INCA.R_CA_SCP = 0.5*(range_time_scp - range_delay)*speed_of_light
             else:
                 azimuth_time_scp = get_seconds(
@@ -733,61 +757,118 @@ class TSXDetails(object):
                 out_sicd.RMA.INCA.TimeCAPoly = Poly1DType(Coefs=[azimuth_time_scp, ])
                 out_sicd.RMA.INCA.R_CA_SCP = 0.5*range_time_scp*speed_of_light
 
+            # populate DopCentroidPoly and TimeCOAPoly
             if out_sicd.CollectionInfo.RadarMode.ModeID == 'ST':
                 # proper spotlight mode
                 out_sicd.Grid.Col.DeltaKCOAPoly = Poly2DType(Coefs=[[0,],]) # this seems fishy to me
                 out_sicd.Grid.TimeCOAPoly = Poly2DType(Coefs=[[out_sicd.RMA.INCA.TimeCAPoly.Coefs[0],], ])
                 pass
             else:
-                dop_centroid_poly, time_coa_poly = self._calculate_dop_polys(orig_pol, azimuth_time_scp, range_time_scp, collect_start)
+                dop_centroid_poly, time_coa_poly = self._calculate_dop_polys(
+                    layer_index, azimuth_time_scp, range_time_scp, collect_start, doppler_rate_reference_node)
                 out_sicd.RMA.INCA.DopCentroidPoly = Poly2DType(Coefs=dop_centroid_poly)
                 out_sicd.RMA.INCA.DopCentroidCOA = True
                 out_sicd.Grid.TimeCOAPoly = Poly2DType(Coefs=time_coa_poly)
                 out_sicd.Grid.Col.DeltaKCOAPoly = Poly2DType(Coefs=dop_centroid_poly*ss_zd_s/out_sicd.Grid.Col.SS)
+            # calculate DRateSFPoly
+            vm_vel_sq = numpy.sum(out_sicd.Position.ARPPoly.derivative_eval(azimuth_time_scp)**2)
+            r_ca = numpy.array([out_sicd.RMA.INCA.R_CA_SCP, 1], dtype='float64')
+            dop_rate_poly_coefs = [float(entry.text) for entry in doppler_rate_reference_node.findall('./dopplerRatePolynomial/coefficient')]
+            # Shift 1D polynomial to account for SCP
+            dop_rate_ref_time = float(doppler_rate_reference_node.find('./dopplerRatePolynomial/referencePoint').text)
+            dop_rate_poly_rg = Poly1DType(Coefs=dop_rate_poly_coefs).shift(dop_rate_ref_time - range_time_scp,
+                                                                           alpha=2/speed_of_light,
+                                                                           return_poly=False)
 
-            # TODO: continue at calculate DRateSFPoly at line 417...
+            # NB: assumes a sign of -1
+            drate_poly = -polynomial.polymul(dop_rate_poly_rg, r_ca)*speed_of_light/(2*center_freq*vm_vel_sq)
+            out_sicd.RMA.INCA.DRateSFPoly = Poly2DType(Coefs=numpy.reshape(drate_poly, (1, -1)))
+
+        def define_radiometric():
+            beta_factor = float(self._find_main('./calibration'
+                                                '/calibrationConstant[@layerIndex="{}"]'.format(layer_index) +
+                                                '/calFactor').text)
+            # now, calculate the radiometric noise polynomial
+            # first, construct a sample grid edges in "physical pixel" space
+            samples = 20
+            rows_m = (numpy.linspace(0, out_sicd.ImageData.NumRows, samples) -
+                      out_sicd.ImageData.SCPPixel.Row + out_sicd.ImageData.FirstRow) * out_sicd.Grid.Row.SS
+            cols_m = (numpy.linspace(0, out_sicd.ImageData.NumCols, samples) -
+                      out_sicd.ImageData.SCPPixel.Col + out_sicd.ImageData.FirstCol) * out_sicd.Grid.Col.SS
+            cols_2d, rows_2d = numpy.meshgrid(cols_m, rows_m)
+            time_ca = out_sicd.Grid.TimeCOAPoly(rows_2d, cols_2d)
+            noise = numpy.zeros(time_ca.shape, dtype='float64')
+            # find the noise node
+            noise_node = self._find_main('./noise[@layerIndex="{}"]'.format(layer_index))
+            spacing = float(noise_node.find('./averageNoiseRecordAzimuthSpacing').text)
+            start_times = []
+            ref_points = []
+            polys = []
+            for entry in noise_node.findall('./imageNoise'):
+                start_times.append(parse_timestring(entry.find('./timeUTC').text, precision='us'))
+                ref_points.append(float(entry.find('./noiseEstimate/referencePoint').text))
+                polys.append(
+                    numpy.array([float(coeff.text) for coeff in entry.findall('./noiseEstimate/coefficient')],
+                                dtype='float64'))
+            # evaluate the noise values on our sample grid
+            if len(start_times) == 1:
+                this_time_ca = time_ca + get_seconds(out_sicd.Timeline.CollectStart, start_times[0], precision='us') - ref_points[0]
+                noise[:] = polynomial.polyval(this_time_ca, polys[0])
+            else:
+                count = numpy.zeros(time_ca.shape, dtype='int8')
+                for i, (start_time, ref_point, poly) in enumerate(zip(start_times, ref_points, polys)):
+                    this_time_ca = time_ca + get_seconds(out_sicd.Timeline.CollectStart, start_time, precision='us') - ref_point
+                    mask = (this_time_ca > -ref_point) & (this_time_ca <= spacing - ref_point)
+                    count[mask] += 1
+                    noise[mask] += polynomial.polyval(this_time_ca[mask], poly)
+                mask = (count > 0)
+                rows_2d = rows_2d[mask]
+                cols_2d = cols_2d[mask]
+                noise = noise[mask] / count[mask]
+            coefs, residuals, rank, sing_values = two_dim_poly_fit(
+                rows_2d, cols_2d, noise,
+                x_order=3, y_order=3, x_scale=1e-3, y_scale=1e-3, rcond=1e-40)
+            logging.info(
+                'The noise_poly fit details:\nroot mean square residuals = {}\nrank = {}\nsingular values = {}'.format(
+                    residuals, rank, sing_values))
+            out_sicd.Radiometric = RadiometricType(
+                BetaZeroSFPoly=Poly2DType(Coefs=[[beta_factor, ], ]),
+                NoiseLevel=NoiseLevelType_(
+                    NoiseLevelType='ABSOLUTE', NoisePoly=Poly2DType(Coefs=coefs)))
+
+        def revise_scp():
+            scp_ecf = out_sicd.project_image_to_ground(out_sicd.ImageData.SCPPixel.get_array())
+            out_sicd.GeoData.SCP.ECF = scp_ecf
 
         out_sicd = sicd.copy()
         # get some common use parameters
+        settings_node = get_settings_node()
+        if settings_node is None:
+            raise ValueError('Cannot find the settings node for polarization {}'.format(orig_pol))
         collect_start = parse_timestring(
-            self._find_main('./instrument'
-                            '/settings[@polLayer="{}"]'.format(orig_pol)+
-                            '/settingRecord'
-                            '/dataSegment'
-                            '/startTimeUTC').text, precision='us')
+            settings_node.find('./settingRecord'
+                               '/dataSegment'
+                               '/startTimeUTC').text, precision='us')
         collect_end = parse_timestring(
-            self._find_main('./instrument'
-                            '/settings[@polLayer="{}"]'.format(orig_pol)+
-                            '/settingRecord'
-                            '/dataSegment'
-                            '/stopTimeUTC').text, precision='us')
+            settings_node.find('./settingRecord'
+                               '/dataSegment'
+                               '/stopTimeUTC').text, precision='us')
         collect_duration = get_seconds(collect_end, collect_start, precision='us')
-        band_width = float(
-            self._find_main('./instrument'
-                            '/settings[@polLayer="{}"]'.format(orig_pol) +
-                            '/rxBandwidth').text)
+        band_width = float(settings_node.find('./rxBandwidth').text)
         tx_freq_start = center_freq - 0.5 * band_width
         tx_freq_end = center_freq + 0.5 * band_width
 
+        # populate the missing sicd elements
         set_timeline()
         set_position()
         complete_radar_collection()
         complete_image_formation()
         complete_rma()
-
-        # TODO:
-        #  x 0.) copy the input sicd shell
-        #  x 1.) define timeline
-        #  x 2.) define position
-        #  x 3.) complete radar collection
-        #  x 4.) complete image formation
-        #  5.) complete RMA
-        #  6.) define radiometric
-        #  7.) derive fields
-        #  8.) define RNIIRS
-        #  9.) return it
-
-        pass
+        define_radiometric()
+        revise_scp()
+        out_sicd.derive()
+        out_sicd.populate_rniirs(override=False)
+        return out_sicd
 
     def get_sicd_collection(self):
         """
@@ -795,18 +876,25 @@ class TSXDetails(object):
 
         Returns
         -------
-
+        (List[str], List[SICDType])
         """
+
+        def get_file_name(layer_index):
+            file_node = self._find_main('./productComponents/imageData[@layerIndex="{}"]/file/location'.format(layer_index))
+            path_stem = file_node.find('./path').text
+            file_name = file_node.find('./filename').text
+            full_file = os.path.join(self._parent_directory, path_stem, file_name)
+            if not os.path.isfile(full_file):
+                raise ValueError('Expected image file at\n\t{}\n\tbut this path does not exist'.format(full_file))
+            return full_file
 
         the_files = []
         the_sicds = []
 
         # get some basic common use parameters
-        side_of_track = self._find_main('./productInfo/acquisitionInfo/lookDirection').text[0].upper()
         center_freq = float(self._find_main('./instrument/radarParameters/centerFrequency').text)
         dop_bw = float(self._find_main('./processing/processingParameter/azimuthLookBandwidth').text)
         ss_zd_s = float(self._find_main('./productInfo/imageDataInfo/imageRaster/columnSpacing').text)
-        use_ss_zd_s = ss_zd_s if side_of_track == 'R' else -ss_zd_s
 
         # define the basic SICD shell
         basic_sicd = self._get_basic_sicd_shell(center_freq, dop_bw, ss_zd_s)
@@ -823,13 +911,66 @@ class TSXDetails(object):
             middle_grid = self._find_middle_grid_node()
             self._populate_basic_image_data(basic_sicd, middle_grid)
             self._populate_initial_radar_collection(basic_sicd, tx_pols, tx_rcv_pols)
+            # get the doppler rate reference node
+            doppler_rate_nodes = self._findall_main('./processing/geometry/dopplerRate')
+            doppler_rate_center_node = doppler_rate_nodes[int(len(doppler_rate_nodes) / 2)]
 
-            # TODO: finish this here.
             for i, orig_pol in enumerate(original_pols):
-                pass
+                the_layer = '{}'.format(i+1)
+                pol_index = i+1
+                the_sicds.append(self._complete_sicd(
+                    basic_sicd, orig_pol, the_layer, pol_index, ss_zd_s, center_freq,
+                    times, positions, velocities, middle_grid, doppler_rate_center_node))
+                the_files.append(get_file_name(the_layer))
+        return the_files, the_sicds
+
 
 #########
 # the reader implementation
 
 class TSXReader(BaseReader):
-    pass
+    """
+    The TerraSAR-X reader implementation
+    """
+
+    __slots__ = ('_tsx_details', )
+
+    def __init__(self, tsx_details):
+        """
+
+        Parameters
+        ----------
+        tsx_details : str|TSXDetails
+        """
+
+        if isinstance(tsx_details, string_types):
+            tsx_details = TSXDetails(tsx_details)
+        if not isinstance(tsx_details, TSXDetails):
+            raise TypeError(
+                'tsx_details is expected to be the path to the TerraSAR-X package '
+                'directory or main xml file, of TSXDetails instance. Got type {}'.format(type(tsx_details)))
+        self._tsx_details = tsx_details
+        chippers = []
+        image_format = tsx_details.image_format
+        the_files, the_sicds = tsx_details.get_sicd_collection()
+        for the_file, the_sicd in zip(the_files, the_sicds):
+            rows = the_sicd.ImageData.NumRows
+            cols = the_sicd.ImageData.NumCols
+            symmetry = (False, (the_sicd.SCPCOA.SideOfTrack == 'L'), True)
+            if image_format == 'COSAR':
+                offset = (cols+2)*4*4 + 2*4
+                p_chipper = BIPChipper(
+                    the_file, raw_dtype=numpy.dtype('>u2'), data_size=(cols+2, rows), raw_bands=2, output_bands=1,
+                    output_dtype='complex64', symmetry=symmetry, transform_data='COMPLEX', data_offset=offset)
+                chippers.append(SubsetChipper(p_chipper, (0, rows), (0, cols)))
+            elif image_format == 'GEOTIFF':
+                tiff_details = TiffDetails(the_file)
+                chippers.append(NativeTiffChipper(tiff_details, symmetry=symmetry))
+            else:
+                raise ValueError('Got unhandled image_format')
+        super(TSXReader, self).__init__(tuple(the_sicds), tuple(chippers), is_sicd_type=True)
+
+    @property
+    def file_name(self):
+        # type: () -> str
+        return self._tsx_details.file_name
