@@ -342,9 +342,9 @@ class SubsetChipper(BaseChipper):
         super(SubsetChipper, self).__init__(data_size, symmetry=(False, False, False), transform_data=None)
 
     def _reformat_bounds(self, range1, range2):
-        def _get_start(entry, shift, bound):
+        def _get_start(entry, shift, bound, step):
             if entry is None:
-                return shift
+                return shift if step > 0 else bound + shift - 1
             entry = int_func(entry)
             if -bound < entry < 0:
                 return shift + bound + entry
@@ -354,9 +354,9 @@ class SubsetChipper(BaseChipper):
                 'Got slice start entry {}, which must be in the range '
                 '({}, {})'.format(entry, -bound, bound))
 
-        def _get_end(entry, shift, bound):
+        def _get_end(entry, shift, bound, step):
             if entry is None:
-                return shift
+                return bound + shift if step > 0 else shift - 1
             entry = int_func(entry)
             if -bound <= entry < 0:
                 return shift + bound + entry
@@ -367,10 +367,11 @@ class SubsetChipper(BaseChipper):
                 '[{}, {}]'.format(entry, -bound, bound))
 
         def _get_range(rng, shift, bound):
+            step = 1 if rng[2] is None else rng[2]
             return (
-                _get_start(rng[0], shift, bound),
-                _get_end(rng[1], shift, bound),
-                rng[2])
+                _get_start(rng[0], shift, bound, step),
+                _get_end(rng[1], shift, bound, step),
+                step)
         arange1 = _get_range(range1, self.shift1, self._data_size[0])
         arange2 = _get_range(range2, self.shift2, self._data_size[1])
         return arange1, arange2
