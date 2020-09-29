@@ -795,22 +795,11 @@ class TSXDetails(object):
                                                 '/calFactor').text)
             range_time_scp = float(self._find_main('./productInfo/sceneInfo/sceneCenterCoord/rangeTime').text)
             # now, calculate the radiometric noise polynomial
-            # first, construct a sample grid edges in "physical pixel" space
-            samples = 50
-            rows_m = (numpy.linspace(0, out_sicd.ImageData.NumRows, samples) -
-                      out_sicd.ImageData.SCPPixel.Row + out_sicd.ImageData.FirstRow) * out_sicd.Grid.Row.SS
-            cols_m = (numpy.linspace(0, out_sicd.ImageData.NumCols, samples) -
-                      out_sicd.ImageData.SCPPixel.Col + out_sicd.ImageData.FirstCol) * out_sicd.Grid.Col.SS
-            cols_2d, rows_2d = numpy.meshgrid(cols_m, rows_m)
-            time_ca = out_sicd.Grid.TimeCOAPoly(rows_2d, cols_2d)
-            noise = numpy.zeros(time_ca.shape, dtype='float64')
             # find the noise node
             noise_node = self._find_main('./noise[@layerIndex="{}"]'.format(layer_index))
-            spacing = float(noise_node.find('./averageNoiseRecordAzimuthSpacing').text)
             # extract the middle image noise node
             noise_data_nodes = noise_node.findall('./imageNoise')
             noise_data_node = noise_data_nodes[int(len(noise_data_nodes)/2)]
-            start_time = parse_timestring(noise_data_node.find('./timeUTC').text, precision='us')
             range_min = float(noise_data_node.find('./noiseEstimate/validityRangeMin').text)
             range_max = float(noise_data_node.find('./noiseEstimate/validityRangeMax').text)
             ref_point = float(noise_data_node.find('./noiseEstimate/referencePoint').text)
@@ -818,14 +807,17 @@ class TSXDetails(object):
                 [float(coeff.text) for coeff in noise_data_node.findall('./noiseEstimate/coefficient')], dtype='float64')
             # create a sample grid in range time and evaluate the noise
             range_time = numpy.linspace(range_min, range_max, 100) - ref_point
-            noise_values = 10*numpy.log10(polynomial.polyval(range_time, poly_coeffs))
+            # this should be an absolute squared magnitude value
+            raw_noise_values = polynomial.polyval(range_time, poly_coeffs)
+            # we convert to db
+            noise_values = 10*numpy.log10(numpy.sqrt(raw_noise_values))
             coords_range_m = 0.5*(range_time + ref_point - range_time_scp)*speed_of_light
             # fit the polynomial
             scale = 1e-3
             deg = poly_coeffs.size-1
             coeffs = polynomial.polyfit(coords_range_m*scale, noise_values, deg=deg, rcond=1e-30, full=False)
             coeffs *= numpy.power(scale, numpy.arange(deg+1))
-            coeffs = numpy.reshape(coeffs, (1, -1))
+            coeffs = numpy.reshape(coeffs, (-1, 1))
             out_sicd.Radiometric = RadiometricType(
                 BetaZeroSFPoly=Poly2DType(Coefs=[[beta_factor, ], ]),
                 NoiseLevel=NoiseLevelType_(
