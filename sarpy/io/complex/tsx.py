@@ -370,7 +370,7 @@ class TSXDetails(object):
         diff_times_raw = numpy.zeros((doppler_count, ), dtype='float64') # offsets from reference time, in seconds
         doppler_range_min = numpy.zeros((doppler_count, ), dtype='float64') # offsets in seconds
         doppler_range_max = numpy.zeros((doppler_count, ), dtype='float64') # offsets in seconds
-        doppler_poly_est = numpy.zeros((doppler_count, 2), dtype='float64')
+        doppler_poly_est = []
         for i, node in enumerate(doppler_estimate_nodes):
             diff_times_raw[i] = get_seconds(
                 parse_timestring(node.find('./timeUTC').text, precision='us'),
@@ -378,11 +378,8 @@ class TSXDetails(object):
             combined_node = node.find('./combinedDoppler')
             doppler_range_min[i] = float(combined_node.find('./validityRangeMin').text)
             doppler_range_max[i] = float(combined_node.find('./validityRangeMax').text)
-            if combined_node.find('./polynomialDegree').text.strip() != '1':
-                raise ValueError('Got unexpected doppler polynomial degree estimate')
-            doppler_poly_est[i, :] = [
-                float(combined_node.find('./coefficient[@exponent="0"]').text),
-                float(combined_node.find('./coefficient[@exponent="1"]').text)]
+            doppler_poly_est.append(
+                numpy.array([float(entry.text) for entry in combined_node.findall('./coefficient')], dtype='float64'))
 
         # parse the doppler rate estimate from our provided reference node
         fm_dop = float(doppler_rate_reference_node.find('./dopplerRatePolynomial/coefficient[@exponent="0"]').text)
@@ -399,7 +396,7 @@ class TSXDetails(object):
         for i, entry in enumerate(diff_times_raw):
             time_coa[i, :] = entry
             diff_t_range[i, :] = numpy.linspace(doppler_range_min[i], doppler_range_max[i], num=range_samples) - rg_ref_time
-            dopp_centroid[i, :] = polynomial.polyval(diff_t_range[i, :], doppler_poly_est[i, :])
+            dopp_centroid[i, :] = polynomial.polyval(diff_t_range[i, :], doppler_poly_est[i])
         diff_t_zd = time_coa - dopp_centroid/fm_dop
         coords_rg = 0.5*(diff_t_range + rg_ref_time - range_time_scp)*speed_of_light
         coords_az = ss_zd_m*(diff_t_zd - azimuth_time_scp)/use_ss_zd_s
