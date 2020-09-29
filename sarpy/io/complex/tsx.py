@@ -8,6 +8,7 @@ import logging
 from xml.etree import ElementTree
 from typing import Union, List
 from functools import reduce
+import struct
 
 import numpy
 from numpy.polynomial import polynomial
@@ -357,13 +358,15 @@ class TSXDetails(object):
         (numpy.ndarray, numpy.ndarray, ElementTree.Element)
         """
 
-        # parse the doppler centroid estimates
+        # parse the doppler centroid estimates nodes
         doppler_estimate_nodes = self._findall_main(
             './processing/doppler/dopplerCentroid[@layerIndex="{}"]/dopplerEstimate'.format(layer_index))
+        # find the center node and extract some reference parameters
         doppler_count = len(doppler_estimate_nodes)
         doppler_estimate_center_node = doppler_estimate_nodes[int(doppler_count/2)]
-        ref_time = parse_timestring(doppler_estimate_center_node.find('./timeUTC').text, precision='us')
         rg_ref_time = float(doppler_estimate_center_node.find('./combinedDoppler/referencePoint').text)
+
+        # extract the doppler centroid information from all the nodes
         diff_times_raw = numpy.zeros((doppler_count, ), dtype='float64') # offsets from reference time, in seconds
         doppler_range_min = numpy.zeros((doppler_count, ), dtype='float64') # offsets in seconds
         doppler_range_max = numpy.zeros((doppler_count, ), dtype='float64') # offsets in seconds
@@ -380,11 +383,13 @@ class TSXDetails(object):
             doppler_poly_est[i, :] = [
                 float(combined_node.find('./coefficient[@exponent="0"]').text),
                 float(combined_node.find('./coefficient[@exponent="1"]').text)]
-        # parse the doppler rate estimates
+
+        # parse the doppler rate estimate from our provided reference node
         fm_dop = float(doppler_rate_reference_node.find('./dopplerRatePolynomial/coefficient[@exponent="0"]').text)
         ss_zd_s = float(self._find_main('./productInfo/imageDataInfo/imageRaster/columnSpacing').text)
         side_of_track = self._find_main('./productInfo/acquisitionInfo/lookDirection').text[0].upper()
         ss_zd_m = float(self._find_main('./productSpecific/complexImageInfo/projectedSpacingAzimuth').text)
+        use_ss_zd_s = -ss_zd_s if side_of_track == 'L' else ss_zd_s
 
         # create a sampled doppler centroid grid
         range_samples = 49  # this is suggested in the paper
@@ -397,9 +402,7 @@ class TSXDetails(object):
             dopp_centroid[i, :] = polynomial.polyval(diff_t_range[i, :], doppler_poly_est[i, :])
         diff_t_zd = time_coa - dopp_centroid/fm_dop
         coords_rg = 0.5*(diff_t_range + rg_ref_time - range_time_scp)*speed_of_light
-        coords_az = ss_zd_m*(diff_t_zd + get_seconds(ref_time, collect_start) - azimuth_time_scp)/ss_zd_s
-        if side_of_track == 'L':
-            coords_az *= -1
+        coords_az = ss_zd_m*(diff_t_zd - azimuth_time_scp)/use_ss_zd_s
         # perform our fitting
         poly_order = 3
         dop_centroid_poly, residuals, rank, sing_values = two_dim_poly_fit(
@@ -501,7 +504,6 @@ class TSXDetails(object):
             if row_win_name == 'HAMMING':
                 row_wgt_type.Parameters = {
                     'COEFFICIENT': self._find_main('./processing/processingParameter/rangeWindowCoefficient').text}
-
             row = DirParamType(
                 SS=row_ss,
                 Sgn=-1,
@@ -631,8 +633,8 @@ class TSXDetails(object):
             TxSequence=tx_sequence,
             RcvChannels=[ChanParametersType(TxRcvPolarization=tx_rcv_pol) for tx_rcv_pol in tx_rcv_pols])
 
-    def _complete_sicd(self, sicd, orig_pol, layer_index, pol_index, ss_zd_s, center_freq,
-                       arp_times, arp_pos, arp_vel, middle_grid, doppler_rate_reference_node):
+    def _complete_sicd(self, sicd, orig_pol, layer_index, pol_index, ss_zd_s, side_of_track,
+                       center_freq, arp_times, arp_pos, arp_vel, middle_grid, doppler_rate_reference_node):
         """
         Complete the remainder of the sicd information and populate as collection,
         if appropriate. **This assumes that this is not ScanSAR mode.**
@@ -648,6 +650,8 @@ class TSXDetails(object):
             The polarization index (1 based) here.
         ss_zd_s : float
             The zero doppler spacing in the time domain.
+        side_of_track : str
+            One of ['R', 'S']
         center_freq : float
             The center frequency.
         arp_times : numpy.ndarray
@@ -721,6 +725,8 @@ class TSXDetails(object):
             out_sicd.ImageFormation.TxRcvPolarizationProc = self._get_sicd_tx_rcv_pol(orig_pol)
 
         def complete_rma():
+            use_ss_zd_s = -ss_zd_s if side_of_track == 'L' else ss_zd_s
+            time_ca_linear = use_ss_zd_s/out_sicd.Grid.Col.SS
             if self._georef_root is not None:
                 if middle_grid is None:
                     raise ValueError('middle_grid should have been provided here')
@@ -737,7 +743,7 @@ class TSXDetails(object):
                     float(entry.find('./coefficient').text) for entry in
                     self._findall_georef('./signalPropagationEffects/azimuthShift')]
                 azimuth_shift = reduce(lambda x, y: x+y, azimuths_shifts)
-                out_sicd.RMA.INCA.TimeCAPoly = Poly1DType(Coefs=[time_ca_scp + az_offset - azimuth_shift, ])
+                out_sicd.RMA.INCA.TimeCAPoly = Poly1DType(Coefs=[time_ca_scp + az_offset - azimuth_shift, time_ca_linear])
                 azimuth_time_scp = get_seconds(ref_time, collect_start, precision='us') + time_ca_scp
 
                 range_time_scp = float(self._find_georef('./geolocationGrid/gridReferenceTime/tauReferenceTime').text) + \
@@ -754,22 +760,21 @@ class TSXDetails(object):
                     parse_timestring(self._find_main('./productInfo/sceneInfo/sceneCenterCoord/azimuthTimeUTC').text, precision='us'),
                     collect_start, precision='us')
                 range_time_scp = float(self._find_main('./productInfo/sceneInfo/sceneCenterCoord/rangeTime').text)
-                out_sicd.RMA.INCA.TimeCAPoly = Poly1DType(Coefs=[azimuth_time_scp, ])
+                out_sicd.RMA.INCA.TimeCAPoly = Poly1DType(Coefs=[azimuth_time_scp, time_ca_linear])
                 out_sicd.RMA.INCA.R_CA_SCP = 0.5*range_time_scp*speed_of_light
 
             # populate DopCentroidPoly and TimeCOAPoly
             if out_sicd.CollectionInfo.RadarMode.ModeID == 'ST':
                 # proper spotlight mode
-                out_sicd.Grid.Col.DeltaKCOAPoly = Poly2DType(Coefs=[[0,],]) # this seems fishy to me
+                out_sicd.Grid.Col.DeltaKCOAPoly = Poly2DType(Coefs=[[0,],]) # NB: this seems fishy to me
                 out_sicd.Grid.TimeCOAPoly = Poly2DType(Coefs=[[out_sicd.RMA.INCA.TimeCAPoly.Coefs[0],], ])
-                pass
             else:
                 dop_centroid_poly, time_coa_poly = self._calculate_dop_polys(
                     layer_index, azimuth_time_scp, range_time_scp, collect_start, doppler_rate_reference_node)
                 out_sicd.RMA.INCA.DopCentroidPoly = Poly2DType(Coefs=dop_centroid_poly)
                 out_sicd.RMA.INCA.DopCentroidCOA = True
                 out_sicd.Grid.TimeCOAPoly = Poly2DType(Coefs=time_coa_poly)
-                out_sicd.Grid.Col.DeltaKCOAPoly = Poly2DType(Coefs=dop_centroid_poly*ss_zd_s/out_sicd.Grid.Col.SS)
+                out_sicd.Grid.Col.DeltaKCOAPoly = Poly2DType(Coefs=dop_centroid_poly*use_ss_zd_s/out_sicd.Grid.Col.SS)
             # calculate DRateSFPoly
             vm_vel_sq = numpy.sum(out_sicd.Position.ARPPoly.derivative_eval(azimuth_time_scp)**2)
             r_ca = numpy.array([out_sicd.RMA.INCA.R_CA_SCP, 1], dtype='float64')
@@ -782,15 +787,16 @@ class TSXDetails(object):
 
             # NB: assumes a sign of -1
             drate_poly = -polynomial.polymul(dop_rate_poly_rg, r_ca)*speed_of_light/(2*center_freq*vm_vel_sq)
-            out_sicd.RMA.INCA.DRateSFPoly = Poly2DType(Coefs=numpy.reshape(drate_poly, (1, -1)))
+            out_sicd.RMA.INCA.DRateSFPoly = Poly2DType(Coefs=numpy.reshape(drate_poly, (-1, 1)))
 
         def define_radiometric():
             beta_factor = float(self._find_main('./calibration'
                                                 '/calibrationConstant[@layerIndex="{}"]'.format(layer_index) +
                                                 '/calFactor').text)
+            range_time_scp = float(self._find_main('./productInfo/sceneInfo/sceneCenterCoord/rangeTime').text)
             # now, calculate the radiometric noise polynomial
             # first, construct a sample grid edges in "physical pixel" space
-            samples = 20
+            samples = 50
             rows_m = (numpy.linspace(0, out_sicd.ImageData.NumRows, samples) -
                       out_sicd.ImageData.SCPPixel.Row + out_sicd.ImageData.FirstRow) * out_sicd.Grid.Row.SS
             cols_m = (numpy.linspace(0, out_sicd.ImageData.NumCols, samples) -
@@ -801,40 +807,29 @@ class TSXDetails(object):
             # find the noise node
             noise_node = self._find_main('./noise[@layerIndex="{}"]'.format(layer_index))
             spacing = float(noise_node.find('./averageNoiseRecordAzimuthSpacing').text)
-            start_times = []
-            ref_points = []
-            polys = []
-            for entry in noise_node.findall('./imageNoise'):
-                start_times.append(parse_timestring(entry.find('./timeUTC').text, precision='us'))
-                ref_points.append(float(entry.find('./noiseEstimate/referencePoint').text))
-                polys.append(
-                    numpy.array([float(coeff.text) for coeff in entry.findall('./noiseEstimate/coefficient')],
-                                dtype='float64'))
-            # evaluate the noise values on our sample grid
-            if len(start_times) == 1:
-                this_time_ca = time_ca + get_seconds(out_sicd.Timeline.CollectStart, start_times[0], precision='us') - ref_points[0]
-                noise[:] = polynomial.polyval(this_time_ca, polys[0])
-            else:
-                count = numpy.zeros(time_ca.shape, dtype='int8')
-                for i, (start_time, ref_point, poly) in enumerate(zip(start_times, ref_points, polys)):
-                    this_time_ca = time_ca + get_seconds(out_sicd.Timeline.CollectStart, start_time, precision='us') - ref_point
-                    mask = (this_time_ca > -ref_point) & (this_time_ca <= spacing - ref_point)
-                    count[mask] += 1
-                    noise[mask] += polynomial.polyval(this_time_ca[mask], poly)
-                mask = (count > 0)
-                rows_2d = rows_2d[mask]
-                cols_2d = cols_2d[mask]
-                noise = noise[mask] / count[mask]
-            coefs, residuals, rank, sing_values = two_dim_poly_fit(
-                rows_2d, cols_2d, noise,
-                x_order=3, y_order=3, x_scale=1e-3, y_scale=1e-3, rcond=1e-40)
-            logging.info(
-                'The noise_poly fit details:\nroot mean square residuals = {}\nrank = {}\nsingular values = {}'.format(
-                    residuals, rank, sing_values))
+            # extract the middle image noise node
+            noise_data_nodes = noise_node.findall('./imageNoise')
+            noise_data_node = noise_data_nodes[int(len(noise_data_nodes)/2)]
+            start_time = parse_timestring(noise_data_node.find('./timeUTC').text, precision='us')
+            range_min = float(noise_data_node.find('./noiseEstimate/validityRangeMin').text)
+            range_max = float(noise_data_node.find('./noiseEstimate/validityRangeMax').text)
+            ref_point = float(noise_data_node.find('./noiseEstimate/referencePoint').text)
+            poly_coeffs = numpy.array(
+                [float(coeff.text) for coeff in noise_data_node.findall('./noiseEstimate/coefficient')], dtype='float64')
+            # create a sample grid in range time and evaluate the noise
+            range_time = numpy.linspace(range_min, range_max, 100) - ref_point
+            noise_values = 10*numpy.log10(polynomial.polyval(range_time, poly_coeffs))
+            coords_range_m = 0.5*(range_time + ref_point - range_time_scp)*speed_of_light
+            # fit the polynomial
+            scale = 1e-3
+            deg = poly_coeffs.size-1
+            coeffs = polynomial.polyfit(coords_range_m*scale, noise_values, deg=deg, rcond=1e-30, full=False)
+            coeffs *= numpy.power(scale, numpy.arange(deg+1))
+            coeffs = numpy.reshape(coeffs, (1, -1))
             out_sicd.Radiometric = RadiometricType(
                 BetaZeroSFPoly=Poly2DType(Coefs=[[beta_factor, ], ]),
                 NoiseLevel=NoiseLevelType_(
-                    NoiseLevelType='ABSOLUTE', NoisePoly=Poly2DType(Coefs=coefs)))
+                    NoiseLevelType='ABSOLUTE', NoisePoly=Poly2DType(Coefs=coeffs)))
 
         def revise_scp():
             scp_ecf = out_sicd.project_image_to_ground(out_sicd.ImageData.SCPPixel.get_array())
@@ -895,6 +890,7 @@ class TSXDetails(object):
         center_freq = float(self._find_main('./instrument/radarParameters/centerFrequency').text)
         dop_bw = float(self._find_main('./processing/processingParameter/azimuthLookBandwidth').text)
         ss_zd_s = float(self._find_main('./productInfo/imageDataInfo/imageRaster/columnSpacing').text)
+        side_of_track = self._find_main('./productInfo/acquisitionInfo/lookDirection').text[0].upper()
 
         # define the basic SICD shell
         basic_sicd = self._get_basic_sicd_shell(center_freq, dop_bw, ss_zd_s)
@@ -919,10 +915,154 @@ class TSXDetails(object):
                 the_layer = '{}'.format(i+1)
                 pol_index = i+1
                 the_sicds.append(self._complete_sicd(
-                    basic_sicd, orig_pol, the_layer, pol_index, ss_zd_s, center_freq,
-                    times, positions, velocities, middle_grid, doppler_rate_center_node))
+                    basic_sicd, orig_pol, the_layer, pol_index, ss_zd_s, side_of_track,
+                    center_freq, times, positions, velocities, middle_grid, doppler_rate_center_node))
                 the_files.append(get_file_name(the_layer))
         return the_files, the_sicds
+
+
+class COSARDetails(object):
+    __slots__ = (
+        '_file_name', '_file_size', '_header_offsets', '_data_offsets',
+        '_burst_index', '_burst_size', '_data_sizes')
+
+    def __init__(self, file_name):
+        """
+
+        Parameters
+        ----------
+        file_name : str
+        """
+
+        self._header_offsets = []
+        self._data_offsets = []
+        self._burst_index = []
+        self._burst_size = []
+        self._data_sizes = []
+
+        if not os.path.isfile(file_name):
+            raise IOError('path {} is not not a file'.format(file_name))
+        self._file_name = file_name
+        self._file_size = os.path.getsize(file_name)
+        self._parse_details()
+
+    @property
+    def burst_count(self):
+        """
+        int: The discovered burst count
+        """
+
+        return len(self._data_offsets)
+
+    def _process_burst_header(self, fi, the_offset):
+        """
+
+        Parameters
+        ----------
+        fi : BinaryIO
+        the_offset : int
+
+        Returns
+        -------
+
+        """
+
+        if the_offset >= self._file_size - 48:
+            raise ValueError(
+                'The seek location + basic header size is greater than the file size.')
+        # seek to our desired location
+        fi.seek(the_offset, 0)
+        # read the desired bytes
+        header_bytes = fi.read(48)
+        # interpret the data
+        burst_in_bytes = struct.unpack('>I', header_bytes[:4])[0]
+        rsri = struct.unpack('>I', header_bytes[4:8])[0]
+        range_samples = struct.unpack('>I', header_bytes[8:12])[0]
+        azimuth_samples = struct.unpack('>I', header_bytes[12:16])[0]
+        burst_index = struct.unpack('>I', header_bytes[16:20])[0]
+        # these two are only useful in the first record
+        rtnb = struct.unpack('>I', header_bytes[20:24])[0]
+        tnl = struct.unpack('>I', header_bytes[24:28])[0]
+        # basic check bytes
+        csar = struct.unpack('>4s', header_bytes[28:32])[0]
+        version = struct.unpack('>4s', header_bytes[32:36])[0]
+        oversample = struct.unpack('>I', header_bytes[36:40])[0]
+        scaling_rate = struct.unpack('>d', header_bytes[40:])[0]
+        if csar.upper() != b'CSAR':
+            raise ValueError('unexpected csar value {}'.format(csar))
+        logging.info(
+            'Parsed COSAR burst:'
+            '\n\tburst_in_bytes = {}'
+            '\n\trsri = {}'
+            '\n\trange samples = {}'
+            '\n\tazimuth samples = {}'
+            '\n\trtnb = {}'
+            '\n\ttnl = {}'
+            '\n\tcsar = {}'
+            '\n\tversion = {}'
+            '\n\toversample = {}'
+            '\n\tscaling rate = {}'.format(
+                burst_in_bytes, rsri, range_samples, azimuth_samples, rtnb, tnl,
+                csar, version, oversample, scaling_rate))
+
+        # now, populate our appropriate details
+        data_offset = the_offset + (int_func(range_samples)+2)*4*4
+        burst_size = 4*(int_func(range_samples)+2)*(int_func(azimuth_samples) + 4)
+        self._header_offsets.append(the_offset)
+        self._data_offsets.append(data_offset)
+        self._burst_index.append(int_func(burst_index))
+        self._burst_size.append(burst_size)
+        self._data_sizes.append((range_samples, azimuth_samples))
+        if the_offset + burst_size > self._file_size:
+            raise ValueError(
+                'The file size for {} is given as {} bytes, but '
+                'the burst at index {} has size {} and offset {}'.format(
+                    self._file_name, self._file_size, self._burst_index[-1],
+                    self._burst_size[-1], the_offset))
+
+    def _parse_details(self):
+        with open(self._file_name, 'rb') as fi:
+            # process the first burst header
+            self._process_burst_header(fi, 0)
+            cont = True
+            while cont:
+                next_burst_location = self._header_offsets[-1] + self._burst_size[-1]
+                if next_burst_location < self._file_size:
+                    self._process_burst_header(fi, next_burst_location)
+                else:
+                    cont = False
+
+    def construct_chipper(self, index, symmetry, expected_size):
+        """
+        Construct a chipper for the given burst index.
+
+        Parameters
+        ----------
+        index : int
+        symmetry : tuple
+        expected_size : tuple
+
+        Returns
+        -------
+        SubsetChipper
+        """
+
+        index = int_func(index)
+        if not (0 <= index < self.burst_count):
+            raise KeyError('Provided index {} must be in the range [0, {})'.format(index, self.burst_count))
+        # get data_size
+        offset = self._data_offsets[index]
+        range_samples, azimuth_samples = self._data_sizes[index]
+        exp_cols, exp_rows = expected_size
+        if not (exp_rows == range_samples and exp_cols == azimuth_samples):
+            raise ValueError(
+                'Expected raw burst size is {}, while actual raw burst size '
+                'is {}'.format(expected_size, (range_samples, azimuth_samples)))
+
+        p_chipper = BIPChipper(
+            self._file_name, raw_dtype=numpy.dtype('>i2'), data_size=(azimuth_samples, range_samples + 2), raw_bands=2, output_bands=1,
+            output_dtype='complex64', symmetry=symmetry, transform_data='COMPLEX', data_offset=offset)
+        return SubsetChipper(p_chipper, (2, exp_rows+2), (0, exp_cols))
 
 
 #########
@@ -957,17 +1097,15 @@ class TSXReader(BaseReader):
             rows = the_sicd.ImageData.NumRows
             cols = the_sicd.ImageData.NumCols
             symmetry = (False, (the_sicd.SCPCOA.SideOfTrack == 'L'), True)
-            if image_format == 'COSAR':
-                offset = (cols+2)*4*4 + 2*4
-                p_chipper = BIPChipper(
-                    the_file, raw_dtype=numpy.dtype('>u2'), data_size=(cols+2, rows), raw_bands=2, output_bands=1,
-                    output_dtype='complex64', symmetry=symmetry, transform_data='COMPLEX', data_offset=offset)
-                chippers.append(SubsetChipper(p_chipper, (0, rows), (0, cols)))
-            elif image_format == 'GEOTIFF':
-                tiff_details = TiffDetails(the_file)
-                chippers.append(NativeTiffChipper(tiff_details, symmetry=symmetry))
-            else:
-                raise ValueError('Got unhandled image_format')
+            if image_format != 'COSAR':
+                raise ValueError(
+                    'Expected complex data for TerraSAR-X to be in COSAR format. '
+                    'Got unhandled format {}'.format(image_format))
+            cosar_details = COSARDetails(the_file)
+            if cosar_details.burst_count != 1:
+                raise ValueError(
+                    'Expected one burst in the COSAR file {}, but got {} bursts'.format(the_file, cosar_details.burst_count))
+            chippers.append(cosar_details.construct_chipper(0, symmetry, (cols, rows)))
         super(TSXReader, self).__init__(tuple(the_sicds), tuple(chippers), is_sicd_type=True)
 
     @property
