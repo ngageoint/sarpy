@@ -41,10 +41,15 @@ from sarpy.io.complex.utils import fit_time_coa_polynomial, fit_position_xvalida
 __classification__ = "UNCLASSIFIED"
 __author__ = ("Thomas McCullough", "Khanh Ho", "Wade Schwartzkopf", "Nathan Bombaci")
 
+# TODO:
+#   1.) Figure out the common workflow between radarsat and rcm, and split into pieces
+#       The overlap is really the SICD element calculation, but the extraction has differences
+#   2.) We should probably split the ScanSAR and not ScansSAR into different classes for
+#       RS and RCM too
+
 
 ########
 # base expected functionality for a module with an implemented Reader
-
 
 def is_a(file_name):
     """
@@ -1570,7 +1575,7 @@ class RcmScanSarCdp(RSCdp):
         alpha = 2.0/speed_of_light
         t_0 = doppler_cent_ref_time - alpha*inca.R_CA_SCP
         scaled_coeffs = doppler_cent_poly.shift(t_0, alpha, return_poly=False)
-        inca.DopCentroidPoly = Poly2DType(Coefs=numpy.reshape(scaled_coeffs, (scaled_coeffs.size, 1)))
+        inca.DopCentroidPoly = Poly2DType(Coefs=numpy.reshape(scaled_coeffs, (-1, 1)))
         # adjust doppler centroid for spotlight, we need to add a second
         # dimension to DopCentroidPoly
         doppler_cent_est = get_seconds(doppler_cent_time_est, start_time, precision='us')
