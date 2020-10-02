@@ -498,9 +498,9 @@ class NITFReader(BaseReader):
     A reader object for NITF 2.10 container files
     """
 
-    __slots__ = ('_nitf_details', '_cached_files')
+    __slots__ = ('_nitf_details', '_cached_files', '_symmetry')
 
-    def __init__(self, nitf_details, is_sicd_type=False):
+    def __init__(self, nitf_details, is_sicd_type=False, symmetry=(False, False, False)):
         """
 
         Parameters
@@ -509,8 +509,10 @@ class NITFReader(BaseReader):
             The NITFDetails object or path to a nitf file.
         is_sicd_type : bool
             Is this a sicd type reader, or otherwise?
+        symmetry : tuple
         """
 
+        self._symmetry = symmetry
         self._cached_files = []
         if isinstance(nitf_details, string_types):
             nitf_details = NITFDetails(nitf_details)
@@ -530,9 +532,19 @@ class NITFReader(BaseReader):
         # determine image segmentation from image headers
         segments = self._find_segments()
         # construct the chippers
-        chippers = tuple(self._construct_chipper(segment, i) for i, segment in enumerate(segments))
-        # construct regularly
-        super(NITFReader, self).__init__(sicd_meta, chippers, is_sicd_type=is_sicd_type)
+        chippers = []
+        for i, segment in enumerate(segments):
+            this_chip = self._construct_chipper(segment, i)
+            if isinstance(this_chip, list):
+                chippers.extend(this_chip)
+            else:
+                chippers.append(this_chip)
+        # validate that sicd and chippers lengths are feasible
+        if sicd_meta is not None and len(sicd_meta) != len(chippers):
+            raise ValueError(
+                'The length of the sicd structure ({}) does not match the length '
+                'of the chipper collection ({})'.format(len(sicd_meta), len(chippers)))
+        super(NITFReader, self).__init__(sicd_meta, tuple(chippers), is_sicd_type=is_sicd_type)
 
     @property
     def nitf_details(self):
@@ -697,7 +709,7 @@ class NITFReader(BaseReader):
 
             return BIPChipper(
                 path_name, raw_dtype, (this_rows, this_cols), raw_bands, output_bands, output_dtype,
-                symmetry=(False, False, False), transform_data=transform_data, data_offset=0,
+                symmetry=self._symmetry, transform_data=transform_data, data_offset=0,
                 limit_to_raw_bands=limit_to_raw_bands)
 
         def handle_blocked():
@@ -740,13 +752,13 @@ class NITFReader(BaseReader):
             return MultiSegmentChipper(
                 self.file_name, bounds, offsets, raw_dtype, raw_bands,
                 output_bands=output_bands, output_dtype=output_dtype,
-                symmetry=(False, False, False), transform_data=transform_data,
+                symmetry=self._symmetry, transform_data=transform_data,
                 limit_to_raw_bands=limit_to_raw_bands)
 
         def handle_flat():
             return BIPChipper(
                 self.file_name, raw_dtype, (this_rows, this_cols), raw_bands, output_bands, output_dtype,
-                symmetry=(False, False, False), transform_data=transform_data,
+                symmetry=self._symmetry, transform_data=transform_data,
                 data_offset=data_offset, limit_to_raw_bands=limit_to_raw_bands)
 
         if not self._compliance_check(index):
@@ -891,7 +903,7 @@ class NITFReader(BaseReader):
 
         Returns
         -------
-        sarpy.io.general.base.BaseChipper
+        sarpy.io.general.base.BaseChipper|List[sarpy.io.general.base.BaseChipper]
         """
 
         # this default behavior should be overridden for SICD/SIDD

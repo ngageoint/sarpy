@@ -125,7 +125,7 @@ class BIPChipper(BaseChipper):
         if not isinstance(limit_to_raw_bands, numpy.ndarray):
             raise TypeError('limit_to_raw_bands got unsupported input of type {}'.format(type(limit_to_raw_bands)))
         # ensure that limit_to_raw_bands make sense...
-        if numpy.any(limit_to_raw_bands < 0 | limit_to_raw_bands >= self._raw_bands):
+        if numpy.any((limit_to_raw_bands < 0) | (limit_to_raw_bands >= self._raw_bands)):
             raise ValueError(
                 'all entries of limit_to_raw_bands ({}) must be in the range 0 <= value < {}'.format(limit_to_raw_bands, self._raw_bands))
         self._limit_to_raw_bands = limit_to_raw_bands
