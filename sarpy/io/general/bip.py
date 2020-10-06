@@ -227,7 +227,9 @@ class MultiSegmentChipper(AggregateChipper):
         file_name : str
             The name of the file from which to read
         bounds : numpy.ndarray
-            Two-dimensional array of [row start, row end, column start, column end]
+            Two-dimensional array of [row start, row end, column start, column end].
+            This should be with respect to the raw underlying data, and will be
+            rearranged based on symmetry.
         data_offsets : numpy.ndarray
             Offset for each image segment from the start of the file
         raw_dtype : str|numpy.dtype|numpy.number
@@ -269,6 +271,21 @@ class MultiSegmentChipper(AggregateChipper):
             p_row_start, p_row_end, p_col_start, p_col_end = entry
             # define the data_sizes entry
             data_sizes[i, :] = (entry[1] - entry[0], entry[3] - entry[2])
+
+        total_rows = bounds[-1, 1]
+        total_cols = bounds[-1, 3]
+        if symmetry[0]:
+            t_bounds = bounds.copy()
+            bounds[:, 0] = total_rows - t_bounds[:, 1]
+            bounds[:, 1] = total_rows - t_bounds[:, 0]
+        if symmetry[1]:
+            t_bounds = bounds.copy()
+            bounds[:, 2] = total_cols - t_bounds[:, 3]
+            bounds[:, 3] = total_cols - t_bounds[:, 2]
+        if symmetry[2]:
+            t_bounds = bounds.copy()
+            bounds[:, :2] = t_bounds[:, 2:]
+            bounds[:, 2:] = t_bounds[:, :2]
 
         # validate data offsets
         if not isinstance(data_offsets, numpy.ndarray):
