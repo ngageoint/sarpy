@@ -1,6 +1,7 @@
 # This details the important differences introduced in sarpy 1.1
 
-* .17 - Added TerraSAR-X reading support for level 1 products
+* .18 - Added TerraSAR-X reading support for level 1 products
+* .17 - Repaired ICEYE and CSK chipper definition bug
 * .16 - Treat RCM ScanSAR as spotlight for appropriate processing
 * .15 - Resolved SICD writing bug for integer data
 * .14 - Improved docstrings on RCM ScanSAR methods
