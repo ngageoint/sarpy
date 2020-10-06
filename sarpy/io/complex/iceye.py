@@ -462,11 +462,11 @@ class ICEYEDetails(object):
 class ICEYEChipper(BaseChipper):
     __slots__ = ('_file_name', '_real_group', '_imaginary_group')
 
-    def __init__(self, file_name, data_size, symmetry, complex_type=True, real_group='s_i', imaginary_group='s_q'):
+    def __init__(self, file_name, data_size, symmetry, transform_data='COMPLEX', real_group='s_i', imaginary_group='s_q'):
         self._file_name = file_name
         self._real_group = real_group
         self._imaginary_group = imaginary_group
-        super(ICEYEChipper, self).__init__(data_size, symmetry=symmetry, complex_type=complex_type)
+        super(ICEYEChipper, self).__init__(data_size, symmetry=symmetry, transform_data=transform_data)
 
     def _read_raw_fun(self, range1, range2):
         def validate_gp(gp, name):
