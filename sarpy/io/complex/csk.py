@@ -503,10 +503,10 @@ class CSKDetails(object):
 class H5Chipper(BaseChipper):
     __slots__ = ('_file_name', '_band_name')
 
-    def __init__(self, file_name, band_name, data_size, symmetry, complex_type=True):
+    def __init__(self, file_name, band_name, data_size, symmetry, transform_data='COMPLEX'):
         self._file_name = file_name
         self._band_name = band_name
-        super(H5Chipper, self).__init__(data_size, symmetry=symmetry, complex_type=complex_type)
+        super(H5Chipper, self).__init__(data_size, symmetry=symmetry, transform_data=transform_data)
 
     def _read_raw_fun(self, range1, range2):
         def reorder(tr):
