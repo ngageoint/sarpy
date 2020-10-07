@@ -1815,7 +1815,7 @@ class NITFWriter(AbstractWriter):
                 if not img_details.image_written:
                     logging.critical("This NITF file in not completely written and will be corrupt. "
                                      "Image segment {} has only written {} "
-                                     "of {}".format(i, img_details.pixels_written, img_details.total_pixels))
+                                     "of {} pixels".format(i, img_details.pixels_written, img_details.total_pixels))
         # ensure that all data extensions are fully written
         if self.des_details is not None:
             for i, des_detail in enumerate(self.des_details):
