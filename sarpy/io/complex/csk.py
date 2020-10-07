@@ -514,7 +514,7 @@ class H5Chipper(BaseChipper):
                 return tr, False
             else:
                 if tr[1] == -1 and tr[2] < 0:
-                    return (0, tr[0], -tr[2]), True
+                    return (0, tr[0]+1, -tr[2]), True
                 else:
                     return (tr[1], tr[0], -tr[2]), True
 
