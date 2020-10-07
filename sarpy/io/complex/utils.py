@@ -59,7 +59,6 @@ def two_dim_poly_fit(x, y, z, x_order=2, y_order=2, x_scale=1, y_scale=1, rcond=
         A[:, i] = numpy.power(x, index[0])*numpy.power(y, index[1])
     # perform least squares fit
     sol, residuals, rank, sing_values = numpy.linalg.lstsq(A, z, rcond=rcond)
-    # NB: it seems like this problem is not always well-conditioned (TimeCOAPoly, at least)
     if len(residuals) != 0:
         residuals /= float(x.size)
     sol = numpy.power(x_scale, numpy.arange(x_order+1))[:, numpy.newaxis] * \
