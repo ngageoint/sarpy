@@ -17,7 +17,6 @@ from scipy.constants import speed_of_light
 from sarpy.compliance import string_types, int_func
 from sarpy.io.general.base import BaseReader, SubsetChipper
 from sarpy.io.general.bip import BIPChipper
-from sarpy.io.general.tiff import TiffDetails, NativeTiffChipper
 from sarpy.io.general.utils import get_seconds, parse_timestring
 
 from sarpy.io.complex.sicd_elements.blocks import Poly1DType, Poly2DType
