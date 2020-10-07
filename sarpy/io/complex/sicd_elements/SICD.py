@@ -978,6 +978,10 @@ class SICDType(Serializable):
                 _crad = 'NI'
                 _cvehicle = '01'
                 _pass = '{0:02d}'.format(int(round(_mins*14.4167/1440.)))
+            elif _collector.lower().startswith('iceye'):
+                _crad = 'IC'
+                _cvehicle = _collector[-2:].upper() if _collector.lower().startswith('iceye-') else 'UN'
+                _pass = '{0:02d}'.format(int(round(_mins*15/1440.)))
             else:
                 logging.error('Got unknown collector {}. Setting collector vehicle to 00.'.format(_collector))
                 _crad = 'UN'
@@ -1009,7 +1013,7 @@ class SICDType(Serializable):
     @staticmethod
     def get_des_details():
         """
-        Gets the correct SIDD 2.0 DES subheader details.
+        Gets the correct current SICD DES subheader details.
 
         Returns
         -------
