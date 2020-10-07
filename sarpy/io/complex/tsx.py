@@ -807,7 +807,7 @@ class TSXDetails(object):
             # this should be an absolute squared magnitude value
             raw_noise_values = polynomial.polyval(range_time, poly_coeffs)
             # we convert to db
-            noise_values = 10*numpy.log10(numpy.sqrt(raw_noise_values))
+            noise_values = 10*numpy.log10(raw_noise_values)
             coords_range_m = 0.5*(range_time + ref_point - range_time_scp)*speed_of_light
             # fit the polynomial
             scale = 1e-3
