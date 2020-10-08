@@ -518,7 +518,7 @@ class NISARDetails(object):
             dop_rate_poly = polynomial.polyfit(coords_rg_m, -doprate_sampled[min_ind, :], 4)  # why fourth order?
             t_sicd.RMA.INCA.FreqZero = center_freq
             t_sicd.RMA.INCA.DRateSFPoly = Poly2DType(Coefs=numpy.reshape(
-                -numpy.convolve(dop_rate_poly, r_ca_poly)*speed_of_light/(2*center_freq*vm_ca_sq), (1, -1)))
+                -numpy.convolve(dop_rate_poly, r_ca_poly)*speed_of_light/(2*center_freq*vm_ca_sq), (-1, 1)))
 
             # update Grid.Col parameters
             t_sicd.Grid.Col.SS = numpy.sqrt(vm_ca_sq)*abs(ss_az_s)*t_sicd.RMA.INCA.DRateSFPoly.Coefs[0, 0]

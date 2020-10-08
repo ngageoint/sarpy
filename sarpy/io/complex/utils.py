@@ -112,11 +112,11 @@ def fit_time_coa_polynomial(inca, image_data, grid, dop_rate_scaled_coeffs, poly
     Poly2DType
     """
 
-    grid_samples = poly_order + 3
+    grid_samples = poly_order + 8
     coords_az = get_im_physical_coords(
-        numpy.linspace(0, image_data.NumCols - 1, grid_samples, dtype=numpy.float64), grid, image_data, 'col')
+        numpy.linspace(0, image_data.NumCols - 1, grid_samples, dtype='float64'), grid, image_data, 'col')
     coords_rg = get_im_physical_coords(
-        numpy.linspace(0, image_data.NumRows - 1, grid_samples, dtype=numpy.float64), grid, image_data, 'row')
+        numpy.linspace(0, image_data.NumRows - 1, grid_samples, dtype='float64'), grid, image_data, 'row')
     coords_az_2d, coords_rg_2d = numpy.meshgrid(coords_az, coords_rg)
     time_ca_sampled = inca.TimeCAPoly(coords_az_2d)
     dop_centroid_sampled = inca.DopCentroidPoly(coords_rg_2d, coords_az_2d)

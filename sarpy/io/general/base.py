@@ -50,6 +50,7 @@ def validate_transform_data(transform_data):
             raise ValueError('transform_data is string {}, which is not supported'.format(transform_data))
     return transform_data
 
+
 class BaseChipper(object):
     """
     Base class defining basic functionality for the literal extraction of data
@@ -396,8 +397,6 @@ class AggregateChipper(BaseChipper):
         ----------
         bounds : numpy.ndarray
             Two-dimensional array of `[row start, row end, column start, column end]`.
-            The order of entries should traverse a specific blocks of columns until
-            reaching the row limit, and then traversing to the next block of columns.
         output_dtype : str|numpy.dtype|numpy.number
             The data type of the output data
         child_chippers : tuple|list
@@ -426,7 +425,9 @@ class AggregateChipper(BaseChipper):
         self._bounds = bounds
         self._dtype = output_dtype
         self._output_bands = int_func(output_bands)
-        data_size = (self._bounds[-1, 1], self._bounds[-1, 3])
+        data_size = (
+            int_func(numpy.max(self._bounds[:, 1])),
+            int_func(numpy.max(self._bounds[:, 3])))
         # all of the actual reading and reorienting done by child chippers,
         # so do not reorient or change type at this level
         super(AggregateChipper, self).__init__(data_size, symmetry=(False, False, False), transform_data=None)
@@ -454,27 +455,12 @@ class AggregateChipper(BaseChipper):
 
         # determine data sizes and sensibility
         data_sizes = numpy.zeros((bounds.shape[0], 2), dtype=numpy.int64)
-        p_row_start, p_row_end, p_col_start, p_col_end = None, None, None, None
 
         for i, entry in enumerate(bounds):
             # Are the order of the entries in bounds sensible?
             if not (0 <= entry[0] < entry[1] and 0 <= entry[2] < entry[3]):
                 raise ValueError('entry {} of bounds is {}, and cannot be of the form '
                                  '[row start, row end, column start, column end]'.format(i, entry))
-            # Are the elements of bounds sensible in relative terms?
-            #   Expected to traverse by a specific block of columns until we reach the row limit,
-            #   and then moving on the next segment of columns
-            if i == 0:
-                if entry[0] != 0 or entry[2] != 0:
-                    raise ValueError(
-                        'The bounds must begin at row 0 and column 0. '
-                        'Got initial bounds {}'.format(entry))
-            else:
-                # this block of rows has new column start where previous one ended, or start a new block of rows
-                if not ((p_col_end == entry[2] and p_row_start == entry[0] and p_row_end == entry[1]) or
-                        (p_row_end == entry[0] and entry[2] == 0)):
-                    raise ValueError('The relative order for the chipper elements cannot be determined.')
-            p_row_start, p_row_end, p_col_start, p_col_end = entry
             # define the data_sizes entry
             data_sizes[i, :] = (entry[1] - entry[0], entry[3] - entry[2])
         return data_sizes

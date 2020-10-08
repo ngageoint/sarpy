@@ -1093,12 +1093,12 @@ def _image_to_ground_plane_perform(r_tgt_coa, r_dot_tgt_coa, arp_coa, varp_coa, 
 
     Parameters
     ----------
-    r_tgt_coa : numnpy.ndarray
-    r_dot_tgt_coa : numnpy.ndarray
-    arp_coa : numnpy.ndarray
-    varp_coa : numnpy.ndarray
-    gref : numnpy.ndarray
-    uZ : numnpy.ndarray
+    r_tgt_coa : numpy.ndarray
+    r_dot_tgt_coa : numpy.ndarray
+    arp_coa : numpy.ndarray
+    varp_coa : numpy.ndarray
+    gref : numpy.ndarray
+    uZ : numpy.ndarray
 
     Returns
     -------
