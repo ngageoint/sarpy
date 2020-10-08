@@ -31,8 +31,8 @@ except ImportError:
 
 
 from sarpy.compliance import int_func, string_types
-from sarpy.io.general.base import BaseReader, AbstractWriter
-from sarpy.io.general.bip import BIPChipper, MultiSegmentChipper, BIPWriter
+from sarpy.io.general.base import BaseReader, AbstractWriter, SubsetChipper, AggregateChipper
+from sarpy.io.general.bip import BIPChipper, BIPWriter
 # noinspection PyProtectedMember
 from sarpy.io.general.nitf_elements.nitf_head import NITFHeader, ImageSegmentsType, \
     DataExtensionsType, _ItemArrayHeaders
@@ -91,11 +91,16 @@ class NITFDetails(object):
 
     __slots__ = (
         '_file_name', '_nitf_header', '_img_headers',
-        'img_subheader_offsets', 'img_segment_offsets',
-        'graphics_subheader_offsets', 'graphics_segment_offsets',
-        'text_subheader_offsets', 'text_segment_offsets',
-        'des_subheader_offsets', 'des_segment_offsets',
-        'res_subheader_offsets', 'res_segment_offsets')
+        'img_subheader_offsets', 'img_subheader_sizes',
+        'img_segment_offsets', 'img_segment_sizes',
+        'graphics_subheader_offsets', 'graphics_subheader_sizes',
+        'graphics_segment_offsets', 'graphics_segment_sizes',
+        'text_subheader_offsets', 'text_subheader_sizes',
+        'text_segment_offsets', 'text_segment_sizes',
+        'des_subheader_offsets', 'des_subheader_sizes',
+        'des_segment_offsets', 'des_segment_sizes',
+        'res_subheader_offsets', 'res_subheader_sizes',
+        'res_segment_offsets', 'res_segment_sizes')
 
     def __init__(self, file_name):
         """
@@ -131,34 +136,39 @@ class NITFDetails(object):
 
         curLoc = self._nitf_header.HL
         # populate image segment offset information
-        curLoc, self.img_subheader_offsets, self.img_segment_offsets = self._element_offsets(
+        curLoc, self.img_subheader_offsets, self.img_subheader_sizes, \
+        self.img_segment_offsets, self.img_segment_sizes = self._element_offsets(
             curLoc, self._nitf_header.ImageSegments)
         # populate graphics segment offset information
-        curLoc, self.graphics_subheader_offsets, self.graphics_segment_offsets = self._element_offsets(
+        curLoc, self.graphics_subheader_offsets, self.graphics_subheader_sizes, \
+        self.graphics_segment_offsets, self.graphics_segment_sizes = self._element_offsets(
             curLoc, self._nitf_header.GraphicsSegments)
         # populate text segment offset information
-        curLoc, self.text_subheader_offsets, self.text_segment_offsets = self._element_offsets(
+        curLoc, self.text_subheader_offsets, self.text_subheader_sizes, \
+        self.text_segment_offsets, self.text_segment_sizes = self._element_offsets(
             curLoc, self._nitf_header.TextSegments)
         # populate data extension offset information
-        curLoc, self.des_subheader_offsets, self.des_segment_offsets = self._element_offsets(
+        curLoc, self.des_subheader_offsets, self.des_subheader_sizes, \
+        self.des_segment_offsets, self.des_segment_sizes = self._element_offsets(
             curLoc, self._nitf_header.DataExtensions)
         # populate data extension offset information
-        curLoc, self.res_subheader_offsets, self.res_segment_offsets = self._element_offsets(
+        curLoc, self.res_subheader_offsets, self.res_subheader_sizes, \
+        self.res_segment_offsets, self.res_segment_sizes = self._element_offsets(
             curLoc, self._nitf_header.ReservedExtensions)
 
     @staticmethod
     def _element_offsets(curLoc, item_array_details):
-        # type: (int, _ItemArrayHeaders) -> Tuple[int, Union[None, numpy.ndarray], Union[None, numpy.ndarray]]
+        # type: (int, _ItemArrayHeaders) -> Tuple[int, Union[None, numpy.ndarray], Union[None, numpy.ndarray], Union[None, numpy.ndarray], Union[None, numpy.ndarray]]
         subhead_sizes = item_array_details.subhead_sizes
         item_sizes = item_array_details.item_sizes
         if subhead_sizes.size == 0:
-            return curLoc, None, None
+            return curLoc, None, None, None, None
 
         subhead_offsets = numpy.full(subhead_sizes.shape, curLoc, dtype=numpy.int64)
         subhead_offsets[1:] += numpy.cumsum(subhead_sizes[:-1]) + numpy.cumsum(item_sizes[:-1])
         item_offsets = subhead_offsets + subhead_sizes
         curLoc = item_offsets[-1] + item_sizes[-1]
-        return curLoc, subhead_offsets, item_offsets
+        return curLoc, subhead_offsets, subhead_sizes, item_offsets, item_sizes
 
     @property
     def file_name(self):
@@ -498,9 +508,9 @@ class NITFReader(BaseReader):
     A reader object for NITF 2.10 container files
     """
 
-    __slots__ = ('_nitf_details', '_cached_files')
+    __slots__ = ('_nitf_details', '_cached_files', '_symmetry')
 
-    def __init__(self, nitf_details, is_sicd_type=False):
+    def __init__(self, nitf_details, is_sicd_type=False, symmetry=(False, False, False)):
         """
 
         Parameters
@@ -509,8 +519,10 @@ class NITFReader(BaseReader):
             The NITFDetails object or path to a nitf file.
         is_sicd_type : bool
             Is this a sicd type reader, or otherwise?
+        symmetry : tuple
         """
 
+        self._symmetry = symmetry
         self._cached_files = []
         if isinstance(nitf_details, string_types):
             nitf_details = NITFDetails(nitf_details)
@@ -530,9 +542,26 @@ class NITFReader(BaseReader):
         # determine image segmentation from image headers
         segments = self._find_segments()
         # construct the chippers
-        chippers = tuple(self._construct_chipper(segment, i) for i, segment in enumerate(segments))
-        # construct regularly
-        super(NITFReader, self).__init__(sicd_meta, chippers, is_sicd_type=is_sicd_type)
+        chippers = []
+        for i, segment in enumerate(segments):
+            this_chip = self._construct_chipper(segment, i)
+            if isinstance(this_chip, list):
+                chippers.extend(this_chip)
+            else:
+                chippers.append(this_chip)
+        # validate that sicd and chippers lengths are feasible
+        if sicd_meta is not None:
+            if not isinstance(sicd_meta, (list, tuple)):
+                if len(chippers) != 1:
+                    raise ValueError(
+                        'There is a single sicd structure and chipper collection of '
+                        'length {}'.format(len(chippers)))
+            else:
+                if len(sicd_meta) != len(chippers):
+                    raise ValueError(
+                        'The length of the sicd structure ({}) does not match the length '
+                        'of the chipper collection ({})'.format(len(sicd_meta), len(chippers)))
+        super(NITFReader, self).__init__(sicd_meta, tuple(chippers), is_sicd_type=is_sicd_type)
 
     @property
     def nitf_details(self):
@@ -669,7 +698,7 @@ class NITFReader(BaseReader):
 
         Returns
         -------
-        BIPChipper|MultiSegmentChipper
+        BIPChipper|AggregateChipper
         """
 
         def handle_compressed():
@@ -697,27 +726,28 @@ class NITFReader(BaseReader):
 
             return BIPChipper(
                 path_name, raw_dtype, (this_rows, this_cols), raw_bands, output_bands, output_dtype,
-                symmetry=(False, False, False), transform_data=transform_data, data_offset=0,
+                symmetry=self._symmetry, transform_data=transform_data, data_offset=0,
                 limit_to_raw_bands=limit_to_raw_bands)
 
         def handle_blocked():
             # column (horizontal) block details
             column_block_size = this_cols
             if img_header.NBPR != 1:
-                column_block_size = int_func(numpy.ceil(this_cols / img_header.NBPR))
+                column_block_size = img_header.NPPBH
 
             # row (vertical) block details
             row_block_size = this_rows
             if img_header.NBPC != 1:
-                row_block_size = int_func(numpy.ceil(this_rows/img_header.NBPC))
+                row_block_size = img_header.NPPBV
 
-            # iterate over our blocks and populate the bounds and offsets
+            # iterate over our blocks and determine bounds and create chippers
             bounds = []
-            offsets = []
+            chippers = []
 
             # outer loop over rows inner loop over columns
             current_offset = int_func(data_offset)
             block_row_end = 0
+            block_offset = img_header.NPPBH*img_header.NPPBV*bytes_per_pixel
             for vblock in range(img_header.NBPC):
                 # define the current row block start/end
                 block_row_start = block_row_end
@@ -731,22 +761,60 @@ class NITFReader(BaseReader):
                     block_col_end = min(this_cols, block_col_end)
                     # store our bounds and offset
                     bounds.append((block_row_start, block_row_end, block_col_start, block_col_end))
-                    offsets.append(current_offset)
+                    # create chipper
+                    chip_rows = block_row_end - block_row_start
+                    chip_cols = column_block_size
+                    if block_col_end == block_col_start+column_block_size:
+                        chippers.append(
+                            BIPChipper(
+                                self.file_name, raw_dtype, (chip_rows, chip_cols),
+                                raw_bands, output_bands, output_dtype,
+                                symmetry=self._symmetry, transform_data=transform_data,
+                                data_offset=current_offset, limit_to_raw_bands=limit_to_raw_bands))
+                    else:
+                        c_row_start, c_row_end = 0, chip_rows
+                        c_col_start, c_col_end = 0, block_col_end - block_col_start
+                        if self._symmetry[1]:
+                            c_col_start = column_block_size - c_col_end
+                            c_col_end = column_block_size - c_col_start
+                        if self._symmetry[2]:
+                            c_row_start, c_row_end, c_col_start, c_col_end = \
+                                c_col_start, c_col_end, c_row_start, c_row_end
+
+                        p_chipper = BIPChipper(
+                            self.file_name, raw_dtype, (chip_rows, chip_cols),
+                            raw_bands, output_bands, output_dtype,
+                            symmetry=self._symmetry, transform_data=transform_data,
+                            data_offset=current_offset, limit_to_raw_bands=limit_to_raw_bands)
+                        chippers.append(SubsetChipper(p_chipper, (c_row_start, c_row_end), (c_col_start, c_col_end)))
+
                     # update the offset
-                    current_offset += (block_row_end - block_row_start)*(block_col_end - block_col_start)*bytes_per_pixel
+                    current_offset += block_offset  # NB: this may contain pad pixels
 
             bounds = numpy.array(bounds, dtype=numpy.int64)
-            offsets = numpy.array(offsets, dtype=numpy.int64)
-            return MultiSegmentChipper(
-                self.file_name, bounds, offsets, raw_dtype, raw_bands,
-                output_bands=output_bands, output_dtype=output_dtype,
-                symmetry=(False, False, False), transform_data=transform_data,
-                limit_to_raw_bands=limit_to_raw_bands)
+            total_rows = bounds[-1, 1]
+            total_cols = bounds[-1, 3]
+            if total_rows != this_rows or total_cols != this_cols:
+                raise ValueError('Got unexpected chipper construction')
+            if self._symmetry[0]:
+                t_bounds = bounds.copy()
+                bounds[:, 0] = total_rows - t_bounds[:, 1]
+                bounds[:, 1] = total_rows - t_bounds[:, 0]
+            if self._symmetry[1]:
+                t_bounds = bounds.copy()
+                bounds[:, 2] = total_cols - t_bounds[:, 3]
+                bounds[:, 3] = total_cols - t_bounds[:, 2]
+            if self._symmetry[2]:
+                t_bounds = bounds.copy()
+                bounds[:, :2] = t_bounds[:, 2:]
+                bounds[:, 2:] = t_bounds[:, :2]
+
+            return AggregateChipper(bounds, output_dtype, chippers, output_bands=output_bands)
 
         def handle_flat():
             return BIPChipper(
                 self.file_name, raw_dtype, (this_rows, this_cols), raw_bands, output_bands, output_dtype,
-                symmetry=(False, False, False), transform_data=transform_data,
+                symmetry=self._symmetry, transform_data=transform_data,
                 data_offset=data_offset, limit_to_raw_bands=limit_to_raw_bands)
 
         if not self._compliance_check(index):
@@ -783,7 +851,7 @@ class NITFReader(BaseReader):
             transform_data = this_transform_data
         # define the chipper
         if img_header.IC in ['NM', 'M1', 'M3', 'M4', 'M5', 'M6', 'M7', 'M8']:
-            raise ValueError('Masked image segments not currently supported.')
+            raise ValueError('Masked image segments not supported.')
         elif img_header.IC in ['C1', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'I1']:
             return handle_compressed()
         elif img_header.IC == 'NC':
@@ -891,7 +959,7 @@ class NITFReader(BaseReader):
 
         Returns
         -------
-        sarpy.io.general.base.BaseChipper
+        sarpy.io.general.base.BaseChipper|List[sarpy.io.general.base.BaseChipper]
         """
 
         # this default behavior should be overridden for SICD/SIDD

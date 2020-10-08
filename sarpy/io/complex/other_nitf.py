@@ -34,13 +34,14 @@ from sarpy.io.general.nitf_elements.base import TREList
 
 # NB: The checking for open_complex() is included in the sicd.is_a().
 
-def _extract_sicd(img_header):
+def _extract_sicd(img_header, symmetry):
     """
     Extract the best available SICD structure from the given image header.
 
     Parameters
     ----------
     img_header : ImageSegmentHeader
+    symmetry : tuple
 
     Returns
     -------
@@ -95,8 +96,12 @@ def _extract_sicd(img_header):
         else:
             raise ValueError('Got unhandled PVTYPE {}'.format(pvtype))
 
-        rows = img_header.NROWS
-        cols = img_header.NCOLS
+        if symmetry[2]:
+            rows = img_header.NCOLS
+            cols = img_header.NROWS
+        else:
+            rows = img_header.NROWS
+            cols = img_header.NCOLS
         return ImageDataType(
             PixelType=pixel_type,
             NumRows=rows,
@@ -539,17 +544,22 @@ class ComplexNITFDetails(NITFDetails):
     Details object for NITF file containing complex data.
     """
 
-    __slots__ = ('_complex_segments', '_sicd_meta')
+    __slots__ = ('_complex_segments', '_sicd_meta', '_symmetry', '_split_bands')
 
-    def __init__(self, file_name):
+    def __init__(self, file_name, symmetry=(False, False, False), split_bands=True):
         """
 
         Parameters
         ----------
         file_name : str
             file name for a NITF 2.1 file containing a SICD
+        symmetry : tuple
+        split_bands : bool
+            Split multiple complex bands into single bands?
         """
 
+        self._split_bands = split_bands
+        self._symmetry = symmetry
         self._sicd_meta = None
         self._complex_segments = None
         super(ComplexNITFDetails, self).__init__(file_name)
@@ -562,7 +572,7 @@ class ComplexNITFDetails(NITFDetails):
     @property
     def complex_segments(self):
         """
-        List[List[int]]: The image details for each relevant image segment.
+        List[dict]: The image details for each relevant image segment.
         """
 
         return self._complex_segments
@@ -585,25 +595,30 @@ class ComplexNITFDetails(NITFDetails):
         """
 
         def extract_band_details(image_header):
-            # type: (ImageSegmentHeader) -> bool
+            # type: (ImageSegmentHeader) -> int
             bands = len(image_header.Bands)
             if image_header.ICAT.strip() in ['SAR', 'SARIQ'] and ((bands % 2) == 0):
                 cont = True
                 for j in range(0, bands, 2):
-                    band1 = image_header.Bands[j]
-                    band2 = image_header.Bands[j+1]
                     cont &= (image_header.Bands[j].ISUBCAT == 'I'
                              and image_header.Bands[j+1].ISUBCAT == 'Q')
-                return cont
-            return False
+                return bands
+            return 0
 
         sicd_meta = []
         complex_segments = []
         for i, img_header in enumerate(self.img_headers):
-            result = extract_band_details(img_header)
-            if result:
-                complex_segments.append([i, ])
-                sicd_meta.append(_extract_sicd(img_header))
+            complex_bands = extract_band_details(img_header)
+            if complex_bands > 0:
+                sicd = _extract_sicd(img_header, self._symmetry)
+                if self._split_bands and complex_bands > 2:
+                    for j in range(0, complex_bands, 2):
+                        complex_segments.append(
+                            {'index': i, 'output_bands': 1, 'limit_to_raw_bands': numpy.array([j, j+1], dtype='int32')})
+                        sicd_meta.append(sicd.copy())
+                else:
+                    complex_segments.append({'index': i, })
+                    sicd_meta.append(sicd)
 
         if len(sicd_meta) > 0:
             self._complex_segments = complex_segments
@@ -616,20 +631,24 @@ class ComplexNITFReader(NITFReader):
     the SICDReader.
     """
 
-    def __init__(self, nitf_details):
+    def __init__(self, nitf_details, symmetry=(False, False, False), split_bands=True):
         """
 
         Parameters
         ----------
         nitf_details : str|ComplexNITFDetails
+        symmetry : tuple
+            Passed through to ComplexNITFDetails() in the event that `nitf_details` is a file name.
+        split_bands : bool
+            Passed through to ComplexNITFDetails() in the event that `nitf_details` is a file name.
         """
 
         if isinstance(nitf_details, string_types):
-            nitf_details = ComplexNITFDetails(nitf_details)
+            nitf_details = ComplexNITFDetails(nitf_details, symmetry=symmetry, split_bands=split_bands)
         if not isinstance(nitf_details, ComplexNITFDetails):
             raise TypeError('The input argument for ComplexNITFReader must be a filename or '
                             'ComplexNITFDetails object.')
-        super(ComplexNITFReader, self).__init__(nitf_details, is_sicd_type=True)
+        super(ComplexNITFReader, self).__init__(nitf_details, is_sicd_type=True, symmetry=symmetry)
 
     @property
     def nitf_details(self):
@@ -642,4 +661,12 @@ class ComplexNITFReader(NITFReader):
         return self._nitf_details
 
     def _find_segments(self):
-        return self.nitf_details.complex_segments
+        return [[entry['index'], ] for entry in self.nitf_details.complex_segments]
+
+    def _construct_chipper(self, segment, index):
+        entry = self.nitf_details.complex_segments[index]
+        if entry['index'] != segment[0]:
+            raise ValueError('Got incompatible entries.')
+        return self._define_chipper(
+            entry['index'], output_bands=entry.get('output_bands', None),
+            limit_to_raw_bands=entry.get('limit_to_raw_bands', None))
