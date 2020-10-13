@@ -6,7 +6,7 @@ Functionality for reading PALSAR ALOS 2 data into a SICD model.
 import logging
 import os
 import struct
-from typing import Union, Tuple
+from typing import Union, Tuple, List
 
 import numpy
 
@@ -424,7 +424,6 @@ class _IMGHeader(_CommonHeader2):
 ###########
 # LED file interpretation
 
-# data class
 class _LED_Data(_BaseHeader):
     """
     The data set summary in the LED file.
@@ -439,32 +438,348 @@ class _LED_Data(_BaseHeader):
         'clock_angle', 'incidence', 'wavelength', 'mocomp', 'range_pulse_code',
         'range_pulse_amp_coef', 'range_pulse_phs_coef', 'chirp_index',
         'sampling_rate', 'range_gate', 'pulse_width', 'baseband_flg',
-        'range_compressed', 'rec_gain_like_pol', 'rec_gain_cross_pol',
+        'range_compressed_flg', 'rec_gain_like_pol', 'rec_gain_cross_pol',
         'quant_bit', 'quant_desc', 'dc_bias_i', 'dc_bias_q', 'gain_imbalance',
         'elec_bores', 'mech_bores', 'echo_tracker', 'prf', 'ant_beam_2way_el',
-        'ant_beam_2way_az', 'sat_time', 'sta_clock_inc',
-        'proc_fac', 'proc_sys', 'proc_ver', 'proc_lvl_code', 'proc_type',
-        'proc_alg', 'num_look_az', 'num_look_rng', 'bw_per_look_az',
+        'ant_beam_2way_az', 'sat_time', 'sat_clock', 'sat_clock_inc',
+        'proc_fac', 'proc_sys', 'proc_ver', 'proc_fac_code', 'proc_lvl_code',
+        'prod_type', 'proc_alg', 'num_look_az', 'num_look_rng', 'bw_per_look_az',
         'bw_per_look_rng', 'bw_az', 'bw_rng', 'wgt_az', 'wgt_rng',
         'data_input_src', 'res_grnd_rng', 'res_az', 'rad_bias', 'rad_gain',
         'at_dop', 'xt_dop', 'time_dir_pixel', 'time_dir_line',
         'at_dop_rate', 'xt_dop_rate', 'line_constant', 'clutter_lock_flg',
-        'autofocus_flg', 'line_spacing', 'rng_comp_des', 'dop_freq',
+        'autofocus_flg', 'line_spacing', 'pixel_spacing', 'rng_comp_des', 'dop_freq',
         'cal_mode_loc_flag', 'start_line_cal_start', 'end_line_cal_start',
+        'start_line_cal_end', 'end_line_cal_end',
         'prf_switch', 'prf_switch_line', 'beam_ctr_dir', 'yaw_steer_flag',
         'param_table_num', 'off_nadir', 'ant_beam_num', 'incidence_ang',
         'num_annot')
 
     def __init__(self, fi):
         super(_LED_Data, self).__init__(fi)
-        # TODO: line 89 - 226
+        self.rec_seq = fi.read(4).decode('utf-8')  # type: str
+        self.sar_id = fi.read(4).decode('utf-8')  # type: str
+        self.scene_id = fi.read(32).decode('utf-8')  # type: str
+        self.num_scene_ref = fi.read(16).decode('utf-8')  # type: str
+        self.scene_ctr_time = fi.read(32).decode('utf-8')  # type: str
+        fi.seek(16, 1)  # skip reserved fields
+        self.geo_lat = fi.read(16).decode('utf-8')  # type: str
+        self.geo_long = fi.read(16).decode('utf-8')  # type: str
+        self.heading = fi.read(16).decode('utf-8')  # type: str
+        self.ellips = fi.read(16).decode('utf-8')  # type: str
+        self.semimajor = fi.read(16).decode('utf-8')  # type: str
+        self.semiminor = fi.read(16).decode('utf-8')  # type: str
+        self.earth_mass = fi.read(16).decode('utf-8')  # type: str
+        self.grav_const = fi.read(16).decode('utf-8')  # type: str
+        self.J2 = fi.read(16).decode('utf-8')  # type: str
+        self.J3 = fi.read(16).decode('utf-8')  # type: str
+        self.J4 = fi.read(16).decode('utf-8')  # type: str
+        fi.seek(16, 1)  # skip reserved fields
+        self.avg_terr = fi.read(16).decode('utf-8')  # type: str
+        self.ctr_line = int_func(fi.read(8))  # type: int
+        self.ctr_pixel = int_func(fi.read(8))  # type: int
+        self.proc_length = fi.read(16).decode('utf-8')  # type: str
+        self.proc_width = fi.read(16).decode('utf-8')  # type: str
+        fi.seek(16, 1)  # skip reserved fields
+        self.sar_chan = fi.read(4).decode('utf-8')  # type: str
+        fi.seek(4, 1)  # skip reserved fields
+        self.platform = fi.read(16).decode('utf-8')  # type: str
+        self.sensor_id_mode = fi.read(32).decode('utf-8')  # type: str
+        self.orbit = fi.read(8).decode('utf-8')  # type: str
+        self.sensor_lat = fi.read(8).decode('utf-8')  # type: str
+        self.sensor_lon = fi.read(8).decode('utf-8')  # type: str
+        self.sensor_heading = fi.read(8).decode('utf-8')  # type: str
+        self.clock_angle = float(fi.read(8))  # type: float
+        self.incidence = float(fi.read(8))  # type: float
+        fi.seek(8, 1)  # skip reserved fields
+        self.wavelength = float(fi.read(16))  # type: float
+        self.mocomp = fi.read(2).decode('utf-8')  # type: str
+        self.range_pulse_code = fi.read(16).decode('utf-8')  # type: str
+        self.range_pulse_amp_coef = [fi.read(16).decode('utf-8') for i in range(5)]  # type: List[str]
+        self.range_pulse_phs_coef = [fi.read(16).decode('utf-8') for i in range(5)]  # type: List[str]
+        self.chirp_index = fi.read(8).decode('utf-8')  # type: str
+        fi.seek(8, 1)  # skip reserved fields
+        self.sampling_rate = float(fi.read(16))  # type: float
+        self.range_gate = float(fi.read(16))  # type: float
+        self.pulse_width = float(fi.read(16))  # type: float
+        self.baseband_flg = fi.read(4).decode('utf-8')  # type: str
+        self.range_compressed_flg = fi.read(2).decode('utf-8')  # type: str
+        self.rec_gain_like_pol = float(fi.read(16))  # type: float
+        self.rec_gain_cross_pol = float(fi.read(16))  # type: float
+        self.quant_bit = fi.read(8).decode('utf-8')  # type: str
+        self.quant_desc = fi.read(12).decode('utf-8')  # type: str
+        self.dc_bias_i = float(fi.read(16))  # type: float
+        self.dc_bias_q = float(fi.read(16))  # type: float
+        self.gain_imbalance = float(fi.read(16))  # type: float
+        fi.seek(32, 1)  # skip reserved fields
+        self.elec_bores = float(fi.read(16))  # type: float
+        self.mech_bores = float(fi.read(16))  # type: float
+        self.echo_tracker = fi.read(4).decode('utf-8')  # type: str
+        self.prf = float(fi.read(16))  # type: float
+        self.ant_beam_2way_el = float(fi.read(16))  # type: float
+        self.ant_beam_2way_az = float(fi.read(16))  # type: float
+        self.sat_time = fi.read(16).decode('utf-8')  # type: str
+        self.sat_clock = fi.read(32).decode('utf-8')  # type: str
+        self.sat_clock_inc = fi.read(16).decode('utf-8')  # type: str
+        self.proc_fac = fi.read(16).decode('utf-8')  # type: str
+        self.proc_sys = fi.read(8).decode('utf-8')  # type: str
+        self.proc_ver = fi.read(8).decode('utf-8')  # type: str
+        self.proc_fac_code = fi.read(16).decode('utf-8')  # type: str
+        self.proc_lvl_code = fi.read(16).decode('utf-8')  # type: str
+        self.prod_type = fi.read(32).decode('utf-8')  # type: str
+        self.proc_alg = fi.read(32).decode('utf-8')  # type: str
+        self.num_look_az = int_func(fi.read(16))  # type: int
+        self.num_look_rng = int_func(fi.read(16))  # type: int
+        self.bw_per_look_az = float(fi.read(16))  # type: float
+        self.bw_per_look_rng = float(fi.read(16))  # type: float
+        self.bw_az = float(fi.read(16))  # type: float
+        self.bw_rng = float(fi.read(16))  # type: float
+        self.wgt_az = fi.read(32).decode('utf-8')  # type: str
+        self.wgt_rng = fi.read(32).decode('utf-8')  # type: str
+        self.data_input_src = fi.read(16).decode('utf-8')  # type: str
+        self.res_grnd_rng = fi.read(16).decode('utf-8')  # type: str
+        self.rad_bias = fi.read(16).decode('utf-8')  # type: str
+        self.rad_gain = fi.read(16).decode('utf-8')  # type: str
+        self.at_dop = [float(fi.read(16)) for i in range(3)]  # type: List[float]
+        fi.seek(16, 1)  # skip reserved fields
+        self.xt_dop = [float(fi.read(16)) for i in range(3)]  # type: List[float]
+        self.time_dir_pixel = fi.read(8).decode('utf-8')  # type: str
+        self.time_dir_line = fi.read(8).decode('utf-8')  # type: str
+        self.at_dop_rate = [float(fi.read(16)) for i in range(3)]  # type: List[float]
+        fi.seek(16, 1)  # skip reserved fields
+        self.xt_dop_rate = [float(fi.read(16)) for i in range(3)]  # type: List[float]
+        fi.seek(16, 1)  # skip reserved fields
+        self.line_constant = fi.read(8).decode('utf-8')  # type: str
+        self.clutter_lock_flg = fi.read(4).decode('utf-8')  # type: str
+        self.autofocus_flg = fi.read(4).decode('utf-8')  # type: str
+        self.line_spacing = float(fi.read(16))  # type: float
+        self.pixel_spacing = float(fi.read(16))  # type: float
+        self.rng_comp_des = fi.read(16).decode('utf-8')  # type: str
+        self.dop_freq = [float(fi.read(16)) for i in range(2)]  # type: List[float]
+        self.cal_mode_loc_flag = fi.read(4).decode('utf-8')  # type: str
+        self.start_line_cal_start = fi.read(8).decode('utf-8')  # type: str
+        self.end_line_cal_start = fi.read(8).decode('utf-8')  # type: str
+        self.start_line_cal_end = fi.read(8).decode('utf-8')  # type: str
+        self.end_line_cal_end = fi.read(8).decode('utf-8')  # type: str
+        self.prf_switch = fi.read(4).decode('utf-8')  # type: str
+        self.prf_switch_line = fi.read(8).decode('utf-8')  # type: str
+        self.beam_ctr_dir = float(fi.read(16))  # type: float
+        self.yaw_steer_flag = fi.read(4).decode('utf-8')  # type: str
+        self.param_table_num = fi.read(4).decode('utf-8')  # type: str
+        self.off_nadir = float(fi.read(16))  # type: float
+        self.ant_beam_num = fi.read(4).decode('utf-8')  # type: str
+        fi.seek(28, 1)  # skip reserved fields
+        self.incidence_ang = [float(fi.read(20)) for i in range(5)]  # type: List[float]
+        self.num_annot = float(fi.read(8))  # type: float
+        fi.seek(8 + 64*32 + 26, 1)  # skip reserved fields, for map projection?
 
-# position class
-# attribute class
-# radiometric class
-# data_quality class
-# facility class
 
+class _LED_Position(_BaseHeader):
+    """
+    The position summary in the LED file.
+    """
+
+    __slots__ = (
+        'orb_elem', 'pos', 'vel', 'num_pts', 'year', 'month', 'day', 'day_in_year',
+        'sec', 'int', 'ref_coord_sys', 'greenwich_mean_hr_ang',
+        'at_pos_err', 'ct_pos_err', 'rad_pos_err',
+        'at_vel_err', 'ct_vel_err', 'rad_vel_err',
+        'pts_pos', 'pts_vel', 'leap_sec')
+
+    def __init__(self, fi):
+        super(_LED_Position, self).__init__(fi)
+        self.orb_elem = fi.read(32).decode('utf-8')  # type: str
+        self.pos = numpy.array([float(fi.read(16)) for i in range(3)], dtype='float64')  # type: numpy.ndarray
+        self.vel = numpy.array([float(fi.read(16)) for i in range(3)], dtype='float64')  # type: numpy.ndarray
+        self.num_pts = int_func(fi.read(4))  # type: int
+        self.year = int_func(fi.read(4))  # type: int
+        self.month = int_func(fi.read(4))  # type: int
+        self.day = int_func(fi.read(4))  # type: int
+        self.sec = float(fi.read(22))  # type: float
+        self.int = float(fi.read(22))  # type: float
+        self.ref_coord_sys = fi.read(64).decode('utf-8')  # type: str
+        self.greenwich_mean_hr_ang = fi.read(22).decode('utf-8')  # type: str
+        self.at_pos_err = float(fi.read(16))  # type: float
+        self.ct_pos_err = float(fi.read(16))  # type: float
+        self.rad_pos_err = float(fi.read(16))  # type: float
+        self.at_vel_err = float(fi.read(16))  # type: float
+        self.ct_vel_err = float(fi.read(16))  # type: float
+        self.rad_vel_err = float(fi.read(16))  # type: float
+        self.pts_pos = numpy.zeros((self.num_pts, 3), dtype='float64')  # type: numpy.ndarray
+        self.pts_vel = numpy.zeros((self.num_pts, 3), dtype='float64')  # type: numpy.ndarray
+        for i in range(self.num_pts):
+            self.pts_pos[i, :] = [float(fi.read(22)) for j in range(3)]
+            self.pts_vel[i, :] = [float(fi.read(22)) for j in range(3)]
+        fi.seek(18, 1)  # skip reserved fields
+        self.leap_sec = fi.read(1).decode('utf-8')  # type: str
+        fi.seek(579, 1)  # skip reserved fields
+
+
+class _LED_AttitudePoint(object):
+    """
+    An attitude point.
+    """
+    __slots__ = (
+        'day_year', 'msec_day',
+        'pitch_flag', 'roll_flag', 'yaw_flag',
+        'pitch', 'roll', 'yaw',
+        'pitch_rate_flag', 'roll_rate_flag', 'yaw_rate_flag',
+        'pitch_rate', 'roll_rate', 'yaw_rate')
+
+    def __init__(self, fi):
+        self.day_year = int_func(fi.read(4))  # type: int
+        self.msec_day = int_func(fi.read(8))  # type: int
+        self.pitch_flag = fi.read(4).decode('utf-8')  # type: str
+        self.roll_flag = fi.read(4).decode('utf-8')  # type: str
+        self.yaw_flag = fi.read(4).decode('utf-8')  # type: str
+        self.pitch = float(fi.read(14))  # type: float
+        self.roll = float(fi.read(14))  # type: float
+        self.yaw = float(fi.read(14))  # type: float
+        self.pitch_rate_flag = fi.read(4).decode('utf-8')  # type: str
+        self.roll_rate_flag = fi.read(4).decode('utf-8')  # type: str
+        self.yaw_rate_flag = fi.read(4).decode('utf-8')  # type: str
+        self.pitch_rate = float(fi.read(14))  # type: float
+        self.roll_rate = float(fi.read(14))  # type: float
+        self.yaw_rate = float(fi.read(14))  # type: float
+
+
+class _LED_Attitude(_BaseHeader):
+    """
+    The attitude summary in the LED file.
+    """
+
+    __slots__ = (
+        'num_pts', 'pts')
+
+    def __init__(self, fi):
+        super(_LED_Attitude, self).__init__(fi)
+        self.num_pts = int_func(fi.read(4))  # type: int
+        self.pts = [_LED_AttitudePoint(fi) for i in range(self.num_pts)]
+        fi.seek(self.rec_length - 16+120*self.num_pts)  # skip remaining reserved
+
+
+class _LED_Radiometric(_BaseHeader):
+    """
+    The attitude summary in the LED file.
+    """
+
+    __slots__ = (
+        'seq_num', 'num_pts', 'cal_factor', 'tx_distortion', 'rcv_distortion')
+
+    def __init__(self, fi):
+        super(_LED_Radiometric, self).__init__(fi)
+        self.seq_num = int_func(fi.read(4))  # type: int
+        self.num_pts = int_func(fi.read(4))  # type: int
+        self.cal_factor = float(fi.read(16))  # type: float
+        self.tx_distortion = numpy.zeros((2, 2), dtype='complex128')  # type: numpy.ndarray
+        self.rcv_distortion = numpy.zeros((2, 2), dtype='complex128')  # type: numpy.ndarray
+        for i in range(2):
+            for j in range(2):
+                self.tx_distortion[i, j] = complex(real=float(fi.read(16)), imag=float(fi.read(16)))
+        for i in range(2):
+            for j in range(2):
+                self.rcv_distortion[i, j] = complex(real=float(fi.read(16)), imag=float(fi.read(16)))
+        fi.seek(9568, 1)  # skip remaining reserved
+
+
+class _LED_DataQuality(_BaseHeader):
+    """
+    The data quality summary in the LED file.
+    """
+
+    __slots__ = (
+        'dq_rec_num', 'chan_id', 'date', 'num_chans', 'islr', 'pslr',
+        'aar', 'rar', 'snr', 'ber', 'sr_res', 'az_res', 'rad_res', 'dyn_rng',
+        'abs_cal_mag', 'abs_cal_phs', 'rel_cal_mag', 'rel_cal_phs',
+        'abs_err_at', 'abs_err_ct', 'distort_line', 'distort_pixel',
+        'distort_skew', 'orient_err', 'at_misreg_err', 'ct_misreg_err')
+
+    def __init__(self, fi):
+        super(_LED_DataQuality, self).__init__(fi)
+        self.dq_rec_num = fi.read(4).decode('utf-8')  # type: str
+        self.chan_id = fi.read(4).decode('utf-8')  # type: str
+        self.date = fi.read(6).decode('utf-8')  # type: str
+        self.num_chans = int_func(fi.read(4))  # type: int
+        self.islr = float(fi.read(16))  # type: float
+        self.pslr = float(fi.read(16))  # type: float
+        self.aar = float(fi.read(16))  # type: float
+        self.rar = float(fi.read(16))  # type: float
+        self.snr = float(fi.read(16))  # type: float
+        self.ber = float(fi.read(16))  # type: float
+        self.sr_res = float(fi.read(16))  # type: float
+        self.az_res = float(fi.read(16))  # type: float
+        self.rad_res = fi.read(16).decode('utf-8')  # type: str
+        self.dyn_rng = fi.read(16).decode('utf-8')  # type: str
+        self.abs_cal_mag = fi.read(16).decode('utf-8')  # type: str
+        self.abs_cal_phs = fi.read(16).decode('utf-8')  # type: str
+        self.rel_cal_mag = numpy.zeros((self.num_chans, ), dtype='float64')  # type: numpy.ndarray
+        self.rel_cal_phs = numpy.zeros((self.num_chans, ), dtype='float64')  # type: numpy.ndarray
+        for i in range(self.num_chans):
+            self.rel_cal_mag[i] = float(fi.read(16))
+            self.rel_cal_phs[i] = float(fi.read(16))
+        fi.seek(480-(self.num_chans-1)*32, 1)  # skip reserved
+        self.abs_err_at = fi.read(16).decode('utf-8')  # type: str
+        self.abs_err_ct = fi.read(16).decode('utf-8')  # type: str
+        self.distort_line = fi.read(16).decode('utf-8')  # type: str
+        self.distort_skew = fi.read(16).decode('utf-8')  # type: str
+        self.orient_err = fi.read(16).decode('utf-8')  # type: str
+        self.at_misreg_err = numpy.zeros((self.num_chans, ), dtype='float64')  # type: numpy.ndarray
+        self.ct_misreg_err = numpy.zeros((self.num_chans, ), dtype='float64')  # type: numpy.ndarray
+        for i in range(self.num_chans):
+            self.at_misreg_err[i] = float(fi.read(16))
+            self.ct_misreg_err[i] = float(fi.read(16))
+        fi.seek(540, 1)  # skip reserved
+
+
+class _LED_Facility(_BaseHeader):
+    """
+    The data quality summary in the LED file.
+    """
+
+    __slots__ = (
+        'fac_seq_num', 'mapproj2pix', 'mapproj2line', 'cal_mode_data_loc_flg',
+        'start_line_upper', 'end_line_upper',
+        'start_line_bottom', 'end_line_bottom',
+        'prf_switch_flag', 'prf_switch_line',
+        'num_loss_lines_10', 'num_loss_lines_11',
+        'pixelline2lat', 'pixelline2lon', 'origin_pixel', 'origin_line',
+        'latlon2pixel', 'latlon2line', 'origin_lat', 'origin_lon')
+
+    def __init__(self, fi, parse_all=False):
+        super(_LED_Facility, self).__init__(fi)
+        self.fac_seq_num = int_func(fi.read(4))  # type: int
+        if not parse_all:
+            fi.seek(self.rec_length-16)
+            return
+
+        self.mapproj2pix = numpy.zeros((10, ), dtype='float64')  # type: numpy.ndarray
+        for i in range(10):
+            self.mapproj2pix[i] = float(fi.read(20))
+        self.mapproj2line = numpy.zeros((10, ), dtype='float64')  # type: numpy.ndarray
+        for i in range(10):
+            self.mapproj2line[i] = float(fi.read(20))
+
+        self.cal_mode_data_loc_flg = fi.read(4).decode('utf-8')  # type: str
+        self.start_line_upper = fi.read(8).decode('utf-8')  # type: str
+        self.end_line_upper = fi.read(8).decode('utf-8')  # type: str
+        self.end_line_bottom = fi.read(8).decode('utf-8')  # type: str
+        self.prf_switch_flag = fi.read(4).decode('utf-8')  # type: str
+        self.prf_switch_line = fi.read(8).decode('utf-8')  # type: str
+        fi.seek(8, 1)  # skip reserved field
+        self.num_loss_lines_10 = fi.read(8).decode('utf-8')  # type: str
+        self.num_loss_lines_11 = fi.read(8).decode('utf-8')  # type: str
+        fi.seek(312)  # skip empty fields
+        fi.sek(224)  # skip reserved fields
+
+        self.latlon2pixel = numpy.zeros((25, ), dtype='float64')  # type: numpy.ndarray
+        for i in range(25):
+            self.latlon2pixel[i] = float(fi.read(20))
+        self.latlon2line = numpy.zeros((25, ), dtype='float64')  # type: numpy.ndarray
+        for i in range(25):
+            self.latlon2line[i] = float(fi.read(20))
+        self.origin_lat = float(fi.read(20))  # type: float
+        self.origin_lon = float(fi.read(20))  # type: float
+        fi.seek(1896, 1)  # skip empty fields
 
 
 class _LEDHeader(_CommonHeader2):
@@ -481,7 +796,8 @@ class _LEDHeader(_CommonHeader2):
         'num_proc_rec', 'proc_len', 'num_cal_rec', 'cal_len',
         'num_gcp_rec', 'gcp_len', 'num_fac_data_rec', 'fac_data_len',
         # some reserved fields for class metadata
-        '_file_name', )
+        '_file_name', 'data', 'position', 'attitude', 'radiometric',
+        'data_quality', 'facility')
 
     def __init__(self, file_name):
         """
@@ -546,7 +862,13 @@ class _LEDHeader(_CommonHeader2):
         self.num_fac_data_rec = tuple(num_fac_data_rec)
         self.fac_data_len = tuple(fac_data_len)
         fi.seek(230, 1)  # skip reserved fields
-
+        self.data = _LED_Data(fi)  # type: _LED_Data
+        self.position = _LED_Position(fi)  # type: _LED_Position
+        self.attitude = _LED_Attitude(fi)  # type: _LED_Attitude
+        self.radiometric = _LED_Radiometric(fi)  # type: _LED_Radiometric
+        self.data_quality = _LED_DataQuality(fi)  # type: _LED_DataQuality
+        self.facility = [_LED_Facility(fi, parse_all=False) for i in range(4)]  # type: List[_LED_Facility]
+        self.facility.append(_LED_Facility(fi, parse_all=True))
 
 
 if __name__ == '__main__':
