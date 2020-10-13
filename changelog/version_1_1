@@ -1,5 +1,6 @@
 # This details the important differences introduced in sarpy 1.1
 
+* .22 - Making suggested name more resistant to errors
 * .21 - Adding RCM NITF format data support
 * .20 - SICD naming scheme separation
 * .19 - Added TerraSAR-X reading support for level 1 products

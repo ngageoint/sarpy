@@ -948,7 +948,7 @@ class GridType(Serializable):
                 self.Col is None or self.Col.ImpRespWid is None:
             return '0000'
         else:
-            value = int(100*(self.Row.ImpRespWid*self.Col.ImpRespWid)**0.5)
+            value = int(100*(abs(self.Row.ImpRespWid)*abs(self.Col.ImpRespWid))**0.5)
             if value > 9999:
                 return '9999'
             else:
