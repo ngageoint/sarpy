@@ -47,10 +47,11 @@ def _determine_file_type(file_name):
     else:
         return None
 
+
 ##########
 # helper class that contains common header elements
 
-class _BaseHeader(object):
+class _BaseElements(object):
     """
     Common header element
     """
@@ -72,38 +73,37 @@ class _BaseHeader(object):
         self.rec_length = struct.unpack('I', fi.read(4))[0]  # type: int
 
 
+class _BaseElements2(_BaseElements):
+    __slots__ = ('ascii_ebcdic', )
+
+    def __init__(self, fi):
+        super(_BaseElements2, self).__init__(fi)
+        self.ascii_ebcdic = fi.read(2).decode('utf-8')  # type: str
+        fi.seek(2, 1) # skip reserved field
+
 ############
 # Header elements common to IMG, LED, TRL, and VOL
 
-class _CommonHeader(_BaseHeader):
+class _CommonElements(_BaseElements2):
     """
     Parser and interpreter for the elements common to IMG, LED, TRL, and VOL files
     """
 
     __slots__ = (
-        'ascii_ebcdic', 'doc_id', 'doc_rev', 'rec_rev', 'soft_rel_rev')
+        'doc_id', 'doc_rev', 'rec_rev', 'soft_rel_rev')
 
     def __init__(self, fi):
-        """
-
-        Parameters
-        ----------
-        fi
-            The open file reader.
-        """
-
-        super(_CommonHeader, self).__init__(fi)
-        self.ascii_ebcdic = fi.read(2).decode('utf-8')  # type: str
-        fi.seek(2, 1) # skip reserved field
+        super(_CommonElements, self).__init__(fi)
         self.doc_id = fi.read(12).decode('utf-8')  # type: str
         self.doc_rev = fi.read(2).decode('utf-8')  # type: str
         self.rec_rev = fi.read(2).decode('utf-8')  # type: str
         self.soft_rel_rev = fi.read(12).decode('utf-8')  # type: str
 
-###############
-# Header elements common to IMG, LED, and TRL
 
-class _CommonHeader2(_CommonHeader):
+###############
+# Elements common to IMG, LED, and TRL
+
+class _CommonElements2(_CommonElements):
     """
     Parser and interpreter for the elements common to IMG, LED, TRL files
     """
@@ -122,7 +122,7 @@ class _CommonHeader2(_CommonHeader):
             The open file object.
         """
 
-        super(_CommonHeader2, self).__init__(fi)
+        super(_CommonElements2, self).__init__(fi)
         self.file_num = fi.read(4).decode('utf-8')  # type: str
         self.file_id = fi.read(16).decode('utf-8')  # type: str
         self.rec_seq_loc_type_flag = fi.read(4).decode('utf-8')  # type: str
@@ -139,10 +139,68 @@ class _CommonHeader2(_CommonHeader):
         self.data_len = int_func(struct.unpack('6s', fi.read(6))[0])  # type: int
 
 
+################
+# Further common to LED and TRL
+
+class _CommonElements3(_CommonElements2):
+    """
+    Parser and interpreter for the elements common to LED and TRL files
+    """
+
+    __slots__ = (
+        'num_map_rec', 'map_len', 'num_pos_rec', 'pos_len', 'num_att_rec', 'att_len',
+        'num_rad_rec', 'rad_len', 'num_rad_comp_rec', 'rad_comp_len',
+        'num_data_qual_rec', 'data_qual_len', 'num_hist_rec', 'hist_len',
+        'num_rng_spect_rec', 'rng_spect_len', 'num_dem_rec', 'dem_len',
+        'num_radar_rec', 'radar_len', 'num_annot_rec', 'annot_len',
+        'num_proc_rec', 'proc_len', 'num_cal_rec', 'cal_len',
+        'num_gcp_rec', 'gcp_len', 'num_fac_data_rec', 'fac_data_len')
+
+    def __init__(self, fi):
+        super(_CommonElements3, self).__init__(fi)
+        self.num_map_rec = int_func(fi.read(6))  # type: int
+        self.map_len = int_func(fi.read(6))  # type: int
+        self.num_pos_rec = int_func(fi.read(6))  # type: int
+        self.pos_len = int_func(fi.read(6))  # type: int
+        self.num_att_rec = int_func(fi.read(6))  # type: int
+        self.att_len = int_func(fi.read(6))  # type: int
+        self.num_rad_rec = int_func(fi.read(6))  # type: int
+        self.rad_len = int_func(fi.read(6))  # type: int
+        self.num_rad_comp_rec = int_func(fi.read(6))  # type: int
+        self.rad_comp_len = int_func(fi.read(6))  # type: int
+        self.num_data_qual_rec = int_func(fi.read(6))  # type: int
+        self.data_qual_len = int_func(fi.read(6))  # type: int
+        self.num_hist_rec = int_func(fi.read(6))  # type: int
+        self.hist_len = int_func(fi.read(6))  # type: int
+        self.num_rng_spect_rec = int_func(fi.read(6))  # type: int
+        self.rng_spect_len = int_func(fi.read(6))  # type: int
+        self.num_dem_rec = int_func(fi.read(6))  # type: int
+        self.dem_len = int_func(fi.read(6))  # type: int
+        self.num_radar_rec = int_func(fi.read(6))  # type: int
+        self.radar_len = int_func(fi.read(6))  # type: int
+        self.num_annot_rec = int_func(fi.read(6))  # type: int
+        self.annot_len = int_func(fi.read(6))  # type: int
+        self.num_proc_rec = int_func(fi.read(6))  # type: int
+        self.proc_len = int_func(fi.read(6))  # type: int
+        self.num_cal_rec = int_func(fi.read(6))  # type: int
+        self.cal_len = int_func(fi.read(6))  # type: int
+        self.num_gcp_rec = int_func(fi.read(6))  # type: int
+        self.gcp_len = int_func(fi.read(6))  # type: int
+        fi.seek(60, 1)  # skip reserved fields
+        # the five data facility records
+        num_fac_data_rec = []
+        fac_data_len = []
+        for i in range(5):
+            num_fac_data_rec.append(int_func(fi.read(6)))
+            fac_data_len.append(int_func(fi.read(6)))
+        self.num_fac_data_rec = tuple(num_fac_data_rec)  # type: Tuple[int]
+        self.fac_data_len = tuple(fac_data_len)  # type: Tuple[int]
+
+
 ##########
 # IMG file interpretation
 
-class _SignalHeader(_BaseHeader):
+class _IMG_SignalElements(_BaseElements):
     """
     Parser and interpreter for the signal header part of an IMG file.
     """
@@ -178,7 +236,7 @@ class _SignalHeader(_BaseHeader):
             of the record.
         """
         # define the initial common header
-        super(_SignalHeader, self).__init__(fi)
+        super(_IMG_SignalElements, self).__init__(fi)
         # prefix data - general information
         self.line_num, self.sar_rec_ind, self.left_fill, self.num_pixels, self.right_fill = \
             struct.unpack('5I', fi.read(4*5))  # type: int, int, int, int, int
@@ -215,22 +273,12 @@ class _SignalHeader(_BaseHeader):
         # NB: there are remaining unparsed fields of no interest before data
 
 
-class _IMGHeader(_CommonHeader2):
+class _IMG_Elements(_CommonElements2):
     """
     IMG file header parsing and interpretation
     """
 
     __slots__ = (
-        # standard initial header
-        'rec_num', 'rec_subtype1', 'rec_type', 'rec_subtype2', 'rec_subtype3',
-        'rec_length', 'ascii_ebcdic',
-        'doc_id', 'doc_rev', 'rec_rev', 'soft_rel_rev',
-        # common to IMG, LED, and TRL
-        'file_num', 'file_id',
-        'rec_seq_loc_type_flag', 'seq_num_loc', 'fld_len_seq', 'rec_code_loc_type_flag',
-        'loc_rec_code', 'fld_len_code', 'rec_len_loc_type_flag', 'loc_rec_len',
-        'len_rec_len', 'num_data_rec', 'data_len',
-
         # sample group data
         'sample_len', 'num_samples', 'num_bytes', 'just_order',
         # SAR related data
@@ -260,10 +308,10 @@ class _IMGHeader(_CommonHeader2):
         if _determine_file_type(file_name) != 'IMG':
             raise IOError('file {} does not appear to be an IMG file'.format(file_name))
         self._file_name = file_name  # type: str
-        self._signal_elements = None  # type: Union[None, Tuple[_SignalHeader]]
+        self._signal_elements = None  # type: Union[None, Tuple[_IMG_SignalElements]]
 
         with open(self._file_name, 'rb') as fi:
-            super(_IMGHeader, self).__init__(fi)
+            super(_IMG_Elements, self).__init__(fi)
             self._parse_fields(fi)
             self._basic_signal(fi)
 
@@ -332,7 +380,7 @@ class _IMGHeader(_CommonHeader2):
 
         Returns
         -------
-        _SignalHeader
+        _IMG_SignalElements
         """
 
         index = int_func(index)
@@ -343,7 +391,7 @@ class _IMGHeader(_CommonHeader2):
                          self.num_pixels*self.num_bytes*index
         # go to the start of the given record
         fi.seek(record_offset, 0)
-        return _SignalHeader(fi)
+        return _IMG_SignalElements(fi)
 
     def _basic_signal(self, fi):
         """
@@ -424,7 +472,7 @@ class _IMGHeader(_CommonHeader2):
 ###########
 # LED file interpretation
 
-class _LED_Data(_BaseHeader):
+class _LED_Data(_BaseElements):
     """
     The data set summary in the LED file.
     """
@@ -495,8 +543,8 @@ class _LED_Data(_BaseHeader):
         self.wavelength = float(fi.read(16))  # type: float
         self.mocomp = fi.read(2).decode('utf-8')  # type: str
         self.range_pulse_code = fi.read(16).decode('utf-8')  # type: str
-        self.range_pulse_amp_coef = [fi.read(16).decode('utf-8') for i in range(5)]  # type: List[str]
-        self.range_pulse_phs_coef = [fi.read(16).decode('utf-8') for i in range(5)]  # type: List[str]
+        self.range_pulse_amp_coef = [fi.read(16).decode('utf-8') for _ in range(5)]  # type: List[str]
+        self.range_pulse_phs_coef = [fi.read(16).decode('utf-8') for _ in range(5)]  # type: List[str]
         self.chirp_index = fi.read(8).decode('utf-8')  # type: str
         fi.seek(8, 1)  # skip reserved fields
         self.sampling_rate = float(fi.read(16))  # type: float
@@ -540,14 +588,14 @@ class _LED_Data(_BaseHeader):
         self.res_grnd_rng = fi.read(16).decode('utf-8')  # type: str
         self.rad_bias = fi.read(16).decode('utf-8')  # type: str
         self.rad_gain = fi.read(16).decode('utf-8')  # type: str
-        self.at_dop = [float(fi.read(16)) for i in range(3)]  # type: List[float]
+        self.at_dop = [float(fi.read(16)) for _ in range(3)]  # type: List[float]
         fi.seek(16, 1)  # skip reserved fields
-        self.xt_dop = [float(fi.read(16)) for i in range(3)]  # type: List[float]
+        self.xt_dop = [float(fi.read(16)) for _ in range(3)]  # type: List[float]
         self.time_dir_pixel = fi.read(8).decode('utf-8')  # type: str
         self.time_dir_line = fi.read(8).decode('utf-8')  # type: str
-        self.at_dop_rate = [float(fi.read(16)) for i in range(3)]  # type: List[float]
+        self.at_dop_rate = [float(fi.read(16)) for _ in range(3)]  # type: List[float]
         fi.seek(16, 1)  # skip reserved fields
-        self.xt_dop_rate = [float(fi.read(16)) for i in range(3)]  # type: List[float]
+        self.xt_dop_rate = [float(fi.read(16)) for _ in range(3)]  # type: List[float]
         fi.seek(16, 1)  # skip reserved fields
         self.line_constant = fi.read(8).decode('utf-8')  # type: str
         self.clutter_lock_flg = fi.read(4).decode('utf-8')  # type: str
@@ -555,7 +603,7 @@ class _LED_Data(_BaseHeader):
         self.line_spacing = float(fi.read(16))  # type: float
         self.pixel_spacing = float(fi.read(16))  # type: float
         self.rng_comp_des = fi.read(16).decode('utf-8')  # type: str
-        self.dop_freq = [float(fi.read(16)) for i in range(2)]  # type: List[float]
+        self.dop_freq = [float(fi.read(16)) for _ in range(2)]  # type: List[float]
         self.cal_mode_loc_flag = fi.read(4).decode('utf-8')  # type: str
         self.start_line_cal_start = fi.read(8).decode('utf-8')  # type: str
         self.end_line_cal_start = fi.read(8).decode('utf-8')  # type: str
@@ -569,12 +617,12 @@ class _LED_Data(_BaseHeader):
         self.off_nadir = float(fi.read(16))  # type: float
         self.ant_beam_num = fi.read(4).decode('utf-8')  # type: str
         fi.seek(28, 1)  # skip reserved fields
-        self.incidence_ang = [float(fi.read(20)) for i in range(5)]  # type: List[float]
+        self.incidence_ang = [float(fi.read(20)) for _ in range(5)]  # type: List[float]
         self.num_annot = float(fi.read(8))  # type: float
         fi.seek(8 + 64*32 + 26, 1)  # skip reserved fields, for map projection?
 
 
-class _LED_Position(_BaseHeader):
+class _LED_Position(_BaseElements):
     """
     The position summary in the LED file.
     """
@@ -589,8 +637,8 @@ class _LED_Position(_BaseHeader):
     def __init__(self, fi):
         super(_LED_Position, self).__init__(fi)
         self.orb_elem = fi.read(32).decode('utf-8')  # type: str
-        self.pos = numpy.array([float(fi.read(16)) for i in range(3)], dtype='float64')  # type: numpy.ndarray
-        self.vel = numpy.array([float(fi.read(16)) for i in range(3)], dtype='float64')  # type: numpy.ndarray
+        self.pos = numpy.array([float(fi.read(16)) for _ in range(3)], dtype='float64')  # type: numpy.ndarray
+        self.vel = numpy.array([float(fi.read(16)) for _ in range(3)], dtype='float64')  # type: numpy.ndarray
         self.num_pts = int_func(fi.read(4))  # type: int
         self.year = int_func(fi.read(4))  # type: int
         self.month = int_func(fi.read(4))  # type: int
@@ -608,8 +656,8 @@ class _LED_Position(_BaseHeader):
         self.pts_pos = numpy.zeros((self.num_pts, 3), dtype='float64')  # type: numpy.ndarray
         self.pts_vel = numpy.zeros((self.num_pts, 3), dtype='float64')  # type: numpy.ndarray
         for i in range(self.num_pts):
-            self.pts_pos[i, :] = [float(fi.read(22)) for j in range(3)]
-            self.pts_vel[i, :] = [float(fi.read(22)) for j in range(3)]
+            self.pts_pos[i, :] = [float(fi.read(22)) for _ in range(3)]
+            self.pts_vel[i, :] = [float(fi.read(22)) for _ in range(3)]
         fi.seek(18, 1)  # skip reserved fields
         self.leap_sec = fi.read(1).decode('utf-8')  # type: str
         fi.seek(579, 1)  # skip reserved fields
@@ -643,7 +691,7 @@ class _LED_AttitudePoint(object):
         self.yaw_rate = float(fi.read(14))  # type: float
 
 
-class _LED_Attitude(_BaseHeader):
+class _LED_Attitude(_BaseElements):
     """
     The attitude summary in the LED file.
     """
@@ -654,11 +702,11 @@ class _LED_Attitude(_BaseHeader):
     def __init__(self, fi):
         super(_LED_Attitude, self).__init__(fi)
         self.num_pts = int_func(fi.read(4))  # type: int
-        self.pts = [_LED_AttitudePoint(fi) for i in range(self.num_pts)]
+        self.pts = [_LED_AttitudePoint(fi) for _ in range(self.num_pts)]
         fi.seek(self.rec_length - 16+120*self.num_pts)  # skip remaining reserved
 
 
-class _LED_Radiometric(_BaseHeader):
+class _LED_Radiometric(_BaseElements):
     """
     The attitude summary in the LED file.
     """
@@ -682,7 +730,7 @@ class _LED_Radiometric(_BaseHeader):
         fi.seek(9568, 1)  # skip remaining reserved
 
 
-class _LED_DataQuality(_BaseHeader):
+class _LED_DataQuality(_BaseElements):
     """
     The data quality summary in the LED file.
     """
@@ -731,7 +779,7 @@ class _LED_DataQuality(_BaseHeader):
         fi.seek(540, 1)  # skip reserved
 
 
-class _LED_Facility(_BaseHeader):
+class _LED_Facility(_BaseElements):
     """
     The data quality summary in the LED file.
     """
@@ -782,20 +830,12 @@ class _LED_Facility(_BaseHeader):
         fi.seek(1896, 1)  # skip empty fields
 
 
-class _LEDHeader(_CommonHeader2):
+class _LED_Elements(_CommonElements3):
     """
     LED file header parsing and interpretation
     """
 
     __slots__ = (
-        'num_map_rec', 'map_len', 'num_pos_rec', 'pos_len', 'num_att_rec', 'att_len',
-        'num_rad_rec', 'rad_len', 'num_rad_comp_rec', 'rad_comp_len',
-        'num_data_qual_rec', 'data_qual_len', 'num_hist_rec', 'hist_len',
-        'num_rng_spect_rec', 'rng_spect_len', 'num_dem_rec', 'dem_len',
-        'num_radar_rec', 'radar_len', 'num_annot_rec', 'annot_len',
-        'num_proc_rec', 'proc_len', 'num_cal_rec', 'cal_len',
-        'num_gcp_rec', 'gcp_len', 'num_fac_data_rec', 'fac_data_len',
-        # some reserved fields for class metadata
         '_file_name', 'data', 'position', 'attitude', 'radiometric',
         'data_quality', 'facility')
 
@@ -811,64 +851,159 @@ class _LEDHeader(_CommonHeader2):
             raise IOError('file {} does not appear to be an LED file'.format(file_name))
         self._file_name = file_name  # type: str
         with open(self._file_name, 'rb') as fi:
-            super(_LEDHeader, self).__init__(fi)
-            self._parse_fields(fi)
+            super(_LED_Elements, self).__init__(fi)
+            fi.seek(230, 1)  # skip reserved fields
+            self.data = _LED_Data(fi)  # type: _LED_Data
+            self.position = _LED_Position(fi)  # type: _LED_Position
+            self.attitude = _LED_Attitude(fi)  # type: _LED_Attitude
+            self.radiometric = _LED_Radiometric(fi)  # type: _LED_Radiometric
+            self.data_quality = _LED_DataQuality(fi)  # type: _LED_DataQuality
+            self.facility = [_LED_Facility(fi, parse_all=False) for _ in range(4)]  # type: List[_LED_Facility]
+            self.facility.append(_LED_Facility(fi, parse_all=True))
 
-    def _parse_fields(self, fi):
+
+############
+# TRL file interpretation
+
+class _LowResRecord(object):
+    """
+    Low resolution record in TRL file.
+    """
+
+    __slots__ = ('length', 'pixels', 'lines', 'bytes')
+
+    def __init__(self, fi):
+        self.length = int_func(fi.read(8))
+        self.pixels = int_func(fi.read(6))
+        self.lines = int_func(fi.read(6))
+        self.bytes = int_func(fi.read(6))
+
+
+class _TRL_Elements(_CommonElements3):
+    """
+    TRL file header parsing and interpretation
+    """
+
+    __slots__ = (
+        '_file_name', 'num_low_res_rec', 'low_res')
+
+    def __init__(self, file_name):
         """
-        Parse the fields.
 
-        Returns
-        -------
-        None
+        Parameters
+        ----------
+        file_name : str
         """
 
-        # this has parsed everything up to data_len
-        self.num_map_rec = int_func(fi.read(6))
-        self.map_len = int_func(fi.read(6))
-        self.num_pos_rec = int_func(fi.read(6))
-        self.pos_len = int_func(fi.read(6))
-        self.num_att_rec = int_func(fi.read(6))
-        self.att_len = int_func(fi.read(6))
-        self.num_rad_rec = int_func(fi.read(6))
-        self.rad_len = int_func(fi.read(6))
-        self.num_rad_comp_rec = int_func(fi.read(6))
-        self.rad_comp_len = int_func(fi.read(6))
-        self.num_data_qual_rec = int_func(fi.read(6))
-        self.data_qual_len = int_func(fi.read(6))
-        self.num_hist_rec = int_func(fi.read(6))
-        self.hist_len = int_func(fi.read(6))
-        self.num_rng_spect_rec = int_func(fi.read(6))
-        self.rng_spect_len = int_func(fi.read(6))
-        self.num_dem_rec = int_func(fi.read(6))
-        self.dem_len = int_func(fi.read(6))
-        self.num_radar_rec = int_func(fi.read(6))
-        self.radar_len = int_func(fi.read(6))
-        self.num_annot_rec = int_func(fi.read(6))
-        self.annot_len = int_func(fi.read(6))
-        self.num_proc_rec = int_func(fi.read(6))
-        self.proc_len = int_func(fi.read(6))
-        self.num_cal_rec = int_func(fi.read(6))
-        self.cal_len = int_func(fi.read(6))
-        self.num_gcp_rec = int_func(fi.read(6))
-        self.gcp_len = int_func(fi.read(6))
-        fi.seek(60, 1)  # skip reserved fields
-        # the five data facility records
-        num_fac_data_rec = []
-        fac_data_len = []
-        for i in range(5):
-            num_fac_data_rec.append(int_func(fi.read(6)))
-            fac_data_len.append(int_func(fi.read(6)))
-        self.num_fac_data_rec = tuple(num_fac_data_rec)
-        self.fac_data_len = tuple(fac_data_len)
-        fi.seek(230, 1)  # skip reserved fields
-        self.data = _LED_Data(fi)  # type: _LED_Data
-        self.position = _LED_Position(fi)  # type: _LED_Position
-        self.attitude = _LED_Attitude(fi)  # type: _LED_Attitude
-        self.radiometric = _LED_Radiometric(fi)  # type: _LED_Radiometric
-        self.data_quality = _LED_DataQuality(fi)  # type: _LED_DataQuality
-        self.facility = [_LED_Facility(fi, parse_all=False) for i in range(4)]  # type: List[_LED_Facility]
-        self.facility.append(_LED_Facility(fi, parse_all=True))
+        if _determine_file_type(file_name) != 'TRL':
+            raise IOError('file {} does not appear to be an LED file'.format(file_name))
+        self._file_name = file_name  # type: str
+        with open(self._file_name, 'rb') as fi:
+            super(_TRL_Elements, self).__init__(fi)
+            self.num_low_res_rec = int_func(fi.read(6))  # type: int
+            self.low_res = tuple([_LowResRecord(fi) for _ in range(self.num_low_res_rec)])
+            fi.seek(720, 1)  # skip reserved data
+            # comment carried over from matlab -
+            #   There seems to be an array the size of the low resolution image on
+            #   the end of this file, but it doesn't seem to contain any data
+
+
+############
+# VOL file interpretation
+
+class _VOL_File(_BaseElements2):
+    """
+    The VOL file object.
+    """
+
+    __slots__ = (
+        'num', 'name', 'clas', 'clas_code', 'typ', 'typ_code', 'num_recs',
+        'len_first_rec', 'max_rec_len', 'rec_len_type', 'rec_len_type_code',
+        'phys_vol_first', 'phys_vol_last', 'rec_num_first', 'rec_num_last')
+
+    def __init__(self, fi):
+        super(_VOL_File, self).__init__(fi)
+        self.num = fi.read(4).decode('utf-8')  # type: str
+        self.name = fi.read(16).decode('utf-8')  # type: str
+        self.clas = fi.read(28).decode('utf-8')  # type: str
+        self.clas_code = fi.read(4).decode('utf-8')  # type: str
+        self.typ = fi.read(28).decode('utf-8')  # type: str
+        self.typ_code = fi.read(4).decode('utf-8')  # type: str
+        self.num_recs = int_func(fi.read(8))  # type: int
+        self.len_first_rec = int_func(fi.read(8))  # type: int
+        self.max_rec_len = int_func(fi.read(8))  # type: int
+        self.rec_len_type = fi.read(12).decode('utf-8')  # type: str
+        self.rec_len_type_code = fi.read(4).decode('utf-8')  # type: str
+        self.phys_vol_first = int_func(fi.read(2))  # type: int
+        self.phys_vol_last = int_func(fi.read(2))  # type: int
+        self.rec_num_first = int_func(fi.read(8))  # type: int
+        self.rec_num_last = int_func(fi.read(8))  # type: int
+        fi.seek(200, 1)  # skipping reserved fields
+
+
+class _VOL_Text(_BaseElements2):
+    """
+    The VOL text object.
+    """
+
+    __slots__ = (
+        'prod_id', 'location', 'phys_id', 'scene_id', 'scene_loc_id')
+
+    def __init__(self, fi):
+        super(_VOL_Text, self).__init__(fi)
+        self.prod_id = fi.read(40).decode('utf-8')  # type: str
+        self.location = fi.read(60).decode('utf-8')  # type: str
+        self.phys_id = fi.read(40).decode('utf-8')  # type: str
+        self.scene_id = fi.read(40).decode('utf-8')  # type: str
+        self.scene_loc_id = fi.read(40).decode('utf-8')  # type: str
+        fi.seek(124, 1)  # skip reserved fields
+
+
+class _VOL_Elements(_CommonElements):
+    """
+    VOL file header parsing and interpretation
+    """
+
+    __slots__ = (
+        '_file_name', 'phys_vol_id', 'log_vol_id', 'vol_set_id', 'num_phys_vol',
+        'phys_seq_first', 'phys_seq_last', 'phys_seq_cur', 'file_num', 'log_vol',
+        'log_vol_num', 'log_vol_create_date', 'log_vol_create_time', 'log_vol_co',
+        'log_vol_agency', 'log_vol_facility', 'num_file_ptr', 'num_text_rec',
+        'files', 'texts')
+
+    def __init__(self, file_name):
+        """
+
+        Parameters
+        ----------
+        file_name : str
+        """
+
+        if _determine_file_type(file_name) != 'VOL':
+            raise IOError('file {} does not appear to be an LED file'.format(file_name))
+        self._file_name = file_name  # type: str
+        with open(self._file_name, 'rb') as fi:
+            super(_VOL_Elements, self).__init__(fi)
+            self.phys_vol_id = fi.read(16).decode('utf-8')  # type: str
+            self.log_vol_id = fi.read(16).decode('utf-8')  # type: str
+            self.vol_set_id = fi.read(16).decode('utf-8')  # type: str
+            self.num_phys_vol = fi.read(2).decode('utf-8')  # type: str
+            self.phys_seq_first = fi.read(2).decode('utf-8')  # type: str
+            self.phys_seq_last = fi.read(2).decode('utf-8')  # type: str
+            self.phys_seq_cur = fi.read(2).decode('utf-8')  # type: str
+            self.file_num = fi.read(4).decode('utf-8')  # type: str
+            self.log_vol = fi.read(4).decode('utf-8')  # type: str
+            self.log_vol_num = fi.read(4).decode('utf-8')  # type: str
+            self.log_vol_create_date = fi.read(8).decode('utf-8')  # type: str
+            self.log_vol_create_time = fi.read(8).decode('utf-8')  # type: str
+            self.log_vol_co = fi.read(12).decode('utf-8')  # type: str
+            self.log_vol_agency = fi.read(8).decode('utf-8')  # type: str
+            self.log_vol_facility = fi.read(12).decode('utf-8')  # type: str
+            self.num_file_ptr = int_func(fi.read(4))  # type: int
+            self.num_text_rec = int_func(fi.read(4))  # type: int
+            fi.seek(192, 1)
+            self.files = tuple([_VOL_File(fi) for _ in range(self.num_file_ptr)])  # type: Tuple[_VOL_File]
+            self.texts = tuple([_VOL_Text(fi) for _ in range(self.num_text_rec)])  # type: Tuple[_VOL_Text]
 
 
 if __name__ == '__main__':
@@ -877,7 +1012,7 @@ if __name__ == '__main__':
         '/0000000000_001001_ALOS2229210750-180821-L1.1CEOS')
 
     img_file = os.path.join(root_dir, 'IMG-HH-ALOS2229210750-180821-HBQR1.1__A')
-    img_header = _IMGHeader(img_file)
+    img_header = _IMG_Elements(img_file)
     pref = img_header.prefix_bytes
     suff = img_header.suffix_bytes
     datatype_code = img_header.sar_datatype_code
