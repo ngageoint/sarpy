@@ -19,6 +19,9 @@ __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 
+##########
+# basic helper functions
+
 def _determine_file_type(file_name):
     """
     This checks the initial bit of the header to determine file type.
@@ -48,6 +51,25 @@ def _determine_file_type(file_name):
         return None
 
 
+def _make_float(bytes_in):
+    """
+    Try to parse as a float.
+
+    Parameters
+    ----------
+    bytes_in : bytes
+
+    Returns
+    -------
+    float
+    """
+
+    if len(bytes_in.strip()) == 0:
+        return numpy.nan
+    else:
+        return float(bytes_in)
+
+
 ##########
 # helper class that contains common header elements
 
@@ -67,10 +89,9 @@ class _BaseElements(object):
             The file object.
         """
 
-        self.rec_num = struct.unpack('I', fi.read(4))[0]  # type: int
-        self.rec_subtype1, self.rec_type, self.rec_subtype2, self.rec_subtype3 = \
-            struct.unpack('BBBB', fi.read(4)) # type: int, int, int, int
-        self.rec_length = struct.unpack('I', fi.read(4))[0]  # type: int
+        the_bytes = fi.read(12)
+        self.rec_num, self.rec_subtype1, self.rec_type, self.rec_subtype2, self.rec_subtype3, \
+        self.rec_length = struct.unpack('>IBBBBI', the_bytes)  # type: int, int, int, int, int, int
 
 
 class _BaseElements2(_BaseElements):
@@ -80,6 +101,7 @@ class _BaseElements2(_BaseElements):
         super(_BaseElements2, self).__init__(fi)
         self.ascii_ebcdic = fi.read(2).decode('utf-8')  # type: str
         fi.seek(2, 1) # skip reserved field
+
 
 ############
 # Header elements common to IMG, LED, TRL, and VOL
@@ -192,7 +214,7 @@ class _CommonElements3(_CommonElements2):
         fac_data_len = []
         for i in range(5):
             num_fac_data_rec.append(int_func(fi.read(6)))
-            fac_data_len.append(int_func(fi.read(6)))
+            fac_data_len.append(int_func(fi.read(8)))
         self.num_fac_data_rec = tuple(num_fac_data_rec)  # type: Tuple[int]
         self.fac_data_len = tuple(fac_data_len)  # type: Tuple[int]
 
@@ -239,37 +261,37 @@ class _IMG_SignalElements(_BaseElements):
         super(_IMG_SignalElements, self).__init__(fi)
         # prefix data - general information
         self.line_num, self.sar_rec_ind, self.left_fill, self.num_pixels, self.right_fill = \
-            struct.unpack('5I', fi.read(4*5))  # type: int, int, int, int, int
+            struct.unpack('>IIIII', fi.read(4*5))  # type: int, int, int, int, int
         # prefix data - sensor parameters
         self.update_flg, self.year, self.day, self.msec = \
-            struct.unpack('4I', fi.read(4*4))  # type: int, int, int, int
+            struct.unpack('>IIII', fi.read(4*4))  # type: int, int, int, int
         self.chan_id, self.chan_code, self.tx_pol, self.rcv_pol = \
-            struct.unpack('4H', fi.read(4*2))  # type: int, int, int, int
-        self.prf, self.scan_id = struct.unpack('2I', fi.read(2*4))  # type: int, int
-        self.rng_comp_flg, self.chirp_type = struct.unpack('2H', fi.read(2*2))  # type: int, int
+            struct.unpack('>HHHH', fi.read(4*2))  # type: int, int, int, int
+        self.prf, self.scan_id = struct.unpack('>II', fi.read(2*4))  # type: int, int
+        self.rng_comp_flg, self.chirp_type = struct.unpack('>HH', fi.read(2*2))  # type: int, int
         self.chirp_length, self.chirp_const, self.chirp_lin, self.chirp_quad = \
-            struct.unpack('4I', fi.read(4*4))  # type: int, int, int, int
-        self.usec = struct.unpack('Q', fi.read(8))[0]  # type: int
+            struct.unpack('>IIII', fi.read(4*4))  # type: int, int, int, int
+        self.usec = struct.unpack('>Q', fi.read(8))[0]  # type: int
         self.gain, self.invalid_flg, self.elec_ele, self.mech_ele, \
         self.elec_squint, self.mech_squint, self.slant_rng, self.wind_pos = \
-            struct.unpack('8I', fi.read(8*4)) # type: int, int, int, int, int, int, int, int
+            struct.unpack('>IIIIIIII', fi.read(8*4)) # type: int, int, int, int, int, int, int, int
         fi.seek(4, 1)  # skip reserved fields
         # prefix data - platform reference information
         self.pos_update_flg, self.plat_lat, self.plat_lon, self.plat_alt, self.grnd_spd = \
-            struct.unpack('5I', fi.read(5*4))  # type: int, int, int, int, int
+            struct.unpack('>IIIII', fi.read(5*4))  # type: int, int, int, int, int
         self.vel_x, self.vel_y, self.vel_z, self.acc_x, self.acc_y, self.acc_z = \
-            struct.unpack('6I', fi.read(6*4))  # type: int, int, int, int, int, int
+            struct.unpack('>IIIIII', fi.read(6*4))  # type: int, int, int, int, int, int
         self.track, self.true_track, self.pitch, self.roll, self.yaw = \
-            struct.unpack('5I', fi.read(5*4))  # type: int, int, int, int, int
+            struct.unpack('>IIIII', fi.read(5*4))  # type: int, int, int, int, int
         # prefix data - sensor/facility auxiliary data
         self.lat_first, self.lat_center, self.lat_last = \
-            struct.unpack('3I', fi.read(3*4))  # type: int, int, int
+            struct.unpack('>III', fi.read(3*4))  # type: int, int, int
         self.lon_first, self.lon_center, self.lon_last = \
-            struct.unpack('3I', fi.read(3*4))  # type: int, int, int
+            struct.unpack('>III', fi.read(3*4))  # type: int, int, int
         # scan sar
-        self.burst_num, self.line_num = struct.unpack('2I', fi.read(2*4))  # type: int, int
+        self.burst_num, self.line_num = struct.unpack('>II', fi.read(2*4))  # type: int, int
         fi.seek(60, 1)  # reserved field
-        self.frame_num = struct.unpack('I', fi.read(4))[0]  # type: int
+        self.frame_num = struct.unpack('>I', fi.read(4))[0]  # type: int
         # NB: there are remaining unparsed fields of no interest before data
 
 
@@ -354,6 +376,13 @@ class _IMG_Elements(_CommonElements2):
         self.pre_suf_rpt_flg = fi.read(4).decode('utf-8')  # type: str
         # prefix/suffix data locations
         self.loc_sar_data = fi.read(8).decode('utf-8')  # type: str
+        self.loc_sar_chan_num = fi.read(8).decode('utf-8')  # type: str
+        self.loc_time = fi.read(8).decode('utf-8')  # type: str
+        self.loc_leftfill = fi.read(8).decode('utf-8')  # type: str
+        self.loc_rightfill = fi.read(8).decode('utf-8')  # type: str
+        self.pad_pixels = fi.read(4).decode('utf-8')  # type: str
+        fi.seek(28, 1)  # skip resevered fields
+        self.loc_data_qual = fi.read(8).decode('utf-8')  # type: str
         self.loc_cal_info = fi.read(8).decode('utf-8')  # type: str
         self.loc_gain = fi.read(8).decode('utf-8')  # type: str
         self.loc_bias = fi.read(8).decode('utf-8')  # type: str
@@ -387,8 +416,8 @@ class _IMG_Elements(_CommonElements2):
         if not (0 <= index < self.num_data_rec):
             raise KeyError('index {} must be in range [0, {})'.format(index, self.num_data_rec))
         # find offset for the given record, and traverse to it
-        record_offset = self._signal_start_location + self.prefix_bytes + \
-                         self.num_pixels*self.num_bytes*index
+        record_offset = self._signal_start_location + \
+                        (self.prefix_bytes + self.num_pixels*self.num_bytes)*index
         # go to the start of the given record
         fi.seek(record_offset, 0)
         return _IMG_SignalElements(fi)
@@ -551,7 +580,7 @@ class _LED_Data(_BaseElements):
         self.range_gate = float(fi.read(16))  # type: float
         self.pulse_width = float(fi.read(16))  # type: float
         self.baseband_flg = fi.read(4).decode('utf-8')  # type: str
-        self.range_compressed_flg = fi.read(2).decode('utf-8')  # type: str
+        self.range_compressed_flg = fi.read(4).decode('utf-8')  # type: str
         self.rec_gain_like_pol = float(fi.read(16))  # type: float
         self.rec_gain_cross_pol = float(fi.read(16))  # type: float
         self.quant_bit = fi.read(8).decode('utf-8')  # type: str
@@ -576,8 +605,8 @@ class _LED_Data(_BaseElements):
         self.proc_lvl_code = fi.read(16).decode('utf-8')  # type: str
         self.prod_type = fi.read(32).decode('utf-8')  # type: str
         self.proc_alg = fi.read(32).decode('utf-8')  # type: str
-        self.num_look_az = int_func(fi.read(16))  # type: int
-        self.num_look_rng = int_func(fi.read(16))  # type: int
+        self.num_look_az = float(fi.read(16))  # type: float
+        self.num_look_rng = float(fi.read(16))  # type: float
         self.bw_per_look_az = float(fi.read(16))  # type: float
         self.bw_per_look_rng = float(fi.read(16))  # type: float
         self.bw_az = float(fi.read(16))  # type: float
@@ -587,6 +616,7 @@ class _LED_Data(_BaseElements):
         self.data_input_src = fi.read(16).decode('utf-8')  # type: str
         self.res_grnd_rng = fi.read(16).decode('utf-8')  # type: str
         self.rad_bias = fi.read(16).decode('utf-8')  # type: str
+        self.res_az = fi.read(16).decode('utf-8')  # type: str
         self.rad_gain = fi.read(16).decode('utf-8')  # type: str
         self.at_dop = [float(fi.read(16)) for _ in range(3)]  # type: List[float]
         fi.seek(16, 1)  # skip reserved fields
@@ -617,7 +647,7 @@ class _LED_Data(_BaseElements):
         self.off_nadir = float(fi.read(16))  # type: float
         self.ant_beam_num = fi.read(4).decode('utf-8')  # type: str
         fi.seek(28, 1)  # skip reserved fields
-        self.incidence_ang = [float(fi.read(20)) for _ in range(5)]  # type: List[float]
+        self.incidence_ang = [float(fi.read(20)) for _ in range(6)]  # type: List[float]
         self.num_annot = float(fi.read(8))  # type: float
         fi.seek(8 + 64*32 + 26, 1)  # skip reserved fields, for map projection?
 
@@ -643,6 +673,7 @@ class _LED_Position(_BaseElements):
         self.year = int_func(fi.read(4))  # type: int
         self.month = int_func(fi.read(4))  # type: int
         self.day = int_func(fi.read(4))  # type: int
+        self.day_in_year = int_func(fi.read(4))  # type: int
         self.sec = float(fi.read(22))  # type: float
         self.int = float(fi.read(22))  # type: float
         self.ref_coord_sys = fi.read(64).decode('utf-8')  # type: str
@@ -703,7 +734,8 @@ class _LED_Attitude(_BaseElements):
         super(_LED_Attitude, self).__init__(fi)
         self.num_pts = int_func(fi.read(4))  # type: int
         self.pts = [_LED_AttitudePoint(fi) for _ in range(self.num_pts)]
-        fi.seek(self.rec_length - 16+120*self.num_pts)  # skip remaining reserved
+        extra = self.rec_length - (16 + 120*self.num_pts)
+        fi.seek(extra, 1)  # skip remaining reserved
 
 
 class _LED_Radiometric(_BaseElements):
@@ -727,7 +759,8 @@ class _LED_Radiometric(_BaseElements):
         for i in range(2):
             for j in range(2):
                 self.rcv_distortion[i, j] = complex(real=float(fi.read(16)), imag=float(fi.read(16)))
-        fi.seek(9568, 1)  # skip remaining reserved
+        extra = self.rec_length - (12 + 24 + 16*2*4*2)
+        fi.seek(extra, 1)  # skip remaining reserved
 
 
 class _LED_DataQuality(_BaseElements):
@@ -753,7 +786,7 @@ class _LED_DataQuality(_BaseElements):
         self.aar = float(fi.read(16))  # type: float
         self.rar = float(fi.read(16))  # type: float
         self.snr = float(fi.read(16))  # type: float
-        self.ber = float(fi.read(16))  # type: float
+        self.ber = fi.read(16).decode('utf-8')  # type: str
         self.sr_res = float(fi.read(16))  # type: float
         self.az_res = float(fi.read(16))  # type: float
         self.rad_res = fi.read(16).decode('utf-8')  # type: str
@@ -763,9 +796,9 @@ class _LED_DataQuality(_BaseElements):
         self.rel_cal_mag = numpy.zeros((self.num_chans, ), dtype='float64')  # type: numpy.ndarray
         self.rel_cal_phs = numpy.zeros((self.num_chans, ), dtype='float64')  # type: numpy.ndarray
         for i in range(self.num_chans):
-            self.rel_cal_mag[i] = float(fi.read(16))
-            self.rel_cal_phs[i] = float(fi.read(16))
-        fi.seek(480-(self.num_chans-1)*32, 1)  # skip reserved
+            self.rel_cal_mag[i] = _make_float(fi.read(16))
+            self.rel_cal_phs[i] = _make_float(fi.read(16))
+        fi.seek(480 - self.num_chans*32, 1)  # skip reserved
         self.abs_err_at = fi.read(16).decode('utf-8')  # type: str
         self.abs_err_ct = fi.read(16).decode('utf-8')  # type: str
         self.distort_line = fi.read(16).decode('utf-8')  # type: str
@@ -774,9 +807,10 @@ class _LED_DataQuality(_BaseElements):
         self.at_misreg_err = numpy.zeros((self.num_chans, ), dtype='float64')  # type: numpy.ndarray
         self.ct_misreg_err = numpy.zeros((self.num_chans, ), dtype='float64')  # type: numpy.ndarray
         for i in range(self.num_chans):
-            self.at_misreg_err[i] = float(fi.read(16))
-            self.ct_misreg_err[i] = float(fi.read(16))
-        fi.seek(540, 1)  # skip reserved
+            self.at_misreg_err[i] = _make_float(fi.read(16))
+            self.ct_misreg_err[i] = _make_float(fi.read(16))
+        this_size = 782 + 32*self.num_chans
+        fi.seek(self.rec_length-this_size, 1)  # skip reserved
 
 
 class _LED_Facility(_BaseElements):
@@ -795,36 +829,48 @@ class _LED_Facility(_BaseElements):
 
     def __init__(self, fi, parse_all=False):
         super(_LED_Facility, self).__init__(fi)
-        self.fac_seq_num = int_func(fi.read(4))  # type: int
+        self.fac_seq_num = struct.unpack('>I', fi.read(4))[0]  # type: int
         if not parse_all:
-            fi.seek(self.rec_length-16)
+            fi.seek(self.rec_length-16, 1)
             return
 
         self.mapproj2pix = numpy.zeros((10, ), dtype='float64')  # type: numpy.ndarray
         for i in range(10):
-            self.mapproj2pix[i] = float(fi.read(20))
+            self.mapproj2pix[i] = _make_float(fi.read(20))
         self.mapproj2line = numpy.zeros((10, ), dtype='float64')  # type: numpy.ndarray
         for i in range(10):
-            self.mapproj2line[i] = float(fi.read(20))
+            self.mapproj2line[i] = _make_float(fi.read(20))
 
         self.cal_mode_data_loc_flg = fi.read(4).decode('utf-8')  # type: str
         self.start_line_upper = fi.read(8).decode('utf-8')  # type: str
         self.end_line_upper = fi.read(8).decode('utf-8')  # type: str
+        self.start_line_bottom = fi.read(8).decode('utf-8')  # type: str
         self.end_line_bottom = fi.read(8).decode('utf-8')  # type: str
         self.prf_switch_flag = fi.read(4).decode('utf-8')  # type: str
         self.prf_switch_line = fi.read(8).decode('utf-8')  # type: str
         fi.seek(8, 1)  # skip reserved field
         self.num_loss_lines_10 = fi.read(8).decode('utf-8')  # type: str
         self.num_loss_lines_11 = fi.read(8).decode('utf-8')  # type: str
-        fi.seek(312)  # skip empty fields
-        fi.sek(224)  # skip reserved fields
+        fi.seek(312, 1)  # skip empty fields
+        fi.seek(224, 1)  # skip reserved fields
+
+        self.pixelline2lat = numpy.zeros((25, ), dtype='float64')  # type: numpy.ndarray
+        self.pixelline2lon = numpy.zeros((25, ), dtype='float64')  # type: numpy.ndarray
+        for i in range(25):
+            self.pixelline2lat[i] = _make_float(fi.read(20))
+        for i in range(25):
+            self.pixelline2lon[i] = _make_float(fi.read(20))
+
+        self.origin_pixel = float(fi.read(20))  # type: float
+        self.origin_line = float(fi.read(20))  # type: float
 
         self.latlon2pixel = numpy.zeros((25, ), dtype='float64')  # type: numpy.ndarray
-        for i in range(25):
-            self.latlon2pixel[i] = float(fi.read(20))
         self.latlon2line = numpy.zeros((25, ), dtype='float64')  # type: numpy.ndarray
         for i in range(25):
-            self.latlon2line[i] = float(fi.read(20))
+            self.latlon2pixel[i] = _make_float(fi.read(20))
+        for i in range(25):
+            self.latlon2line[i] = _make_float(fi.read(20))
+
         self.origin_lat = float(fi.read(20))  # type: float
         self.origin_lon = float(fi.read(20))  # type: float
         fi.seek(1896, 1)  # skip empty fields
@@ -854,6 +900,10 @@ class _LED_Elements(_CommonElements3):
             super(_LED_Elements, self).__init__(fi)
             fi.seek(230, 1)  # skip reserved fields
             self.data = _LED_Data(fi)  # type: _LED_Data
+            if self.num_map_rec > 0:
+                # skip any map projection
+                # should not be present for level 1.1
+                fi.seek(self.map_len, 1)
             self.position = _LED_Position(fi)  # type: _LED_Position
             self.attitude = _LED_Attitude(fi)  # type: _LED_Attitude
             self.radiometric = _LED_Radiometric(fi)  # type: _LED_Radiometric
@@ -865,7 +915,7 @@ class _LED_Elements(_CommonElements3):
 ############
 # TRL file interpretation
 
-class _LowResRecord(object):
+class _TRL_LowResRecord(object):
     """
     Low resolution record in TRL file.
     """
@@ -901,7 +951,7 @@ class _TRL_Elements(_CommonElements3):
         with open(self._file_name, 'rb') as fi:
             super(_TRL_Elements, self).__init__(fi)
             self.num_low_res_rec = int_func(fi.read(6))  # type: int
-            self.low_res = tuple([_LowResRecord(fi) for _ in range(self.num_low_res_rec)])
+            self.low_res = tuple([_TRL_LowResRecord(fi) for _ in range(self.num_low_res_rec)])
             fi.seek(720, 1)  # skip reserved data
             # comment carried over from matlab -
             #   There seems to be an array the size of the low resolution image on
@@ -1011,18 +1061,22 @@ if __name__ == '__main__':
         '~/Desktop/sarpy_testing/palsar'
         '/0000000000_001001_ALOS2229210750-180821-L1.1CEOS')
 
-    img_file = os.path.join(root_dir, 'IMG-HH-ALOS2229210750-180821-HBQR1.1__A')
-    img_header = _IMG_Elements(img_file)
-    pref = img_header.prefix_bytes
-    suff = img_header.suffix_bytes
-    datatype_code = img_header.sar_datatype_code
-    print('pref = *{}*, suff = *{}*, datatype_code = *{}*'.format(pref, suff, datatype_code))
+    # # test img
+    # img_file = os.path.join(root_dir, 'IMG-HH-ALOS2229210750-180821-HBQR1.1__A')
+    # img_elements = _IMG_Elements(img_file)
+    # print(img_elements.doc_id)
 
-    # test _determine_file_type
-    # for fil in [
-    #     'BRS-HH-ALOS2229210750-180821-HBQR1.1__A.jpg',
-    #     'IMG-HH-ALOS2229210750-180821-HBQR1.1__A',
-    #     'LED-ALOS2229210750-180821-HBQR1.1__A',
-    #     'TRL-ALOS2229210750-180821-HBQR1.1__A',
-    #     'VOL-ALOS2229210750-180821-HBQR1.1__A']:
-    #     print(_determine_file_type(os.path.join(root_dir, fil)), fil)
+    # # test led
+    # led_file = os.path.join(root_dir, 'LED-ALOS2229210750-180821-HBQR1.1__A')
+    # led_elements = _LED_Elements(led_file)
+    # print(led_elements.doc_id)
+
+    # # test trl
+    # trl_file = os.path.join(root_dir, 'TRL-ALOS2229210750-180821-HBQR1.1__A')
+    # trl_elements = _TRL_Elements(trl_file)
+    # print(trl_elements.doc_id)
+
+    # # test vol
+    # vol_file = os.path.join(root_dir, 'VOL-ALOS2229210750-180821-HBQR1.1__A')
+    # vol_elements = _VOL_Elements(vol_file)
+    # print(vol_elements.doc_id)
