@@ -1533,10 +1533,9 @@ class RadarSatDetails(object):
 
 class RadarSatReader(BaseReader):
     """
-    Gets a reader type object for RadarSat SAR files.
-    RadarSat files correspond to one tiff per polarimetric band, so this will result
-    in one tiff reader per polarimetric band.
+    The reader object for RadarSat SAR file package.
     """
+
     __slots__ = ('_radar_sat_details', '_readers')
 
     def __init__(self, radar_sat_details):

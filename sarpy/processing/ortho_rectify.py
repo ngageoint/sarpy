@@ -1927,7 +1927,7 @@ def _get_data_mean_magnitude(bounds, reader, index, block_size_in_bytes):
                          bounds[0]:bounds[1],
                          this_column_range[0]:this_column_range[1],
                          index])
-        mask = numpy.isfinite(data)
+        mask = (data > 0) & numpy.isfinite(data)
         mean_total += numpy.sum(data[mask])
         mean_count += numpy.sum(mask)
     return float(mean_total / mean_count)
