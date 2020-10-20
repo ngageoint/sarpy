@@ -60,7 +60,7 @@ class BaseChipper(object):
 
     Similarly, we are able to use more traditional Python slicing syntax
 
-    .. code-block::
+    .. code-block:: python
 
         data = BaseChipper[slice1[, slice2]]
 
@@ -791,6 +791,7 @@ class BaseReader(object):
 
         Examples
         --------
+
         Basic fetching
         :code:`data = reader((start1, stop1, stride1), (start2, stop2, stride2), index=0)`
 

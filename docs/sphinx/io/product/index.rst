@@ -8,5 +8,7 @@ Derived data product reading and writing elements (sarpy.io.product)
     sidd
     sidd_product_creation
     kmz_product_creation
+    change_detection
+    sidd_structure_creation
     sidd2_elements/index
     sidd1_elements/index
