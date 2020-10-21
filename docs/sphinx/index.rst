@@ -12,6 +12,7 @@ Welcome to sarpy's documentation!
     processing/index
     visualization/index
     annotation/index
+    utils/index
 
 
 Indices and tables

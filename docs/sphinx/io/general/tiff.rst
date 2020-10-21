@@ -1,5 +1,5 @@
-Tiff and BIgTiff reading methods (sarpy.io.general.tiff)
-========================================================
+Tiff/BigTiff reading methods (sarpy.io.general.tiff)
+====================================================
 
 .. automodule:: sarpy.io.general.tiff
     :members:

@@ -1,5 +1,6 @@
 # This details the important differences introduced in sarpy 1.1
 
+* .24 - Debugging PALSAR ADC rate population and improving some docstrings
 * .23 - Added PALSAR (ALOS2) reading support for level 1.1 products
 * .22 - Making suggested name more resistant to errors
 * .21 - Adding RCM NITF format data support

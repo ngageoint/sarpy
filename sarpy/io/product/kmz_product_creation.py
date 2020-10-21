@@ -9,9 +9,8 @@ This module provides tools for creating kmz products for a SICD type element.
 Examples
 --------
 Create a kmz overview for the contents of a sicd type reader.
+
 .. code-block:: python
-    import logging
-    logging.basicConfig(level='INFO')
 
     import os
     from sarpy.io.complex.converter import open_complex
@@ -658,19 +657,20 @@ def create_kmz_view(reader, output_directory, file_stem='view', pixel_limit=2048
     Examples
     --------
     .. code-block:: python
-    import logging
-    logging.basicConfig(level='INFO')
 
-    import os
-    from sarpy.io.complex.converter import open_complex
-    from sarpy.io.product.create_sicd_kml import create_kmz_view
+        import logging
+        logging.basicConfig(level='INFO')
 
-    test_root = '<root directory>'
-    reader = open_complex(os.path.join(test_root, '<file name>>'))
-    create_kmz_view(reader, test_root,
-                    file_stem='View-<something descriptive>',
-                    pixel_limit=2048,
-                    inc_collection_wedge=True)
+        import os
+        from sarpy.io.complex.converter import open_complex
+        from sarpy.io.product.create_sicd_kml import create_kmz_view
+
+        test_root = '<root directory>'
+        reader = open_complex(os.path.join(test_root, '<file name>>'))
+        create_kmz_view(reader, test_root,
+                        file_stem='View-<something descriptive>',
+                        pixel_limit=2048,
+                        inc_collection_wedge=True)
 
     """
 

@@ -11,8 +11,10 @@ SAR complex data reading elements (sarpy.io.complex)
     csk
     iceye
     nisar
+    palsar2
     radarsat
     sentinel
+    tsx
     aggregate
     sicd_elements/index
     converter
