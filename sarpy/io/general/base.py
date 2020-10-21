@@ -60,7 +60,7 @@ class BaseChipper(object):
 
     Similarly, we are able to use more traditional Python slicing syntax
 
-    .. code-block::
+    .. code-block:: python
 
         data = BaseChipper[slice1[, slice2]]
 
@@ -791,6 +791,7 @@ class BaseReader(object):
 
         Examples
         --------
+
         Basic fetching
         :code:`data = reader((start1, stop1, stride1), (start2, stop2, stride2), index=0)`
 
@@ -880,29 +881,35 @@ class BaseReader(object):
 
         Examples
         --------
-        Basic fetching using the `read_chip` method
-        :code:`data = reader.read_chip((start1, stop1, stride1), (start2, stop2, stride2))`
+        The **preferred syntax** is to use Python slice syntax or call syntax,
+        and the following yield equivalent results
 
-        Also available is basic call syntax
-        :code:`data = reader(dim1range, dim2range, index)`
-        Most familiar is Python style basic slice syntax
-        :code:`data = reader[start1:stop1:stride1, start:stop:stride]`  or
-        :code:`data = reader[start:stop:stride, start:stop:stride, index]`
-        Here the slice on index (dimension 3) is limited to a single integer, and
-        no slice on index :code:`reader[:, :]` will default to `index=0`,
-        :code:`reader[:, :, 0]` (where appropriate).
+        .. code-block:: python
 
-        The convention for precendence in the `dim1range` and `dim2range` arguments
-        for `read_chip` is a little unusual. To clarify, the following are equivalent
-        :code:`reader.read_chip(stride1, stride2)` yields the same as
-        :code:`reader.read_chip((stride1, ), (stride2, ))` yields the same as
-        :code:`reader[::stride1, ::stride2]`
+            data = reader[start:stop:stride, start:stop:stride, index]
+            data = reader((start1, stop1, stride1), (start2, stop2, stride2), index=index)`
+            data = reader.read_chip((start1, stop1, stride1), (start2, stop2, stride2) index=index)
 
-        :code:`reader.read_chip((stop1, stride1), (stop2, stride2))` yields the same as
-        :code:`reader[:stop1:stride1, :stop2:stride2]`
+        Here the slice on index (dimension 3) is limited to a single integer. No
+        slice on index will default to `index=0`, that is :code:`reader[:, :]` and
+        :code:`reader[:, :, 0]` yield equivalent results.
 
-        :code:`reader.read_chip((start1, stop1, stride1), (start2, stop2, stride2))`
-        yields the same as :code:`reader[start1:stop1:stride1, start2:stop2:stride2]`
+        The convention for slice and call syntax is as expected from standard Python convention.
+        In the read_chip` method, the convention is a little unusual. The following yield
+        equivalent results
+
+        .. code-block:: python
+
+            data = reader.read_chip(stride1, stride2)
+            data = reader.read_chip((stride1, ), (stride2, ))
+            data = reader[::stride1, ::stride2]
+
+        Likewise, the following yield equivalent results
+
+        .. code-block:: python
+
+            data = reader.read_chip((stop1, stride1), (stop2, stride2))
+            data = reader[:stop1:stride1, :stop2:stride2]
         """
 
         return self.__call__(dim1range, dim2range, index=index)

@@ -1361,7 +1361,7 @@ class PALSARDetails(object):
                     TxFreqStart=tx_freq_min,
                     TxFMRate=float(data.range_pulse_amp_coef[1]),
                     RcvDemodType='CHIRP',
-                    ADCSampleRate=data.sampling_rate), ]
+                    ADCSampleRate=data.sampling_rate*1e6), ]
             else:
                 logging.error(
                     'Got unexpected range_pulse_code "{}", no waveform details '

@@ -9,6 +9,7 @@ data which must be fetched and/or processing which must be performed.
 Examples
 --------
 .. code-block:: python
+
     from matplotlib import pyplot
     from sarpy.io.complex.converter import open_complex
     from sarpy.processing.csi import CSICalculator

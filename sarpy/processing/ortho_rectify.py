@@ -2,10 +2,12 @@
 """
 SICD ortho-rectification methodology.
 
-Example
--------
+Examples
+--------
 An basic example.
+
 .. code-block:: python
+
     import os
     from matplotlib import pyplot
     from sarpy.io.complex.converter import open_complex
@@ -32,7 +34,9 @@ An basic example.
 
 A viable example performing orthorectification on the entire image and then saving
 to a JPEG.
+
 .. code-block:: python
+
     import os
     from sarpy.io.complex.converter import open_complex
     from sarpy.processing.ortho_rectify import NearestNeighborMethod, \

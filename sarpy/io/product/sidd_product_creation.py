@@ -5,9 +5,9 @@ Methods for creating a variety of SIDD products.
 Examples
 --------
 Create a variety of sidd products.
+
 .. code-block:: python
-    import logging
-    logging.basicConfig(level='INFO')
+
     import os
 
     from sarpy.io.complex.converter import open_complex
@@ -98,8 +98,7 @@ def create_detected_image_sidd(
     Examples
     --------
     .. code-block:: python
-        import logging
-        logging.basicConfig(level='INFO')
+
         import os
 
         from sarpy.io.complex.converter import open_complex
@@ -176,8 +175,6 @@ def create_csi_sidd(
     Examples
     --------
     .. code-block:: python
-        import logging
-        logging.basicConfig(level='INFO')
 
         import os
         from sarpy.io.complex.converter import open_complex
@@ -263,9 +260,8 @@ def create_dynamic_image_sidd(
     Examples
     --------
     Create a basic dynamic image.
+
     .. code-block:: python
-        import logging
-        logging.basicConfig(level='INFO')
 
         import os
         from sarpy.io.complex.converter import open_complex
