@@ -10,8 +10,7 @@ import os
 import numpy
 
 from sarpy.compliance import int_func, integer_types
-from sarpy.io.general.base import BaseChipper, AggregateChipper, AbstractWriter, \
-    validate_transform_data
+from sarpy.io.general.base import BaseChipper, AbstractWriter, validate_transform_data
 
 
 __classification__ = "UNCLASSIFIED"
@@ -208,104 +207,6 @@ class BIPChipper(BaseChipper):
             #   is factored in (along with any potential order reversal) below
             out[i, :, :] = line[::range2[2]]
         return out
-
-
-class MultiSegmentChipper(AggregateChipper):
-    """
-    A BIP chipper assembled from multiple image segments in a given file.
-    This is mainly intended for SICD and SIDD files, but has other potential uses.
-    """
-
-    __slots__ = ('_file_name', )
-
-    def __init__(self, file_name, bounds, data_offsets, raw_dtype, raw_bands, output_bands, output_dtype,
-                 symmetry=None, transform_data=None, limit_to_raw_bands=None):
-        """
-
-        Parameters
-        ----------
-        file_name : str
-            The name of the file from which to read
-        bounds : numpy.ndarray
-            Two-dimensional array of [row start, row end, column start, column end].
-            This should be with respect to the raw underlying data, and will be
-            rearranged based on symmetry.
-        data_offsets : numpy.ndarray
-            Offset for each image segment from the start of the file
-        raw_dtype : str|numpy.dtype|numpy.number
-            The data type of the underlying file
-        raw_bands: int
-            The bands in the underlying raw data.
-        output_bands : None|int
-            The number of bands in the output data.
-        output_dtype : None|str|numpy.dtype|numpy.number
-            The data type of the return data.
-        symmetry : tuple
-            See `BaseChipper` for description of 3 element tuple of booleans.
-        transform_data : Callable|str|None
-            See `BaseChipper` for description of `transform_data`
-        raw_bands : int
-            number of bands - this will always be one for sicd.
-        limit_to_raw_bands : None|int|numpy.ndarray|list|tuple
-            The collection of raw bands to which to read. `None` is all bands.
-        """
-
-        self._file_name = file_name
-        self._validate_bounds(bounds)
-        # determine data sizes and sensibility
-        data_sizes = numpy.zeros((bounds.shape[0], 2), dtype=numpy.int64)
-        p_row_start, p_row_end, p_col_start, p_col_end = None, None, None, None
-        for i, entry in enumerate(bounds):
-            # Are the order of the entries in bounds sensible?
-            if not (0 <= entry[0] < entry[1] and 0 <= entry[2] < entry[3]):
-                raise ValueError('entry {} of bounds is {}, and cannot be of the form '
-                                 '[row start, row end, column start, column end]'.format(i, entry))
-
-            # Are the elements of bounds sensible in relative terms?
-            #   we must traverse by a specific block of rows until we reach the column limit,
-            #   and then moving on the next segment of rows
-            if i > 0:
-                if not ((p_col_end == entry[2] and p_row_start == entry[0] and p_row_end == entry[1]) or
-                        (p_row_end == entry[0] and entry[2] == 0)):
-                    raise ValueError('The relative order for the chipper elements cannot be determined.')
-            p_row_start, p_row_end, p_col_start, p_col_end = entry
-            # define the data_sizes entry
-            data_sizes[i, :] = (entry[1] - entry[0], entry[3] - entry[2])
-
-        total_rows = bounds[-1, 1]
-        total_cols = bounds[-1, 3]
-        if symmetry[0]:
-            t_bounds = bounds.copy()
-            bounds[:, 0] = total_rows - t_bounds[:, 1]
-            bounds[:, 1] = total_rows - t_bounds[:, 0]
-        if symmetry[1]:
-            t_bounds = bounds.copy()
-            bounds[:, 2] = total_cols - t_bounds[:, 3]
-            bounds[:, 3] = total_cols - t_bounds[:, 2]
-        if symmetry[2]:
-            t_bounds = bounds.copy()
-            bounds[:, :2] = t_bounds[:, 2:]
-            bounds[:, 2:] = t_bounds[:, :2]
-
-        # validate data offsets
-        if not isinstance(data_offsets, numpy.ndarray):
-            raise ValueError('data_offsets must be an numpy.ndarray, not {}'.format(type(data_offsets)))
-        if not issubclass(data_offsets.dtype.type, numpy.integer):
-            raise ValueError('data_offsets must be an integer dtype numpy.ndarray, got dtype {}'.format(data_offsets.dtype))
-        if not (len(data_offsets.shape) == 1):
-            raise ValueError(
-                'data_sizes must be an one-dimensional numpy.ndarray, '
-                'not shape {}'.format(data_offsets.shape))
-        if data_sizes.shape[0] != data_offsets.size:
-            raise ValueError(
-                'data_sizes and data_offsets arguments must have compatible '
-                'shape {} - {}'.format(data_sizes.shape, data_sizes.size))
-        child_chippers = tuple(
-            BIPChipper(file_name, raw_dtype, img_siz, raw_bands, output_bands, output_dtype,
-                       symmetry=symmetry, transform_data=transform_data, data_offset=img_off,
-                       limit_to_raw_bands=limit_to_raw_bands)
-            for img_siz, img_off in zip(data_sizes, data_offsets))
-        super(MultiSegmentChipper, self).__init__(bounds, output_dtype, child_chippers, output_bands=output_bands)
 
 
 class BIPWriter(AbstractWriter):
