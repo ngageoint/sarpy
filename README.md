@@ -26,6 +26,15 @@ The core library functionality depends only on `numpy >= 1.9.0` with some very m
 dependency on `scipy`. Support for reading Cosmo-Skymed data (contained in hdf5 files)
 requires the `h5py` package.
 
+Installation
+------------
+
+Install sarpy with pip:
+
+```bash
+pip3 install sarpy
+```
+
 Python 2.7
 ----------
 The development here has been geared towards Python 3.6 and above, but efforts have
