@@ -28,12 +28,23 @@ requires the `h5py` package.
 
 Installation
 ------------
-
-Install sarpy with pip:
-
+From PyPI, install using pip (may require escalated privileges e.g. sudo):
 ```bash
-pip3 install sarpy
+pip install sarpy
 ```
+Note that here `pip` represents the pip utility for the desired Python environment.
+
+From the top level of a cloned version of this repository, install for all users of 
+your environment (may require escalated privileges, e.g. sudo):
+```bash
+python setup.py install
+```
+Again, `python` here represents the executible associated with the desired Python 
+environment.
+
+For more verbose instructions for installing from source, such as how to perform an 
+install applicable for your user only and requiring no escalated privileges, 
+see [here](https://docs.python.org/3/install/index.html).
 
 Python 2.7
 ----------
