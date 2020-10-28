@@ -3,6 +3,8 @@
 The SCPCOAType definition.
 """
 
+import logging
+
 import numpy
 from numpy.linalg import norm
 
@@ -368,14 +370,73 @@ class SCPCOAType(Serializable):
             GeoData.SCP.ECF.get_array(), self.ARPPos.get_array(), self.ARPVel.get_array())
         # set all the values
         self._ROV = calculator.ROV
-        self.SideOfTrack = calculator.SideOfTrack
-        self.SlantRange = calculator.SlantRange
-        self.GroundRange = calculator.GroundRange
-        self.DopplerConeAng = calculator.DopplerConeAngle
-        self.GrazeAng, self.IncidenceAng = calculator.get_graze_and_incidence()
-        self.TwistAng = calculator.TwistAngle
+        if self.SideOfTrack is None:
+            self.SideOfTrack = calculator.SideOfTrack
+        if self.SlantRange is None:
+            self.SlantRange = calculator.SlantRange
+        if self.GroundRange is None:
+            self.GroundRange = calculator.GroundRange
+        if self.DopplerConeAng is None:
+            self.DopplerConeAng = calculator.DopplerConeAngle
+        graz, inc = calculator.get_graze_and_incidence()
+        if self.GrazeAng is None:
+            self.GrazeAng = graz
+        if self.IncidenceAng is None:
+            self.IncidenceAng = inc
+        if self.TwistAng is None:
+            self.TwistAng = calculator.TwistAngle
         self._squint = calculator.SquintAngle
-        self.SlopeAng = calculator.SlopeAngle
-        self.AzimAng = calculator.AzimuthAngle
-        self.LayoverAng, self._layover_magnitude = calculator.get_layover()
+        if self.SlopeAng is None:
+            self.SlopeAng = calculator.SlopeAngle
+        if self.AzimAng is None:
+            self.AzimAng = calculator.AzimuthAngle
+        layover, self._layover_magnitude = calculator.get_layover()
+        if self.LayoverAng is None:
+            self.LayoverAng = layover
         self._shadow, self._shadow_magnitude = calculator.get_shadow()
+
+    def check_values(self, GeoData):
+        """
+        Check derived values for validity.
+
+        Parameters
+        ----------
+        GeoData : sarpy.io.complex.sicd_elements.GeoData.GeoDataType
+
+        Returns
+        -------
+        bool
+        """
+
+        if GeoData is None or GeoData.SCP is None or GeoData.SCP.ECF is None or \
+                self.ARPPos is None or self.ARPVel is None:
+            return True # nothing can be derived
+
+        # construct our calculator
+        calculator = GeometryCalculator(
+            GeoData.SCP.ECF.get_array(), self.ARPPos.get_array(), self.ARPVel.get_array())
+
+        cond = True
+        if calculator.SideOfTrack != self.SideOfTrack:
+            logging.error('SideOfTrack is expected to be {}, and is populated as {}'.format(calculator.SideOfTrack, self.SideOfTrack))
+            cond = False
+
+        for attribute in ['SlantRange', 'GroundRange']:
+            val1 = getattr(self, attribute)
+            val2 = getattr(calculator, attribute)
+            if abs(val1/val2 - 1) > 1e-6:
+                logging.error(
+                    'SCPCOA attribute {} is expected to have value {}, but is '
+                    'populated as {}'.format(attribute, val1, val2))
+                cond = False
+
+        for attribute in [
+            'DopplerConeAng', 'GrazeAng', 'IncidenceAng', 'TwistAng', 'SlopeAng', 'AzimAng', 'LayoverAng']:
+            val1 = getattr(self, attribute)
+            val2 = getattr(calculator, attribute)
+            if abs(val1 - val2) > 1e-3:
+                logging.error(
+                    'SCPCOA attribute {} is expected to have value {}, but is '
+                    'populated as {}'.format(attribute, val1, val2))
+                cond = False
+        return cond

@@ -5,8 +5,6 @@ The SICDType definition.
 
 import logging
 import copy
-from datetime import datetime
-import re
 from collections import OrderedDict
 
 import numpy
@@ -316,6 +314,49 @@ class SICDType(Serializable):
             return True
         return True
 
+    def _validate_scp_time(self):
+        """
+        Validate the SCPTime.
+
+        Returns
+        -------
+        bool
+        """
+
+        if self.SCPCOA is None or self.SCPCOA.SCPTime is None or \
+                self.Grid is None or self.Grid.TimeCOAPoly is None:
+            return True
+
+        cond = True
+        val1 = self.SCPCOA.SCPTime
+        val2 = self.Grid.TimeCOAPoly[0, 0]
+        if abs(val1 - val2) > 1e-6:
+            logging.error(
+                'SCPTime populated as {}, and constant term of TimeCOAPoly populated as {}'.format(val1, val2))
+            cond = False
+        return cond
+
+    def _validate_valid_data(self):
+        """
+        Check that either both ValidData fields are populated, or neither.
+
+        Returns
+        -------
+        bool
+        """
+
+        if self.ImageData is None or self.GeoData is None:
+            return True
+
+        cond = True
+        if self.ImageData.ValidData is not None and self.GeoData.ValidData is None:
+            logging.error('ValidData is populated in ImageData, but not GeoData')
+            cond = False
+        if self.GeoData.ValidData is not None and self.ImageData.ValidData is None:
+            logging.error('ValidData is populated in GeoData, but not ImageData')
+            cond = False
+        return cond
+
     def _basic_validity_check(self):
         condition = super(SICDType, self)._basic_validity_check()
         # do our image formation parameters match, as appropriate?
@@ -324,7 +365,34 @@ class SICDType(Serializable):
         condition &= self._validate_image_segment_id()
         # do the mode and timecoapoly make sense?
         condition &= self._validate_spotlight_mode()
+        # does valid data make sense?
+        condition &= self._validate_valid_data()
         return condition
+
+    def is_valid(self, recursive=False):
+        all_required = self._basic_validity_check()
+        if not recursive:
+            return all_required
+
+        valid_children = self._recursive_validity_check()
+        # check DeltaK values
+        try:
+            valid_vertices = self.ImageData.get_valid_vertex_data()
+            if valid_vertices is None:
+                valid_vertices = self.ImageData.get_full_vertex_data()
+            x_coords = self.Grid.Row.SS*(valid_vertices[:, 0] - (self.ImageData.SCPPixel.Row -  self.ImageData.FirstRow))
+            y_coords = self.Grid.Col.SS*(valid_vertices[:, 1] - (self.ImageData.SCPPixel.Col -  self.ImageData.FirstCol))
+        except (AttributeError, ValueError):
+            x_coords, y_coords = None, None
+        if self.Grid is not None:
+            valid_children &= self.Grid.check_deltak(x_coords, y_coords)
+        # check PFA values
+        if self.PFA is not None and self.Grid is not None:
+            valid_children &= self.PFA.check_values(self.Grid)
+        # check SCPCOA values
+        if self.SCPCOA is not None:
+            valid_children &= self.SCPCOA.check_values(self.GeoData)
+        return all_required & valid_children
 
     def define_geo_image_corners(self, override=False):
         """

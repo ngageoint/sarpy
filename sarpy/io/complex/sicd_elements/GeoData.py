@@ -19,6 +19,8 @@ from .blocks import XYZType, LatLonRestrictionType, LatLonHAERestrictionType, \
     LatLonCornerStringType, LatLonArrayElementType
 
 from sarpy.geometry.geocoords import geodetic_to_ecf, ecf_to_geodetic
+from sarpy.geometry.geometry_elements import LinearRing
+
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
@@ -412,3 +414,24 @@ class GeoDataType(Serializable):
         if len(self.GeoInfos) > 0:
             out['GeoInfos'] = [entry.to_dict(check_validity=check_validity, strict=strict) for entry in self._GeoInfos]
         return out
+
+    def _check_valid_data(self):
+        cond = True
+        for attribute in ['ImageCorners', 'ValidData']:
+            value = getattr(self, attribute)
+            if value is not None:
+                lin_ring = LinearRing(coordinates=value.get_array(dtype='float64'))
+                area = lin_ring.get_area()
+                if area == 0:
+                    logging.error('{} encloses no area.'.format(attribute))
+                    cond = False
+                elif area > 0:
+                    logging.error(
+                        "{} must be traversed in clockwise direction.".format(attribute))
+                    cond = False
+        return cond
+
+    def _basic_validity_check(self):
+        condition = super(GeoDataType, self)._basic_validity_check()
+        condition &= self._check_valid_data()
+        return condition

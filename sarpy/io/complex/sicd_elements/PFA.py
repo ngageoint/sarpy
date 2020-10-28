@@ -3,6 +3,7 @@
 The PFAType definition.
 """
 
+import logging
 import numpy
 from numpy.linalg import norm
 
@@ -57,7 +58,7 @@ class PFAType(Serializable):
     """Parameters for the Polar Formation Algorithm."""
     _fields = (
         'FPN', 'IPN', 'PolarAngRefTime', 'PolarAngPoly', 'SpatialFreqSFPoly', 'Krg1', 'Krg2', 'Kaz1', 'Kaz2',
-        'StDeskew')
+        'STDeskew')
     _required = ('FPN', 'IPN', 'PolarAngRefTime', 'PolarAngPoly', 'SpatialFreqSFPoly', 'Krg1', 'Krg2', 'Kaz1', 'Kaz2')
     _numeric_format = {'PolarAngRefTime': '0.16G', 'Krg1': '0.16G', 'Krg2': '0.16G', 'Kaz1': '0.16G', 'Kaz2': '0.16G'}
     # descriptors
@@ -101,13 +102,13 @@ class PFAType(Serializable):
         'Kaz2', _required, strict=DEFAULT_STRICT,
         docstring='Maximum *azimuth spatial frequency (Kaz)* output from the polar to rectangular '
                   'resampling.')  # type: float
-    StDeskew = _SerializableDescriptor(
-        'StDeskew', STDeskewType, _required, strict=DEFAULT_STRICT,
+    STDeskew = _SerializableDescriptor(
+        'STDeskew', STDeskewType, _required, strict=DEFAULT_STRICT,
         docstring='Parameters to describe image domain slow time *(ST)* Deskew processing.')  # type: STDeskewType
 
     def __init__(self, FPN=None, IPN=None, PolarAngRefTime=None, PolarAngPoly=None,
                  SpatialFreqSFPoly=None, Krg1=None, Krg2=None, Kaz1=None, Kaz2=None,
-                 StDeskew=None, **kwargs):
+                 STDeskew=None, **kwargs):
         """
 
         Parameters
@@ -121,7 +122,7 @@ class PFAType(Serializable):
         Krg2 : float
         Kaz1 : float
         Kaz2 : float
-        StDeskew : STDeskewType
+        STDeskew : STDeskewType
         kwargs : dict
         """
 
@@ -136,7 +137,7 @@ class PFAType(Serializable):
         self.SpatialFreqSFPoly = SpatialFreqSFPoly
         self.Krg1, self.Krg2 = Krg1, Krg2
         self.Kaz1, self.Kaz2 = Kaz1, Kaz2
-        self.StDeskew = StDeskew
+        self.STDeskew = STDeskew
         super(PFAType, self).__init__(**kwargs)
 
     def _derive_parameters(self, Grid, SCPCOA, GeoData):
@@ -181,3 +182,74 @@ class PFAType(Serializable):
 
             if self.FPN is None:
                 self.FPN = XYZType.from_array(ETP)
+
+    def check_values(self, Grid):
+        """
+        Check the validity of the Kaz and Krg values.
+
+        Parameters
+        ----------
+        Grid : sarpy.io.complex.sicd_elements.Grid.GridType
+
+        Returns
+        -------
+        bool
+        """
+
+        cond = True
+        if self.STDeskew is None or not self.STDeskew.Applied:
+            try:
+                if self.Kaz2 - Grid.Col.KCtr > 0.5/Grid.Col.SS + 1e-10:
+                    logging.error(
+                        'PFA.Kaz2 - Grid.Col.KCtr ({}) > 0.5/Grid.Col.SS ({})'.format(
+                            self.Kaz2 - Grid.Col.KCtr, 0.5/Grid.Col.SS))
+                    cond = False
+            except (AttributeError, TypeError, ValueError):
+                pass
+
+            try:
+                if self.Kaz1 - Grid.Col.KCtr < -0.5/Grid.Col.SS - 1e-10:
+                    logging.error(
+                        'PFA.Kaz1 - Grid.Col.KCtr ({}) < -0.5/Grid.Col.SS ({})'.format(
+                            self.Kaz1 - Grid.Col.KCtr, -0.5/Grid.Col.SS))
+                    cond = False
+            except (AttributeError, TypeError, ValueError):
+                pass
+
+        try:
+            if self.Krg2 - Grid.Row.KCtr > 0.5/Grid.Row.SS + 1e-10:
+                logging.error(
+                    'PFA.Krg2 - Grid.Row.KCtr ({}) > 0.5/Grid.Row.SS ({})'.format(
+                        self.Krg2 - Grid.Row.KCtr, 0.5/Grid.Row.SS))
+                cond = False
+        except (AttributeError, TypeError, ValueError):
+            pass
+
+        try:
+            if self.Krg1 - Grid.Row.KCtr < -0.5/Grid.Row.SS - 1e-10:
+                logging.error(
+                    'PFA.Krg1 - Grid.Row.KCtr ({}) < -0.5/Grid.Row.SS ({})'.format(
+                        self.Krg1 - Grid.Row.KCtr, -0.5/Grid.Row.SS))
+                cond = False
+        except (AttributeError, TypeError, ValueError):
+            pass
+
+        try:
+            if Grid.Row.ImpRespBW > (self.Krg2 - self.Krg1) + 1e-10:
+                logging.error(
+                    'Grid.Row.ImpRespBW ({}) > PFA.Krg2 - PFA.Krg1 ({})'.format(
+                        Grid.Row.ImpRespBW, self.Krg2 - self.Krg1))
+                cond = False
+        except (AttributeError, TypeError, ValueError):
+            pass
+
+        try:
+            if abs(Grid.Col.KCtr) > 1e-5 and abs(Grid.Col.KCtr - 0.5*(self.Kaz2 +self.Kaz1)) > 1e-5:
+                logging.error(
+                    'Grid.Col.KCtr ({}) not within 1e-5 of 0.5*(PFA.Kaz2 + PFA.Kaz1) ({})'.format(
+                        Grid.Col.KCtr, 0.5*(self.Kaz2 + self.Kaz1)))
+                cond = False
+        except (AttributeError, TypeError, ValueError):
+            pass
+
+        return cond

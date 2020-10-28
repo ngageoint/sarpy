@@ -106,7 +106,7 @@ class PositionType(Serializable):
         if self.ARPPoly is not None and \
                 (self.ARPPoly.X.order1 < 1 or self.ARPPoly.Y.order1 < 1 or self.ARPPoly.Z.order1 < 1):
             logging.error(
-                'ARPPoly should be order at least 2 in each component. '
+                'ARPPoly should be order at least 1 in each component. '
                 'Got X.order1 = {}, Y.order1 = {}, and Z.order1 = {}'.format(self.ARPPoly.X.order1,
                                                                              self.ARPPoly.Y.order1,
                                                                              self.ARPPoly.Z.order1))
