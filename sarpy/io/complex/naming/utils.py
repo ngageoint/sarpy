@@ -124,9 +124,27 @@ def get_sicd_name(the_sicd, product_number=1):
     cdate_mins = cdate.hour * 60 + cdate.minute + cdate.second / 60.
     collector = the_sicd.CollectionInfo.CollectorName.strip()
 
-    return get_commercial_id() + get_vendor_id()
-    # try:
-    #     return get_commercial_id() + get_vendor_id()
-    # except AttributeError:
-    #     logging.error('Failed to construct suggested name.')
-    #     return None
+    try:
+        return get_commercial_id() + get_vendor_id()
+    except AttributeError:
+        logging.error('Failed to construct suggested name.')
+        return None
+
+
+def get_pass_number(minutes, orbits_per_day):
+    """
+    Gets appropriately formatted pass number string.
+
+    Parameters
+    ----------
+    minutes : float
+        Minutes elapsed in the day since midnight UTC.
+    orbits_per_day : float
+        The number of orbits per day, around 15 for vehicles in low earth orbit.
+
+    Returns
+    -------
+    str
+    """
+
+    return '{0:02d}'.format(int(round(minutes*orbits_per_day/1440.)))

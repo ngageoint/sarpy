@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+from sarpy.io.complex.naming.utils import get_pass_number
+
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
@@ -28,6 +30,6 @@ def get_commercial_id(collector, cdate_str, cdate_mins, product_number):
 
     crad = 'CS'
     cvehicle = collector[3:5]
-    pass_number = '{0:02d}'.format(int(round(cdate_mins * _orbits_per_day / 1440.)))
+    pass_number = get_pass_number(cdate_mins, _orbits_per_day)
 
     return '{0:s}{1:s}{2:s}{3:s}{4:03d}'.format(cdate_str, crad, cvehicle, pass_number, product_number)
