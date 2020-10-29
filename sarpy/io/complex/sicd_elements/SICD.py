@@ -244,6 +244,82 @@ class SICDType(Serializable):
                         'appropriate segment.'.format(seg_id, the_ids))
                     return False
 
+    def _validate_rgazcomp_parameters(self):
+        # type: () -> bool
+        cond = True
+        if self.Grid.ImagePlane != 'SLANT':
+            logging.error(
+                'The image formation algorithm is RGAZCOMP, and Grid.ImagePlane is populated as "{}", '
+                'but should be "SLANT"'.format(self.Grid.ImagePlane))
+            cond = False
+        if self.Grid.Type != 'RGAZIM':
+            logging.error(
+                'The image formation algorithm is RGAZCOMP, and Grid.Type is populated as "{}", '
+                'but should be "RGAZIM"'.format(self.Grid.Type))
+            cond = False
+        try:
+            SCP = self.GeoData.SCP.ECF.get_array(dtype='float64')
+            row_uvect = self.Grid.Row.UVectECF.get_array(dtype='float64')
+            col_uvect = self.Grid.Col.UVectECF.get_array(dtype='float64')
+            ARP_Pos = self.SCPCOA.ARPPos.get_array(dtype='float64')
+            ARP_Vel = self.SCPCOA.ARPVel.get_array(dtype='float64')
+            uRG = SCP - ARP_Pos
+            uRG /= numpy.linalg.norm(uRG)
+            left = numpy.cross(ARP_Pos/numpy.linalg.norm(ARP_Pos), ARP_Vel/numpy.linalg.norm(ARP_Vel))
+            look = numpy.sign(numpy.dot(left, uRG))
+            Spn = -look*numpy.cross(uRG, ARP_Vel)
+            uSpn = Spn/numpy.linalg.norm(Spn)
+        except (AttributeError, ValueError, TypeError):
+            return cond
+        # TODO: continue at line 797
+        return cond
+
+    def _validate_pfa_parameters(self):
+        # type: () -> bool
+        cond = True
+        # TODO: starts at line 890
+        return cond
+
+    def _validate_rma_parameters(self):
+        # type: () -> bool
+        cond = True
+        # TODO: starts at line 1092
+        #   this breaks into a number of subsequent cases
+        return cond
+
+    def _validate_image_form_parameters(self, alg_type):
+        # type: (str) -> bool
+        cond = True
+        if self.ImageFormation.ImageFormAlgo is None:
+            logging.warning(
+                'Image formation algorithm(s) {} populated, but ImageFormation.ImageFormAlgo was not set. '
+                'ImageFormation.ImageFormAlgo has been set HERE, but the incoming structure was incorrect.'.format(alg_type))
+            self.ImageFormation.ImageFormAlgo = alg_type.upper()
+            cond = False
+        elif self.ImageFormation.ImageFormAlgo != alg_type:
+            logging.warning(
+                'Image formation algorithm {} populated, but ImageFormation.ImageFormAlgo populated as {}. '
+                'ImageFormation.ImageFormAlgo has been set properly HERE, but the incoming structure was '
+                'incorrect.'.format(
+                    alg_type, self.ImageFormation.ImageFormAlgo))
+            self.ImageFormation.ImageFormAlgo = alg_type.upper()
+            cond = False
+        if self.Grid is None:
+            return cond
+
+        if self.ImageFormation.ImageFormAlgo == 'RGAZCOMP':
+            cond &= self._validate_rgazcomp_parameters()
+        elif self.ImageFormation.ImageFormAlgo == 'PFA':
+            cond &= self._validate_pfa_parameters()
+        elif self.ImageFormation.ImageFormAlgo == 'RMA':
+            cond &= self._validate_rma_parameters()
+        elif self.ImageFormation.ImageFormAlgo == 'OTHER':
+            logging.warning(
+                'Image formation algorithm populated as "OTHER", which inherently limits SICD analysis '
+                'capability')
+            cond = False
+        return cond
+
     def _validate_image_form(self):  # type: () -> bool
         if self.ImageFormation is None:
             logging.error(
@@ -275,22 +351,8 @@ class SICDType(Serializable):
                     'is set as {}.'.format(self.ImageFormation.ImageFormAlgo))
                 return False
             return True
-        else:
-            if self.ImageFormation.ImageFormAlgo == alg_types[0].upper():
-                return True
-            elif self.ImageFormation.ImageFormAlgo is None:
-                logging.warning(
-                    'Image formation algorithm(s) {} populated, but ImageFormation.ImageFormAlgo was not set. '
-                    'ImageFormation.ImageFormAlgo has been set.'.format(alg_types[0]))
-                self.ImageFormation.ImageFormAlgo = alg_types[0].upper()
-                return True
-            else:  # they are different values
-                logging.warning(
-                    'Only the image formation algorithm {} is populated, but ImageFormation.ImageFormAlgo '
-                    'was set as {}. ImageFormation.ImageFormAlgo has been '
-                    'changed.'.format(alg_types[0], self.ImageFormation.ImageFormAlgo))
-                self.ImageFormation.ImageFormAlgo = alg_types[0].upper()
-                return True
+        # there is exactly one algorithm type populated
+        return self._validate_image_form_parameters(alg_types[0])
 
     def _validate_spotlight_mode(self):
         if self.CollectionInfo is None or self.CollectionInfo.RadarMode is None \

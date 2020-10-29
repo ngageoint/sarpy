@@ -453,7 +453,7 @@ class ImageFormationType(Serializable):
         if self.TxFrequencyProc is not None:
             # noinspection PyProtectedMember
             self.TxFrequencyProc._apply_reference_frequency(reference_frequency)
-
+    
     def _basic_validity_check(self):
         condition = super(ImageFormationType, self)._basic_validity_check()
         if self.TStartProc is not None and self.TEndProc is not None and self.TEndProc < self.TStartProc:
