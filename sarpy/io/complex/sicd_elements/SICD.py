@@ -437,8 +437,13 @@ class SICDType(Serializable):
             return all_required
 
         valid_children = self._recursive_validity_check()
+        # check point projection ability
+        if not self.can_project_coordinates():
+            logging.error(
+                'No projection can be performed for this SICD. In particular, '
+                'no derived products can be produced.')
+        # check DeltaK values
         if self.Grid is not None:
-            # check DeltaK values
             x_coords, y_coords = None, None
             try:
                 valid_vertices = self.ImageData.get_valid_vertex_data()
