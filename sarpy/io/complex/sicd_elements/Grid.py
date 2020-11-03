@@ -525,10 +525,16 @@ class DirParamType(Serializable):
         cond = True
         if self.WgtType is None:
             return cond
+
         wgt_size = self.WgtFunct.size if self.WgtFunct is not None else None
         if self.WgtType.WindowName not in ['UNIFORM', 'UNKNOWN'] and (wgt_size is None or wgt_size < 2):
             logging.error('Non-uniform weighting indicated, but WgtFunct not properly defined')
             return False
+
+        if wgt_size is not None and wgt_size > 1024:
+            logging.warning(
+                'WgtFunct with {} elements is provided. The recommended number '
+                'of elements is 512, and many more is likely needlessly excessive.'.format(wgt_size))
 
         result = self.define_response_widths(populate=False)
         if result is None:
@@ -550,6 +556,12 @@ class DirParamType(Serializable):
             logging.error(
                 'The WgtFunct array has been defined in DirParamType, but there are fewer than 2 entries.')
             condition = False
+        for attribute in ['SS', 'ImpRespBW', 'ImpRespWid']:
+            value = getattr(self, attribute)
+            if value is not None and value <= 0:
+                logging.error(
+                    'The {} is populated as {}, but should be strictly positive.'.format(attribute, value))
+                condition = False
         condition &= self._check_bw()
         condition &= self._check_wgt()
         return condition
@@ -1049,3 +1061,23 @@ class GridType(Serializable):
                 return '9999'
             else:
                 return '{0:04d}'.format(value)
+
+    def get_slant_plane_area(self):
+        """
+        Get the weighted slant plane area.
+
+        Returns
+        -------
+        float
+        """
+
+        range_weight_f = azimuth_weight_f = 1.0
+        if self.Row.WgtFunct is not None:
+            var = numpy.var(self.Row.WgtFunct)
+            mean = numpy.mean(self.Row.WgtFunct)
+            range_weight_f += var/(mean*mean)
+        if self.Col.WgtFunct is not None:
+            var = numpy.var(self.Col.WgtFunct)
+            mean = numpy.mean(self.Col.WgtFunct)
+            azimuth_weight_f += var/(mean*mean)
+        return (range_weight_f * azimuth_weight_f)/(self.Row.ImpRespBW*self.Col.ImpRespBW)

@@ -198,7 +198,3 @@ def is_general_match(sicd1, sicd2):
     return is_same_size(sicd1, sicd2) and is_same_sensor(sicd1, sicd2) and \
            is_same_start_time(sicd1, sicd2) and is_same_duration(sicd1, sicd2) and \
            is_same_band(sicd1, sicd2) and is_same_scp(sicd1, sicd2)
-
-
-################
-# validation elements exterior to SICD elements

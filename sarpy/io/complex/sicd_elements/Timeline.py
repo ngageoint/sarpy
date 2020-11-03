@@ -3,6 +3,7 @@
 The TimelineType definition.
 """
 
+import logging
 from typing import List, Union
 
 import numpy
@@ -70,6 +71,29 @@ class IPPSetType(Serializable):
         self.index = index
         super(IPPSetType, self).__init__(**kwargs)
 
+    def _basic_validity_check(self):
+        condition = super(IPPSetType, self)._basic_validity_check()
+        if self.TStart >= self.TEnd:
+            logging.error(
+                'TStart ({}) >= TEnd ({})'.format(self.TStart, self.TEnd))
+            condition = False
+
+        if self.IPPStart >= self.IPPEnd:
+            logging.error(
+                'IPPStart ({}) >= IPPEnd ({})'.format(self.IPPStart, self.IPPEnd))
+            condition = False
+
+        exp_ipp_start = self.IPPPoly(self.TStart)
+        exp_ipp_end = self.IPPPoly(self.IPPEnd)
+        if abs(exp_ipp_start - self.IPPStart) > 1:
+            logging.error(
+                'IPPStart populated as {}, inconsistent with value ({}) '
+                'derived from IPPPoly and TStart'.format(exp_ipp_start, self.IPPStart))
+        if abs(exp_ipp_end - self.IPPEnd) > 1:
+            logging.error(
+                'IPPEnd populated as {}, inconsistent with value ({}) '
+                'derived from IPPPoly and TEnd'.format(exp_ipp_end, self.IPPEnd))
+        return condition
 
 class TimelineType(Serializable):
     """
@@ -110,3 +134,52 @@ class TimelineType(Serializable):
         self.CollectDuration = CollectDuration
         self.IPP = IPP
         super(TimelineType, self).__init__(**kwargs)
+
+    def _check_ipp_consecutive(self):
+        if self.IPP is None or len(self.IPP) < 2:
+            return True
+        cond = True
+        for i in range(len(self.IPP)-1):
+            el1 = self.IPP[i]
+            el2 = self.IPP[i+1]
+            if el1.IPPEnd + 1 != el2.IPPStart:
+                logging.error(
+                    'IPP entry {} IPPEnd ({}) is not consecutive with '
+                    'entry {} IPPStart ({})'.format(i, el1.IPPEnd, i+1, el2.IPPStart))
+                cond = False
+            if el1.TEnd >= el2.TStart:
+                logging.error(
+                    'IPP entry {} TEnd ({}) is greater than entry {} TStart ({})'.format(i, el1.TEnd, i+1, el2.TStart))
+        return cond
+
+    def _check_ipp_times(self):
+        if self.IPP is None:
+            return True
+
+        cond = True
+        min_time = self.IPP[0].TStart
+        max_time = self.IPP[0].TEnd
+        for i in range(len(self.IPP)):
+            entry = self.IPP[i]
+            if entry.TStart < 0:
+                logging.error('IPP entry {} has negative TStart ({})'.format(i, entry.TStart))
+                cond = False
+            if entry.TEnd > self.CollectDuration + 1e-2:
+                logging.error(
+                    'IPP entry {} has TEnd ({}) appreciably larger than '
+                    'CollectDuration ({})'.format(i, entry.TEnd, self.CollectDuration))
+                cond = False
+            min_time = min(min_time, entry.TStart)
+            max_time = max(max_time, entry.TEnd)
+        if abs(max_time - min_time - self.CollectDuration) > 1e-2:
+            logging.error(
+                'time range in IPP entries ({}) not in keeping with populated '
+                'CollectDuration ({})'.format(max_time-min_time, self.CollectDuration))
+            cond = False
+        return cond
+
+    def _basic_validity_check(self):
+        condition = super(TimelineType, self)._basic_validity_check()
+        condition &= self._check_ipp_consecutive()
+        condition &= self._check_ipp_times()
+        return condition

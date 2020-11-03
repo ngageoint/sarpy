@@ -99,6 +99,16 @@ class TxFrequencyType(Serializable):
         self.Min, self.Max = Min, Max
         super(TxFrequencyType, self).__init__(**kwargs)
 
+    @property
+    def center_frequency(self):
+        """
+        None|float: The center frequency
+        """
+
+        if self.Min is None or self.Max is None:
+            return None
+        return 0.5*(self.Min + self.Max)
+
     def _apply_reference_frequency(self, reference_frequency):
         if self.Min is not None:
             self.Min += reference_frequency

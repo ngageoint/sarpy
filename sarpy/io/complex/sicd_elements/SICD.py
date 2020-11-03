@@ -244,49 +244,6 @@ class SICDType(Serializable):
                         'appropriate segment.'.format(seg_id, the_ids))
                     return False
 
-    def _validate_rgazcomp_parameters(self):
-        # type: () -> bool
-        cond = True
-        if self.Grid.ImagePlane != 'SLANT':
-            logging.error(
-                'The image formation algorithm is RGAZCOMP, and Grid.ImagePlane is populated as "{}", '
-                'but should be "SLANT"'.format(self.Grid.ImagePlane))
-            cond = False
-        if self.Grid.Type != 'RGAZIM':
-            logging.error(
-                'The image formation algorithm is RGAZCOMP, and Grid.Type is populated as "{}", '
-                'but should be "RGAZIM"'.format(self.Grid.Type))
-            cond = False
-        try:
-            SCP = self.GeoData.SCP.ECF.get_array(dtype='float64')
-            row_uvect = self.Grid.Row.UVectECF.get_array(dtype='float64')
-            col_uvect = self.Grid.Col.UVectECF.get_array(dtype='float64')
-            ARP_Pos = self.SCPCOA.ARPPos.get_array(dtype='float64')
-            ARP_Vel = self.SCPCOA.ARPVel.get_array(dtype='float64')
-            uRG = SCP - ARP_Pos
-            uRG /= numpy.linalg.norm(uRG)
-            left = numpy.cross(ARP_Pos/numpy.linalg.norm(ARP_Pos), ARP_Vel/numpy.linalg.norm(ARP_Vel))
-            look = numpy.sign(numpy.dot(left, uRG))
-            Spn = -look*numpy.cross(uRG, ARP_Vel)
-            uSpn = Spn/numpy.linalg.norm(Spn)
-        except (AttributeError, ValueError, TypeError):
-            return cond
-        # TODO: continue at line 797
-        return cond
-
-    def _validate_pfa_parameters(self):
-        # type: () -> bool
-        cond = True
-        # TODO: starts at line 890
-        return cond
-
-    def _validate_rma_parameters(self):
-        # type: () -> bool
-        cond = True
-        # TODO: starts at line 1092
-        #   this breaks into a number of subsequent cases
-        return cond
-
     def _validate_image_form_parameters(self, alg_type):
         # type: (str) -> bool
         cond = True
@@ -307,12 +264,17 @@ class SICDType(Serializable):
         if self.Grid is None:
             return cond
 
-        if self.ImageFormation.ImageFormAlgo == 'RGAZCOMP':
-            cond &= self._validate_rgazcomp_parameters()
-        elif self.ImageFormation.ImageFormAlgo == 'PFA':
-            cond &= self._validate_pfa_parameters()
+        if self.ImageFormation.ImageFormAlgo == 'RGAZCOMP' and self.RgAzComp is not None:
+            cond &= self.RgAzComp.check_parameters(
+                self.Grid, self.RadarCollection, self.SCPCOA, self.Timeline, self.ImageFormation, self.GeoData)
+        elif self.ImageFormation.ImageFormAlgo == 'PFA' and self.PFA is not None:
+            cond &= self.PFA.check_parameters(
+                self.Grid, self.SCPCOA, self.GeoData, self.Position, self.Timeline, self.RadarCollection,
+                self.ImageFormation, self.CollectionInfo)
         elif self.ImageFormation.ImageFormAlgo == 'RMA':
-            cond &= self._validate_rma_parameters()
+            cond &= self.RMA.check_parameters(
+                self.Grid, self.GeoData, self.RadarCollection, self.ImageFormation, self.CollectionInfo,
+                self.Position)
         elif self.ImageFormation.ImageFormAlgo == 'OTHER':
             logging.warning(
                 'Image formation algorithm populated as "OTHER", which inherently limits SICD analysis '
@@ -419,6 +381,17 @@ class SICDType(Serializable):
             cond = False
         return cond
 
+    def _validate_polarization(self):
+        # type: () -> bool
+        cond = True
+        pol_form = self.ImageFormation.TxRcvPolarizationProc
+        if pol_form not in [entry.TxRcvPolarization for entry in self.RadarCollection.RcvChannels]:
+            logging.error(
+                'ImageFormation.TxRcvPolarizationProc is populated as {}, but it not one '
+                'of the tx/rcv polarizations populated for the collect'.format(pol_form))
+            cond = False
+        return cond
+
     def _basic_validity_check(self):
         condition = super(SICDType, self)._basic_validity_check()
         # do our image formation parameters match, as appropriate?
@@ -429,7 +402,34 @@ class SICDType(Serializable):
         condition &= self._validate_spotlight_mode()
         # does valid data make sense?
         condition &= self._validate_valid_data()
+        condition &= self._validate_polarization()
         return condition
+
+    def _check_recommended_attributes(self):
+        if self.Radiometric is None:
+            logging.warning('No Radiometric data provided.')
+        else:
+            self.Radiometric.check_recommended()
+
+        if self.Timeline is not None and self.Timeline.IPP is None:
+            logging.warning(
+                'No Timeline.IPP provided, so no PRF/PRI available '
+                'for analysis of ambiguities.')
+
+        if self.RadarCollection is not None and self.RadarCollection.Area is None:
+            logging.warning(
+                'No RadarCollection.Area provided, and some tools prefer using '
+                'a pre-determined output plane for consistent product definition.')
+
+        if self.ImageData is not None and self.ImageData.ValidData is None:
+            logging.warning(
+                'No ImageData.ValidData is defined. It is recommended to populate '
+                'this data, if validity of pixels/areas is known.')
+
+        if self.RadarCollection is not None and self.RadarCollection.RefFreqIndex is not None:
+            logging.warning(
+                'A reference frequency is being used. This may affect the results of this validation test, '
+                'because a number tests could not be performed.')
 
     def is_valid(self, recursive=False):
         all_required = self._basic_validity_check()
@@ -437,23 +437,24 @@ class SICDType(Serializable):
             return all_required
 
         valid_children = self._recursive_validity_check()
-        # check DeltaK values
-        try:
-            valid_vertices = self.ImageData.get_valid_vertex_data()
-            if valid_vertices is None:
-                valid_vertices = self.ImageData.get_full_vertex_data()
-            x_coords = self.Grid.Row.SS*(valid_vertices[:, 0] - (self.ImageData.SCPPixel.Row -  self.ImageData.FirstRow))
-            y_coords = self.Grid.Col.SS*(valid_vertices[:, 1] - (self.ImageData.SCPPixel.Col -  self.ImageData.FirstCol))
-        except (AttributeError, ValueError):
-            x_coords, y_coords = None, None
         if self.Grid is not None:
+            # check DeltaK values
+            x_coords, y_coords = None, None
+            try:
+                valid_vertices = self.ImageData.get_valid_vertex_data()
+                if valid_vertices is None:
+                    valid_vertices = self.ImageData.get_full_vertex_data()
+                x_coords = self.Grid.Row.SS*(valid_vertices[:, 0] - (self.ImageData.SCPPixel.Row -  self.ImageData.FirstRow))
+                y_coords = self.Grid.Col.SS*(valid_vertices[:, 1] - (self.ImageData.SCPPixel.Col -  self.ImageData.FirstCol))
+            except (AttributeError, ValueError):
+                pass
             valid_children &= self.Grid.check_deltak(x_coords, y_coords)
-        # check PFA values
-        if self.PFA is not None and self.Grid is not None:
-            valid_children &= self.PFA.check_values(self.Grid)
         # check SCPCOA values
         if self.SCPCOA is not None:
             valid_children &= self.SCPCOA.check_values(self.GeoData)
+        if self.Radiometric is not None:
+            valid_children &= self.Radiometric.check_parameters(self.Grid, self.SCPCOA)
+        self._check_recommended_attributes()
         return all_required & valid_children
 
     def define_geo_image_corners(self, override=False):
@@ -1115,6 +1116,6 @@ class SICDType(Serializable):
         out.derive()
         return out
 
-    def to_xml_bytes(self, urn=None, tag=None, check_validity=False, strict=DEFAULT_STRICT):
+    def to_xml_bytes(self, urn=None, tag='SICD', check_validity=False, strict=DEFAULT_STRICT):
         return super(SICDType, self).to_xml_bytes(
             urn=_SICD_SPECIFICATION_NAMESPACE, tag=tag, check_validity=check_validity, strict=strict)
