@@ -183,7 +183,7 @@ class ImageDataType(Serializable):
         lin_ring = LinearRing(coordinates=self.ValidData.get_array(dtype=numpy.dtype('float64')))
         area = lin_ring.get_area()
         if area == 0:
-            logging.error('ValidData enclosed no area.')
+            logging.error('ValidData encloses no area.')
             return False
         elif area > 0:
             logging.error(

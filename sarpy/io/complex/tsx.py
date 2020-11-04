@@ -821,7 +821,7 @@ class TSXDetails(object):
 
         def revise_scp():
             scp_ecf = out_sicd.project_image_to_ground(out_sicd.ImageData.SCPPixel.get_array())
-            out_sicd.GeoData.SCP.ECF = scp_ecf
+            out_sicd.update_scp(scp_ecf, coord_system='ECF')
 
         out_sicd = sicd.copy()
         # get some common use parameters

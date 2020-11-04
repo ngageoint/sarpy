@@ -32,6 +32,7 @@ def _get_center_frequency(RadarCollection, ImageFormation):
     return 0.5 * (ImageFormation.TxFrequencyProc.MinProc + ImageFormation.TxFrequencyProc.MaxProc)
 
 
+################
 # SICD comparsion and matching methods
 
 def is_same_size(sicd1, sicd2):
@@ -197,4 +198,3 @@ def is_general_match(sicd1, sicd2):
     return is_same_size(sicd1, sicd2) and is_same_sensor(sicd1, sicd2) and \
            is_same_start_time(sicd1, sicd2) and is_same_duration(sicd1, sicd2) and \
            is_same_band(sicd1, sicd2) and is_same_scp(sicd1, sicd2)
-

@@ -3,6 +3,8 @@
 The SCPCOAType definition.
 """
 
+import logging
+
 import numpy
 from numpy.linalg import norm
 
@@ -75,15 +77,23 @@ class GeometryCalculator(object):
         return norm(self.SCP) * numpy.arccos(self.uSCP.dot(self.uARP))
 
     @property
-    def DopplerConeAngle(self):
+    def DopplerConeAng(self):
         return float(numpy.rad2deg(numpy.arccos(self.uARP_vel.dot(self.uLOS))))
+
+    @property
+    def GrazeAng(self):
+        return self.get_graze_and_incidence()[0]
+
+    @property
+    def IncidenceAng(self):
+        return self.get_graze_and_incidence()[1]
 
     def get_graze_and_incidence(self):
         graze_ang = -float(numpy.rad2deg(numpy.arcsin(self.ETP.dot(self.uLOS))))
         return graze_ang, 90 - graze_ang
 
     @property
-    def TwistAngle(self):
+    def TwistAng(self):
         return float(-numpy.rad2deg(numpy.arcsin(self.uGPY.dot(self.uSPZ))))
 
     @property
@@ -92,14 +102,18 @@ class GeometryCalculator(object):
             numpy.arctan2(self.uARP_vel.dot(self.uGPX), self.uARP_vel.dot(self.uGPY))))
 
     @property
-    def SlopeAngle(self):
+    def SlopeAng(self):
         return float(numpy.rad2deg(numpy.arccos(self.ETP.dot(self.uSPZ))))
 
     @property
-    def AzimuthAngle(self):
+    def AzimAng(self):
         azim_ang = numpy.rad2deg(numpy.arctan2(self.uGPX.dot(self.uEAST), self.uGPX.dot(self.uNORTH)))
         azim_ang = azim_ang if azim_ang > 0 else azim_ang + 360
         return float(azim_ang)
+
+    @property
+    def LayoverAng(self):
+        return self.get_layover()[0]
 
     def get_layover(self):
         layover_ground = self.ETP - self.ETP.dot(self.uSPZ)*self.uSPZ
@@ -302,13 +316,14 @@ class SCPCOAType(Serializable):
 
         return self._layover_magnitude
 
-    def _derive_scp_time(self, Grid):
+    def _derive_scp_time(self, Grid, overwrite=False):
         """
         Expected to be called by SICD parent.
 
         Parameters
         ----------
         Grid : sarpy.io.complex.sicd_elements.GridType
+        overwrite : bool
 
         Returns
         -------
@@ -317,17 +332,20 @@ class SCPCOAType(Serializable):
 
         if Grid is None or Grid.TimeCOAPoly is None:
             return  # nothing can be done
+        if not overwrite and self.SCPTime is not None:
+            return  # nothing should be done
 
         scp_time = Grid.TimeCOAPoly.Coefs[0, 0]
         self.SCPTime = scp_time
 
-    def _derive_position(self, Position):
+    def _derive_position(self, Position, overwrite=False):
         """
         Derive aperture position parameters, if necessary. Expected to be called by SICD parent.
 
         Parameters
         ----------
         Position : sarpy.io.complex.sicd_elements.Position.PositionType
+        overwrite : bool
 
         Returns
         -------
@@ -342,17 +360,19 @@ class SCPCOAType(Serializable):
         poly = Position.ARPPoly
         scptime = self.SCPTime
 
-        self.ARPPos = XYZType.from_array(poly(scptime))
-        self.ARPVel = XYZType.from_array(poly.derivative_eval(scptime, 1))
-        self.ARPAcc = XYZType.from_array(poly.derivative_eval(scptime, 2))
+        if self.ARPPos is None or overwrite:
+            self.ARPPos = XYZType.from_array(poly(scptime))
+            self.ARPVel = XYZType.from_array(poly.derivative_eval(scptime, 1))
+            self.ARPAcc = XYZType.from_array(poly.derivative_eval(scptime, 2))
 
-    def _derive_geometry_parameters(self, GeoData):
+    def _derive_geometry_parameters(self, GeoData, overwrite=False):
         """
         Expected to be called by SICD parent.
 
         Parameters
         ----------
         GeoData : sarpy.io.complex.sicd_elements.GeoData.GeoDataType
+        overwrite : bool
 
         Returns
         -------
@@ -368,14 +388,92 @@ class SCPCOAType(Serializable):
             GeoData.SCP.ECF.get_array(), self.ARPPos.get_array(), self.ARPVel.get_array())
         # set all the values
         self._ROV = calculator.ROV
-        self.SideOfTrack = calculator.SideOfTrack
-        self.SlantRange = calculator.SlantRange
-        self.GroundRange = calculator.GroundRange
-        self.DopplerConeAng = calculator.DopplerConeAngle
-        self.GrazeAng, self.IncidenceAng = calculator.get_graze_and_incidence()
-        self.TwistAng = calculator.TwistAngle
+        if self.SideOfTrack is None or overwrite:
+            self.SideOfTrack = calculator.SideOfTrack
+        if self.SlantRange is None or overwrite:
+            self.SlantRange = calculator.SlantRange
+        if self.GroundRange is None or overwrite:
+            self.GroundRange = calculator.GroundRange
+        if self.DopplerConeAng is None or overwrite:
+            self.DopplerConeAng = calculator.DopplerConeAng
+        graz, inc = calculator.get_graze_and_incidence()
+        if self.GrazeAng is None or overwrite:
+            self.GrazeAng = graz
+        if self.IncidenceAng is None or overwrite:
+            self.IncidenceAng = inc
+        if self.TwistAng is None or overwrite:
+            self.TwistAng = calculator.TwistAng
         self._squint = calculator.SquintAngle
-        self.SlopeAng = calculator.SlopeAngle
-        self.AzimAng = calculator.AzimuthAngle
-        self.LayoverAng, self._layover_magnitude = calculator.get_layover()
+        if self.SlopeAng is None or overwrite:
+            self.SlopeAng = calculator.SlopeAng
+        if self.AzimAng is None or overwrite:
+            self.AzimAng = calculator.AzimAng
+        layover, self._layover_magnitude = calculator.get_layover()
+        if self.LayoverAng is None or overwrite:
+            self.LayoverAng = layover
         self._shadow, self._shadow_magnitude = calculator.get_shadow()
+
+    def rederive(self, Grid, Position, GeoData):
+        """
+        Rederive all derived quantities.
+
+        Parameters
+        ----------
+        Grid : sarpy.io.complex.sicd_elements.GridType
+        Position : sarpy.io.complex.sicd_elements.Position.PositionType
+        GeoData : sarpy.io.complex.sicd_elements.GeoData.GeoDataType
+
+        Returns
+        -------
+        None
+        """
+
+        self._derive_scp_time(Grid, overwrite=True)
+        self._derive_position(Position, overwrite=True)
+        self._derive_geometry_parameters(GeoData, overwrite=True)
+
+    def check_values(self, GeoData):
+        """
+        Check derived values for validity.
+
+        Parameters
+        ----------
+        GeoData : sarpy.io.complex.sicd_elements.GeoData.GeoDataType
+
+        Returns
+        -------
+        bool
+        """
+
+        if GeoData is None or GeoData.SCP is None or GeoData.SCP.ECF is None or \
+                self.ARPPos is None or self.ARPVel is None:
+            return True # nothing can be derived
+
+        # construct our calculator
+        calculator = GeometryCalculator(
+            GeoData.SCP.ECF.get_array(), self.ARPPos.get_array(), self.ARPVel.get_array())
+
+        cond = True
+        if calculator.SideOfTrack != self.SideOfTrack:
+            logging.error('SideOfTrack is expected to be {}, and is populated as {}'.format(calculator.SideOfTrack, self.SideOfTrack))
+            cond = False
+
+        for attribute in ['SlantRange', 'GroundRange']:
+            val1 = getattr(self, attribute)
+            val2 = getattr(calculator, attribute)
+            if abs(val1/val2 - 1) > 1e-6:
+                logging.error(
+                    'SCPCOA attribute {} is expected to have value {}, but is '
+                    'populated as {}'.format(attribute, val1, val2))
+                cond = False
+
+        for attribute in [
+            'DopplerConeAng', 'GrazeAng', 'IncidenceAng', 'TwistAng', 'SlopeAng', 'AzimAng', 'LayoverAng']:
+            val1 = getattr(self, attribute)
+            val2 = getattr(calculator, attribute)
+            if abs(val1 - val2) > 1e-3:
+                logging.error(
+                    'SCPCOA attribute {} is expected to have value {}, but is '
+                    'populated as {}'.format(attribute, val1, val2))
+                cond = False
+        return cond

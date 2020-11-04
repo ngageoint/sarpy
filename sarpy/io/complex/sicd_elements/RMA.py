@@ -3,10 +3,12 @@
 The RMAType definition.
 """
 
+import logging
 from typing import Union
 
 import numpy
 from numpy.linalg import norm
+from scipy.constants import speed_of_light
 
 from .base import Serializable, DEFAULT_STRICT, \
     _StringEnumDescriptor, _FloatDescriptor, _BooleanDescriptor, _SerializableDescriptor
@@ -261,3 +263,316 @@ class RMAType(Serializable):
         if self.INCA is not None:
             # noinspection PyProtectedMember
             self.INCA._apply_reference_frequency(reference_frequency)
+
+    def _check_rmat(self, Grid, GeoData, RadarCollection, ImageFormation):
+        """
+
+        Parameters
+        ----------
+        Grid : sarpy.io.complex.sicd_elements.Grid.GridType
+        GeoData : sarpy.io.complex.sicd_elements.GeoData.GeoDataType
+        RadarCollection : sarpy.io.complex.sicd_elements.RadarCollection.RadarCollectionType
+        ImageFormation : sarpy.io.complex.sicd_elements.ImageFormation.ImageFormationType
+
+        Returns
+        -------
+        bool
+        """
+
+        cond = True
+
+        if Grid.Type != 'XCTYAT':
+            logging.error(
+                'The image formation algorithm is RMA/RMAT, which should yield '
+                'Grid.Type == "XCTYAT", but Grid.Type is populated as "{}"'.format(Grid.Type))
+            cond = False
+
+        try:
+            SCP = GeoData.SCP.ECF.get_array(dtype='float64')
+            row_uvect = Grid.Row.UVectECF.get_array(dtype='float64')
+            col_uvect = Grid.Col.UVectECF.get_array(dtype='float64')
+            position_ref = self.RMAT.PosRef.get_array(dtype='float64')
+            velocity_ref = self.RMAT.VelRef.get_array(dtype='float64')
+            LOS = (SCP - position_ref)
+            uLOS = LOS/numpy.linalg.norm(LOS)
+            left = numpy.cross(
+                position_ref/numpy.linalg.norm(position_ref),
+                velocity_ref/numpy.linalg.norm(velocity_ref))
+            look = numpy.sign(left.dot(uLOS))
+            uYAT = -look*velocity_ref/numpy.linalg.norm(velocity_ref)
+            uSPN = numpy.cross(uLOS, uYAT)
+            uSPN /= numpy.linalg.norm(uSPN)
+            uXCT = numpy.cross(uYAT, uSPN)
+        except (AttributeError, ValueError, TypeError):
+            return cond
+
+        if numpy.linalg.norm(row_uvect - uXCT) > 1e-3:
+            logging.error(
+                'The image formation algorithm is RMA/RMAT, and Row.UVectECF is '
+                'populated as {}, but expected to be {}'.format(row_uvect, uXCT))
+            cond = False
+        if numpy.linalg.norm(col_uvect - uYAT) > 1e-3:
+            logging.error(
+                'The image formation algorithm is RMA/RMAT, and Col.UVectECF is '
+                'populated as {}, but expected to be {}'.format(col_uvect, uYAT))
+            cond = False
+        exp_doppler_cone = numpy.rad2deg(numpy.arccos(uLOS.dot(velocity_ref/numpy.linalg.norm(velocity_ref))))
+        if abs(exp_doppler_cone - self.RMAT.DopConeAngRef) > 1e-6:
+            logging.error(
+                'The image formation algorithm is RMA/RMAT, and RMAT.DopConeAngRef is '
+                'populated as {}, but expected to be {}'.format(self.RMAT.DopConeAngRef, exp_doppler_cone))
+            cond = False
+
+        if RadarCollection.RefFreqIndex is None:
+            center_freq = ImageFormation.TxFrequencyProc.center_frequency
+            k_f_c = center_freq*2/speed_of_light
+            exp_row_kctr = k_f_c*numpy.sin(numpy.deg2rad(self.RMAT.DopConeAngRef))
+            exp_col_kctr = k_f_c*numpy.cos(numpy.deg2rad(self.RMAT.DopConeAngRef))
+            try:
+                if abs(exp_row_kctr/Grid.Row.KCtr - 1) > 1e-3:
+                    logging.warning(
+                        'The image formation algorithm is RMA/RMAT, the Row.KCtr is populated as {}, '
+                        'and the expected value is {}'.format(Grid.Row.KCtr, exp_row_kctr))
+                    cond = False
+                if abs(exp_col_kctr/Grid.Col.KCtr - 1) > 1e-3:
+                    logging.warning(
+                        'The image formation algorithm is RMA/RMAT, the Col.KCtr is populated as {}, '
+                        'and the expected value is {}'.format(Grid.Col.KCtr, exp_col_kctr))
+                    cond = False
+            except (AttributeError, ValueError, TypeError):
+                pass
+        return cond
+
+    def _check_rmcr(self, Grid, GeoData, RadarCollection, ImageFormation):
+        """
+
+        Parameters
+        ----------
+        Grid : sarpy.io.complex.sicd_elements.Grid.GridType
+        GeoData : sarpy.io.complex.sicd_elements.GeoData.GeoDataType
+        RadarCollection : sarpy.io.complex.sicd_elements.RadarCollection.RadarCollectionType
+        ImageFormation : sarpy.io.complex.sicd_elements.ImageFormation.ImageFormationType
+
+        Returns
+        -------
+        bool
+        """
+
+        cond = True
+
+        if Grid.Type != 'XRGYCR':
+            logging.error(
+                'The image formation algorithm is RMA/RMCR, which should yield '
+                'Grid.Type == "XRGYCR", but Grid.Type is populated as "{}"'.format(Grid.Type))
+            cond = False
+
+        try:
+            SCP = GeoData.SCP.ECF.get_array(dtype='float64')
+            row_uvect = Grid.Row.UVectECF.get_array(dtype='float64')
+            col_uvect = Grid.Col.UVectECF.get_array(dtype='float64')
+            position_ref = self.RMCR.PosRef.get_array(dtype='float64')
+            velocity_ref = self.RMCR.VelRef.get_array(dtype='float64')
+            uXRG = SCP - position_ref
+            uXRG /= numpy.linalg.norm(uXRG)
+            left = numpy.cross(
+                position_ref/numpy.linalg.norm(position_ref),
+                velocity_ref/numpy.linalg.norm(velocity_ref))
+            look = numpy.sign(left.dot(uXRG))
+            uSPN = look*numpy.cross(velocity_ref/numpy.linalg.norm(velocity_ref), uXRG)
+            uSPN /= numpy.linalg.norm(uSPN)
+            uYCR = numpy.cross(uSPN, uXRG)
+        except (AttributeError, ValueError, TypeError):
+            return cond
+
+        if numpy.linalg.norm(row_uvect - uXRG) > 1e-3:
+            logging.error(
+                'The image formation algorithm is RMA/RMCR, and Row.UVectECF is '
+                'populated as {}, but expected to be {}'.format(row_uvect, uXRG))
+            cond = False
+        if numpy.linalg.norm(col_uvect - uYCR) > 1e-3:
+            logging.error(
+                'The image formation algorithm is RMA/RMCR, and Col.UVectECF is '
+                'populated as {}, but expected to be {}'.format(col_uvect, uYCR))
+            cond = False
+        exp_doppler_cone = numpy.rad2deg(numpy.arccos(uXRG.dot(velocity_ref/numpy.linalg.norm(velocity_ref))))
+        if abs(exp_doppler_cone - self.RMCR.DopConeAngRef) > 1e-6:
+            logging.error(
+                'The image formation algorithm is RMA/RMCR, and RMCR.DopConeAngRef is '
+                'populated as {}, but expected to be {}'.format(self.RMCR.DopConeAngRef, exp_doppler_cone))
+            cond = False
+        if abs(Grid.Col.KCtr) > 1e-6:
+            logging.error(
+                'The image formation algorithm is RMA/RMCR, but Grid.Col.KCtr is non-zero ({}).'.format(Grid.Col.KCtr))
+            cond = False
+
+        if RadarCollection.RefFreqIndex is None:
+            center_freq = ImageFormation.TxFrequencyProc.center_frequency
+            k_f_c = center_freq*2/speed_of_light
+            try:
+                if abs(k_f_c/Grid.Row.KCtr - 1) > 1e-3:
+                    logging.warning(
+                        'The image formation algorithm is RMA/RMCR, the Row.KCtr is populated as {}, '
+                        'and the expected value is {}'.format(Grid.Row.KCtr, k_f_c))
+                    cond = False
+            except (AttributeError, ValueError, TypeError):
+                pass
+        return cond
+
+    def _check_inca(self, Grid, GeoData, RadarCollection, CollectionInfo, Position):
+        """
+
+        Parameters
+        ----------
+        Grid : sarpy.io.complex.sicd_elements.Grid.GridType
+        GeoData : sarpy.io.complex.sicd_elements.GeoData.GeoDataType
+        RadarCollection : sarpy.io.complex.sicd_elements.RadarCollection.RadarCollectionType
+        CollectionInfo : sarpy.io.complex.sicd_elements.CollectionInfo.CollectionInfoType
+        Position :  sarpy.io.complex.sicd_elements.Position.PositionType
+
+        Returns
+        -------
+        bool
+        """
+
+        cond = True
+
+        if Grid.Type != 'RGZERO':
+            logging.error(
+                'The image formation algorithm is RMA/INCA, which should yield '
+                'Grid.Type == "RGZERO", but Grid.Type is populated as "{}"'.format(Grid.Type))
+            cond = False
+
+        if CollectionInfo.RadarMode.ModeType == 'SPOTLIGHT':
+            if self.INCA.DopCentroidPoly is not None:
+                logging.error(
+                    'The image formation algorithm is RMA/INCA, the '
+                    'CollectionInfo.RadarMode.ModeType == "SPOTLIGHT", '
+                    'and INCA.DopCentroidPoly is populated.')
+                cond = False
+            if self.INCA.DopCentroidCOA is True:
+                logging.error(
+                    'The image formation algorithm is RMA/INCA, the '
+                    'CollectionInfo.RadarMode.ModeType == "SPOTLIGHT", '
+                    'and INCA.DopCentroidCOA == True.')
+                cond = False
+        else:
+            if self.INCA.DopCentroidPoly is None:
+                logging.error(
+                    'The image formation algorithm is RMA/INCA, the '
+                    'CollectionInfo.RadarMode.ModeType == "{}", '
+                    'and INCA.DopCentroidPoly is not populated.'.format(CollectionInfo.RadarMode.ModeType))
+                cond = False
+            if self.INCA.DopCentroidCOA is not True:
+                logging.error(
+                    'The image formation algorithm is RMA/INCA, the '
+                    'CollectionInfo.RadarMode.ModeType == "{}", '
+                    'and INCA.DopCentroidCOA is not True.'.format(CollectionInfo.RadarMode.ModeType))
+                cond = False
+            if Grid.Col.DeltaKCOAPoly is not None and self.INCA.DopCentroidPoly is not None:
+                col_deltakcoa = Grid.Col.DeltaKCOAPoly.get_array(dtype='float64')
+                dop_centroid = self.INCA.DopCentroidPoly.get_array(dtype='float64')
+                rows = max(col_deltakcoa.shape[0], dop_centroid.shape[0])
+                cols = max(col_deltakcoa.shape[1], dop_centroid.shape[1])
+                exp_deltakcoa1 = numpy.zeros((rows, cols), dtype='float64')
+                exp_deltakcoa2 = numpy.zeros((rows, cols), dtype='float64')
+                exp_deltakcoa1[:col_deltakcoa.shape[0], :col_deltakcoa.shape[1]] = col_deltakcoa
+                exp_deltakcoa2[:dop_centroid.shape[0], :dop_centroid.shape[1]] = dop_centroid*self.INCA.TimeCAPoly[1]
+                if numpy.max(numpy.abs(exp_deltakcoa1 - exp_deltakcoa2)) > 1e-6:
+                    logging.error(
+                        'The image formation algorithm is RMA/INCA, but the Grid.Col.DeltaKCOAPoly ({}), '
+                        'INCA.DopCentroidPoly ({}), and INCA.TimeCAPoly ({}) '
+                        'are inconsistent.'.format(col_deltakcoa,
+                                                   dop_centroid,
+                                                   self.INCA.TimeCAPoly.get_array(dtype='float64')))
+                    cond = False
+
+        center_freq = RadarCollection.TxFrequency.center_frequency
+        if abs(center_freq/self.INCA.FreqZero - 1) > 1e-5:
+            logging.warning(
+                'The image formation algorithm is RMA/INCA, and INCA.FreqZero ({}) '
+                'should typically agree with center transmit frequency ({})'.format(self.INCA.FreqZero, center_freq))
+            cond = False
+
+        if abs(Grid.Col.KCtr) > 1e-8:
+            logging.error(
+                'The image formation algorithm is RMA/INCA, but Grid.Col.KCtr is '
+                'non-zero ({})'.format(Grid.Col.KCtr))
+            cond = False
+
+        if RadarCollection.RefFreqIndex is None:
+            exp_row_kctr = self.INCA.FreqZero*2/speed_of_light
+            if abs(exp_row_kctr/Grid.Row.KCtr - 1) > 1e-8:
+                logging.error(
+                    'The image formation algorithm is RMA/INCA, the Grid.Row.KCtr is populated as ({}), '
+                    'which is not consistent with INCA.FreqZero ({})'.format(Grid.Row.KCtr, self.INCA.FreqZero))
+                cond = False
+
+        try:
+            SCP = GeoData.SCP.ECF.get_array(dtype='float64')
+            row_uvect = Grid.Row.UVectECF.get_array(dtype='float64')
+            col_uvect = Grid.Col.UVectECF.get_array(dtype='float64')
+            scp_time = self.INCA.TimeCAPoly[0]
+            ca_pos = Position.ARPPoly(scp_time)
+            ca_vel = Position.ARPPoly.derivative_eval(scp_time, der_order=1)
+            RG = SCP - ca_pos
+            uRG = RG/numpy.linalg.norm(RG)
+            left = numpy.cross(ca_pos/numpy.linalg.norm(ca_pos), ca_vel/numpy.linalg.norm(ca_vel))
+            look = numpy.sign(left.dot(uRG))
+            uSPN = -look*numpy.cross(uRG, ca_vel)
+            uSPN /= numpy.linalg.norm(uSPN)
+            uAZ = numpy.cross(uSPN, uRG)
+        except (AttributeError, ValueError, TypeError):
+            return cond
+
+        if numpy.linalg.norm(row_uvect - uRG) > 1e-3:
+            logging.error(
+                'The image formation algorithm is RMA/INCA, and Row.UVectECF is '
+                'populated as {}, but expected to be {}'.format(row_uvect, uRG))
+            cond = False
+        if numpy.linalg.norm(col_uvect - uAZ) > 1e-3:
+            logging.error(
+                'The image formation algorithm is RMA/INCA, and Col.UVectECF is '
+                'populated as {}, but expected to be {}'.format(col_uvect, uAZ))
+            cond = False
+
+        exp_R_CA_SCP = numpy.linalg.norm(RG)
+        if abs(exp_R_CA_SCP - self.INCA.R_CA_SCP) > 1e-2:
+            logging.error(
+                'The image formation algorithm is RMA/INCA, and INCA.R_CA_SCP is '
+                'populated as {}, but expected to be {}'.format(self.INCA.R_CA_SCP, exp_R_CA_SCP))
+            cond = False
+
+        drate_const = self.INCA.DRateSFPoly[0, 0]
+        exp_drate_const = 1./abs(self.INCA.TimeCAPoly[1]*numpy.linalg.norm(ca_vel))
+        if abs(exp_drate_const - drate_const) > 1e-3:
+            logging.error(
+                'The image formation algorithm is RMA/INCA, and the populated INCA.DRateSFPoly constant term ({}) '
+                'and expected constant term ({}) are not consistent.'.format(drate_const, exp_drate_const))
+            cond = False
+        return cond
+
+    def check_parameters(self, Grid, GeoData, RadarCollection, ImageFormation, CollectionInfo, Position):
+        """
+        Verify consistency of parameters.
+
+        Parameters
+        ----------
+        Grid : sarpy.io.complex.sicd_elements.Grid.GridType
+        GeoData : sarpy.io.complex.sicd_elements.GeoData.GeoDataType
+        RadarCollection : sarpy.io.complex.sicd_elements.RadarCollection.RadarCollectionType
+        ImageFormation : sarpy.io.complex.sicd_elements.ImageFormation.ImageFormationType
+        CollectionInfo : sarpy.io.complex.sicd_elements.CollectionInfo.CollectionInfoType
+        Position : sarpy.io.complex.sicd_elements.Position.PositionType
+
+        Returns
+        -------
+        bool
+        """
+
+        if self.ImageType == 'RMAT':
+            return self._check_rmat(Grid, GeoData, RadarCollection, ImageFormation)
+        elif self.ImageType == 'RMCR':
+            return self._check_rmcr(Grid, GeoData, RadarCollection, ImageFormation)
+        elif self.ImageType == 'INCA':
+            return self._check_inca(Grid, GeoData, RadarCollection, CollectionInfo, Position)
+        return True

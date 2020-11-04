@@ -5,8 +5,6 @@ The SICDType definition.
 
 import logging
 import copy
-from datetime import datetime
-import re
 from collections import OrderedDict
 
 import numpy
@@ -207,6 +205,35 @@ class SICDType(Serializable):
                 return attribute
         return 'OTHER'
 
+    def update_scp(self, point, coord_system='ECF'):
+        """
+        Modify the SCP point, and modify the associated SCPCOA fields.
+
+        Parameters
+        ----------
+        point : numpy.ndarray|tuple|list
+        coord_system : str
+            Either 'ECF' or 'LLH', and 'ECF' will take precedence.
+
+        Returns
+        -------
+        None
+        """
+
+        if isinstance(point, (list, tuple)):
+            point = numpy.array(point, dtype='float64')
+        if not isinstance(point, numpy.ndarray):
+            raise TypeError('point must be an numpy.ndarray')
+        if point.shape != (3, ):
+            raise ValueError('point must be a one-dimensional, 3 element array')
+        if coord_system == 'LLH':
+            self.GeoData.SCP.LLH = point
+        else:
+            self.GeoData.SCP.ECF = point
+
+        if self.SCPCOA is not None:
+            self.SCPCOA.rederive(self.Grid, self.Position, self.GeoData)
+
     def _validate_image_segment_id(self):  # type: () -> bool
         if self.ImageFormation is None or self.RadarCollection is None:
             return False
@@ -246,6 +273,44 @@ class SICDType(Serializable):
                         'appropriate segment.'.format(seg_id, the_ids))
                     return False
 
+    def _validate_image_form_parameters(self, alg_type):
+        # type: (str) -> bool
+        cond = True
+        if self.ImageFormation.ImageFormAlgo is None:
+            logging.warning(
+                'Image formation algorithm(s) {} populated, but ImageFormation.ImageFormAlgo was not set. '
+                'ImageFormation.ImageFormAlgo has been set HERE, but the incoming structure was incorrect.'.format(alg_type))
+            self.ImageFormation.ImageFormAlgo = alg_type.upper()
+            cond = False
+        elif self.ImageFormation.ImageFormAlgo != alg_type:
+            logging.warning(
+                'Image formation algorithm {} populated, but ImageFormation.ImageFormAlgo populated as {}. '
+                'ImageFormation.ImageFormAlgo has been set properly HERE, but the incoming structure was '
+                'incorrect.'.format(
+                    alg_type, self.ImageFormation.ImageFormAlgo))
+            self.ImageFormation.ImageFormAlgo = alg_type.upper()
+            cond = False
+        if self.Grid is None:
+            return cond
+
+        if self.ImageFormation.ImageFormAlgo == 'RGAZCOMP' and self.RgAzComp is not None:
+            cond &= self.RgAzComp.check_parameters(
+                self.Grid, self.RadarCollection, self.SCPCOA, self.Timeline, self.ImageFormation, self.GeoData)
+        elif self.ImageFormation.ImageFormAlgo == 'PFA' and self.PFA is not None:
+            cond &= self.PFA.check_parameters(
+                self.Grid, self.SCPCOA, self.GeoData, self.Position, self.Timeline, self.RadarCollection,
+                self.ImageFormation, self.CollectionInfo)
+        elif self.ImageFormation.ImageFormAlgo == 'RMA':
+            cond &= self.RMA.check_parameters(
+                self.Grid, self.GeoData, self.RadarCollection, self.ImageFormation, self.CollectionInfo,
+                self.Position)
+        elif self.ImageFormation.ImageFormAlgo == 'OTHER':
+            logging.warning(
+                'Image formation algorithm populated as "OTHER", which inherently limits SICD analysis '
+                'capability')
+            cond = False
+        return cond
+
     def _validate_image_form(self):  # type: () -> bool
         if self.ImageFormation is None:
             logging.error(
@@ -277,22 +342,8 @@ class SICDType(Serializable):
                     'is set as {}.'.format(self.ImageFormation.ImageFormAlgo))
                 return False
             return True
-        else:
-            if self.ImageFormation.ImageFormAlgo == alg_types[0].upper():
-                return True
-            elif self.ImageFormation.ImageFormAlgo is None:
-                logging.warning(
-                    'Image formation algorithm(s) {} populated, but ImageFormation.ImageFormAlgo was not set. '
-                    'ImageFormation.ImageFormAlgo has been set.'.format(alg_types[0]))
-                self.ImageFormation.ImageFormAlgo = alg_types[0].upper()
-                return True
-            else:  # they are different values
-                logging.warning(
-                    'Only the image formation algorithm {} is populated, but ImageFormation.ImageFormAlgo '
-                    'was set as {}. ImageFormation.ImageFormAlgo has been '
-                    'changed.'.format(alg_types[0], self.ImageFormation.ImageFormAlgo))
-                self.ImageFormation.ImageFormAlgo = alg_types[0].upper()
-                return True
+        # there is exactly one algorithm type populated
+        return self._validate_image_form_parameters(alg_types[0])
 
     def _validate_spotlight_mode(self):
         if self.CollectionInfo is None or self.CollectionInfo.RadarMode is None \
@@ -316,6 +367,60 @@ class SICDType(Serializable):
             return True
         return True
 
+    def _validate_scp_time(self):
+        """
+        Validate the SCPTime.
+
+        Returns
+        -------
+        bool
+        """
+
+        if self.SCPCOA is None or self.SCPCOA.SCPTime is None or \
+                self.Grid is None or self.Grid.TimeCOAPoly is None:
+            return True
+
+        cond = True
+        val1 = self.SCPCOA.SCPTime
+        val2 = self.Grid.TimeCOAPoly[0, 0]
+        if abs(val1 - val2) > 1e-6:
+            logging.error(
+                'SCPTime populated as {}, and constant term of TimeCOAPoly populated as {}'.format(val1, val2))
+            cond = False
+        return cond
+
+    def _validate_valid_data(self):
+        """
+        Check that either both ValidData fields are populated, or neither.
+
+        Returns
+        -------
+        bool
+        """
+
+        if self.ImageData is None or self.GeoData is None:
+            return True
+
+        cond = True
+        if self.ImageData.ValidData is not None and self.GeoData.ValidData is None:
+            logging.error('ValidData is populated in ImageData, but not GeoData')
+            cond = False
+        if self.GeoData.ValidData is not None and self.ImageData.ValidData is None:
+            logging.error('ValidData is populated in GeoData, but not ImageData')
+            cond = False
+        return cond
+
+    def _validate_polarization(self):
+        # type: () -> bool
+        cond = True
+        pol_form = self.ImageFormation.TxRcvPolarizationProc
+        if pol_form not in [entry.TxRcvPolarization for entry in self.RadarCollection.RcvChannels]:
+            logging.error(
+                'ImageFormation.TxRcvPolarizationProc is populated as {}, but it not one '
+                'of the tx/rcv polarizations populated for the collect'.format(pol_form))
+            cond = False
+        return cond
+
     def _basic_validity_check(self):
         condition = super(SICDType, self)._basic_validity_check()
         # do our image formation parameters match, as appropriate?
@@ -324,7 +429,67 @@ class SICDType(Serializable):
         condition &= self._validate_image_segment_id()
         # do the mode and timecoapoly make sense?
         condition &= self._validate_spotlight_mode()
+        # does valid data make sense?
+        condition &= self._validate_valid_data()
+        condition &= self._validate_polarization()
         return condition
+
+    def _check_recommended_attributes(self):
+        if self.Radiometric is None:
+            logging.warning('No Radiometric data provided.')
+        else:
+            self.Radiometric.check_recommended()
+
+        if self.Timeline is not None and self.Timeline.IPP is None:
+            logging.warning(
+                'No Timeline.IPP provided, so no PRF/PRI available '
+                'for analysis of ambiguities.')
+
+        if self.RadarCollection is not None and self.RadarCollection.Area is None:
+            logging.warning(
+                'No RadarCollection.Area provided, and some tools prefer using '
+                'a pre-determined output plane for consistent product definition.')
+
+        if self.ImageData is not None and self.ImageData.ValidData is None:
+            logging.warning(
+                'No ImageData.ValidData is defined. It is recommended to populate '
+                'this data, if validity of pixels/areas is known.')
+
+        if self.RadarCollection is not None and self.RadarCollection.RefFreqIndex is not None:
+            logging.warning(
+                'A reference frequency is being used. This may affect the results of this validation test, '
+                'because a number tests could not be performed.')
+
+    def is_valid(self, recursive=False):
+        all_required = self._basic_validity_check()
+        if not recursive:
+            return all_required
+
+        valid_children = self._recursive_validity_check()
+        # check point projection ability
+        if not self.can_project_coordinates():
+            logging.error(
+                'No projection can be performed for this SICD. In particular, '
+                'no derived products can be produced.')
+        # check DeltaK values
+        if self.Grid is not None:
+            x_coords, y_coords = None, None
+            try:
+                valid_vertices = self.ImageData.get_valid_vertex_data()
+                if valid_vertices is None:
+                    valid_vertices = self.ImageData.get_full_vertex_data()
+                x_coords = self.Grid.Row.SS*(valid_vertices[:, 0] - (self.ImageData.SCPPixel.Row -  self.ImageData.FirstRow))
+                y_coords = self.Grid.Col.SS*(valid_vertices[:, 1] - (self.ImageData.SCPPixel.Col -  self.ImageData.FirstCol))
+            except (AttributeError, ValueError):
+                pass
+            valid_children &= self.Grid.check_deltak(x_coords, y_coords)
+        # check SCPCOA values
+        if self.SCPCOA is not None:
+            valid_children &= self.SCPCOA.check_values(self.GeoData)
+        if self.Radiometric is not None:
+            valid_children &= self.Radiometric.check_parameters(self.Grid, self.SCPCOA)
+        self._check_recommended_attributes()
+        return all_required & valid_children
 
     def define_geo_image_corners(self, override=False):
         """
@@ -985,6 +1150,6 @@ class SICDType(Serializable):
         out.derive()
         return out
 
-    def to_xml_bytes(self, urn=None, tag=None, check_validity=False, strict=DEFAULT_STRICT):
+    def to_xml_bytes(self, urn=None, tag='SICD', check_validity=False, strict=DEFAULT_STRICT):
         return super(SICDType, self).to_xml_bytes(
             urn=_SICD_SPECIFICATION_NAMESPACE, tag=tag, check_validity=check_validity, strict=strict)

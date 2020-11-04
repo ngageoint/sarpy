@@ -89,6 +89,16 @@ class TxFrequencyProcType(Serializable):
         self.MinProc, self.MaxProc = MinProc, MaxProc
         super(TxFrequencyProcType, self).__init__(**kwargs)
 
+    @property
+    def center_frequency(self):
+        """
+        None|float: The center frequency.
+        """
+
+        if self.MinProc is None or self.MaxProc is None:
+            return None
+        return 0.5*(self.MinProc + self.MaxProc)
+
     def _apply_reference_frequency(self, reference_frequency):
         if self.MinProc is not None:
             self.MinProc += reference_frequency
@@ -409,6 +419,16 @@ class ImageFormationType(Serializable):
         self.PolarizationCalibration = PolarizationCalibration
         super(ImageFormationType, self).__init__(**kwargs)
 
+    def _basic_validity_check(self):
+        condition = super(ImageFormationType, self)._basic_validity_check()
+        if self.TStartProc is not None and self.TEndProc is not None and \
+                self.TEndProc >= self.TStartProc:
+            logging.error(
+                'Slow time bounds for image formation are invalid '
+                '(TStartProc={}, TEndProc={})'.format(self.TStartProc, self.TEndProc))
+            condition = False
+        return condition
+
     def _derive_tx_frequency_proc(self, RadarCollection):
         """
         Populate a default for processed frequency values, based on the assumption that the entire
@@ -453,7 +473,7 @@ class ImageFormationType(Serializable):
         if self.TxFrequencyProc is not None:
             # noinspection PyProtectedMember
             self.TxFrequencyProc._apply_reference_frequency(reference_frequency)
-
+    
     def _basic_validity_check(self):
         condition = super(ImageFormationType, self)._basic_validity_check()
         if self.TStartProc is not None and self.TEndProc is not None and self.TEndProc < self.TStartProc:
