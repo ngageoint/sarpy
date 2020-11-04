@@ -1458,7 +1458,7 @@ class PALSARDetails(object):
             dop_rate_poly_rng_scaled = dop_rate_poly_rng.shift(scp_row, alpha=data.pixel_spacing)
             # NB: changes in velocity or doppler rate over the azimuth dimension
             #   are small, and will be neglected
-            vel_ca = position.ARPPoly.derivative_eval(scp_col*ss_zd_s, der_order=1)
+            vel_ca = position.ARPPoly.derivative_eval(time_ca_poly[0], der_order=1)
             vm_ca_sq = numpy.sum(vel_ca*vel_ca)
             r_ca = numpy.array([r_ca_scp, 1], dtype='float64')
             drate_sf_poly = -polynomial.polymul(dop_rate_poly_rng_scaled, r_ca)*speed_of_light/(2*center_frequency*vm_ca_sq)
@@ -1521,7 +1521,7 @@ class PALSARDetails(object):
         def adjust_scp():
             scp_pixel = sicd.ImageData.SCPPixel.get_array()
             scp_ecf = sicd.project_image_to_ground(scp_pixel)
-            sicd.GeoData.SCP.ECF = scp_ecf
+            sicd.update_scp(scp_ecf, coord_system='ECF')
 
         tx_pol = tx_pols[index]
         tx_rcv_pol = tx_rcv_pols[index]
@@ -1561,8 +1561,8 @@ class PALSARDetails(object):
             Grid=grid,
             RMA=rma)
 
-        sicd.derive()
         adjust_scp()
+        sicd.derive()
         return sicd
 
     def get_sicd_collection(self):

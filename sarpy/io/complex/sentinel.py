@@ -33,7 +33,6 @@ from sarpy.io.complex.sicd_elements.Timeline import TimelineType, IPPSetType
 from sarpy.io.complex.sicd_elements.ImageFormation import ImageFormationType, RcvChanProcType, TxFrequencyProcType
 from sarpy.io.complex.sicd_elements.RMA import RMAType, INCAType
 from sarpy.io.complex.sicd_elements.Radiometric import RadiometricType, NoiseLevelType_
-from sarpy.geometry import point_projection
 from sarpy.geometry.geocoords import geodetic_to_ecf
 from sarpy.io.complex.utils import two_dim_poly_fit, get_im_physical_coords
 
@@ -680,8 +679,9 @@ class SentinelDetails(object):
             sicd.Position.ARPPoly = sicd.Position.ARPPoly.shift(-time_offset, return_poly=True)
 
         def update_geodata(sicd):  # type: (SICDType) -> None
-            ecf = point_projection.image_to_ground([sicd.ImageData.SCPPixel.Row, sicd.ImageData.SCPPixel.Col], sicd)
-            sicd.GeoData.SCP = SCPType(ECF=ecf)  # LLH will be populated.
+            scp_pixel = [sicd.ImageData.SCPPixel.Row, sicd.ImageData.SCPPixel.Col]
+            ecf = sicd.project_image_to_ground(scp_pixel, projection_type='HAE')
+            sicd.update_scp(ecf, coord_system='ECF')
 
         def get_scps(count):
             # SCPPixel - points at which to interpolate geo_pixels & geo_coords data
@@ -756,7 +756,6 @@ class SentinelDetails(object):
                 # adjust my time offset
                 adjust_time(t_sicd, early)
                 update_geodata(t_sicd)
-                t_sicd.derive()
                 sicds.append(t_sicd)
             return sicds
 

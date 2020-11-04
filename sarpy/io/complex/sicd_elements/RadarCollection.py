@@ -99,6 +99,16 @@ class TxFrequencyType(Serializable):
         self.Min, self.Max = Min, Max
         super(TxFrequencyType, self).__init__(**kwargs)
 
+    @property
+    def center_frequency(self):
+        """
+        None|float: The center frequency
+        """
+
+        if self.Min is None or self.Max is None:
+            return None
+        return 0.5*(self.Min + self.Max)
+
     def _apply_reference_frequency(self, reference_frequency):
         if self.Min is not None:
             self.Min += reference_frequency
@@ -794,11 +804,14 @@ class RadarCollectionType(Serializable):
             elif len(self.RcvChannels) < 2:
                 return  # no need for step definition
 
-            steps = []
-            for i, chanparam in enumerate(self.RcvChannels):
-                steps.append(TxStepType(index=i, TxPolarization=chanparam.get_transmit_polarization()))
-            self.TxSequence = steps
-            self.TxPolarization = 'SEQUENCE'
+            tx_pols = list(set(chan_param.get_transmit_polarization() for chan_param in self.RcvChannels))
+
+            if len(tx_pols) > 1:
+                steps = [TxStepType(index=i+1, TxPolarization=tx_pol) for i, tx_pol in enumerate(tx_pols)]
+                self.TxSequence = steps
+                self.TxPolarization = 'SEQUENCE'
+            else:
+                self.TxPolarization = tx_pols[0]
         else:
             self.TxPolarization = self.RcvChannels[0].get_transmit_polarization()
 
@@ -877,3 +890,155 @@ class RadarCollectionType(Serializable):
             return 'Q'
         else:
             return 'U'
+
+    def _check_frequency(self):
+        # type: () -> bool
+
+        if self.RefFreqIndex is not None:
+            return True
+
+        if self.TxFrequency is not None and self.TxFrequency.Min is not None \
+                and self.TxFrequency.Min <= 0:
+            logging.error(
+                'TxFrequency.Min is negative, but RefFreqIndex is not populated.')
+            return False
+        return True
+
+    def _check_tx_sequence(self):
+        # type: () -> bool
+
+        cond = True
+        if self.TxPolarization == 'SEQUENCE' and self.TxSequence is None:
+            logging.error(
+                'TxPolarization is populated as "SEQUENCE", but TxSequence is not populated.')
+            cond = False
+        if self.TxSequence is not None:
+            if self.TxPolarization != 'SEQUENCE':
+                logging.error(
+                    'TxSequence is populated, but TxPolarization is populated as {}'.format(self.TxPolarization))
+                cond = False
+            tx_pols = list(set([entry.TxPolarization for entry in self.TxSequence]))
+            if len(tx_pols) == 1:
+                logging.error(
+                    'TxSequence is populated, but the only unique TxPolarization aong the entries is {}'.format(tx_pols[0]))
+                cond = False
+        return cond
+
+    def _check_waveform_parameters(self):
+        """
+        Validate the waveform parameters for consistency.
+
+        Returns
+        -------
+        bool
+        """
+
+        def validate_entry(index, waveform):
+            # type: (int, WaveformParametersType) -> bool
+            this_cond = True
+            try:
+                if abs(waveform.TxRFBandwidth/(waveform.TxPulseLength*waveform.TxFMRate) - 1) > 1e-3:
+                    logging.error(
+                        'The TxRFBandwidth, TxPulseLength, and TxFMRate parameters of Waveform '
+                        'entry {} are inconsistent'.format(index+1))
+                    this_cond = False
+            except (AttributeError, ValueError, TypeError):
+                pass
+
+            if waveform.RcvDemodType == 'CHIRP' and waveform.RcvFMRate != 0:
+                logging.error(
+                    'RcvDemodType == "CHIRP" and RcvFMRate != 0 in Waveform entry {}'.format(index+1))
+                this_cond = False
+            if waveform.RcvDemodType == 'STRETCH' and \
+                    waveform.RcvFMRate is not None and waveform.TxFMRate is not None and \
+                    abs(waveform.RcvFMRate/waveform.TxFMRate - 1) > 1e-3:
+                logging.error(
+                    'RcvDemodType = "STRETCH", RcvFMRate = {}, and TxFMRate = {} in '
+                    'Waveform entry {}'.format(waveform.RcvFMRate, waveform.TxFMRate, index+1))
+                this_cond = False
+
+            if self.RefFreqIndex is None:
+                if waveform.TxFreqStart <= 0:
+                    logging.error(
+                        'TxFreqStart is negative in Waveform entry {}, but RefFreqIndex '
+                        'is not populated.'.format(index+1))
+                    this_cond = False
+                if waveform.RcvFreqStart is not None and waveform.RcvFreqStart <= 0:
+                    logging.error(
+                        'RcvFreqStart is negative in Waveform entry {}, but RefFreqIndex '
+                        'is not populated.'.format(index + 1))
+                    this_cond = False
+            if waveform.TxPulseLength is not None and waveform.RcvWindowLength is not None and \
+                    waveform.TxPulseLength > waveform.RcvWindowLength:
+                logging.error(
+                    'TxPulseLength ({}) is longer than RcvWindowLength ({}) in '
+                    'Waveform entry {}'.format(waveform.TxPulseLength, waveform.RcvWindowLength, index+1))
+                this_cond = False
+            if waveform.RcvIFBandwidth is not None and waveform.ADCSampleRate is not None and \
+                    waveform.RcvIFBandwidth > waveform.ADCSampleRate:
+                logging.error(
+                    'RcvIFBandwidth ({}) is longer than ADCSampleRate ({}) in '
+                    'Waveform entry {}'.format(waveform.RcvIFBandwidth, waveform.ADCSampleRate, index+1))
+                this_cond = False
+            if waveform.RcvDemodType is not None and waveform.RcvDemodType == 'CHIRP' \
+                    and waveform.TxRFBandwidth is not None and waveform.ADCSampleRate is not None \
+                    and (waveform.TxRFBandwidth > waveform.ADCSampleRate):
+                logging.error(
+                    'RcvDemodType is "CHIRP" and TxRFBandwidth ({}) is larger than ADCSampleRate ({}) '
+                    'in Waveform entry {}'.format(waveform.TxRFBandwidth, waveform.ADCSampleRate, index+1))
+                this_cond = False
+            if waveform.RcvWindowLength is not None and waveform.TxPulseLength is not None and waveform.TxFMRate is not None \
+                    and waveform.RcvFreqStart is not None and waveform.TxFreqStart is not None and waveform.TxRFBandwidth is not None:
+                freq_tol = (waveform.RcvWindowLength - waveform.TxPulseLength)*waveform.TxFMRate
+                if waveform.RcvFreqStart >= waveform.TxFreqStart + waveform.TxRFBandwidth + freq_tol:
+                    logging.error(
+                        'RcvFreqStart ({}), TxFreqStart ({}), and TxRfBandwidth ({}) parameters are inconsistent '
+                        'in Waveform entry {}'.format(waveform.RcvFreqStart, waveform.TxFreqStart, waveform.TxRFBandwidth, index + 1))
+                    this_cond = False
+                if waveform.RcvFreqStart <= waveform.TxFreqStart - freq_tol:
+                    logging.error(
+                        'RcvFreqStart ({}) and TxFreqStart ({}) parameters are inconsistent '
+                        'in Waveform entry {}'.format(waveform.RcvFreqStart, waveform.TxFreqStart, index + 1))
+                    this_cond = False
+
+            return this_cond
+
+        if self.Waveform is None or len(self.Waveform) < 1:
+            return True
+
+        cond = True
+        # fetch min/max TxFreq observed
+        wf_min_freq = None
+        wf_max_freq = None
+        for entry in self.Waveform:
+            freq_start = entry.TxFreqStart
+            freq_bw = entry.TxRFBandwidth
+            if freq_start is not None:
+                wf_min_freq = freq_start if wf_min_freq is None else \
+                    min(wf_min_freq, freq_start)
+                if entry.TxRFBandwidth is not None:
+                    wf_max_freq = freq_start + freq_bw if wf_max_freq is None else \
+                        max(wf_max_freq, freq_start + freq_bw)
+
+        if wf_min_freq is not None and self.TxFrequency is not None and self.TxFrequency.Min is not None:
+            if abs(self.TxFrequency.Min/wf_min_freq - 1) > 1e-3:
+                logging.error(
+                    'The stated TxFrequency.Min is {}, but the minimum populated in a '
+                    'Waveform entry is {}'.format(self.TxFrequency.Min, wf_min_freq))
+                cond = False
+        if wf_max_freq is not None and self.TxFrequency is not None and self.TxFrequency.Max is not None:
+            if abs(self.TxFrequency.Max/wf_max_freq - 1) > 1e-3:
+                logging.error(
+                    'The stated TxFrequency.Max is {}, but the maximum populated in a '
+                    'Waveform entry is {}'.format(self.TxFrequency.Max, wf_max_freq))
+                cond = False
+        for t_index, t_waveform in enumerate(self.Waveform):
+            cond &= validate_entry(t_index, t_waveform)
+        return cond
+
+    def _basic_validity_check(self):
+        valid = super(RadarCollectionType, self)._basic_validity_check()
+        valid &= self._check_frequency()
+        valid &= self._check_tx_sequence()
+        valid &= self._check_waveform_parameters()
+        return valid

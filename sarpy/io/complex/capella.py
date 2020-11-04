@@ -317,6 +317,7 @@ class CapellaDetails(object):
         def get_image_formation():
             # type: () -> ImageFormationType
 
+            radar = collect['radar']
             algo = collect['image']['algorithm'].upper()
             processings = None
             if algo == 'BACKPROJECTION':
@@ -332,6 +333,7 @@ class CapellaDetails(object):
                 ImageFormAlgo=algo,
                 TStartProc=0,
                 TEndProc=duration,
+                TxRcvPolarizationProc='{}:{}'.format(radar['transmit_polarization'], radar['receive_polarization']),
                 TxFrequencyProc=TxFrequencyProcType(
                     MinProc=radar_collection.TxFrequency.Min,
                     MaxProc=radar_collection.TxFrequency.Max),

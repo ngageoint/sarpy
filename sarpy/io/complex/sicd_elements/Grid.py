@@ -283,7 +283,7 @@ class DirParamType(Serializable):
         self.WgtFunct = WgtFunct
         super(DirParamType, self).__init__(**kwargs)
 
-    def define_weight_function(self, weight_size=DEFAULT_WEIGHT_SIZE):
+    def define_weight_function(self, weight_size=DEFAULT_WEIGHT_SIZE, populate=True):
         """
         Try to derive WgtFunct from WgtType, if necessary. This should likely be called from the `GridType` parent.
 
@@ -291,15 +291,18 @@ class DirParamType(Serializable):
         ----------
         weight_size : int
             the size of the `WgtFunct` to generate.
+        populate : bool
+            Populate the WgtFunct value, if unpopulated?
 
         Returns
         -------
-        None
+        None|numpy.ndarray
         """
 
         if self.WgtType is None or self.WgtType.WindowName is None:
             return  # nothing to be done
 
+        value = None
         window_name = self.WgtType.WindowName.upper()
         if window_name == 'HAMMING':
             # A Hamming window is defined in many places as a raised cosine of weight .54, so this is the default.
@@ -309,16 +312,16 @@ class DirParamType(Serializable):
                 coef = float(self.WgtType.get_parameter_value(None, 0.54))  # just get first parameter - name?
             except ValueError:
                 coef = 0.54
-            self.WgtFunct = _raised_cos(weight_size, coef)
+            value = _raised_cos(weight_size, coef)
         elif window_name == 'HANNING':
-            self.WgtFunct = _raised_cos(weight_size, 0.5)
+            value = _raised_cos(weight_size, 0.5)
         elif window_name == 'KAISER':
             try:
                 # noinspection PyTypeChecker
                 beta = float(self.WgtType.get_parameter_value(None, 14))  # just get first parameter - name?
             except ValueError:
                 beta = 14.0  # default suggested in numpy.kaiser
-            self.WgtFunct = numpy.kaiser(weight_size, beta)
+            value = numpy.kaiser(weight_size, beta)
         elif window_name == 'TAYLOR':
             # noinspection PyTypeChecker
             sidelobes = int(self.WgtType.get_parameter_value('NBAR', 4))  # apparently the matlab argument name
@@ -326,10 +329,14 @@ class DirParamType(Serializable):
             max_sidelobe_level = float(self.WgtType.get_parameter_value('SLL', -30))  # same
             if max_sidelobe_level > 0:
                 max_sidelobe_level *= -1
-            self.WgtFunct = _taylor_win(weight_size,
+            value = _taylor_win(weight_size,
                                         sidelobes=sidelobes,
                                         max_sidelobe_level=max_sidelobe_level,
                                         normalize=True)
+
+        if populate and self.WgtFunct is None:
+            self.WgtFunct = value
+        return value
 
     def _get_broadening_factor(self):
         """
@@ -372,26 +379,39 @@ class DirParamType(Serializable):
         zero_ind = ind - 1 + (1./numpy.sqrt(2) - v0)/(v1 - v0)
         return 2*zero_ind/OVERSAMPLE
 
-    def define_response_widths(self):
+    def define_response_widths(self, populate=True):
         """
         Assuming that `WgtFunct` has been properly populated, define the response widths.
         This should likely be called by `GridType` parent.
 
+        Parameters
+        ----------
+        populate : bool
+            Should we populate ImpRespWid and ImpRespBW, if unpopulated?
+
         Returns
         -------
-        None
+        None|(float, float)
+            None or (ImpRespBw, ImpRespWid)
         """
 
-        if self.ImpRespBW is not None and self.ImpRespWid is None:
-            broadening_factor = self._get_broadening_factor()
-            if broadening_factor is not None:
-                self.ImpRespWid = broadening_factor/self.ImpRespBW
-        elif self.ImpRespBW is None and self.ImpRespWid is not None:
-            broadening_factor = self._get_broadening_factor()
-            if broadening_factor is not None:
-                self.ImpRespBW = broadening_factor/self.ImpRespWid
+        broadening_factor = self._get_broadening_factor()
+        if broadening_factor is None:
+            return None
 
-    def estimate_deltak(self, x_coords, y_coords):
+        if self.ImpRespBW is not None:
+            resp_width = broadening_factor/self.ImpRespBW
+            if populate and self.ImpRespWid is None:
+                self.ImpRespWid = resp_width
+            return self.ImpRespBW, resp_width
+        elif self.ImpRespWid is not None:
+            resp_bw = broadening_factor/self.ImpRespWid
+            if populate and self.ImpRespBW is None:
+                self.ImpRespBW = resp_bw
+            return resp_bw, self.ImpRespWid
+        return None
+
+    def estimate_deltak(self, x_coords, y_coords, populate=False):
         """
         The `DeltaK1` and `DeltaK2` parameters can be estimated from `DeltaKCOAPoly`, if necessary. This should likely
         be called by the `GridType` parent.
@@ -402,14 +422,13 @@ class DirParamType(Serializable):
             The physical vertex coordinates to evaluate DeltaKCOAPoly
         y_coords : None|numpy.ndarray
             The physical vertex coordinates to evaluate DeltaKCOAPoly
+        populate : bool
+            Populate the estimated values into DeltaK1 and DeltaK2, if unpopulated?
 
         Returns
         -------
-        None
+        (float, float)
         """
-
-        if self.DeltaK1 is not None and self.DeltaK2 is not None:
-            return  # nothing needs to be done
 
         if self.ImpRespBW is None or self.SS is None:
             return  # nothing can be done
@@ -425,10 +444,28 @@ class DirParamType(Serializable):
         if (min_deltak < -0.5/abs(self.SS)) or (max_deltak > 0.5/abs(self.SS)):
             min_deltak = -0.5/abs(self.SS)
             max_deltak = -min_deltak
-        self.DeltaK1 = min_deltak
-        self.DeltaK2 = max_deltak
 
-    def _check_deltak(self):
+        if populate or (self.DeltaK1 is None or self.DeltaK2 is None):
+            self.DeltaK1 = min_deltak
+            self.DeltaK2 = max_deltak
+        return min_deltak, max_deltak
+
+    def check_deltak(self, x_coords, y_coords):
+        """
+        Checks the DeltaK values for validity.
+
+        Parameters
+        ----------
+        x_coords : None|numpy.ndarray
+            The physical vertex coordinates to evaluate DeltaKCOAPoly
+        y_coords : None|numpy.ndarray
+            The physical vertex coordinates to evaluate DeltaKCOAPoly
+
+        Returns
+        -------
+        bool
+        """
+
         out = True
         try:
             if self.DeltaK2 <= self.DeltaK1 + 1e-10:
@@ -453,6 +490,23 @@ class DirParamType(Serializable):
                 out = False
         except (AttributeError, TypeError, ValueError):
             pass
+
+        min_deltak, max_deltak = self.estimate_deltak(x_coords, y_coords, populate=False)
+        try:
+            if abs(self.DeltaK1/min_deltak - 1) > 1e-2:
+                logging.error(
+                    'The DeltaK1 value is populated as {}, but estimated to be {}'.format(self.DeltaK1, min_deltak))
+                out = False
+        except (AttributeError, TypeError, ValueError):
+            pass
+
+        try:
+            if abs(self.DeltaK2/max_deltak - 1) > 1e-2:
+                logging.error(
+                    'The DeltaK2 value is populated as {}, but estimated to be {}'.format(self.DeltaK2, max_deltak))
+                out = False
+        except (AttributeError, TypeError, ValueError):
+            pass
         return out
 
     def _check_bw(self):
@@ -467,16 +521,49 @@ class DirParamType(Serializable):
             pass
         return out
 
+    def _check_wgt(self):
+        cond = True
+        if self.WgtType is None:
+            return cond
+
+        wgt_size = self.WgtFunct.size if self.WgtFunct is not None else None
+        if self.WgtType.WindowName not in ['UNIFORM', 'UNKNOWN'] and (wgt_size is None or wgt_size < 2):
+            logging.error('Non-uniform weighting indicated, but WgtFunct not properly defined')
+            return False
+
+        if wgt_size is not None and wgt_size > 1024:
+            logging.warning(
+                'WgtFunct with {} elements is provided. The recommended number '
+                'of elements is 512, and many more is likely needlessly excessive.'.format(wgt_size))
+
+        result = self.define_response_widths(populate=False)
+        if result is None:
+            return cond
+        resp_bw, resp_wid = result
+        if abs(resp_bw/self.ImpRespBW - 1) > 1e-2:
+            logging.error(
+                'ImpRespBW expected as {} from weighting, but populated as {}'.format(resp_bw, self.ImpRespBW))
+            cond = False
+        if abs(resp_wid/self.ImpRespWid - 1) > 1e-2:
+            logging.error(
+                'ImpRespWid expected as {} from weighting, but populated as {}'.format(resp_wid, self.ImpRespWid))
+            cond = False
+        return cond
+
     def _basic_validity_check(self):
         condition = super(DirParamType, self)._basic_validity_check()
         if (self.WgtFunct is not None) and (self.WgtFunct.size < 2):
             logging.error(
                 'The WgtFunct array has been defined in DirParamType, but there are fewer than 2 entries.')
             condition = False
-
-        condition &= self._check_deltak()
+        for attribute in ['SS', 'ImpRespBW', 'ImpRespWid']:
+            value = getattr(self, attribute)
+            if value is not None and value <= 0:
+                logging.error(
+                    'The {} is populated as {}, but should be strictly positive.'.format(attribute, value))
+                condition = False
         condition &= self._check_bw()
-
+        condition &= self._check_wgt()
         return condition
 
 
@@ -568,6 +655,7 @@ class GridType(Serializable):
             valid_vertices = ImageData.get_valid_vertex_data()
             if valid_vertices is None:
                 valid_vertices = ImageData.get_full_vertex_data()
+
         x_coords, y_coords = None, None
         if valid_vertices is not None:
             try:
@@ -579,9 +667,9 @@ class GridType(Serializable):
         for attribute in ['Row', 'Col']:
             value = getattr(self, attribute, None)
             if value is not None:
-                value.define_weight_function()
+                value.define_weight_function(populate=True)
                 value.define_response_widths()
-                value.estimate_deltak(x_coords, y_coords)
+                value.estimate_deltak(x_coords, y_coords, populate=True)
 
     def _derive_time_coa_poly(self, CollectionInfo, SCPCOA):
         """
@@ -935,6 +1023,27 @@ class GridType(Serializable):
                 'same value'.format(self.Row.Sgn, self.Col.Sgn))
         return condition
 
+    def check_deltak(self, x_coords, y_coords):
+        """
+        Checks the validity of DeltaK values.
+
+        Parameters
+        ----------
+        x_coords : None|numpy.ndarray
+        y_coords : None|numpy.ndarray
+
+        Returns
+        -------
+        bool
+        """
+
+        cond = True
+        if self.Row is not None:
+            cond &= self.Row.check_deltak(x_coords, y_coords)
+        if self.Col is not None:
+            cond &= self.Col.check_deltak(x_coords, y_coords)
+        return cond
+
     def get_resolution_abbreviation(self):
         """
         Gets the resolution abbreviation for the suggested name.
@@ -953,3 +1062,23 @@ class GridType(Serializable):
                 return '9999'
             else:
                 return '{0:04d}'.format(value)
+
+    def get_slant_plane_area(self):
+        """
+        Get the weighted slant plane area.
+
+        Returns
+        -------
+        float
+        """
+
+        range_weight_f = azimuth_weight_f = 1.0
+        if self.Row.WgtFunct is not None:
+            var = numpy.var(self.Row.WgtFunct)
+            mean = numpy.mean(self.Row.WgtFunct)
+            range_weight_f += var/(mean*mean)
+        if self.Col.WgtFunct is not None:
+            var = numpy.var(self.Col.WgtFunct)
+            mean = numpy.mean(self.Col.WgtFunct)
+            azimuth_weight_f += var/(mean*mean)
+        return (range_weight_f * azimuth_weight_f)/(self.Row.ImpRespBW*self.Col.ImpRespBW)

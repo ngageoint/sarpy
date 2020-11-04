@@ -32,7 +32,6 @@ from sarpy.io.complex.sicd_elements.Timeline import TimelineType, IPPSetType
 from sarpy.io.complex.sicd_elements.ImageFormation import ImageFormationType, TxFrequencyProcType, RcvChanProcType
 from sarpy.io.complex.sicd_elements.RMA import RMAType, INCAType
 from sarpy.io.complex.sicd_elements.Radiometric import RadiometricType
-from sarpy.geometry import point_projection
 from sarpy.io.general.base import BaseChipper, BaseReader
 from sarpy.io.general.utils import get_seconds, parse_timestring
 from sarpy.io.complex.utils import fit_time_coa_polynomial, fit_position_xvalidation
@@ -450,8 +449,9 @@ class CSKDetails(object):
                 sicd.Radiometric = RadiometricType(BetaZeroSFPoly=Poly2DType(Coefs=[[sf, ], ]))
 
         def update_geodata(sicd):  # type: (SICDType) -> None
-            ecf = point_projection.image_to_ground([sicd.ImageData.SCPPixel.Row, sicd.ImageData.SCPPixel.Col], sicd)
-            sicd.GeoData.SCP = SCPType(ECF=ecf)  # LLH will be populated
+            scp_pixel = [sicd.ImageData.SCPPixel.Row, sicd.ImageData.SCPPixel.Col]
+            ecf = sicd.project_image_to_ground(scp_pixel, projection_type='HAE')
+            sicd.update_scp(ecf, coord_system='ECF')
 
         out = {}
         for i, bd_name in enumerate(band_dict):
