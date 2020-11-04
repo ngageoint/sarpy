@@ -210,7 +210,7 @@ class RgAzCompType(Serializable):
                     'but all entries are not constant\n{}'.format(col_deltakcoa))
                 cond = False
 
-            if col_deltakcoa == (1, 1) and abs(Grid.Col.KCtr + col_deltakcoa[0, 0]) > 1e-6:
+            if col_deltakcoa.shape == (1, 1) and abs(Grid.Col.KCtr + col_deltakcoa[0, 0]) > 1e-6:
                 logging.error(
                     'The image formation algorithm is RGAZCOMP, the Grid.Col.DeltaCOAPoly is scalar, '
                     'and not in agreement with Grid.Col.KCtr')

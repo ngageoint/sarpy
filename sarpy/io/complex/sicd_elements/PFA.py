@@ -169,6 +169,9 @@ class PFAType(Serializable):
             else:
                 return points + numpy.outer(offset, fpn)
 
+        if self.IPN is None or self.FPN is None:
+            return None, None
+
         ipn = self.IPN.get_array(dtype='float64')
         fpn = self.FPN.get_array(dtype='float64')
         if isinstance(times, (float, int)) or times.ndim == 0:
@@ -335,9 +338,11 @@ class PFAType(Serializable):
 
         cond = True
         num_samples = max(self.PolarAngPoly.Coefs.size, 40)
-        times = numpy.linespace(0, Timeline.CollectDuration, num_samples)
+        times = numpy.linspace(0, Timeline.CollectDuration, num_samples)
 
         k_a, k_sf = self.pfa_polar_coords(Position, SCP, times)
+        if k_a is None:
+            return True
         # check for agreement with k_a and k_sf derived from the polynomials
         k_a_derived = self.PolarAngPoly(times)
         k_sf_derived = self.SpatialFreqSFPoly(k_a)
@@ -366,6 +371,9 @@ class PFAType(Serializable):
         -------
         bool
         """
+
+        if self.IPN is None or self.FPN is None:
+            return True
 
         cond = True
         ipn = self.IPN.get_array(dtype='float64')
@@ -420,7 +428,7 @@ class PFAType(Serializable):
         # the Row DeltaKCOAPoly and STDSPhasePoly should be essentially identical
         if Grid.Row is not None and Grid.Row.DeltaKCOAPoly is not None and \
                 self.STDeskew.STDSPhasePoly is not None:
-            stds_phase_poly = PFAType.STDeskew.STDSPhasePoly.get_array(dtype='float64')
+            stds_phase_poly = self.STDeskew.STDSPhasePoly.get_array(dtype='float64')
             delta_kcoa = Grid.Row.DeltaKCOAPoly.get_array(dtype='float64')
             rows = max(stds_phase_poly.shape[0], delta_kcoa.shape[0])
             cols = max(stds_phase_poly.shape[1], delta_kcoa.shape[1])
@@ -484,6 +492,9 @@ class PFAType(Serializable):
         -------
         bool
         """
+
+        if self.IPN is None or self.FPN is None:
+            return True
 
         cond = True
         ipn = self.IPN.get_array(dtype='float64')
