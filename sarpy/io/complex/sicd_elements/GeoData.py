@@ -425,7 +425,7 @@ class GeoDataType(Serializable):
                 if area == 0:
                     logging.error('{} encloses no area.'.format(attribute))
                     cond = False
-                elif area > 0:
+                elif area < 0:
                     logging.error(
                         "{} must be traversed in clockwise direction.".format(attribute))
                     cond = False

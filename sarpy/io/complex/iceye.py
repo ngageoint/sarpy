@@ -33,7 +33,6 @@ from sarpy.io.complex.sicd_elements.Timeline import TimelineType, IPPSetType
 from sarpy.io.complex.sicd_elements.ImageFormation import ImageFormationType, TxFrequencyProcType, RcvChanProcType
 from sarpy.io.complex.sicd_elements.RMA import RMAType, INCAType
 from sarpy.io.complex.sicd_elements.Radiometric import RadiometricType
-from sarpy.geometry import point_projection
 from sarpy.io.general.base import BaseReader, BaseChipper
 from sarpy.io.general.utils import get_seconds, parse_timestring
 from sarpy.io.complex.utils import fit_position_xvalidation, two_dim_poly_fit
@@ -368,8 +367,8 @@ class ICEYEDetails(object):
 
         def correct_scp():
             scp_pixel = sicd.ImageData.SCPPixel.get_array()
-            scp_ecf = point_projection.image_to_ground(scp_pixel, sicd)
-            sicd.GeoData.SCP.ECF = scp_ecf
+            scp_ecf = sicd.project_image_to_ground(scp_pixel, projection_type='HAE')
+            sicd.update_scp(scp_ecf, coord_system='ECF')
 
         with h5py.File(self._file_name, 'r') as hf:
             # some common use variables

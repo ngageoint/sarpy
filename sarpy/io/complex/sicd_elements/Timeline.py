@@ -84,7 +84,7 @@ class IPPSetType(Serializable):
             condition = False
 
         exp_ipp_start = self.IPPPoly(self.TStart)
-        exp_ipp_end = self.IPPPoly(self.IPPEnd)
+        exp_ipp_end = self.IPPPoly(self.TEnd)
         if abs(exp_ipp_start - self.IPPStart) > 1:
             logging.error(
                 'IPPStart populated as {}, inconsistent with value ({}) '
@@ -92,7 +92,7 @@ class IPPSetType(Serializable):
         if abs(exp_ipp_end - self.IPPEnd) > 1:
             logging.error(
                 'IPPEnd populated as {}, inconsistent with value ({}) '
-                'derived from IPPPoly and TEnd'.format(exp_ipp_end, self.IPPEnd))
+                'derived from IPPPoly and TEnd'.format(self.IPPEnd, exp_ipp_end))
         return condition
 
 class TimelineType(Serializable):

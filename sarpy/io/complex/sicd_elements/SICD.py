@@ -205,6 +205,35 @@ class SICDType(Serializable):
                 return attribute
         return 'OTHER'
 
+    def update_scp(self, point, coord_system='ECF'):
+        """
+        Modify the SCP point, and modify the associated SCPCOA fields.
+
+        Parameters
+        ----------
+        point : numpy.ndarray|tuple|list
+        coord_system : str
+            Either 'ECF' or 'LLH', and 'ECF' will take precedence.
+
+        Returns
+        -------
+        None
+        """
+
+        if isinstance(point, (list, tuple)):
+            point = numpy.array(point, dtype='float64')
+        if not isinstance(point, numpy.ndarray):
+            raise TypeError('point must be an numpy.ndarray')
+        if point.shape != (3, ):
+            raise ValueError('point must be a one-dimensional, 3 element array')
+        if coord_system == 'LLH':
+            self.GeoData.SCP.LLH = point
+        else:
+            self.GeoData.SCP.ECF = point
+
+        if self.SCPCOA is not None:
+            self.SCPCOA.rederive(self.Grid, self.Position, self.GeoData)
+
     def _validate_image_segment_id(self):  # type: () -> bool
         if self.ImageFormation is None or self.RadarCollection is None:
             return False

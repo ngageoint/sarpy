@@ -445,7 +445,7 @@ class DirParamType(Serializable):
             min_deltak = -0.5/abs(self.SS)
             max_deltak = -min_deltak
 
-        if populate and (self.DeltaK1 is None or self.DeltaK2 is None):
+        if populate or (self.DeltaK1 is None or self.DeltaK2 is None):
             self.DeltaK1 = min_deltak
             self.DeltaK2 = max_deltak
         return min_deltak, max_deltak
@@ -655,6 +655,7 @@ class GridType(Serializable):
             valid_vertices = ImageData.get_valid_vertex_data()
             if valid_vertices is None:
                 valid_vertices = ImageData.get_full_vertex_data()
+
         x_coords, y_coords = None, None
         if valid_vertices is not None:
             try:

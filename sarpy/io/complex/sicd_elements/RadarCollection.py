@@ -804,11 +804,14 @@ class RadarCollectionType(Serializable):
             elif len(self.RcvChannels) < 2:
                 return  # no need for step definition
 
-            steps = []
-            for i, chanparam in enumerate(self.RcvChannels):
-                steps.append(TxStepType(index=i, TxPolarization=chanparam.get_transmit_polarization()))
-            self.TxSequence = steps
-            self.TxPolarization = 'SEQUENCE'
+            tx_pols = list(set(chan_param.get_transmit_polarization() for chan_param in self.RcvChannels))
+
+            if len(tx_pols) > 1:
+                steps = [TxStepType(index=i+1, TxPolarization=tx_pol) for i, tx_pol in enumerate(tx_pols)]
+                self.TxSequence = steps
+                self.TxPolarization = 'SEQUENCE'
+            else:
+                self.TxPolarization = tx_pols[0]
         else:
             self.TxPolarization = self.RcvChannels[0].get_transmit_polarization()
 
@@ -960,7 +963,7 @@ class RadarCollectionType(Serializable):
                         'TxFreqStart is negative in Waveform entry {}, but RefFreqIndex '
                         'is not populated.'.format(index+1))
                     this_cond = False
-                if waveform.RcvFreqStart <= 0:
+                if waveform.RcvFreqStart is not None and waveform.RcvFreqStart <= 0:
                     logging.error(
                         'RcvFreqStart is negative in Waveform entry {}, but RefFreqIndex '
                         'is not populated.'.format(index + 1))

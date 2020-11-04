@@ -37,7 +37,6 @@ from sarpy.io.complex.sicd_elements.ImageFormation import ImageFormationType, Rc
 from sarpy.io.complex.sicd_elements.RMA import RMAType, INCAType
 from sarpy.io.complex.sicd_elements.SCPCOA import SCPCOAType
 from sarpy.io.complex.sicd_elements.Radiometric import RadiometricType, NoiseLevelType_
-from sarpy.geometry import point_projection
 from sarpy.io.complex.utils import fit_time_coa_polynomial, fit_position_xvalidation
 
 
@@ -1023,8 +1022,8 @@ class RadarSatDetails(object):
 
         def correct_scp():
             scp_pixel = base_sicd.ImageData.SCPPixel.get_array()
-            scp_ecf = point_projection.image_to_ground(scp_pixel, base_sicd)
-            base_sicd.GeoData.SCP.ECF = scp_ecf
+            scp_ecf = base_sicd.project_image_to_ground(scp_pixel, projection_type='HAE')
+            base_sicd.update_scp(scp_ecf, coord_system='ECF')
 
         def get_data_file_names():
             base_path = os.path.dirname(self.file_name)
@@ -1419,7 +1418,7 @@ class RadarSatDetails(object):
 
         def correct_scp():
             scp_pixel = base_sicd.ImageData.SCPPixel.get_array()
-            scp_ecf = point_projection.image_to_ground(scp_pixel, base_sicd)
+            scp_ecf = base_sicd.project_image_to_ground(scp_pixel, projection_type='HAE')
             base_sicd.GeoData.SCP.ECF = scp_ecf
 
         def get_data_file_names():

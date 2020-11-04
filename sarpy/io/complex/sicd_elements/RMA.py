@@ -511,7 +511,7 @@ class RMAType(Serializable):
             SCP = GeoData.SCP.ECF.get_array(dtype='float64')
             row_uvect = Grid.Row.UVectECF.get_array(dtype='float64')
             col_uvect = Grid.Col.UVectECF.get_array(dtype='float64')
-            scp_time = self.INCA.TimeCAPoly[1]
+            scp_time = self.INCA.TimeCAPoly[0]
             ca_pos = Position.ARPPoly(scp_time)
             ca_vel = Position.ARPPoly.derivative_eval(scp_time, der_order=1)
             RG = SCP - ca_pos
@@ -546,7 +546,7 @@ class RMAType(Serializable):
         exp_drate_const = 1./abs(self.INCA.TimeCAPoly[1]*numpy.linalg.norm(ca_vel))
         if abs(exp_drate_const - drate_const) > 1e-3:
             logging.error(
-                'The image formation algorithm is RMA/INCA, and INCA.DRateSFPoly constant term ({}) '
+                'The image formation algorithm is RMA/INCA, and the populated INCA.DRateSFPoly constant term ({}) '
                 'and expected constant term ({}) are not consistent.'.format(drate_const, exp_drate_const))
             cond = False
         return cond
