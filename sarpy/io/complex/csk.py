@@ -349,6 +349,7 @@ class CSKDetails(object):
                                            NumCols=cols,
                                            FirstRow=0,
                                            FirstCol=0,
+                                           FullImage=(rows, cols),
                                            PixelType='RE16I_IM16I',
                                            SCPPixel=RowColType(Row=int(rows/2),
                                                                Col=int(cols/2)))
@@ -359,7 +360,7 @@ class CSKDetails(object):
             prf = band_dict[band_name]['PRF']
             duration = sicd.Timeline.CollectDuration
             ipp_el = sicd.Timeline.IPP[0]
-            ipp_el.IPPEnd = duration
+            ipp_el.IPPEnd = duration*prf
             ipp_el.TEnd = duration
             ipp_el.IPPPoly = Poly1DType(Coefs=(0, prf))
 
@@ -370,7 +371,7 @@ class CSKDetails(object):
             sample_rate = band_dict[band_name]['Sampling Rate']
             ref_dechirp_time = band_dict[band_name]['Reference Dechirping Time']
             win_length = band_dict[band_name]['Echo Sampling Window Length']
-            rcv_fm_rate = 0 if numpy.isnan(ref_dechirp_time) else ref_dechirp_time  # TODO: is this the correct value?
+            rcv_fm_rate = 0 if numpy.isnan(ref_dechirp_time) else chirp_rate
             band_width = chirp_length*chirp_rate
             fr_min = center_frequency - 0.5*band_width
             fr_max = center_frequency + 0.5*band_width
@@ -466,7 +467,7 @@ class CSKDetails(object):
             update_radiometric(t_sicd, bd_name)
             update_geodata(t_sicd)
             t_sicd.derive()
-            t_sicd.populate_rniirs(override=False)
+            # t_sicd.populate_rniirs(override=False)
             out[bd_name] = t_sicd
         return out
 
