@@ -952,10 +952,10 @@ class RadarCollectionType(Serializable):
             if waveform.RcvDemodType == 'STRETCH' and \
                     waveform.RcvFMRate is not None and waveform.TxFMRate is not None and \
                     abs(waveform.RcvFMRate/waveform.TxFMRate - 1) > 1e-3:
-                logging.error(
+                logging.warning(
                     'RcvDemodType = "STRETCH", RcvFMRate = {}, and TxFMRate = {} in '
-                    'Waveform entry {}'.format(waveform.RcvFMRate, waveform.TxFMRate, index+1))
-                this_cond = False
+                    'Waveform entry {}. The RcvFMRate and TxFMRate should very likely '
+                    'be the same.'.format(waveform.RcvFMRate, waveform.TxFMRate, index+1))
 
             if self.RefFreqIndex is None:
                 if waveform.TxFreqStart <= 0:
