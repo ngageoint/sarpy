@@ -192,12 +192,12 @@ class PFAType(Serializable):
 
         # compute polar angle of sensor position in image plane
         ip_range = image_plane_positions - SCP
-        ip_range = ip_range/numpy.linalg.norm(ip_range)[:, numpy.newaxis]
+        ip_range /= numpy.linalg.norm(ip_range, axis=1)[:, numpy.newaxis]
         k_a = -numpy.arctan2(ip_range.dot(ip_y), ip_range.dot(ip_x))
 
         # compute the spatial frequency scale factor
         range_vectors = positions - SCP
-        range_vectors = range_vectors/numpy.linalg.norm(range_vectors)[:, numpy.newaxis]
+        range_vectors /= numpy.linalg.norm(range_vectors, axis=1)[:, numpy.newaxis]
         sin_graze = range_vectors.dot(fpn)
         sin_graze_ip = ip_range.dot(fpn)
         k_sf = numpy.sqrt((1 - sin_graze*sin_graze)/(1 - sin_graze_ip*sin_graze_ip))
@@ -346,12 +346,14 @@ class PFAType(Serializable):
         # check for agreement with k_a and k_sf derived from the polynomials
         k_a_derived = self.PolarAngPoly(times)
         k_sf_derived = self.SpatialFreqSFPoly(k_a)
-        if numpy.amax(numpy.abs(k_a_derived - k_a)) > 1e-5:
+        k_a_diff = numpy.amax(numpy.abs(k_a_derived - k_a))
+        k_sf_diff = numpy.amax(numpy.abs(k_sf_derived - k_sf))
+        if k_a_diff > 5e-3:
             logging.error(
                 'The image formation algorithm is PFA, and the PolarAngPoly evaluated values do not '
                 'agree with actual calculated values')
             cond = False
-        if numpy.amax(numpy.abs(k_sf_derived - k_sf)) > 1e-5:
+        if k_sf_diff > 5e-3:
             logging.error(
                 'The image formation algorithm is PFA, and the SpatialFreqSFPoly evaluated values do not '
                 'agree with actual calculated values')
@@ -559,10 +561,11 @@ class PFAType(Serializable):
         cond = True
         polar_angle_bounds = self.PolarAngPoly(numpy.array(sorted([ImageFormation.TStartProc, ImageFormation.TEndProc]), dtype='float64'))
         derived_pol_angle_bounds = numpy.arctan(numpy.array([self.Kaz1, self.Kaz2], dtype='float64')/self.Krg1)
-        if numpy.any(numpy.abs(polar_angle_bounds - derived_pol_angle_bounds) > 1e-2):
+        pol_angle_bounds_diff = numpy.amax(numpy.abs(polar_angle_bounds - derived_pol_angle_bounds))
+        if pol_angle_bounds_diff > 1e-2:
             logging.error(
-                'The image formation algorithm is PFA, the provided polar angle bounds are not consistent '
-                'with the provided ImageFormation processing times.')
+                'The image formation algorithm is PFA, the derived polar angle bounds ({}) are not consistent '
+                'with the provided ImageFormation processing times (expected bounds {}).'.format(polar_angle_bounds, derived_pol_angle_bounds))
             cond = False
         return cond
 
@@ -626,7 +629,7 @@ class PFAType(Serializable):
 
         cond = True
         polar_angle_ref = self.PolarAngPoly(self.PolarAngRefTime)
-        if abs(polar_angle_ref) > 1e-5:
+        if abs(polar_angle_ref) > 1e-4:
             logging.error(
                 'The PolarAngPoly evaluated at PolarAngRefTime yields {}, which should be 0'.format(polar_angle_ref))
             cond = False
