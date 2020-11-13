@@ -192,12 +192,12 @@ class PFAType(Serializable):
 
         # compute polar angle of sensor position in image plane
         ip_range = image_plane_positions - SCP
-        ip_range = ip_range/numpy.linalg.norm(ip_range)[:, numpy.newaxis]
+        ip_range = (ip_range/numpy.linalg.norm(ip_range))[:, numpy.newaxis]
         k_a = -numpy.arctan2(ip_range.dot(ip_y), ip_range.dot(ip_x))
 
         # compute the spatial frequency scale factor
         range_vectors = positions - SCP
-        range_vectors = range_vectors/numpy.linalg.norm(range_vectors)[:, numpy.newaxis]
+        range_vectors = (range_vectors/numpy.linalg.norm(range_vectors))[:, numpy.newaxis]
         sin_graze = range_vectors.dot(fpn)
         sin_graze_ip = ip_range.dot(fpn)
         k_sf = numpy.sqrt((1 - sin_graze*sin_graze)/(1 - sin_graze_ip*sin_graze_ip))
