@@ -744,4 +744,4 @@ class SICDWriter(NITFWriter):
             UserHeader=XMLDESSubheader(**uh_args))
 
         self._des_details = (
-            DESDetails(subhead, self.sicd_meta.to_xml_bytes(tag='SICD')), )
+            DESDetails(subhead, self.sicd_meta.to_xml_bytes(tag='SICD', urn=uh_args['DESSHTN'])), )
