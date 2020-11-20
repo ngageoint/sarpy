@@ -520,16 +520,20 @@ class SICDWriter(NITFWriter):
     SICD data extension. 
     """
 
-    __slots__ = ('_sicd_meta', )
+    __slots__ = ('_sicd_meta', '_check_older_version')
 
-    def __init__(self, file_name, sicd_meta):
+    def __init__(self, file_name, sicd_meta, check_older_version=False):
         """
 
         Parameters
         ----------
         file_name : str
         sicd_meta : sarpy.io.complex.sicd_elements.SICD.SICDType
+        check_older_version : bool
+            Try to create a version 1.1 sicd, if possible?
         """
+
+        self._check_older_version = check_older_version
         self._sicd_meta = validate_sicd_for_writing(sicd_meta)
         self._security_tags = None
         self._nitf_header = None
@@ -721,7 +725,7 @@ class SICDWriter(NITFWriter):
 
     def _create_data_extension_details(self):
         super(SICDWriter, self)._create_data_extension_details()
-        uh_args = self.sicd_meta.get_des_details()
+        uh_args = self.sicd_meta.get_des_details(self._check_older_version)
 
         desshdt = str(self.sicd_meta.ImageCreation.DateTime.astype('datetime64[s]'))
         if desshdt[-1] != 'Z':
