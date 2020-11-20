@@ -3,7 +3,7 @@
 The ImageFormationType definition.
 """
 
-from typing import List
+from typing import List, Union
 import logging
 
 import numpy
@@ -14,6 +14,7 @@ from .base import Serializable, DEFAULT_STRICT, \
     _SerializableDescriptor, _SerializableListDescriptor, _ParametersDescriptor, ParametersCollection
 from .blocks import DUAL_POLARIZATION_VALUES
 from .RadarCollection import get_band_name
+from .utils import is_polstring_version1
 
 
 __classification__ = "UNCLASSIFIED"
@@ -421,11 +422,10 @@ class ImageFormationType(Serializable):
 
     def _basic_validity_check(self):
         condition = super(ImageFormationType, self)._basic_validity_check()
-        if self.TStartProc is not None and self.TEndProc is not None and \
-                self.TEndProc >= self.TStartProc:
+        if self.TStartProc is not None and self.TEndProc is not None and self.TEndProc < self.TStartProc:
             logging.error(
-                'Slow time bounds for image formation are invalid '
-                '(TStartProc={}, TEndProc={})'.format(self.TStartProc, self.TEndProc))
+                'Invalid time processing bounds '
+                'TStartProc ({}) > TEndProc ({})'.format(self.TStartProc, self.TEndProc))
             condition = False
         return condition
 
@@ -473,15 +473,6 @@ class ImageFormationType(Serializable):
         if self.TxFrequencyProc is not None:
             # noinspection PyProtectedMember
             self.TxFrequencyProc._apply_reference_frequency(reference_frequency)
-    
-    def _basic_validity_check(self):
-        condition = super(ImageFormationType, self)._basic_validity_check()
-        if self.TStartProc is not None and self.TEndProc is not None and self.TEndProc < self.TStartProc:
-            logging.error(
-                'Invalid time processing bounds '
-                'TStartProc ({}) > TEndProc ({})'.format(self.TStartProc, self.TEndProc))
-            condition = False
-        return condition
 
     def get_polarization(self):
         """
@@ -522,3 +513,14 @@ class ImageFormationType(Serializable):
             return self.TxFrequencyProc.get_band_name()
         else:
             return 'UN'
+
+    def permits_version_1_1(self):
+        """
+        Does this value permit storage in SICD version 1.1?
+
+        Returns
+        -------
+        bool
+        """
+
+        return is_polstring_version1(self.TxRcvPolarizationProc)

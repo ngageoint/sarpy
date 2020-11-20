@@ -38,9 +38,13 @@ __author__ = "Thomas McCullough"
 #########
 # Module variables
 _SICD_SPECIFICATION_IDENTIFIER = 'SICD Volume 1 Design & Implementation Description Document'
-_SICD_SPECIFICATION_VERSION = '1.2'
-_SICD_SPECIFICATION_DATE = '2018-12-13T00:00:00Z'
-_SICD_SPECIFICATION_NAMESPACE = 'urn:SICD:1.2.1'
+_SICD_SPECIFICATION_VERSION_1_2 = '1.2'
+_SICD_SPECIFICATION_DATE_1_2 = '2018-12-13T00:00:00Z'
+_SICD_SPECIFICATION_NAMESPACE_1_2 = 'urn:SICD:1.2.1'
+
+_SICD_SPECIFICATION_VERSION_1_1 = '1.1'
+_SICD_SPECIFICATION_DATE_1_1 = '2014-07-08T00:00:00Z'
+_SICD_SPECIFICATION_NAMESPACE_1_1 = 'urn:SICD:1.1.0'
 
 
 def get_specification_identifier():
@@ -1119,8 +1123,7 @@ class SICDType(Serializable):
             return self.CollectionInfo.CoreName
         return 'Unknown_Sicd{}'.format(product_number)
 
-    @staticmethod
-    def get_des_details():
+    def get_des_details(self):
         """
         Gets the correct current SICD DES subheader details.
 
@@ -1129,11 +1132,21 @@ class SICDType(Serializable):
         dict
         """
 
+        if (self.ImageFormation is None or self.ImageFormation.permits_version_1_1()) and \
+                (self.RadarCollection is None or self.RadarCollection.permits_version_1_1()):
+            spec_version = _SICD_SPECIFICATION_VERSION_1_1
+            spec_date = _SICD_SPECIFICATION_DATE_1_1
+            spec_ns = _SICD_SPECIFICATION_NAMESPACE_1_1
+        else:
+            spec_version = _SICD_SPECIFICATION_VERSION_1_2
+            spec_date = _SICD_SPECIFICATION_DATE_1_2
+            spec_ns = _SICD_SPECIFICATION_NAMESPACE_1_2
+
         return OrderedDict([
             ('DESSHSI', _SICD_SPECIFICATION_IDENTIFIER),
-            ('DESSHSV', _SICD_SPECIFICATION_VERSION),
-            ('DESSHSD', _SICD_SPECIFICATION_DATE),
-            ('DESSHTN', _SICD_SPECIFICATION_NAMESPACE)])
+            ('DESSHSV', spec_version),
+            ('DESSHSD', spec_date),
+            ('DESSHTN', spec_ns)])
 
     def copy(self):
         """
@@ -1151,5 +1164,7 @@ class SICDType(Serializable):
         return out
 
     def to_xml_bytes(self, urn=None, tag='SICD', check_validity=False, strict=DEFAULT_STRICT):
+        if urn is None:
+            urn = _SICD_SPECIFICATION_NAMESPACE_1_2
         return super(SICDType, self).to_xml_bytes(
-            urn=_SICD_SPECIFICATION_NAMESPACE, tag=tag, check_validity=check_validity, strict=strict)
+            urn=urn, tag=tag, check_validity=check_validity, strict=strict)
