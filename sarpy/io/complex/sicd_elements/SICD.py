@@ -1123,17 +1123,25 @@ class SICDType(Serializable):
             return self.CollectionInfo.CoreName
         return 'Unknown_Sicd{}'.format(product_number)
 
-    def get_des_details(self):
+    def get_des_details(self, check_version1_compliance=False):
         """
         Gets the correct current SICD DES subheader details.
+
+        Parameters
+        ----------
+        check_version1_compliance : bool
+            If true and structure is compatible, the version 1.1 information will
+            be returned. Otherwise, the most recent supported version will be
+            returned .
 
         Returns
         -------
         dict
         """
 
-        if (self.ImageFormation is None or self.ImageFormation.permits_version_1_1()) and \
-                (self.RadarCollection is None or self.RadarCollection.permits_version_1_1()):
+        if check_version1_compliance and (
+                (self.ImageFormation is None or self.ImageFormation.permits_version_1_1()) and
+                (self.RadarCollection is None or self.RadarCollection.permits_version_1_1())):
             spec_version = _SICD_SPECIFICATION_VERSION_1_1
             spec_date = _SICD_SPECIFICATION_DATE_1_1
             spec_ns = _SICD_SPECIFICATION_NAMESPACE_1_1
