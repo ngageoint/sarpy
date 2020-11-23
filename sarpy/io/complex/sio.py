@@ -337,7 +337,7 @@ class SIOReader(BaseReader):
 #  The actual writing implementation
 
 class SIOWriter(BIPWriter):
-    def __init__(self, file_name, sicd_meta, user_data=None):
+    def __init__(self, file_name, sicd_meta, user_data=None, check_older_version=False):
         """
 
         Parameters
@@ -345,6 +345,9 @@ class SIOWriter(BIPWriter):
         file_name : str
         sicd_meta : SICDType
         user_data : None|Dict[str, str]
+        check_older_version : bool
+            Try to use an older version (1.1) of the SICD standard, for possible
+            application compliance issues?
         """
 
         # choose magic number (with user data) and corresponding endian-ness
@@ -376,7 +379,8 @@ class SIOWriter(BIPWriter):
         # construct the user data - must be {str : str}
         if user_data is None:
             user_data = {}
-        user_data['SICDMETA'] = sicd_meta.to_xml_string(tag='SICD')
+        uh_args = sicd_meta.get_des_details(check_older_version)
+        user_data['SICDMETA'] = sicd_meta.to_xml_string(tag='SICD', urn=uh_args['DESSHTN'])
         data_offset = 20
         with open(file_name, 'wb') as fi:
             fi.write(struct.pack('{}5I'.format(endian), *header))
