@@ -80,7 +80,7 @@ class CollectionInfoType(Serializable):
     }
     _fields = (
         'CollectorName', 'IlluminatorName', 'CoreName', 'CollectType',
-        'RadarMode', 'Classification', 'Parameters', 'CountryCodes')
+        'RadarMode', 'Classification', 'CountryCodes', 'Parameters')
     _required = ('CollectorName', 'CoreName', 'RadarMode', 'Classification')
     # other class variable
     _COLLECT_TYPE_VALUES = ('MONOSTATIC', 'BISTATIC')
