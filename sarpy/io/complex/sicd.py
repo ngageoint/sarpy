@@ -496,15 +496,15 @@ def extract_clas(sicd):
     if sicd.CollectionInfo is None or sicd.CollectionInfo.Classification is None:
         return 'U'
 
-    c_str = sicd.CollectionInfo.Classification
+    c_str = sicd.CollectionInfo.Classification.upper().strip()
 
-    if 'UNCLASS' in c_str.upper():
+    if 'UNCLASS' in c_str or c_str == 'U':
         return 'U'
-    elif 'CONFIDENTIAL' in c_str.upper():
+    elif 'CONFIDENTIAL' in c_str or c_str == 'C' or c_str.startswith('C/'):
         return 'C'
-    elif 'TOP SECRET' in c_str.upper():
+    elif 'TOP SECRET' in c_str or c_str == 'TS' or c_str.startswith('TS/'):
         return 'T'
-    elif 'SECRET' in c_str.upper():
+    elif 'SECRET' in c_str or c_str == 'S' or c_str.startswith('S/'):
         return 'S'
     elif 'FOUO' in c_str.upper() or 'RESTRICTED' in c_str.upper():
         return 'R'
@@ -593,10 +593,15 @@ class SICDWriter(NITFWriter):
             if code is not None:
                 args['CODE'] = code.group()
 
+        def get_clsy():
+            if args.get('CLSY', '').strip() == '':
+                args['CLSY'] = 'US'
+
         args = get_basic_args()
         if self._sicd_meta.CollectionInfo is not None:
             get_clas()
             get_code(self._sicd_meta.CollectionInfo.Classification)
+            get_clsy()
         return NITFSecurityTags(**args)
 
     def _create_security_tags(self):

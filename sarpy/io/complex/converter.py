@@ -128,7 +128,8 @@ class Converter(object):
 
     __slots__ = ('_reader', '_file_name', '_writer', '_frame', '_row_limits', '_col_limits')
 
-    def __init__(self, reader, output_directory, output_file=None, frame=None, row_limits=None, col_limits=None, output_format='SICD'):
+    def __init__(self, reader, output_directory, output_file=None, frame=None, row_limits=None, col_limits=None,
+                 output_format='SICD', check_older_version=False):
         """
 
         Parameters
@@ -149,6 +150,8 @@ class Converter(object):
            Column start/stop. Default is all.
         output_format : str
            The output file format to write, from {'SICD', 'SIO'}.  Default is SICD.
+        check_older_version : bool
+            Try to use a less recent version of SICD (1.1), for possible application compliance issues?
         """
 
         if not (os.path.exists(output_directory) and os.path.isdir(output_directory)):
@@ -209,7 +212,7 @@ class Converter(object):
         this_sicd = self._update_sicd(this_sicd, this_shape)
         # set up our writer
         self._file_name = output_path
-        self._writer = writer_type(output_path, this_sicd)
+        self._writer = writer_type(output_path, this_sicd, check_older_version=check_older_version)
 
     def _update_sicd(self, sicd, t_size):
         # type: (SICDType, Tuple[int, int]) -> SICDType
@@ -293,7 +296,7 @@ class Converter(object):
 
 def conversion_utility(
         input_file, output_directory, output_files=None, frames=None, output_format='SICD',
-        row_limits=None, column_limits=None, max_block_size=None):
+        row_limits=None, column_limits=None, max_block_size=None, check_older_version=False):
     """
     Copy SAR complex data to a file of the specified format.
 
@@ -316,6 +319,8 @@ def conversion_utility(
        Columns start/stop. Default is all.
     max_block_size : None|int
         (nominal) maximum block size in bytes. Passed through to the Converter class.
+    check_older_version : bool
+        Try to use a less recent version of SICD (1.1), for possible application compliance issues?
 
     Returns
     -------
@@ -430,5 +435,6 @@ def conversion_utility(
         logging.info('Converting frame {} from file {} to file {}'.format(frame, input_file, o_file))
         with Converter(
                 reader, output_directory, output_file=o_file, frame=frame,
-                row_limits=row_lims, col_limits=col_lims, output_format=output_format) as converter:
+                row_limits=row_lims, col_limits=col_lims, output_format=output_format,
+                check_older_version=check_older_version) as converter:
             converter.write_data(max_block_size=max_block_size)
