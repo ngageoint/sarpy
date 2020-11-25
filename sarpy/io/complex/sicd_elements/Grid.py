@@ -363,7 +363,10 @@ class DirParamType(Serializable):
                 coef = 0.5
 
             if coef is not None:
-                zero = newton(_hamming_ipr, 0.1, args=(coef,), tol=1e-12, maxiter=10000)
+                test_array = numpy.linspace(0.3, 2.5, 100)
+                values = _hamming_ipr(test_array, coef)
+                init_value = test_array[numpy.argmin(numpy.abs(values))]
+                zero = newton(_hamming_ipr, init_value, args=(coef,), tol=1e-12, maxiter=100)
                 return 2*zero
 
         if self.WgtFunct is None:

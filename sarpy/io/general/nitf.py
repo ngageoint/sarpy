@@ -125,7 +125,7 @@ class NITFDetails(object):
                 raise IOError('Not a NITF 2.1 file.')
 
             if version_info != 'NITF02.10':
-                raise IOError('Not a NITF 2.1 file.')
+                raise IOError('File {} is not a NITF 2.1 file.'.format(file_name))
             # get the header length
             fi.seek(354)  # offset to first field of interest
             header_length = int_func(fi.read(6))
