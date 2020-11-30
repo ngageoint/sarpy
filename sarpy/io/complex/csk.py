@@ -3,6 +3,7 @@
 Functionality for reading Cosmo Skymed data into a SICD model.
 """
 
+import logging
 from collections import OrderedDict
 import os
 from typing import Tuple, Dict
@@ -116,8 +117,8 @@ class CSKDetails(object):
             except KeyError:
                 raise IOError('The hdf file does not have the top level attribute "Product Type"')
 
-        if 'CSK' not in self._satellite:
-            raise ValueError('Expected hdf5 to be a CSK (attribute `Satellite ID` which contains "CSK"). '
+        if not ('CSK' in self._satellite or 'KMP' in self._satellite):
+            raise ValueError('Expected hdf5 attribute `Satellite ID` to contain "CSK" or "KMP"). '
                              'Got Satellite ID = {}.'.format(self._satellite))
         if 'SCS' not in self._product_type:
             raise ValueError('Expected hdf to contain complex products '
@@ -185,9 +186,24 @@ class CSKDetails(object):
             from sarpy.__about__ import __version__
             return ImageCreationType(
                 DateTime=parse_timestring(h5_dict['Product Generation UTC'], precision='ns'),
+                Site=h5_dict['Processing Centre'],
+                Application='LO: `{}` L1: `{}`'.format(h5_dict.get('L0 Software Version', 'NONE'),
+                                                    h5_dict.get('L1A Software Version', 'NONE')),
                 Profile='sarpy {}'.format(__version__))
 
         def get_grid():  # type: () -> GridType
+            def get_wgt_type(weight_name, coefficient, direction):
+                if coefficient is None:
+                    params = None
+                else:
+                    params = {'COEFFICIENT': '{0:0.15f}'.format(coefficient)}
+                out = WgtTypeType(WindowName=weight_name, Parameters=params)
+                if weight_name != 'HAMMING':
+                    logging.warning(
+                        'Got unexpected weight scheme {} for {}. The weighting will '
+                        'not be properly populated.'.format(weight_name, direction))
+                return out
+
             if h5_dict['Projection ID'] == 'SLANT RANGE/AZIMUTH':
                 image_plane = 'SLANT'
                 gr_type = 'RGZERO'
@@ -196,21 +212,17 @@ class CSKDetails(object):
                 gr_type = None
             # Row
             row_window_name = h5_dict['Range Focusing Weighting Function'].rstrip().upper()
-            row_params = None
-            if row_window_name == 'HAMMING':
-                row_params = {'COEFFICIENT': '{0:15f}'.format(h5_dict['Range Focusing Weighting Coefficient'])}
+            row_coefficient = h5_dict.get('Range Focusing Weighting Coefficient', None)
+            row_weight = get_wgt_type(row_window_name, row_coefficient, 'Row')
             row = DirParamType(Sgn=-1,
                                KCtr=2*center_frequency/speed_of_light,
                                DeltaKCOAPoly=Poly2DType(Coefs=[[0, ], ]),
-                               WgtType=WgtTypeType(WindowName=row_window_name, Parameters=row_params))
+                               WgtType=row_weight)
             # Col
             col_window_name = h5_dict['Azimuth Focusing Weighting Function'].rstrip().upper()
-            col_params = None
-            if col_window_name == 'HAMMING':
-                col_params = {'COEFFICIENT': '{0:15f}'.format(h5_dict['Azimuth Focusing Weighting Coefficient'])}
-            col = DirParamType(Sgn=-1,
-                               KCtr=0,
-                               WgtType=WgtTypeType(WindowName=col_window_name, Parameters=col_params))
+            col_coefficient = h5_dict.get('Azimuth Focusing Weighting Coefficient', None)
+            col_weight = get_wgt_type(col_window_name, col_coefficient, 'Col')
+            col = DirParamType(Sgn=-1, KCtr=0, WgtType=col_weight)
             return GridType(ImagePlane=image_plane, Type=gr_type, Row=row, Col=col)
 
         def get_timeline():  # type: () -> TimelineType
@@ -296,7 +308,7 @@ class CSKDetails(object):
 
     @staticmethod
     def _get_dop_poly_details(h5_dict):
-        # type: (dict) -> Tuple[float, float, Poly1DType, Poly1DType, Poly1DType]
+        # type: (dict) -> Tuple[float, float, numpy.ndarray, numpy.ndarray, numpy.ndarray]
         def strip_poly(arr):
             # strip worthless (all zero) highest order terms
             # find last non-zero index
@@ -305,7 +317,7 @@ class CSKDetails(object):
                 if arr[i] != 0:
                     break
                 last_ind = i
-            return Poly1DType(Coefs=arr[:last_ind])
+            return arr[:last_ind]
 
         az_ref_time = h5_dict['Azimuth Polynomial Reference Time']  # seconds
         rg_ref_time = h5_dict['Range Polynomial Reference Time']
@@ -317,7 +329,7 @@ class CSKDetails(object):
     def _get_band_specific_sicds(self, base_sicd, h5_dict, band_dict, shape_dict):
         # type: (SICDType, dict, dict, dict) -> Dict[str, SICDType]
 
-        az_ref_time, rg_ref_time, dop_poly_az, dop_poly_rg, dop_rate_poly_rg = self._get_dop_poly_details(h5_dict)
+        az_ref_time, rg_ref_time, t_dop_poly_az, t_dop_poly_rg, t_dop_rate_poly_rg = self._get_dop_poly_details(h5_dict)
         center_frequency = h5_dict['Radar Frequency']
         # relative times in csk are wrt some reference time - for sicd they should be relative to start time
         collect_start = parse_timestring(h5_dict['Scene Sensing Start UTC'], precision='ns')
@@ -330,16 +342,17 @@ class CSKDetails(object):
             sicd.GeoData = GeoDataType(SCP=SCPType(LLH=LLH))  # EarthModel & ECF will be populated
 
         def update_image_data(sicd, band_name):
-            # type: (SICDType, str) -> Tuple[float, float, float, float]
+            # type: (SICDType, str) -> Tuple[float, float, float, float, int]
 
             cols, rows = shape_dict[band_name]
+            # zero doppler time of first/last columns
             t_az_first_time = band_dict[band_name]['Zero Doppler Azimuth First Time']
-            # zero doppler time of first column
+            t_az_last_time = band_dict[band_name]['Zero Doppler Azimuth Last Time']
             t_ss_az_s = band_dict[band_name]['Line Time Interval']
-            if base_sicd.SCPCOA.SideOfTrack == 'L':
-                # we need to reverse time order
-                t_ss_az_s *= -1
-                t_az_first_time = band_dict[band_name]['Zero Doppler Azimuth Last Time']
+            t_use_sign = 1
+            if h5_dict['Look Side'].upper() == 'LEFT':
+                t_use_sign = -1
+                t_az_first_time, t_az_last_time = t_az_last_time, t_az_first_time
             # zero doppler time of first row
             t_rg_first_time = band_dict[band_name]['Zero Doppler Range First Time']
             # row spacing in range time (seconds)
@@ -353,7 +366,15 @@ class CSKDetails(object):
                                            PixelType='RE16I_IM16I',
                                            SCPPixel=RowColType(Row=int(rows/2),
                                                                Col=int(cols/2)))
-            return t_rg_first_time, t_ss_rg_s, t_az_first_time, t_ss_az_s
+            return t_rg_first_time, t_ss_rg_s, t_az_first_time, t_ss_az_s, t_use_sign
+
+        def check_switch_state():
+            # type: () -> Tuple[Poly1DType, Poly1DType, Poly1DType]
+            if (use_sign > 0 and t_dop_rate_poly_rg[0] > 0) or (use_sign < 0 and t_dop_rate_poly_rg[0] < 0):
+                raise ValueError('Got unexpected state use_sign = {} and dop_rate_poly_rg = {}'.format(use_sign, t_dop_rate_poly_rg))
+            return (Poly1DType(Coefs=t_dop_poly_az),
+                    Poly1DType(Coefs=t_dop_poly_rg),
+                    Poly1DType(Coefs=use_sign*t_dop_rate_poly_rg))
 
         def update_timeline(sicd, band_name):
             # type: (SICDType, str) -> None
@@ -394,7 +415,7 @@ class CSKDetails(object):
         def update_rma_and_grid(sicd, band_name):
             # type: (SICDType, str) -> None
             rg_scp_time = rg_first_time + (ss_rg_s*sicd.ImageData.SCPPixel.Row)
-            az_scp_time = az_first_time + (ss_az_s*sicd.ImageData.SCPPixel.Col)
+            az_scp_time = az_first_time + (use_sign*ss_az_s*sicd.ImageData.SCPPixel.Col)
             r_ca_scp = rg_scp_time*speed_of_light/2
             sicd.RMA.INCA.R_CA_SCP = r_ca_scp
             # compute DRateSFPoly
@@ -414,13 +435,13 @@ class CSKDetails(object):
             sicd.Grid.Row.DeltaK1 = -0.5 * row_bw
             sicd.Grid.Row.DeltaK2 = 0.5 * row_bw
             # update grid.col
-            col_ss = vel_ca*ss_az_s*drate_sf_poly[0]
+            col_ss = abs(vel_ca*ss_az_s*drate_sf_poly[0])
             sicd.Grid.Col.SS = col_ss
-            col_bw = min(band_dict[band_name]['Azimuth Focusing Bandwidth'] * abs(ss_az_s), 1) / col_ss
+            col_bw = min(band_dict[band_name]['Azimuth Focusing Bandwidth']*ss_az_s, 1) / col_ss
             sicd.Grid.Col.ImpRespBW = col_bw
             # update inca
             sicd.RMA.INCA.DRateSFPoly = Poly2DType(Coefs=numpy.reshape(drate_sf_poly, (-1, 1)))
-            sicd.RMA.INCA.TimeCAPoly = Poly1DType(Coefs=[scp_ca_time, ss_az_s/col_ss])
+            sicd.RMA.INCA.TimeCAPoly = Poly1DType(Coefs=[scp_ca_time, use_sign*ss_az_s/col_ss])
             # compute DopCentroidPoly & DeltaKCOAPoly
             dop_centroid_poly = numpy.zeros((dop_poly_rg.order1+1, dop_poly_az.order1+1), dtype=numpy.float64)
             dop_centroid_poly[0, 0] = dop_poly_rg(rg_scp_time-rg_ref_time) + \
@@ -432,7 +453,7 @@ class CSKDetails(object):
             dop_centroid_poly[0, 1:] = dop_poly_az_shifted[1:]
             sicd.RMA.INCA.DopCentroidPoly = Poly2DType(Coefs=dop_centroid_poly)
             sicd.RMA.INCA.DopCentroidCOA = True
-            sicd.Grid.Col.DeltaKCOAPoly = Poly2DType(Coefs=dop_centroid_poly*ss_az_s/col_ss)
+            sicd.Grid.Col.DeltaKCOAPoly = Poly2DType(Coefs=use_sign*dop_centroid_poly*ss_az_s/col_ss)
             # fit TimeCOAPoly
             sicd.Grid.TimeCOAPoly = fit_time_coa_polynomial(
                 sicd.RMA.INCA, sicd.ImageData, sicd.Grid, dop_rate_poly_rg_shifted, poly_order=2)
@@ -443,10 +464,11 @@ class CSKDetails(object):
                 slant_range = h5_dict['Reference Slant Range']
                 exp = h5_dict['Reference Slant Range Exponent']
                 sf = slant_range**(2*exp)
-                if h5_dict['Calibration Constant Compensation Flag'] == 0:
-                    rsf = h5_dict['Rescaling Factor']
+                rsf = h5_dict['Rescaling Factor']
+                sf /= rsf * rsf
+                if h5_dict.get('Calibration Constant Compensation Flag', None) == 0:
                     cal = band_dict[band_name]['Calibration Constant']
-                    sf /= cal*(rsf**2)
+                    sf /= cal
                 sicd.Radiometric = RadiometricType(BetaZeroSFPoly=Poly2DType(Coefs=[[sf, ], ]))
 
         def update_geodata(sicd):  # type: (SICDType) -> None
@@ -460,7 +482,8 @@ class CSKDetails(object):
             update_scp_prelim(t_sicd, bd_name)  # set preliminary value for SCP (required for projection)
             row_bw = band_dict[bd_name]['Range Focusing Bandwidth']*2/speed_of_light
             row_ss = band_dict[bd_name]['Column Spacing']
-            rg_first_time, ss_rg_s, az_first_time, ss_az_s = update_image_data(t_sicd, bd_name)
+            rg_first_time, ss_rg_s, az_first_time, ss_az_s, use_sign = update_image_data(t_sicd, bd_name)
+            dop_poly_az, dop_poly_rg, dop_rate_poly_rg = check_switch_state()
             update_timeline(t_sicd, bd_name)
             update_radar_collection(t_sicd, bd_name, i)
             update_rma_and_grid(t_sicd, bd_name)
@@ -472,13 +495,15 @@ class CSKDetails(object):
         return out
 
     @staticmethod
-    def _get_symmetry(base_sicd, h5_dict):
-        line_order = h5_dict['Lines Order']
-        column_order = h5_dict['Columns Order']
-        symmetry = (column_order != 'NEAR-FAR',
-                    (line_order == 'EARLY-LATE') != (base_sicd.SCPCOA.SideOfTrack == 'R'),
-                    True)
-        return symmetry
+    def _get_symmetry(h5_dict):
+        line_order = h5_dict['Lines Order'].upper()
+        look_side = h5_dict['Look Side'].upper()
+        symm_0 = ((line_order == 'EARLY-LATE') != (look_side == 'RIGHT'))
+
+        column_order = h5_dict['Columns Order'].upper()
+        symm_1 = column_order != 'NEAR-FAR'
+
+        return symm_0, symm_1, True
 
     def get_sicd_collection(self):
         """
@@ -495,7 +520,7 @@ class CSKDetails(object):
         h5_dict, band_dict, shape_dict = self._get_hdf_dicts()
         base_sicd = self._get_base_sicd(h5_dict, band_dict)
         return self._get_band_specific_sicds(base_sicd, h5_dict, band_dict, shape_dict), \
-            shape_dict, self._get_symmetry(base_sicd, h5_dict)
+            shape_dict, self._get_symmetry(h5_dict)
 
 
 ################
