@@ -1,5 +1,6 @@
 # This details the important differences introduced in sarpy 1.1
 
+* .32 - Bug fixes for Cosmo Skymed and fine-tuning KompSat support
 * .31 - Bug fixes for sicd structure serialization
 * .30 - Make the SICD version 1.1 creation an option, versus the default
 * .29 - Created SICD file will now be version 1.1, if the polarization permits
