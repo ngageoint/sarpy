@@ -173,8 +173,15 @@ class CSKDetails(object):
         # type: (dict, dict) -> SICDType
 
         def get_collection_info():  # type: () -> CollectionInfoType
-            mode_type = 'STRIPMAP' if h5_dict['Acquisition Mode'] in \
-                                      ['HIMAGE', 'PINGPONG', 'WIDEREGION', 'HUGEREGION'] else 'DYNAMIC STRIPMAP'
+            acq_mode = h5_dict['Acquisition Mode'].upper()
+            if acq_mode in ['HIMAGE', 'PINGPONG']:  # stripmap
+                mode_type = 'STRIPMAP'
+            elif acq_mode in ['WIDEREGION', 'HUGEREGION']:  # scansar, processed as stripmap
+                mode_type = 'STRIPMAP'
+            elif acq_mode in ['ENHANCED SPOTLIGHT','SMART']:  # cosmo skymed "spotlight"
+                mode_type = 'DYNAMIC STRIPMAP'
+            else:
+                mode_type = 'STRIPMAP'
             return CollectionInfoType(Classification='UNCLASSIFIED',
                                       CollectorName=h5_dict['Satellite ID'],
                                       CoreName=str(h5_dict['Programmed Image ID']),

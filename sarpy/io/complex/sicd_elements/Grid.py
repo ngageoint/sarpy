@@ -30,12 +30,39 @@ int: the default size when generating WgtFunct from a named WgtType.
 
 
 def _hamming_ipr(x, a):
-    """Helper method"""
+    """
+    Evaluate the Hamming impulse response function over the given array.
+
+    Parameters
+    ----------
+    x : numpy.ndarray|float|int
+    a : float
+        The Hamming parameter value.
+
+    Returns
+    -------
+    numpy.ndarray
+    """
+
     return a*numpy.sinc(x) + 0.5*(1-a)*(numpy.sinc(x-1) + numpy.sinc(x+1)) - a/numpy.sqrt(2)
 
 
 def _raised_cos(n, coef):
-    """Helper method"""
+    """
+    Generates the raised cosine (i.e. Hamming) window as an array of the given size.
+
+    Parameters
+    ----------
+    n : int
+        The size of the generated window.
+    coef : float
+        The Hamming parameter value.
+
+    Returns
+    -------
+    numpy.ndarray
+    """
+
     weights = numpy.zeros((n,), dtype=numpy.float64)
     if (n % 2) == 0:
         k = int(n/2)
