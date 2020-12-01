@@ -178,10 +178,9 @@ class CSKDetails(object):
                 mode_type = 'STRIPMAP'
             elif acq_mode in ['WIDEREGION', 'HUGEREGION']:  # scansar, processed as stripmap
                 mode_type = 'STRIPMAP'
-            elif acq_mode in ['ENHANCED SPOTLIGHT','SMART']:  # cosmo skymed "spotlight"
-                mode_type = 'DYNAMIC STRIPMAP'
             else:
-                mode_type = 'STRIPMAP'
+                # cosmo skymed "spotlight"
+                mode_type = 'DYNAMIC STRIPMAP'
             return CollectionInfoType(Classification='UNCLASSIFIED',
                                       CollectorName=h5_dict['Satellite ID'],
                                       CoreName=str(h5_dict['Programmed Image ID']),
@@ -194,16 +193,20 @@ class CSKDetails(object):
             return ImageCreationType(
                 DateTime=parse_timestring(h5_dict['Product Generation UTC'], precision='ns'),
                 Site=h5_dict['Processing Centre'],
-                Application='LO: `{}` L1: `{}`'.format(h5_dict.get('L0 Software Version', 'NONE'),
+                Application='LO: `{}`, L1: `{}`'.format(h5_dict.get('L0 Software Version', 'NONE'),
                                                     h5_dict.get('L1A Software Version', 'NONE')),
                 Profile='sarpy {}'.format(__version__))
 
         def get_grid():  # type: () -> GridType
             def get_wgt_type(weight_name, coefficient, direction):
+                if weight_name == 'GENERAL_COSINE':
+                    # probably only for kompsat?
+                    weight_name = 'HAMMING'
+                    coefficient = 1-coefficient
                 if coefficient is None:
                     params = None
                 else:
-                    params = {'COEFFICIENT': '{0:0.15f}'.format(coefficient)}
+                    params = {'COEFFICIENT': '{0:0.16G}'.format(coefficient)}
                 out = WgtTypeType(WindowName=weight_name, Parameters=params)
                 if weight_name != 'HAMMING':
                     logging.warning(
@@ -378,7 +381,7 @@ class CSKDetails(object):
         def check_switch_state():
             # type: () -> Tuple[Poly1DType, Poly1DType, Poly1DType]
             if (use_sign > 0 and t_dop_rate_poly_rg[0] > 0) or (use_sign < 0 and t_dop_rate_poly_rg[0] < 0):
-                raise ValueError('Got unexpected state use_sign = {} and dop_rate_poly_rg = {}'.format(use_sign, t_dop_rate_poly_rg))
+                raise ValueError('Got unexpected state, use_sign = {} and dop_rate_poly_rg = {}'.format(use_sign, t_dop_rate_poly_rg))
             return (Poly1DType(Coefs=t_dop_poly_az),
                     Poly1DType(Coefs=t_dop_poly_rg),
                     Poly1DType(Coefs=use_sign*t_dop_rate_poly_rg))
