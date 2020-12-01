@@ -477,9 +477,10 @@ class CSKDetails(object):
                 rsf = h5_dict['Rescaling Factor']
                 sf /= rsf * rsf
                 if h5_dict.get('Calibration Constant Compensation Flag', None) == 0:
+                    # TODO: skipping for now if this is not 0 - strange results for kompsat
                     cal = band_dict[band_name]['Calibration Constant']
                     sf /= cal
-                sicd.Radiometric = RadiometricType(BetaZeroSFPoly=Poly2DType(Coefs=[[sf, ], ]))
+                    sicd.Radiometric = RadiometricType(BetaZeroSFPoly=Poly2DType(Coefs=[[sf, ], ]))
 
         def update_geodata(sicd):  # type: (SICDType) -> None
             scp_pixel = [sicd.ImageData.SCPPixel.Row, sicd.ImageData.SCPPixel.Col]
