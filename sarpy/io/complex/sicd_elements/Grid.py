@@ -30,12 +30,39 @@ int: the default size when generating WgtFunct from a named WgtType.
 
 
 def _hamming_ipr(x, a):
-    """Helper method"""
+    """
+    Evaluate the Hamming impulse response function over the given array.
+
+    Parameters
+    ----------
+    x : numpy.ndarray|float|int
+    a : float
+        The Hamming parameter value.
+
+    Returns
+    -------
+    numpy.ndarray
+    """
+
     return a*numpy.sinc(x) + 0.5*(1-a)*(numpy.sinc(x-1) + numpy.sinc(x+1)) - a/numpy.sqrt(2)
 
 
 def _raised_cos(n, coef):
-    """Helper method"""
+    """
+    Generates the raised cosine (i.e. Hamming) window as an array of the given size.
+
+    Parameters
+    ----------
+    n : int
+        The size of the generated window.
+    coef : float
+        The Hamming parameter value.
+
+    Returns
+    -------
+    numpy.ndarray
+    """
+
     weights = numpy.zeros((n,), dtype=numpy.float64)
     if (n % 2) == 0:
         k = int(n/2)
@@ -99,6 +126,34 @@ def _taylor_win(n, sidelobes=4, max_sidelobe_level=-30, normalize=True):
     if normalize:
         out /= numpy.amax(out)
     return out
+
+
+def _find_half_power(wgt_funct, oversample=1024):
+    """
+    Find the half power point of the impulse response function.
+
+    Parameters
+    ----------
+    wgt_funct : None|numpy.ndarray
+    oversample : int
+
+    Returns
+    -------
+    None|float
+    """
+
+    if wgt_funct is None:
+        return None
+
+    # solve for the half-power point in an oversampled impulse response
+    impulse_response = numpy.abs(numpy.fft.fft(wgt_funct, wgt_funct.size*oversample))/numpy.sum(wgt_funct)
+    ind = numpy.flatnonzero(impulse_response < 1 / numpy.sqrt(2))[0]
+    # find first index with less than half power,
+    # then linearly interpolate to estimate 1/sqrt(2) crossing
+    v0 = impulse_response[ind - 1]
+    v1 = impulse_response[ind]
+    zero_ind = ind - 1 + (1./numpy.sqrt(2) - v0)/(v1 - v0)
+    return 2*zero_ind/oversample
 
 
 class WgtTypeType(Serializable):
@@ -265,7 +320,7 @@ class DirParamType(Serializable):
         DeltaK2 : float
         DeltaKCOAPoly : Poly2DType|numpy.ndarray|list|tuple
         WgtType : WgtTypeType
-        WgtFunct : numpy.ndarray|list|tuple
+        WgtFunct : None|numpy.ndarray|list|tuple
         kwargs : dict
         """
 
@@ -369,18 +424,7 @@ class DirParamType(Serializable):
                 zero = newton(_hamming_ipr, init_value, args=(coef,), tol=1e-12, maxiter=100)
                 return 2*zero
 
-        if self.WgtFunct is None:
-            return None  # nothing to be done
-
-        # solve for the half-power point in an oversampled impulse response
-        OVERSAMPLE = 1024
-        impulse_response = numpy.abs(numpy.fft.fft(self.WgtFunct, self.WgtFunct.size*OVERSAMPLE))/numpy.sum(self.WgtFunct)
-        ind = numpy.flatnonzero(impulse_response < 1/numpy.sqrt(2))[0]  # find first index with less than half power.
-        # linearly interpolate between impulse_response[ind-1] and impulse_response[ind] to find 1/sqrt(2)
-        v0 = impulse_response[ind-1]
-        v1 = impulse_response[ind]
-        zero_ind = ind - 1 + (1./numpy.sqrt(2) - v0)/(v1 - v0)
-        return 2*zero_ind/OVERSAMPLE
+        return _find_half_power(self.WgtFunct, oversample=1024)
 
     def define_response_widths(self, populate=True):
         """
