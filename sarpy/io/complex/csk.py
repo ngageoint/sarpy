@@ -77,9 +77,9 @@ def is_a(file_name):
 def _extract_attrs(h5_element, out=None):
     if out is None:
         out = OrderedDict()
-    for key in h5_element.attrs:
-        val = h5_element.attrs[key]
-        out[key] = bytes_to_string(val) if isinstance(val, bytes) else val
+    for the_key in h5_element.attrs:
+        val = h5_element.attrs[the_key]
+        out[the_key] = bytes_to_string(val) if isinstance(val, bytes) else val
     return out
 
 

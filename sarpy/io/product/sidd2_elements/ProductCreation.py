@@ -85,7 +85,7 @@ class ProductClassificationType(Serializable):
         'nonICmarkings', 'classifiedBy', 'compilationReason', 'derivativelyClassifiedBy',
         'classificationReason', 'nonUSControls', 'derivedFrom', 'declassDate',
         'declassEvent', 'declassException', 'typeOfExemptedSource', 'dateOfExemptedSource')
-    _child_xml_ns_key = {key: 'ism' for key in _fields if key != 'SecurityExtensions'}
+    _child_xml_ns_key = {the_field: 'ism' for the_field in _fields if the_field != 'SecurityExtensions'}
     # Descriptor
     DESVersion = _IntegerDescriptor(
         'DESVersion', _required, strict=DEFAULT_STRICT, default_value=13,
