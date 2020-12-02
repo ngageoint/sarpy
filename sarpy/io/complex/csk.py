@@ -3,6 +3,7 @@
 Functionality for reading Cosmo Skymed data into a SICD model.
 """
 
+
 import logging
 from collections import OrderedDict
 import os
@@ -77,9 +78,9 @@ def is_a(file_name):
 def _extract_attrs(h5_element, out=None):
     if out is None:
         out = OrderedDict()
-    for key in h5_element.attrs:
-        val = h5_element.attrs[key]
-        out[key] = bytes_to_string(val) if isinstance(val, bytes) else val
+    for the_key in h5_element.attrs:
+        val = h5_element.attrs[the_key]
+        out[the_key] = bytes_to_string(val) if isinstance(val, bytes) else val
     return out
 
 
@@ -174,13 +175,32 @@ class CSKDetails(object):
 
         def get_collection_info():  # type: () -> CollectionInfoType
             acq_mode = h5_dict['Acquisition Mode'].upper()
-            if acq_mode in ['HIMAGE', 'PINGPONG']:  # stripmap
-                mode_type = 'STRIPMAP'
-            elif acq_mode in ['WIDEREGION', 'HUGEREGION']:  # scansar, processed as stripmap
-                mode_type = 'STRIPMAP'
+            if 'CSK' in self._satellite:
+                if acq_mode in ['HIMAGE', 'PINGPONG']:
+                    mode_type = 'STRIPMAP'
+                elif acq_mode in ['WIDEREGION', 'HUGEREGION']:
+                    # scansar, processed as stripmap
+                    mode_type = 'STRIPMAP'
+                elif acq_mode in ['ENHANCED SPOTLIGHT','SMART']:
+                    mode_type = 'DYNAMIC STRIPMAP'
+                else:
+                    logging.warning('Got unexpected acquisition mode {}'.format(acq_mode))
+                    mode_type = 'DYNAMIC STRIPMAP'
+            elif 'KMP' in self._satellite:
+                if acq_mode in ['STANDARD', 'ENHANCED STANDARD']:
+                    mode_type = 'STRIPMAP'
+                elif acq_mode in ['WIDE SWATH', 'ENHANCED WIDE SWATH']:
+                    # scansar, processed as stripmap
+                    mode_type = 'STRIPMAP'
+                elif acq_mode in ['HIGH RESOLUTION', 'ENHANCED HIGH RESOLUTION', 'ULTRA HIGH RESOLUTION']:
+                    # "spotlight"
+                    mode_type = 'DYNAMIC STRIPMAP'
+                else:
+                    logging.warning('Got unexpected acquisition mode {}'.format(acq_mode))
+                    mode_type = 'DYNAMIC STRIPMAP'
             else:
-                # cosmo skymed "spotlight"
-                mode_type = 'DYNAMIC STRIPMAP'
+                raise ValueError('Unhandled satellite type {}'.format(self._satellite))
+
             return CollectionInfoType(Classification='UNCLASSIFIED',
                                       CollectorName=h5_dict['Satellite ID'],
                                       CoreName=str(h5_dict['Programmed Image ID']),
@@ -269,7 +289,7 @@ class CSKDetails(object):
             return ImageFormationType(ImageFormAlgo='RMA',
                                       TStartProc=0,
                                       TEndProc=duration,
-                                      STBeamComp='SV',
+                                      STBeamComp='NO',
                                       ImageBeamComp='SV',
                                       AzAutofocus='NO',
                                       RgAutofocus='NO',
@@ -470,6 +490,9 @@ class CSKDetails(object):
 
         def update_radiometric(sicd, band_name):
             # type: (SICDType, str) -> None
+            if 'KMP' in self._satellite:
+                # TODO: skipping for now - strange results for kompsat
+                return
             if h5_dict['Range Spreading Loss Compensation Geometry'] != 'NONE':
                 slant_range = h5_dict['Reference Slant Range']
                 exp = h5_dict['Reference Slant Range Exponent']
@@ -477,10 +500,9 @@ class CSKDetails(object):
                 rsf = h5_dict['Rescaling Factor']
                 sf /= rsf * rsf
                 if h5_dict.get('Calibration Constant Compensation Flag', None) == 0:
-                    # TODO: skipping for now if this is not 0 - strange results for kompsat
                     cal = band_dict[band_name]['Calibration Constant']
                     sf /= cal
-                    sicd.Radiometric = RadiometricType(BetaZeroSFPoly=Poly2DType(Coefs=[[sf, ], ]))
+                sicd.Radiometric = RadiometricType(BetaZeroSFPoly=Poly2DType(Coefs=[[sf, ], ]))
 
         def update_geodata(sicd):  # type: (SICDType) -> None
             scp_pixel = [sicd.ImageData.SCPPixel.Row, sicd.ImageData.SCPPixel.Col]
