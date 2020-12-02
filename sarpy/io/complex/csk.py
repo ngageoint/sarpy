@@ -400,11 +400,24 @@ class CSKDetails(object):
 
         def check_switch_state():
             # type: () -> Tuple[Poly1DType, Poly1DType, Poly1DType]
-            if (use_sign > 0 and t_dop_rate_poly_rg[0] > 0) or (use_sign < 0 and t_dop_rate_poly_rg[0] < 0):
-                raise ValueError('Got unexpected state, use_sign = {} and dop_rate_poly_rg = {}'.format(use_sign, t_dop_rate_poly_rg))
-            return (Poly1DType(Coefs=t_dop_poly_az),
-                    Poly1DType(Coefs=t_dop_poly_rg),
-                    Poly1DType(Coefs=use_sign*t_dop_rate_poly_rg))
+            if 'CSK' in self._satellite:
+                if t_dop_rate_poly_rg[0] > 0:
+                    raise ValueError(
+                        'Got unexpected state, use_sign = {} and dop_rate_poly_rg = {}'.format(
+                            use_sign, t_dop_rate_poly_rg))
+                return (Poly1DType(Coefs=t_dop_poly_az),
+                        Poly1DType(Coefs=t_dop_poly_rg),
+                        Poly1DType(Coefs=t_dop_rate_poly_rg))
+            elif 'KMP' in self._satellite:
+                if (use_sign > 0 and t_dop_rate_poly_rg[0] > 0) or (use_sign < 0 and t_dop_rate_poly_rg[0] < 0):
+                    raise ValueError(
+                        'Got unexpected state, use_sign = {} and dop_rate_poly_rg = {}'.format(
+                            use_sign, t_dop_rate_poly_rg))
+                return (Poly1DType(Coefs=t_dop_poly_az),
+                        Poly1DType(Coefs=t_dop_poly_rg),
+                        Poly1DType(Coefs=use_sign*t_dop_rate_poly_rg))
+            else:
+                raise ValueError('Unhandled satellite type {}'.format(self._satellite))
 
         def update_timeline(sicd, band_name):
             # type: (SICDType, str) -> None
