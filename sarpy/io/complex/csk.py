@@ -416,6 +416,8 @@ class CSKDetails(object):
                 return (Poly1DType(Coefs=t_dop_poly_az),
                         Poly1DType(Coefs=t_dop_poly_rg),
                         Poly1DType(Coefs=use_sign*t_dop_rate_poly_rg))
+            else:
+                raise ValueError('Unhandled satellite type {}'.format(self._satellite))
 
         def update_timeline(sicd, band_name):
             # type: (SICDType, str) -> None
