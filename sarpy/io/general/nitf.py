@@ -1866,12 +1866,14 @@ class NITFWriter(AbstractWriter):
         # set this status first, in the event of some kind of error
         self._closed = True
         # ensure that all images are fully written
+        msg = None
         if self.image_details is not None:
             for i, img_details in enumerate(self.image_details):
                 if not img_details.image_written:
-                    logging.critical("This NITF file in not completely written and will be corrupt. "
-                                     "Image segment {} has only written {} "
-                                     "of {} pixels".format(i, img_details.pixels_written, img_details.total_pixels))
+                    msg_part = "Image segment {} has only written {} of {} pixels".format(
+                        i, img_details.pixels_written, img_details.total_pixels)
+                    msg = msg_part if msg is None else msg + '\n' + msg_part
+                    logging.critical(msg_part)
         # ensure that all data extensions are fully written
         if self.des_details is not None:
             for i, des_detail in enumerate(self.des_details):
@@ -1881,6 +1883,9 @@ class NITFWriter(AbstractWriter):
         if self._writing_chippers is not None:
             for entry in self._writing_chippers:
                 entry.close()
+        if msg is not None:
+            raise IOError(
+                'The NITF file {} image data is not fully written, and the file is potentially corrupt.\n{}'.format(self._file_name, msg))
 
     # require specific implementations
     def _create_security_tags(self):

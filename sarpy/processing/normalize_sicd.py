@@ -326,7 +326,9 @@ class DeskewCalculator(FullResolutionFetcher):
 
         if self._is_normalized or not self.apply_deskew:
             # just fetch the data and return
-            return self.reader.__getitem__(item)
+            if not isinstance(item, tuple) or len(item) != 2:
+                raise KeyError('Slicing in the deskew calculator must be two dimensional. Got slice item {}'.format(item))
+            return self.reader.__getitem__((item[0], item[1], self.index))
 
         # parse the slicing to ensure consistent structure
         row_range, col_range, _ = self._parse_slicing(item)
