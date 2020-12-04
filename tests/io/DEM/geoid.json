@@ -1,0 +1,8 @@
+{
+  "test_file": {"path":  "dem/geoid/GeoidHeights.dat", "path_type":  "relative"},
+  "geoid_files": [
+    {"path":  "dem/geoid/egm2008-5.pgm", "path_type":  "relative"},
+    {"path":  "dem/geoid/egm2008-2_5.pgm", "path_type":  "relative"},
+    {"path":  "dem/geoid/egm2008-1.pgm", "path_type":  "relative"}
+  ]
+}

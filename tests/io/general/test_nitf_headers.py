@@ -1,6 +1,7 @@
 import os
 import time
 import logging
+import json
 
 from sarpy.io.general.nitf import NITFDetails
 from sarpy.io.general.nitf_elements.image import ImageSegmentHeader
@@ -8,12 +9,25 @@ from sarpy.io.general.nitf_elements.text import TextSegmentHeader
 from sarpy.io.general.nitf_elements.graphics import GraphicsSegmentHeader
 from sarpy.io.general.nitf_elements.des import DataExtensionHeader
 
-import sys
-if sys.version_info[0] < 3:
-    # so we can use subtests, which is pretty handy
-    import unittest2 as unittest
+from tests import unittest, parse_file_entry
+
+no_files = False
+test_files = []
+this_loc = os.path.abspath(__file__)
+file_reference = os.path.join(os.path.split(this_loc)[0], 'nitf_headers.json')  # specifies file locations
+
+if os.path.isfile(file_reference):
+    with open(file_reference, 'r') as fi:
+        for entry in json.load(fi):
+            the_file = parse_file_entry(entry)
+            if the_file is not None:
+                test_files.append(the_file)
+    if len(test_files) == 0:
+        logging.warning('No files have been identified for the nitf header tests.')
+        no_files = True
 else:
-    import unittest
+    logging.error('Can not find the nitf_header.json file identifying nitf header tests.')
+    no_files = True
 
 
 def generic_nitf_header_test(instance, test_file):
@@ -103,36 +117,8 @@ def generic_nitf_header_test(instance, test_file):
 
 
 class TestNITFHeader(unittest.TestCase):
-    @classmethod
-    def setUp(cls):
-        cls.test_root = os.path.expanduser(os.path.join('~', 'Desktop', 'sarpy_testing', 'sicd'))
-        cls.general_root = os.path.expanduser(os.path.join('~', 'Desktop', 'sarpy_testing', 'nitf_examples'))
 
+    @unittest.skipIf(no_files, 'No nitf files identified for testing')
     def test_nitf_header(self):
-        tested = 0
-        for fil in [
-                'sicd_example_RMA_RGZERO_RE16I_IM16I.nitf',
-                'sicd_example_RMA_RGZERO_RE32F_IM32F.nitf',
-                'sicd_example_RMA_RGZERO_RE32F_IM32F_cropped_multiple_image_segments_v1.2.nitf']:
-            test_file = os.path.join(self.test_root, fil)
-            if os.path.exists(test_file):
-                tested += 1
-                generic_nitf_header_test(self, test_file)
-            else:
-                logging.info('No file {} found'.format(test_file))
-        for fil in [
-            'i_3004g.ntf', 'i_3008a.ntf', 'i_3015a.ntf', 'i_3018a.ntf', 'i_3025b.ntf',
-            'i_3034c.ntf', 'i_3034f.ntf', 'i_3041a.ntf', 'i_3051e.ntf', 'i_3052a.ntf',
-            'i_3060a.ntf', 'i_3063f.ntf', 'i_3068a.ntf', 'i_3076a.ntf', 'i_3090m.ntf',
-            'i_3090u.ntf', 'i_3113g.ntf', 'i_3114e.ntf', 'i_3117ax.ntf', 'i_3128b.ntf',
-            'i_3201c.ntf', 'i_3228c.ntf', 'i_3228e.ntf', 'i_3301a.ntf', 'i_3301c.ntf',
-            'i_3301h.ntf', 'i_3301k.ntf', 'i_3303a.ntf', 'i_3309a.ntf', 'i_3311a.ntf',
-            'i_3405a.ntf', 'i_3430a.ntf', 'i_3450c.ntf', 'i_5012c.ntf']:
-            test_file = os.path.join(self.general_root, fil)
-            if os.path.exists(test_file):
-                tested += 1
-                generic_nitf_header_test(self, test_file)
-            else:
-                logging.info('No file {} found'.format(test_file))
-
-        self.assertTrue(tested > 0, msg="No files for testing found")
+        for test_file in test_files:
+            generic_nitf_header_test(self, test_file)
