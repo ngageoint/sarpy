@@ -450,12 +450,12 @@ class SICDType(Serializable):
                 'for analysis of ambiguities.')
 
         if self.RadarCollection is not None and self.RadarCollection.Area is None:
-            logging.warning(
+            logging.info(
                 'No RadarCollection.Area provided, and some tools prefer using '
                 'a pre-determined output plane for consistent product definition.')
 
         if self.ImageData is not None and self.ImageData.ValidData is None:
-            logging.warning(
+            logging.info(
                 'No ImageData.ValidData is defined. It is recommended to populate '
                 'this data, if validity of pixels/areas is known.')
 
