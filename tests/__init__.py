@@ -9,7 +9,7 @@ if sys.version_info[0] < 3:
     import unittest2 as unittest
 else:
     import unittest
-# NB is used in children, so leave the import
+# NB: unittest is used in children, so leave the import
 
 
 parent_path = os.environ.get('SARPY_TEST_PATH', None)
@@ -17,8 +17,6 @@ if parent_path == 'NONE':
     parent_path = None
 if parent_path is not None:
     parent_path = os.path.expanduser(parent_path)
-
-print('parent path is directory?', os.path.isdir(parent_path))
 
 if parent_path is not None and not os.path.isdir(parent_path):
     raise IOError('SARPY_TEST_PATH is given as {}, but is not a directory'.format(parent_path))
