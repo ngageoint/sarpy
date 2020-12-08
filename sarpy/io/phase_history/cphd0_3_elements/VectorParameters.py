@@ -158,7 +158,7 @@ class VectorParametersType(Serializable):
         'FxParameters', 'TOAParameters')
     _required = (
         'TxTime', 'TxPos', 'RcvTime', 'RcvPos', 'SRPPos')
-    _choice = [{'required': False, 'collection': ('FxParameters', 'TOAParameters')}]
+    _choice = ({'required': False, 'collection': ('FxParameters', 'TOAParameters')}, )
     # descriptors
     TxTime = _IntegerEnumDescriptor(
         'TxTime', (8, ), _required, strict=DEFAULT_STRICT, default_value=8,

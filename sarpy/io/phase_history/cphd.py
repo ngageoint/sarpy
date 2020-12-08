@@ -215,21 +215,10 @@ class CPHDDetails(object):
         None
         """
 
-        header = self.cphd_header
-        if header is None:
-            raise ValueError('No cphd_header populated.')
-
+        xml = self._get_cphd_bytes(fi)
         if self.cphd_version.startswith('0.3'):
-            assert isinstance(header, CPHDHeader0_3)
-            # extract the xml data
-            fi.seek(header.XML_BYTE_OFFSET)
-            xml = fi.read(header.XML_DATA_SIZE)
             the_type = CPHDType0_3
         elif self.cphd_version.startswith('1.0'):
-            assert isinstance(header, CPHDHeader)
-            # extract the xml data
-            fi.seek(header.XML_BLOCK_BYTE_OFFSET)
-            xml = fi.read(header.XML_BLOCK_SIZE)
             the_type = CPHDType
         else:
             raise ValueError('Got unhandled version number {}'.format(self.cphd_version))
@@ -239,7 +228,50 @@ class CPHDDetails(object):
             self._cphd_meta = the_type.from_node(root_node, xml_ns, ns_key='default')
         else:
             self._cphd_meta = the_type.from_node(root_node, xml_ns)
+
+    def _get_cphd_bytes(self, fi):
+        """
+        Extract the bytes representation of the CPHD structure.
+
+        Parameters
+        ----------
+        fi
+            The file object opened in binary mode.
+
+        Returns
+        -------
+        bytes
+        """
+
+        header = self.cphd_header
+        if header is None:
+            raise ValueError('No cphd_header populated.')
+
+        if self.cphd_version.startswith('0.3'):
+            assert isinstance(header, CPHDHeader0_3)
+            # extract the xml data
+            fi.seek(header.XML_BYTE_OFFSET)
+            xml = fi.read(header.XML_DATA_SIZE)
+        elif self.cphd_version.startswith('1.0'):
+            assert isinstance(header, CPHDHeader)
+            # extract the xml data
+            fi.seek(header.XML_BLOCK_BYTE_OFFSET)
+            xml = fi.read(header.XML_BLOCK_SIZE)
+        else:
+            raise ValueError('Got unhandled version number {}'.format(self.cphd_version))
         return xml
+
+    def get_cphd_bytes(self):
+        """
+        Extract the bytes representation of the CPHD structure.
+
+        Returns
+        -------
+        bytes
+        """
+
+        with open(self.file_name, 'rb') as fi:
+            return self._get_cphd_bytes(fi)
 
 
 def _validate_cphd_details(cphd_details, version=None):
@@ -387,11 +419,12 @@ class CPHDReader(BaseReader):
 
         Parameters
         ----------
-        variable
+        variable : str
         index : int|str
             The CPHD channel index or identifier.
-        the_range : None|int|Tuple[int, int]|Tuple[int, int, int]
-            The indices for the vector parameter.
+        the_range : None|int|List[int]|Tuple[int]
+            The indices for the vector parameter. `None` returns all, otherwise
+            a slice in the (non-traditional) form `([start, [stop, [stride]]])`.
 
         Returns
         -------

@@ -94,7 +94,7 @@ class ProductGenerationOptionsType(Serializable):
 
     """
     _fields = ('BandEqualization', 'ModularTransferFunctionRestoration', 'DataRemapping', 'AsymmetricPixelCorrection')
-    _required = ('DataRemapping', )
+    _required = tuple()
     # Descriptor
     BandEqualization = _SerializableDescriptor(
         'BandEqualization', BandEqualizationType, _required, strict=DEFAULT_STRICT,

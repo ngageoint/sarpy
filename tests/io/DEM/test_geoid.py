@@ -1,17 +1,25 @@
 import time
 import os
 import logging
-
 import numpy
-
-import sys
-if sys.version_info[0] < 3:
-    # so we can use subtests, which is pretty handy
-    import unittest2 as unittest
-else:
-    import unittest
+import json
 
 import sarpy.io.DEM.geoid as geoid
+from tests import unittest, parse_file_entry
+
+
+test_file = None
+geoid_files = []
+this_loc = os.path.abspath(__file__)
+file_reference = os.path.join(os.path.split(this_loc)[0], 'geoid.json')  # specifies file locations
+if os.path.isfile(file_reference):
+    with open(file_reference, 'r') as fi:
+        the_files = json.load(fi)
+        test_file = parse_file_entry(the_files.get('test_file', None))
+        for entry in the_files.get('geoid_files', []):
+            the_file = parse_file_entry(entry)
+            if the_file is not None:
+                geoid_files.append(the_file)
 
 
 def generic_geoid_test(instance, test_file, geoid_file):
@@ -78,22 +86,7 @@ def generic_geoid_test(instance, test_file, geoid_file):
 
 
 class TestGeoidHeight(unittest.TestCase):
-
-    @classmethod
-    def setUp(cls):
-        cls.test_root = os.path.expanduser(os.path.join('~', 'Desktop', 'sarpy_testing', 'dem', 'geoid'))
-
+    @unittest.skipIf(test_file is None or len(geoid_files) == 0, 'No test file or geoid files found')
     def test_geoid_height(self):
-        # establish file location
-        test_file = os.path.join(self.test_root, 'GeoidHeights.dat')
-
-        tested = 0
-        for fil in ['egm2008-5.pgm', 'egm2008-2_5.pgm', 'egm2008-1.pgm']:
-            geoid_file = os.path.join(self.test_root, fil)
-            if os.path.exists(test_file) and os.path.exists(geoid_file):
-                tested += 1
-                generic_geoid_test(self, test_file, geoid_file)
-            else:
-                logging.info('No file {} or {} found'.format(test_file, geoid_file))
-
-        self.assertTrue(tested > 0, msg="No files for testing found")
+        for fil in geoid_files:
+            generic_geoid_test(self, test_file, fil)

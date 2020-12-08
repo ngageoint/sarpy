@@ -1,103 +1,65 @@
 import os
-import time
-import logging
+import json
+import tempfile
+import shutil
 
-import sys
-if sys.version_info[0] < 3:
-    # so we can use subtests, which is pretty handy
-    import unittest2 as unittest
-else:
-    import unittest
-
-from sarpy.io.complex.sicd import SICDDetails, SICDReader
-from sarpy.io.complex.converter import open_complex
+from sarpy.io.complex.converter import open_complex, conversion_utility
+import sarpy.io.complex.sicd
+from sarpy.io.complex.sicd import SICDReader
 
 
-def generic_sicd_check(instance, test_file):
-    assert isinstance(instance, unittest.TestCase)
+from tests import unittest, parse_file_entry
 
-    # Check the basics for the sicd details object
-    with instance.subTest(msg='parse details'):
-        start = time.time()
-        test_details = SICDDetails(test_file)
-        # how long does it take to unpack test_details?
-        logging.info('unpacked sicd details in {}'.format(time.time() - start))
-
-    with instance.subTest(msg='is_sicd'):
-        # does it register as a sicd?
-        instance.assertTrue(test_details.is_sicd)
-
-    with instance.subTest(msg='meta data fetch'):
-        # how does the sicd_meta look?
-        logging.debug(test_details.sicd_meta)
-
-    with instance.subTest(msg='image headers fetch'):
-        # how do the image headers look?
-        for i, entry in enumerate(test_details.img_headers):
-            logging.debug('image header {}\n{}'.format(i, entry))
-
-    # Can we construct a reader from a file name?
-    with instance.subTest(msg="SICD reader from file name"):
-        start = time.time()
-        reader = SICDReader(test_file)
-        # how long does it take to unpack details and load file?
-        logging.info('unpacked sicd details from file name and loaded sicd file in {}'.format(time.time() - start))
-
-    # can we construct a sicd reader from a reader object?
-    with instance.subTest(msg="SICD reader from sicd details"):
-        start = time.time()
-        reader = SICDReader(test_details)
-        # how long does it take to unpack details and load file?
-        logging.info('loaded sicd file from sicd details in {}'.format(time.time() - start))
-
-    # can we use the open_complex method?
-    with instance.subTest(msg="SICD reader from open_complex"):
-        start = time.time()
-        reader = open_complex(test_file)
-        # how long does it take to unpack details and load file?
-        logging.info('Used open_complex to unpack sicd details from file name and loaded sicd file in {}'.format(time.time() - start))
-
-    with instance.subTest(msg='Verify image size between reader and sicd for file {}'.format(test_file)):
-        data_sizes = reader.get_data_size_as_tuple()
-        sicds = reader.get_sicds_as_tuple()
-        instance.assertEqual(data_sizes[0][0], sicds[0].ImageData.NumRows, msg='data_size[0] and NumRows do not agree')
-        instance.assertEqual(data_sizes[0][1], sicds[0].ImageData.NumCols, msg='data_size[1] and NumCols do not agree')
-
-    with instance.subTest(msg="data_size access"):
-        # how about the sizes?
-        logging.debug('data_size = {}'.format(reader.data_size))
-
-    with instance.subTest(msg="sicd meta access"):
-        # how about the metadata?
-        logging.debug('meta-data = {}'.format(reader.sicd_meta))
-
-    with instance.subTest(msg="data fetch"):
-        # how about fetching some data?
-        start = time.time()
-        rows = min(500, reader.data_size[0][0])
-        cols = min(500, reader.data_size[0][1])
-        data = reader[:rows, :cols]
-        logging.info('data shape = {}, fetched in {}'.format(data.shape, time.time() - start))
+try:
+    from lxml import etree
+except ImportError:
+    etree = None
 
 
-class TestSICDReader(unittest.TestCase):
+complex_file_types = {}
+this_loc = os.path.abspath(__file__)
+file_reference = os.path.join(os.path.split(this_loc)[0], 'complex_file_types.json')  # specifies file locations
+if os.path.isfile(file_reference):
+    with open(file_reference, 'r') as fi:
+        the_files = json.load(fi)
+        for the_type in the_files:
+            valid_entries = []
+            for entry in the_files[the_type]:
+                the_file = parse_file_entry(entry)
+                if the_file is not None:
+                    valid_entries.append(the_file)
+            complex_file_types[the_type] = valid_entries
 
-    @classmethod
-    def setUp(cls):
-        cls.test_root = os.path.expanduser(os.path.join('~', 'Desktop', 'sarpy_testing', 'sicd'))
+sicd_files = complex_file_types.get('SICD', [])
 
-    def test_reader(self):
-        tested = 0
-        for fil in [
-                'sicd_example_1_PFA_RE32F_IM32F_HH.nitf',
-                'sicd_example_RMA_RGZERO_RE16I_IM16I.nitf',
-                'sicd_example_RMA_RGZERO_RE32F_IM32F.nitf',
-                'sicd_example_RMA_RGZERO_RE32F_IM32F_cropped_multiple_image_segments_v1.2.nitf']:
-            test_file = os.path.join(self.test_root, fil)
-            if os.path.exists(test_file):
-                tested += 1
-                generic_sicd_check(self, test_file)
-            else:
-                logging.info('No file {} found'.format(test_file))
+the_schema = os.path.join(
+    os.path.split(sarpy.io.complex.sicd.__file__)[0],
+    'sicd_schema',
+    'SICD_schema_V1_2_1_2018_12_13.xsd')
 
-        self.assertTrue(tested > 0, msg="No files for testing found")
+
+class TestSICDWriting(unittest.TestCase):
+
+    @unittest.skipIf(len(sicd_files) == 0, 'No sicd files found')
+    def test_sicd_creation(self):
+        for fil in sicd_files:
+            reader = SICDReader(fil)
+
+            # check that sicd structure serializes according to the schema
+            if etree is not None:
+                sicd = reader.get_sicds_as_tuple()[0]
+                xml_doc = etree.fromstring(sicd.to_xml_bytes())
+                xml_schema = etree.XMLSchema(file=the_schema)
+                with self.subTest(msg='validate xml produced from sicd structure'):
+                    self.assertTrue(xml_schema.validate(xml_doc),
+                                    msg='SICD structure serialized from file {} is '
+                                        'not valid versus schema {}'.format(fil, the_schema))
+
+            # create a temp directory
+            temp_directory = tempfile.mkdtemp()
+
+            with self.subTest(msg='Test conversion (recreation) of the sicd file {}'.format(fil)):
+                conversion_utility(reader, temp_directory)
+
+            # clean up the temporary directory
+            shutil.rmtree(temp_directory)

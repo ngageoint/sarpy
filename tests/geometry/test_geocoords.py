@@ -3,16 +3,11 @@
 import numpy
 from sarpy.geometry import geocoords
 
-import sys
-if sys.version_info[0] < 3:
-    # so we can use subtests, which is pretty handy
-    import unittest2 as unittest
-else:
-    import unittest
+from tests import unittest
 
 
-llh = numpy.array([[0, 0, 0], [0, 180, 0]], dtype=numpy.float64)
-ecf = numpy.array([[6378137, 0, 0], [-6378137, 0, 0]], dtype=numpy.float64)
+llh = numpy.array([[0, 0, 0], [0, 180, 0], [90, 0, 0], [-90, 0, 0]], dtype='float64')
+ecf = numpy.array([[6378137, 0, 0], [-6378137, 0, 0], [0, 0, 6356752.314245179], [0, 0, -6356752.314245179]], dtype='float64')
 tolerance = 1e-8
 
 
@@ -26,7 +21,7 @@ class TestGeocoords(unittest.TestCase):
 
         out2 = geocoords.ecf_to_geodetic(ecf)
         with self.subTest(msg="2d shape check"):
-            self.assertEqual(out2.shape, (2, 3))
+            self.assertEqual(out2.shape, ecf.shape)
         with self.subTest(msg="2d value check"):
             self.assertTrue(numpy.all(numpy.abs(out2 - llh) < tolerance))
 
@@ -42,7 +37,7 @@ class TestGeocoords(unittest.TestCase):
 
         out2 = geocoords.geodetic_to_ecf(llh)
         with self.subTest(msg="2d shape check"):
-            self.assertEqual(out2.shape, (2, 3))
+            self.assertEqual(out2.shape, llh.shape)
         with self.subTest(msg="2d value check"):
             self.assertTrue(numpy.all(numpy.abs(out2 - ecf) < tolerance))
 

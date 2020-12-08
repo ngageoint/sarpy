@@ -1,0 +1,28 @@
+{
+  "SICD":  [
+    {"path":  "sicd/sicd_example_1_PFA_RE32F_IM32F_HH.nitf", "path_type":  "relative"},
+    {"path":  "sicd/sicd_example_RMA_RGZERO_RE16I_IM16I.nitf", "path_type":  "relative"}],
+  "RCM": [
+    {"path":  "RCM/RCM1_OK1049807_PK1049808_1_16M11_20191028_224339_HH_HV_SLC", "path_type":  "relative"},
+    {"path":  "RCM/RCM3_OK1050629_PK1050630_3_SC30MCPB_20200124_083635_CH_CV_SLC", "path_type":  "relative"}],
+  "RCM_NITF": [
+    {"path":  "RCM_NITF/RCM2_OK1052792_PK1058939_1_FSL26_20200305_233203_HH_HV_SLC", "path_type":  "relative"}],
+  "RadarSat-2": [
+    {"path":  "RS2/RS2_C0RS2_OK117768_PK1033407_DK972895_FQ20_20200227_101203_HH_VV_HV_VH_SLC", "path_type":  "relative"},
+    {"path":  "RS2_C0RS2_OK117671_PK1032788_DK972278_SLA17_20200204_144812_HH_SLC", "path_type":  "relative"}],
+  "Sentinel-1": [
+    {"path":  "sentinel/S1A_IW_SLC__1SDH_20200201T141253_20200201T141321_031060_03917E_BAA7.SAFE", "path_type":  "relative"}],
+  "TerraSAR-X": [
+    {"path":  "TSX/SO_000009564_0001_1/TSX1_SAR__SSC______HS_S_SRA_20090212T204239_20090212T204240", "path_type":  "relative"},
+    {"path":  "TSX/SO_000049726_0013_1/TSX-1.SAR.L1B/TSX1_SAR__SSC______HS_S_SRA_20111128T023746_20111128T023747", "path_type":  "relative"}],
+  "CosmoSkymed": [
+    {"path":  "csk/CSKS1_SCS_B_S2_05_VV_RA_SF_20101019103801_20101019103808.h5", "path_type":  "relative"},
+    {"path":  "csk/CSKS1_SCS_B_HI_16_HH_LD_SF_20080823004249_20080823004256.h5_SCS_B_MC_507961.h5", "path_type":  "relative"}],
+  "KompSat-5": [
+    {"path":  "kompsat/K5_20201015011531_000010_39250_D_ES13_HH_SCS_B_L1A/K5_20201015011531_000010_39250_D_ES13_HH_SCS_B_L1A.h5", "path_type":  "relative"}],
+  "ICEYE": [
+    {"path":  "iceye/ICEYE_SLC_SLH_30170_20200603T193630.h5", "path_type":  "relative"},
+    {"path":  "iceye/ICEYE_SLC_SLH_30180_20200603T035624.h5", "path_type":  "relative"}],
+  "PALSAR": [
+    {"path":  "palsar/1000000001_001001_ALOS2150521570-170307", "path_type":  "relative"}]
+}

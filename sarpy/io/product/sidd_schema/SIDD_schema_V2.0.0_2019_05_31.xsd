@@ -187,7 +187,7 @@
                     <xs:documentation>Filter must be no larger than 15x15.</xs:documentation>
                 </xs:annotation>
             </xs:element>
-            <xs:element name="DataRemapping" type="NewLookupTableType">
+            <xs:element name="DataRemapping" type="NewLookupTableType" minOccurs="0">
                 <xs:annotation>
                     <xs:documentation>
                         Data remapping refers to the specific need to convert the data of incoming, expanded or uncompressed image band data to non-mapped image data.

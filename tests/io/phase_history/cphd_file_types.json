@@ -1,0 +1,6 @@
+{
+  "CPHD": [
+    {"path":  "cphd/example_0_3.cphd", "path_type":  "relative"},
+    {"path":  "cphd/example_1_0.cphd", "path_type":  "relative"}
+  ]
+}
