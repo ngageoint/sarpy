@@ -13,7 +13,8 @@ from sarpy.io.product.sidd2_elements.ProductCreation import ProductCreationType
 from sarpy.io.product.sidd2_elements.Measurement import PlaneProjectionType, ProductPlaneType
 # version 2 elements
 from sarpy.io.product.sidd2_elements.SIDD import SIDDType as SIDDType2
-from sarpy.io.product.sidd2_elements.Display import ProductDisplayType as ProductDisplayType2
+from sarpy.io.product.sidd2_elements.Display import ProductDisplayType as ProductDisplayType2, \
+    NonInteractiveProcessingType, ProductGenerationOptionsType, RRDSType
 from sarpy.io.product.sidd2_elements.GeoData import GeoDataType as GeoDataType2
 from sarpy.io.product.sidd2_elements.Measurement import MeasurementType as MeasurementType2
 from sarpy.io.product.sidd2_elements.ExploitationFeatures import ExploitationFeaturesType as ExploitationFeaturesType2
@@ -124,6 +125,9 @@ def _create_display_v2(pixel_type):
         bands = 3
     else:
         raise ValueError('pixel_type must be one of MONO8I, MONO16I, RGB24I. Got {}'.format(pixel_type))
+
+    non_interactive = NonInteractiveProcessingType(
+        ProductGenerationOptions=ProductGenerationOptionsType())
 
     return ProductDisplayType2(PixelType=pixel_type, NumBands=bands)
 
@@ -322,6 +326,7 @@ def create_sidd_structure_v1(ortho_helper, bounds, product_class, pixel_type):
     bounds, ortho_pixel_corners = ortho_helper.bounds_to_rectangle(bounds)
     # construct appropriate SIDD elements
     prod_create = ProductCreationType.from_sicd(ortho_helper.proj_helper.sicd, product_class)
+    prod_create.Classification.DESVersion = 4
     # Display requires more product specifics
     display = _create_display_v1(pixel_type)
     # GeographicAndTarget

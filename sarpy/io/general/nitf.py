@@ -550,8 +550,10 @@ class NITFReader(BaseReader):
             else:
                 chippers.append(this_chip)
         # validate that sicd and chippers lengths are feasible
-        if sicd_meta is not None:
-            if not isinstance(sicd_meta, (list, tuple)):
+        if is_sicd_type:
+            if sicd_meta is None:
+                logging.warning('This is identified as a sicd-type NITF, but no sicd structure is provided.')
+            elif not isinstance(sicd_meta, (list, tuple)):
                 if len(chippers) != 1:
                     raise ValueError(
                         'There is a single sicd structure and chipper collection of '
@@ -1866,12 +1868,14 @@ class NITFWriter(AbstractWriter):
         # set this status first, in the event of some kind of error
         self._closed = True
         # ensure that all images are fully written
+        msg = None
         if self.image_details is not None:
             for i, img_details in enumerate(self.image_details):
                 if not img_details.image_written:
-                    logging.critical("This NITF file in not completely written and will be corrupt. "
-                                     "Image segment {} has only written {} "
-                                     "of {} pixels".format(i, img_details.pixels_written, img_details.total_pixels))
+                    msg_part = "Image segment {} has only written {} of {} pixels".format(
+                        i, img_details.pixels_written, img_details.total_pixels)
+                    msg = msg_part if msg is None else msg + '\n' + msg_part
+                    logging.critical(msg_part)
         # ensure that all data extensions are fully written
         if self.des_details is not None:
             for i, des_detail in enumerate(self.des_details):
@@ -1881,6 +1885,9 @@ class NITFWriter(AbstractWriter):
         if self._writing_chippers is not None:
             for entry in self._writing_chippers:
                 entry.close()
+        if msg is not None:
+            raise IOError(
+                'The NITF file {} image data is not fully written, and the file is potentially corrupt.\n{}'.format(self._file_name, msg))
 
     # require specific implementations
     def _create_security_tags(self):

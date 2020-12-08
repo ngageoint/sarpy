@@ -1226,7 +1226,7 @@ class Document(object):
             sample_cols = nominal_image_size
             sample_rows = int_func(row_length*nominal_image_size/float(col_length))
 
-        logging.info('Processing ({}:{}, {}:{}) into a downsampled image of size ({},{})'.format(
+        logging.info('Processing ({}:{}, {}:{}) into a downsampled image of size ({}, {})'.format(
             row_min, row_max, col_min, col_max, sample_rows, sample_cols))
 
         archive_name = 'images/{}.{}'.format(image_name, img_format)

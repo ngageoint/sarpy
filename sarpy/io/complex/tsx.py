@@ -848,8 +848,8 @@ class TSXDetails(object):
         complete_image_formation()
         complete_rma()
         define_radiometric()
-        revise_scp()
         out_sicd.derive()
+        revise_scp()
         out_sicd.populate_rniirs(override=False)
         return out_sicd
 

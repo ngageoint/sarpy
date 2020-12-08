@@ -1,5 +1,6 @@
 # This details the important differences introduced in sarpy 1.1
 
+* .35 - Removal of deprecated code and revamp/expansion of unit testing
 * .34 - Correction for difference between KompSat and CSK metadata
 * .33 - Correction of radar mode determination for KompSat
 * .32 - Bug fixes for Cosmo Skymed and fine-tuning KompSat support

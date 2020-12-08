@@ -115,6 +115,17 @@ class ApertureFilter(object):
 
         return self._deskew_calculator.dimension
 
+    @property
+    def data_size(self):
+        """
+        None|(int, int): The feasible data size
+        """
+
+        if self._sub_image_bounds is None:
+            return None
+        row_bounds, col_bounds = self._sub_image_bounds
+        return row_bounds[1] - row_bounds[0], col_bounds[1] - col_bounds[0]
+
     @dimension.setter
     def dimension(self, val):
         """
@@ -162,6 +173,14 @@ class ApertureFilter(object):
             return None
 
         row_bounds, col_bounds = self._sub_image_bounds
+        underlying_size = self._deskew_calculator.data_size
+        if row_bounds[0] < 0 or row_bounds[1] > underlying_size[0]:
+            raise ValueError(
+                'Desired row_bounds given as {}, and underlying data size is {}'.format(row_bounds, underlying_size))
+        if col_bounds[0] < 0 or col_bounds[1] > underlying_size[1]:
+            raise ValueError(
+                'Desired col_bounds given as {}, and underlying data size is {}'.format(col_bounds, underlying_size))
+
         deskewed_data = self._deskew_calculator[row_bounds[0]:row_bounds[1], col_bounds[0]:col_bounds[1]]
         self._normalized_phase_history = self._get_fft_complex_data(deskewed_data)
 

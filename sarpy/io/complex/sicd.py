@@ -353,8 +353,9 @@ class SICDReader(NITFReader):
         super(SICDReader, self).__init__(nitf_details, is_sicd_type=True)
 
         # to perform a preliminary check that the structure is valid:
-        #   note that this results in potentially noisy logging for troubled sicd files
-        self._sicd_meta.is_valid(recursive=True)
+        # self._sicd_meta.is_valid(recursive=True)
+        # disable for now, due to noise of logging for now purpose
+        # leaving for documentation purposes
 
     @property
     def nitf_details(self):

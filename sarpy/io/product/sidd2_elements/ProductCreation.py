@@ -26,7 +26,7 @@ class ProcessorInformationType(Serializable):
     Details regarding the processor.
     """
     _fields = ('Application', 'ProcessingDateTime', 'Site', 'Profile')
-    _required = ()
+    _required = ('Application', 'ProcessingDateTime', 'Site')
     # descriptors
     Application = _StringDescriptor(
         'Application', _required, strict=DEFAULT_STRICT,
@@ -69,17 +69,17 @@ class ProductClassificationType(Serializable):
     The overall classification of the product.
     """
     _fields = (
-        'DESVersion', 'resourceElement', 'createDate', 'compliesWith',
+        'DESVersion', 'resourceElement', 'createDate', 'compliesWith', 'ISMCATCESVersion',
         'classification', 'ownerProducer', 'SCIcontrols', 'SARIdentifier',
         'disseminationControls', 'FGIsourceOpen', 'FGIsourceProtected', 'releasableTo',
         'nonICmarkings', 'classifiedBy', 'compilationReason', 'derivativelyClassifiedBy',
         'classificationReason', 'nonUSControls', 'derivedFrom', 'declassDate',
         'declassEvent', 'declassException', 'typeOfExemptedSource', 'dateOfExemptedSource',
         'SecurityExtensions')
-    _required = ('DESVersion', 'createDate', 'classification', 'ownerProducer')
+    _required = ('DESVersion', 'createDate', 'classification', 'ownerProducer', 'compliesWith', 'ISMCATCESVersion')
     _collections_tags = {'SecurityExtensions': {'array': False, 'child_tag': 'SecurityExtension'}}
     _set_as_attribute = (
-        'DESVersion', 'resourceElement', 'createDate', 'compliesWith',
+        'DESVersion', 'resourceElement', 'createDate', 'compliesWith', 'ISMCATCESVersion',
         'classification', 'ownerProducer', 'SCIcontrols', 'SARIdentifier',
         'disseminationControls', 'FGIsourceOpen', 'FGIsourceProtected', 'releasableTo',
         'nonICmarkings', 'classifiedBy', 'compilationReason', 'derivativelyClassifiedBy',
@@ -95,7 +95,10 @@ class ProductClassificationType(Serializable):
         'createDate', _required, strict=DEFAULT_STRICT,
         docstring='This should be a date of format :code:`YYYY-MM-DD`, but this is not checked.')  # type: str
     compliesWith = _StringDescriptor(
-        'compliesWith', _required, strict=DEFAULT_STRICT,
+        'compliesWith', _required, strict=DEFAULT_STRICT, default_value='USGov',
+        docstring='')  # type: Union[None, str]
+    ISMCATCESVersion = _StringDescriptor(
+        'ISMCATCESVersion', _required, strict=DEFAULT_STRICT, default_value='201903',
         docstring='')  # type: Union[None, str]
     classification = _StringEnumDescriptor(
         'classification', ('U', 'C', 'R', 'S', 'TS'), _required, strict=DEFAULT_STRICT,
@@ -162,7 +165,7 @@ class ProductClassificationType(Serializable):
         docstring='Extensible parameters used to support profile-specific needs related to '
                   'product security.')  # type: ParametersCollection
 
-    def __init__(self, DESVersion=13, createDate=None, compliesWith=None,
+    def __init__(self, DESVersion=13, createDate=None, compliesWith='USGov', ISMCATCESVersion='201903',
                  classification='U', ownerProducer='USA', SCIcontrols=None, SARIdentifier=None,
                  disseminationControls=None, FGIsourceOpen=None, FGIsourceProtected=None, releasableTo=None,
                  nonICmarkings=None, classifiedBy=None, compilationReason=None, derivativelyClassifiedBy=None,
@@ -176,6 +179,7 @@ class ProductClassificationType(Serializable):
         DESVersion : int
         createDate : str
         compliesWith : None|str
+        ISMCATCESVersion : None|str
         classification : str
         ownerProducer : str
         SCIcontrols : None|str
@@ -207,6 +211,7 @@ class ProductClassificationType(Serializable):
         self.DESVersion = DESVersion
         self.createDate = createDate
         self.compliesWith = compliesWith
+        self.ISMCATCESVersion = ISMCATCESVersion
         self.classification = classification
         self.ownerProducer = ownerProducer
         self.SCIcontrols = SCIcontrols
@@ -359,7 +364,8 @@ class ProductCreationType(Serializable):
 
         proc_info = ProcessorInformationType(
             Application='{} {}'.format(__title__, __version__),
-            ProcessingDateTime=numpy.datetime64(datetime.now()))
+            ProcessingDateTime=numpy.datetime64(datetime.now()),
+            Site='Unknown')
         classification = ProductClassificationType.from_sicd(sicd)
         return cls(ProcessorInformation=proc_info,
                    Classification=classification,

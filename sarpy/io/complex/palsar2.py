@@ -42,6 +42,32 @@ __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 
+########
+# base expected functionality for a module with an implemented Reader
+
+
+def is_a(file_name):
+    """
+    Tests whether a given file_name corresponds to a PALSAR ALOS2file. Returns a reader instance, if so.
+
+    Parameters
+    ----------
+    file_name : str
+        the file_name to check
+
+    Returns
+    -------
+    PALSARReader|None
+        `PALSARReader` instance if PALSAR file, `None` otherwise
+    """
+
+    try:
+        palsar_details = PALSARDetails(file_name)
+        print('File {} is determined to be a PALSAR ALOS2 file.'.format(file_name))
+        return PALSARReader(palsar_details)
+    except (ImportError, IOError):
+        return None
+
 
 ##########
 # basic helper functions for file parsing and interpretation
@@ -117,6 +143,7 @@ class _BaseElements(object):
         self.rec_num, self.rec_subtype1, self.rec_type, self.rec_subtype2, self.rec_subtype3, \
         self.rec_length = struct.unpack('>IBBBBI', the_bytes)  # type: int, int, int, int, int, int
 
+
 # Elements common to most individual record types?
 class _BaseElements2(_BaseElements):
     __slots__ = ('ascii_ebcdic', )
@@ -125,6 +152,7 @@ class _BaseElements2(_BaseElements):
         super(_BaseElements2, self).__init__(fi)
         self.ascii_ebcdic = fi.read(2).decode('utf-8')  # type: str
         fi.seek(2, 1) # skip reserved field
+
 
 # Elements common to IMG, LED, TRL, and VOL
 class _CommonElements(_BaseElements2):
@@ -141,6 +169,7 @@ class _CommonElements(_BaseElements2):
         self.doc_rev = fi.read(2).decode('utf-8')  # type: str
         self.rec_rev = fi.read(2).decode('utf-8')  # type: str
         self.soft_rel_rev = fi.read(12).decode('utf-8')  # type: str
+
 
 # Elements common to IMG, LED, and TRL
 class _CommonElements2(_CommonElements):
@@ -177,6 +206,7 @@ class _CommonElements2(_CommonElements):
         fi.seek(68, 1)  # skip reserved field
         self.num_data_rec = int_func(struct.unpack('6s', fi.read(6))[0])  # type: int
         self.data_len = int_func(struct.unpack('6s', fi.read(6))[0])  # type: int
+
 
 # Elements common to LED and TRL
 class _CommonElements3(_CommonElements2):

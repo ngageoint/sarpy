@@ -7,6 +7,7 @@ import logging
 import sys
 from functools import reduce
 import re
+from typing import List, Union
 
 import numpy
 
@@ -240,6 +241,7 @@ class SIDDReader(NITFReader):
 
     @property
     def sidd_meta(self):
+        # type: () -> Union[List[SIDDType], List[SIDDType1]]
         """
         None|List[sarpy.io.product.sidd2_elements.SIDD.SIDDType]: the sidd meta-data structure(s).
         """
