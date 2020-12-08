@@ -550,8 +550,10 @@ class NITFReader(BaseReader):
             else:
                 chippers.append(this_chip)
         # validate that sicd and chippers lengths are feasible
-        if sicd_meta is not None:
-            if not isinstance(sicd_meta, (list, tuple)):
+        if is_sicd_type:
+            if sicd_meta is None:
+                logging.warning('This is identified as a sicd-type NITF, but no sicd structure is provided.')
+            elif not isinstance(sicd_meta, (list, tuple)):
                 if len(chippers) != 1:
                     raise ValueError(
                         'There is a single sicd structure and chipper collection of '

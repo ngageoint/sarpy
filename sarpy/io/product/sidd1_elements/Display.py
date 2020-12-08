@@ -297,7 +297,7 @@ class RemapChoiceType(Serializable):
 
     _fields = ('ColorDisplayRemap', 'MonochromeDisplayRemap')
     _required = ()
-    _choice = ({'required': False, 'collection': ('ColorDisplayRemap', 'MonochromeDisplayRemap')})
+    _choice = ({'required': False, 'collection': ('ColorDisplayRemap', 'MonochromeDisplayRemap')}, )
     # Descriptor
     ColorDisplayRemap = _SerializableDescriptor(
         'ColorDisplayRemap', ColorDisplayRemapType, _required, strict=DEFAULT_STRICT,
