@@ -277,13 +277,8 @@ class ImageSegmentHeader(NITFElement):
         default_value='NODISPLY',
         docstring='Image Representation. This field shall contain a valid indicator of the processing required '
                   'in order to display an image.')  # type: str
-    ICAT = _StringEnumDescriptor(
-        'ICAT', True, 8,
-        {'VIS', 'SL', 'TI', 'FL', 'RD', 'EO', 'OP', 'HR', 'HS', 'CP', 'BP',
-         'SAR', 'SARIQ', 'IR', 'MAP', 'MS', 'FP', 'MRI', 'XRAY', 'CAT', 'VD',
-         'PAT', 'LEG', 'DTEM', 'MATR', 'LOCG', 'BARO', 'CURRENT', 'DEPTH', 'WIND',
-         'CLOUD'},
-        default_value='SAR',
+    ICAT = _StringDescriptor(
+        'ICAT', True, 8, default_value='SAR',
         docstring='Image Category. This field shall contain a valid indicator of the specific category of image, '
                   'raster or grid data. The specific category of an IS reveals its intended use or the nature '
                   'of its collector.')  # type: str

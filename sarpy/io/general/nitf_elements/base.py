@@ -998,8 +998,16 @@ class TREList(NITFElement):
             tres = []
             loc = start
             while loc < len(value):
+                anticipated_length = int_func(value[loc+6:loc+11]) + 11
                 tre = TRE.from_bytes(value, loc)
-                loc += tre.get_bytes_length()
+                parsed_length = tre.get_bytes_length()
+                if parsed_length != anticipated_length:
+                    logging.error(
+                        'The given length for TRE {} instance is {}, but the constructed length is {}. '
+                        'This is the result of a malformed TRE object definition. '
+                        'If possible, this should be reported to the sarpy team for review/repair.'.format(
+                            tre.TAG, anticipated_length, parsed_length))
+                loc += anticipated_length
                 tres.append(tre)
             fields['tres'] = tres
             return len(value)
