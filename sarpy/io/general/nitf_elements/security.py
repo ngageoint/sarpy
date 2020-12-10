@@ -69,7 +69,7 @@ class NITFSecurityTags(NITFElement):
         'DCXM', True, 4,
         {'', 'X1', 'X2', 'X3', 'X4', 'X5', 'X6', 'X7', 'X8',
          '25X1', '25X2', '25X3', '25X4', '25X5', '25X6', '25X7', '25X8', '25X9',
-         'DN10'}, default_value='',
+         'DN10', 'DNI'}, default_value='',
         docstring='Declassification Exemption. This field shall indicate the reason this element is '
                   'exempt from automatic declassification if the value in Declassification '
                   'Type is :code:`X`.')  # type: str
