@@ -1,5 +1,6 @@
 # This details the important differences introduced in sarpy 1.1
 
+* .37 - Adding preliminary support for NITF 2.0
 * .36 - Minor adjustment for some basic NITF header elements for bug fixes
 * .35 - Removal of deprecated code and revamp/expansion of unit testing
 * .34 - Correction for difference between KompSat and CSK metadata

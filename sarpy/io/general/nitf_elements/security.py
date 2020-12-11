@@ -3,16 +3,21 @@
 The security tags definitions, which are used in each NITF subheader element.
 """
 
-from .base import NITFElement, _StringDescriptor, _StringEnumDescriptor
+import logging
+from .base import NITFElement, _StringDescriptor, _StringEnumDescriptor, _parse_str
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 
+#########
+# NITF 2.1 version
+
+
 class NITFSecurityTags(NITFElement):
     """
-    The NITF security tags object - see standards document MIL-STD-2500C for more
-    information.
+    The NITF security tags object for NITF version 2.1 - see standards document
+    MIL-STD-2500C for more information.
 
     In the NITF standard, this object is simply redefined (is an identical way)
     for each of the main header and subheader objects. This object is intended to
@@ -120,3 +125,67 @@ class NITFSecurityTags(NITFElement):
                   'associated with the graphic. The format of the security control number shall be in '
                   'accordance with the regulations governing the appropriate '
                   'security channel(s).')  # type: str
+
+
+#########
+# NITF 2.0 version
+
+class NITFSecurityTags0(NITFElement):
+    """
+    The NITF security tags object for NITF version 2.0 - see standards document
+    MIL-STD-2500A for more information.
+
+    In the NITF standard, this object is simply redefined (is an identical way)
+    for each of the main header and subheader objects. This object is intended to
+    be flexibly used for any and all of these.
+    """
+
+    _ordering = (
+        'CLAS', 'CODE', 'CTLH', 'REL', 'CAUT', 'CTLN', 'DWNG', 'DEVT')
+    _lengths = {
+        'CLAS': 1, 'CODE': 40, 'CTLH': 40, 'REL': 40, 'CAUT': 20,
+        'CTLN': 20, 'DWNG': 6, 'DEVT': 40}
+    CLAS = _StringEnumDescriptor(
+        'CLAS', True, 1, {'U', 'R', 'C', 'S', 'T'}, default_value='U')  # type: str
+    CODE = _StringDescriptor('CODE', True, 40)  # type: str
+    CTLH = _StringDescriptor('CTLH', True, 40)  # type: str
+    REL = _StringDescriptor('REL', True, 40)  # type: str
+    CAUT = _StringDescriptor('CAUT', True, 20)  # type: str
+    CTLN = _StringDescriptor('CTLN', True, 20)  # type: str
+    DWNG = _StringDescriptor('DWNG', True, 6)  # type: str
+
+    def __init__(self, **kwargs):
+        self._DEVT = None
+        super(NITFSecurityTags0, self).__init__(**kwargs)
+
+    @property
+    def DEVT(self):
+        return self._DEVT
+
+    @DEVT.setter
+    def DEVT(self, value):
+        self._DEVT = _parse_str(value, 40, None, 'DEVT', self)
+
+    def _get_attribute_length(self, fld):
+        if fld == 'DEVT':
+            return 0 if self.DWNG != '999998' else self._lengths[fld]
+        else:
+            return super(NITFSecurityTags0, self)._get_attribute_length(fld)
+
+    @classmethod
+    def minimum_length(cls):
+        # DEVT may not be there
+        return super(NITFSecurityTags0, cls).minimum_length() - 40
+
+    @classmethod
+    def _parse_attribute(cls, fields, attribute, value, start):
+        if attribute == 'DEVT':
+            if fields['DWNG'] == b'999998':
+                fields['DEVT'] = value[start:start+40].decode('utf-8')
+                return start+40
+            else:
+                fields['DEVT'] = None
+                # nothing to be done
+                return start
+        else:
+            return super(NITFSecurityTags0, cls)._parse_attribute(fields, attribute, value, start)
