@@ -96,8 +96,8 @@ def print_file_header(hdr):
         elif field == 'FBKGC':
             value = getattr(hdr, field, None)
             print_func('FBKGC = {} {} {}'.format(value[0], value[1], value[2]))
-        elif field in ['ImageSegments', 'GraphicsSegments', 'TextSegments',
-                       'DataExtensions', 'ReservedExtensions']:
+        elif field in ['ImageSegments', 'GraphicsSegments', 'SymbolSegments', 'LabelSegments',
+                       'TextSegments', 'DataExtensions', 'ReservedExtensions']:
             pass
         elif field in ['UserHeader', 'ExtendedHeader']:
             value = getattr(hdr, field, None)
@@ -127,6 +127,32 @@ def print_graphics_header(hdr):
     for field in hdr._ordering:
         if field == 'Security':
             print_elem(getattr(hdr, field, None), prefix='SS')
+        elif field in ['UserHeader', 'ExtendedHeader']:
+            value = getattr(hdr, field, None)
+            assert(isinstance(value, UserHeaderType))
+            if value and value.data and value.data.tres:
+                print_tres(value.data.tres)
+        else:
+            print_elem_field(hdr, field)
+
+
+def print_symbol_header(hdr):
+    for field in hdr._ordering:
+        if field == 'Security':
+            print_elem(getattr(hdr, field, None), prefix='SS')
+        elif field in ['UserHeader', 'ExtendedHeader']:
+            value = getattr(hdr, field, None)
+            assert(isinstance(value, UserHeaderType))
+            if value and value.data and value.data.tres:
+                print_tres(value.data.tres)
+        else:
+            print_elem_field(hdr, field)
+
+
+def print_label_header(hdr):
+    for field in hdr._ordering:
+        if field == 'Security':
+            print_elem(getattr(hdr, field, None), prefix='LS')
         elif field in ['UserHeader', 'ExtendedHeader']:
             value = getattr(hdr, field, None)
             assert(isinstance(value, UserHeaderType))
@@ -210,6 +236,24 @@ def print_nitf(file_name, dest=sys.stdout):
             print_func('GSDATA = {}'.format(_decode_effort(data)))
             print_func('')
 
+    if details.symbol_subheader_offsets is not None:
+        for i in range(details.symbol_subheader_offsets.size):
+            print_func('----- Symbol {} -----'.format(i))
+            hdr = details.parse_symbol_subheader(i)
+            print_symbol_header(hdr)
+            data = details.get_symbol_bytes(i)
+            print_func('SSDATA = {}'.format(_decode_effort(data)))
+            print_func('')
+
+    if details.label_subheader_offsets is not None:
+        for i in range(details.label_subheader_offsets.size):
+            print_func('----- Label {} -----'.format(i))
+            hdr = details.parse_label_subheader(i)
+            print_label_header(hdr)
+            data = details.get_label_bytes(i)
+            print_func('LSDATA = {}'.format(_decode_effort(data)))
+            print_func('')
+
     if details.text_subheader_offsets is not None:
         for i in range(details.text_subheader_offsets.size):
             print_func('----- Text {} -----'.format(i))
@@ -225,14 +269,17 @@ def print_nitf(file_name, dest=sys.stdout):
             hdr = details.parse_des_subheader(i)
             print_des_header(hdr)
             data = details.get_des_bytes(i)
-            if hdr.DESID.strip() == 'XML_DATA_CONTENT':
+
+            des_id = hdr.DESID if details.nitf_version == '02.10' else hdr.DESTAG
+
+            if des_id.strip() == 'XML_DATA_CONTENT':
                 xml_str = xml.dom.minidom.parseString(
                     data.decode()).toprettyxml(indent='    ')
                 # Remove extra new lines if XML is already formatted
                 xml_str = os.linesep.join(
                     [s for s in xml_str.splitlines() if s.strip()])
                 print_func('DESDATA = {}'.format(xml_str))
-            elif hdr.DESID.strip() == 'TRE_OVERFLOW':
+            elif des_id.strip() in ['TRE_OVERFLOW', 'Registered Extensions', 'Controlled Extensions']:
                 tres = TREList.from_bytes(data, 0)
                 print_func('DESDATA = ')
                 print_tres(tres)
@@ -258,7 +305,7 @@ if __name__ == '__main__':
         return argparse.ArgumentDefaultsHelpFormatter(prog, width=100)
 
     parser = argparse.ArgumentParser(
-        description='Utility to dump NITF 2.1 headers',
+        description='Utility to dump NITF 2.1 or 2.0 headers',
         formatter_class=argparse_formatter_factory)
     parser.add_argument('input_file')
     parser.add_argument('-o', '--output', default='stdout',

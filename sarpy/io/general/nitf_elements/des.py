@@ -9,7 +9,7 @@ from typing import Union
 from .base import BaseNITFElement, NITFElement, Unstructured, _IntegerDescriptor,\
     _StringDescriptor, _StringEnumDescriptor, _NITFElementDescriptor, \
     _parse_str, _parse_int, _parse_nitf_element
-from .security import NITFSecurityTags
+from .security import NITFSecurityTags, NITFSecurityTags0
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
@@ -118,7 +118,7 @@ class XMLDESSubheader(NITFElement):
 
 
 ##########
-# DES
+# DES - NITF 2.1 version
 
 class DESUserHeader(Unstructured):
     _size_len = 4
@@ -283,15 +283,9 @@ class DataExtensionHeader(NITFElement):
 
     def _get_attribute_length(self, fld):
         if fld == 'DESOFLW':
-            if self._DESOFLW is None:
-                return 0
-            else:
-                return self._lengths['DESOFLOW']
+            return 0 if self._DESOFLW is None else self._lengths['DESOFLOW']
         elif fld == 'DESITEM':
-            if self._DESITEM is None:
-                return 0
-            else:
-                return self._lengths['DESITEM']
+            return 0 if self._DESITEM is None else self._lengths['DESITEM']
         else:
             return super(DataExtensionHeader, self)._get_attribute_length(fld)
 
@@ -310,3 +304,188 @@ class DataExtensionHeader(NITFElement):
             return start+cls._lengths['DESID']
         else:
             return super(DataExtensionHeader, cls)._parse_attribute(fields, attribute, value, start)
+
+
+##########
+# DES - NITF 2.0 version
+
+class DataExtensionHeader0(NITFElement):
+    """
+    The data extension subheader - see standards document MIL-STD-2500C for more
+    information.
+    """
+
+    _ordering = ('DE', 'DESTAG', 'DESVER', 'Security', 'DESOFLW', 'DESITEM', 'UserHeader')
+    _lengths = {'DE': 2, 'DESTAG': 25, 'DESVER': 2, 'DESOFLW': 6, 'DESITEM': 3}
+    DE = _StringEnumDescriptor(
+        'DE', True, 2, {'DE', }, default_value='DE',
+        docstring='File part type.')  # type: str
+    DESVER = _IntegerDescriptor(
+        'DESVER', True, 2, default_value=1,
+        docstring='Version of the Data Definition. This field shall contain the alphanumeric '
+                  'version number of the use of the tag. The version number is assigned as '
+                  'part of the registration process.')  # type: int
+    Security = _NITFElementDescriptor(
+        'Security', True, NITFSecurityTags0, default_args={},
+        docstring='The security tags.')  # type: NITFSecurityTags0
+
+    def __init__(self, **kwargs):
+        self._DESTAG = None
+        self._DESOFLW = None
+        self._DESITEM = None
+        self._UserHeader = None
+        super(DataExtensionHeader0, self).__init__(**kwargs)
+
+    @property
+    def DESTAG(self):
+        """
+        str: Unique DES Type Identifier. This field shall contain a valid alphanumeric
+        identifier properly registered with the ISMC.
+        """
+
+        return self._DESTAG
+
+    @DESTAG.setter
+    def DESTAG(self, value):
+        value = _parse_str(value, 25, 'XML_DATA_CONTENT', 'DESTAG', self)
+        self._DESTAG = value
+        if value.strip() in ['TRE_OVERFLOW', 'Registered Extensions', 'Controlled Extensions']:
+            if self.DESOFLW is None:
+                self._DESOFLW = ''
+            if self.DESITEM is None:
+                self._DESITEM = 0
+        else:
+            self._DESOFLW = None
+            self._DESITEM = None
+
+    @property
+    def DESOFLW(self):
+        """
+        None|str: DES Overflowed Header Type. This field shall be populated if
+        `DESTAG in ['TRE_OVERFLOW', 'Registered Extensions', 'Controlled Extensions']`.
+
+        Its presence indicates that the DES contains a TRE that would not fit in the file
+        header or segment subheader where it would ordinarily be located. Its value indicates
+        the segment type to which the enclosed TRE is relevant. If populated, must be one of
+        :code:`{"XHD", "IXSHD", "SXSHD", "TXSHD", "UDHD", "UDID"}`.
+        """
+
+        return self._DESOFLW
+
+    @DESOFLW.setter
+    def DESOFLW(self, value):
+        value = _parse_str(value, 6, None, 'DESOFLW', self)
+        if self._DESTAG.strip() in ['TRE_OVERFLOW', 'Registered Extensions', 'Controlled Extensions']:
+            if value is None:
+                logging.error(
+                    'DESOFLW value is None, but DESTAG in [TRE_OVERFLOW, Registered Extensions, Controlled Extensions]. '
+                    'This must be resolved.')
+                self._DESOFLW = ''
+            elif value not in {'XHD', 'IXSHD', 'SXSHD', 'TXSHD', 'UDHD', 'UDID'}:
+                logging.error(
+                    "DESOFLW value got {}, but must be one {'XHD', 'IXSHD', 'SXSHD', 'TXSHD', 'UDHD', 'UDID'}"
+                    "This must be resolved.")
+                self._DESOFLW = ''
+            else:
+                self._DESOFLW = value
+        else:
+            if value is not None:
+                logging.error(
+                    'DESTAG not in [TRE_OVERFLOW, Registered Extensions, Controlled Extensions], '
+                    'but DESOFLW value is not None. This is invalid, so setting DESOFLW to None')
+            self._DESOFLW = None
+
+    @property
+    def DESITEM(self):
+        """
+        None|int: DES Data Item Overflowed. This field shall be present if `DESOFLW` is present.
+        It shall contain the number of the data item in the file, of the type indicated in
+        `DESOFLW` to which the TRE in the segment apply.
+        """
+
+        return self._DESITEM
+
+    @DESITEM.setter
+    def DESITEM(self, value):
+        value = _parse_int(value, 3, None, 'DESITEM', self)
+        if self._DESTAG.strip() in ['TRE_OVERFLOW', 'Registered Extensions', 'Controlled Extensions']:
+            if value is None:
+                logging.error(
+                    'DESITEM value is None, but DESTAG in [TRE_OVERFLOW, Registered Extensions, Controlled Extensions]. '
+                    'This must be resolved.')
+                self._DESITEM = 0
+            else:
+                self._DESITEM = value
+        else:
+            if value is not None:
+                logging.error(
+                    'DESTAG not in [TRE_OVERFLOW, Registered Extensions, Controlled Extensions], '
+                    'but DESITEM value is not None. This is invalid, so setting DESITEM to None')
+            self._DESITEM = None
+
+    @property
+    def UserHeader(self):  # type: () -> Union[DESUserHeader, XMLDESSubheader]
+        """
+        DESUserHeader: The DES user header.
+        """
+
+        return self._UserHeader
+
+    @UserHeader.setter
+    def UserHeader(self, value):
+        if not isinstance(value, BaseNITFElement):
+            value = _parse_nitf_element(value, DESUserHeader, {}, 'UserHeader', self)
+        self._UserHeader = value
+        self._load_header_data()
+
+    def _load_header_data(self):
+        """
+        Load any user defined header specifics.
+
+        Returns
+        -------
+        None
+        """
+
+        if not isinstance(self._UserHeader, DESUserHeader):
+            return
+
+        if self.DESTAG.strip() == 'XML_DATA_CONTENT':
+            # try loading sicd
+            if self._UserHeader.get_bytes_length() == 777:
+                # It could be a version 1.0 or greater SICD
+                data = self._UserHeader.to_bytes()
+                try:
+                    data = XMLDESSubheader.from_bytes(data, 0)
+                    self._UserHeader = data
+                except Exception as e:
+                    logging.error(
+                        'DESTAG is "XML_DATA_CONTENT" and data is the right length for SICD, '
+                        'but parsing failed with error {}'.format(e))
+        elif self.DESTAG.strip() == 'STREAMING_FILE_HEADER':
+            # LOW Priority - I think that this is deprecated?
+            pass
+
+    def _get_attribute_length(self, fld):
+        if fld == 'DESOFLW':
+            return 0 if self._DESOFLW is None else self._lengths['DESOFLOW']
+        elif fld == 'DESITEM':
+            return 0 if self._DESITEM is None else self._lengths['DESITEM']
+        else:
+            return super(DataExtensionHeader0, self)._get_attribute_length(fld)
+
+    @classmethod
+    def _parse_attribute(cls, fields, attribute, value, start):
+        if attribute == 'UserHeader':
+            val = DESUserHeader.from_bytes(value, start)
+            fields['UserHeader'] = val
+            return start + val.get_bytes_length()
+        elif attribute == 'DESTAG':
+            val = value[start:start+cls._lengths['DESTAG']].decode('utf-8')
+            fields['DESTAG'] = val
+            if val.strip() not in ['TRE_OVERFLOW', 'Registered Extensions', 'Controlled Extensions']:
+                fields['DESOFLW'] = None
+                fields['DESITEM'] = None
+            return start+cls._lengths['DESTAG']
+        else:
+            return super(DataExtensionHeader0, cls)._parse_attribute(fields, attribute, value, start)
