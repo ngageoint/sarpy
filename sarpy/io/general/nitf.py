@@ -34,14 +34,16 @@ from sarpy.compliance import int_func, string_types
 from sarpy.io.general.base import BaseReader, AbstractWriter, SubsetChipper, AggregateChipper
 from sarpy.io.general.bip import BIPChipper, BIPWriter
 # noinspection PyProtectedMember
-from sarpy.io.general.nitf_elements.nitf_head import NITFHeader, ImageSegmentsType, \
-    DataExtensionsType, _ItemArrayHeaders
-from sarpy.io.general.nitf_elements.text import TextSegmentHeader
+from sarpy.io.general.nitf_elements.nitf_head import NITFHeader, NITFHeader0, \
+    ImageSegmentsType, DataExtensionsType, _ItemArrayHeaders
+from sarpy.io.general.nitf_elements.text import TextSegmentHeader, TextSegmentHeader0
 from sarpy.io.general.nitf_elements.graphics import GraphicsSegmentHeader
-from sarpy.io.general.nitf_elements.res import ReservedExtensionHeader
+from sarpy.io.general.nitf_elements.symbol import SymbolSegmentHeader
+from sarpy.io.general.nitf_elements.label import LabelSegmentHeader
+from sarpy.io.general.nitf_elements.res import ReservedExtensionHeader, ReservedExtensionHeader0
 from sarpy.io.general.nitf_elements.security import NITFSecurityTags
-from sarpy.io.general.nitf_elements.image import ImageSegmentHeader
-from sarpy.io.general.nitf_elements.des import DataExtensionHeader
+from sarpy.io.general.nitf_elements.image import ImageSegmentHeader, ImageSegmentHeader0
+from sarpy.io.general.nitf_elements.des import DataExtensionHeader, DataExtensionHeader0
 from sarpy.io.complex.sicd_elements.blocks import LatLonType
 from sarpy.geometry.geocoords import ecf_to_geodetic, geodetic_to_ecf
 from sarpy.geometry.latlon import num as lat_lon_parser
@@ -87,19 +89,31 @@ def extract_image_corners(img_header):
 class NITFDetails(object):
     """
     This class allows for somewhat general parsing of the header information in a NITF 2.1 file.
+    Experimental support for NITF 2.0 is also included.
     """
 
     __slots__ = (
-        '_file_name', '_nitf_header', '_img_headers',
+        '_file_name', '_nitf_version', '_nitf_header', '_img_headers',
+
         'img_subheader_offsets', 'img_subheader_sizes',
         'img_segment_offsets', 'img_segment_sizes',
-        'graphics_subheader_offsets', 'graphics_subheader_sizes',
+
+        'graphics_subheader_offsets', 'graphics_subheader_sizes',  # only 2.1
         'graphics_segment_offsets', 'graphics_segment_sizes',
+
+        'symbol_subheader_offsets', 'symbol_subheader_sizes', # only 2.0
+        'symbol_segment_offsets', 'symbol_segment_sizes',
+
+        'label_subheader_offsets', 'label_subheader_sizes', # only 2.0
+        'label_segment_offsets', 'label_segment_sizes',
+
         'text_subheader_offsets', 'text_subheader_sizes',
         'text_segment_offsets', 'text_segment_sizes',
+
         'des_subheader_offsets', 'des_subheader_sizes',
         'des_segment_offsets', 'des_segment_sizes',
-        'res_subheader_offsets', 'res_subheader_sizes',
+
+        'res_subheader_offsets', 'res_subheader_sizes', # only 2.1
         'res_segment_offsets', 'res_segment_sizes')
 
     def __init__(self, file_name):
@@ -108,7 +122,7 @@ class NITFDetails(object):
         Parameters
         ----------
         file_name : str
-            file name for a NITF 2.1 file
+            file name for a NITF file
         """
 
         self._img_headers = None
@@ -123,26 +137,58 @@ class NITFDetails(object):
                 version_info = fi.read(9).decode('utf-8')
             except:
                 raise IOError('Not a NITF 2.1 file.')
-
-            if version_info != 'NITF02.10':
-                raise IOError('File {} is not a NITF 2.1 file.'.format(file_name))
-            # get the header length
-            fi.seek(354)  # offset to first field of interest
-            header_length = int_func(fi.read(6))
-            # go back to the beginning of the file, and parse the whole header
-            fi.seek(0)
-            header_string = fi.read(header_length)
-            self._nitf_header = NITFHeader.from_bytes(header_string, 0)
-
-        curLoc = self._nitf_header.HL
+            if version_info[:4] != 'NITF':
+                raise IOError('File {} is not a NITF file.'.format(file_name))
+            self._nitf_version = version_info[4:]
+            if self._nitf_version not in ['02.10', '02.00']:
+                raise IOError('Unsupported NITF version {} for file {}'.format(self._nitf_version, file_name))
+            if self._nitf_version == '02.10':
+                fi.seek(354, 0)  # offset to header length field
+                header_length = int_func(fi.read(6))
+                # go back to the beginning of the file, and parse the whole header
+                fi.seek(0, 0)
+                header_string = fi.read(header_length)
+                self._nitf_header = NITFHeader.from_bytes(header_string, 0)
+            elif self._nitf_version == '02.00':
+                fi.seek(280, 0)  # offset to check if DEVT is defined
+                # advance past security tags
+                DWSG = fi.read(6)
+                if DWSG == b'999998':
+                    fi.seek(40, 1)
+                # seek to header length field
+                fi.seek(68, 1)
+                header_length = int_func(fi.read(6))
+                fi.seek(0, 0)
+                header_string = fi.read(header_length)
+                self._nitf_header = NITFHeader0.from_bytes(header_string, 0)
+            else:
+                raise ValueError('Unhandled version {}'.format(self._nitf_version))
+        if self._nitf_header.get_bytes_length() != header_length:
+            logging.critical(
+                'Stated header length of file {} is {}, while the interpreted '
+                'header length is {}. This will likely be accompanied by serious '
+                'parsing failures, and should be reported to the sarpy team for '
+                'investigation.'.format(self._file_name, header_length, self._nitf_header.get_bytes_length()))
+        curLoc = header_length
         # populate image segment offset information
         curLoc, self.img_subheader_offsets, self.img_subheader_sizes, \
         self.img_segment_offsets, self.img_segment_sizes = self._element_offsets(
             curLoc, self._nitf_header.ImageSegments)
-        # populate graphics segment offset information
+
+        # populate graphics segment offset information - only version 2.1
         curLoc, self.graphics_subheader_offsets, self.graphics_subheader_sizes, \
         self.graphics_segment_offsets, self.graphics_segment_sizes = self._element_offsets(
-            curLoc, self._nitf_header.GraphicsSegments)
+            curLoc, getattr(self._nitf_header, 'GraphicsSegments', None))
+
+        # populate symbol segment offset information - only version 2.0
+        curLoc, self.symbol_subheader_offsets, self.symbol_subheader_sizes, \
+        self.symbol_segment_offsets, self.symbol_segment_sizes = self._element_offsets(
+            curLoc, getattr(self._nitf_header, 'SymbolsSegments', None))
+        # populate label segment offset information - only version 2.0
+        curLoc, self.label_subheader_offsets, self.label_subheader_sizes, \
+        self.label_segment_offsets, self.label_segment_sizes = self._element_offsets(
+            curLoc, getattr(self._nitf_header, 'LabelsSegments', None))
+
         # populate text segment offset information
         curLoc, self.text_subheader_offsets, self.text_subheader_sizes, \
         self.text_segment_offsets, self.text_segment_sizes = self._element_offsets(
@@ -151,14 +197,16 @@ class NITFDetails(object):
         curLoc, self.des_subheader_offsets, self.des_subheader_sizes, \
         self.des_segment_offsets, self.des_segment_sizes = self._element_offsets(
             curLoc, self._nitf_header.DataExtensions)
-        # populate data extension offset information
+        # populate data extension offset information - only version 2.1
         curLoc, self.res_subheader_offsets, self.res_subheader_sizes, \
         self.res_segment_offsets, self.res_segment_sizes = self._element_offsets(
-            curLoc, self._nitf_header.ReservedExtensions)
+            curLoc, getattr(self._nitf_header, 'ReservedExtensions', None))
 
     @staticmethod
     def _element_offsets(curLoc, item_array_details):
-        # type: (int, _ItemArrayHeaders) -> Tuple[int, Union[None, numpy.ndarray], Union[None, numpy.ndarray], Union[None, numpy.ndarray], Union[None, numpy.ndarray]]
+        # type: (int, Union[_ItemArrayHeaders, None]) -> Tuple[int, Union[None, numpy.ndarray], Union[None, numpy.ndarray], Union[None, numpy.ndarray], Union[None, numpy.ndarray]]
+        if item_array_details is None:
+            return curLoc, None, None, None, None
         subhead_sizes = item_array_details.subhead_sizes
         item_sizes = item_array_details.item_sizes
         if subhead_sizes.size == 0:
@@ -172,12 +220,15 @@ class NITFDetails(object):
 
     @property
     def file_name(self):
-        """str: the file name."""
+        """
+        str: the file name.
+        """
+
         return self._file_name
 
     @property
     def nitf_header(self):
-        # type: () -> NITFHeader
+        # type: () -> Union[NITFHeader, NITFHeader0]
         """
         NITFHeader: the nitf header object
         """
@@ -199,6 +250,14 @@ class NITFDetails(object):
 
         self._parse_img_headers()
         return self._img_headers
+
+    @property
+    def nitf_version(self):
+        """
+        str: The NITF version number.
+        """
+
+        return self._nitf_version
 
     def _parse_img_headers(self):
         if self.img_segment_offsets is None or self._img_headers is not None:
@@ -247,11 +306,16 @@ class NITFDetails(object):
 
         Returns
         -------
-        ImageSegmentHeader
+        ImageSegmentHeader|ImageSegmentHeader0
         """
 
         ih = self.get_image_subheader_bytes(index)
-        return ImageSegmentHeader.from_bytes(ih, 0)
+        if self.nitf_version == '02.10':
+            return ImageSegmentHeader.from_bytes(ih, 0)
+        elif self.nitf_version == '02.00':
+            return ImageSegmentHeader0.from_bytes(ih, 0)
+        else:
+            raise ValueError('Unhandled version {}'.format(self.nitf_version))
 
     def get_text_subheader_bytes(self, index):
         """
@@ -299,15 +363,20 @@ class NITFDetails(object):
 
         Returns
         -------
-        TextSegmentHeader
+        TextSegmentHeader|TextSegmentHeader0
         """
 
         th = self.get_text_subheader_bytes(index)
-        return TextSegmentHeader.from_bytes(th, 0)
+        if self._nitf_version == '02.10':
+            return TextSegmentHeader.from_bytes(th, 0)
+        elif self._nitf_version == '02.00':
+            return TextSegmentHeader0.from_bytes(th, 0)
+        else:
+            raise ValueError('Unhandled version {}'.format(self.nitf_version))
 
     def get_graphics_subheader_bytes(self, index):
         """
-        Fetches the graphics segment subheader at the given index.
+        Fetches the graphics segment subheader at the given index (only version 2.1).
 
         Parameters
         ----------
@@ -318,14 +387,17 @@ class NITFDetails(object):
         bytes
         """
 
-        return self._fetch_item('graphics subheader',
-                                index,
-                                self.graphics_subheader_offsets,
-                                self._nitf_header.GraphicsSegments.subhead_sizes)
+        if self._nitf_version == '02.10':
+            return self._fetch_item('graphics subheader',
+                                    index,
+                                    self.graphics_subheader_offsets,
+                                    self._nitf_header.GraphicsSegments.subhead_sizes)
+        else:
+            raise ValueError('Only NITF version 02.10 has graphics segments')
 
     def get_graphics_bytes(self, index):
         """
-        Fetches the graphics extension segment bytes at the given index.
+        Fetches the graphics extension segment bytes at the given index (only version 2.1).
 
         Parameters
         ----------
@@ -336,14 +408,17 @@ class NITFDetails(object):
         bytes
         """
 
-        return self._fetch_item('graphics segment',
-                                index,
-                                self.graphics_segment_offsets,
-                                self._nitf_header.GraphicsSegments.item_sizes)
+        if self._nitf_version == '02.10':
+            return self._fetch_item('graphics segment',
+                                    index,
+                                    self.graphics_segment_offsets,
+                                    self._nitf_header.GraphicsSegments.item_sizes)
+        else:
+            raise ValueError('Only NITF version 02.10 has graphics segments')
 
     def parse_graphics_subheader(self, index):
         """
-        Parse the graphics segment subheader at the given index.
+        Parse the graphics segment subheader at the given index (only version 2.1).
 
         Parameters
         ----------
@@ -354,8 +429,133 @@ class NITFDetails(object):
         GraphicsSegmentHeader
         """
 
-        gh = self.get_graphics_subheader_bytes(index)
-        return GraphicsSegmentHeader.from_bytes(gh, 0)
+        if self._nitf_version == '02.10':
+            gh = self.get_graphics_subheader_bytes(index)
+            return GraphicsSegmentHeader.from_bytes(gh, 0)
+        else:
+            raise ValueError('Only NITF version 02.10 has graphics segments')
+
+    def get_symbol_subheader_bytes(self, index):
+        """
+        Fetches the symbol segment subheader at the given index (only version 2.0).
+
+        Parameters
+        ----------
+        index : int
+
+        Returns
+        -------
+        bytes
+        """
+
+        if self.nitf_version == '02.00':
+            return self._fetch_item('symbol subheader',
+                                    index,
+                                    self.symbol_subheader_offsets,
+                                    self._nitf_header.GraphicsSegments.subhead_sizes)
+        else:
+            raise ValueError('Only NITF 02.00 has symbol elements.')
+
+    def get_symbol_bytes(self, index):
+        """
+        Fetches the symbol extension segment bytes at the given index (only version 2.0).
+
+        Parameters
+        ----------
+        index : int
+
+        Returns
+        -------
+        bytes
+        """
+
+        if self.nitf_version == '02.00':
+            return self._fetch_item('symbol segment',
+                                    index,
+                                    self.symbol_segment_offsets,
+                                    self._nitf_header.GraphicsSegments.item_sizes)
+        else:
+            raise ValueError('Only NITF 02.00 has symbol elements.')
+
+    def parse_symbol_subheader(self, index):
+        """
+        Parse the symbol segment subheader at the given index (only version 2.0).
+
+        Parameters
+        ----------
+        index : int
+
+        Returns
+        -------
+        SymbolSegmentHeader
+        """
+
+        if self.nitf_version == '02.00':
+            gh = self.get_symbol_subheader_bytes(index)
+            return SymbolSegmentHeader.from_bytes(gh, 0)
+        else:
+            raise ValueError('Only NITF 02.00 has symbol elements.')
+
+    def get_label_subheader_bytes(self, index):
+        """
+        Fetches the label segment subheader at the given index (only version 2.0).
+
+        Parameters
+        ----------
+        index : int
+
+        Returns
+        -------
+        bytes
+        """
+
+        if self.nitf_version == '02.00':
+            return self._fetch_item('label subheader',
+                                    index,
+                                    self.label_subheader_offsets,
+                                    self._nitf_header.GraphicsSegments.subhead_sizes)
+        else:
+            raise ValueError('Only NITF 02.00 has label elements.')
+
+    def get_label_bytes(self, index):
+        """
+        Fetches the label extension segment bytes at the given index (only version 2.0).
+
+        Parameters
+        ----------
+        index : int
+
+        Returns
+        -------
+        bytes
+        """
+
+        if self.nitf_version == '02.00':
+            return self._fetch_item('label segment',
+                                    index,
+                                    self.label_segment_offsets,
+                                    self._nitf_header.GraphicsSegments.item_sizes)
+        else:
+            raise ValueError('Only NITF 02.00 has symbol elements.')
+
+    def parse_label_subheader(self, index):
+        """
+        Parse the label segment subheader at the given index (only version 2.0).
+
+        Parameters
+        ----------
+        index : int
+
+        Returns
+        -------
+        LabelSegmentHeader
+        """
+
+        if self.nitf_version == '02.00':
+            gh = self.get_label_subheader_bytes(index)
+            return LabelSegmentHeader.from_bytes(gh, 0)
+        else:
+            raise ValueError('Only NITF 02.00 has label elements.')
 
     def get_des_subheader_bytes(self, index):
         """
@@ -403,15 +603,20 @@ class NITFDetails(object):
 
         Returns
         -------
-        DataExtensionHeader
+        DataExtensionHeader|DataExtensionHeader0
         """
 
         dh = self.get_des_subheader_bytes(index)
-        return DataExtensionHeader.from_bytes(dh, 0)
+        if self.nitf_version == '02.10':
+            return DataExtensionHeader.from_bytes(dh, 0)
+        elif self.nitf_version == '02.00':
+            return DataExtensionHeader0.from_bytes(dh, 0)
+        else:
+            raise ValueError('Unhandled version {}'.format(self.nitf_version))
 
     def get_res_subheader_bytes(self, index):
         """
-        Fetches the reserved extension segment subheader bytes at the given index.
+        Fetches the reserved extension segment subheader bytes at the given index (only version 2.1).
 
         Parameters
         ----------
@@ -429,7 +634,7 @@ class NITFDetails(object):
 
     def get_res_bytes(self, index):
         """
-        Fetches the reserved extension segment bytes at the given index.
+        Fetches the reserved extension segment bytes at the given index (only version 2.1).
 
         Parameters
         ----------
@@ -447,7 +652,7 @@ class NITFDetails(object):
 
     def parse_res_subheader(self, index):
         """
-        Parse the reserved extension subheader at the given index.
+        Parse the reserved extension subheader at the given index (only version 2.1).
 
         Parameters
         ----------
@@ -455,11 +660,16 @@ class NITFDetails(object):
 
         Returns
         -------
-        ReservedExtensionHeader
+        ReservedExtensionHeader|ReservedExtensionHeader0
         """
 
         rh = self.get_res_subheader_bytes(index)
-        return ReservedExtensionHeader.from_bytes(rh, 0)
+        if self.nitf_version == '02.10':
+            return ReservedExtensionHeader.from_bytes(rh, 0)
+        elif self.nitf_version == '02.00':
+            return ReservedExtensionHeader0.from_bytes(rh, 0)
+        else:
+            raise ValueError('Unhandled version {}.'.format(self.nitf_version))
 
 
 #####
