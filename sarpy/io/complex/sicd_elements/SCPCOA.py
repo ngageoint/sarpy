@@ -53,8 +53,8 @@ class GeometryCalculator(object):
     def _make_unit(vec):
         vec_norm = norm(vec)
         if vec_norm < 1e-6:
-            raise ValueError(
-                'input vector has norm {}, this is likely a mistake'.format(vec_norm))
+            logging.error(
+                'The input vector to be normalized has norm {}, this is likely a mistake'.format(vec_norm))
         return vec/vec_norm
 
     @property
