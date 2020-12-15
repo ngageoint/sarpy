@@ -30,8 +30,7 @@ class ERRCOVDATA(TREElement):
         super(ERRCOVDATA, self).__init__()
         self.add_field('NUMOPG', 'd', 2, value)
         self.add_loop(
-            'ERRCVGs', int(
-                (self.NUMOPG + 1) * self.NUMOPG / 2), ERRCVG, value)
+            'ERRCVGs', int((self.NUMOPG+1)*self.NUMOPG/2), ERRCVG, value)
         self.add_field('TCDF', 'd', 1, value)
         self.add_field('NCSEG', 'd', 1, value)
         self.add_loop('CORSEGs', self.NCSEG, CORSEG, value)

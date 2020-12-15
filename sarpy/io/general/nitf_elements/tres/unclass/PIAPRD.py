@@ -11,7 +11,7 @@ class SECTT(TREElement):
         super(SECTT, self).__init__()
         self.add_field('SECTITLE', 's', 40, value)
         self.add_field('PPNUM', 's', 5, value)
-        self.add_field('TPP', 'd', 3, value)
+        self.add_field('TPP', 's', 3, value)
 
 
 class RQORG(TREElement):

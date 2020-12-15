@@ -25,10 +25,10 @@ class REF_PT(TREElement):
         self.add_field('TGT_LL', 's', 21, value)
         self.add_field('TGT_ELEV', 's', 8, value)
         self.add_field('TGT_BAND', 's', 3, value)
-        self.add_field('TGT_ROW', 'd', 8, value)
-        self.add_field('TGT_COL', 'd', 8, value)
-        self.add_field('TGT_PROW', 'd', 8, value)
-        self.add_field('TGT_PCOL', 'd', 8, value)
+        self.add_field('TGT_ROW', 's', 8, value)
+        self.add_field('TGT_COL', 's', 8, value)
+        self.add_field('TGT_PROW', 's', 8, value)
+        self.add_field('TGT_PCOL', 's', 8, value)
 
 
 class VALID_TGT(TREElement):
@@ -72,7 +72,7 @@ class VALID_TGT(TREElement):
 class ATTRIBUTE(TREElement):
     def __init__(self, value):
         super(ATTRIBUTE, self).__init__()
-        self.add_field('ATTR_TGT_NUM', 'd', 3, value)
+        self.add_field('ATTR_TGT_NUM', 's', 3, value)
         self.add_field('ATTR_NAME', 's', 30, value)
         self.add_field('ATTR_CONDTN', 's', 35, value)
         self.add_field('ATTR_VALUE', 's', 10, value)
@@ -81,7 +81,7 @@ class ATTRIBUTE(TREElement):
 class TRGTAType(TREElement):
     def __init__(self, value):
         super(TRGTAType, self).__init__()
-        self.add_field('VERNUM', 'd', 4, value)
+        self.add_field('VERNUM', 's', 4, value)
         self.add_field('NO_VALID_TGTS', 'd', 3, value)
         self.add_field('NO_SCENE_TGTS', 'd', 3, value)
         self.add_loop('VALID_TGTs', self.NO_VALID_TGTS, VALID_TGT, value)

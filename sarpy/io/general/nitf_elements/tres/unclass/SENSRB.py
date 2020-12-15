@@ -31,12 +31,12 @@ def get_ref_type_length(typ_val):
 class POINT(TREElement):
     def __init__(self, value):
         super(POINT, self).__init__()
-        self.add_field('P_ROW', 'd', 8, value)
-        self.add_field('P_COLUMN', 'd', 8, value)
-        self.add_field('P_LATITUDE', 'd', 10, value)
-        self.add_field('P_LONGITUDE', 'd', 11, value)
-        self.add_field('P_ELEVATION', 'd', 6, value)
-        self.add_field('P_RANGE', 'd', 8, value)
+        self.add_field('P_ROW', 's', 8, value)
+        self.add_field('P_COLUMN', 's', 8, value)
+        self.add_field('P_LATITUDE', 's', 10, value)
+        self.add_field('P_LONGITUDE', 's', 11, value)
+        self.add_field('P_ELEVATION', 's', 6, value)
+        self.add_field('P_RANGE', 's', 8, value)
 
 
 class POINT_SET(TREElement):
@@ -50,9 +50,9 @@ class POINT_SET(TREElement):
 class TIME_STAMP(TREElement):
     def __init__(self, value, time_len):
         super(TIME_STAMP, self).__init__()
-        self.add_field('TIME_STAMP_TIME', 'd', 12, value)
+        self.add_field('TIME_STAMP_TIME', 's', 12, value)
         if time_len is not None:
-            self.add_field('TIME_STAMP_VALUE', 'd', time_len, value)
+            self.add_field('TIME_STAMP_VALUE', 's', time_len, value)
 
 
 class TIME_STAMPED_DATA(TREElement):
@@ -68,10 +68,10 @@ class TIME_STAMPED_DATA(TREElement):
 class PIXEL_REFERENCE(TREElement):
     def __init__(self, value, pixel_ref_len):
         super(PIXEL_REFERENCE, self).__init__()
-        self.add_field('PIXEL_REFERENCE_ROW', 'd', 8, value)
-        self.add_field('PIXEL_REFERENCE_COLUMN', 'd', 8, value)
+        self.add_field('PIXEL_REFERENCE_ROW', 's', 8, value)
+        self.add_field('PIXEL_REFERENCE_COLUMN', 's', 8, value)
         if pixel_ref_len is not None:
-            self.add_field('PIXEL_REFERENCE_VALUE', 'd', pixel_ref_len, value)
+            self.add_field('PIXEL_REFERENCE_VALUE', 's', pixel_ref_len, value)
 
 
 class PIXEL_REFERENCED_DATA(TREElement):
@@ -102,7 +102,7 @@ class ADDITIONAL_PARAMETER(TREElement):
     def __init__(self, value):
         super(ADDITIONAL_PARAMETER, self).__init__()
         self.add_field('PARAMETER_NAME', 's', 25, value)
-        self.add_field('PARAMETER_SIZE', 'd', 3, value)
+        self.add_field('PARAMETER_SIZE', 's', 3, value)
         self.add_field('PARAMETER_COUNT', 'd', 4, value)
         self.add_loop('PARAMETERs', self.PARAMETER_COUNT, PARAMETER, value)
 
@@ -118,121 +118,107 @@ class SENSRBType(TREElement):
             self.add_field('PLATFORM', 's', 25, value)
             self.add_field('PLATFORM_URI', 's', 32, value)
             self.add_field('OPERATION_DOMAIN', 's', 10, value)
-            self.add_field('CONTENT_LEVEL', 'd', 1, value)
+            self.add_field('CONTENT_LEVEL', 's', 1, value)
             self.add_field('GEODETIC_SYSTEM', 's', 5, value)
             self.add_field('GEODETIC_TYPE', 's', 1, value)
             self.add_field('ELEVATION_DATUM', 's', 3, value)
             self.add_field('LENGTH_UNIT', 's', 2, value)
             self.add_field('ANGULAR_UNIT', 's', 3, value)
-            self.add_field('START_DATE', 'd', 8, value)
-            self.add_field('START_TIME', 'd', 14, value)
-            self.add_field('END_DATE', 'd', 8, value)
-            self.add_field('END_TIME', 'd', 14, value)
-            self.add_field('GENERATION_COUNT', 'd', 2, value)
-            self.add_field('GENERATION_DATE', 'd', 8, value)
-            self.add_field('GENERATION_TIME', 'd', 10, value)
+            self.add_field('START_DATE', 's', 8, value)
+            self.add_field('START_TIME', 's', 14, value)
+            self.add_field('END_DATE', 's', 8, value)
+            self.add_field('END_TIME', 's', 14, value)
+            self.add_field('GENERATION_COUNT', 's', 2, value)
+            self.add_field('GENERATION_DATE', 's', 8, value)
+            self.add_field('GENERATION_TIME', 's', 10, value)
 
         self.add_field('SENSOR_ARRAY_DATA', 's', 1, value)
         if self.SENSOR_ARRAY_DATA == 'Y':
             self.add_field('DETECTION', 's', 20, value)
-            self.add_field('ROW_DETECTORS', 'd', 8, value)
-            self.add_field('COLUMN_DETECTORS', 'd', 8, value)
-            self.add_field('ROW_METRIC', 'd', 8, value)
-            self.add_field('COLUMN_METRIC', 'd', 8, value)
-            self.add_field('FOCAL_LENGTH', 'd', 8, value)
-            self.add_field('ROW_FOV', 'd', 8, value)
-            self.add_field('COLUMN_FOV', 'd', 8, value)
+            self.add_field('ROW_DETECTORS', 's', 8, value)
+            self.add_field('COLUMN_DETECTORS', 's', 8, value)
+            self.add_field('ROW_METRIC', 's', 8, value)
+            self.add_field('COLUMN_METRIC', 's', 8, value)
+            self.add_field('FOCAL_LENGTH', 's', 8, value)
+            self.add_field('ROW_FOV', 's', 8, value)
+            self.add_field('COLUMN_FOV', 's', 8, value)
             self.add_field('CALIBRATED', 's', 1, value)
 
         self.add_field('SENSOR_CALIBRATION_DATA', 's', 1, value)
         if self.SENSOR_CALIBRATION_DATA == 'Y':
             self.add_field('CALIBRATION_UNIT', 's', 2, value)
-            self.add_field('PRINCIPAL_POINT_OFFSET_X', 'd', 9, value)
-            self.add_field('PRINCIPAL_POINT_OFFSET_Y', 'd', 9, value)
+            self.add_field('PRINCIPAL_POINT_OFFSET_X', 's', 9, value)
+            self.add_field('PRINCIPAL_POINT_OFFSET_Y', 's', 9, value)
             self.add_field('RADIAL_DISTORT_1', 's', 12, value)
             self.add_field('RADIAL_DISTORT_2', 's', 12, value)
             self.add_field('RADIAL_DISTORT_3', 's', 12, value)
-            self.add_field('RADIAL_DISTORT_LIMIT', 'd', 9, value)
+            self.add_field('RADIAL_DISTORT_LIMIT', 's', 9, value)
             self.add_field('DECENT_DISTORT_1', 's', 12, value)
             self.add_field('DECENT_DISTORT_2', 's', 12, value)
             self.add_field('AFFINITY_DISTORT_1', 's', 12, value)
             self.add_field('AFFINITY_DISTORT_2', 's', 12, value)
-            self.add_field('CALIBRATION_DATE', 'd', 8, value)
+            self.add_field('CALIBRATION_DATE', 's', 8, value)
 
         self.add_field('IMAGE_FORMATION_DATA', 's', 1, value)
         if self.IMAGE_FORMATION_DATA == 'Y':
             self.add_field('METHOD', 's', 15, value)
             self.add_field('MODE', 's', 3, value)
-            self.add_field('ROW_COUNT', 'd', 8, value)
-            self.add_field('COLUMN_COUNT', 'd', 8, value)
-            self.add_field('ROW_SET', 'd', 8, value)
-            self.add_field('COLUMN_SET', 'd', 8, value)
-            self.add_field('ROW_RATE', 'd', 10, value)
-            self.add_field('COLUMN_RATE', 'd', 10, value)
-            self.add_field('FIRST_PIXEL_ROW', 'd', 8, value)
-            self.add_field('FIRST_PIXEL_COLUMN', 'd', 8, value)
+            self.add_field('ROW_COUNT', 's', 8, value)
+            self.add_field('COLUMN_COUNT', 's', 8, value)
+            self.add_field('ROW_SET', 's', 8, value)
+            self.add_field('COLUMN_SET', 's', 8, value)
+            self.add_field('ROW_RATE', 's', 10, value)
+            self.add_field('COLUMN_RATE', 's', 10, value)
+            self.add_field('FIRST_PIXEL_ROW', 's', 8, value)
+            self.add_field('FIRST_PIXEL_COLUMN', 's', 8, value)
             self.add_field('TRANSFORM_PARAMS', 'd', 1, value)
-            if self.TRANSFORM_PARAMS >= 1:
-                self.add_field('TRANSFORM_PARAM_1', 's', 12, value)
-            if self.TRANSFORM_PARAMS >= 2:
-                self.add_field('TRANSFORM_PARAM_2', 's', 12, value)
-            if self.TRANSFORM_PARAMS >= 3:
-                self.add_field('TRANSFORM_PARAM_3', 's', 12, value)
-            if self.TRANSFORM_PARAMS >= 4:
-                self.add_field('TRANSFORM_PARAM_4', 's', 12, value)
-            if self.TRANSFORM_PARAMS >= 5:
-                self.add_field('TRANSFORM_PARAM_5', 's', 12, value)
-            if self.TRANSFORM_PARAMS >= 6:
-                self.add_field('TRANSFORM_PARAM_6', 's', 12, value)
-            if self.TRANSFORM_PARAMS >= 7:
-                self.add_field('TRANSFORM_PARAM_7', 's', 12, value)
-            if self.TRANSFORM_PARAMS >= 8:
-                self.add_field('TRANSFORM_PARAM_8', 's', 12, value)
-        self.add_field('REFERENCE_TIME', 'd', 12, value)
-        self.add_field('REFERENCE_ROW', 'd', 8, value)
-        self.add_field('REFERENCE_COLUMN', 'd', 8, value)
-        self.add_field('LATITUDE_OR_X', 'd', 11, value)
-        self.add_field('LONGITUDE_OR_Y', 'd', 12, value)
-        self.add_field('ALTITUDE_OR_Z', 'd', 11, value)
-        self.add_field('SENSOR_X_OFFSET', 'd', 8, value)
-        self.add_field('SENSOR_Y_OFFSET', 'd', 8, value)
-        self.add_field('SENSOR_Z_OFFSET', 'd', 8, value)
+            for i in range(self.TRANSFORM_PARAMS):
+                self.add_field('TRANSFORM_PARAM_{}'.format(i+1), 's', 12, value)
+        self.add_field('REFERENCE_TIME', 's', 12, value)
+        self.add_field('REFERENCE_ROW', 's', 8, value)
+        self.add_field('REFERENCE_COLUMN', 's', 8, value)
+        self.add_field('LATITUDE_OR_X', 's', 11, value)
+        self.add_field('LONGITUDE_OR_Y', 's', 12, value)
+        self.add_field('ALTITUDE_OR_Z', 's', 11, value)
+        self.add_field('SENSOR_X_OFFSET', 's', 8, value)
+        self.add_field('SENSOR_Y_OFFSET', 's', 8, value)
+        self.add_field('SENSOR_Z_OFFSET', 's', 8, value)
 
         self.add_field('ATTITUDE_EULER_ANGLES', 's', 1, value)
         if self.ATTITUDE_EULER_ANGLES == 'Y':
-            self.add_field('SENSOR_ANGLE_MODEL', 'd', 1, value)
-            self.add_field('SENSOR_ANGLE_1', 'd', 10, value)
-            self.add_field('SENSOR_ANGLE_2', 'd', 9, value)
-            self.add_field('SENSOR_ANGLE_3', 'd', 10, value)
+            self.add_field('SENSOR_ANGLE_MODEL', 's', 1, value)
+            self.add_field('SENSOR_ANGLE_1', 's', 10, value)
+            self.add_field('SENSOR_ANGLE_2', 's', 9, value)
+            self.add_field('SENSOR_ANGLE_3', 's', 10, value)
             self.add_field('PLATFORM_RELATIVE', 's', 1, value)
-            self.add_field('PLATFORM_HEADING', 'd', 9, value)
-            self.add_field('PLATFORM_PITCH', 'd', 9, value)
-            self.add_field('PLATFORM_ROLL', 'd', 10, value)
+            self.add_field('PLATFORM_HEADING', 's', 9, value)
+            self.add_field('PLATFORM_PITCH', 's', 9, value)
+            self.add_field('PLATFORM_ROLL', 's', 10, value)
 
         self.add_field('ATTITUDE_UNIT_VECTORS', 's', 1, value)
         if self.ATTITUDE_UNIT_VECTORS == 'Y':
-            self.add_field('ICX_NORTH_OR_X', 'd', 10, value)
-            self.add_field('ICX_EAST_OR_Y', 'd', 10, value)
-            self.add_field('ICX_DOWN_OR_Z', 'd', 10, value)
-            self.add_field('ICY_NORTH_OR_X', 'd', 10, value)
-            self.add_field('ICY_EAST_OR_Y', 'd', 10, value)
-            self.add_field('ICY_DOWN_OR_Z', 'd', 10, value)
-            self.add_field('ICZ_NORTH_OR_X', 'd', 10, value)
-            self.add_field('ICZ_EAST_OR_Y', 'd', 10, value)
-            self.add_field('ICZ_DOWN_OR_Z', 'd', 10, value)
+            self.add_field('ICX_NORTH_OR_X', 's', 10, value)
+            self.add_field('ICX_EAST_OR_Y', 's', 10, value)
+            self.add_field('ICX_DOWN_OR_Z', 's', 10, value)
+            self.add_field('ICY_NORTH_OR_X', 's', 10, value)
+            self.add_field('ICY_EAST_OR_Y', 's', 10, value)
+            self.add_field('ICY_DOWN_OR_Z', 's', 10, value)
+            self.add_field('ICZ_NORTH_OR_X', 's', 10, value)
+            self.add_field('ICZ_EAST_OR_Y', 's', 10, value)
+            self.add_field('ICZ_DOWN_OR_Z', 's', 10, value)
 
         self.add_field('ATTITUDE_QUATERNION', 's', 1, value)
         if self.ATTITUDE_QUATERNION == 'Y':
-            self.add_field('ATTITUDE_Q1', 'd', 10, value)
-            self.add_field('ATTITUDE_Q2', 'd', 10, value)
-            self.add_field('ATTITUDE_Q3', 'd', 10, value)
-            self.add_field('ATTITUDE_Q4', 'd', 10, value)
+            self.add_field('ATTITUDE_Q1', 's', 10, value)
+            self.add_field('ATTITUDE_Q2', 's', 10, value)
+            self.add_field('ATTITUDE_Q3', 's', 10, value)
+            self.add_field('ATTITUDE_Q4', 's', 10, value)
 
         self.add_field('SENSOR_VELOCITY_DATA', 's', 1, value)
         if self.SENSOR_VELOCITY_DATA == 'Y':
-            self.add_field('VELOCITY_NORTH_OR_X', 'd', 9, value)
-            self.add_field('VELOCITY_EAST_OR_Y', 'd', 9, value)
-            self.add_field('VELOCITY_DOWN_OR_Z', 'd', 9, value)
+            self.add_field('VELOCITY_NORTH_OR_X', 's', 9, value)
+            self.add_field('VELOCITY_EAST_OR_Y', 's', 9, value)
+            self.add_field('VELOCITY_DOWN_OR_Z', 's', 9, value)
 
         self.add_field('POINT_SET_DATA', 'd', 2, value)
         self.add_loop('POINT_SETs', self.POINT_SET_DATA, POINT_SET, value)

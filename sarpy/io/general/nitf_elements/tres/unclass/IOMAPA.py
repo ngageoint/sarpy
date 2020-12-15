@@ -9,9 +9,9 @@ __author__ = "Thomas McCullough"
 class IOMAPA_6Type(TREElement):
     def __init__(self, value):
         super(IOMAPA_6Type, self).__init__()
-        self.add_field('BAND_NUMBER', 'd', 3, value)
-        self.add_field('MAP_SELECT', 'd', 1, value)
-        self.add_field('S2', 'd', 2, value)
+        self.add_field('BAND_NUMBER', 's', 3, value)
+        self.add_field('MAP_SELECT', 's', 1, value)
+        self.add_field('S2', 's', 2, value)
 
 
 class IOMAPA_6(TREExtension):
@@ -22,13 +22,13 @@ class IOMAPA_6(TREExtension):
 class IOMAPA_16Type(TREElement):
     def __init__(self, value):
         super(IOMAPA_16Type, self).__init__()
-        self.add_field('BAND_NUMBER', 'd', 3, value)
-        self.add_field('MAP_SELECT', 'd', 1, value)
-        self.add_field('TABLE_ID', 'd', 2, value)
-        self.add_field('S1', 'd', 2, value)
-        self.add_field('S2', 'd', 2, value)
-        self.add_field('R_WHOLE', 'd', 3, value)
-        self.add_field('R_FRACTION', 'd', 3, value)
+        self.add_field('BAND_NUMBER', 's', 3, value)
+        self.add_field('MAP_SELECT', 's', 1, value)
+        self.add_field('TABLE_ID', 's', 2, value)
+        self.add_field('S1', 's', 2, value)
+        self.add_field('S2', 's', 2, value)
+        self.add_field('R_WHOLE', 's', 3, value)
+        self.add_field('R_FRACTION', 's', 3, value)
 
 
 class IOMAPA_16(TREExtension):
@@ -50,14 +50,14 @@ class SEGMENT(TREElement):
 class IOMAPA_91Type(TREElement):
     def __init__(self, value):
         super(IOMAPA_91Type, self).__init__()
-        self.add_field('BAND_NUMBER', 'd', 3, value)
-        self.add_field('MAP_SELECT', 'd', 1, value)
-        self.add_field('TABLE_ID', 'd', 1, value)
-        self.add_field('S1', 'd', 2, value)
-        self.add_field('S2', 'd', 2, value)
+        self.add_field('BAND_NUMBER', 's', 3, value)
+        self.add_field('MAP_SELECT', 's', 1, value)
+        self.add_field('TABLE_ID', 's', 1, value)
+        self.add_field('S1', 's', 2, value)
+        self.add_field('S2', 's', 2, value)
         self.add_field('NO_OF_SEGMENTS', 'd', 1, value)
-        self.add_field('XOB_1', 'd', 4, value)
-        self.add_field('XOB_2', 'd', 4, value)
+        self.add_field('XOB_1', 's', 4, value)
+        self.add_field('XOB_2', 's', 4, value)
         self.add_loop('SEGMENTs', self.NO_OF_SEGMENTS, SEGMENT, value)
 
 
@@ -69,17 +69,17 @@ class IOMAPA_91(TREExtension):
 class MAP(TREElement):
     def __init__(self, value):
         super(MAP, self).__init__()
-        self.add_field('OUTPUT_MAP_VALUE', 'd', 2, value)
+        self.add_field('OUTPUT_MAP_VALUE', 's', 2, value)
 
 
 class IOMAPA_8202Type(TREElement):
     def __init__(self, value):
         super(IOMAPA_8202Type, self).__init__()
-        self.add_field('BAND_NUMBER', 'd', 3, value)
-        self.add_field('MAP_SELECT', 'd', 1, value)
-        self.add_field('TABLE_ID', 'd', 2, value)
-        self.add_field('S1', 'd', 2, value)
-        self.add_field('S2', 'd', 2, value)
+        self.add_field('BAND_NUMBER', 's', 3, value)
+        self.add_field('MAP_SELECT', 's', 1, value)
+        self.add_field('TABLE_ID', 's', 2, value)
+        self.add_field('S1', 's', 2, value)
+        self.add_field('S2', 's', 2, value)
         self.add_loop('MAPs', 4096, MAP, value)
 
 

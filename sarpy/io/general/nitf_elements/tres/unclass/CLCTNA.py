@@ -9,7 +9,7 @@ __author__ = "Thomas McCullough"
 class CLCTNAType(TREElement):
     def __init__(self, value):
         super(CLCTNAType, self).__init__()
-        self.add_field('VERNUM', 'd', 4, value)
+        self.add_field('VERNUM', 's', 4, value)
         self.add_field('CLCTN_NAME', 's', 25, value)
         self.add_field('CLCTN_DESCRIPT', 's', 255, value)
         self.add_field('CLCTN_STDATE', 's', 8, value)

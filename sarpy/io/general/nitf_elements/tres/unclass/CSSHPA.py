@@ -14,11 +14,11 @@ class CSSHPAType(TREElement):
         if self.SHAPE_USE == 'CLOUD_SHAPES':
             self.add_field('CC_SOURCE', 's', 18, value)
         self.add_field('SHAPE1_NAME', 's', 3, value)
-        self.add_field('SHAPE1_START', 'd', 6, value)
+        self.add_field('SHAPE1_START', 's', 6, value)
         self.add_field('SHAPE2_NAME', 's', 3, value)
-        self.add_field('SHAPE2_START', 'd', 6, value)
+        self.add_field('SHAPE2_START', 's', 6, value)
         self.add_field('SHAPE3_NAME', 's', 3, value)
-        self.add_field('SHAPE3_START', 'd', 6, value)
+        self.add_field('SHAPE3_START', 's', 6, value)
 
 
 class CSSHPA(TREExtension):

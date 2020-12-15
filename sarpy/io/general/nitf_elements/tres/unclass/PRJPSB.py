@@ -19,8 +19,8 @@ class PRJPSBType(TREElement):
         self.add_field('PCO', 's', 2, value)
         self.add_field('NUM_PRJ', 'd', 1, value)
         self.add_loop('PRJs', self.NUM_PRJ, PRJ, value)
-        self.add_field('XOR', 'd', 15, value)
-        self.add_field('YOR', 'd', 15, value)
+        self.add_field('XOR', 's', 15, value)
+        self.add_field('YOR', 's', 15, value)
 
 
 class PRJPSB(TREExtension):
