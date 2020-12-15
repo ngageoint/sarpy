@@ -115,9 +115,7 @@ def parse_package(packages=None):
 
     def check_module(module_name):
         # import the module
-        import_module(module_name)
-        # fetch the module from the modules dict
-        module = sys.modules[module_name]
+        module = import_module(module_name)
         # check all classes of the module itself
         for element_name, element_type in inspect.getmembers(module, inspect.isclass):
             if issubclass(element_type, TREExtension) and element_type != TREExtension:
