@@ -449,7 +449,11 @@ class NITFElement(BaseNITFElement):
 
     def __init__(self, **kwargs):
         for fld in self._ordering:
-            setattr(self, fld, kwargs.get(fld, None))
+            try:
+                setattr(self, fld, kwargs.get(fld, None))
+            except:
+                logging.critical('Failed setting attribute {} for class {}'.format(fld, self.__class__))
+                raise
 
     @classmethod
     def minimum_length(cls):
@@ -552,7 +556,7 @@ class NITFElement(BaseNITFElement):
             fields[attribute] = the_value
             return start + the_value.get_bytes_length()
         else:
-            raise ValueError('Cannot parse attribute {}'.format(attribute))
+            raise ValueError('Cannot parse attribute {} for class {}'.format(attribute, cls))
 
     @classmethod
     def from_bytes(cls, value, start):
@@ -718,7 +722,9 @@ class Unstructured(NITFElement):
             if isinstance(data, bytes):
                 return siz_frm.format(len(data)).encode('utf-8') + data
             else:
-                raise TypeError('Got unexpected data type {}'.format(type(data)))
+                raise TypeError(
+                    'Got unexpected data type {} for attribute {} of class {}'.format(
+                        type(data), attribute, self.__class__))
         return super(Unstructured, self)._get_attribute_bytes(attribute)
 
     def _get_attribute_length(self, attribute):

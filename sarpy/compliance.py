@@ -3,6 +3,10 @@
 Some basic item definitions for python 2 & 3 dual use.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
+
 import sys
 
 integer_types = (int, )

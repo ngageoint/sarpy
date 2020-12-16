@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-Common functionality for creating the SIDD structure.
+Common functionality for creating the SIDD structure from a SICD structure and
+OrthorectificationHelper.
 """
 
 import numpy
@@ -103,88 +104,6 @@ def _create_plane_projection(proj_helper, bounds):
 #########################
 # Version 2 element creation
 
-def _create_display_v2(pixel_type):
-    """
-    Create the ProductDisplay version 2.0 structure.
-
-    Parameters
-    ----------
-    pixel_type : str
-        Must be one of `MONO8I, MONO16I` or `RGB24I`.
-
-    Returns
-    -------
-    ProductDisplayType2
-    """
-
-    pixel_type = pixel_type.upper()
-
-    if pixel_type in ('MONO8I', 'MONO16I'):
-        bands = 1
-    elif pixel_type == 'RGB24I':
-        bands = 3
-    else:
-        raise ValueError('pixel_type must be one of MONO8I, MONO16I, RGB24I. Got {}'.format(pixel_type))
-
-    non_interactive = NonInteractiveProcessingType(
-        ProductGenerationOptions=ProductGenerationOptionsType())
-
-    return ProductDisplayType2(PixelType=pixel_type, NumBands=bands)
-
-
-def _create_measurement_v2(ortho_helper, bounds):
-    """
-    Construct the Measurement version 2.0 structure.
-
-    Parameters
-    ----------
-    ortho_helper : OrthorectificationHelper
-    bounds : numpy.ndarray
-        The orthorectification pixel bounds of the form `(min row, max row, min col, max col)`.
-
-    Returns
-    -------
-    MeasurementType2
-    """
-
-    proj_helper = ortho_helper.proj_helper
-    rows = bounds[1] - bounds[0]
-    cols = bounds[3] - bounds[2]
-    if isinstance(proj_helper, PGProjection):
-        # fit the time coa polynomial in ortho-pixel coordinates
-        plane_projection = _create_plane_projection(proj_helper, bounds)
-        return MeasurementType2(PixelFootprint=(rows, cols),
-                                ValidData=((0, 0), (0, cols), (rows, cols), (rows, 0)),
-                                PlaneProjection=plane_projection,
-                                ARPPoly=XYZPolyType(
-                                    X=proj_helper.sicd.Position.ARPPoly.X.get_array(),
-                                    Y=proj_helper.sicd.Position.ARPPoly.Y.get_array(),
-                                    Z=proj_helper.sicd.Position.ARPPoly.Z.get_array()))
-    else:
-        return None
-
-
-def _create_exploitation_v2(ortho_helper):
-    """
-    Construct the ExploitationFeatures version 2.0 structure.
-
-    Parameters
-    ----------
-    ortho_helper : OrthorectificationHelper
-
-    Returns
-    -------
-    ExploitationFeaturesType2
-    """
-
-    proj_helper = ortho_helper.proj_helper
-    if isinstance(proj_helper, PGProjection):
-        return ExploitationFeaturesType2.from_sicd(
-            proj_helper.sicd, proj_helper.row_vector, proj_helper.col_vector)
-    else:
-        raise ValueError('Unhandled projection helper type {}'.format(type(proj_helper)))
-
-
 def create_sidd_structure_v2(ortho_helper, bounds, product_class, pixel_type):
     """
     Create a SIDD version 2.0 structure based on the orthorectification helper
@@ -206,19 +125,55 @@ def create_sidd_structure_v2(ortho_helper, bounds, product_class, pixel_type):
     SIDDType2
     """
 
+    def _create_display_v2():
+        if pixel_type in ('MONO8I', 'MONO16I'):
+            bands = 1
+        elif pixel_type == 'RGB24I':
+            bands = 3
+        else:
+            raise ValueError('pixel_type must be one of MONO8I, MONO16I, RGB24I. Got {}'.format(pixel_type))
+
+        return ProductDisplayType2(PixelType=pixel_type, NumBands=bands)
+
+    def _create_measurement_v2():
+        proj_helper = ortho_helper.proj_helper
+        rows = bounds[1] - bounds[0]
+        cols = bounds[3] - bounds[2]
+        if isinstance(proj_helper, PGProjection):
+            # fit the time coa polynomial in ortho-pixel coordinates
+            plane_projection = _create_plane_projection(proj_helper, bounds)
+            return MeasurementType2(PixelFootprint=(rows, cols),
+                                    ValidData=((0, 0), (0, cols), (rows, cols), (rows, 0)),
+                                    PlaneProjection=plane_projection,
+                                    ARPPoly=XYZPolyType(
+                                        X=proj_helper.sicd.Position.ARPPoly.X.get_array(),
+                                        Y=proj_helper.sicd.Position.ARPPoly.Y.get_array(),
+                                        Z=proj_helper.sicd.Position.ARPPoly.Z.get_array()))
+        else:
+            return None
+
+    def _create_exploitation_v2():
+        proj_helper = ortho_helper.proj_helper
+        if isinstance(proj_helper, PGProjection):
+            return ExploitationFeaturesType2.from_sicd(
+                proj_helper.sicd, proj_helper.row_vector, proj_helper.col_vector)
+        else:
+            raise ValueError('Unhandled projection helper type {}'.format(type(proj_helper)))
+
+    pixel_type = pixel_type.upper()
     # validate bounds and get pixel coordinates rectangle
     bounds, ortho_pixel_corners = ortho_helper.bounds_to_rectangle(bounds)
     # construct appropriate SIDD elements
     prod_create = ProductCreationType.from_sicd(ortho_helper.proj_helper.sicd, product_class)
     # Display requires more product specifics
-    display = _create_display_v2(pixel_type)
+    display = _create_display_v2()
     # GeoData
     llh_corners = ortho_helper.proj_helper.ortho_to_llh(ortho_pixel_corners)
     geo_data = GeoDataType2(ImageCorners=llh_corners[:, :2], ValidData=llh_corners[:, :2])
     # Measurement
-    measurement = _create_measurement_v2(ortho_helper, bounds)
+    measurement = _create_measurement_v2()
     # ExploitationFeatures
-    exploit_feats = _create_exploitation_v2(ortho_helper)
+    exploit_feats = _create_exploitation_v2()
     return SIDDType2(ProductCreation=prod_create,
                      GeoData=geo_data,
                      Display=display,
@@ -228,78 +183,6 @@ def create_sidd_structure_v2(ortho_helper, bounds, product_class, pixel_type):
 
 ##########################
 # Version 1 element creation
-
-def _create_display_v1(pixel_type):
-    """
-    Create the ProductDisplay version 2.0 structure.
-
-    Parameters
-    ----------
-    pixel_type : str
-        Must be one of `MONO8I, MONO16I` or `RGB24I`.
-
-    Returns
-    -------
-    ProductDisplayType1
-    """
-
-    pixel_type = pixel_type.upper()
-
-    if pixel_type not in ('MONO8I', 'MONO16I', 'RGB24I'):
-        raise ValueError('pixel_type must be one of MONO8I, MONO16I, RGB24I. Got {}'.format(pixel_type))
-
-    return ProductDisplayType1(PixelType=pixel_type)
-
-
-def _create_measurement_v1(ortho_helper, bounds):
-    """
-    Construct the Measurement version 1.0 structure.
-
-    Parameters
-    ----------
-    ortho_helper : OrthorectificationHelper
-    bounds : numpy.ndarray
-        The orthorectification pixel bounds of the form `(min row, max row, min col, max col)`.
-
-    Returns
-    -------
-    MeasurementType1
-    """
-
-    proj_helper = ortho_helper.proj_helper
-    if isinstance(proj_helper, PGProjection):
-        # fit the time coa polynomial in ortho-pixel coordinates
-        plane_projection = _create_plane_projection(proj_helper, bounds)
-        return MeasurementType1(PixelFootprint=(bounds[1] - bounds[0], bounds[3] - bounds[2]),
-                                PlaneProjection=plane_projection,
-                                ARPPoly=XYZPolyType(
-                                    X=proj_helper.sicd.Position.ARPPoly.X.get_array(),
-                                    Y=proj_helper.sicd.Position.ARPPoly.Y.get_array(),
-                                    Z=proj_helper.sicd.Position.ARPPoly.Z.get_array()))
-    else:
-        raise ValueError('Unhandled projection helper type {}'.format(type(proj_helper)))
-
-
-def _create_exploitation_v1(ortho_helper):
-    """
-    Construct the ExploitationFeatures version 1.0 structure.
-
-    Parameters
-    ----------
-    ortho_helper : OrthorectificationHelper
-
-    Returns
-    -------
-    ExploitationFeaturesType1
-    """
-
-    proj_helper = ortho_helper.proj_helper
-    if isinstance(proj_helper, PGProjection):
-        return ExploitationFeaturesType1.from_sicd(
-            proj_helper.sicd, proj_helper.row_vector, proj_helper.col_vector)
-    else:
-        raise ValueError('Unhandled projection helper type {}'.format(type(proj_helper)))
-
 
 def create_sidd_structure_v1(ortho_helper, bounds, product_class, pixel_type):
     """
@@ -322,20 +205,51 @@ def create_sidd_structure_v1(ortho_helper, bounds, product_class, pixel_type):
     SIDDType1
     """
 
+    def _create_display_v1():
+        if pixel_type not in ('MONO8I', 'MONO16I', 'RGB24I'):
+            raise ValueError(
+                'pixel_type must be one of MONO8I, MONO16I, RGB24I. Got {}'.format(pixel_type))
+
+        return ProductDisplayType1(PixelType=pixel_type)
+
+    def _create_measurement_v1():
+        proj_helper = ortho_helper.proj_helper
+        if isinstance(proj_helper, PGProjection):
+            # fit the time coa polynomial in ortho-pixel coordinates
+            plane_projection = _create_plane_projection(proj_helper, bounds)
+            return MeasurementType1(PixelFootprint=(bounds[1] - bounds[0], bounds[3] - bounds[2]),
+                                    PlaneProjection=plane_projection,
+                                    ARPPoly=XYZPolyType(
+                                        X=proj_helper.sicd.Position.ARPPoly.X.get_array(),
+                                        Y=proj_helper.sicd.Position.ARPPoly.Y.get_array(),
+                                        Z=proj_helper.sicd.Position.ARPPoly.Z.get_array()))
+        else:
+            raise ValueError('Unhandled projection helper type {}'.format(type(proj_helper)))
+
+    def _create_exploitation_v1():
+        proj_helper = ortho_helper.proj_helper
+        if isinstance(proj_helper, PGProjection):
+            return ExploitationFeaturesType1.from_sicd(
+                proj_helper.sicd, proj_helper.row_vector, proj_helper.col_vector)
+        else:
+            raise ValueError('Unhandled projection helper type {}'.format(type(proj_helper)))
+
+    pixel_type = pixel_type.upper()
     # validate bounds and get pixel coordinates rectangle
     bounds, ortho_pixel_corners = ortho_helper.bounds_to_rectangle(bounds)
     # construct appropriate SIDD elements
     prod_create = ProductCreationType.from_sicd(ortho_helper.proj_helper.sicd, product_class)
     prod_create.Classification.DESVersion = 4
+
     # Display requires more product specifics
-    display = _create_display_v1(pixel_type)
+    display = _create_display_v1()
     # GeographicAndTarget
     llh_corners = ortho_helper.proj_helper.ortho_to_llh(ortho_pixel_corners)
     geographic = GeographicAndTargetType1(GeographicCoverage=GeographicCoverageType1(Footprint=llh_corners[:, :2]))
     # Measurement
-    measurement = _create_measurement_v1(ortho_helper, bounds)
+    measurement = _create_measurement_v1()
     # ExploitationFeatures
-    exploit_feats = _create_exploitation_v1(ortho_helper)
+    exploit_feats = _create_exploitation_v1()
 
     return SIDDType1(ProductCreation=prod_create,
                      Display=display,

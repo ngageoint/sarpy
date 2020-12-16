@@ -3,6 +3,10 @@
 Common utils for CPHD functionality.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
+
 import numpy
 
 _format_mapping = {

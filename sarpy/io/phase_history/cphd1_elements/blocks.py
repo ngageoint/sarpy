@@ -3,6 +3,10 @@
 Basic building blocks for CPHD standard - mostly overlap with SICD elements
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
+
 from typing import Union, List
 
 import numpy
