@@ -3,6 +3,10 @@
 Common use sicd_elements methods.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
+
 from typing import Tuple
 
 import numpy

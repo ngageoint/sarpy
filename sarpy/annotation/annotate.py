@@ -3,6 +3,10 @@
 This module provides utilities for annotating a given sicd file.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
+
 import getpass
 import time
 from collections import OrderedDict

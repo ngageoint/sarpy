@@ -4,6 +4,10 @@ Work in progress for reading some other kind of complex NITF as a pseudo-sicd.
 Note that this should happen as a fall-back from an actual SICD.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
+
 import logging
 from typing import Union
 from datetime import datetime
@@ -190,46 +194,46 @@ def _extract_sicd(img_header, symmetry):
         the_sicd.SCPCOA.SCPTime = 0.5*cmetaa.WF_CDP
         if cmetaa.CG_MODEL == 'ECEF':
             the_sicd.GeoData.SCP = SCPType(ECF=[
-                cmetaa.CG_SCECN_X, cmetaa.CG_SCECN_Y, cmetaa.cmetaa.CG_SCECN_Z])
+                float(cmetaa.CG_SCECN_X), float(cmetaa.CG_SCECN_Y), float(cmetaa.cmetaa.CG_SCECN_Z)])
             the_sicd.SCPCOA.ARPPos = [
-                cmetaa.CG_APCEN_X, cmetaa.CG_APCEN_Y, cmetaa.CG_APCEN_Z]
+                float(cmetaa.CG_APCEN_X), float(cmetaa.CG_APCEN_Y), float(cmetaa.CG_APCEN_Z)]
         elif cmetaa.CG_MODEL == 'WGS84':
             the_sicd.GeoData.SCP = SCPType(LLH=[
-                cmetaa.CG_SCECN_X, cmetaa.CG_SCECN_Y, cmetaa.cmetaa.CG_SCECN_Z])
+                float(cmetaa.CG_SCECN_X), float(cmetaa.CG_SCECN_Y), float(cmetaa.cmetaa.CG_SCECN_Z)])
             the_sicd.SCPCOA.ARPPos = geodetic_to_ecf([
-                cmetaa.CG_APCEN_X, cmetaa.CG_APCEN_Y, cmetaa.CG_APCEN_Z])
+                float(cmetaa.CG_APCEN_X), float(cmetaa.CG_APCEN_Y), float(cmetaa.CG_APCEN_Z)])
 
         the_sicd.SCPCOA.SideOfTrack = cmetaa.CG_LD
-        the_sicd.SCPCOA.SlantRange = cmetaa.CG_SRAC
-        the_sicd.SCPCOA.DopplerConeAng = cmetaa.CG_CAAC
-        the_sicd.SCPCOA.GrazeAng = cmetaa.CG_GAAC
-        the_sicd.SCPCOA.IncidenceAng = 90 - cmetaa.CG_GAAC
+        the_sicd.SCPCOA.SlantRange = float(cmetaa.CG_SRAC)
+        the_sicd.SCPCOA.DopplerConeAng = float(cmetaa.CG_CAAC)
+        the_sicd.SCPCOA.GrazeAng = float(cmetaa.CG_GAAC)
+        the_sicd.SCPCOA.IncidenceAng = 90 - float(cmetaa.CG_GAAC)
         if hasattr(cmetaa, 'CG_TILT'):
-            the_sicd.SCPCOA.TwistAng = cmetaa.CG_TILT
+            the_sicd.SCPCOA.TwistAng = float(cmetaa.CG_TILT)
         if hasattr(cmetaa, 'CG_SLOPE'):
-            the_sicd.SCPCOA.SlopeAng = cmetaa.CG_SLOPE
+            the_sicd.SCPCOA.SlopeAng = float(cmetaa.CG_SLOPE)
 
-        the_sicd.ImageData.SCPPixel = [cmetaa.IF_DC_IS_COL, cmetaa.IF_DC_IS_ROW]
+        the_sicd.ImageData.SCPPixel = [int(cmetaa.IF_DC_IS_COL), int(cmetaa.IF_DC_IS_ROW)]
         if cmetaa.CG_MAP_TYPE == 'GEOD':
             the_sicd.GeoData.ImageCorners = [
-                [cmetaa.CG_PATCH_LTCORUL, cmetaa.CG_PATCH_LGCORUL],
-                [cmetaa.CG_PATCH_LTCORUR, cmetaa.CG_PATCH_LGCORUR],
-                [cmetaa.CG_PATCH_LTCORLR, cmetaa.CG_PATCH_LGCORLR],
-                [cmetaa.CG_PATCH_LTCORLL, cmetaa.CG_PATCH_LNGCOLL]]
+                [float(cmetaa.CG_PATCH_LTCORUL), float(cmetaa.CG_PATCH_LGCORUL)],
+                [float(cmetaa.CG_PATCH_LTCORUR), float(cmetaa.CG_PATCH_LGCORUR)],
+                [float(cmetaa.CG_PATCH_LTCORLR), float(cmetaa.CG_PATCH_LGCORLR)],
+                [float(cmetaa.CG_PATCH_LTCORLL), float(cmetaa.CG_PATCH_LNGCOLL)]]
         if cmetaa.CMPLX_SIGNAL_PLANE[0].upper() == 'S':
             the_sicd.Grid.ImagePlane = 'SLANT'
         elif cmetaa.CMPLX_SIGNAL_PLANE[0].upper() == 'G':
             the_sicd.Grid.ImagePlane = 'GROUND'
         the_sicd.Grid.Row = DirParamType(
-            SS=cmetaa.IF_RSS,
-            ImpRespWid=cmetaa.IF_RGRES,
+            SS=float(cmetaa.IF_RSS),
+            ImpRespWid=float(cmetaa.IF_RGRES),
             Sgn=1 if cmetaa.IF_RFFTS == '-' else -1,  # opposite sign convention
-            ImpRespBW=cmetaa.IF_RFFT_SAMP / (cmetaa.IF_RSS * cmetaa.IF_RFFT_TOT))
+            ImpRespBW=float(cmetaa.IF_RFFT_SAMP)/(float(cmetaa.IF_RSS)*float(cmetaa.IF_RFFT_TOT)))
         the_sicd.Grid.Col = DirParamType(
-            SS=cmetaa.IF_AZSS,
-            ImpRespWid=cmetaa.IF_AZRES,
+            SS=float(cmetaa.IF_AZSS),
+            ImpRespWid=float(cmetaa.IF_AZRES),
             Sgn=1 if cmetaa.IF_AFFTS == '-' else -1,  # opposite sign convention
-            ImpRespBW=cmetaa.IF_AZFFT_SAMP / (cmetaa.IF_AZSS * cmetaa.IF_AZFFT_TOT))
+            ImpRespBW=float(cmetaa.IF_AZFFT_SAMP)/(float(cmetaa.IF_AZSS)*float(cmetaa.IF_AZFFT_TOT)))
         cmplx_weight = cmetaa.CMPLX_WEIGHT
         if cmplx_weight == 'UWT':
             the_sicd.Grid.Row.WgtType = WgtTypeType(WindowName='UNIFORM')
@@ -244,13 +248,13 @@ def _extract_sicd(img_header, symmetry):
             the_sicd.Grid.Row.WgtType = WgtTypeType(
                 WindowName='TAYLOR',
                 Parameters={
-                    'SLL': '{0:0.16G}'.format(-cmetaa.CMPLX_RNG_SLL),
-                    'NBAR': '{0:0.16G}'.format(cmetaa.CMPLX_RNG_TAY_NBAR)})
+                    'SLL': '{0:0.16G}'.format(-float(cmetaa.CMPLX_RNG_SLL)),
+                    'NBAR': '{0:0.16G}'.format(float(cmetaa.CMPLX_RNG_TAY_NBAR))})
             the_sicd.Grid.Col.WgtType = WgtTypeType(
                 WindowName='TAYLOR',
                 Parameters={
-                    'SLL': '{0:0.16G}'.format(-cmetaa.CMPLX_AZ_SLL),
-                    'NBAR': '{0:0.16G}'.format(cmetaa.CMPLX_AZ_TAY_NBAR)})
+                    'SLL': '{0:0.16G}'.format(-float(cmetaa.CMPLX_AZ_SLL)),
+                    'NBAR': '{0:0.16G}'.format(float(cmetaa.CMPLX_AZ_TAY_NBAR))})
         the_sicd.Grid.Row.define_weight_function()
         the_sicd.Grid.Col.define_weight_function()
 
@@ -258,29 +262,29 @@ def _extract_sicd(img_header, symmetry):
         try:
             date_str = cmetaa.T_UTC_YYYYMMMDD
             time_str = cmetaa.T_HHMMSSUTC
-            date_time = '{}-{}-{}T{}:{}:{}Z'.format(
+            date_time = '{}-{}-{}T{}:{}:{}'.format(
                 date_str[:4], date_str[4:6], date_str[6:8],
                 time_str[:2], time_str[2:4], time_str[4:6])
             the_sicd.Timeline.CollectStart = numpy.datetime64(date_time, 'us')
         except:
             pass
-        the_sicd.Timeline.CollectDuration = cmetaa.WF_CDP
+        the_sicd.Timeline.CollectDuration = float(cmetaa.WF_CDP)
         the_sicd.Timeline.IPP = [
             IPPSetType(TStart=0,
-                       TEnd=cmetaa.WF_CDP,
+                       TEnd=float(cmetaa.WF_CDP),
                        IPPStart=0,
-                       IPPEnd=numpy.floor(cmetaa.WF_CDP * cmetaa.WF_PRF),
-                       IPPPoly=[0, cmetaa.WF_PRF])]
+                       IPPEnd=numpy.floor(float(cmetaa.WF_CDP)*float(cmetaa.WF_PRF)),
+                       IPPPoly=[0, float(cmetaa.WF_PRF)])]
 
         the_sicd.RadarCollection.TxFrequency = TxFrequencyType(
-            Min=cmetaa.WF_SRTFR,
-            Max=cmetaa.WF_ENDFR)
+            Min=float(cmetaa.WF_SRTFR),
+            Max=float(cmetaa.WF_ENDFR))
         the_sicd.RadarCollection.TxPolarization = cmetaa.POL_TR.upper()
         the_sicd.RadarCollection.Waveform = [WaveformParametersType(
-            TxPulseLength=cmetaa.WF_WIDTH,
-            TxRFBandwidth=cmetaa.WF_BW,
-            TxFreqStart=cmetaa.WF_SRTFR,
-            TxFMRate=cmetaa.WF_CHRPRT * 1e12)]
+            TxPulseLength=float(cmetaa.WF_WIDTH),
+            TxRFBandwidth=float(cmetaa.WF_BW),
+            TxFreqStart=float(cmetaa.WF_SRTFR),
+            TxFMRate=float(cmetaa.WF_CHRPRT)*1e12)]
         tx_rcv_pol = '{}:{}'.format(cmetaa.POL_TR.upper(), cmetaa.POL_RE.upper())
         the_sicd.RadarCollection.RcvChannels = [
             ChanParametersType(TxRcvPolarization=tx_rcv_pol)]
@@ -290,8 +294,10 @@ def _extract_sicd(img_header, symmetry):
         if if_process == 'PF':
             the_sicd.ImageFormation.ImageFormAlgo = 'PFA'
             scp_ecf = the_sicd.GeoData.SCP.ECF.get_array()
-            fpn_ned = numpy.array([cmetaa.CG_FPNUV_X, cmetaa.CG_FPNUV_Y, cmetaa.CG_FPNUV_Z], dtype='float64')
-            ipn_ned = numpy.array([cmetaa.CG_IDPNUVX, cmetaa.CG_IDPNUVY, cmetaa.CG_IDPNUVZ], dtype='float64')
+            fpn_ned = numpy.array(
+                [float(cmetaa.CG_FPNUV_X), float(cmetaa.CG_FPNUV_Y), float(cmetaa.CG_FPNUV_Z)], dtype='float64')
+            ipn_ned = numpy.array(
+                [float(cmetaa.CG_IDPNUVX), float(cmetaa.CG_IDPNUVY), float(cmetaa.CG_IDPNUVZ)], dtype='float64')
             fpn_ecf = ned_to_ecf(fpn_ned, scp_ecf, absolute_coords=False)
             ipn_ecf = ned_to_ecf(ipn_ned, scp_ecf, absolute_coords=False)
             the_sicd.PFA = PFAType(FPN=fpn_ecf, IPN=ipn_ecf)
@@ -302,7 +308,7 @@ def _extract_sicd(img_header, symmetry):
         the_sicd.ImageFormation.TStartProc = 0  # guess work
         the_sicd.ImageFormation.TEndProc = cmetaa.WF_CDP
         the_sicd.ImageFormation.TxFrequencyProc = TxFrequencyProcType(
-            MinProc=cmetaa.WF_SRTFR, MaxProc=cmetaa.WF_ENDFR)
+            MinProc=float(cmetaa.WF_SRTFR), MaxProc=float(cmetaa.WF_ENDFR))
         # all remaining guess work
         the_sicd.ImageFormation.STBeamComp = 'NO'
         the_sicd.ImageFormation.ImageBeamComp = 'SV' if cmetaa.IF_BEAM_COMP[0] == 'Y' else 'NO'
@@ -360,8 +366,8 @@ def _extract_sicd(img_header, symmetry):
             elif the_sicd.CollectionInfo.CollectorName is None:
                 the_sicd.CollectionInfo.CollectorName = sensor_id
 
-        row_ss = acft.ROW_SPACING
-        col_ss = acft.COL_SPACING
+        row_ss = float(acft.ROW_SPACING)
+        col_ss = float(acft.COL_SPACING)
 
         if hasattr(acft, 'ROW_SPACING_UNITS') and acft.ROW_SPACING_UNITS == 'f':
             row_ss *= foot
@@ -418,13 +424,17 @@ def _extract_sicd(img_header, symmetry):
             return
         mpdsra = tre.DATA
 
-        scp_ecf = foot*numpy.array([mpdsra.ORO_X, mpdsra.ORO_Y, mpdsra.ORO_Z], dtype='float64')
+        scp_ecf = foot*numpy.array(
+            [float(mpdsra.ORO_X), float(mpdsra.ORO_Y), float(mpdsra.ORO_Z)], dtype='float64')
         if valid_array(scp_ecf):
-            set_scp(scp_ecf, (mpdsra.ORP_COLUMN - 1, mpdsra.ORP_ROW - 1), override=False)
+            set_scp(scp_ecf, (int(mpdsra.ORP_COLUMN) - 1, int(mpdsra.ORP_ROW) - 1), override=False)
 
-        arp_pos_ned = foot*numpy.array([mpdsra.ARP_POS_N, mpdsra.ARP_POS_E, mpdsra.ARP_POS_D], dtype='float64')
-        arp_vel_ned = foot*numpy.array([mpdsra.ARP_VEL_N, mpdsra.ARP_VEL_E, mpdsra.ARP_VEL_D], dtype='float64')
-        arp_acc_ned = foot*numpy.array([mpdsra.ARP_ACC_N, mpdsra.ARP_ACC_E, mpdsra.ARP_ACC_D], dtype='float64')
+        arp_pos_ned = foot*numpy.array(
+            [float(mpdsra.ARP_POS_N), float(mpdsra.ARP_POS_E), float(mpdsra.ARP_POS_D)], dtype='float64')
+        arp_vel_ned = foot*numpy.array(
+            [float(mpdsra.ARP_VEL_N), float(mpdsra.ARP_VEL_E), float(mpdsra.ARP_VEL_D)], dtype='float64')
+        arp_acc_ned = foot*numpy.array(
+            [float(mpdsra.ARP_ACC_N), float(mpdsra.ARP_ACC_E), float(mpdsra.ARP_ACC_D)], dtype='float64')
         arp_pos = ned_to_ecf(arp_pos_ned, scp_ecf, absolute_coords=True) if valid_array(arp_pos_ned) else None
         set_arp_position(arp_pos, override=False)
 
@@ -437,7 +447,8 @@ def _extract_sicd(img_header, symmetry):
 
         if the_sicd.PFA is not None and the_sicd.PFA.FPN is None:
             # TODO: is this already in meters?
-            fpn_ecf = numpy.array([mpdsra.FOC_X, mpdsra.FOC_Y, mpdsra.FOC_Z], dtype='float64')  # *foot
+            fpn_ecf = numpy.array(
+                [float(mpdsra.FOC_X), float(mpdsra.FOC_Y), float(mpdsra.FOC_Z)], dtype='float64')  # *foot
             if valid_array(fpn_ecf):
                 the_sicd.PFA.FPN = fpn_ecf
 
@@ -461,10 +472,12 @@ def _extract_sicd(img_header, symmetry):
         scp_ecf = geodetic_to_ecf(scp_llh)
         set_arp_position(arp_ecf, override=True)
 
-        set_scp(scp_ecf, (mensrb.RP_COL-1, mensrb.RP_ROW-1), override=False)
+        set_scp(scp_ecf, (int(mensrb.RP_COL)-1, int(mensrb.RP_ROW)-1), override=False)
 
-        row_unit_ned = numpy.array([mensrb.C_R_NC, mensrb.C_R_EC, mensrb.C_R_DC], dtype='float64')
-        col_unit_ned = numpy.array([mensrb.C_AZ_NC, mensrb.C_AZ_EC, mensrb.C_AZ_DC], dtype='float64')
+        row_unit_ned = numpy.array(
+            [float(mensrb.C_R_NC), float(mensrb.C_R_EC), float(mensrb.C_R_DC)], dtype='float64')
+        col_unit_ned = numpy.array(
+            [float(mensrb.C_AZ_NC), float(mensrb.C_AZ_EC), float(mensrb.C_AZ_DC)], dtype='float64')
         set_uvects(ned_to_ecf(row_unit_ned, scp_ecf, absolute_coords=False),
                    ned_to_ecf(col_unit_ned, scp_ecf, absolute_coords=False))
 
@@ -489,10 +502,12 @@ def _extract_sicd(img_header, symmetry):
         set_arp_position(arp_ecf, override=True)
 
         # TODO: is this already zero based?
-        set_scp(geodetic_to_ecf(scp_llh), (mensra.CCRP_COL, mensra.CCRP_ROW), override=False)
+        set_scp(geodetic_to_ecf(scp_llh), (int(mensra.CCRP_COL), int(mensra.CCRP_ROW)), override=False)
 
-        row_unit_ned = numpy.array([mensra.C_R_NC, mensra.C_R_EC, mensra.C_R_DC], dtype='float64')
-        col_unit_ned = numpy.array([mensra.C_AZ_NC, mensra.C_AZ_EC, mensra.C_AZ_DC], dtype='float64')
+        row_unit_ned = numpy.array(
+            [float(mensra.C_R_NC), float(mensra.C_R_EC), float(mensra.C_R_DC)], dtype='float64')
+        col_unit_ned = numpy.array(
+            [float(mensra.C_AZ_NC), float(mensra.C_AZ_EC), float(mensra.C_AZ_DC)], dtype='float64')
         set_uvects(ned_to_ecf(row_unit_ned, scp_ecf, absolute_coords=False),
                    ned_to_ecf(col_unit_ned, scp_ecf, absolute_coords=False))
 
