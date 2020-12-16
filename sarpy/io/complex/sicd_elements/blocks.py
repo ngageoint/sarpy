@@ -1020,7 +1020,7 @@ class Poly1DType(Serializable, Arrayable):
         out['Coefs'] = self.Coefs.tolist()
         return out
 
-    def eliminate_zero(self):
+    def minimize_order(self):
         """
         Trim the trailing zeros for the coefficient array. This modifies the object in place.
 
@@ -1280,7 +1280,7 @@ class Poly2DType(Serializable, Arrayable):
         out['Coefs'] = self.Coefs.tolist()
         return out
 
-    def eliminate_zero(self):
+    def minimize_order(self):
         """
         Trim the trailing zeros for the coefficient array. This modifies the object in place.
 
@@ -1504,7 +1504,7 @@ class XYZPolyType(Serializable, Arrayable):
             return XYZPolyType(X=coefs[0], Y=coefs[1], Z=coefs[2])
         return coefs
 
-    def eliminate_zero(self):
+    def minimize_order(self):
         """
         Trim the trailing zeros for each component coefficient array. This
         modifies the object in place.
@@ -1514,9 +1514,9 @@ class XYZPolyType(Serializable, Arrayable):
         None
         """
 
-        self.X.eliminate_zero()
-        self.Y.eliminate_zero()
-        self.Z.eliminate_zero()
+        self.X.minimize_order()
+        self.Y.minimize_order()
+        self.Z.minimize_order()
 
 
 class XYZPolyAttributeType(XYZPolyType):
@@ -1629,7 +1629,7 @@ class GainPhasePolyType(Serializable):
             return None
         return numpy.array([self.GainPoly(x, y), self.PhasePoly(x, y)], dtype=numpy.float64)
 
-    def eliminate_zero(self):
+    def minimize_order(self):
         """
         Trim the trailing zeros for each component coefficient array. This
         modifies the object in place.
@@ -1639,8 +1639,8 @@ class GainPhasePolyType(Serializable):
         None
         """
 
-        self.GainPoly.eliminate_zero()
-        self.PhasePoly.eliminate_zero()
+        self.GainPoly.minimize_order()
+        self.PhasePoly.minimize_order()
 
 
 #############
