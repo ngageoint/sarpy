@@ -1020,6 +1020,28 @@ class Poly1DType(Serializable, Arrayable):
         out['Coefs'] = self.Coefs.tolist()
         return out
 
+    def minimize_order(self):
+        """
+        Trim the trailing zeros for the coefficient array. This modifies the object in place.
+
+        Returns
+        -------
+        None
+        """
+
+        boolc = (self.Coefs != 0)
+        if not numpy.any(boolc):
+            self.Coefs = numpy.zeros((1, ), dtype='float64')
+            return
+        last_ind = numpy.amax(numpy.arange(self.Coefs.size)[boolc])
+        if last_ind == self.Coefs.size-1:
+            return
+
+        if last_ind == 0:
+            self.Coefs = numpy.array([self.Coefs[0], ], dtype='float64')
+        else:
+            self.Coefs = self.Coefs[:last_ind+1]
+
 
 class Poly2DType(Serializable, Arrayable):
     """
@@ -1258,6 +1280,36 @@ class Poly2DType(Serializable, Arrayable):
         out['Coefs'] = self.Coefs.tolist()
         return out
 
+    def minimize_order(self):
+        """
+        Trim the trailing zeros for the coefficient array. This modifies the object in place.
+
+        Returns
+        -------
+        None
+        """
+
+        boolc = (self.Coefs != 0)
+        if not numpy.any(boolc):
+            self.Coefs = numpy.zeros((1, 1), dtype='float64')
+            return
+
+        col_inds, row_inds = numpy.meshgrid(
+            numpy.arange(self.Coefs.shape[1]), numpy.arange(self.Coefs.shape[0]))
+        last_row_ind = numpy.amax(row_inds[boolc])
+        last_col_ind = numpy.amax(col_inds[boolc])
+        if last_row_ind == self.Coefs.shape[0]-1 and last_col_ind == self.Coefs.shape[1]-1:
+            return
+
+        if last_row_ind == 0 and last_col_ind == 0:
+            self.Coefs = numpy.array([[self.Coefs[0, 0], ], ], dtype='float64')
+        elif last_row_ind == 0:
+            self.Coefs = numpy.reshape(self.Coefs[0, :last_col_ind+1], (1, -1))
+        elif last_col_ind == 0:
+            self.Coefs = numpy.reshape(self.Coefs[:last_row_ind+1, 0], (-1, 1))
+        else:
+            self.Coefs = self.Coefs[:last_row_ind+1, :last_col_ind+1]
+
 
 class XYZPolyType(Serializable, Arrayable):
     """
@@ -1452,6 +1504,20 @@ class XYZPolyType(Serializable, Arrayable):
             return XYZPolyType(X=coefs[0], Y=coefs[1], Z=coefs[2])
         return coefs
 
+    def minimize_order(self):
+        """
+        Trim the trailing zeros for each component coefficient array. This
+        modifies the object in place.
+
+        Returns
+        -------
+        None
+        """
+
+        self.X.minimize_order()
+        self.Y.minimize_order()
+        self.Z.minimize_order()
+
 
 class XYZPolyAttributeType(XYZPolyType):
     """
@@ -1562,6 +1628,19 @@ class GainPhasePolyType(Serializable):
         if self.GainPoly is None or self.PhasePoly is None:
             return None
         return numpy.array([self.GainPoly(x, y), self.PhasePoly(x, y)], dtype=numpy.float64)
+
+    def minimize_order(self):
+        """
+        Trim the trailing zeros for each component coefficient array. This
+        modifies the object in place.
+
+        Returns
+        -------
+        None
+        """
+
+        self.GainPoly.minimize_order()
+        self.PhasePoly.minimize_order()
 
 
 #############

@@ -9,7 +9,7 @@ __author__ = "Thomas McCullough"
 class PLTFMAType(TREElement):
     def __init__(self, value):
         super(PLTFMAType, self).__init__()
-        self.add_field('VERNUM', 'd', 4, value)
+        self.add_field('VERNUM', 's', 4, value)
         self.add_field('P_NAME', 's', 12, value)
         self.add_field('P_DESCR', 's', 40, value)
         self.add_field('P_DATE', 's', 8, value)

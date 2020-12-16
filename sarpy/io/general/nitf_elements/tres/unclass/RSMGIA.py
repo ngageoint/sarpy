@@ -31,9 +31,9 @@ class RSMGIAType(TREElement):
         self.add_field('GCYY', 's', 21, value)
         self.add_field('GCYZ', 's', 21, value)
         self.add_field('GCZZ', 's', 21, value)
-        self.add_field('GRNIS', 'd', 3, value)
-        self.add_field('GCNIS', 'd', 3, value)
-        self.add_field('GTNIS', 'd', 3, value)
+        self.add_field('GRNIS', 's', 3, value)
+        self.add_field('GCNIS', 's', 3, value)
+        self.add_field('GTNIS', 's', 3, value)
         self.add_field('GRSSIZ', 's', 21, value)
         self.add_field('GCSSIZ', 's', 21, value)
 

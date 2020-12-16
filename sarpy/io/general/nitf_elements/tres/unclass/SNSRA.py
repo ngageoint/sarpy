@@ -47,7 +47,7 @@ class SENBAND2(TREElement):
 class SNSRAType(TREElement):
     def __init__(self, value):
         super(SNSRAType, self).__init__()
-        self.add_field('VERNUM', 'd', 4, value)
+        self.add_field('VERNUM', 's', 4, value)
         self.add_field('SENNAME', 's', 20, value)
         self.add_field('SENTYPE', 's', 1, value)
         self.add_field('SENMODE', 's', 10, value)

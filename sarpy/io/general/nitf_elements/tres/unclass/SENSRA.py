@@ -9,8 +9,8 @@ __author__ = "Thomas McCullough"
 class SENSRAType(TREElement):
     def __init__(self, value):
         super(SENSRAType, self).__init__()
-        self.add_field('REFROW', 'd', 8, value)
-        self.add_field('REFCOL', 'd', 8, value)
+        self.add_field('REFROW', 's', 8, value)
+        self.add_field('REFCOL', 's', 8, value)
         self.add_field('SNSMODEL', 's', 6, value)
         self.add_field('SNSMOUNT', 's', 3, value)
         self.add_field('SENSLOC', 's', 21, value)
@@ -31,8 +31,8 @@ class SENSRAType(TREElement):
         self.add_field('VERTVEL', 's', 5, value)
         self.add_field('VERTVELU', 's', 1, value)
         self.add_field('SWATHFRM', 's', 4, value)
-        self.add_field('NSWATHS', 'd', 4, value)
-        self.add_field('SPOTNUM', 'd', 3, value)
+        self.add_field('NSWATHS', 's', 4, value)
+        self.add_field('SPOTNUM', 's', 3, value)
 
 
 class SENSRA(TREExtension):

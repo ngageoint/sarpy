@@ -31,9 +31,9 @@ class RSMPIAType(TREElement):
         self.add_field('CYY', 's', 21, value)
         self.add_field('CYZ', 's', 21, value)
         self.add_field('CZZ', 's', 21, value)
-        self.add_field('RNIS', 'd', 3, value)
-        self.add_field('CNIS', 'd', 3, value)
-        self.add_field('TNIS', 'd', 3, value)
+        self.add_field('RNIS', 's', 3, value)
+        self.add_field('CNIS', 's', 3, value)
+        self.add_field('TNIS', 's', 3, value)
         self.add_field('RSSIZ', 's', 21, value)
         self.add_field('CSSIZ', 's', 21, value)
 

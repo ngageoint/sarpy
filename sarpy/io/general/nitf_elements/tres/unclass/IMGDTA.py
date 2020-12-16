@@ -10,17 +10,17 @@ class VER(TREElement):
     def __init__(self, value):
         super(VER, self).__init__()
         self.add_field('VER_NAME', 's', 15, value)
-        self.add_field('VERNUM', 'd', 10, value)
+        self.add_field('VERNUM', 's', 10, value)
 
 
 class IMGDTAType(TREElement):
     def __init__(self, value):
         super(IMGDTAType, self).__init__()
-        self.add_field('VERNUM', 'd', 4, value)
+        self.add_field('VERNUM', 's', 4, value)
         self.add_field('FILENAME', 's', 32, value)
         self.add_field('PARENT_FNAME', 's', 32, value)
         self.add_field('CHECKSUM', 's', 32, value)
-        self.add_field('ISIZE', 'd', 10, value)
+        self.add_field('ISIZE', 's', 10, value)
         self.add_field('STATUS', 's', 1, value)
         self.add_field('CDATE', 's', 8, value)
         self.add_field('CTIME', 's', 10, value)
@@ -28,8 +28,8 @@ class IMGDTAType(TREElement):
         self.add_field('SENTYPE', 's', 1, value)
         self.add_field('DATA_PLANE', 's', 1, value)
         self.add_field('DATA_TYPE', 's', 4, value)
-        self.add_field('NUM_ROWS', 'd', 6, value)
-        self.add_field('NUM_COLS', 'd', 6, value)
+        self.add_field('NUM_ROWS', 's', 6, value)
+        self.add_field('NUM_COLS', 's', 6, value)
         self.add_field('SEN_POS', 's', 1, value)
         self.add_field('SEN_CAL_FAC', 's', 15, value)
         self.add_field('IMGQUAL', 's', 50, value)
