@@ -4,6 +4,10 @@ Functionality for an aggregate sicd type reader, for opening multiple sicd type
 files as a single reader object.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
+
 from typing import List, Tuple
 
 from sarpy.compliance import string_types

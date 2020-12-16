@@ -5,6 +5,10 @@ This is **intended** to represent base functionality to be extended for
 SICD and SIDD capability.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
+
 import logging
 import os
 from typing import Union, List, Tuple

@@ -3,6 +3,10 @@
 This module provides basic geometry elements generally geared towards (geo)json usage.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
+
 from collections import OrderedDict
 from uuid import uuid4
 from typing import Union, List, Tuple, Dict, Callable, Any
