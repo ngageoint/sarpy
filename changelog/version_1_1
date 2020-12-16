@@ -1,5 +1,6 @@
 # This details the important differences introduced in sarpy 1.1
 
+* .38 - Adjust TRE definitions to avoid errors in improperly parsing numeric fields
 * .37 - Adding preliminary support for NITF 2.0
 * .36 - Minor adjustment for some basic NITF header elements for bug fixes
 * .35 - Removal of deprecated code and revamp/expansion of unit testing
