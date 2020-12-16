@@ -10,11 +10,11 @@ class PT(TREElement):
     def __init__(self, value):
         super(PT, self).__init__()
         self.add_field('PID', 's', 10, value)
-        self.add_field('LON', 'd', 15, value)
-        self.add_field('LAT', 'd', 15, value)
-        self.add_field('ZVL', 'd', 15, value)
-        self.add_field('DIX', 'd', 11, value)
-        self.add_field('DIY', 'd', 11, value)
+        self.add_field('LON', 's', 15, value)
+        self.add_field('LAT', 's', 15, value)
+        self.add_field('ZVL', 's', 15, value)
+        self.add_field('DIX', 's', 11, value)
+        self.add_field('DIY', 's', 11, value)
 
 
 class REGPTBType(TREElement):

@@ -9,8 +9,8 @@ __author__ = "Thomas McCullough"
 class PT(TREElement):
     def __init__(self, value):
         super(PT, self).__init__()
-        self.add_field('LON', 'd', 15, value)
-        self.add_field('LAT', 'd', 15, value)
+        self.add_field('LON', 's', 15, value)
+        self.add_field('LAT', 's', 15, value)
 
 
 class BP(TREElement):
@@ -25,13 +25,13 @@ class MI(TREElement):
         super(MI, self).__init__()
         self.add_field('CDV30', 's', 8, value)
         self.add_field('UNIRAT', 's', 3, value)
-        self.add_field('RAT', 'd', 8, value)
+        self.add_field('RAT', 's', 8, value)
         self.add_field('UNIGMA', 's', 3, value)
-        self.add_field('GMA', 'd', 8, value)
-        self.add_field('LONGMA', 'd', 15, value)
-        self.add_field('LATGMA', 'd', 15, value)
+        self.add_field('GMA', 's', 8, value)
+        self.add_field('LONGMA', 's', 15, value)
+        self.add_field('LATGMA', 's', 15, value)
         self.add_field('UNIGCA', 's', 3, value)
-        self.add_field('GCA', 'd', 8, value)
+        self.add_field('GCA', 's', 8, value)
 
 
 class LI(TREElement):
@@ -43,30 +43,30 @@ class LI(TREElement):
 class PRJ(TREElement):
     def __init__(self, value):
         super(PRJ, self).__init__()
-        self.add_field('PRJ', 'd', 15, value)
+        self.add_field('PRJ', 's', 15, value)
 
 
 class IN(TREElement):
     def __init__(self, value):
         super(IN, self).__init__()
         self.add_field('INT', 's', 10, value)
-        self.add_field('INS_SCA', 'd', 9, value)
-        self.add_field('NTL', 'd', 15, value)
-        self.add_field('TTL', 'd', 15, value)
-        self.add_field('NVL', 'd', 15, value)
-        self.add_field('TVL', 'd', 15, value)
-        self.add_field('NTR', 'd', 15, value)
-        self.add_field('TTR', 'd', 15, value)
-        self.add_field('NVR', 'd', 15, value)
-        self.add_field('TVR', 'd', 15, value)
-        self.add_field('NRL', 'd', 15, value)
-        self.add_field('TRL', 'd', 15, value)
-        self.add_field('NSL', 'd', 15, value)
-        self.add_field('TSL', 'd', 15, value)
-        self.add_field('NRR', 'd', 15, value)
-        self.add_field('TRR', 'd', 15, value)
-        self.add_field('NSR', 'd', 15, value)
-        self.add_field('TSR', 'd', 15, value)
+        self.add_field('INS_SCA', 's', 9, value)
+        self.add_field('NTL', 's', 15, value)
+        self.add_field('TTL', 's', 15, value)
+        self.add_field('NVL', 's', 15, value)
+        self.add_field('TVL', 's', 15, value)
+        self.add_field('NTR', 's', 15, value)
+        self.add_field('TTR', 's', 15, value)
+        self.add_field('NVR', 's', 15, value)
+        self.add_field('TVR', 's', 15, value)
+        self.add_field('NRL', 's', 15, value)
+        self.add_field('TRL', 's', 15, value)
+        self.add_field('NSL', 's', 15, value)
+        self.add_field('TSL', 's', 15, value)
+        self.add_field('NRR', 's', 15, value)
+        self.add_field('TRR', 's', 15, value)
+        self.add_field('NSR', 's', 15, value)
+        self.add_field('TSR', 's', 15, value)
 
 
 class SOUR(TREElement):
@@ -78,21 +78,21 @@ class SOUR(TREElement):
         self.add_field('URF', 's', 20, value)
         self.add_field('EDN', 's', 7, value)
         self.add_field('NAM', 's', 20, value)
-        self.add_field('CDP', 'd', 3, value)
+        self.add_field('CDP', 's', 3, value)
         self.add_field('CDV', 's', 8, value)
         self.add_field('CDV27', 's', 8, value)
         self.add_field('SRN', 's', 80, value)
         self.add_field('SCA', 's', 9, value)
         self.add_field('UNISQU', 's', 3, value)
-        self.add_field('SQU', 'd', 10, value)
+        self.add_field('SQU', 's', 10, value)
         self.add_field('UNIPCI', 's', 3, value)
-        self.add_field('PCI', 'd', 4, value)
-        self.add_field('WPC', 'd', 3, value)
-        self.add_field('NST', 'd', 3, value)
+        self.add_field('PCI', 's', 4, value)
+        self.add_field('WPC', 's', 3, value)
+        self.add_field('NST', 's', 3, value)
         self.add_field('UNIHKE', 's', 3, value)
-        self.add_field('HKE', 'd', 6, value)
-        self.add_field('LONHKE', 'd', 15, value)
-        self.add_field('LATHKE', 'd', 15, value)
+        self.add_field('HKE', 's', 6, value)
+        self.add_field('LONHKE', 's', 15, value)
+        self.add_field('LATHKE', 's', 15, value)
         self.add_field('QSS', 's', 1, value)
         self.add_field('QOD', 's', 1, value)
         self.add_field('CDV10', 's', 8, value)
@@ -114,11 +114,11 @@ class SOUR(TREElement):
         self.add_field('PCO', 's', 2, value)
         self.add_field('NUM_PRJ', 'd', 1, value)
         self.add_loop('PRJs', self.NUM_PRJ, PRJ, value)
-        self.add_field('XOR', 'd', 15, value)
-        self.add_field('YOR', 'd', 15, value)
+        self.add_field('XOR', 's', 15, value)
+        self.add_field('YOR', 's', 15, value)
         self.add_field('GRD', 's', 3, value)
         self.add_field('GRN', 's', 80, value)
-        self.add_field('ZNA', 'd', 4, value)
+        self.add_field('ZNA', 's', 4, value)
         self.add_field('NIN', 'd', 2, value)
         self.add_loop('INs', self.NIN, IN, value)
 
@@ -126,7 +126,7 @@ class SOUR(TREElement):
 class SOURCBType(TREElement):
     def __init__(self, value):
         super(SOURCBType, self).__init__()
-        self.add_field('IS_SCA', 'd', 9, value)
+        self.add_field('IS_SCA', 's', 9, value)
         self.add_field('CPATCH', 's', 10, value)
         self.add_field('NUM_SOUR', 'd', 2, value)
         self.add_loop('SOURs', self.NUM_SOUR, SOUR, value)

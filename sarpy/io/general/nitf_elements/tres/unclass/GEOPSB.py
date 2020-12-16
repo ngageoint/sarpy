@@ -19,10 +19,10 @@ class GEOPSBType(TREElement):
         self.add_field('VDCDVR', 's', 4, value)
         self.add_field('SDA', 's', 80, value)
         self.add_field('VDCSDA', 's', 4, value)
-        self.add_field('ZOR', 'd', 15, value)
+        self.add_field('ZOR', 's', 15, value)
         self.add_field('GRD', 's', 3, value)
         self.add_field('GRN', 's', 80, value)
-        self.add_field('ZNA', 'd', 4, value)
+        self.add_field('ZNA', 's', 4, value)
 
 
 class GEOPSB(TREExtension):

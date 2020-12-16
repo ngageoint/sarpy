@@ -22,7 +22,7 @@ class RPFIMGType(TREElement):
         self.add_field('SECRECS', 'b', 1, value)
         self.add_field('RECLEN', 'b', 1, value)
         self.add_field('AGGLEN', 'b', 1, value)
-        self.add_loop('SECRECList', self.SECRECS, SECREC, value)
+        self.add_loop('SECRECList', int(self.SECRECS), SECREC, value)
         self.add_field('UNKNOWN', 'b', len(value) - self._bytes_length, value)
 
 

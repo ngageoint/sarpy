@@ -9,7 +9,7 @@ __author__ = "Thomas McCullough"
 class AIPBCAType(TREElement):
     def __init__(self, value):
         super(AIPBCAType, self).__init__()
-        self.add_field('PATCH_WIDTH', 'd', 5, value)
+        self.add_field('PATCH_WIDTH', 's', 5, value)
         self.add_field('U_HAT_X', 's', 16, value)
         self.add_field('U_HAT_Y', 's', 16, value)
         self.add_field('U_HAT_Z', 's', 16, value)
@@ -19,8 +19,8 @@ class AIPBCAType(TREElement):
         self.add_field('N_HAT_X', 's', 16, value)
         self.add_field('N_HAT_Y', 's', 16, value)
         self.add_field('N_HAT_Z', 's', 16, value)
-        self.add_field('DEP_ANGLE', 'd', 7, value)
-        self.add_field('CT_TRACK_RANGE', 'd', 10, value)
+        self.add_field('DEP_ANGLE', 's', 7, value)
+        self.add_field('CT_TRACK_RANGE', 's', 10, value)
         self.add_field('ETA_0', 's', 16, value)
         self.add_field('ETA_1', 's', 16, value)
         self.add_field('X_IMG_U', 's', 9, value)
@@ -42,11 +42,11 @@ class AIPBCAType(TREElement):
         self.add_field('SIGMA_SN', 's', 13, value)
         self.add_field('S_OFF', 's', 10, value)
         self.add_field('RN_OFFSET', 's', 12, value)
-        self.add_field('CRP_RANGE', 'd', 11, value)
-        self.add_field('REF_DEP_ANG', 'd', 7, value)
-        self.add_field('REF_ASP_ANG', 'd', 9, value)
-        self.add_field('N_SKIP_AZ', 'd', 1, value)
-        self.add_field('N_SKIP_RANGE', 'd', 1, value)
+        self.add_field('CRP_RANGE', 's', 11, value)
+        self.add_field('REF_DEP_ANG', 's', 7, value)
+        self.add_field('REF_ASP_ANG', 's', 9, value)
+        self.add_field('N_SKIP_AZ', 's', 1, value)
+        self.add_field('N_SKIP_RANGE', 's', 1, value)
 
 
 class AIPBCA(TREExtension):

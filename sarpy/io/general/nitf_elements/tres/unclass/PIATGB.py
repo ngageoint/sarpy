@@ -16,7 +16,7 @@ class PIATGBType(TREElement):
         self.add_field('TGTGEO', 's', 15, value)
         self.add_field('DATUM', 's', 3, value)
         self.add_field('TGTNAME', 's', 38, value)
-        self.add_field('PERCOVER', 'd', 3, value)
+        self.add_field('PERCOVER', 's', 3, value)
         self.add_field('TGTLAT', 's', 10, value)
         self.add_field('TGTLON', 's', 11, value)
 

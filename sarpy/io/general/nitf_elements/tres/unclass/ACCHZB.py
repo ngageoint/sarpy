@@ -9,8 +9,8 @@ __author__ = "Thomas McCullough"
 class PT(TREElement):
     def __init__(self, value):
         super(PT, self).__init__()
-        self.add_field('LON', 'd', 15, value)
-        self.add_field('LAT', 'd', 15, value)
+        self.add_field('LON', 's', 15, value)
+        self.add_field('LAT', 's', 15, value)
 
 
 class ACHZ(TREElement):
@@ -18,11 +18,11 @@ class ACHZ(TREElement):
         super(ACHZ, self).__init__()
         self.add_field('UNIAAH', 's', 3, value)
         if self.UNIAAH != '':
-            self.add_field('AAH', 'd', 5, value)
+            self.add_field('AAH', 's', 5, value)
         self.add_field('UNIAPH', 's', 3, value)
         if self.UNIAPH != '':
-            self.add_field('APH', 'd', 5, value)
-        self.add_field('NUMPTS', 'd', 3, value)
+            self.add_field('APH', 's', 5, value)
+        self.add_field('NUMPTS', 's', 3, value)
         self.add_loop('PTs', self.NUMPTS, PT, value)
 
 

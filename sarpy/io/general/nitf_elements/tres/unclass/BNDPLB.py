@@ -9,8 +9,8 @@ __author__ = "Thomas McCullough"
 class PT(TREElement):
     def __init__(self, value):
         super(PT, self).__init__()
-        self.add_field('LON', 'd', 15, value)
-        self.add_field('LAT', 'd', 15, value)
+        self.add_field('LON', 's', 15, value)
+        self.add_field('LAT', 's', 15, value)
 
 
 class BNDPLBType(TREElement):
