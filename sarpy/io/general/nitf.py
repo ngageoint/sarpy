@@ -1190,6 +1190,9 @@ class NITFReader(BaseReader):
         None
         """
 
+        if not hasattr(self, '_cached_files'):
+            return
+
         for fil in self._cached_files:
             # NB: this should be an absolute path
             if os.path.exists(fil):
