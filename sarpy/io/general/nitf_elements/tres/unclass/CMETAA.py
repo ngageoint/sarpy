@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 
+import numpy
+from sarpy.geometry.geocoords import geodetic_to_ecf
+
 from ..tre_elements import TREExtension, TREElement
 
 __classification__ = "UNCLASSIFIED"
@@ -35,29 +38,23 @@ class CMETAAType(TREElement):
         self.add_field('CMPLX_RNG_TAY_NBAR', 's', 2, value)
         self.add_field('CMPLX_WEIGHT_NORM', 's', 3, value)
         self.add_field('CMPLX_SIGNAL_PLANE', 's', 1, value)
+
         self.add_field('IF_DC_SF_ROW', 's', 6, value)
         self.add_field('IF_DC_SF_COL', 's', 6, value)
-        self.add_field('IF_PATCH_1_ROW', 's', 6, value)
-        self.add_field('IF_PATCH_1_COL', 's', 6, value)
-        self.add_field('IF_PATCH_2_ROW', 's', 6, value)
-        self.add_field('IF_PATCH_2_COL', 's', 6, value)
-        self.add_field('IF_PATCH_3_ROW', 's', 6, value)
-        self.add_field('IF_PATCH_3_COL', 's', 6, value)
-        self.add_field('IF_PATCH_4_ROW', 's', 6, value)
-        self.add_field('IF_PATCH_4_COL', 's', 6, value)
-        self.add_field('IF_PATCH_4_COL', 's', 6, value)
+
+        for part in range(1, 5):
+            for comp in ['ROW', 'COL']:
+                self.add_field('IF_PATCH_{}{}'.format(comp, part), 's', 6, value)
+
         self.add_field('IF_DC_IS_ROW', 's', 8, value)
         self.add_field('IF_DC_IS_COL', 's', 8, value)
         self.add_field('IF_IMG_ROW_DC', 's', 8, value)
         self.add_field('IF_IMG_COL_DC', 's', 8, value)
-        self.add_field('IF_TILE_1_ROW', 's', 6, value)
-        self.add_field('IF_TILE_1_COL', 's', 6, value)
-        self.add_field('IF_TILE_2_ROW', 's', 6, value)
-        self.add_field('IF_TILE_2_COL', 's', 6, value)
-        self.add_field('IF_TILE_3_ROW', 's', 6, value)
-        self.add_field('IF_TILE_3_COL', 's', 6, value)
-        self.add_field('IF_TILE_4_ROW', 's', 6, value)
-        self.add_field('IF_TILE_4_COL', 's', 6, value)
+
+        for part in range(1, 5):
+            for comp in ['ROW', 'COL']:
+                self.add_field('IF_TILE_{}{}'.format(comp, part), 's', 6, value)
+
         self.add_field('IF_RD', 's', 1, value)
         self.add_field('IF_RGWLK', 's', 1, value)
         self.add_field('IF_KEYSTN', 's', 1, value)
@@ -72,27 +69,27 @@ class CMETAAType(TREElement):
         self.add_field('IF_AZSS', 's', 8, value)
         self.add_field('IF_RSR', 's', 8, value)
         self.add_field('IF_AZSR', 's', 8, value)
+
         self.add_field('IF_RFFT_SAMP', 's', 7, value)
         self.add_field('IF_AZFFT_SAMP', 's', 7, value)
         self.add_field('IF_RFFT_TOT', 's', 7, value)
         self.add_field('IF_AZFFT_TOT', 's', 7, value)
+
         self.add_field('IF_SUBP_ROW', 's', 6, value)
         self.add_field('IF_SUBP_COL', 's', 6, value)
         self.add_field('IF_SUB_RG', 's', 4, value)
         self.add_field('IF_SUB_AZ', 's', 4, value)
+
         self.add_field('IF_RFFTS', 's', 1, value)
         self.add_field('IF_AFFTS', 's', 1, value)
         self.add_field('IF_RANGE_DATA', 's', 7, value)
         self.add_field('IF_INCPH', 's', 1, value)
-        self.add_field('IF_SR_NAME1', 's', 8, value)
-        self.add_field('IF_SR_AMOUNT1', 's', 8, value)
-        self.add_field('IF_SR_NAME2', 's', 8, value)
-        self.add_field('IF_SR_AMOUNT2', 's', 8, value)
-        self.add_field('IF_SR_NAME3', 's', 8, value)
-        self.add_field('IF_SR_AMOUNT', 's', 8, value)
-        self.add_field('AF_TYPE1', 's', 5, value)
-        self.add_field('AF_TYPE2', 's', 5, value)
-        self.add_field('AF_TYPE3', 's', 5, value)
+        for part in range(1, 4):
+            for comp in ['NAME', 'AMOUNT']:
+                self.add_field('IF_SR_{}{}'.format(comp, part), 's', 8, value)
+        for part in range(1, 4):
+            self.add_field('AF_TYPE{}'.format(part), 's', 5, value)
+
         self.add_field('POL_TR', 's', 1, value)
         self.add_field('POL_RE', 's', 1, value)
         self.add_field('POL_REFERENCE', 's', 40, value)
@@ -104,15 +101,16 @@ class CMETAAType(TREElement):
         self.add_field('POL_BAL_PHS', 's', 8, value)
         self.add_field('POL_HCOMP', 's', 1, value)
         self.add_field('POL_HCOMP_BASIS', 's', 10, value)
-        self.add_field('POL_HCOMP_COEF_1', 's', 9, value)
-        self.add_field('POL_HCOMP_COEF_2', 's', 9, value)
-        self.add_field('POL_HCOMP_COEF_3', 's', 9, value)
+        for part in range(1, 4):
+            self.add_field('POL_HCOMP_COEF{}'.format(part), 's', 9, value)
         self.add_field('POL_AFCOMP', 's', 1, value)
         self.add_field('POL_SPARE_A', 's', 15, value)
         self.add_field('POL_SPARE_N', 's', 9, value)
+
         self.add_field('T_UTC_YYYYMMMDD', 's', 9, value)
         self.add_field('T_HHMMSSUTC', 's', 6, value)
         self.add_field('T_HHMMSSLOCAL', 's', 6, value)
+
         self.add_field('CG_SRAC', 's', 11, value)
         self.add_field('CG_SLANT_CONFIDENCE', 's', 7, value)
         self.add_field('CG_CROSS', 's', 11, value)
@@ -137,42 +135,37 @@ class CMETAAType(TREElement):
         self.add_field('CG_SHADOW', 's', 8, value)
         self.add_field('CG_OPM', 's', 7, value)
         self.add_field('CG_MODEL', 's', 5, value)
-        self.add_field('CG_AMPT_X', 's', 13, value)
-        self.add_field('CG_AMPT_Y', 's', 13, value)
-        self.add_field('CG_AMPT_Z', 's', 13, value)
+
+        for comp in ['X', 'Y', 'Z']:
+            self.add_field('CG_AMPT_{}'.format(comp), 's', 13, value)
         self.add_field('CG_AP_CONF_XY', 's', 6, value)
         self.add_field('CG_AP_CONF_Z', 's', 6, value)
-        self.add_field('CG_APCEN_X', 's', 13, value)
-        self.add_field('CG_APCEN_Y', 's', 13, value)
-        self.add_field('CG_APCEN_Z', 's', 13, value)
+
+        for comp in ['X', 'Y', 'Z']:
+            self.add_field('CG_APCEN_{}'.format(comp), 's', 13, value)
         self.add_field('CG_APER_CONF_XY', 's', 6, value)
         self.add_field('CG_APER_CONF_Z', 's', 6, value)
-        self.add_field('CG_FPNUV_X', 's', 9, value)
-        self.add_field('CG_FPNUV_Y', 's', 9, value)
-        self.add_field('CG_FPNUV_Z', 's', 9, value)
-        self.add_field('CG_IDPNUVX', 's', 9, value)
-        self.add_field('CG_IDPNUVY', 's', 9, value)
-        self.add_field('CG_IDPNUVZ', 's', 9, value)
-        self.add_field('CG_SCECN_X', 's', 13, value)
-        self.add_field('CG_SCECN_Y', 's', 13, value)
-        self.add_field('CG_SCECN_Z', 's', 13, value)
+
+        for comp in ['X', 'Y', 'Z']:
+            self.add_field('CG_FPNUV_{}'.format(comp), 's', 9, value)
+        for comp in ['X', 'Y', 'Z']:
+            self.add_field('CG_IDPNUV{}'.format(comp), 's', 9, value)
+        for comp in ['X', 'Y', 'Z']:
+            self.add_field('CG_SCECN_{}'.format(comp), 's', 13, value)
         self.add_field('CG_SC_CONF_XY', 's', 6, value)
         self.add_field('CG_SC_CONF_Z', 's', 6, value)
         self.add_field('CG_SWWD', 's', 8, value)
-        self.add_field('CG_SNVEL_X', 's', 10, value)
-        self.add_field('CG_SNVEL_Y', 's', 10, value)
-        self.add_field('CG_SNVEL_Z', 's', 10, value)
-        self.add_field('CG_SNACC_X', 's', 10, value)
-        self.add_field('CG_SNACC_Y', 's', 10, value)
-        self.add_field('CG_SNACC_Z', 's', 10, value)
-        self.add_field('CG_SNATT_ROLL', 's', 8, value)
-        self.add_field('CG_SNATT_PITCH', 's', 8, value)
-        self.add_field('CG_SNATT_YAW', 's', 8, value)
-        self.add_field('CG_GTP_X', 's', 9, value)
-        self.add_field('CG_GTP_Y', 's', 9, value)
-        self.add_field('CG_GTP_Z', 's', 9, value)
+        for comp in ['X', 'Y', 'Z']:
+            self.add_field('CG_SNVEL_{}'.format(comp), 's', 10, value)
+        for comp in ['X', 'Y', 'Z']:
+            self.add_field('CG_SNACC_{}'.format(comp), 's', 10, value)
+        for comp in ['ROLL', 'PITCH', 'YAW']:
+            self.add_field('CG_SNATT_{}'.format(comp), 's', 8, value)
+        for comp in ['X', 'Y', 'Z']:
+            self.add_field('CG_GTP_{}'.format(comp), 's', 9, value)
+
         self.add_field('CG_MAP_TYPE', 's', 4, value)
-        if self.CG_MAP_TYPE == 'GEOD':
+        if self.CG_MAP_TYPE.strip() == 'GEOD':
             self.add_field('CG_PATCH_LATCEN', 's', 11, value)
             self.add_field('CG_PATCH_LNGCEN', 's', 12, value)
             self.add_field('CG_PATCH_LTCORUL', 's', 11, value)
@@ -185,7 +178,7 @@ class CMETAAType(TREElement):
             self.add_field('CG_PATH_LNGCOLL', 's', 12, value)
             self.add_field('CG_PATCH_LAT_CONFIDENCE', 's', 9, value)
             self.add_field('CG_PATCH_LONG_CONFIDENCE', 's', 9, value)
-        elif self.CG_MAP_TYPE == 'MGRS':
+        elif self.CG_MAP_TYPE.strip() == 'MGRS':
             self.add_field('CG_MGRS_CENT', 's', 23, value)
             self.add_field('CG_MGRSCORUL', 's', 23, value)
             self.add_field('CG_MGRSCORUR', 's', 23, value)
@@ -193,7 +186,7 @@ class CMETAAType(TREElement):
             self.add_field('CG_MGRCORLL', 's', 23, value)
             self.add_field('CG_MGRS_CONFIDENCE', 's', 7, value)
             self.add_field('CG_MGRS_PAD', 's', 11, value)
-        elif self.CG_MAP_TYPE == 'NA':
+        elif self.CG_MAP_TYPE.strip() == 'NA':
             self.add_field('CG_MAP_TYPE_BLANK', 's', 133, value)
         self.add_field('CG_SPARE_A', 's', 144, value)
         self.add_field('CA_CALPA', 's', 7, value)
@@ -213,3 +206,64 @@ class CMETAAType(TREElement):
 class CMETAA(TREExtension):
     _tag_value = 'CMETAA'
     _data_type = CMETAAType
+
+    def get_scp(self):
+        """
+        Gets the SCP location in ECF coordinates.
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+
+        cg_model = self.DATA.CG_MODEL.strip()
+        scp_array = numpy.array(
+            [float(self.DATA.CG_SCECN_X),
+             float(self.DATA.CG_SCECN_Y),
+             float(self.DATA.CG_SCECN_Z)], dtype='float64')
+        if cg_model == 'ECEF':
+            return scp_array
+        elif cg_model == 'WGS84':
+            return geodetic_to_ecf(scp_array)
+        else:
+            raise ValueError('Got unhandled CG_MODEL {}'.format(cg_model))
+
+    def get_arp(self):
+        """
+        Gets the Aperture Position, at SCP Time, in ECF coordinates.
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+
+        cg_model = self.DATA.CG_MODEL.strip()
+        arp_array = numpy.array(
+            [float(self.DATA.CG_APCEN_X),
+             float(self.DATA.CG_APCEN_Y),
+             float(self.DATA.CG_APCEN_Z)], dtype='float64')
+        if cg_model == 'ECEF':
+            return arp_array
+        elif cg_model == 'WGS84':
+            return geodetic_to_ecf(arp_array)
+        else:
+            raise ValueError('Got unhandled CG_MODEL {}'.format(cg_model))
+
+    def get_image_corners(self):
+        """
+        Gets the image corners in Lat/Lon, if feasible.
+
+        Returns
+        -------
+        None|numpy.ndarray
+        """
+
+        if self.DATA.CG_MAP_TYPE.strip() != 'GEOD':
+            return None
+
+        return numpy.array([
+                [float(self.DATA.CG_PATCH_LTCORUL), float(self.DATA.CG_PATCH_LGCORUL)],
+                [float(self.DATA.CG_PATCH_LTCORUR), float(self.DATA.CG_PATCH_LGCORUR)],
+                [float(self.DATA.CG_PATCH_LTCORLR), float(self.DATA.CG_PATCH_LGCORLR)],
+                [float(self.DATA.CG_PATCH_LTCORLL), float(self.DATA.CG_PATCH_LNGCOLL)]], dtype='float64')
+
