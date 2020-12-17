@@ -35,6 +35,8 @@ from sarpy.io.complex.sicd_elements.ImageCreation import ImageCreationType
 from sarpy.io.complex.sicd_elements.PFA import PFAType
 from sarpy.io.general.nitf_elements.base import TREList
 
+from sarpy.io.general.nitf_elements.tres.unclass.CMETAA import CMETAA
+
 
 # NB: The checking for open_complex() is included in the sicd.is_a().
 
@@ -173,9 +175,10 @@ def _extract_sicd(img_header, symmetry):
             the_sicd.Grid.Col.UVectECF = col_unit
 
     def try_CMETAA():
-        tre = None if tres is None else tres['CMETAA']
+        tre = None if tres is None else tres['CMETAA']  # type: CMETAA
         if tre is None:
             return
+
         cmetaa = tre.DATA
 
         if the_sicd.GeoData is None:
@@ -191,19 +194,11 @@ def _extract_sicd(img_header, symmetry):
         if the_sicd.ImageFormation is None:
             the_sicd.ImageFormation = ImageFormationType()
 
-        the_sicd.SCPCOA.SCPTime = 0.5*cmetaa.WF_CDP
-        if cmetaa.CG_MODEL == 'ECEF':
-            the_sicd.GeoData.SCP = SCPType(ECF=[
-                float(cmetaa.CG_SCECN_X), float(cmetaa.CG_SCECN_Y), float(cmetaa.cmetaa.CG_SCECN_Z)])
-            the_sicd.SCPCOA.ARPPos = [
-                float(cmetaa.CG_APCEN_X), float(cmetaa.CG_APCEN_Y), float(cmetaa.CG_APCEN_Z)]
-        elif cmetaa.CG_MODEL == 'WGS84':
-            the_sicd.GeoData.SCP = SCPType(LLH=[
-                float(cmetaa.CG_SCECN_X), float(cmetaa.CG_SCECN_Y), float(cmetaa.cmetaa.CG_SCECN_Z)])
-            the_sicd.SCPCOA.ARPPos = geodetic_to_ecf([
-                float(cmetaa.CG_APCEN_X), float(cmetaa.CG_APCEN_Y), float(cmetaa.CG_APCEN_Z)])
+        the_sicd.SCPCOA.SCPTime = 0.5*float(cmetaa.WF_CDP)
+        the_sicd.GeoData.SCP = SCPType(ECF=tre.get_scp())
+        the_sicd.SCPCOA.ARPPos = tre.get_arp()
 
-        the_sicd.SCPCOA.SideOfTrack = cmetaa.CG_LD
+        the_sicd.SCPCOA.SideOfTrack = cmetaa.CG_LD.strip().upper()
         the_sicd.SCPCOA.SlantRange = float(cmetaa.CG_SRAC)
         the_sicd.SCPCOA.DopplerConeAng = float(cmetaa.CG_CAAC)
         the_sicd.SCPCOA.GrazeAng = float(cmetaa.CG_GAAC)
@@ -214,12 +209,9 @@ def _extract_sicd(img_header, symmetry):
             the_sicd.SCPCOA.SlopeAng = float(cmetaa.CG_SLOPE)
 
         the_sicd.ImageData.SCPPixel = [int(cmetaa.IF_DC_IS_COL), int(cmetaa.IF_DC_IS_ROW)]
-        if cmetaa.CG_MAP_TYPE == 'GEOD':
-            the_sicd.GeoData.ImageCorners = [
-                [float(cmetaa.CG_PATCH_LTCORUL), float(cmetaa.CG_PATCH_LGCORUL)],
-                [float(cmetaa.CG_PATCH_LTCORUR), float(cmetaa.CG_PATCH_LGCORUR)],
-                [float(cmetaa.CG_PATCH_LTCORLR), float(cmetaa.CG_PATCH_LGCORLR)],
-                [float(cmetaa.CG_PATCH_LTCORLL), float(cmetaa.CG_PATCH_LNGCOLL)]]
+        img_corners = tre.get_image_corners()
+        if img_corners is not None:
+            the_sicd.GeoData.ImageCorners = img_corners
         if cmetaa.CMPLX_SIGNAL_PLANE[0].upper() == 'S':
             the_sicd.Grid.ImagePlane = 'SLANT'
         elif cmetaa.CMPLX_SIGNAL_PLANE[0].upper() == 'G':
@@ -227,12 +219,12 @@ def _extract_sicd(img_header, symmetry):
         the_sicd.Grid.Row = DirParamType(
             SS=float(cmetaa.IF_RSS),
             ImpRespWid=float(cmetaa.IF_RGRES),
-            Sgn=1 if cmetaa.IF_RFFTS == '-' else -1,  # opposite sign convention
+            Sgn=1 if cmetaa.IF_RFFTS.strip() == '-' else -1,  # opposite sign convention
             ImpRespBW=float(cmetaa.IF_RFFT_SAMP)/(float(cmetaa.IF_RSS)*float(cmetaa.IF_RFFT_TOT)))
         the_sicd.Grid.Col = DirParamType(
             SS=float(cmetaa.IF_AZSS),
             ImpRespWid=float(cmetaa.IF_AZRES),
-            Sgn=1 if cmetaa.IF_AFFTS == '-' else -1,  # opposite sign convention
+            Sgn=1 if cmetaa.IF_AFFTS.strip() == '-' else -1,  # opposite sign convention
             ImpRespBW=float(cmetaa.IF_AZFFT_SAMP)/(float(cmetaa.IF_AZSS)*float(cmetaa.IF_AZFFT_TOT)))
         cmplx_weight = cmetaa.CMPLX_WEIGHT
         if cmplx_weight == 'UWT':
@@ -290,10 +282,10 @@ def _extract_sicd(img_header, symmetry):
             ChanParametersType(TxRcvPolarization=tx_rcv_pol)]
 
         the_sicd.ImageFormation.TxRcvPolarizationProc = tx_rcv_pol
-        if_process = cmetaa.IF_PROCESS
+        if_process = cmetaa.IF_PROCESS.strip().upper()
         if if_process == 'PF':
             the_sicd.ImageFormation.ImageFormAlgo = 'PFA'
-            scp_ecf = the_sicd.GeoData.SCP.ECF.get_array()
+            scp_ecf = tre.get_scp()
             fpn_ned = numpy.array(
                 [float(cmetaa.CG_FPNUV_X), float(cmetaa.CG_FPNUV_Y), float(cmetaa.CG_FPNUV_Z)], dtype='float64')
             ipn_ned = numpy.array(
@@ -306,7 +298,7 @@ def _extract_sicd(img_header, symmetry):
 
         # the remainder of this is guesswork to define required fields
         the_sicd.ImageFormation.TStartProc = 0  # guess work
-        the_sicd.ImageFormation.TEndProc = cmetaa.WF_CDP
+        the_sicd.ImageFormation.TEndProc = float(cmetaa.WF_CDP)
         the_sicd.ImageFormation.TxFrequencyProc = TxFrequencyProcType(
             MinProc=float(cmetaa.WF_SRTFR), MaxProc=float(cmetaa.WF_ENDFR))
         # all remaining guess work
@@ -341,10 +333,10 @@ def _extract_sicd(img_header, symmetry):
         append_country_code(aimidb.COUNTRY.strip())
 
         if the_sicd.ImageFormation is not None and the_sicd.ImageFormation.SegmentIdentifier is None:
-            the_sicd.ImageFormation.SegmentIdentifier = aimidb.CURRENT_SEGMENT
+            the_sicd.ImageFormation.SegmentIdentifier = aimidb.CURRENT_SEGMENT.strip()
 
         date_str = aimidb.ACQUISITION_DATE
-        collect_start = numpy.datetime64('{}-{}-{}T{}:{}:{}Z'.format(
+        collect_start = numpy.datetime64('{}-{}-{}T{}:{}:{}'.format(
             date_str[:4], date_str[4:6], date_str[6:8],
             date_str[8:10], date_str[10:12], date_str[12:14]), 'us')
         set_collect_start(collect_start, override=False)
@@ -369,9 +361,9 @@ def _extract_sicd(img_header, symmetry):
         row_ss = float(acft.ROW_SPACING)
         col_ss = float(acft.COL_SPACING)
 
-        if hasattr(acft, 'ROW_SPACING_UNITS') and acft.ROW_SPACING_UNITS == 'f':
+        if hasattr(acft, 'ROW_SPACING_UNITS') and acft.ROW_SPACING_UNITS.strip().lower() == 'f':
             row_ss *= foot
-        if hasattr(acft, 'COL_SPACING_UNITS') and acft.COL_SPACING_UNITS == 'f':
+        if hasattr(acft, 'COL_SPACING_UNITS') and acft.COL_SPACING_UNITS.strip().lower() == 'f':
             col_ss *= foot
 
         # NB: these values are actually ground plane values, and should be
@@ -461,11 +453,11 @@ def _extract_sicd(img_header, symmetry):
         arp_llh = numpy.array(
             [lat_lon_parser(mensrb.ACFT_LOC[:12]),
              lat_lon_parser(mensrb.ACFT_LOC[12:25]),
-             foot*mensrb.ACFT_ALT], dtype='float64')
+             foot*float(mensrb.ACFT_ALT)], dtype='float64')
         scp_llh = numpy.array(
             [lat_lon_parser(mensrb.RP_LOC[:12]),
              lat_lon_parser(mensrb.RP_LOC[12:25]),
-             foot*mensrb.RP_ELV], dtype='float64')
+             foot*float(mensrb.RP_ELV)], dtype='float64')
         # TODO: handle the conversion from msl to hae
 
         arp_ecf = geodetic_to_ecf(arp_llh)
@@ -490,11 +482,11 @@ def _extract_sicd(img_header, symmetry):
         arp_llh = numpy.array(
             [lat_lon_parser(mensra.ACFT_LOC[:10]),
              lat_lon_parser(mensra.ACFT_LOC[10:21]),
-             foot*mensra.ACFT_ALT], dtype='float64')
+             foot*float(mensra.ACFT_ALT)], dtype='float64')
         scp_llh = numpy.array(
             [lat_lon_parser(mensra.CP_LOC[:10]),
              lat_lon_parser(mensra.CP_LOC[10:21]),
-             foot*mensra.CP_ALT], dtype='float64')
+             foot*float(mensra.CP_ALT)], dtype='float64')
         # TODO: handle the conversion from msl to hae
 
         arp_ecf = geodetic_to_ecf(arp_llh)
@@ -522,7 +514,7 @@ def _extract_sicd(img_header, symmetry):
         # noinspection PyBroadException
         try:
             date_str = img_header.IDATIM
-            collect_start = numpy.datetime64('{}-{}-{}T{}:{}:{}Z'.format(
+            collect_start = numpy.datetime64('{}-{}-{}T{}:{}:{}'.format(
                 date_str[:4], date_str[4:6], date_str[6:8],
                 date_str[8:10], date_str[10:12], date_str[12:14]), 'us')
         except:

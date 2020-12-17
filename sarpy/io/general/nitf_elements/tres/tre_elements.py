@@ -3,6 +3,7 @@
 Module contained elements for defining TREs - really intended as read only objects.
 """
 
+import logging
 from collections import OrderedDict
 from typing import Union, List
 
@@ -84,6 +85,13 @@ class TREElement(object):
         -------
         None
         """
+
+        if hasattr(self, attribute):
+            logging.error(
+                'This instance of TRE element {} already has an attribute {},\n'
+                'but the `add_field()` method is being called for this attribute '
+                'name again. This is almost certainly '
+                'an error.'.format(self.__class__, attribute))
 
         try:
             val = _parse_type(typ_string, leng, value, self._bytes_length)
