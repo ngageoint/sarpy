@@ -12,5 +12,7 @@ The nitf header elements (sarpy.io.general.nitf_elements)
     text
     des
     res
+    label
+    symbol
     base
     tres/index
