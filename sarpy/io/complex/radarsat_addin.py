@@ -7,7 +7,7 @@ import logging
 
 __author__ = "Thomas McCullough"
 __note__ = "Not intended for public dissemination"
-__classification__ = "UNCLASSIFIED"
+__classification__ = "FOUO"
 
 
 def extract_radarsat_sec(nitf, class_str):
