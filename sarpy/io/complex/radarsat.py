@@ -1561,7 +1561,7 @@ class RadarSatReader(BaseReader):
         for sicd_entry, file_entry in zip(the_sicds, the_files):
             the_chippers.extend(self._construct_chippers(sicd_entry, file_entry, symmetry))
             use_sicds.extend(sicd_entry)
-        super(RadarSatReader, self).__init__(tuple(use_sicds), tuple(the_chippers), is_sicd_type=True)
+        super(RadarSatReader, self).__init__(tuple(use_sicds), tuple(the_chippers), reader_type="SICD")
 
     def _construct_chippers(self, sicds, data_files, symmetry):
         """

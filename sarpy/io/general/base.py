@@ -24,6 +24,7 @@ __author__ = "Thomas McCullough"
 ##################
 # module variables
 _SUPPORTED_TRANSFORM_VALUES = ('COMPLEX', )
+READER_TYPES = ('SICD', 'SIDD', 'CPHD', 'OTHER')
 
 
 #################
@@ -541,9 +542,9 @@ class BaseReader(object):
     Abstract file reader class
     """
 
-    __slots__ = ('_sicd_meta', '_chipper', '_data_size', '_is_sicd_type')
+    __slots__ = ('_sicd_meta', '_chipper', '_data_size', '_reader_type')
 
-    def __init__(self, sicd_meta, chipper, is_sicd_type=False):
+    def __init__(self, sicd_meta, chipper, reader_type="OTHER"):
         """
 
         Parameters
@@ -552,13 +553,18 @@ class BaseReader(object):
             `None`, the SICD metadata object, or tuple of objects
         chipper : BaseChipper|Tuple[BaseChipper]
             a chipper object, or tuple of chipper objects
-        is_sicd_type : bool
-            Is this a sicd type reader, or otherwise?
+        reader_type : str
+            What kind of reader is this? Allowable options are "SICD", "SIDD",
+            "CPHD", or "OTHER".
         """
-        # set the is_sicd_type state
-        if not isinstance(is_sicd_type, bool):
-            is_sicd_type = bool(is_sicd_type)
-        self._is_sicd_type = is_sicd_type
+        # set the reader_type state
+        if not isinstance(reader_type, string_types):
+            raise ValueError('reader_type must be a string, got {}'.format(type(reader_type)))
+        if reader_type not in READER_TYPES:
+            logging.error(
+                'reader_type has value {}, while it is expected to be '
+                'one of {}'.format(reader_type, READER_TYPES))
+        self._reader_type = reader_type
         # adjust sicd_meta and chipper inputs
         if isinstance(sicd_meta, list):
             sicd_meta = tuple(sicd_meta)
@@ -598,11 +604,11 @@ class BaseReader(object):
         self._data_size = data_size
 
     @property
-    def is_sicd_type(self):
+    def reader_type(self):
         """
-        bool: Is this reader object a sicd-type reader, or otherwise (like SIDD or CPHD)?
+        str: A descriptive string for the type of reader, should be one of "SICD", "SIDD", "CPHD", or "OTHER"
         """
-        return self._is_sicd_type
+        return self._reader_type
 
     @property
     def sicd_meta(self):
@@ -691,7 +697,7 @@ class BaseReader(object):
         Tuple[Tuple[int]]
         """
 
-        if not self.is_sicd_type:
+        if self.reader_type != "SICD":
             logging.warning('It is only valid to get sicd partitions for a sicd type reader.')
             return None
 
@@ -725,7 +731,7 @@ class BaseReader(object):
         Tuple[str]
         """
 
-        if not self.is_sicd_type:
+        if self.reader_type != "SICD":
             logging.warning('It is only valid to get sicd bands for a sicd type reader.')
             return None
 
@@ -740,7 +746,7 @@ class BaseReader(object):
         Tuple[str]
         """
 
-        if not self.is_sicd_type:
+        if self.reader_type != "SICD":
             logging.warning('It is only valid to get sicd polarizations for a sicd type reader.')
             return None
 
@@ -951,18 +957,20 @@ class AggregateReader(BaseReader):
 
     __slots__ = ('_readers', '_index_mapping')
 
-    def __init__(self, readers):
+    def __init__(self, readers, reader_type="OTHER"):
         """
 
         Parameters
         ----------
         readers : List[BaseReader]
+        reader_type : str
+            The reader type string.
         """
 
         self._index_mapping = None
         self._readers = self._validate_readers(readers)
         the_chippers = self._define_index_mapping()
-        super(AggregateReader, self).__init__(sicd_meta=None, chipper=the_chippers, is_sicd_type=False)
+        super(AggregateReader, self).__init__(sicd_meta=None, chipper=the_chippers, reader_type=reader_type)
 
     @staticmethod
     def _validate_readers(readers):

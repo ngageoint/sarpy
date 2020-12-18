@@ -137,7 +137,8 @@ _GEOTIFF_TAGS = {
 
 def is_a(file_name):
     """
-    Tests whether a given file_name corresponds to a tiff file. Returns a reader instance, if so.
+    Tests whether a given file_name corresponds to a tiff file. Returns a
+    tiff reader instance, if so.
 
     Parameters
     ----------
@@ -497,7 +498,7 @@ class TiffReader(BaseReader):
             symmetry = self._DEFAULT_SYMMETRY
 
         chipper = NativeTiffChipper(tiff_details, symmetry=symmetry)
-        super(TiffReader, self).__init__(sicd_meta, chipper)
+        super(TiffReader, self).__init__(sicd_meta, chipper, reader_type="OTHER")
 
     @property
     def tiff_details(self):

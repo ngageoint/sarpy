@@ -655,7 +655,7 @@ class ComplexNITFReader(NITFReader):
         if not isinstance(nitf_details, ComplexNITFDetails):
             raise TypeError('The input argument for ComplexNITFReader must be a filename or '
                             'ComplexNITFDetails object.')
-        super(ComplexNITFReader, self).__init__(nitf_details, is_sicd_type=True, symmetry=symmetry)
+        super(ComplexNITFReader, self).__init__(nitf_details, reader_type="SICD", symmetry=symmetry)
 
     @property
     def nitf_details(self):
