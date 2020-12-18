@@ -856,8 +856,10 @@ class OrthorectificationHelper(object):
             self._out_dtype = numpy.dtype('float32')
         if not isinstance(reader, BaseReader):
             raise TypeError('Got unexpected type {} for reader'.format(type(reader)))
-        if not reader.is_sicd_type:
-            raise ValueError('Reader is required to have is_sicd_type property value equals True')
+        if reader.reader_type != "SICD":
+            raise ValueError(
+                'Reader is required to have property reader_type="SICD", got {} '
+                'for type {}'.format(reader.reader_type, type(reader)))
         self._reader = reader
         self.apply_radiometric = apply_radiometric
         self.subtract_radiometric_noise = subtract_radiometric_noise
@@ -1977,8 +1979,10 @@ class FullResolutionFetcher(object):
         if not isinstance(reader, BaseReader):
             raise TypeError('reader is required to be a path name for a sicd-type image, '
                             'or an instance of a reader object.')
-        if not reader.is_sicd_type:
-            raise TypeError('reader is required to be of sicd_type.')
+        if reader.reader_type != "SICD":
+            raise ValueError(
+                'Reader is required to have property reader_type="SICD", got {} '
+                'for type {}'.format(reader.reader_type, type(reader)))
         self._reader = reader
         # set the other properties
         self.dimension = dimension

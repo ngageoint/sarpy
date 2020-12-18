@@ -47,8 +47,8 @@ def generic_reader_test(instance, test_file, reader_type_string, reader_type):
     if not isinstance(reader, reader_type):
         return  # remaining tests might be misleading
 
-    with instance.subTest(msg='Verify is_sicd_type for type {} and file {}'.format(reader_type_string, test_file)):
-        instance.assertTrue(reader.is_sicd_type, msg='reader.is_sicd_type() should be True')
+    with instance.subTest(msg='Verify reader_type for type {} and file {}'.format(reader_type_string, test_file)):
+        instance.assertEqual(reader.reader_type, "SICD", msg='reader.reader_type should be "SICD""')
 
     with instance.subTest(msg='Fetch data_sizes and sicds for type {} and file {}'.format(reader_type_string, test_file)):
         data_sizes = reader.get_data_size_as_tuple()

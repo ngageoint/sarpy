@@ -1,5 +1,6 @@
 # This details the important differences introduced in sarpy 1.1
 
+* .41 - Added reader_type property for reader to clarify intent and usage
 * .40 - Debugging CMETAA definition and usage
 * .39 - Debugging the Exploitation Calculator for SIDD population
 * .38 - Adjust TRE definitions to avoid errors in improperly parsing numeric fields

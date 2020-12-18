@@ -406,7 +406,7 @@ class CapellaReader(BaseReader):
         self._capella_details = capella_details
         sicd = self.capella_details.get_sicd()
         chipper = NativeTiffChipper(self.capella_details.tiff_details, symmetry=self.capella_details.get_symmetry())
-        super(CapellaReader, self).__init__(sicd, chipper, is_sicd_type=True)
+        super(CapellaReader, self).__init__(sicd, chipper, reader_type="SICD")
 
     @property
     def capella_details(self):

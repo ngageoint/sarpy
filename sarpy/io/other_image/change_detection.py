@@ -1,7 +1,14 @@
 # -*- coding: utf-8 -*-
 """
 Module for reading and interpreting the standard change detection result files.
+
+**This requires optional dependency `pyproj`, and very likely requires `Pillow`
+for dealing with a NITF with compressed image segments.**
 """
+
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
 
 import logging
 import os
@@ -25,10 +32,6 @@ except ImportError:
         'Optional dependency pyproj is required for interpretation '
         'of standard change detection products.')
     pyproj = None
-
-
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
 
 
 def _validate_coords(coords):
@@ -248,7 +251,7 @@ class ChangeDetectionReader(AggregateReader):
         readers = (NITFReader(change_details.file_names['C']),
                    NITFReader(change_details.file_names['M']),
                    NITFReader(change_details.file_names['R']),)
-        super(ChangeDetectionReader, self).__init__(readers)
+        super(ChangeDetectionReader, self).__init__(readers, reader_type="OTHER")
         self._set_pixel_geometries()
 
     @property

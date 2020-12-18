@@ -52,6 +52,35 @@ from sarpy.io.complex.sicd_elements.blocks import LatLonType
 from sarpy.geometry.geocoords import ecf_to_geodetic, geodetic_to_ecf
 from sarpy.geometry.latlon import num as lat_lon_parser
 
+########
+# base expected functionality for a module with an implemented Reader
+
+
+def is_a(file_name):
+    """
+    Tests whether a given file_name corresponds to a nitf file. Returns a
+    nitf reader instance, if so.
+
+    Parameters
+    ----------
+    file_name : str
+        the file_name to check
+
+    Returns
+    -------
+    NITFReader|None
+        `NITFReader` instance if nitf file, `None` otherwise
+    """
+
+    try:
+        nitf_details = NITFDetails(file_name)
+        print('File {} is determined to be a nitf file.'.format(file_name))
+        return NITFReader(nitf_details)
+    except IOError:
+        # we don't want to catch parsing errors, for now
+        return None
+
+
 
 #####
 # A general nitf header interpreter - intended for extension
@@ -724,15 +753,15 @@ class NITFReader(BaseReader):
 
     __slots__ = ('_nitf_details', '_cached_files', '_symmetry')
 
-    def __init__(self, nitf_details, is_sicd_type=False, symmetry=(False, False, False)):
+    def __init__(self, nitf_details, reader_type="OTHER", symmetry=(False, False, False)):
         """
 
         Parameters
         ----------
         nitf_details : NITFDetails|str
             The NITFDetails object or path to a nitf file.
-        is_sicd_type : bool
-            Is this a sicd type reader, or otherwise?
+        reader_type : str
+            What type of reader is this, options are "SICD", "SIDD", "CPHD", or "OTHER"
         symmetry : tuple
         """
 
@@ -764,20 +793,26 @@ class NITFReader(BaseReader):
             else:
                 chippers.append(this_chip)
         # validate that sicd and chippers lengths are feasible
-        if is_sicd_type:
+        if reader_type == "SICD":
             if sicd_meta is None:
-                logging.warning('This is identified as a sicd-type NITF, but no sicd structure is provided.')
+                logging.warning(
+                    'This is identified as a sicd-type NITF, but no sicd structure '
+                    'is provided.')
             elif not isinstance(sicd_meta, (list, tuple)):
                 if len(chippers) != 1:
-                    raise ValueError(
-                        'There is a single sicd structure and chipper collection of '
-                        'length {}'.format(len(chippers)))
+                    logging.warning(
+                        'This is identified as a sicd-type reader, but provided is a single '
+                        'sicd structure and chipper collection of '
+                        'length {}. Take care for proper reading and interpretation '
+                        'of data.'.format(len(chippers)))
             else:
                 if len(sicd_meta) != len(chippers):
                     raise ValueError(
-                        'The length of the sicd structure ({}) does not match the length '
-                        'of the chipper collection ({})'.format(len(sicd_meta), len(chippers)))
-        super(NITFReader, self).__init__(sicd_meta, tuple(chippers), is_sicd_type=is_sicd_type)
+                        'This is identified as a sicd-type reader, but the length of the '
+                        'sicd structure ({}) does not match the length of the chipper '
+                        'collection ({}). Take care for proper reading and '
+                        'interpretation of data.'.format(len(sicd_meta), len(chippers)))
+        super(NITFReader, self).__init__(sicd_meta, tuple(chippers), reader_type=reader_type)
 
     @property
     def nitf_details(self):

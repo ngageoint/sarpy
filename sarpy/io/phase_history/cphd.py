@@ -503,7 +503,7 @@ class CPHDReader1_0(CPHDReader):
 
         self._cphd_details = _validate_cphd_details(cphd_details, version='1.0')
         chipper = self._create_chippers()
-        BaseReader.__init__(self, None, chipper, is_sicd_type=False)
+        BaseReader.__init__(self, None, chipper, reader_type="CPHD")
 
     @property
     def cphd_meta(self):
@@ -683,7 +683,7 @@ class CPHDReader0_3(CPHDReader):
 
         self._cphd_details = _validate_cphd_details(cphd_details, version='0.3')
         chipper = self._create_chippers()
-        BaseReader.__init__(self, None, chipper, is_sicd_type=False)
+        BaseReader.__init__(self, None, chipper, reader_type="CPHD")
 
     @property
     def cphd_meta(self):

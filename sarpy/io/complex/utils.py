@@ -280,7 +280,7 @@ def sicd_reader_iterator(reader, partitions=None, polarization=None, band=None):
 
     if not isinstance(reader, BaseReader):
         raise TypeError('reader must be an instance of BaseReader. Got type {}'.format(type(reader)))
-    if not reader.is_sicd_type:
+    if reader.reader_type != "SICD":
         raise ValueError('The provided reader must be of SICD type.')
 
     if partitions is None:
