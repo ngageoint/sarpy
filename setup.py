@@ -3,18 +3,10 @@
 Setup module for SarPy.
 """
 
+import os
 import sys
 from setuptools import setup, find_packages
 from codecs import open
-
-import os
-try:
-    # If attempting hard links cause "error removing..." errors,
-    # which can occur in Windows on network drives.
-    # This may fix it, but may be deprecated?
-    del os.link
-except AttributeError:
-    pass
 
 
 # Get the long description from the README file
@@ -29,13 +21,6 @@ parameters = {}
 with open(os.path.join(here, 'sarpy', '__about__.py'), 'r') as f:
     exec(f.read(), parameters)
 
-
-install_requires = ['numpy>=1.11.0', 'scipy']
-tests_require = []
-if sys.version_info[0] < 3:
-    tests_require.append('unittest2')
-    # unittest2 only for Python2.7, we rely on subTest usage
-    install_requires.append('typing')
 
 def my_test_suite():
     if sys.version_info[0] < 3:
@@ -56,13 +41,10 @@ setup(name=parameters['__title__'],
       url=parameters['__url__'],
       author=parameters['__author__'],
       author_email=parameters['__email__'],  # The primary POC
-      install_requires=install_requires,
-      extras_require={
-        'csk':  ['h5py', ],
-      },
+      install_requires=['numpy>=1.11.0', 'scipy', 'typing;python_version<"3.4"'],
       zip_safe=False,  # Use of __file__ and __path__ in some code makes it unusable from zip
       test_suite="setup.my_test_suite",
-      tests_require=tests_require,
+      tests_require=["unittest2;python_version<'3.4'", ],
       classifiers=[
           'Development Status :: 4 - Beta',
           'Intended Audience :: Developers',
