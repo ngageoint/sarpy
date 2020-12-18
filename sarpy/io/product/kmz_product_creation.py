@@ -592,7 +592,7 @@ def add_sicd_to_kmz(kmz_document, reader, index=0, pixel_limit=2048,
 
     if not isinstance(reader, BaseReader):
         raise TypeError('reader must be a instance of BaseReader. Got type {}'.format(type(reader)))
-    if not reader.is_sicd_type:
+    if reader.reader_type != "SICD":
         raise ValueError('reader must be of sicd type.')
 
     if pixel_limit is not None:

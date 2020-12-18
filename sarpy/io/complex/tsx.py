@@ -1094,7 +1094,7 @@ class TSXReader(BaseReader):
                 raise ValueError(
                     'Expected one burst in the COSAR file {}, but got {} bursts'.format(the_file, cosar_details.burst_count))
             chippers.append(cosar_details.construct_chipper(0, symmetry, (cols, rows)))
-        super(TSXReader, self).__init__(tuple(the_sicds), tuple(chippers), is_sicd_type=True)
+        super(TSXReader, self).__init__(tuple(the_sicds), tuple(chippers), reader_type="SICD")
 
     @property
     def file_name(self):

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-This module provide utilities for opening any files analogous to Sensor
-Independent Derived Data, namely detected images in the ground plane.
+This module provide utilities for attempting to open other image files not opened by
+the sicd, sidd, or cphd reader collections.
 """
 
 import os
@@ -77,10 +77,10 @@ def parse_openers():
             sub_name = "{}.{}".format(mod_name, sub_module_name)
             check_module(sub_name)
 
-    check_module('sarpy.io.product')
+    check_module('sarpy.io.other_image')
 
 
-def open_product(file_name):
+def open_other(file_name):
     """
     Given a file, try to find and return the appropriate reader object.
 
@@ -108,4 +108,4 @@ def open_product(file_name):
             return reader
 
     # If for loop completes, no matching file format was found.
-    raise IOError('Unable to determine product image format.')
+    raise IOError('Unable to determine image format.')

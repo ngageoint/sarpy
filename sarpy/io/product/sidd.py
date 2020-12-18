@@ -228,7 +228,7 @@ class SIDDReader(NITFReader):
                 'valid sidd metadata.')
         self._nitf_details = nitf_details
         self._sidd_meta = self.nitf_details.sidd_meta
-        super(SIDDReader, self).__init__(nitf_details, is_sicd_type=False)
+        super(SIDDReader, self).__init__(nitf_details, reader_type="SIDD")
 
     @property
     def nitf_details(self):

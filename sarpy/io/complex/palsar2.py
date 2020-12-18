@@ -1648,7 +1648,7 @@ class PALSARReader(BaseReader):
         for sicd, img_details in zip(sicds, self._palsar_details.img_elements):
             data_sizes.append((sicd.ImageData.NumCols, sicd.ImageData.NumRows))
             chippers.append(img_details.construct_chipper(sicd.SCPCOA.SideOfTrack == 'L'))
-        super(PALSARReader, self).__init__(tuple(sicds), tuple(chippers), is_sicd_type=True)
+        super(PALSARReader, self).__init__(tuple(sicds), tuple(chippers), reader_type="SICD")
 
     @property
     def file_name(self):

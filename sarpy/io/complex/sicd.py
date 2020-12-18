@@ -350,7 +350,7 @@ class SICDReader(NITFReader):
         if not isinstance(nitf_details, SICDDetails):
             raise TypeError('The input argument for SICDReader must be a filename or '
                             'SICDDetails object.')
-        super(SICDReader, self).__init__(nitf_details, is_sicd_type=True)
+        super(SICDReader, self).__init__(nitf_details, reader_type="SICD")
 
         # to perform a preliminary check that the structure is valid:
         # self._sicd_meta.is_valid(recursive=True)

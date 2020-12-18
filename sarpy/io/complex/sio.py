@@ -317,7 +317,7 @@ class SIOReader(BaseReader):
                              raw_bands, output_bands, output_dtype,
                              symmetry=sio_details.symmetry, transform_data=transform_data,
                              data_offset=sio_details.data_offset)
-        super(SIOReader, self).__init__(sicd_meta, chipper, is_sicd_type=True)
+        super(SIOReader, self).__init__(sicd_meta, chipper, reader_type="SICD")
 
     @property
     def sio_details(self):

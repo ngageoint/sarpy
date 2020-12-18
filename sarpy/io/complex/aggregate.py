@@ -31,9 +31,8 @@ class AggregateComplexReader(AggregateReader):
         """
 
         readers = self._validate_readers(readers)
-        super(AggregateComplexReader, self).__init__(readers)
+        super(AggregateComplexReader, self).__init__(readers, reader_type="SICD")
         # define the SICD associated structures
-        self._is_sicd_type = True
         self._define_sicds()
 
     @staticmethod
@@ -71,10 +70,11 @@ class AggregateComplexReader(AggregateReader):
                     'Entry {} is of type {}'.format(i, type(entry)))
             else:
                 reader = entry
-            if not reader.is_sicd_type:
+
+            if reader.reader_type != "SICD":
                 raise ValueError(
                     'Entry {} of the input argument does not correspond to a sicd type reader. '
-                    'Got type {}'.format(i, type(reader)))
+                    'Got type {}, with reader_type value'.format(i, type(reader), reader.reader_type))
             the_readers.append(reader)
         return tuple(the_readers)
 
