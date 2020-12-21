@@ -98,9 +98,7 @@ def get_sicd_name(the_sicd, product_number=1):
             if commericial_id is not None:
                 break
         if commericial_id is None:
-            logging.info('Got unknown collector {}. Setting collector vehicle to 00.'.format(collector))
-            _pass = '{0:02d}'.format(int(round(cdate_mins * 15 / 1440.)))
-            return '{0:s}{1:s}{2:s}{3:s}{4:03d}'.format(cdate_str, 'UN', '00', _pass, product_number)
+            return '{0:s}_{1:03d}'.format(the_sicd.CollectionInfo.CoreName, product_number)
         return commericial_id
 
     def get_vendor_id():

@@ -36,7 +36,7 @@ def register_opener(open_func):
 
     Parameters
     ----------
-    open_func : dict
+    open_func : callable
         This is required to be a function which takes a single argument (file name).
         This function should return a sarpy.io.complex.base.BaseReader instance
         if the referenced file is viable for the underlying type, and None otherwise.
@@ -88,6 +88,19 @@ def parse_openers():
     check_module('sarpy.io.complex')
 
 
+def _define_final_attempt_openers():
+    """
+    Gets the prioritized list of openers to attempt after regular openers.
+
+    Returns
+    -------
+    list
+    """
+
+    from sarpy.io.complex.other_nitf import final_attempt
+    return [final_attempt, ]
+
+
 def open_complex(file_name):
     """
     Given a file, try to find and return the appropriate reader object.
@@ -111,6 +124,11 @@ def open_complex(file_name):
     parse_openers()
     # see if we can find a reader though trial and error
     for opener in _openers:
+        reader = opener(file_name)
+        if reader is not None:
+            return reader
+    # check the final attempt openers
+    for opener in _define_final_attempt_openers():
         reader = opener(file_name)
         if reader is not None:
             return reader
