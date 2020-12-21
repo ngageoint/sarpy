@@ -15,7 +15,6 @@ from sarpy.io.general.nitf import NITFReader, NITFWriter, ImageDetails, DESDetai
     image_segmentation, get_npp_block, interpolate_corner_points_string
 from sarpy.io.general.utils import parse_xml_from_string
 from sarpy.io.complex.sicd_elements.SICD import SICDType, get_specification_identifier
-from sarpy.io.complex.other_nitf import ComplexNITFDetails, ComplexNITFReader
 
 from sarpy.io.general.nitf import NITFDetails
 from sarpy.io.general.nitf_elements.des import DataExtensionHeader, XMLDESSubheader
@@ -41,8 +40,8 @@ __author__ = ("Thomas McCullough", "Wade Schwartzkopf")
 
 def is_a(file_name):
     """
-    Tests whether a given file_name corresponds to a SICD file or other complex NITF type file.
-    Returns a reader instance, if so.
+    Tests whether a given file_name corresponds to a SICD file, and returns
+    a reader instance, if so.
 
     Parameters
     ----------
@@ -51,10 +50,9 @@ def is_a(file_name):
 
     Returns
     -------
-    SICDReader|ComplexNITFReader|None
+    SICDReader|None
     """
 
-    # check that it's a SICD file
     try:
         nitf_details = SICDDetails(file_name)
         if nitf_details.is_sicd:
@@ -62,14 +60,6 @@ def is_a(file_name):
             return SICDReader(nitf_details)
         else:
             return None
-    except IOError:
-        # we don't want to catch parsing errors, for now
-        pass
-
-    # check if it is some other kind of complex NITF file
-    try:
-        nitf_details = ComplexNITFDetails(file_name)
-        return ComplexNITFReader(nitf_details)
     except IOError:
         return None
 

@@ -1,12 +1,5 @@
 # -*- coding: utf-8 -*-
 
-from .complex.converter import open_complex
-from .phase_history.converter import open_phase_history
-from .product.converter import open_product
-from .other_image.converter import open_other
-from .general.converter import open_general
-
-
 __classification__ = "UNCLASSIFIED"
 
 
@@ -26,6 +19,12 @@ def open(file_name):
     ------
     IOError
     """
+
+    from .complex.converter import open_complex
+    from .phase_history.converter import open_phase_history
+    from .product.converter import open_product
+    from .other_image.converter import open_other
+    from .general.converter import open_general
 
     try:
         return open_complex(file_name)
