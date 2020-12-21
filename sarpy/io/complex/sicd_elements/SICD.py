@@ -27,7 +27,6 @@ from .MatchInfo import MatchInfoType
 from .RgAzComp import RgAzCompType
 from .PFA import PFAType
 from .RMA import RMAType
-from ..utils import snr_to_rniirs
 
 from sarpy.geometry import point_projection
 from sarpy.io.complex.naming.utils import get_sicd_name
@@ -1099,6 +1098,7 @@ class SICDType(Serializable):
             logging.error('Encountered an error estimating bandwidth area for RNIIRS. {}'.format(e))
             return
 
+        from sarpy.io.complex.utils import snr_to_rniirs
         inf_density, rniirs = snr_to_rniirs(bw_area, signal, noise)
         logging.info('Calculated INFORMATION_DENSITY = {0:0.5G}, '
                      'PREDICTED_RNIIRS = {1:0.5G}'.format(inf_density, rniirs))
