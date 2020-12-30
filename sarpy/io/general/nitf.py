@@ -15,6 +15,7 @@ from typing import Union, List, Tuple
 import re
 import mmap
 from tempfile import mkstemp
+from collections import OrderedDict
 
 import numpy
 
@@ -703,6 +704,39 @@ class NITFDetails(object):
             return ReservedExtensionHeader0.from_bytes(rh, 0)
         else:
             raise ValueError('Unhandled version {}.'.format(self.nitf_version))
+
+    def get_headers_json(self):
+        """
+        Get a json representation of the NITF header elements.
+
+        Returns
+        -------
+        dict
+        """
+
+        out = OrderedDict([('header', self._nitf_header.to_json()), ])
+        if self.img_subheader_offsets is not None:
+            out['Image_Subheaders'] = [
+                self.parse_image_subheader(i).to_json() for i in range(self.img_subheader_offsets.size)]
+        if self.graphics_subheader_offsets is not None:
+            out['Graphics_Subheaders'] = [
+                self.parse_graphics_subheader(i).to_json() for i in range(self.graphics_subheader_offsets.size)]
+        if self.symbol_subheader_offsets is not None:
+            out['Symbol_Subheaders'] = [
+                self.parse_symbol_subheader(i).to_json() for i in range(self.symbol_subheader_offsets.size)]
+        if self.label_subheader_offsets is not None:
+            out['Label_Subheaders'] = [
+                self.parse_label_subheader(i).to_json() for i in range(self.label_subheader_offsets.size)]
+        if self.text_subheader_offsets is not None:
+            out['Text_Subheaders'] = [
+                self.parse_text_subheader(i).to_json() for i in range(self.text_subheader_offsets.size)]
+        if self.des_subheader_offsets is not None:
+            out['DES_Subheaders'] = [
+                self.parse_des_subheader(i).to_json() for i in range(self.des_subheader_offsets.size)]
+        if self.res_subheader_offsets is not None:
+            out['RES_Subheaders'] = [
+                self.parse_res_subheader(i).to_json() for i in range(self.res_subheader_offsets.size)]
+        return out
 
 
 #####

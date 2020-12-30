@@ -202,6 +202,23 @@ class TREElement(object):
         items = [self._attribute_to_bytes(fld) for fld in self._field_ordering]
         return b''.join(items)
 
+    def to_json(self):
+        """
+        Gets a json representation of this element.
+
+        Returns
+        -------
+        dict|list
+        """
+
+        out = OrderedDict()
+        for fld in self._field_ordering:
+            value = getattr(self, fld)
+            if isinstance(value, TREElement):
+                out[fld] = value.to_json()
+            else:
+                out[fld] = value
+
 
 class TRELoop(TREElement):
     """
@@ -247,6 +264,17 @@ class TRELoop(TREElement):
 
     def __getitem__(self, item):  # type: (Union[int, slice]) -> Union[TREElement, List[TREElement]]
         return self._data[item]
+
+    def to_json(self):
+        """
+        Gets a json representation of this element.
+
+        Returns
+        -------
+        dict|list
+        """
+
+        return [entry.to_json() for entry in self._data]
 
 
 class TREExtension(TRE):
