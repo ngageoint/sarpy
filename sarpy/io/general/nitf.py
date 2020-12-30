@@ -920,10 +920,10 @@ class NITFReader(BaseReader):
             return numpy.dtype('>f{}'.format(bpp)), numpy.dtype('>f{}'.format(bpp)), \
                    len(img_header.Bands), len(img_header.Bands), None
         elif pvtype == 'C':
-            if bpp != 8:
+            if bpp not in [8, 16]:
                 raise ValueError(
-                    'Got PVTYPE = C and NBPP = {} (not 64), which is unsupported.'.format(nbpp))
-            return numpy.dtype('>f4'), numpy.complex64, 2*len(img_header.Bands), len(img_header.Bands), 'COMPLEX'
+                    'Got PVTYPE = C and NBPP = {} (not 64 or 128), which is unsupported.'.format(nbpp))
+            return numpy.dtype('>f{}'.format(int(bpp/2))), numpy.complex64, 2*len(img_header.Bands), len(img_header.Bands), 'COMPLEX'
 
     def _define_chipper(self, index, raw_dtype=None, raw_bands=None, transform_data=None,
                         output_bands=None, output_dtype=None, limit_to_raw_bands=None):
