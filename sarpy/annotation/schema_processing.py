@@ -6,6 +6,9 @@ This module provides utilities for validating and preparing an annotation schema
 from collections import OrderedDict
 import json
 from typing import Dict, List
+from datetime import datetime
+
+from sarpy.compliance import string_types
 
 
 __classification__ = "UNCLASSIFIED"
@@ -25,10 +28,11 @@ class LabelSchema(object):
     """
 
     __slots__ = (
-        '_version', '_labels', '_subtypes', '_parent_types', '_confidence_values',
-        '_permitted_geometries')
+        '_version', '_labels', '_classification', '_version_date', '_subtypes',
+        '_parent_types', '_confidence_values', '_permitted_geometries')
 
-    def __init__(self, version, labels, subtypes=None, confidence_values=None, permitted_geometries=None):
+    def __init__(self, version, labels, version_date=None, classification="UNCLASSIFIED",
+                 subtypes=None, confidence_values=None, permitted_geometries=None):
         """
 
         Parameters
@@ -38,6 +42,10 @@ class LabelSchema(object):
         labels : Dict[str, str]
             The {<label id> : <label name>} pair dictionary. Each entry must be a string,
             and '' is not a valid label id.
+        version_date : None|str
+            The date for this schema. If `None`, then the current time will be used.
+        classification : str
+            The classification for this schema.
         subtypes : None|Dict[str, List[str]]
             The {<label id> : <sub id list>} pairs. The root ids (i.e. those ids
             not belonging as sub-id to some other id) will be populated in the subtypes
@@ -50,7 +58,11 @@ class LabelSchema(object):
             The possible geometry types.
         """
 
-        self._version = None
+        self._version = version
+        self._classification = classification
+        self._version_date = version_date if isinstance(version_date, string_types) \
+            else datetime.utcnow().isoformat('T')+'Z'
+
         self._labels = None
         self._subtypes = None
         self._parent_types = None
@@ -72,6 +84,27 @@ class LabelSchema(object):
         """
 
         return self._version
+
+    @property
+    def version_date(self):
+        """
+        The date for this schema version - this should be a viable datetime format,
+        but this is unenforced.
+
+        Returns
+        -------
+        str
+        """
+
+        return self._version_date
+
+    @property
+    def classification(self):
+        """
+        str: The classification for the contents of this schema.
+        """
+
+        return self._classification
 
     @property
     def labels(self):
@@ -101,7 +134,9 @@ class LabelSchema(object):
     def parent_types(self):
         """
         The dictionary of parent types of the form `{child_id : <set of parent ids>}`.
-        It is canonically defined that an id is a parent of itself.
+        It is canonically defined that an id is a parent of itself. The order of
+        the `parent_ids` list is ascending order of parentage, i.e.
+        `[<self>, <parent>, <parent of parent>, ...]`.
 
         Returns
         -------
@@ -206,7 +241,7 @@ class LabelSchema(object):
 
         # ensure that every key of subtypes is a string and every value is a list,
         # also that inclusion makes sense
-        for key in subtypes:
+        for key, value in subtypes.items():
             if not isinstance(key, str):
                 raise TypeError(
                     'All keys of subtypes must be of type string. Got key `{}` of '
@@ -216,7 +251,6 @@ class LabelSchema(object):
                     'All keys of subtypes must belong to labels. Got key `{}` '
                     'which is missing from labels.'.format(key))
 
-            value = subtypes[key]
             if not isinstance(value, list):
                 raise TypeError(
                     'All values of subtypes must be of type `list`. Got value {} '
@@ -245,14 +279,14 @@ class LabelSchema(object):
         self._construct_parent_types()
 
     def _construct_parent_types(self):
-        def iterate(key, parents):
-            entry = [key, ]
+        def iterate(t_key, parents):
+            entry = [t_key, ]
             entry.extend(parents)
-            self._parent_types[key] = entry
-            if key not in self._subtypes:
+            self._parent_types[t_key] = entry
+            if t_key not in self._subtypes:
                 return
 
-            for child_key in self._subtypes[key]:
+            for child_key in self._subtypes[t_key]:
                 iterate(child_key, entry)
 
         self._parent_types = {}
@@ -293,12 +327,14 @@ class LabelSchema(object):
 
         version = input_dict['version']
         labels = input_dict['labels']
+        version_date = input_dict.get('version_date', None)
+        classification = input_dict.get('classification', 'UNCLASSIFIED')
         subtypes = input_dict.get('subtypes', None)
         conf_values = input_dict.get('confidence_values', None)
         perm_geometries = input_dict.get('permitted_geometries', None)
         return cls(
-            version, labels, subtypes=subtypes, confidence_values=conf_values,
-            permitted_geometries=perm_geometries)
+            version, labels, version_date=version_date, classification=classification,
+            subtypes=subtypes, confidence_values=conf_values, permitted_geometries=perm_geometries)
 
     def to_dict(self):
         """
@@ -311,6 +347,8 @@ class LabelSchema(object):
 
         out = OrderedDict()
         out['version'] = self.version
+        out['version_date'] = self.version_date
+        out['classification'] = self.classification
         if self.confidence_values is not None:
             out['confidence_values'] = self.confidence_values
         if self.permitted_geometries is not None:
