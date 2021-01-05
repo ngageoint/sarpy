@@ -206,7 +206,7 @@ class RadiometricType(Serializable):
 
             if self.BetaZeroSFPoly is not None:
                 beta_sf = self.BetaZeroSFPoly.get_array(dtype='float64')
-                if abs(rcs_sf[0, 0]/(beta_sf[0, 0]*area_sp) - 1) > 1e-2:
+                if abs(rcs_sf[0, 0]/(beta_sf[0, 0]*area_sp) - 1) > 5e-2:
                     logging.error(
                         'The BetaZeroSFPoly and RCSSFPoly are not consistent.')
                     cond = False
@@ -215,14 +215,14 @@ class RadiometricType(Serializable):
                 if self.SigmaZeroSFPoly is not None:
                     sigma_sf = self.SigmaZeroSFPoly.get_array(dtype='float64')
                     mult = area_sp/numpy.cos(numpy.deg2rad(SCPCOA.SlopeAng))
-                    if (rcs_sf[0, 0]/(sigma_sf[0, 0]*mult) - 1) > 1e-2:
+                    if (rcs_sf[0, 0]/(sigma_sf[0, 0]*mult) - 1) > 5e-2:
                         logging.error('The SigmaZeroSFPoly and RCSSFPoly are not consistent.')
                         cond = False
 
                 if self.GammaZeroSFPoly is not None:
                     gamma_sf = self.GammaZeroSFPoly.get_array(dtype='float64')
                     mult = area_sp/(numpy.cos(numpy.deg2rad(SCPCOA.SlopeAng))*numpy.sin(numpy.deg2rad(SCPCOA.GrazeAng)))
-                    if (rcs_sf[0, 0]/(gamma_sf[0, 0]*mult) - 1) > 1e-2:
+                    if (rcs_sf[0, 0]/(gamma_sf[0, 0]*mult) - 1) > 5e-2:
                         logging.error('The GammaZeroSFPoly and RCSSFPoly are not consistent.')
                         cond = False
 
@@ -233,14 +233,14 @@ class RadiometricType(Serializable):
                 if self.SigmaZeroSFPoly is not None:
                     sigma_sf = self.SigmaZeroSFPoly.get_array(dtype='float64')
                     mult = 1./numpy.cos(numpy.deg2rad(SCPCOA.SlopeAng))
-                    if (beta_sf[0, 0] / (sigma_sf[0, 0] * mult) - 1) > 1e-2:
+                    if (beta_sf[0, 0] / (sigma_sf[0, 0] * mult) - 1) > 5e-2:
                         logging.error('The SigmaZeroSFPoly and BetaZeroSFPoly are not consistent.')
                         cond = False
 
                 if self.GammaZeroSFPoly is not None:
                     gamma_sf = self.GammaZeroSFPoly.get_array(dtype='float64')
                     mult = 1./(numpy.cos(numpy.deg2rad(SCPCOA.SlopeAng)) * numpy.sin(numpy.deg2rad(SCPCOA.GrazeAng)))
-                    if (beta_sf[0, 0] / (gamma_sf[0, 0] * mult) - 1) > 1e-2:
+                    if (beta_sf[0, 0] / (gamma_sf[0, 0] * mult) - 1) > 5e-2:
                         logging.error('The GammaZeroSFPoly and BetaZeroSFPoly are not consistent.')
                         cond = False
         return cond
