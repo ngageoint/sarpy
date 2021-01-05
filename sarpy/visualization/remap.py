@@ -1,13 +1,69 @@
-"""Module for remapping complex data for display."""
+"""
+Provides common methods for remapping a complex image to an 8-bit image.
+"""
 
-from inspect import getmembers, isfunction
-import sys
+import logging
+from collections import OrderedDict
 
 import numpy
 from scipy.stats import scoreatpercentile as prctile
 
+from sarpy.compliance import string_types
+
+
 __classification__ = "UNCLASSIFIED"
 __author__ = "Wade Schwartzkopf"
+
+
+_DEFAULTS_REGISTERED = False
+_REMAP_DICT = OrderedDict()
+
+
+def register_remap(remap_name, remap_function, overwrite=False):
+    """
+    Register a remap function for general usage.
+
+    Parameters
+    ----------
+    remap_name : str
+    remap_function : callable
+    overwrite : bool
+        Should we overwrite any currently existing remap of the given name?
+
+    Returns
+    -------
+    None
+    """
+
+    if not isinstance(remap_name, string_types):
+        raise TypeError('remap_name must be a string, got type {}'.format(type(remap_name)))
+    if not callable(remap_function):
+        raise TypeError('remap_function must be callable.')
+
+    if remap_name not in _REMAP_DICT:
+        _REMAP_DICT[remap_name] = remap_function
+    elif overwrite:
+        logging.info('Overwriting the remap {}'.format(remap_name))
+        _REMAP_DICT[remap_name] = remap_function
+    else:
+        logging.info('Remap {} already exists and is not being replaced'.format(remap_name))
+
+
+def _register_defaults():
+    global _DEFAULTS_REGISTERED
+    if _DEFAULTS_REGISTERED:
+        return
+    for remap_name, remap_func in [
+            ('density', density),
+            ('high_contrast', high_contrast),
+            ('brighter', brighter),
+            ('darker', darker),
+            ('linear', linear),
+            ('log', log),
+            ('pedf', pedf),
+            ('nrl', nrl)]:
+        register_remap(remap_name, remap_func)
+    _DEFAULTS_REGISTERED = True
 
 
 def get_remap_list():
@@ -20,17 +76,12 @@ def get_remap_list():
         List of tuples of the form `(<function name>, <function>)`.
     """
 
-    # We specifically list these as the only funtions in is this module that are
-    # not remaps.  If we later add other utility functions to this module, we
-    # will have to manually add them to this list as well.  However, we don't
-    # have to do anything if we are just adding more remap functions.
-    names_nonremap_funs = [
-        'get_remap_list', 'amplitude_to_density', 'clip_cast', 'linear_discretization']
-    # Get all functions from this module
-    all_funs = getmembers(sys.modules[__name__], isfunction)
-    # all_funs is list of (function name, function object) tuples.  fun[0] is name.
-    just_remap_funs = [fun for fun in all_funs if fun[0] not in names_nonremap_funs]
-    return just_remap_funs
+    _register_defaults()
+
+    # NB: this was originally implemented via inspection of the callable members
+    # of this module, but that ends up requiring more care in excluding
+    # undesirable elements than this method
+    return [(the_key, the_value) for the_key, the_value in _REMAP_DICT.items()]
 
 
 def amplitude_to_density(a, dmin=30, mmult=40, data_mean=None):
@@ -83,68 +134,72 @@ def clip_cast(x, dtype='uint8'):
     return numpy.clip(x, numpy.iinfo(np_type).min, numpy.iinfo(np_type).max).astype(np_type)
 
 
-def density(x):
+def density(x, data_mean=None):
     """
     Standard set of parameters for density remap.
 
     Parameters
     ----------
     x : numpy.ndarray
+    data_mean : None|float|int
 
     Returns
     -------
     numpy.ndarray
     """
 
-    return clip_cast(amplitude_to_density(x))
+    return clip_cast(amplitude_to_density(x, data_mean=data_mean))
 
 
-def brighter(x):
+def brighter(x, data_mean=None):
     """
     Brighter set of parameters for density remap.
 
     Parameters
     ----------
     x : numpy.ndarray
+    data_mean : None|float|int
 
     Returns
     -------
     numpy.ndarray
     """
 
-    return clip_cast(amplitude_to_density(x, dmin=60, mmult=40))
+    return clip_cast(amplitude_to_density(x, dmin=60, mmult=40, data_mean=data_mean))
 
 
-def darker(x):
+def darker(x, data_mean=None):
     """
     Darker set of parameters for density remap.
 
     Parameters
     ----------
     x : numpy.ndarray
+    data_mean : None|float|int
 
     Returns
     -------
     numpy.ndarray
     """
 
-    return clip_cast(amplitude_to_density(x, dmin=0, mmult=40))
+    return clip_cast(amplitude_to_density(x, dmin=0, mmult=40, data_mean=data_mean))
 
 
-def highcontrast(x):
+def high_contrast(x, data_mean=None):
     """
     Increased contrast set of parameters for density remap.
 
     Parameters
     ----------
     x : numpy.ndarray
+    data_mean : None|float|int
 
     Returns
     -------
     numpy.ndarray
     """
 
-    return clip_cast(amplitude_to_density(x, dmin=30, mmult=4))
+    return clip_cast(amplitude_to_density(x, dmin=30, mmult=4, data_mean=data_mean))
 
 
 def linear(x):
@@ -184,25 +239,26 @@ def log(x):
     return out
 
 
-def pedf(x):
+def pedf(x, data_mean=None):
     """
     Piecewise extended density format remap.
 
     Parameters
     ----------
     x : numpy.ndarray
+    data_mean : None|float|int
 
     Returns
     -------
     numpy.ndarray
     """
 
-    out = amplitude_to_density(x)
+    out = amplitude_to_density(x, data_mean=data_mean)
     out[out > 128] = 0.5 * (out[out > 128] + 128)
     return clip_cast(out)
 
 
-def nrl(x, a=1, c=220):
+def nrl(x, a=1., c=220.):
     """
     Lin-log style remap.
 
@@ -214,21 +270,22 @@ def nrl(x, a=1, c=220):
         scale factor of 99th percentile for input "knee"
     c : float
         output "knee" in lin-log curve
+
     Returns
     -------
     numpy.ndarray
     """
 
     x = numpy.abs(x)
+    xmax = numpy.max(x)
     xmin = numpy.min(x)
     p99 = prctile(x[numpy.isfinite(x)], 99)
-    b = (255 - c) / numpy.log10((numpy.max(x) - xmin) / ((a * p99) - xmin))
+    b = (255 - c)/(numpy.log10(xmax - xmin)*(a*p99 - xmin))
 
     out = numpy.zeros_like(x, numpy.uint8)
     linear_region = (x <= a*p99)
-    out[linear_region] = (x[linear_region] - xmin) * c / ((a * p99) - xmin)
-    out[numpy.logical_not(linear_region)] = c + (b *
-                                              numpy.log10((x[numpy.logical_not(linear_region)] - xmin) / ((a * p99) - xmin)))
+    out[linear_region] = c*(x[linear_region] - xmin)/(a*p99 - xmin)
+    out[~linear_region] = c + b*numpy.log10((x[~linear_region] - xmin)/(a*p99 - xmin))
     return out
 
 
