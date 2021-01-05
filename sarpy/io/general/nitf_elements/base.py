@@ -6,6 +6,7 @@ Base NITF Header functionality definition.
 import logging
 from weakref import WeakKeyDictionary
 from typing import Union, List, Tuple
+from collections import OrderedDict
 
 import numpy
 
@@ -73,6 +74,17 @@ class BaseNITFElement(object):
 
         raise NotImplementedError
 
+    def to_json(self):
+        """
+        Serialize element to a json representation. This is intended to allow
+        a simple presentation of the element.
+
+        Returns
+        -------
+        dict
+        """
+
+        raise NotImplementedError
 
 # Basic input and output interpreters
 
@@ -580,6 +592,25 @@ class NITFElement(BaseNITFElement):
             loc = cls._parse_attribute(fields, fld, value, loc)
         return cls(**fields)
 
+    def to_json(self):
+        out = OrderedDict()
+        for fld in self._ordering:
+            if self._get_attribute_length(fld) == 0:
+                continue
+            value = getattr(self, fld)
+            if value is None:
+                out[fld] = ''
+            elif isinstance(value, string_types) or isinstance(value, integer_types) \
+                    or isinstance(value, bytes):
+                out[fld] = value
+            elif isinstance(value, BaseNITFElement):
+                out[fld] = value.to_json()
+            else:
+                logging.error(
+                    'Got unhandled type `{}` for json serialization for '
+                    'attribute `{}` of class {}'.format(type(value), fld, self.__class__))
+        return out
+
 
 class NITFLoop(NITFElement):
     __slots__ = ('_values', )
@@ -652,6 +683,9 @@ class NITFLoop(NITFElement):
 
     def to_bytes(self):
         return self._counts_bytes() + b''.join(entry.to_bytes() for entry in self._values)
+
+    def to_json(self):
+        return [entry.to_json() for entry in self._values]
 
 
 class Unstructured(NITFElement):
@@ -835,6 +869,11 @@ class _ItemArrayHeaders(BaseNITFElement):
             out += subh_frm.format(sh_off) + item_frm.format(it_off)
         return out.encode()
 
+    def to_json(self):
+        return OrderedDict([
+            ('subheader_sizes', self.subhead_sizes.tolist()),
+            ('item_sizes', self.item_sizes.tolist())])
+
 
 ######
 # TRE Elements
@@ -890,6 +929,14 @@ class TRE(BaseNITFElement):
                     "Returning unparsed tre, because we failed parsing tre as "
                     "type {} with exception\n\t{}".format(known_tre.__name__, e))
         return UnknownTRE.from_bytes(value, start)
+
+    def to_json(self):
+        out = OrderedDict([('tag', self.TAG), ('length', self.EL)])
+        if isinstance(self.DATA, bytes):
+            out['data'] = self.DATA
+        else:
+            out['data'] = self.DATA.to_json()
+        return out
 
 
 class UnknownTRE(TRE):
@@ -1033,6 +1080,9 @@ class TREList(NITFElement):
             return None
         else:
             raise TypeError('Got unhandled type {}'.format(type(item)))
+
+    def to_json(self):
+        return [entry.to_json() for entry in self._tres]
 
 
 class TREHeader(Unstructured):

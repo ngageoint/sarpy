@@ -1,5 +1,6 @@
 # This details the important differences introduced in sarpy 1.1
 
+* .44 - Refining CMETAA usage, annotation schema improvements, and nitf header methods
 * .43 - Clean-up of opener definitions and functionality
 * .42 - Minor fix to setup.py definition
 * .41 - Added reader_type property for reader to clarify intent and usage

@@ -15,6 +15,7 @@ from typing import Union, List, Tuple
 import re
 import mmap
 from tempfile import mkstemp
+from collections import OrderedDict
 
 import numpy
 
@@ -704,6 +705,39 @@ class NITFDetails(object):
         else:
             raise ValueError('Unhandled version {}.'.format(self.nitf_version))
 
+    def get_headers_json(self):
+        """
+        Get a json representation of the NITF header elements.
+
+        Returns
+        -------
+        dict
+        """
+
+        out = OrderedDict([('header', self._nitf_header.to_json()), ])
+        if self.img_subheader_offsets is not None:
+            out['Image_Subheaders'] = [
+                self.parse_image_subheader(i).to_json() for i in range(self.img_subheader_offsets.size)]
+        if self.graphics_subheader_offsets is not None:
+            out['Graphics_Subheaders'] = [
+                self.parse_graphics_subheader(i).to_json() for i in range(self.graphics_subheader_offsets.size)]
+        if self.symbol_subheader_offsets is not None:
+            out['Symbol_Subheaders'] = [
+                self.parse_symbol_subheader(i).to_json() for i in range(self.symbol_subheader_offsets.size)]
+        if self.label_subheader_offsets is not None:
+            out['Label_Subheaders'] = [
+                self.parse_label_subheader(i).to_json() for i in range(self.label_subheader_offsets.size)]
+        if self.text_subheader_offsets is not None:
+            out['Text_Subheaders'] = [
+                self.parse_text_subheader(i).to_json() for i in range(self.text_subheader_offsets.size)]
+        if self.des_subheader_offsets is not None:
+            out['DES_Subheaders'] = [
+                self.parse_des_subheader(i).to_json() for i in range(self.des_subheader_offsets.size)]
+        if self.res_subheader_offsets is not None:
+            out['RES_Subheaders'] = [
+                self.parse_res_subheader(i).to_json() for i in range(self.res_subheader_offsets.size)]
+        return out
+
 
 #####
 # A general nitf reader - intended for extension
@@ -920,10 +954,10 @@ class NITFReader(BaseReader):
             return numpy.dtype('>f{}'.format(bpp)), numpy.dtype('>f{}'.format(bpp)), \
                    len(img_header.Bands), len(img_header.Bands), None
         elif pvtype == 'C':
-            if bpp != 8:
+            if bpp not in [8, 16]:
                 raise ValueError(
-                    'Got PVTYPE = C and NBPP = {} (not 64), which is unsupported.'.format(nbpp))
-            return numpy.dtype('>f4'), numpy.complex64, 2*len(img_header.Bands), len(img_header.Bands), 'COMPLEX'
+                    'Got PVTYPE = C and NBPP = {} (not 64 or 128), which is unsupported.'.format(nbpp))
+            return numpy.dtype('>f{}'.format(int(bpp/2))), numpy.complex64, 2*len(img_header.Bands), len(img_header.Bands), 'COMPLEX'
 
     def _define_chipper(self, index, raw_dtype=None, raw_bands=None, transform_data=None,
                         output_bands=None, output_dtype=None, limit_to_raw_bands=None):
