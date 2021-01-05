@@ -3,6 +3,7 @@
 This module provides utilities for validating and preparing an annotation schema.
 """
 
+import logging
 from collections import OrderedDict
 import json
 from typing import Dict, List
@@ -31,15 +32,15 @@ class LabelSchema(object):
         '_version', '_labels', '_classification', '_version_date', '_subtypes',
         '_parent_types', '_confidence_values', '_permitted_geometries')
 
-    def __init__(self, version, labels, version_date=None, classification="UNCLASSIFIED",
+    def __init__(self, version='1.0', labels=None, version_date=None, classification="UNCLASSIFIED",
                  subtypes=None, confidence_values=None, permitted_geometries=None):
         """
 
         Parameters
         ----------
-        version : str
+        version : None|str
             The version of the schema.
-        labels : Dict[str, str]
+        labels : None|Dict[str, str]
             The {<label id> : <label name>} pair dictionary. Each entry must be a string,
             and '' is not a valid label id.
         version_date : None|str
@@ -58,20 +59,20 @@ class LabelSchema(object):
             The possible geometry types.
         """
 
-        self._version = version
-        self._classification = classification
-        self._version_date = version_date if isinstance(version_date, string_types) \
-            else datetime.utcnow().isoformat('T')+'Z'
-
+        self._version_date = None
         self._labels = None
         self._subtypes = None
         self._parent_types = None
         self._confidence_values = None
         self._permitted_geometries = None
 
+        self._version = version
+        self.update_version_date(value=version_date)
+        self._classification = classification
+
         self.confidence_values = confidence_values
         self.permitted_geometries = permitted_geometries
-        self.set_labels_and_subtypes(version, labels, subtypes)
+        self.set_labels_and_subtypes(labels, subtypes)
 
     @property
     def version(self):
@@ -97,6 +98,12 @@ class LabelSchema(object):
         """
 
         return self._version_date
+
+    def update_version_date(self, value=None):
+        if isinstance(value, string_types):
+            self._version_date = value
+        else:
+            self._version_date = datetime.utcnow().isoformat('T')+'Z'
 
     @property
     def classification(self):
@@ -189,52 +196,64 @@ class LabelSchema(object):
             values = list(values)
         self._permitted_geometries = values
 
+    def get_id_from_name(self, the_name):
+        """
+        Determine the id from the given name. Get `None` if this fails.
+
+        Parameters
+        ----------
+        the_name : str
+
+        Returns
+        -------
+        None|str
+        """
+
+        prospective = None
+        for key, value in self.labels.items():
+            if value == the_name:
+                prospective = key
+                break
+        return prospective
+
+    def get_parent(self, the_id):
+        """
+        Get the parent id for the given element id. The empty string is returned
+        for elements with no parent.
+
+        Parameters
+        ----------
+        the_id : str
+
+        Returns
+        -------
+        str
+        """
+
+        parents = self.parent_types[the_id]
+        return parents[1] if len(parents) > 1 else ''
+
     def __str__(self):
         return json.dumps(self.to_dict(), indent=1)
 
     def __repr__(self):
         return json.dumps(self.to_dict())
 
-    def set_labels_and_subtypes(self, version, labels, subtypes):
+    @staticmethod
+    def _find_inverted_fork(subtypes, labels):
         """
-        Set the labels and subtypes. This modification must be accompanied by a
-        version number modification. **Note that subtypes may be modified in place.**
+        Look for parents claiming the same child. This assigns all unclaimed children
+        to '' parent.
 
         Parameters
         ----------
-        version : str
+        subtypes : dict
         labels : dict
-        subtypes : None|dict
 
         Returns
         -------
-        None
+        dict
         """
-
-        if not isinstance(version, str):
-            raise TypeError('version is required to be a string. Got type {}'.format(type(version)))
-
-        if not isinstance(labels, dict):
-            raise TypeError('labels is required to be a dict. Got type {}'.format(type(labels)))
-
-        if subtypes is None:
-            subtypes = OrderedDict()
-        elif not isinstance(subtypes, dict):
-            raise TypeError('subtypes is required to be None or a dict. Got type {}'.format(type(subtypes)))
-
-        # ensure that every key and value of labels are strings
-        for key in labels:
-            if not isinstance(key, str):
-                raise TypeError(
-                    'All keys of labels must be of type string. Got key `{}` of '
-                    'type {}'.format(key, type(key)))
-            if key == '':
-                raise ValueError('The empty string is not a valid label id.')
-            value = labels[key]
-            if not isinstance(value, str):
-                raise TypeError(
-                    'All values of labels must be of type string. Got value {} '
-                    'for key `{}` of type {}'.format(value, key, type(value)))
 
         # we need to check the reference count for each key in labels
         counts = OrderedDict((key, 0) for key in labels)
@@ -272,8 +291,81 @@ class LabelSchema(object):
                 raise ValueError('key {} is referenced in more than one subtype. This is invalid.'.format(key))
             if value == 0:
                 subtypes[''].append(key)
-        # now, we set the values
-        self._version = version
+        return subtypes
+
+    @staticmethod
+    def _find_cycle(subtypes):
+        """
+        Find any cycles in the data.
+
+        Parameters
+        ----------
+        subtypes
+
+        Returns
+        -------
+        None
+        """
+
+        found_cycles = []
+
+        def iterate(current_id, find_id):
+            for entry in subtypes.get(current_id, []):
+                if entry == find_id:
+                    found_cycles.append((find_id, current_id))
+                iterate(entry, find_id)
+        for the_id in subtypes['']:
+            iterate(the_id, the_id)
+        if len(found_cycles) > 0:
+            for entry in found_cycles:
+                logging.error(
+                    'Cycle found with ids {} and {}'.format(entry[0], entry[1]))
+            raise ValueError('cycles found in graph information')
+
+    def set_labels_and_subtypes(self, labels, subtypes):
+        """
+        Set the labels and subtypes. **Note that subtypes may be modified in place.**
+
+        Parameters
+        ----------
+        labels : None|dict
+        subtypes : None|dict
+
+        Returns
+        -------
+        None
+        """
+
+        if labels is None:
+            labels = OrderedDict()
+        if not isinstance(labels, dict):
+            raise TypeError('labels is required to be a dict. Got type {}'.format(type(labels)))
+
+        if subtypes is None:
+            subtypes = OrderedDict()
+        elif not isinstance(subtypes, dict):
+            raise TypeError('subtypes is required to be None or a dict. Got type {}'.format(type(subtypes)))
+
+        # ensure that every key and value of labels are strings
+        for key in labels:
+            if not isinstance(key, str):
+                raise TypeError(
+                    'All keys of labels must be of type string. Got key `{}` of '
+                    'type {}'.format(key, type(key)))
+            if key == '':
+                raise ValueError('The empty string is not a valid label id.')
+            value = labels[key]
+            if not isinstance(value, str):
+                raise TypeError(
+                    'All values of labels must be of type string. Got value {} '
+                    'for key `{}` of type {}'.format(value, key, type(value)))
+
+        # look for inverted fork - multiple parents claiming the same child
+        subtypes = self._find_inverted_fork(subtypes, labels)
+        # look for cycles
+        self._find_cycle(subtypes)
+
+        # set the values
         self._labels = labels
         self._subtypes = subtypes
         self._construct_parent_types()
@@ -292,6 +384,156 @@ class LabelSchema(object):
         self._parent_types = {}
         for key in self._subtypes['']:
             iterate(key, [])
+
+    def _validate_entry(self, the_id, the_name, the_parent):
+        """
+        Validate the basics for the given entry.
+
+        Parameters
+        ----------
+        the_id : str
+        the_name : str
+        the_parent : str
+
+        Returns
+        -------
+        (str, str, str)
+        """
+
+        # validate inputs
+        if not (isinstance(the_id, string_types) and isinstance(the_name, string_types) and
+                isinstance(the_parent, string_types)):
+            raise TypeError(
+                'the_id, the_name, and the_parent must all be string type, got '
+                'types {}, {}, {}'.format(type(the_id), type(the_name), type(the_parent)))
+        the_id = the_id.strip()
+        the_name = the_name.strip()
+        the_parent = the_parent.strip()
+
+        # verify that values are permitted and sensible
+        if the_id == '':
+            raise ValueError('the_id value `` is reserved.')
+        if the_name == '':
+            raise ValueError('the_name value `` is not permitted.')
+        if the_id == the_parent:
+            raise ValueError('the_id cannot be the same as the_parent.')
+
+        # try to determine parent from name if not a valid id
+        if the_parent != '' and the_parent not in self.labels:
+            prospective_parent = self.get_id_from_name(the_parent)
+            if prospective_parent is None:
+                raise ValueError('the_parent {} matches neither an existing id or name.'.format(the_parent))
+            the_parent = prospective_parent
+
+        return the_id, the_name, the_parent
+
+    def add_entry(self, the_id, the_name, the_parent=''):
+        """
+        Adds a new entry. Note that leading or trialing blanks will be trimmed
+        from all input values.
+
+        Parameters
+        ----------
+        the_id : str
+            The id for the label.
+        the_name : str
+            The name for the label.
+        the_parent : str
+            The parent id, where blank denotes no parent.
+
+        Returns
+        -------
+        None
+        """
+
+        # validate inputs
+        the_id, the_name, the_parent = self._validate_entry(the_id, the_name, the_parent)
+
+        # verify that the_id doesn't already exist
+        if the_id in self.labels:
+            raise KeyError('the_id = {} already exists'.format(the_id))
+
+        # check if name is already being used, and warn if so
+        for key, value in self.labels.items():
+            if value == the_name:
+                logging.warning(
+                    'Note that id {} is already using name {}. Having repeated names is '
+                    'permitted, but may lead to confusion.'.format(key, value))
+
+        # add the entry into the labels and subtypes dicts and reset the values
+        # perform copy in case of failure
+        labels = self.labels.copy()
+        subtypes = self.subtypes.copy()
+        labels[the_id] = the_name
+        if the_parent in subtypes:
+            subtypes[the_parent].append(the_id)
+        else:
+            subtypes[the_parent] = [the_id, ]
+
+        try:
+            self.set_labels_and_subtypes(labels, subtypes)
+        except (ValueError, KeyError) as e:
+            logging.error(
+                'Setting new entry id {}, name {}, and parent {} failed with '
+                'exception {}'.format(the_id, the_name, the_parent, e))
+
+    def change_entry(self, the_id, the_name, the_parent):
+        """
+        Modify the values for a schema element.
+
+        Parameters
+        ----------
+        the_id : str
+        the_name : str
+        the_parent : str
+
+        Returns
+        -------
+        None
+        """
+
+        # validate inputs
+        the_id, the_name, the_parent = self._validate_entry(the_id, the_name, the_parent)
+
+        # verify that the_id does already exist
+        if the_id not in self.labels:
+            raise KeyError('the_id = {} does not exist'.format(the_id))
+
+        # check current values
+        current_name = self.labels[the_id]
+        current_parents = self.parent_types[the_id]
+        current_parent = current_parents[1] if len(current_parents) > 1 else ''
+
+        if current_name == the_name and current_parent == the_parent:
+            # nothing is changing
+            return
+
+        if current_name != the_name:
+            # check if name is already being used by a different element, and warn if so
+            if current_name != the_name:
+                for key, value in self.labels.items():
+                    if value == the_name and key != the_id:
+                        logging.warning(
+                            'Note that id {} is already using name {}. Having repeated names is '
+                            'permitted, but may lead to confusion.'.format(key, value))
+
+        if current_parent != the_parent:
+            labels = self.labels.copy()
+            labels[the_id] = the_name
+            subtypes = self.subtypes.copy()
+            # remove the_id from it's current subtype
+            subtypes[current_parent].remove(the_id)
+            # add it to the new one
+            subtypes[the_parent].append(the_id)
+            try:
+                self.set_labels_and_subtypes(labels, subtypes)
+            except (ValueError, KeyError) as e:
+                logging.error(
+                    'Modifying entry id {}, name {}, and parent {} failed with '
+                    'exception {}.'.format(the_id, the_name, the_parent, e))
+        else:
+            # just changing the name
+            self.labels[the_id] = the_name
 
     @classmethod
     def from_file(cls, file_name):
