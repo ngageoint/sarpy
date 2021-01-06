@@ -16,10 +16,8 @@ import sys
 
 import numpy
 
-string_types = str
-if sys.version_info[0] < 3:
-    # noinspection PyUnresolvedReferences
-    string_types = basestring
+from sarpy.compliance import string_types
+
 
 def _compress_identical(coords):
     """
@@ -88,6 +86,55 @@ def _get_kml_coordinate_string(coordinates, transform):
         return '{0:0.9f},{1:0.9f}'.format(*transform(coordinates)[:2])
     return ' '.join(
         '{0:0.9f},{1:0.9f}'.format(*el[:2]) for el in transform(coordinates))
+
+
+def _line_segments_intersect(pt0, pt1, pt2, pt3):
+    """
+    Does line segment defined by points 0 & 1 internally intersect with line
+    segment defined by points 2 & 3? For these purposes, co-linearity will be
+    considered False.
+
+    Parameters
+    ----------
+    pt0 : numpy.ndarray|list|tuple
+    pt1 : numpy.ndarray|list|tuple
+    pt2 : numpy.ndarray|list|tuple
+    pt3 : numpy.ndarray|list|tuple
+
+    Returns
+    -------
+    bool
+    """
+
+    def validate(entry):
+        # type: (Any) -> numpy.ndarray
+        if not isinstance(entry, numpy.ndarray):
+            entry = numpy.array(entry)
+        if entry.ndim != 1 or entry.size != 2:
+            raise ValueError('all inputs must be numpy array of shape (2, )')
+        return entry
+
+    P = validate(pt0)  # end point fo one segment
+    R = validate(pt1) - P  # direction vector for segment (one end to the other)
+    Q = validate(pt2)  # end point for the other line segment
+    S = validate(pt3) - Q  # direction vector for segment (one end to the other)
+
+    if numpy.linalg.norm(R) == 0 or numpy.linalg.norm(S) == 0:
+        # one of these is a trivial line segment. No legitimate intersection is possible.
+        return False
+
+    dir_cross = float(numpy.cross(R, S)) # the scalar cross product of the direction vectors
+
+    if dir_cross == 0:
+        # direction vectors are parallel, we will consider all of this as False
+        return False
+
+    end_cross_0 = float(numpy.cross(Q-P, S))
+    end_cross_1 = float(numpy.cross(Q-P, R))
+
+    t = end_cross_0/dir_cross
+    u = end_cross_1/dir_cross
+    return (0 <= t <= 1 and 0 < u < 1) or (0 < t < 1 and 0 <= u <= 1)
 
 
 class _Jsonable(object):
@@ -879,6 +926,26 @@ class LineString(GeometryObject):
                 'consecutive repeated points. Got shape {}'.format(coordinates.shape))
         self._coordinates = coordinates
 
+    def self_intersection(self):
+        """
+        Does this self intersect?
+
+        Returns
+        -------
+        bool
+        """
+
+        if self.coordinates.shape[0] <= 3:
+            return False
+
+        for i in range(self.coordinates.shape[0] - 3):
+            for j in range(i+1, self.coordinates.shape[0] - 2):
+                result = _line_segments_intersect(
+                    self.coordinates[i, :], self.coordinates[i+1, :], self.coordinates[j, :], self.coordinates[j+1, :])
+                if result:
+                    return True
+        return False
+
     def get_bbox(self):
         if self._coordinates is None:
             return None
@@ -1484,6 +1551,54 @@ class Polygon(GeometryObject):
         self.set_outer_ring(coordinates[0])
         for entry in coordinates[1:]:
             self.add_inner_ring(entry)
+        if self.self_intersection():
+            raise ValueError('Polygon has a self-intersection.')
+
+    def self_intersection(self):
+        """
+        Does this Polygon self intersect?
+
+        Returns
+        -------
+        bool
+        """
+
+        if self.outer_ring is None:
+            return False
+
+        if self.outer_ring.self_intersection():
+            return True
+
+        if self.inner_rings is not None:
+            for entry in self.inner_rings:
+                if entry.self_intersection():
+                    return True
+
+            for i in range(self.outer_ring.coordinates.shape[0] - 2):
+                for entry in self.inner_rings:
+                    for j in range(entry.coordinates.shape[0] - 2):
+                        result = _line_segments_intersect(
+                            self.outer_ring.coordinates[i, :], self.outer_ring.coordinates[i + 1, :],
+                            entry.coordinates[j, :], entry.coordinates[j + 1, :])
+                        if result:
+                            return True
+        return False
+
+    @property
+    def outer_ring(self):
+        """
+        LinearRing: The outer ring.
+        """
+
+        return self._outer_ring
+
+    @property
+    def inner_rings(self):
+        """
+        None|List[LinearRing]: The inner rings.
+        """
+
+        return self._inner_rings
 
     @classmethod
     def from_dict(cls, geometry):
