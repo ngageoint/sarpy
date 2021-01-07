@@ -12,11 +12,10 @@ from uuid import uuid4
 from typing import Union, List, Tuple, Dict, Callable, Any
 import json
 import logging
-import sys
 
 import numpy
 
-from sarpy.compliance import string_types
+from sarpy.compliance import string_types, integer_types
 
 
 def _compress_identical(coords):
@@ -360,6 +359,23 @@ class FeatureCollection(_Jsonable):
             return self._feature_dict[item]
         return self._features[item]
 
+    def __delitem__(self, item):
+        # type: (Any) -> None
+        if self._features is None:
+            return
+
+        if isinstance(item, Feature):
+            item = Feature.uid
+        if not(isinstance(item, string_types) or isinstance(item, integer_types)):
+            raise ValueError('Unexpected type {}'.format(type(item)))
+
+        if isinstance(item, string_types):
+            index = self._feature_dict[item]
+            del self._features[index]
+        else:
+            del self._features[item]
+        self._rebuild_feature_dict()
+
     @property
     def features(self):
         """
@@ -391,6 +407,11 @@ class FeatureCollection(_Jsonable):
                 raise TypeError(
                     'Entries of features are required to be instances of Feature or '
                     'dictionary to be deserialized. Got {}'.format(type(entry)))
+
+    def _rebuild_feature_dict(self):
+        self._feature_dict = {}
+        for i, entry in enumerate(self._features):
+            self._feature_dict[entry.uid] = i
 
     @classmethod
     def from_dict(cls, the_json):
