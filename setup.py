@@ -52,13 +52,15 @@ setup(name=parameters['__title__'],
       long_description=long_description,
       long_description_content_type='text/markdown',
       packages=find_packages(exclude=('*tests*', )),
-      package_data={'sarpy': ['*.xsd']},  # Schema files for SICD standard(s)
+      package_data={'sarpy': ['io/complex/sicd_schema/*.xsd',
+                              'io/phase_history/cphd_schema/*.xsd', ]},
       url=parameters['__url__'],
       author=parameters['__author__'],
       author_email=parameters['__email__'],  # The primary POC
       install_requires=install_requires,
       extras_require={
         'csk':  ['h5py', ],
+        'consistency':  ['lxml>=4.1.1', 'shapely>=1.6.4', 'pytest>=3.3.2', ], # versions from Python 2, Anaconda 5.1
       },
       zip_safe=False,  # Use of __file__ and __path__ in some code makes it unusable from zip
       test_suite="setup.my_test_suite",
