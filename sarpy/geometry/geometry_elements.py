@@ -717,6 +717,22 @@ class GeometryObject(Geometry):
 
         raise NotImplementedError
 
+    def get_minimum_distance(self, point):
+        """
+        Get the minimum distance from the point, to the point or line segments of
+        the given geometrical shape. This just assumes two-diemnsional coordinates.
+
+        Parameters
+        ----------
+        point : Point
+
+        Returns
+        -------
+        float
+        """
+
+        raise NotImplementedError
+
 
 class Point(GeometryObject):
     """
@@ -794,6 +810,13 @@ class Point(GeometryObject):
     def apply_projection(self, proj_method):
         # type: (callable) -> Point
         return Point(coordinates=proj_method(self._coordinates))
+
+    def get_minimum_distance(self, point):
+        if self._coordinates is None:
+            return None
+
+        diff = self.coordinates[:2] - point.coordinates[:2]
+        return float(numpy.linalg.norm(diff))
 
 
 class MultiPoint(GeometryObject):
@@ -886,6 +909,25 @@ class MultiPoint(GeometryObject):
         # type: (callable) -> MultiPoint
         return MultiPoint(coordinates=[pt.apply_projection(proj_method) for pt in self.points])
 
+    def get_minimum_distance(self, point):
+        """
+        Get the minimum distance from the point, to the point or line segments of
+        the given geometrical shape. This just assumes two-dimensional coordinates.
+
+        Parameters
+        ----------
+        point : Point
+
+        Returns
+        -------
+        float
+        """
+
+        if self._points is None:
+            return float('inf')
+
+        return min(entry.get_minimum_distance(point) for entry in self.points)
+
 
 class LineString(GeometryObject):
     """
@@ -900,7 +942,7 @@ class LineString(GeometryObject):
 
         Parameters
         ----------
-        coordinates : None|numpy.ndarray|List[float]|LineString|LinearRing
+        coordinates : None|numpy.ndarray|List[List[float]]|LineString|LinearRing
         """
 
         self._coordinates = None
@@ -1011,6 +1053,26 @@ class LineString(GeometryObject):
         # type: (callable) -> LineString
         return LineString(coordinates=proj_method(self.coordinates))
 
+    def get_minimum_distance(self, point):
+        def _line_segment_distance(line_coord, coord):
+            # type: (numpy.ndarray, numpy.ndarray) -> float
+            dir_vec = line_coord[1, :] - line_coord[0, :]  # direction vector for segment
+            dir_vec /= numpy.linalg.norm(dir_vec)
+            norm_vec = numpy.array([dir_vec[0], -dir_vec[1]])
+            diff_vec0 = coord - line_coord[0, :]  # vector from first end to point
+            diff_vec1 = coord - line_coord[1, :]  # vector from last end to point
+            if numpy.sign(diff_vec1.dot(dir_vec)) == numpy.sign(diff_vec0.dot(dir_vec)):
+                # one of the endpoints is the minimum distance
+                return min(float(numpy.linalg.norm(diff_vec0)), float(numpy.linalg.norm(diff_vec1)))
+            else:
+                # the point is "between" the two endpoints
+                return float(numpy.abs(diff_vec1.dot(norm_vec)))
+
+        if self._coordinates is None:
+            return float('inf')
+        p_coord = point.coordinates[:2]
+        return min(_line_segment_distance(self._coordinates[i:i+2, :2], p_coord) for i in range(self._coordinates.shape[0]-1))
+
 
 class MultiLineString(GeometryObject):
     """
@@ -1025,7 +1087,7 @@ class MultiLineString(GeometryObject):
 
         Parameters
         ----------
-        coordinates : None|List[numpy.ndarray]|List[List[int]]|List[LineString]|MultiLineString
+        coordinates : None|List[numpy.ndarray]|List[List[List[float]]]|List[LineString]|MultiLineString
         """
 
         self._lines = None
@@ -1113,6 +1175,11 @@ class MultiLineString(GeometryObject):
         # type: (callable) -> MultiLineString
         return MultiLineString(coordinates=[line.apply_projection(proj_method) for line in self.lines])
 
+    def get_minimum_distance(self, point):
+        if self._lines is None:
+            return float('inf')
+        return min(entry.get_minimum_distance(point) for entry in self.lines)
+
 
 class LinearRing(LineString):
     """
@@ -1127,7 +1194,7 @@ class LinearRing(LineString):
 
         Parameters
         ----------
-        coordinates : None|numpy.ndarray|List[float]|LinearRing|LineString
+        coordinates : None|numpy.ndarray|List[List[float]]|LinearRing|LineString
         """
 
         self._coordinates = None
@@ -1831,6 +1898,16 @@ class Polygon(GeometryObject):
             coords.extend([lr.apply_projection(proj_method) for lr in self._inner_rings])
         return Polygon(coordinates=coords)
 
+    def get_minimum_distance(self, point):
+        if self._outer_ring is None:
+            return float('inf')
+
+        o_dist = self.outer_ring.get_minimum_distance(point)
+        if self._inner_rings is None or len(self._inner_rings) < 1:
+            return o_dist
+        i_dist = min(entry.get_minimum_distance(point) for entry in self.inner_rings)
+        return min(o_dist, i_dist)
+
 
 class MultiPolygon(GeometryObject):
     """
@@ -2011,3 +2088,8 @@ class MultiPolygon(GeometryObject):
     def apply_projection(self, proj_method):
         # type: (callable) -> MultiPolygon
         return MultiPolygon(coordinates=[poly.apply_projection(proj_method) for poly in self.polygons])
+
+    def get_minimum_distance(self, point):
+        if self._polygons is None:
+            return float('inf')
+        return min(entry.get_minimum_distance(point) for entry in self.polygons)
