@@ -17,6 +17,8 @@ import numpy
 
 from sarpy.compliance import string_types, integer_types
 
+##########
+# utility functions
 
 def _compress_identical(coords):
     """
@@ -136,6 +138,33 @@ def _line_segments_intersect(pt0, pt1, pt2, pt3):
     return (0 <= t <= 1 and 0 < u < 1) or (0 < t < 1 and 0 <= u <= 1)
 
 
+def _validate_point_array(point):
+    """
+    Extract array from point, or verify the input is consistent with point
+    definition.
+
+    Parameters
+    ----------
+    point : Point|numpy.ndarray|Tuple|List
+
+    Returns
+    -------
+    numpy.ndarray
+        A numpy.ndarray of shape `(N, )` with `N >= 2`.
+    """
+
+    if isinstance(point, Point):
+        return point.coordinates
+    if not isinstance(point, numpy.ndarray):
+        point = numpy.array(point, dtype='float64')
+    if point.ndim != 1 or point.size < 2:
+        raise ValueError('point input must yield a one-dimensional array of at least two elements.')
+    return point
+
+
+###############
+# Geojson base object
+
 class _Jsonable(object):
     """
     Abstract class for json serializability.
@@ -203,6 +232,9 @@ class _Jsonable(object):
         the_type = self.__class__
         return the_type.from_dict(self.to_dict())
 
+
+#######
+# Geojson object definitions
 
 class Feature(_Jsonable):
     """
@@ -720,11 +752,11 @@ class GeometryObject(Geometry):
     def get_minimum_distance(self, point):
         """
         Get the minimum distance from the point, to the point or line segments of
-        the given geometrical shape. This just assumes two-diemnsional coordinates.
+        the given geometrical shape. This just assumes two-dimensional coordinates.
 
         Parameters
         ----------
-        point : Point
+        point : Point|numpy.ndarray|tuple|list
 
         Returns
         -------
@@ -815,7 +847,8 @@ class Point(GeometryObject):
         if self._coordinates is None:
             return None
 
-        diff = self.coordinates[:2] - point.coordinates[:2]
+        point = _validate_point_array(point)
+        diff = self.coordinates[:2] - point[:2]
         return float(numpy.linalg.norm(diff))
 
 
@@ -910,19 +943,6 @@ class MultiPoint(GeometryObject):
         return MultiPoint(coordinates=[pt.apply_projection(proj_method) for pt in self.points])
 
     def get_minimum_distance(self, point):
-        """
-        Get the minimum distance from the point, to the point or line segments of
-        the given geometrical shape. This just assumes two-dimensional coordinates.
-
-        Parameters
-        ----------
-        point : Point
-
-        Returns
-        -------
-        float
-        """
-
         if self._points is None:
             return float('inf')
 
@@ -1070,7 +1090,7 @@ class LineString(GeometryObject):
 
         if self._coordinates is None:
             return float('inf')
-        p_coord = point.coordinates[:2]
+        p_coord = _validate_point_array(point)[:2]
         return min(_line_segment_distance(self._coordinates[i:i+2, :2], p_coord) for i in range(self._coordinates.shape[0]-1))
 
 
