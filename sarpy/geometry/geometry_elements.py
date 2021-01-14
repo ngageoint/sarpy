@@ -201,7 +201,7 @@ class _Jsonable(object):
 
     def to_dict(self, parent_dict=None):
         """
-        Deserialize from json.
+        Serialize to json.
 
         Parameters
         ----------
@@ -1206,7 +1206,7 @@ class LinearRing(LineString):
     This is not directly a valid geojson member, but plays the role of a single
     polygonal element, and is only used as a Polygon constituent.
     """
-    __slots__ = ('_coordinates', '_diffs', '_bounding_box', '_segmentation')
+    __slots__ = ('_coordinates', '_diffs', '_bounding_box', '_segmentation', '_orientation')
     _type = 'LinearRing'
 
     def __init__(self, coordinates=None):
@@ -1221,6 +1221,7 @@ class LinearRing(LineString):
         self._diffs = None
         self._bounding_box = None
         self._segmentation = None
+        self._orientation = 1
         if isinstance(coordinates, (LineString, LinearRing)):
             coordinates = coordinates.get_coordinate_list()
         super(LinearRing, self).__init__(coordinates)
@@ -1235,6 +1236,15 @@ class LinearRing(LineString):
         if self._coordinates is None:
             return
         self.coordinates = self._coordinates[::-1, :]
+        self._orientation *= -1
+
+    @property
+    def orientation(self):
+        """
+        int: +1 for positive orientation (counter-clockwise) and -1 for negative orientation (clockwise).
+        """
+
+        return self._orientation
 
     @property
     def bounding_box(self):
@@ -1264,17 +1274,17 @@ class LinearRing(LineString):
     def get_area(self):
         """
         Gets the area of the polygon. If a polygon is self-intersecting, then this
-        result may be pathological. If this is positive, then the orientation is
-        counter-clockwise. If this is negative, then the orientation is clockwise.
-        If zero, then this polygon is degenerate.
+        result may be pathological. A positive value represents a polygon with positive
+        orientation, while a negative value represents a polygon with negative orientation.
 
         Returns
         -------
         float
         """
 
-        return float(0.5*numpy.sum(self._coordinates[:-1, 0]*self._coordinates[1:, 1] -
-                                   self._coordinates[1:, 0]*self._coordinates[:-1, 1]))
+        return float(
+            0.5*numpy.sum(self._coordinates[:-1, 0]*self._coordinates[1:, 1] -
+                          self._coordinates[1:, 0]*self._coordinates[:-1, 1]))
 
     def get_centroid(self):
         """
@@ -1347,8 +1357,12 @@ class LinearRing(LineString):
         self._diffs = coordinates[1:, :] - coordinates[:-1, :]
         self._segmentation = {
             'x': self._construct_segmentation(coordinates[:, 0], coordinates[:, 1]),
-            'y': self._construct_segmentation(coordinates[:, 1], coordinates[:, 0])
-        }
+            'y': self._construct_segmentation(coordinates[:, 1], coordinates[:, 0])}
+        signed_area = self.get_area()
+        if signed_area >= 0:
+            self._orientation = 1
+        else:
+            self._orientation = -1
 
     @staticmethod
     def _construct_segmentation(coords, o_coords):
@@ -1463,6 +1477,7 @@ class LinearRing(LineString):
         in_poly = numpy.zeros(x.shape, dtype=numpy.bool)
         crossing_counts = numpy.zeros(x.shape, dtype=numpy.int32)
         indices = segment['inds']
+        orient = self.orientation
 
         for i in indices:
             if direction == 'x' and self._coordinates[i, 0] == self._coordinates[i+1, 0]:
@@ -1480,8 +1495,8 @@ class LinearRing(LineString):
                 # points on the edge are included
                 in_poly[(y == self._coordinates[i, 1]) & (x_min <= x) & (x <= x_max)] = True
             else:
-                nx, ny = self._diffs[i, 1],  - self._diffs[i, 0]
-                crossing = (x - self._coordinates[i, 0])*nx + (y - self._coordinates[i, 1])*ny
+                nx, ny = self._diffs[i, 1],  -self._diffs[i, 0]
+                crossing = orient*((x - self._coordinates[i, 0])*nx + (y - self._coordinates[i, 1])*ny)
                 # dot product of vector connecting (x, y) to segment vertex with normal vector of segment
                 crossing_counts[crossing > 0] += 1  # positive crossing number
                 crossing_counts[crossing < 0] -= 1  # negative crossing number
@@ -1627,6 +1642,32 @@ class LinearRing(LineString):
         # type: (callable) -> LinearRing
         return LinearRing(coordinates=proj_method(self.coordinates))
 
+    def to_dict(self, parent_dict=None):
+        """
+        Serialize the LinearRing to json.
+
+        Note that the geojson standard requires that the serialized object has
+        positive orientation. In the case of an LinearRing defined with negative
+        orientation, the orientation of the object and the serialized object will
+        be reversed.
+
+        Parameters
+        ----------
+        parent_dict : None|Dict
+
+        Returns
+        -------
+        Dict
+        """
+
+        if self.orientation > 0:
+            return super(LinearRing, self).to_dict(parent_dict=parent_dict)
+        else:
+            self.reverse_orientation()
+            out = super(LinearRing, self).to_dict(parent_dict=parent_dict)
+            self.reverse_orientation()
+            return out
+
 
 class Polygon(GeometryObject):
     """
@@ -1753,14 +1794,6 @@ class Polygon(GeometryObject):
             outer_ring = LinearRing(coordinates=coordinates.coordinates)
         else:
             outer_ring = LinearRing(coordinates=coordinates)
-        area = outer_ring.get_area()
-        if area == 0:
-            logging.warning("The outer ring for this Polygon has zero area. This is likely an error.")
-        elif area < 0:
-            logging.info(
-                "The outer ring of a Polygon is required to have counter-clockwise orientation. "
-                "This outer ring has clockwise orientation, so the orientation will be reversed.")
-            outer_ring.reverse_orientation()
         self._outer_ring = outer_ring
 
     def add_inner_ring(self, coordinates):
@@ -1771,15 +1804,11 @@ class Polygon(GeometryObject):
 
         if self._inner_rings is None:
             self._inner_rings = []
+
         if isinstance(coordinates, (LinearRing, LineString)):
             inner_ring = LinearRing(coordinates=coordinates.coordinates)
         else:
             inner_ring = LinearRing(coordinates=coordinates)
-        area = inner_ring.get_area()
-        if area == 0:
-            logging.warning("The defined inner ring for this Polygon has zero area. This is likely an error.")
-        elif area < 0:
-            inner_ring.reverse_orientation()
         self._inner_rings.append(inner_ring)
 
     def get_perimeter(self):
@@ -1812,10 +1841,10 @@ class Polygon(GeometryObject):
         if self._outer_ring is None:
             return None
 
-        area = self._outer_ring.get_area()  # positive
+        area = abs(self._outer_ring.get_area())  # positive
         if self._inner_rings is not None:
             for entry in self._inner_rings:
-                area -= entry.get_area()  # negative
+                area -= abs(entry.get_area())  # negative
         return area
 
     def get_centroid(self):
