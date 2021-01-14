@@ -26,21 +26,21 @@ def make_elem(tag, text=None, children=None, namespace=None, attributes=None, **
     Creates the Element with tag name, text, and attributes given. Attributes
     can be specified as either a dictionary or keyword arguments.
 
-    Args
-    ----
-    tag: str
+    Parameters
+    ----------
+    tag : str
         A string that will become the tag name.
-    text: str
+    text : str
         A string that will become the text in the element. (Default: ``None``)
-    parent: lxml.etree.ElementTree.Element
+    parent : lxml.etree.ElementTree.Element
         The parent element. (Default: ``None``)
-    children: lxml.etree.ElementTree
+    children : lxml.etree.ElementTree
         The children elements. (Dafault: ``None``)
-    namespace: str
+    namespace : str
         The string containing the namespace. (Default: ``None``)
-    attributes: dict
+    attributes : dict
         A dictionary mapping attribute names to values. (Default: ``None``)
-    **attrib: list
+    **attrib : list
         Keyword arguments that map to attributes. (Default: ``None``)
 
     Returns

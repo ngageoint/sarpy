@@ -12,6 +12,7 @@ import sarpy.consistency.consistency as con
 
 
 class DummyConsistency(con.ConsistencyChecker):
+    """A ConsistencyChecker used for unit testing and code coverage"""
     def __init__(self):
         super(DummyConsistency, self).__init__()
 
@@ -71,6 +72,12 @@ class DummyConsistency(con.ConsistencyChecker):
 
 @pytest.fixture
 def dummycon():
+    """Fixture which initializes a DummyConsistency object
+
+    Yields
+    ------
+    DummyConsistency object
+    """
     import ast
     import os
     import _pytest.assertion.rewrite

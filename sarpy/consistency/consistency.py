@@ -14,6 +14,13 @@ import numpy as np
 
 
 def _exception_stack():
+    """Helper function to parse call stack of an exception
+
+    Returns
+    -------
+    list of dict
+        {'filename': str, 'lineno': int, 'line': str} for each traceback in the current exception
+    """
     try:
         exctype, value, tb = sys.exc_info()
 
@@ -51,6 +58,13 @@ class ConsistencyChecker(object):
         self.funcs = [attr for attr in attrs if hasattr(attr, '__call__')]
 
     def check(self, func_name=None):
+        """Run checks
+
+        Parameters
+        ----------
+        func_name : str or list of str, optional
+            List of check functions to run.  If ommited all check functions will be run.
+        """
         # run specified test(s) or all of them
         if func_name is None:
             funcs = self.funcs
@@ -68,7 +82,13 @@ class ConsistencyChecker(object):
             self._run_check(func)
 
     def _run_check(self, func):
-        """Runs a single 'check_' method."""
+        """Runs a single 'check_' method and store the results
+
+        Parameters
+        ----------
+        func : method
+            Run the supplied function
+        """
 
         self._active_check = {'doc': func.__doc__,
                               'details': [],
@@ -89,7 +109,19 @@ class ConsistencyChecker(object):
         self._active_check = None
 
     def _add_item_to_current(self, severity, passed, message, details=''):
-        """Records the result of a test."""
+        """Records the result of a test.
+
+        Parameters
+        ----------
+        severity : str
+            Severity level of the results eg. 'Error', 'Warning'
+        passed : bool
+            The result of the test
+        message : str
+            Text message describing the test
+        details : str, optional
+            Additional message details
+        """
 
         item = {'severity': severity,
                 'passed': passed,
@@ -100,6 +132,20 @@ class ConsistencyChecker(object):
         self._active_check['passed'] &= passed
 
     def _format_assertion(self, e, depth=1):
+        """Format an assertion to human readable text
+
+        Parameters
+        ----------
+        e : Exception
+            The exception to be formatted
+        depth : int, optional
+            Which level of the exception stack to format
+
+        Returns
+        -------
+        formatted : str
+            Formatted stack level containing line number and line text
+        """
         stack = _exception_stack()
         frame = stack[depth]
         return ("line#{lineno}: {line}".format(lineno=frame['lineno'], line=frame['line'])
@@ -107,16 +153,41 @@ class ConsistencyChecker(object):
 
     @contextlib.contextmanager
     def need(self, details=None):
+        """Context manager for scoping 'Error' level checks
+
+        Parameters
+        ----------
+        details : str or None, optional
+            Text describing the scope of checks
+        """
         with self._crave('Error', details=details):
             yield
 
     @contextlib.contextmanager
     def want(self, details=None):
+        """Context manager for scoping 'Warning' level checks
+
+        Parameters
+        ----------
+        details : str or None, optional
+            Text describing the scope of checks
+        """
         with self._crave('Warning', details=details):
             yield
 
     @contextlib.contextmanager
     def _crave(self, level, details, depth=2):
+        """Context manager for scoping checks
+
+        Parameters
+        ----------
+        level : str
+            Severity level of the checks.  eg. 'Error' or 'Warning'
+        details : str|None
+            Text describing the scope of checks
+        depth : int, optional
+            Depth in the exception stack to look for check information
+        """
         try:
             yield
             if self._active_check is not None:
@@ -131,6 +202,13 @@ class ConsistencyChecker(object):
 
     @contextlib.contextmanager
     def precondition(self, details=None):
+        """Context manager for scoping conditional ('No-Op' level) checks
+
+        Parameters
+        ----------
+        details : str or None, optional
+            Text describing the scope of checks
+        """
         try:
             yield
         except AssertionError as e:
@@ -142,11 +220,28 @@ class ConsistencyChecker(object):
             self._add_item_to_current('No-Op', True, self._format_assertion(e), details=details)
 
     def all(self):
-        """Returns all results."""
+        """Returns all results
+
+        Returns
+        -------
+        dict
+            Unfiltered dictionary of all (Passed, Failed, Skpped) results
+        """
         return self._all_check_results
 
     def failures(self, omit_passed_sub=False):
-        """Returns failure results."""
+        """Returns failure results
+
+        Parameters
+        ----------
+        omit_passed_sub : bool
+            If True, passed sub-checks will be omitted.
+
+        Returns
+        -------
+        dict
+            Dictionary containing only results of failed checks
+        """
         retval = collections.OrderedDict()
         for k, v in self._all_check_results.items():
             if not v['passed']:
@@ -157,6 +252,25 @@ class ConsistencyChecker(object):
 
     def print_result(self, include_passed_asserts=True, color=True, include_passed_checks=False, width=120,
                      skip_detail=False, fail_detail=False, pass_detail=False):
+        """Print results to stdout
+
+        Parameters
+        ----------
+        include_passed_asserts : bool, optional
+            Print asserts which passed
+        color : bool, optional
+            Colorize the output
+        include_passed_checks : bool, optional
+            Print checks which passed
+        width : int, optional
+            Output up to `width` columns
+        skip_detail : bool, optional
+            Include details of skips
+        fail_detail: bool, optional
+            Include details of failures
+        pass_detail: bool, optional
+            Include details of passes
+        """
         to_print = collections.OrderedDict()
         for k, v in self._all_check_results.items():
             if include_passed_checks or not v['passed']:
@@ -200,6 +314,21 @@ class ConsistencyChecker(object):
 
 
 class Approx:
+    """Wrapper for performing approximate value comparisons
+
+    Parameters
+    ----------
+    value : float
+        The Value to be compared.
+    atol : float, optional
+        Absolute tolerance
+    rtol : float, optional
+        Relative tolerance
+
+    See Also
+    --------
+    pytest.approx
+    """
     # Tell numpy to use our comparison operators
     __array_ufunc__ = None
     __array_priority__ = 100
@@ -235,6 +364,20 @@ class Approx:
 
 
 def in_color(string, *color):
+    """Wrap a string with ANSI color control characters.
+
+    Parameters
+    ----------
+    string : str
+        The string to colorize.
+    *color : str
+        color identifiers to use.  See `start_color`.
+
+    Returns
+    -------
+    str
+        ANSI colorized version of `string`
+    """
     if color:
         start = ''.join(start_color(c) for c in color)
         return "{}{}{}".format(start, string, END_COLOR)
@@ -246,6 +389,19 @@ END_COLOR = "\x1b[0m"
 
 
 def start_color(color):
+    """Get an ANSI color control character.
+
+    Parameters
+    ----------
+    color : {'black', 'red', 'green', 'yellow', 'blue', 'purple', 'cyan', 'white', 'bold', 'light', 'invert'}
+        Desired color
+
+    Returns
+    -------
+    str
+        ANSI color control for desired color
+    """
+
     color_table = dict(
         black=30,
         red=31,

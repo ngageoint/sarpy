@@ -27,14 +27,14 @@ def strip_namespace(root):
     """
     Returns a copy of the input etree with namespaces removed.
 
-    Args
-    ----
-    root: lxml.etree.ElementTree
+    Parameters
+    ----------
+    root : lxml.etree.ElementTree
         The element tree
 
     Returns
     -------
-    new_root: lxml.etree.ElementTree
+    new_root : lxml.etree.ElementTree
         The element tree
 
     """
@@ -54,7 +54,18 @@ def strip_namespace(root):
 
 
 def _single_binary_format_string_to_dtype(form):
-    """Convert a CPHD datatype into a dtype"""
+    """Convert a CPHD datatype into a dtype
+
+    Parameters
+    ----------
+    form: str
+        single item CPHD format string.  (ex: I4, CF8)
+
+    Returns
+    -------
+    numpy.dtype
+        Equivalent numpy dtype
+    """
     if form.startswith('S'):
         dtype = np.dtype(form)
     else:
@@ -83,8 +94,8 @@ def _single_binary_format_string_to_dtype(form):
 def binary_format_string_to_dtype(format_string):
     """Return the numpy.dtype for CPHD Binary Format string (table 10-2).
 
-    Args
-    ----
+    Parameters
+    ----------
     format_string: str
         PVP type designator (e.g., ``'I1'``, ``'I4'``, ``'CF8'``, etc.).
 
@@ -118,14 +129,14 @@ def binary_format_string_to_dtype(format_string):
 def parse_pvp_elem(elem):
     """Reverse of `pvp_elem`.
 
-    Args
-    ----
-    elem: `lxml.etree.ElementTree.Element`
+    Parameters
+    ----------
+    elem : `lxml.etree.ElementTree.Element`
         Node for the specified PVP parameter.
 
     Returns
     -------
-    result: tuple (str, dict)
+    result : tuple (str, dict)
         Tuple (parameter_name, {``'offset'``:offset, ``'size'``:size, ``'dtype'``:dtype}). PVP element information.
 
     """
@@ -147,18 +158,18 @@ def parse_pvp_elem(elem):
 def read_header(file_handle):
     """Reads a CPHD header from a file.
 
-    Args
-    ----
-    file_handle: Readable File object
+    Parameters
+    ----------
+    file_handle : Readable File object
         i.e., ``file_handle = open(filename, 'rb')``.
 
         Handle of the CPHD file that is to be read
 
     Returns
     -------
-    header: dict
+    header : dict
         Dictionary containing CPHD header values.
-    root: `lxml.etree.ElementTree.Element`
+    root : `lxml.etree.ElementTree.Element`
         the root node of the CPHD XML
 
     """
@@ -187,6 +198,18 @@ def read_header(file_handle):
 
 
 def per_channel(method):
+    """Decorator to mark check methods as being applicable to each CPHD channel
+
+    Parameters
+    ----------
+    method : method
+        Method to mark
+
+    Returns
+    -------
+    method
+        Marked input `method`
+    """
     method.per_channel = True
     return method
 
@@ -196,10 +219,43 @@ DEFAULT_SCHEMA = sarpy.io.phase_history.cphd_schema.location()
 
 
 def get_by_id(xml, path, identifier):
+    """Find a node with a specific child Identifier node
+
+    Parameters
+    ----------
+    xml : lxml.etree.Element
+        Root node of XPath expression
+    path : str
+        XPath expression relative to `xml`
+    identifier : str
+        Value of child Identifier node
+
+    Returns
+    -------
+    lxml.etree.Element
+        node found by path with an Identifier node with value of `identifier`
+    """
     return xml.xpath('{path}/Identifier[text()="{identifier}"]/..'.format(path=path, identifier=identifier))[0]
 
 
 class CphdConsistency(con.ConsistencyChecker):
+    """ Check CPHD file structure and metadata for internal consistency
+
+    Parameters
+    ----------
+    cphdroot : lxml.etree.Element
+        root CPHD XML node
+    pvps : array
+        numpy structured array of PVPs
+    header : dict
+        CPHD header key value pairs
+    filename : str
+        Path to CPHD file (or None if not available)
+    schema : str
+        Path to CPHD XML Schema
+    check_signal_data: bool
+        Should the signal array be checked for invalid values
+    """
     def __init__(self, cphdroot, pvps, header, filename, schema, check_signal_data):
         super(CphdConsistency, self).__init__()
         self.xml = strip_namespace(lxml.etree.fromstring(lxml.etree.tostring(cphdroot)))
@@ -227,6 +283,22 @@ class CphdConsistency(con.ConsistencyChecker):
 
     @classmethod
     def from_file(cls, filename, schema, check_signal_data):
+        """ Create a CphdConsistency object from a CPHD file
+
+        Parameters
+        ----------
+        filename : str
+            Path to CPHD file
+        schema : str
+            Path to CPHD XML schema
+        check_signal_data : bool
+            Should the signal array be checkfed for invalid values
+
+        Returns
+        -------
+        CphdConsistency
+            new object
+        """
         with open(filename, 'rb') as infile:
             try:
                 header = None
@@ -902,6 +974,13 @@ class CphdConsistency(con.ConsistencyChecker):
 
 
 def main(args=None):
+    """CphdConsistency CLI tool.  Prints results to stdout.
+
+    Parameters
+    ----------
+    args: list or None, optional
+        List of CLI argument strings.  If None use sys.argv
+    """
     parser = argparse.ArgumentParser('CPHD Consistency')
     parser.add_argument('cphd_or_xml')
     parser.add_argument('-v', '--verbose', default=0,
