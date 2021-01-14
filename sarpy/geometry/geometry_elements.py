@@ -162,6 +162,36 @@ def _validate_point_array(point):
     return point
 
 
+def _line_segment_distance(line_coord, coord):
+    """
+    Get the (2-d) distance from the point given by coord from the line segment defined by line_coord.
+
+    Parameters
+    ----------
+    line_coord : numpy.ndarray
+        This is implicitly assumed to be shape (2, 2).
+    coord : numpy.ndarray
+        This is implicitly assumed to be shape (2,).
+
+    Returns
+    -------
+    float
+    """
+
+    dir_vec = line_coord[1, :] - line_coord[0, :]  # direction vector for segment
+    dir_vec /= numpy.linalg.norm(dir_vec)
+    norm_vec = numpy.array([dir_vec[1], -dir_vec[0]])
+    diff_vec0 = coord - line_coord[0, :]  # vector from first end to point
+    diff_vec1 = coord - line_coord[1, :]  # vector from last end to point
+
+    if numpy.sign(diff_vec1.dot(dir_vec)) == numpy.sign(diff_vec0.dot(dir_vec)):
+        # one of the endpoints is the minimum distance
+        return min(float(numpy.linalg.norm(diff_vec0)), float(numpy.linalg.norm(diff_vec1)))
+    else:
+        # the point is "between" the two endpoints
+        return float(numpy.abs(diff_vec1.dot(norm_vec)))
+
+
 ###############
 # Geojson base object
 
@@ -999,12 +1029,12 @@ class LineString(GeometryObject):
                 'The second dimension of coordinates must have between 2 and 4 entries. '
                 'Got shape {}'.format(coordinates.shape))
         if coordinates.shape[0] < 2:
-            logging.error(
+            logging.info(
                 'LineString coordinates should consist of at least 2 points. '
                 'Got shape {}'.format(coordinates.shape))
         coordinates = _compress_identical(coordinates)
         if coordinates.shape[0] < 2:
-            logging.error(
+            logging.info(
                 'coordinates should consist of at least 2 points after suppressing '
                 'consecutive repeated points. Got shape {}'.format(coordinates.shape))
         self._coordinates = coordinates
@@ -1074,24 +1104,15 @@ class LineString(GeometryObject):
         return LineString(coordinates=proj_method(self.coordinates))
 
     def get_minimum_distance(self, point):
-        def _line_segment_distance(line_coord, coord):
-            # type: (numpy.ndarray, numpy.ndarray) -> float
-            dir_vec = line_coord[1, :] - line_coord[0, :]  # direction vector for segment
-            dir_vec /= numpy.linalg.norm(dir_vec)
-            norm_vec = numpy.array([dir_vec[0], -dir_vec[1]])
-            diff_vec0 = coord - line_coord[0, :]  # vector from first end to point
-            diff_vec1 = coord - line_coord[1, :]  # vector from last end to point
-            if numpy.sign(diff_vec1.dot(dir_vec)) == numpy.sign(diff_vec0.dot(dir_vec)):
-                # one of the endpoints is the minimum distance
-                return min(float(numpy.linalg.norm(diff_vec0)), float(numpy.linalg.norm(diff_vec1)))
-            else:
-                # the point is "between" the two endpoints
-                return float(numpy.abs(diff_vec1.dot(norm_vec)))
-
         if self._coordinates is None:
             return float('inf')
         p_coord = _validate_point_array(point)[:2]
-        return min(_line_segment_distance(self._coordinates[i:i+2, :2], p_coord) for i in range(self._coordinates.shape[0]-1))
+        if self._coordinates.shape[0] == 1:
+            return float(numpy.linalg.norm(self._coordinates[0, :] - p_coord))
+        elif self._coordinates.shape[0] == 2:
+            return _line_segment_distance(self._coordinates[:, :2], p_coord)
+        else:
+            return min(_line_segment_distance(self._coordinates[i:i+2, :2], p_coord) for i in range(self._coordinates.shape[0]-2))
 
 
 class MultiLineString(GeometryObject):
@@ -1337,14 +1358,14 @@ class LinearRing(LineString):
             raise ValueError('The second dimension of coordinates must have between 2 and 4 entries. '
                              'Got shape {}'.format(coordinates.shape))
         if coordinates.shape[0] < 3:
-            logging.error('coordinates must consist of at least 3 points. '
+            logging.info('coordinates must consist of at least 3 points. '
                           'Got shape {}'.format(coordinates.shape))
         coordinates = _compress_identical(coordinates)
         if (coordinates[0, 0] != coordinates[-1, 0]) or \
                 (coordinates[0, 1] != coordinates[-1, 1]):
             coordinates = numpy.vstack((coordinates, coordinates[0, :]))
         if coordinates.shape[0] < 4:
-            logging.error(
+            logging.info(
                 'After compressing repeated (in sequence) points and ensuring first and '
                 'last point are the same, coordinates must contain at least 4 points. '
                 'Got shape {}'.format(coordinates.shape))
@@ -1612,6 +1633,10 @@ class LinearRing(LineString):
         grid_x, grid_y = _validate_grid_contain_arguments(grid_x, grid_y)
 
         out = numpy.zeros((grid_x.size, grid_y.size), dtype=numpy.bool)
+        if self._coordinates.shape[0] < 4:
+            # this is a degenerate linear ring with no interior
+            return out
+
         first_ind, last_ind, direction = self._contained_segment_data(grid_x, grid_y)
         if first_ind is None:
             return out  # it missed the whole bounding box
