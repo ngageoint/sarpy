@@ -9,7 +9,7 @@ import json
 from typing import Dict, List
 from datetime import datetime
 
-from sarpy.compliance import string_types
+from sarpy.compliance import string_types, int_func, integer_types
 
 
 __classification__ = "UNCLASSIFIED"
@@ -30,7 +30,8 @@ class LabelSchema(object):
 
     __slots__ = (
         '_version', '_labels', '_classification', '_version_date', '_subtypes',
-        '_parent_types', '_confidence_values', '_permitted_geometries')
+        '_parent_types', '_confidence_values', '_permitted_geometries',
+        '_integer_ids', '_maximum_id')
 
     def __init__(self, version='1.0', labels=None, version_date=None, classification="UNCLASSIFIED",
                  subtypes=None, confidence_values=None, permitted_geometries=None):
@@ -65,6 +66,8 @@ class LabelSchema(object):
         self._parent_types = None
         self._confidence_values = None
         self._permitted_geometries = None
+        self._integer_ids = True
+        self._maximum_id = None  # type: Union[None, int]
 
         self._version = version
         self.update_version_date(value=version_date)
@@ -112,6 +115,15 @@ class LabelSchema(object):
         """
 
         return self._classification
+
+    @property
+    def suggested_next_id(self):
+        """
+        None|int: If all ids are integer type, this returns max_id+1. Otherwise, this
+        yields None.
+        """
+
+        return None if self._maximum_id is None else self._maximum_id + 1
 
     @property
     def labels(self):
@@ -238,6 +250,26 @@ class LabelSchema(object):
 
     def __repr__(self):
         return json.dumps(self.to_dict())
+
+    def _inspect_new_id_for_integer(self, the_id):
+        if not self._integer_ids:
+            return  # nothing to do
+        if isinstance(the_id, string_types):
+            try:
+                the_id = int_func(the_id)
+            except Exception:
+                self._integer_ids = False
+                self._maximum_id = None
+
+        if isinstance(the_id, integer_types):
+            self._maximum_id = the_id if self._maximum_id is None else max(self._maximum_id, the_id)
+        else:
+            self._integer_ids = False
+            self._maximum_id = None
+
+    def _inspect_ids_for_integer(self):
+        for the_id in self._labels:
+            self._inspect_new_id_for_integer(the_id)
 
     @staticmethod
     def _find_inverted_fork(subtypes, labels):
@@ -369,6 +401,7 @@ class LabelSchema(object):
         self._labels = labels
         self._subtypes = subtypes
         self._construct_parent_types()
+        self._inspect_ids_for_integer()
 
     def _construct_parent_types(self):
         def iterate(t_key, parents):
@@ -429,7 +462,7 @@ class LabelSchema(object):
 
     def add_entry(self, the_id, the_name, the_parent=''):
         """
-        Adds a new entry. Note that leading or trialing blanks will be trimmed
+        Adds a new entry. Note that leading or trailing blanks will be trimmed
         from all input values.
 
         Parameters
