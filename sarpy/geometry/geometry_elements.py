@@ -1726,7 +1726,7 @@ class Polygon(GeometryObject):
         for entry in coordinates[1:]:
             self.add_inner_ring(entry)
         if self.self_intersection():
-            raise ValueError('Polygon has a self-intersection.')
+            logging.warning('Polygon has a self-intersection. This does not strictly comply with the geojson standard.')
 
     def self_intersection(self):
         """
