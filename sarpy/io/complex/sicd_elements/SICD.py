@@ -1174,5 +1174,7 @@ class SICDType(Serializable):
     def to_xml_bytes(self, urn=None, tag='SICD', check_validity=False, strict=DEFAULT_STRICT):
         if urn is None:
             urn = _SICD_SPECIFICATION_NAMESPACE_1_2
-        return super(SICDType, self).to_xml_bytes(
-            urn=urn, tag=tag, check_validity=check_validity, strict=strict)
+        return super(SICDType, self).to_xml_bytes(urn=urn, tag=tag, check_validity=check_validity, strict=strict)
+
+    def to_xml_string(self, urn=None, tag='SICD', check_validity=False, strict=DEFAULT_STRICT):
+        return self.to_xml_bytes(urn=urn, tag=tag, check_validity=check_validity, strict=strict).decode('utf-8')

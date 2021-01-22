@@ -454,6 +454,10 @@ class SIDDType(Serializable):
         _validate_xml_ns(xml_ns, ns_key)
         return super(SIDDType, cls).from_node(node, xml_ns, ns_key=ns_key, kwargs=kwargs)
 
-    def to_xml_bytes(self, urn=None, tag=None, check_validity=False, strict=DEFAULT_STRICT):
-        urn = self.get_xmlns_collection()
+    def to_xml_bytes(self, urn=None, tag='SIDD', check_validity=False, strict=DEFAULT_STRICT):
+        if urn is None:
+            urn = self.get_xmlns_collection()
         return super(SIDDType, self).to_xml_bytes(urn=urn, tag=tag, check_validity=check_validity, strict=strict)
+
+    def to_xml_string(self, urn=None, tag='SIDD', check_validity=False, strict=DEFAULT_STRICT):
+        return self.to_xml_bytes(urn=urn, tag=tag, check_validity=check_validity, strict=strict).decode('utf-8')
