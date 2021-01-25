@@ -4,6 +4,7 @@
 #
 # Licensed under MIT License.  See LICENSE.
 #
+
 import os
 import re
 import shutil
@@ -16,7 +17,7 @@ import pytest
 
 import sarpy.consistency.cphd_consistency
 
-GOOD_CPHD = os.path.join(os.environ['UNIT_TEST_DATA_DIR'], 'spotlight_example.cphd')
+GOOD_CPHD = os.path.join(os.environ['SARPY_TEST_PATH'], 'cphd', 'spotlight_example.cphd')
 DEFAULT_SCHEMA = sarpy.io.phase_history.cphd_schema.location()
 
 def make_elem(tag, text=None, children=None, namespace=None, attributes=None, **attrib):
@@ -45,9 +46,9 @@ def make_elem(tag, text=None, children=None, namespace=None, attributes=None, **
 
     Returns
     -------
-    retval: lxml.etree.ElementTree.Element
-
+    lxml.etree.ElementTree.Element
     """
+
     if attributes is None:
         attributes = {}
     if text is not None:
