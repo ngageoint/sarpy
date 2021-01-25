@@ -9,6 +9,7 @@ from setuptools import setup, find_packages
 from codecs import open
 
 
+
 # Get the long description from the README file
 here = os.path.abspath(os.path.dirname(__file__))
 # Get the long description from the README file
@@ -37,7 +38,8 @@ setup(name=parameters['__title__'],
       long_description=long_description,
       long_description_content_type='text/markdown',
       packages=find_packages(exclude=('*tests*', )),
-      package_data={'sarpy': ['*.xsd']},  # Schema files for SICD standard(s)
+      package_data={'sarpy': ['io/complex/sicd_schema/*.xsd',
+                              'io/phase_history/cphd_schema/*.xsd', ]},
       url=parameters['__url__'],
       author=parameters['__author__'],
       author_email=parameters['__email__'],  # The primary POC
