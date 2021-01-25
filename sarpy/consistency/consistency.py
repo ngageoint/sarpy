@@ -4,23 +4,31 @@
 #
 # Licensed under MIT License.  See LICENSE.
 #
+
+__classification__ = "UNCLASSIFIED"
+__author__ = "Nathan Bombaci, Valkyrie"
+
+
 import collections
 import contextlib
 import linecache
 import sys
 import textwrap
+from typing import List, Dict, Callable
 
 import numpy as np
 
 
 def _exception_stack():
-    """Helper function to parse call stack of an exception
+    """
+    Helper function to parse call stack of an exception
 
     Returns
     -------
-    list of dict
+    List[Dict]
         {'filename': str, 'lineno': int, 'line': str} for each traceback in the current exception
     """
+
     try:
         exctype, value, tb = sys.exc_info()
 
@@ -44,11 +52,13 @@ def _exception_stack():
 
 
 class ConsistencyChecker(object):
-    """Base class for implementing consistency checkers.
-
-    This class can be used to perform and log comparisons. Each comparison can be logged as
-    either an ``'Error'`` or a ``'Warning'``.
     """
+    Base class for implementing consistency checkers.
+
+    This class can be used to perform and log comparisons. Each comparison
+    can be logged as either an ``'Error'`` or a ``'Warning'``.
+    """
+
     def __init__(self):
         self._all_check_results = collections.OrderedDict()
         self._active_check = None
@@ -58,12 +68,14 @@ class ConsistencyChecker(object):
         self.funcs = [attr for attr in attrs if hasattr(attr, '__call__')]
 
     def check(self, func_name=None):
-        """Run checks
+        """
+        Run checks.
 
         Parameters
         ----------
-        func_name : str or list of str, optional
-            List of check functions to run.  If ommited all check functions will be run.
+        func_name: None|str|List[str]
+            List of check functions to run.  If omitted, then all check functions
+            will be run.
         """
         # run specified test(s) or all of them
         if func_name is None:
@@ -82,17 +94,19 @@ class ConsistencyChecker(object):
             self._run_check(func)
 
     def _run_check(self, func):
-        """Runs a single 'check_' method and store the results
+        """
+        Runs a single 'check_' method and store the results.
 
         Parameters
         ----------
-        func : method
+        func: Callable
             Run the supplied function
         """
 
-        self._active_check = {'doc': func.__doc__,
-                              'details': [],
-                              'passed': True}
+        self._active_check = {
+            'doc': func.__doc__,
+            'details': [],
+            'passed': True}
 
         # func() will populate self._active_check
         try:
@@ -109,7 +123,8 @@ class ConsistencyChecker(object):
         self._active_check = None
 
     def _add_item_to_current(self, severity, passed, message, details=''):
-        """Records the result of a test.
+        """
+        Records the result of a test.
 
         Parameters
         ----------
@@ -119,7 +134,7 @@ class ConsistencyChecker(object):
             The result of the test
         message : str
             Text message describing the test
-        details : str, optional
+        details : str
             Additional message details
         """
 
@@ -132,13 +147,14 @@ class ConsistencyChecker(object):
         self._active_check['passed'] &= passed
 
     def _format_assertion(self, e, depth=1):
-        """Format an assertion to human readable text
+        """
+        Format an assertion to human readable text.
 
         Parameters
         ----------
         e : Exception
             The exception to be formatted
-        depth : int, optional
+        depth : int
             Which level of the exception stack to format
 
         Returns
@@ -146,6 +162,7 @@ class ConsistencyChecker(object):
         formatted : str
             Formatted stack level containing line number and line text
         """
+
         stack = _exception_stack()
         frame = stack[depth]
         return ("line#{lineno}: {line}".format(lineno=frame['lineno'], line=frame['line'])
@@ -157,9 +174,10 @@ class ConsistencyChecker(object):
 
         Parameters
         ----------
-        details : str or None, optional
+        details : None|str
             Text describing the scope of checks
         """
+
         with self._crave('Error', details=details):
             yield
 
@@ -169,15 +187,17 @@ class ConsistencyChecker(object):
 
         Parameters
         ----------
-        details : str or None, optional
+        details : None|str
             Text describing the scope of checks
         """
+
         with self._crave('Warning', details=details):
             yield
 
     @contextlib.contextmanager
     def _crave(self, level, details, depth=2):
-        """Context manager for scoping checks
+        """
+        Context manager for scoping checks
 
         Parameters
         ----------
@@ -185,9 +205,10 @@ class ConsistencyChecker(object):
             Severity level of the checks.  eg. 'Error' or 'Warning'
         details : str|None
             Text describing the scope of checks
-        depth : int, optional
+        depth : int
             Depth in the exception stack to look for check information
         """
+
         try:
             yield
             if self._active_check is not None:
@@ -202,13 +223,15 @@ class ConsistencyChecker(object):
 
     @contextlib.contextmanager
     def precondition(self, details=None):
-        """Context manager for scoping conditional ('No-Op' level) checks
+        """
+        Context manager for scoping conditional ('No-Op' level) checks
 
         Parameters
         ----------
-        details : str or None, optional
+        details : None|str
             Text describing the scope of checks
         """
+
         try:
             yield
         except AssertionError as e:
@@ -220,17 +243,20 @@ class ConsistencyChecker(object):
             self._add_item_to_current('No-Op', True, self._format_assertion(e), details=details)
 
     def all(self):
-        """Returns all results
+        """
+        Returns all results.
 
         Returns
         -------
-        dict
+        Dict
             Unfiltered dictionary of all (Passed, Failed, Skpped) results
         """
+
         return self._all_check_results
 
     def failures(self, omit_passed_sub=False):
-        """Returns failure results
+        """
+        Returns failure results.
 
         Parameters
         ----------
@@ -239,9 +265,10 @@ class ConsistencyChecker(object):
 
         Returns
         -------
-        dict
+        Dict
             Dictionary containing only results of failed checks
         """
+
         retval = collections.OrderedDict()
         for k, v in self._all_check_results.items():
             if not v['passed']:
@@ -252,25 +279,27 @@ class ConsistencyChecker(object):
 
     def print_result(self, include_passed_asserts=True, color=True, include_passed_checks=False, width=120,
                      skip_detail=False, fail_detail=False, pass_detail=False):
-        """Print results to stdout
+        """
+        Print results to stdout.
 
         Parameters
         ----------
-        include_passed_asserts : bool, optional
+        include_passed_asserts : bool
             Print asserts which passed
-        color : bool, optional
+        color : bool
             Colorize the output
-        include_passed_checks : bool, optional
+        include_passed_checks : bool
             Print checks which passed
-        width : int, optional
+        width : int
             Output up to `width` columns
-        skip_detail : bool, optional
+        skip_detail : bool
             Include details of skips
-        fail_detail: bool, optional
+        fail_detail: bool
             Include details of failures
-        pass_detail: bool, optional
+        pass_detail: bool
             Include details of passes
         """
+
         to_print = collections.OrderedDict()
         for k, v in self._all_check_results.items():
             if include_passed_checks or not v['passed']:
@@ -314,15 +343,16 @@ class ConsistencyChecker(object):
 
 
 class Approx:
-    """Wrapper for performing approximate value comparisons
+    """
+    Wrapper for performing approximate value comparisons.
 
     Parameters
     ----------
     value : float
         The Value to be compared.
-    atol : float, optional
+    atol : float
         Absolute tolerance
-    rtol : float, optional
+    rtol : float
         Relative tolerance
 
     See Also
@@ -364,7 +394,8 @@ class Approx:
 
 
 def in_color(string, *color):
-    """Wrap a string with ANSI color control characters.
+    """
+    Wrap a string with ANSI color control characters.
 
     Parameters
     ----------
@@ -378,6 +409,7 @@ def in_color(string, *color):
     str
         ANSI colorized version of `string`
     """
+
     if color:
         start = ''.join(start_color(c) for c in color)
         return "{}{}{}".format(start, string, END_COLOR)
@@ -389,7 +421,8 @@ END_COLOR = "\x1b[0m"
 
 
 def start_color(color):
-    """Get an ANSI color control character.
+    """
+    Get an ANSI color control character.
 
     Parameters
     ----------

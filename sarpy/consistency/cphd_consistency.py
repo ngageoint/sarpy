@@ -4,14 +4,37 @@
 #
 # Licensed under MIT License.  See LICENSE.
 #
+
+__classification__ = "UNCLASSIFIED"
+__author__ = "Nathan Bombaci, Valkyrie"
+
+
+import logging
 import argparse
 import functools
 import os
 import re
+from typing import List
 
-import lxml.etree
 import numpy as np
-import pytest
+
+try:
+    import pytest
+except ImportError:
+    pytest = None
+    logging.critical(
+        'Functionality for CPHD consistency testing cannot proceed WITHOUT the pytest '
+        'package')
+
+try:
+    from lxml import etree
+except ImportError:
+    etree = None
+    pytest = None
+    logging.critical(
+        'Functionality for CPHD consistency testing cannot proceed WITHOUT the lxml '
+        'package')
+
 try:
     import shapely.geometry as shg
     have_shapely = True
@@ -29,15 +52,15 @@ def strip_namespace(root):
 
     Parameters
     ----------
-    root : lxml.etree.ElementTree
+    root : etree.ElementTree
         The element tree
 
     Returns
     -------
-    new_root : lxml.etree.ElementTree
+    etree.ElementTree
         The element tree
-
     """
+
     # strip namespace from each element
     for elem in root.iter():
         try:
@@ -47,14 +70,15 @@ def strip_namespace(root):
     # remove default namespace
     nsmap = root.nsmap
     nsmap.pop(None, None)
-    new_root = lxml.etree.Element(root.tag, nsmap)
+    new_root = etree.Element(root.tag, nsmap)
     new_root[:] = root[:]
 
     return new_root
 
 
 def _single_binary_format_string_to_dtype(form):
-    """Convert a CPHD datatype into a dtype
+    """
+    Convert a CPHD datatype into a dtype
 
     Parameters
     ----------
@@ -92,7 +116,8 @@ def _single_binary_format_string_to_dtype(form):
 
 
 def binary_format_string_to_dtype(format_string):
-    """Return the numpy.dtype for CPHD Binary Format string (table 10-2).
+    """
+    Return the numpy.dtype for CPHD Binary Format string (table 10-2).
 
     Parameters
     ----------
@@ -101,7 +126,7 @@ def binary_format_string_to_dtype(format_string):
 
     Returns
     -------
-    dtype: `numpy.dtype`
+    numpy.dtype
         The equivalent `numpy.dtype` of the PVP format string
         (e.g., numpy.int8, numpy.int32, numpy.complex64, etc.).
 
@@ -127,19 +152,20 @@ def binary_format_string_to_dtype(format_string):
 
 
 def parse_pvp_elem(elem):
-    """Reverse of `pvp_elem`.
+    """
+    Reverse of `pvp_elem`.
 
     Parameters
     ----------
-    elem : `lxml.etree.ElementTree.Element`
+    elem : etree.ElementTree.Element
         Node for the specified PVP parameter.
 
     Returns
     -------
-    result : tuple (str, dict)
+    Tuple
         Tuple (parameter_name, {``'offset'``:offset, ``'size'``:size, ``'dtype'``:dtype}). PVP element information.
-
     """
+
     if elem.tag == "AddedPVP":
         name = elem.find('Name').text
     else:
@@ -160,19 +186,19 @@ def read_header(file_handle):
 
     Parameters
     ----------
-    file_handle : Readable File object
-        i.e., ``file_handle = open(filename, 'rb')``.
+    file_handle
+    Readable File object, i.e., ``file_handle = open(filename, 'rb')``.
 
         Handle of the CPHD file that is to be read
 
     Returns
     -------
-    header : dict
+    Dict
         Dictionary containing CPHD header values.
-    root : `lxml.etree.ElementTree.Element`
+    etree.ElementTree.Element
         the root node of the CPHD XML
-
     """
+
     file_handle.seek(0)
     version = file_handle.readline().decode()
     assert version.startswith('CPHD/1.0')
@@ -198,18 +224,20 @@ def read_header(file_handle):
 
 
 def per_channel(method):
-    """Decorator to mark check methods as being applicable to each CPHD channel
+    """
+    Decorator to mark check methods as being applicable to each CPHD channel
 
     Parameters
     ----------
-    method : method
+    method : Callable
         Method to mark
 
     Returns
     -------
-    method
+    Callable
         Marked input `method`
     """
+
     method.per_channel = True
     return method
 
@@ -219,11 +247,12 @@ DEFAULT_SCHEMA = sarpy.io.phase_history.cphd_schema.location()
 
 
 def get_by_id(xml, path, identifier):
-    """Find a node with a specific child Identifier node
+    """
+    Find a node with a specific child Identifier node.
 
     Parameters
     ----------
-    xml : lxml.etree.Element
+    xml : etree.Element
         Root node of XPath expression
     path : str
         XPath expression relative to `xml`
@@ -232,22 +261,24 @@ def get_by_id(xml, path, identifier):
 
     Returns
     -------
-    lxml.etree.Element
+    etree.Element
         node found by path with an Identifier node with value of `identifier`
     """
+
     return xml.xpath('{path}/Identifier[text()="{identifier}"]/..'.format(path=path, identifier=identifier))[0]
 
 
 class CphdConsistency(con.ConsistencyChecker):
-    """ Check CPHD file structure and metadata for internal consistency
+    """
+    Check CPHD file structure and metadata for internal consistency
 
     Parameters
     ----------
-    cphdroot : lxml.etree.Element
+    cphdroot : etree.Element
         root CPHD XML node
-    pvps : array
+    pvps : np.ndarray
         numpy structured array of PVPs
-    header : dict
+    header : Dict
         CPHD header key value pairs
     filename : str
         Path to CPHD file (or None if not available)
@@ -256,9 +287,10 @@ class CphdConsistency(con.ConsistencyChecker):
     check_signal_data: bool
         Should the signal array be checked for invalid values
     """
+
     def __init__(self, cphdroot, pvps, header, filename, schema, check_signal_data):
         super(CphdConsistency, self).__init__()
-        self.xml = strip_namespace(lxml.etree.fromstring(lxml.etree.tostring(cphdroot)))
+        self.xml = strip_namespace(etree.fromstring(etree.tostring(cphdroot)))
         self.xml_with_ns = cphdroot
         self.pvps = pvps
         self.filename = filename
@@ -283,7 +315,8 @@ class CphdConsistency(con.ConsistencyChecker):
 
     @classmethod
     def from_file(cls, filename, schema, check_signal_data):
-        """ Create a CphdConsistency object from a CPHD file
+        """
+        Create a CphdConsistency object from a CPHD file.
 
         Parameters
         ----------
@@ -292,7 +325,7 @@ class CphdConsistency(con.ConsistencyChecker):
         schema : str
             Path to CPHD XML schema
         check_signal_data : bool
-            Should the signal array be checkfed for invalid values
+            Should the signal array be checked for invalid values
 
         Returns
         -------
@@ -302,17 +335,17 @@ class CphdConsistency(con.ConsistencyChecker):
         with open(filename, 'rb') as infile:
             try:
                 header = None
-                cphdroot = lxml.etree.parse(infile)
+                cphdroot = etree.parse(infile)
                 pvp_block = None
-            except lxml.etree.XMLSyntaxError:
+            except etree.XMLSyntaxError:
                 header = read_header(infile)
                 infile.seek(header['XML_BLOCK_BYTE_OFFSET'])
                 xml_block = infile.read(header['XML_BLOCK_SIZE'])
-                cphdroot = lxml.etree.fromstring(xml_block)
+                cphdroot = etree.fromstring(xml_block)
                 infile.seek(header['PVP_BLOCK_BYTE_OFFSET'])
                 pvp_block = infile.read(header['PVP_BLOCK_SIZE'])
 
-        cphdroot_no_ns = strip_namespace(lxml.etree.fromstring(lxml.etree.tostring(cphdroot)))
+        cphdroot_no_ns = strip_namespace(etree.fromstring(etree.tostring(cphdroot)))
         fields = [parse_pvp_elem(field) for field in list(cphdroot_no_ns.find('./PVP'))]
         dtype = np.dtype({'names': [name for name, _ in fields],
                           'formats': [info['dtype'] for _, info in fields],
@@ -331,7 +364,10 @@ class CphdConsistency(con.ConsistencyChecker):
         return cls(cphdroot, pvps, header, filename, schema=schema, check_signal_data=check_signal_data)
 
     def check_header_keys(self):
-        """Asserts that the required keys are in the header."""
+        """
+        Asserts that the required keys are in the header.
+        """
+
         with self.precondition():
             assert self.header is not None
             required_fields = set(['XML_BLOCK_SIZE', 'XML_BLOCK_BYTE_OFFSET',
@@ -351,18 +387,24 @@ class CphdConsistency(con.ConsistencyChecker):
                     assert 'SUPPORT_BLOCK_SIZE' in self.header
 
     def check_against_schema(self):
-        """The XML matches the schema."""
+        """
+        The XML matches the schema.
+        """
+
         with self.precondition():
             assert self.schema is not None
             with open(self.schema, mode='rb') as schema_file:
-                schema = lxml.etree.XMLSchema(lxml.etree.parse(schema_file))
+                schema = etree.XMLSchema(etree.parse(schema_file))
 
             with self.need("XML passes schema"):
                 assert schema.validate(self.xml_with_ns), schema.error_log
 
     @per_channel
     def check_channel_dwell_exist(self, channel_id, channel_node):
-        """The referenced Dwell and COD nodes exist."""
+        """
+        The referenced Dwell and COD nodes exist.
+        """
+
         cod_id = channel_node.findtext('./DwellTimes/CODId')
         with self.need("COD node exists"):
             assert self.xml.xpath('./Dwell/CODTime/Identifier[text()="{}"]/..'.format(cod_id))[0] is not None
@@ -373,7 +415,10 @@ class CphdConsistency(con.ConsistencyChecker):
 
     @per_channel
     def check_channel_antenna_exist(self, channel_id, channel_node):
-        """The antenna patterns and phase centers exist if declared."""
+        """
+        The antenna patterns and phase centers exist if declared.
+        """
+
         with self.precondition():
             assert channel_node.find('./Antenna') is not None
             for side in 'Tx', 'Rcv':
@@ -386,7 +431,10 @@ class CphdConsistency(con.ConsistencyChecker):
 
     @per_channel
     def check_channel_txrcv_exist(self, channel_id, channel_node):
-        """The declared TxRcv nodes exist."""
+        """
+        The declared TxRcv nodes exist.
+        """
+
         with self.precondition():
             assert channel_node.find('./TxRcv') is not None
             for tx_wf_id in channel_node.findall('./TxRcv/TxWFId'):
@@ -398,7 +446,10 @@ class CphdConsistency(con.ConsistencyChecker):
 
     @per_channel
     def check_time_monotonic(self, channel_id, channel_node):
-        """PVP times increase monotonically."""
+        """
+        PVP times increase monotonically.
+        """
+
         with self.precondition():
             assert self.pvps is not None
             assert channel_id in self.pvps
@@ -411,7 +462,10 @@ class CphdConsistency(con.ConsistencyChecker):
 
     @per_channel
     def check_rcv_after_tx(self, channel_id, channel_node):
-        """RcvTime is after TxTime."""
+        """
+        RcvTime is after TxTime.
+        """
+
         with self.precondition():
             assert self.pvps is not None
             assert channel_id in self.pvps
@@ -424,7 +478,10 @@ class CphdConsistency(con.ConsistencyChecker):
 
     @per_channel
     def check_rcv_finite(self, channel_id, channel_node):
-        """RcvTime and Pos are finite."""
+        """
+        RcvTime and Pos are finite.
+        """
+
         with self.precondition():
             assert self.pvps is not None
             assert channel_id in self.pvps
@@ -438,7 +495,10 @@ class CphdConsistency(con.ConsistencyChecker):
 
     @per_channel
     def check_channel_fxfixed(self, channel_id, channel_node):
-        """PVP agrees with FXFixed."""
+        """
+        PVP agrees with FXFixed.
+        """
+
         with self.precondition():
             assert self.pvps is not None
             assert channel_id in self.pvps
@@ -463,7 +523,10 @@ class CphdConsistency(con.ConsistencyChecker):
 
     @per_channel
     def check_channel_toafixed(self, channel_id, channel_node):
-        """PVP agrees with TOAFixed."""
+        """
+        PVP agrees with TOAFixed.
+        """
+
         with self.precondition():
             assert self.pvps is not None
             assert channel_id in self.pvps
@@ -488,7 +551,10 @@ class CphdConsistency(con.ConsistencyChecker):
 
     @per_channel
     def check_channel_srpfixed(self, channel_id, channel_node):
-        """PVP agrees with SRPFixed."""
+        """
+        PVP agrees with SRPFixed.
+        """
+
         with self.precondition():
             assert self.pvps is not None
             assert channel_id in self.pvps
@@ -506,7 +572,10 @@ class CphdConsistency(con.ConsistencyChecker):
                         assert not (con.Approx(np.nanmean(pvp['SRPPos'], axis=0), atol=1e-3) == pvp['SRPPos'])
 
     def check_file_fxfixed(self):
-        """The FXFixedCPHD element matches the rest of the file."""
+        """
+        The FXFixedCPHD element matches the rest of the file.
+        """
+
         fxc_vals = np.array([float(elem.text) for elem in self.xml.findall('./Channel/Parameters/FxC')])
         fxc_minmax = np.array([fxc_vals.min(), fxc_vals.max()])
         fxc_tol = con.Approx(fxc_vals.mean())
@@ -550,7 +619,10 @@ class CphdConsistency(con.ConsistencyChecker):
                         assert not ((fx1_min_max == fx1_tol) and (fx2_min_max == fx2_tol))
 
     def check_file_toafixed(self):
-        """The TOAFixedCPHD element matches the rest of the file."""
+        """
+        The TOAFixedCPHD element matches the rest of the file.
+        """
+
         with self.precondition():
             assert parsers.parse_bool(self.xml.find('./Channel/TOAFixedCPHD'))
             with self.need("All channels have TOAFixed"):
@@ -578,7 +650,10 @@ class CphdConsistency(con.ConsistencyChecker):
                         assert not ((toa1_min_max == toa1_tol) and (toa2_min_max == toa2_tol))
 
     def check_file_srpfixed(self):
-        """The SRPFixedCPHD element matches the rest of the file."""
+        """
+        The SRPFixedCPHD element matches the rest of the file.
+        """
+
         with self.precondition():
             assert parsers.parse_bool(self.xml.find('./Channel/SRPFixedCPHD'))
             with self.need("All channels have SRPFixed"):
@@ -601,7 +676,10 @@ class CphdConsistency(con.ConsistencyChecker):
 
     @per_channel
     def check_channel_signalnormal(self, channel_id, channel_node):
-        """PVP agrees with SignalNormal."""
+        """
+        PVP agrees with SignalNormal.
+        """
+
         with self.precondition():
             assert self.pvps is not None
             assert channel_id in self.pvps
@@ -617,7 +695,10 @@ class CphdConsistency(con.ConsistencyChecker):
 
     @per_channel
     def check_channel_fxc(self, channel_id, channel_node):
-        """PVP agrees with FxC."""
+        """
+        PVP agrees with FxC.
+        """
+
         with self.precondition():
             assert self.pvps is not None
             assert channel_id in self.pvps
@@ -628,7 +709,10 @@ class CphdConsistency(con.ConsistencyChecker):
 
     @per_channel
     def check_channel_fxbw(self, channel_id, channel_node):
-        """PVP agrees with FxBW."""
+        """
+        PVP agrees with FxBW.
+        """
+
         with self.precondition():
             assert self.pvps is not None
             assert channel_id in self.pvps
@@ -639,7 +723,10 @@ class CphdConsistency(con.ConsistencyChecker):
 
     @per_channel
     def check_channel_fxbwnoise(self, channel_id, channel_node):
-        """PVP agrees with FxBWNoise."""
+        """
+        PVP agrees with FxBWNoise.
+        """
+
         with self.precondition():
             assert self.pvps is not None
             assert channel_id in self.pvps
@@ -654,7 +741,10 @@ class CphdConsistency(con.ConsistencyChecker):
 
     @per_channel
     def check_channel_toasaved(self, channel_id, channel_node):
-        """PVP agrees with TOASaved."""
+        """
+        PVP agrees with TOASaved.
+        """
+
         with self.precondition():
             assert self.pvps is not None
             assert channel_id in self.pvps
@@ -665,7 +755,10 @@ class CphdConsistency(con.ConsistencyChecker):
 
     @per_channel
     def check_channel_global_txtime(self, channel_id, channel_node):
-        """PVP within global TxTime1 and TxTime2."""
+        """
+        PVP within global TxTime1 and TxTime2.
+        """
+
         with self.precondition():
             assert self.pvps is not None
             assert channel_id in self.pvps
@@ -677,7 +770,10 @@ class CphdConsistency(con.ConsistencyChecker):
 
     @per_channel
     def check_channel_global_fxminmax(self, channel_id, channel_node):
-        """PVP within global FxMin and FxMax."""
+        """
+        PVP within global FxMin and FxMax.
+        """
+
         with self.precondition():
             assert self.pvps is not None
             assert channel_id in self.pvps
@@ -689,7 +785,10 @@ class CphdConsistency(con.ConsistencyChecker):
 
     @per_channel
     def check_channel_global_toaswath(self, channel_id, channel_node):
-        """PVP within global TOASwath."""
+        """
+        PVP within global TOASwath.
+        """
+
         with self.precondition():
             assert self.pvps is not None
             assert channel_id in self.pvps
@@ -701,7 +800,10 @@ class CphdConsistency(con.ConsistencyChecker):
 
     @per_channel
     def check_channel_imagearea_polygon(self, channel_id, channel_node):
-        """Image area polygon is simple and consistent with X1Y1 and X2Y2."""
+        """
+        Image area polygon is simple and consistent with X1Y1 and X2Y2.
+        """
+
         polygon_node = channel_node.find('./ImageArea/Polygon')
         with self.precondition():
             assert polygon_node is not None
@@ -718,7 +820,10 @@ class CphdConsistency(con.ConsistencyChecker):
                     assert shg.Polygon(polygon).is_simple
 
     def check_global_imagearea_polygon(self):
-        """Scene Image area polygon is simple and consistent with X1Y1 and X2Y2."""
+        """
+        Scene Image area polygon is simple and consistent with X1Y1 and X2Y2.
+        """
+
         scene_coords_node = self.xml.find('./SceneCoordinates')
         polygon_node = scene_coords_node.find('./ImageArea/Polygon')
         with self.precondition():
@@ -753,18 +858,24 @@ class CphdConsistency(con.ConsistencyChecker):
         return polygon
 
     def check_geoinfo_polygons(self):
-        """GeoInfo polygons are simple polygons in clockwise order."""
+        """
+        GeoInfo polygons are simple polygons in clockwise order.
+        """
+
         geo_polygons = self.xml.findall('.//GeoInfo/Polygon')
         with self.precondition():
             assert geo_polygons
             with self.precondition():
                 assert have_shapely
                 for geo_polygon in geo_polygons:
-                    with self.need(lxml.etree.ElementTree(self.xml).getpath(geo_polygon)):
+                    with self.need(etree.ElementTree(self.xml).getpath(geo_polygon)):
                         self.get_polygon(geo_polygon, check=True, reverse=True, parser=parsers.parse_ll)
 
     def check_image_area_corner_points(self):
-        """The corner points represent a simple quadrilateral in clockwise order."""
+        """
+        The corner points represent a simple quadrilateral in clockwise order.
+        """
+
         with self.precondition():
             assert have_shapely
             iacp_node = self.xml.find('./SceneCoordinates/ImageAreaCornerPoints')
@@ -773,7 +884,10 @@ class CphdConsistency(con.ConsistencyChecker):
                 assert len(iacp) == 4
 
     def check_extended_imagearea_polygon(self):
-        """Scene extended area polygon is simple and consistent with X1Y1 and X2Y2."""
+        """
+        Scene extended area polygon is simple and consistent with X1Y1 and X2Y2.
+        """
+
         scene_coords_node = self.xml.find('./SceneCoordinates')
         extended_area_node = scene_coords_node.find('./ExtendedArea')
         with self.precondition():
@@ -802,7 +916,10 @@ class CphdConsistency(con.ConsistencyChecker):
 
     @per_channel
     def check_channel_imagearea_x1y1(self, channel_id, channel_node):
-        """Image area X1Y1 and X2Y2 work with global X1Y1 and X2Y2."""
+        """
+        Image area X1Y1 and X2Y2 work with global X1Y1 and X2Y2.
+        """
+
         with self.precondition():
             assert channel_node.find('./ImageArea') is not None
             x1y1 = parsers.parse_xy(channel_node.find('./ImageArea/X1Y1'))
@@ -815,7 +932,10 @@ class CphdConsistency(con.ConsistencyChecker):
                 assert x2y2 <= con.Approx(global_x2y2)
 
     def check_extended_imagearea_x1y1_x2y2(self):
-        """Extended image area contains the image area."""
+        """
+        Extended image area contains the image area.
+        """
+
         with self.precondition():
             assert self.xml.find('./SceneCoordinates/ExtendedArea') is not None
             extended_x1y1 = parsers.parse_xy(self.xml.find('./SceneCoordinates/ExtendedArea/X1Y1'))
@@ -829,7 +949,10 @@ class CphdConsistency(con.ConsistencyChecker):
 
     @per_channel
     def check_channel_signal_data(self, channel_id, channel_node):
-        """Sample data is all finite."""
+        """
+        Sample data is all finite.
+        """
+
         with self.precondition():
             assert self.header is not None
             format_string = self.xml.findtext('./Data/SignalArrayFormat')
@@ -854,7 +977,10 @@ class CphdConsistency(con.ConsistencyChecker):
                                                         order='C')))
 
     def check_pad_header_xml(self):
-        """The pad between the header and XML is 0."""
+        """
+        The pad between the header and XML is 0.
+        """
+
         with self.precondition():
             assert self.header is not None
             with self.want("XML appears early in the file"):
@@ -869,7 +995,10 @@ class CphdConsistency(con.ConsistencyChecker):
                     assert np.all(np.frombuffer(before_xml[first_form_feed+2:], dtype=np.uint8) == 0)
 
     def check_pad_after_xml(self):
-        """The pad after XML is 0."""
+        """
+        The pad after XML is 0.
+        """
+
         with self.precondition():
             assert self.header is not None
             assert self.filename is not None
@@ -889,7 +1018,10 @@ class CphdConsistency(con.ConsistencyChecker):
                 assert np.all(np.frombuffer(bytes_after_xml[2:], dtype=np.uint8) == 0)
 
     def check_pad_after_support(self):
-        """The pad after support arrays is 0."""
+        """
+        The pad after support arrays is 0.
+        """
+
         with self.precondition():
             assert self.header is not None
             assert self.filename is not None
@@ -904,7 +1036,10 @@ class CphdConsistency(con.ConsistencyChecker):
                 assert np.all(np.frombuffer(bytes_after_support, dtype=np.uint8) == 0)
 
     def check_pad_after_pvp(self):
-        """The pad after PVPs is 0."""
+        """
+        The pad after PVPs is 0.
+        """
+
         with self.precondition():
             assert self.header is not None
             assert self.filename is not None
@@ -926,7 +1061,10 @@ class CphdConsistency(con.ConsistencyChecker):
                 assert file_size == self.header['SIGNAL_BLOCK_BYTE_OFFSET'] + self.header['SIGNAL_BLOCK_SIZE']
 
     def check_scene_plane_axis_vectors(self):
-        """Scene plane axis vectors are orthonormal."""
+        """
+        Scene plane axis vectors are orthonormal.
+        """
+
         planar_node = self.xml.find('./SceneCoordinates/ReferenceSurface/Planar')
         with self.precondition():
             assert planar_node is not None
@@ -940,7 +1078,10 @@ class CphdConsistency(con.ConsistencyChecker):
                 assert np.dot(uiax, uiay) == con.Approx(0, atol=1e-6)
 
     def check_global_txtime_limits(self):
-        """The Global TxTime1 and TxTime2 match the PVPs."""
+        """
+        The Global TxTime1 and TxTime2 match the PVPs.
+        """
+
         with self.precondition():
             assert self.pvps is not None
             txtime1_chan = min(np.nanmin(x['TxTime']) for x in self.pvps.values())
@@ -951,7 +1092,10 @@ class CphdConsistency(con.ConsistencyChecker):
                 assert txtime2_chan == con.Approx(float(self.xml.findtext('./Global/Timeline/TxTime2')))
 
     def check_global_fx_band(self):
-        """The Global FXBand matches the PVPs."""
+        """
+        The Global FXBand matches the PVPs.
+        """
+
         with self.precondition():
             assert self.pvps is not None
             fx1min_chan = min(np.nanmin(x['FX1']) for x in self.pvps.values())
@@ -962,7 +1106,10 @@ class CphdConsistency(con.ConsistencyChecker):
                 assert fx2max_chan == con.Approx(float(self.xml.findtext('./Global/FxBand/FxMax')))
 
     def check_global_toaswath(self):
-        """The Global TOASwath matches the PVPs."""
+        """
+        The Global TOASwath matches the PVPs.
+        """
+
         with self.precondition():
             assert self.pvps is not None
             toa1min_chan = min(np.nanmin(x['TOA1']) for x in self.pvps.values())
@@ -974,11 +1121,12 @@ class CphdConsistency(con.ConsistencyChecker):
 
 
 def main(args=None):
-    """CphdConsistency CLI tool.  Prints results to stdout.
+    """
+    CphdConsistency CLI tool.  Prints results to stdout.
 
     Parameters
     ----------
-    args: list or None, optional
+    args: None|List[str]
         List of CLI argument strings.  If None use sys.argv
     """
     parser = argparse.ArgumentParser('CPHD Consistency')
