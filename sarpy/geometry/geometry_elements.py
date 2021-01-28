@@ -282,7 +282,7 @@ class Feature(_Jsonable):
         self.geometry = geometry
         self.properties = properties
 
-        if uid is None:
+        if uid is None and isinstance(properties, dict):
             uid = properties.get('identifier', None)
 
         if uid is None:
@@ -418,7 +418,8 @@ class FeatureCollection(_Jsonable):
     def __getitem__(self, item):
         # type: (Any) -> Union[Feature, List[Feature]]
         if isinstance(item, string_types):
-            return self._feature_dict[item]
+            index = self._feature_dict[item]
+            return self._features[index]
         return self._features[item]
 
     def __delitem__(self, item):
@@ -1398,6 +1399,9 @@ class LinearRing(LineString):
         def do_min_val_value(segment, val1, val2):
             segment['min_value'] = min(val1, val2, segment['min_value'])
             segment['max_value'] = max(val1, val2, segment['max_value'])
+
+        if len(coords) == 1:
+            return ({'min': coords[0], 'max': coords[0], 'inds': [0, ], 'min_value': numpy.inf, 'max_value': -numpy.inf}, )
 
         inds = numpy.argsort(coords[:-1])
         segments = []

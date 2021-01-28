@@ -18,6 +18,7 @@ from typing import Union, List, Any
 # noinspection PyProtectedMember
 from sarpy.geometry.geometry_elements import _Jsonable, FeatureCollection, Feature
 from sarpy.annotation.schema_processing import LabelSchema
+from sarpy.compliance import string_types
 
 
 class AnnotationMetadata(_Jsonable):
@@ -227,7 +228,8 @@ class Annotation(Feature):
         parent_dict['type'] = self.type
         parent_dict['id'] = self.uid
         parent_dict['geometry'] = self.geometry.to_dict()
-        parent_dict['properties'] = self.properties.to_dict()
+        if self.properties is not None:
+            parent_dict['properties'] = self.properties.to_dict()
         return parent_dict
 
     def add_annotation_metadata(self, value):
@@ -258,26 +260,46 @@ class AnnotationList(FeatureCollection):
     def features(self, features):
         if features is None:
             self._features = None
+            self._feature_dict = None
             return
 
         if not isinstance(features, list):
             raise TypeError('features must be a list of Annotations. Got {}'.format(type(features)))
 
-        self._features = []
         for entry in features:
             if isinstance(entry, Annotation):
-                self._features.append(entry)
+                self.add_feature(entry)
             elif isinstance(entry, dict):
-                self._features.append(Annotation.from_dict(entry))
+                self.add_feature(Annotation.from_dict(entry))
             else:
                 raise TypeError(
                     'Entries of features are required to be instances of Annotation or '
                     'dictionary to be deserialized. Got {}'.format(type(entry)))
 
+    def add_feature(self, feature):
+        """
+        Add an annotation.
+
+        Parameters
+        ----------
+        feature : Annotation
+        """
+
+        if not isinstance(feature, Annotation):
+            raise TypeError('This requires an Annotation instance, got {}'.format(type(feature)))
+
+        if self._features is None:
+            self._feature_dict = {feature.uid: 0}
+            self._features = [feature, ]
+        else:
+            self._feature_dict[feature.uid] = len(self._features)
+            self._features.append(feature)
+
     def __getitem__(self, item):
         # type: (Any) -> Union[Annotation, List[Annotation]]
-        if isinstance(item, str):
-            return self._feature_dict[item]
+        if isinstance(item, string_types):
+            index = self._feature_dict[item]
+            return self._features[index]
         return self._features[item]
 
 
