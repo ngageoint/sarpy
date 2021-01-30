@@ -557,7 +557,10 @@ class LabelSchema(object):
             # remove the_id from it's current subtype
             subtypes[current_parent].remove(the_id)
             # add it to the new one
-            subtypes[the_parent].append(the_id)
+            if the_parent in subtypes:
+                subtypes[the_parent].append(the_id)
+            else:
+                subtypes[the_parent] = [the_id, ]
             try:
                 self.set_labels_and_subtypes(labels, subtypes)
             except (ValueError, KeyError) as e:
