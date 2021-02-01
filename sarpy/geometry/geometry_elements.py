@@ -646,10 +646,15 @@ class GeometryCollection(Geometry):
                 'geometries must be None or a list of Geometry objects. Got type {}'.format(type(geometries)))
         elif len(geometries) < 2:
             logging.warning('GeometryCollection should contain a list of geometries with length greater than 1.')
+
+        self._geometries = []
         for entry in geometries:
+            if isinstance(entry, dict):
+                entry = Geometry.from_dict(entry)
             if not isinstance(entry, Geometry):
                 raise TypeError(
                     'geometries must be a list of Geometry objects. Got an element of type {}'.format(type(entry)))
+            self._geometries.append(entry)
 
     @classmethod
     def from_dict(cls, geometry):
@@ -657,16 +662,18 @@ class GeometryCollection(Geometry):
         typ = geometry.get('type', None)
         if typ != cls._type:
             raise ValueError('GeometryCollection cannot be constructed from {}'.format(geometry))
+
         geometries = []
-        for entry in geometry['geometries']:
-            if isinstance(entry, Geometry):
-                geometries.append(entry)
-            elif isinstance(entry, dict):
-                geometries.append(Geometry.from_dict(entry))
-            else:
-                raise TypeError(
-                    'The geometries attribute must contain either a Geometry or json serialization of a Geometry. '
-                    'Got an entry of type {}'.format(type(entry)))
+        if geometry['geometries'] is not None:
+            for entry in geometry['geometries']:
+                if isinstance(entry, Geometry):
+                    geometries.append(entry)
+                elif isinstance(entry, dict):
+                    geometries.append(Geometry.from_dict(entry))
+                else:
+                    raise TypeError(
+                        'The geometries attribute must contain either a Geometry or json serialization of a Geometry. '
+                        'Got an entry of type {}'.format(type(entry)))
         return cls(geometries)
 
     def to_dict(self, parent_dict=None):
@@ -1066,7 +1073,11 @@ class LineString(GeometryObject):
         else:
             mins = numpy.min(self.coordinates, axis=0)
             maxs = numpy.min(self.coordinates, axis=0)
-            return mins.tolist().extend(maxs.tolist())
+            min_list = mins.tolist()
+            max_list = maxs.tolist()
+            assert(isinstance(min_list, list))
+            assert (isinstance(max_list, list))
+            return min_list.extend(max_list)
 
     def get_coordinate_list(self):
         if self._coordinates is None:
@@ -1349,7 +1360,6 @@ class LinearRing(LineString):
             self._segmentation = None
             self._diffs = None
             return
-
         if not isinstance(coordinates, numpy.ndarray):
             coordinates = numpy.array(coordinates, dtype=numpy.float64)
         if len(coordinates.shape) != 2:
