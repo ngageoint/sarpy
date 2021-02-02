@@ -480,7 +480,7 @@ class CSKDetails(object):
             # update grid.col
             col_ss = abs(vel_ca*ss_az_s*drate_sf_poly[0])
             sicd.Grid.Col.SS = col_ss
-            col_bw = min(band_dict[band_name]['Azimuth Focusing Bandwidth']*ss_az_s, 1) / col_ss
+            col_bw = min(band_dict[band_name]['Azimuth Focusing Transition Bandwidth']*ss_az_s, 1) / col_ss
             sicd.Grid.Col.ImpRespBW = col_bw
             # update inca
             sicd.RMA.INCA.DRateSFPoly = Poly2DType(Coefs=numpy.reshape(drate_sf_poly, (-1, 1)))

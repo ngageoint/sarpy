@@ -1,6 +1,7 @@
 # This details the important differences introduced in sarpy 1.1
 
-* .47 - Top level structures for SICD, SIDD, and CPHD should
+* .47 - Modification of extracted CSK metadata for
+        Top level structures for SICD, SIDD, and CPHD better handle default xml tag
         Change to aperture_filter for sarpy_apps usage
         Changes and fixes in geometry_elements for sarpy_apps usage
 * .46 - Valkyrie added CPHD consistency checked and some CPHD associated unit tests
