@@ -12,14 +12,13 @@ from uuid import uuid4
 from typing import Union, List, Tuple, Dict, Callable, Any
 import json
 import logging
-import sys
 
 import numpy
 
-string_types = str
-if sys.version_info[0] < 3:
-    # noinspection PyUnresolvedReferences
-    string_types = basestring
+from sarpy.compliance import string_types, integer_types
+
+##########
+# utility functions
 
 def _compress_identical(coords):
     """
@@ -90,6 +89,112 @@ def _get_kml_coordinate_string(coordinates, transform):
         '{0:0.9f},{1:0.9f}'.format(*el[:2]) for el in transform(coordinates))
 
 
+def _line_segments_intersect(pt0, pt1, pt2, pt3):
+    """
+    Does line segment defined by points 0 & 1 internally intersect with line
+    segment defined by points 2 & 3? For these purposes, co-linearity will be
+    considered False.
+
+    Parameters
+    ----------
+    pt0 : numpy.ndarray|list|tuple
+    pt1 : numpy.ndarray|list|tuple
+    pt2 : numpy.ndarray|list|tuple
+    pt3 : numpy.ndarray|list|tuple
+
+    Returns
+    -------
+    bool
+    """
+
+    def validate(entry):
+        # type: (Any) -> numpy.ndarray
+        if not isinstance(entry, numpy.ndarray):
+            entry = numpy.array(entry)
+        if entry.ndim != 1 or entry.size != 2:
+            raise ValueError('all inputs must be numpy array of shape (2, )')
+        return entry
+
+    P = validate(pt0)  # end point fo one segment
+    R = validate(pt1) - P  # direction vector for segment (one end to the other)
+    Q = validate(pt2)  # end point for the other line segment
+    S = validate(pt3) - Q  # direction vector for segment (one end to the other)
+
+    if numpy.linalg.norm(R) == 0 or numpy.linalg.norm(S) == 0:
+        # one of these is a trivial line segment. No legitimate intersection is possible.
+        return False
+
+    dir_cross = float(numpy.cross(R, S)) # the scalar cross product of the direction vectors
+
+    if dir_cross == 0:
+        # direction vectors are parallel, we will consider all of this as False
+        return False
+
+    end_cross_0 = float(numpy.cross(Q-P, S))
+    end_cross_1 = float(numpy.cross(Q-P, R))
+
+    t = end_cross_0/dir_cross
+    u = end_cross_1/dir_cross
+    return (0 <= t <= 1 and 0 < u < 1) or (0 < t < 1 and 0 <= u <= 1)
+
+
+def _validate_point_array(point):
+    """
+    Extract array from point, or verify the input is consistent with point
+    definition.
+
+    Parameters
+    ----------
+    point : Point|numpy.ndarray|Tuple|List
+
+    Returns
+    -------
+    numpy.ndarray
+        A numpy.ndarray of shape `(N, )` with `N >= 2`.
+    """
+
+    if isinstance(point, Point):
+        return point.coordinates
+    if not isinstance(point, numpy.ndarray):
+        point = numpy.array(point, dtype='float64')
+    if point.ndim != 1 or point.size < 2:
+        raise ValueError('point input must yield a one-dimensional array of at least two elements.')
+    return point
+
+
+def _line_segment_distance(line_coord, coord):
+    """
+    Get the (2-d) distance from the point given by coord from the line segment defined by line_coord.
+
+    Parameters
+    ----------
+    line_coord : numpy.ndarray
+        This is implicitly assumed to be shape (2, 2).
+    coord : numpy.ndarray
+        This is implicitly assumed to be shape (2,).
+
+    Returns
+    -------
+    float
+    """
+
+    dir_vec = line_coord[1, :] - line_coord[0, :]  # direction vector for segment
+    dir_vec /= numpy.linalg.norm(dir_vec)
+    norm_vec = numpy.array([dir_vec[1], -dir_vec[0]])
+    diff_vec0 = coord - line_coord[0, :]  # vector from first end to point
+    diff_vec1 = coord - line_coord[1, :]  # vector from last end to point
+
+    if numpy.sign(diff_vec1.dot(dir_vec)) == numpy.sign(diff_vec0.dot(dir_vec)):
+        # one of the endpoints is the minimum distance
+        return min(float(numpy.linalg.norm(diff_vec0)), float(numpy.linalg.norm(diff_vec1)))
+    else:
+        # the point is "between" the two endpoints
+        return float(numpy.abs(diff_vec1.dot(norm_vec)))
+
+
+###############
+# Geojson base object
+
 class _Jsonable(object):
     """
     Abstract class for json serializability.
@@ -126,7 +231,7 @@ class _Jsonable(object):
 
     def to_dict(self, parent_dict=None):
         """
-        Deserialize from json.
+        Serialize to json.
 
         Parameters
         ----------
@@ -158,6 +263,9 @@ class _Jsonable(object):
         return the_type.from_dict(self.to_dict())
 
 
+#######
+# Geojson object definitions
+
 class Feature(_Jsonable):
     """
     Generic feature class - basic geojson functionality. Should generally be extended
@@ -174,7 +282,7 @@ class Feature(_Jsonable):
         self.geometry = geometry
         self.properties = properties
 
-        if uid is None:
+        if uid is None and isinstance(properties, dict):
             uid = properties.get('identifier', None)
 
         if uid is None:
@@ -310,8 +418,26 @@ class FeatureCollection(_Jsonable):
     def __getitem__(self, item):
         # type: (Any) -> Union[Feature, List[Feature]]
         if isinstance(item, string_types):
-            return self._feature_dict[item]
+            index = self._feature_dict[item]
+            return self._features[index]
         return self._features[item]
+
+    def __delitem__(self, item):
+        # type: (Any) -> None
+        if self._features is None:
+            return
+
+        if isinstance(item, Feature):
+            item = Feature.uid
+        if not(isinstance(item, string_types) or isinstance(item, integer_types)):
+            raise ValueError('Unexpected type {}'.format(type(item)))
+
+        if isinstance(item, string_types):
+            index = self._feature_dict[item]
+            del self._features[index]
+        else:
+            del self._features[item]
+        self._rebuild_feature_dict()
 
     @property
     def features(self):
@@ -344,6 +470,11 @@ class FeatureCollection(_Jsonable):
                 raise TypeError(
                     'Entries of features are required to be instances of Feature or '
                     'dictionary to be deserialized. Got {}'.format(type(entry)))
+
+    def _rebuild_feature_dict(self):
+        self._feature_dict = {}
+        for i, entry in enumerate(self._features):
+            self._feature_dict[entry.uid] = i
 
     @classmethod
     def from_dict(cls, the_json):
@@ -515,10 +646,15 @@ class GeometryCollection(Geometry):
                 'geometries must be None or a list of Geometry objects. Got type {}'.format(type(geometries)))
         elif len(geometries) < 2:
             logging.warning('GeometryCollection should contain a list of geometries with length greater than 1.')
+
+        self._geometries = []
         for entry in geometries:
+            if isinstance(entry, dict):
+                entry = Geometry.from_dict(entry)
             if not isinstance(entry, Geometry):
                 raise TypeError(
                     'geometries must be a list of Geometry objects. Got an element of type {}'.format(type(entry)))
+            self._geometries.append(entry)
 
     @classmethod
     def from_dict(cls, geometry):
@@ -526,16 +662,18 @@ class GeometryCollection(Geometry):
         typ = geometry.get('type', None)
         if typ != cls._type:
             raise ValueError('GeometryCollection cannot be constructed from {}'.format(geometry))
+
         geometries = []
-        for entry in geometry['geometries']:
-            if isinstance(entry, Geometry):
-                geometries.append(entry)
-            elif isinstance(entry, dict):
-                geometries.append(Geometry.from_dict(entry))
-            else:
-                raise TypeError(
-                    'The geometries attribute must contain either a Geometry or json serialization of a Geometry. '
-                    'Got an entry of type {}'.format(type(entry)))
+        if geometry['geometries'] is not None:
+            for entry in geometry['geometries']:
+                if isinstance(entry, Geometry):
+                    geometries.append(entry)
+                elif isinstance(entry, dict):
+                    geometries.append(Geometry.from_dict(entry))
+                else:
+                    raise TypeError(
+                        'The geometries attribute must contain either a Geometry or json serialization of a Geometry. '
+                        'Got an entry of type {}'.format(type(entry)))
         return cls(geometries)
 
     def to_dict(self, parent_dict=None):
@@ -649,6 +787,22 @@ class GeometryObject(Geometry):
 
         raise NotImplementedError
 
+    def get_minimum_distance(self, point):
+        """
+        Get the minimum distance from the point, to the point or line segments of
+        the given geometrical shape. This just assumes two-dimensional coordinates.
+
+        Parameters
+        ----------
+        point : Point|numpy.ndarray|tuple|list
+
+        Returns
+        -------
+        float
+        """
+
+        raise NotImplementedError
+
 
 class Point(GeometryObject):
     """
@@ -726,6 +880,14 @@ class Point(GeometryObject):
     def apply_projection(self, proj_method):
         # type: (callable) -> Point
         return Point(coordinates=proj_method(self._coordinates))
+
+    def get_minimum_distance(self, point):
+        if self._coordinates is None:
+            return None
+
+        point = _validate_point_array(point)
+        diff = self.coordinates[:2] - point[:2]
+        return float(numpy.linalg.norm(diff))
 
 
 class MultiPoint(GeometryObject):
@@ -818,6 +980,12 @@ class MultiPoint(GeometryObject):
         # type: (callable) -> MultiPoint
         return MultiPoint(coordinates=[pt.apply_projection(proj_method) for pt in self.points])
 
+    def get_minimum_distance(self, point):
+        if self._points is None:
+            return float('inf')
+
+        return min(entry.get_minimum_distance(point) for entry in self.points)
+
 
 class LineString(GeometryObject):
     """
@@ -832,7 +1000,7 @@ class LineString(GeometryObject):
 
         Parameters
         ----------
-        coordinates : None|numpy.ndarray|List[float]|LineString|LinearRing
+        coordinates : None|numpy.ndarray|List[List[float]]|LineString|LinearRing
         """
 
         self._coordinates = None
@@ -869,15 +1037,35 @@ class LineString(GeometryObject):
                 'The second dimension of coordinates must have between 2 and 4 entries. '
                 'Got shape {}'.format(coordinates.shape))
         if coordinates.shape[0] < 2:
-            logging.error(
+            logging.info(
                 'LineString coordinates should consist of at least 2 points. '
                 'Got shape {}'.format(coordinates.shape))
         coordinates = _compress_identical(coordinates)
         if coordinates.shape[0] < 2:
-            logging.error(
+            logging.info(
                 'coordinates should consist of at least 2 points after suppressing '
                 'consecutive repeated points. Got shape {}'.format(coordinates.shape))
         self._coordinates = coordinates
+
+    def self_intersection(self):
+        """
+        Does this self intersect?
+
+        Returns
+        -------
+        bool
+        """
+
+        if self.coordinates.shape[0] <= 3:
+            return False
+
+        for i in range(self.coordinates.shape[0] - 3):
+            for j in range(i+1, self.coordinates.shape[0] - 2):
+                result = _line_segments_intersect(
+                    self.coordinates[i, :], self.coordinates[i+1, :], self.coordinates[j, :], self.coordinates[j+1, :])
+                if result:
+                    return True
+        return False
 
     def get_bbox(self):
         if self._coordinates is None:
@@ -885,7 +1073,11 @@ class LineString(GeometryObject):
         else:
             mins = numpy.min(self.coordinates, axis=0)
             maxs = numpy.min(self.coordinates, axis=0)
-            return mins.tolist().extend(maxs.tolist())
+            min_list = mins.tolist()
+            max_list = maxs.tolist()
+            assert(isinstance(min_list, list))
+            assert (isinstance(max_list, list))
+            return min_list.extend(max_list)
 
     def get_coordinate_list(self):
         if self._coordinates is None:
@@ -923,6 +1115,17 @@ class LineString(GeometryObject):
         # type: (callable) -> LineString
         return LineString(coordinates=proj_method(self.coordinates))
 
+    def get_minimum_distance(self, point):
+        if self._coordinates is None:
+            return float('inf')
+        p_coord = _validate_point_array(point)[:2]
+        if self._coordinates.shape[0] == 1:
+            return float(numpy.linalg.norm(self._coordinates[0, :] - p_coord))
+        elif self._coordinates.shape[0] == 2:
+            return _line_segment_distance(self._coordinates[:, :2], p_coord)
+        else:
+            return min(_line_segment_distance(self._coordinates[i:i+2, :2], p_coord) for i in range(self._coordinates.shape[0]-2))
+
 
 class MultiLineString(GeometryObject):
     """
@@ -937,7 +1140,7 @@ class MultiLineString(GeometryObject):
 
         Parameters
         ----------
-        coordinates : None|List[numpy.ndarray]|List[List[int]]|List[LineString]|MultiLineString
+        coordinates : None|List[numpy.ndarray]|List[List[List[float]]]|List[LineString]|MultiLineString
         """
 
         self._lines = None
@@ -1025,13 +1228,18 @@ class MultiLineString(GeometryObject):
         # type: (callable) -> MultiLineString
         return MultiLineString(coordinates=[line.apply_projection(proj_method) for line in self.lines])
 
+    def get_minimum_distance(self, point):
+        if self._lines is None:
+            return float('inf')
+        return min(entry.get_minimum_distance(point) for entry in self.lines)
+
 
 class LinearRing(LineString):
     """
     This is not directly a valid geojson member, but plays the role of a single
     polygonal element, and is only used as a Polygon constituent.
     """
-    __slots__ = ('_coordinates', '_diffs', '_bounding_box', '_segmentation')
+    __slots__ = ('_coordinates', '_diffs', '_bounding_box', '_segmentation', '_orientation')
     _type = 'LinearRing'
 
     def __init__(self, coordinates=None):
@@ -1039,13 +1247,14 @@ class LinearRing(LineString):
 
         Parameters
         ----------
-        coordinates : None|numpy.ndarray|List[float]|LinearRing|LineString
+        coordinates : None|numpy.ndarray|List[List[float]]|LinearRing|LineString
         """
 
         self._coordinates = None
         self._diffs = None
         self._bounding_box = None
         self._segmentation = None
+        self._orientation = 1
         if isinstance(coordinates, (LineString, LinearRing)):
             coordinates = coordinates.get_coordinate_list()
         super(LinearRing, self).__init__(coordinates)
@@ -1060,6 +1269,15 @@ class LinearRing(LineString):
         if self._coordinates is None:
             return
         self.coordinates = self._coordinates[::-1, :]
+        self._orientation *= -1
+
+    @property
+    def orientation(self):
+        """
+        int: +1 for positive orientation (counter-clockwise) and -1 for negative orientation (clockwise).
+        """
+
+        return self._orientation
 
     @property
     def bounding_box(self):
@@ -1089,17 +1307,17 @@ class LinearRing(LineString):
     def get_area(self):
         """
         Gets the area of the polygon. If a polygon is self-intersecting, then this
-        result may be pathological. If this is positive, then the orientation is
-        counter-clockwise. If this is negative, then the orientation is clockwise.
-        If zero, then this polygon is degenerate.
+        result may be pathological. A positive value represents a polygon with positive
+        orientation, while a negative value represents a polygon with negative orientation.
 
         Returns
         -------
         float
         """
 
-        return float(0.5*numpy.sum(self._coordinates[:-1, 0]*self._coordinates[1:, 1] -
-                                   self._coordinates[1:, 0]*self._coordinates[:-1, 1]))
+        return float(
+            0.5*numpy.sum(self._coordinates[:-1, 0]*self._coordinates[1:, 1] -
+                          self._coordinates[1:, 0]*self._coordinates[:-1, 1]))
 
     def get_centroid(self):
         """
@@ -1142,7 +1360,6 @@ class LinearRing(LineString):
             self._segmentation = None
             self._diffs = None
             return
-
         if not isinstance(coordinates, numpy.ndarray):
             coordinates = numpy.array(coordinates, dtype=numpy.float64)
         if len(coordinates.shape) != 2:
@@ -1152,14 +1369,14 @@ class LinearRing(LineString):
             raise ValueError('The second dimension of coordinates must have between 2 and 4 entries. '
                              'Got shape {}'.format(coordinates.shape))
         if coordinates.shape[0] < 3:
-            logging.error('coordinates must consist of at least 3 points. '
+            logging.info('coordinates must consist of at least 3 points. '
                           'Got shape {}'.format(coordinates.shape))
         coordinates = _compress_identical(coordinates)
         if (coordinates[0, 0] != coordinates[-1, 0]) or \
                 (coordinates[0, 1] != coordinates[-1, 1]):
             coordinates = numpy.vstack((coordinates, coordinates[0, :]))
         if coordinates.shape[0] < 4:
-            logging.error(
+            logging.info(
                 'After compressing repeated (in sequence) points and ensuring first and '
                 'last point are the same, coordinates must contain at least 4 points. '
                 'Got shape {}'.format(coordinates.shape))
@@ -1172,8 +1389,12 @@ class LinearRing(LineString):
         self._diffs = coordinates[1:, :] - coordinates[:-1, :]
         self._segmentation = {
             'x': self._construct_segmentation(coordinates[:, 0], coordinates[:, 1]),
-            'y': self._construct_segmentation(coordinates[:, 1], coordinates[:, 0])
-        }
+            'y': self._construct_segmentation(coordinates[:, 1], coordinates[:, 0])}
+        signed_area = self.get_area()
+        if signed_area >= 0:
+            self._orientation = 1
+        else:
+            self._orientation = -1
 
     @staticmethod
     def _construct_segmentation(coords, o_coords):
@@ -1188,6 +1409,9 @@ class LinearRing(LineString):
         def do_min_val_value(segment, val1, val2):
             segment['min_value'] = min(val1, val2, segment['min_value'])
             segment['max_value'] = max(val1, val2, segment['max_value'])
+
+        if len(coords) == 1:
+            return ({'min': coords[0], 'max': coords[0], 'inds': [0, ], 'min_value': numpy.inf, 'max_value': -numpy.inf}, )
 
         inds = numpy.argsort(coords[:-1])
         segments = []
@@ -1288,6 +1512,7 @@ class LinearRing(LineString):
         in_poly = numpy.zeros(x.shape, dtype=numpy.bool)
         crossing_counts = numpy.zeros(x.shape, dtype=numpy.int32)
         indices = segment['inds']
+        orient = self.orientation
 
         for i in indices:
             if direction == 'x' and self._coordinates[i, 0] == self._coordinates[i+1, 0]:
@@ -1305,8 +1530,8 @@ class LinearRing(LineString):
                 # points on the edge are included
                 in_poly[(y == self._coordinates[i, 1]) & (x_min <= x) & (x <= x_max)] = True
             else:
-                nx, ny = self._diffs[i, 1],  - self._diffs[i, 0]
-                crossing = (x - self._coordinates[i, 0])*nx + (y - self._coordinates[i, 1])*ny
+                nx, ny = self._diffs[i, 1],  -self._diffs[i, 0]
+                crossing = orient*((x - self._coordinates[i, 0])*nx + (y - self._coordinates[i, 1])*ny)
                 # dot product of vector connecting (x, y) to segment vertex with normal vector of segment
                 crossing_counts[crossing > 0] += 1  # positive crossing number
                 crossing_counts[crossing < 0] -= 1  # negative crossing number
@@ -1422,6 +1647,10 @@ class LinearRing(LineString):
         grid_x, grid_y = _validate_grid_contain_arguments(grid_x, grid_y)
 
         out = numpy.zeros((grid_x.size, grid_y.size), dtype=numpy.bool)
+        if self._coordinates.shape[0] < 4:
+            # this is a degenerate linear ring with no interior
+            return out
+
         first_ind, last_ind, direction = self._contained_segment_data(grid_x, grid_y)
         if first_ind is None:
             return out  # it missed the whole bounding box
@@ -1451,6 +1680,32 @@ class LinearRing(LineString):
     def apply_projection(self, proj_method):
         # type: (callable) -> LinearRing
         return LinearRing(coordinates=proj_method(self.coordinates))
+
+    def to_dict(self, parent_dict=None):
+        """
+        Serialize the LinearRing to json.
+
+        Note that the geojson standard requires that the serialized object has
+        positive orientation. In the case of an LinearRing defined with negative
+        orientation, the orientation of the object and the serialized object will
+        be reversed.
+
+        Parameters
+        ----------
+        parent_dict : None|Dict
+
+        Returns
+        -------
+        Dict
+        """
+
+        if self.orientation > 0:
+            return super(LinearRing, self).to_dict(parent_dict=parent_dict)
+        else:
+            self.reverse_orientation()
+            out = super(LinearRing, self).to_dict(parent_dict=parent_dict)
+            self.reverse_orientation()
+            return out
 
 
 class Polygon(GeometryObject):
@@ -1484,6 +1739,54 @@ class Polygon(GeometryObject):
         self.set_outer_ring(coordinates[0])
         for entry in coordinates[1:]:
             self.add_inner_ring(entry)
+        if self.self_intersection():
+            logging.warning('Polygon has a self-intersection. This does not strictly comply with the geojson standard.')
+
+    def self_intersection(self):
+        """
+        Does this Polygon self intersect?
+
+        Returns
+        -------
+        bool
+        """
+
+        if self.outer_ring is None:
+            return False
+
+        if self.outer_ring.self_intersection():
+            return True
+
+        if self.inner_rings is not None:
+            for entry in self.inner_rings:
+                if entry.self_intersection():
+                    return True
+
+            for i in range(self.outer_ring.coordinates.shape[0] - 2):
+                for entry in self.inner_rings:
+                    for j in range(entry.coordinates.shape[0] - 2):
+                        result = _line_segments_intersect(
+                            self.outer_ring.coordinates[i, :], self.outer_ring.coordinates[i + 1, :],
+                            entry.coordinates[j, :], entry.coordinates[j + 1, :])
+                        if result:
+                            return True
+        return False
+
+    @property
+    def outer_ring(self):
+        """
+        LinearRing: The outer ring.
+        """
+
+        return self._outer_ring
+
+    @property
+    def inner_rings(self):
+        """
+        None|List[LinearRing]: The inner rings.
+        """
+
+        return self._inner_rings
 
     @classmethod
     def from_dict(cls, geometry):
@@ -1530,14 +1833,6 @@ class Polygon(GeometryObject):
             outer_ring = LinearRing(coordinates=coordinates.coordinates)
         else:
             outer_ring = LinearRing(coordinates=coordinates)
-        area = outer_ring.get_area()
-        if area == 0:
-            logging.warning("The outer ring for this Polygon has zero area. This is likely an error.")
-        elif area < 0:
-            logging.info(
-                "The outer ring of a Polygon is required to have counter-clockwise orientation. "
-                "This outer ring has clockwise orientation, so the orientation will be reversed.")
-            outer_ring.reverse_orientation()
         self._outer_ring = outer_ring
 
     def add_inner_ring(self, coordinates):
@@ -1548,15 +1843,11 @@ class Polygon(GeometryObject):
 
         if self._inner_rings is None:
             self._inner_rings = []
+
         if isinstance(coordinates, (LinearRing, LineString)):
             inner_ring = LinearRing(coordinates=coordinates.coordinates)
         else:
             inner_ring = LinearRing(coordinates=coordinates)
-        area = inner_ring.get_area()
-        if area == 0:
-            logging.warning("The defined inner ring for this Polygon has zero area. This is likely an error.")
-        elif area < 0:
-            inner_ring.reverse_orientation()
         self._inner_rings.append(inner_ring)
 
     def get_perimeter(self):
@@ -1589,10 +1880,10 @@ class Polygon(GeometryObject):
         if self._outer_ring is None:
             return None
 
-        area = self._outer_ring.get_area()  # positive
+        area = abs(self._outer_ring.get_area())  # positive
         if self._inner_rings is not None:
             for entry in self._inner_rings:
-                area -= entry.get_area()  # negative
+                area -= abs(entry.get_area())  # negative
         return area
 
     def get_centroid(self):
@@ -1694,6 +1985,16 @@ class Polygon(GeometryObject):
         if self._inner_rings is not None:
             coords.extend([lr.apply_projection(proj_method) for lr in self._inner_rings])
         return Polygon(coordinates=coords)
+
+    def get_minimum_distance(self, point):
+        if self._outer_ring is None:
+            return float('inf')
+
+        o_dist = self.outer_ring.get_minimum_distance(point)
+        if self._inner_rings is None or len(self._inner_rings) < 1:
+            return o_dist
+        i_dist = min(entry.get_minimum_distance(point) for entry in self.inner_rings)
+        return min(o_dist, i_dist)
 
 
 class MultiPolygon(GeometryObject):
@@ -1875,3 +2176,8 @@ class MultiPolygon(GeometryObject):
     def apply_projection(self, proj_method):
         # type: (callable) -> MultiPolygon
         return MultiPolygon(coordinates=[poly.apply_projection(proj_method) for poly in self.polygons])
+
+    def get_minimum_distance(self, point):
+        if self._polygons is None:
+            return float('inf')
+        return min(entry.get_minimum_distance(point) for entry in self.polygons)

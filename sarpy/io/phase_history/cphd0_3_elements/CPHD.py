@@ -154,6 +154,10 @@ class CPHDType(Serializable):
         self.VectorParameters = VectorParameters
         super(CPHDType, self).__init__(**kwargs)
 
-    def to_xml_bytes(self, urn=None, tag=None, check_validity=False, strict=DEFAULT_STRICT):
-        return super(CPHDType, self).to_xml_bytes(
-            urn=_CPHD_SPECIFICATION_NAMESPACE, tag=tag, check_validity=check_validity, strict=strict)
+    def to_xml_bytes(self, urn=None, tag='CPHD', check_validity=False, strict=DEFAULT_STRICT):
+        if urn is None:
+            urn = _CPHD_SPECIFICATION_NAMESPACE
+        return super(CPHDType, self).to_xml_bytes(urn=urn, tag=tag, check_validity=check_validity, strict=strict)
+
+    def to_xml_string(self, urn=None, tag='CPHD', check_validity=False, strict=DEFAULT_STRICT):
+        return self.to_xml_bytes(urn=urn, tag=tag, check_validity=check_validity, strict=strict).decode('utf-8')
