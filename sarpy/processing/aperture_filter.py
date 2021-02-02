@@ -157,7 +157,34 @@ class ApertureFilter(object):
         return self._sub_image_bounds
 
     def set_sub_image_bounds(self, row_bounds, col_bounds):
-        self._sub_image_bounds = (row_bounds, col_bounds)
+        """
+        Sets the full range bounds for the phase history calculation. This subsequently
+        sets the `normalized_phase_history` value.
+
+        Parameters
+        ----------
+        row_bounds : None|Tuple
+            Of the form `(start row, end row)`.
+        col_bounds : None|Tuple
+            Of the form `(start column, end column)`.
+
+        Returns
+        -------
+        None
+        """
+
+        def validate_entry(entry):
+            if len(entry) != 2:
+                raise ValueError('Bounds must have length 2. Got {}'.format(entry))
+            out = (int(entry[0]), int(entry[1]))
+            if out[0] >= out[1]:
+                raise ValueError('Bounds must have int(bound[0]) < int(bound[1]). Got {}'.format(entry))
+            return out
+
+        if row_bounds is None or col_bounds is None:
+            self._sub_image_bounds = None
+        else:
+            self._sub_image_bounds = (validate_entry(row_bounds), validate_entry(col_bounds))
         self._set_normalized_phase_history()
 
     @property
@@ -169,8 +196,17 @@ class ApertureFilter(object):
         return self._normalized_phase_history
 
     def _set_normalized_phase_history(self):
+        """
+        Sets the normalized phase history.
+
+        Returns
+        -------
+        None
+        """
+
         if self._sub_image_bounds is None:
-            return None
+            self._normalized_phase_history = None
+            return
 
         row_bounds, col_bounds = self._sub_image_bounds
         underlying_size = self._deskew_calculator.data_size
