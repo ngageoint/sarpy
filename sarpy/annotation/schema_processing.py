@@ -571,6 +571,72 @@ class LabelSchema(object):
             # just changing the name
             self.labels[the_id] = the_name
 
+    def delete_entry(self, the_id, recursive=False):
+        """
+        Deletes the entry from the schema.
+
+        If the given element has children and `recursive=False`, a ValueError
+        will be raised. If the given element has children and `recursive=True`,
+        then all children will be deleted.
+
+        Parameters
+        ----------
+        the_id : str
+        recursive : bool
+        """
+
+        if the_id in self._subtypes:
+            # handle all the children
+            children = self.subtypes[the_id]
+            if children is not None and len(children) > 0:
+                if not recursive:
+                    raise ValueError(
+                        'LabelSchema entry for id {} has children. Either move children to a '
+                        'different parent, or make recursive=True to delete all children.'.format(the_id))
+                the_children = children.copy()  # unsafe to loop over a changing list
+                for entry in the_children:
+                    self.delete_entry(entry, recursive=True)
+            # now, all the children have been deleted.
+            del self._subtypes[the_id]
+        # remove the entry from the parent's subtypes list
+        parent_id = self.get_parent(the_id)
+        self.subtypes[parent_id].remove(parent_id)
+        # remove entry from labels
+        del self._labels[the_id]
+        del self._parent_types[the_id]
+
+    def reorder_child_element(self, the_id, spaces=1):
+        """
+        Move the one space (forward or backward) in the list of children for the
+        current parent. This is explicitly changes no actual parent/child
+        relationships, and only changes the child list ORDERING.
+
+        Parameters
+        ----------
+        the_id : str
+        spaces : int
+            How many spaces to shift the entry.
+        """
+
+        if the_id not in self._labels:
+            raise KeyError('No id {}'.format(the_id))
+        parent_id = self.get_parent(the_id)
+        children = self.subtypes[parent_id]
+        # get the current location
+        current_index = children.index(the_id)
+        # determine the feasible new location
+        if spaces < 0:
+            new_index = max(0, current_index + spaces)
+        else:
+            new_index = min(len(children) - 1, current_index + spaces)
+        if current_index == new_index:
+            return # nothing to be done
+
+        # pop our entry out of its current location
+        children.pop(current_index)
+        # insert it in its new location
+        children.insert(new_index, the_id)
+
     @classmethod
     def from_file(cls, file_name):
         """
