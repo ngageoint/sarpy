@@ -522,7 +522,8 @@ class LabelSchema(object):
 
         Returns
         -------
-        None
+        bool
+            True if anything was actually changed. False otherwise.
         """
 
         # validate inputs
@@ -539,7 +540,7 @@ class LabelSchema(object):
 
         if current_name == the_name and current_parent == the_parent:
             # nothing is changing
-            return
+            return False
 
         if current_name != the_name:
             # check if name is already being used by a different element, and warn if so
@@ -567,9 +568,11 @@ class LabelSchema(object):
                 logging.error(
                     'Modifying entry id {}, name {}, and parent {} failed with '
                     'exception {}.'.format(the_id, the_name, the_parent, e))
+                raise e
         else:
             # just changing the name
             self.labels[the_id] = the_name
+        return True
 
     def delete_entry(self, the_id, recursive=False):
         """
@@ -616,6 +619,11 @@ class LabelSchema(object):
         the_id : str
         spaces : int
             How many spaces to shift the entry.
+
+        Returns
+        -------
+        bool
+            True of something actually changed, False otherwise.
         """
 
         if the_id not in self._labels:
@@ -630,12 +638,13 @@ class LabelSchema(object):
         else:
             new_index = min(len(children) - 1, current_index + spaces)
         if current_index == new_index:
-            return # nothing to be done
+            return False  # nothing to be done
 
         # pop our entry out of its current location
         children.pop(current_index)
         # insert it in its new location
         children.insert(new_index, the_id)
+        return True
 
     @classmethod
     def from_file(cls, file_name):

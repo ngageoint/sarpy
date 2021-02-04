@@ -318,7 +318,7 @@ if __name__ == '__main__':
     parser.add_argument('-o', '--output', default='stdout',
                         help="'stdout', 'string', or an output file")
     args = parser.parse_args()
-
+    print(args)
     if args.output == 'stdout':
         # Send output to stdout
         print_nitf(args.input_file, dest=sys.stdout)
