@@ -6,7 +6,7 @@ This module provides utilities for validating and preparing an annotation schema
 import logging
 from collections import OrderedDict
 import json
-from typing import Dict, List
+from typing import Union, Dict, List
 from datetime import datetime
 
 from sarpy.compliance import string_types, int_func, integer_types
