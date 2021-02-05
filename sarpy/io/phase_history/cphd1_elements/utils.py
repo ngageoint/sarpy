@@ -84,9 +84,9 @@ def homogeneous_dtype(frm, return_length=False):
     numpy.dtype
     """
 
-    entries = ['>'+el.lower() for el in frm.strip().split(';') if len(el.strip()) > 0]
-    entry_set = set(entries)
-    if len(entry_set) == 1:
-        return numpy.dtype(entry_set.pop()), len(entries) if return_length else numpy.dtype(entry_set.pop())
+    format_str, num_elements = homogeneous_format(frm, return_length=True)
+    format_dtype = numpy.dtype('>' + format_str)
+    if return_length:
+        return format_dtype, num_elements
     else:
-        raise ValueError('Non-homogeneous format required {}'.format(entries))
+        return format_dtype

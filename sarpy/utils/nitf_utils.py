@@ -275,10 +275,17 @@ def print_nitf(file_name, dest=sys.stdout):
             if des_id.strip() == 'XML_DATA_CONTENT':
                 xml_str = xml.dom.minidom.parseString(
                     data.decode()).toprettyxml(indent='    ')
-                # Remove extra new lines if XML is already formatted
-                xml_str = os.linesep.join(
-                    [s for s in xml_str.splitlines() if s.strip()])
-                print_func('DESDATA = {}'.format(xml_str))
+                # NB: this may or not exhibit platform dependent choices in which codec (i.e. latin-1 versus utf-8)
+                print_func('DESDATA =')
+                for i, entry in enumerate(xml_str.splitlines()):
+                    if i == 0:
+                        # Remove xml that gets inserted by minidom, if it's not actually there
+                        if (not data.startswith(b'<?xml version')) and entry.startswith('<?xml version'):
+                            continue
+                        print_func(entry)
+                    elif entry.strip() != '':
+                        # Remove extra new lines if XML is already formatted
+                        print_func(entry)
             elif des_id.strip() in ['TRE_OVERFLOW', 'Registered Extensions', 'Controlled Extensions']:
                 tres = TREList.from_bytes(data, 0)
                 print_func('DESDATA = ')
@@ -311,7 +318,7 @@ if __name__ == '__main__':
     parser.add_argument('-o', '--output', default='stdout',
                         help="'stdout', 'string', or an output file")
     args = parser.parse_args()
-
+    print(args)
     if args.output == 'stdout':
         # Send output to stdout
         print_nitf(args.input_file, dest=sys.stdout)
