@@ -107,7 +107,7 @@ class GainPhaseArrayType(Serializable):
     frequency value.
     """
 
-    _fields = ('Freq', 'ArrayId')
+    _fields = ('Freq', 'ArrayId', 'ElementId')
     _required = ('Freq', 'ArrayId')
     # descriptors
     Freq = _FloatDescriptor(

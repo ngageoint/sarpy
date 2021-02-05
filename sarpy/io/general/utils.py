@@ -55,10 +55,10 @@ def validate_range(arg, siz):
         raise ValueError(
             'Range argument {} has extracted "stop" {}, which is required '
             'to be in the range [0, {}]'.format(arg, stop, siz))
-    if not ((0 < step < siz) or (-siz < step < 0)):
+    if not (0 < abs(step) <= siz):
         raise ValueError(
             'Range argument {} has extracted step {}, for an axis of length '
-            '{}'.format(arg, start, siz))
+            '{}'.format(arg, step, siz))
     if ((step < 0) and (stop > start)) or ((step > 0) and (start > stop)):
         raise ValueError(
             'Range argument {} has extracted start {}, stop {}, step {}, '
