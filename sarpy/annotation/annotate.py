@@ -446,6 +446,17 @@ class FileAnnotationCollection(object):
             raise ValueError('Annotation does not follow the schema.')
         self._annotations.add_feature(annotation)
 
+    def delete_annotation(self, annotation_id):
+        """
+        Deletes the annotation associated with the given id.
+
+        Parameters
+        ----------
+        annotation_id : str
+        """
+
+        del self._annotations[annotation_id]
+
     def is_annotation_valid(self, annotation):
         """
         Is the given annotation valid according to the schema?
