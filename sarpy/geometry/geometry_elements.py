@@ -471,6 +471,21 @@ class FeatureCollection(_Jsonable):
                     'Entries of features are required to be instances of Feature or '
                     'dictionary to be deserialized. Got {}'.format(type(entry)))
 
+    def get_integer_index(self, feature_id):
+        """
+        Gets the integer index for the given feature id.
+
+        Parameters
+        ----------
+        feature_id : str
+
+        Returns
+        -------
+        int
+        """
+
+        return self._feature_dict[feature_id]
+
     def _rebuild_feature_dict(self):
         self._feature_dict = {}
         for i, entry in enumerate(self._features):

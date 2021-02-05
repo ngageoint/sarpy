@@ -1,6 +1,8 @@
 # This details the important differences introduced in sarpy 1.1
 
-* .47 - Modification of extracted CSK metadata for
+* .48 - Bug fixes for CPHD AntGainPhase support array reading
+        Labeling schema modifications and geometry elements modifications
+* .47 - Modification of extracted CSK metadata for proper ImpRespBW population
         Top level structures for SICD, SIDD, and CPHD better handle default xml tag
         Change to aperture_filter for sarpy_apps usage
         Changes and fixes in geometry_elements for sarpy_apps usage
