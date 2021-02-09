@@ -692,7 +692,7 @@ class GeometryCollection(Geometry):
         for geometry in self.geometries:
             t_bbox = geometry.get_bbox()
             coord_count = int(len(t_bbox)/2)
-            for i in min(coord_count, 3):
+            for i in range(min(coord_count, 3)):
                 entry = t_bbox[i]
                 if mins[i] is None or entry < mins[i]:
                     mins[i] = entry
@@ -1167,7 +1167,7 @@ class LineString(GeometryObject):
         elif self._coordinates.shape[0] == 2:
             return _line_segment_distance(self._coordinates[:, :2], p_coord)
         else:
-            return min(_line_segment_distance(self._coordinates[i:i+2, :2], p_coord) for i in range(self._coordinates.shape[0]-2))
+            return min(_line_segment_distance(self._coordinates[i:i+2, :2], p_coord) for i in range(self._coordinates.shape[0]-1))
 
 
 class MultiLineString(GeometryObject):
