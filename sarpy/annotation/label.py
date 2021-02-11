@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-This module provides utilities for annotating a given sicd file.
+This module provides utilities for annotating a given (single image) file with labeled items.
 """
 
 __classification__ = "UNCLASSIFIED"
@@ -779,13 +779,13 @@ class LabelSchema(object):
 ##########
 # elements for labeling a feature
 
-class AnnotationMetadata(_Jsonable):
+class LabelMetadata(_Jsonable):
     """
     Basic annotation metadata building block - everything but the geometry object
     """
 
     __slots__ = ('label_id', 'user_id', 'comment', 'confidence', 'timestamp')
-    _type = 'AnnotationMetadata'
+    _type = 'LabelMetadata'
 
     def __init__(self, label_id=None, user_id=None, comment=None, confidence=None, timestamp=None):
         """
@@ -819,7 +819,7 @@ class AnnotationMetadata(_Jsonable):
     def from_dict(cls, the_json):
         typ = the_json['type']
         if typ != cls._type:
-            raise ValueError('AnnotationMetadata cannot be constructed from {}'.format(the_json))
+            raise ValueError('LabelMetadata cannot be constructed from {}'.format(the_json))
         return cls(
             label_id=the_json.get('label_id', None),
             user_id=the_json.get('user_id', None),
@@ -836,20 +836,20 @@ class AnnotationMetadata(_Jsonable):
         return parent_dict
 
 
-class AnnotationMetadataList(_Jsonable):
+class LabelMetadataList(_Jsonable):
     """
-    The collection of AnnotationMetadata elements.
+    The collection of LabelMetadata elements.
     """
 
     __slots__ = ('_elements', )
-    _type = 'AnnotationMetadataList'
+    _type = 'LabelMetadataList'
 
     def __init__(self, elements=None):
         """
 
         Parameters
         ----------
-        elements : None|List[AnnotationMetadata|dict]
+        elements : None|List[LabelMetadata|dict]
         """
 
         self._elements = None
@@ -862,17 +862,17 @@ class AnnotationMetadataList(_Jsonable):
         return len(self._elements)
 
     def __getitem__(self, item):
-        # type: (Any) -> AnnotationMetadata
+        # type: (Any) -> LabelMetadata
         return self._elements[item]
 
     @property
     def elements(self):
         """
-        The AnnotationMetadata elements.
+        The LabelMetadata elements.
 
         Returns
         -------
-        None|List[AnnotationMetadata]
+        None|List[LabelMetadata]
         """
 
         return self._elements
@@ -882,32 +882,10 @@ class AnnotationMetadataList(_Jsonable):
         if elements is None:
             self._elements = None
         if not isinstance(elements, list):
-            raise TypeError('elements must be a list of AnnotationMetadata elements')
+            raise TypeError('elements must be a list of LabelMetadata elements')
         self._elements = []
         for element in elements:
-            if isinstance(element, AnnotationMetadata):
-                self._elements.append(element)
-            elif isinstance(element, dict):
-                self._elements.append(AnnotationMetadata.from_dict(element))
-            else:
-                raise TypeError(
-                    'Entries of elements must be an AnnotationMetadata, or dict '
-                    'which deserialized to an AnnotationMetadata. Got type {}'.format(type(element)))
-        self.sort_elements_by_timestamp()
-
-    def sort_elements_by_timestamp(self):
-        """
-        Ensure that the elements are in decreasing order of timestamp.
-
-        Returns
-        -------
-        None
-        """
-
-        if self._elements is None:
-            return
-
-        self._elements = sorted(self._elements, key=lambda x: x.timestamp, reverse=True)
+            self.insert_new_element(element)
 
     def insert_new_element(self, element):
         """
@@ -915,15 +893,18 @@ class AnnotationMetadataList(_Jsonable):
 
         Parameters
         ----------
-        element : AnnotationMetadata
+        element : LabelMetadata
 
         Returns
         -------
         None
         """
 
-        if not isinstance(element, AnnotationMetadata):
-            raise TypeError('element must be an AnnotationMetadata instance')
+        if isinstance(element, dict):
+            LabelMetadata.from_dict(element)
+        if not isinstance(element, LabelMetadata):
+            raise TypeError('element must be an LabelMetadata instance')
+
         if self._elements is None:
             self._elements = [element, ]
         else:
@@ -934,10 +915,10 @@ class AnnotationMetadataList(_Jsonable):
             self._elements.insert(0, element)
 
     @classmethod
-    def from_dict(cls, the_json):  # type: (dict) -> AnnotationMetadataList
+    def from_dict(cls, the_json):  # type: (dict) -> LabelMetadataList
         typ = the_json['type']
         if typ != cls._type:
-            raise ValueError('AnnotationMetadataList cannot be constructed from {}'.format(the_json))
+            raise ValueError('LabelMetadataList cannot be constructed from {}'.format(the_json))
         return cls(elements=the_json.get('elements', None))
 
     def to_dict(self, parent_dict=None):
@@ -950,13 +931,14 @@ class AnnotationMetadataList(_Jsonable):
             parent_dict['elements'] = [entry.to_dict() for entry in self._elements]
         return parent_dict
 
+
 ############
 # the feature extensions
 
-class Annotation(Feature):
+class LabelFeature(Feature):
     """
     A specific extension of the Feature class which has the properties attribute
-    populated with AnnotationMetadataList instance.
+    populated with LabelMetadataList instance.
     """
 
     @property
@@ -966,7 +948,7 @@ class Annotation(Feature):
 
         Returns
         -------
-        None|AnnotationMetadataList
+        None|LabelMetadataList
         """
 
         return self._properties
@@ -975,12 +957,12 @@ class Annotation(Feature):
     def properties(self, properties):
         if properties is None:
             self._properties = None
-        elif isinstance(properties, AnnotationMetadataList):
+        elif isinstance(properties, LabelMetadataList):
             self._properties = properties
         elif isinstance(properties, dict):
-            self._properties = AnnotationMetadataList.from_dict(properties)
+            self._properties = LabelMetadataList.from_dict(properties)
         else:
-            raise TypeError('properties must be an AnnotationMetadataList')
+            raise TypeError('properties must be an LabelMetadataList')
 
     def to_dict(self, parent_dict=None):
         if parent_dict is None:
@@ -994,14 +976,14 @@ class Annotation(Feature):
 
     def add_annotation_metadata(self, value):
         if self._properties is None:
-            self._properties = AnnotationMetadataList()
+            self._properties = LabelMetadataList()
         self._properties.insert_new_element(value)
 
 
-class AnnotationList(FeatureCollection):
+class LabelCollection(FeatureCollection):
     """
     A specific extension of the FeatureCollection class which has the features are
-    Annotation instances.
+    LabelFeature instances.
     """
 
     @property
@@ -1011,7 +993,7 @@ class AnnotationList(FeatureCollection):
 
         Returns
         -------
-        List[Annotation]
+        List[LabelFeature]
         """
 
         return self._features
@@ -1024,17 +1006,10 @@ class AnnotationList(FeatureCollection):
             return
 
         if not isinstance(features, list):
-            raise TypeError('features must be a list of Annotations. Got {}'.format(type(features)))
+            raise TypeError('features must be a list of LabelFeatures. Got {}'.format(type(features)))
 
         for entry in features:
-            if isinstance(entry, Annotation):
-                self.add_feature(entry)
-            elif isinstance(entry, dict):
-                self.add_feature(Annotation.from_dict(entry))
-            else:
-                raise TypeError(
-                    'Entries of features are required to be instances of Annotation or '
-                    'dictionary to be deserialized. Got {}'.format(type(entry)))
+            self.add_feature(entry)
 
     def add_feature(self, feature):
         """
@@ -1042,11 +1017,13 @@ class AnnotationList(FeatureCollection):
 
         Parameters
         ----------
-        feature : Annotation
+        feature : LabelFeature
         """
 
-        if not isinstance(feature, Annotation):
-            raise TypeError('This requires an Annotation instance, got {}'.format(type(feature)))
+        if isinstance(feature, dict):
+            feature = LabelFeature.from_dict(feature)
+        if not isinstance(feature, LabelFeature):
+            raise TypeError('This requires an LabelFeature instance, got {}'.format(type(feature)))
 
         if self._features is None:
             self._feature_dict = {feature.uid: 0}
@@ -1056,17 +1033,19 @@ class AnnotationList(FeatureCollection):
             self._features.append(feature)
 
     def __getitem__(self, item):
-        # type: (Any) -> Union[Annotation, List[Annotation]]
+        # type: (Any) -> Union[LabelFeature, List[LabelFeature]]
         if isinstance(item, string_types):
             index = self._feature_dict[item]
             return self._features[index]
         return self._features[item]
 
+
 ###########
 # serialized file object
-class FileAnnotationCollection(object):
+
+class FileLabelCollection(object):
     """
-    A collection of file annotation elements.
+    An collection of annotation elements associated with a given single image element file.
     """
 
     __slots__ = (
@@ -1153,25 +1132,25 @@ class FileAnnotationCollection(object):
 
         Returns
         -------
-        AnnotationList
+        LabelCollection
         """
 
         return self._annotations
 
     @annotations.setter
     def annotations(self, annotations):
-        # type: (Union[None, AnnotationList, dict]) -> None
+        # type: (Union[None, LabelCollection, dict]) -> None
         if annotations is None:
             self._annotations = None
             return
 
-        if isinstance(annotations, AnnotationList):
+        if isinstance(annotations, LabelCollection):
             self._annotations = annotations
         elif isinstance(annotations, dict):
-            self._annotations = AnnotationList.from_dict(annotations)
+            self._annotations = LabelCollection.from_dict(annotations)
         else:
             raise TypeError(
-                'annotations must be an AnnotationList. Got type {}'.format(type(annotations)))
+                'annotations must be an LabelCollection. Got type {}'.format(type(annotations)))
         self.validate_annotations(strict=False)
 
     def add_annotation(self, annotation, validate_confidence=True, validate_geometry=True):
@@ -1180,7 +1159,7 @@ class FileAnnotationCollection(object):
 
         Parameters
         ----------
-        annotation : Annotation
+        annotation : LabelFeature
             The prospective annotation.
         validate_confidence : bool
             Should we check that all confidence values follow the schema?
@@ -1192,11 +1171,11 @@ class FileAnnotationCollection(object):
         None
         """
 
-        if not isinstance(annotation, Annotation):
-            raise TypeError('This requires an Annotation instance. Got {}'.format(type(annotation)))
+        if not isinstance(annotation, LabelFeature):
+            raise TypeError('This requires an LabelFeature instance. Got {}'.format(type(annotation)))
 
         if self._annotations is None:
-            self._annotations = AnnotationList()
+            self._annotations = LabelCollection()
 
         valid = True
         if validate_confidence:
@@ -1204,7 +1183,7 @@ class FileAnnotationCollection(object):
         if validate_geometry:
             valid &= self._valid_geometry(annotation)
         if not valid:
-            raise ValueError('Annotation does not follow the schema.')
+            raise ValueError('LabelFeature does not follow the schema.')
         self._annotations.add_feature(annotation)
 
     def delete_annotation(self, annotation_id):
@@ -1224,14 +1203,14 @@ class FileAnnotationCollection(object):
 
         Parameters
         ----------
-        annotation : Annotation
+        annotation : LabelFeature
 
         Returns
         -------
         bool
         """
 
-        if not isinstance(annotation, Annotation):
+        if not isinstance(annotation, LabelFeature):
             return False
 
         if self._label_schema is None:
@@ -1284,7 +1263,7 @@ class FileAnnotationCollection(object):
 
         Returns
         -------
-        FileAnnotationCollection
+        FileLabelCollection
         """
 
         with open(file_name, 'r') as fi:
@@ -1302,7 +1281,7 @@ class FileAnnotationCollection(object):
 
         Returns
         -------
-        FileAnnotationCollection
+        FileLabelCollection
         """
 
         if not isinstance(the_dict, dict):
