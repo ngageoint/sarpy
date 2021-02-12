@@ -35,6 +35,15 @@ class RCSStatistics(_Jsonable):
         min : None|float
         """
 
+        if mean is not None:
+            mean = float(mean)
+        if std is not None:
+            std = float(std)
+        if max is not None:
+            max = float(max)
+        if min is not None:
+            min = float(min)
+
         self.name = name  # type: Union[None, str]
         self.mean = mean  # type: Union[None, float]
         self.std = std  # type: Union[None, float]
@@ -301,12 +310,18 @@ class RCSValueCollection(_Jsonable):
         typ = the_json['type']
         if typ != cls._type:
             raise ValueError('RCSValueCollection cannot be constructed from {}'.format(the_json))
-        return cls(pixel_count=the_json.get('pixel_count', None), elements=the_json.get('elements', None))
+        return cls(
+            name=the_json.get('name', None), description=the_json.get('description', None),
+            pixel_count=the_json.get('pixel_count', None), elements=the_json.get('elements', None))
 
     def to_dict(self, parent_dict=None):
         if parent_dict is None:
             parent_dict = OrderedDict()
         parent_dict['type'] = self.type
+        if self.name is not None:
+            parent_dict['name'] = self.name
+        if self.description is not None:
+            parent_dict['description'] = self.description
         parent_dict['pixel_count'] = self.pixel_count
         if self._elements is None:
             parent_dict['elements'] = None
