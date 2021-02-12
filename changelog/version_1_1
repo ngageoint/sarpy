@@ -1,5 +1,6 @@
 # This details the important differences introduced in sarpy 1.1
 
+* .49 - Completion of annotation and geometry elements for apps usage
 * .48 - Bug fixes for CPHD AntGainPhase support array reading
         Labeling schema modifications and geometry elements modifications
 * .47 - Modification of extracted CSK metadata for proper ImpRespBW population

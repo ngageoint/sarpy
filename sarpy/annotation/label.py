@@ -1,18 +1,25 @@
 # -*- coding: utf-8 -*-
 """
-This module provides utilities for validating and preparing an annotation schema.
+This module provides structures for annotating a given (single image) file with
+labeled items.
 """
 
-import logging
-from collections import OrderedDict
-import json
-from typing import Union, Dict, List
-from datetime import datetime
-
-from sarpy.compliance import string_types, int_func, integer_types
-
-
 __classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
+
+import logging
+import time
+from collections import OrderedDict
+import os
+import json
+from typing import Union, List, Any, Dict
+from datetime import datetime
+import getpass
+
+# noinspection PyProtectedMember
+from sarpy.geometry.geometry_elements import _Jsonable, FeatureCollection, Feature
+from sarpy.compliance import string_types, int_func, integer_types
 
 
 class LabelSchema(object):
@@ -342,10 +349,11 @@ class LabelSchema(object):
         found_cycles = []
 
         def iterate(current_id, find_id):
-            for entry in subtypes.get(current_id, []):
-                if entry == find_id:
+            for t_entry in subtypes.get(current_id, []):
+                if t_entry == find_id:
                     found_cycles.append((find_id, current_id))
-                iterate(entry, find_id)
+                iterate(t_entry, find_id)
+
         for the_id in subtypes['']:
             iterate(the_id, the_id)
         if len(found_cycles) > 0:
@@ -767,3 +775,541 @@ class LabelSchema(object):
             return value in self._permitted_geometries
         else:
             return value.__class__.__name__ in self._permitted_geometries
+
+
+##########
+# elements for labeling a feature
+
+class LabelMetadata(_Jsonable):
+    """
+    Basic annotation metadata building block - everything but the geometry object
+    """
+
+    __slots__ = ('label_id', 'user_id', 'comment', 'confidence', 'timestamp')
+    _type = 'LabelMetadata'
+
+    def __init__(self, label_id=None, user_id=None, comment=None, confidence=None, timestamp=None):
+        """
+
+        Parameters
+        ----------
+        label_id : None|str
+            The label id
+        user_id : None|str
+            The user id - will default to current user name
+        comment : None|str
+        confidence : None|str|int
+            The confidence value
+        timestamp : None|float|int
+            The POSIX timestamp (in seconds) - should be construction time.
+        """
+
+        self.label_id = label_id  # type: Union[None, str]
+        if user_id is None:
+            user_id = getpass.getuser()
+        self.user_id = user_id  # type: str
+        self.comment = comment  # type: Union[None, str]
+        self.confidence = confidence  # type: Union[None, str, int]
+        if timestamp is None:
+            timestamp = time.time()
+        if not isinstance(timestamp, float):
+            timestamp = float(timestamp)
+        self.timestamp = timestamp  # type: float
+
+    @classmethod
+    def from_dict(cls, the_json):
+        typ = the_json['type']
+        if typ != cls._type:
+            raise ValueError('LabelMetadata cannot be constructed from {}'.format(the_json))
+        return cls(
+            label_id=the_json.get('label_id', None),
+            user_id=the_json.get('user_id', None),
+            comment=the_json.get('comment', None),
+            confidence=the_json.get('confidence', None),
+            timestamp=the_json.get('timestamp', None))
+
+    def to_dict(self, parent_dict=None):
+        if parent_dict is None:
+            parent_dict = OrderedDict()
+        parent_dict['type'] = self.type
+        for attr in self.__slots__:
+            parent_dict[attr] = getattr(self, attr)
+        return parent_dict
+
+
+class LabelMetadataList(_Jsonable):
+    """
+    The collection of LabelMetadata elements.
+    """
+
+    __slots__ = ('_elements', )
+    _type = 'LabelMetadataList'
+
+    def __init__(self, elements=None):
+        """
+
+        Parameters
+        ----------
+        elements : None|List[LabelMetadata|dict]
+        """
+
+        self._elements = None
+        if elements is not None:
+            self.elements = elements
+
+    def __len__(self):
+        if self._elements is None:
+            return 0
+        return len(self._elements)
+
+    def __getitem__(self, item):
+        # type: (Any) -> LabelMetadata
+        return self._elements[item]
+
+    @property
+    def elements(self):
+        """
+        The LabelMetadata elements.
+
+        Returns
+        -------
+        None|List[LabelMetadata]
+        """
+
+        return self._elements
+
+    @elements.setter
+    def elements(self, elements):
+        if elements is None:
+            self._elements = None
+        if not isinstance(elements, list):
+            raise TypeError('elements must be a list of LabelMetadata elements')
+        self._elements = []
+        for element in elements:
+            self.insert_new_element(element)
+
+    def insert_new_element(self, element):
+        """
+        Inserts an element at the head of the elements list.
+
+        Parameters
+        ----------
+        element : LabelMetadata
+
+        Returns
+        -------
+        None
+        """
+
+        if isinstance(element, dict):
+            LabelMetadata.from_dict(element)
+        if not isinstance(element, LabelMetadata):
+            raise TypeError('element must be an LabelMetadata instance')
+
+        if self._elements is None:
+            self._elements = [element, ]
+        else:
+            if element.timestamp < self._elements[0].timestamp:
+                raise ValueError(
+                    'Element with timestamp {} cannot be inserted in front of element '
+                    'with timestamp {}.'.format(element.timestamp, self._elements[0].timestamp))
+            self._elements.insert(0, element)
+
+    @classmethod
+    def from_dict(cls, the_json):  # type: (dict) -> LabelMetadataList
+        typ = the_json['type']
+        if typ != cls._type:
+            raise ValueError('LabelMetadataList cannot be constructed from {}'.format(the_json))
+        return cls(elements=the_json.get('elements', None))
+
+    def to_dict(self, parent_dict=None):
+        if parent_dict is None:
+            parent_dict = OrderedDict()
+        parent_dict['type'] = self.type
+        if self._elements is None:
+            parent_dict['elements'] = None
+        else:
+            parent_dict['elements'] = [entry.to_dict() for entry in self._elements]
+        return parent_dict
+
+
+############
+# the feature extensions
+
+class LabelFeature(Feature):
+    """
+    A specific extension of the Feature class which has the properties attribute
+    populated with LabelMetadataList instance.
+    """
+
+    @property
+    def properties(self):
+        """
+        The properties.
+
+        Returns
+        -------
+        None|LabelMetadataList
+        """
+
+        return self._properties
+
+    @properties.setter
+    def properties(self, properties):
+        if properties is None:
+            self._properties = None
+        elif isinstance(properties, LabelMetadataList):
+            self._properties = properties
+        elif isinstance(properties, dict):
+            self._properties = LabelMetadataList.from_dict(properties)
+        else:
+            raise TypeError('properties must be an LabelMetadataList')
+
+    def to_dict(self, parent_dict=None):
+        if parent_dict is None:
+            parent_dict = OrderedDict()
+        parent_dict['type'] = self.type
+        parent_dict['id'] = self.uid
+        parent_dict['geometry'] = self.geometry.to_dict()
+        if self.properties is not None:
+            parent_dict['properties'] = self.properties.to_dict()
+        return parent_dict
+
+    def add_annotation_metadata(self, value):
+        if self._properties is None:
+            self._properties = LabelMetadataList()
+        self._properties.insert_new_element(value)
+
+
+class LabelCollection(FeatureCollection):
+    """
+    A specific extension of the FeatureCollection class which has the features are
+    LabelFeature instances.
+    """
+
+    @property
+    def features(self):
+        """
+        The features list.
+
+        Returns
+        -------
+        List[LabelFeature]
+        """
+
+        return self._features
+
+    @features.setter
+    def features(self, features):
+        if features is None:
+            self._features = None
+            self._feature_dict = None
+            return
+
+        if not isinstance(features, list):
+            raise TypeError('features must be a list of LabelFeatures. Got {}'.format(type(features)))
+
+        for entry in features:
+            self.add_feature(entry)
+
+    def add_feature(self, feature):
+        """
+        Add an annotation.
+
+        Parameters
+        ----------
+        feature : LabelFeature
+        """
+
+        if isinstance(feature, dict):
+            feature = LabelFeature.from_dict(feature)
+        if not isinstance(feature, LabelFeature):
+            raise TypeError('This requires an LabelFeature instance, got {}'.format(type(feature)))
+
+        if self._features is None:
+            self._feature_dict = {feature.uid: 0}
+            self._features = [feature, ]
+        else:
+            self._feature_dict[feature.uid] = len(self._features)
+            self._features.append(feature)
+
+    def __getitem__(self, item):
+        # type: (Any) -> Union[LabelFeature, List[LabelFeature]]
+        if isinstance(item, string_types):
+            index = self._feature_dict[item]
+            return self._features[index]
+        return self._features[item]
+
+
+###########
+# serialized file object
+
+class FileLabelCollection(object):
+    """
+    An collection of annotation elements associated with a given single image element file.
+    """
+
+    __slots__ = (
+        '_label_schema', '_image_file_name', '_image_id', '_core_name',
+        '_annotations')
+
+    def __init__(self, label_schema, annotations=None, image_file_name=None, image_id=None, core_name=None):
+        self._annotations = None
+
+        if isinstance(label_schema, str):
+            label_schema = LabelSchema.from_file(label_schema)
+        elif isinstance(label_schema, dict):
+            label_schema = LabelSchema.from_dict(label_schema)
+        if not isinstance(label_schema, LabelSchema):
+            raise TypeError('label_schema must be an instance of a LabelSchema.')
+        self._label_schema = label_schema
+
+        if image_file_name is None:
+            self._image_file_name = None
+        elif isinstance(image_file_name, str):
+            self._image_file_name = os.path.split(image_file_name)[1]
+        else:
+            raise TypeError('image_file_name must be a None or a string')
+
+        self._image_id = image_id
+        self._core_name = core_name
+
+        if self._image_file_name is None and self._image_id is None and self._core_name is None:
+            logging.error('One of image_file_name, image_id, or core_name should be defined.')
+
+        self.annotations = annotations
+
+    @property
+    def label_schema(self):
+        """
+        The label schema.
+
+        Returns
+        -------
+        LabelSchema
+        """
+        return self._label_schema
+
+    @property
+    def image_file_name(self):
+        """
+        The image file name, if appropriate.
+
+        Returns
+        -------
+        None|str
+        """
+
+        return self._image_file_name
+
+    @property
+    def image_id(self):
+        """
+        The image id, if appropriate.
+
+        Returns
+        -------
+        None|str
+        """
+
+        return self._image_id
+
+    @property
+    def core_name(self):
+        """
+        The image core name, if appropriate.
+
+        Returns
+        -------
+        None|str
+        """
+
+        return self._core_name
+
+    @property
+    def annotations(self):
+        """
+        The annotations.
+
+        Returns
+        -------
+        LabelCollection
+        """
+
+        return self._annotations
+
+    @annotations.setter
+    def annotations(self, annotations):
+        # type: (Union[None, LabelCollection, dict]) -> None
+        if annotations is None:
+            self._annotations = None
+            return
+
+        if isinstance(annotations, LabelCollection):
+            self._annotations = annotations
+        elif isinstance(annotations, dict):
+            self._annotations = LabelCollection.from_dict(annotations)
+        else:
+            raise TypeError(
+                'annotations must be an LabelCollection. Got type {}'.format(type(annotations)))
+        self.validate_annotations(strict=False)
+
+    def add_annotation(self, annotation, validate_confidence=True, validate_geometry=True):
+        """
+        Add an annotation, with a check for valid values in confidence and geometry type.
+
+        Parameters
+        ----------
+        annotation : LabelFeature
+            The prospective annotation.
+        validate_confidence : bool
+            Should we check that all confidence values follow the schema?
+        validate_geometry : bool
+            Should we check that all geometries are of allowed type?
+
+        Returns
+        -------
+        None
+        """
+
+        if not isinstance(annotation, LabelFeature):
+            raise TypeError('This requires an LabelFeature instance. Got {}'.format(type(annotation)))
+
+        if self._annotations is None:
+            self._annotations = LabelCollection()
+
+        valid = True
+        if validate_confidence:
+            valid &= self._valid_confidences(annotation)
+        if validate_geometry:
+            valid &= self._valid_geometry(annotation)
+        if not valid:
+            raise ValueError('LabelFeature does not follow the schema.')
+        self._annotations.add_feature(annotation)
+
+    def delete_annotation(self, annotation_id):
+        """
+        Deletes the annotation associated with the given id.
+
+        Parameters
+        ----------
+        annotation_id : str
+        """
+
+        del self._annotations[annotation_id]
+
+    def is_annotation_valid(self, annotation):
+        """
+        Is the given annotation valid according to the schema?
+
+        Parameters
+        ----------
+        annotation : LabelFeature
+
+        Returns
+        -------
+        bool
+        """
+
+        if not isinstance(annotation, LabelFeature):
+            return False
+
+        if self._label_schema is None:
+            return True
+        valid = self._valid_confidences(annotation)
+        valid &= self._valid_geometry(annotation)
+        return valid
+
+    def _valid_confidences(self, annotation):
+        if self._label_schema is None:
+            return True
+
+        if annotation.properties is None or annotation.properties.elements is None:
+            return True
+
+        valid = True
+        for entry in annotation.properties.elements:
+            if not self._label_schema.is_valid_confidence(entry.confidence):
+                valid = False
+                logging.error('Invalid confidence value {}'.format(entry.confidence))
+        return valid
+
+    def _valid_geometry(self, annotation):
+        if self._label_schema is None:
+            return True
+        if not self._label_schema.is_valid_geometry(annotation.geometry):
+            logging.error('Invalid geometry type {}'.format(type(annotation.geometry)))
+            return False
+        return True
+
+    def validate_annotations(self, strict=True):
+        if self._annotations is None:
+            return True
+
+        valid = True
+        for entry in self._annotations:
+            valid &= self.is_annotation_valid(entry)
+        if strict and not valid:
+            raise ValueError('Some annotation does not follow the schema.')
+        return valid
+
+    @classmethod
+    def from_file(cls, file_name):
+        """
+        Read from (json) file.
+
+        Parameters
+        ----------
+        file_name : str
+
+        Returns
+        -------
+        FileLabelCollection
+        """
+
+        with open(file_name, 'r') as fi:
+            the_dict = json.load(fi)
+        return cls.from_dict(the_dict)
+
+    @classmethod
+    def from_dict(cls, the_dict):
+        """
+        Define from a dictionary representation.
+
+        Parameters
+        ----------
+        the_dict : dict
+
+        Returns
+        -------
+        FileLabelCollection
+        """
+
+        if not isinstance(the_dict, dict):
+            raise TypeError('This requires a dict. Got type {}'.format(type(the_dict)))
+        if 'label_schema' not in the_dict:
+            raise KeyError('this dictionary must contain a label_schema')
+        return cls(
+            the_dict['label_schema'],
+            annotations=the_dict.get('annotations', None),
+            image_file_name=the_dict.get('image_file_name', None),
+            image_id=the_dict.get('image_id', None),
+            core_name=the_dict.get('core_name', None))
+
+    def to_dict(self, parent_dict=None):
+        if parent_dict is None:
+            parent_dict = OrderedDict()
+        parent_dict['label_schema'] = self.label_schema.to_dict()
+        if self.image_file_name is not None:
+            parent_dict['image_file_name'] = self.image_file_name
+        if self.image_id is not None:
+            parent_dict['image_id'] = self.image_id
+        if self.core_name is not None:
+            parent_dict['core_name'] = self.core_name
+        if self.annotations is not None:
+            parent_dict['annotations'] = self.annotations.to_dict()
+        return parent_dict
+
+    def to_file(self, file_name):
+        with open(file_name, 'w') as fi:
+            json.dump(self.to_dict(), fi, indent=1)
