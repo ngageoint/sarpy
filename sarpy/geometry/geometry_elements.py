@@ -621,6 +621,18 @@ class Geometry(_Jsonable):
 
         raise NotImplementedError
 
+    def get_bbox(self):
+        """
+        Get the bounding box list.
+
+        Returns
+        -------
+        None|List
+            Of the form [min coord 0, min coord 1, ..., max coord 0, max coord 1, ...]/
+        """
+
+        raise NotImplementedError
+
 
 class GeometryCollection(Geometry):
     """
@@ -670,6 +682,28 @@ class GeometryCollection(Geometry):
                 raise TypeError(
                     'geometries must be a list of Geometry objects. Got an element of type {}'.format(type(entry)))
             self._geometries.append(entry)
+
+    def get_bbox(self):
+        if self._geometries is None:
+            return None
+
+        mins = [None, None, None]
+        maxs = [None, None, None]
+        for geometry in self.geometries:
+            t_bbox = geometry.get_bbox()
+            coord_count = int(len(t_bbox)/2)
+            for i in range(min(coord_count, 3)):
+                entry = t_bbox[i]
+                if mins[i] is None or entry < mins[i]:
+                    mins[i] = entry
+                entry = t_bbox[coord_count+i]
+                if maxs[i] is None or entry > maxs[i]:
+                    maxs[i] = entry
+        if mins[2] is None:
+            mins = mins[:2]
+            maxs = maxs[:2]
+        mins.extend(maxs)
+        return mins
 
     @classmethod
     def from_dict(cls, geometry):
@@ -746,14 +780,6 @@ class GeometryObject(Geometry):
         raise NotImplementedError
 
     def get_bbox(self):
-        """
-        Get the bounding box list.
-
-        Returns
-        -------
-        List
-        """
-
         raise NotImplementedError
 
     @classmethod
@@ -869,10 +895,10 @@ class Point(GeometryObject):
     def get_bbox(self):
         if self._coordinates is None:
             return None
-        else:
-            out = self._coordinates.tolist()
-            out.extend(self._coordinates.tolist())
-            return out
+
+        out = self._coordinates.tolist()
+        out.extend(self._coordinates.tolist())
+        return out
 
     def get_coordinate_list(self):
         if self._coordinates is None:
@@ -957,19 +983,20 @@ class MultiPoint(GeometryObject):
     def get_bbox(self):
         if self._points is None:
             return None
-        else:
-            # create our output space
-            siz = max(point.coordinates.size for point in self.points)
-            mins = [None, ]*siz
-            maxs = [None, ]*siz
 
-            for element in self.get_coordinate_list():
-                for i, entry in enumerate(element):
-                    if mins[i] is None or (entry < mins[i]):
-                        mins[i] = entry
-                    if maxs[i] is None or (entry > maxs[i]):
-                        maxs[i] = entry
-            return mins.extend(maxs)
+        # create our output space
+        siz = max(point.coordinates.size for point in self.points)
+        mins = [None, ]*siz
+        maxs = [None, ]*siz
+
+        for element in self.get_coordinate_list():
+            for i, entry in enumerate(element):
+                if mins[i] is None or (entry < mins[i]):
+                    mins[i] = entry
+                if maxs[i] is None or (entry > maxs[i]):
+                    maxs[i] = entry
+        mins.extend(maxs)
+        return
 
     def get_coordinate_list(self):
         if self._points is None:
@@ -1085,14 +1112,15 @@ class LineString(GeometryObject):
     def get_bbox(self):
         if self._coordinates is None:
             return None
-        else:
-            mins = numpy.min(self.coordinates, axis=0)
-            maxs = numpy.min(self.coordinates, axis=0)
-            min_list = mins.tolist()
-            max_list = maxs.tolist()
-            assert(isinstance(min_list, list))
-            assert (isinstance(max_list, list))
-            return min_list.extend(max_list)
+
+        mins = numpy.min(self.coordinates, axis=0)
+        maxs = numpy.max(self.coordinates, axis=0)
+        min_list = mins.tolist()
+        max_list = maxs.tolist()
+        assert(isinstance(min_list, list))
+        assert (isinstance(max_list, list))
+        min_list.extend(max_list)
+        return min_list
 
     def get_coordinate_list(self):
         if self._coordinates is None:
@@ -1139,7 +1167,7 @@ class LineString(GeometryObject):
         elif self._coordinates.shape[0] == 2:
             return _line_segment_distance(self._coordinates[:, :2], p_coord)
         else:
-            return min(_line_segment_distance(self._coordinates[i:i+2, :2], p_coord) for i in range(self._coordinates.shape[0]-2))
+            return min(_line_segment_distance(self._coordinates[i:i+2, :2], p_coord) for i in range(self._coordinates.shape[0]-1))
 
 
 class MultiLineString(GeometryObject):
@@ -1193,18 +1221,19 @@ class MultiLineString(GeometryObject):
     def get_bbox(self):
         if self._lines is None:
             return None
-        else:
-            siz = max(line.coordinates.shape[1] for line in self.lines)
-            mins = [None, ]*siz
-            maxs = [None, ]*siz
-            for line in self.lines:
-                t_bbox = line.get_bbox()
-                for i, entry in enumerate(t_bbox):
-                    if mins[i] is None or entry < mins[i]:
-                        mins[i] = entry
-                    if maxs[i] is None or entry > maxs[i]:
-                        maxs[i] = entry
-            return mins.extend(maxs)
+
+        siz = max(line.coordinates.shape[1] for line in self.lines)
+        mins = [None, ]*siz
+        maxs = [None, ]*siz
+        for line in self.lines:
+            t_bbox = line.get_bbox()
+            for i, entry in enumerate(t_bbox):
+                if mins[i] is None or entry < mins[i]:
+                    mins[i] = entry
+                if maxs[i] is None or entry > maxs[i]:
+                    maxs[i] = entry
+        mins.extend(maxs)
+        return mins
 
     def get_coordinate_list(self):
         if self._lines is None:
@@ -1813,8 +1842,7 @@ class Polygon(GeometryObject):
     def get_bbox(self):
         if self._outer_ring is None:
             return None
-        else:
-            return self._outer_ring.get_bbox()
+        return self._outer_ring.get_bbox()
 
     def get_coordinate_list(self):
         if self._outer_ring is None:
@@ -2064,21 +2092,21 @@ class MultiPolygon(GeometryObject):
     def get_bbox(self):
         if self._polygons is None:
             return None
-        else:
-            mins = []
-            maxs = []
-            for polygon in self.polygons:
-                t_bbox = polygon.get_bbox()
-                for i, entry in enumerate(t_bbox):
-                    if len(mins) < i:
-                        mins.append(entry)
-                    elif entry < mins[i]:
-                        mins[i] = entry
-                    if len(maxs) < i:
-                        maxs.append(entry)
-                    elif entry > maxs[i]:
-                        maxs[i] = entry
-            return mins.extend(maxs)
+        mins = []
+        maxs = []
+        for polygon in self.polygons:
+            t_bbox = polygon.get_bbox()
+            for i, entry in enumerate(t_bbox):
+                if len(mins) < i:
+                    mins.append(entry)
+                elif entry < mins[i]:
+                    mins[i] = entry
+                if len(maxs) < i:
+                    maxs.append(entry)
+                elif entry > maxs[i]:
+                    maxs[i] = entry
+        mins.extend(maxs)
+        return mins
 
     @classmethod
     def from_dict(cls, geometry):
