@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-This module provides utilities for annotating a given (single image) file with labeled items.
+This module provides structures for annotating a given (single image) file with
+labeled items.
 """
 
 __classification__ = "UNCLASSIFIED"

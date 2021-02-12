@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-This module provides utilities for annotating a given (single image area) sicd
-file for RCS calculations.
+This module provides structures for annotating a given SICD type file for RCS
+calculations.
 """
 
 __classification__ = "UNCLASSIFIED"
@@ -168,21 +168,27 @@ class RCSValueCollection(_Jsonable):
     associated geometry interior.
     """
 
-    __slots__ = ('_pixel_count', '_elements')
+    __slots__ = ('_name', '_description', '_pixel_count', '_elements')
     _type = 'RCSValueCollection'
 
-    def __init__(self, pixel_count=None, elements=None):
+    def __init__(self, name=None, description=None, pixel_count=None, elements=None):
         """
 
         Parameters
         ----------
+        name : None|str
+        description : None|str
         pixel_count : None|int
         elements : None|List[RCSValue|dict]
         """
 
+        self._name = None
+        self._description = None
         self._pixel_count = None
-        self._elements = None  # type: Union[None, List[RCSValue]]
+        self._elements = None
 
+        self.name = name
+        self.description = description
         self.pixel_count = pixel_count
         self.elements = elements
 
@@ -194,6 +200,44 @@ class RCSValueCollection(_Jsonable):
     def __getitem__(self, item):
         # type: (Union[int, str]) -> Union[None, RCSValue]
         return self._elements[item]
+
+    @property
+    def name(self):
+        # type: () -> Union[None, str]
+        """
+        None|str: The name of the associated feature.
+        """
+
+        return self._name
+
+    @name.setter
+    def name(self, value):
+        if value is None:
+            self._name = None
+            return
+
+        if not isinstance(value, string_types):
+            raise TypeError('name is required to be of string type.')
+        self._name = value
+
+    @property
+    def description(self):
+        # type: () -> Union[None, str]
+        """
+        None|str: The description of the associated feature.
+        """
+
+        return self._description
+
+    @description.setter
+    def description(self, value):
+        if value is None:
+            self._description = None
+            return
+
+        if not isinstance(value, string_types):
+            raise TypeError('description is required to be of string type.')
+        self._description = value
 
     @property
     def pixel_count(self):
@@ -274,7 +318,7 @@ class RCSValueCollection(_Jsonable):
 class RCSFeature(Feature):
     """
     A specific extension of the Feature class which has the properties attribute
-    populated with RCSCollection instance.
+    populated with RCSValueCollection instance.
     """
 
     @property
@@ -284,7 +328,7 @@ class RCSFeature(Feature):
 
         Returns
         -------
-        None|RCSCollection
+        None|RCSValueCollection
         """
 
         return self._properties
@@ -293,12 +337,12 @@ class RCSFeature(Feature):
     def properties(self, properties):
         if properties is None:
             self._properties = None
-        elif isinstance(properties, RCSCollection):
+        elif isinstance(properties, RCSValueCollection):
             self._properties = properties
         elif isinstance(properties, dict):
-            self._properties = RCSCollection.from_dict(properties)
+            self._properties = RCSValueCollection.from_dict(properties)
         else:
-            raise TypeError('properties must be an RCSCollection')
+            raise TypeError('properties must be an RCSValueCollection')
 
     def to_dict(self, parent_dict=None):
         if parent_dict is None:
