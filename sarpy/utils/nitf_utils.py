@@ -4,8 +4,8 @@ A utility for dumping a NITF header to the console.
 Contributed by Austin Lan of L3/Harris.
 """
 
+from __future__ import print_function
 import functools
-import os
 import sys
 import xml.dom.minidom
 
@@ -14,6 +14,7 @@ from sarpy.io.general.nitf_elements.base import TREList, UserHeaderType
 from sarpy.io.general.nitf_elements.des import DESUserHeader
 from sarpy.io.general.nitf_elements.res import RESUserHeader
 from sarpy.io.general.nitf_elements.tres.tre_elements import TREElement
+
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Austin Lan"
