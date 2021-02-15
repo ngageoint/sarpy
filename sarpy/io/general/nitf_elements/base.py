@@ -867,7 +867,7 @@ class _ItemArrayHeaders(BaseNITFElement):
         item_frm = '{0:0' + str(self._item_len) + 'd}'
         for sh_off, it_off in zip(self.subhead_sizes, self.item_sizes):
             out += subh_frm.format(sh_off) + item_frm.format(it_off)
-        return out.encode()
+        return out.encode('utf-8')
 
     def to_json(self):
         return OrderedDict([
