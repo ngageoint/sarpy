@@ -2,6 +2,9 @@
 """
 A module for performing a selection of validation checks on a SICD (nitf) file,
 or the xml file containing the sicd structure.
+
+Use the `check_file` function directly, or perform using the command line
+>>> python sarpy.consistency.sicd_consistency <file_name>
 """
 
 __classification__ = "UNCLASSIFIED"
