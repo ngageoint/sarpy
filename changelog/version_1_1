@@ -1,5 +1,6 @@
 # This details the important differences introduced in sarpy 1.1
 
+* .51 - Introduced validity check for SICD in the consistency module
 * .50 - Imposing print function complicance for Python 2.7 usage
 * .49 - Completion of annotation and geometry elements for apps usage
 * .48 - Bug fixes for CPHD AntGainPhase support array reading
