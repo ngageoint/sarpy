@@ -234,6 +234,7 @@ class XYVertexType(XYType):
 
     _fields = ('X', 'Y', 'index')
     _required = _fields
+    _set_as_attribute = ('index', )
     # descriptors
     index = _IntegerDescriptor(
         'index', _required, strict=DEFAULT_STRICT, bounds=(1, None),

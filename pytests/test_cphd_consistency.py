@@ -5,6 +5,7 @@
 # Licensed under MIT License.  See LICENSE.
 #
 
+import copy
 import os
 import re
 import shutil
@@ -36,7 +37,7 @@ def make_elem(tag, text=None, children=None, namespace=None, attributes=None, **
     parent : lxml.etree.ElementTree.Element
         The parent element. (Default: ``None``)
     children : lxml.etree.ElementTree
-        The children elements. (Dafault: ``None``)
+        The children elements. (Default: ``None``)
     namespace : str
         The string containing the namespace. (Default: ``None``)
     attributes : dict
@@ -56,7 +57,8 @@ def make_elem(tag, text=None, children=None, namespace=None, attributes=None, **
             text = str(text).lower()
         if not isinstance(text, str):
             text = repr(text)
-    attrib = dict(attributes.items() + attrib.items())
+    attrib = copy.copy(attrib)
+    attrib.update(attributes)
     attrib = {key: str(value) for key, value in attrib.items()}
     if namespace is not None:
         tag = '{{{namespace}}}{tag}'.format(namespace=namespace, tag=tag)
@@ -91,6 +93,12 @@ def good_xml(good_xml_str):
     good_xml_root_no_ns = sarpy.consistency.cphd_consistency.strip_namespace(etree.fromstring(good_xml_str))
     yield {'with_ns': good_xml_root, 'without_ns': good_xml_root_no_ns,
            'nsmap': {'ns': re.match(r'\{(.*)\}', good_xml_root.tag).group(1)}}
+
+
+@pytest.fixture
+def good_header():
+    with open(GOOD_CPHD, 'rb') as fid:
+        return sarpy.consistency.cphd_consistency.read_header(fid)
 
 
 def remove_nodes(*nodes):
@@ -145,6 +153,17 @@ def test_xml_schema_error(good_xml):
                                                                   schema=DEFAULT_SCHEMA,
                                                                   check_signal_data=False)
     cphd_con.check('check_against_schema')
+    assert cphd_con.failures()
+
+
+def test_check_classification_and_release_info_error(good_xml, good_header):
+    bad_xml = copy_xml(good_xml['without_ns'])
+
+    bad_xml.find('./CollectionID/ReleaseInfo').text += '-make-bad'
+    cphd_con = sarpy.consistency.cphd_consistency.CphdConsistency(bad_xml, pvps={}, header=good_header, filename=None,
+                                                             schema=DEFAULT_SCHEMA,
+                                                             check_signal_data=False)
+    cphd_con.check('check_classification_and_release_info')
     assert cphd_con.failures()
 
 

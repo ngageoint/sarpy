@@ -9,6 +9,7 @@ from .base import DEFAULT_STRICT
 # noinspection PyProtectedMember
 from sarpy.io.complex.sicd_elements.base import Serializable, _StringDescriptor, _StringEnumDescriptor, \
     _IntegerDescriptor, _SerializableListDescriptor
+from .utils import binary_format_string_to_dtype
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
@@ -129,6 +130,12 @@ class SupportArraySizeType(Serializable):
         self.ArrayByteOffset = ArrayByteOffset
         super(SupportArraySizeType, self).__init__(**kwargs)
 
+    def calculate_size(self):
+        """
+        Calculates the size of the support array in bytes as described by the contained fields.
+        """
+        return self.BytesPerElement * self.NumRows * self.NumCols
+
 
 class DataType(Serializable):
     """
@@ -216,3 +223,25 @@ class DataType(Serializable):
             return 0
         else:
             return len(self.Channels)
+
+    def calculate_support_block_size(self):
+        """
+        Calculates the size of the support block in bytes as described by the SupportArray fields.
+        """
+        return sum([s.calculate_size() for s in self.SupportArrays])
+
+    def calculate_pvp_block_size(self):
+        """
+        Calculates the size of the PVP block in bytes as described by the Data fields.
+        """
+        return self.NumBytesPVP * sum([c.NumVectors for c in self.Channels])
+
+    def calculate_signal_block_size(self):
+        """
+        Calculates the size of the signal block in bytes as described by the Data fields.
+        """
+        if self.SignalCompressionID is not None:
+            return sum([c.CompressedSignalSize for c in self.Channels])
+        else:
+             num_bytes_per_sample = binary_format_string_to_dtype(self.SignalArrayFormat).itemsize
+             return num_bytes_per_sample * sum([c.NumVectors * c.NumSamples for c in self.Channels])
