@@ -10,12 +10,14 @@ from typing import Union, Tuple
 import numpy
 
 from sarpy.compliance import int_func, integer_types, string_types
-from .cphd1_elements.utils import binary_format_string_to_dtype
-from .cphd1_elements.CPHD import CPHDType, CPHDHeader, _CPHD_SECTION_TERMINATOR
-from .cphd0_3_elements.CPHD import CPHDType as CPHDType0_3, CPHDHeader as CPHDHeader0_3
 from sarpy.io.general.utils import parse_xml_from_string, validate_range
 from sarpy.io.general.base import AbstractWriter, BaseReader
 from sarpy.io.general.bip import BIPChipper
+
+from sarpy.io.phase_history.cphd1_elements.utils import binary_format_string_to_dtype
+# noinspection PyProtectedMember
+from sarpy.io.phase_history.cphd1_elements.CPHD import CPHDType, CPHDHeader, _CPHD_SECTION_TERMINATOR
+from sarpy.io.phase_history.cphd0_3_elements.CPHD import CPHDType as CPHDType0_3, CPHDHeader as CPHDHeader0_3
 
 
 __classification__ = "UNCLASSIFIED"
@@ -329,7 +331,8 @@ class CPHDReader(BaseReader):
     def file_name(self):
         return self.cphd_details.file_name
 
-    def _read_pvp_vector(self, pvp_block_offset, pvp_offset, vector_size, field_offset, frm, fld_siz, row_count, dim_range):
+    def _read_pvp_vector(self, pvp_block_offset, pvp_offset, vector_size, field_offset,
+                         frm, fld_siz, row_count, dim_range):
         """
         Read the given Per Vector parameter from the disc.
 
@@ -455,22 +458,10 @@ class CPHDReader(BaseReader):
         Dict
             Dictionary of `numpy.ndarray` containing the signal arrays.
         """
+        
+        # TODO: this will not work as advertised...fix this.
         return {chan.Identifier: self.read_chip(None, None, chan.Identifier) for chan in self.cphd_meta.Data.Channels}
 
-    def read_support_block(self):
-        """
-        Reads the full support block.
-
-        Returns
-        -------
-        Dict
-            Dictionary of `numpy.ndarray` containing the support arrays.
-        """
-        if self.cphd_meta.Data.SupportArrays:
-            return {sa.Identifier: self.read_support_array(sa.Identifier, None, None)
-                    for sa in self.cphd_meta.Data.SupportArrays}
-        else:
-            return {}
 
 class CPHDReader1_0(CPHDReader):
     """
@@ -513,6 +504,14 @@ class CPHDReader1_0(CPHDReader):
         return self.cphd_details.cphd_header
 
     def _create_chippers(self):
+        """
+        Helper method for creating the various signal reading chipper elements.
+
+        Returns
+        -------
+        Tuple[BIPChipper]
+        """
+
         chippers = []
 
         data = self.cphd_meta.Data
@@ -664,6 +663,7 @@ class CPHDReader1_0(CPHDReader):
         -------
         pvp_array : numpy.ndarray
         """
+
         this_channel = None
         if isinstance(channel_id, integer_types):
             this_channel = self.cphd_meta.Data.Channels[channel_id]
@@ -699,6 +699,23 @@ class CPHDReader1_0(CPHDReader):
             Dictionary of `numpy.ndarray` containing the PVP arrays.
         """
         return {chan.Identifier: self.read_pvp_array(chan.Identifier) for chan in self.cphd_meta.Data.Channels}
+
+    def read_support_block(self):
+        """
+        Reads the full support block.
+
+        Returns
+        -------
+        Dict
+            Dictionary of `numpy.ndarray` containing the support arrays.
+        """
+
+        if self.cphd_meta.Data.SupportArrays:
+            return {sa.Identifier: self.read_support_array(sa.Identifier, None, None)
+                    for sa in self.cphd_meta.Data.SupportArrays}
+        else:
+            return {}
+
 
 class CPHDReader0_3(CPHDReader):
     """
@@ -794,6 +811,7 @@ class CPHDReader0_3(CPHDReader):
         field_offset, fld_siz = result
         return self._read_pvp_vector(
             pvp_block_offset, pvp_offset, vector_size, field_offset, frm, fld_siz, row_count, the_range)
+
 
 class CPHDWriter1_0(AbstractWriter):
     """

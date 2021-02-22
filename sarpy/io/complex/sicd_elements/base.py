@@ -163,7 +163,7 @@ def _parse_bool(value, name, instance):
         return None
     if isinstance(value, bool):
         return value
-    elif isinstance(value, (integer_types, numpy.bool_)):
+    elif isinstance(value, integer_types) or isinstance(value, numpy.bool_):
         return bool(value)
     elif isinstance(value, ElementTree.Element):
         # from XML deserialization
