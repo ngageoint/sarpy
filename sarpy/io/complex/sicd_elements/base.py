@@ -141,7 +141,8 @@ def _parse_str(value, name, instance):
     if isinstance(value, string_types):
         return value
     elif isinstance(value, ElementTree.Element):
-        return _get_node_value(value)
+        node_value = _get_node_value(value)
+        return "" if node_value is None else node_value
     else:
         raise TypeError(
             'field {} of class {} requires a string value.'.format(name, instance.__class__.__name__))
@@ -162,7 +163,7 @@ def _parse_bool(value, name, instance):
         return None
     if isinstance(value, bool):
         return value
-    elif isinstance(value, integer_types):
+    elif isinstance(value, (integer_types, numpy.bool_)):
         return bool(value)
     elif isinstance(value, ElementTree.Element):
         # from XML deserialization

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Module for reading CPHD files - should support CPHD version 0.3 and 1.0.
+Module for reading and writing CPHD files - should support reading CPHD version 0.3 and 1.0 and writing version 1.0.
 """
 
 import struct
@@ -10,10 +10,11 @@ from typing import Union, Tuple
 import numpy
 
 from sarpy.compliance import int_func, integer_types, string_types
-from .cphd1_elements.CPHD import CPHDType, CPHDHeader
+from .cphd1_elements.utils import binary_format_string_to_dtype
+from .cphd1_elements.CPHD import CPHDType, CPHDHeader, _CPHD_SECTION_TERMINATOR
 from .cphd0_3_elements.CPHD import CPHDType as CPHDType0_3, CPHDHeader as CPHDHeader0_3
 from sarpy.io.general.utils import parse_xml_from_string, validate_range
-from sarpy.io.general.base import BaseReader
+from sarpy.io.general.base import AbstractWriter, BaseReader
 from sarpy.io.general.bip import BIPChipper
 
 
@@ -43,43 +44,6 @@ def is_a(file_name):
     except IOError:
         # we don't want to catch parsing errors, for now?
         return None
-
-
-def _format_mapping(frm):
-    """
-    Map the single character struct format element to a numpy dtype and size in bytes.
-
-    Parameters
-    ----------
-    frm : str
-
-    Returns
-    -------
-    Tuple[numpy.number, int]
-    """
-
-    if frm == 'd':
-        return numpy.float64, 8
-    elif frm == 'f':
-        return numpy.float32, 4
-    elif frm == 'Q':
-        return numpy.uint64, 8
-    elif frm == 'q':
-        return numpy.int64, 8
-    elif frm in ('L', 'I'):
-        return numpy.uint32, 4
-    elif frm in ('l', 'i'):
-        return numpy.int32, 4
-    elif frm == 'H':
-        return numpy.uint16, 2
-    elif frm == 'h':
-        return numpy.int16, 2
-    elif frm == 'B':
-        return numpy.uint8, 1
-    elif frm == 'b':
-        return numpy.int8, 1
-    else:
-        raise ValueError('Got unexpected struct format type {}'.format(frm))
 
 
 #########
@@ -397,8 +361,8 @@ class CPHDReader(BaseReader):
         # reformat the range definition
         the_range = validate_range(dim_range, row_count)
 
-        dtype, elem_size = _format_mapping(frm)
-        siz = int(fld_siz/elem_size)
+        dtype = numpy.dtype(frm)
+        siz = int(fld_siz/dtype.itemsize)
 
         out_count = int_func((the_range[1] - the_range[0])/the_range[2])
         shp = (out_count, ) if siz == 1 else (out_count, siz)
@@ -408,7 +372,7 @@ class CPHDReader(BaseReader):
         with open(self.cphd_details.file_name, 'rb') as fi:
             for i in range(out_count):
                 fi.seek(current_offset)
-                element = struct.unpack('>{}{}'.format(siz, frm), fi.read(fld_siz))
+                element = numpy.fromfile(fi, dtype=dtype.newbyteorder('B'), count=siz)
                 out[i] = element[0] if siz == 1 else element
                 current_offset += the_range[2]*vector_size
         return out
@@ -482,6 +446,31 @@ class CPHDReader(BaseReader):
     def read_chip(self, dim1range, dim2range, index=0):
         return self.__call__(dim1range, dim2range, index=index)
 
+    def read_signal_block(self):
+        """
+        Reads the full signal block.
+
+        Returns
+        -------
+        Dict
+            Dictionary of `numpy.ndarray` containing the signal arrays.
+        """
+        return {chan.Identifier: self.read_chip(None, None, chan.Identifier) for chan in self.cphd_meta.Data.Channels}
+
+    def read_support_block(self):
+        """
+        Reads the full support block.
+
+        Returns
+        -------
+        Dict
+            Dictionary of `numpy.ndarray` containing the support arrays.
+        """
+        if self.cphd_meta.Data.SupportArrays:
+            return {sa.Identifier: self.read_support_array(sa.Identifier, None, None)
+                    for sa in self.cphd_meta.Data.SupportArrays}
+        else:
+            return {}
 
 class CPHDReader1_0(CPHDReader):
     """
@@ -662,6 +651,54 @@ class CPHDReader1_0(CPHDReader):
         del mem_map
         return data
 
+    def read_pvp_array(self, channel_id):
+        """
+        Read the PVP array from the requested channel.
+
+        Parameters
+        ----------
+        channel_id : int|str
+            The support array integer index (of cphd.Data.Channels list) or identifier.
+
+        Returns
+        -------
+        pvp_array : numpy.ndarray
+        """
+        this_channel = None
+        if isinstance(channel_id, integer_types):
+            this_channel = self.cphd_meta.Data.Channels[channel_id]
+            identifier = this_channel.Identifier
+        elif isinstance(channel_id, string_types):
+            identifier = channel_id
+            for entry in self.cphd_meta.Data.Channels:
+                if entry.Identifier == channel_id:
+                    this_channel = entry
+                    break
+            if this_channel is None:
+                raise KeyError('Identifier {} not associated with a channel.'.format(identifier))
+        else:
+            raise TypeError('Got unexpected type {} for identifier'.format(type(channel_id)))
+
+        pvp_byte_offset = self.cphd_header.PVP_BLOCK_BYTE_OFFSET + this_channel.PVPArrayByteOffset
+        pvp_dtype = self.cphd_meta.PVP.get_numpy_dtype()
+        num_vectors = this_channel.NumVectors
+
+        with open(self.cphd_details.file_name, 'rb') as fd:
+            fd.seek(pvp_byte_offset)
+            pvp_array = numpy.fromfile(fd, dtype=pvp_dtype.newbyteorder('B'), count=num_vectors)
+
+        return pvp_array
+
+    def read_pvp_block(self):
+        """
+        Reads the full PVP block.
+
+        Returns
+        -------
+        Dict
+            Dictionary of `numpy.ndarray` containing the PVP arrays.
+        """
+        return {chan.Identifier: self.read_pvp_array(chan.Identifier) for chan in self.cphd_meta.Data.Channels}
 
 class CPHDReader0_3(CPHDReader):
     """
@@ -757,3 +794,149 @@ class CPHDReader0_3(CPHDReader):
         field_offset, fld_siz = result
         return self._read_pvp_vector(
             pvp_block_offset, pvp_offset, vector_size, field_offset, frm, fld_siz, row_count, the_range)
+
+class CPHDWriter1_0(AbstractWriter):
+    """
+    The CPHD version 1.0 writer.
+    """
+
+    __slots__ = ('_file_name', '_cphd_meta')
+
+    def __init__(self, file_name, cphd_meta):
+        """
+
+        Parameters
+        ----------
+        file_name : str
+        cphd_meta : sarpy.io.phase_history.cphd1_elements.CPHD.CPHDType
+        """
+        self._cphd_meta = cphd_meta
+        super(CPHDWriter1_0, self).__init__(file_name)
+
+    @property
+    def cphd_meta(self):
+        """
+        sarpy.io.phase_history.cphd1_elements.CPHD.CPHDType: The cphd metadata
+        """
+
+        return self._cphd_meta
+
+    def write_file(self, pvp_block, signal_block, support_block=None):
+        """Write the blocks to the file.
+
+        Parameters
+        ----------
+        pvp_block: dict
+            Dictionary of `numpy.ndarray` containing the PVP arrays.
+            Keys must match `signal_block` and be consistent with `self.cphd_meta`
+        signal_block: dict
+            Dictionary of `numpy.ndarray` containing the signal arrays.
+            Keys must match `pvp_block` and be consistent with `self.cphd_meta`
+        support_block: dict, optional
+            Dictionary of `numpy.ndarray` containing the support arrays.
+
+        """
+
+        header = self.cphd_meta.make_file_header()
+
+        def assert_equal(exp, act, desc='', id=''):
+            assert exp == act, '{} {} expected:{}, actual:{}'.format(desc, id, exp, act)
+
+        # Validate support block, if present
+        if header.SUPPORT_BLOCK_SIZE or support_block:
+            assert header.SUPPORT_BLOCK_SIZE and support_block, 'cphd_meta and support_block are inconsistent'
+
+            expected_support_ids = {s.Identifier for s in self.cphd_meta.Data.SupportArrays}
+            assert expected_support_ids == set(support_block.keys()), 'support_block keys do not match those in cphd_meta'
+
+            for sa in self.cphd_meta.Data.SupportArrays:
+                input_sa = support_block[sa.Identifier]
+
+                expected_shape = (sa.NumRows, sa.NumCols)
+                actual_shape = input_sa.shape[:2] # first two dimensions as dtype may be structured
+                assert_equal(expected_shape, actual_shape, 'support array shape', sa.Identifier)
+
+                expected_element_bytes = sa.BytesPerElement
+                actual_element_bytes = input_sa.nbytes / numpy.prod(actual_shape)
+                assert_equal(expected_element_bytes, actual_element_bytes, 'support array #bytes', sa.Identifier)
+
+        # Verify that channels are consistent
+        expected_channels = {c.Identifier for c in self.cphd_meta.Data.Channels}
+        assert expected_channels == set(signal_block.keys()), 'signal_block keys do not match those in cphd_meta'
+        assert expected_channels == set(pvp_block.keys()), 'pvp_block keys do not match those in cphd_meta'
+
+        # Verify signal_block shapes and sizes
+        if self.cphd_meta.Data.SignalCompressionID is None:
+            expected_element_bytes = binary_format_string_to_dtype(self.cphd_meta.Data.SignalArrayFormat).itemsize
+            for chan in self.cphd_meta.Data.Channels:
+                input_sig = signal_block[chan.Identifier]
+
+                expected_shape = (chan.NumVectors, chan.NumSamples)
+                actual_shape = input_sig.shape[:2]
+                assert_equal(expected_shape, actual_shape, 'signal array shape', chan.Identifier)
+
+                actual_element_bytes = input_sig.nbytes / numpy.prod(actual_shape)
+                assert_equal(expected_element_bytes, actual_element_bytes, 'signal array #bytes', chan.Identifier)
+
+        # Validate PVP block
+        input_pvp_types = {v.dtype for v in pvp_block.values()}
+        assert len(input_pvp_types) == 1, 'All channels in PVP block must be uniformly structured'
+
+        actual_pvp_bytes = input_pvp_types.pop().itemsize
+        assert_equal(self.cphd_meta.Data.NumBytesPVP, actual_pvp_bytes, 'Data.NumBytesPVP')
+        assert_equal(self.cphd_meta.PVP.get_numpy_dtype().itemsize, actual_pvp_bytes, 'PVP Node #Bytes')
+
+        for chan in self.cphd_meta.Data.Channels:
+            input_pvp = pvp_block[chan.Identifier]
+
+            expected_num_vectors = chan.NumVectors
+            actual_num_vectors = input_pvp.shape[0]
+            assert_equal(expected_num_vectors, actual_num_vectors, 'PVP shape', chan.Identifier)
+
+        def sort_and_check_offsets(meta_items, input_items, offset_name):
+            sorted_meta = sorted(meta_items, key=lambda x: getattr(x, offset_name))
+            first_item = sorted_meta[0]
+            assert getattr(first_item, offset_name) == 0, 'first byte offset in block must be 0'
+            actual_offset = input_items[first_item.Identifier].nbytes
+            for m in sorted_meta[1:]:
+                expected_offset = getattr(m, offset_name)
+                assert_equal(expected_offset, actual_offset, offset_name, m.Identifier)
+
+                actual_offset += input_items[m.Identifier].nbytes
+
+            return [x.Identifier for x in sorted_meta]
+
+        if header.SUPPORT_BLOCK_SIZE:
+            support_order = sort_and_check_offsets(self.cphd_meta.Data.SupportArrays, support_block, 'ArrayByteOffset')
+        signal_order = sort_and_check_offsets(self.cphd_meta.Data.Channels, signal_block, 'SignalArrayByteOffset')
+        pvp_order = sort_and_check_offsets(self.cphd_meta.Data.Channels, pvp_block, 'PVPArrayByteOffset')
+
+        # Write file
+        def write_array(array):
+            array.astype(array.dtype.newbyteorder('big')).tofile(outfile)
+
+        with open(self._file_name, "wb") as outfile:
+            # Header
+            outfile.write(header.to_string().encode())
+            outfile.write(_CPHD_SECTION_TERMINATOR)
+
+            # XML
+            outfile.seek(header.XML_BLOCK_BYTE_OFFSET)
+            outfile.write(self.cphd_meta.to_xml_bytes())
+            outfile.write(_CPHD_SECTION_TERMINATOR)
+
+            # Support Arrays
+            if header.SUPPORT_BLOCK_SIZE:
+                outfile.seek(header.SUPPORT_BLOCK_BYTE_OFFSET)
+                for id in support_order:
+                    write_array(support_block[id])
+
+            # PVP
+            outfile.seek(header.PVP_BLOCK_BYTE_OFFSET)
+            for id in pvp_order:
+                write_array(pvp_block[id])
+
+            # Signal
+            outfile.seek(header.SIGNAL_BLOCK_BYTE_OFFSET)
+            for id in signal_order:
+                write_array(signal_block[id])

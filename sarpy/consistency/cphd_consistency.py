@@ -43,6 +43,8 @@ except ImportError:
 
 import sarpy.consistency.consistency as con
 import sarpy.consistency.parsers as parsers
+import sarpy.io.phase_history.cphd1_elements.CPHD
+import sarpy.io.phase_history.cphd1_elements.utils as cphd1_utils
 import sarpy.io.phase_history.cphd_schema
 
 
@@ -76,81 +78,6 @@ def strip_namespace(root):
     return new_root
 
 
-def _single_binary_format_string_to_dtype(form):
-    """
-    Convert a CPHD datatype into a dtype
-
-    Parameters
-    ----------
-    form: str
-        single item CPHD format string.  (ex: I4, CF8)
-
-    Returns
-    -------
-    numpy.dtype
-        Equivalent numpy dtype
-    """
-    if form.startswith('S'):
-        dtype = np.dtype(form)
-    else:
-        lookup = {
-            "U1": np.dtype('u1'),
-            "U2": np.dtype('u2'),
-            "U4": np.dtype('u4'),
-            "U8": np.dtype('u8'),
-            "I1": np.dtype('i1'),
-            "I2": np.dtype('i2'),
-            "I4": np.dtype('i4'),
-            "I8": np.dtype('i8'),
-            "F4": np.dtype('f4'),
-            "F8": np.dtype('f8'),
-            "CI2": np.dtype([('real', 'i1'), ('imag', 'i1')]),
-            "CI4": np.dtype([('real', 'i2'), ('imag', 'i2')]),
-            "CI8": np.dtype([('real', 'i4'), ('imag', 'i4')]),
-            "CI16": np.dtype([('real', 'i8'), ('imag', 'i8')]),
-            "CF8": np.dtype('c8'),
-            "CF16": np.dtype('c16')}
-        dtype = lookup[form]
-
-    return dtype
-
-
-def binary_format_string_to_dtype(format_string):
-    """
-    Return the numpy.dtype for CPHD Binary Format string (table 10-2).
-
-    Parameters
-    ----------
-    format_string: str
-        PVP type designator (e.g., ``'I1'``, ``'I4'``, ``'CF8'``, etc.).
-
-    Returns
-    -------
-    numpy.dtype
-        The equivalent `numpy.dtype` of the PVP format string
-        (e.g., numpy.int8, numpy.int32, numpy.complex64, etc.).
-
-    """
-    components = format_string.split(';')
-
-    if '=' in components[0]:
-        comptypes = []
-        for comp in components[:-1]:
-            kvp = comp.split('=')
-            comptypes.append((kvp[0], _single_binary_format_string_to_dtype(kvp[1])))
-
-        # special handling of XYZ types
-        keys, types = list(zip(*comptypes))
-        if keys == ('X', 'Y', 'Z') and len(set(types)) == 1:
-            dtype = np.dtype('3' + comptypes[0][1].name)
-        else:
-            dtype = np.dtype(comptypes)
-    else:
-        dtype = _single_binary_format_string_to_dtype(components[0])
-
-    return dtype
-
-
 def parse_pvp_elem(elem):
     """
     Reverse of `pvp_elem`.
@@ -174,7 +101,7 @@ def parse_pvp_elem(elem):
     offset = int(elem.find('Offset').text)
     size = int(elem.find('Size').text)
 
-    dtype = binary_format_string_to_dtype(elem.find('Format').text)
+    dtype = cphd1_utils.binary_format_string_to_dtype(elem.find('Format').text)
 
     return name, {"offset": offset,
                   "size": size,
@@ -195,32 +122,14 @@ def read_header(file_handle):
     -------
     Dict
         Dictionary containing CPHD header values.
-    etree.ElementTree.Element
-        the root node of the CPHD XML
     """
 
     file_handle.seek(0)
     version = file_handle.readline().decode()
     assert version.startswith('CPHD/1.0')
 
-    header = {}
-    while True:
-        line = file_handle.readline().decode()
-
-        if line == '\f\n':
-            break
-
-        key, value = line.strip().split(' := ')
-        header[key] = value
-
-    for key in ['XML_BLOCK_SIZE', 'XML_BLOCK_BYTE_OFFSET',
-                'PVP_BLOCK_SIZE', 'PVP_BLOCK_BYTE_OFFSET',
-                'SIGNAL_BLOCK_SIZE', 'SIGNAL_BLOCK_BYTE_OFFSET',
-                'SUPPORT_BLOCK_SIZE', 'SUPPORT_BLOCK_BYTE_OFFSET']:
-        if key in header:
-            header[key] = int(header[key])
-
-    return header
+    header = sarpy.io.phase_history.cphd1_elements.CPHD.CPHDHeader.from_file_object(file_handle)
+    return {k:getattr(header, k) for k in header._fields if getattr(header, k) is not None}
 
 
 def per_channel(method):
@@ -385,6 +294,17 @@ class CphdConsistency(con.ConsistencyChecker):
                 assert 'SUPPORT_BLOCK_BYTE_OFFSET' in self.header
                 with self.need("SUPPORT_BLOCK fields go together"):
                     assert 'SUPPORT_BLOCK_SIZE' in self.header
+
+    def check_classification_and_release_info(self):
+        """
+        Asserts that the Classification and ReleaseInfo fields are the same in header and the xml.
+        """
+        with self.precondition():
+            assert self.header is not None
+            with self.need("Header CLASSIFICATION matches XML Classification"):
+                assert self.header['CLASSIFICATION'] == self.xml.findtext('./CollectionID/Classification') != None
+            with self.need("Header RELEASE_INFO matches XML ReleaseInfo"):
+                assert self.header['RELEASE_INFO'] == self.xml.findtext('./CollectionID/ReleaseInfo') != None
 
     def check_against_schema(self):
         """
@@ -956,7 +876,7 @@ class CphdConsistency(con.ConsistencyChecker):
         with self.precondition():
             assert self.header is not None
             format_string = self.xml.findtext('./Data/SignalArrayFormat')
-            signal_dtype = binary_format_string_to_dtype(format_string)
+            signal_dtype = cphd1_utils.binary_format_string_to_dtype(format_string)
 
             channel_data_node = get_by_id(self.xml, './Data/Channel', channel_id)
             signal_offset = int(channel_data_node.findtext('./SignalArrayByteOffset'))
@@ -1004,7 +924,7 @@ class CphdConsistency(con.ConsistencyChecker):
             assert self.filename is not None
             xml_end = self.header['XML_BLOCK_BYTE_OFFSET'] + self.header['XML_BLOCK_SIZE']
             if 'SUPPORT_BLOCK_BYTE_OFFSET' in self.header:
-                num_bytes_after_xml = self['SUPPORT_BLOCK_BYTE_OFFSET'] - xml_end
+                num_bytes_after_xml = self.header['SUPPORT_BLOCK_BYTE_OFFSET'] - xml_end
                 next_block = 'Support'
             else:
                 num_bytes_after_xml = self.header['PVP_BLOCK_BYTE_OFFSET'] - xml_end

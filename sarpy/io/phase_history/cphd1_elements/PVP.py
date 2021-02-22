@@ -5,11 +5,13 @@ The Per Vector parameters (PVP) definition.
 
 from typing import Union, List
 
+import numpy as np
+
 from .base import DEFAULT_STRICT
 # noinspection PyProtectedMember
 from sarpy.io.complex.sicd_elements.base import Serializable, _StringDescriptor, \
     _IntegerDescriptor, _SerializableListDescriptor, _SerializableDescriptor
-from .utils import homogeneous_format
+from .utils import binary_format_string_to_dtype, homogeneous_dtype
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
@@ -378,11 +380,28 @@ class PVPType(Serializable):
             val = getattr(self, field)
             if val is None:
                 return None
-            return val.Offset*8, val.Size*8, homogeneous_format(val.Format)
+            return val.Offset*8, val.Size*8, homogeneous_dtype(val.Format).char
         else:
             if self.AddedPVP is None:
                 return None
             for val in self.AddedPVP:
                 if field == val.Name:
-                    return val.Offset*8, val.Size*8, homogeneous_format(val.Format)
+                    return val.Offset*8, val.Size*8, homogeneous_dtype(val.Format).char
             return None
+
+    def get_numpy_dtype(self):
+        """
+        Returns a numpy.dtype describing the PVP set.
+
+        Returns
+        -------
+        dtype: `numpy.dtype`
+            The equivalent `numpy.dtype` of the PVP set.
+        """
+        pvp_dict = self.to_dict()
+        bytes_per_word = 8
+
+        desc = {'names': list(pvp_dict.keys()),
+                'formats': [binary_format_string_to_dtype(v['Format']) for v in pvp_dict.values()],
+                'offsets': [v['Offset']*bytes_per_word for v in pvp_dict.values()]}
+        return np.dtype(desc)
