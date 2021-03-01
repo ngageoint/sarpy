@@ -103,6 +103,7 @@ def generic_io_test(instance, test_file, reader_type_string, reader_type):
 
     del reader
 
+
 def generic_writer_test(cphd_reader):
     with tempfile.NamedTemporaryFile() as written_cphd:
         read_support = cphd_reader.read_support_block()
@@ -121,6 +122,7 @@ def generic_writer_test(cphd_reader):
         numpy.testing.assert_equal(read_signal, reread_signal)
 
         assert not sarpy.consistency.cphd_consistency.main([written_cphd.name, '--schema', DEFAULT_SCHEMA, '--signal-data'])
+
 
 class TestCPHD(unittest.TestCase):
     @unittest.skipIf(len(cphd_file_types.get('CPHD', [])) == 0, 'No CPHD files specified or found')
