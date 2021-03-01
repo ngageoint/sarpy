@@ -2363,11 +2363,16 @@ class OrthorectificationIterator(object):
 
         # validate the bounds
         data_size = calculator.data_size
-        if bounds is None:
-            bounds = (0, data_size[0], 0, data_size[1])
-        pixel_bounds, pixel_rectangle = ortho_helper.bounds_to_rectangle(bounds)
-        # get the corresponding prtho bounds
-        ortho_bounds = ortho_helper.get_orthorectification_bounds_from_pixel_object(pixel_rectangle)
+        if bounds is not None:
+            pixel_bounds, pixel_rectangle = ortho_helper.bounds_to_rectangle(bounds)
+            # get the corresponding ortho bounds
+            ortho_bounds = ortho_helper.get_orthorectification_bounds_from_pixel_object(pixel_rectangle)
+        else:
+            ortho_bounds = ortho_helper.get_full_ortho_bounds()
+            ortho_bounds, nominal_pixel_bounds = ortho_helper.extract_pixel_bounds(ortho_bounds)
+            # extract the values - ensure that things are within proper image bounds
+            pixel_bounds = ortho_helper.get_real_pixel_bounds(nominal_pixel_bounds)
+
         self._pixel_bounds = pixel_bounds
         self._ortho_bounds = ortho_bounds
         self._apply_remap = not (apply_remap is False)
