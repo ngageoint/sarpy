@@ -3,9 +3,10 @@
 Module for reading and writing CPHD files - should support reading CPHD version 0.3 and 1.0 and writing version 1.0.
 """
 
-import struct
+import logging
 import os
-from typing import Union, Tuple
+from typing import Union, Tuple, Dict
+from collections import OrderedDict
 
 import numpy
 
@@ -280,8 +281,9 @@ class CPHDReader(BaseReader):
 
     def __new__(cls, *args, **kwargs):
         if len(args) == 0:
-            raise ValueError('The first argument of the constructor is required to '
-                             'be a file_path or CPHDDetails instance.')
+            raise ValueError(
+                'The first argument of the constructor is required to be a file_path '
+                'or CPHDDetails instance.')
         cphd_details = _validate_cphd_details(args[0])
 
         if cphd_details.cphd_version.startswith('0.3'):
@@ -331,7 +333,7 @@ class CPHDReader(BaseReader):
     def file_name(self):
         return self.cphd_details.file_name
 
-    def _read_pvp_vector(self, pvp_block_offset, pvp_offset, vector_size, field_offset,
+    def _read_pvp_variable(self, pvp_block_offset, pvp_offset, vector_size, field_offset,
                          frm, fld_siz, row_count, dim_range):
         """
         Read the given Per Vector parameter from the disc.
@@ -361,6 +363,8 @@ class CPHDReader(BaseReader):
         numpy.ndarray
         """
 
+        # TODO: this should be replaced with a more natural usage by setting up a memmap of the appropriate dtype...
+
         # reformat the range definition
         the_range = validate_range(dim_range, row_count)
 
@@ -380,7 +384,7 @@ class CPHDReader(BaseReader):
                 current_offset += the_range[2]*vector_size
         return out
 
-    def read_pvp_vector(self, variable, index, the_range=None):
+    def read_pvp_variable(self, variable, index, the_range=None):
         """
         Read the vector parameter for the given `variable` and CPHD channel.
 
@@ -396,6 +400,34 @@ class CPHDReader(BaseReader):
         Returns
         -------
         numpy.ndarray
+        """
+
+        # TODO: read directly from numpy memmap.
+        raise NotImplementedError
+
+    def read_support_array(self, index, dim1_range, dim2_range):
+        """
+        Read the support array.
+
+        Parameters
+        ----------
+        index : int|str
+            The support array integer index (of cphd.Data.SupportArrays list) or identifier.
+        dim1_range : None|int|Tuple[int, int]|Tuple[int, int, int]
+            The row data selection of the form `[start, [stop, [stride]]]`, and
+            `None` defaults to all rows (i.e. `(0, NumRows, 1)`)
+        dim2_range : None|int|Tuple[int, int]|Tuple[int, int, int]
+            The column data selection of the form `[start, [stop, [stride]]]`, and
+            `None` defaults to all rows (i.e. `(0, NumCols, 1)`)
+
+        Returns
+        -------
+        numpy.ndarray
+
+        Raises
+        ------
+        TypeError
+            If called on a CPHD version 0.3 reader.
         """
 
         raise NotImplementedError
@@ -422,7 +454,7 @@ class CPHDReader(BaseReader):
         data = chipper(range1, range2)
 
         # fetch the scale data, if there is any
-        scale = self.read_pvp_vector('AmpSF', index, the_range=range1)
+        scale = self.read_pvp_variable('AmpSF', index, the_range=range1)
         if scale is None:
             return data
 
@@ -447,20 +479,54 @@ class CPHDReader(BaseReader):
         return self._fetch(range1, range2, index)
 
     def read_chip(self, dim1range, dim2range, index=0):
+        # type: (Union[None, int, Tuple[int, int], Tuple[int, int, int]], Union[None, int, Tuple[int, int], Tuple[int, int, int]], Union[int, str]) -> numpy.ndarray
+        """
+        Read the signal block associated with `index`, and given ranges.
+
+        Parameters
+        ----------
+        dim1range : None|int|Tuple[int, int]|Tuple[int, int, int]
+        dim2range : None|int|Tuple[int, int]|Tuple[int, int, int]
+        index : int|str
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+
         return self.__call__(dim1range, dim2range, index=index)
+
+    def read_pvp_array(self, index, the_range=None):
+        """
+        Read the PVP array from the requested channel.
+
+        Parameters
+        ----------
+        index : int|str
+            The support array integer index (of cphd.Data.Channels list) or identifier.
+        the_range : None|int|List[int]|Tuple[int]
+            The indices for the vector parameter. `None` returns all, otherwise
+            a slice in the (non-traditional) form `([start, [stop, [stride]]])`.
+
+        Returns
+        -------
+        pvp_array : numpy.ndarray
+        """
+
+        raise NotImplementedError
 
     def read_signal_block(self):
         """
-        Reads the full signal block.
+        Reads the full signal block(s).
 
         Returns
         -------
         Dict
             Dictionary of `numpy.ndarray` containing the signal arrays.
         """
-        
-        # TODO: this will not work as advertised...fix this.
-        return {chan.Identifier: self.read_chip(None, None, chan.Identifier) for chan in self.cphd_meta.Data.Channels}
+
+        # TODO: this should take an optional parameters for index/identifier. Improve the doc string.
+        raise NotImplementedError
 
 
 class CPHDReader1_0(CPHDReader):
@@ -481,9 +547,15 @@ class CPHDReader1_0(CPHDReader):
         cphd_details : str|CPHDDetails
         """
 
+        self._channel_map = None  # type: Union[None, Dict[str, int]]
+        self._support_array_map = None  # type: Union[None, Dict[str, int]]
+        self._pvp_memmap = None  # type: Union[None, Dict[str, numpy.ndarray]]
+        self._support_array_memmap = None  # type: Union[None, Dict[str, numpy.ndarray]]
         self._cphd_details = _validate_cphd_details(cphd_details, version='1.0')
         chipper = self._create_chippers()
         BaseReader.__init__(self, None, chipper, reader_type="CPHD")
+        self._create_pvp_memmaps()
+        self._create_support_array_memmaps()
 
     @property
     def cphd_meta(self):
@@ -538,6 +610,61 @@ class CPHDReader1_0(CPHDReader):
                 symmetry=symmetry, transform_data='COMPLEX', data_offset=block_offset+data_offset))
         return tuple(chippers)
 
+    def _create_pvp_memmaps(self):
+        """
+        Helper method which creates the pvp mem_maps.
+
+        Returns
+        -------
+        None
+        """
+
+        self._pvp_memmap = None
+        if self.cphd_meta.Data.Channels is None:
+            logging.error('No Data.Channels defined.')
+            return
+        if self.cphd_meta.PVP is None:
+            logging.error('No PVP object defined.')
+            return
+
+        pvp_dtype = self.cphd_meta.PVP.get_vector_dtype()
+        self._pvp_memmap = OrderedDict()
+        self._channel_map = OrderedDict()
+        for i, entry in enumerate(self.cphd_meta.Data.Channels):
+            self._channel_map[entry.Identifier] = i
+            offset = self.cphd_header.PVP_BLOCK_BYTE_OFFSET + entry.PVPArrayByteOffset
+            shape = (entry.NumVectors, )
+            self._pvp_memmap[entry.Identifier] = numpy.memmap(
+                self.cphd_details.file_name, dtype=pvp_dtype, mode='r', offset=offset, shape=shape)
+
+    def _create_support_array_memmaps(self):
+        """
+        Helper method which creates the support array mem_maps.
+
+        Returns
+        -------
+        None
+        """
+
+        if self.cphd_meta.Data.SupportArrays is None:
+            self._support_array_memmap = None
+            return
+
+        self._support_array_memmap = OrderedDict()
+        self._support_array_map = OrderedDict()
+        for i, entry in enumerate(self.cphd_meta.Data.SupportArrays):
+            self._support_array_map[entry.Identifier] = i
+            # extract the support array metadata details
+            details = self.cphd_meta.SupportArray.find_support_array(entry.Identifier)
+            # determine array byte offset
+            offset = self.cphd_header.SUPPORT_BLOCK_BYTE_OFFSET + entry.ArrayByteOffset
+            # determine numpy dtype and depth of array
+            dtype, depth = details.get_numpy_format()
+            # set up the numpy memory map
+            shape = (entry.NumRows, entry.NumCols) if depth == 1 else (entry.NumRows, entry.NumCols, depth)
+            self._support_array_memmap[entry.Identifier] = numpy.memmap(
+                self.cphd_details.file_name, dtype=dtype, mode='r', offset=offset, shape=shape)
+
     def _validate_index(self, index):
         """
         Get corresponding integer index for CPHD channel.
@@ -548,63 +675,57 @@ class CPHDReader1_0(CPHDReader):
 
         Returns
         -------
-        None|int
+        int
         """
 
         cphd_meta = self.cphd_details.cphd_meta
 
         if isinstance(index, string_types):
-            for i, channel in enumerate(cphd_meta.Data.Channels):
-                if channel.Identifier == index:
-                    return i
-            raise KeyError('Cannot find CPHD channel for identifier {}'.format(index))
+            if index in self._channel_map:
+                return self._channel_map[index]
+            else:
+                raise KeyError('Cannot find CPHD channel for identifier {}'.format(index))
         else:
             int_index = int_func(index)
             if not (0 <= int_index < cphd_meta.Data.NumCPHDChannels):
                 raise ValueError('index must be in the range [0, {})'.format(cphd_meta.Data.NumCPHDChannels))
             return int_index
 
-    def read_pvp_vector(self, variable, index, the_range=None):
-        # fetch the header object
-        header = self.cphd_header
-        # fetch the appropriate details from the cphd structure
-        cphd_meta = self.cphd_meta
-        int_index = self._validate_index(index)
-        channel = cphd_meta.Data.Channels[int_index]
-        pvp = cphd_meta.PVP
-        row_count = channel.NumVectors
-        pvp_block_offset = header.PVP_BLOCK_BYTE_OFFSET
-        # get offset for this vector block
-        pvp_offset = channel.PVPArrayByteOffset
-        vector_size = cphd_meta.Data.NumBytesPVP
-        # see if this variable/field is sensible
-        res = pvp.get_offset_size_format(variable)
-        if res is None:
-            return None
-        field_offset, fld_siz, frm = res
-        return self._read_pvp_vector(
-            pvp_block_offset, pvp_offset, vector_size, field_offset, frm, fld_siz, row_count, the_range)
-
-    def read_support_array(self, index, dim1_range, dim2_range):
+    def _validate_index_key(self, index):
         """
-        Read the support array.
+        Gets the corresponding identifier for the CPHD channel.
 
         Parameters
         ----------
         index : int|str
-            The support array integer index (of cphd.Data.SupportArrays list) or identifier.
-        dim1_range : None|int|Tuple[int, int]|Tuple[int, int, int]
-            The row data selection of the form `[start, [stop, [stride]]]`, and
-            `None` defaults to all rows (i.e. `(0, NumRows, 1)`)
-        dim2_range : None|int|Tuple[int, int]|Tuple[int, int, int]
-            The column data selection of the form `[start, [stop, [stride]]]`, and
-            `None` defaults to all rows (i.e. `(0, NumCols, 1)`)
 
         Returns
         -------
-        numpy.ndarray
+        str
         """
 
+        cphd_meta = self.cphd_details.cphd_meta
+
+        if isinstance(index, string_types):
+            if index in self._channel_map:
+                return index
+            else:
+                raise KeyError('Cannot find CPHD channel for identifier {}'.format(index))
+        else:
+            int_index = int_func(index)
+            if not (0 <= int_index < cphd_meta.Data.NumCPHDChannels):
+                raise ValueError('index must be in the range [0, {})'.format(cphd_meta.Data.NumCPHDChannels))
+            return cphd_meta.Data.Channels[int_index].Identifier
+
+    def read_pvp_variable(self, variable, index, the_range=None):
+        int_index = self._validate_index(index)
+        # fetch the appropriate details from the cphd structure
+        cphd_meta = self.cphd_meta
+        channel = cphd_meta.Data.Channels[int_index]
+        the_range = validate_range(the_range, channel.NumVectors)
+        return self._pvp_memmap[channel.Identifier][variable][the_range[0]:the_range[1]:the_range[2]]
+
+    def read_support_array(self, index, dim1_range, dim2_range):
         # find the support array basic details
         the_entry = None
         if isinstance(index, integer_types):
@@ -650,44 +771,13 @@ class CPHDReader1_0(CPHDReader):
         del mem_map
         return data
 
-    def read_pvp_array(self, channel_id):
-        """
-        Read the PVP array from the requested channel.
-
-        Parameters
-        ----------
-        channel_id : int|str
-            The support array integer index (of cphd.Data.Channels list) or identifier.
-
-        Returns
-        -------
-        pvp_array : numpy.ndarray
-        """
-
-        this_channel = None
-        if isinstance(channel_id, integer_types):
-            this_channel = self.cphd_meta.Data.Channels[channel_id]
-            identifier = this_channel.Identifier
-        elif isinstance(channel_id, string_types):
-            identifier = channel_id
-            for entry in self.cphd_meta.Data.Channels:
-                if entry.Identifier == channel_id:
-                    this_channel = entry
-                    break
-            if this_channel is None:
-                raise KeyError('Identifier {} not associated with a channel.'.format(identifier))
-        else:
-            raise TypeError('Got unexpected type {} for identifier'.format(type(channel_id)))
-
-        pvp_byte_offset = self.cphd_header.PVP_BLOCK_BYTE_OFFSET + this_channel.PVPArrayByteOffset
-        pvp_dtype = self.cphd_meta.PVP.get_numpy_dtype()
-        num_vectors = this_channel.NumVectors
-
-        with open(self.cphd_details.file_name, 'rb') as fd:
-            fd.seek(pvp_byte_offset)
-            pvp_array = numpy.fromfile(fd, dtype=pvp_dtype.newbyteorder('B'), count=num_vectors)
-
-        return pvp_array
+    def read_pvp_array(self, index, the_range=None):
+        int_index = self._validate_index(index)
+        # fetch the appropriate details from the cphd structure
+        cphd_meta = self.cphd_meta
+        channel = cphd_meta.Data.Channels[int_index]
+        the_range = validate_range(the_range, channel.NumVectors)
+        return self._pvp_memmap[channel.Identifier][the_range[0]:the_range[1]:the_range[2]]
 
     def read_pvp_block(self):
         """
@@ -702,7 +792,7 @@ class CPHDReader1_0(CPHDReader):
 
     def read_support_block(self):
         """
-        Reads the full support block.
+        Reads the entirety of support block(s).
 
         Returns
         -------
@@ -711,10 +801,23 @@ class CPHDReader1_0(CPHDReader):
         """
 
         if self.cphd_meta.Data.SupportArrays:
-            return {sa.Identifier: self.read_support_array(sa.Identifier, None, None)
-                    for sa in self.cphd_meta.Data.SupportArrays}
+            return {
+                sa.Identifier: self.read_support_array(sa.Identifier, None, None)
+                for sa in self.cphd_meta.Data.SupportArrays}
         else:
             return {}
+
+    def read_signal_block(self):
+        """
+        Reads the entirety of signal block(s).
+
+        Returns
+        -------
+        Dict
+            Dictionary of `numpy.ndarray` containing the support arrays.
+        """
+
+        return {chan.Identifier: self.read_chip(None, None, index=chan.Identifier) for chan in self.cphd_meta.Data.Channels}
 
 
 class CPHDReader0_3(CPHDReader):
@@ -737,6 +840,7 @@ class CPHDReader0_3(CPHDReader):
 
         self._cphd_details = _validate_cphd_details(cphd_details, version='0.3')
         chipper = self._create_chippers()
+        # TODO: set up the mem_maps for the pvp blocks.
         BaseReader.__init__(self, None, chipper, reader_type="CPHD")
 
     @property
@@ -787,7 +891,7 @@ class CPHDReader0_3(CPHDReader):
             data_offset += img_siz[0]*img_siz[1]*bpp
         return tuple(chippers)
 
-    def read_pvp_vector(self, variable, index, the_range=None):
+    def read_pvp_variable(self, variable, index, the_range=None):
         frm = 'd'  # all fields in CPHD 0.3 are of double type
         # fetch the header object
         header = self.cphd_header
@@ -809,8 +913,38 @@ class CPHDReader0_3(CPHDReader):
         if result is None:
             return None
         field_offset, fld_siz = result
-        return self._read_pvp_vector(
+        return self._read_pvp_variable(
             pvp_block_offset, pvp_offset, vector_size, field_offset, frm, fld_siz, row_count, the_range)
+
+    def read_support_array(self, index, dim1_range, dim2_range):
+        raise TypeError('CPHD 0.3 does not support Support Arrays.')
+
+    def read_pvp_array(self):
+        """
+        Reads the collection of PVP block(s) as a numpy structured array.
+
+        Returns
+        -------
+        Dict
+            Dictionary of `numpy.ndarray` containing the PVP array(s).
+        """
+
+        # TODO: this should take an optional parameters for index/identifier. Improve the doc string.
+        raise NotImplementedError
+
+    def read_signal_block(self):
+        """
+        Reads the full signal block(s).
+
+        Returns
+        -------
+        Dict
+            Dictionary of `numpy.ndarray` containing the signal arrays.
+        """
+
+        return {
+            chan: self.read_chip(None, None, index=chan)
+            for chan in range(self.cphd_meta.Data.NumCPHDChannels)}
 
 
 class CPHDWriter1_0(AbstractWriter):
@@ -839,6 +973,69 @@ class CPHDWriter1_0(AbstractWriter):
 
         return self._cphd_meta
 
+    def write_support_block(self, identifier, data):
+        """
+        Write support block data.
+
+        Parameters
+        ----------
+        identifier : str
+        data : numpy.ndarray
+        """
+
+        # TODO: implement this...
+        pass
+
+    def write_pvp_block(self, identifier, data):
+        """
+        Write the PVP block data.
+
+        Parameters
+        ----------
+        identifier : str
+        data " numpy.ndarray
+        """
+
+        # TODO: implement this...
+        pass
+
+    def __call__(self, data, start_indices=(0, 0), index=0):
+        """
+        Write the signal data to the file(s).
+
+        Parameters
+        ----------
+        data : numpy.ndarray
+            The complex data.
+        start_indices : Tuple[int, int]
+            The starting index for the data.
+        index : int|str
+            The signal index or identifier to which to write.
+
+        Returns
+        -------
+        None
+        """
+
+        # TODO: implement this...
+        pass
+
+    def write_chip(self, data, start_indices=(0, 0), index=0):
+        """
+        Write the signal data to the file(s). This is an alias to :code:`writer(data, start_indices)`.
+
+        Parameters
+        ----------
+        data : numpy.ndarray
+            The complex data.
+        start_indices : tuple[int, int]
+            The starting index for the data.
+        index : int|str
+            The signal index or identifier to which to write.
+        """
+
+        self.__call__(data, start_indices=start_indices, index=index)
+
     def write_file(self, pvp_block, signal_block, support_block=None):
         """Write the blocks to the file.
 
@@ -854,6 +1051,8 @@ class CPHDWriter1_0(AbstractWriter):
             Dictionary of `numpy.ndarray` containing the support arrays.
 
         """
+
+        # TODO: this should use the above methods
 
         header = self.cphd_meta.make_file_header()
 
@@ -902,7 +1101,7 @@ class CPHDWriter1_0(AbstractWriter):
 
         actual_pvp_bytes = input_pvp_types.pop().itemsize
         assert_equal(self.cphd_meta.Data.NumBytesPVP, actual_pvp_bytes, 'Data.NumBytesPVP')
-        assert_equal(self.cphd_meta.PVP.get_numpy_dtype().itemsize, actual_pvp_bytes, 'PVP Node #Bytes')
+        assert_equal(self.cphd_meta.PVP.get_pvp_dtype().itemsize, actual_pvp_bytes, 'PVP Node #Bytes')
 
         for chan in self.cphd_meta.Data.Channels:
             input_pvp = pvp_block[chan.Identifier]

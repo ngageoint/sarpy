@@ -7,10 +7,11 @@ import numpy.testing
 from sarpy.io.phase_history.cphd import CPHDReader, CPHDReader0_3, CPHDReader1_0, CPHDWriter1_0
 from sarpy.io.phase_history.converter import open_phase_history
 import sarpy.consistency.cphd_consistency
+from sarpy.io.phase_history.cphd_schema import get_schema_path
 
 from tests import unittest, parse_file_entry
 
-DEFAULT_SCHEMA = sarpy.io.phase_history.cphd_schema.location()
+DEFAULT_SCHEMA = get_schema_path(version='1.0.1')
 
 cphd_file_types = {}
 
@@ -89,12 +90,12 @@ def generic_io_test(instance, test_file, reader_type_string, reader_type):
 
         with instance.subTest(msg='Verify fetching entire pvp data has correct size for cphd '
                                   'index {} in reader of type {} file {}'.format(i, reader_type_string, test_file)):
-            test_pvp = reader.read_pvp_vector('TxTime', i, the_range=None)
+            test_pvp = reader.read_pvp_variable('TxTime', i, the_range=None)
             instance.assertEqual(test_pvp.shape, (data_size[0], ), msg='Unexpected pvp total fetch size')
 
         with instance.subTest(msg='Verify fetching pvp data for slice has correct size for cphd '
                                   'index {} in reader of type {} file {}'.format(i, reader_type_string, test_file)):
-            test_pvp = reader.read_pvp_vector('TxTime', i, the_range=(0, 10, 2))
+            test_pvp = reader.read_pvp_variable('TxTime', i, the_range=(0, 10, 2))
             instance.assertEqual(test_pvp.shape, (5, ), msg='Unexpected pvp strided slice fetch size')
 
     if isinstance(reader, CPHDReader1_0):

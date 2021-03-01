@@ -45,7 +45,10 @@ import sarpy.consistency.consistency as con
 import sarpy.consistency.parsers as parsers
 import sarpy.io.phase_history.cphd1_elements.CPHD
 import sarpy.io.phase_history.cphd1_elements.utils as cphd1_utils
-import sarpy.io.phase_history.cphd_schema
+from sarpy.io.phase_history.cphd_schema import get_schema_path
+
+INVALID_CHAR_REGEX = re.compile(r'\W')
+DEFAULT_SCHEMA = get_schema_path(version='1.0.1')
 
 
 def strip_namespace(root):
@@ -149,10 +152,6 @@ def per_channel(method):
 
     method.per_channel = True
     return method
-
-
-INVALID_CHAR_REGEX = re.compile(r'\W')
-DEFAULT_SCHEMA = sarpy.io.phase_history.cphd_schema.location()
 
 
 def get_by_id(xml, path, identifier):

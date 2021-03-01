@@ -5,7 +5,7 @@ The Per Vector parameters (PVP) definition.
 
 from typing import Union, List
 
-import numpy as np
+import numpy
 
 from .base import DEFAULT_STRICT
 # noinspection PyProtectedMember
@@ -389,19 +389,34 @@ class PVPType(Serializable):
                     return val.Offset*8, val.Size*8, homogeneous_dtype(val.Format).char
             return None
 
-    def get_numpy_dtype(self):
+    def get_vector_dtype(self):
         """
-        Returns a numpy.dtype describing the PVP set.
+        Gets the dtype for the corresponding structured array for the full PVP
+        array.
 
         Returns
         -------
-        dtype: `numpy.dtype`
-            The equivalent `numpy.dtype` of the PVP set.
+        numpy.dtype
+            This will be a compound dtype for a structured array.
         """
-        pvp_dict = self.to_dict()
-        bytes_per_word = 8
 
-        desc = {'names': list(pvp_dict.keys()),
-                'formats': [binary_format_string_to_dtype(v['Format']) for v in pvp_dict.values()],
-                'offsets': [v['Offset']*bytes_per_word for v in pvp_dict.values()]}
-        return np.dtype(desc)
+        bytes_per_word = 8
+        names = []
+        formats = []
+        offsets = []
+
+        for fld in self._fields:
+            val = getattr(self, fld)
+            if val is None:
+                continue
+            elif fld == 'AddedPVP':
+                for entry in val:
+                    assert isinstance(entry, UserDefinedPVPType)
+                    names.append(entry.Name)
+                    formats.append(entry.Format)
+                    offsets.append(entry.Offset*bytes_per_word)
+            else:
+                names.append(fld)
+                formats.append(val.Format)
+                offsets.append(val.Offset*bytes_per_word)
+        return numpy.dtype({'names': names, 'formats': formats, 'offsets': offsets})

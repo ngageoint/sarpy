@@ -6,6 +6,7 @@ The Compensated Phase History Data 1.0.1 definition.
 from xml.etree import ElementTree
 from collections import OrderedDict
 from typing import Union
+import numpy
 
 from .base import DEFAULT_STRICT
 # noinspection PyProtectedMember
@@ -29,7 +30,7 @@ from .GeoInfo import GeoInfoType
 from sarpy.io.complex.sicd_elements.MatchInfo import MatchInfoType
 
 __classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
+__author__ = ("Thomas McCullough", "Daniel Pressler, Valkyrie")
 
 
 #########
@@ -170,6 +171,7 @@ class CPHDHeader(CPHDHeaderBase):
         """
         return ('CPHD/{}\n'.format(_CPHD_SPECIFICATION_VERSION)
                 + ''.join(["{} := {}\n".format(f, getattr(self,f)) for f in self._fields if getattr(self, f) is not None]))
+
 
 class CPHDType(Serializable):
     """
@@ -398,7 +400,7 @@ class CPHDType(Serializable):
 
         def _align(val):
             align_to = 64
-            return -(-val//align_to) * align_to
+            return int(numpy.ceil(float(val)/align_to)*align_to)
 
         _kvps['XML_BLOCK_SIZE'] = len(self.to_xml_string())
         _kvps['XML_BLOCK_BYTE_OFFSET'] = xml_offset
@@ -422,6 +424,21 @@ class CPHDType(Serializable):
         header_str = header.to_string()
         min_xml_offset = len(header_str) + len(_CPHD_SECTION_TERMINATOR)
         if _kvps['XML_BLOCK_BYTE_OFFSET'] < min_xml_offset:
-            header = make_file_header(xml_offset=_align(min_xml_offset + 32))
+            header = self.make_file_header(xml_offset=_align(min_xml_offset + 32))
 
         return header
+
+    def get_pvp_dtype(self):
+        """
+        Gets the dtype for the corresponding PVP structured array. Note that they
+        must all have homogeneous dtype.
+
+        Returns
+        -------
+        numpy.dtype
+            This will be a compound dtype for a structured array.
+        """
+
+        if self.PVP is None:
+            raise ValueError('No PVP defined.')
+        return self.PVP.get_vector_dtype()

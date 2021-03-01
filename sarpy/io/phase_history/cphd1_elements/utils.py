@@ -1,61 +1,71 @@
 # -*- coding: utf-8 -*-
 """
-Common utils for CPHD functionality.
+Common utils for CPHD 1.0 functionality.
 """
 
-import numpy as np
+import numpy
 
 __classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
+__author__ = ("Thomas McCullough", "Daniel Pressler, Valkyrie")
 
 
 #########
 # Module variables
 _DTYPE_LOOKUP = {
-    "U1": np.dtype('>u1'),
-    "U2": np.dtype('>u2'),
-    "U4": np.dtype('>u4'),
-    "U8": np.dtype('>u8'),
-    "I1": np.dtype('>i1'),
-    "I2": np.dtype('>i2'),
-    "I4": np.dtype('>i4'),
-    "I8": np.dtype('>i8'),
-    "F4": np.dtype('>f4'),
-    "F8": np.dtype('>f8'),
-    "CI2": np.dtype([('real', '>i1'), ('imag', '>i1')]),
-    "CI4": np.dtype([('real', '>i2'), ('imag', '>i2')]),
-    "CI8": np.dtype([('real', '>i4'), ('imag', '>i4')]),
-    "CI16": np.dtype([('real', '>i8'), ('imag', '>i8')]),
-    "CF8": np.dtype('>c8'),
-    "CF16": np.dtype('>c16')}
+    "U1": numpy.dtype('>u1'),
+    "U2": numpy.dtype('>u2'),
+    "U4": numpy.dtype('>u4'),
+    "U8": numpy.dtype('>u8'),
+    "I1": numpy.dtype('>i1'),
+    "I2": numpy.dtype('>i2'),
+    "I4": numpy.dtype('>i4'),
+    "I8": numpy.dtype('>i8'),
+    "F4": numpy.dtype('>f4'),
+    "F8": numpy.dtype('>f8'),
+    "CI2": numpy.dtype([('real', '>i1'), ('imag', '>i1')]),
+    "CI4": numpy.dtype([('real', '>i2'), ('imag', '>i2')]),
+    "CI8": numpy.dtype([('real', '>i4'), ('imag', '>i4')]),
+    "CI16": numpy.dtype([('real', '>i8'), ('imag', '>i8')]),
+    "CF8": numpy.dtype('>c8'),
+    "CF16": numpy.dtype('>c16')}
 
 
 def _single_binary_format_string_to_dtype(form):
-    """Convert a CPHD datatype into a dtype"""
-    if form.startswith('S'):
-        dtype = np.dtype(form)
-    else:
-        dtype = _DTYPE_LOOKUP[form]
+    """
+    Convert a CPHD datatype into a dtype.
 
-    return dtype
+    Parameters
+    ----------
+    form
+
+    Returns
+    -------
+    numpy.dtype
+    """
+
+    if form.startswith('S'):
+        return numpy.dtype(form)
+    else:
+        return _DTYPE_LOOKUP[form]
+
 
 def binary_format_string_to_dtype(format_string):
-    """Return the numpy.dtype for CPHD Binary Format string (table 10-2).
+    """
+    Return the numpy.dtype for CPHD Binary Format string (table 10-2).
 
     Parameters
     ----
     format_string: str
-        PVP type designator (e.g., ``'I1'``, ``'I4'``, ``'CF8'``, etc.).
+        PVP type designator (e.g., :code:`'I1', 'I4', 'CF8'`, etc.).
 
     Returns
     -------
-    dtype: `numpy.dtype`
+    numpy.dtype
         The equivalent `numpy.dtype` of the PVP format string
-        (e.g., numpy.int8, numpy.int32, numpy.complex64, etc.).
-
+        (e.g., :code:`numpy.int8, numpy.int32, numpy.complex64`, etc.).
     """
-    components = format_string.split(';')
 
+    components = format_string.split(';')
     if '=' in components[0]:
         assert format_string.endswith(';'), 'Format strings describing multiple parameters must end with a semi-colon'
         comptypes = []
@@ -66,13 +76,13 @@ def binary_format_string_to_dtype(format_string):
         # special handling of XYZ types
         keys, types = list(zip(*comptypes))
         if keys == ('X', 'Y', 'Z') and len(set(types)) == 1:
-            dtype = np.dtype('3' + comptypes[0][1].name)
+            dtype = numpy.dtype('3' + comptypes[0][1].name)
         else:
-            dtype = np.dtype(comptypes)
+            dtype = numpy.dtype(comptypes)
     else:
         dtype = _single_binary_format_string_to_dtype(components[0])
-
     return dtype
+
 
 def homogeneous_dtype(format_string, return_length=False):
     """
@@ -81,7 +91,7 @@ def homogeneous_dtype(format_string, return_length=False):
 
     Parameters
     ----------
-    frm : str
+    format_string : str
     return_length : bool
         Return the number of elements?
 
