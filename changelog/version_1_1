@@ -1,5 +1,6 @@
 # This details the important differences introduced in sarpy 1.1
 
+* .52 - Use SICD.RadarCollect.Area for definition for default SIDD image bounds
 * .51 - Introduced validity check for SICD in the consistency module
 * .50 - Imposing print function complicance for Python 2.7 usage
 * .49 - Completion of annotation and geometry elements for apps usage
