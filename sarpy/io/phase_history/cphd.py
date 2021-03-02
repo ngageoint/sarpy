@@ -687,6 +687,7 @@ class CPHDReader1_0(CPHDReader):
         else:
             raise TypeError('Got unexpected type {} for identifier'.format(type(index)))
 
+        # TODO: use the memmaps defined above...
         # validate the range definition
         range1 = validate_range(dim1_range, the_entry.NumRows)
         range2 = validate_range(dim2_range, the_entry.NumCols)
@@ -928,7 +929,10 @@ class CPHDWriter1_0(AbstractWriter):
     The CPHD version 1.0 writer.
     """
 
-    __slots__ = ('_file_name', '_cphd_meta')
+    __slots__ = (
+        '_file_name', '_cphd_meta', '_cphd_header',
+        '_pvp_memmaps', '_support_memmaps', '_signal_memmaps',
+        '_channel_map', '_support_map', '_writing_state', '_closed')
 
     def __init__(self, file_name, cphd_meta):
         """
@@ -939,12 +943,17 @@ class CPHDWriter1_0(AbstractWriter):
         cphd_meta : sarpy.io.phase_history.cphd1_elements.CPHD.CPHDType
         """
 
+        self._pvp_memmaps = None
+        self._support_memmaps = None
+        self._signal_memmaps = None
+        self._channel_map = None
+        self._support_map = None
+        self._writing_state = {'header': False, 'pvp': {}, 'support': {}, 'signal': {}}
+        self._closed = False
         self._cphd_meta = cphd_meta
+        self._cphd_header = cphd_meta.make_file_header()
         super(CPHDWriter1_0, self).__init__(file_name)
-        # TODO:
-        #   0.) Make a context manager
-        #   1.) We need counters to verify that the pvp, support, and signal arrays have been fully written
-        #   2.) Method for fiddling with CPHD structure for defining offsets
+        self._prepare_for_writing()
 
     @property
     def cphd_meta(self):
@@ -954,7 +963,203 @@ class CPHDWriter1_0(AbstractWriter):
 
         return self._cphd_meta
 
-    def write_support_block(self, identifier, data):
+    @staticmethod
+    def _verify_dtype(obs_dtype, exp_dtype, purpose):
+        """
+        This is a helper function for comparing two structured array dtypes.
+
+        Parameters
+        ----------
+        obs_dtype : numpy.dtype
+        exp_dtype : numpy.dtype
+        purpose : str
+        """
+
+        if obs_dtype.fields is None or exp_dtype.fields is None:
+            raise ValueError('structure array dtype required.')
+
+        observed_dtype = sorted(
+            [(field, dtype_info) for field, dtype_info in obs_dtype.fields.items()],
+            key=lambda x: x[1][1])
+        expected_dtype = sorted(
+            [(field, dtype_info) for field, dtype_info in exp_dtype.fields.items()],
+            key=lambda x: x[1][1])
+        if len(observed_dtype) != len(expected_dtype):
+            raise ValueError('Observed dtype for {} does not match the expected dtype.'.format(purpose))
+        for obs_entry, exp_entry in zip(observed_dtype, expected_dtype):
+            if obs_entry[1][1] != exp_entry[1][1]:
+                raise ValueError(
+                    'Observed dtype for {} does not match the expected dtype\nobserved {}\nexpected {}.'.format(
+                        purpose, observed_dtype, expected_dtype))
+            if obs_entry[0] != exp_entry[0]:
+                logging.warning(
+                    'Got mismatched field names (observed {}, expected {}) for {}.'.format(
+                        obs_entry[0], exp_entry[0], purpose))
+
+    def _validate_channel_index(self, index):
+        """
+        Get corresponding integer index for CPHD channel.
+
+        Parameters
+        ----------
+        index : int|str
+
+        Returns
+        -------
+        int
+        """
+
+        if isinstance(index, string_types):
+            if index in self._channel_map:
+                return self._channel_map[index]
+            else:
+                raise KeyError('Cannot find CPHD channel for identifier {}'.format(index))
+        else:
+            int_index = int_func(index)
+            if not (0 <= int_index < self.cphd_meta.Data.NumCPHDChannels):
+                raise ValueError('index must be in the range [0, {})'.format(self.cphd_meta.Data.NumCPHDChannels))
+            return int_index
+
+    def _validate_channel_key(self, index):
+        """
+        Gets the corresponding identifier for the CPHD channel.
+
+        Parameters
+        ----------
+        index : int|str
+
+        Returns
+        -------
+        str
+        """
+
+        if isinstance(index, string_types):
+            if index in self._channel_map:
+                return index
+            else:
+                raise KeyError('Cannot find CPHD channel for identifier {}'.format(index))
+        else:
+            int_index = int_func(index)
+            if not (0 <= int_index < self.cphd_meta.Data.NumCPHDChannels):
+                raise ValueError('index must be in the range [0, {})'.format(self.cphd_meta.Data.NumCPHDChannels))
+            return self.cphd_meta.Data.Channels[int_index].Identifier
+
+    def _validate_support_index(self, index):
+        """
+        Get corresponding integer index for support array.
+
+        Parameters
+        ----------
+        index : int|str
+
+        Returns
+        -------
+        int
+        """
+
+        if isinstance(index, string_types):
+            if index in self._support_map:
+                return self._support_map[index]
+            else:
+                raise KeyError('Cannot find support array for identifier {}'.format(index))
+        else:
+            int_index = int_func(index)
+            if not (0 <= int_index < len(self.cphd_meta.Data.SupportArrays)):
+                raise ValueError('index must be in the range [0, {})'.format(len(self.cphd_meta.Data.SupportArrays)))
+            return int_index
+
+    def _validate_support_key(self, index):
+        """
+        Gets the corresponding identifier for the support array.
+
+        Parameters
+        ----------
+        index : int|str
+
+        Returns
+        -------
+        str
+        """
+
+        if isinstance(index, string_types):
+            if index in self._support_map:
+                return index
+            else:
+                raise KeyError('Cannot find support array for identifier {}'.format(index))
+        else:
+            int_index = int_func(index)
+            if not (0 <= int_index < len(self.cphd_meta.Data.SupportArrays)):
+                raise ValueError('index must be in the range [0, {})'.format(len(self.cphd_meta.Data.SupportArrays)))
+            return self.cphd_meta.Data.SupportArrays[int_index].Identifier
+
+    def _initialize_writing(self):
+        """
+        Initializes the counters/state variables for writing progress checks.
+        Expected to be called only by _prepare_for_writing().
+        """
+
+        self._pvp_memmaps = {}
+        self._signal_memmaps = {}
+        self._channel_map = {}
+        pvp_dtype = self.cphd_meta.PVP.get_vector_dtype()
+        signal_dtype = binary_format_string_to_dtype(self.cphd_meta.Data.SignalArrayFormat)
+        for i, entry in enumerate(self.cphd_meta.Data.Channels):
+            self._channel_map[entry.Identifier] = i
+            # create the pvp mem map
+            offset = self._cphd_header.PVP_BLOCK_BYTE_OFFSET + entry.PVPArrayByteOffset
+            shape = (entry.NumVectors, )
+            self._pvp_memmaps[entry.Identifier] = numpy.memmap(
+                self._file_name, dtype=pvp_dtype, mode='w', offset=offset, shape=shape)
+            # create the pvp writing state variable
+            self._writing_state['pvp'][entry.Identifier] = 0
+
+            # create the signal mem map
+            offset = self._cphd_header.SIGNAL_BLOCK_BYTE_OFFSET + entry.SignalArrayByteOffset
+            shape = (entry.NumVectors, entry.NumSamples)
+            self._pvp_memmaps[entry.Identifier] = numpy.memmap(
+                self._file_name, dtype=signal_dtype, mode='w', offset=offset, shape=shape)
+            # create the signal writing state variable
+            self._writing_state['signal'][entry.Identifier] = 0
+
+        self._support_memmaps = {}
+        self._support_map = {}
+        if self.cphd_meta.Data.SupportArrays is not None:
+            for i, entry in enumerate(self.cphd_meta.Data.SupportArrays):
+                self._support_map[entry.Identifier] = i
+                # extract the support array metadata details
+                details = self.cphd_meta.SupportArray.find_support_array(entry.Identifier)
+                # determine array byte offset
+                offset = self._cphd_header.SUPPORT_BLOCK_BYTE_OFFSET + entry.ArrayByteOffset
+                # determine numpy dtype and depth of array
+                dtype, depth = details.get_numpy_format()
+                # set up the numpy memory map
+                shape = (entry.NumRows, entry.NumCols) if depth == 1 else (entry.NumRows, entry.NumCols, depth)
+                self._support_memmaps[entry.Identifier] = numpy.memmap(
+                    self._file_name, dtype=dtype, mode='w', offset=offset, shape=shape)
+                self._writing_state['support'][entry.Identifier] = 0
+
+    def _prepare_for_writing(self):
+        """
+        Prepare all elements for writing.
+        """
+
+        if self._writing_state['header']:
+            logging.warning('The header for CPHD file {} has already been written. Exiting.'.format(self._file_name))
+            return
+
+        with open(self._file_name, "wb") as outfile:
+            # write header
+            outfile.write(self._cphd_header.to_string().encode())
+            outfile.write(_CPHD_SECTION_TERMINATOR)
+            # write cphd xml
+            outfile.seek(self._cphd_header.XML_BLOCK_BYTE_OFFSET)
+            outfile.write(self.cphd_meta.to_xml_bytes())
+            outfile.write(_CPHD_SECTION_TERMINATOR)
+        self._writing_state['header'] = True
+
+        self._initialize_writing()
+
+    def write_support_block(self, identifier, data, start_indices=(0, 0)):
         """
         Write support block data to the file.
 
@@ -962,25 +1167,93 @@ class CPHDWriter1_0(AbstractWriter):
         ----------
         identifier : str
         data : numpy.ndarray
+        start_indices : Tuple[int, int]
         """
 
-        # TODO: implement this...should have some kind of validation here
-        pass
+        def validate_bytes_per_pixel():
+            observed_bytes_per_pixel = int_func(data.nbytes/pixel_count)
+            if observed_bytes_per_pixel != entry.BytesPerElement:
+                raise ValueError(
+                    'Observed bytes per pixel {} for support {}, expected '
+                    'bytes per pixel {}'.format(observed_bytes_per_pixel, entry.Identifier, entry.BytesPerElement))
 
-    def write_pvp_block(self, identifier, data):
+        if data.ndim < 2:
+            raise ValueError('Provided support data is required to be at least two dimensional')
+        pixel_count = data.shape[0]*data.shape[1]
+
+        int_index = self._validate_support_index(identifier)
+        identifier = self._validate_support_key(identifier)
+        entry = self.cphd_meta.Data.SupportArrays[int_index]
+        validate_bytes_per_pixel()
+
+        start_indices = (int_func[start_indices[0]], int_func[start_indices[1]])
+        rows = (start_indices[0], start_indices[0] + data.shape[0])
+        columns = (start_indices[1], start_indices[1] + data.shape[1])
+
+        if start_indices[0] < 0 or start_indices[1] < 0:
+            raise IndexError(
+                'start_indices given as {}, but must have non-negative entries.'.format(start_indices))
+        if rows[1] > entry.NumRows or columns[1] > entry.NumCols:
+            raise IndexError(
+                'start_indices given as {}, and given data has shape {}. This is '
+                'incompatible with signal block of shape {}.'
+                ''.format(start_indices, data.shape, (entry.NumRows, entry.NumCols)))
+
+        total_pixels = entry.NumRows*entry.NumCols
+        # write the data
+        self._support_memmaps[identifier][rows[0]:rows[1], columns[0]:columns[1]] = data
+        # update the count of written data
+        self._writing_state['support'][identifier] += pixel_count
+        # check if the written pixels is seemingly ridiculous or redundant
+        if self._writing_state['support'][identifier] > total_pixels:
+            logging.warning(
+                'Appear to have written {} total pixels to support array {}, which only has {} pixels. '
+                'This may be indicative of an error.'.format(
+                    self._writing_state['support'][identifier], identifier, total_pixels))
+
+    def write_pvp_block(self, identifier, data, start_index=0):
         """
         Write the PVP block data to the file.
 
         Parameters
         ----------
         identifier : str
-        data " numpy.ndarray
+        data : numpy.ndarray
+        start_index : int
         """
 
-        # TODO: implement this...should have some kind of validation here
-        pass
+        def validate_dtype():
+            self._verify_dtype(data.dtype, self._pvp_memmaps[identifier].dtype, 'PVP channel {}'.format(identifier))
 
-    def __call__(self, data, start_indices=(0, 0), index=0):
+        if data.ndim != 1:
+            raise ValueError('Provided data is required to be one dimensional')
+
+        int_index = self._validate_channel_index(identifier)
+        identifier = self._validate_channel_key(identifier)
+        entry = self.cphd_meta.Data.Channels[int_index]
+        validate_dtype()
+
+        start_index = int_func[start_index]
+        rows = (start_index, start_index + data.shape[0])
+
+        if start_index < 0:
+            raise IndexError(
+                'start_index given as {}, but must be non-negative.'.format(start_index))
+        if rows[1] > entry.NumVectors:
+            raise IndexError(
+                'start_indices given as {}, and given data has shape {}. This is '
+                'incompatible with pvp block with {} rows.'
+                ''.format(start_index, data.shape, entry.NumVectors))
+
+        self._pvp_memmaps[identifier][rows[0]:rows[1]] = data
+        self._writing_state['pvp'][identifier] += data.shape[0]
+        if self._writing_state['pvp'][identifier] > entry.NumVectors:
+            logging.warning(
+                'Appear to have written {} total rows to pvp block {}, which only has {} rows. '
+                'This may be indicative of an error.'.format(
+                    self._writing_state['pvp'][identifier], identifier, entry.NumVectors))
+
+    def __call__(self, data, start_indices=(0, 0), identifier=0):
         """
         Write the signal data to the file(s).
 
@@ -990,16 +1263,50 @@ class CPHDWriter1_0(AbstractWriter):
             The complex data.
         start_indices : Tuple[int, int]
             The starting index for the data.
-        index : int|str
+        identifier : int|str
             The signal index or identifier to which to write.
-
-        Returns
-        -------
-        None
         """
 
-        # TODO: implement this...should have some kind of validation here
-        pass
+        def validate_bytes_per_pixel():
+            observed_bytes_per_pixel = int_func(data.nbytes/pixel_count)
+            expected_bytes_per_pixel = self._signal_memmaps[identifier].dtype.itemsize
+            if observed_bytes_per_pixel != expected_bytes_per_pixel:
+                raise ValueError(
+                    'Observed bytes per pixel {} for signal channel {}, expected '
+                    'bytes per pixel {}'.format(observed_bytes_per_pixel, identifier, expected_bytes_per_pixel))
+
+        if data.ndim != 2:
+            raise ValueError('Provided data is required to be two dimensional')
+        pixel_count = data.shape[0]*data.shape[1]
+
+        int_index = self._validate_channel_index(identifier)
+        identifier = self._validate_channel_key(identifier)
+        entry = self.cphd_meta.Data.Channels[int_index]
+        validate_bytes_per_pixel()
+
+        start_indices = (int_func[start_indices[0]], int_func[start_indices[1]])
+        rows = (start_indices[0], start_indices[0] + data.shape[0])
+        columns = (start_indices[1], start_indices[1] + data.shape[1])
+
+        if start_indices[0] < 0 or start_indices[1] < 0:
+            raise IndexError(
+                'start_indices given as {}, but must have non-negative entries.'.format(start_indices))
+        if rows[1] > entry.NumVectors or columns[1] > entry.NumSamples:
+            raise IndexError(
+                'start_indices given as {}, and given data has shape {}. This is '
+                'incompatible with signal block of shape {}.'
+                ''.format(start_indices, data.shape, (entry.NumVectors, entry.NumSamples)))
+        total_pixels = entry.NumVectors*entry.NumSamples
+        # write the data
+        self._signal_memmaps[identifier][rows[0]:rows[1], columns[0]:columns[1]] = data
+        # update the count of written data
+        self._writing_state['signal'][identifier] += pixel_count
+        # check if the written pixels is seemingly ridiculous or redundant
+        if self._writing_state['signal'][identifier] > total_pixels:
+            logging.warning(
+                'Appear to have written {} total pixels to signal block {}, which only has {} pixels. '
+                'This may be indicative of an error.'.format(
+                    self._writing_state['signal'][identifier], identifier, total_pixels))
 
     def write_chip(self, data, start_indices=(0, 0), index=0):
         """
@@ -1015,7 +1322,69 @@ class CPHDWriter1_0(AbstractWriter):
             The signal index or identifier to which to write.
         """
 
-        self.__call__(data, start_indices=start_indices, index=index)
+        self.__call__(data, start_indices=start_indices, identifier=index)
+
+    def _check_fully_written(self):
+        """
+        Verifies that the file is fully written, and logs messages describing any
+        unwritten elements at error level. This is expected only to be called by
+        the close() method.
+
+        Returns
+        -------
+        bool
+            The status of the file writing completeness.
+        """
+
+        if self._closed:
+            return True
+
+        if self.cphd_meta is None:
+            return True # incomplete initialization or some other inherent problem
+
+        status = True
+        pvp_message = ''
+        signal_message = ''
+        support_message = ''
+
+        for entry in self.cphd_meta.Data.Channels:
+            pvp_rows = entry.NumVectors
+            if self._writing_state['pvp'][entry.Identifier] < pvp_rows:
+                status = False
+                pvp_message += 'identifier {}, {} of {} vectors written\n'.format(
+                    entry.Identifier, self._writing_state['pvp'][entry.Identifier], pvp_rows)
+
+            signal_pixels = entry.NumVectors*entry.NumSamples
+            if self._writing_state['signal'][entry.Identifier] < signal_pixels:
+                status = False
+                signal_message += 'identifier {}, {} of {} pixels written\n'.format(
+                    entry.Identifier, self._writing_state['signal'][entry.Identifier], signal_pixels)
+
+        if self.cphd_meta.Data.SupportArrays is not None:
+            for entry in self.cphd_meta.Data.SupportArrays:
+                status = False
+                support_pixels = entry.NumRows*entry.NumCols
+                if self._writing_state['support'][entry.Identifier] < support_pixels:
+                    support_message += 'identifier {}, {} of {} pixels written\n'.format(
+                        entry.Identifier, self._writing_state['support'][entry.Identifier], support_pixels)
+
+        if not status:
+            logging.error('CPHD file {} is not completely written, and the result may be corrupt.'.format(self._file_name))
+            if pvp_message != '':
+                logging.error('PVP block(s) incompletely written\n{}'.format(pvp_message))
+            if signal_message != '':
+                logging.error('Signal block(s) incompletely written\n{}'.format(signal_message))
+            if support_message != '':
+                logging.error('Support block(s) incompletely written\n{}'.format(support_message))
+        return status
+
+    def close(self):
+        if self._closed:
+            return
+        fully_written = self._check_fully_written()
+        self._closed = True
+        if not fully_written:
+            raise IOError('CPHD file {} is not fully written'.format(self._file_name))
 
     def write_file(self, pvp_block, signal_block, support_block=None):
         """
@@ -1023,119 +1392,25 @@ class CPHDWriter1_0(AbstractWriter):
 
         Parameters
         ----------
-        pvp_block: dict
+        pvp_block: Dict[str, numpy.ndarray]
             Dictionary of `numpy.ndarray` containing the PVP arrays.
             Keys must match `signal_block` and be consistent with `self.cphd_meta`
-        signal_block: dict
+        signal_block: Dict[str, numpy.ndarray]
             Dictionary of `numpy.ndarray` containing the signal arrays.
             Keys must match `pvp_block` and be consistent with `self.cphd_meta`
-        support_block: dict, optional
+        support_block: None|Dict[str, numpy.ndarray]
             Dictionary of `numpy.ndarray` containing the support arrays.
-
         """
 
-        # TODO: this should be pulled apart to using the above methods
+        # write the pvp blocks
+        for identifier, array in pvp_block.items():
+            self.write_pvp_block(identifier, array, start_index=0)
 
-        header = self.cphd_meta.make_file_header()
+        # write the signal blocks
+        for identifier, array in signal_block.items():
+            self.write_chip(array, start_indices=(0, 0), index=identifier)
 
-        def assert_equal(exp, act, desc='', id=''):
-            assert exp == act, '{} {} expected:{}, actual:{}'.format(desc, id, exp, act)
-
-        # Validate support block, if present
-        if header.SUPPORT_BLOCK_SIZE or support_block:
-            assert header.SUPPORT_BLOCK_SIZE and support_block, 'cphd_meta and support_block are inconsistent'
-
-            expected_support_ids = {s.Identifier for s in self.cphd_meta.Data.SupportArrays}
-            assert expected_support_ids == set(support_block.keys()), 'support_block keys do not match those in cphd_meta'
-
-            for sa in self.cphd_meta.Data.SupportArrays:
-                input_sa = support_block[sa.Identifier]
-
-                expected_shape = (sa.NumRows, sa.NumCols)
-                actual_shape = input_sa.shape[:2] # first two dimensions as dtype may be structured
-                assert_equal(expected_shape, actual_shape, 'support array shape', sa.Identifier)
-
-                expected_element_bytes = sa.BytesPerElement
-                actual_element_bytes = input_sa.nbytes / numpy.prod(actual_shape)
-                assert_equal(expected_element_bytes, actual_element_bytes, 'support array #bytes', sa.Identifier)
-
-        # Verify that channels are consistent
-        expected_channels = {c.Identifier for c in self.cphd_meta.Data.Channels}
-        assert expected_channels == set(signal_block.keys()), 'signal_block keys do not match those in cphd_meta'
-        assert expected_channels == set(pvp_block.keys()), 'pvp_block keys do not match those in cphd_meta'
-
-        # Verify signal_block shapes and sizes
-        if self.cphd_meta.Data.SignalCompressionID is None:
-            expected_element_bytes = binary_format_string_to_dtype(self.cphd_meta.Data.SignalArrayFormat).itemsize
-            for chan in self.cphd_meta.Data.Channels:
-                input_sig = signal_block[chan.Identifier]
-
-                expected_shape = (chan.NumVectors, chan.NumSamples)
-                actual_shape = input_sig.shape[:2]
-                assert_equal(expected_shape, actual_shape, 'signal array shape', chan.Identifier)
-
-                actual_element_bytes = input_sig.nbytes / numpy.prod(actual_shape)
-                assert_equal(expected_element_bytes, actual_element_bytes, 'signal array #bytes', chan.Identifier)
-
-        # Validate PVP block
-        input_pvp_types = {v.dtype for v in pvp_block.values()}
-        assert len(input_pvp_types) == 1, 'All channels in PVP block must be uniformly structured'
-
-        actual_pvp_bytes = input_pvp_types.pop().itemsize
-        assert_equal(self.cphd_meta.Data.NumBytesPVP, actual_pvp_bytes, 'Data.NumBytesPVP')
-        assert_equal(self.cphd_meta.PVP.get_pvp_dtype().itemsize, actual_pvp_bytes, 'PVP Node #Bytes')
-
-        for chan in self.cphd_meta.Data.Channels:
-            input_pvp = pvp_block[chan.Identifier]
-
-            expected_num_vectors = chan.NumVectors
-            actual_num_vectors = input_pvp.shape[0]
-            assert_equal(expected_num_vectors, actual_num_vectors, 'PVP shape', chan.Identifier)
-
-        def sort_and_check_offsets(meta_items, input_items, offset_name):
-            sorted_meta = sorted(meta_items, key=lambda x: getattr(x, offset_name))
-            first_item = sorted_meta[0]
-            assert getattr(first_item, offset_name) == 0, 'first byte offset in block must be 0'
-            actual_offset = input_items[first_item.Identifier].nbytes
-            for m in sorted_meta[1:]:
-                expected_offset = getattr(m, offset_name)
-                assert_equal(expected_offset, actual_offset, offset_name, m.Identifier)
-
-                actual_offset += input_items[m.Identifier].nbytes
-
-            return [x.Identifier for x in sorted_meta]
-
-        if header.SUPPORT_BLOCK_SIZE:
-            support_order = sort_and_check_offsets(self.cphd_meta.Data.SupportArrays, support_block, 'ArrayByteOffset')
-        signal_order = sort_and_check_offsets(self.cphd_meta.Data.Channels, signal_block, 'SignalArrayByteOffset')
-        pvp_order = sort_and_check_offsets(self.cphd_meta.Data.Channels, pvp_block, 'PVPArrayByteOffset')
-
-        # Write file
-        def write_array(array):
-            array.astype(array.dtype.newbyteorder('big')).tofile(outfile)
-
-        with open(self._file_name, "wb") as outfile:
-            # Header
-            outfile.write(header.to_string().encode())
-            outfile.write(_CPHD_SECTION_TERMINATOR)
-
-            # XML
-            outfile.seek(header.XML_BLOCK_BYTE_OFFSET)
-            outfile.write(self.cphd_meta.to_xml_bytes())
-            outfile.write(_CPHD_SECTION_TERMINATOR)
-
-            # Support Arrays
-            if header.SUPPORT_BLOCK_SIZE:
-                outfile.seek(header.SUPPORT_BLOCK_BYTE_OFFSET)
-                for id in support_order:
-                    write_array(support_block[id])
-
-            # PVP
-            outfile.seek(header.PVP_BLOCK_BYTE_OFFSET)
-            for id in pvp_order:
-                write_array(pvp_block[id])
-
-            # Signal
-            outfile.seek(header.SIGNAL_BLOCK_BYTE_OFFSET)
-            for id in signal_order:
-                write_array(signal_block[id])
+        # write the support blocks
+        if support_block is not None:
+            for identifier, array in support_block.items():
+                self.write_support_block(identifier, array, start_indices=(0, 0))
