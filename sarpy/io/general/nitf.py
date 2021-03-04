@@ -1737,7 +1737,19 @@ class NITFWriter(AbstractWriter):
         '_img_groups', '_shapes', '_img_details', '_writing_chippers', '_des_details',
         '_closed')
 
-    def __init__(self, file_name):
+    def __init__(self, file_name, check_existence=True):
+        """
+
+        Parameters
+        ----------
+        file_name : str
+        check_existence : bool
+            Should we check if the given file already exists, and raises an exception if so?
+        """
+
+        if check_existence and os.path.exists(file_name):
+            raise IOError('Given file {} already exists, and a new NITF file cannot be created here.'.format(file_name))
+
         self._writing_chippers = None
         self._nitf_header_written = False
         self._closed = False

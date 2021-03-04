@@ -106,17 +106,22 @@ def generic_io_test(instance, test_file, reader_type_string, reader_type):
 
 def generic_writer_test(cphd_reader):
     with tempfile.NamedTemporaryFile() as written_cphd:
+
         read_support = cphd_reader.read_support_block()
         read_pvp = cphd_reader.read_pvp_block()
         read_signal = cphd_reader.read_signal_block()
 
-        CPHDWriter1_0(written_cphd.name, cphd_reader.cphd_meta).write_file(read_pvp, read_signal, read_support)
-        rereader = CPHDReader(written_cphd.name)
+        # write the cphd file
+        with CPHDWriter1_0(written_cphd.name, cphd_reader.cphd_meta, check_existence=False) as writer:
+            writer.write_file(read_pvp, read_signal, read_support)
 
+        # reread the newly written data
+        rereader = CPHDReader(written_cphd.name)
         reread_support = rereader.read_support_block()
         reread_pvp = rereader.read_pvp_block()
         reread_signal = rereader.read_signal_block()
 
+        # byte compare that the original data and re-read data are identical
         numpy.testing.assert_equal(read_support, reread_support)
         numpy.testing.assert_equal(read_pvp, reread_pvp)
         numpy.testing.assert_equal(read_signal, reread_signal)

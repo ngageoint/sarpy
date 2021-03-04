@@ -412,7 +412,8 @@ class CPHDReader(BaseReader):
 
         Returns
         -------
-        numpy.ndarray
+        None|numpy.ndarray
+            This will return None if there is no such variable, otherwise the data.
         """
 
         raise NotImplementedError
@@ -668,7 +669,10 @@ class CPHDReader1_0(CPHDReader):
         cphd_meta = self.cphd_meta
         channel = cphd_meta.Data.Channels[int_index]
         the_range = validate_range(the_range, channel.NumVectors)
-        return self._pvp_memmap[channel.Identifier][variable][the_range[0]:the_range[1]:the_range[2]]
+        if variable in self._pvp_memmap[channel.Identifier].dtype.fields:
+            return self._pvp_memmap[channel.Identifier][variable][the_range[0]:the_range[1]:the_range[2]]
+        else:
+            return None
 
     def read_support_array(self, index, dim1_range, dim2_range):
         # find the support array basic details
@@ -877,7 +881,10 @@ class CPHDReader0_3(CPHDReader):
     def read_pvp_variable(self, variable, index, the_range=None):
         int_index = self._validate_index(index)
         the_range = validate_range(the_range, self.cphd_meta.Data.ArraySize[int_index].NumVectors)
-        return self._pvp_memmap[int_index][variable][the_range[0]:the_range[1]:the_range[2]]
+        if variable in self._pvp_memmap[int_index].dtype.fields:
+            return self._pvp_memmap[int_index][variable][the_range[0]:the_range[1]:the_range[2]]
+        else:
+            return None
 
     def read_support_array(self, index, dim1_range, dim2_range):
         raise TypeError('CPHD 0.3 does not support Support Arrays.')
@@ -934,13 +941,15 @@ class CPHDWriter1_0(AbstractWriter):
         '_pvp_memmaps', '_support_memmaps', '_signal_memmaps',
         '_channel_map', '_support_map', '_writing_state', '_closed')
 
-    def __init__(self, file_name, cphd_meta):
+    def __init__(self, file_name, cphd_meta, check_existence=True):
         """
 
         Parameters
         ----------
         file_name : str
         cphd_meta : sarpy.io.phase_history.cphd1_elements.CPHD.CPHDType
+        check_existence : bool
+            Should we check if the given file already exists, and raises an exception if so?
         """
 
         self._pvp_memmaps = None
@@ -952,6 +961,11 @@ class CPHDWriter1_0(AbstractWriter):
         self._closed = False
         self._cphd_meta = cphd_meta
         self._cphd_header = cphd_meta.make_file_header()
+
+        if check_existence and os.path.exists(file_name):
+            raise IOError(
+                'File {} already exists, and a new CPHD file can not be created '
+                'at this location'.format(file_name))
         super(CPHDWriter1_0, self).__init__(file_name)
         self._prepare_for_writing()
 
@@ -1109,15 +1123,15 @@ class CPHDWriter1_0(AbstractWriter):
             offset = self._cphd_header.PVP_BLOCK_BYTE_OFFSET + entry.PVPArrayByteOffset
             shape = (entry.NumVectors, )
             self._pvp_memmaps[entry.Identifier] = numpy.memmap(
-                self._file_name, dtype=pvp_dtype, mode='w', offset=offset, shape=shape)
+                self._file_name, dtype=pvp_dtype, mode='r+', offset=offset, shape=shape)
             # create the pvp writing state variable
             self._writing_state['pvp'][entry.Identifier] = 0
 
             # create the signal mem map
             offset = self._cphd_header.SIGNAL_BLOCK_BYTE_OFFSET + entry.SignalArrayByteOffset
             shape = (entry.NumVectors, entry.NumSamples)
-            self._pvp_memmaps[entry.Identifier] = numpy.memmap(
-                self._file_name, dtype=signal_dtype, mode='w', offset=offset, shape=shape)
+            self._signal_memmaps[entry.Identifier] = numpy.memmap(
+                self._file_name, dtype=signal_dtype, mode='r+', offset=offset, shape=shape)
             # create the signal writing state variable
             self._writing_state['signal'][entry.Identifier] = 0
 
@@ -1135,7 +1149,7 @@ class CPHDWriter1_0(AbstractWriter):
                 # set up the numpy memory map
                 shape = (entry.NumRows, entry.NumCols) if depth == 1 else (entry.NumRows, entry.NumCols, depth)
                 self._support_memmaps[entry.Identifier] = numpy.memmap(
-                    self._file_name, dtype=dtype, mode='w', offset=offset, shape=shape)
+                    self._file_name, dtype=dtype, mode='r+', offset=offset, shape=shape)
                 self._writing_state['support'][entry.Identifier] = 0
 
     def _prepare_for_writing(self):
@@ -1186,7 +1200,7 @@ class CPHDWriter1_0(AbstractWriter):
         entry = self.cphd_meta.Data.SupportArrays[int_index]
         validate_bytes_per_pixel()
 
-        start_indices = (int_func[start_indices[0]], int_func[start_indices[1]])
+        start_indices = (int_func(start_indices[0]), int_func(start_indices[1]))
         rows = (start_indices[0], start_indices[0] + data.shape[0])
         columns = (start_indices[1], start_indices[1] + data.shape[1])
 
@@ -1233,7 +1247,7 @@ class CPHDWriter1_0(AbstractWriter):
         entry = self.cphd_meta.Data.Channels[int_index]
         validate_dtype()
 
-        start_index = int_func[start_index]
+        start_index = int_func(start_index)
         rows = (start_index, start_index + data.shape[0])
 
         if start_index < 0:
@@ -1284,7 +1298,7 @@ class CPHDWriter1_0(AbstractWriter):
         entry = self.cphd_meta.Data.Channels[int_index]
         validate_bytes_per_pixel()
 
-        start_indices = (int_func[start_indices[0]], int_func[start_indices[1]])
+        start_indices = (int_func(start_indices[0]), int_func(start_indices[1]))
         rows = (start_indices[0], start_indices[0] + data.shape[0])
         columns = (start_indices[1], start_indices[1] + data.shape[1])
 

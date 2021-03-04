@@ -413,10 +413,10 @@ class PVPType(Serializable):
                 for entry in val:
                     assert isinstance(entry, UserDefinedPVPType)
                     names.append(entry.Name)
-                    formats.append(entry.Format)
+                    formats.append(binary_format_string_to_dtype(entry.Format))
                     offsets.append(entry.Offset*bytes_per_word)
             else:
                 names.append(fld)
-                formats.append(val.Format)
+                formats.append(binary_format_string_to_dtype(val.Format))
                 offsets.append(val.Offset*bytes_per_word)
         return numpy.dtype({'names': names, 'formats': formats, 'offsets': offsets})

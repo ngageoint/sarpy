@@ -337,7 +337,7 @@ class SIOReader(BaseReader):
 #  The actual writing implementation
 
 class SIOWriter(BIPWriter):
-    def __init__(self, file_name, sicd_meta, user_data=None, check_older_version=False):
+    def __init__(self, file_name, sicd_meta, user_data=None, check_older_version=False, check_existence=True):
         """
 
         Parameters
@@ -348,7 +348,12 @@ class SIOWriter(BIPWriter):
         check_older_version : bool
             Try to use an older version (1.1) of the SICD standard, for possible
             application compliance issues?
+        check_existence : bool
+            Should we check if the given file already exists, and raises an exception if so?
         """
+
+        if check_existence and os.path.exists(file_name):
+            raise IOError('Given file {} already exists, and a new SIO file cannot be created here.'.format(file_name))
 
         # choose magic number (with user data) and corresponding endian-ness
         magic_number = 0xFD7F02FF
