@@ -27,7 +27,7 @@ class ArraySizeType(Serializable):
         docstring='Number of slow time vectors in the PHD array in this channel.')  # type: int
     NumSamples = _IntegerDescriptor(
         'NumSamples', _required, strict=DEFAULT_STRICT, bounds=(1, None),
-        docstring='Number of slow time vectors in the PHD array in this channel.')  # type: int
+        docstring='Number of samples per vector in the PHD array in this channel.')  # type: int
 
     def __init__(self, NumVectors=None, NumSamples=None, **kwargs):
         """

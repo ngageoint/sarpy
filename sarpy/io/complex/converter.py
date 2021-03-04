@@ -147,7 +147,7 @@ class Converter(object):
     __slots__ = ('_reader', '_file_name', '_writer', '_frame', '_row_limits', '_col_limits')
 
     def __init__(self, reader, output_directory, output_file=None, frame=None, row_limits=None, col_limits=None,
-                 output_format='SICD', check_older_version=False):
+                 output_format='SICD', check_older_version=False, check_existence=True):
         """
 
         Parameters
@@ -170,6 +170,8 @@ class Converter(object):
            The output file format to write, from {'SICD', 'SIO'}.  Default is SICD.
         check_older_version : bool
             Try to use a less recent version of SICD (1.1), for possible application compliance issues?
+        check_existence : bool
+            Should we check if the given file already exists, and raises an exception if so?
         """
 
         if not (os.path.exists(output_directory) and os.path.isdir(output_directory)):
@@ -177,7 +179,7 @@ class Converter(object):
         if output_file is None:
             output_file = reader.get_sicds_as_tuple()[frame].get_suggested_name(frame+1)+'_SICD'
         output_path = os.path.join(output_directory, output_file)
-        if os.path.exists(output_path):
+        if check_existence and os.path.exists(output_path):
             raise IOError('The file {} already exists.'.format(output_path))
 
         # validate the output format and fetch the writer type
@@ -230,7 +232,7 @@ class Converter(object):
         this_sicd = self._update_sicd(this_sicd, this_shape)
         # set up our writer
         self._file_name = output_path
-        self._writer = writer_type(output_path, this_sicd, check_older_version=check_older_version)
+        self._writer = writer_type(output_path, this_sicd, check_older_version=check_older_version, check_existence=check_existence)
 
     def _update_sicd(self, sicd, t_size):
         # type: (SICDType, Tuple[int, int]) -> SICDType

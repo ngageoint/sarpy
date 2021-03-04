@@ -513,7 +513,7 @@ class SICDWriter(NITFWriter):
 
     __slots__ = ('_sicd_meta', '_check_older_version')
 
-    def __init__(self, file_name, sicd_meta, check_older_version=False):
+    def __init__(self, file_name, sicd_meta, check_older_version=False, check_existence=True):
         """
 
         Parameters
@@ -522,6 +522,8 @@ class SICDWriter(NITFWriter):
         sicd_meta : sarpy.io.complex.sicd_elements.SICD.SICDType
         check_older_version : bool
             Try to create a version 1.1 sicd, if possible?
+        check_existence : bool
+            Should we check if the given file already exists, and raises an exception if so?
         """
 
         self._check_older_version = check_older_version
@@ -532,7 +534,7 @@ class SICDWriter(NITFWriter):
         self._img_details = None
         self._des_details = None
         self._shapes = ((self.sicd_meta.ImageData.NumRows, self.sicd_meta.ImageData.NumCols), )
-        super(SICDWriter, self).__init__(file_name)
+        super(SICDWriter, self).__init__(file_name, check_existence=check_existence)
 
     @property
     def sicd_meta(self):

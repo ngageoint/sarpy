@@ -161,3 +161,18 @@ class CPHDType(Serializable):
 
     def to_xml_string(self, urn=None, tag='CPHD', check_validity=False, strict=DEFAULT_STRICT):
         return self.to_xml_bytes(urn=urn, tag=tag, check_validity=check_validity, strict=strict).decode('utf-8')
+
+    def get_pvp_dtype(self):
+        """
+        Gets the dtype for the corresponding PVP structured array. Note that they
+        must all have homogeneous dtype.
+
+        Returns
+        -------
+        numpy.dtype
+            This will be a compound dtype for a structured array.
+        """
+
+        if self.VectorParameters is None:
+            raise ValueError('No VectorParameters defined.')
+        return self.VectorParameters.get_vector_dtype()

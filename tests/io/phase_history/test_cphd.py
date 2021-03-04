@@ -1,12 +1,17 @@
 import logging
 import os
 import json
+import tempfile
 
-from sarpy.io.phase_history.cphd import CPHDReader, CPHDReader0_3, CPHDReader1_0
+import numpy.testing
+from sarpy.io.phase_history.cphd import CPHDReader, CPHDReader0_3, CPHDReader1_0, CPHDWriter1_0
 from sarpy.io.phase_history.converter import open_phase_history
+import sarpy.consistency.cphd_consistency
+from sarpy.io.phase_history.cphd_schema import get_schema_path
 
 from tests import unittest, parse_file_entry
 
+DEFAULT_SCHEMA = get_schema_path(version='1.0.1')
 
 cphd_file_types = {}
 
@@ -24,7 +29,7 @@ if os.path.isfile(file_reference):
             cphd_file_types[the_type] = valid_entries
 
 
-def generic_reader_test(instance, test_file, reader_type_string, reader_type):
+def generic_io_test(instance, test_file, reader_type_string, reader_type):
     assert isinstance(instance, unittest.TestCase)
 
     reader = None
@@ -85,19 +90,47 @@ def generic_reader_test(instance, test_file, reader_type_string, reader_type):
 
         with instance.subTest(msg='Verify fetching entire pvp data has correct size for cphd '
                                   'index {} in reader of type {} file {}'.format(i, reader_type_string, test_file)):
-            test_pvp = reader.read_pvp_vector('TxTime', i, the_range=None)
+            test_pvp = reader.read_pvp_variable('TxTime', i, the_range=None)
             instance.assertEqual(test_pvp.shape, (data_size[0], ), msg='Unexpected pvp total fetch size')
 
         with instance.subTest(msg='Verify fetching pvp data for slice has correct size for cphd '
                                   'index {} in reader of type {} file {}'.format(i, reader_type_string, test_file)):
-            test_pvp = reader.read_pvp_vector('TxTime', i, the_range=(0, 10, 2))
+            test_pvp = reader.read_pvp_variable('TxTime', i, the_range=(0, 10, 2))
             instance.assertEqual(test_pvp.shape, (5, ), msg='Unexpected pvp strided slice fetch size')
+
+    if isinstance(reader, CPHDReader1_0):
+        generic_writer_test(reader)
 
     del reader
 
 
+def generic_writer_test(cphd_reader):
+    with tempfile.NamedTemporaryFile() as written_cphd:
+
+        read_support = cphd_reader.read_support_block()
+        read_pvp = cphd_reader.read_pvp_block()
+        read_signal = cphd_reader.read_signal_block()
+
+        # write the cphd file
+        with CPHDWriter1_0(written_cphd.name, cphd_reader.cphd_meta, check_existence=False) as writer:
+            writer.write_file(read_pvp, read_signal, read_support)
+
+        # reread the newly written data
+        rereader = CPHDReader(written_cphd.name)
+        reread_support = rereader.read_support_block()
+        reread_pvp = rereader.read_pvp_block()
+        reread_signal = rereader.read_signal_block()
+
+        # byte compare that the original data and re-read data are identical
+        numpy.testing.assert_equal(read_support, reread_support)
+        numpy.testing.assert_equal(read_pvp, reread_pvp)
+        numpy.testing.assert_equal(read_signal, reread_signal)
+
+        assert not sarpy.consistency.cphd_consistency.main([written_cphd.name, '--schema', DEFAULT_SCHEMA, '--signal-data'])
+
+
 class TestCPHD(unittest.TestCase):
     @unittest.skipIf(len(cphd_file_types.get('CPHD', [])) == 0, 'No CPHD files specified or found')
-    def test_cphd_reader(self):
+    def test_cphd_io(self):
         for test_file in cphd_file_types['CPHD']:
-            generic_reader_test(self, test_file, 'CPHD', CPHDReader)
+            generic_io_test(self, test_file, 'CPHD', CPHDReader)

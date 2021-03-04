@@ -5,11 +5,13 @@ The Per Vector parameters (PVP) definition.
 
 from typing import Union, List
 
+import numpy
+
 from .base import DEFAULT_STRICT
 # noinspection PyProtectedMember
 from sarpy.io.complex.sicd_elements.base import Serializable, _StringDescriptor, \
     _IntegerDescriptor, _SerializableListDescriptor, _SerializableDescriptor
-from .utils import homogeneous_format
+from .utils import binary_format_string_to_dtype, homogeneous_dtype
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
@@ -378,11 +380,43 @@ class PVPType(Serializable):
             val = getattr(self, field)
             if val is None:
                 return None
-            return val.Offset*8, val.Size*8, homogeneous_format(val.Format)
+            return val.Offset*8, val.Size*8, homogeneous_dtype(val.Format).char
         else:
             if self.AddedPVP is None:
                 return None
             for val in self.AddedPVP:
                 if field == val.Name:
-                    return val.Offset*8, val.Size*8, homogeneous_format(val.Format)
+                    return val.Offset*8, val.Size*8, homogeneous_dtype(val.Format).char
             return None
+
+    def get_vector_dtype(self):
+        """
+        Gets the dtype for the corresponding structured array for the full PVP
+        array.
+
+        Returns
+        -------
+        numpy.dtype
+            This will be a compound dtype for a structured array.
+        """
+
+        bytes_per_word = 8
+        names = []
+        formats = []
+        offsets = []
+
+        for fld in self._fields:
+            val = getattr(self, fld)
+            if val is None:
+                continue
+            elif fld == 'AddedPVP':
+                for entry in val:
+                    assert isinstance(entry, UserDefinedPVPType)
+                    names.append(entry.Name)
+                    formats.append(binary_format_string_to_dtype(entry.Format))
+                    offsets.append(entry.Offset*bytes_per_word)
+            else:
+                names.append(fld)
+                formats.append(binary_format_string_to_dtype(val.Format))
+                offsets.append(val.Offset*bytes_per_word)
+        return numpy.dtype({'names': names, 'formats': formats, 'offsets': offsets})

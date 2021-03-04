@@ -467,7 +467,7 @@ class SIDDWriter(NITFWriter):
 
     __slots__ = ('_sidd_meta', '_sicd_meta', )
 
-    def __init__(self, file_name, sidd_meta, sicd_meta):
+    def __init__(self, file_name, sidd_meta, sicd_meta, check_existence=True):
         """
 
         Parameters
@@ -475,6 +475,8 @@ class SIDDWriter(NITFWriter):
         file_name : str
         sidd_meta : SIDDType|List[SIDDType]|SIDDType1|List[SIDDType1]
         sicd_meta : SICDType|List[SICDType]
+        check_existence : bool
+            Should we check if the given file already exists, and raises an exception if so?
         """
 
         self._shapes = None
@@ -486,7 +488,7 @@ class SIDDWriter(NITFWriter):
         self._img_groups = None
         self._img_details = None
         self._des_details = None
-        super(SIDDWriter, self).__init__(file_name)
+        super(SIDDWriter, self).__init__(file_name, check_existence=check_existence)
 
     @property
     def sidd_meta(self):
