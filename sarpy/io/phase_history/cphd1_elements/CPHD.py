@@ -6,6 +6,7 @@ The Compensated Phase History Data 1.0.1 definition.
 from xml.etree import ElementTree
 from collections import OrderedDict
 from typing import Union
+import numpy
 
 from .base import DEFAULT_STRICT
 # noinspection PyProtectedMember
@@ -29,14 +30,15 @@ from .GeoInfo import GeoInfoType
 from sarpy.io.complex.sicd_elements.MatchInfo import MatchInfoType
 
 __classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
+__author__ = ("Thomas McCullough", "Daniel Pressler, Valkyrie")
 
 
 #########
 # Module variables
-_CPHD_SPECIFICATION_VERSION = '1.0'
+_CPHD_SPECIFICATION_VERSION = '1.0.1'
 _CPHD_SPECIFICATION_DATE = '2018-05-21T00:00:00Z'
-_CPHD_SPECIFICATION_NAMESPACE = 'urn:CPHD:1.0.1'
+_CPHD_SPECIFICATION_NAMESPACE = 'http://api.nsgreg.nga.mil/schema/cphd/1.0.1'
+_CPHD_SECTION_TERMINATOR = b'\f\n'
 
 
 #########
@@ -55,9 +57,9 @@ def _parse_cphd_header_field(line):
     None|(str, str)
     """
 
-    if line.startswith(b'\f\n'):
+    if line.startswith(_CPHD_SECTION_TERMINATOR):
         return None
-    parts = line.strip().split(b':=')
+    parts = line.split(b' := ')
     if len(parts) != 2:
         raise ValueError('Cannot extract CPHD header value from line {}'.format(line))
     fld = parts[0].strip().decode('utf-8')
@@ -162,6 +164,13 @@ class CPHDHeader(CPHDHeaderBase):
         self.CLASSIFICATION = CLASSIFICATION
         self.RELEASE_INFO = RELEASE_INFO
         super(CPHDHeader, self).__init__()
+
+    def to_string(self):
+        """
+        Forms a CPHD file header string (not including the section terminator) from populated attributes.
+        """
+        return ('CPHD/{}\n'.format(_CPHD_SPECIFICATION_VERSION)
+                + ''.join(["{} := {}\n".format(f, getattr(self,f)) for f in self._fields if getattr(self, f) is not None]))
 
 
 class CPHDType(Serializable):
@@ -371,3 +380,65 @@ class CPHDType(Serializable):
 
     def to_xml_string(self, urn=None, tag='CPHD', check_validity=False, strict=DEFAULT_STRICT):
         return self.to_xml_bytes(urn=urn, tag=tag, check_validity=check_validity, strict=strict).decode('utf-8')
+
+    def make_file_header(self, xml_offset=1024):
+        """
+        Forms a CPHD file header consistent with the information in the Data and CollectionID nodes.
+
+        Parameters
+        ----------
+        xml_offset : int, optional
+            Offset in bytes to the first byte of the XML block. If the provided value is not large enough to account for
+            the length of the file header string, a larger value is chosen.
+
+        Returns
+        -------
+        header : sarpy.io.phase_history.cphd1_elements.CPHD.CPHDHeader
+        """
+
+        _kvps = OrderedDict()
+
+        def _align(val):
+            align_to = 64
+            return int(numpy.ceil(float(val)/align_to)*align_to)
+
+        _kvps['XML_BLOCK_SIZE'] = len(self.to_xml_string())
+        _kvps['XML_BLOCK_BYTE_OFFSET'] = xml_offset
+        block_end = _kvps['XML_BLOCK_BYTE_OFFSET'] + _kvps['XML_BLOCK_SIZE'] + len(_CPHD_SECTION_TERMINATOR)
+
+        if self.Data.NumSupportArrays > 0:
+            _kvps['SUPPORT_BLOCK_SIZE'] = self.Data.calculate_support_block_size()
+            _kvps['SUPPORT_BLOCK_BYTE_OFFSET'] = _align(block_end)
+            block_end = _kvps['SUPPORT_BLOCK_BYTE_OFFSET'] + _kvps['SUPPORT_BLOCK_SIZE']
+
+        _kvps['PVP_BLOCK_SIZE'] = self.Data.calculate_pvp_block_size()
+        _kvps['PVP_BLOCK_BYTE_OFFSET'] = _align(block_end)
+        block_end = _kvps['PVP_BLOCK_BYTE_OFFSET'] + _kvps['PVP_BLOCK_SIZE']
+
+        _kvps['SIGNAL_BLOCK_SIZE'] = self.Data.calculate_signal_block_size()
+        _kvps['SIGNAL_BLOCK_BYTE_OFFSET'] = _align(block_end)
+        _kvps['CLASSIFICATION'] = self.CollectionID.Classification
+        _kvps['RELEASE_INFO'] = self.CollectionID.ReleaseInfo
+
+        header = CPHDHeader(**_kvps)
+        header_str = header.to_string()
+        min_xml_offset = len(header_str) + len(_CPHD_SECTION_TERMINATOR)
+        if _kvps['XML_BLOCK_BYTE_OFFSET'] < min_xml_offset:
+            header = self.make_file_header(xml_offset=_align(min_xml_offset + 32))
+
+        return header
+
+    def get_pvp_dtype(self):
+        """
+        Gets the dtype for the corresponding PVP structured array. Note that they
+        must all have homogeneous dtype.
+
+        Returns
+        -------
+        numpy.dtype
+            This will be a compound dtype for a structured array.
+        """
+
+        if self.PVP is None:
+            raise ValueError('No PVP defined.')
+        return self.PVP.get_vector_dtype()

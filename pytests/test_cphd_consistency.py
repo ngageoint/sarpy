@@ -5,20 +5,21 @@
 # Licensed under MIT License.  See LICENSE.
 #
 
+import copy
 import os
 import re
 import shutil
-import subprocess
 import tempfile
 
 from lxml import etree
 import numpy as np
 import pytest
 
-import sarpy.consistency.cphd_consistency
+from sarpy.consistency import cphd_consistency
+from sarpy.io.phase_history.cphd_schema import get_schema_path
 
 GOOD_CPHD = os.path.join(os.environ['SARPY_TEST_PATH'], 'cphd', 'spotlight_example.cphd')
-DEFAULT_SCHEMA = sarpy.io.phase_history.cphd_schema.location()
+DEFAULT_SCHEMA = get_schema_path(version='1.0.1')
 
 def make_elem(tag, text=None, children=None, namespace=None, attributes=None, **attrib):
     """
@@ -36,7 +37,7 @@ def make_elem(tag, text=None, children=None, namespace=None, attributes=None, **
     parent : lxml.etree.ElementTree.Element
         The parent element. (Default: ``None``)
     children : lxml.etree.ElementTree
-        The children elements. (Dafault: ``None``)
+        The children elements. (Default: ``None``)
     namespace : str
         The string containing the namespace. (Default: ``None``)
     attributes : dict
@@ -56,7 +57,8 @@ def make_elem(tag, text=None, children=None, namespace=None, attributes=None, **
             text = str(text).lower()
         if not isinstance(text, str):
             text = repr(text)
-    attrib = dict(attributes.items() + attrib.items())
+    attrib = copy.copy(attrib)
+    attrib.update(attributes)
     attrib = {key: str(value) for key, value in attrib.items()}
     if namespace is not None:
         tag = '{{{namespace}}}{tag}'.format(namespace=namespace, tag=tag)
@@ -78,7 +80,7 @@ def tmpdir():
 @pytest.fixture(scope='module')
 def good_xml_str():
     with open(GOOD_CPHD, 'rb') as fid:
-        header = sarpy.consistency.cphd_consistency.read_header(fid)
+        header = cphd_consistency.read_header(fid)
         fid.seek(header['XML_BLOCK_BYTE_OFFSET'], 0)
         xml_block_size = header['XML_BLOCK_SIZE']
 
@@ -88,9 +90,15 @@ def good_xml_str():
 @pytest.fixture
 def good_xml(good_xml_str):
     good_xml_root = etree.fromstring(good_xml_str)
-    good_xml_root_no_ns = sarpy.consistency.cphd_consistency.strip_namespace(etree.fromstring(good_xml_str))
+    good_xml_root_no_ns = cphd_consistency.strip_namespace(etree.fromstring(good_xml_str))
     yield {'with_ns': good_xml_root, 'without_ns': good_xml_root_no_ns,
            'nsmap': {'ns': re.match(r'\{(.*)\}', good_xml_root.tag).group(1)}}
+
+
+@pytest.fixture
+def good_header():
+    with open(GOOD_CPHD, 'rb') as fid:
+        return cphd_consistency.read_header(fid)
 
 
 def remove_nodes(*nodes):
@@ -103,11 +111,8 @@ def copy_xml(elem):
 
 
 def test_from_file_cphd():
-    cphdcon = sarpy.consistency.cphd_consistency.CphdConsistency.from_file(
-        str(GOOD_CPHD),
-        sarpy.io.phase_history.cphd_schema.location(),
-        True)
-    assert isinstance(cphdcon, sarpy.consistency.cphd_consistency.CphdConsistency)
+    cphdcon = cphd_consistency.CphdConsistency.from_file(str(GOOD_CPHD), DEFAULT_SCHEMA, True)
+    assert isinstance(cphdcon, cphd_consistency.CphdConsistency)
     cphdcon.check()
     assert not cphdcon.failures()
 
@@ -117,34 +122,42 @@ def test_from_file_xml(good_xml_str, tmpdir):
     with open(xml_file, 'w') as fid:
         fid.write(good_xml_str)
 
-    cphdcon = sarpy.consistency.cphd_consistency.CphdConsistency.from_file(
-        str(xml_file),
-        sarpy.io.phase_history.cphd_schema.location(),
-        False)
-    assert isinstance(cphdcon, sarpy.consistency.cphd_consistency.CphdConsistency)
+    cphdcon = cphd_consistency.CphdConsistency.from_file(str(xml_file), DEFAULT_SCHEMA, False)
+    assert isinstance(cphdcon, cphd_consistency.CphdConsistency)
     cphdcon.check()
     assert not cphdcon.failures()
 
 
 def test_main(good_xml_str, tmpdir):
-    assert not sarpy.consistency.cphd_consistency.main([str(GOOD_CPHD), '--schema', DEFAULT_SCHEMA, '--signal-data'])
-    assert not sarpy.consistency.cphd_consistency.main([str(GOOD_CPHD), '--noschema'])
-    assert not sarpy.consistency.cphd_consistency.main([str(GOOD_CPHD)])
+    assert not cphd_consistency.main([str(GOOD_CPHD), '--schema', DEFAULT_SCHEMA, '--signal-data'])
+    assert not cphd_consistency.main([str(GOOD_CPHD), '--noschema'])
+    assert not cphd_consistency.main([str(GOOD_CPHD)])
 
     xml_file = os.path.join(tmpdir, 'cphd.xml')
     with open(xml_file, 'w') as fid:
         fid.write(good_xml_str)
-    assert not sarpy.consistency.cphd_consistency.main([str(xml_file), '-v'])
+    assert not cphd_consistency.main([str(xml_file), '-v'])
 
 
 def test_xml_schema_error(good_xml):
     bad_xml = copy_xml(good_xml['with_ns'])
 
     remove_nodes(*bad_xml.xpath('./ns:Global/ns:DomainType', namespaces=good_xml['nsmap']))
-    cphd_con = sarpy.consistency.cphd_consistency.CphdConsistency(bad_xml, pvps={}, header=None, filename=None,
+    cphd_con = cphd_consistency.CphdConsistency(bad_xml, pvps={}, header=None, filename=None,
                                                                   schema=DEFAULT_SCHEMA,
                                                                   check_signal_data=False)
     cphd_con.check('check_against_schema')
+    assert cphd_con.failures()
+
+
+def test_check_classification_and_release_info_error(good_xml, good_header):
+    bad_xml = copy_xml(good_xml['without_ns'])
+
+    bad_xml.find('./CollectionID/ReleaseInfo').text += '-make-bad'
+    cphd_con = cphd_consistency.CphdConsistency(bad_xml, pvps={}, header=good_header, filename=None,
+                                                             schema=DEFAULT_SCHEMA,
+                                                             check_signal_data=False)
+    cphd_con.check('check_classification_and_release_info')
     assert cphd_con.failures()
 
 
@@ -152,7 +165,7 @@ def test_error_in_check(good_xml):
     bad_xml = copy_xml(good_xml['with_ns'])
     remove_nodes(*bad_xml.xpath('./ns:Channel/ns:Parameters/ns:DwellTimes/ns:CODId', namespaces=good_xml['nsmap']))
 
-    cphd_con = sarpy.consistency.cphd_consistency.CphdConsistency(bad_xml, pvps={}, header=None, filename=None,
+    cphd_con = cphd_consistency.CphdConsistency(bad_xml, pvps={}, header=None, filename=None,
                                                                   schema=DEFAULT_SCHEMA,
                                                                   check_signal_data=False)
     tocheck = []
@@ -167,7 +180,7 @@ def test_polygon_size_error(good_xml):
     ia_polygon_node = bad_xml.find('./ns:SceneCoordinates/ns:ImageArea/ns:Polygon', namespaces=good_xml['nsmap'])
     ia_polygon_node.attrib['size'] = "12345678890"
 
-    cphd_con = sarpy.consistency.cphd_consistency.CphdConsistency(bad_xml, pvps={}, header=None, filename=None,
+    cphd_con = cphd_consistency.CphdConsistency(bad_xml, pvps={}, header=None, filename=None,
                                                                   schema=DEFAULT_SCHEMA,
                                                                   check_signal_data=False)
     cphd_con.check('check_global_imagearea_polygon')
@@ -182,7 +195,7 @@ def test_polygon_winding_error(good_xml):
     for vertex in ia_polygon_node:
         vertex.attrib['index'] = str(size - int(vertex.attrib['index']) + 1)
 
-    cphd_con = sarpy.consistency.cphd_consistency.CphdConsistency(bad_xml, pvps={}, header=None, filename=None,
+    cphd_con = cphd_consistency.CphdConsistency(bad_xml, pvps={}, header=None, filename=None,
                                                                   schema=DEFAULT_SCHEMA,
                                                                   check_signal_data=False)
     cphd_con.check('check_global_imagearea_polygon')
@@ -208,7 +221,7 @@ def xml_with_signal_normal(good_xml):
 def test_signalnormal(xml_with_signal_normal):
     pvps, root, nsmap = xml_with_signal_normal
 
-    cphd_con = sarpy.consistency.cphd_consistency.CphdConsistency(root, pvps=pvps, header=None, filename=None,
+    cphd_con = cphd_consistency.CphdConsistency(root, pvps=pvps, header=None, filename=None,
                                                                   schema=DEFAULT_SCHEMA,
                                                                   check_signal_data=False)
 
@@ -222,7 +235,7 @@ def test_signalnormal_bad_pvp(xml_with_signal_normal):
 
     for idx, pvp in enumerate(pvps.values()):
         pvp['SIGNAL'][idx] = 0
-    cphd_con = sarpy.consistency.cphd_consistency.CphdConsistency(root, pvps=pvps, header=None, filename=None,
+    cphd_con = cphd_consistency.CphdConsistency(root, pvps=pvps, header=None, filename=None,
                                                                   schema=DEFAULT_SCHEMA,
                                                                   check_signal_data=False)
     tocheck = ['check_channel_signalnormal_{}'.format(key) for key in pvps.keys()]
@@ -231,14 +244,14 @@ def test_signalnormal_bad_pvp(xml_with_signal_normal):
 
     for norm_node in root.findall('./ns:Channel/ns:Parameters/ns:SignalNormal', namespaces=nsmap):
         norm_node.text = 'false'
-    cphd_con = sarpy.consistency.cphd_consistency.CphdConsistency(root, pvps=pvps, header=None, filename=None,
+    cphd_con = cphd_consistency.CphdConsistency(root, pvps=pvps, header=None, filename=None,
                                                                   schema=DEFAULT_SCHEMA,
                                                                   check_signal_data=False)
     cphd_con.check(tocheck)
     assert not cphd_con.failures()
 
     no_sig_pvp = {name: np.zeros(pvp.shape, dtype=[('notsignal', 'i8')]) for name, pvp in pvps.items()}
-    cphd_con = sarpy.consistency.cphd_consistency.CphdConsistency(root, pvps=no_sig_pvp, header=None, filename=None,
+    cphd_con = cphd_consistency.CphdConsistency(root, pvps=no_sig_pvp, header=None, filename=None,
                                                                   schema=DEFAULT_SCHEMA,
                                                                   check_signal_data=False)
     cphd_con.check(tocheck)
@@ -266,7 +279,7 @@ def xml_without_fxfixed(good_xml):
 def test_fxfixed(xml_without_fxfixed):
     pvps, root, nsmap = xml_without_fxfixed
 
-    cphd_con = sarpy.consistency.cphd_consistency.CphdConsistency(root, pvps=pvps, header=None, filename=None,
+    cphd_con = cphd_consistency.CphdConsistency(root, pvps=pvps, header=None, filename=None,
                                                                   schema=DEFAULT_SCHEMA,
                                                                   check_signal_data=False)
 
@@ -297,7 +310,7 @@ def xml_without_toafixed(good_xml):
 def test_channel_toafixed(xml_without_toafixed):
     pvps, root, nsmap = xml_without_toafixed
 
-    cphd_con = sarpy.consistency.cphd_consistency.CphdConsistency(root, pvps=pvps, header=None, filename=None,
+    cphd_con = cphd_consistency.CphdConsistency(root, pvps=pvps, header=None, filename=None,
                                                                   schema=DEFAULT_SCHEMA,
                                                                   check_signal_data=False)
 
@@ -329,7 +342,7 @@ def xml_without_srpfixed(good_xml):
 def test_channel_srpfixed(xml_without_srpfixed):
     pvps, root, nsmap = xml_without_srpfixed
 
-    cphd_con = sarpy.consistency.cphd_consistency.CphdConsistency(root, pvps=pvps, header=None, filename=None,
+    cphd_con = cphd_consistency.CphdConsistency(root, pvps=pvps, header=None, filename=None,
                                                                   schema=DEFAULT_SCHEMA,
                                                                   check_signal_data=False)
 
@@ -374,7 +387,7 @@ def xml_with_txrcv(good_xml):
 def test_txrcv(xml_with_txrcv):
     chan_ids, root, nsmap = xml_with_txrcv
 
-    cphd_con = sarpy.consistency.cphd_consistency.CphdConsistency(root, pvps=None, header=None, filename=None,
+    cphd_con = cphd_consistency.CphdConsistency(root, pvps=None, header=None, filename=None,
                                                                   schema=DEFAULT_SCHEMA,
                                                                   check_signal_data=False)
 
@@ -390,7 +403,7 @@ def test_txrcv_bad_txwfid(xml_with_txrcv):
                                  namespaces=nsmap)[0]
     chan_param_node.xpath('./ns:TxRcv/ns:TxWFId', namespaces=nsmap)[-1].text = 'missing'
 
-    cphd_con = sarpy.consistency.cphd_consistency.CphdConsistency(root, pvps=None, header=None, filename=None,
+    cphd_con = cphd_consistency.CphdConsistency(root, pvps=None, header=None, filename=None,
                                                                   schema=DEFAULT_SCHEMA,
                                                                   check_signal_data=False)
 
@@ -406,7 +419,7 @@ def test_txrcv_bad_rcvid(xml_with_txrcv):
                                  namespaces=nsmap)[0]
     chan_param_node.xpath('./ns:TxRcv/ns:RcvId', namespaces=nsmap)[-1].text = 'missing'
 
-    cphd_con = sarpy.consistency.cphd_consistency.CphdConsistency(root, pvps=None, header=None, filename=None,
+    cphd_con = cphd_consistency.CphdConsistency(root, pvps=None, header=None, filename=None,
                                                                   schema=DEFAULT_SCHEMA,
                                                                   check_signal_data=False)
 
@@ -437,7 +450,7 @@ def xml_with_fxbwnoise(good_xml):
 def test_fxbwnoise(xml_with_fxbwnoise):
     pvps, root, nsmap = xml_with_fxbwnoise
 
-    cphd_con = sarpy.consistency.cphd_consistency.CphdConsistency(root, pvps=pvps, header=None, filename=None,
+    cphd_con = cphd_consistency.CphdConsistency(root, pvps=pvps, header=None, filename=None,
                                                                   schema=DEFAULT_SCHEMA,
                                                                   check_signal_data=False)
 
@@ -451,7 +464,7 @@ def test_fxbwnoise_bad_domain(xml_with_fxbwnoise):
 
     root.find('./ns:Global/ns:DomainType', namespaces=nsmap).text = 'TOA'
 
-    cphd_con = sarpy.consistency.cphd_consistency.CphdConsistency(root, pvps=pvps, header=None, filename=None,
+    cphd_con = cphd_consistency.CphdConsistency(root, pvps=pvps, header=None, filename=None,
                                                                   schema=DEFAULT_SCHEMA,
                                                                   check_signal_data=False)
 
@@ -466,7 +479,7 @@ def test_fxbwnoise_bad_value(xml_with_fxbwnoise):
     chan_id = list(pvps.keys())[-1]
     pvps[chan_id]['FXN1'][0] = 0.5
 
-    cphd_con = sarpy.consistency.cphd_consistency.CphdConsistency(root, pvps=pvps, header=None, filename=None,
+    cphd_con = cphd_consistency.CphdConsistency(root, pvps=pvps, header=None, filename=None,
                                                                   schema=DEFAULT_SCHEMA,
                                                                   check_signal_data=False)
 
@@ -494,7 +507,7 @@ def test_geoinfo_polygons(good_xml):
         ])
     ]))
 
-    cphd_con = sarpy.consistency.cphd_consistency.CphdConsistency(root, pvps=None, header=None, filename=None,
+    cphd_con = cphd_consistency.CphdConsistency(root, pvps=None, header=None, filename=None,
                                                                   schema=DEFAULT_SCHEMA,
                                                                   check_signal_data=False)
 
@@ -521,7 +534,7 @@ def test_geoinfo_polygons_bad_order(good_xml):
         ])
     ]))
 
-    cphd_con = sarpy.consistency.cphd_consistency.CphdConsistency(root, pvps=None, header=None, filename=None,
+    cphd_con = cphd_consistency.CphdConsistency(root, pvps=None, header=None, filename=None,
                                                                   schema=DEFAULT_SCHEMA,
                                                                   check_signal_data=False)
 
@@ -567,7 +580,7 @@ def xml_with_channel_imagearea(good_xml):
 def test_channel_image_area(xml_with_channel_imagearea):
     root, nsmap = xml_with_channel_imagearea
 
-    cphd_con = sarpy.consistency.cphd_consistency.CphdConsistency(root, pvps=None, header=None, filename=None,
+    cphd_con = cphd_consistency.CphdConsistency(root, pvps=None, header=None, filename=None,
                                                                   schema=DEFAULT_SCHEMA,
                                                                   check_signal_data=False)
 
@@ -617,7 +630,7 @@ def xml_with_extendedarea(good_xml):
 def test_extended_imagearea(xml_with_extendedarea):
     root, nsmap = xml_with_extendedarea
 
-    cphd_con = sarpy.consistency.cphd_consistency.CphdConsistency(root, pvps=None, header=None, filename=None,
+    cphd_con = cphd_consistency.CphdConsistency(root, pvps=None, header=None, filename=None,
                                                                   schema=DEFAULT_SCHEMA,
                                                                   check_signal_data=False)
 
@@ -629,7 +642,7 @@ def test_extended_imagearea_polygon_bad_extent(xml_with_extendedarea):
     root, nsmap = xml_with_extendedarea
     root.find('./ns:SceneCoordinates/ns:ExtendedArea/ns:X2Y2/ns:X', namespaces=nsmap).text = '2000'
 
-    cphd_con = sarpy.consistency.cphd_consistency.CphdConsistency(root, pvps=None, header=None, filename=None,
+    cphd_con = cphd_consistency.CphdConsistency(root, pvps=None, header=None, filename=None,
                                                                   schema=DEFAULT_SCHEMA,
                                                                   check_signal_data=False)
 
