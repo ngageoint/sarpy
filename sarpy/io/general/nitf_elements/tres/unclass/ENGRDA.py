@@ -10,7 +10,7 @@ __author__ = "Thomas McCullough"
 class RECORD(TREElement):
     def __init__(self, value):
         super(RECORD, self).__init__()
-        self.add_field('ENGLN', 's', 2, value)
+        self.add_field('ENGLN', 'd', 2, value)
         self.add_field('ENGLBL', 's', self.ENGLN, value)
         self.add_field('ENGMTXC', 's', 4, value)
         self.add_field('ENGMTXR', 's', 4, value)

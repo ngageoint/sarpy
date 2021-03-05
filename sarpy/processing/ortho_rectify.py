@@ -495,9 +495,9 @@ class PGProjection(ProjectionHelper):
     """
 
     __slots__ = (
-        '_reference_point', '_row_vector', '_col_vector', '_normal_vector', '_reference_hae')
+        '_reference_point', '_reference_pixels', '_row_vector', '_col_vector', '_normal_vector', '_reference_hae')
 
-    def __init__(self, sicd, reference_point=None, normal_vector=None, row_vector=None,
+    def __init__(self, sicd, reference_point=None, reference_pixels=None, normal_vector=None, row_vector=None,
                  col_vector=None, row_spacing=None, col_spacing=None,
                  default_pixel_method='GEOM_MEAN'):
         r"""
@@ -508,7 +508,9 @@ class PGProjection(ProjectionHelper):
             The sicd object
         reference_point : None|numpy.ndarray
             The reference point (origin) of the planar grid. If None, a default
-            derived from the SICD will be used..
+            derived from the SICD will be used.
+        reference_pixels : None|numpy.ndarray
+            The projected pixel
         normal_vector : None|numpy.ndarray
             The unit normal vector of the plane.
         row_vector : None|numpy.ndarray
@@ -531,12 +533,14 @@ class PGProjection(ProjectionHelper):
 
         self._reference_point = None
         self._reference_hae = None
+        self._reference_pixels = None
         self._normal_vector = None
         self._row_vector = None
         self._col_vector = None
         super(PGProjection, self).__init__(
             sicd, row_spacing=row_spacing, col_spacing=col_spacing, default_pixel_method=default_pixel_method)
         self.set_reference_point(reference_point=reference_point)
+        self.set_reference_pixels(reference_pixels=reference_pixels)
         self.set_plane_frame(
             normal_vector=normal_vector, row_vector=row_vector, col_vector=col_vector)
 
@@ -548,6 +552,15 @@ class PGProjection(ProjectionHelper):
         """
 
         return self._reference_point
+
+    @property
+    def reference_pixels(self):
+        # type: () -> numpy.ndarray
+        """
+        numpy.ndarray: The ortho-rectified pixel coordinates of the grid reference point.
+        """
+
+        return self._reference_pixels
 
     @property
     def normal_vector(self):
@@ -583,6 +596,28 @@ class PGProjection(ProjectionHelper):
         # set the reference hae
         ref_llh = ecf_to_geodetic(reference_point)
         self._reference_hae = ref_llh[2]
+
+    def set_reference_pixels(self, reference_pixels=None):
+        """
+        Sets the reference point, which must be provided in ECF coordinates.
+
+        Parameters
+        ----------
+        reference_pixels : None|numpy.ndarray
+            The ortho-rectified pixel coordinates for the reference point (origin) of the planar grid.
+            If None, then the (0, 0) will be used.
+
+        Returns
+        -------
+        None
+        """
+
+        if reference_pixels is None:
+            reference_pixels = numpy.zeros((2, ), dtype='float64')
+        if not (isinstance(reference_pixels, numpy.ndarray) and reference_pixels.ndim == 1
+                and reference_pixels.size == 2):
+            raise ValueError('reference_pixels must be a vector of size 2.')
+        self._reference_pixels = reference_pixels
 
     @property
     def row_vector(self):
@@ -729,12 +764,12 @@ class PGProjection(ProjectionHelper):
         diff = coords - self.reference_point
         if len(o_shape) == 1:
             out = numpy.zeros((2, ), dtype=numpy.float64)
-            out[0] = numpy.sum(diff*self.row_vector)/self.row_spacing
-            out[1] = numpy.sum(diff*self.col_vector)/self.col_spacing
+            out[0] = self._reference_pixels[0] + numpy.sum(diff*self.row_vector)/self.row_spacing
+            out[1] = self._reference_pixels[1] + numpy.sum(diff*self.col_vector)/self.col_spacing
         else:
             out = numpy.zeros((coords.shape[0], 2), dtype=numpy.float64)
-            out[:, 0] = numpy.sum(diff*self.row_vector, axis=1)/self.row_spacing
-            out[:, 1] = numpy.sum(diff*self.col_vector, axis=1)/self.col_spacing
+            out[:, 0] = self._reference_pixels[0] + numpy.sum(diff*self.row_vector, axis=1)/self.row_spacing
+            out[:, 1] = self._reference_pixels[1] + numpy.sum(diff*self.col_vector, axis=1)/self.col_spacing
             out = numpy.reshape(out, o_shape[:-1] + (2, ))
         return out
 
@@ -772,8 +807,8 @@ class PGProjection(ProjectionHelper):
 
     def ortho_to_ecf(self, ortho_coords):
         ortho_coords, o_shape = self._reshape(ortho_coords, 2)
-        xs = ortho_coords[:, 0]*self.row_spacing
-        ys = ortho_coords[:, 1]*self.col_spacing
+        xs = (ortho_coords[:, 0] - self._reference_pixels[0])*self.row_spacing
+        ys = (ortho_coords[:, 1] - self._reference_pixels[1])*self.col_spacing
         if xs.ndim == 0:
             coords = self.reference_point + xs*self.row_vector + ys*self.col_vector
         else:
@@ -790,8 +825,6 @@ class PGProjection(ProjectionHelper):
         return self.ecf_to_ortho(self.pixel_to_ecf(pixel_coords))
 
     def pixel_to_ecf(self, pixel_coords):
-        # return image_to_ground_plane(pixel_coords, self.sicd,
-        #                              gref=self.reference_point, ugpn=self.normal_vector)
         return self.sicd.project_image_to_ground(
             pixel_coords, projection_type='PLANE',
             gref=self.reference_point, ugpn=self.normal_vector)
@@ -946,13 +979,14 @@ class OrthorectificationHelper(object):
                     and self.sicd.RadarCollection.Area.Plane is not None:
                 plane = self.sicd.RadarCollection.Area.Plane
                 ref_pt = plane.RefPt.ECF.get_array()
+                ref_pixels = numpy.array([plane.RefPt.Line, plane.RefPt.Sample], dtype='float64')
                 row_vector = plane.XDir.UVectECF.get_array()
                 col_vector = plane.YDir.UVectECF.get_array()
                 norm_vector = numpy.cross(row_vector, col_vector)
                 row_spacing = plane.XDir.LineSpacing
                 col_spacing = plane.YDir.SampleSpacing
                 proj_helper = PGProjection(
-                    self.sicd, reference_point=ref_pt,
+                    self.sicd, reference_point=ref_pt, reference_pixels=ref_pixels,
                     normal_vector=norm_vector, row_vector=row_vector, col_vector=col_vector,
                     row_spacing=row_spacing, col_spacing=col_spacing)
                 self._default_ortho_bounds = numpy.array([

@@ -4,6 +4,11 @@ Common functionality for creating the SIDD structure from a SICD structure and
 OrthorectificationHelper.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
+
+import logging
 import numpy
 
 from sarpy.io.complex.utils import two_dim_poly_fit, get_im_physical_coords
@@ -27,10 +32,6 @@ from sarpy.io.product.sidd1_elements.GeographicAndTarget import GeographicAndTar
     GeographicCoverageType as GeographicCoverageType1
 from sarpy.io.product.sidd1_elements.Measurement import MeasurementType as MeasurementType1
 from sarpy.io.product.sidd1_elements.ExploitationFeatures import ExploitationFeaturesType as ExploitationFeaturesType1
-
-
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
 
 
 def _fit_timecoa_poly(proj_helper, bounds):
@@ -70,9 +71,9 @@ def _fit_timecoa_poly(proj_helper, bounds):
     timecoa_values = proj_helper.sicd.Grid.TimeCOAPoly(pixel_rows_m, pixel_cols_m)
     # fit this at the ortho_grid coordinates
     sidd_timecoa_coeffs, residuals, rank, sing_values = two_dim_poly_fit(
-        ortho_grid[:, :, 0] - bounds[0], ortho_grid[:, :, 1] - bounds[2], timecoa_values,
+        ortho_grid[:, :, 0] - bounds[0],
+        ortho_grid[:, :, 1] - bounds[2], timecoa_values,
         x_order=use_order, y_order=use_order, x_scale=1e-3, y_scale=1e-3, rcond=1e-40)
-    import logging
     logging.warning('The time_coa_fit details:\nroot mean square residuals = {}\nrank = {}\nsingular values = {}'.format(residuals, rank, sing_values))
     return Poly2DType(Coefs=sidd_timecoa_coeffs)
 
@@ -92,9 +93,10 @@ def _create_plane_projection(proj_helper, bounds):
     PlaneProjectionType
     """
 
+    ref_pixels = proj_helper.reference_pixels
     return PlaneProjectionType(
         ReferencePoint=ReferencePointType(ECEF=proj_helper.reference_point,
-                                          Point=(-bounds[0], -bounds[2])),
+                                          Point=(float(ref_pixels[0]-bounds[0]), float(ref_pixels[1]-bounds[2]))),
         SampleSpacing=(proj_helper.row_spacing, proj_helper.col_spacing),
         TimeCOAPoly=_fit_timecoa_poly(proj_helper, bounds),
         ProductPlane=ProductPlaneType(RowUnitVector=proj_helper.row_vector,

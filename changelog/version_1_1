@@ -1,5 +1,6 @@
 # This details the important differences introduced in sarpy 1.1
 
+* .54 - Further debugging SICD.RadarCollect.Area for definition for default SIDD image bounds
 * .53 - Introducing CPHD 1.0 writing capabilities and improved CPHD reading for both versions
 * .52 - Use SICD.RadarCollect.Area for definition for default SIDD image bounds
 * .51 - Introduced validity check for SICD in the consistency module
