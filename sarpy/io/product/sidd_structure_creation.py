@@ -94,7 +94,6 @@ def _create_plane_projection(proj_helper, bounds):
     """
 
     ref_pixels = proj_helper.reference_pixels
-    print('ref_pixels', ref_pixels)
     return PlaneProjectionType(
         ReferencePoint=ReferencePointType(ECEF=proj_helper.reference_point,
                                           Point=(float(ref_pixels[0]-bounds[0]), float(ref_pixels[1]-bounds[2]))),
