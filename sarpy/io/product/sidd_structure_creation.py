@@ -70,13 +70,9 @@ def _fit_timecoa_poly(proj_helper, bounds):
     # evaluate the sicd timecoapoly
     timecoa_values = proj_helper.sicd.Grid.TimeCOAPoly(pixel_rows_m, pixel_cols_m)
     # fit this at the ortho_grid coordinates
-    if isinstance(proj_helper, PGProjection):
-        ref_pixels = proj_helper.reference_pixels
-    else:
-        ref_pixels = numpy.zeros((2, ), dtype='float64')
     sidd_timecoa_coeffs, residuals, rank, sing_values = two_dim_poly_fit(
-        ortho_grid[:, :, 0] + ref_pixels[0] - bounds[0],
-        ortho_grid[:, :, 1] + ref_pixels[1] - bounds[2], timecoa_values,
+        ortho_grid[:, :, 0] - bounds[0],
+        ortho_grid[:, :, 1] - bounds[2], timecoa_values,
         x_order=use_order, y_order=use_order, x_scale=1e-3, y_scale=1e-3, rcond=1e-40)
     logging.warning('The time_coa_fit details:\nroot mean square residuals = {}\nrank = {}\nsingular values = {}'.format(residuals, rank, sing_values))
     return Poly2DType(Coefs=sidd_timecoa_coeffs)
@@ -98,6 +94,7 @@ def _create_plane_projection(proj_helper, bounds):
     """
 
     ref_pixels = proj_helper.reference_pixels
+    print('ref_pixels', ref_pixels)
     return PlaneProjectionType(
         ReferencePoint=ReferencePointType(ECEF=proj_helper.reference_point,
                                           Point=(float(ref_pixels[0]-bounds[0]), float(ref_pixels[1]-bounds[2]))),

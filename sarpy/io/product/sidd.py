@@ -788,7 +788,7 @@ class SIDDWriter(NITFWriter):
 
         security_tags = self.security_tags
         sicd = self.sicd_meta[index]
-        uh_args = sicd.get_des_details()
+        uh_args = sicd.get_des_details(check_version1_compliance=True)
         desshdt = str(sicd.ImageCreation.DateTime.astype('datetime64[s]'))
         if desshdt[-1] != 'Z':
             desshdt += 'Z'
@@ -808,7 +808,8 @@ class SIDDWriter(NITFWriter):
         subhead = DataExtensionHeader(
             Security=security_tags,
             UserHeader=XMLDESSubheader(**uh_args))
-        return DESDetails(subhead, sicd.to_xml_bytes(tag='SICD'))
+
+        return DESDetails(subhead, sicd.to_xml_bytes(tag='SICD', urn=uh_args['DESSHTN']))
 
     def _create_data_extension_details(self):
         super(SIDDWriter, self)._create_data_extension_details()

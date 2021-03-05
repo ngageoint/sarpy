@@ -560,7 +560,7 @@ class PGProjection(ProjectionHelper):
         numpy.ndarray: The ortho-rectified pixel coordinates of the grid reference point.
         """
 
-        return self._reference_point
+        return self._reference_pixels
 
     @property
     def normal_vector(self):
@@ -613,10 +613,10 @@ class PGProjection(ProjectionHelper):
         """
 
         if reference_pixels is None:
-            reference_pixels = numpy.ndarray([0, 0], dtype='float64')
+            reference_pixels = numpy.zeros((2, ), dtype='float64')
         if not (isinstance(reference_pixels, numpy.ndarray) and reference_pixels.ndim == 1
                 and reference_pixels.size == 2):
-            raise ValueError('reference_point must be a vector of size 3.')
+            raise ValueError('reference_pixels must be a vector of size 2.')
         self._reference_pixels = reference_pixels
 
     @property
