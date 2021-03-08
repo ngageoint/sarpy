@@ -76,7 +76,7 @@ def binary_format_string_to_dtype(format_string):
         # special handling of XYZ types
         keys, types = list(zip(*comptypes))
         if keys == ('X', 'Y', 'Z') and len(set(types)) == 1:
-            dtype = numpy.dtype('3' + comptypes[0][1].name)
+            dtype = numpy.dtype((comptypes[0][1], 3))
         else:
             dtype = numpy.dtype(comptypes)
     else:
