@@ -1173,9 +1173,9 @@ class CPHDWriter1_0(AbstractWriter):
 
         self._initialize_writing()
 
-    def write_support_block(self, identifier, data, start_indices=(0, 0)):
+    def write_support_array(self, identifier, data, start_indices=(0, 0)):
         """
-        Write support block data to the file.
+        Write support array data to the file.
 
         Parameters
         ----------
@@ -1225,9 +1225,9 @@ class CPHDWriter1_0(AbstractWriter):
                 'This may be indicative of an error.'.format(
                     self._writing_state['support'][identifier], identifier, total_pixels))
 
-    def write_pvp_block(self, identifier, data, start_index=0):
+    def write_pvp_array(self, identifier, data, start_index=0):
         """
-        Write the PVP block data to the file.
+        Write the PVP array data to the file.
 
         Parameters
         ----------
@@ -1266,6 +1266,48 @@ class CPHDWriter1_0(AbstractWriter):
                 'Appear to have written {} total rows to pvp block {}, which only has {} rows. '
                 'This may be indicative of an error.'.format(
                     self._writing_state['pvp'][identifier], identifier, entry.NumVectors))
+
+    def write_support_block(self, support_block):
+        """
+        Write support block to the file.
+
+        Parameters
+        ----------
+        support_block: dict
+            Dictionary of `numpy.ndarray` containing the support arrays.
+        """
+        expected_support_ids = {s.Identifier for s in self.cphd_meta.Data.SupportArrays}
+        assert expected_support_ids == set(support_block), 'support_block keys do not match those in cphd_meta'
+        for identifier, array in support_block.items():
+            self.write_support_array(identifier, array)
+
+    def write_pvp_block(self, pvp_block):
+        """
+        Write PVP block to the file.
+
+        Parameters
+        ----------
+        pvp_block: dict
+            Dictionary of `numpy.ndarray` containing the PVP arrays.
+        """
+        expected_channels = {c.Identifier for c in self.cphd_meta.Data.Channels}
+        assert expected_channels == set(pvp_block), 'pvp_block keys do not match those in cphd_meta'
+        for identifier, array in pvp_block.items():
+            self.write_pvp_array(identifier, array)
+
+    def write_signal_block(self, signal_block):
+        """
+        Write signal block to the file.
+
+        Parameters
+        ----------
+        signal_block: dict
+            Dictionary of `numpy.ndarray` containing the signal arrays.
+        """
+        expected_channels = {c.Identifier for c in self.cphd_meta.Data.Channels}
+        assert expected_channels == set(signal_block), 'signal_block keys do not match those in cphd_meta'
+        for identifier, array in signal_block.items():
+            self.write_chip(array, index=identifier)
 
     def __call__(self, data, start_indices=(0, 0), identifier=0):
         """
@@ -1376,20 +1418,20 @@ class CPHDWriter1_0(AbstractWriter):
 
         if self.cphd_meta.Data.SupportArrays is not None:
             for entry in self.cphd_meta.Data.SupportArrays:
-                status = False
                 support_pixels = entry.NumRows*entry.NumCols
                 if self._writing_state['support'][entry.Identifier] < support_pixels:
+                    status = False
                     support_message += 'identifier {}, {} of {} pixels written\n'.format(
                         entry.Identifier, self._writing_state['support'][entry.Identifier], support_pixels)
 
         if not status:
-            logging.error('CPHD file {} is not completely written, and the result may be corrupt.'.format(self._file_name))
+            logging.error('CPHD file %s is not completely written, and the result may be corrupt.', self._file_name)
             if pvp_message != '':
-                logging.error('PVP block(s) incompletely written\n{}'.format(pvp_message))
+                logging.error('PVP block(s) incompletely written\n%s', pvp_message)
             if signal_message != '':
-                logging.error('Signal block(s) incompletely written\n{}'.format(signal_message))
+                logging.error('Signal block(s) incompletely written\n%s', signal_message)
             if support_message != '':
-                logging.error('Support block(s) incompletely written\n{}'.format(support_message))
+                logging.error('Support block(s) incompletely written\n%s',support_message)
         return status
 
     def close(self):
@@ -1416,15 +1458,8 @@ class CPHDWriter1_0(AbstractWriter):
             Dictionary of `numpy.ndarray` containing the support arrays.
         """
 
-        # write the pvp blocks
-        for identifier, array in pvp_block.items():
-            self.write_pvp_block(identifier, array, start_index=0)
+        self.write_pvp_block(pvp_block)
+        self.write_signal_block(signal_block)
 
-        # write the signal blocks
-        for identifier, array in signal_block.items():
-            self.write_chip(array, start_indices=(0, 0), index=identifier)
-
-        # write the support blocks
-        if support_block is not None:
-            for identifier, array in support_block.items():
-                self.write_support_block(identifier, array, start_indices=(0, 0))
+        if support_block:
+            self.write_support_block(support_block)
