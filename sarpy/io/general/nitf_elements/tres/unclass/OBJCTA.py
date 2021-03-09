@@ -40,7 +40,7 @@ class OBJCTAType(TREElement):
     def __init__(self, value):
         super(OBJCTAType, self).__init__()
         self.add_field('VERNUM', 's', 4, value)
-        self.add_field('NUM_OBJ', 's', 3, value)
+        self.add_field('NUM_OBJ', 'd', 3, value)
         self.add_field('OBJ_REF', 's', 10, value)
         self.add_field('NUM_SCENE_OBJ', 'd', 3, value)
         self.add_loop('OBJs', self.NUM_OBJ, OBJ, value)

@@ -22,7 +22,7 @@ class ACHZ(TREElement):
         self.add_field('UNIAPH', 's', 3, value)
         if self.UNIAPH != '':
             self.add_field('APH', 's', 5, value)
-        self.add_field('NUMPTS', 's', 3, value)
+        self.add_field('NUMPTS', 'd', 3, value)
         self.add_loop('PTs', self.NUMPTS, PT, value)
 
 
