@@ -991,7 +991,7 @@ class OrthorectificationHelper(object):
                     row_spacing=row_spacing, col_spacing=col_spacing)
                 self._default_ortho_bounds = numpy.array([
                     plane.XDir.FirstLine, plane.XDir.FirstLine+plane.XDir.NumLines,
-                    plane.YDir.FirstSample, plane.YDir.NumSamples+plane.YDir.NumSamples], dtype=numpy.uint32)
+                    plane.YDir.FirstSample, plane.YDir.FirstSample+plane.YDir.NumSamples], dtype=numpy.uint32)
             else:
                 proj_helper = PGProjection(self.sicd)
         if not isinstance(proj_helper, ProjectionHelper):
