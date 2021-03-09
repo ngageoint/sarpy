@@ -1,6 +1,6 @@
 # This details the important differences introduced in sarpy 1.1
 
-* .57 - Fixing tre loop parsing issue
+* .57 - Fixing tre loop parsing issue for ACCHZB, OBJCTA, and CCINFA
 * .56 - Final verification for SICD.RadarCollect.Area for definition for default SIDD image bounds
 * .55 - Bug fixes for CPHD writing
 * .54 - Further debugging SICD.RadarCollect.Area for definition for default SIDD image bounds
