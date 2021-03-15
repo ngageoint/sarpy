@@ -5,15 +5,22 @@ Contributed by Austin Lan of L3/Harris.
 """
 
 from __future__ import print_function
+import argparse
 import functools
 import sys
 import xml.dom.minidom
+import os
 
 from sarpy.io.general.nitf import NITFDetails
 from sarpy.io.general.nitf_elements.base import TREList, UserHeaderType
 from sarpy.io.general.nitf_elements.des import DESUserHeader
 from sarpy.io.general.nitf_elements.res import RESUserHeader
 from sarpy.io.general.nitf_elements.tres.tre_elements import TREElement
+
+if sys.version_info[0] < 3:
+    import cStringIO as StringIO
+else:
+    from io import StringIO
 
 
 __classification__ = "UNCLASSIFIED"
@@ -23,6 +30,36 @@ __author__ = "Austin Lan"
 # Custom print function
 print_func = print
 
+############
+# helper methods
+
+def _filter_files(input_path):
+    """
+    Determine if a given input path corresponds to a NITF 2.1 or 2.0 file.
+
+    Parameters
+    ----------
+    input_path : str
+
+    Returns
+    -------
+    bool
+    """
+
+    if not os.path.isfile(input_path):
+        return False
+    _, fext = os.path.splitext(input_path)
+    with open(input_path, 'rb') as fi:
+        check = fi.read(9)
+    return check in [b'NITF02.10', b'NITF02.00']
+
+
+def _create_default_output_file(input_file, output_directory=None):
+    if output_directory is None:
+        return os.path.splitext(input_file)[0] + '.header_dump.txt'
+    else:
+        return os.path.join(output_directory, os.path.splitext(os.path.split(input_file)[1])[0] + '.header_dump.txt')
+
 
 def _decode_effort(value):
     # type: (bytes) -> Union[bytes, str]
@@ -31,6 +68,9 @@ def _decode_effort(value):
     except Exception:
         return value
 
+
+############
+# printing methods
 
 def print_elem_field(elem, field, prefix=''):
     if elem is None or field is None:
@@ -217,6 +257,9 @@ def print_nitf(file_name, dest=sys.stdout):
 
     details = NITFDetails(file_name)
 
+    print_func('')
+    print_func('Details for file {}'.format(file_name))
+    print_func('')
     print_func('----- File Header -----')
     print_file_header(details.nitf_header)
     print_func('')
@@ -275,7 +318,7 @@ def print_nitf(file_name, dest=sys.stdout):
 
             if des_id.strip() == 'XML_DATA_CONTENT':
                 xml_str = xml.dom.minidom.parseString(
-                    data.decode()).toprettyxml(indent='    ')
+                    data.decode()).toprettyxml(indent='    ', newl='\n')
                 # NB: this may or not exhibit platform dependent choices in which codec (i.e. latin-1 versus utf-8)
                 print_func('DESDATA =')
                 for i, entry in enumerate(xml_str.splitlines()):
@@ -306,31 +349,81 @@ def print_nitf(file_name, dest=sys.stdout):
             print_func('')
 
 
-if __name__ == '__main__':
-    import argparse
+##########
+# method for dumping file using the print method(s)
 
-    def argparse_formatter_factory(prog):
-        return argparse.ArgumentDefaultsHelpFormatter(prog, width=100)
+def dump_nitf_file(file_name, dest, over_write=True):
+    """
+    Performs the writing, basically just calls print_nitf directly.
 
-    parser = argparse.ArgumentParser(
-        description='Utility to dump NITF 2.1 or 2.0 headers',
-        formatter_class=argparse_formatter_factory)
-    parser.add_argument('input_file')
-    parser.add_argument('-o', '--output', default='stdout',
-                        help="'stdout', 'string', or an output file")
-    args = parser.parse_args()
-    print(args)
-    if args.output == 'stdout':
-        # Send output to stdout
-        print_nitf(args.input_file, dest=sys.stdout)
-    elif args.output == 'string':
-        # Send output to string
-        from io import StringIO
-        str_buf = StringIO()
-        print_nitf(args.input_file, dest=str_buf)
-        nitf_header = str_buf.getvalue()
-        print('String representing NITF header is {} bytes'.format(len(nitf_header)))
+    Parameters
+    ----------
+    file_name : str
+        The path for to a NITF file.
+    dest : str
+        'stdout', 'string', 'default' (will use `file_name+'.header_dump.txt'`),
+        or the path to an output file.
+    over_write : bool
+        If `True`, then overwrite the destination file, otherwise append to the
+        file.
+
+    Returns
+    -------
+    None|str
+        There is only a return value if `dest=='string'`.
+    """
+
+    if dest == 'stdout':
+        print_nitf(file_name, dest=sys.stdout)
+        return
+    if dest == 'string':
+        out = StringIO()
+        print_nitf(file_name, dest=out)
+        value = out.getvalue()
+        out.close()  # free the buffer
+        return value
+
+    the_out_file = _create_default_output_file(file_name) if dest == 'default' else dest
+    if not os.path.exists(the_out_file) or over_write:
+        with open(the_out_file, 'w') as the_file:
+            print_nitf(entry, dest=the_file)
     else:
-        # Send output to file
-        with open(args.output, 'w') as f:
-            print_nitf(args.input_file, dest=f)
+        with open(the_out_file, 'a') as the_file:
+            print_nitf(entry, dest=the_file)
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(
+        description='Utility to dump NITF 2.1 or 2.0 headers.',
+        formatter_class=argparse.RawTextHelpFormatter)
+    parser.add_argument(
+        'input_file',
+        help='The path to a nitf file, or directory to search for NITF files.')
+    parser.add_argument(
+        '-o', '--output', default='default',
+        help="'default', 'stdout', or the path for an output file.\n"
+             "* 'default', the output will be at '<input path>.header_dump.txt' \n"
+             "   This will be overwritten, if it exists.\n"
+             "* 'stdout' will print the information to standard out.\n"
+             "* Otherwise, "
+             "     if `input_file` is a directory, this is expected to be the path to\n"
+             "       an output directory for the output following the default naming scheme.\n"
+             "*    if `input_file` a file path, this is expected to be the path to a file \n"
+             "       and output will be written there.\n"
+             "  In either case, existing output files will be overwritten.")
+    args = parser.parse_args()
+
+    if os.path.isdir(args.input_file):
+        entries = [os.path.join(args.input_file, part) for part in os.listdir(args.input_file)]
+        for i, entry in enumerate(filter(_filter_files, entries)):
+            if args.output == 'stdout':
+                output = args.output
+            elif args.output == 'default':
+                output = _create_default_output_file(entry, output_directory=args.output)
+            else:
+                if not os.path.isdir(args.output):
+                    raise IOError('Provided input is a directory, so provided output must be a directory, `stdout`, or `default`.')
+                output = _create_default_output_file(entry, output_directory=args.output)
+            dump_nitf_file(entry, output)
+    else:
+        dump_nitf_file(args.input_file, args.output)
