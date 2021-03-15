@@ -50,12 +50,9 @@ def log_package_classification(parent_package, dest=sys.stdout):
 if __name__ == '__main__':
     import argparse
 
-    def argparse_formatter_factory(prog):
-        return argparse.ArgumentDefaultsHelpFormatter(prog, width=100)
-
     parser = argparse.ArgumentParser(
         description='Utility to create a report for displaying package __classification__ values',
-        formatter_class=argparse_formatter_factory)
+        formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('-p', '--package', default='sarpy',
                         help="package or module name, should be a subpackage of sarpy")
     parser.add_argument('-o', '--output', default='stdout',

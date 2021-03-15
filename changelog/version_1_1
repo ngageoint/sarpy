@@ -1,5 +1,8 @@
 # This details the important differences introduced in sarpy 1.1
 
+* .58 - Creating command line utility for creating SIDD products from a SICD type reader
+        Creating command line utility for creating KMZ products from a SICD type reader
+        Streamlining the command line utility for performing a dump of a NITF header
 * .57 - Fixing tre loop parsing issue for ACCHZB, OBJCTA, and CCINFA
 * .56 - Final verification for SICD.RadarCollect.Area for definition for default SIDD image bounds
 * .55 - Bug fixes for CPHD writing
