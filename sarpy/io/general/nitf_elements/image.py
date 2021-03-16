@@ -10,7 +10,8 @@ import numpy
 
 from sarpy.compliance import int_func
 from .base import NITFElement, NITFLoop, UserHeaderType, _IntegerDescriptor,\
-    _StringDescriptor, _StringEnumDescriptor, _NITFElementDescriptor, _parse_str
+    _StringDescriptor, _StringEnumDescriptor, _NITFElementDescriptor, _parse_str, \
+    BaseNITFElement
 from .security import NITFSecurityTags, NITFSecurityTags0
 
 
@@ -18,8 +19,8 @@ __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 
-#########
-# NITF 2.1 version
+######
+# General components
 
 class ImageBand(NITFElement):
     """
@@ -193,6 +194,74 @@ class ImageComments(NITFLoop):
     _child_class = ImageComment
     _count_size = 1
 
+
+########
+# Masked image header - this is a binary structure
+
+class MaskSubheader(NITFElement):
+    _ordering = (
+        'IMDATOFF', 'BMRLNTH', 'TMRLNTH', 'TPXCDLNTH')
+    _lengths = {
+        'IMDATOFF': 4, 'BMRLNTH': 2, 'TMRLNTH': 2, 'TPXCDLNTH': 2}
+    _binary_format = {
+        'IMDATOFF': '>I', 'BMRLNTH': '>H', 'TPXCDLNTH': '>H'}
+
+
+    def _get_attribute_bytes(self, fld):
+        if fld not in self._ordering:
+            return b''
+
+        val = getattr(self, fld)
+        if isinstance(val, BaseNITFElement):
+            return val.to_bytes()
+        elif fld in self._lengths:
+            return _get_bytes(val, self._lengths[fld])
+        else:
+            raise ValueError(
+                'Unhandled attribute {} for class {}'.format(fld, self.__class__.__name__))
+
+    @classmethod
+    def _parse_attribute(cls, fields, attribute, value, start):
+        """
+
+        Parameters
+        ----------
+        fields : dict
+            The attribute:value dictionary.
+        attribute : str
+            The attribute name.
+        value : bytes
+            The bytes array to be parsed.
+        start : int
+            The present position in `value`.
+
+        Returns
+        -------
+        int
+            The position in `value` after parsing this attribute.
+        """
+
+        if attribute not in cls._ordering:
+            raise ValueError('Unexpected attribute {}'.format(attribute))
+
+        if attribute in fields:
+            return start
+        if attribute in cls._lengths:
+            end = start + cls._lengths[attribute]
+            fields[attribute] = value[start:end]
+            return end
+        elif hasattr(cls, attribute):
+            the_typ = getattr(cls, attribute).the_type
+            assert issubclass(the_typ, BaseNITFElement)
+            the_value = the_typ.from_bytes(value, start)
+            fields[attribute] = the_value
+            return start + the_value.get_bytes_length()
+        else:
+            raise ValueError('Cannot parse attribute {} for class {}'.format(attribute, cls))
+
+
+#########
+# NITF 2.1 version
 
 class ImageSegmentHeader(NITFElement):
     """
