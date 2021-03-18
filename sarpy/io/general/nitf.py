@@ -16,6 +16,7 @@ import re
 import mmap
 from tempfile import mkstemp
 from collections import OrderedDict
+import struct
 
 import numpy
 
@@ -47,7 +48,7 @@ from sarpy.io.general.nitf_elements.symbol import SymbolSegmentHeader
 from sarpy.io.general.nitf_elements.label import LabelSegmentHeader
 from sarpy.io.general.nitf_elements.res import ReservedExtensionHeader, ReservedExtensionHeader0
 from sarpy.io.general.nitf_elements.security import NITFSecurityTags
-from sarpy.io.general.nitf_elements.image import ImageSegmentHeader, ImageSegmentHeader0
+from sarpy.io.general.nitf_elements.image import ImageSegmentHeader, ImageSegmentHeader0, MaskSubheader
 from sarpy.io.general.nitf_elements.des import DataExtensionHeader, DataExtensionHeader0
 from sarpy.io.complex.sicd_elements.blocks import LatLonType
 from sarpy.geometry.geocoords import ecf_to_geodetic, geodetic_to_ecf
@@ -345,11 +346,27 @@ class NITFDetails(object):
 
         ih = self.get_image_subheader_bytes(index)
         if self.nitf_version == '02.10':
-            return ImageSegmentHeader.from_bytes(ih, 0)
+            out = ImageSegmentHeader.from_bytes(ih, 0)
         elif self.nitf_version == '02.00':
-            return ImageSegmentHeader0.from_bytes(ih, 0)
+            out = ImageSegmentHeader0.from_bytes(ih, 0)
         else:
             raise ValueError('Unhandled version {}'.format(self.nitf_version))
+        if out.IC in ['NM', 'M1', 'M3', 'M4', 'M5', 'M6', 'M7', 'M8']:
+            # read the mask subheader
+            the_offset = int_func(self.img_segment_offsets[index])
+            with open(self._file_name, mode='rb') as fi:
+                fi.seek(the_offset)
+                the_size = struct.unpack('>I', fi.read(4))[0]
+                fi.seek(the_offset)
+                the_bytes = fi.read(the_size)
+            if out.IMODE == 'S':
+                band_depth = len(out.Bands)
+            else:
+                band_depth = 1
+            blocks = out.NBPR*out.NBPC
+            out.mask_subheader = MaskSubheader.from_bytes(
+                the_bytes, 0, band_depth=band_depth, blocks=blocks)
+        return out
 
     def get_text_subheader_bytes(self, index):
         """

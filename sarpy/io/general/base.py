@@ -510,9 +510,12 @@ class AggregateChipper(BaseChipper):
         cols_size = int_func((range2[1]-range2[0])/range2[2])
 
         if self._output_bands == 1:
-            out = numpy.empty((rows_size, cols_size), dtype=self._dtype)
+            out = numpy.zeros((rows_size, cols_size), dtype=self._dtype)
         else:
-            out = numpy.empty((rows_size, cols_size, self._output_bands), dtype=self._dtype)
+            out = numpy.zeros((rows_size, cols_size, self._output_bands), dtype=self._dtype)
+            # TODO: missing/unmapped data will appear as zeros.
+            #   Does this make sense in all cases? should it be nan for floating point?
+
         for entry, child_chipper in zip(self._bounds, self._child_chippers):
             row_start, row_end, col_start, col_end = entry
             # find row overlap for chipper - it's rectangular
