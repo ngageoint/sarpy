@@ -418,7 +418,17 @@ class MaskSubheader(NITFElement):
         loc = start
         for fld in cls._ordering:
             loc = cls._parse_attribute(fields, fld, value, loc)
-        return cls(**fields)
+        out = cls(**fields)
+
+        input_length = len(value)-start
+        out_length = out.get_bytes_length()
+        if input_length != out_length:
+            logging.error(
+                'The MaskSubheader object is being serialized from a bytes buffer of length {},\n '
+                'but would serialize to a bytes object of length {}.\n'
+                'This is likely a result of faulty serialization, and '
+                'represents an error.'.format(input_length, out_length))
+        return out
 
     def to_json(self):
         out = OrderedDict([('band_depth', self.band_depth), ('blocks', self.blocks)])
@@ -623,6 +633,7 @@ class ImageSegmentHeader(NITFElement):
         self._IC = None
         self._COMRAT = None
         self._IGEOLO = None
+        self._mask_subheader = None
         super(ImageSegmentHeader, self).__init__(**kwargs)
 
     @property
@@ -722,6 +733,30 @@ class ImageSegmentHeader(NITFElement):
         if value is not None and self.ICORDS.strip() == '':
             value = None
         self._IGEOLO = value
+
+    @property
+    def mask_subheader(self):
+        # type: () -> Union[None, MaskSubheader]
+        """
+        None|MaskSubheader: The mask subheader, if it has been appended.
+        """
+
+        return self._mask_subheader
+
+    @mask_subheader.setter
+    def mask_subheader(self, value):
+        if value is None:
+            self._mask_subheader = None
+            return
+        if not isinstance(value, MaskSubheader):
+            raise ValueError(
+                'mask_subheader is expected to be an instance of MaskSubheader. '
+                'Got type {}'.format(type(value)))
+        if self.IC not in ['NM', 'M1', 'M3', 'M4', 'M5', 'M6', 'M7', 'M8']:
+            raise ValueError(
+                'IC={}, which does not indicate the presence of a mask '
+                'subheader'.format(self.IC))
+        self._mask_subheader = value
 
     def _get_attribute_length(self, fld):
         if fld in ['COMRAT', 'IGEOLO']:
@@ -1043,6 +1078,30 @@ class ImageSegmentHeader0(NITFElement):
         if value is not None and self.ICORDS.strip() == '':
             value = None
         self._IGEOLO = value
+
+    @property
+    def mask_subheader(self):
+        # type: () -> Union[None, MaskSubheader]
+        """
+        None|MaskSubheader: The mask subheader, if it has been appended.
+        """
+
+        return self._mask_subheader
+
+    @mask_subheader.setter
+    def mask_subheader(self, value):
+        if value is None:
+            self._mask_subheader = None
+            return
+        if not isinstance(value, MaskSubheader):
+            raise ValueError(
+                'mask_subheader is expected to be an instance of MaskSubheader. '
+                'Got type {}'.format(type(value)))
+        if self.IC not in ['NM', 'M1', 'M3', 'M4', 'M5', 'M6', 'M7', 'M8']:
+            raise ValueError(
+                'IC={}, which does not indicate the presence of a mask '
+                'subheader'.format(self.IC))
+        self._mask_subheader = value
 
     def _get_attribute_length(self, fld):
         if fld in ['COMRAT', 'IGEOLO']:
