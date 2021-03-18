@@ -397,7 +397,7 @@ class AggregateChipper(BaseChipper):
         Parameters
         ----------
         bounds : numpy.ndarray
-            Two-dimensional array of `[row start, row end, column start, column end]`.
+            Two-dimensional array of `[[row start, row end, column start, column end]]`.
         output_dtype : str|numpy.dtype|numpy.number
             The data type of the output data
         child_chippers : tuple|list
@@ -1605,6 +1605,59 @@ class BIPWriter(AbstractWriter):
 
 
 #############
-# concrete implementations for band-sequential (BSQ) implementations
+# concrete band-sequential (BSQ) implementation
 
-# TODO: implement BSQ reading - by assembling a collection of BIP chippers
+class BSQChipper(BaseChipper):
+    """
+    Band-sequential chipper assembled from the (single band) BIP constituents.
+    """
+
+    __slots__ = ('_child_chippers', '_dtype')
+
+    def __init__(self, output_dtype, child_chippers):
+        """
+
+        Parameters
+        ----------
+        output_dtype : str|numpy.dtype|numpy.number
+            The data type of the output data
+        child_chippers : tuple|list
+            The list or tuple of child chipper objects.
+        """
+
+        self._dtype = output_dtype
+        # validate that the data_sizes are all the same
+        data_size = None
+        for i, entry in enumerate(child_chippers):
+            if not isinstance(entry, BaseChipper):
+                raise TypeError(
+                    'Each entry of child_chippers must be an instance of BaseChipper, '
+                    'got type {} at entry {}'.format(type(entry), i))
+            if data_size is None:
+                data_size = entry.data_size
+            elif entry.data_size != data_size:
+                raise ValueError(
+                    'chipper at index {} has expected shape {}, but '
+                    'actual shape {}'.format(i, data_size, entry.data_size))
+        self._child_chippers = child_chippers
+        # NB: it is left to the constructor to know that these all fit otherwise
+        super(BSQChipper, self).__init__(data_size, symmetry=(False, False, False), transform_data=None)
+
+    @property
+    def output_bands(self):
+        """
+        int: The number of bands.
+        """
+
+        return len(self._child_chippers)
+
+    def _read_raw_fun(self, range1, range2):
+        range1, range2 = self._reorder_arguments(range1, range2)
+        rows_size = int_func((range1[1]-range1[0])/range1[2])
+        cols_size = int_func((range2[1]-range2[0])/range2[2])
+
+        out = numpy.zeros((rows_size, cols_size, self.output_bands), dtype=self._dtype)
+        for band_number, child_chipper in enumerate(self._child_chippers):
+            out[range1[0]:range1[1]:range1[2], range2[0]:range2[1]:range2[2], band_number] = \
+                child_chipper[range1[0]:range1[1]:range1[2], range2[0]:range2[1]:range2[2]]
+        return out
