@@ -37,8 +37,8 @@ except ImportError:
 
 
 from sarpy.compliance import int_func, string_types
-from sarpy.io.general.base import BaseReader, AbstractWriter, SubsetChipper, AggregateChipper
-from sarpy.io.general.bip import BIPChipper, BIPWriter
+from sarpy.io.general.base import BaseReader, AbstractWriter, SubsetChipper, \
+    AggregateChipper, BIPChipper, BIPWriter
 # noinspection PyProtectedMember
 from sarpy.io.general.nitf_elements.nitf_head import NITFHeader, NITFHeader0, \
     ImageSegmentsType, DataExtensionsType, _ItemArrayHeaders
