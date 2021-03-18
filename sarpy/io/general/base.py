@@ -1607,4 +1607,4 @@ class BIPWriter(AbstractWriter):
 #############
 # concrete implementations for band-sequential (BSQ) implementations
 
-# TODO: implement BSQ reading
+# TODO: implement BSQ reading - by assembling a collection of BIP chippers
