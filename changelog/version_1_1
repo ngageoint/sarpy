@@ -1,5 +1,9 @@
 # This details the important differences introduced in sarpy 1.1
 
+* .59 - Implementing support for reading masked NITF without compression,
+          read band sequential format, and correction of band interleaved by
+          block reading. What remains is more general support for compression,
+          which is likely not high on the list of priorities.
 * .58 - Creating command line utility for creating SIDD products from a SICD type reader
         Creating command line utility for creating KMZ products from a SICD type reader
         Streamlining the command line utility for performing a dump of a NITF header
