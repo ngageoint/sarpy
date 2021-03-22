@@ -9,5 +9,4 @@ General sarpy reading and writing objects (sarpy.io.general)
     utils
     nitf
     tiff
-    bip
     nitf_elements/index
