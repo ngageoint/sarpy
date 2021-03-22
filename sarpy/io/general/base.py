@@ -1687,13 +1687,12 @@ class BSQChipper(BaseChipper):
         if self._limit_to_raw_bands is None:
             out = numpy.zeros((rows_size, cols_size, self.output_bands), dtype=self._dtype)
             for band_number, child_chipper in enumerate(self._child_chippers):
-                out[range1[0]:range1[1]:range1[2], range2[0]:range2[1]:range2[2], band_number] = \
+                out[:rows_size, :cols_size, band_number] = \
                     child_chipper[range1[0]:range1[1]:range1[2], range2[0]:range2[1]:range2[2]]
         else:
             out = numpy.zeros((rows_size, cols_size, self._limit_to_raw_bands.size), dtype=self._dtype)
             for i, band_number in enumerate(self._limit_to_raw_bands):
                 child_chipper = self._child_chippers[int(band_number)]
-                out[range1[0]:range1[1]:range1[2], range2[0]:range2[1]:range2[2], i] = \
+                out[:rows_size, :cols_size, i] = \
                     child_chipper[range1[0]:range1[1]:range1[2], range2[0]:range2[1]:range2[2]]
-
         return out
