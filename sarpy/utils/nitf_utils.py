@@ -406,10 +406,10 @@ def dump_nitf_file(file_name, dest, over_write=True):
     the_out_file = _create_default_output_file(file_name) if dest == 'default' else dest
     if not os.path.exists(the_out_file) or over_write:
         with open(the_out_file, 'w') as the_file:
-            print_nitf(entry, dest=the_file)
+            print_nitf(file_name, dest=the_file)
     else:
         with open(the_out_file, 'a') as the_file:
-            print_nitf(entry, dest=the_file)
+            print_nitf(file_name, dest=the_file)
 
 
 if __name__ == '__main__':
@@ -439,7 +439,7 @@ if __name__ == '__main__':
             if args.output == 'stdout':
                 output = args.output
             elif args.output == 'default':
-                output = _create_default_output_file(entry, output_directory=args.output)
+                output = _create_default_output_file(entry, output_directory=None)
             else:
                 if not os.path.isdir(args.output):
                     raise IOError('Provided input is a directory, so provided output must be a directory, `stdout`, or `default`.')
