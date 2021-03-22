@@ -713,7 +713,7 @@ class SIDDWriter(NITFWriter):
                 PVTYPE=pv_type,
                 ABPP=abpp,
                 IGEOLO=interpolate_corner_points_string(numpy.array(entry, dtype=numpy.int64), rows, cols, icp),
-                IMODE='P' if irep == 'RGB' else 'B',
+                IMODE='P',
                 NPPBH=get_npp_block(this_cols),
                 NPPBV=get_npp_block(this_rows),
                 NBPP=abpp,
