@@ -5,6 +5,8 @@ The image subheader definitions.
 
 import logging
 import struct
+from collections import OrderedDict
+from typing import Union
 
 import numpy
 
@@ -18,8 +20,8 @@ __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 
-#########
-# NITF 2.1 version
+######
+# General components
 
 class ImageBand(NITFElement):
     """
@@ -194,6 +196,256 @@ class ImageComments(NITFLoop):
     _count_size = 1
 
 
+########
+# Masked image header - this is a binary structure
+
+class MaskSubheader(NITFElement):
+    _ordering = (
+        'IMDATOFF', 'BMRLNTH', 'TMRLNTH', 'TPXCDLNTH', 'TPXCD', 'BMR', 'TMR')
+    _lengths = {
+        'IMDATOFF': 4, 'BMRLNTH': 2, 'TMRLNTH': 2, 'TPXCDLNTH': 2}
+    _binary_format = {
+        'IMDATOFF': '>I', 'BMRLNTH': '>H', 'TMRLNTH': '>H', 'TPXCDLNTH': '>H'}
+    # descriptors
+    IMDATOFF = _IntegerDescriptor(
+        'IMDATOFF', True, 10,
+        docstring='Blocked image data offset. This is the size of the masked subheader '
+                  'in bytes.')  # type: int
+    BMRLNTH = _IntegerDescriptor(
+        'BMRLNTH', True, 5,
+        docstring='Block mask record length')  # type: int
+    TMRLNTH = _IntegerDescriptor(
+        'TMRLNTH', True, 5,
+        docstring='Transparent Pixel Mask Record Length')  # type: int
+    TPXCDLNTH = _IntegerDescriptor(
+        'TPXCDLNTH', True, 5,
+        docstring='Transparent Output Pixel Code Length in bits.')  # type: int
+
+    def __init__(self, band_depth=1, blocks=1, **kwargs):
+        self._band_depth = band_depth
+        self._blocks = blocks
+        self._TPXCD = None
+        self._BMR = None
+        self._TMR = None
+        super(MaskSubheader, self).__init__(**kwargs)
+
+    @property
+    def band_depth(self):
+        """
+        int: The number of band elements. Will only be > 1 if band-sequential format.
+        """
+
+        return self._band_depth
+
+    @property
+    def blocks(self):
+        """
+        int: The number of blocks.
+        """
+
+        return self._blocks
+
+    @property
+    def TPXCD(self):
+        """
+        bytes: The Transparent output pixel code.
+        """
+
+        return self._TPXCD
+
+    @TPXCD.setter
+    def TPXCD(self, value):
+        if self.TPXCDLNTH == 0:
+            self._TPXCD = None
+            return
+
+        if not isinstance(value, bytes):
+            raise TypeError('TPXCD must be of type bytes.')
+        expected_length = self._get_attribute_length('TPXCD')
+        if len(value) != expected_length:
+            raise ValueError(
+                'Provided TPXCD data is required to be of length {}, '
+                'but got length {}'.format(expected_length, len(value)))
+        self._TPXCD = value
+
+    @property
+    def BMR(self):
+        # type: () -> Union[None, numpy.ndarray]
+        """
+        None|numpy.ndarray: The block mask records array. This will be None if
+        and only if `BMRLNTH=0`
+        """
+
+        return self._BMR
+
+    @BMR.setter
+    def BMR(self, value):
+        if value is None:
+            if self.BMRLNTH != 0:
+                raise ValueError('BMR array is None, but BMRLNTH={}'.format(self.BMRLNTH))
+            self._BMR = None
+        else:
+            if self.BMRLNTH != 4:
+                raise ValueError('BMR array is provided, but BMRLNTH={}'.format(self.BMRLNTH))
+            if not isinstance(value, numpy.ndarray):
+                value = numpy.array(value, dtype='uint32')
+            if value.shape != (self.band_depth, self.blocks):
+                raise ValueError(
+                    'BMR array is of shape {}, and must be of '
+                    'shape {}'.format(value.shape, (self.band_depth, self.blocks)))
+            if value.dtype.name != 'uint32':
+                raise ValueError(
+                    'BMR array has dtype {}, and must be of '
+                    'dtype uint32'.format(value.dtype.name))
+            self._BMR = value
+
+    @property
+    def TMR(self):
+        # type: () -> Union[None, numpy.ndarray]
+        """
+        None|numpy.ndarray: The transparent mask records array. This will be None if
+        and only if `TMRLNTH=0`
+        """
+
+        return self._TMR
+
+    @TMR.setter
+    def TMR(self, value):
+        if value is None:
+            if self.TMRLNTH != 0:
+                raise ValueError('TMR array is None, but TMRLNTH={}'.format(self.TMRLNTH))
+            self._TMR = None
+        else:
+            if self.TMRLNTH != 4:
+                raise ValueError('TMR array is provided, but TMRLNTH={}'.format(self.TMRLNTH))
+            if not isinstance(value, numpy.ndarray):
+                value = numpy.array(value, dtype='uint32')
+            if value.shape != (self.band_depth, self.blocks):
+                raise ValueError(
+                    'TMR array is of shape {}, and must be of '
+                    'shape {}'.format(value.shape, (self.band_depth, self.blocks)))
+            if value.dtype.name != 'uint32':
+                raise ValueError(
+                    'TMR array has dtype {}, and must be of '
+                    'dtype uint32'.format(value.dtype.name))
+            self._TMR = value
+
+    @staticmethod
+    def define_tpxcd_length(tpxcdlnth):
+        """
+        Gets the appropriate length for the TPXCD data.
+
+        Parameters
+        ----------
+        tpxcdlnth : int
+            The TPXCDLNTH value.
+
+        Returns
+        -------
+        int
+        """
+
+        missing = (tpxcdlnth % 8)
+        if missing == 0:
+            return int(tpxcdlnth/8)
+        else:
+            return int((tpxcdlnth + (8 - missing))/8)
+
+    @classmethod
+    def _parse_attribute(cls, fields, attribute, value, start):
+        if attribute == 'BMR':
+            if fields['BMRLNTH'] == 0:
+                fields['BMR'] = None
+                return start
+            else:
+                count = fields['band_depth']*fields['blocks']
+                end = start+4*count
+                array = numpy.array(struct.unpack('>{}I'.format(count), value[start:end]), dtype='uint32')
+                fields['BMR'] = numpy.resize(array, (fields['band_depth'], fields['blocks']))
+                return end
+        elif attribute == 'TMR':
+            if fields['TMRLNTH'] == 0:
+                fields['TMR'] = None
+                return start
+            else:
+                count = fields['band_depth']*fields['blocks']
+                end = start+4*count
+                array = numpy.array(struct.unpack('>{}I'.format(count), value[start:end]), dtype='uint32')
+                fields['TMR'] = numpy.resize(array, (fields['band_depth'], fields['blocks']))
+                return end
+        elif attribute == 'TPXCD':
+            length = cls.define_tpxcd_length(fields['TPXCDLNTH'])
+            if length == 0:
+                fields['TPXCD'] = None
+                return start
+            else:
+                end = start + length
+                fields['TPXCD'] = value[start:end]
+                return end
+        else:
+            return super(MaskSubheader, cls)._parse_attribute(fields, attribute, value, start)
+
+    def _get_attribute_length(self, fld):
+        if fld in ['BMR', 'TMR']:
+            value = getattr(self, fld)
+            if value is None:
+                return 0
+            else:
+                return value.size*4
+        elif fld == 'TPXCD':
+            return self.define_tpxcd_length(self.TPXCDLNTH)
+        else:
+            return super(MaskSubheader, self)._get_attribute_length(fld)
+
+    def _get_attribute_bytes(self, fld):
+        if fld in ['BMR', 'TMR']:
+            value = getattr(self, fld)
+            if value is None:
+                return b''
+            else:
+                return struct.pack('>{}I'.format(value.size), *numpy.reshape(value, (-1,)))
+        elif fld == 'TPXCD':
+            if self._TPXCD is None:
+                return b''
+            return self._TPXCD
+        else:
+            return super(MaskSubheader, self)._get_attribute_bytes(fld)
+
+    @classmethod
+    def from_bytes(cls, value, start, band_depth=1, blocks=1):
+        fields = {
+            'band_depth': band_depth, 'blocks': blocks}
+        loc = start
+        for fld in cls._ordering:
+            loc = cls._parse_attribute(fields, fld, value, loc)
+        out = cls(**fields)
+
+        input_length = len(value)-start
+        out_length = out.get_bytes_length()
+        if input_length != out_length:
+            logging.error(
+                'The MaskSubheader object is being serialized from a bytes buffer of length {},\n '
+                'but would serialize to a bytes object of length {}.\n'
+                'This is likely a result of faulty serialization, and '
+                'represents an error.'.format(input_length, out_length))
+        return out
+
+    def to_json(self):
+        out = OrderedDict([('band_depth', self.band_depth), ('blocks', self.blocks)])
+        for fld in self._ordering:
+            value = getattr(self, fld)
+            if value is None:
+                continue
+            if fld in ['BMR', 'TMR']:
+                out[fld] = value.tolist()
+            else:
+                out[fld] = value
+        return out
+
+
+#########
+# NITF 2.1 version
+
 class ImageSegmentHeader(NITFElement):
     """
     The image segment header - see standards document MIL-STD-2500C for more
@@ -312,8 +564,8 @@ class ImageSegmentHeader(NITFElement):
     ISYNC = _IntegerDescriptor(
         'ISYNC', True, 1, default_value=0,
         docstring='Image Sync code. This field is reserved for future use. ')  # type: int
-    IMODE = _StringDescriptor(
-        'IMODE', True, 1, default_value='P',
+    IMODE = _StringEnumDescriptor(
+        'IMODE', True, 1, {'B', 'P', 'R', 'S'}, default_value='P',
         docstring='Image Mode. This field shall indicate how the Image Pixels are '
                   'stored in the NITF file.')  # type: str
     NBPR = _IntegerDescriptor(
@@ -381,7 +633,24 @@ class ImageSegmentHeader(NITFElement):
         self._IC = None
         self._COMRAT = None
         self._IGEOLO = None
+        self._mask_subheader = None
         super(ImageSegmentHeader, self).__init__(**kwargs)
+
+    @property
+    def is_masked(self):
+        """
+        bool: Does this image segment contain a mask?
+        """
+
+        return self.IC in ['NM', 'M1', 'M3', 'M4', 'M5', 'M6', 'M7', 'M8']
+
+    @property
+    def is_compressed(self):
+        """
+        bool: Is this image segment compressed?
+        """
+
+        return self.IC not in ['NC', 'NM']
 
     @property
     def IC(self):
@@ -480,6 +749,30 @@ class ImageSegmentHeader(NITFElement):
         if value is not None and self.ICORDS.strip() == '':
             value = None
         self._IGEOLO = value
+
+    @property
+    def mask_subheader(self):
+        # type: () -> Union[None, MaskSubheader]
+        """
+        None|MaskSubheader: The mask subheader, if it has been appended.
+        """
+
+        return self._mask_subheader
+
+    @mask_subheader.setter
+    def mask_subheader(self, value):
+        if value is None:
+            self._mask_subheader = None
+            return
+        if not isinstance(value, MaskSubheader):
+            raise ValueError(
+                'mask_subheader is expected to be an instance of MaskSubheader. '
+                'Got type {}'.format(type(value)))
+        if self.IC not in ['NM', 'M1', 'M3', 'M4', 'M5', 'M6', 'M7', 'M8']:
+            raise ValueError(
+                'IC={}, which does not indicate the presence of a mask '
+                'subheader'.format(self.IC))
+        self._mask_subheader = value
 
     def _get_attribute_length(self, fld):
         if fld in ['COMRAT', 'IGEOLO']:
@@ -633,8 +926,8 @@ class ImageSegmentHeader0(NITFElement):
     ISYNC = _IntegerDescriptor(
         'ISYNC', True, 1, default_value=0,
         docstring='Image Sync code. This field is reserved for future use. ')  # type: int
-    IMODE = _StringDescriptor(
-        'IMODE', True, 1, default_value='P',
+    IMODE = _StringEnumDescriptor(
+        'IMODE', True, 1, {'B', 'P', 'R', 'S'}, default_value='P',
         docstring='Image Mode. This field shall indicate how the Image Pixels are '
                   'stored in the NITF file.')  # type: str
     NBPR = _IntegerDescriptor(
@@ -703,6 +996,22 @@ class ImageSegmentHeader0(NITFElement):
         self._COMRAT = None
         self._IGEOLO = None
         super(ImageSegmentHeader0, self).__init__(**kwargs)
+
+    @property
+    def is_masked(self):
+        """
+        bool: Does this image segment contain a mask?
+        """
+
+        return self.IC in ['NM', 'M1', 'M3', 'M4', 'M5', 'M6', 'M7', 'M8']
+
+    @property
+    def is_compressed(self):
+        """
+        bool: Is this image segment compressed?
+        """
+
+        return self.IC not in ['NC', 'NM']
 
     @property
     def IC(self):
@@ -801,6 +1110,30 @@ class ImageSegmentHeader0(NITFElement):
         if value is not None and self.ICORDS.strip() == '':
             value = None
         self._IGEOLO = value
+
+    @property
+    def mask_subheader(self):
+        # type: () -> Union[None, MaskSubheader]
+        """
+        None|MaskSubheader: The mask subheader, if it has been appended.
+        """
+
+        return self._mask_subheader
+
+    @mask_subheader.setter
+    def mask_subheader(self, value):
+        if value is None:
+            self._mask_subheader = None
+            return
+        if not isinstance(value, MaskSubheader):
+            raise ValueError(
+                'mask_subheader is expected to be an instance of MaskSubheader. '
+                'Got type {}'.format(type(value)))
+        if self.IC not in ['NM', 'M1', 'M3', 'M4', 'M5', 'M6', 'M7', 'M8']:
+            raise ValueError(
+                'IC={}, which does not indicate the presence of a mask '
+                'subheader'.format(self.IC))
+        self._mask_subheader = value
 
     def _get_attribute_length(self, fld):
         if fld in ['COMRAT', 'IGEOLO']:

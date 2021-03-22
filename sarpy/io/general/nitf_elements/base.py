@@ -7,6 +7,7 @@ import logging
 from weakref import WeakKeyDictionary
 from typing import Union, List, Tuple
 from collections import OrderedDict
+import struct
 
 import numpy
 
@@ -458,6 +459,7 @@ class _NITFElementDescriptor(_BasicDescriptor):
 class NITFElement(BaseNITFElement):
     _ordering = ()
     _lengths = {}
+    _binary_format = {}
 
     def __init__(self, **kwargs):
         for fld in self._ordering:
@@ -503,6 +505,8 @@ class NITFElement(BaseNITFElement):
         val = getattr(self, fld)
         if isinstance(val, BaseNITFElement):
             return val.to_bytes()
+        elif fld in self._binary_format:
+            return struct.pack(self._binary_format[fld], val)
         elif fld in self._lengths:
             return _get_bytes(val, self._lengths[fld])
         else:
@@ -557,7 +561,15 @@ class NITFElement(BaseNITFElement):
 
         if attribute in fields:
             return start
-        if attribute in cls._lengths:
+        if attribute in cls._binary_format:
+            if attribute not in cls._lengths:
+                raise ValueError(
+                    'attribute {} has binary format specified, but no length specified '
+                    'for class {}'.format(attribute, cls))
+            end = start + cls._lengths[attribute]
+            fields[attribute] = struct.unpack(cls._binary_format[attribute], value[start:end])[0]
+            return end
+        elif attribute in cls._lengths:
             end = start + cls._lengths[attribute]
             fields[attribute] = value[start:end]
             return end

@@ -13,8 +13,7 @@ from numpy.polynomial import polynomial
 from scipy.constants import speed_of_light
 
 from sarpy.compliance import int_func, string_types
-from sarpy.io.general.base import BaseChipper, SubsetChipper, BaseReader
-from sarpy.io.general.bip import BIPChipper
+from sarpy.io.general.base import BaseChipper, SubsetChipper, BaseReader, BIPChipper
 
 from sarpy.io.general.utils import get_seconds, parse_timestring
 

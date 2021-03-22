@@ -10,12 +10,14 @@ import functools
 import sys
 import xml.dom.minidom
 import os
+from typing import Union
 
 from sarpy.io.general.nitf import NITFDetails
 from sarpy.io.general.nitf_elements.base import TREList, UserHeaderType
 from sarpy.io.general.nitf_elements.des import DESUserHeader
 from sarpy.io.general.nitf_elements.res import RESUserHeader
 from sarpy.io.general.nitf_elements.tres.tre_elements import TREElement
+from sarpy.io.general.nitf_elements.image import MaskSubheader
 
 if sys.version_info[0] < 3:
     import cStringIO as StringIO
@@ -149,6 +151,23 @@ def print_file_header(hdr):
             print_elem_field(hdr, field)
 
 
+def print_mask_header(hdr):
+    # type: (Union[None, MaskSubheader]) -> None
+    if hdr is None:
+        return
+    print_func('----- Mask Subheader (part of image data segment) -----')
+    for field in hdr._ordering:
+        if field in ['BMR', 'TMR']:
+            value = getattr(hdr, field, None)
+            if value is None:
+                continue
+            else:
+                for the_band, subarray in enumerate(value):
+                    print_func('{}BND{} = {}'.format(field, the_band, subarray))
+        else:
+            print_elem_field(hdr, field, prefix='')
+
+
 def print_image_header(hdr):
     for field in hdr._ordering:
         if field == 'Security':
@@ -162,6 +181,7 @@ def print_image_header(hdr):
                 print_tres(value.data.tres)
         else:
             print_elem_field(hdr, field)
+    print_mask_header(hdr.mask_subheader)
 
 
 def print_graphics_header(hdr):
