@@ -6,13 +6,13 @@ The image subheader definitions.
 import logging
 import struct
 from collections import OrderedDict
+from typing import Union
 
 import numpy
 
-from sarpy.compliance import int_func, string_types, integer_types
+from sarpy.compliance import int_func
 from .base import NITFElement, NITFLoop, UserHeaderType, _IntegerDescriptor,\
-    _StringDescriptor, _StringEnumDescriptor, _NITFElementDescriptor, _parse_str, \
-    BaseNITFElement, _RawDescriptor
+    _StringDescriptor, _StringEnumDescriptor, _NITFElementDescriptor, _parse_str
 from .security import NITFSecurityTags, NITFSecurityTags0
 
 
@@ -564,8 +564,8 @@ class ImageSegmentHeader(NITFElement):
     ISYNC = _IntegerDescriptor(
         'ISYNC', True, 1, default_value=0,
         docstring='Image Sync code. This field is reserved for future use. ')  # type: int
-    IMODE = _StringDescriptor(
-        'IMODE', True, 1, default_value='P',
+    IMODE = _StringEnumDescriptor(
+        'IMODE', True, 1, {'B', 'P', 'R', 'S'}, default_value='P',
         docstring='Image Mode. This field shall indicate how the Image Pixels are '
                   'stored in the NITF file.')  # type: str
     NBPR = _IntegerDescriptor(
@@ -635,6 +635,22 @@ class ImageSegmentHeader(NITFElement):
         self._IGEOLO = None
         self._mask_subheader = None
         super(ImageSegmentHeader, self).__init__(**kwargs)
+
+    @property
+    def is_masked(self):
+        """
+        bool: Does this image segment contain a mask?
+        """
+
+        return self.IC in ['NM', 'M1', 'M3', 'M4', 'M5', 'M6', 'M7', 'M8']
+
+    @property
+    def is_compressed(self):
+        """
+        bool: Is this image segment compressed?
+        """
+
+        return self.IC not in ['NC', 'NM']
 
     @property
     def IC(self):
@@ -910,8 +926,8 @@ class ImageSegmentHeader0(NITFElement):
     ISYNC = _IntegerDescriptor(
         'ISYNC', True, 1, default_value=0,
         docstring='Image Sync code. This field is reserved for future use. ')  # type: int
-    IMODE = _StringDescriptor(
-        'IMODE', True, 1, default_value='P',
+    IMODE = _StringEnumDescriptor(
+        'IMODE', True, 1, {'B', 'P', 'R', 'S'}, default_value='P',
         docstring='Image Mode. This field shall indicate how the Image Pixels are '
                   'stored in the NITF file.')  # type: str
     NBPR = _IntegerDescriptor(
@@ -980,6 +996,22 @@ class ImageSegmentHeader0(NITFElement):
         self._COMRAT = None
         self._IGEOLO = None
         super(ImageSegmentHeader0, self).__init__(**kwargs)
+
+    @property
+    def is_masked(self):
+        """
+        bool: Does this image segment contain a mask?
+        """
+
+        return self.IC in ['NM', 'M1', 'M3', 'M4', 'M5', 'M6', 'M7', 'M8']
+
+    @property
+    def is_compressed(self):
+        """
+        bool: Is this image segment compressed?
+        """
+
+        return self.IC not in ['NC', 'NM']
 
     @property
     def IC(self):

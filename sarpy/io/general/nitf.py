@@ -38,7 +38,7 @@ except ImportError:
 
 from sarpy.compliance import int_func, string_types
 from sarpy.io.general.base import BaseReader, AbstractWriter, SubsetChipper, \
-    AggregateChipper, BIPChipper, BIPWriter
+    AggregateChipper, BIPChipper, BIPWriter, BSQChipper
 # noinspection PyProtectedMember
 from sarpy.io.general.nitf_elements.nitf_head import NITFHeader, NITFHeader0, \
     ImageSegmentsType, DataExtensionsType, _ItemArrayHeaders
@@ -891,29 +891,38 @@ class NITFReader(BaseReader):
         """
 
         img_header = self.nitf_details.img_headers[index]
-        # check if the segment has an image mask
-        if img_header.IC in ['NM', 'M1', 'M3', 'M4', 'M5', 'M6', 'M7', 'M8']:
-            logging.error(
-                'Image segment at index {} has IC value {}. Masked images are '
-                'not currently supported.'.format(index, img_header.IC))
-            return False
-        if img_header.IC in ['C1', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'I1'] and PIL is None:
-            logging.error(
-                'Image segment at index {} has IC value {}, and PIL cannot '
-                'be imported. Compressed image segments cannot be supported '
-                'without PIL.'.format(index, img_header.IC))
-            return False
-        # check the nbpp value is viable
+
         if img_header.NBPP not in (8, 16, 32, 64):
+            # numpy basically only supports traditional typing
             logging.error(
                 'Image segment at index {} has bits per pixel per band {}, only '
                 '8, 16, and 32 are supported.'.format(index, img_header.NBPP))
             return False
-        if img_header.IMODE not in ['P', 'B']:
+
+        if img_header.is_masked and img_header.is_compressed:
             logging.error(
-                'Image segment at index {} has IMODE {}, but only band interleaved '
-                'by pixel (P) or block (B) is supported.'.format(index, img_header.IMODE))
+                'Image segment at index {} is both masked and compressed. This is '
+                'not currently supported.'.format(index))
             return False
+
+        if img_header.IMODE == 'R':
+            logging.error(
+                'Image segment at index {} has IMODE value R (band interleaved by row). '
+                'This is currently not supported.'.format(index))
+            return False
+
+        if img_header.IC in ['C1', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'I1']:
+            if PIL is None:
+                logging.error(
+                    'Image segment at index {} has IC value {}, and PIL cannot '
+                    'be imported. Currently, compressed image segments require '
+                    'PIL.'.format(index, img_header.IC))
+                return False
+            else:
+                logging.warning(
+                    'Image segment at index {} has IC value {}. PIL will be used to blindly '
+                    'attempt to decompress this segment to a flat segment, which may '
+                    'fail with an unclear error.'.format(index, img_header.IC))
         return True
 
     def _extract_chipper_params(self, index):
@@ -976,6 +985,309 @@ class NITFReader(BaseReader):
                     'Got PVTYPE = C and NBPP = {} (not 64 or 128), which is unsupported.'.format(nbpp))
             return numpy.dtype('>f{}'.format(int(bpp/2))), numpy.complex64, 2*len(img_header.Bands), len(img_header.Bands), 'COMPLEX'
 
+    @staticmethod
+    def _construct_block_bounds(img_header, row_block_size, column_block_size):
+        bounds = []
+        block_row_start = 0
+        for row_block in range(img_header.NBPC):
+            block_row_end = block_row_start + row_block_size
+            block_col_start = 0
+            for column_block in range(img_header.NBPR):
+                block_col_end = block_col_start + column_block_size
+                bounds.append((block_row_start, block_row_end, block_col_start, block_col_end))
+                block_col_start = block_col_end
+            block_row_start = block_row_end
+        return bounds
+
+    @staticmethod
+    def _get_block_sizes(img_header, this_rows, this_cols):
+        # column (horizontal) block details
+        column_block_size = this_cols
+        if img_header.NBPR != 1:
+            column_block_size = img_header.NPPBH
+        # row (vertical) block details
+        row_block_size = this_rows
+        if img_header.NBPC != 1:
+            row_block_size = img_header.NPPBV
+        return row_block_size, column_block_size
+
+    def _create_band_interleaved_by_pixel_chipper(
+            self, img_header, data_offset, this_rows, this_cols, raw_dtype, raw_bands,
+            output_dtype, output_bands, transform_data, limit_to_raw_bands):
+
+        if img_header.NBPR == 1 and img_header.NBPC == 1:
+            # it's one single block
+            return BIPChipper(
+                self.file_name, raw_dtype, (this_rows, this_cols), raw_bands, output_bands, output_dtype,
+                symmetry=self._symmetry, transform_data=transform_data,
+                data_offset=data_offset, limit_to_raw_bands=limit_to_raw_bands)
+
+        if img_header.is_masked:
+            # update the offset to skip the mask subheader
+            data_offset += img_header.mask_subheader.IMDATOFF
+            if img_header.mask_subheader.BMR is not None:
+                mask_offsets = img_header.mask_subheader.BMR
+            elif img_header.mask_subheader.TMR is not None:
+                mask_offsets = img_header.mask_subheader.TMR
+                logging.warning('image segment contains a transparency mask - the transparency value is not currently used.')
+            else:
+                logging.warning('image segment is masked, but contains neither transparency mask nor block mask? This is unexpected.')
+                mask_offsets = None
+        else:
+            mask_offsets = None
+        exclude_value = 0xFFFFFFFF  # only used if there is a mask...
+
+        # column (horizontal) block details
+        column_block_size = this_cols
+        if img_header.NBPR != 1:
+            column_block_size = img_header.NPPBH
+
+        # row (vertical) block details
+        row_block_size = this_rows
+        if img_header.NBPC != 1:
+            row_block_size = img_header.NPPBV
+
+        # iterate over our blocks and determine bounds and create chippers
+        bounds = []
+        chippers = []
+        # NB: NBPP previously verified to be one of 8, 16, 32, 64
+        bytes_per_pixel = int_func(img_header.NBPP*raw_bands/8)
+
+        # outer loop over rows inner loop over columns
+        current_offset = 0
+        block_row_end = 0
+        block_offset = int_func(img_header.NPPBH*img_header.NPPBV*bytes_per_pixel)
+        enumerated_block = 0
+        for vblock in range(img_header.NBPC):
+            # define the current row block start/end
+            block_row_start = block_row_end
+            block_row_end += row_block_size
+            block_row_end = min(this_rows, block_row_end)
+            block_col_end = 0
+            for hblock in range(img_header.NBPR):
+                # verify whether to include this block, or not
+                if mask_offsets is not None:
+                    expected_offset = mask_offsets[0][enumerated_block]
+                    if expected_offset == exclude_value:
+                        # this is a missing block, advance the block enumeration and skip
+                        enumerated_block += 1
+                        continue
+                    if expected_offset != current_offset:
+                        raise ValueError(
+                            'expected offset {}, current offset {}, for block {} = ({}, {})'.format(
+                                expected_offset, current_offset, enumerated_block, vblock, hblock))
+
+                # define the current column block
+                block_col_start = block_col_end
+                block_col_end += column_block_size
+                block_col_end = min(this_cols, block_col_end)
+                # store our bounds and offset
+                bounds.append((block_row_start, block_row_end, block_col_start, block_col_end))
+                # create chipper
+                chip_rows = block_row_end - block_row_start
+                chip_cols = column_block_size
+                if block_col_end == block_col_start + column_block_size:
+                    chippers.append(
+                        BIPChipper(
+                            self.file_name, raw_dtype, (chip_rows, chip_cols),
+                            raw_bands, output_bands, output_dtype,
+                            symmetry=self._symmetry, transform_data=transform_data,
+                            data_offset=int_func(current_offset+data_offset), limit_to_raw_bands=limit_to_raw_bands))
+                else:
+                    c_row_start, c_row_end = 0, chip_rows
+                    c_col_start, c_col_end = 0, block_col_end - block_col_start
+                    if self._symmetry[1]:
+                        c_col_start = column_block_size - c_col_end
+                        c_col_end = column_block_size - c_col_start
+                    if self._symmetry[2]:
+                        c_row_start, c_row_end, c_col_start, c_col_end = \
+                            c_col_start, c_col_end, c_row_start, c_row_end
+
+                    p_chipper = BIPChipper(
+                        self.file_name, raw_dtype, (chip_rows, chip_cols),
+                        raw_bands, output_bands, output_dtype,
+                        symmetry=self._symmetry, transform_data=transform_data,
+                        data_offset=int_func(current_offset+data_offset), limit_to_raw_bands=limit_to_raw_bands)
+                    chippers.append(SubsetChipper(p_chipper, (c_row_start, c_row_end), (c_col_start, c_col_end)))
+
+                # update the block and offset
+                enumerated_block += 1
+                current_offset += block_offset  # NB: this may contain pad pixels
+
+        bounds = numpy.array(bounds, dtype=numpy.int64)
+        total_rows = bounds[-1, 1]
+        total_cols = bounds[-1, 3]
+        if total_rows != this_rows or total_cols != this_cols:
+            raise ValueError('Got unexpected chipper construction')
+        if self._symmetry[0]:
+            t_bounds = bounds.copy()
+            bounds[:, 0] = total_rows - t_bounds[:, 1]
+            bounds[:, 1] = total_rows - t_bounds[:, 0]
+        if self._symmetry[1]:
+            t_bounds = bounds.copy()
+            bounds[:, 2] = total_cols - t_bounds[:, 3]
+            bounds[:, 3] = total_cols - t_bounds[:, 2]
+        if self._symmetry[2]:
+            t_bounds = bounds.copy()
+            bounds[:, :2] = t_bounds[:, 2:]
+            bounds[:, 2:] = t_bounds[:, :2]
+        return AggregateChipper(bounds, output_dtype, chippers, output_bands=output_bands)
+
+    def _create_band_sequential_chipper(
+            self, img_header, data_offset, this_rows, this_cols, raw_dtype, raw_bands,
+            output_dtype, transform_data, limit_to_raw_bands):
+
+        if img_header.NBPR == 1 and img_header.NBPC == 1:
+            # it's one single block
+            chippers = []
+            current_offset = 0
+            block_offset = int_func(this_rows*this_cols*img_header.NBPP)
+
+            for i in range(raw_bands):
+                chippers.append(BIPChipper(
+                    self.file_name, raw_dtype, (this_rows, this_cols), 1, 1, raw_dtype,
+                    symmetry=self._symmetry, transform_data=None,
+                    data_offset=data_offset+current_offset, limit_to_raw_bands=None))
+                current_offset += block_offset
+            return BSQChipper(chippers, output_dtype, transform_data=transform_data, limit_to_raw_bands=limit_to_raw_bands)
+
+        if img_header.is_masked:
+            # update the offset to skip the mask subheader
+            data_offset += img_header.mask_subheader.IMDATOFF
+            if img_header.mask_subheader.BMR is not None:
+                mask_offsets = img_header.mask_subheader.BMR
+            elif img_header.mask_subheader.TMR is not None:
+                mask_offsets = img_header.mask_subheader.TMR
+                logging.warning('image segment contains a transparency mask - the transparency value is not currently used.')
+            else:
+                logging.warning('image segment is masked, but contains neither transparency mask nor block mask? This is unexpected.')
+                mask_offsets = None
+        else:
+            mask_offsets = None
+        exclude_value = 0xFFFFFFFF  # only used if there is a mask...
+
+        row_block_size, column_block_size = self._get_block_sizes(img_header, this_rows, this_cols)
+        block_offset = int_func(row_block_size*column_block_size*img_header.NBPP/8)  # verified to be integer already
+
+        num_blocks = img_header.NBPC*img_header.NBPR
+        bip_chippers = [[] for i in range(num_blocks)]
+
+        if mask_offsets is None:
+            offsets = block_offset*numpy.arange(raw_bands*num_blocks, dtype=numpy.uint64)
+            offsets = numpy.reshape(offsets, (raw_bands, num_blocks))
+        else:
+            offsets = None
+
+        for band_number in range(raw_bands):
+            for block_number in range(num_blocks):
+                if mask_offsets is not None:
+                    this_offset = mask_offsets[band_number, block_number]
+                    if this_offset == exclude_value:
+                        continue  # skip this block
+                else:
+                    this_offset = offsets[band_number, block_number]
+                bip_chippers[block_number].append(
+                    BIPChipper(
+                        self.file_name, raw_dtype, (this_rows, this_cols), 1, 1, raw_dtype,
+                        symmetry=self._symmetry, transform_data=None, data_offset=data_offset+this_offset,
+                        limit_to_raw_bands=None))
+
+        # construct bounds for the chippers
+        bounds = self._construct_block_bounds(img_header, row_block_size, column_block_size)
+
+        bsq_chippers = []
+        bsq_bounds = []
+        for i, entry in enumerate(bip_chippers):
+            if len(entry) == 0:
+                continue  # it was masked
+            elif len(entry) == raw_bands:
+                bsq_chippers.append(
+                    BSQChipper(
+                        entry, output_dtype, transform_data=transform_data, limit_to_raw_bands=limit_to_raw_bands))
+                bsq_bounds.append(bounds[i])
+            else:
+                raise ValueError('Failed by partially constructing {} of {} chippers for block {}'.format(len(entry), raw_bands, i))
+        bsq_bounds = numpy.array(bsq_bounds, dtype='int64')
+        return AggregateChipper(bsq_bounds, output_dtype, bsq_chippers)
+
+    def _create_band_interleaved_by_block_chipper(
+            self, img_header, data_offset, this_rows, this_cols, raw_dtype, raw_bands,
+            output_dtype, transform_data, limit_to_raw_bands):
+
+        if img_header.NBPR == 1 and img_header.NBPC == 1:
+            # it's one single block
+            chippers = []
+            current_offset = 0
+            block_offset = int_func(this_rows*this_cols*img_header.NBPP)
+
+            for i in range(raw_bands):
+                chippers.append(BIPChipper(
+                    self.file_name, raw_dtype, (this_rows, this_cols), 1, 1, raw_dtype,
+                    symmetry=self._symmetry, transform_data=None,
+                    data_offset=data_offset+current_offset, limit_to_raw_bands=None))
+                current_offset += block_offset
+            return BSQChipper(chippers, output_dtype, transform_data=transform_data, limit_to_raw_bands=limit_to_raw_bands)
+
+        if img_header.is_masked:
+            # update the offset to skip the mask subheader
+            data_offset += img_header.mask_subheader.IMDATOFF
+            if img_header.mask_subheader.BMR is not None:
+                mask_offsets = img_header.mask_subheader.BMR
+            elif img_header.mask_subheader.TMR is not None:
+                mask_offsets = img_header.mask_subheader.TMR
+                logging.warning('image segment contains a transparency mask - the transparency value is not currently used.')
+            else:
+                logging.warning('image segment is masked, but contains neither transparency mask nor block mask? This is unexpected.')
+                mask_offsets = None
+        else:
+            mask_offsets = None
+        exclude_value = 0xFFFFFFFF  # only used if there is a mask...
+
+        row_block_size, column_block_size = self._get_block_sizes(img_header, this_rows, this_cols)
+        band_offset = int_func(row_block_size*column_block_size*img_header.NBPP/8)  # verified to be integer already
+        block_offset = raw_bands*band_offset
+
+        num_blocks = img_header.NBPC*img_header.NBPR
+        bsq_chippers = [None for i in range(num_blocks)]  # type: List[Union[None, BSQChipper]]
+
+        if mask_offsets is None:
+            offsets = block_offset*numpy.arange(raw_bands*num_blocks, dtype=numpy.uint64)
+        else:
+            offsets = None
+
+        for block_number in range(num_blocks):
+            if mask_offsets is not None:
+                this_offset = mask_offsets[0, block_number]
+                if this_offset == exclude_value:
+                    continue  # skip this block
+            else:
+                this_offset = offsets[block_number]
+
+            bip_chippers = []
+            for band_number in range(raw_bands):
+                this_offset = band_number*band_offset
+                bip_chippers.append(
+                    BIPChipper(
+                        self.file_name, raw_dtype, (this_rows, this_cols), 1, 1, raw_dtype,
+                        symmetry=self._symmetry, transform_data=None, data_offset=data_offset+this_offset,
+                        limit_to_raw_bands=None))
+            bsq_chippers[block_number] = BSQChipper(
+                bip_chippers, output_dtype, transform_data=transform_data, limit_to_raw_bands=limit_to_raw_bands)
+
+        # construct bounds for the chippers
+        bounds = self._construct_block_bounds(img_header, row_block_size, column_block_size)
+
+        populated_chippers = []
+        populated_bounds = []
+        for i, entry in enumerate(bsq_chippers):
+            if entry is None:
+                continue
+            else:
+                populated_chippers.append(entry)
+                populated_bounds.append(bounds[i])
+        populated_bounds = numpy.array(populated_bounds, dtype='int64')
+        return AggregateChipper(populated_bounds, output_dtype, populated_chippers)
+
     def _define_chipper(self, index, raw_dtype=None, raw_bands=None, transform_data=None,
                         output_bands=None, output_dtype=None, limit_to_raw_bands=None):
         """
@@ -1015,9 +1327,9 @@ class NITFReader(BaseReader):
             # dump the extracted image data out to a temp file
             fi, path_name = mkstemp(suffix='.sarpy_cache', text=False)
             logging.warning(
-                'Compressed image segment of {}\n at index {} being extracted to flat file {},\n '
-                'this will be safely deleted except possibly in the event of fatal '
-                'execution error'.format(self.file_name, index, path_name))
+                'Naively trying to use PIL to decompress image segment of {}\n at index {} to flat file {},\n '
+                'which should be considered experimental. The created cache file should be safely deleted, '
+                'with the possible exception of fatal execution error.'.format(self.file_name, index, path_name))
             data = numpy.asarray(img)  # create our numpy array from the PIL Image
             mem_map = numpy.memmap(path_name, dtype=data.dtype, mode='w+', offset=0, shape=data.shape)
             mem_map[:] = data
@@ -1030,94 +1342,6 @@ class NITFReader(BaseReader):
                 path_name, raw_dtype, (this_rows, this_cols), raw_bands, output_bands, output_dtype,
                 symmetry=self._symmetry, transform_data=transform_data, data_offset=0,
                 limit_to_raw_bands=limit_to_raw_bands)
-
-        def handle_blocked():
-            # column (horizontal) block details
-            column_block_size = this_cols
-            if img_header.NBPR != 1:
-                column_block_size = img_header.NPPBH
-
-            # row (vertical) block details
-            row_block_size = this_rows
-            if img_header.NBPC != 1:
-                row_block_size = img_header.NPPBV
-
-            # iterate over our blocks and determine bounds and create chippers
-            bounds = []
-            chippers = []
-
-            # outer loop over rows inner loop over columns
-            current_offset = int_func(data_offset)
-            block_row_end = 0
-            block_offset = img_header.NPPBH*img_header.NPPBV*bytes_per_pixel
-            for vblock in range(img_header.NBPC):
-                # define the current row block start/end
-                block_row_start = block_row_end
-                block_row_end += row_block_size
-                block_row_end = min(this_rows, block_row_end)
-                block_col_end = 0
-                for hblock in range(img_header.NBPR):
-                    # define the current column block
-                    block_col_start = block_col_end
-                    block_col_end += column_block_size
-                    block_col_end = min(this_cols, block_col_end)
-                    # store our bounds and offset
-                    bounds.append((block_row_start, block_row_end, block_col_start, block_col_end))
-                    # create chipper
-                    chip_rows = block_row_end - block_row_start
-                    chip_cols = column_block_size
-                    if block_col_end == block_col_start+column_block_size:
-                        chippers.append(
-                            BIPChipper(
-                                self.file_name, raw_dtype, (chip_rows, chip_cols),
-                                raw_bands, output_bands, output_dtype,
-                                symmetry=self._symmetry, transform_data=transform_data,
-                                data_offset=current_offset, limit_to_raw_bands=limit_to_raw_bands))
-                    else:
-                        c_row_start, c_row_end = 0, chip_rows
-                        c_col_start, c_col_end = 0, block_col_end - block_col_start
-                        if self._symmetry[1]:
-                            c_col_start = column_block_size - c_col_end
-                            c_col_end = column_block_size - c_col_start
-                        if self._symmetry[2]:
-                            c_row_start, c_row_end, c_col_start, c_col_end = \
-                                c_col_start, c_col_end, c_row_start, c_row_end
-
-                        p_chipper = BIPChipper(
-                            self.file_name, raw_dtype, (chip_rows, chip_cols),
-                            raw_bands, output_bands, output_dtype,
-                            symmetry=self._symmetry, transform_data=transform_data,
-                            data_offset=current_offset, limit_to_raw_bands=limit_to_raw_bands)
-                        chippers.append(SubsetChipper(p_chipper, (c_row_start, c_row_end), (c_col_start, c_col_end)))
-
-                    # update the offset
-                    current_offset += block_offset  # NB: this may contain pad pixels
-
-            bounds = numpy.array(bounds, dtype=numpy.int64)
-            total_rows = bounds[-1, 1]
-            total_cols = bounds[-1, 3]
-            if total_rows != this_rows or total_cols != this_cols:
-                raise ValueError('Got unexpected chipper construction')
-            if self._symmetry[0]:
-                t_bounds = bounds.copy()
-                bounds[:, 0] = total_rows - t_bounds[:, 1]
-                bounds[:, 1] = total_rows - t_bounds[:, 0]
-            if self._symmetry[1]:
-                t_bounds = bounds.copy()
-                bounds[:, 2] = total_cols - t_bounds[:, 3]
-                bounds[:, 3] = total_cols - t_bounds[:, 2]
-            if self._symmetry[2]:
-                t_bounds = bounds.copy()
-                bounds[:, :2] = t_bounds[:, 2:]
-                bounds[:, 2:] = t_bounds[:, :2]
-
-            return AggregateChipper(bounds, output_dtype, chippers, output_bands=output_bands)
-
-        def handle_flat():
-            return BIPChipper(
-                self.file_name, raw_dtype, (this_rows, this_cols), raw_bands, output_bands, output_dtype,
-                symmetry=self._symmetry, transform_data=transform_data,
-                data_offset=data_offset, limit_to_raw_bands=limit_to_raw_bands)
 
         if not self._compliance_check(index):
             raise ValueError(
@@ -1138,8 +1362,6 @@ class NITFReader(BaseReader):
         # determine basic facts
         this_rows = img_header.NROWS
         this_cols = img_header.NCOLS
-        # NB: NBPP previously verified to be one of 8, 16, 32, 64
-        bytes_per_pixel = int_func(img_header.NBPP*this_raw_bands/8)
 
         if raw_dtype is None:
             raw_dtype = this_raw_dtype
@@ -1152,15 +1374,25 @@ class NITFReader(BaseReader):
         if transform_data is None:
             transform_data = this_transform_data
         # define the chipper
-        if img_header.IC in ['NM', 'M1', 'M3', 'M4', 'M5', 'M6', 'M7', 'M8']:
-            raise ValueError('Masked image segments not supported.')
+        if img_header.IC in ['NC', 'NM']:
+            if img_header.IMODE == 'P':
+                return self._create_band_interleaved_by_pixel_chipper(
+                    img_header, data_offset, this_rows, this_cols, raw_dtype, raw_bands,
+                    output_dtype, output_bands, transform_data, limit_to_raw_bands)
+            elif img_header.IMODE == 'B':
+                return self._create_band_interleaved_by_block_chipper(
+                    img_header, data_offset, this_rows, this_cols, raw_dtype, raw_bands,
+                    output_dtype, transform_data, limit_to_raw_bands)
+            elif img_header.IMODE == 'S':
+                return self._create_band_sequential_chipper(
+                    img_header, data_offset, this_rows, this_cols, raw_dtype, raw_bands,
+                    output_dtype, transform_data, limit_to_raw_bands)
+            else:
+                raise ValueError('Unsupported IMODE {}'.format(img_header.IMODE))
+        elif img_header.IC in ['M1', 'M3', 'M4', 'M5', 'M6', 'M7', 'M8']:
+            raise ValueError('Compressed and masked image segments not currently supported.')
         elif img_header.IC in ['C1', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'I1']:
             return handle_compressed()
-        elif img_header.IC == 'NC':
-            if img_header.NBPR != 1 or img_header.NBPC != 1:
-                return handle_blocked()
-            else:
-                return handle_flat()
         else:
             raise ValueError('Got unhandled IC code {}'.format(img_header.IC))
 

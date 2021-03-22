@@ -1612,20 +1612,30 @@ class BSQChipper(BaseChipper):
     Band-sequential chipper assembled from the (single band) BIP constituents.
     """
 
-    __slots__ = ('_child_chippers', '_dtype')
+    __slots__ = ('_child_chippers', '_dtype', '_limit_to_raw_bands')
 
-    def __init__(self, output_dtype, child_chippers):
+    def __init__(self, child_chippers, output_dtype, transform_data=None, limit_to_raw_bands=None):
         """
 
         Parameters
         ----------
-        output_dtype : str|numpy.dtype|numpy.number
-            The data type of the output data
         child_chippers : tuple|list
             The list or tuple of child chipper objects.
+        output_dtype : str|numpy.dtype|numpy.number
+            The data type of the output data
+        transform_data : None|str|Callable
+            For data transformation after reading.
+            If `None`, then no transformation will be applied. If `callable`, then
+            this is expected to be the transformation method for the raw data. If
+            string valued and `'complex'`, then the assumption is that real/imaginary
+            components are stored in adjacent bands, which will be combined into a
+            single band upon extraction. Other situations will yield and value error.
+        limit_to_raw_bands : None|int|numpy.ndarray|list|tuple
+            The collection of raw bands to which to read. `None` is all bands.
         """
 
         self._dtype = output_dtype
+        self._limit_to_raw_bands = None
         # validate that the data_sizes are all the same
         data_size = None
         for i, entry in enumerate(child_chippers):
@@ -1641,7 +1651,8 @@ class BSQChipper(BaseChipper):
                     'actual shape {}'.format(i, data_size, entry.data_size))
         self._child_chippers = child_chippers
         # NB: it is left to the constructor to know that these all fit otherwise
-        super(BSQChipper, self).__init__(data_size, symmetry=(False, False, False), transform_data=None)
+        super(BSQChipper, self).__init__(data_size, symmetry=(False, False, False), transform_data=transform_data)
+        self._validate_limit_to_raw_bands(limit_to_raw_bands)
 
     @property
     def output_bands(self):
@@ -1651,13 +1662,38 @@ class BSQChipper(BaseChipper):
 
         return len(self._child_chippers)
 
+    def _validate_limit_to_raw_bands(self, limit_to_raw_bands):
+        if limit_to_raw_bands is None:
+            self._limit_to_raw_bands = None
+            return
+
+        if isinstance(limit_to_raw_bands, integer_types):
+            limit_to_raw_bands = numpy.array([limit_to_raw_bands, ], dtype='int32')
+        if isinstance(limit_to_raw_bands, (list, tuple)):
+            limit_to_raw_bands = numpy.array(limit_to_raw_bands, dtype='int32')
+        if not isinstance(limit_to_raw_bands, numpy.ndarray):
+            raise TypeError('limit_to_raw_bands got unsupported input of type {}'.format(type(limit_to_raw_bands)))
+        # ensure that limit_to_raw_bands make sense...
+        if numpy.any((limit_to_raw_bands < 0) | (limit_to_raw_bands >= self.output_bands)):
+            raise ValueError(
+                'all entries of limit_to_raw_bands ({}) must be in the range 0 <= value < {}'.format(limit_to_raw_bands, self.output_bands))
+        self._limit_to_raw_bands = limit_to_raw_bands
+
     def _read_raw_fun(self, range1, range2):
         range1, range2 = self._reorder_arguments(range1, range2)
         rows_size = int_func((range1[1]-range1[0])/range1[2])
         cols_size = int_func((range2[1]-range2[0])/range2[2])
 
-        out = numpy.zeros((rows_size, cols_size, self.output_bands), dtype=self._dtype)
-        for band_number, child_chipper in enumerate(self._child_chippers):
-            out[range1[0]:range1[1]:range1[2], range2[0]:range2[1]:range2[2], band_number] = \
-                child_chipper[range1[0]:range1[1]:range1[2], range2[0]:range2[1]:range2[2]]
+        if self._limit_to_raw_bands is None:
+            out = numpy.zeros((rows_size, cols_size, self.output_bands), dtype=self._dtype)
+            for band_number, child_chipper in enumerate(self._child_chippers):
+                out[range1[0]:range1[1]:range1[2], range2[0]:range2[1]:range2[2], band_number] = \
+                    child_chipper[range1[0]:range1[1]:range1[2], range2[0]:range2[1]:range2[2]]
+        else:
+            out = numpy.zeros((rows_size, cols_size, self._limit_to_raw_bands.size), dtype=self._dtype)
+            for i, band_number in enumerate(self._limit_to_raw_bands):
+                child_chipper = self._child_chippers[int(band_number)]
+                out[range1[0]:range1[1]:range1[2], range2[0]:range2[1]:range2[2], i] = \
+                    child_chipper[range1[0]:range1[1]:range1[2], range2[0]:range2[1]:range2[2]]
+
         return out
