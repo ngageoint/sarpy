@@ -14,8 +14,7 @@ import numpy
 from sarpy.io.complex.sicd_elements.blocks import RowColType
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.complex.sicd_elements.ImageData import ImageDataType, FullImageType
-from sarpy.io.general.base import BaseReader
-from sarpy.io.general.bip import BIPChipper, BIPWriter
+from sarpy.io.general.base import BaseReader, BIPChipper, BIPWriter
 from sarpy.io.complex.sicd import complex_to_amp_phase, complex_to_int, amp_phase_to_complex
 from sarpy.io.general.utils import parse_xml_from_string
 

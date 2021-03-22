@@ -12,8 +12,7 @@ import numpy
 
 from sarpy.compliance import int_func, integer_types, string_types
 from sarpy.io.general.utils import parse_xml_from_string, validate_range
-from sarpy.io.general.base import AbstractWriter, BaseReader
-from sarpy.io.general.bip import BIPChipper
+from sarpy.io.general.base import AbstractWriter, BaseReader, BIPChipper
 
 from sarpy.io.phase_history.cphd1_elements.utils import binary_format_string_to_dtype
 # noinspection PyProtectedMember

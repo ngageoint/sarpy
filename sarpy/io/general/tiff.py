@@ -14,8 +14,7 @@ import numpy
 import re
 
 from sarpy.compliance import int_func
-from sarpy.io.general.base import BaseReader
-from sarpy.io.general.bip import BIPChipper
+from sarpy.io.general.base import BaseReader, BIPChipper
 
 
 __classification__ = "UNCLASSIFIED"
