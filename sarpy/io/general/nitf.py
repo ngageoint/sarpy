@@ -11,7 +11,7 @@ __author__ = "Thomas McCullough"
 
 import logging
 import os
-from typing import Union, List, Tuple
+from typing import Union, List, Tuple, BinaryIO
 import re
 import mmap
 from tempfile import mkstemp
@@ -50,13 +50,14 @@ from sarpy.io.general.nitf_elements.res import ReservedExtensionHeader, Reserved
 from sarpy.io.general.nitf_elements.security import NITFSecurityTags
 from sarpy.io.general.nitf_elements.image import ImageSegmentHeader, ImageSegmentHeader0, MaskSubheader
 from sarpy.io.general.nitf_elements.des import DataExtensionHeader, DataExtensionHeader0
+from sarpy.io.general.utils import is_file_like
 from sarpy.io.complex.sicd_elements.blocks import LatLonType
 from sarpy.geometry.geocoords import ecf_to_geodetic, geodetic_to_ecf
 from sarpy.geometry.latlon import num as lat_lon_parser
 
+
 ########
 # base expected functionality for a module with an implemented Reader
-
 
 def is_a(file_name):
     """
@@ -81,7 +82,6 @@ def is_a(file_name):
     except IOError:
         # we don't want to catch parsing errors, for now
         return None
-
 
 
 #####
@@ -128,7 +128,8 @@ class NITFDetails(object):
     """
 
     __slots__ = (
-        '_file_name', '_nitf_version', '_nitf_header', '_img_headers',
+        '_file_name', '_file_object', '_close_after',
+        '_nitf_version', '_nitf_header', '_img_headers',
 
         'img_subheader_offsets', 'img_subheader_sizes',
         'img_segment_offsets', 'img_segment_sizes',
@@ -151,53 +152,71 @@ class NITFDetails(object):
         'res_subheader_offsets', 'res_subheader_sizes', # only 2.1
         'res_segment_offsets', 'res_segment_sizes')
 
-    def __init__(self, file_name):
+    def __init__(self, file_object):
         """
 
         Parameters
         ----------
-        file_name : str
-            file name for a NITF file
+        file_object : str|BinaryIO
+            file name for a NITF file, or file like object opened in binary mode.
         """
 
         self._img_headers = None
-        self._file_name = file_name
+        self._file_name = None
+        self._file_object = None
+        self._close_after = False
 
-        if not os.path.isfile(file_name):
-            raise IOError('Path {} is not a file'.format(file_name))
-
-        with open(file_name, mode='rb') as fi:
-            # Read the first 9 bytes to verify NITF
-            try:
-                version_info = fi.read(9).decode('utf-8')
-            except:
-                raise IOError('Not a NITF 2.1 file.')
-            if version_info[:4] != 'NITF':
-                raise IOError('File {} is not a NITF file.'.format(file_name))
-            self._nitf_version = version_info[4:]
-            if self._nitf_version not in ['02.10', '02.00']:
-                raise IOError('Unsupported NITF version {} for file {}'.format(self._nitf_version, file_name))
-            if self._nitf_version == '02.10':
-                fi.seek(354, 0)  # offset to header length field
-                header_length = int_func(fi.read(6))
-                # go back to the beginning of the file, and parse the whole header
-                fi.seek(0, 0)
-                header_string = fi.read(header_length)
-                self._nitf_header = NITFHeader.from_bytes(header_string, 0)
-            elif self._nitf_version == '02.00':
-                fi.seek(280, 0)  # offset to check if DEVT is defined
-                # advance past security tags
-                DWSG = fi.read(6)
-                if DWSG == b'999998':
-                    fi.seek(40, 1)
-                # seek to header length field
-                fi.seek(68, 1)
-                header_length = int_func(fi.read(6))
-                fi.seek(0, 0)
-                header_string = fi.read(header_length)
-                self._nitf_header = NITFHeader0.from_bytes(header_string, 0)
+        if isinstance(file_object, string_types):
+            if not os.path.isfile(file_object):
+                raise IOError('Path {} is not a file'.format(file_object))
+            self._file_name = file_object
+            self._file_object = open(file_object, 'rb')
+            self._close_after = True
+        elif is_file_like(file_object):
+            self._file_object = file_object
+            if hasattr(file_object, 'name') and isinstance(file_object.name, string_types):
+                self._file_name = file_object.name
             else:
-                raise ValueError('Unhandled version {}'.format(self._nitf_version))
+                self._file_name = '<file like object>'
+        else:
+            raise TypeError('file_object is required to be a file like object, or string path to a file.')
+
+        # Read the first 9 bytes to verify NITF
+        self._file_object.seek(0)
+        try:
+            version_info = self._file_object.read(9)
+        except:
+            raise IOError('Not a NITF 2.1 file.')
+        if not isinstance(version_info, bytes):
+            raise ValueError('Input file like object not open in bytes mode.')
+        version_info = version_info.decode('utf-8')
+        if version_info[:4] != 'NITF':
+            raise IOError('File {} is not a NITF file.'.format(self._file_name))
+        self._nitf_version = version_info[4:]
+        if self._nitf_version not in ['02.10', '02.00']:
+            raise IOError('Unsupported NITF version {} for file {}'.format(self._nitf_version, self._file_name))
+        if self._nitf_version == '02.10':
+            self._file_object.seek(354, 0)  # offset to header length field
+            header_length = int_func(self._file_object.read(6))
+            # go back to the beginning of the file, and parse the whole header
+            self._file_object.seek(0, 0)
+            header_string = self._file_object.read(header_length)
+            self._nitf_header = NITFHeader.from_bytes(header_string, 0)
+        elif self._nitf_version == '02.00':
+            self._file_object.seek(280, 0)  # offset to check if DEVT is defined
+            # advance past security tags
+            DWSG = self._file_object.read(6)
+            if DWSG == b'999998':
+                self._file_object.seek(40, 1)
+            # seek to header length field
+            self._file_object.seek(68, 1)
+            header_length = int_func(self._file_object.read(6))
+            self._file_object.seek(0, 0)
+            header_string = self._file_object.read(header_length)
+            self._nitf_header = NITFHeader0.from_bytes(header_string, 0)
+        else:
+            raise ValueError('Unhandled version {}'.format(self._nitf_version))
+
         if self._nitf_header.get_bytes_length() != header_length:
             logging.critical(
                 'Stated header length of file {} is {}, while the interpreted '
@@ -308,9 +327,8 @@ class NITFDetails(object):
                     offsets.size, name, index))
         the_offset = offsets[index]
         the_size = sizes[index]
-        with open(self._file_name, mode='rb') as fi:
-            fi.seek(int_func(the_offset))
-            the_item = fi.read(int_func(the_size))
+        self._file_object.seek(int_func(the_offset))
+        the_item = self._file_object.read(int_func(the_size))
         return the_item
 
     def get_image_subheader_bytes(self, index):
@@ -351,18 +369,15 @@ class NITFDetails(object):
             out = ImageSegmentHeader0.from_bytes(ih, 0)
         else:
             raise ValueError('Unhandled version {}'.format(self.nitf_version))
-        if out.IC in ['NM', 'M1', 'M3', 'M4', 'M5', 'M6', 'M7', 'M8']:
-            # read the mask subheader
+        if out.is_masked:
+            # read the mask subheader bytes
             the_offset = int_func(self.img_segment_offsets[index])
-            with open(self._file_name, mode='rb') as fi:
-                fi.seek(the_offset)
-                the_size = struct.unpack('>I', fi.read(4))[0]
-                fi.seek(the_offset)
-                the_bytes = fi.read(the_size)
-            if out.IMODE == 'S':
-                band_depth = len(out.Bands)
-            else:
-                band_depth = 1
+            self._file_object.seek(the_offset)
+            the_size = struct.unpack('>I', self._file_object.read(4))[0]
+            self._file_object.seek(the_offset)
+            the_bytes = self._file_object.read(the_size)
+            # interpret the mask subheader
+            band_depth = len(out.Bands) if out.IMODE == 'S' else 1
             blocks = out.NBPR*out.NBPC
             out.mask_subheader = MaskSubheader.from_bytes(
                 the_bytes, 0, band_depth=band_depth, blocks=blocks)
@@ -754,6 +769,15 @@ class NITFDetails(object):
             out['RES_Subheaders'] = [
                 self.parse_res_subheader(i).to_json() for i in range(self.res_subheader_offsets.size)]
         return out
+
+    def __del__(self):
+        if self._close_after:
+            self._close_after = False
+            # noinspection PyBroadException
+            try:
+                self._file_object.close()
+            except:
+                pass
 
 
 #####

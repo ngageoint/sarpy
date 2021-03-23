@@ -7,12 +7,12 @@ import logging
 import sys
 from functools import reduce
 import re
-from typing import List, Union
+from typing import List, Union, BinaryIO
 
 import numpy
 
 from sarpy.compliance import int_func, string_types
-from sarpy.io.general.utils import parse_xml_from_string
+from sarpy.io.general.utils import parse_xml_from_string, is_file_like
 from sarpy.io.general.base import AggregateChipper
 from sarpy.io.general.nitf import NITFDetails, NITFReader, NITFWriter, ImageDetails, DESDetails, \
     image_segmentation, get_npp_block, interpolate_corner_points_string
@@ -83,8 +83,8 @@ class SIDDDetails(NITFDetails):
 
         Parameters
         ----------
-        file_name : str
-            file name for a NITF 2.1 file containing a SIDD
+        file_name : str|BinaryIO
+            file name of file like object for a NITF 2.1 or 2.0 containing a SIDD
         """
 
         self._img_headers = None
