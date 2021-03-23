@@ -156,3 +156,28 @@ def parse_xml_from_string(xml_string):
     elif '' in xml_ns:
         xml_ns['default'] = xml_ns['']
     return root_node, xml_ns
+
+
+def is_file_like(the_input):
+    """
+    Verify whether the provided input appear to provide a "file-like object". This
+    term is used ubiquitously, but not all usages are identical. In this case, we
+    mean that there exist callable attributes `read`, `write`, `seek`, and `tell`.
+
+    Note that this does not check the mode (binary/string or read/write/append),
+    as it is not clear that there is any generally accessible way to do so.
+
+    Parameters
+    ----------
+    the_input
+
+    Returns
+    -------
+    bool
+    """
+
+    out = True
+    for attribute in ['read', 'write', 'seek', 'tell']:
+        value = getattr(the_input, attribute, None)
+        out &= callable(value)
+    return out
