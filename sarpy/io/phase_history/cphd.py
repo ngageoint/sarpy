@@ -5,13 +5,13 @@ Module for reading and writing CPHD files - should support reading CPHD version 
 
 import logging
 import os
-from typing import Union, Tuple, Dict
+from typing import Union, Tuple, Dict, BinaryIO
 from collections import OrderedDict
 
 import numpy
 
 from sarpy.compliance import int_func, integer_types, string_types
-from sarpy.io.general.utils import parse_xml_from_string, validate_range
+from sarpy.io.general.utils import parse_xml_from_string, validate_range, is_file_like
 from sarpy.io.general.base import AbstractWriter, BaseReader, BIPChipper
 
 from sarpy.io.phase_history.cphd1_elements.utils import binary_format_string_to_dtype
@@ -57,33 +57,46 @@ class CPHDDetails(object):
     """
 
     __slots__ = (
-        '_file_name', '_cphd_version', '_cphd_header', '_cphd_meta')
+        '_file_name', '_file_object', '_close_after', '_cphd_version', '_cphd_header', '_cphd_meta')
 
-    def __init__(self, file_name):
+    def __init__(self, file_object):
         """
 
         Parameters
         ----------
-        file_name : str
-            The path to the CPHD file.
+        file_object : str|BinaryIO
+            The path to or file like object referencing the CPHD file.
         """
 
         self._cphd_version = None
         self._cphd_header = None
         self._cphd_meta = None
+        self._close_after = False
 
-        if not os.path.exists(file_name) or not os.path.isfile(file_name):
-            raise IOError('path {} does not exist or is not a file'.format(file_name))
-        self._file_name = file_name
+        if isinstance(file_object, string_types):
+            if not os.path.exists(file_object) or not os.path.isfile(file_object):
+                raise IOError('path {} does not exist or is not a file'.format(file_object))
+            self._file_name = file_object
+            self._file_object = open(file_object, 'rb')
+            self._close_after = True
+        elif is_file_like(file_object):
+            self._file_object = file_object
+            if hasattr(file_object, 'name') and isinstance(file_object.name, string_types):
+                self._file_name = file_object.name
+            else:
+                self._file_name = '<file like object>'
+            self._close_after = False
 
-        with open(self.file_name, 'rb') as fi:
-            head_bytes = fi.read(10)
-            if not head_bytes.startswith(b'CPHD'):
-                raise IOError('File {} does not appear to be a CPHD file.'.format(self.file_name))
+        self._file_object.seek(0)
+        head_bytes = self._file_object.read(10)
+        if not isinstance(head_bytes, bytes):
+            raise ValueError('Input file like object not open in bytes mode.')
+        if not head_bytes.startswith(b'CPHD'):
+            raise IOError('File {} does not appear to be a CPHD file.'.format(self.file_name))
 
-            self._extract_version(fi)
-            self._extract_header(fi)
-            self._extract_cphd(fi)
+        self._extract_version()
+        self._extract_header()
+        self._extract_cphd()
 
     @property
     def file_name(self):
@@ -121,67 +134,40 @@ class CPHDDetails(object):
 
         return self._cphd_meta
 
-    def _extract_version(self, fi):
+    def _extract_version(self):
         """
         Extract the version number from the file. This will advance the file
         object to the end of the initial header line.
-
-        Parameters
-        ----------
-        fi
-            The open file object, required to be opened in binary mode.
-
-        Returns
-        -------
-        None
         """
 
-        fi.seek(0)
-        head_line = fi.readline().strip()
+        self._file_object.seek(0)
+        head_line = self._file_object.readline().strip()
         parts = head_line.split(b'/')
         if len(parts) != 2:
             raise ValueError('Cannot extract CPHD version number from line {}'.format(head_line))
         cphd_version = parts[1].strip().decode('utf-8')
         self._cphd_version = cphd_version
 
-    def _extract_header(self, fi):
+    def _extract_header(self):
         """
         Extract the header from the file. The file object is assumed to be advanced
         to the header location. This will advance to the file object to the end of
         the header section.
-
-        Parameters
-        ----------
-        fi
-            The open file object, required to be opened in binary mode.
-
-        Returns
-        -------
-        None
         """
 
         if self.cphd_version.startswith('0.3'):
-            self._cphd_header = CPHDHeader0_3.from_file_object(fi)
+            self._cphd_header = CPHDHeader0_3.from_file_object(self._file_object)
         elif self.cphd_version.startswith('1.0'):
-            self._cphd_header = CPHDHeader.from_file_object(fi)
+            self._cphd_header = CPHDHeader.from_file_object(self._file_object)
         else:
             raise ValueError('Got unhandled version number {}'.format(self.cphd_version))
 
-    def _extract_cphd(self, fi):
+    def _extract_cphd(self):
         """
         Extract and interpret the CPHD structure from the file.
-
-        Parameters
-        ----------
-        fi
-            The open file object, required to be opened in binary mode.
-
-        Returns
-        -------
-        None
         """
 
-        xml = self._get_cphd_bytes(fi)
+        xml = self.get_cphd_bytes()
         if self.cphd_version.startswith('0.3'):
             the_type = CPHDType0_3
         elif self.cphd_version.startswith('1.0'):
@@ -195,14 +181,9 @@ class CPHDDetails(object):
         else:
             self._cphd_meta = the_type.from_node(root_node, xml_ns)
 
-    def _get_cphd_bytes(self, fi):
+    def get_cphd_bytes(self):
         """
-        Extract the bytes representation of the CPHD structure.
-
-        Parameters
-        ----------
-        fi
-            The file object opened in binary mode.
+        Extract the (uninterpreted) bytes representation of the CPHD structure.
 
         Returns
         -------
@@ -216,28 +197,25 @@ class CPHDDetails(object):
         if self.cphd_version.startswith('0.3'):
             assert isinstance(header, CPHDHeader0_3)
             # extract the xml data
-            fi.seek(header.XML_BYTE_OFFSET)
-            xml = fi.read(header.XML_DATA_SIZE)
+            self._file_object.seek(header.XML_BYTE_OFFSET)
+            xml = self._file_object.read(header.XML_DATA_SIZE)
         elif self.cphd_version.startswith('1.0'):
             assert isinstance(header, CPHDHeader)
             # extract the xml data
-            fi.seek(header.XML_BLOCK_BYTE_OFFSET)
-            xml = fi.read(header.XML_BLOCK_SIZE)
+            self._file_object.seek(header.XML_BLOCK_BYTE_OFFSET)
+            xml = self._file_object.read(header.XML_BLOCK_SIZE)
         else:
             raise ValueError('Got unhandled version number {}'.format(self.cphd_version))
         return xml
 
-    def get_cphd_bytes(self):
-        """
-        Extract the bytes representation of the CPHD structure.
-
-        Returns
-        -------
-        bytes
-        """
-
-        with open(self.file_name, 'rb') as fi:
-            return self._get_cphd_bytes(fi)
+    def __del__(self):
+        if self._close_after:
+            self._close_after = False
+            # noinspection PyBroadException
+            try:
+                self._file_object.close()
+            except:
+                pass
 
 
 def _validate_cphd_details(cphd_details, version=None):
