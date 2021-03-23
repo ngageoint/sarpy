@@ -1,5 +1,6 @@
 # This details the important differences introduced in sarpy 1.1
 
+* .60 - Creating a command line utility to dump some CPHD metadata
 * .59 - Implementing support for reading masked NITF without compression,
           read band sequential format, and correction of band interleaved by
           block reading. What remains is more general support for compression,
