@@ -158,7 +158,7 @@ class MatchInfoType(Serializable):
 
         def get_element(tid, cid, cname, params):
             return {
-                'TypeId': tid,
+                'TypeID': tid,
                 'CurrentIndex': cid,
                 'MatchCollections': [{'CoreName': cname, 'Parameters': params}, ]}
 
@@ -173,7 +173,7 @@ class MatchInfoType(Serializable):
         coll_key = cls._child_xml_ns_key.get('Collect', ns_key)
         cnodes = _find_children(node, 'Collect', xml_ns, coll_key)
         for cnode in cnodes:  # assumed non-empty
-            # this describes one series of collects, possibly with more than one MatchType = TypeId
+            # this describes one series of collects, possibly with more than one MatchType = TypeID
             # It is not clear how it would be possible to deconflict a repeat of MatchType between
             # Collect tags, so I will not.
             core_key = cls._child_xml_ns_key.get('CoreName', ns_key)

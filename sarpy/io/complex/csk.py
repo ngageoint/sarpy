@@ -3,11 +3,14 @@
 Functionality for reading Cosmo Skymed data into a SICD model.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = ("Thomas McCullough", "Jarred Barber", "Wade Schwartzkopf")
 
 import logging
 from collections import OrderedDict
 import os
 from typing import Tuple, Dict
+from datetime import datetime
 
 import numpy
 from numpy.polynomial import polynomial
@@ -17,6 +20,11 @@ try:
     import h5py
 except ImportError:
     h5py = None
+
+try:
+    from sarpy.io.complex import csk_addin
+except ImportError:
+    csk_addin = None
 
 from sarpy.compliance import string_types, bytes_to_string
 from sarpy.io.complex.sicd_elements.blocks import Poly1DType, Poly2DType, RowColType
@@ -37,9 +45,6 @@ from sarpy.io.complex.sicd_elements.Radiometric import RadiometricType
 from sarpy.io.general.base import BaseChipper, BaseReader
 from sarpy.io.general.utils import get_seconds, parse_timestring
 from sarpy.io.complex.utils import fit_time_coa_polynomial, fit_position_xvalidation
-
-__classification__ = "UNCLASSIFIED"
-__author__ = ("Thomas McCullough", "Jarred Barber", "Wade Schwartzkopf")
 
 
 ########
@@ -92,7 +97,7 @@ class CSKDetails(object):
     Parses and converts the Cosmo Skymed metadata
     """
 
-    __slots__ = ('_file_name', '_satellite', '_product_type')
+    __slots__ = ('_file_name', '_mission_id', '_product_type')
 
     def __init__(self, file_name):
         """
@@ -110,17 +115,17 @@ class CSKDetails(object):
 
         with h5py.File(file_name, 'r') as hf:
             try:
-                self._satellite = hf.attrs['Satellite ID'].decode('utf-8')
+                self._mission_id = hf.attrs['Mission ID'].decode('utf-8')
             except KeyError:
-                raise IOError('The hdf file does not have the top level attribute "Satellite ID"')
+                raise IOError('The hdf file does not have the top level attribute "Mission ID"')
             try:
                 self._product_type = hf.attrs['Product Type'].decode('utf-8')
             except KeyError:
                 raise IOError('The hdf file does not have the top level attribute "Product Type"')
 
-        if not ('CSK' in self._satellite or 'KMP' in self._satellite):
-            raise ValueError('Expected hdf5 attribute `Satellite ID` to contain "CSK" or "KMP"). '
-                             'Got Satellite ID = {}.'.format(self._satellite))
+        if self._mission_id not in ['CSK', 'CSG', 'KMPS']:
+            raise ValueError('Expected hdf5 attribute `Mission ID` should be one of "CSK", "CSG", or "KMPS"). '
+                             'Got Mission ID = {}.'.format(self._mission_id))
         if 'SCS' not in self._product_type:
             raise ValueError('Expected hdf to contain complex products '
                              '(attribute `Product Type` which contains "SCS"). '
@@ -137,12 +142,12 @@ class CSKDetails(object):
         return self._file_name
 
     @property
-    def satellite(self):
+    def mission_id(self):
         """
-        str: the satellite name
+        str: the mission id
         """
 
-        return self._satellite
+        return self._mission_id
 
     @property
     def product_type(self):
@@ -157,14 +162,34 @@ class CSKDetails(object):
             h5_dict = _extract_attrs(hf)
             band_dict = OrderedDict()
             shape_dict = OrderedDict()
+            dtype_dict = OrderedDict()
 
             for gp_name in sorted(hf.keys()):
+                if self._mission_id == 'CSG' and gp_name == 'LRHM':
+                    continue  # this is extraneous
+
                 gp = hf[gp_name]
                 band_dict[gp_name] = OrderedDict()
                 _extract_attrs(gp, out=band_dict[gp_name])
-                _extract_attrs(gp['SBI'], out=band_dict[gp_name])
-                shape_dict[gp_name] = gp['SBI'].shape[:2]
-        return h5_dict, band_dict, shape_dict
+
+                if self._mission_id in ['CSK', 'KMPS']:
+                    the_dataset = gp['SBI']
+                elif self._mission_id == 'CSG':
+                    the_dataset = gp['IMG']
+                else:
+                    raise ValueError('Unhandled mission id {}'.format(self._mission_id))
+                _extract_attrs(the_dataset, out=band_dict[gp_name])
+                shape_dict[gp_name] = the_dataset.shape[:2]
+                if the_dataset.dtype.name == 'float32':
+                    dtype_dict[gp_name] = 'RE32F_IM32F'
+                elif the_dataset.dtype.name == 'int16':
+                    dtype_dict[gp_name] = 'RE16I_IM16I'
+                else:
+                    raise ValueError(
+                        'Got unexpected data type {}, name {}'.format(
+                            the_dataset.dtype, the_dataset.dtype.name))
+
+        return h5_dict, band_dict, shape_dict, dtype_dict
 
     @staticmethod
     def _parse_pol(str_in):
@@ -173,20 +198,20 @@ class CSKDetails(object):
     def _get_base_sicd(self, h5_dict, band_dict):
         # type: (dict, dict) -> SICDType
 
-        def get_collection_info():  # type: () -> CollectionInfoType
+        def get_collection_info():  # type: () -> (dict, CollectionInfoType)
             acq_mode = h5_dict['Acquisition Mode'].upper()
-            if 'CSK' in self._satellite:
+            if self.mission_id == 'CSK':
                 if acq_mode in ['HIMAGE', 'PINGPONG']:
                     mode_type = 'STRIPMAP'
                 elif acq_mode in ['WIDEREGION', 'HUGEREGION']:
                     # scansar, processed as stripmap
                     mode_type = 'STRIPMAP'
-                elif acq_mode in ['ENHANCED SPOTLIGHT','SMART']:
+                elif acq_mode in ['ENHANCED SPOTLIGHT', 'SMART']:
                     mode_type = 'DYNAMIC STRIPMAP'
                 else:
                     logging.warning('Got unexpected acquisition mode {}'.format(acq_mode))
                     mode_type = 'DYNAMIC STRIPMAP'
-            elif 'KMP' in self._satellite:
+            elif self.mission_id == 'KMPS':
                 if acq_mode in ['STANDARD', 'ENHANCED STANDARD']:
                     mode_type = 'STRIPMAP'
                 elif acq_mode in ['WIDE SWATH', 'ENHANCED WIDE SWATH']:
@@ -198,23 +223,38 @@ class CSKDetails(object):
                 else:
                     logging.warning('Got unexpected acquisition mode {}'.format(acq_mode))
                     mode_type = 'DYNAMIC STRIPMAP'
+            elif self.mission_id == 'CSG':
+                if acq_mode == 'QUADPOL' or acq_mode.startswith('SPOTLIGHT'):
+                    mode_type = 'DYNAMIC STRIPMAP'
+                elif acq_mode == 'STRIPMAP':
+                    mode_type = "STRIPMAP"
+                else:
+                    logging.warning('Got unhandled acquisition mode {}, setting to DYNAMIC STRIPMAP'.format(acq_mode))
+                    mode_type = 'DYNAMIC STRIPMAP'
             else:
-                raise ValueError('Unhandled satellite type {}'.format(self._satellite))
+                raise ValueError('Unhandled mission id {}'.format(self._mission_id))
 
-            return CollectionInfoType(Classification='UNCLASSIFIED',
-                                      CollectorName=h5_dict['Satellite ID'],
-                                      CoreName=str(h5_dict['Programmed Image ID']),
-                                      CollectType='MONOSTATIC',
-                                      RadarMode=RadarModeType(ModeID=h5_dict['Multi-Beam ID'],
-                                                              ModeType=mode_type))
+            start_time_dt = collect_start.astype('datetime64[s]').astype(datetime)
+            date_str = start_time_dt.strftime('%d%b%y').upper()
+            time_str = start_time_dt.strftime('%H%M%S') + 'Z'
+            core_name = '{}_{}_{}'.format(date_str, self.mission_id, time_str)
+            collect_info = CollectionInfoType(
+                Classification='UNCLASSIFIED',
+                CollectorName=h5_dict['Satellite ID'],
+                CoreName=core_name,
+                CollectType='MONOSTATIC',
+                RadarMode=RadarModeType(ModeID=h5_dict['Multi-Beam ID'],
+                                        ModeType=mode_type))
+            return collect_info
 
         def get_image_creation():  # type: () -> ImageCreationType
             from sarpy.__about__ import __version__
             return ImageCreationType(
                 DateTime=parse_timestring(h5_dict['Product Generation UTC'], precision='ns'),
                 Site=h5_dict['Processing Centre'],
-                Application='LO: `{}`, L1: `{}`'.format(h5_dict.get('L0 Software Version', 'NONE'),
-                                                    h5_dict.get('L1A Software Version', 'NONE')),
+                Application='L0: `{}`, L1: `{}`'.format(
+                    h5_dict.get('L0 Software Version', 'NONE'),
+                    h5_dict.get('L1A Software Version', 'NONE')),
                 Profile='sarpy {}'.format(__version__))
 
         def get_grid():  # type: () -> GridType
@@ -256,9 +296,10 @@ class CSKDetails(object):
             return GridType(ImagePlane=image_plane, Type=gr_type, Row=row, Col=col)
 
         def get_timeline():  # type: () -> TimelineType
+            # NB: IPPEnd must be set, but will be replaced
             return TimelineType(CollectStart=collect_start,
                                 CollectDuration=duration,
-                                IPP=[IPPSetType(index=0, TStart=0, TEnd=0, IPPStart=0, IPPEnd=0), ])  # NB: IPPEnd must be set, but will be replaced
+                                IPP=[IPPSetType(index=0, TStart=0, TEnd=0, IPPStart=0, IPPEnd=0), ])
 
         def get_position():  # type: () -> PositionType
             T = h5_dict['State Vectors Times']  # in seconds relative to ref time
@@ -273,7 +314,14 @@ class CSKDetails(object):
             tx_pols = []
             chan_params = []
             for i, bdname in enumerate(band_dict):
-                pol = band_dict[bdname]['Polarisation']
+                if 'Polarisation' in band_dict[bdname]:
+                    pol = band_dict[bdname]['Polarisation']
+                elif 'Polarization' in h5_dict:
+                    pol = h5_dict['Polarization']
+                else:
+                    raise ValueError(
+                        'Failed finding polarization for file {}\nmission id {}'.format(
+                            self._file_name, self._mission_id))
                 tx_pols.append(pol[0])
                 chan_params.append(ChanParametersType(TxRcvPolarization=self._parse_pol(pol), index=i))
             if len(tx_pols) == 1:
@@ -325,20 +373,20 @@ class CSKDetails(object):
         image_formation = get_image_formation()
         rma = get_rma()
         scpcoa = get_scpcoa()
+        sicd = SICDType(
+            CollectionInfo=collection_info,
+            ImageCreation=image_creation,
+            Grid=grid,
+            Timeline=timeline,
+            Position=position,
+            RadarCollection=radar_collection,
+            ImageFormation=image_formation,
+            RMA=rma,
+            SCPCOA=scpcoa)
+        return sicd
 
-        return SICDType(CollectionInfo=collection_info,
-                        ImageCreation=image_creation,
-                        Grid=grid,
-                        Timeline=timeline,
-                        Position=position,
-                        RadarCollection=radar_collection,
-                        ImageFormation=image_formation,
-                        RMA=rma,
-                        SCPCOA=scpcoa)
-
-    @staticmethod
-    def _get_dop_poly_details(h5_dict):
-        # type: (dict) -> Tuple[float, float, numpy.ndarray, numpy.ndarray, numpy.ndarray]
+    def _get_dop_poly_details(self, h5_dict, band_dict, band_name):
+        # type: (dict, dict, str) -> Tuple[float, float, numpy.ndarray, numpy.ndarray, numpy.ndarray]
         def strip_poly(arr):
             # strip worthless (all zero) highest order terms
             # find last non-zero index
@@ -347,33 +395,43 @@ class CSKDetails(object):
                 if arr[i] != 0:
                     break
                 last_ind = i
+            if last_ind == 0:
+                return numpy.array([0, ], dtype=arr.dtype)
             return arr[:last_ind]
 
-        az_ref_time = h5_dict['Azimuth Polynomial Reference Time']  # seconds
-        rg_ref_time = h5_dict['Range Polynomial Reference Time']
-        dop_poly_az = strip_poly(h5_dict['Centroid vs Azimuth Time Polynomial'])
-        dop_poly_rg = strip_poly(h5_dict['Centroid vs Range Time Polynomial'])
-        dop_rate_poly_rg = strip_poly(h5_dict['Doppler Rate vs Range Time Polynomial'])
+        if self._mission_id in ['CSK', 'KMPS']:
+            az_ref_time = h5_dict['Azimuth Polynomial Reference Time']  # seconds
+            rg_ref_time = h5_dict['Range Polynomial Reference Time']
+            dop_poly_az = strip_poly(h5_dict['Centroid vs Azimuth Time Polynomial'])
+            dop_poly_rg = strip_poly(h5_dict['Centroid vs Range Time Polynomial'])
+            dop_rate_poly_rg = strip_poly(h5_dict['Doppler Rate vs Range Time Polynomial'])
+        elif self._mission_id == 'CSG':
+            az_ref_time = band_dict[band_name]['Azimuth Polynomial Reference Time']
+            rg_ref_time = band_dict[band_name]['Range Polynomial Reference Time']
+            dop_poly_az = strip_poly(band_dict[band_name]['Doppler Centroid vs Azimuth Time Polynomial'])
+            dop_poly_rg = strip_poly(band_dict[band_name]['Doppler Centroid vs Range Time Polynomial'])
+            dop_rate_poly_rg = strip_poly(
+                band_dict[band_name].get('Doppler Rate vs Range Time Polynomial', numpy.array([-4000, ])))
+            # TODO: what to default, if this is not provided?
+        else:
+            raise ValueError('Unhandled mission id {}'.format(self._mission_id))
         return az_ref_time, rg_ref_time, dop_poly_az, dop_poly_rg, dop_rate_poly_rg
 
-    def _get_band_specific_sicds(self, base_sicd, h5_dict, band_dict, shape_dict):
-        # type: (SICDType, dict, dict, dict) -> Dict[str, SICDType]
-
-        az_ref_time, rg_ref_time, t_dop_poly_az, t_dop_poly_rg, t_dop_rate_poly_rg = self._get_dop_poly_details(h5_dict)
-        center_frequency = h5_dict['Radar Frequency']
-        # relative times in csk are wrt some reference time - for sicd they should be relative to start time
-        collect_start = parse_timestring(h5_dict['Scene Sensing Start UTC'], precision='ns')
-        ref_time = parse_timestring(h5_dict['Reference UTC'], precision='ns')
-        ref_time_offset = get_seconds(ref_time, collect_start, precision='ns')
+    def _get_band_specific_sicds(self, base_sicd, h5_dict, band_dict, shape_dict, dtype_dict):
+        # type: (SICDType, dict, dict, dict, dict) -> Dict[str, SICDType]
 
         def update_scp_prelim(sicd, band_name):
             # type: (SICDType, str) -> None
-            LLH = band_dict[band_name]['Centre Geodetic Coordinates']
+            if self._mission_id in ['CSK', 'KMPS']:
+                LLH = band_dict[band_name]['Centre Geodetic Coordinates']
+            elif self._mission_id == 'CSG':
+                LLH = h5_dict['Scene Centre Geodetic Coordinates']
+            else:
+                raise ValueError('Unhandled mission id {}'.format(self._mission_id))
             sicd.GeoData = GeoDataType(SCP=SCPType(LLH=LLH))  # EarthModel & ECF will be populated
 
         def update_image_data(sicd, band_name):
             # type: (SICDType, str) -> Tuple[float, float, float, float, int]
-
             cols, rows = shape_dict[band_name]
             # zero doppler time of first/last columns
             t_az_first_time = band_dict[band_name]['Zero Doppler Azimuth First Time']
@@ -393,22 +451,22 @@ class CSKDetails(object):
                                            FirstRow=0,
                                            FirstCol=0,
                                            FullImage=(rows, cols),
-                                           PixelType='RE16I_IM16I',
+                                           PixelType=dtype_dict[band_name],
                                            SCPPixel=RowColType(Row=int(rows/2),
                                                                Col=int(cols/2)))
             return t_rg_first_time, t_ss_rg_s, t_az_first_time, t_ss_az_s, t_use_sign
 
         def check_switch_state():
             # type: () -> Tuple[Poly1DType, Poly1DType, Poly1DType]
-            if 'CSK' in self._satellite:
-                if t_dop_rate_poly_rg[0] > 0:
+            if self.mission_id in ['CSK', 'CSG']:
+                if t_dop_rate_poly_rg[0] > 0:  # TODO: Is this right?
                     raise ValueError(
                         'Got unexpected state, use_sign = {} and dop_rate_poly_rg = {}'.format(
                             use_sign, t_dop_rate_poly_rg))
                 return (Poly1DType(Coefs=t_dop_poly_az),
                         Poly1DType(Coefs=t_dop_poly_rg),
                         Poly1DType(Coefs=t_dop_rate_poly_rg))
-            elif 'KMP' in self._satellite:
+            elif self.mission_id == 'KMPS':  # TODO: Is this right?
                 if (use_sign > 0 and t_dop_rate_poly_rg[0] > 0) or (use_sign < 0 and t_dop_rate_poly_rg[0] < 0):
                     raise ValueError(
                         'Got unexpected state, use_sign = {} and dop_rate_poly_rg = {}'.format(
@@ -417,7 +475,7 @@ class CSKDetails(object):
                         Poly1DType(Coefs=t_dop_poly_rg),
                         Poly1DType(Coefs=use_sign*t_dop_rate_poly_rg))
             else:
-                raise ValueError('Unhandled satellite type {}'.format(self._satellite))
+                raise ValueError('Unhandled mission id {}'.format(self._mission_id))
 
         def update_timeline(sicd, band_name):
             # type: (SICDType, str) -> None
@@ -433,14 +491,13 @@ class CSKDetails(object):
             chirp_length = band_dict[band_name]['Range Chirp Length']
             chirp_rate = abs(band_dict[band_name]['Range Chirp Rate'])
             sample_rate = band_dict[band_name]['Sampling Rate']
-            ref_dechirp_time = band_dict[band_name]['Reference Dechirping Time']
+            ref_dechirp_time = band_dict[band_name].get('Reference Dechirping Time', 0)  # TODO: is this right?
             win_length = band_dict[band_name]['Echo Sampling Window Length']
             rcv_fm_rate = 0 if numpy.isnan(ref_dechirp_time) else chirp_rate
             band_width = chirp_length*chirp_rate
             fr_min = center_frequency - 0.5*band_width
             fr_max = center_frequency + 0.5*band_width
-            sicd.RadarCollection.TxFrequency = TxFrequencyType(Min=fr_min,
-                                                               Max=fr_max)
+            sicd.RadarCollection.TxFrequency = TxFrequencyType(Min=fr_min, Max=fr_max)
             sicd.RadarCollection.Waveform = [
                 WaveformParametersType(index=0,
                                        TxPulseLength=chirp_length,
@@ -501,10 +558,13 @@ class CSKDetails(object):
             sicd.Grid.TimeCOAPoly = fit_time_coa_polynomial(
                 sicd.RMA.INCA, sicd.ImageData, sicd.Grid, dop_rate_poly_rg_shifted, poly_order=2)
 
+            if csk_addin is not None:
+                csk_addin.check_sicd(sicd, self.mission_id, h5_dict)
+
         def update_radiometric(sicd, band_name):
             # type: (SICDType, str) -> None
-            if 'KMP' in self._satellite:
-                # TODO: skipping for now - strange results for kompsat
+            if self.mission_id in ['KMPS', 'CSG']:
+                # TODO: skipping for now - strange results for flag == 77
                 return
             if h5_dict['Range Spreading Loss Compensation Geometry'] != 'NONE':
                 slant_range = h5_dict['Reference Slant Range']
@@ -522,8 +582,22 @@ class CSKDetails(object):
             ecf = sicd.project_image_to_ground(scp_pixel, projection_type='HAE')
             sicd.update_scp(ecf, coord_system='ECF')
 
+            SCP = sicd.GeoData.SCP.ECF.get_array(dtype='float64')
+            scp_time = sicd.RMA.INCA.TimeCAPoly[0]
+            ca_pos = sicd.Position.ARPPoly(scp_time)
+            RG = SCP - ca_pos
+            sicd.RMA.INCA.R_CA_SCP = numpy.linalg.norm(RG)
+
         out = {}
+        center_frequency = h5_dict['Radar Frequency']
+        # relative times in csk are wrt some reference time - for sicd they should be relative to start time
+        collect_start = parse_timestring(h5_dict['Scene Sensing Start UTC'], precision='ns')
+        ref_time = parse_timestring(h5_dict['Reference UTC'], precision='ns')
+        ref_time_offset = get_seconds(ref_time, collect_start, precision='ns')
+
         for i, bd_name in enumerate(band_dict):
+            az_ref_time, rg_ref_time, t_dop_poly_az, t_dop_poly_rg, t_dop_rate_poly_rg = \
+                self._get_dop_poly_details(h5_dict, band_dict, bd_name)
             t_sicd = base_sicd.copy()
             update_scp_prelim(t_sicd, bd_name)  # set preliminary value for SCP (required for projection)
             row_bw = band_dict[bd_name]['Range Focusing Bandwidth']*2/speed_of_light
@@ -552,6 +626,7 @@ class CSKDetails(object):
         return symm_0, symm_1, True
 
     def get_sicd_collection(self):
+        # type: () -> Tuple[Dict[str, SICDType], Dict[str, str], Tuple[bool, bool, bool]]
         """
         Get the sicd collection for the bands.
 
@@ -563,9 +638,9 @@ class CSKDetails(object):
             the third entry is the symmetry tuple
         """
 
-        h5_dict, band_dict, shape_dict = self._get_hdf_dicts()
+        h5_dict, band_dict, shape_dict, dtype_dict = self._get_hdf_dicts()
         base_sicd = self._get_base_sicd(h5_dict, band_dict)
-        return self._get_band_specific_sicds(base_sicd, h5_dict, band_dict, shape_dict), \
+        return self._get_band_specific_sicds(base_sicd, h5_dict, band_dict, shape_dict, dtype_dict), \
             shape_dict, self._get_symmetry(h5_dict)
 
 
@@ -642,8 +717,15 @@ class CSKReader(BaseReader):
         chippers = []
         sicds = []
         for band_name in sicd_data:
+            if self._csk_details.mission_id in ['CSK', 'KMPS']:
+                the_band = '{}/SBI'.format(band_name)
+            elif self._csk_details.mission_id == 'CSG':
+                the_band = '{}/IMG'.format(band_name)
+            else:
+                raise ValueError('Unhandled mission id {}'.format(self._csk_details.mission_id))
+
             sicds.append(sicd_data[band_name])
-            chippers.append(H5Chipper(csk_details.file_name, '{}/SBI'.format(band_name), shape_dict[band_name], symmetry))
+            chippers.append(H5Chipper(csk_details.file_name, the_band, shape_dict[band_name], symmetry))
         super(CSKReader, self).__init__(tuple(sicds), tuple(chippers), reader_type="SICD")
 
     @property
