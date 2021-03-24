@@ -1371,9 +1371,7 @@ class BIPChipper(BaseChipper):
 
     def _read_file(self, range1, range2):
         def get_row_location(rr, cc):
-            return self._data_offset + \
-                   rr*stride + \
-                   cc*element_size
+            return self._data_offset + rr*stride + cc*element_size
 
         # we have to manually map out the stride and all that for the array ourselves
         element_size = int_func(numpy.dtype(self._raw_dtype).itemsize*self._raw_bands)
