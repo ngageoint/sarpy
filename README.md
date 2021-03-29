@@ -58,8 +58,8 @@ message indicating the missing optional dependency.
   and/or writing a kmz image overlay requires the `pillow` package.
 
 - CPHD consistency checks, presented in the `sarpy.consistency` module, depend on 
-  `lxml>=4.1.1`, `shapely>=1.6.4`, and `pytest>=3.3.2`. Note that these are the 
-  versions tested for compliance.
+  `lxml>=4.1.1`, `networkx>=2.5`, `shapely>=1.6.4`, and `pytest>=3.3.2`. Note that these
+  are the versions tested for compliance.
 
 - Some less commonly used (in the sarpy realm) NITF functionality requires the use 
   and interpretation of UTM coordinates, and this requires the `pyproj` package. 
