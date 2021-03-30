@@ -1,5 +1,6 @@
 # This details the important differences introduced in sarpy 1.1
 
+* .62 - CPHD Consistency Improvements
 * .61 - Introduction of Cosmo SkyMed 2nd generation support
 * .60 - Creating a command line utility to dump some CPHD metadata
 * .59 - Implementing support for reading masked NITF without compression,
