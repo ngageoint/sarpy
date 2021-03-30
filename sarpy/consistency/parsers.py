@@ -158,3 +158,29 @@ def parse_ll(node):
     """
 
     return np.radians(float(node.findtext('Lon'))), np.radians(float(node.findtext('Lat')))
+
+
+def parse_poly2d(node):
+    """
+    Parse a node with ``'exponent1'`` and ``'exponent2'`` children.
+
+    Args
+    ----
+    node: `lxml.etree.ElementTree.Element`
+        Element containing a poly2d node.
+
+    Returns
+    -------
+    result: list of list, shape=(:, :)
+        A list of coefficient values.
+
+    """
+    coefs = node.findall('./Coef')
+    num_coefs1 = max([int(coef.get('exponent1')) for coef in coefs]) + 1
+    num_coefs2 = max([int(coef.get('exponent2')) for coef in coefs]) + 1
+    poly2d = np.zeros((num_coefs1, num_coefs2), np.float64)
+
+    for coef in coefs:
+        poly2d[int(coef.get('exponent1')), int(coef.get('exponent2'))] = float(coef.text)
+
+    return poly2d.tolist()

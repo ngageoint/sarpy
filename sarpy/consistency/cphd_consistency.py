@@ -11,12 +11,18 @@ __author__ = "Nathan Bombaci, Valkyrie"
 
 import logging
 import argparse
+import collections
 import functools
+import itertools
+import numbers
 import os
 import re
 from typing import List
 
 import numpy as np
+import numpy.polynomial.polynomial as npp
+
+from sarpy.geometry import geocoords
 
 try:
     import pytest
@@ -40,6 +46,12 @@ try:
     have_shapely = True
 except ImportError:
     have_shapely = False
+
+try:
+    import networkx as nx
+    have_networkx = True
+except ImportError:
+    have_networkx = False
 
 import sarpy.consistency.consistency as con
 import sarpy.consistency.parsers as parsers
@@ -331,6 +343,36 @@ class CphdConsistency(con.ConsistencyChecker):
         dwell_id = channel_node.findtext('./DwellTimes/DwellId')
         with self.need("DwellTime node exists"):
             assert self.xml.xpath('./Dwell/DwellTime/Identifier[text()="{}"]/..'.format(dwell_id))[0] is not None
+
+    def check_antenna(self):
+        """
+        Check that antenna node is consistent.
+        """
+        with self.precondition():
+            antenna_node = self.xml.find("./Antenna")
+            assert antenna_node is not None
+
+            expected_num_acfs = int(antenna_node.findtext("./NumACFs"))
+            actual_num_acfs = len(antenna_node.findall("./AntCoordFrame"))
+            with self.need("The NumACFs must be equal to the number of ACF nodes."):
+                assert expected_num_acfs == actual_num_acfs
+
+            expected_num_apcs = int(antenna_node.findtext("./NumAPCs"))
+            actual_num_apcs = len(antenna_node.findall("./AntPhaseCenter"))
+            with self.need("The NumAPCs must be equal to the number of APC nodes."):
+                assert expected_num_apcs == actual_num_apcs
+
+            expected_num_antpats = int(antenna_node.findtext("./NumAntPats"))
+            actual_num_antpats = len(antenna_node.findall("AntPattern"))
+            with self.need("The NumAntPats must be equal to the number of AntPattern nodes."):
+                assert expected_num_antpats == actual_num_antpats
+
+            apc_acfids = antenna_node.findall("./AntPhaseCenter/ACFId")
+            apc_acf_ids_text = {apc_acfid.text for apc_acfid in apc_acfids}
+            acf_identifiers = antenna_node.findall("./AntCoordFrame/Identifier")
+            acf_identifiers_text = {acf_identifier.text for acf_identifier in acf_identifiers}
+            with self.need("./AntPhaseCenter/ACFId references an identifier in AntCoordFrame."):
+                assert apc_acf_ids_text <= acf_identifiers_text
 
     @per_channel
     def check_channel_antenna_exist(self, channel_id, channel_node):
@@ -1038,6 +1080,474 @@ class CphdConsistency(con.ConsistencyChecker):
             with self.need("TOAMax matches PVP"):
                 assert toa2max_chan == pytest.approx(float(self.xml.findtext('./Global/TOASwath/TOAMax')))
 
+    def _check_ids_in_channel_for_optional_branch(self, branch_name):
+        with self.precondition():
+            assert self.xml.find('./{}'.format(branch_name)) is not None
+            with self.want("{} present in /Channel/Parameters".format(branch_name)):
+                assert self.xml.find('./Channel/Parameters/{}'.format(branch_name)) is not None
+
+    def check_antenna_ids_in_channel(self):
+        """
+        If the Antenna branch exists, then Antenna is also present in /Channel/Parameters
+        """
+
+        self._check_ids_in_channel_for_optional_branch('Antenna')
+
+    def check_txrcv_ids_in_channel(self):
+        """
+        If the TxRcv branch exists, then TxRcv is also present in /Channel/Parameters
+        """
+
+        self._check_ids_in_channel_for_optional_branch('TxRcv')
+
+    def _check_refgeom_parameters(self, xml_node, expected_parameters):
+        for xml_path, expected_value in expected_parameters.items():
+            if isinstance(expected_value, np.ndarray) and expected_value.size == 3:
+                parser = parsers.parse_xyz
+            else:
+                parser = parsers.parse_text
+
+            approx_args = {}
+            if 'Angle' in xml_path:
+                approx_args['atol'] = 1
+            elif xml_path.endswith('Time'):
+                approx_args['atol'] = 1e-6
+
+            actual_value = parser(xml_node.find('./{}'.format(xml_path)))
+            if isinstance(expected_value, numbers.Number):
+                actual_value = con.Approx(actual_value, **approx_args)
+
+            with self.need('{} matches defined PVP/calculation'.format(xml_path)):
+                assert np.all(expected_value == actual_value)
+
+    def check_refgeom_root(self):
+        """
+        The ReferenceGeometry branch root parameters match the PVPs/defined calculations
+        """
+
+        with self.precondition():
+            assert self.pvps is not None
+            refgeom = calc_refgeom_parameters(self.xml, self.pvps).refgeom
+            self._check_refgeom_parameters(self.xml.find('./ReferenceGeometry'), refgeom)
+
+    def check_refgeom_monostatic(self):
+        """
+        The ReferenceGeometry branch Monostatic parameters are present and match the PVPs/defined calculations
+        """
+
+        with self.precondition():
+            assert self.xml.findtext('./CollectionID/CollectType') == 'MONOSTATIC'
+            refgeom_mono = self.xml.find('./ReferenceGeometry/Monostatic')
+            with self.need("ReferenceGeometry type matches CollectType"):
+                assert refgeom_mono is not None
+
+            assert self.pvps is not None
+            monostat = calc_refgeom_parameters(self.xml, self.pvps).monostat
+            self._check_refgeom_parameters(refgeom_mono, monostat)
+
+    def check_refgeom_bistatic(self):
+        """
+        The ReferenceGeometry branch Bistatic parameters are present and match the PVPs/defined calculations
+        """
+
+        with self.precondition():
+            assert self.xml.findtext('./CollectionID/CollectType') == 'BISTATIC'
+            refgeom_bistat = self.xml.find('./ReferenceGeometry/Bistatic')
+            with self.need("ReferenceGeometry type matches CollectType"):
+                assert refgeom_bistat is not None
+
+            assert self.pvps is not None
+            bistat = calc_refgeom_parameters(self.xml, self.pvps).bistat
+            self._check_refgeom_parameters(refgeom_bistat, bistat)
+
+    def check_unconnected_ids(self):
+        """
+        Check that all identifiers are connected back to the Data branch.
+        """
+
+        with self.precondition():
+            assert have_networkx
+            id_graph = make_id_graph(self.xml)
+            data_subgraph = id_graph.subgraph(nx.shortest_path(id_graph, 'Data'))
+            no_data_subgraph = id_graph.copy()
+            no_data_subgraph.remove_nodes_from(data_subgraph)
+            unconnected_ids = [] if no_data_subgraph is None else [x for x in no_data_subgraph.nodes if '<' in x]
+            with self.want("All IDs connect to Data branch"):
+                assert not unconnected_ids
+
+
+def calc_refgeom_parameters(xml, pvps):
+    """
+    Calculate expected reference geometry parameters given CPHD XML and PVPs (CPHD1.0.1, Sec 6.5)
+    """
+
+    def unit(vec):
+        return vec / np.linalg.norm(vec)
+
+    # 6.5.1 - Reference Vector Parameters
+    ref_id = xml.findtext('./Channel/RefChId')
+    ref_chan_parameters = get_by_id(xml, './Channel/Parameters/', ref_id)
+    v_ch_ref = int(ref_chan_parameters.findtext('RefVectorIndex'))
+
+    ref_vector = pvps[ref_id][v_ch_ref]
+    txc = ref_vector['TxTime']
+    xmt = ref_vector['TxPos']
+    vxmt = ref_vector['TxVel']
+    trc_srp = ref_vector['RcvTime']
+    rcv = ref_vector['RcvPos']
+    vrcv = ref_vector['RcvVel']
+    srp = ref_vector['SRPPos']
+
+    ref_dwelltimes = get_by_id(xml, './Channel/Parameters/', ref_id).find('./DwellTimes')
+    ref_cod_id = ref_dwelltimes.findtext('CODId')
+    ref_dwell_id = ref_dwelltimes.findtext('DwellId')
+    xy2cod = parsers.parse_poly2d(get_by_id(xml, './Dwell/CODTime', ref_cod_id).find('./CODTimePoly'))
+    xy2dwell = parsers.parse_poly2d(get_by_id(xml, './Dwell/DwellTime', ref_dwell_id).find('./DwellTimePoly'))
+
+    # (1) See also Section 6.2
+    srp_llh = geocoords.ecf_to_geodetic(srp, 'latlong')
+    srp_lat, srp_lon = np.deg2rad(srp_llh[:2])
+
+    ref_surface = xml.find('./SceneCoordinates/ReferenceSurface/Planar')
+    if ref_surface is None:  # TODO: Add HAE
+        raise NotImplementedError("Non-Planar reference surfaces (e.g. HAE) are currently not supported.")
+
+    iax = parsers.parse_xyz(ref_surface.find('./uIAX'))
+    iay = parsers.parse_xyz(ref_surface.find('./uIAY'))
+    iarp = parsers.parse_xyz(xml.find('./SceneCoordinates/IARP/ECF'))
+    srp_iac = np.dot([iax, iay, unit(np.cross(iax, iay))], srp - iarp)
+
+    # (2)
+    srp_dec = np.linalg.norm(srp)
+    uec_srp = srp / srp_dec
+
+    # (3)
+    ueast = np.array((-np.sin(srp_lon),
+                      np.cos(srp_lon),
+                      0))
+    unor = np.array((-np.sin(srp_lat) * np.cos(srp_lon),
+                     -np.sin(srp_lat) * np.sin(srp_lon),
+                     np.cos(srp_lat)))
+    uup = np.array((np.cos(srp_lat) * np.cos(srp_lon),
+                    np.cos(srp_lat) * np.sin(srp_lon),
+                    np.sin(srp_lat)))
+
+    # (4)
+    r_xmt_srp = np.linalg.norm(xmt - srp)
+    r_rcv_srp = np.linalg.norm(rcv - srp)
+
+    # (5)
+    t_ref = txc + r_xmt_srp / (r_xmt_srp + r_rcv_srp) * (trc_srp - txc)
+
+    # (6)
+    t_cod_srp = npp.polyval2d(*srp_iac[:2], c=xy2cod)
+    t_dwell_srp = npp.polyval2d(*srp_iac[:2], c=xy2dwell)
+
+    # (7)
+    refgeom = {'SRP/ECF': srp,
+               'SRP/IAC': srp_iac,
+               'ReferenceTime': t_ref,
+               'SRPCODTime': t_cod_srp,
+               'SRPDwellTime': t_dwell_srp}
+
+    def calc_apc_parameters(position, velocity):
+        """Calculate APC parameters given a position and velocity.
+
+        Use arp/varp variable substitution for similarity with CPHD v1.0.1 Section 6.5.2
+
+        """
+        # (1)
+        arp = position
+        varp = velocity
+
+        # (2)
+        r_arp_srp = np.linalg.norm(arp - srp)
+        uarp = (arp - srp) / r_arp_srp
+        rdot_arp_srp = np.dot(uarp, varp)
+
+        # (3)
+        arp_dec = np.linalg.norm(arp)
+        uec_arp = arp / arp_dec
+
+        # (4)
+        ea_arp = np.arccos(np.dot(uec_arp, uec_srp))
+        rg_arp_srp = srp_dec * ea_arp
+
+        # (5)
+        varp_m = np.linalg.norm(varp)
+        uvarp = varp / varp_m
+        left = np.cross(uec_arp, uvarp)
+
+        # (6)
+        look = +1 if np.dot(left, uarp) < 0 else -1
+        side_of_track = 'L' if look == +1 else 'R'
+
+        # (7)
+        dca = np.arccos(-rdot_arp_srp / varp_m)
+
+        # (8)
+        ugpz = uup
+        gpy = np.cross(uup, uarp)
+        ugpy = unit(gpy)
+        ugpx = np.cross(ugpy, ugpz)
+
+        # (9)
+        graz = np.arccos(np.dot(uarp, ugpx))
+        # incidence angle in (15)
+
+        # (10)
+        gpx_n = np.dot(ugpx, unor)
+        gpx_e = np.dot(ugpx, ueast)
+        azim = np.arctan2(gpx_e, gpx_n)
+
+        # (11)
+        uspn = unit(look * np.cross(uarp, uvarp))
+
+        # (12)
+        twst = -np.arcsin(np.dot(uspn, ugpy))
+
+        # (13)
+        slope = np.arccos(np.dot(ugpz, uspn))
+
+        # (14)
+        lodir_n = np.dot(-uspn, unor)
+        lodir_e = np.dot(-uspn, ueast)
+        lo_ang = np.arctan2(lodir_e, lodir_n)
+
+        # (15)
+        return {'ARPPos': arp,
+                'ARPVel': varp,
+                'SideOfTrack': side_of_track,
+                'SlantRange': r_arp_srp,
+                'GroundRange': rg_arp_srp,
+                'DopplerConeAngle': np.rad2deg(dca),
+                'GrazeAngle': np.rad2deg(graz),
+                'IncidenceAngle': 90 - np.rad2deg(graz),
+                'AzimuthAngle': np.rad2deg(azim) % 360,
+                'TwistAngle': np.rad2deg(twst),
+                'SlopeAngle': np.rad2deg(slope),
+                'LayoverAngle': np.rad2deg(lo_ang) % 360}
+
+    def calc_apc_parameters_bi(platform, time, position, velocity):
+        apc_params = calc_apc_parameters(position, velocity)
+        apc_params['Time'] = time
+        apc_params['Pos'] = apc_params.pop('ARPPos')
+        apc_params['Vel'] = apc_params.pop('ARPVel')
+        del apc_params['TwistAngle']
+        del apc_params['SlopeAngle']
+        del apc_params['LayoverAngle']
+
+        # Conditions unique to bistatic (6.5.3 18-19)
+        if np.linalg.norm(velocity) == 0:
+            apc_params['DopplerConeAngle'] = 90
+            apc_params['SideOfTrack'] = 'L'
+        if apc_params['GroundRange'] == 0:
+            apc_params['GrazeAngle'] = 90
+            apc_params['IncidenceAngle'] = 0
+            apc_params['AzimuthAngle'] = 0
+
+        return {'{platform}Platform/{k}'.format(platform=platform, k=k): v for k, v in apc_params.items()}
+
+    def calc_refgeom_mono():
+        return calc_apc_parameters((xmt + rcv) / 2, (vxmt + vrcv) / 2)
+
+    def calc_refgeom_bi():
+        # 6.5.3 Reference Geometry: Collect Type = BISTATIC
+        # (1)
+        uxmt = (xmt - srp) / r_xmt_srp
+        rdot_xmt_srp = np.dot(uxmt, vxmt)
+        uxmtdot = (vxmt - np.dot(rdot_xmt_srp, uxmt)) / r_xmt_srp
+
+        # (2)
+        urcv = (rcv - srp) / r_rcv_srp
+        rdot_rcv_srp = np.dot(urcv, vrcv)
+        urcvdot = (vrcv - np.dot(rdot_rcv_srp, urcv)) / r_rcv_srp
+
+        # (3)
+        bp = (uxmt + urcv) / 2
+        bpdot = (uxmtdot + urcvdot) / 2
+
+        # (4)
+        bp_mag = np.linalg.norm(bp)
+        bistat_ang = 2 * np.arccos(bp_mag)
+
+        # (5)
+        bistat_ang_rate = 0.0 if bp_mag in (0, 1) else -(4 * np.dot(bp, bpdot) / np.sin(bistat_ang))
+
+        # (6)
+        ugpz = uup
+        bp_gpz = np.dot(bp, ugpz)
+        bp_gp = bp - np.dot(bp_gpz, ugpz)
+        bp_gpx = np.linalg.norm(bp_gp)
+
+        # (7)
+        ubgpx = bp_gp / bp_gpx
+        ubgpy = np.cross(ugpz, ubgpx)
+
+        # (8)
+        bistat_graz = np.arctan(bp_gpz / bp_gpx)
+
+        # (9)
+        bgpx_n = np.dot(ubgpx, unor)
+        bgpx_e = np.dot(ubgpx, ueast)
+        bistat_azim = np.arctan2(bgpx_e, bgpx_n)
+
+        # (10)
+        bpdot_bgpy = np.dot(bpdot, ubgpy)
+        bistat_azim_rate = -(bpdot_bgpy / bp_gpx)
+
+        # (11)
+        bistat_sgn = +1 if bpdot_bgpy > 0 else -1
+
+        # (12)
+        ubp = bp / bp_mag
+        bpdotp = np.dot(bpdot, ubp) * ubp
+        bpdotn = bpdot - bpdotp
+
+        # (13)
+        bipn = bistat_sgn * np.cross(bp, bpdotn)
+        ubipn = unit(bipn)
+
+        # (14)
+        bistat_twst = -np.arcsin(np.dot(ubipn, ubgpy))
+
+        # (15)
+        bistat_slope = np.arccos(np.dot(ugpz, ubipn))
+
+        # (16)
+        b_lodir_n = np.dot(-ubipn, unor)
+        b_lodir_e = np.dot(-ubipn, ueast)
+        bistat_lo_ang = np.arctan2(b_lodir_e, b_lodir_n)
+
+        # Caveat in (6)
+        if bp_gpx == 0:
+            bistat_azim = 0
+            bistat_azim_rate = 0
+            bistat_graz = 0
+            bistat_twst = 0
+            bistat_slope = 0
+            bistat_lo_ang = 0
+
+        # Caveat in (10)
+        if bpdot_bgpy == 0:
+            bistat_twst = 0
+            bistat_slope = 0
+            bistat_lo_ang = 0
+
+        refgeom_bi = {
+            # (17)
+            'AzimuthAngle': np.rad2deg(bistat_azim) % 360,
+            'AzimuthAngleRate': np.rad2deg(bistat_azim_rate),
+            'BistaticAngle': np.rad2deg(bistat_ang),
+            'BistaticAngleRate': np.rad2deg(bistat_ang_rate),
+            'GrazeAngle': np.rad2deg(bistat_graz),
+            'TwistAngle': np.rad2deg(bistat_twst),
+            'SlopeAngle': np.rad2deg(bistat_slope),
+            'LayoverAngle': np.rad2deg(bistat_lo_ang) % 360
+        }
+        # (18)
+        refgeom_bi.update(calc_apc_parameters_bi('Tx', txc, xmt, vxmt))
+        # (19)
+        refgeom_bi.update(calc_apc_parameters_bi('Rcv', trc_srp, rcv, vrcv))
+        return refgeom_bi
+
+    mono = calc_refgeom_mono()
+    bistat = calc_refgeom_bi()
+
+    return collections.namedtuple('refgeom_params', 'refgeom monostat bistat')(refgeom, mono, bistat)
+
+
+def make_id_graph(xml):
+    """
+    Make an undirected graph with CPHD identifiers as nodes and edges from correspondence and hierarchy.
+
+    Nodes are named as {xml_path}<{id}, e.g. /Data/Channel/Identifier<Ch1
+    There is a single "Data" node formed from the Data branch root that signifies data that can be read from the file
+
+    Args
+    ----
+    xml: `lxml.etree.ElementTree.Element`
+        Root CPHD XML node
+
+    Returns
+    -------
+    id_graph: `networkx.Graph`
+        Undirected graph
+
+            * nodes: Data node, CPHD identifiers
+            * edges: Parent identifiers to child identifiers; corresponding identifiers across XML branches
+
+    """
+
+    id_graph = nx.Graph()
+
+    def add_id_nodes_from_path(xml_path):
+        id_graph.add_nodes_from(["{}<{}".format(xml_path, n.text) for n in xml.findall('.' + xml_path)])
+
+    def add_id_nodes_from_path_with_connected_root(xml_path):
+        root_node = xml_path.split('/')[1]
+        id_graph.add_edges_from(zip(itertools.repeat(root_node),
+                                    ["{}<{}".format(xml_path, n.text) for n in xml.findall('.' + xml_path)]))
+
+    def get_id_from_node_name(node_name):
+        return node_name.split('<')[-1]
+
+    def connect_matching_id_nodes(path_a, path_b):
+        all_nodes = list(id_graph.nodes)
+        all_a = {get_id_from_node_name(x): x for x in all_nodes if x.split('<')[0] == path_a}
+        all_b = {get_id_from_node_name(x): x for x in all_nodes if x.split('<')[0] == path_b}
+
+        for k in set(all_a).intersection(all_b):
+            id_graph.add_edge(all_a[k], all_b[k])
+
+    def add_and_connect_id_nodes(path_a, path_b):
+        add_id_nodes_from_path(path_a)
+        add_id_nodes_from_path(path_b)
+        connect_matching_id_nodes(path_a, path_b)
+
+    def add_and_connect_children(parent_path, parent_id_name, children_paths):
+        for parent in xml.findall('.' + parent_path):
+            parent_id = parent.findtext(parent_id_name)
+            for child_path in children_paths:
+                for child in parent.findall('.' + child_path):
+                    id_graph.add_edge('{}/{}<{}'.format(parent_path, parent_id_name, parent_id),
+                                      '{}/{}<{}'.format(parent_path, child_path, child.text))
+
+    add_id_nodes_from_path_with_connected_root('/Data/Channel/Identifier')
+    add_id_nodes_from_path_with_connected_root('/Data/SupportArray/Identifier')
+
+    channel_children = ['DwellTimes/CODId', 'DwellTimes/DwellId']
+    channel_children += ['Antenna/'+ident for ident in ('TxAPCId', 'TxAPATId', 'RcvAPCId', 'RcvAPATId')]
+    channel_children += ['TxRcv/TxWFId', 'TxRcv/RcvId']
+    add_and_connect_children('/Channel/Parameters', 'Identifier', channel_children)
+
+    connect_matching_id_nodes('/Data/Channel/Identifier', '/Channel/Parameters/Identifier')
+
+    add_and_connect_id_nodes('/Data/SupportArray/Identifier', '/SupportArray/IAZArray/Identifier')
+    add_and_connect_id_nodes('/Data/SupportArray/Identifier', '/SupportArray/AntGainPhase/Identifier')
+    add_and_connect_id_nodes('/Data/SupportArray/Identifier', '/SupportArray/AddedSupportArray/Identifier')
+
+    add_and_connect_id_nodes('/Channel/Parameters/DwellTimes/CODId', '/Dwell/CODTime/Identifier')
+    add_and_connect_id_nodes('/Channel/Parameters/DwellTimes/DwellId', '/Dwell/DwellTime/Identifier')
+
+    add_and_connect_id_nodes('/Antenna/AntCoordFrame/Identifier', '/Antenna/AntPhaseCenter/ACFId')
+    add_and_connect_children('/Antenna/AntPattern', 'Identifier',
+                             ('GainPhaseArray/ArrayId', 'GainPhaseArray/ElementId'))
+    add_and_connect_children('/Antenna/AntPhaseCenter', 'Identifier', ('ACFId',))
+
+    add_and_connect_id_nodes('/Channel/Parameters/Antenna/TxAPCId', '/Antenna/AntPhaseCenter/Identifier')
+    add_and_connect_id_nodes('/Channel/Parameters/Antenna/TxAPATId', '/Antenna/AntPattern/Identifier')
+    add_and_connect_id_nodes('/Channel/Parameters/Antenna/RcvAPCId', '/Antenna/AntPhaseCenter/Identifier')
+    add_and_connect_id_nodes('/Channel/Parameters/Antenna/RcvAPATId', '/Antenna/AntPattern/Identifier')
+
+    connect_matching_id_nodes('/SupportArray/AntGainPhase/Identifier', '/Antenna/AntPattern/GainPhaseArray/ArrayId')
+    connect_matching_id_nodes('/SupportArray/AntGainPhase/Identifier', '/Antenna/AntPattern/GainPhaseArray/ElementId')
+
+    add_and_connect_id_nodes('/Channel/Parameters/TxRcv/TxWFId', '/TxRcv/TxWFParameters/Identifier')
+    add_and_connect_id_nodes('/Channel/Parameters/TxRcv/RcvId', '/TxRcv/RcvParameters/Identifier')
+
+    return id_graph
+
 
 def main(args=None):
     """
@@ -1048,7 +1558,7 @@ def main(args=None):
     args: None|List[str]
         List of CLI argument strings.  If None use sys.argv
     """
-    parser = argparse.ArgumentParser('CPHD Consistency')
+    parser = argparse.ArgumentParser(description="Analyze a CPHD and display inconsistencies")
     parser.add_argument('cphd_or_xml')
     parser.add_argument('-v', '--verbose', default=0,
                         action='count', help="Increase verbosity (can be specified more than once >4 doesn't help)")
