@@ -18,7 +18,14 @@ import pytest
 from sarpy.consistency import cphd_consistency
 from sarpy.io.phase_history.cphd_schema import get_schema_path
 
-GOOD_CPHD = os.path.join(os.environ['SARPY_TEST_PATH'], 'cphd', 'spotlight_example.cphd')
+TEST_FILE_NAMES = {
+    'simple': 'spotlight_example.cphd',
+    'has_antenna': 'has_antenna.cphd',
+    'bistatic': 'bistatic.cphd',
+}
+TEST_FILE_PATHS = {k: os.path.join(os.environ['SARPY_TEST_PATH'], 'cphd', v) for k,v in TEST_FILE_NAMES.items()}
+
+GOOD_CPHD = TEST_FILE_PATHS['simple']
 DEFAULT_SCHEMA = get_schema_path(version='1.0.1')
 
 def make_elem(tag, text=None, children=None, namespace=None, attributes=None, **attrib):
@@ -77,14 +84,24 @@ def tmpdir():
     shutil.rmtree(dirname)
 
 
-@pytest.fixture(scope='module')
-def good_xml_str():
-    with open(GOOD_CPHD, 'rb') as fid:
+def _read_xml_str(cphd_path):
+    with open(cphd_path, 'rb') as fid:
         header = cphd_consistency.read_header(fid)
         fid.seek(header['XML_BLOCK_BYTE_OFFSET'], 0)
         xml_block_size = header['XML_BLOCK_SIZE']
-
         return fid.read(xml_block_size).decode()
+
+
+@pytest.fixture(scope='module')
+def good_xml_str():
+    return _read_xml_str(GOOD_CPHD)
+
+
+@pytest.fixture(scope='module')
+def good_xml_with_antenna():
+    xml_str = _read_xml_str(TEST_FILE_PATHS['has_antenna'])
+    xml_root = etree.fromstring(xml_str)
+    return cphd_consistency.strip_namespace(xml_root)
 
 
 @pytest.fixture
@@ -139,6 +156,11 @@ def test_main(good_xml_str, tmpdir):
     assert not cphd_consistency.main([str(xml_file), '-v'])
 
 
+@pytest.mark.parametrize('cphd_file', TEST_FILE_PATHS.values())
+def test_main_each_file(cphd_file):
+    assert not cphd_consistency.main([cphd_file])
+
+
 def test_xml_schema_error(good_xml):
     bad_xml = copy_xml(good_xml['with_ns'])
 
@@ -147,6 +169,32 @@ def test_xml_schema_error(good_xml):
                                                                   schema=DEFAULT_SCHEMA,
                                                                   check_signal_data=False)
     cphd_con.check('check_against_schema')
+    assert cphd_con.failures()
+
+
+def test_check_unconnected_ids_severed_node(good_xml):
+    bad_xml = copy_xml(good_xml['without_ns'])
+
+    bad_xml.find('./Dwell/CODTime/Identifier').text += '-make-bad'
+    cphd_con = cphd_consistency.CphdConsistency(bad_xml, pvps={}, header=good_header, filename=None,
+                                                schema=DEFAULT_SCHEMA,
+                                                check_signal_data=False)
+    cphd_con.check('check_unconnected_ids')
+    assert cphd_con.failures()
+
+
+def test_check_unconnected_ids_extra_node(good_xml):
+    bad_xml = copy_xml(good_xml['without_ns'])
+
+    first_acf = bad_xml.find('./Antenna/AntCoordFrame')
+    extra_acf = copy.deepcopy(first_acf)
+    extra_acf.find('./Identifier').text += '_superfluous'
+    first_acf.getparent().append(extra_acf)
+
+    cphd_con = cphd_consistency.CphdConsistency(bad_xml, pvps={}, header=good_header, filename=None,
+                                                schema=DEFAULT_SCHEMA,
+                                                check_signal_data=False)
+    cphd_con.check('check_unconnected_ids')
     assert cphd_con.failures()
 
 
@@ -412,6 +460,50 @@ def test_txrcv_bad_txwfid(xml_with_txrcv):
     assert cphd_con.failures()
 
 
+def test_antenna_bad_acf_count(good_xml):
+    root = copy_xml(good_xml['with_ns'])
+    antenna_node = root.find('./ns:Antenna', namespaces=good_xml['nsmap'])
+    antenna_node.xpath('./ns:NumACFs', namespaces=good_xml['nsmap'])[-1].text += '2'
+    cphd_con = cphd_consistency.CphdConsistency(root, pvps=None, header=None, filename=None,
+                                                schema=DEFAULT_SCHEMA,
+                                                check_signal_data=False)
+    cphd_con.check('check_antenna')
+    assert cphd_con.failures()
+
+
+def test_antenna_bad_apc_count(good_xml):
+    root = copy_xml(good_xml['with_ns'])
+    antenna_node = root.find('./ns:Antenna', namespaces=good_xml['nsmap'])
+    antenna_node.xpath('./ns:NumAPCs', namespaces=good_xml['nsmap'])[-1].text += '2'
+    cphd_con = cphd_consistency.CphdConsistency(root, pvps=None, header=None, filename=None,
+                                                schema=DEFAULT_SCHEMA,
+                                                check_signal_data=False)
+    cphd_con.check('check_antenna')
+    assert cphd_con.failures()
+
+
+def test_antenna_bad_antpats_count(good_xml):
+    root = copy_xml(good_xml['with_ns'])
+    antenna_node = root.find('./ns:Antenna', namespaces=good_xml['nsmap'])
+    antenna_node.xpath('./ns:NumAntPats', namespaces=good_xml['nsmap'])[-1].text += '2'
+    cphd_con = cphd_consistency.CphdConsistency(root, pvps=None, header=None, filename=None,
+                                                schema=DEFAULT_SCHEMA,
+                                                check_signal_data=False)
+    cphd_con.check('check_antenna')
+    assert cphd_con.failures()
+
+
+def test_antenna_non_matching_acfids(good_xml):
+    root = copy_xml(good_xml['with_ns'])
+    antenna_node = root.find('./ns:Antenna', namespaces=good_xml['nsmap'])
+    antenna_node.xpath('./ns:AntPhaseCenter/ns:ACFId', namespaces=good_xml['nsmap'])[-1].text += '_wrong'
+    cphd_con = cphd_consistency.CphdConsistency(root, pvps=None, header=None, filename=None,
+                                                schema=DEFAULT_SCHEMA,
+                                                check_signal_data=False)
+    cphd_con.check('check_antenna')
+    assert cphd_con.failures()
+
+
 def test_txrcv_bad_rcvid(xml_with_txrcv):
     chan_ids, root, nsmap = xml_with_txrcv
 
@@ -425,6 +517,21 @@ def test_txrcv_bad_rcvid(xml_with_txrcv):
 
     tocheck = ['check_channel_txrcv_exist_{}'.format(key) for key in chan_ids]
     cphd_con.check(tocheck)
+    assert cphd_con.failures()
+
+
+def test_txrcv_missing_channel_node(xml_with_txrcv):
+    chan_ids, root, nsmap = xml_with_txrcv
+
+    chan_param_node = root.xpath('./ns:Channel/ns:Parameters/ns:Identifier[text()="{}"]/..'.format(chan_ids[0]),
+                                 namespaces=nsmap)[0]
+    remove_nodes(*chan_param_node.findall('./ns:TxRcv', nsmap))
+
+    cphd_con = cphd_consistency.CphdConsistency(root, pvps=None, header=None, filename=None,
+                                                schema=DEFAULT_SCHEMA,
+                                                check_signal_data=False)
+
+    cphd_con.check('check_txrcv_ids_in_channel')
     assert cphd_con.failures()
 
 
@@ -647,4 +754,49 @@ def test_extended_imagearea_polygon_bad_extent(xml_with_extendedarea):
                                                                   check_signal_data=False)
 
     cphd_con.check('check_extended_imagearea_polygon')
+    assert cphd_con.failures()
+
+
+def test_antenna_missing_channel_node(good_xml_with_antenna):
+    bad_xml = copy_xml(good_xml_with_antenna)
+    remove_nodes(*bad_xml.findall('./Channel/Parameters/Antenna'))
+
+    cphd_con = cphd_consistency.CphdConsistency(bad_xml, pvps=None, header=None, filename=None,
+                                                schema=DEFAULT_SCHEMA,
+                                                check_signal_data=False)
+
+    cphd_con.check('check_antenna_ids_in_channel')
+    assert cphd_con.failures()
+
+
+def test_refgeom_bad_root():
+    cphd_con = cphd_consistency.CphdConsistency.from_file(GOOD_CPHD,
+                                                          schema=DEFAULT_SCHEMA,
+                                                          check_signal_data=False)
+    bad_node = cphd_con.xml.find('./ReferenceGeometry/SRPCODTime')
+    bad_node.text = '24' + bad_node.text
+
+    cphd_con.check('check_refgeom_root')
+    assert cphd_con.failures()
+
+
+def test_refgeom_bad_monostatic():
+    cphd_con = cphd_consistency.CphdConsistency.from_file(GOOD_CPHD,
+                                                          schema=DEFAULT_SCHEMA,
+                                                          check_signal_data=False)
+    bad_node = cphd_con.xml.find('./ReferenceGeometry/Monostatic/AzimuthAngle')
+    bad_node.text = str((float(bad_node.text) + 3) % 360)
+
+    cphd_con.check('check_refgeom_monostatic')
+    assert cphd_con.failures()
+
+
+def test_refgeom_bad_bistatic():
+    cphd_con = cphd_consistency.CphdConsistency.from_file(TEST_FILE_PATHS['bistatic'],
+                                                          schema=DEFAULT_SCHEMA,
+                                                          check_signal_data=False)
+    bad_node = cphd_con.xml.find('./ReferenceGeometry/Bistatic/RcvPlatform/SlantRange')
+    bad_node.text = '2' + bad_node.text
+
+    cphd_con.check('check_refgeom_bistatic')
     assert cphd_con.failures()
