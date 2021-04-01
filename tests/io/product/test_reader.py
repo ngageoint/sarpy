@@ -74,7 +74,7 @@ def generic_reader_test(instance, test_file, reader_type_string, reader_type):
 
         with instance.subTest(msg='Validity of sidd at index {} in reader of '
                                   'type {} for file {}'.format(i, reader_type_string, test_file)):
-            if not sidd.is_valid(recursive=True):
+            if not sidd.is_valid(recursive=True, stack=False):
                 logging.warning('sidd at index {} in reader of type {} for file {} not valid'.format(i, reader_type_string, test_file))
     del reader
 

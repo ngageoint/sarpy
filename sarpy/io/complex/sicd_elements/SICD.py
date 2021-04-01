@@ -463,12 +463,12 @@ class SICDType(Serializable):
                 'A reference frequency is being used. This may affect the results of this validation test, '
                 'because a number tests could not be performed.')
 
-    def is_valid(self, recursive=False):
+    def is_valid(self, recursive=False, stack=False):
         all_required = self._basic_validity_check()
         if not recursive:
             return all_required
 
-        valid_children = self._recursive_validity_check()
+        valid_children = self._recursive_validity_check(stack=stack)
         # check point projection ability
         if not self.can_project_coordinates():
             logging.error(

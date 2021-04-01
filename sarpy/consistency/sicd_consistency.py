@@ -124,7 +124,7 @@ def check_file(file_name):
     valid_xml = _evaluate_xml_versus_schema(sicd_xml, urn_string)
 
     the_sicd = SICDType.from_node(root_node, xml_ns=xml_ns)
-    valid_sicd_contents = the_sicd.is_valid(recursive=True)
+    valid_sicd_contents = the_sicd.is_valid(recursive=True, stack=False)
     return valid_xml & valid_sicd_contents
 
 

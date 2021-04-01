@@ -1417,7 +1417,15 @@ class Serializable(object):
         else:
             return str
 
-    def is_valid(self, recursive=False):
+    def _log_validity_error(self, msg):
+        # type: (str) -> None
+        logging.error(msg)
+
+    def _log_validity_warning(self, msg):
+        # type: (str) -> None
+        logging.warning(msg)
+
+    def is_valid(self, recursive=False, stack=False):
         """Returns the validity of this object according to the schema. This is done by inspecting that all required
         fields (i.e. entries of `_required`) are not `None`.
 
@@ -1425,6 +1433,8 @@ class Serializable(object):
         ----------
         recursive : bool
             True if we recursively check that child are also valid. This may result in verbose (i.e. noisy) logging.
+        stack : bool
+            Print a recursive error message?
 
         Returns
         -------
@@ -1436,7 +1446,7 @@ class Serializable(object):
         if not recursive:
             return all_required
 
-        valid_children = self._recursive_validity_check()
+        valid_children = self._recursive_validity_check(stack=stack)
         return all_required & valid_children
 
     def _basic_validity_check(self):
@@ -1453,7 +1463,7 @@ class Serializable(object):
         for attribute in self._required:
             present = (getattr(self, attribute) is not None)
             if not present:
-                logging.error(
+                self._log_validity_error(
                     "Class {} is missing required attribute {}".format(self.__class__.__name__, attribute))
             all_required &= present
 
@@ -1467,21 +1477,26 @@ class Serializable(object):
                 if getattr(self, attribute) is not None:
                     present.append(attribute)
             if len(present) == 0 and required:
-                logging.error(
+                self._log_validity_error(
                     "Class {} requires that exactly one of the attributes {} is set, but none are "
                     "set.".format(self.__class__.__name__, collect))
                 choices = False
             elif len(present) > 1:
-                logging.error(
+                self._log_validity_error(
                     "Class {} requires that no more than one of attributes {} is set, but multiple {} are "
                     "set.".format(self.__class__.__name__, collect, present))
                 choices = False
 
         return all_required and choices
 
-    def _recursive_validity_check(self):
+    def _recursive_validity_check(self, stack=False):
         """
         Perform a recursive validity check on all present attributes.
+
+        Parameters
+        ----------
+        stack : bool
+            Print a recursive error message?
 
         Returns
         -------
@@ -1491,7 +1506,7 @@ class Serializable(object):
 
         def check_item(value):
             if isinstance(value, (Serializable, SerializableArray)):
-                return value.is_valid(recursive=True)
+                return value.is_valid(recursive=True, stack=stack)
             return True
 
         valid_children = True
@@ -1503,9 +1518,9 @@ class Serializable(object):
             elif isinstance(val, list):
                 for entry in val:
                     good &= check_item(entry)
-            # any issues will be logged as discovered, but we should help with the "stack"
-            if not good:
-                logging.error(  # I should probably do better with a stack type situation. This is traceable, at least.
+            # any issues will be logged as discovered, but should we help with the "stack"?
+            if not good and stack:
+                self._log_validity_error(
                     "Issue discovered with {} attribute of type {} of class {}.".format(
                         attribute, type(val), self.__class__.__name__))
             valid_children &= good
@@ -1730,7 +1745,7 @@ class Serializable(object):
                     'been implemented'.format(self.__class__.__name__, field, type(val)))
 
         if check_validity:
-            if not self.is_valid():
+            if not self.is_valid(stack=False):
                 msg = "{} is not valid, and cannot be SAFELY serialized to XML according to " \
                       "the SICD standard.".format(self.__class__.__name__)
                 if strict:
@@ -1877,7 +1892,7 @@ class Serializable(object):
                     'been implemented'.format(self.__class__.__name__, field, type(val)))
 
         if check_validity:
-            if not self.is_valid():
+            if not self.is_valid(stack=False):
                 msg = "{} is not valid, and cannot be SAFELY serialized to a dictionary valid in " \
                       "the SICD standard.".format(self.__class__.__name__)
                 if strict:
@@ -2093,7 +2108,15 @@ class SerializableArray(object):
             raise TypeError('Elements of {} must be of type {}, not None'.format(self._name, self._child_type))
         self._array[index] = _parse_serializable(value, self._name, self, self._child_type)
 
-    def is_valid(self, recursive=False):
+    def _log_validity_error(self, msg):
+        # type: (str) -> None
+        logging.error(msg)
+
+    def _log_validity_warning(self, msg):
+        # type: (str) -> None
+        logging.warning(msg)
+
+    def is_valid(self, recursive=False, stack=False):
         """Returns the validity of this object according to the schema. This is done by inspecting that the
         array is populated.
 
@@ -2101,23 +2124,24 @@ class SerializableArray(object):
         ----------
         recursive : bool
             True if we recursively check that children are also valid. This may result in verbose (i.e. noisy) logging.
-
+        stack : bool
+            Should we print error messages recursively, for a stack type situation?
         Returns
         -------
         bool
             condition for validity of this element
         """
         if self._array is None:
-            logging.error(
+            self._log_validity_error(
                 "Field {} has unpopulated array".format(self._name))
             return False
         if not recursive:
             return True
         valid_children = True
         for i, entry in enumerate(self._array):
-            good = entry.is_valid(recursive=True)
-            if not good:
-                logging.error(  # I should probably do better with a stack type situation. This is traceable, at least.
+            good = entry.is_valid(recursive=True, stack=stack)
+            if not good and stack:
+                self._log_validity_error(  # I should probably do better with a stack type situation. This is traceable, at least.
                     "Issue discovered with entry {} array field {}.".format(i, self._name))
             valid_children &= good
         return valid_children

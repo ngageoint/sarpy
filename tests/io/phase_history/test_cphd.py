@@ -52,7 +52,7 @@ def generic_io_test(instance, test_file, reader_type_string, reader_type):
 
     with instance.subTest(msg='Validity of cphd in reader of '
                               'type {} for file {}'.format(reader_type_string, test_file)):
-        if not reader.cphd_meta.is_valid(recursive=True):
+        if not reader.cphd_meta.is_valid(recursive=True, stack=False):
             logging.warning(
                 'cphd in reader of type {} for file {} not valid'.format(reader_type_string, test_file))
 
