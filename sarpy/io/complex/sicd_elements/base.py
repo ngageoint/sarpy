@@ -1417,13 +1417,38 @@ class Serializable(object):
         else:
             return str
 
-    def _log_validity_error(self, msg):
-        # type: (str) -> None
-        logging.error(msg)
+    def log_validity_error(self, msg):
+        """
+        Log a validity check error message.
+        
+        Parameters
+        ----------
+        msg : str
+        """
 
-    def _log_validity_warning(self, msg):
-        # type: (str) -> None
-        logging.warning(msg)
+        logging.error('{}: {}'.format(self.__class__.__name__, msg))
+
+    def log_validity_warning(self, msg):
+        """
+        Log a validity check warning message.
+
+        Parameters
+        ----------
+        msg : str
+        """
+
+        logging.warning('{}: {}'.format(self.__class__.__name__, msg))
+
+    def log_validity_info(self, msg):
+        """
+        Log a validation info message.
+
+        Parameters
+        ----------
+        msg : str
+        """
+
+        logging.info('{}: {}'.format(self.__class__.__name__, msg))
 
     def is_valid(self, recursive=False, stack=False):
         """Returns the validity of this object according to the schema. This is done by inspecting that all required
@@ -1463,8 +1488,7 @@ class Serializable(object):
         for attribute in self._required:
             present = (getattr(self, attribute) is not None)
             if not present:
-                self._log_validity_error(
-                    "Class {} is missing required attribute {}".format(self.__class__.__name__, attribute))
+                self.log_validity_error("Missing required attribute {}".format(attribute))
             all_required &= present
 
         choices = True
@@ -1477,14 +1501,12 @@ class Serializable(object):
                 if getattr(self, attribute) is not None:
                     present.append(attribute)
             if len(present) == 0 and required:
-                self._log_validity_error(
-                    "Class {} requires that exactly one of the attributes {} is set, but none are "
-                    "set.".format(self.__class__.__name__, collect))
+                self.log_validity_error(
+                    "Exactly one of the attributes {} should be set, but none are set".format(collect))
                 choices = False
             elif len(present) > 1:
-                self._log_validity_error(
-                    "Class {} requires that no more than one of attributes {} is set, but multiple {} are "
-                    "set.".format(self.__class__.__name__, collect, present))
+                self.log_validity_error(
+                    "Exactly one of the attributes {} should be set, but multiple ({}) are set".format(collect, present))
                 choices = False
 
         return all_required and choices
@@ -1520,9 +1542,8 @@ class Serializable(object):
                     good &= check_item(entry)
             # any issues will be logged as discovered, but should we help with the "stack"?
             if not good and stack:
-                self._log_validity_error(
-                    "Issue discovered with {} attribute of type {} of class {}.".format(
-                        attribute, type(val), self.__class__.__name__))
+                self.log_validity_error(
+                    "Issue discovered with attribute {} of type {}.".format(attribute, type(val)))
             valid_children &= good
         return valid_children
 
@@ -2108,13 +2129,38 @@ class SerializableArray(object):
             raise TypeError('Elements of {} must be of type {}, not None'.format(self._name, self._child_type))
         self._array[index] = _parse_serializable(value, self._name, self, self._child_type)
 
-    def _log_validity_error(self, msg):
-        # type: (str) -> None
-        logging.error(msg)
+    def log_validity_error(self, msg):
+        """
+        Log a validation error message.
 
-    def _log_validity_warning(self, msg):
-        # type: (str) -> None
-        logging.warning(msg)
+        Parameters
+        ----------
+        msg : str
+        """
+
+        logging.error('{}:{} {}'.format(self.__class__.__name__, self._name, msg))
+
+    def log_validity_warning(self, msg):
+        """
+        Log a validation warning message.
+
+        Parameters
+        ----------
+        msg : str
+        """
+
+        logging.warning('{}:{} {}'.format(self.__class__.__name__, self._name, msg))
+
+    def log_validity_info(self, msg):
+        """
+        Log a validation info message.
+
+        Parameters
+        ----------
+        msg : str
+        """
+
+        logging.info('{}:{} {}'.format(self.__class__.__name__, self._name, msg))
 
     def is_valid(self, recursive=False, stack=False):
         """Returns the validity of this object according to the schema. This is done by inspecting that the
@@ -2132,8 +2178,7 @@ class SerializableArray(object):
             condition for validity of this element
         """
         if self._array is None:
-            self._log_validity_error(
-                "Field {} has unpopulated array".format(self._name))
+            self.log_validity_error("Unpopulated array")
             return False
         if not recursive:
             return True
@@ -2141,8 +2186,7 @@ class SerializableArray(object):
         for i, entry in enumerate(self._array):
             good = entry.is_valid(recursive=True, stack=stack)
             if not good and stack:
-                self._log_validity_error(  # I should probably do better with a stack type situation. This is traceable, at least.
-                    "Issue discovered with entry {} array field {}.".format(i, self._name))
+                self.log_validity_error("Issue discovered with entry {}".format(i))
             valid_children &= good
         return valid_children
 
