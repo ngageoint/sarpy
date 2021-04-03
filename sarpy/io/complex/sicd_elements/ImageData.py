@@ -200,7 +200,7 @@ class ImageDataType(Serializable):
             self.log_validity_error("We have `PixelType != 'AMP8I_PHS8I'` and `AmpTable` is defined for ImageDataType.")
             condition = False
         if (self.ValidData is not None) and (len(self.ValidData) < 3):
-            self.log_validity_error("We have `ValidData` defined, with fewer than 3 entries.")
+            self.log_validity_error("We have `ValidData` defined with fewer than 3 entries.")
             condition = False
         condition &= self._check_valid_data()
         return condition

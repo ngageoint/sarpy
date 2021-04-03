@@ -156,10 +156,10 @@ class GeoInfoType(Serializable):
 
     def _validate_features(self):
         if self.Line is not None and self.Line.size < 2:
-            logging.error('GeoInfo has a Line feature with {} points defined.'.format(self.Line.size))
+            self.log_validity_error('GeoInfo has a Line feature with {} points defined.'.format(self.Line.size))
             return False
         if self.Polygon is not None and self.Polygon.size < 3:
-            logging.error('GeoInfo has a Polygon feature with {} points defined.'.format(self.Polygon.size))
+            self.log_validity_error('GeoInfo has a Polygon feature with {} points defined.'.format(self.Polygon.size))
             return False
         return True
 

@@ -3,7 +3,6 @@
 The TimelineType definition.
 """
 
-import logging
 from typing import List, Union
 
 import numpy
@@ -94,6 +93,7 @@ class IPPSetType(Serializable):
                 'IPPEnd populated as {}, inconsistent with value ({}) '
                 'derived from IPPPoly and TEnd'.format(self.IPPEnd, exp_ipp_end))
         return condition
+
 
 class TimelineType(Serializable):
     """
