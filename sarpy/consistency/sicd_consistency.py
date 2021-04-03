@@ -136,9 +136,11 @@ if __name__ == '__main__':
     config = parser.parse_args()
 
     logging.basicConfig(level=config.level)
+    logger = logging.getLogger('validation')
+    logger.setLevel(config.level)
     validity = check_file(config.file_name)
     if validity:
-        print('SICD {} is valid'.format(config.file_name))
+        logging.info('\nSICD {} has been validated with no errors'.format(config.file_name))
     else:
-        print('SICD {} is not valid'.format(config.file_name))
+        print('\nSICD {} has apparent errors'.format(config.file_name))
     sys.exit(int(validity))

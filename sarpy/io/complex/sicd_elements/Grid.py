@@ -516,7 +516,7 @@ class DirParamType(Serializable):
         out = True
         try:
             if self.DeltaK2 <= self.DeltaK1 + 1e-10:
-                logging.error(
+                self.log_validity_error(
                     'DeltaK2 ({}) must be greater than DeltaK1 ({})'.format(self.DeltaK2, self.DeltaK1))
                 out = False
         except (AttributeError, TypeError, ValueError):
@@ -524,7 +524,7 @@ class DirParamType(Serializable):
 
         try:
             if self.DeltaK2 > 1./(2*self.SS) + 1e-10:
-                logging.error(
+                self.log_validity_error(
                     'DeltaK2 ({}) must be <= 1/(2*SS) ({})'.format(self.DeltaK2, 1./(2*self.SS)))
                 out = False
         except (AttributeError, TypeError, ValueError):
@@ -532,7 +532,7 @@ class DirParamType(Serializable):
 
         try:
             if self.DeltaK1 < -1./(2*self.SS) - 1e-10:
-                logging.error(
+                self.log_validity_error(
                     'DeltaK1 ({}) must be >= -1/(2*SS) ({})'.format(self.DeltaK1, -1./(2*self.SS)))
                 out = False
         except (AttributeError, TypeError, ValueError):
@@ -541,7 +541,7 @@ class DirParamType(Serializable):
         min_deltak, max_deltak = self.estimate_deltak(x_coords, y_coords, populate=False)
         try:
             if abs(self.DeltaK1/min_deltak - 1) > 1e-2:
-                logging.error(
+                self.log_validity_error(
                     'The DeltaK1 value is populated as {}, but estimated to be {}'.format(self.DeltaK1, min_deltak))
                 out = False
         except (AttributeError, TypeError, ValueError):
@@ -549,7 +549,7 @@ class DirParamType(Serializable):
 
         try:
             if abs(self.DeltaK2/max_deltak - 1) > 1e-2:
-                logging.error(
+                self.log_validity_error(
                     'The DeltaK2 value is populated as {}, but estimated to be {}'.format(self.DeltaK2, max_deltak))
                 out = False
         except (AttributeError, TypeError, ValueError):
@@ -560,7 +560,7 @@ class DirParamType(Serializable):
         out = True
         try:
             if self.ImpRespBW > (self.DeltaK2 - self.DeltaK1) + 1e-10:
-                logging.error(
+                self.log_validity_error(
                     'ImpRespBW ({}) must be <= DeltaK2 - DeltaK1 '
                     '({})'.format(self.ImpRespBW, self.DeltaK2 - self.DeltaK1))
                 out = False
@@ -575,39 +575,45 @@ class DirParamType(Serializable):
 
         wgt_size = self.WgtFunct.size if self.WgtFunct is not None else None
         if self.WgtType.WindowName not in ['UNIFORM', 'UNKNOWN'] and (wgt_size is None or wgt_size < 2):
-            logging.error('Non-uniform weighting indicated, but WgtFunct not properly defined')
+            self.log_validity_error(
+                'Non-uniform weighting indicated, but WgtFunct not properly defined')
             return False
 
         if wgt_size is not None and wgt_size > 1024:
-            logging.warning(
-                'WgtFunct with {} elements is provided. The recommended number '
-                'of elements is 512, and many more is likely needlessly excessive.'.format(wgt_size))
+            self.log_validity_warning(
+                'WgtFunct with {} elements is provided.\n'
+                'The recommended number of elements is 512, '
+                'and many more is likely needlessly excessive.'.format(wgt_size))
 
         result = self.define_response_widths(populate=False)
         if result is None:
             return cond
         resp_bw, resp_wid = result
         if abs(resp_bw/self.ImpRespBW - 1) > 1e-2:
-            logging.error(
-                'ImpRespBW expected as {} from weighting, but populated as {}'.format(resp_bw, self.ImpRespBW))
+            self.log_validity_error(
+                'ImpRespBW expected as {} from weighting,\n'
+                'but populated as {}'.format(resp_bw, self.ImpRespBW))
             cond = False
         if abs(resp_wid/self.ImpRespWid - 1) > 1e-2:
-            logging.error(
-                'ImpRespWid expected as {} from weighting, but populated as {}'.format(resp_wid, self.ImpRespWid))
+            self.log_validity_error(
+                'ImpRespWid expected as {} from weighting,\n'
+                'but populated as {}'.format(resp_wid, self.ImpRespWid))
             cond = False
         return cond
 
     def _basic_validity_check(self):
         condition = super(DirParamType, self)._basic_validity_check()
         if (self.WgtFunct is not None) and (self.WgtFunct.size < 2):
-            logging.error(
-                'The WgtFunct array has been defined in DirParamType, but there are fewer than 2 entries.')
+            self.log_validity_error(
+                'The WgtFunct array has been defined in DirParamType, '
+                'but there are fewer than 2 entries.')
             condition = False
         for attribute in ['SS', 'ImpRespBW', 'ImpRespWid']:
             value = getattr(self, attribute)
             if value is not None and value <= 0:
-                logging.error(
-                    'The {} is populated as {}, but should be strictly positive.'.format(attribute, value))
+                self.log_validity_error(
+                    'attribute {} is populated as {}, '
+                    'but should be strictly positive.'.format(attribute, value))
                 condition = False
         condition &= self._check_bw()
         condition &= self._check_wgt()
@@ -1065,7 +1071,7 @@ class GridType(Serializable):
         condition = super(GridType, self)._basic_validity_check()
         if self.Row is not None and self.Row.Sgn is not None and self.Col is not None \
                 and self.Col.Sgn is not None and self.Row.Sgn != self.Col.Sgn:
-            logging.warning(
+            self.log_validity_warning(
                 'Row.Sgn ({}) and Col.Sgn ({}) should almost certainly be the '
                 'same value'.format(self.Row.Sgn, self.Col.Sgn))
         return condition

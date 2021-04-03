@@ -119,7 +119,7 @@ class TxFrequencyType(Serializable):
     def _basic_validity_check(self):
         condition = super(TxFrequencyType, self)._basic_validity_check()
         if self.Min is not None and self.Max is not None and self.Max < self.Min:
-            logging.error(
+            self.log_validity_error(
                 'Invalid frequency bounds Min ({}) > Max ({})'.format(self.Min, self.Max))
             condition = False
         return condition
@@ -911,7 +911,7 @@ class RadarCollectionType(Serializable):
 
         if self.TxFrequency is not None and self.TxFrequency.Min is not None \
                 and self.TxFrequency.Min <= 0:
-            logging.error(
+            self.log_validity_error(
                 'TxFrequency.Min is negative, but RefFreqIndex is not populated.')
             return False
         return True
@@ -921,17 +921,17 @@ class RadarCollectionType(Serializable):
 
         cond = True
         if self.TxPolarization == 'SEQUENCE' and self.TxSequence is None:
-            logging.error(
+            self.log_validity_error(
                 'TxPolarization is populated as "SEQUENCE", but TxSequence is not populated.')
             cond = False
         if self.TxSequence is not None:
             if self.TxPolarization != 'SEQUENCE':
-                logging.error(
+                self.log_validity_error(
                     'TxSequence is populated, but TxPolarization is populated as {}'.format(self.TxPolarization))
                 cond = False
             tx_pols = list(set([entry.TxPolarization for entry in self.TxSequence]))
             if len(tx_pols) == 1:
-                logging.error(
+                self.log_validity_error(
                     'TxSequence is populated, but the only unique TxPolarization aong the entries is {}'.format(tx_pols[0]))
                 cond = False
         return cond
@@ -950,7 +950,7 @@ class RadarCollectionType(Serializable):
             this_cond = True
             try:
                 if abs(waveform.TxRFBandwidth/(waveform.TxPulseLength*waveform.TxFMRate) - 1) > 1e-3:
-                    logging.error(
+                    self.log_validity_error(
                         'The TxRFBandwidth, TxPulseLength, and TxFMRate parameters of Waveform '
                         'entry {} are inconsistent'.format(index+1))
                     this_cond = False
@@ -958,44 +958,44 @@ class RadarCollectionType(Serializable):
                 pass
 
             if waveform.RcvDemodType == 'CHIRP' and waveform.RcvFMRate != 0:
-                logging.error(
+                self.log_validity_error(
                     'RcvDemodType == "CHIRP" and RcvFMRate != 0 in Waveform entry {}'.format(index+1))
                 this_cond = False
             if waveform.RcvDemodType == 'STRETCH' and \
                     waveform.RcvFMRate is not None and waveform.TxFMRate is not None and \
                     abs(waveform.RcvFMRate/waveform.TxFMRate - 1) > 1e-3:
-                logging.warning(
+                self.log_validity_warning(
                     'RcvDemodType = "STRETCH", RcvFMRate = {}, and TxFMRate = {} in '
                     'Waveform entry {}. The RcvFMRate and TxFMRate should very likely '
                     'be the same.'.format(waveform.RcvFMRate, waveform.TxFMRate, index+1))
 
             if self.RefFreqIndex is None:
                 if waveform.TxFreqStart <= 0:
-                    logging.error(
+                    self.log_validity_error(
                         'TxFreqStart is negative in Waveform entry {}, but RefFreqIndex '
                         'is not populated.'.format(index+1))
                     this_cond = False
                 if waveform.RcvFreqStart is not None and waveform.RcvFreqStart <= 0:
-                    logging.error(
+                    self.log_validity_error(
                         'RcvFreqStart is negative in Waveform entry {}, but RefFreqIndex '
                         'is not populated.'.format(index + 1))
                     this_cond = False
             if waveform.TxPulseLength is not None and waveform.RcvWindowLength is not None and \
                     waveform.TxPulseLength > waveform.RcvWindowLength:
-                logging.error(
+                self.log_validity_error(
                     'TxPulseLength ({}) is longer than RcvWindowLength ({}) in '
                     'Waveform entry {}'.format(waveform.TxPulseLength, waveform.RcvWindowLength, index+1))
                 this_cond = False
             if waveform.RcvIFBandwidth is not None and waveform.ADCSampleRate is not None and \
                     waveform.RcvIFBandwidth > waveform.ADCSampleRate:
-                logging.error(
+                self.log_validity_error(
                     'RcvIFBandwidth ({}) is longer than ADCSampleRate ({}) in '
                     'Waveform entry {}'.format(waveform.RcvIFBandwidth, waveform.ADCSampleRate, index+1))
                 this_cond = False
             if waveform.RcvDemodType is not None and waveform.RcvDemodType == 'CHIRP' \
                     and waveform.TxRFBandwidth is not None and waveform.ADCSampleRate is not None \
                     and (waveform.TxRFBandwidth > waveform.ADCSampleRate):
-                logging.error(
+                self.log_validity_error(
                     'RcvDemodType is "CHIRP" and TxRFBandwidth ({}) is larger than ADCSampleRate ({}) '
                     'in Waveform entry {}'.format(waveform.TxRFBandwidth, waveform.ADCSampleRate, index+1))
                 this_cond = False
@@ -1003,12 +1003,12 @@ class RadarCollectionType(Serializable):
                     and waveform.RcvFreqStart is not None and waveform.TxFreqStart is not None and waveform.TxRFBandwidth is not None:
                 freq_tol = (waveform.RcvWindowLength - waveform.TxPulseLength)*waveform.TxFMRate
                 if waveform.RcvFreqStart >= waveform.TxFreqStart + waveform.TxRFBandwidth + freq_tol:
-                    logging.error(
+                    self.log_validity_error(
                         'RcvFreqStart ({}), TxFreqStart ({}), and TxRfBandwidth ({}) parameters are inconsistent '
                         'in Waveform entry {}'.format(waveform.RcvFreqStart, waveform.TxFreqStart, waveform.TxRFBandwidth, index + 1))
                     this_cond = False
                 if waveform.RcvFreqStart <= waveform.TxFreqStart - freq_tol:
-                    logging.error(
+                    self.log_validity_error(
                         'RcvFreqStart ({}) and TxFreqStart ({}) parameters are inconsistent '
                         'in Waveform entry {}'.format(waveform.RcvFreqStart, waveform.TxFreqStart, index + 1))
                     this_cond = False
@@ -1034,13 +1034,13 @@ class RadarCollectionType(Serializable):
 
         if wf_min_freq is not None and self.TxFrequency is not None and self.TxFrequency.Min is not None:
             if abs(self.TxFrequency.Min/wf_min_freq - 1) > 1e-3:
-                logging.error(
+                self.log_validity_error(
                     'The stated TxFrequency.Min is {}, but the minimum populated in a '
                     'Waveform entry is {}'.format(self.TxFrequency.Min, wf_min_freq))
                 cond = False
         if wf_max_freq is not None and self.TxFrequency is not None and self.TxFrequency.Max is not None:
             if abs(self.TxFrequency.Max/wf_max_freq - 1) > 1e-3:
-                logging.error(
+                self.log_validity_error(
                     'The stated TxFrequency.Max is {}, but the maximum populated in a '
                     'Waveform entry is {}'.format(self.TxFrequency.Max, wf_max_freq))
                 cond = False

@@ -265,7 +265,7 @@ class PFAType(Serializable):
         cond = True
         polar_angle_ref = self.PolarAngPoly(self.PolarAngRefTime)
         if abs(polar_angle_ref) > 1e-4:
-            logging.error(
+            self.log_validity_error(
                 'The PolarAngPoly evaluated at PolarAngRefTime yields {}, which should be 0'.format(polar_angle_ref))
             cond = False
         return cond

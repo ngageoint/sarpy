@@ -423,10 +423,10 @@ class GeoDataType(Serializable):
                 lin_ring = LinearRing(coordinates=value.get_array(dtype='float64'))
                 area = lin_ring.get_area()
                 if area == 0:
-                    logging.error('{} encloses no area.'.format(attribute))
+                    self.log_validity_error('{} encloses no area.'.format(attribute))
                     cond = False
                 elif area < 0:
-                    logging.error(
+                    self.log_validity_error(
                         "{} must be traversed in clockwise direction.".format(attribute))
                     cond = False
         return cond
