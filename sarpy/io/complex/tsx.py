@@ -60,7 +60,7 @@ def is_a(file_name):
 
     try:
         tsx_details = TSXDetails(file_name)
-        print('Path {} is determined to be a TerraSAR-X file package.'.format(tsx_details.file_name))
+        logging.info('Path {} is determined to be a TerraSAR-X file package.'.format(tsx_details.file_name))
         return TSXReader(tsx_details)
     except (IOError, AttributeError, SyntaxError, ElementTree.ParseError):
         return None

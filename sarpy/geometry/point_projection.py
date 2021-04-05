@@ -1416,6 +1416,7 @@ def _do_dem_iteration(previous_ecf, previous_diff, this_ecf, this_diff):
     else:
         return None
 
+
 def _image_to_ground_dem(
         im_points, coa_projection, dem_interpolator, min_dem, max_dem,
         vertical_step_size, ref_hae, ref_point):

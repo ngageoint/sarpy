@@ -61,7 +61,7 @@ def is_a(file_name):
 
     try:
         sentinel_details = SentinelDetails(file_name)
-        print('Path {} is determined to be or contain a Sentinel-1 manifest.safe file.'.format(file_name))
+        logging.info('Path {} is determined to be or contain a Sentinel-1 manifest.safe file.'.format(file_name))
         return SentinelReader(sentinel_details)
     except (IOError, AttributeError, SyntaxError, ElementTree.ParseError):
         return None
