@@ -198,7 +198,12 @@ class SICDDetails(NITFDetails):
 
         if not self._is_sicd:
             return
-        self._sicd_meta.derive()
+
+        # noinspection PyBroadException
+        try:
+            self._sicd_meta.derive()
+        except Exception as e:
+            pass
         # TODO: account for the reference frequency offset situation
 
     def is_des_well_formed(self):
