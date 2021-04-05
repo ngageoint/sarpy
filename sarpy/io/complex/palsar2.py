@@ -62,7 +62,7 @@ def is_a(file_name):
 
     try:
         palsar_details = PALSARDetails(file_name)
-        print('File {} is determined to be a PALSAR ALOS2 file.'.format(file_name))
+        logging.info('File {} is determined to be a PALSAR ALOS2 file.'.format(file_name))
         return PALSARReader(palsar_details)
     except (ImportError, IOError):
         return None

@@ -152,7 +152,7 @@ def is_a(file_name):
 
     try:
         tiff_details = TiffDetails(file_name)
-        print('File {} is determined to be a tiff file.'.format(file_name))
+        logging.info('File {} is determined to be a tiff file.'.format(file_name))
         return TiffReader(tiff_details)
     except IOError:
         # we don't want to catch parsing errors, for now
