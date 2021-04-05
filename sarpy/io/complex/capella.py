@@ -58,7 +58,7 @@ def is_a(file_name):
 
     try:
         csk_details = CapellaDetails(file_name)
-        print('File {} is determined to be a Capella file.'.format(file_name))
+        logging.info('File {} is determined to be a Capella file.'.format(file_name))
         return CapellaReader(csk_details)
     except IOError:
         return None

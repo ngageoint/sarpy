@@ -58,7 +58,7 @@ def final_attempt(file_name):
 
     try:
         nitf_details = ComplexNITFDetails(file_name)
-        print('File {} is determined to be some other format complex NITF.')
+        logging.info('File {} is determined to be some other format complex NITF.')
         return ComplexNITFReader(nitf_details)
     except (IOError, ValueError):
         return None
