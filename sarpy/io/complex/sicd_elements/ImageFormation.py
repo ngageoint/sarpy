@@ -109,7 +109,7 @@ class TxFrequencyProcType(Serializable):
     def _basic_validity_check(self):
         condition = super(TxFrequencyProcType, self)._basic_validity_check()
         if self.MinProc is not None and self.MaxProc is not None and self.MaxProc < self.MinProc:
-            logging.error(
+            self.log_validity_error(
                 'Invalid frequency bounds MinProc ({}) > MaxProc ({})'.format(self.MinProc, self.MaxProc))
             condition = False
         return condition
@@ -423,9 +423,9 @@ class ImageFormationType(Serializable):
     def _basic_validity_check(self):
         condition = super(ImageFormationType, self)._basic_validity_check()
         if self.TStartProc is not None and self.TEndProc is not None and self.TEndProc < self.TStartProc:
-            logging.error(
-                'Invalid time processing bounds '
-                'TStartProc ({}) > TEndProc ({})'.format(self.TStartProc, self.TEndProc))
+            self.log_validity_error(
+                'Invalid time processing bounds TStartProc ({}) > TEndProc ({})'.format(
+                    self.TStartProc, self.TEndProc))
             condition = False
         return condition
 
