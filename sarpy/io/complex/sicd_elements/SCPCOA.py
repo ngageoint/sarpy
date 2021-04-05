@@ -455,16 +455,16 @@ class SCPCOAType(Serializable):
 
         cond = True
         if calculator.SideOfTrack != self.SideOfTrack:
-            logging.error('SideOfTrack is expected to be {}, and is populated as {}'.format(calculator.SideOfTrack, self.SideOfTrack))
+            self.log_validity_error(
+                'SideOfTrack is expected to be {}, and is populated as {}'.format(calculator.SideOfTrack, self.SideOfTrack))
             cond = False
 
         for attribute in ['SlantRange', 'GroundRange']:
             val1 = getattr(self, attribute)
             val2 = getattr(calculator, attribute)
             if abs(val1/val2 - 1) > 1e-6:
-                logging.error(
-                    'SCPCOA attribute {} is expected to have value {}, but is '
-                    'populated as {}'.format(attribute, val1, val2))
+                self.log_validity_error(
+                    'attribute {} is expected to have value {}, but is populated as {}'.format(attribute, val1, val2))
                 cond = False
 
         for attribute in [
@@ -472,8 +472,7 @@ class SCPCOAType(Serializable):
             val1 = getattr(self, attribute)
             val2 = getattr(calculator, attribute)
             if abs(val1 - val2) > 1e-3:
-                logging.error(
-                    'SCPCOA attribute {} is expected to have value {}, but is '
-                    'populated as {}'.format(attribute, val1, val2))
+                self.log_validity_error(
+                    'attribute {} is expected to have value {}, but is populated as {}'.format(attribute, val1, val2))
                 cond = False
         return cond

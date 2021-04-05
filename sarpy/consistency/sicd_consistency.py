@@ -124,7 +124,7 @@ def check_file(file_name):
     valid_xml = _evaluate_xml_versus_schema(sicd_xml, urn_string)
 
     the_sicd = SICDType.from_node(root_node, xml_ns=xml_ns)
-    valid_sicd_contents = the_sicd.is_valid(recursive=True)
+    valid_sicd_contents = the_sicd.is_valid(recursive=True, stack=False)
     return valid_xml & valid_sicd_contents
 
 
@@ -136,9 +136,11 @@ if __name__ == '__main__':
     config = parser.parse_args()
 
     logging.basicConfig(level=config.level)
+    logger = logging.getLogger('validation')
+    logger.setLevel(config.level)
     validity = check_file(config.file_name)
     if validity:
-        print('SICD {} is valid'.format(config.file_name))
+        logging.info('\nSICD {} has been validated with no errors'.format(config.file_name))
     else:
-        print('SICD {} is not valid'.format(config.file_name))
+        print('\nSICD {} has apparent errors'.format(config.file_name))
     sys.exit(int(validity))

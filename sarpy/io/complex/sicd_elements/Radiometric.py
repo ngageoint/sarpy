@@ -3,8 +3,6 @@
 The RadiometricType definition.
 """
 
-import logging
-
 import numpy
 
 from .base import Serializable, DEFAULT_STRICT, _StringEnumDescriptor, \
@@ -179,90 +177,3 @@ class RadiometricType(Serializable):
                 self.GammaZeroSFPoly = Poly2DType(
                     Coefs=self.BetaZeroSFPoly.Coefs*(numpy.cos(numpy.deg2rad(SCPCOA.SlopeAng)) /
                                                      numpy.sin(numpy.deg2rad(SCPCOA.GrazeAng))))
-
-    def check_parameters(self, Grid, SCPCOA):
-        """
-        Expected to be called by SICD parent.
-
-        Parameters
-        ----------
-        Grid : sarpy.io.complex.sicd_elements.Grid.GridType
-        SCPCOA : sarpy.io.complex.sicd_elements.SCPCOA.SCPCOAType
-
-        Returns
-        -------
-        bool
-        """
-
-        if Grid is None or Grid.Row is None or Grid.Col is None:
-            return True
-
-        cond = True
-        area_sp = Grid.get_slant_plane_area()
-
-
-        if self.RCSSFPoly is not None:
-            rcs_sf = self.RCSSFPoly.get_array(dtype='float64')
-
-            if self.BetaZeroSFPoly is not None:
-                beta_sf = self.BetaZeroSFPoly.get_array(dtype='float64')
-                if abs(rcs_sf[0, 0]/(beta_sf[0, 0]*area_sp) - 1) > 5e-2:
-                    logging.error(
-                        'The BetaZeroSFPoly and RCSSFPoly are not consistent.')
-                    cond = False
-
-            if SCPCOA is not None:
-                if self.SigmaZeroSFPoly is not None:
-                    sigma_sf = self.SigmaZeroSFPoly.get_array(dtype='float64')
-                    mult = area_sp/numpy.cos(numpy.deg2rad(SCPCOA.SlopeAng))
-                    if (rcs_sf[0, 0]/(sigma_sf[0, 0]*mult) - 1) > 5e-2:
-                        logging.error('The SigmaZeroSFPoly and RCSSFPoly are not consistent.')
-                        cond = False
-
-                if self.GammaZeroSFPoly is not None:
-                    gamma_sf = self.GammaZeroSFPoly.get_array(dtype='float64')
-                    mult = area_sp/(numpy.cos(numpy.deg2rad(SCPCOA.SlopeAng))*numpy.sin(numpy.deg2rad(SCPCOA.GrazeAng)))
-                    if (rcs_sf[0, 0]/(gamma_sf[0, 0]*mult) - 1) > 5e-2:
-                        logging.error('The GammaZeroSFPoly and RCSSFPoly are not consistent.')
-                        cond = False
-
-        if self.BetaZeroSFPoly is not None:
-            beta_sf = self.BetaZeroSFPoly.get_array(dtype='float64')
-
-            if SCPCOA is not None:
-                if self.SigmaZeroSFPoly is not None:
-                    sigma_sf = self.SigmaZeroSFPoly.get_array(dtype='float64')
-                    mult = 1./numpy.cos(numpy.deg2rad(SCPCOA.SlopeAng))
-                    if (beta_sf[0, 0] / (sigma_sf[0, 0] * mult) - 1) > 5e-2:
-                        logging.error('The SigmaZeroSFPoly and BetaZeroSFPoly are not consistent.')
-                        cond = False
-
-                if self.GammaZeroSFPoly is not None:
-                    gamma_sf = self.GammaZeroSFPoly.get_array(dtype='float64')
-                    mult = 1./(numpy.cos(numpy.deg2rad(SCPCOA.SlopeAng)) * numpy.sin(numpy.deg2rad(SCPCOA.GrazeAng)))
-                    if (beta_sf[0, 0] / (gamma_sf[0, 0] * mult) - 1) > 5e-2:
-                        logging.error('The GammaZeroSFPoly and BetaZeroSFPoly are not consistent.')
-                        cond = False
-        return cond
-
-    def check_recommended(self):
-        """
-        Check recommended attributes.
-
-        Returns
-        -------
-        None
-        """
-
-        for attribute in ['RCSSFPoly', 'BetaZeroSFPoly', 'SigmaZeroSFPoly', 'GammaZeroSFPoly']:
-            value = getattr(self, attribute)
-            if value is None:
-                logging.warning(
-                    'No Radiometric.{} field provided, and associated RCS measurements '
-                    'will not be possible'.format(attribute))
-        if self.NoiseLevel is None:
-            logging.warning('No Radiometric.NoiseLevel provided, so noise estimates will not be possible.')
-        elif self.NoiseLevel.NoiseLevelType != 'ABSOLUTE':
-            logging.warning(
-                'Radiometric.NoiseLevel provided are not ABSOLUTE, so noise estimates '
-                'are not easily available.')
