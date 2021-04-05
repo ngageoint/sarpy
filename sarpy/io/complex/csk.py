@@ -71,7 +71,7 @@ def is_a(file_name):
 
     try:
         csk_details = CSKDetails(file_name)
-        print('File {} is determined to be a Cosmo Skymed file.'.format(file_name))
+        logging.info('File {} is determined to be a Cosmo Skymed file.'.format(file_name))
         return CSKReader(csk_details)
     except (ImportError, IOError):
         return None

@@ -64,7 +64,7 @@ def is_a(file_name):
 
     try:
         details = RadarSatDetails(file_name)
-        print('Path {} is determined to be or contain a RadarSat or RCM product.xml file.'.format(file_name))
+        logging.info('Path {} is determined to be or contain a RadarSat or RCM product.xml file.'.format(file_name))
         return RadarSatReader(details)
     except IOError:
         return None

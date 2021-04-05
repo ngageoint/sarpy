@@ -67,7 +67,7 @@ def is_a(file_name):
 
     try:
         nisar_details = NISARDetails(file_name)
-        print('File {} is determined to be a NISAR file.'.format(file_name))
+        logging.info('File {} is determined to be a NISAR file.'.format(file_name))
         return NISARReader(nisar_details)
     except (ImportError, IOError):
         return None
