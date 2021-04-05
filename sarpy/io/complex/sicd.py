@@ -164,7 +164,10 @@ class SICDDetails(NITFDetails):
                         self._des_index = i
                         self._des_header = des_header
                         self._is_sicd = True
-                        self._sicd_meta = SICDType.from_node(root_node, xml_ns, ns_key='default')
+                        if xml_ns is None:
+                            self._sicd_meta = SICDType.from_node(root_node, xml_ns, ns_key=None)
+                        else:
+                            self._sicd_meta = SICDType.from_node(root_node, xml_ns, ns_key='default')
                         break
                 except Exception:
                     continue
@@ -183,7 +186,10 @@ class SICDDetails(NITFDetails):
                         self._des_index = i
                         self._des_header = None
                         self._is_sicd = True
-                        self._sicd_meta = SICDType.from_node(root_node, xml_ns, ns_key='default')
+                        if xml_ns is None:
+                            self._sicd_meta = SICDType.from_node(root_node, xml_ns, ns_key=None)
+                        else:
+                            self._sicd_meta = SICDType.from_node(root_node, xml_ns, ns_key='default')
                         break
                 except Exception as e:
                     logging.error('We found an apparent old-style SICD DES header, '
@@ -192,7 +198,12 @@ class SICDDetails(NITFDetails):
 
         if not self._is_sicd:
             return
-        self._sicd_meta.derive()
+
+        # noinspection PyBroadException
+        try:
+            self._sicd_meta.derive()
+        except Exception as e:
+            pass
         # TODO: account for the reference frequency offset situation
 
     def is_des_well_formed(self):
