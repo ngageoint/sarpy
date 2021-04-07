@@ -175,18 +175,18 @@ class ImageDataType(Serializable):
         if self.ValidData[0].Row > self.ValidData[1].Row or \
                 (self.ValidData[0].Row == self.ValidData[1].Row and
                  self.ValidData[0].Col >= self.ValidData[1].Col):
-            logging.error(
-                "ValidData must have first vertex with minimum row/column. "
+            self.log_validity_error(
+                "ValidData must have first vertex with minimum row/column.\n"
                 "Got first two vertices {} and {}".format(self.ValidData[0], self.ValidData[1]))
             return False
         # check the details for valid data
         lin_ring = LinearRing(coordinates=self.ValidData.get_array(dtype=numpy.dtype('float64')))
         area = lin_ring.get_area()
         if area == 0:
-            logging.error('ValidData encloses no area.')
+            self.log_validity_error('ValidData encloses no area.')
             return False
         elif area > 0:
-            logging.error(
+            self.log_validity_error(
                 "ValidData must be traversed in clockwise direction.")
             return False
         return True
@@ -194,13 +194,13 @@ class ImageDataType(Serializable):
     def _basic_validity_check(self):
         condition = super(ImageDataType, self)._basic_validity_check()
         if (self.PixelType == 'AMP8I_PHS8I') and (self.AmpTable is None):
-            logging.error("We have `PixelType='AMP8I_PHS8I'` and `AmpTable` is not defined for ImageDataType.")
+            self.log_validity_error("We have `PixelType='AMP8I_PHS8I'` and `AmpTable` is not defined for ImageDataType.")
             condition = False
         if (self.PixelType != 'AMP8I_PHS8I') and (self.AmpTable is not None):
-            logging.error("We have `PixelType != 'AMP8I_PHS8I'` and `AmpTable` is defined for ImageDataType.")
+            self.log_validity_error("We have `PixelType != 'AMP8I_PHS8I'` and `AmpTable` is defined for ImageDataType.")
             condition = False
         if (self.ValidData is not None) and (len(self.ValidData) < 3):
-            logging.error("We have `ValidData` defined, with fewer than 3 entries.")
+            self.log_validity_error("We have `ValidData` defined with fewer than 3 entries.")
             condition = False
         condition &= self._check_valid_data()
         return condition

@@ -65,7 +65,7 @@ def is_a(file_name):
 
     try:
         iceye_details = ICEYEDetails(file_name)
-        print('File {} is determined to be a ICEYE file.'.format(file_name))
+        logging.info('File {} is determined to be a ICEYE file.'.format(file_name))
         return ICEYEReader(iceye_details)
     except (ImportError, IOError):
         return None

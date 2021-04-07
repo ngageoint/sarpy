@@ -1,5 +1,7 @@
 # This details the important differences introduced in sarpy 1.1
 
+* .64 - Loosening the handling for poorly formed SICD structure
+* .63 - Making file type discovery logging less verbose
 * .62 - CPHD Consistency Improvements
 * .61 - Introduction of Cosmo SkyMed 2nd generation support
 * .60 - Creating a command line utility to dump some CPHD metadata

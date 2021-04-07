@@ -77,7 +77,7 @@ def is_a(file_name):
 
     try:
         nitf_details = NITFDetails(file_name)
-        print('File {} is determined to be a nitf file.'.format(file_name))
+        logging.info('File {} is determined to be a nitf file.'.format(file_name))
         return NITFReader(nitf_details)
     except IOError:
         # we don't want to catch parsing errors, for now

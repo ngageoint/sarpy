@@ -41,7 +41,7 @@ def is_a(file_name):
 
     try:
         cphd_details = CPHDDetails(file_name)
-        print('File {} is determined to be a CPHD version {} file.'.format(file_name, cphd_details.cphd_version))
+        logging.info('File {} is determined to be a CPHD version {} file.'.format(file_name, cphd_details.cphd_version))
         return CPHDReader(cphd_details)
     except IOError:
         # we don't want to catch parsing errors, for now?

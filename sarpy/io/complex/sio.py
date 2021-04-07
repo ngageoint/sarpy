@@ -43,7 +43,7 @@ def is_a(file_name):
 
     try:
         sio_details = SIODetails(file_name)
-        print('File {} is determined to be a SIO file.'.format(file_name))
+        logging.info('File {} is determined to be a SIO file.'.format(file_name))
         return SIOReader(sio_details)
     except IOError:
         return None
