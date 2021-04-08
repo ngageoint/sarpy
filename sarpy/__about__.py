@@ -27,7 +27,7 @@ __all__ = ['__version__',
            '__license__', '__copyright__']
 
 
-__version__ = "1.1.64.post0"
+__version__ = "1.1.65.post0"
 
 
 __classification__ = "UNCLASSIFIED"  # This should be set appropriately in any high-side version
