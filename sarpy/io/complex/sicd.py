@@ -326,11 +326,11 @@ def amp_phase_to_complex(lookup_table):
         if data.dtype.name != 'uint8':
             raise ValueError('requires a numpy.ndarray of uint8 dtype, got {}'.format(data.dtype.name))
 
-        if len(data.shape) == 3:
+        if len(data.shape) != 3:
             raise ValueError('Requires a three-dimensional numpy.ndarray (with band '
                              'in the last dimension), got shape {}'.format(data.shape))
 
-        out = numpy.zeros((data.shape[0], data.shape[1], data.shape[2]/2), dtype=numpy.complex64)
+        out = numpy.zeros((data.shape[0], data.shape[1], int(data.shape[2]/2)), dtype=numpy.complex64)
         amp = lookup_table[data[:, :, 0::2]]
         theta = data[:, :, 1::2]*(2*numpy.pi/256)
         out.real = amp*numpy.cos(theta)
