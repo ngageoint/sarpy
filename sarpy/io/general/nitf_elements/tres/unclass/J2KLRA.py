@@ -21,7 +21,7 @@ class J2KLRAType(TREElement):
         self.add_field('NBANDS_O', 's', 5, value)
         self.add_field('NLAYERS_O', 'd', 3, value)
         self.add_loop('LAYERs', self.NLAYERS_O, LAYER, value)
-        if self.ORIG in [1, 3, 9]:
+        if self.ORIG in ['1', '3', '9']:
             self.add_field('NLEVELS_I', 's', 2, value)
             self.add_field('NBANDS_I', 's', 5, value)
             self.add_field('NLAYERS_I', 's', 3, value)

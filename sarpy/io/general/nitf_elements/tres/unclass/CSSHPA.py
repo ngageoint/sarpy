@@ -11,7 +11,7 @@ class CSSHPAType(TREElement):
         super(CSSHPAType, self).__init__()
         self.add_field('SHAPE_USE', 's', 25, value)
         self.add_field('SHAPE_CLASS', 's', 10, value)
-        if self.SHAPE_USE == 'CLOUD_SHAPES':
+        if self.SHAPE_USE.strip() == 'CLOUD_SHAPES':
             self.add_field('CC_SOURCE', 's', 18, value)
         self.add_field('SHAPE1_NAME', 's', 3, value)
         self.add_field('SHAPE1_START', 's', 6, value)
