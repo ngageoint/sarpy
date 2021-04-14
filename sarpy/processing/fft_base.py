@@ -212,7 +212,7 @@ def fft_sicd(array, dimension, sicd):
     """
 
     sgn = _determine_direction(sicd, dimension)
-    return fft(array, axis=dimension) if sgn > 0 else ifft(array, axis=dimension)
+    return fft(array, axis=dimension) if sgn < 0 else ifft(array, axis=dimension)
 
 
 def ifft_sicd(array, dimension, sicd):
@@ -235,7 +235,7 @@ def ifft_sicd(array, dimension, sicd):
     """
 
     sgn = _determine_direction(sicd, dimension)
-    return ifft(array, axis=dimension) if sgn > 0 else fft(array, axis=dimension)
+    return ifft(array, axis=dimension) if sgn < 0 else fft(array, axis=dimension)
 
 
 def fft2_sicd(array, sicd):
