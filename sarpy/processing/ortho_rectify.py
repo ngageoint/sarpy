@@ -222,10 +222,10 @@ class ProjectionHelper(object):
         """
 
         if value is None:
-            if self.sicd.RadarCollection.Area is not None:
-                self._row_spacing = self.sicd.RadarCollection.Area.Plane.XDir.LineSpacing
-            else:
+            if self.sicd.RadarCollection.Area is None:
                 self._row_spacing = self._get_sicd_ground_pixel()
+            else:
+                self._row_spacing = self.sicd.RadarCollection.Area.Plane.XDir.LineSpacing
         else:
             value = float(value)
             if value <= 0:
@@ -256,10 +256,10 @@ class ProjectionHelper(object):
         """
 
         if value is None:
-            if self.sicd.RadarCollection.Area is not None:
-                self._col_spacing = self.sicd.RadarCollection.Area.Plane.YDir.SampleSpacing
-            else:
+            if self.sicd.RadarCollection.Area is None:
                 self._col_spacing = self._get_sicd_ground_pixel()
+            else:
+                self._col_spacing = self.sicd.RadarCollection.Area.Plane.YDir.SampleSpacing
         else:
             value = float(value)
             if value <= 0:
@@ -593,10 +593,10 @@ class PGProjection(ProjectionHelper):
         """
 
         if reference_point is None:
-            if self.sicd.RadarCollection.Area is not None:
-                reference_point = self.sicd.RadarCollection.Area.Plane.RefPt.ECF.get_array()
-            else:
+            if self.sicd.RadarCollection.Area is None:
                 reference_point = self.sicd.GeoData.SCP.ECF.get_array()
+            else:
+                reference_point = self.sicd.RadarCollection.Area.Plane.RefPt.ECF.get_array()
 
         if not (isinstance(reference_point, numpy.ndarray) and reference_point.ndim == 1
                 and reference_point.size == 3):
@@ -723,17 +723,17 @@ class PGProjection(ProjectionHelper):
             raise ValueError('This requires that reference point is previously set.')
 
         if normal_vector is None and row_vector is None and col_vector is None:
-            if self.sicd.RadarCollection.Area is not None:
-                self._row_vector = self.sicd.RadarCollection.Area.Plane.XDir.UVectECF.get_array()
-                self._col_vector = normalize(
-                    self.sicd.RadarCollection.Area.Plane.YDir.UVectECF.get_array(), 'col', perp=self._row_vector)
-                self._normal_vector = numpy.cross(self._row_vector, self._col_vector)
-            else:
+            if self.sicd.RadarCollection.Area is None:
                 self._normal_vector = wgs_84_norm(self.reference_point)
                 self._row_vector = normalize(
                     self.sicd.Grid.Row.UVectECF.get_array(), 'row', perp=self.normal_vector)
                 self._col_vector = normalize(
                     self.sicd.Grid.Col.UVectECF.get_array(), 'column', perp=(self.normal_vector, self.row_vector))
+            else:
+                self._row_vector = self.sicd.RadarCollection.Area.Plane.XDir.UVectECF.get_array()
+                self._col_vector = normalize(
+                    self.sicd.RadarCollection.Area.Plane.YDir.UVectECF.get_array(), 'col', perp=self._row_vector)
+                self._normal_vector = numpy.cross(self._row_vector, self._col_vector)
         elif normal_vector is not None and row_vector is None and col_vector is None:
             self._normal_vector = normalize(normal_vector, 'normal')
             self._row_vector = normalize(
