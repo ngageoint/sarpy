@@ -384,10 +384,11 @@ class DirParamType(Serializable):
             max_sidelobe_level = float(self.WgtType.get_parameter_value('SLL', -30))  # same
             if max_sidelobe_level > 0:
                 max_sidelobe_level *= -1
-            value = _taylor_win(weight_size,
-                                        sidelobes=sidelobes,
-                                        max_sidelobe_level=max_sidelobe_level,
-                                        normalize=True)
+            value = _taylor_win(
+                weight_size,
+                sidelobes=sidelobes,
+                max_sidelobe_level=max_sidelobe_level,
+                normalize=True)
 
         if populate and self.WgtFunct is None:
             self.WgtFunct = value

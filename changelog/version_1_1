@@ -1,5 +1,9 @@
 # This details the important differences introduced in sarpy 1.1
 
+* .66 - Updating Cosmo SkyMed 2nd generation column impulse response population
+        Introduces helper method for converting image coordinates to coordinates for polynomial evaluation
+        Fixed sign convention in SICD related Fourier helper methods
+        Fixed state issues with ortho-rectification model populated from sicd.RadarCollection.Area
 * .65 - CCINFA tre definition bug fix and SICD AmpTable usage bug fix
 * .64 - Loosening the handling for poorly formed SICD structure
 * .63 - Making file type discovery logging less verbose
