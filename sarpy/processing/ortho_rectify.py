@@ -486,10 +486,10 @@ class ProjectionHelper(object):
 
         coords, o_shape = self._reshape(coords, 2)
         return numpy.array(
-            (numpy.floor(numpy.nanmin(coords[:, 0], axis=0)),
-             numpy.ceil(numpy.nanmax(coords[:, 0], axis=0)),
-             numpy.floor(numpy.nanmin(coords[:, 1], axis=0)),
-             numpy.ceil(numpy.nanmax(coords[:, 1], axis=0))), dtype=numpy.int64)
+            (numpy.ceil(numpy.nanmin(coords[:, 0], axis=0)),
+             numpy.floor(numpy.nanmax(coords[:, 0], axis=0)),
+             numpy.ceil(numpy.nanmin(coords[:, 1], axis=0)),
+             numpy.floor(numpy.nanmax(coords[:, 1], axis=0))), dtype=numpy.int64)
 
 
 class PGProjection(ProjectionHelper):
