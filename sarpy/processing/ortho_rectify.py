@@ -222,7 +222,10 @@ class ProjectionHelper(object):
         """
 
         if value is None:
-            self._row_spacing = self._get_sicd_ground_pixel()
+            if self.sicd.RadarCollection.Area is not None:
+                self._row_spacing = self.sicd.RadarCollection.Area.Plane.XDir.LineSpacing
+            else:
+                self._row_spacing = self._get_sicd_ground_pixel()
         else:
             value = float(value)
             if value <= 0:
@@ -253,7 +256,10 @@ class ProjectionHelper(object):
         """
 
         if value is None:
-            self._col_spacing = self._get_sicd_ground_pixel()
+            if self.sicd.RadarCollection.Area is not None:
+                self._col_spacing = self.sicd.RadarCollection.Area.Plane.YDir.SampleSpacing
+            else:
+                self._col_spacing = self._get_sicd_ground_pixel()
         else:
             value = float(value)
             if value <= 0:
@@ -587,7 +593,10 @@ class PGProjection(ProjectionHelper):
         """
 
         if reference_point is None:
-            reference_point = self.sicd.GeoData.SCP.ECF.get_array()
+            if self.sicd.RadarCollection.Area is not None:
+                reference_point = self.sicd.RadarCollection.Area.Plane.RefPt.ECF.get_array()
+            else:
+                reference_point = self.sicd.GeoData.SCP.ECF.get_array()
 
         if not (isinstance(reference_point, numpy.ndarray) and reference_point.ndim == 1
                 and reference_point.size == 3):
@@ -613,7 +622,14 @@ class PGProjection(ProjectionHelper):
         """
 
         if reference_pixels is None:
-            reference_pixels = numpy.zeros((2, ), dtype='float64')
+            if self.sicd.RadarCollection.Area is not None:
+                reference_pixels = numpy.array([
+                    self.sicd.RadarCollection.Area.Plane.RefPt.Line,
+                    self.sicd.RadarCollection.Area.Plane.RefPt.Sample],
+                    dtype='float64')
+            else:
+                reference_pixels = numpy.zeros((2, ), dtype='float64')
+
         if not (isinstance(reference_pixels, numpy.ndarray) and reference_pixels.ndim == 1
                 and reference_pixels.size == 2):
             raise ValueError('reference_pixels must be a vector of size 2.')
@@ -707,11 +723,17 @@ class PGProjection(ProjectionHelper):
             raise ValueError('This requires that reference point is previously set.')
 
         if normal_vector is None and row_vector is None and col_vector is None:
-            self._normal_vector = wgs_84_norm(self.reference_point)
-            self._row_vector = normalize(
-                self.sicd.Grid.Row.UVectECF.get_array(), 'row', perp=self.normal_vector)
-            self._col_vector = normalize(
-                self.sicd.Grid.Col.UVectECF.get_array(), 'column', perp=(self.normal_vector, self.row_vector))
+            if self.sicd.RadarCollection.Area is not None:
+                self._row_vector = self.sicd.RadarCollection.Area.Plane.XDir.UVectECF.get_array()
+                self._col_vector = normalize(
+                    self.sicd.RadarCollection.Area.Plane.YDir.UVectECF.get_array(), 'col', perp=self._row_vector)
+                self._normal_vector = numpy.cross(self._row_vector, self._col_vector)
+            else:
+                self._normal_vector = wgs_84_norm(self.reference_point)
+                self._row_vector = normalize(
+                    self.sicd.Grid.Row.UVectECF.get_array(), 'row', perp=self.normal_vector)
+                self._col_vector = normalize(
+                    self.sicd.Grid.Col.UVectECF.get_array(), 'column', perp=(self.normal_vector, self.row_vector))
         elif normal_vector is not None and row_vector is None and col_vector is None:
             self._normal_vector = normalize(normal_vector, 'normal')
             self._row_vector = normalize(
@@ -842,7 +864,7 @@ class OrthorectificationHelper(object):
     __slots__ = (
         '_reader', '_index', '_sicd', '_proj_helper', '_out_dtype', '_complex_valued',
         '_pad_value', '_apply_radiometric', '_subtract_radiometric_noise',
-        '_rad_poly', '_noise_poly', '_default_ortho_bounds')
+        '_rad_poly', '_noise_poly', '_default_physical_bounds')
 
     def __init__(self, reader, index=0, proj_helper=None, complex_valued=False,
                  pad_value=None, apply_radiometric=None, subtract_radiometric_noise=False):
@@ -879,7 +901,7 @@ class OrthorectificationHelper(object):
         self._subtract_radiometric_noise = None
         self._rad_poly = None  # type: [None, Poly2DType]
         self._noise_poly = None  # type: [None, Poly2DType]
-        self._default_ortho_bounds = None
+        self._default_physical_bounds = None
 
         self._pad_value = pad_value
         self._complex_valued = complex_valued
@@ -974,29 +996,22 @@ class OrthorectificationHelper(object):
         self._is_radiometric_valid()
         self._is_radiometric_noise_valid()
 
+        default_ortho_bounds = None
         if proj_helper is None:
+            proj_helper = PGProjection(self.sicd)
             if self.sicd.RadarCollection is not None and self.sicd.RadarCollection.Area is not None \
                     and self.sicd.RadarCollection.Area.Plane is not None:
                 plane = self.sicd.RadarCollection.Area.Plane
-                ref_pt = plane.RefPt.ECF.get_array()
-                ref_pixels = numpy.array([plane.RefPt.Line, plane.RefPt.Sample], dtype='float64')
-                row_vector = plane.XDir.UVectECF.get_array()
-                col_vector = plane.YDir.UVectECF.get_array()
-                norm_vector = numpy.cross(row_vector, col_vector)
-                row_spacing = plane.XDir.LineSpacing
-                col_spacing = plane.YDir.SampleSpacing
-                proj_helper = PGProjection(
-                    self.sicd, reference_point=ref_pt, reference_pixels=ref_pixels,
-                    normal_vector=norm_vector, row_vector=row_vector, col_vector=col_vector,
-                    row_spacing=row_spacing, col_spacing=col_spacing)
-                self._default_ortho_bounds = numpy.array([
+                default_ortho_bounds = numpy.array([
                     plane.XDir.FirstLine, plane.XDir.FirstLine+plane.XDir.NumLines,
                     plane.YDir.FirstSample, plane.YDir.FirstSample+plane.YDir.NumSamples], dtype=numpy.uint32)
-            else:
-                proj_helper = PGProjection(self.sicd)
+
         if not isinstance(proj_helper, ProjectionHelper):
             raise TypeError('Got unexpected type {} for proj_helper'.format(proj_helper))
         self._proj_helper = proj_helper
+        if default_ortho_bounds is not None:
+            _, ortho_rectangle = self.bounds_to_rectangle(default_ortho_bounds)
+            self._default_physical_bounds = self.proj_helper.ortho_to_ecf(ortho_rectangle)
 
     @property
     def apply_radiometric(self):
@@ -1135,8 +1150,9 @@ class OrthorectificationHelper(object):
             Of the form `[min row, max row, min column, max column]`.
         """
 
-        if self._default_ortho_bounds is not None:
-            return self._default_ortho_bounds
+        if self._default_physical_bounds is not None:
+            ortho_rectangle = self.proj_helper.ecf_to_ortho(self._default_physical_bounds)
+            return self.proj_helper.get_pixel_array_bounds(ortho_rectangle)
 
         full_coords = self.sicd.ImageData.get_full_vertex_data()
         full_line = _linear_fill(full_coords, fill_interval=1)
@@ -1157,8 +1173,9 @@ class OrthorectificationHelper(object):
             Of the form `[min row, max row, min column, max column]`.
         """
 
-        if self._default_ortho_bounds is not None:
-            return self._default_ortho_bounds
+        if self._default_physical_bounds is not None:
+            ortho_rectangle = self.proj_helper.ecf_to_ortho(self._default_physical_bounds)
+            return self.proj_helper.get_pixel_array_bounds(ortho_rectangle)
 
         valid_coords = self.sicd.ImageData.get_valid_vertex_data()
         if valid_coords is None:
@@ -1727,6 +1744,11 @@ class OrthorectificationHelper(object):
 class NearestNeighborMethod(OrthorectificationHelper):
     """
     Nearest neighbor ortho-rectification method.
+
+    .. warning::
+        Modification of the proj_helper parameters when the default full image
+        bounds have been defained (i.e. sicd.RadarCollection.Area is defined) may
+        result in unintended results.
     """
 
     def __init__(self, reader, index=0, proj_helper=None, complex_valued=False,
@@ -1781,6 +1803,11 @@ class NearestNeighborMethod(OrthorectificationHelper):
 class BivariateSplineMethod(OrthorectificationHelper):
     """
     Bivariate spline interpolation ortho-rectification method.
+
+    .. warning::
+        Modification of the proj_helper parameters when the default full image
+        bounds have been defained (i.e. sicd.RadarCollection.Area is defined) may
+        result in unintended results.
     """
 
     __slots__ = ('_row_order', '_col_order')
