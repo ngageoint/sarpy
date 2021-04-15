@@ -292,3 +292,23 @@ def sicd_reader_iterator(reader, partitions=None, polarization=None, band=None):
             this_sicd = the_sicds[this_index]
             if sicd_match():
                 yield this_partition, this_index, this_sicd
+
+
+def get_physical_coordinates(the_sicd, row_value, col_value):
+    """
+    Transform from image coordinates to physical coordinates, for polynomial evaluation.
+
+    Parameters
+    ----------
+    the_sicd : sarpy.io.complex.sicd_elements.SICD.SICDType
+    row_value : int|float|numpy.ndarray
+    col_value : int|float|numpy.ndarray
+
+    Returns
+    -------
+    tuple
+        The row and colummn physical coordinates
+    """
+
+    return get_im_physical_coords(row_value, the_sicd.Grid, the_sicd.ImageData, 'row'), \
+           get_im_physical_coords(col_value, the_sicd.Grid, the_sicd.ImageData, 'col')

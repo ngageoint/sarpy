@@ -224,9 +224,9 @@ class CSKDetails(object):
                     logging.warning('Got unexpected acquisition mode {}'.format(acq_mode))
                     mode_type = 'DYNAMIC STRIPMAP'
             elif self.mission_id == 'CSG':
-                if acq_mode == 'QUADPOL' or acq_mode.startswith('SPOTLIGHT'):
+                if acq_mode.startswith('SPOTLIGHT'):
                     mode_type = 'DYNAMIC STRIPMAP'
-                elif acq_mode == 'STRIPMAP':
+                elif acq_mode in ['STRIPMAP', 'QUADPOL']:
                     mode_type = "STRIPMAP"
                 else:
                     logging.warning('Got unhandled acquisition mode {}, setting to DYNAMIC STRIPMAP'.format(acq_mode))
@@ -537,7 +537,12 @@ class CSKDetails(object):
             # update grid.col
             col_ss = abs(vel_ca*ss_az_s*drate_sf_poly[0])
             sicd.Grid.Col.SS = col_ss
-            col_bw = min(band_dict[band_name]['Azimuth Focusing Transition Bandwidth']*ss_az_s, 1) / col_ss
+            if self.mission_id in ['CSK', 'KMPS']:
+                col_bw = min(band_dict[band_name]['Azimuth Focusing Transition Bandwidth']*ss_az_s, 1) / col_ss
+            elif self.mission_id == 'CSG':
+                col_bw = min(band_dict[band_name]['Azimuth Focusing Bandwidth']*ss_az_s, 1) / col_ss
+            else:
+                raise ValueError('Got unhandled mission_id {}'.format(self.mission_id))
             sicd.Grid.Col.ImpRespBW = col_bw
             # update inca
             sicd.RMA.INCA.DRateSFPoly = Poly2DType(Coefs=numpy.reshape(drate_sf_poly, (-1, 1)))

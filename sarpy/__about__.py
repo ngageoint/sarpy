@@ -27,7 +27,7 @@ __all__ = ['__version__',
            '__license__', '__copyright__']
 
 
-__version__ = "1.1.65.post0"  # post0 indicates the DI2E version
+__version__ = "1.1.66.post0"
 
 
 __classification__ = "FOUO"
