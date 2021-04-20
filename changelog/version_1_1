@@ -1,5 +1,6 @@
 # This details the important differences introduced in sarpy 1.1
 
+* .67 - Fix for the range doppler rate polynomial definition for Cosmo SkyMed
 * .66 - Updating Cosmo SkyMed 2nd generation column impulse response population
         Introduces helper method for converting image coordinates to coordinates for polynomial evaluation
         Fixed sign convention in SICD related Fourier helper methods
