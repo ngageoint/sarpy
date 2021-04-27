@@ -1,5 +1,6 @@
 # This details the important differences introduced in sarpy 1.1
 
+* .69 - Debugging SIDD Version 1.0 structure producted in create_product methods
 * .68 - Introduction of a reader implementation which directly uses an array or memmap,
         which is intended merely to provide unified integration for tool usage.
 * .67 - Fix for the range doppler rate polynomial definition for Cosmo SkyMed
