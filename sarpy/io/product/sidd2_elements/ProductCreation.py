@@ -76,7 +76,7 @@ class ProductClassificationType(Serializable):
         'classificationReason', 'nonUSControls', 'derivedFrom', 'declassDate',
         'declassEvent', 'declassException', 'typeOfExemptedSource', 'dateOfExemptedSource',
         'SecurityExtensions')
-    _required = ('DESVersion', 'createDate', 'classification', 'ownerProducer', 'compliesWith', 'ISMCATCESVersion')
+    _required = ('DESVersion', 'createDate', 'classification', 'ownerProducer')
     _collections_tags = {'SecurityExtensions': {'array': False, 'child_tag': 'SecurityExtension'}}
     _set_as_attribute = (
         'DESVersion', 'resourceElement', 'createDate', 'compliesWith', 'ISMCATCESVersion',
@@ -95,10 +95,10 @@ class ProductClassificationType(Serializable):
         'createDate', _required, strict=DEFAULT_STRICT,
         docstring='This should be a date of format :code:`YYYY-MM-DD`, but this is not checked.')  # type: str
     compliesWith = _StringDescriptor(
-        'compliesWith', _required, strict=DEFAULT_STRICT, default_value='USGov',
+        'compliesWith', _required, strict=DEFAULT_STRICT, default_value=None,
         docstring='')  # type: Union[None, str]
     ISMCATCESVersion = _StringDescriptor(
-        'ISMCATCESVersion', _required, strict=DEFAULT_STRICT, default_value='201903',
+        'ISMCATCESVersion', _required, strict=DEFAULT_STRICT, default_value=None,
         docstring='')  # type: Union[None, str]
     classification = _StringEnumDescriptor(
         'classification', ('U', 'C', 'R', 'S', 'TS'), _required, strict=DEFAULT_STRICT,

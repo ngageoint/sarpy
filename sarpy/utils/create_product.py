@@ -50,6 +50,8 @@ if __name__ == '__main__':
         help="The version of the SIDD standard used.")
     parser.add_argument(
         '-v', '--verbose', default=0, action='count', help='Verbose (level="INFO") logging?')
+    parser.add_argument(
+        '-s', '--sicd', default=0, action='count', help='Include the SICD structure in the SIDD?')
 
     args = parser.parse_args()
     if args.verbose > 0:
@@ -63,10 +65,10 @@ if __name__ == '__main__':
         else:
             ortho_helper = NearestNeighborMethod(reader, index=i)
         if args.type == 'detected':
-            create_detected_image_sidd(ortho_helper, args.output_directory, version=args.version)
+            create_detected_image_sidd(ortho_helper, args.output_directory, version=args.version, include_sicd=(args.sicd > 0))
         elif args.type == 'csi':
-            create_csi_sidd(ortho_helper, args.output_directory, version=args.version)
+            create_csi_sidd(ortho_helper, args.output_directory, version=args.version, include_sicd=(args.sicd > 0))
         elif args.type == 'dynamic':
-            create_dynamic_image_sidd(ortho_helper, args.output_directory, version=args.version)
+            create_dynamic_image_sidd(ortho_helper, args.output_directory, version=args.version, include_sicd=(args.sicd > 0))
         else:
             raise ValueError('Got unhandled type {}'.format(args.type))

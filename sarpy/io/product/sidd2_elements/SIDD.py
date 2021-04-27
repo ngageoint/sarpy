@@ -439,7 +439,7 @@ class SIDDType(Serializable):
         """
 
         return OrderedDict([
-            ('DESSHSI', _SIDD_SPECIFICATION_VERSION),
+            ('DESSHSI', _SIDD_SPECIFICATION_IDENTIFIER),
             ('DESSHSV', _SIDD_SPECIFICATION_VERSION),
             ('DESSHSD', _SIDD_SPECIFICATION_DATE),
             ('DESSHTN', _SIDD_URN)])
