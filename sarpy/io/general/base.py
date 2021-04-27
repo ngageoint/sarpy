@@ -945,7 +945,7 @@ class SubsetReader(BaseReader):
         self._parent_reader = parent_reader
         # noinspection PyProtectedMember
         chipper = SubsetChipper(parent_reader._chipper, dim1bounds, dim2bounds)
-        super(SubsetReader, self).__init__(sicd_meta, chipper)
+        super(SubsetReader, self).__init__(sicd_meta, chipper, reader_type=parent_reader.reader_type)
 
     @property
     def file_name(self):
@@ -1040,6 +1040,67 @@ class AggregateReader(BaseReader):
         """
 
         return tuple(entry.file_name for entry in self._readers)
+
+
+class FlatReader(BaseReader):
+    """
+    Class for passing a numpy array or memmap straight through as a reader.
+    """
+
+    def __init__(self, sicd_meta, array, reader_type='OTHER', output_bands=None, output_dtype=None,
+                 symmetry=(False, False, False), transform_data=None, limit_to_raw_bands=None):
+        """
+
+        Parameters
+        ----------
+        sicd_meta : None|SICDType
+            `None`, or the SICD metadata object
+        array : numpy.ndarray
+        reader_type : str
+            What kind of reader is this? Should be "SICD", or "OTHER" here. If SICD,
+            the (output) data is expected to be complex.
+        output_bands : None|int
+        output_dtype : None|str|numpy.dtype|numpy.number
+        symmetry : tuple
+            Describes any required data transformation. See the `symmetry` property.
+        transform_data : None|str|Callable
+            For data transformation after reading.
+            If `None`, then no transformation will be applied. If `callable`, then
+            this is expected to be the transformation method for the raw data. If
+            string valued and `'complex'`, then the assumption is that real/imaginary
+            components are stored in adjacent bands, which will be combined into a
+            single band upon extraction. Other situations will yield and value error.
+        limit_to_raw_bands : None|int|numpy.ndarray|list|tuple
+            The collection of raw bands to which to read. `None` is all bands.
+        """
+
+        if array.ndim not in [2, 3]:
+            raise ValueError('Requires two or three-dimensional array')
+
+        raw_dtype = array.dtype
+        raw_bands = 1 if array.ndim == 2 else array.shape[3]
+        data_size = array.shape[:2]
+
+        if output_bands is None:
+            if transform_data is not None or limit_to_raw_bands is not None:
+                raise ValueError(
+                    'output_bands is not populated, but transform_data or limit_to_raw_bands is populated.')
+            output_bands = raw_bands
+
+        if output_dtype is None:
+            if transform_data is not None:
+                raise ValueError(
+                    'output_dtype is not populated, but transform_data is populated.')
+            output_dtype = raw_dtype
+
+        chipper = BIPChipper(
+            array, raw_dtype, data_size, raw_bands, output_bands, output_dtype,
+            symmetry=symmetry, transform_data=transform_data, limit_to_raw_bands=limit_to_raw_bands)
+        super(FlatReader, self).__init__(sicd_meta, chipper, reader_type=reader_type)
+
+    @property
+    def file_name(self):
+        return None
 
 
 #################
@@ -1222,8 +1283,9 @@ class BIPChipper(BaseChipper):
 
         Parameters
         ----------
-        file_name : str
-            The name of the file from which to read
+        file_name : str|numpy.ndarray
+            The name of the file from which to read, or a numpy array or memmap
+            to use directly.
         raw_dtype : str|numpy.dtype|numpy.number
             The data type of the underlying file. **Note: specify endianness where necessary.**
         data_size : tuple
@@ -1250,6 +1312,8 @@ class BIPChipper(BaseChipper):
         """
 
         self._limit_to_raw_bands = None
+        self._memory_map = None  # type: Union[None, numpy.ndarray]
+        self._fid = None
         super(BIPChipper, self).__init__(data_size, symmetry=symmetry, transform_data=transform_data)
 
         raw_bands = int_func(raw_bands)
@@ -1273,33 +1337,35 @@ class BIPChipper(BaseChipper):
 
         self._shape = (int_func(data_size[0]), int_func(data_size[1]), self._raw_bands)
 
-        if not os.path.isfile(file_name):
-            raise IOError('Path {} either does not exists, or is not a file.'.format(file_name))
-        if not os.access(file_name, os.R_OK):
-            raise IOError('User does not appear to have read access for file {}.'.format(file_name))
-        self._file_name = file_name
+        if isinstance(file_name, numpy.ndarray):
+            self._memory_map = file_name
+            # NB: we assume the the rest of the data is set up properly
+        else:
+            if not os.path.isfile(file_name):
+                raise IOError('Path {} either does not exists, or is not a file.'.format(file_name))
+            if not os.access(file_name, os.R_OK):
+                raise IOError('User does not appear to have read access for file {}.'.format(file_name))
+            self._file_name = file_name
 
-        self._memory_map = None
-        self._fid = None
-        try:
-            self._memory_map = numpy.memmap(self._file_name,
-                                            dtype=raw_dtype,
-                                            mode='r',
-                                            offset=data_offset,
-                                            shape=self._shape)  # type: numpy.memmap
-        except (OverflowError, OSError):
-            if self._limit_to_raw_bands is not None:
-                raise ValueError(
-                    'Unsupported effort with limit_to_raw_bands is not None, and falling '
-                    'back to a manual file reading. This is presumably because this is '
-                    '32-bit python and you are reading a large (> 2GB) file.')
-            # if 32-bit python, then we'll fail for any file larger than 2GB
-            # we fall-back to a slower version of reading manually
-            self._fid = open(self._file_name, mode='rb')
-            logging.warning(
-                'Falling back to reading file {} manually (instead of using mem-map). This has almost '
-                'certainly occurred because you are 32-bit python to try to read (portions of) a file '
-                'which is larger than 2GB.'.format(self._file_name))
+            try:
+                self._memory_map = numpy.memmap(self._file_name,
+                                                dtype=raw_dtype,
+                                                mode='r',
+                                                offset=data_offset,
+                                                shape=self._shape)
+            except (OverflowError, OSError):
+                if self._limit_to_raw_bands is not None:
+                    raise ValueError(
+                        'Unsupported effort with limit_to_raw_bands is not None, and falling '
+                        'back to a manual file reading. This is presumably because this is '
+                        '32-bit python and you are reading a large (> 2GB) file.')
+                # if 32-bit python, then we'll fail for any file larger than 2GB
+                # we fall-back to a slower version of reading manually
+                self._fid = open(self._file_name, mode='rb')
+                logging.warning(
+                    'Falling back to reading file {} manually (instead of using mem-map). This has almost '
+                    'certainly occurred because you are 32-bit python to try to read (portions of) a file '
+                    'which is larger than 2GB.'.format(self._file_name))
 
     def _validate_limit_to_raw_bands(self, limit_to_raw_bands):
         if limit_to_raw_bands is None:
