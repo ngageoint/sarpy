@@ -151,16 +151,29 @@ class DeskewCalculator(FullResolutionFetcher):
     """
 
     __slots__ = (
-        '_apply_deskew', '_apply_deweighting', '_delta_kcoa_poly_axis', '_delta_kcoa_poly_off_axis',
+        '_apply_deskew', '_apply_deweighting', '_apply_off_axis', '_delta_kcoa_poly_axis', '_delta_kcoa_poly_off_axis',
         '_row_fft_sgn', '_col_fft_sgn',
         '_row_shift', '_row_mult', '_col_shift', '_col_mult',
         '_row_weight', '_row_pad', '_col_weight', '_col_pad',
         '_is_normalized', '_is_not_skewed_row', '_is_not_skewed_col',
         '_is_uniform_weight_row', '_is_uniform_weight_col', )
 
-    def __init__(self, reader, dimension=1, index=0, apply_deskew=True, apply_deweighting=False):
+    def __init__(self, reader, dimension=1, index=0, apply_deskew=True, apply_deweighting=False, apply_off_axis=True):
+        """
+
+        Parameters
+        ----------
+        reader : BaseReader
+        dimension : int
+        index : int
+        apply_deskew : bool
+        apply_deweighting : bool
+        apply_off_axis : bool
+        """
+
         self._apply_deskew = apply_deskew
         self._apply_deweighting = apply_deweighting
+        self._apply_off_axis = apply_off_axis
         self._delta_kcoa_poly_axis = None
         self._delta_kcoa_poly_off_axis = None
         self._row_fft_sgn = None
@@ -352,16 +365,18 @@ class DeskewCalculator(FullResolutionFetcher):
                 full_data = on_axis_deskew(full_data, self._row_fft_sgn)
                 if self._apply_deweighting:
                     full_data = _deweight_array(full_data, self._row_weight, self._row_pad, 0)
-            # deskew off axis, as possible
-            full_data = other_axis_deskew(full_data, self._col_fft_sgn)
+            if self._apply_off_axis:
+                # deskew off axis, to the extent possible
+                full_data = other_axis_deskew(full_data, self._col_fft_sgn)
         elif self.dimension == 1:
             # deskew on axis, if necessary
             if not self._is_not_skewed_col:
                 full_data = on_axis_deskew(full_data, self._col_fft_sgn)
                 if self._apply_deweighting:
                     full_data = _deweight_array(full_data, self._col_weight, self._col_pad, 1)
-            # deskew off axis, as possible
-            full_data = other_axis_deskew(full_data, self._row_fft_sgn)
+            if self._apply_off_axis:
+                # deskew off axis, to the extent possible
+                full_data = other_axis_deskew(full_data, self._row_fft_sgn)
         return full_data[::abs(row_range[2]), ::abs(col_range[2])]
 
 
