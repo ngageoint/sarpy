@@ -29,7 +29,7 @@ from sarpy.io.product.sidd2_elements.blocks import ReferencePointType, Poly2DTyp
 from sarpy.io.product.sidd1_elements.SIDD import SIDDType as SIDDType1
 from sarpy.io.product.sidd1_elements.Display import ProductDisplayType as ProductDisplayType1
 from sarpy.io.product.sidd1_elements.GeographicAndTarget import GeographicAndTargetType as GeographicAndTargetType1, \
-    GeographicCoverageType as GeographicCoverageType1
+    GeographicCoverageType as GeographicCoverageType1, GeographicInformationType as GeographicInformationType1
 from sarpy.io.product.sidd1_elements.Measurement import MeasurementType as MeasurementType1
 from sarpy.io.product.sidd1_elements.ExploitationFeatures import ExploitationFeaturesType as ExploitationFeaturesType1
 
@@ -167,6 +167,9 @@ def create_sidd_structure_v2(ortho_helper, bounds, product_class, pixel_type):
     bounds, ortho_pixel_corners = ortho_helper.bounds_to_rectangle(bounds)
     # construct appropriate SIDD elements
     prod_create = ProductCreationType.from_sicd(ortho_helper.proj_helper.sicd, product_class)
+    prod_create.Classification.ISMCATCESVersion = '201903'
+    prod_create.Classification.compliesWith = 'USGov'
+
     # Display requires more product specifics
     display = _create_display_v2()
     # GeoData
@@ -242,12 +245,18 @@ def create_sidd_structure_v1(ortho_helper, bounds, product_class, pixel_type):
     # construct appropriate SIDD elements
     prod_create = ProductCreationType.from_sicd(ortho_helper.proj_helper.sicd, product_class)
     prod_create.Classification.DESVersion = 4
+    prod_create.Classification.ISMCATCESVersion = None
+    prod_create.Classification.compliesWith = None
+    print(prod_create)
+
 
     # Display requires more product specifics
     display = _create_display_v1()
     # GeographicAndTarget
     llh_corners = ortho_helper.proj_helper.ortho_to_llh(ortho_pixel_corners)
-    geographic = GeographicAndTargetType1(GeographicCoverage=GeographicCoverageType1(Footprint=llh_corners[:, :2]))
+    geographic = GeographicAndTargetType1(
+        GeographicCoverage=GeographicCoverageType1(Footprint=llh_corners[:, :2],
+                                                   GeographicInfo=GeographicInformationType1()),)
     # Measurement
     measurement = _create_measurement_v1()
     # ExploitationFeatures
