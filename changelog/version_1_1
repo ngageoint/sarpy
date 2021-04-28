@@ -1,5 +1,8 @@
 # This details the important differences introduced in sarpy 1.1
 
+* .70 - Debugging SIDD Version 2.0 structure produced in create_product methods
+        Debugging of poor classification extraction in SIDD production for both versions
+        Reorganization of SIDD schemas and inclusion in package data
 * .69 - Debugging SIDD Version 1.0 structure producted in create_product methods
 * .68 - Introduction of a reader implementation which directly uses an array or memmap,
         which is intended merely to provide unified integration for tool usage.

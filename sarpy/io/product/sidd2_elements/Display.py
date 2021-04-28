@@ -300,7 +300,7 @@ class SharpnessEnhancementType(Serializable):
     Sharpness enhancement filter parameters.
     """
     _fields = ('ModularTransferFunctionCompensation', 'ModularTransferFunctionEnhancement')
-    _required = _fields
+    _required = ()
     _choice = ({'required': True, 'collection': ('ModularTransferFunctionCompensation',
                                                  'ModularTransferFunctionEnhancement')}, )
     # Descriptor

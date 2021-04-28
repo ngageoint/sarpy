@@ -1589,8 +1589,9 @@ class Serializable(object):
 
         if len(node) == 0 and len(node.attrib) == 0:
             logging.warning('There are no children or attributes associated\n'
-                            'with node {} for class {}. Returning None.'.format(node, cls))
-            return None
+                            'with node {}\n'
+                            'for class {}.'.format(node, cls))
+            # return None
 
         def handle_attribute(the_tag, the_xml_ns_key):
             if the_xml_ns_key is not None:  # handle namespace, if necessary
