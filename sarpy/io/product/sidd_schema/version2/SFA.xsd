@@ -1,0 +1,213 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns="urn:SFA:1.2.0" targetNamespace="urn:SFA:1.2.0" elementFormDefault="qualified" attributeFormDefault="unqualified">
+	<!-- OpenGIS® Implementation Specification for Geographic information - Simple feature access (SFA) v1.2.0
+	Based upon OGC document: OGC 06-103r3
+
+	Type Level 1 types (Feature Table 7.2.5)
+	Available types: Geometry, Point, Curve, LineString, Surface, Polygon, GeomCollection
+	Instantiable types: Point, LineString, Polygon, GeomCollection
+	
+	Type Level 2 types (Feature Table 7.2.5)
+	Available types: Geometry, Point, Curve, LineString, Surface, Polygon, GeomCollection, MultiPoint, MultiCurve, MultiLineString, MultiSurface, MultiPolygon
+	Instantiable types: Point, LineString, Polygon, MultiPoint, MultiLineString, MultiPolygon
+	
+	Type Level 3 types (Feature Table 7.2.5)
+	Available types: Geometry, Point, Curve, LineString, Surface, Polygon, GeomCollection, MultiPoint , MultiCurve, MultiLineString, MultiSurface, MultiPolygon
+	Instantiable types: Point, LineString, Polygon, GeomCollection, MultiPoint, MultiLineString, MultiPolygon
+	-->
+	<xs:complexType name="GeometryType" abstract="true"/>
+	<xs:complexType name="PointType">
+		<xs:complexContent>
+			<xs:extension base="GeometryType">
+				<xs:sequence>
+					<xs:element name="X" type="xs:double"/>
+					<xs:element name="Y" type="xs:double"/>
+					<xs:element name="Z" type="xs:double" minOccurs="0"/>
+					<xs:element name="M" type="xs:double" minOccurs="0"/>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:complexType name="CurveType" abstract="true">
+		<xs:complexContent>
+			<xs:extension base="GeometryType"/>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:complexType name="LineStringType" abstract="true">
+		<xs:complexContent>
+			<xs:extension base="CurveType">
+				<xs:sequence>
+					<xs:element name="Vertex" type="PointType" minOccurs="2" maxOccurs="unbounded"/>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:complexType name="LineType">
+		<xs:complexContent>
+			<xs:extension base="LineStringType"/>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:complexType name="LinearRingType">
+		<xs:complexContent>
+			<xs:extension base="LineStringType"/>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:complexType name="SurfaceType" abstract="true">
+		<xs:complexContent>
+			<xs:extension base="GeometryType"/>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:complexType name="PolygonType">
+		<xs:complexContent>
+			<xs:extension base="SurfaceType">
+				<xs:sequence>
+					<xs:element name="Ring" type="LinearRingType" maxOccurs="unbounded"/>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:complexType name="TriangleType">
+		<xs:complexContent>
+			<xs:extension base="PolygonType"/>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:complexType name="PolyhedralSurfaceType">
+		<xs:complexContent>
+			<xs:extension base="SurfaceType">
+				<xs:sequence>
+					<xs:element name="Patch" type="PolygonType" maxOccurs="unbounded"/>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:complexType name="TriangulatedIrregularNetworkType">
+		<xs:complexContent>
+			<xs:extension base="PolyhedralSurfaceType">
+				<xs:sequence>
+					<!-- note that the spec has this object named as "patch" but it cannot be since it inherits from PolyhedralSurface which already has patch elements"-->
+					<xs:element name="TriangularPatch" type="TriangleType" maxOccurs="unbounded"/>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:complexType name="GeometryCollectionType" abstract="true">
+		<xs:complexContent>
+			<xs:extension base="GeometryType"/>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:complexType name="MultiPointType">
+		<xs:complexContent>
+			<xs:extension base="GeometryCollectionType">
+				<xs:sequence>
+					<xs:element name="Vertex" type="PointType" minOccurs="2" maxOccurs="unbounded"/>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:complexType name="MultiCurveType" abstract="true">
+		<xs:complexContent>
+			<xs:extension base="GeometryCollectionType"/>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:complexType name="MultiLineStringType">
+		<xs:complexContent>
+			<xs:extension base="MultiCurveType">
+				<xs:sequence>
+					<xs:element name="Element" type="LineStringType" minOccurs="0" maxOccurs="unbounded"/>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:complexType name="MultiSurfaceType" abstract="true">
+		<xs:complexContent>
+			<xs:extension base="GeometryCollectionType"/>
+		</xs:complexContent>
+	</xs:complexType>
+	<xs:complexType name="MultiPolygonType">
+		<xs:complexContent>
+			<xs:extension base="MultiSurfaceType">
+				<xs:sequence>
+					<xs:element name="Element" type="PolygonType" minOccurs="0" maxOccurs="unbounded"/>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+	<!-- Reference System Definition -->
+	<xs:complexType name="UNITType">
+		<xs:sequence>
+			<xs:element name="UnitName" type="xs:string"/>
+			<xs:element name="ConversionFactor" type="xs:double"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="PrimeMeridianType">
+		<xs:sequence>
+			<xs:element name="Name" type="xs:string"/>
+			<xs:element name="Longitude" type="xs:double"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="SpheriodType">
+		<xs:sequence>
+			<xs:element name="SpheriodName" type="xs:string"/>
+			<xs:element name="SemiMajorAxis" type="xs:double"/>
+			<xs:element name="InverseFlattening" type="xs:double"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="ParameterType">
+		<xs:sequence>
+			<xs:element name="ParameterName" type="xs:string"/>
+			<xs:element name="Value" type="xs:double"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="ProjectionType">
+		<xs:sequence>
+			<xs:element name="ProjectionName" type="xs:string"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="DatumType">
+		<xs:sequence>
+			<xs:element name="Spheroid" type="SpheriodType"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="GeocentricCoordinateSystemType">
+		<xs:sequence>
+			<xs:element name="Name" type="xs:string"/>
+			<xs:element name="Datum" type="DatumType"/>
+			<xs:element name="PrimeMeridian" type="PrimeMeridianType"/>
+			<xs:element name="LinearUnit" type="xs:string"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="GeographicCoordinateSystemType">
+		<xs:sequence>
+			<xs:element name="Csname" type="xs:string"/>
+			<xs:element name="Datum" type="DatumType"/>
+			<xs:element name="PrimeMeridian" type="PrimeMeridianType"/>
+			<xs:element name="AngularUnit" type="xs:string"/>
+			<xs:element name="LinearUnit" type="xs:string" minOccurs="0"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="ProjectedCoordinateSystemType">
+		<xs:sequence>
+			<xs:element name="Csname" type="xs:string"/>
+			<xs:element name="GeographicCoordinateSystem" type="GeographicCoordinateSystemType"/>
+			<xs:element name="Projection" type="ProjectionType"/>
+			<xs:element name="Parameter" type="ParameterType" minOccurs="0"/>
+			<xs:element name="LinearUnit" type="xs:string"/>
+		</xs:sequence>
+	</xs:complexType>
+	<xs:complexType name="AbstractReferenceSystemType" abstract="true">
+		<xs:choice>
+			<xs:element name="ProjectedCoordinateSystem" type="ProjectedCoordinateSystemType"/>
+			<xs:element name="GeographicCoordinateSystem" type="GeographicCoordinateSystemType"/>
+			<xs:element name="GeocentricCoordinateSystem" type="GeocentricCoordinateSystemType"/>
+		</xs:choice>
+	</xs:complexType>
+	<xs:complexType name="ReferenceSystemType">
+		<xs:complexContent>
+			<xs:extension base="AbstractReferenceSystemType">
+				<xs:sequence>
+					<xs:element name="AxisName" type="xs:string" maxOccurs="unbounded"/>
+				</xs:sequence>
+			</xs:extension>
+		</xs:complexContent>
+	</xs:complexType>
+</xs:schema>
