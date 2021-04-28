@@ -15,16 +15,19 @@ from sarpy.io.complex.utils import two_dim_poly_fit, get_im_physical_coords
 from sarpy.processing.ortho_rectify import OrthorectificationHelper, ProjectionHelper, \
     PGProjection
 # agnostic to version
-from sarpy.io.product.sidd2_elements.ProductCreation import ProductCreationType
 from sarpy.io.product.sidd2_elements.Measurement import PlaneProjectionType, ProductPlaneType
 # version 2 elements
 from sarpy.io.product.sidd2_elements.SIDD import SIDDType as SIDDType2
 from sarpy.io.product.sidd2_elements.Display import ProductDisplayType as ProductDisplayType2, \
-    NonInteractiveProcessingType, ProductGenerationOptionsType, RRDSType
+    NonInteractiveProcessingType, ProductGenerationOptionsType, RRDSType, \
+    InteractiveProcessingType, GeometricTransformType, SharpnessEnhancementType, \
+    DynamicRangeAdjustmentType, ScalingType, OrientationType
 from sarpy.io.product.sidd2_elements.GeoData import GeoDataType as GeoDataType2
 from sarpy.io.product.sidd2_elements.Measurement import MeasurementType as MeasurementType2
 from sarpy.io.product.sidd2_elements.ExploitationFeatures import ExploitationFeaturesType as ExploitationFeaturesType2
-from sarpy.io.product.sidd2_elements.blocks import ReferencePointType, Poly2DType, XYZPolyType
+from sarpy.io.product.sidd2_elements.blocks import ReferencePointType, Poly2DType, XYZPolyType, \
+    FilterType, FilterBankType, PredefinedFilterType
+from sarpy.io.product.sidd2_elements.ProductCreation import ProductCreationType as ProductCreationType2
 # version 1 elements
 from sarpy.io.product.sidd1_elements.SIDD import SIDDType as SIDDType1
 from sarpy.io.product.sidd1_elements.Display import ProductDisplayType as ProductDisplayType1
@@ -32,6 +35,7 @@ from sarpy.io.product.sidd1_elements.GeographicAndTarget import GeographicAndTar
     GeographicCoverageType as GeographicCoverageType1, GeographicInformationType as GeographicInformationType1
 from sarpy.io.product.sidd1_elements.Measurement import MeasurementType as MeasurementType1
 from sarpy.io.product.sidd1_elements.ExploitationFeatures import ExploitationFeaturesType as ExploitationFeaturesType1
+from sarpy.io.product.sidd1_elements.ProductCreation import ProductCreationType as ProductCreationType1
 
 
 def _fit_timecoa_poly(proj_helper, bounds):
@@ -135,7 +139,37 @@ def create_sidd_structure_v2(ortho_helper, bounds, product_class, pixel_type):
         else:
             raise ValueError('pixel_type must be one of MONO8I, MONO16I, RGB24I. Got {}'.format(pixel_type))
 
-        return ProductDisplayType2(PixelType=pixel_type, NumBands=bands)
+        return ProductDisplayType2(
+            PixelType=pixel_type,
+            NumBands=bands,
+            NonInteractiveProcessing=[NonInteractiveProcessingType(
+                ProductGenerationOptions=ProductGenerationOptionsType(),
+                RRDS=RRDSType(DownsamplingMethod='DECIMATE'),
+                band=i+1) for i in range(bands)],
+            InteractiveProcessing=[InteractiveProcessingType(
+                GeometricTransform=GeometricTransformType(
+                    Scaling=ScalingType(
+                        AntiAlias=FilterType(
+                            FilterName='AntiAlias',
+                            FilterBank=FilterBankType(
+                                Predefined=PredefinedFilterType(DatabaseName='BILINEAR')),
+                            Operation='CONVOLUTION'),
+                        Interpolation=FilterType(
+                            FilterName='Interpolation',
+                            FilterBank=FilterBankType(
+                                Predefined=PredefinedFilterType(DatabaseName='BILINEAR')),
+                            Operation='CONVOLUTION')),
+                    Orientation=OrientationType(ShadowDirection='ARBITRARY')),
+                SharpnessEnhancement=SharpnessEnhancementType(
+                    ModularTransferFunctionEnhancement=FilterType(
+                        FilterName='ModularTransferFunctionEnhancement',
+                        FilterBank=FilterBankType(
+                            Predefined=PredefinedFilterType(DatabaseName='BILINEAR')),
+                        Operation='CONVOLUTION')),
+                DynamicRangeAdjustment=DynamicRangeAdjustmentType(
+                    AlgorithmType='NONE',
+                    BandStatsSource=1),
+                band=i+1) for i in range(bands)])
 
     def _create_measurement_v2():
         proj_helper = ortho_helper.proj_helper
@@ -166,7 +200,7 @@ def create_sidd_structure_v2(ortho_helper, bounds, product_class, pixel_type):
     # validate bounds and get pixel coordinates rectangle
     bounds, ortho_pixel_corners = ortho_helper.bounds_to_rectangle(bounds)
     # construct appropriate SIDD elements
-    prod_create = ProductCreationType.from_sicd(ortho_helper.proj_helper.sicd, product_class)
+    prod_create = ProductCreationType2.from_sicd(ortho_helper.proj_helper.sicd, product_class)
     prod_create.Classification.ISMCATCESVersion = '201903'
     prod_create.Classification.compliesWith = 'USGov'
 
@@ -243,11 +277,7 @@ def create_sidd_structure_v1(ortho_helper, bounds, product_class, pixel_type):
     # validate bounds and get pixel coordinates rectangle
     bounds, ortho_pixel_corners = ortho_helper.bounds_to_rectangle(bounds)
     # construct appropriate SIDD elements
-    prod_create = ProductCreationType.from_sicd(ortho_helper.proj_helper.sicd, product_class)
-    prod_create.Classification.DESVersion = 4
-    prod_create.Classification.ISMCATCESVersion = None
-    prod_create.Classification.compliesWith = None
-    print(prod_create)
+    prod_create = ProductCreationType1.from_sicd(ortho_helper.proj_helper.sicd, product_class)
 
 
     # Display requires more product specifics
