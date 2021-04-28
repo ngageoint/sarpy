@@ -7,6 +7,7 @@ import shutil
 from sarpy.io.complex.sicd import SICDReader
 import sarpy.io.product.sidd
 from sarpy.io.product.sidd import SIDDReader
+from sarpy.io.product.sidd_schema import get_schema_path
 from sarpy.io.product.sidd_product_creation import create_detected_image_sidd, create_dynamic_image_sidd, create_csi_sidd
 from sarpy.processing.ortho_rectify import NearestNeighborMethod
 
@@ -33,16 +34,6 @@ if os.path.isfile(file_reference):
             product_file_types[the_type] = valid_entries
 
 sicd_files = product_file_types.get('SICD', [])
-
-schemas = {
-    1: os.path.join(
-        os.path.split(sarpy.io.product.sidd.__file__)[0],
-        'sidd_schema',
-        'SIDD_schema_V1.0.0_2011_08_31.xsd'),
-    2: os.path.join(
-        os.path.split(sarpy.io.product.sidd.__file__)[0],
-        'sidd_schema',
-        'SIDD_schema_V2.0.0_2019_05_31.xsd')}
 
 
 def check_versus_schema(input_nitf, the_schema):
@@ -98,20 +89,24 @@ class TestSIDDWriting(unittest.TestCase):
             # check that each sidd structure serialized according to the schema
             if etree is not None:
                 for vers in [1, 2]:
+                    schema = get_schema_path('urn:SIDD:{}.0.0'.format(vers))
                     the_fil = 'di_{}.nitf'.format(vers)
                     if the_fil in sidd_files:
-                        if not check_versus_schema(os.path.join(temp_directory, the_fil), schemas[vers]):
-                            logging.warning('Detected image version {} structure not valid versus schema {}'.format(vers, schemas[vers]))
+                        self.assertTrue(
+                            check_versus_schema(os.path.join(temp_directory, the_fil), schema),
+                            'Detected image version {} structure not valid versus schema {}'.format(vers, schema))
 
                     the_fil = 'csi_{}.nitf'.format(vers)
                     if the_fil in sidd_files:
-                        if not check_versus_schema(os.path.join(temp_directory, the_fil), schemas[vers]):
-                            logging.warning('csi version {} structure not valid versus schema {}'.format(vers, schemas[vers]))
+                        self.assertTrue(
+                            check_versus_schema(os.path.join(temp_directory, the_fil), schema),
+                            'csi version {} structure not valid versus schema {}'.format(vers, schema))
 
                     the_fil = 'sast_{}.nitf'.format(vers)
                     if the_fil in sidd_files:
-                        if not check_versus_schema(os.path.join(temp_directory, the_fil), schemas[vers]):
-                            logging.warning('Dynamic image version {} structure not valid versus schema {}'.format(vers, schemas[vers]))
+                        self.assertTrue(
+                            check_versus_schema(os.path.join(temp_directory, the_fil), schema),
+                            'Dynamic image version {} structure not valid versus schema {}'.format(vers, schema))
 
             # clean up the temporary directory
             shutil.rmtree(temp_directory)

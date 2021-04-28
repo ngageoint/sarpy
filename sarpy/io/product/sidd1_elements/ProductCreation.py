@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-The ProductCreationType definition.
+The ProductCreationType definition for version 1.0.
 """
+
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
 
 import logging
 from typing import Union
@@ -9,7 +12,10 @@ from datetime import datetime
 
 import numpy
 
-from .base import DEFAULT_STRICT
+from sarpy.io.product.sidd2_elements.base import DEFAULT_STRICT
+from sarpy.io.product.sidd2_elements.ProductCreation import ProcessorInformationType, \
+    extract_classification_from_sicd
+
 # noinspection PyProtectedMember
 from sarpy.io.complex.sicd_elements.base import Serializable, _SerializableDescriptor, \
     _StringDescriptor, _StringEnumDescriptor, _IntegerDescriptor, _DateTimeDescriptor, \
@@ -17,106 +23,22 @@ from sarpy.io.complex.sicd_elements.base import Serializable, _SerializableDescr
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 
 
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
-
-
-def extract_classification_from_sicd(sicd):
-    """
-    Extract a SIDD style classification from a SICD classification string.
-
-    Parameters
-    ----------
-    sicd : SICDType
-
-    Returns
-    -------
-    str
-    """
-
-    if not isinstance(sicd, SICDType):
-        raise TypeError('Requires SICDType instance, got type {}'.format(type(sicd)))
-
-    c_str = sicd.CollectionInfo.Classification.upper().split('//')[0].strip()
-
-    clas = None
-    if c_str.startswith('UNCLASS') or c_str == 'U':
-        clas = 'U'
-    elif c_str.startswith('CONF') or c_str == 'C':
-        clas = 'C'
-    elif c_str.startswith('TOP ') or c_str == 'TS':
-        clas = 'TS'
-    elif c_str.startswith('SEC') or c_str == 'S':
-        clas = 'S'
-    elif c_str == 'FOUO' or c_str.startswith('REST') or c_str == 'R':
-        clas = 'R'
-    else:
-        logging.critical('Unclear how to extract classification code for classification string {}. '
-                         'It will default to unclassified, and should be set appropriately.'.format(c_str))
-    return clas
-
-
-class ProcessorInformationType(Serializable):
-    """
-    Details regarding the processor.
-    """
-    _fields = ('Application', 'ProcessingDateTime', 'Site', 'Profile')
-    _required = ('Application', 'ProcessingDateTime', 'Site')
-    # descriptors
-    Application = _StringDescriptor(
-        'Application', _required, strict=DEFAULT_STRICT,
-        docstring='Name and version of the application used to create the image.')  # type: str
-    ProcessingDateTime = _DateTimeDescriptor(
-        'ProcessingDateTime', _required, strict=DEFAULT_STRICT, numpy_datetime_units='us',
-        docstring='Date and time the image creation application processed the image (UTC).')  # type: numpy.datetime64
-    Site = _StringDescriptor(
-        'Site', _required, strict=DEFAULT_STRICT,
-        docstring='The creation site of this SICD product.')  # type: str
-    Profile = _StringDescriptor(
-        'Profile', _required, strict=DEFAULT_STRICT,
-        docstring='Identifies what profile was used to create this SICD product.')  # type: str
-
-    def __init__(self, Application=None, ProcessingDateTime=None, Site=None, Profile=None, **kwargs):
-        """
-
-        Parameters
-        ----------
-        Application : str
-        ProcessingDateTime : numpy.datetime64|datetime|date|str
-        Site : str
-        Profile : str
-        kwargs
-        """
-
-        if '_xml_ns' in kwargs:
-            self._xml_ns = kwargs['_xml_ns']
-        if '_xml_ns_key' in kwargs:
-            self._xml_ns_key = kwargs['_xml_ns_key']
-        self.Application = Application
-        self.ProcessingDateTime = ProcessingDateTime
-        self.Site = Site
-        self.Profile = Profile
-        super(ProcessorInformationType, self).__init__(**kwargs)
-
-
 class ProductClassificationType(Serializable):
     """
     The overall classification of the product.
     """
     _fields = (
-        'DESVersion', 'resourceElement', 'createDate', 'compliesWith', 'ISMCATCESVersion',
+        'DESVersion', 'resourceElement', 'createDate', 'compliesWith',
         'classification', 'ownerProducer', 'SCIcontrols', 'SARIdentifier',
         'disseminationControls', 'FGIsourceOpen', 'FGIsourceProtected', 'releasableTo',
         'nonICmarkings', 'classifiedBy', 'compilationReason', 'derivativelyClassifiedBy',
         'classificationReason', 'nonUSControls', 'derivedFrom', 'declassDate',
         'declassEvent', 'declassException', 'typeOfExemptedSource', 'dateOfExemptedSource',
         'SecurityExtensions')
-    _required = (
-        'DESVersion', 'createDate', 'classification', 'ownerProducer', 'compliesWith',
-        'ISMCATCESVersion')
+    _required = ('DESVersion', 'createDate', 'classification', 'ownerProducer')
     _collections_tags = {'SecurityExtensions': {'array': False, 'child_tag': 'SecurityExtension'}}
     _set_as_attribute = (
-        'DESVersion', 'resourceElement', 'createDate', 'compliesWith', 'ISMCATCESVersion',
+        'DESVersion', 'resourceElement', 'createDate', 'compliesWith',
         'classification', 'ownerProducer', 'SCIcontrols', 'SARIdentifier',
         'disseminationControls', 'FGIsourceOpen', 'FGIsourceProtected', 'releasableTo',
         'nonICmarkings', 'classifiedBy', 'compilationReason', 'derivativelyClassifiedBy',
@@ -125,25 +47,21 @@ class ProductClassificationType(Serializable):
     _child_xml_ns_key = {the_field: 'ism' for the_field in _fields if the_field != 'SecurityExtensions'}
     # Descriptor
     DESVersion = _IntegerDescriptor(
-        'DESVersion', _required, strict=DEFAULT_STRICT, default_value=13,
+        'DESVersion', _required, strict=DEFAULT_STRICT, default_value=4,
         docstring='The version number of the DES. Should there be multiple specified in an instance document '
                   'the one at the root node is the one that will apply to the entire document.')  # type: int
     createDate = _StringDescriptor(
         'createDate', _required, strict=DEFAULT_STRICT,
         docstring='This should be a date of format :code:`YYYY-MM-DD`, but this is not checked.')  # type: str
     compliesWith = _StringEnumDescriptor(
-        'compliesWith', ('USGov', 'USIC', 'USDOD', 'OtherAuthority'), _required,
-        strict=DEFAULT_STRICT, default_value='USGov',
-        docstring='The ISM rule sets with which the document may complies.')  # type: Union[None, str]
-    ISMCATCESVersion = _StringDescriptor(
-        'ISMCATCESVersion', _required, strict=DEFAULT_STRICT, default_value='201903',
+        'compliesWith', ('ICD-710', 'DoD5230.24'), _required, strict=DEFAULT_STRICT, default_value=None,
         docstring='')  # type: Union[None, str]
     classification = _StringEnumDescriptor(
         'classification', ('U', 'C', 'R', 'S', 'TS'), _required, strict=DEFAULT_STRICT,
         docstring='')  # type: str
     ownerProducer = _StringDescriptor(
-        'ownerProducer', _required, strict=DEFAULT_STRICT,  # default_value='USA',
-        docstring='')  # type: str
+        'ownerProducer', _required, strict=DEFAULT_STRICT,
+        docstring='Three letter country code')  # type: str
     SCIcontrols = _StringDescriptor(
         'SCIcontrols', _required, strict=DEFAULT_STRICT,
         docstring='')  # type: Union[None, str]
@@ -203,7 +121,7 @@ class ProductClassificationType(Serializable):
         docstring='Extensible parameters used to support profile-specific needs related to '
                   'product security.')  # type: ParametersCollection
 
-    def __init__(self, DESVersion=13, createDate=None, compliesWith='USGov', ISMCATCESVersion='201903',
+    def __init__(self, DESVersion=4, createDate=None, compliesWith=None,
                  classification='U', ownerProducer='USA', SCIcontrols=None, SARIdentifier=None,
                  disseminationControls=None, FGIsourceOpen=None, FGIsourceProtected=None, releasableTo=None,
                  nonICmarkings=None, classifiedBy=None, compilationReason=None, derivativelyClassifiedBy=None,
@@ -217,7 +135,6 @@ class ProductClassificationType(Serializable):
         DESVersion : int
         createDate : str
         compliesWith : None|str
-        ISMCATCESVersion : None|str
         classification : str
         ownerProducer : str
         SCIcontrols : None|str
@@ -249,7 +166,6 @@ class ProductClassificationType(Serializable):
         self.DESVersion = DESVersion
         self.createDate = createDate
         self.compliesWith = compliesWith
-        self.ISMCATCESVersion = ISMCATCESVersion
         self.classification = classification
         self.ownerProducer = ownerProducer
         self.SCIcontrols = SCIcontrols
