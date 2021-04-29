@@ -8,15 +8,18 @@ import os
 import sys
 import logging
 from typing import BinaryIO
+from datetime import datetime
 
 import numpy
 
+from sarpy.__about__ import __title__, __version__
 from sarpy.compliance import string_types
-from sarpy.io.general.base import validate_sicd_for_writing, AggregateChipper
+from sarpy.io.general.base import AggregateChipper
 from sarpy.io.general.nitf import NITFReader, NITFWriter, ImageDetails, DESDetails, \
     image_segmentation, get_npp_block, interpolate_corner_points_string
-from sarpy.io.general.utils import parse_xml_from_string, is_file_like
+from sarpy.io.general.utils import parse_xml_from_string
 from sarpy.io.complex.sicd_elements.SICD import SICDType, get_specification_identifier
+from sarpy.io.complex.sicd_elements.ImageCreation import ImageCreationType
 
 from sarpy.io.general.nitf import NITFDetails
 from sarpy.io.general.nitf_elements.des import DataExtensionHeader, XMLDESSubheader
@@ -83,8 +86,8 @@ class SICDDetails(NITFDetails):
 
         Parameters
         ----------
-        file_name : str|BinaryIO
-            file name of file like object for a NITF 2.1 or 2.0 containing a SICD
+        file_name : str
+            file name for a NITF 2.1 file containing a SICD
         """
 
         self._des_index = None
@@ -268,8 +271,6 @@ class SICDDetails(NITFDetails):
             are caught.
         """
 
-        # TODO: should this even still be here? The util is very likely overtaken by events too.
-
         if not self._is_sicd:
             return False
 
@@ -281,9 +282,6 @@ class SICDDetails(NITFDetails):
                 "previous {} bytes. They cannot be trivially replaced.".format(des_bytes, des_size))
             return False
         des_loc = self.des_subheader_offsets[self._des_index]
-        if not os.path.exists(self._file_name):
-            raise ValueError('Operation not allowed.')
-
         with open(self._file_name, 'r+b') as fi:
             fi.seek(des_loc)
             fi.write(des_bytes)
@@ -350,14 +348,14 @@ class SICDReader(NITFReader):
         Parameters
         ----------
         nitf_details : str|SICDDetails
-            filename, file-like object, or SICDDetails object
+            filename or SICDDetails object
         """
 
         if isinstance(nitf_details, string_types):
             nitf_details = SICDDetails(nitf_details)
         if not isinstance(nitf_details, SICDDetails):
-            raise TypeError(
-                'The input argument for SICDReader must be a filename or SICDDetails object.')
+            raise TypeError('The input argument for SICDReader must be a filename or '
+                            'SICDDetails object.')
         super(SICDReader, self).__init__(nitf_details, reader_type="SICD")
 
         # to perform a preliminary check that the structure is valid:
