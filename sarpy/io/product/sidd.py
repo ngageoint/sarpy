@@ -361,6 +361,21 @@ def validate_sidd_for_writing(sidd_meta):
             raise ValueError('The sidd_meta has un-populated ExploitationFeatures.Collections.'
                              'Information.CollectionDateTime')
 
+        # try validating versus the appropriate schema
+        xml_str = the_sidd.to_xml_string(tag='SIDD')
+        from sarpy.consistency.sidd_consistency import evaluate_xml_versus_schema
+        if isinstance(the_sidd, SIDDType1):
+            urn = 'urn:SIDD:1.0.0'
+        elif isinstance(the_sidd, SIDDType):
+            urn = 'urn:SIDD:2.0.0'
+        else:
+            raise ValueError('Unhandled type {}'.format(type(the_sidd)))
+        result = evaluate_xml_versus_schema(xml_str, urn)
+        if result is False:
+            logging.warning(
+                'The provided SIDD does not properly validate '
+                'against the schema for {}'.format(urn))
+
     if isinstance(sidd_meta, (SIDDType, SIDDType1)):
         inspect_sidd(sidd_meta)
         return (sidd_meta, )

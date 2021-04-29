@@ -1,6 +1,6 @@
 {
   "SIDD": [
-    {"path":  "sidd/29DEC19RCM3110339_000_110339_ST0556R_47N071W_001C___QHH_0101_SPY_IMG.nitf", "path_type":  "relative"},
-    {"path":  "sidd/29DEC19RCM3110339_001_110339_ST0556R_47N071W_001C___QHV_0101_SPY_IMG.nitf", "path_type":  "relative"}],
+    {"path":  "sidd/28OCT19RCM1224339_000_224339_ST0639R_46N073W_001C___DHH_0101_SPY_IMG.nitf", "path_type":  "relative"},
+    {"path":  "sidd/28OCT19RCM1224339_000_224339_ST0639R_46N073W_001C___DHV_0101_SPY_IMG.nitf", "path_type":  "relative"}],
   "SICD": [{"path":  "sicd/sicd_example_RMA_RGZERO_RE32F_IM32F_cropped_multiple_image_segments.nitf", "path_type":  "relative"}]
 }
