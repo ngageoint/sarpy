@@ -25,6 +25,17 @@ class GeometryCalculator(object):
     """
 
     def __init__(self, SCP, ARPPos, ARPVel):
+        """
+
+        Parameters
+        ----------
+        SCP : numpy.ndarray
+            The scene center point.
+        ARPPos : numpy.ndarray
+            The aperture position in ECEF coordinates at the SCP center of aperture time.
+        ARPVel : numpy.ndarray
+            The aperture velocity in ECEF coordinates at the SCP center of aperture time.
+        """
         self.SCP = SCP
         self.ARP = ARPPos
         self.ARP_vel = ARPVel
@@ -98,8 +109,10 @@ class GeometryCalculator(object):
 
     @property
     def SquintAngle(self):
+        arp_vel_proj = self._make_unit(self.uARP_vel - self.uARP_vel.dot(self.uARP)*self.uARP)
+        los_proj = self._make_unit(-self.uLOS + self.uLOS.dot(self.uARP)*self.uARP)
         return float(numpy.rad2deg(
-            numpy.arctan2(self.uARP_vel.dot(self.uGPX), self.uARP_vel.dot(self.uGPY))))
+            numpy.arctan2(numpy.cross(arp_vel_proj, los_proj).dot(self.uARP), arp_vel_proj.dot(los_proj))))
 
     @property
     def SlopeAng(self):
