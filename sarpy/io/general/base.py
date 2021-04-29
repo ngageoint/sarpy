@@ -6,15 +6,12 @@ The base elements for reading and writing complex data files.
 import os
 import logging
 from typing import Union, Tuple
-from datetime import datetime
 
 import numpy
 
 from sarpy.compliance import int_func, integer_types, string_types
 from sarpy.io.complex.sicd_elements.SICD import SICDType
-from sarpy.io.complex.sicd_elements.ImageCreation import ImageCreationType
 from sarpy.io.complex.sicd_elements.utils import is_general_match
-from sarpy.__about__ import __title__, __version__
 from sarpy.io.general.utils import validate_range, reverse_range
 
 
@@ -1190,49 +1187,6 @@ class AbstractWriter(object):
             # It's unclear how any exception could be caught.
 
 
-def validate_sicd_for_writing(sicd_meta):
-    """
-    Helper method which ensures the provided SICD structure provides enough
-    information to support file writing, as well as ensures a few basic items
-    are populated as appropriate.
-
-    Parameters
-    ----------
-    sicd_meta : SICDType
-
-    Returns
-    -------
-    SICDType
-        This returns a deep copy of the provided SICD structure, with any
-        necessary modifications.
-    """
-
-    if not isinstance(sicd_meta, SICDType):
-        raise ValueError('sicd_meta is required to be an instance of SICDType, got {}'.format(type(sicd_meta)))
-    if sicd_meta.ImageData is None:
-        raise ValueError('The sicd_meta has un-populated ImageData, and nothing useful can be inferred.')
-    if sicd_meta.ImageData.NumCols is None or sicd_meta.ImageData.NumRows is None:
-        raise ValueError('The sicd_meta has ImageData with unpopulated NumRows or NumCols, '
-                         'and nothing useful can be inferred.')
-    if sicd_meta.ImageData.PixelType is None:
-        logging.warning('The PixelType for sicd_meta is unset, so defaulting to RE32F_IM32F.')
-        sicd_meta.ImageData.PixelType = 'RE32F_IM32F'
-
-    sicd_meta = sicd_meta.copy()
-
-    profile = '{} {}'.format(__title__, __version__)
-    if sicd_meta.ImageCreation is None:
-        sicd_meta.ImageCreation = ImageCreationType(
-            Application=profile,
-            DateTime=numpy.datetime64(datetime.now()),
-            Profile=profile)
-    else:
-        sicd_meta.ImageCreation.Profile = profile
-        if sicd_meta.ImageCreation.DateTime is None:
-            sicd_meta.ImageCreation.DateTime = numpy.datetime64(datetime.now())
-    return sicd_meta
-
-
 class BaseWriter(AbstractWriter):
     """
     Abstract file writer class for SICD data
@@ -1250,7 +1204,6 @@ class BaseWriter(AbstractWriter):
         """
 
         super(BaseWriter, self).__init__(file_name)
-        self._sicd_meta = validate_sicd_for_writing(sicd_meta)
 
     @property
     def sicd_meta(self):
