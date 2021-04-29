@@ -112,7 +112,7 @@ def check_file(file_name):
 
     Parameters
     ----------
-    file_name : str
+    file_name : str|SICDDetails
 
     Returns
     -------
@@ -120,29 +120,32 @@ def check_file(file_name):
     """
 
     sidd_xml, root_node, xml_ns = None, None, None
-    # check if this is just an xml file
-    with open(file_name, 'rb') as fi:
-        initial_bits = fi.read(100)
-        if initial_bits.startswith(b'<?xml') or initial_bits.startswith(b'<SIDD'):
-            sidd_xml = fi.read().decode('utf-8')
-            root_node, xml_ns = parse_xml_from_string(sidd_xml)
-            sidd_xml = [sidd_xml, ]
-            root_node = [root_node, ]
-            xml_ns = [xml_ns, ]
+    if isinstance(file_name, SIDDDetails):
+        sidd_xml, root_node, xml_ns = _get_sidd_xml_from_nitf(file_name)
+    else:
+        # check if this is just an xml file
+        with open(file_name, 'rb') as fi:
+            initial_bits = fi.read(100)
+            if initial_bits.startswith(b'<?xml') or initial_bits.startswith(b'<SIDD'):
+                sidd_xml = fi.read().decode('utf-8')
+                root_node, xml_ns = parse_xml_from_string(sidd_xml)
+                sidd_xml = [sidd_xml, ]
+                root_node = [root_node, ]
+                xml_ns = [xml_ns, ]
+
+        if sidd_xml is None:
+            # try to first test whether this is SIDD file
+            try:
+                sicd_details = SIDDDetails(file_name)
+                if not sicd_details.is_sidd:
+                    logger.error('File {} is a NITF file, but is apparently not a SIDD file.')
+                    return False
+                sidd_xml, root_node, xml_ns = _get_sidd_xml_from_nitf(sicd_details)
+            except IOError:
+                pass
 
     if sidd_xml is None:
-        # try to first test whether this is SIDD file
-        try:
-            sicd_details = SIDDDetails(file_name)
-            if not sicd_details.is_sidd:
-                logger.error('File {} is a NITF file, but is apparently not a SIDD file.')
-                return False
-            sidd_xml, root_node, xml_ns = _get_sidd_xml_from_nitf(sicd_details)
-        except IOError:
-            pass
-
-    if sidd_xml is None:
-        logger.error('Could not interpret file {}'.format(file_name))
+        logger.error('Could not interpret input {}'.format(file_name))
         return False
 
     out = True

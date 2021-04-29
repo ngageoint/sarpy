@@ -100,7 +100,7 @@ def check_file(file_name):
 
     Parameters
     ----------
-    file_name : str
+    file_name : str|SICDDetails
 
     Returns
     -------
@@ -108,25 +108,29 @@ def check_file(file_name):
     """
 
     sicd_xml, root_node, xml_ns, urn_string = None, None, None, None
-    # check if this is just an xml file
-    with open(file_name, 'rb') as fi:
-        initial_bits = fi.read(100)
-        if initial_bits.startswith(b'<?xml') or initial_bits.startswith(b'<SICD'):
-            sicd_xml = fi.read().decode('utf-8')
-            root_node, xml_ns = parse_xml_from_string(sicd_xml)
+    if isinstance(file_name, SICDDetails):
+        sicd_xml, root_node, xml_ns = _get_sicd_xml_from_nitf(file_name)
+    else:
+        # check if this is just an xml file
+        with open(file_name, 'rb') as fi:
+            initial_bits = fi.read(100)
+            if initial_bits.startswith(b'<?xml') or initial_bits.startswith(b'<SICD'):
+                sicd_xml = fi.read().decode('utf-8')
+                root_node, xml_ns = parse_xml_from_string(sicd_xml)
+
+        if sicd_xml is None:
+            # try to first test whether this is SICD file
+            try:
+                sicd_details = SICDDetails(file_name)
+                if not sicd_details.is_sicd:
+                    logger.error('File {} is a NITF file, but is apparently not a SICD file.')
+                    return False
+                sicd_xml, root_node, xml_ns = _get_sicd_xml_from_nitf(sicd_details)
+            except IOError:
+                pass
 
     if sicd_xml is None:
-        # try to first test whether this is SICD file
-        try:
-            sicd_details = SICDDetails(file_name)
-            if not sicd_details.is_sicd:
-                logger.error('File {} is a NITF file, but is apparently not a SICD file.')
-                return False
-            sicd_xml, root_node, xml_ns = _get_sicd_xml_from_nitf(sicd_details)
-        except IOError:
-            pass
-    if sicd_xml is None:
-        logger.error('Could not interpret file {}'.format(file_name))
+        logger.error('Could not interpret input {}'.format(file_name))
         return False
 
     urn_string = xml_ns['default']
