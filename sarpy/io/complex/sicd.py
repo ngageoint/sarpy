@@ -6,15 +6,18 @@ Module for reading SICD files - should support SICD version 0.3 and above.
 import re
 import sys
 import logging
+from datetime import datetime
 
 import numpy
 
+from sarpy.__about__ import __title__, __version__
 from sarpy.compliance import string_types
-from sarpy.io.general.base import validate_sicd_for_writing, AggregateChipper
+from sarpy.io.general.base import AggregateChipper
 from sarpy.io.general.nitf import NITFReader, NITFWriter, ImageDetails, DESDetails, \
     image_segmentation, get_npp_block, interpolate_corner_points_string
 from sarpy.io.general.utils import parse_xml_from_string
 from sarpy.io.complex.sicd_elements.SICD import SICDType, get_specification_identifier
+from sarpy.io.complex.sicd_elements.ImageCreation import ImageCreationType
 
 from sarpy.io.general.nitf import NITFDetails
 from sarpy.io.general.nitf_elements.des import DataExtensionHeader, XMLDESSubheader
@@ -413,6 +416,49 @@ class SICDReader(NITFReader):
 #######
 #  The actual writing implementation
 
+def validate_sicd_for_writing(sicd_meta):
+    """
+    Helper method which ensures the provided SICD structure provides enough
+    information to support file writing, as well as ensures a few basic items
+    are populated as appropriate.
+
+    Parameters
+    ----------
+    sicd_meta : SICDType
+
+    Returns
+    -------
+    SICDType
+        This returns a deep copy of the provided SICD structure, with any
+        necessary modifications.
+    """
+
+    if not isinstance(sicd_meta, SICDType):
+        raise ValueError('sicd_meta is required to be an instance of SICDType, got {}'.format(type(sicd_meta)))
+    if sicd_meta.ImageData is None:
+        raise ValueError('The sicd_meta has un-populated ImageData, and nothing useful can be inferred.')
+    if sicd_meta.ImageData.NumCols is None or sicd_meta.ImageData.NumRows is None:
+        raise ValueError('The sicd_meta has ImageData with unpopulated NumRows or NumCols, '
+                         'and nothing useful can be inferred.')
+    if sicd_meta.ImageData.PixelType is None:
+        logging.warning('The PixelType for sicd_meta is unset, so defaulting to RE32F_IM32F.')
+        sicd_meta.ImageData.PixelType = 'RE32F_IM32F'
+
+    sicd_meta = sicd_meta.copy()
+
+    profile = '{} {}'.format(__title__, __version__)
+    if sicd_meta.ImageCreation is None:
+        sicd_meta.ImageCreation = ImageCreationType(
+            Application=profile,
+            DateTime=numpy.datetime64(datetime.now()),
+            Profile=profile)
+    else:
+        sicd_meta.ImageCreation.Profile = profile
+        if sicd_meta.ImageCreation.DateTime is None:
+            sicd_meta.ImageCreation.DateTime = numpy.datetime64(datetime.now())
+    return sicd_meta
+
+
 def _validate_input(data):
     # type: (numpy.ndarray) -> tuple
     if not isinstance(data, numpy.ndarray):
@@ -756,5 +802,13 @@ class SICDWriter(NITFWriter):
             Security=self._security_tags,
             UserHeader=XMLDESSubheader(**uh_args))
 
+        xml_bytes = self.sicd_meta.to_xml_bytes(tag='SICD', urn=uh_args['DESSHTN'])
+        from sarpy.consistency.sicd_consistency import evaluate_xml_versus_schema
+        result = evaluate_xml_versus_schema(xml_bytes.decode('utf-8'), uh_args['DESSHTN'])
+        if result is False:
+            logging.warning(
+                'As indicated by previous validation messages, the provided SICD does not '
+                'properly validate against the schema for {}'.format(
+                    uh_args['DESSHTN']))
         self._des_details = (
-            DESDetails(subhead, self.sicd_meta.to_xml_bytes(tag='SICD', urn=uh_args['DESSHTN'])), )
+            DESDetails(subhead, xml_bytes), )
