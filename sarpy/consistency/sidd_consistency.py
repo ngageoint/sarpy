@@ -155,7 +155,7 @@ def check_file(file_name):
         if valid_xml is None:
             valid_xml = True
 
-        the_sidd = SIDDType.from_node(root, xml_ns=ns)
+        the_sidd = SIDDType.from_node(root, xml_ns=ns, ns_key='default')
         valid_sidd_contents = the_sidd.is_valid(recursive=True, stack=False)
         out &= valid_xml & valid_sidd_contents
     return out
