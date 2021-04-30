@@ -63,19 +63,19 @@ class BandEqualizationType(Serializable):
     _collections_tags = {'BandLUTs': {'array': True, 'child_tag': 'BandLUT'}}
     # Descriptor
     Algorithm = _StringEnumDescriptor(
-        'Algorithm', ('LUT 1D', ), _required, strict=DEFAULT_STRICT, default_value='LUT 1D',
+        'Algorithm', ('1DLUT', ), _required, strict=DEFAULT_STRICT, default_value='1DLUT',
         docstring='The algorithm type.')  # type: str
     BandLUTs = _SerializableArrayDescriptor(
         'BandLUTs', BandLUTType, _collections_tags, _required, strict=DEFAULT_STRICT, array_extension=BandLUTArray,
         docstring='')  # type: Union[BandLUTArray, List[BandLUTType]]
 
-    def __init__(self, Algorithm='LUT 1D', BandLUTs=None, **kwargs):
+    def __init__(self, Algorithm='1DLUT', BandLUTs=None, **kwargs):
         """
 
         Parameters
         ----------
         Algorithm : str
-            `LUT 1D` is currently the only allowed value.
+            `1DLUT` is currently the only allowed value.
         BandLUTs : BandLUTArray|List[BandLUTType]
         kwargs
         """
@@ -336,10 +336,10 @@ class ColorManagementModuleType(Serializable):
     """
 
     _fields = ('RenderingIntent', 'SourceProfile', 'DisplayProfile', 'ICCProfile')
-    _required = _fields
+    _required = ('RenderingIntent', 'SourceProfile')
     # Descriptor
     RenderingIntent = _StringEnumDescriptor(
-        'RenderingIntent', ('PERCEPTUAL', 'SATURATION', 'RELATIVE INTENT', 'ABSOLUTE INTENT'),
+        'RenderingIntent', ('PERCEPTUAL', 'SATURATION', 'RELATIVE', 'ABSOLUTE'),
         _required, strict=DEFAULT_STRICT, default_value='PERCEPTUAL',
         docstring='The rendering intent for this color management.')  # type: str
     SourceProfile = _StringDescriptor(
