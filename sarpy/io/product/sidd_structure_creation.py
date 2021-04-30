@@ -26,7 +26,7 @@ from sarpy.io.product.sidd2_elements.GeoData import GeoDataType as GeoDataType2
 from sarpy.io.product.sidd2_elements.Measurement import MeasurementType as MeasurementType2
 from sarpy.io.product.sidd2_elements.ExploitationFeatures import ExploitationFeaturesType as ExploitationFeaturesType2
 from sarpy.io.product.sidd2_elements.blocks import ReferencePointType, Poly2DType, XYZPolyType, \
-    FilterType, FilterBankType, PredefinedFilterType
+    FilterType, FilterBankType, PredefinedFilterType, NewLookupTableType, PredefinedLookupType
 from sarpy.io.product.sidd2_elements.ProductCreation import ProductCreationType as ProductCreationType2
 # version 1 elements
 from sarpy.io.product.sidd1_elements.SIDD import SIDDType as SIDDType1
@@ -143,7 +143,11 @@ def create_sidd_structure_v2(ortho_helper, bounds, product_class, pixel_type):
             PixelType=pixel_type,
             NumBands=bands,
             NonInteractiveProcessing=[NonInteractiveProcessingType(
-                ProductGenerationOptions=ProductGenerationOptionsType(),
+                ProductGenerationOptions=ProductGenerationOptionsType(
+                    DataRemapping=NewLookupTableType(
+                        LUTName='DENSITY',
+                        Predefined=PredefinedLookupType(
+                            DatabaseName='DENSITY'))),
                 RRDS=RRDSType(DownsamplingMethod='DECIMATE'),
                 band=i+1) for i in range(bands)],
             InteractiveProcessing=[InteractiveProcessingType(
