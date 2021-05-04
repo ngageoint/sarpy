@@ -84,7 +84,7 @@ class SIDDDetails(NITFDetails):
         Parameters
         ----------
         file_name : str|BinaryIO
-            file name of file like object for a NITF 2.1 or 2.0 containing a SIDD
+            file name or file like object for a NITF 2.1 or 2.0 containing a SIDD
         """
 
         self._img_headers = None
@@ -212,11 +212,11 @@ class SIDDReader(NITFReader):
 
         Parameters
         ----------
-        nitf_details : str|SIDDDetails
-            filename or SIDDDetails object
+        nitf_details : str|BinaryIO|SIDDDetails
+            filename, file-like object, or SIDDDetails object
         """
 
-        if isinstance(nitf_details, string_types):
+        if isinstance(nitf_details, string_types) or is_file_like(nitf_details):
             nitf_details = SIDDDetails(nitf_details)
         if not isinstance(nitf_details, SIDDDetails):
             raise TypeError('The input argument for SIDDReader must be a filename or '
