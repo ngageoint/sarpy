@@ -187,7 +187,7 @@
                     <xs:documentation>Filter must be no larger than 15x15.</xs:documentation>
                 </xs:annotation>
             </xs:element>
-            <xs:element name="DataRemapping" type="NewLookupTableType" minOccurs="0">
+            <xs:element name="DataRemapping" type="NewLookupTableType">
                 <xs:annotation>
                     <xs:documentation>
                         Data remapping refers to the specific need to convert the data of incoming, expanded or uncompressed image band data to non-mapped image data.
@@ -393,7 +393,7 @@
     </xs:complexType>
     <xs:simpleType name="EqualizationAlgorithmType">
         <xs:restriction base="xs:string">
-            <xs:enumeration value="LUT 1D"/>
+            <xs:enumeration value="1DLUT"/>
         </xs:restriction>
     </xs:simpleType>
     <xs:complexType name="InteractiveProcessingType">
@@ -522,12 +522,12 @@
                     <xs:documentation>Name of sensor profile in ICC Profile database.</xs:documentation>
                 </xs:annotation>
             </xs:element>
-            <xs:element name="DisplayProfile" type="xs:string">
+            <xs:element name="DisplayProfile" type="xs:string" minOccurs="0">
                 <xs:annotation>
                     <xs:documentation>Name of display profile in ICC Profile database.</xs:documentation>
                 </xs:annotation>
             </xs:element>
-            <xs:element name="ICCProfile" type="xs:string">
+            <xs:element name="ICCProfileSignature" type="xs:string" minOccurs="0">
                 <xs:annotation>
                     <xs:documentation>Valid ICC profile signature.</xs:documentation>
                 </xs:annotation>
@@ -538,8 +538,8 @@
         <xs:restriction base="xs:string">
             <xs:enumeration value="PERCEPTUAL"/>
             <xs:enumeration value="SATURATION"/>
-            <xs:enumeration value="RELATIVE INTENT"/>
-            <xs:enumeration value="ABSOLUTE INTENT"/>
+            <xs:enumeration value="RELATIVE"/>
+            <xs:enumeration value="ABSOLUTE"/>
         </xs:restriction>
     </xs:simpleType>
     <xs:complexType name="DynamicRangeAdjustmentType">
@@ -938,7 +938,7 @@
                     </xs:documentation>
                 </xs:annotation>
             </xs:element>
-            <xs:element name="ValidData" type="PolygonType" minOccurs="1">
+            <xs:element name="ValidData" type="PolygonType">
                 <xs:annotation>
                     <xs:documentation>
                         Indicates the full image includes both valid data and some zero filled pixels.
