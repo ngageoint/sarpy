@@ -8,10 +8,11 @@ from __future__ import print_function
 import argparse
 import functools
 import sys
-import xml.dom.minidom
+from xml.dom import minidom
 import os
-from typing import Union
+from typing import Union, BinaryIO
 
+from sarpy.compliance import string_types
 from sarpy.io.general.nitf import NITFDetails
 from sarpy.io.general.nitf_elements.base import TREList, UserHeaderType
 from sarpy.io.general.nitf_elements.des import DESUserHeader
@@ -57,6 +58,12 @@ def _filter_files(input_path):
 
 
 def _create_default_output_file(input_file, output_directory=None):
+    if not isinstance(input_file, string_types):
+        if output_directory is None:
+            return os.path.expanduser('~/Desktop/header_dump.txt')
+        else:
+            return os.path.join(output_directory, 'header_dump.txt')
+
     if output_directory is None:
         return os.path.splitext(input_file)[0] + '.header_dump.txt'
     else:
@@ -277,9 +284,11 @@ def print_nitf(file_name, dest=sys.stdout):
 
     details = NITFDetails(file_name)
 
-    print_func('')
-    print_func('Details for file {}'.format(file_name))
-    print_func('')
+    if isinstance(file_name, string_types):
+        print_func('')
+        print_func('Details for file {}'.format(file_name))
+        print_func('')
+
     print_func('----- File Header -----')
     print_file_header(details.nitf_header)
     print_func('')
@@ -337,7 +346,7 @@ def print_nitf(file_name, dest=sys.stdout):
             des_id = hdr.DESID if details.nitf_version == '02.10' else hdr.DESTAG
 
             if des_id.strip() == 'XML_DATA_CONTENT':
-                xml_str = xml.dom.minidom.parseString(
+                xml_str = minidom.parseString(
                     data.decode()).toprettyxml(indent='    ', newl='\n')
                 # NB: this may or not exhibit platform dependent choices in which codec (i.e. latin-1 versus utf-8)
                 print_func('DESDATA =')
@@ -378,8 +387,8 @@ def dump_nitf_file(file_name, dest, over_write=True):
 
     Parameters
     ----------
-    file_name : str
-        The path for to a NITF file.
+    file_name : str|BinaryIO
+        The path to or file-like object containing a NITF 2.1 or 2.0 file.
     dest : str
         'stdout', 'string', 'default' (will use `file_name+'.header_dump.txt'`),
         or the path to an output file.
