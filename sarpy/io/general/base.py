@@ -5,7 +5,7 @@ The base elements for reading and writing complex data files.
 
 import os
 import logging
-from typing import Union, Tuple, BinaryIO
+from typing import Union, Tuple, BinaryIO, Callable
 
 import numpy
 
@@ -33,20 +33,22 @@ def validate_transform_data(transform_data):
 
     Parameters
     ----------
-    transform_data
+    transform_data : None|str|Callable
 
     Returns
     -------
-
+    None|str|Callable
     """
 
-    if not (transform_data is None or isinstance(transform_data, string_types) or callable(transform_data)):
-        raise ValueError('transform_data must be None, a string, or callable')
-    if isinstance(transform_data, string_types):
+    if transform_data is None or callable(transform_data):
+        return transform_data
+    elif isinstance(transform_data, string_types):
         transform_data = transform_data.upper()
         if transform_data not in _SUPPORTED_TRANSFORM_VALUES:
             raise ValueError('transform_data is string {}, which is not supported'.format(transform_data))
-    return transform_data
+        return transform_data
+    else:
+        raise ValueError('transform_data must be None, a string, or callable')
 
 
 class BaseChipper(object):
