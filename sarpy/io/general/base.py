@@ -1454,7 +1454,8 @@ class BIPChipper(BaseChipper):
 
 class BSQChipper(BaseChipper):
     """
-    Band-sequential chipper assembled from the (single band) BIP constituents.
+    Chipper enabling Band-sequential format, as well as other more flexible formats
+    (e.g. Band interleaved by block), assembled from single band BIP constituents.
     """
 
     __slots__ = ('_child_chippers', '_dtype', '_limit_to_raw_bands')
