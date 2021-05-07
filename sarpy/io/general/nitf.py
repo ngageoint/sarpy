@@ -182,7 +182,7 @@ class NITFDetails(object):
             raise TypeError('file_object is required to be a file like object, or string path to a file.')
 
         # Read the first 9 bytes to verify NITF
-        self._file_object.seek(0)
+        self._file_object.seek(0, os.SEEK_SET)
         try:
             version_info = self._file_object.read(9)
         except:
@@ -196,22 +196,22 @@ class NITFDetails(object):
         if self._nitf_version not in ['02.10', '02.00']:
             raise IOError('Unsupported NITF version {} for file {}'.format(self._nitf_version, self._file_name))
         if self._nitf_version == '02.10':
-            self._file_object.seek(354, 0)  # offset to header length field
+            self._file_object.seek(354, os.SEEK_SET)  # offset to header length field
             header_length = int_func(self._file_object.read(6))
             # go back to the beginning of the file, and parse the whole header
-            self._file_object.seek(0, 0)
+            self._file_object.seek(0, os.SEEK_SET)
             header_string = self._file_object.read(header_length)
             self._nitf_header = NITFHeader.from_bytes(header_string, 0)
         elif self._nitf_version == '02.00':
-            self._file_object.seek(280, 0)  # offset to check if DEVT is defined
+            self._file_object.seek(280, os.SEEK_SET)  # offset to check if DEVT is defined
             # advance past security tags
             DWSG = self._file_object.read(6)
             if DWSG == b'999998':
-                self._file_object.seek(40, 1)
+                self._file_object.seek(40, os.SEEK_CUR)
             # seek to header length field
-            self._file_object.seek(68, 1)
+            self._file_object.seek(68, os.SEEK_CUR)
             header_length = int_func(self._file_object.read(6))
-            self._file_object.seek(0, 0)
+            self._file_object.seek(0, os.SEEK_CUR)
             header_string = self._file_object.read(header_length)
             self._nitf_header = NITFHeader0.from_bytes(header_string, 0)
         else:
@@ -336,7 +336,7 @@ class NITFDetails(object):
                     offsets.size, name, index))
         the_offset = offsets[index]
         the_size = sizes[index]
-        self._file_object.seek(int_func(the_offset))
+        self._file_object.seek(int_func(the_offset), os.SEEK_SET)
         the_item = self._file_object.read(int_func(the_size))
         return the_item
 
@@ -381,9 +381,9 @@ class NITFDetails(object):
         if out.is_masked:
             # read the mask subheader bytes
             the_offset = int_func(self.img_segment_offsets[index])
-            self._file_object.seek(the_offset)
+            self._file_object.seek(the_offset, os.SEEK_SET)
             the_size = struct.unpack('>I', self._file_object.read(4))[0]
-            self._file_object.seek(the_offset)
+            self._file_object.seek(the_offset, os.SEEK_SET)
             the_bytes = self._file_object.read(the_size)
             # interpret the mask subheader
             band_depth = len(out.Bands) if out.IMODE == 'S' else 1
@@ -1375,7 +1375,6 @@ class NITFReader(BaseReader):
         block_row_end = 0
         block_offset = int_func(img_header.NPPBH*img_header.NPPBV*bytes_per_pixel)
         enumerated_block = 0
-        print(f'mask_offsets = {mask_offsets}')
         for vblock in range(img_header.NBPC):
             # define the current row block start/end
             block_row_start = block_row_end
@@ -2360,7 +2359,7 @@ class NITFWriter(AbstractWriter):
             'may require a large physical memory allocation, '
             'and be time consuming.'.format(index))
         with open(self._file_name, mode='r+b') as fi:
-            fi.seek(details.subheader_offset)
+            fi.seek(details.subheader_offset, os.SEEK_SET)
             fi.write(details.subheader.to_bytes())
             details.subheader_written = True
 
@@ -2388,7 +2387,7 @@ class NITFWriter(AbstractWriter):
         logging.info(
             'Writing data extension {} header.'.format(index))
         with open(self._file_name, mode='r+b') as fi:
-            fi.seek(details.subheader_offset)
+            fi.seek(details.subheader_offset, os.SEEK_SET)
             fi.write(details.subheader.to_bytes())
             details.subheader_written = True
 
@@ -2417,7 +2416,7 @@ class NITFWriter(AbstractWriter):
         logging.info(
             'Writing data extension {}.'.format(index))
         with open(self._file_name, mode='r+b') as fi:
-            fi.seek(details.item_offset)
+            fi.seek(details.item_offset, os.SEEK_SET)
             fi.write(details.des_bytes)
             details.des_written = True
 

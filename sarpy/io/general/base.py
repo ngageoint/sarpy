@@ -1361,7 +1361,7 @@ class BIPChipper(BaseChipper):
 
     def _validate_limit_to_raw_bands(self, limit_to_raw_bands):
         limit_to_raw_bands = _validate_limit_to_raw_bands(limit_to_raw_bands, self._raw_bands)
-        if self._memory_map is None:
+        if self._memory_map is None and limit_to_raw_bands is not None:
             raise ValueError(
                 'BIP chipper cannot utilize limit_to_raw_bands except when using a local file.')
         self._limit_to_raw_bands = limit_to_raw_bands
@@ -1427,11 +1427,11 @@ class BIPChipper(BaseChipper):
         init_location = self._file_object.tell()
         # we have to manually map out the stride and all that for the array ourselves
         element_size = int_func(numpy.dtype(self._raw_dtype).itemsize*self._raw_bands)
-        stride = element_size*int_func(self._shape[0])  # how much to skip a whole (real) row?
-        entries_per_row = abs(range1[1] - range1[0])  # not including the stride, if not +/-1
+        stride = element_size*int_func(self._shape[1])  # how much to skip a whole (real) row?
+        entries_per_row = abs(range2[1] - range2[0])  # not including the stride, if not +/-1
         # let's determine the specific row/column arrays that we are going to read
-        dim1array = numpy.arange(range1)
-        dim2array = numpy.arange(range2)
+        dim1array = numpy.arange(*range1)
+        dim2array = numpy.arange(*range2)
         # allocate our output array
         out = numpy.empty((len(dim1array), len(dim2array), self._raw_bands), dtype=self._raw_dtype)
         # determine the first column reading location (may be reading cols backwards)
@@ -1439,7 +1439,7 @@ class BIPChipper(BaseChipper):
 
         for i, row in enumerate(dim1array):
             # go to the appropriate point in the file for (row/col)
-            self._file_object.seek(get_row_location(row, col_begin))
+            self._file_object.seek(get_row_location(row, col_begin), os.SEEK_SET)
             # read this line segment
             line_data = self._file_object.read(entries_per_row*element_size)
             # interpret this line as an array
@@ -1448,7 +1448,7 @@ class BIPChipper(BaseChipper):
             # note that we purposely read without considering skipping elements, which
             #   is factored in (along with any potential order reversal) below
             out[i, :, :] = line[::range2[2], :]
-        self._file_object.seek(init_location)
+        self._file_object.seek(init_location, os.SEEK_SET)
         return out
 
 
@@ -1711,21 +1711,21 @@ class BIRChipper(BaseChipper):
 
     def _read_file(self, range1, range2):
         def get_offset_location(rr, cc, band):
-            return self._data_offset + rr*full_row_stride + rr*row_stride*band + cc*element_size
+            return self._data_offset + rr*full_row_stride + row_stride*band + cc*element_size
 
         init_location = self._file_object.tell()
         band_collection = numpy.arange(self._raw_bands) if self._limit_to_raw_bands is None \
             else self._limit_to_raw_bands
         # we have to manually map out the stride information for ourselves
         element_size = int_func(numpy.dtype(self._raw_dtype).itemsize)
-        row_stride = element_size*int_func(self._shape[0])
+        row_stride = element_size*int_func(self._shape[2])
         full_row_stride = row_stride*self._raw_bands
 
         # how many rows for our selected region
-        entries_per_row = abs(range1[1] - range1[0])  # not including the stride, if not +/-1
+        entries_per_row = abs(range2[1] - range2[0])  # not including the stride, if not +/-1
         # let's determine the specific row/column arrays that we are going to read
-        dim1array = numpy.arange(range1)
-        dim2array = numpy.arange(range2)
+        dim1array = numpy.arange(*range1)
+        dim2array = numpy.arange(*range2)
         # allocate our output array
         out = numpy.empty((len(dim1array), len(band_collection), len(dim2array)), dtype=self._raw_dtype)
         # determine the first column reading location (may be reading cols backwards)
@@ -1733,13 +1733,13 @@ class BIRChipper(BaseChipper):
         for row_num, row in enumerate(dim1array):
             for band_num, band in enumerate(band_collection):
                 # go to the appropriate point in the file for (row/col)
-                self._file_object.seek(get_offset_location(row, col_begin, band))
+                self._file_object.seek(get_offset_location(row, col_begin, band), os.SEEK_SET)
                 # read this line segment
                 line_data = self._file_object.read(entries_per_row*element_size)
                 # interpret this line as an array
                 line = numpy.frombuffer(line_data, self._raw_dtype, entries_per_row)
-                out[row_num, band_num, :] = line[::range2[2], :]
-        self._file_object.seek(init_location)
+                out[row_num, band_num, :] = line[::range2[2]]
+        self._file_object.seek(init_location, os.SEEK_SET)
         return out
 
 
@@ -1907,7 +1907,7 @@ class BIPWriter(AbstractWriter):
             element_size *= int_func(self._shape[2])
         stride = element_size*int_func(self._shape[0])
         # go to the appropriate spot in the file for first entry
-        self._fid.seek(self._data_offset + stride*start1 + element_size*start2)
+        self._fid.seek(self._data_offset + stride*start1 + element_size*start2, os.SEEK_SET)
         if start1 == 0 and stop1 == self._shape[0]:
             # we can write the block all at once
             data.astype(self._raw_dtype).tofile(self._fid)
