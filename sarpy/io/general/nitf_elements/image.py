@@ -689,7 +689,7 @@ class ImageSegmentHeader(NITFElement):
     def IC(self, value):
         value = _parse_str(value, 2, 'NC', 'IC', self)
         if value not in {
-                'NC', 'NM', 'C1', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'I1',
+                'NC', 'NM', 'C0', 'C1', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'I1',
                 'M1', 'M3', 'M4', 'M5', 'M6', 'M7', 'M8'}:
             raise ValueError('IC got invalid value {}'.format(value))
         self._IC = value

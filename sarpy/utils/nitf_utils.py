@@ -365,7 +365,7 @@ def print_nitf(file_name, dest=sys.stdout):
 
             des_id = hdr.DESID if details.nitf_version == '02.10' else hdr.DESTAG
 
-            if des_id.strip() == 'XML_DATA_CONTENT':
+            if des_id.strip() in ['XML_DATA_CONTENT', 'SICD_XML', 'SIDD_XML']:
                 xml_str = minidom.parseString(
                     data.decode()).toprettyxml(indent='    ', newl='\n')
                 # NB: this may or not exhibit platform dependent choices in which codec (i.e. latin-1 versus utf-8)

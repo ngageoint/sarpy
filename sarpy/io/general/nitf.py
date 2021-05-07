@@ -946,7 +946,7 @@ class NITFReader(BaseReader):
                 'not currently supported.'.format(index))
             return False
 
-        if img_header.IC in ['C1', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'I1']:
+        if img_header.IC in ['C0', 'C1', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'I1']:
             if PIL is None:
                 logging.error(
                     'Image segment at index {} has IC value {}, and PIL cannot '
@@ -1567,7 +1567,7 @@ class NITFReader(BaseReader):
                 raise ValueError('Unsupported IMODE {}'.format(img_header.IMODE))
         elif img_header.IC in ['M1', 'M3', 'M4', 'M5', 'M6', 'M7', 'M8']:
             raise ValueError('Compressed and masked image segments not currently supported.')
-        elif img_header.IC in ['C1', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'I1']:
+        elif img_header.IC in ['C0', 'C1', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'I1']:
             return handle_compressed()
         else:
             raise ValueError('Got unhandled IC code {}'.format(img_header.IC))
