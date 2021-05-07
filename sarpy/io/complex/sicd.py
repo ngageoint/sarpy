@@ -285,7 +285,7 @@ class SICDDetails(NITFDetails):
         if not os.path.exists(self._file_name):
             raise ValueError('Operation not allowed.')
         with open(self._file_name, 'r+b') as fi:
-            fi.seek(des_loc)
+            fi.seek(des_loc, os.SEEK_SET)
             fi.write(des_bytes)
         return True
 

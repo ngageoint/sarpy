@@ -958,7 +958,7 @@ class COSARDetails(object):
             raise ValueError(
                 'The seek location + basic header size is greater than the file size.')
         # seek to our desired location
-        fi.seek(the_offset, 0)
+        fi.seek(the_offset, os.SEEK_SET)
         # read the desired bytes
         header_bytes = fi.read(48)
         # interpret the data

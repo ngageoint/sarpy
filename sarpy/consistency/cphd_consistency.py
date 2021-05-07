@@ -139,7 +139,7 @@ def read_header(file_handle):
         Dictionary containing CPHD header values.
     """
 
-    file_handle.seek(0)
+    file_handle.seek(0, 0)
     version = file_handle.readline().decode()
     assert version.startswith('CPHD/1.0')
 
@@ -259,10 +259,10 @@ class CphdConsistency(con.ConsistencyChecker):
                 pvp_block = None
             except etree.XMLSyntaxError:
                 header = read_header(infile)
-                infile.seek(header['XML_BLOCK_BYTE_OFFSET'])
+                infile.seek(header['XML_BLOCK_BYTE_OFFSET'], 0)
                 xml_block = infile.read(header['XML_BLOCK_SIZE'])
                 cphdroot = etree.fromstring(xml_block)
-                infile.seek(header['PVP_BLOCK_BYTE_OFFSET'])
+                infile.seek(header['PVP_BLOCK_BYTE_OFFSET'], 0)
                 pvp_block = infile.read(header['PVP_BLOCK_SIZE'])
 
         cphdroot_no_ns = strip_namespace(etree.fromstring(etree.tostring(cphdroot)))

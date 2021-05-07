@@ -167,7 +167,7 @@ class SIODetails(object):
 
             endian = self.ENDIAN[self._magic_number]
             with open(self._file_name, 'rb') as fi:
-                fi.seek(20)  # skip the basic header
+                fi.seek(20, os.SEEK_SET)  # skip the basic header
                 # read the user data (some type of header), if necessary
                 user_data, user_data_length = read_user_data()
             self._user_data = user_data

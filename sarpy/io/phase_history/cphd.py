@@ -89,7 +89,7 @@ class CPHDDetails(object):
         else:
             raise TypeError('Got unsupported input type {}'.format(type(file_object)))
 
-        self._file_object.seek(0)
+        self._file_object.seek(0, os.SEEK_SET)
         head_bytes = self._file_object.read(10)
         if not isinstance(head_bytes, bytes):
             raise ValueError('Input file like object not open in bytes mode.')
@@ -150,7 +150,7 @@ class CPHDDetails(object):
         object to the end of the initial header line.
         """
 
-        self._file_object.seek(0)
+        self._file_object.seek(0, os.SEEK_SET)
         head_line = self._file_object.readline().strip()
         parts = head_line.split(b'/')
         if len(parts) != 2:
@@ -207,12 +207,12 @@ class CPHDDetails(object):
         if self.cphd_version.startswith('0.3'):
             assert isinstance(header, CPHDHeader0_3)
             # extract the xml data
-            self._file_object.seek(header.XML_BYTE_OFFSET)
+            self._file_object.seek(header.XML_BYTE_OFFSET, os.SEEK_SET)
             xml = self._file_object.read(header.XML_DATA_SIZE)
         elif self.cphd_version.startswith('1.0'):
             assert isinstance(header, CPHDHeader)
             # extract the xml data
-            self._file_object.seek(header.XML_BLOCK_BYTE_OFFSET)
+            self._file_object.seek(header.XML_BLOCK_BYTE_OFFSET, os.SEEK_SET)
             xml = self._file_object.read(header.XML_BLOCK_SIZE)
         else:
             raise ValueError('Got unhandled version number {}'.format(self.cphd_version))
@@ -1161,7 +1161,7 @@ class CPHDWriter1_0(AbstractWriter):
             outfile.write(self._cphd_header.to_string().encode())
             outfile.write(_CPHD_SECTION_TERMINATOR)
             # write cphd xml
-            outfile.seek(self._cphd_header.XML_BLOCK_BYTE_OFFSET)
+            outfile.seek(self._cphd_header.XML_BLOCK_BYTE_OFFSET, os.SEEK_SET)
             outfile.write(self.cphd_meta.to_xml_bytes())
             outfile.write(_CPHD_SECTION_TERMINATOR)
         self._writing_state['header'] = True
