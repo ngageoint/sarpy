@@ -929,12 +929,6 @@ class NITFReader(BaseReader):
                 'not currently supported.'.format(index))
             return False
 
-        if img_header.IMODE == 'R':
-            logging.error(
-                'Image segment at index {} has IMODE value R (band interleaved by row). '
-                'This is currently not supported.'.format(index))
-            return False
-
         if img_header.IC in ['C1', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'I1']:
             if PIL is None:
                 logging.error(
@@ -1088,13 +1082,18 @@ class NITFReader(BaseReader):
                 if mask_offsets is not None:
                     expected_offset = mask_offsets[0][enumerated_block]
                     if expected_offset == exclude_value:
-                        # this is a missing block, advance the block enumeration and skip
+                        # this is a missing block
+                        # advance the block enumeration details and skip
+                        block_col_end += column_block_size
+                        block_col_end = min(this_cols, block_col_end)
                         enumerated_block += 1
                         continue
-                    if expected_offset != current_offset:
+                    if expected_offset < current_offset:
                         raise ValueError(
                             'expected offset {}, current offset {}, for block {} = ({}, {})'.format(
                                 expected_offset, current_offset, enumerated_block, vblock, hblock))
+                    elif expected_offset > current_offset:
+                        current_offset = expected_offset
 
                 # define the current column block
                 block_col_start = block_col_end
@@ -1359,6 +1358,7 @@ class NITFReader(BaseReader):
         block_row_end = 0
         block_offset = int_func(img_header.NPPBH*img_header.NPPBV*bytes_per_pixel)
         enumerated_block = 0
+        print(f'mask_offsets = {mask_offsets}')
         for vblock in range(img_header.NBPC):
             # define the current row block start/end
             block_row_start = block_row_end
@@ -1370,13 +1370,20 @@ class NITFReader(BaseReader):
                 if mask_offsets is not None:
                     expected_offset = mask_offsets[0][enumerated_block]
                     if expected_offset == exclude_value:
-                        # this is a missing block, advance the block enumeration and skip
+                        # this is a missing block
+                        # advance the block enumeration details and skip
+                        block_col_end += column_block_size
+                        block_col_end = min(this_cols, block_col_end)
                         enumerated_block += 1
                         continue
-                    if expected_offset != current_offset:
+                    if expected_offset < current_offset:
                         raise ValueError(
-                            'expected offset {}, current offset {}, for block {} = ({}, {})'.format(
+                            'In the masked image, the expected offset is {} and the current offset is {},\n'
+                            'for block {} = ({}, {})'.format(
                                 expected_offset, current_offset, enumerated_block, vblock, hblock))
+                    if expected_offset > current_offset:
+                        # don't read masked pixels...
+                        current_offset = expected_offset
 
                 # define the current column block
                 block_col_start = block_col_end
