@@ -275,10 +275,19 @@ class NITFDetails(object):
     @property
     def file_name(self):
         """
-        str: the file name.
+        str: the file name. This may not be useful if the input was based on a
+        file like object
         """
 
         return self._file_name
+
+    @property
+    def file_object(self):
+        """
+        BinaryIO: The binary file object
+        """
+
+        return self._file_object
 
     @property
     def nitf_header(self):
@@ -833,7 +842,7 @@ class NITFReader(BaseReader):
 
         Parameters
         ----------
-        nitf_details : NITFDetails|str
+        nitf_details : NITFDetails|BinaryIO|str
             The NITFDetails object or path to a nitf file.
         reader_type : str
             What type of reader is this, options are "SICD", "SIDD", "CPHD", or "OTHER"
@@ -842,7 +851,7 @@ class NITFReader(BaseReader):
 
         self._symmetry = symmetry
         self._cached_files = []
-        if isinstance(nitf_details, string_types):
+        if isinstance(nitf_details, string_types) or is_file_like(nitf_details):
             nitf_details = NITFDetails(nitf_details)
         if not isinstance(nitf_details, NITFDetails):
             raise TypeError('The input argument for NITFReader must be a NITFDetails object.')
@@ -900,6 +909,14 @@ class NITFReader(BaseReader):
     @property
     def file_name(self):
         return self._nitf_details.file_name
+
+    @property
+    def file_object(self):
+        """
+        BinaryIO: the binary file like object from which we are reading
+        """
+
+        return self._nitf_details.file_object
 
     def _compliance_check(self, index):
         """
@@ -1031,7 +1048,7 @@ class NITFReader(BaseReader):
         if img_header.NBPR == 1 and img_header.NBPC == 1:
             # it's one single block
             return BIPChipper(
-                self.file_name, raw_dtype, (this_rows, this_cols), raw_bands, output_bands, output_dtype,
+                self.file_object, raw_dtype, (this_rows, this_cols), raw_bands, output_bands, output_dtype,
                 symmetry=self._symmetry, transform_data=transform_data,
                 data_offset=data_offset, limit_to_raw_bands=limit_to_raw_bands)
 
@@ -1107,7 +1124,7 @@ class NITFReader(BaseReader):
                 if block_col_end == block_col_start + column_block_size:
                     chippers.append(
                         BIPChipper(
-                            self.file_name, raw_dtype, (chip_rows, chip_cols),
+                            self.file_object, raw_dtype, (chip_rows, chip_cols),
                             raw_bands, output_bands, output_dtype,
                             symmetry=self._symmetry, transform_data=transform_data,
                             data_offset=int_func(current_offset+data_offset), limit_to_raw_bands=limit_to_raw_bands))
@@ -1122,7 +1139,7 @@ class NITFReader(BaseReader):
                             c_col_start, c_col_end, c_row_start, c_row_end
 
                     p_chipper = BIPChipper(
-                        self.file_name, raw_dtype, (chip_rows, chip_cols),
+                        self.file_object, raw_dtype, (chip_rows, chip_cols),
                         raw_bands, output_bands, output_dtype,
                         symmetry=self._symmetry, transform_data=transform_data,
                         data_offset=int_func(current_offset+data_offset), limit_to_raw_bands=limit_to_raw_bands)
@@ -1163,7 +1180,7 @@ class NITFReader(BaseReader):
 
             for i in range(raw_bands):
                 chippers.append(BIPChipper(
-                    self.file_name, raw_dtype, (this_rows, this_cols), 1, 1, raw_dtype,
+                    self.file_object, raw_dtype, (this_rows, this_cols), 1, 1, raw_dtype,
                     symmetry=self._symmetry, transform_data=None,
                     data_offset=data_offset+current_offset, limit_to_raw_bands=None))
                 current_offset += block_offset
@@ -1211,7 +1228,7 @@ class NITFReader(BaseReader):
                 block_cols = int_func(block_bounds[3] - block_bounds[2])
                 bip_chippers[block_number].append(
                     BIPChipper(
-                        self.file_name, raw_dtype, (block_rows, block_cols), 1, 1, raw_dtype,
+                        self.file_object, raw_dtype, (block_rows, block_cols), 1, 1, raw_dtype,
                         symmetry=self._symmetry, transform_data=None, data_offset=int_func(data_offset+this_offset),
                         limit_to_raw_bands=None))
 
@@ -1242,7 +1259,7 @@ class NITFReader(BaseReader):
 
             for i in range(raw_bands):
                 chippers.append(BIPChipper(
-                    self.file_name, raw_dtype, (this_rows, this_cols), 1, 1, raw_dtype,
+                    self.file_object, raw_dtype, (this_rows, this_cols), 1, 1, raw_dtype,
                     symmetry=self._symmetry, transform_data=None,
                     data_offset=data_offset+current_offset, limit_to_raw_bands=None))
                 current_offset += block_offset
@@ -1294,7 +1311,7 @@ class NITFReader(BaseReader):
                 this_offset = band_number*band_offset
                 bip_chippers.append(
                     BIPChipper(
-                        self.file_name, raw_dtype, (block_rows, block_cols), 1, 1, raw_dtype,
+                        self.file_object, raw_dtype, (block_rows, block_cols), 1, 1, raw_dtype,
                         symmetry=self._symmetry, transform_data=None, data_offset=data_offset+this_offset,
                         limit_to_raw_bands=None))
             bsq_chippers[block_number] = BSQChipper(
@@ -1318,7 +1335,7 @@ class NITFReader(BaseReader):
         if img_header.NBPR == 1 and img_header.NBPC == 1:
             # it's one single block
             return BIRChipper(
-                self.file_name, raw_dtype, (this_rows, this_cols), raw_bands, output_bands, output_dtype,
+                self.file_object, raw_dtype, (this_rows, this_cols), raw_bands, output_bands, output_dtype,
                 symmetry=self._symmetry, transform_data=transform_data,
                 data_offset=data_offset, limit_to_raw_bands=limit_to_raw_bands)
 
@@ -1397,7 +1414,7 @@ class NITFReader(BaseReader):
                 if block_col_end == block_col_start + column_block_size:
                     chippers.append(
                         BIRChipper(
-                            self.file_name, raw_dtype, (chip_rows, chip_cols),
+                            self.file_object, raw_dtype, (chip_rows, chip_cols),
                             raw_bands, output_bands, output_dtype,
                             symmetry=self._symmetry, transform_data=transform_data,
                             data_offset=int_func(current_offset+data_offset), limit_to_raw_bands=limit_to_raw_bands))
@@ -1412,7 +1429,7 @@ class NITFReader(BaseReader):
                             c_col_start, c_col_end, c_row_start, c_row_end
 
                     p_chipper = BIRChipper(
-                        self.file_name, raw_dtype, (chip_rows, chip_cols),
+                        self.file_object, raw_dtype, (chip_rows, chip_cols),
                         raw_bands, output_bands, output_dtype,
                         symmetry=self._symmetry, transform_data=transform_data,
                         data_offset=int_func(current_offset+data_offset), limit_to_raw_bands=limit_to_raw_bands)
@@ -1475,7 +1492,7 @@ class NITFReader(BaseReader):
             # extract the image and dump out to a flat file
             image_offset = self.nitf_details.img_segment_offsets[index]
             image_size = self.nitf_details.nitf_header.ImageSegments.item_sizes[index]
-            our_memmap = MemMap(self.file_name, image_size, image_offset)
+            our_memmap = MemMap(self.file_object, image_size, image_offset)
             img = PIL.Image.open(our_memmap)  # this is a lazy operation
             # dump the extracted image data out to a temp file
             fi, path_name = mkstemp(suffix='.sarpy_cache', text=False)

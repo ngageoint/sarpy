@@ -81,13 +81,13 @@ class SICDDetails(NITFDetails):
         '_des_index', '_des_header', '_is_sicd', '_sicd_meta',
         'img_segment_rows', 'img_segment_columns')
 
-    def __init__(self, file_name):
+    def __init__(self, file_object):
         """
 
         Parameters
         ----------
-        file_name : str|BinaryIO
-            file name or file like object for a NITF 2.1 or 2.0 containing a SICD
+        file_object : str|BinaryIO
+            file name or file like object for a NITF 2.1 or 2.0 containing a SICD.
         """
 
         self._des_index = None
@@ -95,7 +95,7 @@ class SICDDetails(NITFDetails):
         self._img_headers = None
         self._is_sicd = False
         self._sicd_meta = None
-        super(SICDDetails, self).__init__(file_name)
+        super(SICDDetails, self).__init__(file_object)
         if self._nitf_header.ImageSegments.subhead_sizes.size == 0:
             raise IOError('There are no image segments defined.')
         if self._nitf_header.GraphicsSegments.item_sizes.size > 0:

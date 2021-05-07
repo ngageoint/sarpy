@@ -78,12 +78,12 @@ class SIDDDetails(NITFDetails):
         '_is_sidd', '_sidd_meta', '_sicd_meta',
         'img_segment_rows', 'img_segment_columns')
 
-    def __init__(self, file_name):
+    def __init__(self, file_object):
         """
 
         Parameters
         ----------
-        file_name : str|BinaryIO
+        file_object : str|BinaryIO
             file name or file like object for a NITF 2.1 or 2.0 containing a SIDD
         """
 
@@ -91,7 +91,7 @@ class SIDDDetails(NITFDetails):
         self._is_sidd = False
         self._sidd_meta = None
         self._sicd_meta = None
-        super(SIDDDetails, self).__init__(file_name)
+        super(SIDDDetails, self).__init__(file_object)
         if self._nitf_header.ImageSegments.subhead_sizes.size == 0:
             raise IOError('There are no image segments defined.')
         if self._nitf_header.GraphicsSegments.item_sizes.size > 0:

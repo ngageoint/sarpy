@@ -86,6 +86,8 @@ class CPHDDetails(object):
             else:
                 self._file_name = '<file like object>'
             self._close_after = False
+        else:
+            raise TypeError('Got unsupported input type {}'.format(type(file_object)))
 
         self._file_object.seek(0)
         head_bytes = self._file_object.read(10)
@@ -106,6 +108,14 @@ class CPHDDetails(object):
         """
 
         return self._file_name
+
+    @property
+    def file_object(self):
+        """
+        BinaryIO: The binary file object
+        """
+
+        return self._file_object
 
     @property
     def cphd_version(self):
@@ -261,6 +271,8 @@ class CPHDReader(BaseReader):
             raise ValueError(
                 'The first argument of the constructor is required to be a file_path '
                 'or CPHDDetails instance.')
+        if is_file_like(args[0]):
+            raise ValueError('File like object input not supported for CPHD reading at this time.')
         cphd_details = _validate_cphd_details(args[0])
 
         if cphd_details.cphd_version.startswith('0.3'):
@@ -529,7 +541,7 @@ class CPHDReader1_0(CPHDReader):
             img_siz = (entry.NumVectors, entry.NumSamples)
             data_offset = entry.SignalArrayByteOffset
             chippers.append(BIPChipper(
-                self.cphd_details.file_name, raw_dtype, img_siz, raw_bands, output_bands, output_dtype,
+                self.cphd_details.file_object, raw_dtype, img_siz, raw_bands, output_bands, output_dtype,
                 symmetry=symmetry, transform_data='COMPLEX', data_offset=block_offset+data_offset))
         return tuple(chippers)
 
@@ -557,6 +569,7 @@ class CPHDReader1_0(CPHDReader):
             self._channel_map[entry.Identifier] = i
             offset = self.cphd_header.PVP_BLOCK_BYTE_OFFSET + entry.PVPArrayByteOffset
             shape = (entry.NumVectors, )
+            # TODO: revamp this for file like object support...
             self._pvp_memmap[entry.Identifier] = numpy.memmap(
                 self.cphd_details.file_name, dtype=pvp_dtype, mode='r', offset=offset, shape=shape)
 
@@ -585,6 +598,7 @@ class CPHDReader1_0(CPHDReader):
             dtype, depth = details.get_numpy_format()
             # set up the numpy memory map
             shape = (entry.NumRows, entry.NumCols) if depth == 1 else (entry.NumRows, entry.NumCols, depth)
+            # TODO: revamp this for file like object support...
             self._support_array_memmap[entry.Identifier] = numpy.memmap(
                 self.cphd_details.file_name, dtype=dtype, mode='r', offset=offset, shape=shape)
 
@@ -681,6 +695,8 @@ class CPHDReader1_0(CPHDReader):
         # set up the numpy memory map
         shape = (the_entry.NumRows, the_entry.NumCols) if depth == 1 else \
             (the_entry.NumRows, the_entry.NumCols, depth)
+
+        # TODO: revamp this for file like object support...
         mem_map = numpy.memmap(self.cphd_details.file_name,
                                dtype=dtype,
                                mode='r',
@@ -831,7 +847,7 @@ class CPHDReader0_3(CPHDReader):
         for entry in data.ArraySize:
             img_siz = (entry.NumVectors, entry.NumSamples)
             chippers.append(BIPChipper(
-                self.cphd_details.file_name, raw_dtype, img_siz, raw_bands, output_bands, output_dtype,
+                self.cphd_details.file_object, raw_dtype, img_siz, raw_bands, output_bands, output_dtype,
                 symmetry=symmetry, transform_data='COMPLEX', data_offset=data_offset))
             data_offset += img_siz[0]*img_siz[1]*bpp
         return tuple(chippers)
@@ -851,6 +867,8 @@ class CPHDReader0_3(CPHDReader):
         for i, entry in enumerate(self.cphd_meta.Data.ArraySize):
             offset = self.cphd_header.VB_BYTE_OFFSET + self.cphd_meta.Data.NumBytesVBP*i
             shape = (entry.NumVectors, )
+
+            # TODO: revamp this for file like object support...
             self._pvp_memmap.append(
                 numpy.memmap(
                     self.cphd_details.file_name, dtype=pvp_dtype, mode='r', offset=offset, shape=shape))
