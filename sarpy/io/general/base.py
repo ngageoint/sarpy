@@ -1421,33 +1421,36 @@ class BIPChipper(BaseChipper):
         return out
 
     def _read_file(self, range1, range2):
-        def get_row_location(rr, cc):
-            return self._data_offset + rr*stride + cc*element_size
+        if self._limit_to_raw_bands is None:
+            band_collection = numpy.arange(self._raw_bands, dtype='int32')
+        else:
+            band_collection = self._limit_to_raw_bands
 
         init_location = self._file_object.tell()
         # we have to manually map out the stride and all that for the array ourselves
         element_size = int_func(numpy.dtype(self._raw_dtype).itemsize*self._raw_bands)
         stride = element_size*int_func(self._shape[1])  # how much to skip a whole (real) row?
-        entries_per_row = abs(range2[1] - range2[0])  # not including the stride, if not +/-1
         # let's determine the specific row/column arrays that we are going to read
         dim1array = numpy.arange(*range1)
         dim2array = numpy.arange(*range2)
+        # determine the contiguous chunk to read
+        start_row = min(dim1array[0], dim1array[-1])
+        start_col = min(dim2array[0], dim2array[-1])
+        rows = abs(range1[1] - range1[0])
+        cols = abs(range2[1] - range2[0])
         # allocate our output array
-        out = numpy.empty((len(dim1array), len(dim2array), self._raw_bands), dtype=self._raw_dtype)
-        # determine the first column reading location (may be reading cols backwards)
-        col_begin = dim2array[0] if range2[2] > 0 else dim2array[-1]
+        out = numpy.empty((len(dim1array), len(dim2array), len(band_collection)), dtype=self._raw_dtype)
 
-        for i, row in enumerate(dim1array):
-            # go to the appropriate point in the file for (row/col)
-            self._file_object.seek(get_row_location(row, col_begin), os.SEEK_SET)
-            # read this line segment
-            line_data = self._file_object.read(entries_per_row*element_size)
-            # interpret this line as an array
-            line = numpy.frombuffer(line_data, self._raw_dtype, entries_per_row*self._raw_bands)
-            line = numpy.reshape(line, (entries_per_row, self._raw_bands))
-            # note that we purposely read without considering skipping elements, which
-            #   is factored in (along with any potential order reversal) below
-            out[i, :, :] = line[::range2[2], :]
+        # seek to the proper start location
+        start_loc = self._data_offset + start_row*stride
+        self._file_object.seek(start_loc, os.SEEK_SET)
+        # read our data, then cast and reduce
+        total_entries = int_func(rows)*int_func(cols)*self._raw_bands
+        total_size = int_func(cols)*stride
+        data = self._file_object.read(total_size)
+        data = numpy.frombuffer(data, self._raw_dtype, total_entries)
+        data = numpy.reshape(data, (rows, cols, self._raw_bands))
+        out[:, :] = data[::range1[2], ::range2[2], band_collection]
         self._file_object.seek(init_location, os.SEEK_SET)
         return out
 
@@ -1710,35 +1713,36 @@ class BIRChipper(BaseChipper):
         return out
 
     def _read_file(self, range1, range2):
-        def get_offset_location(rr, cc, band):
-            return self._data_offset + rr*full_row_stride + row_stride*band + cc*element_size
+        if self._limit_to_raw_bands is None:
+            band_collection = numpy.arange(self._raw_bands, dtype='int32')
+        else:
+            band_collection = self._limit_to_raw_bands
 
         init_location = self._file_object.tell()
-        band_collection = numpy.arange(self._raw_bands) if self._limit_to_raw_bands is None \
-            else self._limit_to_raw_bands
-        # we have to manually map out the stride information for ourselves
+        # we have to manually map out the stride and all that for the array ourselves
         element_size = int_func(numpy.dtype(self._raw_dtype).itemsize)
-        row_stride = element_size*int_func(self._shape[2])
-        full_row_stride = row_stride*self._raw_bands
-
-        # how many rows for our selected region
-        entries_per_row = abs(range2[1] - range2[0])  # not including the stride, if not +/-1
+        stride = element_size*int_func(self._shape[2])*self._raw_bands  # how much to skip a whole (real) row?
         # let's determine the specific row/column arrays that we are going to read
         dim1array = numpy.arange(*range1)
         dim2array = numpy.arange(*range2)
+        # determine the contiguous chunk to read
+        start_row = min(dim1array[0], dim1array[-1])
+        start_col = min(dim2array[0], dim2array[-1])
+        rows = abs(range1[1] - range1[0])
+        cols = abs(range2[1] - range2[0])
         # allocate our output array
         out = numpy.empty((len(dim1array), len(band_collection), len(dim2array)), dtype=self._raw_dtype)
-        # determine the first column reading location (may be reading cols backwards)
-        col_begin = dim2array[0] if range2[2] > 0 else dim2array[-1]
-        for row_num, row in enumerate(dim1array):
-            for band_num, band in enumerate(band_collection):
-                # go to the appropriate point in the file for (row/col)
-                self._file_object.seek(get_offset_location(row, col_begin, band), os.SEEK_SET)
-                # read this line segment
-                line_data = self._file_object.read(entries_per_row*element_size)
-                # interpret this line as an array
-                line = numpy.frombuffer(line_data, self._raw_dtype, entries_per_row)
-                out[row_num, band_num, :] = line[::range2[2]]
+
+        # seek to the proper start location
+        start_loc = self._data_offset + start_row*stride
+        self._file_object.seek(start_loc, os.SEEK_SET)
+        # read our data, then cast and reduce
+        total_entries = int_func(rows)*int_func(cols)*self._raw_bands
+        total_size = int_func(cols)*stride
+        data = self._file_object.read(total_size)
+        data = numpy.frombuffer(data, self._raw_dtype, total_entries)
+        data = numpy.reshape(data, (rows, self._raw_bands, cols))
+        out[:, :, :] = data[::range1[2], band_collection, ::range2[2]]
         self._file_object.seek(init_location, os.SEEK_SET)
         return out
 
