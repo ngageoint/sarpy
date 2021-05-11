@@ -1,5 +1,7 @@
 # This details the important differences introduced in sarpy 1.1
 
+* .74 - Introducing the ability to read SICD, SIDD, and some NITF files from file-like object
+        This is generally geared towards usage with smart_open for possible S3 usage
 * .73 - Correcting another mistake in the SIDD version 2 schema and element production
 * .72 - Corrected some mistakes in the included SIDD version 2 schema
 * .71 - Introducing basic SIDD consistency check, and debugging the squint calculation
