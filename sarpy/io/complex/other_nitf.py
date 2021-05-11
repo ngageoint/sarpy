@@ -18,10 +18,12 @@ from sarpy.compliance import string_types
 from sarpy.geometry.geocoords import geodetic_to_ecf, ned_to_ecf
 from sarpy.geometry.latlon import num as lat_lon_parser
 
+from sarpy.io.general.utils import is_file_like
 from sarpy.io.general.nitf import extract_image_corners, NITFDetails, NITFReader
 from sarpy.io.general.nitf_elements.image import ImageSegmentHeader, ImageSegmentHeader0
 from sarpy.io.general.nitf_elements.nitf_head import NITFHeader, NITFHeader0
 from sarpy.io.general.nitf_elements.base import TREList
+from sarpy.io.general.nitf_elements.tres.unclass.CMETAA import CMETAA
 
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.complex.sicd_elements.CollectionInfo import CollectionInfoType
@@ -36,8 +38,6 @@ from sarpy.io.complex.sicd_elements.ImageFormation import ImageFormationType, Tx
 from sarpy.io.complex.sicd_elements.ImageCreation import ImageCreationType
 from sarpy.io.complex.sicd_elements.PFA import PFAType
 
-from sarpy.io.general.nitf_elements.tres.unclass.CMETAA import CMETAA
-
 
 # NB: DO NOT implement is_a() here. This will explicitly happen after other readers
 
@@ -48,13 +48,16 @@ def final_attempt(file_name):
 
     Parameters
     ----------
-    file_name : str
+    file_name : str|BinaryIO
         the file_name to check
 
     Returns
     -------
     ComplexNITFReader|None
     """
+
+    if is_file_like(file_name):
+        return None
 
     try:
         nitf_details = ComplexNITFDetails(file_name)

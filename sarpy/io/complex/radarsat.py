@@ -19,7 +19,7 @@ from sarpy.compliance import string_types, int_func
 from sarpy.io.general.base import BaseReader
 from sarpy.io.general.tiff import TiffDetails, TiffReader
 from sarpy.io.complex.other_nitf import ComplexNITFReader
-from sarpy.io.general.utils import get_seconds, parse_timestring
+from sarpy.io.general.utils import get_seconds, parse_timestring, is_file_like
 from sarpy.geometry.geocoords import geodetic_to_ecf
 
 from sarpy.io.complex.sicd_elements.blocks import Poly1DType, Poly2DType
@@ -61,6 +61,9 @@ def is_a(file_name):
     RadarSatReader|None
         `RadarSatReader` instance if RadarSat file, `None` otherwise
     """
+
+    if is_file_like(file_name):
+        return None
 
     try:
         details = RadarSatDetails(file_name)

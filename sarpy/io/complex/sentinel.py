@@ -17,7 +17,7 @@ from scipy.interpolate import griddata
 from sarpy.compliance import string_types
 from sarpy.io.general.base import SubsetReader, BaseReader
 from sarpy.io.general.tiff import TiffDetails, TiffReader
-from sarpy.io.general.utils import get_seconds, parse_timestring
+from sarpy.io.general.utils import get_seconds, parse_timestring, is_file_like
 
 from sarpy.io.complex.sicd_elements.blocks import Poly1DType, Poly2DType
 from sarpy.io.complex.sicd_elements.SICD import SICDType
@@ -58,6 +58,9 @@ def is_a(file_name):
     SentinelReader|None
         `SentinelReader` instance if Sentinel-1 file, `None` otherwise
     """
+
+    if is_file_like(file_name):
+        return None
 
     try:
         sentinel_details = SentinelDetails(file_name)

@@ -15,7 +15,7 @@ from scipy.constants import speed_of_light
 from sarpy.compliance import int_func, string_types
 from sarpy.io.general.base import BaseChipper, SubsetChipper, BaseReader, BIPChipper
 
-from sarpy.io.general.utils import get_seconds, parse_timestring
+from sarpy.io.general.utils import get_seconds, parse_timestring, is_file_like
 
 from sarpy.io.complex.sicd_elements.blocks import Poly1DType, Poly2DType
 from sarpy.io.complex.sicd_elements.SICD import SICDType
@@ -59,6 +59,9 @@ def is_a(file_name):
     PALSARReader|None
         `PALSARReader` instance if PALSAR file, `None` otherwise
     """
+
+    if is_file_like(file_name):
+        return None
 
     try:
         palsar_details = PALSARDetails(file_name)
