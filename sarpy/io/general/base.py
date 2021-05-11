@@ -1435,22 +1435,22 @@ class BIPChipper(BaseChipper):
         dim2array = numpy.arange(*range2)
         # determine the contiguous chunk to read
         start_row = min(dim1array[0], dim1array[-1])
-        start_col = min(dim2array[0], dim2array[-1])
         rows = abs(range1[1] - range1[0])
-        cols = abs(range2[1] - range2[0])
         # allocate our output array
         out = numpy.empty((len(dim1array), len(dim2array), len(band_collection)), dtype=self._raw_dtype)
 
         # seek to the proper start location
         start_loc = self._data_offset + start_row*stride
         self._file_object.seek(start_loc, os.SEEK_SET)
-        # read our data, then cast and reduce
-        total_entries = int_func(rows)*int_func(cols)*self._raw_bands
-        total_size = int_func(cols)*stride
+        # read our data
+        total_entries = int_func(rows)*self._shape[1]*self._raw_bands
+        total_size = int_func(rows)*stride
         data = self._file_object.read(total_size)
+        # cast and shape
         data = numpy.frombuffer(data, self._raw_dtype, total_entries)
-        data = numpy.reshape(data, (rows, cols, self._raw_bands))
-        out[:, :] = data[::range1[2], ::range2[2], band_collection]
+        data = numpy.reshape(data, (rows, self._shape[1], self._raw_bands))
+        # reduce, as necessary
+        out[:, :] = data[range1[0]-start_row:range1[1]-start_row:range1[2], range2[0]:range2[1]:range2[2], band_collection]
         self._file_object.seek(init_location, os.SEEK_SET)
         return out
 
@@ -1727,9 +1727,7 @@ class BIRChipper(BaseChipper):
         dim2array = numpy.arange(*range2)
         # determine the contiguous chunk to read
         start_row = min(dim1array[0], dim1array[-1])
-        start_col = min(dim2array[0], dim2array[-1])
         rows = abs(range1[1] - range1[0])
-        cols = abs(range2[1] - range2[0])
         # allocate our output array
         out = numpy.empty((len(dim1array), len(band_collection), len(dim2array)), dtype=self._raw_dtype)
 
@@ -1737,12 +1735,12 @@ class BIRChipper(BaseChipper):
         start_loc = self._data_offset + start_row*stride
         self._file_object.seek(start_loc, os.SEEK_SET)
         # read our data, then cast and reduce
-        total_entries = int_func(rows)*int_func(cols)*self._raw_bands
-        total_size = int_func(cols)*stride
+        total_entries = int_func(rows)*self._shape[2]*self._raw_bands
+        total_size = self._shape[2]*stride
         data = self._file_object.read(total_size)
         data = numpy.frombuffer(data, self._raw_dtype, total_entries)
-        data = numpy.reshape(data, (rows, self._raw_bands, cols))
-        out[:, :, :] = data[::range1[2], band_collection, ::range2[2]]
+        data = numpy.reshape(data, (rows, self._raw_bands, self._shape[2]))
+        out[:, :, :] = data[range1[0]-start_row:range1[1]-start_row:range1[2], band_collection, range2[0]:range2[1]:range2[2]]
         self._file_object.seek(init_location, os.SEEK_SET)
         return out
 
