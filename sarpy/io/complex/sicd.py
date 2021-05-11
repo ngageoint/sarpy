@@ -6,7 +6,9 @@ Module for reading SICD files - should support SICD version 0.3 and above.
 import re
 import sys
 import logging
+import os
 from datetime import datetime
+from typing import BinaryIO
 
 import numpy
 
@@ -15,7 +17,7 @@ from sarpy.compliance import string_types
 from sarpy.io.general.base import AggregateChipper
 from sarpy.io.general.nitf import NITFReader, NITFWriter, ImageDetails, DESDetails, \
     image_segmentation, get_npp_block, interpolate_corner_points_string
-from sarpy.io.general.utils import parse_xml_from_string
+from sarpy.io.general.utils import parse_xml_from_string, is_file_like
 from sarpy.io.complex.sicd_elements.SICD import SICDType, get_specification_identifier
 from sarpy.io.complex.sicd_elements.ImageCreation import ImageCreationType
 
@@ -79,13 +81,13 @@ class SICDDetails(NITFDetails):
         '_des_index', '_des_header', '_is_sicd', '_sicd_meta',
         'img_segment_rows', 'img_segment_columns')
 
-    def __init__(self, file_name):
+    def __init__(self, file_object):
         """
 
         Parameters
         ----------
-        file_name : str
-            file name for a NITF 2.1 file containing a SICD
+        file_object : str|BinaryIO
+            file name or file like object for a NITF 2.1 or 2.0 containing a SICD.
         """
 
         self._des_index = None
@@ -93,7 +95,7 @@ class SICDDetails(NITFDetails):
         self._img_headers = None
         self._is_sicd = False
         self._sicd_meta = None
-        super(SICDDetails, self).__init__(file_name)
+        super(SICDDetails, self).__init__(file_object)
         if self._nitf_header.ImageSegments.subhead_sizes.size == 0:
             raise IOError('There are no image segments defined.')
         if self._nitf_header.GraphicsSegments.item_sizes.size > 0:
@@ -280,8 +282,10 @@ class SICDDetails(NITFDetails):
                 "previous {} bytes. They cannot be trivially replaced.".format(des_bytes, des_size))
             return False
         des_loc = self.des_subheader_offsets[self._des_index]
+        if not os.path.exists(self._file_name):
+            raise ValueError('Operation not allowed.')
         with open(self._file_name, 'r+b') as fi:
-            fi.seek(des_loc)
+            fi.seek(des_loc, os.SEEK_SET)
             fi.write(des_bytes)
         return True
 
@@ -345,15 +349,16 @@ class SICDReader(NITFReader):
 
         Parameters
         ----------
-        nitf_details : str|SICDDetails
-            filename or SICDDetails object
+        nitf_details :  : str|BinaryIO|SICDDetails
+            filename, file-like object, or SICDDetails object
         """
 
-        if isinstance(nitf_details, string_types):
+        if isinstance(nitf_details, string_types) or is_file_like(nitf_details):
             nitf_details = SICDDetails(nitf_details)
         if not isinstance(nitf_details, SICDDetails):
-            raise TypeError('The input argument for SICDReader must be a filename or '
-                            'SICDDetails object.')
+            raise TypeError(
+                'The input argument for SICDReader must be a filename, file-like object, '
+                'or SICDDetails object.')
         super(SICDReader, self).__init__(nitf_details, reader_type="SICD")
 
         # to perform a preliminary check that the structure is valid:
@@ -802,13 +807,5 @@ class SICDWriter(NITFWriter):
             Security=self._security_tags,
             UserHeader=XMLDESSubheader(**uh_args))
 
-        xml_bytes = self.sicd_meta.to_xml_bytes(tag='SICD', urn=uh_args['DESSHTN'])
-        from sarpy.consistency.sicd_consistency import evaluate_xml_versus_schema
-        result = evaluate_xml_versus_schema(xml_bytes.decode('utf-8'), uh_args['DESSHTN'])
-        if result is False:
-            logging.warning(
-                'As indicated by previous validation messages, the provided SICD does not '
-                'properly validate against the schema for {}'.format(
-                    uh_args['DESSHTN']))
         self._des_details = (
-            DESDetails(subhead, xml_bytes), )
+            DESDetails(subhead, self.sicd_meta.to_xml_bytes(tag='SICD', urn=uh_args['DESSHTN'])), )

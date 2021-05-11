@@ -719,7 +719,7 @@ class Unstructured(NITFElement):
         super(Unstructured, self).__init__(data=data, **kwargs)
 
     @property
-    def data(self):  # type: () -> Union[None, bytes, NITFElement]
+    def data(self):  # type: () -> Union[None, bytes, NITFElement, TREList]
         return self._data
 
     @data.setter

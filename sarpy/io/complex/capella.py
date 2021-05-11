@@ -12,9 +12,10 @@ from collections import OrderedDict
 from scipy.constants import speed_of_light
 import numpy
 
+from sarpy.compliance import string_types
 from sarpy.io.general.base import BaseReader
 from sarpy.io.general.tiff import TiffDetails, NativeTiffChipper
-from sarpy.io.general.utils import parse_timestring, get_seconds, string_types
+from sarpy.io.general.utils import parse_timestring, get_seconds, is_file_like
 from sarpy.io.complex.utils import fit_position_xvalidation
 from sarpy.io.complex.sicd_elements.blocks import XYZPolyType
 from sarpy.io.complex.sicd_elements.SICD import SICDType
@@ -55,6 +56,8 @@ def is_a(file_name):
         `CapellaReader` instance if Capella file, `None` otherwise
     """
 
+    if is_file_like(file_name):
+        return None
 
     try:
         csk_details = CapellaDetails(file_name)

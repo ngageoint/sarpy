@@ -16,7 +16,7 @@ from scipy.constants import speed_of_light
 
 from sarpy.compliance import string_types, int_func
 from sarpy.io.general.base import BaseReader, SubsetChipper, BIPChipper
-from sarpy.io.general.utils import get_seconds, parse_timestring
+from sarpy.io.general.utils import get_seconds, parse_timestring, is_file_like
 
 from sarpy.io.complex.sicd_elements.blocks import Poly1DType, Poly2DType
 from sarpy.io.complex.sicd_elements.SICD import SICDType
@@ -57,6 +57,9 @@ def is_a(file_name):
     TSXReader|None
         `TSXReader` instance if TerraSAR-X file file, `None` otherwise
     """
+
+    if is_file_like(file_name):
+        return None
 
     try:
         tsx_details = TSXDetails(file_name)
@@ -958,7 +961,7 @@ class COSARDetails(object):
             raise ValueError(
                 'The seek location + basic header size is greater than the file size.')
         # seek to our desired location
-        fi.seek(the_offset, 0)
+        fi.seek(the_offset, os.SEEK_SET)
         # read the desired bytes
         header_bytes = fi.read(48)
         # interpret the data

@@ -34,7 +34,7 @@ from sarpy.io.complex.sicd_elements.ImageFormation import ImageFormationType, Tx
 from sarpy.io.complex.sicd_elements.RMA import RMAType, INCAType
 from sarpy.io.complex.sicd_elements.Radiometric import RadiometricType
 from sarpy.io.general.base import BaseReader, BaseChipper
-from sarpy.io.general.utils import get_seconds, parse_timestring
+from sarpy.io.general.utils import get_seconds, parse_timestring, is_file_like
 from sarpy.io.complex.utils import fit_position_xvalidation, two_dim_poly_fit
 
 __classification__ = "UNCLASSIFIED"
@@ -51,7 +51,7 @@ def is_a(file_name):
 
     Parameters
     ----------
-    file_name : str
+    file_name : str|BinaryIO
         the file_name to check
 
     Returns
@@ -61,6 +61,9 @@ def is_a(file_name):
     """
 
     if h5py is None:
+        return None
+
+    if is_file_like(file_name):
         return None
 
     try:

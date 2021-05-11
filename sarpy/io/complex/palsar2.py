@@ -15,7 +15,7 @@ from scipy.constants import speed_of_light
 from sarpy.compliance import int_func, string_types
 from sarpy.io.general.base import BaseChipper, SubsetChipper, BaseReader, BIPChipper
 
-from sarpy.io.general.utils import get_seconds, parse_timestring
+from sarpy.io.general.utils import get_seconds, parse_timestring, is_file_like
 
 from sarpy.io.complex.sicd_elements.blocks import Poly1DType, Poly2DType
 from sarpy.io.complex.sicd_elements.SICD import SICDType
@@ -59,6 +59,9 @@ def is_a(file_name):
     PALSARReader|None
         `PALSARReader` instance if PALSAR file, `None` otherwise
     """
+
+    if is_file_like(file_name):
+        return None
 
     try:
         palsar_details = PALSARDetails(file_name)
@@ -150,7 +153,7 @@ class _BaseElements2(_BaseElements):
     def __init__(self, fi):
         super(_BaseElements2, self).__init__(fi)
         self.ascii_ebcdic = fi.read(2).decode('utf-8')  # type: str
-        fi.seek(2, 1) # skip reserved field
+        fi.seek(2, os.SEEK_CUR) # skip reserved field
 
 
 # Elements common to IMG, LED, TRL, and VOL
@@ -202,7 +205,7 @@ class _CommonElements2(_CommonElements):
         self.rec_len_loc_type_flag = fi.read(4).decode('utf-8')  # type: str
         self.loc_rec_len = fi.read(8).decode('utf-8')  # type: str
         self.len_rec_len = fi.read(4).decode('utf-8')  # type: str
-        fi.seek(68, 1)  # skip reserved field
+        fi.seek(68, os.SEEK_CUR)  # skip reserved field
         self.num_data_rec = int_func(struct.unpack('6s', fi.read(6))[0])  # type: int
         self.data_len = int_func(struct.unpack('6s', fi.read(6))[0])  # type: int
 
@@ -252,7 +255,7 @@ class _CommonElements3(_CommonElements2):
         self.cal_len = int_func(fi.read(6))  # type: int
         self.num_gcp_rec = int_func(fi.read(6))  # type: int
         self.gcp_len = int_func(fi.read(6))  # type: int
-        fi.seek(60, 1)  # skip reserved fields
+        fi.seek(60, os.SEEK_CUR)  # skip reserved fields
         # the five data facility records
         num_fac_data_rec = []
         fac_data_len = []
@@ -320,7 +323,7 @@ class _IMG_SignalElements(_BaseElements):
         self.gain, self.invalid_flg, self.elec_ele, self.mech_ele, \
         self.elec_squint, self.mech_squint, self.slant_rng, self.window_position = \
             struct.unpack('>iiiiiiii', fi.read(8*4)) # type: int, int, int, int, int, int, int, int
-        fi.seek(4, 1)  # skip reserved fields
+        fi.seek(4, os.SEEK_CUR)  # skip reserved fields
         # prefix data - platform reference information
         self.pos_update_flg, self.plat_lat, self.plat_lon, self.plat_alt, self.grnd_spd = \
             struct.unpack('>iiiii', fi.read(5*4))  # type: int, int, int, int, int
@@ -335,7 +338,7 @@ class _IMG_SignalElements(_BaseElements):
             struct.unpack('>iii', fi.read(3*4))  # type: int, int, int
         # scan sar
         self.burst_num, self.line_num = struct.unpack('>ii', fi.read(2*4))  # type: int, int
-        fi.seek(60, 1)  # reserved field
+        fi.seek(60, os.SEEK_CUR)  # reserved field
         self.frame_num = struct.unpack('>i', fi.read(4))[0]  # type: int
         # NB: there are remaining unparsed fields of no interest before data
 
@@ -397,7 +400,7 @@ class _IMG_Elements(_CommonElements2):
         """
 
         # this has advanced past the data_len field
-        fi.seek(24, 1)  # skip reserved field
+        fi.seek(24, os.SEEK_CUR)  # skip reserved field
         # sample group data
         self.sample_len = int_func(fi.read(4))  # type: int
         self.num_samples = int_func(fi.read(4))  # type: int
@@ -426,7 +429,7 @@ class _IMG_Elements(_CommonElements2):
         self.loc_leftfill = fi.read(8).decode('utf-8')  # type: str
         self.loc_rightfill = fi.read(8).decode('utf-8')  # type: str
         self.pad_pixels = fi.read(4).decode('utf-8')  # type: str
-        fi.seek(28, 1)  # skip resevered fields
+        fi.seek(28, os.SEEK_CUR)  # skip resevered fields
         self.loc_data_qual = fi.read(8).decode('utf-8')  # type: str
         self.loc_cal_info = fi.read(8).decode('utf-8')  # type: str
         self.loc_gain = fi.read(8).decode('utf-8')  # type: str
@@ -439,7 +442,7 @@ class _IMG_Elements(_CommonElements2):
         self.scansar_num_bursts = fi.read(4).decode('utf-8')  # type: str
         self.scansar_num_lines = fi.read(4).decode('utf-8')  # type: str
         self.scansar_num_overlap = fi.read(4).decode('utf-8')  # type: str
-        fi.seek(260, 1)  # skip reserved fields
+        fi.seek(260, os.SEEK_CUR)  # skip reserved fields
 
     def _parse_signal(self, fi, index):
         """
@@ -463,7 +466,7 @@ class _IMG_Elements(_CommonElements2):
         record_offset = self.rec_length + \
                         (self.prefix_bytes + self.num_pixels*self.num_bytes + self.suffix_bytes)*index
         # go to the start of the given record
-        fi.seek(record_offset, 0)
+        fi.seek(record_offset, os.SEEK_SET)
         return _IMG_SignalElements(fi)
 
     def _basic_signal(self, fi):
@@ -623,7 +626,7 @@ class _LED_Data(_BaseElements):
         self.scene_id = fi.read(32).decode('utf-8')  # type: str
         self.num_scene_ref = fi.read(16).decode('utf-8')  # type: str
         self.scene_ctr_time = fi.read(32).decode('utf-8')  # type: str
-        fi.seek(16, 1)  # skip reserved fields
+        fi.seek(16, os.SEEK_CUR)  # skip reserved fields
         self.geo_lat = fi.read(16).decode('utf-8')  # type: str
         self.geo_long = fi.read(16).decode('utf-8')  # type: str
         self.heading = fi.read(16).decode('utf-8')  # type: str
@@ -635,15 +638,15 @@ class _LED_Data(_BaseElements):
         self.J2 = fi.read(16).decode('utf-8')  # type: str
         self.J3 = fi.read(16).decode('utf-8')  # type: str
         self.J4 = fi.read(16).decode('utf-8')  # type: str
-        fi.seek(16, 1)  # skip reserved fields
+        fi.seek(16, os.SEEK_CUR)  # skip reserved fields
         self.avg_terr = fi.read(16).decode('utf-8')  # type: str
         self.ctr_line = int_func(fi.read(8))  # type: int
         self.ctr_pixel = int_func(fi.read(8))  # type: int
         self.proc_length = fi.read(16).decode('utf-8')  # type: str
         self.proc_width = fi.read(16).decode('utf-8')  # type: str
-        fi.seek(16, 1)  # skip reserved fields
+        fi.seek(16, os.SEEK_CUR)  # skip reserved fields
         self.sar_chan = fi.read(4).decode('utf-8')  # type: str
-        fi.seek(4, 1)  # skip reserved fields
+        fi.seek(4, os.SEEK_CUR)  # skip reserved fields
         self.platform = fi.read(16).decode('utf-8')  # type: str
         self.sensor_id_mode = fi.read(32).decode('utf-8')  # type: str
         self.orbit = fi.read(8).decode('utf-8')  # type: str
@@ -652,14 +655,14 @@ class _LED_Data(_BaseElements):
         self.sensor_heading = fi.read(8).decode('utf-8')  # type: str
         self.clock_angle = float(fi.read(8))  # type: float
         self.incidence = float(fi.read(8))  # type: float
-        fi.seek(8, 1)  # skip reserved fields
+        fi.seek(8, os.SEEK_CUR)  # skip reserved fields
         self.wavelength = float(fi.read(16))  # type: float
         self.mocomp = fi.read(2).decode('utf-8')  # type: str
         self.range_pulse_code = fi.read(16).decode('utf-8')  # type: str
         self.range_pulse_amp_coef = [fi.read(16).decode('utf-8') for _ in range(5)]  # type: List[str]
         self.range_pulse_phs_coef = [fi.read(16).decode('utf-8') for _ in range(5)]  # type: List[str]
         self.chirp_index = fi.read(8).decode('utf-8')  # type: str
-        fi.seek(8, 1)  # skip reserved fields
+        fi.seek(8, os.SEEK_CUR)  # skip reserved fields
         self.sampling_rate = float(fi.read(16))  # type: float
         self.range_gate = float(fi.read(16))  # type: float
         self.pulse_width = float(fi.read(16))  # type: float
@@ -672,7 +675,7 @@ class _LED_Data(_BaseElements):
         self.dc_bias_i = float(fi.read(16))  # type: float
         self.dc_bias_q = float(fi.read(16))  # type: float
         self.gain_imbalance = float(fi.read(16))  # type: float
-        fi.seek(32, 1)  # skip reserved fields
+        fi.seek(32, os.SEEK_CUR)  # skip reserved fields
         self.elec_bores = float(fi.read(16))  # type: float
         self.mech_bores = float(fi.read(16))  # type: float
         self.echo_tracker = fi.read(4).decode('utf-8')  # type: str
@@ -703,14 +706,14 @@ class _LED_Data(_BaseElements):
         self.res_az = fi.read(16).decode('utf-8')  # type: str
         self.rad_gain = fi.read(16).decode('utf-8')  # type: str
         self.at_dop = [float(fi.read(16)) for _ in range(3)]  # type: List[float]
-        fi.seek(16, 1)  # skip reserved fields
+        fi.seek(16, os.SEEK_CUR)  # skip reserved fields
         self.xt_dop = [float(fi.read(16)) for _ in range(3)]  # type: List[float]
         self.time_dir_pixel = fi.read(8).decode('utf-8')  # type: str
         self.time_dir_line = fi.read(8).decode('utf-8')  # type: str
         self.at_dop_rate = [float(fi.read(16)) for _ in range(3)]  # type: List[float]
-        fi.seek(16, 1)  # skip reserved fields
+        fi.seek(16, os.SEEK_CUR)  # skip reserved fields
         self.xt_dop_rate = [float(fi.read(16)) for _ in range(3)]  # type: List[float]
-        fi.seek(16, 1)  # skip reserved fields
+        fi.seek(16, os.SEEK_CUR)  # skip reserved fields
         self.line_constant = fi.read(8).decode('utf-8')  # type: str
         self.clutter_lock_flg = fi.read(4).decode('utf-8')  # type: str
         self.autofocus_flg = fi.read(4).decode('utf-8')  # type: str
@@ -730,10 +733,10 @@ class _LED_Data(_BaseElements):
         self.param_table_num = fi.read(4).decode('utf-8')  # type: str
         self.off_nadir = float(fi.read(16))  # type: float
         self.ant_beam_num = fi.read(4).decode('utf-8')  # type: str
-        fi.seek(28, 1)  # skip reserved fields
+        fi.seek(28, os.SEEK_CUR)  # skip reserved fields
         self.incidence_ang = [float(fi.read(20)) for _ in range(6)]  # type: List[float]
         self.num_annot = float(fi.read(8))  # type: float
-        fi.seek(8 + 64*32 + 26, 1)  # skip reserved fields, for map projection?
+        fi.seek(8 + 64*32 + 26, os.SEEK_CUR)  # skip reserved fields, for map projection?
 
 
 class _LED_Position(_BaseElements):
@@ -773,9 +776,9 @@ class _LED_Position(_BaseElements):
         for i in range(self.num_pts):
             self.pts_pos[i, :] = [float(fi.read(22)) for _ in range(3)]
             self.pts_vel[i, :] = [float(fi.read(22)) for _ in range(3)]
-        fi.seek(18, 1)  # skip reserved fields
+        fi.seek(18, os.SEEK_CUR)  # skip reserved fields
         self.leap_sec = fi.read(1).decode('utf-8')  # type: str
-        fi.seek(579, 1)  # skip reserved fields
+        fi.seek(579, os.SEEK_CUR)  # skip reserved fields
 
 
 class _LED_AttitudePoint(object):
@@ -819,7 +822,7 @@ class _LED_Attitude(_BaseElements):
         self.num_pts = int_func(fi.read(4))  # type: int
         self.pts = [_LED_AttitudePoint(fi) for _ in range(self.num_pts)]
         extra = self.rec_length - (16 + 120*self.num_pts)
-        fi.seek(extra, 1)  # skip remaining reserved
+        fi.seek(extra, os.SEEK_CUR)  # skip remaining reserved
 
 
 class _LED_Radiometric(_BaseElements):
@@ -844,7 +847,7 @@ class _LED_Radiometric(_BaseElements):
             for j in range(2):
                 self.rcv_distortion[i, j] = complex(real=float(fi.read(16)), imag=float(fi.read(16)))
         extra = self.rec_length - (12 + 24 + 16*2*4*2)
-        fi.seek(extra, 1)  # skip remaining reserved
+        fi.seek(extra, os.SEEK_CUR)  # skip remaining reserved
 
 
 class _LED_DataQuality(_BaseElements):
@@ -882,7 +885,7 @@ class _LED_DataQuality(_BaseElements):
         for i in range(self.num_chans):
             self.rel_cal_mag[i] = _make_float(fi.read(16))
             self.rel_cal_phs[i] = _make_float(fi.read(16))
-        fi.seek(480 - self.num_chans*32, 1)  # skip reserved
+        fi.seek(480 - self.num_chans*32, os.SEEK_CUR)  # skip reserved
         self.abs_err_at = fi.read(16).decode('utf-8')  # type: str
         self.abs_err_ct = fi.read(16).decode('utf-8')  # type: str
         self.distort_line = fi.read(16).decode('utf-8')  # type: str
@@ -894,7 +897,7 @@ class _LED_DataQuality(_BaseElements):
             self.at_misreg_err[i] = _make_float(fi.read(16))
             self.ct_misreg_err[i] = _make_float(fi.read(16))
         this_size = 782 + 32*self.num_chans
-        fi.seek(self.rec_length-this_size, 1)  # skip reserved
+        fi.seek(self.rec_length-this_size, os.SEEK_CUR)  # skip reserved
 
 
 class _LED_Facility(_BaseElements):
@@ -915,7 +918,7 @@ class _LED_Facility(_BaseElements):
         super(_LED_Facility, self).__init__(fi)
         self.fac_seq_num = struct.unpack('>I', fi.read(4))[0]  # type: int
         if not parse_all:
-            fi.seek(self.rec_length-16, 1)
+            fi.seek(self.rec_length-16, os.SEEK_CUR)
             return
 
         self.mapproj2pix = numpy.zeros((10, ), dtype='float64')  # type: numpy.ndarray
@@ -932,11 +935,11 @@ class _LED_Facility(_BaseElements):
         self.end_line_bottom = fi.read(8).decode('utf-8')  # type: str
         self.prf_switch_flag = fi.read(4).decode('utf-8')  # type: str
         self.prf_switch_line = fi.read(8).decode('utf-8')  # type: str
-        fi.seek(8, 1)  # skip reserved field
+        fi.seek(8, os.SEEK_CUR)  # skip reserved field
         self.num_loss_lines_10 = fi.read(8).decode('utf-8')  # type: str
         self.num_loss_lines_11 = fi.read(8).decode('utf-8')  # type: str
-        fi.seek(312, 1)  # skip empty fields
-        fi.seek(224, 1)  # skip reserved fields
+        fi.seek(312, os.SEEK_CUR)  # skip empty fields
+        fi.seek(224, os.SEEK_CUR)  # skip reserved fields
 
         self.pixelline2lat = numpy.zeros((25, ), dtype='float64')  # type: numpy.ndarray
         self.pixelline2lon = numpy.zeros((25, ), dtype='float64')  # type: numpy.ndarray
@@ -957,7 +960,7 @@ class _LED_Facility(_BaseElements):
 
         self.origin_lat = float(fi.read(20))  # type: float
         self.origin_lon = float(fi.read(20))  # type: float
-        fi.seek(1896, 1)  # skip empty fields
+        fi.seek(1896, os.SEEK_CUR)  # skip empty fields
 
 
 class _LED_Elements(_CommonElements3):
@@ -982,12 +985,12 @@ class _LED_Elements(_CommonElements3):
         self._file_name = file_name  # type: str
         with open(self._file_name, 'rb') as fi:
             super(_LED_Elements, self).__init__(fi)
-            fi.seek(230, 1)  # skip reserved fields
+            fi.seek(230, os.SEEK_CUR)  # skip reserved fields
             self.data = _LED_Data(fi)  # type: _LED_Data
             if self.num_map_rec > 0:
                 # skip any map projection
                 # should not be present for level 1.1
-                fi.seek(self.map_len, 1)
+                fi.seek(self.map_len, os.SEEK_CUR)
             self.position = _LED_Position(fi)  # type: _LED_Position
             self.attitude = _LED_Attitude(fi)  # type: _LED_Attitude
             self.radiometric = _LED_Radiometric(fi)  # type: _LED_Radiometric
@@ -1044,7 +1047,7 @@ class _TRL_Elements(_CommonElements3):
             super(_TRL_Elements, self).__init__(fi)
             self.num_low_res_rec = int_func(fi.read(6))  # type: int
             self.low_res = tuple([_TRL_LowResRecord(fi) for _ in range(self.num_low_res_rec)])
-            fi.seek(720, 1)  # skip reserved data
+            fi.seek(720, os.SEEK_CUR)  # skip reserved data
             # comment carried over from matlab -
             #   There seems to be an array the size of the low resolution image on
             #   the end of this file, but it doesn't seem to contain any data
@@ -1088,7 +1091,7 @@ class _VOL_File(_BaseElements2):
         self.phys_vol_last = int_func(fi.read(2))  # type: int
         self.rec_num_first = int_func(fi.read(8))  # type: int
         self.rec_num_last = int_func(fi.read(8))  # type: int
-        fi.seek(200, 1)  # skipping reserved fields
+        fi.seek(200, os.SEEK_CUR)  # skipping reserved fields
 
 
 class _VOL_Text(_BaseElements2):
@@ -1106,7 +1109,7 @@ class _VOL_Text(_BaseElements2):
         self.phys_id = fi.read(40).decode('utf-8')  # type: str
         self.scene_id = fi.read(40).decode('utf-8')  # type: str
         self.scene_loc_id = fi.read(40).decode('utf-8')  # type: str
-        fi.seek(124, 1)  # skip reserved fields
+        fi.seek(124, os.SEEK_CUR)  # skip reserved fields
 
 
 class _VOL_Elements(_CommonElements):
@@ -1151,7 +1154,7 @@ class _VOL_Elements(_CommonElements):
             self.log_vol_facility = fi.read(12).decode('utf-8')  # type: str
             self.num_file_ptr = int_func(fi.read(4))  # type: int
             self.num_text_rec = int_func(fi.read(4))  # type: int
-            fi.seek(192, 1)
+            fi.seek(192, os.SEEK_CUR)
             self.files = tuple([_VOL_File(fi) for _ in range(self.num_file_ptr)])  # type: Tuple[_VOL_File]
             self.texts = tuple([_VOL_Text(fi) for _ in range(self.num_text_rec)])  # type: Tuple[_VOL_Text]
 

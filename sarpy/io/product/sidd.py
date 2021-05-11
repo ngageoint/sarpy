@@ -7,12 +7,12 @@ import logging
 import sys
 from functools import reduce
 import re
-from typing import List, Union
+from typing import List, Union, BinaryIO
 
 import numpy
 
 from sarpy.compliance import int_func, string_types
-from sarpy.io.general.utils import parse_xml_from_string
+from sarpy.io.general.utils import parse_xml_from_string, is_file_like
 from sarpy.io.general.base import AggregateChipper
 from sarpy.io.general.nitf import NITFDetails, NITFReader, NITFWriter, ImageDetails, DESDetails, \
     image_segmentation, get_npp_block, interpolate_corner_points_string
@@ -78,20 +78,20 @@ class SIDDDetails(NITFDetails):
         '_is_sidd', '_sidd_meta', '_sicd_meta',
         'img_segment_rows', 'img_segment_columns')
 
-    def __init__(self, file_name):
+    def __init__(self, file_object):
         """
 
         Parameters
         ----------
-        file_name : str
-            file name for a NITF 2.1 file containing a SIDD
+        file_object : str|BinaryIO
+            file name or file like object for a NITF 2.1 or 2.0 containing a SIDD
         """
 
         self._img_headers = None
         self._is_sidd = False
         self._sidd_meta = None
         self._sicd_meta = None
-        super(SIDDDetails, self).__init__(file_name)
+        super(SIDDDetails, self).__init__(file_object)
         if self._nitf_header.ImageSegments.subhead_sizes.size == 0:
             raise IOError('There are no image segments defined.')
         if self._nitf_header.GraphicsSegments.item_sizes.size > 0:
@@ -212,11 +212,11 @@ class SIDDReader(NITFReader):
 
         Parameters
         ----------
-        nitf_details : str|SIDDDetails
-            filename or SIDDDetails object
+        nitf_details : str|BinaryIO|SIDDDetails
+            filename, file-like object, or SIDDDetails object
         """
 
-        if isinstance(nitf_details, string_types):
+        if isinstance(nitf_details, string_types) or is_file_like(nitf_details):
             nitf_details = SIDDDetails(nitf_details)
         if not isinstance(nitf_details, SIDDDetails):
             raise TypeError('The input argument for SIDDReader must be a filename or '
