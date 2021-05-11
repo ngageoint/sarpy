@@ -14,6 +14,7 @@ from typing import Union, List, Tuple
 
 from sarpy.compliance import int_func
 from sarpy.io.general.base import BaseReader
+from sarpy.io.general.utils import is_file_like
 from sarpy.io.complex.sicd import SICDWriter
 from sarpy.io.complex.sio import SIOWriter
 from sarpy.io.complex.sicd_elements.SICD import SICDType
@@ -107,7 +108,7 @@ def open_complex(file_name):
 
     Parameters
     ----------
-    file_name : str
+    file_name : str|BinaryIO
 
     Returns
     -------
@@ -118,7 +119,7 @@ def open_complex(file_name):
     IOError
     """
 
-    if not os.path.exists(file_name):
+    if (not is_file_like(file_name)) and (not os.path.exists(file_name)):
         raise IOError('File {} does not exist.'.format(file_name))
     # parse openers, if not already done
     parse_openers()

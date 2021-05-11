@@ -7,9 +7,10 @@ import argparse
 import sys
 import functools
 from xml.dom import minidom
-from typing import TextIO
+from typing import Union, TextIO, BinaryIO
 import os
 
+from sarpy.compliance import string_types
 from sarpy.io.phase_history.cphd import CPHDDetails
 
 if sys.version_info[0] < 3:
@@ -39,20 +40,50 @@ def _define_print_function(destination):
 
 
 def _print_header(input_file):
-    with open(input_file, 'rb') as fi:
-        while True:
-            lin = fi.readline().strip()
-            if lin:
-                print_func(lin.decode())
-            else:
-                break
+    # type: (Union[str, BinaryIO]) -> None
+
+    def _finalize():
+        if close_after:
+            file_object.close()
+        if initial_location is not None:
+            file_object.seek(initial_location)
+
+    if isinstance(input_file, string_types):
+        file_object = open(input_file, 'rb')
+        initial_location = None
+        close_after = True
+    elif hasattr(input_file, 'readline'):
+        file_object = input_file
+        initial_location = file_object.tell()
+        file_object.seek(0)
+        close_after = False
+    else:
+        raise TypeError(
+            'Input requires a file path or a binary mode file-like object')
+
+    while True:
+        lin = file_object.readline().strip()
+        if not isinstance(lin, bytes):
+            _finalize()
+            raise ValueError('Requires an input opened in binary mode')
+
+        if lin:
+            print_func(lin.decode())
+        else:
+            break
+    _finalize()
 
 
 def _create_default_output_file(input_file):
-    return os.path.splitext(input_file)[0] + '.meta_dump.txt'
+    # type: (Union[str, BinaryIO]) -> str
+    if isinstance(input_file, string_types):
+        return os.path.splitext(input_file)[0] + '.meta_dump.txt'
+    else:
+        return os.path.expanduser('~/Desktop/phase_history.meta_dump.txt')
 
 
 def _print_structure(input_file):
+    # type: (Union[str, BinaryIO]) -> None
     details = CPHDDetails(input_file)
     data = details.get_cphd_bytes()
     xml_str = minidom.parseString(data.decode()).toprettyxml(indent='    ', newl='\n')
@@ -75,11 +106,14 @@ def print_cphd_metadata(input_file, destination=sys.stdout):
 
     Parameters
     ----------
-    input_file : str
+    input_file : str|BinaryIO
     destination : TextIO
     """
 
     _define_print_function(destination)
+
+    if isinstance(input_file, string_types):
+        print_func('Details for CPHD file {}'.format(input_file))
 
     print_func('---- CPHD Header Information ----')
     _print_header(input_file)
@@ -97,7 +131,7 @@ def print_cphd_header(input_file, destination=sys.stdout):
 
     Parameters
     ----------
-    input_file : str
+    input_file : str|BinaryIO
     destination : TextIO
     """
 
@@ -111,7 +145,7 @@ def print_cphd_xml(input_file, destination=sys.stdout):
 
     Parameters
     ----------
-    input_file : str
+    input_file : str|BinaryIO
     destination : TextIO
     """
 
@@ -120,6 +154,7 @@ def print_cphd_xml(input_file, destination=sys.stdout):
 
 
 def _dump_pattern(input_file, destination, call_method):
+    # type: (Union[str, BinaryIO], str, Callable) -> Union[None, str]
     if destination == 'stdout':
         call_method(input_file, destination=sys.stdout)
     elif destination == 'string':
@@ -141,8 +176,8 @@ def dump_cphd_metadata(input_file, destination):
 
     Parameters
     ----------
-    input_file : str
-        Path to a given input file.
+    input_file : str|BinaryIO
+        Path to or binary file-like object containing a CPHD file.
     destination : str
         'stdout', 'string', 'default' (will use `file_name+'.meta_dump.txt'`),
         or the path to an output file.
@@ -162,8 +197,8 @@ def dump_cphd_header(input_file, destination):
 
     Parameters
     ----------
-    input_file : str
-        Path to a given input file.
+    input_file : str|BinaryIO
+        Path to or binary file-like object containing a CPHD file.
     destination : str
         'stdout', 'string', 'default' (will use `file_name+'.meta_dump.txt'`),
         or the path to an output file.
@@ -183,8 +218,8 @@ def dump_cphd_xml(input_file, destination):
 
     Parameters
     ----------
-    input_file : str
-        Path to a given input file.
+    input_file : str|BinaryIO
+        Path to or binary file-like object containing a CPHD file.
     destination : str
         'stdout', 'string', 'default' (will use `file_name+'.meta_dump.txt'`),
         or the path to an output file.

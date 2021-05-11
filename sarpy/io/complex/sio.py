@@ -16,7 +16,7 @@ from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.complex.sicd_elements.ImageData import ImageDataType, FullImageType
 from sarpy.io.general.base import BaseReader, BIPChipper, BIPWriter
 from sarpy.io.complex.sicd import complex_to_amp_phase, complex_to_int, amp_phase_to_complex
-from sarpy.io.general.utils import parse_xml_from_string
+from sarpy.io.general.utils import parse_xml_from_string, is_file_like
 
 __classification__ = "UNCLASSIFIED"
 __author__ = ("Thomas McCullough", "Wade Schwartzkopf")
@@ -40,6 +40,9 @@ def is_a(file_name):
     SIOReader|None
         `SIOReader` instance if SIO file, `None` otherwise
     """
+
+    if is_file_like(file_name):
+        return None
 
     try:
         sio_details = SIODetails(file_name)
@@ -167,7 +170,7 @@ class SIODetails(object):
 
             endian = self.ENDIAN[self._magic_number]
             with open(self._file_name, 'rb') as fi:
-                fi.seek(20)  # skip the basic header
+                fi.seek(20, os.SEEK_SET)  # skip the basic header
                 # read the user data (some type of header), if necessary
                 user_data, user_data_length = read_user_data()
             self._user_data = user_data

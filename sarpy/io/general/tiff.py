@@ -10,6 +10,8 @@ Module providing api consistent with other file types for reading tiff files.
 # the reading capability is not feasible at present.
 
 import logging
+import os
+
 import numpy
 import re
 
@@ -267,7 +269,7 @@ class TiffDetails(object):
 
         with open(self._file_name, 'rb') as fi:
             # skip the basic header
-            fi.seek(offset_size)
+            fi.seek(offset_size, os.SEEK_SET)
             # extract the tags information
             tags = {}
             self._parse_ifd(fi, tags, type_dtype, count_dtype, offset_dtype, offset_size)

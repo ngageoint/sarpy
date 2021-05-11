@@ -11,7 +11,7 @@ __author__ = "Thomas McCullough"
 
 import logging
 import os
-from typing import Union, List, Tuple
+from typing import Union, List, Tuple, BinaryIO
 import re
 import mmap
 from tempfile import mkstemp
@@ -38,7 +38,7 @@ except ImportError:
 
 from sarpy.compliance import int_func, string_types
 from sarpy.io.general.base import BaseReader, AbstractWriter, SubsetChipper, \
-    AggregateChipper, BIPChipper, BIPWriter, BSQChipper
+    AggregateChipper, BIPChipper, BIPWriter, BSQChipper, BIRChipper
 # noinspection PyProtectedMember
 from sarpy.io.general.nitf_elements.nitf_head import NITFHeader, NITFHeader0, \
     ImageSegmentsType, DataExtensionsType, _ItemArrayHeaders
@@ -50,13 +50,14 @@ from sarpy.io.general.nitf_elements.res import ReservedExtensionHeader, Reserved
 from sarpy.io.general.nitf_elements.security import NITFSecurityTags
 from sarpy.io.general.nitf_elements.image import ImageSegmentHeader, ImageSegmentHeader0, MaskSubheader
 from sarpy.io.general.nitf_elements.des import DataExtensionHeader, DataExtensionHeader0
+from sarpy.io.general.utils import is_file_like
 from sarpy.io.complex.sicd_elements.blocks import LatLonType
 from sarpy.geometry.geocoords import ecf_to_geodetic, geodetic_to_ecf
 from sarpy.geometry.latlon import num as lat_lon_parser
 
+
 ########
 # base expected functionality for a module with an implemented Reader
-
 
 def is_a(file_name):
     """
@@ -81,7 +82,6 @@ def is_a(file_name):
     except IOError:
         # we don't want to catch parsing errors, for now
         return None
-
 
 
 #####
@@ -128,7 +128,8 @@ class NITFDetails(object):
     """
 
     __slots__ = (
-        '_file_name', '_nitf_version', '_nitf_header', '_img_headers',
+        '_file_name', '_file_object', '_close_after',
+        '_nitf_version', '_nitf_header', '_img_headers',
 
         'img_subheader_offsets', 'img_subheader_sizes',
         'img_segment_offsets', 'img_segment_sizes',
@@ -151,53 +152,71 @@ class NITFDetails(object):
         'res_subheader_offsets', 'res_subheader_sizes', # only 2.1
         'res_segment_offsets', 'res_segment_sizes')
 
-    def __init__(self, file_name):
+    def __init__(self, file_object):
         """
 
         Parameters
         ----------
-        file_name : str
-            file name for a NITF file
+        file_object : str|BinaryIO
+            file name for a NITF file, or file like object opened in binary mode.
         """
 
         self._img_headers = None
-        self._file_name = file_name
+        self._file_name = None
+        self._file_object = None
+        self._close_after = False
 
-        if not os.path.isfile(file_name):
-            raise IOError('Path {} is not a file'.format(file_name))
-
-        with open(file_name, mode='rb') as fi:
-            # Read the first 9 bytes to verify NITF
-            try:
-                version_info = fi.read(9).decode('utf-8')
-            except:
-                raise IOError('Not a NITF 2.1 file.')
-            if version_info[:4] != 'NITF':
-                raise IOError('File {} is not a NITF file.'.format(file_name))
-            self._nitf_version = version_info[4:]
-            if self._nitf_version not in ['02.10', '02.00']:
-                raise IOError('Unsupported NITF version {} for file {}'.format(self._nitf_version, file_name))
-            if self._nitf_version == '02.10':
-                fi.seek(354, 0)  # offset to header length field
-                header_length = int_func(fi.read(6))
-                # go back to the beginning of the file, and parse the whole header
-                fi.seek(0, 0)
-                header_string = fi.read(header_length)
-                self._nitf_header = NITFHeader.from_bytes(header_string, 0)
-            elif self._nitf_version == '02.00':
-                fi.seek(280, 0)  # offset to check if DEVT is defined
-                # advance past security tags
-                DWSG = fi.read(6)
-                if DWSG == b'999998':
-                    fi.seek(40, 1)
-                # seek to header length field
-                fi.seek(68, 1)
-                header_length = int_func(fi.read(6))
-                fi.seek(0, 0)
-                header_string = fi.read(header_length)
-                self._nitf_header = NITFHeader0.from_bytes(header_string, 0)
+        if isinstance(file_object, string_types):
+            if not os.path.isfile(file_object):
+                raise IOError('Path {} is not a file'.format(file_object))
+            self._file_name = file_object
+            self._file_object = open(file_object, 'rb')
+            self._close_after = True
+        elif is_file_like(file_object):
+            self._file_object = file_object
+            if hasattr(file_object, 'name') and isinstance(file_object.name, string_types):
+                self._file_name = file_object.name
             else:
-                raise ValueError('Unhandled version {}'.format(self._nitf_version))
+                self._file_name = '<file like object>'
+        else:
+            raise TypeError('file_object is required to be a file like object, or string path to a file.')
+
+        # Read the first 9 bytes to verify NITF
+        self._file_object.seek(0, os.SEEK_SET)
+        try:
+            version_info = self._file_object.read(9)
+        except:
+            raise IOError('Not a NITF 2.1 file.')
+        if not isinstance(version_info, bytes):
+            raise ValueError('Input file like object not open in bytes mode.')
+        version_info = version_info.decode('utf-8')
+        if version_info[:4] != 'NITF':
+            raise IOError('File {} is not a NITF file.'.format(self._file_name))
+        self._nitf_version = version_info[4:]
+        if self._nitf_version not in ['02.10', '02.00']:
+            raise IOError('Unsupported NITF version {} for file {}'.format(self._nitf_version, self._file_name))
+        if self._nitf_version == '02.10':
+            self._file_object.seek(354, os.SEEK_SET)  # offset to header length field
+            header_length = int_func(self._file_object.read(6))
+            # go back to the beginning of the file, and parse the whole header
+            self._file_object.seek(0, os.SEEK_SET)
+            header_string = self._file_object.read(header_length)
+            self._nitf_header = NITFHeader.from_bytes(header_string, 0)
+        elif self._nitf_version == '02.00':
+            self._file_object.seek(280, os.SEEK_SET)  # offset to check if DEVT is defined
+            # advance past security tags
+            DWSG = self._file_object.read(6)
+            if DWSG == b'999998':
+                self._file_object.seek(40, os.SEEK_CUR)
+            # seek to header length field
+            self._file_object.seek(68, os.SEEK_CUR)
+            header_length = int_func(self._file_object.read(6))
+            self._file_object.seek(0, os.SEEK_CUR)
+            header_string = self._file_object.read(header_length)
+            self._nitf_header = NITFHeader0.from_bytes(header_string, 0)
+        else:
+            raise ValueError('Unhandled version {}'.format(self._nitf_version))
+
         if self._nitf_header.get_bytes_length() != header_length:
             logging.critical(
                 'Stated header length of file {} is {}, while the interpreted '
@@ -256,10 +275,19 @@ class NITFDetails(object):
     @property
     def file_name(self):
         """
-        str: the file name.
+        str: the file name. This may not be useful if the input was based on a
+        file like object
         """
 
         return self._file_name
+
+    @property
+    def file_object(self):
+        """
+        BinaryIO: The binary file object
+        """
+
+        return self._file_object
 
     @property
     def nitf_header(self):
@@ -308,9 +336,8 @@ class NITFDetails(object):
                     offsets.size, name, index))
         the_offset = offsets[index]
         the_size = sizes[index]
-        with open(self._file_name, mode='rb') as fi:
-            fi.seek(int_func(the_offset))
-            the_item = fi.read(int_func(the_size))
+        self._file_object.seek(int_func(the_offset), os.SEEK_SET)
+        the_item = self._file_object.read(int_func(the_size))
         return the_item
 
     def get_image_subheader_bytes(self, index):
@@ -351,18 +378,15 @@ class NITFDetails(object):
             out = ImageSegmentHeader0.from_bytes(ih, 0)
         else:
             raise ValueError('Unhandled version {}'.format(self.nitf_version))
-        if out.IC in ['NM', 'M1', 'M3', 'M4', 'M5', 'M6', 'M7', 'M8']:
-            # read the mask subheader
+        if out.is_masked:
+            # read the mask subheader bytes
             the_offset = int_func(self.img_segment_offsets[index])
-            with open(self._file_name, mode='rb') as fi:
-                fi.seek(the_offset)
-                the_size = struct.unpack('>I', fi.read(4))[0]
-                fi.seek(the_offset)
-                the_bytes = fi.read(the_size)
-            if out.IMODE == 'S':
-                band_depth = len(out.Bands)
-            else:
-                band_depth = 1
+            self._file_object.seek(the_offset, os.SEEK_SET)
+            the_size = struct.unpack('>I', self._file_object.read(4))[0]
+            self._file_object.seek(the_offset, os.SEEK_SET)
+            the_bytes = self._file_object.read(the_size)
+            # interpret the mask subheader
+            band_depth = len(out.Bands) if out.IMODE == 'S' else 1
             blocks = out.NBPR*out.NBPC
             out.mask_subheader = MaskSubheader.from_bytes(
                 the_bytes, 0, band_depth=band_depth, blocks=blocks)
@@ -755,6 +779,15 @@ class NITFDetails(object):
                 self.parse_res_subheader(i).to_json() for i in range(self.res_subheader_offsets.size)]
         return out
 
+    def __del__(self):
+        if self._close_after:
+            self._close_after = False
+            # noinspection PyBroadException
+            try:
+                self._file_object.close()
+            except:
+                pass
+
 
 #####
 # A general nitf reader - intended for extension
@@ -809,7 +842,7 @@ class NITFReader(BaseReader):
 
         Parameters
         ----------
-        nitf_details : NITFDetails|str
+        nitf_details : NITFDetails|BinaryIO|str
             The NITFDetails object or path to a nitf file.
         reader_type : str
             What type of reader is this, options are "SICD", "SIDD", "CPHD", or "OTHER"
@@ -818,7 +851,7 @@ class NITFReader(BaseReader):
 
         self._symmetry = symmetry
         self._cached_files = []
-        if isinstance(nitf_details, string_types):
+        if isinstance(nitf_details, string_types) or is_file_like(nitf_details):
             nitf_details = NITFDetails(nitf_details)
         if not isinstance(nitf_details, NITFDetails):
             raise TypeError('The input argument for NITFReader must be a NITFDetails object.')
@@ -877,6 +910,14 @@ class NITFReader(BaseReader):
     def file_name(self):
         return self._nitf_details.file_name
 
+    @property
+    def file_object(self):
+        """
+        BinaryIO: the binary file like object from which we are reading
+        """
+
+        return self._nitf_details.file_object
+
     def _compliance_check(self, index):
         """
         Check that the image segment at `index` can be supported.
@@ -905,13 +946,7 @@ class NITFReader(BaseReader):
                 'not currently supported.'.format(index))
             return False
 
-        if img_header.IMODE == 'R':
-            logging.error(
-                'Image segment at index {} has IMODE value R (band interleaved by row). '
-                'This is currently not supported.'.format(index))
-            return False
-
-        if img_header.IC in ['C1', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'I1']:
+        if img_header.IC in ['C0', 'C1', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'I1']:
             if PIL is None:
                 logging.error(
                     'Image segment at index {} has IC value {}, and PIL cannot '
@@ -1013,7 +1048,7 @@ class NITFReader(BaseReader):
         if img_header.NBPR == 1 and img_header.NBPC == 1:
             # it's one single block
             return BIPChipper(
-                self.file_name, raw_dtype, (this_rows, this_cols), raw_bands, output_bands, output_dtype,
+                self.file_object, raw_dtype, (this_rows, this_cols), raw_bands, output_bands, output_dtype,
                 symmetry=self._symmetry, transform_data=transform_data,
                 data_offset=data_offset, limit_to_raw_bands=limit_to_raw_bands)
 
@@ -1064,13 +1099,18 @@ class NITFReader(BaseReader):
                 if mask_offsets is not None:
                     expected_offset = mask_offsets[0][enumerated_block]
                     if expected_offset == exclude_value:
-                        # this is a missing block, advance the block enumeration and skip
+                        # this is a missing block
+                        # advance the block enumeration details and skip
+                        block_col_end += column_block_size
+                        block_col_end = min(this_cols, block_col_end)
                         enumerated_block += 1
                         continue
-                    if expected_offset != current_offset:
+                    if expected_offset < current_offset:
                         raise ValueError(
                             'expected offset {}, current offset {}, for block {} = ({}, {})'.format(
                                 expected_offset, current_offset, enumerated_block, vblock, hblock))
+                    elif expected_offset > current_offset:
+                        current_offset = expected_offset
 
                 # define the current column block
                 block_col_start = block_col_end
@@ -1084,7 +1124,7 @@ class NITFReader(BaseReader):
                 if block_col_end == block_col_start + column_block_size:
                     chippers.append(
                         BIPChipper(
-                            self.file_name, raw_dtype, (chip_rows, chip_cols),
+                            self.file_object, raw_dtype, (chip_rows, chip_cols),
                             raw_bands, output_bands, output_dtype,
                             symmetry=self._symmetry, transform_data=transform_data,
                             data_offset=int_func(current_offset+data_offset), limit_to_raw_bands=limit_to_raw_bands))
@@ -1099,7 +1139,7 @@ class NITFReader(BaseReader):
                             c_col_start, c_col_end, c_row_start, c_row_end
 
                     p_chipper = BIPChipper(
-                        self.file_name, raw_dtype, (chip_rows, chip_cols),
+                        self.file_object, raw_dtype, (chip_rows, chip_cols),
                         raw_bands, output_bands, output_dtype,
                         symmetry=self._symmetry, transform_data=transform_data,
                         data_offset=int_func(current_offset+data_offset), limit_to_raw_bands=limit_to_raw_bands)
@@ -1140,7 +1180,7 @@ class NITFReader(BaseReader):
 
             for i in range(raw_bands):
                 chippers.append(BIPChipper(
-                    self.file_name, raw_dtype, (this_rows, this_cols), 1, 1, raw_dtype,
+                    self.file_object, raw_dtype, (this_rows, this_cols), 1, 1, raw_dtype,
                     symmetry=self._symmetry, transform_data=None,
                     data_offset=data_offset+current_offset, limit_to_raw_bands=None))
                 current_offset += block_offset
@@ -1188,7 +1228,7 @@ class NITFReader(BaseReader):
                 block_cols = int_func(block_bounds[3] - block_bounds[2])
                 bip_chippers[block_number].append(
                     BIPChipper(
-                        self.file_name, raw_dtype, (block_rows, block_cols), 1, 1, raw_dtype,
+                        self.file_object, raw_dtype, (block_rows, block_cols), 1, 1, raw_dtype,
                         symmetry=self._symmetry, transform_data=None, data_offset=int_func(data_offset+this_offset),
                         limit_to_raw_bands=None))
 
@@ -1219,7 +1259,7 @@ class NITFReader(BaseReader):
 
             for i in range(raw_bands):
                 chippers.append(BIPChipper(
-                    self.file_name, raw_dtype, (this_rows, this_cols), 1, 1, raw_dtype,
+                    self.file_object, raw_dtype, (this_rows, this_cols), 1, 1, raw_dtype,
                     symmetry=self._symmetry, transform_data=None,
                     data_offset=data_offset+current_offset, limit_to_raw_bands=None))
                 current_offset += block_offset
@@ -1271,7 +1311,7 @@ class NITFReader(BaseReader):
                 this_offset = band_number*band_offset
                 bip_chippers.append(
                     BIPChipper(
-                        self.file_name, raw_dtype, (block_rows, block_cols), 1, 1, raw_dtype,
+                        self.file_object, raw_dtype, (block_rows, block_cols), 1, 1, raw_dtype,
                         symmetry=self._symmetry, transform_data=None, data_offset=data_offset+this_offset,
                         limit_to_raw_bands=None))
             bsq_chippers[block_number] = BSQChipper(
@@ -1287,6 +1327,135 @@ class NITFReader(BaseReader):
                 populated_bounds.append(bounds[i])
         populated_bounds = numpy.array(populated_bounds, dtype='int64')
         return AggregateChipper(populated_bounds, output_dtype, populated_chippers, output_bands=output_bands)
+
+    def _create_band_interleaved_by_row_chipper(
+            self, img_header, data_offset, this_rows, this_cols, raw_dtype, raw_bands,
+            output_dtype, output_bands, transform_data, limit_to_raw_bands):
+
+        if img_header.NBPR == 1 and img_header.NBPC == 1:
+            # it's one single block
+            return BIRChipper(
+                self.file_object, raw_dtype, (this_rows, this_cols), raw_bands, output_bands, output_dtype,
+                symmetry=self._symmetry, transform_data=transform_data,
+                data_offset=data_offset, limit_to_raw_bands=limit_to_raw_bands)
+
+        if img_header.is_masked:
+            # update the offset to skip the mask subheader
+            data_offset += img_header.mask_subheader.IMDATOFF
+            if img_header.mask_subheader.BMR is not None:
+                mask_offsets = img_header.mask_subheader.BMR
+            elif img_header.mask_subheader.TMR is not None:
+                mask_offsets = img_header.mask_subheader.TMR
+                logging.warning('image segment contains a transparency mask - the transparency value is not currently used.')
+            else:
+                logging.warning('image segment is masked, but contains neither transparency mask nor block mask? This is unexpected.')
+                mask_offsets = None
+        else:
+            mask_offsets = None
+        exclude_value = 0xFFFFFFFF  # only used if there is a mask...
+
+        # column (horizontal) block details
+        column_block_size = this_cols
+        if img_header.NBPR != 1:
+            column_block_size = img_header.NPPBH
+
+        # row (vertical) block details
+        row_block_size = this_rows
+        if img_header.NBPC != 1:
+            row_block_size = img_header.NPPBV
+
+        # iterate over our blocks and determine bounds and create chippers
+        bounds = []
+        chippers = []
+        # NB: NBPP previously verified to be one of 8, 16, 32, 64
+        bytes_per_pixel = int_func(img_header.NBPP*raw_bands/8)
+
+        # outer loop over rows inner loop over columns
+        current_offset = 0
+        block_row_end = 0
+        block_offset = int_func(img_header.NPPBH*img_header.NPPBV*bytes_per_pixel)
+        enumerated_block = 0
+        for vblock in range(img_header.NBPC):
+            # define the current row block start/end
+            block_row_start = block_row_end
+            block_row_end += row_block_size
+            block_row_end = min(this_rows, block_row_end)
+            block_col_end = 0
+            for hblock in range(img_header.NBPR):
+                # verify whether to include this block, or not
+                if mask_offsets is not None:
+                    expected_offset = mask_offsets[0][enumerated_block]
+                    if expected_offset == exclude_value:
+                        # this is a missing block
+                        # advance the block enumeration details and skip
+                        block_col_end += column_block_size
+                        block_col_end = min(this_cols, block_col_end)
+                        enumerated_block += 1
+                        continue
+                    if expected_offset < current_offset:
+                        raise ValueError(
+                            'In the masked image, the expected offset is {} and the current offset is {},\n'
+                            'for block {} = ({}, {})'.format(
+                                expected_offset, current_offset, enumerated_block, vblock, hblock))
+                    if expected_offset > current_offset:
+                        # don't read masked pixels...
+                        current_offset = expected_offset
+
+                # define the current column block
+                block_col_start = block_col_end
+                block_col_end += column_block_size
+                block_col_end = min(this_cols, block_col_end)
+                # store our bounds and offset
+                bounds.append((block_row_start, block_row_end, block_col_start, block_col_end))
+                # create chipper
+                chip_rows = block_row_end - block_row_start
+                chip_cols = column_block_size
+                if block_col_end == block_col_start + column_block_size:
+                    chippers.append(
+                        BIRChipper(
+                            self.file_object, raw_dtype, (chip_rows, chip_cols),
+                            raw_bands, output_bands, output_dtype,
+                            symmetry=self._symmetry, transform_data=transform_data,
+                            data_offset=int_func(current_offset+data_offset), limit_to_raw_bands=limit_to_raw_bands))
+                else:
+                    c_row_start, c_row_end = 0, chip_rows
+                    c_col_start, c_col_end = 0, block_col_end - block_col_start
+                    if self._symmetry[1]:
+                        c_col_start = column_block_size - c_col_end
+                        c_col_end = column_block_size - c_col_start
+                    if self._symmetry[2]:
+                        c_row_start, c_row_end, c_col_start, c_col_end = \
+                            c_col_start, c_col_end, c_row_start, c_row_end
+
+                    p_chipper = BIRChipper(
+                        self.file_object, raw_dtype, (chip_rows, chip_cols),
+                        raw_bands, output_bands, output_dtype,
+                        symmetry=self._symmetry, transform_data=transform_data,
+                        data_offset=int_func(current_offset+data_offset), limit_to_raw_bands=limit_to_raw_bands)
+                    chippers.append(SubsetChipper(p_chipper, (c_row_start, c_row_end), (c_col_start, c_col_end)))
+
+                # update the block and offset
+                enumerated_block += 1
+                current_offset += block_offset  # NB: this may contain pad pixels
+
+        bounds = numpy.array(bounds, dtype=numpy.int64)
+        total_rows = bounds[-1, 1]
+        total_cols = bounds[-1, 3]
+        if total_rows != this_rows or total_cols != this_cols:
+            raise ValueError('Got unexpected chipper construction')
+        if self._symmetry[0]:
+            t_bounds = bounds.copy()
+            bounds[:, 0] = total_rows - t_bounds[:, 1]
+            bounds[:, 1] = total_rows - t_bounds[:, 0]
+        if self._symmetry[1]:
+            t_bounds = bounds.copy()
+            bounds[:, 2] = total_cols - t_bounds[:, 3]
+            bounds[:, 3] = total_cols - t_bounds[:, 2]
+        if self._symmetry[2]:
+            t_bounds = bounds.copy()
+            bounds[:, :2] = t_bounds[:, 2:]
+            bounds[:, 2:] = t_bounds[:, :2]
+        return AggregateChipper(bounds, output_dtype, chippers, output_bands=output_bands)
 
     def _define_chipper(self, index, raw_dtype=None, raw_bands=None, transform_data=None,
                         output_bands=None, output_dtype=None, limit_to_raw_bands=None):
@@ -1322,7 +1491,7 @@ class NITFReader(BaseReader):
             # extract the image and dump out to a flat file
             image_offset = self.nitf_details.img_segment_offsets[index]
             image_size = self.nitf_details.nitf_header.ImageSegments.item_sizes[index]
-            our_memmap = MemMap(self.file_name, image_size, image_offset)
+            our_memmap = MemMap(self.file_object, image_size, image_offset)
             img = PIL.Image.open(our_memmap)  # this is a lazy operation
             # dump the extracted image data out to a temp file
             fi, path_name = mkstemp(suffix='.sarpy_cache', text=False)
@@ -1389,11 +1558,15 @@ class NITFReader(BaseReader):
                 return self._create_band_sequential_chipper(
                     img_header, data_offset, this_rows, this_cols, raw_dtype, raw_bands,
                     output_dtype, output_bands, transform_data, limit_to_raw_bands)
+            elif img_header.IMODE == 'R':
+                return self._create_band_interleaved_by_row_chipper(
+                    img_header, data_offset, this_rows, this_cols, raw_dtype, raw_bands,
+                    output_dtype, output_bands, transform_data, limit_to_raw_bands)
             else:
                 raise ValueError('Unsupported IMODE {}'.format(img_header.IMODE))
         elif img_header.IC in ['M1', 'M3', 'M4', 'M5', 'M6', 'M7', 'M8']:
             raise ValueError('Compressed and masked image segments not currently supported.')
-        elif img_header.IC in ['C1', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'I1']:
+        elif img_header.IC in ['C0', 'C1', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'I1']:
             return handle_compressed()
         else:
             raise ValueError('Got unhandled IC code {}'.format(img_header.IC))
@@ -2186,7 +2359,7 @@ class NITFWriter(AbstractWriter):
             'may require a large physical memory allocation, '
             'and be time consuming.'.format(index))
         with open(self._file_name, mode='r+b') as fi:
-            fi.seek(details.subheader_offset)
+            fi.seek(details.subheader_offset, os.SEEK_SET)
             fi.write(details.subheader.to_bytes())
             details.subheader_written = True
 
@@ -2214,7 +2387,7 @@ class NITFWriter(AbstractWriter):
         logging.info(
             'Writing data extension {} header.'.format(index))
         with open(self._file_name, mode='r+b') as fi:
-            fi.seek(details.subheader_offset)
+            fi.seek(details.subheader_offset, os.SEEK_SET)
             fi.write(details.subheader.to_bytes())
             details.subheader_written = True
 
@@ -2243,7 +2416,7 @@ class NITFWriter(AbstractWriter):
         logging.info(
             'Writing data extension {}.'.format(index))
         with open(self._file_name, mode='r+b') as fi:
-            fi.seek(details.item_offset)
+            fi.seek(details.item_offset, os.SEEK_SET)
             fi.write(details.des_bytes)
             details.des_written = True
 
