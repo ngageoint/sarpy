@@ -102,9 +102,15 @@ def amplitude_to_density(data, dmin=30, mmult=40, data_mean=None):
     -------
     numpy.ndarray
     """
+    dmin = float(dmin)
+    if not (0 <= dmin < 255):
+        raise ValueError('Invalid dmin value {}'.format(dmin))
+
+    mmult = float(mmult)
+    if mmult < 1:
+        raise ValueError('Invalid mmult value {}'.format(mmult))
 
     EPS = 1e-5
-
     amplitude = numpy.abs(data)
     if numpy.all(amplitude == 0):
         return amplitude
@@ -112,8 +118,7 @@ def amplitude_to_density(data, dmin=30, mmult=40, data_mean=None):
         if not data_mean:
             data_mean = numpy.mean(amplitude[numpy.isfinite(amplitude)])
         slope = (255 - dmin)/numpy.log10(mmult)
-        constant = dmin - (slope*numpy.log10(0.8*data_mean))
-        return (slope*numpy.log10(numpy.maximum(amplitude, EPS))) + constant
+        return (slope*numpy.log10(numpy.maximum(amplitude, EPS))/(0.8*data_mean)) + dmin
 
 
 def clip_cast(array, dtype='uint8'):
