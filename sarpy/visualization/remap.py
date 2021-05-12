@@ -12,7 +12,7 @@ from sarpy.compliance import string_types
 
 
 __classification__ = "UNCLASSIFIED"
-__author__ = "Wade Schwartzkopf"
+__author__ = ("Wade Schwartzkopf", "Thomas McCullough")
 
 
 _DEFAULTS_REGISTERED = False
@@ -84,45 +84,71 @@ def get_remap_list():
     return [(the_key, the_value) for the_key, the_value in _REMAP_DICT.items()]
 
 
-def amplitude_to_density(a, dmin=30, mmult=40, data_mean=None):
+def amplitude_to_density(data, dmin=30, mmult=40, data_mean=None):
     """
     Convert to density data for remap.
 
+    This is a digested version of contents presented in a 1994 pulication
+    entitled "Softcopy Display of SAR Data" by Kevin Mangis. It is unclear where
+    this was first published or where it may be publically available.
+
     Parameters
     ----------
-    a : numpy.ndarray
+    data : numpy.ndarray
+        The (presumably complex) data to remap
     dmin : float|int
+        A dynamic range parameter. Lower this widens the range, will raising it
+        narrows the range. This was historically fixed at 30.
     mmult : float|int
+        A contrast parameter. Low values will result is higher contrast and quicker
+        saturation, while high values will decrease contrast and slower saturation.
+        There is some balance between the competing effects in the `dmin` and `mmult`
+        parameters.
     data_mean : None|float|int
+        The data mean (for this or the parent array for continuity), which will
+        be calculated if not provided.
 
     Returns
     -------
     numpy.ndarray
     """
 
+    dmin = float(dmin)
+    if not (0 <= dmin < 255):
+        raise ValueError('Invalid dmin value {}'.format(dmin))
+
+    mmult = float(mmult)
+    if mmult < 1:
+        raise ValueError('Invalid mmult value {}'.format(mmult))
+
     EPS = 1e-5
-
-    if (a==0).all():
-        return numpy.zeros(a.shape)
+    amplitude = numpy.abs(data)
+    if numpy.all(amplitude == 0):
+        return amplitude
     else:
-        a = abs(a)
         if not data_mean:
-            data_mean = numpy.mean(a[numpy.isfinite(a)])
-        cl = 0.8 * data_mean
-        ch = mmult * cl
-        m = (255 - dmin)/numpy.log10(ch/cl)
-        b = dmin - (m * numpy.log10(cl))
+            data_mean = numpy.mean(amplitude[numpy.isfinite(amplitude)])
+        # remap parameters
+        C_L = 0.8*data_mean
+        C_H = mmult*C_L  # decreasing mmult will result in higher contrast (and quicker saturation)
+        slope = (255 - dmin)/numpy.log10(C_H/C_L)
+        constant = dmin - (slope*numpy.log10(C_L))
+        # NB: C_H/C_L trivially collapses to mmult, but this is maintained for
+        # clarity in historical reference
+        # Originally, C_L and C_H were static values drawn from a determined set
+        # of remap look-up tables. The C_L/C_H values were presumably based roughly
+        # on mean amplitude and desired rempa brightness/contrast. The dmin value
+        # was fixed as 30.
+        return (slope*numpy.log10(numpy.maximum(amplitude, EPS))) + constant
 
-        return (m * numpy.log10(numpy.maximum(a, EPS))) + b
 
-
-def clip_cast(x, dtype='uint8'):
+def clip_cast(array, dtype='uint8'):
     """
     Cast by clipping values outside of valid range, rather than wrapping.
 
     Parameters
     ----------
-    x : numpy.ndarray
+    array : numpy.ndarray
     dtype : str|numpy.dtype
 
     Returns
@@ -131,16 +157,17 @@ def clip_cast(x, dtype='uint8'):
     """
 
     np_type = numpy.dtype(dtype)
-    return numpy.clip(x, numpy.iinfo(np_type).min, numpy.iinfo(np_type).max).astype(np_type)
+    return numpy.clip(array, numpy.iinfo(np_type).min, numpy.iinfo(np_type).max).astype(np_type)
 
 
-def density(x, data_mean=None):
+def density(data, data_mean=None):
     """
     Standard set of parameters for density remap.
 
     Parameters
     ----------
-    x : numpy.ndarray
+    data : numpy.ndarray
+        The data to remap.
     data_mean : None|float|int
 
     Returns
@@ -148,16 +175,16 @@ def density(x, data_mean=None):
     numpy.ndarray
     """
 
-    return clip_cast(amplitude_to_density(x, data_mean=data_mean))
+    return clip_cast(amplitude_to_density(data, data_mean=data_mean))
 
 
-def brighter(x, data_mean=None):
+def brighter(data, data_mean=None):
     """
     Brighter set of parameters for density remap.
 
     Parameters
     ----------
-    x : numpy.ndarray
+    data : numpy.ndarray
     data_mean : None|float|int
 
     Returns
@@ -165,16 +192,16 @@ def brighter(x, data_mean=None):
     numpy.ndarray
     """
 
-    return clip_cast(amplitude_to_density(x, dmin=60, mmult=40, data_mean=data_mean))
+    return clip_cast(amplitude_to_density(data, dmin=60, mmult=40, data_mean=data_mean))
 
 
-def darker(x, data_mean=None):
+def darker(data, data_mean=None):
     """
     Darker set of parameters for density remap.
 
     Parameters
     ----------
-    x : numpy.ndarray
+    data : numpy.ndarray
     data_mean : None|float|int
 
     Returns
@@ -182,16 +209,16 @@ def darker(x, data_mean=None):
     numpy.ndarray
     """
 
-    return clip_cast(amplitude_to_density(x, dmin=0, mmult=40, data_mean=data_mean))
+    return clip_cast(amplitude_to_density(data, dmin=0, mmult=40, data_mean=data_mean))
 
 
-def high_contrast(x, data_mean=None):
+def high_contrast(data, data_mean=None):
     """
     Increased contrast set of parameters for density remap.
 
     Parameters
     ----------
-    x : numpy.ndarray
+    data : numpy.ndarray
     data_mean : None|float|int
 
     Returns
@@ -199,53 +226,73 @@ def high_contrast(x, data_mean=None):
     numpy.ndarray
     """
 
-    return clip_cast(amplitude_to_density(x, dmin=30, mmult=4, data_mean=data_mean))
+    return clip_cast(amplitude_to_density(data, dmin=30, mmult=4, data_mean=data_mean))
 
 
-def linear(x):
+def linear(data):
     """
     Linear remap - just the magnitude.
 
     Parameters
     ----------
-    x : numpy.ndarray
+    data : numpy.ndarray
 
     Returns
     -------
     numpy.ndarray
     """
 
-    if numpy.iscomplexobj(x):
-        return numpy.abs(x)
+    if numpy.iscomplexobj(data):
+        amplitude = numpy.abs(data)
     else:
-        return x
+        amplitude = numpy.copy(data)
+
+    finite_mask = numpy.isfinite(amplitude)
+    min_value = numpy.min(amplitude[finite_mask])
+    max_value = numpy.max(amplitude[finite_mask])
+
+    return clip_cast(255.*(amplitude - min_value)/(max_value - min_value), 'uint8')
 
 
-def log(x):
+def log(data):
     """
     Logarithmic remap.
 
     Parameters
     ----------
-    x : numpy.ndarray
+    data : numpy.ndarray
 
     Returns
     -------
     numpy.ndarray
     """
 
-    out = numpy.log(numpy.abs(x))
-    out[numpy.logical_not(numpy.isfinite(out))] = numpy.min(out[numpy.isfinite(out)])
-    return out
+    out = numpy.abs(data)
+    out[out < 0] = 0
+    out += 1  # bump values up over 1.
+
+    finite_mask = numpy.isfinite(out)
+    if not numpy.any(finite_mask):
+        out[:] = 0
+        return out.astype('uint8')
+
+    log_values = numpy.log(out[finite_mask])
+    min_value = numpy.min(log_values)
+    max_value = numpy.max(log_values)
+
+    out[finite_mask] = 255*(log_values - min_value)/(max_value - min_value)
+    out[~finite_mask] = 255
+    return out.astype('uint8')
 
 
-def pedf(x, data_mean=None):
+def pedf(data, data_mean=None):
     """
     Piecewise extended density format remap.
 
     Parameters
     ----------
-    x : numpy.ndarray
+    data : numpy.ndarray
+        The array to be remapped.
     data_mean : None|float|int
 
     Returns
@@ -253,40 +300,85 @@ def pedf(x, data_mean=None):
     numpy.ndarray
     """
 
-    out = amplitude_to_density(x, data_mean=data_mean)
+    out = amplitude_to_density(data, data_mean=data_mean)
     out[out > 128] = 0.5 * (out[out > 128] + 128)
     return clip_cast(out)
 
 
-def nrl(x, a=1., c=220.):
+def _nrl_stats(amplitude):
     """
-    Lin-log style remap.
+    Calculate the statistiucs for input into the nrl remap.
 
     Parameters
     ----------
-    x : numpy.ndarray
-        data to remap
-    a : float
-        scale factor of 99th percentile for input "knee"
-    c : float
-        output "knee" in lin-log curve
+    amplitude : numpy.ndarray
+        The amplitude array, assumed real valued.
+
+    Returns
+    -------
+    tuple
+        Of the form `(minimum, maximum, 99th percentile)
+    """
+
+    finite_mask = numpy.isfinite(amplitude)
+    if numpy.any(finite_mask):
+        return numpy.min(amplitude[finite_mask]), numpy.max(amplitude[finite_mask]), prctile(amplitude[finite_mask], 99)
+    else:
+        return 0, 0, 0
+
+
+def nrl(data, knee=220, stats=None):
+    """
+    A lin-log style remap.
+
+    Parameters
+    ----------
+    data : numpy.ndarray
+        The data array to remap
+    knee : float|int
+        The knee of the lin-log transition.
+    stats : None|tuple
+        This is calculated if not provided. Expected to be of the form
+        `(minimum, maximum, 99th percentile)`.
 
     Returns
     -------
     numpy.ndarray
     """
 
-    x = numpy.abs(x)
-    xmax = numpy.max(x)
-    xmin = numpy.min(x)
-    p99 = prctile(x[numpy.isfinite(x)], 99)
-    b = (255 - c)/(numpy.log10(xmax - xmin)*(a*p99 - xmin))
+    if not (0 < knee < 255):
+        raise ValueError('The knee value must be strictly between 0 and 255.')
+    knee = float(knee)
 
-    out = numpy.zeros_like(x, numpy.uint8)
-    linear_region = (x <= a*p99)
-    out[linear_region] = c*(x[linear_region] - xmin)/(a*p99 - xmin)
-    out[~linear_region] = c + b*numpy.log10((x[~linear_region] - xmin)/(a*p99 - xmin))
-    return out
+    out = numpy.abs(data)  # starts as amplitude, and will be redefined in place
+    if stats is None:
+        stats = _nrl_stats(out)
+
+    amplitude_min, amplitude_max, amplitude_99 = stats
+    if not (amplitude_min <= amplitude_99 <= amplitude_max):
+        raise ValueError('Got inconsistent stats values {}'.format(stats))
+
+    if amplitude_min == amplitude_max:
+        out[:] = 0
+        return out.astype('uint8')
+
+    linear_region = (out <= amplitude_99)
+    if amplitude_99 > amplitude_min:
+        out[linear_region] = knee*(out[linear_region] - amplitude_min)/(amplitude_99 - amplitude_min)
+    else:
+        logging.warning(
+            'The remap array is at least 99% constant, the nrl remap may return '
+            'strange results.')
+        out[linear_region] = 0
+
+    if amplitude_99 == amplitude_max:
+        out[~linear_region] = knee
+    else:
+        # calulate the log values
+        log_values = (out[~linear_region] - amplitude_99)/(amplitude_max - amplitude_99) + 1
+        # this is now linearly scaled from 1 to 2, apply log_2 and then scale appropriately
+        out[~linear_region] = numpy.log2(log_values)*(255 - knee) + knee
+    return clip_cast(out, 'uint8')
 
 
 def linear_discretization(array, max_value=None, min_value=None, bit_depth=8):
