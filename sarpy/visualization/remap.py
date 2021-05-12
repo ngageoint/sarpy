@@ -88,12 +88,22 @@ def amplitude_to_density(data, dmin=30, mmult=40, data_mean=None):
     """
     Convert to density data for remap.
 
+    This is a digested version of contents presented in a 1994 pulication
+    entitled "Softcopy Display of SAR Data" by Kevin Mangis. It is unclear where
+    this was first published or where it may be publically available.
+
     Parameters
     ----------
     data : numpy.ndarray
         The (presumably complex) data to remap
     dmin : float|int
+        A dynamic range parameter. Lower this widens the range, will raising it
+        narrows the range. This was historically fixed at 30.
     mmult : float|int
+        A contrast parameter. Low values will result is higher contrast and quicker
+        saturation, while high values will decrease contrast and slower saturation.
+        There is some balance between the competing effects in the `dmin` and `mmult`
+        parameters.
     data_mean : None|float|int
         The data mean (for this or the parent array for continuity), which will
         be calculated if not provided.
@@ -102,6 +112,7 @@ def amplitude_to_density(data, dmin=30, mmult=40, data_mean=None):
     -------
     numpy.ndarray
     """
+
     dmin = float(dmin)
     if not (0 <= dmin < 255):
         raise ValueError('Invalid dmin value {}'.format(dmin))
@@ -117,8 +128,18 @@ def amplitude_to_density(data, dmin=30, mmult=40, data_mean=None):
     else:
         if not data_mean:
             data_mean = numpy.mean(amplitude[numpy.isfinite(amplitude)])
-        slope = (255 - dmin)/numpy.log10(mmult)
-        return (slope*numpy.log10(numpy.maximum(amplitude, EPS))/(0.8*data_mean)) + dmin
+        # remap parameters
+        C_L = 0.8*data_mean
+        C_H = mmult*C_L  # decreasing mmult will result in higher contrast (and quicker saturation)
+        slope = (255 - dmin)/numpy.log10(C_H/C_L)
+        constant = dmin - (slope*numpy.log10(C_L))
+        # NB: C_H/C_L trivially collapses to mmult, but this is maintained for
+        # clarity in historical reference
+        # Originally, C_L and C_H were static values drawn from a determined set
+        # of remap look-up tables. The C_L/C_H values were presumably based roughly
+        # on mean amplitude and desired rempa brightness/contrast. The dmin value
+        # was fixed as 30.
+        return (slope*numpy.log10(numpy.maximum(amplitude, EPS))) + constant
 
 
 def clip_cast(array, dtype='uint8'):
