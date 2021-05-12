@@ -230,7 +230,7 @@ def linear(data):
     min_value = numpy.min(amplitude[finite_mask])
     max_value = numpy.max(amplitude[finite_mask])
 
-    return clip_cast(255.*(amplitude - min_value)/(max_value - min_value))
+    return clip_cast(255.*(amplitude - min_value)/(max_value - min_value), 'uint8')
 
 
 def log(data):
@@ -248,13 +248,18 @@ def log(data):
 
     out = numpy.abs(data)
     out[out < 0] = 0
-    out += 1
+    out += 1  # bump values up over 1.
 
     finite_mask = numpy.isfinite(out)
-    min_value = numpy.log(numpy.min(out[finite_mask]))
-    max_value = numpy.log(numpy.max(out[finite_mask]))
+    if not numpy.any(finite_mask):
+        out[:] = 0
+        return out.astype('uint8')
 
-    out[finite_mask] = 255*(numpy.log(out[finite_mask]) - min_value)/(max_value - min_value)
+    log_values = numpy.log(out[finite_mask])
+    min_value = numpy.min(log_values)
+    max_value = numpy.max(log_values)
+
+    out[finite_mask] = 255*(log_values - min_value)/(max_value - min_value)
     out[~finite_mask] = 255
     return out.astype('uint8')
 
