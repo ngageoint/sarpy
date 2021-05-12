@@ -95,6 +95,8 @@ def amplitude_to_density(data, dmin=30, mmult=40, data_mean=None):
     dmin : float|int
     mmult : float|int
     data_mean : None|float|int
+        The data mean (for this or the parent array for continuity), which will
+        be calculated if not provided.
 
     Returns
     -------
@@ -109,12 +111,9 @@ def amplitude_to_density(data, dmin=30, mmult=40, data_mean=None):
     else:
         if not data_mean:
             data_mean = numpy.mean(amplitude[numpy.isfinite(amplitude)])
-        cl = 0.8*data_mean
-        ch = mmult*cl
-        m = (255 - dmin)/numpy.log10(ch/cl)
-        b = dmin - (m * numpy.log10(cl))
-
-        return (m*numpy.log10(numpy.maximum(amplitude, EPS))) + b
+        slope = (255 - dmin)/numpy.log10(mmult)
+        constant = dmin - (slope*numpy.log10(0.8*data_mean))
+        return (slope*numpy.log10(numpy.maximum(amplitude, EPS))) + constant
 
 
 def clip_cast(array, dtype='uint8'):
