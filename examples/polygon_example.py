@@ -1,3 +1,7 @@
+"""
+Basic polygon example - this needs to be reworked
+"""
+
 import numpy
 from matplotlib import pyplot
 import time

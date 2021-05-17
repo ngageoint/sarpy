@@ -64,8 +64,8 @@ message indicating the missing optional dependency.
 - Some less commonly used (in the sarpy realm) NITF functionality requires the use 
   and interpretation of UTM coordinates, and this requires the `pyproj` package. 
 
-- Building sphinx documentation (mentioned below) requires packages `sphinx` 
-  and `sphinxcontrib-napoleon`.
+- Building sphinx documentation (mentioned below) requires packages `sphinx`, 
+  `sphinxcontrib-napoleon`, and `sphinx_gallery`.
 
 - Optional portions of running unit tests (unlikely to be of relevance to anyone 
   not performing development on the core sarpy package itself) require the `lxml`

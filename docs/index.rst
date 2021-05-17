@@ -13,6 +13,7 @@ Welcome to sarpy's documentation!
     visualization/index
     annotation/index
     utils/index
+    examples/index
 
 
 Indices and tables
