@@ -7,3 +7,4 @@ DEM reading elements (sarpy.io.DEM)
 
     geoid
     DEM
+    DTED

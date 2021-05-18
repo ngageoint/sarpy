@@ -4,7 +4,13 @@ A module for performing a selection of validation checks on a SIDD (nitf) file,
 or an xml file containing the sidd structure.
 
 Use the `check_file` function directly, or perform using the command line
+
 >>> python -m sarpy.consistency.sidd_consistency <file_name>
+
+For more information, about command line usage, see
+
+>>> python -m sarpy.consistency.sidd_consistency --help
+
 """
 
 __classification__ = "UNCLASSIFIED"
@@ -107,12 +113,12 @@ def _get_sidd_xml_from_nitf(sidd_details):
 
 def check_file(file_name):
     """
-    Check the SICD validity for the given file SICD (i.e. appropriately styled NITF)
-    or xml file containing the SICD structure alone.
+    Check the SIDD validity for the given file SIDD (i.e. appropriately styled NITF)
+    or xml file containing the SIDD structure alone.
 
     Parameters
     ----------
-    file_name : str|SICDDetails
+    file_name : str|SIDDDetails
 
     Returns
     -------

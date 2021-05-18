@@ -64,8 +64,8 @@ message indicating the missing optional dependency.
 - Some less commonly used (in the sarpy realm) NITF functionality requires the use 
   and interpretation of UTM coordinates, and this requires the `pyproj` package. 
 
-- Building sphinx documentation (mentioned below) requires packages `sphinx` 
-  and `sphinxcontrib-napoleon`.
+- Building sphinx documentation (mentioned below) requires packages `sphinx`, 
+  `sphinxcontrib-napoleon`, and `sphinx_gallery`.
 
 - Optional portions of running unit tests (unlikely to be of relevance to anyone 
   not performing development on the core sarpy package itself) require the `lxml`
@@ -100,13 +100,12 @@ see [here](https://docs.python.org/3/install/index.html).
 
 Documentation
 -------------
-The documentation of this project is a work in progress, particularly for the
-new GUI efforts. It is the desire for the documentation to be hosted someplace
-appropriate in the near future.
+As of version 1.1.76, documentation for the project is available at 
+[readthedocs](https://sarpy.readthedocs.io/en/latest/).
 
-Currently, basic documentation can be built after checking out this repository
-using sphinx via the command `python setup.py build_sphinx`. This depends
-on python packages `sphinx` and `sphinxcontrib-napoleon`.
+If this documentation is inaccessible, it can be built locally after checking out 
+this repository using sphinx via the command `python setup.py build_sphinx`. 
+This depends on python packages `sphinx` and `sphinxcontrib-napoleon`.
 
 Issues and Bugs
 ---------------

@@ -11,3 +11,4 @@ File reading and writing elements (sarpy.io)
     product/index
     DEM/index
     kml
+    other_image/index

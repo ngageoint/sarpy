@@ -1,5 +1,14 @@
 """
-Script for extracting information from the CPHD header for review
+Extract information from the CPHD header for review.
+
+From the command-line
+
+>>> python -m sarpy.utils.cphd_utils <path to cphd file>
+
+For a basic help on the command-line, check
+
+>>> python -m sarpy.utils.cphd_utils --help
+
 """
 
 from __future__ import print_function
