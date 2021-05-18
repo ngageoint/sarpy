@@ -9,7 +9,6 @@ from setuptools import setup, find_packages
 from codecs import open
 
 
-
 # Get the long description from the README file
 here = os.path.abspath(os.path.dirname(__file__))
 # Get the long description from the README file
@@ -21,6 +20,7 @@ with open(os.path.join(here, 'README.md'), 'r') as f:
 parameters = {}
 with open(os.path.join(here, 'sarpy', '__about__.py'), 'r') as f:
     exec(f.read(), parameters)
+
 
 def my_package_data():
     def find_dirs(init_dir, start, the_list):

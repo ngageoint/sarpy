@@ -1,5 +1,10 @@
 """
-Script for creating kmz products based on SICD type reader
+Create kmz products based on SICD type reader.
+
+For a basic help on the command-line, check
+
+>>> python -m sarpy.utils.create_kmz --help
+
 """
 
 import argparse

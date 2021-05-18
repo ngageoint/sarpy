@@ -7,12 +7,13 @@ Welcome to sarpy's documentation!
     :maxdepth: 3
     :caption: Contents:
 
+    examples/index
+    utils/index
     io/index
     geometry/index
     processing/index
     visualization/index
     annotation/index
-    utils/index
 
 
 Indices and tables
