@@ -1,5 +1,10 @@
 """
-Script for creating products based on SICD type reader
+Create products based on SICD type reader.
+
+For a basic help on the command-line, check
+
+>>> python -m sarpy.utils.create_product --help
+
 """
 
 import argparse

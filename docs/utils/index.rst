@@ -1,10 +1,12 @@
-Utilities (sarpy.utils)
-=======================
+Command-line Utilities (sarpy.utils)
+====================================
 
 .. toctree::
     :maxdepth: 1
     :caption: Contents:
 
     convert_to_sicd
+    create_kmz
+    create_product
     nitf_utils
-    sicd_des_head
+    cphd_utils

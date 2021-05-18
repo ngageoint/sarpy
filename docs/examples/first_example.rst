@@ -167,20 +167,6 @@ plot for simple scripting purposes.
     pyplot.show()
 
 
-Convert to SICD format
-----------------------
-
-Convert a complex dataset, in any format handled by sarpy, to SICD.
-
-.. code-block:: python
-
-    from sarpy.io.complex.converter import conversion_utility
-    conversion_utility('<path to complex format file>', '<output_directory>')
-
-See the :meth:`sarpy.io.complex.converter.conversion_utility` documentation for
-the an outline of the more robust capabilities for chipping, explicit output
-filenames, etc.
-
 Opening remote file
 -------------------
 

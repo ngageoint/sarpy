@@ -1,7 +1,14 @@
 """
-A utility for dumping a NITF header to the console.
+A utility for dumping a NITF header to the console. Contributed by Austin Lan of L3/Harris.
 
-Contributed by Austin Lan of L3/Harris.
+To dump NITF header information to a text file from the command-line
+
+>>> python -m sarpy.utils.nitf_utils <path to nitf file>
+
+For a basic help on the command-line, check
+
+>>> python -m sarpy.utils.nitf_utils --help
+
 """
 
 from __future__ import print_function

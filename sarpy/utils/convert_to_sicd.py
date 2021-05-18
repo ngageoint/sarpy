@@ -1,5 +1,10 @@
 """
-Script for converting to SICD format
+Convert from complex SAR image format to SICD format.
+
+For a basic help on the command-line, check
+
+>>> python -m sarpy.utils.convert_to_sicd --help
+
 """
 
 import argparse
@@ -10,6 +15,16 @@ __author__ = "Thomas McCullough"
 
 
 def convert(input_file, output_dir):
+    """
+
+    Parameters
+    ----------
+    input_file : str
+        Path to the input file.
+    output_dir : str
+        Output directory path.
+    """
+
     conversion_utility(input_file, output_dir)
 
 

@@ -113,9 +113,11 @@ Phase History (CPHD) Readers
 
 The Compensated Phase History Data (CPHD) have readers defined in the `sarpy.io.phase_history`
 subpackage. The standard for CPHD version 0.3 is significantly different than
-the standard for version 1.0, and separate readers :class:`sarpy.io.phase_history.CPHDReader0_3`
-and :class:`sarpy.io.phase_history.CPHDReader1_0` are implemented for each; both
-of which extend the common abstract parent :class:`sarpy.io.phase_history.CPHDReader`.
+the standard for version 1.0, and separate readers for version 0.3
+(:class:`sarpy.io.phase_history.cphd.CPHDReader0_3`) and for version 1.0
+(:class:`sarpy.io.phase_history.cphd.CPHDReader1_0`) are implemented for each;
+both of which extend the common abstract parent given in
+:class:`sarpy.io.phase_history.cphd.CPHDReader`.
 
 The general opening method is defined as :meth:`sarpy.io.phase_history.converter.open_phase_history`,
 with basic usage as indicated by
@@ -132,7 +134,7 @@ with basic usage as indicated by
 
 
 There are a commonalities for the two readers, because both are extensions of
-the class :class:`sarpy.io.phase_history.CPHDReader`, which in turn, extends
+the class :class:`sarpy.io.phase_history.cphd.CPHDReader`, which in turn, extends
 :class:`sarpy.io.general.base.BaseReader`.
 
 Some basic properties:
@@ -151,12 +153,12 @@ Some basic properties:
   regardless of storage type.
 - The full Per Vector Parameter (PVP) collection for a given range can be read using
   the :code:`reader.read_pvp_array()` function
-  (see :meth:`sarpy.io.phase_history.CPHDReader.read_pvp_array`).
+  (see :meth:`sarpy.io.phase_history.cphd.CPHDReader.read_pvp_array`).
 - A single PVP variable for a given range can be read using the :code:`reader.read_pvp_variable()`
-  function (see :meth:`sarpy.io.phase_history.CPHDReader.read_pvp_variable`).
+  function (see :meth:`sarpy.io.phase_history.cphd.CPHDReader.read_pvp_variable`).
 - For CPHD Version 1.0, a support array can be read for the given range using
   the :code:`reader.read_support_array()` function
-  (see :meth:`sarpy.io.phase_history.CPHDReader.read_support_array`).
+  (see :meth:`sarpy.io.phase_history.cphd.CPHDReader.read_support_array`).
 - The :code:`reader.sicd_meta` property will return `None` in this case.
 
 
