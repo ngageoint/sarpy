@@ -1,8 +1,10 @@
 """
-Basic first example
+Basic First Example
 ===================
 
-This indicates the basic functionality for reading a complex format data set.
+This indicates the basic functionality for reading a complex format data set. It
+is intended that this script will be read, and the relevant portions run
+individually.
 
 
 Learning Python
@@ -22,13 +24,15 @@ or, check out a variable that has been defined somehow
 >>> from sarpy.io.complex.converter import open_complex
 >>> reader = open_complex('<path to file>')
 >>> help(reader)
+"""
 
 
+"""
 General file opening
 --------------------
 
-Open a **complex format file** using a general purpose opener from a specified
-file name or binary file-like object.
+Open a **complex format file** using a general purpose opener from a specified 
+file name.
 
 This general purpose opener iterates over the reader objects defined in
 sarpy.io.complex, trying each and attempting to catch exceptions. It returns
@@ -40,19 +44,10 @@ parsing and/or interpretation.
 It is important to note that this opener will not open any file that is not
 **complex format** (like a WBID or detected image).
 """
-
 from sarpy.io.complex.converter import open_complex
 
-# for the purposes of general purpose example, we reference a basic example sicd
-# file hosted for the SIX project usage. It is recommended to use local files, as
-# described below
-import smart_open
-file_object = smart_open.open(
-    'https://six-library.s3.amazonaws.com/sicd_example_RMA_RGZERO_RE32F_IM32F_cropped_multiple_image_segments.nitf',
-    mode='rb',  # must be opened in binary mode
-    buffering=4*1024*1024)  # it has been observed that setting a manual buffer size may help
 
-reader = open_complex(file_object)
+reader = open_complex('<path to file>')
 # this will return an instance of one of the reader classes defined in the modules in sarpy.io.complex
 print(type(reader))
 
@@ -65,7 +60,7 @@ If you know the file type of your file, you may want to use the correct reader
 class directly, especially if the general opener is not working.
 """
 from sarpy.io.complex.sicd import SICDReader
-reader = SICDReader(file_object)  # same class as referenced above
+reader = SICDReader('<path to file>')  # same class as referenced above
 
 
 """
@@ -106,6 +101,20 @@ Read complex pixel data
 
 The recommended methodology uses slice notation. The basic syntax is as:
 >>> data = reader[row_start:row_end:row_step, col_start:col_end:col_step, image_index=0]
+"""
+# in the event of a single image segment
+all_data = reader[:]  # or reader[:, :] - reads all data
+decimated_data = reader[::10, ::10] # reads every 10th pixel
+
+# in the event of multiple image segments, use another slice index like
+all_data = reader[:, :, 0]
+
+"""
+Opening remote file
+-------------------
+
+The SICD reader (and also SIDD reader) have been implemented to accept binary file-like 
+objects, specifically intended to enable 
 
 **Speed/efficiency:** Files read using the file system (i.e. via file name
 or local file-like object) are read efficiently via numpy memory map. Reading
@@ -123,12 +132,16 @@ for the overhead of the connection request for remote reading - simple bench mar
 indicate that the bottleneck for performing a remote read is clearly the connection
 request, and presents no good opportunity for clear optimization.
 """
-# in the event of a single image segment
-all_data = reader[:]  # or reader[:, :] - reads all data
-decimated_data = reader[::10, ::10] # reads every 10th pixel
 
-# in the event of multiple image segments, use another slice index like
-all_data = reader[:, :, 0]
+# for the purposes of general purpose example, we reference a basic example sicd
+# file hosted for the SIX project usage. It is recommended to use local files, as
+# described below
+import smart_open
+file_object = smart_open.open(
+    'https://six-library.s3.amazonaws.com/sicd_example_RMA_RGZERO_RE32F_IM32F_cropped_multiple_image_segments.nitf',
+    mode='rb',  # must be opened in binary mode
+    buffering=4*1024*1024)  # it has been observed that setting a manual buffer size may help
+
 
 
 """
