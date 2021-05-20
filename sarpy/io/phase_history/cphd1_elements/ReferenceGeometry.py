@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 The reference geometry parameters definition.
 """

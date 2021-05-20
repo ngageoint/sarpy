@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Module for reading and interpreting the standard change detection result files.
 

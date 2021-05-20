@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Classes and methods for parsing and using digital elevation models in DTED format.
 """

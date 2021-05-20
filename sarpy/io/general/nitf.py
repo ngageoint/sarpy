@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Module laying out basic functionality for reading and writing NITF files.
 This is **intended** to represent base functionality to be extended for

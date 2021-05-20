@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Helper classes and methods for Fourier processing schemes.
 """

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Provides a class for calculating the height of the WGS84 geoid above the ellipsoid
 at any given latitude and longitude.

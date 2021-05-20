@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 This module provides tools for creating kmz products for a SICD type element.
 

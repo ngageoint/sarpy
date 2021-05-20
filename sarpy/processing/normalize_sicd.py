@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Methods for transforming SICD data to a common state.
 """

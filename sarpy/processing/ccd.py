@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 The module contains methods for computing a coherent change detection from registered images
 """

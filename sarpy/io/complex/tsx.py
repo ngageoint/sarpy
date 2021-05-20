@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Functionality for reading TerraSAR-X data into a SICD model.
 """

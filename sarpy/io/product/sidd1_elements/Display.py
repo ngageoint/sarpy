@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 The ProductDisplayType definition for SIDD 1.0.
 """

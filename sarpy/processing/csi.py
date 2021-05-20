@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 The methods for computing a color sub-aperture image for SICD type images.
 

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Base NITF Header functionality definition.
 """

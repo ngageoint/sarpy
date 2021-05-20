@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Helper methods for aperture tool processing.
 """

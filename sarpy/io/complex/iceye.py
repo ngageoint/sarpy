@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Functionality for reading ICEYE complex data into a SICD model.
 """

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 The ProductCreationType definition for version 1.0.
 """

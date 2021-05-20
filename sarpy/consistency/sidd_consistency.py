@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 A module for performing a selection of validation checks on a SIDD (nitf) file,
 or an xml file containing the sidd structure.

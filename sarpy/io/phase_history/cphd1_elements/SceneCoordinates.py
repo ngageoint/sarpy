@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 The SceneCoordinates type definition.
 """

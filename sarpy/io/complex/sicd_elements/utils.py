@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Common use sicd_elements methods.
 """
