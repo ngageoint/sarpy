@@ -647,7 +647,7 @@ class SIDDWriter(NITFWriter):
             pixel_size = 2
             abpp = 16
             irep = 'MONO'
-            raw_dtype = numpy.dtype('>u1')
+            raw_dtype = numpy.dtype('>u2')
             transform_data = None
             pv_type = 'INT'
             band_count = 1

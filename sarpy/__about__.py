@@ -27,10 +27,10 @@ __all__ = ['__version__',
            '__license__', '__copyright__']
 
 
-__version__ = "1.1.76.post0"
+__version__ = "1.1.77.post0"
 
 
-__classification__ = "FOUO"
+__classification__ = "FOUO"  # indicates DI2E hosted version
 __author__ = "National Geospatial-Intelligence Agency"
 __url__ = "https://github.com/ngageoint/sarpy"
 __email__ = "Wade.C.Schwartzkopf@nga.mil"
