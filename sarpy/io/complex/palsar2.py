@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Functionality for reading PALSAR ALOS 2 data into a SICD model.
 """

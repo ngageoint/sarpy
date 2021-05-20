@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Establish base expected functionality for digital elevation model handling.
 """

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Functionality for reading Sentinel-1 data into a SICD model.
 """

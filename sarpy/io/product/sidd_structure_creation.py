@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Common functionality for creating the SIDD structure from a SICD structure and
 OrthorectificationHelper.

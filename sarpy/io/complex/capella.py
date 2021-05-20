@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Functionality for reading Capella SAR data into a SICD model.
 """

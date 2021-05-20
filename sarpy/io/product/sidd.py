@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Module for reading and writing SIDD files - should support SIDD version 1.0 and above.
 """

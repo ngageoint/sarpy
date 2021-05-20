@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 The Antenna definition for CPHD 0.3.
 """

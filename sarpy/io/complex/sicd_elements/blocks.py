@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Basic building blocks for SICD standard.
 """

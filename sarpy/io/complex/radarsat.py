@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Functionality for reading Radarsat (RS2 and RCM) data into a SICD model.
 """

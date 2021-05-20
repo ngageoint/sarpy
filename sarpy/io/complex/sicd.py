@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Module for reading SICD files - should support SICD version 0.3 and above.
 """

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 The Compensated Phase History Data 1.0.1 definition.
 """

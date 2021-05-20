@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Some basic item definitions for python 2 & 3 dual use.
 """

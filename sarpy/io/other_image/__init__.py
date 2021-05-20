@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 This package contains the elements for a variety of miscellaneous images.
 """

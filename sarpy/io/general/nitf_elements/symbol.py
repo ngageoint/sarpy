@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 The symbol header element definition - only applies to NITF 2.0
 """

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 This module provide utilities for converting from any complex format that we can
 read to SICD or SIO format. The same conversion utility can be used to subset data.

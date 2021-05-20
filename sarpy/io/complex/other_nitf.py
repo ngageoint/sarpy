@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Work in progress for reading some other kind of complex NITF.
 """

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 This module provide utilities for attempting to open other image files not opened by
 the sicd, sidd, or cphd reader collections.

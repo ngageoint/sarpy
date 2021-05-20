@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Functionality for reading Cosmo Skymed data into a SICD model.
 """

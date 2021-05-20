@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 The detailed and involved validity checks for the sicd structure.
 

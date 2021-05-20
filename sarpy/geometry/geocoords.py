@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Provides coordinate transforms for WGS-84 and ECF coordinate systems
 """

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 The label extension subheader definitions - applies only to NITF version 2.0
 """

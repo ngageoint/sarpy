@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 This module provides structures for annotating a given (single image) file with
 labeled items.

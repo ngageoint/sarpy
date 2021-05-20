@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 The Per Vector parameters (PVP) definition.
 """

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 This module provide utilities for extracting a suggested name for a SICD.
 """
