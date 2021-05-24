@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Module for reading and writing CPHD files - should support reading CPHD version 0.3 and 1.0 and writing version 1.0.
 """

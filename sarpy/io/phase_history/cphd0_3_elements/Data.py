@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 The DataType definition for CPHD 0.3.
 """

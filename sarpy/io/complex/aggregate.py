@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Functionality for an aggregate sicd type reader, for opening multiple sicd type
 files as a single reader object.

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 This package contains the elements for interpreting complex radar data in a variety of formats.
 For non-SICD files, the radar metadata will be converted to something compatible with the SICD

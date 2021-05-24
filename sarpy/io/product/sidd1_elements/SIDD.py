@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 The SIDDType 1.0 definition.
 """

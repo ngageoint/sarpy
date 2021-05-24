@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 The data extension header element definition.
 """

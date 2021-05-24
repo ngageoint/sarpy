@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 This module contains the base objects for use in the SICD elements, and the base serializable functionality.
 """

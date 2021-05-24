@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Module contained elements for defining TREs - really intended as read only objects.
 """

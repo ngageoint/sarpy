@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Functionality for exporting certain data elements to a kml document
 """

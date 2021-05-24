@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 This module provides basic geometry elements generally geared towards (geo)json usage.
 """

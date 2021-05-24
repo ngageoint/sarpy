@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 SICD ortho-rectification methodology.
 
@@ -39,8 +38,7 @@ to a JPEG.
 
     import os
     from sarpy.io.complex.converter import open_complex
-    from sarpy.processing.ortho_rectify import NearestNeighborMethod, \
-        OrthorectificationIterator, FullResolutionFetcher
+    from sarpy.processing.ortho_rectify import NearestNeighborMethod, OrthorectificationIterator, FullResolutionFetcher
     import PIL.Image  # note that this is not a required sarpy dependency
 
     # again, open a sicd type file

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 This package mostly centered on base implementations for reader architecture.
 """

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Methods for creating a variety of SIDD products.
 

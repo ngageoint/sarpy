@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 This module provide utilities for reading essentially Complex Phase History Data.
 """

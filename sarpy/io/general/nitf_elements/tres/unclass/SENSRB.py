@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 
 import logging
 from ..tre_elements import TREExtension, TREElement

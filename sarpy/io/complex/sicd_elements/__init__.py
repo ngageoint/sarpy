@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 **This sub-package is a work in progress to encapsulate pythonic object oriented SICD structure 1.1 (2014-09-30).**
 

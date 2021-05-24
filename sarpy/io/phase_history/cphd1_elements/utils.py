@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Common utils for CPHD 1.0 functionality.
 """

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 The Global type definition for CPHD 0.3.
 """

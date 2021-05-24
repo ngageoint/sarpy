@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Module providing api consistent with other file types for reading tiff files.
 """

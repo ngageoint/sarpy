@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 This module provide utilities for opening any files analogous to Sensor
 Independent Derived Data, namely detected images in the ground plane.
