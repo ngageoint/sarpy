@@ -1,6 +1,73 @@
 """
 Functions to map between the coordinates in image pixel space and geographical
 coordinates.
+
+Examples
+--------
+
+.. code-block:: python
+
+    from sarpy.geometry import point_projection
+    from sarpy.io.complex.sicd import SICDReader
+
+    reader = SICDReader('<path to sicd file>')
+    structure = reader.sicd_meta
+    # or reader.reader.get_sicds_as_tuple()[0]
+
+    # you can also use a SIDD structure, obtained from a product type reader
+
+    # assume that ecf_coords is some previously defined numpy array of
+    # shape (..., 3), with final dimension [X, Y, Z]
+    image_coords = point_projection.ground_to_image(ecf_coords, structure)
+    # image_coords will be a numpy array of shape (..., 2),
+    # with final dimension [row, column]
+
+    # assume that geo_coords is some previously defined numpy array of
+    # shape (..., 3), with final dimension [lat, lon, hae]
+    image_coords = point_projection.ground_to_image_geo(geo_coords, structure)
+    # image_coords will be a numpy array of shape (..., 2),
+    # with final dimension [row, column]
+
+    # assume that image_coords is some previously defined numpy array of
+    # shape (..., 2) with final dimension [row, column]
+    ecf_coords_fixed_hae = point_projection.image_to_ground(image_coords, structure, projection_type='HAE')
+    ecf_coords_plane = point_projection.image_to_ground(image_coords, structure, projection_type='PLANE')
+    geo_coords_fixed_hae = point_projection.image_to_ground_geo(image_coords, structure, projection_type='HAE')
+    geo_coords_plane = point_projection.image_to_ground_geo(image_coords, structure, projection_type='PLANE')
+    # these outputs will be numpy arrays of shape (..., 3)
+
+    # alternatively, these are also methods of the sicd/sidd structure
+    image_coords = structure.project_ground_to_image(ecf_coords)
+    image_coords = structure.project_ground_to_image_geo(geo_coords)
+    ecf_coords_fixed_hae = structure.project_image_to_ground(image_coords, projection_type='HAE')
+    ecf_coords_plane = structure.project_image_to_ground(image_coords, projection_type='PLANE')
+    geo_coords_fixed_hae = structure.project_image_to_ground_geo(image_coords, projection_type='HAE')
+    geo_coords_plane = structure.project_image_to_ground_geo(image_coords, projection_type='PLANE')
+
+
+.. Note::
+
+    It should be explicitly pointed out that these methods are essentially all
+    inexact iterative methods which depend on convergence parameters. Changing
+    these parameters will yield different numerically similar, but different
+    results.
+
+    Under the right assumptions involving the `projection_type` parameter value
+    and the correct structure of the physical coordinates array, then the methods
+    :meth:`ground_to_image` and :meth:`image_to_ground` are **approximate**
+    inverses of one another. Being iterative methods, they can not generally be
+    made numerically exact inverses, but the tolerance can be adjusted to yield
+    very small differences.
+
+
+.. Note::
+
+    Virtually any SIDD/SICD structure which follows the standard will have a
+    appropriate metadata populated to permit these projection methods.
+    **In the case that your structure does not have sufficient metadata populated**,
+    as may happen during research experimentation, an exception will be raised
+    with hopefully helpful details about what information is missing.
+
 """
 
 import logging
@@ -405,7 +472,8 @@ def _get_sidd_adjustment_params(sidd, delta_arp, delta_varp, adj_params_frame):
 class COAProjection(object):
     """
     The Center of Aperture projection object, which provides common projection
-    functionality for all image to R/Rdot projection.
+    functionality for all image to R/Rdot projection. This is a helper class,
+    and generally not intended for direct usage.
     """
 
     __slots__ = (
