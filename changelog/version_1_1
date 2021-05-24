@@ -1,5 +1,6 @@
 # This details the important differences introduced in sarpy 1.1
 
+* .78 - Improving documentation for geometry/projection elements
 * .77 - Bug fix in writing MONO16I SIDD
 * .76 - Refining examples and incorporating documentation hosting at readthedocs
 * .75 - Correcting bugs in the nrl, linear, and log remap functions
