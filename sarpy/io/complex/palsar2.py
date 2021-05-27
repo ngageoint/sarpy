@@ -2,6 +2,10 @@
 Functionality for reading PALSAR ALOS 2 data into a SICD model.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
+
 import logging
 import os
 import struct
@@ -16,6 +20,7 @@ from sarpy.io.general.base import BaseChipper, SubsetChipper, BaseReader, BIPChi
 
 from sarpy.io.general.utils import get_seconds, parse_timestring, is_file_like
 
+from sarpy.io.complex.base import SICDTypeReader
 from sarpy.io.complex.sicd_elements.blocks import Poly1DType, Poly2DType
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.complex.sicd_elements.CollectionInfo import CollectionInfoType, RadarModeType
@@ -34,10 +39,6 @@ from sarpy.io.complex.sicd_elements.Radiometric import RadiometricType
 from sarpy.io.complex.sicd_elements.ErrorStatistics import ErrorStatisticsType, \
     ErrorComponentsType, RadarSensorErrorType, PosVelErrType
 from sarpy.io.complex.utils import two_dim_poly_fit, fit_position_xvalidation
-
-
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
 
 
 ########
@@ -1618,7 +1619,7 @@ class PALSARDetails(object):
         return tuple([self._get_sicd(index, tx_pols, tx_rcv_pols) for index, _ in enumerate(self._img_elements)])
 
 
-class PALSARReader(BaseReader):
+class PALSARReader(BaseReader, SICDTypeReader):
     """
     The reader object for the PALSAR ALOS2 file package.
     """
@@ -1649,7 +1650,9 @@ class PALSARReader(BaseReader):
         for sicd, img_details in zip(sicds, self._palsar_details.img_elements):
             data_sizes.append((sicd.ImageData.NumCols, sicd.ImageData.NumRows))
             chippers.append(img_details.construct_chipper(sicd.SCPCOA.SideOfTrack == 'L'))
-        super(PALSARReader, self).__init__(tuple(sicds), tuple(chippers), reader_type="SICD")
+
+        SICDTypeReader.__init__(self, tuple(sicds))
+        BaseReader.__init__(self, tuple(chippers), reader_type="SICD")
 
     @property
     def file_name(self):

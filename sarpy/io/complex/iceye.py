@@ -2,6 +2,9 @@
 Functionality for reading ICEYE complex data into a SICD model.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
 
 import logging
 import os
@@ -18,6 +21,7 @@ except ImportError:
 # noinspection PyProtectedMember
 from .nisar import _stringify
 from sarpy.compliance import string_types, int_func
+from sarpy.io.complex.base import SICDTypeReader
 from sarpy.io.complex.sicd_elements.blocks import Poly2DType, Poly1DType
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.complex.sicd_elements.CollectionInfo import CollectionInfoType, RadarModeType
@@ -35,9 +39,6 @@ from sarpy.io.complex.sicd_elements.Radiometric import RadiometricType
 from sarpy.io.general.base import BaseReader, BaseChipper
 from sarpy.io.general.utils import get_seconds, parse_timestring, is_file_like
 from sarpy.io.complex.utils import fit_position_xvalidation, two_dim_poly_fit
-
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
 
 
 ########
@@ -511,7 +512,7 @@ class ICEYEChipper(BaseChipper):
             return data
 
 
-class ICEYEReader(BaseReader):
+class ICEYEReader(BaseReader, SICDTypeReader):
     """
     Gets a reader type object for Cosmo Skymed files
     """
@@ -535,7 +536,9 @@ class ICEYEReader(BaseReader):
         self._iceye_details = iceye_details
         sicd, data_size, symmetry = iceye_details.get_sicd()
         chipper = ICEYEChipper(iceye_details.file_name, data_size, symmetry)
-        super(ICEYEReader, self).__init__(sicd, chipper, reader_type="SICD")
+
+        SICDTypeReader.__init__(self, sicd)
+        BaseReader.__init__(self, chipper, reader_type="SICD")
 
     @property
     def iceye_details(self):

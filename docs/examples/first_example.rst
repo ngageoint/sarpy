@@ -116,7 +116,7 @@ package (i.e. multiple polarizations or other aggregate collections).
     print(the_sicd.CollectionInfo.CollectorName)
 
 
-The SICD structure access details are implemented as in :meth:`sarpy.io.general.base.BaseReader.get_sicds_as_tuple`.
+The SICD structure access details are implemented as in :meth:`sarpy.io.complex.base.SICDTypeReader.get_sicds_as_tuple`.
 The behavior of the SICD structure methods are implmeneted as in :meth:`sarpy.io.complex.sicd_elements.SICD.SICDType.to_xml_string`.
 
 Read complex pixel data

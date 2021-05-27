@@ -2,6 +2,10 @@
 Functionality for reading NISAR data into a SICD model.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
+
 import logging
 import os
 from collections import OrderedDict
@@ -17,6 +21,7 @@ except ImportError:
     h5py = None
 
 from sarpy.compliance import string_types, int_func, bytes_to_string
+from sarpy.io.complex.base import SICDTypeReader
 from sarpy.io.complex.sicd_elements.blocks import Poly2DType
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.complex.sicd_elements.CollectionInfo import CollectionInfoType, RadarModeType
@@ -37,9 +42,6 @@ from sarpy.io.general.base import BaseReader
 from sarpy.io.general.utils import get_seconds, parse_timestring, is_file_like
 from sarpy.io.complex.csk import H5Chipper
 from sarpy.io.complex.utils import fit_position_xvalidation, two_dim_poly_fit
-
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
 
 
 ########
@@ -680,7 +682,7 @@ class NISARDetails(object):
 ################
 # The NISAR reader
 
-class NISARReader(BaseReader):
+class NISARReader(BaseReader, SICDTypeReader):
     """
     Gets a reader type object for NISAR files
     """
@@ -708,7 +710,9 @@ class NISARReader(BaseReader):
         for band_name in sicd_data:
             sicds.append(sicd_data[band_name])
             chippers.append(H5Chipper(nisar_details.file_name, band_name, shape_dict[band_name], symmetry))
-        super(NISARReader, self).__init__(tuple(sicds), tuple(chippers), reader_type="SICD")
+
+        SICDTypeReader.__init__(self, tuple(sicds))
+        BaseReader.__init__(self, tuple(chippers), reader_type="SICD")
 
     @property
     def nisar_details(self):

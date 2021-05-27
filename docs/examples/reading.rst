@@ -28,7 +28,7 @@ shaped to be directly analogous for a SICD reader. The readers are all defined
 in the `sarpy.io.complex` subpackage.
 
 The general opening method is defined as :meth:`sarpy.io.complex.converter.open_complex`,
-with basic usage as indicated by
+with basic usage as indicated by the below example.
 
 .. code-block:: python
 
@@ -43,7 +43,8 @@ with basic usage as indicated by
 
 
 There are a commonalities for all such readers, because all are extensions of
-the class :class:`sarpy.io.general.base.BaseReader`.
+the class :class:`sarpy.io.general.base.BaseReader`, and also extensions of
+:class:`sarpy.io.complex.base.SICDTypeReader`.
 
 Some basic properties:
 
@@ -58,12 +59,12 @@ Some basic properties:
   This data will have be recast or re-interpreted to be 64-bit complex data type,
   regardless of storage type.
 - The SICD structures can be referenced using the :code:`reader.sicd_meta` property
-  (described here :attr:`sarpy.io.general.base.BaseReader.sicd_meta`)
+  (described here :attr:`sarpy.io.complex.base.SICDTypeReader.sicd_meta`)
   and/or the :code:`reader.get_sicds_as_tuple()` function
-  (described here :meth:`sarpy.io.general.base.BaseReader.get_sicds_as_tuple`).
+  (described here :meth:`sarpy.io.complex.base.SICDTypeReader.get_sicds_as_tuple`).
 - The image collection can be partitioned based on identical footprint, resolution,
   and collection frequency using the :code:`reader.get_sicd_partitions` method
-  (described here :meth:`sarpy.io.general.base.BaseReader.get_sicd_partitions`).
+  (described here :meth:`sarpy.io.complex.base.SICDTypeReader.get_sicd_partitions`).
 
 
 Derived Product (SIDD-Type) Readers
@@ -104,8 +105,7 @@ Some basic properties:
 - The SIDD structures can be referenced as :code:`reader.sidd_meta` property (
   described here :attr:`sarpy.io.product.sidd.SIDDReader.sidd_meta`).
 - **If the SICD structure from which the product is derived is populated in the product file,**
-  then the SICD structures can be referenced using :code:`reader.sicd_meta` and/or
-  :code:`reader.get_sicds_as_tuple()`. Otherwise, these will return `None`.
+  then the SICD structures can be referenced using :attr:`sarpy.io.product.sidd.SIDDReader.sicd_meta`.
 
 
 Phase History (CPHD) Readers
@@ -159,7 +159,6 @@ Some basic properties:
 - For CPHD Version 1.0, a support array can be read for the given range using
   the :code:`reader.read_support_array()` function
   (see :meth:`sarpy.io.phase_history.cphd.CPHDReader.read_support_array`).
-- The :code:`reader.sicd_meta` property will return `None` in this case.
 
 
 NITF Option of Last Resort

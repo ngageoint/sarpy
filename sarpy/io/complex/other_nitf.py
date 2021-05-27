@@ -24,6 +24,7 @@ from sarpy.io.general.nitf_elements.nitf_head import NITFHeader, NITFHeader0
 from sarpy.io.general.nitf_elements.base import TREList
 from sarpy.io.general.nitf_elements.tres.unclass.CMETAA import CMETAA
 
+from sarpy.io.complex.base import SICDTypeReader
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.complex.sicd_elements.CollectionInfo import CollectionInfoType
 from sarpy.io.complex.sicd_elements.ImageData import ImageDataType
@@ -1042,7 +1043,7 @@ class ComplexNITFDetails(NITFDetails):
             self._sicd_meta = tuple(sicd_meta)
 
 
-class ComplexNITFReader(NITFReader):
+class ComplexNITFReader(NITFReader, SICDTypeReader):
     """
     A reader for complex valued NITF elements, this should be explicitly tried AFTER
     the SICDReader.
@@ -1065,6 +1066,8 @@ class ComplexNITFReader(NITFReader):
         if not isinstance(nitf_details, ComplexNITFDetails):
             raise TypeError('The input argument for ComplexNITFReader must be a filename or '
                             'ComplexNITFDetails object.')
+
+        SICDTypeReader.__init__(self, nitf_details.sicd_meta)
         super(ComplexNITFReader, self).__init__(nitf_details, reader_type="SICD", symmetry=symmetry)
 
     @property

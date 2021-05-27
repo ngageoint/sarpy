@@ -2,6 +2,10 @@
 Functionality for reading TerraSAR-X data into a SICD model.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
+
 import os
 import logging
 from xml.etree import ElementTree
@@ -17,6 +21,7 @@ from sarpy.compliance import string_types, int_func
 from sarpy.io.general.base import BaseReader, SubsetChipper, BIPChipper
 from sarpy.io.general.utils import get_seconds, parse_timestring, is_file_like
 
+from sarpy.io.complex.base import SICDTypeReader
 from sarpy.io.complex.sicd_elements.blocks import Poly1DType, Poly2DType
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.complex.sicd_elements.CollectionInfo import CollectionInfoType, RadarModeType
@@ -32,10 +37,6 @@ from sarpy.io.complex.sicd_elements.ImageFormation import ImageFormationType, Rc
 from sarpy.io.complex.sicd_elements.RMA import RMAType, INCAType
 from sarpy.io.complex.sicd_elements.Radiometric import RadiometricType, NoiseLevelType_
 from sarpy.io.complex.utils import two_dim_poly_fit, fit_position_xvalidation
-
-
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
 
 
 ########
@@ -1057,7 +1058,7 @@ class COSARDetails(object):
 #########
 # the reader implementation
 
-class TSXReader(BaseReader):
+class TSXReader(BaseReader, SICDTypeReader):
     """
     The TerraSAR-X reader implementation
     """
@@ -1095,7 +1096,9 @@ class TSXReader(BaseReader):
                 raise ValueError(
                     'Expected one burst in the COSAR file {}, but got {} bursts'.format(the_file, cosar_details.burst_count))
             chippers.append(cosar_details.construct_chipper(0, symmetry, (cols, rows)))
-        super(TSXReader, self).__init__(tuple(the_sicds), tuple(chippers), reader_type="SICD")
+
+        SICDTypeReader.__init__(self, tuple(the_sicds))
+        BaseReader.__init__(self, tuple(chippers), reader_type="SICD")
 
     @property
     def file_name(self):

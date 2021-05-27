@@ -1,6 +1,9 @@
 """
-The base elements for reading and writing complex data files.
+The general base elements for reading and writing image files.
 """
+
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
 
 import os
 import logging
@@ -9,13 +12,8 @@ from typing import Union, Tuple, BinaryIO, Callable
 import numpy
 
 from sarpy.compliance import int_func, integer_types, string_types
-from sarpy.io.complex.sicd_elements.SICD import SICDType
-from sarpy.io.complex.sicd_elements.utils import is_general_match
 from sarpy.io.general.utils import validate_range, reverse_range, is_file_like
 
-
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
 
 ##################
 # module variables
@@ -543,15 +541,13 @@ class BaseReader(object):
     Abstract file reader class
     """
 
-    __slots__ = ('_sicd_meta', '_chipper', '_data_size', '_reader_type')
+    __slots__ = ('_chipper', '_data_size', '_reader_type')
 
-    def __init__(self, sicd_meta, chipper, reader_type="OTHER"):
+    def __init__(self, chipper, reader_type="OTHER"):
         """
 
         Parameters
         ----------
-        sicd_meta : None|SICDType|Tuple[SICDType]
-            `None`, the SICD metadata object, or tuple of objects
         chipper : BaseChipper|Tuple[BaseChipper]
             a chipper object, or tuple of chipper objects
         reader_type : str
@@ -566,24 +562,9 @@ class BaseReader(object):
                 'reader_type has value {}, while it is expected to be '
                 'one of {}'.format(reader_type, READER_TYPES))
         self._reader_type = reader_type
-        # adjust sicd_meta and chipper inputs
-        if isinstance(sicd_meta, list):
-            sicd_meta = tuple(sicd_meta)
+        # adjust chipper inputs
         if isinstance(chipper, list):
             chipper = tuple(chipper)
-
-        # validate sicd_meta input
-        if sicd_meta is None:
-            pass
-        elif isinstance(sicd_meta, tuple):
-            for el in sicd_meta:
-                if not isinstance(el, SICDType):
-                    raise TypeError(
-                        'Got a collection for sicd_meta, and all elements are required '
-                        'to be instances of SICDType.')
-        elif not isinstance(sicd_meta, SICDType):
-            raise TypeError('sicd_meta argument is required to be a SICDType, or collection of SICDType objects')
-        self._sicd_meta = sicd_meta
 
         # validate chipper input
         if isinstance(chipper, tuple):
@@ -612,14 +593,6 @@ class BaseReader(object):
         return self._reader_type
 
     @property
-    def sicd_meta(self):
-        """
-        None|SICDType|Tuple[SICDType]: the sicd meta_data or meta_data collection.
-        """
-
-        return self._sicd_meta
-
-    @property
     def data_size(self):
         # type: () -> Union[Tuple[int, int], Tuple[Tuple[int, int]]]
         """
@@ -636,22 +609,6 @@ class BaseReader(object):
         """
 
         raise NotImplementedError
-
-    def get_sicds_as_tuple(self):
-        """
-        Get the sicd or sicd collection as a tuple - for simplicity and consistency of use.
-
-        Returns
-        -------
-        Tuple[SICDType]
-        """
-
-        if self._sicd_meta is None:
-            return None
-        elif isinstance(self._sicd_meta, tuple):
-            return self._sicd_meta
-        else:
-            return (self._sicd_meta, )
 
     def get_data_size_as_tuple(self):
         """
@@ -680,78 +637,6 @@ class BaseReader(object):
             return self._chipper
         else:
             return (self._chipper, )
-
-    def get_sicd_partitions(self, match_function=is_general_match):
-        """
-        Partition the sicd collection into sub-collections according to `match_function`,
-        which is assumed to establish an equivalence relation (reflexive, symmetric, and transitive).
-
-        Parameters
-        ----------
-        match_function : callable
-            This match function must have call signature `(SICDType, SICDType) -> bool`, and
-            defaults to :func:`sarpy.io.complex.sicd_elements.utils.is_general_match`.
-            This function is assumed reflexive, symmetric, and transitive.
-
-        Returns
-        -------
-        Tuple[Tuple[int]]
-        """
-
-        if self.reader_type != "SICD":
-            logging.warning('It is only valid to get sicd partitions for a sicd type reader.')
-            return None
-
-        sicds = self.get_sicds_as_tuple()
-        # set up or state workspace
-        count = len(sicds)
-        matched = numpy.zeros((count,), dtype='bool')
-        matches = []
-
-        # assemble or match collections
-        for i in range(count):
-            if matched[i]:
-                # it's already matched somewhere
-                continue
-
-            matched[i] = True  # shouldn't access backwards, but just to be thorough
-            this_match = [i, ]
-            for j in range(i + 1, count):
-                if not matched[j] and match_function(sicds[i], sicds[j]):
-                    matched[j] = True
-                    this_match.append(j)
-            matches.append(tuple(this_match))
-        return tuple(matches)
-
-    def get_sicd_bands(self):
-        """
-        Gets the list of bands for each sicd.
-
-        Returns
-        -------
-        Tuple[str]
-        """
-
-        if self.reader_type != "SICD":
-            logging.warning('It is only valid to get sicd bands for a sicd type reader.')
-            return None
-
-        return tuple(sicd.get_transmit_band_name() for sicd in self.get_sicds_as_tuple())
-
-    def get_sicd_polarizations(self):
-        """
-        Gets the list of polarizations for each sicd.
-
-        Returns
-        -------
-        Tuple[str]
-        """
-
-        if self.reader_type != "SICD":
-            logging.warning('It is only valid to get sicd polarizations for a sicd type reader.')
-            return None
-
-        return tuple(sicd.get_processed_polarization() for sicd in self.get_sicds_as_tuple())
 
     def _validate_index(self, index):
         if isinstance(self._chipper, BaseChipper) or index is None:
@@ -929,13 +814,12 @@ class SubsetReader(BaseReader):
 
     __slots__ = ('_parent_reader', )
 
-    def __init__(self, parent_reader, sicd_meta, dim1bounds, dim2bounds):
+    def __init__(self, parent_reader, dim1bounds, dim2bounds):
         """
 
         Parameters
         ----------
         parent_reader : BaseReader
-        sicd_meta : SICDType
         dim1bounds : tuple
         dim2bounds : tuple
         """
@@ -943,7 +827,7 @@ class SubsetReader(BaseReader):
         self._parent_reader = parent_reader
         # noinspection PyProtectedMember
         chipper = SubsetChipper(parent_reader._chipper, dim1bounds, dim2bounds)
-        super(SubsetReader, self).__init__(sicd_meta, chipper, reader_type=parent_reader.reader_type)
+        super(SubsetReader, self).__init__(chipper, reader_type=parent_reader.reader_type)
 
     @property
     def file_name(self):
@@ -971,7 +855,7 @@ class AggregateReader(BaseReader):
         self._index_mapping = None
         self._readers = self._validate_readers(readers)
         the_chippers = self._define_index_mapping()
-        super(AggregateReader, self).__init__(sicd_meta=None, chipper=the_chippers, reader_type=reader_type)
+        super(AggregateReader, self).__init__(chipper=the_chippers, reader_type=reader_type)
 
     @staticmethod
     def _validate_readers(readers):
@@ -1011,7 +895,7 @@ class AggregateReader(BaseReader):
 
         # prepare the index mapping workspace
         index_mapping = []
-        # assemble the sicd_meta and chipper arguments
+        # assemble the chipper arguments
         the_chippers = []
         for i, reader in enumerate(self._readers):
             for j, chipper in enumerate(reader._get_chippers_as_tuple()):
@@ -1045,14 +929,12 @@ class FlatReader(BaseReader):
     Class for passing a numpy array or memmap straight through as a reader.
     """
 
-    def __init__(self, sicd_meta, array, reader_type='OTHER', output_bands=None, output_dtype=None,
+    def __init__(self, array, reader_type='OTHER', output_bands=None, output_dtype=None,
                  symmetry=(False, False, False), transform_data=None, limit_to_raw_bands=None):
         """
 
         Parameters
         ----------
-        sicd_meta : None|SICDType
-            `None`, or the SICD metadata object
         array : numpy.ndarray
         reader_type : str
             What kind of reader is this? Should be "SICD", or "OTHER" here. If SICD,
@@ -1094,7 +976,7 @@ class FlatReader(BaseReader):
         chipper = BIPChipper(
             array, raw_dtype, data_size, raw_bands, output_bands, output_dtype,
             symmetry=symmetry, transform_data=transform_data, limit_to_raw_bands=limit_to_raw_bands)
-        super(FlatReader, self).__init__(sicd_meta, chipper, reader_type=reader_type)
+        super(FlatReader, self).__init__(chipper, reader_type=reader_type)
 
     @property
     def file_name(self):
@@ -1186,36 +1068,6 @@ class AbstractWriter(object):
                 'only partially generated and corrupt.'.format(self.__class__.__name__, self._file_name))
             # The exception will be reraised.
             # It's unclear how any exception could be caught.
-
-
-class BaseWriter(AbstractWriter):
-    """
-    Abstract file writer class for SICD data
-    """
-
-    __slots__ = ('_file_name', '_sicd_meta', )
-
-    def __init__(self, file_name, sicd_meta):
-        """
-
-        Parameters
-        ----------
-        file_name : str
-        sicd_meta : SICDType
-        """
-
-        super(BaseWriter, self).__init__(file_name)
-
-    @property
-    def sicd_meta(self):
-        """
-        SICDType: the sicd metadata
-        """
-
-        return self._sicd_meta
-
-    def __call__(self, data, start_indices=(0, 0)):
-        raise NotImplementedError
 
 
 #############
