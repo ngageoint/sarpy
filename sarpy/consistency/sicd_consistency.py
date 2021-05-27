@@ -25,8 +25,8 @@ except ImportError:
 
 from sarpy.io.general.utils import parse_xml_from_string
 from sarpy.io.complex.sicd_schema import get_schema_path
-from sarpy.io.complex.sicd import SICDDetails
-from sarpy.io.complex.sicd_elements.SICD import SICDType
+from sarpy.io.complex.sicd import SICDDetails, SICDType
+# from sarpy.io.complex.sicd_elements.SICD import SICDType
 
 logger = logging.getLogger('validation')
 

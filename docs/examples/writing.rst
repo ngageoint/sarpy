@@ -78,7 +78,7 @@ There are a few basic utilities for producing a kmz overlay from a SICD type fil
 
     import os
     from sarpy.io.complex.converter import open_complex
-    from sarpy.io.product.create_sicd_kml import create_kmz_view
+    from sarpy.io.product.kmz_product_creation import create_kmz_view
 
     test_root = '<root directory>'
     reader = open_complex(os.path.join(test_root, '<file name>'))

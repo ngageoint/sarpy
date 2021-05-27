@@ -2,9 +2,13 @@
 Functionality for reading Capella SAR data into a SICD model.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = ("Thomas McCullough", "Wade Schwartzkopf")
+
+
 import logging
 import json
-from typing import Dict, Any
+from typing import Dict, Any, Tuple
 from datetime import datetime
 from collections import OrderedDict
 
@@ -15,6 +19,7 @@ from sarpy.compliance import string_types
 from sarpy.io.general.base import BaseReader
 from sarpy.io.general.tiff import TiffDetails, NativeTiffChipper
 from sarpy.io.general.utils import parse_timestring, get_seconds, is_file_like
+from sarpy.io.complex.base import SICDTypeReader
 from sarpy.io.complex.utils import fit_position_xvalidation
 from sarpy.io.complex.sicd_elements.blocks import XYZPolyType
 from sarpy.io.complex.sicd_elements.SICD import SICDType
@@ -29,10 +34,6 @@ from sarpy.io.complex.sicd_elements.RadarCollection import RadarCollectionType, 
 from sarpy.io.complex.sicd_elements.Timeline import TimelineType, IPPSetType
 from sarpy.io.complex.sicd_elements.ImageFormation import ImageFormationType, RcvChanProcType, \
     TxFrequencyProcType, ProcessingType
-
-
-__classification__ = "UNCLASSIFIED"
-__author__ = ("Thomas McCullough", "Wade Schwartzkopf")
 
 
 ########
@@ -120,6 +121,7 @@ class CapellaDetails(object):
         return self._tiff_details
 
     def get_symmetry(self):
+        # type: () -> Tuple[bool, bool, bool]
         """
         Gets the symmetry definition.
 
@@ -384,7 +386,7 @@ class CapellaDetails(object):
         return sicd
 
 
-class CapellaReader(BaseReader):
+class CapellaReader(BaseReader, SICDTypeReader):
     """
     The Capella reader object.
     """
@@ -408,7 +410,9 @@ class CapellaReader(BaseReader):
         self._capella_details = capella_details
         sicd = self.capella_details.get_sicd()
         chipper = NativeTiffChipper(self.capella_details.tiff_details, symmetry=self.capella_details.get_symmetry())
-        super(CapellaReader, self).__init__(sicd, chipper, reader_type="SICD")
+
+        SICDTypeReader.__init__(self, sicd)
+        BaseReader.__init__(self, chipper, reader_type="SICD")
 
     @property
     def capella_details(self):

@@ -2,6 +2,10 @@
 Module for reading and writing SIDD files - should support SIDD version 1.0 and above.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
+
 import logging
 import sys
 from functools import reduce
@@ -24,13 +28,9 @@ from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.complex.sicd import extract_clas as extract_clas_sicd
 
 
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
-
-
 ########
 # module variables
-_class_priority = {'U': 0, 'R' : 1, 'C': 2, 'S': 3, 'T': 4}
+_class_priority = {'U': 0, 'R': 1, 'C': 2, 'S': 3, 'T': 4}
 
 
 ########
@@ -204,7 +204,7 @@ class SIDDReader(NITFReader):
     A reader object for a SIDD file (NITF container with SICD contents)
     """
 
-    __slots__ = ('_sidd_meta', )
+    __slots__ = ('_sidd_meta', '_sicd_meta')
 
     def __init__(self, nitf_details):
         """
@@ -247,6 +247,14 @@ class SIDDReader(NITFReader):
 
         return self.nitf_details.sidd_meta
 
+    @property
+    def sicd_meta(self):
+        """
+        None|List[sarpy.io.complex.sicd_elements.SICD.SICDType]: the sicd meta-data structure(s).
+        """
+
+        return self.nitf_details.sicd_meta
+
     def _find_segments(self):
         # determine image segmentation from image headers
         segments = [[] for _ in self._sidd_meta]
@@ -271,7 +279,8 @@ class SIDDReader(NITFReader):
     def _check_img_details(self, segment):
         raw_dtype, output_dtype, raw_bands, output_bands, transform_data = self._extract_chipper_params(segment[0])
         for this_index in segment[1:]:
-            this_raw_dtype, this_output_dtype, this_raw_bands, this_output_bands, _ = self._extract_chipper_params(this_index)
+            this_raw_dtype, this_output_dtype, this_raw_bands, this_output_bands, \
+                _ = self._extract_chipper_params(this_index)
             if this_raw_dtype.name != raw_dtype.name:
                 raise ValueError(
                     'Segments at index {} and {} have incompatible data types '
@@ -522,9 +531,13 @@ class SIDDWriter(NITFWriter):
 
     def _set_shapes(self):
         if isinstance(self._sidd_meta, tuple):
-            self._shapes = tuple((entry.Measurement.PixelFootprint.Row, entry.Measurement.PixelFootprint.Col) for entry in self._sidd_meta)
+            self._shapes = tuple(
+                (entry.Measurement.PixelFootprint.Row, entry.Measurement.PixelFootprint.Col)
+                for entry in self._sidd_meta)
         else:
-            self._shapes = ((self._sidd_meta.Measurement.PixelFootprint.Row, self._sidd_meta.Measurement.PixelFootprint.Col), )
+            self._shapes = (
+                (self._sidd_meta.Measurement.PixelFootprint.Row,
+                 self._sidd_meta.Measurement.PixelFootprint.Col), )
 
     def _get_security_tags(self, index):
         """
@@ -619,7 +632,7 @@ class SIDDWriter(NITFWriter):
 
         Returns
         -------
-        (int, int, str, numpy.dtype, Union[bool, callable], str, tuple, tuple)
+        (int, int, str, numpy.dtype, Union[bool, str, callable], str, int, tuple, tuple)
             pixel_size - the size of each pixel in bytes.
             abpp - the actual bits per pixel.
             irep - the image representation

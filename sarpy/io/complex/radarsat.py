@@ -2,6 +2,10 @@
 Functionality for reading Radarsat (RS2 and RCM) data into a SICD model.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = ("Thomas McCullough", "Khanh Ho", "Wade Schwartzkopf", "Nathan Bombaci")
+
+
 import logging
 import re
 import os
@@ -21,6 +25,7 @@ from sarpy.io.complex.other_nitf import ComplexNITFReader
 from sarpy.io.general.utils import get_seconds, parse_timestring, is_file_like
 from sarpy.geometry.geocoords import geodetic_to_ecf
 
+from sarpy.io.complex.base import SICDTypeReader
 from sarpy.io.complex.sicd_elements.blocks import Poly1DType, Poly2DType
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.complex.sicd_elements.CollectionInfo import CollectionInfoType, RadarModeType
@@ -37,10 +42,6 @@ from sarpy.io.complex.sicd_elements.RMA import RMAType, INCAType
 from sarpy.io.complex.sicd_elements.SCPCOA import SCPCOAType
 from sarpy.io.complex.sicd_elements.Radiometric import RadiometricType, NoiseLevelType_
 from sarpy.io.complex.utils import fit_time_coa_polynomial, fit_position_xvalidation
-
-
-__classification__ = "UNCLASSIFIED"
-__author__ = ("Thomas McCullough", "Khanh Ho", "Wade Schwartzkopf", "Nathan Bombaci")
 
 
 ########
@@ -132,7 +133,7 @@ def _construct_tiff_chipper(the_sicd, the_file, symmetry):
     """
 
     tiff_details = TiffDetails(the_file)
-    reader = TiffReader(tiff_details, sicd_meta=the_sicd, symmetry=symmetry)
+    reader = TiffReader(tiff_details, symmetry=symmetry)
     # noinspection PyProtectedMember
     chipper = reader._chipper
     _validate_chipper_and_sicd(the_sicd, chipper, 'tiff', the_file)
@@ -1532,7 +1533,7 @@ class RadarSatDetails(object):
 ##############
 # reader implementation - really just borrows from tiff or NITF reader
 
-class RadarSatReader(BaseReader):
+class RadarSatReader(BaseReader, SICDTypeReader):
     """
     The reader object for RadarSat SAR file package.
     """
@@ -1545,7 +1546,7 @@ class RadarSatReader(BaseReader):
         Parameters
         ----------
         radar_sat_details : str|RadarSatDetails
-            file name or RadarSatDeatils object
+            file name or RadarSatDetails object
         """
 
         if isinstance(radar_sat_details, string_types):
@@ -1563,7 +1564,9 @@ class RadarSatReader(BaseReader):
         for sicd_entry, file_entry in zip(the_sicds, the_files):
             the_chippers.extend(self._construct_chippers(sicd_entry, file_entry, symmetry))
             use_sicds.extend(sicd_entry)
-        super(RadarSatReader, self).__init__(tuple(use_sicds), tuple(the_chippers), reader_type="SICD")
+
+        SICDTypeReader.__init__(self, tuple(use_sicds))
+        BaseReader.__init__(self, tuple(the_chippers), reader_type="SICD")
 
     def _construct_chippers(self, sicds, data_files, symmetry):
         """

@@ -17,6 +17,7 @@ from sarpy.io.general.base import AggregateChipper
 from sarpy.io.general.nitf import NITFReader, NITFWriter, ImageDetails, DESDetails, \
     image_segmentation, get_npp_block, interpolate_corner_points_string
 from sarpy.io.general.utils import parse_xml_from_string, is_file_like
+from sarpy.io.complex.base import SICDTypeReader
 from sarpy.io.complex.sicd_elements.SICD import SICDType, get_specification_identifier
 from sarpy.io.complex.sicd_elements.ImageCreation import ImageCreationType
 
@@ -338,7 +339,7 @@ def amp_phase_to_complex(lookup_table):
     return converter
 
 
-class SICDReader(NITFReader):
+class SICDReader(NITFReader, SICDTypeReader):
     """
     A reader object for a SICD file (NITF container with SICD contents)
     """
@@ -358,12 +359,9 @@ class SICDReader(NITFReader):
             raise TypeError(
                 'The input argument for SICDReader must be a filename, file-like object, '
                 'or SICDDetails object.')
-        super(SICDReader, self).__init__(nitf_details, reader_type="SICD")
 
-        # to perform a preliminary check that the structure is valid:
-        # self._sicd_meta.is_valid(recursive=True, stack=False)
-        # disable for now, due to noise of logging for now purpose
-        # leaving for documentation purposes
+        SICDTypeReader.__init__(self, nitf_details.sicd_meta)
+        NITFReader.__init__(self, nitf_details, reader_type='SICD')
 
     @property
     def nitf_details(self):
