@@ -536,8 +536,9 @@ class ICEYEReader(BaseReader, SICDTypeReader):
         self._iceye_details = iceye_details
         sicd, data_size, symmetry = iceye_details.get_sicd()
         chipper = ICEYEChipper(iceye_details.file_name, data_size, symmetry)
-        BaseReader.__init__(self, chipper, reader_type="SICD")
+
         SICDTypeReader.__init__(self, sicd)
+        BaseReader.__init__(self, chipper, reader_type="SICD")
 
     @property
     def iceye_details(self):

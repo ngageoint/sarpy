@@ -725,8 +725,8 @@ class CSKReader(BaseReader, SICDTypeReader):
             sicds.append(sicd_data[band_name])
             chippers.append(H5Chipper(csk_details.file_name, the_band, shape_dict[band_name], symmetry))
 
-        BaseReader.__init__(self, tuple(chippers), reader_type="SICD")
         SICDTypeReader.__init__(self, tuple(sicds))
+        BaseReader.__init__(self, tuple(chippers), reader_type="SICD")
 
     @property
     def csk_details(self):

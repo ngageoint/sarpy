@@ -1070,11 +1070,10 @@ class SentinelReader(BaseReader, SICDTypeReader):
                     sicd_collection_out.append(sicd)
 
         self._readers = tuple(readers)  # type: Tuple[Union[TiffReader, SubsetReader]]
-
         chipper_tuple = tuple(reader._chipper for reader in readers)
 
-        BaseReader.__init__(self, chipper_tuple, reader_type="SICD")
         SICDTypeReader.__init__(self, tuple(sicd_collection_out))
+        BaseReader.__init__(self, chipper_tuple, reader_type="SICD")
 
     @property
     def sentinel_details(self):

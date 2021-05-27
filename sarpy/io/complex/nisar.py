@@ -710,8 +710,9 @@ class NISARReader(BaseReader, SICDTypeReader):
         for band_name in sicd_data:
             sicds.append(sicd_data[band_name])
             chippers.append(H5Chipper(nisar_details.file_name, band_name, shape_dict[band_name], symmetry))
-        BaseReader.__init__(self, tuple(chippers), reader_type="SICD")
+
         SICDTypeReader.__init__(self, tuple(sicds))
+        BaseReader.__init__(self, tuple(chippers), reader_type="SICD")
 
     @property
     def nisar_details(self):

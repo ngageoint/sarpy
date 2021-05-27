@@ -320,8 +320,8 @@ class SIOReader(BaseReader, SICDTypeReader):
                              symmetry=sio_details.symmetry, transform_data=transform_data,
                              data_offset=sio_details.data_offset)
 
-        BaseReader.__init__(self, chipper, reader_type="SICD")
         SICDTypeReader.__init__(self, sicd_meta)
+        BaseReader.__init__(self, chipper, reader_type="SICD")
 
     @property
     def sio_details(self):

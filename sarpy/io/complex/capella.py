@@ -8,7 +8,7 @@ __author__ = ("Thomas McCullough", "Wade Schwartzkopf")
 
 import logging
 import json
-from typing import Dict, Any
+from typing import Dict, Any, Tuple
 from datetime import datetime
 from collections import OrderedDict
 
@@ -121,6 +121,7 @@ class CapellaDetails(object):
         return self._tiff_details
 
     def get_symmetry(self):
+        # type: () -> Tuple[bool, bool, bool]
         """
         Gets the symmetry definition.
 
@@ -410,8 +411,8 @@ class CapellaReader(BaseReader, SICDTypeReader):
         sicd = self.capella_details.get_sicd()
         chipper = NativeTiffChipper(self.capella_details.tiff_details, symmetry=self.capella_details.get_symmetry())
 
-        BaseReader.__init__(self, chipper, reader_type="SICD")
         SICDTypeReader.__init__(self, sicd)
+        BaseReader.__init__(self, chipper, reader_type="SICD")
 
     @property
     def capella_details(self):

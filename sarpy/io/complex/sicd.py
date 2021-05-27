@@ -359,8 +359,9 @@ class SICDReader(NITFReader, SICDTypeReader):
             raise TypeError(
                 'The input argument for SICDReader must be a filename, file-like object, '
                 'or SICDDetails object.')
-        NITFReader.__init__(self, nitf_details, reader_type='SICD')
+
         SICDTypeReader.__init__(self, nitf_details.sicd_meta)
+        NITFReader.__init__(self, nitf_details, reader_type='SICD')
 
     @property
     def nitf_details(self):

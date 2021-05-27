@@ -1651,8 +1651,8 @@ class PALSARReader(BaseReader, SICDTypeReader):
             data_sizes.append((sicd.ImageData.NumCols, sicd.ImageData.NumRows))
             chippers.append(img_details.construct_chipper(sicd.SCPCOA.SideOfTrack == 'L'))
 
-        BaseReader.__init__(self, tuple(chippers), reader_type="SICD")
         SICDTypeReader.__init__(self, tuple(sicds))
+        BaseReader.__init__(self, tuple(chippers), reader_type="SICD")
 
     @property
     def file_name(self):
