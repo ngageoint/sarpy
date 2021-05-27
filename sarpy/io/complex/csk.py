@@ -26,6 +26,7 @@ except ImportError:
     csk_addin = None
 
 from sarpy.compliance import string_types, bytes_to_string
+from sarpy.io.complex.base import SICDTypeReader
 from sarpy.io.complex.sicd_elements.blocks import Poly1DType, Poly2DType, RowColType
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.complex.sicd_elements.CollectionInfo import CollectionInfoType, RadarModeType
@@ -688,7 +689,7 @@ class H5Chipper(BaseChipper):
             return data
 
 
-class CSKReader(BaseReader):
+class CSKReader(BaseReader, SICDTypeReader):
     """
     Gets a reader type object for Cosmo Skymed files
     """
@@ -723,7 +724,9 @@ class CSKReader(BaseReader):
 
             sicds.append(sicd_data[band_name])
             chippers.append(H5Chipper(csk_details.file_name, the_band, shape_dict[band_name], symmetry))
-        super(CSKReader, self).__init__(tuple(sicds), tuple(chippers), reader_type="SICD")
+
+        BaseReader.__init__(self, tuple(chippers), reader_type="SICD")
+        SICDTypeReader.__init__(self, tuple(sicds))
 
     @property
     def csk_details(self):

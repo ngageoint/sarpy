@@ -2,6 +2,10 @@
 Functionality for reading SIO data into a SICD model.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = ("Thomas McCullough", "Wade Schwartzkopf")
+
+
 import os
 import struct
 import logging
@@ -10,20 +14,17 @@ from typing import Union, Dict, Tuple
 
 import numpy
 
+from sarpy.io.general.base import BaseReader, BIPChipper, BIPWriter
+from sarpy.io.complex.base import SICDTypeReader
 from sarpy.io.complex.sicd_elements.blocks import RowColType
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.complex.sicd_elements.ImageData import ImageDataType, FullImageType
-from sarpy.io.general.base import BaseReader, BIPChipper, BIPWriter
 from sarpy.io.complex.sicd import complex_to_amp_phase, complex_to_int, amp_phase_to_complex
 from sarpy.io.general.utils import parse_xml_from_string, is_file_like
-
-__classification__ = "UNCLASSIFIED"
-__author__ = ("Thomas McCullough", "Wade Schwartzkopf")
 
 
 ########
 # base expected functionality for a module with an implemented Reader
-
 
 def is_a(file_name):
     """
@@ -288,7 +289,7 @@ class SIODetails(object):
 #######
 #  The actual reading implementation
 
-class SIOReader(BaseReader):
+class SIOReader(BaseReader, SICDTypeReader):
     __slots__ = ('_sio_details', )
 
     def __init__(self, sio_details):
@@ -318,7 +319,9 @@ class SIOReader(BaseReader):
                              raw_bands, output_bands, output_dtype,
                              symmetry=sio_details.symmetry, transform_data=transform_data,
                              data_offset=sio_details.data_offset)
-        super(SIOReader, self).__init__(sicd_meta, chipper, reader_type="SICD")
+
+        BaseReader.__init__(self, chipper, reader_type="SICD")
+        SICDTypeReader.__init__(self, sicd_meta)
 
     @property
     def sio_details(self):

@@ -487,7 +487,7 @@ class CPHDReader1_0(CPHDReader):
         self._support_array_memmap = None  # type: Union[None, Dict[str, numpy.ndarray]]
         self._cphd_details = _validate_cphd_details(cphd_details, version='1.0')
         chipper = self._create_chippers()
-        BaseReader.__init__(self, None, chipper, reader_type="CPHD")
+        BaseReader.__init__(self, chipper, reader_type="CPHD")
         self._create_pvp_memmaps()
         self._create_support_array_memmaps()
 
@@ -782,7 +782,7 @@ class CPHDReader0_3(CPHDReader):
 
         self._cphd_details = _validate_cphd_details(cphd_details, version='0.3')
         chipper = self._create_chippers()
-        BaseReader.__init__(self, None, chipper, reader_type="CPHD")
+        BaseReader.__init__(self, chipper, reader_type="CPHD")
         self._create_pvp_memmaps()
 
     @property

@@ -1,6 +1,9 @@
 """
-The base elements for reading and writing complex data files.
+The general base elements for reading and writing image files.
 """
+
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
 
 import os
 import logging
@@ -9,13 +12,8 @@ from typing import Union, Tuple, BinaryIO, Callable
 import numpy
 
 from sarpy.compliance import int_func, integer_types, string_types
-from sarpy.io.complex.sicd_elements.SICD import SICDType
-from sarpy.io.complex.sicd_elements.utils import is_general_match
 from sarpy.io.general.utils import validate_range, reverse_range, is_file_like
 
-
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
 
 ##################
 # module variables
@@ -897,7 +895,7 @@ class AggregateReader(BaseReader):
 
         # prepare the index mapping workspace
         index_mapping = []
-        # assemble the sicd_meta and chipper arguments
+        # assemble the chipper arguments
         the_chippers = []
         for i, reader in enumerate(self._readers):
             for j, chipper in enumerate(reader._get_chippers_as_tuple()):
@@ -931,14 +929,12 @@ class FlatReader(BaseReader):
     Class for passing a numpy array or memmap straight through as a reader.
     """
 
-    def __init__(self, sicd_meta, array, reader_type='OTHER', output_bands=None, output_dtype=None,
+    def __init__(self, array, reader_type='OTHER', output_bands=None, output_dtype=None,
                  symmetry=(False, False, False), transform_data=None, limit_to_raw_bands=None):
         """
 
         Parameters
         ----------
-        sicd_meta : None|SICDType
-            `None`, or the SICD metadata object
         array : numpy.ndarray
         reader_type : str
             What kind of reader is this? Should be "SICD", or "OTHER" here. If SICD,
@@ -980,7 +976,7 @@ class FlatReader(BaseReader):
         chipper = BIPChipper(
             array, raw_dtype, data_size, raw_bands, output_bands, output_dtype,
             symmetry=symmetry, transform_data=transform_data, limit_to_raw_bands=limit_to_raw_bands)
-        super(FlatReader, self).__init__(sicd_meta, chipper, reader_type=reader_type)
+        super(FlatReader, self).__init__(chipper, reader_type=reader_type)
 
     @property
     def file_name(self):

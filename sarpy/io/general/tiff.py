@@ -2,6 +2,9 @@
 Module providing api consistent with other file types for reading tiff files.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = ("Thomas McCullough", "Daniel Haverporth")
+
 # It was the original intent to use gdal for the bulk of tiff reading
 # Unfortunately, the necessary sarpy functionality can only be obtained by
 # gdal_dataset.GetVirtualMemArray(). As of July 2020, this is supported only
@@ -13,13 +16,10 @@ import os
 
 import numpy
 import re
+from typing import Tuple
 
 from sarpy.compliance import int_func
 from sarpy.io.general.base import BaseReader, BIPChipper
-
-
-__classification__ = "UNCLASSIFIED"
-__author__ = ("Thomas McCullough", "Daniel Haverporth")
 
 
 _BASELINE_TAGS = {
@@ -474,16 +474,15 @@ class NativeTiffChipper(BIPChipper):
 
 
 class TiffReader(BaseReader):
-    __slots__ = ('_tiff_details', '_sicd_meta', '_chipper')
+    __slots__ = ('_tiff_details', )
     _DEFAULT_SYMMETRY = (False, False, False)
 
-    def __init__(self, tiff_details, sicd_meta=None, symmetry=None):
+    def __init__(self, tiff_details, symmetry=None):
         """
 
         Parameters
         ----------
         tiff_details : TiffDetails
-        sicd_meta : None|sarpy.io.complex.sicd_elements.SICD.SICDType
         symmetry : Tuple[bool]
         """
 
@@ -498,7 +497,7 @@ class TiffReader(BaseReader):
             symmetry = self._DEFAULT_SYMMETRY
 
         chipper = NativeTiffChipper(tiff_details, symmetry=symmetry)
-        super(TiffReader, self).__init__(sicd_meta, chipper, reader_type="OTHER")
+        super(TiffReader, self).__init__(chipper, reader_type="OTHER")
 
     @property
     def tiff_details(self):

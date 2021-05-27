@@ -2,6 +2,10 @@
 Functionality for reading Sentinel-1 data into a SICD model.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = ("Thomas McCullough", "Daniel Haverporth")
+
+
 import os
 import logging
 from datetime import datetime
@@ -18,6 +22,7 @@ from sarpy.io.general.base import SubsetReader, BaseReader
 from sarpy.io.general.tiff import TiffDetails, TiffReader
 from sarpy.io.general.utils import get_seconds, parse_timestring, is_file_like
 
+from sarpy.io.complex.base import SICDTypeReader
 from sarpy.io.complex.sicd_elements.blocks import Poly1DType, Poly2DType
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.complex.sicd_elements.CollectionInfo import CollectionInfoType, RadarModeType
@@ -35,13 +40,9 @@ from sarpy.io.complex.sicd_elements.Radiometric import RadiometricType, NoiseLev
 from sarpy.geometry.geocoords import geodetic_to_ecf
 from sarpy.io.complex.utils import two_dim_poly_fit, get_im_physical_coords
 
-__classification__ = "UNCLASSIFIED"
-__author__ = ("Thomas McCullough", "Daniel Haverporth")
-
 
 ########
 # base expected functionality for a module with an implemented Reader
-
 
 def is_a(file_name):
     """
@@ -689,7 +690,8 @@ class SentinelDetails(object):
             # SCPPixel - points at which to interpolate geo_pixels & geo_coords data
             scp_pixels = numpy.zeros((count, 2), dtype=numpy.float64)
             scp_pixels[:, 0] = int((out_sicd.ImageData.NumRows - 1)/2.)
-            scp_pixels[:, 1] = int((out_sicd.ImageData.NumCols - 1)/2.) + out_sicd.ImageData.NumCols*(numpy.arange(count, dtype=numpy.float64))
+            scp_pixels[:, 1] = int((out_sicd.ImageData.NumCols - 1)/2.) + \
+                               out_sicd.ImageData.NumCols*(numpy.arange(count, dtype=numpy.float64))
             scps = numpy.zeros((count, 3), dtype=numpy.float64)
             for j in range(3):
                 scps[:, j] = griddata(geo_pixels, geo_coords[:, j], scp_pixels)
@@ -1020,7 +1022,7 @@ class SentinelDetails(object):
         return out
 
 
-class SentinelReader(BaseReader):
+class SentinelReader(BaseReader, SICDTypeReader):
     """
     Gets a reader type object for Sentinel-1 SAR files.
     """
@@ -1045,29 +1047,34 @@ class SentinelReader(BaseReader):
         symmetry = (False, False, True)  # True for all Sentinel-1 data
         readers = []
         sicd_collection = self._sentinel_details.get_sicd_collection()
+        sicd_collection_out = []
         for data_file, sicds in sicd_collection:
             tiff_details = TiffDetails(data_file)
             if isinstance(sicds, SICDType):
-                readers.append(TiffReader(tiff_details, sicd_meta=sicds, symmetry=symmetry))
+                readers.append(TiffReader(tiff_details, symmetry=symmetry))
+                sicd_collection_out.append(sicds)
             elif len(sicds) == 1:
-                readers.append(TiffReader(tiff_details, sicd_meta=sicds[0], symmetry=symmetry))
+                readers.append(TiffReader(tiff_details, symmetry=symmetry))
+                sicd_collection_out.append(sicds[0])
             else:
                 # no need for SICD here - we're using subreaders
-                p_reader = TiffReader(tiff_details, sicd_meta=None, symmetry=symmetry)
+                p_reader = TiffReader(tiff_details, symmetry=symmetry)
                 begin_col = 0
                 for sicd in sicds:
                     assert isinstance(sicd, SICDType)
                     end_col = begin_col + sicd.ImageData.NumCols
                     dim1bounds = (0, tiff_details.tags['ImageWidth'])
                     dim2bounds = (begin_col, end_col)
-                    readers.append(SubsetReader(p_reader, sicd, dim1bounds, dim2bounds))
+                    readers.append(SubsetReader(p_reader, dim1bounds, dim2bounds))
                     begin_col = end_col
+                    sicd_collection_out.append(sicd)
 
         self._readers = tuple(readers)  # type: Tuple[Union[TiffReader, SubsetReader]]
 
-        sicd_tuple = tuple(reader.sicd_meta for reader in readers)
         chipper_tuple = tuple(reader._chipper for reader in readers)
-        super(SentinelReader, self).__init__(sicd_tuple, chipper_tuple, reader_type="SICD")
+
+        BaseReader.__init__(self, chipper_tuple, reader_type="SICD")
+        SICDTypeReader.__init__(self, tuple(sicd_collection_out))
 
     @property
     def sentinel_details(self):
