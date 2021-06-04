@@ -983,11 +983,12 @@ class NITFReader(BaseReader):
             if bpp not in [8, 16]:
                 raise ValueError(
                     'Got PVTYPE = C and NBPP = {} (not 64 or 128), which is unsupported.'.format(nbpp))
+            bands = len(img_header.Bands)
             return (
-                numpy.dtype('>f{}'.format(int(bpp/2))),
+                numpy.dtype('>c{}'.format(bpp)),
                 numpy.complex64,
-                2*len(img_header.Bands),
-                len(img_header.Bands),
+                bands,
+                bands,
                 'COMPLEX')
 
     @staticmethod
