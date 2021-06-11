@@ -1,4 +1,5 @@
 # This details the important differences introduced in sarpy 1.2
 
-* .1 - Bug fixes for complex NITF construction, the Poly2DType shift method, and BSQChipper
+* .1 - Bug fixes for complex NITF construction, the Poly2DType shift method,
+       the BSQChipper, and NITF writing for an extra long/wide image
 * .0 - Initialized with streamlining and simplification of reader structure

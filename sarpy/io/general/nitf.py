@@ -2550,7 +2550,7 @@ class NITFWriter(AbstractWriter):
         for img_index in self._img_groups[index]:
             details = self._img_details[img_index]
 
-            overall_inds, this_inds = details.get_overlap(index_range)
+            this_inds, overall_inds = details.get_overlap(index_range)
             if overall_inds is None:
                 # there is no overlap here, so skip
                 continue
