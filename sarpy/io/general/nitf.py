@@ -983,11 +983,12 @@ class NITFReader(BaseReader):
             if bpp not in [8, 16]:
                 raise ValueError(
                     'Got PVTYPE = C and NBPP = {} (not 64 or 128), which is unsupported.'.format(nbpp))
+            bands = len(img_header.Bands)
             return (
-                numpy.dtype('>f{}'.format(int(bpp/2))),
+                numpy.dtype('>c{}'.format(bpp)),
                 numpy.complex64,
-                2*len(img_header.Bands),
-                len(img_header.Bands),
+                bands,
+                bands,
                 'COMPLEX')
 
     @staticmethod
@@ -2549,7 +2550,7 @@ class NITFWriter(AbstractWriter):
         for img_index in self._img_groups[index]:
             details = self._img_details[img_index]
 
-            overall_inds, this_inds = details.get_overlap(index_range)
+            this_inds, overall_inds = details.get_overlap(index_range)
             if overall_inds is None:
                 # there is no overlap here, so skip
                 continue
