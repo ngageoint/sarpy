@@ -1188,7 +1188,7 @@ class Poly2DType(Serializable, Arrayable):
             for i in range(siz):
                 index = siz-i-1
                 if i > 0:
-                    out[:, index:siz-1] -= t1_shift*out[:, index+1:siz]
+                    out[:, index:siz-1] -= t2_shift*out[:, index+1:siz]
         if t2_scale != 1 and out.shape[1] > 1:
             out *= numpy.power(t2_scale, numpy.arange(out.shape[1]))
 
