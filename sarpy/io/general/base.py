@@ -1180,8 +1180,11 @@ class BIPChipper(BaseChipper):
                                                     mode='r',
                                                     offset=data_offset,
                                                     shape=self._shape)
-                except Exception:
+                except Exception as e:
                     # fall back to direct reading
+                    logging.error(
+                        'Error setting up a BIP chipper - {}\n'
+                        'This may actually be fatal.'.format(e))
                     self._memory_map = None
             else:
                 self._memory_map = None
@@ -1297,6 +1300,11 @@ class BIPChipper(BaseChipper):
         total_entries = int_func(rows)*self._shape[1]*self._raw_bands
         total_size = int_func(rows)*stride
         data = self._file_object.read(total_size)
+        if len(data) != total_size:
+            raise ValueError(
+                'Tried to read {} bytes of data, but received {}.\n'
+                'The most likely reason for this is a malformed chipper, \n'
+                'which attempts to read more data than the file contains'.format(total_size, len(data)))
         # cast and shape
         data = numpy.frombuffer(data, self._raw_dtype, total_entries)
         data = numpy.reshape(data, (rows, self._shape[1], self._raw_bands))
@@ -1367,8 +1375,8 @@ class BSQChipper(BaseChipper):
 
     def _read_raw_fun(self, range1, range2):
         range1, range2 = self._reorder_arguments(range1, range2)
-        rows_size = int_func((range1[1]-range1[0])/range1[2])
-        cols_size = int_func((range2[1]-range2[0])/range2[2])
+        rows_size = int_func(numpy.ceil((range1[1]-range1[0])/range1[2]))
+        cols_size = int_func(numpy.ceil((range2[1]-range2[0])/range2[2]))
 
         if self._limit_to_raw_bands is None:
             out = numpy.zeros((rows_size, cols_size, self.output_bands), dtype=self._dtype)
