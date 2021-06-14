@@ -210,7 +210,7 @@ class NITFDetails(object):
             # seek to header length field
             self._file_object.seek(68, os.SEEK_CUR)
             header_length = int_func(self._file_object.read(6))
-            self._file_object.seek(0, os.SEEK_CUR)
+            self._file_object.seek(0, os.SEEK_SET)
             header_string = self._file_object.read(header_length)
             self._nitf_header = NITFHeader0.from_bytes(header_string, 0)
         else:
@@ -825,7 +825,12 @@ def single_lut_conversion(lookup_table):
         if len(data.shape) == 3 and data.shape[2] != 1:
             raise ValueError('Requires a three-dimensional numpy.ndarray, '
                              'with single band in the last dimension. Got shape {}'.format(data.shape))
-        return lookup_table[data[:, :, 0]]
+        temp = numpy.reshape(data, (-1, ))
+        out = lookup_table[temp]
+        if lookup_table.ndim == 2:
+            return numpy.reshape(out, (data.shape[0], data.shape[1], lookup_table.shape[1]))
+        else:
+            return numpy.reshape(out, (data.shape[0], data.shape[1], 1))
     return converter
 
 
@@ -965,10 +970,10 @@ class NITFReader(BaseReader):
             if lut.ndim == 1:
                 return numpy.dtype('>u{}'.format(bpp)), numpy.dtype('>u1'), 1, 1, single_lut_conversion(lut)
             else:
-                return numpy.dtype('>u{}'.format(bpp)), numpy.dtype('>u1'), 1, lut.shape[1], single_lut_conversion(lut)
+                return numpy.dtype('>u{}'.format(bpp)), numpy.dtype('>u1'), 1, lut.shape[0], single_lut_conversion(numpy.transpose(lut))
         if img_header.IREP.strip() == 'RGB/LUT':
             lut = img_header.Bands[0].LUTD
-            return numpy.dtype('>u1'), numpy.dtype('>u1'), 1, 3, single_lut_conversion(lut)
+            return numpy.dtype('>u1'), numpy.dtype('>u1'), 1, 3, single_lut_conversion(numpy.transpose(lut))
 
         if pvtype == 'INT':
             return numpy.dtype('>u{}'.format(bpp)), numpy.dtype('>u{}'.format(bpp)), \

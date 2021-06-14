@@ -994,6 +994,7 @@ class ImageSegmentHeader0(NITFElement):
         self._IC = None
         self._COMRAT = None
         self._IGEOLO = None
+        self._mask_subheader = None
         super(ImageSegmentHeader0, self).__init__(**kwargs)
 
     @property
