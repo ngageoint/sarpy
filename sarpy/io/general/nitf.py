@@ -210,7 +210,7 @@ class NITFDetails(object):
             # seek to header length field
             self._file_object.seek(68, os.SEEK_CUR)
             header_length = int_func(self._file_object.read(6))
-            self._file_object.seek(0, os.SEEK_CUR)
+            self._file_object.seek(0, os.SEEK_SET)
             header_string = self._file_object.read(header_length)
             self._nitf_header = NITFHeader0.from_bytes(header_string, 0)
         else:
