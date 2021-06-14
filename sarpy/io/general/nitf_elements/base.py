@@ -557,7 +557,6 @@ class NITFElement(BaseNITFElement):
 
         if attribute not in cls._ordering:
             raise ValueError('Unexpected attribute {}'.format(attribute))
-
         if attribute in fields:
             return start
         if attribute in cls._binary_format:

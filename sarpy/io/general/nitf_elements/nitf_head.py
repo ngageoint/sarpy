@@ -273,13 +273,13 @@ class NITFHeader0(NITFElement):
     Security = _NITFElementDescriptor(
         'Security', True, NITFSecurityTags0, default_args={},
         docstring='The image security tags.')  # type: NITFSecurityTags0
-    FSCOP = _IntegerDescriptor(
-        'FSCOP', True, 5, default_value=0,
-        docstring='File Copy Number. This field shall contain the copy number of the file.')  # type: int
-    FSCPYS = _IntegerDescriptor(
-        'FSCPYS', True, 5, default_value=0,
+    FSCOP = _StringDescriptor(
+        'FSCOP', True, 5, default_value='    0',
+        docstring='File Copy Number. This field shall contain the copy number of the file.')  # type: str
+    FSCPYS = _StringDescriptor(
+        'FSCPYS', True, 5, default_value='    0',
         docstring='File Number of Copies. This field shall contain the total number of '
-                  'copies of the file.')  # type: int
+                  'copies of the file.')  # type: str
     ENCRYP = _StringEnumDescriptor(
         'ENCRYP', True, 1, {'0'}, default_value='0',
         docstring='Encryption.')  # type: str
