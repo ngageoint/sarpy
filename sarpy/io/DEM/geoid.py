@@ -50,6 +50,7 @@ import numpy
 
 from sarpy.compliance import string_types
 from sarpy.io.DEM.utils import argument_validation
+from sarpy.io.general.base import SarpyIOError
 
 
 __classification__ = "UNCLASSIFIED"
@@ -122,7 +123,7 @@ def find_geoid_file_from_dir(dir_name, search_files=None):
 
     geoid_dir = os.path.join(dir_name, 'geoid')
     if not os.path.exists(geoid_dir):
-        raise IOError(
+        raise SarpyIOError(
             'Input is a directory, and beneath it we expect to find '
             'files in directory "geoid"')
     if search_files is None:
@@ -144,7 +145,7 @@ def find_geoid_file_from_dir(dir_name, search_files=None):
             break
 
     if our_file is None:
-        raise IOError(
+        raise SarpyIOError(
             'input is a directory and we expect to find one of the files {} '
             'in the directory "geoid" beneath it'.format(search_files))
 
@@ -184,42 +185,42 @@ class GeoidHeight(object):
         with open(file_name, "rb") as f:
             line = f.readline()
             if line != b"P5\012" and line != b"P5\015\012":
-                raise IOError("No PGM header")
+                raise SarpyIOError("No PGM header")
             headerlen = len(line)
             while True:
                 line = f.readline().decode('utf-8')
                 if len(line) == 0:
-                    raise IOError("EOF before end of file header")
+                    raise SarpyIOError("EOF before end of file header")
                 headerlen += len(line)
                 if line.startswith('# Offset '):
                     try:
                         self._offset = int(line[9:])
                     except ValueError as e:
-                        raise IOError("Error reading offset", e)
+                        raise SarpyIOError("Error reading offset", e)
                 elif line.startswith('# Scale '):
                     try:
                         self._scale = float(line[8:])
                     except ValueError as e:
-                        raise IOError("Error reading scale", e)
+                        raise SarpyIOError("Error reading scale", e)
                 elif not line.startswith('#'):
                     try:
                         slin = line.split()
                         self._width, self._height = int(slin[0]), int(slin[1])
                     except ValueError as e:
-                        raise IOError("Bad PGM width&height line", e)
+                        raise SarpyIOError("Bad PGM width&height line", e)
                     break
             line = f.readline().decode('utf-8')
             headerlen += len(line)
             levels = int(line)
             if levels != 65535:
-                raise IOError("PGM file must have 65535 gray levels")
+                raise SarpyIOError("PGM file must have 65535 gray levels")
             if self._offset is None:
-                raise IOError("PGM file does not contain offset")
+                raise SarpyIOError("PGM file does not contain offset")
             if self._scale is None:
-                raise IOError("PGM file does not contain scale")
+                raise SarpyIOError("PGM file does not contain scale")
 
             if self._width < 2 or self._height < 2:
-                raise IOError("Raster size too small")
+                raise SarpyIOError("Raster size too small")
             self._header_length = headerlen
 
         self._memory_map = numpy.memmap(file_name,

@@ -12,6 +12,7 @@ from sarpy.compliance import integer_types, string_types
 from sarpy.io.DEM.DEM import DEMList, DEMInterpolator
 from sarpy.io.DEM.utils import argument_validation
 from sarpy.io.DEM.geoid import GeoidHeight
+from sarpy.io.general.base import SarpyIOError
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
@@ -269,7 +270,7 @@ class DTEDReader(object):
             header = struct.unpack('>80s', fi.read(80))[0].decode('utf-8')
 
         if header[:3] != 'UHL':
-            raise IOError('File {} does not appear to be a DTED file.'.format(self._file_name))
+            raise SarpyIOError('File {} does not appear to be a DTED file.'.format(self._file_name))
 
         lon = float(header[4:7]) + float(header[7:9])/60. + float(header[9:11])/3600.
         lon = -lon if header[11] == 'W' else lon

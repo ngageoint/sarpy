@@ -3,16 +3,16 @@ This module provide utilities for opening any files analogous to Sensor
 Independent Derived Data, namely detected images in the ground plane.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
+
 import os
 import sys
 import pkgutil
 from importlib import import_module
 
-from sarpy.io.general.base import BaseReader
-
-
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
+from sarpy.io.general.base import BaseReader, SarpyIOError
 
 
 ###########
@@ -93,11 +93,11 @@ def open_product(file_name):
 
     Raises
     ------
-    IOError
+    SarpyIOError
     """
 
     if not os.path.exists(file_name):
-        raise IOError('File {} does not exist.'.format(file_name))
+        raise SarpyIOError('File {} does not exist.'.format(file_name))
     # parse openers, if not already done
     parse_openers()
     # see if we can find a reader though trial and error
@@ -107,4 +107,4 @@ def open_product(file_name):
             return reader
 
     # If for loop completes, no matching file format was found.
-    raise IOError('Unable to determine product image format.')
+    raise SarpyIOError('Unable to determine product image format.')

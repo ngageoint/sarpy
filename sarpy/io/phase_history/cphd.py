@@ -11,7 +11,7 @@ import numpy
 
 from sarpy.compliance import int_func, integer_types, string_types
 from sarpy.io.general.utils import parse_xml_from_string, validate_range, is_file_like
-from sarpy.io.general.base import AbstractWriter, BaseReader, BIPChipper
+from sarpy.io.general.base import AbstractWriter, BaseReader, BIPChipper, SarpyIOError
 
 from sarpy.io.phase_history.cphd1_elements.utils import binary_format_string_to_dtype
 # noinspection PyProtectedMember
@@ -42,7 +42,7 @@ def is_a(file_name):
         cphd_details = CPHDDetails(file_name)
         logging.info('File {} is determined to be a CPHD version {} file.'.format(file_name, cphd_details.cphd_version))
         return CPHDReader(cphd_details)
-    except IOError:
+    except SarpyIOError:
         # we don't want to catch parsing errors, for now?
         return None
 
@@ -74,7 +74,7 @@ class CPHDDetails(object):
 
         if isinstance(file_object, string_types):
             if not os.path.exists(file_object) or not os.path.isfile(file_object):
-                raise IOError('path {} does not exist or is not a file'.format(file_object))
+                raise SarpyIOError('path {} does not exist or is not a file'.format(file_object))
             self._file_name = file_object
             self._file_object = open(file_object, 'rb')
             self._close_after = True
@@ -93,7 +93,7 @@ class CPHDDetails(object):
         if not isinstance(head_bytes, bytes):
             raise ValueError('Input file like object not open in bytes mode.')
         if not head_bytes.startswith(b'CPHD'):
-            raise IOError('File {} does not appear to be a CPHD file.'.format(self.file_name))
+            raise SarpyIOError('File {} does not appear to be a CPHD file.'.format(self.file_name))
 
         self._extract_version()
         self._extract_header()
@@ -957,7 +957,7 @@ class CPHDWriter1_0(AbstractWriter):
         self._cphd_header = cphd_meta.make_file_header()
 
         if check_existence and os.path.exists(file_name):
-            raise IOError(
+            raise SarpyIOError(
                 'File {} already exists, and a new CPHD file can not be created '
                 'at this location'.format(file_name))
         super(CPHDWriter1_0, self).__init__(file_name)
@@ -1434,7 +1434,7 @@ class CPHDWriter1_0(AbstractWriter):
         fully_written = self._check_fully_written()
         self._closed = True
         if not fully_written:
-            raise IOError('CPHD file {} is not fully written'.format(self._file_name))
+            raise SarpyIOError('CPHD file {} is not fully written'.format(self._file_name))
 
     def write_file(self, pvp_block, signal_block, support_block=None):
         """

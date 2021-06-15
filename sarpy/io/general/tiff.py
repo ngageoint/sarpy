@@ -19,7 +19,7 @@ import re
 from typing import Tuple
 
 from sarpy.compliance import int_func
-from sarpy.io.general.base import BaseReader, BIPChipper
+from sarpy.io.general.base import BaseReader, BIPChipper, SarpyIOError
 
 
 _BASELINE_TAGS = {
@@ -155,7 +155,7 @@ def is_a(file_name):
         tiff_details = TiffDetails(file_name)
         logging.info('File {} is determined to be a tiff file.'.format(file_name))
         return TiffReader(tiff_details)
-    except IOError:
+    except SarpyIOError:
         # we don't want to catch parsing errors, for now
         return None
 
@@ -194,25 +194,25 @@ class TiffDetails(object):
             try:
                 fi_endian = fi.read(2).decode('utf-8')
             except:
-                raise IOError('Not a TIFF file.')
+                raise SarpyIOError('Not a TIFF file.')
 
             if fi_endian == 'II':
                 self._endian = '<'
             elif fi_endian == 'MM':
                 self._endian = '>'
             else:
-                raise IOError('Invalid tiff endian string {}'.format(fi_endian))
+                raise SarpyIOError('Invalid tiff endian string {}'.format(fi_endian))
             # check the magic number
             self._magic_number = numpy.fromfile(fi, dtype='{}i2'.format(self._endian), count=1)[0]
             if self._magic_number not in [42, 43]:
-                raise IOError('Not a valid tiff file, got magic number {}'.format(self._magic_number))
+                raise SarpyIOError('Not a valid tiff file, got magic number {}'.format(self._magic_number))
 
             if self._magic_number == 43:
                 rhead = numpy.fromfile(fi, dtype='{}i2'.format(self._endian), count=2)
                 if rhead[0] != 8:
-                    raise IOError('Not a valid bigtiff. The offset size is given as {}'.format(rhead[0]))
+                    raise SarpyIOError('Not a valid bigtiff. The offset size is given as {}'.format(rhead[0]))
                 if rhead[1] != 0:
-                    raise IOError('Not a valid bigtiff. The reserved entry of '
+                    raise SarpyIOError('Not a valid bigtiff. The reserved entry of '
                                   'the header is given as {} != 0'.format(rhead[1]))
         self._file_name = file_name
         self._tags = None

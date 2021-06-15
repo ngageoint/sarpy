@@ -22,6 +22,18 @@ READER_TYPES = ('SICD', 'SIDD', 'CPHD', 'OTHER')
 
 
 #################
+# some custom exceptions
+
+class SarpyError(Exception):
+    """A custom base exception class"""
+    pass
+
+
+class SarpyIOError(SarpyError):
+    """A custom exception class for discovered input/output errors."""
+
+
+#################
 # Chipper definitions - this is base functionality for the most basic reading
 
 def validate_transform_data(transform_data):
@@ -1190,9 +1202,9 @@ class BIPChipper(BaseChipper):
                 self._memory_map = None
         elif isinstance(data_input, str):
             if not os.path.isfile(data_input):
-                raise IOError('Path {} either does not exists, or is not a file.'.format(data_input))
+                raise SarpyIOError('Path {} either does not exists, or is not a file.'.format(data_input))
             if not os.access(data_input, os.R_OK):
-                raise IOError('User does not appear to have read access for file {}.'.format(data_input))
+                raise SarpyIOError('User does not appear to have read access for file {}.'.format(data_input))
             self._file_name = data_input
             try:
                 self._memory_map = numpy.memmap(self._file_name,
@@ -1489,9 +1501,9 @@ class BIRChipper(BaseChipper):
                 self._memory_map = None
         elif isinstance(data_input, str):
             if not os.path.isfile(data_input):
-                raise IOError('Path {} either does not exists, or is not a file.'.format(data_input))
+                raise SarpyIOError('Path {} either does not exists, or is not a file.'.format(data_input))
             if not os.access(data_input, os.R_OK):
-                raise IOError('User does not appear to have read access for file {}.'.format(data_input))
+                raise SarpyIOError('User does not appear to have read access for file {}.'.format(data_input))
             self._file_name = data_input
             try:
                 self._memory_map = numpy.memmap(self._file_name,

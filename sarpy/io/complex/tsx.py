@@ -18,7 +18,7 @@ from numpy.polynomial import polynomial
 from scipy.constants import speed_of_light
 
 from sarpy.compliance import string_types, int_func
-from sarpy.io.general.base import BaseReader, SubsetChipper, BIPChipper
+from sarpy.io.general.base import BaseReader, SubsetChipper, BIPChipper, SarpyIOError
 from sarpy.io.general.utils import get_seconds, parse_timestring, is_file_like
 
 from sarpy.io.complex.base import SICDTypeReader
@@ -65,7 +65,7 @@ def is_a(file_name):
         tsx_details = TSXDetails(file_name)
         logging.info('Path {} is determined to be a TerraSAR-X file package.'.format(tsx_details.file_name))
         return TSXReader(tsx_details)
-    except (IOError, AttributeError, SyntaxError, ElementTree.ParseError):
+    except (SarpyIOError, AttributeError, SyntaxError, ElementTree.ParseError):
         return None
 
 
@@ -135,9 +135,9 @@ class TSXDetails(object):
         """
 
         if not isinstance(file_name, string_types):
-            raise IOError('file_name must be of string type.')
+            raise SarpyIOError('file_name must be of string type.')
         if not os.path.exists(file_name):
-            raise IOError('file {} does not exist'.format(file_name))
+            raise SarpyIOError('file {} does not exist'.format(file_name))
 
         found_file = None
         if os.path.isdir(file_name):
@@ -148,16 +148,16 @@ class TSXDetails(object):
                     found_file = prop_file
 
             if found_file is None:
-                raise IOError(
+                raise SarpyIOError(
                     'The provided argument is a directory, but we found no level1Product xml file at the top level.')
         elif os.path.splitext(file_name)[1] == '.xml':
             if _is_level1_product(file_name):
                 found_file = file_name
             else:
-                raise IOError(
+                raise SarpyIOError(
                     'The provided argument is an xml file, which is not a level1Product xml file.')
         else:
-            raise IOError(
+            raise SarpyIOError(
                 'The provided argument is an file, but does not have .xml extension.')
 
         if file_name is None:
@@ -931,7 +931,7 @@ class COSARDetails(object):
         self._data_sizes = []
 
         if not os.path.isfile(file_name):
-            raise IOError('path {} is not not a file'.format(file_name))
+            raise SarpyIOError('path {} is not not a file'.format(file_name))
         self._file_name = file_name
         self._file_size = os.path.getsize(file_name)
         self._parse_details()

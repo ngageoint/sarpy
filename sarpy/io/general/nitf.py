@@ -37,7 +37,7 @@ except ImportError:
 
 from sarpy.compliance import int_func, string_types
 from sarpy.io.general.base import BaseReader, AbstractWriter, SubsetChipper, \
-    AggregateChipper, BIPChipper, BIPWriter, BSQChipper, BIRChipper
+    AggregateChipper, BIPChipper, BIPWriter, BSQChipper, BIRChipper, SarpyIOError
 # noinspection PyProtectedMember
 from sarpy.io.general.nitf_elements.nitf_head import NITFHeader, NITFHeader0, \
     ImageSegmentsType, DataExtensionsType, _ItemArrayHeaders
@@ -78,7 +78,7 @@ def is_a(file_name):
         nitf_details = NITFDetails(file_name)
         logging.info('File {} is determined to be a nitf file.'.format(file_name))
         return NITFReader(nitf_details)
-    except IOError:
+    except SarpyIOError:
         # we don't want to catch parsing errors, for now
         return None
 
@@ -167,7 +167,7 @@ class NITFDetails(object):
 
         if isinstance(file_object, string_types):
             if not os.path.isfile(file_object):
-                raise IOError('Path {} is not a file'.format(file_object))
+                raise SarpyIOError('Path {} is not a file'.format(file_object))
             self._file_name = file_object
             self._file_object = open(file_object, 'rb')
             self._close_after = True
@@ -185,15 +185,15 @@ class NITFDetails(object):
         try:
             version_info = self._file_object.read(9)
         except Exception:
-            raise IOError('Not a NITF 2.1 file.')
+            raise SarpyIOError('Not a NITF 2.1 file.')
         if not isinstance(version_info, bytes):
             raise ValueError('Input file like object not open in bytes mode.')
         version_info = version_info.decode('utf-8')
         if version_info[:4] != 'NITF':
-            raise IOError('File {} is not a NITF file.'.format(self._file_name))
+            raise SarpyIOError('File {} is not a NITF file.'.format(self._file_name))
         self._nitf_version = version_info[4:]
         if self._nitf_version not in ['02.10', '02.00']:
-            raise IOError('Unsupported NITF version {} for file {}'.format(self._nitf_version, self._file_name))
+            raise SarpyIOError('Unsupported NITF version {} for file {}'.format(self._nitf_version, self._file_name))
         if self._nitf_version == '02.10':
             self._file_object.seek(354, os.SEEK_SET)  # offset to header length field
             header_length = int_func(self._file_object.read(6))
@@ -2167,7 +2167,7 @@ class NITFWriter(AbstractWriter):
         """
 
         if check_existence and os.path.exists(file_name):
-            raise IOError('Given file {} already exists, and a new NITF file cannot be created here.'.format(file_name))
+            raise SarpyIOError('Given file {} already exists, and a new NITF file cannot be created here.'.format(file_name))
 
         self._writing_chippers = None
         self._nitf_header_written = False
@@ -2603,7 +2603,7 @@ class NITFWriter(AbstractWriter):
             for entry in self._writing_chippers:
                 entry.close()
         if msg is not None:
-            raise IOError(
+            raise SarpyIOError(
                 'The NITF file {} image data is not fully written, and the file is potentially corrupt.\n{}'.format(self._file_name, msg))
 
     # require specific implementations
