@@ -14,7 +14,7 @@ from typing import Union, Dict, Tuple
 
 import numpy
 
-from sarpy.io.general.base import BaseReader, BIPChipper, BIPWriter
+from sarpy.io.general.base import BaseReader, BIPChipper, BIPWriter, SarpyIOError
 from sarpy.io.complex.base import SICDTypeReader
 from sarpy.io.complex.sicd_elements.blocks import RowColType
 from sarpy.io.complex.sicd_elements.SICD import SICDType
@@ -48,7 +48,7 @@ def is_a(file_name):
         sio_details = SIODetails(file_name)
         logging.info('File {} is determined to be a SIO file.'.format(file_name))
         return SIOReader(sio_details)
-    except IOError:
+    except SarpyIOError:
         return None
 
 
@@ -75,20 +75,20 @@ class SIODetails(object):
         self._sicd = None
 
         if not os.path.isfile(file_name):
-            raise IOError('Path {} is not a file'.format(file_name))
+            raise SarpyIOError('Path {} is not a file'.format(file_name))
 
         with open(file_name, 'rb') as fi:
             self._magic_number = struct.unpack('I', fi.read(4))[0]
             endian = self.ENDIAN.get(self._magic_number, None)
             if endian is None:
-                raise IOError('File {} is not an SIO file. Got magic number {}'.format(file_name, self._magic_number))
+                raise SarpyIOError('File {} is not an SIO file. Got magic number {}'.format(file_name, self._magic_number))
 
             # reader basic header - (rows, columns, data_type, pixel_size)?
             init_head = numpy.array(struct.unpack('{}4I'.format(endian), fi.read(16)), dtype=numpy.uint64)
             if not (numpy.all(init_head[2:] == numpy.array([13, 8]))
                     or numpy.all(init_head[2:] == numpy.array([12, 4]))
                     or numpy.all(init_head[2:] == numpy.array([11, 2]))):
-                raise IOError('Got unsupported sio data type/pixel size = {}'.format(init_head[2:]))
+                raise SarpyIOError('Got unsupported sio data type/pixel size = {}'.format(init_head[2:]))
             self._head = init_head
 
     @property
@@ -357,7 +357,7 @@ class SIOWriter(BIPWriter):
         """
 
         if check_existence and os.path.exists(file_name):
-            raise IOError('Given file {} already exists, and a new SIO file cannot be created here.'.format(file_name))
+            raise SarpyIOError('Given file {} already exists, and a new SIO file cannot be created here.'.format(file_name))
 
         # choose magic number (with user data) and corresponding endian-ness
         magic_number = 0xFD7F02FF

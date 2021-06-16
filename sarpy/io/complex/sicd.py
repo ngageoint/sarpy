@@ -13,7 +13,7 @@ import numpy
 
 from sarpy.__about__ import __title__, __version__
 from sarpy.compliance import string_types
-from sarpy.io.general.base import AggregateChipper
+from sarpy.io.general.base import AggregateChipper, SarpyIOError
 from sarpy.io.general.nitf import NITFReader, NITFWriter, ImageDetails, DESDetails, \
     image_segmentation, get_npp_block, interpolate_corner_points_string
 from sarpy.io.general.utils import parse_xml_from_string, is_file_like
@@ -30,11 +30,9 @@ from sarpy.io.general.nitf_elements.image import ImageSegmentHeader, ImageBands,
 if sys.version_info[0] < 3:
     # noinspection PyUnresolvedReferences
     from cStringIO import StringIO
-    NOT_FOUND_ERROR = IOError
 else:
     # noinspection PyUnresolvedReferences
     from io import StringIO
-    NOT_FOUND_ERROR = FileNotFoundError
 
 __classification__ = "UNCLASSIFIED"
 __author__ = ("Thomas McCullough", "Wade Schwartzkopf")
@@ -65,7 +63,7 @@ def is_a(file_name):
             return SICDReader(nitf_details)
         else:
             return None
-    except IOError:
+    except SarpyIOError:
         return None
 
 
@@ -97,16 +95,16 @@ class SICDDetails(NITFDetails):
         self._sicd_meta = None
         super(SICDDetails, self).__init__(file_object)
         if self._nitf_header.ImageSegments.subhead_sizes.size == 0:
-            raise IOError('There are no image segments defined.')
+            raise SarpyIOError('There are no image segments defined.')
         if self._nitf_header.GraphicsSegments.item_sizes.size > 0:
-            raise IOError('A SICD file does not allow for graphics segments.')
+            raise SarpyIOError('A SICD file does not allow for graphics segments.')
         if self._nitf_header.DataExtensions.subhead_sizes.size == 0:
-            raise IOError('A SICD file requires at least one data extension, containing the '
+            raise SarpyIOError('A SICD file requires at least one data extension, containing the '
                           'SICD xml structure.')
         # define the sicd metadata
         self._find_sicd()
         if not self.is_sicd:
-            raise IOError('Could not find the SICD XML des.')
+            raise SarpyIOError('Could not find the SICD XML des.')
         # populate the image details
         self.img_segment_rows = numpy.zeros(self.img_segment_offsets.shape, dtype=numpy.int64)
         self.img_segment_columns = numpy.zeros(self.img_segment_offsets.shape, dtype=numpy.int64)

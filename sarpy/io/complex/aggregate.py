@@ -11,7 +11,7 @@ from typing import List, Tuple
 
 from sarpy.compliance import string_types
 from sarpy.io.complex.converter import open_complex
-from sarpy.io.general.base import BaseReader, AggregateReader
+from sarpy.io.general.base import BaseReader, AggregateReader, SarpyIOError
 from sarpy.io.complex.base import SICDTypeReader
 
 
@@ -61,8 +61,8 @@ class AggregateComplexReader(AggregateReader, SICDTypeReader):
             if isinstance(entry, string_types):
                 try:
                     reader = open_complex(entry)
-                except IOError:
-                    raise IOError(
+                except SarpyIOError:
+                    raise SarpyIOError(
                         'Attempted and failed to open {} (entry {} of the input argument) '
                         'using the complex opener.'.format(entry, i))
             else:

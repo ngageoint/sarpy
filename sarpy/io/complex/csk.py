@@ -16,17 +16,12 @@ from numpy.polynomial import polynomial
 from scipy.constants import speed_of_light
 
 try:
-    import h5py
-except ImportError:
-    h5py = None
-
-try:
     from sarpy.io.complex import csk_addin
 except ImportError:
     csk_addin = None
 
 from sarpy.compliance import string_types, bytes_to_string
-from sarpy.io.complex.base import SICDTypeReader
+from sarpy.io.complex.base import SICDTypeReader, H5Chipper, h5py, is_hdf5
 from sarpy.io.complex.sicd_elements.blocks import Poly1DType, Poly2DType, RowColType
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.complex.sicd_elements.CollectionInfo import CollectionInfoType, RadarModeType
@@ -42,7 +37,7 @@ from sarpy.io.complex.sicd_elements.Timeline import TimelineType, IPPSetType
 from sarpy.io.complex.sicd_elements.ImageFormation import ImageFormationType, TxFrequencyProcType, RcvChanProcType
 from sarpy.io.complex.sicd_elements.RMA import RMAType, INCAType
 from sarpy.io.complex.sicd_elements.Radiometric import RadiometricType
-from sarpy.io.general.base import BaseChipper, BaseReader
+from sarpy.io.general.base import BaseReader, SarpyIOError
 from sarpy.io.general.utils import get_seconds, parse_timestring, is_file_like
 from sarpy.io.complex.utils import fit_time_coa_polynomial, fit_position_xvalidation
 
@@ -66,17 +61,20 @@ def is_a(file_name):
         `CSKReader` instance if Cosmo Skymed file, `None` otherwise
     """
 
-    if h5py is None:
+    if is_file_like(file_name):
         return None
 
-    if is_file_like(file_name):
+    if not is_hdf5(file_name):
+        return None
+
+    if h5py is None:
         return None
 
     try:
         csk_details = CSKDetails(file_name)
         logging.info('File {} is determined to be a Cosmo Skymed file.'.format(file_name))
         return CSKReader(csk_details)
-    except (ImportError, IOError):
+    except SarpyIOError:
         return None
 
 
@@ -114,17 +112,17 @@ class CSKDetails(object):
             raise ImportError("Can't read Cosmo Skymed files, because the h5py dependency is missing.")
 
         if not os.path.isfile(file_name):
-            raise IOError('Path {} is not a file'.format(file_name))
+            raise SarpyIOError('Path {} is not a file'.format(file_name))
 
         with h5py.File(file_name, 'r') as hf:
             try:
                 self._mission_id = hf.attrs['Mission ID'].decode('utf-8')
             except KeyError:
-                raise IOError('The hdf file does not have the top level attribute "Mission ID"')
+                raise SarpyIOError('The hdf file does not have the top level attribute "Mission ID"')
             try:
                 self._product_type = hf.attrs['Product Type'].decode('utf-8')
             except KeyError:
-                raise IOError('The hdf file does not have the top level attribute "Product Type"')
+                raise SarpyIOError('The hdf file does not have the top level attribute "Product Type"')
 
         if self._mission_id not in ['CSK', 'CSG', 'KMPS']:
             raise ValueError('Expected hdf5 attribute `Mission ID` should be one of "CSK", "CSG", or "KMPS"). '
@@ -643,50 +641,7 @@ class CSKDetails(object):
 
 
 ################
-# The CSK chipper and reader
-
-class H5Chipper(BaseChipper):
-    __slots__ = ('_file_name', '_band_name')
-
-    def __init__(self, file_name, band_name, data_size, symmetry, transform_data='COMPLEX'):
-        self._file_name = file_name
-        self._band_name = band_name
-        super(H5Chipper, self).__init__(data_size, symmetry=symmetry, transform_data=transform_data)
-
-    def _read_raw_fun(self, range1, range2):
-        def reorder(tr):
-            if tr[2] > 0:
-                return tr, False
-            else:
-                if tr[1] == -1 and tr[2] < 0:
-                    return (0, tr[0]+1, -tr[2]), True
-                else:
-                    return (tr[1], tr[0], -tr[2]), True
-
-        r1, r2 = self._reorder_arguments(range1, range2)
-        r1, rev1 = reorder(r1)
-        r2, rev2 = reorder(r2)
-        with h5py.File(self._file_name, 'r') as hf:
-            gp = hf[self._band_name]
-            if not isinstance(gp, h5py.Dataset):
-                raise ValueError(
-                    'hdf5 group {} is expected to be a dataset, got type {}'.format(self._band_name, type(gp)))
-            if len(gp.shape) not in (2, 3):
-                raise ValueError('Dataset {} has unexpected shape {}'.format(self._band_name, gp.shape))
-
-            if len(gp.shape) == 3:
-                data = gp[r1[0]:r1[1]:r1[2], r2[0]:r2[1]:r2[2], :]
-            else:
-                data = gp[r1[0]:r1[1]:r1[2], r2[0]:r2[1]:r2[2]]
-
-        if rev1 and rev2:
-            return data[::-1, ::-1]
-        elif rev1:
-            return data[::-1, :]
-        elif rev2:
-            return data[:, ::-1]
-        else:
-            return data
+# The CSK reader
 
 
 class CSKReader(BaseReader, SICDTypeReader):

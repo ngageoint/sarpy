@@ -23,10 +23,10 @@ try:
 except ImportError:
     etree = None
 
+from sarpy.io.general.base import SarpyIOError
 from sarpy.io.general.utils import parse_xml_from_string
 from sarpy.io.complex.sicd_schema import get_schema_path
 from sarpy.io.complex.sicd import SICDDetails, SICDType
-# from sarpy.io.complex.sicd_elements.SICD import SICDType
 
 logger = logging.getLogger('validation')
 
@@ -131,7 +131,7 @@ def check_file(file_name):
                     logger.error('File {} is a NITF file, but is apparently not a SICD file.')
                     return False
                 sicd_xml, root_node, xml_ns = _get_sicd_xml_from_nitf(sicd_details)
-            except IOError:
+            except SarpyIOError:
                 pass
 
     if sicd_xml is None:

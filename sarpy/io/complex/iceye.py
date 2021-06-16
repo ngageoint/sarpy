@@ -13,15 +13,9 @@ import numpy
 from numpy.polynomial import polynomial
 from scipy.constants import speed_of_light
 
-try:
-    import h5py
-except ImportError:
-    h5py = None
-
-# noinspection PyProtectedMember
-from .nisar import _stringify
+from sarpy.io.complex.nisar import _stringify
 from sarpy.compliance import string_types, int_func
-from sarpy.io.complex.base import SICDTypeReader
+from sarpy.io.complex.base import SICDTypeReader, h5py, is_hdf5
 from sarpy.io.complex.sicd_elements.blocks import Poly2DType, Poly1DType
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.complex.sicd_elements.CollectionInfo import CollectionInfoType, RadarModeType
@@ -36,7 +30,7 @@ from sarpy.io.complex.sicd_elements.Timeline import TimelineType, IPPSetType
 from sarpy.io.complex.sicd_elements.ImageFormation import ImageFormationType, TxFrequencyProcType, RcvChanProcType
 from sarpy.io.complex.sicd_elements.RMA import RMAType, INCAType
 from sarpy.io.complex.sicd_elements.Radiometric import RadiometricType
-from sarpy.io.general.base import BaseReader, BaseChipper
+from sarpy.io.general.base import BaseReader, BaseChipper, SarpyIOError
 from sarpy.io.general.utils import get_seconds, parse_timestring, is_file_like
 from sarpy.io.complex.utils import fit_position_xvalidation, two_dim_poly_fit
 
@@ -60,17 +54,20 @@ def is_a(file_name):
         `CSKReader` instance if Cosmo Skymed file, `None` otherwise
     """
 
-    if h5py is None:
+    if is_file_like(file_name):
         return None
 
-    if is_file_like(file_name):
+    if not is_hdf5(file_name):
+        return None
+
+    if h5py is None:
         return None
 
     try:
         iceye_details = ICEYEDetails(file_name)
         logging.info('File {} is determined to be a ICEYE file.'.format(file_name))
         return ICEYEReader(iceye_details)
-    except (ImportError, IOError):
+    except SarpyIOError:
         return None
 
 
@@ -108,16 +105,16 @@ class ICEYEDetails(object):
             raise ImportError("Can't read ICEYE files, because the h5py dependency is missing.")
 
         if not os.path.isfile(file_name):
-            raise IOError('Path {} is not a file'.format(file_name))
+            raise SarpyIOError('Path {} is not a file'.format(file_name))
 
         with h5py.File(file_name, 'r') as hf:
             if 's_q' not in hf or 's_i' not in hf:
-                raise IOError(
+                raise SarpyIOError(
                     'The hdf file does not have the real (s_q) or imaginary dataset (s_i).')
             if 'satellite_name' not in hf:
-                raise IOError('The hdf file does not have the satellite_name dataset.')
+                raise SarpyIOError('The hdf file does not have the satellite_name dataset.')
             if 'product_name' not in hf:
-                raise IOError('The hdf file does not have the product_name dataset.')
+                raise SarpyIOError('The hdf file does not have the product_name dataset.')
 
         self._file_name = file_name
 

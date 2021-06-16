@@ -17,12 +17,13 @@ from sarpy.compliance import string_types
 from sarpy.geometry.geocoords import geodetic_to_ecf, ned_to_ecf
 from sarpy.geometry.latlon import num as lat_lon_parser
 
-from sarpy.io.general.utils import is_file_like
+from sarpy.io.general.base import SarpyIOError
 from sarpy.io.general.nitf import extract_image_corners, NITFDetails, NITFReader
 from sarpy.io.general.nitf_elements.image import ImageSegmentHeader, ImageSegmentHeader0
 from sarpy.io.general.nitf_elements.nitf_head import NITFHeader, NITFHeader0
 from sarpy.io.general.nitf_elements.base import TREList
 from sarpy.io.general.nitf_elements.tres.unclass.CMETAA import CMETAA
+from sarpy.io.general.utils import is_file_like
 
 from sarpy.io.complex.base import SICDTypeReader
 from sarpy.io.complex.sicd_elements.SICD import SICDType
@@ -63,7 +64,7 @@ def final_attempt(file_name):
         nitf_details = ComplexNITFDetails(file_name)
         logging.info('File {} is determined to be some other format complex NITF.')
         return ComplexNITFReader(nitf_details)
-    except (IOError, ValueError):
+    except (SarpyIOError, ValueError):
         return None
 
 
@@ -887,10 +888,10 @@ class ComplexNITFDetails(NITFDetails):
         self._complex_segments = None
         super(ComplexNITFDetails, self).__init__(file_name)
         if self._nitf_header.ImageSegments.subhead_sizes.size == 0:
-            raise IOError('There are no image segments defined.')
+            raise SarpyIOError('There are no image segments defined.')
         self._find_complex_image_segments()
         if self._complex_segments is None:
-            raise IOError('No complex valued (I/Q) image segments found in file {}'.format(file_name))
+            raise SarpyIOError('No complex valued (I/Q) image segments found in file {}'.format(file_name))
 
     @property
     def complex_segments(self):

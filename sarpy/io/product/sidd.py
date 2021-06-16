@@ -16,7 +16,7 @@ import numpy
 
 from sarpy.compliance import int_func, string_types
 from sarpy.io.general.utils import parse_xml_from_string, is_file_like
-from sarpy.io.general.base import AggregateChipper
+from sarpy.io.general.base import AggregateChipper, SarpyIOError
 from sarpy.io.general.nitf import NITFDetails, NITFReader, NITFWriter, ImageDetails, DESDetails, \
     image_segmentation, get_npp_block, interpolate_corner_points_string
 from sarpy.io.general.nitf_elements.des import DataExtensionHeader, XMLDESSubheader
@@ -59,7 +59,7 @@ def is_a(file_name):
             return SIDDReader(nitf_details)
         else:
             return None
-    except IOError:
+    except SarpyIOError:
         # we don't want to catch parsing errors, for now
         return None
 
@@ -92,16 +92,16 @@ class SIDDDetails(NITFDetails):
         self._sicd_meta = None
         super(SIDDDetails, self).__init__(file_object)
         if self._nitf_header.ImageSegments.subhead_sizes.size == 0:
-            raise IOError('There are no image segments defined.')
+            raise SarpyIOError('There are no image segments defined.')
         if self._nitf_header.GraphicsSegments.item_sizes.size > 0:
-            raise IOError('A SIDD file does not allow for graphics segments.')
+            raise SarpyIOError('A SIDD file does not allow for graphics segments.')
         if self._nitf_header.DataExtensions.subhead_sizes.size == 0:
-            raise IOError('A SIDD file requires at least one data extension, containing the '
+            raise SarpyIOError('A SIDD file requires at least one data extension, containing the '
                           'SIDD xml structure.')
         # define the sidd and sicd metadata
         self._find_sidd()
         if not self.is_sidd:
-            raise IOError('Could not find SIDD xml data extensions.')
+            raise SarpyIOError('Could not find SIDD xml data extensions.')
         # populate the image details
         self.img_segment_rows = numpy.zeros(self.img_segment_offsets.shape, dtype=numpy.int64)
         self.img_segment_columns = numpy.zeros(self.img_segment_offsets.shape, dtype=numpy.int64)

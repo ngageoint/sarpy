@@ -24,6 +24,7 @@ except ImportError:
     etree = None
 
 
+from sarpy.io.general.base import SarpyIOError
 from sarpy.io.general.utils import parse_xml_from_string
 
 from sarpy.io.product.sidd import SIDDDetails
@@ -146,7 +147,7 @@ def check_file(file_name):
                     logger.error('File {} is a NITF file, but is apparently not a SIDD file.')
                     return False
                 sidd_xml, root_node, xml_ns = _get_sidd_xml_from_nitf(sicd_details)
-            except IOError:
+            except SarpyIOError:
                 pass
 
     if sidd_xml is None:
