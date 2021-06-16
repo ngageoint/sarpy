@@ -6,13 +6,15 @@ Base common features for complex readers
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
-from typing import Union, Tuple
+import os
+from typing import Union, Tuple, BinaryIO
 import numpy
 import warnings
 
+from sarpy.compliance import string_types
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.complex.sicd_elements.utils import is_general_match
-from sarpy.io.general.base import FlatReader, BaseChipper
+from sarpy.io.general.base import FlatReader, BaseChipper, is_file_like
 
 try:
     import h5py
@@ -221,15 +223,26 @@ def is_hdf5(file_name):
 
     Parameters
     ----------
-    file_name : str
+    file_name : str|BinaryIO
 
     Returns
     -------
     bool
     """
 
-    with open(file_name, 'rb') as fi:
-        header = fi.read(4)
+    if is_file_like(file_name):
+        current_location = file_name.tell()
+        file_name.seek(0, os.SEEK_SET)
+        header = file_name.read(4)
+        file_name.seek(current_location, os.SEEK_SET)
+    elif isinstance(file_name, string_types):
+        if not os.path.isfile(file_name):
+            return False
+
+        with open(file_name, 'rb') as fi:
+            header = fi.read(4)
+    else:
+        return False
 
     out = (header == b'\x89HDF')
     if out:

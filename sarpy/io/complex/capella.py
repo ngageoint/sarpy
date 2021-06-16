@@ -60,9 +60,9 @@ def is_a(file_name):
         return None
 
     try:
-        csk_details = CapellaDetails(file_name)
+        capella_details = CapellaDetails(file_name)
         logging.info('File {} is determined to be a Capella file.'.format(file_name))
-        return CapellaReader(csk_details)
+        return CapellaReader(capella_details)
     except SarpyIOError:
         return None
 

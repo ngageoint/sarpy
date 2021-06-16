@@ -18,7 +18,7 @@ import numpy
 import re
 from typing import Tuple
 
-from sarpy.compliance import int_func
+from sarpy.compliance import int_func, string_types
 from sarpy.io.general.base import BaseReader, BIPChipper, SarpyIOError
 
 
@@ -188,6 +188,9 @@ class TiffDetails(object):
         ----------
         file_name : str
         """
+
+        if not (isinstance(file_name, string_types) and os.path.isfile(file_name)):
+            raise SarpyIOError('Not a TIFF file.')
 
         with open(file_name, 'rb') as fi:
             # Try to read the basic tiff header
