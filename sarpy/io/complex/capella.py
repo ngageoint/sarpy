@@ -16,7 +16,7 @@ from scipy.constants import speed_of_light
 import numpy
 
 from sarpy.compliance import string_types
-from sarpy.io.general.base import BaseReader
+from sarpy.io.general.base import BaseReader, SarpyIOError
 from sarpy.io.general.tiff import TiffDetails, NativeTiffChipper
 from sarpy.io.general.utils import parse_timestring, get_seconds, is_file_like
 from sarpy.io.complex.base import SICDTypeReader
@@ -60,10 +60,10 @@ def is_a(file_name):
         return None
 
     try:
-        csk_details = CapellaDetails(file_name)
+        capella_details = CapellaDetails(file_name)
         logging.info('File {} is determined to be a Capella file.'.format(file_name))
-        return CapellaReader(csk_details)
-    except IOError:
+        return CapellaReader(capella_details)
+    except SarpyIOError:
         return None
 
 
@@ -89,7 +89,7 @@ class CapellaDetails(object):
         self._tiff_details = TiffDetails(file_name)
         # verify that ImageDescription tiff tag exists
         if 'ImageDescription' not in self._tiff_details.tags:
-            raise IOError('No "ImageDescription" tag in the tiff.')
+            raise SarpyIOError('No "ImageDescription" tag in the tiff.')
 
         img_format = self._tiff_details.tags['ImageDescription']
         # verify that ImageDescription has a reasonable format

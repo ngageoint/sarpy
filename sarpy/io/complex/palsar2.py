@@ -16,7 +16,7 @@ from numpy.polynomial import polynomial
 from scipy.constants import speed_of_light
 
 from sarpy.compliance import int_func, string_types
-from sarpy.io.general.base import BaseChipper, SubsetChipper, BaseReader, BIPChipper
+from sarpy.io.general.base import BaseChipper, SubsetChipper, BaseReader, BIPChipper, SarpyIOError
 
 from sarpy.io.general.utils import get_seconds, parse_timestring, is_file_like
 
@@ -67,7 +67,7 @@ def is_a(file_name):
         palsar_details = PALSARDetails(file_name)
         logging.info('File {} is determined to be a PALSAR ALOS2 file.'.format(file_name))
         return PALSARReader(palsar_details)
-    except (ImportError, IOError):
+    except (ImportError, SarpyIOError):
         return None
 
 
@@ -376,7 +376,7 @@ class _IMG_Elements(_CommonElements2):
         """
 
         if _determine_file_type(file_name) != 'IMG':
-            raise IOError('file {} does not appear to be an IMG file'.format(file_name))
+            raise SarpyIOError('file {} does not appear to be an IMG file'.format(file_name))
         self._file_name = file_name  # type: str
         self.signal_elements = None  # type: Union[None, Tuple[_IMG_SignalElements]]
 
@@ -981,7 +981,7 @@ class _LED_Elements(_CommonElements3):
         """
 
         if _determine_file_type(file_name) != 'LED':
-            raise IOError('file {} does not appear to be an LED file'.format(file_name))
+            raise SarpyIOError('file {} does not appear to be an LED file'.format(file_name))
         self._file_name = file_name  # type: str
         with open(self._file_name, 'rb') as fi:
             super(_LED_Elements, self).__init__(fi)
@@ -1041,7 +1041,7 @@ class _TRL_Elements(_CommonElements3):
         """
 
         if _determine_file_type(file_name) != 'TRL':
-            raise IOError('file {} does not appear to be an LED file'.format(file_name))
+            raise SarpyIOError('file {} does not appear to be an LED file'.format(file_name))
         self._file_name = file_name  # type: str
         with open(self._file_name, 'rb') as fi:
             super(_TRL_Elements, self).__init__(fi)
@@ -1133,7 +1133,7 @@ class _VOL_Elements(_CommonElements):
         """
 
         if _determine_file_type(file_name) != 'VOL':
-            raise IOError('file {} does not appear to be an LED file'.format(file_name))
+            raise SarpyIOError('file {} does not appear to be an LED file'.format(file_name))
         self._file_name = file_name  # type: str
         with open(self._file_name, 'rb') as fi:
             super(_VOL_Elements, self).__init__(fi)
@@ -1212,7 +1212,7 @@ class PALSARDetails(object):
         """
 
         if not os.path.exists(file_name):
-            raise IOError('path {} does not exists'.format(file_name))
+            raise SarpyIOError('path {} does not exists'.format(file_name))
 
         if os.path.isfile(file_name):
             the_dir = os.path.split(file_name)[0]
@@ -1240,7 +1240,7 @@ class PALSARDetails(object):
                 vol_files.append(full_file)
 
         if len(img_files) == 0:
-            raise IOError('No IMG files found in directory {}'.format(the_dir))
+            raise SarpyIOError('No IMG files found in directory {}'.format(the_dir))
         if len(led_files) == 0:
             raise ValueError('IMG files found, but no LED files found in directory {}'.format(the_dir))
         if len(led_files) > 1 or len(trl_files) > 1 or len(vol_files) > 1:

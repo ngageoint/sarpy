@@ -18,7 +18,7 @@ from scipy.constants import speed_of_light
 from scipy.interpolate import griddata
 
 from sarpy.compliance import string_types
-from sarpy.io.general.base import SubsetReader, BaseReader
+from sarpy.io.general.base import SubsetReader, BaseReader, SarpyIOError
 from sarpy.io.general.tiff import TiffDetails, TiffReader
 from sarpy.io.general.utils import get_seconds, parse_timestring, is_file_like
 
@@ -66,7 +66,7 @@ def is_a(file_name):
         sentinel_details = SentinelDetails(file_name)
         logging.info('Path {} is determined to be or contain a Sentinel-1 manifest.safe file.'.format(file_name))
         return SentinelReader(sentinel_details)
-    except (IOError, AttributeError, SyntaxError, ElementTree.ParseError):
+    except (SarpyIOError, AttributeError, SyntaxError, ElementTree.ParseError):
         return None
 
 
@@ -101,9 +101,9 @@ class SentinelDetails(object):
             if os.path.exists(t_file_name):
                 file_name = t_file_name
         if not os.path.exists(file_name) or not os.path.isfile(file_name):
-            raise IOError('path {} does not exist or is not a file'.format(file_name))
+            raise SarpyIOError('path {} does not exist or is not a file'.format(file_name))
         if os.path.split(file_name)[1] != 'manifest.safe':
-            raise IOError('The sentinel file is expected to be named manifest.safe, got path {}'.format(file_name))
+            raise SarpyIOError('The sentinel file is expected to be named manifest.safe, got path {}'.format(file_name))
         self._file_name = file_name
 
         self._ns, self._root_node = _parse_xml(file_name)

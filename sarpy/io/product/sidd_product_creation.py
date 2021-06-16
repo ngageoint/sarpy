@@ -26,6 +26,9 @@ Create a variety of sidd products.
     create_dynamic_image_sidd(ortho_helper, '<output directory>', dimension=0, version=2)
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
 import os
 from sarpy.processing.ortho_rectify import OrthorectificationHelper, \
     FullResolutionFetcher, OrthorectificationIterator
@@ -33,10 +36,7 @@ from sarpy.io.product.sidd_structure_creation import create_sidd_structure
 from sarpy.processing.csi import CSICalculator
 from sarpy.processing.subaperture import SubapertureCalculator, SubapertureOrthoIterator
 from sarpy.io.product.sidd import SIDDWriter
-
-
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
+from sarpy.io.general.base import SarpyIOError
 
 
 def _validate_filename(output_directory, output_file, sidd_structure):
@@ -61,7 +61,7 @@ def _validate_filename(output_directory, output_file, sidd_structure):
         full_filename = os.path.join(output_directory, output_file)
     full_filename = os.path.expanduser(full_filename)
     if os.path.exists(full_filename):
-        raise IOError('File {} already exists.'.format(full_filename))
+        raise SarpyIOError('File {} already exists.'.format(full_filename))
     return full_filename
 
 
@@ -114,7 +114,7 @@ def create_detected_image_sidd(
     """
 
     if not os.path.isdir(output_directory):
-        raise IOError('output_directory {} does not exist or is not a directory'.format(output_directory))
+        raise SarpyIOError('output_directory {} does not exist or is not a directory'.format(output_directory))
 
     if not isinstance(ortho_helper, OrthorectificationHelper):
         raise TypeError(
@@ -192,7 +192,7 @@ def create_csi_sidd(
     """
 
     if not os.path.isdir(output_directory):
-        raise IOError('output_directory {} does not exist or is not a directory'.format(output_directory))
+        raise SarpyIOError('output_directory {} does not exist or is not a directory'.format(output_directory))
 
     if not isinstance(ortho_helper, OrthorectificationHelper):
         raise TypeError(
@@ -280,7 +280,7 @@ def create_dynamic_image_sidd(
     """
 
     if not os.path.isdir(output_directory):
-        raise IOError('output_directory {} does not exist or is not a directory'.format(output_directory))
+        raise SarpyIOError('output_directory {} does not exist or is not a directory'.format(output_directory))
 
     if not isinstance(ortho_helper, OrthorectificationHelper):
         raise TypeError(
@@ -316,7 +316,7 @@ def create_dynamic_image_sidd(
     else:
         full_filename = os.path.join(output_directory, output_file)
     if os.path.exists(os.path.expanduser(full_filename)):
-        raise IOError('File {} already exists.'.format(full_filename))
+        raise SarpyIOError('File {} already exists.'.format(full_filename))
     writer = SIDDWriter(full_filename, the_sidds, subap_calculator.sicd if include_sicd else None)
 
     # iterate and write

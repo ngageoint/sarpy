@@ -17,7 +17,7 @@ from typing import Union, Dict, Tuple
 import numpy
 
 from sarpy.compliance import string_types
-from sarpy.io.general.base import AggregateReader
+from sarpy.io.general.base import AggregateReader, SarpyIOError
 from sarpy.io.general.nitf import NITFReader
 from sarpy.geometry.geometry_elements import FeatureCollection, Feature, Geometry
 
@@ -149,16 +149,16 @@ class ChangeDetectionDetails(object):
         self._head_feature = None
 
         if not isinstance(file_name, string_types):
-            raise IOError('file_name is required to be a string path name.')
+            raise SarpyIOError('file_name is required to be a string path name.')
         if not os.path.isfile(file_name):
-            raise IOError('file_name = {} is not a valid existing file'.format(file_name))
+            raise SarpyIOError('file_name = {} is not a valid existing file'.format(file_name))
 
         root_dir, fname = os.path.split(file_name)
         fstem, fext = os.path.splitext(fname)
         if fext not in ['.ntf', '.nitf', '.json']:
-            raise IOError('file_name is expected to have extension .ntf, .nitf, .json')
+            raise SarpyIOError('file_name is expected to have extension .ntf, .nitf, .json')
         if not (fstem.endswith('_C') or fstem.endswith('_M') or fstem.endswith('_R') or fstem.endswith('_V')):
-            raise IOError(
+            raise SarpyIOError(
                 'file_name is expected to follow naming pattern XXX_C.ntf, XXX_M.ntf, XXX_R.ntf, '
                 'or XXX_V.json')
         fstem = fstem[:-2]
@@ -168,7 +168,7 @@ class ChangeDetectionDetails(object):
                 if os.path.isfile(fil):
                     self._file_names[part] = fil
             if part not in self._file_names:
-                raise IOError('Change detection file part {} not found'.format(part))
+                raise SarpyIOError('Change detection file part {} not found'.format(part))
         fil = os.path.join(root_dir, '{}_V.json'.format(fstem))
         if os.path.isfile(fil):
             self._file_names['V'] = fil

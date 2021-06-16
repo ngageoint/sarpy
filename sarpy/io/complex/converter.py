@@ -12,7 +12,7 @@ import logging
 from typing import Union, List, Tuple
 
 from sarpy.compliance import int_func
-from sarpy.io.general.base import BaseReader
+from sarpy.io.general.base import BaseReader, SarpyIOError
 from sarpy.io.general.utils import is_file_like
 from sarpy.io.complex.sicd import SICDWriter
 from sarpy.io.complex.sio import SIOWriter
@@ -115,11 +115,11 @@ def open_complex(file_name):
 
     Raises
     ------
-    IOError
+    SarpyIOError
     """
 
     if (not is_file_like(file_name)) and (not os.path.exists(file_name)):
-        raise IOError('File {} does not exist.'.format(file_name))
+        raise SarpyIOError('File {} does not exist.'.format(file_name))
     # parse openers, if not already done
     parse_openers()
     # see if we can find a reader though trial and error
@@ -134,7 +134,7 @@ def open_complex(file_name):
             return reader
 
     # If for loop completes, no matching file format was found.
-    raise IOError('Unable to determine complex image format.')
+    raise SarpyIOError('Unable to determine complex image format.')
 
 
 class Converter(object):
@@ -175,12 +175,12 @@ class Converter(object):
         """
 
         if not (os.path.exists(output_directory) and os.path.isdir(output_directory)):
-            raise IOError('output directory {} must exist.'.format(output_directory))
+            raise SarpyIOError('output directory {} must exist.'.format(output_directory))
         if output_file is None:
             output_file = reader.get_sicds_as_tuple()[frame].get_suggested_name(frame+1)+'_SICD'
         output_path = os.path.join(output_directory, output_file)
         if check_existence and os.path.exists(output_path):
-            raise IOError('The file {} already exists.'.format(output_path))
+            raise SarpyIOError('The file {} already exists.'.format(output_path))
 
         # validate the output format and fetch the writer type
         if output_format is None:
@@ -391,7 +391,7 @@ def conversion_utility(
             'input_file is expected to be a file name or Reader instance. Got {}'.format(type(input_file)))
 
     if not (os.path.exists(output_directory) and os.path.isdir(output_directory)):
-        raise IOError('output directory {} must exist.'.format(output_directory))
+        raise SarpyIOError('output directory {} must exist.'.format(output_directory))
 
     sicds = reader.get_sicds_as_tuple()
     sizes = reader.get_data_size_as_tuple()
