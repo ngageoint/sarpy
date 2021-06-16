@@ -245,6 +245,6 @@ def is_hdf5(file_name):
         return False
 
     out = (header == b'\x89HDF')
-    if out:
+    if out and h5py is None:
         warnings.warn('The h5py library was not successfully imported, and no hdf5 files can be read')
     return out
