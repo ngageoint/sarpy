@@ -1,5 +1,6 @@
 # This details the important differences introduced in sarpy 1.2
 
+* .5 - Fixing bug in checking the value for SICD.Grid.Type
 * .4 - Replacing the use of IOError with custom error for more appropriate error behavior
 * .3 - Correcting NITF LUT usage
 * .2 - Create appropriate methods for pickling of Serializable type objects

@@ -608,7 +608,7 @@ class SICDType(Serializable):
                     'RMA.INCA parameter are not populated. '
                     'No projection can be done.')
                 return False
-        elif self.Grid.Type == ['XRGYCR', 'XCTYAT', 'PLANE']:
+        elif self.Grid.Type in ['XRGYCR', 'XCTYAT', 'PLANE']:
             if self.Grid.Row.UVectECF is None or self.Grid.Col.UVectECF is None:
                 logging.error(
                     'Grid.Type is one of ["XRGYCR", "XCTYAT", "PLANE"], but the UVectECF parameter of '
