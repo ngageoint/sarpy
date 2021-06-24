@@ -171,24 +171,25 @@ class ImageDataType(Serializable):
             return True
         if len(self.ValidData) < 2:
             return True
-        if self.ValidData[0].Row > self.ValidData[1].Row or \
-                (self.ValidData[0].Row == self.ValidData[1].Row and
-                 self.ValidData[0].Col >= self.ValidData[1].Col):
-            self.log_validity_error(
-                "ValidData must have first vertex with minimum row/column.\n"
-                "Got first two vertices {} and {}".format(self.ValidData[0], self.ValidData[1]))
-            return False
-        # check the details for valid data
-        lin_ring = LinearRing(coordinates=self.ValidData.get_array(dtype=numpy.dtype('float64')))
+
+        value = True
+        valid_data = self.ValidData.get_array(dtype='float64')
+        lin_ring = LinearRing(coordinates=valid_data)
         area = lin_ring.get_area()
         if area == 0:
             self.log_validity_error('ValidData encloses no area.')
-            return False
+            value = False
         elif area > 0:
             self.log_validity_error(
                 "ValidData must be traversed in clockwise direction.")
-            return False
-        return True
+            value = False
+        for i, entry in enumerate(valid_data):
+            if not ((self.FirstRow <= entry[0] < self.FirstRow + self.NumRows) and
+                    (self.FirstCol <= entry[1] < self.FirstCol + self.NumCols)):
+                self.log_validity_warning(
+                    'ValidData entry {} is not contained in the image bounds'.format(i))
+                value = False
+        return value
 
     def _basic_validity_check(self):
         condition = super(ImageDataType, self)._basic_validity_check()
