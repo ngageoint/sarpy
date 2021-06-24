@@ -37,6 +37,7 @@ __author__ = "Thomas McCullough"
 #########
 # Module variables
 _SICD_SPECIFICATION_IDENTIFIER = 'SICD Volume 1 Design & Implementation Description Document'
+
 _SICD_SPECIFICATION_VERSION_1_2 = '1.2'
 _SICD_SPECIFICATION_DATE_1_2 = '2018-12-13T00:00:00Z'
 _SICD_SPECIFICATION_NAMESPACE_1_2 = 'urn:SICD:1.2.1'
