@@ -970,6 +970,27 @@ def _validate_image_form_parameters(the_sicd, alg_type):
             'structure was incorrect.'.format(alg_type, the_sicd.ImageFormation.ImageFormAlgo))
         the_sicd.ImageFormation.ImageFormAlgo = alg_type.upper()
         cond = False
+
+    # verify that the referenced received channels are consistent with radar collection
+    if the_sicd.ImageFormation.RcvChanProc is not None:
+        channels = the_sicd.ImageFormation.RcvChanProc.ChanIndices
+        if len(channels) < 1:
+            the_sicd.ImageFormation.RcvChanProc.log_validity_error('No ChanIndex values populated')
+            cond = False
+        else:
+            rcv_channels = the_sicd.RadarCollection.RcvChannels
+            if rcv_channels is None:
+                the_sicd.ImageFormation.RcvChanProc.log_validity_error(
+                    'Some ChanIndex values are populated, '
+                    'but no RadarCollection.RcvChannels is populated.')
+                cond = False
+            else:
+                for i, entry in channels:
+                    if not (0 < entry <= len(rcv_channels)):
+                        the_sicd.ImageFormation.RcvChanProc.log_validity_error(
+                            'ChanIndex entry {} is populated as {}, but must be in '
+                            'the range [1, {}]'.format(i, entry, len(rcv_channels)))
+                cond = False
     if the_sicd.Grid is None:
         return cond
 
