@@ -15,21 +15,26 @@ For more information, about command line usage, see
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
+
 import logging
 import sys
 import argparse
+import os
+
+from sarpy.compliance import string_types
+from sarpy.io.general.base import SarpyIOError
+from sarpy.io.general.utils import parse_xml_from_string
+from sarpy.io.product.sidd import SIDDDetails
+from sarpy.io.product.sidd_schema import get_schema_path, get_urn_details, \
+    get_specification_identifier
+
+from sarpy.io.product.sidd2_elements.SIDD import SIDDType as SIDDType2
+from sarpy.io.product.sidd1_elements.SIDD import SIDDType as SIDDType1
+
 try:
     from lxml import etree
 except ImportError:
     etree = None
-
-
-from sarpy.io.general.base import SarpyIOError
-from sarpy.io.general.utils import parse_xml_from_string
-
-from sarpy.io.product.sidd import SIDDDetails
-from sarpy.io.product.sidd_schema import get_schema_path
-from sarpy.io.product.sidd2_elements.SIDD import SIDDType
 
 logger = logging.getLogger('validation')
 
@@ -54,9 +59,10 @@ def evaluate_xml_versus_schema(xml_string, urn_string):
     # get schema path
     try:
         the_schema = get_schema_path(urn_string)
-    except ValueError:
-        logger.error('Failed finding the schema for urn {}'.format(urn_string))
+    except KeyError:
+        logger.exception('Failed finding the schema for urn {}'.format(urn_string))
         return False
+
     xml_doc = etree.fromstring(xml_string)
     xml_schema = etree.XMLSchema(file=the_schema)
     validity = xml_schema.validate(xml_doc)
@@ -67,7 +73,68 @@ def evaluate_xml_versus_schema(xml_string, urn_string):
     return validity
 
 
-def _get_sidd_xml_from_nitf(sidd_details):
+def _evaluate_xml_string_validity(xml_string):
+    """
+    Check the validity of the SIDD xml, as defined by the given string.
+
+    Parameters
+    ----------
+    xml_string : str
+
+    Returns
+    -------
+    (bool, str, SICDType)
+    """
+
+    root_node, xml_ns = parse_xml_from_string(xml_string)
+    if 'default' not in xml_ns:
+        raise ValueError(
+            'Could not properly interpret the namespace collection from xml\n{}'.format(xml_ns))
+
+    sidd_urn = xml_ns['default']
+    # check that our urn is mapped
+    try:
+        _ = get_urn_details(sidd_urn)
+        check_schema = True
+    except Exception as e:
+        logger.exception('The SIDD namespace has unrecognized value')
+        check_schema = False
+
+    valid_xml = None
+    if check_schema:
+        valid_xml = evaluate_xml_versus_schema(xml_string, sidd_urn)
+    if valid_xml is None:
+        valid_xml = True
+
+    # perform the various sidd structure checks
+    if sidd_urn == 'urn:SIDD:1.0.0':
+        the_sidd = SIDDType1.from_node(root_node, xml_ns=xml_ns)
+        valid_sidd_contents = the_sidd.is_valid(recursive=True, stack=False)
+    elif sidd_urn == 'urn:SIDD:2.0.0':
+        the_sidd = SIDDType2.from_node(root_node, xml_ns=xml_ns)
+        valid_sidd_contents = the_sidd.is_valid(recursive=True, stack=False)
+    else:
+        raise ValueError('Got unhandled urn {}'.format(sidd_urn))
+    return valid_xml & valid_sidd_contents, sidd_urn, the_sidd
+
+
+def check_sidd_file(nitf_details):
+    """
+    Check the validity of the given NITF file as a SICD file.
+
+    Parameters
+    ----------
+    nitf_details : str|NITFDetails
+
+    Returns
+    -------
+    bool
+    """
+
+    pass
+
+
+def _poo_get_sidd_xml_from_nitf(sidd_details):
     """
     Fetch the collection of xml strings for the SIDD.
 
@@ -111,7 +178,7 @@ def _get_sidd_xml_from_nitf(sidd_details):
     return the_bytes, the_root, the_xml_ns
 
 
-def check_file(file_name):
+def _poo_check_file(file_name):
     """
     Check the SIDD validity for the given file SIDD (i.e. appropriately styled NITF)
     or xml file containing the SIDD structure alone.
@@ -165,6 +232,34 @@ def check_file(file_name):
         valid_sidd_contents = the_sidd.is_valid(recursive=True, stack=False)
         out &= valid_xml & valid_sidd_contents
     return out
+
+
+def check_file(file_name):
+    """
+    Check the validity for the given file SIDD (i.e. appropriately styled NITF)
+    or xml file containing the SIDD structure alone.
+
+    Parameters
+    ----------
+    file_name : str|SIDDDetails
+
+    Returns
+    -------
+    bool
+    """
+
+    if isinstance(file_name, string_types):
+        if not os.path.isfile(file_name):
+            raise ValueError('Got string input, but it is not a valid path')
+
+        # check if this is just an xml file
+        with open(file_name, 'rb') as fi:
+            initial_bits = fi.read(30)
+            if initial_bits.startswith(b'<?xml') or initial_bits.startswith(b'<SIDD'):
+                sicd_xml = fi.read().decode('utf-8')
+                return _evaluate_xml_string_validity(sicd_xml)[0]
+
+    return check_sidd_file(file_name)
 
 
 if __name__ == '__main__':
