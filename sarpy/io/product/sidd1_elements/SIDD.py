@@ -2,12 +2,17 @@
 The SIDDType 1.0 definition.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
+
 import logging
 from typing import Union
 from collections import OrderedDict
 
 # noinspection PyProtectedMember
-from sarpy.io.complex.sicd_elements.base import Serializable, _SerializableDescriptor, DEFAULT_STRICT
+from sarpy.io.complex.sicd_elements.base import Serializable, _SerializableDescriptor, \
+    DEFAULT_STRICT
 from .ProductCreation import ProductCreationType
 from .Display import ProductDisplayType
 from .GeographicAndTarget import GeographicAndTargetType
@@ -18,13 +23,13 @@ from sarpy.io.product.sidd2_elements.ProductProcessing import ProductProcessingT
 from sarpy.io.product.sidd2_elements.Annotations import AnnotationsType
 from sarpy.io.product.sidd2_elements.blocks import ErrorStatisticsType, RadiometricType
 from sarpy.geometry import point_projection
+from sarpy.io.product.sidd_schema import get_specification_identifier
 
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
 
 ############
-# namespace validate and definitIon of required entries in the namespace dictionary
-_SIDD_SPECIFICATION_IDENTIFIER = 'SIDD Volume 1 Design & Implementation Description Document'
+# namespace validate and definition of required entries in the namespace dictionary
+_SIDD_SPECIFICATION_IDENTIFIER = get_specification_identifier()
+
 _SIDD_SPECIFICATION_VERSION = '1.0'
 _SIDD_SPECIFICATION_DATE = '2011-08-31T00:00:00Z'
 _SIDD_URN = 'urn:SIDD:1.0.0'

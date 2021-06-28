@@ -2,6 +2,10 @@
 The SIDDType 2.0 definition.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
+
 import logging
 from typing import Union, Tuple
 from collections import OrderedDict
@@ -22,14 +26,13 @@ from .Annotations import AnnotationsType
 from ..sidd1_elements.SIDD import SIDDType as SIDDType1
 from .blocks import ErrorStatisticsType, RadiometricType, MatchInfoType
 from sarpy.geometry import point_projection
-
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
+from sarpy.io.product.sidd_schema import get_specification_identifier, get_urn_details
 
 
 ############
 # namespace validate and definitIon of required entries in the namespace dictionary
-_SIDD_SPECIFICATION_IDENTIFIER = 'SIDD Volume 1 Design & Implementation Description Document'
+_SIDD_SPECIFICATION_IDENTIFIER = get_specification_identifier()
+
 _SIDD_SPECIFICATION_VERSION = '2.0'
 _SIDD_SPECIFICATION_DATE = '2019-05-31T00:00:00Z'
 _SIDD_URN = 'urn:SIDD:2.0.0'
