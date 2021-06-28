@@ -28,7 +28,6 @@ from sarpy.io.general.nitf import NITFDetails
 from sarpy.io.general.nitf_elements.des import DataExtensionHeader, \
     DataExtensionHeader0
 from sarpy.io.general.utils import parse_xml_from_string
-from sarpy.io.product.sidd import SIDDDetails
 from sarpy.io.product.sidd_schema import get_schema_path, get_urn_details, \
     get_specification_identifier
 
@@ -374,7 +373,7 @@ def check_file(file_name):
 
     Parameters
     ----------
-    file_name : str|SIDDDetails
+    file_name : str|NITFDetails
 
     Returns
     -------
