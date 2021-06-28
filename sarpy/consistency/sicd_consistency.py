@@ -60,7 +60,7 @@ def evaluate_xml_versus_schema(xml_string, urn_string):
     try:
         the_schema = get_schema_path(urn_string)
     except Exception as e:
-        logger.exception('Failed getting the schema for urn {}'.format(urn_string))
+        logger.exception('SICD: Failed getting the schema for urn {}'.format(urn_string))
         return False
 
     xml_doc = etree.fromstring(xml_string)
@@ -68,7 +68,7 @@ def evaluate_xml_versus_schema(xml_string, urn_string):
     validity = xml_schema.validate(xml_doc)
     if not validity:
         for entry in xml_schema.error_log:
-            logger.error('SICD schema validation error on line {}'
+            logger.error('SICD: SICD schema validation error on line {}'
                          '\n\t{}'.format(entry.line, entry.message.encode('utf-8')))
     return validity
 
@@ -87,6 +87,11 @@ def _evaluate_xml_string_validity(xml_string):
     """
 
     root_node, xml_ns = parse_xml_from_string(xml_string)
+    if xml_ns is None:
+        raise ValueError(
+            'SICD XML invalid, because no apparent namespace defined in the xml,\n\t'
+            'which starts `{}...`'.format(xml_string[:15]))
+
     if 'default' not in xml_ns:
         raise ValueError(
             'Could not properly interpret the namespace collection from xml\n{}'.format(xml_ns))
@@ -97,7 +102,7 @@ def _evaluate_xml_string_validity(xml_string):
         _ = get_urn_details(sicd_urn)
         check_schema = True
     except Exception as e:
-        logger.exception('The SICD namespace has unrecognized value')
+        logger.exception('SICD: The SICD namespace has unrecognized value')
         check_schema = False
 
     valid_xml = None
@@ -130,8 +135,10 @@ def check_sicd_data_extension(nitf_details, des_header, xml_string):
     def check_des_header_fields():
         # type: () -> bool
 
-        if des_header.DESTAG.strip() != 'XML_DATA_CONTENT':
-            logger.warning('Found old style SICD DES Header. This is deprecated.')
+        des_id = des_header.DESID.strip() if nitf_details.nitf_version == '02.10' else des_header.DESTAG.strip()
+
+        if des_id != 'XML_DATA_CONTENT':
+            logger.warning('SICD: Found old style SICD DES Header. This is deprecated.')
             return True
 
         # make sure that the NITF urn is evaluated for sensibility
@@ -139,34 +146,34 @@ def check_sicd_data_extension(nitf_details, des_header, xml_string):
         try:
             nitf_urn_details = get_urn_details(nitf_urn)
         except Exception:
-            logger.exception('The SICD DES.DESSHTN must be a recognized urn')
+            logger.exception('SICD: The SICD DES.DESSHTN must be a recognized urn')
             return False
 
         # make sure that the NITF urn and SICD urn actually agree
         header_good = True
         if nitf_urn != xml_urn:
-            logger.error('The SICD DES.DESSHTN ({}) and urn ({}) must agree'.format(nitf_urn, xml_urn))
+            logger.error('SICD: The SICD DES.DESSHTN ({}) and urn ({}) must agree'.format(nitf_urn, xml_urn))
             header_good = False
 
         # make sure that the NITF DES fields are populated appropriately for NITF urn
-        if des_header.UserHeader.DESSHLI.strip() != get_specification_identifier():
+        if des_header.UserHeader.DESSHSI.strip() != get_specification_identifier():
             logger.error(
-                'SICD DES.DESSHLI has value `{}`,\nbut should have value `{}`'.format(
-                    des_header.UserHeader.DESSHLI.strip(), get_specification_identifier()))
+                'SICD: DES.DESSHSI has value `{}`,\n\tbut should have value `{}`'.format(
+                    des_header.UserHeader.DESSHSI.strip(), get_specification_identifier()))
             header_good = False
 
         nitf_version = nitf_urn_details['version']
         if des_header.UserHeader.DESSHSV.strip() != nitf_version:
             logger.error(
-                'SICD DES.DESSHSV has value `{}`,\nbut should have value `{}` based on DES.DESSHTN {}'.format(
+                'SICD: DES.DESSHSV has value `{}`,\n\tbut should have value `{}` based on DES.DESSHTN `{}`'.format(
                     des_header.UserHeader.DESSHSV.strip(), nitf_version, nitf_urn))
             header_good = False
 
         nitf_date = nitf_urn_details['date']
         if des_header.UserHeader.DESSHSD.strip() != nitf_date:
             logger.warning(
-                'SICD DES.DESSHSD has value `{}`,\nbut should have value `{}` based on DES.DESSHTN {}'.format(
-                    des_header.UserHeader.DESSHSV.strip(), nitf_date, nitf_urn))
+                'SICD: DES.DESSHSD has value `{}`,\n\tbut should have value `{}` based on DES.DESSHTN `{}`'.format(
+                    des_header.UserHeader.DESSHSD.strip(), nitf_date, nitf_urn))
         return header_good
 
     def compare_sicd_class():
@@ -174,20 +181,20 @@ def check_sicd_data_extension(nitf_details, des_header, xml_string):
 
         if the_sicd.CollectionInfo is None or the_sicd.CollectionInfo.Classification is None:
             logger.error(
-                'SICD.CollectionInfo.Classification is not populated,\n'
-                'so can not be compared with SICD DES.DESCLAS {}'.format(des_header.Security.CLAS.strip()))
+                'SICD: SICD.CollectionInfo.Classification is not populated,\n\t'
+                'so can not be compared with SICD DES.DESCLAS `{}`'.format(des_header.Security.CLAS.strip()))
             return False
 
         sicd_class = the_sicd.CollectionInfo.Classification
         extracted_class = extract_clas(the_sicd)
         if extracted_class != des_header.Security.CLAS.strip():
             logger.warning(
-                'SICD DES.DESCLAS is {},\nand SICD.CollectionInfo.Classification '
+                'SICD: DES.DESCLAS is `{}`,\n\tand SICD.CollectionInfo.Classification '
                 'is {}'.format(des_header.Security.CLAS.strip(), sicd_class))
 
         if des_header.Security.CLAS.strip() != nitf_details.nitf_header.Security.CLAS.strip():
             logger.warning(
-                'SICD DES.DESCLAS is {},\nand NITF.CLAS is {}'.format(
+                'SICD: DES.DESCLAS is `{}`,\n\tand NITF.CLAS is `{}`'.format(
                     des_header.Security.CLAS.strip(), nitf_details.nitf_header.Security.CLAS.strip()))
         return True
 
@@ -269,13 +276,13 @@ def check_sicd_file(nitf_details):
         # get pixel type
         pixel_type = the_sicd.ImageData.PixelType
         if pixel_type == 'RE32F_IM32F':
-            exp_nbpp = 8
+            exp_nbpp = 64
             exp_pvtype = 'R'
         elif pixel_type == 'RE16I_IM16I':
-            exp_nbpp = 4
+            exp_nbpp = 32
             exp_pvtype = 'SI'
         elif pixel_type == 'AMP8I_PHS8I':
-            exp_nbpp = 2
+            exp_nbpp = 16
             exp_pvtype = 'INT'
         else:
             raise ValueError('Got unexpected pixel type {}'.format(pixel_type))
@@ -286,25 +293,25 @@ def check_sicd_file(nitf_details):
             if img_header.ICAT.strip() != 'SAR':
                 valid_images = False
                 logger.error(
-                    'image segment at index {} of {} has ICAT = `{}`,\nexpected to be `SAR`'.format(
+                    'SICD: image segment at index {} of {} has ICAT = `{}`,\n\texpected to be `SAR`'.format(
                         i, len(nitf_details.img_headers), img_header.ICAT.strip()))
 
             if img_header.PVTYPE.strip() != exp_pvtype:
                 valid_images = False
                 logger.error(
-                    'image segment at index {} of {} has PVTYPE = `{}`,\n'
+                    'SICD: image segment at index {} of {} has PVTYPE = `{}`,\n\t'
                     'expected to be `{}` based on pixel type {}'.format(
                         i, len(nitf_details.img_headers), img_header.PVTYPE.strip(), exp_pvtype, pixel_type))
             if img_header.NBPP != exp_nbpp:
                 valid_images = False
                 logger.error(
-                    'image segment at index {} of {} has NBPP = `{}`,\n'
+                    'SICD: image segment at index {} of {} has NBPP = `{}`,\n\t'
                     'expected to be `{}` based on pixel type {}'.format(
                         i, len(nitf_details.img_headers), img_header.NBPP, exp_nbpp, pixel_type))
 
             if len(img_header.Bands) != 2:
                 valid_images = False
-                logger.error('image segment at index {} of {} does not have two bands'.format(
+                logger.error('SICD: image segment at index {} of {} does not have two (I/Q or M/P) bands'.format(
                     i, len(nitf_details.img_headers)))
                 continue
 
@@ -312,7 +319,7 @@ def check_sicd_file(nitf_details):
                 if img_header.Bands[0].ISUBCAT.strip() != 'M' and img_header.Bands[1].ISUBCAT.strip() != 'P':
                     valid_images = False
                     logger.error(
-                        'pixel_type is {}, image segment at index {} of {}\n'
+                        'SICD: pixel_type is {}, image segment at index {} of {}\n\t'
                         'has bands with ISUBCAT {}, expected ("M", "P")'.format(
                             pixel_type, i, len(nitf_details.img_headers),
                             (img_header.Bands[0].ISUBCAT.strip(), img_header.Bands[1].ISUBCAT.strip())))
@@ -320,7 +327,7 @@ def check_sicd_file(nitf_details):
                 if img_header.Bands[0].ISUBCAT.strip() != 'I' and img_header.Bands[1].ISUBCAT.strip() != 'Q':
                     valid_images = False
                     logger.error(
-                        'pixel_type is {}, image segment at index {} of {}\n'
+                        'SICD: pixel_type is {}, image segment at index {} of {}\n\t'
                         'has bands with ISUBCAT {}, expected ("I", "Q")'.format(
                             pixel_type, i, len(nitf_details.img_headers),
                             (img_header.Bands[0].ISUBCAT.strip(), img_header.Bands[1].ISUBCAT.strip())))
@@ -349,7 +356,7 @@ def check_sicd_file(nitf_details):
             reader = SICDReader(nitf_details.file_name)
         except Exception as e:
             logger.exception(
-                'All image segments appear viable for the SICD,\n'
+                'SICD: All image segments appear viable for the SICD,\n\t'
                 'but SICDReader construction failed')
     return all_valid
 
@@ -394,7 +401,7 @@ if __name__ == '__main__':
     logger.setLevel(config.level)
     validity = check_file(config.file_name)
     if validity:
-        logger.info('\nSICD {} has been validated with no errors'.format(config.file_name))
+        logger.info('\nSICD: {} has been validated with no errors'.format(config.file_name))
     else:
-        logger.error('\nSICD {} has apparent errors'.format(config.file_name))
+        logger.error('\nSICD: {} has apparent errors'.format(config.file_name))
     sys.exit(int(validity))

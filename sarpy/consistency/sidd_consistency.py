@@ -63,7 +63,7 @@ def evaluate_xml_versus_schema(xml_string, urn_string):
     try:
         the_schema = get_schema_path(urn_string)
     except KeyError:
-        logger.exception('Failed finding the schema for urn {}'.format(urn_string))
+        logger.exception('SIDD: Failed finding the schema for urn {}'.format(urn_string))
         return False
 
     xml_doc = etree.fromstring(xml_string)
@@ -71,7 +71,7 @@ def evaluate_xml_versus_schema(xml_string, urn_string):
     validity = xml_schema.validate(xml_doc)
     if not validity:
         for entry in xml_schema.error_log:
-            logger.error('SIDD schema validation error on line {}'
+            logger.error('SIDD: schema validation error on line {}'
                          '\n\t{}'.format(entry.line, entry.message.encode('utf-8')))
     return validity
 
@@ -102,7 +102,7 @@ def _evaluate_xml_string_validity(xml_string=None):
         _ = get_urn_details(sidd_urn)
         check_schema = True
     except Exception as e:
-        logger.exception('The SIDD namespace has unrecognized value')
+        logger.exception('SIDD: The SIDD namespace has unrecognized value')
         check_schema = False
 
     valid_xml = None
@@ -141,8 +141,10 @@ def check_sidd_data_extension(nitf_details, des_header, xml_string):
     def check_des_header_fields():
         # type: () -> bool
 
-        if des_header.DESTAG.strip() != 'XML_DATA_CONTENT':
-            logger.warning('Found old style SIDD DES Header. This is deprecated.')
+        des_id = des_header.DESID.strip() if nitf_details.nitf_version == '02.10' else des_header.DESTAG.strip()
+
+        if des_id != 'XML_DATA_CONTENT':
+            logger.warning('SIDD: Found old style SIDD DES Header. This is deprecated.')
             return True
 
         # make sure that the NITF urn is evaluated for sensibility
@@ -150,33 +152,33 @@ def check_sidd_data_extension(nitf_details, des_header, xml_string):
         try:
             nitf_urn_details = get_urn_details(nitf_urn)
         except Exception:
-            logger.exception('The SIDD DES.DESSHTN must be a recognized urn')
+            logger.exception('SIDD: The SIDD DES.DESSHTN must be a recognized urn')
             return False
 
         # make sure that the NITF urn and SICD urn actually agree
         header_good = True
         if nitf_urn != xml_urn:
-            logger.error('The SIDD DES.DESSHTN ({}) and urn ({}) must agree'.format(nitf_urn, xml_urn))
+            logger.error('SIDD: The SIDD DES.DESSHTN ({}) and urn ({}) must agree'.format(nitf_urn, xml_urn))
             header_good = False
 
         # make sure that the NITF DES fields are populated appropriately for NITF urn
-        if des_header.UserHeader.DESSHLI.strip() != get_specification_identifier():
+        if des_header.UserHeader.DESSHSI.strip() != get_specification_identifier():
             logger.error(
-                'SIDD DES.DESSHLI has value `{}`,\nbut should have value `{}`'.format(
-                    des_header.UserHeader.DESSHLI.strip(), get_specification_identifier()))
+                'SIDD: DES.DESSHSI has value `{}`,\n\tbut should have value `{}`'.format(
+                    des_header.UserHeader.DESSHSI.strip(), get_specification_identifier()))
             header_good = False
 
         nitf_version = nitf_urn_details['version']
         if des_header.UserHeader.DESSHSV.strip() != nitf_version:
             logger.error(
-                'SIDD DES.DESSHSV has value `{}`,\nbut should have value `{}` based on DES.DESSHTN {}'.format(
+                'SIDD: DES.DESSHSV has value `{}`,\n\tbut should have value `{}` based on DES.DESSHTN `{}`'.format(
                     des_header.UserHeader.DESSHSV.strip(), nitf_version, nitf_urn))
             header_good = False
 
         nitf_date = nitf_urn_details['date']
         if des_header.UserHeader.DESSHSD.strip() != nitf_date:
             logger.warning(
-                'SIDD DES.DESSHSD has value `{}`,\nbut should have value `{}` based on DES.DESSHTN {}'.format(
+                'SIDD: DES.DESSHSD has value `{}`,\n\tbut should have value `{}` based on DES.DESSHTN `{}`'.format(
                     des_header.UserHeader.DESSHSV.strip(), nitf_date, nitf_urn))
         return header_good
 
@@ -186,19 +188,19 @@ def check_sidd_data_extension(nitf_details, des_header, xml_string):
         if the_sidd.ProductCreation is None or the_sidd.ProductCreation.Classification is None or \
                 the_sidd.ProductCreation.Classification.classification is None:
             logger.error(
-                'SIDD.ProductCreation.Classification.classification is not populated,\n'
-                'so can not be compared with SIDD DES.DESCLAS {}'.format(des_header.Security.CLAS.strip()))
+                'SIDD: SIDD.ProductCreation.Classification.classification is not populated,\n\t'
+                'so can not be compared with SIDD DES.DESCLAS `{}`'.format(des_header.Security.CLAS.strip()))
             return False
 
         extracted_class = the_sidd.ProductCreation.Classification.classification
         if extracted_class != des_header.Security.CLAS.strip():
             logger.warning(
-                'SIDD DES.DESCLAS is {},\nand SIDD.ProductCreation.Classification.classification '
+                'SIDD: DES.DESCLAS is `{}`,\n\tand SIDD.ProductCreation.Classification.classification '
                 'is {}'.format(des_header.Security.CLAS.strip(), extracted_class))
 
         if des_header.Security.CLAS.strip() != nitf_details.nitf_header.Security.CLAS.strip():
             logger.warning(
-                'SIDD DES.DESCLAS is {},\nand NITF.CLAS is {}'.format(
+                'SIDD: DES.DESCLAS is `{}`,\n\tand NITF.CLAS is `{}`'.format(
                     des_header.Security.CLAS.strip(), nitf_details.nitf_header.Security.CLAS.strip()))
         return True
 
@@ -253,7 +255,7 @@ def check_sidd_file(nitf_details):
                     if 'SIDD' in root_node.tag:  # namespace makes this ugly
                         sidd_des.append((i, des_bytes.encode('utf-8'), root_node, xml_ns, des_header))
                 except Exception as e:
-                    logger.exception('Old-style SIDD DES header at index {}, but failed parsing'.format(i))
+                    logger.exception('SIDD: Old-style SIDD DES header at index {}, but failed parsing'.format(i))
                     continue
             elif subhead_bytes.startswith(b'DESICD_XML'):
                 # This is an old format SICD
@@ -263,7 +265,7 @@ def check_sidd_file(nitf_details):
                     if 'SICD' in root_node.tag:  # namespace makes this ugly
                         sicd_des.append((i, des_bytes.encode('utf-8'), root_node, xml_ns, des_header))
                 except Exception as e:
-                    logger.exception('Old-style SICD DES header at index {}, but failed parsing'.format(i))
+                    logger.exception('SIDD: Old-style SICD DES header at index {}, but failed parsing'.format(i))
                     continue
 
     def check_image_data():
@@ -277,7 +279,7 @@ def check_sidd_file(nitf_details):
             if re.match(r'^SIDD\d\d\d\d\d\d', iid1) is None:
                 valid_images = False
                 logger.error(
-                    'image segment at index {} of {} has IID1 = `{}`,\n'
+                    'SIDD: image segment at index {} of {} has IID1 = `{}`,\n\t'
                     'expected to be of the form `SIDDXXXYYY`'.format(i, len(nitf_details.img_headers), iid1))
                 continue
 
@@ -285,7 +287,7 @@ def check_sidd_file(nitf_details):
             if not (0 < sidd_index <= len(sidd_des)):
                 valid_images = False
                 logger.error(
-                    'image segment at index {} of {} has IID1 = `{}`,\n'
+                    'SIDD: image segment at index {} of {} has IID1 = `{}`,\n\t'
                     'it is unclear with which of the {} SIDDs '
                     'this is associated'.format(i, len(nitf_details.img_headers), iid1, len(sidd_des)))
                 continue
@@ -301,19 +303,20 @@ def check_sidd_file(nitf_details):
             if img_header.PVTYPE.strip() != exp_pvtype:
                 valid_images = False
                 logger.error(
-                    'image segment at index {} of {} has PVTYPE = `{}`,\n'
+                    'SIDD: image segment at index {} of {} has PVTYPE = `{}`,\n\t'
                     'expected to be `{}` based on pixel type {}'.format(
                         i, len(nitf_details.img_headers), img_header.PVTYPE.strip(), exp_pvtype, pixel_type))
             if img_header.NBPP != exp_nbpp:
                 valid_images = False
                 logger.error(
-                    'image segment at index {} of {} has NBPP = `{}`,\n'
+                    'SIDD: image segment at index {} of {} has NBPP = `{}`,\n\t'
                     'expected to be `{}` based on pixel type {}'.format(
                         i, len(nitf_details.img_headers), img_header.NBPP, exp_nbpp, pixel_type))
 
         for sidd_index, entry in enumerate(has_image):
             if not entry:
-                logger.error('No image segments appear to be associated with the sidd at index {}'.format(sidd_index))
+                logger.error(
+                    'SIDD: No image segments appear to be associated with the sidd at index {}'.format(sidd_index))
                 valid_images = False
 
         return valid_images
@@ -334,7 +337,7 @@ def check_sidd_file(nitf_details):
 
     find_des()
     if len(sidd_des) < 1:
-        logger.error('No SIDD DES found, this is not a valid SIDD file.')
+        logger.error('SIDD: No SIDD DES found, this is not a valid SIDD file.')
         return False
 
     valid_sidd_des = True
@@ -344,7 +347,7 @@ def check_sidd_file(nitf_details):
         has_image.append(False)
         if the_sidd.Display is None or the_sidd.Display.PixelType is None:
             valid_sidd_des = False
-            logger.error('SIDD.Display.PixelType is not populated, and can not be compared to NITF image details')
+            logger.error('SIDD: SIDD.Display.PixelType is not populated, and can not be compared to NITF image details')
             sidd_nitf_details.append({'pixel_type': None})
         elif the_sidd.Display.PixelType in ['MONO8I', 'MONO8LU', 'RGB8LU']:
             sidd_nitf_details.append({'nbpp': 8, 'pvtype': 'INT', 'pixel_type': the_sidd.Display.PixelType})
@@ -406,7 +409,7 @@ if __name__ == '__main__':
     logger.setLevel(config.level)
     validity = check_file(config.file_name)
     if validity:
-        logger.info('\nSIDD {} has been validated with no errors'.format(config.file_name))
+        logger.info('\nSIDD: {} has been validated with no errors'.format(config.file_name))
     else:
-        logger.error('\nSIDD {} has apparent errors'.format(config.file_name))
+        logger.error('\nSIDD: {} has apparent errors'.format(config.file_name))
     sys.exit(int(validity))
