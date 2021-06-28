@@ -20,9 +20,13 @@ import logging
 import sys
 import argparse
 import os
+import re
 
 from sarpy.compliance import string_types
-from sarpy.io.general.base import SarpyIOError
+from sarpy.consistency.sicd_consistency import check_sicd_data_extension
+from sarpy.io.general.nitf import NITFDetails
+from sarpy.io.general.nitf_elements.des import DataExtensionHeader, \
+    DataExtensionHeader0
 from sarpy.io.general.utils import parse_xml_from_string
 from sarpy.io.product.sidd import SIDDDetails
 from sarpy.io.product.sidd_schema import get_schema_path, get_urn_details, \
@@ -73,7 +77,7 @@ def evaluate_xml_versus_schema(xml_string, urn_string):
     return validity
 
 
-def _evaluate_xml_string_validity(xml_string):
+def _evaluate_xml_string_validity(xml_string=None):
     """
     Check the validity of the SIDD xml, as defined by the given string.
 
@@ -83,13 +87,15 @@ def _evaluate_xml_string_validity(xml_string):
 
     Returns
     -------
-    (bool, str, SICDType)
+    (bool, str, SIDDType1|SIDDType2)
     """
 
     root_node, xml_ns = parse_xml_from_string(xml_string)
     if 'default' not in xml_ns:
         raise ValueError(
             'Could not properly interpret the namespace collection from xml\n{}'.format(xml_ns))
+
+    # todo: validate the xml namespace elements here
 
     sidd_urn = xml_ns['default']
     # check that our urn is mapped
@@ -118,6 +124,94 @@ def _evaluate_xml_string_validity(xml_string):
     return valid_xml & valid_sidd_contents, sidd_urn, the_sidd
 
 
+def check_sidd_data_extension(nitf_details, des_header, xml_string):
+    """
+    Evaluate a SIDD data extension for validity.
+
+    Parameters
+    ----------
+    nitf_details : NITFDetails
+    des_header : DataExtensionHeader|DataExtensionHeader0
+    xml_string : str
+
+    Returns
+    -------
+    (bool, SIDDType1|SIDDType2)
+    """
+
+    def check_des_header_fields():
+        # type: () -> bool
+
+        if des_header.DESTAG.strip() != 'XML_DATA_CONTENT':
+            logger.warning('Found old style SIDD DES Header. This is deprecated.')
+            return True
+
+        # make sure that the NITF urn is evaluated for sensibility
+        nitf_urn = des_header.UserHeader.DESSHTN.strip()
+        try:
+            nitf_urn_details = get_urn_details(nitf_urn)
+        except Exception:
+            logger.exception('The SIDD DES.DESSHTN must be a recognized urn')
+            return False
+
+        # make sure that the NITF urn and SICD urn actually agree
+        header_good = True
+        if nitf_urn != xml_urn:
+            logger.error('The SIDD DES.DESSHTN ({}) and urn ({}) must agree'.format(nitf_urn, xml_urn))
+            header_good = False
+
+        # make sure that the NITF DES fields are populated appropriately for NITF urn
+        if des_header.UserHeader.DESSHLI.strip() != get_specification_identifier():
+            logger.error(
+                'SIDD DES.DESSHLI has value `{}`,\nbut should have value `{}`'.format(
+                    des_header.UserHeader.DESSHLI.strip(), get_specification_identifier()))
+            header_good = False
+
+        nitf_version = nitf_urn_details['version']
+        if des_header.UserHeader.DESSHSV.strip() != nitf_version:
+            logger.error(
+                'SIDD DES.DESSHSV has value `{}`,\nbut should have value `{}` based on DES.DESSHTN {}'.format(
+                    des_header.UserHeader.DESSHSV.strip(), nitf_version, nitf_urn))
+            header_good = False
+
+        nitf_date = nitf_urn_details['date']
+        if des_header.UserHeader.DESSHSD.strip() != nitf_date:
+            logger.warning(
+                'SIDD DES.DESSHSD has value `{}`,\nbut should have value `{}` based on DES.DESSHTN {}'.format(
+                    des_header.UserHeader.DESSHSV.strip(), nitf_date, nitf_urn))
+        return header_good
+
+    def compare_sidd_class():
+        # type: () -> bool
+
+        if the_sidd.ProductCreation is None or the_sidd.ProductCreation.Classification is None or \
+                the_sidd.ProductCreation.Classification.classification is None:
+            logger.error(
+                'SIDD.ProductCreation.Classification.classification is not populated,\n'
+                'so can not be compared with SIDD DES.DESCLAS {}'.format(des_header.Security.CLAS.strip()))
+            return False
+
+        extracted_class = the_sidd.ProductCreation.Classification.classification
+        if extracted_class != des_header.Security.CLAS.strip():
+            logger.warning(
+                'SIDD DES.DESCLAS is {},\nand SIDD.ProductCreation.Classification.classification '
+                'is {}'.format(des_header.Security.CLAS.strip(), extracted_class))
+
+        if des_header.Security.CLAS.strip() != nitf_details.nitf_header.Security.CLAS.strip():
+            logger.warning(
+                'SIDD DES.DESCLAS is {},\nand NITF.CLAS is {}'.format(
+                    des_header.Security.CLAS.strip(), nitf_details.nitf_header.Security.CLAS.strip()))
+        return True
+
+    # check sicd xml structure for validity
+    valid_sicd, xml_urn, the_sidd = _evaluate_xml_string_validity(xml_string)
+    # check that the sicd information and header information appropriately match
+    valid_header = check_des_header_fields()
+    # check that the classification seems to make sense
+    valid_class = compare_sidd_class()
+    return valid_sicd & valid_header & valid_class, the_sidd
+
+
 def check_sidd_file(nitf_details):
     """
     Check the validity of the given NITF file as a SICD file.
@@ -131,107 +225,146 @@ def check_sidd_file(nitf_details):
     bool
     """
 
-    pass
+    def find_des():
+        for i in range(nitf_details.des_subheader_offsets.size):
+            subhead_bytes = nitf_details.get_des_subheader_bytes(i)
+            if nitf_details.nitf_version == '02.00':
+                des_header = DataExtensionHeader0.from_bytes(subhead_bytes, start=0)
+            elif nitf_details.nitf_version == '02.10':
+                des_header = DataExtensionHeader.from_bytes(subhead_bytes, start=0)
+            else:
+                raise ValueError('Got unhandled NITF version {}'.format(nitf_details.nitf_version))
 
+            if subhead_bytes.startswith(b'DEXML_DATA_CONTENT'):
+                des_bytes = nitf_details.get_des_bytes(i).decode('utf-8').strip()
+                # noinspection PyBroadException
+                try:
+                    root_node, xml_ns = parse_xml_from_string(des_bytes)
+                    if 'SIDD' in root_node.tag:  # namespace makes this ugly
+                        sidd_des.append((i, des_bytes.encode('utf-8'), root_node, xml_ns, des_header))
+                    elif 'SICD' in root_node.tag:
+                        sicd_des.append((i, des_bytes.encode('utf-8'), root_node, xml_ns, des_header))
+                except Exception:
+                    continue
+            elif subhead_bytes.startswith(b'DESIDD_XML'):
+                # This is an old format SIDD
+                des_bytes = nitf_details.get_des_bytes(i).decode('utf-8').strip()
+                try:
+                    root_node, xml_ns = parse_xml_from_string(des_bytes)
+                    if 'SIDD' in root_node.tag:  # namespace makes this ugly
+                        sidd_des.append((i, des_bytes.encode('utf-8'), root_node, xml_ns, des_header))
+                except Exception as e:
+                    logger.exception('Old-style SIDD DES header at index {}, but failed parsing'.format(i))
+                    continue
+            elif subhead_bytes.startswith(b'DESICD_XML'):
+                # This is an old format SICD
+                des_bytes = nitf_details.get_des_bytes(i).decode('utf-8').strip()
+                try:
+                    root_node, xml_ns = parse_xml_from_string(des_bytes)
+                    if 'SICD' in root_node.tag:  # namespace makes this ugly
+                        sicd_des.append((i, des_bytes.encode('utf-8'), root_node, xml_ns, des_header))
+                except Exception as e:
+                    logger.exception('Old-style SICD DES header at index {}, but failed parsing'.format(i))
+                    continue
 
-def _poo_get_sidd_xml_from_nitf(sidd_details):
-    """
-    Fetch the collection of xml strings for the SIDD.
-
-    Parameters
-    ----------
-    sidd_details : SIDDDetails
-    """
-
-    the_bytes = []
-    the_root = []
-    the_xml_ns = []
-
-    for i in range(sidd_details.des_subheader_offsets.size):
-        subhead_bytes = sidd_details.get_des_subheader_bytes(i)
-        if subhead_bytes.startswith(b'DEXML_DATA_CONTENT'):
-            des_bytes = sidd_details.get_des_bytes(i).decode('utf-8').strip()
-            # noinspection PyBroadException
-            try:
-                root_node, xml_ns = parse_xml_from_string(des_bytes)
-                if 'SIDD' in root_node.tag:  # namespace makes this ugly
-                    the_bytes.append(des_bytes)
-                    the_root.append(root_node)
-                    the_xml_ns.append(xml_ns)
-            except Exception:
+    def check_image_data():
+        valid_images = True
+        # verify that all images have the correct pixel type
+        for i, img_header in enumerate(nitf_details.img_headers):
+            if img_header.ICAT.strip() != 'SAR':
                 continue
-        elif subhead_bytes.startswith(b'DESIDD_XML'):
-            # This is an old format SIDD
-            des_bytes = sidd_details.get_des_bytes(i).decode('utf-8').strip()
-            try:
-                root_node, xml_ns = parse_xml_from_string(des_bytes)
-                if 'SIDD' in root_node.tag:  # namespace makes this ugly
-                    the_bytes.append(des_bytes)
-                    the_root.append(root_node)
-                    the_xml_ns.append(xml_ns)
-            except Exception as e:
-                logger.error('We found an apparent old-style SICD DES header, '
-                              'but failed parsing with error {}'.format(e))
+
+            iid1 = img_header.IID1.strip()
+            if re.match(r'^SIDD\d\d\d\d\d\d', iid1) is None:
+                valid_images = False
+                logger.error(
+                    'image segment at index {} of {} has IID1 = `{}`,\n'
+                    'expected to be of the form `SIDDXXXYYY`'.format(i, len(nitf_details.img_headers), iid1))
                 continue
-    if len(the_bytes) < 1:
-        return None, None, None
-    return the_bytes, the_root, the_xml_ns
 
+            sidd_index = int(iid1[4:7])
+            if not (0 < sidd_index <= len(sidd_des)):
+                valid_images = False
+                logger.error(
+                    'image segment at index {} of {} has IID1 = `{}`,\n'
+                    'it is unclear with which of the {} SIDDs '
+                    'this is associated'.format(i, len(nitf_details.img_headers), iid1, len(sidd_des)))
+                continue
 
-def _poo_check_file(file_name):
-    """
-    Check the SIDD validity for the given file SIDD (i.e. appropriately styled NITF)
-    or xml file containing the SIDD structure alone.
+            has_image[sidd_index - 1] = True
 
-    Parameters
-    ----------
-    file_name : str|SIDDDetails
+            type_information = sidd_nitf_details[sidd_index - 1]
+            pixel_type = type_information['pixel_type']
+            if pixel_type is None:
+                continue  # we already noted the failure here
 
-    Returns
-    -------
-    bool
-    """
+            exp_nbpp, exp_pvtype  = type_information['nbpp'], type_information['pvtype']
+            if img_header.PVTYPE.strip() != exp_pvtype:
+                valid_images = False
+                logger.error(
+                    'image segment at index {} of {} has PVTYPE = `{}`,\n'
+                    'expected to be `{}` based on pixel type {}'.format(
+                        i, len(nitf_details.img_headers), img_header.PVTYPE.strip(), exp_pvtype, pixel_type))
+            if img_header.NBPP != exp_nbpp:
+                valid_images = False
+                logger.error(
+                    'image segment at index {} of {} has NBPP = `{}`,\n'
+                    'expected to be `{}` based on pixel type {}'.format(
+                        i, len(nitf_details.img_headers), img_header.NBPP, exp_nbpp, pixel_type))
 
-    sidd_xml, root_node, xml_ns = None, None, None
-    if isinstance(file_name, SIDDDetails):
-        sidd_xml, root_node, xml_ns = _get_sidd_xml_from_nitf(file_name)
-    else:
-        # check if this is just an xml file
-        with open(file_name, 'rb') as fi:
-            initial_bits = fi.read(100)
-            if initial_bits.startswith(b'<?xml') or initial_bits.startswith(b'<SIDD'):
-                sidd_xml = fi.read().decode('utf-8')
-                root_node, xml_ns = parse_xml_from_string(sidd_xml)
-                sidd_xml = [sidd_xml, ]
-                root_node = [root_node, ]
-                xml_ns = [xml_ns, ]
+        for sidd_index, entry in enumerate(has_image):
+            if not entry:
+                logger.error('No image segments appear to be associated with the sidd at index {}'.format(sidd_index))
+                valid_images = False
 
-        if sidd_xml is None:
-            # try to first test whether this is SIDD file
-            try:
-                sicd_details = SIDDDetails(file_name)
-                if not sicd_details.is_sidd:
-                    logger.error('File {} is a NITF file, but is apparently not a SIDD file.')
-                    return False
-                sidd_xml, root_node, xml_ns = _get_sidd_xml_from_nitf(sicd_details)
-            except SarpyIOError:
-                pass
+        return valid_images
 
-    if sidd_xml is None:
-        logger.error('Could not interpret input {}'.format(file_name))
+    if isinstance(nitf_details, string_types):
+        if not os.path.isfile(nitf_details):
+            raise ValueError('Got string input, but it is not a valid path')
+        nitf_details = NITFDetails(nitf_details)
+
+    if not isinstance(nitf_details, NITFDetails):
+        raise TypeError(
+            'Input is expected to be a path to a NITF file, or a NITFDetails object instance')
+
+    sidd_des = []
+    sicd_des = []
+    sidd_nitf_details = []
+    has_image = []
+
+    find_des()
+    if len(sidd_des) < 1:
+        logger.error('No SIDD DES found, this is not a valid SIDD file.')
         return False
 
-    out = True
-    for i, (xml_bytes, root, ns) in enumerate(zip(sidd_xml, root_node, xml_ns)):
-        urn_string = ns['default']
-        valid_xml = evaluate_xml_versus_schema(xml_bytes, urn_string)
-        if valid_xml is None:
-            valid_xml = True
+    valid_sidd_des = True
+    for entry in sidd_des:
+        this_sidd_valid, the_sidd = check_sidd_data_extension(nitf_details, entry[4], entry[1])
+        valid_sidd_des &= this_sidd_valid
+        has_image.append(False)
+        if the_sidd.Display is None or the_sidd.Display.PixelType is None:
+            valid_sidd_des = False
+            logger.error('SIDD.Display.PixelType is not populated, and can not be compared to NITF image details')
+            sidd_nitf_details.append({'pixel_type': None})
+        elif the_sidd.Display.PixelType in ['MONO8I', 'MONO8LU', 'RGB8LU']:
+            sidd_nitf_details.append({'nbpp': 8, 'pvtype': 'INT', 'pixel_type': the_sidd.Display.PixelType})
+        elif the_sidd.Display.PixelType == 'MONO16I':
+            sidd_nitf_details.append({'nbpp': 16, 'pvtype': 'INT', 'pixel_type': the_sidd.Display.PixelType})
+        elif the_sidd.Display.PixelType == 'RGB24I':
+            sidd_nitf_details.append({'nbpp': 24, 'pvtype': 'INT', 'pixel_type': the_sidd.Display.PixelType})
+        elif the_sidd.Display.PixelType == 'RGB24I':
+            sidd_nitf_details.append({'nbpp': 24, 'pvtype': 'INT', 'pixel_type': the_sidd.Display.PixelType})
+        else:
+            raise ValueError('Got unhandled pixel type {}'.format(the_sidd.Display.PixelType))
 
-        the_sidd = SIDDType.from_node(root, xml_ns=ns, ns_key='default')
-        valid_sidd_contents = the_sidd.is_valid(recursive=True, stack=False)
-        out &= valid_xml & valid_sidd_contents
-    return out
+    valid_sicd_des = True
+    for entry in sicd_des:
+        this_sicd_valid, _ = check_sicd_data_extension(nitf_details, entry[4], entry[1])
+        valid_sicd_des &= this_sicd_valid
+    valid_image = check_image_data()
+
+    return valid_sidd_des & valid_sicd_des & valid_image
 
 
 def check_file(file_name):

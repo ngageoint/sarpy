@@ -139,33 +139,33 @@ def check_sicd_data_extension(nitf_details, des_header, xml_string):
         try:
             nitf_urn_details = get_urn_details(nitf_urn)
         except Exception:
-            logger.exception('The DES.DESSHTN must be a recognized SICD urn')
+            logger.exception('The SICD DES.DESSHTN must be a recognized urn')
             return False
 
         # make sure that the NITF urn and SICD urn actually agree
         header_good = True
         if nitf_urn != xml_urn:
-            logger.error('The DES.DESSHTN ({}) and SICD urn ({}) must agree'.format(nitf_urn, xml_urn))
+            logger.error('The SICD DES.DESSHTN ({}) and urn ({}) must agree'.format(nitf_urn, xml_urn))
             header_good = False
 
         # make sure that the NITF DES fields are populated appropriately for NITF urn
         if des_header.UserHeader.DESSHLI.strip() != get_specification_identifier():
             logger.error(
-                'DES.DESSHLI has value `{}`,\nbut should have value `{}`'.format(
+                'SICD DES.DESSHLI has value `{}`,\nbut should have value `{}`'.format(
                     des_header.UserHeader.DESSHLI.strip(), get_specification_identifier()))
             header_good = False
 
         nitf_version = nitf_urn_details['version']
         if des_header.UserHeader.DESSHSV.strip() != nitf_version:
             logger.error(
-                'DES.DESSHSV has value `{}`,\nbut should have value `{}` based on DES.DESSHTN {}'.format(
+                'SICD DES.DESSHSV has value `{}`,\nbut should have value `{}` based on DES.DESSHTN {}'.format(
                     des_header.UserHeader.DESSHSV.strip(), nitf_version, nitf_urn))
             header_good = False
 
         nitf_date = nitf_urn_details['date']
         if des_header.UserHeader.DESSHSD.strip() != nitf_date:
             logger.warning(
-                'DES.DESSHSD has value `{}`,\nbut should have value `{}` based on DES.DESSHTN {}'.format(
+                'SICD DES.DESSHSD has value `{}`,\nbut should have value `{}` based on DES.DESSHTN {}'.format(
                     des_header.UserHeader.DESSHSV.strip(), nitf_date, nitf_urn))
         return header_good
 
@@ -175,16 +175,15 @@ def check_sicd_data_extension(nitf_details, des_header, xml_string):
         if the_sicd.CollectionInfo is None or the_sicd.CollectionInfo.Classification is None:
             logger.error(
                 'SICD.CollectionInfo.Classification is not populated,\n'
-                'so can not be compared with DES.DESCLAS {}'.format(des_header.Security.CLAS.strip()))
+                'so can not be compared with SICD DES.DESCLAS {}'.format(des_header.Security.CLAS.strip()))
             return False
 
         sicd_class = the_sicd.CollectionInfo.Classification
         extracted_class = extract_clas(the_sicd)
         if extracted_class != des_header.Security.CLAS.strip():
-            logger.error(
-                'DES.DESCLAS is {},\nand SICD.CollectionInfo.Classification '
+            logger.warning(
+                'SICD DES.DESCLAS is {},\nand SICD.CollectionInfo.Classification '
                 'is {}'.format(des_header.Security.CLAS.strip(), sicd_class))
-            return False
 
         if des_header.Security.CLAS.strip() != nitf_details.nitf_header.Security.CLAS.strip():
             logger.warning(
