@@ -96,8 +96,9 @@ class SIDDDetails(NITFDetails):
         if self._nitf_header.GraphicsSegments.item_sizes.size > 0:
             raise SarpyIOError('A SIDD file does not allow for graphics segments.')
         if self._nitf_header.DataExtensions.subhead_sizes.size == 0:
-            raise SarpyIOError('A SIDD file requires at least one data extension, containing the '
-                          'SIDD xml structure.')
+            raise SarpyIOError(
+                'A SIDD file requires at least one data extension, containing the '
+                'SIDD xml structure.')
         # define the sidd and sicd metadata
         self._find_sidd()
         if not self.is_sidd:

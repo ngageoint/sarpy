@@ -1606,8 +1606,8 @@ class Serializable(object):
         """
 
         if len(node) == 0 and len(node.attrib) == 0:
-            logging.warning('There are no children or attributes associated\n'
-                            'with node {}\n'
+            logging.warning('There are no children or attributes associated\n\t'
+                            'with node {}\n\t'
                             'for class {}.'.format(node, cls))
             # return None
 

@@ -2,6 +2,10 @@
 The SIDDType 2.0 definition.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
+
 import logging
 from typing import Union, Tuple
 from collections import OrderedDict
@@ -22,95 +26,21 @@ from .Annotations import AnnotationsType
 from ..sidd1_elements.SIDD import SIDDType as SIDDType1
 from .blocks import ErrorStatisticsType, RadiometricType, MatchInfoType
 from sarpy.geometry import point_projection
-
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
+from sarpy.io.product.sidd_schema import get_specification_identifier, \
+    get_urn_details, validate_xml_ns
 
 
 ############
 # namespace validate and definitIon of required entries in the namespace dictionary
-_SIDD_SPECIFICATION_IDENTIFIER = 'SIDD Volume 1 Design & Implementation Description Document'
-_SIDD_SPECIFICATION_VERSION = '2.0'
-_SIDD_SPECIFICATION_DATE = '2019-05-31T00:00:00Z'
+_SIDD_SPECIFICATION_IDENTIFIER = get_specification_identifier()
+
 _SIDD_URN = 'urn:SIDD:2.0.0'
-_ISM_URN = 'urn:us:gov:ic:ism:13'
-_SFA_URN = 'urn:SFA:1.2.0'
-_SICOMMON_URN = 'urn:SICommon:1.0'
-
-
-def _validate_sidd_urn(xml_ns, ns_key):
-    if xml_ns is None:
-        raise ValueError('xml_ns must not be None for SIDD interpretation.')
-
-    if ns_key is None or ns_key not in xml_ns:
-        raise ValueError('ns_key must be a key in xml_ns.')
-
-    sidd_urn = xml_ns[ns_key]
-    if sidd_urn != _SIDD_URN:
-        logging.warning('SIDD version 2 urn is expected to be "{}", '
-                        'but we got "{}". Differences in standard may lead to deserialization '
-                        'errors.'.format(_SIDD_URN, sidd_urn))
-
-
-def _validate_ism_urn(xml_ns):
-    if 'ism' not in xml_ns:
-        the_val = None
-        for key in xml_ns:
-            val = xml_ns[key]
-            if val.lower().startswith('urn:us:gov:ic:ism'):
-                the_val = val
-        if the_val is None:
-            raise ValueError('Cannot find the required ism namespace.')
-        xml_ns['ism'] = the_val
-
-    ism_urn = xml_ns['ism']
-    if ism_urn != _ISM_URN:
-        logging.warning('SIDD version 2 "ism" namespace urn is expected to be "{}", '
-                        'but we got "{}". Differences in standard may lead to deserialization '
-                        'errors.'.format(_ISM_URN, ism_urn))
-
-
-def _validate_sfa_urn(xml_ns):
-    if 'sfa' not in xml_ns:
-        the_val = None
-        for key in xml_ns:
-            val = xml_ns[key]
-            if val.lower().startswith('urn:sfa:'):
-                the_val = val
-        if the_val is None:
-            raise ValueError('Cannot find the required SFA namespace.')
-        xml_ns['sfa'] = the_val
-
-    sfa_urn = xml_ns['sfa']
-    if sfa_urn != _SFA_URN:
-        logging.warning('SIDD version 2 "SFA" namespace urn is expected to be "{}", '
-                        'but we got "{}". Differences in standard may lead to deserialization '
-                        'errors.'.format(_SFA_URN, sfa_urn))
-
-
-def _validate_sicommon_urn(xml_ns):
-    if 'sicommon' not in xml_ns:
-        the_val = None
-        for key in xml_ns:
-            val = xml_ns[key]
-            if val.lower().startswith('urn:sicommon:'):
-                the_val = val
-        if the_val is None:
-            raise ValueError('Cannot find the required SICommon namespace.')
-        xml_ns['sicommon'] = the_val
-
-    sicommon_urn = xml_ns['sicommon']
-    if sicommon_urn != _SICOMMON_URN:
-        logging.warning('SIDD version 2 "SICommon" namespace urn is expected to be "{}", '
-                        'but we got "{}". Differences in standard may lead to deserialization '
-                        'errors.'.format(_SICOMMON_URN, sicommon_urn))
-
-
-def _validate_xml_ns(xml_ns, ns_key):
-    _validate_sidd_urn(xml_ns, ns_key)
-    _validate_ism_urn(xml_ns)
-    _validate_sfa_urn(xml_ns)
-    _validate_sicommon_urn(xml_ns)
+_sidd_details = get_urn_details(_SIDD_URN)
+_SIDD_SPECIFICATION_VERSION = _sidd_details['version']
+_SIDD_SPECIFICATION_DATE = _sidd_details['date']
+_ISM_URN = _sidd_details['ism_urn']
+_SFA_URN = _sidd_details['sfa_urn']
+_SICOMMON_URN = _sidd_details['sicommon_urn']
 
 
 ##########
@@ -444,13 +374,21 @@ class SIDDType(Serializable):
             ('DESSHTN', _SIDD_URN)])
 
     @classmethod
-    def from_node(cls, node, xml_ns, ns_key=None, kwargs=None):
+    def from_node(cls, node, xml_ns, ns_key='default', kwargs=None):
         if ns_key is None:
             raise ValueError('ns_key must be defined.')
+        if ns_key not in xml_ns:
+            raise ValueError('ns_key {} is not in the xml namespace'.format(ns_key))
         if xml_ns[ns_key].startswith('urn:SIDD:1.'):
             return SIDDType1.from_node(node, xml_ns, ns_key=ns_key, kwargs=kwargs)
 
-        _validate_xml_ns(xml_ns, ns_key)
+        valid_ns = validate_xml_ns(xml_ns, ns_key)
+        if not xml_ns[ns_key].startswith('urn:SIDD:2.'):
+            raise ValueError('Cannot use urn {} for SIDD version 2.0'.format(xml_ns[ns_key]))
+        if not valid_ns:
+            logging.warning(
+                'SIDD namespace validation failed,\n\t'
+                'which may lead to subsequent deserialization failures')
         return super(SIDDType, cls).from_node(node, xml_ns, ns_key=ns_key, kwargs=kwargs)
 
     def to_xml_bytes(self, urn=None, tag='SIDD', check_validity=False, strict=DEFAULT_STRICT):

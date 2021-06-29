@@ -303,7 +303,7 @@ class SentinelDetails(object):
         DT_FMT = '%Y-%m-%dT%H:%M:%S.%f'
         root_node = _parse_xml(product_file_name, without_ns=True)
         burst_list = root_node.findall('./swathTiming/burstList/burst')
-        # parse the geolocation infoarmation - for SCP caluclation
+        # parse the geolocation information - for SCP calculation
         geo_grid_point_list = root_node.findall('./geolocationGrid/geolocationGridPointList/geolocationGridPoint')
         geo_pixels = numpy.zeros((len(geo_grid_point_list), 2), dtype=numpy.float64)
         geo_coords = numpy.zeros((len(geo_grid_point_list), 3), dtype=numpy.float64)

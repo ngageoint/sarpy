@@ -407,7 +407,7 @@ class ProductDisplayType(Serializable):
         'DisplayExtensions': {'array': False, 'child_tag': 'DisplayExtension'}}
     # Descriptors
     PixelType = _StringEnumDescriptor(
-        'PixelType', ('MONO8I', 'MONO8LU', 'MONO16I', 'RGBL8U', 'RGB24I'),
+        'PixelType', ('MONO8I', 'MONO8LU', 'MONO16I', 'RGB8LU', 'RGB24I'),
         _required, strict=DEFAULT_STRICT,
         docstring='Enumeration of the pixel type. Definition in '
                   'Design and Exploitation document.')  # type: str

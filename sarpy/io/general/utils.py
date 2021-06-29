@@ -2,15 +2,17 @@
 Common functionality for converting metadata
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
+
 from xml.etree import ElementTree
 from typing import Union, Tuple
+import re
 
 import numpy
 
 from sarpy.compliance import integer_types, int_func, string_types, StringIO, bytes_to_string
-
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
 
 
 def validate_range(arg, siz):
@@ -154,6 +156,12 @@ def parse_xml_from_string(xml_string):
         xml_ns = None
     elif '' in xml_ns:
         xml_ns['default'] = xml_ns['']
+    else:
+        # default will be the namespace for the root node
+        namespace_match = re.match(r'\{.*\}', root_node.tag)
+        if namespace_match is None:
+            raise ValueError('Trouble finding the default namespace for tag {}'.format(root_node.tag))
+        xml_ns['default'] = namespace_match[0][1:-1]
     return root_node, xml_ns
 
 

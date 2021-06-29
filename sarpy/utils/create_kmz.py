@@ -44,5 +44,5 @@ if __name__ == '__main__':
         logging.basicConfig(level='INFO')
 
     reader = open_complex(args.input_file)
-    file_stem = os.path.splitext(args.input_file)[0]
+    file_stem = os.path.splitext(os.path.split(args.input_file)[1])[0]
     create_kmz_view(reader, args.output_directory, file_stem='View-{}'.format(file_stem))
