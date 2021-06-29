@@ -11,6 +11,7 @@ __author__ = "Thomas McCullough"
 import numpy
 from scipy.constants import speed_of_light
 from sarpy.geometry import geocoords
+from sarpy.geometry.geometry_elements import LinearRing
 
 
 ##############
@@ -957,18 +958,39 @@ def _validate_image_form_parameters(the_sicd, alg_type):
     cond = True
     if the_sicd.ImageFormation.ImageFormAlgo is None:
         the_sicd.log_validity_warning(
-            'Image formation algorithm(s) {} populated, but ImageFormation.ImageFormAlgo was not set.\n'
-            'ImageFormation.ImageFormAlgo has been set HERE, but the incoming '
-            'structure was incorrect.'.format(alg_type))
+            'Image formation algorithm(s) {} populated, but ImageFormation.ImageFormAlgo was not set.\n\t'
+            'ImageFormation.ImageFormAlgo has been set HERE,\n\t'
+            'but the incoming structure was incorrect.'.format(alg_type))
         the_sicd.ImageFormation.ImageFormAlgo = alg_type.upper()
         cond = False
     elif the_sicd.ImageFormation.ImageFormAlgo != alg_type:
         the_sicd.log_validity_warning(
-            'Image formation algorithm {} populated, but ImageFormation.ImageFormAlgo populated as {}.\n'
-            'ImageFormation.ImageFormAlgo has been set properly HERE, but the incoming '
-            'structure was incorrect.'.format(alg_type, the_sicd.ImageFormation.ImageFormAlgo))
+            'Image formation algorithm {} populated, but ImageFormation.ImageFormAlgo populated as {}.\n\t'
+            'ImageFormation.ImageFormAlgo has been set properly HERE,\n\t'
+            'but the incoming structure was incorrect.'.format(alg_type, the_sicd.ImageFormation.ImageFormAlgo))
         the_sicd.ImageFormation.ImageFormAlgo = alg_type.upper()
         cond = False
+
+    # verify that the referenced received channels are consistent with radar collection
+    if the_sicd.ImageFormation.RcvChanProc is not None:
+        channels = the_sicd.ImageFormation.RcvChanProc.ChanIndices
+        if len(channels) < 1:
+            the_sicd.ImageFormation.RcvChanProc.log_validity_error('No ChanIndex values populated')
+            cond = False
+        else:
+            rcv_channels = the_sicd.RadarCollection.RcvChannels
+            if rcv_channels is None:
+                the_sicd.ImageFormation.RcvChanProc.log_validity_error(
+                    'Some ChanIndex values are populated,\n\t'
+                    'but no RadarCollection.RcvChannels is populated.')
+                cond = False
+            else:
+                for i, entry in enumerate(channels):
+                    if not (0 < entry <= len(rcv_channels)):
+                        the_sicd.ImageFormation.RcvChanProc.log_validity_error(
+                            'ChanIndex entry {} is populated as {},\n\tbut must be in '
+                            'the range [1, {}]'.format(i, entry, len(rcv_channels)))
+                        cond = False
     if the_sicd.Grid is None:
         return cond
 
@@ -1147,6 +1169,76 @@ def _validate_valid_data(the_sicd):
         return False
 
     return True
+
+
+def _validate_polygons(the_sicd):
+    """
+    Checks that the polygons appear to be appropriate.
+
+    Parameters
+    ----------
+    the_sicd : sarpy.io.complex.sicd_elements.SICD.SICDType
+
+    Returns
+    -------
+    bool
+    """
+
+    def orientation(linear_ring, the_name):
+        area = linear_ring.get_area()
+        if area == 0:
+            the_sicd.GeoData.log_validity_error(
+                '{} encloses no area. **disregard if crosses the +/-180 boundary'.format(the_name))
+            return False
+        elif area < 0:
+            the_sicd.GeoData.log_validity_error(
+                "{} must be traversed in clockwise direction. "
+                "**disregard if crosses the +/-180 boundary".format(the_name))
+            return False
+        return True
+
+    if the_sicd.GeoData is None:
+        return True
+
+    if the_sicd.GeoData.ImageCorners is None:
+        return True  # checked elsewhere
+
+    image_corners = the_sicd.GeoData.ImageCorners.get_array(dtype='float64')
+
+    if numpy.any(~numpy.isfinite(image_corners)):
+        the_sicd.GeoData.log_validity_error('ImageCorners populated with some infinite or NaN values')
+        return False
+
+    value = True
+    lin_ring = LinearRing(coordinates=image_corners)
+    value &= orientation(lin_ring, 'ImageCorners')
+
+    if the_sicd.GeoData.ValidData is not None:
+        valid_data = the_sicd.GeoData.ValidData.get_array(dtype='float64')
+        if numpy.any(~numpy.isfinite(valid_data)):
+            the_sicd.GeoData.log_validity_error('ValidData populated with some infinite or NaN values')
+            value = False
+        else:
+            value &= orientation(LinearRing(coordinates=valid_data), 'ValidData')
+            for i, entry in enumerate(valid_data):
+                if not lin_ring.contain_coordinates(entry[0], entry[1]):
+                    the_sicd.GeoData.log_validity_error(
+                        'ValidData entry {} is not contained ImageCorners. '
+                        '**disregard if crosses the +/-180 boundary'.format(i))
+                    value = False
+
+    if not the_sicd.can_project_coordinates():
+        the_sicd.log_validity_warning(
+            'This sicd does not permit coordinate projection, and image corner points can not be evaluated')
+        return False
+
+    origin_loc = the_sicd.project_image_to_ground_geo([0, 0])
+    if numpy.abs(origin_loc[0] - image_corners[0, 0]) > 1e-5 or numpy.abs(origin_loc[1] - image_corners[0, 1]) > 1e-5:
+        the_sicd.GeoData.log_validity_error(
+            'The pixel coordinate [0, 0] projects to {}, '
+            'which is not in good agreement with the first corner point {}'.format(origin_loc, image_corners[0]))
+        value = False
+    return value
 
 
 def _validate_polarization(the_sicd):
@@ -1366,6 +1458,7 @@ def detailed_validation_checks(the_sicd):
     out &= _validate_image_segment_id(the_sicd)
     out &= _validate_spotlight_mode(the_sicd)
     out &= _validate_valid_data(the_sicd)
+    out &= _validate_polygons(the_sicd)
     out &= _validate_polarization(the_sicd)
     out &= _check_deltak(the_sicd)
 

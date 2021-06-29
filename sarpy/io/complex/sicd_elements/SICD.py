@@ -2,6 +2,10 @@
 The SICDType definition.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
+
 import logging
 import copy
 from collections import OrderedDict
@@ -30,32 +34,24 @@ from .validation_checks import detailed_validation_checks
 
 from sarpy.geometry import point_projection
 from sarpy.io.complex.naming.utils import get_sicd_name
+from sarpy.io.complex.sicd_schema import get_urn_details, get_specification_identifier
 
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
 
 #########
 # Module variables
-_SICD_SPECIFICATION_IDENTIFIER = 'SICD Volume 1 Design & Implementation Description Document'
-_SICD_SPECIFICATION_VERSION_1_2 = '1.2'
-_SICD_SPECIFICATION_DATE_1_2 = '2018-12-13T00:00:00Z'
+_SICD_SPECIFICATION_IDENTIFIER = get_specification_identifier()
+
+
 _SICD_SPECIFICATION_NAMESPACE_1_2 = 'urn:SICD:1.2.1'
+_details_1_2 = get_urn_details(_SICD_SPECIFICATION_NAMESPACE_1_2)
+_SICD_SPECIFICATION_VERSION_1_2 = _details_1_2['version']
+_SICD_SPECIFICATION_DATE_1_2 = _details_1_2['date']
 
-_SICD_SPECIFICATION_VERSION_1_1 = '1.1'
-_SICD_SPECIFICATION_DATE_1_1 = '2014-07-08T00:00:00Z'
+
 _SICD_SPECIFICATION_NAMESPACE_1_1 = 'urn:SICD:1.1.0'
-
-
-def get_specification_identifier():
-    """
-    Get the current specification identifier.
-
-    Returns
-    -------
-    str
-    """
-
-    return _SICD_SPECIFICATION_IDENTIFIER
+_details_1_1 = get_urn_details(_SICD_SPECIFICATION_NAMESPACE_1_1)
+_SICD_SPECIFICATION_VERSION_1_1 = _details_1_1['version']
+_SICD_SPECIFICATION_DATE_1_1 = _details_1_1['date']
 
 
 class SICDType(Serializable):
@@ -924,7 +920,7 @@ class SICDType(Serializable):
         out = super(SICDType, self).copy()
         if hasattr(self, '_NITF'):
             out._NITF = copy.deepcopy(self._NITF)
-        out.derive()
+        # out.derive()  # NB: it's too easy for this to cause trouble
         return out
 
     def to_xml_bytes(self, urn=None, tag='SICD', check_validity=False, strict=DEFAULT_STRICT):
