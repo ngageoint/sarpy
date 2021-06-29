@@ -276,13 +276,13 @@ def check_sicd_file(nitf_details):
         # get pixel type
         pixel_type = the_sicd.ImageData.PixelType
         if pixel_type == 'RE32F_IM32F':
-            exp_nbpp = 64
+            exp_nbpp = 32
             exp_pvtype = 'R'
         elif pixel_type == 'RE16I_IM16I':
-            exp_nbpp = 32
+            exp_nbpp = 16
             exp_pvtype = 'SI'
         elif pixel_type == 'AMP8I_PHS8I':
-            exp_nbpp = 16
+            exp_nbpp = 8
             exp_pvtype = 'INT'
         else:
             raise ValueError('Got unexpected pixel type {}'.format(pixel_type))

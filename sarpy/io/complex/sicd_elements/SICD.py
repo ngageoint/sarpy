@@ -920,7 +920,7 @@ class SICDType(Serializable):
         out = super(SICDType, self).copy()
         if hasattr(self, '_NITF'):
             out._NITF = copy.deepcopy(self._NITF)
-        out.derive()
+        # out.derive()  # NB: it's too easy for this to cause trouble
         return out
 
     def to_xml_bytes(self, urn=None, tag='SICD', check_validity=False, strict=DEFAULT_STRICT):

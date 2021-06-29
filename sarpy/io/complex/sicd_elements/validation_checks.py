@@ -958,16 +958,16 @@ def _validate_image_form_parameters(the_sicd, alg_type):
     cond = True
     if the_sicd.ImageFormation.ImageFormAlgo is None:
         the_sicd.log_validity_warning(
-            'Image formation algorithm(s) {} populated, but ImageFormation.ImageFormAlgo was not set.\n'
-            'ImageFormation.ImageFormAlgo has been set HERE, but the incoming '
-            'structure was incorrect.'.format(alg_type))
+            'Image formation algorithm(s) {} populated, but ImageFormation.ImageFormAlgo was not set.\n\t'
+            'ImageFormation.ImageFormAlgo has been set HERE,\n\t'
+            'but the incoming structure was incorrect.'.format(alg_type))
         the_sicd.ImageFormation.ImageFormAlgo = alg_type.upper()
         cond = False
     elif the_sicd.ImageFormation.ImageFormAlgo != alg_type:
         the_sicd.log_validity_warning(
-            'Image formation algorithm {} populated, but ImageFormation.ImageFormAlgo populated as {}.\n'
-            'ImageFormation.ImageFormAlgo has been set properly HERE, but the incoming '
-            'structure was incorrect.'.format(alg_type, the_sicd.ImageFormation.ImageFormAlgo))
+            'Image formation algorithm {} populated, but ImageFormation.ImageFormAlgo populated as {}.\n\t'
+            'ImageFormation.ImageFormAlgo has been set properly HERE,\n\t'
+            'but the incoming structure was incorrect.'.format(alg_type, the_sicd.ImageFormation.ImageFormAlgo))
         the_sicd.ImageFormation.ImageFormAlgo = alg_type.upper()
         cond = False
 
@@ -981,16 +981,16 @@ def _validate_image_form_parameters(the_sicd, alg_type):
             rcv_channels = the_sicd.RadarCollection.RcvChannels
             if rcv_channels is None:
                 the_sicd.ImageFormation.RcvChanProc.log_validity_error(
-                    'Some ChanIndex values are populated, '
+                    'Some ChanIndex values are populated,\n\t'
                     'but no RadarCollection.RcvChannels is populated.')
                 cond = False
             else:
-                for i, entry in channels:
+                for i, entry in enumerate(channels):
                     if not (0 < entry <= len(rcv_channels)):
                         the_sicd.ImageFormation.RcvChanProc.log_validity_error(
-                            'ChanIndex entry {} is populated as {}, but must be in '
+                            'ChanIndex entry {} is populated as {},\n\tbut must be in '
                             'the range [1, {}]'.format(i, entry, len(rcv_channels)))
-                cond = False
+                        cond = False
     if the_sicd.Grid is None:
         return cond
 

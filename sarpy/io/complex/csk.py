@@ -595,6 +595,7 @@ class CSKDetails(object):
             dop_poly_rg = Poly1DType(Coefs=t_dop_poly_rg)
 
             t_sicd = base_sicd.copy()
+            t_sicd.derive()
             update_scp_prelim(t_sicd, bd_name)  # set preliminary value for SCP (required for projection)
             row_bw = band_dict[bd_name]['Range Focusing Bandwidth']*2/speed_of_light
             row_ss = band_dict[bd_name]['Column Spacing']
