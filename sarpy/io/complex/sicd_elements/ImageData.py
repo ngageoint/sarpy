@@ -184,8 +184,8 @@ class ImageDataType(Serializable):
                 "ValidData must be traversed in clockwise direction.")
             value = False
         for i, entry in enumerate(valid_data):
-            if not ((self.FirstRow <= entry[0] < self.FirstRow + self.NumRows) and
-                    (self.FirstCol <= entry[1] < self.FirstCol + self.NumCols)):
+            if not ((self.FirstRow <= entry[0] <= self.FirstRow + self.NumRows) and
+                    (self.FirstCol <= entry[1] <= self.FirstCol + self.NumCols)):
                 self.log_validity_warning(
                     'ValidData entry {} is not contained in the image bounds'.format(i))
                 value = False
