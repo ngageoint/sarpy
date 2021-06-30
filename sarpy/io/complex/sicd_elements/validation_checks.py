@@ -54,8 +54,8 @@ def _rgazcomp_check_kaz_poly(RgAzComp, Timeline, Grid, SCPCOA, look, ARP_Vel):
             kaz_populated = RgAzComp.KazPoly.get_array(dtype='float64')
             if numpy.linalg.norm(kaz_populated - derived_kaz_poly) > 1e-3:
                 RgAzComp.log_validity_error(
-                    'Timeline.IPP has one element, the RgAzComp.KazPoly populated as\n{}\n'
-                    'but the expected value is\n{}'.format(kaz_populated, derived_kaz_poly))
+                    'Timeline.IPP has one element, the RgAzComp.KazPoly populated as\n\t{}\n\t'
+                    'but the expected value is\n\t{}'.format(kaz_populated, derived_kaz_poly))
                 cond = False
         except (AttributeError, ValueError, TypeError):
             pass
@@ -85,7 +85,7 @@ def _rgazcomp_check_row_deltakcoa(RgAzComp, Grid, RadarCollection, ImageFormatio
     if numpy.any(row_deltakcoa != row_deltakcoa[0, 0]):
         RgAzComp.log_validity_error(
             'Grid.Row.DeltaKCOAPoly is defined, '
-            'but all entries are not constant\n{}'.format(row_deltakcoa))
+            'but all entries are not constant\n\t{}'.format(row_deltakcoa))
         cond = False
 
     if RadarCollection.RefFreqIndex is None:
@@ -134,7 +134,7 @@ def _rgazcomp_check_col_deltacoa(RgAzComp, Grid):
         if numpy.any(col_deltakcoa != col_deltakcoa[0, 0]):
             RgAzComp.log_validity_error(
                 'the Grid.Col.DeltaKCOAPoly is defined, '
-                'but all entries are not constant\n{}'.format(col_deltakcoa))
+                'but all entries are not constant\n\t{}'.format(col_deltakcoa))
             cond = False
 
         if col_deltakcoa.shape == (1, 1) and abs(Grid.Col.KCtr + col_deltakcoa[0, 0]) > 1e-6:
@@ -166,13 +166,13 @@ def _rgazcomp_checks(the_sicd):
 
     if Grid.ImagePlane != 'SLANT':
         the_sicd.log_validity_error(
-            'The image formation algorithm is RGAZCOMP,\n'
-            'and Grid.ImagePlane is populated as "{}",\n'
+            'The image formation algorithm is RGAZCOMP,\n\t'
+            'and Grid.ImagePlane is populated as "{}",\n\t'
             'but should be "SLANT"'.format(Grid.ImagePlane))
         cond = False
     if Grid.Type != 'RGAZIM':
         the_sicd.log_validity_error(
-            'The image formation algorithm is RGAZCOMP, and Grid.Type is populated as "{}", '
+            'The image formation algorithm is RGAZCOMP, and Grid.Type is populated as "{}",\n\t'
             'but should be "RGAZIM"'.format(Grid.Type))
         cond = False
 
@@ -201,13 +201,13 @@ def _rgazcomp_checks(the_sicd):
 
     if numpy.linalg.norm(uRG - row_uvect) > 1e-3:
         RgAzComp.log_validity_error(
-            'Grid.Row.UVectECF is populated as \n{}\n'
-            'which should agree with the unit range vector\n{}'.format(row_uvect, uRG))
+            'Grid.Row.UVectECF is populated as \n\t{}\n\t'
+            'which should agree with the unit range vector\n\t{}'.format(row_uvect, uRG))
         cond = False
     if numpy.linalg.norm(derived_col_vec - col_uvect) > 1e-3:
         RgAzComp.log_validity_error(
-            'Grid.Col.UVectECF is populated as \n{}\n'
-            'which should agree with derived vector\n{}'.format(col_uvect, derived_col_vec))
+            'Grid.Col.UVectECF is populated as \n\t{}\n\t'
+            'which should agree with derived vector\n\t{}'.format(col_uvect, derived_col_vec))
         cond = False
 
     cond &= _rgazcomp_check_kaz_poly(RgAzComp, the_sicd.Timeline, Grid, SCPCOA, look, ARP_Vel)
@@ -362,14 +362,14 @@ def _pfa_check_uvects(PFA, Position, Grid, SCP):
     derived_row_vector = -u_slant_range
     if numpy.linalg.norm(derived_row_vector - row_uvect) > 1e-3:
         PFA.log_validity_error(
-            'the Grid.Row.UVectECF ({}) is not in good agreement with\n'
+            'the Grid.Row.UVectECF ({}) is not in good agreement with\n\t'
             'the expected value derived from PFA parameters ({})'.format(row_uvect, derived_row_vector))
         cond = False
 
     derived_col_vector = numpy.cross(ipn, derived_row_vector)
     if numpy.linalg.norm(derived_col_vector - col_uvect) > 1e-3:
         PFA.log_validity_error(
-            'the Grid.Col.UVectECF ({}) is not in good agreement with\n'
+            'the Grid.Col.UVectECF ({}) is not in good agreement with\n\t'
             'the expected value derived from the PFA parameters ({})'.format(col_uvect, derived_col_vector))
         cond = False
 
@@ -413,8 +413,8 @@ def _pfa_check_stdeskew(PFA, Grid):
 
         if numpy.max(numpy.abs(exp_delta_kcoa - exp_stds_phase_poly)) > 1e-6:
             PFA.log_validity_warning(
-                'PFA.STDeskew.Applied is True,\n'
-                'and the Grid.Row.DeltaKCOAPoly ({}) and PFA.STDeskew.STDSPhasePoly ({})\n'
+                'PFA.STDeskew.Applied is True,\n\t'
+                'and the Grid.Row.DeltaKCOAPoly ({}) and PFA.STDeskew.STDSPhasePoly ({})\n\t'
                 'are not in good agreement.'.format(delta_kcoa, stds_phase_poly))
             cond = False
 
@@ -447,7 +447,7 @@ def _pfa_check_kctr(PFA, RadarCollection, ImageFormation, Grid):
         kctr_total = max(1e-2, 1 - numpy.cos(theta))  # difference between Krg and Kap
         if abs(Grid.Row.KCtr/kap_ctr - 1) > kctr_total:
             PFA.log_validity_error(
-                'the Grid.Row.KCtr value ({}) is not in keeping with\n'
+                'the Grid.Row.KCtr value ({}) is not in keeping with\n\t'
                 'the expected derived from PFA parameters ({})'.format(Grid.Row.KCtr, kap_ctr))
             cond = False
     except (AttributeError, ValueError, TypeError):
@@ -492,7 +492,7 @@ def _pfa_check_image_plane(PFA, Grid, SCPCOA, SCP):
 
             if numpy.arccos(ipn.dot(uSpn)) > numpy.deg2rad(1):
                 PFA.log_validity_error(
-                    'the Grid.ImagePlane is "SLANT",\n'
+                    'the Grid.ImagePlane is "SLANT",\n\t'
                     'but COA slant plane and provided IPN are not within one degree of each other')
                 cond = False
         except (AttributeError, ValueError, TypeError):
@@ -500,8 +500,8 @@ def _pfa_check_image_plane(PFA, Grid, SCPCOA, SCP):
     elif Grid.ImagePlane == 'GROUND':
         if numpy.arccos(ipn.dot(ETP)) > numpy.deg2rad(3):
             PFA.log_validity_error(
-                'the Grid.ImagePlane is "Ground",\n'
-                'but the Earth Tangent Plane at SCP and provided IPN '
+                'the Grid.ImagePlane is "Ground",\n\t'
+                'but the Earth Tangent Plane at SCP and provided IPN\n\t'
                 'are not within three degrees of each other.')
             cond = False
 
@@ -540,8 +540,9 @@ def _pfa_check_polar_angle_consistency(PFA, CollectionInfo, ImageFormation):
     pol_angle_bounds_diff = numpy.amax(numpy.abs(polar_angle_bounds - derived_pol_angle_bounds))
     if pol_angle_bounds_diff > 1e-2:
         PFA.log_validity_error(
-            'the derived polar angle bounds ({}) are not consistent with\n'
-            'the provided ImageFormation processing times (expected bounds {}).'.format(polar_angle_bounds, derived_pol_angle_bounds))
+            'the derived polar angle bounds ({}) are not consistent with\n\t'
+            'the provided ImageFormation processing times '
+            '(expected bounds {}).'.format(polar_angle_bounds, derived_pol_angle_bounds))
         cond = False
     return cond
 
@@ -566,13 +567,13 @@ def _pfa_checks(the_sicd):
     cond = True
     if Grid.Type != 'RGAZIM':
         Grid.log_validity_warning(
-            'The image formation algorithm is PFA,\n'
-            'and Grid.Type is populated as "{}",\n'
+            'The image formation algorithm is PFA,\n\t'
+            'and Grid.Type is populated as "{}",\n\t'
             'but should be "RGAZIM"'.format(Grid.Type))
         cond = False
     if abs(PFA.PolarAngRefTime - SCPCOA.SCPTime) > 1e-6:
         PFA.log_validity_warning(
-            'the PFA.PolarAngRefTime ({})\n'
+            'the PFA.PolarAngRefTime ({})\n\t'
             'does not agree with the SCPCOA.SCPTime ({})'.format(PFA.PolarAngRefTime, SCPCOA.SCPTime))
         cond = False
     cond &= _pfa_check_kaz_krg(PFA, Grid)
@@ -640,18 +641,18 @@ def _rma_check_rmat(RMA, Grid, GeoData, RadarCollection, ImageFormation):
 
     if numpy.linalg.norm(row_uvect - uXCT) > 1e-3:
         RMAT.log_validity_error(
-            'the Grid.Row.UVectECF is populated as {},\n'
+            'the Grid.Row.UVectECF is populated as {},\n\t'
             'but derived from the RMAT parameters is expected to be {}'.format(row_uvect, uXCT))
         cond = False
     if numpy.linalg.norm(col_uvect - uYAT) > 1e-3:
         RMAT.log_validity_error(
-            'the Grid.Col.UVectECF is populated as {},\n'
+            'the Grid.Col.UVectECF is populated as {},\n\t'
             'but derived from the RMAT parameters is expected to be {}'.format(col_uvect, uYAT))
         cond = False
     exp_doppler_cone = numpy.rad2deg(numpy.arccos(uLOS.dot(velocity_ref/numpy.linalg.norm(velocity_ref))))
     if abs(exp_doppler_cone - RMAT.DopConeAngRef) > 1e-6:
         RMAT.log_validity_error(
-            'the RMAT.DopConeAngRef is populated as {},\n'
+            'the RMAT.DopConeAngRef is populated as {},\n\t'
             'but derived from the RMAT parameters is expected to be {}'.format(RMAT.DopConeAngRef, exp_doppler_cone))
         cond = False
 
@@ -663,12 +664,12 @@ def _rma_check_rmat(RMA, Grid, GeoData, RadarCollection, ImageFormation):
         try:
             if abs(exp_row_kctr/Grid.Row.KCtr - 1) > 1e-3:
                 RMAT.log_validity_warning(
-                    'the Grid.Row.KCtr is populated as {},\n'
+                    'the Grid.Row.KCtr is populated as {},\n\t'
                     'and derived from the RMAT parameters is expected to be {}'.format(Grid.Row.KCtr, exp_row_kctr))
                 cond = False
             if abs(exp_col_kctr/Grid.Col.KCtr - 1) > 1e-3:
                 RMAT.log_validity_warning(
-                    'the Grid.Col.KCtr is populated as {}, '
+                    'the Grid.Col.KCtr is populated as {},\n\t'
                     'and derived from the RMAT parameters is expected to be {}'.format(Grid.Col.KCtr, exp_col_kctr))
                 cond = False
         except (AttributeError, ValueError, TypeError):
@@ -721,23 +722,24 @@ def _rma_check_rmcr(RMA, Grid, GeoData, RadarCollection, ImageFormation):
 
     if numpy.linalg.norm(row_uvect - uXRG) > 1e-3:
         RMCR.log_validity_error(
-            'the Grid.Row.UVectECF is populated as {},\n'
+            'the Grid.Row.UVectECF is populated as {},\n\t'
             'but derived from the RMCR parameters is expected to be {}'.format(row_uvect, uXRG))
         cond = False
     if numpy.linalg.norm(col_uvect - uYCR) > 1e-3:
         RMCR.log_validity_error(
-            'the Grid.Col.UVectECF is populated as {},\n'
+            'the Grid.Col.UVectECF is populated as {},\n\t'
             'but derived from the RMCR parameters is expected to be {}'.format(col_uvect, uYCR))
         cond = False
     exp_doppler_cone = numpy.rad2deg(numpy.arccos(uXRG.dot(velocity_ref/numpy.linalg.norm(velocity_ref))))
     if abs(exp_doppler_cone - RMCR.DopConeAngRef) > 1e-6:
         RMCR.log_validity_error(
-            'the RMCR.DopConeAngRef is populated as {},\n'
+            'the RMCR.DopConeAngRef is populated as {},\n\t'
             'but derived from the RMCR parameters is expected to be {}'.format(RMCR.DopConeAngRef, exp_doppler_cone))
         cond = False
     if abs(Grid.Col.KCtr) > 1e-6:
         Grid.log_validity_error(
-            'The image formation algorithm is RMA/RMCR, but Grid.Col.KCtr is non-zero ({}).'.format(Grid.Col.KCtr))
+            'The image formation algorithm is RMA/RMCR,\n\t'
+            'but Grid.Col.KCtr is non-zero ({}).'.format(Grid.Col.KCtr))
         cond = False
 
     if RadarCollection.RefFreqIndex is None:
@@ -746,7 +748,7 @@ def _rma_check_rmcr(RMA, Grid, GeoData, RadarCollection, ImageFormation):
         try:
             if abs(k_f_c/Grid.Row.KCtr - 1) > 1e-3:
                 RMCR.log_validity_warning(
-                    'the Grid.Row.KCtr is populated as {},\n'
+                    'the Grid.Row.KCtr is populated as {},\n\t'
                     'and derived from the RMCR parameters is expected to be {}'.format(Grid.Row.KCtr, k_f_c))
                 cond = False
         except (AttributeError, ValueError, TypeError):
@@ -783,23 +785,23 @@ def _rma_check_inca(RMA, Grid, GeoData, RadarCollection, CollectionInfo, Positio
     if CollectionInfo.RadarMode.ModeType == 'SPOTLIGHT':
         if INCA.DopCentroidPoly is not None:
             INCA.log_validity_error(
-                'the CollectionInfo.RadarMode.ModeType == "SPOTLIGHT",\n'
+                'the CollectionInfo.RadarMode.ModeType == "SPOTLIGHT",\n\t'
                 'and INCA.DopCentroidPoly is populated.')
             cond = False
         if INCA.DopCentroidCOA is True:
             INCA.log_validity_error(
-                'the CollectionInfo.RadarMode.ModeType == "SPOTLIGHT",\n'
+                'the CollectionInfo.RadarMode.ModeType == "SPOTLIGHT",\n\t'
                 'and INCA.DopCentroidCOA == True.')
             cond = False
     else:
         if INCA.DopCentroidPoly is None:
             INCA.log_validity_error(
-                'the CollectionInfo.RadarMode.ModeType == "{}",\n'
+                'the CollectionInfo.RadarMode.ModeType == "{}",\n\t'
                 'and INCA.DopCentroidPoly is not populated.'.format(CollectionInfo.RadarMode.ModeType))
             cond = False
         if INCA.DopCentroidCOA is not True:
             INCA.log_validity_error(
-                'the CollectionInfo.RadarMode.ModeType == "{}",\n'
+                'the CollectionInfo.RadarMode.ModeType == "{}",\n\t'
                 'and INCA.DopCentroidCOA is not True.'.format(CollectionInfo.RadarMode.ModeType))
             cond = False
         if Grid.Col.DeltaKCOAPoly is not None and INCA.DopCentroidPoly is not None:
@@ -813,7 +815,7 @@ def _rma_check_inca(RMA, Grid, GeoData, RadarCollection, CollectionInfo, Positio
             exp_deltakcoa2[:dop_centroid.shape[0], :dop_centroid.shape[1]] = dop_centroid*INCA.TimeCAPoly[1]
             if numpy.max(numpy.abs(exp_deltakcoa1 - exp_deltakcoa2)) > 1e-6:
                 INCA.log_validity_error(
-                    'the Grid.Col.DeltaKCOAPoly ({}),\n'
+                    'the Grid.Col.DeltaKCOAPoly ({}),\n\t'
                     'INCA.DopCentroidPoly ({}), and INCA.TimeCAPoly ({}) '
                     'are inconsistent.'.format(col_deltakcoa,
                                                dop_centroid,
@@ -837,7 +839,7 @@ def _rma_check_inca(RMA, Grid, GeoData, RadarCollection, CollectionInfo, Positio
         exp_row_kctr = INCA.FreqZero*2/speed_of_light
         if abs(exp_row_kctr/Grid.Row.KCtr - 1) > 1e-8:
             INCA.log_validity_error(
-                'the Grid.Row.KCtr is populated as ({}),\n'
+                'the Grid.Row.KCtr is populated as ({}),\n\t'
                 'which is not consistent with INCA.FreqZero ({})'.format(Grid.Row.KCtr, INCA.FreqZero))
             cond = False
 
@@ -860,19 +862,19 @@ def _rma_check_inca(RMA, Grid, GeoData, RadarCollection, CollectionInfo, Positio
 
     if numpy.linalg.norm(row_uvect - uRG) > 1e-3:
         INCA.log_validity_error(
-            'the Grid.Row.UVectECF is populated as {},\n'
+            'the Grid.Row.UVectECF is populated as {},\n\t'
             'but derived from the INCA parameters is expected to be {}'.format(row_uvect, uRG))
         cond = False
     if numpy.linalg.norm(col_uvect - uAZ) > 1e-3:
         INCA.log_validity_error(
-            'the Col.UVectECF is populated as {},\n'
+            'the Col.UVectECF is populated as {},\n\t'
             'but derived from the INCA parameters is expected to be {}'.format(col_uvect, uAZ))
         cond = False
 
     exp_R_CA_SCP = numpy.linalg.norm(RG)
     if abs(exp_R_CA_SCP - INCA.R_CA_SCP) > 1e-2:
         INCA.log_validity_error(
-            'the INCA.R_CA_SCP is populated as {},\n'
+            'the INCA.R_CA_SCP is populated as {},\n\t'
             'but derived from the INCA parameters is expected to be {}'.format(INCA.R_CA_SCP, exp_R_CA_SCP))
         cond = False
 
@@ -880,7 +882,7 @@ def _rma_check_inca(RMA, Grid, GeoData, RadarCollection, CollectionInfo, Positio
     exp_drate_const = 1./abs(INCA.TimeCAPoly[1]*numpy.linalg.norm(ca_vel))
     if abs(exp_drate_const - drate_const) > 1e-3:
         INCA.log_validity_error(
-            'the populated INCA.DRateSFPoly constant term ({})\n'
+            'the populated INCA.DRateSFPoly constant term ({})\n\t'
             'and expected constant term ({}) are not consistent.'.format(drate_const, exp_drate_const))
         cond = False
     return cond
@@ -935,7 +937,7 @@ def _validate_scp_time(the_sicd):
     val2 = the_sicd.Grid.TimeCOAPoly[0, 0]
     if abs(val1 - val2) > 1e-6:
         the_sicd.log_validity_error(
-            'SCPTime populated as {},\n'
+            'SCPTime populated as {},\n\t'
             'and constant term of TimeCOAPoly populated as {}'.format(val1, val2))
         cond = False
     return cond
@@ -958,14 +960,22 @@ def _validate_image_form_parameters(the_sicd, alg_type):
     cond = True
     if the_sicd.ImageFormation.ImageFormAlgo is None:
         the_sicd.log_validity_warning(
-            'Image formation algorithm(s) {} populated, but ImageFormation.ImageFormAlgo was not set.\n\t'
+            'Image formation algorithm(s) `{}` populated,\n\t'
+            'but ImageFormation.ImageFormAlgo was not set.\n\t'
             'ImageFormation.ImageFormAlgo has been set HERE,\n\t'
             'but the incoming structure was incorrect.'.format(alg_type))
         the_sicd.ImageFormation.ImageFormAlgo = alg_type.upper()
         cond = False
+    elif the_sicd.ImageFormation.ImageFormAlgo == 'OTHER':
+        the_sicd.log_validity_warning(
+            'Image formation algorithm `{0:s}` populated,\n\t'
+            'but ImageFormation.ImageFormAlgo populated as `OTHER`.\n\t'
+            'Possibly non-applicable validity checks will '
+            'be performed using the `{0:s}` object'.format(alg_type))
     elif the_sicd.ImageFormation.ImageFormAlgo != alg_type:
         the_sicd.log_validity_warning(
-            'Image formation algorithm {} populated, but ImageFormation.ImageFormAlgo populated as {}.\n\t'
+            'Image formation algorithm {} populated,\n\t'
+            'but ImageFormation.ImageFormAlgo populated as {}.\n\t'
             'ImageFormation.ImageFormAlgo has been set properly HERE,\n\t'
             'but the incoming structure was incorrect.'.format(alg_type, the_sicd.ImageFormation.ImageFormAlgo))
         the_sicd.ImageFormation.ImageFormAlgo = alg_type.upper()
@@ -994,11 +1004,11 @@ def _validate_image_form_parameters(the_sicd, alg_type):
     if the_sicd.Grid is None:
         return cond
 
-    if the_sicd.ImageFormation.ImageFormAlgo == 'RGAZCOMP' and the_sicd.RgAzComp is not None:
+    if alg_type == 'RgAzComp':
         cond &= _rgazcomp_checks(the_sicd)
-    elif the_sicd.ImageFormation.ImageFormAlgo == 'PFA' and the_sicd.PFA is not None:
+    elif alg_type == 'PFA':
         cond &= _pfa_checks(the_sicd)
-    elif the_sicd.ImageFormation.ImageFormAlgo == 'RMA':
+    elif alg_type == 'RMA':
         cond &= _rma_checks(the_sicd)
     elif the_sicd.ImageFormation.ImageFormAlgo == 'OTHER':
         the_sicd.log_validity_warning(
@@ -1033,19 +1043,21 @@ def _validate_image_formation(the_sicd):
 
     if len(alg_types) > 1:
         the_sicd.log_validity_error(
-            'ImageFormation.ImageFormAlgo is set as {}, and multiple SICD image formation parameters {} are set.\n'
+            'ImageFormation.ImageFormAlgo is set as {}, and multiple SICD image formation parameters {} are set.\n\t'
             'Only one image formation algorithm should be set, and ImageFormation.ImageFormAlgo '
             'should match.'.format(the_sicd.ImageFormation.ImageFormAlgo, alg_types))
         return False
     elif len(alg_types) == 0:
         if the_sicd.ImageFormation.ImageFormAlgo is None:
             the_sicd.log_validity_warning(
-                'ImageFormation.ImageFormAlgo is not set, and there is no corresponding\n'
+                'ImageFormation.ImageFormAlgo is not set, and there is no corresponding\n\t'
                 'RgAzComp, PFA, or RMA SICD parameters set. Setting ImageFormAlgo '
                 'to "OTHER".'.format(the_sicd.ImageFormation.ImageFormAlgo))
             the_sicd.ImageFormation.ImageFormAlgo = 'OTHER'
-            return True
-        elif the_sicd.ImageFormation.ImageFormAlgo != 'OTHER':
+        elif the_sicd.ImageFormation.ImageFormAlgo == 'OTHER':
+            the_sicd.log_validity_warning(
+                'Image formation algorithm populated as "OTHER", which inherently limits SICD analysis capability')
+        else:
             the_sicd.log_validity_error(
                 'No RgAzComp, PFA, or RMA SICD parameters populated, but ImageFormation.ImageFormAlgo '
                 'is set as {}.'.format(the_sicd.ImageFormation.ImageFormAlgo))
@@ -1082,15 +1094,15 @@ def _validate_image_segment_id(the_sicd):
     if seg_id is None:
         if seg_list is not None:
             the_sicd.log_validity_error(
-                'ImageFormation.SegmentIdentifier is not populated, but\n'
-                'RadarCollection.Area.Plane.SegmentList is populated.\n'
+                'ImageFormation.SegmentIdentifier is not populated, but\n\t'
+                'RadarCollection.Area.Plane.SegmentList is populated.\n\t'
                 'ImageFormation.SegmentIdentifier should be set to identify the appropriate segment.')
             return False
         return True
 
     if seg_list is None:
         the_sicd.log_validity_error(
-            'ImageFormation.SegmentIdentifier is populated as {},\n'
+            'ImageFormation.SegmentIdentifier is populated as {},\n\t'
             'but RadarCollection.Area.Plane.SegmentList is not populated.'.format(seg_id))
         return False
 
@@ -1098,9 +1110,9 @@ def _validate_image_segment_id(the_sicd):
     the_ids = [entry.Identifier for entry in seg_list]
     if seg_id not in the_ids:
         the_sicd.log_validity_error(
-            'ImageFormation.SegmentIdentifier is populated as {},\n'
-            'but this is not one of the possible identifiers in the\n'
-            'RadarCollection.Area.Plane.SegmentList definition {}.\n'
+            'ImageFormation.SegmentIdentifier is populated as {},\n\t'
+            'but this is not one of the possible identifiers in the\n\t'
+            'RadarCollection.Area.Plane.SegmentList definition {}.\n\t'
             'ImageFormation.SegmentIdentifier should be set to identify the '
             'appropriate segment.'.format(seg_id, the_ids))
         return False
@@ -1130,15 +1142,15 @@ def _validate_spotlight_mode(the_sicd):
     if the_sicd.CollectionInfo.RadarMode.ModeType == 'SPOTLIGHT' and \
             the_sicd.Grid.TimeCOAPoly.Coefs.shape != (1, 1):
         the_sicd.log_validity_error(
-            'CollectionInfo.RadarMode.ModeType is SPOTLIGHT,\n'
-            'but the Grid.TimeCOAPoly is not scalar - {}.\n'
+            'CollectionInfo.RadarMode.ModeType is SPOTLIGHT,\n\t'
+            'but the Grid.TimeCOAPoly is not scalar - {}.\n\t'
             'This cannot be valid.'.format(the_sicd.Grid.TimeCOAPoly.Coefs))
         return False
     elif the_sicd.Grid.TimeCOAPoly.Coefs.shape == (1, 1) and \
             the_sicd.CollectionInfo.RadarMode.ModeType != 'SPOTLIGHT':
         the_sicd.log_validity_warning(
-            'The Grid.TimeCOAPoly is scalar,\n'
-            'but the CollectionInfo.RadarMode.ModeType is not SPOTLIGHT - {}.\n'
+            'The Grid.TimeCOAPoly is scalar,\n\t'
+            'but the CollectionInfo.RadarMode.ModeType is not SPOTLIGHT - {}.\n\t'
             'This is likely not valid.'.format(the_sicd.CollectionInfo.RadarMode.ModeType))
         return True
     return True
@@ -1188,11 +1200,12 @@ def _validate_polygons(the_sicd):
         area = linear_ring.get_area()
         if area == 0:
             the_sicd.GeoData.log_validity_error(
-                '{} encloses no area. **disregard if crosses the +/-180 boundary'.format(the_name))
+                '{} encloses no area.\n\t'
+                '**disregard if crosses the +/-180 boundary'.format(the_name))
             return False
         elif area < 0:
             the_sicd.GeoData.log_validity_error(
-                "{} must be traversed in clockwise direction. "
+                "{} must be traversed in clockwise direction.\n\t"
                 "**disregard if crosses the +/-180 boundary".format(the_name))
             return False
         return True
@@ -1216,26 +1229,30 @@ def _validate_polygons(the_sicd):
     if the_sicd.GeoData.ValidData is not None:
         valid_data = the_sicd.GeoData.ValidData.get_array(dtype='float64')
         if numpy.any(~numpy.isfinite(valid_data)):
-            the_sicd.GeoData.log_validity_error('ValidData populated with some infinite or NaN values')
+            the_sicd.GeoData.log_validity_error(
+                'ValidData populated with some infinite or NaN values')
             value = False
         else:
             value &= orientation(LinearRing(coordinates=valid_data), 'ValidData')
             for i, entry in enumerate(valid_data):
-                if not lin_ring.contain_coordinates(entry[0], entry[1]):
+                contained = lin_ring.contain_coordinates(entry[0], entry[1])
+                close = (lin_ring.get_minimum_distance(entry[:2]) < 1e-7)
+                if not (contained or close):
                     the_sicd.GeoData.log_validity_error(
-                        'ValidData entry {} is not contained ImageCorners. '
+                        'ValidData entry {} is not contained ImageCorners.\n\t'
                         '**disregard if crosses the +/-180 boundary'.format(i))
                     value = False
 
     if not the_sicd.can_project_coordinates():
         the_sicd.log_validity_warning(
-            'This sicd does not permit coordinate projection, and image corner points can not be evaluated')
+            'This sicd does not permit coordinate projection,\n\t'
+            'and image corner points can not be evaluated')
         return False
 
     origin_loc = the_sicd.project_image_to_ground_geo([0, 0])
-    if numpy.abs(origin_loc[0] - image_corners[0, 0]) > 1e-5 or numpy.abs(origin_loc[1] - image_corners[0, 1]) > 1e-5:
+    if numpy.abs(origin_loc[0] - image_corners[0, 0]) > 1e-3 or numpy.abs(origin_loc[1] - image_corners[0, 1]) > 1e-3:
         the_sicd.GeoData.log_validity_error(
-            'The pixel coordinate [0, 0] projects to {}, '
+            'The pixel coordinate [0, 0] projects to {},\n\t'
             'which is not in good agreement with the first corner point {}'.format(origin_loc, image_corners[0]))
         value = False
     return value
@@ -1264,7 +1281,7 @@ def _validate_polarization(the_sicd):
     rcv_pols = [entry.TxRcvPolarization for entry in the_sicd.RadarCollection.RcvChannels]
     if pol_form not in rcv_pols:
         the_sicd.log_validity_error(
-            'ImageFormation.TxRcvPolarizationProc is populated as {},\n'
+            'ImageFormation.TxRcvPolarizationProc is populated as {},\n\t'
             'but it not one of the tx/rcv polarizations populated for '
             'the collect {}'.format(pol_form, rcv_pols))
         return False
@@ -1318,7 +1335,7 @@ def _check_projection(the_sicd):
 
 def _validate_radiometric(Radiometric, Grid, SCPCOA):
     """
-    Validate the radiometric parameetrs.
+    Validate the radiometric parameters.
 
     Parameters
     ----------
@@ -1426,17 +1443,17 @@ def _check_recommended_attributes(the_sicd):
 
     if the_sicd.RadarCollection is not None and the_sicd.RadarCollection.Area is None:
         the_sicd.log_validity_info(
-            'No RadarCollection.Area provided, and some tools prefer using\n'
+            'No RadarCollection.Area provided, and some tools prefer using\n\t'
             'a pre-determined output plane for consistent product definition.')
 
     if the_sicd.ImageData is not None and the_sicd.ImageData.ValidData is None:
         the_sicd.log_validity_warning(
-            'No ImageData.ValidData is defined. It is recommended to populate\n'
+            'No ImageData.ValidData is defined. It is recommended to populate\n\t'
             'this data, if validity of pixels/areas is known.')
 
     if the_sicd.RadarCollection is not None and the_sicd.RadarCollection.RefFreqIndex is not None:
         the_sicd.log_validity_warning(
-            'A reference frequency is being used. This may affect the results of\n'
+            'A reference frequency is being used. This may affect the results of\n\t'
             'this validation test, because a number tests could not be performed.')
 
 
