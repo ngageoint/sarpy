@@ -1,5 +1,6 @@
 # This details the important differences introduced in sarpy 1.2
 
+* .8 - Handle 2nd generation Cosmo SkyMed QuadPol collects correctly
 * .7 - Improve and correct a few SICD validation fixes
 * .6 - Fix create_kmz command line bug
        Improve sicd validation for values in GeoData.ImageCorners, GeoData.ValidData,
