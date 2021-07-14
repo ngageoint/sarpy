@@ -8,6 +8,7 @@ __author__ = ("Thomas McCullough", "Jarred Barber", "Wade Schwartzkopf")
 import logging
 from collections import OrderedDict
 import os
+import re
 from typing import Tuple, Dict
 from datetime import datetime
 
@@ -286,7 +287,7 @@ class CSKDetails(object):
                         'not be properly populated.'.format(weight_name, direction))
                 return out
 
-            if h5_dict['Projection ID'] == 'SLANT RANGE/AZIMUTH':
+            if re.sub(' ', '', h5_dict['Projection ID']).upper() == 'SLANTRANGE/AZIMUTH':
                 image_plane = 'SLANT'
                 gr_type = 'RGZERO'
             else:
