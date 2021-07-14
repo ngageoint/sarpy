@@ -196,6 +196,17 @@ class CSKDetails(object):
     def _parse_pol(str_in):
         return '{}:{}'.format(str_in[0], str_in[1])
 
+    def _get_polarization(self, h5_dict, band_dict, band_name):
+        # type: (dict, dict, str) -> str
+        if 'Polarisation' in band_dict[band_name]:
+            return band_dict[band_name]['Polarisation']
+        elif 'Polarization' in h5_dict:
+            return h5_dict['Polarization']
+        else:
+            raise ValueError(
+                'Failed finding polarization for file {}\n\t'
+                'mission id {} and band name {}'.format(self.file_name, self.mission_id, band_name))
+
     def _get_base_sicd(self, h5_dict, band_dict):
         # type: (dict, dict) -> SICDType
 
@@ -238,7 +249,7 @@ class CSKDetails(object):
             start_time_dt = collect_start.astype('datetime64[s]').astype(datetime)
             date_str = start_time_dt.strftime('%d%b%y').upper()
             time_str = start_time_dt.strftime('%H%M%S') + 'Z'
-            core_name = '{}_{}_{}'.format(date_str, self.mission_id, time_str)
+            core_name = '{}_{}_{}'.format(date_str, h5_dict['Satellite ID'], time_str)
             collect_info = CollectionInfoType(
                 Classification='UNCLASSIFIED',
                 CollectorName=h5_dict['Satellite ID'],
@@ -314,17 +325,21 @@ class CSKDetails(object):
             # type: () -> RadarCollectionType
             tx_pols = []
             chan_params = []
-            for i, bdname in enumerate(band_dict):
-                if 'Polarisation' in band_dict[bdname]:
-                    pol = band_dict[bdname]['Polarisation']
-                elif 'Polarization' in h5_dict:
-                    pol = h5_dict['Polarization']
-                else:
-                    raise ValueError(
-                        'Failed finding polarization for file {}\nmission id {}'.format(
-                            self._file_name, self._mission_id))
-                tx_pols.append(pol[0])
-                chan_params.append(ChanParametersType(TxRcvPolarization=self._parse_pol(pol), index=i))
+
+            if self.mission_id == 'CSG' and len(band_dict) == 1 and \
+                    h5_dict['Acquisition_Mode'].upper() == 'QUADPOL':
+                # it seems like 2nd generation files only contain one polarization
+                pols = ['HH', 'HV', 'VH', 'VV']
+                tx_pols.extend([pol[0] for pol in pols])
+                chan_params.extend([
+                    ChanParametersType(TxRcvPolarization=self._parse_pol(pol), index=i+1)
+                    for i, pol in enumerate(pols)])
+            else:
+                for i, bdname in enumerate(band_dict):
+                    pol = self._get_polarization(h5_dict, band_dict, bdname)
+                    tx_pols.append(pol[0])
+                    chan_params.append(ChanParametersType(TxRcvPolarization=self._parse_pol(pol), index=i+1))
+
             if len(tx_pols) == 1:
                 return RadarCollectionType(RcvChannels=chan_params, TxPolarization=tx_pols[0])
             else:
@@ -474,8 +489,16 @@ class CSKDetails(object):
             ipp_el.TEnd = duration
             ipp_el.IPPPoly = Poly1DType(Coefs=(0, prf))
 
-        def update_radar_collection(sicd, band_name, ind):
-            # type: (SICDType, str, int) -> None
+        def update_radar_collection(sicd, band_name):
+            # type: (SICDType, str) -> None
+            ind = None
+            for the_chan_index, chan in enumerate(sicd.RadarCollection.RcvChannels):
+                if chan.TxRcvPolarization == polarization:
+                    ind = the_chan_index
+                    break
+            if ind is None:
+                raise ValueError('Failed to find receive channel for polarization {}'.format(polarization))
+
             chirp_length = band_dict[band_name]['Range Chirp Length']
             chirp_rate = abs(band_dict[band_name]['Range Chirp Rate'])
             sample_rate = band_dict[band_name]['Sampling Rate']
@@ -498,7 +521,6 @@ class CSKDetails(object):
             sicd.ImageFormation.RcvChanProc.ChanIndices = [ind+1, ]
             sicd.ImageFormation.TxFrequencyProc = TxFrequencyProcType(MinProc=fr_min,
                                                                       MaxProc=fr_max)
-            sicd.ImageFormation.TxRcvPolarizationProc = sicd.RadarCollection.RcvChannels[ind].TxRcvPolarization
 
         def update_rma_and_grid(sicd, band_name):
             # type: (SICDType, str) -> None
@@ -588,23 +610,26 @@ class CSKDetails(object):
         ref_time = parse_timestring(h5_dict['Reference UTC'], precision='ns')
         ref_time_offset = get_seconds(ref_time, collect_start, precision='ns')
 
-        for i, bd_name in enumerate(band_dict):
+        for bd_name in band_dict:
+            polarization = self._parse_pol(self._get_polarization(h5_dict, band_dict, bd_name))
             az_ref_time, rg_ref_time, t_dop_poly_az, t_dop_poly_rg, t_dop_rate_poly_rg = \
                 self._get_dop_poly_details(h5_dict, band_dict, bd_name)
             dop_poly_az = Poly1DType(Coefs=t_dop_poly_az)
             dop_poly_rg = Poly1DType(Coefs=t_dop_poly_rg)
 
             t_sicd = base_sicd.copy()
-            t_sicd.derive()
-            update_scp_prelim(t_sicd, bd_name)  # set preliminary value for SCP (required for projection)
+            t_sicd.ImageFormation.TxRcvPolarizationProc = polarization
+
             row_bw = band_dict[bd_name]['Range Focusing Bandwidth']*2/speed_of_light
             row_ss = band_dict[bd_name]['Column Spacing']
             rg_first_time, ss_rg_s, az_first_time, ss_az_s, use_sign2 = update_image_data(t_sicd, bd_name)
             use_sign, dop_rate_poly_rg = check_switch_state()
             update_timeline(t_sicd, bd_name)
-            update_radar_collection(t_sicd, bd_name, i)
+            update_radar_collection(t_sicd, bd_name)
             update_rma_and_grid(t_sicd, bd_name)
             update_radiometric(t_sicd, bd_name)
+
+            update_scp_prelim(t_sicd, bd_name)  # set preliminary value for SCP (required for projection)
             update_geodata(t_sicd)
             t_sicd.derive()
             # t_sicd.populate_rniirs(override=False)
