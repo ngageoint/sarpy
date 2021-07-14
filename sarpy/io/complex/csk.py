@@ -492,7 +492,7 @@ class CSKDetails(object):
         def update_radar_collection(sicd, band_name):
             # type: (SICDType, str) -> None
             ind = None
-            for the_chan_index, chan in enumerate(sicd,RadarCollectionType.RcvChannels):
+            for the_chan_index, chan in enumerate(sicd.RadarCollection.RcvChannels):
                 if chan.TxRcvPolarization == polarization:
                     ind = the_chan_index
                     break
