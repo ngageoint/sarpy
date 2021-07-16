@@ -1,5 +1,6 @@
 # This details the important differences introduced in sarpy 1.2
 
+* .9 - Fixing typo in Cosmo SkyMed mode handling
 * .8 - Handle 2nd generation Cosmo SkyMed QuadPol collections correctly
 * .7 - Improve and correct a few SICD validation fixes
 * .6 - Fix create_kmz command line bug
