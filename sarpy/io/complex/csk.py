@@ -16,11 +16,6 @@ import numpy
 from numpy.polynomial import polynomial
 from scipy.constants import speed_of_light
 
-try:
-    from sarpy.io.complex import csk_addin
-except ImportError:
-    csk_addin = None
-
 from sarpy.compliance import string_types, bytes_to_string
 from sarpy.io.complex.base import SICDTypeReader, H5Chipper, h5py, is_hdf5
 from sarpy.io.complex.sicd_elements.blocks import Poly1DType, Poly2DType, RowColType
@@ -41,6 +36,11 @@ from sarpy.io.complex.sicd_elements.Radiometric import RadiometricType
 from sarpy.io.general.base import BaseReader, SarpyIOError
 from sarpy.io.general.utils import get_seconds, parse_timestring, is_file_like
 from sarpy.io.complex.utils import fit_time_coa_polynomial, fit_position_xvalidation
+
+try:
+    from sarpy.io.complex import csk_addin
+except ImportError:
+    csk_addin = None
 
 
 ########
@@ -292,7 +292,7 @@ class CSKDetails(object):
                 gr_type = 'RGZERO'
             else:
                 image_plane = 'GROUND'
-                gr_type = None
+                gr_type = 'PLANE'
             # Row
             row_window_name = h5_dict['Range Focusing Weighting Function'].rstrip().upper()
             row_coefficient = h5_dict.get('Range Focusing Weighting Coefficient', None)
@@ -328,7 +328,7 @@ class CSKDetails(object):
             chan_params = []
 
             if self.mission_id == 'CSG' and len(band_dict) == 1 and \
-                    h5_dict['Acquisition_Mode'].upper() == 'QUADPOL':
+                    h5_dict['Acquisition Mode'].upper() == 'QUADPOL':
                 # it seems like 2nd generation files only contain one polarization
                 pols = ['HH', 'HV', 'VH', 'VV']
                 tx_pols.extend([pol[0] for pol in pols])
