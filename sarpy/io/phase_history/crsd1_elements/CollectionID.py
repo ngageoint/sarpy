@@ -8,7 +8,7 @@ from sarpy.io.complex.sicd_elements.base import _StringDescriptor
 from sarpy.io.complex.sicd_elements.CollectionInfo import CollectionInfoType
 
 __classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
+__author__ = ("Thomas McCullough", "Michael Stewart, Valkyrie")
 
 
 class CollectionIDType(CollectionInfoType):
@@ -18,8 +18,8 @@ class CollectionIDType(CollectionInfoType):
 
     _fields = (
         'CollectorName', 'IlluminatorName', 'CoreName', 'CollectType',
-        'RadarMode', 'Classification', 'ReleaseInfo', 'Parameters', 'CountryCodes')
-    _required = ('CollectorName', 'CoreName', 'CollectType', 'RadarMode', 'Classification', 'ReleaseInfo')
+        'RadarMode', 'Classification', 'ReleaseInfo', 'CountryCodes', 'Parameters')
+    _required = ('CollectorName', 'CoreName', 'CollectType', 'Classification', 'ReleaseInfo')
     # descriptors
     ReleaseInfo = _StringDescriptor(
         'ReleaseInfo', _required, strict=DEFAULT_STRICT, default_value='UNRESTRICTED',
