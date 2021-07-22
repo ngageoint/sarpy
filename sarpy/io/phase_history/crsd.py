@@ -1,6 +1,10 @@
 """
-Module for reading and writing CPHD files - should support reading CPHD version 0.3 and 1.0 and writing version 1.0.
+Module for reading and writing CRSD files - should support reading CRSD 1.0 and writing version 1.0.
 """
+
+__classification__ = "UNCLASSIFIED"
+__author__ = ("Thomas McCullough", "Michael Stewart, Valyrie")
+
 
 import logging
 import os
@@ -15,17 +19,12 @@ from sarpy.io.general.base import AbstractWriter, BaseReader, BIPChipper, SarpyI
 
 from sarpy.io.phase_history.cphd1_elements.utils import binary_format_string_to_dtype
 # noinspection PyProtectedMember
-from sarpy.io.phase_history.cphd1_elements.CPHD import CPHDType, CPHDHeader, _CPHD_SECTION_TERMINATOR
-from sarpy.io.phase_history.cphd0_3_elements.CPHD import CPHDType as CPHDType0_3, CPHDHeader as CPHDHeader0_3
-
-
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
+from sarpy.io.phase_history.crsd1_elements.CRSD import CRSDType, CRSDHeader, _CRSD_SECTION_TERMINATOR
 
 
 def is_a(file_name):
     """
-    Tests whether a given file_name corresponds to a CPHD file. Returns a reader instance, if so.
+    Tests whether a given file_name corresponds to a CRSD file. Returns a reader instance, if so.
 
     Parameters
     ----------
@@ -34,29 +33,29 @@ def is_a(file_name):
 
     Returns
     -------
-    CPHDReader1_0|CPHDReader0_3|None
-        Appropriate `CPHDReader` instance if CPHD file, `None` otherwise
+    CRSDReader1_0|None
+        Appropriate `CRSDReader` instance if CRSD file, `None` otherwise
     """
 
     try:
-        cphd_details = CPHDDetails(file_name)
-        logging.info('File {} is determined to be a CPHD version {} file.'.format(file_name, cphd_details.cphd_version))
-        return CPHDReader(cphd_details)
+        crsd_details = CRSDDetails(file_name)
+        logging.info('File {} is determined to be a CRSD version {} file.'.format(file_name, crsd_details.crsd_version))
+        return CRSDReader(crsd_details)
     except SarpyIOError:
         # we don't want to catch parsing errors, for now?
         return None
 
 
 #########
-# Helper object for initially parses CPHD elements
+# Object for parsing CRSD elements
 
-class CPHDDetails(object):
+class CRSDDetails(object):
     """
-    The basic CPHD element parser.
+    The basic CRSD element parser.
     """
 
     __slots__ = (
-        '_file_name', '_file_object', '_close_after', '_cphd_version', '_cphd_header', '_cphd_meta')
+        '_file_name', '_file_object', '_close_after', '_crsd_version', '_crsd_header', '_crsd_meta')
 
     def __init__(self, file_object):
         """
@@ -64,12 +63,12 @@ class CPHDDetails(object):
         Parameters
         ----------
         file_object : str|BinaryIO
-            The path to or file like object referencing the CPHD file.
+            The path to or file like object referencing the CRSD file.
         """
 
-        self._cphd_version = None
-        self._cphd_header = None
-        self._cphd_meta = None
+        self._crsd_version = None
+        self._crsd_header = None
+        self._crsd_meta = None
         self._close_after = False
 
         if isinstance(file_object, string_types):
@@ -92,18 +91,18 @@ class CPHDDetails(object):
         head_bytes = self._file_object.read(10)
         if not isinstance(head_bytes, bytes):
             raise ValueError('Input file like object not open in bytes mode.')
-        if not head_bytes.startswith(b'CPHD'):
-            raise SarpyIOError('File {} does not appear to be a CPHD file.'.format(self.file_name))
+        if not head_bytes.startswith(b'CRSD'):
+            raise SarpyIOError('File {} does not appear to be a CRSD file.'.format(self.file_name))
 
         self._extract_version()
         self._extract_header()
-        self._extract_cphd()
+        self._extract_crsd()
 
     @property
     def file_name(self):
         # type: () -> str
         """
-        str: The CPHD filename.
+        str: The CRSD filename.
         """
 
         return self._file_name
@@ -117,31 +116,31 @@ class CPHDDetails(object):
         return self._file_object
 
     @property
-    def cphd_version(self):
+    def crsd_version(self):
         # type: () -> str
         """
-        str: The CPHD version.
+        str: The CRSD version.
         """
 
-        return self._cphd_version
-
-    @property
-    def cphd_header(self):
-        # type: () -> Union[CPHDHeader, CPHDHeader0_3]
-        """
-        CPHDHeader|CPHDHeader0_3: The CPHD header object, which is version dependent.
-        """
-
-        return self._cphd_header
+        return self._crsd_version
 
     @property
-    def cphd_meta(self):
-        # type: () -> Union[CPHDType, CPHDType0_3]
+    def crsd_header(self):
+        # type: () -> CRSDHeader
         """
-        CPHDType|CPHDType0_3: The CPHD structure, which is version dependent.
+        CRSDHeader: The CRSD header object
         """
 
-        return self._cphd_meta
+        return self._crsd_header
+
+    @property
+    def crsd_meta(self):
+        # type: () -> CRSDType
+        """
+        CRSDType: The CRSD structure, which is version dependent.
+        """
+
+        return self._crsd_meta
 
     def _extract_version(self):
         """
@@ -153,9 +152,11 @@ class CPHDDetails(object):
         head_line = self._file_object.readline().strip()
         parts = head_line.split(b'/')
         if len(parts) != 2:
-            raise ValueError('Cannot extract CPHD version number from line {}'.format(head_line))
-        cphd_version = parts[1].strip().decode('utf-8')
-        self._cphd_version = cphd_version
+            raise ValueError('Cannot extract CRSD version number from line {}'.format(head_line))
+        if parts[0] != b'CRSD':
+            raise ValueError('"{}" does not conform to a CRSD file type header'.format(head_line))
+        crsd_version = parts[1].strip().decode('utf-8')
+        self._crsd_version = crsd_version
 
     def _extract_header(self):
         """
@@ -164,57 +165,48 @@ class CPHDDetails(object):
         the header section.
         """
 
-        if self.cphd_version.startswith('0.3'):
-            self._cphd_header = CPHDHeader0_3.from_file_object(self._file_object)
-        elif self.cphd_version.startswith('1.0'):
-            self._cphd_header = CPHDHeader.from_file_object(self._file_object)
+        if self.crsd_version.startswith('1.0'):
+            self._crsd_header = CRSDHeader.from_file_object(self._file_object)
         else:
-            raise ValueError('Got unhandled version number {}'.format(self.cphd_version))
+            raise ValueError('Got unhandled version number {}'.format(self.crsd_version))
 
-    def _extract_cphd(self):
+    def _extract_crsd(self):
         """
-        Extract and interpret the CPHD structure from the file.
+        Extract and interpret the CRSD structure from the file.
         """
 
-        xml = self.get_cphd_bytes()
-        if self.cphd_version.startswith('0.3'):
-            the_type = CPHDType0_3
-        elif self.cphd_version.startswith('1.0'):
-            the_type = CPHDType
+        xml = self.get_crsd_bytes()
+        if self.crsd_version.startswith('1.0'):
+            the_type = CRSDType
         else:
-            raise ValueError('Got unhandled version number {}'.format(self.cphd_version))
+            raise ValueError('Got unhandled version number {}'.format(self.crsd_version))
 
         root_node, xml_ns = parse_xml_from_string(xml)
         if 'default' in xml_ns:
-            self._cphd_meta = the_type.from_node(root_node, xml_ns, ns_key='default')
+            self._crsd_meta = the_type.from_node(root_node, xml_ns, ns_key='default')
         else:
-            self._cphd_meta = the_type.from_node(root_node, xml_ns)
+            self._crsd_meta = the_type.from_node(root_node, xml_ns)
 
-    def get_cphd_bytes(self):
+    def get_crsd_bytes(self):
         """
-        Extract the (uninterpreted) bytes representation of the CPHD structure.
+        Extract the (uninterpreted) bytes representation of the CRSD structure.
 
         Returns
         -------
         bytes
         """
 
-        header = self.cphd_header
+        header = self.crsd_header
         if header is None:
-            raise ValueError('No cphd_header populated.')
+            raise ValueError('No crsd_header populated.')
 
-        if self.cphd_version.startswith('0.3'):
-            assert isinstance(header, CPHDHeader0_3)
-            # extract the xml data
-            self._file_object.seek(header.XML_BYTE_OFFSET, os.SEEK_SET)
-            xml = self._file_object.read(header.XML_DATA_SIZE)
-        elif self.cphd_version.startswith('1.0'):
-            assert isinstance(header, CPHDHeader)
+        if self.crsd_version.startswith('1.0'):
+            assert isinstance(header, CRSDHeader)
             # extract the xml data
             self._file_object.seek(header.XML_BLOCK_BYTE_OFFSET, os.SEEK_SET)
             xml = self._file_object.read(header.XML_BLOCK_SIZE)
         else:
-            raise ValueError('Got unhandled version number {}'.format(self.cphd_version))
+            raise ValueError('Got unhandled version number {}'.format(self.crsd_version))
         return xml
 
     def __del__(self):
@@ -227,99 +219,97 @@ class CPHDDetails(object):
                 pass
 
 
-def _validate_cphd_details(cphd_details, version=None):
+def _validate_crsd_details(crsd_details, version=None):
     """
     Validate the input argument.
 
     Parameters
     ----------
-    cphd_details : str|CPHDDetails
+    crsd_details : str|CRSDDetails
     version : None|str
 
     Returns
     -------
-    CPHDDetails
+    CRSDDetails
     """
 
-    if isinstance(cphd_details, string_types):
-        cphd_details = CPHDDetails(cphd_details)
+    if isinstance(crsd_details, string_types):
+        crsd_details = CRSDDetails(crsd_details)
 
-    if not isinstance(cphd_details, CPHDDetails):
-        raise TypeError('cphd_details is required to be a file path to a CPHD file '
-                        'or CPHDDetails, got type {}'.format(cphd_details))
+    if not isinstance(crsd_details, CRSDDetails):
+        raise TypeError('crsd_details is required to be a file path to a CRSD file '
+                        'or CRSDDetails, got type {}'.format(crsd_details))
 
     if version is not None:
-        if not cphd_details.cphd_version.startswith(version):
-            raise ValueError('This CPHD file is required to be version {}, '
-                             'got {}'.format(version, cphd_details.cphd_version))
-    return cphd_details
+        if not crsd_details.crsd_version.startswith(version):
+            raise ValueError('This CRSD file is required to be version {}, '
+                             'got {}'.format(version, crsd_details.crsd_version))
+    return crsd_details
 
 
-class CPHDReader(BaseReader):
+class CRSDReader(BaseReader):
     """
-    The Abstract CPHD reader instance, which just selects the proper CPHD reader
-    class based on the CPHD version. Note that there is no __init__ method for
+    The Abstract CRSD reader instance, which just selects the proper CRSD reader
+    class based on the CRSD version. Note that there is no __init__ method for
     this class, and it would be skipped regardless. Ensure that you make a direct
     call to the BaseReader.__init__() method when extending this class.
     """
 
-    _cphd_details = None
+    _crsd_details = None
 
     def __new__(cls, *args, **kwargs):
         if len(args) == 0:
             raise ValueError(
                 'The first argument of the constructor is required to be a file_path '
-                'or CPHDDetails instance.')
+                'or CRSDDetails instance.')
         if is_file_like(args[0]):
-            raise ValueError('File like object input not supported for CPHD reading at this time.')
-        cphd_details = _validate_cphd_details(args[0])
+            raise ValueError('File like object input not supported for CRSD reading at this time.')
+        crsd_details = _validate_crsd_details(args[0])
 
-        if cphd_details.cphd_version.startswith('0.3'):
-            return CPHDReader0_3(cphd_details)
-        elif cphd_details.cphd_version.startswith('1.0'):
-            return CPHDReader1_0(cphd_details)
+        if crsd_details.crsd_version.startswith('1.0'):
+            return CRSDReader1_0(crsd_details)
         else:
-            raise ValueError('Got unhandled CPHD version {}'.format(cphd_details.cphd_version))
+            raise ValueError('Got unhandled CRSD version {}'.format(crsd_details.crsd_version))
 
     @property
-    def cphd_details(self):
-        # type: () -> CPHDDetails
+    def crsd_details(self):
+        # type: () -> CRSDDetails
         """
-        CPHDDetails: The cphd details object.
+        CRSDDetails: The crsd details object.
         """
 
-        return self._cphd_details
+        return self._crsd_details
 
     @property
-    def cphd_version(self):
+    def crsd_version(self):
         # type: () -> str
         """
-        str: The CPHD version.
+        str: The CRSD version.
         """
 
-        return self.cphd_details.cphd_version
-
-    @property
-    def cphd_meta(self):
-        # type: () -> Union[CPHDType, CPHDType0_3]
-        """
-        CPHDType|CPHDType0_3: The CPHD structure, which is version dependent.
-        """
-
-        return self.cphd_details.cphd_meta
+        return self.crsd_details.crsd_version
 
     @property
-    def cphd_header(self):
-        # type: () -> Union[CPHDHeader, CPHDHeader0_3]
+    def crsd_meta(self):
+        # type: () -> CRSDType
         """
-        CPHDHeader: The CPHD header object, which is version dependent.
+        CRSDType: The CRSD structure, which is version dependent.
         """
 
-        return self.cphd_details.cphd_header
+        return self.crsd_details.crsd_meta
+
+    @property
+    def crsd_header(self):
+        # type: () -> CRSDHeader
+        """
+        CRSDHeader: The CRSD header object
+        """
+
+        return self.crsd_details.crsd_header
 
     @property
     def file_name(self):
-        return self.cphd_details.file_name
+        return self.crsd_details.file_name
 
     def _fetch(self, range1, range2, index):
         """
@@ -337,7 +327,7 @@ class CPHDReader(BaseReader):
 
 
         chipper = self._chipper[index]
-        # NB: it is critical that there is no reorientation operation in CPHD.
+        # NB: it is critical that there is no reorientation operation in CRSD.
         # noinspection PyProtectedMember
         range1, range2 = chipper._reorder_arguments(range1, range2)
         data = chipper(range1, range2)
@@ -419,13 +409,13 @@ class CPHDReader(BaseReader):
 
     def read_pvp_variable(self, variable, index, the_range=None):
         """
-        Read the vector parameter for the given `variable` and CPHD channel.
+        Read the vector parameter for the given `variable` and CRSD channel.
 
         Parameters
         ----------
         variable : str
         index : int|str
-            The CPHD channel index or identifier.
+            The CRSD channel index or identifier.
         the_range : None|int|List[int]|Tuple[int]
             The indices for the vector parameter. `None` returns all, otherwise
             a slice in the (non-traditional) form `([start, [stop, [stride]]])`.
@@ -445,7 +435,7 @@ class CPHDReader(BaseReader):
         Parameters
         ----------
         index : int|str
-            The support array integer index (of cphd.Data.Channels list) or identifier.
+            The support array integer index (of crsd.Data.Channels list) or identifier.
         the_range : None|int|List[int]|Tuple[int]
             The indices for the vector parameter. `None` returns all, otherwise
             a slice in the (non-traditional) form `([start, [stop, [stride]]])`.
@@ -465,7 +455,7 @@ class CPHDReader(BaseReader):
         Parameters
         ----------
         index : int|str
-            The support array integer index (of cphd.Data.SupportArrays list) or identifier.
+            The support array integer index (of crsd.Data.SupportArrays list) or identifier.
         dim1_range : None|int|Tuple[int, int]|Tuple[int, int, int]
             The row data selection of the form `[start, [stop, [stride]]]`, and
             `None` defaults to all rows (i.e. `(0, NumRows, 1)`)
@@ -477,10 +467,6 @@ class CPHDReader(BaseReader):
         -------
         numpy.ndarray
 
-        Raises
-        ------
-        TypeError
-            If called on a CPHD version 0.3 reader.
         """
 
         raise NotImplementedError
@@ -495,51 +481,51 @@ class CPHDReader(BaseReader):
         raise NotImplementedError
 
 
-class CPHDReader1_0(CPHDReader):
+class CRSDReader1_0(CRSDReader):
     """
-    The CPHD version 1.0 reader.
+    The CRSD version 1.0 reader.
     """
 
     def __new__(cls, *args, **kwargs):
         # we must override here, to avoid recursion with
-        # the CPHDReader parent
+        # the CRSDReader parent
         return object.__new__(cls)
 
-    def __init__(self, cphd_details):
+    def __init__(self, crsd_details):
         """
 
         Parameters
         ----------
-        cphd_details : str|CPHDDetails
+        crsd_details : str|CRSDDetails
         """
 
         self._channel_map = None  # type: Union[None, Dict[str, int]]
         self._support_array_map = None  # type: Union[None, Dict[str, int]]
         self._pvp_memmap = None  # type: Union[None, Dict[str, numpy.ndarray]]
         self._support_array_memmap = None  # type: Union[None, Dict[str, numpy.ndarray]]
-        self._cphd_details = _validate_cphd_details(cphd_details, version='1.0')
+        self._crsd_details = _validate_crsd_details(crsd_details, version='1.0')
         chipper = self._create_chippers()
-        BaseReader.__init__(self, chipper, reader_type="CPHD")
+        BaseReader.__init__(self, chipper, reader_type="CRSD")
         self._create_pvp_memmaps()
         self._create_support_array_memmaps()
 
     @property
-    def cphd_meta(self):
-        # type: () -> CPHDType
+    def crsd_meta(self):
+        # type: () -> CRSDType
         """
-        CPHDType: The CPHD structure.
+        CRSDType: The CRSD structure.
         """
 
-        return self.cphd_details.cphd_meta
+        return self.crsd_details.crsd_meta
 
     @property
-    def cphd_header(self):
-        # type: () -> CPHDHeader
+    def crsd_header(self):
+        # type: () -> CRSDHeader
         """
-        CPHDHeader: The CPHD header object.
+        CRSDHeader: The CRSD header object.
         """
 
-        return self.cphd_details.cphd_header
+        return self.crsd_details.crsd_header
 
     def _create_chippers(self):
         """
@@ -552,7 +538,7 @@ class CPHDReader1_0(CPHDReader):
 
         chippers = []
 
-        data = self.cphd_meta.Data
+        data = self.crsd_meta.Data
         sample_type = data.SignalArrayFormat
         raw_bands = 2
         output_bands = 1
@@ -567,12 +553,12 @@ class CPHDReader1_0(CPHDReader):
             raise ValueError('Got unhandled signal array format {}'.format(sample_type))
         symmetry = (False, False, False)
 
-        block_offset = self.cphd_header.SIGNAL_BLOCK_BYTE_OFFSET
+        block_offset = self.crsd_header.SIGNAL_BLOCK_BYTE_OFFSET
         for entry in data.Channels:
             img_siz = (entry.NumVectors, entry.NumSamples)
             data_offset = entry.SignalArrayByteOffset
             chippers.append(BIPChipper(
-                self.cphd_details.file_object, raw_dtype, img_siz, raw_bands, output_bands, output_dtype,
+                self.crsd_details.file_object, raw_dtype, img_siz, raw_bands, output_bands, output_dtype,
                 symmetry=symmetry, transform_data='COMPLEX', data_offset=block_offset+data_offset))
         return tuple(chippers)
 
@@ -586,23 +572,23 @@ class CPHDReader1_0(CPHDReader):
         """
 
         self._pvp_memmap = None
-        if self.cphd_meta.Data.Channels is None:
+        if self.crsd_meta.Data.Channels is None:
             logging.error('No Data.Channels defined.')
             return
-        if self.cphd_meta.PVP is None:
+        if self.crsd_meta.PVP is None:
             logging.error('No PVP object defined.')
             return
 
-        pvp_dtype = self.cphd_meta.PVP.get_vector_dtype()
+        pvp_dtype = self.crsd_meta.PVP.get_vector_dtype()
         self._pvp_memmap = OrderedDict()
         self._channel_map = OrderedDict()
-        for i, entry in enumerate(self.cphd_meta.Data.Channels):
+        for i, entry in enumerate(self.crsd_meta.Data.Channels):
             self._channel_map[entry.Identifier] = i
-            offset = self.cphd_header.PVP_BLOCK_BYTE_OFFSET + entry.PVPArrayByteOffset
+            offset = self.crsd_header.PVP_BLOCK_BYTE_OFFSET + entry.PVPArrayByteOffset
             shape = (entry.NumVectors, )
             # TODO: revamp this for file like object support...
             self._pvp_memmap[entry.Identifier] = numpy.memmap(
-                self.cphd_details.file_name, dtype=pvp_dtype, mode='r', offset=offset, shape=shape)
+                self.crsd_details.file_name, dtype=pvp_dtype, mode='r', offset=offset, shape=shape)
 
     def _create_support_array_memmaps(self):
         """
@@ -613,29 +599,29 @@ class CPHDReader1_0(CPHDReader):
         None
         """
 
-        if self.cphd_meta.Data.SupportArrays is None:
+        if self.crsd_meta.Data.SupportArrays is None:
             self._support_array_memmap = None
             return
 
         self._support_array_memmap = OrderedDict()
         self._support_array_map = OrderedDict()
-        for i, entry in enumerate(self.cphd_meta.Data.SupportArrays):
+        for i, entry in enumerate(self.crsd_meta.Data.SupportArrays):
             self._support_array_map[entry.Identifier] = i
             # extract the support array metadata details
-            details = self.cphd_meta.SupportArray.find_support_array(entry.Identifier)
+            details = self.crsd_meta.SupportArray.find_support_array(entry.Identifier)
             # determine array byte offset
-            offset = self.cphd_header.SUPPORT_BLOCK_BYTE_OFFSET + entry.ArrayByteOffset
+            offset = self.crsd_header.SUPPORT_BLOCK_BYTE_OFFSET + entry.ArrayByteOffset
             # determine numpy dtype and depth of array
             dtype, depth = details.get_numpy_format()
             # set up the numpy memory map
             shape = (entry.NumRows, entry.NumCols) if depth == 1 else (entry.NumRows, entry.NumCols, depth)
             # TODO: revamp this for file like object support...
             self._support_array_memmap[entry.Identifier] = numpy.memmap(
-                self.cphd_details.file_name, dtype=dtype, mode='r', offset=offset, shape=shape)
+                self.crsd_details.file_name, dtype=dtype, mode='r', offset=offset, shape=shape)
 
     def _validate_index(self, index):
         """
-        Get corresponding integer index for CPHD channel.
+        Get corresponding integer index for CRSD channel.
 
         Parameters
         ----------
@@ -646,22 +632,22 @@ class CPHDReader1_0(CPHDReader):
         int
         """
 
-        cphd_meta = self.cphd_details.cphd_meta
+        crsd_meta = self.crsd_details.crsd_meta
 
         if isinstance(index, string_types):
             if index in self._channel_map:
                 return self._channel_map[index]
             else:
-                raise KeyError('Cannot find CPHD channel for identifier {}'.format(index))
+                raise KeyError('Cannot find CRSD channel for identifier {}'.format(index))
         else:
             int_index = int_func(index)
-            if not (0 <= int_index < cphd_meta.Data.NumCPHDChannels):
-                raise ValueError('index must be in the range [0, {})'.format(cphd_meta.Data.NumCPHDChannels))
+            if not (0 <= int_index < crsd_meta.Data.NumCRSDChannels):
+                raise ValueError('index must be in the range [0, {})'.format(crsd_meta.Data.NumCRSDChannels))
             return int_index
 
     def _validate_index_key(self, index):
         """
-        Gets the corresponding identifier for the CPHD channel.
+        Gets the corresponding identifier for the CRSD channel.
 
         Parameters
         ----------
@@ -672,24 +658,24 @@ class CPHDReader1_0(CPHDReader):
         str
         """
 
-        cphd_meta = self.cphd_details.cphd_meta
+        crsd_meta = self.crsd_details.crsd_meta
 
         if isinstance(index, string_types):
             if index in self._channel_map:
                 return index
             else:
-                raise KeyError('Cannot find CPHD channel for identifier {}'.format(index))
+                raise KeyError('Cannot find CRSD channel for identifier {}'.format(index))
         else:
             int_index = int_func(index)
-            if not (0 <= int_index < cphd_meta.Data.NumCPHDChannels):
-                raise ValueError('index must be in the range [0, {})'.format(cphd_meta.Data.NumCPHDChannels))
-            return cphd_meta.Data.Channels[int_index].Identifier
+            if not (0 <= int_index < crsd_meta.Data.NumCRSDChannels):
+                raise ValueError('index must be in the range [0, {})'.format(crsd_meta.Data.NumCRSDChannels))
+            return crsd_meta.Data.Channels[int_index].Identifier
 
     def read_pvp_variable(self, variable, index, the_range=None):
         int_index = self._validate_index(index)
-        # fetch the appropriate details from the cphd structure
-        cphd_meta = self.cphd_meta
-        channel = cphd_meta.Data.Channels[int_index]
+        # fetch the appropriate details from the crsd structure
+        crsd_meta = self.crsd_meta
+        channel = crsd_meta.Data.Channels[int_index]
         the_range = validate_range(the_range, channel.NumVectors)
         if variable in self._pvp_memmap[channel.Identifier].dtype.fields:
             return self._pvp_memmap[channel.Identifier][variable][the_range[0]:the_range[1]:the_range[2]]
@@ -700,11 +686,11 @@ class CPHDReader1_0(CPHDReader):
         # find the support array basic details
         the_entry = None
         if isinstance(index, integer_types):
-            the_entry = self.cphd_meta.Data.SupportArrays[index]
+            the_entry = self.crsd_meta.Data.SupportArrays[index]
             identifier = the_entry.Identifier
         elif isinstance(index, string_types):
             identifier = index
-            for entry in self.cphd_meta.Data.SupportArrays:
+            for entry in self.crsd_meta.Data.SupportArrays:
                 if entry.Identifier == index:
                     the_entry = entry
                     break
@@ -718,9 +704,9 @@ class CPHDReader1_0(CPHDReader):
         range1 = validate_range(dim1_range, the_entry.NumRows)
         range2 = validate_range(dim2_range, the_entry.NumCols)
         # extract the support array metadata details
-        details = self.cphd_meta.SupportArray.find_support_array(identifier)
+        details = self.crsd_meta.SupportArray.find_support_array(identifier)
         # determine array byte offset
-        offset = self.cphd_header.SUPPORT_BLOCK_BYTE_OFFSET + the_entry.ArrayByteOffset
+        offset = self.crsd_header.SUPPORT_BLOCK_BYTE_OFFSET + the_entry.ArrayByteOffset
         # determine numpy dtype and depth of array
         dtype, depth = details.get_numpy_format()
         # set up the numpy memory map
@@ -728,7 +714,7 @@ class CPHDReader1_0(CPHDReader):
             (the_entry.NumRows, the_entry.NumCols, depth)
 
         # TODO: revamp this for file like object support...
-        mem_map = numpy.memmap(self.cphd_details.file_name,
+        mem_map = numpy.memmap(self.crsd_details.file_name,
                                dtype=dtype,
                                mode='r',
                                offset=offset,
@@ -741,15 +727,13 @@ class CPHDReader1_0(CPHDReader):
             data = mem_map[range1[0]:range1[1]:range1[2], range2[0]::range2[2]]
         else:
             data = mem_map[range1[0]:range1[1]:range1[2], range2[0]:range2[1]:range2[2]]
-        # clean up the memmap object, probably unnecessary, and there SHOULD be a close method
-        del mem_map
         return data
 
     def read_pvp_array(self, index, the_range=None):
         int_index = self._validate_index(index)
-        # fetch the appropriate details from the cphd structure
-        cphd_meta = self.cphd_meta
-        channel = cphd_meta.Data.Channels[int_index]
+        # fetch the appropriate details from the crsd structure
+        crsd_meta = self.crsd_meta
+        channel = crsd_meta.Data.Channels[int_index]
         the_range = validate_range(the_range, channel.NumVectors)
         return self._pvp_memmap[channel.Identifier][the_range[0]:the_range[1]:the_range[2]]
 
@@ -762,7 +746,7 @@ class CPHDReader1_0(CPHDReader):
         Dict[str, numpy.ndarray]
             Dictionary of `numpy.ndarray` containing the PVP arrays.
         """
-        return {chan.Identifier: self.read_pvp_array(chan.Identifier) for chan in self.cphd_meta.Data.Channels}
+        return {chan.Identifier: self.read_pvp_array(chan.Identifier) for chan in self.crsd_meta.Data.Channels}
 
     def read_support_block(self):
         """
@@ -774,10 +758,10 @@ class CPHDReader1_0(CPHDReader):
             Dictionary of `numpy.ndarray` containing the support arrays.
         """
 
-        if self.cphd_meta.Data.SupportArrays:
+        if self.crsd_meta.Data.SupportArrays:
             return {
                 sa.Identifier: self.read_support_array(sa.Identifier, None, None)
-                for sa in self.cphd_meta.Data.SupportArrays}
+                for sa in self.crsd_meta.Data.SupportArrays}
         else:
             return {}
 
@@ -791,189 +775,26 @@ class CPHDReader1_0(CPHDReader):
             Dictionary of `numpy.ndarray` containing the support arrays.
         """
 
-        return {chan.Identifier: self.read_chip(None, None, index=chan.Identifier) for chan in self.cphd_meta.Data.Channels}
+        return {chan.Identifier: self.read_chip(None, None, index=chan.Identifier) for chan in self.crsd_meta.Data.Channels}
 
 
-class CPHDReader0_3(CPHDReader):
+class CRSDWriter1_0(AbstractWriter):
     """
-    The CPHD version 0.3 reader.
-    """
-
-    def __new__(cls, *args, **kwargs):
-        # we must override here, to avoid recursion with
-        # the CPHDReader parent
-        return object.__new__(cls)
-
-    def __init__(self, cphd_details):
-        """
-
-        Parameters
-        ----------
-        cphd_details : str|CPHDDetails
-        """
-
-        self._cphd_details = _validate_cphd_details(cphd_details, version='0.3')
-        chipper = self._create_chippers()
-        BaseReader.__init__(self, chipper, reader_type="CPHD")
-        self._create_pvp_memmaps()
-
-    @property
-    def cphd_meta(self):
-        # type: () -> CPHDType0_3
-        """
-        CPHDType0_3: The CPHD structure, which is version dependent.
-        """
-
-        return self.cphd_details.cphd_meta
-
-    @property
-    def cphd_header(self):
-        # type: () -> CPHDHeader0_3
-        """
-        CPHDHeader0_3: The CPHD header object.
-        """
-
-        return self.cphd_details.cphd_header
-
-    def _validate_index(self, index):
-        """
-        Validate integer index value for CPHD channel.
-
-        Parameters
-        ----------
-        index : int
-
-        Returns
-        -------
-        int
-        """
-
-        int_index = int_func(index)
-        if not (0 <= int_index < self.cphd_meta.Data.NumCPHDChannels):
-            raise ValueError('index must be in the range [0, {})'.format(self.cphd_meta.Data.NumCPHDChannels))
-        return int_index
-
-    def _create_chippers(self):
-        chippers = []
-
-        data = self.cphd_meta.Data
-        sample_type = data.SampleType
-        raw_bands = 2
-        output_bands = 1
-        output_dtype = 'complex64'
-        if sample_type == "RE32F_IM32F":
-            raw_dtype = numpy.dtype('>f4')
-            bpp = 8
-        elif sample_type == "RE16I_IM16I":
-            raw_dtype = numpy.dtype('>i2')
-            bpp = 4
-        elif sample_type == "RE08I_IM08I":
-            raw_dtype = numpy.dtype('>i1')
-            bpp = 2
-        else:
-            raise ValueError('Got unhandled sample type {}'.format(sample_type))
-        symmetry = (False, False, False)
-
-        data_offset = self.cphd_header.CPHD_BYTE_OFFSET
-        for entry in data.ArraySize:
-            img_siz = (entry.NumVectors, entry.NumSamples)
-            chippers.append(BIPChipper(
-                self.cphd_details.file_object, raw_dtype, img_siz, raw_bands, output_bands, output_dtype,
-                symmetry=symmetry, transform_data='COMPLEX', data_offset=data_offset))
-            data_offset += img_siz[0]*img_siz[1]*bpp
-        return tuple(chippers)
-
-    def _create_pvp_memmaps(self):
-        """
-        Helper method which creates the pvp mem_maps.
-
-        Returns
-        -------
-        None
-        """
-
-        self._pvp_memmap = None
-        pvp_dtype = self.cphd_meta.VectorParameters.get_vector_dtype()
-        self._pvp_memmap = []
-        for i, entry in enumerate(self.cphd_meta.Data.ArraySize):
-            offset = self.cphd_header.VB_BYTE_OFFSET + self.cphd_meta.Data.NumBytesVBP*i
-            shape = (entry.NumVectors, )
-
-            # TODO: revamp this for file like object support...
-            self._pvp_memmap.append(
-                numpy.memmap(
-                    self.cphd_details.file_name, dtype=pvp_dtype, mode='r', offset=offset, shape=shape))
-
-    def read_pvp_variable(self, variable, index, the_range=None):
-        int_index = self._validate_index(index)
-        the_range = validate_range(the_range, self.cphd_meta.Data.ArraySize[int_index].NumVectors)
-        if variable in self._pvp_memmap[int_index].dtype.fields:
-            return self._pvp_memmap[int_index][variable][the_range[0]:the_range[1]:the_range[2]]
-        else:
-            return None
-
-    def read_support_array(self, index, dim1_range, dim2_range):
-        raise TypeError('CPHD 0.3 does not support Support Arrays.')
-
-    def read_pvp_array(self, index, the_range=None):
-        int_index = self._validate_index(index)
-        the_range = validate_range(the_range, self.cphd_meta.Data.ArraySize[int_index].NumVectors)
-        return self._pvp_memmap[int_index][the_range[0]:the_range[1]:the_range[2]]
-
-    def read_pvp_block(self):
-        """
-        Reads the entirety of the PVP block(s).
-
-        Returns
-        -------
-        List[numpy.ndarray]
-            Dictionary of `numpy.ndarray` containing the PVP arrays.
-        """
-
-        return [self.read_pvp_array(chan) for chan in range(self.cphd_meta.Data.NumCPHDChannels)]
-
-    def read_support_block(self):
-        """
-        Reads the entirety of support block(s).
-
-        Returns
-        -------
-        Dict
-            Dictionary of `numpy.ndarray` containing the support arrays.
-        """
-
-        raise TypeError('CPHD 0.3 does not have support arrays.')
-
-    def read_signal_block(self):
-        """
-        Reads the full signal block(s).
-
-        Returns
-        -------
-        List[numpy.ndarray]
-            Dictionary of `numpy.ndarray` containing the signal arrays.
-        """
-
-        return [self.read_chip(None, None, index=chan) for chan in range(self.cphd_meta.Data.NumCPHDChannels)]
-
-
-class CPHDWriter1_0(AbstractWriter):
-    """
-    The CPHD version 1.0 writer.
+    The CRSD version 1.0 writer.
     """
 
     __slots__ = (
-        '_file_name', '_cphd_meta', '_cphd_header',
+        '_file_name', '_crsd_meta', '_crsd_header',
         '_pvp_memmaps', '_support_memmaps', '_signal_memmaps',
         '_channel_map', '_support_map', '_writing_state', '_closed')
 
-    def __init__(self, file_name, cphd_meta, check_existence=True):
+    def __init__(self, file_name, crsd_meta, check_existence=True):
         """
 
         Parameters
         ----------
         file_name : str
-        cphd_meta : sarpy.io.phase_history.cphd1_elements.CPHD.CPHDType
+        crsd_meta : sarpy.io.phase_history.crsd1_elements.CRSD.CRSDType
         check_existence : bool
             Should we check if the given file already exists, and raises an exception if so?
         """
@@ -985,23 +806,23 @@ class CPHDWriter1_0(AbstractWriter):
         self._support_map = None
         self._writing_state = {'header': False, 'pvp': {}, 'support': {}, 'signal': {}}
         self._closed = False
-        self._cphd_meta = cphd_meta
-        self._cphd_header = cphd_meta.make_file_header()
+        self._crsd_meta = crsd_meta
+        self._crsd_header = crsd_meta.make_file_header()
 
         if check_existence and os.path.exists(file_name):
             raise SarpyIOError(
-                'File {} already exists, and a new CPHD file can not be created '
+                'File {} already exists, and a new CRSD file can not be created '
                 'at this location'.format(file_name))
-        super(CPHDWriter1_0, self).__init__(file_name)
+        super(CRSDWriter1_0, self).__init__(file_name)
         self._prepare_for_writing()
 
     @property
-    def cphd_meta(self):
+    def crsd_meta(self):
         """
-        sarpy.io.phase_history.cphd1_elements.CPHD.CPHDType: The cphd metadata
+        sarpy.io.phase_history.crsd1_elements.CRSD.CRSDType: The crsd metadata
         """
 
-        return self._cphd_meta
+        return self._crsd_meta
 
     @staticmethod
     def _verify_dtype(obs_dtype, exp_dtype, purpose):
@@ -1038,7 +859,7 @@ class CPHDWriter1_0(AbstractWriter):
 
     def _validate_channel_index(self, index):
         """
-        Get corresponding integer index for CPHD channel.
+        Get corresponding integer index for CRSD channel.
 
         Parameters
         ----------
@@ -1053,16 +874,16 @@ class CPHDWriter1_0(AbstractWriter):
             if index in self._channel_map:
                 return self._channel_map[index]
             else:
-                raise KeyError('Cannot find CPHD channel for identifier {}'.format(index))
+                raise KeyError('Cannot find CRSD channel for identifier {}'.format(index))
         else:
             int_index = int_func(index)
-            if not (0 <= int_index < self.cphd_meta.Data.NumCPHDChannels):
-                raise ValueError('index must be in the range [0, {})'.format(self.cphd_meta.Data.NumCPHDChannels))
+            if not (0 <= int_index < self.crsd_meta.Data.NumCRSDChannels):
+                raise ValueError('index must be in the range [0, {})'.format(self.crsd_meta.Data.NumCRSDChannels))
             return int_index
 
     def _validate_channel_key(self, index):
         """
-        Gets the corresponding identifier for the CPHD channel.
+        Gets the corresponding identifier for the CRSD channel.
 
         Parameters
         ----------
@@ -1077,12 +898,12 @@ class CPHDWriter1_0(AbstractWriter):
             if index in self._channel_map:
                 return index
             else:
-                raise KeyError('Cannot find CPHD channel for identifier {}'.format(index))
+                raise KeyError('Cannot find CRSD channel for identifier {}'.format(index))
         else:
             int_index = int_func(index)
-            if not (0 <= int_index < self.cphd_meta.Data.NumCPHDChannels):
-                raise ValueError('index must be in the range [0, {})'.format(self.cphd_meta.Data.NumCPHDChannels))
-            return self.cphd_meta.Data.Channels[int_index].Identifier
+            if not (0 <= int_index < self.crsd_meta.Data.NumCRSDChannels):
+                raise ValueError('index must be in the range [0, {})'.format(self.crsd_meta.Data.NumCRSDChannels))
+            return self.crsd_meta.Data.Channels[int_index].Identifier
 
     def _validate_support_index(self, index):
         """
@@ -1104,8 +925,8 @@ class CPHDWriter1_0(AbstractWriter):
                 raise KeyError('Cannot find support array for identifier {}'.format(index))
         else:
             int_index = int_func(index)
-            if not (0 <= int_index < len(self.cphd_meta.Data.SupportArrays)):
-                raise ValueError('index must be in the range [0, {})'.format(len(self.cphd_meta.Data.SupportArrays)))
+            if not (0 <= int_index < len(self.crsd_meta.Data.SupportArrays)):
+                raise ValueError('index must be in the range [0, {})'.format(len(self.crsd_meta.Data.SupportArrays)))
             return int_index
 
     def _validate_support_key(self, index):
@@ -1128,9 +949,9 @@ class CPHDWriter1_0(AbstractWriter):
                 raise KeyError('Cannot find support array for identifier {}'.format(index))
         else:
             int_index = int_func(index)
-            if not (0 <= int_index < len(self.cphd_meta.Data.SupportArrays)):
-                raise ValueError('index must be in the range [0, {})'.format(len(self.cphd_meta.Data.SupportArrays)))
-            return self.cphd_meta.Data.SupportArrays[int_index].Identifier
+            if not (0 <= int_index < len(self.crsd_meta.Data.SupportArrays)):
+                raise ValueError('index must be in the range [0, {})'.format(len(self.crsd_meta.Data.SupportArrays)))
+            return self.crsd_meta.Data.SupportArrays[int_index].Identifier
 
     def _initialize_writing(self):
         """
@@ -1141,12 +962,12 @@ class CPHDWriter1_0(AbstractWriter):
         self._pvp_memmaps = {}
         self._signal_memmaps = {}
         self._channel_map = {}
-        pvp_dtype = self.cphd_meta.PVP.get_vector_dtype()
-        signal_dtype = binary_format_string_to_dtype(self.cphd_meta.Data.SignalArrayFormat)
-        for i, entry in enumerate(self.cphd_meta.Data.Channels):
+        pvp_dtype = self.crsd_meta.PVP.get_vector_dtype()
+        signal_dtype = binary_format_string_to_dtype(self.crsd_meta.Data.SignalArrayFormat)
+        for i, entry in enumerate(self.crsd_meta.Data.Channels):
             self._channel_map[entry.Identifier] = i
             # create the pvp mem map
-            offset = self._cphd_header.PVP_BLOCK_BYTE_OFFSET + entry.PVPArrayByteOffset
+            offset = self._crsd_header.PVP_BLOCK_BYTE_OFFSET + entry.PVPArrayByteOffset
             shape = (entry.NumVectors, )
             self._pvp_memmaps[entry.Identifier] = numpy.memmap(
                 self._file_name, dtype=pvp_dtype, mode='r+', offset=offset, shape=shape)
@@ -1154,7 +975,7 @@ class CPHDWriter1_0(AbstractWriter):
             self._writing_state['pvp'][entry.Identifier] = 0
 
             # create the signal mem map
-            offset = self._cphd_header.SIGNAL_BLOCK_BYTE_OFFSET + entry.SignalArrayByteOffset
+            offset = self._crsd_header.SIGNAL_BLOCK_BYTE_OFFSET + entry.SignalArrayByteOffset
             shape = (entry.NumVectors, entry.NumSamples)
             self._signal_memmaps[entry.Identifier] = numpy.memmap(
                 self._file_name, dtype=signal_dtype, mode='r+', offset=offset, shape=shape)
@@ -1163,13 +984,13 @@ class CPHDWriter1_0(AbstractWriter):
 
         self._support_memmaps = {}
         self._support_map = {}
-        if self.cphd_meta.Data.SupportArrays is not None:
-            for i, entry in enumerate(self.cphd_meta.Data.SupportArrays):
+        if self.crsd_meta.Data.SupportArrays is not None:
+            for i, entry in enumerate(self.crsd_meta.Data.SupportArrays):
                 self._support_map[entry.Identifier] = i
                 # extract the support array metadata details
-                details = self.cphd_meta.SupportArray.find_support_array(entry.Identifier)
+                details = self.crsd_meta.SupportArray.find_support_array(entry.Identifier)
                 # determine array byte offset
-                offset = self._cphd_header.SUPPORT_BLOCK_BYTE_OFFSET + entry.ArrayByteOffset
+                offset = self._crsd_header.SUPPORT_BLOCK_BYTE_OFFSET + entry.ArrayByteOffset
                 # determine numpy dtype and depth of array
                 dtype, depth = details.get_numpy_format()
                 # set up the numpy memory map
@@ -1184,17 +1005,17 @@ class CPHDWriter1_0(AbstractWriter):
         """
 
         if self._writing_state['header']:
-            logging.warning('The header for CPHD file {} has already been written. Exiting.'.format(self._file_name))
+            logging.warning('The header for CRSD file {} has already been written. Exiting.'.format(self._file_name))
             return
 
         with open(self._file_name, "wb") as outfile:
             # write header
-            outfile.write(self._cphd_header.to_string().encode())
-            outfile.write(_CPHD_SECTION_TERMINATOR)
-            # write cphd xml
-            outfile.seek(self._cphd_header.XML_BLOCK_BYTE_OFFSET, os.SEEK_SET)
-            outfile.write(self.cphd_meta.to_xml_bytes())
-            outfile.write(_CPHD_SECTION_TERMINATOR)
+            outfile.write(self._crsd_header.to_string().encode())
+            outfile.write(_CRSD_SECTION_TERMINATOR)
+            # write crsd xml
+            outfile.seek(self._crsd_header.XML_BLOCK_BYTE_OFFSET, os.SEEK_SET)
+            outfile.write(self.crsd_meta.to_xml_bytes())
+            outfile.write(_CRSD_SECTION_TERMINATOR)
         self._writing_state['header'] = True
 
         self._initialize_writing()
@@ -1223,7 +1044,7 @@ class CPHDWriter1_0(AbstractWriter):
 
         int_index = self._validate_support_index(identifier)
         identifier = self._validate_support_key(identifier)
-        entry = self.cphd_meta.Data.SupportArrays[int_index]
+        entry = self.crsd_meta.Data.SupportArrays[int_index]
         validate_bytes_per_pixel()
 
         start_indices = (int_func(start_indices[0]), int_func(start_indices[1]))
@@ -1270,7 +1091,7 @@ class CPHDWriter1_0(AbstractWriter):
 
         int_index = self._validate_channel_index(identifier)
         identifier = self._validate_channel_key(identifier)
-        entry = self.cphd_meta.Data.Channels[int_index]
+        entry = self.crsd_meta.Data.Channels[int_index]
         validate_dtype()
 
         start_index = int_func(start_index)
@@ -1302,8 +1123,8 @@ class CPHDWriter1_0(AbstractWriter):
         support_block: dict
             Dictionary of `numpy.ndarray` containing the support arrays.
         """
-        expected_support_ids = {s.Identifier for s in self.cphd_meta.Data.SupportArrays}
-        assert expected_support_ids == set(support_block), 'support_block keys do not match those in cphd_meta'
+        expected_support_ids = {s.Identifier for s in self.crsd_meta.Data.SupportArrays}
+        assert expected_support_ids == set(support_block), 'support_block keys do not match those in crsd_meta'
         for identifier, array in support_block.items():
             self.write_support_array(identifier, array)
 
@@ -1316,8 +1137,8 @@ class CPHDWriter1_0(AbstractWriter):
         pvp_block: dict
             Dictionary of `numpy.ndarray` containing the PVP arrays.
         """
-        expected_channels = {c.Identifier for c in self.cphd_meta.Data.Channels}
-        assert expected_channels == set(pvp_block), 'pvp_block keys do not match those in cphd_meta'
+        expected_channels = {c.Identifier for c in self.crsd_meta.Data.Channels}
+        assert expected_channels == set(pvp_block), 'pvp_block keys do not match those in crsd_meta'
         for identifier, array in pvp_block.items():
             self.write_pvp_array(identifier, array)
 
@@ -1330,8 +1151,8 @@ class CPHDWriter1_0(AbstractWriter):
         signal_block: dict
             Dictionary of `numpy.ndarray` containing the signal arrays.
         """
-        expected_channels = {c.Identifier for c in self.cphd_meta.Data.Channels}
-        assert expected_channels == set(signal_block), 'signal_block keys do not match those in cphd_meta'
+        expected_channels = {c.Identifier for c in self.crsd_meta.Data.Channels}
+        assert expected_channels == set(signal_block), 'signal_block keys do not match those in crsd_meta'
         for identifier, array in signal_block.items():
             self.write_chip(array, index=identifier)
 
@@ -1363,7 +1184,7 @@ class CPHDWriter1_0(AbstractWriter):
 
         int_index = self._validate_channel_index(identifier)
         identifier = self._validate_channel_key(identifier)
-        entry = self.cphd_meta.Data.Channels[int_index]
+        entry = self.crsd_meta.Data.Channels[int_index]
         validate_bytes_per_pixel()
 
         start_indices = (int_func(start_indices[0]), int_func(start_indices[1]))
@@ -1421,7 +1242,7 @@ class CPHDWriter1_0(AbstractWriter):
         if self._closed:
             return True
 
-        if self.cphd_meta is None:
+        if self.crsd_meta is None:
             return True # incomplete initialization or some other inherent problem
 
         status = True
@@ -1429,7 +1250,7 @@ class CPHDWriter1_0(AbstractWriter):
         signal_message = ''
         support_message = ''
 
-        for entry in self.cphd_meta.Data.Channels:
+        for entry in self.crsd_meta.Data.Channels:
             pvp_rows = entry.NumVectors
             if self._writing_state['pvp'][entry.Identifier] < pvp_rows:
                 status = False
@@ -1442,8 +1263,8 @@ class CPHDWriter1_0(AbstractWriter):
                 signal_message += 'identifier {}, {} of {} pixels written\n'.format(
                     entry.Identifier, self._writing_state['signal'][entry.Identifier], signal_pixels)
 
-        if self.cphd_meta.Data.SupportArrays is not None:
-            for entry in self.cphd_meta.Data.SupportArrays:
+        if self.crsd_meta.Data.SupportArrays is not None:
+            for entry in self.crsd_meta.Data.SupportArrays:
                 support_pixels = entry.NumRows*entry.NumCols
                 if self._writing_state['support'][entry.Identifier] < support_pixels:
                     status = False
@@ -1451,7 +1272,7 @@ class CPHDWriter1_0(AbstractWriter):
                         entry.Identifier, self._writing_state['support'][entry.Identifier], support_pixels)
 
         if not status:
-            logging.error('CPHD file %s is not completely written, and the result may be corrupt.', self._file_name)
+            logging.error('CRSD file %s is not completely written, and the result may be corrupt.', self._file_name)
             if pvp_message != '':
                 logging.error('PVP block(s) incompletely written\n%s', pvp_message)
             if signal_message != '':
@@ -1466,7 +1287,7 @@ class CPHDWriter1_0(AbstractWriter):
         fully_written = self._check_fully_written()
         self._closed = True
         if not fully_written:
-            raise SarpyIOError('CPHD file {} is not fully written'.format(self._file_name))
+            raise SarpyIOError('CRSD file {} is not fully written'.format(self._file_name))
 
     def write_file(self, pvp_block, signal_block, support_block=None):
         """
@@ -1476,10 +1297,10 @@ class CPHDWriter1_0(AbstractWriter):
         ----------
         pvp_block: Dict[str, numpy.ndarray]
             Dictionary of `numpy.ndarray` containing the PVP arrays.
-            Keys must match `signal_block` and be consistent with `self.cphd_meta`
+            Keys must match `signal_block` and be consistent with `self.crsd_meta`
         signal_block: Dict[str, numpy.ndarray]
             Dictionary of `numpy.ndarray` containing the signal arrays.
-            Keys must match `pvp_block` and be consistent with `self.cphd_meta`
+            Keys must match `pvp_block` and be consistent with `self.crsd_meta`
         support_block: None|Dict[str, numpy.ndarray]
             Dictionary of `numpy.ndarray` containing the support arrays.
         """
