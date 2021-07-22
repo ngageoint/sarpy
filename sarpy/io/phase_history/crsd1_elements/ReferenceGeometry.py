@@ -2,18 +2,18 @@
 The reference geometry parameters definition.
 """
 
-from typing import Union
+__classification__ = "UNCLASSIFIED"
+__author__ = ("Thomas McCullough", "Michael Stewart, Valkyrie")
+
 
 import numpy
 
 from .base import DEFAULT_STRICT
 # noinspection PyProtectedMember
 from sarpy.io.complex.sicd_elements.base import Serializable, _FloatDescriptor, \
-    _StringEnumDescriptor, _SerializableDescriptor
+    _StringEnumDescriptor, _SerializableDescriptor, _parse_serializable
 from sarpy.io.complex.sicd_elements.blocks import XYZType, LatLonHAEType
-
-__classification__ = "UNCLASSIFIED"
-__author__ = ("Thomas McCullough", "Michael Stewart, Valkyrie")
+from sarpy.geometry.geocoords import geodetic_to_ecf, ecf_to_geodetic
 
 
 class CRPType(Serializable):
@@ -23,31 +23,59 @@ class CRPType(Serializable):
 
     _fields = ('ECF', 'LLH')
     _required = _fields
-    # descriptors
-    ECF = _SerializableDescriptor(
-        'ECF', XYZType, _required, strict=DEFAULT_STRICT,
-        docstring='CRP position in ECF coordinates.')  # type: XYZType
-    LLH = _SerializableDescriptor(
-        'LLH', LatLonHAEType, _required, strict=DEFAULT_STRICT,
-        docstring='CRP position in WGS 84 LLH Coordinates.')  # type: LatLonHAEType
+    _ECF = None
+    _LLH = None
 
     def __init__(self, ECF=None, LLH=None, **kwargs):
         """
+        To avoid the potential of inconsistent state, ECF and LLH are not simultaneously
+        used. If ECF is provided, it is used to populate LLH. Otherwise, if LLH is provided,
+        then it is used the populate ECF.
 
         Parameters
         ----------
         ECF : XYZType|numpy.ndarray|list|tuple
         LLH : LatLonHAEType|numpy.ndarray|list|tuple
-        kwargs
+        kwargs : dict
         """
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
         if '_xml_ns_key' in kwargs:
             self._xml_ns_key = kwargs['_xml_ns_key']
-        self.ECF = ECF
-        self.LLH = LLH
+        if ECF is not None:
+            self.ECF = ECF
+        elif LLH is not None:
+            self.LLH = LLH
         super(CRPType, self).__init__(**kwargs)
+
+    @property
+    def ECF(self):  # type: () -> XYZType
+        """
+        XYZType: The CRP Position ECF coordinates.
+        """
+
+        return self._ECF
+
+    @ECF.setter
+    def ECF(self, value):
+        if value is not None:
+            self._ECF = _parse_serializable(value, 'ECF', self, XYZType)
+            self._LLH = LatLonHAEType.from_array(ecf_to_geodetic(self._ECF.get_array()))
+
+    @property
+    def LLH(self):  # type: () -> LatLonHAEType
+        """
+        LatLonHAEType: The CRP Position in WGS-84 coordinates.
+        """
+
+        return self._LLH
+
+    @LLH.setter
+    def LLH(self, value):
+        if value is not None:
+            self._LLH = _parse_serializable(value, 'LLH', self, LatLonHAEType)
+            self._ECF = XYZType.from_array(geodetic_to_ecf(self._LLH.get_array(order='LAT')))
 
 
 class RcvParametersType(Serializable):

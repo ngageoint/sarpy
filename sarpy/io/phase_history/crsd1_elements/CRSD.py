@@ -2,6 +2,9 @@
 The Compensated Received Signal Data 1.0 definition.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = ("Thomas McCullough", "Michael Stewart, Valkyrie")
+
 from xml.etree import ElementTree
 from collections import OrderedDict
 from typing import Union
@@ -26,9 +29,6 @@ from .ErrorParameters import ErrorParametersType
 from sarpy.io.phase_history.cphd1_elements.ProductInfo import ProductInfoType
 from sarpy.io.phase_history.cphd1_elements.GeoInfo import GeoInfoType
 from sarpy.io.complex.sicd_elements.MatchInfo import MatchInfoType
-
-__classification__ = "UNCLASSIFIED"
-__author__ = ("Thomas McCullough", "Michael Stewart, Valkyrie")
 
 
 #########

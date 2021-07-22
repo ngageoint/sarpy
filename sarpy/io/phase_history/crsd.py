@@ -2,6 +2,10 @@
 Module for reading and writing CRSD files - should support reading CRSD 1.0 and writing version 1.0.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = ("Thomas McCullough", "Michael Stewart, Valyrie")
+
+
 import logging
 import os
 from typing import Union, Tuple, Dict, BinaryIO
@@ -16,10 +20,6 @@ from sarpy.io.general.base import AbstractWriter, BaseReader, BIPChipper, SarpyI
 from sarpy.io.phase_history.cphd1_elements.utils import binary_format_string_to_dtype
 # noinspection PyProtectedMember
 from sarpy.io.phase_history.crsd1_elements.CRSD import CRSDType, CRSDHeader, _CRSD_SECTION_TERMINATOR
-
-
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
 
 
 def is_a(file_name):
@@ -371,6 +371,38 @@ class CRSDReader(BaseReader):
         Returns
         -------
         numpy.ndarray
+
+        Examples
+        --------
+        The **preferred syntax** is to use Python slice syntax or call syntax,
+        and the following yield equivalent results
+
+        .. code-block:: python
+
+            data = reader[start:stop:stride, start:stop:stride, index]
+            data = reader((start1, stop1, stride1), (start2, stop2, stride2), index=index)`
+            data = reader.read_chip((start1, stop1, stride1), (start2, stop2, stride2) index=index)
+
+        Here the slice on index (dimension 3) is limited to a single integer. No
+        slice on index will default to `index=0`, that is :code:`reader[:, :]` and
+        :code:`reader[:, :, 0]` yield equivalent results.
+
+        The convention for slice and call syntax is as expected from standard Python convention.
+        In the read_chip` method, the convention is a little unusual. The following yield
+        equivalent results
+
+        .. code-block:: python
+
+            data = reader.read_chip(stride1, stride2)
+            data = reader.read_chip((stride1, ), (stride2, ))
+            data = reader[::stride1, ::stride2]
+
+        Likewise, the following yield equivalent results
+
+        .. code-block:: python
+
+            data = reader.read_chip((stop1, stride1), (stop2, stride2))
+            data = reader[:stop1:stride1, :stop2:stride2]
         """
 
         return self.__call__(dim1range, dim2range, index=index)
