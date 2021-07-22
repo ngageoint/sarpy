@@ -18,7 +18,7 @@ from sarpy.io.general.utils import validate_range, reverse_range, is_file_like
 ##################
 # module variables
 _SUPPORTED_TRANSFORM_VALUES = ('COMPLEX', )
-READER_TYPES = ('SICD', 'SIDD', 'CPHD', 'OTHER')
+READER_TYPES = ('SICD', 'SIDD', 'CPHD', 'CRSD', 'OTHER')
 
 
 #################

@@ -2,8 +2,6 @@
 The reference geometry parameters definition.
 """
 
-from typing import Union
-
 import numpy
 
 from .base import DEFAULT_STRICT

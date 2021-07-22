@@ -2,6 +2,10 @@
 The GeoData definition.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
+
 from collections import OrderedDict
 from xml.etree import ElementTree
 from typing import List, Union, Dict
@@ -17,10 +21,6 @@ from .blocks import XYZType, LatLonRestrictionType, LatLonHAERestrictionType, \
     LatLonCornerStringType, LatLonArrayElementType
 
 from sarpy.geometry.geocoords import geodetic_to_ecf, ecf_to_geodetic
-
-
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
 
 
 class GeoInfoType(Serializable):
