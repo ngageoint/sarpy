@@ -12,7 +12,7 @@ from typing import BinaryIO
 import numpy
 
 from sarpy.compliance import int_func
-from sarpy.io.general.base import SarpyIOError
+from sarpy.io.general.base import SarpyIOError, BIPChipper
 from sarpy.geometry.geocoords import geodetic_to_ecf
 
 from sarpy.io.complex.sicd_elements.SICD import SICDType
@@ -55,6 +55,8 @@ class _GFFHeader_1_6(object):
         estr : str
             The endianness string for format interpretation, one of `['<', '>']`
         """
+
+        self.file_object = fi
 
         self.version = '1.6'
         fi.seek(12, os.SEEK_SET)
@@ -203,6 +205,8 @@ class _GFFHeader_1_8(object):
             The endianness string for format interpretation, one of `['<', '>']`
         """
 
+        self.file_object = fi
+
         self.version = '1.8'
         fi.seek(12, os.SEEK_SET)
         # starting at line 3 of def
@@ -214,11 +218,11 @@ class _GFFHeader_1_8(object):
 
         fi.read(2)  # redundant
         self.creator = _get_string(fi.read(24))
-        self.date_time = struct.unpack(estr+'6H', fi.read(6*2))  # year,month, day, hour, minute, second
+        self.date_time = struct.unpack(estr+'6H', fi.read(6*2))  # year, month, day, hour, minute, second
         fi.read(2)  # endian, already parsed
-        self.bytes_per_pixel, self.frame_count, self.image_type, \
-            self.row_major, self.range_count, self.azimuth_count = \
-            struct.unpack(estr+'6I', fi.read(6*4))
+        self.bytes_per_pixel = int_func(struct.unpack(estr+'f', fi.read(4))[0])
+        self.frame_count, self.image_type, self.row_major, self.range_count, \
+            self.azimuth_count = struct.unpack(estr+'5I', fi.read(5*4))
         self.scale_exponent, self.scale_mantissa, self.offset_exponent, self.offset_mantissa = \
             struct.unpack(estr+'4i', fi.read(4*4))
         # at line 17 of def
@@ -565,14 +569,71 @@ class _GFFInterpretter1(object):
             SCPCOA=scpcoa)
 
     def get_chipper(self):
+        if self.header.bits_per_phase not in [8, 16, 32]:
+            raise ValueError('Got unexpected bits per phase {}'.format(self.header.bits_per_phase))
+        if self.header.bits_per_phase != self.header.bits_per_magnitude:
+            raise ValueError('Got a different value for bits per phase and bits per magnitude.')
 
-        # TODO: construct the relevant chipper
-        pass
+        raw_bands = 2
+        output_bands = 1
+        output_dtype = 'complex64'
+        raw_dtype = 'uint{}'.format(self.header.bits_per_phase)
+        data_size = (self.header.azimuth_count, self.header.range_count)
+        symmetry = (False, False, True)
+        data_offset = self.header.header_length
+        if self.header.image_type == 1:
+            # phase/magnitude which is integer
+            transform_data = phase_amp_to_complex(self.header.bits_per_phase)
+            return BIPChipper(
+                self.header.file_object, raw_dtype, data_size, raw_bands, output_bands, output_dtype,
+                symmetry=symmetry, transform_data=transform_data,
+                data_offset=data_offset, limit_to_raw_bands=None)
+        else:
+            raise ValueError('Got unsupported image type `{}`'.format(self.header.image_type))
 
 
 ####################
 # formatting functions properly reading the data
 
+def phase_amp_to_complex(bit_depth):
+    """
+    This constructs the function to convert from phase/amplitude format data of
+    a given bit-depth to complex64 data.
+
+    Parameters
+    ----------
+    bit_depth
+
+    Returns
+    -------
+    callable
+    """
+
+    def converter(data):
+        dtype_name = 'uint{}'.format(bit_depth)
+        if not isinstance(data, numpy.ndarray):
+            raise ValueError('requires a numpy.ndarray, got {}'.format(type(data)))
+
+        if len(data.shape) != 3 and data.shape[2] != 2:
+            raise ValueError('Requires a three-dimensional numpy.ndarray (with band '
+                             'in the last dimension), got shape {}'.format(data.shape))
+
+        if data.dtype.name != dtype_name:
+            raise ValueError('requires a numpy.ndarray of dtype `{}`, got `{}`'.format(
+                dtype_name, data.dtype.name))
+
+        out = numpy.zeros((data.shape[0], data.shape[1], 1), dtype=numpy.complex64)
+        amp = data[:, :, 1]
+        theta = data[:, :, 0]*(2*numpy.pi/(1 << bit_depth))
+        out.real = amp*numpy.cos(theta)
+        out.imag = amp*numpy.sin(theta)
+        return out
+
+    return converter
+
+
+####################
+# the actual reader implementation
 
 class GFFDetails(object):
     __slots__ = (
@@ -707,7 +768,8 @@ if __name__ == '__main__':
     from datetime import datetime
     the_file = os.path.expanduser('~/Downloads/GFF/example_files/MiniSAR20050519p0009image003/MiniSAR20050519p0001image008.gff')
     details = GFFDetails(the_file)
-    interp = _GFFInterpretter1(details.header)
+    print(f'{details.header.image_type, details.header.bytes_per_pixel, details.header.bits_per_phase, details.header.bits_per_magnitude}')
 
-    sicd = interp.get_sicd()
-    print(sicd)
+    # interp = _GFFInterpretter1(details.header)
+    # sicd = interp.get_sicd()
+    # print(sicd)
