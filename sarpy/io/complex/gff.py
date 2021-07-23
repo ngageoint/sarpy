@@ -2,8 +2,6 @@
 Functionality for reading a GFF file into a SICD model
 """
 
-# some sample datasets here: https://www.sandia.gov/radar/complex-data/
-
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
@@ -13,13 +11,19 @@ from typing import BinaryIO
 
 import numpy
 
+from sarpy.compliance import int_func
 from sarpy.io.general.base import SarpyIOError
+from sarpy.geometry.geocoords import geodetic_to_ecf
 
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.complex.sicd_elements.CollectionInfo import CollectionInfoType, \
     RadarModeType
 from sarpy.io.complex.sicd_elements.ImageCreation import ImageCreationType
 from sarpy.io.complex.sicd_elements.ImageData import ImageDataType
+from sarpy.io.complex.sicd_elements.GeoData import GeoDataType, SCPType
+from sarpy.io.complex.sicd_elements.Grid import GridType, DirParamType, \
+    WgtTypeType
+from sarpy.io.complex.sicd_elements.SCPCOA import SCPCOAType
 
 
 ####################
@@ -28,6 +32,10 @@ from sarpy.io.complex.sicd_elements.ImageData import ImageDataType
 def _get_string(bytes_in):
     bytes_in = bytes_in.replace(b'\x00', b'')
     return bytes_in.decode('utf-8')
+
+
+def _rescale_float(int_in, scale):
+    return float(int_in)/scale
 
 
 ####################
@@ -70,36 +78,69 @@ class _GFFHeader_1_6(object):
 
         fi.read(2) # redundant
         self.comment = _get_string(fi.read(166))
-        self.image_plane, self.range_pixel_size, self.azimuth_pixel_size = \
-            struct.unpack(estr+'3I', fi.read(3*4))
-        self.azimuth_overlap, self.srp_lat, self.srp_lon, self.srp_alt, self.rfoa, \
-            self.x_to_srp = struct.unpack(estr+'6i', fi.read(6*4))
+        self.image_plane = struct.unpack(estr+'I', fi.read(4))[0]
+        range_pixel_size, azimuth_pixel_size, azimuth_overlap = struct.unpack(estr+'3I', fi.read(3*4))
+        self.range_pixel_size = _rescale_float(range_pixel_size, 1 << 16)
+        self.azimuth_pixel_size = _rescale_float(azimuth_pixel_size, 1 << 16)
+        self.azimuth_overlap = _rescale_float(azimuth_overlap, 1 << 16)
+
+        srp_lat, srp_lon, srp_alt, rfoa, x_to_srp = struct.unpack(estr+'5i', fi.read(5*4))
+        self.srp_lat = _rescale_float(srp_lat, 1 << 23)
+        self.srp_lon = _rescale_float(srp_lon, 1 << 23)
+        self.srp_alt = _rescale_float(srp_alt, 1 << 16)
+        self.rfoa = _rescale_float(rfoa, 1 << 23)
+        self.x_to_srp = _rescale_float(x_to_srp, 1 << 16)
+
         fi.read(2)
         self.phase_name = _get_string(fi.read(128))
         fi.read(2)
         self.image_name = _get_string(fi.read(128))
         # at line 32 of def
 
-        self.look_count, self.param_ref_ap, self.param_ref_pos, self.graze_angle, \
-            self.squint, self.gta, self.range_beam_ctr, self.flight_time = \
-            struct.unpack(estr+'4I2i2I', fi.read(8*4))
+        self.look_count, self.param_ref_ap, self.param_ref_pos = \
+            struct.unpack(estr+'3I', fi.read(3*4))
 
-        self.range_chirp_rate, self.x_to_start, self.mo_comp_mode, self.v_x = \
+        graze_angle, squint, gta, range_beam_ctr, flight_time = \
+            struct.unpack(estr + 'I2i2I', fi.read(5*4))
+        self.graze_angle = _rescale_float(graze_angle, 1 << 23)
+        self.squint = _rescale_float(squint, 1 << 23)
+        self.gta = _rescale_float(gta, 1 << 23)
+        self.range_beam_ctr = _rescale_float(range_beam_ctr, 1 << 8)
+        self.flight_time = _rescale_float(flight_time, 1000)
+
+        self.range_chirp_rate, x_to_start, self.mo_comp_mode, v_x = \
             struct.unpack(estr+'fi2I', fi.read(4*4))
+        self.x_to_start = _rescale_float(x_to_start, 1 << 16)
+        self.v_x = _rescale_float(v_x, 1 << 16)
         # at line 44 of def
 
-        self.apc_lat, self.apc_lon, self.apc_alt = struct.unpack(estr+'3i', fi.read(3*4))
-        self.cal_parm, self.logical_block_address = struct.unpack(estr+'2I', fi.read(2*4))
-        self.az_resolution, self.range_resolution = struct.unpack(estr+'2I', fi.read(2*4))
-        self.des_sigma_n, self.des_graze, self.des_squint, self.des_range, \
-            self.scene_track_angle = struct.unpack(estr+'iIiIi', fi.read(5*4))
+        apc_lat, apc_lon, apc_alt = struct.unpack(estr+'3i', fi.read(3*4))
+        self.apc_lat = _rescale_float(apc_lat, 1 << 23)
+        self.apc_lon = _rescale_float(apc_lon, 1 << 23)
+        self.apc_alt = _rescale_float(apc_alt, 1 << 16)
+
+        cal_parm, self.logical_block_address = struct.unpack(estr+'2I', fi.read(2*4))
+        self.cal_parm = _rescale_float(cal_parm, 1 << 24)
+        az_resolution, range_resolution = struct.unpack(estr+'2I', fi.read(2*4))
+        self.az_resolution = _rescale_float(az_resolution, 1 << 16)
+        self.range_resolution = _rescale_float(range_resolution, 1 << 16)
+
+        des_sigma_n, des_graze, des_squint, des_range, scene_track_angle = \
+            struct.unpack(estr+'iIiIi', fi.read(5*4))
+        self.des_sigma_n = _rescale_float(des_sigma_n, 1 << 23)
+        self.des_graze = _rescale_float(des_graze, 1 << 23)
+        self.des_squint = _rescale_float(des_squint, 1 << 23)
+        self.des_range = _rescale_float(des_range, 1 << 8)
+        self.scene_track_angle = _rescale_float(scene_track_angle, 1 << 23)
         # at line 56 of def
 
         self.user_param = fi.read(48)  # leave uninterpreted
+
         self.coarse_snr, self.coarse_azimuth_sub, self.coarse_range_sub, \
             self.max_azimuth_shift, self.max_range_shift, \
             self.coarse_delta_azimuth, self.coarse_delta_range = \
             struct.unpack(estr+'7i', fi.read(7*4))
+
         self.tot_procs, self.tpt_box_cmode, self.snr_thresh, self.range_size, \
             self.map_box_size, self.box_size, self.box_spc, self.tot_tpts, \
             self.good_tpts, self.range_seed, self.range_shift, self.azimuth_shift = \
@@ -177,19 +218,27 @@ class _GFFHeader_1_8(object):
         fi.read(2)  # endian, already parsed
         self.bytes_per_pixel, self.frame_count, self.image_type, \
             self.row_major, self.range_count, self.azimuth_count = \
-            struct.unpack(estr+'f5I', fi.read(6*4))
+            struct.unpack(estr+'6I', fi.read(6*4))
         self.scale_exponent, self.scale_mantissa, self.offset_exponent, self.offset_mantissa = \
             struct.unpack(estr+'4i', fi.read(4*4))
         # at line 17 of def
 
-        self.res2 = fi.read(32)  # leave uninterpreted
+        self.res1 = fi.read(32)  # leave uninterpreted
 
         fi.read(2) # redundant
         self.comment = _get_string(fi.read(166))
-        self.image_plane, self.range_pixel_size, self.azimuth_pixel_size = \
-            struct.unpack(estr+'3I', fi.read(3*4))
-        self.azimuth_overlap, self.srp_lat, self.srp_lon, self.srp_alt, self.rfoa, \
-            self.x_to_srp = struct.unpack(estr+'6i', fi.read(6*4))
+        self.image_plane = struct.unpack(estr+'I', fi.read(4))[0]
+        range_pixel_size, azimuth_pixel_size, azimuth_overlap = struct.unpack(estr+'3I', fi.read(3*4))
+        self.range_pixel_size = _rescale_float(range_pixel_size, 1 << 16)
+        self.azimuth_pixel_size = _rescale_float(azimuth_pixel_size, 1 << 16)
+        self.azimuth_overlap = _rescale_float(azimuth_overlap, 1 << 16)
+
+        srp_lat, srp_lon, srp_alt, rfoa, x_to_srp = struct.unpack(estr+'5i', fi.read(5*4))
+        self.srp_lat = _rescale_float(srp_lat, 1 << 23)
+        self.srp_lon = _rescale_float(srp_lon, 1 << 23)
+        self.srp_alt = _rescale_float(srp_alt, 1 << 16)
+        self.rfoa = _rescale_float(rfoa, 1 << 23)
+        self.x_to_srp = _rescale_float(x_to_srp, 1 << 16)
 
         self.res2 = fi.read(32)  # leave uninterpreted
 
@@ -199,38 +248,62 @@ class _GFFHeader_1_8(object):
         self.image_name = _get_string(fi.read(128))
         # at line 34 of def
 
-        self.look_count, self.param_ref_ap, self.param_ref_pos, self.graze_angle, \
-            self.squint, self.gta, self.range_beam_ctr, self.flight_time = \
-            struct.unpack(estr+'4I2i2I', fi.read(8*4))
+        self.look_count, self.param_ref_ap, self.param_ref_pos = \
+            struct.unpack(estr + '3I', fi.read(3 * 4))
 
-        self.range_chirp_rate, self.x_to_start, self.mo_comp_mode, self.v_x = \
-            struct.unpack(estr+'fi2I', fi.read(4*4))
+        graze_angle, squint, gta, range_beam_ctr, flight_time = \
+            struct.unpack(estr + 'I2i2I', fi.read(5 * 4))
+        self.graze_angle = _rescale_float(graze_angle, 1 << 23)
+        self.squint = _rescale_float(squint, 1 << 23)
+        self.gta = _rescale_float(gta, 1 << 23)
+        self.range_beam_ctr = _rescale_float(range_beam_ctr, 1 << 8)
+        self.flight_time = _rescale_float(flight_time, 1000)
+
+        self.range_chirp_rate, x_to_start, self.mo_comp_mode, v_x = \
+            struct.unpack(estr + 'fi2I', fi.read(4 * 4))
+        self.x_to_start = _rescale_float(x_to_start, 1 << 16)
+        self.v_x = _rescale_float(v_x, 1 << 16)
         # at line 46 of def
 
-        self.apc_lat, self.apc_lon, self.apc_alt = struct.unpack(estr+'3i', fi.read(3*4))
-        self.cal_parm, self.logical_block_address = struct.unpack(estr+'2I', fi.read(2*4))
-        self.az_resolution, self.range_resolution = struct.unpack(estr+'2I', fi.read(2*4))
-        self.des_sigma_n, self.des_graze, self.des_squint, self.des_range, \
-            self.scene_track_angle = struct.unpack(estr+'iIiIi', fi.read(5*4))
+        apc_lat, apc_lon, apc_alt = struct.unpack(estr + '3i', fi.read(3 * 4))
+        self.apc_lat = _rescale_float(apc_lat, 1 << 23)
+        self.apc_lon = _rescale_float(apc_lon, 1 << 23)
+        self.apc_alt = _rescale_float(apc_alt, 1 << 16)
+
+        cal_parm, self.logical_block_address = struct.unpack(estr + '2I', fi.read(2 * 4))
+        self.cal_parm = _rescale_float(cal_parm, 1 << 24)
+        az_resolution, range_resolution = struct.unpack(estr + '2I', fi.read(2 * 4))
+        self.az_resolution = _rescale_float(az_resolution, 1 << 16)
+        self.range_resolution = _rescale_float(range_resolution, 1 << 16)
+
+        des_sigma_n, des_graze, des_squint, des_range, scene_track_angle = \
+            struct.unpack(estr + 'iIiIi', fi.read(5 * 4))
+        self.des_sigma_n = _rescale_float(des_sigma_n, 1 << 23)
+        self.des_graze = _rescale_float(des_graze, 1 << 23)
+        self.des_squint = _rescale_float(des_squint, 1 << 23)
+        self.des_range = _rescale_float(des_range, 1 << 8)
+        self.scene_track_angle = _rescale_float(scene_track_angle, 1 << 23)
         # at line 58 of def
 
         self.user_param = fi.read(48)  # leave uninterpreted
+
         self.coarse_snr, self.coarse_azimuth_sub, self.coarse_range_sub, \
-            self.max_azimuth_shift, self.max_range_shift, \
-            self.coarse_delta_azimuth, self.coarse_delta_range = \
-            struct.unpack(estr+'7i', fi.read(7*4))
+        self.max_azimuth_shift, self.max_range_shift, \
+        self.coarse_delta_azimuth, self.coarse_delta_range = \
+            struct.unpack(estr + '7i', fi.read(7 * 4))
+
         self.tot_procs, self.tpt_box_cmode, self.snr_thresh, self.range_size, \
-            self.map_box_size, self.box_size, self.box_spc, self.tot_tpts, \
-            self.good_tpts, self.range_seed, self.range_shift, self.azimuth_shift = \
-            struct.unpack(estr+'12i', fi.read(12*4))
+        self.map_box_size, self.box_size, self.box_spc, self.tot_tpts, \
+        self.good_tpts, self.range_seed, self.range_shift, self.azimuth_shift = \
+            struct.unpack(estr + '12i', fi.read(12 * 4))
         # at line 78 of def
 
-        self.sum_x_ramp, self.sum_y_ramp = struct.unpack(estr+'2i', fi.read(2*4))
-        self.cy9k_tape_block, self.nominal_center_frequency = struct.unpack(estr+'If', fi.read(2*4))
-        self.image_flags, self.line_number, self.patch_number = struct.unpack(estr+'3I', fi.read(3*4))
-        self.lambda0, self.srange_pix_space = struct.unpack(estr+'2f', fi.read(2*4))
+        self.sum_x_ramp, self.sum_y_ramp = struct.unpack(estr + '2i', fi.read(2 * 4))
+        self.cy9k_tape_block, self.nominal_center_frequency = struct.unpack(estr + 'If', fi.read(2 * 4))
+        self.image_flags, self.line_number, self.patch_number = struct.unpack(estr + '3I', fi.read(3 * 4))
+        self.lambda0, self.srange_pix_space = struct.unpack(estr + '2f', fi.read(2 * 4))
         self.dopp_pix_space, self.dopp_offset, self.dopp_range_scale, self.mux_time_delay = \
-            struct.unpack(estr+'4f', fi.read(4*4))
+            struct.unpack(estr + '4f', fi.read(4 * 4))
         # at line 91 of def
 
         self.apc_ecef = struct.unpack(estr+'3d', fi.read(3*8))
@@ -275,7 +348,10 @@ class _GFFHeader_1_8(object):
         self.averaging_time, self.dgta = struct.unpack(estr+'2f', fi.read(2*4))
         # at line 153
 
-        self.velocity_y, self.velocity_z = struct.unpack(estr+'2I', fi.read(2*4))
+        velocity_y, velocity_z = struct.unpack(estr+'2I', fi.read(2*4))
+        self.velocity_y = _rescale_float(velocity_y, 1 << 16)
+        self.velocity_z = _rescale_float(velocity_z, 1 << 16)
+
         self.ba, self.be = struct.unpack(estr+'2f', fi.read(2*4))
         self.az_geom_corr, self.range_geom_corr, self.az_win_fac_bw, \
             self.range_win_fac_bw = struct.unpack(estr+'2i2f', fi.read(4*4))
@@ -295,7 +371,9 @@ class _GFFHeader_1_8(object):
         self.monopulse_coeff = struct.unpack(estr+'12f', fi.read(12*4))
         self.twist_pt_err_prcnt, self.tilt_pt_err_prcnt, self.az_pt_err_prcnt = \
             struct.unpack(estr+'3f', fi.read(3*4))
-        self.sigma_n, self.take_num = struct.unpack(estr+'Ii', fi.read(2*4))
+        sigma_n, self.take_num = struct.unpack(estr+'Ii', fi.read(2*4))
+        self.sigma_n = _rescale_float(sigma_n, 1 << 23)
+
         self.if_sar_flags = struct.unpack(estr+'5i', fi.read(5*4))
         self.mu_threshold, self.gff_app_type = struct.unpack(estr+'fi', fi.read(2*4))
         self.res7 = fi.read(8)  # leave uninterpreted
@@ -341,7 +419,6 @@ class _GFFInterpretter1(object):
             raise ValueError(
                 'ImageType indicates a magnitude only image, which is incompatible with SICD')
 
-
     def get_sicd(self):
         """
         Gets the SICD structure.
@@ -374,17 +451,123 @@ class _GFFInterpretter1(object):
 
         def get_image_data():
             # type: () -> ImageDataType
-            return ImageDataType()
+            return ImageDataType(
+                PixelType='RE32F_IM32F',
+                NumRows=num_rows,
+                NumCols=num_cols,
+                FullImage=(num_rows, num_cols),
+                FirstRow=0,
+                FirstCol=0,
+                SCPPixel=(scp_row, scp_col))
+
+        def get_geo_data():
+            # type: () -> GeoDataType
+
+            return GeoDataType(
+                SCP=SCPType(
+                    LLH=[self.header.srp_lat, self.header.srp_lon, self.header.srp_alt]))
+
+        def get_grid():
+            # type: () -> GridType
+            image_plane = 'GROUND' if self.header.image_plane == 0 else 'SLANT'
+            # we presume that image_plane in [0, 1]
+
+            def get_wgt(str_in):
+                # type: () -> Union[None, WgtTypeType]
+                if str_in == '':
+                    return None
+
+                elements = str_in.split()
+                win_name = elements[0].upper()
+                parameters = None
+                if win_name == 'TAYLOR':
+                    if len(elements) < 2:
+                        raise ValueError('Got unparseable window definition `{}`'.format(str_in))
+                    params = elements[1].split(',')
+                    if len(params) != 2:
+                        raise ValueError('Got unparseable window definition `{}`'.format(str_in))
+                    parameters = {'SLL': params[0].strip(), 'NBAR': params[1].strip()}
+                return WgtTypeType(
+                    WindowName=win_name,
+                    Parameters=parameters)
+
+            row_ss = self.header.range_pixel_size
+            col_ss = self.header.azimuth_pixel_size
+            row_bw = 1./row_ss
+            col_bw = 1./col_ss
+            if self.header.version == '1.8':
+                if self.header.range_win_fac_bw > 0:
+                    row_bw = self.header.range_win_fac_bw/row_ss
+                if self.header.az_win_fac_bw > 0:
+                    col_bw = self.header.az_win_fac_bw/col_ss
+
+            row = DirParamType(
+                Sgn=-1,
+                SS=row_ss,
+                ImpRespWid=self.header.range_resolution,
+                ImpRespBW=row_bw,
+                DeltaK1=0.5*row_bw,
+                DeltaK2=-0.5*row_bw,
+                WgtType=get_wgt(self.header.range_win_id if self.header.version == '1.8' else ''),
+                DeltaKCOAPoly=[[0, ], ]  # TODO: revisit this?
+            )
+
+            col = DirParamType(
+                Sgn=-1,
+                SS=col_ss,
+                ImpRespWid=self.header.az_resolution,
+                ImpRespBW=col_bw,
+                DeltaK1=0.5*col_bw,
+                DeltaK2=-0.5*col_bw,
+                WgtType=get_wgt(self.header.az_win_id if self.header.version == '1.8' else ''),
+                DeltaKCOAPoly=[[0, ], ]  # TODO: revisit this?
+            )
+
+            return GridType(
+                ImagePlane=image_plane,
+                Type='RGAZIM',
+                Row=row,
+                Col=col)
+
+        def get_scpcoa():
+            # type: () -> Union[None, SCPCOAType]
+            side_of_track = 'L' if self.header.squint < 0 else 'R'
+
+            apc_llh = numpy.array(
+                [self.header.apc_lat, self.header.apc_lon, self.header.apc_alt],
+                dtype='float64')
+            if numpy.all(apc_llh == 0):
+                arp_pos = None
+            else:
+                arp_pos = geodetic_to_ecf(apc_llh, ordering='latlon')
+
+            return SCPCOAType(
+                ARPPos=arp_pos,
+                GrazeAng=self.header.graze_angle,
+                SideOfTrack=side_of_track)
+
+        num_rows = self.header.range_count
+        num_cols = self.header.azimuth_count
+        scp_row = int_func(0.5*num_rows)
+        scp_col = int_func(0.5*num_cols)
 
         collection_info = get_collection_info()
         image_creation = get_image_creation()
         image_data = get_image_data()
+        geo_data = get_geo_data()
+        scpcoa = get_scpcoa()
 
         return SICDType(
             CollectionInfo=collection_info,
             ImageCreation=image_creation,
-            ImageData=image_data)
+            ImageData=image_data,
+            GeoData=geo_data,
+            SCPCOA=scpcoa)
 
+    def get_chipper(self):
+
+        # TODO: construct the relevant chipper
+        pass
 
 
 ####################
@@ -502,7 +685,6 @@ class GFFDetails(object):
 
         self._file_object.seek(0, os.SEEK_SET)
         self._endianness = estr
-        print(self.version)
         if self.version == '1.6':
             self._header = _GFFHeader_1_6(self._file_object, self.endianness)
         elif self.version == '1.8':
@@ -525,4 +707,7 @@ if __name__ == '__main__':
     from datetime import datetime
     the_file = os.path.expanduser('~/Downloads/GFF/example_files/MiniSAR20050519p0009image003/MiniSAR20050519p0001image008.gff')
     details = GFFDetails(the_file)
-    print(f'{details.header.date_time}, {numpy.datetime64(datetime(*details.header.date_time), "s")}')
+    interp = _GFFInterpretter1(details.header)
+
+    sicd = interp.get_sicd()
+    print(sicd)
