@@ -5,16 +5,19 @@ Functionality for reading a GFF file into a SICD model
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
+import logging
 import os
 import struct
-from typing import BinaryIO
+from typing import Union, BinaryIO
 
 import numpy
 
-from sarpy.compliance import int_func
-from sarpy.io.general.base import SarpyIOError, BIPChipper
+from sarpy.compliance import int_func, string_types
+from sarpy.io.general.base import BaseReader, BIPChipper, is_file_like, \
+    SarpyIOError
 from sarpy.geometry.geocoords import geodetic_to_ecf
 
+from sarpy.io.complex.base import SICDTypeReader
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.complex.sicd_elements.CollectionInfo import CollectionInfoType, \
     RadarModeType
@@ -24,6 +27,36 @@ from sarpy.io.complex.sicd_elements.GeoData import GeoDataType, SCPType
 from sarpy.io.complex.sicd_elements.Grid import GridType, DirParamType, \
     WgtTypeType
 from sarpy.io.complex.sicd_elements.SCPCOA import SCPCOAType
+
+
+########
+# base expected functionality for a module with an implemented Reader
+
+def is_a(file_name):
+    """
+    Tests whether a given file_name corresponds to a Cosmo Skymed file. Returns a reader instance, if so.
+
+    Parameters
+    ----------
+    file_name : str|BinaryIO
+        the file_name to check
+
+    Returns
+    -------
+    CSKReader|None
+        `CSKReader` instance if Cosmo Skymed file, `None` otherwise
+    """
+
+    if is_file_like(file_name):
+        return None
+
+    try:
+        gff_details = GFFDetails(file_name)
+        logging.info('File {} is determined to be a GFF version {} file.'.format(
+            file_name, gff_details.version))
+        return GFFReader(gff_details)
+    except SarpyIOError:
+        return None
 
 
 ####################
@@ -404,7 +437,35 @@ class _GFFHeader_2(object):
 ####################
 # object for creation of sicd structure from GFF header object
 
-class _GFFInterpretter1(object):
+class _GFFInterpreter(object):
+    """
+    Extractor for the sicd details
+    """
+
+    def get_sicd(self):
+        """
+        Gets the SICD structure.
+
+        Returns
+        -------
+        SICDType
+        """
+
+        raise NotImplementedError
+
+    def get_chipper(self):
+        """
+        Gets the chipper for reading the data.
+
+        Returns
+        -------
+        BIPChipper
+        """
+
+        raise NotImplementedError
+
+
+class _GFFInterpreter1(_GFFInterpreter):
     """
     Extractor of SICD structure and parameters from gff_header_1*
     object
@@ -424,14 +485,6 @@ class _GFFInterpretter1(object):
                 'ImageType indicates a magnitude only image, which is incompatible with SICD')
 
     def get_sicd(self):
-        """
-        Gets the SICD structure.
-
-        Returns
-        -------
-        SICDType
-        """
-
         def get_collection_info():
             # type: () -> CollectionInfoType
             core_name = self.header.image_name.replace(':', '_')
@@ -439,8 +492,7 @@ class _GFFInterpretter1(object):
                 CoreName=core_name,
                 CollectType='MONOSTATIC',
                 RadarMode=RadarModeType(
-                    ModeType='SPOTLIGHT',
-                    ModeID=None),
+                    ModeType='SPOTLIGHT'),
                 Classification='UNCLASSIFIED')
 
         def get_image_creation():
@@ -449,7 +501,7 @@ class _GFFInterpretter1(object):
             from datetime import datetime
             return ImageCreationType(
                 Application=self.header.creator,
-                DateTime=numpy.datetime64(datetime(*details.header.date_time)),
+                DateTime=numpy.datetime64(datetime(*self.header.date_time)),
                 Site='Unknown',
                 Profile='sarpy {}'.format(__version__))
 
@@ -477,7 +529,7 @@ class _GFFInterpretter1(object):
             # we presume that image_plane in [0, 1]
 
             def get_wgt(str_in):
-                # type: () -> Union[None, WgtTypeType]
+                # type: (str) -> Union[None, WgtTypeType]
                 if str_in == '':
                     return None
 
@@ -559,6 +611,7 @@ class _GFFInterpretter1(object):
         image_creation = get_image_creation()
         image_data = get_image_data()
         geo_data = get_geo_data()
+        grid = get_grid()
         scpcoa = get_scpcoa()
 
         return SICDType(
@@ -566,6 +619,7 @@ class _GFFInterpretter1(object):
             ImageCreation=image_creation,
             ImageData=image_data,
             GeoData=geo_data,
+            Grid=grid,
             SCPCOA=scpcoa)
 
     def get_chipper(self):
@@ -578,8 +632,8 @@ class _GFFInterpretter1(object):
         output_bands = 1
         output_dtype = 'complex64'
         raw_dtype = 'uint{}'.format(self.header.bits_per_phase)
-        data_size = (self.header.azimuth_count, self.header.range_count)
-        symmetry = (False, False, True)
+        data_size = (self.header.range_count, self.header.azimuth_count)
+        symmetry = (False, False, False)
         data_offset = self.header.header_length
         if self.header.image_type == 1:
             # phase/magnitude which is integer
@@ -623,10 +677,12 @@ def phase_amp_to_complex(bit_depth):
                 dtype_name, data.dtype.name))
 
         out = numpy.zeros((data.shape[0], data.shape[1], 1), dtype=numpy.complex64)
-        amp = data[:, :, 1]
-        theta = data[:, :, 0]*(2*numpy.pi/(1 << bit_depth))
-        out.real = amp*numpy.cos(theta)
-        out.imag = amp*numpy.sin(theta)
+        # amp = data[:, :, 1]
+        # theta = data[:, :, 0]*(2*numpy.pi/(1 << bit_depth))
+        # out[:, :, 0].real = amp*numpy.cos(theta)  # handle shape nonsense
+        # out[:, :, 0].imag = amp*numpy.sin(theta)
+        out[:, :, 0].real = data[:, :, 1]
+
         return out
 
     return converter
@@ -639,7 +695,7 @@ class GFFDetails(object):
     __slots__ = (
         '_file_name', '_file_object', '_close_after',
         '_endianness', '_major_version', '_minor_version',
-        '_header')
+        '_header', '_interpreter')
 
     def __init__(self, file_name):
         """
@@ -721,6 +777,18 @@ class GFFDetails(object):
 
         return self._header
 
+    @property
+    def interpreter(self):
+        """
+        The GFF interpreter object.
+
+        Returns
+        -------
+        _GFFInterpreter
+        """
+
+        return self._interpreter
+
     def _initialize(self):
         """
         Initialize the various elements
@@ -748,10 +816,34 @@ class GFFDetails(object):
         self._endianness = estr
         if self.version == '1.6':
             self._header = _GFFHeader_1_6(self._file_object, self.endianness)
+            self._interpreter = _GFFInterpreter1(self._header)
         elif self.version == '1.8':
             self._header = _GFFHeader_1_8(self._file_object, self.endianness)
+            self._interpreter = _GFFInterpreter1(self._header)
         else:
             raise ValueError('Not yet')
+
+    def get_sicd(self):
+        """
+        Gets the sicd structure.
+
+        Returns
+        -------
+        SICDType
+        """
+
+        return self._interpreter.get_sicd()
+
+    def get_chipper(self):
+        """
+        Gets the chipper for reading data.
+
+        Returns
+        -------
+        BIPChipper
+        """
+
+        return self._interpreter.get_chipper()
 
     def __del__(self):
         if self._close_after:
@@ -763,6 +855,48 @@ class GFFDetails(object):
                 pass
 
 
+class GFFReader(BaseReader, SICDTypeReader):
+    """
+    Gets a reader type object for GFF files
+    """
+
+    __slots__ = ('_gff_details', )
+
+    def __init__(self, gff_details):
+        """
+
+        Parameters
+        ----------
+        gff_details : str|GFFDetails
+            file name or GFFDetails object
+        """
+
+        if isinstance(gff_details, string_types):
+            gff_details = GFFDetails(gff_details)
+        if not isinstance(gff_details, GFFDetails):
+            raise TypeError('The input argument for a GFFReader must be a '
+                            'filename or GFFDetails object')
+        self._gff_details = gff_details
+        sicd = gff_details.get_sicd()
+        chipper = gff_details.get_chipper()
+
+        SICDTypeReader.__init__(self, sicd)
+        BaseReader.__init__(self, chipper, reader_type="SICD")
+
+    @property
+    def gff_details(self):
+        # type: () -> GFFDetails
+        """
+        GFFDetails: The details object.
+        """
+
+        return self._gff_details
+
+    @property
+    def file_name(self):
+        return self.gff_details.file_name
+
+
 if __name__ == '__main__':
     import os
     from datetime import datetime
@@ -770,6 +904,6 @@ if __name__ == '__main__':
     details = GFFDetails(the_file)
     print(f'{details.header.image_type, details.header.bytes_per_pixel, details.header.bits_per_phase, details.header.bits_per_magnitude}')
 
-    # interp = _GFFInterpretter1(details.header)
+    # interp = _GFFInterpreter1(details.header)
     # sicd = interp.get_sicd()
     # print(sicd)

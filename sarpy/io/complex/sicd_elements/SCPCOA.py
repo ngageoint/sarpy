@@ -277,6 +277,8 @@ class SCPCOAType(Serializable):
         float: Derivative of Theta as a function of time at Center of Aperture time.
         """
 
+        if self.DopplerConeAng is None or self.ROV is None:
+            return None
         return float(numpy.sin(numpy.deg2rad(self.DopplerConeAng))/self.ROV)
 
     @property
@@ -284,7 +286,8 @@ class SCPCOAType(Serializable):
         """
         float: The anticipated angle of multipath features on the ground in degrees.
         """
-
+        if self.GrazeAng is None or self.TwistAng is None:
+            return None
         return numpy.rad2deg(
             -numpy.arctan(numpy.tan(numpy.deg2rad(self.TwistAng))*numpy.sin(numpy.deg2rad(self.GrazeAng))))
 
@@ -293,7 +296,8 @@ class SCPCOAType(Serializable):
         """
         float: The anticipated angle of multipath features in degrees.
         """
-
+        if self.AzimAng is None or self.MultipathGround is None:
+            return None
         return numpy.mod(self.AzimAng - 180 + self.MultipathGround, 360)
 
     @property
