@@ -677,12 +677,10 @@ def phase_amp_to_complex(bit_depth):
                 dtype_name, data.dtype.name))
 
         out = numpy.zeros((data.shape[0], data.shape[1], 1), dtype=numpy.complex64)
-        # amp = data[:, :, 1]
-        # theta = data[:, :, 0]*(2*numpy.pi/(1 << bit_depth))
-        # out[:, :, 0].real = amp*numpy.cos(theta)  # handle shape nonsense
-        # out[:, :, 0].imag = amp*numpy.sin(theta)
-        out[:, :, 0].real = data[:, :, 1]
-
+        amp = data[:, :, 1]
+        theta = data[:, :, 0]*(2*numpy.pi/(1 << bit_depth))
+        out[:, :, 0].real = amp*numpy.cos(theta)  # handle shape nonsense
+        out[:, :, 0].imag = amp*numpy.sin(theta)
         return out
 
     return converter
