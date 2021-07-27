@@ -900,7 +900,7 @@ if __name__ == '__main__':
     from datetime import datetime
     the_file = os.path.expanduser('~/Downloads/GFF/example_files/MiniSAR20050519p0009image003/MiniSAR20050519p0001image008.gff')
     details = GFFDetails(the_file)
-    print(f'{details.header.image_type, details.header.bytes_per_pixel, details.header.bits_per_phase, details.header.bits_per_magnitude}')
+    # print(f'{details.header.tx_polarization, details.header.rx_polarization}')
 
     # interp = _GFFInterpreter1(details.header)
     # sicd = interp.get_sicd()
