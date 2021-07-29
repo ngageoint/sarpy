@@ -1,5 +1,7 @@
 """
-Functionality for reading a GFF file into a SICD model
+Functionality for reading a GFF file into a SICD model.
+
+Note: This has been tested on files of version 1.8 and 2.5, but hopefully works for others.
 """
 
 __classification__ = "UNCLASSIFIED"
@@ -72,7 +74,7 @@ def _rescale_float(int_in, scale):
 
 
 ####################
-# version specific header parsing
+# version 1 specific header parsing
 
 class _GFFHeader_1_6(object):
     """
@@ -111,7 +113,7 @@ class _GFFHeader_1_6(object):
             struct.unpack(estr+'4i', fi.read(4*4))
         # at line 17 of def
 
-        fi.read(2) # redundant
+        fi.read(2)  # redundant
         self.comment = _get_string(fi.read(166))
         self.image_plane = struct.unpack(estr+'I', fi.read(4))[0]
         range_pixel_size, azimuth_pixel_size, azimuth_overlap = struct.unpack(estr+'3I', fi.read(3*4))
@@ -197,7 +199,7 @@ class _GFFHeader_1_6(object):
         self.res5 = fi.read(64)  # leave uninterpreted
 
 
-class _radar_1_8(object):
+class _Radar_1_8(object):
     """
     The radar details, for version 1.8
     """
@@ -356,10 +358,10 @@ class _GFFHeader_1_8(object):
         self.comp_file_name = _get_string(fi.read(128))
         self.ref_file_name = _get_string(fi.read(128))
 
-        self.IE = _radar_1_8(fi.read(76), estr)  # TODO: what do IE/IF/PH represent?
-        self.IF = _radar_1_8(fi.read(76), estr)
+        self.IE = _Radar_1_8(fi.read(76), estr)  # TODO: what do IE/IF/PH represent?
+        self.IF = _Radar_1_8(fi.read(76), estr)
         self.if_algo = _get_string(fi.read(8))
-        self.PH = _radar_1_8(fi.read(76), estr)
+        self.PH = _Radar_1_8(fi.read(76), estr)
         # at line 122 of def
 
         self.ph_data_rcd, self.proc_product = struct.unpack(estr+'2i', fi.read(2*4))
@@ -414,6 +416,50 @@ class _GFFHeader_1_8(object):
         self.if_sar_flags = struct.unpack(estr+'5i', fi.read(5*4))
         self.mu_threshold, self.gff_app_type = struct.unpack(estr+'fi', fi.read(2*4))
         self.res7 = fi.read(8)  # leave uninterpreted
+
+
+#####################
+# version 2 specific header parsing
+
+
+class _BlockHeader_2(object):
+    """
+    Read and interpret a block "sub"-header. This generically precedes every version
+    2 data block, including the main file header
+    """
+
+    def __init__(self, fi, estr):
+        """
+
+        Parameters
+        ----------
+        fi : BinaryIO
+        estr : str
+            The endianness string for format interpretation, one of `['<', '>']`
+        """
+
+        self.name = _get_string(fi.read(16))
+        self.major_version, self.minor_version = struct.unpack(estr+'HH', fi.read(2*2))
+        self.size = struct.unpack(estr+'I', fi.read(4))[0]
+        fi.read(4)  # not sure what this is from looking the matlab. Probably a check sum or something?
+
+
+class _GSATIMG_2_5(object):
+    """
+    Interpreter for the GSATIMG object
+    """
+
+    def __init__(self, fi, estr):
+        """
+
+        Parameters
+        ----------
+        fi : BinaryIO
+        estr : str
+            The endianness string for format interpretation, one of `['<', '>']`
+        """
+
+        pass
 
 
 class _GFFHeader_2(object):
@@ -819,7 +865,8 @@ class GFFDetails(object):
             self._header = _GFFHeader_1_8(self._file_object, self.endianness)
             self._interpreter = _GFFInterpreter1(self._header)
         else:
-            raise ValueError('Not yet')
+            # raise ValueError('Not yet')
+            pass
 
     def get_sicd(self):
         """
@@ -898,8 +945,15 @@ class GFFReader(BaseReader, SICDTypeReader):
 if __name__ == '__main__':
     import os
     from datetime import datetime
-    the_file = os.path.expanduser('~/Downloads/GFF/example_files/MiniSAR20050519p0009image003/MiniSAR20050519p0001image008.gff')
+
+    # gff_root = r'R:\sar\Data_SomeDomestic\Sandia\FARAD_Phoenix\OSAPF\NoAF\PS0004'
+    # the_file = os.path.join(gff_root, '20150408_0408P07_PS0004_PT000001_N03_M1_CH3_OSAPF.gff')
+
+    gff_root = r'R:\sar\Data_SomeDomestic\Sandia\dionysius\gff_example'
+    the_file = os.path.join(gff_root, 'Patch005.gff')
+
     details = GFFDetails(the_file)
+    print(f'{details.version}')
     # print(f'{details.header.tx_polarization, details.header.rx_polarization}')
 
     # interp = _GFFInterpreter1(details.header)
