@@ -17,7 +17,7 @@ from sarpy.io.complex.sicd_elements.blocks import RowColType, LatLonHAEType
 from .base import DEFAULT_STRICT
 from .blocks import RangeCrossRangeType, RowColDoubleType
 
-# TODO: the articulation and configuration information is really not useable in
+# TODO: the articulation and configuration information is really not usable in
 #  its current form, and should be replaced with a (`name`, `value`) pair.
 #  I am omitting for now.
 

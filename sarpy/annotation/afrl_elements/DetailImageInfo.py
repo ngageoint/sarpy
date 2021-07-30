@@ -27,7 +27,7 @@ class ClassificationMarkingsType(Serializable):
     DerivedFrom = _StringDescriptor(
         'DerivedFrom', _required)  # type: Optional[str]
 
-    def __init__(self, Classification='',Restrictions='', ClassifiedBy=None,
+    def __init__(self, Classification='', Restrictions='', ClassifiedBy=None,
                  DeclassifyOn=None, DerivedFrom=None, **kwargs):
         """
         Parameters
