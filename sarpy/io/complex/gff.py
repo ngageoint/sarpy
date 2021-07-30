@@ -29,6 +29,12 @@ from sarpy.io.complex.sicd_elements.GeoData import GeoDataType, SCPType
 from sarpy.io.complex.sicd_elements.Grid import GridType, DirParamType, \
     WgtTypeType
 from sarpy.io.complex.sicd_elements.SCPCOA import SCPCOAType
+from sarpy.io.complex.sicd_elements.Timeline import TimelineType, IPPSetType
+from sarpy.io.complex.sicd_elements.RadarCollection import RadarCollectionType, \
+    TxFrequencyType, WaveformParametersType, ChanParametersType
+from sarpy.io.complex.sicd_elements.ImageFormation import ImageFormationType, \
+    RcvChanProcType, TxFrequencyProcType
+from sarpy.io.complex.sicd_elements.Radiometric import RadiometricType, NoiseLevelType_
 
 
 ########
@@ -100,7 +106,6 @@ class _GFFHeader_1_6(object):
         if self.header_length < 952:
             raise ValueError(
                 'The provided header is apparently too short to be a version 1.6 GFF header')
-        # TODO: should this be 1024 all the time?
 
         fi.read(2)  # redundant
         self.creator = _get_string(fi.read(24))
@@ -246,10 +251,9 @@ class _GFFHeader_1_8(object):
         fi.seek(12, os.SEEK_SET)
         # starting at line 3 of def
         self.header_length = struct.unpack(estr+'I', fi.read(4))[0]
-        if self.header_length < 2040:  # TODO: correct this
+        if self.header_length < 2040:
             raise ValueError(
                 'The provided header is apparently too short to be a version 1.8 GFF header')
-        # TODO: should this be 2048 all the time?
 
         fi.read(2)  # redundant
         self.creator = _get_string(fi.read(24))
@@ -358,7 +362,7 @@ class _GFFHeader_1_8(object):
         self.comp_file_name = _get_string(fi.read(128))
         self.ref_file_name = _get_string(fi.read(128))
 
-        self.IE = _Radar_1_8(fi.read(76), estr)  # TODO: what do IE/IF/PH represent?
+        self.IE = _Radar_1_8(fi.read(76), estr)
         self.IF = _Radar_1_8(fi.read(76), estr)
         self.if_algo = _get_string(fi.read(8))
         self.PH = _Radar_1_8(fi.read(76), estr)
@@ -421,6 +425,10 @@ class _GFFHeader_1_8(object):
 #####################
 # version 2 specific header parsing
 
+# NB: I am only parsing the GSATIMG, APINFO, IFINFO, and GEOINFO blocks
+#   because those are the only blocks referenced in the matlab that I
+#   am mirroring
+
 
 class _BlockHeader_2(object):
     """
@@ -443,10 +451,315 @@ class _BlockHeader_2(object):
         self.size = struct.unpack(estr+'I', fi.read(4))[0]
         fi.read(4)  # not sure what this is from looking the matlab. Probably a check sum or something?
 
+    @property
+    def version(self):
+        """
+        str: The version
+        """
 
-class _GSATIMG_2_5(object):
+        return '{}.{}'.format(self.major_version, self.minor_version)
+
+
+# APINFO definitions
+class _APInfo_1_0(object):
     """
-    Interpreter for the GSATIMG object
+    The APINFO block
+    """
+    serialized_length = 314
+
+    def __init__(self, fi, estr):
+        """
+
+        Parameters
+        ----------
+        fi : BinaryIO
+        estr : str
+            The endianness string for format interpretation, one of `['<', '>']`
+        """
+
+        self.missionText = _get_string(fi.read(8))
+        self.swVerNum = _get_string(fi.read(8))
+        self.radarSerNum, self.phSource = struct.unpack(estr+'2I', fi.read(2*4))
+        fi.read(2)
+        self.phName = _get_string(fi.read(128))
+        self.ctrFreq, self.wavelength = struct.unpack(estr+'2f', fi.read(4))
+        self.rxPolarization, self.txPolarization = struct.unpack(estr+'2I', fi.read(2*4))
+        self.azBeamWidth, self.elBeamWidth = struct.unpack(estr+'2f', fi.read(2*4))
+        self.grazingAngle, self.squintAngle, self.gta, self.rngToBeamCtr = \
+            struct.unpack(estr+'4f', fi.read(4*4))
+        # line 16
+
+        self.desSquint, self.desRng, self.desGTA, self.antPhaseCtrBear = \
+            struct.unpack(estr+'4f', fi.read(4*4))
+        self.ApTimeUTC = struct.unpack(estr+'6H', fi.read(6*2))
+        self.flightTime, self.flightWeek = struct.unpack(estr+'2I', fi.read(2*4))
+        self.chirpRate, self.xDistToStart = struct.unpack(estr+'2f', fi.read(2*4))
+        self.momeasMode, self.radarMode = struct.unpack(estr+'2I', fi.read(2*4))
+        # line 32
+
+        self.rfoa = struct.unpack(estr+'f', fi.read(4))[0]
+        self.apcVel = struct.unpack(estr+'3d', fi.read(3*8))
+        self.apcLLH = struct.unpack(estr+'3d', fi.read(3*8))
+        self.keepOutViol, self.gimStopTwist, self.gimStopTilt, self.gimStopAz = \
+            struct.unpack(estr+'4f', fi.read(4*4))
+
+
+class _APInfo_2_0(_APInfo_1_0):
+    """
+    The APINFO block
+    """
+    serialized_length = 318
+
+    def __init__(self, fi, estr):
+        """
+
+        Parameters
+        ----------
+        fi : BinaryIO
+        estr : str
+            The endianness string for format interpretation, one of `['<', '>']`
+        """
+
+        _APInfo_1_0.__init__(self, fi, estr)
+        self.apfdFactor = struct.unpack(estr+'i', fi.read(4))[0]
+
+
+class _APInfo_3_0(_APInfo_2_0):
+    """
+    The APINFO block
+    """
+    serialized_length = 334
+
+    def __init__(self, fi, estr):
+        """
+
+        Parameters
+        ----------
+        fi : BinaryIO
+        estr : str
+            The endianness string for format interpretation, one of `['<', '>']`
+        """
+
+        _APInfo_2_0.__init__(self, fi, estr)
+        self.fastTimeSamples, self.adSampleFreq, self.apertureTime, \
+            self.numPhaseHistories = struct.unpack(estr+'I2fI', fi.read(4*4))
+
+
+class _APInfo_4_0(object):
+    """
+    The APINFO block
+    """
+    serialized_length = 418
+
+    def __init__(self, fi, estr):
+        """
+
+        Parameters
+        ----------
+        fi : BinaryIO
+        estr : str
+            The endianness string for format interpretation, one of `['<', '>']`
+        """
+
+        # essentially the same as version 3, except the first two fields are longer
+        self.missionText = _get_string(fi.read(50))
+        self.swVerNum = _get_string(fi.read(50))
+        self.radarSerNum, self.phSource = struct.unpack(estr+'2I', fi.read(2*4))
+        fi.read(2)
+        self.phName = _get_string(fi.read(128))
+        self.ctrFreq, self.wavelength = struct.unpack(estr+'2f', fi.read(4))
+        self.rxPolarization, self.txPolarization = struct.unpack(estr+'2I', fi.read(2*4))
+        self.azBeamWidth, self.elBeamWidth = struct.unpack(estr+'2f', fi.read(2*4))
+        self.grazingAngle, self.squintAngle, self.gta, self.rngToBeamCtr = \
+            struct.unpack(estr+'4f', fi.read(4*4))
+        # line 16
+
+        self.desSquint, self.desRng, self.desGTA, self.antPhaseCtrBear = \
+            struct.unpack(estr+'4f', fi.read(4*4))
+        self.ApTime = struct.unpack(estr+'6H', fi.read(6*2))
+        self.flightTime, self.flightWeek = struct.unpack(estr+'2I', fi.read(2*4))
+        self.chirpRate, self.xDistToStart = struct.unpack(estr+'2f', fi.read(2*4))
+        self.momeasMode, self.radarMode = struct.unpack(estr+'2I', fi.read(2*4))
+        # line 32
+
+        self.rfoa = struct.unpack(estr+'f', fi.read(4))[0]
+        self.apcVel = struct.unpack(estr+'3d', fi.read(3*8))
+        self.apcLLH = struct.unpack(estr+'3d', fi.read(3*8))
+        self.keepOutViol, self.gimStopTwist, self.gimStopTilt, self.gimStopAz = \
+            struct.unpack(estr+'4f', fi.read(4*4))
+
+        self.apfdFactor = struct.unpack(estr+'i', fi.read(4))[0]
+        self.fastTimeSamples, self.adSampleFreq, self.apertureTime, \
+            self.numPhaseHistories = struct.unpack(estr+'I2fI', fi.read(4*4))
+
+
+class _APInfo_5_0(_APInfo_4_0):
+    """
+    The APINFO block
+    """
+    serialized_length = 426
+
+    def __init__(self, fi, estr):
+        """
+
+        Parameters
+        ----------
+        fi : BinaryIO
+        estr : str
+            The endianness string for format interpretation, one of `['<', '>']`
+        """
+
+        _APInfo_4_0.__init__(self, fi, estr)
+        self.lightSpeed = struct.unpack(estr+'d', fi.read(8))[0]  # really?
+
+
+class _APInfo_5_1(_APInfo_5_0):
+    """
+    The APINFO block
+    """
+    serialized_length = 430
+
+    def __init__(self, fi, estr):
+        """
+
+        Parameters
+        ----------
+        fi : BinaryIO
+        estr : str
+            The endianness string for format interpretation, one of `['<', '>']`
+        """
+
+        _APInfo_5_0.__init__(self, fi, estr)
+        self.delTanApAngle = struct.unpack(estr+'f', fi.read(4))[0]
+
+
+class _APInfo_5_2(_APInfo_5_1):
+    """
+    The APINFO block
+    """
+    serialized_length = 434
+
+    def __init__(self, fi, estr):
+        """
+
+        Parameters
+        ----------
+        fi : BinaryIO
+        estr : str
+            The endianness string for format interpretation, one of `['<', '>']`
+        """
+
+        _APInfo_5_1.__init__(self, fi, estr)
+        self.metersInSampledDoppler = struct.unpack(estr+'f', fi.read(4))[0]
+
+
+# IFINFO definitions
+class _IFInfo_1_0(object):
+    """
+    Interpreter for IFInfo object
+    """
+    serialized_length = 514
+
+    def __init__(self, fi, estr):
+        """
+
+        Parameters
+        ----------
+        fi : BinaryIO
+        estr : str
+            The endianness string for format interpretation, one of `['<', '>']`
+        """
+
+        self.procProduct = struct.unpack(estr+'I', fi.read(4))[0]
+        fi.read(2)
+        self.imgFileName = _get_string(fi.read(128))
+        self.azResolution, self.rngResolution = struct.unpack(estr+'2f', fi.read(2*4))
+        self.imgCalParam, self.sigmaN = struct.unpack(estr+'2f', fi.read(2*4))
+        self.sampLocDCRow, self.sampLocDCCol = struct.unpack(estr+'2i', fi.read(2*4))
+        self.ifAlgo = _get_string(fi.read(8))
+        self.imgFlag = struct.unpack(estr+'i', fi.read(4))[0]
+        self.azCoeff = struct.unpack(estr+'6f', fi.read(6*4))
+        self.elCoeff = struct.unpack(estr+'9f', fi.read(9*4))
+        self.azGeoCorrect, self.rngGeoCorrect = struct.unpack(estr+'2i', fi.read(2*4))
+        self.wndBwFactAz, self.wndBwFactRng = struct.unpack(estr+'2f', fi.read(2*4))
+        self.wndFncIdAz = _get_string(fi.read(48))
+        self.wndFncIdRng = _get_string(fi.read(48))
+        fi.read(2)
+        self.cmtText = _get_string(fi.read(166))
+        self.autoFocusInfo = struct.unpack(estr+'i', fi.read(4))[0]
+
+
+class _IFInfo_2_0(_IFInfo_1_0):
+    """
+    Interpreter for IFInfo object - identical with version 2.1 and 2.2
+    """
+    serialized_length = 582
+
+    def __init__(self, fi, estr):
+        """
+
+        Parameters
+        ----------
+        fi : BinaryIO
+        estr : str
+            The endianness string for format interpretation, one of `['<', '>']`
+        """
+
+        _IFInfo_1_0.__init__(self, fi, estr)
+        self.rngFFTSize = struct.unpack(estr+'i', fi.read(4))[0]
+        self.RangePaneFilterCoeff = struct.unpack(estr+'11f', fi.read(11*4))
+        self.AzPreFilterCoeff = struct.unpack(estr+'5f', fi.read(5*4))
+
+
+class _IFInfo_3_0(_IFInfo_2_0):
+    """
+    Interpreter for IFInfo object
+    """
+    serialized_length = 586
+
+    def __init__(self, fi, estr):
+        """
+
+        Parameters
+        ----------
+        fi : BinaryIO
+        estr : str
+            The endianness string for format interpretation, one of `['<', '>']`
+        """
+
+        _IFInfo_2_0.__init__(self, fi, estr)
+        self.afPeakQuadComp = struct.unpack(estr+'f', fi.read(4))[0]
+
+
+# GEOINFO definitions
+class _GeoInfo_1(object):
+    """
+    Interpreter for GeoInfo object - note that versions 1.0 and 1.1 are identical
+    """
+    serialized_length = 52
+
+    def __init__(self, fi, estr):
+        """
+
+        Parameters
+        ----------
+        fi : BinaryIO
+        estr : str
+            The endianness string for format interpretation, one of `['<', '>']`
+        """
+
+        self.imagePlane = struct.unpack(estr+'i', fi.read(4))[0]
+        self.rangePixSpacing, self.desiredGrazAng, self.azPixSpacing = \
+            struct.unpack(estr+'3f', fi.read(3*4))
+        self.patchCtrLLH = struct.unpack(estr+'3d', fi.read(3*8))
+        self.pixLocImCtrRow, self.pixLocImCtrCol = struct.unpack(estr+'2I', fi.read(2*4))
+        self.imgRotAngle = struct.unpack(estr+'f', fi.read(4))[0]
+
+
+# GSATIMG definition
+class _PixelFormat(object):
+    """
+    Interpreter for pixel format object
     """
 
     def __init__(self, fi, estr):
@@ -459,7 +772,55 @@ class _GSATIMG_2_5(object):
             The endianness string for format interpretation, one of `['<', '>']`
         """
 
-        pass
+        self.comp0_bitSize, self.comp0_dataType = struct.unpack(estr+'HI', fi.read(2+4))
+        self.comp1_bitSize, self.comp1_dataType = struct.unpack(estr+'HI', fi.read(2+4))
+        self.cmplxDomain, self.numComponents = struct.unpack(estr+'Ii', fi.read(2*4))
+
+
+class _GSATIMG_2(object):
+    """
+    Interpreter for the GSATIMG object
+    """
+    serialized_length = 82
+
+    def __init__(self, fi, estr):
+        """
+
+        Parameters
+        ----------
+        fi : BinaryIO
+        estr : str
+            The endianness string for format interpretation, one of `['<', '>']`
+        """
+
+        self.endian = struct.unpack(estr+'I', fi.read(4))[0]
+        fi.read(2)
+        self.imageCreator = _get_string(fi.read(24))
+        self.rangePixels, self.azPixels = struct.unpack(estr+'2I', fi.read(2*4))
+        self.pixOrder, self.imageLengthBytes, self.imageCompressionScheme, \
+            self.pixDataType = struct.unpack(estr+'4I', fi.read(4))
+        self.pixelFormat = _PixelFormat(fi, estr)
+        self.pixValLin, self.autoScaleFac = struct.unpack(estr+'if', fi.read(2*4))
+
+        if self.pixDataType in [0, 5]:
+            raise ValueError('The pixel type is magnitude only, which is incompatible with complex data')
+        elif self.pixDataType == 13:
+            raise ValueError('The pixel type is listed as undefined, which is not supported')
+        elif self.pixDataType > 13:
+            raise ValueError('Got unexpected pixTypeData value `{}`'.format(self.pixDataType))
+
+
+
+# combined GFF version 2 header collection
+def _check_serialization(block_header, expected_length):
+    # type: (_BlockHeader_2, int) -> None
+    if block_header.size == expected_length:
+        return
+
+    raise ValueError(
+        'Got `{}` block of version `{}` and serialized length {},\n\t'
+        'but expected serialized length {}'.format(
+            block_header.name, block_header.version, block_header.size, expected_length))
 
 
 class _GFFHeader_2(object):
@@ -467,6 +828,9 @@ class _GFFHeader_2(object):
     Interpreter for the GFF version 2.* header
     """
 
+    __slots__ = (
+        'file_object', '_gsat_img', '_ap_info', '_if_info', '_geo_info', '_image_offset')
+
     def __init__(self, fi, estr):
         """
 
@@ -477,11 +841,188 @@ class _GFFHeader_2(object):
             The endianness string for format interpretation, one of `['<', '>']`
         """
 
-        pass
+        self._gsat_img = None
+        self._ap_info = None
+        self._if_info = None
+        self._geo_info = None
+        self._image_offset = None
+        self.file_object = fi
+
+        # extract the initial file location
+        init_location = fi.tell()
+
+        # go to the begining of the file
+        fi.seek(0, os.SEEK_SET)
+        gsat_header = _BlockHeader_2(fi, estr)
+        self._gsat_img = _GSATIMG_2(fi, estr)
+
+        while True:
+            block_header = _BlockHeader_2(fi, estr)
+            if block_header.name == 'IMAGEDATA':
+                self._image_offset = fi.tell()
+                break
+            elif block_header.name == 'APINFO':
+                self._parse_apinfo(fi, estr, block_header)
+            elif block_header.name == 'IFINFO':
+                self._parse_ifinfo(fi, estr, block_header)
+            elif block_header.name == 'GEOINFO':
+                self._parse_geoinfo(fi, estr, block_header)
+            else:
+                # we are not parsing this block, so just skip it
+                fi.seek(block_header.size, os.SEEK_CUR)
+
+        # return to the initial file location
+        fi.seek(init_location, os.SEEK_SET)
+        self._check_valid(gsat_header)
+
+    @property
+    def gsat_img(self):
+        # type: () -> _GSATIMG_2
+        return self._gsat_img
+
+    @property
+    def ap_info(self):
+        # type: () -> Union[_APInfo_1_0, _APInfo_2_0, _APInfo_3_0, _APInfo_4_0, _APInfo_5_0, _APInfo_5_1, _APInfo_5_2]
+        return self._ap_info
+
+    @property
+    def if_info(self):
+        # type: () -> Union[_IFInfo_1_0, _IFInfo_2_0, _IFInfo_3_0]
+        return self._if_info
+
+    @property
+    def geo_info(self):
+        # type: () -> _GeoInfo_1
+        return self._geo_info
+
+    def _parse_apinfo(self, fi, estr, block_header):
+        if block_header.name != 'APINFO':
+            return
+
+        if block_header.major_version == 1:
+            _check_serialization(block_header, _APInfo_1_0.serialized_length)
+            self._ap_info = _APInfo_1_0(fi, estr)
+        elif block_header.major_version == 2:
+            _check_serialization(block_header, _APInfo_2_0.serialized_length)
+            self._ap_info = _APInfo_2_0(fi, estr)
+        elif block_header.major_version == 3:
+            _check_serialization(block_header, _APInfo_3_0.serialized_length)
+            self._ap_info = _APInfo_3_0(fi, estr)
+        elif block_header.major_version == 4:
+            _check_serialization(block_header, _APInfo_4_0.serialized_length)
+            self._ap_info = _APInfo_4_0(fi, estr)
+        elif block_header.major_version == 5:
+            if block_header.minor_version == 0:
+                _check_serialization(block_header, _APInfo_5_0.serialized_length)
+                self._ap_info = _APInfo_5_0(fi, estr)
+            elif block_header.minor_version == 1:
+                _check_serialization(block_header, _APInfo_5_1.serialized_length)
+                self._ap_info = _APInfo_5_1(fi, estr)
+            elif block_header.minor_version == 2:
+                _check_serialization(block_header, _APInfo_5_2.serialized_length)
+                self._ap_info = _APInfo_5_2(fi, estr)
+        raise ValueError(
+            'Could not parse required `{}` block version `{}`'.format(
+                block_header.name, block_header.version))
+
+    def _parse_ifinfo(self, fi, estr, block_header):
+        if block_header.name != 'IFINFO':
+            return
+
+        if block_header.major_version == 1:
+            _check_serialization(block_header, _IFInfo_1_0.serialized_length)
+            self._if_info = _IFInfo_1_0(fi, estr)
+        elif block_header.major_version == 2:
+            _check_serialization(block_header, _IFInfo_2_0.serialized_length)
+            self._if_info = _IFInfo_2_0(fi, estr)
+        elif block_header.major_version == 3:
+            _check_serialization(block_header, _IFInfo_3_0.serialized_length)
+            self._if_info = _IFInfo_3_0(fi, estr)
+        else:
+            raise ValueError(
+                'Could not parse required `{}` block version `{}`'.format(
+                    block_header.name, block_header.version))
+
+    def _parse_geoinfo(self, fi, estr, block_header):
+        if block_header.name != 'GEOINFO':
+            return
+
+        _check_serialization(block_header, _GeoInfo_1.serialized_length)
+        self._geo_info = _GeoInfo_1(fi, estr)
+
+    def _check_valid(self, gsat_header):
+        # ensure that the required elements are all set
+        valid = True
+        if self._ap_info is None:
+            valid = False
+            logging.error(
+                'GFF version {} file did not present APINFO block'.format(
+                    gsat_header.version))
+        if self._if_info is None:
+            valid = False
+            logging.error(
+                'GFF version {} file did not present IFINFO block'.format(
+                    gsat_header.version))
+        if self._geo_info is None:
+            valid = False
+            logging.error(
+                'GFF version {} file did not present GEOINFO block'.format(
+                    gsat_header.version))
+        if not valid:
+            raise ValueError('GFF file determined to be invalid')
 
 
 ####################
 # object for creation of sicd structure from GFF header object
+
+def _get_wgt(str_in):
+    # type: (str) -> Union[None, WgtTypeType]
+    if str_in == '':
+        return None
+
+    elements = str_in.split()
+    win_name = elements[0].upper()
+    parameters = None
+    if win_name == 'TAYLOR':
+        if len(elements) < 2:
+            raise ValueError('Got unparseable window definition `{}`'.format(str_in))
+        params = elements[1].split(',')
+        if len(params) != 2:
+            raise ValueError('Got unparseable window definition `{}`'.format(str_in))
+        parameters = {'SLL': params[0].strip(), 'NBAR': params[1].strip()}
+    return WgtTypeType(
+        WindowName=win_name,
+        Parameters=parameters)
+
+
+def _get_polarization_string(int_value):
+    # type: (int) -> Union[None, str]
+    if int_value == 0:
+        return 'H'
+    elif int_value == 1:
+        return 'V'
+    elif int_value == 2:
+        return 'LHC'
+    elif int_value == 3:
+        return 'RHC'
+    elif int_value in [4, 5]:
+        # TODO: according to their enum, we have 4 -> "T" and 5 -> "P"
+        #   what does that mean?
+        return 'OTHER'
+    else:
+        return 'UNKNOWN'
+
+
+def _get_tx_rcv_polarization(tx_pol_int, rcv_pol_int):
+    # type: (int, int) -> (str, str)
+    tx_pol = _get_polarization_string(tx_pol_int)
+    rcv_pol = _get_polarization_string(rcv_pol_int)
+    if tx_pol in ['OTHER', 'UNKNOWN'] or rcv_pol in ['OTHER', 'UNKNOWN']:
+        tx_rcv_pol = 'OTHER'
+    else:
+        tx_rcv_pol = '{}:{}'.format(tx_pol, rcv_pol)
+    return tx_pol, tx_rcv_pol
+
 
 class _GFFInterpreter(object):
     """
@@ -574,25 +1115,6 @@ class _GFFInterpreter1(_GFFInterpreter):
             image_plane = 'GROUND' if self.header.image_plane == 0 else 'SLANT'
             # we presume that image_plane in [0, 1]
 
-            def get_wgt(str_in):
-                # type: (str) -> Union[None, WgtTypeType]
-                if str_in == '':
-                    return None
-
-                elements = str_in.split()
-                win_name = elements[0].upper()
-                parameters = None
-                if win_name == 'TAYLOR':
-                    if len(elements) < 2:
-                        raise ValueError('Got unparseable window definition `{}`'.format(str_in))
-                    params = elements[1].split(',')
-                    if len(params) != 2:
-                        raise ValueError('Got unparseable window definition `{}`'.format(str_in))
-                    parameters = {'SLL': params[0].strip(), 'NBAR': params[1].strip()}
-                return WgtTypeType(
-                    WindowName=win_name,
-                    Parameters=parameters)
-
             row_ss = self.header.range_pixel_size
             col_ss = self.header.azimuth_pixel_size
             row_bw = 1./row_ss
@@ -610,7 +1132,8 @@ class _GFFInterpreter1(_GFFInterpreter):
                 ImpRespBW=row_bw,
                 DeltaK1=0.5*row_bw,
                 DeltaK2=-0.5*row_bw,
-                WgtType=get_wgt(self.header.range_win_id if self.header.version == '1.8' else ''),
+                WgtType=_get_wgt(
+                    self.header.range_win_id if self.header.version == '1.8' else ''),
                 DeltaKCOAPoly=[[0, ], ]  # TODO: revisit this?
             )
 
@@ -621,7 +1144,8 @@ class _GFFInterpreter1(_GFFInterpreter):
                 ImpRespBW=col_bw,
                 DeltaK1=0.5*col_bw,
                 DeltaK2=-0.5*col_bw,
-                WgtType=get_wgt(self.header.az_win_id if self.header.version == '1.8' else ''),
+                WgtType=_get_wgt(
+                    self.header.az_win_id if self.header.version == '1.8' else ''),
                 DeltaKCOAPoly=[[0, ], ]  # TODO: revisit this?
             )
 
@@ -690,6 +1214,245 @@ class _GFFInterpreter1(_GFFInterpreter):
                 data_offset=data_offset, limit_to_raw_bands=None)
         else:
             raise ValueError('Got unsupported image type `{}`'.format(self.header.image_type))
+
+
+class _GFFInterpreter2(_GFFInterpreter):
+    """
+    Extractor of SICD structure and parameters from GFFHeader_2 object
+    """
+
+    def __init__(self, header):
+        """
+
+        Parameters
+        ----------
+        header : _GFFHeader_2
+        """
+
+        self.header = header
+        # todo: finish this
+
+    def get_sicd(self):
+        def get_collection_info():
+            # type: () -> CollectionInfoType
+            core_name = self.header.ap_info.phName  # TODO: double check this...
+            return CollectionInfoType(
+                CollectorName=self.header.ap_info.missionText,
+                CoreName=core_name,
+                CollectType='MONOSTATIC',
+                RadarMode=RadarModeType(
+                    ModeType='SPOTLIGHT'),
+                Classification='UNCLASSIFIED')
+
+        def get_image_creation():
+            # type: () -> ImageCreationType
+            from sarpy.__about__ import __version__
+            from datetime import datetime
+            application = '{} {}'.format(self.header.gsat_img.imageCreator, self.header.ap_info.swVerNum)
+            date_time = None  # todo: really?
+            return ImageCreationType(
+                Application=application,
+                DateTime=date_time,
+                Site='Unknown',
+                Profile='sarpy {}'.format(__version__))
+
+        def get_image_data():
+            # type: () -> ImageDataType
+
+            pix_data_type = self.header.gsat_img.pixDataType
+            if pix_data_type == 12:
+                pixel_type = 'AMP8I_PHS8I'
+                # TODO: define the lookup table?
+            elif pix_data_type in [1, 3, 4, 6, 8, 9, 10, 11]:
+                pixel_type = 'RE32F_IM32F'
+            elif pix_data_type in [2, 7]:
+                pixel_type = 'RE16I_IM16I'
+            else:
+                raise ValueError('Unhandled pixTypeData value `{}`'.format(pix_data_type))
+
+            return ImageDataType(
+                PixelType=pixel_type,
+                NumRows=num_rows,
+                NumCols=num_cols,
+                FullImage=(num_rows, num_cols),
+                FirstRow=0,
+                FirstCol=0,
+                SCPPixel=(scp_row, scp_col))
+
+        def get_geo_data():
+            # type: () -> GeoDataType
+            return GeoDataType(
+                SCP=SCPType(
+                    LLH=self.header.geo_info.patchCtrLLH))
+
+        def get_grid():
+            # type: () -> GridType
+            image_plane = 'GROUND' if self.header.geo_info.imagePlane == 0 else 'SLANT'
+            # we presume that image_plane in [0, 1]
+
+            row_ss = self.header.geo_info.rangePixSpacing
+            row_bw = self.header.if_info.wndBwFactRng/row_ss
+            row_delta_kcoa_constant = 0.5*(1 - (self.header.if_info.sampLocDCRow/int(0.5*num_rows)))/row_ss
+            row = DirParamType(
+                Sgn=-1,
+                SS=row_ss,
+                ImpRespWid=self.header.if_info.rngResolution,
+                ImpRespBW=row_bw,
+                DeltaK1=0.5*row_bw,
+                DeltaK2=-0.5*row_bw,
+                WgtType=_get_wgt(self.header.if_info.wndFncIdRng),
+                DeltaKCOAPoly=[[row_delta_kcoa_constant, ], ])
+
+            col_ss = self.header.geo_info.azPixSpacing
+            col_bw = self.header.if_info.wndBwFactAz/col_ss
+            col_delta_kcoa_constant = 0.5*(1 - (self.header.if_info.sampLocDCCol/int(0.5*num_cols)))/col_ss
+            col = DirParamType(
+                Sgn=-1,
+                SS=col_ss,
+                ImpRespWid=self.header.if_info.azResolution,
+                ImpRespBW=col_bw,
+                DeltaK1=0.5*col_bw,
+                DeltaK2=-0.5*col_bw,
+                WgtType=_get_wgt(self.header.if_info.wndFncIdAz),
+                DeltaKCOAPoly=[[col_delta_kcoa_constant, ], ])
+
+            return GridType(
+                ImagePlane=image_plane,
+                Type='RGAZIM',
+                Row=row,
+                Col=col)
+
+        def get_scpcoa():
+            # type: () -> SCPCOAType
+            arp_llh = self.header.ap_info.apcLLH
+            arp_pos = geodetic_to_ecf(arp_llh, ordering='latlon')
+            arp_vel = self.header.ap_info.apcVel
+            return SCPCOAType(
+                ARPPos=arp_pos,
+                ARPVel=arp_vel,
+                SCPTime=0.5*collect_duration)
+
+        def get_timeline():
+            # type: () -> TimelineType
+            try:
+                # only exists for APINFO version 3 and above
+                ipp_end = self.header.ap_info.numPhaseHistories
+                ipp = [IPPSetType(
+                    TStart=0,
+                    TEnd=collect_duration,
+                    IPPStart=0,
+                    IPPEnd=ipp_end,
+                    IPPPoly=[0, ipp_end/collect_duration]), ]
+            except AttributeError:
+                ipp = None
+            return TimelineType(
+                CollectStart=start_time,
+                CollectDuration=collect_duration,
+                IPP=ipp)
+
+        def get_radar_collection():
+            # type: () -> RadarCollectionType
+
+            try:
+                sample_rate = self.header.ap_info.adSampleFreq
+                pulse_length = float(self.header.ap_info.fastTimeSamples)/sample_rate
+                waveform = [
+                    WaveformParametersType(ADCSampleRate=sample_rate, TxPulseLength=pulse_length), ]
+            except AttributeError:
+                waveform = None
+
+            rcv_channels = [ChanParametersType(TxRcvPolarization=tx_rcv_pol, index=1), ]
+
+            return RadarCollectionType(
+                TxFrequency=TxFrequencyType(
+                    Min=center_frequency-0.5*band_width,
+                    Max=center_frequency+0.5*band_width),
+                Waveform=waveform,
+                TxPolarization=tx_pol,
+                RcvChannels=rcv_channels)
+
+        def get_image_formation():
+            # type: () -> ImageFormationType
+            image_form_algo = 'PFA' if self.header.if_info.ifAlgo == 'PFA' else 'OTHER'
+            return ImageFormationType(
+                RcvChanProc=RcvChanProcType(ChanIndices=[1, ]),
+                TxRcvPolarizationProc=tx_rcv_pol,
+                TxFrequencyProc=TxFrequencyProcType(
+                    MinProc=center_frequency-0.5*band_width,
+                    MaxProc=center_frequency+0.5*band_width),
+                TStartProc=0,
+                TEndProc=collect_duration,
+                ImageFormAlgo=image_form_algo,
+                STBeamComp='NO',
+                ImageBeamComp='NO',
+                AzAutofocus='NO',
+                RgAutofocus='NO')
+
+        def repair_scpcoa():
+            # call after deriving the sicd fields
+            if out_sicd.SCPCOA.GrazeAng is None:
+                out_sicd.SCPCOA.GrazeAng = self.header.ap_info.grazingAngle
+            if out_sicd.SCPCOA.IncidenceAng is None:
+                out_sicd.SCPCOA.IncidenceAng = 90 - out_sicd.SCPCOA.GrazeAng
+            if out_sicd.SCPCOA.SideOfTrack is None:
+                out_sicd.SCPCOA.SideOfTrack = 'L' if self.header.ap_info.squintAngle < 0 else 'R'
+
+        def populate_radiometric():
+            # call after deriving the sicd fields
+            rcs_constant = self.header.if_info.imgCalParam**2
+            radiometric = RadiometricType(RCSSFPoly=[[rcs_constant, ]])
+            # noinspection PyProtectedMember
+            radiometric._derive_parameters(out_sicd.Grid, out_sicd.SCPCOA)
+            if radiometric.SigmaZeroSFPoly is not None:
+                noise_constant = self.header.if_info.sigmaN - 10*numpy.log10(out_sicd.Radiometric.SigmaZeroSFPoly[0, 0])
+                radiometric.NoiseLevel = NoiseLevelType_(
+                    NoiseLevelType='ABSOLUTE',
+                    NoisePoly=[[noise_constant, ]])
+            out_sicd.Radiometric = radiometric
+
+        num_rows = self.header.gsat_img.rangePixels
+        num_cols = self.header.gsat_img.azPixels
+        scp_row = self.header.geo_info.pixLocImCtrRow
+        scp_col = self.header.geo_info.pixLocImCtrCol
+
+        collect_duration = self.header.ap_info.apertureTime
+        scp_time_utc_us = numpy.datetime64(datetime(*self.header.ap_info.ApTimeUTC), 'us').astype('int64')
+        start_time = (scp_time_utc_us - int_func(0.5*collect_duration*1e6)).astype('datetime64[us]')
+        tx_pol, tx_rcv_pol = _get_tx_rcv_polarization(
+            self.header.ap_info.txPolarization, self.header.ap_info.rxPolarization)
+        center_frequency = self.header.ap_info.ctrFreq
+        band_width = 0.0  # TODO: is this defined anywhere?
+
+        collection_info = get_collection_info()
+        image_creation = get_image_creation()
+        image_data = get_image_data()
+        geo_data = get_geo_data()
+        grid = get_grid()
+        scpcoa = get_scpcoa()
+        timeline = get_timeline()
+        radar_collection = get_radar_collection()
+        image_formation = get_image_formation()
+
+        out_sicd = SICDType(
+            CollectionInfo=collection_info,
+            ImageCreation=image_creation,
+            ImageData=image_data,
+            GeoData=geo_data,
+            Grid=grid,
+            SCPCOA=scpcoa,
+            Timeline=timeline,
+            RadarCollection=radar_collection,
+            ImageFormation=image_formation)
+
+        out_sicd.derive()
+        repair_scpcoa()
+        populate_radiometric()
+        out_sicd.populate_rniirs(override=False)
+        return out_sicd
+
+    def get_chipper(self):
+        # todo:
+        pass
 
 
 ####################
@@ -943,7 +1706,6 @@ class GFFReader(BaseReader, SICDTypeReader):
 
 
 if __name__ == '__main__':
-    import os
     from datetime import datetime
 
     # gff_root = r'R:\sar\Data_SomeDomestic\Sandia\FARAD_Phoenix\OSAPF\NoAF\PS0004'
@@ -952,9 +1714,11 @@ if __name__ == '__main__':
     gff_root = r'R:\sar\Data_SomeDomestic\Sandia\dionysius\gff_example'
     the_file = os.path.join(gff_root, 'Patch005.gff')
 
-    details = GFFDetails(the_file)
-    print(f'{details.version}')
-    # print(f'{details.header.tx_polarization, details.header.rx_polarization}')
+    with open(the_file, 'rb') as the_file_obj:
+        header = _BlockHeader_2(the_file_obj, '<')
+    print(f'{header.size, header.name, header.major_version, header.minor_version}')
+
+    # details = GFFDetails(the_file)
 
     # interp = _GFFInterpreter1(details.header)
     # sicd = interp.get_sicd()
