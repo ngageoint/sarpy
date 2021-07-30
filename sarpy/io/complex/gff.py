@@ -98,6 +98,7 @@ class _GFFHeader_1_6(object):
         """
 
         self.file_object = fi
+        self.estr = estr
 
         self.version = '1.6'
         fi.seek(12, os.SEEK_SET)
@@ -246,6 +247,7 @@ class _GFFHeader_1_8(object):
         """
 
         self.file_object = fi
+        self.estr = estr
 
         self.version = '1.8'
         fi.seek(12, os.SEEK_SET)
@@ -757,6 +759,25 @@ class _GeoInfo_1(object):
 
 
 # GSATIMG definition
+
+def _get_complex_domain_code(code_int):
+    # type: (int) -> str
+    if code_int in [0, 3]:
+        return 'IQ'
+    elif code_int in [1, 4]:
+        return 'QI'
+    elif code_int in [2, 5]:
+        return 'MP'
+    elif code_int == 6:
+        return 'PM'
+    elif code_int == 7:
+        return 'M'
+    elif code_int == 8:
+        return 'P'
+    else:
+        raise ValueError('Got unexpected code `{}`'.format(code_int))
+
+
 class _PixelFormat(object):
     """
     Interpreter for pixel format object
@@ -802,13 +823,9 @@ class _GSATIMG_2(object):
         self.pixelFormat = _PixelFormat(fi, estr)
         self.pixValLin, self.autoScaleFac = struct.unpack(estr+'if', fi.read(2*4))
 
-        if self.pixDataType in [0, 5]:
-            raise ValueError('The pixel type is magnitude only, which is incompatible with complex data')
-        elif self.pixDataType == 13:
-            raise ValueError('The pixel type is listed as undefined, which is not supported')
-        elif self.pixDataType > 13:
-            raise ValueError('Got unexpected pixTypeData value `{}`'.format(self.pixDataType))
-
+        complex_domain = _get_complex_domain_code(self.pixelFormat.cmplxDomain)
+        if complex_domain not in ['IQ', 'QI', 'MP', 'PM']:
+            raise ValueError('We got unsupported complex domain `{}`'.format(complex_domain))
 
 
 # combined GFF version 2 header collection
@@ -829,7 +846,7 @@ class _GFFHeader_2(object):
     """
 
     __slots__ = (
-        'file_object', '_gsat_img', '_ap_info', '_if_info', '_geo_info', '_image_offset')
+        'file_object', 'estr', '_gsat_img', '_ap_info', '_if_info', '_geo_info', '_image_offset')
 
     def __init__(self, fi, estr):
         """
@@ -847,6 +864,7 @@ class _GFFHeader_2(object):
         self._geo_info = None
         self._image_offset = None
         self.file_object = fi
+        self.estr = estr
 
         # extract the initial file location
         init_location = fi.tell()
@@ -1198,10 +1216,11 @@ class _GFFInterpreter1(_GFFInterpreter):
         if self.header.bits_per_phase != self.header.bits_per_magnitude:
             raise ValueError('Got a different value for bits per phase and bits per magnitude.')
 
+        # TODO: refine this by creating a custom data type
         raw_bands = 2
         output_bands = 1
         output_dtype = 'complex64'
-        raw_dtype = 'uint{}'.format(self.header.bits_per_phase)
+        raw_dtype = '{}u{}'.format(self.header.estr, int(self.header.bits_per_phase/8))
         data_size = (self.header.range_count, self.header.azimuth_count)
         symmetry = (False, False, False)
         data_offset = self.header.header_length
@@ -1214,6 +1233,32 @@ class _GFFInterpreter1(_GFFInterpreter):
                 data_offset=data_offset, limit_to_raw_bands=None)
         else:
             raise ValueError('Got unsupported image type `{}`'.format(self.header.image_type))
+
+
+def _get_numpy_dtype(data_type_int):
+    # type: (int) -> str
+    if data_type_int == 0:
+        return 'u1'
+    elif data_type_int == 1:
+        return 'u2'
+    elif data_type_int == 2:
+        return 'u4'
+    elif data_type_int == 3:
+        return 'u8'
+    elif data_type_int == 4:
+        return 'i1'
+    elif data_type_int == 5:
+        return 'i2'
+    elif data_type_int == 6:
+        return 'i4'
+    elif data_type_int == 7:
+        return 'i8'
+    elif data_type_int == 8:
+        return 'f4'
+    elif data_type_int == 9:
+        return 'f8'
+    else:
+        raise ValueError('Got unsupported data type code `{}`'.format(data_type_int))
 
 
 class _GFFInterpreter2(_GFFInterpreter):
@@ -1451,8 +1496,13 @@ class _GFFInterpreter2(_GFFInterpreter):
         return out_sicd
 
     def get_chipper(self):
-        # todo:
-        pass
+        if self.header.gsat_img.imageCompressionScheme != 0:
+            # TODO: how important is handling compression?
+            raise ValueError(
+                'The image compression scheme indicates compression. '
+                'This is not currently supported.')
+        complex_domain = _get_complex_domain_code(self.header.gsat_img.pixelFormat.cmplxDomain)
+        # TODO: complete this...
 
 
 ####################
@@ -1472,6 +1522,7 @@ def phase_amp_to_complex(bit_depth):
     callable
     """
 
+    # TODO: refine this for custom data types...
     def converter(data):
         dtype_name = 'uint{}'.format(bit_depth)
         if not isinstance(data, numpy.ndarray):
