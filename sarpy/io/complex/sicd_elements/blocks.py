@@ -6,10 +6,11 @@ from collections import OrderedDict
 
 import numpy
 
+# noinspection PyProtectedMember
 from sarpy.compliance import int_func
 from .base import _get_node_value, _create_text_node, _create_new_node, _find_children, \
-    Serializable, Arrayable, DEFAULT_STRICT, \
-    _StringEnumDescriptor, _IntegerDescriptor, _FloatDescriptor, _FloatModularDescriptor, \
+    Serializable, Arrayable, DEFAULT_STRICT, _StringEnumDescriptor, \
+    _IntegerDescriptor, _FloatDescriptor, _FloatModularDescriptor, \
     _SerializableDescriptor
 
 

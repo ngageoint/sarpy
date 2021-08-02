@@ -5,8 +5,74 @@ Common use elements for the AFRL labeling definition
 import numpy
 
 # noinspection PyProtectedMember
-from sarpy.io.complex.sicd_elements.base import Serializable, Arrayable, \
-    _FloatDescriptor
+from sarpy.io.complex.sicd_elements.base import DEFAULT_STRICT, \
+    _DateTimeDescriptor, _FloatDescriptor, _StringDescriptor, Arrayable, \
+    Serializable
+
+
+class DateRangeType(Serializable):
+    _fields = ('Begin', 'End')
+    _required = ()
+    # descriptors
+    Begin = _DateTimeDescriptor(
+        'Begin', _required, strict=DEFAULT_STRICT, numpy_datetime_units='D',
+        docstring="Begin date of the data collection.")
+    End = _DateTimeDescriptor(
+        'End', _required, strict=DEFAULT_STRICT, numpy_datetime_units='D',
+        docstring="End date of the data collection.")
+
+    def __init__(self, Begin='', End='', **kwargs):
+        """
+        Parameters
+        ----------
+        Begin : None|str
+        End : None|str
+        kwargs
+            Other keyword arguments
+        """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
+        self.Begin = Begin
+        self.End = End
+        super(DateRangeType, self).__init__(**kwargs)
+
+
+class LatLonWithNameType(Serializable):
+    _fields = ('Lat', 'Lon', 'Name')
+    _required = ()
+    # descriptors
+    Lat = _FloatDescriptor(
+        'Lat', _required, strict=DEFAULT_STRICT,
+        docstring="General latitude of the data collection.")
+    Lon = _FloatDescriptor(
+        'Lon', _required, strict=DEFAULT_STRICT,
+        docstring="General longitude of the data collection.")
+    Name = _StringDescriptor(
+        'Name', _required,
+        docstring="Common name of the collection location.")
+
+    def __init__(self, Lat=None, Lon=None, Name=None, **kwargs):
+        """
+        Parameters
+        ----------
+        Lat : None|float
+        Lon : None|float
+        Name : None|str
+        kwargs
+            Other keyword arguments
+        """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
+        self.Lat = Lat
+        self.Lon = Lon
+        self.Name = Name
+        super(LatLonWithNameType, self).__init__(**kwargs)
 
 
 class RangeCrossRangeType(Serializable, Arrayable):

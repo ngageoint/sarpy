@@ -9,7 +9,8 @@ __authors__ = ("Thomas McCullough", "Thomas Rackers")
 # noinspection PyProtectedMember
 from sarpy.io.complex.sicd_elements.base import DEFAULT_STRICT, \
     _FloatDescriptor, _SerializableDescriptor, _StringDescriptor, Serializable
-from .DetailCollectionInfo import DateType
+from sarpy.io.complex.sicd_elements.blocks import LatLonHAEType
+from .blocks import DateRangeType
 
 
 # TODO: to be reviewed
@@ -72,10 +73,10 @@ class DetailSubCollectionInfoType(Serializable):
         'Description', _required, default_value="",
         docstring="Description of the subcollection (e.g., Main array).")
     Duration = _SerializableDescriptor(
-        'Duration', DateType, _required, strict=DEFAULT_STRICT,
+        'Duration', DateRangeType, _required, strict=DEFAULT_STRICT,
         docstring="Begin and end dates of the subcollection.")
     SiteCenterLocation = _SerializableDescriptor(
-        'SiteCenterLocation', LatLonEleType, _required, strict=DEFAULT_STRICT,
+        'SiteCenterLocation', LatLonHAEType, _required, strict=DEFAULT_STRICT,
         docstring="Location of the center of the collection site.")
     SceneContentDescription = _StringDescriptor(
         'SceneContentDescription', _required, default_value="",
@@ -84,10 +85,22 @@ class DetailSubCollectionInfoType(Serializable):
         'SiteBackgroundType', _required,
         docstring="Description of the background.")
 
-    def __init__(self, **kwargs):
+    def __init__(self, Name=None, SiteName=None, SiteNumber=None,
+                 SceneNumber=None, Description=None, Duration=None,
+                 SiteCenterLocation=None, SceneContentDescription=None,
+                 SiteBackgroundType=None, **kwargs):
         """
         Parameters
         ----------
+        Name : None|str
+        SiteName : None|str
+        SiteNumber : None|str
+        SceneNumber : None|str
+        Description : str
+        Duration : None|DateRangeType
+        SiteCenterLocation : LatLonHAEType
+        SceneContentDescription : None|str
+        SiteBackgroundType : None|str
         kwargs
             Other keyword arguments
         """
@@ -96,4 +109,13 @@ class DetailSubCollectionInfoType(Serializable):
             self._xml_ns = kwargs['_xml_ns']
         if '_xml_ns_key' in kwargs:
             self._xml_ns_key = kwargs['_xml_ns_key']
+        self.Name = Name
+        self.SiteName = SiteName
+        self.SiteNumber = SiteNumber
+        self.SceneNumber = SceneNumber
+        self.Description = Description
+        self.Duration = Duration
+        self.SiteCenterLocation = SiteCenterLocation
+        self.SceneContentDesription = SceneContentDescription
+        self.SiteBackgroundType = SiteBackgroundType
         super(DetailSubCollectionInfoType, self).__init__(**kwargs)
