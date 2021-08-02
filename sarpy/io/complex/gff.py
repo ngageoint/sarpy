@@ -913,6 +913,11 @@ class _GFFHeader_2(object):
         # type: () -> _GeoInfo_1
         return self._geo_info
 
+    @property
+    def image_offset(self):
+        # type: () -> int
+        return self._image_offset
+
     def _parse_apinfo(self, fi, estr, block_header):
         if block_header.name != 'APINFO':
             return
@@ -1213,20 +1218,23 @@ class _GFFInterpreter1(_GFFInterpreter):
     def get_chipper(self):
         if self.header.bits_per_phase not in [8, 16, 32]:
             raise ValueError('Got unexpected bits per phase {}'.format(self.header.bits_per_phase))
-        if self.header.bits_per_phase != self.header.bits_per_magnitude:
-            raise ValueError('Got a different value for bits per phase and bits per magnitude.')
+        if self.header.bits_per_magnitude not in [8, 16, 32]:
+            raise ValueError('Got unexpected bits per phase {}'.format(self.header.bits_per_magnitude))
 
-        # TODO: refine this by creating a custom data type
-        raw_bands = 2
+        # creating a custom phase/magnitude data type
+        phase_dtype = numpy.dtype('{}u{}'.format(self.header.estr, int(self.header.bits_per_phase/8)))
+        magnitude_dtype = numpy.dtype('{}u{}'.format(self.header.estr, int(self.header.bits_per_magnitude/8)))
+        raw_dtype = numpy.dtype([('phase', phase_dtype), ('magnitude', magnitude_dtype)])
+
+        raw_bands = 1
         output_bands = 1
         output_dtype = 'complex64'
-        raw_dtype = '{}u{}'.format(self.header.estr, int(self.header.bits_per_phase/8))
         data_size = (self.header.range_count, self.header.azimuth_count)
         symmetry = (False, False, False)
         data_offset = self.header.header_length
         if self.header.image_type == 1:
             # phase/magnitude which is integer
-            transform_data = phase_amp_to_complex(self.header.bits_per_phase)
+            transform_data = phase_amp_int_to_complex()
             return BIPChipper(
                 self.header.file_object, raw_dtype, data_size, raw_bands, output_bands, output_dtype,
                 symmetry=symmetry, transform_data=transform_data,
@@ -1275,7 +1283,17 @@ class _GFFInterpreter2(_GFFInterpreter):
         """
 
         self.header = header
-        # todo: finish this
+        if self.header.gsat_img.pixelFormat.numComponents != 2:
+            raise ValueError(
+                'The pixel format indicates that the number of components is `{}`, '
+                'which is not supported for a complex image'.format(
+                    self.header.gsat_img.pixelFormat.numComponents))
+
+        if self.header.gsat_img.imageCompressionScheme != 0:
+            # TODO: how important is handling compression?
+            raise ValueError(
+                'The image compression scheme indicates compression. '
+                'This is not currently supported.')
 
     def get_sicd(self):
         def get_collection_info():
@@ -1496,54 +1514,106 @@ class _GFFInterpreter2(_GFFInterpreter):
         return out_sicd
 
     def get_chipper(self):
-        if self.header.gsat_img.imageCompressionScheme != 0:
-            # TODO: how important is handling compression?
-            raise ValueError(
-                'The image compression scheme indicates compression. '
-                'This is not currently supported.')
         complex_domain = _get_complex_domain_code(self.header.gsat_img.pixelFormat.cmplxDomain)
-        # TODO: complete this...
+        if self.header.gsat_img.pixelFormat.numComponents != 2:
+            raise ValueError(
+                'Got unexpected number of components `{}`'.format(
+                    self.header.gsat_img.pixelFormat.numComponents))
+
+        dtype0 = _get_numpy_dtype(self.header.gsat_img.pixelFormat.comp0_dataType)
+        dtype1 = _get_numpy_dtype(self.header.gsat_img.pixelFormat.comp1_dataType)
+
+        raw_bands = 1
+        output_bands = 1
+        output_dtype = 'complex64'
+        data_size = (self.header.gsat_img.rangePixels, self.header.gsat_img.azPixels)
+        symmetry = (False, False, False)
+        if complex_domain == 'IQ':
+            raw_dtype = numpy.dtype([('real', dtype0), ('imag', dtype1)])
+            transform_data = I_Q_to_complex()
+        elif complex_domain == 'QI':
+            raw_dtype = numpy.dtype([('imag', dtype0), ('real', dtype1)])
+            transform_data = I_Q_to_complex()
+        elif complex_domain == 'MP':
+            raw_dtype = numpy.dtype([('magnitude', dtype0), ('phase', dtype1)])
+            transform_data = phase_amp_int_to_complex()
+        elif complex_domain == 'PM':
+            raw_dtype = numpy.dtype([('phase', dtype0), ('magnitude', dtype1)])
+            transform_data = phase_amp_int_to_complex()
+        else:
+            raise ValueError('Got unexpected complex domain `{}`'.format(complex_domain))
+
+        return BIPChipper(
+            self.header.file_object, raw_dtype, data_size, raw_bands, output_bands, output_dtype,
+            symmetry=symmetry, transform_data=transform_data,
+            data_offset=self.header.image_offset, limit_to_raw_bands=None)
 
 
 ####################
 # formatting functions properly reading the data
 
-def phase_amp_to_complex(bit_depth):
+def phase_amp_int_to_complex():
     """
-    This constructs the function to convert from phase/amplitude format data of
-    a given bit-depth to complex64 data.
-
-    Parameters
-    ----------
-    bit_depth
+    This constructs the function to convert from phase/magnitude or magnitude/phase
+    format data of a given bit-depth to complex64 data.
 
     Returns
     -------
     callable
     """
 
-    # TODO: refine this for custom data types...
     def converter(data):
-        dtype_name = 'uint{}'.format(bit_depth)
         if not isinstance(data, numpy.ndarray):
-            raise ValueError('requires a numpy.ndarray, got {}'.format(type(data)))
+            raise TypeError(
+                'Requires a numpy.ndarray, got {}'.format(type(data)))
 
-        if len(data.shape) != 3 and data.shape[2] != 2:
+        if len(data.shape) != 3 and data.shape[2] != 1:
             raise ValueError('Requires a three-dimensional numpy.ndarray (with band '
                              'in the last dimension), got shape {}'.format(data.shape))
 
-        if data.dtype.name != dtype_name:
-            raise ValueError('requires a numpy.ndarray of dtype `{}`, got `{}`'.format(
-                dtype_name, data.dtype.name))
+        if data.dtype['phase'].name not in ['uint8', 'uint16', 'uint32', 'uint64'] or \
+                data.dtype['magnitude'].name not in ['uint8', 'uint16', 'uint32', 'uint64']:
+            raise ValueError(
+                'Requires a numpy.ndarray of composite dtype with phase and magnitude '
+                'of unsigned integer type.')
 
-        out = numpy.zeros((data.shape[0], data.shape[1], 1), dtype=numpy.complex64)
-        amp = data[:, :, 1]
-        theta = data[:, :, 0]*(2*numpy.pi/(1 << bit_depth))
-        out[:, :, 0].real = amp*numpy.cos(theta)  # handle shape nonsense
-        out[:, :, 0].imag = amp*numpy.sin(theta)
+        bit_depth = data.dtype['phase'].itemsize*8
+
+        out = numpy.zeros(data.shape, dtype=numpy.complex64)
+        mag = data['magnitude']
+        theta = data['phase']*(2*numpy.pi/(1 << bit_depth))
+        out.real = mag*numpy.cos(theta)
+        out.imag = mag*numpy.sin(theta)
         return out
-
     return converter
+
+
+def I_Q_to_complex():
+    """
+    For simple consistency, this constructs the function to simply convert from
+    I/Q or Q/I format data of a given bit-depth to complex64 data.
+
+    Returns
+    -------
+    callable
+    """
+
+    def converter(data):
+        if not isinstance(data, numpy.ndarray):
+            raise TypeError(
+                'Requires a numpy.ndarray, got {}'.format(type(data)))
+
+        if len(data.shape) != 3 and data.shape[2] != 1:
+            raise ValueError('Requires a three-dimensional numpy.ndarray (with band '
+                             'in the last dimension), got shape {}'.format(data.shape))
+
+        out = numpy.zeros(data.shape, dtype='complex64')
+        out.real = data['real']
+        out.imag = data['imag']
+        return out
+    return converter
+
+
 
 
 ####################
@@ -1672,15 +1742,18 @@ class GFFDetails(object):
 
         self._file_object.seek(0, os.SEEK_SET)
         self._endianness = estr
-        if self.version == '1.6':
+        version = self.version
+        if version == '1.6':
             self._header = _GFFHeader_1_6(self._file_object, self.endianness)
             self._interpreter = _GFFInterpreter1(self._header)
-        elif self.version == '1.8':
+        elif version == '1.8':
             self._header = _GFFHeader_1_8(self._file_object, self.endianness)
             self._interpreter = _GFFInterpreter1(self._header)
+        elif self.major_version == '2':
+            self._header = _GFFHeader_2(self._file_object, self.endianness)
+            self._interpreter = _GFFInterpreter2(self._header)
         else:
-            # raise ValueError('Not yet')
-            pass
+            raise ValueError('Got unhandled GFF version `{}`'.format(version))
 
     def get_sicd(self):
         """
@@ -1762,12 +1835,12 @@ if __name__ == '__main__':
     # gff_root = r'R:\sar\Data_SomeDomestic\Sandia\FARAD_Phoenix\OSAPF\NoAF\PS0004'
     # the_file = os.path.join(gff_root, '20150408_0408P07_PS0004_PT000001_N03_M1_CH3_OSAPF.gff')
 
-    gff_root = r'R:\sar\Data_SomeDomestic\Sandia\dionysius\gff_example'
-    the_file = os.path.join(gff_root, 'Patch005.gff')
+    # gff_root = r'R:\sar\Data_SomeDomestic\Sandia\dionysius\gff_example'
+    # the_file = os.path.join(gff_root, 'Patch005.gff')
 
-    with open(the_file, 'rb') as the_file_obj:
-        header = _BlockHeader_2(the_file_obj, '<')
-    print(f'{header.size, header.name, header.major_version, header.minor_version}')
+    # with open(the_file, 'rb') as the_file_obj:
+    #     header = _BlockHeader_2(the_file_obj, '<')
+    # print(f'{header.size, header.name, header.major_version, header.minor_version}')
 
     # details = GFFDetails(the_file)
 
