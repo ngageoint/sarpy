@@ -12,8 +12,6 @@ from sarpy.io.complex.sicd_elements.base import DEFAULT_STRICT, \
     _SerializableDescriptor, _StringDescriptor, Serializable
 
 
-# TODO: to be reviewed
-
 class DateType(Serializable):
     _fields = ('Begin', 'End')
     _required = ()
@@ -95,7 +93,7 @@ class DetailCollectionInfoType(Serializable):
         docstring="Sponsoring agency/organization of the data collection.")
     Date = _SerializableDescriptor(
         'Date', DateType, _required, strict=DEFAULT_STRICT,
-        docstring="Begin and end dates of data collection.")
+        docstring="Begin and end dates of the data collection.")
     Location = _SerializableDescriptor(
         'Location', LocationType, _required, strict=DEFAULT_STRICT,
         docstring="General location of the data collection.")
