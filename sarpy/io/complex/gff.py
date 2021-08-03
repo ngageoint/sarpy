@@ -11,6 +11,7 @@ import logging
 import os
 import struct
 from typing import Union, BinaryIO
+from datetime import datetime
 
 import numpy
 
@@ -450,8 +451,11 @@ class _BlockHeader_2(object):
 
         self.name = _get_string(fi.read(16))
         self.major_version, self.minor_version = struct.unpack(estr+'HH', fi.read(2*2))
+        what0 = fi.read(4)  # not sure what this is from looking at the matlab.
         self.size = struct.unpack(estr+'I', fi.read(4))[0]
-        fi.read(4)  # not sure what this is from looking the matlab. Probably a check sum or something?
+        what1 = fi.read(4)  # not sure what this is from looking at the matlab.
+        if (self.version == '2.0' and self.size == 64) or (self.version == '1.0' and self.size == 52):
+            self.name = 'RADARINFO'  # fix known issue for some early version 2 GFF files
 
     @property
     def version(self):
@@ -569,7 +573,7 @@ class _APInfo_4_0(object):
         self.radarSerNum, self.phSource = struct.unpack(estr+'2I', fi.read(2*4))
         fi.read(2)
         self.phName = _get_string(fi.read(128))
-        self.ctrFreq, self.wavelength = struct.unpack(estr+'2f', fi.read(4))
+        self.ctrFreq, self.wavelength = struct.unpack(estr+'2f', fi.read(2*4))
         self.rxPolarization, self.txPolarization = struct.unpack(estr+'2I', fi.read(2*4))
         self.azBeamWidth, self.elBeamWidth = struct.unpack(estr+'2f', fi.read(2*4))
         self.grazingAngle, self.squintAngle, self.gta, self.rngToBeamCtr = \
@@ -578,7 +582,7 @@ class _APInfo_4_0(object):
 
         self.desSquint, self.desRng, self.desGTA, self.antPhaseCtrBear = \
             struct.unpack(estr+'4f', fi.read(4*4))
-        self.ApTime = struct.unpack(estr+'6H', fi.read(6*2))
+        self.ApTimeUTC = struct.unpack(estr+'6H', fi.read(6*2))
         self.flightTime, self.flightWeek = struct.unpack(estr+'2I', fi.read(2*4))
         self.chirpRate, self.xDistToStart = struct.unpack(estr+'2f', fi.read(2*4))
         self.momeasMode, self.radarMode = struct.unpack(estr+'2I', fi.read(2*4))
@@ -819,7 +823,7 @@ class _GSATIMG_2(object):
         self.imageCreator = _get_string(fi.read(24))
         self.rangePixels, self.azPixels = struct.unpack(estr+'2I', fi.read(2*4))
         self.pixOrder, self.imageLengthBytes, self.imageCompressionScheme, \
-            self.pixDataType = struct.unpack(estr+'4I', fi.read(4))
+            self.pixDataType = struct.unpack(estr+'4I', fi.read(4*4))
         self.pixelFormat = _PixelFormat(fi, estr)
         self.pixValLin, self.autoScaleFac = struct.unpack(estr+'if', fi.read(2*4))
 
@@ -944,9 +948,10 @@ class _GFFHeader_2(object):
             elif block_header.minor_version == 2:
                 _check_serialization(block_header, _APInfo_5_2.serialized_length)
                 self._ap_info = _APInfo_5_2(fi, estr)
-        raise ValueError(
-            'Could not parse required `{}` block version `{}`'.format(
-                block_header.name, block_header.version))
+        else:
+            raise ValueError(
+                'Could not parse required `{}` block version `{}`'.format(
+                    block_header.name, block_header.version))
 
     def _parse_ifinfo(self, fi, estr, block_header):
         if block_header.name != 'IFINFO':
@@ -1289,12 +1294,6 @@ class _GFFInterpreter2(_GFFInterpreter):
                 'which is not supported for a complex image'.format(
                     self.header.gsat_img.pixelFormat.numComponents))
 
-        if self.header.gsat_img.imageCompressionScheme != 0:
-            # TODO: how important is handling compression?
-            raise ValueError(
-                'The image compression scheme indicates compression. '
-                'This is not currently supported.')
-
     def get_sicd(self):
         def get_collection_info():
             # type: () -> CollectionInfoType
@@ -1323,9 +1322,10 @@ class _GFFInterpreter2(_GFFInterpreter):
             # type: () -> ImageDataType
 
             pix_data_type = self.header.gsat_img.pixDataType
+            amp_table = None
             if pix_data_type == 12:
                 pixel_type = 'AMP8I_PHS8I'
-                # TODO: define the lookup table?
+                amp_table = numpy.arange(256, dtype='float64')
             elif pix_data_type in [1, 3, 4, 6, 8, 9, 10, 11]:
                 pixel_type = 'RE32F_IM32F'
             elif pix_data_type in [2, 7]:
@@ -1335,6 +1335,7 @@ class _GFFInterpreter2(_GFFInterpreter):
 
             return ImageDataType(
                 PixelType=pixel_type,
+                AmpTable=amp_table,
                 NumRows=num_rows,
                 NumCols=num_cols,
                 FullImage=(num_rows, num_cols),
@@ -1467,7 +1468,7 @@ class _GFFInterpreter2(_GFFInterpreter):
             # noinspection PyProtectedMember
             radiometric._derive_parameters(out_sicd.Grid, out_sicd.SCPCOA)
             if radiometric.SigmaZeroSFPoly is not None:
-                noise_constant = self.header.if_info.sigmaN - 10*numpy.log10(out_sicd.Radiometric.SigmaZeroSFPoly[0, 0])
+                noise_constant = self.header.if_info.sigmaN - 10*numpy.log10(radiometric.SigmaZeroSFPoly[0, 0])
                 radiometric.NoiseLevel = NoiseLevelType_(
                     NoiseLevelType='ABSOLUTE',
                     NoisePoly=[[noise_constant, ]])
@@ -1514,6 +1515,11 @@ class _GFFInterpreter2(_GFFInterpreter):
         return out_sicd
 
     def get_chipper(self):
+        if self.header.gsat_img.imageCompressionScheme != 0:
+            raise ValueError(
+                'The image compression scheme indicates compression. '
+                'This is not currently supported.')
+
         complex_domain = _get_complex_domain_code(self.header.gsat_img.pixelFormat.cmplxDomain)
         if self.header.gsat_img.pixelFormat.numComponents != 2:
             raise ValueError(
@@ -1612,8 +1618,6 @@ def I_Q_to_complex():
         out.imag = data['imag']
         return out
     return converter
-
-
 
 
 ####################
@@ -1749,7 +1753,7 @@ class GFFDetails(object):
         elif version == '1.8':
             self._header = _GFFHeader_1_8(self._file_object, self.endianness)
             self._interpreter = _GFFInterpreter1(self._header)
-        elif self.major_version == '2':
+        elif self.major_version == 2:
             self._header = _GFFHeader_2(self._file_object, self.endianness)
             self._interpreter = _GFFInterpreter2(self._header)
         else:
@@ -1827,23 +1831,3 @@ class GFFReader(BaseReader, SICDTypeReader):
     @property
     def file_name(self):
         return self.gff_details.file_name
-
-
-if __name__ == '__main__':
-    from datetime import datetime
-
-    # gff_root = r'R:\sar\Data_SomeDomestic\Sandia\FARAD_Phoenix\OSAPF\NoAF\PS0004'
-    # the_file = os.path.join(gff_root, '20150408_0408P07_PS0004_PT000001_N03_M1_CH3_OSAPF.gff')
-
-    # gff_root = r'R:\sar\Data_SomeDomestic\Sandia\dionysius\gff_example'
-    # the_file = os.path.join(gff_root, 'Patch005.gff')
-
-    # with open(the_file, 'rb') as the_file_obj:
-    #     header = _BlockHeader_2(the_file_obj, '<')
-    # print(f'{header.size, header.name, header.major_version, header.minor_version}')
-
-    # details = GFFDetails(the_file)
-
-    # interp = _GFFInterpreter1(details.header)
-    # sicd = interp.get_sicd()
-    # print(sicd)
