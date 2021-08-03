@@ -295,10 +295,10 @@ class _GFFHeader_1_8(object):
         # at line 34 of def
 
         self.look_count, self.param_ref_ap, self.param_ref_pos = \
-            struct.unpack(estr + '3I', fi.read(3 * 4))
+            struct.unpack(estr + '3I', fi.read(3*4))
 
         graze_angle, squint, gta, range_beam_ctr, flight_time = \
-            struct.unpack(estr + 'I2i2I', fi.read(5 * 4))
+            struct.unpack(estr + 'I2i2I', fi.read(5*4))
         self.graze_angle = _rescale_float(graze_angle, 1 << 23)
         self.squint = _rescale_float(squint, 1 << 23)
         self.gta = _rescale_float(gta, 1 << 23)
@@ -306,24 +306,24 @@ class _GFFHeader_1_8(object):
         self.flight_time = _rescale_float(flight_time, 1000)
 
         self.range_chirp_rate, x_to_start, self.mo_comp_mode, v_x = \
-            struct.unpack(estr + 'fi2I', fi.read(4 * 4))
+            struct.unpack(estr + 'fi2I', fi.read(4*4))
         self.x_to_start = _rescale_float(x_to_start, 1 << 16)
         self.v_x = _rescale_float(v_x, 1 << 16)
         # at line 46 of def
 
-        apc_lat, apc_lon, apc_alt = struct.unpack(estr + '3i', fi.read(3 * 4))
+        apc_lat, apc_lon, apc_alt = struct.unpack(estr + '3i', fi.read(3*4))
         self.apc_lat = _rescale_float(apc_lat, 1 << 23)
         self.apc_lon = _rescale_float(apc_lon, 1 << 23)
         self.apc_alt = _rescale_float(apc_alt, 1 << 16)
 
-        cal_parm, self.logical_block_address = struct.unpack(estr + '2I', fi.read(2 * 4))
+        cal_parm, self.logical_block_address = struct.unpack(estr + '2I', fi.read(2*4))
         self.cal_parm = _rescale_float(cal_parm, 1 << 24)
-        az_resolution, range_resolution = struct.unpack(estr + '2I', fi.read(2 * 4))
+        az_resolution, range_resolution = struct.unpack(estr + '2I', fi.read(2*4))
         self.az_resolution = _rescale_float(az_resolution, 1 << 16)
         self.range_resolution = _rescale_float(range_resolution, 1 << 16)
 
         des_sigma_n, des_graze, des_squint, des_range, scene_track_angle = \
-            struct.unpack(estr + 'iIiIi', fi.read(5 * 4))
+            struct.unpack(estr + 'iIiIi', fi.read(5*4))
         self.des_sigma_n = _rescale_float(des_sigma_n, 1 << 23)
         self.des_graze = _rescale_float(des_graze, 1 << 23)
         self.des_squint = _rescale_float(des_squint, 1 << 23)
@@ -336,20 +336,20 @@ class _GFFHeader_1_8(object):
         self.coarse_snr, self.coarse_azimuth_sub, self.coarse_range_sub, \
         self.max_azimuth_shift, self.max_range_shift, \
         self.coarse_delta_azimuth, self.coarse_delta_range = \
-            struct.unpack(estr + '7i', fi.read(7 * 4))
+            struct.unpack(estr + '7i', fi.read(7*4))
 
         self.tot_procs, self.tpt_box_cmode, self.snr_thresh, self.range_size, \
         self.map_box_size, self.box_size, self.box_spc, self.tot_tpts, \
         self.good_tpts, self.range_seed, self.range_shift, self.azimuth_shift = \
-            struct.unpack(estr + '12i', fi.read(12 * 4))
+            struct.unpack(estr + '12i', fi.read(12*4))
         # at line 78 of def
 
-        self.sum_x_ramp, self.sum_y_ramp = struct.unpack(estr + '2i', fi.read(2 * 4))
-        self.cy9k_tape_block, self.nominal_center_frequency = struct.unpack(estr + 'If', fi.read(2 * 4))
-        self.image_flags, self.line_number, self.patch_number = struct.unpack(estr + '3I', fi.read(3 * 4))
-        self.lambda0, self.srange_pix_space = struct.unpack(estr + '2f', fi.read(2 * 4))
+        self.sum_x_ramp, self.sum_y_ramp = struct.unpack(estr + '2i', fi.read(2*4))
+        self.cy9k_tape_block, self.nominal_center_frequency = struct.unpack(estr + 'If', fi.read(2*4))
+        self.image_flags, self.line_number, self.patch_number = struct.unpack(estr + '3I', fi.read(3*4))
+        self.lambda0, self.srange_pix_space = struct.unpack(estr + '2f', fi.read(2*4))
         self.dopp_pix_space, self.dopp_offset, self.dopp_range_scale, self.mux_time_delay = \
-            struct.unpack(estr + '4f', fi.read(4 * 4))
+            struct.unpack(estr + '4f', fi.read(4*4))
         # at line 91 of def
 
         self.apc_ecef = struct.unpack(estr+'3d', fi.read(3*8))
@@ -488,7 +488,7 @@ class _APInfo_1_0(object):
         self.radarSerNum, self.phSource = struct.unpack(estr+'2I', fi.read(2*4))
         fi.read(2)
         self.phName = _get_string(fi.read(128))
-        self.ctrFreq, self.wavelength = struct.unpack(estr+'2f', fi.read(4))
+        self.ctrFreq, self.wavelength = struct.unpack(estr+'2f', fi.read(2*4))
         self.rxPolarization, self.txPolarization = struct.unpack(estr+'2I', fi.read(2*4))
         self.azBeamWidth, self.elBeamWidth = struct.unpack(estr+'2f', fi.read(2*4))
         self.grazingAngle, self.squintAngle, self.gta, self.rngToBeamCtr = \
