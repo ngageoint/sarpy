@@ -17,6 +17,8 @@ from typing import Union, Any, List, Dict
 from sarpy.geometry.geometry_elements import _Jsonable, FeatureCollection, Feature, Polygon, MultiPolygon
 from sarpy.compliance import string_types, int_func, integer_types
 
+logger = logging.getLogger(__name__)
+
 
 class RCSStatistics(_Jsonable):
     __slots__ = ('name', 'mean', 'std', 'max', 'min')
@@ -458,7 +460,7 @@ class FileRCSCollection(object):
         self._core_name = core_name
 
         if self._image_file_name is None and self._image_id is None and self._core_name is None:
-            logging.error('One of image_file_name, image_id, or core_name should be defined.')
+            logger.error('One of image_file_name, image_id, or core_name should be defined.')
 
         self.annotations = annotations
 

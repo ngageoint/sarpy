@@ -2,6 +2,9 @@
 The ProductDisplayType definition for SIDD 1.0.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
 import logging
 from typing import Union
 from collections import OrderedDict
@@ -17,9 +20,7 @@ from sarpy.io.complex.sicd_elements.base import Serializable, Arrayable, _Serial
     _create_new_node, _create_text_node, _get_node_value, \
     _find_first_child
 
-
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
+logger = logging.getLogger(__name__)
 
 
 class ColorDisplayRemapType(Serializable, Arrayable):
@@ -138,8 +139,9 @@ class ColorDisplayRemapType(Serializable, Arrayable):
                     continue
                 sentry = entry.split(',')
                 if len(sentry) != 3:
-                    logging.error('Parsing RemapLUT is likely compromised. Got entry {}, '
-                                  'which we are skipping.'.format(entry))
+                    logger.error(
+                        'Parsing RemapLUT is likely compromised.\n\t'
+                        'Got entry {}, which we are skipping.'.format(entry))
                     continue
                 arr[i, :] = [int(el) for el in entry]
                 i += 1

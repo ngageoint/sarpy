@@ -2,6 +2,10 @@
 The SCPCOAType definition.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
+
 import logging
 
 import numpy
@@ -13,9 +17,7 @@ from .blocks import XYZType
 
 from sarpy.geometry import geocoords
 
-
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
+logger = logging.getLogger(__name__)
 
 
 class GeometryCalculator(object):
@@ -63,8 +65,9 @@ class GeometryCalculator(object):
     def _make_unit(vec):
         vec_norm = norm(vec)
         if vec_norm < 1e-6:
-            logging.error(
-                'The input vector to be normalized has norm {}, this is likely a mistake'.format(vec_norm))
+            logger.error(
+                'The input vector to be normalized has norm {},\n\t'
+                'this is likely a mistake'.format(vec_norm))
         return vec/vec_norm
 
     @property

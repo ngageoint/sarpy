@@ -22,6 +22,9 @@ from sarpy.compliance import int_func, string_types
 from sarpy.io.general.base import BaseReader, BIPChipper, SarpyIOError
 
 
+logger = logging.getLogger(__name__)
+
+
 _BASELINE_TAGS = {
     254: 'NewSubfileType',
     255: 'SubfileType',
@@ -153,7 +156,7 @@ def is_a(file_name):
 
     try:
         tiff_details = TiffDetails(file_name)
-        logging.info('File {} is determined to be a tiff file.'.format(file_name))
+        logger.info('File {} is determined to be a tiff file.'.format(file_name))
         return TiffReader(tiff_details)
     except SarpyIOError:
         # we don't want to catch parsing errors, for now
@@ -312,7 +315,9 @@ class TiffDetails(object):
         # Now extract from file based on type number
         dtype = self._DTYPES.get(int(tiff_type), None)
         if dtype is None:
-            logging.warning('Failed to extract tiff data type {}, for {} - {}'.format(tiff_type, ext, name))
+            logger.warning(
+                'Failed to extract tiff data type {},\n\t'
+                'for {} - {}'.format(tiff_type, ext, name))
             return {'Value': None, 'Name': name, 'Extension': ext}
         if tiff_type == 2:  # ascii field - read directly and decode?
             val = fi.read(count)  # this will be a string for python 2, and we decode for python 3

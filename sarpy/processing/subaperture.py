@@ -2,6 +2,10 @@
 Sub-aperture processing methods.
 """
 
+__author__ = 'Thomas McCullough'
+__classification__ = "UNCLASSIFIED"
+
+
 import logging
 import os
 from typing import Union, Generator
@@ -15,13 +19,11 @@ from sarpy.io.product.sidd_structure_creation import create_sidd_structure
 from sarpy.io.product.sidd import SIDDWriter
 from sarpy.processing.ortho_rectify import OrthorectificationHelper, OrthorectificationIterator
 
+logger = logging.getLogger(__name__)
 
 ####################
 # Module variables providing default values
 _METHOD_VALUES = ('NORMAL', 'FULL', 'MINIMAL')
-
-__author__ = 'Thomas McCullough'
-__classification__ = "UNCLASSIFIED"
 
 
 def frame_definition(array_size, frame_count=9, aperture_fraction=0.2, fill=1, method='FULL'):
@@ -505,7 +507,7 @@ class SubapertureOrthoIterator(OrthorectificationIterator):
                 (this_pixel_bounds[0], this_pixel_bounds[1], 1),
                 (this_pixel_bounds[2], this_pixel_bounds[3], 1))
 
-        logging.info(
+        logger.info(
             'Fetching orthorectified coordinate block ({}:{}, {}:{}) of ({}:{}) for frame {}'.format(
                 this_ortho_bounds[0] - self.ortho_bounds[0], this_ortho_bounds[1] - self.ortho_bounds[0],
                 this_ortho_bounds[2] - self.ortho_bounds[2], this_ortho_bounds[3] - self.ortho_bounds[2],
@@ -539,7 +541,7 @@ class SubapertureOrthoIterator(OrthorectificationIterator):
         this_ortho_bounds, this_pixel_bounds = self._get_state_parameters()
         # accommodate for real pixel limits
         this_pixel_bounds = self._ortho_helper.get_real_pixel_bounds(this_pixel_bounds)
-        logging.info(
+        logger.info(
             'Fetching orthorectified coordinate block ({}:{}, {}:{}) of ({}:{}) for frame {}'.format(
                 this_ortho_bounds[0] - self.ortho_bounds[0], this_ortho_bounds[1] - self.ortho_bounds[0],
                 this_ortho_bounds[2] - self.ortho_bounds[2], this_ortho_bounds[3] - self.ortho_bounds[2],

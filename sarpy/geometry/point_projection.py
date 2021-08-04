@@ -70,6 +70,10 @@ Examples
 
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = ("Thomas McCullough", "Wade Schwartzkopf")
+
+
 import logging
 from typing import Tuple
 from types import MethodType  # for binding a method dynamically to a class
@@ -82,8 +86,8 @@ from sarpy.io.complex.sicd_elements.blocks import Poly2DType, XYZPolyType
 from sarpy.io.DEM.DEM import DEMInterpolator
 from sarpy.io.DEM.DTED import DTEDList, DTEDInterpolator
 
-__classification__ = "UNCLASSIFIED"
-__author__ = ("Thomas McCullough", "Wade Schwartzkopf")
+
+logger = logging.getLogger(__name__)
 
 
 #############
@@ -572,7 +576,7 @@ class COAProjection(object):
         # fall back to approximation if TimeCOAPoly is not populated
         if time_coa_poly is None:
             time_coa_poly = Poly2DType(Coefs=[[sicd.Timeline.CollectDuration/2, ], ])
-            logging.warning(
+            logger.warning(
                 'Using (constant) approximation to TimeCOAPoly, which may result in poor projection results.')
         arp_poly = sicd.Position.ARPPoly
         # transform parameters
@@ -967,7 +971,7 @@ def ground_to_image(coords, structure, tolerance=1e-2, max_iterations=10, block_
 
     tolerance = float(tolerance)
     if tolerance < 1e-12:
-        logging.warning(
+        logger.warning(
             'minimum allowed tolerance is 1e-12 meters, resetting from {}'.format(tolerance))
         tolerance = 1e-12
 
@@ -1431,16 +1435,18 @@ def image_to_ground_hae(im_points, structure, block_size=50000,
 
     tolerance = float(tolerance)
     if tolerance < 1e-12:
-        logging.warning(
+        logger.warning(
             'minimum allowed tolerance is 1e-12, resetting from {0:8f}'.format(tolerance))
         tolerance = 1e-12
 
     max_iterations = int(max_iterations)
     if max_iterations < 1:
-        logging.error('max_iterations must be a positive integer, resetting to 1 from {}'.format(max_iterations))
+        logger.error(
+            'max_iterations must be a positive integer, resetting to 1 from {}'.format(max_iterations))
         max_iterations = 1
     if max_iterations > 100:
-        logging.error('maximum allowed max_iterations is 100, resetting from {}'.format(max_iterations))
+        logger.error(
+            'maximum allowed max_iterations is 100, resetting from {}'.format(max_iterations))
         max_iterations = 100
 
     # method parameter validation

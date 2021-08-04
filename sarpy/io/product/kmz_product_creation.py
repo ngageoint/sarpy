@@ -24,6 +24,10 @@ Create a kmz overview for the contents of a sicd type reader.
 
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
+
 import logging
 from typing import Union
 import json
@@ -48,9 +52,7 @@ try:
 except ImportError:
     PIL = None
 
-
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
+logger = logging.getLogger(__name__)
 
 
 def _create_sicd_styles(kmz_document):
@@ -235,7 +237,7 @@ def _write_image_corners(kmz_document, sicd, time_args, folder, write_points=Tru
     corners = sicd.GeoData.ImageCorners.get_array(dtype='float64')
 
     if numpy.any(~numpy.isfinite(corners)):
-        logging.error('There are nonsense entries (nan or +/- infinity) in the corner locations array.')
+        logger.error('There are nonsense entries (nan or +/- infinity) in the corner locations array.')
 
     if write_points:
         names = ['FRFC', 'FRLC', 'LRLC', 'LRFC']
@@ -275,7 +277,7 @@ def _write_valid_area(kmz_document, sicd, time_args, folder):
     frm = '{1:0.8f},{0:0.8f},0'
     valid_array = sicd.GeoData.ValidData.get_array(dtype='float64')
     if numpy.any(~numpy.isfinite(valid_array)):
-        logging.error('There are nonsense entries (nan or +/- infinity) in the valid array location.')
+        logger.error('There are nonsense entries (nan or +/- infinity) in the valid array location.')
 
     coords = ' '.join(frm.format(*el) for el in valid_array)
     coords += ' ' + frm.format(*valid_array[0, :])
@@ -303,7 +305,7 @@ def _write_scp(kmz_document, sicd, time_args, folder):
 
     scp_llh = sicd.GeoData.SCP.LLH.get_array()
     if numpy.any(~numpy.isfinite(scp_llh)):
-        logging.error('There are nonsense entries (nan or +/- infinity) in the scp location.')
+        logger.error('There are nonsense entries (nan or +/- infinity) in the scp location.')
 
     frm = '{1:0.8f},{0:0.8f},0'
     coords = frm.format(*scp_llh)
@@ -339,7 +341,7 @@ def _write_arp_location(kmz_document, sicd, time_args, time_array, folder):
 
     arp_llh = ecf_to_geodetic(arp_pos)
     if numpy.any(~numpy.isfinite(arp_llh)):
-        logging.error('There are nonsense entries (nan or +/- infinity) in the aperture location.')
+        logger.error('There are nonsense entries (nan or +/- infinity) in the aperture location.')
     coords = ['{1:0.8f},{0:0.8f},{2:0.2f}'.format(*el) for el in arp_llh]
     whens = [str(sicd.Timeline.CollectStart.astype('datetime64[us]') + int_func(el*1e6)) + 'Z' for el in time_array]
     placemark = kmz_document.add_container(par=folder, description='aperture position for {}'.format(_get_sicd_name(sicd)), styleUrl='#arp', **time_args)
@@ -378,7 +380,7 @@ def _write_collection_wedge(kmz_document, sicd, time_args, arp_llh, time_array, 
     grp_llh = ecf_to_geodetic(grp)
 
     if numpy.any(~numpy.isfinite(grp_llh)):
-        logging.error('There are nonsense entries (nan or +/- infinity) in the scp/ground range locations.')
+        logger.error('There are nonsense entries (nan or +/- infinity) in the scp/ground range locations.')
 
     coord_array = [frm.format(*el) for el in arp_llh]
     if len(grp_llh) > 1:
@@ -410,7 +412,7 @@ def _write_sicd_overlay(ortho_iterator, kmz_document, folder):
         return llh_in[::-1, :]
 
     if PIL is None:
-        logging.error(
+        logger.error(
             'This functionality for writing kmz ground overlays requires the optional Pillow dependency.')
         return
 
@@ -658,7 +660,8 @@ def create_kmz_view(reader, output_directory, file_stem='view', pixel_limit=2048
     .. code-block:: python
 
         import logging
-        logging.basicConfig(level='INFO')
+        logger = logging.getLogger('sarpy')
+        logger.setLevel('INFO')
 
         import os
         from sarpy.io.complex.converter import open_complex
@@ -683,7 +686,7 @@ def create_kmz_view(reader, output_directory, file_stem='view', pixel_limit=2048
         kmz_file = os.path.join(output_directory, '{}_{}_{}.kmz'.format(file_stem,
                                                                         the_band,
                                                                         get_pol_abbreviation(the_pol)))
-        logging.info('Writing kmz file for polarization {} and band {}'.format(the_pol, the_band))
+        logger.info('Writing kmz file for polarization {} and band {}'.format(the_pol, the_band))
         with prepare_kmz_file(kmz_file, name=reader.file_name) as kmz_doc:
             for the_partition, the_index, the_sicd in sicd_reader_iterator(
                     reader, partitions=partitions, polarization=the_pol, band=the_band):
