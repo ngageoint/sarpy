@@ -2,6 +2,9 @@
 Module contained elements for defining TREs - really intended as read only objects.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
 import logging
 from collections import OrderedDict
 from typing import Union, List
@@ -9,9 +12,7 @@ from typing import Union, List
 from sarpy.compliance import int_func, string_types
 from ..base import TRE
 
-
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
+logger = logging.getLogger(__name__)
 
 
 def _parse_type(typ_string, leng, value, start):
@@ -86,11 +87,10 @@ class TREElement(object):
         """
 
         if hasattr(self, attribute):
-            logging.error(
-                'This instance of TRE element {} already has an attribute {},\n'
-                'but the `add_field()` method is being called for this attribute '
-                'name again. This is almost certainly '
-                'an error.'.format(self.__class__, attribute))
+            logger.error(
+                'This instance of TRE element {} already has an attribute {},\n\t'
+                'but the `add_field()` method is being called for this attribute name again.\n\t'
+                'This is almost certainly an error.'.format(self.__class__, attribute))
 
         try:
             val = _parse_type(typ_string, leng, value, self._bytes_length)

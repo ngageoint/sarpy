@@ -40,8 +40,9 @@ if __name__ == '__main__':
         '-v', '--verbose', default=0, action='count', help='Verbose (level="INFO") logging?')
 
     args = parser.parse_args()
+    logger = logging.getLogger('sarpy')
     if args.verbose > 0:
-        logging.basicConfig(level='INFO')
+        logger.setLevel('INFO')
 
     reader = open_complex(args.input_file)
     file_stem = os.path.splitext(os.path.split(args.input_file)[1])[0]

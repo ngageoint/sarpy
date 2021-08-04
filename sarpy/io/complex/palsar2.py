@@ -40,6 +40,7 @@ from sarpy.io.complex.sicd_elements.ErrorStatistics import ErrorStatisticsType, 
     ErrorComponentsType, RadarSensorErrorType, PosVelErrType
 from sarpy.io.complex.utils import two_dim_poly_fit, fit_position_xvalidation
 
+logger = logging.getLogger(__name__)
 
 ########
 # base expected functionality for a module with an implemented Reader
@@ -65,7 +66,7 @@ def is_a(file_name):
 
     try:
         palsar_details = PALSARDetails(file_name)
-        logging.info('File {} is determined to be a PALSAR ALOS2 file.'.format(file_name))
+        logger.info('File {} is determined to be a PALSAR ALOS2 file.'.format(file_name))
         return PALSARReader(palsar_details)
     except (ImportError, SarpyIOError):
         return None
@@ -1395,7 +1396,7 @@ class PALSARDetails(object):
                     RcvDemodType='CHIRP',
                     ADCSampleRate=data.sampling_rate*1e6), ]
             else:
-                logging.error(
+                logger.error(
                     'Got unexpected range_pulse_code "{}", no waveform details '
                     'populated'.format(data.range_pulse_code))
                 waveform = None
@@ -1508,8 +1509,10 @@ class PALSARDetails(object):
             time_coa_poly, residuals, rank, sing_values = two_dim_poly_fit(
                 coords_rng_2d, coords_az_2d, time_coa_sampled,
                 x_order=poly_order, y_order=poly_order, x_scale=1e-3, y_scale=1e-3, rcond=1e-40)
-            logging.info(
-                'The TimeCOAPoly fit details:\nroot mean square residuals = {}\nrank = {}\n'
+            logger.info(
+                'The TimeCOAPoly fit details:\n\t'
+                'root mean square residuals = {}\n\t'
+                'rank = {}\n\t'
                 'singular values = {}'.format(residuals, rank, sing_values))
 
             row_wgt = WgtTypeType(WindowName='UNIFORM') if data.wgt_az.strip() == '1' else None

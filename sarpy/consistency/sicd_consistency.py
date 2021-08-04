@@ -258,7 +258,7 @@ def check_sicd_file(nitf_details):
                 elif 'SICD' in root_node.tag:
                     sicd_des.append((i, des_string, des_header))
             except Exception as e:
-                logging.error('Failed parsing the xml DES entry {} as xml'.format(i))
+                logger.error('Failed parsing the xml DES entry {} as xml'.format(i))
                 raise e
 
         if len(sicd_des) == 0:

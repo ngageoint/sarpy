@@ -2,6 +2,10 @@
 The TimelineType definition.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
+
 from typing import List, Union
 
 import numpy
@@ -10,10 +14,6 @@ from .base import Serializable, DEFAULT_STRICT, \
     _FloatDescriptor, _IntegerDescriptor, _DateTimeDescriptor, \
     _SerializableArrayDescriptor, _SerializableDescriptor
 from .blocks import Poly1DType
-
-
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
 
 
 class IPPSetType(Serializable):

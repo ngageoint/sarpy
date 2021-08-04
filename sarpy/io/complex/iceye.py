@@ -34,6 +34,7 @@ from sarpy.io.general.base import BaseReader, BaseChipper, SarpyIOError
 from sarpy.io.general.utils import get_seconds, parse_timestring, is_file_like
 from sarpy.io.complex.utils import fit_position_xvalidation, two_dim_poly_fit
 
+logger = logging.getLogger(__name__)
 
 ########
 # base expected functionality for a module with an implemented Reader
@@ -65,7 +66,7 @@ def is_a(file_name):
 
     try:
         iceye_details = ICEYEDetails(file_name)
-        logging.info('File {} is determined to be a ICEYE file.'.format(file_name))
+        logger.info('File {} is determined to be a ICEYE file.'.format(file_name))
         return ICEYEReader(iceye_details)
     except SarpyIOError:
         return None
@@ -296,9 +297,9 @@ class ICEYEDetails(object):
             t_dop_centroid_poly, residuals, rank, sing_values = two_dim_poly_fit(
                 range_scp_m, azimuth_scp_m, dc_sample_array, x_order=x_order, y_order=y_order,
                 x_scale=1e-3, y_scale=1e-3, rcond=1e-40)
-            logging.info(
-                'The dop_centroid_poly fit details:\nroot mean square '
-                'residuals = {}\nrank = {}\nsingular values = {}'.format(
+            logger.info(
+                'The dop_centroid_poly fit details:\n\troot mean square '
+                'residuals = {}\n\trank = {}\n\tsingular values = {}'.format(
                     residuals, rank, sing_values))
 
             # define and fit the time coa array
@@ -307,9 +308,9 @@ class ICEYEDetails(object):
             t_time_coa_poly, residuals, rank, sing_values = two_dim_poly_fit(
                 range_scp_m, azimuth_scp_m, time_coa, x_order=x_order, y_order=y_order,
                 x_scale=1e-3, y_scale=1e-3, rcond=1e-40)
-            logging.info(
-                'The time_coa_poly fit details:\nroot mean square '
-                'residuals = {}\nrank = {}\nsingular values = {}'.format(
+            logger.info(
+                'The time_coa_poly fit details:\n\troot mean square '
+                'residuals = {}\n\trank = {}\n\tsingular values = {}'.format(
                     residuals, rank, sing_values))
             return t_dop_centroid_poly, t_time_coa_poly
 

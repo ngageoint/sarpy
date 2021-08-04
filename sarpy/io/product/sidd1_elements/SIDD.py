@@ -27,6 +27,8 @@ from sarpy.io.product.sidd_schema import get_specification_identifier, \
     get_urn_details, validate_xml_ns
 
 
+logger = logging.getLogger(__name__)
+
 ############
 # namespace validate and definition of required entries in the namespace dictionary
 _SIDD_SPECIFICATION_IDENTIFIER = get_specification_identifier()
@@ -158,7 +160,7 @@ class SIDDType(Serializable):
             return True
 
         if self.Measurement.ProjectionType != 'PlaneProjection':
-            logging.error(
+            logger.error(
                 'Formulating a projection is only supported for PlaneProjection, '
                 'got {}.'.format(self.Measurement.ProjectionType))
             return False
@@ -189,7 +191,7 @@ class SIDDType(Serializable):
         """
 
         if not self.can_project_coordinates():
-            logging.error('The COAProjection object cannot be defined.')
+            logger.error('The COAProjection object cannot be defined.')
             return
 
         if self._coa_projection is not None and not overide:
@@ -365,7 +367,7 @@ class SIDDType(Serializable):
         if not xml_ns[ns_key].startswith('urn:SIDD:1.'):
             raise ValueError('Cannot use urn {} for SIDD version 1.0'.format(xml_ns[ns_key]))
         if not valid_ns:
-            logging.warning(
+            logger.warning(
                 'SIDD namespace validation failed,\n\t'
                 'which may lead to subsequent deserialization failures')
         return super(SIDDType, cls).from_node(node, xml_ns, ns_key=ns_key, kwargs=kwargs)

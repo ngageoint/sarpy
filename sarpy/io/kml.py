@@ -2,6 +2,10 @@
 Functionality for exporting certain data elements to a kml document
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
+
 import zipfile
 import logging
 import os
@@ -21,8 +25,7 @@ try:
 except ImportError:
     PIL = None
 
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
+logger = logging.getLogger(__name__)
 
 #################
 # default values
@@ -73,7 +76,7 @@ class Document(object):
         if isinstance(file_name, str):
             fext = os.path.splitext(file_name)[1]
             if fext not in ['.kml', '.kmz']:
-                logging.warning('file extension should be one of .kml or .kmz, got {}. This will be treated as a kml file.'.format(fext))
+                logger.warning('file extension should be one of .kml or .kmz, got {}. This will be treated as a kml file.'.format(fext))
             if fext == '.kmz':
                 self._archive = zipfile.ZipFile(file_name, 'w', zipfile.ZIP_DEFLATED)
             else:
@@ -107,9 +110,9 @@ class Document(object):
         if exception_type is None:
             self.close()
         else:
-            logging.error(
-                'The kml/kmz file writer generated an exception during processing. Any generated file '
-                'may be only partially generated and/or corrupt.')
+            logger.error(
+                'The kml/kmz file writer generated an exception during processing.\n\t'
+                'Any generated file may be only partially generated and/or corrupt.')
             # The exception will be reraised - it's unclear how any exception could be caught.
 
     def write_file_to_archive(self, archive_path, file_path):
@@ -550,8 +553,9 @@ class Document(object):
                 sf.setAttribute('type', typ)
                 sch.appendChild(sf)
             else:
-                logging.warning("Schema '{0!s}' has field '{1!s}' of unrecognized "
-                                "type '{2!s}', which is being excluded.".format(schema_id, name, typ))
+                logger.warning(
+                    "Schema '{0!s}' has field '{1!s}' of unrecognized type '{2!s}',\n\t"
+                    "which is being excluded.".format(schema_id, name, typ))
             self._add_text_node(sf, 'displayName', dname)
 
     def _add_extended_data(self, par, **params):
@@ -628,10 +632,10 @@ class Document(object):
                 if key in params:
                     olp.setAttribute(att, params[key])
                 else:
-                    logging.error(
-                        'params is missing required key {}, so we are aborting screen '
-                        'overlay parameters construction. This screen overlay will likely '
-                        'not render correctly.'.format(key))
+                    logger.error(
+                        'params is missing required key {},\n\t'
+                        'so we are aborting screen overlay parameters construction. '
+                        'This screen overlay will likely not render correctly.'.format(key))
                     good = False
             if good:
                 overlay.appendChild(olp)
@@ -1225,8 +1229,10 @@ class Document(object):
             sample_cols = nominal_image_size
             sample_rows = int_func(row_length*nominal_image_size/float(col_length))
 
-        logging.info('Processing ({}:{}, {}:{}) into a downsampled image of size ({}, {})'.format(
-            row_min, row_max, col_min, col_max, sample_rows, sample_cols))
+        logger.info(
+            'Processing ({}:{}, {}:{}) into a downsampled image\n\t'
+            'of size ({}, {})'.format(
+                row_min, row_max, col_min, col_max, sample_rows, sample_cols))
 
         archive_name = 'images/{}.{}'.format(image_name, img_format)
         pil_box = tuple(int_func(el) for el in image_bounds)

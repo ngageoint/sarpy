@@ -40,6 +40,8 @@ from sarpy.io.complex.sicd_elements.Radiometric import RadiometricType, NoiseLev
 from sarpy.geometry.geocoords import geodetic_to_ecf
 from sarpy.io.complex.utils import two_dim_poly_fit, get_im_physical_coords
 
+logger = logging.getLogger(__name__)
+
 
 ########
 # base expected functionality for a module with an implemented Reader
@@ -64,7 +66,7 @@ def is_a(file_name):
 
     try:
         sentinel_details = SentinelDetails(file_name)
-        logging.info('Path {} is determined to be or contain a Sentinel-1 manifest.safe file.'.format(file_name))
+        logger.info('Path {} is determined to be or contain a Sentinel-1 manifest.safe file.'.format(file_name))
         return SentinelReader(sentinel_details)
     except (SarpyIOError, AttributeError, SyntaxError, ElementTree.ParseError):
         return None
@@ -645,8 +647,10 @@ class SentinelDetails(object):
             phase, residuals, rank, sing_values = two_dim_poly_fit(
                 coords_rg_2d, coords_az_2d, total_phase,
                 x_order=poly_order, y_order=poly_order, x_scale=1e-3, y_scale=1e-3, rcond=1e-35)
-            logging.info(
-                'The phase polynomial fit details:\nroot mean square residuals = {}\nrank = {}\n'
+            logger.info(
+                'The phase polynomial fit details:\n\t'
+                'root mean square residuals = {}\n\t'
+                'rank = {}\n\t'
                 'singular values = {}'.format(residuals, rank, sing_values))
 
             # DeltaKCOAPoly is derivative of phase in azimuth/Col direction
@@ -665,8 +669,10 @@ class SentinelDetails(object):
             time_coa_poly, residuals, rank, sing_values = two_dim_poly_fit(
                 coords_rg_2d, coords_az_2d, time_coa_sampled,
                 x_order=poly_order, y_order=poly_order, x_scale=1e-3, y_scale=1e-3, rcond=1e-40)
-            logging.info(
-                'The TimeCOAPoly fit details:\nroot mean square residuals = {}\nrank = {}\n'
+            logger.info(
+                'The TimeCOAPoly fit details:\n\t'
+                'root mean square residuals = {}\n\t'
+                'rank = {}\n\t'
                 'singular values = {}'.format(residuals, rank, sing_values))
             grid.TimeCOAPoly = Poly2DType(Coefs=time_coa_poly)
             if return_time_dets:
@@ -902,10 +908,13 @@ class SentinelDetails(object):
                 # do some validity checks
                 if (mode_id == 'IW') and numpy.any((line % lines_per_burst) != 0) and (i != len(noise_vector_list)-1):
                     # NB: the final burst has different timing
-                    logging.error('Noise file should have one lut per burst, but more are present. '
-                                  'This may lead to confusion.')
+                    logger.error(
+                        'Noise file should have one lut per burst, but more are present.\n\t'
+                        'This may lead to confusion.')
                 if (pixel is not None) and (pixel[-1] > range_size_pixels):
-                    logging.error('Noise file has more pixels in LUT than range size. This may lead to confusion.')
+                    logger.error(
+                        'Noise file has more pixels in LUT than range size.\n\t'
+                        'This may lead to confusion.')
 
                 lines.append(line)
                 pixels.append(pixel)
@@ -930,17 +939,20 @@ class SentinelDetails(object):
                 noise_poly, res, rank, sing_vals = two_dim_poly_fit(
                     coords_rg_2d, coords_az_2d, numpy.array(range_noise),
                     x_order=rg_poly_order, y_order=az_poly_order, x_scale=1e-3, y_scale=1e-3, rcond=1e-40)
-                logging.info(
-                    'NoisePoly fit details:\nroot mean square residuals = {}\nrank = {}\n'
+                logger.info(
+                    'NoisePoly fit details:\n\t'
+                    'root mean square residuals = {}\n\t'
+                    'rank = {}\n\t'
                     'singular values = {}'.format(res, rank, sing_vals))
             else:
                 # TOPSAR has single LUT per burst
                 # Treat range and azimuth polynomial components as weakly independent
                 if index >= len(range_pixel):
-                    logging.error('We have run out of noise information. Current index = {}, '
-                                  'length of noise array = {}. The previous noise information '
-                                  'will be used to populate the '
-                                  'NoisePoly.'.format(index, len(range_pixel)))
+                    logger.error(
+                        'We have run out of noise information.\n\t'
+                        'Current index = {}, length of noise array = {}.\n\t'
+                        'The previous noise information will be used to populate the NoisePoly.'.format(
+                            index, len(range_pixel)))
                 rp_array = range_pixel[min(index, len(range_pixel)-1)]
                 rn_array = range_noise[min(index, len(range_pixel)-1)]
                 coords_rg = (rp_array + sicd.ImageData.FirstRow -

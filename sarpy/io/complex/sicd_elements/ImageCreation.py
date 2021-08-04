@@ -2,13 +2,13 @@
 The ImageCreation elements.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
+
 import numpy
 
 from .base import Serializable, DEFAULT_STRICT, _StringDescriptor, _DateTimeDescriptor
-
-
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
 
 
 class ImageCreationType(Serializable):

@@ -2,6 +2,10 @@
 The RgAzCompType definition.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
+
 import logging
 
 import numpy
@@ -11,8 +15,7 @@ from .base import Serializable, DEFAULT_STRICT, _FloatDescriptor, _SerializableD
 from .blocks import Poly1DType
 
 
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
+logger = logging.getLogger(__name__)
 
 
 class RgAzCompType(Serializable):
@@ -73,9 +76,9 @@ class RgAzCompType(Serializable):
         if self.AzSF is None:
             self.AzSF = az_sf
         elif abs(self.AzSF - az_sf) > 1e-3:
-            logging.warning(
-                'The derived value for RgAzComp.AzSF is {}, while the current '
-                'setting is {}.'.format(az_sf, self.AzSF))
+            logger.warning(
+                'The derived value for RgAzComp.AzSF is {},\n\t'
+                'while the current setting is {}.'.format(az_sf, self.AzSF))
 
         if self.KazPoly is None:
             if Grid.Row.KCtr is not None and Timeline is not None and Timeline.IPP is not None and \

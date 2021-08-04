@@ -39,6 +39,7 @@ from sarpy.io.complex.sicd_elements.ImageFormation import ImageFormationType, Tx
 from sarpy.io.complex.sicd_elements.ImageCreation import ImageCreationType
 from sarpy.io.complex.sicd_elements.PFA import PFAType
 
+logger = logging.getLogger(__name__)
 
 # NB: DO NOT implement is_a() here. This will explicitly happen after other readers
 
@@ -62,7 +63,7 @@ def final_attempt(file_name):
 
     try:
         nitf_details = ComplexNITFDetails(file_name)
-        logging.info('File {} is determined to be some other format complex NITF.')
+        logger.info('File {} is determined to be some other format complex NITF.')
         return ComplexNITFReader(nitf_details)
     except (SarpyIOError, ValueError):
         return None
@@ -122,15 +123,15 @@ def extract_sicd(img_header, symmetry, nitf_header=None):
         pvtype = img_header.PVTYPE
         if pvtype == 'C':
             if img_header.NBPP != 64:
-                logging.warning(
-                    'This NITF has complex bands that are not 64-bit. This is not '
-                    'currently supported.')
+                logger.warning(
+                    'This NITF has complex bands that are not 64-bit.\n\t'
+                    'This is not currently supported.')
             pixel_type = 'RE32F_IM32F'
         elif pvtype == 'R':
             if img_header.NBPP == 64:
-                logging.warning(
-                    'The real/imaginary data in the NITF are stored as 64-bit floating '
-                    'point. The closest Pixel Type, RE32F_IM32F, will be used, '
+                logger.warning(
+                    'The real/imaginary data in the NITF are stored as 64-bit floating point.\n\t'
+                    'The closest Pixel Type, RE32F_IM32F, will be used,\n\t'
                     'but there may be overflow issues if converting this file.')
             pixel_type = 'RE32F_IM32F'
         elif pvtype == 'SI':
@@ -254,8 +255,8 @@ def extract_sicd(img_header, symmetry, nitf_header=None):
         elif cmetaa.CMPLX_SIGNAL_PLANE.upper() == 'G':
             the_sicd.Grid.ImagePlane = 'GROUND'
         else:
-            logging.warning(
-                'Got unexpected CMPLX_SIGNAL_PLANE value {}, '
+            logger.warning(
+                'Got unexpected CMPLX_SIGNAL_PLANE value {},\n\t'
                 'setting ImagePlane to SLANT'.format(cmetaa.CMPLX_SIGNAL_PLANE))
 
         the_sicd.Grid.Row = DirParamType(
@@ -290,8 +291,8 @@ def extract_sicd(img_header, symmetry, nitf_header=None):
                     'SLL': '-{0:d}'.format(int(cmetaa.CMPLX_AZ_SLL)),
                     'NBAR': '{0:d}'.format(int(cmetaa.CMPLX_AZ_TAY_NBAR))})
         else:
-            logging.warning(
-                'Got unsupported CMPLX_WEIGHT value {}. The resulting SICD will '
+            logger.warning(
+                'Got unsupported CMPLX_WEIGHT value {}.\n\tThe resulting SICD will '
                 'not have valid weight array populated'.format(cmplx_weight))
         the_sicd.Grid.Row.define_weight_function()
         the_sicd.Grid.Col.define_weight_function()
@@ -935,11 +936,12 @@ class ComplexNITFDetails(NITFDetails):
                 if image_header.PVTYPE != 'C':
                     return  # this is not a complex dataset - maybe we should warn?
                 if image_header.NBPP == 32:
-                    logging.warning(
-                        'File {} has image band at index {} of complex data type with 32 bits per pixel '
-                        '(real/imaginary components) consisting of 16-bit floating points. This is experimentally '
-                        'supported assuming the data follows the ieee standard for half precision floating point, i.e. '
-                        '1 bit sign, 5 bits exponent, and 10 bits significand/mantissa'.format(self.file_name, index))
+                    logger.warning(
+                        'File {} has image band at index {} of complex data type with 32 bits per pixel\n\t'
+                        '(real/imaginary components) consisting of 16-bit floating points.\n\t'
+                        'This is experimentally supported assuming the data follows the\n\t'
+                        'ieee standard for half precision floating point, i.e. 1 bit sign, 5 bits exponent,\n\t'
+                        'and 10 bits significand/mantissa'.format(self.file_name, index))
                     sicd_meta.append(sicd)
                     complex_segments.append({
                         'index': index,
@@ -967,9 +969,10 @@ class ComplexNITFDetails(NITFDetails):
                         'output_bands': 1,
                         'output_dtype': numpy.dtype('>c16')})
                 else:
-                    logging.error(
-                        'File {} has image band at index {} of complex type with bits per pixel value {}. '
-                        'This is not currently supported and this band will be skipped.'.format(self.file_name, index, image_header.NBPP))
+                    logger.error(
+                        'File {} has image band at index {} of complex type with bits per pixel value {}.\n\t'
+                        'This is not currently supported and this band will be skipped.'.format(
+                            self.file_name, index, image_header.NBPP))
                 return
 
             # do some general assignment for input datatype
@@ -982,7 +985,9 @@ class ComplexNITFDetails(NITFDetails):
             elif pv_type == 'R':
                 raw_dtype ='>f{}'.format(bpp)
             else:
-                logging.warning('Got unhandled PVTYPE {} for image band {} of file {}. Skipping'.format(pv_type, index, self.file_name))
+                logger.warning(
+                    'Got unhandled PVTYPE {} for image band {}\n\t'
+                    'in file {}. Skipping'.format(pv_type, index, self.file_name))
                 return
 
             if bands == 2:

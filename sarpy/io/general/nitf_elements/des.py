@@ -2,6 +2,10 @@
 The data extension header element definition.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
+
 import logging
 from typing import Union
 
@@ -10,8 +14,7 @@ from .base import BaseNITFElement, NITFElement, Unstructured, _IntegerDescriptor
     _parse_str, _parse_int, _parse_nitf_element
 from .security import NITFSecurityTags, NITFSecurityTags0
 
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
+logger = logging.getLogger(__name__)
 
 
 class XMLDESSubheader(NITFElement):
@@ -191,21 +194,23 @@ class DataExtensionHeader(NITFElement):
         value = _parse_str(value, 6, None, 'DESOFLW', self)
         if self._DESID == 'TRE_OVERFLOW':
             if value is None:
-                logging.error(
-                    'DESOFLW value is None, but DESID == "TRE_OVERFLOW". '
+                logger.error(
+                    'DESOFLW value is None, but DESID == "TRE_OVERFLOW".\n\t'
                     'This must be resolved.')
                 self._DESOFLW = ''
             elif value not in {'XHD', 'IXSHD', 'SXSHD', 'TXSHD', 'UDHD', 'UDID'}:
-                logging.error(
-                    "DESOFLW value got {}, but must be one {'XHD', 'IXSHD', 'SXSHD', 'TXSHD', 'UDHD', 'UDID'}"
+                logger.error(
+                    "DESOFLW value got {},\n\t"
+                    "but must be one {'XHD', 'IXSHD', 'SXSHD', 'TXSHD', 'UDHD', 'UDID'}\n\t"
                     "This must be resolved.")
                 self._DESOFLW = ''
             else:
                 self._DESOFLW = value
         else:
             if value is not None:
-                logging.error(
-                    'DESID != "TRE_OVERFLOW", but DESOFLW value is not None. '
+                logger.error(
+                    'DESID != "TRE_OVERFLOW",\n\t'
+                    'but DESOFLW value is not None.\n\t'
                     'This is invalid, so setting DESOFLW to None')
             self._DESOFLW = None
 
@@ -224,16 +229,16 @@ class DataExtensionHeader(NITFElement):
         value = _parse_int(value, 3, None, 'DESITEM', self)
         if self._DESID == 'TRE_OVERFLOW':
             if value is None:
-                logging.error(
-                    'DESITEM value is None, but DESID == "TRE_OVERFLOW". '
+                logger.error(
+                    'DESITEM value is None, but DESID == "TRE_OVERFLOW".\n\t'
                     'This must be resolved.')
                 self._DESITEM = 0
             else:
                 self._DESITEM = value
         else:
             if value is not None:
-                logging.error(
-                    'DESID != "TRE_OVERFLOW", but DESITEM value is not None. '
+                logger.error(
+                    'DESID != "TRE_OVERFLOW", but DESITEM value is not None.\n\t'
                     'This is invalid, so setting DESITEM to None')
             self._DESITEM = None
 
@@ -273,8 +278,8 @@ class DataExtensionHeader(NITFElement):
                     data = XMLDESSubheader.from_bytes(data, 0)
                     self._UserHeader = data
                 except Exception as e:
-                    logging.error(
-                        'DESID is "XML_DATA_CONTENT" and data is the right length for SICD, '
+                    logger.error(
+                        'DESID is "XML_DATA_CONTENT" and data is the right length for SICD,\n\t'
                         'but parsing failed with error {}'.format(e))
         elif self.DESID.strip() == 'STREAMING_FILE_HEADER':
             # LOW Priority - I think that this is deprecated?
@@ -376,22 +381,24 @@ class DataExtensionHeader0(NITFElement):
         value = _parse_str(value, 6, None, 'DESOFLW', self)
         if self._DESTAG.strip() in ['TRE_OVERFLOW', 'Registered Extensions', 'Controlled Extensions']:
             if value is None:
-                logging.error(
-                    'DESOFLW value is None, but DESTAG in [TRE_OVERFLOW, Registered Extensions, Controlled Extensions]. '
+                logger.error(
+                    'DESOFLW value is None,\n\t'
+                    'but DESTAG in [TRE_OVERFLOW, Registered Extensions, Controlled Extensions].\n\t'
                     'This must be resolved.')
                 self._DESOFLW = ''
             elif value not in {'XHD', 'IXSHD', 'SXSHD', 'TXSHD', 'UDHD', 'UDID'}:
-                logging.error(
-                    "DESOFLW value got {}, but must be one {'XHD', 'IXSHD', 'SXSHD', 'TXSHD', 'UDHD', 'UDID'}"
+                logger.error(
+                    "DESOFLW value got {},\n\t"
+                    "but must be one {'XHD', 'IXSHD', 'SXSHD', 'TXSHD', 'UDHD', 'UDID'}.\n\t"
                     "This must be resolved.")
                 self._DESOFLW = ''
             else:
                 self._DESOFLW = value
         else:
             if value is not None:
-                logging.error(
-                    'DESTAG not in [TRE_OVERFLOW, Registered Extensions, Controlled Extensions], '
-                    'but DESOFLW value is not None. This is invalid, so setting DESOFLW to None')
+                logger.error(
+                    'DESTAG not in [TRE_OVERFLOW, Registered Extensions, Controlled Extensions],\n\t'
+                    'but DESOFLW value is not None.\n\tThis is invalid, so setting DESOFLW to None')
             self._DESOFLW = None
 
     @property
@@ -409,17 +416,18 @@ class DataExtensionHeader0(NITFElement):
         value = _parse_int(value, 3, None, 'DESITEM', self)
         if self._DESTAG.strip() in ['TRE_OVERFLOW', 'Registered Extensions', 'Controlled Extensions']:
             if value is None:
-                logging.error(
-                    'DESITEM value is None, but DESTAG in [TRE_OVERFLOW, Registered Extensions, Controlled Extensions]. '
+                logger.error(
+                    'DESITEM value is None,\n\t'
+                    'but DESTAG in [TRE_OVERFLOW, Registered Extensions, Controlled Extensions].\n\t'
                     'This must be resolved.')
                 self._DESITEM = 0
             else:
                 self._DESITEM = value
         else:
             if value is not None:
-                logging.error(
-                    'DESTAG not in [TRE_OVERFLOW, Registered Extensions, Controlled Extensions], '
-                    'but DESITEM value is not None. This is invalid, so setting DESITEM to None')
+                logger.error(
+                    'DESTAG not in [TRE_OVERFLOW, Registered Extensions, Controlled Extensions],\n\t'
+                    'but DESITEM value is not None.\n\tThis is invalid, so setting DESITEM to None')
             self._DESITEM = None
 
     @property
@@ -458,8 +466,8 @@ class DataExtensionHeader0(NITFElement):
                     data = XMLDESSubheader.from_bytes(data, 0)
                     self._UserHeader = data
                 except Exception as e:
-                    logging.error(
-                        'DESTAG is "XML_DATA_CONTENT" and data is the right length for SICD, '
+                    logger.error(
+                        'DESTAG is "XML_DATA_CONTENT" and data is the right length for SICD,\n\t'
                         'but parsing failed with error {}'.format(e))
         elif self.DESTAG.strip() == 'STREAMING_FILE_HEADER':
             # LOW Priority - I think that this is deprecated?

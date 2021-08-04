@@ -2,12 +2,13 @@
 The ErrorStatisticsType definition.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
+
 from .base import Serializable, DEFAULT_STRICT, _StringEnumDescriptor, _FloatDescriptor, \
     _SerializableDescriptor, _ParametersDescriptor, ParametersCollection
 from .blocks import ErrorDecorrFuncType
-
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
 
 
 class CompositeSCPErrorType(Serializable):

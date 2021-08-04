@@ -2,6 +2,9 @@
 This module provide utilities for extracting a suggested name for a SICD.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
 import logging
 import os
 import sys
@@ -9,9 +12,7 @@ import pkgutil
 from importlib import import_module
 from datetime import datetime
 
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
-
+logger = logging.getLogger(__name__)
 
 ###########
 # Module variables
@@ -124,7 +125,7 @@ def get_sicd_name(the_sicd, product_number=1):
     try:
         return get_commercial_id() + get_vendor_id()
     except AttributeError:
-        logging.error('Failed to construct suggested name.')
+        logger.error('Failed to construct suggested name.')
         return None
 
 

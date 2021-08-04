@@ -1,9 +1,13 @@
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
+
 import logging
 from ..tre_elements import TREExtension, TREElement
 
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
+
+logger = logging.getLogger(__name__)
 
 
 def get_ref_type_length(typ_val):
@@ -21,8 +25,8 @@ def get_ref_type_length(typ_val):
     elif typ_val in ['07c', '07f', '07g', '10a', '10b', '10c']:
         return 9
     else:
-        logging.error(
-            'An unknown type value {} was found when deserializing a SENSRB TRE object. '
+        logger.error(
+            'An unknown type value {} was found when deserializing a SENSRB TRE object.\n\t'
             'Something may fail in this deserialization.')
         return None
 

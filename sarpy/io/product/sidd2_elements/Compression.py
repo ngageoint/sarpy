@@ -2,6 +2,9 @@
 The CompressionType definition.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
 from typing import Union
 
 import numpy
@@ -10,9 +13,6 @@ from .base import DEFAULT_STRICT
 # noinspection PyProtectedMember
 from sarpy.io.complex.sicd_elements.base import Serializable, _SerializableDescriptor, \
     _IntegerDescriptor, _FloatArrayDescriptor
-
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
 
 
 class J2KSubtype(Serializable):

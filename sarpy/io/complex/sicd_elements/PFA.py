@@ -2,6 +2,10 @@
 The PFAType definition.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
+
 import logging
 import numpy
 from numpy.linalg import norm
@@ -11,10 +15,6 @@ from .base import Serializable, DEFAULT_STRICT, _BooleanDescriptor, _FloatDescri
 from .blocks import Poly1DType, Poly2DType, XYZType
 
 from sarpy.geometry import geocoords
-
-
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
 
 
 class STDeskewType(Serializable):

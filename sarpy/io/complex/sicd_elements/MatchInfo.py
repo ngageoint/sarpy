@@ -2,16 +2,16 @@
 The MatchInfoType definition.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
+
 from xml.etree import ElementTree
 from typing import List
 
 from .base import Serializable, _get_node_value, DEFAULT_STRICT, \
     _StringDescriptor, _IntegerDescriptor, _SerializableListDescriptor, _ParametersDescriptor, \
     ParametersCollection, _find_first_child, _find_children
-
-
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
 
 
 class MatchCollectionType(Serializable):
