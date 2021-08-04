@@ -12,12 +12,15 @@ import os
 import struct
 from typing import Union, BinaryIO
 from datetime import datetime
+from tempfile import mkstemp
+import zlib
 
 import numpy
 
 from sarpy.compliance import int_func, string_types
 from sarpy.io.general.base import BaseReader, BIPChipper, is_file_like, \
     SarpyIOError
+from sarpy.io.general.nitf import MemMap
 from sarpy.geometry.geocoords import geodetic_to_ecf
 
 from sarpy.io.complex.base import SICDTypeReader
@@ -36,6 +39,12 @@ from sarpy.io.complex.sicd_elements.RadarCollection import RadarCollectionType, 
 from sarpy.io.complex.sicd_elements.ImageFormation import ImageFormationType, \
     RcvChanProcType, TxFrequencyProcType
 from sarpy.io.complex.sicd_elements.Radiometric import RadiometricType, NoiseLevelType_
+
+
+try:
+    import PIL
+except ImportError:
+    PIL = None
 
 logger = logging.getLogger(__name__)
 
@@ -852,7 +861,8 @@ class _GFFHeader_2(object):
     """
 
     __slots__ = (
-        'file_object', 'estr', '_gsat_img', '_ap_info', '_if_info', '_geo_info', '_image_offset')
+        'file_object', 'estr', '_gsat_img', '_ap_info', '_if_info', '_geo_info',
+        '_image_header', '_image_offset')
 
     def __init__(self, fi, estr):
         """
@@ -868,6 +878,7 @@ class _GFFHeader_2(object):
         self._ap_info = None
         self._if_info = None
         self._geo_info = None
+        self._image_header = None
         self._image_offset = None
         self.file_object = fi
         self.estr = estr
@@ -883,6 +894,7 @@ class _GFFHeader_2(object):
         while True:
             block_header = _BlockHeader_2(fi, estr)
             if block_header.name == 'IMAGEDATA':
+                self._image_header = block_header
                 self._image_offset = fi.tell()
                 break
             elif block_header.name == 'APINFO':
@@ -918,6 +930,11 @@ class _GFFHeader_2(object):
     def geo_info(self):
         # type: () -> _GeoInfo_1
         return self._geo_info
+
+    @property
+    def image_header(self):
+        # type: () -> _BlockHeader_2
+        return self._image_header
 
     @property
     def image_offset(self):
@@ -1290,6 +1307,7 @@ class _GFFInterpreter2(_GFFInterpreter):
         """
 
         self.header = header
+        self._cached_files = []
         if self.header.gsat_img.pixelFormat.numComponents != 2:
             raise ValueError(
                 'The pixel format indicates that the number of components is `{}`, '
@@ -1311,7 +1329,6 @@ class _GFFInterpreter2(_GFFInterpreter):
         def get_image_creation():
             # type: () -> ImageCreationType
             from sarpy.__about__ import __version__
-            from datetime import datetime
             application = '{} {}'.format(self.header.gsat_img.imageCreator, self.header.ap_info.swVerNum)
             date_time = None  # todo: really?
             return ImageCreationType(
@@ -1517,11 +1534,6 @@ class _GFFInterpreter2(_GFFInterpreter):
         return out_sicd
 
     def get_chipper(self):
-        if self.header.gsat_img.imageCompressionScheme != 0:
-            raise ValueError(
-                'The image compression scheme indicates compression. '
-                'This is not currently supported.')
-
         complex_domain = _get_complex_domain_code(self.header.gsat_img.pixelFormat.cmplxDomain)
         if self.header.gsat_img.pixelFormat.numComponents != 2:
             raise ValueError(
@@ -1551,10 +1563,70 @@ class _GFFInterpreter2(_GFFInterpreter):
         else:
             raise ValueError('Got unexpected complex domain `{}`'.format(complex_domain))
 
-        return BIPChipper(
-            self.header.file_object, raw_dtype, data_size, raw_bands, output_bands, output_dtype,
-            symmetry=symmetry, transform_data=transform_data,
-            data_offset=self.header.image_offset, limit_to_raw_bands=None)
+        image_compression_scheme = self.header.gsat_img.imageCompressionScheme
+        if image_compression_scheme == 0:
+            # no compression
+            return BIPChipper(
+                self.header.file_object, raw_dtype, data_size, raw_bands, output_bands, output_dtype,
+                symmetry=symmetry, transform_data=transform_data,
+                data_offset=self.header.image_offset, limit_to_raw_bands=None)
+        elif image_compression_scheme in [1, 3]:
+            # jpeg or jpeg 2000
+            if PIL is None:
+                raise ValueError(
+                    'The GFF image is compressed using jpeg or jpeg 2000 compression, '
+                    'and decompression requires the PIL library')
+            our_memmap = MemMap(self.header.file_object.name, self.header.image_header.size, self.header.image_offset)
+            img = PIL.Image.open(our_memmap)  # this is a lazy operation
+            # dump the extracted image data out to a temp file
+            fi, path_name = mkstemp(suffix='.sarpy_cache', text=False)
+            data = numpy.asarray(img)  # create our numpy array from the PIL Image
+            if data.shape[:2] != data_size:
+                raise ValueError(
+                    'Naively decompressed data of shape {}, but expected ({}, {}, {}).'.format(
+                        data.shape, data_size[0], data_size[1], raw_bands))
+            mem_map = numpy.memmap(path_name, dtype=data.dtype, mode='w+', offset=0, shape=data.shape)
+            mem_map[:] = data
+            # clean up this memmap and file overhead
+            del mem_map
+            os.close(fi)
+            self._cached_files.append(path_name)
+            return BIPChipper(
+                path_name, raw_dtype, data_size, raw_bands, output_bands, output_dtype,
+                symmetry=symmetry, transform_data=transform_data,
+                data_offset=self.header.image_offset, limit_to_raw_bands=None)
+        elif image_compression_scheme == 2:
+            # zlib compression
+            self.header.file_object.seek(self.header.image_offset, os.SEEK_SET)
+            data_bytes = zlib.decompress(self.header.file_object.read(self.header.image_header.size))
+            fi, path_name = mkstemp(suffix='.sarpy_cache', text=False)
+            fi.write(data_bytes)
+            os.close(fi)
+            self._cached_files.append(path_name)
+            return BIPChipper(
+                path_name, raw_dtype, data_size, raw_bands, output_bands, output_dtype,
+                symmetry=symmetry, transform_data=transform_data,
+                data_offset=self.header.image_offset, limit_to_raw_bands=None)
+        else:
+            raise ValueError('Got unhandled image compression scheme code `{}`'.format(image_compression_scheme))
+
+    def __del__(self):
+        """
+        Clean up any cached files.
+
+        Returns
+        -------
+        None
+        """
+
+        if not hasattr(self, '_cached_files'):
+            return
+
+        for fil in self._cached_files:
+            # NB: this should be an absolute path
+            if os.path.exists(fil):
+                os.remove(fil)
+                logger.info('Deleted cached file {}'.format(fil))
 
 
 ####################
