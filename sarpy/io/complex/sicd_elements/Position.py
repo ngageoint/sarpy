@@ -2,6 +2,10 @@
 The PositionType definition.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
+
 from typing import List, Union
 import logging
 
@@ -10,10 +14,6 @@ import numpy
 from .base import Serializable, DEFAULT_STRICT, \
     _SerializableDescriptor, _SerializableArrayDescriptor, SerializableArray
 from .blocks import XYZType, XYZPolyType, XYZPolyAttributeType
-
-
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
 
 
 class PositionType(Serializable):

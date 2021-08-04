@@ -42,6 +42,7 @@ try:
 except ImportError:
     csk_addin = None
 
+logger = logging.getLogger(__name__)
 
 ########
 # base expected functionality for a module with an implemented Reader
@@ -73,7 +74,7 @@ def is_a(file_name):
 
     try:
         csk_details = CSKDetails(file_name)
-        logging.info('File {} is determined to be a Cosmo Skymed file.'.format(file_name))
+        logger.info('File {} is determined to be a Cosmo Skymed file.'.format(file_name))
         return CSKReader(csk_details)
     except SarpyIOError:
         return None
@@ -222,7 +223,7 @@ class CSKDetails(object):
                 elif acq_mode in ['ENHANCED SPOTLIGHT', 'SMART']:
                     mode_type = 'DYNAMIC STRIPMAP'
                 else:
-                    logging.warning('Got unexpected acquisition mode {}'.format(acq_mode))
+                    logger.warning('Got unexpected acquisition mode {}'.format(acq_mode))
                     mode_type = 'DYNAMIC STRIPMAP'
             elif self.mission_id == 'KMPS':
                 if acq_mode in ['STANDARD', 'ENHANCED STANDARD']:
@@ -234,7 +235,7 @@ class CSKDetails(object):
                     # "spotlight"
                     mode_type = 'DYNAMIC STRIPMAP'
                 else:
-                    logging.warning('Got unexpected acquisition mode {}'.format(acq_mode))
+                    logger.warning('Got unexpected acquisition mode {}'.format(acq_mode))
                     mode_type = 'DYNAMIC STRIPMAP'
             elif self.mission_id == 'CSG':
                 if acq_mode.startswith('SPOTLIGHT'):
@@ -242,7 +243,9 @@ class CSKDetails(object):
                 elif acq_mode in ['STRIPMAP', 'QUADPOL']:
                     mode_type = "STRIPMAP"
                 else:
-                    logging.warning('Got unhandled acquisition mode {}, setting to DYNAMIC STRIPMAP'.format(acq_mode))
+                    logger.warning(
+                        'Got unhandled acquisition mode {},\n\t'
+                        'setting to DYNAMIC STRIPMAP'.format(acq_mode))
                     mode_type = 'DYNAMIC STRIPMAP'
             else:
                 raise ValueError('Unhandled mission id {}'.format(self._mission_id))
@@ -282,9 +285,9 @@ class CSKDetails(object):
                     params = {'COEFFICIENT': '{0:0.16G}'.format(coefficient)}
                 out = WgtTypeType(WindowName=weight_name, Parameters=params)
                 if weight_name != 'HAMMING':
-                    logging.warning(
-                        'Got unexpected weight scheme {} for {}. The weighting will '
-                        'not be properly populated.'.format(weight_name, direction))
+                    logger.warning(
+                        'Got unexpected weight scheme {} for {}.\n\t'
+                        'The weighting will not be properly populated.'.format(weight_name, direction))
                 return out
 
             if re.sub(' ', '', h5_dict['Projection ID']).upper() == 'SLANTRANGE/AZIMUTH':

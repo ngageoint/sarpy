@@ -3,6 +3,10 @@ This module provide utilities for converting from any complex format that we can
 read to SICD or SIO format. The same conversion utility can be used to subset data.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = ("Wade Schwartzkopf", "Thomas McCullough")
+
+
 import os
 import sys
 import pkgutil
@@ -19,9 +23,7 @@ from sarpy.io.complex.sio import SIOWriter
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 
 
-__classification__ = "UNCLASSIFIED"
-__author__ = ("Wade Schwartzkopf", "Thomas McCullough")
-
+logger = logging.getLogger(__name__)
 
 ###########
 # Module variables
@@ -293,7 +295,7 @@ class Converter(object):
             block_end = min(block_start + rows_per_block, self._row_limits[1])
             data = self._reader[block_start:block_end, self._col_limits[0]:self._col_limits[1], self._frame]
             self._writer.write_chip(data, start_indices=(block_start - self._row_limits[0], 0))
-            logging.info('Done writing block {}-{} to file {}'.format(block_start, block_end, self._file_name))
+            logger.info('Done writing block {}-{} to file {}'.format(block_start, block_end, self._file_name))
             block_start = block_end
 
     def __del__(self):
@@ -307,9 +309,10 @@ class Converter(object):
         if exception_type is None:
             self._writer.close()
         else:
-            logging.error(
-                'The {} file converter generated an exception during processing. The file {} may be '
-                'only partially generated and corrupt.'.format(self.__class__.__name__, self._file_name))
+            logger.error(
+                'The {} file converter generated an exception during processing.\n\t'
+                'The file {} may be only partially generated and corrupt.'.format(
+                    self.__class__.__name__, self._file_name))
             # The exception will be reraised.
             # It's unclear how any exception could be caught.
 
@@ -452,7 +455,7 @@ def conversion_utility(
     column_limits = validate_lims(column_limits, 'column')
 
     for o_file, frame, row_lims, col_lims in zip(output_files, frames, row_limits, column_limits):
-        logging.info('Converting frame {} from file {} to file {}'.format(frame, input_file, o_file))
+        logger.info('Converting frame {} from file {} to file {}'.format(frame, input_file, o_file))
         with Converter(
                 reader, output_directory, output_file=o_file, frame=frame,
                 row_limits=row_lims, col_limits=col_lims, output_format=output_format,

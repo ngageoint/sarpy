@@ -38,6 +38,7 @@ from sarpy.io.complex.sicd_elements.RMA import RMAType, INCAType
 from sarpy.io.complex.sicd_elements.Radiometric import RadiometricType, NoiseLevelType_
 from sarpy.io.complex.utils import two_dim_poly_fit, fit_position_xvalidation
 
+logger = logging.getLogger(__name__)
 
 ########
 # base expected functionality for a module with an implemented Reader
@@ -63,7 +64,7 @@ def is_a(file_name):
 
     try:
         tsx_details = TSXDetails(file_name)
-        logging.info('Path {} is determined to be a TerraSAR-X file package.'.format(tsx_details.file_name))
+        logger.info('Path {} is determined to be a TerraSAR-X file package.'.format(tsx_details.file_name))
         return TSXReader(tsx_details)
     except (SarpyIOError, AttributeError, SyntaxError, ElementTree.ParseError):
         return None
@@ -174,8 +175,8 @@ class TSXDetails(object):
 
         georef_file = os.path.join(parent_directory, 'ANNOTATION', 'GEOREF.xml')
         if not os.path.isfile(georef_file):
-            logging.warning(
-                'The input file was determined to be or contain a TerraSAR-X level 1 product file, '
+            logger.warning(
+                'The input file was determined to be or contain a TerraSAR-X level 1 product file,\n\t'
                 'but the ANNOTATION/GEOREF.xml is not in the expected relative location.')
         else:
             self._georef_file = georef_file
@@ -406,15 +407,19 @@ class TSXDetails(object):
         dop_centroid_poly, residuals, rank, sing_values = two_dim_poly_fit(
             coords_rg, coords_az, dopp_centroid,
             x_order=poly_order, y_order=poly_order, x_scale=1e-3, y_scale=1e-3, rcond=1e-35)
-        logging.info(
-            'The dop centroid polynomial fit details:\nroot mean square residuals = {}\nrank = {}\n'
+        logger.info(
+            'The dop centroid polynomial fit details:\n\t'
+            'root mean square residuals = {}\n\t'
+            'rank = {}\n\t'
             'singular values = {}'.format(residuals, rank, sing_values))
 
         time_coa_poly, residuals, rank, sing_values = two_dim_poly_fit(
             coords_rg, coords_az, time_coa,
             x_order=poly_order, y_order=poly_order, x_scale=1e-3, y_scale=1e-3, rcond=1e-35)
-        logging.info(
-            'The dop centroid polynomial fit details:\nroot mean square residuals = {}\nrank = {}\n'
+        logger.info(
+            'The dop centroid polynomial fit details:\n\t'
+            'root mean square residuals = {}\n\t'
+            'rank = {}\n\t'
             'singular values = {}'.format(residuals, rank, sing_values))
 
         return dop_centroid_poly, time_coa_poly
@@ -488,7 +493,7 @@ class TSXDetails(object):
             elif proj_string == 'SLANTRANGE':
                 image_plane = 'SLANT'
             else:
-                logging.warning('Got image projection {}'.format(proj_string))
+                logger.warning('Got image projection {}'.format(proj_string))
                 image_plane = 'OTHER'
 
             the_type = None
@@ -980,7 +985,7 @@ class COSARDetails(object):
         scaling_rate = struct.unpack('>d', header_bytes[40:])[0]
         if csar.upper() != b'CSAR':
             raise ValueError('unexpected csar value {}'.format(csar))
-        logging.info(
+        logger.debug(
             'Parsed COSAR burst:'
             '\n\tburst_in_bytes = {}'
             '\n\trsri = {}'

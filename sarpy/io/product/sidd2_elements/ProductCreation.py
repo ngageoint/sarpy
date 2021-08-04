@@ -2,6 +2,9 @@
 The ProductCreationType definition.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
 import logging
 from typing import Union
 from datetime import datetime
@@ -16,8 +19,7 @@ from sarpy.io.complex.sicd_elements.base import Serializable, _SerializableDescr
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 
 
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
+logger = logging.getLogger(__name__)
 
 
 def extract_classification_from_sicd(sicd):
@@ -50,8 +52,9 @@ def extract_classification_from_sicd(sicd):
     elif c_str == 'FOUO' or c_str.startswith('REST') or c_str == 'R':
         clas = 'R'
     else:
-        logging.critical('Unclear how to extract classification code for classification string {}. '
-                         'It will default to unclassified, and should be set appropriately.'.format(c_str))
+        logger.critical(
+            'Unclear how to extract classification code for classification string {}.\n\t'
+            'It will default to unclassified, and should be set appropriately.'.format(c_str))
     return clas
 
 

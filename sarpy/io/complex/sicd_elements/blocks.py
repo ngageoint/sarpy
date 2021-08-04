@@ -2,6 +2,10 @@
 Basic building blocks for SICD standard.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
+
 from collections import OrderedDict
 
 import numpy
@@ -11,10 +15,6 @@ from .base import _get_node_value, _create_text_node, _create_new_node, _find_ch
     Serializable, Arrayable, DEFAULT_STRICT, \
     _StringEnumDescriptor, _IntegerDescriptor, _FloatDescriptor, _FloatModularDescriptor, \
     _SerializableDescriptor
-
-
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
 
 
 #########

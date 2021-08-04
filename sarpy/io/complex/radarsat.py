@@ -43,6 +43,7 @@ from sarpy.io.complex.sicd_elements.SCPCOA import SCPCOAType
 from sarpy.io.complex.sicd_elements.Radiometric import RadiometricType, NoiseLevelType_
 from sarpy.io.complex.utils import fit_time_coa_polynomial, fit_position_xvalidation
 
+logger = logging.getLogger(__name__)
 
 ########
 # base expected functionality for a module with an implemented Reader
@@ -67,7 +68,7 @@ def is_a(file_name):
 
     try:
         details = RadarSatDetails(file_name)
-        logging.info('Path {} is determined to be or contain a RadarSat or RCM product.xml file.'.format(file_name))
+        logger.info('Path {} is determined to be or contain a RadarSat or RCM product.xml file.'.format(file_name))
         return RadarSatReader(details)
     except SarpyIOError:
         return None
@@ -385,8 +386,13 @@ class RadarSatDetails(object):
             # verify that the grid assumption is preserved
             if grid_col >= len(samples) or grid_row >= len(lines) or \
                     line != lines[grid_row] or sample != samples[grid_col]:
-                logging.error('Failed parsing grid at\ngrid_col = {}\nsamples = {}\ngrid_row = {}\nlines = {}\n'
-                              'line={},sample={}'.format(grid_col, samples, grid_row, lines, line, sample))
+                logger.error(
+                    'Failed parsing grid at\n\t'
+                    'grid_col = {}\n\t'
+                    'samples = {}\n\t'
+                    'grid_row = {}\n\t'
+                    'lines = {}\n\t'
+                    'line={}, sample={}'.format(grid_col, samples, grid_row, lines, line, sample))
                 raise ValueError('The grid assumption is invalid at imageTiePoint entry {}'.format(i))
         lines = numpy.array(lines, dtype='float64')
         samples = numpy.array(samples, dtype='float64')
@@ -978,7 +984,7 @@ class RadarSatDetails(object):
                 raise ValueError('unhandled generation {}'.format(self.generation))
 
             if not os.path.isfile(beta_file):
-                logging.error(
+                logger.error(
                     msg="Beta calibration information should be located in file {}, "
                         "which doesn't exist.".format(beta_file))
                 return None
@@ -1380,7 +1386,7 @@ class RadarSatDetails(object):
                 base_path, 'calibration',
                 self._find('./imageReferenceAttributes/lookupTableFileName[@sarCalibrationType="Gamma"]').text)
             if not os.path.isfile(beta_file):
-                logging.error(
+                logger.error(
                     msg="Beta calibration information should be located in file {}, "
                         "which doesn't exist.".format(beta_file))
                 return None

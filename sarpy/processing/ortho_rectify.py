@@ -65,6 +65,10 @@ to a JPEG.
     img.save('<image file name.jpeg>')
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
+
 import logging
 import os
 from typing import Union, Tuple, List, Any
@@ -82,8 +86,8 @@ from sarpy.geometry.geocoords import geodetic_to_ecf, ecf_to_geodetic, wgs_84_no
 from sarpy.geometry.geometry_elements import GeometryObject
 from sarpy.visualization.remap import amplitude_to_density, clip_cast
 
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
+
+logger = logging.getLogger(__name__)
 
 
 ##################
@@ -775,7 +779,7 @@ class PGProjection(ProjectionHelper):
             self._col_vector = col_vector
         # check for outward unit norm
         if numpy.dot(self.normal_vector, self.reference_point) < 0:
-            logging.warning(
+            logger.warning(
                 'The normal vector appears to be outward pointing, so reversing.')
             self._normal_vector *= -1
 
@@ -1982,7 +1986,8 @@ def _get_data_mean_magnitude(bounds, reader, index, block_size_in_bytes):
     """
 
     # Extract the mean of the data magnitude - for global remap usage
-    logging.info('Calculating mean over the block ({}:{}, {}:{}), this may be time consuming'.format(*bounds))
+    logger.info(
+        'Calculating mean over the block ({}:{}, {}:{}), this may be time consuming'.format(*bounds))
     mean_block_size = _get_fetch_block_size(bounds[0], bounds[1], block_size_in_bytes)
     mean_column_blocks, _ = _extract_blocks((bounds[2], bounds[3], 1), mean_block_size)
     mean_total = 0.0
@@ -2656,7 +2661,7 @@ class OrthorectificationIterator(object):
         # accommodate for real pixel limits
         this_pixel_bounds = self._ortho_helper.get_real_pixel_bounds(this_pixel_bounds)
         # extract the csi data and ortho-rectify
-        logging.info(
+        logger.info(
             'Fetching orthorectified coordinate block ({}:{}, {}:{}) of ({}, {})'.format(
                 this_ortho_bounds[0] - self.ortho_bounds[0], this_ortho_bounds[1] - self.ortho_bounds[0],
                 this_ortho_bounds[2] - self.ortho_bounds[2], this_ortho_bounds[3] - self.ortho_bounds[2],

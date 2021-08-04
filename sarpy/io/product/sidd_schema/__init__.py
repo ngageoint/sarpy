@@ -9,6 +9,7 @@ from typing import List
 from sarpy.compliance import string_types
 
 logger = logging.getLogger('validation')
+
 _the_directory = os.path.split(__file__)[0]
 urn_mapping = {
     'urn:SIDD:1.0.0': {

@@ -2,6 +2,10 @@
 The ProductDisplayType definition.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
+
 from typing import Union, List
 
 from .base import DEFAULT_STRICT
@@ -10,10 +14,6 @@ from .blocks import FilterType, NewLookupTableType
 from sarpy.io.complex.sicd_elements.base import Serializable, _SerializableDescriptor, _SerializableListDescriptor, \
     _IntegerDescriptor, _FloatDescriptor, _StringDescriptor, _StringEnumDescriptor, \
     _ParametersDescriptor, ParametersCollection, SerializableArray, _SerializableArrayDescriptor
-
-
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
 
 
 #########

@@ -2,6 +2,10 @@
 The SRP definition for CPHD 0.3.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
+
 import logging
 from typing import Union, List
 
@@ -12,8 +16,7 @@ from sarpy.io.complex.sicd_elements.base import Serializable, _parse_str, _parse
 from sarpy.io.complex.sicd_elements.blocks import XYZType, XYZPolyType
 
 
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
+logger = logging.getLogger(__name__)
 
 
 class PlainArrayType(SerializableArray):
@@ -93,10 +96,11 @@ class SRPTyp(Serializable):
             if value in ('FIXEDPT', 'PVTPOLY', 'PVVPOLY', 'STEPPED'):
                 self._SRPType = value
             else:
-                logging.warning(
-                    'Got {} for the SRPType field of class SRPTyp. It is required to be one of {}. '
-                    'Setting to None, which is required to be '
-                    'fixed.'.format(value, ('FIXEDPT', 'PVTPOLY', 'PVVPOLY', 'STEPPED')))
+                logger.warning(
+                    'Got {} for the SRPType field of class SRPTyp.\n\t'
+                    'It is required to be one of {}.\n\t'
+                    'Setting to None, which is required to be fixed.'.format(
+                        value, ('FIXEDPT', 'PVTPOLY', 'PVVPOLY', 'STEPPED')))
                 self._SRPType = None
 
     @property

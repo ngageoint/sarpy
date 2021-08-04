@@ -60,7 +60,8 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     if args.verbose > 0:
-        logging.basicConfig(level='INFO')
+        logger = logging.getLogger('sarpy')
+        logger.setLevel('INFO')
 
     reader = open_complex(args.input_file)
     degree = _parse_method(args.method)

@@ -36,6 +36,8 @@ from sarpy.io.product.sidd1_elements.Measurement import MeasurementType as Measu
 from sarpy.io.product.sidd1_elements.ExploitationFeatures import ExploitationFeaturesType as ExploitationFeaturesType1
 from sarpy.io.product.sidd1_elements.ProductCreation import ProductCreationType as ProductCreationType1
 
+logger = logging.getLogger(__name__)
+
 
 def _fit_timecoa_poly(proj_helper, bounds):
     """
@@ -77,7 +79,11 @@ def _fit_timecoa_poly(proj_helper, bounds):
         ortho_grid[:, :, 0] - bounds[0],
         ortho_grid[:, :, 1] - bounds[2], timecoa_values,
         x_order=use_order, y_order=use_order, x_scale=1e-3, y_scale=1e-3, rcond=1e-40)
-    logging.warning('The time_coa_fit details:\nroot mean square residuals = {}\nrank = {}\nsingular values = {}'.format(residuals, rank, sing_values))
+    logger.warning(
+        'The time_coa_fit details:\n\t'
+        'root mean square residuals = {}\n\t'
+        'rank = {}\n\t'
+        'singular values = {}'.format(residuals, rank, sing_values))
     return Poly2DType(Coefs=sidd_timecoa_coeffs)
 
 

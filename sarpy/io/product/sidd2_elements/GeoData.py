@@ -2,6 +2,9 @@
 The GeoDataType definition.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
 from collections import OrderedDict
 from typing import Union, List
 from xml.etree import ElementTree
@@ -12,9 +15,6 @@ from sarpy.io.complex.sicd_elements.base import Serializable, SerializableArray,
     _find_children
 from .base import DEFAULT_STRICT
 from .blocks import LatLonCornerStringType, LatLonArrayElementType, GeoInfoType
-
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
 
 
 class GeoDataType(Serializable):

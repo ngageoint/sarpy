@@ -2,6 +2,9 @@
 The MeasurementType definition for SIDD 1.0.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
 from typing import Union
 
 from sarpy.io.product.sidd2_elements.base import DEFAULT_STRICT
@@ -11,9 +14,6 @@ from sarpy.io.complex.sicd_elements.base import Serializable, _SerializableDescr
 from sarpy.io.product.sidd2_elements.blocks import RowColIntType, XYZPolyType
 from sarpy.io.product.sidd2_elements.Measurement import PolynomialProjectionType, \
     GeographicProjectionType, PlaneProjectionType, CylindricalProjectionType
-
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
 
 
 class MeasurementType(Serializable):

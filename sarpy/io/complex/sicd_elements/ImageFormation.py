@@ -2,6 +2,10 @@
 The ImageFormationType definition.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
+
 from typing import List, Union
 import logging
 
@@ -14,10 +18,6 @@ from .base import Serializable, DEFAULT_STRICT, \
 from .blocks import DUAL_POLARIZATION_VALUES
 from .RadarCollection import get_band_name
 from .utils import is_polstring_version1
-
-
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
 
 
 class RcvChanProcType(Serializable):
