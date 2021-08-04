@@ -37,6 +37,8 @@ from sarpy.io.complex.sicd_elements.ImageFormation import ImageFormationType, \
     RcvChanProcType, TxFrequencyProcType
 from sarpy.io.complex.sicd_elements.Radiometric import RadiometricType, NoiseLevelType_
 
+logger = logging.getLogger(__name__)
+
 
 ########
 # base expected functionality for a module with an implemented Reader
@@ -61,7 +63,7 @@ def is_a(file_name):
 
     try:
         gff_details = GFFDetails(file_name)
-        logging.info('File {} is determined to be a GFF version {} file.'.format(
+        logger.info('File {} is determined to be a GFF version {} file.'.format(
             file_name, gff_details.version))
         return GFFReader(gff_details)
     except SarpyIOError:
@@ -983,17 +985,17 @@ class _GFFHeader_2(object):
         valid = True
         if self._ap_info is None:
             valid = False
-            logging.error(
+            logger.error(
                 'GFF version {} file did not present APINFO block'.format(
                     gsat_header.version))
         if self._if_info is None:
             valid = False
-            logging.error(
+            logger.error(
                 'GFF version {} file did not present IFINFO block'.format(
                     gsat_header.version))
         if self._geo_info is None:
             valid = False
-            logging.error(
+            logger.error(
                 'GFF version {} file did not present GEOINFO block'.format(
                     gsat_header.version))
         if not valid:
