@@ -2,6 +2,9 @@
 Multipurpose basic SIDD elements
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
 from collections import OrderedDict
 from typing import Union
 
@@ -23,9 +26,6 @@ from sarpy.io.complex.sicd_elements.Radiometric import RadiometricType as Radiom
 from sarpy.io.complex.sicd_elements.MatchInfo import MatchInfoType as MatchInfoTypeBase
 from sarpy.io.complex.sicd_elements.GeoData import GeoInfoType as GeoInfoTypeBase
 from sarpy.io.complex.sicd_elements.CollectionInfo import RadarModeType as RadarModeTypeBase
-
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
 
 
 ############

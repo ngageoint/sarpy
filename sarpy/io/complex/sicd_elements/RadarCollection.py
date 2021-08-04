@@ -2,6 +2,10 @@
 The RadarCollectionType definition.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
+
 from typing import List, Union
 import logging
 
@@ -21,8 +25,7 @@ from .utils import is_polstring_version1
 import sarpy.geometry.geocoords as geocoords
 
 
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
+logger = logging.getLogger(__name__)
 
 
 def get_band_name(freq):
@@ -258,8 +261,9 @@ class WaveformParametersType(Serializable):
             try:
                 self._RcvFMRate = _parse_float(value, 'RcvFMRate', self)
             except Exception as e:
-                logging.error(
-                    'Failed parsing value {} for field RCVFMRate of type "float", with error {} - {}.'
+                logger.error(
+                    'Failed parsing value {} for field RCVFMRate of type "float",\n\t'
+                    'with error {} - {}.\n\t'
                     'The value has been set to None.'.format(value, type(e), e))
                 self._RcvFMRate = None
 

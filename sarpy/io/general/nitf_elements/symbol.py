@@ -2,6 +2,10 @@
 The symbol header element definition - only applies to NITF 2.0
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
+
 import struct
 import numpy
 
@@ -9,9 +13,6 @@ from sarpy.compliance import int_func
 from .base import NITFElement, UserHeaderType, _IntegerDescriptor,\
     _StringDescriptor, _StringEnumDescriptor, _NITFElementDescriptor
 from .security import NITFSecurityTags0
-
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
 
 
 class SymbolSegmentHeader(NITFElement):

@@ -2,6 +2,9 @@
 The ProductDisplayType definition for SIDD 1.0.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
 from typing import Union, List
 from xml.etree import ElementTree
 from collections import OrderedDict
@@ -15,9 +18,6 @@ from sarpy.io.complex.sicd_elements.base import Serializable, _SerializableDescr
     _SerializableArrayDescriptor, SerializableArray, _SerializableListDescriptor, \
     _StringDescriptor, _ParametersDescriptor, ParametersCollection, \
     _StringListDescriptor, _find_children
-
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
 
 
 class GeographicInformationType(Serializable):

@@ -2,6 +2,9 @@
 The AnnotationsType definition.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
 import logging
 from typing import Union, List
 
@@ -22,8 +25,7 @@ from sarpy.geometry.geometry_elements import Point as PointType, \
     MultiLineString as MultiLineStringType, \
     MultiPolygon as MultiPolygonType
 
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
+logger = logging.getLogger(__name__)
 
 
 class ParameterType(Serializable):
@@ -432,9 +434,9 @@ class AnnotationObjectType(Serializable):
         elif MultiPolygon is not None:
             self.MultiPolygon = MultiPolygon
         else:
-            logging.error("One of (Point, Line, LinearRing, Polygon, MultiPoint, "
-                          "MultiLineString, MultiPolygon) should have been provided to the "
-                          "AnnotationObjectType constructor.")
+            logger.error(
+                "One of (Point, Line, LinearRing, Polygon, MultiPoint, MultiLineString, MultiPolygon)\n\t"
+                "should have been provided to the AnnotationObjectType constructor.")
         super(AnnotationObjectType, self).__init__(**kwargs)
 
     @property
@@ -624,8 +626,9 @@ class AnnotationObjectType(Serializable):
         elif typ == 'MultiPolygon':
             return cls(MultiPolygon=MultiPolygonType.from_dict(input_dict))
         else:
-            logging.error('AnnotationObjectType got unsupported input dictionary {}. '
-                          'Returning None.'.format(input_dict))
+            logger.error(
+                'AnnotationObjectType got unsupported input dictionary {}.\n\t'
+                'Returning None.'.format(input_dict))
             return None
 
     @staticmethod

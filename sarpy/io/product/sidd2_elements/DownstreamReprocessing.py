@@ -2,6 +2,9 @@
 The DownstreamReprocessingType definition.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
 from typing import Union, List
 from datetime import datetime
 
@@ -13,9 +16,6 @@ from .blocks import RowColDoubleType, RowColIntType
 from sarpy.io.complex.sicd_elements.base import Serializable, _SerializableDescriptor, \
     _ParametersDescriptor, ParametersCollection, _StringDescriptor, \
     _DateTimeDescriptor, _SerializableListDescriptor
-
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
 
 
 class GeometricChipType(Serializable):

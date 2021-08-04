@@ -14,6 +14,7 @@ import numpy
 from sarpy.compliance import int_func, integer_types, string_types
 from sarpy.io.general.utils import validate_range, reverse_range, is_file_like
 
+logger = logging.getLogger(__name__)
 
 ##################
 # module variables
@@ -570,7 +571,7 @@ class BaseReader(object):
         if not isinstance(reader_type, string_types):
             raise ValueError('reader_type must be a string, got {}'.format(type(reader_type)))
         if reader_type not in READER_TYPES:
-            logging.error(
+            logger.error(
                 'reader_type has value {}, while it is expected to be '
                 'one of {}'.format(reader_type, READER_TYPES))
         self._reader_type = reader_type
@@ -1075,9 +1076,10 @@ class AbstractWriter(object):
         if exception_type is None:
             self.close()
         else:
-            logging.error(
-                'The {} file writer generated an exception during processing. The file {} may be '
-                'only partially generated and corrupt.'.format(self.__class__.__name__, self._file_name))
+            logger.error(
+                'The {} file writer generated an exception during processing.\n\t'
+                'The file {} may be only partially generated and corrupt.'.format(
+                    self.__class__.__name__, self._file_name))
             # The exception will be reraised.
             # It's unclear how any exception could be caught.
 
@@ -1194,8 +1196,8 @@ class BIPChipper(BaseChipper):
                                                     shape=self._shape)
                 except Exception as e:
                     # fall back to direct reading
-                    logging.error(
-                        'Error setting up a BIP chipper - {}\n'
+                    logger.error(
+                        'Error setting up a BIP chipper - {}\n\t'
                         'This may actually be fatal.'.format(e))
                     self._memory_map = None
             else:
@@ -1220,7 +1222,7 @@ class BIPChipper(BaseChipper):
                 #   constructing a memmap for any file larger than 2GB
                 self._file_object = open(self._file_name, mode='rb')
                 self._close_after = True
-                logging.warning(
+                logger.warning(
                     'Falling back to reading file {} manually, instead of using '
                     'numpy memmap.'.format(self._file_name))
         self._validate_limit_to_raw_bands(limit_to_raw_bands)
@@ -1519,9 +1521,9 @@ class BIRChipper(BaseChipper):
                 #   constructing a memmap for any file larger than 2GB
                 self._file_object = open(self._file_name, mode='rb')
                 self._close_after = True
-                logging.warning(
-                    'Falling back to reading file {} manually, instead of using '
-                    'numpy memmap.'.format(self._file_name))
+                logger.warning(
+                    'Falling back to reading file {} manually,\n\t'
+                    'instead of using numpy memmap.'.format(self._file_name))
         self._validate_limit_to_raw_bands(limit_to_raw_bands)
 
     def _validate_limit_to_raw_bands(self, limit_to_raw_bands):
@@ -1710,10 +1712,11 @@ class BIPWriter(AbstractWriter):
             # if 32-bit python, then we'll fail for any file larger than 2GB
             # we fall-back to a slower version of reading manually
             self._fid = open(self._file_name, mode='r+b')
-            logging.warning(
-                'Falling back to writing file {} manually (instead of using mem-map). This has almost '
-                'certainly occurred because you are 32-bit python to try to read (portions of) a file '
-                'which is larger than 2GB.'.format(self._file_name))
+            logger.warning(
+                'Falling back to writing file {} manually (instead of using mem-map).\n\t'
+                'This has almost certainly occurred because you are 32-bit python\n\t'
+                'to try to read (portions of) a file which is larger than 2GB.'.format(
+                    self._file_name))
 
     def write_chip(self, data, start_indices=(0, 0)):
         self.__call__(data, start_indices=start_indices)
@@ -1818,8 +1821,9 @@ class BIPWriter(AbstractWriter):
         if exception_type is None:
             self.close()
         else:
-            logging.error(
-                'The {} file writer generated an exception during processing. The file {} may be '
-                'only partially generated and corrupt.'.format(self.__class__.__name__, self._file_name))
+            logger.error(
+                'The {} file writer generated an exception during processing.\n\t'
+                'The file {} may be only partially generated and corrupt.'.format(
+                    self.__class__.__name__, self._file_name))
             # The exception will be reraised.
             # It's unclear how any exception could be caught.

@@ -1,5 +1,3 @@
-import logging
-# logging.basicConfig(level=logging.INFO)  # this is unnecessarily noisy
 
 import os
 import sys

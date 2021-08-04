@@ -2,15 +2,15 @@
 The CollectionInfo object definition.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
+
 from typing import List
 
 from .base import Serializable, DEFAULT_STRICT, \
     _StringDescriptor, _StringEnumDescriptor, _StringListDescriptor, \
     _SerializableDescriptor, _ParametersDescriptor, ParametersCollection
-
-
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
 
 
 class RadarModeType(Serializable):

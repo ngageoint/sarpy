@@ -16,6 +16,9 @@ import numpy
 
 from sarpy.compliance import string_types, integer_types
 
+
+logger = logging.getLogger(__name__)
+
 ##########
 # utility functions
 
@@ -671,7 +674,7 @@ class GeometryCollection(Geometry):
             raise TypeError(
                 'geometries must be None or a list of Geometry objects. Got type {}'.format(type(geometries)))
         elif len(geometries) < 2:
-            logging.warning('GeometryCollection should contain a list of geometries with length greater than 1.')
+            logger.warning('GeometryCollection should contain a list of geometries with length greater than 1.')
 
         self._geometries = []
         for entry in geometries:
@@ -1078,14 +1081,15 @@ class LineString(GeometryObject):
                 'The second dimension of coordinates must have between 2 and 4 entries. '
                 'Got shape {}'.format(coordinates.shape))
         if coordinates.shape[0] < 2:
-            logging.info(
-                'LineString coordinates should consist of at least 2 points. '
+            logger.info(
+                'LineString coordinates should consist of at least 2 points.\n\t'
                 'Got shape {}'.format(coordinates.shape))
         coordinates = _compress_identical(coordinates)
         if coordinates.shape[0] < 2:
-            logging.info(
-                'coordinates should consist of at least 2 points after suppressing '
-                'consecutive repeated points. Got shape {}'.format(coordinates.shape))
+            logger.info(
+                'coordinates should consist of at least 2 points after\n\t'
+                'suppressing consecutive repeated points.\n\t'
+                'Got shape {}'.format(coordinates.shape))
         self._coordinates = coordinates
 
     def self_intersection(self):
@@ -1412,16 +1416,18 @@ class LinearRing(LineString):
             raise ValueError('The second dimension of coordinates must have between 2 and 4 entries. '
                              'Got shape {}'.format(coordinates.shape))
         if coordinates.shape[0] < 3:
-            logging.info('coordinates must consist of at least 3 points. '
-                          'Got shape {}'.format(coordinates.shape))
+            logger.info(
+                'coordinates must consist of at least 3 points.\n\t'
+                'Got shape {}'.format(coordinates.shape))
         coordinates = _compress_identical(coordinates)
         if (coordinates[0, 0] != coordinates[-1, 0]) or \
                 (coordinates[0, 1] != coordinates[-1, 1]):
             coordinates = numpy.vstack((coordinates, coordinates[0, :]))
         if coordinates.shape[0] < 4:
-            logging.info(
-                'After compressing repeated (in sequence) points and ensuring first and '
-                'last point are the same, coordinates must contain at least 4 points. '
+            logger.info(
+                'After compressing repeated (in sequence) points and\n\t'
+                'ensuring first and last point are the same,\n\t'
+                'coordinates must contain at least 4 points.\n\t'
                 'Got shape {}'.format(coordinates.shape))
         self._coordinates = coordinates
         # construct bounding box
@@ -1783,7 +1789,9 @@ class Polygon(GeometryObject):
         for entry in coordinates[1:]:
             self.add_inner_ring(entry)
         if self.self_intersection():
-            logging.warning('Polygon has a self-intersection. This does not strictly comply with the geojson standard.')
+            logger.warning(
+                'Polygon has a self-intersection.\n\t'
+                'This does not strictly comply with the geojson standard.')
 
     def self_intersection(self):
         """

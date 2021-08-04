@@ -15,6 +15,7 @@ from sarpy.compliance import string_types, bytes_to_string
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas Mccullough"
 
+logger = logging.getLogger(__name__)
 
 ###############
 # module variables
@@ -56,11 +57,13 @@ def register_tre(tre_type, tre_id=None, replace=False):
 
     if tre_id in _TRE_Registry:
         if replace:
-            logging.warning(
-                'TRE with id {} is already registered. We are replacing the definition.'.format(tre_type))
+            logger.warning(
+                'TRE with id {} is already registered.\n\t'
+                'We are replacing the definition.'.format(tre_type))
         else:
-            logging.warning(
-                'TRE with id {} is already registered. We are NOT replacing the definition.'.format(tre_type))
+            logger.warning(
+                'TRE with id {} is already registered.\n\t'
+                'We are NOT replacing the definition.'.format(tre_type))
             return
     _TRE_Registry[tre_id] = tre_type
 
@@ -110,7 +113,7 @@ def parse_package(packages=None):
     if isinstance(packages, string_types):
         packages = [packages, ]
 
-    logging.info('Finding and registering TREs contained in packages {}'.format(packages))
+    logger.info('Finding and registering TREs contained in packages {}'.format(packages))
     # walk the packages, find all subclasses of TRE, dump them into our dictionary
 
     def check_module(module_name):
@@ -132,4 +135,4 @@ def parse_package(packages=None):
 
     for pack in packages:
         check_module(pack)
-    logging.info('We now have {} registered TREs'.format(len(_TRE_Registry)))
+    logger.info('We now have {} registered TREs'.format(len(_TRE_Registry)))
