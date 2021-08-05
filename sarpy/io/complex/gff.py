@@ -18,8 +18,8 @@ import zlib
 import numpy
 
 from sarpy.compliance import int_func, string_types
-from sarpy.io.general.base import BaseReader, BIPChipper, is_file_like, \
-    SarpyIOError
+from sarpy.io.general.base import BaseReader, BIPChipper, BSQChipper, \
+    is_file_like, SarpyIOError
 from sarpy.io.general.nitf import MemMap
 from sarpy.geometry.geocoords import geodetic_to_ecf
 
@@ -1543,15 +1543,8 @@ class _GFFInterpreter2(_GFFInterpreter):
         out_sicd.populate_rniirs(override=False)
         return out_sicd
 
-    def _get_interleaved_chipper(self):
-        complex_domain = _get_complex_domain_code(self.header.gsat_img.pixelFormat.cmplxDomain)
-
-        dtype0 = _get_numpy_dtype(self.header.gsat_img.pixelFormat.comp0_dataType)
-        dtype1 = _get_numpy_dtype(self.header.gsat_img.pixelFormat.comp1_dataType)
-
-        raw_bands = 1
-        output_bands = 1
-        output_dtype = 'complex64'
+    def _get_size_and_symmetry(self):
+        # type: () -> ((int, int), (bool, bool, bool))
         if self.header.gsat_img.pixOrder == 0:
             # in range consecutive order
             data_size = (self.header.gsat_img.rangePixels, self.header.gsat_img.azPixels)
@@ -1562,7 +1555,75 @@ class _GFFInterpreter2(_GFFInterpreter):
             symmetry = (False, False, True)
         else:
             raise ValueError('Got unexpected pixel order `{}`'.format(self.header.gsat_img.pixOrder))
+        return data_size, symmetry
 
+    def _check_image_validity(self, band_order):
+        # type: (str) -> None
+
+        if self.header.gsat_img.pixelFormat.numComponents != 2:
+            raise ValueError(
+                'Got unexpected number of components `{}`'.format(
+                    self.header.gsat_img.pixelFormat.numComponents))
+
+        image_compression_scheme = self.header.gsat_img.imageCompressionScheme
+        if image_compression_scheme in [1, 3]:
+            if band_order == 'sequential':
+                raise ValueError(
+                    'GFF with sequential bands and jpeg or jpeg 2000 compression currently unsupported.')
+            if PIL is None:
+                raise ValueError(
+                    'The GFF image is compressed using jpeg or jpeg 2000 compression, '
+                    'and decompression requires the PIL library')
+
+    def _extract_zlib_image(self):
+        # type: () -> str
+        if self.header.gsat_img.imageCompressionScheme != 2:
+            raise ValueError('The image is not zlib compressed')
+        self.header.file_object.seek(self.header.image_offset, os.SEEK_SET)
+        data_bytes = zlib.decompress(self.header.file_object.read(self.header.image_header.size))
+        fi, path_name = mkstemp(suffix='.sarpy_cache', text=False)
+        os.close(fi)
+        self._cached_files.append(path_name)
+        logger.info('Created cached file {} for decompressed data'.format(path_name))
+        with open(path_name, 'wb') as the_file:
+            the_file.write(data_bytes)
+        logger.info('Filled cached file {}'.format(path_name))
+        return path_name
+
+    def _extract_pil_image(self, band_order, data_size):
+        # type: (str, (int, int)) -> str
+        if band_order == 'sequential':
+            raise ValueError(
+                'GFF with sequential bands and jpeg or jpeg 2000 compression currently unsupported.')
+        our_memmap = MemMap(self.header.file_object.name, self.header.image_header.size, self.header.image_offset)
+        img = PIL.Image.open(our_memmap)  # this is a lazy operation
+        # dump the extracted image data out to a temp file
+        fi, path_name = mkstemp(suffix='.sarpy_cache', text=False)
+        os.close(fi)
+        self._cached_files.append(path_name)
+        logger.info('Created cached file {} for decompressed data'.format(path_name))
+        data = numpy.asarray(img)  # create our numpy array from the PIL Image
+        if data.shape[:2] != data_size:
+            raise ValueError(
+                'Naively decompressed data of shape {}, but expected ({}, {}, {}).'.format(
+                    data.shape, data_size[0], data_size[1], 2))
+        mem_map = numpy.memmap(path_name, dtype=data.dtype, mode='w+', offset=0, shape=data.shape)
+        mem_map[:] = data
+        # clean up this memmap and file overhead
+        del mem_map
+        logger.info('Filled cached file {}'.format(path_name))
+        return path_name
+
+    def _get_interleaved_chipper(self):
+        complex_domain = _get_complex_domain_code(self.header.gsat_img.pixelFormat.cmplxDomain)
+
+        dtype0 = _get_numpy_dtype(self.header.gsat_img.pixelFormat.comp0_dataType)
+        dtype1 = _get_numpy_dtype(self.header.gsat_img.pixelFormat.comp1_dataType)
+
+        raw_bands = 1
+        output_bands = 1
+        output_dtype = 'complex64'
+        data_size, symmetry = self._get_size_and_symmetry()
         if complex_domain == 'IQ':
             raw_dtype = numpy.dtype([('real', dtype0), ('imag', dtype1)])
             transform_data = I_Q_to_complex()
@@ -1581,74 +1642,88 @@ class _GFFInterpreter2(_GFFInterpreter):
         image_compression_scheme = self.header.gsat_img.imageCompressionScheme
         if image_compression_scheme == 0:
             # no compression
-            return BIPChipper(
-                self.header.file_object, raw_dtype, data_size, raw_bands, output_bands, output_dtype,
-                symmetry=symmetry, transform_data=transform_data,
-                data_offset=self.header.image_offset, limit_to_raw_bands=None)
+            the_file = self.header.file_object
+            data_offset = self.header.image_offset
         elif image_compression_scheme in [1, 3]:
-            # jpeg or jpeg 2000
-            if PIL is None:
-                raise ValueError(
-                    'The GFF image is compressed using jpeg or jpeg 2000 compression, '
-                    'and decompression requires the PIL library')
-            our_memmap = MemMap(self.header.file_object.name, self.header.image_header.size, self.header.image_offset)
-            img = PIL.Image.open(our_memmap)  # this is a lazy operation
-            # dump the extracted image data out to a temp file
-            fi, path_name = mkstemp(suffix='.sarpy_cache', text=False)
-            os.close(fi)
-            self._cached_files.append(path_name)
-            logger.info('Created cached file {} for decompressed data'.format(path_name))
-            data = numpy.asarray(img)  # create our numpy array from the PIL Image
-            if data.shape[:2] != data_size:
-                raise ValueError(
-                    'Naively decompressed data of shape {}, but expected ({}, {}, {}).'.format(
-                        data.shape, data_size[0], data_size[1], raw_bands))
-            mem_map = numpy.memmap(path_name, dtype=data.dtype, mode='w+', offset=0, shape=data.shape)
-            mem_map[:] = data
-            # clean up this memmap and file overhead
-            del mem_map
-            logger.info('Filled cached file {}'.format(path_name))
-            return BIPChipper(
-                path_name, raw_dtype, data_size, raw_bands, output_bands, output_dtype,
-                symmetry=symmetry, transform_data=transform_data,
-                data_offset=0, limit_to_raw_bands=None)
+            # jpeg or jpeg 2000 compression
+            the_file = self._extract_pil_image('interleaved', data_size)
+            data_offset = 0
         elif image_compression_scheme == 2:
             # zlib compression
-            self.header.file_object.seek(self.header.image_offset, os.SEEK_SET)
-            data_bytes = zlib.decompress(self.header.file_object.read(self.header.image_header.size))
-            print(len(data_bytes), data_size[0]*data_size[1]*raw_dtype.itemsize)
-            fi, path_name = mkstemp(suffix='.sarpy_cache', text=False)
-            os.close(fi)
-            self._cached_files.append(path_name)
-            logger.info('Created cached file {} for decompressed data'.format(path_name))
-            with open(path_name, 'wb') as the_file:
-                the_file.write(data_bytes)
-            logger.info('Filled cached file {}'.format(path_name))
-            return BIPChipper(
-                path_name, raw_dtype, data_size, raw_bands, output_bands, output_dtype,
-                symmetry=symmetry, transform_data=transform_data,
-                data_offset=0, limit_to_raw_bands=None)
+            the_file = self._extract_zlib_image()
+            data_offset = 0
         else:
             raise ValueError('Got unhandled image compression scheme code `{}`'.format(image_compression_scheme))
+        return BIPChipper(
+            the_file, raw_dtype, data_size, raw_bands, output_bands, output_dtype,
+            symmetry=symmetry, transform_data=transform_data,
+            data_offset=data_offset, limit_to_raw_bands=None)
 
     def _get_sequential_chipper(self):
         image_compression_scheme = self.header.gsat_img.imageCompressionScheme
+        complex_domain = _get_complex_domain_code(self.header.gsat_img.pixelFormat.cmplxDomain)
 
-        if image_compression_scheme in [1, 3]:
-            raise ValueError('GFF with sequential bands and jpeg or jpeg 2000 compression currently unsupported.')
-        # todo: continue this...
+        if self.header.gsat_img.pixelFormat.comp0_dataType != self.header.gsat_img.pixelFormat.comp1_dataType:
+            raise ValueError(
+                'GFF with sequential bands has the two components with different data types.\n\t'
+                'This is currently unsupported.')
+
+        raw_dtype = numpy.dtype(_get_numpy_dtype(self.header.gsat_img.pixelFormat.comp0_dataType))
+        raw_bands = 1
+        data_size, symmetry = self._get_size_and_symmetry()
+
+        band_size = data_size[0]*data_size[1]*raw_dtype.itemsize
+        if complex_domain in ['IQ', 'QI']:
+            transform_data = 'complex'
+        elif complex_domain in ['MP', 'PM']:
+            transform_data = phase_amp_seq_to_complex()
+        else:
+            raise ValueError('Got unexpected complex domain `{}`'.format(complex_domain))
+
+        if image_compression_scheme == 0:
+            # no compression
+            the_file = self.header.file_object
+            main_offset = self.header.image_offset
+        elif image_compression_scheme == 2:
+            the_file = self._extract_zlib_image()
+            main_offset = 0
+        else:
+            raise ValueError('Unhandled image compression scheme `{}`'.format(image_compression_scheme))
+
+        if complex_domain in ['IQ', 'MP']:
+            chippers = (
+                BIPChipper(
+                    the_file, raw_dtype, data_size, raw_bands, raw_bands, raw_dtype,
+                    symmetry=symmetry, transform_data=None,
+                    data_offset=main_offset, limit_to_raw_bands=None),
+                BIPChipper(
+                    the_file, raw_dtype, data_size, raw_bands, raw_bands, raw_dtype,
+                    symmetry=symmetry, transform_data=None,
+                    data_offset=main_offset+band_size, limit_to_raw_bands=None))
+        else:
+            # construct as IQ/MP order
+            chippers = (
+                BIPChipper(
+                    the_file, raw_dtype, data_size, raw_bands, raw_bands, raw_dtype,
+                    symmetry=symmetry, transform_data=None,
+                    data_offset=main_offset+band_size, limit_to_raw_bands=None),
+                BIPChipper(
+                    the_file, raw_dtype, data_size, raw_bands, raw_bands, raw_dtype,
+                    symmetry=symmetry, transform_data=None,
+                    data_offset=main_offset, limit_to_raw_bands=None))
+
+        return BSQChipper(chippers, 'complex64', transform_data=transform_data)
 
     def get_chipper(self):
-        if self.header.gsat_img.pixelFormat.numComponents != 2:
-            raise ValueError(
-                'Got unexpected number of components `{}`'.format(
-                    self.header.gsat_img.pixelFormat.numComponents))
-
         band_order = _get_band_order(self.header.gsat_img.pixelFormat.cmplxDomain)
+        self._check_image_validity(band_order)
+
         if band_order == 'interleaved':
             return self._get_interleaved_chipper()
-        else:
+        elif band_order == 'sequential':
             return self._get_sequential_chipper()
+        else:
+            raise ValueError('Unhandled band order `{}`'.format(band_order))
 
     def __del__(self):
         """
@@ -1673,10 +1748,44 @@ class _GFFInterpreter2(_GFFInterpreter):
 ####################
 # formatting functions properly reading the data
 
+def phase_amp_seq_to_complex():
+    """
+    This constructs the function to convert from phase/magnitude format data,
+    assuming that data type is simple with two bands, to complex64 data.
+
+    Returns
+    -------
+    callable
+    """
+
+    def converter(data):
+        if not isinstance(data, numpy.ndarray):
+            raise TypeError(
+                'Requires a numpy.ndarray, got {}'.format(type(data)))
+
+        if len(data.shape) != 3 and data.shape[2] != 2:
+            raise ValueError('Requires a three-dimensional numpy.ndarray (with band '
+                             'in the last dimension), got shape {}'.format(data.shape))
+
+        if data.dtype.name not in ['uint8', 'uint16', 'uint32', 'uint64']:
+            raise ValueError(
+                'Requires a numpy.ndarray of unsigned integer type.')
+
+        bit_depth = data.dtype.itemsize*8
+
+        out = numpy.zeros(data.shape[:2] + (1, ), dtype=numpy.complex64)
+        mag = data[:, :, 0]
+        theta = data[:, :, 1]*(2*numpy.pi/(1 << bit_depth))
+        out[:, :, 0].real = mag*numpy.cos(theta)
+        out[:, :, 0].imag = mag*numpy.sin(theta)
+        return out
+    return converter
+
+
 def phase_amp_int_to_complex():
     """
     This constructs the function to convert from phase/magnitude or magnitude/phase
-    format data of a given bit-depth to complex64 data.
+    format data, assuming that the data type is custom with a single band, to complex64 data.
 
     Returns
     -------
@@ -1699,7 +1808,6 @@ def phase_amp_int_to_complex():
                 'of unsigned integer type.')
 
         bit_depth = data.dtype['phase'].itemsize*8
-        print(data)
         out = numpy.zeros(data.shape, dtype=numpy.complex64)
         mag = data['magnitude']
         theta = data['phase']*(2*numpy.pi/(1 << bit_depth))
@@ -1949,10 +2057,6 @@ class GFFReader(BaseReader, SICDTypeReader):
 
 if __name__ == '__main__':
     the_root = r'R:\sar\Data_SomeDomestic\Sandia\dionysius\gff_example'
-    the_file = 'Patch005.gff'
-    full_file = os.path.join(the_root, the_file)
+    the_file_name = 'Patch005.gff'
+    full_file = os.path.join(the_root, the_file_name)
     reader = GFFReader(full_file)
-    print(reader[:2, :2], '\n\n')
-    print(reader[-2:, :2], '\n\n')
-    print(reader[-2:, -2:], '\n\n')
-    print(reader[:2, -2:])

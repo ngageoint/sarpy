@@ -95,10 +95,10 @@ class PositionType(Serializable):
         pos = SCPCOA.ARPPos.get_array()
         vel = SCPCOA.ARPVel.get_array()
         acc = SCPCOA.ARPAcc.get_array()
-        coefs[0, :] = pos - vel * scptime + 0.5 * acc * scptime * scptime
-        coefs[1, :] = vel - acc * scptime
-        coefs[2, :] = acc
-        self.ARPPoly = XYZPolyType.from_array(coefs)
+        coefs[:, 0] = pos - vel*scptime + 0.5*acc*scptime*scptime
+        coefs[:, 1] = vel - acc*scptime
+        coefs[:, 2] = acc
+        self.ARPPoly = XYZPolyType(X=coefs[0, :], Y=coefs[1, :], Z=coefs[2, :])
 
     def _basic_validity_check(self):
         condition = super(PositionType, self)._basic_validity_check()
