@@ -6,9 +6,10 @@ __classification__ = "UNCLASSIFIED"
 __authors__ = ("Thomas McCullough", "Thomas Rackers")
 
 
+from typing import Optional
 # noinspection PyProtectedMember
 from sarpy.io.complex.sicd_elements.base import DEFAULT_STRICT, \
-    _FloatDescriptor, _SerializableDescriptor, _StringDescriptor, Serializable
+    _SerializableDescriptor, _StringDescriptor, Serializable
 from sarpy.io.complex.sicd_elements.blocks import LatLonHAEType
 from .blocks import DateRangeType
 
@@ -21,22 +22,22 @@ class DetailSubCollectionInfoType(Serializable):
     # descriptors
     Name = _StringDescriptor(
         'Name', _required,
-        docstring="Name of the subcollection.")  # type: str
+        docstring="Name of the subcollection.")  # type: Optional[str]
     SiteName = _StringDescriptor(
         'SiteName', _required,
-        docstring="Name of the subcollection site location.")  # type: str
+        docstring="Name of the subcollection site location.")  # type: Optional[str]
     SiteNumber = _StringDescriptor(
         'SiteNumber', _required,
-        docstring="Site number of the subcollection.")  # type: str
+        docstring="Site number of the subcollection.")  # type: Optional[str]
     SceneNumber = _StringDescriptor(
         'SceneNumber', _required,
-        docstring="Scene number of the subcollection.")  # type: str
+        docstring="Scene number of the subcollection.")  # type: Optional[str]
     Description = _StringDescriptor(
         'Description', _required, default_value="",
         docstring="Description of the subcollection (e.g., Main array).")  # type: str
     Duration = _SerializableDescriptor(
         'Duration', DateRangeType, _required, strict=DEFAULT_STRICT,
-        docstring="Begin and end dates of the subcollection.")  # type: DateRangeType
+        docstring="Begin and end dates of the subcollection.")  # type: Optional[DateRangeType]
     SiteCenterLocation = _SerializableDescriptor(
         'SiteCenterLocation', LatLonHAEType, _required, strict=DEFAULT_STRICT,
         docstring="Location of the center of the collection site.")  # type: LatLonHAEType
@@ -45,7 +46,7 @@ class DetailSubCollectionInfoType(Serializable):
         docstring="Description of the general scene contents.")  # type: str
     SiteBackgroundType = _StringDescriptor(
         'SiteBackgroundType', _required,
-        docstring="Description of the background.")  # type: str
+        docstring="Description of the background.")  # type: Optional[str]
 
     def __init__(self, Name=None, SiteName=None, SiteNumber=None,
                  SceneNumber=None, Description=None, Duration=None,

@@ -4,6 +4,7 @@ Common use elements for the AFRL labeling definition
 
 import numpy
 from datetime import date, datetime
+from typing import Optional
 
 # noinspection PyProtectedMember
 from sarpy.io.complex.sicd_elements.base import DEFAULT_STRICT, \
@@ -17,10 +18,10 @@ class DateRangeType(Serializable):
     # descriptors
     Begin = _DateTimeDescriptor(
         'Begin', _required, strict=DEFAULT_STRICT, numpy_datetime_units='D',
-        docstring="Begin date of the data collection.")  # type: numpy.datetime64
+        docstring="Begin date of the data collection.")  # type: Optional[numpy.datetime64]
     End = _DateTimeDescriptor(
         'End', _required, strict=DEFAULT_STRICT, numpy_datetime_units='D',
-        docstring="End date of the data collection.")  # type: numpy.datetime64
+        docstring="End date of the data collection.")  # type: Optional[numpy.datetime64]
 
     def __init__(self, Begin=None, End=None, **kwargs):
         """
@@ -47,13 +48,13 @@ class LatLonWithNameType(Serializable):
     # descriptors
     Lat = _FloatDescriptor(
         'Lat', _required, strict=DEFAULT_STRICT,
-        docstring="General latitude of the data collection.")  # type: float
+        docstring="General latitude of the data collection.")  # type: Optional[float]
     Lon = _FloatDescriptor(
         'Lon', _required, strict=DEFAULT_STRICT,
-        docstring="General longitude of the data collection.")  # type: float
+        docstring="General longitude of the data collection.")  # type: Optional[float]
     Name = _StringDescriptor(
         'Name', _required,
-        docstring="Common name of the collection location.")  # type: str
+        docstring="Common name of the collection location.")  # type: Optional[str]
 
     def __init__(self, Lat=None, Lon=None, Name=None, **kwargs):
         """
