@@ -1208,7 +1208,7 @@ class _GFFInterpreter1(_GFFInterpreter):
 
             return GridType(
                 ImagePlane=image_plane,
-                Type='RGAZIM',
+                Type='PLANE',
                 Row=row,
                 Col=col)
 
@@ -1411,7 +1411,7 @@ class _GFFInterpreter2(_GFFInterpreter):
 
             return GridType(
                 ImagePlane=image_plane,
-                Type='RGAZIM',
+                Type='PLANE',
                 Row=row,
                 Col=col)
 
