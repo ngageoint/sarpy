@@ -23,6 +23,8 @@ else:
     # noinspection PyUnresolvedReferences
     from scipy.fft import fft, ifft, fftshift, ifftshift
 
+logger = logging.getLogger(__name__)
+
 
 class FFTCalculator(FullResolutionFetcher):
     """
@@ -87,8 +89,8 @@ class FFTCalculator(FullResolutionFetcher):
         super(FFTCalculator, self)._set_index(value)
 
         if self._sicd.SCPCOA is None or self._sicd.SCPCOA.SideOfTrack is None:
-            logging.warning(
-                'The sicd object at index {} has unpopulated SCPCOA.SideOfTrack. '
+            logger.warning(
+                'The sicd object at index {} has unpopulated SCPCOA.SideOfTrack.\n\t'
                 'Defaulting to "R", which may be incorrect.')
             self._platform_direction = 'R'
         else:

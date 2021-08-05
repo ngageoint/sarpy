@@ -2,15 +2,15 @@
 The RadiometricType definition.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
+
 import numpy
 
 from .base import Serializable, DEFAULT_STRICT, _StringEnumDescriptor, \
     _SerializableDescriptor, _find_first_child
 from .blocks import Poly2DType
-
-
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
 
 
 # noinspection PyPep8Naming

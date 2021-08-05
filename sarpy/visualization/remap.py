@@ -2,6 +2,10 @@
 Provides common methods for remapping a complex image to an 8-bit image.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = ("Wade Schwartzkopf", "Thomas McCullough")
+
+
 import logging
 from collections import OrderedDict
 
@@ -11,9 +15,7 @@ from scipy.stats import scoreatpercentile as prctile
 from sarpy.compliance import string_types
 
 
-__classification__ = "UNCLASSIFIED"
-__author__ = ("Wade Schwartzkopf", "Thomas McCullough")
-
+logger = logging.getLogger(__name__)
 
 _DEFAULTS_REGISTERED = False
 _REMAP_DICT = OrderedDict()
@@ -43,10 +45,10 @@ def register_remap(remap_name, remap_function, overwrite=False):
     if remap_name not in _REMAP_DICT:
         _REMAP_DICT[remap_name] = remap_function
     elif overwrite:
-        logging.info('Overwriting the remap {}'.format(remap_name))
+        logger.info('Overwriting the remap {}'.format(remap_name))
         _REMAP_DICT[remap_name] = remap_function
     else:
-        logging.info('Remap {} already exists and is not being replaced'.format(remap_name))
+        logger.info('Remap {} already exists and is not being replaced'.format(remap_name))
 
 
 def _register_defaults():
@@ -366,7 +368,7 @@ def nrl(data, knee=220, stats=None):
     if amplitude_99 > amplitude_min:
         out[linear_region] = knee*(out[linear_region] - amplitude_min)/(amplitude_99 - amplitude_min)
     else:
-        logging.warning(
+        logger.warning(
             'The remap array is at least 99% constant, the nrl remap may return '
             'strange results.')
         out[linear_region] = 0

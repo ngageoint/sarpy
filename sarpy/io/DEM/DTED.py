@@ -2,6 +2,9 @@
 Classes and methods for parsing and using digital elevation models in DTED format.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
 import logging
 import os
 import struct
@@ -14,8 +17,7 @@ from sarpy.io.DEM.utils import argument_validation
 from sarpy.io.DEM.geoid import GeoidHeight
 from sarpy.io.general.base import SarpyIOError
 
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
+logger = logging.getLogger(__name__)
 
 
 #######
@@ -242,9 +244,9 @@ class DTEDList(DEMList):
                 missing_boxes.append('({}, {})'.format(entry[0], entry[1]))
 
         if len(missing_boxes) > 0:
-            logging.warning(
-                'Missing expected DEM files for squares with lower left lat/lon corner {}. '
-                'This Should result in the assumption that the altitude in that section is '
+            logger.warning(
+                'Missing expected DEM files for squares with lower left lat/lon corner {}.\n\t'
+                'This should result in the assumption that the altitude in that section is '
                 'given by Mean Sea Level.'.format(missing_boxes))
         return files
 

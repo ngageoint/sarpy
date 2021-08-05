@@ -2,6 +2,10 @@
 The RMAType definition.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
+
 from typing import Union
 
 import numpy
@@ -11,9 +15,6 @@ from .base import Serializable, DEFAULT_STRICT, \
     _StringEnumDescriptor, _FloatDescriptor, _BooleanDescriptor, _SerializableDescriptor
 from .blocks import XYZType, Poly1DType, Poly2DType
 from .utils import _get_center_frequency
-
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
 
 
 class RMRefType(Serializable):

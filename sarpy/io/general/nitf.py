@@ -19,22 +19,6 @@ import struct
 
 import numpy
 
-# import some optional dependencies
-try:
-    # noinspection PyPackageRequirements
-    import pyproj
-except ImportError:
-    pyproj = None
-
-try:
-    # noinspection PyPackageRequirements
-    import PIL
-    # noinspection PyPackageRequirements
-    import PIL.Image
-except ImportError:
-    PIL = None
-
-
 from sarpy.compliance import int_func, string_types
 from sarpy.io.general.base import BaseReader, AbstractWriter, SubsetChipper, \
     AggregateChipper, BIPChipper, BIPWriter, BSQChipper, BIRChipper, SarpyIOError
@@ -53,6 +37,24 @@ from sarpy.io.general.utils import is_file_like
 from sarpy.io.complex.sicd_elements.blocks import LatLonType
 from sarpy.geometry.geocoords import ecf_to_geodetic, geodetic_to_ecf
 from sarpy.geometry.latlon import num as lat_lon_parser
+
+# import some optional dependencies
+try:
+    # noinspection PyPackageRequirements
+    import pyproj
+except ImportError:
+    pyproj = None
+
+try:
+    # noinspection PyPackageRequirements
+    import PIL
+    # noinspection PyPackageRequirements
+    import PIL.Image
+except ImportError:
+    PIL = None
+
+
+logger = logging.getLogger(__name__)
 
 
 ########
@@ -76,7 +78,7 @@ def is_a(file_name):
 
     try:
         nitf_details = NITFDetails(file_name)
-        logging.info('File {} is determined to be a nitf file.'.format(file_name))
+        logger.info('File {} is determined to be a nitf file.'.format(file_name))
         return NITFReader(nitf_details)
     except SarpyIOError:
         # we don't want to catch parsing errors, for now
@@ -104,7 +106,7 @@ def extract_image_corners(img_header):
     icps = []
     if img_header.ICORDS in ['N', 'S']:
         if pyproj is None:
-            logging.error('ICORDS is {}, which requires pyproj, which was not successfully imported.')
+            logger.error('ICORDS is {}, which requires pyproj, which was not successfully imported.')
             return None
         for entry in corner_strings:
             the_proj = pyproj.Proj(proj='utm', zone=int(entry[:2]), south=(img_header.ICORDS == 'S'), ellps='WGS84')
@@ -115,7 +117,7 @@ def extract_image_corners(img_header):
     elif img_header.ICORDS == 'G':
         icps = [[lat_lon_parser(corner[:7]), lat_lon_parser(corner[7:])] for corner in corner_strings]
     else:
-        logging.error('Got unhandled ICORDS {}'.format(img_header.ICORDS))
+        logger.error('Got unhandled ICORDS {}'.format(img_header.ICORDS))
         return None
     return numpy.array(icps, dtype='float64')
 
@@ -217,11 +219,12 @@ class NITFDetails(object):
             raise ValueError('Unhandled version {}'.format(self._nitf_version))
 
         if self._nitf_header.get_bytes_length() != header_length:
-            logging.critical(
-                'Stated header length of file {} is {}, while the interpreted '
-                'header length is {}. This will likely be accompanied by serious '
-                'parsing failures, and should be reported to the sarpy team for '
-                'investigation.'.format(self._file_name, header_length, self._nitf_header.get_bytes_length()))
+            logger.critical(
+                'Stated header length of file {} is {},\n\t'
+                'while the interpreted header length is {}.\n\t'
+                'This will likely be accompanied by serious parsing failures,\n\t'
+                'and should be reported to the sarpy team for investigation.'.format(
+                    self._file_name, header_length, self._nitf_header.get_bytes_length()))
         cur_loc = header_length
         # populate image segment offset information
         cur_loc, self.img_subheader_offsets, self.img_subheader_sizes, \
@@ -910,23 +913,24 @@ class NITFReader(BaseReader):
 
         if img_header.NBPP not in (8, 16, 32, 64):
             # numpy basically only supports traditional typing
-            logging.error(
-                'Image segment at index {} has bits per pixel per band {}, only '
-                '8, 16, and 32 are supported.'.format(index, img_header.NBPP))
+            logger.error(
+                'Image segment at index {} has bits per pixel per band {},\n\t'
+                'only 8, 16, and 32 are supported.'.format(index, img_header.NBPP))
             return False
 
         if img_header.is_masked and img_header.is_compressed:
-            logging.error(
-                'Image segment at index {} is both masked and compressed. This is '
-                'not currently supported.'.format(index))
+            logger.error(
+                'Image segment at index {} is both masked and compressed.\n\t'
+                'This is not currently supported.'.format(index))
             return False
 
         if img_header.IC in ['C0', 'C1', 'C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'I1']:
             if PIL is None:
-                logging.error(
-                    'Image segment at index {} has IC value {}, and PIL cannot '
-                    'be imported. Currently, compressed image segments require '
-                    'PIL.'.format(index, img_header.IC))
+                logger.error(
+                    'Image segment at index {} has IC value {},\n\t'
+                    'and PIL cannot be imported.\n\t'
+                    'Currently, compressed image segments require PIL.'.format(
+                        index, img_header.IC))
                 return False
         return True
 
@@ -1040,12 +1044,12 @@ class NITFReader(BaseReader):
                 mask_offsets = img_header.mask_subheader.BMR
             elif img_header.mask_subheader.TMR is not None:
                 mask_offsets = img_header.mask_subheader.TMR
-                logging.warning(
-                    'image segment contains a transparency mask - \n'
+                logger.warning(
+                    'image segment contains a transparency mask - \n\t'
                     'the transparency value is not currently used.')
             else:
-                logging.warning(
-                    'image segment is masked, but contains neither \n'
+                logger.warning(
+                    'image segment is masked, but contains neither \n\t'
                     'transparency mask nor block mask? This is unexpected.')
                 mask_offsets = None
         else:
@@ -1180,12 +1184,12 @@ class NITFReader(BaseReader):
                 mask_offsets = img_header.mask_subheader.BMR
             elif img_header.mask_subheader.TMR is not None:
                 mask_offsets = img_header.mask_subheader.TMR
-                logging.warning(
-                    'image segment contains a transparency mask - \n'
+                logger.warning(
+                    'image segment contains a transparency mask - \n\t'
                     'the transparency value is not currently used.')
             else:
-                logging.warning(
-                    'image segment is masked, but contains neither \n'
+                logger.warning(
+                    'image segment is masked, but contains neither \n\t'
                     'transparency mask nor block mask? This is unexpected.')
                 mask_offsets = None
         else:
@@ -1266,12 +1270,12 @@ class NITFReader(BaseReader):
                 mask_offsets = img_header.mask_subheader.BMR
             elif img_header.mask_subheader.TMR is not None:
                 mask_offsets = img_header.mask_subheader.TMR
-                logging.warning(
-                    'image segment contains a transparency mask - \n'
+                logger.warning(
+                    'image segment contains a transparency mask - \n\t'
                     'the transparency value is not currently used.')
             else:
-                logging.warning(
-                    'image segment is masked, but contains neither \n'
+                logger.warning(
+                    'image segment is masked, but contains neither \n\t'
                     'transparency mask nor block mask? This is unexpected.')
                 mask_offsets = None
         else:
@@ -1336,12 +1340,12 @@ class NITFReader(BaseReader):
                 mask_offsets = img_header.mask_subheader.BMR
             elif img_header.mask_subheader.TMR is not None:
                 mask_offsets = img_header.mask_subheader.TMR
-                logging.warning(
-                    'image segment contains a transparency mask - \n'
+                logger.warning(
+                    'image segment contains a transparency mask - \n\t'
                     'the transparency value is not currently used.')
             else:
-                logging.warning(
-                    'image segment is masked, but contains neither \n'
+                logger.warning(
+                    'image segment is masked, but contains neither \n\t'
                     'transparency mask nor block mask? This is unexpected.')
                 mask_offsets = None
         else:
@@ -1489,12 +1493,12 @@ class NITFReader(BaseReader):
             img = PIL.Image.open(our_memmap)  # this is a lazy operation
             # dump the extracted image data out to a temp file
             fi, path_name = mkstemp(suffix='.sarpy_cache', text=False)
-            logging.warning(
-                'Naively trying to use PIL to decompress image segment index {} of {}\n'
-                'to flat file {}.\n '
-                'The created cache file should be safely deleted,\n '
-                'with the possible exception of fatal execution error.\n '
-                'This is likely to not work unless IMODE ({} here) is `P` and\n '
+            logger.warning(
+                'Naively trying to use PIL to decompress image segment index {} of {}\n\t'
+                'to flat file {}.\n\t'
+                'The created cache file should be safely deleted,\n\t'
+                'with the possible exception of fatal execution error.\n\t'
+                'This is likely to not work unless IMODE ({} here) is `P` and\n\t'
                 'the image is a single block.'.format(self.file_name, index, path_name, img_header.IMODE))
             data = numpy.asarray(img)  # create our numpy array from the PIL Image
             if data.shape[:2] != (this_rows, this_cols):
@@ -1685,7 +1689,7 @@ class NITFReader(BaseReader):
             # NB: this should be an absolute path
             if os.path.exists(fil):
                 os.remove(fil)
-                logging.info('Deleted cached file {}'.format(fil))
+                logger.info('Deleted cached file {}'.format(fil))
 
 
 #####
@@ -1785,7 +1789,7 @@ class ImageDetails(object):
     @subheader_offset.setter
     def subheader_offset(self, value):
         if self._subheader_offset is not None:
-            logging.warning("subheader_offset is read only after being initially defined.")
+            logger.warning("subheader_offset is read only after being initially defined.")
             return
         self._subheader_offset = int_func(value)
         self._item_offset = self._subheader_offset + self._subheader.get_bytes_length()
@@ -1871,8 +1875,9 @@ class ImageDetails(object):
         new_pixels = (index_tuple[1] - index_tuple[0])*(index_tuple[3] - index_tuple[2])
         self._pixels_written += new_pixels
         if self._pixels_written > self.total_pixels:
-            logging.error('A total of {} pixels have been written for an image that '
-                          'should only have {} pixels.'.format(self._pixels_written, self.total_pixels))
+            logger.error('A total of {} pixels have been written,\n\t'
+                          'for an image that should only have {} pixels.'.format(
+                self._pixels_written, self.total_pixels))
 
     def get_overlap(self, index_range):
         """
@@ -2000,7 +2005,7 @@ class DESDetails(object):
     @subheader_offset.setter
     def subheader_offset(self, value):
         if self._subheader_offset is not None:
-            logging.warning("subheader_offset is read only after being initially defined.")
+            logger.warning("subheader_offset is read only after being initially defined.")
             return
         self._subheader_offset = int_func(value)
         self._item_offset = self._subheader_offset + self._subheader.get_bytes_length()
@@ -2287,7 +2292,7 @@ class NITFWriter(AbstractWriter):
         if self._nitf_header_written:
             return
 
-        logging.info('Writing NITF header.')
+        logger.info('Writing NITF header.')
         with open(self._file_name, mode='r+b') as fi:
             fi.write(self.nitf_header.to_bytes())
             self._nitf_header_written = True
@@ -2321,10 +2326,9 @@ class NITFWriter(AbstractWriter):
         self._set_offsets()
         self._write_file_header()
 
-        logging.info(
-            'Setting up the image segments in virtual memory. '
-            'This may require a large physical memory allocation, '
-            'and be time consuming.')
+        logger.info(
+            'Setting up the image segments in virtual memory.\n\t'
+            'This may require a large physical memory allocation, and be time consuming.')
         self._writing_chippers = tuple(
             details.create_writer(self._file_name) for details in self.image_details)
 
@@ -2349,10 +2353,10 @@ class NITFWriter(AbstractWriter):
         if details.subheader_offset is None:
             raise ValueError('DESDetails.subheader_offset must be defined for index {}.'.format(index))
 
-        logging.info(
-            'Writing image segment {} header. Depending on OS details, this '
-            'may require a large physical memory allocation, '
-            'and be time consuming.'.format(index))
+        logger.info(
+            'Writing image segment {} header.\n\t'
+            'Depending on OS details, this may require a\n\t'
+            'large physical memory allocation, and be time consuming.'.format(index))
         with open(self._file_name, mode='r+b') as fi:
             fi.seek(details.subheader_offset, os.SEEK_SET)
             fi.write(details.subheader.to_bytes())
@@ -2379,7 +2383,7 @@ class NITFWriter(AbstractWriter):
         if details.subheader_offset is None:
             raise ValueError('DESDetails.subheader_offset must be defined for index {}.'.format(index))
 
-        logging.info(
+        logger.info(
             'Writing data extension {} header.'.format(index))
         with open(self._file_name, mode='r+b') as fi:
             fi.seek(details.subheader_offset, os.SEEK_SET)
@@ -2408,7 +2412,7 @@ class NITFWriter(AbstractWriter):
         if not details.subheader_written:
             self._write_des_header(index)
 
-        logging.info(
+        logger.info(
             'Writing data extension {}.'.format(index))
         with open(self._file_name, mode='r+b') as fi:
             fi.seek(details.item_offset, os.SEEK_SET)
@@ -2591,8 +2595,8 @@ class NITFWriter(AbstractWriter):
                 if not img_details.image_written:
                     msg_part = "Image segment {} has only written {} of {} pixels".format(
                         i, img_details.pixels_written, img_details.total_pixels)
-                    msg = msg_part if msg is None else msg + '\n' + msg_part
-                    logging.critical(msg_part)
+                    msg = msg_part if msg is None else msg + '\n\t' + msg_part
+                    logger.critical(msg_part)
         # ensure that all data extensions are fully written
         if self.des_details is not None:
             for i, des_detail in enumerate(self.des_details):
@@ -2708,15 +2712,15 @@ class NITFWriter(AbstractWriter):
         """
 
         if self._img_details is None:
-            logging.warning(
-                "This NITF has no previously defined image segments, or the "
-                "_create_nitf_header method has been called BEFORE the "
-                "_create_image_segment_headers method.")
+            logger.warning(
+                "This NITF has no previously defined image segments,\n\t"
+                "or the _create_nitf_header method has been called\n\t"
+                "BEFORE the _create_image_segment_headers method.")
         if self._des_details is None:
-            logging.warning(
-                "This NITF has no previously defined data extensions, or the "
-                "_create_nitf_header method has been called BEFORE the "
-                "_create_data_extension_headers method.")
+            logger.warning(
+                "This NITF has no previously defined data extensions,\n\t"
+                "or the _create_nitf_header method has been called\n\t"
+                "BEFORE the _create_data_extension_headers method.")
 
         # NB: CLEVEL and FL will be corrected in prepare_for_writing method
         self._nitf_header = NITFHeader(

@@ -36,6 +36,9 @@ from sarpy.io.complex.sicd_elements.ImageFormation import ImageFormationType, Rc
     TxFrequencyProcType, ProcessingType
 
 
+logger = logging.getLogger(__name__)
+
+
 ########
 # base expected functionality for a module with an implemented Reader
 
@@ -61,7 +64,7 @@ def is_a(file_name):
 
     try:
         capella_details = CapellaDetails(file_name)
-        logging.info('File {} is determined to be a Capella file.'.format(file_name))
+        logger.info('File {} is determined to be a Capella file.'.format(file_name))
         return CapellaReader(capella_details)
     except SarpyIOError:
         return None
@@ -96,7 +99,7 @@ class CapellaDetails(object):
         try:
             self._img_desc_tags = json.loads(img_format)  # type: Dict[str, Any]
         except Exception as e:
-            logging.error('Failed deserializing the ImageDescription tag as json with error {}'.format(e))
+            logger.error('Failed deserializing the ImageDescription tag as json with error {}'.format(e))
             raise e
         # verify the file is not compressed
         self._tiff_details.check_compression()
@@ -327,7 +330,7 @@ class CapellaDetails(object):
             if algo == 'BACKPROJECTION':
                 processings = [ProcessingType(Type='Backprojected to DEM', Applied=True), ]
             if algo not in ('PFA', 'RMA', 'RGAZCOMP'):
-                logging.warning(
+                logger.warning(
                     'Image formation algorithm {} not one of the recognized SICD options, '
                     'being set to "OTHER".'.format(algo))
                 algo = 'OTHER'

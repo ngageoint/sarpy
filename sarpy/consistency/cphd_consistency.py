@@ -23,11 +23,19 @@ import numpy.polynomial.polynomial as npp
 
 from sarpy.geometry import geocoords
 
+import sarpy.consistency.consistency as con
+import sarpy.consistency.parsers as parsers
+import sarpy.io.phase_history.cphd1_elements.CPHD
+import sarpy.io.phase_history.cphd1_elements.utils as cphd1_utils
+from sarpy.io.phase_history.cphd_schema import get_schema_path
+
+logger = logging.getLogger(__name__)
+
 try:
     import pytest
 except ImportError:
     pytest = None
-    logging.critical(
+    logger.critical(
         'Functionality for CPHD consistency testing cannot proceed WITHOUT the pytest '
         'package')
 
@@ -36,7 +44,7 @@ try:
 except ImportError:
     etree = None
     pytest = None
-    logging.critical(
+    logger.critical(
         'Functionality for CPHD consistency testing cannot proceed WITHOUT the lxml '
         'package')
 
@@ -52,11 +60,6 @@ try:
 except ImportError:
     have_networkx = False
 
-import sarpy.consistency.consistency as con
-import sarpy.consistency.parsers as parsers
-import sarpy.io.phase_history.cphd1_elements.CPHD
-import sarpy.io.phase_history.cphd1_elements.utils as cphd1_utils
-from sarpy.io.phase_history.cphd_schema import get_schema_path
 
 INVALID_CHAR_REGEX = re.compile(r'\W')
 DEFAULT_SCHEMA = get_schema_path(version='1.0.1')

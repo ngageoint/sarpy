@@ -2,6 +2,9 @@
 The DigitalElevationDataType definition.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
 from typing import Union, List
 
 import numpy
@@ -12,9 +15,6 @@ from .base import DEFAULT_STRICT
 from sarpy.io.complex.sicd_elements.base import Serializable, _SerializableDescriptor, \
     _IntegerDescriptor, _FloatDescriptor, _FloatListDescriptor, _StringEnumDescriptor
 from .blocks import LatLonType
-
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
 
 
 class GeographicCoordinatesType(Serializable):

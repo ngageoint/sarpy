@@ -21,13 +21,15 @@ from sarpy.io.general.base import AggregateReader, SarpyIOError
 from sarpy.io.general.nitf import NITFReader
 from sarpy.geometry.geometry_elements import FeatureCollection, Feature, Geometry
 
+logger = logging.getLogger(__name__)
+
 try:
     # noinspection PyPackageRequirements
     import pyproj
     # NB: this very likely requires PIL (compressed images),
     # which is handled in sarpy.io.general.nitf
 except ImportError:
-    logging.error(
+    logger.error(
         'Optional dependency pyproj is required for interpretation '
         'of standard change detection products.')
     pyproj = None
@@ -173,7 +175,7 @@ class ChangeDetectionDetails(object):
         if os.path.isfile(fil):
             self._file_names['V'] = fil
         else:
-            logging.warning('Change detection file part V (i.e. json metadata) not found.')
+            logger.warning('Change detection file part V (i.e. json metadata) not found.')
         self._set_features()
 
     @property
@@ -196,8 +198,8 @@ class ChangeDetectionDetails(object):
                     the_dict = json.load(fi)
                     self._features = FeatureCollection.from_dict(the_dict)
             except Exception as e:
-                logging.error(
-                    'Failed decoding change detection json file {}\n with error {}. '
+                logger.error(
+                    'Failed decoding change detection json file {}\n\twith error {}.\n\t'
                     'Skipping json definition.'.format(the_file, e))
                 del self._file_names['V']  # drop this non-functional file to avoid repeating
         if self._features is not None:

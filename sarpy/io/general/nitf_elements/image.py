@@ -2,6 +2,10 @@
 The image subheader definitions.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
+
 import logging
 import struct
 from collections import OrderedDict
@@ -15,8 +19,7 @@ from .base import NITFElement, NITFLoop, UserHeaderType, _IntegerDescriptor,\
 from .security import NITFSecurityTags, NITFSecurityTags0
 
 
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
+logger = logging.getLogger(__name__)
 
 
 ######
@@ -422,11 +425,11 @@ class MaskSubheader(NITFElement):
         input_length = len(value)-start
         out_length = out.get_bytes_length()
         if input_length != out_length:
-            logging.error(
-                'The MaskSubheader object is being serialized from a bytes buffer of length {},\n '
-                'but would serialize to a bytes object of length {}.\n'
-                'This is likely a result of faulty serialization, and '
-                'represents an error.'.format(input_length, out_length))
+            logger.error(
+                'The MaskSubheader object is being serialized from a bytes buffer of length {},\n\t'
+                'but would serialize to a bytes object of length {}.\n\t'
+                'This is likely a result of faulty serialization,\n\t '
+                'and represents an error.'.format(input_length, out_length))
         return out
 
     def to_json(self):
@@ -714,13 +717,13 @@ class ImageSegmentHeader(NITFElement):
         value = _parse_str(value, 4, None, 'COMRAT', self)
         if value is None and self.IC not in ('NC', 'NM'):
             value = '\x20'*4
-            logging.error(
-                'COMRAT value is None, but IC is not in {"NC", "NM"}. '
+            logger.error(
+                'COMRAT value is None, but IC is not in {"NC", "NM"}.\n\t'
                 'This must be resolved.')
         if value is not None and self.IC in ('NC', 'NM'):
             value = None
-            logging.error(
-                'COMRAT value is something other than None, but IC in {"NC", "NM"}. '
+            logger.error(
+                'COMRAT value is something other than None, but IC in {"NC", "NM"}.\n\t'
                 'This is invalid, and COMRAT is being set to None.')
         self._COMRAT = value
 
@@ -1076,13 +1079,13 @@ class ImageSegmentHeader0(NITFElement):
         value = _parse_str(value, 4, None, 'COMRAT', self)
         if value is None and self.IC not in ('NC', 'NM'):
             value = '\x20'*4
-            logging.error(
-                'COMRAT value is None, but IC is not in {"NC", "NM"}. '
+            logger.error(
+                'COMRAT value is None, but IC is not in {"NC", "NM"}.\n\t'
                 'This must be resolved.')
         if value is not None and self.IC in ('NC', 'NM'):
             value = None
-            logging.error(
-                'COMRAT value is something other than None, but IC in {"NC", "NM"}. '
+            logger.error(
+                'COMRAT value is something other than None, but IC in {"NC", "NM"}.\n\t'
                 'This is invalid, and COMRAT is being set to None.')
         self._COMRAT = value
 
