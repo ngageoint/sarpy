@@ -5,50 +5,62 @@ Common use elements for the AFRL labeling definition
 import numpy
 
 # noinspection PyProtectedMember
-from sarpy.io.complex.sicd_elements.base import DEFAULT_STRICT, \
-    _DateTimeDescriptor, _FloatDescriptor, _StringDescriptor, Arrayable, \
-    Serializable
+from sarpy.io.complex.sicd_elements.base import _DateTimeDescriptor, \
+    _FloatDescriptor, _StringDescriptor, Arrayable, Serializable
 
 
 class DateRangeType(Serializable):
+    """
+    A range of dates with resolution of 1 day
+    """
     _fields = ('Begin', 'End')
-    _required = ()
+    _required = _fields
     # descriptors
     Begin = _DateTimeDescriptor(
-        'Begin', _required, strict=DEFAULT_STRICT, numpy_datetime_units='D',
+        'Begin', _required, strict=True, numpy_datetime_units='D',
         docstring="Begin date of the data collection.")
     End = _DateTimeDescriptor(
-        'End', _required, strict=DEFAULT_STRICT, numpy_datetime_units='D',
+        'End', _required, strict=True, numpy_datetime_units='D',
         docstring="End date of the data collection.")
 
-    def __init__(self, Begin='', End='', **kwargs):
+    def __init__(self, Begin=None, End=None, **kwargs):
         """
         Parameters
         ----------
-        Begin : None|str
-        End : None|str
-        kwargs
-            Other keyword arguments
+        Begin : str
+        End : str
+        kwargs : dict
         """
 
         if '_xml_ns' in kwargs:
             self._xml_ns = kwargs['_xml_ns']
         if '_xml_ns_key' in kwargs:
             self._xml_ns_key = kwargs['_xml_ns_key']
-        self.Begin = Begin
-        self.End = End
+        self.Begin, self.End = Begin, End
         super(DateRangeType, self).__init__(**kwargs)
+
+    def get_dates(self):
+        """
+        Gets the begin and end dates of the class instance.
+
+        Returns
+        -------
+        tuple
+            tuple of the form (Begin, End), both numpy.datetime64
+        """
+
+        return (self.Begin, self.End)
 
 
 class LatLonWithNameType(Serializable):
     _fields = ('Lat', 'Lon', 'Name')
-    _required = ()
+    _required = _fields
     # descriptors
     Lat = _FloatDescriptor(
-        'Lat', _required, strict=DEFAULT_STRICT,
+        'Lat', _required, strict=True,
         docstring="General latitude of the data collection.")
     Lon = _FloatDescriptor(
-        'Lon', _required, strict=DEFAULT_STRICT,
+        'Lon', _required, strict=True,
         docstring="General longitude of the data collection.")
     Name = _StringDescriptor(
         'Name', _required,
@@ -73,6 +85,17 @@ class LatLonWithNameType(Serializable):
         self.Lon = Lon
         self.Name = Name
         super(LatLonWithNameType, self).__init__(**kwargs)
+
+    def get_lat_lon_name(self):
+        """
+        Gets lat/lon and name from the class instance.
+
+        Returns
+        -------
+        tuple
+            tuple of the form (Lat, Lon, Name) where Lat and Lon are floats
+            and Name is str
+        """
 
 
 class RangeCrossRangeType(Serializable, Arrayable):
