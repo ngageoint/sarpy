@@ -14,6 +14,8 @@ from numpy.polynomial import polynomial
 
 from sarpy.io.complex.sicd_elements.blocks import Poly2DType
 
+logger = logging.getLogger(__name__)
+
 
 def two_dim_poly_fit(x, y, z, x_order=2, y_order=2, x_scale=1, y_scale=1, rcond=None):
     """
@@ -125,7 +127,11 @@ def fit_time_coa_polynomial(inca, image_data, grid, dop_rate_scaled_coeffs, poly
     coefs, residuals, rank, sing_values = two_dim_poly_fit(
         coords_rg_2d, coords_az_2d, time_coa_sampled,
         x_order=poly_order, y_order=poly_order, x_scale=1e-3, y_scale=1e-3, rcond=1e-40)
-    logging.info('The time_coa_fit details:\nroot mean square residuals = {}\nrank = {}\nsingular values = {}'.format(residuals, rank, sing_values))
+    logger.info(
+        'The time_coa_fit details:\n\t'
+        'root mean square residuals = {}\n\t'
+        'rank = {}\n\t'
+        'singular values = {}'.format(residuals, rank, sing_values))
     return Poly2DType(Coefs=coefs)
 
 
@@ -220,7 +226,7 @@ def fit_position_xvalidation(time_array, position_array, velocity_array, max_deg
     if max_degree < 1:
         raise ValueError('max_degree must be at least 1.')
     if max_degree > 10:
-        logging.warning('max_degree greater than 10 for polynomial fitting may lead '
+        logger.warning('max_degree greater than 10 for polynomial fitting may lead\n\t'
                         'to poorly conditioned (i.e. badly behaved) fit.')
 
     deg = 1

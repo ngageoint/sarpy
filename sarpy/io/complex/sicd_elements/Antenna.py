@@ -2,15 +2,15 @@
 The AntennaType definition.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
+
 import numpy
 
 from .base import Serializable, DEFAULT_STRICT, _BooleanDescriptor, _FloatDescriptor, \
     _SerializableDescriptor
 from .blocks import Poly1DType, XYZPolyType, GainPhasePolyType
-
-
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
 
 
 class EBType(Serializable):

@@ -2,6 +2,10 @@
 The ImageData definition.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
+
 import logging
 from typing import List, Union
 
@@ -13,9 +17,6 @@ from .base import Arrayable, Serializable, DEFAULT_STRICT, \
 from .blocks import RowColType, RowColArrayElement
 
 from sarpy.geometry.geometry_elements import LinearRing
-
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
 
 
 class FullImageType(Serializable, Arrayable):

@@ -36,6 +36,7 @@ from sarpy.geometry import point_projection
 from sarpy.io.complex.naming.utils import get_sicd_name
 from sarpy.io.complex.sicd_schema import get_urn_details, get_specification_identifier
 
+logger = logging.getLogger(__name__)
 
 #########
 # Module variables
@@ -483,138 +484,144 @@ class SICDType(Serializable):
 
         # GeoData elements?
         if self.GeoData is None:
-            logging.error('Formulating a projection is not feasible because GeoData is not populated.')
+            logger.error('Formulating a projection is not feasible because GeoData is not populated.')
             return False
         if self.GeoData.SCP is None:
-            logging.error('Formulating a projection is not feasible because GeoData.SCP is not populated.')
+            logger.error('Formulating a projection is not feasible because GeoData.SCP is not populated.')
             return False
         if self.GeoData.SCP.ECF is None:
-            logging.error('Formulating a projection is not feasible because GeoData.SCP.ECF is not populated.')
+            logger.error('Formulating a projection is not feasible because GeoData.SCP.ECF is not populated.')
             return False
 
         # ImageData elements?
         if self.ImageData is None:
-            logging.error('Formulating a projection is not feasible because ImageData is not populated.')
+            logger.error('Formulating a projection is not feasible because ImageData is not populated.')
             return False
         if self.ImageData.FirstRow is None:
-            logging.error('Formulating a projection is not feasible because ImageData.FirstRow is not populated.')
+            logger.error('Formulating a projection is not feasible because ImageData.FirstRow is not populated.')
             return False
         if self.ImageData.FirstCol is None:
-            logging.error('Formulating a projection is not feasible because ImageData.FirstCol is not populated.')
+            logger.error('Formulating a projection is not feasible because ImageData.FirstCol is not populated.')
             return False
         if self.ImageData.SCPPixel is None:
-            logging.error('Formulating a projection is not feasible because ImageData.SCPPixel is not populated.')
+            logger.error('Formulating a projection is not feasible because ImageData.SCPPixel is not populated.')
             return False
         if self.ImageData.SCPPixel.Row is None:
-            logging.error('Formulating a projection is not feasible because ImageData.SCPPixel.Row is not populated.')
+            logger.error('Formulating a projection is not feasible because ImageData.SCPPixel.Row is not populated.')
             return False
         if self.ImageData.SCPPixel.Col is None:
-            logging.error('Formulating a projection is not feasible because ImageData.SCPPixel.Col is not populated.')
+            logger.error('Formulating a projection is not feasible because ImageData.SCPPixel.Col is not populated.')
             return False
 
         # Position elements?
         if self.Position is None:
-            logging.error('Formulating a projection is not feasible because Position is not populated.')
+            logger.error('Formulating a projection is not feasible because Position is not populated.')
             return False
         if self.Position.ARPPoly is None:
-            logging.error('Formulating a projection is not feasible because Position.ARPPoly is not populated.')
+            logger.error('Formulating a projection is not feasible because Position.ARPPoly is not populated.')
             return False
 
         # Grid elements?
         if self.Grid is None:
-            logging.error('Formulating a projection is not feasible because Grid is not populated.')
+            logger.error('Formulating a projection is not feasible because Grid is not populated.')
             return False
         if self.Grid.TimeCOAPoly is None:
-            logging.warning(
+            logger.warning(
                 'Formulating a projection may be inaccurate, because Grid.TimeCOAPoly is not populated and '
                 'a constant approximation will be used.')
         if self.Grid.Row is None:
-            logging.error('Formulating a projection is not feasible because Grid.Row is not populated.')
+            logger.error('Formulating a projection is not feasible because Grid.Row is not populated.')
             return False
         if self.Grid.Row.SS is None:
-            logging.error('Formulating a projection is not feasible because Grid.Row.SS is not populated.')
+            logger.error('Formulating a projection is not feasible because Grid.Row.SS is not populated.')
             return False
         if self.Grid.Col is None:
-            logging.error('Formulating a projection is not feasible because Grid.Col is not populated.')
+            logger.error('Formulating a projection is not feasible because Grid.Col is not populated.')
             return False
         if self.Grid.Col.SS is None:
-            logging.error('Formulating a projection is not feasible because Grid.Col.SS is not populated.')
+            logger.error('Formulating a projection is not feasible because Grid.Col.SS is not populated.')
             return False
         if self.Grid.Type is None:
-            logging.error('Formulating a projection is not feasible because Grid.Type is not populated.')
+            logger.error('Formulating a projection is not feasible because Grid.Type is not populated.')
             return False
 
         # specifics for Grid.Type value
         if self.Grid.Type == 'RGAZIM':
             if self.ImageFormation is None:
-                logging.error(
-                    'Formulating a projection is not feasible because Grid.Type = "RGAZIM", but '
-                    'ImageFormation is not populated.')
+                logger.error(
+                    'Formulating a projection is not feasible because Grid.Type = "RGAZIM",\n\t'
+                    'but ImageFormation is not populated.')
                 return False
             if self.ImageFormation.ImageFormAlgo is None:
-                logging.error(
-                    'Formulating a projection is not feasible because Grid.Type = "RGAZIM", but '
-                    'ImageFormation.ImageFormAlgo is not populated.')
+                logger.error(
+                    'Formulating a projection is not feasible because Grid.Type = "RGAZIM",\n\t'
+                    'but ImageFormation.ImageFormAlgo is not populated.')
                 return False
 
             if self.ImageFormation.ImageFormAlgo == 'PFA':
                 if self.PFA is None:
-                    logging.error(
-                        'ImageFormation.ImageFormAlgo is "PFA", but the PFA parameter is not populated. '
+                    logger.error(
+                        'ImageFormation.ImageFormAlgo is "PFA",\n\t'
+                        'but the PFA parameter is not populated.\n\t'
                         'No projection can be done.')
                     return False
                 if self.PFA.PolarAngPoly is None:
-                    logging.error(
-                        'ImageFormation.ImageFormAlgo is "PFA", but the PFA.PolarAngPoly parameter is not '
-                        'populated. No projection can be done.')
+                    logger.error(
+                        'ImageFormation.ImageFormAlgo is "PFA",\n\t'
+                        'but the PFA.PolarAngPoly parameter is not populated.\n\t'
+                        'No projection can be done.')
                     return False
                 if self.PFA.SpatialFreqSFPoly is None:
-                    logging.error(
-                        'ImageFormation.ImageFormAlgo is "PFA", but the PFA.SpatialFreqSFPoly parameter is not '
-                        'populated. No projection can be done.')
+                    logger.error(
+                        'ImageFormation.ImageFormAlgo is "PFA",\n\t'
+                        'but the PFA.SpatialFreqSFPoly parameter is not populated.\n\t'
+                        'No projection can be done.')
                     return False
             elif self.ImageFormation.ImageFormAlgo == 'RGAZCOMP':
                 if self.RgAzComp is None:
-                    logging.error(
-                        'ImageFormation.ImageFormAlgo is "RGAZCOMP", but the RgAzComp parameter '
-                        'is not populated. '
+                    logger.error(
+                        'ImageFormation.ImageFormAlgo is "RGAZCOMP",\n\t'
+                        'but the RgAzComp parameter is not populated.\n\t'
                         'No projection can be done.')
                     return False
                 if self.RgAzComp.AzSF is None:
-                    logging.error(
-                        'ImageFormation.ImageFormAlgo is "RGAZCOMP", but the RgAzComp.AzSF '
-                        'parameter is not populated. '
+                    logger.error(
+                        'ImageFormation.ImageFormAlgo is "RGAZCOMP",\n\t'
+                        'but the RgAzComp.AzSF parameter is not populated.\n\t'
                         'No projection can be done.')
                     return False
             else:
-                logging.error(
-                    'Grid.Type = "RGAZIM", and got unhandled ImageFormation.ImageFormAlgo {}. '
+                logger.error(
+                    'Grid.Type = "RGAZIM", and got unhandled ImageFormation.ImageFormAlgo {}.\n\t'
                     'No projection can be done.'.format(self.ImageFormation.ImageFormAlgo))
                 return False
         elif self.Grid.Type == 'RGZERO':
             if self.RMA is None or self.RMA.INCA is None:
-                logging.error(
-                    'Grid.Type is "RGZERO", but the RMA.INCA parameter is not populated. '
+                logger.error(
+                    'Grid.Type is "RGZERO", but the RMA.INCA parameter is not populated.\n\t'
                     'No projection can be done.')
                 return False
             if self.RMA.INCA.R_CA_SCP is None or self.RMA.INCA.TimeCAPoly is None \
                     or self.RMA.INCA.DRateSFPoly is None:
-                logging.error(
-                    'Grid.Type is "RGZERO", but the parameters R_CA_SCP, TimeCAPoly, or DRateSFPoly of '
-                    'RMA.INCA parameter are not populated. '
+                logger.error(
+                    'Grid.Type is "RGZERO", but the parameters\n\t'
+                    'R_CA_SCP, TimeCAPoly, or DRateSFPoly of RMA.INCA parameter are not populated.\n\t'
                     'No projection can be done.')
                 return False
         elif self.Grid.Type in ['XRGYCR', 'XCTYAT', 'PLANE']:
             if self.Grid.Row.UVectECF is None or self.Grid.Col.UVectECF is None:
-                logging.error(
+                logger.error(
                     'Grid.Type is one of ["XRGYCR", "XCTYAT", "PLANE"], but the UVectECF parameter of '
-                    'Grid.Row or Grid.Col is not populated. No projection can be formulated.')
+                    'Grid.Row or Grid.Col is not populated.\n\t'
+                    'No projection can be formulated.')
                 return False
         else:
-            logging.error('Unhandled Grid.Type {}, unclear how to formulate a projection.'.format(self.Grid.Type))
+            logger.error(
+                'Unhandled Grid.Type {},\n\t'
+                'unclear how to formulate a projection.'.format(self.Grid.Type))
             return False
 
-        # logging.info('Consider calling sicd.define_coa_projection if the sicd structure is defined.')
+        # logger.info('Consider calling sicd.define_coa_projection if the sicd structure is defined.')
         return True
 
     def define_coa_projection(self, delta_arp=None, delta_varp=None, range_bias=None,
@@ -642,7 +649,7 @@ class SICDType(Serializable):
         """
 
         if not self.can_project_coordinates():
-            logging.error('The COAProjection object cannot be defined.')
+            logger.error('The COAProjection object cannot be defined.')
             return
 
         if self._coa_projection is not None and not overide:
@@ -794,23 +801,25 @@ class SICDType(Serializable):
         """
 
         if self.CollectionInfo is None:
-            logging.error('CollectionInfo must not be None. Nothing to be done for calculating RNIIRS.')
+            logger.error(
+                'CollectionInfo must not be None.\n\t'
+                'Nothing to be done for calculating RNIIRS.')
             return
 
         if self.CollectionInfo.Parameters is not None and \
                 self.CollectionInfo.Parameters.get('PREDICTED_RNIIRS', None) is not None:
             if override:
-                logging.warning('PREDICTED_RNIIRS already populated, and this value will be overridden.')
+                logger.warning('PREDICTED_RNIIRS already populated, and this value will be overridden.')
             else:
-                logging.info('PREDICTED_RNIIRS already populated. Nothing to be done.')
+                logger.info('PREDICTED_RNIIRS already populated. Nothing to be done.')
                 return
 
         if noise is None:
             if self.Radiometric is not None:
                 try:
                     if self.Radiometric.NoiseLevel.NoiseLevelType != 'ABSOLUTE':
-                        logging.error(
-                            'Radiometric.NoiseLevel.NoiseLevelType must be "ABSOLUTE" to estimate noise. '
+                        logger.error(
+                            'Radiometric.NoiseLevel.NoiseLevelType must be "ABSOLUTE" to estimate noise.\n\t'
                             'You must provide a noise estimate.')
                         return
                     noise = self.Radiometric.NoiseLevel.NoisePoly(0, 0)  # this is in db
@@ -819,11 +828,12 @@ class SICDType(Serializable):
                     # convert to SigmaZero value
                     noise *= self.Radiometric.SigmaZeroSFPoly(0, 0)
                 except Exception as e:
-                    logging.error('Encountered an error estimating noise for RNIIRS. {}'.format(e))
+                    logger.error(
+                        'Encountered an error estimating noise for RNIIRS.\n\t{}'.format(e))
                     return
             else:
-                logging.error(
-                    'noise is not provided, and Radiometric is not populated. '
+                logger.error(
+                    'noise is not provided, and Radiometric is not populated.\n\t'
                     'RNIIRS can not be estimated.')
                 return
 
@@ -847,13 +857,15 @@ class SICDType(Serializable):
             bw_area = abs(self.Grid.Row.ImpRespBW*self.Grid.Col.ImpRespBW*
                           numpy.cos(numpy.deg2rad(self.SCPCOA.SlopeAng)))
         except Exception as e:
-            logging.error('Encountered an error estimating bandwidth area for RNIIRS. {}'.format(e))
+            logger.error(
+                'Encountered an error estimating bandwidth area for RNIIRS\n\t{}'.format(e))
             return
 
         from sarpy.io.complex.utils import snr_to_rniirs
         inf_density, rniirs = snr_to_rniirs(bw_area, signal, noise)
-        logging.info('Calculated INFORMATION_DENSITY = {0:0.5G}, '
-                     'PREDICTED_RNIIRS = {1:0.5G}'.format(inf_density, rniirs))
+        logger.info(
+            'Calculated INFORMATION_DENSITY = {0:0.5G},\n\t'
+            'PREDICTED_RNIIRS = {1:0.5G}'.format(inf_density, rniirs))
         if self.CollectionInfo.Parameters is None:
             self.CollectionInfo.Parameters = []  # initialize
         self.CollectionInfo.Parameters['INFORMATION_DENSITY'] = '{0:0.2G}'.format(inf_density)

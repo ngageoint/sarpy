@@ -2,6 +2,10 @@
 The GridType definition.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
+
 import logging
 
 import numpy
@@ -17,8 +21,7 @@ from .blocks import XYZType, Poly2DType
 from .utils import _get_center_frequency
 
 
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
+logger = logging.getLogger(__name__)
 
 
 # module variable
@@ -770,17 +773,19 @@ class GridType(Serializable):
         if self.ImagePlane is None:
             self.ImagePlane = 'SLANT'
         elif self.ImagePlane != 'SLANT':
-            logging.warning(
-                'The Grid.ImagePlane is set to {}, but Image Formation Algorithm is RgAzComp, '
-                'which requires "SLANT". resetting.'.format(self.ImagePlane))
+            logger.warning(
+                'The Grid.ImagePlane is set to {},\n\t'
+                'but Image Formation Algorithm is RgAzComp, which requires "SLANT".\n\t'
+                'Resetting.'.format(self.ImagePlane))
             self.ImagePlane = 'SLANT'
 
         if self.Type is None:
             self.Type = 'RGAZIM'
         elif self.Type != 'RGAZIM':
-            logging.warning(
-                'The Grid.Type is set to {}, but Image Formation Algorithm is RgAzComp, '
-                'which requires "RGAZIM". resetting.'.format(self.Type))
+            logger.warning(
+                'The Grid.Type is set to {},\n\t'
+                'but Image Formation Algorithm is RgAzComp, which requires "RGAZIM".\n\t'
+                'Resetting.'.format(self.Type))
 
         if GeoData is not None and GeoData.SCP is not None and GeoData.SCP.ECF is not None and \
                 SCPCOA.ARPPos is not None and SCPCOA.ARPVel is not None:
@@ -929,9 +934,9 @@ class GridType(Serializable):
         LOS = (SCP - pos_ref)  # it absolutely could be that SCP = pos_ref
         LOS_norm = norm(LOS)
         if LOS_norm < 1:
-            logging.error(
-                msg="Row/Col UVectECF cannot be derived from RMA, because the Reference "
-                    "Position is too close (less than 1 meter) to the SCP.")
+            logger.error(
+                msg="Row/Col UVectECF cannot be derived from RMA,\n\t"
+                    "because the Reference Position is too close (less than 1 meter) to the SCP.")
         uLOS = LOS/LOS_norm
         left = numpy.cross(upos_ref, uvel_ref)
         look = numpy.sign(numpy.dot(left, uLOS))

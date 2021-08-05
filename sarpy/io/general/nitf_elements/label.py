@@ -2,12 +2,12 @@
 The label extension subheader definitions - applies only to NITF version 2.0
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
 from .base import NITFElement, UserHeaderType, _IntegerDescriptor, _RawDescriptor, \
     _StringDescriptor, _StringEnumDescriptor, _NITFElementDescriptor
 from .security import NITFSecurityTags0
-
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
 
 
 class LabelSegmentHeader(NITFElement):

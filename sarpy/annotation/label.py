@@ -21,6 +21,9 @@ from sarpy.geometry.geometry_elements import _Jsonable, FeatureCollection, Featu
 from sarpy.compliance import string_types, int_func, integer_types
 
 
+logger = logging.getLogger(__name__)
+
+
 class LabelSchema(object):
     """
     The basic structure for an annotation/labelling schema.
@@ -357,7 +360,7 @@ class LabelSchema(object):
             iterate(the_id, the_id)
         if len(found_cycles) > 0:
             for entry in found_cycles:
-                logging.error(
+                logger.error(
                     'Cycle found with ids {} and {}'.format(entry[0], entry[1]))
             raise ValueError('cycles found in graph information')
 
@@ -496,7 +499,7 @@ class LabelSchema(object):
         # check if name is already being used, and warn if so
         for key, value in self.labels.items():
             if value == the_name:
-                logging.warning(
+                logger.warning(
                     'Note that id {} is already using name {}. Having repeated names is '
                     'permitted, but may lead to confusion.'.format(key, value))
 
@@ -513,7 +516,7 @@ class LabelSchema(object):
         try:
             self.set_labels_and_subtypes(labels, subtypes)
         except (ValueError, KeyError) as e:
-            logging.error(
+            logger.error(
                 'Setting new entry id {}, name {}, and parent {} failed with '
                 'exception {}'.format(the_id, the_name, the_parent, e))
 
@@ -554,7 +557,7 @@ class LabelSchema(object):
             if current_name != the_name:
                 for key, value in self.labels.items():
                     if value == the_name and key != the_id:
-                        logging.warning(
+                        logger.warning(
                             'Note that id {} is already using name {}. Having repeated names is '
                             'permitted, but may lead to confusion.'.format(key, value))
 
@@ -572,7 +575,7 @@ class LabelSchema(object):
             try:
                 self.set_labels_and_subtypes(labels, subtypes)
             except (ValueError, KeyError) as e:
-                logging.error(
+                logger.error(
                     'Modifying entry id {}, name {}, and parent {} failed with '
                     'exception {}.'.format(the_id, the_name, the_parent, e))
                 raise e
@@ -1074,7 +1077,7 @@ class FileLabelCollection(object):
         self._core_name = core_name
 
         if self._image_file_name is None and self._image_id is None and self._core_name is None:
-            logging.error('One of image_file_name, image_id, or core_name should be defined.')
+            logger.error('One of image_file_name, image_id, or core_name should be defined.')
 
         self.annotations = annotations
 
@@ -1230,14 +1233,14 @@ class FileLabelCollection(object):
         for entry in annotation.properties.elements:
             if not self._label_schema.is_valid_confidence(entry.confidence):
                 valid = False
-                logging.error('Invalid confidence value {}'.format(entry.confidence))
+                logger.error('Invalid confidence value {}'.format(entry.confidence))
         return valid
 
     def _valid_geometry(self, annotation):
         if self._label_schema is None:
             return True
         if not self._label_schema.is_valid_geometry(annotation.geometry):
-            logging.error('Invalid geometry type {}'.format(type(annotation.geometry)))
+            logger.error('Invalid geometry type {}'.format(type(annotation.geometry)))
             return False
         return True
 

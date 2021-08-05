@@ -2,6 +2,9 @@
 The MeasurementType definition.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
 from typing import Union, List
 
 from .base import DEFAULT_STRICT
@@ -11,10 +14,6 @@ from .blocks import ReferencePointType, RowColDoubleType, Poly2DType, XYZType, R
 # noinspection PyProtectedMember
 from sarpy.io.complex.sicd_elements.base import Serializable, _SerializableDescriptor, _UnitVectorDescriptor, \
     _FloatDescriptor, _StringEnumDescriptor, SerializableArray, _SerializableArrayDescriptor
-
-
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
 
 
 class BaseProjectionType(Serializable):

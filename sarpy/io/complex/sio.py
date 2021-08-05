@@ -22,6 +22,8 @@ from sarpy.io.complex.sicd_elements.ImageData import ImageDataType, FullImageTyp
 from sarpy.io.complex.sicd import complex_to_amp_phase, complex_to_int, amp_phase_to_complex
 from sarpy.io.general.utils import parse_xml_from_string, is_file_like
 
+logger = logging.getLogger(__name__)
+
 
 ########
 # base expected functionality for a module with an implemented Reader
@@ -46,7 +48,7 @@ def is_a(file_name):
 
     try:
         sio_details = SIODetails(file_name)
-        logging.info('File {} is determined to be a SIO file.'.format(file_name))
+        logger.info('File {} is determined to be a SIO file.'.format(file_name))
         return SIOReader(sio_details)
     except SarpyIOError:
         return None
@@ -179,9 +181,11 @@ class SIODetails(object):
         exp_file_size = self._data_offset + self._head[0]*self._head[1]*self._head[3]
         act_file_size = os.path.getsize(self._file_name)
         if exp_file_size != act_file_size:
-            logging.warning(
-                'File {} appears to be an SIO file, but size calculated from the header {} '
-                'does not match the actual file size {}'.format(self._file_name, exp_file_size, act_file_size))
+            logger.warning(
+                'File {} appears to be an SIO file.\n\t'
+                'The file size calculated from the header ({})\n\t'
+                'does not match the actual file size ({})'.format(
+                    self._file_name, exp_file_size, act_file_size))
 
     def _find_caspr_data(self):
         def find_caspr():

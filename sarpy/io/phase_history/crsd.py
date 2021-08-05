@@ -21,6 +21,8 @@ from sarpy.io.phase_history.cphd1_elements.utils import binary_format_string_to_
 # noinspection PyProtectedMember
 from sarpy.io.phase_history.crsd1_elements.CRSD import CRSDType, CRSDHeader, _CRSD_SECTION_TERMINATOR
 
+logger = logging.getLogger(__name__)
+
 
 def is_a(file_name):
     """
@@ -39,7 +41,7 @@ def is_a(file_name):
 
     try:
         crsd_details = CRSDDetails(file_name)
-        logging.info('File {} is determined to be a CRSD version {} file.'.format(file_name, crsd_details.crsd_version))
+        logger.info('File {} is determined to be a CRSD version {} file.'.format(file_name, crsd_details.crsd_version))
         return CRSDReader(crsd_details)
     except SarpyIOError:
         # we don't want to catch parsing errors, for now?
@@ -573,10 +575,10 @@ class CRSDReader1_0(CRSDReader):
 
         self._pvp_memmap = None
         if self.crsd_meta.Data.Channels is None:
-            logging.error('No Data.Channels defined.')
+            logger.error('No Data.Channels defined.')
             return
         if self.crsd_meta.PVP is None:
-            logging.error('No PVP object defined.')
+            logger.error('No PVP object defined.')
             return
 
         pvp_dtype = self.crsd_meta.PVP.get_vector_dtype()
@@ -853,7 +855,7 @@ class CRSDWriter1_0(AbstractWriter):
                     'Observed dtype for {} does not match the expected dtype\nobserved {}\nexpected {}.'.format(
                         purpose, observed_dtype, expected_dtype))
             if obs_entry[0] != exp_entry[0]:
-                logging.warning(
+                logger.warning(
                     'Got mismatched field names (observed {}, expected {}) for {}.'.format(
                         obs_entry[0], exp_entry[0], purpose))
 
@@ -1005,7 +1007,7 @@ class CRSDWriter1_0(AbstractWriter):
         """
 
         if self._writing_state['header']:
-            logging.warning('The header for CRSD file {} has already been written. Exiting.'.format(self._file_name))
+            logger.warning('The header for CRSD file {} has already been written. Exiting.'.format(self._file_name))
             return
 
         with open(self._file_name, "wb") as outfile:
@@ -1067,8 +1069,9 @@ class CRSDWriter1_0(AbstractWriter):
         self._writing_state['support'][identifier] += pixel_count
         # check if the written pixels is seemingly ridiculous or redundant
         if self._writing_state['support'][identifier] > total_pixels:
-            logging.warning(
-                'Appear to have written {} total pixels to support array {}, which only has {} pixels. '
+            logger.warning(
+                'Appear to have written {} total pixels to support array {},\n\t'
+                'which only has {} pixels.\n\t'
                 'This may be indicative of an error.'.format(
                     self._writing_state['support'][identifier], identifier, total_pixels))
 
@@ -1109,8 +1112,9 @@ class CRSDWriter1_0(AbstractWriter):
         self._pvp_memmaps[identifier][rows[0]:rows[1]] = data
         self._writing_state['pvp'][identifier] += data.shape[0]
         if self._writing_state['pvp'][identifier] > entry.NumVectors:
-            logging.warning(
-                'Appear to have written {} total rows to pvp block {}, which only has {} rows. '
+            logger.warning(
+                'Appear to have written {} total rows to pvp block {},\n\t'
+                'which only has {} rows.\n\t'
                 'This may be indicative of an error.'.format(
                     self._writing_state['pvp'][identifier], identifier, entry.NumVectors))
 
@@ -1206,8 +1210,9 @@ class CRSDWriter1_0(AbstractWriter):
         self._writing_state['signal'][identifier] += pixel_count
         # check if the written pixels is seemingly ridiculous or redundant
         if self._writing_state['signal'][identifier] > total_pixels:
-            logging.warning(
-                'Appear to have written {} total pixels to signal block {}, which only has {} pixels. '
+            logger.warning(
+                'Appear to have written {} total pixels to signal block {},\n\t'
+                'which only has {} pixels.\n\t'
                 'This may be indicative of an error.'.format(
                     self._writing_state['signal'][identifier], identifier, total_pixels))
 
@@ -1272,13 +1277,13 @@ class CRSDWriter1_0(AbstractWriter):
                         entry.Identifier, self._writing_state['support'][entry.Identifier], support_pixels)
 
         if not status:
-            logging.error('CRSD file %s is not completely written, and the result may be corrupt.', self._file_name)
+            logger.error('CRSD file %s is not completely written, and the result may be corrupt.', self._file_name)
             if pvp_message != '':
-                logging.error('PVP block(s) incompletely written\n%s', pvp_message)
+                logger.error('PVP block(s) incompletely written\n%s', pvp_message)
             if signal_message != '':
-                logging.error('Signal block(s) incompletely written\n%s', signal_message)
+                logger.error('Signal block(s) incompletely written\n%s', signal_message)
             if support_message != '':
-                logging.error('Support block(s) incompletely written\n%s',support_message)
+                logger.error('Support block(s) incompletely written\n%s',support_message)
         return status
 
     def close(self):
