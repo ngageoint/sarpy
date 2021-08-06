@@ -173,7 +173,7 @@ class DetailImageInfoType(Serializable):
         'SensorReferencePoint', 'SensorCalibrationFactor', 'DataCalibrated',
         'Resolution', 'PixelSpacing', 'WeightingType', 'OverSamplingFactor',
         'ImageQualityDescription', 'ImageHeading',
-        'ImageCorners', 'SlantPlane', 'GroundPlane')
+        'ImageCorners', 'SlantPlane', 'GroundPlane', 'SceneCenterReferenceLine')
     _required = (
         'DataFilename', 'ClassificationMarkings', 'DataPlane', 'DataType',
         'DataFormat', 'NumPixels', 'ImageCollectionDate', 'SensorReferencePoint',
@@ -258,6 +258,12 @@ class DetailImageInfoType(Serializable):
     GroundPlane = _SerializableDescriptor(
         'GroundPlane', PixelSpacingType, _required,
         docstring='The ground plane pixel spacing')  # type: Optional[PixelSpacingType]
+    SceneCenterReferenceLine = _FloatDescriptor(
+        'SceneCenterReferenceLine', _required,
+        docstring='The ideal line (heading) at the intersection of the radar '
+                  'line-of-sight with the horizontal reference plane '
+                  'created by the forward motion of the aircraft, '
+                  'in degrees')  # type: Optional[float]
 
     def __init__(self, DataFilename=None, ClassificationMarkings=None,
                  FileType=None, DataCheckSum=None, DataSize=None,
@@ -268,7 +274,8 @@ class DetailImageInfoType(Serializable):
                  DataCalibrated=None, Resolution=None, PixelSpacing=None,
                  WeightingType=None, OverSamplingFactor=None,
                  ImageQualityDescription=None, ImageHeading=None, ImageCorners=None,
-                 SlantPlane=None, GroundPlane=None, **kwargs):
+                 SlantPlane=None, GroundPlane=None, SceneCenterReferenceLine=None,
+                 **kwargs):
         """
         Parameters
         ----------
@@ -298,6 +305,7 @@ class DetailImageInfoType(Serializable):
         ImageCorners : ImageCornerType
         SlantPlane : None|PixelSpacingType
         GroundPlane : None|PixelSpacingType
+        SceneCenterReferenceLine : None|float
         kwargs
             Other keyword arguments
         """
@@ -335,4 +343,5 @@ class DetailImageInfoType(Serializable):
         self.ImageCorners = ImageCorners
         self.SlantPlane = SlantPlane
         self.GroundPlane = GroundPlane
+        self.SceneCenterReferenceLine = SceneCenterReferenceLine
         super(DetailImageInfoType, self).__init__(**kwargs)
