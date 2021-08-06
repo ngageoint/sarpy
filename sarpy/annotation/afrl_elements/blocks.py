@@ -179,3 +179,82 @@ class RowColDoubleType(Serializable, Arrayable):
                 raise ValueError('Expected array to be of length 2, and received {}'.format(array))
             return cls(Row=array[0], Col=array[1])
         raise ValueError('Expected array to be numpy.ndarray, list, or tuple, got {}'.format(type(array)))
+
+
+class LatLonEleType(Serializable, Arrayable):
+    """A three-dimensional geographic point in WGS-84 coordinates."""
+    _fields = ('Lat', 'Lon', 'Ele')
+    _required = _fields
+    _numeric_format = {'Lat': '0.16G', 'Lon': '0.16G', 'Ele': '0.16G'}
+    # descriptors
+    Lat = _FloatDescriptor(
+        'Lat', _required, strict=True,
+        docstring='The latitude attribute. Assumed to be WGS-84 coordinates.'
+    )  # type: float
+    Lon = _FloatDescriptor(
+        'Lon', _required, strict=True,
+        docstring='The longitude attribute. Assumed to be WGS-84 coordinates.'
+    )  # type: float
+    Ele = _FloatDescriptor(
+        'Ele', _required, strict=True,
+        docstring='The Height Above Ellipsoid (in meters) attribute. '
+                  'Assumed to be WGS-84 coordinates.')  # type: float
+
+    def __init__(self, Lat=None, Lon=None, Ele=None, **kwargs):
+        """
+        Parameters
+        ----------
+        Lat : float
+        Lon : float
+        Ele : float
+        kwargs : dict
+        """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
+        self.Lat = Lat
+        self.Lon = Lon
+        self.Ele = Ele
+        super(LatLonEleType, self).__init__(Lat=Lat, Lon=Lon, **kwargs)
+
+    def get_array(self, dtype=numpy.float64):
+        """
+        Gets an array representation of the data.
+
+        Parameters
+        ----------
+        dtype : str|numpy.dtype|numpy.number
+            data type of the return
+
+        Returns
+        -------
+        numpy.ndarray
+            data array with appropriate entry order
+        """
+
+        return numpy.array([self.Lat, self.Lon, self.Ele], dtype=dtype)
+
+    @classmethod
+    def from_array(cls, array):
+        """
+        Create from an array type entry.
+
+        Parameters
+        ----------
+        array: numpy.ndarray|list|tuple
+            assumed [Lat, Lon, Ele]
+
+        Returns
+        -------
+        LatLonEleType
+        """
+
+        if array is None:
+            return None
+        if isinstance(array, (numpy.ndarray, list, tuple)):
+            if len(array) < 3:
+                raise ValueError('Expected array to be of length 3, and received {}'.format(array))
+            return cls(Lat=array[0], Lon=array[1], Ele=array[2])
+        raise ValueError('Expected array to be numpy.ndarray, list, or tuple, got {}'.format(type(array)))

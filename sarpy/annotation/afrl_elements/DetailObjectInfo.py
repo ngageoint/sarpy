@@ -13,9 +13,9 @@ import numpy
 from sarpy.io.complex.sicd_elements.base import _StringDescriptor, _FloatDescriptor, \
     _IntegerDescriptor, _SerializableDescriptor, Serializable, \
     _SerializableListDescriptor, Arrayable
-from sarpy.io.complex.sicd_elements.blocks import RowColType, LatLonHAEType
+from sarpy.io.complex.sicd_elements.blocks import RowColType
 from .base import DEFAULT_STRICT
-from .blocks import RangeCrossRangeType, RowColDoubleType
+from .blocks import RangeCrossRangeType, RowColDoubleType, LatLonEleType
 
 # TODO: the articulation and configuration information is really not usable in
 #  its current form, and should be replaced with a (`name`, `value`) pair.
@@ -193,7 +193,8 @@ class OrientationType(Serializable):
 
 class ImageLocationType(Serializable):
     _fields = (
-        'CenterPixel', 'LeftFrontPixel', 'RightFrontPixel', 'RightRearPixel', 'LeftRearPixel')
+        'CenterPixel', 'LeftFrontPixel', 'RightFrontPixel', 'RightRearPixel',
+        'LeftRearPixel')
     _required = _fields
     # descriptors
     CenterPixel = _SerializableDescriptor(
@@ -239,35 +240,36 @@ class ImageLocationType(Serializable):
 
 class GeoLocationType(Serializable):
     _fields = (
-        'CenterPixel', 'LeftFrontPixel', 'RightFrontPixel', 'RightRearPixel', 'LeftRearPixel')
+        'CenterPixel', 'LeftFrontPixel', 'RightFrontPixel', 'RightRearPixel',
+        'LeftRearPixel')
     _required = _fields
     # descriptors
     CenterPixel = _SerializableDescriptor(
-        'CenterPixel', LatLonHAEType, _required, strict=DEFAULT_STRICT,
-        docstring='')  # type: LatLonHAEType
+        'CenterPixel', LatLonEleType, _required, strict=DEFAULT_STRICT,
+        docstring='')  # type: LatLonEleType
     LeftFrontPixel = _SerializableDescriptor(
-        'LeftFrontPixel', LatLonHAEType, _required, strict=DEFAULT_STRICT,
-        docstring='')  # type: LatLonHAEType
+        'LeftFrontPixel', LatLonEleType, _required, strict=DEFAULT_STRICT,
+        docstring='')  # type: LatLonEleType
     RightFrontPixel = _SerializableDescriptor(
-        'RightFrontPixel', LatLonHAEType, _required, strict=DEFAULT_STRICT,
-        docstring='')  # type: LatLonHAEType
+        'RightFrontPixel', LatLonEleType, _required, strict=DEFAULT_STRICT,
+        docstring='')  # type: LatLonEleType
     RightRearPixel = _SerializableDescriptor(
-        'RightRearPixel', LatLonHAEType, _required, strict=DEFAULT_STRICT,
-        docstring='')  # type: LatLonHAEType
+        'RightRearPixel', LatLonEleType, _required, strict=DEFAULT_STRICT,
+        docstring='')  # type: LatLonEleType
     LeftRearPixel = _SerializableDescriptor(
-        'LeftRearPixel', LatLonHAEType, _required, strict=DEFAULT_STRICT,
-        docstring='')  # type: LatLonHAEType
+        'LeftRearPixel', LatLonEleType, _required, strict=DEFAULT_STRICT,
+        docstring='')  # type: LatLonEleType
 
     def __init__(self, CenterPixel=None, LeftFrontPixel=None, RightFrontPixel=None,
                  RightRearPixel=None, LeftRearPixel=None, **kwargs):
         """
         Parameters
         ----------
-        CenterPixel : LatLonHAEType|numpy.ndarray|list|tuple
-        LeftFrontPixel : LatLonHAEType|numpy.ndarray|list|tuple
-        RightFrontPixel : LatLonHAEType|numpy.ndarray|list|tuple
-        RightRearPixel : LatLonHAEType|numpy.ndarray|list|tuple
-        LeftRearPixel : LatLonHAEType|numpy.ndarray|list|tuple
+        CenterPixel : LatLonEleType|numpy.ndarray|list|tuple
+        LeftFrontPixel : LatLonEleType|numpy.ndarray|list|tuple
+        RightFrontPixel : LatLonEleType|numpy.ndarray|list|tuple
+        RightRearPixel : LatLonEleType|numpy.ndarray|list|tuple
+        LeftRearPixel : LatLonEleType|numpy.ndarray|list|tuple
         kwargs : dict
         """
 
