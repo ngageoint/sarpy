@@ -17,7 +17,7 @@ class DateRangeType(Serializable):
     A range of dates with resolution of 1 day
     """
     _fields = ('Begin', 'End')
-    _required = ()
+    _required = _fields
     # descriptors
     Begin = _DateTimeDescriptor(
         'Begin', _required, strict=DEFAULT_STRICT, numpy_datetime_units='D',
@@ -56,41 +56,6 @@ class DateRangeType(Serializable):
         -------
 
         """
-
-
-class LatLonWithNameType(Serializable):
-    _fields = ('Lat', 'Lon', 'Name')
-    _required = ()
-    # descriptors
-    Lat = _FloatDescriptor(
-        'Lat', _required, strict=DEFAULT_STRICT,
-        docstring="General latitude of the data collection.")  # type: Optional[float]
-    Lon = _FloatDescriptor(
-        'Lon', _required, strict=DEFAULT_STRICT,
-        docstring="General longitude of the data collection.")  # type: Optional[float]
-    Name = _StringDescriptor(
-        'Name', _required,
-        docstring="Common name of the collection location.")  # type: Optional[str]
-
-    def __init__(self, Lat=None, Lon=None, Name=None, **kwargs):
-        """
-        Parameters
-        ----------
-        Lat : None|float
-        Lon : None|float
-        Name : None|str
-        kwargs
-            Other keyword arguments
-        """
-
-        if '_xml_ns' in kwargs:
-            self._xml_ns = kwargs['_xml_ns']
-        if '_xml_ns_key' in kwargs:
-            self._xml_ns_key = kwargs['_xml_ns_key']
-        self.Lat = Lat
-        self.Lon = Lon
-        self.Name = Name
-        super(LatLonWithNameType, self).__init__(**kwargs)
 
 
 class RangeCrossRangeType(Serializable, Arrayable):
