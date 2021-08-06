@@ -18,11 +18,11 @@ class DetailSubCollectionInfoType(Serializable):
     _fields = ('Name', 'SiteName', 'SiteNumber', 'SceneNumber', 'Description',
                'Duration', 'SiteCenterLocation', 'SceneContentDescription',
                'SiteBackgroundType')
-    _required = ('Description', 'SiteCenterLocation', 'SceneContentDescription')
+    _required = ('Name', 'SiteCenterLocation', 'SceneContentDescription')
     # descriptors
     Name = _StringDescriptor(
         'Name', _required,
-        docstring="Name of the subcollection.")  # type: Optional[str]
+        docstring="Name of the subcollection.")  # type: str
     SiteName = _StringDescriptor(
         'SiteName', _required,
         docstring="Name of the subcollection site location.")  # type: Optional[str]
@@ -33,8 +33,8 @@ class DetailSubCollectionInfoType(Serializable):
         'SceneNumber', _required,
         docstring="Scene number of the subcollection.")  # type: Optional[str]
     Description = _StringDescriptor(
-        'Description', _required, default_value="",
-        docstring="Description of the subcollection (e.g., Main array).")  # type: str
+        'Description', _required,
+        docstring="Description of the subcollection (e.g., Main array).")  # type: Optional[str]
     Duration = _SerializableDescriptor(
         'Duration', DateRangeType, _required, strict=DEFAULT_STRICT,
         docstring="Begin and end dates of the subcollection.")  # type: Optional[DateRangeType]
