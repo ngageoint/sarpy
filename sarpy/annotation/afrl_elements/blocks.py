@@ -44,6 +44,19 @@ class DateRangeType(Serializable):
         self.End = End
         super(DateRangeType, self).__init__(**kwargs)
 
+    def get_array(self, dtype=numpy.datetime64):
+        """
+        Gets an array representation of the data.
+
+        Parameters
+        ----------
+        dtype
+
+        Returns
+        -------
+
+        """
+
 
 class LatLonWithNameType(Serializable):
     _fields = ('Lat', 'Lon', 'Name')
