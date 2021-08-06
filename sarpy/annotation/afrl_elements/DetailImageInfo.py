@@ -17,23 +17,27 @@ from sarpy.io.complex.sicd_elements.blocks import RowColType
 from .base import DEFAULT_STRICT
 from .blocks import RangeCrossRangeType, RowColDoubleType
 
-# TODO: Review what's marked required/oprional - I'm sure it makes little sense
+# TODO: Review what's marked required/optional - I'm sure it makes little sense
 #  Questionable field definitions:
 #   - there is a PixelSpacing and then slant/ground plane elements for pixel spacing.
 #   - 3dbWidth is a poorly formed name, so I am omitting for now
 #   - ZuluOffset seemingly assumes that the only possible offsets are integer valued - this is wrong
 #   - DataCalibrated should obviously be xs:boolean - this is kludged badly for no reason
+#   - DataCheckSum - it is unclear what this is the checksum of, and which checksum it would be (CRC-32?)
+#   - DataByteOrder - why in the world is this even here?
 
 
 class ClassificationMarkingsType(Serializable):
     _fields = (
-        'Classification','Restrictions', 'ClassifiedBy', 'DeclassifyOn', 'DerivedFrom')
-    _required = ('Classification','Restrictions')
+        'Classification', 'Restrictions', 'ClassifiedBy', 'DeclassifyOn', 'DerivedFrom')
+    _required = ('Classification', 'Restrictions')
     # descriptors
     Classification = _StringDescriptor(
-        'Classification', _required, default_value='')  # type: str
+        'Classification', _required, default_value='',
+        docstring='The image classification')  # type: str
     Restrictions = _StringDescriptor(
-        'Restrictions', _required, default_value='')  # type: str
+        'Restrictions', _required, default_value='',
+        docstring='Additional caveats to the classification')  # type: str
     ClassifiedBy = _StringDescriptor(
         'ClassifiedBy', _required)  # type: Optional[str]
     DeclassifyOn = _StringDescriptor(
@@ -98,31 +102,31 @@ class StringRangeCrossRangeType(Serializable):
 
 class ImageCornerType(Serializable):
     _fields = (
-        'LeftFront', 'RightFront', 'RightRear', 'LeftRear')
+        'UpperLeft', 'UpperRight', 'LowerRight', 'LowerLeft')
     _required = _fields
     # descriptors
-    LeftFront = _SerializableDescriptor(
-        'LeftFront', RowColDoubleType, _required, strict=DEFAULT_STRICT,
+    UpperLeft = _SerializableDescriptor(
+        'UpperLeft', RowColDoubleType, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: RowColDoubleType
-    RightFront = _SerializableDescriptor(
-        'RightFront', RowColDoubleType, _required, strict=DEFAULT_STRICT,
+    UpperRight = _SerializableDescriptor(
+        'UpperRight', RowColDoubleType, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: RowColDoubleType
-    RightRear = _SerializableDescriptor(
-        'RightRear', RowColDoubleType, _required, strict=DEFAULT_STRICT,
+    LowerRight = _SerializableDescriptor(
+        'LowerRight', RowColDoubleType, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: RowColDoubleType
-    LeftRear = _SerializableDescriptor(
-        'LeftRear', RowColDoubleType, _required, strict=DEFAULT_STRICT,
+    LowerLeft = _SerializableDescriptor(
+        'LowerLeft', RowColDoubleType, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: RowColDoubleType
 
-    def __init__(self, LeftFront=None, RightFront=None,
-                 RightRear=None, LeftRear=None, **kwargs):
+    def __init__(self, UpperLeft=None, UpperRight=None,
+                 LowerRight=None, LowerLeft=None, **kwargs):
         """
         Parameters
         ----------
-        LeftFront : RowColDoubleType|numpy.ndarray|list|tuple
-        RightFront : RowColDoubleType|numpy.ndarray|list|tuple
-        RightRear : RowColDoubleType|numpy.ndarray|list|tuple
-        LeftRear : RowColDoubleType|numpy.ndarray|list|tuple
+        UpperLeft : RowColDoubleType|numpy.ndarray|list|tuple
+        UpperRight : RowColDoubleType|numpy.ndarray|list|tuple
+        LowerRight : RowColDoubleType|numpy.ndarray|list|tuple
+        LowerLeft : RowColDoubleType|numpy.ndarray|list|tuple
         kwargs : dict
         """
 
@@ -130,10 +134,10 @@ class ImageCornerType(Serializable):
             self._xml_ns = kwargs['_xml_ns']
         if '_xml_ns_key' in kwargs:
             self._xml_ns_key = kwargs['_xml_ns_key']
-        self.LeftFront = LeftFront
-        self.RightFront = RightFront
-        self.RightRear = RightRear
-        self.LeftRear = LeftRear
+        self.UpperLeft = UpperLeft
+        self.UpperRight = UpperRight
+        self.LowerRight = LowerRight
+        self.LowerLeft = LowerLeft
         super(ImageCornerType, self).__init__(**kwargs)
 
 
@@ -162,21 +166,22 @@ class PixelSpacingType(Serializable):
 
 
 class DetailImageInfoType(Serializable):
-
     _fields = (
         'DataFilename', 'ClassificationMarkings', 'Filetype', 'DataCheckSum',
         'DataSize', 'DataPlane', 'DataDomain', 'DataType', 'BitsPerSample',
-        'DataByteOrder', 'NumPixels', 'ImageCollectionDate', 'ZuluOffset',
+        'DataFormat', 'DataByteOrder', 'NumPixels', 'ImageCollectionDate', 'ZuluOffset',
         'SensorReferencePoint', 'SensorCalibrationFactor', 'DataCalibrated',
         'Resolution', 'PixelSpacing', 'WeightingType', 'OverSamplingFactor',
         'ImageQualityDescription', 'ImageHeading',
         'ImageCorners', 'SlantPlane', 'GroundPlane')
     _required = (
-        'DataFilename', 'ClassificationMarkings', 'DataPlane',
-        'NumPixels', 'PixelSpacing', 'ImageCorners')
+        'DataFilename', 'ClassificationMarkings', 'DataPlane', 'DataType',
+        'DataFormat', 'NumPixels', 'ImageCollectionDate', 'SensorReferencePoint',
+        'Resolution', 'PixelSpacing', 'WeightingType', 'ImageCorners')
     # descriptors
     DataFilename = _StringDescriptor(
-        'DataFilename', _required, docstring='The image file name')  # type: str
+        'DataFilename', _required,
+        docstring='The base file name to which this information pertains')  # type: str
     ClassificationMarkings = _SerializableDescriptor(
         'ClassificationMarkings', ClassificationMarkingsType, _required,
         docstring='The classification information')  # type: ClassificationMarkingsType
@@ -185,7 +190,7 @@ class DetailImageInfoType(Serializable):
         docstring='The image file type')  # type: Optional[str]
     DataCheckSum = _StringDescriptor(
         'DataCheckSum', _required,
-        docstring='The image file checksum')  # type: Optional[str]
+        docstring='The unique 32-bit identifier for the sensor block data')  # type: Optional[str]
     DataSize = _IntegerDescriptor(
         'DataSize', _required,
         docstring='The image size in bytes')  # type: Optional[int]
@@ -201,6 +206,9 @@ class DetailImageInfoType(Serializable):
     BitsPerSample = _IntegerDescriptor(
         'BitsPerSample', _required,
         docstring='The number of bits per sample')  # type: Optional[int]
+    DataFormat = _StringDescriptor(
+        'DataFormat', _required,
+        docstring='The image data format')  # type: str
     DataByteOrder = _StringEnumDescriptor(
         'DataByteOrder', {'Big-Endian', 'Little-Endian'}, _required,
         docstring='The image data byte order.')  # type: Optional[str]
@@ -238,7 +246,7 @@ class DetailImageInfoType(Serializable):
     ImageQualityDescription = _StringDescriptor(
         'ImageQualityDescription', _required,
         docstring='General description of image quality')  # type: Optional[str]
-    ImageHeading =  _FloatDescriptor(
+    ImageHeading = _FloatDescriptor(
         'ImageHeading', _required,
         docstring='Image heading relative to True North, in degrees')  # type: Optional[float]
     ImageCorners = _SerializableDescriptor(
@@ -254,7 +262,7 @@ class DetailImageInfoType(Serializable):
     def __init__(self, DataFilename=None, ClassificationMarkings=None,
                  FileType=None, DataCheckSum=None, DataSize=None,
                  DataPlane='Slant', DataDomain=None, DataType=None,
-                 BitsPerSample=None, DataByteOrder=None, NumPixels=None,
+                 BitsPerSample=None, DataFormat=None, DataByteOrder=None, NumPixels=None,
                  ImageCollectionDate=None, ZuluOffset=None,
                  SensorReferencePoint=None, SensorCalibrationFactor=None,
                  DataCalibrated=None, Resolution=None, PixelSpacing=None,
@@ -273,6 +281,7 @@ class DetailImageInfoType(Serializable):
         DataDomain : None|str
         DataType : None|str
         BitsPerSample : None|int
+        DataFormat : None|str
         DataByteOrder : None|str
         NumPixels : RowColType|numpy.ndarray|list|tuple
         ImageCollectionDate : numpy.datetime64|datetime|date|str
@@ -309,6 +318,7 @@ class DetailImageInfoType(Serializable):
         self.DataDomain = DataDomain
         self.DataType = DataType
         self.BitsPerSample = BitsPerSample
+        self.DataFormat = DataFormat
         self.DataByteOrder = DataByteOrder
         self.NumPixels = NumPixels
         self.ImageCollectionDate = ImageCollectionDate
