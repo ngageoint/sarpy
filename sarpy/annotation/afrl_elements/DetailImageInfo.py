@@ -6,7 +6,7 @@ __classification__ = "UNCLASSIFIED"
 __authors__ = ("Thomas McCullough", "Thomas Rackers")
 
 from typing import Optional
-
+import os
 import numpy
 
 # noinspection PyProtectedMember
@@ -14,6 +14,7 @@ from sarpy.io.complex.sicd_elements.base import _StringDescriptor, Serializable,
     _SerializableDescriptor, _IntegerDescriptor, _StringEnumDescriptor, \
     _DateTimeDescriptor, _FloatDescriptor
 from sarpy.io.complex.sicd_elements.blocks import RowColType
+from sarpy.io.complex.sicd import SICDReader
 from .base import DEFAULT_STRICT
 from .blocks import RangeCrossRangeType, RowColDoubleType
 
@@ -345,3 +346,62 @@ class DetailImageInfoType(Serializable):
         self.GroundPlane = GroundPlane
         self.SceneCenterReferenceLine = SceneCenterReferenceLine
         super(DetailImageInfoType, self).__init__(**kwargs)
+
+    @classmethod
+    def from_sicd_reader(cls, sicd_reader):
+        """
+        Construct the ImageInfo from the sicd reader object.
+
+        Parameters
+        ----------
+        sicd_reader : SICDReader
+
+        Returns
+        -------
+        DetailImageInfoType
+        """
+
+        base_file = os.path.split(sicd_reader.file_name)[1]
+        sicd = sicd_reader.sicd_meta
+        pixel_type = sicd.ImageData.PixelType
+        if pixel_type == 'RE32F_IM32F':
+            data_type = 'in-phase/quadrature'
+            bits_per_sample = 32
+            data_format = 'float'
+        elif pixel_type == 'RE16I_IM16I':
+            data_type = 'in-phase/quadrature'
+            bits_per_sample = 16
+            data_format = 'integer'
+        elif pixel_type == 'AMP8I_PHS8I':
+            data_type = 'magnitude-phase'
+            bits_per_sample = 8
+            data_format = 'unsigned integer'
+        else:
+            raise ValueError('Unhandled')
+
+        icps = ImageCornerType(
+            UpperLeft=sicd.GeoData.ImageCorners.FRFC,
+            UpperRight=sicd.GeoData.ImageCorners.FRLC,
+            LowerRight=sicd.GeoData.ImageCorners.LRLC,
+            LowerLeft=sicd.GeoData.ImageCorners.LRFC)
+
+        return DetailImageInfoType(
+            DataFilename=base_file,
+            ClassificationMarkings=ClassificationMarkingsType(
+                Classification=sicd.CollectionInfo.Classification),
+            FileType='NITF{}'.format(sicd_reader.nitf_details.nitf_version),
+            DataPlane=sicd.Grid.ImagePlane,
+            DataType=data_type,
+            BitsPerSample=bits_per_sample,
+            DataFormat=data_format,
+            DataByteOrder='Big-Endian',
+            NumPixels=(sicd.ImageData.NumRows, sicd.ImageData.NumRows),
+            ImageCollectionDate=sicd.Timeline.CollectStart,
+            SensorReferencePoint='Top',
+            Resolution=(sicd.Grid.Row.ImpRespWid, sicd.Grid.Col.ImpRespWid),
+            PixelSpacing=(sicd.Grid.Row.SS, sicd.Grid.Col.SS),
+            WeightingType=StringRangeCrossRangeType(
+                Range=sicd.Grid.Row.WgtType.WindowName,
+                CrossRange=sicd.Grid.Col.WgtType.WindowName),
+            ImageHeading=sicd.SCPCOA.AzimAng,
+            ImageCorners=icps)
