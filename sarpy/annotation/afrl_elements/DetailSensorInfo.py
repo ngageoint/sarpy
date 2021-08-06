@@ -162,7 +162,7 @@ class AircraftLocationType(Serializable, Arrayable):
         self.Lat = Lat
         self.Lon = Lon
         self.Altitude = Altitude
-        super(AircraftLocationType, self).__init__(Lat=Lat, Lon=Lon, **kwargs)
+        super(AircraftLocationType, self).__init__(**kwargs)
 
     def get_array(self, dtype=numpy.float64):
         """
