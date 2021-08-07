@@ -12,7 +12,7 @@ import numpy
 # noinspection PyProtectedMember
 from sarpy.io.complex.sicd_elements.base import _StringDescriptor, Serializable, \
     _SerializableDescriptor, _IntegerDescriptor, _StringEnumDescriptor, \
-    _DateTimeDescriptor, _FloatDescriptor
+    _DateTimeDescriptor, _FloatDescriptor, _find_first_child
 from sarpy.io.complex.sicd_elements.blocks import RowColType
 from sarpy.io.complex.sicd import SICDReader
 from .base import DEFAULT_STRICT
@@ -21,7 +21,7 @@ from .blocks import RangeCrossRangeType, RowColDoubleType
 # TODO: Review what's marked required/optional - I'm sure it makes little sense
 #  Questionable field definitions:
 #   - there is a PixelSpacing and then slant/ground plane elements for pixel spacing.
-#   - 3dbWidth is a poorly formed name, so I am omitting for now
+#   - 3dBWidth is a poorly formed name
 #   - ZuluOffset seemingly assumes that the only possible offsets are integer valued - this is wrong
 #   - DataCalibrated should obviously be xs:boolean - this is kludged badly for no reason
 #   - DataCheckSum - it is unclear what this is the checksum of, and which checksum it would be (CRC-32?)
@@ -173,7 +173,7 @@ class DetailImageInfoType(Serializable):
         'DataFormat', 'DataByteOrder', 'NumPixels', 'ImageCollectionDate', 'ZuluOffset',
         'SensorReferencePoint', 'SensorCalibrationFactor', 'DataCalibrated',
         'Resolution', 'PixelSpacing', 'WeightingType', 'OverSamplingFactor',
-        'ImageQualityDescription', 'ImageHeading',
+        'Width3dB', 'ImageQualityDescription', 'ImageHeading',
         'ImageCorners', 'SlantPlane', 'GroundPlane', 'SceneCenterReferenceLine')
     _required = (
         'DataFilename', 'ClassificationMarkings', 'DataPlane', 'DataType',
@@ -244,6 +244,9 @@ class DetailImageInfoType(Serializable):
     OverSamplingFactor = _SerializableDescriptor(
         'OverSamplingFactor', RangeCrossRangeType, _required,
         docstring='The factor by which the pixel space is oversampled.')  # type: RangeCrossRangeType
+    Width3dB = _SerializableDescriptor(
+        'Width3dB', RangeCrossRangeType, _required,
+        docstring='The 3 dB system impulse response with, in meters')  # type: RangeCrossRangeType
     ImageQualityDescription = _StringDescriptor(
         'ImageQualityDescription', _required,
         docstring='General description of image quality')  # type: Optional[str]
@@ -346,6 +349,28 @@ class DetailImageInfoType(Serializable):
         self.GroundPlane = GroundPlane
         self.SceneCenterReferenceLine = SceneCenterReferenceLine
         super(DetailImageInfoType, self).__init__(**kwargs)
+
+    @classmethod
+    def from_node(cls, node, xml_ns, ns_key=None, kwargs=None):
+        if kwargs is None:
+            kwargs = {}
+
+        width_node = _find_first_child(node, '3dBWidth', xml_ns, ns_key)
+        if width_node is None:
+            width_node = _find_first_child(node, '_3dBWidth', xml_ns, ns_key)
+        if width_node is not None:
+            kwargs['Width3dB'] = RangeCrossRangeType.from_node(width_node, xml_ns, ns_key=ns_key)
+        super(DetailImageInfoType, cls).from_node(node, xml_ns, ns_key=ns_key, kwargs=kwargs)
+
+    def to_node(self, doc, tag, ns_key=None, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
+        node = super(DetailImageInfoType, self).to_node(
+            doc, tag, ns_key=ns_key, parent=parent, check_validity=check_validity,
+            strict=strict, exclude=exclude+('Width3dB', ))
+        if self.Width3dB is not None:
+            self.Width3dB.to_node(
+                doc, tag='_3dBWidth', ns_key=ns_key, parent=node,
+                check_validity=check_validity, strict=strict)
+        return node
 
     @classmethod
     def from_sicd_reader(cls, sicd_reader):

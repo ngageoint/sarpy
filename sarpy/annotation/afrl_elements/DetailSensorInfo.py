@@ -9,7 +9,6 @@ __authors__ = ("Thomas McCullough", "Thomas Rackers")
 #   - Polarization is too restrictive in formatting and has a conceptual flaw,
 #       it should be a list of transmit and receive polarizations.
 #   - Type should be enumerated/specified for it to have much utility, like {SAR, EO, Thermal, Other} or something
-#   - AircraftLocation and AimPoint should use the Lat/Lon/HAE pattern
 
 
 from typing import Optional

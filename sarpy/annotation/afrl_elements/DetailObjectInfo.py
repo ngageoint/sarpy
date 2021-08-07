@@ -12,7 +12,7 @@ import numpy
 # noinspection PyProtectedMember
 from sarpy.io.complex.sicd_elements.base import _StringDescriptor, _FloatDescriptor, \
     _IntegerDescriptor, _SerializableDescriptor, Serializable, \
-    _SerializableListDescriptor, Arrayable
+    _SerializableListDescriptor, Arrayable, _create_text_node
 from sarpy.io.complex.sicd_elements.blocks import RowColType
 from .base import DEFAULT_STRICT
 from .blocks import RangeCrossRangeType, RowColDoubleType, LatLonEleType
@@ -285,16 +285,45 @@ class GeoLocationType(Serializable):
         super(GeoLocationType, self).__init__(**kwargs)
 
 
+class FreeFormType(Serializable):
+    _fields = ('Name', 'Value')
+    _required = _fields
+    Name = _StringDescriptor(
+        'Name', _required)  # type: str
+    Value = _StringDescriptor(
+        'Value', _required)  # type: str
+
+    def __init__(self, Name=None, Value=None, **kwargs):
+        """
+
+        Parameters
+        ----------
+        Name : str
+        Value : str
+        kwargs
+        """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
+        self.Name = Name
+        self.Value = Value
+        super(FreeFormType, self).__init__(**kwargs)
+
+
 class TheObjectType(Serializable):
     _fields = (
         'SystemName', 'SystemComponent', 'NATOName', 'Function', 'Version', 'DecoyType', 'SerialNumber',
         'ObjectClass', 'ObjectSubClass', 'ObjectTypeClass', 'ObjectType', 'ObjectLabel',
         'SlantPlane', 'GroundPlane', 'Size', 'Orientation',
+        'Articulation', 'Configuration',
         'Accessories', 'PaintScheme', 'Camouflage', 'Obscuration', 'ObscurationPercent', 'ImageLevelObscuration',
         'ImageLocation', 'GeoLocation',
         'TargetToClutterRatio', 'VisualQualityMetric',
         'UnderlyingTerrain', 'OverlyingTerrain', 'TerrainTexture', 'SeasonalCover')
     _required = ('SystemName', 'ImageLocation', 'GeoLocation')
+    _collections_tags = {'Articulation': {'array': False, 'child_tag': 'Articulation'}}
     # descriptors
     SystemName = _StringDescriptor(
         'SystemName', _required, strict=DEFAULT_STRICT,
@@ -350,6 +379,12 @@ class TheObjectType(Serializable):
     Orientation = _SerializableDescriptor(
         'Orientation', SizeType, _required, strict=DEFAULT_STRICT,
         docstring='The actual orientation size of the object')  # type: Optional[OrientationType]
+    Articulation = _SerializableListDescriptor(
+        'Articulation', FreeFormType, _collections_tags, _required,
+        docstring='A list of articulation descriptions')  # type: List[FreeFormType]
+    Configuration = _SerializableListDescriptor(
+        'Configuration', FreeFormType, _collections_tags, _required,
+        docstring='A list of configuration descriptions')  # type: List[FreeFormType]
     Accessories = _StringDescriptor(
         'Accessories', _required, strict=DEFAULT_STRICT,
         docstring='Defines items that are out of the norm, or have been added or removed.')  # type: Optional[str]
@@ -399,6 +434,7 @@ class TheObjectType(Serializable):
                  Function=None, Version=None, DecoyType=None, SerialNumber=None,
                  ObjectClass=None, ObjectSubClass=None, ObjectTypeClass=None,
                  ObjectType=None, ObjectLabel=None, Size=None, Orientation=None,
+                 Articulation=None, Configuration=None,
                  Accessories=None, PaintScheme=None, Camouflage=None,
                  Obscuration=None, ObscurationPercent=None, ImageLevelObscuration=None,
                  ImageLocation=None, GeoLocation=None,
@@ -423,6 +459,8 @@ class TheObjectType(Serializable):
         ObjectLabel : None|str
         Size : None|SizeType|numpy.ndarray|list|tuple
         Orientation : OrientationType
+        Articulation : None|List[FreeFormType]
+        Configuration : None|List[FreeFormType]
         Accessories : None|str
         PaintScheme : None|str
         Camouflage : None|str
@@ -461,6 +499,9 @@ class TheObjectType(Serializable):
 
         self.Size = Size
         self.Orientation = Orientation
+        self.Articulation = Articulation
+        self.Configuration = Configuration
+
         self.Accessories = Accessories
         self.PaintScheme = PaintScheme
         self.Camouflage = Camouflage
@@ -478,6 +519,50 @@ class TheObjectType(Serializable):
         self.TerrainTexture = TerrainTexture
         self.SeasonalCover = SeasonalCover
         super(TheObjectType, self).__init__(**kwargs)
+
+    @classmethod
+    def from_node(cls, node, xml_ns, ns_key=None, kwargs=None):
+        if kwargs is None:
+            kwargs = {}
+        if xml_ns is None:
+            tag_start = ''
+        elif ns_key is None:
+            tag_start = xml_ns['default']+':'
+        else:
+            tag_start = xml_ns[ns_key]+':'
+
+        articulation = []
+        configuration = []
+        for item in node:
+            if item.tag.startswith(tag_start+'Articulation'):
+                name = item.tag[len(tag_start+'Articulation'):]
+                if name.startswith('_'):
+                    name = name[1:]
+                articulation.append(FreeFormType(Name=name, Value=item.text))
+            elif item.tag.startswith(tag_start+'Configuration'):
+                name = item.tag[len(tag_start+'Configuration'):]
+                if name.startswith('_'):
+                    name = name[1:]
+                configuration.append(FreeFormType(Name=name, Value=item.text))
+        kwargs['Articulation'] = articulation if len(articulation) > 0 else None
+        kwargs['Configuration'] = configuration if len(configuration) > 0 else None
+        return super(TheObjectType, cls).from_node(node, xml_ns, ns_key=ns_key, kwargs=kwargs)
+
+    def to_node(self, doc, tag, ns_key=None, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
+        node = super(TheObjectType, self).to_node(
+            doc, tag, ns_key=ns_key, parent=parent, check_validity=check_validity,
+            strict=strict, exclude=exclude+('Articulation', 'Configuration'))
+        if self.Articulation is not None:
+            for entry in self.Articulation:
+                art_tag = '{}:Articulation_{}'.format(ns_key, entry.Name) \
+                    if ns_key is not None else 'Articulation_{}'.format(entry.Name)
+                _create_text_node(doc, art_tag, entry.Value, parent=node)
+        if self.Configuration is not None:
+            for entry in self.Configuration:
+                art_tag = '{}:Configuration_{}'.format(ns_key, entry.Name) \
+                    if ns_key is not None else 'Configuration_{}'.format(entry.Name)
+                _create_text_node(doc, art_tag, entry.Value, parent=node)
+        return node
 
 
 # other types for the DetailObjectInfo
