@@ -171,11 +171,11 @@ class TheFiducialType(Serializable):
         DatasetFiducialNumber : None|int
         ImageLocation : ImageLocationType
         GeoLocation : GeoLocationType
-        Width3dB : None|RangeCrossRangeType
-        Width18dB : None|RangeCrossRangeType
-        Ratio3dB18dB : None|RangeCrossRangeType
-        PeakSideLobeRatio : None|RangeCrossRangeType
-        IntegratedSideLobeRatio : None|RangeCrossRangeType
+        Width3dB : None|RangeCrossRangeType|numpy.ndarray|list|tuple
+        Width18dB : None|RangeCrossRangeType|numpy.ndarray|list|tuple
+        Ratio3dB18dB : None|RangeCrossRangeType|numpy.ndarray|list|tuple
+        PeakSideLobeRatio : None|RangeCrossRangeType|numpy.ndarray|list|tuple
+        IntegratedSideLobeRatio : None|RangeCrossRangeType|numpy.ndarray|list|tuple
         SlantPlane : None|PhysicalLocationType
         GroundPlane : None|PhysicalLocationType
         kwargs
