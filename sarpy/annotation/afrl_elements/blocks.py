@@ -12,7 +12,7 @@ from sarpy.io.complex.sicd_elements.base import DEFAULT_STRICT, \
     Serializable
 
 
-class DateRangeType(Serializable):
+class DateRangeType(Serializable, Arrayable):
     """
     A range of dates with resolution of 1 day
     """
@@ -44,13 +44,13 @@ class DateRangeType(Serializable):
         self.End = End
         super(DateRangeType, self).__init__(**kwargs)
 
-    def get_array(self, dtype=numpy.datetime64):
+    def get_array(self, dtype='datetime64[D]'):
         """
         Gets an array representation of the class instance.
 
         Parameters
         ----------
-        dtype : str|date|datetime|numpy.datetime64|numpy.dtype
+        dtype : str|numpy.dtype
             data type of the return
 
         Returns
@@ -60,6 +60,29 @@ class DateRangeType(Serializable):
         """
 
         return numpy.array([self.Begin, self.End], dtype=dtype)
+
+    @classmethod
+    def from_array(cls, array):
+        """
+        Create from an array type entry.
+
+        Parameters
+        ----------
+        array: numpy.ndarray|list|tuple
+            assumed [Begin, End]
+
+        Returns
+        -------
+        DateRangeType
+        """
+
+        if array is None:
+            return None
+        if isinstance(array, (numpy.ndarray, list, tuple)):
+            if len(array) < 2:
+                raise ValueError('Expected array to be of length 2, and received {}'.format(array))
+            return cls(Begin=array[0], End=array[1])
+        raise ValueError('Expected array to be numpy.ndarray, list, or tuple, got {}'.format(type(array)))
 
 
 class RangeCrossRangeType(Serializable, Arrayable):
