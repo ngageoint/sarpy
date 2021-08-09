@@ -46,16 +46,20 @@ class DateRangeType(Serializable):
 
     def get_array(self, dtype=numpy.datetime64):
         """
-        Gets an array representation of the data.
+        Gets an array representation of the class instance.
 
         Parameters
         ----------
-        dtype
+        dtype : str|date|datetime|numpy.datetime64|numpy.dtype
+            data type of the return
 
         Returns
         -------
-
+        numpy.ndarray
+            data array
         """
+
+        return numpy.array([self.Begin, self.End], dtype=dtype)
 
 
 class RangeCrossRangeType(Serializable, Arrayable):
