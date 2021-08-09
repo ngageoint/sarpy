@@ -9,7 +9,6 @@ __authors__ = ("Thomas McCullough", "Thomas Rackers")
 #   - Polarization is too restrictive in formatting and has a conceptual flaw,
 #       it should be a list of transmit and receive polarizations.
 #   - Type should be enumerated/specified for it to have much utility, like {SAR, EO, Thermal, Other} or something
-#   - AircraftLocation and AimPoint should use the Lat/Lon/HAE pattern
 
 
 from typing import Optional
@@ -22,6 +21,7 @@ from sarpy.io.complex.sicd_elements.base import Serializable, \
 from sarpy.io.complex.sicd_elements.blocks import XYZType
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.geometry.geocoords import ecf_to_geodetic
+from .blocks import LatLonEleType
 
 
 class BeamWidthType(Serializable, Arrayable):
@@ -87,84 +87,6 @@ class BeamWidthType(Serializable, Arrayable):
             if len(array) < 2:
                 raise ValueError('Expected array to be of length 2, and received {}'.format(array))
             return cls(Azimuth=array[0], Elevation=array[1])
-        raise ValueError('Expected array to be numpy.ndarray, list, or tuple, got {}'.format(type(array)))
-
-
-class AimpointType(Serializable, Arrayable):
-    """A three-dimensional geographic point in WGS-84 coordinates."""
-    _fields = ('Lat', 'Lon', 'Ele')
-    _required = _fields
-    _numeric_format = {'Lat': '0.16G', 'Lon': '0.16G', 'Ele': '0.16G'}
-    # descriptors
-    Lat = _FloatDescriptor(
-        'Lat', _required, strict=True,
-        docstring='The latitude attribute. Assumed to be WGS-84 coordinates.'
-    )  # type: float
-    Lon = _FloatDescriptor(
-        'Lon', _required, strict=True,
-        docstring='The longitude attribute. Assumed to be WGS-84 coordinates.'
-    )  # type: float
-    Ele = _FloatDescriptor(
-        'Ele', _required, strict=True,
-        docstring='The Height Above Ellipsoid (in meters) attribute. '
-                  'Assumed to be WGS-84 coordinates.')  # type: float
-
-    def __init__(self, Lat=None, Lon=None, Ele=None, **kwargs):
-        """
-        Parameters
-        ----------
-        Lat : float
-        Lon : float
-        Ele : float
-        kwargs : dict
-        """
-
-        if '_xml_ns' in kwargs:
-            self._xml_ns = kwargs['_xml_ns']
-        if '_xml_ns_key' in kwargs:
-            self._xml_ns_key = kwargs['_xml_ns_key']
-        self.Lat = Lat
-        self.Lon = Lon
-        self.Ele = Ele
-        super(AimpointType, self).__init__(Lat=Lat, Lon=Lon, **kwargs)
-
-    def get_array(self, dtype=numpy.float64):
-        """
-        Gets an array representation of the data.
-
-        Parameters
-        ----------
-        dtype : str|numpy.dtype|numpy.number
-            data type of the return
-
-        Returns
-        -------
-        numpy.ndarray
-            data array with appropriate entry order
-        """
-
-        return numpy.array([self.Lat, self.Lon, self.Ele], dtype=dtype)
-
-    @classmethod
-    def from_array(cls, array):
-        """
-        Create from an array type entry.
-
-        Parameters
-        ----------
-        array: numpy.ndarray|list|tuple
-            assumed [Lat, Lon, Ele]
-
-        Returns
-        -------
-        AimpointType
-        """
-        if array is None:
-            return None
-        if isinstance(array, (numpy.ndarray, list, tuple)):
-            if len(array) < 3:
-                raise ValueError('Expected array to be of length 3, and received {}'.format(array))
-            return cls(Lat=array[0], Lon=array[1], Ele=array[2])
         raise ValueError('Expected array to be numpy.ndarray, list, or tuple, got {}'.format(type(array)))
 
 
@@ -239,7 +161,7 @@ class AircraftLocationType(Serializable, Arrayable):
         self.Lat = Lat
         self.Lon = Lon
         self.Altitude = Altitude
-        super(AircraftLocationType, self).__init__(Lat=Lat, Lon=Lon, **kwargs)
+        super(AircraftLocationType, self).__init__(**kwargs)
 
     def get_array(self, dtype=numpy.float64):
         """
@@ -347,8 +269,8 @@ class DetailSensorInfoType(Serializable):
         docstring='The width of the radar beam at its half power'
     )  # type: Optional[BeamWidthType]
     Aimpoint = _SerializableDescriptor(
-        'Aimpoint', AimpointType, _required,
-        docstring='The sensor aim point')  # type: AimpointType
+        'Aimpoint', LatLonEleType, _required,
+        docstring='The sensor aim point')  # type: LatLonEleType
     AircraftHeading = _FloatDescriptor(
         'AircraftHeading', _required,
         docstring='Aircraft heading relative to True North, in degrees'
@@ -405,7 +327,7 @@ class DetailSensorInfoType(Serializable):
         DepressionAngle : float
         LinearDynamicRange : None|float
         BeamWidth : BeamWidthType
-        Aimpoint : AimpointType|numpy.ndarray|list|tuple
+        Aimpoint : LatLonEleType|numpy.ndarray|list|tuple
         AircraftHeading : None|float
         AircraftTrackAngle : None|float
         Look : str

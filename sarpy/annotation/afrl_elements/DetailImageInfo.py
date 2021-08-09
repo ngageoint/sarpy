@@ -6,21 +6,22 @@ __classification__ = "UNCLASSIFIED"
 __authors__ = ("Thomas McCullough", "Thomas Rackers")
 
 from typing import Optional
-
+import os
 import numpy
 
 # noinspection PyProtectedMember
 from sarpy.io.complex.sicd_elements.base import _StringDescriptor, Serializable, \
     _SerializableDescriptor, _IntegerDescriptor, _StringEnumDescriptor, \
-    _DateTimeDescriptor, _FloatDescriptor
+    _DateTimeDescriptor, _FloatDescriptor, _find_first_child
 from sarpy.io.complex.sicd_elements.blocks import RowColType
+from sarpy.io.complex.sicd import SICDReader
 from .base import DEFAULT_STRICT
 from .blocks import RangeCrossRangeType, RowColDoubleType
 
 # TODO: Review what's marked required/optional - I'm sure it makes little sense
 #  Questionable field definitions:
 #   - there is a PixelSpacing and then slant/ground plane elements for pixel spacing.
-#   - 3dbWidth is a poorly formed name, so I am omitting for now
+#   - 3dBWidth is a poorly formed name
 #   - ZuluOffset seemingly assumes that the only possible offsets are integer valued - this is wrong
 #   - DataCalibrated should obviously be xs:boolean - this is kludged badly for no reason
 #   - DataCheckSum - it is unclear what this is the checksum of, and which checksum it would be (CRC-32?)
@@ -172,7 +173,7 @@ class DetailImageInfoType(Serializable):
         'DataFormat', 'DataByteOrder', 'NumPixels', 'ImageCollectionDate', 'ZuluOffset',
         'SensorReferencePoint', 'SensorCalibrationFactor', 'DataCalibrated',
         'Resolution', 'PixelSpacing', 'WeightingType', 'OverSamplingFactor',
-        'ImageQualityDescription', 'ImageHeading',
+        'Width3dB', 'ImageQualityDescription', 'ImageHeading',
         'ImageCorners', 'SlantPlane', 'GroundPlane', 'SceneCenterReferenceLine')
     _required = (
         'DataFilename', 'ClassificationMarkings', 'DataPlane', 'DataType',
@@ -242,7 +243,10 @@ class DetailImageInfoType(Serializable):
         docstring='Weighting function applied to the image during formation.')  # type: StringRangeCrossRangeType
     OverSamplingFactor = _SerializableDescriptor(
         'OverSamplingFactor', RangeCrossRangeType, _required,
-        docstring='The factor by which the pixel space is oversampled.')  # type: RangeCrossRangeType
+        docstring='The factor by which the pixel space is oversampled.')  # type: Optional[RangeCrossRangeType]
+    Width3dB = _SerializableDescriptor(
+        'Width3dB', RangeCrossRangeType, _required,
+        docstring='The 3 dB system impulse response with, in meters')  # type: Optional[RangeCrossRangeType]
     ImageQualityDescription = _StringDescriptor(
         'ImageQualityDescription', _required,
         docstring='General description of image quality')  # type: Optional[str]
@@ -272,7 +276,7 @@ class DetailImageInfoType(Serializable):
                  ImageCollectionDate=None, ZuluOffset=None,
                  SensorReferencePoint=None, SensorCalibrationFactor=None,
                  DataCalibrated=None, Resolution=None, PixelSpacing=None,
-                 WeightingType=None, OverSamplingFactor=None,
+                 WeightingType=None, OverSamplingFactor=None, Width3dB=None,
                  ImageQualityDescription=None, ImageHeading=None, ImageCorners=None,
                  SlantPlane=None, GroundPlane=None, SceneCenterReferenceLine=None,
                  **kwargs):
@@ -299,7 +303,8 @@ class DetailImageInfoType(Serializable):
         Resolution : RangeCrossRangeType|numpy.ndarray|list|tuple
         PixelSpacing : RangeCrossRangeType|numpy.ndarray|list|tuple
         WeightingType : StringRangeCrossRangeType
-        OverSamplingFactor : RangeCrossRangeType
+        OverSamplingFactor : None|RangeCrossRangeType
+        Width3dB : None|RangeCrossRangeType|numpy.ndarray|list|tuple
         ImageQualityDescription : None|str
         ImageHeading : None|float
         ImageCorners : ImageCornerType
@@ -314,23 +319,28 @@ class DetailImageInfoType(Serializable):
             self._xml_ns = kwargs['_xml_ns']
         if '_xml_ns_key' in kwargs:
             self._xml_ns_key = kwargs['_xml_ns_key']
+
         self.DataFilename = DataFilename
+
         if ClassificationMarkings is None:
             self.ClassificationMarkings = ClassificationMarkingsType()
         else:
             self.ClassificationMarkings = ClassificationMarkings
+
         self.Filetype = FileType
         self.DataCheckSum = DataCheckSum
         self.DataSize = DataSize
         self.DataPlane = DataPlane
         self.DataDomain = DataDomain
         self.DataType = DataType
+
         self.BitsPerSample = BitsPerSample
         self.DataFormat = DataFormat
         self.DataByteOrder = DataByteOrder
         self.NumPixels = NumPixels
         self.ImageCollectionDate = ImageCollectionDate
         self.ZuluOffset = ZuluOffset
+
         self.SensorReferencePoint = SensorReferencePoint
         self.SensorCalibrationFactor = SensorCalibrationFactor
         self.DataCalibrated = DataCalibrated
@@ -338,6 +348,8 @@ class DetailImageInfoType(Serializable):
         self.PixelSpacing = PixelSpacing
         self.WeightingType = WeightingType
         self.OverSamplingFactor = OverSamplingFactor
+        self.Width3dB = Width3dB
+
         self.ImageQualityDescription = ImageQualityDescription
         self.ImageHeading = ImageHeading
         self.ImageCorners = ImageCorners
@@ -345,3 +357,85 @@ class DetailImageInfoType(Serializable):
         self.GroundPlane = GroundPlane
         self.SceneCenterReferenceLine = SceneCenterReferenceLine
         super(DetailImageInfoType, self).__init__(**kwargs)
+
+    @classmethod
+    def from_node(cls, node, xml_ns, ns_key=None, kwargs=None):
+        if kwargs is None:
+            kwargs = {}
+
+        width_node = _find_first_child(node, '3dBWidth', xml_ns, ns_key)
+        if width_node is None:
+            width_node = _find_first_child(node, '_3dBWidth', xml_ns, ns_key)
+        if width_node is not None:
+            kwargs['Width3dB'] = RangeCrossRangeType.from_node(width_node, xml_ns, ns_key=ns_key)
+        super(DetailImageInfoType, cls).from_node(node, xml_ns, ns_key=ns_key, kwargs=kwargs)
+
+    def to_node(self, doc, tag, ns_key=None, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
+        node = super(DetailImageInfoType, self).to_node(
+            doc, tag, ns_key=ns_key, parent=parent, check_validity=check_validity,
+            strict=strict, exclude=exclude+('Width3dB', ))
+        if self.Width3dB is not None:
+            self.Width3dB.to_node(
+                doc, tag='_3dBWidth', ns_key=ns_key, parent=node,
+                check_validity=check_validity, strict=strict)
+        return node
+
+    @classmethod
+    def from_sicd_reader(cls, sicd_reader):
+        """
+        Construct the ImageInfo from the sicd reader object.
+
+        Parameters
+        ----------
+        sicd_reader : SICDReader
+
+        Returns
+        -------
+        DetailImageInfoType
+        """
+
+        base_file = os.path.split(sicd_reader.file_name)[1]
+        sicd = sicd_reader.sicd_meta
+        pixel_type = sicd.ImageData.PixelType
+        if pixel_type == 'RE32F_IM32F':
+            data_type = 'in-phase/quadrature'
+            bits_per_sample = 32
+            data_format = 'float'
+        elif pixel_type == 'RE16I_IM16I':
+            data_type = 'in-phase/quadrature'
+            bits_per_sample = 16
+            data_format = 'integer'
+        elif pixel_type == 'AMP8I_PHS8I':
+            data_type = 'magnitude-phase'
+            bits_per_sample = 8
+            data_format = 'unsigned integer'
+        else:
+            raise ValueError('Unhandled')
+
+        icps = ImageCornerType(
+            UpperLeft=sicd.GeoData.ImageCorners.FRFC,
+            UpperRight=sicd.GeoData.ImageCorners.FRLC,
+            LowerRight=sicd.GeoData.ImageCorners.LRLC,
+            LowerLeft=sicd.GeoData.ImageCorners.LRFC)
+
+        return DetailImageInfoType(
+            DataFilename=base_file,
+            ClassificationMarkings=ClassificationMarkingsType(
+                Classification=sicd.CollectionInfo.Classification),
+            FileType='NITF{}'.format(sicd_reader.nitf_details.nitf_version),
+            DataPlane=sicd.Grid.ImagePlane,
+            DataType=data_type,
+            BitsPerSample=bits_per_sample,
+            DataFormat=data_format,
+            DataByteOrder='Big-Endian',
+            NumPixels=(sicd.ImageData.NumRows, sicd.ImageData.NumRows),
+            ImageCollectionDate=sicd.Timeline.CollectStart,
+            SensorReferencePoint='Top',
+            Resolution=(sicd.Grid.Row.ImpRespWid, sicd.Grid.Col.ImpRespWid),
+            PixelSpacing=(sicd.Grid.Row.SS, sicd.Grid.Col.SS),
+            WeightingType=StringRangeCrossRangeType(
+                Range=sicd.Grid.Row.WgtType.WindowName,
+                CrossRange=sicd.Grid.Col.WgtType.WindowName),
+            Width3dB=(sicd.Grid.Row.ImpRespWid, sicd.Grid.Col.ImpRespWid),  # TODO: I don't think that this is correct
+            ImageHeading=sicd.SCPCOA.AzimAng,
+            ImageCorners=icps)

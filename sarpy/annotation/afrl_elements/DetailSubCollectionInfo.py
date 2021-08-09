@@ -10,8 +10,7 @@ from typing import Optional
 # noinspection PyProtectedMember
 from sarpy.io.complex.sicd_elements.base import DEFAULT_STRICT, \
     _SerializableDescriptor, _StringDescriptor, Serializable
-from sarpy.io.complex.sicd_elements.blocks import LatLonHAEType
-from .blocks import DateRangeType
+from .blocks import DateRangeType, LatLonEleType
 
 
 class DetailSubCollectionInfoType(Serializable):
@@ -39,8 +38,8 @@ class DetailSubCollectionInfoType(Serializable):
         'Duration', DateRangeType, _required, strict=DEFAULT_STRICT,
         docstring="Begin and end dates of the subcollection.")  # type: Optional[DateRangeType]
     SiteCenterLocation = _SerializableDescriptor(
-        'SiteCenterLocation', LatLonHAEType, _required, strict=DEFAULT_STRICT,
-        docstring="Location of the center of the collection site.")  # type: LatLonHAEType
+        'SiteCenterLocation', LatLonEleType, _required, strict=DEFAULT_STRICT,
+        docstring="Location of the center of the collection site.")  # type: LatLonEleType
     SceneContentDescription = _StringDescriptor(
         'SceneContentDescription', _required, default_value="",
         docstring="Description of the general scene contents.")  # type: str
@@ -61,7 +60,7 @@ class DetailSubCollectionInfoType(Serializable):
         SceneNumber : None|str
         Description : str
         Duration : None|DateRangeType
-        SiteCenterLocation : LatLonHAEType
+        SiteCenterLocation : LatLonEleType
         SceneContentDescription : None|str
         SiteBackgroundType : None|str
         kwargs
