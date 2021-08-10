@@ -30,10 +30,10 @@ from sarpy.io.complex.sicd_elements.GeoData import GeoDataType, SCPType
 from sarpy.io.complex.sicd_elements.Position import PositionType
 from sarpy.io.complex.sicd_elements.Grid import GridType, DirParamType, WgtTypeType
 from sarpy.io.complex.sicd_elements.RadarCollection import RadarCollectionType, \
-    WaveformParametersType, TxFrequencyType, ChanParametersType
+    WaveformParametersType, ChanParametersType
 from sarpy.io.complex.sicd_elements.Timeline import TimelineType, IPPSetType
-from sarpy.io.complex.sicd_elements.ImageFormation import ImageFormationType, RcvChanProcType, \
-    TxFrequencyProcType, ProcessingType
+from sarpy.io.complex.sicd_elements.ImageFormation import ImageFormationType, \
+    RcvChanProcType, ProcessingType
 
 
 logger = logging.getLogger(__name__)
@@ -296,7 +296,7 @@ class CapellaDetails(object):
             freq_min = fc - 0.5*bw
             return RadarCollectionType(
                 TxPolarization=radar['transmit_polarization'],
-                TxFrequency=TxFrequencyType(Min=freq_min, Max=freq_min + bw),
+                TxFrequency=(freq_min, freq_min + bw),
                 Waveform=[WaveformParametersType(
                     TxRFBandwidth=bw,
                     TxPulseLength=radar['pulse_duration'],
@@ -341,9 +341,9 @@ class CapellaDetails(object):
                 TStartProc=0,
                 TEndProc=duration,
                 TxRcvPolarizationProc='{}:{}'.format(radar['transmit_polarization'], radar['receive_polarization']),
-                TxFrequencyProc=TxFrequencyProcType(
-                    MinProc=radar_collection.TxFrequency.Min,
-                    MaxProc=radar_collection.TxFrequency.Max),
+                TxFrequencyProc=(
+                    radar_collection.TxFrequency.Min,
+                    radar_collection.TxFrequency.Max),
                 STBeamComp='NO',
                 ImageBeamComp='NO',
                 AzAutofocus='NO',

@@ -35,9 +35,9 @@ from sarpy.io.complex.sicd_elements.Grid import GridType, DirParamType, \
 from sarpy.io.complex.sicd_elements.SCPCOA import SCPCOAType
 from sarpy.io.complex.sicd_elements.Timeline import TimelineType, IPPSetType
 from sarpy.io.complex.sicd_elements.RadarCollection import RadarCollectionType, \
-    TxFrequencyType, WaveformParametersType, ChanParametersType
+    WaveformParametersType, ChanParametersType
 from sarpy.io.complex.sicd_elements.ImageFormation import ImageFormationType, \
-    RcvChanProcType, TxFrequencyProcType
+    RcvChanProcType
 from sarpy.io.complex.sicd_elements.Radiometric import RadiometricType, NoiseLevelType_
 
 
@@ -1457,9 +1457,7 @@ class _GFFInterpreter2(_GFFInterpreter):
             rcv_channels = [ChanParametersType(TxRcvPolarization=tx_rcv_pol, index=1), ]
 
             return RadarCollectionType(
-                TxFrequency=TxFrequencyType(
-                    Min=center_frequency-0.5*band_width,
-                    Max=center_frequency+0.5*band_width),
+                TxFrequency=(center_frequency-0.5*band_width, center_frequency+0.5*band_width),
                 Waveform=waveform,
                 TxPolarization=tx_pol,
                 RcvChannels=rcv_channels)
@@ -1470,9 +1468,9 @@ class _GFFInterpreter2(_GFFInterpreter):
             return ImageFormationType(
                 RcvChanProc=RcvChanProcType(ChanIndices=[1, ]),
                 TxRcvPolarizationProc=tx_rcv_pol,
-                TxFrequencyProc=TxFrequencyProcType(
-                    MinProc=center_frequency-0.5*band_width,
-                    MaxProc=center_frequency+0.5*band_width),
+                TxFrequencyProc=(
+                    center_frequency-0.5*band_width,
+                    center_frequency+0.5*band_width),
                 TStartProc=0,
                 TEndProc=collect_duration,
                 ImageFormAlgo=image_form_algo,
