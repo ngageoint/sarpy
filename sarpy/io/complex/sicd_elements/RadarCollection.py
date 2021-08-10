@@ -69,7 +69,7 @@ def get_band_name(freq):
         return 'UN'
 
 
-class TxFrequencyType(Serializable):
+class TxFrequencyType(Serializable, Arrayable):
     """
     The transmit frequency range.
     """
