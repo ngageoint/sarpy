@@ -22,7 +22,7 @@ from sarpy.compliance import int_func, string_types
 from sarpy.io.general.base import BaseReader, BIPChipper, BSQChipper, \
     is_file_like, SarpyIOError
 from sarpy.io.general.nitf import MemMap
-from sarpy.geometry.geocoords import geodetic_to_ecf
+from sarpy.geometry.geocoords import geodetic_to_ecf, wgs_84_norm
 
 from sarpy.io.complex.base import SICDTypeReader
 from sarpy.io.complex.sicd_elements.SICD import SICDType
@@ -610,6 +610,7 @@ class _APInfo_4_0(object):
         self.apfdFactor = struct.unpack(estr+'i', fi.read(4))[0]
         self.fastTimeSamples, self.adSampleFreq, self.apertureTime, \
             self.numPhaseHistories = struct.unpack(estr+'I2fI', fi.read(4*4))
+        print('poo')
 
 
 class _APInfo_5_0(_APInfo_4_0):
@@ -1376,14 +1377,36 @@ class _GFFInterpreter2(_GFFInterpreter):
 
         def get_geo_data():
             # type: () -> GeoDataType
-            return GeoDataType(
-                SCP=SCPType(
-                    LLH=self.header.geo_info.patchCtrLLH))
+            return GeoDataType(SCP=SCPType(ECF=scp))
 
         def get_grid():
             # type: () -> GridType
             image_plane = 'GROUND' if self.header.geo_info.imagePlane == 0 else 'SLANT'
             # we presume that image_plane in [0, 1]
+
+            # derive row/col uvect
+            ground_uvec = wgs_84_norm(scp)
+            col_uvec = arp_vel/numpy.linalg.norm(arp_vel)
+            if self.header.ap_info.squintAngle < 0:
+                col_uvec *= -1
+
+            urng = geo_data.SCP.ECF.get_array() - arp_pos  # unit vector for row in the slant plane
+            urng /= numpy.linalg.norm(urng)
+
+            if image_plane == 'GROUND':
+                row_uvec = urng - numpy.dot(urng, ground_uvec)*ground_uvec
+                row_uvec /= numpy.linalg.norm(row_uvec)
+            else:
+                row_uvec = urng
+
+            parallel_component = numpy.dot(row_uvec, col_uvec)
+            if numpy.abs(parallel_component) > 1e-7:
+                # logger.warning(
+                #     'The derived row and col unit vectors are not completely perpendicular (dot product {}).\n\t'
+                #     'We will derive the column unit vector as explicitly perpendicular to the derived row '
+                #     'unit vector'.format(parallel_component))
+                col_uvec = col_uvec - numpy.dot(col_uvec, row_uvec)*row_uvec
+                col_uvec /= numpy.linalg.norm(col_uvec)
 
             row_ss = self.header.geo_info.rangePixSpacing
             row_bw = self.header.if_info.wndBwFactRng/row_ss
@@ -1391,6 +1414,7 @@ class _GFFInterpreter2(_GFFInterpreter):
             row = DirParamType(
                 Sgn=-1,
                 SS=row_ss,
+                UVectECF=row_uvec,
                 ImpRespWid=self.header.if_info.rngResolution,
                 ImpRespBW=row_bw,
                 DeltaK1=0.5*row_bw,
@@ -1404,6 +1428,7 @@ class _GFFInterpreter2(_GFFInterpreter):
             col = DirParamType(
                 Sgn=-1,
                 SS=col_ss,
+                UVectECF=col_uvec,
                 ImpRespWid=self.header.if_info.azResolution,
                 ImpRespBW=col_bw,
                 DeltaK1=0.5*col_bw,
@@ -1419,9 +1444,6 @@ class _GFFInterpreter2(_GFFInterpreter):
 
         def get_scpcoa():
             # type: () -> SCPCOAType
-            arp_llh = self.header.ap_info.apcLLH
-            arp_pos = geodetic_to_ecf(arp_llh, ordering='latlon')
-            arp_vel = self.header.ap_info.apcVel
             return SCPCOAType(
                 ARPPos=arp_pos,
                 ARPVel=arp_vel,
@@ -1466,7 +1488,7 @@ class _GFFInterpreter2(_GFFInterpreter):
 
         def get_image_formation():
             # type: () -> ImageFormationType
-            image_form_algo = 'PFA' if self.header.if_info.ifAlgo == 'PFA' else 'OTHER'
+            image_form_algo = 'OTHER'  # 'PFA' if self.header.if_info.ifAlgo in ['PFA', 'OSAPF'] else 'OTHER'
             return ImageFormationType(
                 RcvChanProc=RcvChanProcType(ChanIndices=[1, ]),
                 TxRcvPolarizationProc=tx_rcv_pol,
@@ -1516,10 +1538,17 @@ class _GFFInterpreter2(_GFFInterpreter):
         center_frequency = self.header.ap_info.ctrFreq
         band_width = 0.0  # TODO: is this defined anywhere?
 
+        scp = geodetic_to_ecf(self.header.geo_info.patchCtrLLH)
+        arp_llh = self.header.ap_info.apcLLH
+        arp_pos = geodetic_to_ecf(arp_llh, ordering='latlon')
+        arp_vel = numpy.array(self.header.ap_info.apcVel, dtype='float64')
+
         collection_info = get_collection_info()
         image_creation = get_image_creation()
         image_data = get_image_data()
         geo_data = get_geo_data()
+        scp = geo_data.SCP.ECF.get_array()
+
         grid = get_grid()
         scpcoa = get_scpcoa()
         timeline = get_timeline()
@@ -2066,8 +2095,12 @@ class GFFReader(BaseReader, SICDTypeReader):
 
 
 if __name__ == '__main__':
-    the_root = r'R:\sar\Data_SomeDomestic\Sandia\dionysius\gff_example'
-    the_file_name = 'Patch005.gff'
+    the_root = r'R:\sar\Data_SomeDomestic\Sandia\dionysius\KAFB'
+    the_file_name = 'Patch003.gff'
     full_file = os.path.join(the_root, the_file_name)
     reader = GFFReader(full_file)
-    print(reader[:2, :2])
+
+    # from sarpy.processing.ortho_rectify import NearestNeighborMethod
+    # from sarpy.io.product.sidd_product_creation import create_detected_image_sidd
+    # ortho_helper = NearestNeighborMethod(reader)
+    # create_detected_image_sidd(ortho_helper, os.path.expanduser('~/Desktop'))
