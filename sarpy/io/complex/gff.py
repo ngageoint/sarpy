@@ -14,6 +14,7 @@ from typing import Union, BinaryIO
 from datetime import datetime
 from tempfile import mkstemp
 import zlib
+import gc
 
 import numpy
 
@@ -38,7 +39,8 @@ from sarpy.io.complex.sicd_elements.RadarCollection import RadarCollectionType, 
     WaveformParametersType, ChanParametersType
 from sarpy.io.complex.sicd_elements.ImageFormation import ImageFormationType, \
     RcvChanProcType
-from sarpy.io.complex.sicd_elements.Radiometric import RadiometricType, NoiseLevelType_
+from sarpy.io.complex.sicd_elements.Radiometric import RadiometricType, \
+    NoiseLevelType_
 
 
 try:
@@ -1544,13 +1546,13 @@ class _GFFInterpreter2(_GFFInterpreter):
     def _get_size_and_symmetry(self):
         # type: () -> ((int, int), (bool, bool, bool))
         if self.header.gsat_img.pixOrder == 0:
-            # in range consecutive order
-            data_size = (self.header.gsat_img.rangePixels, self.header.gsat_img.azPixels)
-            symmetry = (False, False, False)
-        elif self.header.gsat_img.pixOrder == 1:
-            # in azimuth consecutive order
+            # in range consecutive order, opposite from a SICD
             data_size = (self.header.gsat_img.azPixels, self.header.gsat_img.rangePixels)
             symmetry = (False, False, True)
+        elif self.header.gsat_img.pixOrder == 1:
+            # in azimuth consecutive order, like a SICD
+            data_size = (self.header.gsat_img.rangePixels, self.header.gsat_img.azPixels)
+            symmetry = (False, False, False)
         else:
             raise ValueError('Got unexpected pixel order `{}`'.format(self.header.gsat_img.pixOrder))
         return data_size, symmetry
@@ -1710,7 +1712,7 @@ class _GFFInterpreter2(_GFFInterpreter):
                     symmetry=symmetry, transform_data=None,
                     data_offset=main_offset, limit_to_raw_bands=None))
 
-        return BSQChipper(chippers, 'complex64', transform_data=transform_data)
+        return BSQChipper(chippers, raw_dtype, transform_data=transform_data)
 
     def get_chipper(self):
         band_order = _get_band_order(self.header.gsat_img.pixelFormat.cmplxDomain)
@@ -1734,6 +1736,7 @@ class _GFFInterpreter2(_GFFInterpreter):
 
         for fil in self._cached_files:
             if os.path.exists(fil):
+                # noinspection PyBroadException
                 try:
                     os.remove(fil)
                     logger.info('Deleted cached file {}'.format(fil))
@@ -2052,9 +2055,19 @@ class GFFReader(BaseReader, SICDTypeReader):
     def file_name(self):
         return self.gff_details.file_name
 
+    def __del__(self):
+        # noinspection PyBroadException
+        try:
+            del self._chipper  # you have to explicitly delete and garbage collect the chipper to delete any temp file
+            gc.collect()
+            del self._gff_details
+        except Exception:
+            pass
+
 
 if __name__ == '__main__':
     the_root = r'R:\sar\Data_SomeDomestic\Sandia\dionysius\gff_example'
     the_file_name = 'Patch005.gff'
     full_file = os.path.join(the_root, the_file_name)
     reader = GFFReader(full_file)
+    print(reader[:2, :2])
