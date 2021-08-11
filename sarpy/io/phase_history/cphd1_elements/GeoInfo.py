@@ -2,20 +2,21 @@
 The GeoInfo definition.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
 from collections import OrderedDict
 from xml.etree import ElementTree
 from typing import List, Union, Dict
 
 import numpy
-from .base import DEFAULT_STRICT
-# noinspection PyProtectedMember
-from sarpy.io.complex.sicd_elements.base import Serializable, _StringDescriptor, \
-    _SerializableArrayDescriptor, SerializableArray, \
-    _ParametersDescriptor, ParametersCollection, _find_children
+from sarpy.io.xml.base import Serializable, SerializableArray, ParametersCollection, \
+    find_children
+from sarpy.io.xml.descriptors import StringDescriptor, SerializableArrayDescriptor, \
+    ParametersDescriptor
 from sarpy.io.complex.sicd_elements.blocks import LatLonRestrictionType, LatLonArrayElementType
 
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
+from .base import DEFAULT_STRICT
 
 
 class LineType(Serializable):
@@ -23,10 +24,10 @@ class LineType(Serializable):
     _required = ('EndPoints', )
     _collections_tags = {'EndPoints': {'array': True, 'child_tag': 'Endpoint'}}
     # descriptors
-    EndPoints = _SerializableArrayDescriptor(
+    EndPoints = SerializableArrayDescriptor(
         'EndPoints', LatLonArrayElementType, _collections_tags, _required, strict=DEFAULT_STRICT, minimum_length=2,
         docstring='A geographic line (array) with WGS-84 coordinates.'
-    ) # type: Union[SerializableArray, List[LatLonArrayElementType]]
+    )  # type: Union[SerializableArray, List[LatLonArrayElementType]]
 
     def __init__(self, EndPoints=None, **kwargs):
         """
@@ -50,7 +51,7 @@ class PolygonType(Serializable):
     _required = ('Polygon', )
     _collections_tags = {'Polygon': {'array': True, 'child_tag': 'Vertex'}}
     # descriptors
-    Polygon = _SerializableArrayDescriptor(
+    Polygon = SerializableArrayDescriptor(
         'Polygon', LatLonArrayElementType, _collections_tags, _required, strict=DEFAULT_STRICT, minimum_length=3,
         docstring='A geographic polygon (array) with WGS-84 coordinates.'
     )  # type: Union[SerializableArray, List[LatLonArrayElementType]]
@@ -88,21 +89,21 @@ class GeoInfoType(Serializable):
         'GeoInfo': {'array': False, 'child_tag': 'GeoInfo'}
     }
     # descriptors
-    name = _StringDescriptor(
+    name = StringDescriptor(
         'name', _required, strict=DEFAULT_STRICT,
         docstring='The name.')  # type: str
-    Descriptions = _ParametersDescriptor(
+    Descriptions = ParametersDescriptor(
         'Descriptions', _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Descriptions of the geographic feature.')  # type: ParametersCollection
-    Point = _SerializableArrayDescriptor(
+    Point = SerializableArrayDescriptor(
         'Point', LatLonRestrictionType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Geographic points with WGS-84 coordinates.'
     )  # type: Union[SerializableArray, List[LatLonRestrictionType]]
-    Line = _SerializableArrayDescriptor(
+    Line = SerializableArrayDescriptor(
         'Line', LineType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Geographic lines (array) with WGS-84 coordinates.'
     )  # type: Union[SerializableArray, List[LineType]]
-    Polygon = _SerializableArrayDescriptor(
+    Polygon = SerializableArrayDescriptor(
         'Polygon', PolygonType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Geographic polygons (array) with WGS-84 coordinates.'
     )  # type: Union[SerializableArray, List[PolygonType]]
@@ -196,12 +197,13 @@ class GeoInfoType(Serializable):
         if kwargs is None:
             kwargs = OrderedDict()
         gi_key = cls._child_xml_ns_key.get('GeoInfo', ns_key)
-        kwargs['GeoInfo'] = _find_children(node, 'GeoInfo', xml_ns, gi_key)
+        kwargs['GeoInfo'] = find_children(node, 'GeoInfo', xml_ns, gi_key)
         return super(GeoInfoType, cls).from_node(node, xml_ns, ns_key=ns_key, kwargs=kwargs)
 
     def to_node(self, doc, tag, ns_key=None, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
         node = super(GeoInfoType, self).to_node(
-            doc, tag, ns_key=ns_key, parent=parent, check_validity=check_validity, strict=strict, exclude=exclude+('GeoInfo', ))
+            doc, tag, ns_key=ns_key, parent=parent, check_validity=check_validity,
+            strict=strict, exclude=exclude+('GeoInfo', ))
         # slap on the GeoInfo children
         if self._GeoInfo is not None and len(self._GeoInfo) > 0:
             for entry in self._GeoInfo:
@@ -209,7 +211,8 @@ class GeoInfoType(Serializable):
         return node
 
     def to_dict(self, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
-        out = super(GeoInfoType, self).to_dict(check_validity=check_validity, strict=strict, exclude=exclude+('GeoInfo', ))
+        out = super(GeoInfoType, self).to_dict(
+            check_validity=check_validity, strict=strict, exclude=exclude+('GeoInfo', ))
         # slap on the GeoInfo children
         if self.GeoInfo is not None and len(self.GeoInfo) > 0:
             out['GeoInfo'] = [entry.to_dict(check_validity=check_validity, strict=strict) for entry in self._GeoInfo]

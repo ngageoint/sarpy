@@ -10,12 +10,12 @@ from datetime import datetime
 
 import numpy
 
+from sarpy.io.xml.base import Serializable, ParametersCollection
+from sarpy.io.xml.descriptors import SerializableDescriptor, ParametersDescriptor, \
+    StringDescriptor, DateTimeDescriptor, SerializableListDescriptor
+
 from .base import DEFAULT_STRICT
 from .blocks import RowColDoubleType, RowColIntType
-# noinspection PyProtectedMember
-from sarpy.io.complex.sicd_elements.base import Serializable, _SerializableDescriptor, \
-    _ParametersDescriptor, ParametersCollection, _StringDescriptor, \
-    _DateTimeDescriptor, _SerializableListDescriptor
 
 
 class GeometricChipType(Serializable):
@@ -35,19 +35,19 @@ class GeometricChipType(Serializable):
         'OriginalLowerLeftCoordinate', 'OriginalLowerRightCoordinate')
     _required = _fields
     # Descriptor
-    ChipSize = _SerializableDescriptor(
+    ChipSize = SerializableDescriptor(
         'ChipSize', RowColIntType, _required, strict=DEFAULT_STRICT,
         docstring='Size of the chipped product in pixels.')  # type: RowColIntType
-    OriginalUpperLeftCoordinate = _SerializableDescriptor(
+    OriginalUpperLeftCoordinate = SerializableDescriptor(
         'OriginalUpperLeftCoordinate', RowColDoubleType, _required, strict=DEFAULT_STRICT,
         docstring='Upper-left corner with respect to the original product.')  # type: RowColDoubleType
-    OriginalUpperRightCoordinate = _SerializableDescriptor(
+    OriginalUpperRightCoordinate = SerializableDescriptor(
         'OriginalUpperRightCoordinate', RowColDoubleType, _required, strict=DEFAULT_STRICT,
         docstring='Upper-right corner with respect to the original product.')  # type: RowColDoubleType
-    OriginalLowerLeftCoordinate = _SerializableDescriptor(
+    OriginalLowerLeftCoordinate = SerializableDescriptor(
         'OriginalLowerLeftCoordinate', RowColDoubleType, _required, strict=DEFAULT_STRICT,
         docstring='Lower-left corner with respect to the original product.')  # type: RowColDoubleType
-    OriginalLowerRightCoordinate = _SerializableDescriptor(
+    OriginalLowerRightCoordinate = SerializableDescriptor(
         'OriginalLowerRightCoordinate', RowColDoubleType, _required, strict=DEFAULT_STRICT,
         docstring='Lower-right corner with respect to the original product.')  # type: RowColDoubleType
 
@@ -86,16 +86,16 @@ class ProcessingEventType(Serializable):
     _required = ('ApplicationName', 'AppliedDateTime')
     _collections_tags = {'Descriptors': {'array': False, 'child_tag': 'Descriptor'}}
     # Descriptor
-    ApplicationName = _StringDescriptor(
+    ApplicationName = StringDescriptor(
         'ApplicationName', _required, strict=DEFAULT_STRICT,
         docstring='Application which applied a modification.')  # type: str
-    AppliedDateTime = _DateTimeDescriptor(
+    AppliedDateTime = DateTimeDescriptor(
         'AppliedDateTime', _required, strict=DEFAULT_STRICT, numpy_datetime_units='us',
         docstring='Date and time defined in Coordinated Universal Time (UTC).')  # type: numpy.datetime64
-    InterpolationMethod = _StringDescriptor(
+    InterpolationMethod = StringDescriptor(
         'InterpolationMethod', _required, strict=DEFAULT_STRICT,
         docstring='Type of interpolation applied to the data.')  # type: Union[None, str]
-    Descriptors = _ParametersDescriptor(
+    Descriptors = ParametersDescriptor(
         'Descriptors', _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Descriptors for the processing event.')  # type: ParametersCollection
 
@@ -132,10 +132,10 @@ class DownstreamReprocessingType(Serializable):
     _required = ()
     _collections_tags = {'ProcessingEvents': {'array': False, 'child_tag': 'ProcessingEvent'}}
     # Descriptor
-    GeometricChip = _SerializableDescriptor(
+    GeometricChip = SerializableDescriptor(
         'GeometricChip', GeometricChipType, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: Union[None, GeometricChipType]
-    ProcessingEvents = _SerializableListDescriptor(
+    ProcessingEvents = SerializableListDescriptor(
         'ProcessingEvents', ProcessingEventType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: Union[None, List[ProcessingEventType]]
 

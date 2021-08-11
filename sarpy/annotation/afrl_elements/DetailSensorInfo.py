@@ -14,13 +14,13 @@ __authors__ = ("Thomas McCullough", "Thomas Rackers")
 from typing import Optional
 import numpy
 
-# noinspection PyProtectedMember
-from sarpy.io.complex.sicd_elements.base import Serializable, \
-    _SerializableDescriptor, _StringDescriptor, _StringEnumDescriptor, \
-    _FloatDescriptor, _IntegerDescriptor, Arrayable
+from sarpy.io.xml.base import Serializable, Arrayable
+from sarpy.io.xml.descriptors import SerializableDescriptor, StringDescriptor, \
+    StringEnumDescriptor, FloatDescriptor, IntegerDescriptor
 from sarpy.io.complex.sicd_elements.blocks import XYZType
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.geometry.geocoords import ecf_to_geodetic
+
 from .blocks import LatLonEleType
 
 
@@ -29,9 +29,9 @@ class BeamWidthType(Serializable, Arrayable):
     _required = _fields
     _numeric_format = {key: '0.16G' for key in _fields}
     # Descriptors
-    Azimuth = _FloatDescriptor(
+    Azimuth = FloatDescriptor(
         'Azimuth', _required, strict=True, docstring='The Azimuth attribute.')  # type: float
-    Elevation = _FloatDescriptor(
+    Elevation = FloatDescriptor(
         'Elevation', _required, strict=True, docstring='The Elevation attribute.')  # type: float
 
     def __init__(self, Azimuth=None, Elevation=None, **kwargs):
@@ -95,12 +95,12 @@ class SquintAngleType(Serializable):
     _required = _fields
     _numeric_format = {el: '0.16G' for el in _fields}
     # descriptor
-    GroundPlane = _FloatDescriptor(
+    GroundPlane = FloatDescriptor(
         'GroundPlane', _required,
         docstring='Measured angle between the sensor line-of-sight and the '
                   'lateral axis of the aircraft as projected into the'
                   'ground plane')  # type: float
-    SlantPlane = _FloatDescriptor(
+    SlantPlane = FloatDescriptor(
         'SlantPlane', _required,
         docstring='Measured angle between the sensor line-of-sight and the '
                   'lateral axis of the aircraft as projected into the'
@@ -131,15 +131,15 @@ class AircraftLocationType(Serializable, Arrayable):
     _required = _fields
     _numeric_format = {'Lat': '0.16G', 'Lon': '0.16G', 'Altitude': '0.16G'}
     # descriptors
-    Lat = _FloatDescriptor(
+    Lat = FloatDescriptor(
         'Lat', _required, strict=True,
         docstring='The latitude attribute. Assumed to be WGS-84 coordinates.'
     )  # type: float
-    Lon = _FloatDescriptor(
+    Lon = FloatDescriptor(
         'Lon', _required, strict=True,
         docstring='The longitude attribute. Assumed to be WGS-84 coordinates.'
     )  # type: float
-    Altitude = _FloatDescriptor(
+    Altitude = FloatDescriptor(
         'Altitude', _required, strict=True,
         docstring='The Height Above Ellipsoid (in meters) attribute. '
                   'Assumed to be WGS-84 coordinates.')  # type: float
@@ -214,89 +214,89 @@ class DetailSensorInfoType(Serializable):
         'Type', 'Range', 'DepressionAngle', 'Aimpoint', 'Look', 'SquintAngle',
         'AircraftLocation', 'AircraftVelocity')
     # descriptors
-    Name = _StringDescriptor(
+    Name = StringDescriptor(
         'Name', _required,
         docstring='The name of the sensor')  # type: Optional[str]
-    SensorMfg = _StringDescriptor(
+    SensorMfg = StringDescriptor(
         'SensorMfg', _required,
         docstring='The manufacturer of the sensor')  # type: Optional[str]
-    OperatingAgency = _StringDescriptor(
+    OperatingAgency = StringDescriptor(
         'OperatingAgency', _required,
         docstring='The agency or company that operates the sensor')  # type: Optional[str]
-    Type = _StringDescriptor(
+    Type = StringDescriptor(
         'Type', _required,
         docstring='The type of sensor (i.e SAR or EO)')  # type: str
-    Mode = _StringDescriptor(
+    Mode = StringDescriptor(
         'Mode', _required,
         docstring='Sensor operating mode')  # type: Optional[str]
-    Band = _StringDescriptor(
+    Band = StringDescriptor(
         'Band', _required,
         docstring='designation of the sensor frequency band')  # type: Optional[str]
-    Bandwidth = _FloatDescriptor(
+    Bandwidth = FloatDescriptor(
         'Bandwidth', _required,
         docstring='Radio Frequency bandwidth of the sensor system in GHz')  # type: Optional[float]
-    CenterFrequency = _FloatDescriptor(
+    CenterFrequency = FloatDescriptor(
         'CenterFrequency', _required,
         docstring='Center operating frequency of the sensor system in GHz')  # type: Optional[float]
-    NearRange = _FloatDescriptor(
+    NearRange = FloatDescriptor(
         'NearRange', _required,
         docstring='The slant range distance measured from the sensor to the '
                   'near range of the image')  # type: Optional[float]
-    SlantRangeSwathWidth = _FloatDescriptor(
+    SlantRangeSwathWidth = FloatDescriptor(
         'SlantRangeSwathWidth', _required,
         docstring='The width of the image as measured in the slant range'
     )  # type: Optional[float]
-    Polarization = _StringDescriptor(
+    Polarization = StringDescriptor(
         'Polarization', _required,
         docstring='The polarization of the transmitted/received signals')  # type: Optional[str]
-    Range = _FloatDescriptor(
+    Range = FloatDescriptor(
         'Range', _required,
         docstring='Measured slant range between the sensor aperture '
                   'and the scene center')  # type: float
-    DepressionAngle = _FloatDescriptor(
+    DepressionAngle = FloatDescriptor(
         'DepressionAngle', _required,
         docstring='Measured depression angle between the sensor line-of-sight '
                   'and the local horizontal reference plane')  # type: float
-    LinearDynamicRange = _FloatDescriptor(
+    LinearDynamicRange = FloatDescriptor(
         'LinearDynamicRange', _required,
         docstring="The span of the signal amplitudes (or power levels) over "
                   "which the system's response is linear. Typically the ratio "
                   "of the largest input signal that causes a 1 db compression "
                   "in receiver dynamic gain and the minimum signal defined by "
                   "receiver noise.")  # type: Optional[float]
-    BeamWidth = _SerializableDescriptor(
+    BeamWidth = SerializableDescriptor(
         'BeamWidth', BeamWidthType, _required,
         docstring='The width of the radar beam at its half power'
     )  # type: Optional[BeamWidthType]
-    Aimpoint = _SerializableDescriptor(
+    Aimpoint = SerializableDescriptor(
         'Aimpoint', LatLonEleType, _required,
         docstring='The sensor aim point')  # type: LatLonEleType
-    AircraftHeading = _FloatDescriptor(
+    AircraftHeading = FloatDescriptor(
         'AircraftHeading', _required,
         docstring='Aircraft heading relative to True North, in degrees'
     )  # type: Optional[float]
-    AircraftTrackAngle = _FloatDescriptor(
+    AircraftTrackAngle = FloatDescriptor(
         'AircraftTrackAngle', _required,
         docstring='The bearing from the aircraft position at the first pulse '
                   'to the aircraft position at the last')  # type: Optional[float]
-    Look = _StringEnumDescriptor(
+    Look = StringEnumDescriptor(
         'Look', {'Left', 'Right', 'Nadir'}, _required,
         docstring='Direction of the sensor look angle relative to aircraft '
                   'motion')  # type: str
-    SquintAngle = _SerializableDescriptor(
+    SquintAngle = SerializableDescriptor(
         'SquintAngle', SquintAngleType, _required,
         docstring='Measured angle between the sensor line-of-sight and the '
                   'lateral axis of the aircraft')  # type: SquintAngleType
-    AircraftLocation = _SerializableDescriptor(
+    AircraftLocation = SerializableDescriptor(
         'AircraftLocation', AircraftLocationType, _required,
         docstring='The aircraft location (at scene center COA time?)')  # type: AircraftLocationType
-    AircraftVelocity = _SerializableDescriptor(
+    AircraftVelocity = SerializableDescriptor(
         'AircraftVelocity', XYZType, _required,
         docstring='Aircraft velocity in ECEF coordinates (at scene center COA time?)')  # type: XYZType
-    FlightNumber = _IntegerDescriptor(
+    FlightNumber = IntegerDescriptor(
         'FlightNumber', _required,
         docstring='The aircraft flight number')  # type: Optional[int]
-    PassNumber = _IntegerDescriptor(
+    PassNumber = IntegerDescriptor(
         'PassNumber', _required,
         docstring='The aircraft pass number')  # type: Optional[int]
 

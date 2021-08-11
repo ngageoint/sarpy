@@ -2,16 +2,19 @@
 The reference geometry parameters definition.
 """
 
-import numpy
-
-from .base import DEFAULT_STRICT
-# noinspection PyProtectedMember
-from sarpy.io.complex.sicd_elements.base import Serializable, _FloatDescriptor, \
-    _StringEnumDescriptor, _SerializableDescriptor
-from sarpy.io.complex.sicd_elements.blocks import XYZType
-
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
+
+from typing import Union
+
+import numpy
+
+from sarpy.io.xml.base import Serializable
+from sarpy.io.xml.descriptors import FloatDescriptor, StringEnumDescriptor, \
+    SerializableDescriptor
+from sarpy.io.complex.sicd_elements.blocks import XYZType
+
+from .base import DEFAULT_STRICT
 
 
 class SRPType(Serializable):
@@ -22,10 +25,10 @@ class SRPType(Serializable):
     _fields = ('ECF', 'IAC')
     _required = _fields
     # descriptors
-    ECF = _SerializableDescriptor(
+    ECF = SerializableDescriptor(
         'ECF', XYZType, _required, strict=DEFAULT_STRICT,
         docstring='SRP position in ECF coordinates.')  # type: XYZType
-    IAC = _SerializableDescriptor(
+    IAC = SerializableDescriptor(
         'IAC', XYZType, _required, strict=DEFAULT_STRICT,
         docstring='SRP position in Image Area Coordinates.')  # type: XYZType
 
@@ -61,28 +64,28 @@ class ReferenceGeometryCore(Serializable):
         'SlantRange': '0.16G', 'GroundRange': '0.16G', 'DopplerConeAngle': '0.16G',
         'GrazeAngle': '0.16G', 'IncidenceAngle': '0.16G', 'AzimuthAngle': '0.16G'}
     # descriptors
-    SideOfTrack = _StringEnumDescriptor(
+    SideOfTrack = StringEnumDescriptor(
         'SideOfTrack', ('L', 'R'), _required, strict=DEFAULT_STRICT,
         docstring='Side of Track parameter for the collection.')  # type: str
-    SlantRange = _FloatDescriptor(
+    SlantRange = FloatDescriptor(
         'SlantRange', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='Slant range from the ARP to the SRP.')  # type: float
-    GroundRange = _FloatDescriptor(
+    GroundRange = FloatDescriptor(
         'GroundRange', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='Ground range from the ARP to the SRP.')  # type: float
-    DopplerConeAngle = _FloatDescriptor(
+    DopplerConeAngle = FloatDescriptor(
         'DopplerConeAngle', _required, strict=DEFAULT_STRICT, bounds=(0, 180),
         docstring='Doppler Cone Angle between ARP velocity and deg SRP Line of '
                   'Sight (LOS).')  # type: float
-    GrazeAngle = _FloatDescriptor(
+    GrazeAngle = FloatDescriptor(
         'GrazeAngle', _required, strict=DEFAULT_STRICT, bounds=(0, 90),
         docstring='Grazing angle for the ARP to SRP LOS and the deg Earth Tangent '
                   'Plane (ETP) at the SRP.')  # type: float
-    IncidenceAngle = _FloatDescriptor(
+    IncidenceAngle = FloatDescriptor(
         'IncidenceAngle', _required, strict=DEFAULT_STRICT, bounds=(0, 90),
         docstring='Incidence angle for the ARP to SRP LOS and the Earth Tangent '
                   'Plane (ETP) at the SRP.')  # type: float
-    AzimuthAngle = _FloatDescriptor(
+    AzimuthAngle = FloatDescriptor(
         'AzimuthAngle', _required, strict=DEFAULT_STRICT, bounds=(0, 360),
         docstring='Angle from north to the line from the SRP to the ARP ETP '
                   'Nadir (i.e. North to +GPX). Measured clockwise from North '
@@ -137,21 +140,21 @@ class MonostaticType(ReferenceGeometryCore):
         'GrazeAngle': '0.16G', 'IncidenceAngle': '0.16G', 'AzimuthAngle': '0.16G',
         'TwistAngle': '0.16G', 'SlopeAngle': '0.16G', 'LayoverAngle': '0.16G'}
     # descriptors
-    ARPPos = _SerializableDescriptor(
+    ARPPos = SerializableDescriptor(
         'ARPPos', XYZType, _required, strict=DEFAULT_STRICT,
         docstring='ARP position in ECF coordinates.')  # type: XYZType
-    ARPVel = _SerializableDescriptor(
+    ARPVel = SerializableDescriptor(
         'ARPVel', XYZType, _required, strict=DEFAULT_STRICT,
         docstring='ARP velocity in ECF coordinates.')  # type: XYZType
-    TwistAngle = _FloatDescriptor(
+    TwistAngle = FloatDescriptor(
         'TwistAngle', _required, strict=DEFAULT_STRICT, bounds=(-90, 90),
         docstring='Twist angle between cross range in the ETP and cross range in '
                   'the slant plane at the SRP.')  # type: float
-    SlopeAngle = _FloatDescriptor(
+    SlopeAngle = FloatDescriptor(
         'SlopeAngle', _required, strict=DEFAULT_STRICT, bounds=(0, 90),
         docstring='Angle between the ETP normal (uUP) and the slant plane normal '
                   '(uSPN) at the SRP.')  # type: float
-    LayoverAngle = _FloatDescriptor(
+    LayoverAngle = FloatDescriptor(
         'LayoverAngle', _required, strict=DEFAULT_STRICT, bounds=(0, 360),
         docstring='Angle from north to the layover direction in the ETP. Measured '
                   'clockwise from +North toward +East.')  # type: float
@@ -202,7 +205,7 @@ class MonostaticType(ReferenceGeometryCore):
             return None
         else:
             return numpy.rad2deg(
-                -numpy.arctan(numpy.tan(numpy.deg2rad(self.TwistAngle))*
+                -numpy.arctan(numpy.tan(numpy.deg2rad(self.TwistAngle)) *
                               numpy.sin(numpy.deg2rad(self.GrazeAngle))))
 
     @property
@@ -238,13 +241,13 @@ class BistaticTxRcvType(ReferenceGeometryCore):
         'Time': '0.16G', 'SlantRange': '0.16G', 'GroundRange': '0.16G', 'DopplerConeAngle': '0.16G',
         'GrazeAngle': '0.16G', 'IncidenceAngle': '0.16G', 'AzimuthAngle': '0.16G'}
     # descriptors
-    Time = _FloatDescriptor(
+    Time = FloatDescriptor(
         'Time', _required, strict=DEFAULT_STRICT,
         docstring='The transmit or receive time for the vector.')  # type: float
-    Pos = _SerializableDescriptor(
+    Pos = SerializableDescriptor(
         'Pos', XYZType, _required, strict=DEFAULT_STRICT,
         docstring='APC position in ECF coordinates.')  # type: XYZType
-    Vel = _SerializableDescriptor(
+    Vel = SerializableDescriptor(
         'Vel', XYZType, _required, strict=DEFAULT_STRICT,
         docstring='APC velocity in ECF coordinates.')  # type: XYZType
 
@@ -297,46 +300,46 @@ class BistaticType(Serializable):
         'SlopeAngle': '0.16G', 'LayoverAngle': '0.16G'}
 
     # descriptors
-    AzimuthAngle = _FloatDescriptor(
+    AzimuthAngle = FloatDescriptor(
         'AzimuthAngle', _required, strict=DEFAULT_STRICT, bounds=(0, 360),
         docstring='Angle from north to the projection of the Bistatic pointing vector '
                   '(bP) into the ETP. Measured clockwise from +North toward '
                   '+East.')  # type: float
-    AzimuthAngleRate = _FloatDescriptor(
+    AzimuthAngleRate = FloatDescriptor(
         'AzimuthAngleRate', _required, strict=DEFAULT_STRICT,
         docstring='Instantaneous rate of change of the Azimuth Angle '
                   ':math:`d(AZIM)/dt`.')  # type: float
-    BistaticAngle = _FloatDescriptor(
+    BistaticAngle = FloatDescriptor(
         'BistaticAngle', _required, strict=DEFAULT_STRICT, bounds=(0, 180),
         docstring='Bistatic angle (Beta) between unit vector from SRP to transmit APC '
                   '(uXmt) and the unit vector from the SRP to the receive '
                   'APC (uRcv).')  # type: float
-    BistaticAngleRate = _FloatDescriptor(
+    BistaticAngleRate = FloatDescriptor(
         'BistaticAngleRate', _required, strict=DEFAULT_STRICT,
         docstring='Instantaneous rate of change of the bistatic angle '
                   ':math:`d(Beta)/dt)`.')  # type: float
-    GrazeAngle = _FloatDescriptor(
+    GrazeAngle = FloatDescriptor(
         'GrazeAngle', _required, strict=DEFAULT_STRICT, bounds=(0, 90),
         docstring='Angle between the bistatic pointing vector and the ETP at the '
                   'SRP.')  # type: float
-    TwistAngle = _FloatDescriptor(
+    TwistAngle = FloatDescriptor(
         'TwistAngle', _required, strict=DEFAULT_STRICT, bounds=(-90, 90),
         docstring='Angle between cross range in the ETP at the SRP and cross range '
                   'in the instantaneous plane of maximum bistatic resolution. '
                   'Note - For monostatic imaging, the plane of maximum resolution is '
                   'the instantaneous slant plane.')  # type: float
-    SlopeAngle = _FloatDescriptor(
+    SlopeAngle = FloatDescriptor(
         'SlopeAngle', _required, strict=DEFAULT_STRICT, bounds=(0, 90),
         docstring='Angle between the ETP normal and the normal to the instantaneous '
                   'plane of maximum bistatic resolution.')  # type: float
-    LayoverAngle = _FloatDescriptor(
+    LayoverAngle = FloatDescriptor(
         'LayoverAngle', _required, strict=DEFAULT_STRICT, bounds=(0, 360),
         docstring='Angle from north to the bistatic layover direction in the ETP. '
                   'Measured clockwise from +North toward +East.')  # type: float
-    TxPlatform = _SerializableDescriptor(
+    TxPlatform = SerializableDescriptor(
         'TxPlatform', BistaticTxRcvType, _required, strict=DEFAULT_STRICT,
         docstring='Parameters that describe the Transmit platform.')  # type: BistaticTxRcvType
-    RcvPlatform = _SerializableDescriptor(
+    RcvPlatform = SerializableDescriptor(
         'RcvPlatform', BistaticTxRcvType, _required, strict=DEFAULT_STRICT,
         docstring='Parameters that describe the Receive platform.')  # type: BistaticTxRcvType
 
@@ -372,25 +375,25 @@ class ReferenceGeometryType(Serializable):
     _choice = ({'required': True, 'collection': ('Monostatic', 'Bistatic')}, )
     _numeric_format = {'ReferenceTime': '0.16G', 'SRPCODTime': '0.16G'}
     # descriptors
-    SRP = _SerializableDescriptor(
+    SRP = SerializableDescriptor(
         'SRP', SRPType, _required, strict=DEFAULT_STRICT,
         docstring='The SRP position for the reference vector of the reference '
                   'channel.')  # type: SRPType
-    ReferenceTime = _FloatDescriptor(
+    ReferenceTime = FloatDescriptor(
         'ReferenceTime', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='Reference time for the selected reference vector, in '
                   'seconds.')  # type: float
-    SRPCODTime = _FloatDescriptor(
+    SRPCODTime = FloatDescriptor(
         'SRPCODTime', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='The COD Time for point on the reference surface, in '
                   'seconds.')  # type: float
-    SRPDwellTime = _FloatDescriptor(
+    SRPDwellTime = FloatDescriptor(
         'SRPDwellTime', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='')  # type: float
-    Monostatic = _SerializableDescriptor(
+    Monostatic = SerializableDescriptor(
         'Monostatic', MonostaticType, _required, strict=DEFAULT_STRICT,
         docstring='Parameters for monstatic collection.')  # type: Union[None, MonostaticType]
-    Bistatic = _SerializableDescriptor(
+    Bistatic = SerializableDescriptor(
         'Bistatic', BistaticType, _required, strict=DEFAULT_STRICT,
         docstring='Parameters for bistatic collection.')  # type: Union[None, BistaticType]
 

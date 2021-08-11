@@ -2,20 +2,20 @@
 The SceneCoordinates type definition.
 """
 
-from typing import Union, List
-
-from .base import DEFAULT_STRICT
-# noinspection PyProtectedMember
-from sarpy.io.complex.sicd_elements.base import Serializable, _FloatDescriptor, _IntegerDescriptor, \
-    _StringDescriptor, _StringEnumDescriptor, _SerializableDescriptor, \
-    SerializableArray, _SerializableArrayDescriptor, SerializableCPArray, \
-    _SerializableCPArrayDescriptor, _create_text_node, _UnitVectorDescriptor
-from sarpy.io.complex.sicd_elements.blocks import XYZType, LatLonType, LatLonCornerType
-from sarpy.io.complex.sicd_elements.GeoData import SCPType
-from .blocks import AreaType, LSType, LSVertexType
-
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
+
+from typing import Union, List
+
+from sarpy.io.xml.base import Serializable, SerializableArray, create_text_node
+from sarpy.io.xml.descriptors import FloatDescriptor, IntegerDescriptor, \
+    StringDescriptor, StringEnumDescriptor, \
+    SerializableDescriptor, SerializableArrayDescriptor, UnitVectorDescriptor
+from sarpy.io.complex.sicd_elements.base import SerializableCPArray, SerializableCPArrayDescriptor
+from sarpy.io.complex.sicd_elements.blocks import XYZType, LatLonType, LatLonCornerType
+from sarpy.io.complex.sicd_elements.GeoData import SCPType
+from .base import DEFAULT_STRICT
+from .blocks import AreaType, LSType, LSVertexType
 
 
 class IARPType(SCPType):
@@ -34,12 +34,12 @@ class ECFPlanarType(Serializable):
     _fields = ('uIAX', 'uIAY')
     _required = _fields
     # descriptors
-    uIAX = _UnitVectorDescriptor(
+    uIAX = UnitVectorDescriptor(
         'uIAX', XYZType, _required, strict=DEFAULT_STRICT,
         docstring='Image Area X-coordinate (IAX) unit vector in ECF coordinates. '
                   'For stripmap collections, uIAX ALWAYS points in the direction '
                   'of the scanning footprint.')  # type: XYZType
-    uIAY = _UnitVectorDescriptor(
+    uIAY = UnitVectorDescriptor(
         'uIAY', XYZType, _required, strict=DEFAULT_STRICT,
         docstring='Image Area Y-coordinate (IAY) unit vector in ECF '
                   'coordinates. This should be perpendicular to '
@@ -73,12 +73,12 @@ class LLPlanarType(Serializable):
     _fields = ('uIAXLL', 'uIAYLL')
     _required = _fields
     # descriptors
-    uIAXLL = _SerializableDescriptor(
+    uIAXLL = SerializableDescriptor(
         'uIAXLL', LatLonType, _required, strict=DEFAULT_STRICT,
         docstring='Image coordinate IAX *"unit vector"* expressed as an increment '
                   'in latitude and longitude corresponding to a 1.0 meter increment '
                   'in image coordinate `IAX`.')  # type: LatLonType
-    uIAYLL = _SerializableDescriptor(
+    uIAYLL = SerializableDescriptor(
         'uIAYLL', LatLonType, _required, strict=DEFAULT_STRICT,
         docstring='Image coordinate IAY *"unit vector"* expressed as an increment '
                   'in latitude and longitude corresponding to a 1.0 meter increment '
@@ -111,10 +111,10 @@ class ReferenceSurfaceType(Serializable):
     _required = ()
     _choice = ({'required': True, 'collection': _fields}, )
     # descriptors
-    Planar = _SerializableDescriptor(
+    Planar = SerializableDescriptor(
         'Planar', ECFPlanarType, _required, strict=DEFAULT_STRICT,
         docstring='The ECF planar surface definition.')  # type: Union[None, ECFPlanarType]
-    HAE = _SerializableDescriptor(
+    HAE = SerializableDescriptor(
         'HAE', LLPlanarType, _required, strict=DEFAULT_STRICT,
         docstring='The HAE surface definition.')  # type: Union[None, LLPlanarType]
 
@@ -148,13 +148,13 @@ class IAXExtentType(Serializable):
     _required = _fields
     _numeric_format = {'LineSpacing': '0.16G'}
     # descriptors
-    LineSpacing = _FloatDescriptor(
+    LineSpacing = FloatDescriptor(
         'LineSpacing', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='The line spacing, in meters.')  # type: float
-    FirstLine = _IntegerDescriptor(
+    FirstLine = IntegerDescriptor(
         'FirstLine', _required, strict=DEFAULT_STRICT,
         docstring='Index of the first line.')  # type: int
-    NumLines = _IntegerDescriptor(
+    NumLines = IntegerDescriptor(
         'NumLines', _required, strict=DEFAULT_STRICT, bounds=(1, None),
         docstring='Number of lines.')  # type: int
 
@@ -188,13 +188,13 @@ class IAYExtentType(Serializable):
     _required = _fields
     _numeric_format = {'SampleSpacing': '0.16G'}
     # descriptors
-    SampleSpacing = _FloatDescriptor(
+    SampleSpacing = FloatDescriptor(
         'SampleSpacing', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='Sample spacing, in meters.')  # type: float
-    FirstSample = _IntegerDescriptor(
+    FirstSample = IntegerDescriptor(
         'FirstSample', _required, strict=DEFAULT_STRICT,
         docstring='Index of the first sample.')  # type: int
-    NumSamples = _IntegerDescriptor(
+    NumSamples = IntegerDescriptor(
         'NumSamples', _required, strict=DEFAULT_STRICT, bounds=(1, None),
         docstring='Number of samples.')  # type: int
 
@@ -228,22 +228,22 @@ class SegmentType(Serializable):
     _required = ('Identifier', 'StartLine', 'StartSample', 'EndLine', 'EndSample')
     _collections_tags = {'SegmentPolygon': {'array': True, 'child_tag': 'SV'}}
     # descriptors
-    Identifier = _StringDescriptor(
+    Identifier = StringDescriptor(
         'Identifier', _required, strict=DEFAULT_STRICT,
         docstring='String that uniquely identifies the Image Segment.')  # type: str
-    StartLine = _IntegerDescriptor(
+    StartLine = IntegerDescriptor(
         'StartLine', _required, strict=DEFAULT_STRICT,
         docstring='Start line of the segment.')  # type: int
-    StartSample = _IntegerDescriptor(
+    StartSample = IntegerDescriptor(
         'StartSample', _required, strict=DEFAULT_STRICT,
         docstring='Start sample of the segment.')  # type: int
-    EndLine = _IntegerDescriptor(
+    EndLine = IntegerDescriptor(
         'EndLine', _required, strict=DEFAULT_STRICT,
         docstring='End line of the segment.')  # type: int
-    EndSample = _IntegerDescriptor(
+    EndSample = IntegerDescriptor(
         'EndSample', _required, strict=DEFAULT_STRICT,
         docstring='End sample of the segment.')  # type: int
-    SegmentPolygon = _SerializableArrayDescriptor(
+    SegmentPolygon = SerializableArrayDescriptor(
         'SegmentPolygon', LSVertexType, _collections_tags, _required,
         strict=DEFAULT_STRICT, minimum_length=3,
         docstring='Polygon that describes a portion of the segment '
@@ -288,7 +288,7 @@ class SegmentListType(SerializableArray):
     def to_node(self, doc, tag, ns_key=None, parent=None, check_validity=False, strict=DEFAULT_STRICT):
         anode = super(SegmentListType, self).to_node(
             doc, tag, ns_key=ns_key, parent=parent, check_validity=check_validity, strict=strict)
-        _create_text_node(
+        create_text_node(
             doc, 'NumSegments' if ns_key is None else '{}:NumSegments'.format(ns_key),
             '{0:d}'.format(self.NumSegments), parent=anode)
         return anode
@@ -304,20 +304,20 @@ class ImageGridType(Serializable):
     _required = ('IARPLocation', 'IAXExtent', 'IAYExtent')
     _collections_tags = {'SegmentList': {'array': True, 'child_tag': 'Segemnt'}}
     # descriptors
-    Identifier = _StringDescriptor(
+    Identifier = StringDescriptor(
         'Identifier', _required, strict=DEFAULT_STRICT,
         docstring='String that uniquely identifies the Image Grid.')  # type: Union[None, str]
-    IARPLocation = _SerializableDescriptor(
+    IARPLocation = SerializableDescriptor(
         'IARPLocation', LSType, _required, strict=DEFAULT_STRICT,
         docstring='IARP grid location. Grid locations indexed by (line, sample) or (L,S). '
                   'Image grid line and sample are pixel-centered indices.')  # type: LSType
-    IAXExtent = _SerializableDescriptor(
+    IAXExtent = SerializableDescriptor(
         'IAXExtent', IAXExtentType, _required, strict=DEFAULT_STRICT,
         docstring='Increasing line index is in the +IAX direction.')  # type: IAXExtentType
-    IAYExtent = _SerializableDescriptor(
+    IAYExtent = SerializableDescriptor(
         'IAYExtent', IAYExtentType, _required, strict=DEFAULT_STRICT,
         docstring='Increasing sample index is in the +IAY direction.')  # type: IAYExtentType
-    SegmentList = _SerializableArrayDescriptor(
+    SegmentList = SerializableArrayDescriptor(
         'SegmentList', SegmentType, _collections_tags, _required, strict=DEFAULT_STRICT,
         array_extension=SegmentListType,
         docstring='List of image grid segments defined relative to the image '
@@ -363,32 +363,32 @@ class SceneCoordinatesType(Serializable):
     _collections_tags = {
         'ImageAreaCornerPoints': {'array': True, 'child_tag': 'IACP'}}
     # descriptors
-    EarthModel = _StringEnumDescriptor(
+    EarthModel = StringEnumDescriptor(
         'EarthModel', ('WGS_84', ), _required, strict=DEFAULT_STRICT, default_value='WGS_84',
         docstring='Specifies the earth model used for specifying geodetic coordinates. All heights are '
                   'Height Above the Ellipsoid (HAE) unless specifically '
                   'noted.')  # type: str
-    IARP = _SerializableDescriptor(
+    IARP = SerializableDescriptor(
         'IARP', IARPType, _required, strict=DEFAULT_STRICT,
         docstring='Image Area Reference Point (IARP). The IARP is the origin of '
                   'the Image Area Coordinate system.')  # type: IARPType
-    ReferenceSurface = _SerializableDescriptor(
+    ReferenceSurface = SerializableDescriptor(
         'ReferenceSurface', ReferenceSurfaceType, _required, strict=DEFAULT_STRICT,
         docstring='Parameters that define the Reference Surface used for the '
                   'product.')  # type: ReferenceSurfaceType
-    ImageArea = _SerializableDescriptor(
+    ImageArea = SerializableDescriptor(
         'ImageArea', AreaType, _required, strict=DEFAULT_STRICT,
         docstring='Image Area is defined by a rectangle aligned with Image Area coordinates (IAX, IAY). '
                   'May be reduced by the optional polygon.')  # type: AreaType
-    ImageAreaCornerPoints = _SerializableCPArrayDescriptor(
+    ImageAreaCornerPoints = SerializableCPArrayDescriptor(
         'ImageAreaCornerPoints', LatLonCornerType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Image Area Corner Points (IACPs) that bound the full resolution '
                   'image area.')  # type: Union[SerializableCPArray, List[LatLonCornerType]]
-    ExtendedArea = _SerializableDescriptor(
+    ExtendedArea = SerializableDescriptor(
         'ExtendedArea', AreaType, _required, strict=DEFAULT_STRICT,
         docstring='Extended Area is defined by a rectangle aligned with Image Area coordinates '
                   '(IAX, IAY). May be reduced by the optional polygon.')  # type: Union[None, AreaType]
-    ImageGrid = _SerializableDescriptor(
+    ImageGrid = SerializableDescriptor(
         'ImageGrid', ImageGridType, _required, strict=DEFAULT_STRICT,
         docstring='Parameters that describe a geo-referenced image grid for image data '
                   'products that may be formed from the CPHD signal '

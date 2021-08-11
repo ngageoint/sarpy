@@ -9,11 +9,11 @@ from collections import OrderedDict
 from xml.etree import ElementTree
 from typing import List
 
-from .base import DEFAULT_STRICT
+from sarpy.io.xml.base import Serializable, ParametersCollection, \
+    find_children, find_first_child, get_node_value, create_text_node
+from sarpy.io.xml.descriptors import ParametersDescriptor, StringDescriptor
 
-# noinspection PyProtectedMember
-from sarpy.io.complex.sicd_elements.base import Serializable, _ParametersDescriptor, ParametersCollection, \
-    _StringDescriptor, _find_children, _find_first_child, _get_node_value, _create_text_node
+from .base import DEFAULT_STRICT
 
 
 class ProcessingModuleType(Serializable):
@@ -28,13 +28,13 @@ class ProcessingModuleType(Serializable):
     _collections_tags = {
         'ModuleParameters': {'array': False, 'child_tag': 'ModuleParameter'}}
     # Descriptor
-    ModuleName = _StringDescriptor(
+    ModuleName = StringDescriptor(
         'ModuleName', _required, strict=DEFAULT_STRICT,
         docstring='The module name.')  # type: str
-    name = _StringDescriptor(
+    name = StringDescriptor(
         'name', _required, strict=DEFAULT_STRICT,
         docstring='The module identifier.')  # type: str
-    ModuleParameters = _ParametersDescriptor(
+    ModuleParameters = ParametersDescriptor(
         'ModuleParameters', _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Free form parameters.')  # type: ParametersCollection
 
@@ -120,12 +120,12 @@ class ProcessingModuleType(Serializable):
             kwargs = OrderedDict()
         # parse the ModuleName
         mn_key = cls._child_xml_ns_key.get('ModuleName', ns_key)
-        mn_node = _find_first_child(node, 'ModuleName', xml_ns, mn_key)
-        kwargs['ModuleName'] = _get_node_value(mn_node)
+        mn_node = find_first_child(node, 'ModuleName', xml_ns, mn_key)
+        kwargs['ModuleName'] = get_node_value(mn_node)
         kwargs['name'] = mn_node.attrib.get('name', None)
         # parse the ProcessingModule children
         pm_key = cls._child_xml_ns_key.get('ProcessingModules', ns_key)
-        kwargs['ProcessingModules'] = _find_children(node, 'ProcessingModule', xml_ns, pm_key)
+        kwargs['ProcessingModules'] = find_children(node, 'ProcessingModule', xml_ns, pm_key)
         return super(ProcessingModuleType, cls).from_node(node, xml_ns, ns_key=ns_key, kwargs=kwargs)
 
     def to_node(self, doc, tag, ns_key=None, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
@@ -136,7 +136,7 @@ class ProcessingModuleType(Serializable):
         if self.ModuleName is not None:
             mn_key = self._child_xml_ns_key.get('ModuleName', ns_key)
             mn_tag = '{}:ModuleName'.format(mn_key) if mn_key is not None and mn_key != 'default' else 'ModuleName'
-            mn_node = _create_text_node(doc, mn_tag, self.ModuleName, parent=node)
+            mn_node = create_text_node(doc, mn_tag, self.ModuleName, parent=node)
             if self.name is not None:
                 mn_node.attrib['name'] = self.name
         # add the ProcessingModule children
@@ -238,7 +238,7 @@ class ProductProcessingType(Serializable):
             kwargs = OrderedDict()
 
         pm_key = cls._child_xml_ns_key.get('ProcessingModules', ns_key)
-        kwargs['ProcessingModules'] = _find_children(node, 'ProcessingModule', xml_ns, pm_key)
+        kwargs['ProcessingModules'] = find_children(node, 'ProcessingModule', xml_ns, pm_key)
         return super(ProductProcessingType, cls).from_node(node, xml_ns, ns_key=ns_key, kwargs=kwargs)
 
     def to_node(self, doc, tag, ns_key=None, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):

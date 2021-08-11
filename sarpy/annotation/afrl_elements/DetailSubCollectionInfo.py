@@ -7,9 +7,11 @@ __authors__ = ("Thomas McCullough", "Thomas Rackers")
 
 
 from typing import Optional
-# noinspection PyProtectedMember
-from sarpy.io.complex.sicd_elements.base import DEFAULT_STRICT, \
-    _SerializableDescriptor, _StringDescriptor, Serializable
+
+from sarpy.io.xml.base import Serializable
+from sarpy.io.xml.descriptors import SerializableDescriptor, StringDescriptor
+
+from .base import DEFAULT_STRICT
 from .blocks import DateRangeType, LatLonEleType
 
 
@@ -19,31 +21,31 @@ class DetailSubCollectionInfoType(Serializable):
                'SiteBackgroundType')
     _required = ('Name', 'SiteCenterLocation', 'SceneContentDescription')
     # descriptors
-    Name = _StringDescriptor(
+    Name = StringDescriptor(
         'Name', _required,
         docstring="Name of the subcollection.")  # type: str
-    SiteName = _StringDescriptor(
+    SiteName = StringDescriptor(
         'SiteName', _required,
         docstring="Name of the subcollection site location.")  # type: Optional[str]
-    SiteNumber = _StringDescriptor(
+    SiteNumber = StringDescriptor(
         'SiteNumber', _required,
         docstring="Site number of the subcollection.")  # type: Optional[str]
-    SceneNumber = _StringDescriptor(
+    SceneNumber = StringDescriptor(
         'SceneNumber', _required,
         docstring="Scene number of the subcollection.")  # type: Optional[str]
-    Description = _StringDescriptor(
+    Description = StringDescriptor(
         'Description', _required,
         docstring="Description of the subcollection (e.g., Main array).")  # type: Optional[str]
-    Duration = _SerializableDescriptor(
+    Duration = SerializableDescriptor(
         'Duration', DateRangeType, _required, strict=DEFAULT_STRICT,
         docstring="Begin and end dates of the subcollection.")  # type: Optional[DateRangeType]
-    SiteCenterLocation = _SerializableDescriptor(
+    SiteCenterLocation = SerializableDescriptor(
         'SiteCenterLocation', LatLonEleType, _required, strict=DEFAULT_STRICT,
         docstring="Location of the center of the collection site.")  # type: LatLonEleType
-    SceneContentDescription = _StringDescriptor(
+    SceneContentDescription = StringDescriptor(
         'SceneContentDescription', _required, default_value="",
         docstring="Description of the general scene contents.")  # type: str
-    SiteBackgroundType = _StringDescriptor(
+    SiteBackgroundType = StringDescriptor(
         'SiteBackgroundType', _required,
         docstring="Description of the background.")  # type: Optional[str]
 

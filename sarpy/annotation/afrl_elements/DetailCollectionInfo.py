@@ -7,10 +7,12 @@ __authors__ = ("Thomas McCullough", "Thomas Rackers")
 
 
 from typing import Optional
-# noinspection PyProtectedMember
-from sarpy.io.complex.sicd_elements.base import DEFAULT_STRICT, \
-    _IntegerDescriptor, _SerializableDescriptor, _StringDescriptor, \
-    Serializable, _FloatDescriptor
+
+from sarpy.io.xml.base import Serializable
+from sarpy.io.xml.descriptors import IntegerDescriptor, SerializableDescriptor, \
+    StringDescriptor, FloatDescriptor
+
+from .base import DEFAULT_STRICT
 from .blocks import DateRangeType
 
 
@@ -18,13 +20,13 @@ class LocationType(Serializable):
     _fields = ('Lat', 'Lon', 'Name')
     _required = ('Lat', 'Lon')
     # descriptors
-    Lat = _FloatDescriptor(
+    Lat = FloatDescriptor(
         'Lat', _required, strict=DEFAULT_STRICT,
         docstring="General latitude of the data collection.")  # type: float
-    Lon = _FloatDescriptor(
+    Lon = FloatDescriptor(
         'Lon', _required, strict=DEFAULT_STRICT,
         docstring="General longitude of the data collection.")  # type: float
-    Name = _StringDescriptor(
+    Name = StringDescriptor(
         'Name', _required,
         docstring="Common name of the collection location.")  # type: Optional[str]
 
@@ -54,22 +56,22 @@ class DetailCollectionInfoType(Serializable):
                'NumberOfSites')
     _required = ()
     # descriptors
-    Name = _StringDescriptor(
+    Name = StringDescriptor(
         'Name', _required,
         docstring="Name of the collection.")  # type: Optional[str]
-    ProgramName = _StringDescriptor(
+    ProgramName = StringDescriptor(
         'StringDescriptor', _required,
         docstring="Name of the program that collected the data.")  # type: Optional[str]
-    Sponsor = _StringDescriptor(
+    Sponsor = StringDescriptor(
         'Sponsor', _required,
         docstring="Sponsoring agency/organization of the data collection.")  # type: Optional[str]
-    Date = _SerializableDescriptor(
+    Date = SerializableDescriptor(
         'Date', DateRangeType, _required, strict=DEFAULT_STRICT,
         docstring="Begin and end dates of the data collection.")  # type: Optional[DateRangeType]
-    Location = _SerializableDescriptor(
+    Location = SerializableDescriptor(
         'Location', LocationType, _required, strict=DEFAULT_STRICT,
         docstring="General location of the data collection.")  # type: Optional[LocationType]
-    NumberOfSites = _IntegerDescriptor(
+    NumberOfSites = IntegerDescriptor(
         'NumberOfSites', _required, strict=DEFAULT_STRICT,
         docstring="Number of different sites contained in the data collection.")  # type: Optional[int]
 

@@ -13,11 +13,10 @@ import numpy
 
 from sarpy.io.product.sidd2_elements.base import DEFAULT_STRICT
 from sarpy.io.product.sidd2_elements.blocks import LatLonArrayElementType
-# noinspection PyProtectedMember
-from sarpy.io.complex.sicd_elements.base import Serializable, _SerializableDescriptor, \
-    _SerializableArrayDescriptor, SerializableArray, _SerializableListDescriptor, \
-    _StringDescriptor, _ParametersDescriptor, ParametersCollection, \
-    _StringListDescriptor, _find_children
+from sarpy.io.xml.base import Serializable, SerializableArray, ParametersCollection, \
+    find_children
+from sarpy.io.xml.descriptors import SerializableDescriptor, SerializableArrayDescriptor, \
+    SerializableListDescriptor, StringDescriptor, StringListDescriptor, ParametersDescriptor
 
 
 class GeographicInformationType(Serializable):
@@ -31,14 +30,14 @@ class GeographicInformationType(Serializable):
         'CountryCodes': {'array': False, 'child_tag': 'CountryCode'},
         'GeographicInfoExtensions': {'array': False, 'child_tag': 'GeographicInfoExtension'}}
     # descriptors
-    CountryCodes = _StringListDescriptor(
+    CountryCodes = StringListDescriptor(
         'CountryCodes', _required, strict=DEFAULT_STRICT,
         docstring="List of country codes for region covered by the image.")  # type: List[str]
-    SecurityInfo = _StringDescriptor(
+    SecurityInfo = StringDescriptor(
         'SecurityInfo', _required, strict=DEFAULT_STRICT,
         docstring='Specifies classification level or special handling designators '
                   'for this geographic region.')  # type: Union[None, str]
-    GeographicInfoExtensions = _ParametersDescriptor(
+    GeographicInfoExtensions = ParametersDescriptor(
         'GeographicInfoExtensions', _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Implementation specific geographic information.')  # type: ParametersCollection
 
@@ -74,15 +73,15 @@ class TargetInformationType(Serializable):
         'Footprint': {'array': True, 'child_tag': 'Vertex'},
         'TargetInformationExtensions': {'array': False, 'child_tag': 'TargetInformationExtension'}}
     # Descriptors
-    Identifiers = _ParametersDescriptor(
+    Identifiers = ParametersDescriptor(
         'Identifiers', _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Target may have one or more identifiers.  Examples: names, BE numbers, etc. Use '
                   'the "name" attribute to describe what this is.')  # type: ParametersCollection
-    Footprint = _SerializableArrayDescriptor(
+    Footprint = SerializableArrayDescriptor(
         'Footprint', LatLonArrayElementType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Target footprint as defined by polygonal '
                   'shape.')  # type: Union[SerializableArray, List[LatLonArrayElementType]]
-    TargetInformationExtensions = _ParametersDescriptor(
+    TargetInformationExtensions = ParametersDescriptor(
         'TargetInformationExtensions', _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Generic extension. Could be used to indicate type of target, '
                   'terrain, etc.')  # type: ParametersCollection
@@ -120,15 +119,15 @@ class GeographicCoverageType(Serializable):
         'Footprint': {'array': True, 'child_tag': 'Vertex'},
         'SubRegions': {'array': False, 'child_tag': 'SubRegion'}}
     # Descriptors
-    GeoregionIdentifiers = _ParametersDescriptor(
+    GeoregionIdentifiers = ParametersDescriptor(
         'GeoregionIdentifiers', _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Target may have one or more identifiers.  Examples: names, BE numbers, etc. Use '
                   'the "name" attribute to describe what this is.')  # type: ParametersCollection
-    Footprint = _SerializableArrayDescriptor(
+    Footprint = SerializableArrayDescriptor(
         'Footprint', LatLonArrayElementType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Estimated ground footprint of the '
                   'product.')  # type: Union[None, SerializableArray, List[LatLonArrayElementType]]
-    GeographicInfo = _SerializableDescriptor(
+    GeographicInfo = SerializableDescriptor(
         'GeographicInfo', GeographicInformationType, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: Union[None, GeographicInformationType]
 
@@ -199,7 +198,7 @@ class GeographicCoverageType(Serializable):
     def from_node(cls, node, xml_ns, ns_key=None, kwargs=None):
         if kwargs is None:
             kwargs = OrderedDict()
-        kwargs['SubRegions'] = _find_children(node, 'SubRegion', xml_ns, ns_key)
+        kwargs['SubRegions'] = find_children(node, 'SubRegion', xml_ns, ns_key)
         return super(GeographicCoverageType, cls).from_node(node, xml_ns, ns_key=ns_key, kwargs=kwargs)
 
     def to_node(self, doc, tag, ns_key=None, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
@@ -230,10 +229,10 @@ class GeographicAndTargetType(Serializable):
     _required = ('GeographicCoverage', )
     _collections_tags = {'TargetInformations': {'array': False, 'child_tag': 'TargetInformation'}}
     # Descriptors
-    GeographicCoverage = _SerializableDescriptor(
+    GeographicCoverage = SerializableDescriptor(
         'GeographicCoverage', GeographicCoverageType, _required, strict=DEFAULT_STRICT,
         docstring='Provides geographic coverage information.')  # type: GeographicCoverageType
-    TargetInformations = _SerializableListDescriptor(
+    TargetInformations = SerializableListDescriptor(
         'TargetInformations', TargetInformationType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Provides target specific geographic '
                   'information.')  # type: Union[None, List[TargetInformationType]]

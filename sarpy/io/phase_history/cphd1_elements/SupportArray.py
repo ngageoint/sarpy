@@ -2,19 +2,20 @@
 The Support Array parameters definition.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
 from xml.etree import ElementTree
 
 from typing import Union, List
 
-from .base import DEFAULT_STRICT
-# noinspection PyProtectedMember
-from sarpy.io.complex.sicd_elements.base import Serializable, _FloatDescriptor, \
-    _StringDescriptor, _StringEnumDescriptor, string_types, _get_node_value, \
-    _ParametersDescriptor, ParametersCollection, _SerializableListDescriptor
-from .utils import homogeneous_dtype
+from sarpy.compliance import string_types
+from sarpy.io.xml.base import Serializable, ParametersCollection, get_node_value
+from sarpy.io.xml.descriptors import FloatDescriptor, StringDescriptor, StringEnumDescriptor, \
+    ParametersDescriptor, SerializableListDescriptor
 
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
+from .base import DEFAULT_STRICT
+from .utils import homogeneous_dtype
 
 
 class SupportArrayCore(Serializable):
@@ -26,22 +27,22 @@ class SupportArrayCore(Serializable):
     _required = ('Identifier', 'ElementFormat', 'X0', 'Y0', 'XSS', 'YSS')
     _numeric_format = {'X0': '0.16G', 'Y0': '0.16G', 'XSS': '0.16G', 'YSS': '0.16G'}
     # descriptors
-    Identifier = _StringDescriptor(
+    Identifier = StringDescriptor(
         'Identifier', _required, strict=DEFAULT_STRICT,
         docstring='The support array identifier.')  # type: str
-    ElementFormat = _StringDescriptor(
+    ElementFormat = StringDescriptor(
         'ElementFormat', _required, strict=DEFAULT_STRICT,
         docstring='The data element format.')  # type: str
-    X0 = _FloatDescriptor(
+    X0 = FloatDescriptor(
         'X0', _required, strict=DEFAULT_STRICT,
         docstring='')  # type: float
-    Y0 = _FloatDescriptor(
+    Y0 = FloatDescriptor(
         'Y0', _required, strict=DEFAULT_STRICT,
         docstring='')  # type: float
-    XSS = _FloatDescriptor(
+    XSS = FloatDescriptor(
         'XSS', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='')  # type: float
-    YSS = _FloatDescriptor(
+    YSS = FloatDescriptor(
         'YSS', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='')  # type: float
 
@@ -90,7 +91,7 @@ class SupportArrayCore(Serializable):
             return
 
         if isinstance(value, ElementTree.Element):
-            value = _get_node_value(value)
+            value = get_node_value(value)
 
         if isinstance(value, string_types):
             self._NODATA = value
@@ -152,7 +153,7 @@ class IAZArrayType(SupportArrayCore):
     _fields = ('Identifier', 'ElementFormat', 'X0', 'Y0', 'XSS', 'YSS', 'NODATA')
     _required = ('Identifier', 'ElementFormat', 'X0', 'Y0', 'XSS', 'YSS')
     # descriptors
-    ElementFormat = _StringEnumDescriptor(
+    ElementFormat = StringEnumDescriptor(
         'ElementFormat', ('IAZ=F4;', ), _required, strict=DEFAULT_STRICT, default_value='IAZ=F4;',
         docstring='The data element format.')  # type: str
 
@@ -187,7 +188,7 @@ class AntGainPhaseType(SupportArrayCore):
     _fields = ('Identifier', 'ElementFormat', 'X0', 'Y0', 'XSS', 'YSS', 'NODATA')
     _required = ('Identifier', 'ElementFormat', 'X0', 'Y0', 'XSS', 'YSS')
     # descriptors
-    ElementFormat = _StringEnumDescriptor(
+    ElementFormat = StringEnumDescriptor(
         'ElementFormat', ('Gain=F4;Phase=F4;', ), _required, strict=DEFAULT_STRICT, default_value='Gain=F4;Phase=F4;',
         docstring='The data element format.')  # type: str
 
@@ -226,16 +227,16 @@ class AddedSupportArrayType(SupportArrayCore):
     _collections_tags = {
         'Parameters': {'array': False, 'child_tag': 'Parameter'}}
     # descriptors
-    XUnits = _StringDescriptor(
+    XUnits = StringDescriptor(
         'XUnits', _required, strict=DEFAULT_STRICT,
         docstring='The X units.')  # type: str
-    YUnits = _StringDescriptor(
+    YUnits = StringDescriptor(
         'YUnits', _required, strict=DEFAULT_STRICT,
         docstring='The Y units.')  # type: str
-    ZUnits = _StringDescriptor(
+    ZUnits = StringDescriptor(
         'ZUnits', _required, strict=DEFAULT_STRICT,
         docstring='The Z units.')  # type: str
-    Parameters = _ParametersDescriptor(
+    Parameters = ParametersDescriptor(
         'Parameters', _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Other necessary free-form parameters.')  # type: Union[None, ParametersCollection]
 
@@ -286,17 +287,17 @@ class SupportArrayType(Serializable):
         'AntGainPhase': {'array': False, 'child_tag': 'AntGainPhase'},
         'AddedSupportArray': {'array': False, 'child_tag': 'AddedSupportArray'}}
     # descriptors
-    IAZArray = _SerializableListDescriptor(
+    IAZArray = SerializableListDescriptor(
         'IAZArray', IAZArrayType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Arrays of scene surface heights expressed in image coordinate IAZ '
                   'values (meters). Grid coordinates are image area coordinates '
                   '(IAX, IAY).')  # type: Union[None, List[IAZArrayType]]
-    AntGainPhase = _SerializableListDescriptor(
+    AntGainPhase = SerializableListDescriptor(
         'AntGainPhase', AntGainPhaseType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Antenna arrays with values are antenna gain and phase expressed in dB '
                   'and cycles. Array coordinates are direction cosines with respect to '
                   'the ACF (DCX, DCY).')  # type: Union[None, List[AntGainPhaseType]]
-    AddedSupportArray = _SerializableListDescriptor(
+    AddedSupportArray = SerializableListDescriptor(
         'AddedSupportArray', AddedSupportArrayType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Additional arrays (two-dimensional), where the content and format and units of each '
                   'element are user defined.')  # type: Union[None, List[AddedSupportArrayType]]

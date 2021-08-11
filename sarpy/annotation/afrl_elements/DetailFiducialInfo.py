@@ -11,11 +11,11 @@ __authors__ = ("Thomas McCullough", "Thomas Rackers")
 
 from typing import Optional, List
 
-# noinspection PyProtectedMember
-from sarpy.io.complex.sicd_elements.base import Serializable, \
-    _IntegerDescriptor, _SerializableDescriptor, _SerializableListDescriptor, \
-    _StringDescriptor, _find_first_child
+from sarpy.io.xml.base import Serializable, find_first_child
+from sarpy.io.xml.descriptors import IntegerDescriptor, SerializableDescriptor, \
+    SerializableListDescriptor, StringDescriptor
 from sarpy.io.complex.sicd_elements.blocks import RowColType
+
 from .base import DEFAULT_STRICT
 from .blocks import LatLonEleType, RangeCrossRangeType
 
@@ -24,7 +24,7 @@ class ImageLocationType(Serializable):
     _fields = ('CenterPixel', )
     _required = _fields
     # descriptors
-    CenterPixel = _SerializableDescriptor(
+    CenterPixel = SerializableDescriptor(
         'CenterPixel', RowColType, _required, strict=DEFAULT_STRICT,
         docstring='The pixel location of the center of the object')  # type: RowColType
 
@@ -49,7 +49,7 @@ class GeoLocationType(Serializable):
     _fields = ('CenterPixel', )
     _required = _fields
     # descriptors
-    CenterPixel = _SerializableDescriptor(
+    CenterPixel = SerializableDescriptor(
         'CenterPixel', LatLonEleType, _required, strict=DEFAULT_STRICT,
         docstring='The physical location of the center of the object')  # type: LatLonEleType
 
@@ -74,7 +74,7 @@ class PhysicalLocationType(Serializable):
     _fields = ('Physical', )
     _required = _fields
     # descriptors
-    Physical = _SerializableDescriptor(
+    Physical = SerializableDescriptor(
         'Physical', ImageLocationType, _required, strict=DEFAULT_STRICT,
     )  # type: ImageLocationType
 
@@ -105,53 +105,53 @@ class TheFiducialType(Serializable):
     _required = (
         'FiducialType', 'ImageLocation', 'GeoLocation')
     # descriptors
-    Name = _StringDescriptor(
+    Name = StringDescriptor(
         'Name', _required, strict=DEFAULT_STRICT,
         docstring='Name of the fiducial.')  # type: Optional[str]
-    SerialNumber = _StringDescriptor(
+    SerialNumber = StringDescriptor(
         'SerialNumber', _required, strict=DEFAULT_STRICT,
         docstring='The serial number of the fiducial')  # type: Optional[str]
-    FiducialType = _StringDescriptor(
+    FiducialType = StringDescriptor(
         'FiducialType', _required, strict=DEFAULT_STRICT,
         docstring='Description for the type of fiducial')  # type: str
-    DatasetFiducialNumber = _IntegerDescriptor(
+    DatasetFiducialNumber = IntegerDescriptor(
         'DatasetFiducialNumber', _required,
         docstring='Unique number of the fiducial within the selected dataset, '
                   'defined by the RDE system')  # type: Optional[int]
-    ImageLocation = _SerializableDescriptor(
+    ImageLocation = SerializableDescriptor(
         'ImageLocation', ImageLocationType, _required,
         docstring='Center of the fiducial in the image'
     )  # type: Optional[ImageLocationType]
-    GeoLocation = _SerializableDescriptor(
+    GeoLocation = SerializableDescriptor(
         'GeoLocation', GeoLocationType, _required,
         docstring='Real physical location of the fiducial'
     )  # type: Optional[GeoLocationType]
-    Width3dB = _SerializableDescriptor(
+    Width3dB = SerializableDescriptor(
         'Width3d', RangeCrossRangeType, _required,
         docstring='The 3 dB impulse response width, in meters'
-    ) # type: Optional[RangeCrossRangeType]
-    Width18dB = _SerializableDescriptor(
+    )  # type: Optional[RangeCrossRangeType]
+    Width18dB = SerializableDescriptor(
         'Width18dB', RangeCrossRangeType, _required,
         docstring='The 18 dB impulse response width, in meters'
-    ) # type: Optional[RangeCrossRangeType]
-    Ratio3dB18dB = _SerializableDescriptor(
+    )  # type: Optional[RangeCrossRangeType]
+    Ratio3dB18dB = SerializableDescriptor(
         'Ratio3dB18dB', RangeCrossRangeType, _required,
         docstring='Ratio of the 3 dB to 18 dB system impulse response width'
-    ) # type: Optional[RangeCrossRangeType]
-    PeakSideLobeRatio = _SerializableDescriptor(
+    )  # type: Optional[RangeCrossRangeType]
+    PeakSideLobeRatio = SerializableDescriptor(
         'PeakSideLobeRatio', RangeCrossRangeType, _required,
         docstring='Ratio of the peak sidelobe intensity to the peak mainlobe intensity, '
-                  'in dB') # type: Optional[RangeCrossRangeType]
-    IntegratedSideLobeRatio = _SerializableDescriptor(
+                  'in dB')  # type: Optional[RangeCrossRangeType]
+    IntegratedSideLobeRatio = SerializableDescriptor(
         'IntegratedSideLobeRatio', RangeCrossRangeType, _required,
         docstring='Ratio of all the energies in the sidelobes of the '
                   'system impulse response to the energy in the mainlobe, '
-                  'in dB') # type: Optional[RangeCrossRangeType]
-    SlantPlane = _SerializableDescriptor(
+                  'in dB')  # type: Optional[RangeCrossRangeType]
+    SlantPlane = SerializableDescriptor(
         'SlantPlane', PhysicalLocationType, _required,
         docstring='Center of the object in the slant plane'
     )  # type: Optional[PhysicalLocationType]
-    GroundPlane = _SerializableDescriptor(
+    GroundPlane = SerializableDescriptor(
         'GroundPlane', PhysicalLocationType, _required,
         docstring='Center of the object in the ground plane'
     )  # type: Optional[PhysicalLocationType]
@@ -206,21 +206,21 @@ class TheFiducialType(Serializable):
         if kwargs is None:
             kwargs = {}
 
-        the_node = _find_first_child(node, '3dBWidth', xml_ns, ns_key)
+        the_node = find_first_child(node, '3dBWidth', xml_ns, ns_key)
         if the_node is None:
-            the_node = _find_first_child(node, '_3dBWidth', xml_ns, ns_key)
+            the_node = find_first_child(node, '_3dBWidth', xml_ns, ns_key)
         if the_node is not None:
             kwargs['Width3dB'] = RangeCrossRangeType.from_node(the_node, xml_ns, ns_key=ns_key)
 
-        the_node = _find_first_child(node, '18dBWidth', xml_ns, ns_key)
+        the_node = find_first_child(node, '18dBWidth', xml_ns, ns_key)
         if the_node is None:
-            the_node = _find_first_child(node, '_18dBWidth', xml_ns, ns_key)
+            the_node = find_first_child(node, '_18dBWidth', xml_ns, ns_key)
         if the_node is not None:
             kwargs['Width18dB'] = RangeCrossRangeType.from_node(the_node, xml_ns, ns_key=ns_key)
 
-        the_node = _find_first_child(node, '3dB_18dBRatio18dBWidth', xml_ns, ns_key)
+        the_node = find_first_child(node, '3dB_18dBRatio18dBWidth', xml_ns, ns_key)
         if the_node is None:
-            the_node = _find_first_child(node, '_3dB_18dBRatio18dBWidth', xml_ns, ns_key)
+            the_node = find_first_child(node, '_3dB_18dBRatio18dBWidth', xml_ns, ns_key)
         if the_node is not None:
             kwargs['Ratio3dB18dB'] = RangeCrossRangeType.from_node(the_node, xml_ns, ns_key=ns_key)
 
@@ -254,13 +254,13 @@ class DetailFiducialInfoType(Serializable):
         'NumberOfFiducialsInImage', 'NumberOfFiducialsInScene', 'Fiducials')
     _collections_tags = {'Fiducials': {'array': False, 'child_tag': 'Fiducial'}}
     # descriptors
-    NumberOfFiducialsInImage = _IntegerDescriptor(
+    NumberOfFiducialsInImage = IntegerDescriptor(
         'NumberOfFiducialsInImage', _required, strict=DEFAULT_STRICT,
         docstring='Number of ground truthed objects in the image.')  # type: int
-    NumberOfFiducialsInScene = _IntegerDescriptor(
+    NumberOfFiducialsInScene = IntegerDescriptor(
         'NumberOfFiducialsInScene', _required, strict=DEFAULT_STRICT,
         docstring='Number of ground truthed objects in the scene.')  # type: int
-    Fiducials = _SerializableListDescriptor(
+    Fiducials = SerializableListDescriptor(
         'Fiducials', TheFiducialType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='The object collection')  # type: List[TheFiducialType]
 

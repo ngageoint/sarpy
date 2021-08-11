@@ -7,9 +7,8 @@ __authors__ = ("Thomas McCullough", "Thomas Rackers")
 
 from typing import Optional
 
-# noinspection PyProtectedMember
-from sarpy.io.complex.sicd_elements.base import _StringDescriptor, \
-    _SerializableDescriptor, Serializable
+from sarpy.io.xml.base import Serializable
+from sarpy.io.xml.descriptors import SerializableDescriptor, StringDescriptor
 
 from .base import DEFAULT_STRICT
 from .DetailCollectionInfo import DetailCollectionInfoType
@@ -30,30 +29,30 @@ class ResearchType(Serializable):
     _required = (
         'MetadataVersion', )
     # descriptors
-    MetadataVersion = _StringDescriptor(
+    MetadataVersion = StringDescriptor(
         'MetadataVersion', _required,
         docstring='The version number')  # type: str
-    DetailCollectionInfo = _SerializableDescriptor(
+    DetailCollectionInfo = SerializableDescriptor(
         'DetailCollectionInfo', DetailCollectionInfoType, _required,
         docstring='High level information about the data collection'
     )  # type: Optional[DetailCollectionInfoType]
-    DetailSubCollectionInfo = _SerializableDescriptor(
+    DetailSubCollectionInfo = SerializableDescriptor(
         'DetailSubCollectionInfo', DetailSubCollectionInfoType, _required,
         docstring='Information about sub-division of the overall data collection'
     )  # type: Optional[DetailSubCollectionInfoType]
-    DetailImageInfo = _SerializableDescriptor(
+    DetailImageInfo = SerializableDescriptor(
         'DetailImageInfo', DetailImageInfoType, _required,
         docstring='Information about the referenced image'
     )  # type: Optional[DetailImageInfoType]
-    DetailSensorInfo = _SerializableDescriptor(
+    DetailSensorInfo = SerializableDescriptor(
         'DetailSensorInfo', DetailSensorInfoType, _required,
         docstring='Information about the sensor'
     )  # type: Optional[DetailSensorInfoType]
-    DetailFiducialInfo = _SerializableDescriptor(
+    DetailFiducialInfo = SerializableDescriptor(
         'DetailFiducialInfo', DetailFiducialInfoType, _required,
         docstring='Information about the ground-truthed fiducials'
     )  # type: Optional[DetailFiducialInfoType]
-    DetailObjectInfo = _SerializableDescriptor(
+    DetailObjectInfo = SerializableDescriptor(
         'DetailObjectInfo', DetailObjectInfoType, _required,
         docstring='Information about the ground-truthed objects'
     )  # type: Optional[DetailObjectInfoType]

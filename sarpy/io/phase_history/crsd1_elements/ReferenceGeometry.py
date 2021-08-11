@@ -8,12 +8,13 @@ __author__ = ("Thomas McCullough", "Michael Stewart, Valkyrie")
 
 import numpy
 
-from .base import DEFAULT_STRICT
-# noinspection PyProtectedMember
-from sarpy.io.complex.sicd_elements.base import Serializable, _FloatDescriptor, \
-    _StringEnumDescriptor, _SerializableDescriptor, _parse_serializable
+from sarpy.io.xml.base import Serializable, parse_serializable
+from sarpy.io.xml.descriptors import FloatDescriptor, StringEnumDescriptor, \
+    SerializableDescriptor
 from sarpy.io.complex.sicd_elements.blocks import XYZType, LatLonHAEType
 from sarpy.geometry.geocoords import geodetic_to_ecf, ecf_to_geodetic
+
+from .base import DEFAULT_STRICT
 
 
 class CRPType(Serializable):
@@ -60,7 +61,7 @@ class CRPType(Serializable):
     @ECF.setter
     def ECF(self, value):
         if value is not None:
-            self._ECF = _parse_serializable(value, 'ECF', self, XYZType)
+            self._ECF = parse_serializable(value, 'ECF', self, XYZType)
             self._LLH = LatLonHAEType.from_array(ecf_to_geodetic(self._ECF.get_array()))
 
     @property
@@ -74,7 +75,7 @@ class CRPType(Serializable):
     @LLH.setter
     def LLH(self, value):
         if value is not None:
-            self._LLH = _parse_serializable(value, 'LLH', self, LatLonHAEType)
+            self._LLH = parse_serializable(value, 'LLH', self, LatLonHAEType)
             self._ECF = XYZType.from_array(geodetic_to_ecf(self._LLH.get_array(order='LAT')))
 
 
@@ -91,37 +92,37 @@ class RcvParametersType(Serializable):
         'SlantRange': '0.16G', 'GroundRange': '0.16G', 'DopplerConeAngle': '0.16G',
         'GrazeAngle': '0.16G', 'IncidenceAngle': '0.16G', 'AzimuthAngle': '0.16G'}
     # descriptors
-    RcvTime = _FloatDescriptor(
+    RcvTime = FloatDescriptor(
         'RcvTime', _required, strict=DEFAULT_STRICT,
         docstring='Receive time for the first sample for the reference vector.')  # type: float
-    RcvPos = _SerializableDescriptor(
+    RcvPos = SerializableDescriptor(
         'RcvPos', XYZType, _required, strict=DEFAULT_STRICT,
         docstring='APC position in ECF coordinates.')  # type: XYZType
-    RcvVel = _SerializableDescriptor(
+    RcvVel = SerializableDescriptor(
         'RcvVel', XYZType, _required, strict=DEFAULT_STRICT,
         docstring='APC velocity in ECF coordinates.')  # type: XYZType
-    SideOfTrack = _StringEnumDescriptor(
+    SideOfTrack = StringEnumDescriptor(
         'SideOfTrack', ('L', 'R'), _required, strict=DEFAULT_STRICT,
         docstring='Side of Track parameter for the collection.')  # type: str
-    SlantRange = _FloatDescriptor(
+    SlantRange = FloatDescriptor(
         'SlantRange', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='Slant range from the APC to the CRP.')  # type: float
-    GroundRange = _FloatDescriptor(
+    GroundRange = FloatDescriptor(
         'GroundRange', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='Ground range from the APC nadir to the CRP.')  # type: float
-    DopplerConeAngle = _FloatDescriptor(
+    DopplerConeAngle = FloatDescriptor(
         'DopplerConeAngle', _required, strict=DEFAULT_STRICT, bounds=(0, 180),
         docstring='Doppler Cone Angle between APC velocity and deg CRP Line of '
                   'Sight (LOS).')  # type: float
-    GrazeAngle = _FloatDescriptor(
+    GrazeAngle = FloatDescriptor(
         'GrazeAngle', _required, strict=DEFAULT_STRICT, bounds=(0, 90),
         docstring='Grazing angle for the APC to CRP LOS and the Earth Tangent '
                   'Plane (ETP) at the CRP.')  # type: float
-    IncidenceAngle = _FloatDescriptor(
+    IncidenceAngle = FloatDescriptor(
         'IncidenceAngle', _required, strict=DEFAULT_STRICT, bounds=(0, 90),
         docstring='Incidence angle for the APC to CRP LOS and the Earth Tangent '
                   'Plane (ETP) at the CRP.')  # type: float
-    AzimuthAngle = _FloatDescriptor(
+    AzimuthAngle = FloatDescriptor(
         'AzimuthAngle', _required, strict=DEFAULT_STRICT, bounds=(0, 360),
         docstring='Angle from north to the line from the CRP to the APC ETP '
                   'Nadir (i.e. North to +GPX). Measured clockwise from North '
@@ -173,11 +174,11 @@ class ReferenceGeometryType(Serializable):
     _fields = ('CRP', 'RcvParameters')
     _required = _fields
     # descriptors
-    CRP = _SerializableDescriptor(
+    CRP = SerializableDescriptor(
         'CRP', CRPType, _required, strict=DEFAULT_STRICT,
         docstring='The Collection Reference Point (CRP) used for computing the'
                   ' geometry parameters.')  # type: CRPType
-    RcvParameters = _SerializableDescriptor(
+    RcvParameters = SerializableDescriptor(
         'RcvParameters', RcvParametersType, _required, strict=DEFAULT_STRICT,
         docstring='Parameters computed for the receive APC position.')  # type: RcvParametersType
 

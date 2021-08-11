@@ -10,8 +10,13 @@ from typing import Union, Tuple
 from collections import OrderedDict
 import numpy
 
-# noinspection PyProtectedMember
-from sarpy.io.complex.sicd_elements.base import Serializable, _SerializableDescriptor, DEFAULT_STRICT
+from sarpy.io.xml.base import Serializable
+from sarpy.io.xml.descriptors import SerializableDescriptor
+from sarpy.geometry import point_projection
+from sarpy.io.product.sidd_schema import get_specification_identifier, \
+    get_urn_details, validate_xml_ns
+
+from .base import DEFAULT_STRICT
 from .ProductCreation import ProductCreationType
 from .Display import ProductDisplayType
 from .GeoData import GeoDataType
@@ -24,9 +29,6 @@ from .ProductProcessing import ProductProcessingType
 from .Annotations import AnnotationsType
 from ..sidd1_elements.SIDD import SIDDType as SIDDType1
 from .blocks import ErrorStatisticsType, RadiometricType, MatchInfoType
-from sarpy.geometry import point_projection
-from sarpy.io.product.sidd_schema import get_specification_identifier, \
-    get_urn_details, validate_xml_ns
 
 
 logger = logging.getLogger(__name__)
@@ -59,52 +61,52 @@ class SIDDType(Serializable):
     _required = (
         'ProductCreation', 'Display', 'GeoData', 'Measurement', 'ExploitationFeatures')
     # Descriptor
-    ProductCreation = _SerializableDescriptor(
+    ProductCreation = SerializableDescriptor(
         'ProductCreation', ProductCreationType, _required, strict=DEFAULT_STRICT,
         docstring='Information related to processor, classification, and product type.')  # type: ProductCreationType
-    Display = _SerializableDescriptor(
+    Display = SerializableDescriptor(
         'Display', ProductDisplayType, _required, strict=DEFAULT_STRICT,
         docstring='Contains information on the parameters needed to display the product in '
                   'an exploitation tool.')  # type: ProductDisplayType
-    GeoData = _SerializableDescriptor(
+    GeoData = SerializableDescriptor(
         'GeoData', GeoDataType, _required, strict=DEFAULT_STRICT,
         docstring='Contains generic and extensible targeting and geographic region '
                   'information.')  # type: GeoDataType
-    Measurement = _SerializableDescriptor(
+    Measurement = SerializableDescriptor(
         'Measurement', MeasurementType, _required, strict=DEFAULT_STRICT,
         docstring='Contains the metadata necessary for performing measurements.')  # type: MeasurementType
-    ExploitationFeatures = _SerializableDescriptor(
+    ExploitationFeatures = SerializableDescriptor(
         'ExploitationFeatures', ExploitationFeaturesType, _required, strict=DEFAULT_STRICT,
         docstring='Computed metadata regarding the input collections and '
                   'final product.')  # type: ExploitationFeaturesType
-    DownstreamReprocessing = _SerializableDescriptor(
+    DownstreamReprocessing = SerializableDescriptor(
         'DownstreamReprocessing', DownstreamReprocessingType, _required, strict=DEFAULT_STRICT,
         docstring='Metadata describing any downstream processing of the '
                   'product.')  # type: Union[None, DownstreamReprocessingType]
-    ErrorStatistics = _SerializableDescriptor(
+    ErrorStatistics = SerializableDescriptor(
         'ErrorStatistics', ErrorStatisticsType, _required, strict=DEFAULT_STRICT,
         docstring='Error statistics passed through from the SICD metadata.')  # type: Union[None, ErrorStatisticsType]
-    Radiometric = _SerializableDescriptor(
+    Radiometric = SerializableDescriptor(
         'Radiometric', RadiometricType, _required, strict=DEFAULT_STRICT,
         docstring='Radiometric information about the product.')  # type: Union[None, RadiometricType]
-    MatchInfo = _SerializableDescriptor(
+    MatchInfo = SerializableDescriptor(
         'MatchInfo', MatchInfoType, _required, strict=DEFAULT_STRICT,
         docstring='Information about other collections that are matched to the current '
                   'collection. The current collection is the collection from which this '
                   'SIDD product was generated.')  # type: MatchInfoType
-    Compression = _SerializableDescriptor(
+    Compression = SerializableDescriptor(
         'Compression', CompressionType, _required, strict=DEFAULT_STRICT,
         docstring='Contains information regarding any compression that has occurred '
                   'to the image data.')  # type: CompressionType
-    DigitalElevationData = _SerializableDescriptor(
+    DigitalElevationData = SerializableDescriptor(
         'DigitalElevationData', DigitalElevationDataType, _required, strict=DEFAULT_STRICT,
         docstring='This describes any Digital ElevatioNData included with '
                   'the SIDD product.')  # type: DigitalElevationDataType
-    ProductProcessing = _SerializableDescriptor(
+    ProductProcessing = SerializableDescriptor(
         'ProductProcessing', ProductProcessingType, _required, strict=DEFAULT_STRICT,
         docstring='Contains metadata related to algorithms used during '
                   'product generation.')  # type: ProductProcessingType
-    Annotations = _SerializableDescriptor(
+    Annotations = SerializableDescriptor(
         'Annotations', AnnotationsType, _required, strict=DEFAULT_STRICT,
         docstring='List of annotations for the imagery.')  # type: AnnotationsType
 

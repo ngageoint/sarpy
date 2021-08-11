@@ -2,18 +2,16 @@
 The SRP definition for CPHD 0.3.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
 from typing import Union
 import numpy
 
 from sarpy.compliance import integer_types
 from sarpy.io.phase_history.cphd1_elements.base import DEFAULT_STRICT
-# noinspection PyProtectedMember
-from sarpy.io.complex.sicd_elements.base import Serializable, _SerializableDescriptor, \
-    _IntegerEnumDescriptor
-
-
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
+from sarpy.io.xml.base import Serializable
+from sarpy.io.xml.descriptors import SerializableDescriptor, IntegerEnumDescriptor
 
 
 class FxParametersType(Serializable):
@@ -24,16 +22,16 @@ class FxParametersType(Serializable):
     _fields = ('Fx0', 'Fx_SS', 'Fx1', 'Fx2')
     _required = _fields
     # descriptors
-    Fx0 = _IntegerEnumDescriptor(
+    Fx0 = IntegerEnumDescriptor(
         'Fx0', (8, ), _required, strict=DEFAULT_STRICT, default_value=8,
         docstring='The size of the Fx0 field')  # type: int
-    Fx_SS = _IntegerEnumDescriptor(
+    Fx_SS = IntegerEnumDescriptor(
         'Fx_SS', (8, ), _required, strict=DEFAULT_STRICT, default_value=8,
         docstring='The size of the Fx_SS field')  # type: int
-    Fx1 = _IntegerEnumDescriptor(
+    Fx1 = IntegerEnumDescriptor(
         'Fx1', (8, ), _required, strict=DEFAULT_STRICT, default_value=8,
         docstring='The size of the Fx1 field')  # type: int
-    Fx2 = _IntegerEnumDescriptor(
+    Fx2 = IntegerEnumDescriptor(
         'Fx2', (8, ), _required, strict=DEFAULT_STRICT, default_value=8,
         docstring='The size of the Fx2 field')  # type: int
 
@@ -105,10 +103,10 @@ class TOAParametersType(Serializable):
     _fields = ('DeltaTOA0', 'TOA_SS')
     _required = _fields
     # descriptors
-    DeltaTOA0 = _IntegerEnumDescriptor(
+    DeltaTOA0 = IntegerEnumDescriptor(
         'DeltaTOA0', (8, ), _required, strict=DEFAULT_STRICT, default_value=8,
         docstring='The size of the DeltaTOA0 field')  # type: int
-    TOA_SS = _IntegerEnumDescriptor(
+    TOA_SS = IntegerEnumDescriptor(
         'TOA_SS', (8, ), _required, strict=DEFAULT_STRICT, default_value=8,
         docstring='The size of the TOA_SS field')  # type: int
 
@@ -182,35 +180,35 @@ class VectorParametersType(Serializable):
         'TxTime', 'TxPos', 'RcvTime', 'RcvPos', 'SRPPos')
     _choice = ({'required': False, 'collection': ('FxParameters', 'TOAParameters')}, )
     # descriptors
-    TxTime = _IntegerEnumDescriptor(
+    TxTime = IntegerEnumDescriptor(
         'TxTime', (8, ), _required, strict=DEFAULT_STRICT, default_value=8,
         docstring='The size of the TxTime field')  # type: int
-    TxPos = _IntegerEnumDescriptor(
+    TxPos = IntegerEnumDescriptor(
         'TxPos', (24, ), _required, strict=DEFAULT_STRICT, default_value=8,
         docstring='The size of the TxPos field')  # type: int
-    RcvTime = _IntegerEnumDescriptor(
+    RcvTime = IntegerEnumDescriptor(
         'RcvTime', (8, ), _required, strict=DEFAULT_STRICT, default_value=8,
         docstring='The size of the RcvTime field')  # type: int
-    RcvPos = _IntegerEnumDescriptor(
+    RcvPos = IntegerEnumDescriptor(
         'RcvPos', (24, ), _required, strict=DEFAULT_STRICT, default_value=8,
         docstring='The size of the RcvPos field')  # type: int
-    SRPTime = _IntegerEnumDescriptor(
+    SRPTime = IntegerEnumDescriptor(
         'SRPTime', (8, ), _required, strict=DEFAULT_STRICT, default_value=None,
         docstring='The size of the SRPTime field')  # type: int
-    SRPPos = _IntegerEnumDescriptor(
+    SRPPos = IntegerEnumDescriptor(
         'SRPPos', (24, ), _required, strict=DEFAULT_STRICT, default_value=8,
         docstring='The size of the SRPPos field')  # type: int
-    AmpSF = _IntegerEnumDescriptor(
+    AmpSF = IntegerEnumDescriptor(
         'AmpSF', (8, ), _required, strict=DEFAULT_STRICT, default_value=None,
         docstring='The size of the AmpSF field')  # type: int
-    TropoSRP = _IntegerEnumDescriptor(
+    TropoSRP = IntegerEnumDescriptor(
         'TropoSRP', (8, ), _required, strict=DEFAULT_STRICT, default_value=None,
         docstring='The size of the TropoSRP field')  # type: int
-    FxParameters = _SerializableDescriptor(
+    FxParameters = SerializableDescriptor(
         'FxParameters', FxParametersType, _required, strict=DEFAULT_STRICT,
         docstring='The frequency parameters, only present when DomainType is '
                   'FX.')  # type: Union[None, FxParametersType]
-    TOAParameters = _SerializableDescriptor(
+    TOAParameters = SerializableDescriptor(
         'TOAParameters', FxParametersType, _required, strict=DEFAULT_STRICT,
         docstring='The TOA parameters, only present when DomainType is '
                   'TOA.')  # type: Union[None, TOAParametersType]
@@ -326,7 +324,8 @@ class VectorParametersType(Serializable):
             if fld in ['FxParameters', 'TOAParameters']:
                 the_type_info.extend(val.get_dtype_components())
             else:
-                assert isinstance(val, integer_types), 'CPHD 0.3 PVP field {} should be an integer, got {}'.format(fld, val)
+                assert isinstance(val, integer_types), 'CPHD 0.3 PVP field {} ' \
+                                                       'should be an integer, got {}'.format(fld, val)
                 if val == 8:
                     the_type_info.append((fld, '>f8'))
                 elif val == 24:

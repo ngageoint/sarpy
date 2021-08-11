@@ -2,14 +2,18 @@
 Common use elements for the AFRL labeling definition
 """
 
+__classification__ = "UNCLASSIFIED"
+__authors__ = ("Thomas McCullough", "Thomas Rackers")
+
+
 import numpy
 from datetime import date, datetime
 from typing import Optional
 
-# noinspection PyProtectedMember
-from sarpy.io.complex.sicd_elements.base import DEFAULT_STRICT, \
-    _DateTimeDescriptor, _FloatDescriptor, _StringDescriptor, Arrayable, \
-    Serializable
+from sarpy.io.xml.base import Serializable, Arrayable
+from sarpy.io.xml.descriptors import DateTimeDescriptor, FloatDescriptor
+
+from .base import DEFAULT_STRICT
 
 
 class DateRangeType(Serializable, Arrayable):
@@ -19,10 +23,10 @@ class DateRangeType(Serializable, Arrayable):
     _fields = ('Begin', 'End')
     _required = _fields
     # descriptors
-    Begin = _DateTimeDescriptor(
+    Begin = DateTimeDescriptor(
         'Begin', _required, strict=DEFAULT_STRICT, numpy_datetime_units='D',
         docstring="Begin date of the data collection.")  # type: Optional[numpy.datetime64]
-    End = _DateTimeDescriptor(
+    End = DateTimeDescriptor(
         'End', _required, strict=DEFAULT_STRICT, numpy_datetime_units='D',
         docstring="End date of the data collection.")  # type: Optional[numpy.datetime64]
 
@@ -93,9 +97,9 @@ class RangeCrossRangeType(Serializable, Arrayable):
     _required = _fields
     _numeric_format = {key: '0.16G' for key in _fields}
     # descriptors
-    Range = _FloatDescriptor(
+    Range = FloatDescriptor(
         'Range', _required, strict=True, docstring='The Range attribute.')  # type: float
-    CrossRange = _FloatDescriptor(
+    CrossRange = FloatDescriptor(
         'CrossRange', _required, strict=True, docstring='The Cross Range attribute.')  # type: float
 
     def __init__(self, Range=None, CrossRange=None, **kwargs):
@@ -160,9 +164,9 @@ class RowColDoubleType(Serializable, Arrayable):
     _required = _fields
     _numeric_format = {key: '0.16G' for key in _fields}
     # Descriptors
-    Row = _FloatDescriptor(
+    Row = FloatDescriptor(
         'Row', _required, strict=True, docstring='The Row attribute.')  # type: float
-    Col = _FloatDescriptor(
+    Col = FloatDescriptor(
         'Col', _required, strict=True, docstring='The Column attribute.')  # type: float
 
     def __init__(self, Row=None, Col=None, **kwargs):
@@ -227,15 +231,15 @@ class LatLonEleType(Serializable, Arrayable):
     _required = _fields
     _numeric_format = {'Lat': '0.16G', 'Lon': '0.16G', 'Ele': '0.16G'}
     # descriptors
-    Lat = _FloatDescriptor(
+    Lat = FloatDescriptor(
         'Lat', _required, strict=True,
         docstring='The latitude attribute. Assumed to be WGS-84 coordinates.'
     )  # type: float
-    Lon = _FloatDescriptor(
+    Lon = FloatDescriptor(
         'Lon', _required, strict=True,
         docstring='The longitude attribute. Assumed to be WGS-84 coordinates.'
     )  # type: float
-    Ele = _FloatDescriptor(
+    Ele = FloatDescriptor(
         'Ele', _required, strict=True,
         docstring='The Height Above Ellipsoid (in meters) attribute. '
                   'Assumed to be WGS-84 coordinates.')  # type: float

@@ -6,17 +6,17 @@ __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 
-import logging
 from typing import List, Union
 
 import numpy
 
-from .base import Arrayable, Serializable, DEFAULT_STRICT, \
-    _IntegerDescriptor, _FloatArrayDescriptor, _StringEnumDescriptor, \
-    _SerializableArrayDescriptor, _SerializableDescriptor, SerializableArray
-from .blocks import RowColType, RowColArrayElement
-
+from sarpy.io.xml.base import Serializable, Arrayable, SerializableArray
+from sarpy.io.xml.descriptors import IntegerDescriptor, FloatArrayDescriptor, \
+    StringEnumDescriptor, SerializableDescriptor, SerializableArrayDescriptor
 from sarpy.geometry.geometry_elements import LinearRing
+
+from .base import DEFAULT_STRICT
+from .blocks import RowColType, RowColArrayElement
 
 
 class FullImageType(Serializable, Arrayable):
@@ -27,10 +27,10 @@ class FullImageType(Serializable, Arrayable):
     _fields = ('NumRows', 'NumCols')
     _required = _fields
     # descriptors
-    NumRows = _IntegerDescriptor(
+    NumRows = IntegerDescriptor(
         'NumRows', _required, strict=True,
         docstring='Number of rows in the original full image product. May include zero pixels.')  # type: int
-    NumCols = _IntegerDescriptor(
+    NumCols = IntegerDescriptor(
         'NumCols', _required, strict=True,
         docstring='Number of columns in the original full image product. May include zero pixels.')  # type: int
 
@@ -101,36 +101,36 @@ class ImageDataType(Serializable):
     _numeric_format = {'AmpTable': '0.16G'}
     _PIXEL_TYPE_VALUES = ("RE32F_IM32F", "RE16I_IM16I", "AMP8I_PHS8I")
     # descriptors
-    PixelType = _StringEnumDescriptor(
+    PixelType = StringEnumDescriptor(
         'PixelType', _PIXEL_TYPE_VALUES, _required, strict=True,
         docstring="The PixelType attribute which specifies the interpretation of the file data.")  # type: str
-    AmpTable = _FloatArrayDescriptor(
+    AmpTable = FloatArrayDescriptor(
         'AmpTable', _collections_tags, _required, strict=DEFAULT_STRICT,
         minimum_length=256, maximum_length=256,
         docstring="The amplitude look-up table. This is required if "
                   "`PixelType == 'AMP8I_PHS8I'`")  # type: numpy.ndarray
-    NumRows = _IntegerDescriptor(
+    NumRows = IntegerDescriptor(
         'NumRows', _required, strict=True,
         docstring='The number of Rows in the product. May include zero rows.')  # type: int
-    NumCols = _IntegerDescriptor(
+    NumCols = IntegerDescriptor(
         'NumCols', _required, strict=True,
         docstring='The number of Columns in the product. May include zero rows.')  # type: int
-    FirstRow = _IntegerDescriptor(
+    FirstRow = IntegerDescriptor(
         'FirstRow', _required, strict=DEFAULT_STRICT,
         docstring='Global row index of the first row in the product. '
                   'Equal to 0 in full image product.')  # type: int
-    FirstCol = _IntegerDescriptor(
+    FirstCol = IntegerDescriptor(
         'FirstCol', _required, strict=DEFAULT_STRICT,
         docstring='Global column index of the first column in the product. '
                   'Equal to 0 in full image product.')  # type: int
-    FullImage = _SerializableDescriptor(
+    FullImage = SerializableDescriptor(
         'FullImage', FullImageType, _required, strict=DEFAULT_STRICT,
         docstring='Original full image product.')  # type: FullImageType
-    SCPPixel = _SerializableDescriptor(
+    SCPPixel = SerializableDescriptor(
         'SCPPixel', RowColType, _required, strict=DEFAULT_STRICT,
         docstring='Scene Center Point pixel global row and column index. Should be located near the '
                   'center of the full image.')  # type: RowColType
-    ValidData = _SerializableArrayDescriptor(
+    ValidData = SerializableArrayDescriptor(
         'ValidData', RowColArrayElement, _collections_tags, _required, strict=DEFAULT_STRICT, minimum_length=3,
         docstring='Indicates the full image includes both valid data and some zero filled pixels. '
                   'Simple polygon encloses the valid data (may include some zero filled pixels for simplification). '

@@ -9,12 +9,12 @@ from typing import Optional
 import os
 import numpy
 
-# noinspection PyProtectedMember
-from sarpy.io.complex.sicd_elements.base import _StringDescriptor, Serializable, \
-    _SerializableDescriptor, _IntegerDescriptor, _StringEnumDescriptor, \
-    _DateTimeDescriptor, _FloatDescriptor, _find_first_child
+from sarpy.io.xml.base import Serializable, find_first_child
+from sarpy.io.xml.descriptors import StringDescriptor, SerializableDescriptor, \
+    IntegerDescriptor, StringEnumDescriptor, DateTimeDescriptor, FloatDescriptor
 from sarpy.io.complex.sicd_elements.blocks import RowColType
 from sarpy.io.complex.sicd import SICDReader
+
 from .base import DEFAULT_STRICT
 from .blocks import RangeCrossRangeType, RowColDoubleType
 
@@ -33,17 +33,17 @@ class ClassificationMarkingsType(Serializable):
         'Classification', 'Restrictions', 'ClassifiedBy', 'DeclassifyOn', 'DerivedFrom')
     _required = ('Classification', 'Restrictions')
     # descriptors
-    Classification = _StringDescriptor(
+    Classification = StringDescriptor(
         'Classification', _required, default_value='',
         docstring='The image classification')  # type: str
-    Restrictions = _StringDescriptor(
+    Restrictions = StringDescriptor(
         'Restrictions', _required, default_value='',
         docstring='Additional caveats to the classification')  # type: str
-    ClassifiedBy = _StringDescriptor(
+    ClassifiedBy = StringDescriptor(
         'ClassifiedBy', _required)  # type: Optional[str]
-    DeclassifyOn = _StringDescriptor(
+    DeclassifyOn = StringDescriptor(
         'DeclassifyOn', _required)  # type: Optional[str]
-    DerivedFrom = _StringDescriptor(
+    DerivedFrom = StringDescriptor(
         'DerivedFrom', _required)  # type: Optional[str]
 
     def __init__(self, Classification='', Restrictions='', ClassifiedBy=None,
@@ -79,9 +79,9 @@ class StringRangeCrossRangeType(Serializable):
     _fields = ('Range', 'CrossRange')
     _required = _fields
     # descriptors
-    Range = _StringDescriptor(
+    Range = StringDescriptor(
         'Range', _required, strict=True, docstring='The Range attribute.')  # type: str
-    CrossRange = _StringDescriptor(
+    CrossRange = StringDescriptor(
         'CrossRange', _required, strict=True, docstring='The Cross Range attribute.')  # type: str
 
     def __init__(self, Range=None, CrossRange=None, **kwargs):
@@ -106,16 +106,16 @@ class ImageCornerType(Serializable):
         'UpperLeft', 'UpperRight', 'LowerRight', 'LowerLeft')
     _required = _fields
     # descriptors
-    UpperLeft = _SerializableDescriptor(
+    UpperLeft = SerializableDescriptor(
         'UpperLeft', RowColDoubleType, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: RowColDoubleType
-    UpperRight = _SerializableDescriptor(
+    UpperRight = SerializableDescriptor(
         'UpperRight', RowColDoubleType, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: RowColDoubleType
-    LowerRight = _SerializableDescriptor(
+    LowerRight = SerializableDescriptor(
         'LowerRight', RowColDoubleType, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: RowColDoubleType
-    LowerLeft = _SerializableDescriptor(
+    LowerLeft = SerializableDescriptor(
         'LowerLeft', RowColDoubleType, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: RowColDoubleType
 
@@ -146,7 +146,7 @@ class PixelSpacingType(Serializable):
     _fields = ('PixelSpacing', )
     _required = _fields
     # descriptors
-    PixelSpacing = _SerializableDescriptor(
+    PixelSpacing = SerializableDescriptor(
         'PixelSpacing', RangeCrossRangeType, _required, strict=DEFAULT_STRICT,
         docstring='The center-to-center pixel spacing in meters.')  # type: RangeCrossRangeType
 
@@ -180,89 +180,89 @@ class DetailImageInfoType(Serializable):
         'DataFormat', 'NumPixels', 'ImageCollectionDate', 'SensorReferencePoint',
         'Resolution', 'PixelSpacing', 'WeightingType', 'ImageCorners')
     # descriptors
-    DataFilename = _StringDescriptor(
+    DataFilename = StringDescriptor(
         'DataFilename', _required,
         docstring='The base file name to which this information pertains')  # type: str
-    ClassificationMarkings = _SerializableDescriptor(
+    ClassificationMarkings = SerializableDescriptor(
         'ClassificationMarkings', ClassificationMarkingsType, _required,
         docstring='The classification information')  # type: ClassificationMarkingsType
-    Filetype = _StringDescriptor(
+    Filetype = StringDescriptor(
         'Filetype', _required,
         docstring='The image file type')  # type: Optional[str]
-    DataCheckSum = _StringDescriptor(
+    DataCheckSum = StringDescriptor(
         'DataCheckSum', _required,
         docstring='The unique 32-bit identifier for the sensor block data')  # type: Optional[str]
-    DataSize = _IntegerDescriptor(
+    DataSize = IntegerDescriptor(
         'DataSize', _required,
         docstring='The image size in bytes')  # type: Optional[int]
-    DataPlane = _StringEnumDescriptor(
+    DataPlane = StringEnumDescriptor(
         'DataPlane', {'Slant', 'Ground'}, _required, default_value='Slant',
         docstring='The image plane.')  # type: str
-    DataDomain = _StringDescriptor(
+    DataDomain = StringDescriptor(
         'DataDomain', _required,
         docstring='The image data domain')  # type: Optional[str]
-    DataType = _StringDescriptor(
+    DataType = StringDescriptor(
         'DataType', _required,
         docstring='The image data type')  # type: Optional[str]
-    BitsPerSample = _IntegerDescriptor(
+    BitsPerSample = IntegerDescriptor(
         'BitsPerSample', _required,
         docstring='The number of bits per sample')  # type: Optional[int]
-    DataFormat = _StringDescriptor(
+    DataFormat = StringDescriptor(
         'DataFormat', _required,
         docstring='The image data format')  # type: str
-    DataByteOrder = _StringEnumDescriptor(
+    DataByteOrder = StringEnumDescriptor(
         'DataByteOrder', {'Big-Endian', 'Little-Endian'}, _required,
         docstring='The image data byte order.')  # type: Optional[str]
-    NumPixels = _SerializableDescriptor(
+    NumPixels = SerializableDescriptor(
         'NumPixels', RowColType, _required,
         docstring='The number of image pixels')  # type: RowColType
-    ImageCollectionDate = _DateTimeDescriptor(
+    ImageCollectionDate = DateTimeDescriptor(
         'ImageCollectionDate', _required,
         docstring='The date/time of the image collection in UTC')  # type: Optional[numpy.datetime64]
-    ZuluOffset = _IntegerDescriptor(
+    ZuluOffset = IntegerDescriptor(
         'ZuluOffset', _required,
         docstring='The local time offset from UTC')  # type: Optional[int]  # TODO: this isn't always integer
-    SensorReferencePoint = _StringEnumDescriptor(
+    SensorReferencePoint = StringEnumDescriptor(
         'DataPlane', {'Left', 'Right', 'Top', 'Bottom'}, _required,
         docstring='Description of the sensor location relative to the scene.')  # type: Optional[str]
-    SensorCalibrationFactor = _FloatDescriptor(
+    SensorCalibrationFactor = FloatDescriptor(
         'SensorCalibrationFactor', _required,
         docstring='Multiplicative factor used to scale raw image data to the return '
                   'of a calibrated reference reflector or active source')  # type: Optional[float]
-    DataCalibrated = _StringDescriptor(
+    DataCalibrated = StringDescriptor(
         'DataCalibrated', _required,
         docstring='Has the data been calibrated?')  # type: Optional[str]  # TODO: this obviously should be a xs:boolean
-    Resolution = _SerializableDescriptor(
+    Resolution = SerializableDescriptor(
         'Resolution', RangeCrossRangeType, _required,
         docstring='Resolution (intrinsic) of the sensor system/mode in meters.')  # type: RangeCrossRangeType
-    PixelSpacing = _SerializableDescriptor(
+    PixelSpacing = SerializableDescriptor(
         'PixelSpacing', RangeCrossRangeType, _required,
         docstring='Pixel spacing of the image in meters.')  # type: RangeCrossRangeType
-    WeightingType = _SerializableDescriptor(
+    WeightingType = SerializableDescriptor(
         'WeightingType', StringRangeCrossRangeType, _required,
         docstring='Weighting function applied to the image during formation.')  # type: StringRangeCrossRangeType
-    OverSamplingFactor = _SerializableDescriptor(
+    OverSamplingFactor = SerializableDescriptor(
         'OverSamplingFactor', RangeCrossRangeType, _required,
         docstring='The factor by which the pixel space is oversampled.')  # type: Optional[RangeCrossRangeType]
-    Width3dB = _SerializableDescriptor(
+    Width3dB = SerializableDescriptor(
         'Width3dB', RangeCrossRangeType, _required,
         docstring='The 3 dB system impulse response with, in meters')  # type: Optional[RangeCrossRangeType]
-    ImageQualityDescription = _StringDescriptor(
+    ImageQualityDescription = StringDescriptor(
         'ImageQualityDescription', _required,
         docstring='General description of image quality')  # type: Optional[str]
-    ImageHeading = _FloatDescriptor(
+    ImageHeading = FloatDescriptor(
         'ImageHeading', _required,
         docstring='Image heading relative to True North, in degrees')  # type: Optional[float]
-    ImageCorners = _SerializableDescriptor(
+    ImageCorners = SerializableDescriptor(
         'ImageCorners', ImageCornerType, _required,
         docstring='The image corners')  # type: ImageCornerType
-    SlantPlane = _SerializableDescriptor(
+    SlantPlane = SerializableDescriptor(
         'SlantPlane', PixelSpacingType, _required,
         docstring='The slant plane pixel spacing')  # type: Optional[PixelSpacingType]
-    GroundPlane = _SerializableDescriptor(
+    GroundPlane = SerializableDescriptor(
         'GroundPlane', PixelSpacingType, _required,
         docstring='The ground plane pixel spacing')  # type: Optional[PixelSpacingType]
-    SceneCenterReferenceLine = _FloatDescriptor(
+    SceneCenterReferenceLine = FloatDescriptor(
         'SceneCenterReferenceLine', _required,
         docstring='The ideal line (heading) at the intersection of the radar '
                   'line-of-sight with the horizontal reference plane '
@@ -363,9 +363,9 @@ class DetailImageInfoType(Serializable):
         if kwargs is None:
             kwargs = {}
 
-        width_node = _find_first_child(node, '3dBWidth', xml_ns, ns_key)
+        width_node = find_first_child(node, '3dBWidth', xml_ns, ns_key)
         if width_node is None:
-            width_node = _find_first_child(node, '_3dBWidth', xml_ns, ns_key)
+            width_node = find_first_child(node, '_3dBWidth', xml_ns, ns_key)
         if width_node is not None:
             kwargs['Width3dB'] = RangeCrossRangeType.from_node(width_node, xml_ns, ns_key=ns_key)
         super(DetailImageInfoType, cls).from_node(node, xml_ns, ns_key=ns_key, kwargs=kwargs)

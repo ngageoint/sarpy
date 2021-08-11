@@ -13,12 +13,11 @@ import numpy
 
 from sarpy.compliance import int_func
 from sarpy.io.product.sidd2_elements.base import DEFAULT_STRICT
-# noinspection PyProtectedMember
-from sarpy.io.complex.sicd_elements.base import Serializable, Arrayable, _SerializableDescriptor, \
-    _IntegerDescriptor, _FloatDescriptor, _StringDescriptor, _StringEnumDescriptor, \
-    _ParametersDescriptor, ParametersCollection, \
-    _create_new_node, _create_text_node, _get_node_value, \
-    _find_first_child
+from sarpy.io.xml.base import Serializable, Arrayable, ParametersCollection, \
+    create_text_node, create_new_node, get_node_value, find_first_child
+from sarpy.io.xml.descriptors import SerializableDescriptor, IntegerDescriptor, \
+    FloatDescriptor, StringDescriptor, StringEnumDescriptor, ParametersDescriptor
+
 
 logger = logging.getLogger(__name__)
 
@@ -127,12 +126,12 @@ class ColorDisplayRemapType(Serializable, Arrayable):
     @classmethod
     def from_node(cls, node, xml_ns, ns_key=None, kwargs=None):
         lut_key = cls._child_xml_ns_key.get('RemapLUT', ns_key)
-        lut_node = _find_first_child(node, 'RemapLUT', xml_ns, lut_key)
+        lut_node = find_first_child(node, 'RemapLUT', xml_ns, lut_key)
         if lut_node is not None:
             dim1 = int_func(lut_node.attrib['size'])
             dim2 = 3
             arr = numpy.zeros((dim1, dim2), dtype=numpy.uint16)
-            entries = _get_node_value(lut_node).split()
+            entries = get_node_value(lut_node).split()
             i = 0
             for entry in entries:
                 if len(entry) == 0:
@@ -154,9 +153,9 @@ class ColorDisplayRemapType(Serializable, Arrayable):
         if parent is None:
             parent = doc.getroot()
         if ns_key is None:
-            node = _create_new_node(doc, tag, parent=parent)
+            node = create_new_node(doc, tag, parent=parent)
         else:
-            node = _create_new_node(doc, '{}:{}'.format(ns_key, tag), parent=parent)
+            node = create_new_node(doc, '{}:{}'.format(ns_key, tag), parent=parent)
 
         if 'RemapLUT' in self._child_xml_ns_key:
             rtag = '{}:RemapLUT'.format(self._child_xml_ns_key['RemapLUT'])
@@ -167,7 +166,7 @@ class ColorDisplayRemapType(Serializable, Arrayable):
 
         if self._remap_lut is not None:
             value = ' '.join('{0:d},{1:d},{2:d}'.format(*entry) for entry in self._remap_lut)
-            entry = _create_text_node(doc, rtag, value, parent=node)
+            entry = create_text_node(doc, rtag, value, parent=node)
             entry.attrib['size'] = str(self.size)
         return node
 
@@ -192,10 +191,10 @@ class MonochromeDisplayRemapType(Serializable):
     _required = ('RemapType', )
     _collections_tags = {'RemapParameters': {'array': False, 'child_tag': 'RemapParameter'}}
     # Descriptor
-    RemapType = _StringDescriptor(
+    RemapType = StringDescriptor(
         'RemapType', _required, strict=DEFAULT_STRICT,
         docstring='')  # type: str
-    RemapParameters = _ParametersDescriptor(
+    RemapParameters = ParametersDescriptor(
         'RemapParameters', _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Textual remap parameter. Filled based upon remap type (for informational purposes only).  '
                   'For example, if the data is linlog encoded a RemapParameter could be used to describe any '
@@ -253,11 +252,11 @@ class MonochromeDisplayRemapType(Serializable):
             kwargs = {}
 
         lut_key = cls._child_xml_ns_key.get('RemapLUT', ns_key)
-        lut_node = _find_first_child(node, 'RemapLUT', xml_ns, lut_key)
+        lut_node = find_first_child(node, 'RemapLUT', xml_ns, lut_key)
         if lut_node is not None:
             dim1 = int_func(lut_node.attrib['size'])
             arr = numpy.zeros((dim1, ), dtype=numpy.uint8)
-            entries = _get_node_value(lut_node).split()
+            entries = get_node_value(lut_node).split()
             i = 0
             for entry in entries:
                 if len(entry) == 0:
@@ -279,7 +278,7 @@ class MonochromeDisplayRemapType(Serializable):
 
         if self._remap_lut is not None:
             value = ' '.join('{0:d}'.format(entry) for entry in self._remap_lut)
-            entry = _create_text_node(doc, rtag, value, parent=node)
+            entry = create_text_node(doc, rtag, value, parent=node)
             entry.attrib['size'] = str(self._remap_lut.size)
         return node
 
@@ -300,11 +299,11 @@ class RemapChoiceType(Serializable):
     _required = ()
     _choice = ({'required': False, 'collection': ('ColorDisplayRemap', 'MonochromeDisplayRemap')}, )
     # Descriptor
-    ColorDisplayRemap = _SerializableDescriptor(
+    ColorDisplayRemap = SerializableDescriptor(
         'ColorDisplayRemap', ColorDisplayRemapType, _required, strict=DEFAULT_STRICT,
         docstring='Information for proper color display of the '
                   'data.')  # type: Union[None, ColorDisplayRemapType]
-    MonochromeDisplayRemap = _SerializableDescriptor(
+    MonochromeDisplayRemap = SerializableDescriptor(
         'MonochromeDisplayRemap', MonochromeDisplayRemapType, _required, strict=DEFAULT_STRICT,
         docstring='Information for proper monochrome display of the '
                   'data.')  # type: Union[None, MonochromeDisplayRemapType]
@@ -336,10 +335,10 @@ class MonitorCompensationAppliedType(Serializable):
     _required = ('Gamma', 'XMin')
     _numeric_format = {key: '0.16G' for key in _fields}
     # Descriptor
-    Gamma = _FloatDescriptor(
+    Gamma = FloatDescriptor(
         'Gamma', _required, strict=DEFAULT_STRICT,
         docstring='Gamma value for monitor compensation pre-applied to the image.')  # type: float
-    XMin = _FloatDescriptor(
+    XMin = FloatDescriptor(
         'XMin', _required, strict=DEFAULT_STRICT,
         docstring='Xmin value for monitor compensation pre-applied to the image.')  # type: float
 
@@ -369,11 +368,11 @@ class DRAHistogramOverridesType(Serializable):
     _fields = ('ClipMin', 'ClipMax')
     _required = ('ClipMin', 'ClipMax')
     # Descriptor
-    ClipMin = _IntegerDescriptor(
+    ClipMin = IntegerDescriptor(
         'ClipMin', _required, strict=DEFAULT_STRICT,
         docstring='Suggested override for the lower end-point of the display histogram in the '
                   'ELT DRA application. Referred to as Pmin in SIPS documentation.')  # type: int
-    ClipMax = _IntegerDescriptor(
+    ClipMax = IntegerDescriptor(
         'ClipMax', _required, strict=DEFAULT_STRICT,
         docstring='Suggested override for the upper end-point of the display histogram in the '
                   'ELT DRA application. Referred to as Pmax in SIPS documentation.')  # type: int
@@ -408,32 +407,32 @@ class ProductDisplayType(Serializable):
     _collections_tags = {
         'DisplayExtensions': {'array': False, 'child_tag': 'DisplayExtension'}}
     # Descriptors
-    PixelType = _StringEnumDescriptor(
+    PixelType = StringEnumDescriptor(
         'PixelType', ('MONO8I', 'MONO8LU', 'MONO16I', 'RGB8LU', 'RGB24I'),
         _required, strict=DEFAULT_STRICT,
         docstring='Enumeration of the pixel type. Definition in '
                   'Design and Exploitation document.')  # type: str
-    RemapInformation = _SerializableDescriptor(
+    RemapInformation = SerializableDescriptor(
         'RemapInformation', RemapChoiceType, _required, strict=DEFAULT_STRICT,
         docstring='Information regarding the encoding of the pixel data. '
                   'Used for 8-bit pixel types.')  # type: Union[None, RemapChoiceType]
-    MagnificationMethod = _StringEnumDescriptor(
+    MagnificationMethod = StringEnumDescriptor(
         'MagnificationMethod', ('NEAREST_NEIGHBOR', 'BILINEAR', 'LAGRANGE'),
         _required, strict=DEFAULT_STRICT,
         docstring='Recommended ELT magnification method for this data.')  # type: Union[None, str]
-    DecimationMethod = _StringEnumDescriptor(
+    DecimationMethod = StringEnumDescriptor(
         'DecimationMethod', ('NEAREST_NEIGHBOR', 'BILINEAR', 'BRIGHTEST_PIXEL', 'LAGRANGE'),
         _required, strict=DEFAULT_STRICT,
         docstring='Recommended ELT decimation method for this data. Also used as default for '
                   'reduced resolution dataset generation (if applicable).')  # type: Union[None, str]
-    DRAHistogramOverrides = _SerializableDescriptor(
+    DRAHistogramOverrides = SerializableDescriptor(
         'DRAHistogramOverrides', DRAHistogramOverridesType, _required, strict=DEFAULT_STRICT,
         docstring='Recommended ELT DRA overrides.')  # type: Union[None, DRAHistogramOverridesType]
-    MonitorCompensationApplied = _SerializableDescriptor(
+    MonitorCompensationApplied = SerializableDescriptor(
         'MonitorCompensationApplied', MonitorCompensationAppliedType, _required, strict=DEFAULT_STRICT,
         docstring='Describes monitor compensation that may have been applied to the product '
                   'during processing.')  # type: Union[None, MonitorCompensationAppliedType]
-    DisplayExtensions = _ParametersDescriptor(
+    DisplayExtensions = ParametersDescriptor(
         'DisplayExtensions', _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Optional extensible parameters used to support profile-specific needs related to '
                   'product display. Predefined filter types.')  # type: Union[None, ParametersCollection]
@@ -466,7 +465,3 @@ class ProductDisplayType(Serializable):
         self.MonitorCompensationApplied = MonitorCompensationApplied
         self.DisplayExtensions = DisplayExtensions
         super(ProductDisplayType, self).__init__(**kwargs)
-
-    # @classmethod
-    # def from_node(cls, node, xml_ns, ns_key=None, kwargs=None):
-    #     return super(ProductDisplayType, cls).from_node(node, xml_ns, ns_key=ns_key, kwargs=kwargs)

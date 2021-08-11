@@ -2,16 +2,17 @@
 The DataType definition.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
 from typing import List
 
 from .base import DEFAULT_STRICT
-# noinspection PyProtectedMember
-from sarpy.io.complex.sicd_elements.base import Serializable, _StringDescriptor, _StringEnumDescriptor, \
-    _IntegerDescriptor, _SerializableListDescriptor
-from .utils import binary_format_string_to_dtype
+from sarpy.io.xml.base import Serializable
+from sarpy.io.xml.descriptors import StringDescriptor, StringEnumDescriptor, \
+    IntegerDescriptor, SerializableListDescriptor
 
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
+from .utils import binary_format_string_to_dtype
 
 
 class ChannelSizeType(Serializable):
@@ -25,25 +26,25 @@ class ChannelSizeType(Serializable):
     _required = (
         'Identifier', 'NumVectors', 'NumSamples', 'SignalArrayByteOffset', 'PVPArrayByteOffset')
     # descriptors
-    Identifier = _StringDescriptor(
+    Identifier = StringDescriptor(
         'Identifier', _required, strict=DEFAULT_STRICT,
         docstring='String that uniquely identifies the CPHD channel for which the data '
                   'applies.')  # type: str
-    NumVectors = _IntegerDescriptor(
+    NumVectors = IntegerDescriptor(
         'NumVectors', _required, strict=DEFAULT_STRICT, bounds=(1, None),
         docstring='Number of vectors in the signal array.')  # type: int
-    NumSamples = _IntegerDescriptor(
+    NumSamples = IntegerDescriptor(
         'NumSamples', _required, strict=DEFAULT_STRICT, bounds=(1, None),
         docstring='Number of samples per vector in the signal array.')  # type: int
-    SignalArrayByteOffset = _IntegerDescriptor(
+    SignalArrayByteOffset = IntegerDescriptor(
         'SignalArrayByteOffset', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='Signal Array offset from the start of the Signal block (in bytes) to the '
                   'start of the Signal Array for the channel.')  # type: int
-    PVPArrayByteOffset = _IntegerDescriptor(
+    PVPArrayByteOffset = IntegerDescriptor(
         'PVPArrayByteOffset', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='PVP Array offset from the start of the PVP block (in bytes) to the '
                   'start of the PVP Array for the channel.')  # type: int
-    CompressedSignalSize = _IntegerDescriptor(
+    CompressedSignalSize = IntegerDescriptor(
         'CompressedSignalSize', _required, strict=DEFAULT_STRICT, bounds=(1, None),
         docstring='Size (in bytes) of the compressed signal array byte sequence for the data channel. '
                   'Parameter included if and only if the signal arrays are stored in '
@@ -85,21 +86,21 @@ class SupportArraySizeType(Serializable):
     _fields = ('Identifier', 'NumRows', 'NumCols', 'BytesPerElement', 'ArrayByteOffset')
     _required = _fields
     # descriptors
-    Identifier = _StringDescriptor(
+    Identifier = StringDescriptor(
         'Identifier', _required, strict=DEFAULT_STRICT,
         docstring='Unique string that identifies this support array.')  # type: str
-    NumRows = _IntegerDescriptor(
+    NumRows = IntegerDescriptor(
         'NumRows', _required, strict=DEFAULT_STRICT, bounds=(1, None),
         docstring='Number of rows in the array.')  # type: int
-    NumCols = _IntegerDescriptor(
+    NumCols = IntegerDescriptor(
         'NumCols', _required, strict=DEFAULT_STRICT, bounds=(1, None),
         docstring='Number of columns per row in the array.')  # type: int
-    BytesPerElement = _IntegerDescriptor(
+    BytesPerElement = IntegerDescriptor(
         'BytesPerElement', _required, strict=DEFAULT_STRICT, bounds=(1, None),
         docstring='Indicates the size in bytes of each data element in the support '
                   'array. Each element contains 1 or more binary-formatted '
                   'components.')  # type: int
-    ArrayByteOffset = _IntegerDescriptor(
+    ArrayByteOffset = IntegerDescriptor(
         'ArrayByteOffset', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='Array offset from the start of the Support block (in bytes) to '
                   'the start of the support array.')  # type: int
@@ -149,7 +150,7 @@ class DataType(Serializable):
         'Channels': {'array': False, 'child_tag': 'Channel'},
         'SupportArrays': {'array': False, 'child_tag': 'SupportArray'}}
     # descriptors
-    SignalArrayFormat = _StringEnumDescriptor(
+    SignalArrayFormat = StringEnumDescriptor(
         'SignalArrayFormat', ('CI2', 'CI4', 'CF8'), _required, strict=DEFAULT_STRICT,
         docstring='Signal Array sample binary format of the CPHD signal arrays in standard '
                   '(i.e. uncompressed) format, where `CI2` denotes a 1 byte signed integer '
@@ -157,20 +158,20 @@ class DataType(Serializable):
                   "a 2 byte signed integer parameter, 2's complement format, and "
                   "4 Bytes Per Sample; `CF8` denotes a 4 byte floating point parameter, and "
                   "8 Bytes Per Sample.")  # type: str
-    NumBytesPVP = _IntegerDescriptor(
+    NumBytesPVP = IntegerDescriptor(
         'NumBytesPVP', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='Number of bytes per set of Per Vector Parameters, where there is '
                   'one set of PVPs for each CPHD signal vector')  # type: int
-    SignalCompressionID = _StringDescriptor(
+    SignalCompressionID = StringDescriptor(
         'SignalCompressionID', _required, strict=DEFAULT_STRICT,
         docstring='Parameter that indicates the signal arrays are in compressed format. Value '
                   'identifies the method of decompression. Parameter included if and only if '
                   'the signal arrays are in compressed format.')  # type: str
-    Channels = _SerializableListDescriptor(
+    Channels = SerializableListDescriptor(
         'Channels', ChannelSizeType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Parameters that define the Channel signal array and PVP array size '
                   'and location.')  # type: List[ChannelSizeType]
-    SupportArrays = _SerializableListDescriptor(
+    SupportArrays = SerializableListDescriptor(
         'SupportArrays', SupportArraySizeType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Support Array size parameters. Branch repeated for each binary support array. '
                   'Support Array referenced by its unique Support Array '

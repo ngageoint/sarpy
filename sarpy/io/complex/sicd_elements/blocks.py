@@ -10,12 +10,13 @@ from collections import OrderedDict
 
 import numpy
 
-# noinspection PyProtectedMember
 from sarpy.compliance import int_func
-from .base import _get_node_value, _create_text_node, _create_new_node, _find_children, \
-    Serializable, Arrayable, DEFAULT_STRICT, _StringEnumDescriptor, \
-    _IntegerDescriptor, _FloatDescriptor, _FloatModularDescriptor, \
-    _SerializableDescriptor
+from sarpy.io.xml.base import Serializable, Arrayable, \
+    get_node_value, create_text_node, create_new_node, find_children
+from sarpy.io.xml.descriptors import IntegerDescriptor, StringEnumDescriptor, \
+    FloatDescriptor, FloatModularDescriptor, SerializableDescriptor
+
+from .base import DEFAULT_STRICT
 
 
 #########
@@ -40,13 +41,13 @@ class XYZType(Serializable, Arrayable):
     _required = _fields
     _numeric_format = {'X': '0.16G', 'Y': '0.16G', 'Z': '0.16G'}
     # descriptors
-    X = _FloatDescriptor(
+    X = FloatDescriptor(
         'X', _required, strict=True,
         docstring='The X attribute. Assumed to ECF or other, similar coordinates.')  # type: float
-    Y = _FloatDescriptor(
+    Y = FloatDescriptor(
         'Y', _required, strict=True,
         docstring='The Y attribute. Assumed to ECF or other, similar coordinates.')  # type: float
-    Z = _FloatDescriptor(
+    Z = FloatDescriptor(
         'Z', _required, strict=True,
         docstring='The Z attribute. Assumed to ECF or other, similar coordinates.')  # type: float
 
@@ -114,10 +115,10 @@ class LatLonType(Serializable, Arrayable):
     _required = _fields
     _numeric_format = {'Lat': '0.16G', 'Lon': '0.16G'}
     # descriptors
-    Lat = _FloatDescriptor(
+    Lat = FloatDescriptor(
         'Lat', _required, strict=True,
         docstring='The latitude attribute. Assumed to be WGS-84 coordinates.')  # type: float
-    Lon = _FloatDescriptor(
+    Lon = FloatDescriptor(
         'Lon', _required, strict=True,
         docstring='The longitude attribute. Assumed to be WGS-84 coordinates.')  # type: float
 
@@ -207,9 +208,9 @@ class LatLonType(Serializable, Arrayable):
                 secs = int_func(secs)
             return deg, mins, secs
 
-        X = 'S' if self.Lat < 0 else 'N'
-        Y = 'W' if self.Lon < 0 else 'E'
-        return reduce(self.Lat) + (X, ), reduce(self.Lon) + (Y, )
+        x = 'S' if self.Lat < 0 else 'N'
+        y = 'W' if self.Lon < 0 else 'E'
+        return reduce(self.Lat) + (x, ), reduce(self.Lon) + (y, )
 
 
 class LatLonArrayElementType(LatLonType):
@@ -217,7 +218,7 @@ class LatLonArrayElementType(LatLonType):
     _fields = ('Lat', 'Lon', 'index')
     _required = _fields
     _set_as_attribute = ('index', )
-    index = _IntegerDescriptor(
+    index = IntegerDescriptor(
         'index', _required, strict=False, docstring="The array index")  # type: int
 
     def __init__(self, Lat=None, Lon=None, index=None, **kwargs):
@@ -266,10 +267,10 @@ class LatLonRestrictionType(LatLonType):
     _fields = ('Lat', 'Lon')
     _required = _fields
     # descriptors
-    Lat = _FloatModularDescriptor(
+    Lat = FloatModularDescriptor(
         'Lat', 90.0, _required, strict=True,
         docstring='The latitude attribute. Assumed to be WGS-84 coordinates.')  # type: float
-    Lon = _FloatModularDescriptor(
+    Lon = FloatModularDescriptor(
         'Lon', 180.0, _required, strict=True,
         docstring='The longitude attribute. Assumed to be WGS-84 coordinates.')  # type: float
 
@@ -317,7 +318,7 @@ class LatLonHAEType(LatLonType):
     _required = _fields
     _numeric_format = {'Lat': '0.16G', 'Lon': '0.16G', 'HAE': '0.16G'}
     # descriptors
-    HAE = _FloatDescriptor(
+    HAE = FloatDescriptor(
         'HAE', _required, strict=True,
         docstring='The Height Above Ellipsoid (in meters) attribute. Assumed to be '
                   'WGS-84 coordinates.')  # type: float
@@ -388,10 +389,10 @@ class LatLonHAERestrictionType(LatLonHAEType):
     _fields = ('Lat', 'Lon', 'HAE')
     _required = _fields
     """A three-dimensional geographic point in WGS-84 coordinates."""
-    Lat = _FloatModularDescriptor(
+    Lat = FloatModularDescriptor(
         'Lat', 90.0, _required, strict=True,
         docstring='The latitude attribute. Assumed to be WGS-84 coordinates.')  # type: float
-    Lon = _FloatModularDescriptor(
+    Lon = FloatModularDescriptor(
         'Lon', 180.0, _required, strict=True,
         docstring='The longitude attribute. Assumed to be WGS-84 coordinates.')  # type: float
 
@@ -440,7 +441,7 @@ class LatLonCornerType(LatLonType):
     _required = _fields
     _set_as_attribute = ('index', )
     # descriptors
-    index = _IntegerDescriptor(
+    index = IntegerDescriptor(
         'index', _required, strict=False, bounds=(1, 4),
         docstring='The integer index. This represents a clockwise enumeration of '
                   'the rectangle vertices wrt the frame of reference of the collector. '
@@ -495,7 +496,7 @@ class LatLonCornerStringType(LatLonType):
     # other specific class variable
     _CORNER_VALUES = ('1:FRFC', '2:FRLC', '3:LRLC', '4:LRFC')
     # descriptors
-    index = _StringEnumDescriptor(
+    index = StringEnumDescriptor(
         'index', _CORNER_VALUES, _required, strict=False,
         docstring="The string index.")  # type: str
 
@@ -546,7 +547,7 @@ class LatLonHAECornerRestrictionType(LatLonHAERestrictionType):
     _required = _fields
     _set_as_attribute = ('index', )
     # descriptors
-    index = _IntegerDescriptor(
+    index = IntegerDescriptor(
         'index', _required, strict=False, bounds=(1, 4),
         docstring='The integer index. This represents a clockwise enumeration of the '
                   'rectangle vertices wrt the frame of reference of the collector. '
@@ -602,7 +603,7 @@ class LatLonHAECornerStringType(LatLonHAEType):
     _set_as_attribute = ('index', )
     _CORNER_VALUES = ('1:FRFC', '2:FRLC', '3:LRLC', '4:LRFC')
     # descriptors
-    index = _StringEnumDescriptor(
+    index = StringEnumDescriptor(
         'index', _CORNER_VALUES, _required, strict=False, docstring="The string index.")  # type: str
 
     def __init__(self, Lat=None, Lon=None, HAE=None, index=None, **kwargs):
@@ -655,9 +656,9 @@ class RowColType(Serializable, Arrayable):
     """A row and column attribute container - used as indices into array(s)."""
     _fields = ('Row', 'Col')
     _required = _fields
-    Row = _IntegerDescriptor(
+    Row = IntegerDescriptor(
         'Row', _required, strict=True, docstring='The Row attribute.')  # type: int
-    Col = _IntegerDescriptor(
+    Col = IntegerDescriptor(
         'Col', _required, strict=True, docstring='The Column attribute.')  # type: int
 
     def __init__(self, Row=None, Col=None, **kwargs):
@@ -724,7 +725,7 @@ class RowColArrayElement(RowColType):
     _required = _fields
     _set_as_attribute = ('index', )
     # descriptors
-    index = _IntegerDescriptor(
+    index = IntegerDescriptor(
         'index', _required, strict=False, docstring='The array index attribute.')  # type: int
 
     def __init__(self, Row=None, Col=None, index=None, **kwargs):
@@ -984,10 +985,10 @@ class Poly1DType(Serializable, Arrayable):
         coefs = numpy.zeros((order1+1, ), dtype=numpy.float64)
 
         coef_key = cls._child_xml_ns_key.get('Coefs', ns_key)
-        coef_nodes = _find_children(node, 'Coef', xml_ns, coef_key)
+        coef_nodes = find_children(node, 'Coef', xml_ns, coef_key)
         for cnode in coef_nodes:
             ind = int_func(cnode.attrib['exponent1'])
-            val = float(_get_node_value(cnode))
+            val = float(get_node_value(cnode))
             coefs[ind] = val
         return cls(Coefs=coefs)
 
@@ -996,9 +997,9 @@ class Poly1DType(Serializable, Arrayable):
             parent = doc.getroot()
 
         if ns_key is None:
-            node = _create_new_node(doc, tag, parent=parent)
+            node = create_new_node(doc, tag, parent=parent)
         else:
-            node = _create_new_node(doc, '{}:{}'.format(ns_key, tag), parent=parent)
+            node = create_new_node(doc, '{}:{}'.format(ns_key, tag), parent=parent)
 
         if 'Coefs' in self._child_xml_ns_key:
             ctag = '{}:Coef'.format(self._child_xml_ns_key['Coefs'])
@@ -1011,7 +1012,7 @@ class Poly1DType(Serializable, Arrayable):
         fmt_func = self._get_formatter('Coef')
         for i, val in enumerate(self.Coefs):
             # if val != 0.0:  # should we serialize it sparsely?
-            cnode = _create_text_node(doc, ctag, fmt_func(val), parent=node)
+            cnode = create_text_node(doc, ctag, fmt_func(val), parent=node)
             cnode.attrib['exponent1'] = str(i)
         return node
 
@@ -1240,11 +1241,11 @@ class Poly2DType(Serializable, Arrayable):
         coefs = numpy.zeros((order1+1, order2+1), dtype=numpy.float64)
 
         coef_key = cls._child_xml_ns_key.get('Coefs', ns_key)
-        coef_nodes = _find_children(node, 'Coef', xml_ns, coef_key)
+        coef_nodes = find_children(node, 'Coef', xml_ns, coef_key)
         for cnode in coef_nodes:
             ind1 = int_func(cnode.attrib['exponent1'])
             ind2 = int_func(cnode.attrib['exponent2'])
-            val = float(_get_node_value(cnode))
+            val = float(get_node_value(cnode))
             coefs[ind1, ind2] = val
         return cls(Coefs=coefs)
 
@@ -1253,9 +1254,9 @@ class Poly2DType(Serializable, Arrayable):
             parent = doc.getroot()
 
         if ns_key is None:
-            node = _create_new_node(doc, tag, parent=parent)
+            node = create_new_node(doc, tag, parent=parent)
         else:
-            node = _create_new_node(doc, '{}:{}'.format(ns_key, tag), parent=parent)
+            node = create_new_node(doc, '{}:{}'.format(ns_key, tag), parent=parent)
 
         if 'Coefs' in self._child_xml_ns_key:
             ctag = '{}:Coef'.format(self._child_xml_ns_key['Coefs'])
@@ -1270,7 +1271,7 @@ class Poly2DType(Serializable, Arrayable):
         for i, val1 in enumerate(self._coefs):
             for j, val in enumerate(val1):
                 # if val != 0.0:  # should we serialize it sparsely?
-                cnode = _create_text_node(doc, ctag, fmt_func(val), parent=node)
+                cnode = create_text_node(doc, ctag, fmt_func(val), parent=node)
                 cnode.attrib['exponent1'] = str(i)
                 cnode.attrib['exponent2'] = str(j)
         return node
@@ -1320,13 +1321,13 @@ class XYZPolyType(Serializable, Arrayable):
     _fields = ('X', 'Y', 'Z')
     _required = _fields
     # descriptors
-    X = _SerializableDescriptor(
+    X = SerializableDescriptor(
         'X', Poly1DType, _required, strict=True,
         docstring='The polynomial for the X coordinate.')  # type: Poly1DType
-    Y = _SerializableDescriptor(
+    Y = SerializableDescriptor(
         'Y', Poly1DType, _required, strict=True,
         docstring='The polynomial for the Y coordinate.')  # type: Poly1DType
-    Z = _SerializableDescriptor(
+    Z = SerializableDescriptor(
         'Z', Poly1DType, _required, strict=True,
         docstring='The polynomial for the Z coordinate.')  # type: Poly1DType
 
@@ -1363,17 +1364,17 @@ class XYZPolyType(Serializable, Arrayable):
         numpy.ndarray
         """
 
-        X = self.X(t)
-        Y = self.Y(t)
-        Z = self.Z(t)
-        if numpy.ndim(X) == 0:
-            return numpy.array([X, Y, Z], dtype=X.dtype)
+        x = self.X(t)
+        y = self.Y(t)
+        z = self.Z(t)
+        if numpy.ndim(x) == 0:
+            return numpy.array([x, y, z], dtype=x.dtype)
         else:
-            o_shape = X.shape
-            X = numpy.reshape(X, (-1, 1))
-            Y = numpy.reshape(Y, (-1, 1))
-            Z = numpy.reshape(Z, (-1, 1))
-            out = numpy.hstack((X, Y, Z))
+            o_shape = x.shape
+            x = numpy.reshape(x, (-1, 1))
+            y = numpy.reshape(y, (-1, 1))
+            z = numpy.reshape(z, (-1, 1))
+            out = numpy.hstack((x, y, z))
             return numpy.reshape(out, o_shape + (3, ))
 
     def get_array(self, dtype=numpy.object):
@@ -1528,7 +1529,7 @@ class XYZPolyAttributeType(XYZPolyType):
     _required = _fields
     _set_as_attribute = ('index', )
     # descriptors
-    index = _IntegerDescriptor(
+    index = IntegerDescriptor(
         'index', _required, strict=False, docstring='The array index value.')  # type: int
 
     def __init__(self, X=None, Y=None, Z=None, index=None, **kwargs):
@@ -1580,12 +1581,12 @@ class GainPhasePolyType(Serializable):
     _fields = ('GainPoly', 'PhasePoly')
     _required = _fields
     # descriptors
-    GainPoly = _SerializableDescriptor(
+    GainPoly = SerializableDescriptor(
         'GainPoly', Poly2DType, _required, strict=DEFAULT_STRICT,
         docstring='One-way signal gain (in dB) as a function of X-axis direction cosine (DCX) (variable 1) '
                   'and Y-axis direction cosine (DCY) (variable 2). Gain relative to gain at DCX = 0 '
                   'and DCY = 0, so constant coefficient is always 0.0.')  # type: Poly2DType
-    PhasePoly = _SerializableDescriptor(
+    PhasePoly = SerializableDescriptor(
         'PhasePoly', Poly2DType, _required, strict=DEFAULT_STRICT,
         docstring='One-way signal phase (in cycles) as a function of DCX (variable 1) and '
                   'DCY (variable 2). Phase relative to phase at DCX = 0 and DCY = 0, '
@@ -1661,10 +1662,10 @@ class ErrorDecorrFuncType(Serializable):
     _required = _fields
     _numeric_format = {'CorrCoefZero': '0.16G', 'DecorrRate': '0.16G'}
     # descriptors
-    CorrCoefZero = _FloatDescriptor(
+    CorrCoefZero = FloatDescriptor(
         'CorrCoefZero', _required, strict=True, bounds=(-1, 1),
         docstring='Error correlation coefficient for zero time difference (CC0).')  # type: float
-    DecorrRate = _FloatDescriptor(
+    DecorrRate = FloatDescriptor(
         'DecorrRate', _required, strict=True, bounds=(0, None),
         docstring='Error decorrelation rate. Simple linear decorrelation rate (DCR).')  # type: float
 

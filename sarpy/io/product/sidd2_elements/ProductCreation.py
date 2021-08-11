@@ -11,12 +11,12 @@ from datetime import datetime
 
 import numpy
 
-from .base import DEFAULT_STRICT
-# noinspection PyProtectedMember
-from sarpy.io.complex.sicd_elements.base import Serializable, _SerializableDescriptor, \
-    _StringDescriptor, _StringEnumDescriptor, _IntegerDescriptor, _DateTimeDescriptor, \
-    _ParametersDescriptor, ParametersCollection
+from sarpy.io.xml.base import Serializable, ParametersCollection
+from sarpy.io.xml.descriptors import SerializableDescriptor, IntegerDescriptor, \
+    StringDescriptor, StringEnumDescriptor, DateTimeDescriptor, ParametersDescriptor
 from sarpy.io.complex.sicd_elements.SICD import SICDType
+
+from .base import DEFAULT_STRICT
 
 
 logger = logging.getLogger(__name__)
@@ -65,16 +65,16 @@ class ProcessorInformationType(Serializable):
     _fields = ('Application', 'ProcessingDateTime', 'Site', 'Profile')
     _required = ('Application', 'ProcessingDateTime', 'Site')
     # descriptors
-    Application = _StringDescriptor(
+    Application = StringDescriptor(
         'Application', _required, strict=DEFAULT_STRICT,
         docstring='Name and version of the application used to create the image.')  # type: str
-    ProcessingDateTime = _DateTimeDescriptor(
+    ProcessingDateTime = DateTimeDescriptor(
         'ProcessingDateTime', _required, strict=DEFAULT_STRICT, numpy_datetime_units='us',
         docstring='Date and time the image creation application processed the image (UTC).')  # type: numpy.datetime64
-    Site = _StringDescriptor(
+    Site = StringDescriptor(
         'Site', _required, strict=DEFAULT_STRICT,
         docstring='The creation site of this SICD product.')  # type: str
-    Profile = _StringDescriptor(
+    Profile = StringDescriptor(
         'Profile', _required, strict=DEFAULT_STRICT,
         docstring='Identifies what profile was used to create this SICD product.')  # type: str
 
@@ -126,81 +126,81 @@ class ProductClassificationType(Serializable):
         'declassEvent', 'declassException', 'typeOfExemptedSource', 'dateOfExemptedSource')
     _child_xml_ns_key = {the_field: 'ism' for the_field in _fields if the_field != 'SecurityExtensions'}
     # Descriptor
-    DESVersion = _IntegerDescriptor(
+    DESVersion = IntegerDescriptor(
         'DESVersion', _required, strict=DEFAULT_STRICT, default_value=13,
         docstring='The version number of the DES. Should there be multiple specified in an instance document '
                   'the one at the root node is the one that will apply to the entire document.')  # type: int
-    createDate = _StringDescriptor(
+    createDate = StringDescriptor(
         'createDate', _required, strict=DEFAULT_STRICT,
         docstring='This should be a date of format :code:`YYYY-MM-DD`, but this is not checked.')  # type: str
-    compliesWith = _StringEnumDescriptor(
+    compliesWith = StringEnumDescriptor(
         'compliesWith', ('USGov', 'USIC', 'USDOD', 'OtherAuthority'), _required,
         strict=DEFAULT_STRICT, default_value='USGov',
         docstring='The ISM rule sets with which the document may complies.')  # type: Union[None, str]
-    ISMCATCESVersion = _StringDescriptor(
+    ISMCATCESVersion = StringDescriptor(
         'ISMCATCESVersion', _required, strict=DEFAULT_STRICT, default_value='201903',
         docstring='')  # type: Union[None, str]
-    classification = _StringEnumDescriptor(
+    classification = StringEnumDescriptor(
         'classification', ('U', 'C', 'R', 'S', 'TS'), _required, strict=DEFAULT_STRICT,
         docstring='')  # type: str
-    ownerProducer = _StringDescriptor(
+    ownerProducer = StringDescriptor(
         'ownerProducer', _required, strict=DEFAULT_STRICT,  # default_value='USA',
         docstring='')  # type: str
-    SCIcontrols = _StringDescriptor(
+    SCIcontrols = StringDescriptor(
         'SCIcontrols', _required, strict=DEFAULT_STRICT,
         docstring='')  # type: Union[None, str]
-    SARIdentifier = _StringDescriptor(
+    SARIdentifier = StringDescriptor(
         'SARIdentifier', _required, strict=DEFAULT_STRICT,
         docstring='')  # type: Union[None, str]
-    disseminationControls = _StringDescriptor(
+    disseminationControls = StringDescriptor(
         'disseminationControls', _required, strict=DEFAULT_STRICT,
         docstring='')  # type: Union[None, str]
-    FGIsourceOpen = _StringDescriptor(
+    FGIsourceOpen = StringDescriptor(
         'FGIsourceOpen', _required, strict=DEFAULT_STRICT,
         docstring='')  # type: Union[None, str]
-    FGIsourceProtected = _StringDescriptor(
+    FGIsourceProtected = StringDescriptor(
         'FGIsourceProtected', _required, strict=DEFAULT_STRICT,
         docstring='')  # type: Union[None, str]
-    releasableTo = _StringDescriptor(
+    releasableTo = StringDescriptor(
         'releasableTo', _required, strict=DEFAULT_STRICT,
         docstring='')  # type: Union[None, str]
-    nonICmarkings = _StringDescriptor(
+    nonICmarkings = StringDescriptor(
         'nonICmarkings', _required, strict=DEFAULT_STRICT,
         docstring='')  # type: Union[None, str]
-    classifiedBy = _StringDescriptor(
+    classifiedBy = StringDescriptor(
         'classifiedBy', _required, strict=DEFAULT_STRICT,
         docstring='')  # type: Union[None, str]
-    compilationReason = _StringDescriptor(
+    compilationReason = StringDescriptor(
         'compilationReason', _required, strict=DEFAULT_STRICT,
         docstring='')  # type: Union[None, str]
-    derivativelyClassifiedBy = _StringDescriptor(
+    derivativelyClassifiedBy = StringDescriptor(
         'derivativelyClassifiedBy', _required, strict=DEFAULT_STRICT,
         docstring='')  # type: Union[None, str]
-    classificationReason = _StringDescriptor(
+    classificationReason = StringDescriptor(
         'classificationReason', _required, strict=DEFAULT_STRICT,
         docstring='')  # type: Union[None, str]
-    nonUSControls = _StringDescriptor(
+    nonUSControls = StringDescriptor(
         'nonUSControls', _required, strict=DEFAULT_STRICT,
         docstring='')  # type: Union[None, str]
-    derivedFrom = _StringDescriptor(
+    derivedFrom = StringDescriptor(
         'derivedFrom', _required, strict=DEFAULT_STRICT,
         docstring='')  # type: Union[None, str]
-    declassDate = _StringDescriptor(
+    declassDate = StringDescriptor(
         'declassDate', _required, strict=DEFAULT_STRICT,
         docstring='')  # type: Union[None, str]
-    declassEvent = _StringDescriptor(
+    declassEvent = StringDescriptor(
         'declassEvent', _required, strict=DEFAULT_STRICT,
         docstring='')  # type: Union[None, str]
-    declassException = _StringDescriptor(
+    declassException = StringDescriptor(
         'declassException', _required, strict=DEFAULT_STRICT,
         docstring='')  # type: Union[None, str]
-    typeOfExemptedSource = _StringDescriptor(
+    typeOfExemptedSource = StringDescriptor(
         'typeOfExemptedSource', _required, strict=DEFAULT_STRICT,
         docstring='')  # type: Union[None, str]
-    dateOfExemptedSource = _StringDescriptor(
+    dateOfExemptedSource = StringDescriptor(
         'dateOfExemptedSource', _required, strict=DEFAULT_STRICT,
         docstring='')  # type: Union[None, str]
-    SecurityExtensions = _ParametersDescriptor(
+    SecurityExtensions = ParametersDescriptor(
         'SecurityExtensions', _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Extensible parameters used to support profile-specific needs related to '
                   'product security.')  # type: ParametersCollection
@@ -314,25 +314,25 @@ class ProductCreationType(Serializable):
         'ProcessorInformation', 'Classification', 'ProductName', 'ProductClass')
     _collections_tags = {'ProductCreationExtensions': {'array': False, 'child_tag': 'ProductCreationExtension'}}
     # Descriptors
-    ProcessorInformation = _SerializableDescriptor(
+    ProcessorInformation = SerializableDescriptor(
         'ProcessorInformation', ProcessorInformationType, _required, strict=DEFAULT_STRICT,
         docstring='Details regarding processor.')  # type: ProcessorInformationType
-    Classification = _SerializableDescriptor(
+    Classification = SerializableDescriptor(
         'Classification', ProductClassificationType, _required, strict=DEFAULT_STRICT,
         docstring='The overall classification of the product.')  # type: ProductClassificationType
-    ProductName = _StringDescriptor(
+    ProductName = StringDescriptor(
         'ProductName', _required, strict=DEFAULT_STRICT,
         docstring='The output product name defined by the processor.')  # type: str
-    ProductClass = _StringDescriptor(
+    ProductClass = StringDescriptor(
         'ProductClass', _required, strict=DEFAULT_STRICT,
         docstring='Class of product. Examples - :code:`Dynamic Image, Amplitude Change Detection, '
                   'Coherent Change Detection`')  # type: str
-    ProductType = _StringDescriptor(
+    ProductType = StringDescriptor(
         'ProductType', _required, strict=DEFAULT_STRICT,
         docstring='Type of sub-product. Examples - :code:`Frame #, Reference, Match`. '
                   'This field is only needed if there is a suite of associated '
                   'products.')  # type: Union[None, str]
-    ProductCreationExtensions = _ParametersDescriptor(
+    ProductCreationExtensions = ParametersDescriptor(
         'ProductCreationExtensions', _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Extensible parameters used to support profile-specific needs related to '
                   'product creation.')  # type: ParametersCollection

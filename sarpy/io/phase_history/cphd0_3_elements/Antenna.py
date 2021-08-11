@@ -2,17 +2,18 @@
 The Antenna definition for CPHD 0.3.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
 from typing import Union, List
 
 from sarpy.io.phase_history.cphd1_elements.base import DEFAULT_STRICT
-# noinspection PyProtectedMember
-from sarpy.io.complex.sicd_elements.base import Serializable, _SerializableListDescriptor, \
-    _FloatDescriptor, _SerializableDescriptor
 from sarpy.io.complex.sicd_elements.blocks import XYZPolyType
 from sarpy.io.complex.sicd_elements.Antenna import AntParamType as AntParamTypeBase
 
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
+from sarpy.io.xml.base import Serializable
+from sarpy.io.xml.descriptors import SerializableDescriptor, SerializableListDescriptor, \
+    FloatDescriptor
 
 
 class HPBWType(Serializable):
@@ -24,11 +25,11 @@ class HPBWType(Serializable):
     _required = _fields
     _numeric_format = {'DCX': '0.16G', 'DCY': '0.16G'}
     # descriptors
-    DCX = _FloatDescriptor(
+    DCX = FloatDescriptor(
         'DCX', _required, strict=DEFAULT_STRICT,
         docstring='Half power beamwidth in the X-axis direction cosine '
                   '(DCX).')  # type: float
-    DCY = _FloatDescriptor(
+    DCY = FloatDescriptor(
         'DCY', _required, strict=DEFAULT_STRICT,
         docstring='Half power beamwidth in the Y -axis direction cosine '
                   '(DCY).')  # type: float
@@ -63,7 +64,7 @@ class AntParamType(AntParamTypeBase):
     _required = ('XAxisPoly', 'YAxisPoly', 'FreqZero', )
     _numeric_format = {'FreqZero': '0.16G'}
     # descriptors
-    HPBW = _SerializableDescriptor(
+    HPBW = SerializableDescriptor(
         'HPBW', HPBWType, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: Union[None, HPBWType]
 
@@ -110,15 +111,15 @@ class AntennaType(Serializable):
         'Rcv': {'array': False, 'child_tag': 'Rcv'},
         'TwoWay': {'array': False, 'child_tag': 'TwoWay'}}
     # descriptors
-    Tx = _SerializableListDescriptor(
+    Tx = SerializableListDescriptor(
         'Tx', AntParamType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Transmit antenna pattern parameters.'
     )  # type: Union[None, List[AntParamType]]
-    Rcv = _SerializableListDescriptor(
+    Rcv = SerializableListDescriptor(
         'Rcv', AntParamType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Receive antenna pattern parameters.'
     )  # type: Union[None, List[AntParamType]]
-    TwoWay = _SerializableListDescriptor(
+    TwoWay = SerializableListDescriptor(
         'TwoWay', AntParamType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Two-way antenna pattern parameters.'
     )  # type: Union[None, List[AntParamType]]
