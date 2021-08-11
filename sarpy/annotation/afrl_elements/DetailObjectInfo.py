@@ -323,7 +323,9 @@ class TheObjectType(Serializable):
         'TargetToClutterRatio', 'VisualQualityMetric',
         'UnderlyingTerrain', 'OverlyingTerrain', 'TerrainTexture', 'SeasonalCover')
     _required = ('SystemName', 'ImageLocation', 'GeoLocation')
-    _collections_tags = {'Articulation': {'array': False, 'child_tag': 'Articulation'}}
+    _collections_tags = {
+        'Articulation': {'array': False, 'child_tag': 'Articulation'},
+        'Configuration': {'array': False, 'child_tag': 'Configuration'}}
     # descriptors
     SystemName = _StringDescriptor(
         'SystemName', _required, strict=DEFAULT_STRICT,
