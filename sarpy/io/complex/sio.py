@@ -20,7 +20,8 @@ from sarpy.io.complex.sicd_elements.blocks import RowColType
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.complex.sicd_elements.ImageData import ImageDataType, FullImageType
 from sarpy.io.complex.sicd import complex_to_amp_phase, complex_to_int, amp_phase_to_complex
-from sarpy.io.general.utils import parse_xml_from_string, is_file_like
+from sarpy.io.general.utils import is_file_like
+from sarpy.io.xml.base import parse_xml_from_string
 
 logger = logging.getLogger(__name__)
 

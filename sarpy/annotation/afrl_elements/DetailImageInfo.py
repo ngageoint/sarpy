@@ -173,12 +173,13 @@ class DetailImageInfoType(Serializable):
         'DataFormat', 'DataByteOrder', 'NumPixels', 'ImageCollectionDate', 'ZuluOffset',
         'SensorReferencePoint', 'SensorCalibrationFactor', 'DataCalibrated',
         'Resolution', 'PixelSpacing', 'WeightingType', 'OverSamplingFactor',
-        'Width3dB', 'ImageQualityDescription', 'ImageHeading',
+        'Width_3dB', 'ImageQualityDescription', 'ImageHeading',
         'ImageCorners', 'SlantPlane', 'GroundPlane', 'SceneCenterReferenceLine')
     _required = (
         'DataFilename', 'ClassificationMarkings', 'DataPlane', 'DataType',
         'DataFormat', 'NumPixels', 'ImageCollectionDate', 'SensorReferencePoint',
         'Resolution', 'PixelSpacing', 'WeightingType', 'ImageCorners')
+    _tag_overide = {'Width_3dB': '_3BWidth'}
     # descriptors
     DataFilename = StringDescriptor(
         'DataFilename', _required,
@@ -244,8 +245,8 @@ class DetailImageInfoType(Serializable):
     OverSamplingFactor = SerializableDescriptor(
         'OverSamplingFactor', RangeCrossRangeType, _required,
         docstring='The factor by which the pixel space is oversampled.')  # type: Optional[RangeCrossRangeType]
-    Width3dB = SerializableDescriptor(
-        'Width3dB', RangeCrossRangeType, _required,
+    Width_3dB = SerializableDescriptor(
+        'Width_3dB', RangeCrossRangeType, _required,
         docstring='The 3 dB system impulse response with, in meters')  # type: Optional[RangeCrossRangeType]
     ImageQualityDescription = StringDescriptor(
         'ImageQualityDescription', _required,
@@ -276,7 +277,7 @@ class DetailImageInfoType(Serializable):
                  ImageCollectionDate=None, ZuluOffset=None,
                  SensorReferencePoint=None, SensorCalibrationFactor=None,
                  DataCalibrated=None, Resolution=None, PixelSpacing=None,
-                 WeightingType=None, OverSamplingFactor=None, Width3dB=None,
+                 WeightingType=None, OverSamplingFactor=None, Width_3dB=None,
                  ImageQualityDescription=None, ImageHeading=None, ImageCorners=None,
                  SlantPlane=None, GroundPlane=None, SceneCenterReferenceLine=None,
                  **kwargs):
@@ -304,7 +305,7 @@ class DetailImageInfoType(Serializable):
         PixelSpacing : RangeCrossRangeType|numpy.ndarray|list|tuple
         WeightingType : StringRangeCrossRangeType
         OverSamplingFactor : None|RangeCrossRangeType
-        Width3dB : None|RangeCrossRangeType|numpy.ndarray|list|tuple
+        Width_3dB : None|RangeCrossRangeType|numpy.ndarray|list|tuple
         ImageQualityDescription : None|str
         ImageHeading : None|float
         ImageCorners : ImageCornerType
@@ -348,7 +349,7 @@ class DetailImageInfoType(Serializable):
         self.PixelSpacing = PixelSpacing
         self.WeightingType = WeightingType
         self.OverSamplingFactor = OverSamplingFactor
-        self.Width3dB = Width3dB
+        self.Width_3dB = Width_3dB
 
         self.ImageQualityDescription = ImageQualityDescription
         self.ImageHeading = ImageHeading
@@ -357,28 +358,6 @@ class DetailImageInfoType(Serializable):
         self.GroundPlane = GroundPlane
         self.SceneCenterReferenceLine = SceneCenterReferenceLine
         super(DetailImageInfoType, self).__init__(**kwargs)
-
-    @classmethod
-    def from_node(cls, node, xml_ns, ns_key=None, kwargs=None):
-        if kwargs is None:
-            kwargs = {}
-
-        width_node = find_first_child(node, '3dBWidth', xml_ns, ns_key)
-        if width_node is None:
-            width_node = find_first_child(node, '_3dBWidth', xml_ns, ns_key)
-        if width_node is not None:
-            kwargs['Width3dB'] = RangeCrossRangeType.from_node(width_node, xml_ns, ns_key=ns_key)
-        super(DetailImageInfoType, cls).from_node(node, xml_ns, ns_key=ns_key, kwargs=kwargs)
-
-    def to_node(self, doc, tag, ns_key=None, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
-        node = super(DetailImageInfoType, self).to_node(
-            doc, tag, ns_key=ns_key, parent=parent, check_validity=check_validity,
-            strict=strict, exclude=exclude+('Width3dB', ))
-        if self.Width3dB is not None:
-            self.Width3dB.to_node(
-                doc, tag='_3dBWidth', ns_key=ns_key, parent=node,
-                check_validity=check_validity, strict=strict)
-        return node
 
     @classmethod
     def from_sicd_reader(cls, sicd_reader):
@@ -436,6 +415,6 @@ class DetailImageInfoType(Serializable):
             WeightingType=StringRangeCrossRangeType(
                 Range=sicd.Grid.Row.WgtType.WindowName,
                 CrossRange=sicd.Grid.Col.WgtType.WindowName),
-            Width3dB=(sicd.Grid.Row.ImpRespWid, sicd.Grid.Col.ImpRespWid),  # TODO: I don't think that this is correct
+            Width_3dB=(sicd.Grid.Row.ImpRespWid, sicd.Grid.Col.ImpRespWid),  # TODO: I don't think that this is correct
             ImageHeading=sicd.SCPCOA.AzimAng,
             ImageCorners=icps)

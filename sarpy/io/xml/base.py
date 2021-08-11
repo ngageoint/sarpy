@@ -11,10 +11,11 @@ import json
 from datetime import date, datetime
 from collections import OrderedDict
 import copy
+import re
 
 import numpy
 
-from sarpy.compliance import string_types, integer_types, int_func
+from sarpy.compliance import string_types, integer_types, int_func, bytes_to_string, StringIO
 
 
 logger = logging.getLogger(__name__)
@@ -145,6 +146,38 @@ def find_children(node, tag, xml_ns, ns_key):
         return node.findall('default:{}'.format(tag), xml_ns)
     else:
         return node.findall('{}:{}'.format(ns_key, tag), xml_ns)
+
+
+def parse_xml_from_string(xml_string):
+    """
+    Parse the ElementTree root node and xml namespace dict from an xml string.
+
+    Parameters
+    ----------
+    xml_string : str|bytes
+
+    Returns
+    -------
+    (ElementTree.Element, dict)
+    """
+
+    xml_string = bytes_to_string(xml_string, encoding='utf-8')
+
+    root_node = ElementTree.fromstring(xml_string)
+    # define the namespace dictionary
+    xml_ns = dict([node for _, node in ElementTree.iterparse(StringIO(xml_string), events=('start-ns',))])
+    if len(xml_ns.keys()) == 0:
+        xml_ns = None
+    elif '' in xml_ns:
+        xml_ns['default'] = xml_ns['']
+    else:
+        # default will be the namespace for the root node
+        namespace_match = re.match(r'\{.*\}', root_node.tag)
+        if namespace_match is None:
+            raise ValueError('Trouble finding the default namespace for tag {}'.format(root_node.tag))
+        xml_ns['default'] = namespace_match[0][1:-1]
+    return root_node, xml_ns
+
 
 ###
 # parsing functions - for reusable functionality in descriptors or other property definitions
@@ -486,6 +519,9 @@ class Serializable(object):
     """collection of field names"""
     _required = ()
     """subset of `_fields` defining the required (for the given object, according to the sicd standard) fields"""
+    _tag_overide = {}
+    """On occasion, the xml tag and the corresponding variable name may need to differ. 
+    This dictionary should be populated as `{<variable name> : <tag name>}`."""
 
     _collections_tags = {}
     """
@@ -827,6 +863,8 @@ class Serializable(object):
             # Note that we want to try explicitly setting to None to trigger descriptor behavior
             # for required fields (warning or error)
 
+            base_tag_name = cls._tag_overide.get(attribute, attribute)
+
             # determine any expected xml namespace for the given entry
             if attribute in cls._child_xml_ns_key:
                 xml_ns_key = cls._child_xml_ns_key[attribute]
@@ -843,14 +881,14 @@ class Serializable(object):
 
             if attribute in cls._set_as_attribute:
                 xml_ns_key = cls._child_xml_ns_key.get(attribute, None)
-                handle_attribute(attribute, xml_ns_key)
+                handle_attribute(base_tag_name, xml_ns_key)
             elif attribute in cls._collections_tags:
                 # it's a collection type parameter
                 array_tag = cls._collections_tags[attribute]
                 array = array_tag.get('array', False)
                 child_tag = array_tag.get('child_tag', None)
                 if array:
-                    handle_single(attribute, xml_ns_key)
+                    handle_single(base_tag_name, xml_ns_key)
                 elif child_tag is not None:
                     handle_list(attribute, child_tag, xml_ns_key)
                 else:
@@ -860,7 +898,7 @@ class Serializable(object):
                         '`child_tag` value is either not populated or None.'.format(attribute, cls))
             else:
                 # it's a regular property
-                handle_single(attribute, xml_ns_key)
+                handle_single(base_tag_name, xml_ns_key)
         return cls.from_dict(kwargs)
 
     def to_node(self, doc, tag, ns_key=None, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
@@ -948,11 +986,11 @@ class Serializable(object):
                 for entry in val:
                     serialize_plain(node, ch_tag, entry, format_function, the_xml_ns_key)
 
-        def serialize_plain(node, field, val, format_function, the_xml_ns_key):
+        def serialize_plain(node, the_tag, val, format_function, the_xml_ns_key):
             # may be called not at top level - if object array or list is present
-            prim_tag = '{}:{}'.format(the_xml_ns_key, field) if the_xml_ns_key is not None else field
+            prim_tag = '{}:{}'.format(the_xml_ns_key, the_tag) if the_xml_ns_key is not None else the_tag
             if isinstance(val, (Serializable, SerializableArray)):
-                val.to_node(doc, field, ns_key=the_xml_ns_key, parent=node,
+                val.to_node(doc, the_tag, ns_key=the_xml_ns_key, parent=node,
                             check_validity=check_validity, strict=strict)
             elif isinstance(val, ParametersCollection):
                 val.to_node(doc, ns_key=the_xml_ns_key, parent=node, check_validity=check_validity, strict=strict)
@@ -983,7 +1021,7 @@ class Serializable(object):
             else:
                 raise ValueError(
                     'An entry for class {} using tag {} is of type {},\n'
-                    'and serialization has not been implemented'.format(self.__class__.__name__, field, type(val)))
+                    'and serialization has not been implemented'.format(self.__class__.__name__, the_tag, type(val)))
 
         if check_validity:
             if not self.is_valid(stack=False):
@@ -1008,9 +1046,10 @@ class Serializable(object):
             if value is None:
                 continue
             fmt_func = self._get_formatter(attribute)
+            base_tag_name = self._tag_overide.get(attribute, attribute)
             if attribute in self._set_as_attribute:
                 xml_ns_key = self._child_xml_ns_key.get(attribute, None)
-                serialize_attribute(nod, attribute, value, fmt_func, xml_ns_key)
+                serialize_attribute(nod, base_tag_name, value, fmt_func, xml_ns_key)
             else:
                 # should we be using some namespace?
                 if attribute in self._child_xml_ns_key:
@@ -1035,11 +1074,11 @@ class Serializable(object):
                                 attribute, self.__class__.__name__, type(value)))
                     size_attribute = array_tag.get('size_attribute', 'size')
                     if isinstance(value, numpy.ndarray):
-                        serialize_array(nod, attribute, child_tag, value, fmt_func, size_attribute, xml_ns_key)
+                        serialize_array(nod, base_tag_name, child_tag, value, fmt_func, size_attribute, xml_ns_key)
                     else:
                         serialize_list(nod, child_tag, value, fmt_func, xml_ns_key)
                 else:
-                    serialize_plain(nod, attribute, value, fmt_func, xml_ns_key)
+                    serialize_plain(nod, base_tag_name, value, fmt_func, xml_ns_key)
         return nod
 
     @classmethod

@@ -20,7 +20,8 @@ from sarpy.compliance import string_types
 from sarpy.io.general.base import AggregateChipper, SarpyIOError
 from sarpy.io.general.nitf import NITFReader, NITFWriter, ImageDetails, DESDetails, \
     image_segmentation, get_npp_block, interpolate_corner_points_string
-from sarpy.io.general.utils import parse_xml_from_string, is_file_like
+from sarpy.io.xml.base import parse_xml_from_string
+from sarpy.io.general.utils import is_file_like
 from sarpy.io.complex.base import SICDTypeReader
 from sarpy.io.complex.sicd_elements.SICD import SICDType, get_specification_identifier
 from sarpy.io.complex.sicd_elements.ImageCreation import ImageCreationType

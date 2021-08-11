@@ -9,7 +9,8 @@ from typing import Optional, List
 
 import numpy
 
-from sarpy.io.xml.base import Serializable, Arrayable, create_text_node
+from sarpy.compliance import string_types
+from sarpy.io.xml.base import Serializable, Arrayable, create_text_node, create_new_node
 from sarpy.io.xml.descriptors import StringDescriptor, FloatDescriptor, \
     IntegerDescriptor, SerializableDescriptor, SerializableListDescriptor
 from sarpy.io.complex.sicd_elements.blocks import RowColType
@@ -314,6 +315,71 @@ class FreeFormType(Serializable):
         super(FreeFormType, self).__init__(**kwargs)
 
 
+class CompoundCommentType(Serializable):
+    _fields = ('Value', 'Comments')
+    _required = ()
+    _collections_tags = {'Comments': {'array': False, 'child_tag': 'NULL'}}
+    # descriptors
+    Value = StringDescriptor(
+        'Value', _required,
+        docstring='A single comment, this will take precedence '
+                  'over the list')  # type: Optional[str]
+    Comments = SerializableListDescriptor(
+        'Comments', FreeFormType, _collections_tags, _required,
+        docstring='A collection of comments')  # type: Optional[List[FreeFormType]]
+
+    def __init__(self, Value=None, Comments=None, **kwargs):
+        """
+        Parameters
+        ----------
+        Value : None|str
+        Comments : None|List[FreeFormType]
+        """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
+        self.Value = Value
+        self.Comments = Comments
+        super(CompoundCommentType, self).__init__(**kwargs)
+
+    @classmethod
+    def from_node(cls, node, xml_ns, ns_key=None, kwargs=None):
+        if kwargs is None:
+            kwargs = {}
+        if xml_ns is None:
+            tag_start = ''
+        elif ns_key is None:
+            tag_start = xml_ns['default'] + ':'
+        else:
+            tag_start = xml_ns[ns_key] + ':'
+
+        if node.text:
+            kwargs['Value'] = node.text
+            kwargs['Comments'] = None
+        else:
+            value = []
+            for element in node:
+                tag_name = element.tag[len(tag_start):]
+                value.append(FreeFormType(Name=tag_name, Value=element.text))
+            kwargs['Value'] = None
+            kwargs['Comments'] = value
+        return super(CompoundCommentType, cls).from_node(node, xml_ns, ns_key=ns_key, kwargs=kwargs)
+
+    def to_node(self, doc, tag, ns_key=None, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
+        the_tag = '{}:{}'.format(ns_key, tag) if ns_key is not None else tag
+        if self.Value is not None:
+            node = create_text_node(doc, the_tag, self.Value, parent=parent)
+        else:
+            node = create_new_node(doc, the_tag, parent=parent)
+            if self.Comments is not None:
+                for entry in self.Comments:
+                    child_tag = '{}:{}'.format(ns_key, entry.Name) if ns_key is not None else entry.Name
+                    create_text_node(doc, child_tag, entry.Value, parent=node)
+        return node
+
+
 class TheObjectType(Serializable):
     _fields = (
         'SystemName', 'SystemComponent', 'NATOName', 'Function', 'Version', 'DecoyType', 'SerialNumber',
@@ -325,9 +391,6 @@ class TheObjectType(Serializable):
         'TargetToClutterRatio', 'VisualQualityMetric',
         'UnderlyingTerrain', 'OverlyingTerrain', 'TerrainTexture', 'SeasonalCover')
     _required = ('SystemName', 'ImageLocation', 'GeoLocation')
-    _collections_tags = {
-        'Articulation': {'array': False, 'child_tag': 'Articulation'},
-        'Configuration': {'array': False, 'child_tag': 'Configuration'}}
     # descriptors
     SystemName = StringDescriptor(
         'SystemName', _required, strict=DEFAULT_STRICT,
@@ -383,12 +446,12 @@ class TheObjectType(Serializable):
     Orientation = SerializableDescriptor(
         'Orientation', SizeType, _required, strict=DEFAULT_STRICT,
         docstring='The actual orientation size of the object')  # type: Optional[OrientationType]
-    Articulation = SerializableListDescriptor(
-        'Articulation', FreeFormType, _collections_tags, _required,
-        docstring='A list of articulation descriptions')  # type: List[FreeFormType]
-    Configuration = SerializableListDescriptor(
-        'Configuration', FreeFormType, _collections_tags, _required,
-        docstring='A list of configuration descriptions')  # type: List[FreeFormType]
+    Articulation = SerializableDescriptor(
+        'Articulation', CompoundCommentType, _required,
+        docstring='Articulation description(s)')  # type: Optional[CompoundCommentType]
+    Configuration = SerializableDescriptor(
+        'Configuration', CompoundCommentType, _required,
+        docstring='Configuration description(s)')  # type: Optional[CompoundCommentType]
     Accessories = StringDescriptor(
         'Accessories', _required, strict=DEFAULT_STRICT,
         docstring='Defines items that are out of the norm, or have been added or removed.')  # type: Optional[str]
@@ -463,8 +526,8 @@ class TheObjectType(Serializable):
         ObjectLabel : None|str
         Size : None|SizeType|numpy.ndarray|list|tuple
         Orientation : OrientationType
-        Articulation : None|List[FreeFormType]
-        Configuration : None|List[FreeFormType]
+        Articulation : None|CompoundCommentType|str|List[FreeFormType]
+        Configuration : None|CompoundCommentType|str|List[FreeFormType]
         Accessories : None|str
         PaintScheme : None|str
         Camouflage : None|str
@@ -503,8 +566,24 @@ class TheObjectType(Serializable):
 
         self.Size = Size
         self.Orientation = Orientation
-        self.Articulation = Articulation
-        self.Configuration = Configuration
+
+        if isinstance(Articulation, string_types):
+            self.Articulation = CompoundCommentType(Value=Articulation)
+        elif isinstance(Articulation, list):
+            self.Articulation = CompoundCommentType(Comments=Articulation)
+        elif isinstance(Articulation, dict):
+            self.Articulation = CompoundCommentType(**Articulation)
+        else:
+            self.Articulation = Articulation
+
+        if isinstance(Configuration, string_types):
+            self.Configuration = CompoundCommentType(Value=Configuration)
+        elif isinstance(Configuration, list):
+            self.Configuration = CompoundCommentType(Comments=Configuration)
+        elif isinstance(Configuration, dict):
+            self.Configuration = CompoundCommentType(**Configuration)
+        else:
+            self.Configuration = Configuration
 
         self.Accessories = Accessories
         self.PaintScheme = PaintScheme
@@ -523,50 +602,6 @@ class TheObjectType(Serializable):
         self.TerrainTexture = TerrainTexture
         self.SeasonalCover = SeasonalCover
         super(TheObjectType, self).__init__(**kwargs)
-
-    @classmethod
-    def from_node(cls, node, xml_ns, ns_key=None, kwargs=None):
-        if kwargs is None:
-            kwargs = {}
-        if xml_ns is None:
-            tag_start = ''
-        elif ns_key is None:
-            tag_start = xml_ns['default']+':'
-        else:
-            tag_start = xml_ns[ns_key]+':'
-
-        articulation = []
-        configuration = []
-        for item in node:
-            if item.tag.startswith(tag_start+'Articulation'):
-                name = item.tag[len(tag_start+'Articulation'):]
-                if name.startswith('_'):
-                    name = name[1:]
-                articulation.append(FreeFormType(Name=name, Value=item.text))
-            elif item.tag.startswith(tag_start+'Configuration'):
-                name = item.tag[len(tag_start+'Configuration'):]
-                if name.startswith('_'):
-                    name = name[1:]
-                configuration.append(FreeFormType(Name=name, Value=item.text))
-        kwargs['Articulation'] = articulation if len(articulation) > 0 else None
-        kwargs['Configuration'] = configuration if len(configuration) > 0 else None
-        return super(TheObjectType, cls).from_node(node, xml_ns, ns_key=ns_key, kwargs=kwargs)
-
-    def to_node(self, doc, tag, ns_key=None, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
-        node = super(TheObjectType, self).to_node(
-            doc, tag, ns_key=ns_key, parent=parent, check_validity=check_validity,
-            strict=strict, exclude=exclude+('Articulation', 'Configuration'))
-        if self.Articulation is not None:
-            for entry in self.Articulation:
-                art_tag = '{}:Articulation_{}'.format(ns_key, entry.Name) \
-                    if ns_key is not None else 'Articulation_{}'.format(entry.Name)
-                create_text_node(doc, art_tag, entry.Value, parent=node)
-        if self.Configuration is not None:
-            for entry in self.Configuration:
-                art_tag = '{}:Configuration_{}'.format(ns_key, entry.Name) \
-                    if ns_key is not None else 'Configuration_{}'.format(entry.Name)
-                create_text_node(doc, art_tag, entry.Value, parent=node)
-        return node
 
 
 # other types for the DetailObjectInfo

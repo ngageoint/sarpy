@@ -11,7 +11,7 @@ __authors__ = ("Thomas McCullough", "Thomas Rackers")
 
 from typing import Optional, List
 
-from sarpy.io.xml.base import Serializable, find_first_child
+from sarpy.io.xml.base import Serializable
 from sarpy.io.xml.descriptors import IntegerDescriptor, SerializableDescriptor, \
     SerializableListDescriptor, StringDescriptor
 from sarpy.io.complex.sicd_elements.blocks import RowColType
@@ -99,11 +99,13 @@ class TheFiducialType(Serializable):
     _fields = (
         'Name', 'SerialNumber', 'FiducialType', 'DatasetFiducialNumber',
         'ImageLocation', 'GeoLocation',
-        'Width3dB', 'Width18dB', 'Ratio3dB18dB',
+        'Width_3dB', 'Width_18dB', 'Ratio_3dB_18dB',
         'PeakSideLobeRatio', 'IntegratedSideLobeRatio',
         'SlantPlane', 'GroundPlane')
     _required = (
         'FiducialType', 'ImageLocation', 'GeoLocation')
+    _tag_overide = {
+        'Width_3dB': '_3dBWidth', 'Width_18dB': '_18dBWidth', 'Ratio_3dB_18dB': '_3dB_18dBRatio'}
     # descriptors
     Name = StringDescriptor(
         'Name', _required, strict=DEFAULT_STRICT,
@@ -126,16 +128,16 @@ class TheFiducialType(Serializable):
         'GeoLocation', GeoLocationType, _required,
         docstring='Real physical location of the fiducial'
     )  # type: Optional[GeoLocationType]
-    Width3dB = SerializableDescriptor(
-        'Width3d', RangeCrossRangeType, _required,
+    Width_3dB = SerializableDescriptor(
+        'Width_3dB', RangeCrossRangeType, _required,
         docstring='The 3 dB impulse response width, in meters'
     )  # type: Optional[RangeCrossRangeType]
-    Width18dB = SerializableDescriptor(
-        'Width18dB', RangeCrossRangeType, _required,
+    Width_18dB = SerializableDescriptor(
+        'Width_18dB', RangeCrossRangeType, _required,
         docstring='The 18 dB impulse response width, in meters'
     )  # type: Optional[RangeCrossRangeType]
-    Ratio3dB18dB = SerializableDescriptor(
-        'Ratio3dB18dB', RangeCrossRangeType, _required,
+    Ratio_3dB_18dB = SerializableDescriptor(
+        'Ratio_3dB_18dB', RangeCrossRangeType, _required,
         docstring='Ratio of the 3 dB to 18 dB system impulse response width'
     )  # type: Optional[RangeCrossRangeType]
     PeakSideLobeRatio = SerializableDescriptor(
@@ -158,7 +160,7 @@ class TheFiducialType(Serializable):
 
     def __init__(self, Name=None, SerialNumber=None, FiducialType=None,
                  DatasetFiducialNumber=None, ImageLocation=None, GeoLocation=None,
-                 Width3dB=None, Width18dB=None, Ratio3dB18dB=None,
+                 Width_3dB=None, Width_18dB=None, Ratio_3dB_18dB=None,
                  PeakSideLobeRatio=None, IntegratedSideLobeRatio=None,
                  SlantPlane=None, GroundPlane=None,
                  **kwargs):
@@ -171,9 +173,9 @@ class TheFiducialType(Serializable):
         DatasetFiducialNumber : None|int
         ImageLocation : ImageLocationType
         GeoLocation : GeoLocationType
-        Width3dB : None|RangeCrossRangeType|numpy.ndarray|list|tuple
-        Width18dB : None|RangeCrossRangeType|numpy.ndarray|list|tuple
-        Ratio3dB18dB : None|RangeCrossRangeType|numpy.ndarray|list|tuple
+        Width_3dB : None|RangeCrossRangeType|numpy.ndarray|list|tuple
+        Width_18dB : None|RangeCrossRangeType|numpy.ndarray|list|tuple
+        Ratio_3dB_18dB : None|RangeCrossRangeType|numpy.ndarray|list|tuple
         PeakSideLobeRatio : None|RangeCrossRangeType|numpy.ndarray|list|tuple
         IntegratedSideLobeRatio : None|RangeCrossRangeType|numpy.ndarray|list|tuple
         SlantPlane : None|PhysicalLocationType
@@ -192,59 +194,14 @@ class TheFiducialType(Serializable):
         self.DatasetFiducialNumber = DatasetFiducialNumber
         self.ImageLocation = ImageLocation
         self.GeoLocation = GeoLocation
-        self.Width3dB = Width3dB
-        self.Width18dB = Width18dB
-        self.Ratio3dB18dB = Ratio3dB18dB
+        self.Width_3dB = Width_3dB
+        self.Width_18dB = Width_18dB
+        self.Ratio_3dB_18dB = Ratio_3dB_18dB
         self.PeakSideLobeRatio = PeakSideLobeRatio
         self.IntegratedSideLobeRatio = IntegratedSideLobeRatio
         self.SlantPlane = SlantPlane
         self.GroundPlane = GroundPlane
         super(TheFiducialType, self).__init__(**kwargs)
-
-    @classmethod
-    def from_node(cls, node, xml_ns, ns_key=None, kwargs=None):
-        if kwargs is None:
-            kwargs = {}
-
-        the_node = find_first_child(node, '3dBWidth', xml_ns, ns_key)
-        if the_node is None:
-            the_node = find_first_child(node, '_3dBWidth', xml_ns, ns_key)
-        if the_node is not None:
-            kwargs['Width3dB'] = RangeCrossRangeType.from_node(the_node, xml_ns, ns_key=ns_key)
-
-        the_node = find_first_child(node, '18dBWidth', xml_ns, ns_key)
-        if the_node is None:
-            the_node = find_first_child(node, '_18dBWidth', xml_ns, ns_key)
-        if the_node is not None:
-            kwargs['Width18dB'] = RangeCrossRangeType.from_node(the_node, xml_ns, ns_key=ns_key)
-
-        the_node = find_first_child(node, '3dB_18dBRatio18dBWidth', xml_ns, ns_key)
-        if the_node is None:
-            the_node = find_first_child(node, '_3dB_18dBRatio18dBWidth', xml_ns, ns_key)
-        if the_node is not None:
-            kwargs['Ratio3dB18dB'] = RangeCrossRangeType.from_node(the_node, xml_ns, ns_key=ns_key)
-
-        super(TheFiducialType, cls).from_node(node, xml_ns, ns_key=ns_key, kwargs=kwargs)
-
-    def to_node(self, doc, tag, ns_key=None, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
-        node = super(TheFiducialType, self).to_node(
-            doc, tag, ns_key=ns_key, parent=parent, check_validity=check_validity,
-            strict=strict, exclude=exclude+('Width3dB', 'Width18dB', 'Ratio3dB18dB'))
-
-        if self.Width3dB is not None:
-            self.Width3dB.to_node(
-                doc, tag='_3dBWidth', ns_key=ns_key, parent=node,
-                check_validity=check_validity, strict=strict)
-        if self.Width18dB is not None:
-            self.Width18dB.to_node(
-                doc, tag='_18dBWidth', ns_key=ns_key, parent=node,
-                check_validity=check_validity, strict=strict)
-        if self.Ratio3dB18dB is not None:
-            self.Ratio3dB18dB.to_node(
-                doc, tag='_3dB_18dBRatio', ns_key=ns_key, parent=node,
-                check_validity=check_validity, strict=strict)
-
-        return node
 
 
 class DetailFiducialInfoType(Serializable):
