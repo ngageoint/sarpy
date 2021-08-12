@@ -177,7 +177,7 @@ class TropoParametersType(Serializable):
 
     _fields = ('N0', 'RefHeight')
     _required = _fields
-    _numeric_format = {'No': '0.16G'}
+    _numeric_format = {'N0': '0.16G'}
     # descriptors
     N0 = FloatDescriptor(
         'N0', _required, strict=DEFAULT_STRICT, bounds=(0, None),

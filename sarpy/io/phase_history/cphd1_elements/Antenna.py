@@ -108,6 +108,7 @@ class GainPhaseArrayType(Serializable):
 
     _fields = ('Freq', 'ArrayId', 'ElementId')
     _required = ('Freq', 'ArrayId')
+    _numeric_format = {'Freq', '0.16G'}
     # descriptors
     Freq = FloatDescriptor(
         'Freq', _required, strict=DEFAULT_STRICT, bounds=(0, None),

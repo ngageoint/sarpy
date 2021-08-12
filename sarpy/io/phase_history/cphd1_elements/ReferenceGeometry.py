@@ -373,7 +373,7 @@ class ReferenceGeometryType(Serializable):
     _fields = ('SRP', 'ReferenceTime', 'SRPCODTime', 'SRPDwellTime', 'Monostatic', 'Bistatic')
     _required = ('SRP', 'ReferenceTime', 'SRPCODTime', 'SRPDwellTime')
     _choice = ({'required': True, 'collection': ('Monostatic', 'Bistatic')}, )
-    _numeric_format = {'ReferenceTime': '0.16G', 'SRPCODTime': '0.16G'}
+    _numeric_format = {'ReferenceTime': '0.16G', 'SRPCODTime': '0.16G', 'SRPDwellTime': '0.16G'}
     # descriptors
     SRP = SerializableDescriptor(
         'SRP', SRPType, _required, strict=DEFAULT_STRICT,
