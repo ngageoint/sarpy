@@ -81,7 +81,6 @@ class ReservedExtensionHeader(NITFElement):
             return super(ReservedExtensionHeader, cls)._parse_attribute(fields, attribute, value, start)
 
 
-
 class ReservedExtensionHeader0(NITFElement):
     """
     The reserved extension subheader for NITF version 2.0 - see standards

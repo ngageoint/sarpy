@@ -86,6 +86,7 @@ class BaseNITFElement(object):
 
         raise NotImplementedError
 
+
 # Basic input and output interpreters
 
 def _get_bytes(val, length):
@@ -462,9 +463,10 @@ class NITFElement(BaseNITFElement):
 
     def __init__(self, **kwargs):
         for fld in self._ordering:
+            # noinspection PyBroadException
             try:
                 setattr(self, fld, kwargs.get(fld, None))
-            except:
+            except Exception:
                 logger.critical('Failed setting attribute {} for class {}'.format(fld, self.__class__))
                 raise
 

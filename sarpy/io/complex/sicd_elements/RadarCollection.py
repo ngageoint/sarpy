@@ -11,13 +11,13 @@ import logging
 
 import numpy
 
-from .base import Serializable, DEFAULT_STRICT, \
-    _StringDescriptor, _StringEnumDescriptor, _FloatDescriptor,\
-    _IntegerDescriptor, _SerializableDescriptor, \
-    _SerializableArrayDescriptor, SerializableArray, \
-    _SerializableCPArrayDescriptor, SerializableCPArray, \
-    _UnitVectorDescriptor, _parse_float, \
-    _ParametersDescriptor, ParametersCollection
+from sarpy.io.xml.base import Serializable, SerializableArray, ParametersCollection, \
+    parse_float
+from sarpy.io.xml.descriptors import StringDescriptor, StringEnumDescriptor, \
+    FloatDescriptor, IntegerDescriptor, SerializableDescriptor, \
+    SerializableArrayDescriptor, UnitVectorDescriptor, ParametersDescriptor
+
+from .base import DEFAULT_STRICT, SerializableCPArrayDescriptor, SerializableCPArray
 from .blocks import XYZType, LatLonHAECornerRestrictionType, \
     POLARIZATION1_VALUES, POLARIZATION2_VALUES, DUAL_POLARIZATION_VALUES
 from .utils import is_polstring_version1
@@ -78,10 +78,10 @@ class TxFrequencyType(Serializable):
     _required = _fields
     _numeric_format = {'Min': '0.16G', 'Max': '0.16G'}
     # descriptors
-    Min = _FloatDescriptor(
+    Min = FloatDescriptor(
         'Min', _required, strict=DEFAULT_STRICT,
         docstring='The transmit minimum frequency in Hz.')  # type: float
-    Max = _FloatDescriptor(
+    Max = FloatDescriptor(
         'Max', _required, strict=DEFAULT_STRICT,
         docstring='The transmit maximum frequency in Hz.')  # type: float
 
@@ -158,32 +158,32 @@ class WaveformParametersType(Serializable):
     _numeric_format = {key: '0.16G' for key in _fields if key not in ('RcvDemodType', 'index')}
 
     # descriptors
-    TxPulseLength = _FloatDescriptor(
+    TxPulseLength = FloatDescriptor(
         'TxPulseLength', _required, strict=DEFAULT_STRICT,
         docstring='Transmit pulse length in seconds.')  # type: float
-    TxRFBandwidth = _FloatDescriptor(
+    TxRFBandwidth = FloatDescriptor(
         'TxRFBandwidth', _required, strict=DEFAULT_STRICT,
         docstring='Transmit RF bandwidth of the transmit pulse in Hz.')  # type: float
-    TxFreqStart = _FloatDescriptor(
+    TxFreqStart = FloatDescriptor(
         'TxFreqStart', _required, strict=DEFAULT_STRICT,
         docstring='Transmit Start frequency for Linear FM waveform in Hz, may be relative '
                   'to reference frequency.')  # type: float
-    TxFMRate = _FloatDescriptor(
+    TxFMRate = FloatDescriptor(
         'TxFMRate', _required, strict=DEFAULT_STRICT,
         docstring='Transmit FM rate for Linear FM waveform in Hz/second.')  # type: float
-    RcvWindowLength = _FloatDescriptor(
+    RcvWindowLength = FloatDescriptor(
         'RcvWindowLength', _required, strict=DEFAULT_STRICT,
         docstring='Receive window duration in seconds.')  # type: float
-    ADCSampleRate = _FloatDescriptor(
+    ADCSampleRate = FloatDescriptor(
         'ADCSampleRate', _required, strict=DEFAULT_STRICT,
         docstring='Analog-to-Digital Converter sampling rate in samples/second.')  # type: float
-    RcvIFBandwidth = _FloatDescriptor(
+    RcvIFBandwidth = FloatDescriptor(
         'RcvIFBandwidth', _required, strict=DEFAULT_STRICT,
         docstring='Receive IF bandwidth in Hz.')  # type: float
-    RcvFreqStart = _FloatDescriptor(
+    RcvFreqStart = FloatDescriptor(
         'RcvFreqStart', _required, strict=DEFAULT_STRICT,
         docstring='Receive demodulation start frequency in Hz, may be relative to reference frequency.')  # type: float
-    index = _IntegerDescriptor(
+    index = IntegerDescriptor(
         'index', _required, strict=False, docstring="The array index.")  # type: int
 
     def __init__(self, TxPulseLength=None, TxRFBandwidth=None, TxFreqStart=None, TxFMRate=None,
@@ -259,7 +259,7 @@ class WaveformParametersType(Serializable):
             self._RcvFMRate = None
         else:
             try:
-                self._RcvFMRate = _parse_float(value, 'RcvFMRate', self)
+                self._RcvFMRate = parse_float(value, 'RcvFMRate', self)
             except Exception as e:
                 logger.error(
                     'Failed parsing value {} for field RCVFMRate of type "float",\n\t'
@@ -303,13 +303,13 @@ class TxStepType(Serializable):
     _required = ('index', )
     _set_as_attribute = ('index', )
     # descriptors
-    WFIndex = _IntegerDescriptor(
+    WFIndex = IntegerDescriptor(
         'WFIndex', _required, strict=DEFAULT_STRICT,
         docstring='The waveform number for this step.')  # type: int
-    TxPolarization = _StringEnumDescriptor(
+    TxPolarization = StringEnumDescriptor(
         'TxPolarization', POLARIZATION2_VALUES, _required, strict=DEFAULT_STRICT,
         docstring='Transmit signal polarization for this step.')  # type: str
-    index = _IntegerDescriptor(
+    index = IntegerDescriptor(
         'index', _required, strict=DEFAULT_STRICT,
         docstring='The step index')  # type: int
 
@@ -343,14 +343,14 @@ class ChanParametersType(Serializable):
     _required = ('TxRcvPolarization', 'index', )
     _set_as_attribute = ('index', )
     # descriptors
-    TxRcvPolarization = _StringEnumDescriptor(
+    TxRcvPolarization = StringEnumDescriptor(
         'TxRcvPolarization', DUAL_POLARIZATION_VALUES, _required, strict=DEFAULT_STRICT,
         docstring='Combined Transmit and Receive signal polarization for the channel.')  # type: str
-    RcvAPCIndex = _IntegerDescriptor(
+    RcvAPCIndex = IntegerDescriptor(
         'RcvAPCIndex', _required, strict=DEFAULT_STRICT,
         docstring='Index of the Receive Aperture Phase Center (Rcv APC). Only include if Receive APC position '
                   'polynomial(s) are included.')  # type: int
-    index = _IntegerDescriptor(
+    index = IntegerDescriptor(
         'index', _required, strict=DEFAULT_STRICT, docstring='The parameter index')  # type: int
 
     def __init__(self, TxRcvPolarization=None, RcvAPCIndex=None, index=None, **kwargs):
@@ -400,16 +400,16 @@ class ReferencePointType(Serializable):
     _set_as_attribute = ('name', )
     _numeric_format = {'Line': '0.16G', 'Sample': '0.16G'}
     # descriptors
-    ECF = _SerializableDescriptor(
+    ECF = SerializableDescriptor(
         'ECF', XYZType, _required, strict=DEFAULT_STRICT,
         docstring='The geographical coordinates for the reference point.')  # type: XYZType
-    Line = _FloatDescriptor(
+    Line = FloatDescriptor(
         'Line', _required, strict=DEFAULT_STRICT,
         docstring='The reference point line index.')  # type: float
-    Sample = _FloatDescriptor(
+    Sample = FloatDescriptor(
         'Sample', _required, strict=DEFAULT_STRICT,
         docstring='The reference point sample index.')  # type: float
-    name = _StringDescriptor(
+    name = StringDescriptor(
         'name', _required, strict=DEFAULT_STRICT,
         docstring='The reference point name.')  # type: str
 
@@ -442,16 +442,16 @@ class XDirectionType(Serializable):
     _required = _fields
     _numeric_format = {'LineSpacing': '0.16G', }
     # descriptors
-    UVectECF = _UnitVectorDescriptor(
+    UVectECF = UnitVectorDescriptor(
         'UVectECF', XYZType, _required, strict=DEFAULT_STRICT,
         docstring='The unit vector in the X direction.')  # type: XYZType
-    LineSpacing = _FloatDescriptor(
+    LineSpacing = FloatDescriptor(
         'LineSpacing', _required, strict=DEFAULT_STRICT,
         docstring='The collection line spacing in the X direction in meters.')  # type: float
-    NumLines = _IntegerDescriptor(
+    NumLines = IntegerDescriptor(
         'NumLines', _required, strict=DEFAULT_STRICT,
         docstring='The number of lines in the X direction.')  # type: int
-    FirstLine = _IntegerDescriptor(
+    FirstLine = IntegerDescriptor(
         'FirstLine', _required, strict=DEFAULT_STRICT,
         docstring='The first line index.')  # type: int
 
@@ -484,16 +484,16 @@ class YDirectionType(Serializable):
     _required = _fields
     _numeric_format = {'SampleSpacing': '0.16G', }
     # descriptors
-    UVectECF = _UnitVectorDescriptor(
+    UVectECF = UnitVectorDescriptor(
         'UVectECF', XYZType, _required, strict=DEFAULT_STRICT,
         docstring='The unit vector in the Y direction.')  # type: XYZType
-    SampleSpacing = _FloatDescriptor(
+    SampleSpacing = FloatDescriptor(
         'SampleSpacing', _required, strict=DEFAULT_STRICT,
         docstring='The collection sample spacing in the Y direction in meters.')  # type: float
-    NumSamples = _IntegerDescriptor(
+    NumSamples = IntegerDescriptor(
         'NumSamples', _required, strict=DEFAULT_STRICT,
         docstring='The number of samples in the Y direction.')  # type: int
-    FirstSample = _IntegerDescriptor(
+    FirstSample = IntegerDescriptor(
         'FirstSample', _required, strict=DEFAULT_STRICT,
         docstring='The first sample index.')  # type: int
 
@@ -526,22 +526,22 @@ class SegmentArrayElement(Serializable):
     _required = _fields
     _set_as_attribute = ('index', )
     # descriptors
-    StartLine = _IntegerDescriptor(
+    StartLine = IntegerDescriptor(
         'StartLine', _required, strict=DEFAULT_STRICT,
         docstring='The starting line number of the segment.')  # type: int
-    StartSample = _IntegerDescriptor(
+    StartSample = IntegerDescriptor(
         'StartSample', _required, strict=DEFAULT_STRICT,
         docstring='The starting sample number of the segment.')  # type: int
-    EndLine = _IntegerDescriptor(
+    EndLine = IntegerDescriptor(
         'EndLine', _required, strict=DEFAULT_STRICT,
         docstring='The ending line number of the segment.')  # type: int
-    EndSample = _IntegerDescriptor(
+    EndSample = IntegerDescriptor(
         'EndSample', _required, strict=DEFAULT_STRICT,
         docstring='The ending sample number of the segment.')  # type: int
-    Identifier = _StringDescriptor(
+    Identifier = StringDescriptor(
         'Identifier', _required, strict=DEFAULT_STRICT,
         docstring='Identifier for the segment data boundary.')
-    index = _IntegerDescriptor(
+    index = IntegerDescriptor(
         'index', _required, strict=DEFAULT_STRICT,
         docstring='The array index.')  # type: int
 
@@ -582,19 +582,19 @@ class ReferencePlaneType(Serializable):
     # other class variable
     _ORIENTATION_VALUES = ('UP', 'DOWN', 'LEFT', 'RIGHT', 'ARBITRARY')
     # descriptors
-    RefPt = _SerializableDescriptor(
+    RefPt = SerializableDescriptor(
         'RefPt', ReferencePointType, _required, strict=DEFAULT_STRICT,
         docstring='The reference point.')  # type: ReferencePointType
-    XDir = _SerializableDescriptor(
+    XDir = SerializableDescriptor(
         'XDir', XDirectionType, _required, strict=DEFAULT_STRICT,
         docstring='The X direction collection plane parameters.')  # type: XDirectionType
-    YDir = _SerializableDescriptor(
+    YDir = SerializableDescriptor(
         'YDir', YDirectionType, _required, strict=DEFAULT_STRICT,
         docstring='The Y direction collection plane parameters.')  # type: YDirectionType
-    SegmentList = _SerializableArrayDescriptor(
+    SegmentList = SerializableArrayDescriptor(
         'SegmentList', SegmentArrayElement, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='The segment array.')  # type: Union[SerializableArray, List[SegmentArrayElement]]
-    Orientation = _StringEnumDescriptor(
+    Orientation = StringEnumDescriptor(
         'Orientation', _ORIENTATION_VALUES, _required, strict=DEFAULT_STRICT,
         docstring='Describes the shadow intent of the display plane.')  # type: str
 
@@ -656,11 +656,11 @@ class AreaType(Serializable):
     _collections_tags = {
         'Corner': {'array': True, 'child_tag': 'ACP'}, }
     # descriptors
-    Corner = _SerializableCPArrayDescriptor(
+    Corner = SerializableCPArrayDescriptor(
         'Corner', LatLonHAECornerRestrictionType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='The collection area corner point definition array.'
     )  # type: Union[SerializableCPArray, List[LatLonHAECornerRestrictionType]]
-    Plane = _SerializableDescriptor(
+    Plane = SerializableDescriptor(
         'Plane', ReferencePlaneType, _required, strict=DEFAULT_STRICT,
         docstring='A rectangular area in a geo-located display plane.')  # type: ReferencePlaneType
 
@@ -717,35 +717,35 @@ class RadarCollectionType(Serializable):
         'RcvChannels': {'array': True, 'child_tag': 'ChanParameters'},
         'Parameters': {'array': False, 'child_tag': 'Parameters'}}
     # descriptors
-    TxFrequency = _SerializableDescriptor(
+    TxFrequency = SerializableDescriptor(
         'TxFrequency', TxFrequencyType, _required, strict=DEFAULT_STRICT,
         docstring='The transmit frequency range.')  # type: TxFrequencyType
-    RefFreqIndex = _IntegerDescriptor(
+    RefFreqIndex = IntegerDescriptor(
         'RefFreqIndex', _required, strict=DEFAULT_STRICT,
         docstring='The reference frequency index, if applicable. If present and non-zero, '
                   'all (most) RF frequency values are expressed as offsets from a reference '
                   'frequency.')  # type: int
-    Waveform = _SerializableArrayDescriptor(
+    Waveform = SerializableArrayDescriptor(
         'Waveform', WaveformParametersType, _collections_tags, _required,
         strict=DEFAULT_STRICT, minimum_length=1,
         docstring='Transmit and receive demodulation waveform parameters.'
     )  # type: Union[SerializableArray, List[WaveformParametersType]]
-    TxPolarization = _StringEnumDescriptor(
+    TxPolarization = StringEnumDescriptor(
         'TxPolarization', POLARIZATION1_VALUES, _required, strict=DEFAULT_STRICT,
         docstring='The transmit polarization.')  # type: str
-    TxSequence = _SerializableArrayDescriptor(
+    TxSequence = SerializableArrayDescriptor(
         'TxSequence', TxStepType, _collections_tags, _required, strict=DEFAULT_STRICT, minimum_length=1,
         docstring='The transmit sequence parameters array. If present, indicates the transmit signal steps through '
                   'a repeating sequence of waveforms and/or polarizations. '
                   'One step per Inter-Pulse Period.')  # type: Union[SerializableArray, List[TxStepType]]
-    RcvChannels = _SerializableArrayDescriptor(
+    RcvChannels = SerializableArrayDescriptor(
         'RcvChannels', ChanParametersType, _collections_tags,
         _required, strict=DEFAULT_STRICT, minimum_length=1,
         docstring='Receive data channel parameters.')  # type: Union[SerializableArray, List[ChanParametersType]]
-    Area = _SerializableDescriptor(
+    Area = SerializableDescriptor(
         'Area', AreaType, _required, strict=DEFAULT_STRICT,
         docstring='The imaged area covered by the collection.')  # type: AreaType
-    Parameters = _ParametersDescriptor(
+    Parameters = ParametersDescriptor(
         'Parameters', _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='A parameters collections.')  # type: ParametersCollection
 
@@ -935,7 +935,8 @@ class RadarCollectionType(Serializable):
             tx_pols = list(set([entry.TxPolarization for entry in self.TxSequence]))
             if len(tx_pols) == 1:
                 self.log_validity_error(
-                    'TxSequence is populated, but the only unique TxPolarization aong the entries is {}'.format(tx_pols[0]))
+                    'TxSequence is populated, but the only unique TxPolarization '
+                    'among the entries is {}'.format(tx_pols[0]))
                 cond = False
         return cond
 
@@ -1002,13 +1003,15 @@ class RadarCollectionType(Serializable):
                     'RcvDemodType is "CHIRP" and TxRFBandwidth ({}) is larger than ADCSampleRate ({}) '
                     'in Waveform entry {}'.format(waveform.TxRFBandwidth, waveform.ADCSampleRate, index+1))
                 this_cond = False
-            if waveform.RcvWindowLength is not None and waveform.TxPulseLength is not None and waveform.TxFMRate is not None \
-                    and waveform.RcvFreqStart is not None and waveform.TxFreqStart is not None and waveform.TxRFBandwidth is not None:
+            if waveform.RcvWindowLength is not None and waveform.TxPulseLength is not None and \
+                    waveform.TxFMRate is not None and waveform.RcvFreqStart is not None and \
+                    waveform.TxFreqStart is not None and waveform.TxRFBandwidth is not None:
                 freq_tol = (waveform.RcvWindowLength - waveform.TxPulseLength)*waveform.TxFMRate
                 if waveform.RcvFreqStart >= waveform.TxFreqStart + waveform.TxRFBandwidth + freq_tol:
                     self.log_validity_error(
                         'RcvFreqStart ({}), TxFreqStart ({}), and TxRfBandwidth ({}) parameters are inconsistent '
-                        'in Waveform entry {}'.format(waveform.RcvFreqStart, waveform.TxFreqStart, waveform.TxRFBandwidth, index + 1))
+                        'in Waveform entry {}'.format(
+                            waveform.RcvFreqStart, waveform.TxFreqStart, waveform.TxRFBandwidth, index + 1))
                     this_cond = False
                 if waveform.RcvFreqStart <= waveform.TxFreqStart - freq_tol:
                     self.log_validity_error(

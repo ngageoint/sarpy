@@ -2,29 +2,30 @@
 The Per Vector parameters (PVP) definition.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = ("Thomas McCullough", "Michael Stewart, Valkyrie")
+
 from typing import Union, List
 
 import numpy
 
-from .base import DEFAULT_STRICT
-# noinspection PyProtectedMember
-from sarpy.io.complex.sicd_elements.base import Serializable, \
-    _IntegerDescriptor, _SerializableListDescriptor, _SerializableDescriptor
+from sarpy.io.xml.base import Serializable
+from sarpy.io.xml.descriptors import IntegerDescriptor, SerializableDescriptor, \
+    SerializableListDescriptor
 from sarpy.io.phase_history.cphd1_elements.PVP import PerVectorParameterI8, \
     PerVectorParameterF8, PerVectorParameterXYZ, UserDefinedPVPType
 from sarpy.io.phase_history.cphd1_elements.utils import binary_format_string_to_dtype, homogeneous_dtype
-
-__classification__ = "UNCLASSIFIED"
-__author__ = ("Thomas McCullough", "Michael Stewart, Valkyrie")
+from .base import DEFAULT_STRICT
 
 
 BYTES_PER_WORD = 8
+
 
 class PerVectorParameterDCXY(Serializable):
     _fields = ('Offset', 'Size', 'Format')
     _required = ('Offset', )
     # descriptors
-    Offset = _IntegerDescriptor(
+    Offset = IntegerDescriptor(
         'Offset', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='The offset value.')  # type: int
 
@@ -65,7 +66,7 @@ class PerVectorParameterTxLFM(Serializable):
     _fields = ('Offset', 'Size', 'Format')
     _required = ('Offset', )
     # descriptors
-    Offset = _IntegerDescriptor(
+    Offset = IntegerDescriptor(
         'Offset', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='The offset value.')  # type: int
 
@@ -106,15 +107,15 @@ class TxAntennaType(Serializable):
     _fields = ('TxACX', 'TxACY', 'TxEB')
     _required = _fields
     # descriptors
-    TxACX = _SerializableDescriptor(
+    TxACX = SerializableDescriptor(
         'TxACX', PerVectorParameterXYZ, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: PerVectorParameterXYZ
-    TxACY = _SerializableDescriptor(
+    TxACY = SerializableDescriptor(
         'TxACY', PerVectorParameterXYZ, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: PerVectorParameterXYZ
-    TxEB = _SerializableDescriptor(
+    TxEB = SerializableDescriptor(
         'TxEB', PerVectorParameterDCXY, _required, strict=DEFAULT_STRICT,
-        docstring='')  # type: PerVectorParameterXYZ
+        docstring='')  # type: PerVectorParameterDCXY
 
     def __init__(self, TxACX=None, TxACY=None, TxEB=None, **kwargs):
         """
@@ -133,21 +134,22 @@ class TxAntennaType(Serializable):
         self.TxACX = TxACX
         self.TxACY = TxACY
         self.TxEB = TxEB
+        super(TxAntennaType, self).__init__(**kwargs)
 
 
 class RcvAntennaType(Serializable):
     _fields = ('RcvACX', 'RcvACY', 'RcvEB')
     _required = _fields
     # descriptors
-    RcvACX = _SerializableDescriptor(
+    RcvACX = SerializableDescriptor(
         'RcvACX', PerVectorParameterXYZ, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: PerVectorParameterXYZ
-    RcvACY = _SerializableDescriptor(
+    RcvACY = SerializableDescriptor(
         'RcvACY', PerVectorParameterXYZ, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: PerVectorParameterXYZ
-    RcvEB = _SerializableDescriptor(
+    RcvEB = SerializableDescriptor(
         'RcvEB', PerVectorParameterDCXY, _required, strict=DEFAULT_STRICT,
-        docstring='')  # type: PerVectorParameterXYZ
+        docstring='')  # type: PerVectorParameterDCXY
 
     def __init__(self, RcvACX=None, RcvACY=None, RcvEB=None, **kwargs):
         """
@@ -166,34 +168,35 @@ class RcvAntennaType(Serializable):
         self.RcvACX = RcvACX
         self.RcvACY = RcvACY
         self.RcvEB = RcvEB
+        super(RcvAntennaType, self).__init__(**kwargs)
 
 
 class TxPulseType(Serializable):
     _fields = ('TxTime', 'TxPos', 'TxVel', 'FX1', 'FX2', 'TXmt', 'TxLFM', 'TxAntenna')
     _required = ('TxTime', 'TxPos', 'TxVel', 'FX1', 'FX2', 'TXmt')
     # descriptors
-    TxTime = _SerializableDescriptor(
+    TxTime = SerializableDescriptor(
         'TxTime', PerVectorParameterF8, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: PerVectorParameterF8
-    TxPos = _SerializableDescriptor(
+    TxPos = SerializableDescriptor(
         'TxPos', PerVectorParameterXYZ, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: PerVectorParameterXYZ
-    TxVel = _SerializableDescriptor(
+    TxVel = SerializableDescriptor(
         'TxVel', PerVectorParameterXYZ, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: PerVectorParameterXYZ
-    FX1 = _SerializableDescriptor(
+    FX1 = SerializableDescriptor(
         'FX1', PerVectorParameterF8, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: PerVectorParameterF8
-    FX2 = _SerializableDescriptor(
+    FX2 = SerializableDescriptor(
         'FX2', PerVectorParameterF8, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: PerVectorParameterF8
-    TXmt = _SerializableDescriptor(
+    TXmt = SerializableDescriptor(
         'TXmt', PerVectorParameterF8, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: PerVectorParameterF8
-    TxLFM = _SerializableDescriptor(
+    TxLFM = SerializableDescriptor(
         'TxLFM', PerVectorParameterTxLFM, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: Union[None, PerVectorParameterTxLFM]
-    TxAntenna = _SerializableDescriptor(
+    TxAntenna = SerializableDescriptor(
         'TxAntenna', TxAntennaType, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: Union[None, TxAntennaType]
 
@@ -239,49 +242,49 @@ class PVPType(Serializable):
         'FICRate', 'FRCV1', 'FRCV2')
     _collections_tags = {'AddedPVP': {'array': False, 'child_tag': 'AddedPVP'}}
     # descriptors
-    RcvTime = _SerializableDescriptor(
+    RcvTime = SerializableDescriptor(
         'RcvTime', PerVectorParameterF8, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: PerVectorParameterF8
-    RcvPos = _SerializableDescriptor(
+    RcvPos = SerializableDescriptor(
         'RcvPos', PerVectorParameterXYZ, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: PerVectorParameterXYZ
-    RcvVel = _SerializableDescriptor(
+    RcvVel = SerializableDescriptor(
         'RcvVel', PerVectorParameterXYZ, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: PerVectorParameterXYZ
-    RefPhi0 = _SerializableDescriptor(
+    RefPhi0 = SerializableDescriptor(
         'RefPhi0', PerVectorParameterF8, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: PerVectorParameterF8
-    RefFreq = _SerializableDescriptor(
+    RefFreq = SerializableDescriptor(
         'RefFreq', PerVectorParameterF8, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: PerVectorParameterF8
-    DFIC0 = _SerializableDescriptor(
+    DFIC0 = SerializableDescriptor(
         'DFIC0', PerVectorParameterF8, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: PerVectorParameterF8
-    FICRate = _SerializableDescriptor(
+    FICRate = SerializableDescriptor(
         'FICRate', PerVectorParameterF8, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: PerVectorParameterF8
-    FRCV1 = _SerializableDescriptor(
+    FRCV1 = SerializableDescriptor(
         'FRCV1', PerVectorParameterF8, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: PerVectorParameterF8
-    FRCV2 = _SerializableDescriptor(
+    FRCV2 = SerializableDescriptor(
         'FRCV2', PerVectorParameterF8, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: PerVectorParameterF8
-    DGRGC = _SerializableDescriptor(
+    DGRGC = SerializableDescriptor(
         'DGRGC', PerVectorParameterF8, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: Union[None, PerVectorParameterF8]
-    SIGNAL = _SerializableDescriptor(
+    SIGNAL = SerializableDescriptor(
         'SIGNAL', PerVectorParameterI8, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: Union[None, PerVectorParameterI8]
-    AmpSF = _SerializableDescriptor(
+    AmpSF = SerializableDescriptor(
         'AmpSF', PerVectorParameterF8, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: Union[None, PerVectorParameterF8]
-    RcvAntenna = _SerializableDescriptor(
+    RcvAntenna = SerializableDescriptor(
         'RcvAntenna', RcvAntennaType, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: Union[None, RcvAntennaType]
-    TxPulse = _SerializableDescriptor(
+    TxPulse = SerializableDescriptor(
         'TxPulse', TxPulseType, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: Union[None, TxPulseType]
-    AddedPVP = _SerializableListDescriptor(
+    AddedPVP = SerializableListDescriptor(
         'AddedPVP', UserDefinedPVPType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: Union[None, List[UserDefinedPVPType]]
 
@@ -347,6 +350,8 @@ class PVPType(Serializable):
             if sz is not None:
                 return sz
             sz = 0
+
+            # noinspection PyProtectedMember
             for fld in obj._fields:
                 fld_val = getattr(obj, fld)
                 if fld_val is not None:
@@ -357,7 +362,7 @@ class PVPType(Serializable):
                         sz += get_num_words(fld_val)
             return sz
 
-        return get_num_words() * BYTES_PER_WORD
+        return get_num_words(self) * BYTES_PER_WORD
 
     def get_offset_size_format(self, field):
         """
@@ -374,9 +379,10 @@ class PVPType(Serializable):
         None|(int, int, str)
         """
 
-        def osf_tuple(val):
-            return val.Offset*BYTES_PER_WORD, val.Size*BYTES_PER_WORD, homogeneous_dtype(val.Format).char
+        def osf_tuple(val_in):
+            return val_in.Offset*BYTES_PER_WORD, val_in.Size*BYTES_PER_WORD, homogeneous_dtype(val_in.Format).char
 
+        # noinspection PyProtectedMember
         if field in self._fields[:-1]:
             val = getattr(self, field)
             if val is None:
@@ -435,7 +441,8 @@ class PVPType(Serializable):
                 formats.append(binary_format_string_to_dtype(val.Format))
                 offsets.append(val.Offset*BYTES_PER_WORD)
 
-        if getattr(self, 'RcvAntenna'):
+        if self.RcvAntenna is not None:
+            # noinspection PyProtectedMember
             for field in self.RcvAntenna._fields:
                 val = getattr(self.RcvAntenna, field)
                 if val is None:
@@ -445,7 +452,8 @@ class PVPType(Serializable):
                     formats.append(binary_format_string_to_dtype(val.Format))
                     offsets.append(val.Offset*BYTES_PER_WORD)
 
-        if getattr(self, 'TxPulse'):
+        if self.TxPulse is not None:
+            # noinspection PyProtectedMember
             for field in self.TxPulse._fields:
                 val = getattr(self.TxPulse, field)
                 if val is None:
@@ -456,7 +464,8 @@ class PVPType(Serializable):
                     names.append(field)
                     formats.append(binary_format_string_to_dtype(val.Format))
                     offsets.append(val.Offset*BYTES_PER_WORD)
-            if getattr(self.TxPulse, 'TxAntenna'):
+            if self.TxPulse.TxAntenna is not None:
+                # noinspection PyProtectedMember
                 for field in self.TxPulse.TxAntenna._fields:
                     val = getattr(self.TxPulse.TxAntenna, field)
                     if val is None:

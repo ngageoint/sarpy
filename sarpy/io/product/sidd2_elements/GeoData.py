@@ -9,10 +9,10 @@ from collections import OrderedDict
 from typing import Union, List
 from xml.etree import ElementTree
 
-# noinspection PyProtectedMember
-from sarpy.io.complex.sicd_elements.base import Serializable, SerializableArray, SerializableCPArray, \
-    _SerializableArrayDescriptor, _SerializableCPArrayDescriptor, _StringEnumDescriptor, \
-    _find_children
+from sarpy.io.xml.base import Serializable, SerializableArray, find_children
+from sarpy.io.xml.descriptors import SerializableArrayDescriptor, StringEnumDescriptor
+from sarpy.io.complex.sicd_elements.base import SerializableCPArray, SerializableCPArrayDescriptor
+
 from .base import DEFAULT_STRICT
 from .blocks import LatLonCornerStringType, LatLonArrayElementType, GeoInfoType
 
@@ -34,19 +34,19 @@ class GeoDataType(Serializable):
     # other class variables
     _EARTH_MODEL_VALUES = ('WGS_84', )
     # descriptors
-    EarthModel = _StringEnumDescriptor(
+    EarthModel = StringEnumDescriptor(
         'EarthModel', _EARTH_MODEL_VALUES, _required, strict=True, default_value='WGS_84',
         docstring='Identifies the earth model used for latitude, longitude and height parameters. '
                   'All height values are *Height Above The Ellipsoid '
                   '(HAE)*.'.format(_EARTH_MODEL_VALUES))  # type: str
-    ImageCorners = _SerializableCPArrayDescriptor(
+    ImageCorners = SerializableCPArrayDescriptor(
         'ImageCorners', LatLonCornerStringType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='The geographic image corner points array. Image corners points projected to the '
                   'ground/surface level. Points may be projected to the same height as the SCP if ground/surface '
                   'height data is not available. The corner positions are approximate geographic locations and '
                   'not intended for analytical '
                   'use.')  # type: Union[SerializableCPArray, List[LatLonCornerStringType]]
-    ValidData = _SerializableArrayDescriptor(
+    ValidData = SerializableArrayDescriptor(
         'ValidData', LatLonArrayElementType, _collections_tags, _required,
         strict=DEFAULT_STRICT, minimum_length=3,
         docstring='The full image array includes both valid data and some zero filled pixels. Simple convex '
@@ -137,7 +137,7 @@ class GeoDataType(Serializable):
         if kwargs is None:
             kwargs = OrderedDict()
         gkey = cls._child_xml_ns_key.get('GeoInfos', ns_key)
-        kwargs['GeoInfos'] = _find_children(node, 'GeoInfo', xml_ns, gkey)
+        kwargs['GeoInfos'] = find_children(node, 'GeoInfo', xml_ns, gkey)
         return super(GeoDataType, cls).from_node(node, xml_ns, ns_key=ns_key, kwargs=kwargs)
 
     def to_node(self, doc, tag, ns_key=None, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):

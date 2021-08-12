@@ -2,19 +2,20 @@
 The Global type definition.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = ("Thomas McCullough", "Michael Stewart, Valkyrie")
+
 from typing import Union
 
 import numpy
 
-from .base import DEFAULT_STRICT
-# noinspection PyProtectedMember
-from sarpy.io.complex.sicd_elements.base import Serializable, Arrayable, _FloatDescriptor, \
-    _DateTimeDescriptor, _SerializableDescriptor
+from sarpy.io.xml.base import Serializable, Arrayable
+from sarpy.io.xml.descriptors import FloatDescriptor, DateTimeDescriptor, \
+    SerializableDescriptor
 from sarpy.io.phase_history.cphd1_elements.Global import FxBandType, TropoParametersType, \
     IonoParametersType
 
-__classification__ = "UNCLASSIFIED"
-__author__ = ("Thomas McCullough", "Michael Stewart, Valkyrie")
+from .base import DEFAULT_STRICT
 
 
 class TimelineType(Serializable):
@@ -26,16 +27,16 @@ class TimelineType(Serializable):
     _required = ('CollectionRefTime', 'RcvTime1', 'RcvTime2')
     _numeric_format = {'RcvTime1': '0.16G', 'RcvTime2': '0.16G'}
     # descriptors
-    CollectionRefTime = _DateTimeDescriptor(
+    CollectionRefTime = DateTimeDescriptor(
         'CollectionRefTime', _required, strict=DEFAULT_STRICT, numpy_datetime_units='us',
         docstring='Collection Reference Time (t_CRT). Time reference used for all receive times'
                   ' and all transmit times. All times are specified in seconds relative to t_CRT'
                   ' (i.e., t_CRT is slow time t = 0).')  # type: numpy.datetime64
-    RcvTime1 = _FloatDescriptor(
+    RcvTime1 = FloatDescriptor(
         'RcvTime1', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='Earliest RcvTime value for any signal vector in the product.'
                   ' Time relative to Collection Reference Time.')  # type: float
-    RcvTime2 = _FloatDescriptor(
+    RcvTime2 = FloatDescriptor(
         'RcvTime2', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='Latest RcvTime value for any signal vector in the product.'
                   ' Time relative to Collection Reference Time.')  # type: float
@@ -70,10 +71,10 @@ class FrcvBandType(Serializable, Arrayable):
     _required = _fields
     _numeric_format = {fld: '0.16G' for fld in _fields}
     # descriptors
-    FrcvMin = _FloatDescriptor(
+    FrcvMin = FloatDescriptor(
         'FrcvMin', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='Minimum frcv_1 PVP value for any signal vector in the product.')  # type: float
-    FrcvMax = _FloatDescriptor(
+    FrcvMax = FloatDescriptor(
         'FrcvMax', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='Maximum frcv_2 PVP value for any signal vector in the product.')  # type: float
 
@@ -118,23 +119,23 @@ class GlobalType(Serializable):
     _fields = ('Timeline', 'FrcvBand', 'FxBand', 'TropoParameters', 'IonoParameters')
     _required = ('Timeline', 'FrcvBand')
     # descriptors
-    Timeline = _SerializableDescriptor(
+    Timeline = SerializableDescriptor(
         'Timeline', TimelineType, _required, strict=DEFAULT_STRICT,
         docstring='Parameters that describe the collection times for the data contained '
                   'in the product')  # type: TimelineType
-    FrcvBand = _SerializableDescriptor(
+    FrcvBand = SerializableDescriptor(
         'FrcvBand', FrcvBandType, _required, strict=DEFAULT_STRICT,
         docstring='Parameters that describe the Frcv frequency limits for the signal array(s) '
                   'contained in the product.')  # type: FrcvBandType
-    FxBand = _SerializableDescriptor(
+    FxBand = SerializableDescriptor(
         'FxBand', FxBandType, _required, strict=DEFAULT_STRICT,
         docstring='Parameters that describe the FX frequency limits for the signal array(s) '
                   'contained in the product.')  # type: FxBandType
-    TropoParameters = _SerializableDescriptor(
+    TropoParameters = SerializableDescriptor(
         'TropoParameters', TropoParametersType, _required, strict=DEFAULT_STRICT,
         docstring='Parameters used to compute the propagation delay due to the '
                   'troposphere.')  # type: Union[None, TropoParametersType]
-    IonoParameters = _SerializableDescriptor(
+    IonoParameters = SerializableDescriptor(
         'IonoParameters', IonoParametersType, _required, strict=DEFAULT_STRICT,
         docstring='Parameters used to compute propagation effects due to the '
                   'ionosphere.')  # type: Union[None, IonoParametersType]

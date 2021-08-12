@@ -54,7 +54,6 @@ class SymbolSegmentHeader(NITFElement):
         self._DLUT = None
         super(SymbolSegmentHeader, self).__init__(**kwargs)
 
-
     @classmethod
     def minimum_length(cls):
         return 13
@@ -128,7 +127,9 @@ class SymbolSegmentHeader(NITFElement):
                 fields['DLUT'] = None
             else:
                 fields['DLUT'] = numpy.array(
-                    struct.unpack('{}B'.format(3*nelut), value[loc:loc + 3*nelut]), dtype=numpy.uint8).reshape((nelut, 3))
+                    struct.unpack(
+                        '{}B'.format(3*nelut),
+                        value[loc:loc + 3*nelut]), dtype=numpy.uint8).reshape((nelut, 3))
                 loc += nelut*3
             return loc
         return super(SymbolSegmentHeader, cls)._parse_attribute(fields, attribute, value, start)

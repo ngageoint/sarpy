@@ -10,11 +10,9 @@ import logging
 from typing import Union, List
 
 from sarpy.io.phase_history.cphd1_elements.base import DEFAULT_STRICT
-# noinspection PyProtectedMember
-from sarpy.io.complex.sicd_elements.base import Serializable, _parse_str, _parse_int, \
-    _SerializableArrayDescriptor, SerializableArray
 from sarpy.io.complex.sicd_elements.blocks import XYZType, XYZPolyType
-
+from sarpy.io.xml.base import Serializable, SerializableArray, parse_str, parse_int
+from sarpy.io.xml.descriptors import SerializableArrayDescriptor
 
 logger = logging.getLogger(__name__)
 
@@ -36,13 +34,13 @@ class SRPTyp(Serializable):
         'PVVPOLY': {'array': True, 'child_tag': 'SRPPVVPoly'}}
     _choice = ({'required': False, 'collection': ('FIXEDPT', 'PVTPOLY', 'PVVPOLY')}, )
     # descriptors
-    FIXEDPT = _SerializableArrayDescriptor(
+    FIXEDPT = SerializableArrayDescriptor(
         'FIXEDPT', XYZType, _collections_tags, _required, strict=DEFAULT_STRICT, array_extension=PlainArrayType,
         docstring='')  # type: Union[None, PlainArrayType, List[XYZType]]
-    PVTPOLY = _SerializableArrayDescriptor(
+    PVTPOLY = SerializableArrayDescriptor(
         'PVTPOLY', XYZPolyType, _collections_tags, _required, strict=DEFAULT_STRICT, array_extension=PlainArrayType,
         docstring='')  # type: Union[None, PlainArrayType, List[XYZPolyType]]
-    PVVPOLY = _SerializableArrayDescriptor(
+    PVVPOLY = SerializableArrayDescriptor(
         'PVVPOLY', XYZPolyType, _collections_tags, _required, strict=DEFAULT_STRICT, array_extension=PlainArrayType,
         docstring='')  # type: Union[None, PlainArrayType, List[XYZPolyType]]
 
@@ -92,7 +90,7 @@ class SRPTyp(Serializable):
         if self.FIXEDPT is not None or self.PVTPOLY is not None or self.PVVPOLY is not None:
             self._SRPType = None
         else:
-            value = _parse_str(value, 'SRPType', self).upper()
+            value = parse_str(value, 'SRPType', self).upper()
             if value in ('FIXEDPT', 'PVTPOLY', 'PVVPOLY', 'STEPPED'):
                 self._SRPType = value
             else:
@@ -123,4 +121,4 @@ class SRPTyp(Serializable):
         if self.FIXEDPT is not None or self.PVTPOLY is not None or self.PVVPOLY is not None:
             self._NumSRPs = None
         else:
-            self._NumSRPs = _parse_int(value, 'NumSRPs', self)
+            self._NumSRPs = parse_int(value, 'NumSRPs', self)

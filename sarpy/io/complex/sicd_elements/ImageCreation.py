@@ -8,7 +8,10 @@ __author__ = "Thomas McCullough"
 
 import numpy
 
-from .base import Serializable, DEFAULT_STRICT, _StringDescriptor, _DateTimeDescriptor
+from sarpy.io.xml.base import Serializable
+from sarpy.io.xml.descriptors import StringDescriptor, DateTimeDescriptor
+
+from .base import DEFAULT_STRICT
 
 
 class ImageCreationType(Serializable):
@@ -19,16 +22,16 @@ class ImageCreationType(Serializable):
     _fields = ('Application', 'DateTime', 'Site', 'Profile')
     _required = ()
     # descriptors
-    Application = _StringDescriptor(
+    Application = StringDescriptor(
         'Application', _required, strict=DEFAULT_STRICT,
         docstring='Name and version of the application used to create the image.')  # type: str
-    DateTime = _DateTimeDescriptor(
+    DateTime = DateTimeDescriptor(
         'DateTime', _required, strict=DEFAULT_STRICT, numpy_datetime_units='us',
         docstring='Date and time the image creation application processed the image (UTC).')  # type: numpy.datetime64
-    Site = _StringDescriptor(
+    Site = StringDescriptor(
         'Site', _required, strict=DEFAULT_STRICT,
         docstring='The creation site of this SICD product.')  # type: str
-    Profile = _StringDescriptor(
+    Profile = StringDescriptor(
         'Profile', _required, strict=DEFAULT_STRICT,
         docstring='Identifies what profile was used to create this SICD product.')  # type: str
 

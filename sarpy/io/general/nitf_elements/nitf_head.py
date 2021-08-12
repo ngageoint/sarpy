@@ -15,6 +15,7 @@ from sarpy.compliance import string_types
 
 logger = logging.getLogger(__name__)
 
+
 #############
 # NITF 2.1 version
 
@@ -146,7 +147,7 @@ class NITFHeader(NITFElement):
         docstring='The data extension basic information.')  # type: DataExtensionsType
     ReservedExtensions = _NITFElementDescriptor(
         'ReservedExtensions', True, ReservedExtensionsType, default_args={},
-        docstring='The reserved extension basic information.') # type: ReservedExtensionsType
+        docstring='The reserved extension basic information.')  # type: ReservedExtensionsType
     UserHeader = _NITFElementDescriptor(
         'UserHeader', True, UserHeaderType, default_args={},
         docstring='User defined header.')  # type: UserHeaderType

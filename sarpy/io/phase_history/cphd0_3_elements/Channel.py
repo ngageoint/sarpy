@@ -2,16 +2,16 @@
 The Channel definition for CPHD 0.3.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
+
 from typing import Union, List
 
 from sarpy.io.phase_history.cphd1_elements.base import DEFAULT_STRICT
-# noinspection PyProtectedMember
-from sarpy.io.complex.sicd_elements.base import Serializable, _IntegerDescriptor, \
-    _SerializableListDescriptor, _FloatDescriptor
-
-
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
+from sarpy.io.xml.base import Serializable
+from sarpy.io.xml.descriptors import IntegerDescriptor, FloatDescriptor, \
+    SerializableListDescriptor
 
 
 class ParametersType(Serializable):
@@ -28,38 +28,38 @@ class ParametersType(Serializable):
         'NomTOARateSF': '0.16G', 'FxCtrNom': '0.16G', 'BWSavedNom': '0.16G',
         'TOASavedNom': '0.16G'}
     # descriptors
-    SRP_Index = _IntegerDescriptor(
+    SRP_Index = IntegerDescriptor(
         'SRP_Index', _required, strict=DEFAULT_STRICT,
         docstring='Index to identify the SRP position function used for the '
                   'channel.')  # type: int
-    NomTOARateSF = _FloatDescriptor(
+    NomTOARateSF = FloatDescriptor(
         'NomTOARateSF', _required, strict=DEFAULT_STRICT,
         docstring='Scale factor to indicate the fraction of the Doppler spectrum '
                   'that is clear.')  # type: float
-    FxCtrNom = _FloatDescriptor(
+    FxCtrNom = FloatDescriptor(
         'FxCtrNom', _required, strict=DEFAULT_STRICT,
         docstring='Nominal center transmit frequency associated with the channel (Hz). '
                   'For DomainType = TOA, FxCtrNom is the center frequency for all '
                   'vectors.')  # type: float
-    BWSavedNom = _FloatDescriptor(
+    BWSavedNom = FloatDescriptor(
         'BWSavedNom', _required, strict=DEFAULT_STRICT,
         docstring='Nominal transmit bandwidth associated with the channel (Hz). '
                   'For DomainType = TOA, BWSavedNom is the bandwidth saved for all '
                   'vectors.')  # type: float
-    TOASavedNom = _FloatDescriptor(
+    TOASavedNom = FloatDescriptor(
         'TOASavedNom', _required, strict=DEFAULT_STRICT,
         docstring='Nominal span in TOA saved for the channel. For DomainType = FX, '
                   'TOASavedNom is the bandwidth saved for all '
                   'vectors.')  # type: float
-    TxAnt_Index = _IntegerDescriptor(
+    TxAnt_Index = IntegerDescriptor(
         'TxAnt_Index', _required, strict=DEFAULT_STRICT,
         docstring='Indicates the Transmit Antenna pattern for data collected to form '
                   'the CPHD channel.')  # type: Union[None, int]
-    RcvAnt_Index = _IntegerDescriptor(
+    RcvAnt_Index = IntegerDescriptor(
         'RcvAnt_Index', _required, strict=DEFAULT_STRICT,
         docstring='Indicates the Receive Antenna pattern for data collected to form '
                   'the CPHD channel.')  # type: Union[None, int]
-    TWAnt_Index = _IntegerDescriptor(
+    TWAnt_Index = IntegerDescriptor(
         'TWAnt_Index', _required, strict=DEFAULT_STRICT,
         docstring='Indicates the T wo-way Antenna pattern for data collected to form '
                   'the CPHD channel.')  # type: Union[None, int]
@@ -106,7 +106,7 @@ class ChannelType(Serializable):
     _required = ('Parameters', )
     _collections_tags = {'Parameters': {'array': False, 'child_tag': 'Parameters'}}
     # descriptors
-    Parameters = _SerializableListDescriptor(
+    Parameters = SerializableListDescriptor(
         'Parameters', ParametersType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Channel dependent parameter list.')  # type: List[ParametersType]
 

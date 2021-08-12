@@ -9,10 +9,11 @@ from typing import Union
 
 import numpy
 
+from sarpy.io.xml.base import Serializable
+from sarpy.io.xml.descriptors import SerializableDescriptor, IntegerDescriptor, \
+    FloatArrayDescriptor
+
 from .base import DEFAULT_STRICT
-# noinspection PyProtectedMember
-from sarpy.io.complex.sicd_elements.base import Serializable, _SerializableDescriptor, \
-    _IntegerDescriptor, _FloatArrayDescriptor
 
 
 class J2KSubtype(Serializable):
@@ -24,13 +25,13 @@ class J2KSubtype(Serializable):
     _collections_tags = {'LayerInfo': {'array': True, 'child_tag': 'Bitrate', 'size_attribute': 'numLayers'}}
     _numeric_format = {'LayerInfo': '0.16G'}
     # Descriptor
-    NumWaveletLevels = _IntegerDescriptor(
+    NumWaveletLevels = IntegerDescriptor(
         'NumWaveletLevels', _required, strict=DEFAULT_STRICT,
         docstring='')  # type: int
-    NumBands = _IntegerDescriptor(
+    NumBands = IntegerDescriptor(
         'NumBands', _required, strict=DEFAULT_STRICT,
         docstring='')  # type: int
-    LayerInfo = _FloatArrayDescriptor(
+    LayerInfo = FloatArrayDescriptor(
         'LayerInfo', _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Original Layer Information. This is an array of bit rate target associated with each '
                   'layer. It may happen that the bit rate was not achieved due to data characteristics. '
@@ -66,10 +67,10 @@ class J2KType(Serializable):
     _fields = ('Original', 'Parsed')
     _required = ('Original', )
     # Descriptor
-    Original = _SerializableDescriptor(
+    Original = SerializableDescriptor(
         'Original', J2KSubtype, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: J2KSubtype
-    Parsed = _SerializableDescriptor(
+    Parsed = SerializableDescriptor(
         'Parsed', J2KSubtype, _required, strict=DEFAULT_STRICT,
         docstring='Conditional fields that exist only for parsed images.')  # type: Union[None, J2KSubtype]
 
@@ -91,7 +92,7 @@ class CompressionType(Serializable):
     _fields = ('J2K', )
     _required = ('J2K', )
     # Descriptor
-    J2K = _SerializableDescriptor(
+    J2K = SerializableDescriptor(
         'J2K', J2KType, _required, strict=DEFAULT_STRICT,
         docstring='Block describing details of JPEG 2000 compression.')  # type: J2KType
 

@@ -7,13 +7,13 @@ __author__ = "Thomas McCullough"
 
 from typing import Union, List
 
+from sarpy.io.xml.base import Serializable, SerializableArray
+from sarpy.io.xml.descriptors import SerializableDescriptor, UnitVectorDescriptor, \
+    FloatDescriptor, StringEnumDescriptor, SerializableArrayDescriptor
+
 from .base import DEFAULT_STRICT
 from .blocks import ReferencePointType, RowColDoubleType, Poly2DType, XYZType, RowColIntType, \
     XYZPolyType, RowColArrayElement
-
-# noinspection PyProtectedMember
-from sarpy.io.complex.sicd_elements.base import Serializable, _SerializableDescriptor, _UnitVectorDescriptor, \
-    _FloatDescriptor, _StringEnumDescriptor, SerializableArray, _SerializableArrayDescriptor
 
 
 class BaseProjectionType(Serializable):
@@ -24,7 +24,7 @@ class BaseProjectionType(Serializable):
     _fields = ('ReferencePoint', )
     _required = ('ReferencePoint', )
     # Descriptor
-    ReferencePoint = _SerializableDescriptor(
+    ReferencePoint = SerializableDescriptor(
         'ReferencePoint', ReferencePointType, _required, strict=DEFAULT_STRICT,
         docstring='Reference point for the geometrical system.')  # type: ReferencePointType
 
@@ -53,10 +53,10 @@ class MeasurableProjectionType(BaseProjectionType):
     _fields = ('ReferencePoint', 'SampleSpacing', 'TimeCOAPoly')
     _required = ('ReferencePoint', 'SampleSpacing', 'TimeCOAPoly')
     # Descriptor
-    SampleSpacing = _SerializableDescriptor(
+    SampleSpacing = SerializableDescriptor(
         'SampleSpacing', RowColDoubleType, _required, strict=DEFAULT_STRICT,
         docstring='Sample spacing in row and column.')  # type: RowColDoubleType
-    TimeCOAPoly = _SerializableDescriptor(
+    TimeCOAPoly = SerializableDescriptor(
         'TimeCOAPoly', Poly2DType, _required, strict=DEFAULT_STRICT,
         docstring='Time (units = seconds) at which center of aperture for a given pixel '
                   'coordinate in the product occurs.')  # type: Poly2DType
@@ -89,11 +89,11 @@ class ProductPlaneType(Serializable):
     _fields = ('RowUnitVector', 'ColUnitVector')
     _required = _fields
     # Descriptor
-    RowUnitVector = _UnitVectorDescriptor(
+    RowUnitVector = UnitVectorDescriptor(
         'RowUnitVector', XYZType, _required, strict=DEFAULT_STRICT,
         docstring='Unit vector of the plane defined to be aligned in the increasing row direction '
                   'of the product. (Defined as Rpgd in Design and Exploitation document)')  # type: XYZType
-    ColUnitVector = _UnitVectorDescriptor(
+    ColUnitVector = UnitVectorDescriptor(
         'ColUnitVector', XYZType, _required, strict=DEFAULT_STRICT,
         docstring='Unit vector of the plane defined to be aligned in the increasing column direction '
                   'of the product. (Defined as Cpgd in Design and Exploitation document)')  # type: XYZType
@@ -125,7 +125,7 @@ class PlaneProjectionType(MeasurableProjectionType):
     _fields = ('ReferencePoint', 'SampleSpacing', 'TimeCOAPoly', 'ProductPlane')
     _required = ('ReferencePoint', 'SampleSpacing', 'TimeCOAPoly', 'ProductPlane')
     # Descriptor
-    ProductPlane = _SerializableDescriptor(
+    ProductPlane = SerializableDescriptor(
         'ProductPlane', ProductPlaneType, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: ProductPlaneType
 
@@ -166,10 +166,10 @@ class CylindricalProjectionType(MeasurableProjectionType):
     _required = ('ReferencePoint', 'SampleSpacing', 'TimeCOAPoly', 'StripmapDirection')
     _numeric_format = {'CurvatureRadius': '0.16G'}
     # Descriptor
-    StripmapDirection = _SerializableDescriptor(
+    StripmapDirection = SerializableDescriptor(
         'StripmapDirection', XYZType, _required, strict=DEFAULT_STRICT,
         docstring='Along stripmap direction.')  # type: XYZType
-    CurvatureRadius = _FloatDescriptor(
+    CurvatureRadius = FloatDescriptor(
         'CurvatureRadius', _required, strict=DEFAULT_STRICT,
         docstring='Radius of Curvature defined at scene center.  If not present, the radius of '
                   'curvature will be derived based upon the equations provided in the '
@@ -208,21 +208,21 @@ class PolynomialProjectionType(BaseProjectionType):
     _fields = ('ReferencePoint', 'RowColToLat', 'RowColToLon', 'RowColToAlt', 'LatLonToRow', 'LatLonToCol')
     _required = ('ReferencePoint', 'RowColToLat', 'RowColToLon', 'LatLonToRow', 'LatLonToCol')
     # Descriptor
-    RowColToLat = _SerializableDescriptor(
+    RowColToLat = SerializableDescriptor(
         'RowColToLat', Poly2DType, _required, strict=DEFAULT_STRICT,
         docstring='Polynomial that converts Row/Col to Latitude (degrees).')  # type: Poly2DType
-    RowColToLon = _SerializableDescriptor(
+    RowColToLon = SerializableDescriptor(
         'RowColToLon', Poly2DType, _required, strict=DEFAULT_STRICT,
         docstring='Polynomial that converts Row/Col to Longitude (degrees).')  # type: Poly2DType
-    RowColToAlt = _SerializableDescriptor(
+    RowColToAlt = SerializableDescriptor(
         'RowColToAlt', Poly2DType, _required, strict=DEFAULT_STRICT,
         docstring='Polynomial that converts Row/Col to Altitude (meters above '
                   'WGS-84 ellipsoid).')  # type: Union[None, Poly2DType]
-    LatLonToRow = _SerializableDescriptor(
+    LatLonToRow = SerializableDescriptor(
         'LatLonToRow', Poly2DType, _required, strict=DEFAULT_STRICT,
         docstring='Polynomial that converts Latitude (degrees) and Longitude (degrees) to '
                   'pixel row location.')  # type: Poly2DType
-    LatLonToCol = _SerializableDescriptor(
+    LatLonToCol = SerializableDescriptor(
         'LatLonToCol', Poly2DType, _required, strict=DEFAULT_STRICT,
         docstring='Polynomial that converts Latitude (degrees) and Longitude (degrees) to '
                   'pixel col location.')  # type: Poly2DType
@@ -267,33 +267,33 @@ class MeasurementType(Serializable):
     _choice = ({'required': False, 'collection': ('PolynomialProjection', 'GeographicProjection',
                                                   'PlaneProjection', 'CylindricalProjection')}, )
     # Descriptor
-    PolynomialProjection = _SerializableDescriptor(
+    PolynomialProjection = SerializableDescriptor(
         'PolynomialProjection', PolynomialProjectionType, _required, strict=DEFAULT_STRICT,
         docstring='Polynomial pixel to ground. Should only used for sensor systems where the radar '
                   'geometry parameters are not recorded.')  # type: Union[None, PolynomialProjectionType]
-    GeographicProjection = _SerializableDescriptor(
+    GeographicProjection = SerializableDescriptor(
         'GeographicProjection', GeographicProjectionType, _required, strict=DEFAULT_STRICT,
         docstring='Geographic mapping of the pixel grid referred to as GGD in the '
                   'Design and Exploitation document.')  # type: Union[None, GeographicProjectionType]
-    PlaneProjection = _SerializableDescriptor(
+    PlaneProjection = SerializableDescriptor(
         'PlaneProjection', PlaneProjectionType, _required, strict=DEFAULT_STRICT,
         docstring='Planar representation of the pixel grid referred to as PGD in the '
                   'Design and Exploitation document.')  # type: Union[None, PlaneProjectionType]
-    CylindricalProjection = _SerializableDescriptor(
+    CylindricalProjection = SerializableDescriptor(
         'CylindricalProjection', CylindricalProjectionType, _required, strict=DEFAULT_STRICT,
         docstring='Cylindrical mapping of the pixel grid referred to as CGD in the '
                   'Design and Exploitation document.')  # type: Union[None, CylindricalProjectionType]
-    PixelFootprint = _SerializableDescriptor(
+    PixelFootprint = SerializableDescriptor(
         'PixelFootprint', RowColIntType, _required, strict=DEFAULT_STRICT,
         docstring='Size of the image in pixels.')  # type: RowColIntType
-    ARPFlag = _StringEnumDescriptor(
+    ARPFlag = StringEnumDescriptor(
         'ARPFlag', ('REALTIME', 'PREDICTED', 'POST PROCESSED'), _required, strict=DEFAULT_STRICT,
         docstring='Flag indicating whether ARP polynomial is based on the best available (`collect time` or '
                   '`predicted`) ephemeris.')  # type: Union[None, str]
-    ARPPoly = _SerializableDescriptor(
+    ARPPoly = SerializableDescriptor(
         'ARPPoly', XYZPolyType, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: XYZPolyType
-    ValidData = _SerializableArrayDescriptor(
+    ValidData = SerializableArrayDescriptor(
         'ValidData', RowColArrayElement, _collections_tags, _required, strict=DEFAULT_STRICT, minimum_length=3,
         docstring='Indicates the full image includes both valid data and some zero filled pixels. '
                   'Simple polygon encloses the valid data (may include some zero filled pixels for simplification). '
