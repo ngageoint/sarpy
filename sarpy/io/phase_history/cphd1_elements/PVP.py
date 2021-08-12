@@ -2,25 +2,25 @@
 The Per Vector parameters (PVP) definition.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
 from typing import Union, List
 
 import numpy
 
-from .base import DEFAULT_STRICT
-# noinspection PyProtectedMember
-from sarpy.io.complex.sicd_elements.base import Serializable, _StringDescriptor, \
-    _IntegerDescriptor, _SerializableListDescriptor, _SerializableDescriptor
+from sarpy.io.xml.base import Serializable
+from sarpy.io.xml.descriptors import StringDescriptor, IntegerDescriptor, \
+    SerializableDescriptor, SerializableListDescriptor
 from .utils import binary_format_string_to_dtype, homogeneous_dtype
-
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
+from .base import DEFAULT_STRICT
 
 
 class PerVectorParameterI8(Serializable):
     _fields = ('Offset', 'Size', 'Format')
     _required = ('Offset', )
     # descriptors
-    Offset = _IntegerDescriptor(
+    Offset = IntegerDescriptor(
         'Offset', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='The offset value.')  # type: int
 
@@ -61,7 +61,7 @@ class PerVectorParameterF8(Serializable):
     _fields = ('Offset', 'Size', 'Format')
     _required = ('Offset', )
     # descriptors
-    Offset = _IntegerDescriptor(
+    Offset = IntegerDescriptor(
         'Offset', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='The offset value.')  # type: int
 
@@ -102,7 +102,7 @@ class PerVectorParameterXYZ(Serializable):
     _fields = ('Offset', 'Size', 'Format')
     _required = ('Offset', )
     # descriptors
-    Offset = _IntegerDescriptor(
+    Offset = IntegerDescriptor(
         'Offset', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='The offset value.')  # type: int
 
@@ -147,16 +147,16 @@ class UserDefinedPVPType(Serializable):
     _fields = ('Name', 'Offset', 'Size', 'Format')
     _required = _fields
     # descriptors
-    Name = _StringDescriptor(
+    Name = StringDescriptor(
         'Name', _required, strict=DEFAULT_STRICT,
         docstring='')  # type: str
-    Offset = _IntegerDescriptor(
+    Offset = IntegerDescriptor(
         'Offset', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='')  # type: int
-    Size = _IntegerDescriptor(
+    Size = IntegerDescriptor(
         'Size', _required, strict=DEFAULT_STRICT, bounds=(1, None),
         docstring='')  # type: int
-    Format = _StringDescriptor(
+    Format = StringDescriptor(
         'Format', _required, strict=DEFAULT_STRICT,
         docstring='')  # type: str
 
@@ -195,79 +195,79 @@ class PVPType(Serializable):
         'TOA1', 'TOA2', 'TDTropoSRP', 'SC0', 'SCSS')
     _collections_tags = {'AddedPVP': {'array': False, 'child_tag': 'AddedPVP'}}
     # descriptors
-    TxTime = _SerializableDescriptor(
+    TxTime = SerializableDescriptor(
         'TxTime', PerVectorParameterF8, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: PerVectorParameterF8
-    TxPos = _SerializableDescriptor(
+    TxPos = SerializableDescriptor(
         'TxPos', PerVectorParameterXYZ, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: PerVectorParameterXYZ
-    TxVel = _SerializableDescriptor(
+    TxVel = SerializableDescriptor(
         'TxVel', PerVectorParameterXYZ, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: PerVectorParameterXYZ
-    RcvTime = _SerializableDescriptor(
+    RcvTime = SerializableDescriptor(
         'RcvTime', PerVectorParameterF8, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: PerVectorParameterF8
-    RcvPos = _SerializableDescriptor(
+    RcvPos = SerializableDescriptor(
         'RcvPos', PerVectorParameterXYZ, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: PerVectorParameterXYZ
-    RcvVel = _SerializableDescriptor(
+    RcvVel = SerializableDescriptor(
         'RcvVel', PerVectorParameterXYZ, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: PerVectorParameterXYZ
-    SRPPos = _SerializableDescriptor(
+    SRPPos = SerializableDescriptor(
         'SRPPos', PerVectorParameterXYZ, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: PerVectorParameterXYZ
-    AmpSF = _SerializableDescriptor(
+    AmpSF = SerializableDescriptor(
         'AmpSF', PerVectorParameterF8, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: PerVectorParameterF8
-    aFDOP = _SerializableDescriptor(
+    aFDOP = SerializableDescriptor(
         'aFDOP', PerVectorParameterF8, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: PerVectorParameterF8
-    aFRR1 = _SerializableDescriptor(
+    aFRR1 = SerializableDescriptor(
         'aFRR1', PerVectorParameterF8, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: PerVectorParameterF8
-    aFRR2 = _SerializableDescriptor(
+    aFRR2 = SerializableDescriptor(
         'aFRR2', PerVectorParameterF8, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: PerVectorParameterF8
-    FX1 = _SerializableDescriptor(
+    FX1 = SerializableDescriptor(
         'FX1', PerVectorParameterF8, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: PerVectorParameterF8
-    FX2 = _SerializableDescriptor(
+    FX2 = SerializableDescriptor(
         'FX2', PerVectorParameterF8, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: PerVectorParameterF8
-    FXN1 = _SerializableDescriptor(
+    FXN1 = SerializableDescriptor(
         'FXN1', PerVectorParameterF8, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: PerVectorParameterF8
-    FXN2 = _SerializableDescriptor(
+    FXN2 = SerializableDescriptor(
         'FXN2', PerVectorParameterF8, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: PerVectorParameterF8
-    TOA1 = _SerializableDescriptor(
+    TOA1 = SerializableDescriptor(
         'TOA1', PerVectorParameterF8, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: PerVectorParameterF8
-    TOA2 = _SerializableDescriptor(
+    TOA2 = SerializableDescriptor(
         'TOA2', PerVectorParameterF8, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: PerVectorParameterF8
-    TOAE1 = _SerializableDescriptor(
+    TOAE1 = SerializableDescriptor(
         'TOAE1', PerVectorParameterF8, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: PerVectorParameterF8
-    TOAE2 = _SerializableDescriptor(
+    TOAE2 = SerializableDescriptor(
         'TOAE2', PerVectorParameterF8, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: PerVectorParameterF8
-    TDTropoSRP = _SerializableDescriptor(
+    TDTropoSRP = SerializableDescriptor(
         'TDTropoSRP', PerVectorParameterF8, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: PerVectorParameterF8
-    TDIonoSRP = _SerializableDescriptor(
+    TDIonoSRP = SerializableDescriptor(
         'TDIonoSRP', PerVectorParameterF8, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: PerVectorParameterF8
-    SC0 = _SerializableDescriptor(
+    SC0 = SerializableDescriptor(
         'SC0', PerVectorParameterF8, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: PerVectorParameterF8
-    SCSS = _SerializableDescriptor(
+    SCSS = SerializableDescriptor(
         'SCSS', PerVectorParameterF8, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: PerVectorParameterF8
-    SIGNAL = _SerializableDescriptor(
+    SIGNAL = SerializableDescriptor(
         'SIGNAL', PerVectorParameterI8, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: PerVectorParameterI8
-    AddedPVP = _SerializableListDescriptor(
+    AddedPVP = SerializableListDescriptor(
         'AddedPVP', UserDefinedPVPType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: Union[None, List[UserDefinedPVPType]]
 

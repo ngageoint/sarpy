@@ -6,13 +6,11 @@ __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 
-import logging
 from .base import NITFElement, _StringDescriptor, _StringEnumDescriptor, _parse_str
 
 
 #########
 # NITF 2.1 version
-
 
 class NITFSecurityTags(NITFElement):
     """

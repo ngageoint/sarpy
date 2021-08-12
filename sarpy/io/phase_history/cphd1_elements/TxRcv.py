@@ -2,16 +2,17 @@
 The TxRcv type definition.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
 from typing import Union, List
+
+from sarpy.io.xml.base import Serializable
+from sarpy.io.xml.descriptors import FloatDescriptor, StringDescriptor, \
+    StringEnumDescriptor, SerializableListDescriptor
 
 from .base import DEFAULT_STRICT
 from .blocks import POLARIZATION_TYPE
-# noinspection PyProtectedMember
-from sarpy.io.complex.sicd_elements.base import Serializable, _FloatDescriptor, _StringDescriptor, \
-    _SerializableListDescriptor, _StringEnumDescriptor
-
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
 
 
 class TxWFParametersType(Serializable):
@@ -28,30 +29,30 @@ class TxWFParametersType(Serializable):
         'PulseLength': '0.16G', 'RFBandwidth': '0.16G', 'FreqCenter': '0.16G',
         'LFMRate': '0.16G', 'Power': '0.16G'}
     # descriptors
-    Identifier = _StringDescriptor(
+    Identifier = StringDescriptor(
         'Identifier', _required, strict=DEFAULT_STRICT,
         docstring='String that uniquely identifies this Transmit '
                   'Waveform.')  # type: str
-    PulseLength = _FloatDescriptor(
+    PulseLength = FloatDescriptor(
         'PulseLength', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='Length of transmitted pulse, '
                   'in seconds.')  # type: float
-    RFBandwidth = _FloatDescriptor(
+    RFBandwidth = FloatDescriptor(
         'RFBandwidth', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='Bandwidth of transmitted pulse, '
                   'in Hz.')  # type: float
-    FreqCenter = _FloatDescriptor(
+    FreqCenter = FloatDescriptor(
         'FreqCenter', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='Center frequency of the transmitted waveform, '
                   'in Hz.')  # type: float
-    LFMRate = _FloatDescriptor(
+    LFMRate = FloatDescriptor(
         'LFMRate', _required, strict=DEFAULT_STRICT,
         docstring='Chirp rate of transmitted pulse if LFM, '
                   'in Hz/s.')  # type: Union[None, float]
-    Polarization = _StringEnumDescriptor(
+    Polarization = StringEnumDescriptor(
         'Polarization', POLARIZATION_TYPE, _required, strict=DEFAULT_STRICT,
         docstring='The transmit polarization mode.')  # type: str
-    Power = _FloatDescriptor(
+    Power = FloatDescriptor(
         'Power', _required, strict=DEFAULT_STRICT,
         docstring='Peak transmitted power at the interface to the antenna '
                   'in dBW.')  # type: Union[None, float]
@@ -101,33 +102,33 @@ class RcvParametersType(Serializable):
         'WindowLength': '0.16G', 'SampleRate': '0.16G', 'IFFilterBW': '0.16G',
         'FreqCenter': '0.16G', 'LFMRate': '0.16G', 'PathGain': '0.16G'}
     # descriptors
-    Identifier = _StringDescriptor(
+    Identifier = StringDescriptor(
         'Identifier', _required, strict=DEFAULT_STRICT,
         docstring='String that uniquely identifies this Receive '
                   'configuration.')  # type: str
-    WindowLength = _FloatDescriptor(
+    WindowLength = FloatDescriptor(
         'WindowLength', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='Length of the receive window, in seconds.')  # type: float
-    SampleRate = _FloatDescriptor(
+    SampleRate = FloatDescriptor(
         'SampleRate', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='Rate at which the signal in the receive window is sampled, '
                   'in Hz.')  # type: float
-    IFFilterBW = _FloatDescriptor(
+    IFFilterBW = FloatDescriptor(
         'IFFilterBW', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='Bandwidth of the anti-aliasing filter prior to '
                   'sampling.')  # type: float
-    FreqCenter = _FloatDescriptor(
+    FreqCenter = FloatDescriptor(
         'FreqCenter', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='Center frequency of the demodulation signal, '
                   'in Hz.')  # type: float
-    LFMRate = _FloatDescriptor(
+    LFMRate = FloatDescriptor(
         'LFMRate', _required, strict=DEFAULT_STRICT,
         docstring='Chirp rate of the demodulation signal if LFM, '
                   'in Hz/s.')  # type: Union[None, float]
-    Polarization = _StringEnumDescriptor(
+    Polarization = StringEnumDescriptor(
         'Polarization', POLARIZATION_TYPE, _required, strict=DEFAULT_STRICT,
         docstring='The receive polarization mode.')  # type: str
-    PathGain = _FloatDescriptor(
+    PathGain = FloatDescriptor(
         'PathGain', _required, strict=DEFAULT_STRICT,
         docstring='Receiver gain from the antenna interface to the ADC, '
                   'in dB.')  # type: Union[None, float]
@@ -176,10 +177,10 @@ class TxRcvType(Serializable):
         'TxWFParameters': {'array': False, 'child_tag': 'TxWFParameters'},
         'RcvParameters': {'array': False, 'child_tag': 'RcvParameters'}}
     # descriptors
-    TxWFParameters = _SerializableListDescriptor(
+    TxWFParameters = SerializableListDescriptor(
         'TxWFParameters', TxWFParametersType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Parameters that describe a Transmit Waveform.')  # type: List[TxWFParametersType]
-    RcvParameters = _SerializableListDescriptor(
+    RcvParameters = SerializableListDescriptor(
         'RcvParameters', RcvParametersType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Parameters that describe a Receive configuration.')  # type: List[RcvParametersType]
 

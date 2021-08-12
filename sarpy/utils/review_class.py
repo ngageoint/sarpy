@@ -15,7 +15,11 @@ print_func = print
 
 
 def traverse_module_classification(package_name, results_dict):
-    module = import_module(package_name)
+    try:
+        module = import_module(package_name)
+    except ModuleNotFoundError:
+        return
+
     path, fil = os.path.split(module.__file__)
     if fil.startswith('__init__.py'):
         # iterate over module children

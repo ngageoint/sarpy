@@ -6,13 +6,11 @@ __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 
-from xml.etree import ElementTree
 from typing import Union, Tuple
-import re
 
 import numpy
 
-from sarpy.compliance import integer_types, int_func, string_types, StringIO, bytes_to_string
+from sarpy.compliance import integer_types, int_func
 
 
 def validate_range(arg, siz):
@@ -132,37 +130,6 @@ def get_seconds(dt1, dt2, precision='us'):
     tdt1 = dt1.astype(dtype)
     tdt2 = dt2.astype(dtype)
     return float((tdt1.astype('int64') - tdt2.astype('int64'))*scale)
-
-
-def parse_xml_from_string(xml_string):
-    """
-    Parse the ElementTree root node and xml namespace dict from an xml string.
-
-    Parameters
-    ----------
-    xml_string : str|bytes
-
-    Returns
-    -------
-    (ElementTree.Element, dict)
-    """
-
-    xml_string = bytes_to_string(xml_string, encoding='utf-8')
-
-    root_node = ElementTree.fromstring(xml_string)
-    # define the namespace dictionary
-    xml_ns = dict([node for _, node in ElementTree.iterparse(StringIO(xml_string), events=('start-ns',))])
-    if len(xml_ns.keys()) == 0:
-        xml_ns = None
-    elif '' in xml_ns:
-        xml_ns['default'] = xml_ns['']
-    else:
-        # default will be the namespace for the root node
-        namespace_match = re.match(r'\{.*\}', root_node.tag)
-        if namespace_match is None:
-            raise ValueError('Trouble finding the default namespace for tag {}'.format(root_node.tag))
-        xml_ns['default'] = namespace_match[0][1:-1]
-    return root_node, xml_ns
 
 
 def is_file_like(the_input):

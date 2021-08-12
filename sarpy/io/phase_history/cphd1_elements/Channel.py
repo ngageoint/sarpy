@@ -2,18 +2,17 @@
 The Channel definition.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
 from typing import Union, List
 
 from .base import DEFAULT_STRICT
 from .blocks import POLARIZATION_TYPE, AreaType
-# noinspection PyProtectedMember
-from sarpy.io.complex.sicd_elements.base import Serializable, _StringDescriptor, _StringEnumDescriptor, \
-    _IntegerDescriptor, _SerializableListDescriptor, _ParametersDescriptor, ParametersCollection, \
-    _BooleanDescriptor, _FloatDescriptor, _SerializableDescriptor, _StringListDescriptor, \
-    SerializableArray, _SerializableArrayDescriptor
-
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
+from sarpy.io.xml.base import Serializable, SerializableArray, ParametersCollection
+from sarpy.io.xml.descriptors import StringDescriptor, StringEnumDescriptor, StringListDescriptor, \
+    IntegerDescriptor, FloatDescriptor, BooleanDescriptor, ParametersDescriptor, \
+    SerializableDescriptor, SerializableListDescriptor, SerializableArrayDescriptor
 
 
 class PolarizationType(Serializable):
@@ -24,10 +23,10 @@ class PolarizationType(Serializable):
     _fields = ('TxPol', 'RcvPol')
     _required = _fields
     # descriptors
-    TxPol = _StringEnumDescriptor(
+    TxPol = StringEnumDescriptor(
         'TxPol', POLARIZATION_TYPE, _required, strict=DEFAULT_STRICT,
         docstring='Transmitted signal polarization for the channel.')  # type: str
-    RcvPol = _StringEnumDescriptor(
+    RcvPol = StringEnumDescriptor(
         'RcvPol', POLARIZATION_TYPE, _required, strict=DEFAULT_STRICT,
         docstring='Receive polarization for the channel.')  # type: str
 
@@ -50,19 +49,19 @@ class LFMEclipseType(Serializable):
     _required = _fields
     _numeric_format = {fld: '0.16G' for fld in _fields}
     # descriptors
-    FxEarlyLow = _FloatDescriptor(
+    FxEarlyLow = FloatDescriptor(
         'FxEarlyLow', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring=r'FX domain minimum frequency value for an echo at '
                   r':math:`\Delta TOA = \Delta TOAE1 < \Delta TOA1`, in Hz.')  # type: float
-    FxEarlyHigh = _FloatDescriptor(
+    FxEarlyHigh = FloatDescriptor(
         'FxEarlyHigh', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='FX domain maximum frequency value for an echo at '
                   r':math:`\Delta TOA = \Delta TOAE1 < \Delta TOA1`, in Hz.')  # type: float
-    FxLateLow = _FloatDescriptor(
+    FxLateLow = FloatDescriptor(
         'FxLateLow', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='FX domain minimum frequency value for an echo at '
                   r':math:`\Delta TOA = \Delta TOAE2 < \Delta TOA2`, in Hz.')  # type: float
-    FxLateHigh = _FloatDescriptor(
+    FxLateHigh = FloatDescriptor(
         'FxLateHigh', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='FX domain maximum frequency value for echo at '
                   r':math:`\Delta TOA = \Delta TOAE2 < \Delta TOA2`, in Hz.')  # type: float
@@ -100,11 +99,11 @@ class TOAExtendedType(Serializable):
     _required = ('TOAExtSaved', )
     _numeric_format = {'TOAExtSaved': '0.16G'}
     # descriptors
-    TOAExtSaved = _FloatDescriptor(
+    TOAExtSaved = FloatDescriptor(
         'TOAExtSaved', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='TOA extended swath saved that includes both full and partially '
                   'eclipsed echoes.')  # type: float
-    LFMEclipse = _SerializableDescriptor(
+    LFMEclipse = SerializableDescriptor(
         'LFMEclipse', LFMEclipseType, _required, strict=DEFAULT_STRICT,
         docstring='Parameters that describe the FX domain signal content for partially '
                   'eclipsed echoes when the collection is performed with a Linear '
@@ -137,11 +136,11 @@ class DwellTimesType(Serializable):
     _fields = ('CODId', 'DwellId')
     _required = _fields
     # descriptors
-    CODId = _StringDescriptor(
+    CODId = StringDescriptor(
         'CODId', _required, strict=DEFAULT_STRICT,
         docstring='Identifier of the Center of Dwell Time polynomial that maps '
                   'reference surface position to COD time.')  # type: str
-    DwellId = _StringDescriptor(
+    DwellId = StringDescriptor(
         'DwellId', _required, strict=DEFAULT_STRICT,
         docstring='Identifier of the Dwell Time polynomial that maps reference '
                   'surface position to dwell time.')  # type: str
@@ -174,19 +173,19 @@ class AntennaType(Serializable):
     _fields = ('TxAPCId', 'TxAPATId', 'RcvAPCId', 'RcvAPATId')
     _required = _fields
     # descriptors
-    TxAPCId = _StringDescriptor(
+    TxAPCId = StringDescriptor(
         'TxAPCId', _required, strict=DEFAULT_STRICT,
         docstring='Identifier of Transmit APC to be used to compute the transmit '
                   'antenna pattern as a function of time for the channel.')  # type: str
-    TxAPATId = _StringDescriptor(
+    TxAPATId = StringDescriptor(
         'TxAPATId', _required, strict=DEFAULT_STRICT,
         docstring='Identifier of Transmit Antenna pattern used to form the channel '
                   'signal array.')  # type: str
-    RcvAPCId = _StringDescriptor(
+    RcvAPCId = StringDescriptor(
         'RcvAPCId', _required, strict=DEFAULT_STRICT,
         docstring='Identifier of Receive APC to be used to compute the receive antenna '
                   'pattern as a function of time for the channel.')  # type: str
-    RcvAPATId = _StringDescriptor(
+    RcvAPATId = StringDescriptor(
         'RcvAPATId', _required, strict=DEFAULT_STRICT,
         docstring='Identifier of Receive Antenna pattern used to form the '
                   'channel.')  # type: str
@@ -225,11 +224,11 @@ class TxRcvType(Serializable):
         'TxWFId': {'array': False, 'child_tag': 'TxWFId'},
         'RcvId': {'array': False, 'child_tag': 'RcvId'}}
     # descriptors
-    TxWFId = _StringListDescriptor(
+    TxWFId = StringListDescriptor(
         'TxWFId', _required, strict=DEFAULT_STRICT, minimum_length=1,
         docstring='Identifier of the Transmit Waveform parameter set(s) that '
                   'were used.')  # type: List[str]
-    RcvId = _StringListDescriptor(
+    RcvId = StringListDescriptor(
         'RcvId', _required, strict=DEFAULT_STRICT, minimum_length=1,
         docstring='Identifier of the Receive Parameter set(s) that were '
                   'used.')  # type: List[str]
@@ -263,7 +262,7 @@ class TgtRefLevelType(Serializable):
     _required = _fields
     _numeric_format = {'PTRef': '0.16G'}
     # descriptors
-    PTRef = _FloatDescriptor(
+    PTRef = FloatDescriptor(
         'PTRef', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='Target power level for a 1.0 square meter ideal point scatterer located '
                   'at the SRP. For FX Domain signal arrays, PTRef is the signal level at '
@@ -296,10 +295,10 @@ class FxPNPointType(Serializable):
     _required = _fields
     _numeric_format = {'FX': '0.16G', 'PN': '0.16G'}
     # descriptors
-    Fx = _FloatDescriptor(
+    Fx = FloatDescriptor(
         'Fx', _required, strict=DEFAULT_STRICT,
         docstring='Frequency value of this noise profile point, in Hz.')  # type: float
-    PN = _FloatDescriptor(
+    PN = FloatDescriptor(
         'PN', _required, strict=DEFAULT_STRICT,
         docstring='Power level of this noise profile point.')  # type: float
 
@@ -338,14 +337,14 @@ class NoiseLevelType(Serializable):
         'FxNoiseProfile': {'array': True, 'child_tag': 'Point'}}
     _numeric_format = {'PNRef': '0.16G', 'BNRef': '0.16G'}
     # descriptors
-    PNRef = _FloatDescriptor(
+    PNRef = FloatDescriptor(
         'PNRef', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='Noise power level for thermal noise.')  # type: float
-    BNRef = _FloatDescriptor(
+    BNRef = FloatDescriptor(
         'BNRef', _required, strict=DEFAULT_STRICT, bounds=(0, 1),
         docstring='Noise Equivalent BW for noise signal. Bandwidth BN is '
                   'expressed relative to the sample bandwidth.')  # type: float
-    FxNoiseProfile = _SerializableArrayDescriptor(
+    FxNoiseProfile = SerializableArrayDescriptor(
         'FxNoiseProfile', FxPNPointType, _collections_tags, _required, strict=DEFAULT_STRICT,
         minimum_length=2, array_extension=FxNoiseProfileType,
         docstring='FX Domain Noise Level Profile. Power level for thermal noise (PN) vs. FX '
@@ -384,71 +383,71 @@ class ChannelParametersType(Serializable):
     _numeric_format = {
         'FxC': '0.16G', 'FxBW': '0.16G', 'FxBWNoise': '0.16G', 'TOASaved': '0.16G'}
     # descriptors
-    Identifier = _StringDescriptor(
+    Identifier = StringDescriptor(
         'Identifier', _required, strict=DEFAULT_STRICT,
         docstring='String that uniquely identifies this CPHD data channel.')  # type: str
-    RefVectorIndex = _IntegerDescriptor(
+    RefVectorIndex = IntegerDescriptor(
         'RefVectorIndex', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='Index of the reference vector for the channel.')  # type: int
-    FXFixed = _BooleanDescriptor(
+    FXFixed = BooleanDescriptor(
         'FXFixed', _required, strict=DEFAULT_STRICT,
         docstring='Flag to indicate when a constant FX band is saved for all signal '
                   'vectors of the channel.')  # type: bool
-    TOAFixed = _BooleanDescriptor(
+    TOAFixed = BooleanDescriptor(
         'TOAFixed', _required, strict=DEFAULT_STRICT,
         docstring='Flag to indicate when a constant TOA swath is saved for all '
                   'signal vectors of the channel.')  # type: bool
-    SRPFixed = _BooleanDescriptor(
+    SRPFixed = BooleanDescriptor(
         'SRPFixed', _required, strict=DEFAULT_STRICT,
         docstring='Flag to indicate when a constant SRP position is used all '
                   'signal vectors of the channel.')  # type: bool
-    SignalNormal = _BooleanDescriptor(
+    SignalNormal = BooleanDescriptor(
         'SignalNormal', _required, strict=DEFAULT_STRICT,
         docstring='Flag to indicate when all signal array vectors are normal. '
                   'Included if and only if the SIGNAL PVP is also included.')  # type: bool
-    Polarization = _SerializableDescriptor(
+    Polarization = SerializableDescriptor(
         'Polarization', PolarizationType, _required, strict=DEFAULT_STRICT,
         docstring='Polarization(s) of the signals that formed the signal '
                   'array.')  # type: PolarizationType
-    FxC = _FloatDescriptor(
+    FxC = FloatDescriptor(
         'FxC', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='FX center frequency value for saved bandwidth for the channel. '
                   'Computed from all vectors of the signal array.')  # type: float
-    FxBW = _FloatDescriptor(
+    FxBW = FloatDescriptor(
         'FxBW', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='FX band spanned for the saved bandwidth for the channel. '
                   'Computed from all vectors of the signal array.')  # type: float
-    FxBWNoise = _FloatDescriptor(
+    FxBWNoise = FloatDescriptor(
         'FxBWNoise', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='FX signal bandwidth saved that includes noise signal below or '
                   'above the retained echo signal bandwidth.')  # type: float
-    TOASaved = _FloatDescriptor(
+    TOASaved = FloatDescriptor(
         'TOASaved', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='TOA swath saved for the full resolution echoes for the channel.')  # type: float
-    TOAExtended = _SerializableDescriptor(
+    TOAExtended = SerializableDescriptor(
         'TOAExtended', TOAExtendedType, _required, strict=DEFAULT_STRICT,
         docstring='TOA extended swath information.')  # type: Union[None, TOAExtendedType]
-    DwellTimes = _SerializableDescriptor(
+    DwellTimes = SerializableDescriptor(
         'DwellTimes', DwellTimesType, _required, strict=DEFAULT_STRICT,
         docstring='COD Time and Dwell Time polynomials over the image area.')  # type: DwellTimesType
-    ImageArea = _SerializableDescriptor(
+    ImageArea = SerializableDescriptor(
         'ImageArea', AreaType, _required, strict=DEFAULT_STRICT,
         docstring='Image Area for the CPHD channel defined by a rectangle aligned with '
                   '(IAX, IAY). May be reduced by the optional '
                   'polygon.')  # type: Union[None, AreaType]
-    Antenna = _SerializableDescriptor(
+    Antenna = SerializableDescriptor(
         'Antenna', AntennaType, _required, strict=DEFAULT_STRICT,
         docstring='Antenna Phase Center and Antenna Pattern identifiers for the antenna(s) '
                   'used to collect and form the signal array data.')  # type: Union[None, AntennaType]
-    TxRcv = _SerializableDescriptor(
+    TxRcv = SerializableDescriptor(
         'TxRcv', TxRcvType, _required, strict=DEFAULT_STRICT,
         docstring='Parameters to identify the Transmit and Receive parameter sets '
                   'used to collect the signal array.')  # type: Union[None, TxRcvType]
-    TgtRefLevel = _SerializableDescriptor(
+    TgtRefLevel = SerializableDescriptor(
         'TgtRefLevel', TgtRefLevelType, _required, strict=DEFAULT_STRICT,
         docstring='Signal level for an ideal point scatterer located at the SRP for '
                   'reference signal vector.')  # type: Union[None, TgtRefLevelType]
-    NoiseLevel = _SerializableDescriptor(
+    NoiseLevel = SerializableDescriptor(
         'NoiseLevel', NoiseLevelType, _required, strict=DEFAULT_STRICT,
         docstring='Thermal noise level for the reference signal '
                   'vector.')  # type: Union[None, NoiseLevelType]
@@ -522,27 +521,27 @@ class ChannelType(Serializable):
         'Parameters': {'array': False, 'child_tag': 'Parameters'},
         'AddedParameters': {'array': False, 'child_tag': 'AddedParameters'}}
     # descriptors
-    RefChId = _StringDescriptor(
+    RefChId = StringDescriptor(
         'RefChId', _required, strict=DEFAULT_STRICT,
         docstring='Channel ID for the Reference Channel in the '
                   'product.')  # type: str
-    FXFixedCPHD = _BooleanDescriptor(
+    FXFixedCPHD = BooleanDescriptor(
         'FXFixedCPHD', _required, strict=DEFAULT_STRICT,
         docstring='Flag to indicate when a constant FX band is saved for all '
                   'signal vectors of all channels.')  # type: bool
-    TOAFixedCPHD = _BooleanDescriptor(
+    TOAFixedCPHD = BooleanDescriptor(
         'TOAFixedCPHD', _required, strict=DEFAULT_STRICT,
         docstring='Flag to indicate when a constant TOA swath is saved for all '
                   'signal vectors of all channels.')  # type: bool
-    SRPFixedCPHD = _BooleanDescriptor(
+    SRPFixedCPHD = BooleanDescriptor(
         'SRPFixedCPHD', _required, strict=DEFAULT_STRICT,
         docstring='Flag to indicate when a constant SRP position is used all '
                   'signal vectors of all channels.')  # type: bool
-    Parameters = _SerializableListDescriptor(
+    Parameters = SerializableListDescriptor(
         'Parameters', ChannelParametersType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Parameter Set that describes a CPHD data '
                   'channel.')  # type: List[ChannelParametersType]
-    AddedParameters = _ParametersDescriptor(
+    AddedParameters = ParametersDescriptor(
         'AddedParameters', _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Additional free form parameters.')  # type: Union[None, ParametersCollection]
 

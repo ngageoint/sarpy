@@ -10,11 +10,11 @@ from collections import OrderedDict
 from typing import Union
 import numpy
 
-from .base import DEFAULT_STRICT
-# noinspection PyProtectedMember
-from sarpy.io.complex.sicd_elements.base import Serializable, _SerializableDescriptor, \
-    _IntegerDescriptor, _StringDescriptor, _find_children
+from sarpy.io.xml.base import Serializable, find_children
+from sarpy.io.xml.descriptors import SerializableDescriptor, IntegerDescriptor, \
+    StringDescriptor
 
+from .base import DEFAULT_STRICT
 from .CollectionID import CollectionIDType
 from .Global import GlobalType
 from sarpy.io.phase_history.cphd1_elements.SceneCoordinates import SceneCoordinatesType
@@ -112,42 +112,42 @@ class CRSDHeader(CRSDHeaderBase):
         'XML_BLOCK_SIZE', 'XML_BLOCK_BYTE_OFFSET', 'PVP_BLOCK_SIZE', 'PVP_BLOCK_BYTE_OFFSET',
         'SIGNAL_BLOCK_SIZE', 'SIGNAL_BLOCK_BYTE_OFFSET', 'CLASSIFICATION', 'RELEASE_INFO')
     # descriptor
-    XML_BLOCK_SIZE = _IntegerDescriptor(
+    XML_BLOCK_SIZE = IntegerDescriptor(
         'XML_BLOCK_SIZE', _required, strict=True,
         docstring='Size of the XML instance that describes the product in bytes. '
                   'Size does NOT include the 2 bytes of the section terminator.')  # type: int
-    XML_BLOCK_BYTE_OFFSET = _IntegerDescriptor(
+    XML_BLOCK_BYTE_OFFSET = IntegerDescriptor(
         'XML_BLOCK_BYTE_OFFSET', _required, strict=True,
         docstring='Offset to the first byte of the XML block in bytes.')  # type: int
-    SUPPORT_BLOCK_SIZE = _IntegerDescriptor(
+    SUPPORT_BLOCK_SIZE = IntegerDescriptor(
         'SUPPORT_BLOCK_SIZE', _required, strict=True,
         docstring='Size of the Support block in bytes. Note - If the Support block is omitted, this '
                   'is not included.')  # type: int
-    SUPPORT_BLOCK_BYTE_OFFSET = _IntegerDescriptor(
+    SUPPORT_BLOCK_BYTE_OFFSET = IntegerDescriptor(
         'SUPPORT_BLOCK_BYTE_OFFSET', _required, strict=True,
         docstring='Offset to the first byte of the Support block in bytes. Note - If the Support '
                   'block is omitted, this is not included.')  # type: int
-    PVP_BLOCK_SIZE = _IntegerDescriptor(
+    PVP_BLOCK_SIZE = IntegerDescriptor(
         'PVP_BLOCK_SIZE', _required, strict=True,
         docstring='Size of the PVP block in bytes.')  # type: int
-    PVP_BLOCK_BYTE_OFFSET = _IntegerDescriptor(
+    PVP_BLOCK_BYTE_OFFSET = IntegerDescriptor(
         'PVP_BLOCK_BYTE_OFFSET', _required, strict=True,
         docstring='Offset to the first byte of the PVP block in bytes.')  # type: int
-    SIGNAL_BLOCK_SIZE = _IntegerDescriptor(
+    SIGNAL_BLOCK_SIZE = IntegerDescriptor(
         'SIGNAL_BLOCK_SIZE', _required, strict=True,
         docstring='Size of the Signal block in bytes.')  # type: int
-    SIGNAL_BLOCK_BYTE_OFFSET = _IntegerDescriptor(
+    SIGNAL_BLOCK_BYTE_OFFSET = IntegerDescriptor(
         'SIGNAL_BLOCK_BYTE_OFFSET', _required, strict=True,
         docstring='Offset to the first byte of the Signal block in bytes.')  # type: int
-    CLASSIFICATION = _StringDescriptor(
+    CLASSIFICATION = StringDescriptor(
         'CLASSIFICATION', _required, strict=True, default_value='UNCLASSIFIED',
         docstring='Product classification information that is human-readable.')  # type: str
-    RELEASE_INFO = _StringDescriptor(
+    RELEASE_INFO = StringDescriptor(
         'RELEASE_INFO', _required, strict=True, default_value='UNRESTRICTED',
         docstring='Product release information that is human-readable.')  # type: str
 
     def __init__(self, XML_BLOCK_SIZE=None, XML_BLOCK_BYTE_OFFSET=None,
-                 SUPPORT_BLOCK_SIZE= None, SUPPORT_BLOCK_BYTE_OFFSET=None,
+                 SUPPORT_BLOCK_SIZE=None, SUPPORT_BLOCK_BYTE_OFFSET=None,
                  PVP_BLOCK_SIZE=None, PVP_BLOCK_BYTE_OFFSET=None,
                  SIGNAL_BLOCK_SIZE=None, SIGNAL_BLOCK_BYTE_OFFSET=None,
                  CLASSIFICATION='UNCLASSIFIED', RELEASE_INFO='UNRESTRICTED'):
@@ -168,7 +168,8 @@ class CRSDHeader(CRSDHeaderBase):
         Forms a CRSD file header string (not including the section terminator) from populated attributes.
         """
         return ('CRSD/{}\n'.format(_CRSD_SPECIFICATION_VERSION)
-                + ''.join(["{} := {}\n".format(f, getattr(self,f)) for f in self._fields if getattr(self, f) is not None]))
+                + ''.join(["{} := {}\n".format(f, getattr(self, f))
+                           for f in self._fields if getattr(self, f) is not None]))
 
 
 class CRSDType(Serializable):
@@ -184,55 +185,55 @@ class CRSDType(Serializable):
         'CollectionID', 'Global', 'Data', 'Channel', 'PVP', 'ReferenceGeometry')
     _collections_tags = {'GeoInfo': {'array': 'False', 'child_tag': 'GeoInfo'}}
     # descriptors
-    CollectionID = _SerializableDescriptor(
+    CollectionID = SerializableDescriptor(
         'CollectionID', CollectionIDType, _required, strict=DEFAULT_STRICT,
         docstring='General information about the collection.')  # type: CollectionIDType
-    Global = _SerializableDescriptor(
+    Global = SerializableDescriptor(
         'Global', GlobalType, _required, strict=DEFAULT_STRICT,
         docstring='Global parameters that apply to metadata components and CRSD '
                   'signal arrays.')  # type: GlobalType
-    SceneCoordinates = _SerializableDescriptor(
+    SceneCoordinates = SerializableDescriptor(
         'SceneCoordinates', SceneCoordinatesType, _required, strict=DEFAULT_STRICT,
         docstring='Parameters that define geographic coordinates of the imaged '
                   'scene.')  # type: Union[None, SceneCoordinatesType]
-    Data = _SerializableDescriptor(
+    Data = SerializableDescriptor(
         'Data', DataType, _required, strict=DEFAULT_STRICT,
         docstring='Parameters that describe binary data components contained in '
                   'the product.')  # type: DataType
-    Channel = _SerializableDescriptor(
+    Channel = SerializableDescriptor(
         'Channel', ChannelType, _required, strict=DEFAULT_STRICT,
         docstring='Parameters that describe the data channels contained in the '
                   'product.')  # type: ChannelType
-    PVP = _SerializableDescriptor(
+    PVP = SerializableDescriptor(
         'PVP', PVPType, _required, strict=DEFAULT_STRICT,
         docstring='Structure used to specify the Per Vector Parameters provided for '
                   'each channel of a given product.')  # type: PVPType
-    SupportArray = _SerializableDescriptor(
+    SupportArray = SerializableDescriptor(
         'SupportArray', SupportArrayType, _required, strict=DEFAULT_STRICT,
         docstring='Parameters that describe the binary support array(s) content and '
                   'grid coordinates.')  # type: Union[None, SupportArrayType]
-    Dwell = _SerializableDescriptor(
+    Dwell = SerializableDescriptor(
         'Dwell', DwellType, _required, strict=DEFAULT_STRICT,
         docstring='Parameters that specify the SAR dwell time supported by the signal '
                   'arrays contained in the CRSD product.')  # type: Union[None, DwellType]
-    ReferenceGeometry = _SerializableDescriptor(
+    ReferenceGeometry = SerializableDescriptor(
         'ReferenceGeometry', ReferenceGeometryType, _required, strict=DEFAULT_STRICT,
         docstring='Parameters that describe the collection geometry for the reference '
                   'vector of the reference channel.')  # type: ReferenceGeometryType
-    Antenna = _SerializableDescriptor(
+    Antenna = SerializableDescriptor(
         'Antenna', AntennaType, _required, strict=DEFAULT_STRICT,
         docstring='Parameters that describe the antennas antennas used '
                   'to collect the signal array(s).')  # type: Union[None, AntennaType]
-    ErrorParameters = _SerializableDescriptor(
+    ErrorParameters = SerializableDescriptor(
         'ErrorParameters', ErrorParametersType, _required, strict=DEFAULT_STRICT,
         docstring='Parameters that describe the statistics of errors in measured or estimated parameters '
                   'that describe the collection.')  # type: Union[None, ErrorParametersType]
-    ProductInfo = _SerializableDescriptor(
+    ProductInfo = SerializableDescriptor(
         'ProductInfo', ProductInfoType, _required, strict=DEFAULT_STRICT,
         docstring='Parameters that provide general information about the CRSD product '
                   'and/or the derived products that may be created '
                   'from it.')  # type: Union[None, ProductInfoType]
-    MatchInfo = _SerializableDescriptor(
+    MatchInfo = SerializableDescriptor(
         'MatchInfo', MatchInfoType, _required, strict=DEFAULT_STRICT,
         docstring='Information about other collections that are matched to the collection from which '
                   'this CRSD product was generated.')  # type: Union[None, MatchInfoType]
@@ -345,12 +346,13 @@ class CRSDType(Serializable):
         if kwargs is None:
             kwargs = OrderedDict()
         gi_key = cls._child_xml_ns_key.get('GeoInfo', ns_key)
-        kwargs['GeoInfo'] = _find_children(node, 'GeoInfo', xml_ns, gi_key)
+        kwargs['GeoInfo'] = find_children(node, 'GeoInfo', xml_ns, gi_key)
         return super(CRSDType, cls).from_node(node, xml_ns, ns_key=ns_key, kwargs=kwargs)
 
     def to_node(self, doc, tag, ns_key=None, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
         node = super(CRSDType, self).to_node(
-            doc, tag, ns_key=ns_key, parent=parent, check_validity=check_validity, strict=strict, exclude=exclude+('GeoInfo', ))
+            doc, tag, ns_key=ns_key, parent=parent, check_validity=check_validity,
+            strict=strict, exclude=exclude+('GeoInfo', ))
         # slap on the GeoInfo children
         if self._GeoInfo is not None and len(self._GeoInfo) > 0:
             for entry in self._GeoInfo:
@@ -358,16 +360,19 @@ class CRSDType(Serializable):
         return node
 
     def to_dict(self, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
-        out = super(CRSDType, self).to_dict(check_validity=check_validity, strict=strict, exclude=exclude+('GeoInfo', ))
+        out = super(CRSDType, self).to_dict(
+            check_validity=check_validity, strict=strict, exclude=exclude+('GeoInfo', ))
         # slap on the GeoInfo children
         if len(self.GeoInfo) > 0:
-            out['GeoInfo'] = [entry.to_dict(check_validity=check_validity, strict=strict) for entry in self._GeoInfo]
+            out['GeoInfo'] = [entry.to_dict(
+                check_validity=check_validity, strict=strict) for entry in self._GeoInfo]
         return out
 
     def to_xml_bytes(self, urn=None, tag='CRSD', check_validity=False, strict=DEFAULT_STRICT):
         if urn is None:
             urn = _CRSD_SPECIFICATION_NAMESPACE
-        return super(CRSDType, self).to_xml_bytes(urn=urn, tag=tag, check_validity=check_validity, strict=strict)
+        return super(CRSDType, self).to_xml_bytes(
+            urn=urn, tag=tag, check_validity=check_validity, strict=strict)
 
     def to_xml_string(self, urn=None, tag='CRSD', check_validity=False, strict=DEFAULT_STRICT):
         return self.to_xml_bytes(urn=urn, tag=tag, check_validity=check_validity, strict=strict).decode('utf-8')
@@ -379,8 +384,9 @@ class CRSDType(Serializable):
         Parameters
         ----------
         xml_offset : int, optional
-            Offset in bytes to the first byte of the XML block. If the provided value is not large enough to account for
-            the length of the file header string, a larger value is chosen.
+            Offset in bytes to the first byte of the XML block. If the provided value
+            is not large enough to account for the length of the file header
+            string, a larger value is chosen.
 
         Returns
         -------

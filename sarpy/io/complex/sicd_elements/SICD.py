@@ -12,7 +12,14 @@ from collections import OrderedDict
 
 import numpy
 
-from .base import Serializable, _SerializableDescriptor, DEFAULT_STRICT
+from sarpy.geometry import point_projection
+from sarpy.io.complex.naming.utils import get_sicd_name
+from sarpy.io.complex.sicd_schema import get_urn_details, get_specification_identifier
+
+from sarpy.io.xml.base import Serializable
+from sarpy.io.xml.descriptors import SerializableDescriptor
+
+from .base import DEFAULT_STRICT
 from .CollectionInfo import CollectionInfoType
 from .ImageCreation import ImageCreationType
 from .ImageData import ImageDataType
@@ -31,10 +38,6 @@ from .RgAzComp import RgAzCompType
 from .PFA import PFAType
 from .RMA import RMAType
 from .validation_checks import detailed_validation_checks
-
-from sarpy.geometry import point_projection
-from sarpy.io.complex.naming.utils import get_sicd_name
-from sarpy.io.complex.sicd_schema import get_urn_details, get_specification_identifier
 
 logger = logging.getLogger(__name__)
 
@@ -69,60 +72,60 @@ class SICDType(Serializable):
         'RadarCollection', 'ImageFormation', 'SCPCOA')
     _choice = ({'required': False, 'collection': ('RgAzComp', 'PFA', 'RMA')}, )
     # descriptors
-    CollectionInfo = _SerializableDescriptor(
+    CollectionInfo = SerializableDescriptor(
         'CollectionInfo', CollectionInfoType, _required, strict=False,
         docstring='General information about the collection.')  # type: CollectionInfoType
-    ImageCreation = _SerializableDescriptor(
+    ImageCreation = SerializableDescriptor(
         'ImageCreation', ImageCreationType, _required, strict=False,
         docstring='General information about the image creation.')  # type: ImageCreationType
-    ImageData = _SerializableDescriptor(
+    ImageData = SerializableDescriptor(
         'ImageData', ImageDataType, _required, strict=False,  # it is senseless to not have this element
         docstring='The image pixel data.')  # type: ImageDataType
-    GeoData = _SerializableDescriptor(
+    GeoData = SerializableDescriptor(
         'GeoData', GeoDataType, _required, strict=False,
         docstring='The geographic coordinates of the image coverage area.')  # type: GeoDataType
-    Grid = _SerializableDescriptor(
+    Grid = SerializableDescriptor(
         'Grid', GridType, _required, strict=False,
         docstring='The image sample grid.')  # type: GridType
-    Timeline = _SerializableDescriptor(
+    Timeline = SerializableDescriptor(
         'Timeline', TimelineType, _required, strict=False,
         docstring='The imaging collection time line.')  # type: TimelineType
-    Position = _SerializableDescriptor(
+    Position = SerializableDescriptor(
         'Position', PositionType, _required, strict=False,
         docstring='The platform and ground reference point coordinates as a function of time.')  # type: PositionType
-    RadarCollection = _SerializableDescriptor(
+    RadarCollection = SerializableDescriptor(
         'RadarCollection', RadarCollectionType, _required, strict=False,
         docstring='The radar collection information.')  # type: RadarCollectionType
-    ImageFormation = _SerializableDescriptor(
+    ImageFormation = SerializableDescriptor(
         'ImageFormation', ImageFormationType, _required, strict=False,
         docstring='The image formation process.')  # type: ImageFormationType
-    SCPCOA = _SerializableDescriptor(
+    SCPCOA = SerializableDescriptor(
         'SCPCOA', SCPCOAType, _required, strict=False,
         docstring='*Center of Aperture (COA)* for the *Scene Center Point (SCP)*.')  # type: SCPCOAType
-    Radiometric = _SerializableDescriptor(
+    Radiometric = SerializableDescriptor(
         'Radiometric', RadiometricType, _required, strict=False,
         docstring='The radiometric calibration parameters.')  # type: RadiometricType
-    Antenna = _SerializableDescriptor(
+    Antenna = SerializableDescriptor(
         'Antenna', AntennaType, _required, strict=False,
         docstring='Parameters that describe the antenna illumination patterns during the collection.'
     )  # type: AntennaType
-    ErrorStatistics = _SerializableDescriptor(
+    ErrorStatistics = SerializableDescriptor(
         'ErrorStatistics', ErrorStatisticsType, _required, strict=False,
         docstring='Parameters used to compute error statistics within the *SICD* sensor model.'
     )  # type: ErrorStatisticsType
-    MatchInfo = _SerializableDescriptor(
+    MatchInfo = SerializableDescriptor(
         'MatchInfo', MatchInfoType, _required, strict=False,
         docstring='Information about other collections that are matched to the '
                   'current collection. The current collection is the collection '
                   'from which this *SICD* product was generated.')  # type: MatchInfoType
-    RgAzComp = _SerializableDescriptor(
+    RgAzComp = SerializableDescriptor(
         'RgAzComp', RgAzCompType, _required, strict=False,
         docstring='Parameters included for a *Range, Doppler* image.')  # type: RgAzCompType
-    PFA = _SerializableDescriptor(
+    PFA = SerializableDescriptor(
         'PFA', PFAType, _required, strict=False,
         docstring='Parameters included when the image is formed using the '
                   '*Polar Formation Algorithm (PFA)*.')  # type: PFAType
-    RMA = _SerializableDescriptor(
+    RMA = SerializableDescriptor(
         'RMA', RMAType, _required, strict=False,
         docstring='Parameters included when the image is formed using the '
                   '*Range Migration Algorithm (RMA)*.')  # type: RMAType
@@ -854,7 +857,7 @@ class SICDType(Serializable):
                 signal = 0.25
 
         try:
-            bw_area = abs(self.Grid.Row.ImpRespBW*self.Grid.Col.ImpRespBW*
+            bw_area = abs(self.Grid.Row.ImpRespBW*self.Grid.Col.ImpRespBW *
                           numpy.cos(numpy.deg2rad(self.SCPCOA.SlopeAng)))
         except Exception as e:
             logger.error(

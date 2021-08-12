@@ -12,11 +12,10 @@ import numpy
 
 from .base import DEFAULT_STRICT
 
-# noinspection PyProtectedMember
-from sarpy.io.complex.sicd_elements.base import Serializable, _SerializableDescriptor, \
-    _FloatDescriptor, _StringDescriptor, _StringListDescriptor, _SerializableListDescriptor, \
-    _create_new_node, _create_text_node, _get_node_value, _find_first_child, _find_children
-
+from sarpy.io.xml.base import Serializable, create_new_node, create_text_node, \
+    get_node_value, find_first_child, find_children
+from sarpy.io.xml.descriptors import SerializableDescriptor, SerializableListDescriptor, \
+    FloatDescriptor, StringDescriptor, StringListDescriptor
 from sarpy.geometry.geometry_elements import Point as PointType, \
     LineString as LineStringType, \
     LinearRing as LinearRingType, \
@@ -37,10 +36,10 @@ class ParameterType(Serializable):
     _required = _fields
     _numeric_format = {'Value': '0.16G'}
     # Descriptor
-    ParameterName = _StringDescriptor(
+    ParameterName = StringDescriptor(
         'ParameterName', _required, strict=DEFAULT_STRICT,
         docstring='')  # type: str
-    Value = _FloatDescriptor(
+    Value = FloatDescriptor(
         'Value', _required, strict=DEFAULT_STRICT,
         docstring='')  # type: float
 
@@ -71,7 +70,7 @@ class ProjectionType(Serializable):
     _fields = ('ProjectionName', )
     _required = ('ProjectionName', )
     # Descriptor
-    ProjectionName = _StringDescriptor(
+    ProjectionName = StringDescriptor(
         'ProjectionName', _required, strict=DEFAULT_STRICT,
         docstring='')  # type: str
 
@@ -101,10 +100,10 @@ class PrimeMeridianType(Serializable):
     _required = _fields
     _numeric_format = {'Longitude': '0.16G'}
     # Descriptor
-    Name = _StringDescriptor(
+    Name = StringDescriptor(
         'Name', _required, strict=DEFAULT_STRICT,
         docstring='')  # type: str
-    Longitude = _FloatDescriptor(
+    Longitude = FloatDescriptor(
         'Longitude', _required, strict=DEFAULT_STRICT,
         docstring='')  # type: float
 
@@ -135,13 +134,13 @@ class SpheroidType(Serializable):
     _required = _fields
     _numeric_format = {'SemiMajorAxis': '0.16G', 'InverseFlattening': '0.16G'}
     # Descriptor
-    SpheroidName = _StringDescriptor(
+    SpheroidName = StringDescriptor(
         'SpheroidName', _required, strict=DEFAULT_STRICT,
         docstring='')  # type: str
-    SemiMajorAxis = _FloatDescriptor(
+    SemiMajorAxis = FloatDescriptor(
         'SemiMajorAxis', _required, strict=DEFAULT_STRICT,
         docstring='')  # type: float
-    InverseFlattening = _FloatDescriptor(
+    InverseFlattening = FloatDescriptor(
         'InverseFlattening', _required, strict=DEFAULT_STRICT,
         docstring='')  # type: float
 
@@ -173,7 +172,7 @@ class DatumType(Serializable):
     _fields = ('Spheroid', )
     _required = ('Spheroid', )
     # Descriptor
-    Spheroid = _SerializableDescriptor(
+    Spheroid = SerializableDescriptor(
         'Spheroid', SpheroidType, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: SpheroidType
 
@@ -201,19 +200,19 @@ class GeographicCoordinateSystemType(Serializable):
     _fields = ('Csname', 'Datum', 'PrimeMeridian', 'AngularUnit', 'LinearUnit')
     _required = ('Csname', 'Datum', 'PrimeMeridian', 'AngularUnit')
     # Descriptor
-    Csname = _StringDescriptor(
+    Csname = StringDescriptor(
         'Csname', _required, strict=DEFAULT_STRICT,
         docstring='')  # type: str
-    Datum = _SerializableDescriptor(
+    Datum = SerializableDescriptor(
         'Datum', DatumType, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: DatumType
-    PrimeMeridian = _SerializableDescriptor(
+    PrimeMeridian = SerializableDescriptor(
         'PrimeMeridian', PrimeMeridianType, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: PrimeMeridianType
-    AngularUnit = _StringDescriptor(
+    AngularUnit = StringDescriptor(
         'AngularUnit', _required, strict=DEFAULT_STRICT,
         docstring='')  # type: str
-    LinearUnit = _StringDescriptor(
+    LinearUnit = StringDescriptor(
         'LinearUnit', _required, strict=DEFAULT_STRICT,
         docstring='')  # type: str
 
@@ -249,19 +248,19 @@ class ProjectedCoordinateSystemType(Serializable):
     _fields = ('Csname', 'GeographicCoordinateSystem', 'Projection', 'Parameter', 'LinearUnit')
     _required = ('Csname', 'GeographicCoordinateSystem', 'Projection', 'LinearUnit')
     # Descriptor
-    Csname = _StringDescriptor(
+    Csname = StringDescriptor(
         'Csname', _required, strict=DEFAULT_STRICT,
         docstring='')  # type: str
-    GeographicCoordinateSystem = _SerializableDescriptor(
+    GeographicCoordinateSystem = SerializableDescriptor(
         'GeographicCoordinateSystem', GeographicCoordinateSystemType, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: GeographicCoordinateSystemType
-    Projection = _SerializableDescriptor(
+    Projection = SerializableDescriptor(
         'Projection', ProjectionType, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: ProjectionType
-    Parameter = _SerializableDescriptor(
+    Parameter = SerializableDescriptor(
         'Parameter', ParameterType, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: Union[None, ParameterType]
-    LinearUnit = _StringDescriptor(
+    LinearUnit = StringDescriptor(
         'LinearUnit', _required, strict=DEFAULT_STRICT,
         docstring='')  # type: str
 
@@ -298,16 +297,16 @@ class GeocentricCoordinateSystemType(Serializable):
     _fields = ('Name', 'Datum', 'PrimeMeridian', 'LinearUnit')
     _required = ('Name', 'Datum', 'PrimeMeridian', 'LinearUnit')
     # Descriptor
-    Name = _StringDescriptor(
+    Name = StringDescriptor(
         'Name', _required, strict=DEFAULT_STRICT,
         docstring='')  # type: str
-    Datum = _SerializableDescriptor(
+    Datum = SerializableDescriptor(
         'Datum', DatumType, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: DatumType
-    PrimeMeridian = _SerializableDescriptor(
+    PrimeMeridian = SerializableDescriptor(
         'PrimeMeridian', PrimeMeridianType, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: PrimeMeridianType
-    LinearUnit = _StringDescriptor(
+    LinearUnit = StringDescriptor(
         'LinearUnit', _required, strict=DEFAULT_STRICT,
         docstring='')  # type: str
 
@@ -342,16 +341,16 @@ class ReferenceSystemType(Serializable):
     _required = ('ProjectedCoordinateSystem', 'GeographicCoordinateSystem', 'GeocentricCoordinateSystem', 'AxisNames')
     _collections_tags = {'AxisNames': {'array': False, 'child_tag': 'AxisName'}}
     # Descriptor
-    ProjectedCoordinateSystem = _SerializableDescriptor(
+    ProjectedCoordinateSystem = SerializableDescriptor(
         'ProjectedCoordinateSystem', ProjectedCoordinateSystemType, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: ProjectedCoordinateSystemType
-    GeographicCoordinateSystem = _SerializableDescriptor(
+    GeographicCoordinateSystem = SerializableDescriptor(
         'GeographicCoordinateSystem', GeographicCoordinateSystemType, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: GeographicCoordinateSystemType
-    GeocentricCoordinateSystem = _SerializableDescriptor(
+    GeocentricCoordinateSystem = SerializableDescriptor(
         'GeocentricCoordinateSystem', GeocentricCoordinateSystemType, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: GeocentricCoordinateSystemType
-    AxisNames = _StringListDescriptor(
+    AxisNames = StringListDescriptor(
         'AxisNames', _required, strict=DEFAULT_STRICT,
         docstring='')  # type: List[str]
 
@@ -636,31 +635,31 @@ class AnnotationObjectType(Serializable):
         if len(coords) < 2:
             raise ValueError('coords must have at least two elements')
         fmt_func = '{0:0.16G}'.format
-        node = _create_new_node(doc, tag, parent=parent)
-        _create_text_node(doc, 'sfa:X', fmt_func(coords[0]), parent=node)
-        _create_text_node(doc, 'sfa:Y', fmt_func(coords[1]), parent=node)
+        node = create_new_node(doc, tag, parent=parent)
+        create_text_node(doc, 'sfa:X', fmt_func(coords[0]), parent=node)
+        create_text_node(doc, 'sfa:Y', fmt_func(coords[1]), parent=node)
         if len(coords) > 2:
-            _create_text_node(doc, 'sfa:Z', fmt_func(coords[2]), parent=node)
+            create_text_node(doc, 'sfa:Z', fmt_func(coords[2]), parent=node)
         if len(coords) > 3:
-            _create_text_node(doc, 'sfa:M', fmt_func(coords[3]), parent=node)
+            create_text_node(doc, 'sfa:M', fmt_func(coords[3]), parent=node)
 
     def _serialize_line(self, coords, doc, tag, parent):
-        node = _create_new_node(doc, tag, parent=parent)
+        node = create_new_node(doc, tag, parent=parent)
         for entry in coords:
             self._serialize_point(entry, doc, 'sfa:Vertex', node)
 
     def _serialize_polygon(self, coords, doc, tag, parent):
-        node = _create_new_node(doc, tag, parent=parent)
+        node = create_new_node(doc, tag, parent=parent)
         for entry in coords:
             self._serialize_line(entry, doc, 'sfa:Ring', node)
 
     def _serialize_multilinestring(self, coords, doc, tag, parent):
-        node = _create_new_node(doc, tag, parent=parent)
+        node = create_new_node(doc, tag, parent=parent)
         for entry in coords:
             self._serialize_line(entry, doc, 'sfa:Element', node)
 
     def _serialize_multipolygon(self, coords, doc, tag, parent):
-        node = _create_new_node(doc, tag, parent=parent)
+        node = create_new_node(doc, tag, parent=parent)
         for entry in coords:
             self._serialize_polygon(entry, doc, 'sfa:Element', node)
 
@@ -668,9 +667,9 @@ class AnnotationObjectType(Serializable):
         if parent is None:
             parent = doc.getroot()
         if ns_key is None:
-            node = _create_new_node(doc, tag, parent=parent)
+            node = create_new_node(doc, tag, parent=parent)
         else:
-            node = _create_new_node(doc, '{}:{}'.format(ns_key, tag), parent=parent)
+            node = create_new_node(doc, '{}:{}'.format(ns_key, tag), parent=parent)
         typ = self.GeometryType
         if typ is None:
             return node
@@ -696,11 +695,11 @@ class AnnotationObjectType(Serializable):
 
     @staticmethod
     def _get_value(node, tag, xml_ns, ns_key):
-        t_node = _find_first_child(node, tag, xml_ns, ns_key)
+        t_node = find_first_child(node, tag, xml_ns, ns_key)
         if t_node is None:
             return None
         else:
-            return float(_get_node_value(t_node))
+            return float(get_node_value(t_node))
 
     @classmethod
     def _extract_point(cls, node, xml_ns):
@@ -717,49 +716,49 @@ class AnnotationObjectType(Serializable):
 
     @classmethod
     def _extract_line(cls, node, xml_ns, tag='Vertex'):
-        v_nodes = _find_children(node, tag, xml_ns, 'sfa')
+        v_nodes = find_children(node, tag, xml_ns, 'sfa')
         return [cls._extract_point(v_node, xml_ns) for v_node in v_nodes]
 
     @classmethod
     def _extract_polygon(cls, node, xml_ns, tag='Ring'):
-        v_nodes = _find_children(node, tag, xml_ns, 'sfa')
+        v_nodes = find_children(node, tag, xml_ns, 'sfa')
         return [cls._extract_line(v_node, xml_ns, tag='Vertex') for v_node in v_nodes]
 
     @classmethod
     def _deserialize_point(cls, node, xml_ns, tag='Point'):
-        point_node = _find_first_child(node, tag, xml_ns, 'sfa')
+        point_node = find_first_child(node, tag, xml_ns, 'sfa')
         if point_node is None:
             return None
         return cls._extract_point(point_node, xml_ns)
 
     @classmethod
     def _deserialize_line(cls, node, xml_ns, tag='Line'):
-        line_node = _find_first_child(node, tag, xml_ns, 'sfa')
+        line_node = find_first_child(node, tag, xml_ns, 'sfa')
         if line_node is None:
             return None
         return cls._extract_line(line_node, xml_ns, tag='Vertex')
 
     @classmethod
     def _deserialize_polygon(cls, node, xml_ns, tag='Polygon'):
-        poly_node = _find_first_child(node, tag, xml_ns, 'sfa')
+        poly_node = find_first_child(node, tag, xml_ns, 'sfa')
         if poly_node is None:
             return None
         return cls._extract_polygon(poly_node, xml_ns, tag='Ring')
 
     @classmethod
     def _deserialize_multilinestring(cls, node, xml_ns, tag='MultiLineString'):
-        mls_node = _find_first_child(node, tag, xml_ns, 'sfa')
+        mls_node = find_first_child(node, tag, xml_ns, 'sfa')
         if mls_node is None:
             return None
-        ls_nodes = _find_children(mls_node, 'Element', xml_ns, 'sfa')
+        ls_nodes = find_children(mls_node, 'Element', xml_ns, 'sfa')
         return [cls._extract_line(ls_node, xml_ns, tag='Vertex') for ls_node in ls_nodes]
 
     @classmethod
     def _deserialize_multipolygon(cls, node, xml_ns, tag='MultiPolygon'):
-        mp_node = _find_first_child(node, tag, xml_ns, 'sfa')
+        mp_node = find_first_child(node, tag, xml_ns, 'sfa')
         if mp_node is None:
             return None
-        p_nodes = _find_children(mp_node, 'Element', xml_ns, 'sfa')
+        p_nodes = find_children(mp_node, 'Element', xml_ns, 'sfa')
         return [cls._extract_polygon(p_node, xml_ns, tag='Ring') for p_node in p_nodes]
 
     @classmethod
@@ -807,13 +806,13 @@ class AnnotationType(Serializable):
     _required = ('Identifier', 'Objects')
     _collections_tags = {'Objects': {'array': False, 'child_tag': 'Object'}}
     # Descriptor
-    Identifier = _StringDescriptor(
+    Identifier = StringDescriptor(
         'Identifier', _required, strict=DEFAULT_STRICT,
         docstring='')  # type: str
-    SpatialReferenceSystem = _SerializableDescriptor(
+    SpatialReferenceSystem = SerializableDescriptor(
         'SpatialReferenceSystem', ReferenceSystemType, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: Union[None, ReferenceSystemType]
-    Objects = _SerializableListDescriptor(
+    Objects = SerializableListDescriptor(
         'Objects', AnnotationObjectType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: List[AnnotationObjectType]
 
@@ -847,7 +846,7 @@ class AnnotationsType(Serializable):
     _required = ('Annotations', )
     _collections_tags = {'Annotations': {'array': False, 'child_tag': 'Annotation'}}
     # Descriptor
-    Annotations = _SerializableListDescriptor(
+    Annotations = SerializableListDescriptor(
         'Annotations', AnnotationType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: List[AnnotationType]
 

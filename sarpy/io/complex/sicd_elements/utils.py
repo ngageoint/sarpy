@@ -6,10 +6,8 @@ __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 
-from typing import Tuple
-
 import numpy
-from ...general.utils import get_seconds
+from sarpy.io.general.utils import get_seconds
 
 
 def _get_center_frequency(RadarCollection, ImageFormation):

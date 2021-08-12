@@ -11,11 +11,11 @@ from typing import Union
 import numpy
 
 from sarpy.compliance import int_func
+from sarpy.io.xml.base import Serializable, Arrayable, get_node_value, create_text_node, create_new_node, find_children
+from sarpy.io.xml.descriptors import SerializableDescriptor, IntegerDescriptor, \
+    FloatDescriptor, FloatModularDescriptor, StringDescriptor, StringEnumDescriptor
+
 from .base import DEFAULT_STRICT
-# noinspection PyProtectedMember
-from sarpy.io.complex.sicd_elements.base import Serializable, Arrayable, _SerializableDescriptor, \
-    _IntegerDescriptor, _FloatDescriptor, _FloatModularDescriptor, _StringDescriptor, _StringEnumDescriptor, \
-    _get_node_value, _create_text_node, _create_new_node, _find_children
 from sarpy.io.complex.sicd_elements.blocks import XYZType as XYZTypeBase, XYZPolyType as XYZPolyTypeBase, \
     LatLonType as LatLonTypeBase, LatLonCornerType as LatLonCornerTypeBase, \
     RowColType as RowColIntTypeBase, RowColArrayElement as RowColArrayElementBase, \
@@ -60,10 +60,10 @@ class RangeAzimuthType(Serializable, Arrayable):
     _numeric_format = {key: '0.16G' for key in _fields}
     _child_xml_ns_key = {'Range': 'sicommon', 'Azimuth': 'sicommon'}
     # Descriptor
-    Range = _FloatDescriptor(
+    Range = FloatDescriptor(
         'Range', _required, strict=DEFAULT_STRICT,
         docstring='The range in meters.')  # type: float
-    Azimuth = _FloatDescriptor(
+    Azimuth = FloatDescriptor(
         'Azimuth', _required, strict=DEFAULT_STRICT,
         docstring='The azimuth in degrees.')  # type: float
 
@@ -135,10 +135,10 @@ class AngleMagnitudeType(Serializable, Arrayable):
     _numeric_format = {key: '0.16G' for key in _fields}
     _child_xml_ns_key = {'Angle': 'sicommon', 'Magnitude': 'sicommon'}
     # Descriptor
-    Angle = _FloatModularDescriptor(
+    Angle = FloatModularDescriptor(
         'Angle', 180.0, _required, strict=DEFAULT_STRICT,
         docstring='The angle.')  # type: float
-    Magnitude = _FloatDescriptor(
+    Magnitude = FloatDescriptor(
         'Magnitude', _required, strict=DEFAULT_STRICT, bounds=(0.0, None),
         docstring='The magnitude.')  # type: float
 
@@ -215,9 +215,9 @@ class RowColDoubleType(Serializable, Arrayable):
     _numeric_format = {key: '0.16G' for key in _fields}
     _child_xml_ns_key = {'Row': 'sicommon', 'Col': 'sicommon'}
     # Descriptors
-    Row = _FloatDescriptor(
+    Row = FloatDescriptor(
         'Row', _required, strict=True, docstring='The Row attribute.')  # type: float
-    Col = _FloatDescriptor(
+    Col = FloatDescriptor(
         'Col', _required, strict=True, docstring='The Column attribute.')  # type: float
 
     def __init__(self, Row=None, Col=None, **kwargs):
@@ -322,13 +322,13 @@ class ReferencePointType(Serializable):
     _set_as_attribute = ('name', )
     _child_xml_ns_key = {'ECEF': 'sicommon', 'Point': 'sicommon'}
     # Descriptor
-    ECEF = _SerializableDescriptor(
+    ECEF = SerializableDescriptor(
         'ECEF', XYZType, _required, strict=DEFAULT_STRICT,
         docstring='The ECEF coordinates of the reference point.')  # type: XYZType
-    Point = _SerializableDescriptor(
+    Point = SerializableDescriptor(
         'Point', RowColDoubleType, _required, strict=DEFAULT_STRICT,
         docstring='The pixel coordinates of the reference point.')  # type: RowColDoubleType
-    name = _StringDescriptor(
+    name = StringDescriptor(
         'name', _required, strict=DEFAULT_STRICT,
         docstring='Used for implementation specific signifier for the reference point.')  # type: Union[None, str]
 
@@ -366,14 +366,14 @@ class PredefinedFilterType(Serializable):
     _fields = ('DatabaseName', 'FilterFamily', 'FilterMember')
     _required = ()
     # Descriptor
-    DatabaseName = _StringEnumDescriptor(
+    DatabaseName = StringEnumDescriptor(
         'DatabaseName', ('BILINEAR', 'CUBIC', 'LAGRANGE', 'NEAREST NEIGHBOR'),
         _required, strict=DEFAULT_STRICT,
         docstring='The filter name.')  # type: str
-    FilterFamily = _IntegerDescriptor(
+    FilterFamily = IntegerDescriptor(
         'FilterFamily', _required, strict=DEFAULT_STRICT,
         docstring='The filter family number.')  # type: int
-    FilterMember = _IntegerDescriptor(
+    FilterMember = IntegerDescriptor(
         'FilterMember', _required, strict=DEFAULT_STRICT,
         docstring='The filter member number.')  # type: int
 
@@ -408,10 +408,10 @@ class FilterKernelType(Serializable):
     _required = ()
     _choice = ({'required': True, 'collection': ('Predefined', 'Custom')}, )
     # Descriptor
-    Predefined = _SerializableDescriptor(
+    Predefined = SerializableDescriptor(
         'Predefined', PredefinedFilterType, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: PredefinedFilterType
-    Custom = _StringEnumDescriptor(
+    Custom = StringEnumDescriptor(
         'Custom', ('GENERAL', 'FILTER BANK'), _required, strict=DEFAULT_STRICT,
         docstring='')  # type: str
 
@@ -535,15 +535,15 @@ class BankCustomType(Serializable, Arrayable):
 
     @classmethod
     def from_node(cls, node, xml_ns, ns_key=None, kwargs=None):
-        numPhasings = int_func(node.attrib['numPhasings'])
-        numPoints = int_func(node.attrib['numPoints'])
-        coefs = numpy.zeros((numPhasings+1, numPoints+1), dtype=numpy.float64)
+        num_phasings = int_func(node.attrib['numPhasings'])
+        num_points = int_func(node.attrib['numPoints'])
+        coefs = numpy.zeros((num_phasings+1, num_points+1), dtype=numpy.float64)
         ckey = cls._child_xml_ns_key.get('Coefs', ns_key)
-        coef_nodes = _find_children(node, 'Coef', xml_ns, ckey)
+        coef_nodes = find_children(node, 'Coef', xml_ns, ckey)
         for cnode in coef_nodes:
             ind1 = int_func(cnode.attrib['phasing'])
             ind2 = int_func(cnode.attrib['point'])
-            val = float(_get_node_value(cnode))
+            val = float(get_node_value(cnode))
             coefs[ind1, ind2] = val
         return cls(Coefs=coefs)
 
@@ -551,9 +551,9 @@ class BankCustomType(Serializable, Arrayable):
         if parent is None:
             parent = doc.getroot()
         if ns_key is None:
-            node = _create_new_node(doc, tag, parent=parent)
+            node = create_new_node(doc, tag, parent=parent)
         else:
-            node = _create_new_node(doc, '{}:{}'.format(ns_key, tag), parent=parent)
+            node = create_new_node(doc, '{}:{}'.format(ns_key, tag), parent=parent)
 
         if 'Coefs' in self._child_xml_ns_key:
             ctag = '{}:Coef'.format(self._child_xml_ns_key['Coefs'])
@@ -568,7 +568,7 @@ class BankCustomType(Serializable, Arrayable):
         for i, val1 in enumerate(self._coefs):
             for j, val in enumerate(val1):
                 # if val != 0.0:  # should we serialize it sparsely?
-                cnode = _create_text_node(doc, ctag, fmt_func(val), parent=node)
+                cnode = create_text_node(doc, ctag, fmt_func(val), parent=node)
                 cnode.attrib['phasing'] = str(i)
                 cnode.attrib['point'] = str(j)
         return node
@@ -588,10 +588,10 @@ class FilterBankType(Serializable):
     _required = ()
     _choice = ({'required': True, 'collection': ('Predefined', 'Custom')}, )
     # Descriptor
-    Predefined = _SerializableDescriptor(
+    Predefined = SerializableDescriptor(
         'Predefined', PredefinedFilterType, _required, strict=DEFAULT_STRICT,
         docstring='The predefined filter bank type.')  # type: PredefinedFilterType
-    Custom = _SerializableDescriptor(
+    Custom = SerializableDescriptor(
         'Custom', BankCustomType, _required, strict=DEFAULT_STRICT,
         docstring='The custom filter bank.')  # type: BankCustomType
 
@@ -624,16 +624,16 @@ class FilterType(Serializable):
     _required = ('FilterName', 'Operation')
     _choice = ({'required': True, 'collection': ('FilterKernel', 'FilterBank')}, )
     # Descriptor
-    FilterName = _StringDescriptor(
+    FilterName = StringDescriptor(
         'FilterName', _required, strict=DEFAULT_STRICT,
         docstring='The name of the filter.')  # type : str
-    FilterKernel = _SerializableDescriptor(
+    FilterKernel = SerializableDescriptor(
         'FilterKernel', FilterKernelType, _required, strict=DEFAULT_STRICT,
         docstring='The filter kernel.')  # type: FilterKernelType
-    FilterBank = _SerializableDescriptor(
+    FilterBank = SerializableDescriptor(
         'FilterBank', FilterBankType, _required, strict=DEFAULT_STRICT,
         docstring='The filter bank.')  # type: FilterBankType
-    Operation = _StringEnumDescriptor(
+    Operation = StringEnumDescriptor(
         'Operation', ('CONVOLUTION', 'CORRELATION'), _required, strict=DEFAULT_STRICT,
         docstring='')  # type: str
 
@@ -671,13 +671,13 @@ class PredefinedLookupType(Serializable):
     _fields = ('DatabaseName', 'RemapFamily', 'RemapMember')
     _required = ()
     # Descriptor
-    DatabaseName = _StringDescriptor(
+    DatabaseName = StringDescriptor(
         'DatabaseName', _required, strict=DEFAULT_STRICT,
         docstring='Database name of LUT to use.')  # type: str
-    RemapFamily = _IntegerDescriptor(
+    RemapFamily = IntegerDescriptor(
         'RemapFamily', _required, strict=DEFAULT_STRICT,
         docstring='The lookup family number.')  # type: int
-    RemapMember = _IntegerDescriptor(
+    RemapMember = IntegerDescriptor(
         'RemapMember', _required, strict=DEFAULT_STRICT,
         docstring='The lookup member number.')  # type: int
 
@@ -823,9 +823,9 @@ class LUTInfoType(Serializable, Arrayable):
         arr = numpy.zeros((dim1, dim2), dtype=numpy.uint16)
 
         lut_key = cls._child_xml_ns_key.get('LUTValues', ns_key)
-        lut_nodes = _find_children(node, 'LUTValues', xml_ns, lut_key)
+        lut_nodes = find_children(node, 'LUTValues', xml_ns, lut_key)
         for i, lut_node in enumerate(lut_nodes):
-            arr[:, i] = [str(el) for el in _get_node_value(lut_node)]
+            arr[:, i] = [str(el) for el in get_node_value(lut_node)]
         if numpy.max(arr) < 256:
             arr = numpy.cast[numpy.uint8](arr)
         return cls(LUTValues=arr)
@@ -833,16 +833,16 @@ class LUTInfoType(Serializable, Arrayable):
     def to_node(self, doc, tag, ns_key=None, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
         def make_entry(arr):
             value = ' '.join(str(el) for el in arr)
-            entry = _create_text_node(doc, ltag, value, parent=node)
+            entry = create_text_node(doc, ltag, value, parent=node)
             entry.attrib['lut'] = str(arr.size)
 
         if parent is None:
             parent = doc.getroot()
 
         if ns_key is None:
-            node = _create_new_node(doc, tag, parent=parent)
+            node = create_new_node(doc, tag, parent=parent)
         else:
-            node = _create_new_node(doc, '{}:{}'.format(ns_key, tag), parent=parent)
+            node = create_new_node(doc, '{}:{}'.format(ns_key, tag), parent=parent)
 
         if 'LUTValues' in self._child_xml_ns_key:
             ltag = '{}:LUTValues'.format(self._child_xml_ns_key['LUTValues'])
@@ -876,7 +876,7 @@ class CustomLookupType(Serializable):
     _fields = ('LUTInfo', )
     _required = ('LUTInfo', )
     # Descriptor
-    LUTInfo = _SerializableDescriptor(
+    LUTInfo = SerializableDescriptor(
         'LUTInfo', LUTInfoType, _required, strict=DEFAULT_STRICT,
         docstring='The lookup table.')  # type: LUTInfoType
 
@@ -907,13 +907,13 @@ class NewLookupTableType(Serializable):
     _required = ('LUTName', )
     _choice = ({'required': True, 'collection': ('Predefined', 'Custom')}, )
     # Descriptor
-    LUTName = _StringDescriptor(
+    LUTName = StringDescriptor(
         'LUTName', _required, strict=DEFAULT_STRICT,
         docstring='The lookup table name')  # type: str
-    Predefined = _SerializableDescriptor(
+    Predefined = SerializableDescriptor(
         'Predefined', PredefinedLookupType, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: PredefinedLookupType
-    Custom = _SerializableDescriptor(
+    Custom = SerializableDescriptor(
         'Custom', CustomLookupType, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: CustomLookupType
 

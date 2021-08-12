@@ -2,15 +2,14 @@
 The DataType definition for CPHD 0.3.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
 from typing import List
 
 from sarpy.io.phase_history.cphd1_elements.base import DEFAULT_STRICT
-# noinspection PyProtectedMember
-from sarpy.io.complex.sicd_elements.base import Serializable, _StringEnumDescriptor, \
-    _IntegerDescriptor, _SerializableListDescriptor
-
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
+from sarpy.io.xml.base import Serializable
+from sarpy.io.xml.descriptors import StringEnumDescriptor, IntegerDescriptor, SerializableListDescriptor
 
 
 class ArraySizeType(Serializable):
@@ -21,10 +20,10 @@ class ArraySizeType(Serializable):
     _fields = ('NumVectors', 'NumSamples')
     _required = ('NumVectors', 'NumSamples')
     # descriptors
-    NumVectors = _IntegerDescriptor(
+    NumVectors = IntegerDescriptor(
         'NumVectors', _required, strict=DEFAULT_STRICT, bounds=(1, None),
         docstring='Number of slow time vectors in the PHD array in this channel.')  # type: int
-    NumSamples = _IntegerDescriptor(
+    NumSamples = IntegerDescriptor(
         'NumSamples', _required, strict=DEFAULT_STRICT, bounds=(1, None),
         docstring='Number of samples per vector in the PHD array in this channel.')  # type: int
 
@@ -56,15 +55,15 @@ class DataType(Serializable):
     _required = ('SampleType', 'NumBytesVBP', 'ArraySize')
     _collections_tags = {'ArraySize': {'array': False, 'child_tag': 'ArraySize'}}
     # descriptors
-    SampleType = _StringEnumDescriptor(
+    SampleType = StringEnumDescriptor(
         'SampleType', ("RE32F_IM32F", "RE16I_IM16I", "RE08I_IM08I"), _required, strict=True,
         docstring="Indicates the PHD sample format of the PHD array(s). All arrays "
                   "have the sample type. Real and imaginary components stored in adjacent "
                   "bytes, real component stored first.")  # type: str
-    NumBytesVBP = _IntegerDescriptor(
+    NumBytesVBP = IntegerDescriptor(
         'NumBytesVBP', _required, strict=DEFAULT_STRICT, bounds=(1, None),
         docstring='Number of bytes per set of Vector Based Parameters.')  # type: int
-    ArraySize = _SerializableListDescriptor(
+    ArraySize = SerializableListDescriptor(
         'ArraySize', ArraySizeType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='CPHD array size parameters.')  # type: List[ArraySizeType]
 

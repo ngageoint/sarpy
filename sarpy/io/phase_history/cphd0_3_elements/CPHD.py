@@ -2,12 +2,12 @@
 The Compensated Phase History Data 0.3 definition.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
 from typing import Union
 
 from sarpy.io.phase_history.cphd1_elements.base import DEFAULT_STRICT
-# noinspection PyProtectedMember
-from sarpy.io.complex.sicd_elements.base import Serializable, _SerializableDescriptor, \
-    _IntegerDescriptor, _StringDescriptor
 
 from sarpy.io.complex.sicd_elements.CollectionInfo import CollectionInfoType
 from sarpy.io.complex.sicd_elements.RadarCollection import RadarCollectionType
@@ -19,9 +19,8 @@ from sarpy.io.phase_history.cphd0_3_elements.SRP import SRPTyp
 from sarpy.io.phase_history.cphd0_3_elements.Antenna import AntennaType
 from sarpy.io.phase_history.cphd0_3_elements.VectorParameters import VectorParametersType
 
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
-
+from sarpy.io.xml.base import Serializable
+from sarpy.io.xml.descriptors import SerializableDescriptor, IntegerDescriptor, StringDescriptor
 
 #########
 # Module variables
@@ -41,29 +40,29 @@ class CPHDHeader(CPHDHeaderBase):
         'XML_DATA_SIZE', 'XML_BYTE_OFFSET', 'VB_DATA_SIZE', 'VB_BYTE_OFFSET',
         'CPHD_DATA_SIZE', 'CPHD_BYTE_OFFSET')
     # descriptor
-    XML_DATA_SIZE = _IntegerDescriptor(
+    XML_DATA_SIZE = IntegerDescriptor(
         'XML_DATA_SIZE', _required, strict=True,
         docstring='Size of the XML Metadata in bytes. Does not include the 2 bytes '
                   'of the section terminator.')  # type: int
-    XML_BYTE_OFFSET = _IntegerDescriptor(
+    XML_BYTE_OFFSET = IntegerDescriptor(
         'XML_BYTE_OFFSET', _required, strict=True,
         docstring='Offset to the first byte of the XML Metadata in bytes.')  # type: int
-    VB_DATA_SIZE = _IntegerDescriptor(
+    VB_DATA_SIZE = IntegerDescriptor(
         'VB_DATA_SIZE', _required, strict=True,
         docstring='Size of the Vector Based Metadata in bytes.')  # type: int
-    VB_BYTE_OFFSET = _IntegerDescriptor(
+    VB_BYTE_OFFSET = IntegerDescriptor(
         'VB_BYTE_OFFSET', _required, strict=True,
         docstring='Offset to the first byte of the Vector Based Metadata in bytes.')  # type: int
-    CPHD_DATA_SIZE = _IntegerDescriptor(
+    CPHD_DATA_SIZE = IntegerDescriptor(
         'CPHD_DATA_SIZE', _required, strict=True,
         docstring='Size of the Compensated PHD arrays in bytes.')  # type: int
-    CPHD_BYTE_OFFSET = _IntegerDescriptor(
+    CPHD_BYTE_OFFSET = IntegerDescriptor(
         'CPHD_BYTE_OFFSET', _required, strict=True,
         docstring='Offset to the first byte of the CPHD data in bytes.')  # type: int
-    CLASSIFICATION = _StringDescriptor(
+    CLASSIFICATION = StringDescriptor(
         'CLASSIFICATION', _required, strict=True, default_value='UNCLASSIFIED',
         docstring='Product classification information that is the human-readable banner.')  # type: str
-    RELEASE_INFO = _StringDescriptor(
+    RELEASE_INFO = StringDescriptor(
         'RELEASE_INFO', _required, strict=True, default_value='UNRESTRICTED',
         docstring='Product release information.')  # type: str
 
@@ -92,32 +91,32 @@ class CPHDType(Serializable):
     _required = (
         'CollectionInfo', 'Data', 'Global', 'Channel', 'SRP', 'VectorParameters')
     # descriptors
-    CollectionInfo = _SerializableDescriptor(
+    CollectionInfo = SerializableDescriptor(
         'CollectionInfo', CollectionInfoType, _required, strict=DEFAULT_STRICT,
         docstring='General information about the collection.')  # type: CollectionInfoType
-    Data = _SerializableDescriptor(
+    Data = SerializableDescriptor(
         'Data', DataType, _required, strict=DEFAULT_STRICT,
         docstring='Parameters that describe binary data components contained in the '
                   'product.')  # type: DataType
-    Global = _SerializableDescriptor(
+    Global = SerializableDescriptor(
         'Global', GlobalType, _required, strict=DEFAULT_STRICT,
         docstring='Global parameters that apply to metadata components and CPHD '
                   'signal arrays.')  # type: GlobalType
-    Channel = _SerializableDescriptor(
+    Channel = SerializableDescriptor(
         'Channel', ChannelType, _required, strict=DEFAULT_STRICT,
         docstring='Channel specific parameters for CPHD channels.')  # type: ChannelType
-    SRP = _SerializableDescriptor(
+    SRP = SerializableDescriptor(
         'SRP', SRPTyp, _required, strict=DEFAULT_STRICT,
         docstring='The Stabilization Reference Point (SRP) parameters.')  # type: SRPTyp
-    RadarCollection = _SerializableDescriptor(
+    RadarCollection = SerializableDescriptor(
         'RadarCollection', RadarCollectionType, _required, strict=DEFAULT_STRICT,
         docstring='')  # type: Union[None, RadarCollectionType]
-    Antenna = _SerializableDescriptor(
+    Antenna = SerializableDescriptor(
         'Antenna', AntennaType, _required, strict=DEFAULT_STRICT,
         docstring='Antenna parameters that describe antenna orientation, mainlobe '
                   'steering and gain patterns vs. '
                   'time.')  # type: Union[None, AntennaType]
-    VectorParameters = _SerializableDescriptor(
+    VectorParameters = SerializableDescriptor(
         'VectorParameters', VectorParametersType, _required, strict=DEFAULT_STRICT,
         docstring='Structure specifying the Vector parameters provided for '
                   'each channel of a given product.')  # type: VectorParametersType

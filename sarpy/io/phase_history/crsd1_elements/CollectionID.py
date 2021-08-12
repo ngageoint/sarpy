@@ -2,13 +2,13 @@
 The CollectionIDType definition.
 """
 
-from .base import DEFAULT_STRICT
-# noinspection PyProtectedMember
-from sarpy.io.complex.sicd_elements.base import _StringDescriptor
-from sarpy.io.complex.sicd_elements.CollectionInfo import CollectionInfoType
-
 __classification__ = "UNCLASSIFIED"
 __author__ = ("Thomas McCullough", "Michael Stewart, Valkyrie")
+
+from sarpy.io.xml.descriptors import StringDescriptor
+from sarpy.io.complex.sicd_elements.CollectionInfo import CollectionInfoType
+
+from .base import DEFAULT_STRICT
 
 
 class CollectionIDType(CollectionInfoType):
@@ -21,7 +21,7 @@ class CollectionIDType(CollectionInfoType):
         'RadarMode', 'Classification', 'ReleaseInfo', 'CountryCodes', 'Parameters')
     _required = ('CollectorName', 'CoreName', 'CollectType', 'Classification', 'ReleaseInfo')
     # descriptors
-    ReleaseInfo = _StringDescriptor(
+    ReleaseInfo = StringDescriptor(
         'ReleaseInfo', _required, strict=DEFAULT_STRICT, default_value='UNRESTRICTED',
         docstring='The product release information.')  # type: str
 

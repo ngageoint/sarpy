@@ -12,11 +12,12 @@ from typing import List, Union, Dict
 
 import numpy
 
-from .base import Serializable, DEFAULT_STRICT, _StringDescriptor, _StringEnumDescriptor, \
-    _SerializableDescriptor, _SerializableArrayDescriptor, \
-    _ParametersDescriptor, ParametersCollection, SerializableArray, \
-    _SerializableCPArrayDescriptor, SerializableCPArray, _parse_serializable, \
-    _find_children
+from sarpy.io.xml.base import Serializable, SerializableArray, ParametersCollection, \
+    find_children, parse_serializable
+from sarpy.io.xml.descriptors import StringDescriptor, StringEnumDescriptor, \
+    SerializableDescriptor, ParametersDescriptor, SerializableArrayDescriptor
+
+from .base import DEFAULT_STRICT, SerializableCPArrayDescriptor, SerializableCPArray
 from .blocks import XYZType, LatLonRestrictionType, LatLonHAERestrictionType, \
     LatLonCornerStringType, LatLonArrayElementType
 
@@ -37,20 +38,20 @@ class GeoInfoType(Serializable):
         'Line': {'array': True, 'child_tag': 'Endpoint'},
         'Polygon': {'array': True, 'child_tag': 'Vertex'}, }
     # descriptors
-    name = _StringDescriptor(
+    name = StringDescriptor(
         'name', _required, strict=DEFAULT_STRICT,
         docstring='The name.')  # type: str
-    Descriptions = _ParametersDescriptor(
+    Descriptions = ParametersDescriptor(
         'Descriptions', _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Descriptions of the geographic feature.')  # type: ParametersCollection
-    Point = _SerializableDescriptor(
+    Point = SerializableDescriptor(
         'Point', LatLonRestrictionType, _required, strict=DEFAULT_STRICT,
         docstring='A geographic point with WGS-84 coordinates.')  # type: LatLonRestrictionType
-    Line = _SerializableArrayDescriptor(
+    Line = SerializableArrayDescriptor(
         'Line', LatLonArrayElementType, _collections_tags, _required, strict=DEFAULT_STRICT, minimum_length=2,
         docstring='A geographic line (array) with WGS-84 coordinates.'
     )  # type: Union[SerializableArray, List[LatLonArrayElementType]]
-    Polygon = _SerializableArrayDescriptor(
+    Polygon = SerializableArrayDescriptor(
         'Polygon', LatLonArrayElementType, _collections_tags, _required, strict=DEFAULT_STRICT, minimum_length=3,
         docstring='A geographic polygon (array) with WGS-84 coordinates.'
     )  # type: Union[SerializableArray, List[LatLonArrayElementType]]
@@ -169,7 +170,7 @@ class GeoInfoType(Serializable):
         if kwargs is None:
             kwargs = OrderedDict()
         gi_key = cls._child_xml_ns_key.get('GeoInfos', ns_key)
-        kwargs['GeoInfos'] = _find_children(node, 'GeoInfo', xml_ns, gi_key)
+        kwargs['GeoInfos'] = find_children(node, 'GeoInfo', xml_ns, gi_key)
         return super(GeoInfoType, cls).from_node(node, xml_ns, ns_key=ns_key, kwargs=kwargs)
 
     def to_node(self, doc, tag, ns_key=None, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
@@ -233,7 +234,7 @@ class SCPType(Serializable):
     @ECF.setter
     def ECF(self, value):
         if value is not None:
-            self._ECF = _parse_serializable(value, 'ECF', self, XYZType)
+            self._ECF = parse_serializable(value, 'ECF', self, XYZType)
             self._LLH = LatLonHAERestrictionType.from_array(ecf_to_geodetic(self._ECF.get_array()))
 
     @property
@@ -247,7 +248,7 @@ class SCPType(Serializable):
     @LLH.setter
     def LLH(self, value):
         if value is not None:
-            self._LLH = _parse_serializable(value, 'LLH', self, LatLonHAERestrictionType)
+            self._LLH = parse_serializable(value, 'LLH', self, LatLonHAERestrictionType)
             self._ECF = XYZType.from_array(geodetic_to_ecf(self._LLH.get_array(order='LAT')))
 
     def get_image_center_abbreviation(self):
@@ -277,20 +278,20 @@ class GeoDataType(Serializable):
     # other class variables
     _EARTH_MODEL_VALUES = ('WGS_84', )
     # descriptors
-    EarthModel = _StringEnumDescriptor(
+    EarthModel = StringEnumDescriptor(
         'EarthModel', _EARTH_MODEL_VALUES, _required, strict=True, default_value='WGS_84',
         docstring='The Earth Model.'.format(_EARTH_MODEL_VALUES))  # type: str
-    SCP = _SerializableDescriptor(
+    SCP = SerializableDescriptor(
         'SCP', SCPType, _required, strict=DEFAULT_STRICT,
         docstring='The Scene Center Point *(SCP)* in full (global) image. This is the '
                   'precise location.')  # type: SCPType
-    ImageCorners = _SerializableCPArrayDescriptor(
+    ImageCorners = SerializableCPArrayDescriptor(
         'ImageCorners', LatLonCornerStringType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='The geographic image corner points array. Image corners points projected to the '
                   'ground/surface level. Points may be projected to the same height as the SCP if ground/surface '
                   'height data is not available. The corner positions are approximate geographic locations and '
                   'not intended for analytical use.')  # type: Union[SerializableCPArray, List[LatLonCornerStringType]]
-    ValidData = _SerializableArrayDescriptor(
+    ValidData = SerializableArrayDescriptor(
         'ValidData', LatLonArrayElementType, _collections_tags, _required,
         strict=DEFAULT_STRICT, minimum_length=3,
         docstring='The full image array includes both valid data and some zero filled pixels.'
@@ -394,7 +395,7 @@ class GeoDataType(Serializable):
         if kwargs is None:
             kwargs = OrderedDict()
         gi_key = cls._child_xml_ns_key.get('GeoInfos', ns_key)
-        kwargs['GeoInfos'] = _find_children(node, 'GeoInfo', xml_ns, gi_key)
+        kwargs['GeoInfos'] = find_children(node, 'GeoInfo', xml_ns, gi_key)
         return super(GeoDataType, cls).from_node(node, xml_ns, ns_key=ns_key, kwargs=kwargs)
 
     def to_node(self, doc, tag, ns_key=None, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):
