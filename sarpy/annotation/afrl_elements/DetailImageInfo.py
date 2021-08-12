@@ -9,14 +9,14 @@ from typing import Optional
 import os
 import numpy
 
-from sarpy.io.xml.base import Serializable, find_first_child
+from sarpy.io.xml.base import Serializable, Arrayable
 from sarpy.io.xml.descriptors import StringDescriptor, SerializableDescriptor, \
     IntegerDescriptor, StringEnumDescriptor, DateTimeDescriptor, FloatDescriptor
-from sarpy.io.complex.sicd_elements.blocks import RowColType
 from sarpy.io.complex.sicd import SICDReader
+from sarpy.io.complex.sicd_elements.blocks import LatLonType
 
 from .base import DEFAULT_STRICT
-from .blocks import RangeCrossRangeType, RowColDoubleType
+from .blocks import RangeCrossRangeType
 
 # TODO: Review what's marked required/optional - I'm sure it makes little sense
 #  Questionable field definitions:
@@ -26,6 +26,71 @@ from .blocks import RangeCrossRangeType, RowColDoubleType
 #   - DataCalibrated should obviously be xs:boolean - this is kludged badly for no reason
 #   - DataCheckSum - it is unclear what this is the checksum of, and which checksum it would be (CRC-32?)
 #   - DataByteOrder - why in the world is this even here?
+
+
+class NumPixelsType(Serializable, Arrayable):
+    """A row and column attribute container - used as indices into array(s)."""
+    _fields = ('NumRows', 'NumCols')
+    _required = _fields
+    NumRows = IntegerDescriptor(
+        'NumRows', _required, strict=True, docstring='The number of rows.')  # type: int
+    NumCols = IntegerDescriptor(
+        'NumCols', _required, strict=True, docstring='The number of columns.')  # type: int
+
+    def __init__(self, NumRows=None, NumCols=None, **kwargs):
+        """
+        Parameters
+        ----------
+        NumRows : int
+        NumCols : int
+        kwargs : dict
+        """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
+        self.NumRows, self.NumCols = NumRows, NumCols
+        super(NumPixelsType, self).__init__(**kwargs)
+
+    def get_array(self, dtype=numpy.int64):
+        """
+        Gets an array representation of the class instance.
+
+        Parameters
+        ----------
+        dtype : str|numpy.dtype|numpy.number
+            numpy data type of the return
+
+        Returns
+        -------
+        numpy.ndarray
+            array of the form [NumRows, NumCols]
+        """
+
+        return numpy.array([self.NumRows, self.NumCols], dtype=dtype)
+
+    @classmethod
+    def from_array(cls, array):
+        """
+        Create from an array type entry.
+
+        Parameters
+        ----------
+        array: numpy.ndarray|list|tuple
+            assumed [NumRows, NumCols]
+
+        Returns
+        -------
+        NumPixelsType
+        """
+        if array is None:
+            return None
+        if isinstance(array, (numpy.ndarray, list, tuple)):
+            if len(array) < 2:
+                raise ValueError('Expected array to be of length 2, and received {}'.format(array))
+            return cls(NumRows=array[0], NumCols=array[1])
+        raise ValueError('Expected array to be numpy.ndarray, list, or tuple, got {}'.format(type(array)))
 
 
 class ClassificationMarkingsType(Serializable):
@@ -107,27 +172,27 @@ class ImageCornerType(Serializable):
     _required = _fields
     # descriptors
     UpperLeft = SerializableDescriptor(
-        'UpperLeft', RowColDoubleType, _required, strict=DEFAULT_STRICT,
-        docstring='')  # type: RowColDoubleType
+        'UpperLeft', LatLonType, _required, strict=DEFAULT_STRICT,
+        docstring='')  # type: LatLonType
     UpperRight = SerializableDescriptor(
-        'UpperRight', RowColDoubleType, _required, strict=DEFAULT_STRICT,
-        docstring='')  # type: RowColDoubleType
+        'UpperRight', LatLonType, _required, strict=DEFAULT_STRICT,
+        docstring='')  # type: LatLonType
     LowerRight = SerializableDescriptor(
-        'LowerRight', RowColDoubleType, _required, strict=DEFAULT_STRICT,
-        docstring='')  # type: RowColDoubleType
+        'LowerRight', LatLonType, _required, strict=DEFAULT_STRICT,
+        docstring='')  # type: LatLonType
     LowerLeft = SerializableDescriptor(
-        'LowerLeft', RowColDoubleType, _required, strict=DEFAULT_STRICT,
-        docstring='')  # type: RowColDoubleType
+        'LowerLeft', LatLonType, _required, strict=DEFAULT_STRICT,
+        docstring='')  # type: LatLonType
 
     def __init__(self, UpperLeft=None, UpperRight=None,
                  LowerRight=None, LowerLeft=None, **kwargs):
         """
         Parameters
         ----------
-        UpperLeft : RowColDoubleType|numpy.ndarray|list|tuple
-        UpperRight : RowColDoubleType|numpy.ndarray|list|tuple
-        LowerRight : RowColDoubleType|numpy.ndarray|list|tuple
-        LowerLeft : RowColDoubleType|numpy.ndarray|list|tuple
+        UpperLeft : LatLonType|numpy.ndarray|list|tuple
+        UpperRight : LatLonType|numpy.ndarray|list|tuple
+        LowerRight : LatLonType|numpy.ndarray|list|tuple
+        LowerLeft : LatLonType|numpy.ndarray|list|tuple
         kwargs : dict
         """
 
@@ -179,7 +244,7 @@ class DetailImageInfoType(Serializable):
         'DataFilename', 'ClassificationMarkings', 'DataPlane', 'DataType',
         'DataFormat', 'NumPixels', 'ImageCollectionDate', 'SensorReferencePoint',
         'Resolution', 'PixelSpacing', 'WeightingType', 'ImageCorners')
-    _tag_overide = {'Width_3dB': '_3BWidth'}
+    _tag_overide = {'Width_3dB': '_3dBWidth'}
     # descriptors
     DataFilename = StringDescriptor(
         'DataFilename', _required,
@@ -215,8 +280,8 @@ class DetailImageInfoType(Serializable):
         'DataByteOrder', {'Big-Endian', 'Little-Endian'}, _required,
         docstring='The image data byte order.')  # type: Optional[str]
     NumPixels = SerializableDescriptor(
-        'NumPixels', RowColType, _required,
-        docstring='The number of image pixels')  # type: RowColType
+        'NumPixels', NumPixelsType, _required,
+        docstring='The number of image pixels')  # type: NumPixelsType
     ImageCollectionDate = DateTimeDescriptor(
         'ImageCollectionDate', _required,
         docstring='The date/time of the image collection in UTC')  # type: Optional[numpy.datetime64]
@@ -295,7 +360,7 @@ class DetailImageInfoType(Serializable):
         BitsPerSample : None|int
         DataFormat : None|str
         DataByteOrder : None|str
-        NumPixels : RowColType|numpy.ndarray|list|tuple
+        NumPixels : NumPixelsType|numpy.ndarray|list|tuple
         ImageCollectionDate : numpy.datetime64|datetime|date|str
         ZuluOffset : None|int
         SensorReferencePoint : None|str

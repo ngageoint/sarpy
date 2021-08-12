@@ -830,15 +830,15 @@ class Serializable(object):
                 'for class {}.'.format(node, cls))
             # return None
 
-        def handle_attribute(the_tag, the_xml_ns_key):
+        def handle_attribute(the_attribute, the_tag, the_xml_ns_key):
             if the_xml_ns_key is not None:  # handle namespace, if necessary
                 fetch_tag = '{' + xml_ns[the_xml_ns_key] + '}' + the_tag
             else:
                 fetch_tag = the_tag
-            kwargs[the_tag] = node.attrib.get(fetch_tag, None)
+            kwargs[the_attribute] = node.attrib.get(fetch_tag, None)
 
-        def handle_single(the_tag, the_xml_ns_key):
-            kwargs[the_tag] = find_first_child(node, the_tag, xml_ns, the_xml_ns_key)
+        def handle_single(the_attribute, the_tag, the_xml_ns_key):
+            kwargs[the_attribute] = find_first_child(node, the_tag, xml_ns, the_xml_ns_key)
 
         def handle_list(attrib, ch_tag, the_xml_ns_key):
             cnodes = find_children(node, ch_tag, xml_ns, the_xml_ns_key)
@@ -881,14 +881,14 @@ class Serializable(object):
 
             if attribute in cls._set_as_attribute:
                 xml_ns_key = cls._child_xml_ns_key.get(attribute, None)
-                handle_attribute(base_tag_name, xml_ns_key)
+                handle_attribute(attribute, base_tag_name, xml_ns_key)
             elif attribute in cls._collections_tags:
                 # it's a collection type parameter
                 array_tag = cls._collections_tags[attribute]
                 array = array_tag.get('array', False)
                 child_tag = array_tag.get('child_tag', None)
                 if array:
-                    handle_single(base_tag_name, xml_ns_key)
+                    handle_single(attribute, base_tag_name, xml_ns_key)
                 elif child_tag is not None:
                     handle_list(attribute, child_tag, xml_ns_key)
                 else:
@@ -898,7 +898,7 @@ class Serializable(object):
                         '`child_tag` value is either not populated or None.'.format(attribute, cls))
             else:
                 # it's a regular property
-                handle_single(base_tag_name, xml_ns_key)
+                handle_single(attribute, base_tag_name, xml_ns_key)
         return cls.from_dict(kwargs)
 
     def to_node(self, doc, tag, ns_key=None, parent=None, check_validity=False, strict=DEFAULT_STRICT, exclude=()):

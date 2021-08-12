@@ -160,17 +160,17 @@ class SizeType(Serializable, Arrayable):
 
 class OrientationType(Serializable):
     _fields = ('Roll', 'Pitch', 'Yaw', 'AzimuthAngle')
-    _required = _fields
+    _required = ()
     _numeric_format = {key: '0.16G' for key in _fields}
     # descriptors
     Roll = FloatDescriptor(
-        'Roll', _required, strict=True)  # type: float
+        'Roll', _required)  # type: float
     Pitch = FloatDescriptor(
-        'Pitch', _required, strict=True)  # type: float
+        'Pitch', _required)  # type: float
     Yaw = FloatDescriptor(
-        'Yaw', _required, strict=True)  # type: float
+        'Yaw', _required)  # type: float
     AzimuthAngle = FloatDescriptor(
-        'AzimuthAngle', _required, strict=True)  # type: float
+        'AzimuthAngle', _required)  # type: float
 
     def __init__(self, Roll=None, Pitch=None, Yaw=None, AzimuthAngle=None, **kwargs):
         """
@@ -444,7 +444,7 @@ class TheObjectType(Serializable):
         'Size', SizeType, _required, strict=DEFAULT_STRICT,
         docstring='The actual physical size of the object')  # type: Optional[SizeType]
     Orientation = SerializableDescriptor(
-        'Orientation', SizeType, _required, strict=DEFAULT_STRICT,
+        'Orientation', OrientationType, _required, strict=DEFAULT_STRICT,
         docstring='The actual orientation size of the object')  # type: Optional[OrientationType]
     Articulation = SerializableDescriptor(
         'Articulation', CompoundCommentType, _required,

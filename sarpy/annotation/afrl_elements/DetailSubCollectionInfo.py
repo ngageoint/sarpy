@@ -80,6 +80,6 @@ class DetailSubCollectionInfoType(Serializable):
         self.Description = Description
         self.Duration = Duration
         self.SiteCenterLocation = SiteCenterLocation
-        self.SceneContentDesription = SceneContentDescription
+        self.SceneContentDescription = SceneContentDescription
         self.SiteBackgroundType = SiteBackgroundType
         super(DetailSubCollectionInfoType, self).__init__(**kwargs)
