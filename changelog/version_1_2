@@ -1,7 +1,7 @@
 # This details the important differences introduced in sarpy 1.2
 
-* .12 - Adding AFRL labeling schema object oriented structure
-*       Refactoring so that the xml/serialization is more clearly structured
+* .12 - Refactoring so that the xml/serialization is more clearly structured
+        Adding AFRL labeling schema object oriented structure
 * .11 - Updated the logging scheme to be sarpy specific
 * .10 - Adding support for Compensated Received Signal Data (CRSD) format reading and writing
 * .9 - Fixing typo in Cosmo SkyMed mode handling
