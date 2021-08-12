@@ -2,16 +2,17 @@
 The Dwell parameters definition.
 """
 
-from typing import List
-
-from .base import DEFAULT_STRICT
-# noinspection PyProtectedMember
-from sarpy.io.complex.sicd_elements.base import Serializable, _StringDescriptor, \
-    _SerializableDescriptor, _SerializableListDescriptor
-from sarpy.io.complex.sicd_elements.blocks import Poly2DType
-
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
+
+
+from typing import List
+
+from sarpy.io.xml.base import Serializable
+from sarpy.io.xml.descriptors import StringDescriptor, SerializableDescriptor, SerializableListDescriptor
+from sarpy.io.complex.sicd_elements.blocks import Poly2DType
+
+from .base import DEFAULT_STRICT
 
 
 class CODTimeType(Serializable):
@@ -22,11 +23,11 @@ class CODTimeType(Serializable):
     _fields = ('Identifier', 'CODTimePoly')
     _required = _fields
     # descriptors
-    Identifier = _StringDescriptor(
+    Identifier = StringDescriptor(
         'Identifier', _required, strict=DEFAULT_STRICT,
         docstring='String that uniquely identifies this COD Time '
                   'polynomial.')  # type: str
-    CODTimePoly = _SerializableDescriptor(
+    CODTimePoly = SerializableDescriptor(
         'CODTimePoly', Poly2DType, _required, strict=DEFAULT_STRICT,
         docstring='The polynomial.')  # type: Poly2DType
 
@@ -56,11 +57,11 @@ class DwellTimeType(Serializable):
     _fields = ('Identifier', 'DwellTimePoly')
     _required = _fields
     # descriptors
-    Identifier = _StringDescriptor(
+    Identifier = StringDescriptor(
         'Identifier', _required, strict=DEFAULT_STRICT,
         docstring='String that uniquely identifies this Dwell Time '
                   'polynomial.')  # type: str
-    DwellTimePoly = _SerializableDescriptor(
+    DwellTimePoly = SerializableDescriptor(
         'DwellTimePoly', Poly2DType, _required, strict=DEFAULT_STRICT,
         docstring='The polynomial.')  # type: Poly2DType
 
@@ -95,10 +96,10 @@ class DwellType(Serializable):
         'CODTimes': {'array': False, 'child_tag': 'CODTime'},
         'DwellTimes': {'array': False, 'child_tag': 'DwellTime'}}
     # descriptors
-    CODTimes = _SerializableListDescriptor(
+    CODTimes = SerializableListDescriptor(
         'CODTimes', CODTimeType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='The Center of Dwell (COD) time polynomials.')  # type: List[CODTimeType]
-    DwellTimes = _SerializableListDescriptor(
+    DwellTimes = SerializableListDescriptor(
         'DwellTimes', DwellTimeType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='The dwell time polynomials.')  # type: List[DwellTimeType]
 

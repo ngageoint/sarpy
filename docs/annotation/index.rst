@@ -2,8 +2,9 @@ Annotation elements (sarpy.annotation)
 ======================================
 
 .. toctree::
-    :maxdepth: 1
+    :maxdepth: 2
     :caption: Contents:
 
     label
     rcs
+    afrl_elements/index

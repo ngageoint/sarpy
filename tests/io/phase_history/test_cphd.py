@@ -122,9 +122,17 @@ def generic_writer_test(cphd_reader):
         reread_signal = rereader.read_signal_block()
 
         # byte compare that the original data and re-read data are identical
-        numpy.testing.assert_equal(read_support, reread_support)
-        numpy.testing.assert_equal(read_pvp, reread_pvp)
-        numpy.testing.assert_equal(read_signal, reread_signal)
+        assert read_support.keys() == reread_support.keys(), 'Support keys are not identical'
+        for support_key in reread_support:
+            numpy.testing.assert_array_equal(read_support[support_key], reread_support[support_key])
+
+        assert reread_pvp.keys() == read_pvp.keys(), 'PVP keys are not identical'
+        for pvp_key in reread_pvp:
+            numpy.testing.assert_array_equal(read_pvp[pvp_key], reread_pvp[pvp_key])
+
+        assert read_signal.keys() == read_signal.keys(), 'Signal keys are not identical'
+        for signal_key in reread_signal:
+            numpy.testing.assert_array_equal(read_signal[signal_key], reread_signal[signal_key])
 
         assert not sarpy.consistency.cphd_consistency.main([written_cphd.name, '--schema', DEFAULT_SCHEMA, '--signal-data'])
 

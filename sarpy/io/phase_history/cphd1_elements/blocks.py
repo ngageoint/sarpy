@@ -10,11 +10,11 @@ from typing import Union, List
 
 import numpy
 
+from sarpy.io.xml.base import Serializable, Arrayable, SerializableArray
+from sarpy.io.xml.descriptors import SerializableDescriptor, SerializableArrayDescriptor, \
+    IntegerDescriptor, FloatDescriptor
+
 from .base import DEFAULT_STRICT
-# noinspection PyProtectedMember
-from sarpy.io.complex.sicd_elements.base import Serializable, Arrayable, SerializableArray, \
-    _SerializableDescriptor, _SerializableArrayDescriptor, \
-    _IntegerDescriptor, _FloatDescriptor
 
 
 ###################
@@ -31,10 +31,10 @@ class LSType(Serializable, Arrayable):
     _required = _fields
     _numeric_format = {'Line': '0.16G', 'Sample': '0.16G'}
     # Descriptor
-    Line = _FloatDescriptor(
+    Line = FloatDescriptor(
         'Line', _required, strict=DEFAULT_STRICT,
         docstring='The Line.')  # type: float
-    Sample = _FloatDescriptor(
+    Sample = FloatDescriptor(
         'Sample', _required, strict=DEFAULT_STRICT,
         docstring='The Sample.')  # type: float
 
@@ -104,7 +104,7 @@ class LSVertexType(LSType):
     _fields = ('Line', 'Sample', 'index')
     _required = _fields
     # descriptors
-    index = _IntegerDescriptor(
+    index = IntegerDescriptor(
         'index', _required, strict=DEFAULT_STRICT, bounds=(1, None),
         docstring='The array index.')  # type: int
 
@@ -160,11 +160,11 @@ class XYType(Serializable, Arrayable):
     _required = _fields
     _numeric_format = {'X': '0.16G', 'Y': '0.16G'}
     # descriptors
-    X = _FloatDescriptor(
+    X = FloatDescriptor(
         'X', _required, strict=True,
         docstring='The X attribute. Assumed to ECF or other, similar '
                   'coordinates.')  # type: float
-    Y = _FloatDescriptor(
+    Y = FloatDescriptor(
         'Y', _required, strict=True,
         docstring='The Y attribute. Assumed to ECF or other, similar '
                   'coordinates.')  # type: float
@@ -235,7 +235,7 @@ class XYVertexType(XYType):
     _required = _fields
     _set_as_attribute = ('index', )
     # descriptors
-    index = _IntegerDescriptor(
+    index = IntegerDescriptor(
         'index', _required, strict=DEFAULT_STRICT, bounds=(1, None),
         docstring='The array index.')  # type: int
 
@@ -291,15 +291,15 @@ class AreaType(Serializable):
     _required = _fields
     _collections_tags = {'Polygon': {'array': True, 'child_tag': 'Vertex'}}
     # descriptors
-    X1Y1 = _SerializableDescriptor(
+    X1Y1 = SerializableDescriptor(
         'X1Y1', XYType, _required, strict=DEFAULT_STRICT,
         docstring='*"Minimum"* corner of the rectangle in Image '
                   'coordinates.')  # type: XYType
-    X2Y2 = _SerializableDescriptor(
+    X2Y2 = SerializableDescriptor(
         'X2Y2', XYType, _required, strict=DEFAULT_STRICT,
         docstring='*"Maximum"* corner of the rectangle in Image '
                   'coordinates.')  # type: XYType
-    Polygon = _SerializableArrayDescriptor(
+    Polygon = SerializableArrayDescriptor(
         'Polygon', XYVertexType, _collections_tags, _required, strict=DEFAULT_STRICT, minimum_length=3,
         docstring='Polygon further reducing the bounding box, in Image '
                   'coordinates.')  # type: Union[SerializableArray, List[XYVertexType]]

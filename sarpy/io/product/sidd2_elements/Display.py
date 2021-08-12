@@ -8,13 +8,13 @@ __author__ = "Thomas McCullough"
 
 from typing import Union, List
 
+from sarpy.io.xml.base import Serializable, SerializableArray, ParametersCollection
+from sarpy.io.xml.descriptors import SerializableDescriptor, SerializableListDescriptor, \
+    IntegerDescriptor, FloatDescriptor, StringDescriptor, StringEnumDescriptor, \
+    ParametersDescriptor, SerializableArrayDescriptor
+
 from .base import DEFAULT_STRICT
 from .blocks import FilterType, NewLookupTableType
-# noinspection PyProtectedMember
-from sarpy.io.complex.sicd_elements.base import Serializable, _SerializableDescriptor, _SerializableListDescriptor, \
-    _IntegerDescriptor, _FloatDescriptor, _StringDescriptor, _StringEnumDescriptor, \
-    _ParametersDescriptor, ParametersCollection, SerializableArray, _SerializableArrayDescriptor
-
 
 #########
 # NonInteractiveProcessing
@@ -24,7 +24,7 @@ class BandLUTType(NewLookupTableType):
     _required = ('k', )
     _set_as_attribute = ('k', )
     # Descriptor
-    k = _IntegerDescriptor(
+    k = IntegerDescriptor(
         'k', _required, strict=DEFAULT_STRICT, bounds=(1, 2**32), default_value=1,
         docstring='The array index.')
 
@@ -61,10 +61,10 @@ class BandEqualizationType(Serializable):
     _required = ('Algorithm', 'BandLUTs')
     _collections_tags = {'BandLUTs': {'array': True, 'child_tag': 'BandLUT'}}
     # Descriptor
-    Algorithm = _StringEnumDescriptor(
+    Algorithm = StringEnumDescriptor(
         'Algorithm', ('1DLUT', ), _required, strict=DEFAULT_STRICT, default_value='1DLUT',
         docstring='The algorithm type.')  # type: str
-    BandLUTs = _SerializableArrayDescriptor(
+    BandLUTs = SerializableArrayDescriptor(
         'BandLUTs', BandLUTType, _collections_tags, _required, strict=DEFAULT_STRICT, array_extension=BandLUTArray,
         docstring='')  # type: Union[BandLUTArray, List[BandLUTType]]
 
@@ -95,19 +95,19 @@ class ProductGenerationOptionsType(Serializable):
     _fields = ('BandEqualization', 'ModularTransferFunctionRestoration', 'DataRemapping', 'AsymmetricPixelCorrection')
     _required = ('DataRemapping', )
     # Descriptor
-    BandEqualization = _SerializableDescriptor(
+    BandEqualization = SerializableDescriptor(
         'BandEqualization', BandEqualizationType, _required, strict=DEFAULT_STRICT,
         docstring='Band equalization ensures that real-world neutral colors have equal digital count values '
                   '(i.e. are represented as neutral colors) across the dynamic range '
                   'of the imaged scene.')  # type: BandEqualizationType
-    ModularTransferFunctionRestoration = _SerializableDescriptor(
+    ModularTransferFunctionRestoration = SerializableDescriptor(
         'ModularTransferFunctionRestoration', FilterType, _required, strict=DEFAULT_STRICT,
         docstring=r'If present, the filter must not exceed :math:`15 \times 15`.')  # type: FilterType
-    DataRemapping = _SerializableDescriptor(
+    DataRemapping = SerializableDescriptor(
         'DataRemapping', NewLookupTableType, _required, strict=DEFAULT_STRICT,
         docstring='Data remapping refers to the specific need to convert the data of incoming, expanded or '
                   'uncompressed image band data to non-mapped image data.')  # type: NewLookupTableType
-    AsymmetricPixelCorrection = _SerializableDescriptor(
+    AsymmetricPixelCorrection = SerializableDescriptor(
         'AsymmetricPixelCorrection', FilterType, _required, strict=DEFAULT_STRICT,
         docstring='The asymmetric pixel correction.')  # type: FilterType
 
@@ -130,16 +130,16 @@ class RRDSType(Serializable):
     _fields = ('DownsamplingMethod', 'AntiAlias', 'Interpolation')
     _required = ('DownsamplingMethod', )
     # Descriptor
-    DownsamplingMethod = _StringEnumDescriptor(
+    DownsamplingMethod = StringEnumDescriptor(
         'DownsamplingMethod',
         ('DECIMATE', 'MAX PIXEL', 'AVERAGE', 'NEAREST NEIGHBOR', 'BILINEAR', 'LAGRANGE'),
         _required, strict=DEFAULT_STRICT,
         docstring='Algorithm used to perform RRDS downsampling')  # type: str
-    AntiAlias = _SerializableDescriptor(
+    AntiAlias = SerializableDescriptor(
         'AntiAlias', FilterType, _required, strict=DEFAULT_STRICT,
         docstring='The anti-aliasing filter. Should only be included if '
                   '`DownsamplingMethod= "DECIMATE"`')  # type: FilterType
-    Interpolation = _SerializableDescriptor(
+    Interpolation = SerializableDescriptor(
         'Interpolation', FilterType, _required, strict=DEFAULT_STRICT,
         docstring='The interpolation filter. Should only be included if '
                   '`DownsamplingMethod= "DECIMATE"`')  # type: FilterType
@@ -174,16 +174,16 @@ class NonInteractiveProcessingType(Serializable):
     _required = ('ProductGenerationOptions', 'RRDS', 'band')
     _set_as_attribute = ('band', )
     # Descriptor
-    ProductGenerationOptions = _SerializableDescriptor(
+    ProductGenerationOptions = SerializableDescriptor(
         'ProductGenerationOptions', ProductGenerationOptionsType, _required, strict=DEFAULT_STRICT,
         docstring='Performs several key actions on an image to prepare it for necessary additional processing to '
                   'achieve the desired output product.')  # type: ProductGenerationOptionsType
-    RRDS = _SerializableDescriptor(
+    RRDS = SerializableDescriptor(
         'RRDS', RRDSType, _required, strict=DEFAULT_STRICT,
         docstring='Creates a set of sub-sampled versions of an image to provide processing chains '
                   'with quick access to lower magnification values for faster computation '
                   'speeds and performance.')  # type: RRDSType
-    band = _IntegerDescriptor(
+    band = IntegerDescriptor(
         'band', _required, strict=DEFAULT_STRICT,
         docstring='The image band to which this applies.')  # type: int
 
@@ -208,11 +208,11 @@ class ScalingType(Serializable):
     _fields = ('AntiAlias', 'Interpolation')
     _required = _fields
     # Descriptor
-    AntiAlias = _SerializableDescriptor(
+    AntiAlias = SerializableDescriptor(
         'AntiAlias', FilterType, _required, strict=DEFAULT_STRICT,
         docstring='The Anti-Alias Filter used for scaling. Refer to program-specific '
                   'documentation for population guidance.')  # type: FilterType
-    Interpolation = _SerializableDescriptor(
+    Interpolation = SerializableDescriptor(
         'Interpolation', FilterType, _required, strict=DEFAULT_STRICT,
         docstring='The Interpolation Filter used for scaling. Refer to program-specific '
                   'documentation for population guidance.')  # type: FilterType
@@ -244,7 +244,7 @@ class OrientationType(Serializable):
     _fields = ('ShadowDirection', )
     _required = _fields
     # Descriptor
-    ShadowDirection = _StringEnumDescriptor(
+    ShadowDirection = StringEnumDescriptor(
         'ShadowDirection', ('UP', 'DOWN', 'LEFT', 'RIGHT', 'ARBITRARY'), _required,
         strict=DEFAULT_STRICT, default_value='DOWN',
         docstring='Describes the shadow direction relative to the '
@@ -268,10 +268,10 @@ class GeometricTransformType(Serializable):
     _fields = ('Scaling', 'Orientation')
     _required = _fields
     # Descriptor
-    Scaling = _SerializableDescriptor(
+    Scaling = SerializableDescriptor(
         'Scaling', ScalingType, _required, strict=DEFAULT_STRICT,
         docstring='The scaling filters.')  # type: ScalingType
-    Orientation = _SerializableDescriptor(
+    Orientation = SerializableDescriptor(
         'Orientation', OrientationType, _required, strict=DEFAULT_STRICT,
         docstring='Parameters describing the default orientation of the product.')  # type: OrientationType
 
@@ -303,10 +303,10 @@ class SharpnessEnhancementType(Serializable):
     _choice = ({'required': True, 'collection': ('ModularTransferFunctionCompensation',
                                                  'ModularTransferFunctionEnhancement')}, )
     # Descriptor
-    ModularTransferFunctionCompensation = _SerializableDescriptor(
+    ModularTransferFunctionCompensation = SerializableDescriptor(
         'ModularTransferFunctionCompensation', FilterType, _required, strict=DEFAULT_STRICT,
         docstring=r'If defining a custom Filter, it must be no larger than :math:`5\times 5`.')  # type: FilterType
-    ModularTransferFunctionEnhancement = _SerializableDescriptor(
+    ModularTransferFunctionEnhancement = SerializableDescriptor(
         'ModularTransferFunctionEnhancement', FilterType, _required, strict=DEFAULT_STRICT,
         docstring=r'If defining a custom Filter, it must be no larger than :math:`5\times 5`.')  # type: FilterType
 
@@ -337,17 +337,17 @@ class ColorManagementModuleType(Serializable):
     _fields = ('RenderingIntent', 'SourceProfile', 'DisplayProfile', 'ICCProfile')
     _required = ('RenderingIntent', 'SourceProfile')
     # Descriptor
-    RenderingIntent = _StringEnumDescriptor(
+    RenderingIntent = StringEnumDescriptor(
         'RenderingIntent', ('PERCEPTUAL', 'SATURATION', 'RELATIVE', 'ABSOLUTE'),
         _required, strict=DEFAULT_STRICT, default_value='PERCEPTUAL',
         docstring='The rendering intent for this color management.')  # type: str
-    SourceProfile = _StringDescriptor(
+    SourceProfile = StringDescriptor(
         'SourceProfile', _required, strict=DEFAULT_STRICT,
         docstring='Name of sensor profile in ICC Profile database.')  # type: str
-    DisplayProfile = _StringDescriptor(
+    DisplayProfile = StringDescriptor(
         'DisplayProfile', _required, strict=DEFAULT_STRICT,
         docstring='Name of display profile in ICC Profile database.')  # type: str
-    ICCProfile = _StringDescriptor(
+    ICCProfile = StringDescriptor(
         'ICCProfile', _required, strict=DEFAULT_STRICT,
         docstring='Valid ICC profile signature.')  # type: str
 
@@ -382,7 +382,7 @@ class ColorSpaceTransformType(Serializable):
     _fields = ('ColorManagementModule', )
     _required = _fields
     # Descriptor
-    ColorManagementModule = _SerializableDescriptor(
+    ColorManagementModule = SerializableDescriptor(
         'ColorManagementModule', ColorManagementModuleType, _required, strict=DEFAULT_STRICT,
         docstring='Parameters describing the Color Management Module (CMM).')  # type: ColorManagementModuleType
 
@@ -411,19 +411,19 @@ class DRAParametersType(Serializable):
     _required = _fields
     _numeric_format = {key: '0.16G' for key in _fields}
     # Descriptor
-    Pmin = _FloatDescriptor(
+    Pmin = FloatDescriptor(
         'Pmin', _required, strict=DEFAULT_STRICT, bounds=(0, 1),
         docstring='DRA clip low point. This is the cumulative histogram percentage value '
                   'that defines the lower end-point of the dynamic range to be displayed.')  # type: float
-    Pmax = _FloatDescriptor(
+    Pmax = FloatDescriptor(
         'Pmax', _required, strict=DEFAULT_STRICT, bounds=(0, 1),
         docstring='DRA clip high point. This is the cumulative histogram percentage value '
                   'that defines the upper end-point of the dynamic range to be displayed.')  # type: float
-    EminModifier = _FloatDescriptor(
+    EminModifier = FloatDescriptor(
         'EminModifier', _required, strict=DEFAULT_STRICT, bounds=(0, 1),
         docstring='The pixel value corresponding to the Pmin percentage point in the '
                   'image histogram.')  # type: float
-    EmaxModifier = _FloatDescriptor(
+    EmaxModifier = FloatDescriptor(
         'EmaxModifier', _required, strict=DEFAULT_STRICT, bounds=(0, 1),
         docstring='The pixel value corresponding to the Pmax percentage point in the '
                   'image histogram.')  # type: float
@@ -459,10 +459,10 @@ class DRAOverridesType(Serializable):
     _required = _fields
     _numeric_format = {key: '0.16G' for key in _fields}
     # Descriptor
-    Subtractor = _FloatDescriptor(
+    Subtractor = FloatDescriptor(
         'Subtractor', _required, strict=DEFAULT_STRICT, bounds=(0, 2047),
         docstring='Subtractor value used to reduce haze in the image.')  # type: float
-    Multiplier = _FloatDescriptor(
+    Multiplier = FloatDescriptor(
         'Multiplier', _required, strict=DEFAULT_STRICT, bounds=(0, 2047),
         docstring='Multiplier value used to reduce haze in the image.')  # type: float
 
@@ -491,16 +491,16 @@ class DynamicRangeAdjustmentType(Serializable):
     _fields = ('AlgorithmType', 'BandStatsSource', 'DRAParameters', 'DRAOverrides')
     _required = ('AlgorithmType', 'BandStatsSource', )
     # Descriptor
-    AlgorithmType = _StringEnumDescriptor(
+    AlgorithmType = StringEnumDescriptor(
         'AlgorithmType', ('AUTO', 'MANUAL', 'NONE'), _required, strict=DEFAULT_STRICT, default_value='NONE',
         docstring='Algorithm used for dynamic range adjustment.')  # type: str
-    BandStatsSource = _IntegerDescriptor(
+    BandStatsSource = IntegerDescriptor(
         'BandStatsSource', _required, strict=DEFAULT_STRICT,
         docstring='')  # type: int
-    DRAParameters = _SerializableDescriptor(
+    DRAParameters = SerializableDescriptor(
         'DRAParameters', DRAParametersType, _required, strict=DEFAULT_STRICT,
         docstring='The dynamic range adjustment parameters.')  # type: DRAParametersType
-    DRAOverrides = _SerializableDescriptor(
+    DRAOverrides = SerializableDescriptor(
         'DRAOverrides', DRAOverridesType, _required, strict=DEFAULT_STRICT,
         docstring='The dynamic range adjustment overrides.')  # type: DRAOverridesType
 
@@ -538,28 +538,28 @@ class InteractiveProcessingType(Serializable):
         'GeometricTransform', 'SharpnessEnhancement', 'DynamicRangeAdjustment', 'band')
     _set_as_attribute = ('band', )
     # Descriptor
-    GeometricTransform = _SerializableDescriptor(
+    GeometricTransform = SerializableDescriptor(
         'GeometricTransform', GeometricTransformType, _required, strict=DEFAULT_STRICT,
         docstring='The geometric transform element is used to perform various geometric distortions '
                   'to each band of image data. These distortions include image '
                   'chipping, scaling, rotation, shearing, etc.')  # type: GeometricTransformType
-    SharpnessEnhancement = _SerializableDescriptor(
+    SharpnessEnhancement = SerializableDescriptor(
         'SharpnessEnhancement', SharpnessEnhancementType, _required, strict=DEFAULT_STRICT,
         docstring='Sharpness enhancement.')  # type: SharpnessEnhancementType
-    ColorSpaceTransform = _SerializableDescriptor(
+    ColorSpaceTransform = SerializableDescriptor(
         'ColorSpaceTransform', ColorSpaceTransformType, _required, strict=DEFAULT_STRICT,
         docstring='Color space transform.')  # type: ColorSpaceTransformType
-    DynamicRangeAdjustment = _SerializableDescriptor(
+    DynamicRangeAdjustment = SerializableDescriptor(
         'DynamicRangeAdjustment', DynamicRangeAdjustmentType, _required, strict=DEFAULT_STRICT,
         docstring='Specifies the recommended ELT DRA overrides.')  # type: DynamicRangeAdjustmentType
-    TonalTransferCurve = _SerializableDescriptor(
+    TonalTransferCurve = SerializableDescriptor(
         'TonalTransferCurve', NewLookupTableType, _required, strict=DEFAULT_STRICT,
         docstring="The 1-D LUT element uses one or more 1-D LUTs to stretch or compress tone data "
                   "in valorous regions within a digital image's dynamic range. 1-D LUT can be "
                   "implemented using a Tonal Transfer Curve (TTC). There are 12 families of TTCs "
                   "- Range = [0, 11]. There are 64 members for each "
                   "family - Range=[0, 63].")  # type: NewLookupTableType
-    band = _IntegerDescriptor(
+    band = IntegerDescriptor(
         'band', _required, strict=DEFAULT_STRICT,
         docstring='The image band to which this applies.')
 
@@ -594,26 +594,26 @@ class ProductDisplayType(Serializable):
         'DisplayExtensions': {'array': False, 'child_tag': 'DisplayExtension'}}
 
     # Descriptors
-    PixelType = _StringEnumDescriptor(
+    PixelType = StringEnumDescriptor(
         'PixelType', ('MONO8I', 'MONO8LU', 'MONO16I', 'RGB8LU', 'RGB24I'), _required, strict=DEFAULT_STRICT,
         docstring='Enumeration of the pixel type. Definition in '
                   'Design and Exploitation document.')  # type: str
-    NumBands = _IntegerDescriptor(
+    NumBands = IntegerDescriptor(
         'NumBands', _required, strict=DEFAULT_STRICT,
         docstring='Number of bands contained in the image. Populate with the number of bands '
                   'present after remapping. For example an 8-bit RGB image (RGBLU), this will '
                   'be 3.')  # type: int
-    DefaultBandDisplay = _IntegerDescriptor(
+    DefaultBandDisplay = IntegerDescriptor(
         'DefaultBandDisplay', _required, strict=DEFAULT_STRICT,
         docstring='Indicates which band to display by default. '
                   'Valid range = 1 to NumBands.')  # type: int
-    NonInteractiveProcessing = _SerializableListDescriptor(
+    NonInteractiveProcessing = SerializableListDescriptor(
         'NonInteractiveProcessing', NonInteractiveProcessingType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Non-interactive processing details.')  # type: List[NonInteractiveProcessingType]
-    InteractiveProcessing = _SerializableListDescriptor(
+    InteractiveProcessing = SerializableListDescriptor(
         'InteractiveProcessing', InteractiveProcessingType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Interactive processing details.')  # type: List[InteractiveProcessingType]
-    DisplayExtensions = _ParametersDescriptor(
+    DisplayExtensions = ParametersDescriptor(
         'DisplayExtensions', _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Optional extensible parameters used to support profile-specific needs related to '
                   'product display. Predefined filter types.')  # type: ParametersCollection

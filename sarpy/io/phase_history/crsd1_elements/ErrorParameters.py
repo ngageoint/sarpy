@@ -2,17 +2,19 @@
 The error parameters type definition.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = ("Thomas McCullough", "Michael Stewart, Valkyrie")
+
 from typing import Union
 
-from .base import DEFAULT_STRICT
-# noinspection PyProtectedMember
-from sarpy.io.complex.sicd_elements.base import Serializable, _FloatDescriptor, \
-    _SerializableDescriptor, _ParametersDescriptor, ParametersCollection
+from sarpy.io.xml.base import Serializable, ParametersCollection
+from sarpy.io.xml.descriptors import FloatDescriptor, SerializableDescriptor, \
+    ParametersDescriptor
+
 from sarpy.io.complex.sicd_elements.blocks import ErrorDecorrFuncType
 from sarpy.io.complex.sicd_elements.ErrorStatistics import PosVelErrType, TropoErrorType
 
-__classification__ = "UNCLASSIFIED"
-__author__ = ("Thomas McCullough", "Michael Stewart, Valkyrie")
+from .base import DEFAULT_STRICT
 
 
 class RadarSensorType(Serializable):
@@ -24,17 +26,17 @@ class RadarSensorType(Serializable):
     _required = ('RangeBias', )
     _numeric_format = {'RangeBias': '0.16G', 'ClockFreqSF': '0.16G', 'RefTimeError': '0.16G'}
     # descriptors
-    RangeBias = _FloatDescriptor(
+    RangeBias = FloatDescriptor(
         'RangeBias', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='Range bias error standard deviation.')  # type: float
-    ClockFreqSF = _FloatDescriptor(
+    ClockFreqSF = FloatDescriptor(
         'ClockFreqSF', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='Payload clock frequency scale factor standard deviation, '
                   r'where :math:`SF = (\Delta f)/f_0`.')  # type: float
-    RefTimeError = _FloatDescriptor(
+    RefTimeError = FloatDescriptor(
         'RefTimeError', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='Time error standard deviation, in seconds.')  # type: float
-    RangeBiasDecorr = _SerializableDescriptor(
+    RangeBiasDecorr = SerializableDescriptor(
         'RangeBiasDecorr', ErrorDecorrFuncType, _required, strict=DEFAULT_STRICT,
         docstring='Range Bias error decorrelation function.')  # type: ErrorDecorrFuncType
 
@@ -71,18 +73,18 @@ class IonoErrorType(Serializable):
     _required = ('IonoRangeVertical', )
     _numeric_format = {'IonoRangeVertical': '0.16G', 'IonoRangeRateVertical': '0.16G', 'IonoRgRgRateCC': '0.16G'}
     # descriptors
-    IonoRangeVertical = _FloatDescriptor(
+    IonoRangeVertical = FloatDescriptor(
         'IonoRangeVertical', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='Ionosphere two-way delay error for normal incidence standard deviation. '
                   r'Expressed as a range error. :math:`(\Delta R) = (\Delta T) \cdot (c/2)`.')  # type: float
-    IonoRangeRateVertical = _FloatDescriptor(
+    IonoRangeRateVertical = FloatDescriptor(
         'IonoRangeRateVertical', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='Ionosphere two-way delay rate of change error for normal incidence standard deviation. '
                   r'Expressed as a range rate error. :math:`\dot{R} = \Delta \dot{TD_Iono} \times c/2`.')  # type: float
-    IonoRgRgRateCC = _FloatDescriptor(
+    IonoRgRgRateCC = FloatDescriptor(
         'IonoRgRgRateCC', _required, strict=DEFAULT_STRICT, bounds=(-1, 1),
         docstring='Ionosphere range error and range rate error correlation coefficient.')  # type: float
-    IonoRangeVertDecorr = _SerializableDescriptor(
+    IonoRangeVertDecorr = SerializableDescriptor(
         'IonoRangeVertDecorr', ErrorDecorrFuncType, _required, strict=DEFAULT_STRICT,
         docstring='Ionosphere range error decorrelation function.')  # type: ErrorDecorrFuncType
 
@@ -119,11 +121,11 @@ class BistaticRadarSensorType(Serializable):
     _required = tuple()
     _numeric_format = {'ClockFreqSF': '0.16G', 'RefTimeError': '0.16G'}
     # descriptors
-    ClockFreqSF = _FloatDescriptor(
+    ClockFreqSF = FloatDescriptor(
         'ClockFreqSF', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='Payload clock frequency scale factor standard deviation, '
                   r'where :math:`SF = (\Delta f)/f_0`.')  # type: float
-    RefTimeError = _FloatDescriptor(
+    RefTimeError = FloatDescriptor(
         'RefTimeError', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='Time error standard deviation, in seconds.')  # type: float
 
@@ -155,15 +157,15 @@ class ReceiveSensorType(Serializable):
     _required = ('RcvDelayBias', )
     _numeric_format = {'ClockFreqSF': '0.16G', 'RefTimeError': '0.16G'}
     # descriptors
-    RcvDelayBias = _FloatDescriptor(
+    RcvDelayBias = FloatDescriptor(
         'RcvDelayBias', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='Receive path signal delay error bias that causes an error in the'
                   ' estimated signal time of arrival at the Receive APC')  # type: float
-    ClockFreqSF = _FloatDescriptor(
+    ClockFreqSF = FloatDescriptor(
         'ClockFreqSF', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='Payload clock frequency scale factor standard deviation, '
                   r'where :math:`SF = (\Delta f)/f_0`.')  # type: float
-    RefTimeError = _FloatDescriptor(
+    RefTimeError = FloatDescriptor(
         'RefTimeError', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='Time error standard deviation, in seconds.')  # type: float
 
@@ -185,7 +187,7 @@ class ReceiveSensorType(Serializable):
         self.RcvDelayBias = RcvDelayBias
         self.ClockFreqSF = ClockFreqSF
         self.RefTimeError = RefTimeError
-        super(BistaticRadarSensorType, self).__init__(**kwargs)
+        super(ReceiveSensorType, self).__init__(**kwargs)
 
 
 class MonostaticType(Serializable):
@@ -197,20 +199,20 @@ class MonostaticType(Serializable):
     _required = ('PosVelErr', 'RadarSensor')
     _collections_tags = {'AddedParameters': {'array': False, 'child_tag': 'Parameter'}}
     # descriptors
-    PosVelErr = _SerializableDescriptor(
+    PosVelErr = SerializableDescriptor(
         'PosVelErr', PosVelErrType, _required, strict=DEFAULT_STRICT,
         docstring='Position and velocity error statistics for the sensor '
                   'platform.')  # type: PosVelErrType
-    RadarSensor = _SerializableDescriptor(
+    RadarSensor = SerializableDescriptor(
         'RadarSensor', RadarSensorType, _required, strict=DEFAULT_STRICT,
         docstring='Radar sensor error statistics.')  # type: RadarSensorType
-    TropoError = _SerializableDescriptor(
+    TropoError = SerializableDescriptor(
         'TropoError', TropoErrorType, _required, strict=DEFAULT_STRICT,
         docstring='Troposphere delay error statistics.')  # type: TropoErrorType
-    IonoError = _SerializableDescriptor(
+    IonoError = SerializableDescriptor(
         'IonoError', IonoErrorType, _required, strict=DEFAULT_STRICT,
         docstring='Ionosphere delay error statistics.')  # type: IonoErrorType
-    AddedParameters = _ParametersDescriptor(
+    AddedParameters = ParametersDescriptor(
         'AddedParameters', _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Additional error parameters.')  # type: ParametersCollection
 
@@ -247,11 +249,11 @@ class PlatformType(Serializable):
     _fields = ('PosVelErr', 'RadarSensor')
     _required = _fields
     # descriptors
-    PosVelErr = _SerializableDescriptor(
+    PosVelErr = SerializableDescriptor(
         'PosVelErr', PosVelErrType, _required, strict=DEFAULT_STRICT,
         docstring='Position and velocity error statistics for the sensor '
                   'platform.')  # type: PosVelErrType
-    RadarSensor = _SerializableDescriptor(
+    RadarSensor = SerializableDescriptor(
         'RadarSensor', BistaticRadarSensorType, _required, strict=DEFAULT_STRICT,
         docstring='Platform sensor error statistics.')  # type: BistaticRadarSensorType
 
@@ -283,13 +285,13 @@ class BistaticType(Serializable):
     _required = ('TxPlatform', 'RcvPlatform')
     _collections_tags = {'AddedParameters': {'array': False, 'child_tag': 'Parameter'}}
     # descriptors
-    TxPlatform = _SerializableDescriptor(
+    TxPlatform = SerializableDescriptor(
         'TxPlatform', PlatformType, _required, strict=DEFAULT_STRICT,
         docstring='Error statistics for the transmit platform.')  # type: PlatformType
-    RcvPlatform = _SerializableDescriptor(
+    RcvPlatform = SerializableDescriptor(
         'RcvPlatform', PlatformType, _required, strict=DEFAULT_STRICT,
         docstring='Error statistics for the receive platform.')  # type: PlatformType
-    AddedParameters = _ParametersDescriptor(
+    AddedParameters = ParametersDescriptor(
         'AddedParameters', _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Additional error parameters.')  # type: ParametersCollection
 
@@ -323,14 +325,14 @@ class ReceiveOnlyType(Serializable):
     _required = ('PosVelErr', 'ReceiveSensorType')
     _collections_tags = {'AddedParameters': {'array': False, 'child_tag': 'Parameter'}}
     # descriptors
-    PosVelErr = _SerializableDescriptor(
+    PosVelErr = SerializableDescriptor(
         'PosVelErr', PosVelErrType, _required, strict=DEFAULT_STRICT,
         docstring='Position and velocity error statistics for the sensor '
                   'platform.')  # type: PosVelErrType
-    ReceiveSensor = _SerializableDescriptor(
-        'ReceiveSensor', ReceiveSensorType, _required, strict=DEFAULT_STRICT,
+    ReceiveSensor = SerializableDescriptor(
+        'ReceiveSensor', RadarSensorType, _required, strict=DEFAULT_STRICT,
         docstring='Receive sensor error statistics.')  # type: RadarSensorType
-    AddedParameters = _ParametersDescriptor(
+    AddedParameters = ParametersDescriptor(
         'AddedParameters', _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Additional error parameters.')  # type: ParametersCollection
 
@@ -339,8 +341,8 @@ class ReceiveOnlyType(Serializable):
 
         Parameters
         ----------
-        PosVelErr : PlatformType
-        ReceiveSensor : PlatformType
+        PosVelErr : PosVelErrType
+        ReceiveSensor : RadarSensorType
         AddedParameters : None|ParametersCollection|dict
         kwargs
         """
@@ -366,13 +368,13 @@ class ErrorParametersType(Serializable):
     _choice = ({'required': True, 'collection': _fields}, )
 
     # descriptors
-    Monostatic = _SerializableDescriptor(
+    Monostatic = SerializableDescriptor(
         'Monostatic', MonostaticType, _required, strict=DEFAULT_STRICT,
         docstring='The monostatic parameters.')  # type: Union[None, MonostaticType]
-    Bistatic = _SerializableDescriptor(
+    Bistatic = SerializableDescriptor(
         'Bistatic', BistaticType, _required, strict=DEFAULT_STRICT,
         docstring='The bistatic parameters.')  # type: Union[None, BistaticType]
-    ReceiveOnly = _SerializableDescriptor(
+    ReceiveOnly = SerializableDescriptor(
         'ReceiveOnly', ReceiveOnlyType, _required, strict=DEFAULT_STRICT,
         docstring='The receive only parameters.')  # type: Union[None, BistaticType]
 

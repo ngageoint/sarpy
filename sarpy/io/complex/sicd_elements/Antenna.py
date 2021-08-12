@@ -8,8 +8,11 @@ __author__ = "Thomas McCullough"
 
 import numpy
 
-from .base import Serializable, DEFAULT_STRICT, _BooleanDescriptor, _FloatDescriptor, \
-    _SerializableDescriptor
+from sarpy.io.xml.base import Serializable
+from sarpy.io.xml.descriptors import BooleanDescriptor, FloatDescriptor, \
+    SerializableDescriptor
+
+from .base import DEFAULT_STRICT
 from .blocks import Poly1DType, XYZPolyType, GainPhasePolyType
 
 
@@ -21,11 +24,11 @@ class EBType(Serializable):
     _fields = ('DCXPoly', 'DCYPoly')
     _required = _fields
     # descriptors
-    DCXPoly = _SerializableDescriptor(
+    DCXPoly = SerializableDescriptor(
         'DCXPoly', Poly1DType, _required, strict=DEFAULT_STRICT,
         docstring='Electrical boresight steering *X-axis direction cosine (DCX)* as a function of '
                   'slow time ``(variable 1)``.')  # type: Poly1DType
-    DCYPoly = _SerializableDescriptor(
+    DCYPoly = SerializableDescriptor(
         'DCYPoly', Poly1DType, _required, strict=DEFAULT_STRICT,
         docstring='Electrical boresight steering *Y-axis direction cosine (DCY)* as a function of '
                   'slow time ``(variable 1)``.')  # type: Poly1DType
@@ -79,33 +82,33 @@ class AntParamType(Serializable):
     _required = ('XAxisPoly', 'YAxisPoly', 'FreqZero', 'Array')
     _numeric_format = {'FreqZero': '0.16G'}
     # descriptors
-    XAxisPoly = _SerializableDescriptor(
+    XAxisPoly = SerializableDescriptor(
         'XAxisPoly', XYZPolyType, _required, strict=DEFAULT_STRICT,
         docstring='Antenna X-Axis unit vector in ECF coordinates as a function of time ``(variable 1)``.'
     )  # type: XYZPolyType
-    YAxisPoly = _SerializableDescriptor(
+    YAxisPoly = SerializableDescriptor(
         'YAxisPoly', XYZPolyType, _required, strict=DEFAULT_STRICT,
         docstring='Antenna Y-Axis unit vector in ECF coordinates as a function of time ``(variable 1)``.'
     )  # type: XYZPolyType
-    FreqZero = _FloatDescriptor(
+    FreqZero = FloatDescriptor(
         'FreqZero', _required, strict=DEFAULT_STRICT,
         docstring='RF frequency *(f0)* used to specify the array pattern and electrical boresite *(EB)* '
                   'steering direction cosines.')  # type: float
-    EB = _SerializableDescriptor(
+    EB = SerializableDescriptor(
         'EB', EBType, _required, strict=DEFAULT_STRICT,
         docstring='Electrical boresight *(EB)* steering directions for an electronically steered array.')  # type: EBType
-    Array = _SerializableDescriptor(
+    Array = SerializableDescriptor(
         'Array', GainPhasePolyType, _required, strict=DEFAULT_STRICT,
         docstring='Array pattern polynomials that define the shape of the main-lobe.')  # type: GainPhasePolyType
-    Elem = _SerializableDescriptor(
+    Elem = SerializableDescriptor(
         'Elem', GainPhasePolyType, _required, strict=DEFAULT_STRICT,
         docstring='Element array pattern polynomials for electronically steered arrays.')  # type: GainPhasePolyType
-    GainBSPoly = _SerializableDescriptor(
+    GainBSPoly = SerializableDescriptor(
         'GainBSPoly', Poly1DType, _required, strict=DEFAULT_STRICT,
         docstring='Gain polynomial *(in dB)* as a function of frequency for boresight *(BS)* at :math:`DCX=0, DCY=0`. '
                   'Frequency ratio :math:`(f-f0)/f0` is the input variable ``(variable 1)``, and the constant '
                   'coefficient is always `0.0`.')  # type: Poly1DType
-    EBFreqShift = _BooleanDescriptor(
+    EBFreqShift = BooleanDescriptor(
         'EBFreqShift', _required, strict=DEFAULT_STRICT,
         docstring="""
         Parameter indicating whether the electronic boresite shifts with frequency for an electronically steered array.
@@ -115,7 +118,7 @@ class AntParamType(Serializable):
         * `True` - Shift with frequency per ideal array theory.
         
         """)  # type: bool
-    MLFreqDilation = _BooleanDescriptor(
+    MLFreqDilation = BooleanDescriptor(
         'MLFreqDilation', _required, strict=DEFAULT_STRICT,
         docstring="""
         Parameter indicating the mainlobe (ML) width changes with frequency.
@@ -165,13 +168,13 @@ class AntennaType(Serializable):
     _fields = ('Tx', 'Rcv', 'TwoWay')
     _required = ()
     # descriptors
-    Tx = _SerializableDescriptor(
+    Tx = SerializableDescriptor(
         'Tx', AntParamType, _required, strict=DEFAULT_STRICT,
         docstring='The transmit antenna parameters.')  # type: AntParamType
-    Rcv = _SerializableDescriptor(
+    Rcv = SerializableDescriptor(
         'Rcv', AntParamType, _required, strict=DEFAULT_STRICT,
         docstring='The receive antenna parameters.')  # type: AntParamType
-    TwoWay = _SerializableDescriptor(
+    TwoWay = SerializableDescriptor(
         'TwoWay', AntParamType, _required, strict=DEFAULT_STRICT,
         docstring='The bidirectional transmit/receive antenna parameters.')  # type: AntParamType
 

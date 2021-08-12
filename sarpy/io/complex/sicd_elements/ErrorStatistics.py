@@ -6,8 +6,11 @@ __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 
-from .base import Serializable, DEFAULT_STRICT, _StringEnumDescriptor, _FloatDescriptor, \
-    _SerializableDescriptor, _ParametersDescriptor, ParametersCollection
+from sarpy.io.xml.base import Serializable, ParametersCollection
+from sarpy.io.xml.descriptors import StringEnumDescriptor, FloatDescriptor, \
+    SerializableDescriptor, ParametersDescriptor
+
+from .base import DEFAULT_STRICT
 from .blocks import ErrorDecorrFuncType
 
 
@@ -20,13 +23,13 @@ class CompositeSCPErrorType(Serializable):
     _required = _fields
     _numeric_format = {key: '0.16G' for key in _fields}
     # descriptors
-    Rg = _FloatDescriptor(
+    Rg = FloatDescriptor(
         'Rg', _required, strict=DEFAULT_STRICT,
         docstring='Estimated range error standard deviation.')  # type: float
-    Az = _FloatDescriptor(
+    Az = FloatDescriptor(
         'Az', _required, strict=DEFAULT_STRICT,
         docstring='Estimated azimuth error standard deviation.')  # type: float
-    RgAz = _FloatDescriptor(
+    RgAz = FloatDescriptor(
         'RgAz', _required, strict=DEFAULT_STRICT,
         docstring='Estimated range and azimuth error correlation coefficient.')  # type: float
 
@@ -57,35 +60,35 @@ class CorrCoefsType(Serializable):
     _required = _fields
     _numeric_format = {key: '0.16G' for key in _fields}
     # descriptors
-    P1P2 = _FloatDescriptor(
+    P1P2 = FloatDescriptor(
         'P1P2', _required, strict=DEFAULT_STRICT, docstring='`P1` and `P2` correlation coefficient.')  # type: float
-    P1P3 = _FloatDescriptor(
+    P1P3 = FloatDescriptor(
         'P1P3', _required, strict=DEFAULT_STRICT, docstring='`P1` and `P3` correlation coefficient.')  # type: float
-    P1V1 = _FloatDescriptor(
+    P1V1 = FloatDescriptor(
         'P1V1', _required, strict=DEFAULT_STRICT, docstring='`P1` and `V1` correlation coefficient.')  # type: float
-    P1V2 = _FloatDescriptor(
+    P1V2 = FloatDescriptor(
         'P1V2', _required, strict=DEFAULT_STRICT, docstring='`P1` and `V2` correlation coefficient.')  # type: float
-    P1V3 = _FloatDescriptor(
+    P1V3 = FloatDescriptor(
         'P1V3', _required, strict=DEFAULT_STRICT, docstring='`P1` and `V3` correlation coefficient.')  # type: float
-    P2P3 = _FloatDescriptor(
+    P2P3 = FloatDescriptor(
         'P2P3', _required, strict=DEFAULT_STRICT, docstring='`P2` and `P3` correlation coefficient.')  # type: float
-    P2V1 = _FloatDescriptor(
+    P2V1 = FloatDescriptor(
         'P2V1', _required, strict=DEFAULT_STRICT, docstring='`P2` and `V1` correlation coefficient.')  # type: float
-    P2V2 = _FloatDescriptor(
+    P2V2 = FloatDescriptor(
         'P2V2', _required, strict=DEFAULT_STRICT, docstring='`P2` and `V2` correlation coefficient.')  # type: float
-    P2V3 = _FloatDescriptor(
+    P2V3 = FloatDescriptor(
         'P2V3', _required, strict=DEFAULT_STRICT, docstring='`P2` and `V3` correlation coefficient.')  # type: float
-    P3V1 = _FloatDescriptor(
+    P3V1 = FloatDescriptor(
         'P3V1', _required, strict=DEFAULT_STRICT, docstring='`P3` and `V1` correlation coefficient.')  # type: float
-    P3V2 = _FloatDescriptor(
+    P3V2 = FloatDescriptor(
         'P3V2', _required, strict=DEFAULT_STRICT, docstring='`P3` and `V2` correlation coefficient.')  # type: float
-    P3V3 = _FloatDescriptor(
+    P3V3 = FloatDescriptor(
         'P3V3', _required, strict=DEFAULT_STRICT, docstring='`P3` and `V3` correlation coefficient.')  # type: float
-    V1V2 = _FloatDescriptor(
+    V1V2 = FloatDescriptor(
         'V1V2', _required, strict=DEFAULT_STRICT, docstring='`V1` and `V2` correlation coefficient.')  # type: float
-    V1V3 = _FloatDescriptor(
+    V1V3 = FloatDescriptor(
         'V1V3', _required, strict=DEFAULT_STRICT, docstring='`V1` and `V3` correlation coefficient.')  # type: float
-    V2V3 = _FloatDescriptor(
+    V2V3 = FloatDescriptor(
         'V2V3', _required, strict=DEFAULT_STRICT, docstring='`V2` and `V3` correlation coefficient.')  # type: float
 
     def __init__(self, P1P2=None, P1P3=None, P1V1=None, P1V2=None, P1V3=None,
@@ -138,27 +141,27 @@ class PosVelErrType(Serializable):
     # class variables
     _FRAME_VALUES = ('ECF', 'RIC_ECF', 'RIC_ECI')
     # descriptors
-    Frame = _StringEnumDescriptor(
+    Frame = StringEnumDescriptor(
         'Frame', _FRAME_VALUES, _required, strict=True,
         docstring='Coordinate frame used for expressing P,V errors statistics. Note: '
                   '*RIC = Radial, In-Track, Cross-Track*, where radial is defined to be from earth center through '
                   'the platform position.')  # type: str
-    P1 = _FloatDescriptor(
+    P1 = FloatDescriptor(
         'P1', _required, strict=DEFAULT_STRICT, docstring='Position coordinate 1 standard deviation.')  # type: float
-    P2 = _FloatDescriptor(
+    P2 = FloatDescriptor(
         'P2', _required, strict=DEFAULT_STRICT, docstring='Position coordinate 2 standard deviation.')  # type: float
-    P3 = _FloatDescriptor(
+    P3 = FloatDescriptor(
         'P3', _required, strict=DEFAULT_STRICT, docstring='Position coordinate 3 standard deviation.')  # type: float
-    V1 = _FloatDescriptor(
+    V1 = FloatDescriptor(
         'V1', _required, strict=DEFAULT_STRICT, docstring='Velocity coordinate 1 standard deviation.')  # type: float
-    V2 = _FloatDescriptor(
+    V2 = FloatDescriptor(
         'V2', _required, strict=DEFAULT_STRICT, docstring='Velocity coordinate 2 standard deviation.')  # type: float
-    V3 = _FloatDescriptor(
+    V3 = FloatDescriptor(
         'V3', _required, strict=DEFAULT_STRICT, docstring='Velocity coordinate 3 standard deviation.')  # type: float
-    CorrCoefs = _SerializableDescriptor(
+    CorrCoefs = SerializableDescriptor(
         'CorrCoefs', CorrCoefsType, _required, strict=DEFAULT_STRICT,
         docstring='Correlation Coefficient parameters.')  # type: CorrCoefsType
-    PositionDecorr = _SerializableDescriptor(
+    PositionDecorr = SerializableDescriptor(
         'PositionDecorr', ErrorDecorrFuncType, _required, strict=DEFAULT_STRICT,
         docstring='Platform position error decorrelation function.')  # type: ErrorDecorrFuncType
 
@@ -197,18 +200,18 @@ class RadarSensorErrorType(Serializable):
     _required = ('RangeBias', )
     _numeric_format = {'RangeBias': '0.16G', 'ClockFreqSF': '0.16G', 'TransmitFreqSF': '0.16G'}
     # descriptors
-    RangeBias = _FloatDescriptor(
+    RangeBias = FloatDescriptor(
         'RangeBias', _required, strict=DEFAULT_STRICT,
         docstring='Range bias error standard deviation.')  # type: float
-    ClockFreqSF = _FloatDescriptor(
+    ClockFreqSF = FloatDescriptor(
         'ClockFreqSF', _required, strict=DEFAULT_STRICT,
         docstring='Payload clock frequency scale factor standard deviation, '
                   r'where :math:`SF = (\Delta f)/f_0`.')  # type: float
-    TransmitFreqSF = _FloatDescriptor(
+    TransmitFreqSF = FloatDescriptor(
         'TransmitFreqSF', _required, strict=DEFAULT_STRICT,
         docstring='Transmit frequency scale factor standard deviation, '
                   r'where :math:`SF = (\Delta f)/f_0`.')  # type: float
-    RangeBiasDecorr = _SerializableDescriptor(
+    RangeBiasDecorr = SerializableDescriptor(
         'RangeBiasDecorr', ErrorDecorrFuncType, _required, strict=DEFAULT_STRICT,
         docstring='Range bias decorrelation rate.')  # type: ErrorDecorrFuncType
 
@@ -239,15 +242,15 @@ class TropoErrorType(Serializable):
     _required = ()
     _numeric_format = {'TropoRangeVertical': '0.16G', 'TropoRangeSlant': '0.16G'}
     # descriptors
-    TropoRangeVertical = _FloatDescriptor(
+    TropoRangeVertical = FloatDescriptor(
         'TropoRangeVertical', _required, strict=DEFAULT_STRICT,
         docstring='Troposphere two-way delay error for normal incidence standard deviation. '
                   r'Expressed as a range error. :math:`(\Delta R) = (\Delta T) \cdot (c/2)`.')  # type: float
-    TropoRangeSlant = _FloatDescriptor(
+    TropoRangeSlant = FloatDescriptor(
         'TropoRangeSlant', _required, strict=DEFAULT_STRICT,
         docstring='Troposphere two-way delay error for the *SCP* line of sight at *COA* standard deviation. '
                   r'Expressed as a range error. :math:`(\Delta R) = (\Delta T) \cdot (c/2)`.')  # type: float
-    TropoRangeDecorr = _SerializableDescriptor(
+    TropoRangeDecorr = SerializableDescriptor(
         'TropoRangeDecorr', ErrorDecorrFuncType, _required, strict=DEFAULT_STRICT,
         docstring='Troposphere range error decorrelation function.')  # type: ErrorDecorrFuncType
 
@@ -277,18 +280,19 @@ class IonoErrorType(Serializable):
     _required = ('IonoRgRgRateCC', )
     _numeric_format = {'IonoRangeVertical': '0.16G', 'IonoRangeSlant': '0.16G', 'IonoRgRgRateCC': '0.16G'}
     # descriptors
-    IonoRangeVertical = _FloatDescriptor(
+    IonoRangeVertical = FloatDescriptor(
         'IonoRangeVertical', _required, strict=DEFAULT_STRICT,
         docstring='Ionosphere two-way delay error for normal incidence standard deviation. '
                   r'Expressed as a range error. :math:`(\Delta R) = (\Delta T) \cdot (c/2)`.')  # type: float
-    IonoRangeSlant = _FloatDescriptor(
+    IonoRangeSlant = FloatDescriptor(
         'IonoRangeSlant', _required, strict=DEFAULT_STRICT,
         docstring='Ionosphere two-way delay rate of change error for normal incidence standard deviation. '
-                  r'Expressed as a range rate error. :math:`(\Delta \dot{R}) = (\Delta \dot{T}) \cdot (c/2)`.')  # type: float
-    IonoRgRgRateCC = _FloatDescriptor(
+                  r'Expressed as a range rate error. '
+                  r':math:`(\Delta \dot{R}) = (\Delta \dot{T}) \cdot (c/2)`.')  # type: float
+    IonoRgRgRateCC = FloatDescriptor(
         'IonoRgRgRateCC', _required, strict=DEFAULT_STRICT,
         docstring='Ionosphere range error and range rate error correlation coefficient.')  # type: float
-    IonoRangeDecorr = _SerializableDescriptor(
+    IonoRangeDecorr = SerializableDescriptor(
         'IonoRangeDecorr', ErrorDecorrFuncType, _required, strict=DEFAULT_STRICT,
         docstring='Ionosphere range error decorrelation rate.')  # type: ErrorDecorrFuncType
 
@@ -320,16 +324,16 @@ class ErrorComponentsType(Serializable):
     _fields = ('PosVelErr', 'RadarSensor', 'TropoError', 'IonoError')
     _required = ('PosVelErr', 'RadarSensor')
     # descriptors
-    PosVelErr = _SerializableDescriptor(
+    PosVelErr = SerializableDescriptor(
         'PosVelErr', PosVelErrType, _required, strict=DEFAULT_STRICT,
         docstring='Position and velocity error statistics for the radar platform.')  # type: PosVelErrType
-    RadarSensor = _SerializableDescriptor(
+    RadarSensor = SerializableDescriptor(
         'RadarSensor', RadarSensorErrorType, _required, strict=DEFAULT_STRICT,
         docstring='Radar sensor error statistics.')  # type: RadarSensorErrorType
-    TropoError = _SerializableDescriptor(
+    TropoError = SerializableDescriptor(
         'TropoError', TropoErrorType, _required, strict=DEFAULT_STRICT,
         docstring='Troposphere delay error statistics.')  # type: TropoErrorType
-    IonoError = _SerializableDescriptor(
+    IonoError = SerializableDescriptor(
         'IonoError', IonoErrorType, _required, strict=DEFAULT_STRICT,
         docstring='Ionosphere delay error statistics.')  # type: IonoErrorType
 
@@ -360,16 +364,16 @@ class ErrorStatisticsType(Serializable):
     _required = ()
     _collections_tags = {'AdditionalParms': {'array': False, 'child_tag': 'Parameter'}}
     # descriptors
-    CompositeSCP = _SerializableDescriptor(
+    CompositeSCP = SerializableDescriptor(
         'CompositeSCP', CompositeSCPErrorType, _required, strict=DEFAULT_STRICT,
         docstring='Composite error statistics for the scene center point. *Slant plane range (Rg)* and *azimuth (Az)* '
                   'error statistics. Slant plane defined at *Scene Center Point, Center of Azimuth (SCP COA)*.'
     )  # type: CompositeSCPErrorType
-    Components = _SerializableDescriptor(
+    Components = SerializableDescriptor(
         'Components', ErrorComponentsType, _required, strict=DEFAULT_STRICT,
         docstring='Error statistics by components.')  # type: ErrorComponentsType
 
-    AdditionalParms = _ParametersDescriptor(
+    AdditionalParms = ParametersDescriptor(
         'AdditionalParms', _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Any additional parameters.')  # type: ParametersCollection
 

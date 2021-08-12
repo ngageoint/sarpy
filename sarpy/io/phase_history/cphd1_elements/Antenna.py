@@ -2,19 +2,19 @@
 The Antenna type definition.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
 from typing import Union, List
 
 import numpy
 
 from .base import DEFAULT_STRICT
-# noinspection PyProtectedMember
-from sarpy.io.complex.sicd_elements.base import Serializable, _FloatDescriptor, _StringDescriptor, \
-    _SerializableDescriptor, _BooleanDescriptor, _SerializableListDescriptor
 from sarpy.io.complex.sicd_elements.blocks import Poly1DType, XYZType, XYZPolyType, GainPhasePolyType
 from sarpy.io.complex.sicd_elements.Antenna import EBType
-
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
+from sarpy.io.xml.base import Serializable
+from sarpy.io.xml.descriptors import FloatDescriptor, StringDescriptor, SerializableDescriptor, \
+    BooleanDescriptor, SerializableListDescriptor
 
 
 class AntCoordFrameType(Serializable):
@@ -26,14 +26,14 @@ class AntCoordFrameType(Serializable):
     _fields = ('Identifier', 'XAxisPoly', 'YAxisPoly')
     _required = _fields
     # descriptors
-    Identifier = _StringDescriptor(
+    Identifier = StringDescriptor(
         'Identifier', _required, strict=DEFAULT_STRICT,
         docstring='String that uniquely identifies this ACF.')  # type: str
-    XAxisPoly = _SerializableDescriptor(
+    XAxisPoly = SerializableDescriptor(
         'XAxisPoly', XYZPolyType, _required, strict=DEFAULT_STRICT,
         docstring='Antenna X-Axis unit vector in ECF coordinates as a function '
                   'of time.')  # type: XYZPolyType
-    YAxisPoly = _SerializableDescriptor(
+    YAxisPoly = SerializableDescriptor(
         'YAxisPoly', XYZPolyType, _required, strict=DEFAULT_STRICT,
         docstring='Antenna Y-Axis unit vector in ECF coordinates as a function '
                   'of time.')  # type: XYZPolyType
@@ -67,14 +67,14 @@ class AntPhaseCenterType(Serializable):
     _fields = ('Identifier', 'ACFId', 'APCXYZ')
     _required = _fields
     # descriptors
-    Identifier = _StringDescriptor(
+    Identifier = StringDescriptor(
         'Identifier', _required, strict=DEFAULT_STRICT,
         docstring='String that uniquely identifies this APC.')  # type: str
-    ACFId = _StringDescriptor(
+    ACFId = StringDescriptor(
         'ACFId', _required, strict=DEFAULT_STRICT,
         docstring='Identifier of Antenna Coordinate Frame used for computing the '
                   'antenna gain and phase patterns.')  # type: str
-    APCXYZ = _SerializableDescriptor(
+    APCXYZ = SerializableDescriptor(
         'APCXYZ', XYZType, _required, strict=DEFAULT_STRICT,
         docstring='The APC location in the ACF XYZ coordinate '
                   'frame.')  # type: XYZType
@@ -108,16 +108,17 @@ class GainPhaseArrayType(Serializable):
 
     _fields = ('Freq', 'ArrayId', 'ElementId')
     _required = ('Freq', 'ArrayId')
+    _numeric_format = {'Freq', '0.16G'}
     # descriptors
-    Freq = _FloatDescriptor(
+    Freq = FloatDescriptor(
         'Freq', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='Frequency value for which the sampled Array and Element '
                   'pattern(s) are provided, in Hz.')  # type: float
-    ArrayId = _StringDescriptor(
+    ArrayId = StringDescriptor(
         'ArrayId', _required, strict=DEFAULT_STRICT,
         docstring='Support array identifier of the sampled gain/phase of the array '
                   'at ref Frequency.')  # type: str
-    ElementId = _StringDescriptor(
+    ElementId = StringDescriptor(
         'ElementId', _required, strict=DEFAULT_STRICT,
         docstring='Support array identifier of the sampled gain/phase of the element '
                   'at ref frequency.')  # type: str
@@ -157,44 +158,44 @@ class AntPatternType(Serializable):
         'GainPhaseArray': {'array': False, 'child_tag': 'GainPhaseArray'}}
     _numeric_format = {'FreqZero': '0.16G', 'GainZero': '0.16G'}
     # descriptors
-    Identifier = _StringDescriptor(
+    Identifier = StringDescriptor(
         'Identifier', _required, strict=DEFAULT_STRICT,
         docstring='String that uniquely identifies this ACF.')  # type: str
-    FreqZero = _FloatDescriptor(
+    FreqZero = FloatDescriptor(
         'FreqZero', _required, strict=DEFAULT_STRICT,
         docstring='The reference frequency value for which the Electrical Boresight '
                   'and array pattern polynomials are computed.')  # type: float
-    GainZero = _FloatDescriptor(
+    GainZero = FloatDescriptor(
         'GainZero', _required, strict=DEFAULT_STRICT,
         docstring='The reference antenna gain at zero steering angle at the '
                   'reference frequency, measured in dB.')  # type: float
-    EBFreqShift = _BooleanDescriptor(
+    EBFreqShift = BooleanDescriptor(
         'EBFreqShift', _required, strict=DEFAULT_STRICT,
         docstring="Parameter indicating whether the electronic boresite shifts with "
                   "frequency.")  # type: bool
-    MLFreqDilation = _BooleanDescriptor(
+    MLFreqDilation = BooleanDescriptor(
         'MLFreqDilation', _required, strict=DEFAULT_STRICT,
         docstring="Parameter indicating the mainlobe (ML) width changes with "
                   "frequency.")  # type: bool
-    GainBSPoly = _SerializableDescriptor(
+    GainBSPoly = SerializableDescriptor(
         'GainBSPoly', Poly1DType, _required, strict=DEFAULT_STRICT,
         docstring='Gain polynomial *(in dB)* as a function of frequency for boresight *(BS)* '
                   'at :math:`DCX=0, DCY=0`. '
                   'Frequency ratio :math:`(f-f0)/f0` is the input variable, and the constant '
                   'coefficient is always `0.0`.')  # type: Poly1DType
-    EB = _SerializableDescriptor(
+    EB = SerializableDescriptor(
         'EB', EBType, _required, strict=DEFAULT_STRICT,
         docstring='Electrical boresight *(EB)* steering directions for an electronically '
                   'steered array.')  # type: EBType
-    Array = _SerializableDescriptor(
+    Array = SerializableDescriptor(
         'Array', GainPhasePolyType, _required, strict=DEFAULT_STRICT,
         docstring='Array pattern polynomials that define the shape of the '
                   'main-lobe.')  # type: GainPhasePolyType
-    Element = _SerializableDescriptor(
+    Element = SerializableDescriptor(
         'Element', GainPhasePolyType, _required, strict=DEFAULT_STRICT,
         docstring='Element array pattern polynomials for electronically steered '
                   'arrays.')  # type: GainPhasePolyType
-    GainPhaseArray = _SerializableListDescriptor(
+    GainPhaseArray = SerializableListDescriptor(
         'GainPhaseArray', GainPhaseArrayType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Array of parameters that identify 2-D sampled Gain and Phase patterns at '
                   'single frequency value.')  # type: Union[None, List[GainPhaseArrayType]]
@@ -250,16 +251,16 @@ class AntennaType(Serializable):
         'AntPhaseCenter': {'array': False, 'child_tag': 'AntPhaseCenter'},
         'AntPattern': {'array': False, 'child_tag': 'AntPattern'}}
     # descriptors
-    AntCoordFrame = _SerializableListDescriptor(
+    AntCoordFrame = SerializableListDescriptor(
         'AntCoordFrame', AntCoordFrameType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Unit vectors that describe the orientation of an Antenna Coordinate Frame (ACF) '
                   'as function of time. Parameter set repeated for '
                   'each ACF.')  # type: List[AntCoordFrameType]
-    AntPhaseCenter = _SerializableListDescriptor(
+    AntPhaseCenter = SerializableListDescriptor(
         'AntPhaseCenter', AntPhaseCenterType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Parameters that describe each Antenna Phase Center (APC). Parameter '
                   'set repeated for each APC.')  # type: List[AntPhaseCenterType]
-    AntPattern = _SerializableListDescriptor(
+    AntPattern = SerializableListDescriptor(
         'AntPattern', AntPatternType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Parameter set that defines each Antenna Pattern as function time. Parameters '
                   'set repeated for each Antenna Pattern.')  # type: List[AntPatternType]

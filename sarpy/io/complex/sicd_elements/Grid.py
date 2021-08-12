@@ -13,10 +13,12 @@ from numpy.linalg import norm
 from scipy.optimize import newton
 from scipy.constants import speed_of_light
 
-from .base import Serializable, DEFAULT_STRICT, \
-    _StringDescriptor, _StringEnumDescriptor, _FloatDescriptor, _FloatArrayDescriptor, \
-    _IntegerEnumDescriptor, _SerializableDescriptor, _UnitVectorDescriptor, \
-    _ParametersDescriptor, ParametersCollection, _find_first_child
+from sarpy.io.xml.base import Serializable, ParametersCollection, find_first_child
+from sarpy.io.xml.descriptors import StringDescriptor, StringEnumDescriptor, \
+    FloatDescriptor, FloatArrayDescriptor, IntegerEnumDescriptor, \
+    SerializableDescriptor, UnitVectorDescriptor, ParametersDescriptor
+
+from .base import DEFAULT_STRICT
 from .blocks import XYZType, Poly2DType
 from .utils import _get_center_frequency
 
@@ -167,12 +169,12 @@ class WgtTypeType(Serializable):
     _required = ('WindowName',)
     _collections_tags = {'Parameters': {'array': False, 'child_tag': 'Parameter'}}
     # descriptors
-    WindowName = _StringDescriptor(
+    WindowName = StringDescriptor(
         'WindowName', _required, strict=DEFAULT_STRICT,
         docstring='Type of aperture weighting applied in the spatial frequency domain (Krow) to yield '
                   'the impulse response in the row direction. '
                   '*Example values - "UNIFORM", "TAYLOR", "UNKNOWN", "HAMMING"*')  # type: str
-    Parameters = _ParametersDescriptor(
+    Parameters = ParametersDescriptor(
         'Parameters', _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Free form parameters list.')  # type: ParametersCollection
 
@@ -225,7 +227,7 @@ class WgtTypeType(Serializable):
     @classmethod
     def from_node(cls, node, xml_ns, ns_key=None, kwargs=None):
         win_key = cls._child_xml_ns_key.get('WindowName', ns_key)
-        win_name = _find_first_child(node, 'WindowName', xml_ns, win_key)
+        win_name = find_first_child(node, 'WindowName', xml_ns, win_key)
         if win_name is None:
             # SICD 0.4 standard compliance, this could just be a space delimited string of the form
             #   "<WindowName> <name1>=<value1> <name2>=<value2> ..."
@@ -257,50 +259,50 @@ class DirParamType(Serializable):
         'DeltaK1': '0.16G', 'DeltaK2': '0.16G', 'WgtFunct': '0.16G'}
     _collections_tags = {'WgtFunct': {'array': True, 'child_tag': 'Wgt'}}
     # descriptors
-    UVectECF = _UnitVectorDescriptor(
+    UVectECF = UnitVectorDescriptor(
         'UVectECF', XYZType, _required, strict=DEFAULT_STRICT,
         docstring='Unit vector in the increasing ``(row/col)`` direction *(ECF)* at '
                   'the SCP pixel.')  # type: XYZType
-    SS = _FloatDescriptor(
+    SS = FloatDescriptor(
         'SS', _required, strict=DEFAULT_STRICT,
         docstring='Sample spacing in the increasing ``(row/col)`` direction. Precise spacing '
                   'at the SCP.')  # type: float
-    ImpRespWid = _FloatDescriptor(
+    ImpRespWid = FloatDescriptor(
         'ImpRespWid', _required, strict=DEFAULT_STRICT,
         docstring='Half power impulse response width in the increasing ``(row/col)`` direction. '
                   'Measured at the scene center point.')  # type: float
-    Sgn = _IntegerEnumDescriptor(
+    Sgn = IntegerEnumDescriptor(
         'Sgn', (1, -1), _required, strict=DEFAULT_STRICT,
         docstring='Sign for exponent in the DFT to transform the ``(row/col)`` dimension to '
                   'spatial frequency dimension.')  # type: int
-    ImpRespBW = _FloatDescriptor(
+    ImpRespBW = FloatDescriptor(
         'ImpRespBW', _required, strict=DEFAULT_STRICT,
         docstring='Spatial bandwidth in ``(row/col)`` used to form the impulse response in '
                   'the ``(row/col)`` direction. Measured at the center of '
                   'support for the SCP.')  # type: float
-    KCtr = _FloatDescriptor(
+    KCtr = FloatDescriptor(
         'KCtr', _required, strict=DEFAULT_STRICT,
         docstring='Center spatial frequency in the given dimension. '
                   'Corresponds to the zero frequency of the DFT in the given ``(row/col)`` '
                   'direction.')  # type: float
-    DeltaK1 = _FloatDescriptor(
+    DeltaK1 = FloatDescriptor(
         'DeltaK1', _required, strict=DEFAULT_STRICT,
         docstring='Minimum ``(row/col)`` offset from KCtr of the spatial frequency support '
                   'for the image.')  # type: float
-    DeltaK2 = _FloatDescriptor(
+    DeltaK2 = FloatDescriptor(
         'DeltaK2', _required, strict=DEFAULT_STRICT,
         docstring='Maximum ``(row/col)`` offset from KCtr of the spatial frequency '
                   'support for the image.')  # type: float
-    DeltaKCOAPoly = _SerializableDescriptor(
+    DeltaKCOAPoly = SerializableDescriptor(
         'DeltaKCOAPoly', Poly2DType, _required, strict=DEFAULT_STRICT,
         docstring='Offset from KCtr of the center of support in the given ``(row/col)`` spatial frequency. '
                   'The polynomial is a function of image given ``(row/col)`` coordinate ``(variable 1)`` and '
                   'column coordinate ``(variable 2)``.')  # type: Poly2DType
-    WgtType = _SerializableDescriptor(
+    WgtType = SerializableDescriptor(
         'WgtType', WgtTypeType, _required, strict=DEFAULT_STRICT,
         docstring='Parameters describing aperture weighting type applied in the spatial frequency domain '
                   'to yield the impulse response in the given ``(row/col)`` direction.')  # type: WgtTypeType
-    WgtFunct = _FloatArrayDescriptor(
+    WgtFunct = FloatArrayDescriptor(
         'WgtFunct', _collections_tags, _required, strict=DEFAULT_STRICT, minimum_length=2,
         docstring='Sampled aperture amplitude weighting function (array) applied to form the SCP impulse '
                   'response in the given ``(row/col)`` direction.')  # type: numpy.ndarray
@@ -484,9 +486,9 @@ class DirParamType(Serializable):
             return  # nothing can be done
 
         if self.DeltaKCOAPoly is not None and x_coords is not None:
-            deltaKs = self.DeltaKCOAPoly(x_coords, y_coords)
-            min_deltak = numpy.amin(deltaKs) - 0.5*self.ImpRespBW
-            max_deltak = numpy.amax(deltaKs) + 0.5*self.ImpRespBW
+            deltaks = self.DeltaKCOAPoly(x_coords, y_coords)
+            min_deltak = numpy.amin(deltaks) - 0.5*self.ImpRespBW
+            max_deltak = numpy.amax(deltaks) + 0.5*self.ImpRespBW
         else:
             min_deltak = -0.5*self.ImpRespBW
             max_deltak = 0.5*self.ImpRespBW
@@ -633,11 +635,11 @@ class GridType(Serializable):
     _IMAGE_PLANE_VALUES = ('SLANT', 'GROUND', 'OTHER')
     _TYPE_VALUES = ('RGAZIM', 'RGZERO', 'XRGYCR', 'XCTYAT', 'PLANE')
     # descriptors
-    ImagePlane = _StringEnumDescriptor(
+    ImagePlane = StringEnumDescriptor(
         'ImagePlane', _IMAGE_PLANE_VALUES, _required, strict=DEFAULT_STRICT,
         docstring="Defines the type of image plane that the best describes the sample grid. Precise plane "
                   "defined by Row Direction and Column Direction unit vectors.")  # type: str
-    Type = _StringEnumDescriptor(
+    Type = StringEnumDescriptor(
         'Type', _TYPE_VALUES, _required, strict=DEFAULT_STRICT,
         docstring="""
         Defines the type of spatial sampling grid represented by the image sample grid. 
@@ -657,15 +659,15 @@ class GridType(Serializable):
         * `PLANE` - Arbitrary plane with orientation other than the specific `XRGYCR` or `XCTYAT`.
         \n\n
         """)  # type: str
-    TimeCOAPoly = _SerializableDescriptor(
+    TimeCOAPoly = SerializableDescriptor(
         'TimeCOAPoly', Poly2DType, _required, strict=DEFAULT_STRICT,
         docstring="*Time of Center Of Aperture* as a polynomial function of image coordinates. "
                   "The polynomial is a function of image row coordinate ``(variable 1)`` and column coordinate "
                   "``(variable 2)``.")  # type: Poly2DType
-    Row = _SerializableDescriptor(
+    Row = SerializableDescriptor(
         'Row', DirParamType, _required, strict=DEFAULT_STRICT,
         docstring="Row direction parameters.")  # type: DirParamType
-    Col = _SerializableDescriptor(
+    Col = SerializableDescriptor(
         'Col', DirParamType, _required, strict=DEFAULT_STRICT,
         docstring="Column direction parameters.")  # type: DirParamType
 
@@ -715,8 +717,8 @@ class GridType(Serializable):
         x_coords, y_coords = None, None
         if valid_vertices is not None:
             try:
-                x_coords = self.Row.SS*(valid_vertices[:, 0] - (ImageData.SCPPixel.Row -  ImageData.FirstRow))
-                y_coords = self.Col.SS*(valid_vertices[:, 1] - (ImageData.SCPPixel.Col -  ImageData.FirstCol))
+                x_coords = self.Row.SS*(valid_vertices[:, 0] - (ImageData.SCPPixel.Row - ImageData.FirstRow))
+                y_coords = self.Col.SS*(valid_vertices[:, 1] - (ImageData.SCPPixel.Col - ImageData.FirstCol))
             except (AttributeError, ValueError):
                 pass
 
@@ -789,20 +791,20 @@ class GridType(Serializable):
 
         if GeoData is not None and GeoData.SCP is not None and GeoData.SCP.ECF is not None and \
                 SCPCOA.ARPPos is not None and SCPCOA.ARPVel is not None:
-            SCP = GeoData.SCP.ECF.get_array()
-            ARP = SCPCOA.ARPPos.get_array()
-            LOS = (SCP - ARP)
-            uLOS = LOS/norm(LOS)
+            scp = GeoData.SCP.ECF.get_array()
+            arp = SCPCOA.ARPPos.get_array()
+            los = (scp - arp)
+            ulos = los/norm(los)
             if self.Row.UVectECF is None:
-                self.Row.UVectECF = XYZType.from_array(uLOS)
+                self.Row.UVectECF = XYZType.from_array(ulos)
 
             look = SCPCOA.look
-            ARP_vel = SCPCOA.ARPVel.get_array()
-            uSPZ = look*numpy.cross(ARP_vel, uLOS)
-            uSPZ /= norm(uSPZ)
-            uAZ = numpy.cross(uSPZ, uLOS)
+            arp_vel = SCPCOA.ARPVel.get_array()
+            uspz = look*numpy.cross(arp_vel, ulos)
+            uspz /= norm(uspz)
+            uaz = numpy.cross(uspz, ulos)
             if self.Col.UVectECF is None:
-                self.Col.UVectECF = XYZType.from_array(uAZ)
+                self.Col.UVectECF = XYZType.from_array(uaz)
 
         center_frequency = _get_center_frequency(RadarCollection, ImageFormation)
         if center_frequency is not None:
@@ -845,26 +847,26 @@ class GridType(Serializable):
         if GeoData is None or GeoData.SCP is None:
             return  # nothing to be done
 
-        SCP = GeoData.SCP.ECF.get_array()
+        scp = GeoData.SCP.ECF.get_array()
 
         if Position is not None and Position.ARPPoly is not None \
                 and PFA.PolarAngRefTime is not None:
             polar_ref_pos = Position.ARPPoly(PFA.PolarAngRefTime)
         else:
-            polar_ref_pos = SCP
+            polar_ref_pos = scp
 
         if PFA.IPN is not None and PFA.FPN is not None and \
                 self.Row.UVectECF is None and self.Col.UVectECF is None:
             ipn = PFA.IPN.get_array()
             fpn = PFA.FPN.get_array()
 
-            dist = numpy.dot((SCP - polar_ref_pos), ipn) / numpy.dot(fpn, ipn)
+            dist = numpy.dot((scp - polar_ref_pos), ipn) / numpy.dot(fpn, ipn)
             ref_pos_ipn = polar_ref_pos + (dist * fpn)
-            uRG = SCP - ref_pos_ipn
-            uRG /= norm(uRG)
-            uAZ = numpy.cross(ipn, uRG)  # already unit
-            self.Row.UVectECF = XYZType.from_array(uRG)
-            self.Col.UVectECF = XYZType.from_array(uAZ)
+            urg = scp - ref_pos_ipn
+            urg /= norm(urg)
+            uaz = numpy.cross(ipn, urg)  # already unit
+            self.Row.UVectECF = XYZType.from_array(urg)
+            self.Col.UVectECF = XYZType.from_array(uaz)
 
         if self.Col is not None and self.Col.KCtr is None:
             self.Col.KCtr = 0  # almost always 0 for PFA
@@ -926,21 +928,21 @@ class GridType(Serializable):
         if GeoData is None or GeoData.SCP is None:
             return None
 
-        SCP = GeoData.SCP.ECF.get_array()
+        scp = GeoData.SCP.ECF.get_array()
         pos_ref = RMAParam.PosRef.get_array()
         upos_ref = pos_ref / norm(pos_ref)
         vel_ref = RMAParam.VelRef.get_array()
         uvel_ref = vel_ref / norm(vel_ref)
-        LOS = (SCP - pos_ref)  # it absolutely could be that SCP = pos_ref
-        LOS_norm = norm(LOS)
-        if LOS_norm < 1:
+        los = (scp - pos_ref)  # it absolutely could be that scp = pos_ref
+        los_norm = norm(los)
+        if los_norm < 1:
             logger.error(
                 msg="Row/Col UVectECF cannot be derived from RMA,\n\t"
                     "because the Reference Position is too close (less than 1 meter) to the SCP.")
-        uLOS = LOS/LOS_norm
+        ulos = los/los_norm
         left = numpy.cross(upos_ref, uvel_ref)
-        look = numpy.sign(numpy.dot(left, uLOS))
-        return SCP, upos_ref, uvel_ref, uLOS, left, look
+        look = numpy.sign(numpy.dot(left, ulos))
+        return scp, upos_ref, uvel_ref, ulos, left, look
 
     def _derive_rma_rmat(self, RMA, GeoData, RadarCollection, ImageFormation):
         """
@@ -968,13 +970,13 @@ class GridType(Serializable):
         if self.Row.UVectECF is None and self.Col.UVectECF is None:
             params = self._derive_unit_vector_params(GeoData, RMA.RMAT)
             if params is not None:
-                SCP, upos_ref, uvel_ref, uLOS, left, look = params
-                uYAT = -look*uvel_ref
-                uSPZ = numpy.cross(uLOS, uYAT)
-                uSPZ /= norm(uSPZ)
-                uXCT = numpy.cross(uYAT, uSPZ)
-                self.Row.UVectECF = XYZType.from_array(uXCT)
-                self.Col.UVectECF = XYZType.from_array(uYAT)
+                scp, upos_ref, uvel_ref, ulos, left, look = params
+                uyat = -look*uvel_ref
+                uspz = numpy.cross(ulos, uyat)
+                uspz /= norm(uspz)
+                uxct = numpy.cross(uyat, uspz)
+                self.Row.UVectECF = XYZType.from_array(uxct)
+                self.Col.UVectECF = XYZType.from_array(uyat)
 
         center_frequency = _get_center_frequency(RadarCollection, ImageFormation)
         if center_frequency is not None and RMA.RMAT.DopConeAngRef is not None:
@@ -1009,13 +1011,13 @@ class GridType(Serializable):
         if self.Row.UVectECF is None and self.Col.UVectECF is None:
             params = self._derive_unit_vector_params(GeoData, RMA.RMAT)
             if params is not None:
-                SCP, upos_ref, uvel_ref, uLOS, left, look = params
-                uXRG = uLOS
-                uSPZ = look*numpy.cross(uvel_ref, uXRG)
-                uSPZ /= norm(uSPZ)
-                uYCR = numpy.cross(uSPZ, uXRG)
-                self.Row.UVectECF = XYZType.from_array(uXRG)
-                self.Col.UVectECF = XYZType.from_array(uYCR)
+                scp, upos_ref, uvel_ref, ulos, left, look = params
+                uxrg = ulos
+                uspz = look*numpy.cross(uvel_ref, uxrg)
+                uspz /= norm(uspz)
+                uycr = numpy.cross(uspz, uxrg)
+                self.Row.UVectECF = XYZType.from_array(uxrg)
+                self.Col.UVectECF = XYZType.from_array(uycr)
 
         center_frequency = _get_center_frequency(RadarCollection, ImageFormation)
         if center_frequency is not None:
@@ -1047,7 +1049,7 @@ class GridType(Serializable):
         if RMA.INCA.TimeCAPoly is not None and Position is not None and Position.ARPPoly is not None and \
                 self.Row.UVectECF is None and self.Col.UVectECF is None and \
                 GeoData is not None and GeoData.SCP is not None:
-            SCP = GeoData.SCP.ECF.get_array()
+            scp = GeoData.SCP.ECF.get_array()
 
             t_zero = RMA.INCA.TimeCAPoly.Coefs[0]
             ca_pos = Position.ARPPoly(t_zero)
@@ -1055,17 +1057,17 @@ class GridType(Serializable):
 
             uca_pos = ca_pos/norm(ca_pos)
             uca_vel = ca_vel/norm(ca_vel)
-            uRg = (SCP - ca_pos)
-            uRg_norm = norm(uRg)
-            if uRg_norm > 0:
-                uRg /= uRg_norm
+            urg = (scp - ca_pos)
+            urg_norm = norm(urg)
+            if urg_norm > 0:
+                urg /= urg_norm
                 left = numpy.cross(uca_pos, uca_vel)
-                look = numpy.sign(numpy.dot(left, uRg))
-                uSPZ = -look*numpy.cross(uRg, uca_vel)
-                uSPZ /= norm(uSPZ)
-                uAZ = numpy.cross(uSPZ, uRg)
-                self.Row.UVectECF = XYZType.from_array(uRg)
-                self.Col.UVectECF = XYZType.from_array(uAZ)
+                look = numpy.sign(numpy.dot(left, urg))
+                uspz = -look*numpy.cross(urg, uca_vel)
+                uspz /= norm(uspz)
+                uaz = numpy.cross(uspz, urg)
+                self.Row.UVectECF = XYZType.from_array(urg)
+                self.Col.UVectECF = XYZType.from_array(uaz)
 
         if self.Row is not None and self.Row.KCtr is None and RMA.INCA.FreqZero is not None:
             self.Row.KCtr = 2*RMA.INCA.FreqZero/speed_of_light

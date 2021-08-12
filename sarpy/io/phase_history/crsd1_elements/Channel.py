@@ -2,18 +2,20 @@
 The Channel definition.
 """
 
-from typing import Union, List
-
-from .base import DEFAULT_STRICT
-from sarpy.io.phase_history.cphd1_elements.blocks import POLARIZATION_TYPE, AreaType
-# noinspection PyProtectedMember
-from sarpy.io.complex.sicd_elements.base import Serializable, _StringDescriptor, _StringEnumDescriptor, \
-    _IntegerDescriptor, _SerializableListDescriptor, _ParametersDescriptor, ParametersCollection, \
-    _BooleanDescriptor, _FloatDescriptor, _SerializableDescriptor
-from sarpy.io.phase_history.cphd1_elements.Channel import DwellTimesType
-
 __classification__ = "UNCLASSIFIED"
 __author__ = ("Thomas McCullough", "Michael Stewart, Valkyrie")
+
+from typing import Union, List
+
+from sarpy.io.xml.base import Serializable, ParametersCollection
+from sarpy.io.xml.descriptors import StringDescriptor, StringEnumDescriptor, \
+    IntegerDescriptor, SerializableListDescriptor, ParametersDescriptor, \
+    BooleanDescriptor, FloatDescriptor, SerializableDescriptor
+
+from sarpy.io.phase_history.cphd1_elements.blocks import POLARIZATION_TYPE, AreaType
+from sarpy.io.phase_history.cphd1_elements.Channel import DwellTimesType
+
+from .base import DEFAULT_STRICT
 
 
 class RcvAntennaType(Serializable):
@@ -24,11 +26,11 @@ class RcvAntennaType(Serializable):
     _fields = ('RcvAPCId', 'RcvAPATId')
     _required = _fields
     # descriptors
-    RcvAPCId = _StringDescriptor(
+    RcvAPCId = StringDescriptor(
         'RcvAPCId', _required, strict=DEFAULT_STRICT,
         docstring='Identifier for the Receive APC to be used to compute the receive antenna'
                   ' pattern as a function of time for the channel (APC_ID).')  # type: str
-    RcvAPATId = _StringDescriptor(
+    RcvAPATId = StringDescriptor(
         'RcvAPATId', _required, strict=DEFAULT_STRICT,
         docstring='Identifier for the Receive Antenna pattern to collect the signal data'
                   ' (APAT_ID).')  # type: str
@@ -61,11 +63,11 @@ class SignalRefLevelType(Serializable):
     _required = _fields
     _numeric_format = {fld: '0.16G' for fld in _fields}
     # descriptors
-    PSCRSD = _FloatDescriptor(
+    PSCRSD = FloatDescriptor(
         'PSCRSD', _required, strict=DEFAULT_STRICT,
         docstring='Power level in the fast time signal vector for a CW tone at f = f_0_REF'
                   ' and for f_IC(v,t) = f_0_REF.')  # type: float
-    PRcvDensity = _FloatDescriptor(
+    PRcvDensity = FloatDescriptor(
         'PRcvDensity', _required, strict=DEFAULT_STRICT,
         docstring='Receive power density per unit area for a CW tone at f = f_0_REF that results in'
                   ' signal vector power PS_CRSD. Signal received from a far field source located'
@@ -99,10 +101,10 @@ class NoiseLevelType(Serializable):
     _required = _fields
     _numeric_format = {fld: '0.16G' for fld in _fields}
     # descriptors
-    PNCRSD = _FloatDescriptor(
+    PNCRSD = FloatDescriptor(
         'PNCRSD', _required, strict=DEFAULT_STRICT,
-        docstring='Noise power level in fast time signal vector for f_IC(v,t) = f_0(v_CH_REF).') # type: float
-    BNCRSD = _FloatDescriptor(
+        docstring='Noise power level in fast time signal vector for f_IC(v,t) = f_0(v_CH_REF).')  # type: float
+    BNCRSD = FloatDescriptor(
         'BNCRSD', _required, strict=DEFAULT_STRICT,
         docstring='Noise Equivalent BW for the noise signal. Bandwidth BN_CRSD is expressed relative'
                   ' to the fast time sample rate for the channel (fs).')  # type:float
@@ -134,11 +136,11 @@ class TxAntennaType(Serializable):
     _fields = ('TxAPCId', 'TxAPATId')
     _required = _fields
     # descriptors
-    TxAPCId = _StringDescriptor(
+    TxAPCId = StringDescriptor(
         'TxAPCId', _required, strict=DEFAULT_STRICT,
         docstring='Identifier of Transmit APC to be used to compute the transmit antenna'
                   ' pattern as a function of time for the channel (APC_ID).')  # type: str
-    TxAPATId = _StringDescriptor(
+    TxAPATId = StringDescriptor(
         'TxAPATId', _required, strict=DEFAULT_STRICT,
         docstring='Identifier of the Transmit Antenna pattern used to form the channel'
                   ' signal array (APAT_ID).')  # type: str
@@ -170,21 +172,21 @@ class SARImagingType(Serializable):
     _fields = ('TxLFMFixed', 'TxPol', 'DwellTimes', 'TxAntenna', 'ImageArea')
     _required = ('TxPol', 'DwellTimes')
     # descriptors
-    TxLFMFixed = _BooleanDescriptor(
+    TxLFMFixed = BooleanDescriptor(
         'TxLFMFixed', _required, strict=DEFAULT_STRICT,
         docstring='Flag to indicate the same transmit LFM waveform is used for all pulses.'
                   ' vectors of the channel.')  # type: Union[None, bool]
-    TxPol = _StringEnumDescriptor(
+    TxPol = StringEnumDescriptor(
         'TxPol', POLARIZATION_TYPE, _required, strict=DEFAULT_STRICT,
         docstring='Transmitted signal polarization for the channel.')  # type: str
-    DwellTimes = _SerializableDescriptor(
+    DwellTimes = SerializableDescriptor(
         'DwellTimes', DwellTimesType, _required, strict=DEFAULT_STRICT,
         docstring='COD Time and Dwell Time polynomials over the image area.')  # type: DwellTimesType
-    TxAntenna = _SerializableDescriptor(
+    TxAntenna = SerializableDescriptor(
         'TxAntenna', TxAntennaType, _required, strict=DEFAULT_STRICT,
         docstring='Antenna Phase Center and Antenna Pattern identifiers for the transmit antenna'
-                  ' used to illuminate the imaged area.')  # type: Union[None, AntennaType]
-    ImageArea = _SerializableDescriptor(
+                  ' used to illuminate the imaged area.')  # type: Union[None, TxAntennaType]
+    ImageArea = SerializableDescriptor(
         'ImageArea', AreaType, _required, strict=DEFAULT_STRICT,
         docstring='SAR Image Area for the channel defined by a rectangle aligned with (IAX, IAY).'
                   ' May be reduced by the optional polygon.')  # type: Union[None, AreaType]
@@ -231,60 +233,59 @@ class ChannelParametersType(Serializable):
     _collections_tags = {
         'AddedParameters': {'array': False, 'child_tag': 'AddedParameters'}}
     # descriptors
-    Identifier = _StringDescriptor(
+    Identifier = StringDescriptor(
         'Identifier', _required, strict=DEFAULT_STRICT,
         docstring='String that uniquely identifies this CRSD data channel.')  # type: str
-    RefVectorIndex = _IntegerDescriptor(
+    RefVectorIndex = IntegerDescriptor(
         'RefVectorIndex', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='Index of the reference vector for the channel.')  # type: int
-    RefFreqFixed = _BooleanDescriptor(
+    RefFreqFixed = BooleanDescriptor(
         'RefFreqFixed', _required, strict=DEFAULT_STRICT,
         docstring='Flag to indicate a constant reference frequency is used for'
                   ' the channel.')  # type: bool
-    FrcvFixed = _BooleanDescriptor(
+    FrcvFixed = BooleanDescriptor(
         'FrcvFixed', _required, strict=DEFAULT_STRICT,
         docstring='Flag to indicate a constant receive band is saved for the'
                   ' channel.')  # type: bool
-    DemodFixed = _BooleanDescriptor(
+    DemodFixed = BooleanDescriptor(
         'DemodFixed', _required, strict=DEFAULT_STRICT,
         docstring='Flag to indicate a constant demodulation is used for the'
                   ' channel.')  # type: bool
-    F0Ref = _FloatDescriptor(
+    F0Ref = FloatDescriptor(
         'F0Ref', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='Reference frequency for the reference signal vector.')  # type: float
-    Fs = _FloatDescriptor(
+    Fs = FloatDescriptor(
         'Fs', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='Fast time sample rate for the signal array.')  # type: float
-    BWInst = _FloatDescriptor(
+    BWInst = FloatDescriptor(
         'BWInst', _required, strict=DEFAULT_STRICT, bounds=(0, None),
         docstring='Nominal instantaneous bandwidth for the channel.')  # type: float
-    RcvPol = _StringEnumDescriptor(
+    RcvPol = StringEnumDescriptor(
         'RcvPol', POLARIZATION_TYPE, _required, strict=DEFAULT_STRICT,
         docstring='Receive polarization for the signal data processed to form the signal array.'
                   ' Parameter describes the E-Field orientation of the signal.')  # type: str
-    SignalNormal = _BooleanDescriptor(
+    SignalNormal = BooleanDescriptor(
         'SignalNormal', _required, strict=DEFAULT_STRICT,
         docstring='Flag to indicate when all signal array vectors are normal.'
                   ' Included if and only if the SIGNAL PVP is also included.')  # type: Union[None, bool]
-    RcvAntenna = _SerializableDescriptor(
+    RcvAntenna = SerializableDescriptor(
         'RcvAntenna', RcvAntennaType, _required, strict=DEFAULT_STRICT,
         docstring='Antenna Phase Center and Antenna Pattern identifiers for the receive antenna'
                   ' used to collect and form the signal array data.')  # type: Union[None, RcvAntennaType]
-    SignalRefLevel = _SerializableDescriptor(
+    SignalRefLevel = SerializableDescriptor(
         'SignalRefLevel', SignalRefLevelType, _required, strict=DEFAULT_STRICT,
         docstring='Signal power levels for a received CW signal with f = f_0_REF and polarization'
                   ' matched to RcvPol of the channel.')  # type: Union[None, SignalRefLevelType]
-    NoiseLevel = _SerializableDescriptor(
+    NoiseLevel = SerializableDescriptor(
         'NoiseLevel', NoiseLevelType, _required, strict=DEFAULT_STRICT,
         docstring='Thermal noise level in the CRSD signal vector for f_IC(v,t) ='
                   ' f_0(v_CH_REF).')  # type: Union[None, NoiseLevelType]
-    AddedParameters = _ParametersDescriptor(
+    AddedParameters = ParametersDescriptor(
         'AddedParameters', _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Additional free form parameters.')  # type: Union[None, ParametersCollection]
-    SARImaging = _SerializableDescriptor(
+    SARImaging = SerializableDescriptor(
         'SARImaging', SARImagingType, _required, strict=DEFAULT_STRICT,
         docstring='Structure included for all SAR imaging collections.')  # type: Union[None, SARImagingType]
-
 
     def __init__(self, Identifier=None, RefVectorIndex=None, RefFreqFixed=None,
                  FrcvFixed=None, DemodFixed=None, F0Ref=None, Fs=None, BWInst=None,
@@ -343,11 +344,11 @@ class ChannelType(Serializable):
     _required = _fields
     _collections_tags = {'Parameters': {'array': False, 'child_tag': 'Parameters'}}
     # descriptors
-    RefChId = _StringDescriptor(
+    RefChId = StringDescriptor(
         'RefChId', _required, strict=DEFAULT_STRICT,
         docstring='Channel ID for the Reference Channel in the '
                   'product.')  # type: str
-    Parameters = _SerializableListDescriptor(
+    Parameters = SerializableListDescriptor(
         'Parameters', ChannelParametersType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Parameter Set that describes a CRSD data '
                   'channel.')  # type: List[ChannelParametersType]

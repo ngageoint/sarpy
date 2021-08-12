@@ -7,14 +7,16 @@ __author__ = "Thomas McCullough"
 
 
 from typing import List, Union
-import logging
 
 import numpy
 
-from .base import Serializable, DEFAULT_STRICT, Arrayable, \
-    _StringDescriptor, _StringEnumDescriptor, _FloatDescriptor, _IntegerDescriptor, \
-    _BooleanDescriptor, _ComplexDescriptor, _DateTimeDescriptor, _IntegerListDescriptor, \
-    _SerializableDescriptor, _SerializableListDescriptor, _ParametersDescriptor, ParametersCollection
+from sarpy.io.xml.base import Serializable, Arrayable, ParametersCollection
+from sarpy.io.xml.descriptors import StringDescriptor, StringEnumDescriptor, \
+    FloatDescriptor, IntegerDescriptor, IntegerListDescriptor, BooleanDescriptor, \
+    ComplexDescriptor, DateTimeDescriptor, SerializableDescriptor, \
+    SerializableListDescriptor, ParametersDescriptor
+
+from .base import DEFAULT_STRICT
 from .blocks import DUAL_POLARIZATION_VALUES
 from .RadarCollection import get_band_name
 from .utils import is_polstring_version1
@@ -28,13 +30,13 @@ class RcvChanProcType(Serializable):
         'ChanIndices': {'array': False, 'child_tag': 'ChanIndex'}}
     _numeric_format = {'PRFScaleFactor': '0.16G'}
     # descriptors
-    NumChanProc = _IntegerDescriptor(
+    NumChanProc = IntegerDescriptor(
         'NumChanProc', _required, strict=DEFAULT_STRICT,
         docstring='Number of receive data channels processed to form the image.')  # type: int
-    PRFScaleFactor = _FloatDescriptor(
+    PRFScaleFactor = FloatDescriptor(
         'PRFScaleFactor', _required, strict=DEFAULT_STRICT,
         docstring='Factor indicating the ratio of the effective PRF to the actual PRF.')  # type: float
-    ChanIndices = _IntegerListDescriptor(
+    ChanIndices = IntegerListDescriptor(
         'ChanIndices', _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Index of a data channel that was processed.')  # type: List[int]
 
@@ -65,10 +67,10 @@ class TxFrequencyProcType(Serializable, Arrayable):
     _required = _fields
     _numeric_format = {'MinProc': '0.16G', 'MaxProc': '0.16G'}
     # descriptors
-    MinProc = _FloatDescriptor(
+    MinProc = FloatDescriptor(
         'MinProc', _required, strict=DEFAULT_STRICT,
         docstring='The minimum transmit frequency processed to form the image, in Hz.')  # type: float
-    MaxProc = _FloatDescriptor(
+    MaxProc = FloatDescriptor(
         'MaxProc', _required, strict=DEFAULT_STRICT,
         docstring='The maximum transmit frequency processed to form the image, in Hz.')  # type: float
 
@@ -176,13 +178,13 @@ class ProcessingType(Serializable):
     _required = ('Type', 'Applied')
     _collections_tags = {'Parameters': {'array': False, 'child_tag': 'Parameter'}}
     # descriptors
-    Type = _StringDescriptor(
+    Type = StringDescriptor(
         'Type', _required, strict=DEFAULT_STRICT,
         docstring='The processing type identifier.')  # type: str
-    Applied = _BooleanDescriptor(
+    Applied = BooleanDescriptor(
         'Applied', _required, strict=DEFAULT_STRICT,
         docstring='Indicates whether the given processing type has been applied.')  # type: bool
-    Parameters = _ParametersDescriptor(
+    Parameters = ParametersDescriptor(
         'Parameters', _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='The parameters collection.')  # type: ParametersCollection
 
@@ -215,46 +217,46 @@ class DistortionType(Serializable):
     _required = ('A', 'F1', 'Q1', 'Q2', 'F2', 'Q3', 'Q4')
     _numeric_format = {key: '0.16G' for key in _fields[1:]}
     # descriptors
-    CalibrationDate = _DateTimeDescriptor(
+    CalibrationDate = DateTimeDescriptor(
         'CalibrationDate', _required, strict=DEFAULT_STRICT,
         docstring='The calibration date.')
-    A = _FloatDescriptor(
+    A = FloatDescriptor(
         'A', _required, strict=DEFAULT_STRICT,
         docstring='Absolute amplitude scale factor.')  # type: float
     # receive distorion matrix
-    F1 = _ComplexDescriptor(
+    F1 = ComplexDescriptor(
         'F1', _required, strict=DEFAULT_STRICT,
         docstring='Receive distortion element (2,2).')  # type: complex
-    Q1 = _ComplexDescriptor(
+    Q1 = ComplexDescriptor(
         'Q1', _required, strict=DEFAULT_STRICT,
         docstring='Receive distortion element (1,2).')  # type: complex
-    Q2 = _ComplexDescriptor(
+    Q2 = ComplexDescriptor(
         'Q2', _required, strict=DEFAULT_STRICT,
         docstring='Receive distortion element (2,1).')  # type: complex
     # transmit distortion matrix
-    F2 = _ComplexDescriptor(
+    F2 = ComplexDescriptor(
         'F2', _required, strict=DEFAULT_STRICT,
         docstring='Transmit distortion element (2,2).')  # type: complex
-    Q3 = _ComplexDescriptor(
+    Q3 = ComplexDescriptor(
         'Q3', _required, strict=DEFAULT_STRICT,
         docstring='Transmit distortion element (2,1).')  # type: complex
-    Q4 = _ComplexDescriptor(
+    Q4 = ComplexDescriptor(
         'Q4', _required, strict=DEFAULT_STRICT,
         docstring='Transmit distortion element (1,2).')  # type: complex
     # gain estimation error
-    GainErrorA = _FloatDescriptor(
+    GainErrorA = FloatDescriptor(
         'GainErrorA', _required, strict=DEFAULT_STRICT,
         docstring='Gain estimation error standard deviation (in dB) for parameter A.')  # type: float
-    GainErrorF1 = _FloatDescriptor(
+    GainErrorF1 = FloatDescriptor(
         'GainErrorF1', _required, strict=DEFAULT_STRICT,
         docstring='Gain estimation error standard deviation (in dB) for parameter F1.')  # type: float
-    GainErrorF2 = _FloatDescriptor(
+    GainErrorF2 = FloatDescriptor(
         'GainErrorF2', _required, strict=DEFAULT_STRICT,
         docstring='Gain estimation error standard deviation (in dB) for parameter F2.')  # type: float
-    PhaseErrorF1 = _FloatDescriptor(
+    PhaseErrorF1 = FloatDescriptor(
         'PhaseErrorF1', _required, strict=DEFAULT_STRICT,
         docstring='Phase estimation error standard deviation (in dB) for parameter F1.')  # type: float
-    PhaseErrorF2 = _FloatDescriptor(
+    PhaseErrorF2 = FloatDescriptor(
         'PhaseErrorF2', _required, strict=DEFAULT_STRICT,
         docstring='Phase estimation error standard deviation (in dB) for parameter F2.')  # type: float
 
@@ -301,10 +303,10 @@ class PolarizationCalibrationType(Serializable):
     _fields = ('DistortCorrectApplied', 'Distortion')
     _required = _fields
     # descriptors
-    DistortCorrectApplied = _BooleanDescriptor(
+    DistortCorrectApplied = BooleanDescriptor(
         'DistortCorrectApplied', _required, strict=DEFAULT_STRICT,
         docstring='Indicates whether the polarization calibration has been applied.')  # type: bool
-    Distortion = _SerializableDescriptor(
+    Distortion = SerializableDescriptor(
         'Distortion', DistortionType, _required, strict=DEFAULT_STRICT,
         docstring='The distortion parameters.')  # type: DistortionType
 
@@ -345,27 +347,27 @@ class ImageFormationType(Serializable):
     _AZ_AUTOFOCUS_VALUES = _ST_BEAM_COMP_VALUES
     _RG_AUTOFOCUS_VALUES = _ST_BEAM_COMP_VALUES
     # descriptors
-    RcvChanProc = _SerializableDescriptor(
+    RcvChanProc = SerializableDescriptor(
         'RcvChanProc', RcvChanProcType, _required, strict=DEFAULT_STRICT,
         docstring='The received processed channels.')  # type: RcvChanProcType
-    TxRcvPolarizationProc = _StringEnumDescriptor(
+    TxRcvPolarizationProc = StringEnumDescriptor(
         'TxRcvPolarizationProc', DUAL_POLARIZATION_VALUES, _required, strict=DEFAULT_STRICT,
         docstring='The combined transmit/receive polarization processed to form the image.')  # type: str
-    TStartProc = _FloatDescriptor(
+    TStartProc = FloatDescriptor(
         'TStartProc', _required, strict=DEFAULT_STRICT,
         docstring='Earliest slow time value for data processed to form the image '
                   'from `CollectionStart`.')  # type: float
-    TEndProc = _FloatDescriptor(
+    TEndProc = FloatDescriptor(
         'TEndProc', _required, strict=DEFAULT_STRICT,
         docstring='Latest slow time value for data processed to form the image from `CollectionStart`.')  # type: float
-    TxFrequencyProc = _SerializableDescriptor(
+    TxFrequencyProc = SerializableDescriptor(
         'TxFrequencyProc', TxFrequencyProcType, _required, strict=DEFAULT_STRICT,
         docstring='The range of transmit frequency processed to form the image.')  # type: TxFrequencyProcType
-    SegmentIdentifier = _StringDescriptor(
+    SegmentIdentifier = StringDescriptor(
         'SegmentIdentifier', _required, strict=DEFAULT_STRICT,
         docstring='Identifier that describes the image that was processed. '
                   'Must be included when `SICD.RadarCollection.Area.Plane.SegmentList` is included.')  # type: str
-    ImageFormAlgo = _StringEnumDescriptor(
+    ImageFormAlgo = StringEnumDescriptor(
         'ImageFormAlgo', _IMG_FORM_ALGO_VALUES, _required, strict=DEFAULT_STRICT,
         docstring="""
         The image formation algorithm used:
@@ -377,7 +379,7 @@ class ImageFormationType(Serializable):
         * `RGAZCOMP` - Simple range, Doppler compression.
 
         """)  # type: str
-    STBeamComp = _StringEnumDescriptor(
+    STBeamComp = StringEnumDescriptor(
         'STBeamComp', _ST_BEAM_COMP_VALUES, _required, strict=DEFAULT_STRICT,
         docstring="""
         Indicates if slow time beam shape compensation has been applied.
@@ -389,7 +391,7 @@ class ImageFormationType(Serializable):
         * `SV` - Spatially variant beam shape compensation applied.
 
         """)  # type: str
-    ImageBeamComp = _StringEnumDescriptor(
+    ImageBeamComp = StringEnumDescriptor(
         'ImageBeamComp', _IMG_BEAM_COMP_VALUES, _required, strict=DEFAULT_STRICT,
         docstring="""
         Indicates if image domain beam shape compensation has been applied.
@@ -399,19 +401,19 @@ class ImageFormationType(Serializable):
         * `SV` - Spatially variant image domain beam shape compensation applied.
 
         """)  # type: str
-    AzAutofocus = _StringEnumDescriptor(
+    AzAutofocus = StringEnumDescriptor(
         'AzAutofocus', _AZ_AUTOFOCUS_VALUES, _required, strict=DEFAULT_STRICT,
         docstring='Indicates if azimuth autofocus correction has been applied, with similar '
                   'interpretation as `STBeamComp`.')  # type: str
-    RgAutofocus = _StringEnumDescriptor(
+    RgAutofocus = StringEnumDescriptor(
         'RgAutofocus', _RG_AUTOFOCUS_VALUES, _required, strict=DEFAULT_STRICT,
         docstring='Indicates if range autofocus correction has been applied, with similar '
                   'interpretation as `STBeamComp`.')  # type: str
-    Processings = _SerializableListDescriptor(
+    Processings = SerializableListDescriptor(
         'Processings', ProcessingType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Parameters to describe types of specific processing that may have been applied '
                   'such as additional compensations.')  # type: Union[None, List[ProcessingType]]
-    PolarizationCalibration = _SerializableDescriptor(
+    PolarizationCalibration = SerializableDescriptor(
         'PolarizationCalibration', PolarizationCalibrationType, _required, strict=DEFAULT_STRICT,
         docstring='The polarization calibration details.')  # type: PolarizationCalibrationType
 

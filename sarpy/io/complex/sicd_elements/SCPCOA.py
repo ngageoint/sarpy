@@ -11,8 +11,11 @@ import logging
 import numpy
 from numpy.linalg import norm
 
-from .base import Serializable, DEFAULT_STRICT, \
-    _StringEnumDescriptor, _FloatDescriptor, _SerializableDescriptor
+from sarpy.io.xml.base import Serializable
+from sarpy.io.xml.descriptors import StringEnumDescriptor, FloatDescriptor, \
+    SerializableDescriptor
+
+from .base import DEFAULT_STRICT
 from .blocks import XYZType
 
 from sarpy.geometry import geocoords
@@ -138,10 +141,10 @@ class GeometryCalculator(object):
         return float(layover_ang), float(norm(layover_ground))
 
     def get_shadow(self):
-        S = self.ETP - self.uLOS/self.uLOS.dot(self.ETP)
-        Sprime = S - self.uSPZ*(S.dot(self.ETP)/self.uSPZ.dot(self.ETP))
-        shadow_angle = numpy.rad2deg(numpy.arctan2(Sprime.dot(self.uGPX), Sprime.dot(self.uGPY)))
-        return float(shadow_angle), float(norm(Sprime))
+        shadow = self.ETP - self.uLOS/self.uLOS.dot(self.ETP)
+        shadow_prime = shadow - self.uSPZ*(shadow.dot(self.ETP)/self.uSPZ.dot(self.ETP))
+        shadow_angle = numpy.rad2deg(numpy.arctan2(shadow_prime.dot(self.uGPX), shadow_prime.dot(self.uGPY)))
+        return float(shadow_angle), float(norm(shadow_prime))
 
 
 class SCPCOAType(Serializable):
@@ -160,49 +163,49 @@ class SCPCOAType(Serializable):
     # class variables
     _SIDE_OF_TRACK_VALUES = ('L', 'R')
     # descriptors
-    SCPTime = _FloatDescriptor(
+    SCPTime = FloatDescriptor(
         'SCPTime', _required, strict=DEFAULT_STRICT,
         docstring='*Center Of Aperture time for the SCP (t_COA_SCP)*, relative to collection '
                   'start in seconds.')  # type: float
-    ARPPos = _SerializableDescriptor(
+    ARPPos = SerializableDescriptor(
         'ARPPos', XYZType, _required, strict=DEFAULT_STRICT,
         docstring='Aperture position at *t_COA_SCP* in ECF coordinates.')  # type: XYZType
-    ARPVel = _SerializableDescriptor(
+    ARPVel = SerializableDescriptor(
         'ARPVel', XYZType, _required, strict=DEFAULT_STRICT,
         docstring='ARP Velocity at *t_COA_SCP* in ECF coordinates.')  # type: XYZType
-    ARPAcc = _SerializableDescriptor(
+    ARPAcc = SerializableDescriptor(
         'ARPAcc', XYZType, _required, strict=DEFAULT_STRICT,
         docstring='ARP Acceleration at *t_COA_SCP* in ECF coordinates.')  # type: XYZType
-    SideOfTrack = _StringEnumDescriptor(
+    SideOfTrack = StringEnumDescriptor(
         'SideOfTrack', _SIDE_OF_TRACK_VALUES, _required, strict=DEFAULT_STRICT,
         docstring='Side of track.')  # type: str
-    SlantRange = _FloatDescriptor(
+    SlantRange = FloatDescriptor(
         'SlantRange', _required, strict=DEFAULT_STRICT,
         docstring='Slant range from the aperture to the *SCP* in meters.')  # type: float
-    GroundRange = _FloatDescriptor(
+    GroundRange = FloatDescriptor(
         'GroundRange', _required, strict=DEFAULT_STRICT,
         docstring='Ground Range from the aperture nadir to the *SCP*. Distance measured along spherical earth model '
                   'passing through the *SCP* in meters.')  # type: float
-    DopplerConeAng = _FloatDescriptor(
+    DopplerConeAng = FloatDescriptor(
         'DopplerConeAng', _required, strict=DEFAULT_STRICT,
         docstring='The Doppler Cone Angle to SCP at *t_COA_SCP* in degrees.')  # type: float
-    GrazeAng = _FloatDescriptor(
+    GrazeAng = FloatDescriptor(
         'GrazeAng', _required, strict=DEFAULT_STRICT, bounds=(0., 90.),
         docstring='Grazing Angle between the SCP *Line of Sight (LOS)* and *Earth Tangent Plane (ETP)*.')  # type: float
-    IncidenceAng = _FloatDescriptor(
+    IncidenceAng = FloatDescriptor(
         'IncidenceAng', _required, strict=DEFAULT_STRICT, bounds=(0., 90.),
         docstring='Incidence Angle between the *LOS* and *ETP* normal.')  # type: float
-    TwistAng = _FloatDescriptor(
+    TwistAng = FloatDescriptor(
         'TwistAng', _required, strict=DEFAULT_STRICT, bounds=(-90., 90.),
         docstring='Angle between cross range in the *ETP* and cross range in the slant plane.')  # type: float
-    SlopeAng = _FloatDescriptor(
+    SlopeAng = FloatDescriptor(
         'SlopeAng', _required, strict=DEFAULT_STRICT, bounds=(0., 90.),
         docstring='Slope Angle from the *ETP* to the slant plane at *t_COA_SCP*.')  # type: float
-    AzimAng = _FloatDescriptor(
+    AzimAng = FloatDescriptor(
         'AzimAng', _required, strict=DEFAULT_STRICT, bounds=(0., 360.),
         docstring='Angle from north to the line from the *SCP* to the aperture nadir at *COA*. Measured '
                   'clockwise in the *ETP*.')  # type: float
-    LayoverAng = _FloatDescriptor(
+    LayoverAng = FloatDescriptor(
         'LayoverAng', _required, strict=DEFAULT_STRICT, bounds=(0., 360.),
         docstring='Angle from north to the layover direction in the *ETP* at *COA*. Measured '
                   'clockwise in the *ETP*.')  # type: float
@@ -466,7 +469,7 @@ class SCPCOAType(Serializable):
 
         if GeoData is None or GeoData.SCP is None or GeoData.SCP.ECF is None or \
                 self.ARPPos is None or self.ARPVel is None:
-            return True # nothing can be derived
+            return True  # nothing can be derived
 
         # construct our calculator
         calculator = GeometryCalculator(
@@ -475,7 +478,8 @@ class SCPCOAType(Serializable):
         cond = True
         if calculator.SideOfTrack != self.SideOfTrack:
             self.log_validity_error(
-                'SideOfTrack is expected to be {}, and is populated as {}'.format(calculator.SideOfTrack, self.SideOfTrack))
+                'SideOfTrack is expected to be {}, and is populated as {}'.format(
+                    calculator.SideOfTrack, self.SideOfTrack))
             cond = False
 
         for attribute in ['SlantRange', 'GroundRange']:
@@ -487,7 +491,7 @@ class SCPCOAType(Serializable):
                 cond = False
 
         for attribute in [
-            'DopplerConeAng', 'GrazeAng', 'IncidenceAng', 'TwistAng', 'SlopeAng', 'AzimAng', 'LayoverAng']:
+                'DopplerConeAng', 'GrazeAng', 'IncidenceAng', 'TwistAng', 'SlopeAng', 'AzimAng', 'LayoverAng']:
             val1 = getattr(self, attribute)
             val2 = getattr(calculator, attribute)
             if abs(val1 - val2) > 1e-3:

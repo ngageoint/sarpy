@@ -8,9 +8,10 @@ __author__ = "Thomas McCullough"
 
 from typing import List
 
-from .base import Serializable, DEFAULT_STRICT, \
-    _StringDescriptor, _StringEnumDescriptor, _StringListDescriptor, \
-    _SerializableDescriptor, _ParametersDescriptor, ParametersCollection
+from sarpy.io.xml.base import Serializable, ParametersCollection
+from sarpy.io.xml.descriptors import StringDescriptor, StringEnumDescriptor, \
+    StringListDescriptor, SerializableDescriptor, ParametersDescriptor
+from .base import DEFAULT_STRICT
 
 
 class RadarModeType(Serializable):
@@ -23,10 +24,10 @@ class RadarModeType(Serializable):
     # other class variable
     _MODE_TYPE_VALUES = ('SPOTLIGHT', 'STRIPMAP', 'DYNAMIC STRIPMAP', 'SCANSAR')
     # descriptors
-    ModeType = _StringEnumDescriptor(
+    ModeType = StringEnumDescriptor(
         'ModeType', _MODE_TYPE_VALUES, _required, strict=True,
         docstring="The Radar imaging mode.")  # type: str
-    ModeID = _StringDescriptor(
+    ModeID = StringDescriptor(
         'ModeID', _required, strict=DEFAULT_STRICT,
         docstring='Radar imaging mode per Program Specific Implementation Document.')  # type: str
 
@@ -84,33 +85,33 @@ class CollectionInfoType(Serializable):
     # other class variable
     _COLLECT_TYPE_VALUES = ('MONOSTATIC', 'BISTATIC')
     # descriptors
-    CollectorName = _StringDescriptor(
+    CollectorName = StringDescriptor(
         'CollectorName', _required, strict=DEFAULT_STRICT,
         docstring='Radar platform identifier. For Bistatic collections, list the Receive platform.')  # type: str
-    IlluminatorName = _StringDescriptor(
+    IlluminatorName = StringDescriptor(
         'IlluminatorName', _required, strict=DEFAULT_STRICT,
         docstring='Radar platform identifier that provided the illumination. For Bistatic collections, '
                   'list the transmit platform.')  # type: str
-    CoreName = _StringDescriptor(
+    CoreName = StringDescriptor(
         'CoreName', _required, strict=DEFAULT_STRICT,
         docstring='Collection and imaging data set identifier. Uniquely identifies imaging collections per '
                   'Program Specific Implementation Doc.')  # type: str
-    CollectType = _StringEnumDescriptor(
+    CollectType = StringEnumDescriptor(
         'CollectType', _COLLECT_TYPE_VALUES, _required,
         docstring="Collection type identifier. Monostatic collections include single platform collections with "
                   "unique transmit and receive apertures.")  # type: str
-    RadarMode = _SerializableDescriptor(
+    RadarMode = SerializableDescriptor(
         'RadarMode', RadarModeType, _required, strict=DEFAULT_STRICT,
         docstring='The radar mode.')  # type: RadarModeType
-    Classification = _StringDescriptor(
+    Classification = StringDescriptor(
         'Classification', _required, strict=DEFAULT_STRICT, default_value='UNCLASSIFIED',
         docstring='Contains the human-readable banner. Contains classification, file control and handling, '
                   'file releasing, and/or proprietary markings. Specified per Program Specific '
                   'Implementation Document.')  # type: str
-    CountryCodes = _StringListDescriptor(
+    CountryCodes = StringListDescriptor(
         'CountryCodes', _required, strict=DEFAULT_STRICT,
         docstring="List of country codes for region covered by the image.")  # type: List[str]
-    Parameters = _ParametersDescriptor(
+    Parameters = ParametersDescriptor(
         'Parameters', _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='Free form parameters object collection.')  # type: ParametersCollection
 

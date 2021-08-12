@@ -11,8 +11,11 @@ from typing import Union
 import numpy
 from numpy.linalg import norm
 
-from .base import Serializable, DEFAULT_STRICT, \
-    _StringEnumDescriptor, _FloatDescriptor, _BooleanDescriptor, _SerializableDescriptor
+from sarpy.io.xml.base import Serializable
+from sarpy.io.xml.descriptors import StringEnumDescriptor, FloatDescriptor, \
+    BooleanDescriptor, SerializableDescriptor
+
+from .base import DEFAULT_STRICT
 from .blocks import XYZType, Poly1DType, Poly2DType
 from .utils import _get_center_frequency
 
@@ -26,15 +29,15 @@ class RMRefType(Serializable):
     _required = _fields
     _numeric_format = {'DopConeAngRef': '0.16G', }
     # descriptors
-    PosRef = _SerializableDescriptor(
+    PosRef = SerializableDescriptor(
         'PosRef', XYZType, _required, strict=DEFAULT_STRICT,
         docstring='Platform reference position in ECF coordinates used to establish '
                   'the reference slant plane.')  # type: XYZType
-    VelRef = _SerializableDescriptor(
+    VelRef = SerializableDescriptor(
         'VelRef', XYZType, _required, strict=DEFAULT_STRICT,
         docstring='Platform reference velocity vector in ECF coordinates used to establish '
                   'the reference slant plane.')  # type: XYZType
-    DopConeAngRef = _FloatDescriptor(
+    DopConeAngRef = FloatDescriptor(
         'DopConeAngRef', _required, strict=DEFAULT_STRICT,
         docstring='Reference Doppler Cone Angle in degrees.')  # type: float
 
@@ -61,34 +64,38 @@ class RMRefType(Serializable):
 
 class INCAType(Serializable):
     """Parameters for Imaging Near Closest Approach (INCA) image description."""
-    _fields = ('TimeCAPoly', 'R_CA_SCP', 'FreqZero', 'DRateSFPoly', 'DopCentroidPoly', 'DopCentroidCOA')
+    _fields = (
+        'TimeCAPoly', 'R_CA_SCP', 'FreqZero', 'DRateSFPoly', 'DopCentroidPoly', 'DopCentroidCOA')
     _required = ('TimeCAPoly', 'R_CA_SCP', 'FreqZero', 'DRateSFPoly')
     _numeric_format = {'R_CA_SCP': '0.16G', 'FreqZero': '0.16G'}
     # descriptors
-    TimeCAPoly = _SerializableDescriptor(
+    TimeCAPoly = SerializableDescriptor(
         'TimeCAPoly', Poly1DType, _required, strict=DEFAULT_STRICT,
         docstring='Polynomial function that yields *Time of Closest Approach* as function of '
                   'image column *(azimuth)* coordinate in meters. Time relative to '
                   'collection start in seconds.')  # type: Poly1DType
-    R_CA_SCP = _FloatDescriptor(
+    R_CA_SCP = FloatDescriptor(
         'R_CA_SCP', _required, strict=DEFAULT_STRICT,
         docstring='*Range at Closest Approach (R_CA)* for the *Scene Center Point (SCP)* in meters.')  # type: float
-    FreqZero = _FloatDescriptor(
+    FreqZero = FloatDescriptor(
         'FreqZero', _required, strict=DEFAULT_STRICT,
-        docstring=r'*RF frequency* :\math:`(f_0)` in Hz used for computing Doppler Centroid values. Typical :math:`f_0` '
+        docstring=r'*RF frequency* :\math:`(f_0)` in Hz used for computing '
+                  r'Doppler Centroid values. Typical :math:`f_0` '
                   r'set equal o center transmit frequency.')  # type: float
-    DRateSFPoly = _SerializableDescriptor(
+    DRateSFPoly = SerializableDescriptor(
         'DRateSFPoly', Poly2DType, _required, strict=DEFAULT_STRICT,
-        docstring='Polynomial function that yields *Doppler Rate scale factor (DRSF)* as a function of image '
-                  'location. Yields `DRSF` as a function of image range coordinate ``(variable 1)`` and azimuth '
-                  'coordinate ``(variable 2)``. Used to compute Doppler Rate at closest approach.')  # type: Poly2DType
-    DopCentroidPoly = _SerializableDescriptor(
+        docstring='Polynomial function that yields *Doppler Rate scale factor (DRSF)* '
+                  'as a function of image location. Yields `DRSF` as a function of image '
+                  'range coordinate ``(variable 1)`` and azimuth coordinate ``(variable 2)``. '
+                  'Used to compute Doppler Rate at closest approach.')  # type: Poly2DType
+    DopCentroidPoly = SerializableDescriptor(
         'DopCentroidPoly', Poly2DType, _required, strict=DEFAULT_STRICT,
-        docstring='Polynomial function that yields Doppler Centroid value as a function of image location *(fdop_DC)*. '
-                  'The *fdop_DC* is the Doppler frequency at the peak signal response. The polynomial is a function '
+        docstring='Polynomial function that yields Doppler Centroid value as a '
+                  'function of image location *(fdop_DC)*. The *fdop_DC* is the '
+                  'Doppler frequency at the peak signal response. The polynomial is a function '
                   'of image range coordinate ``(variable 1)`` and azimuth coordinate ``(variable 2)``. '
                   '*Note: Only used for Stripmap and Dynamic Stripmap collections.*')  # type: Poly2DType
-    DopCentroidCOA = _BooleanDescriptor(
+    DopCentroidCOA = BooleanDescriptor(
         'DopCentroidCOA', _required, strict=DEFAULT_STRICT,
         docstring="""Flag indicating that the COA is at the peak signal :math`fdop_COA = fdop_DC`.
         
@@ -138,7 +145,7 @@ class RMAType(Serializable):
     # class variables
     _RM_ALGO_TYPE_VALUES = ('OMEGA_K', 'CSA', 'RG_DOP')
     # descriptors
-    RMAlgoType = _StringEnumDescriptor(
+    RMAlgoType = StringEnumDescriptor(
         'RMAlgoType', _RM_ALGO_TYPE_VALUES, _required, strict=DEFAULT_STRICT,
         docstring=r"""
         Identifies the type of migration algorithm used:
@@ -150,13 +157,13 @@ class RMAType(Serializable):
         * `RG_DOP` - Range-Doppler algorithms that employ *RCMC* in the compressed range domain.
 
         """)  # type: str
-    RMAT = _SerializableDescriptor(
+    RMAT = SerializableDescriptor(
         'RMAT', RMRefType, _required, strict=DEFAULT_STRICT,
         docstring='Parameters for *RMA with Along Track (RMAT)* motion compensation.')  # type: RMRefType
-    RMCR = _SerializableDescriptor(
+    RMCR = SerializableDescriptor(
         'RMCR', RMRefType, _required, strict=DEFAULT_STRICT,
         docstring='Parameters for *RMA with Cross Range (RMCR)* motion compensation.')  # type: RMRefType
-    INCA = _SerializableDescriptor(
+    INCA = SerializableDescriptor(
         'INCA', INCAType, _required, strict=DEFAULT_STRICT,
         docstring='Parameters for *Imaging Near Closest Approach (INCA)* image description.')  # type: INCAType
 
@@ -214,32 +221,32 @@ class RMAType(Serializable):
         if SCPCOA is None:
             return
 
-        SCP = None if SCPCOA.ARPPos is None else SCPCOA.ARPPos.get_array()
+        scp = None if SCPCOA.ARPPos is None else SCPCOA.ARPPos.get_array()
 
         im_type = self.ImageType
         if im_type in ['RMAT', 'RMCR']:
-            RmRef = getattr(self, im_type)  # type: RMRefType
-            if RmRef.PosRef is None and SCPCOA.ARPPos is not None:
-                RmRef.PosRef = SCPCOA.ARPPos.copy()
-            if RmRef.VelRef is None and SCPCOA.ARPVel is not None:
-                RmRef.VelRef = SCPCOA.ARPVel.copy()
-            if SCP is not None and RmRef.PosRef is not None and RmRef.VelRef is not None:
-                pos_ref = RmRef.PosRef.get_array()
-                vel_ref = RmRef.VelRef.get_array()
+            rm_ref = getattr(self, im_type)  # type: RMRefType
+            if rm_ref.PosRef is None and SCPCOA.ARPPos is not None:
+                rm_ref.PosRef = SCPCOA.ARPPos.copy()
+            if rm_ref.VelRef is None and SCPCOA.ARPVel is not None:
+                rm_ref.VelRef = SCPCOA.ARPVel.copy()
+            if scp is not None and rm_ref.PosRef is not None and rm_ref.VelRef is not None:
+                pos_ref = rm_ref.PosRef.get_array()
+                vel_ref = rm_ref.VelRef.get_array()
                 uvel_ref = vel_ref/norm(vel_ref)
-                uLOS = (SCP - pos_ref)  # it absolutely could be that SCP = pos_ref
-                uLos_norm = norm(uLOS)
-                if uLos_norm > 0:
-                    uLOS /= uLos_norm
-                    if RmRef.DopConeAngRef is None:
-                        RmRef.DopConeAngRef = numpy.rad2deg(numpy.arccos(numpy.dot(uvel_ref, uLOS)))
+                ulos = (scp - pos_ref)  # it absolutely could be that scp = pos_ref
+                ulos_norm = norm(ulos)
+                if ulos_norm > 0:
+                    ulos /= ulos_norm
+                    if rm_ref.DopConeAngRef is None:
+                        rm_ref.DopConeAngRef = numpy.rad2deg(numpy.arccos(numpy.dot(uvel_ref, ulos)))
         elif im_type == 'INCA':
-            if SCP is not None and self.INCA.TimeCAPoly is not None and \
+            if scp is not None and self.INCA.TimeCAPoly is not None and \
                     Position is not None and Position.ARPPoly is not None:
                 t_zero = self.INCA.TimeCAPoly.Coefs[0]
                 ca_pos = Position.ARPPoly(t_zero)
                 if self.INCA.R_CA_SCP is None:
-                    self.INCA.R_CA_SCP = norm(ca_pos - SCP)
+                    self.INCA.R_CA_SCP = norm(ca_pos - scp)
             if self.INCA.FreqZero is None:
                 self.INCA.FreqZero = _get_center_frequency(RadarCollection, ImageFormation)
 

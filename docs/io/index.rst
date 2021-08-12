@@ -10,5 +10,6 @@ File reading and writing elements (sarpy.io)
     phase_history/index
     product/index
     DEM/index
+    xml/index
     kml
     other_image/index
