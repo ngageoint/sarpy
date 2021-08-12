@@ -6,7 +6,6 @@ __classification__ = "UNCLASSIFIED"
 __authors__ = ("Thomas McCullough", "Thomas Rackers")
 
 # TODO: comments on difficulties
-#   - the field names starting with #dB are poorly formed
 #   - The PhysicalType seems half complete or something?
 
 from typing import Optional, List

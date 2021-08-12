@@ -20,8 +20,7 @@ from .blocks import RangeCrossRangeType
 
 # TODO: Review what's marked required/optional - I'm sure it makes little sense
 #  Questionable field definitions:
-#   - there is a PixelSpacing and then slant/ground plane elements for pixel spacing.
-#   - 3dBWidth is a poorly formed name
+#   - there is a PixelSpacing and then slant/ground plane elements for pixel spacing?
 #   - ZuluOffset seemingly assumes that the only possible offsets are integer valued - this is wrong
 #   - DataCalibrated should obviously be xs:boolean - this is kludged badly for no reason
 #   - DataCheckSum - it is unclear what this is the checksum of, and which checksum it would be (CRC-32?)
