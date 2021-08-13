@@ -24,10 +24,9 @@ from .blocks import RangeCrossRangeType, RowColDoubleType, LatLonEleType
 
 # TODO: the articulation and configuration information is really not usable in
 #  its current form, and should be replaced with a (`name`, `value`) pair.
-#  I am omitting for now.
-
 
 logger = logging.getLogger(__name__)
+
 
 # the Object and sub-component definitions
 
@@ -269,7 +268,8 @@ class ImageLocationType(Serializable):
 
         Returns
         -------
-        ImageLocationType
+        None|ImageLocationType
+            None if projection fails, the value otherwise
         """
 
         if geo_location is None:
@@ -279,7 +279,7 @@ class ImageLocationType(Serializable):
             logger.warning(
                 'This sicd does not permit projection,\n\t'
                 'so the image location can not be inferred')
-            return
+            return None
 
         # make sure this is defined, for the sake of efficiency
         the_structure.define_coa_projection(overide=False)
@@ -297,6 +297,9 @@ class ImageLocationType(Serializable):
             if value is not None:
                 absolute_pixel_location = the_structure.project_ground_to_image_geo(
                     value.get_array(dtype='float64'), ordering='latlong')
+                if numpy.any(numpy.isnan(absolute_pixel_location)):
+                    return None
+
                 kwargs[attribute] = absolute_pixel_location - image_shift
         out = ImageLocationType(**kwargs)
         out.infer_center_pixel()
@@ -709,7 +712,19 @@ class TheObjectType(Serializable):
         self.SeasonalCover = SeasonalCover
         super(TheObjectType, self).__init__(**kwargs)
 
-    def set_image_details_from_sicd(self, sicd):
+    @staticmethod
+    def _check_placement(center_pixel, rows, cols, row_size, col_size):
+        # type: (numpy.ndarray, int, int, float, float) -> int
+        if (0.5*row_size < center_pixel[0] < rows - 0.5*row_size -1) and \
+                (0.5*col_size < center_pixel[1] < cols - 0.5*col_size - 1):
+            return 1
+        elif (-0.5*row_size < center_pixel[0] < rows + 0.5*row_size - 1) and \
+                (-0.5*col_size < center_pixel[1] < cols + 0.5*col_size - 1):
+            return 2
+        else:
+            return 3
+
+    def set_image_location_from_sicd(self, sicd):
         """
         Set the image location information with respect to the given SICD.
 
@@ -720,14 +735,14 @@ class TheObjectType(Serializable):
         Returns
         -------
         int
-            -1 - insuffucient metadata to proceed
+            -1 - insufficient metadata to proceed or other failure
             0 - nothing to be done
             1 - successful
             2 - object in the image periphery, not populating
             3 - object not in the image field
         """
 
-        if self.ImageLocation is not None or self.SlantPlane is not None:
+        if self.ImageLocation is not None:
             # no need to infer anything, it's already populated
             return 0
 
@@ -737,17 +752,71 @@ class TheObjectType(Serializable):
                 'so the image location can not be inferred')
             return -1
 
+        if not sicd.can_project_coordinates():
+            logger.warning(
+                'This sicd does not permit projection,\n\t'
+                'so the image location can not be inferred')
+            return -1
+
+        # gets the prospective image location
+        image_location = ImageLocationType.from_geolocation(self.GeoLocation, sicd)
+        if image_location is None:
+            return -1
+
+        # get nominal object size in meters and pixels
+        if self.Size is None:
+            row_size = 2.0
+            col_size = 2.0
+        else:
+            max_size = self.Size.get_max_diameter()
+            row_size = max_size/sicd.Grid.Row.SS
+            col_size = max_size/sicd.Grid.Col.SS
+
+        # check bounding information
+        rows = sicd.ImageData.NumRows
+        cols = sicd.ImageData.NumCols
+        center_pixel = image_location.CenterPixel.get_array(dtype='float64')
+
+        placement = self._check_placement(center_pixel, rows, cols, row_size, col_size)
+
+        if placement in [2, 3]:
+            return placement
+
+        self.ImageLocation = image_location
+        return 1
+
+    def set_chip_details_from_sicd(self, sicd):
+        """
+        Set the image location information with respect to the given SICD.
+
+        Parameters
+        ----------
+        sicd : SICDType
+
+        Returns
+        -------
+        int
+            -1 - insufficient metadata to proceed
+            0 - nothing to be done
+            1 - successful
+            2 - object in the image periphery, not populating
+            3 - object not in the image field
+        """
+
+        if self.SlantPlane is not None:
+            # no need to infer anything, it's already populated
+            return 0
+
         if self.Size is None:
             logger.warning(
                 'Size is not populated,\n\t'
                 'so the chip size can not be inferred')
             return -1
 
-        if not sicd.can_project_coordinates():
-            logger.warning(
-                'This sicd does not permit projection,\n\t'
-                'so the image location can not be inferred')
-            return -1
+        if self.ImageLocation is None:
+            return_value = self.set_image_location_from_sicd(sicd)
+            if return_value not in [0, 1]:
+                return return_value
 
         # get nominal object size in meters
         max_size = self.Size.get_max_diameter()
@@ -755,21 +824,14 @@ class TheObjectType(Serializable):
         col_size = max_size/sicd.Grid.Col.SS
 
         # get image location
-        image_location = ImageLocationType.from_geolocation(self.GeoLocation, sicd)
+        image_location = self.ImageLocation
 
         # check bounding information
         rows = sicd.ImageData.NumRows
         cols = sicd.ImageData.NumCols
         center_pixel = image_location.CenterPixel.get_array(dtype='float64')
 
-        if (0.5*row_size < center_pixel[0] < rows - 0.5*row_size -1) and \
-                (0.5*col_size < center_pixel[1] < cols - 0.5*col_size - 1):
-            placement = 1
-        elif (-0.5*row_size < center_pixel[0] < rows + 0.5*row_size - 1) and \
-                (-0.5*col_size < center_pixel[1] < cols + 0.5*col_size - 1):
-            placement = 2
-        else:
-            placement = 3
+        placement = self._check_placement(center_pixel, rows, cols, row_size, col_size)
 
         if placement in [2, 3]:
             return placement
@@ -791,7 +853,6 @@ class TheObjectType(Serializable):
             physical_with_shadows = PhysicalType(
                 ChipSize=(use_rows_size, col_size),
                 CenterPixel=center_pixel+0.5*numpy.array([use_rows_size - row_size, 0], dtype='float64'))
-        self.ImageLocation = image_location
         self.SlantPlane = PlanePhysicalType(
             Physical=physical,
             PhysicalWithShadows=physical_with_shadows)

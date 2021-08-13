@@ -5,8 +5,6 @@ Definition for the DetailFiducialInfo AFRL labeling object
 __classification__ = "UNCLASSIFIED"
 __authors__ = ("Thomas McCullough", "Thomas Rackers")
 
-# TODO: comments on difficulties
-#   - The PhysicalType seems half complete or something?
 
 from typing import Optional, List
 import logging
@@ -60,7 +58,7 @@ class ImageLocationType(Serializable):
 
         Returns
         -------
-        ImageLocationType
+        None|ImageLocationType
         """
 
         if geo_location is None or geo_location.CenterPixel is None:
@@ -70,7 +68,7 @@ class ImageLocationType(Serializable):
             logger.warning(
                 'This sicd does not permit projection,\n\t'
                 'so the image location can not be inferred')
-            return
+            return None
 
         if isinstance(the_structure, SICDType):
             image_shift = numpy.array(
@@ -80,6 +78,10 @@ class ImageLocationType(Serializable):
 
         absolute_pixel_location = the_structure.project_ground_to_image_geo(
             geo_location.CenterPixel.get_array(dtype='float64'), ordering='latlong')
+
+        if numpy.any(numpy.isnan(absolute_pixel_location)):
+            return None
+
         return ImageLocationType(CenterPixel=absolute_pixel_location - image_shift)
 
 
@@ -241,7 +243,22 @@ class TheFiducialType(Serializable):
         self.GroundPlane = GroundPlane
         super(TheFiducialType, self).__init__(**kwargs)
 
-    def set_image_details_from_sicd(self, sicd):
+    def set_default_width_from_sicd(self, sicd, override=False):
+        """
+        Sets a default value for the 3dB Width from the given SICD.
+
+        Parameters
+        ----------
+        sicd : SICDType
+        override : bool
+            Override any present value?
+        """
+
+        if self.Width_3dB is None or override:
+            self.Width_3dB = RangeCrossRangeType.from_array((sicd.Grid.Row.ImpRespWid, sicd.Grid.Col.ImpRespWid))
+            # TODO: this seems questionable to me?
+
+    def set_image_location_from_sicd(self, sicd):
         """
         Set the image location information with respect to the given SICD.
 
@@ -258,10 +275,6 @@ class TheFiducialType(Serializable):
             2 - object in image periphery, not populating
             3 - object not in image field
         """
-
-        if self.Width_3dB is None:
-            self.Width_3dB = RangeCrossRangeType.from_array((sicd.Grid.Row.ImpRespWid, sicd.Grid.Col.ImpRespWid))
-            # TODO: this seems questionable to me?
 
         if self.ImageLocation is not None or self.SlantPlane is not None:
             # no need to infer anything, it's already populated
