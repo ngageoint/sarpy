@@ -22,7 +22,7 @@ from sarpy.compliance import int_func, string_types
 from sarpy.io.general.base import BaseReader, BIPChipper, BSQChipper, \
     is_file_like, SarpyIOError
 from sarpy.io.general.nitf import MemMap
-from sarpy.geometry.geocoords import geodetic_to_ecf, wgs_84_norm
+from sarpy.geometry.geocoords import geodetic_to_ecf, wgs_84_norm, ned_to_ecf
 
 from sarpy.io.complex.base import SICDTypeReader
 from sarpy.io.complex.sicd_elements.SICD import SICDType
@@ -610,7 +610,6 @@ class _APInfo_4_0(object):
         self.apfdFactor = struct.unpack(estr+'i', fi.read(4))[0]
         self.fastTimeSamples, self.adSampleFreq, self.apertureTime, \
             self.numPhaseHistories = struct.unpack(estr+'I2fI', fi.read(4*4))
-        print('poo')
 
 
 class _APInfo_5_0(_APInfo_4_0):
@@ -1030,6 +1029,29 @@ class _GFFHeader_2(object):
                     gsat_header.version))
         if not valid:
             raise ValueError('GFF file determined to be invalid')
+
+    def get_arp_vel(self):
+        """
+        Gets the aperture velocity in ECF coordinates
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+
+        # get the aperture velocity in its native frame of reference (rotated ENU)
+        arp_vel_orig = numpy.array(self.ap_info.apcVel, dtype='float64')
+        # gets the bearing in the ENU reference
+        angle = numpy.deg2rad(self.ap_info.antPhaseCtrBear)
+        # construct the NED velocity vector
+        magnitude = numpy.sqrt(arp_vel_orig[0]*arp_vel_orig[0] + arp_vel_orig[1]*arp_vel_orig[1])
+        ned_velocity = numpy.array(
+            [magnitude*numpy.cos(angle), magnitude*numpy.sin(angle), -arp_vel_orig[2]],
+            dtype='float64')
+        # convert to ECF
+        orp = geodetic_to_ecf(self.ap_info.apcLLH, ordering='latlon')
+        out = ned_to_ecf(ned_velocity, orp, absolute_coords=False)
+        return out
 
 
 ####################
@@ -1541,7 +1563,7 @@ class _GFFInterpreter2(_GFFInterpreter):
         scp = geodetic_to_ecf(self.header.geo_info.patchCtrLLH)
         arp_llh = self.header.ap_info.apcLLH
         arp_pos = geodetic_to_ecf(arp_llh, ordering='latlon')
-        arp_vel = numpy.array(self.header.ap_info.apcVel, dtype='float64')
+        arp_vel = self.header.get_arp_vel()
 
         collection_info = get_collection_info()
         image_creation = get_image_creation()
@@ -1577,11 +1599,11 @@ class _GFFInterpreter2(_GFFInterpreter):
         if self.header.gsat_img.pixOrder == 0:
             # in range consecutive order, opposite from a SICD
             data_size = (self.header.gsat_img.azPixels, self.header.gsat_img.rangePixels)
-            symmetry = (False, False, True)
+            symmetry = (False, True, True)
         elif self.header.gsat_img.pixOrder == 1:
             # in azimuth consecutive order, like a SICD
             data_size = (self.header.gsat_img.rangePixels, self.header.gsat_img.azPixels)
-            symmetry = (False, False, False)
+            symmetry = (True, False, False)
         else:
             raise ValueError('Got unexpected pixel order `{}`'.format(self.header.gsat_img.pixOrder))
         return data_size, symmetry
