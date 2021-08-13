@@ -9,14 +9,19 @@ __authors__ = ("Thomas McCullough", "Thomas Rackers")
 #   - The PhysicalType seems half complete or something?
 
 from typing import Optional, List
+import logging
+import numpy
 
 from sarpy.io.xml.base import Serializable
 from sarpy.io.xml.descriptors import IntegerDescriptor, SerializableDescriptor, \
     SerializableListDescriptor, StringDescriptor
 from sarpy.io.complex.sicd_elements.blocks import RowColType
+from sarpy.io.complex.sicd_elements.SICD import SICDType
 
 from .base import DEFAULT_STRICT
 from .blocks import LatLonEleType, RangeCrossRangeType
+
+logger = logging.getLogger(__name__)
 
 
 class ImageLocationType(Serializable):
@@ -42,6 +47,40 @@ class ImageLocationType(Serializable):
             self._xml_ns_key = kwargs['_xml_ns_key']
         self.CenterPixel = CenterPixel
         super(ImageLocationType, self).__init__(**kwargs)
+
+    @classmethod
+    def from_geolocation(cls, geo_location, the_structure):
+        """
+        Construct from the corresponding Geolocation.
+
+        Parameters
+        ----------
+        geo_location : GeoLocationType
+        the_structure : SICDType|SIDDType
+
+        Returns
+        -------
+        ImageLocationType
+        """
+
+        if geo_location is None or geo_location.CenterPixel is None:
+            return None
+
+        if not the_structure.can_project_coordinates():
+            logger.warning(
+                'This sicd does not permit projection,\n\t'
+                'so the image location can not be inferred')
+            return
+
+        if isinstance(the_structure, SICDType):
+            image_shift = numpy.array(
+                [the_structure.ImageData.FirstRow, the_structure.ImageData.FirstCol], dtype='float64')
+        else:
+            image_shift = numpy.zeros((2, ), dtype='float64')
+
+        absolute_pixel_location = the_structure.project_ground_to_image_geo(
+            geo_location.CenterPixel.get_array(dtype='float64'), ordering='latlong')
+        return ImageLocationType(CenterPixel=absolute_pixel_location - image_shift)
 
 
 class GeoLocationType(Serializable):
@@ -201,6 +240,30 @@ class TheFiducialType(Serializable):
         self.SlantPlane = SlantPlane
         self.GroundPlane = GroundPlane
         super(TheFiducialType, self).__init__(**kwargs)
+
+    def set_image_details_from_sicd(self, sicd):
+        """
+        Set the image location information with respect to the given SICD.
+
+        Parameters
+        ----------
+        sicd : SICDType
+        """
+
+        if self.ImageLocation is not None and self.SlantPlane is not None:
+            # no need to infer anything, it's already populated
+            return
+
+        # try to set the image location details
+        if self.GeoLocation is not None:
+            if sicd.can_project_coordinates():
+                image_location = ImageLocationType.from_geolocation(self.GeoLocation, sicd)
+                self.ImageLocation = image_location
+                self.SlantPlane = PhysicalLocationType(Physical=image_location)
+            else:
+                logger.warning(
+                    'This sicd does not permit projection,\n\t'
+                    'so the image location can not be inferred')
 
 
 class DetailFiducialInfoType(Serializable):

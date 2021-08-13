@@ -5,6 +5,7 @@ Definition for the DetailObjectInfo AFRL labeling object
 __classification__ = "UNCLASSIFIED"
 __authors__ = ("Thomas McCullough", "Thomas Rackers")
 
+import logging
 from typing import Optional, List
 
 import numpy
@@ -14,6 +15,9 @@ from sarpy.io.xml.base import Serializable, Arrayable, create_text_node, create_
 from sarpy.io.xml.descriptors import StringDescriptor, FloatDescriptor, \
     IntegerDescriptor, SerializableDescriptor, SerializableListDescriptor
 from sarpy.io.complex.sicd_elements.blocks import RowColType
+from sarpy.io.complex.sicd_elements.SICD import SICDType
+from sarpy.io.product.sidd2_elements.SIDD import SIDDType
+from sarpy.geometry.geocoords import geodetic_to_ecf, ecf_to_geodetic
 
 from .base import DEFAULT_STRICT
 from .blocks import RangeCrossRangeType, RowColDoubleType, LatLonEleType
@@ -22,6 +26,8 @@ from .blocks import RangeCrossRangeType, RowColDoubleType, LatLonEleType
 #  its current form, and should be replaced with a (`name`, `value`) pair.
 #  I am omitting for now.
 
+
+logger = logging.getLogger(__name__)
 
 # the Object and sub-component definitions
 
@@ -116,6 +122,17 @@ class SizeType(Serializable, Arrayable):
             self._xml_ns_key = kwargs['_xml_ns_key']
         self.Length, self.Width, self.Height = Length, Width, Height
         super(SizeType, self).__init__(**kwargs)
+
+    def get_max_diameter(self):
+        """
+        Gets the nominal maximum diameter for the item, in meters.
+
+        Returns
+        -------
+        float
+        """
+
+        return float(numpy.sqrt(self.Length*self.Length + self.Width*self.Width))
 
     def get_array(self, dtype='float64'):
         """
@@ -240,6 +257,73 @@ class ImageLocationType(Serializable):
         self.LeftRearPixel = LeftRearPixel
         super(ImageLocationType, self).__init__(**kwargs)
 
+    @classmethod
+    def from_geolocation(cls, geo_location, the_structure):
+        """
+        Construct
+
+        Parameters
+        ----------
+        geo_location : GeoLocationType
+        the_structure : SICDType|SIDDType
+
+        Returns
+        -------
+        ImageLocationType
+        """
+
+        if geo_location is None:
+            return None
+
+        if not the_structure.can_project_coordinates():
+            logger.warning(
+                'This sicd does not permit projection,\n\t'
+                'so the image location can not be inferred')
+            return
+
+        # make sure this is defined, for the sake of efficiency
+        the_structure.define_coa_projection(overide=False)
+
+        kwargs = {}
+
+        if isinstance(the_structure, SICDType):
+            image_shift = numpy.array(
+                [the_structure.ImageData.FirstRow, the_structure.ImageData.FirstCol], dtype='float64')
+        else:
+            image_shift = numpy.zeros((2, ), dtype='float64')
+
+        for attribute in cls._fields:
+            value = getattr(geo_location, attribute)
+            if value is not None:
+                absolute_pixel_location = the_structure.project_ground_to_image_geo(
+                    value.get_array(dtype='float64'), ordering='latlong')
+                kwargs[attribute] = absolute_pixel_location - image_shift
+        out = ImageLocationType(**kwargs)
+        out.infer_center_pixel()
+        return out
+
+    def infer_center_pixel(self):
+        """
+        Infer the center pixel, if not populated.
+
+        Returns
+        -------
+        None
+        """
+
+        if self.CenterPixel is not None:
+            return
+
+        current = numpy.zeros((2, ), dtype='float64')
+        for entry in self._fields:
+            if entry == 'CenterPixel':
+                continue
+            value = getattr(self, entry)
+            if value is None:
+                return
+            current += 0.25*value.get_array(dtype='float64')
+        self.CenterPixel = RowColType.from_array(current)
+
 
 class GeoLocationType(Serializable):
     _fields = (
@@ -286,6 +370,28 @@ class GeoLocationType(Serializable):
         self.RightRearPixel = RightRearPixel
         self.LeftRearPixel = LeftRearPixel
         super(GeoLocationType, self).__init__(**kwargs)
+
+    def infer_center_pixel(self):
+        """
+        Infer the center pixel, if not populated.
+
+        Returns
+        -------
+        None
+        """
+
+        if self.CenterPixel is not None:
+            return
+
+        current = numpy.zeros((3, ), dtype='float64')
+        for entry in self._fields:
+            if entry == 'CenterPixel':
+                continue
+            value = getattr(self, entry)
+            if value is None:
+                return
+            current += 0.25*geodetic_to_ecf(value.get_array(dtype='float64'))
+        self.CenterPixel = LatLonEleType.from_array(ecf_to_geodetic(current))
 
 
 class FreeFormType(Serializable):
@@ -602,6 +708,52 @@ class TheObjectType(Serializable):
         self.TerrainTexture = TerrainTexture
         self.SeasonalCover = SeasonalCover
         super(TheObjectType, self).__init__(**kwargs)
+
+    def set_image_details_from_sicd(self, sicd):
+        """
+        Set the image location information with respect to the given SICD.
+
+        Parameters
+        ----------
+        sicd : SICDType
+        """
+
+        if self.ImageLocation is not None and self.SlantPlane is not None:
+            # no need to infer anything, it's already populated
+            return
+
+        # try to set the image location details
+        if self.GeoLocation is not None:
+            if sicd.can_project_coordinates():
+                self.ImageLocation = ImageLocationType.from_geolocation(
+                    self.GeoLocation, sicd)
+            else:
+                logger.warning(
+                    'This sicd does not permit projection,\n\t'
+                    'so the image location can not be inferred')
+
+        # try to determine the physical chip information
+        self.ImageLocation.infer_center_pixel()
+        if self.SlantPlane is None and \
+                self.Size is not None and \
+                self.ImageLocation is not None and \
+                self.ImageLocation.CenterPixel is not None:
+
+            center_pixel = self.ImageLocation.CenterPixel.get_array(dtype='float64')
+            max_size = self.Size.get_max_diameter()
+            shadow_magnitude = sicd.SCPCOA.ShadowMagnitude
+            nominal_shadow = self.Size.Height if shadow_magnitude is None else \
+                shadow_magnitude*self.Size.Height
+
+            self.SlantPlane = PlanePhysicalType(
+                Physical=PhysicalType(
+                    ChipSize=(2*max_size/sicd.Grid.Row.SS, 2*max_size/sicd.Grid.Col.SS),
+                    CenterPixel=center_pixel),
+                PhysicalWithShadows=PhysicalType(
+                    ChipSize=(
+                        (2*max_size + nominal_shadow)/sicd.Grid.Row.SS,
+                        (2*max_size + nominal_shadow)/sicd.Grid.Col.SS),
+                    CenterPixel=center_pixel))
 
 
 # other types for the DetailObjectInfo
