@@ -248,22 +248,55 @@ class TheFiducialType(Serializable):
         Parameters
         ----------
         sicd : SICDType
+
+        Returns
+        -------
+        int
+            -1 - insufficient metadata to proceed
+            0 - nothing to be done
+            1 - successful
+            2 - object in image periphery, not populating
+            3 - object not in image field
         """
 
-        if self.ImageLocation is not None and self.SlantPlane is not None:
-            # no need to infer anything, it's already populated
-            return
+        if self.Width_3dB is None:
+            self.Width_3dB = RangeCrossRangeType.from_array((sicd.Grid.Row.ImpRespWid, sicd.Grid.Col.ImpRespWid))
+            # TODO: this seems questionable to me?
 
-        # try to set the image location details
-        if self.GeoLocation is not None:
-            if sicd.can_project_coordinates():
-                image_location = ImageLocationType.from_geolocation(self.GeoLocation, sicd)
-                self.ImageLocation = image_location
-                self.SlantPlane = PhysicalLocationType(Physical=image_location)
-            else:
-                logger.warning(
-                    'This sicd does not permit projection,\n\t'
-                    'so the image location can not be inferred')
+        if self.ImageLocation is not None or self.SlantPlane is not None:
+            # no need to infer anything, it's already populated
+            return 0
+
+        if self.GeoLocation is None:
+            logger.warning(
+                'GeoLocation is not populated,\n\t'
+                'so the image location can not be inferred')
+            return -1
+
+        if not sicd.can_project_coordinates():
+            logger.warning(
+                'This sicd does not permit projection,\n\t'
+                'so the image location can not be inferred')
+            return -1
+
+        image_location = ImageLocationType.from_geolocation(self.GeoLocation, sicd)
+        # check bounding information
+        rows = sicd.ImageData.NumRows
+        cols = sicd.ImageData.NumCols
+        center_pixel = image_location.CenterPixel.get_array(dtype='float64')
+
+        if (0 < center_pixel[0] < rows - 1) and (0 < center_pixel[1] < cols - 1):
+            placement = 1
+        elif (-3 < center_pixel[0] < rows + 2) and (-3 < center_pixel[1] < cols  + 2):
+            placement = 2
+        else:
+            placement = 3
+
+        if placement in [2, 3]:
+            return placement
+
+        self.ImageLocation = image_location
+        self.SlantPlane = PhysicalLocationType(Physical=image_location)
 
 
 class DetailFiducialInfoType(Serializable):

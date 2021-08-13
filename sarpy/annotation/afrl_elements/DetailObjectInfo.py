@@ -716,44 +716,86 @@ class TheObjectType(Serializable):
         Parameters
         ----------
         sicd : SICDType
+
+        Returns
+        -------
+        int
+            -1 - insuffucient metadata to proceed
+            0 - nothing to be done
+            1 - successful
+            2 - object in the image periphery, not populating
+            3 - object not in the image field
         """
 
-        if self.ImageLocation is not None and self.SlantPlane is not None:
+        if self.ImageLocation is not None or self.SlantPlane is not None:
             # no need to infer anything, it's already populated
-            return
+            return 0
 
-        # try to set the image location details
-        if self.GeoLocation is not None:
-            if sicd.can_project_coordinates():
-                self.ImageLocation = ImageLocationType.from_geolocation(
-                    self.GeoLocation, sicd)
-            else:
-                logger.warning(
-                    'This sicd does not permit projection,\n\t'
-                    'so the image location can not be inferred')
+        if self.GeoLocation is None:
+            logger.warning(
+                'GeoLocation is not populated,\n\t'
+                'so the image location can not be inferred')
+            return -1
 
-        # try to determine the physical chip information
-        self.ImageLocation.infer_center_pixel()
-        if self.SlantPlane is None and \
-                self.Size is not None and \
-                self.ImageLocation is not None and \
-                self.ImageLocation.CenterPixel is not None:
+        if self.Size is None:
+            logger.warning(
+                'Size is not populated,\n\t'
+                'so the chip size can not be inferred')
+            return -1
 
-            center_pixel = self.ImageLocation.CenterPixel.get_array(dtype='float64')
-            max_size = self.Size.get_max_diameter()
-            shadow_magnitude = sicd.SCPCOA.ShadowMagnitude
-            nominal_shadow = self.Size.Height if shadow_magnitude is None else \
-                shadow_magnitude*self.Size.Height
+        if not sicd.can_project_coordinates():
+            logger.warning(
+                'This sicd does not permit projection,\n\t'
+                'so the image location can not be inferred')
+            return -1
 
-            self.SlantPlane = PlanePhysicalType(
-                Physical=PhysicalType(
-                    ChipSize=(2*max_size/sicd.Grid.Row.SS, 2*max_size/sicd.Grid.Col.SS),
-                    CenterPixel=center_pixel),
-                PhysicalWithShadows=PhysicalType(
-                    ChipSize=(
-                        (2*max_size + nominal_shadow)/sicd.Grid.Row.SS,
-                        (2*max_size + nominal_shadow)/sicd.Grid.Col.SS),
-                    CenterPixel=center_pixel))
+        # get nominal object size in meters
+        max_size = self.Size.get_max_diameter()
+        row_size = max_size/sicd.Grid.Row.SS
+        col_size = max_size/sicd.Grid.Col.SS
+
+        # get image location
+        image_location = ImageLocationType.from_geolocation(self.GeoLocation, sicd)
+
+        # check bounding information
+        rows = sicd.ImageData.NumRows
+        cols = sicd.ImageData.NumCols
+        center_pixel = image_location.CenterPixel.get_array(dtype='float64')
+
+        if (0.5*row_size < center_pixel[0] < rows - 0.5*row_size -1) and \
+                (0.5*col_size < center_pixel[1] < cols - 0.5*col_size - 1):
+            placement = 1
+        elif (-0.5*row_size < center_pixel[0] < rows + 0.5*row_size - 1) and \
+                (-0.5*col_size < center_pixel[1] < cols + 0.5*col_size - 1):
+            placement = 2
+        else:
+            placement = 3
+
+        if placement in [2, 3]:
+            return placement
+
+        # determine ideal chip sizes
+        shadow_magnitude = sicd.SCPCOA.ShadowMagnitude
+        nominal_shadow = self.Size.Height if shadow_magnitude is None else \
+            shadow_magnitude * self.Size.Height
+        shadow_rows = nominal_shadow/sicd.Grid.Row.SS
+
+        physical = PhysicalType(ChipSize=(row_size, col_size), CenterPixel=center_pixel)
+        shadow_row_size = row_size + shadow_rows
+        if center_pixel[0] < rows - 0.5*row_size - shadow_row_size:
+            physical_with_shadows = PhysicalType(
+                ChipSize=(shadow_row_size, col_size),
+                CenterPixel=center_pixel+0.5*numpy.array([shadow_rows, 0], dtype='float64'))
+        else:
+            use_rows_size = 0.5*(rows - center_pixel[0] + 0.5*row_size)
+            physical_with_shadows = PhysicalType(
+                ChipSize=(use_rows_size, col_size),
+                CenterPixel=center_pixel+0.5*numpy.array([use_rows_size - row_size, 0], dtype='float64'))
+        self.ImageLocation = image_location
+        self.SlantPlane = PlanePhysicalType(
+            Physical=physical,
+            PhysicalWithShadows=physical_with_shadows)
+        return 1
 
 
 # other types for the DetailObjectInfo
