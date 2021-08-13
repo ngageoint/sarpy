@@ -1267,7 +1267,10 @@ class _GFFInterpreter1(_GFFInterpreter):
         output_bands = 1
         output_dtype = 'complex64'
         data_size = (self.header.range_count, self.header.azimuth_count)
-        symmetry = (True, False, False)
+        if self.header.row_major:
+            symmetry = (True, True, True)
+        else:
+            symmetry = (True, True, False)
         data_offset = self.header.header_length
         if self.header.image_type == 1:
             # phase/magnitude which is integer
@@ -1577,11 +1580,11 @@ class _GFFInterpreter2(_GFFInterpreter):
         if self.header.gsat_img.pixOrder == 0:
             # in range consecutive order, opposite from a SICD
             data_size = (self.header.gsat_img.azPixels, self.header.gsat_img.rangePixels)
-            symmetry = (False, False, True)
+            symmetry = (True, True, True)
         elif self.header.gsat_img.pixOrder == 1:
             # in azimuth consecutive order, like a SICD
             data_size = (self.header.gsat_img.rangePixels, self.header.gsat_img.azPixels)
-            symmetry = (False, False, False)
+            symmetry = (True, True, False)
         else:
             raise ValueError('Got unexpected pixel order `{}`'.format(self.header.gsat_img.pixOrder))
         return data_size, symmetry
