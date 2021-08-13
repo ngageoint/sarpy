@@ -1039,6 +1039,8 @@ class _GFFHeader_2(object):
         numpy.ndarray
         """
 
+        # TODO: this is not correct
+
         # get the aperture velocity in its native frame of reference (rotated ENU)
         arp_vel_orig = numpy.array(self.ap_info.apcVel, dtype='float64')
         # gets the bearing in the ENU reference
