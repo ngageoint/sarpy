@@ -1267,7 +1267,7 @@ class _GFFInterpreter1(_GFFInterpreter):
         output_bands = 1
         output_dtype = 'complex64'
         data_size = (self.header.range_count, self.header.azimuth_count)
-        symmetry = (False, False, False)
+        symmetry = (True, False, False)
         data_offset = self.header.header_length
         if self.header.image_type == 1:
             # phase/magnitude which is integer
