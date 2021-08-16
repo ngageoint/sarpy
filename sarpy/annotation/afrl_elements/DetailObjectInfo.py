@@ -60,6 +60,29 @@ class PhysicalType(Serializable):
         self.CenterPixel = CenterPixel
         super(PhysicalType, self).__init__(**kwargs)
 
+    @classmethod
+    def from_ranges(cls, row_range, col_range, row_limit, col_limit):
+        """
+        Construct from the row/column ranges and limits.
+
+        Parameters
+        ----------
+        row_range
+        col_range
+        row_limit
+        col_limit
+
+        Returns
+        -------
+        PhysicalType
+        """
+
+        first_row, last_row = max(0, row_range[0]), max(row_limit, row_range[1])
+        first_col, last_col = max(0, col_range[0]), max(col_limit, col_range[1])
+        return PhysicalType(
+            ChipSize=(last_row-first_row, last_col-first_col),
+            CenterPixel=(0.5*(last_row+first_row), 0.5*(last_col+first_col)))
+
 
 class PlanePhysicalType(Serializable):
     _fields = (
@@ -774,16 +797,25 @@ class TheObjectType(Serializable):
         super(TheObjectType, self).__init__(**kwargs)
 
     @staticmethod
-    def _check_placement(center_pixel, rows, cols, row_size, col_size):
-        # type: (numpy.ndarray, int, int, float, float) -> int
-        if (0.5*row_size < center_pixel[0] < rows - 0.5*row_size -1) and \
-                (0.5*col_size < center_pixel[1] < cols - 0.5*col_size - 1):
-            return 1
-        elif (-0.5*row_size < center_pixel[0] < rows + 0.5*row_size - 1) and \
-                (-0.5*col_size < center_pixel[1] < cols + 0.5*col_size - 1):
-            return 2
+    def _check_placement(rows, cols, row_bounds, col_bounds):
+        # type: (int, int, list, list) -> int
+        overlap_cutoff = 0.5  # area cutoff for overlap
+        if row_bounds[1] <= row_bounds[0] or col_bounds[1] <= col_bounds[0]:
+            raise ValueError('bounds out of order')
+        if 0 <= row_bounds[0] and rows < row_bounds[1] and 0 <= col_bounds[0] and cols < col_bounds[1]:
+            return 1 # completely in bounds
+
+        row_size = row_bounds[1] - row_bounds[0]
+        col_size = col_bounds[1] - col_bounds[0]
+
+        first_row, last_row = max(0, row_bounds[0]), min(rows, row_bounds[1])
+        first_col, last_col = max(0, col_bounds[0]), min(cols, col_bounds[1])
+
+        area_overlap = (last_row - first_row)*(last_col - first_col)
+        if area_overlap >= overlap_cutoff*row_size*col_size:
+            return 2  # the item is at the periphery
         else:
-            return 3
+            return 3  # it should be considered out of range
 
     def set_image_location_from_sicd(self, sicd):
         """
@@ -838,8 +870,10 @@ class TheObjectType(Serializable):
         rows = sicd.ImageData.NumRows
         cols = sicd.ImageData.NumCols
         center_pixel = image_location.CenterPixel.get_array(dtype='float64')
+        row_bounds = [center_pixel[0] - 0.5*row_size, center_pixel[0] + 0.5*row_size]
+        col_bounds = [center_pixel[1] - 0.5*col_size, center_pixel[1] + 0.5*col_size]
 
-        placement = self._check_placement(center_pixel, rows, cols, row_size, col_size)
+        placement = self._check_placement(rows, cols, row_bounds, col_bounds)
 
         if placement in [2, 3]:
             return placement
@@ -887,7 +921,7 @@ class TheObjectType(Serializable):
         self.GeoLocation = GeoLocationType.from_image_location(
             self.ImageLocation, sicd, projection_type=projection_type, **kwargs)
 
-    def set_chip_details_from_sicd(self, sicd):
+    def set_chip_details_from_sicd(self, sicd, layover_shift=False):
         """
         Set the chip information with respect to the given SICD, assuming that the
         image location and size are defined.
@@ -895,6 +929,13 @@ class TheObjectType(Serializable):
         Parameters
         ----------
         sicd : SICDType
+        layover_shift : bool
+            Shift based on layover direction? This should be `True` if the identification of
+            the bounds and/or center pixel do not include any layover, as in
+            populating location from known ground truth. This should be `False` if
+            the identification of bounds and/or center pixel do include layover,
+            potentially as based on annotation of the imagery itself in pixel
+            space.
 
         Returns
         -------
@@ -905,6 +946,16 @@ class TheObjectType(Serializable):
             2 - object in the image periphery, not populating
             3 - object not in the image field
         """
+
+        def shift_chip_based_on_vector(the_vector):
+            if the_vector[0] < 0:
+                chip_rows[0] += the_vector[0]
+            else:
+                chip_rows[1] += the_vector[0]
+            if the_vector[1] < 0:
+                chip_cols[0] += the_vector[1]
+            else:
+                chip_cols[1] += the_vector[1]
 
         if self.SlantPlane is not None:
             # no need to infer anything, it's already populated
@@ -922,41 +973,67 @@ class TheObjectType(Serializable):
             if return_value not in [0, 1]:
                 return return_value
 
-        # get nominal object size in meters
+        # get image location
+        image_location = self.ImageLocation
+        center_pixel = image_location.CenterPixel.get_array(dtype='float64')
+
+        # get nominal object size, in meters
         max_size = self.Size.get_max_diameter()
         row_size = max_size/sicd.Grid.Row.SS
         col_size = max_size/sicd.Grid.Col.SS
 
-        # get image location
-        image_location = self.ImageLocation
+        # set up a default chip region using this
+        chip_rows = [center_pixel[0]-0.75*row_size, center_pixel[0] + 0.75*row_size]
+        chip_cols = [center_pixel[1]-0.75*col_size, center_pixel[1] + 0.75*col_size]
 
-        # check bounding information
+        # get nominal layover vector - should be pointed generally towards the top (negative rows value)
+        layover_magnitude = sicd.SCPCOA.LayoverMagnitude
+        if layover_magnitude is None:
+            layover_magnitude = 0.25
+        layover_size = self.Size.Height*layover_magnitude
+        layover_angle = sicd.SCPCOA.LayoverAng
+        layover_angle = 0.0 if layover_angle is None else numpy.deg2rad(layover_size)
+        layover_vector = layover_size*numpy.array(
+            [numpy.cos(layover_angle)/sicd.Grid.Row.SS, numpy.sin(layover_angle)/sicd.Grid.Col.SS])
+
+        # apply this to our bounds
+        if layover_shift:
+            shift_chip_based_on_vector(layover_vector)  # modifies in place
+        else:
+            row_shift, col_shift  = 0.5*numpy.abs(layover_vector)
+            chip_rows[0] -= row_shift
+            chip_rows[1] += row_shift
+            chip_cols[0] -= col_shift
+            chip_cols[1] += col_shift
+
+        # check our bounding information
         rows = sicd.ImageData.NumRows
         cols = sicd.ImageData.NumCols
-        center_pixel = image_location.CenterPixel.get_array(dtype='float64')
 
-        placement = self._check_placement(center_pixel, rows, cols, row_size, col_size)
-
+        placement = self._check_placement(rows, cols, chip_rows, chip_cols)
         if placement in [2, 3]:
+            # it's not sufficiently in range
             return placement
 
-        # determine ideal chip sizes
-        shadow_magnitude = sicd.SCPCOA.ShadowMagnitude
-        nominal_shadow = self.Size.Height if shadow_magnitude is None else \
-            shadow_magnitude * self.Size.Height
-        shadow_rows = nominal_shadow/sicd.Grid.Row.SS
+        # set the physical data ideal chip size
+        physical = PhysicalType.from_ranges(chip_rows, chip_cols, rows, cols)
 
-        physical = PhysicalType(ChipSize=(row_size, col_size), CenterPixel=center_pixel)
-        shadow_row_size = row_size + shadow_rows
-        if center_pixel[0] < rows - 0.5*row_size - shadow_row_size:
-            physical_with_shadows = PhysicalType(
-                ChipSize=(shadow_row_size, col_size),
-                CenterPixel=center_pixel+0.5*numpy.array([shadow_rows, 0], dtype='float64'))
-        else:
-            use_rows_size = 0.5*(rows - center_pixel[0] + 0.5*row_size)
-            physical_with_shadows = PhysicalType(
-                ChipSize=(use_rows_size, col_size),
-                CenterPixel=center_pixel+0.5*numpy.array([use_rows_size - row_size, 0], dtype='float64'))
+        # determine nominal shadow vector
+        shadow_magnitude = sicd.SCPCOA.ShadowMagnitude
+        if shadow_magnitude is None:
+            shadow_magnitude = 1.0
+        shadow_size = self.Size.Height*shadow_magnitude
+        shadow_angle = sicd.SCPCOA.Shadow
+        if shadow_angle is None:
+            shadow_angle = 180.0
+        shadow_angle = numpy.deg2rad(shadow_angle)
+        shadow_vector = shadow_size*numpy.array(
+            [numpy.cos(shadow_angle)/sicd.Grid.Row.SS, numpy.sin(shadow_angle)/sicd.Grid.Col.SS])
+        # apply this to our bounds, in place
+        shift_chip_based_on_vector(shadow_vector)
+        # set the physical with shadows data ideal chip size
+        physical_with_shadows = PhysicalType.from_ranges(chip_rows, chip_cols, rows, cols)
+
         self.SlantPlane = PlanePhysicalType(
             Physical=physical,
             PhysicalWithShadows=physical_with_shadows)
