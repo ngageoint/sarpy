@@ -49,7 +49,8 @@ class ImageLocationType(Serializable):
     @classmethod
     def from_geolocation(cls, geo_location, the_structure):
         """
-        Construct from the corresponding Geolocation.
+        Construct from the corresponding Geolocation using the sicd
+        projection model.
 
         Parameters
         ----------
@@ -108,6 +109,62 @@ class GeoLocationType(Serializable):
             self._xml_ns_key = kwargs['_xml_ns_key']
         self.CenterPixel = CenterPixel
         super(GeoLocationType, self).__init__(**kwargs)
+
+    @classmethod
+    def from_image_location(cls, image_location, the_structure, projection_type='HAE', **kwargs):
+        """
+        Construct the geographical location from the image location via
+        projection using the SICD model.
+
+        .. Note::
+            This assumes that the image coordinates are with respect to the given
+            image (chip), and NOT including any sicd.ImageData.FirstRow/Col values,
+            which will be added here.
+
+        Parameters
+        ----------
+        image_location : ImageLocationType
+        the_structure : SICDType|SIDDType
+        projection_type : str
+            The projection type selector, one of `['PLANE', 'HAE', 'DEM']`. Using `'DEM'`
+            requires configuration for the DEM pathway described in
+            :func:`sarpy.geometry.point_projection.image_to_ground_dem`.
+        kwargs
+            The keyword arguments for the :func:`SICDType.project_image_to_ground_geo` method.
+
+        Returns
+        -------
+        None|GeoLocationType
+            Coordinates may be populated as `NaN` if projection fails.
+        """
+
+        if image_location is None:
+            return None
+
+        if not the_structure.can_project_coordinates():
+            logger.warning(
+                'This sicd does not permit projection,\n\t'
+                'so the image location can not be inferred')
+            return None
+
+        # make sure this is defined, for the sake of efficiency
+        the_structure.define_coa_projection(overide=False)
+
+        kwargs = {}
+
+        if isinstance(the_structure, SICDType):
+            image_shift = numpy.array(
+                [the_structure.ImageData.FirstRow, the_structure.ImageData.FirstCol], dtype='float64')
+        else:
+            image_shift = numpy.zeros((2, ), dtype='float64')
+
+        value = image_location.CenterPixel.get_array(dtype='float64')
+        value += image_shift
+        geo_coords = the_structure.project_image_to_ground_geo(
+            value, ordering='latlong', projection_type=projection_type, **kwargs)
+
+        out = GeoLocationType(CenterPixel=geo_coords)
+        return out
 
 
 class PhysicalLocationType(Serializable):
@@ -310,6 +367,46 @@ class TheFiducialType(Serializable):
 
         self.ImageLocation = image_location
         self.SlantPlane = PhysicalLocationType(Physical=image_location)
+
+    def set_geo_location_from_sicd(self, sicd, projection_type='HAE', **kwargs):
+        """
+        Set the geographical location information with respect to the given SICD,
+        assuming that the image coordinates are populated.
+
+        .. Note::
+            This assumes that the image coordinates are with respect to the given
+            image (chip), and NOT including any sicd.ImageData.FirstRow/Col values,
+            which will be added here.
+
+        Parameters
+        ----------
+        sicd : SICDType
+        projection_type : str
+            The projection type selector, one of `['PLANE', 'HAE', 'DEM']`. Using `'DEM'`
+            requires configuration for the DEM pathway described in
+            :func:`sarpy.geometry.point_projection.image_to_ground_dem`.
+        kwargs
+            The keyword arguments for the :func:`SICDType.project_image_to_ground_geo` method.
+        """
+
+        if self.GeoLocation is not None:
+            # no need to infer anything, it's already populated
+            return
+
+        if self.ImageLocation is None:
+            logger.warning(
+                'ImageLocation is not populated,\n\t'
+                'so the geographical location can not be inferred')
+            return
+
+        if not sicd.can_project_coordinates():
+            logger.warning(
+                'This sicd does not permit projection,\n\t'
+                'so the geographical location can not be inferred')
+            return
+
+        self.GeoLocation = GeoLocationType.from_image_location(
+            self.ImageLocation, sicd, projection_type=projection_type, **kwargs)
 
 
 class DetailFiducialInfoType(Serializable):
