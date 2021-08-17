@@ -1045,11 +1045,10 @@ class _GFFHeader_2(object):
         arp_vel_orig = numpy.array(self.ap_info.apcVel, dtype='float64')
         # gets the bearing in the ENU reference
         angle = numpy.deg2rad(self.ap_info.antPhaseCtrBear)
+        cosine, sine = numpy.cos(angle), numpy.sin(angle)
         # construct the NED velocity vector
-        magnitude = numpy.sqrt(arp_vel_orig[0]*arp_vel_orig[0] + arp_vel_orig[1]*arp_vel_orig[1])
-        ned_velocity = numpy.array(
-            [magnitude*numpy.cos(angle), magnitude*numpy.sin(angle), -arp_vel_orig[2]],
-            dtype='float64')
+        transform = numpy.array([[cosine, -sine, 0], [sine, cosine, 0], [0, 0, -1]], dtype='float64')
+        ned_velocity = transform.dot(arp_vel_orig)
         # convert to ECF
         orp = geodetic_to_ecf(self.ap_info.apcLLH, ordering='latlon')
         out = ned_to_ecf(ned_velocity, orp, absolute_coords=False)
@@ -1413,9 +1412,6 @@ class _GFFInterpreter2(_GFFInterpreter):
 
             # derive row/col uvect
             ground_uvec = wgs_84_norm(scp)
-            col_uvec = arp_vel/numpy.linalg.norm(arp_vel)
-            if self.header.ap_info.squintAngle < 0:
-                col_uvec *= -1
 
             urng = geo_data.SCP.ECF.get_array() - arp_pos  # unit vector for row in the slant plane
             urng /= numpy.linalg.norm(urng)
@@ -1426,13 +1422,15 @@ class _GFFInterpreter2(_GFFInterpreter):
             else:
                 row_uvec = urng
 
+            col_uvec = arp_vel/numpy.linalg.norm(arp_vel)
+            print(row_uvec, col_uvec, numpy.cross(row_uvec, col_uvec))
+            # TODO: something is definitely wrong...
+            if self.header.ap_info.squintAngle < 0:
+                col_uvec *= -1
+
             parallel_component = numpy.dot(row_uvec, col_uvec)
             if numpy.abs(parallel_component) > 1e-7:
-                # logger.warning(
-                #     'The derived row and col unit vectors are not completely perpendicular (dot product {}).\n\t'
-                #     'We will derive the column unit vector as explicitly perpendicular to the derived row '
-                #     'unit vector'.format(parallel_component))
-                col_uvec = col_uvec - numpy.dot(col_uvec, row_uvec)*row_uvec
+                col_uvec = col_uvec - parallel_component*row_uvec
                 col_uvec /= numpy.linalg.norm(col_uvec)
 
             row_ss = self.header.geo_info.rangePixSpacing
