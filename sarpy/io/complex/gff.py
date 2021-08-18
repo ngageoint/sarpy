@@ -22,7 +22,7 @@ from sarpy.compliance import int_func, string_types
 from sarpy.io.general.base import BaseReader, BIPChipper, BSQChipper, \
     is_file_like, SarpyIOError
 from sarpy.io.general.nitf import MemMap
-from sarpy.geometry.geocoords import geodetic_to_ecf, wgs_84_norm, ned_to_ecf
+from sarpy.geometry.geocoords import geodetic_to_ecf, wgs_84_norm, ned_to_ecf, ecf_to_ned
 
 from sarpy.io.complex.base import SICDTypeReader
 from sarpy.io.complex.sicd_elements.SICD import SICDType
@@ -1043,8 +1043,9 @@ class _GFFHeader_2(object):
 
         # get the aperture velocity in its native frame of reference (rotated ENU)
         arp_vel_orig = numpy.array(self.ap_info.apcVel, dtype='float64')
+        # TODO: arp_vel_orig is in what coordinate system? Rick said "rotated ENU", wrt gta?
         # gets the bearing in the ENU reference
-        angle = numpy.deg2rad(self.ap_info.antPhaseCtrBear)
+        angle = numpy.deg2rad(self.ap_info.gta)
         cosine, sine = numpy.cos(angle), numpy.sin(angle)
         # construct the NED velocity vector
         transform = numpy.array([[cosine, -sine, 0], [sine, cosine, 0], [0, 0, -1]], dtype='float64')
@@ -1413,9 +1414,8 @@ class _GFFInterpreter2(_GFFInterpreter):
             # derive row/col uvect
             ground_uvec = wgs_84_norm(scp)
 
-            urng = geo_data.SCP.ECF.get_array() - arp_pos  # unit vector for row in the slant plane
+            urng = arp_pos - geo_data.SCP.ECF.get_array()  # unit vector for row in the slant plane
             urng /= numpy.linalg.norm(urng)
-
             if image_plane == 'GROUND':
                 row_uvec = urng - numpy.dot(urng, ground_uvec)*ground_uvec
                 row_uvec /= numpy.linalg.norm(row_uvec)
@@ -1423,8 +1423,6 @@ class _GFFInterpreter2(_GFFInterpreter):
                 row_uvec = urng
 
             col_uvec = arp_vel/numpy.linalg.norm(arp_vel)
-            print(row_uvec, col_uvec, numpy.cross(row_uvec, col_uvec))
-            # TODO: something is definitely wrong...
             if self.header.ap_info.squintAngle < 0:
                 col_uvec *= -1
 
@@ -1513,7 +1511,7 @@ class _GFFInterpreter2(_GFFInterpreter):
 
         def get_image_formation():
             # type: () -> ImageFormationType
-            image_form_algo = 'OTHER'  # 'PFA' if self.header.if_info.ifAlgo in ['PFA', 'OSAPF'] else 'OTHER'
+            image_form_algo = 'PFA' if self.header.if_info.ifAlgo in ['PFA', 'OSAPF'] else 'OTHER'
             return ImageFormationType(
                 RcvChanProc=RcvChanProcType(ChanIndices=[1, ]),
                 TxRcvPolarizationProc=tx_rcv_pol,
