@@ -1044,8 +1044,8 @@ class _GFFHeader_2(object):
         # get the aperture velocity in its native frame of reference (rotated ENU)
         arp_vel_orig = numpy.array(self.ap_info.apcVel, dtype='float64')
         # TODO: arp_vel_orig is in what coordinate system? Rick said "rotated ENU", wrt gta?
-        # gets the bearing in the ENU reference
-        angle = numpy.deg2rad(self.ap_info.gta)
+        # gets the angle wrt to True North for the radar frame of reference
+        angle = numpy.deg2rad(self.ap_info.rfoa)
         cosine, sine = numpy.cos(angle), numpy.sin(angle)
         # construct the NED velocity vector
         transform = numpy.array([[cosine, -sine, 0], [sine, cosine, 0], [0, 0, -1]], dtype='float64')
