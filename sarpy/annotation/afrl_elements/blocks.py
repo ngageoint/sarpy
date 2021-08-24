@@ -89,6 +89,79 @@ class DateRangeType(Serializable, Arrayable):
         raise ValueError('Expected array to be numpy.ndarray, list, or tuple, got {}'.format(type(array)))
 
 
+class DateTimeRangeType(Serializable, Arrayable):
+    """
+    A range of dates with resolution of 1 day
+    """
+    _fields = ('Begin', 'End')
+    _required = _fields
+    # descriptors
+    Begin = DateTimeDescriptor(
+        'Begin', _required, strict=DEFAULT_STRICT, numpy_datetime_units='s',
+        docstring="Begin date/time of the data collection.")  # type: Optional[numpy.datetime64]
+    End = DateTimeDescriptor(
+        'End', _required, strict=DEFAULT_STRICT, numpy_datetime_units='s',
+        docstring="End date/time of the data collection.")  # type: Optional[numpy.datetime64]
+
+    def __init__(self, Begin=None, End=None, **kwargs):
+        """
+        Parameters
+        ----------
+        Begin : None|numpy.datetime64|str|datetime|date
+        End : None|numpy.datetime64|str|datetime|date
+        kwargs
+            Other keyword arguments
+        """
+
+        if '_xml_ns' in kwargs:
+            self._xml_ns = kwargs['_xml_ns']
+        if '_xml_ns_key' in kwargs:
+            self._xml_ns_key = kwargs['_xml_ns_key']
+        self.Begin = Begin
+        self.End = End
+        super(DateTimeRangeType, self).__init__(**kwargs)
+
+    def get_array(self, dtype='datetime64[D]'):
+        """
+        Gets an array representation of the class instance.
+
+        Parameters
+        ----------
+        dtype : str|numpy.dtype
+            data type of the return
+
+        Returns
+        -------
+        numpy.ndarray
+            data array
+        """
+
+        return numpy.array([self.Begin, self.End], dtype=dtype)
+
+    @classmethod
+    def from_array(cls, array):
+        """
+        Create from an array type entry.
+
+        Parameters
+        ----------
+        array: numpy.ndarray|list|tuple
+            assumed [Begin, End]
+
+        Returns
+        -------
+        DateTimeRangeType
+        """
+
+        if array is None:
+            return None
+        if isinstance(array, (numpy.ndarray, list, tuple)):
+            if len(array) < 2:
+                raise ValueError('Expected array to be of length 2, and received {}'.format(array))
+            return cls(Begin=array[0], End=array[1])
+        raise ValueError('Expected array to be numpy.ndarray, list, or tuple, got {}'.format(type(array)))
+
+
 class RangeCrossRangeType(Serializable, Arrayable):
     """
     A range and cross range attribute container

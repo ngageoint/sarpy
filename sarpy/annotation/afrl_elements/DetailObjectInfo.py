@@ -193,7 +193,7 @@ class SizeType(Serializable, Arrayable):
         if isinstance(array, (numpy.ndarray, list, tuple)):
             if len(array) < 3:
                 raise ValueError('Expected array to be of length 3, and received {}'.format(array))
-            return cls(Length=array[0], Width=array[1], Heigth=array[2])
+            return cls(Length=array[0], Width=array[1], Height=array[2])
         raise ValueError('Expected array to be numpy.ndarray, list, or tuple, got {}'.format(type(array)))
 
 

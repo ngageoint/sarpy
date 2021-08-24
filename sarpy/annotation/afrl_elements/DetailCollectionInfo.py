@@ -83,7 +83,7 @@ class DetailCollectionInfoType(Serializable):
         Name : None|str
         ProgramName : None|str
         Sponsor : None|str
-        Date : None|DateRangeType
+        Date : None|DateRangeType|list|tuple
         Location : None|LocationType
         NumberOfSites : None|int
         kwargs
