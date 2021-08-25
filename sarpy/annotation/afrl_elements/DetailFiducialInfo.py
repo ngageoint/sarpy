@@ -426,10 +426,14 @@ class DetailFiducialInfoType(Serializable):
         'Fiducials', TheFiducialType, _collections_tags, _required, strict=DEFAULT_STRICT,
         docstring='The object collection')  # type: List[TheFiducialType]
 
-    def __init__(self, **kwargs):
+    def __init__(self, NumberOfFiducialsInImage=None, NumberOfFiducialsInScene=None,
+                 Fiducials=None, **kwargs):
         """
         Parameters
         ----------
+        NumberOfFiducialsInImage : int
+        NumberOfFiducialsInScene : int
+        Fiducials : None|List[TheFiducialType]
         kwargs
             Other keyword arguments
         """
@@ -438,4 +442,7 @@ class DetailFiducialInfoType(Serializable):
             self._xml_ns = kwargs['_xml_ns']
         if '_xml_ns_key' in kwargs:
             self._xml_ns_key = kwargs['_xml_ns_key']
+        self.NumberOfFiducialsInImage = NumberOfFiducialsInImage
+        self.NumberOfFiducialsInScene = NumberOfFiducialsInScene
+        self.Fiducials = Fiducials
         super(DetailFiducialInfoType, self).__init__(**kwargs)

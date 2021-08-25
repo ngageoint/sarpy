@@ -60,9 +60,9 @@ class DetailSubCollectionInfoType(Serializable):
         SiteName : None|str
         SiteNumber : None|str
         SceneNumber : None|str
-        Description : str
+        Description : NOne|str
         Duration : None|DateTimeRangeType|list|tuple
-        SiteCenterLocation : LatLonEleType
+        SiteCenterLocation : LatLonEleType|numpy.ndarray|list|tuple
         SceneContentDescription : None|str
         SiteBackgroundType : None|str
         kwargs
