@@ -831,9 +831,34 @@ class TheObjectType(Serializable):
         super(TheObjectType, self).__init__(**kwargs)
 
     @staticmethod
-    def _check_placement(rows, cols, row_bounds, col_bounds):
-        # type: (int, int, list, list) -> int
-        overlap_cutoff = 0.5  # area cutoff for overlap
+    def _check_placement(rows, cols, row_bounds, col_bounds, overlap_cutoff=0.5):
+        """
+        Checks the bounds condition for the provided box.
+
+        Here inclusion is defined by what proportion of the area of the proposed
+        chip is actually contained inside the image bounds.
+
+        Parameters
+        ----------
+        rows : int|float
+            The number of rows in the image.
+        cols : int|float
+            The number of columns in the image.
+        row_bounds : list
+            Of the form `[row min, row max]`
+        col_bounds : list
+            Of the form `[col min, col max]`
+        overlap_cutoff : float
+            Determines the transition from in the periphery to out of the image.
+
+        Returns
+        -------
+        int
+            1 - completely in the image
+            2 - the proposed chip has `overlap_cutoff <= fractional contained area < 1`
+            3 - the proposed chip has `fractional contained area < overlap_cutoff`
+        """
+
         if row_bounds[1] <= row_bounds[0] or col_bounds[1] <= col_bounds[0]:
             raise ValueError('bounds out of order')
         if 0 <= row_bounds[0] and rows < row_bounds[1] and 0 <= col_bounds[0] and cols < col_bounds[1]:
@@ -851,7 +876,7 @@ class TheObjectType(Serializable):
         else:
             return 3  # it should be considered out of range
 
-    def set_image_location_from_sicd(self, sicd):
+    def set_image_location_from_sicd(self, sicd, populate_in_periphery=False):
         """
         Set the image location information with respect to the given SICD,
         assuming that the physical coordinates are populated.
@@ -859,6 +884,7 @@ class TheObjectType(Serializable):
         Parameters
         ----------
         sicd : SICDType
+        populate_in_periphery : bool
 
         Returns
         -------
@@ -866,7 +892,7 @@ class TheObjectType(Serializable):
             -1 - insufficient metadata to proceed or other failure
             0 - nothing to be done
             1 - successful
-            2 - object in the image periphery, not populating
+            2 - object in the image periphery, populating based on `populate_in_periphery`
             3 - object not in the image field
         """
 
@@ -909,11 +935,13 @@ class TheObjectType(Serializable):
 
         placement = self._check_placement(rows, cols, row_bounds, col_bounds)
 
-        if placement in [2, 3]:
+        if placement == 3:
+            return placement
+        if placement == 2 and not populate_in_periphery:
             return placement
 
         self.ImageLocation = image_location
-        return 1
+        return placement
 
     def set_geo_location_from_sicd(self, sicd, projection_type='HAE', **kwargs):
         """
@@ -955,7 +983,7 @@ class TheObjectType(Serializable):
         self.GeoLocation = GeoLocationType.from_image_location(
             self.ImageLocation, sicd, projection_type=projection_type, **kwargs)
 
-    def set_chip_details_from_sicd(self, sicd, layover_shift=False):
+    def set_chip_details_from_sicd(self, sicd, layover_shift=False, populate_in_periphery=False):
         """
         Set the chip information with respect to the given SICD, assuming that the
         image location and size are defined.
@@ -970,6 +998,8 @@ class TheObjectType(Serializable):
             the identification of bounds and/or center pixel do include layover,
             potentially as based on annotation of the imagery itself in pixel
             space.
+        populate_in_periphery : bool
+            Should we populate for peripheral?
 
         Returns
         -------
@@ -977,7 +1007,7 @@ class TheObjectType(Serializable):
             -1 - insufficient metadata to proceed
             0 - nothing to be done
             1 - successful
-            2 - object in the image periphery, not populating
+            2 - object in the image periphery, populating based on `populate_in_periphery`
             3 - object not in the image field
         """
 
@@ -993,8 +1023,8 @@ class TheObjectType(Serializable):
 
         if self.ImageLocation is None:
             # try to set from geolocation
-            return_value = self.set_image_location_from_sicd(sicd)
-            if return_value not in [0, 1]:
+            return_value = self.set_image_location_from_sicd(sicd, populate_in_periphery=populate_in_periphery)
+            if return_value in [-1, 3] or (return_value == 2 and not populate_in_periphery):
                 return return_value
 
         # get nominal object size, in meters
@@ -1040,8 +1070,7 @@ class TheObjectType(Serializable):
         chip_cols = [min_cols - col_pad, max_cols + col_pad]
 
         placement = self._check_placement(rows, cols, chip_rows, chip_cols)
-        if placement in [2, 3]:
-            # it's not sufficiently in range
+        if placement == 3 or (placement == 2 and not populate_in_periphery):
             return placement
 
         # set the physical data ideal chip size
@@ -1074,7 +1103,7 @@ class TheObjectType(Serializable):
         self.SlantPlane = PlanePhysicalType(
             Physical=physical,
             PhysicalWithShadows=physical_with_shadows)
-        return 1
+        return placement
 
 
 # other types for the DetailObjectInfo
