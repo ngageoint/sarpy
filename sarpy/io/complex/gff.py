@@ -1414,7 +1414,7 @@ class _GFFInterpreter2(_GFFInterpreter):
             # derive row/col uvect
             ground_uvec = wgs_84_norm(scp)
 
-            urng = arp_pos - geo_data.SCP.ECF.get_array()  # unit vector for row in the slant plane
+            urng = scp - arp_pos  # unit vector for row in the slant plane
             urng /= numpy.linalg.norm(urng)
             if image_plane == 'GROUND':
                 row_uvec = urng - numpy.dot(urng, ground_uvec)*ground_uvec
@@ -1425,6 +1425,13 @@ class _GFFInterpreter2(_GFFInterpreter):
             col_uvec = arp_vel/numpy.linalg.norm(arp_vel)
             if self.header.ap_info.squintAngle < 0:
                 col_uvec *= -1
+
+            # verify that my orientation makes some sense
+            dumb_check = ground_uvec.dot(numpy.cross(row_uvec, col_uvec))
+            if dumb_check <= 0:
+                raise ValueError(
+                    'The range vector, velocity vector, and squint angle have '
+                    'incompatible orientations')
 
             parallel_component = numpy.dot(row_uvec, col_uvec)
             if numpy.abs(parallel_component) > 1e-7:
@@ -1461,7 +1468,7 @@ class _GFFInterpreter2(_GFFInterpreter):
 
             return GridType(
                 ImagePlane=image_plane,
-                Type='PLANE',
+                Type=grid_type,
                 Row=row,
                 Col=col)
 
@@ -1511,7 +1518,6 @@ class _GFFInterpreter2(_GFFInterpreter):
 
         def get_image_formation():
             # type: () -> ImageFormationType
-            image_form_algo = 'PFA' if self.header.if_info.ifAlgo in ['PFA', 'OSAPF'] else 'OTHER'
             return ImageFormationType(
                 RcvChanProc=RcvChanProcType(ChanIndices=[1, ]),
                 TxRcvPolarizationProc=tx_rcv_pol,
@@ -1565,6 +1571,14 @@ class _GFFInterpreter2(_GFFInterpreter):
         arp_llh = self.header.ap_info.apcLLH
         arp_pos = geodetic_to_ecf(arp_llh, ordering='latlon')
         arp_vel = self.header.get_arp_vel()
+
+        # if self.header.if_info.ifAlgo in ['PFA', 'OSAPF']:
+        if self.header.if_info.ifAlgo == 'PFA':
+            image_form_algo = 'PFA'
+            grid_type = 'RGAZIM'
+        else:
+            image_form_algo = 'OTHER'
+            grid_type = 'PLANE'
 
         collection_info = get_collection_info()
         image_creation = get_image_creation()
