@@ -351,6 +351,39 @@ class ImageLocationType(Serializable):
             current += 0.25*value.get_array(dtype='float64')
         self.CenterPixel = RowColType.from_array(current)
 
+    def get_nominal_box(self, row_length=10, col_length=10):
+        """
+        Get a nominal box containing the object, using the default side length if necessary.
+
+        Parameters
+        ----------
+        row_length : int|float
+            The side length to use for the rectangle, if not defined.
+        col_length : int|float
+            The side length to use for the rectangle, if not defined.
+
+        Returns
+        -------
+        None|numpy.ndarray
+        """
+
+        if self.LeftFrontPixel is not None and self.RightFrontPixel is not None and \
+                self.LeftRearPixel is not None and self.RightRearPixel is not None:
+            out = numpy.zeros((4, 2), dtype='float64')
+            out[0, :] = self.LeftFrontPixel.get_array()
+            out[1, :] = self.RightFrontPixel.get_array()
+            out[2, :] = self.RightRearPixel.get_array()
+            out[3, :] = self.LeftRearPixel.get_array()
+            return out
+
+        if self.CenterPixel is None:
+            return None
+
+        shift = numpy.array([[-0.5, -0.5], [-0.5, 0.5], [0.5, 0.5], [0.5, -0.5]], dtype='float64')
+        shift[:, 0] *= row_length
+        shift[:, 1] *= col_length
+        return self.CenterPixel.get_array(dtype='float64') + shift
+
 
 class GeoLocationType(Serializable):
     _fields = (
@@ -398,6 +431,7 @@ class GeoLocationType(Serializable):
         self.LeftRearPixel = LeftRearPixel
         super(GeoLocationType, self).__init__(**kwargs)
 
+    # noinspection PyUnusedLocal
     @classmethod
     def from_image_location(cls, image_location, the_structure, projection_type='HAE', **kwargs):
         """
@@ -803,7 +837,7 @@ class TheObjectType(Serializable):
         if row_bounds[1] <= row_bounds[0] or col_bounds[1] <= col_bounds[0]:
             raise ValueError('bounds out of order')
         if 0 <= row_bounds[0] and rows < row_bounds[1] and 0 <= col_bounds[0] and cols < col_bounds[1]:
-            return 1 # completely in bounds
+            return 1  # completely in bounds
 
         row_size = row_bounds[1] - row_bounds[0]
         col_size = col_bounds[1] - col_bounds[0]
@@ -947,16 +981,6 @@ class TheObjectType(Serializable):
             3 - object not in the image field
         """
 
-        def shift_chip_based_on_vector(the_vector):
-            if the_vector[0] < 0:
-                chip_rows[0] += the_vector[0]
-            else:
-                chip_rows[1] += the_vector[0]
-            if the_vector[1] < 0:
-                chip_cols[0] += the_vector[1]
-            else:
-                chip_cols[1] += the_vector[1]
-
         if self.SlantPlane is not None:
             # no need to infer anything, it's already populated
             return 0
@@ -973,18 +997,14 @@ class TheObjectType(Serializable):
             if return_value not in [0, 1]:
                 return return_value
 
-        # get image location
-        image_location = self.ImageLocation
-        center_pixel = image_location.CenterPixel.get_array(dtype='float64')
-
         # get nominal object size, in meters
         max_size = self.Size.get_max_diameter()
         row_size = max_size/sicd.Grid.Row.SS
         col_size = max_size/sicd.Grid.Col.SS
 
-        # set up a default chip region using this
-        chip_rows = [center_pixel[0]-0.75*row_size, center_pixel[0] + 0.75*row_size]
-        chip_cols = [center_pixel[1]-0.75*col_size, center_pixel[1] + 0.75*col_size]
+        # get nominal image box
+        image_location = self.ImageLocation
+        pixel_box = image_location.get_nominal_box(row_length=row_size, col_length=col_size)
 
         # get nominal layover vector - should be pointed generally towards the top (negative rows value)
         layover_magnitude = sicd.SCPCOA.LayoverMagnitude
@@ -996,19 +1016,28 @@ class TheObjectType(Serializable):
         layover_vector = layover_size*numpy.array(
             [numpy.cos(layover_angle)/sicd.Grid.Row.SS, numpy.sin(layover_angle)/sicd.Grid.Col.SS])
 
-        # apply this to our bounds
+        # craft the layover box
         if layover_shift:
-            shift_chip_based_on_vector(layover_vector)  # modifies in place
+            layover_box = pixel_box + layover_vector
         else:
-            row_shift, col_shift  = 0.5*numpy.abs(layover_vector)
-            chip_rows[0] -= row_shift
-            chip_rows[1] += row_shift
-            chip_cols[0] -= col_shift
-            chip_cols[1] += col_shift
+            layover_box = pixel_box
+
+        # determine the maximum and minimum pixel values here
+        min_rows = min(numpy.min(pixel_box[:, 0]), numpy.min(layover_box[:, 0]))
+        max_rows = max(numpy.max(pixel_box[:, 0]), numpy.max(layover_box[:, 0]))
+        min_cols = min(numpy.min(pixel_box[:, 1]), numpy.min(layover_box[:, 1]))
+        max_cols = max(numpy.max(pixel_box[:, 1]), numpy.max(layover_box[:, 1]))
+
+        # determine the padding amount
+        row_pad = min(5, 0.3*(max_rows-min_rows))
+        col_pad = min(5, 0.3*(max_cols-min_cols))
 
         # check our bounding information
         rows = sicd.ImageData.NumRows
         cols = sicd.ImageData.NumCols
+
+        chip_rows = [min_rows - row_pad, max_rows + row_pad]
+        chip_cols = [min_cols - col_pad, max_cols + col_pad]
 
         placement = self._check_placement(rows, cols, chip_rows, chip_cols)
         if placement in [2, 3]:
@@ -1029,8 +1058,16 @@ class TheObjectType(Serializable):
         shadow_angle = numpy.deg2rad(shadow_angle)
         shadow_vector = shadow_size*numpy.array(
             [numpy.cos(shadow_angle)/sicd.Grid.Row.SS, numpy.sin(shadow_angle)/sicd.Grid.Col.SS])
-        # apply this to our bounds, in place
-        shift_chip_based_on_vector(shadow_vector)
+
+        shadow_box = pixel_box + shadow_vector
+
+        min_rows = min(min_rows, numpy.min(shadow_box[:, 0]))
+        max_rows = max(max_rows, numpy.max(shadow_box[:, 0]))
+        min_cols = min(min_cols, numpy.min(shadow_box[:, 1]))
+        max_cols = max(max_cols, numpy.max(shadow_box[:, 1]))
+
+        chip_rows = [min_rows - row_pad, max_rows + row_pad]
+        chip_cols = [min_cols - col_pad, max_cols + col_pad]
         # set the physical with shadows data ideal chip size
         physical_with_shadows = PhysicalType.from_ranges(chip_rows, chip_cols, rows, cols)
 

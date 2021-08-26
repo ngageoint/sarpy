@@ -13,6 +13,7 @@ from sarpy.io.xml.base import Serializable, Arrayable
 from sarpy.io.xml.descriptors import StringDescriptor, SerializableDescriptor, \
     IntegerDescriptor, StringEnumDescriptor, DateTimeDescriptor, FloatDescriptor
 from sarpy.io.complex.sicd import SICDReader
+from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.complex.sicd_elements.blocks import LatLonType
 
 from .base import DEFAULT_STRICT
@@ -21,7 +22,7 @@ from .blocks import RangeCrossRangeType
 # TODO: Review what's marked required/optional - I'm sure it makes little sense
 #  Questionable field definitions:
 #   - there is a PixelSpacing and then slant/ground plane elements for pixel spacing?
-#   - ZuluOffset seemingly assumes that the only possible offsets are integer valued - this is wrong
+#   - ZuluOffset seemingly assumes that the only possible offsets are integer valued - this is wrong.
 #   - DataCalibrated should obviously be xs:boolean - this is kludged badly for no reason
 #   - DataCheckSum - it is unclear what this is the checksum of, and which checksum it would be (CRC-32?)
 #   - DataByteOrder - why in the world is this even here?
@@ -424,21 +425,22 @@ class DetailImageInfoType(Serializable):
         super(DetailImageInfoType, self).__init__(**kwargs)
 
     @classmethod
-    def from_sicd_reader(cls, sicd_reader):
+    def from_sicd(cls, sicd, base_file_name, file_type='NITF02.10'):
         """
-        Construct the ImageInfo from the sicd reader object.
+        Construct the ImageInfo from the sicd object and given image file name.
 
         Parameters
         ----------
-        sicd_reader : SICDReader
+        sicd : SICDType
+        base_file_name : str
+        file_type : str
+            The file type. This should probably always be NITF02.10 for now.
 
         Returns
         -------
         DetailImageInfoType
         """
 
-        base_file = os.path.split(sicd_reader.file_name)[1]
-        sicd = sicd_reader.sicd_meta
         pixel_type = sicd.ImageData.PixelType
         if pixel_type == 'RE32F_IM32F':
             data_type = 'in-phase/quadrature'
@@ -462,10 +464,10 @@ class DetailImageInfoType(Serializable):
             LowerLeft=sicd.GeoData.ImageCorners.LRFC)
 
         return DetailImageInfoType(
-            DataFilename=base_file,
+            DataFilename=base_file_name,
             ClassificationMarkings=ClassificationMarkingsType(
                 Classification=sicd.CollectionInfo.Classification),
-            FileType='NITF{}'.format(sicd_reader.nitf_details.nitf_version),
+            FileType=file_type,
             DataPlane=sicd.Grid.ImagePlane,
             DataType=data_type,
             BitsPerSample=bits_per_sample,
@@ -479,6 +481,25 @@ class DetailImageInfoType(Serializable):
             WeightingType=StringRangeCrossRangeType(
                 Range=sicd.Grid.Row.WgtType.WindowName,
                 CrossRange=sicd.Grid.Col.WgtType.WindowName),
-            Width_3dB=(sicd.Grid.Row.ImpRespWid, sicd.Grid.Col.ImpRespWid),  # TODO: I don't think that this is correct
+            Width_3dB=(sicd.Grid.Row.ImpRespWid, sicd.Grid.Col.ImpRespWid),  # TODO: I don't think that this is correct?
             ImageHeading=sicd.SCPCOA.AzimAng,
             ImageCorners=icps)
+
+    @classmethod
+    def from_sicd_reader(cls, sicd_reader):
+        """
+        Construct the ImageInfo from the sicd reader object.
+
+        Parameters
+        ----------
+        sicd_reader : SICDReader
+
+        Returns
+        -------
+        DetailImageInfoType
+        """
+
+        base_file = os.path.split(sicd_reader.file_name)[1]
+        sicd = sicd_reader.sicd_meta
+
+        return cls.from_sicd(sicd, base_file, file_type=sicd_reader.nitf_details.nitf_version)

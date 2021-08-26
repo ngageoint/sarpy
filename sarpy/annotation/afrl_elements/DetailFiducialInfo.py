@@ -110,6 +110,7 @@ class GeoLocationType(Serializable):
         self.CenterPixel = CenterPixel
         super(GeoLocationType, self).__init__(**kwargs)
 
+    # noinspection PyUnusedLocal
     @classmethod
     def from_image_location(cls, image_location, the_structure, projection_type='HAE', **kwargs):
         """
@@ -357,7 +358,7 @@ class TheFiducialType(Serializable):
 
         if (0 < center_pixel[0] < rows - 1) and (0 < center_pixel[1] < cols - 1):
             placement = 1
-        elif (-3 < center_pixel[0] < rows + 2) and (-3 < center_pixel[1] < cols  + 2):
+        elif (-3 < center_pixel[0] < rows + 2) and (-3 < center_pixel[1] < cols + 2):
             placement = 2
         else:
             placement = 3
