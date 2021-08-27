@@ -22,8 +22,9 @@ from sarpy.geometry.geocoords import geodetic_to_ecf, ecf_to_geodetic
 from .base import DEFAULT_STRICT
 from .blocks import RangeCrossRangeType, RowColDoubleType, LatLonEleType
 
-# TODO: the articulation and configuration information is really not usable in
-#  its current form, and should be replaced with a (`name`, `value`) pair.
+# TODO: Issue - do we need to set the nominal chip size?
+#  Comment - the articulation and configuration information is really not usable in
+#       its current form, and should be replaced with a (`name`, `value`) pair.
 
 logger = logging.getLogger(__name__)
 
@@ -844,9 +845,9 @@ class TheObjectType(Serializable):
             The number of rows in the image.
         cols : int|float
             The number of columns in the image.
-        row_bounds : list
+        row_bounds : List
             Of the form `[row min, row max]`
-        col_bounds : list
+        col_bounds : List
             Of the form `[col min, col max]`
         overlap_cutoff : float
             Determines the transition from in the periphery to out of the image.
@@ -1208,3 +1209,49 @@ class DetailObjectInfoType(Serializable):
         self.GroundPlane = GroundPlane
         self.Objects = Objects
         super(DetailObjectInfoType, self).__init__(**kwargs)
+
+    def set_image_location_from_sicd(
+            self, sicd, layover_shift=True, populate_in_periphery=False, include_out_of_range=False):
+        """
+        Set the image location information with respect to the given SICD,
+        assuming that the physical coordinates are populated. The `NumberOfObjectsInImage`
+        will be set, and `NumberOfObjectsInScene` will be left unchanged.
+
+        Parameters
+        ----------
+        sicd : SICDType
+        layover_shift : bool
+            Account for possible layover shift in calculated chip sizes?
+        populate_in_periphery : bool
+            Populate image information for objects on the periphery?
+        include_out_of_range : bool
+            Include the objects which are out of range (with no image location information)?
+        """
+
+        def update_object(temp_object, in_image_count):
+            status = temp_object.set_image_location_from_sicd(
+                sicd, populate_in_periphery=populate_in_periphery)
+            use_object = False
+            if status == 0:
+                raise ValueError('Object already has image details set')
+            if status == 1 or (status == 2 and populate_in_periphery):
+                use_object = True
+                temp_object.set_chip_details_from_sicd(
+                    sicd, layover_shift=layover_shift, populate_in_periphery=True)
+                in_image_count += 1
+            return use_object, in_image_count
+
+        objects_in_image = 0
+        if include_out_of_range:
+            # the objects list is just modified in place
+            for the_object in self.Objects:
+                _, objects_in_image = update_object(the_object, objects_in_image)
+        else:
+            # we make a new objects list
+            objects = []
+            for the_object in self.Objects:
+                use_this_object, objects_in_image = update_object(the_object, objects_in_image)
+                if use_this_object:
+                    objects.append(the_object)
+            self.Objects = objects
+        self.NumberOfObjectsInImage = objects_in_image

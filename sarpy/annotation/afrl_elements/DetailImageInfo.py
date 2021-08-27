@@ -484,22 +484,3 @@ class DetailImageInfoType(Serializable):
             Width_3dB=(sicd.Grid.Row.ImpRespWid, sicd.Grid.Col.ImpRespWid),  # TODO: I don't think that this is correct?
             ImageHeading=sicd.SCPCOA.AzimAng,
             ImageCorners=icps)
-
-    @classmethod
-    def from_sicd_reader(cls, sicd_reader):
-        """
-        Construct the ImageInfo from the sicd reader object.
-
-        Parameters
-        ----------
-        sicd_reader : SICDReader
-
-        Returns
-        -------
-        DetailImageInfoType
-        """
-
-        base_file = os.path.split(sicd_reader.file_name)[1]
-        sicd = sicd_reader.sicd_meta
-
-        return cls.from_sicd(sicd, base_file, file_type=sicd_reader.nitf_details.nitf_version)

@@ -313,7 +313,8 @@ class TheFiducialType(Serializable):
         """
 
         if self.Width_3dB is None or override:
-            self.Width_3dB = RangeCrossRangeType.from_array((sicd.Grid.Row.ImpRespWid, sicd.Grid.Col.ImpRespWid))
+            self.Width_3dB = RangeCrossRangeType.from_array(
+                (sicd.Grid.Row.ImpRespWid, sicd.Grid.Col.ImpRespWid))
             # TODO: this seems questionable to me?
 
     def set_image_location_from_sicd(self, sicd):
@@ -447,3 +448,49 @@ class DetailFiducialInfoType(Serializable):
         self.NumberOfFiducialsInScene = NumberOfFiducialsInScene
         self.Fiducials = Fiducials
         super(DetailFiducialInfoType, self).__init__(**kwargs)
+
+    def set_image_location_from_sicd(
+            self, sicd, populate_in_periphery=False, include_out_of_range=False):
+        """
+        Set the image location information with respect to the given SICD,
+        assuming that the physical coordinates are populated. The `NumberOfFiducialsInImage`
+        will be set, and `NumberOfFiducialsInScene` will be left unchanged.
+
+        Parameters
+        ----------
+        sicd : SICDType
+        populate_in_periphery : bool
+            Populate image information for objects on the periphery?
+        include_out_of_range : bool
+            Include the objects which are out of range (with no image location information)?
+        """
+
+        def update_fiducial(temp_fid, in_image_count):
+            temp_fid.set_default_width_from_sicd(sicd)  # todo: I'm not sure that this is correct?
+            status = temp_fid.set_image_location_from_sicd(
+                sicd, populate_in_periphery=populate_in_periphery)
+            use_fid = False
+            if status == 0:
+                raise ValueError('Fiducial already has image details set')
+            if status == 1 or (status == 2 and populate_in_periphery):
+                use_fid = True
+                temp_fid.set_chip_details_from_sicd(
+                    sicd, populate_in_periphery=True)
+                in_image_count += 1
+            return use_fid, in_image_count
+
+
+        fid_in_image = 0
+        if include_out_of_range:
+            # the fiducials list is just modified in place
+            for the_fid in self.Fiducials:
+                _, fid_in_image = update_fiducial(the_fid, fid_in_image)
+        else:
+            # the fiducials list is just modified in place
+            fiducials = []
+            for the_fid in self.Fiducials:
+                use_this_fid, fid_in_image = update_fiducial(the_fid, fid_in_image)
+                if use_this_fid:
+                    fiducials.append(the_fid)
+            self.Fiducials = fiducials
+        self.NumberOfFiducialsInImage = fid_in_image
