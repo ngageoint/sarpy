@@ -124,7 +124,7 @@ class ResearchType(Serializable):
 
         # define sensor info
         if self.DetailSensorInfo is not None:
-            raise ValueError('Sensor INfo is already defined')
+            raise ValueError('Sensor Info is already defined')
         self.DetailSensorInfo = DetailSensorInfoType.from_sicd(sicd)
 
         if self.DetailFiducialInfo is None:
