@@ -728,7 +728,9 @@ class TheObjectType(Serializable):
     def __init__(self, SystemName=None, SystemComponent=None, NATOName=None,
                  Function=None, Version=None, DecoyType=None, SerialNumber=None,
                  ObjectClass=None, ObjectSubClass=None, ObjectTypeClass=None,
-                 ObjectType=None, ObjectLabel=None, Size=None, Orientation=None,
+                 ObjectType=None, ObjectLabel=None,
+                 SlantPlane=None, GroundPlane=None,
+                 Size=None, Orientation=None,
                  Articulation=None, Configuration=None,
                  Accessories=None, PaintScheme=None, Camouflage=None,
                  Obscuration=None, ObscurationPercent=None, ImageLevelObscuration=None,
@@ -752,6 +754,8 @@ class TheObjectType(Serializable):
         ObjectTypeClass : None|str
         ObjectType : None|str
         ObjectLabel : None|str
+        SlantPlane : None|PlanePhysicalType
+        GroundPlane : None|PlanePhysicalType
         Size : None|SizeType|numpy.ndarray|list|tuple
         Orientation : OrientationType
         Articulation : None|CompoundCommentType|str|List[FreeFormType]
@@ -792,6 +796,8 @@ class TheObjectType(Serializable):
         self.ObjectType = ObjectType
         self.ObjectLabel = ObjectLabel
 
+        self.SlantPlane = SlantPlane
+        self.GroundPlane = GroundPlane
         self.Size = Size
         self.Orientation = Orientation
 

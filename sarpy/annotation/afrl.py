@@ -15,10 +15,10 @@ from sarpy.annotation.afrl_elements.Research import ResearchType
 from sarpy.annotation.afrl_elements.DetailCollectionInfo import DetailCollectionInfoType
 from sarpy.annotation.afrl_elements.DetailSubCollectionInfo import DetailSubCollectionInfoType
 from sarpy.annotation.afrl_elements.DetailObjectInfo import DetailObjectInfoType, \
-    TheObjectType, GeoLocationType as ObjectGeolocation, \
+    TheObjectType, GeoLocationType as ObjectGeoLocation, \
     ImageLocationType as ObjectImageLocation
 from sarpy.annotation.afrl_elements.DetailFiducialInfo import DetailFiducialInfoType, \
-    TheFiducialType, GeoLocationType as FiducialGeolocation, \
+    TheFiducialType, GeoLocationType as FiducialGeoLocation, \
     ImageLocationType as FiducialImageLocation
 from sarpy.annotation.afrl_elements.DetailImageInfo import DetailImageInfoType
 from sarpy.annotation.afrl_elements.DetailSensorInfo import DetailSensorInfoType
@@ -30,99 +30,152 @@ class GroundTruthConstructor(object):
     """
 
     __slots__ = (
-        '_collection_info', '_subcollection_info', '_label_lookup',
-        '_objects', '_fiducials')
+        '_collection_info', '_subcollection_info', '_objects', '_fiducials')
 
-    def __init__(self, collection_info, subcollection_info, label_lookup):
+    def __init__(self, collection_info, subcollection_info):
         """
 
         Parameters
         ----------
         collection_info : DetailCollectionInfoType
         subcollection_info : DetailSubCollectionInfoType
-        label_lookup : Dict[str, Dict]
         """
 
         self._collection_info = collection_info
         self._subcollection_info = subcollection_info
-        self._label_lookup = label_lookup
         self._objects = []
         self._fiducials = []
 
-    def _verify_key(self, the_label):
-        label_info = self._label_lookup.get(the_label, None)
-        if label_info is None:
-            raise KeyError('Not such key `{}` in the label_lookup dictionary'.format(the_label))
-        return label_info
-
-    def add_label(self, the_label, **kwargs):
+    def add_fiducial(self, the_fiducial):
         """
-        Add the given label, extract information from the provided
-        label_lookup dictionary and passing through kwargs to the object
-        or fiducial constructor.
+        Adds the given fiducial to the collection.
 
         Parameters
         ----------
-        the_label : str
-        kwargs
-            keyword arguments passed through to the object or fiducial constructor.
-            These will override the contents of the label_lookup dictionary.
-            Note that image specific arguments are ignored, and GeoLocation must
-            be provided in either the lookup table or the keyword arguments.
+        the_fiducial : TheFiducialType
         """
 
-        label_info = self._verify_key(the_label)
-        the_type = label_info.get('type', None).lower()
+        if not isinstance(the_fiducial, TheFiducialType):
+            raise TypeError('Requires an object of type `TheFiducialType`, got `{}`'.format(type(the_fiducial)))
+        if the_fiducial.ImageLocation is not None:
+            raise ValueError('The fiducial has ImageLocation already set.')
+        if the_fiducial.SlantPlane is not None or the_fiducial.GroundPlane is not None:
+            raise ValueError('The fiducial already has the SlantPlane or GroundPlane set.')
+        self._fiducials.append(the_fiducial)
 
-        if the_type is None or the_type == 'object':
-            # by default, we will assume that things are objects
-            self._add_object(the_label, label_info, **kwargs)
-        elif the_type == 'fiducial':
-            self._add_fiducial(the_label, label_info, **kwargs)
-        else:
-            raise ValueError('Got unhandled type `{}` for key `{}`'.format(the_type, the_label))
+    def add_fiducial_from_arguments(self, Name=None, SerialNumber=None, FiducialType=None, GeoLocation=None):
+        """
+        Adds a fiducial to the collection.
 
-    def _add_fiducial(self, the_label, label_info, **kwargs):
-        location = label_info.get('GeoLocation', None)
-        location = kwargs.get('GeoLocation', location)
-        if location is None:
-            raise ValueError('GeoLocation must be provided.')
+        Parameters
+        ----------
+        Name : str
+        SerialNumber : None|str
+        FiducialType : None|str
+        GeoLocation : FiducialGeoLocation
+        """
 
-        this_kwargs = {'GeoLocation': FiducialGeolocation(**location)}
-        for field in ['Name', 'SerialNumber', 'FiducialType']:
-            if field in kwargs:
-                this_kwargs[field] = kwargs[field]
-            elif field in label_info:
-                this_kwargs[field] = label_info[field]
-        if 'Name' not in this_kwargs:
-            this_kwargs['Name'] = the_label
-        self._fiducials.append(TheFiducialType(**this_kwargs))
+        self.add_fiducial(
+            TheFiducialType(
+                Name=Name,
+                SerialNumber=SerialNumber,
+                FiducialType=FiducialType,
+                GeoLocation=GeoLocation))
 
-    def _add_object(self, the_label, label_info, **kwargs):
-        location = label_info.get('GeoLocation', None)
-        location = kwargs.get('GeoLocation', location)
-        if location is None:
-            raise ValueError('GeoLocation must be provided.')
+    def add_object(self, the_object):
+        """
+        Adds the given object to the collection.
 
-        this_kwargs = {'GeoLocation': ObjectGeolocation(**location)}
-        for field in [
-            'SystemName', 'SystemComponent', 'NATOName',
-            'Function', 'Version', 'DecoyType', 'SerialNumber',
-            'ObjectClass', 'ObjectSubClass', 'ObjectTypeClass', 'ObjectType', 'ObjectLabel',
-            'Size', 'Orientation', 'Articulation', 'Configuration', 'Accessories', 'PaintScheme',
-            'Camouflage', 'Obscuration', 'ObscurationPercent', 'ImageLevelObscuration',
-            'TargetToClutterRatio', 'VisualQualityMetric',
-            'UnderlyingTerrain', 'OverlyingTerrain', 'TerrainTexture', 'SeasonalCover']:
-            if field in kwargs:
-                this_kwargs[field] = kwargs[field]
-            elif field in label_info:
-                this_kwargs[field] = label_info[field]
+        Parameters
+        ----------
+        the_object : TheObjectType
+        """
 
-        if 'SystemName' not in this_kwargs:
-            this_kwargs['SystemName'] = the_label
-        if 'ObjectLabel' not in this_kwargs:
-            this_kwargs['ObjectLabel'] = the_label
-        self._objects.append(TheObjectType(**this_kwargs))
+        if not isinstance(the_object, TheObjectType):
+            raise TypeError('Requires an object of type `TheObjectType`, got `{}`'.format(type(the_object)))
+        if the_object.ImageLocation is not None:
+            raise ValueError('The object has ImageLocation already set.')
+        if the_object.SlantPlane is not None or the_object.GroundPlane is not None:
+            raise ValueError('The object already has the SlantPlane or GroundPlane set.')
+        self._objects.append(the_object)
+
+    def add_object_from_arguments(self, SystemName=None, SystemComponent=None, NATOName=None,
+                   Function=None, Version=None, DecoyType=None, SerialNumber=None,
+                   ObjectClass='Unknown', ObjectSubClass='Unknown', ObjectTypeClass='Unknown',
+                   ObjectType='Unknown', ObjectLabel=None, Size=None,
+                   Orientation=None,
+                   Articulation=None, Configuration=None,
+                   Accessories=None, PaintScheme=None, Camouflage=None,
+                   Obscuration=None, ObscurationPercent=None, ImageLevelObscuration=None,
+                   GeoLocation=None, TargetToClutterRatio=None, VisualQualityMetric=None,
+                   UnderlyingTerrain=None, OverlyingTerrain=None,
+                   TerrainTexture=None, SeasonalCover=None):
+        """
+        Adds an object to the collection.
+
+        Parameters
+        ----------
+        SystemName : str
+        SystemComponent : None|str
+        NATOName : None|str
+        Function : None|str
+        Version : None|str
+        DecoyType : None|str
+        SerialNumber : None|str
+        ObjectClass : None|str
+        ObjectSubClass : None|str
+        ObjectTypeClass : None|str
+        ObjectType : None|str
+        ObjectLabel : None|str
+        Size : None|SizeType|numpy.ndarray|list|tuple
+        Orientation : OrientationType
+        Articulation : None|CompoundCommentType|str|List[FreeFormType]
+        Configuration : None|CompoundCommentType|str|List[FreeFormType]
+        Accessories : None|str
+        PaintScheme : None|str
+        Camouflage : None|str
+        Obscuration : None|str
+        ObscurationPercent : None|float
+        ImageLevelObscuration : None|str
+        GeoLocation : ObjectGeoLocation
+        TargetToClutterRatio : None|str
+        VisualQualityMetric : None|str
+        UnderlyingTerrain : None|str
+        OverlyingTerrain : None|str
+        TerrainTexture : None|str
+        SeasonalCover : None|str
+        """
+
+        self.add_object(
+            TheObjectType(SystemName=SystemName,
+                          SystemComponent=SystemComponent,
+                          NATOName=NATOName,
+                          Function=Function,
+                          Version=Version,
+                          DecoyType=DecoyType,
+                          SerialNumber=SerialNumber,
+                          ObjectClass=ObjectClass,
+                          ObjectSubClass=ObjectSubClass,
+                          ObjectTypeClass=ObjectTypeClass,
+                          ObjectType=ObjectType,
+                          ObjectLabel=ObjectLabel,
+                          Size=Size,
+                          Orientation=Orientation,
+                          Articulation=Articulation,
+                          Configuration=Configuration,
+                          Accessories=Accessories,
+                          PaintScheme=PaintScheme,
+                          Camouflage=Camouflage,
+                          Obscuration=Obscuration,
+                          ObscurationPercent=ObscurationPercent,
+                          ImageLevelObscuration=ImageLevelObscuration,
+                          GeoLocation=GeoLocation,
+                          TargetToClutterRatio=TargetToClutterRatio,
+                          VisualQualityMetric=VisualQualityMetric,
+                          UnderlyingTerrain=UnderlyingTerrain,
+                          OverlyingTerrain=OverlyingTerrain,
+                          TerrainTexture=TerrainTexture,
+                          SeasonalCover=SeasonalCover))
 
     def get_final_structure(self):
         """
@@ -174,6 +227,7 @@ class GroundTruthConstructor(object):
         """
 
         out_research = self.get_final_structure()
+        # TODO: nominal chip size?
         out_research.apply_sicd(
             sicd,
             base_sicd_file,
@@ -215,24 +269,29 @@ class AnalystTruthConstructor(object):
 
     __slots__ = (
         '_sicd', '_base_file',
-        '_collection_info', '_subcollection_info', '_label_lookup',
-        '_objects', '_fiducials')
+        '_collection_info', '_subcollection_info',
+        '_objects', '_fiducials',
+        '_projection_type', '_proj_kwargs')
 
-    def __init__(self, sicd, base_file, label_lookup, collection_info, subcollection_info):
+    def __init__(self, sicd, base_file, collection_info, subcollection_info,
+                 projection_type='HAE', proj_kwargs=None):
         """
 
         Parameters
         ----------
         sicd : SICDType
         base_file : str
-        label_lookup : Dict[str, Dict]
         collection_info : DetailCollectionInfoType
         subcollection_info : DetailSubCollectionInfoType
+        projection_type : str
+            One of 'PLANE', 'HAE', or 'DEM'. The value of `proj_kwargs`
+            will need to be appropriate.
+        proj_kwargs : None|Dict
+            The keyword arguments for the :func:`SICDType.project_image_to_ground_geo` method.
         """
 
         self._sicd = sicd
         self._base_file = base_file
-        self._label_lookup = label_lookup
 
         # TODO: should we create a decent shell for general Analyst Truth
         #  collection and subcollection info?
@@ -241,89 +300,138 @@ class AnalystTruthConstructor(object):
         self._objects = []
         self._fiducials = []
 
-    def _verify_key(self, the_label):
-        label_info = self._label_lookup.get(the_label, None)
-        if label_info is None:
-            raise KeyError('Not such key `{}` in the label_lookup dictionary'.format(the_label))
-        return label_info
+        self._projection_type = projection_type
+        self._proj_kwargs = {} if proj_kwargs is None else proj_kwargs
 
-    def add_label(self, the_label, **kwargs):
+    def add_fiducial(self, the_fiducial):
         """
-        Add the given label, extract information from the provided
-        label_lookup dictionary and passing through kwargs to the object
-        or fiducial constructor.
+        Adds the given fiducial to the collection. Note that this object will be modified in place.
 
         Parameters
         ----------
-        the_label : str
-        kwargs
-            keyword arguments passed through to the object or fiducial constructor.
-            These will override the contents of the label_lookup dictionary.
-            Note that geolocation specific arguments are ignored, and ImageLocation must
-            be provided in either the lookup table or the keyword arguments.
+        the_fiducial : TheFiducialType
         """
 
-        label_info = self._verify_key(the_label)
-        the_type = label_info.get('type', None).lower()
-
-        if the_type is None or the_type == 'object':
-            # by default, we will assume that things are objects
-            self._add_object(the_label, label_info, **kwargs)
-        elif the_type == 'fiducial':
-            self._add_fiducial(the_label, label_info, **kwargs)
-        else:
-            raise ValueError('Got unhandled type `{}` for key `{}`'.format(the_type, the_label))
-
-    def _add_fiducial(self, the_label, label_info, projection_type='HAE', proj_kwargs=None, **kwargs):
-        if proj_kwargs is None:
-            proj_kwargs = {}
-        location = label_info.get('ImageLocation', None)
-        location = kwargs.get('ImageLocation', location)
-        if location is None:
-            raise ValueError('ImageLocation must be provided.')
-
-        this_kwargs = {'ImageLocation': FiducialImageLocation(**location)}
-        for field in ['Name', 'SerialNumber', 'FiducialType']:
-            if field in kwargs:
-                this_kwargs[field] = kwargs[field]
-            elif field in label_info:
-                this_kwargs[field] = label_info[field]
-        if 'Name' not in this_kwargs:
-            this_kwargs['Name'] = the_label
-        the_fiducial = TheFiducialType(**this_kwargs)
-        the_fiducial.set_geo_location_from_sicd(self._sicd, projection_type=projection_type, **proj_kwargs)
+        if not isinstance(the_fiducial, TheFiducialType):
+            raise TypeError('Requires an object of type `TheFiducialType`, got `{}`'.format(type(the_fiducial)))
+        if the_fiducial.GeoLocation is not None:
+            raise ValueError('The fiducial has GeoLocation already set.')
+        the_fiducial.set_geo_location_from_sicd(self._sicd, projection_type=self._projection_type, **self._proj_kwargs)
         self._fiducials.append(the_fiducial)
 
-    def _add_object(self, the_label, label_info, projection_type='HAE', proj_kwargs=None, **kwargs):
-        if proj_kwargs is None:
-            proj_kwargs = {}
+    def add_fiducial_from_arguments(self, Name=None, SerialNumber=None, FiducialType=None, ImageLocation=None):
+        """
+        Adds a fiducial to the collection.
 
-        location = label_info.get('ImageLocation', None)
-        location = kwargs.get('ImageLocation', location)
-        if location is None:
-            raise ValueError('ImageLocation must be provided.')
+        Parameters
+        ----------
+        Name : str
+        SerialNumber : None|str
+        FiducialType : None|str
+        ImageLocation : FiducialImageLocation
+        """
 
-        this_kwargs = {'ImageLocation': ObjectImageLocation(**location)}
-        for field in [
-            'SystemName', 'SystemComponent', 'NATOName',
-            'Function', 'Version', 'DecoyType', 'SerialNumber',
-            'ObjectClass', 'ObjectSubClass', 'ObjectTypeClass', 'ObjectType', 'ObjectLabel',
-            'Size', 'Orientation', 'Articulation', 'Configuration', 'Accessories', 'PaintScheme',
-            'Camouflage', 'Obscuration', 'ObscurationPercent', 'ImageLevelObscuration',
-            'TargetToClutterRatio', 'VisualQualityMetric',
-            'UnderlyingTerrain', 'OverlyingTerrain', 'TerrainTexture', 'SeasonalCover']:
-            if field in kwargs:
-                this_kwargs[field] = kwargs[field]
-            elif field in label_info:
-                this_kwargs[field] = label_info[field]
+        self.add_fiducial(
+            TheFiducialType(
+                Name=Name,
+                SerialNumber=SerialNumber,
+                FiducialType=FiducialType,
+                ImageLocation=ImageLocation))
 
-        if 'SystemName' not in this_kwargs:
-            this_kwargs['SystemName'] = the_label
-        if 'ObjectLabel' not in this_kwargs:
-            this_kwargs['ObjectLabel'] = the_label
-        the_object = TheObjectType(**this_kwargs)
-        the_object.set_geo_location_from_sicd(self._sicd, projection_type=projection_type, **proj_kwargs)
+    def add_object(self, the_object):
+        """
+        Adds the object to the collection. Note that this object will be modified in place.
+
+        Parameters
+        ----------
+        the_object : TheObjectType
+        """
+
+        if not isinstance(the_object, TheObjectType):
+            raise TypeError('Requires an object of type `TheObjectType`, got `{}`'.format(type(the_object)))
+        if the_object.GeoLocation is not None:
+            raise ValueError('The object has GeoLocation already set.')
+        the_object.set_geo_location_from_sicd(
+            self._sicd, projection_type=self._projection_type, **self._proj_kwargs)
         self._objects.append(the_object)
+
+    def add_object_from_arguments(self, SystemName=None, SystemComponent=None, NATOName=None,
+                   Function=None, Version=None, DecoyType=None, SerialNumber=None,
+                   ObjectClass='Unknown', ObjectSubClass='Unknown', ObjectTypeClass='Unknown',
+                   ObjectType='Unknown', ObjectLabel=None, Size=None,
+                   Orientation=None,
+                   Articulation=None, Configuration=None,
+                   Accessories=None, PaintScheme=None, Camouflage=None,
+                   Obscuration=None, ObscurationPercent=None, ImageLevelObscuration=None,
+                   ImageLocation=None, TargetToClutterRatio=None, VisualQualityMetric=None,
+                   UnderlyingTerrain=None, OverlyingTerrain=None,
+                   TerrainTexture=None, SeasonalCover=None):
+        """
+        Adds an object to the collection.
+
+        Parameters
+        ----------
+        SystemName : str
+        SystemComponent : None|str
+        NATOName : None|str
+        Function : None|str
+        Version : None|str
+        DecoyType : None|str
+        SerialNumber : None|str
+        ObjectClass : None|str
+        ObjectSubClass : None|str
+        ObjectTypeClass : None|str
+        ObjectType : None|str
+        ObjectLabel : None|str
+        Size : None|SizeType|numpy.ndarray|list|tuple
+        Orientation : OrientationType
+        Articulation : None|CompoundCommentType|str|List[FreeFormType]
+        Configuration : None|CompoundCommentType|str|List[FreeFormType]
+        Accessories : None|str
+        PaintScheme : None|str
+        Camouflage : None|str
+        Obscuration : None|str
+        ObscurationPercent : None|float
+        ImageLevelObscuration : None|str
+        ImageLocation : ObjectImageLocation
+        TargetToClutterRatio : None|str
+        VisualQualityMetric : None|str
+        UnderlyingTerrain : None|str
+        OverlyingTerrain : None|str
+        TerrainTexture : None|str
+        SeasonalCover : None|str
+        """
+
+        self.add_object(
+            TheObjectType(SystemName=SystemName,
+                          SystemComponent=SystemComponent,
+                          NATOName=NATOName,
+                          Function=Function,
+                          Version=Version,
+                          DecoyType=DecoyType,
+                          SerialNumber=SerialNumber,
+                          ObjectClass=ObjectClass,
+                          ObjectSubClass=ObjectSubClass,
+                          ObjectTypeClass=ObjectTypeClass,
+                          ObjectType=ObjectType,
+                          ObjectLabel=ObjectLabel,
+                          Size=Size,
+                          Orientation=Orientation,
+                          Articulation=Articulation,
+                          Configuration=Configuration,
+                          Accessories=Accessories,
+                          PaintScheme=PaintScheme,
+                          Camouflage=Camouflage,
+                          Obscuration=Obscuration,
+                          ObscurationPercent=ObscurationPercent,
+                          ImageLevelObscuration=ImageLevelObscuration,
+                          ImageLocation=ImageLocation,
+                          TargetToClutterRatio=TargetToClutterRatio,
+                          VisualQualityMetric=VisualQualityMetric,
+                          UnderlyingTerrain=UnderlyingTerrain,
+                          OverlyingTerrain=OverlyingTerrain,
+                          TerrainTexture=TerrainTexture,
+                          SeasonalCover=SeasonalCover))
 
     def get_final_structure(self):
         """
@@ -335,6 +443,7 @@ class AnalystTruthConstructor(object):
         ResearchType
         """
 
+        # TODO: nominal chip size?
         return ResearchType(
             DetailCollectionInfo=self._collection_info,
             DetailSubCollectionInfo=self._subcollection_info,
