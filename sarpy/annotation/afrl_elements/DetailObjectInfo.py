@@ -18,6 +18,7 @@ from sarpy.io.complex.sicd_elements.blocks import RowColType
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.product.sidd2_elements.SIDD import SIDDType
 from sarpy.geometry.geocoords import geodetic_to_ecf, ecf_to_geodetic
+from sarpy.geometry.geometry_elements import Point, Polygon, GeometryCollection, Geometry
 
 from .base import DEFAULT_STRICT
 from .blocks import RangeCrossRangeType, RowColDoubleType, LatLonEleType
@@ -384,6 +385,38 @@ class ImageLocationType(Serializable):
         shift[:, 0] *= row_length
         shift[:, 1] *= col_length
         return self.CenterPixel.get_array(dtype='float64') + shift
+
+    def get_geometry_object(self):
+        """
+        Gets the geometry for the given image section.
+
+        Returns
+        -------
+        Geometry
+        """
+
+        point = None
+        polygon = None
+        if self.CenterPixel is not None:
+            point = Point(coordinates=self.CenterPixel.get_array(dtype='float64'))
+        if self.LeftFrontPixel is not None and \
+                self.RightFrontPixel is not None and \
+                self.RightRearPixel is not None and \
+                self.LeftRearPixel is not None:
+            ring = numpy.zeros((4, 2), dtype='float64')
+            ring[0, :] = self.LeftFrontPixel.get_array(dtype='float64')
+            ring[1, :] = self.RightFrontPixel.get_array(dtype='float64')
+            ring[2, :] = self.RightRearPixel.get_array(dtype='float64')
+            ring[3, :] = self.LeftRearPixel.get_array(dtype='float64')
+            polygon = Polygon(coordinates=[ring, ])
+        if point is not None and polygon is not None:
+            return GeometryCollection(geometries=[point, polygon])
+        elif point is not None:
+            return point
+        elif polygon is not None:
+            return polygon
+        else:
+            return None
 
 
 class GeoLocationType(Serializable):
@@ -1111,6 +1144,35 @@ class TheObjectType(Serializable):
             Physical=physical,
             PhysicalWithShadows=physical_with_shadows)
         return placement
+
+    def get_image_geometry_object_for_sicd(self, include_chip=False):
+        """
+        Gets the geometry element describing the image geometry for a sicd.
+
+        Returns
+        -------
+        Geometry
+        """
+
+        if self.ImageLocation is None:
+            raise ValueError('No ImageLocation defined.')
+
+        image_geometry_object = self.ImageLocation.get_geometry_object()
+
+        if include_chip and self.SlantPlane is not None:
+            center_pixel = self.SlantPlane.Physical.CenterPixel.get_array()
+            chip_size = self.SlantPlane.Physical.ChipSize.get_array()
+            shift = numpy.array([[-0.5, -0.5], [-0.5, 0.5], [0.5, 0.5], [0.5, -0.5]], dtype='float64')
+            shift[:, 0] *= chip_size[0]
+            shift[:, 1] *= chip_size[1]
+            chip_rect = center_pixel + shift
+            chip_area = Polygon(coordinates=[chip_rect, ])
+            if isinstance(image_geometry_object, GeometryCollection):
+                image_geometry_object.geometries.append(chip_area)
+                return image_geometry_object
+            else:
+                return GeometryCollection(geometries=[image_geometry_object, chip_area])
+        return image_geometry_object
 
 
 # other types for the DetailObjectInfo

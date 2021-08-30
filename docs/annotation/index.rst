@@ -7,4 +7,5 @@ Annotation elements (sarpy.annotation)
 
     label
     rcs
+    afrl
     afrl_elements/index

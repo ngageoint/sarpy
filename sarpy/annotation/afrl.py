@@ -15,13 +15,17 @@ from sarpy.annotation.afrl_elements.Research import ResearchType
 from sarpy.annotation.afrl_elements.DetailCollectionInfo import DetailCollectionInfoType
 from sarpy.annotation.afrl_elements.DetailSubCollectionInfo import DetailSubCollectionInfoType
 from sarpy.annotation.afrl_elements.DetailObjectInfo import DetailObjectInfoType, \
-    TheObjectType, GeoLocationType as ObjectGeoLocation, \
+    PlaneNominalType, NominalType, TheObjectType, \
+    GeoLocationType as ObjectGeoLocation, \
     ImageLocationType as ObjectImageLocation
 from sarpy.annotation.afrl_elements.DetailFiducialInfo import DetailFiducialInfoType, \
     TheFiducialType, GeoLocationType as FiducialGeoLocation, \
     ImageLocationType as FiducialImageLocation
 from sarpy.annotation.afrl_elements.DetailImageInfo import DetailImageInfoType
 from sarpy.annotation.afrl_elements.DetailSensorInfo import DetailSensorInfoType
+
+from sarpy.annotation.label import LabelSchema, FileLabelCollection, LabelCollection, \
+    LabelFeature, LabelMetadataList, LabelMetadata
 
 
 class GroundTruthConstructor(object):
@@ -268,13 +272,13 @@ class AnalystTruthConstructor(object):
     """
 
     __slots__ = (
-        '_sicd', '_base_file',
+        '_sicd', '_base_file', '_nominal_chip_size',
         '_collection_info', '_subcollection_info', '_image_info', '_sensor_info',
         '_objects', '_fiducials',
         '_projection_type', '_proj_kwargs')
 
     def __init__(self, sicd, base_file, collection_info, subcollection_info,
-                 projection_type='HAE', proj_kwargs=None):
+                 nominal_chip_size=40, projection_type='HAE', proj_kwargs=None):
         """
 
         Parameters
@@ -283,6 +287,8 @@ class AnalystTruthConstructor(object):
         base_file : str
         collection_info : DetailCollectionInfoType
         subcollection_info : DetailSubCollectionInfoType
+        nominal_chip_size : int|float
+            The nominal chip size in meters.
         projection_type : str
             One of 'PLANE', 'HAE', or 'DEM'. The value of `proj_kwargs`
             will need to be appropriate.
@@ -292,6 +298,9 @@ class AnalystTruthConstructor(object):
 
         self._sicd = sicd
         self._base_file = base_file
+        self._nominal_chip_size = float(nominal_chip_size)
+        if self._nominal_chip_size <= 1:
+            raise ValueError('noiminal chip size must be at least 1, got {}'.format(self._nominal_chip_size))
 
         # TODO: should we create a decent shell for general Analyst Truth
         #  collection and subcollection info?
@@ -464,7 +473,10 @@ class AnalystTruthConstructor(object):
         ResearchType
         """
 
-        # TODO: nominal chip size?
+        nominal_rows = self._nominal_chip_size/self._sicd.Grid.Row.SS
+        nominal_cols = self._nominal_chip_size/self._sicd.Grid.Col.SS
+        slant = PlaneNominalType(Nominal=NominalType(ChipSize=(nominal_rows, nominal_cols)))
+
         return ResearchType(
             DetailCollectionInfo=self._collection_info,
             DetailSubCollectionInfo=self._subcollection_info,
@@ -475,4 +487,52 @@ class AnalystTruthConstructor(object):
                 Fiducials=self._fiducials),
             DetailObjectInfo=DetailObjectInfoType(
                 NumberOfObjectsInScene=len(self._objects),
+                SlantPlane=slant,
                 Objects=self._objects))
+
+
+def convert_afrl_to_native(research, include_chip=False):
+    """
+    Converts an AFRL structure to a label structure for simple viewing.
+
+    Parameters
+    ----------
+    research : ResearchType
+    include_chip : bool
+        Include the chip definition in the geometry structure?
+
+    Returns
+    -------
+    FileLabelCollection
+    """
+
+    def _convert_object_to_json(t_object):
+        # extract the "properties"
+        label_metadata = LabelMetadata(label_id=t_object.ObjectLabel)
+        label_metadata_list = LabelMetadataList(elements=[label_metadata, ])
+
+        return LabelFeature(
+            geometry=t_object.get_image_geometry_object_for_sicd(include_chip=include_chip),
+            properties=label_metadata_list)
+
+    if not isinstance(research, ResearchType):
+        raise TypeError('Expected ResearchType, got type `{}`'.format(type(research)))
+    if research.DetailObjectInfo is None or \
+            research.DetailObjectInfo.Objects is None or \
+            len(research.DetailObjectInfo.Objects) == 0:
+        raise ValueError('Nothing to be done')
+
+    # create our adhoc containers
+    label_schema = LabelSchema(version='AdHoc')
+    annotation_collection = LabelCollection()
+    for the_object in research.DetailObjectInfo.Objects:
+        new_key = the_object.ObjectLabel
+        if new_key not in label_schema:
+            label_schema.add_entry(new_key, new_key)
+        annotation_collection.add_feature(_convert_object_to_json(the_object))
+
+    # finalize the collection
+    return FileLabelCollection(
+        label_schema,
+        annotations=annotation_collection,
+        image_file_name=research.DetailImageInfo.DataFilename)
