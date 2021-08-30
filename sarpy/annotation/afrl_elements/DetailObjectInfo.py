@@ -78,8 +78,8 @@ class PhysicalType(Serializable):
         PhysicalType
         """
 
-        first_row, last_row = max(0, row_range[0]), max(row_limit, row_range[1])
-        first_col, last_col = max(0, col_range[0]), max(col_limit, col_range[1])
+        first_row, last_row = max(0, row_range[0]), min(row_limit, row_range[1])
+        first_col, last_col = max(0, col_range[0]), min(col_limit, col_range[1])
         return PhysicalType(
             ChipSize=(last_row-first_row, last_col-first_col),
             CenterPixel=(0.5*(last_row+first_row), 0.5*(last_col+first_col)))
@@ -482,11 +482,11 @@ class GeoLocationType(Serializable):
             image_shift = numpy.zeros((2, ), dtype='float64')
 
         for attribute in cls._fields:
-            value = getattr(image_location, attribute).get_array(dtype='float64')
+            value = getattr(image_location, attribute)
             if value is not None:
-                value += image_shift
+                coords = value.get_array(dtype='float64') + image_shift
                 geo_coords = the_structure.project_image_to_ground_geo(
-                    value, ordering='latlong', projection_type=projection_type, **kwargs)
+                    coords, ordering='latlong', projection_type=projection_type, **kwargs)
 
                 kwargs[attribute] = geo_coords
         out = GeoLocationType(**kwargs)
@@ -1035,9 +1035,9 @@ class TheObjectType(Serializable):
                 return return_value
 
         # get nominal object size, in meters
-        max_size = self.Size.get_max_diameter()
-        row_size = max_size/sicd.Grid.Row.SS
-        col_size = max_size/sicd.Grid.Col.SS
+        max_size = self.Size.get_max_diameter()  # in meters
+        row_size = max_size/sicd.Grid.Row.SS  # in pixels
+        col_size = max_size/sicd.Grid.Col.SS  # in pixels
 
         # get nominal image box
         image_location = self.ImageLocation
@@ -1048,8 +1048,10 @@ class TheObjectType(Serializable):
         if layover_magnitude is None:
             layover_magnitude = 0.25
         layover_size = self.Size.Height*layover_magnitude
-        layover_angle = sicd.SCPCOA.LayoverAng
-        layover_angle = 0.0 if layover_angle is None else numpy.deg2rad(layover_size)
+        if sicd.SCPCOA.LayoverAng is None:
+            layover_angle = 0.0
+        else:
+            layover_angle = numpy.deg2rad(sicd.SCPCOA.LayoverAng - sicd.SCPCOA.AzimAng)
         layover_vector = layover_size*numpy.array(
             [numpy.cos(layover_angle)/sicd.Grid.Row.SS, numpy.sin(layover_angle)/sicd.Grid.Col.SS])
 
@@ -1089,9 +1091,7 @@ class TheObjectType(Serializable):
             shadow_magnitude = 1.0
         shadow_size = self.Size.Height*shadow_magnitude
         shadow_angle = sicd.SCPCOA.Shadow
-        if shadow_angle is None:
-            shadow_angle = 180.0
-        shadow_angle = numpy.deg2rad(shadow_angle)
+        shadow_angle = numpy.pi if shadow_angle is None else numpy.deg2rad(shadow_angle)
         shadow_vector = shadow_size*numpy.array(
             [numpy.cos(shadow_angle)/sicd.Grid.Row.SS, numpy.sin(shadow_angle)/sicd.Grid.Col.SS])
 

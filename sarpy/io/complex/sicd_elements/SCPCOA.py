@@ -143,7 +143,7 @@ class GeometryCalculator(object):
     def get_shadow(self):
         shadow = self.ETP - self.uLOS/self.uLOS.dot(self.ETP)
         shadow_prime = shadow - self.uSPZ*(shadow.dot(self.ETP)/self.uSPZ.dot(self.ETP))
-        shadow_angle = numpy.rad2deg(numpy.arctan2(shadow_prime.dot(self.uGPX), shadow_prime.dot(self.uGPY)))
+        shadow_angle = numpy.rad2deg(numpy.arctan2(shadow_prime.dot(self.uGPY), shadow_prime.dot(self.uGPX)))
         return float(shadow_angle), float(norm(shadow_prime))
 
 

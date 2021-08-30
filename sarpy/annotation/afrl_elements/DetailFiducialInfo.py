@@ -139,7 +139,7 @@ class GeoLocationType(Serializable):
             Coordinates may be populated as `NaN` if projection fails.
         """
 
-        if image_location is None:
+        if image_location is None or image_location.CenterPixel is None:
             return None
 
         if not the_structure.can_project_coordinates():
@@ -159,10 +159,9 @@ class GeoLocationType(Serializable):
         else:
             image_shift = numpy.zeros((2, ), dtype='float64')
 
-        value = image_location.CenterPixel.get_array(dtype='float64')
-        value += image_shift
+        coords = image_location.CenterPixel.get_array(dtype='float64') + image_shift
         geo_coords = the_structure.project_image_to_ground_geo(
-            value, ordering='latlong', projection_type=projection_type, **kwargs)
+            coords, ordering='latlong', projection_type=projection_type, **kwargs)
 
         out = GeoLocationType(CenterPixel=geo_coords)
         return out

@@ -269,7 +269,7 @@ class AnalystTruthConstructor(object):
 
     __slots__ = (
         '_sicd', '_base_file',
-        '_collection_info', '_subcollection_info',
+        '_collection_info', '_subcollection_info', '_image_info', '_sensor_info',
         '_objects', '_fiducials',
         '_projection_type', '_proj_kwargs')
 
@@ -297,11 +297,29 @@ class AnalystTruthConstructor(object):
         #  collection and subcollection info?
         self._collection_info = collection_info
         self._subcollection_info = subcollection_info
+        self._image_info = DetailImageInfoType.from_sicd(self._sicd, self._base_file)
+        self._sensor_info = DetailSensorInfoType.from_sicd(self._sicd)
         self._objects = []
         self._fiducials = []
 
         self._projection_type = projection_type
         self._proj_kwargs = {} if proj_kwargs is None else proj_kwargs
+
+    @property
+    def image_info(self):
+        """
+        DetailImageInfoType: The basic image info object derived from the sicd
+        """
+
+        return self._image_info
+
+    @property
+    def sensor_info(self):
+        """
+        DetailSensorInfoType: The basic sensor info object derived from the sicd.
+        """
+
+        return self._sensor_info
 
     def add_fiducial(self, the_fiducial):
         """
@@ -353,19 +371,22 @@ class AnalystTruthConstructor(object):
             raise ValueError('The object has GeoLocation already set.')
         the_object.set_geo_location_from_sicd(
             self._sicd, projection_type=self._projection_type, **self._proj_kwargs)
+        the_object.set_chip_details_from_sicd(self._sicd, populate_in_periphery=True)
         self._objects.append(the_object)
 
-    def add_object_from_arguments(self, SystemName=None, SystemComponent=None, NATOName=None,
-                   Function=None, Version=None, DecoyType=None, SerialNumber=None,
-                   ObjectClass='Unknown', ObjectSubClass='Unknown', ObjectTypeClass='Unknown',
-                   ObjectType='Unknown', ObjectLabel=None, Size=None,
-                   Orientation=None,
-                   Articulation=None, Configuration=None,
-                   Accessories=None, PaintScheme=None, Camouflage=None,
-                   Obscuration=None, ObscurationPercent=None, ImageLevelObscuration=None,
-                   ImageLocation=None, TargetToClutterRatio=None, VisualQualityMetric=None,
-                   UnderlyingTerrain=None, OverlyingTerrain=None,
-                   TerrainTexture=None, SeasonalCover=None):
+    def add_object_from_arguments(
+            self, SystemName=None, SystemComponent=None, NATOName=None,
+            Function=None, Version=None, DecoyType=None, SerialNumber=None,
+            ObjectClass='Unknown', ObjectSubClass='Unknown', ObjectTypeClass='Unknown',
+            ObjectType='Unknown', ObjectLabel=None, Size=None,
+            Orientation=None,
+            Articulation=None, Configuration=None,
+            Accessories=None, PaintScheme=None, Camouflage=None,
+            Obscuration=None, ObscurationPercent=None, ImageLevelObscuration=None,
+            ImageLocation=None,
+            TargetToClutterRatio=None, VisualQualityMetric=None,
+            UnderlyingTerrain=None, OverlyingTerrain=None,
+            TerrainTexture=None, SeasonalCover=None):
         """
         Adds an object to the collection.
 
@@ -447,8 +468,8 @@ class AnalystTruthConstructor(object):
         return ResearchType(
             DetailCollectionInfo=self._collection_info,
             DetailSubCollectionInfo=self._subcollection_info,
-            DetailImageInfo=DetailImageInfoType.from_sicd(self._sicd, self._base_file),
-            DetailSensorInfo=DetailSensorInfoType.from_sicd(self._sicd),
+            DetailImageInfo=self._image_info,
+            DetailSensorInfo=self._sensor_info,
             DetailFiducialInfo=DetailFiducialInfoType(
                 NumberOfFiducialsInScene=len(self._fiducials),
                 Fiducials=self._fiducials),

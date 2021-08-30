@@ -463,17 +463,24 @@ class DetailImageInfoType(Serializable):
             LowerRight=sicd.GeoData.ImageCorners.LRLC,
             LowerLeft=sicd.GeoData.ImageCorners.LRFC)
 
+        if sicd.Grid.ImagePlane == 'SLANT':
+            data_plane = 'Slant'
+        elif sicd.Grid.ImagePlane == 'Ground':
+            data_plane = 'Ground'
+        else:
+            data_plane = None
+
         return DetailImageInfoType(
             DataFilename=base_file_name,
             ClassificationMarkings=ClassificationMarkingsType(
                 Classification=sicd.CollectionInfo.Classification),
             FileType=file_type,
-            DataPlane=sicd.Grid.ImagePlane,
+            DataPlane=data_plane,
             DataType=data_type,
             BitsPerSample=bits_per_sample,
             DataFormat=data_format,
             DataByteOrder='Big-Endian',
-            NumPixels=(sicd.ImageData.NumRows, sicd.ImageData.NumRows),
+            NumPixels=(sicd.ImageData.NumRows, sicd.ImageData.NumCols),
             ImageCollectionDate=sicd.Timeline.CollectStart,
             SensorReferencePoint='Top',
             Resolution=(sicd.Grid.Row.ImpRespWid, sicd.Grid.Col.ImpRespWid),
