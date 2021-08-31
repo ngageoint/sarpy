@@ -17,7 +17,7 @@ from sarpy.io.xml.descriptors import StringDescriptor, FloatDescriptor, \
 from sarpy.io.complex.sicd_elements.blocks import RowColType
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.product.sidd2_elements.SIDD import SIDDType
-from sarpy.geometry.geocoords import geodetic_to_ecf, ecf_to_geodetic
+from sarpy.geometry.geocoords import geodetic_to_ecf, ecf_to_geodetic, wgs_84_norm
 from sarpy.geometry.geometry_elements import Point, Polygon, GeometryCollection, Geometry
 
 from .base import DEFAULT_STRICT
@@ -1076,11 +1076,16 @@ class TheObjectType(Serializable):
         image_location = self.ImageLocation
         pixel_box = image_location.get_nominal_box(row_length=row_size, col_length=col_size)
 
+        ground_unit_norm = wgs_84_norm(sicd.GeoData.SCP.ECF.get_array())
+        slant_plane_unit_norm = numpy.cross(sicd.Grid.Row.UVectECF.get_array(), sicd.Grid.Col.UVectECF.get_array())
+        magnitude_factor = ground_unit_norm.dot(slant_plane_unit_norm)
+        # determines the relative size of things in slant plane versus ground plane
+
         # get nominal layover vector - should be pointed generally towards the top (negative rows value)
         layover_magnitude = sicd.SCPCOA.LayoverMagnitude
         if layover_magnitude is None:
             layover_magnitude = 0.25
-        layover_size = self.Size.Height*layover_magnitude
+        layover_size = self.Size.Height*layover_magnitude*magnitude_factor
         if sicd.SCPCOA.LayoverAng is None:
             layover_angle = 0.0
         else:
@@ -1122,7 +1127,7 @@ class TheObjectType(Serializable):
         shadow_magnitude = sicd.SCPCOA.ShadowMagnitude
         if shadow_magnitude is None:
             shadow_magnitude = 1.0
-        shadow_size = self.Size.Height*shadow_magnitude
+        shadow_size = self.Size.Height*shadow_magnitude*magnitude_factor
         shadow_angle = sicd.SCPCOA.Shadow
         shadow_angle = numpy.pi if shadow_angle is None else numpy.deg2rad(shadow_angle)
         shadow_vector = shadow_size*numpy.array(
