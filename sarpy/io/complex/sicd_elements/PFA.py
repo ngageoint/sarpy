@@ -214,7 +214,7 @@ class PFAType(Serializable):
 
         Parameters
         ----------
-        Grid : sarpy.io.complex.sicd_elements.GridType
+        Grid : sarpy.io.complex.sicd_elements.Grid.GridType
         SCPCOA : sarpy.io.complex.sicd_elements.SCPCOA.SCPCOAType
         GeoData : sarpy.io.complex.sicd_elements.GeoData.GeoDataType
         Position : sarpy.io.complex.sicd_elements.Position.PositionType
@@ -267,6 +267,19 @@ class PFAType(Serializable):
 
             self.PolarAngPoly = Poly1DType(Coefs=polynomial.polyfit(times, k_a, 5, full=False))
             self.SpatialFreqSFPoly = Poly1DType(Coefs=polynomial.polyfit(k_a, k_sf, 5, full=False))
+
+        if Grid is not None and Grid.Row is not None and \
+                Grid.Row.KCtr is not None and Grid.Row.ImpRespBW is not None:
+            if self.Krg1 is None:
+                self.Krg1 = Grid.Row.KCtr - 0.5*Grid.Row.ImpRespBW
+            if self.Krg2 is None:
+                self.Krg2 = Grid.Row.KCtr + 0.5*Grid.Row.ImpRespBW
+        if Grid is not None and Grid.Col is not None and \
+                Grid.Col.KCtr is not None and Grid.Col.ImpRespBW is not None:
+            if self.Kaz1 is None:
+                self.Kaz1 = Grid.Col.KCtr - 0.5*Grid.Col.ImpRespBW
+            if self.Kaz2 is None:
+                self.Kaz2 = Grid.Col.KCtr + 0.5*Grid.Col.ImpRespBW
 
     def _check_polar_ang_ref(self):
         """
