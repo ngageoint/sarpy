@@ -7,6 +7,7 @@ __author__ = "Thomas McCullough"
 
 import numpy
 from numpy.linalg import norm
+from numpy.polynomial import polynomial
 
 from sarpy.io.xml.base import Serializable
 from sarpy.io.xml.descriptors import BooleanDescriptor, FloatDescriptor, \
@@ -207,15 +208,17 @@ class PFAType(Serializable):
         else:
             return k_a, k_sf
 
-    def _derive_parameters(self, Grid, SCPCOA, GeoData):
+    def _derive_parameters(self, Grid, SCPCOA, GeoData, Position, Timeline):
         """
         Expected to be called from SICD parent.
 
         Parameters
         ----------
-        Grid : sarpy.io.complex.sicd_elements.GridType
+        Grid : sarpy.io.complex.sicd_elements.Grid.GridType
         SCPCOA : sarpy.io.complex.sicd_elements.SCPCOA.SCPCOAType
         GeoData : sarpy.io.complex.sicd_elements.GeoData.GeoDataType
+        Position : sarpy.io.complex.sicd_elements.Position.PositionType
+        Timeline : sarpy.io.complex.sicd_elements.Timeline.TimelineType
 
         Returns
         -------
@@ -225,8 +228,12 @@ class PFAType(Serializable):
         if self.PolarAngRefTime is None and SCPCOA.SCPTime is not None:
             self.PolarAngRefTime = SCPCOA.SCPTime
 
-        if GeoData is not None and GeoData.SCP is not None and GeoData.SCP.ECF is not None and \
-                SCPCOA.ARPPos is not None and SCPCOA.ARPVel is not None:
+        if GeoData is None or GeoData.SCP is None or GeoData.SCP.ECF is None:
+            return
+
+        scp = GeoData.SCP.ECF.get_array()
+
+        if SCPCOA.ARPPos is not None and SCPCOA.ARPVel is not None:
             scp = GeoData.SCP.ECF.get_array()
             etp = geocoords.wgs_84_norm(scp)
 
@@ -249,6 +256,30 @@ class PFAType(Serializable):
 
             if self.FPN is None:
                 self.FPN = XYZType.from_array(etp)
+
+        if Position is not None and \
+                Timeline is not None and Timeline.CollectDuration is not None and \
+                (self.PolarAngPoly is None or self.SpatialFreqSFPoly is None):
+            pol_ref_pos = Position.ARPPoly(self.PolarAngRefTime)
+            # fit the PFA polynomials
+            times = numpy.linspace(0, Timeline.CollectDuration, 15)
+            k_a, k_sf = self.pfa_polar_coords(Position, scp, times)
+
+            self.PolarAngPoly = Poly1DType(Coefs=polynomial.polyfit(times, k_a, 5, full=False))
+            self.SpatialFreqSFPoly = Poly1DType(Coefs=polynomial.polyfit(k_a, k_sf, 5, full=False))
+
+        if Grid is not None and Grid.Row is not None and \
+                Grid.Row.KCtr is not None and Grid.Row.ImpRespBW is not None:
+            if self.Krg1 is None:
+                self.Krg1 = Grid.Row.KCtr - 0.5*Grid.Row.ImpRespBW
+            if self.Krg2 is None:
+                self.Krg2 = Grid.Row.KCtr + 0.5*Grid.Row.ImpRespBW
+        if Grid is not None and Grid.Col is not None and \
+                Grid.Col.KCtr is not None and Grid.Col.ImpRespBW is not None:
+            if self.Kaz1 is None:
+                self.Kaz1 = Grid.Col.KCtr - 0.5*Grid.Col.ImpRespBW
+            if self.Kaz2 is None:
+                self.Kaz2 = Grid.Col.KCtr + 0.5*Grid.Col.ImpRespBW
 
     def _check_polar_ang_ref(self):
         """

@@ -361,7 +361,7 @@ class SICDType(Serializable):
             if self.PFA is None:
                 self.PFA = PFAType()
             # noinspection PyProtectedMember
-            self.PFA._derive_parameters(self.Grid, self.SCPCOA, self.GeoData)
+            self.PFA._derive_parameters(self.Grid, self.SCPCOA, self.GeoData, self.Position, self.Timeline)
 
             if self.Grid is not None:
                 # noinspection PyProtectedMember

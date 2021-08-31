@@ -26,14 +26,14 @@ from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.complex.sicd_elements.CollectionInfo import CollectionInfoType, RadarModeType
 from sarpy.io.complex.sicd_elements.ImageCreation import ImageCreationType
 from sarpy.io.complex.sicd_elements.RadarCollection import RadarCollectionType, \
-    WaveformParametersType, TxFrequencyType, ChanParametersType, TxStepType
+    WaveformParametersType, ChanParametersType, TxStepType
 from sarpy.io.complex.sicd_elements.ImageData import ImageDataType
 from sarpy.io.complex.sicd_elements.GeoData import GeoDataType, SCPType
 from sarpy.io.complex.sicd_elements.Position import PositionType, XYZPolyType
 from sarpy.io.complex.sicd_elements.Grid import GridType, DirParamType, WgtTypeType
 from sarpy.io.complex.sicd_elements.Timeline import TimelineType, IPPSetType
 from sarpy.io.complex.sicd_elements.ImageFormation import ImageFormationType, \
-    RcvChanProcType, TxFrequencyProcType
+    RcvChanProcType
 from sarpy.io.complex.sicd_elements.RMA import RMAType, INCAType
 from sarpy.io.complex.sicd_elements.Radiometric import RadiometricType
 from sarpy.io.complex.sicd_elements.ErrorStatistics import ErrorStatisticsType, \
@@ -1410,8 +1410,7 @@ class PALSARDetails(object):
             return RadarCollectionType(
                 TxPolarization=txp,
                 TxSequence=tx_sequence,
-                TxFrequency=TxFrequencyType(Min=tx_freq_min,
-                                            Max=tx_freq_max),
+                TxFrequency=(tx_freq_min, tx_freq_max),
                 Waveform=waveform,
                 RcvChannels=[
                     ChanParametersType(TxRcvPolarization=tx_rcv_p, index=j+1)
@@ -1424,8 +1423,7 @@ class PALSARDetails(object):
             tx_max_freq = radar_collection.TxFrequency.Max
             return ImageFormationType(
                 TxRcvPolarizationProc=tx_rcv_pol,
-                TxFrequencyProc=TxFrequencyProcType(MinProc=tx_min_freq,
-                                                    MaxProc=tx_max_freq),
+                TxFrequencyProc=(tx_min_freq, tx_max_freq),
                 TStartProc=0,
                 TEndProc=timeline.CollectDuration,
                 ImageFormAlgo='RMA',

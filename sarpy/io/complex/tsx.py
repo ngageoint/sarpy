@@ -26,14 +26,15 @@ from sarpy.io.complex.sicd_elements.blocks import Poly1DType, Poly2DType
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.complex.sicd_elements.CollectionInfo import CollectionInfoType, RadarModeType
 from sarpy.io.complex.sicd_elements.ImageCreation import ImageCreationType
-from sarpy.io.complex.sicd_elements.RadarCollection import RadarCollectionType, WaveformParametersType, \
-    TxFrequencyType, ChanParametersType, TxStepType
+from sarpy.io.complex.sicd_elements.RadarCollection import RadarCollectionType, \
+    WaveformParametersType, ChanParametersType, TxStepType
 from sarpy.io.complex.sicd_elements.ImageData import ImageDataType
 from sarpy.io.complex.sicd_elements.GeoData import GeoDataType, SCPType
 from sarpy.io.complex.sicd_elements.Position import PositionType, XYZPolyType
 from sarpy.io.complex.sicd_elements.Grid import GridType, DirParamType, WgtTypeType
 from sarpy.io.complex.sicd_elements.Timeline import TimelineType, IPPSetType
-from sarpy.io.complex.sicd_elements.ImageFormation import ImageFormationType, RcvChanProcType, TxFrequencyProcType
+from sarpy.io.complex.sicd_elements.ImageFormation import ImageFormationType, \
+    RcvChanProcType
 from sarpy.io.complex.sicd_elements.RMA import RMAType, INCAType
 from sarpy.io.complex.sicd_elements.Radiometric import RadiometricType, NoiseLevelType_
 from sarpy.io.complex.utils import two_dim_poly_fit, fit_position_xvalidation
@@ -42,6 +43,7 @@ logger = logging.getLogger(__name__)
 
 ########
 # base expected functionality for a module with an implemented Reader
+
 
 def is_a(file_name):
     """
@@ -710,7 +712,7 @@ class TSXDetails(object):
             sample_rate = float(settings_node.find('./RSF').text)
             rcv_window_length = float(settings_node.find('./settingRecord/echowindowLength').text)/sample_rate
 
-            out_sicd.RadarCollection.TxFrequency = TxFrequencyType(Min=tx_freq_start, Max=tx_freq_end)
+            out_sicd.RadarCollection.TxFrequency = (tx_freq_start, tx_freq_end)
             out_sicd.RadarCollection.Waveform = [
                 WaveformParametersType(TxPulseLength=tx_pulse_length,
                                        TxRFBandwidth=band_width,
@@ -723,8 +725,7 @@ class TSXDetails(object):
         def complete_image_formation():
             out_sicd.ImageFormation.RcvChanProc.ChanIndices = [pol_index, ]
             out_sicd.ImageFormation.TEndProc = collect_duration
-            out_sicd.ImageFormation.TxFrequencyProc = TxFrequencyProcType(MinProc=tx_freq_start,
-                                                                          MaxProc=tx_freq_end)
+            out_sicd.ImageFormation.TxFrequencyProc = (tx_freq_start, tx_freq_end)
             out_sicd.ImageFormation.TxRcvPolarizationProc = self._get_sicd_tx_rcv_pol(orig_pol)
 
         def complete_rma():

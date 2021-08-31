@@ -143,7 +143,7 @@ class GeometryCalculator(object):
     def get_shadow(self):
         shadow = self.ETP - self.uLOS/self.uLOS.dot(self.ETP)
         shadow_prime = shadow - self.uSPZ*(shadow.dot(self.ETP)/self.uSPZ.dot(self.ETP))
-        shadow_angle = numpy.rad2deg(numpy.arctan2(shadow_prime.dot(self.uGPX), shadow_prime.dot(self.uGPY)))
+        shadow_angle = numpy.rad2deg(numpy.arctan2(shadow_prime.dot(self.uGPY), shadow_prime.dot(self.uGPX)))
         return float(shadow_angle), float(norm(shadow_prime))
 
 
@@ -283,6 +283,8 @@ class SCPCOAType(Serializable):
         float: Derivative of Theta as a function of time at Center of Aperture time.
         """
 
+        if self.DopplerConeAng is None or self.ROV is None:
+            return None
         return float(numpy.sin(numpy.deg2rad(self.DopplerConeAng))/self.ROV)
 
     @property
@@ -290,7 +292,8 @@ class SCPCOAType(Serializable):
         """
         float: The anticipated angle of multipath features on the ground in degrees.
         """
-
+        if self.GrazeAng is None or self.TwistAng is None:
+            return None
         return numpy.rad2deg(
             -numpy.arctan(numpy.tan(numpy.deg2rad(self.TwistAng))*numpy.sin(numpy.deg2rad(self.GrazeAng))))
 
@@ -299,7 +302,8 @@ class SCPCOAType(Serializable):
         """
         float: The anticipated angle of multipath features in degrees.
         """
-
+        if self.AzimAng is None or self.MultipathGround is None:
+            return None
         return numpy.mod(self.AzimAng - 180 + self.MultipathGround, 360)
 
     @property

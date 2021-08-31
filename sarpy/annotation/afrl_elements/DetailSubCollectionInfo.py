@@ -12,7 +12,7 @@ from sarpy.io.xml.base import Serializable
 from sarpy.io.xml.descriptors import SerializableDescriptor, StringDescriptor
 
 from .base import DEFAULT_STRICT
-from .blocks import DateRangeType, LatLonEleType
+from .blocks import DateTimeRangeType, LatLonEleType
 
 
 class DetailSubCollectionInfoType(Serializable):
@@ -37,8 +37,8 @@ class DetailSubCollectionInfoType(Serializable):
         'Description', _required,
         docstring="Description of the subcollection (e.g., Main array).")  # type: Optional[str]
     Duration = SerializableDescriptor(
-        'Duration', DateRangeType, _required, strict=DEFAULT_STRICT,
-        docstring="Begin and end dates of the subcollection.")  # type: Optional[DateRangeType]
+        'Duration', DateTimeRangeType, _required, strict=DEFAULT_STRICT,
+        docstring="Begin and end dates of the subcollection.")  # type: Optional[DateTimeRangeType]
     SiteCenterLocation = SerializableDescriptor(
         'SiteCenterLocation', LatLonEleType, _required, strict=DEFAULT_STRICT,
         docstring="Location of the center of the collection site.")  # type: LatLonEleType
@@ -60,9 +60,9 @@ class DetailSubCollectionInfoType(Serializable):
         SiteName : None|str
         SiteNumber : None|str
         SceneNumber : None|str
-        Description : str
-        Duration : None|DateRangeType
-        SiteCenterLocation : LatLonEleType
+        Description : NOne|str
+        Duration : None|DateTimeRangeType|list|tuple
+        SiteCenterLocation : LatLonEleType|numpy.ndarray|list|tuple
         SceneContentDescription : None|str
         SiteBackgroundType : None|str
         kwargs

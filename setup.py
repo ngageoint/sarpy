@@ -30,9 +30,18 @@ def my_package_data():
                     include_root = True
                     break
             if include_root:
-                the_list.append(root[len(init_dir):] + '/*.xsd')
+                root_dir = root.replace('\\', '/')
+                rel_dir = root_dir[len(init_dir):]
+                if rel_dir[0] == '/':
+                    rel_dir = rel_dir[1:]
+                if rel_dir[-1] == '/':
+                    rel_dir = rel_dir[:-1]
+                the_list.append(rel_dir + '/*.xsd')
 
-    package_list = ['io/complex/sicd_schema/*.xsd', 'io/phase_history/cphd_schema/*.xsd']
+    package_list = []
+    find_dirs('sarpy', 'io/complex/sicd_schema/', package_list)
+    find_dirs('sarpy', 'io/phase_history/cphd_schema/', package_list)
+    find_dirs('sarpy', 'io/phase_history/crsd_schema/', package_list)
     find_dirs('sarpy', 'io/product/sidd_schema/', package_list)
     return package_list
 

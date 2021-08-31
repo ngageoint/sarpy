@@ -18,16 +18,18 @@ from sarpy.compliance import string_types, int_func
 from sarpy.io.complex.base import SICDTypeReader, h5py, is_hdf5
 from sarpy.io.complex.sicd_elements.blocks import Poly2DType, Poly1DType
 from sarpy.io.complex.sicd_elements.SICD import SICDType
-from sarpy.io.complex.sicd_elements.CollectionInfo import CollectionInfoType, RadarModeType
+from sarpy.io.complex.sicd_elements.CollectionInfo import CollectionInfoType, \
+    RadarModeType
 from sarpy.io.complex.sicd_elements.ImageCreation import ImageCreationType
 from sarpy.io.complex.sicd_elements.RadarCollection import RadarCollectionType, \
-    TxFrequencyType, ChanParametersType, WaveformParametersType
+    ChanParametersType, WaveformParametersType
 from sarpy.io.complex.sicd_elements.ImageData import ImageDataType
 from sarpy.io.complex.sicd_elements.GeoData import GeoDataType, SCPType
 from sarpy.io.complex.sicd_elements.Position import PositionType, XYZPolyType
 from sarpy.io.complex.sicd_elements.Grid import GridType, DirParamType, WgtTypeType
 from sarpy.io.complex.sicd_elements.Timeline import TimelineType, IPPSetType
-from sarpy.io.complex.sicd_elements.ImageFormation import ImageFormationType, TxFrequencyProcType, RcvChanProcType
+from sarpy.io.complex.sicd_elements.ImageFormation import ImageFormationType, \
+    RcvChanProcType
 from sarpy.io.complex.sicd_elements.RMA import RMAType, INCAType
 from sarpy.io.complex.sicd_elements.Radiometric import RadiometricType
 from sarpy.io.general.base import BaseReader, BaseChipper, SarpyIOError
@@ -225,8 +227,7 @@ class ICEYEDetails(object):
             # type : () -> RadarCollection
             return RadarCollectionType(
                 TxPolarization=tx_pol,
-                TxFrequency=TxFrequencyType(Min=min_freq,
-                                            Max=max_freq),
+                TxFrequency=(min_freq, max_freq),
                 Waveform=[WaveformParametersType(TxFreqStart=min_freq,
                                                  TxRFBandwidth=tx_bandwidth,
                                                  TxPulseLength=hf['chirp_duration'][()],
@@ -244,7 +245,7 @@ class ICEYEDetails(object):
                 ImageFormAlgo='RMA',
                 TStartProc=0,
                 TEndProc=duration,
-                TxFrequencyProc=TxFrequencyProcType(MinProc=min_freq, MaxProc=max_freq),
+                TxFrequencyProc=(min_freq, max_freq),
                 STBeamComp='NO',
                 ImageBeamComp='SV',
                 AzAutofocus='NO',

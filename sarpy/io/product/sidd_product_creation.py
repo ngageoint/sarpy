@@ -56,10 +56,11 @@ def _validate_filename(output_directory, output_file, sidd_structure):
 
     if output_file is None:
         # noinspection PyProtectedMember
-        full_filename = os.path.join(output_directory, sidd_structure._NITF['SUGGESTED_NAME']+'.nitf')
+        fstem = os.path.split(sidd_structure._NITF['SUGGESTED_NAME']+'.nitf')[1]
     else:
-        full_filename = os.path.join(output_directory, output_file)
-    full_filename = os.path.expanduser(full_filename)
+        fstem = os.path.split(output_file)[1]
+
+    full_filename = os.path.join(os.path.expanduser(output_directory), fstem)
     if os.path.exists(full_filename):
         raise SarpyIOError('File {} already exists.'.format(full_filename))
     return full_filename

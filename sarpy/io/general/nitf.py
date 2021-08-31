@@ -16,6 +16,7 @@ import mmap
 from tempfile import mkstemp
 from collections import OrderedDict
 import struct
+import gc
 
 import numpy
 
@@ -1685,11 +1686,19 @@ class NITFReader(BaseReader):
         if not hasattr(self, '_cached_files'):
             return
 
+        del self._chipper
+        gc.collect()
+
         for fil in self._cached_files:
-            # NB: this should be an absolute path
             if os.path.exists(fil):
-                os.remove(fil)
-                logger.info('Deleted cached file {}'.format(fil))
+                # noinspection PyBroadException
+                try:
+                    os.remove(fil)
+                    logger.info('Deleted cached file {}'.format(fil))
+                except Exception:
+                    logger.error(
+                        'Error in attempt to delete cached file {}.\n\t'
+                        'Manually delete this file'.format(fil), exc_info=True)
 
 
 #####

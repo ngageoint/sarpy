@@ -22,14 +22,15 @@ from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.complex.sicd_elements.CollectionInfo import CollectionInfoType, RadarModeType
 from sarpy.io.complex.sicd_elements.ImageCreation import ImageCreationType
 from sarpy.io.complex.sicd_elements.RadarCollection import RadarCollectionType, \
-    TxFrequencyType, ChanParametersType, TxStepType
+    ChanParametersType, TxStepType
 from sarpy.io.complex.sicd_elements.ImageData import ImageDataType
 from sarpy.io.complex.sicd_elements.GeoData import GeoDataType, SCPType
 from sarpy.io.complex.sicd_elements.SCPCOA import SCPCOAType
 from sarpy.io.complex.sicd_elements.Position import PositionType, XYZPolyType
 from sarpy.io.complex.sicd_elements.Grid import GridType, DirParamType, WgtTypeType
 from sarpy.io.complex.sicd_elements.Timeline import TimelineType, IPPSetType
-from sarpy.io.complex.sicd_elements.ImageFormation import ImageFormationType, TxFrequencyProcType, RcvChanProcType
+from sarpy.io.complex.sicd_elements.ImageFormation import ImageFormationType, \
+    RcvChanProcType
 from sarpy.io.complex.sicd_elements.RMA import RMAType, INCAType
 from sarpy.io.complex.sicd_elements.Radiometric import RadiometricType, NoiseLevelType_
 from sarpy.geometry import point_projection
@@ -416,7 +417,7 @@ class NISARDetails(object):
                     tx_pol.append(entry[0])
             center_freq_t = gp['acquiredCenterFrequency'][()]
             bw = gp['acquiredRangeBandwidth'][()]
-            tx_freq = TxFrequencyType(Min=center_freq_t - 0.5*bw, Max=center_freq_t + 0.5*bw)
+            tx_freq = (center_freq_t - 0.5*bw, center_freq_t + 0.5*bw)
             rcv_chans = [ChanParametersType(TxRcvPolarization=pol) for pol in tx_rcv_pol_t]
             if len(tx_pol) == 1:
                 tx_sequence = None
@@ -435,9 +436,7 @@ class NISARDetails(object):
         def update_image_formation():
             center_freq_t = gp['processedCenterFrequency'][()]
             bw = gp['processedRangeBandwidth'][()]
-            t_sicd.ImageFormation.TxFrequencyProc = TxFrequencyProcType(
-                MinProc=center_freq_t - 0.5*bw,
-                MaxProc=center_freq_t + 0.5*bw, )
+            t_sicd.ImageFormation.TxFrequencyProc = (center_freq_t - 0.5*bw, center_freq_t + 0.5*bw)
             return center_freq_t
 
         pols = _get_string_list(gp['listOfPolarizations'][:])
