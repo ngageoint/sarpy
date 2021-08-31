@@ -11,8 +11,8 @@ import logging
 
 import numpy
 
-from sarpy.io.xml.base import Serializable, SerializableArray, ParametersCollection, \
-    parse_float
+from sarpy.io.xml.base import Serializable, Arrayable, SerializableArray, \
+    ParametersCollection, parse_float
 from sarpy.io.xml.descriptors import StringDescriptor, StringEnumDescriptor, \
     FloatDescriptor, IntegerDescriptor, SerializableDescriptor, \
     SerializableArrayDescriptor, UnitVectorDescriptor, ParametersDescriptor
@@ -69,7 +69,7 @@ def get_band_name(freq):
         return 'UN'
 
 
-class TxFrequencyType(Serializable):
+class TxFrequencyType(Serializable, Arrayable):
     """
     The transmit frequency range.
     """
@@ -143,6 +143,46 @@ class TxFrequencyType(Serializable):
             return 'UN_'
         else:
             return 'MB_'
+
+    def get_array(self, dtype=numpy.float64):
+        """
+        Gets an array representation of the data.
+
+        Parameters
+        ----------
+        dtype : str|numpy.dtype|numpy.number
+            data type of the return
+
+        Returns
+        -------
+        numpy.ndarray
+            data array with appropriate entry order
+        """
+
+        return numpy.array([self.Min, self.Max], dtype=dtype)
+
+    @classmethod
+    def from_array(cls, array):
+        """
+        Create from an array type entry.
+
+        Parameters
+        ----------
+        array: numpy.ndarray|list|tuple
+            assumed [Min, Max]
+
+        Returns
+        -------
+        LatLonType
+        """
+
+        if array is None:
+            return None
+        if isinstance(array, (numpy.ndarray, list, tuple)):
+            if len(array) < 2:
+                raise ValueError('Expected array to be of length 2, and received {}'.format(array))
+            return cls(Min=array[0], Max=array[1])
+        raise ValueError('Expected array to be numpy.ndarray, list, or tuple, got {}'.format(type(array)))
 
 
 class WaveformParametersType(Serializable):
@@ -756,7 +796,7 @@ class RadarCollectionType(Serializable):
 
         Parameters
         ----------
-        TxFrequency : TxFrequencyType
+        TxFrequency : TxFrequencyType|numpy.ndarray|list|tuple
         RefFreqIndex : int
         Waveform : SerializableArray|List[WaveformParametersType]
         TxPolarization : str

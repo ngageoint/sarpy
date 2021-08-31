@@ -535,15 +535,16 @@ def _pfa_check_polar_angle_consistency(PFA, CollectionInfo, ImageFormation):
         return True
 
     cond = True
-    polar_angle_bounds = PFA.PolarAngPoly(numpy.array(sorted([ImageFormation.TStartProc, ImageFormation.TEndProc]), dtype='float64'))
-    derived_pol_angle_bounds = numpy.arctan(numpy.array([PFA.Kaz1, PFA.Kaz2], dtype='float64')/PFA.Krg1)
-    pol_angle_bounds_diff = numpy.amax(numpy.abs(polar_angle_bounds - derived_pol_angle_bounds))
-    if pol_angle_bounds_diff > 1e-2:
-        PFA.log_validity_error(
-            'the derived polar angle bounds ({}) are not consistent with\n\t'
-            'the provided ImageFormation processing times '
-            '(expected bounds {}).'.format(polar_angle_bounds, derived_pol_angle_bounds))
-        cond = False
+    if PFA.Kaz1 is not None and PFA.Kaz2 is not None and PFA.Krg1 is not None:
+        polar_angle_bounds = PFA.PolarAngPoly(numpy.array(sorted([ImageFormation.TStartProc, ImageFormation.TEndProc]), dtype='float64'))
+        derived_pol_angle_bounds = numpy.arctan(numpy.array([PFA.Kaz1, PFA.Kaz2], dtype='float64')/PFA.Krg1)
+        pol_angle_bounds_diff = numpy.amax(numpy.abs(polar_angle_bounds - derived_pol_angle_bounds))
+        if pol_angle_bounds_diff > 1e-2:
+            PFA.log_validity_error(
+                'the derived polar angle bounds ({}) are not consistent with\n\t'
+                'the provided ImageFormation processing times '
+                '(expected bounds {}).'.format(polar_angle_bounds, derived_pol_angle_bounds))
+            cond = False
     return cond
 
 
@@ -1447,7 +1448,7 @@ def _check_recommended_attributes(the_sicd):
             'a pre-determined output plane for consistent product definition.')
 
     if the_sicd.ImageData is not None and the_sicd.ImageData.ValidData is None:
-        the_sicd.log_validity_warning(
+        the_sicd.log_validity_info(
             'No ImageData.ValidData is defined. It is recommended to populate\n\t'
             'this data, if validity of pixels/areas is known.')
 

@@ -10,7 +10,7 @@ from typing import List, Union
 
 import numpy
 
-from sarpy.io.xml.base import Serializable, ParametersCollection
+from sarpy.io.xml.base import Serializable, Arrayable, ParametersCollection
 from sarpy.io.xml.descriptors import StringDescriptor, StringEnumDescriptor, \
     FloatDescriptor, IntegerDescriptor, IntegerListDescriptor, BooleanDescriptor, \
     ComplexDescriptor, DateTimeDescriptor, SerializableDescriptor, \
@@ -61,7 +61,7 @@ class RcvChanProcType(Serializable):
         super(RcvChanProcType, self).__init__(**kwargs)
 
 
-class TxFrequencyProcType(Serializable):
+class TxFrequencyProcType(Serializable, Arrayable):
     """The transmit frequency range."""
     _fields = ('MinProc', 'MaxProc')
     _required = _fields
@@ -130,6 +130,46 @@ class TxFrequencyProcType(Serializable):
             return min_band
         else:
             return '{}_{}'.format(min_band, max_band)
+
+    def get_array(self, dtype=numpy.float64):
+        """
+        Gets an array representation of the data.
+
+        Parameters
+        ----------
+        dtype : str|numpy.dtype|numpy.number
+            data type of the return
+
+        Returns
+        -------
+        numpy.ndarray
+            data array with appropriate entry order
+        """
+
+        return numpy.array([self.MinProc, self.MaxProc], dtype=dtype)
+
+    @classmethod
+    def from_array(cls, array):
+        """
+        Create from an array type entry.
+
+        Parameters
+        ----------
+        array: numpy.ndarray|list|tuple
+            assumed [MinProc, MaxProc]
+
+        Returns
+        -------
+        LatLonType
+        """
+
+        if array is None:
+            return None
+        if isinstance(array, (numpy.ndarray, list, tuple)):
+            if len(array) < 2:
+                raise ValueError('Expected array to be of length 2, and received {}'.format(array))
+            return cls(MinProc=array[0], MaxProc=array[1])
+        raise ValueError('Expected array to be numpy.ndarray, list, or tuple, got {}'.format(type(array)))
 
 
 class ProcessingType(Serializable):
@@ -390,7 +430,7 @@ class ImageFormationType(Serializable):
         TxRcvPolarizationProc : str
         TStartProc : float
         TEndProc : float
-        TxFrequencyProc : TxFrequencyProcType
+        TxFrequencyProc : TxFrequencyProcType|numpy.ndarray|list|tuple
         SegmentIdentifier : str
         ImageFormAlgo : str
         STBeamComp : str

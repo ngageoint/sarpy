@@ -22,15 +22,16 @@ from sarpy.io.complex.sicd_elements.blocks import Poly1DType, Poly2DType, RowCol
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.complex.sicd_elements.CollectionInfo import CollectionInfoType, RadarModeType
 from sarpy.io.complex.sicd_elements.ImageCreation import ImageCreationType
-from sarpy.io.complex.sicd_elements.RadarCollection import RadarCollectionType, WaveformParametersType, \
-    TxFrequencyType, ChanParametersType, TxStepType
+from sarpy.io.complex.sicd_elements.RadarCollection import RadarCollectionType, \
+    WaveformParametersType, ChanParametersType, TxStepType
 from sarpy.io.complex.sicd_elements.ImageData import ImageDataType
 from sarpy.io.complex.sicd_elements.GeoData import GeoDataType, SCPType
 from sarpy.io.complex.sicd_elements.SCPCOA import SCPCOAType
 from sarpy.io.complex.sicd_elements.Position import PositionType, XYZPolyType
 from sarpy.io.complex.sicd_elements.Grid import GridType, DirParamType, WgtTypeType
 from sarpy.io.complex.sicd_elements.Timeline import TimelineType, IPPSetType
-from sarpy.io.complex.sicd_elements.ImageFormation import ImageFormationType, TxFrequencyProcType, RcvChanProcType
+from sarpy.io.complex.sicd_elements.ImageFormation import ImageFormationType, \
+    RcvChanProcType
 from sarpy.io.complex.sicd_elements.RMA import RMAType, INCAType
 from sarpy.io.complex.sicd_elements.Radiometric import RadiometricType
 from sarpy.io.general.base import BaseReader, SarpyIOError
@@ -512,7 +513,7 @@ class CSKDetails(object):
             band_width = chirp_length*chirp_rate
             fr_min = center_frequency - 0.5*band_width
             fr_max = center_frequency + 0.5*band_width
-            sicd.RadarCollection.TxFrequency = TxFrequencyType(Min=fr_min, Max=fr_max)
+            sicd.RadarCollection.TxFrequency = (fr_min, fr_max)
             sicd.RadarCollection.Waveform = [
                 WaveformParametersType(index=0,
                                        TxPulseLength=chirp_length,
@@ -523,8 +524,7 @@ class CSKDetails(object):
                                        RcvFMRate=rcv_fm_rate,
                                        RcvWindowLength=win_length/sample_rate), ]
             sicd.ImageFormation.RcvChanProc.ChanIndices = [ind+1, ]
-            sicd.ImageFormation.TxFrequencyProc = TxFrequencyProcType(MinProc=fr_min,
-                                                                      MaxProc=fr_max)
+            sicd.ImageFormation.TxFrequencyProc = (fr_min, fr_max)
 
         def update_rma_and_grid(sicd, band_name):
             # type: (SICDType, str) -> None

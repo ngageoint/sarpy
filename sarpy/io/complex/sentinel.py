@@ -27,14 +27,14 @@ from sarpy.io.complex.sicd_elements.blocks import Poly1DType, Poly2DType
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.complex.sicd_elements.CollectionInfo import CollectionInfoType, RadarModeType
 from sarpy.io.complex.sicd_elements.ImageCreation import ImageCreationType
-from sarpy.io.complex.sicd_elements.RadarCollection import RadarCollectionType, WaveformParametersType, \
-    TxFrequencyType, ChanParametersType
+from sarpy.io.complex.sicd_elements.RadarCollection import RadarCollectionType, \
+    WaveformParametersType, ChanParametersType
 from sarpy.io.complex.sicd_elements.ImageData import ImageDataType
 from sarpy.io.complex.sicd_elements.GeoData import GeoDataType, SCPType
 from sarpy.io.complex.sicd_elements.Position import PositionType, XYZPolyType
 from sarpy.io.complex.sicd_elements.Grid import GridType, DirParamType, WgtTypeType
 from sarpy.io.complex.sicd_elements.Timeline import TimelineType, IPPSetType
-from sarpy.io.complex.sicd_elements.ImageFormation import ImageFormationType, RcvChanProcType, TxFrequencyProcType
+from sarpy.io.complex.sicd_elements.ImageFormation import ImageFormationType, RcvChanProcType
 from sarpy.io.complex.sicd_elements.RMA import RMAType, INCAType
 from sarpy.io.complex.sicd_elements.Radiometric import RadiometricType, NoiseLevelType_
 from sarpy.geometry.geocoords import geodetic_to_ecf
@@ -423,7 +423,7 @@ class SentinelDetails(object):
             band_width = tx_pulse_length*tx_fm_rate
             pol = root_node.find('./adsHeader/polarisation').text
             radar_collection.TxPolarization = pol[0]
-            radar_collection.TxFrequency = TxFrequencyType(Min=min_frequency, Max=min_frequency+band_width)
+            radar_collection.TxFrequency = (min_frequency, min_frequency+band_width)
             adc_sample_rate = float(root_node.find('./generalAnnotation'
                                                    '/productInformation'
                                                    '/rangeSamplingRate').text)  # Raw not decimated
@@ -455,9 +455,9 @@ class SentinelDetails(object):
                                                                   ChanIndices=chan_indices),
                                       TxRcvPolarizationProc=pol,
                                       TStartProc=0,
-                                      TxFrequencyProc=TxFrequencyProcType(
-                                          MinProc=out_sicd.RadarCollection.TxFrequency.Min,
-                                          MaxProc=out_sicd.RadarCollection.TxFrequency.Max),
+                                      TxFrequencyProc=(
+                                          out_sicd.RadarCollection.TxFrequency.Min,
+                                          out_sicd.RadarCollection.TxFrequency.Max),
                                       ImageFormAlgo='RMA',
                                       ImageBeamComp='SV',
                                       AzAutofocus='NO',

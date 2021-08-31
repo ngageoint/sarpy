@@ -126,7 +126,6 @@ class DTEDList(DEMList):
         else:
             raise ValueError('Unhandled dem_type {}'.format(dem_type))
 
-
     def _get_file_list(self, lat_lon_list, dem_type):
         """
         Helper method for getting the file list for a specified type.

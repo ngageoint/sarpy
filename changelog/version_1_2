@@ -1,5 +1,7 @@
 # This details the important differences introduced in sarpy 1.2
 
+* .13 - Adding support for GFF version 1.6/1.8 and 2 files
+        Including some helper functions for more streamlined use of the AFRL structures
 * .12 - Refactoring so that the xml/serialization is more clearly structured
         Adding AFRL labeling schema object oriented structure
 * .11 - Updated the logging scheme to be sarpy specific
