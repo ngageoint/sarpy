@@ -1448,7 +1448,7 @@ def _check_recommended_attributes(the_sicd):
             'a pre-determined output plane for consistent product definition.')
 
     if the_sicd.ImageData is not None and the_sicd.ImageData.ValidData is None:
-        the_sicd.log_validity_warning(
+        the_sicd.log_validity_info(
             'No ImageData.ValidData is defined. It is recommended to populate\n\t'
             'this data, if validity of pixels/areas is known.')
 

@@ -17,12 +17,13 @@ import zlib
 import gc
 
 import numpy
+from scipy.constants import speed_of_light
 
 from sarpy.compliance import int_func, string_types
 from sarpy.io.general.base import BaseReader, BIPChipper, BSQChipper, \
     is_file_like, SarpyIOError
 from sarpy.io.general.nitf import MemMap
-from sarpy.geometry.geocoords import geodetic_to_ecf, wgs_84_norm, ned_to_ecf, ecf_to_ned
+from sarpy.geometry.geocoords import geodetic_to_ecf, wgs_84_norm, ned_to_ecf
 
 from sarpy.io.complex.base import SICDTypeReader
 from sarpy.io.complex.sicd_elements.SICD import SICDType
@@ -1447,6 +1448,7 @@ class _GFFInterpreter2(_GFFInterpreter):
                 UVectECF=row_uvec,
                 ImpRespWid=self.header.if_info.rngResolution,
                 ImpRespBW=row_bw,
+                KCtr=2*center_frequency/speed_of_light,
                 DeltaK1=0.5*row_bw,
                 DeltaK2=-0.5*row_bw,
                 WgtType=_get_wgt(self.header.if_info.wndFncIdRng),
@@ -1461,6 +1463,7 @@ class _GFFInterpreter2(_GFFInterpreter):
                 UVectECF=col_uvec,
                 ImpRespWid=self.header.if_info.azResolution,
                 ImpRespBW=col_bw,
+                KCtr=0,
                 DeltaK1=0.5*col_bw,
                 DeltaK2=-0.5*col_bw,
                 WgtType=_get_wgt(self.header.if_info.wndFncIdAz),
@@ -1572,8 +1575,8 @@ class _GFFInterpreter2(_GFFInterpreter):
         arp_pos = geodetic_to_ecf(arp_llh, ordering='latlon')
         arp_vel = self.header.get_arp_vel()
 
-        # if self.header.if_info.ifAlgo in ['PFA', 'OSAPF']:
-        if self.header.if_info.ifAlgo == 'PFA':
+        if self.header.if_info.ifAlgo in ['PFA', 'OSAPF']:
+            # if self.header.if_info.ifAlgo == 'PFA':
             image_form_algo = 'PFA'
             grid_type = 'RGAZIM'
         else:
