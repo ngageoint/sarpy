@@ -5,6 +5,7 @@ Definition for the DetailObjectInfo AFRL labeling object
 __classification__ = "UNCLASSIFIED"
 __authors__ = ("Thomas McCullough", "Thomas Rackers")
 
+import logging
 from typing import Optional, List
 
 import numpy
@@ -14,13 +15,19 @@ from sarpy.io.xml.base import Serializable, Arrayable, create_text_node, create_
 from sarpy.io.xml.descriptors import StringDescriptor, FloatDescriptor, \
     IntegerDescriptor, SerializableDescriptor, SerializableListDescriptor
 from sarpy.io.complex.sicd_elements.blocks import RowColType
+from sarpy.io.complex.sicd_elements.SICD import SICDType
+from sarpy.io.product.sidd2_elements.SIDD import SIDDType
+from sarpy.geometry.geocoords import geodetic_to_ecf, ecf_to_geodetic
+from sarpy.geometry.geometry_elements import Point, Polygon, GeometryCollection, Geometry
 
 from .base import DEFAULT_STRICT
 from .blocks import RangeCrossRangeType, RowColDoubleType, LatLonEleType
 
-# TODO: the articulation and configuration information is really not usable in
-#  its current form, and should be replaced with a (`name`, `value`) pair.
-#  I am omitting for now.
+# TODO: Issue - do we need to set the nominal chip size?
+#  Comment - the articulation and configuration information is really not usable in
+#       its current form, and should be replaced with a (`name`, `value`) pair.
+
+logger = logging.getLogger(__name__)
 
 
 # the Object and sub-component definitions
@@ -54,6 +61,29 @@ class PhysicalType(Serializable):
         self.ChipSize = ChipSize
         self.CenterPixel = CenterPixel
         super(PhysicalType, self).__init__(**kwargs)
+
+    @classmethod
+    def from_ranges(cls, row_range, col_range, row_limit, col_limit):
+        """
+        Construct from the row/column ranges and limits.
+
+        Parameters
+        ----------
+        row_range
+        col_range
+        row_limit
+        col_limit
+
+        Returns
+        -------
+        PhysicalType
+        """
+
+        first_row, last_row = max(0, row_range[0]), min(row_limit, row_range[1])
+        first_col, last_col = max(0, col_range[0]), min(col_limit, col_range[1])
+        return PhysicalType(
+            ChipSize=(last_row-first_row, last_col-first_col),
+            CenterPixel=(0.5*(last_row+first_row), 0.5*(last_col+first_col)))
 
 
 class PlanePhysicalType(Serializable):
@@ -117,6 +147,17 @@ class SizeType(Serializable, Arrayable):
         self.Length, self.Width, self.Height = Length, Width, Height
         super(SizeType, self).__init__(**kwargs)
 
+    def get_max_diameter(self):
+        """
+        Gets the nominal maximum diameter for the item, in meters.
+
+        Returns
+        -------
+        float
+        """
+
+        return float(numpy.sqrt(self.Length*self.Length + self.Width*self.Width))
+
     def get_array(self, dtype='float64'):
         """
         Gets an array representation of the class instance.
@@ -154,7 +195,7 @@ class SizeType(Serializable, Arrayable):
         if isinstance(array, (numpy.ndarray, list, tuple)):
             if len(array) < 3:
                 raise ValueError('Expected array to be of length 3, and received {}'.format(array))
-            return cls(Length=array[0], Width=array[1], Heigth=array[2])
+            return cls(Length=array[0], Width=array[1], Height=array[2])
         raise ValueError('Expected array to be numpy.ndarray, list, or tuple, got {}'.format(type(array)))
 
 
@@ -240,6 +281,143 @@ class ImageLocationType(Serializable):
         self.LeftRearPixel = LeftRearPixel
         super(ImageLocationType, self).__init__(**kwargs)
 
+    @classmethod
+    def from_geolocation(cls, geo_location, the_structure):
+        """
+        Construct the image location from the geographical location via
+        projection using the SICD model.
+
+        Parameters
+        ----------
+        geo_location : GeoLocationType
+        the_structure : SICDType|SIDDType
+
+        Returns
+        -------
+        None|ImageLocationType
+            None if projection fails, the value otherwise
+        """
+
+        if geo_location is None:
+            return None
+
+        if not the_structure.can_project_coordinates():
+            logger.warning(
+                'This sicd does not permit projection,\n\t'
+                'so the image location can not be inferred')
+            return None
+
+        # make sure this is defined, for the sake of efficiency
+        the_structure.define_coa_projection(overide=False)
+
+        kwargs = {}
+
+        if isinstance(the_structure, SICDType):
+            image_shift = numpy.array(
+                [the_structure.ImageData.FirstRow, the_structure.ImageData.FirstCol], dtype='float64')
+        else:
+            image_shift = numpy.zeros((2, ), dtype='float64')
+
+        for attribute in cls._fields:
+            value = getattr(geo_location, attribute)
+            if value is not None:
+                absolute_pixel_location = the_structure.project_ground_to_image_geo(
+                    value.get_array(dtype='float64'), ordering='latlong')
+                if numpy.any(numpy.isnan(absolute_pixel_location)):
+                    return None
+
+                kwargs[attribute] = absolute_pixel_location - image_shift
+        out = ImageLocationType(**kwargs)
+        out.infer_center_pixel()
+        return out
+
+    def infer_center_pixel(self):
+        """
+        Infer the center pixel, if not populated.
+
+        Returns
+        -------
+        None
+        """
+
+        if self.CenterPixel is not None:
+            return
+
+        current = numpy.zeros((2, ), dtype='float64')
+        for entry in self._fields:
+            if entry == 'CenterPixel':
+                continue
+            value = getattr(self, entry)
+            if value is None:
+                return
+            current += 0.25*value.get_array(dtype='float64')
+        self.CenterPixel = RowColType.from_array(current)
+
+    def get_nominal_box(self, row_length=10, col_length=10):
+        """
+        Get a nominal box containing the object, using the default side length if necessary.
+
+        Parameters
+        ----------
+        row_length : int|float
+            The side length to use for the rectangle, if not defined.
+        col_length : int|float
+            The side length to use for the rectangle, if not defined.
+
+        Returns
+        -------
+        None|numpy.ndarray
+        """
+
+        if self.LeftFrontPixel is not None and self.RightFrontPixel is not None and \
+                self.LeftRearPixel is not None and self.RightRearPixel is not None:
+            out = numpy.zeros((4, 2), dtype='float64')
+            out[0, :] = self.LeftFrontPixel.get_array()
+            out[1, :] = self.RightFrontPixel.get_array()
+            out[2, :] = self.RightRearPixel.get_array()
+            out[3, :] = self.LeftRearPixel.get_array()
+            return out
+
+        if self.CenterPixel is None:
+            return None
+
+        shift = numpy.array([[-0.5, -0.5], [-0.5, 0.5], [0.5, 0.5], [0.5, -0.5]], dtype='float64')
+        shift[:, 0] *= row_length
+        shift[:, 1] *= col_length
+        return self.CenterPixel.get_array(dtype='float64') + shift
+
+    def get_geometry_object(self):
+        """
+        Gets the geometry for the given image section.
+
+        Returns
+        -------
+        Geometry
+        """
+
+        point = None
+        polygon = None
+        if self.CenterPixel is not None:
+            point = Point(coordinates=self.CenterPixel.get_array(dtype='float64'))
+        if self.LeftFrontPixel is not None and \
+                self.RightFrontPixel is not None and \
+                self.RightRearPixel is not None and \
+                self.LeftRearPixel is not None:
+            ring = numpy.zeros((4, 2), dtype='float64')
+            ring[0, :] = self.LeftFrontPixel.get_array(dtype='float64')
+            ring[1, :] = self.RightFrontPixel.get_array(dtype='float64')
+            ring[2, :] = self.RightRearPixel.get_array(dtype='float64')
+            ring[3, :] = self.LeftRearPixel.get_array(dtype='float64')
+            polygon = Polygon(coordinates=[ring, ])
+        if point is not None and polygon is not None:
+            return GeometryCollection(geometries=[point, polygon])
+        elif point is not None:
+            return point
+        elif polygon is not None:
+            return polygon
+        else:
+            return None
+
 
 class GeoLocationType(Serializable):
     _fields = (
@@ -286,6 +464,89 @@ class GeoLocationType(Serializable):
         self.RightRearPixel = RightRearPixel
         self.LeftRearPixel = LeftRearPixel
         super(GeoLocationType, self).__init__(**kwargs)
+
+    # noinspection PyUnusedLocal
+    @classmethod
+    def from_image_location(cls, image_location, the_structure, projection_type='HAE', **kwargs):
+        """
+        Construct the geographical location from the image location via
+        projection using the SICD model.
+
+        .. Note::
+            This assumes that the image coordinates are with respect to the given
+            image (chip), and NOT including any sicd.ImageData.FirstRow/Col values,
+            which will be added here.
+
+        Parameters
+        ----------
+        image_location : ImageLocationType
+        the_structure : SICDType|SIDDType
+        projection_type : str
+            The projection type selector, one of `['PLANE', 'HAE', 'DEM']`. Using `'DEM'`
+            requires configuration for the DEM pathway described in
+            :func:`sarpy.geometry.point_projection.image_to_ground_dem`.
+        kwargs
+            The keyword arguments for the :func:`SICDType.project_image_to_ground_geo` method.
+
+        Returns
+        -------
+        None|GeoLocationType
+            Coordinates may be populated as `NaN` if projection fails.
+        """
+
+        if image_location is None:
+            return None
+
+        if not the_structure.can_project_coordinates():
+            logger.warning(
+                'This sicd does not permit projection,\n\t'
+                'so the image location can not be inferred')
+            return None
+
+        # make sure this is defined, for the sake of efficiency
+        the_structure.define_coa_projection(overide=False)
+
+        kwargs = {}
+
+        if isinstance(the_structure, SICDType):
+            image_shift = numpy.array(
+                [the_structure.ImageData.FirstRow, the_structure.ImageData.FirstCol], dtype='float64')
+        else:
+            image_shift = numpy.zeros((2, ), dtype='float64')
+
+        for attribute in cls._fields:
+            value = getattr(image_location, attribute)
+            if value is not None:
+                coords = value.get_array(dtype='float64') + image_shift
+                geo_coords = the_structure.project_image_to_ground_geo(
+                    coords, ordering='latlong', projection_type=projection_type, **kwargs)
+
+                kwargs[attribute] = geo_coords
+        out = GeoLocationType(**kwargs)
+        out.infer_center_pixel()
+        return out
+
+    def infer_center_pixel(self):
+        """
+        Infer the center pixel, if not populated.
+
+        Returns
+        -------
+        None
+        """
+
+        if self.CenterPixel is not None:
+            return
+
+        current = numpy.zeros((3, ), dtype='float64')
+        for entry in self._fields:
+            if entry == 'CenterPixel':
+                continue
+            value = getattr(self, entry)
+            if value is None:
+                return
+            current += 0.25*geodetic_to_ecf(value.get_array(dtype='float64'))
+        self.CenterPixel = LatLonEleType.from_array(ecf_to_geodetic(current))
 
 
 class FreeFormType(Serializable):
@@ -500,7 +761,9 @@ class TheObjectType(Serializable):
     def __init__(self, SystemName=None, SystemComponent=None, NATOName=None,
                  Function=None, Version=None, DecoyType=None, SerialNumber=None,
                  ObjectClass=None, ObjectSubClass=None, ObjectTypeClass=None,
-                 ObjectType=None, ObjectLabel=None, Size=None, Orientation=None,
+                 ObjectType=None, ObjectLabel=None,
+                 SlantPlane=None, GroundPlane=None,
+                 Size=None, Orientation=None,
                  Articulation=None, Configuration=None,
                  Accessories=None, PaintScheme=None, Camouflage=None,
                  Obscuration=None, ObscurationPercent=None, ImageLevelObscuration=None,
@@ -524,6 +787,8 @@ class TheObjectType(Serializable):
         ObjectTypeClass : None|str
         ObjectType : None|str
         ObjectLabel : None|str
+        SlantPlane : None|PlanePhysicalType
+        GroundPlane : None|PlanePhysicalType
         Size : None|SizeType|numpy.ndarray|list|tuple
         Orientation : OrientationType
         Articulation : None|CompoundCommentType|str|List[FreeFormType]
@@ -564,6 +829,8 @@ class TheObjectType(Serializable):
         self.ObjectType = ObjectType
         self.ObjectLabel = ObjectLabel
 
+        self.SlantPlane = SlantPlane
+        self.GroundPlane = GroundPlane
         self.Size = Size
         self.Orientation = Orientation
 
@@ -602,6 +869,310 @@ class TheObjectType(Serializable):
         self.TerrainTexture = TerrainTexture
         self.SeasonalCover = SeasonalCover
         super(TheObjectType, self).__init__(**kwargs)
+
+    @staticmethod
+    def _check_placement(rows, cols, row_bounds, col_bounds, overlap_cutoff=0.5):
+        """
+        Checks the bounds condition for the provided box.
+
+        Here inclusion is defined by what proportion of the area of the proposed
+        chip is actually contained inside the image bounds.
+
+        Parameters
+        ----------
+        rows : int|float
+            The number of rows in the image.
+        cols : int|float
+            The number of columns in the image.
+        row_bounds : List
+            Of the form `[row min, row max]`
+        col_bounds : List
+            Of the form `[col min, col max]`
+        overlap_cutoff : float
+            Determines the transition from in the periphery to out of the image.
+
+        Returns
+        -------
+        int
+            1 - completely in the image
+            2 - the proposed chip has `overlap_cutoff <= fractional contained area < 1`
+            3 - the proposed chip has `fractional contained area < overlap_cutoff`
+        """
+
+        if row_bounds[1] <= row_bounds[0] or col_bounds[1] <= col_bounds[0]:
+            raise ValueError('bounds out of order')
+        if 0 <= row_bounds[0] and rows < row_bounds[1] and 0 <= col_bounds[0] and cols < col_bounds[1]:
+            return 1  # completely in bounds
+
+        row_size = row_bounds[1] - row_bounds[0]
+        col_size = col_bounds[1] - col_bounds[0]
+
+        first_row, last_row = max(0, row_bounds[0]), min(rows, row_bounds[1])
+        first_col, last_col = max(0, col_bounds[0]), min(cols, col_bounds[1])
+
+        area_overlap = (last_row - first_row)*(last_col - first_col)
+        if area_overlap >= overlap_cutoff*row_size*col_size:
+            return 2  # the item is at the periphery
+        else:
+            return 3  # it should be considered out of range
+
+    def set_image_location_from_sicd(self, sicd, populate_in_periphery=False):
+        """
+        Set the image location information with respect to the given SICD,
+        assuming that the physical coordinates are populated.
+
+        Parameters
+        ----------
+        sicd : SICDType
+        populate_in_periphery : bool
+
+        Returns
+        -------
+        int
+            -1 - insufficient metadata to proceed or other failure
+            0 - nothing to be done
+            1 - successful
+            2 - object in the image periphery, populating based on `populate_in_periphery`
+            3 - object not in the image field
+        """
+
+        if self.ImageLocation is not None:
+            # no need to infer anything, it's already populated
+            return 0
+
+        if self.GeoLocation is None:
+            logger.warning(
+                'GeoLocation is not populated,\n\t'
+                'so the image location can not be inferred')
+            return -1
+
+        if not sicd.can_project_coordinates():
+            logger.warning(
+                'This sicd does not permit projection,\n\t'
+                'so the image location can not be inferred')
+            return -1
+
+        # gets the prospective image location
+        image_location = ImageLocationType.from_geolocation(self.GeoLocation, sicd)
+        if image_location is None:
+            return -1
+
+        # get nominal object size in meters and pixels
+        if self.Size is None:
+            row_size = 2.0
+            col_size = 2.0
+        else:
+            max_size = self.Size.get_max_diameter()
+            row_size = max_size/sicd.Grid.Row.SS
+            col_size = max_size/sicd.Grid.Col.SS
+
+        # check bounding information
+        rows = sicd.ImageData.NumRows
+        cols = sicd.ImageData.NumCols
+        center_pixel = image_location.CenterPixel.get_array(dtype='float64')
+        row_bounds = [center_pixel[0] - 0.5*row_size, center_pixel[0] + 0.5*row_size]
+        col_bounds = [center_pixel[1] - 0.5*col_size, center_pixel[1] + 0.5*col_size]
+
+        placement = self._check_placement(rows, cols, row_bounds, col_bounds)
+
+        if placement == 3:
+            return placement
+        if placement == 2 and not populate_in_periphery:
+            return placement
+
+        self.ImageLocation = image_location
+        return placement
+
+    def set_geo_location_from_sicd(self, sicd, projection_type='HAE', **kwargs):
+        """
+        Set the geographical location information with respect to the given SICD,
+        assuming that the image coordinates are populated.
+
+        .. Note::
+            This assumes that the image coordinates are with respect to the given
+            image (chip), and NOT including any sicd.ImageData.FirstRow/Col values,
+            which will be added here.
+
+        Parameters
+        ----------
+        sicd : SICDType
+        projection_type : str
+            The projection type selector, one of `['PLANE', 'HAE', 'DEM']`. Using `'DEM'`
+            requires configuration for the DEM pathway described in
+            :func:`sarpy.geometry.point_projection.image_to_ground_dem`.
+        kwargs
+            The keyword arguments for the :func:`SICDType.project_image_to_ground_geo` method.
+        """
+
+        if self.GeoLocation is not None:
+            # no need to infer anything, it's already populated
+            return
+
+        if self.ImageLocation is None:
+            logger.warning(
+                'ImageLocation is not populated,\n\t'
+                'so the geographical location can not be inferred')
+            return
+
+        if not sicd.can_project_coordinates():
+            logger.warning(
+                'This sicd does not permit projection,\n\t'
+                'so the geographical location can not be inferred')
+            return
+
+        self.GeoLocation = GeoLocationType.from_image_location(
+            self.ImageLocation, sicd, projection_type=projection_type, **kwargs)
+
+    def set_chip_details_from_sicd(self, sicd, layover_shift=False, populate_in_periphery=False):
+        """
+        Set the chip information with respect to the given SICD, assuming that the
+        image location and size are defined.
+
+        Parameters
+        ----------
+        sicd : SICDType
+        layover_shift : bool
+            Shift based on layover direction? This should be `True` if the identification of
+            the bounds and/or center pixel do not include any layover, as in
+            populating location from known ground truth. This should be `False` if
+            the identification of bounds and/or center pixel do include layover,
+            potentially as based on annotation of the imagery itself in pixel
+            space.
+        populate_in_periphery : bool
+            Should we populate for peripheral?
+
+        Returns
+        -------
+        int
+            -1 - insufficient metadata to proceed
+            0 - nothing to be done
+            1 - successful
+            2 - object in the image periphery, populating based on `populate_in_periphery`
+            3 - object not in the image field
+        """
+
+        if self.SlantPlane is not None:
+            # no need to infer anything, it's already populated
+            return 0
+
+        if self.Size is None:
+            logger.warning(
+                'Size is not populated,\n\t'
+                'so the chip size can not be inferred')
+            return -1
+
+        if self.ImageLocation is None:
+            # try to set from geolocation
+            return_value = self.set_image_location_from_sicd(sicd, populate_in_periphery=populate_in_periphery)
+            if return_value in [-1, 3] or (return_value == 2 and not populate_in_periphery):
+                return return_value
+
+        # get nominal object size, in meters
+        max_size = self.Size.get_max_diameter()  # in meters
+        row_size = max_size/sicd.Grid.Row.SS  # in pixels
+        col_size = max_size/sicd.Grid.Col.SS  # in pixels
+
+        # get nominal image box
+        image_location = self.ImageLocation
+        pixel_box = image_location.get_nominal_box(row_length=row_size, col_length=col_size)
+
+        # get nominal layover vector - should be pointed generally towards the top (negative rows value)
+        layover_magnitude = sicd.SCPCOA.LayoverMagnitude
+        if layover_magnitude is None:
+            layover_magnitude = 0.25
+        layover_size = self.Size.Height*layover_magnitude
+        if sicd.SCPCOA.LayoverAng is None:
+            layover_angle = 0.0
+        else:
+            layover_angle = numpy.deg2rad(sicd.SCPCOA.LayoverAng - sicd.SCPCOA.AzimAng)
+        layover_vector = layover_size*numpy.array(
+            [numpy.cos(layover_angle)/sicd.Grid.Row.SS, numpy.sin(layover_angle)/sicd.Grid.Col.SS])
+
+        # craft the layover box
+        if layover_shift:
+            layover_box = pixel_box + layover_vector
+        else:
+            layover_box = pixel_box
+
+        # determine the maximum and minimum pixel values here
+        min_rows = min(numpy.min(pixel_box[:, 0]), numpy.min(layover_box[:, 0]))
+        max_rows = max(numpy.max(pixel_box[:, 0]), numpy.max(layover_box[:, 0]))
+        min_cols = min(numpy.min(pixel_box[:, 1]), numpy.min(layover_box[:, 1]))
+        max_cols = max(numpy.max(pixel_box[:, 1]), numpy.max(layover_box[:, 1]))
+
+        # determine the padding amount
+        row_pad = min(5, 0.3*(max_rows-min_rows))
+        col_pad = min(5, 0.3*(max_cols-min_cols))
+
+        # check our bounding information
+        rows = sicd.ImageData.NumRows
+        cols = sicd.ImageData.NumCols
+
+        chip_rows = [min_rows - row_pad, max_rows + row_pad]
+        chip_cols = [min_cols - col_pad, max_cols + col_pad]
+
+        placement = self._check_placement(rows, cols, chip_rows, chip_cols)
+        if placement == 3 or (placement == 2 and not populate_in_periphery):
+            return placement
+
+        # set the physical data ideal chip size
+        physical = PhysicalType.from_ranges(chip_rows, chip_cols, rows, cols)
+
+        # determine nominal shadow vector
+        shadow_magnitude = sicd.SCPCOA.ShadowMagnitude
+        if shadow_magnitude is None:
+            shadow_magnitude = 1.0
+        shadow_size = self.Size.Height*shadow_magnitude
+        shadow_angle = sicd.SCPCOA.Shadow
+        shadow_angle = numpy.pi if shadow_angle is None else numpy.deg2rad(shadow_angle)
+        shadow_vector = shadow_size*numpy.array(
+            [numpy.cos(shadow_angle)/sicd.Grid.Row.SS, numpy.sin(shadow_angle)/sicd.Grid.Col.SS])
+
+        shadow_box = pixel_box + shadow_vector
+
+        min_rows = min(min_rows, numpy.min(shadow_box[:, 0]))
+        max_rows = max(max_rows, numpy.max(shadow_box[:, 0]))
+        min_cols = min(min_cols, numpy.min(shadow_box[:, 1]))
+        max_cols = max(max_cols, numpy.max(shadow_box[:, 1]))
+
+        chip_rows = [min_rows - row_pad, max_rows + row_pad]
+        chip_cols = [min_cols - col_pad, max_cols + col_pad]
+        # set the physical with shadows data ideal chip size
+        physical_with_shadows = PhysicalType.from_ranges(chip_rows, chip_cols, rows, cols)
+
+        self.SlantPlane = PlanePhysicalType(
+            Physical=physical,
+            PhysicalWithShadows=physical_with_shadows)
+        return placement
+
+    def get_image_geometry_object_for_sicd(self, include_chip=False):
+        """
+        Gets the geometry element describing the image geometry for a sicd.
+
+        Returns
+        -------
+        Geometry
+        """
+
+        if self.ImageLocation is None:
+            raise ValueError('No ImageLocation defined.')
+
+        image_geometry_object = self.ImageLocation.get_geometry_object()
+
+        if include_chip and self.SlantPlane is not None:
+            center_pixel = self.SlantPlane.Physical.CenterPixel.get_array()
+            chip_size = self.SlantPlane.Physical.ChipSize.get_array()
+            shift = numpy.array([[-0.5, -0.5], [-0.5, 0.5], [0.5, 0.5], [0.5, -0.5]], dtype='float64')
+            shift[:, 0] *= chip_size[0]
+            shift[:, 1] *= chip_size[1]
+            chip_rect = center_pixel + shift
+            chip_area = Polygon(coordinates=[chip_rect, ])
+            if isinstance(image_geometry_object, GeometryCollection):
+                image_geometry_object.geometries.append(chip_area)
+                return image_geometry_object
+            else:
+                return GeometryCollection(geometries=[image_geometry_object, chip_area])
+        return image_geometry_object
 
 
 # other types for the DetailObjectInfo
@@ -706,3 +1277,49 @@ class DetailObjectInfoType(Serializable):
         self.GroundPlane = GroundPlane
         self.Objects = Objects
         super(DetailObjectInfoType, self).__init__(**kwargs)
+
+    def set_image_location_from_sicd(
+            self, sicd, layover_shift=True, populate_in_periphery=False, include_out_of_range=False):
+        """
+        Set the image location information with respect to the given SICD,
+        assuming that the physical coordinates are populated. The `NumberOfObjectsInImage`
+        will be set, and `NumberOfObjectsInScene` will be left unchanged.
+
+        Parameters
+        ----------
+        sicd : SICDType
+        layover_shift : bool
+            Account for possible layover shift in calculated chip sizes?
+        populate_in_periphery : bool
+            Populate image information for objects on the periphery?
+        include_out_of_range : bool
+            Include the objects which are out of range (with no image location information)?
+        """
+
+        def update_object(temp_object, in_image_count):
+            status = temp_object.set_image_location_from_sicd(
+                sicd, populate_in_periphery=populate_in_periphery)
+            use_object = False
+            if status == 0:
+                raise ValueError('Object already has image details set')
+            if status == 1 or (status == 2 and populate_in_periphery):
+                use_object = True
+                temp_object.set_chip_details_from_sicd(
+                    sicd, layover_shift=layover_shift, populate_in_periphery=True)
+                in_image_count += 1
+            return use_object, in_image_count
+
+        objects_in_image = 0
+        if include_out_of_range:
+            # the objects list is just modified in place
+            for the_object in self.Objects:
+                _, objects_in_image = update_object(the_object, objects_in_image)
+        else:
+            # we make a new objects list
+            objects = []
+            for the_object in self.Objects:
+                use_this_object, objects_in_image = update_object(the_object, objects_in_image)
+                if use_this_object:
+                    objects.append(the_object)
+            self.Objects = objects
+        self.NumberOfObjectsInImage = objects_in_image

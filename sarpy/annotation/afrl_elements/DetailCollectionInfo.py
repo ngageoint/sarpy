@@ -13,7 +13,7 @@ from sarpy.io.xml.descriptors import IntegerDescriptor, SerializableDescriptor, 
     StringDescriptor, FloatDescriptor
 
 from .base import DEFAULT_STRICT
-from .blocks import DateRangeType
+from .blocks import DateTimeRangeType
 
 
 class LocationType(Serializable):
@@ -66,8 +66,8 @@ class DetailCollectionInfoType(Serializable):
         'Sponsor', _required,
         docstring="Sponsoring agency/organization of the data collection.")  # type: Optional[str]
     Date = SerializableDescriptor(
-        'Date', DateRangeType, _required, strict=DEFAULT_STRICT,
-        docstring="Begin and end dates of the data collection.")  # type: Optional[DateRangeType]
+        'Date', DateTimeRangeType, _required, strict=DEFAULT_STRICT,
+        docstring="Begin and end dates of the data collection.")  # type: Optional[DateTimeRangeType]
     Location = SerializableDescriptor(
         'Location', LocationType, _required, strict=DEFAULT_STRICT,
         docstring="General location of the data collection.")  # type: Optional[LocationType]
@@ -83,7 +83,7 @@ class DetailCollectionInfoType(Serializable):
         Name : None|str
         ProgramName : None|str
         Sponsor : None|str
-        Date : None|DateRangeType
+        Date : None|DateTimeRangeType|list|tuple
         Location : None|LocationType
         NumberOfSites : None|int
         kwargs

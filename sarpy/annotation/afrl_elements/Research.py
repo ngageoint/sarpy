@@ -6,9 +6,13 @@ __classification__ = "UNCLASSIFIED"
 __authors__ = ("Thomas McCullough", "Thomas Rackers")
 
 from typing import Optional
+import os
 
 from sarpy.io.xml.base import Serializable
 from sarpy.io.xml.descriptors import SerializableDescriptor, StringDescriptor
+
+from sarpy.io.complex.sicd_elements.SICD import SICDType
+from sarpy.io.complex.sicd import SICDReader
 
 from .base import DEFAULT_STRICT
 from .DetailCollectionInfo import DetailCollectionInfoType
@@ -95,3 +99,70 @@ class ResearchType(Serializable):
 
     def to_xml_string(self, urn=None, tag='RESEARCH', check_validity=False, strict=DEFAULT_STRICT):
         return self.to_xml_bytes(urn=urn, tag=tag, check_validity=check_validity, strict=strict).decode('utf-8')
+
+    def apply_sicd(self, sicd, base_file_name, populate_in_periphery=False, include_out_of_range=False):
+        """
+        Apply the given sicd to define all the relevant derived data, assuming
+        that the starting point is physical ground truth populated, and image
+        details and locations will be inferred. This modifies the structure in
+        place.
+
+        Parameters
+        ----------
+        sicd : SICDType
+        base_file_name : str
+        populate_in_periphery : bool
+        include_out_of_range : bool
+        """
+
+        # assume that collection info and subcollection info are previously defined
+
+        # define the image info
+        if self.DetailImageInfo is not None:
+            raise ValueError('Image Info is already defined')
+        self.DetailImageInfo = DetailImageInfoType.from_sicd(sicd, base_file_name)
+
+        # define sensor info
+        if self.DetailSensorInfo is not None:
+            raise ValueError('Sensor Info is already defined')
+        self.DetailSensorInfo = DetailSensorInfoType.from_sicd(sicd)
+
+        if self.DetailFiducialInfo is None:
+            self.DetailFiducialInfo = DetailFiducialInfoType(
+                NumberOfFiducialsInImage=0, NumberOfFiducialsInScene=0)
+        else:
+            self.DetailFiducialInfo.set_image_location_from_sicd(
+                sicd,
+                populate_in_periphery=populate_in_periphery,
+                include_out_of_range=include_out_of_range)
+
+        if self.DetailObjectInfo is None:
+            self.DetailObjectInfo = DetailObjectInfoType(
+                NumberOfObjectsInImage=0, NumberOfObjectsInScene=0)
+        else:
+            self.DetailObjectInfo.set_image_location_from_sicd(
+                sicd,
+                layover_shift=True,
+                populate_in_periphery=populate_in_periphery,
+                include_out_of_range=include_out_of_range)
+
+    def apply_sicd_reader(self, sicd_reader, populate_in_periphery=False, include_out_of_range=False):
+        """
+        Apply the given sicd to define all the relevant derived data, assuming
+        that the starting point is physical ground truth populated, and image
+        details and locations will be inferred. This modifies the structure in
+        place.
+
+        Parameters
+        ----------
+        sicd_reader : SICDReader
+        populate_in_periphery : bool
+        include_out_of_range : bool
+        """
+
+        base_file = os.path.split(sicd_reader.file_name)[1]
+        self.apply_sicd(
+            sicd_reader.sicd_meta,
+            base_file,
+            populate_in_periphery=populate_in_periphery,
+            include_out_of_range=include_out_of_range)
