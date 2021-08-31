@@ -1439,7 +1439,7 @@ class _GFFInterpreter2(_GFFInterpreter):
                 col_uvec /= numpy.linalg.norm(col_uvec)
 
             row_ss = self.header.geo_info.rangePixSpacing
-            row_bw = self.header.if_info.wndBwFactRng/row_ss
+            row_bw = self.header.if_info.wndBwFactRng/self.header.if_info.rngResolution
             row_delta_kcoa_constant = 0.5*(1 - (self.header.if_info.sampLocDCRow/int(0.5*num_rows)))/row_ss
             row = DirParamType(
                 Sgn=-1,
@@ -1453,7 +1453,7 @@ class _GFFInterpreter2(_GFFInterpreter):
                 DeltaKCOAPoly=[[row_delta_kcoa_constant, ], ])
 
             col_ss = self.header.geo_info.azPixSpacing
-            col_bw = self.header.if_info.wndBwFactAz/col_ss
+            col_bw = self.header.if_info.wndBwFactAz/self.header.if_info.azResolution
             col_delta_kcoa_constant = 0.5*(1 - (self.header.if_info.sampLocDCCol/int(0.5*num_cols)))/col_ss
             col = DirParamType(
                 Sgn=-1,
