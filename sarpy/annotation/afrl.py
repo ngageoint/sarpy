@@ -103,17 +103,18 @@ class GroundTruthConstructor(object):
             raise ValueError('The object already has the SlantPlane or GroundPlane set.')
         self._objects.append(the_object)
 
-    def add_object_from_arguments(self, SystemName=None, SystemComponent=None, NATOName=None,
-                   Function=None, Version=None, DecoyType=None, SerialNumber=None,
-                   ObjectClass='Unknown', ObjectSubClass='Unknown', ObjectTypeClass='Unknown',
-                   ObjectType='Unknown', ObjectLabel=None, Size=None,
-                   Orientation=None,
-                   Articulation=None, Configuration=None,
-                   Accessories=None, PaintScheme=None, Camouflage=None,
-                   Obscuration=None, ObscurationPercent=None, ImageLevelObscuration=None,
-                   GeoLocation=None, TargetToClutterRatio=None, VisualQualityMetric=None,
-                   UnderlyingTerrain=None, OverlyingTerrain=None,
-                   TerrainTexture=None, SeasonalCover=None):
+    def add_object_from_arguments(
+            self, SystemName=None, SystemComponent=None, NATOName=None,
+            Function=None, Version=None, DecoyType=None, SerialNumber=None,
+            ObjectClass='Unknown', ObjectSubClass='Unknown', ObjectTypeClass='Unknown',
+            ObjectType='Unknown', ObjectLabel=None, Size=None,
+            Orientation=None,
+            Articulation=None, Configuration=None,
+            Accessories=None, PaintScheme=None, Camouflage=None,
+            Obscuration=None, ObscurationPercent=None, ImageLevelObscuration=None,
+            GeoLocation=None, TargetToClutterRatio=None, VisualQualityMetric=None,
+            UnderlyingTerrain=None, OverlyingTerrain=None,
+            TerrainTexture=None, SeasonalCover=None):
         """
         Adds an object to the collection.
 
