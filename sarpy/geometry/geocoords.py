@@ -296,14 +296,14 @@ def ecf_to_enu(ecf_coords, orp_coord, absolute_coords=True):
     return numpy.reshape(out, o_shape)
 
 
-def enu_to_ecf(ned_coords, orp_coord, absolute_coords=True):
+def enu_to_ecf(enu_coords, orp_coord, absolute_coords=True):
     """
     Convert from East-North-UP (ENU) to ECF coordinates.
 
     Parameters
     ----------
-    ned_coords : numpy.ndarray
-        The NED coordinates.
+    enu_coords : numpy.ndarray
+        The ENU coordinates.
     orp_coord : numpy.ndarray
         The Origin Reference Point in ECF coordinates.
     absolute_coords : bool
@@ -319,9 +319,9 @@ def enu_to_ecf(ned_coords, orp_coord, absolute_coords=True):
         orp_coord = numpy.array(orp_coord, dtype='float64')
     transform = _ecf_to_enu_matrix(orp_coord).transpose()  # transpose = inverse here
     # NB: orp_coord is guaranteed to be shape (3, )
-    ned_coords, o_shape = _validate(ned_coords)
+    enu_coords, o_shape = _validate(enu_coords)
 
-    out = ned_coords.dot(transform)
+    out = enu_coords.dot(transform)
     if absolute_coords:
         out += orp_coord
     return numpy.reshape(out, o_shape)
