@@ -153,7 +153,11 @@ def wgs_84_norm(ecf):
 
 def _ecf_to_ned_matrix(orp_coord):
     """
-    Get the rotation matrix for converting ECF to NED coordinate system conversion.
+    Get the rotation matrix for converting ECF to NED coordinate system
+    conversion.
+
+    Note: The array orientation convention indicates array multiplication on the
+    RIGHT, so this is the transpose of the transform matrix for left multiplication.
 
     Parameters
     ----------
@@ -172,18 +176,18 @@ def _ecf_to_ned_matrix(orp_coord):
     angle2 = numpy.deg2rad(-90 - llh[0])
     angle1 = numpy.deg2rad(llh[1])
 
-    matrix2 = numpy.array([[numpy.cos(angle2), 0, -numpy.sin(angle2)],
-                           [0, 1, 0],
-                           [numpy.sin(angle2), 0, numpy.cos(angle2)]], dtype='float64')
-    matrix1 = numpy.array([[numpy.cos(angle1), numpy.sin(angle1), 0],
-                           [-numpy.sin(angle1), numpy.cos(angle1), 0],
+    matrix1 = numpy.array([[numpy.cos(angle1), -numpy.sin(angle1), 0],
+                           [numpy.sin(angle1), numpy.cos(angle1), 0],
                            [0, 0, 1]], dtype='float64')
-    return matrix2.dot(matrix1)
+    matrix2 = numpy.array([[numpy.cos(angle2), 0, numpy.sin(angle2)],
+                           [0, 1, 0],
+                           [-numpy.sin(angle2), 0, numpy.cos(angle2)]], dtype='float64')
+    return matrix1.dot(matrix2)
 
 
 def ecf_to_ned(ecf_coords, orp_coord, absolute_coords=True):
     """
-    Convert from ECF to NED coordinates.
+    Convert from ECF to North-East-Down (NED) coordinates.
 
     Parameters
     ----------
@@ -200,7 +204,7 @@ def ecf_to_ned(ecf_coords, orp_coord, absolute_coords=True):
 
     if not isinstance(orp_coord, numpy.ndarray):
         orp_coord = numpy.array(orp_coord, dtype='float64')
-    transform = _ecf_to_ned_matrix(orp_coord).transpose()
+    transform = _ecf_to_ned_matrix(orp_coord)
     # NB: orp_coord is guaranteed to be shape (3, )
     ecf_coords, o_shape = _validate(ecf_coords)
     if absolute_coords:
@@ -212,7 +216,7 @@ def ecf_to_ned(ecf_coords, orp_coord, absolute_coords=True):
 
 def ned_to_ecf(ned_coords, orp_coord, absolute_coords=True):
     """
-    Convert from NED (North, East, Down) to ECF coordinates.
+    Convert from North-East-Down (NED) to ECF coordinates.
 
     Parameters
     ----------
@@ -231,11 +235,93 @@ def ned_to_ecf(ned_coords, orp_coord, absolute_coords=True):
 
     if not isinstance(orp_coord, numpy.ndarray):
         orp_coord = numpy.array(orp_coord, dtype='float64')
-    transform = _ecf_to_ned_matrix(orp_coord)
+    transform = _ecf_to_ned_matrix(orp_coord).transpose()  # transpose = inverse here
     # NB: orp_coord is guaranteed to be shape (3, )
     ned_coords, o_shape = _validate(ned_coords)
 
     out = ned_coords.dot(transform)
+    if absolute_coords:
+        out += orp_coord
+    return numpy.reshape(out, o_shape)
+
+
+def _ecf_to_enu_matrix(orp_coord):
+    """
+    Get the rotation matrix for converting from ECF to ENU.
+
+    Note: The array orientation convention indicates array multiplication on the
+    RIGHT, so this is the transpose of the transform matrix for left multiplication.
+
+    Parameters
+    ----------
+    orp_coord : numpy.ndarray
+        The origin reference point. This is assumed given in ECF coordinates.
+
+    Returns
+    -------
+    numpy.ndarray
+    """
+
+    ned_matrix = _ecf_to_ned_matrix(orp_coord)
+    ned_to_enu = numpy.array([[0, 1, 0], [1, 0, 0], [0, 0, -1]], dtype='float64')
+    return ned_matrix.dot(ned_to_enu)
+
+
+def ecf_to_enu(ecf_coords, orp_coord, absolute_coords=True):
+    """
+    Convert from ECF to East-North-Up (ENU) coordinates.
+
+    Parameters
+    ----------
+    ecf_coords : numpy.ndarray
+    orp_coord : numpy.ndarray
+    absolute_coords : bool
+        Are these absolute (i.e. position) coordinates? The alternative is relative
+        coordinates like velocity, acceleration, or unit vector values.
+
+    Returns
+    -------
+    numpy.ndarray
+    """
+
+    if not isinstance(orp_coord, numpy.ndarray):
+        orp_coord = numpy.array(orp_coord, dtype='float64')
+    transform = _ecf_to_enu_matrix(orp_coord)
+    # NB: orp_coord is guaranteed to be shape (3, )
+    ecf_coords, o_shape = _validate(ecf_coords)
+    if absolute_coords:
+        out = (ecf_coords - orp_coord).dot(transform)
+    else:
+        out = ecf_coords.dot(transform)
+    return numpy.reshape(out, o_shape)
+
+
+def enu_to_ecf(enu_coords, orp_coord, absolute_coords=True):
+    """
+    Convert from East-North-UP (ENU) to ECF coordinates.
+
+    Parameters
+    ----------
+    enu_coords : numpy.ndarray
+        The ENU coordinates.
+    orp_coord : numpy.ndarray
+        The Origin Reference Point in ECF coordinates.
+    absolute_coords : bool
+        Are these absolute (i.e. position) coordinates? The alternative is relative
+        coordinates like velocity, acceleration, or unit vector values.
+
+    Returns
+    -------
+    numpy.ndarray
+    """
+
+    if not isinstance(orp_coord, numpy.ndarray):
+        orp_coord = numpy.array(orp_coord, dtype='float64')
+    transform = _ecf_to_enu_matrix(orp_coord).transpose()  # transpose = inverse here
+    # NB: orp_coord is guaranteed to be shape (3, )
+    enu_coords, o_shape = _validate(enu_coords)
+
+    out = enu_coords.dot(transform)
     if absolute_coords:
         out += orp_coord
     return numpy.reshape(out, o_shape)
