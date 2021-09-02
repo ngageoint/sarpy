@@ -1,5 +1,6 @@
 # This details the important differences introduced in sarpy 1.2
 
+* .14 - Added capability to transform between ENU and ECF systems
 * .13 - Adding support for GFF version 1.6/1.8 and 2 files
         Including some helper functions for more streamlined use of the AFRL structures
 * .12 - Refactoring so that the xml/serialization is more clearly structured
