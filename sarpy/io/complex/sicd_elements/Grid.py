@@ -13,6 +13,7 @@ from numpy.linalg import norm
 from scipy.optimize import newton
 from scipy.constants import speed_of_light
 
+from sarpy.processing.windows import general_hamming, taylor, kaiser, find_half_power
 from sarpy.io.xml.base import Serializable, ParametersCollection, find_first_child
 from sarpy.io.xml.descriptors import StringDescriptor, StringEnumDescriptor, \
     FloatDescriptor, FloatArrayDescriptor, IntegerEnumDescriptor, \
@@ -49,115 +50,6 @@ def _hamming_ipr(x, a):
     """
 
     return a*numpy.sinc(x) + 0.5*(1-a)*(numpy.sinc(x-1) + numpy.sinc(x+1)) - a/numpy.sqrt(2)
-
-
-def _raised_cos(n, coef):
-    """
-    Generates the raised cosine (i.e. Hamming) window as an array of the given size.
-
-    Parameters
-    ----------
-    n : int
-        The size of the generated window.
-    coef : float
-        The Hamming parameter value.
-
-    Returns
-    -------
-    numpy.ndarray
-    """
-
-    weights = numpy.zeros((n,), dtype=numpy.float64)
-    if (n % 2) == 0:
-        k = int(n/2)
-    else:
-        k = int((n+1)/2)
-    theta = 2*numpy.pi*numpy.arange(k)/(n-1)
-    weights[:k] = (coef - (1-coef)*numpy.cos(theta))
-    weights[k:] = weights[k-1::-1]
-    return weights
-
-
-def _taylor_win(n, sidelobes=4, max_sidelobe_level=-30, normalize=True):
-    """
-    Generates a Taylor Window as an array of a given size.
-
-    *From mathworks documentation* - Taylor windows are similar to Chebyshev windows. A Chebyshev window
-    has the narrowest possible mainlobe for a specified sidelobe level, but a Taylor window allows you to
-    make tradeoffs between the mainlobe width and the sidelobe level. The Taylor distribution avoids edge
-    discontinuities, so Taylor window sidelobes decrease monotonically. Taylor window coefficients are not
-    normalized. Taylor windows are typically used in radar applications, such as weighting synthetic aperture
-    radar images and antenna design.
-
-    Parameters
-    ----------
-    n : int
-        size of the generated window
-
-    sidelobes : int
-        Number of nearly constant-level sidelobes adjacent to the mainlobe, specified as a positive integer.
-        These sidelobes are "nearly constant level" because some decay occurs in the transition region.
-
-    max_sidelobe_level : float
-        Maximum sidelobe level relative to mainlobe peak, specified as a real negative scalar in dB. It produces
-        sidelobes with peaks `max_sidelobe_level` *dB* down below the mainlobe peak.
-
-    normalize : bool
-        Should the output be normalized so that th max weight is 1?
-
-    Returns
-    -------
-    numpy.ndarray
-        the generated window
-    """
-
-    a = numpy.arccosh(10**(-max_sidelobe_level/20.))/numpy.pi
-    # Taylor pulse widening (dilation) factor
-    sp2 = (sidelobes*sidelobes)/(a*a + (sidelobes-0.5)*(sidelobes-0.5))
-    # the angular space in n points
-    xi = numpy.linspace(-numpy.pi, numpy.pi, n)
-    # calculate the cosine weights
-    out = numpy.ones((n, ), dtype=numpy.float64)  # the "constant" term
-    coefs = numpy.arange(1, sidelobes)
-    sgn = 1
-    for m in coefs:
-        coefs1 = (coefs - 0.5)
-        coefs2 = coefs[coefs != m]
-        numerator = numpy.prod(1 - (m*m)/(sp2*(a*a + coefs1*coefs1)))
-        denominator = numpy.prod(1 - (m*m)/(coefs2*coefs2))
-        out += sgn*(numerator/denominator)*numpy.cos(m*xi)
-        sgn *= -1
-    if normalize:
-        out /= numpy.amax(out)
-    return out
-
-
-def _find_half_power(wgt_funct, oversample=1024):
-    """
-    Find the half power point of the impulse response function.
-
-    Parameters
-    ----------
-    wgt_funct : None|numpy.ndarray
-    oversample : int
-
-    Returns
-    -------
-    None|float
-    """
-
-    if wgt_funct is None:
-        return None
-
-    # solve for the half-power point in an oversampled impulse response
-    impulse_response = numpy.abs(numpy.fft.fft(wgt_funct, wgt_funct.size*oversample))/numpy.sum(wgt_funct)
-    ind = numpy.flatnonzero(impulse_response < 1 / numpy.sqrt(2))[0]
-    # find first index with less than half power,
-    # then linearly interpolate to estimate 1/sqrt(2) crossing
-    v0 = impulse_response[ind - 1]
-    v1 = impulse_response[ind]
-    zero_ind = ind - 1 + (1./numpy.sqrt(2) - v0)/(v1 - v0)
-    return 2*zero_ind/oversample
 
 
 class WgtTypeType(Serializable):
@@ -371,28 +263,23 @@ class DirParamType(Serializable):
                 coef = float(self.WgtType.get_parameter_value(None, 0.54))  # just get first parameter - name?
             except ValueError:
                 coef = 0.54
-            value = _raised_cos(weight_size, coef)
+            value = general_hamming(weight_size, coef, sym=True)
         elif window_name == 'HANNING':
-            value = _raised_cos(weight_size, 0.5)
+            value = general_hamming(weight_size, 0.5, sym=True)
         elif window_name == 'KAISER':
+            beta = 14.0  # suggested default in literature/documentation
             try:
                 # noinspection PyTypeChecker
-                beta = float(self.WgtType.get_parameter_value(None, 14))  # just get first parameter - name?
+                beta = float(self.WgtType.get_parameter_value(None, beta))  # just get first parameter - name?
             except ValueError:
-                beta = 14.0  # default suggested in numpy.kaiser
-            value = numpy.kaiser(weight_size, beta)
+                pass
+            value = kaiser(weight_size, beta, sym=True)
         elif window_name == 'TAYLOR':
             # noinspection PyTypeChecker
             sidelobes = int(self.WgtType.get_parameter_value('NBAR', 4))  # apparently the matlab argument name
             # noinspection PyTypeChecker
             max_sidelobe_level = float(self.WgtType.get_parameter_value('SLL', -30))  # same
-            if max_sidelobe_level > 0:
-                max_sidelobe_level *= -1
-            value = _taylor_win(
-                weight_size,
-                sidelobes=sidelobes,
-                max_sidelobe_level=max_sidelobe_level,
-                normalize=True)
+            value = taylor(weight_size, nbar=sidelobes, sll=max_sidelobe_level, norm=True, sym=True)
 
         if populate and self.WgtFunct is None:
             self.WgtFunct = value
@@ -429,7 +316,7 @@ class DirParamType(Serializable):
                 zero = newton(_hamming_ipr, init_value, args=(coef,), tol=1e-12, maxiter=100)
                 return 2*zero
 
-        return _find_half_power(self.WgtFunct, oversample=1024)
+        return find_half_power(self.WgtFunct, oversample=1024)
 
     def define_response_widths(self, populate=True):
         """

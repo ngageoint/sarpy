@@ -39,7 +39,7 @@ def _compress_identical(coords):
     if coords.shape[0] < 2:
         return coords
 
-    include = numpy.zeros((coords.shape[0], ), dtype=numpy.bool)
+    include = numpy.zeros((coords.shape[0], ), dtype='bool')
     include[-1] = True
 
     for i, (first, last) in enumerate(zip(coords[:-1, :], coords[1:, :])):
@@ -1558,7 +1558,7 @@ class LinearRing(LineString):
         """
 
         # we require that all these points are relevant to this slice
-        in_poly = numpy.zeros(x.shape, dtype=numpy.bool)
+        in_poly = numpy.zeros(x.shape, dtype='bool')
         crossing_counts = numpy.zeros(x.shape, dtype=numpy.int32)
         indices = segment['inds']
         orient = self.orientation
@@ -1603,7 +1603,7 @@ class LinearRing(LineString):
         numpy.ndarray
         """
 
-        out = numpy.zeros(x.shape, dtype=numpy.bool)
+        out = numpy.zeros(x.shape, dtype='bool')
 
         ind_beg, ind_end, direction = self._contained_segment_data(x, y)
         if ind_beg is None:
@@ -1663,7 +1663,7 @@ class LinearRing(LineString):
         if block_size is None or pts_x.size <= block_size:
             in_poly = self._contained(pts_x, pts_y)
         else:
-            in_poly = numpy.zeros(pts_x.shape, dtype=numpy.bool)
+            in_poly = numpy.zeros(pts_x.shape, dtype='bool')
             start_block = 0
             while start_block < pts_x.size:
                 end_block = min(start_block+block_size, pts_x.size)
@@ -1695,7 +1695,7 @@ class LinearRing(LineString):
 
         grid_x, grid_y = _validate_grid_contain_arguments(grid_x, grid_y)
 
-        out = numpy.zeros((grid_x.size, grid_y.size), dtype=numpy.bool)
+        out = numpy.zeros((grid_x.size, grid_y.size), dtype='bool')
         if self._coordinates.shape[0] < 4:
             # this is a degenerate linear ring with no interior
             return out
@@ -1979,7 +1979,7 @@ class Polygon(GeometryObject):
         pts_x, pts_y = _validate_contain_arguments(pts_x, pts_y)
 
         if self._outer_ring is None:
-            return numpy.zeros(pts_x.shape, dtype=numpy.bool)
+            return numpy.zeros(pts_x.shape, dtype='bool')
 
         o_shape = pts_x.shape
         in_poly = self._outer_ring.contain_coordinates(pts_x, pts_y, block_size=block_size)
@@ -2012,7 +2012,7 @@ class Polygon(GeometryObject):
         grid_x, grid_y = _validate_grid_contain_arguments(grid_x, grid_y)
 
         if self._outer_ring is None:
-            return numpy.zeros((grid_x.size, grid_y.size), dtype=numpy.bool)
+            return numpy.zeros((grid_x.size, grid_y.size), dtype='bool')
 
         in_poly = self._outer_ring.grid_contained(grid_x, grid_y)
         if self._inner_rings is not None:
@@ -2181,7 +2181,7 @@ class MultiPolygon(GeometryObject):
         pts_x, pts_y = _validate_contain_arguments(pts_x, pts_y)
 
         if self._polygons is None or len(self._polygons) == 0:
-            return numpy.zeros(pts_x.shape, dtype=numpy.bool)
+            return numpy.zeros(pts_x.shape, dtype='bool')
 
         in_poly = self._polygons[0].contain_coordinates(pts_x, pts_y, block_size=block_size)
         for entry in self._polygons[1:]:
@@ -2208,7 +2208,7 @@ class MultiPolygon(GeometryObject):
         grid_x, grid_y = _validate_grid_contain_arguments(grid_x, grid_y)
 
         if self._polygons is None or len(self._polygons) == 0:
-            return numpy.zeros((grid_x.size, grid_y.size), dtype=numpy.bool)
+            return numpy.zeros((grid_x.size, grid_y.size), dtype='bool')
 
         in_poly = self._polygons[0].grid_contained(grid_x, grid_y)
         for entry in self._polygons[1:]:
