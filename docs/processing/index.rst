@@ -10,4 +10,5 @@ Processing elements (sarpy.processing)
     subaperture
     ortho_rectify
     aperture_filter
+    windows
     fft_base

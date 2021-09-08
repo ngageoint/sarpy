@@ -1,5 +1,7 @@
 # This details the important differences introduced in sarpy 1.2
 
+* .15 - Making the commonly used Fourier windowing functions easily accessible
+        in sarpy.processing.windows
 * .14 - Added capability to transform between ENU and ECF systems
 * .13 - Adding support for GFF version 1.6/1.8 and 2 files
         Including some helper functions for more streamlined use of the AFRL structures
