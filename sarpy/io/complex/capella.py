@@ -34,7 +34,7 @@ from sarpy.io.complex.sicd_elements.RadarCollection import RadarCollectionType, 
 from sarpy.io.complex.sicd_elements.Timeline import TimelineType, IPPSetType
 from sarpy.io.complex.sicd_elements.ImageFormation import ImageFormationType, \
     RcvChanProcType, ProcessingType
-
+from sarpy.processing.windows import kaiser
 
 logger = logging.getLogger(__name__)
 
@@ -176,15 +176,24 @@ class CapellaDetails(object):
                 velocities[i, :] = entry['velocity']
             return times, positions, velocities
 
+        def get_radar_parameter(name):
+            if name in radar:
+                return radar[name]
+            if len(radar_time_varying) > 0:
+                element = radar_time_varying[0]
+                if name in element:
+                    return element[name]
+            raise ValueError('Unable to determine radar parameter `{}`'.format(name))
+
         def get_collection_info():
             # type: () -> CollectionInfoType
             coll_name = collect['platform']
             start_dt = start_time.astype('datetime64[us]').astype(datetime)
             mode = collect['mode'].strip().lower()
             if mode == 'stripmap':
-                radar_mode = RadarModeType(ModeType='STRIPMAP')
+                radar_mode = RadarModeType(ModeType='STRIPMAP', ModeID=mode)
             elif mode == 'sliding_spotlight':
-                radar_mode = RadarModeType(ModeType='DYNAMIC STRIPMAP')
+                radar_mode = RadarModeType(ModeType='DYNAMIC STRIPMAP', ModeID=mode)
             else:
                 raise ValueError('Got unhandled radar mode {}'.format(mode))
 
@@ -217,12 +226,14 @@ class CapellaDetails(object):
                 raise ValueError('Got unhandled data_type {}'.format(img['data_type']))
 
             scp_pixel = (int(0.5 * rows), int(0.5 * cols))
-            if collect['radar']['pointing'] == 'left':
+            if radar['pointing'] == 'left':
                 scp_pixel = (rows - scp_pixel[0] - 1, cols - scp_pixel[1] - 1)
 
             return ImageDataType(
-                NumRows=rows, NumCols=cols,
-                FirstRow=0, FirstCol=0,
+                NumRows=rows,
+                NumCols=cols,
+                FirstRow=0,
+                FirstCol=0,
                 PixelType=pixel_type,
                 FullImage=(rows, cols),
                 SCPPixel=scp_pixel)
@@ -239,6 +250,25 @@ class CapellaDetails(object):
         def get_grid():
             # type: () -> GridType
 
+            def get_weight(window_dict):
+                window_name = window_dict['name']
+                if window_name.lower() == 'rectangular':
+                    return WgtTypeType(WindowName='UNIFORM')
+                elif window_name.lower() == 'avci-nacaroglu':
+                    params = window_dict['parameters']
+                    if list(params.keys()) == ['alpha', ]:
+                        beta = params['alpha']
+                        return WgtTypeType(WindowName='KAISER', Parameters={'BETA': '{0:0.16G}'.format(beta)})
+                    else:
+                        logger.warning('Got unexpected weight parameters.')
+                        return WgtTypeType(
+                            WindowName=window_name,
+                            Parameters=convert_string_dict(window_dict['parameters']))
+                else:
+                    return WgtTypeType(
+                        WindowName=window_name,
+                        Parameters=convert_string_dict(window_dict['parameters']))
+
             img = collect['image']
 
             image_plane = 'OTHER'
@@ -251,15 +281,14 @@ class CapellaDetails(object):
             row_imp_rsp_bw = 2*bw/speed_of_light
             row = DirParamType(
                 SS=img['pixel_spacing_column'],
+                Sgn=-1,
                 ImpRespBW=row_imp_rsp_bw,
                 ImpRespWid=img['range_resolution'],
                 KCtr=2*fc/speed_of_light,
                 DeltaK1=-0.5*row_imp_rsp_bw,
                 DeltaK2=0.5*row_imp_rsp_bw,
                 DeltaKCOAPoly=[[0.0, ], ],
-                WgtType=WgtTypeType(
-                    WindowName=img['range_window']['name'],
-                    Parameters=convert_string_dict(img['range_window']['parameters'])))
+                WgtType=get_weight(img['range_window']))
 
             # get timecoa value
             timecoa_value = get_seconds(coa_time, start_time)  # TODO: constant?
@@ -268,19 +297,20 @@ class CapellaDetails(object):
             arp_velocity = position.ARPPoly.derivative_eval(timecoa_value, der_order=1)
             arp_speed = numpy.linalg.norm(arp_velocity)
             col_ss = img['pixel_spacing_row']
-            dop_bw =  img['processed_azimuth_bandwidth']
+            dop_bw = img['processed_azimuth_bandwidth']
             # ss_zd_s = col_ss/arp_speed
 
             col = DirParamType(
                 SS=col_ss,
+                Sgn=-1,
                 ImpRespWid=img['azimuth_resolution'],
                 ImpRespBW=dop_bw/arp_speed,
                 KCtr=0,
-                WgtType=WgtTypeType(
-                    WindowName=img['azimuth_window']['name'],
-                    Parameters=convert_string_dict(img['azimuth_window']['parameters'])))
+                WgtType=get_weight(img['azimuth_window']))
 
-            # TODO: from Wade - account for numeric WgtFunct
+            # TODO:
+            #   column deltakcoa poly - it's in there at ["image"]["frequency_doppler_centroid_polynomial"]
+            #   weight functions?
 
             return GridType(
                 ImagePlane=image_plane,
@@ -289,17 +319,16 @@ class CapellaDetails(object):
                 Row=row,
                 Col=col)
 
-        def get_radar_colection():
+        def get_radar_collection():
             # type: () -> RadarCollectionType
 
-            radar = collect['radar']
             freq_min = fc - 0.5*bw
             return RadarCollectionType(
                 TxPolarization=radar['transmit_polarization'],
                 TxFrequency=(freq_min, freq_min + bw),
                 Waveform=[WaveformParametersType(
                     TxRFBandwidth=bw,
-                    TxPulseLength=radar['pulse_duration'],
+                    TxPulseLength=get_radar_parameter('pulse_duration'),
                     RcvDemodType='CHIRP',
                     ADCSampleRate=radar['sampling_frequency'],
                     TxFreqStart=freq_min)],
@@ -329,6 +358,11 @@ class CapellaDetails(object):
             processings = None
             if algo == 'BACKPROJECTION':
                 processings = [ProcessingType(Type='Backprojected to DEM', Applied=True), ]
+            else:
+                logger.warning(
+                    'Got unexpected algorithm, the results for the '
+                    'sicd struture might be unexpected')
+
             if algo not in ('PFA', 'RMA', 'RGAZCOMP'):
                 logger.warning(
                     'Image formation algorithm {} not one of the recognized SICD options, '
@@ -354,12 +388,15 @@ class CapellaDetails(object):
 
         # extract general use information
         collect = self._img_desc_tags['collect']
+        radar = collect['radar']
+        radar_time_varying = radar.get('time_varying_parameters', [])
+
         start_time = parse_timestring(collect['start_timestamp'], precision='ns')
         end_time = parse_timestring(collect['stop_timestamp'], precision='ns')
         duration = get_seconds(end_time, start_time, precision='ns')
         state_time, state_position, state_velocity = extract_state_vector()
-        bw = collect['radar']['pulse_bandwidth']
-        fc = collect['radar']['center_frequency']
+        bw = get_radar_parameter('pulse_bandwidth')
+        fc = get_radar_parameter('center_frequency')
 
         # define the sicd elements
         collection_info = get_collection_info()
@@ -368,7 +405,7 @@ class CapellaDetails(object):
         geo_data = get_geo_data()
         position = get_position()
         grid = get_grid()
-        radar_collection = get_radar_colection()
+        radar_collection = get_radar_collection()
         timeline = get_timeline()
         image_formation = get_image_formation()
 

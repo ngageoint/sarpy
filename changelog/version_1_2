@@ -1,5 +1,6 @@
 # This details the important differences introduced in sarpy 1.2
 
+* .16 - Updating the Capella reader to work for actual released data
 * .15 - Making the commonly used Fourier windowing functions easily accessible
         in sarpy.processing.windows
 * .14 - Added capability to transform between ENU and ECF systems
