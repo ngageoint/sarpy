@@ -34,14 +34,12 @@ from sarpy.io.complex.sicd_elements.RadarCollection import RadarCollectionType, 
 from sarpy.io.complex.sicd_elements.Timeline import TimelineType, IPPSetType
 from sarpy.io.complex.sicd_elements.ImageFormation import ImageFormationType, \
     RcvChanProcType, ProcessingType
-from sarpy.processing.windows import kaiser
 
 logger = logging.getLogger(__name__)
 
 
 ########
 # base expected functionality for a module with an implemented Reader
-
 
 def is_a(file_name):
     """
@@ -192,6 +190,8 @@ class CapellaDetails(object):
             mode = collect['mode'].strip().lower()
             if mode == 'stripmap':
                 radar_mode = RadarModeType(ModeType='STRIPMAP', ModeID=mode)
+            elif mode == 'spotlight':
+                radar_mode = RadarModeType(ModeType='SPOTLIGHT', ModeID=mode)
             elif mode == 'sliding_spotlight':
                 radar_mode = RadarModeType(ModeType='DYNAMIC STRIPMAP', ModeID=mode)
             else:
@@ -254,27 +254,21 @@ class CapellaDetails(object):
                 window_name = window_dict['name']
                 if window_name.lower() == 'rectangular':
                     return WgtTypeType(WindowName='UNIFORM')
-                elif window_name.lower() == 'avci-nacaroglu':
-                    params = window_dict['parameters']
-                    if list(params.keys()) == ['alpha', ]:
-                        beta = params['alpha']
-                        return WgtTypeType(WindowName='KAISER', Parameters={'BETA': '{0:0.16G}'.format(beta)})
-                    else:
-                        logger.warning('Got unexpected weight parameters.')
-                        return WgtTypeType(
-                            WindowName=window_name,
-                            Parameters=convert_string_dict(window_dict['parameters']))
                 else:
+                    # TODO: what is the proper interpretation for the avci-nacaroglu window?
                     return WgtTypeType(
                         WindowName=window_name,
                         Parameters=convert_string_dict(window_dict['parameters']))
 
             img = collect['image']
+            img_geometry = img['image_geometry']
+            if img_geometry.get('type', None) == 'slant_plane':
+                image_plane = 'SLANT'
+            else:
+                image_plane = 'OTHER'
 
-            image_plane = 'OTHER'
             grid_type = 'PLANE'
             if self._img_desc_tags['product_type'] == 'SLC' and img['algorithm'] != 'backprojection':
-                image_plane = 'SLANT'
                 grid_type = 'RGZERO'
 
             coa_time = parse_timestring(img['center_pixel']['center_time'], precision='ns')
@@ -291,7 +285,7 @@ class CapellaDetails(object):
                 WgtType=get_weight(img['range_window']))
 
             # get timecoa value
-            timecoa_value = get_seconds(coa_time, start_time)  # TODO: constant?
+            timecoa_value = get_seconds(coa_time, start_time)  # TODO: this is not generally correct
             # find an approximation for zero doppler spacing - necessarily rough for backprojected images
             # find velocity at coatime
             arp_velocity = position.ARPPoly.derivative_eval(timecoa_value, der_order=1)
