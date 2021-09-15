@@ -669,7 +669,10 @@ class SICDWriter(NITFWriter):
         # noinspection PyProtectedMember
         if hasattr(self._sicd_meta, '_NITF') and isinstance(self._sicd_meta._NITF, dict):
             # noinspection PyProtectedMember
-            ftitle = self._sicd_meta._NITF.get('SUGGESTED_NAME', None)
+            ftitle = self._sicd_meta._NITF.get('FTITLE', None)
+            if ftitle is None:
+                # noinspection PyProtectedMember
+                ftitle = self._sicd_meta._NITF.get('SUGGESTED_NAME', None)
         if ftitle is None:
             ftitle = self._sicd_meta.get_suggested_name(1)
         if ftitle is None and self._sicd_meta.CollectionInfo is not None and \
@@ -689,6 +692,31 @@ class SICDWriter(NITFWriter):
             # noinspection PyProtectedMember
             ostaid = self._sicd_meta._NITF.get('OSTAID', 'Unknown')
         return ostaid
+
+    def _get_isorce(self):
+        isorce = None
+        # noinspection PyProtectedMember
+        if hasattr(self._sicd_meta, '_NITF') and isinstance(self._sicd_meta._NITF, dict):
+            # noinspection PyProtectedMember
+            isorce = self._sicd_meta._NITF.get('ISORCE', None)
+
+        if isorce is None and \
+                self.sicd_meta.CollectionInfo is not None and \
+                self.sicd_meta.CollectionInfo.CollectorName is not None:
+            isorce = 'SICD: {}'.format(self.sicd_meta.CollectionInfo.CollectorName)
+        if isorce is None:
+            isorce = 'SICD: Unknown Collector'
+        return isorce
+
+    def _get_iid2(self):
+        iid2 = None
+        # noinspection PyProtectedMember
+        if hasattr(self._sicd_meta, '_NITF') and isinstance(self._sicd_meta._NITF, dict):
+            # noinspection PyProtectedMember
+            iid2 = self._sicd_meta._NITF.get('IID2', None)
+        if iid2 is None:
+            iid2 = self._get_ftitle()
+        return iid2
 
     def _image_parameters(self):
         """
@@ -736,14 +764,12 @@ class SICDWriter(NITFWriter):
         img_groups = tuple(range(len(image_segment_limits)))
         self._img_groups = (img_groups, )
 
-        ftitle = self._get_ftitle()
+        iid2 = self._get_iid2()
         idatim = ' '
         if self.sicd_meta.Timeline is not None and self.sicd_meta.Timeline.CollectStart is not None:
             idatim = re.sub(r'[^0-9]', '', str(self.sicd_meta.Timeline.CollectStart.astype('datetime64[s]')))
 
-        isource = 'SICD: Unknown Collector'
-        if self.sicd_meta.CollectionInfo is not None and self.sicd_meta.CollectionInfo.CollectorName is not None:
-            isource = 'SICD: {}'.format(self.sicd_meta.CollectionInfo.CollectorName)
+        isource = self._get_isorce()
 
         icp, rows, cols = None, None, None
         if self.sicd_meta.GeoData is not None and self.sicd_meta.GeoData.ImageCorners is not None:
@@ -762,7 +788,7 @@ class SICDWriter(NITFWriter):
             subhead = ImageSegmentHeader(
                 IID1='SICD{0:03d}'.format(0 if len(image_segment_limits) == 1 else i+1),
                 IDATIM=idatim,
-                IID2=ftitle,
+                IID2=iid2,
                 ISORCE=isource,
                 IREP='NODISPLY',
                 ICAT='SAR',
