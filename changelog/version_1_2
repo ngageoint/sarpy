@@ -1,5 +1,7 @@
 # This details the important differences introduced in sarpy 1.2
 
+* .18 - Minor change to permit potential preservation of more nitf fields when
+        copying and/or a sicd
 * .17 - Updating capella reader to accommodate SPOTLIGHT mode
 * .16 - Updating the Capella reader to work for actual released data
 * .15 - Making the commonly used Fourier windowing functions easily accessible
