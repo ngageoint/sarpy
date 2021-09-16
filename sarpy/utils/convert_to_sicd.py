@@ -14,7 +14,7 @@ __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
 
 
-def convert(input_file, output_dir):
+def convert(input_file, output_dir, preserve_nitf_information=False):
     """
 
     Parameters
@@ -23,9 +23,12 @@ def convert(input_file, output_dir):
         Path to the input file.
     output_dir : str
         Output directory path.
+    preserve_nitf_information : bool
+        Try to preserve NITF information? This only applies in the case that the
+        file being read is actually a NITF file.
     """
 
-    conversion_utility(input_file, output_dir)
+    conversion_utility(input_file, output_dir, preserve_nitf_information=preserve_nitf_information)
 
 
 if __name__ == '__main__':
@@ -44,6 +47,10 @@ if __name__ == '__main__':
              '* Depending on the input details, multiple SICD files may be produced.\n'
              '* The name for the ouput file(s) will be chosen based on CoreName and\n '
              '  transmit/collect polarization.\n')
+    parser.add_argument(
+        '-p', '--preserve', action='store_true',
+        help='Try to preserve any NITF information?\n'
+             'This only applies in the event that the file being read is a NITF')
 
     args = parser.parse_args()
-    convert(args.input_file, args.output_directory)
+    convert(args.input_file, args.output_directory, preserve_nitf_information=args.preserve)

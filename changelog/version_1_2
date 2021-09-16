@@ -1,5 +1,6 @@
 # This details the important differences introduced in sarpy 1.2
 
+* .19 - Adding SICD chipping utility, and more sicd file conversion options
 * .18 - Minor change to permit potential preservation of more nitf fields when
         copying and/or a sicd
 * .17 - Updating capella reader to accommodate SPOTLIGHT mode

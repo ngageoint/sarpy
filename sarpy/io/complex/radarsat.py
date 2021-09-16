@@ -1089,9 +1089,8 @@ class RadarSatDetails(object):
             ImageFormation=image_formation,
             SCPCOA=scpcoa,
             RMA=rma,
-            Radiometric=radiometric)
-        if len(nitf) > 0:
-            base_sicd._NITF = nitf
+            Radiometric=radiometric,
+            _NITF=nitf)
         correct_scp()
         base_sicd.derive()  # derive all the fields
         base_sicd.populate_rniirs(override=False)
@@ -1497,9 +1496,8 @@ class RadarSatDetails(object):
             ImageFormation=image_formation,
             SCPCOA=scpcoa,
             RMA=rma,
-            Radiometric=radiometric)
-        if len(nitf) > 0:
-            base_sicd._NITF = nitf
+            Radiometric=radiometric,
+            _NITF=nitf)
         correct_scp()
         base_sicd.derive()  # derive all the fields
         base_sicd.populate_rniirs(override=False)

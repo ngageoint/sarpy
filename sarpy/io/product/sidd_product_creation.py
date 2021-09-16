@@ -56,7 +56,7 @@ def _validate_filename(output_directory, output_file, sidd_structure):
 
     if output_file is None:
         # noinspection PyProtectedMember
-        fstem = os.path.split(sidd_structure._NITF['SUGGESTED_NAME']+'.nitf')[1]
+        fstem = os.path.split(sidd_structure.NITF['SUGGESTED_NAME']+'.nitf')[1]
     else:
         fstem = os.path.split(output_file)[1]
 
@@ -133,8 +133,7 @@ def create_detected_image_sidd(
         ortho_helper, ortho_bounds,
         product_class='Detected Image', pixel_type='MONO8I', version=version)
     # set suggested name
-    sidd_structure._NITF = {
-        'SUGGESTED_NAME': ortho_helper.sicd.get_suggested_name(ortho_helper.index)+'_IMG', }
+    sidd_structure.NITF['SUGGESTED_NAME'] = ortho_helper.sicd.get_suggested_name(ortho_helper.index)+'_IMG'
 
     # create the sidd writer
     full_filename = _validate_filename(output_directory, output_file, sidd_structure)
@@ -213,8 +212,7 @@ def create_csi_sidd(
         ortho_helper, ortho_bounds,
         product_class='Color Subaperture Image', pixel_type='RGB24I', version=version)
     # set suggested name
-    sidd_structure._NITF = {
-        'SUGGESTED_NAME': csi_calculator.sicd.get_suggested_name(csi_calculator.index)+'_CSI', }
+    sidd_structure.NITF['SUGGESTED_NAME'] = csi_calculator.sicd.get_suggested_name(csi_calculator.index)+'_CSI'
 
     # create the sidd writer
     full_filename = _validate_filename(output_directory, output_file, sidd_structure)
@@ -302,8 +300,7 @@ def create_dynamic_image_sidd(
         ortho_helper, ortho_bounds,
         product_class='Dynamic Image', pixel_type='MONO8I', version=version)
     # set suggested name
-    sidd_structure._NITF = {
-        'SUGGESTED_NAME': subap_calculator.sicd.get_suggested_name(subap_calculator.index)+'__DI', }
+    sidd_structure.NITF['SUGGESTED_NAME'] = subap_calculator.sicd.get_suggested_name(subap_calculator.index)+'__DI'
     the_sidds = []
     for i in range(subap_calculator.frame_count):
         this_sidd = sidd_structure.copy()
@@ -313,7 +310,7 @@ def create_dynamic_image_sidd(
     # create the sidd writer
     if output_file is None:
         # noinspection PyProtectedMember
-        full_filename = os.path.join(output_directory, sidd_structure._NITF['SUGGESTED_NAME']+'.nitf')
+        full_filename = os.path.join(output_directory, sidd_structure.NITF['SUGGESTED_NAME']+'.nitf')
     else:
         full_filename = os.path.join(output_directory, output_file)
     if os.path.exists(os.path.expanduser(full_filename)):
