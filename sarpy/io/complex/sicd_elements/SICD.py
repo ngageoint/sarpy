@@ -7,7 +7,7 @@ __author__ = "Thomas McCullough"
 
 
 import logging
-import copy
+from copy import deepcopy
 from collections import OrderedDict
 
 import numpy
@@ -163,6 +163,12 @@ class SICDType(Serializable):
             self._xml_ns = kwargs['_xml_ns']
         if '_xml_ns_key' in kwargs:
             self._xml_ns_key = kwargs['_xml_ns_key']
+
+        nitf = kwargs.get('_NITF', {})
+        if not isinstance(nitf, dict):
+            raise TypeError('Provided NITF options are required to be in dictionary form.')
+        self._NITF = nitf
+
         self._coa_projection = None
         self.CollectionInfo = CollectionInfo
         self.ImageCreation = ImageCreation
@@ -194,6 +200,19 @@ class SICDType(Serializable):
         """
 
         return self._coa_projection
+
+    @property
+    def NITF(self):
+        """
+        Optional dictionary of NITF header information, pertains only to subsequent
+        SICD file writing.
+
+        Returns
+        -------
+        Dict
+        """
+
+        return self._NITF
 
     @property
     def ImageFormType(self):  # type: () -> str
@@ -933,9 +952,7 @@ class SICDType(Serializable):
         """
 
         out = super(SICDType, self).copy()
-        if hasattr(self, '_NITF'):
-            out._NITF = copy.deepcopy(self._NITF)
-        # out.derive()  # NB: it's too easy for this to cause trouble
+        out._NITF = deepcopy(self._NITF)
         return out
 
     def to_xml_bytes(self, urn=None, tag='SICD', check_validity=False, strict=DEFAULT_STRICT):

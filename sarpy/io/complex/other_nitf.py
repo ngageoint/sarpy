@@ -19,6 +19,7 @@ from sarpy.geometry.latlon import num as lat_lon_parser
 
 from sarpy.io.general.base import SarpyIOError
 from sarpy.io.general.nitf import extract_image_corners, NITFDetails, NITFReader
+from sarpy.io.general.nitf_elements.security import NITFSecurityTags
 from sarpy.io.general.nitf_elements.image import ImageSegmentHeader, ImageSegmentHeader0
 from sarpy.io.general.nitf_elements.nitf_head import NITFHeader, NITFHeader0
 from sarpy.io.general.nitf_elements.base import TREList
@@ -1085,6 +1086,50 @@ class ComplexNITFReader(NITFReader, SICDTypeReader):
 
         # noinspection PyTypeChecker
         return self._nitf_details
+
+    def get_nitf_dict(self):
+        """
+        Populate a dictionary with the pertinent NITF header information. This
+        is for use in more faithful preservation of NITF header information
+        in copying or rewriting sicd files.
+
+        Returns
+        -------
+        dict
+        """
+
+        out = {}
+        security = {}
+        security_obj = self.nitf_details.nitf_header.Security
+        # noinspection PyProtectedMember
+        for field in NITFSecurityTags._ordering:
+            value = getattr(security_obj, field).strip()
+            if value != '':
+                security[field] = value
+        if len(security) > 0:
+            out['Security'] = security
+
+        out['OSTAID'] = self.nitf_details.nitf_header.OSTAID
+        out['FTITLE'] = self.nitf_details.nitf_header.FTITLE
+        return out
+
+    def populate_nitf_information_into_sicd(self):
+        """
+        Populate some pertinent NITF header information into the SICD structure.
+        This provides more faithful copying or rewriting options.
+        """
+
+        nitf_dict = self.get_nitf_dict()
+        for sicd_meta in self._sicd_meta:
+            sicd_meta.NITF = nitf_dict
+
+    def depopulate_nitf_information(self):
+        """
+        Eliminates the NITF information dict from the SICD structure.
+        """
+
+        for sicd_meta in self._sicd_meta:
+            sicd_meta.NITF = {}
 
     def _find_segments(self):
         return [[entry['index'], ] for entry in self.nitf_details.complex_segments]
