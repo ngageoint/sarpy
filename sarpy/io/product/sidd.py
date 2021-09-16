@@ -565,6 +565,12 @@ class SIDDWriter(NITFWriter):
         if sidd.ProductCreation is not None and sidd.ProductCreation.Classification is not None:
             args['CLAS'] = extract_clas(sidd)
             args['CLSY'] = extract_clsy(sidd)
+
+        security = sidd.NITF.get('Security', {})
+        # noinspection PyProtectedMember
+        for key in NITFSecurityTags._ordering:
+            if key in security:
+                args[key] = security[key]
         return NITFSecurityTags(**args)
 
     def _create_security_tags(self):
@@ -601,17 +607,23 @@ class SIDDWriter(NITFWriter):
 
         sidd = self.sidd_meta[index]
 
-        iid2 = None
-        # noinspection PyProtectedMember
-        if hasattr(sidd, '_NITF') and isinstance(sidd._NITF, dict):
-            # noinspection PyProtectedMember
-            iid2 = sidd._NITF.get('SUGGESTED_NAME', None)
+        iid2 = sidd.NITF.get('IID2', None)
+        if iid2 is None:
+            iid2 = sidd.NITF.get('FTITLE', None)
+        if iid2 is None:
+            iid2 = sidd.NITF.get('SUGGESTED_NAME', None)
         if iid2 is None:
             iid2 = 'SIDD: Unknown'
         return iid2
 
-    def _get_ftitle(self):
-        return self._get_iid2(0)
+    def _get_ftitle(self, index=0):
+        sidd = self.sidd_meta[index]
+        ftitle = sidd.NITF.get('FTITLE', None)
+        if ftitle is None:
+            ftitle = sidd.NITF.get('SUGGESTED_NAME', None)
+        if ftitle is None:
+            ftitle = 'SIDD: Unknown'
+        return ftitle
 
     def _get_fdt(self):
         sidd = self.sidd_meta[0]
@@ -621,14 +633,17 @@ class SIDDWriter(NITFWriter):
         else:
             return super(SIDDWriter, self)._get_fdt()
 
-    def _get_ostaid(self):
-        ostaid = 'Unknown'
-        sidd = self.sidd_meta[0]
-        # noinspection PyProtectedMember
-        if hasattr(sidd, '_NITF') and isinstance(sidd._NITF, dict):
-            # noinspection PyProtectedMember
-            ostaid = sidd._NITF.get('OSTAID', 'Unknown')
+    def _get_ostaid(self, index=0):
+        sidd = self.sidd_meta[index]
+        ostaid = sidd.NITF.get('OSTAID', 'Unknown')
         return ostaid
+
+    def _get_isorce(self, index=0):
+        sidd = self.sidd_meta[index]
+        isorce = sidd.NITF.get('ISORCE', sidd.ExploitationFeatures.Collections[0].Information.SensorName)
+        if isorce is None:
+            isorce = 'Unknown'
+        return isorce
 
     def _image_parameters(self, index):
         """
@@ -723,9 +738,7 @@ class SIDDWriter(NITFWriter):
 
         idatim = self._get_fdt()
 
-        isorce = ''
-        if sidd.ExploitationFeatures.Collections[0].Information.SensorName is not None:
-            isorce = sidd.ExploitationFeatures.Collections[0].Information.SensorName
+        isorce = self._get_isorce(index)
 
         rows = sidd.Measurement.PixelFootprint.Row
         cols = sidd.Measurement.PixelFootprint.Col

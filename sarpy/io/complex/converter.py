@@ -17,7 +17,9 @@ from typing import Union, List, Tuple
 
 from sarpy.compliance import int_func
 from sarpy.io.general.base import BaseReader, SarpyIOError
+from sarpy.io.general.nitf import NITFReader
 from sarpy.io.general.utils import is_file_like
+from sarpy.io.complex.base import SICDTypeReader
 from sarpy.io.complex.sicd import SICDWriter
 from sarpy.io.complex.sio import SIOWriter
 from sarpy.io.complex.sicd_elements.SICD import SICDType
@@ -176,10 +178,16 @@ class Converter(object):
             Should we check if the given file already exists, and raises an exception if so?
         """
 
+        if isinstance(reader, BaseReader):
+            self._reader = reader  # type: Union[SICDTypeReader, BaseReader]
+        else:
+            raise ValueError(
+                'reader is expected to be a Reader instance. Got {}'.format(type(reader)))
+
         if not (os.path.exists(output_directory) and os.path.isdir(output_directory)):
             raise SarpyIOError('output directory {} must exist.'.format(output_directory))
         if output_file is None:
-            output_file = reader.get_sicds_as_tuple()[frame].get_suggested_name(frame+1)+'_SICD'
+            output_file = self._reader.get_sicds_as_tuple()[frame].get_suggested_name(frame+1)+'_SICD'
         output_path = os.path.join(output_directory, output_file)
         if check_existence and os.path.exists(output_path):
             raise SarpyIOError('The file {} already exists.'.format(output_path))
@@ -192,15 +200,9 @@ class Converter(object):
             raise ValueError('Got unexpected output_format {}'.format(output_format))
         writer_type = _writer_types[output_format]
 
-        if isinstance(reader, BaseReader):
-            self._reader = reader  # type: BaseReader
-        else:
-            raise ValueError(
-                'reader is expected to be a Reader instance. Got {}'.format(type(reader)))
-
         # fetch the appropriate sicd instance
-        sicds = reader.get_sicds_as_tuple()
-        shapes = reader.get_data_size_as_tuple()
+        sicds = self._reader.get_sicds_as_tuple()
+        shapes = self._reader.get_data_size_as_tuple()
         if frame is None:
             self._frame = 0
         else:
@@ -319,7 +321,8 @@ class Converter(object):
 
 def conversion_utility(
         input_file, output_directory, output_files=None, frames=None, output_format='SICD',
-        row_limits=None, column_limits=None, max_block_size=None, check_older_version=False):
+        row_limits=None, column_limits=None, max_block_size=None, check_older_version=False,
+        preserve_nitf_information=False, check_existence=True):
     """
     Copy SAR complex data to a file of the specified format.
 
@@ -344,6 +347,11 @@ def conversion_utility(
         (nominal) maximum block size in bytes. Passed through to the Converter class.
     check_older_version : bool
         Try to use a less recent version of SICD (1.1), for possible application compliance issues?
+    preserve_nitf_information : bool
+        Try to preserve NITF information? This only applies in the case that the file being read
+        is actually a NITF file.
+    check_existence : bool
+        Check for the existence of any possibly overwritten file?
 
     Returns
     -------
@@ -385,13 +393,21 @@ def conversion_utility(
                     t_lims.append((t_start, t_end))
             return tuple(t_lims)
 
+    reader = None  # type: Union[None, SICDTypeReader, BaseReader]
     if isinstance(input_file, str):
         reader = open_complex(input_file)
     elif isinstance(input_file, BaseReader):
-        reader = input_file
+        reader = input_file  # type:
     else:
         raise ValueError(
             'input_file is expected to be a file name or Reader instance. Got {}'.format(type(input_file)))
+
+    if preserve_nitf_information and isinstance(reader, NITFReader):
+        try:
+            # noinspection PyUnresolvedReferences
+            reader.populate_nitf_information_into_sicd()
+        except AttributeError:
+            logger.warning('Reader class `{}` is missing populate_nitf_information_into_sicd method'.format(type(reader)))
 
     if not (os.path.exists(output_directory) and os.path.isdir(output_directory)):
         raise SarpyIOError('output directory {} must exist.'.format(output_directory))
@@ -425,13 +441,10 @@ def conversion_utility(
             suggested_name = sicd.CollectionInfo.CoreName+'{}_SICD'.format(frame)
         if suggested_name is None:
             suggested_name = 'Unknown{}_SICD'.format(frame)
-        if hasattr(sicd, '_NITF') and isinstance(sicd._NITF, dict):
-            sicd._NITF['SUGGESTED_NAME'] = suggested_name
-        else:
-            sicd._NITF = {'SUGGESTED_NAME': suggested_name}
+        sicd.NITF['SUGGESTED_NAME'] = suggested_name
     # construct output_files list
     if output_files is None:
-        output_files = [sicds[frame]._NITF['SUGGESTED_NAME']+'.nitf' for frame in frames]
+        output_files = [sicds[frame].NITF['SUGGESTED_NAME']+'.nitf' for frame in frames]
     elif isinstance(output_files, str):
         if len(sicds) == 1:
             output_files = [output_files, ]
@@ -459,5 +472,6 @@ def conversion_utility(
         with Converter(
                 reader, output_directory, output_file=o_file, frame=frame,
                 row_limits=row_lims, col_limits=col_lims, output_format=output_format,
-                check_older_version=check_older_version) as converter:
+                check_older_version=check_older_version,
+                check_existence=check_existence) as converter:
             converter.write_data(max_block_size=max_block_size)

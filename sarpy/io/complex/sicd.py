@@ -377,6 +377,49 @@ class SICDReader(NITFReader, SICDTypeReader):
         # noinspection PyTypeChecker
         return self._nitf_details
 
+    def get_nitf_dict(self):
+        """
+        Populate a dictionary with the pertinent NITF header information. This
+        is for use in more faithful preservation of NITF header information
+        in copying or rewriting sicd files.
+
+        Returns
+        -------
+        dict
+        """
+
+        out = {}
+        security = {}
+        security_obj = self.nitf_details.nitf_header.Security
+        # noinspection PyProtectedMember
+        for field in NITFSecurityTags._ordering:
+            value = getattr(security_obj, field).strip()
+            if value != '':
+                security[field] = value
+        if len(security) > 0:
+            out['Security'] = security
+
+        out['OSTAID'] = self.nitf_details.nitf_header.OSTAID
+        out['FTITLE'] = self.nitf_details.nitf_header.FTITLE
+        out['ISORCE'] = self.nitf_details.img_headers[0].ISORCE
+        out['IID2'] = self.nitf_details.img_headers[0].IID2
+        return out
+
+    def populate_nitf_information_into_sicd(self):
+        """
+        Populate some pertinent NITF header information into the SICD structure.
+        This provides more faithful copying or rewriting options.
+        """
+
+        self._sicd_meta.NITF = self.get_nitf_dict()
+
+    def depopulate_nitf_information(self):
+        """
+        Eliminates the NITF information dict from the SICD structure.
+        """
+
+        self._sicd_meta.NITF = {}
+
     def _find_segments(self):
         return [list(range(self.nitf_details.img_segment_offsets.size)), ]
 
@@ -627,14 +670,11 @@ class SICDWriter(NITFWriter):
 
         def get_basic_args():
             out = {}
+            sec_tags = self._sicd_meta.NITF.get('Security', {})
             # noinspection PyProtectedMember
-            if hasattr(self._sicd_meta, '_NITF') and isinstance(self._sicd_meta._NITF, dict):
-                # noinspection PyProtectedMember
-                sec_tags = self._sicd_meta._NITF.get('Security', {})
-                # noinspection PyProtectedMember
-                for fld in NITFSecurityTags._ordering:
-                    if fld in sec_tags:
-                        out[fld] = sec_tags[fld]
+            for fld in NITFSecurityTags._ordering:
+                if fld in sec_tags:
+                    out[fld] = sec_tags[fld]
             return out
 
         def get_clas():
@@ -665,11 +705,9 @@ class SICDWriter(NITFWriter):
         self._security_tags = self.default_security_tags()
 
     def _get_ftitle(self):  # type: () -> str
-        ftitle = None
-        # noinspection PyProtectedMember
-        if hasattr(self._sicd_meta, '_NITF') and isinstance(self._sicd_meta._NITF, dict):
-            # noinspection PyProtectedMember
-            ftitle = self._sicd_meta._NITF.get('SUGGESTED_NAME', None)
+        ftitle = self._sicd_meta.NITF.get('FTITLE', None)
+        if ftitle is None:
+            ftitle = self._sicd_meta.NITF.get('SUGGESTED_NAME', None)
         if ftitle is None:
             ftitle = self._sicd_meta.get_suggested_name(1)
         if ftitle is None and self._sicd_meta.CollectionInfo is not None and \
@@ -683,12 +721,22 @@ class SICDWriter(NITFWriter):
         return re.sub(r'[^0-9]', '', str(self.sicd_meta.ImageCreation.DateTime.astype('datetime64[s]')))
 
     def _get_ostaid(self):
-        ostaid = 'Unknown'
-        # noinspection PyProtectedMember
-        if hasattr(self._sicd_meta, '_NITF') and isinstance(self._sicd_meta._NITF, dict):
-            # noinspection PyProtectedMember
-            ostaid = self._sicd_meta._NITF.get('OSTAID', 'Unknown')
+        ostaid = self._sicd_meta.NITF.get('OSTAID', 'Unknown')
         return ostaid
+
+    def _get_isorce(self):
+        isorce = self._sicd_meta.NITF.get('ISORCE', None)
+        if isorce is None and \
+                self.sicd_meta.CollectionInfo is not None and \
+                self.sicd_meta.CollectionInfo.CollectorName is not None:
+            isorce = 'SICD: {}'.format(self.sicd_meta.CollectionInfo.CollectorName)
+        if isorce is None:
+            isorce = 'SICD: Unknown Collector'
+        return isorce
+
+    def _get_iid2(self):
+        iid2 = self._sicd_meta.NITF.get('IID2', self._get_ftitle())
+        return iid2
 
     def _image_parameters(self):
         """
@@ -736,14 +784,12 @@ class SICDWriter(NITFWriter):
         img_groups = tuple(range(len(image_segment_limits)))
         self._img_groups = (img_groups, )
 
-        ftitle = self._get_ftitle()
+        iid2 = self._get_iid2()
         idatim = ' '
         if self.sicd_meta.Timeline is not None and self.sicd_meta.Timeline.CollectStart is not None:
             idatim = re.sub(r'[^0-9]', '', str(self.sicd_meta.Timeline.CollectStart.astype('datetime64[s]')))
 
-        isource = 'SICD: Unknown Collector'
-        if self.sicd_meta.CollectionInfo is not None and self.sicd_meta.CollectionInfo.CollectorName is not None:
-            isource = 'SICD: {}'.format(self.sicd_meta.CollectionInfo.CollectorName)
+        isource = self._get_isorce()
 
         icp, rows, cols = None, None, None
         if self.sicd_meta.GeoData is not None and self.sicd_meta.GeoData.ImageCorners is not None:
@@ -762,7 +808,7 @@ class SICDWriter(NITFWriter):
             subhead = ImageSegmentHeader(
                 IID1='SICD{0:03d}'.format(0 if len(image_segment_limits) == 1 else i+1),
                 IDATIM=idatim,
-                IID2=ftitle,
+                IID2=iid2,
                 ISORCE=isource,
                 IREP='NODISPLY',
                 ICAT='SAR',

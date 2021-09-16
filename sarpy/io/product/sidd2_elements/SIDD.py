@@ -8,6 +8,8 @@ __author__ = "Thomas McCullough"
 import logging
 from typing import Union, Tuple
 from collections import OrderedDict
+from copy import deepcopy
+
 import numpy
 
 from sarpy.io.xml.base import Serializable
@@ -138,6 +140,12 @@ class SIDDType(Serializable):
             self._xml_ns = kwargs['_xml_ns']
         if '_xml_ns_key' in kwargs:
             self._xml_ns_key = kwargs['_xml_ns_key']
+
+        nitf = kwargs.get('_NITF', {})
+        if not isinstance(nitf, dict):
+            raise TypeError('Provided NITF options are required to be in dictionary form.')
+        self._NITF = nitf
+
         self._coa_projection = None
         self.ProductCreation = ProductCreation
         self.Display = Display
@@ -165,6 +173,19 @@ class SIDDType(Serializable):
         """
 
         return self._coa_projection
+
+    @property
+    def NITF(self):
+        """
+        Optional dictionary of NITF header information, pertains only to subsequent
+        SIDD file writing.
+
+        Returns
+        -------
+        Dict
+        """
+
+        return self._NITF
 
     def can_project_coordinates(self):
         """
@@ -401,3 +422,16 @@ class SIDDType(Serializable):
 
     def to_xml_string(self, urn=None, tag='SIDD', check_validity=False, strict=DEFAULT_STRICT):
         return self.to_xml_bytes(urn=urn, tag=tag, check_validity=check_validity, strict=strict).decode('utf-8')
+
+    def copy(self):
+        """
+        Provides a deep copy.
+
+        Returns
+        -------
+        SIDDType
+        """
+
+        out = super(SIDDType, self).copy()
+        out._NITF = deepcopy(self._NITF)
+        return out
