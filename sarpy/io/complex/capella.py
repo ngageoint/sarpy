@@ -133,9 +133,9 @@ class CapellaDetails(object):
 
         pointing = self._img_desc_tags['collect']['radar']['pointing'].lower()
         if pointing == 'left':
-            return False, False, False
+            return False, False, True
         elif pointing == 'right':
-            return False, True, False
+            return False, True, True
         else:
             raise ValueError('Got unhandled pointing value {}'.format(pointing))
 

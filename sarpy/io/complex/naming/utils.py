@@ -92,17 +92,17 @@ def get_sicd_name(the_sicd, product_number=1):
     """
 
     def get_commercial_id():
-        commericial_id = None
+        commercial_id = None
         for entry in _name_functions:
-            commericial_id = entry(collector, cdate_str, cdate_mins, product_number)
-            if commericial_id is not None:
+            commercial_id = entry(collector, cdate_str, cdate_mins, product_number)
+            if commercial_id is not None:
                 break
-        if commericial_id is None:
+        if commercial_id is None:
             return '{0:s}_{1:03d}'.format(the_sicd.CollectionInfo.CoreName, product_number)
-        return commericial_id
+        return commercial_id
 
     def get_vendor_id():
-        _time_str = cdate.strftime('%H%M%S')
+        _time_str = 'HHMMSS' if cdate is None else cdate.strftime('%H%M%S')
         _mode = '{}{}{}'.format(the_sicd.CollectionInfo.RadarMode.get_mode_abbreviation(),
                                 the_sicd.Grid.get_resolution_abbreviation(),
                                 the_sicd.SCPCOA.SideOfTrack)
@@ -117,14 +117,25 @@ def get_sicd_name(the_sicd, product_number=1):
     parse_name_functions()
 
     # extract the common use variables
-    cdate = the_sicd.Timeline.CollectStart.astype(datetime)
-    cdate_str = cdate.strftime('%d%b%y')
-    cdate_mins = cdate.hour * 60 + cdate.minute + cdate.second / 60.
-    collector = the_sicd.CollectionInfo.CollectorName.strip()
+    if the_sicd.Timeline.CollectStart is None:
+        cdate = None
+        cdate_str = "DATE"
+        cdate_mins = 0
+    else:
+        start_time = the_sicd.Timeline.CollectStart.astype('datetime64[s]')
+        cdate = start_time.astype(datetime)
+        cdate_str = cdate.strftime('%d%b%y')
+        cdate_mins = cdate.hour * 60 + cdate.minute + cdate.second / 60.
 
+    if the_sicd.CollectionInfo.CollectorName is None:
+        collector = 'Unknown'
+    else:
+        collector = the_sicd.CollectionInfo.CollectorName.strip()
+
+    # noinspection PyBroadException
     try:
         return get_commercial_id() + get_vendor_id()
-    except AttributeError:
+    except Exception:
         logger.error('Failed to construct suggested name.')
         return None
 
