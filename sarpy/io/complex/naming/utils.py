@@ -102,7 +102,10 @@ def get_sicd_name(the_sicd, product_number=1):
         return commericial_id
 
     def get_vendor_id():
-        _time_str = cdate.strftime('%H%M%S')
+        if cdate is None:
+            _time_str = cdate.strftime('%H%M%S')
+        else:
+            _time_str = 'HHMMSS'
         _mode = '{}{}{}'.format(the_sicd.CollectionInfo.RadarMode.get_mode_abbreviation(),
                                 the_sicd.Grid.get_resolution_abbreviation(),
                                 the_sicd.SCPCOA.SideOfTrack)
@@ -117,9 +120,15 @@ def get_sicd_name(the_sicd, product_number=1):
     parse_name_functions()
 
     # extract the common use variables
-    cdate = the_sicd.Timeline.CollectStart.astype(datetime)
-    cdate_str = cdate.strftime('%d%b%y')
-    cdate_mins = cdate.hour * 60 + cdate.minute + cdate.second / 60.
+    if the_sicd.Timeline.CollectStart is None:
+        cdate = None
+        cdate_str = "DATE"
+        cdate_mins = 0
+    else:
+        start_time = the_sicd.Timeline.CollectStart.astype('datetime64[s]')
+        cdate = start_time.astype(datetime)
+        cdate_str = cdate.strftime('%d%b%y')
+        cdate_mins = cdate.hour * 60 + cdate.minute + cdate.second / 60.
     collector = the_sicd.CollectionInfo.CollectorName.strip()
 
     try:
