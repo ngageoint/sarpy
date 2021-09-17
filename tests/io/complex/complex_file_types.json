@@ -25,5 +25,9 @@
     {"path":  "iceye/ICEYE_SLC_SLH_30170_20200603T193630.h5", "path_type":  "relative"},
     {"path":  "iceye/ICEYE_SLC_SLH_30180_20200603T035624.h5", "path_type":  "relative"}],
   "PALSAR": [
-    {"path":  "palsar/1000000001_001001_ALOS2150521570-170307", "path_type":  "relative"}]
+    {"path":  "palsar/1000000001_001001_ALOS2150521570-170307", "path_type":  "relative"}],
+  "Capella": [
+    {"path":  "capella/CAPELLA_C02_SS_SLC_HH_20210223023836_20210223023852.tif", "path_type":  "relative"},
+    {"path":  "capella/CAPELLA_C03_SP_SLC_HH_20210313173209_20210313173212.tif", "path_type":  "relative"}
+  ]
 }
