@@ -10,6 +10,7 @@ from sarpy.io.complex.tsx import TSXReader
 from sarpy.io.complex.csk import CSKReader
 from sarpy.io.complex.iceye import ICEYEReader
 from sarpy.io.complex.palsar2 import PALSARReader
+from sarpy.io.complex.capella import CapellaReader
 
 from tests import unittest, parse_file_entry
 
@@ -52,6 +53,7 @@ def generic_reader_test(instance, test_file, reader_type_string, reader_type):
 
     with instance.subTest(msg='Fetch data_sizes and sicds for type {} and file {}'.format(reader_type_string, test_file)):
         data_sizes = reader.get_data_size_as_tuple()
+        # noinspection PyUnresolvedReferences
         sicds = reader.get_sicds_as_tuple()
 
     for i, (data_size, sicd) in enumerate(zip(data_sizes, sicds)):
@@ -155,3 +157,10 @@ class TestPALSAR(unittest.TestCase):
     def test_palsar_reader(self):
         for test_file in complex_file_types['PALSAR']:
             generic_reader_test(self, test_file, 'PALSAR', PALSARReader)
+
+
+class TestCapella(unittest.TestCase):
+    @unittest.skipIf(len(complex_file_types.get('Capella', [])) == 0, 'No Capella files specified or found')
+    def test_palsar_reader(self):
+        for test_file in complex_file_types['Capella']:
+            generic_reader_test(self, test_file, 'Capella', CapellaReader)
