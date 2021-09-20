@@ -1377,12 +1377,12 @@ class XYZPolyType(Serializable, Arrayable):
             out = numpy.hstack((x, y, z))
             return numpy.reshape(out, o_shape + (3, ))
 
-    def get_array(self, dtype=numpy.object):
+    def get_array(self, dtype='object'):
         """Gets an array representation of the class instance.
 
         Parameters
         ----------
-        dtype : str|numpy.dtype|numpy.number|numpy.object
+        dtype : str|numpy.dtype|numpy.number
             numpy data type of the return.
             If `object`, an array of Poly1DType objects is returned.
             Otherwise, an ndarray of shape (3, N) of coefficient vectors is returned.
@@ -1393,8 +1393,8 @@ class XYZPolyType(Serializable, Arrayable):
             array of the form `[X,Y,Z]`.
         """
 
-        if dtype in ['object', numpy.object, numpy.dtype('object')]:
-            return numpy.array([self.X, self.Y, self.Z], dtype=numpy.object)
+        if dtype in ['object', numpy.dtype('object')]:
+            return numpy.array([self.X, self.Y, self.Z], dtype='object')
         else:
             # return a 3 x N array of coefficients
             xv = self.X.Coefs
