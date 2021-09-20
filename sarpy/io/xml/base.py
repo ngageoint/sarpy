@@ -367,11 +367,11 @@ def parse_serializable_array(value, name, instance, child_type, child_tag):
         return None
     if isinstance(value, child_type):
         # this is the child element
-        return numpy.array([value, ], dtype=numpy.object)
+        return numpy.array([value, ], dtype='object')
     elif isinstance(value, numpy.ndarray):
         if value.dtype.name != 'object':
             if issubclass(child_type, Arrayable):
-                return numpy.array([child_type.from_array(array) for array in value], dtype=numpy.object)
+                return numpy.array([child_type.from_array(array) for array in value], dtype='object')
             else:
                 raise ValueError(
                     'Attribute {} of array type functionality belonging to class {} got an ndarray of dtype {},'
@@ -407,24 +407,24 @@ def parse_serializable_array(value, name, instance, child_type, child_tag):
                 'Attribute {} of array type functionality belonging to class {} got a ElementTree element '
                 'with size attribute {}, but has {} child nodes with tag {}.'.format(
                     name, instance.__class__.__name__, size, len(child_nodes), child_tag))
-        new_value = numpy.empty((size, ), dtype=numpy.object)
+        new_value = numpy.empty((size, ), dtype='object')
         for i, entry in enumerate(child_nodes):
             new_value[i] = child_type.from_node(entry, xml_ns, ns_key=xml_ns_key)
         return new_value
     elif isinstance(value, (list, tuple)):
         # this would arrive from users or json deserialization
         if len(value) == 0:
-            return numpy.empty((0,), dtype=numpy.object)
+            return numpy.empty((0,), dtype='object')
         elif isinstance(value[0], child_type):
-            return numpy.array(value, dtype=numpy.object)
+            return numpy.array(value, dtype='object')
         elif isinstance(value[0], dict):
             # NB: charming errors are possible here if something stupid has been done.
-            return numpy.array([child_type.from_dict(node) for node in value], dtype=numpy.object)
+            return numpy.array([child_type.from_dict(node) for node in value], dtype='object')
         elif isinstance(value[0], (numpy.ndarray, list, tuple)):
             if issubclass(child_type, Arrayable):
-                return numpy.array([child_type.from_array(array) for array in value], dtype=numpy.object)
+                return numpy.array([child_type.from_array(array) for array in value], dtype='object')
             elif hasattr(child_type, 'Coefs'):
-                return numpy.array([child_type(Coefs=array) for array in value], dtype=numpy.object)
+                return numpy.array([child_type(Coefs=array) for array in value], dtype='object')
             else:
                 raise ValueError(
                     'Attribute {} of array type functionality belonging to class {} got an list '
@@ -1458,26 +1458,26 @@ class SerializableArray(object):
         else:
             return self._array.size
 
-    def get_array(self, dtype=numpy.object, **kwargs):
+    def get_array(self, dtype='object', **kwargs):
         """Gets an array representation of the class instance.
 
         Parameters
         ----------
-        dtype : str|numpy.dtype|numpy.number|numpy.object
+        dtype : str|numpy.dtype|numpy.number
             numpy data type of the return.
         kwargs : keyword arguments for calls of the form child.get_array(**kwargs)
 
         Returns
         -------
         numpy.ndarray
-            * If `dtype` in `(numpy.object`, 'object')`, then the literal array of
+            * If `dtype` == 'object'`, then the literal array of
               child objects is returned. *Note: Beware of mutating the elements.*
             * If `dtype` has any other value, then the return value will be tried
               as `numpy.array([child.get_array(dtype=dtype, **kwargs) for child in array]`.
             * If there is any error, then `None` is returned.
         """
 
-        if dtype in [numpy.object, 'object', numpy.dtype('object')]:
+        if dtype in ['object', numpy.dtype('object')]:
             return self._array
         else:
             # noinspection PyBroadException

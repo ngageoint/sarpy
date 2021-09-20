@@ -1,5 +1,7 @@
 # This details the important differences introduced in sarpy 1.2
 
+* .22 - Eliminating deprecated numpy.object usage
+        Include population of North in SIDD exploitation features construction
 * .21 - Incorporating unit test for Capella and fixing data transpose issue
 * .20 - Bug fix for default Capella naming scheme
 * .19 - Adding SICD chipping utility, and more sicd file conversion options
