@@ -63,7 +63,7 @@ class GraphicsSegmentHeader(NITFElement):
     SLOC = _IntegerDescriptor(
         'SLOC', True, 10, default_value=0,
         docstring='Graphic Location. The graphics location is specified by providing the location '
-                  'of the graphic’s origin point relative to the position (location of the CCS, image, '
+                  'of the graphics origin point relative to the position (location of the CCS, image, '
                   'or graphic to which it is attached. This field shall contain the graphic location '
                   'offset from the `ILOC` or `SLOC` value of the CCS, image, or graphic to which the graphic '
                   'is attached or from the origin of the CCS when the graphic is unattached (`SALVL = 0`). '
