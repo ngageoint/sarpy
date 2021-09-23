@@ -57,6 +57,7 @@ def two_dim_poly_fit(x, y, z, x_order=2, y_order=2, x_scale=1, y_scale=1, rcond=
     # where A has shape (x.size, (x_order+1)*(y_order+1))
     # and t has shape ((x_order+1)*(y_order+1), )
     A = numpy.empty((x.size, (x_order+1)*(y_order+1)), dtype=numpy.float64)
+    # noinspection PyTypeChecker
     for i, index in enumerate(numpy.ndindex((x_order+1, y_order+1))):
         A[:, i] = numpy.power(x, index[0])*numpy.power(y, index[1])
     # perform least squares fit
@@ -133,56 +134,6 @@ def fit_time_coa_polynomial(inca, image_data, grid, dop_rate_scaled_coeffs, poly
         'rank = {}\n\t'
         'singular values = {}'.format(residuals, rank, sing_values))
     return Poly2DType(Coefs=coefs)
-
-
-def snr_to_rniirs(bandwidth_area, signal, noise):
-    """
-    Calculate the information_density and RNIIRS estimate from bandwidth area and
-    signal/noise estimates.
-
-    It is assumed that geometric effects for signal and noise have been accounted for
-    (i.e. use SigmaZeroSFPoly), and signal and noise have each been averaged to a
-    single pixel value.
-
-    This mapping has been empirically determined by fitting Shannon-Hartley channel
-    capacity to RNIIRS for some sample images.
-
-    Parameters
-    ----------
-    bandwidth_area : float
-    signal : float
-    noise : float
-
-    Returns
-    -------
-    (float, float)
-        The information_density and RNIIRS
-    """
-
-    information_density = bandwidth_area*numpy.log2(1 + signal/noise)
-
-    a = numpy.array([3.7555, .3960], dtype=numpy.float64)
-    # we have empirically fit so that
-    #   rniirs = a_0 + a_1*log_2(information_density)
-
-    # note that if information_density is sufficiently small, it will
-    # result in negative values in the above functional form. This would be
-    # invalid for RNIIRS by definition, so we must avoid this case.
-
-    # We transition to a linear function of information_density
-    # below a certain point. This point will be chosen to be the (unique) point
-    # at which the line tangent to the curve intersects the origin, and the
-    # linear approximation below that point will be defined by this tangent line.
-
-    # via calculus, we can determine analytically where that happens
-    # rniirs_transition = a[1]/numpy.log(2)
-    iim_transition = numpy.exp(1 - numpy.log(2)*a[0]/a[1])
-    slope = a[1]/(iim_transition*numpy.log(2))
-
-    if information_density > iim_transition:
-        return information_density, a[0] + a[1]*numpy.log2(information_density)
-    else:
-        return information_density, slope*information_density
 
 
 def fit_position_xvalidation(time_array, position_array, velocity_array, max_degree=5):
@@ -290,7 +241,9 @@ def sicd_reader_iterator(reader, partitions=None, polarization=None, band=None):
         raise ValueError('The provided reader must be of SICD type.')
 
     if partitions is None:
+        # noinspection PyUnresolvedReferences
         partitions = reader.get_sicd_partitions()
+    # noinspection PyUnresolvedReferences
     the_sicds = reader.get_sicds_as_tuple()
     for this_partition, entry in enumerate(partitions):
         for this_index in entry:
@@ -317,3 +270,140 @@ def get_physical_coordinates(the_sicd, row_value, col_value):
 
     return get_im_physical_coords(row_value, the_sicd.Grid, the_sicd.ImageData, 'row'), \
            get_im_physical_coords(col_value, the_sicd.Grid, the_sicd.ImageData, 'col')
+
+
+#############
+# rniirs calculation
+
+def get_sigma0_noise(sicd):
+    """
+    Calculate the absolute noise estimate, in sigma0 power units.
+
+    Parameters
+    ----------
+    sicd : sarpy.io.complex.sicd_elements.SICD.SICDType
+
+    Returns
+    -------
+    float
+    """
+
+    if sicd.Radiometric is None:
+        raise ValueError(
+            'Radiometric is not populated,\n\t'
+            'so no noise estimate can be derived.')
+    if sicd.Radiometric.SigmaZeroSFPoly is None:
+        raise ValueError(
+            'Radiometric.SigmaZeroSFPoly is not populated,\n\t'
+            'so no sigma0 noise estimate can be derived.')
+    if sicd.Radiometric.NoiseLevel is None:
+        raise ValueError(
+            'Radiometric.NoiseLevel is not populated,\n\t'
+            'so no noise estimate can be derived.')
+    if sicd.Radiometric.NoiseLevel.NoiseLevelType != 'ABSOLUTE':
+        raise ValueError(
+            'Radiometric.NoiseLevel.NoiseLevelType is not `ABSOLUTE``,\n\t'
+            'so no noise estimate can be derived.')
+    noise = sicd.Radiometric.NoiseLevel.NoisePoly(0, 0)  # this is in db
+    noise = 10**(0.1*noise)  # this is absolute
+
+    # convert to SigmaZero value
+    noise *= sicd.Radiometric.SigmaZeroSFPoly(0, 0)
+    return noise
+
+
+def get_default_signal_estimate(sicd):
+    """
+    Gets default signal for use in the RNIIRS calculation. This will be
+    1.0 for copolar (or unknown) collections, and 0.25 for cross pole
+    collections.
+
+    Parameters
+    ----------
+    sicd : sarpy.io.complex.sicd_elements.SICD.SICDType
+
+    Returns
+    -------
+    float
+    """
+
+    if sicd.ImageFormation is None or sicd.ImageFormation.TxRcvPolarizationProc is None:
+        return 1.0
+
+    # use 1.0 for copolar collection and 0.25 from cross-polar collection
+    pol = sicd.ImageFormation.TxRcvPolarizationProc
+    if pol is None or ':' not in pol:
+        return 1.0
+
+    pols = pol.split(':')
+
+    return 1.0 if pols[0] == pols[1] else 0.25
+
+
+def get_bandwidth_area(sicd):
+    """
+    Calculate the bandwidth area.
+
+    Parameters
+    ----------
+    sicd : sarpy.io.complex.sicd_elements.SICD.SICDType
+
+    Returns
+    -------
+    float
+    """
+
+    return abs(
+        sicd.Grid.Row.ImpRespBW *
+        sicd.Grid.Col.ImpRespBW *
+        numpy.cos(numpy.deg2rad(sicd.SCPCOA.SlopeAng)))
+
+
+def snr_to_rniirs(bandwidth_area, signal, noise):
+    """
+    Calculate the information_density and RNIIRS estimate from bandwidth area and
+    signal/noise estimates.
+
+    It is assumed that geometric effects for signal and noise have been accounted for
+    (i.e. use SigmaZeroSFPoly), and signal and noise have each been averaged to a
+    single pixel value.
+
+    This mapping has been empirically determined by fitting Shannon-Hartley channel
+    capacity to RNIIRS for some sample images.
+
+    Parameters
+    ----------
+    bandwidth_area : float
+    signal : float
+    noise : float
+
+    Returns
+    -------
+    (float, float)
+        The information_density and estimated RNIIRS
+    """
+
+    information_density = bandwidth_area * numpy.log2(1 + signal/noise)
+
+    a = numpy.array([3.7555, .3960], dtype=numpy.float64)
+    # we have empirically fit so that
+    #   rniirs = a_0 + a_1*log_2(information_density)
+
+    # note that if information_density is sufficiently small, it will
+    # result in negative values in the above functional form. This would be
+    # invalid for RNIIRS by definition, so we must avoid this case.
+
+    # We transition to a linear function of information_density
+    # below a certain point. This point will be chosen to be the (unique) point
+    # at which the line tangent to the curve intersects the origin, and the
+    # linear approximation below that point will be defined by this tangent line.
+
+    # via calculus, we can determine analytically where that happens
+    # rniirs_transition = a[1]/numpy.log(2)
+    iim_transition = numpy.exp(1 - numpy.log(2) * a[0] / a[1])
+    slope = a[1] / (iim_transition * numpy.log(2))
+
+    if information_density > iim_transition:
+        return information_density, a[0] + a[1]*numpy.log2(information_density)
+    else:
+        return information_density, slope*information_density

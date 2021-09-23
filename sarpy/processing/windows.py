@@ -114,7 +114,7 @@ def hanning(M, sym=True):
 
 def taylor(M, nbar=4, sll=-30, norm=True, sym=True):
     """
-    The Taylor window taper function approximates the Dolph-Chebyshev window’s
+    The Taylor window taper function approximates the Dolph-Chebyshev windows
     constant sidelobe level for a parameterized number of near-in sidelobes,
     but then allows a taper beyond.
 

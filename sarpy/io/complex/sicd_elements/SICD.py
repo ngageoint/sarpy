@@ -15,6 +15,8 @@ import numpy
 from sarpy.geometry import point_projection
 from sarpy.io.complex.naming.utils import get_sicd_name
 from sarpy.io.complex.sicd_schema import get_urn_details, get_specification_identifier
+from sarpy.io.complex.utils import snr_to_rniirs, get_bandwidth_area, \
+    get_sigma0_noise, get_default_signal_estimate
 
 from sarpy.io.xml.base import Serializable
 from sarpy.io.xml.descriptors import SerializableDescriptor
@@ -837,53 +839,23 @@ class SICDType(Serializable):
                 return
 
         if noise is None:
-            if self.Radiometric is not None:
-                try:
-                    if self.Radiometric.NoiseLevel.NoiseLevelType != 'ABSOLUTE':
-                        logger.error(
-                            'Radiometric.NoiseLevel.NoiseLevelType must be "ABSOLUTE" to estimate noise.\n\t'
-                            'You must provide a noise estimate.')
-                        return
-                    noise = self.Radiometric.NoiseLevel.NoisePoly(0, 0)  # this is in db
-                    noise = 10**(noise/10.)  # this is absolute
-
-                    # convert to SigmaZero value
-                    noise *= self.Radiometric.SigmaZeroSFPoly(0, 0)
-                except Exception as e:
-                    logger.error(
-                        'Encountered an error estimating noise for RNIIRS.\n\t{}'.format(e))
-                    return
-            else:
+            try:
+                noise = get_sigma0_noise(self)
+            except Exception as e:
                 logger.error(
-                    'noise is not provided, and Radiometric is not populated.\n\t'
-                    'RNIIRS can not be estimated.')
+                    'Encountered an error estimating noise for RNIIRS.\n\t{}'.format(e))
                 return
 
         if signal is None:
-            # noinspection PyBroadException
-            try:
-                # use 1.0 for copolar collection and 0.25 from cross-polar collection
-                pol = self.ImageFormation.TxRcvPolarizationProc
-                if pol is None or ':' not in pol:
-                    signal = 0.25
-                else:
-                    pols = pol.split(':')
-                    if pols[0] == pols[1]:
-                        signal = 1.0
-                    else:
-                        signal = 0.25
-            except Exception:
-                signal = 0.25
+            signal = get_default_signal_estimate(self)
 
         try:
-            bw_area = abs(self.Grid.Row.ImpRespBW*self.Grid.Col.ImpRespBW *
-                          numpy.cos(numpy.deg2rad(self.SCPCOA.SlopeAng)))
+            bw_area = get_bandwidth_area(self)
         except Exception as e:
             logger.error(
                 'Encountered an error estimating bandwidth area for RNIIRS\n\t{}'.format(e))
             return
 
-        from sarpy.io.complex.utils import snr_to_rniirs
         inf_density, rniirs = snr_to_rniirs(bw_area, signal, noise)
         logger.info(
             'Calculated INFORMATION_DENSITY = {0:0.5G},\n\t'
