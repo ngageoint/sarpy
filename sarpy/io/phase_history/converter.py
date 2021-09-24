@@ -3,11 +3,8 @@ This module provide utilities for reading essentially Complex Phase History Data
 """
 
 import os
-import sys
-import pkgutil
-from importlib import import_module
 
-from sarpy.io.general.base import BaseReader, SarpyIOError
+from sarpy.io.general.base import BaseReader, SarpyIOError, check_for_openers
 
 
 __classification__ = "UNCLASSIFIED"
@@ -45,10 +42,6 @@ def register_opener(open_func):
 def parse_openers():
     """
     Automatically find the viable openers (i.e. :func:`is_a`) in the various modules.
-
-    Returns
-    -------
-
     """
 
     global _parsed_openers
@@ -56,26 +49,7 @@ def parse_openers():
         return
     _parsed_openers = True
 
-    def check_module(mod_name):
-        # import the module
-        import_module(mod_name)
-        # fetch the module from the modules dict
-        module = sys.modules[mod_name]
-        # see if it has an is_a function, if so, register it
-        if hasattr(module, 'is_a'):
-            register_opener(module.is_a)
-
-        # walk down any subpackages
-        path, fil = os.path.split(module.__file__)
-        if not fil.startswith('__init__.py'):
-            # there are no subpackages
-            return
-        for sub_module in pkgutil.walk_packages([path, ]):
-            _, sub_module_name, _ = sub_module
-            sub_name = "{}.{}".format(mod_name, sub_module_name)
-            check_module(sub_name)
-
-    check_module('sarpy.io.phase_history')
+    check_for_openers('sarpy.io.phase_history', register_opener)
 
 
 def open_phase_history(file_name):

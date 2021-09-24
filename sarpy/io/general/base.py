@@ -8,6 +8,8 @@ __author__ = "Thomas McCullough"
 import os
 import logging
 from typing import Union, Tuple, BinaryIO, Callable
+from importlib import import_module
+import pkgutil
 
 import numpy
 
@@ -1827,3 +1829,27 @@ class BIPWriter(AbstractWriter):
                     self.__class__.__name__, self._file_name))
             # The exception will be reraised.
             # It's unclear how any exception could be caught.
+
+
+############
+# module walking to register openers
+
+def check_for_openers(start_package, register_method):
+    """
+    Walks the package, and registers the discovered openers.
+
+    Parameters
+    ----------
+    start_package : str
+    register_method : Callable
+    """
+
+    module = import_module(start_package)
+    for details in pkgutil.walk_packages(module.__path__, start_package+'.'):
+        _, module_name, is_pkg = details
+        if is_pkg:
+            # don't bother checking for packages
+            continue
+        sub_module = import_module(module_name)
+        if hasattr(sub_module, 'is_a'):
+            register_method(sub_module.is_a)
