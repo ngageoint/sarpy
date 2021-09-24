@@ -7,7 +7,6 @@ __classification__ = "UNCLASSIFIED"
 
 
 import logging
-import os
 from typing import Union, Generator
 
 import numpy
@@ -15,8 +14,6 @@ import numpy
 from sarpy.compliance import int_func, integer_types
 from sarpy.processing.fft_base import FFTCalculator, fft, ifft, fftshift
 from sarpy.io.general.slice_parsing import validate_slice, validate_slice_int
-from sarpy.io.product.sidd_structure_creation import create_sidd_structure
-from sarpy.io.product.sidd import SIDDWriter
 from sarpy.processing.ortho_rectify import OrthorectificationHelper, OrthorectificationIterator
 
 logger = logging.getLogger(__name__)
