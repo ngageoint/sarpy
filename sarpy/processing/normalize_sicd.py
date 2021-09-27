@@ -629,7 +629,7 @@ def resample_reweight_sicd(
 
     def validate_limits(lims, max_index):
         if lims is None:
-            return (0, max_index)
+            return 0, max_index
         _lims = (int(lims[0]), int(lims[2]))
         if not (0 <= _lims[0] < _lims[1] <= max_index):
             raise ValueError('Got poorly formatted index limit {}'.format(lims))
