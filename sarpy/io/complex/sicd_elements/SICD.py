@@ -349,7 +349,7 @@ class SICDType(Serializable):
 
         if self.Grid is not None:
             # noinspection PyProtectedMember
-            self.Grid._derive_direction_params(self.ImageData)
+            self.Grid.derive_direction_params(self.ImageData)
 
         if self.RadarCollection is not None:
             self.RadarCollection.derive()

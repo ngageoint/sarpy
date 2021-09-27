@@ -3,12 +3,14 @@ Window function definitions and a few helper functions. This just passes through
 to scipy functions after managing scipy version dependent import structure.
 """
 
-import scipy
-import numpy
-
-
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
+
+
+import scipy
+import numpy
+from scipy.optimize import newton
+
 
 _version_string_parts = scipy.__version__.split('.')
 _version = (int(_version_string_parts[0]), int(_version_string_parts[1]))
@@ -213,6 +215,32 @@ def kaiser(M, beta, sym=True):
 
 #################
 # helper methods
+
+def hamming_ipr(x, a):
+    """
+    Evaluate the Hamming impulse response function over the given array.
+
+    Parameters
+    ----------
+    x : numpy.ndarray|float|int
+    a : float
+        The Hamming parameter value.
+
+    Returns
+    -------
+    numpy.ndarray
+    """
+
+    return a*numpy.sinc(x) + 0.5*(1-a)*(numpy.sinc(x-1) + numpy.sinc(x+1)) - a/numpy.sqrt(2)
+
+
+def get_hamming_broadening_factor(coef):
+    test_array = numpy.linspace(0.3, 2.5, 100)
+    values = hamming_ipr(test_array, coef)
+    init_value = test_array[numpy.argmin(numpy.abs(values))]
+    zero = newton(hamming_ipr, init_value, args=(coef,), tol=1e-12, maxiter=100)
+    return 2 * zero
+
 
 def find_half_power(wgt_funct, oversample=1024):
     """

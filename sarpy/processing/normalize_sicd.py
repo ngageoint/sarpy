@@ -19,6 +19,9 @@ from sarpy.io.general.base import BaseReader, SarpyIOError
 from sarpy.processing.ortho_rectify import FullResolutionFetcher
 from sarpy.processing.fft_base import fft, ifft, fftshift, ifftshift, \
     fft_sicd, ifft_sicd
+
+from sarpy.io.complex.base import FlatSICDReader
+from sarpy.io.complex.converter import open_complex
 from sarpy.io.complex.sicd import SICDWriter
 from sarpy.io.complex.sicd_elements.SICD import SICDType
 from sarpy.io.complex.sicd_elements.Grid import WgtTypeType
@@ -62,8 +65,7 @@ def apply_skew_poly(input_data, delta_kcoa_poly, row_array, col_array, fft_sgn,
 
     delta_kcoa_poly_int = polynomial.polyint(delta_kcoa_poly, axis=dimension)
     if forward:
-        delta_kcoa_poly_int *= -1
-
+        fft_sgn *= -1
     return input_data*numpy.exp(1j*fft_sgn*2*numpy.pi*polynomial.polygrid2d(
         row_array, col_array, delta_kcoa_poly_int))
 
@@ -555,14 +557,13 @@ class DeskewCalculator(FullResolutionFetcher):
         return full_data[::abs(row_range[2]), ::abs(col_range[2])]
 
 
-############
-# sicd modification/creation classes
-
-def modify_sicd(
-        reader, output_file, index=0, row_aperture=None, row_weighting=None,
-        column_aperture=None, column_weighting=None, add_noise=None,
-        pixel_threshold=1500*1500, check_existence=True,
-        repopulate_rniirs=True):
+def resample_reweight_sicd(
+        reader, output_file=None, index=0,
+        row_limits=None, column_limits=None,
+        row_aperture=None, row_weighting=None,
+        column_aperture=None, column_weighting=None,
+        add_noise=None, pixel_threshold=1500*1500,
+        check_existence=True, check_older_version=False, repopulate_rniirs=True):
     """
     Given input, create a SICD (file) with modified weighting/subaperture parameters.
 
@@ -570,20 +571,28 @@ def modify_sicd(
     ----------
     reader : BaseReader
         A sicd type reader.
-    output_file : str
+    output_file : None|str
+        If None, an in-memory SICD reader instance will be returned. Otherwise,
+        this is the path for the produced output SICD file.
     index : int
         The reader index to be used.
+    row_limits : None|(int, int)
+        Row limits for the underlying data.
+    column_limits : None|(int, int)
+        Column limits for the underlying data.
     row_aperture : None|tuple
         `None` (no row subaperture), or integer valued `start_row, end_row` for the
-        row subaperture definition.
+        row subaperture definition. This is with respect to row values AFTER
+        considering `row_limits`.
     row_weighting : None|dict
         `None` (no row weighting change), or the new row weighting parameters
         `{'WindowName': <name>, 'Parameters: {}, 'WgtFunction': array}`.
     column_aperture : None|tuple
         `None` (no column subaperture), or integer valued `start_col, end_col` for the
-        column sub-aperture definition.
+        column sub-aperture definition. This is with respect to row values AFTER
+        considering `column_limits`.
     column_weighting : None|dict
-        `None` (no columng weighting change), or the new column weighting paremeters
+        `None` (no columng weighting change), or the new column weighting parameters
         `{'WindowName': <name>, 'Parameters: {}, 'WgtFunction': array}`.
     add_noise : None|float
         If provided, Gaussian white noise of pixel power `add_noise` will be added.
@@ -593,11 +602,20 @@ def modify_sicd(
         Approximate pixel area threshold for performing this directly in memory.
     check_existence : bool
         Should we check if the given file already exists, and raise an exception if so?
+    check_older_version : bool
+        Try to use a less recent version of SICD (1.1), for possible application compliance issues?
     repopulate_rniirs : bool
         Should we try to repopulate the estimated RNIIRS value?
+
+    Returns
+    -------
+    None|FlatSICDReader
     """
 
     def validate_filename():
+        if output_file is None:
+            return
+
         if check_existence and os.path.exists(output_file):
             raise SarpyIOError('The file {} already exists.'.format(output_file))
 
@@ -608,6 +626,14 @@ def modify_sicd(
             el = getattr(the_sicd.Grid, direction)
             if el.DeltaKCOAPoly is None or el.WgtFunct is None:
                 raise ValueError('DeltaKCOAPoly and WgtFunct must be populated for both Row and Col')
+
+    def validate_limits(lims, max_index):
+        if lims is None:
+            return (0, max_index)
+        _lims = (int(lims[0]), int(lims[2]))
+        if not (0 <= _lims[0] < _lims[1] <= max_index):
+            raise ValueError('Got poorly formatted index limit {}'.format(lims))
+        return _lims
 
     def get_iterations(max_index, other_index):
         if in_memory:
@@ -642,30 +668,29 @@ def modify_sicd(
 
         not_skewed = is_not_skewed(sicd, dimension)
         uniform_weight = is_uniform_weight(sicd, dimension)
+        delta_kcoa = dir_params.DeltaKCOAPoly.get_array(dtype='float64')
 
         if aperture_in is None and weighting_in is None:
             # nothing to be done in this dimension
             return
 
         oversample = max(1., 1./(dir_params.SS*dir_params.ImpRespBW))
-        # natural_oversample = max(1., 1./(sicd.Grid.Row.SS*sicd.Grid.Row.ImpRespBW))
 
-        old_weight, start_index, end_index = determine_weight_array(data_shape, dir_params.WgtFunct.copy(), oversample, dimension)
-        # old_weight, start_row, end_row = determine_weight_array(
-        #     data_shape, sicd.Grid.Row.WgtFunct.copy(), natural_oversample, 0)
+        old_weight, start_index, end_index = determine_weight_array(
+            out_data_shape, dir_params.WgtFunct.copy(), oversample, dimension)
+        center_index = 0.5 * (start_index + end_index)
 
         # perform deskew, if necessary
         if not not_skewed:
-            delta_kcoa = dir_params.DeltaKCOAPoly.get_array(dtype='float64')
             if dimension == 0:
-                row_array = get_direction_array_meters(0, 0, data_shape[0])
+                row_array = get_direction_array_meters(0, 0, out_data_shape[0])
                 for (_start_ind, _stop_ind) in col_iterations:
                     col_array = get_direction_array_meters(1, _start_ind, _stop_ind)
                     working_data[:, _start_ind:_stop_ind] = apply_skew_poly(
                         working_data[:, _start_ind:_stop_ind], delta_kcoa,
                         row_array, col_array, dir_params.Sgn, 0, forward=False)
             else:
-                col_array = get_direction_array_meters(1, 0, data_shape[1])
+                col_array = get_direction_array_meters(1, 0, out_data_shape[1])
                 for (_start_ind, _stop_ind) in row_iterations:
                     row_array = get_direction_array_meters(0, _start_ind, _stop_ind)
                     working_data[_start_ind:_stop_ind, :] = apply_skew_poly(
@@ -694,45 +719,49 @@ def modify_sicd(
             # todo: how do we handle weighting if this is not symmetric around the origin?
             new_start_index = max(int(aperture_in[0]), start_index)
             new_end_index = min(int(aperture_in[1]), end_index)
+            new_center_index = 0.5*(new_start_index + new_end_index)
             if dimension == 0:
-                working_data[start_index:new_start_index, :] = 0
-                working_data[new_end_index:end_index, :] = 0
+                working_data[:new_start_index, :] = 0
+                working_data[new_end_index:, :] = 0
             else:
-                working_data[:, start_index:new_start_index] = 0
-                working_data[:, new_end_index:end_index] = 0
+                working_data[:, :new_start_index] = 0
+                working_data[:, new_end_index:] = 0
 
-            center_index = 0.5*(start_index + end_index)
-            new_oversample = oversample * (center_index - start_index) / \
-                             float(max(center_index - new_start_index, new_end_index - center_index))
+            new_oversample = oversample*float(end_index - start_index)/float(new_end_index - new_start_index)
             the_ratio = new_oversample/oversample
-            # modify the ImpResp values
+            # modify the ImpRespBW value
             dir_params.ImpRespBW /= the_ratio
-            dir_params.ImpRespWid *= the_ratio
-            # TODO: DeltaK1/2?
+            dir_params.ImpRespWid *= the_ratio  # this may be overwritten, if we re-weight
         else:
+            new_center_index = center_index
             new_oversample = oversample
 
         # perform reweight, if necessary
         if weighting_in is not None:
             new_weight, start_index, end_index = determine_weight_array(
-                data_shape, weighting_in['WgtFunction'].copy(), new_oversample, dimension)
+                out_data_shape, weighting_in['WgtFunction'].copy(), new_oversample, dimension)
+            start_index += int(new_center_index - center_index)
+            end_index += int(new_center_index - center_index)
 
             if dimension == 0:
-                working_data[start_index:end_index, :] /= old_weight[:, numpy.newaxis]
+                working_data[start_index:end_index, :] *= new_weight[:, numpy.newaxis]
             else:
-                working_data[:, start_index:end_index] /= old_weight
+                working_data[:, start_index:end_index] *= new_weight
             # modify the weight definition
             dir_params.WgtType = WgtTypeType(
                 WindowName=weighting_in['WindowName'],
                 Parameters=weighting_in.get('Parameters', None))
             dir_params.WgtFunct = weighting_in['WgtFunction'].copy()
+            # modify the ImpRespWid value
+            dir_params.define_response_widths(populate=True)
         elif not uniform_weight:
+            # weight remained the same, and it's not uniform
             new_weight, start_index, end_index = determine_weight_array(
-                data_shape, dir_params.WgtFunct.copy(), new_oversample, dimension)
+                out_data_shape, dir_params.WgtFunct.copy(), new_oversample, dimension)
             if dimension == 0:
-                working_data[start_index:end_index, :] /= old_weight[:, numpy.newaxis]
+                working_data[start_index:end_index, :] *= new_weight[:, numpy.newaxis]
             else:
-                working_data[:, start_index:end_index] /= old_weight
+                working_data[:, start_index:end_index] *= new_weight
 
         # perform inverse fourier transform along the given dimension
         if dimension == 0:
@@ -743,6 +772,27 @@ def modify_sicd(
             for (_start_ind, _stop_ind) in row_iterations:
                 working_data[_start_ind:_stop_ind, :] = ifft_sicd(
                     ifftshift(working_data[_start_ind:_stop_ind, :], axes=dimension), dimension, sicd)
+
+        if center_index != new_center_index:
+            delta_kcoa[0, 0] += dir_params.Sgn*(new_center_index - center_index)*dir_params.SS
+
+        sicd.Grid.derive_direction_params(sicd.ImageData)
+        # perform reskew, if necessary
+        if not numpy.all(delta_kcoa == 0):
+            if dimension == 0:
+                row_array = get_direction_array_meters(0, 0, out_data_shape[0])
+                for (_start_ind, _stop_ind) in col_iterations:
+                    col_array = get_direction_array_meters(1, _start_ind, _stop_ind)
+                    working_data[:, _start_ind:_stop_ind] = apply_skew_poly(
+                        working_data[:, _start_ind:_stop_ind], delta_kcoa,
+                        row_array, col_array, dir_params.Sgn, 0, forward=True)
+            else:
+                col_array = get_direction_array_meters(1, 0, out_data_shape[1])
+                for (_start_ind, _stop_ind) in row_iterations:
+                    row_array = get_direction_array_meters(0, _start_ind, _stop_ind)
+                    working_data[_start_ind:_stop_ind, :] = apply_skew_poly(
+                        working_data[_start_ind:_stop_ind, :], delta_kcoa,
+                        row_array, col_array, dir_params.Sgn, 1, forward=True)
 
     def do_add_noise():
         if add_noise is None:
@@ -767,7 +817,7 @@ def modify_sicd(
                     'add_noise is provided, but the radiometric noise is populated,\n\t'
                     'with `NoiseLevelType={}`'.format(noise_level.NoiseLevelType))
             noise_constant_db = noise_level.NoisePoly.Coefs[0, 0]
-            noise_constant_power = numpy.power(10, 10*noise_constant_db)
+            noise_constant_power = numpy.power(10, noise_constant_db/10.)
             noise_constant_power += variance
             noise_constant_db = 10*numpy.log10(noise_constant_power)
             noise_level.NoisePoly.Coefs[0, 0] = noise_constant_db
@@ -776,9 +826,12 @@ def modify_sicd(
             d_shape = (_stop_ind- _start_ind, data_shape[1])
             added_noise = numpy.empty(d_shape, dtype='complex64')
             added_noise[:].real = randn(*d_shape).astype('float32')
-            added_noise[:].image = randn(*d_shape).astype('float32')
+            added_noise[:].imag = randn(*d_shape).astype('float32')
             added_noise *= sigma
             working_data[_start_ind:_stop_ind, :] += added_noise
+
+    if isinstance(reader, str):
+        reader = open_complex(reader)
 
     if not (isinstance(reader, BaseReader) and reader.reader_type == 'SICD'):
         raise TypeError('reader must be sicd type reader, got {}'.format(reader))
@@ -791,26 +844,34 @@ def modify_sicd(
     validate_filename()
 
     data_shape = reader.get_data_size_as_tuple()[index]
+    row_limits = validate_limits(row_limits, data_shape[0])
+    column_limits = validate_limits(column_limits, data_shape[1])
+
 
     # prepare our working sicd structure
     sicd = old_sicd.copy()
-    pixel_area = data_shape[0]*data_shape[1]
-    temp_file = None
-    in_memory = True if pixel_threshold is None else (pixel_area < pixel_threshold)
+    sicd.ImageData.FirstRow += row_limits[0]
+    sicd.ImageData.NumRows = row_limits[1] - row_limits[0]
+    sicd.ImageData.FirstCol += column_limits[0]
+    sicd.ImageData.NumCols = column_limits[1] - column_limits[0]
+    out_data_shape = (sicd.ImageData.NumRows, sicd.ImageData.NumCols)
 
-    row_iterations = get_iterations(data_shape[0], data_shape[1])
-    col_iterations = get_iterations(data_shape[1], data_shape[0])
+    pixel_area = out_data_shape[0]*out_data_shape[1]
+    temp_file = None
+    in_memory = True if (output_file is None or pixel_threshold is None) else (pixel_area < pixel_threshold)
+
+    row_iterations = get_iterations(out_data_shape[0], out_data_shape[1])
+    col_iterations = get_iterations(out_data_shape[1], out_data_shape[0])
 
     if in_memory:
-        working_data = reader[:, :, index]
+        working_data = reader[row_limits[0]:row_limits[1], column_limits[0]:column_limits[1], index]
     else:
         _, temp_file = mkstemp(suffix='.sarpy.cache', text=False)
-        working_data = numpy.memmap(temp_file, dtype='complex64', mode='r+', offset=0, shape=data_shape)
+        working_data = numpy.memmap(temp_file, dtype='complex64', mode='r+', offset=0, shape=out_data_shape)
         for (start_ind, stop_ind) in row_iterations:
-            working_data[start_ind:stop_ind, :] = reader[start_ind:stop_ind, :, index]
+            working_data[start_ind:stop_ind, :] = reader[start_ind+row_limits[0]:stop_ind+row_limits[0], column_limits[0]:column_limits[1], index]
 
-    # todo: add Gaussian white noise first or last? I'm doing first, for safety.
-    #   if we do add noise, should we change the pixel_type to RE32F_IM32F?
+    # NB: I'm adding Gaussian white noise first - this may be modified later
     do_add_noise()
 
     # do, as necessary, along the row
@@ -821,11 +882,36 @@ def modify_sicd(
     if repopulate_rniirs:
         sicd.populate_rniirs(override=True)
 
-    # write out the new sicd file
-    with SICDWriter(output_file, sicd, check_older_version=False, check_existence=False) as writer:
-        for (start_ind, stop_ind) in row_iterations:
-            writer.write_chip(working_data[start_ind:stop_ind, :], start_indices=(start_ind, 0))
+    if output_file is None:
+        return FlatSICDReader(sicd, working_data)
+    else:
+        # write out the new sicd file
+        with SICDWriter(
+                output_file, sicd,
+                check_older_version=check_older_version, check_existence=check_existence) as writer:
+            for (start_ind, stop_ind) in row_iterations:
+                writer.write_chip(working_data[start_ind:stop_ind, :], start_indices=(start_ind, 0))
 
-    if temp_file is not None and os.path.exists(temp_file):
-        working_data = None
-        os.remove(temp_file)
+        if temp_file is not None and os.path.exists(temp_file):
+            working_data = None
+            os.remove(temp_file)
+
+
+if __name__ == '__main__':
+    import time
+    from sarpy.io.complex.radarsat import RadarSatReader
+    the_file = os.path.expanduser('~/Desktop/sarpy_testing/RS2/'
+                                  'RS2_C0RS2_OK90284_PK799516_DK727890_U10_20170823_102404_VV_SLC')
+    reader = RadarSatReader(the_file)
+    data_sizes = reader.get_data_size_as_tuple()[0]
+    row_aperture = (0.15*data_sizes[0], 0.85*data_sizes[0])
+    col_aperture = (0.15*data_sizes[1], 0.85*data_sizes[1])
+
+    out_file = os.path.expanduser('~/Desktop/test_sicd_add_noise.nitf')
+    start_time = time.time()
+    resample_reweight_sicd(
+        reader, output_file=out_file,
+        row_aperture=row_aperture, row_weighting={'WindowName': 'UNIFORM', 'WgtFunction': numpy.ones((32, ))},
+        column_aperture=col_aperture, column_weighting={'WindowName': 'UNIFORM', 'WgtFunction': numpy.ones((32, ))},
+        add_noise=150000, check_existence=False)
+    print(f'processing_time = {time.time() - start_time} seconds')

@@ -10,10 +10,10 @@ import logging
 
 import numpy
 from numpy.linalg import norm
-from scipy.optimize import newton
 from scipy.constants import speed_of_light
 
-from sarpy.processing.windows import general_hamming, taylor, kaiser, find_half_power
+from sarpy.processing.windows import general_hamming, taylor, kaiser, find_half_power, \
+    get_hamming_broadening_factor
 from sarpy.io.xml.base import Serializable, ParametersCollection, find_first_child
 from sarpy.io.xml.descriptors import StringDescriptor, StringEnumDescriptor, \
     FloatDescriptor, FloatArrayDescriptor, IntegerEnumDescriptor, \
@@ -32,24 +32,6 @@ DEFAULT_WEIGHT_SIZE = 512
 """
 int: the default size when generating WgtFunct from a named WgtType.
 """
-
-
-def _hamming_ipr(x, a):
-    """
-    Evaluate the Hamming impulse response function over the given array.
-
-    Parameters
-    ----------
-    x : numpy.ndarray|float|int
-    a : float
-        The Hamming parameter value.
-
-    Returns
-    -------
-    numpy.ndarray
-    """
-
-    return a*numpy.sinc(x) + 0.5*(1-a)*(numpy.sinc(x-1) + numpy.sinc(x+1)) - a/numpy.sqrt(2)
 
 
 class WgtTypeType(Serializable):
@@ -310,11 +292,7 @@ class DirParamType(Serializable):
                 coef = 0.5
 
             if coef is not None:
-                test_array = numpy.linspace(0.3, 2.5, 100)
-                values = _hamming_ipr(test_array, coef)
-                init_value = test_array[numpy.argmin(numpy.abs(values))]
-                zero = newton(_hamming_ipr, init_value, args=(coef,), tol=1e-12, maxiter=100)
-                return 2*zero
+                return get_hamming_broadening_factor(coef)
 
         return find_half_power(self.WgtFunct, oversample=1024)
 
@@ -352,8 +330,8 @@ class DirParamType(Serializable):
 
     def estimate_deltak(self, x_coords, y_coords, populate=False):
         """
-        The `DeltaK1` and `DeltaK2` parameters can be estimated from `DeltaKCOAPoly`, if necessary. This should likely
-        be called by the `GridType` parent.
+        The `DeltaK1` and `DeltaK2` parameters can be estimated from `DeltaKCOAPoly`, if necessary.
+        This should likely be called by the `GridType` parent.
 
         Parameters
         ----------
@@ -581,7 +559,7 @@ class GridType(Serializable):
         self.Row, self.Col = Row, Col
         super(GridType, self).__init__(**kwargs)
 
-    def _derive_direction_params(self, ImageData):
+    def derive_direction_params(self, ImageData):
         """
         Populate the ``Row/Col`` direction parameters from ImageData, if necessary.
         Expected to be called from SICD parent.
