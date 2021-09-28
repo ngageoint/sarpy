@@ -28,6 +28,7 @@ from sarpy.io.complex.sicd_elements.Grid import WgtTypeType
 
 logger = logging.getLogger(__name__)
 
+
 ##################
 # helper functions
 
@@ -134,7 +135,7 @@ def apply_weight_array(input_data, weight_array, oversample_rate, dimension, inv
         return input_data
 
     weight_array, weight_ind_start, weight_ind_end = determine_weight_array(
-        input_data, weight_array, oversample_rate, dimension)
+        input_data.shape, weight_array, oversample_rate, dimension)
 
     if inverse and numpy.any(weight_array == 0):
         raise ValueError('inverse=True and the weight array contains some zero entries.')
@@ -326,7 +327,8 @@ class DeskewCalculator(FullResolutionFetcher):
         '_is_normalized', '_is_not_skewed_row', '_is_not_skewed_col',
         '_is_uniform_weight_row', '_is_uniform_weight_col', )
 
-    def __init__(self, reader, dimension=1, index=0, apply_deskew=True, apply_deweighting=False, apply_off_axis=True):
+    def __init__(self, reader, dimension=1, index=0, apply_deskew=True,
+                 apply_deweighting=False, apply_off_axis=True):
         """
 
         Parameters
@@ -517,7 +519,9 @@ class DeskewCalculator(FullResolutionFetcher):
         if self._is_normalized or not self.apply_deskew:
             # just fetch the data and return
             if not isinstance(item, tuple) or len(item) != 2:
-                raise KeyError('Slicing in the deskew calculator must be two dimensional. Got slice item {}'.format(item))
+                raise KeyError(
+                    'Slicing in the deskew calculator must be two dimensional. '
+                    'Got slice item {}'.format(item))
             return self.reader.__getitem__((item[0], item[1], self.index))
 
         # parse the slicing to ensure consistent structure
@@ -557,7 +561,7 @@ class DeskewCalculator(FullResolutionFetcher):
         return full_data[::abs(row_range[2]), ::abs(col_range[2])]
 
 
-def resample_reweight_sicd(
+def sicd_degrade_reweight(
         reader, output_file=None, index=0,
         row_limits=None, column_limits=None,
         row_aperture=None, row_weighting=None,
@@ -565,14 +569,14 @@ def resample_reweight_sicd(
         add_noise=None, pixel_threshold=1500*1500,
         check_existence=True, check_older_version=False, repopulate_rniirs=True):
     """
-    Given input, create a SICD (file) with modified weighting/subaperture parameters.
+    Given input, create a SICD (file or reader) with modified weighting/subaperture parameters.
 
     Parameters
     ----------
-    reader : BaseReader
+    reader : str|BaseReader
         A sicd type reader.
     output_file : None|str
-        If None, an in-memory SICD reader instance will be returned. Otherwise,
+        If `None`, an in-memory SICD reader instance will be returned. Otherwise,
         this is the path for the produced output SICD file.
     index : int
         The reader index to be used.
@@ -610,6 +614,8 @@ def resample_reweight_sicd(
     Returns
     -------
     None|FlatSICDReader
+        No return if `output_file` is provided, otherwise the returns the in-memory
+        reader object.
     """
 
     def validate_filename():
@@ -716,7 +722,6 @@ def resample_reweight_sicd(
 
         # do sub-aperture, if necessary
         if aperture_in is not None:
-            # todo: how do we handle weighting if this is not symmetric around the origin?
             new_start_index = max(int(aperture_in[0]), start_index)
             new_end_index = min(int(aperture_in[1]), end_index)
             new_center_index = 0.5*(new_start_index + new_end_index)
@@ -823,7 +828,7 @@ def resample_reweight_sicd(
             noise_level.NoisePoly.Coefs[0, 0] = noise_constant_db
 
         for (_start_ind, _stop_ind) in row_iterations:
-            d_shape = (_stop_ind- _start_ind, data_shape[1])
+            d_shape = (_stop_ind - _start_ind, data_shape[1])
             added_noise = numpy.empty(d_shape, dtype='complex64')
             added_noise[:].real = randn(*d_shape).astype('float32')
             added_noise[:].imag = randn(*d_shape).astype('float32')
@@ -846,7 +851,6 @@ def resample_reweight_sicd(
     data_shape = reader.get_data_size_as_tuple()[index]
     row_limits = validate_limits(row_limits, data_shape[0])
     column_limits = validate_limits(column_limits, data_shape[1])
-
 
     # prepare our working sicd structure
     sicd = old_sicd.copy()
@@ -909,7 +913,7 @@ if __name__ == '__main__':
 
     out_file = os.path.expanduser('~/Desktop/test_sicd_add_noise.nitf')
     start_time = time.time()
-    resample_reweight_sicd(
+    sicd_degrade_reweight(
         reader, output_file=out_file,
         row_aperture=row_aperture, row_weighting={'WindowName': 'UNIFORM', 'WgtFunction': numpy.ones((32, ))},
         column_aperture=col_aperture, column_weighting={'WindowName': 'UNIFORM', 'WgtFunction': numpy.ones((32, ))},

@@ -15,8 +15,7 @@ import numpy
 from sarpy.geometry import point_projection
 from sarpy.io.complex.naming.utils import get_sicd_name
 from sarpy.io.complex.sicd_schema import get_urn_details, get_specification_identifier
-from sarpy.io.complex.utils import snr_to_rniirs, get_bandwidth_area, \
-    get_sigma0_noise, get_default_signal_estimate
+from sarpy.processing.rgiqe import populate_rniirs_for_sicd
 
 from sarpy.io.xml.base import Serializable
 from sarpy.io.xml.descriptors import SerializableDescriptor
@@ -809,7 +808,7 @@ class SICDType(Serializable):
 
     def populate_rniirs(self, signal=None, noise=None, override=False):
         """
-        Given the signal and noise values (normalized to single pixel value),
+        Given the signal and noise values (in sigma zero power units),
         calculate and populate an estimated RNIIRS value.
 
         Parameters
@@ -824,46 +823,7 @@ class SICDType(Serializable):
         None
         """
 
-        if self.CollectionInfo is None:
-            logger.error(
-                'CollectionInfo must not be None.\n\t'
-                'Nothing to be done for calculating RNIIRS.')
-            return
-
-        if self.CollectionInfo.Parameters is not None and \
-                self.CollectionInfo.Parameters.get('PREDICTED_RNIIRS', None) is not None:
-            if override:
-                logger.warning('PREDICTED_RNIIRS already populated, and this value will be overridden.')
-            else:
-                logger.info('PREDICTED_RNIIRS already populated. Nothing to be done.')
-                return
-
-        if noise is None:
-            try:
-                noise = get_sigma0_noise(self)
-            except Exception as e:
-                logger.error(
-                    'Encountered an error estimating noise for RNIIRS.\n\t{}'.format(e))
-                return
-
-        if signal is None:
-            signal = get_default_signal_estimate(self)
-
-        try:
-            bw_area = get_bandwidth_area(self)
-        except Exception as e:
-            logger.error(
-                'Encountered an error estimating bandwidth area for RNIIRS\n\t{}'.format(e))
-            return
-
-        inf_density, rniirs = snr_to_rniirs(bw_area, signal, noise)
-        logger.info(
-            'Calculated INFORMATION_DENSITY = {0:0.5G},\n\t'
-            'PREDICTED_RNIIRS = {1:0.5G}'.format(inf_density, rniirs))
-        if self.CollectionInfo.Parameters is None:
-            self.CollectionInfo.Parameters = []  # initialize
-        self.CollectionInfo.Parameters['INFORMATION_DENSITY'] = '{0:0.2G}'.format(inf_density)
-        self.CollectionInfo.Parameters['PREDICTED_RNIIRS'] = '{0:0.1f}'.format(rniirs)
+        populate_rniirs_for_sicd(self, signal=signal, noise=noise, override=override)
 
     def get_suggested_name(self, product_number=1):
         """

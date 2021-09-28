@@ -625,6 +625,17 @@ class BaseReader(object):
 
         raise NotImplementedError
 
+    @property
+    def image_count(self):
+        """
+        int: The number of images from which to read.
+        """
+
+        if isinstance(self._chipper, tuple):
+            return len(self._chipper)
+        else:
+            return 1
+
     def get_data_size_as_tuple(self):
         """
         Get the data size wrapped in a tuple - for simplicity and ease of use.
