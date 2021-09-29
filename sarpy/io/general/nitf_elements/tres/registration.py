@@ -100,6 +100,11 @@ def parse_package(packages=None):
     None
     """
 
+    def evaluate(the_module):
+        for element_name, element_type in inspect.getmembers(the_module, inspect.isclass):
+            if issubclass(element_type, TREExtension) and element_type != TREExtension:
+                register_tre(element_type, tre_id=element_name, replace=False)
+
     from sarpy.io.general.nitf_elements.tres.tre_elements import TREExtension
 
     if packages is None:
@@ -116,23 +121,12 @@ def parse_package(packages=None):
     logger.info('Finding and registering TREs contained in packages {}'.format(packages))
     # walk the packages, find all subclasses of TRE, dump them into our dictionary
 
-    def check_module(module_name):
-        # import the module
-        module = import_module(module_name)
-        # check all classes of the module itself
-        for element_name, element_type in inspect.getmembers(module, inspect.isclass):
-            if issubclass(element_type, TREExtension) and element_type != TREExtension:
-                register_tre(element_type, tre_id=element_name, replace=False)
-        # walk down any subpackages
-        path, fil = os.path.split(module.__file__)
-        if not fil.startswith('__init__.py'):
-            # there are no subpackages
-            return
-        for sub_module in pkgutil.walk_packages([path, ]):
-            _, sub_module_name, _ = sub_module
-            sub_name = "{}.{}".format(module_name, sub_module_name)
-            check_module(sub_name)
+    for start_package in packages:
+        module = import_module(start_package)
+        evaluate(module)
+        for details in pkgutil.walk_packages(module.__path__, start_package + '.'):
+            _, module_name, is_pkg = details
+            sub_module = import_module(module_name)
+            evaluate(sub_module)
 
-    for pack in packages:
-        check_module(pack)
     logger.info('We now have {} registered TREs'.format(len(_TRE_Registry)))

@@ -170,6 +170,29 @@ class FlatSICDReader(FlatReader, SICDTypeReader):
             symmetry=symmetry, transform_data=transform_data, limit_to_raw_bands=limit_to_raw_bands)
         SICDTypeReader.__init__(self, sicd_meta)
 
+    def write_to_file(self, output_file, check_older_version=False, check_existence=False):
+        """
+        Write a file for the given in-memory reader.
+
+        Parameters
+        ----------
+        output_file : str
+        check_older_version : bool
+            Try to use a less recent version of SICD (1.1), for possible application compliance issues?
+        check_existence : bool
+            Should we check if the given file already exists, and raise an exception if so?
+        """
+
+        if not isinstance(output_file, string_types):
+            raise TypeError(
+                'output_file is expected to a be a string, got type {}'.format(type(output_file)))
+
+        from sarpy.io.complex.sicd import SICDWriter
+        with SICDWriter(
+                output_file, self.sicd_meta,
+                check_older_version=check_older_version, check_existence=check_existence) as writer:
+            writer.write_chip(self[:, :], start_indices=(0, 0))
+
 
 class H5Chipper(BaseChipper):
     __slots__ = ('_file_name', '_band_name')

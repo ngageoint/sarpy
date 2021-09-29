@@ -39,6 +39,9 @@ Examples
     pyplot.show()
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = 'Thomas McCullough'
+
 import numpy
 
 from sarpy.compliance import int_func
@@ -46,9 +49,6 @@ from sarpy.processing.fft_base import FFTCalculator, fft, ifft, fftshift
 from sarpy.io.general.base import BaseReader
 # noinspection PyProtectedMember
 from sarpy.processing.ortho_rectify import _get_fetch_block_size
-
-__classification__ = "UNCLASSIFIED"
-__author__ = ('Thomas McCullough',  'Melanie Baker')
 
 
 def filter_map_construction(siz):

@@ -198,11 +198,11 @@ class CphdConsistency(con.ConsistencyChecker):
     ----------
     cphdroot : etree.Element
         root CPHD XML node
-    pvps : np.ndarray
+    pvps : None|Dict[str, np.ndarray]
         numpy structured array of PVPs
     header : Dict
         CPHD header key value pairs
-    filename : str
+    filename : None|str
         Path to CPHD file (or None if not available)
     schema : str
         Path to CPHD XML Schema

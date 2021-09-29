@@ -161,6 +161,6 @@ class TestPALSAR(unittest.TestCase):
 
 class TestCapella(unittest.TestCase):
     @unittest.skipIf(len(complex_file_types.get('Capella', [])) == 0, 'No Capella files specified or found')
-    def test_palsar_reader(self):
+    def test_capella_reader(self):
         for test_file in complex_file_types['Capella']:
             generic_reader_test(self, test_file, 'Capella', CapellaReader)

@@ -6,6 +6,7 @@ __author__ = "Thomas McCullough"
 
 
 import logging
+import sys
 from weakref import WeakKeyDictionary
 from typing import Union, List, Tuple
 from collections import OrderedDict
@@ -97,7 +98,17 @@ def _get_bytes(val, length):
         return frm_str.format(val).encode('utf-8')
     elif isinstance(val, string_types):
         frm_str = '{0:' + str(length) + 's}'
-        return frm_str.format(val).encode('utf-8')
+        if sys.version_info[0] >= 3:
+            return frm_str.format(val).encode('utf-8')
+        else:
+            # noinspection PyBroadException
+            try:
+                return frm_str.format(val).encode('utf-8')
+            except Exception:
+                if len(val) >= length:
+                    return val[:length]
+                else:
+                    return val + b'\x00' * (length - len(val))
     elif isinstance(val, bytes):
         if len(val) >= length:
             return val[:length]

@@ -1,5 +1,13 @@
 # This details the important differences introduced in sarpy 1.2
 
+* .23 - Introducing RGIQE methods with sicd degradation functions and a method
+            for producing a sicd/reader with reweighting and/or subaperture
+            processing applied
+        Minor clean-up of the sarpy.processing structure
+        Adjustments to testing framework to allow passage of skipping,
+            versus failing, when the referenced test files are not found -
+            moving towards conda or conda forge packaging
+        Dropping stated Python 2.7 support
 * .22 - Eliminating deprecated numpy.object usage
         Include population of North in SIDD exploitation features construction
 * .21 - Incorporating unit test for Capella and fixing data transpose issue
