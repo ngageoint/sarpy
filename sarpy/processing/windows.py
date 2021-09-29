@@ -36,7 +36,7 @@ else:
 
 
 def general_hamming(M, alpha, sym=True):
-    """
+    r"""
     Returns a generalized hamming function. Constructed (non-symmetric) as
     :math:`\alpha - (1-\alpha)\cos\left(\frac{2\pi n}{M-1}\right) 0\leq n \leq M-1`
 

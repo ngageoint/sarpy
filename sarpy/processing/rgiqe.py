@@ -8,15 +8,15 @@ __author__ = "Thomas McCullough"
 
 
 import logging
+import os.path
+
 import numpy
 from scipy.optimize import minimize_scalar
 
 from sarpy.io.general.base import BaseReader
-from sarpy.io.complex.base import SICDTypeReader
-from sarpy.io.complex.converter import open_complex
-from sarpy.processing.normalize_sicd import sicd_degrade_reweight, is_uniform_weight
 from sarpy.processing.windows import get_hamming_broadening_factor
-
+from sarpy.processing.normalize_sicd import sicd_degrade_reweight, is_uniform_weight
+from sarpy.io.complex.converter import open_complex
 
 logger = logging.getLogger(__name__)
 
@@ -143,11 +143,11 @@ def get_rniirs(information_density):
     capacity to RNIIRS for some sample images.
 
     The basic model is given by
-    :math:`rniirs = a_0 + a_1*\log_2(information_density)`
+    :math:`rniirs = a_0 + a_1*\log_2(information\_density)`
 
     To maintain positivity of the estimated rniirs, this transitions to a linear
-    model :math:`rnnirs = slope*information_density` with slope given by
-    :math:`slope = a_1/(iim_transition*\log(2))` below the transition point at
+    model :math:`rniirs = slope*information\_density` with slope given by
+    :math:`slope = a_1/(iim\_transition*\log(2))` below the transition point at
     :math:`transition = \exp(1 - \log(2)*a_0/a_1)`.
 
     Parameters
@@ -270,40 +270,52 @@ def populate_rniirs_for_sicd(sicd, signal=None, noise=None, override=False):
 
 
 def get_bandwidth_noise_distribution(alpha, snr, information_density_ratio):
-    """
+    r"""
     From the perspective of achieving the desired RNIIRS based on downgrading
     the SICD. This gets the relative multipliers for the bandwidth and nesz values,
     given the distribution parameter, the current snr, and the ratio between the
     desired and current information density.
 
     The information density is defined as
+
     .. math::
-        inf_density = bandwidth_area*\log_2(1 + snr),
+
+        inf\_density = bw\_area*\log_2(1 + snr),
 
     which naturally splits multiplicatively into a piece which can be varied
     based on bandwidth, and a piece which can be varied based purely on varying
     snr (nesz).
 
     Then, we have
+
     .. math::
-        information_density_ratio & = \frac{desired_information_density}{current_information_density} \\
-                                  & = \frac{desired_bandwidth_area}{current_bandwidth_area} \cdot \\
-                                  & \qquad \frac{\log_2(1 + desired_snr}{\log_2(1 + snr)} \\
-                                  & = (bandwidth_multiplier)^2 \cdot \frac{\log_2(1 + snr/noise_multiplier}{\log_2(1 + snr)}
+
+        inf\_density\_ratio & = \frac{desired\_inf\_density}{current\_inf\_density} \\
+                                  & = \frac{desired\_bw\_area}{current\_bw\_area} \cdot
+                                      \frac{\log_2(1 + desired\_snr)}{\log_2(1 + snr)} \\
+                                  & = (bw\_multiplier)^2 \cdot \frac{\log_2(1 + snr/noise\_multiplier)}{\log_2(1 + snr)}
 
     A one parameter distribution, with free parameter :math:`\alpha \in [0, 1]`, can
     naturally be formed here by setting
-    .. math::
-        information_density_ratio & = (information_density_ratio)^{1-\alpha}\cdot (information_density_ratio)^{\alpha} \\
-        (bandwidth_multiplier)^2 & = (information_density_ratio)^{1-\alpha} \\
-        \frac{\log_2(1 + snr/snr_multiplier}{\log_2(1 + snr)} &= (information_density_ratio)^{\alpha},
 
-    which allows for unique determination for values `bandwidth_multiplier` and
-    `noise_multiplier`.
+    .. math::
+
+        inf\_density\_ratio & = (inf\_density\_ratio)^{1-\alpha}\cdot (inf\_density\_ratio)^{\alpha} \\
+        inf\_density\_ratio^{1-\alpha} & = (bw\_multiplier)^2 \\
+        inf\_density\_ratio^{\alpha} &= \frac{\log_2(1 + snr/noise\_multiplier)}{\log_2(1 + snr)},
+
+    This allows us to uniquely determine that
+
+    .. math::
+
+        bw\_multiplier &= (inf\_density\_ratio)^{(1-\alpha)/2} \\
+        noise\_multiplier &= snr/\left((1 + snr)^{inf\_density\_ratio^{\alpha}} - 1\right)
+
+    which allows for unique determination for values `bw_multiplier` and `noise_multiplier`.
 
     This establishes a specific distribution of bandwidth and nesz values all providing
-    identical RNIIRS value. On one end, at `alpha = 0`, the bandwidth is decreased
-    while noise remains static, and the other extreme end, at `alpha = 1`,
+    identical RNIIRS value. On one end, at :math:`\alpha = 0`, the bandwidth is decreased
+    while noise remains static, and the other extreme end, at :math:`\alpha = 1`,
     the bandwidth is static and the noise is increased.
 
     Parameters
@@ -315,20 +327,22 @@ def get_bandwidth_noise_distribution(alpha, snr, information_density_ratio):
     Returns
     -------
     (float, float)
-        The bandwidth_multiplier and noise_multiplier (for nesz).
+        The bw_multiplier and noise_multiplier (for nesz).
     """
 
     def find_bw_multiplier(multiplier):
         return float(numpy.sqrt(multiplier))
 
     def find_nesz_multiplier(multiplier):
-        res = minimize_scalar(
-            lambda x: (numpy.log(1 + snr*x) - multiplier*numpy.log(1 + snr))**2,
-            bounds=(0, 1),
-            method='bound')
-        if not res.success:
-            raise ValueError('RNIIRS value search for nesz failed')
-        return 1./res.x
+        return snr/(numpy.power(1 + snr, multiplier) - 1)
+
+        # res = minimize_scalar(
+        #     lambda x: (numpy.log(1 + snr*x) - multiplier*numpy.log(1 + snr))**2,
+        #     bounds=(0, 1),
+        #     method='bounded')
+        # if not res.success:
+        #     raise ValueError('RNIIRS value search for nesz failed')
+        # return 1./res.x
 
     alpha = float(alpha)
     if not (0 <= alpha <= 1):
@@ -359,8 +373,9 @@ def _validate_reader(reader, index):
 
     Returns
     -------
-    (BaseReader|SICDTypeReader, int)
+    (BaseReader|sicd.io.complex.base.SICDTypeReader, int)
     """
+
 
     if isinstance(reader, str):
         reader = open_complex(reader)
@@ -504,7 +519,7 @@ def quality_degrade(reader, index=0, output_file=None, desired_resolution=None,
     desired_nesz : None|float
         The desired Noise Equivalent Sigma Zero value.
     kwargs
-        Keyword arguments passed through to :func:`sicd_degrade_reweight`
+        Keyword arguments passed through to :func:`sarpy.processing.normalize_sicd.sicd_degrade_reweight`
 
     Returns
     -------
@@ -578,7 +593,7 @@ def quality_degrade_resolution(reader, index=0, output_file=None,
         The desired ImpRespBW (Row, Col) tuple. Exactly one of `desired_resolution`
         and `desired_bandwidth` must be provided.
     kwargs
-        Keyword arguments passed through to :func:`sicd_degrade_reweight`
+        Keyword arguments passed through to :func:`sarpy.processing.normalize_sicd.sicd_degrade_reweight`
 
     Returns
     -------
@@ -613,7 +628,7 @@ def quality_degrade_noise(reader, index=0, output_file=None, desired_nesz=None, 
     desired_nesz : None|float
         The desired noise equivalent sigma zero value.
     kwargs
-        Keyword arguments passed through to :func:`sicd_degrade_reweight`
+        Keyword arguments passed through to :func:`sarpy.processing.normalize_sicd.sicd_degrade_reweight`
 
     Returns
     -------
@@ -633,7 +648,7 @@ def quality_degrade_rniirs(
     The produced SICD will have uniform weighting.
 
     The information density is defined as
-    :math:`inf_density = bandwidth_area*\log(1 + signal/nesz)`, which naturally
+    :math:`inf\_density = bandwidth\_area*\log(1 + signal/nesz)`, which naturally
     splits multiplicatively into a piece which can be varied based on bandwidth,
     and a piece which can be varied based on nesz.
 
@@ -641,7 +656,7 @@ def quality_degrade_rniirs(
     - The current information density/current rniirs will be found.
     - The information density required to produce the desired rniirs will be found.
     - The ratio between the two information densities will be calculated,
-      :math:`ratio = \frac{required_inf_density}{current_information_density}`.
+      :math:`ratio = \frac{required\_inf\_density}{current\_inf\_density}`.
     - This will be used to determine the multipliers for bandwidth and nesz values
     using :func:`get_bandwidth_noise_distribution`.
 
@@ -664,7 +679,7 @@ def quality_degrade_rniirs(
         distribution of variability between required influence from increasing
         noise and require influence of decreasing bandwidth.
     kwargs
-        Keyword arguments passed through to :func:`sicd_degrade_reweight`
+        Keyword arguments passed through to :func:`sarpy.processing.normalize_sicd.sicd_degrade_reweight`
 
     Returns
     -------
@@ -677,7 +692,7 @@ def quality_degrade_rniirs(
         res = minimize_scalar(
             lambda x: (desired_rniirs - get_rniirs(x))**2,
             bounds=(0, current_inf_density),
-            method='bound')
+            method='bounded')
         if not res.success:
             raise ValueError('RNIIRS value search for information density failed')
         return float(res.x)
@@ -721,3 +736,27 @@ def quality_degrade_rniirs(
         return quality_degrade(
             reader, index=index, output_file=output_file,
             desired_bandwidth=desired_bandwidth, desired_nesz=desired_nesz, **kwargs)
+
+
+if __name__ == '__main__':
+    from matplotlib import pyplot
+
+    for _snr in [1, 10, 100, 1000, 10000]:
+        inf_dens_ratio = 0.5
+        count = 30
+        alphas = numpy.linspace(0, 1, count)
+        bw_mult = numpy.zeros((count, ), dtype='float64')
+        noise_mult = numpy.zeros((count, ), dtype='float64')
+        for i, alp in enumerate(alphas):
+            bw_mult[i], noise_mult[i] = get_bandwidth_noise_distribution(alp, _snr, inf_dens_ratio)
+        fig, axs = pyplot.subplots(nrows=2, ncols=1, sharex='all')
+        axs[0].plot(alphas, bw_mult)
+        axs[1].plot(alphas, noise_mult)
+
+        axs[0].set_title(f'rniirs reduction of 1 with snr={_snr}\n'
+                         f'distribution for inf_density_ratio={inf_dens_ratio}')
+        axs[0].set_ylabel('bandwidth multiplier')
+        axs[1].set_xlabel('alpha')
+        axs[1].set_ylabel('noise multiplier')
+        fig.savefig(os.path.expanduser('~/Desktop/snr_{}.png'.format(_snr)))
+        pyplot.close(fig)

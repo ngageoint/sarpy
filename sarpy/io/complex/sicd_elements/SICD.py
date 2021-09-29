@@ -15,7 +15,6 @@ import numpy
 from sarpy.geometry import point_projection
 from sarpy.io.complex.naming.utils import get_sicd_name
 from sarpy.io.complex.sicd_schema import get_urn_details, get_specification_identifier
-from sarpy.processing.rgiqe import populate_rniirs_for_sicd
 
 from sarpy.io.xml.base import Serializable
 from sarpy.io.xml.descriptors import SerializableDescriptor
@@ -823,6 +822,7 @@ class SICDType(Serializable):
         None
         """
 
+        from sarpy.processing.rgiqe import populate_rniirs_for_sicd
         populate_rniirs_for_sicd(self, signal=signal, noise=noise, override=override)
 
     def get_suggested_name(self, product_number=1):
