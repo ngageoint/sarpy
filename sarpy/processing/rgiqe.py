@@ -8,7 +8,6 @@ __author__ = "Thomas McCullough"
 
 
 import logging
-import os.path
 
 import numpy
 from scipy.optimize import minimize_scalar
@@ -236,7 +235,7 @@ def populate_rniirs_for_sicd(sicd, signal=None, noise=None, override=False):
     if sicd.CollectionInfo.Parameters is not None and \
             sicd.CollectionInfo.Parameters.get('PREDICTED_RNIIRS', None) is not None:
         if override:
-            logger.warning('PREDICTED_RNIIRS already populated, and this value will be overridden.')
+            logger.info('PREDICTED_RNIIRS already populated, and this value will be overridden.')
         else:
             logger.info('PREDICTED_RNIIRS already populated. Nothing to be done.')
             return
@@ -736,27 +735,3 @@ def quality_degrade_rniirs(
         return quality_degrade(
             reader, index=index, output_file=output_file,
             desired_bandwidth=desired_bandwidth, desired_nesz=desired_nesz, **kwargs)
-
-
-if __name__ == '__main__':
-    from matplotlib import pyplot
-
-    for _snr in [1, 10, 100, 1000, 10000]:
-        inf_dens_ratio = 0.5
-        count = 30
-        alphas = numpy.linspace(0, 1, count)
-        bw_mult = numpy.zeros((count, ), dtype='float64')
-        noise_mult = numpy.zeros((count, ), dtype='float64')
-        for i, alp in enumerate(alphas):
-            bw_mult[i], noise_mult[i] = get_bandwidth_noise_distribution(alp, _snr, inf_dens_ratio)
-        fig, axs = pyplot.subplots(nrows=2, ncols=1, sharex='all')
-        axs[0].plot(alphas, bw_mult)
-        axs[1].plot(alphas, noise_mult)
-
-        axs[0].set_title(f'rniirs reduction of 1 with snr={_snr}\n'
-                         f'distribution for inf_density_ratio={inf_dens_ratio}')
-        axs[0].set_ylabel('bandwidth multiplier')
-        axs[1].set_xlabel('alpha')
-        axs[1].set_ylabel('noise multiplier')
-        fig.savefig(os.path.expanduser('~/Desktop/snr_{}.png'.format(_snr)))
-        pyplot.close(fig)

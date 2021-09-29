@@ -262,8 +262,10 @@ class DirParamType(Serializable):
             # noinspection PyTypeChecker
             max_sidelobe_level = float(self.WgtType.get_parameter_value('SLL', -30))  # same
             value = taylor(weight_size, nbar=sidelobes, sll=max_sidelobe_level, norm=True, sym=True)
+        elif window_name == 'UNIFORM':
+            value = numpy.ones((32, ), dtype='float64')
 
-        if self.WgtFunct is None or populate:
+        if self.WgtFunct is None or (populate and value is not None):
             self.WgtFunct = value
         return value
 
