@@ -216,7 +216,7 @@ class DirParamType(Serializable):
         self.WgtFunct = WgtFunct
         super(DirParamType, self).__init__(**kwargs)
 
-    def define_weight_function(self, weight_size=DEFAULT_WEIGHT_SIZE, populate=True):
+    def define_weight_function(self, weight_size=DEFAULT_WEIGHT_SIZE, populate=False):
         """
         Try to derive WgtFunct from WgtType, if necessary. This should likely be called from the `GridType` parent.
 
@@ -225,7 +225,7 @@ class DirParamType(Serializable):
         weight_size : int
             the size of the `WgtFunct` to generate.
         populate : bool
-            Populate the WgtFunct value, if unpopulated?
+            Overwrite any populated WgtFunct value?
 
         Returns
         -------
@@ -263,7 +263,7 @@ class DirParamType(Serializable):
             max_sidelobe_level = float(self.WgtType.get_parameter_value('SLL', -30))  # same
             value = taylor(weight_size, nbar=sidelobes, sll=max_sidelobe_level, norm=True, sym=True)
 
-        if populate and self.WgtFunct is None:
+        if self.WgtFunct is None or populate:
             self.WgtFunct = value
         return value
 
@@ -296,7 +296,7 @@ class DirParamType(Serializable):
 
         return find_half_power(self.WgtFunct, oversample=1024)
 
-    def define_response_widths(self, populate=True):
+    def define_response_widths(self, populate=False):
         """
         Assuming that `WgtFunct` has been properly populated, define the response widths.
         This should likely be called by `GridType` parent.
@@ -304,7 +304,7 @@ class DirParamType(Serializable):
         Parameters
         ----------
         populate : bool
-            Should we populate ImpRespWid and ImpRespBW, if unpopulated?
+            Overwrite populated ImpRespWid and/or ImpRespBW?
 
         Returns
         -------
@@ -318,12 +318,12 @@ class DirParamType(Serializable):
 
         if self.ImpRespBW is not None:
             resp_width = broadening_factor/self.ImpRespBW
-            if populate and self.ImpRespWid is None:
+            if populate or self.ImpRespWid is None:
                 self.ImpRespWid = resp_width
             return self.ImpRespBW, resp_width
         elif self.ImpRespWid is not None:
             resp_bw = broadening_factor/self.ImpRespWid
-            if populate and self.ImpRespBW is None:
+            if populate or self.ImpRespBW is None:
                 self.ImpRespBW = resp_bw
             return resp_bw, self.ImpRespWid
         return None
@@ -340,7 +340,7 @@ class DirParamType(Serializable):
         y_coords : None|numpy.ndarray
             The physical vertex coordinates to evaluate DeltaKCOAPoly
         populate : bool
-            Populate the estimated values into DeltaK1 and DeltaK2, if unpopulated?
+            Overwite any populated DeltaK1 and DeltaK2?
 
         Returns
         -------
@@ -559,7 +559,7 @@ class GridType(Serializable):
         self.Row, self.Col = Row, Col
         super(GridType, self).__init__(**kwargs)
 
-    def derive_direction_params(self, ImageData):
+    def derive_direction_params(self, ImageData, populate=False):
         """
         Populate the ``Row/Col`` direction parameters from ImageData, if necessary.
         Expected to be called from SICD parent.
@@ -567,6 +567,8 @@ class GridType(Serializable):
         Parameters
         ----------
         ImageData : sarpy.io.complex.sicd_elements.ImageData.ImageDataType
+        populate : bool
+            Repopulates any present values?
 
         Returns
         -------
@@ -590,9 +592,9 @@ class GridType(Serializable):
         for attribute in ['Row', 'Col']:
             value = getattr(self, attribute, None)
             if value is not None:
-                value.define_weight_function(populate=True)
-                value.define_response_widths()
-                value.estimate_deltak(x_coords, y_coords, populate=True)
+                value.define_weight_function(populate=populate)
+                value.define_response_widths(populate=populate)
+                value.estimate_deltak(x_coords, y_coords, populate=populate)
 
     def _derive_time_coa_poly(self, CollectionInfo, SCPCOA):
         """
