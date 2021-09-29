@@ -347,7 +347,7 @@ class SICDType(Serializable):
 
         if self.Grid is not None:
             # noinspection PyProtectedMember
-            self.Grid._derive_direction_params(self.ImageData)
+            self.Grid.derive_direction_params(self.ImageData)
 
         if self.RadarCollection is not None:
             self.RadarCollection.derive()
@@ -807,7 +807,7 @@ class SICDType(Serializable):
 
     def populate_rniirs(self, signal=None, noise=None, override=False):
         """
-        Given the signal and noise values (normalized to single pixel value),
+        Given the signal and noise values (in sigma zero power units),
         calculate and populate an estimated RNIIRS value.
 
         Parameters
@@ -822,76 +822,8 @@ class SICDType(Serializable):
         None
         """
 
-        if self.CollectionInfo is None:
-            logger.error(
-                'CollectionInfo must not be None.\n\t'
-                'Nothing to be done for calculating RNIIRS.')
-            return
-
-        if self.CollectionInfo.Parameters is not None and \
-                self.CollectionInfo.Parameters.get('PREDICTED_RNIIRS', None) is not None:
-            if override:
-                logger.warning('PREDICTED_RNIIRS already populated, and this value will be overridden.')
-            else:
-                logger.info('PREDICTED_RNIIRS already populated. Nothing to be done.')
-                return
-
-        if noise is None:
-            if self.Radiometric is not None:
-                try:
-                    if self.Radiometric.NoiseLevel.NoiseLevelType != 'ABSOLUTE':
-                        logger.error(
-                            'Radiometric.NoiseLevel.NoiseLevelType must be "ABSOLUTE" to estimate noise.\n\t'
-                            'You must provide a noise estimate.')
-                        return
-                    noise = self.Radiometric.NoiseLevel.NoisePoly(0, 0)  # this is in db
-                    noise = 10**(noise/10.)  # this is absolute
-
-                    # convert to SigmaZero value
-                    noise *= self.Radiometric.SigmaZeroSFPoly(0, 0)
-                except Exception as e:
-                    logger.error(
-                        'Encountered an error estimating noise for RNIIRS.\n\t{}'.format(e))
-                    return
-            else:
-                logger.error(
-                    'noise is not provided, and Radiometric is not populated.\n\t'
-                    'RNIIRS can not be estimated.')
-                return
-
-        if signal is None:
-            # noinspection PyBroadException
-            try:
-                # use 1.0 for copolar collection and 0.25 from cross-polar collection
-                pol = self.ImageFormation.TxRcvPolarizationProc
-                if pol is None or ':' not in pol:
-                    signal = 0.25
-                else:
-                    pols = pol.split(':')
-                    if pols[0] == pols[1]:
-                        signal = 1.0
-                    else:
-                        signal = 0.25
-            except Exception:
-                signal = 0.25
-
-        try:
-            bw_area = abs(self.Grid.Row.ImpRespBW*self.Grid.Col.ImpRespBW *
-                          numpy.cos(numpy.deg2rad(self.SCPCOA.SlopeAng)))
-        except Exception as e:
-            logger.error(
-                'Encountered an error estimating bandwidth area for RNIIRS\n\t{}'.format(e))
-            return
-
-        from sarpy.io.complex.utils import snr_to_rniirs
-        inf_density, rniirs = snr_to_rniirs(bw_area, signal, noise)
-        logger.info(
-            'Calculated INFORMATION_DENSITY = {0:0.5G},\n\t'
-            'PREDICTED_RNIIRS = {1:0.5G}'.format(inf_density, rniirs))
-        if self.CollectionInfo.Parameters is None:
-            self.CollectionInfo.Parameters = []  # initialize
-        self.CollectionInfo.Parameters['INFORMATION_DENSITY'] = '{0:0.2G}'.format(inf_density)
-        self.CollectionInfo.Parameters['PREDICTED_RNIIRS'] = '{0:0.1f}'.format(rniirs)
+        from sarpy.processing.rgiqe import populate_rniirs_for_sicd
+        populate_rniirs_for_sicd(self, signal=signal, noise=noise, override=override)
 
     def get_suggested_name(self, product_number=1):
         """

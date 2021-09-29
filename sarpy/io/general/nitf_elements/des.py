@@ -44,7 +44,7 @@ class XMLDESSubheader(NITFElement):
                   'origination in the format :code:`YYYY-MM-DDThh:mm:ssZ`.')  # type: str
     DESSHRP = _StringDescriptor(
         'DESSHRP', True, 40, default_value='',
-        docstring='Responsible Party – Organization Identifier. Identification of the '
+        docstring='Responsible Party - Organization Identifier. Identification of the '
                   'organization responsible for the content of the DES.')  # type: str
     DESSHSI = _StringDescriptor(
         'DESSHSI', True, 60, default_value='',
@@ -63,7 +63,7 @@ class XMLDESSubheader(NITFElement):
                   'designated within the XML data content.')  # type: str
     DESSHLPG = _StringDescriptor(
         'DESSHLPG', True, 125, default_value='',
-        docstring='Location – Polygon. Five-point boundary enclosing the area applicable to the '
+        docstring='Location - Polygon. Five-point boundary enclosing the area applicable to the '
                   'DES, expressed as the closed set of coordinates of the polygon (last point '
                   'replicates first point). **NOTE** This is only an approximate reference so '
                   'specifying the coordinate reference system is unnecessary.\n'
@@ -74,10 +74,10 @@ class XMLDESSubheader(NITFElement):
                   'size constraint.')  # type: str
     DESSHLPT = _StringDescriptor(
         'DESSHLPT', True, 25, default_value='',
-        docstring='Location – Point. Single geographic point applicable to the DES.')  # type: str
+        docstring='Location - Point. Single geographic point applicable to the DES.')  # type: str
     DESSHLI = _StringDescriptor(
         'DESSHLI', True, 20, default_value='',
-        docstring='Location – Identifier. Identifier used to represent a geographic area. An '
+        docstring='Location - Identifier. Identifier used to represent a geographic area. An '
                   'alphanumeric value identifying an instance in the designated namespace. When '
                   'this field is recorded with other than the default value, the Location Identifier '
                   'Namespace URI shall also be recorded.')  # type: str

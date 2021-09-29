@@ -10,10 +10,10 @@ import logging
 
 import numpy
 from numpy.linalg import norm
-from scipy.optimize import newton
 from scipy.constants import speed_of_light
 
-from sarpy.processing.windows import general_hamming, taylor, kaiser, find_half_power
+from sarpy.processing.windows import general_hamming, taylor, kaiser, find_half_power, \
+    get_hamming_broadening_factor
 from sarpy.io.xml.base import Serializable, ParametersCollection, find_first_child
 from sarpy.io.xml.descriptors import StringDescriptor, StringEnumDescriptor, \
     FloatDescriptor, FloatArrayDescriptor, IntegerEnumDescriptor, \
@@ -32,24 +32,6 @@ DEFAULT_WEIGHT_SIZE = 512
 """
 int: the default size when generating WgtFunct from a named WgtType.
 """
-
-
-def _hamming_ipr(x, a):
-    """
-    Evaluate the Hamming impulse response function over the given array.
-
-    Parameters
-    ----------
-    x : numpy.ndarray|float|int
-    a : float
-        The Hamming parameter value.
-
-    Returns
-    -------
-    numpy.ndarray
-    """
-
-    return a*numpy.sinc(x) + 0.5*(1-a)*(numpy.sinc(x-1) + numpy.sinc(x+1)) - a/numpy.sqrt(2)
 
 
 class WgtTypeType(Serializable):
@@ -234,7 +216,7 @@ class DirParamType(Serializable):
         self.WgtFunct = WgtFunct
         super(DirParamType, self).__init__(**kwargs)
 
-    def define_weight_function(self, weight_size=DEFAULT_WEIGHT_SIZE, populate=True):
+    def define_weight_function(self, weight_size=DEFAULT_WEIGHT_SIZE, populate=False):
         """
         Try to derive WgtFunct from WgtType, if necessary. This should likely be called from the `GridType` parent.
 
@@ -243,7 +225,7 @@ class DirParamType(Serializable):
         weight_size : int
             the size of the `WgtFunct` to generate.
         populate : bool
-            Populate the WgtFunct value, if unpopulated?
+            Overwrite any populated WgtFunct value?
 
         Returns
         -------
@@ -280,8 +262,10 @@ class DirParamType(Serializable):
             # noinspection PyTypeChecker
             max_sidelobe_level = float(self.WgtType.get_parameter_value('SLL', -30))  # same
             value = taylor(weight_size, nbar=sidelobes, sll=max_sidelobe_level, norm=True, sym=True)
+        elif window_name == 'UNIFORM':
+            value = numpy.ones((32, ), dtype='float64')
 
-        if populate and self.WgtFunct is None:
+        if self.WgtFunct is None or (populate and value is not None):
             self.WgtFunct = value
         return value
 
@@ -310,15 +294,11 @@ class DirParamType(Serializable):
                 coef = 0.5
 
             if coef is not None:
-                test_array = numpy.linspace(0.3, 2.5, 100)
-                values = _hamming_ipr(test_array, coef)
-                init_value = test_array[numpy.argmin(numpy.abs(values))]
-                zero = newton(_hamming_ipr, init_value, args=(coef,), tol=1e-12, maxiter=100)
-                return 2*zero
+                return get_hamming_broadening_factor(coef)
 
         return find_half_power(self.WgtFunct, oversample=1024)
 
-    def define_response_widths(self, populate=True):
+    def define_response_widths(self, populate=False):
         """
         Assuming that `WgtFunct` has been properly populated, define the response widths.
         This should likely be called by `GridType` parent.
@@ -326,7 +306,7 @@ class DirParamType(Serializable):
         Parameters
         ----------
         populate : bool
-            Should we populate ImpRespWid and ImpRespBW, if unpopulated?
+            Overwrite populated ImpRespWid and/or ImpRespBW?
 
         Returns
         -------
@@ -340,20 +320,20 @@ class DirParamType(Serializable):
 
         if self.ImpRespBW is not None:
             resp_width = broadening_factor/self.ImpRespBW
-            if populate and self.ImpRespWid is None:
+            if populate or self.ImpRespWid is None:
                 self.ImpRespWid = resp_width
             return self.ImpRespBW, resp_width
         elif self.ImpRespWid is not None:
             resp_bw = broadening_factor/self.ImpRespWid
-            if populate and self.ImpRespBW is None:
+            if populate or self.ImpRespBW is None:
                 self.ImpRespBW = resp_bw
             return resp_bw, self.ImpRespWid
         return None
 
     def estimate_deltak(self, x_coords, y_coords, populate=False):
         """
-        The `DeltaK1` and `DeltaK2` parameters can be estimated from `DeltaKCOAPoly`, if necessary. This should likely
-        be called by the `GridType` parent.
+        The `DeltaK1` and `DeltaK2` parameters can be estimated from `DeltaKCOAPoly`, if necessary.
+        This should likely be called by the `GridType` parent.
 
         Parameters
         ----------
@@ -362,7 +342,7 @@ class DirParamType(Serializable):
         y_coords : None|numpy.ndarray
             The physical vertex coordinates to evaluate DeltaKCOAPoly
         populate : bool
-            Populate the estimated values into DeltaK1 and DeltaK2, if unpopulated?
+            Overwite any populated DeltaK1 and DeltaK2?
 
         Returns
         -------
@@ -581,7 +561,7 @@ class GridType(Serializable):
         self.Row, self.Col = Row, Col
         super(GridType, self).__init__(**kwargs)
 
-    def _derive_direction_params(self, ImageData):
+    def derive_direction_params(self, ImageData, populate=False):
         """
         Populate the ``Row/Col`` direction parameters from ImageData, if necessary.
         Expected to be called from SICD parent.
@@ -589,6 +569,8 @@ class GridType(Serializable):
         Parameters
         ----------
         ImageData : sarpy.io.complex.sicd_elements.ImageData.ImageDataType
+        populate : bool
+            Repopulates any present values?
 
         Returns
         -------
@@ -612,9 +594,9 @@ class GridType(Serializable):
         for attribute in ['Row', 'Col']:
             value = getattr(self, attribute, None)
             if value is not None:
-                value.define_weight_function(populate=True)
-                value.define_response_widths()
-                value.estimate_deltak(x_coords, y_coords, populate=True)
+                value.define_weight_function(populate=populate)
+                value.define_response_widths(populate=populate)
+                value.estimate_deltak(x_coords, y_coords, populate=populate)
 
     def _derive_time_coa_poly(self, CollectionInfo, SCPCOA):
         """

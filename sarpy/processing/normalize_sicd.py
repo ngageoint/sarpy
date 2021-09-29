@@ -2,18 +2,156 @@
 Methods for transforming SICD data to a common state.
 """
 
+__classification__ = "UNCLASSIFIED"
+__author__ = "Thomas McCullough"
+
+import logging
+from tempfile import mkstemp
+import os
+
 import numpy
 from numpy.polynomial import polynomial
+from numpy.random import randn
 import scipy.signal
 
 from sarpy.compliance import int_func
+from sarpy.io.general.base import BaseReader, SarpyIOError
 from sarpy.processing.ortho_rectify import FullResolutionFetcher
-from sarpy.processing.fft_base import fft, ifft, fftshift, ifftshift
+from sarpy.processing.fft_base import fft, ifft, fftshift, ifftshift, \
+    fft_sicd, ifft_sicd
+
+from sarpy.io.complex.base import FlatSICDReader
+from sarpy.io.complex.converter import open_complex
+from sarpy.io.complex.sicd import SICDWriter
 from sarpy.io.complex.sicd_elements.SICD import SICDType
+from sarpy.io.complex.sicd_elements.Grid import WgtTypeType
+
+logger = logging.getLogger(__name__)
 
 
-__classification__ = "UNCLASSIFIED"
-__author__ = "Thomas McCullough"
+##################
+# helper functions
+
+def apply_skew_poly(input_data, delta_kcoa_poly, row_array, col_array, fft_sgn,
+                    dimension, forward=False):
+    """
+    Performs the skew operation on the complex array, according to the provided
+    delta kcoa polynomial.
+
+    Parameters
+    ----------
+    input_data : numpy.ndarray
+        The input data.
+    delta_kcoa_poly : numpy.ndarray
+        The delta kcoa polynomial to use.
+    row_array : numpy.ndarray
+        The row array, should agree with input_data first dimension definition.
+    col_array : numpy.ndarray
+        The column array, should agree with input_data second dimension definition.
+    fft_sgn : int
+        The fft sign to use.
+    dimension : int
+        The dimension to apply along.
+    forward : bool
+        If True, this shifts forward (i.e. skews), otherwise applies in inverse
+        (i.e. deskew) direction.
+
+    Returns
+    -------
+    numpy.ndarray
+    """
+
+    if numpy.all(delta_kcoa_poly == 0):
+        return input_data
+
+    delta_kcoa_poly_int = polynomial.polyint(delta_kcoa_poly, axis=dimension)
+    if forward:
+        fft_sgn *= -1
+    return input_data*numpy.exp(1j*fft_sgn*2*numpy.pi*polynomial.polygrid2d(
+        row_array, col_array, delta_kcoa_poly_int))
+
+
+def determine_weight_array(input_data_shape, weight_array, oversample_rate, dimension):
+    """
+    Determine the appropriate resampled weight array and bounds.
+
+    Parameters
+    ----------
+    input_data_shape : tuple
+        The shape of the input data, which should be a two element tuple.
+    weight_array : numpy.ndarray
+    oversample_rate : int|float
+    dimension : int
+
+    Returns
+    -------
+    (numpy.ndarray, int, int)
+        The weight array, start index, and end index
+    """
+
+    if not (isinstance(weight_array, numpy.ndarray) and weight_array.ndim == 1):
+        raise ValueError('The weight array must be one-dimensional')
+
+    weight_size = round(input_data_shape[dimension]/oversample_rate)
+    if weight_array.ndim != 1:
+        raise ValueError('weight_array must be one dimensional.')
+
+    weight_ind_start = int_func(numpy.floor(0.5*(input_data_shape[dimension] - weight_size)))
+    weight_ind_end = weight_ind_start + weight_size
+
+    if weight_array.size == weight_size:
+        return weight_array, weight_ind_start, weight_ind_end
+    else:
+        return scipy.signal.resample(weight_array, weight_size), weight_ind_start, weight_ind_end
+
+
+def apply_weight_array(input_data, weight_array, oversample_rate, dimension, inverse=False):
+    """
+    Apply the weight array along the given dimension.
+
+    Parameters
+    ----------
+    input_data : numpy.ndarray
+        The complex data array to weight.
+    weight_array : numpy.ndarray
+        The weight array.
+    oversample_rate : int|float
+        The oversample rate.
+    dimension : int
+        Along which dimension to apply the weighting? Must be one of `{0, 1}`.
+    inverse : bool
+        If `True`, this divides the weight (i.e. de-weight), otherwise it multiplies.
+
+    Returns
+    -------
+    numpy.ndarray
+    """
+
+    if not (isinstance(input_data, numpy.ndarray) and input_data.ndim == 2):
+        raise ValueError('The data array must be two-dimensional')
+
+    if weight_array is None:
+        # nothing to be done
+        return input_data
+
+    weight_array, weight_ind_start, weight_ind_end = determine_weight_array(
+        input_data.shape, weight_array, oversample_rate, dimension)
+
+    if inverse and numpy.any(weight_array == 0):
+        raise ValueError('inverse=True and the weight array contains some zero entries.')
+
+    output_data = fftshift(fft(input_data, axis=dimension), axes=dimension)
+    if dimension == 0:
+        if inverse:
+            output_data[weight_ind_start:weight_ind_end, :] /= weight_array[:, numpy.newaxis]
+        else:
+            output_data[weight_ind_start:weight_ind_end, :] *= weight_array[:, numpy.newaxis]
+    else:
+        if inverse:
+            output_data[:, weight_ind_start:weight_ind_end] /= weight_array
+        else:
+            output_data[:, weight_ind_start:weight_ind_end] *= weight_array
+    return ifft(ifftshift(output_data, axes=dimension), axis=dimension)
 
 
 def _add_poly(poly1, poly2):
@@ -40,7 +178,50 @@ def _add_poly(poly1, poly2):
     return out
 
 
-def _is_not_skewed(sicd, dimension):
+def _get_deskew_params(the_sicd, dimension):
+    """
+    Gets the basic deskew parameters.
+
+    Parameters
+    ----------
+    the_sicd : SICDType
+    dimension : int
+
+    Returns
+    -------
+    (numpy.ndarray, int)
+        The delta_kcoa_poly and fft sign along the given dimension
+    """
+
+    # define the derived variables
+    delta_kcoa_poly = numpy.array([[0, ], ], dtype=numpy.float64)
+    fft_sign = -1
+    if dimension == 0:
+        try:
+            delta_kcoa_poly = the_sicd.Grid.Row.DeltaKCOAPoly.get_array(dtype='float64')
+        except (ValueError, AttributeError):
+            pass
+        try:
+            fft_sign = the_sicd.Grid.Row.Sgn
+        except (ValueError, AttributeError):
+            pass
+
+    else:
+        try:
+            delta_kcoa_poly = the_sicd.Grid.Col.DeltaKCOAPoly.get_array(dtype='float64')
+        except (ValueError, AttributeError):
+            pass
+        try:
+            fft_sign = the_sicd.Grid.Col.Sgn
+        except (ValueError, AttributeError):
+            pass
+    return delta_kcoa_poly, fft_sign
+
+
+##########
+# sicd state checking functions
+
+def is_not_skewed(sicd, dimension):
     """
     Check if the sicd structure is not skewed along the provided dimension.
 
@@ -64,7 +245,7 @@ def _is_not_skewed(sicd, dimension):
         return numpy.all(sicd.Grid.Col.DeltaKCOAPoly.get_array(dtype='float64') == 0)
 
 
-def _is_uniform_weight(sicd, dimension):
+def is_uniform_weight(sicd, dimension):
     """
     Check if the sicd structure is has uniform weight along the provided dimension.
 
@@ -94,30 +275,6 @@ def _is_uniform_weight(sicd, dimension):
     return True
 
 
-def _is_fft_sgn_negative(sicd, dimension):
-    """
-    Check if the sicd structure has negative fft sign along the given dimension.
-
-    Parameters
-    ----------
-    sicd : SICDType
-    dimension : int
-
-    Returns
-    -------
-    bool
-    """
-
-    if dimension == 0:
-        if sicd.Grid is None or sicd.Grid.Row is None or sicd.Grid.Row.Sgn is None:
-            return True
-        return sicd.Grid.Row.Sgn == -1
-    else:
-        if sicd.Grid is None or sicd.Grid.Col is None or sicd.Grid.Col.Sgn is None:
-            return True
-        return sicd.Grid.Col.Sgn == -1
-
-
 def is_normalized(sicd, dimension=1):
     """
     Check if the sicd structure is normalized along the provided dimension.
@@ -135,13 +292,26 @@ def is_normalized(sicd, dimension=1):
         normalization state in the given dimension
     """
 
+    def _is_fft_sgn_negative():
+        if dimension == 0:
+            if sicd.Grid is None or sicd.Grid.Row is None or sicd.Grid.Row.Sgn is None:
+                return True
+            return sicd.Grid.Row.Sgn == -1
+        else:
+            if sicd.Grid is None or sicd.Grid.Col is None or sicd.Grid.Col.Sgn is None:
+                return True
+            return sicd.Grid.Col.Sgn == -1
+
     dimension = int_func(dimension)
     if dimension not in [0, 1]:
         raise ValueError('dimension must be either 0 or 1, got {}'.format(dimension))
 
-    return _is_not_skewed(sicd, dimension) and _is_uniform_weight(sicd, dimension) and \
-           _is_fft_sgn_negative(sicd, dimension)
+    return is_not_skewed(sicd, dimension) and is_uniform_weight(sicd, dimension) and \
+        _is_fft_sgn_negative()
 
+
+###########
+# calculator class, intended mainly for use in aperture tool
 
 class DeskewCalculator(FullResolutionFetcher):
     """
@@ -157,17 +327,24 @@ class DeskewCalculator(FullResolutionFetcher):
         '_is_normalized', '_is_not_skewed_row', '_is_not_skewed_col',
         '_is_uniform_weight_row', '_is_uniform_weight_col', )
 
-    def __init__(self, reader, dimension=1, index=0, apply_deskew=True, apply_deweighting=False, apply_off_axis=True):
+    def __init__(self, reader, dimension=1, index=0, apply_deskew=True,
+                 apply_deweighting=False, apply_off_axis=True):
         """
 
         Parameters
         ----------
         reader : BaseReader
         dimension : int
+            The dimension in `{0, 1}` along which to deskew. `0` is row/range/fast-time,
+            and `1` is column/azimuth/slow-time.
         index : int
+            The reader index to utilize
         apply_deskew : bool
+            Deskew along the given axis?
         apply_deweighting : bool
+            Deweight?
         apply_off_axis : bool
+            Deskew off axis, to the extent possible?
         """
 
         self._apply_deskew = apply_deskew
@@ -216,6 +393,7 @@ class DeskewCalculator(FullResolutionFetcher):
         if value < 0:
             raise ValueError('The index must be a non-negative integer, got {}'.format(value))
 
+        # noinspection PyUnresolvedReferences
         sicds = self.reader.get_sicds_as_tuple()
         if value >= len(sicds):
             raise ValueError('The index must be less than the sicd count.')
@@ -250,15 +428,15 @@ class DeskewCalculator(FullResolutionFetcher):
         self._row_mult = the_sicd.Grid.Row.SS
         self._col_shift = the_sicd.ImageData.SCPPixel.Col - the_sicd.ImageData.FirstCol
         self._col_mult = the_sicd.Grid.Col.SS
-        self._row_pad = max(1, 1/(the_sicd.Grid.Row.SS*the_sicd.Grid.Row.ImpRespBW))
+        self._row_pad = max(1., 1./(the_sicd.Grid.Row.SS*the_sicd.Grid.Row.ImpRespBW))
         self._row_weight = the_sicd.Grid.Row.WgtFunct.copy() if the_sicd.Grid.Row.WgtFunct is not None else None
-        self._col_pad = max(1, 1/(the_sicd.Grid.Col.SS*the_sicd.Grid.Col.ImpRespBW))
+        self._col_pad = max(1., 1./(the_sicd.Grid.Col.SS*the_sicd.Grid.Col.ImpRespBW))
         self._col_weight = the_sicd.Grid.Col.WgtFunct.copy() if the_sicd.Grid.Col.WgtFunct is not None else None
         self._is_normalized = is_normalized(the_sicd, self.dimension)
-        self._is_not_skewed_row = _is_not_skewed(the_sicd, 0)
-        self._is_not_skewed_col = _is_not_skewed(the_sicd, 1)
-        self._is_uniform_weight_row = _is_uniform_weight(the_sicd, 0)
-        self._is_uniform_weight_col = _is_uniform_weight(the_sicd, 1)
+        self._is_not_skewed_row = is_not_skewed(the_sicd, 0)
+        self._is_not_skewed_col = is_not_skewed(the_sicd, 1)
+        self._is_uniform_weight_row = is_uniform_weight(the_sicd, 0)
+        self._is_uniform_weight_col = is_uniform_weight(the_sicd, 1)
 
     @property
     def apply_deskew(self):
@@ -318,8 +496,9 @@ class DeskewCalculator(FullResolutionFetcher):
         """
 
         def on_axis_deskew(t_full_data, fft_sgn):
-            return _deskew_array(
-                t_full_data, self._delta_kcoa_poly_axis, row_array, col_array, fft_sgn, self.dimension)
+            return apply_skew_poly(
+                t_full_data, self._delta_kcoa_poly_axis, row_array, col_array,
+                fft_sgn, self.dimension, forward=False)
 
         def other_axis_deskew(t_full_data, fft_sgn):
             # We cannot generally deskew in both directions at once, but we
@@ -332,14 +511,17 @@ class DeskewCalculator(FullResolutionFetcher):
                 delta_kcoa_new_const[0, 0] = polynomial.polyval2d(
                     row_mid, col_mid, self._delta_kcoa_poly_off_axis)
                 # apply this uniform shift
-                t_full_data = _deskew_array(
-                    t_full_data, delta_kcoa_new_const, row_array, col_array, fft_sgn, 1-self.dimension)
+                t_full_data = apply_skew_poly(
+                    t_full_data, delta_kcoa_new_const, row_array, col_array,
+                    fft_sgn, 1-self.dimension, forward=False)
             return t_full_data
 
         if self._is_normalized or not self.apply_deskew:
             # just fetch the data and return
             if not isinstance(item, tuple) or len(item) != 2:
-                raise KeyError('Slicing in the deskew calculator must be two dimensional. Got slice item {}'.format(item))
+                raise KeyError(
+                    'Slicing in the deskew calculator must be two dimensional. '
+                    'Got slice item {}'.format(item))
             return self.reader.__getitem__((item[0], item[1], self.index))
 
         # parse the slicing to ensure consistent structure
@@ -353,9 +535,9 @@ class DeskewCalculator(FullResolutionFetcher):
                self.index]
         # de-weight in each applicable direction
         if self._apply_deweighting and self._is_not_skewed_row and not self._is_uniform_weight_row:
-            full_data = _deweight_array(full_data, self._row_weight, self._row_pad, 0)
+            full_data = apply_weight_array(full_data, self._row_weight, self._row_pad, 0, inverse=True)
         if self._apply_deweighting and self._is_not_skewed_col and not self._is_uniform_weight_col:
-            full_data = _deweight_array(full_data, self._col_weight, self._col_pad, 1)
+            full_data = apply_weight_array(full_data, self._col_weight, self._col_pad, 1, inverse=True)
         # deskew in our given dimension
         row_array, col_array = self._get_index_arrays(row_range, row_step, col_range, col_step)
         if self.dimension == 0:
@@ -363,7 +545,7 @@ class DeskewCalculator(FullResolutionFetcher):
             if not self._is_not_skewed_row:
                 full_data = on_axis_deskew(full_data, self._row_fft_sgn)
                 if self._apply_deweighting:
-                    full_data = _deweight_array(full_data, self._row_weight, self._row_pad, 0)
+                    full_data = apply_weight_array(full_data, self._row_weight, self._row_pad, 0, inverse=True)
             if self._apply_off_axis:
                 # deskew off axis, to the extent possible
                 full_data = other_axis_deskew(full_data, self._col_fft_sgn)
@@ -372,216 +554,362 @@ class DeskewCalculator(FullResolutionFetcher):
             if not self._is_not_skewed_col:
                 full_data = on_axis_deskew(full_data, self._col_fft_sgn)
                 if self._apply_deweighting:
-                    full_data = _deweight_array(full_data, self._col_weight, self._col_pad, 1)
+                    full_data = apply_weight_array(full_data, self._col_weight, self._col_pad, 1, inverse=True)
             if self._apply_off_axis:
                 # deskew off axis, to the extent possible
                 full_data = other_axis_deskew(full_data, self._row_fft_sgn)
         return full_data[::abs(row_range[2]), ::abs(col_range[2])]
 
 
-def _get_deskew_params(the_sicd, dimension):
+def sicd_degrade_reweight(
+        reader, output_file=None, index=0,
+        row_limits=None, column_limits=None,
+        row_aperture=None, row_weighting=None,
+        column_aperture=None, column_weighting=None,
+        add_noise=None, pixel_threshold=1500*1500,
+        check_existence=True, check_older_version=False, repopulate_rniirs=True):
     """
-    Gets the basic deskew parameters.
+    Given input, create a SICD (file or reader) with modified weighting/subaperture parameters.
 
     Parameters
     ----------
-    the_sicd : SICDType
-    dimension : int
+    reader : str|BaseReader
+        A sicd type reader.
+    output_file : None|str
+        If `None`, an in-memory SICD reader instance will be returned. Otherwise,
+        this is the path for the produced output SICD file.
+    index : int
+        The reader index to be used.
+    row_limits : None|(int, int)
+        Row limits for the underlying data.
+    column_limits : None|(int, int)
+        Column limits for the underlying data.
+    row_aperture : None|tuple
+        `None` (no row subaperture), or integer valued `start_row, end_row` for the
+        row subaperture definition. This is with respect to row values AFTER
+        considering `row_limits`.
+    row_weighting : None|dict
+        `None` (no row weighting change), or the new row weighting parameters
+        `{'WindowName': <name>, 'Parameters: {}, 'WgtFunction': array}`.
+    column_aperture : None|tuple
+        `None` (no column subaperture), or integer valued `start_col, end_col` for the
+        column sub-aperture definition. This is with respect to row values AFTER
+        considering `column_limits`.
+    column_weighting : None|dict
+        `None` (no columng weighting change), or the new column weighting parameters
+        `{'WindowName': <name>, 'Parameters: {}, 'WgtFunction': array}`.
+    add_noise : None|float
+        If provided, Gaussian white noise of pixel power `add_noise` will be added.
+        If the Noise Polynomial is populated, then the NoiseLevelType must be
+        `'ABSOLUTE'`, or an exception will be raised.
+    pixel_threshold : None|int
+        Approximate pixel area threshold for performing this directly in memory.
+    check_existence : bool
+        Should we check if the given file already exists, and raise an exception if so?
+    check_older_version : bool
+        Try to use a less recent version of SICD (1.1), for possible application compliance issues?
+    repopulate_rniirs : bool
+        Should we try to repopulate the estimated RNIIRS value?
 
     Returns
     -------
-    numpy.ndarray, int
+    None|FlatSICDReader
+        No return if `output_file` is provided, otherwise the returns the in-memory
+        reader object.
     """
 
-    # define the derived variables
-    delta_kcoa_poly = numpy.array([[0, ], ], dtype=numpy.float64)
-    fft_sign = -1
-    if dimension == 0:
-        try:
-            delta_kcoa_poly = the_sicd.Grid.Row.DeltaKCOAPoly.get_array(dtype='float64')
-        except (ValueError, AttributeError):
-            pass
-        try:
-            fft_sign = the_sicd.Grid.Row.Sgn
-        except (ValueError, AttributeError):
-            pass
+    def validate_filename():
+        if output_file is None:
+            return
 
+        if check_existence and os.path.exists(output_file):
+            raise SarpyIOError('The file {} already exists.'.format(output_file))
+
+    def validate_sicd(the_sicd):
+        if the_sicd.Grid is None or the_sicd.Grid.Row is None or the_sicd.Grid.Col is None:
+            raise ValueError('Grid.Row and Grid.Col must be populated')
+        for direction in ['Row', 'Col']:
+            el = getattr(the_sicd.Grid, direction)
+            if el.DeltaKCOAPoly is None or el.WgtFunct is None:
+                raise ValueError('DeltaKCOAPoly and WgtFunct must be populated for both Row and Col')
+
+    def validate_limits(lims, max_index):
+        if lims is None:
+            return 0, max_index
+        _lims = (int(lims[0]), int(lims[1]))
+        if not (0 <= _lims[0] < _lims[1] <= max_index):
+            raise ValueError('Got poorly formatted index limit {}'.format(lims))
+        return _lims
+
+    def get_iterations(max_index, other_index):
+        if in_memory:
+            return [(0, max_index), ]
+        out = []
+        block = int(pixel_threshold / float(other_index))
+        _start_ind = 0
+        while _start_ind < max_index:
+            _end_ind = min(_start_ind + block, max_index)
+            out.append((_start_ind, _end_ind))
+            _start_ind = _end_ind
+        return out
+
+    def get_direction_array_meters(dimension, start_index, end_index):
+        if dimension == 0:
+            shift = sicd.ImageData.FirstRow - sicd.ImageData.SCPPixel.Row
+            multiplier = sicd.Grid.Row.SS
+        else:
+            shift = sicd.ImageData.FirstCol - sicd.ImageData.SCPPixel.Col
+            multiplier = sicd.Grid.Col.SS
+        return (numpy.arange(start_index, end_index) + shift)*multiplier
+
+    def do_dimension(dimension):
+        if dimension == 0:
+            dir_params = sicd.Grid.Row
+            aperture_in = row_aperture
+            weighting_in = row_weighting
+            index_count = sicd.ImageData.NumRows
+        else:
+            dir_params = sicd.Grid.Col
+            aperture_in = column_aperture
+            weighting_in = column_weighting
+            index_count = sicd.ImageData.NumCols
+
+        not_skewed = is_not_skewed(sicd, dimension)
+        uniform_weight = is_uniform_weight(sicd, dimension)
+        delta_kcoa = dir_params.DeltaKCOAPoly.get_array(dtype='float64')
+
+        if aperture_in is None and weighting_in is None:
+            # nothing to be done in this dimension
+            return
+
+        oversample = max(1., 1./(dir_params.SS*dir_params.ImpRespBW))
+
+        old_weight, start_index, end_index = determine_weight_array(
+            out_data_shape, dir_params.WgtFunct.copy(), oversample, dimension)
+        center_index = 0.5 * (start_index + end_index)
+
+        # perform deskew, if necessary
+        if not not_skewed:
+            if dimension == 0:
+                row_array = get_direction_array_meters(0, 0, out_data_shape[0])
+                for (_start_ind, _stop_ind) in col_iterations:
+                    col_array = get_direction_array_meters(1, _start_ind, _stop_ind)
+                    working_data[:, _start_ind:_stop_ind] = apply_skew_poly(
+                        working_data[:, _start_ind:_stop_ind], delta_kcoa,
+                        row_array, col_array, dir_params.Sgn, 0, forward=False)
+            else:
+                col_array = get_direction_array_meters(1, 0, out_data_shape[1])
+                for (_start_ind, _stop_ind) in row_iterations:
+                    row_array = get_direction_array_meters(0, _start_ind, _stop_ind)
+                    working_data[_start_ind:_stop_ind, :] = apply_skew_poly(
+                        working_data[_start_ind:_stop_ind, :], delta_kcoa,
+                        row_array, col_array, dir_params.Sgn, 1, forward=False)
+
+        # perform fourier transform along the given dimension
+        if dimension == 0:
+            for (_start_ind, _stop_ind) in col_iterations:
+                working_data[:, _start_ind:_stop_ind] = fftshift(
+                    fft_sicd(working_data[:, _start_ind:_stop_ind], dimension, sicd), axes=dimension)
+        else:
+            for (_start_ind, _stop_ind) in row_iterations:
+                working_data[_start_ind:_stop_ind, :] = fftshift(
+                    fft_sicd(working_data[_start_ind:_stop_ind, :], dimension, sicd), axes=dimension)
+
+        # perform deweight, if necessary
+        if not uniform_weight:
+            if dimension == 0:
+                working_data[start_index:end_index, :] /= old_weight[:, numpy.newaxis]
+            else:
+                working_data[:, start_index:end_index] /= old_weight
+
+        # do sub-aperture, if necessary
+        if aperture_in is not None:
+            new_start_index = max(int(aperture_in[0]), start_index)
+            new_end_index = min(int(aperture_in[1]), end_index)
+            new_center_index = 0.5*(new_start_index + new_end_index)
+            if dimension == 0:
+                working_data[:new_start_index, :] = 0
+                working_data[new_end_index:, :] = 0
+            else:
+                working_data[:, :new_start_index] = 0
+                working_data[:, new_end_index:] = 0
+
+            new_oversample = oversample*float(end_index - start_index)/float(new_end_index - new_start_index)
+            the_ratio = new_oversample/oversample
+            # modify the ImpRespBW value (derived ImpRespWid handled at the end)
+            dir_params.ImpRespBW /= the_ratio
+        else:
+            new_center_index = center_index
+            new_oversample = oversample
+
+        # perform reweight, if necessary
+        if weighting_in is not None:
+            new_weight, start_index, end_index = determine_weight_array(
+                out_data_shape, weighting_in['WgtFunction'].copy(), new_oversample, dimension)
+            start_index += int(new_center_index - center_index)
+            end_index += int(new_center_index - center_index)
+
+            if dimension == 0:
+                working_data[start_index:end_index, :] *= new_weight[:, numpy.newaxis]
+            else:
+                working_data[:, start_index:end_index] *= new_weight
+            # modify the weight definition
+            dir_params.WgtType = WgtTypeType(
+                WindowName=weighting_in['WindowName'],
+                Parameters=weighting_in.get('Parameters', None))
+            dir_params.WgtFunct = weighting_in['WgtFunction'].copy()
+        elif not uniform_weight:
+            # weight remained the same, and it's not uniform
+            new_weight, start_index, end_index = determine_weight_array(
+                out_data_shape, dir_params.WgtFunct.copy(), new_oversample, dimension)
+            if dimension == 0:
+                working_data[start_index:end_index, :] *= new_weight[:, numpy.newaxis]
+            else:
+                working_data[:, start_index:end_index] *= new_weight
+
+        # perform inverse fourier transform along the given dimension
+        if dimension == 0:
+            for (_start_ind, _stop_ind) in col_iterations:
+                working_data[:, _start_ind:_stop_ind] = ifft_sicd(
+                    ifftshift(working_data[:, _start_ind:_stop_ind], axes=dimension), dimension, sicd)
+        else:
+            for (_start_ind, _stop_ind) in row_iterations:
+                working_data[_start_ind:_stop_ind, :] = ifft_sicd(
+                    ifftshift(working_data[_start_ind:_stop_ind, :], axes=dimension), dimension, sicd)
+
+        # perform the (original) reskew, if necessary
+        if not numpy.all(delta_kcoa == 0):
+            if dimension == 0:
+                row_array = get_direction_array_meters(0, 0, out_data_shape[0])
+                for (_start_ind, _stop_ind) in col_iterations:
+                    col_array = get_direction_array_meters(1, _start_ind, _stop_ind)
+                    working_data[:, _start_ind:_stop_ind] = apply_skew_poly(
+                        working_data[:, _start_ind:_stop_ind], delta_kcoa,
+                        row_array, col_array, dir_params.Sgn, 0, forward=True)
+            else:
+                col_array = get_direction_array_meters(1, 0, out_data_shape[1])
+                for (_start_ind, _stop_ind) in row_iterations:
+                    row_array = get_direction_array_meters(0, _start_ind, _stop_ind)
+                    working_data[_start_ind:_stop_ind, :] = apply_skew_poly(
+                        working_data[_start_ind:_stop_ind, :], delta_kcoa,
+                        row_array, col_array, dir_params.Sgn, 1, forward=True)
+
+        # modify the delta_kcoa_poly - introduce the shift necessary for additional offset
+        if center_index != new_center_index:
+            additional_shift = dir_params.Sgn*(center_index - new_center_index)/float(index_count*dir_params.SS)
+            delta_kcoa[0, 0] += additional_shift
+            dir_params.DeltaKCOAPoly = delta_kcoa
+
+        # re-derive the various ImpResp parameters
+        sicd.Grid.derive_direction_params(sicd.ImageData, populate=True)
+
+    def do_add_noise():
+        if add_noise is None:
+            return
+
+        # noinspection PyBroadException
+        try:
+            variance = float(add_noise)
+            if variance <= 0:
+                logger.error('add_noise was provided as `{}`, but must be a positive number'.format(add_noise))
+                return
+        except Exception:
+            logger.error('add_noise was provided as `{}`, but must be a positive number'.format(add_noise))
+            return
+
+        sigma = numpy.sqrt(0.5*variance)
+        noise_level = None if sicd.Radiometric is None else sicd.Radiometric.NoiseLevel
+
+        if noise_level is not None:
+            if noise_level.NoiseLevelType != 'ABSOLUTE':
+                raise ValueError(
+                    'add_noise is provided, but the radiometric noise is populated,\n\t'
+                    'with `NoiseLevelType={}`'.format(noise_level.NoiseLevelType))
+            noise_constant_db = noise_level.NoisePoly.Coefs[0, 0]
+            noise_constant_power = numpy.power(10, noise_constant_db/10.)
+            noise_constant_power += variance
+            noise_constant_db = 10*numpy.log10(noise_constant_power)
+            noise_level.NoisePoly.Coefs[0, 0] = noise_constant_db
+
+        for (_start_ind, _stop_ind) in row_iterations:
+            d_shape = (_stop_ind - _start_ind, data_shape[1])
+            added_noise = numpy.empty(d_shape, dtype='complex64')
+            added_noise[:].real = randn(*d_shape).astype('float32')
+            added_noise[:].imag = randn(*d_shape).astype('float32')
+            added_noise *= sigma
+            working_data[_start_ind:_stop_ind, :] += added_noise
+
+    if isinstance(reader, str):
+        reader = open_complex(reader)
+
+    if not (isinstance(reader, BaseReader) and reader.reader_type == 'SICD'):
+        raise TypeError('reader must be sicd type reader, got {}'.format(reader))
+
+    # noinspection PyUnresolvedReferences
+    old_sicd = reader.get_sicds_as_tuple()[index]
+    assert isinstance(old_sicd, SICDType)
+    validate_sicd(old_sicd)
+
+    validate_filename()
+
+    data_shape = reader.get_data_size_as_tuple()[index]
+
+    redo_geo = (row_limits is not None or column_limits is not None)
+
+    row_limits = validate_limits(row_limits, data_shape[0])
+    column_limits = validate_limits(column_limits, data_shape[1])
+
+    # prepare our working sicd structure
+    sicd = old_sicd.copy()
+    sicd.ImageData.FirstRow += row_limits[0]
+    sicd.ImageData.NumRows = row_limits[1] - row_limits[0]
+    sicd.ImageData.FirstCol += column_limits[0]
+    sicd.ImageData.NumCols = column_limits[1] - column_limits[0]
+    if redo_geo:
+        sicd.define_geo_image_corners(override=True)
+
+    out_data_shape = (sicd.ImageData.NumRows, sicd.ImageData.NumCols)
+
+    pixel_area = out_data_shape[0]*out_data_shape[1]
+    temp_file = None
+    in_memory = True if (output_file is None or pixel_threshold is None) else (pixel_area < pixel_threshold)
+
+    row_iterations = get_iterations(out_data_shape[0], out_data_shape[1])
+    col_iterations = get_iterations(out_data_shape[1], out_data_shape[0])
+
+    if in_memory:
+        working_data = reader[row_limits[0]:row_limits[1], column_limits[0]:column_limits[1], index]
     else:
-        try:
-            delta_kcoa_poly = the_sicd.Grid.Col.DeltaKCOAPoly.get_array(dtype='float64')
-        except (ValueError, AttributeError):
-            pass
-        try:
-            fft_sign = the_sicd.Grid.Col.Sgn
-        except (ValueError, AttributeError):
-            pass
-    return delta_kcoa_poly, fft_sign
+        _, temp_file = mkstemp(suffix='.sarpy.cache', text=False)
+        working_data = numpy.memmap(temp_file, dtype='complex64', mode='r+', offset=0, shape=out_data_shape)
+        for (start_ind, stop_ind) in row_iterations:
+            working_data[start_ind:stop_ind, :] = reader[start_ind+row_limits[0]:stop_ind+row_limits[0], column_limits[0]:column_limits[1], index]
 
+    # NB: I'm adding Gaussian white noise first - this may be modified later
+    do_add_noise()
 
-def _deskew_array(input_data, delta_kcoa_poly, row_array, col_array, fft_sgn, dimension):
-    """
-    Performs deskew (centering of the spectrum on zero frequency) on a complex array.
+    # do, as necessary, along the row
+    do_dimension(0)
+    # do, as necessary, along the row
+    do_dimension(1)
 
-    Parameters
-    ----------
-    input_data : numpy.ndarray
-    delta_kcoa_poly : numpy.ndarray
-    row_array : numpy.ndarray
-    col_array : numpy.ndarray
-    fft_sgn : int
+    if sicd.RMA is not None and sicd.RMA.INCA is not None and sicd.RMA.INCA.TimeCAPoly is not None:
+        # redefine the INCA doppler centroid poly to be in keeping with any redefinition of our Col.DeltaKCOAPoly?
+        sicd.RMA.INCA.DopCentroidPoly = sicd.Grid.Col.DeltaKCOAPoly.get_array(dtype='float64')/sicd.RMA.INCA.TimeCAPoly[1]
 
-    Returns
-    -------
-    numpy.ndarray
-    """
+    if repopulate_rniirs:
+        sicd.populate_rniirs(override=True)
 
-    delta_kcoa_poly_int = polynomial.polyint(delta_kcoa_poly, axis=dimension)
-    return input_data*numpy.exp(1j*fft_sgn*2*numpy.pi*polynomial.polygrid2d(
-        row_array, col_array, delta_kcoa_poly_int))
-
-
-def _deweight_array(input_data, weight_array, oversample_rate, dimension):
-    """
-    Uniformly weight complex SAR data along the given dimension.
-
-    Parameters
-    ----------
-    input_data : numpy.ndarray
-    weight_array : numpy.ndarray
-    oversample_rate : int|float
-    dimension : int
-
-    Returns
-    -------
-    numpy.ndarray
-    """
-
-    if weight_array is None:
-        # nothing to be done
-        return input_data
-
-    weight_size = round(input_data.shape[dimension]/oversample_rate)
-    if weight_array.ndim != 1:
-        raise ValueError('weight_array must be one dimensional.')
-    if weight_array.size != weight_size:
-        weight_array = scipy.signal.resample(weight_array, weight_size)
-    weight_ind_start = int_func(numpy.floor(0.5*(input_data.shape[dimension] - weight_size)))
-    weight_ind_end = weight_ind_start + weight_size
-
-    output_data = fftshift(fft(input_data, axis=dimension), axes=dimension)
-    if dimension == 0:
-        output_data[weight_ind_start:weight_ind_end, :] /= weight_array[:, numpy.newaxis]
+    if output_file is None:
+        return FlatSICDReader(sicd, working_data)
     else:
-        output_data[:, weight_ind_start:weight_ind_end] /= weight_array
-    return ifft(ifftshift(output_data, axes=dimension), axis=dimension)
+        # write out the new sicd file
+        with SICDWriter(
+                output_file, sicd,
+                check_older_version=check_older_version, check_existence=check_existence) as writer:
+            for (start_ind, stop_ind) in row_iterations:
+                writer.write_chip(working_data[start_ind:stop_ind, :], start_indices=(start_ind, 0))
 
-
-################################
-# The below should be deprecated
-
-def deskewparams(sicd_meta, dim):
-    """
-
-    Parameters
-    ----------
-    sicd_meta: sarpy.io.complex.sicd_elements.SICD.SICDType
-        the sicd structure
-    dim : int
-        the dimension to test
-
-    Returns
-    -------
-    Tuple[numpy.ndarray,numpy.ndarray,numpy.ndarray,float]
-    """
-
-    DeltaKCOAPoly, fft_sgn = _get_deskew_params(sicd_meta, dimension=dim)
-
-    # Vectors describing range and azimuth distances from SCP (in meters) for rows and columns
-    rg_coords_m = (numpy.arange(0, sicd_meta.ImageData.NumRows, dtype=numpy.float32) +
-                   sicd_meta.ImageData.FirstRow - sicd_meta.ImageData.SCPPixel.Row)*sicd_meta.Grid.Row.SS
-    az_coords_m = (numpy.arange(0, sicd_meta.ImageData.NumCols, dtype=numpy.float32) +
-                   sicd_meta.ImageData.FirstCol - sicd_meta.ImageData.SCPPixel.Col)*sicd_meta.Grid.Col.SS
-    return DeltaKCOAPoly, rg_coords_m, az_coords_m, fft_sgn
-
-
-def deskewmem(input_data, DeltaKCOAPoly, dim0_coords_m, dim1_coords_m, dim, fft_sgn=-1):
-    """
-    Performs deskew (centering of the spectrum on zero frequency) on a complex dataset.
-
-    Parameters
-    ----------
-    input_data : numpy.ndarray
-        Complex FFT Data
-    DeltaKCOAPoly : numpy.ndarray
-        Polynomial that describes center of frequency support of data.
-    dim0_coords_m : numpy.ndarray
-    dim1_coords_m : numpy.ndarray
-    dim : int
-    fft_sgn : int|float
-
-    Returns
-    -------
-    Tuple[numpy.ndarray, numpy.ndarray]
-        * `output_data` - Deskewed data
-        * `new_DeltaKCOAPoly` - Frequency support shift in the non-deskew dimension caused by the deskew.
-    """
-
-    # Integrate DeltaKCOA polynomial (in meters) to form new polynomial DeltaKCOAPoly_int
-    DeltaKCOAPoly_int = polynomial.polyint(DeltaKCOAPoly, axis=dim)
-    # New DeltaKCOAPoly in other dimension will be negative of the derivative of
-    # DeltaKCOAPoly_int in other dimension (assuming it was zero before).
-    new_DeltaKCOAPoly = - polynomial.polyder(DeltaKCOAPoly_int, axis=dim-1)
-    # Apply phase adjustment from polynomial
-    dim1_coords_m_2d, dim0_coords_m_2d = numpy.meshgrid(dim1_coords_m, dim0_coords_m)
-    output_data = numpy.multiply(input_data, numpy.exp(1j * fft_sgn * 2 * numpy.pi *
-                                                 polynomial.polyval2d(
-                                                     dim0_coords_m_2d,
-                                                     dim1_coords_m_2d,
-                                                     DeltaKCOAPoly_int)))
-    return output_data, new_DeltaKCOAPoly
-
-
-def deweightmem(input_data, weight_fun=None, oversample_rate=1, dim=1):
-    """
-    Uniformly weights complex SAR data in given dimension.
-
-    .. Note:: This implementation ASSUMES that the data has already been de-skewed and that the frequency support
-        is centered.
-
-    Parameters
-    ----------
-    input_data : numpy.ndarray
-        The complex data
-    weight_fun : callable|numpy.ndarray
-        Can be an array that explicitly provides the (inverse) weighting, or a function of a
-        single numeric argument (number of elements) which produces the (inverse) weighting vector.
-    oversample_rate : int|float
-        Amount of sampling beyond the ImpRespBW in the processing dimension.
-    dim : int
-        Dimension over which to perform deweighting.
-
-    Returns
-    -------
-    numpy.ndarray
-    """
-    # TODO: HIGH - there was a prexisting comment "Test this function"
-
-    # Weighting only valid across ImpRespBW
-    weight_size = round(input_data.shape[dim]/oversample_rate)
-    if weight_fun is None:  # No weighting passed in.  Do nothing.
-        return input_data
-    elif callable(weight_fun):
-        weighting = weight_fun(weight_size)
-    elif numpy.array(weight_fun).ndim == 1:
-        weighting = scipy.signal.resample(weight_fun, weight_size)
-    # TODO: HIGH - half complete condition
-
-    weight_zp = numpy.ones((input_data.shape[dim], ), dtype=numpy.float64)  # Don't scale outside of ImpRespBW
-    weight_zp[numpy.floor((input_data.shape[dim]-weight_size)/2)+numpy.arange(weight_size)] = weighting
-
-    # Divide out weighting in spatial frequency domain
-    output_data = numpy.fft.fftshift(numpy.fft.fft(input_data, axis=dim), axes=dim)
-    output_data = output_data/weight_zp
-    output_data = numpy.fft.ifft(numpy.fft.ifftshift(output_data, axes=dim), axis=dim)
-
-    return output_data
+        if temp_file is not None and os.path.exists(temp_file):
+            working_data = None
+            os.remove(temp_file)

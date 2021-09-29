@@ -10,11 +10,10 @@ import zipfile
 import logging
 import os
 import numpy
-from xml.dom import minidom
 from typing import Union, List
 from uuid import uuid4
 
-from sarpy.compliance import BytesIO, string_types, int_func
+from sarpy.compliance import BytesIO, string_types, int_func, minidom
 from sarpy.geometry.geocoords import geodetic_to_ecf, ecf_to_geodetic
 
 try:
@@ -184,9 +183,9 @@ class Document(object):
         return nod
 
     def _add_text_node(self, par, tag, value):
-        # type: (Union[None, minidom.Element], str, str) -> minidom.Element
+        # type: (Union[None, minidom.Element], str, str) -> Union[None, minidom.Element]
         if value is None:
-            return
+            return None
 
         nod = self._doc.createElement(tag)
         if isinstance(value, string_types):
@@ -197,9 +196,9 @@ class Document(object):
         return nod
 
     def _add_cdata_node(self, par, tag, value):
-        # type: (Union[None, minidom.Element], str, str) -> minidom.Element
+        # type: (Union[None, minidom.Element], str, str) -> Union[None, minidom.Element]
         if value is None:
-            return
+            return None
 
         nod = self._doc.createElement(tag)
         if isinstance(value, string_types):

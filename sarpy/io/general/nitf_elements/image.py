@@ -541,7 +541,7 @@ class ImageSegmentHeader(NITFElement):
                   'of its collector.')  # type: str
     ABPP = _IntegerDescriptor(
         'ABPP', True, 2,
-        docstring='Actual Bits-Per-Pixel Per Band. This field shall contain the number of “significant bits” for '
+        docstring='Actual Bits-Per-Pixel Per Band. This field shall contain the number of "significant bits" for '
                   'the value in each band of each pixel without compression. Even when the image is compressed, '
                   '`ABPP` contains the number of significant bits per pixel that were present in the image '
                   'before compression. This field shall be less than or equal to Number of Bits Per Pixel '
@@ -903,7 +903,7 @@ class ImageSegmentHeader0(NITFElement):
                   'of its collector.')  # type: str
     ABPP = _IntegerDescriptor(
         'ABPP', True, 2,
-        docstring='Actual Bits-Per-Pixel Per Band. This field shall contain the number of “significant bits” for '
+        docstring='Actual Bits-Per-Pixel Per Band. This field shall contain the number of "significant bits" for '
                   'the value in each band of each pixel without compression. Even when the image is compressed, '
                   '`ABPP` contains the number of significant bits per pixel that were present in the image '
                   'before compression. This field shall be less than or equal to Number of Bits Per Pixel '

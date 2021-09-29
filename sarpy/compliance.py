@@ -7,6 +7,7 @@ __author__ = "Thomas McCullough"
 
 
 import sys
+from xml.dom import minidom  # this is for python 2 import problems, leave this here
 
 integer_types = (int, )
 string_types = (str, )

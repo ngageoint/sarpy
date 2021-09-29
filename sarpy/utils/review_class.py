@@ -2,10 +2,9 @@ from __future__ import print_function
 import sys
 import functools
 from collections import defaultdict
-import os
+
 import pkgutil
 from importlib import import_module
-
 
 __classification__ = "UNCLASSIFIED"
 __author__ = "Thomas McCullough"
@@ -15,22 +14,24 @@ print_func = print
 
 
 def traverse_module_classification(package_name, results_dict):
-    try:
-        module = import_module(package_name)
-    except ModuleNotFoundError:
-        return
+    def evaluate(the_module, the_name):
+        class_str = getattr(the_module, '__classification__', '__NO_CLASSIFICATION__')
+        results_dict[class_str].append(the_name)
 
-    path, fil = os.path.split(module.__file__)
-    if fil.startswith('__init__.py'):
-        # iterate over module children
-        for sub_module in pkgutil.walk_packages([path, ]):
-            _, sub_module_name, _ = sub_module
-            sub_name = "{}.{}".format(package_name, sub_module_name)
-            traverse_module_classification(sub_name, results_dict)
+    module = import_module(package_name)
+
+    if hasattr(module, '__path__'):
+        for details in pkgutil.walk_packages(module.__path__, package_name+'.'):
+            _, module_name, is_pkg = details
+            if is_pkg:
+                # don't evaluate the presence of class string for packages
+                continue
+
+            # noinspection PyBroadException
+            sub_module = import_module(module_name)
+            evaluate(sub_module, module_name)
     else:
-        # this is a "leaf" module, so inspect for classification definition
-        class_str = getattr(module, '__classification__', '__NO_CLASSIFICATION__')
-        results_dict[class_str].append(package_name)
+        evaluate(module, package_name)
 
 
 def check_classification(parent_package, results_dict=None):

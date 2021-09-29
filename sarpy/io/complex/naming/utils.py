@@ -42,10 +42,6 @@ def register_name_function(name_func):
 def parse_name_functions():
     """
     Automatically find the viable name functions in the top-level modules.
-
-    Returns
-    -------
-
     """
 
     global _parsed_name_functions
@@ -53,26 +49,16 @@ def parse_name_functions():
         return
     _parsed_name_functions = True
 
-    def check_module(mod_name):
-        # import the module
-        import_module(mod_name)
-        # fetch the module from the modules dict
-        module = sys.modules[mod_name]
-        # see if it has an is_a function, if so, register it
-        if hasattr(module, 'get_commercial_id'):
-            register_name_function(module.get_commercial_id)
-
-        # walk down any subpackages
-        path, fil = os.path.split(module.__file__)
-        if not fil.startswith('__init__.py'):
-            # there are no subpackages
-            return
-        for sub_module in pkgutil.walk_packages([path, ]):
-            _, sub_module_name, _ = sub_module
-            sub_name = "{}.{}".format(mod_name, sub_module_name)
-            check_module(sub_name)
-
-    check_module('sarpy.io.complex.naming')
+    start_package = 'sarpy.io.complex.naming'
+    module = import_module(start_package)
+    for details in pkgutil.walk_packages(module.__path__, start_package+'.'):
+        _, module_name, is_pkg = details
+        if is_pkg:
+            # don't bother checking for packages
+            continue
+        sub_module = import_module(module_name)
+        if hasattr(sub_module, 'get_commercial_id'):
+            register_name_function(sub_module.get_commercial_id)
 
 
 def get_sicd_name(the_sicd, product_number=1):
