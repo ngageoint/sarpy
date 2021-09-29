@@ -636,7 +636,7 @@ def sicd_degrade_reweight(
     def validate_limits(lims, max_index):
         if lims is None:
             return 0, max_index
-        _lims = (int(lims[0]), int(lims[2]))
+        _lims = (int(lims[0]), int(lims[1]))
         if not (0 <= _lims[0] < _lims[1] <= max_index):
             raise ValueError('Got poorly formatted index limit {}'.format(lims))
         return _lims
@@ -667,10 +667,12 @@ def sicd_degrade_reweight(
             dir_params = sicd.Grid.Row
             aperture_in = row_aperture
             weighting_in = row_weighting
+            index_count = sicd.ImageData.NumRows
         else:
             dir_params = sicd.Grid.Col
             aperture_in = column_aperture
             weighting_in = column_weighting
+            index_count = sicd.ImageData.NumCols
 
         not_skewed = is_not_skewed(sicd, dimension)
         uniform_weight = is_uniform_weight(sicd, dimension)
@@ -734,9 +736,8 @@ def sicd_degrade_reweight(
 
             new_oversample = oversample*float(end_index - start_index)/float(new_end_index - new_start_index)
             the_ratio = new_oversample/oversample
-            # modify the ImpRespBW value
+            # modify the ImpRespBW value (derived ImpRespWid handled at the end)
             dir_params.ImpRespBW /= the_ratio
-            dir_params.ImpRespWid *= the_ratio  # this may be overwritten, if we re-weight
         else:
             new_center_index = center_index
             new_oversample = oversample
@@ -757,8 +758,6 @@ def sicd_degrade_reweight(
                 WindowName=weighting_in['WindowName'],
                 Parameters=weighting_in.get('Parameters', None))
             dir_params.WgtFunct = weighting_in['WgtFunction'].copy()
-            # modify the ImpRespWid value
-            dir_params.define_response_widths(populate=True)
         elif not uniform_weight:
             # weight remained the same, and it's not uniform
             new_weight, start_index, end_index = determine_weight_array(
@@ -778,11 +777,7 @@ def sicd_degrade_reweight(
                 working_data[_start_ind:_stop_ind, :] = ifft_sicd(
                     ifftshift(working_data[_start_ind:_stop_ind, :], axes=dimension), dimension, sicd)
 
-        if center_index != new_center_index:
-            delta_kcoa[0, 0] += dir_params.Sgn*(new_center_index - center_index)*dir_params.SS
-
-        sicd.Grid.derive_direction_params(sicd.ImageData)
-        # perform reskew, if necessary
+        # perform the (original) reskew, if necessary
         if not numpy.all(delta_kcoa == 0):
             if dimension == 0:
                 row_array = get_direction_array_meters(0, 0, out_data_shape[0])
@@ -798,6 +793,15 @@ def sicd_degrade_reweight(
                     working_data[_start_ind:_stop_ind, :] = apply_skew_poly(
                         working_data[_start_ind:_stop_ind, :], delta_kcoa,
                         row_array, col_array, dir_params.Sgn, 1, forward=True)
+
+        # modify the delta_kcoa_poly - introduce the shift necessary for additional offset
+        if center_index != new_center_index:
+            additional_shift = dir_params.Sgn*(center_index - new_center_index)/float(index_count*dir_params.SS)
+            delta_kcoa[0, 0] += additional_shift
+            dir_params.DeltaKCOAPoly = delta_kcoa
+
+        # re-derive the various ImpResp parameters
+        sicd.Grid.derive_direction_params(sicd.ImageData, populate=True)
 
     def do_add_noise():
         if add_noise is None:
@@ -849,6 +853,9 @@ def sicd_degrade_reweight(
     validate_filename()
 
     data_shape = reader.get_data_size_as_tuple()[index]
+
+    redo_geo = (row_limits is not None or column_limits is not None)
+
     row_limits = validate_limits(row_limits, data_shape[0])
     column_limits = validate_limits(column_limits, data_shape[1])
 
@@ -858,6 +865,9 @@ def sicd_degrade_reweight(
     sicd.ImageData.NumRows = row_limits[1] - row_limits[0]
     sicd.ImageData.FirstCol += column_limits[0]
     sicd.ImageData.NumCols = column_limits[1] - column_limits[0]
+    if redo_geo:
+        sicd.define_geo_image_corners(override=True)
+
     out_data_shape = (sicd.ImageData.NumRows, sicd.ImageData.NumCols)
 
     pixel_area = out_data_shape[0]*out_data_shape[1]
@@ -883,6 +893,10 @@ def sicd_degrade_reweight(
     # do, as necessary, along the row
     do_dimension(1)
 
+    if sicd.RMA is not None and sicd.RMA.INCA is not None and sicd.RMA.INCA.TimeCAPoly is not None:
+        # redefine the INCA doppler centroid poly to be in keeping with any redefinition of our Col.DeltaKCOAPoly?
+        sicd.RMA.INCA.DopCentroidPoly = sicd.Grid.Col.DeltaKCOAPoly.get_array(dtype='float64')/sicd.RMA.INCA.TimeCAPoly[1]
+
     if repopulate_rniirs:
         sicd.populate_rniirs(override=True)
 
@@ -899,23 +913,3 @@ def sicd_degrade_reweight(
         if temp_file is not None and os.path.exists(temp_file):
             working_data = None
             os.remove(temp_file)
-
-
-if __name__ == '__main__':
-    import time
-    from sarpy.io.complex.radarsat import RadarSatReader
-    the_file = os.path.expanduser('~/Desktop/sarpy_testing/RS2/'
-                                  'RS2_C0RS2_OK90284_PK799516_DK727890_U10_20170823_102404_VV_SLC')
-    reader = RadarSatReader(the_file)
-    data_sizes = reader.get_data_size_as_tuple()[0]
-    row_aperture = (0.15*data_sizes[0], 0.85*data_sizes[0])
-    col_aperture = (0.15*data_sizes[1], 0.85*data_sizes[1])
-
-    out_file = os.path.expanduser('~/Desktop/test_sicd_add_noise.nitf')
-    start_time = time.time()
-    sicd_degrade_reweight(
-        reader, output_file=out_file,
-        row_aperture=row_aperture, row_weighting={'WindowName': 'UNIFORM', 'WgtFunction': numpy.ones((32, ))},
-        column_aperture=col_aperture, column_weighting={'WindowName': 'UNIFORM', 'WgtFunction': numpy.ones((32, ))},
-        add_noise=150000, check_existence=False)
-    print(f'processing_time = {time.time() - start_time} seconds')
