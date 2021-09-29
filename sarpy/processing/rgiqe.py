@@ -269,6 +269,81 @@ def populate_rniirs_for_sicd(sicd, signal=None, noise=None, override=False):
     sicd.CollectionInfo.Parameters['PREDICTED_RNIIRS'] = '{0:0.1f}'.format(rniirs)
 
 
+def get_bandwidth_noise_distribution(alpha, snr, information_density_ratio):
+    """
+    From the perspective of achieving the desired RNIIRS based on downgrading
+    the SICD. This gets the relative multipliers for the bandwidth and nesz values,
+    given the distribution parameter, the current snr, and the ratio between the
+    desired and current information density.
+
+    The information density is defined as
+    .. math::
+        inf_density = bandwidth_area*\log_2(1 + snr),
+
+    which naturally splits multiplicatively into a piece which can be varied
+    based on bandwidth, and a piece which can be varied based purely on varying
+    snr (nesz).
+
+    Then, we have
+    .. math::
+        information_density_ratio & = \frac{desired_information_density}{current_information_density} \\
+                                  & = \frac{desired_bandwidth_area}{current_bandwidth_area} \cdot \\
+                                  & \qquad \frac{\log_2(1 + desired_snr}{\log_2(1 + snr)} \\
+                                  & = (bandwidth_multiplier)^2 \cdot \frac{\log_2(1 + snr/noise_multiplier}{\log_2(1 + snr)}
+
+    A one parameter distribution, with free parameter :math:`\alpha \in [0, 1]`, can
+    naturally be formed here by setting
+    .. math::
+        information_density_ratio & = (information_density_ratio)^{1-\alpha}\cdot (information_density_ratio)^{\alpha} \\
+        (bandwidth_multiplier)^2 & = (information_density_ratio)^{1-\alpha} \\
+        \frac{\log_2(1 + snr/snr_multiplier}{\log_2(1 + snr)} &= (information_density_ratio)^{\alpha},
+
+    which allows for unique determination for values `bandwidth_multiplier` and
+    `noise_multiplier`.
+
+    This establishes a specific distribution of bandwidth and nesz values all providing
+    identical RNIIRS value. On one end, at `alpha = 0`, the bandwidth is decreased
+    while noise remains static, and the other extreme end, at `alpha = 1`,
+    the bandwidth is static and the noise is increased.
+
+    Parameters
+    ----------
+    alpha : float
+    snr : float
+    information_density_ratio : float
+
+    Returns
+    -------
+    (float, float)
+        The bandwidth_multiplier and noise_multiplier (for nesz).
+    """
+
+    def find_bw_multiplier(multiplier):
+        return float(numpy.sqrt(multiplier))
+
+    def find_nesz_multiplier(multiplier):
+        res = minimize_scalar(
+            lambda x: (numpy.log(1 + snr*x) - multiplier*numpy.log(1 + snr))**2,
+            bounds=(0, 1),
+            method='bound')
+        if not res.success:
+            raise ValueError('RNIIRS value search for nesz failed')
+        return 1./res.x
+
+    alpha = float(alpha)
+    if not (0 <= alpha <= 1):
+        raise ValueError('alpha must be in the interval [0, 1], got {}'.format(alpha))
+
+    if alpha == 0:
+        return find_bw_multiplier(information_density_ratio), 1.0
+    elif alpha == 1:
+        return 1.0, find_nesz_multiplier(information_density_ratio)
+    else:
+        bw_ratio = numpy.power(information_density_ratio, 1-alpha)
+        noise_ratio = information_density_ratio/bw_ratio
+        return find_bw_multiplier(bw_ratio), find_nesz_multiplier(noise_ratio)
+
+
 #########################
 # helpers for quality degradation function
 
@@ -552,7 +627,7 @@ def quality_degrade_noise(reader, index=0, output_file=None, desired_nesz=None, 
 
 def quality_degrade_rniirs(
         reader, index=0, output_file=None, desired_rniirs=None,
-        distribution=0, **kwargs):
+        alpha=0, **kwargs):
     r"""
     Create a degraded quality SICD based on the desired estimated RNIIRS value.
     The produced SICD will have uniform weighting.
@@ -567,14 +642,8 @@ def quality_degrade_rniirs(
     - The information density required to produce the desired rniirs will be found.
     - The ratio between the two information densities will be calculated,
       :math:`ratio = \frac{required_inf_density}{current_information_density}`.
-    - The bandwidth area will be varied so that
-      :math:`\frac{required_bandwidth_area}{current_bandwidth_area} = ratio^{1-distribution}`.
-    - The nesz will be varied so that
-      :math:`\frac{\log(1 + signal/required_nesz)}{\log(1 + signal/current_nesz)} = ratio^{distribution}`
-
-    This establishes a geometric distribution which varies purely the bandwidth
-    at `distribution=0` at one end, while purely varying the noise at the opposite
-    end where `distribution=1`.
+    - This will be used to determine the multipliers for bandwidth and nesz values
+    using :func:`get_bandwidth_noise_distribution`.
 
     .. warning::
         This will fail for a SICD which is not fully Radiometrically calibrated,
@@ -590,7 +659,7 @@ def quality_degrade_rniirs(
         this is the path for the produced output SICD file.
     desired_rniirs : None|float
         The desired rniirs value, according to the RGIQE methodology.
-    distribution : float
+    alpha : float
         This must be a number in the interval [0, 1] defining the (geometric)
         distribution of variability between required influence from increasing
         noise and require influence of decreasing bandwidth.
@@ -613,26 +682,8 @@ def quality_degrade_rniirs(
             raise ValueError('RNIIRS value search for information density failed')
         return float(res.x)
 
-    def find_bw(multiplier):
-        bandwidth_ratio = numpy.sqrt(multiplier)
-        return sicd.Grid.Row.ImpRespBW*bandwidth_ratio, sicd.Grid.Col.ImpRespBW
-
-    def find_nesz(multiplier):
-        k = signal/nesz
-        res = minimize_scalar(
-            lambda x: (numpy.log(1 + k*x) - multiplier*numpy.log(1 + k))**2,
-            bounds=(0, 1),
-            method='bound')
-        if not res.success:
-            raise ValueError('RNIIRS value search for nesz failed')
-        return nesz/res.x
-
     if desired_rniirs is None:
         return quality_degrade(reader, index=index, output_file=output_file, **kwargs)
-
-    distribution = float(distribution)
-    if not (0 <= distribution <= 1):
-        raise ValueError('distribution must be in the interval [0, 1], got {}'.format(distribution))
 
     reader, index = _validate_reader(reader, index)
     sicd = reader.get_sicds_as_tuple()[index]
@@ -650,22 +701,23 @@ def quality_degrade_rniirs(
     # find the information density for the required RNIIRS
     desired_inf_density = find_inf_density()
     the_ratio = desired_inf_density/current_inf_density
-    if distribution == 0:
-        # signal and noise remain constant, and we vary bandwidth (ImpRespBW)
-        desired_bandwidth = find_bw(the_ratio)
+    alpha = float(alpha)
+    bw_multiplier, nesz_multiplier = get_bandwidth_noise_distribution(alpha, signal/nesz, the_ratio)
+
+    desired_bandwidth = (sicd.Grid.Row.ImpRespBW*bw_multiplier, sicd.Grid.Col.ImpRespBW*bw_multiplier)
+    desired_nesz = nesz*nesz_multiplier
+
+    if alpha == 0:
+        # signal and noise remain constant, and we vary only bandwidth (ImpRespBW)
         return quality_degrade(
             reader, index=index, output_file=output_file,
             desired_bandwidth=desired_bandwidth, **kwargs)
-    elif distribution == 1:
-        # bandwidth area remains constant, we vary the noise
-        desired_nesz = find_nesz(the_ratio)
+    elif alpha == 1:
+        # bandwidth area remains constant, we vary only the noise
         return quality_degrade(
             reader, index=index, output_file=output_file,
             desired_nesz=desired_nesz, **kwargs)
     else:
-        mult1 = numpy.power(the_ratio, 1-distribution)
-        desired_bandwidth = find_bw(mult1)
-        desired_nesz = find_nesz(the_ratio/mult1)
         return quality_degrade(
             reader, index=index, output_file=output_file,
             desired_bandwidth=desired_bandwidth, desired_nesz=desired_nesz, **kwargs)
