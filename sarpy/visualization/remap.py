@@ -20,6 +20,108 @@ logger = logging.getLogger(__name__)
 _DEFAULTS_REGISTERED = False
 _REMAP_DICT = OrderedDict()
 
+###########
+# helper functions
+
+
+def clip_cast(array, dtype='uint8'):
+    """
+    Cast by clipping values outside of valid range, rather than wrapping.
+
+    Parameters
+    ----------
+    array : numpy.ndarray
+    dtype : str|numpy.dtype
+
+    Returns
+    -------
+    numpy.ndarray
+    """
+
+    np_type = numpy.dtype(dtype)
+    return numpy.clip(array, numpy.iinfo(np_type).min, numpy.iinfo(np_type).max).astype(np_type)
+
+
+def amplitude_to_density(data, dmin=30, mmult=40, data_mean=None):
+    """
+    Convert to density data for remap.
+
+    This is a digested version of contents presented in a 1994 pulication
+    entitled "Softcopy Display of SAR Data" by Kevin Mangis. It is unclear where
+    this was first published or where it may be publically available.
+
+    Parameters
+    ----------
+    data : numpy.ndarray
+        The (presumably complex) data to remap
+    dmin : float|int
+        A dynamic range parameter. Lower this widens the range, will raising it
+        narrows the range. This was historically fixed at 30.
+    mmult : float|int
+        A contrast parameter. Low values will result is higher contrast and quicker
+        saturation, while high values will decrease contrast and slower saturation.
+        There is some balance between the competing effects in the `dmin` and `mmult`
+        parameters.
+    data_mean : None|float|int
+        The data mean (for this or the parent array for continuity), which will
+        be calculated if not provided.
+
+    Returns
+    -------
+    numpy.ndarray
+    """
+
+    dmin = float(dmin)
+    if not (0 <= dmin < 255):
+        raise ValueError('Invalid dmin value {}'.format(dmin))
+
+    mmult = float(mmult)
+    if mmult < 1:
+        raise ValueError('Invalid mmult value {}'.format(mmult))
+
+    EPS = 1e-5
+    amplitude = numpy.abs(data)
+    if numpy.all(amplitude == 0):
+        return amplitude
+    else:
+        if not data_mean:
+            data_mean = numpy.mean(amplitude[numpy.isfinite(amplitude)])
+        # remap parameters
+        C_L = 0.8*data_mean
+        C_H = mmult*C_L  # decreasing mmult will result in higher contrast (and quicker saturation)
+        slope = (255 - dmin)/numpy.log10(C_H/C_L)
+        constant = dmin - (slope*numpy.log10(C_L))
+        # NB: C_H/C_L trivially collapses to mmult, but this is maintained for
+        # clarity in historical reference
+        # Originally, C_L and C_H were static values drawn from a determined set
+        # of remap look-up tables. The C_L/C_H values were presumably based roughly
+        # on mean amplitude and desired rempa brightness/contrast. The dmin value
+        # was fixed as 30.
+        return slope*numpy.log10(numpy.maximum(amplitude, EPS)) + constant
+
+
+def _linear_map(data, min_value, max_value):
+    """
+    Helper function which maps the input data, assumed to be of the correct from,
+    into [0, 1] via a linear mapping (data - min_value)(max_value - min_value)
+    and then clipping.
+
+    Parameters
+    ----------
+    data : numpy.ndarray
+    min_value : float
+    max_value : float
+
+    Returns
+    -------
+    numpy.ndarray
+    """
+
+    return numpy.clip((data - min_value)/float(max_value - min_value), 0, 1)
+
+
+###########
+# registration function for maintaining the list
 
 def register_remap(remap_name, remap_function, overwrite=False):
     """
@@ -86,81 +188,552 @@ def get_remap_list():
     return [(the_key, the_value) for the_key, the_value in _REMAP_DICT.items()]
 
 
-def amplitude_to_density(data, dmin=30, mmult=40, data_mean=None):
-    """
-    Convert to density data for remap.
+############
+# remap callable classes
 
-    This is a digested version of contents presented in a 1994 pulication
+class RemapFunction(object):
+    _name = '_RemapFunction'
+    __slots__ = ('_bit_depth', '_dimension')
+
+    def __init__(self, bit_depth=8, dimension=0):
+        """
+
+        Parameters
+        ----------
+        bit_depth : int
+            Should be one of 8 or 16
+        dimension : int
+            Is expected to be one of 0 (monochromatic) or 3 (rgb)
+        """
+        self._bit_depth = None
+        self._dimension = None
+
+        self._set_bit_depth(bit_depth)
+        self._set_dimension(dimension)
+
+    @property
+    def name(self):
+        """
+        str: The (read-only) name for the remap function, which should be (globally)
+        unique.
+        """
+
+        return self._name
+
+    @property
+    def bit_depth(self):
+        """
+        int: The (read-only) bit depth, which should be either 8 or 16.
+        This is expected to be enforced by the implementation directly.
+        """
+
+        return self._bit_depth
+
+    def _set_bit_depth(self, value):
+        """
+        This is intended to be read-only.
+
+        Parameters
+        ----------
+        value : int
+        """
+
+        value = int(value)
+
+        if value not in [8, 16]:
+            raise ValueError('Bit depth is required to be one of 8 or 16, got `{}`'.format(value))
+        self._bit_depth = value
+
+    @property
+    def dimension(self):
+        """
+        int: The (read-only) size of the final dimension. The value 0 is monochromatic,
+        and the output should have identical shape as input. Any other value
+        IS EXPECTED to have additional final dimension of this size added.
+        """
+
+        return self._dimension
+
+    def _set_dimension(self, value):
+        """
+        The property is intended to be read-only.
+
+        Parameters
+        ----------
+        value : int
+        """
+
+        value = int(value)
+        if value not in [0, 1, 3]:
+            raise ValueError('Dimension is required to be one of 8 or 16, got `{}`'.format(value))
+        self._dimension = value
+
+    @property
+    def output_dtype(self):
+        """
+        numpy.dtype: The output data type.
+        """
+
+        if self._bit_depth == 8:
+            return numpy.dtype('u1')
+        elif self._bit_depth == 16:
+            return numpy.dtype('u2')
+        else:
+            raise ValueError('Unhandled bit_depth `{}`'.format(self._bit_depth))
+
+    def __call__(self, data):
+        """
+        This performs the mapping from input data to output discrete version.
+
+        Parameters
+        ----------
+        data : numpy.ndarray
+            The (presumably) complex data to remap.
+
+        Returns
+        -------
+        numpy.ndarray
+        """
+
+        raise NotImplementedError
+
+
+class Density(RemapFunction):
+    """
+    A monochromatic logarithmic density remapping function.
+
+    This is a digested version of contents presented in a 1994 publication
     entitled "Softcopy Display of SAR Data" by Kevin Mangis. It is unclear where
-    this was first published or where it may be publically available.
-
-    Parameters
-    ----------
-    data : numpy.ndarray
-        The (presumably complex) data to remap
-    dmin : float|int
-        A dynamic range parameter. Lower this widens the range, will raising it
-        narrows the range. This was historically fixed at 30.
-    mmult : float|int
-        A contrast parameter. Low values will result is higher contrast and quicker
-        saturation, while high values will decrease contrast and slower saturation.
-        There is some balance between the competing effects in the `dmin` and `mmult`
-        parameters.
-    data_mean : None|float|int
-        The data mean (for this or the parent array for continuity), which will
-        be calculated if not provided.
-
-    Returns
-    -------
-    numpy.ndarray
+    this was first published or where it may be publicly available.
     """
 
-    dmin = float(dmin)
-    if not (0 <= dmin < 255):
-        raise ValueError('Invalid dmin value {}'.format(dmin))
+    __slots__ = ('_bit_depth', '_dimension', '_dmin', '_mmult', '_eps', '_data_mean')
+    _name = 'density'
 
-    mmult = float(mmult)
-    if mmult < 1:
-        raise ValueError('Invalid mmult value {}'.format(mmult))
+    def __init__(self, bit_depth=8, dmin=30, mmult=40, eps=1e-5, data_mean=None):
+        """
 
-    EPS = 1e-5
-    amplitude = numpy.abs(data)
-    if numpy.all(amplitude == 0):
-        return amplitude
-    else:
-        if not data_mean:
-            data_mean = numpy.mean(amplitude[numpy.isfinite(amplitude)])
-        # remap parameters
-        C_L = 0.8*data_mean
-        C_H = mmult*C_L  # decreasing mmult will result in higher contrast (and quicker saturation)
-        slope = (255 - dmin)/numpy.log10(C_H/C_L)
-        constant = dmin - (slope*numpy.log10(C_L))
-        # NB: C_H/C_L trivially collapses to mmult, but this is maintained for
-        # clarity in historical reference
-        # Originally, C_L and C_H were static values drawn from a determined set
-        # of remap look-up tables. The C_L/C_H values were presumably based roughly
-        # on mean amplitude and desired rempa brightness/contrast. The dmin value
-        # was fixed as 30.
-        return (slope*numpy.log10(numpy.maximum(amplitude, EPS))) + constant
+        Parameters
+        ----------
+        bit_depth : int
+        dmin : float|int
+            A dynamic range parameter. Lower this widens the range, will raising it
+            narrows the range. This was historically fixed at 30.
+        mmult : float|int
+            A contrast parameter. Low values will result is higher contrast and quicker
+            saturation, while high values will decrease contrast and slower saturation.
+            There is some balance between the competing effects in the `dmin` and `mmult`
+            parameters.
+        eps : float
+            small offset to create a nominal floor when mapping data containing 0's.
+        data_mean : None|float|int
+            The global data mean (for continuity). The appropriate value will be
+            calculated on a per calling array basis if not provided.
+        """
+
+        RemapFunction.__init__(self, bit_depth=bit_depth, dimension=0)
+        self._data_mean = None
+        self._dmin = None
+        self._mmult = None
+        self._eps = float(eps)
+
+        self._set_dmin(dmin)
+        self._set_mmult(mmult)
+        self.data_mean = data_mean
+
+    @property
+    def dmin(self):
+        """
+        float: The dynamic range parameter. This is read-only.
+        """
+
+        return self._dmin
+
+    def _set_dmin(self, value):
+        value = float(value)
+        if not (0 <= value < 255):
+            raise ValueError('dmin must be in the interval [0, 255), got value {}'.format(value))
+        self._dmin = value
+
+    @property
+    def mmult(self):
+        """
+        float: The contrast parameter. This is read only.
+        """
+        return self._mmult
+
+    def _set_mmult(self, value):
+        value = float(value)
+        if value < 1:
+            raise ValueError('mmult must be < 1, got {}'.format(value))
+        self._mmult = value
+
+    @property
+    def data_mean(self):
+        """
+        None|float: The data mean for global use.
+        """
+        return self._data_mean
+
+    @data_mean.setter
+    def data_mean(self, value):
+        if value is None:
+            self._data_mean = None
+            return
+
+        self._data_mean = float(value)
+
+    def __call__(self, data, data_mean=None):
+
+        data_mean = float(data_mean) if data_mean is not None else self._data_mean
+
+        if self.bit_depth == 8:
+            return clip_cast(amplitude_to_density(data, dmin=self.dmin, mmult=self.mmult, data_mean=data_mean), self.output_dtype)
+        elif self.bit_depth == 16:
+            return clip_cast(amplitude_to_density(data, dmin=self.dmin, mmult=self.mmult, data_mean=data_mean), self.output_dtype)
+        else:
+            raise ValueError('Unsupported bit depth `{}`'.format(self.bit_depth))
 
 
-def clip_cast(array, dtype='uint8'):
+class Brighter(Density):
     """
-    Cast by clipping values outside of valid range, rather than wrapping.
-
-    Parameters
-    ----------
-    array : numpy.ndarray
-    dtype : str|numpy.dtype
-
-    Returns
-    -------
-    numpy.ndarray
+    The density remap using parameters for brighter results.
     """
 
-    np_type = numpy.dtype(dtype)
-    return numpy.clip(array, numpy.iinfo(np_type).min, numpy.iinfo(np_type).max).astype(np_type)
+    _name = 'brighter'
 
+    def __init__(self, bit_depth=8, eps=1e-5, data_mean=None):
+        Density.__init__(self, bit_depth=bit_depth, dmin=60, mmult=40, eps=eps, data_mean=data_mean)
+
+
+class Darker(Density):
+    """
+    The density remap using parameters for darker results.
+    """
+
+    _name = 'darker'
+
+    def __init__(self, bit_depth=8, eps=1e-5, data_mean=None):
+        Density.__init__(self, bit_depth=bit_depth, dmin=0, mmult=40, eps=eps, data_mean=data_mean)
+
+
+class High_Contrast(Density):
+    """
+    The density remap using parameters for high contrast results.
+    """
+
+    _name = 'high_contrast'
+
+    def __init__(self, bit_depth=8, eps=1e-5, data_mean=None):
+        Density.__init__(self, bit_depth=bit_depth, dmin=30, mmult=4, eps=eps, data_mean=data_mean)
+
+
+class Linear(RemapFunction):
+    """
+    A monochromatic linear remap function.
+    """
+
+    __slots__ = ('_bit_depth', '_dimension', '_max_value', '_min_value')
+    _name = 'linear'
+
+    def __init__(self, bit_depth=8, min_value=None, max_value=None):
+        """
+
+        Parameters
+        ----------
+        bit_depth : int
+        min_value : None|float
+        max_value : None|float
+        """
+        RemapFunction.__init__(self, bit_depth=bit_depth, dimension=0)
+
+        if min_value is not None:
+            min_value = float(min_value)
+        if max_value is not None:
+            max_value = float(max_value)
+        self._min_value = min_value
+        self._max_value = max_value
+
+    @property
+    def min_value(self):
+        """
+        None|float: The minimum value allowed (clipped below this)
+        """
+        return self._min_value
+
+    @min_value.setter
+    def min_value(self, value):
+        if value is None:
+            self._min_value = None
+        else:
+            value = float(value)
+            if not numpy.isfinite(value):
+                raise ValueError('Got unsupported minimum value `{}`'.format(value))
+            self._min_value = value
+
+    @property
+    def max_value(self):
+        """
+        None|float:  The minimum value allowed (clipped above this)
+        """
+
+        return self._max_value
+
+    @max_value.setter
+    def max_value(self, value):
+        if value is None:
+            self._max_value = None
+        else:
+            value = float(value)
+            if not numpy.isfinite(value):
+                raise ValueError('Got unsupported maximum value `{}`'.format(value))
+            self._max_value = value
+
+    def _get_extrema(self, amplitude, min_value, max_value):
+        if min_value is not None:
+            min_value = float(min_value)
+        if max_value is not None:
+            max_value = float(max_value)
+
+        if min_value is None:
+            min_value = self.min_value
+        if min_value is None:
+            min_value = numpy.min(amplitude)
+
+        if max_value is None:
+            max_value = self.max_value
+        if max_value is None:
+            max_value = numpy.max(amplitude)
+
+        # sanity check
+        if min_value > max_value:
+            min_value, max_value = max_value, min_value
+
+        return min_value, max_value
+
+    def __call__(self, data, min_value=None, max_value=None):
+        if numpy.iscomplexobj(data):
+            amplitude = numpy.abs(data)
+        else:
+            amplitude = data
+
+        dtype = self.output_dtype
+        out = numpy.empty(amplitude.shape, dtype=dtype)
+
+        finite_mask = numpy.isfinite(amplitude)
+        out[~finite_mask] = numpy.iinfo(dtype).max
+
+        if numpy.any(finite_mask):
+            temp_data = amplitude[finite_mask]
+
+            min_value, max_value = self._get_extrema(temp_data, min_value, max_value)
+
+            if min_value == max_value:
+                out[finite_mask] = 0
+            else:
+                out[finite_mask] = clip_cast(numpy.iinfo(dtype).max*_linear_map(amplitude[finite_mask], min_value, max_value), dtype)
+        return out
+
+
+class Log(RemapFunction):
+    """
+    A logarithmic remap function.
+    """
+
+    __slots__ = ('_bit_depth', '_dimension', '_max_value', '_min_value')
+    _name = 'linear'
+
+    def __init__(self, bit_depth=8, min_value=None, max_value=None):
+        """
+
+        Parameters
+        ----------
+        bit_depth : int
+        min_value : None|float
+        max_value : None|float
+        """
+
+        RemapFunction.__init__(self, bit_depth=bit_depth, dimension=0)
+
+        if min_value is not None:
+            min_value = float(min_value)
+        if max_value is not None:
+            max_value = float(max_value)
+        self._min_value = min_value
+        self._max_value = max_value
+
+    @property
+    def min_value(self):
+        """
+        None|float: The minimum value allowed (clipped below this)
+        """
+        return self._min_value
+
+    @min_value.setter
+    def min_value(self, value):
+        if value is None:
+            self._min_value = None
+        else:
+            value = float(value)
+            if not numpy.isfinite(value):
+                raise ValueError('Got unsupported minimum value `{}`'.format(value))
+            self._min_value = value
+
+    @property
+    def max_value(self):
+        """
+        None|float:  The minimum value allowed (clipped above this)
+        """
+
+        return self._max_value
+
+    @max_value.setter
+    def max_value(self, value):
+        if value is None:
+            self._max_value = None
+        else:
+            value = float(value)
+            if not numpy.isfinite(value):
+                raise ValueError('Got unsupported maximum value `{}`'.format(value))
+            self._max_value = value
+
+    def _get_extrema(self, amplitude, min_value, max_value):
+        if min_value is not None:
+            min_value = float(min_value)
+        if max_value is not None:
+            max_value = float(max_value)
+
+        if min_value is None:
+            min_value = self.min_value
+        if min_value is None:
+            min_value = numpy.min(amplitude)
+
+        if max_value is None:
+            max_value = self.max_value
+        if max_value is None:
+            max_value = numpy.max(amplitude)
+
+        # sanity check
+        if min_value > max_value:
+            min_value, max_value = max_value, min_value
+
+        return numpy.log(min_value), numpy.log(max_value)
+
+    def __call__(self, data, min_value=None, max_value=None):
+        amplitude = numpy.abs(data)
+
+        dtype = self.output_dtype
+        out = numpy.empty(amplitude.shape, dtype=dtype)
+        finite_mask = numpy.isfinite(amplitude)
+        zero_mask = (amplitude == 0)
+        use_mask = finite_mask & (~zero_mask)
+
+        out[~finite_mask] = numpy.iinfo(dtype).max
+        out[zero_mask] = 0
+
+        if numpy.any(use_mask):
+            temp_data = amplitude[use_mask]
+            min_value, max_value = self._get_extrema(temp_data, min_value, max_value)
+
+            if min_value == max_value:
+                out[use_mask] = 0
+            else:
+                out[use_mask] = clip_cast(numpy.iinfo(dtype).max*_linear_map(numpy.log(temp_data), min_value, max_value), dtype)
+        return out
+
+
+class PEDF(RemapFunction):
+    """
+    A monochromatic piecewise extended density format remap.
+    """
+
+    __slots__ = ('_bit_depth', '_dimension')
+    _name = 'pedf'
+
+    def __init__(self, bit_depth=8):
+        RemapFunction.__init__(self, bit_depth=bit_depth, dimension=0)
+
+        # todo
+        pass
+
+    def __call__(self, data):
+        raise NotImplementedError
+
+
+class NRL(RemapFunction):
+    """
+    A monochromatic remap which is linear for percentile of the data, then
+    transitions to logarithmic.
+    """
+
+    __slots__ = ('_bit_depth', '_dimension')
+    _name = 'nrl'
+
+    def __init__(self, bit_depth=8):
+        RemapFunction.__init__(self, bit_depth=bit_depth, dimension=0)
+
+        # todo
+        pass
+
+    def __call__(self, data):
+        raise NotImplementedError
+
+
+class RGBLookup(RemapFunction):
+    """
+    A remap which uses a monochromatic remap function and a 256 color lookup
+    table to produce a color image output
+    """
+
+    __slots__ = ('_bit_depth', '_dimension', '_mono_remap', '_lookup_table')
+    _name= '_rgb_lookup'
+
+    def __init__(self, mono_remap, lookup_table):
+        """
+
+        Parameters
+        ----------
+        mono_remap : RemapFunction
+        lookup_table : numpy.ndarray
+        """
+
+        self._mono_remap = None
+        self._lookup_table = None
+        RemapFunction.__init__(self, bit_depth=8, dimension=3)
+        self._set_mono_remap(mono_remap)
+        self._set_lookup_table(lookup_table)
+
+    @property
+    def mono_remap(self):
+        """
+        RemapFunction: The monochromatic remap being used.
+        """
+        return self._mono_remap
+
+    def _set_mono_remap(self, value):
+        if not (isinstance(value, RemapFunction) and value.dimension == 0 and value.bit_depth == 8):
+            raise ValueError('mon_remap requires a monochromatic remap instance with bit_depth=8')
+        self._mono_remap = value
+
+    @property
+    def lookup_table(self):
+        """
+        numpy.ndarray: The 256 x 3 8-bit lookup table.
+        """
+
+        return self._lookup_table
+
+    def _set_lookup_table(self, value):
+        if not (isinstance(value, numpy.ndarray) and value.shape == (256, 3) and value.dtype.name == 'uint8'):
+            raise ValueError('lookup_table requires a numpy array of shape (256, 3) and dtype = uint8')
+        self._lookup_table = value
+
+    def __call__(self, data, *args, **kwargs):
+        return self._lookup_table[self._mono_remap(data, *args, **kwargs)]
+
+
+###########
+# the original flat methods, for backwards compatibility
 
 def density(data, data_mean=None):
     """
@@ -381,57 +954,3 @@ def nrl(data, knee=220, stats=None):
         # this is now linearly scaled from 1 to 2, apply log_2 and then scale appropriately
         out[~linear_region] = numpy.log2(log_values)*(255 - knee) + knee
     return clip_cast(out, 'uint8')
-
-
-def linear_discretization(array, max_value=None, min_value=None, bit_depth=8):
-    """
-    Make a linearly discretized version of the input array.
-
-    Parameters
-    ----------
-    array : numpy.ndarray
-    max_value : None|int|float
-        Value above which to clip (down).
-    min_value : None|int|float
-        Value below which to clip (up).
-    bit_depth : int
-        Must be 8 or 16.
-
-    Returns
-    -------
-    numpy.ndarray
-    """
-
-    if bit_depth not in (8, 16):
-        raise ValueError('bit_depth must be 8 or 16, got {}'.format(bit_depth))
-
-    if min_value is not None and max_value is not None and min_value > max_value:
-        raise ValueError(
-            'If both provided, min_value ({}) must be strictly less than '
-            'max_value ({}).'.format(min_value, max_value))
-
-    if not isinstance(array, numpy.ndarray):
-        raise TypeError('array must be an numpy.ndarray, got type {}'.format(type(array)))
-
-    if numpy.iscomplexobj(array):
-        array = numpy.abs(array)
-
-
-    if min_value is None:
-        min_value = numpy.min(array)
-    if max_value is None:
-        max_value = numpy.max(array)
-
-    if min_value == max_value:
-        return numpy.zeros(array.shape, dtype=numpy.uint8)
-
-    if bit_depth == 8:
-        out = numpy.zeros(array.shape, dtype=numpy.uint8)
-        out[:] = (255.0*(numpy.clip(array, min_value, max_value) - min_value))/(max_value - min_value)
-        return out
-    elif bit_depth == 16:
-        out = numpy.zeros(array.shape, dtype=numpy.uint16)
-        out[:] = (65535.0*(numpy.clip(array, min_value, max_value) - min_value))/(max_value - min_value)
-        return out
-    else:
-        raise ValueError('Got unhandled bit_depth {}'.format(bit_depth))
